@@ -1,103 +1,28 @@
 name: Release
 
-# Ein Tag vX.Y.Z veröffentlicht diese Version:
-#   1. der Tag muss zu "version" in package.json passen
-#   2. die komplette CI
-#   3. Image als :x.y.z, :x.y und :latest auf Docker Hub und GHCR (amd64 und arm64)
-#   4. GitHub-Release mit erzeugten Notizen, erst wenn das Image draußen ist
-# Neue Version: pnpm version patch|minor|major && git push --follow-tags
+# Ein Tag vX.Y.Z (pnpm version patch|minor|major && git push --follow-tags) veröffentlicht diese
+# Version: erst die komplette CI, dann der gemeinsame Docker-Release aus firsttris/workflows. Der
+# prüft den Tag gegen package.json, pusht :x.y.z, :x.y und :latest auf Docker Hub und GHCR
+# (amd64 und arm64), aktualisiert die Beschreibung auf Docker Hub und legt danach das GitHub-Release an.
 # Von Hand auf main gestartet: dieselben Prüfungen, dann das Image als :edge; kein Release.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
 
-permissions:
-  contents: write
-  packages: write
-
-env:
-  IMAGE: tristanteu/haben
-
 jobs:
-  verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Tag passt zu package.json
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: test "v$(jq -r .version package.json)" = "$GITHUB_REF_NAME"
-
   checks:
-    needs: verify
     uses: ./.github/workflows/ci.yml
 
-  image:
+  docker:
     needs: checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Bei Docker Hub anmelden
-        uses: docker/login-action@v3
-        with:
-          username: tristanteu
-          password: ${{ secrets.DOCKER_PAT }}
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ghcr.io/${{ github.repository }}
-            ${{ env.IMAGE }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=edge,branch=main
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Containerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: README für Docker Hub vorbereiten
-        run: |
-          BLOB=https://github.com/${{ github.repository }}/blob/main
-          RAW=https://raw.githubusercontent.com/${{ github.repository }}/main
-          # Relative Links und Bilder gehen nur auf GitHub; Docker Hub braucht absolute URLs.
-          sed -E -e "s#\]\((\./|/)?(deploy|docs)/#](${BLOB}/\2/#g" \
-            -e "s#\]\((\./)?LICENSE\)#](${BLOB}/LICENSE)#g" \
-            -e "s#src=\"(\./)?docs/#src=\"${RAW}/docs/#g" \
-            -e "s#href=\"(\./)?LICENSE\"#href=\"${BLOB}/LICENSE\"#g" README.md > dockerhub-readme.md
-      - name: Beschreibung auf Docker Hub aktualisieren
-        uses: peter-evans/dockerhub-description@v5
-        with:
-          username: tristanteu
-          password: ${{ secrets.DOCKER_PAT }}
-          repository: ${{ env.IMAGE }}
-          short-description: Selbst gehostete Buchhaltung für Freiberufler mit E-Rechnung, Bankabgleich, EÜR und ELSTER-Voranmeldung
-          readme-filepath: ./dockerhub-readme.md
-
-  github-release:
-    needs: image
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - name: GitHub-Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && exit 0
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
-            --notes "Image: \`tristanteu/haben:${GITHUB_REF_NAME#v}\` · \`ghcr.io/$GITHUB_REPOSITORY:${GITHUB_REF_NAME#v}\` (auch \`:latest\`)"
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@v1
+    with:
+      image: tristanteu/haben
+      description: Selbst gehostete Buchhaltung für Freiberufler: E-Rechnung, Bankabgleich, EÜR, ELSTER-Voranmeldung
+      dockerfile: Containerfile
+      ghcr: true
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write

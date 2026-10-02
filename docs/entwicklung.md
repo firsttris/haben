@@ -145,7 +145,7 @@ Die Kategorien stehen in `EXPENSE_CATEGORIES` in `packages/core/src/posting.ts`,
 
 ## Veröffentlichen
 
-Images baut der Workflow `.github/workflows/release.yml`. Ein Tag `vX.Y.Z` veröffentlicht eine Version:
+Images baut der Workflow `.github/workflows/release.yml`: die CI liegt hier, Image, Docker-Hub-Beschreibung und GitHub-Release kommen aus dem gemeinsamen [`docker-release.yml`](https://github.com/firsttris/workflows) in `firsttris/workflows`. Ein Tag `vX.Y.Z` veröffentlicht eine Version:
 
 1. Der Tag muss zu `version` in der `package.json` im Wurzelverzeichnis passen.
 2. Die komplette CI läuft (Lint, Typecheck, Tests, Build, KoSIT, Container-Test).
