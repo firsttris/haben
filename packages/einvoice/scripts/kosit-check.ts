@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { buildEInvoice } from "../src/xml.ts";
-import { mixedRateLines, publicBuyer, sampleDocument } from "../src/samples.ts";
+import { mixedRateLines, publicBuyer, sampleDocument, sampleSeller } from "../src/samples.ts";
 import type { InvoiceDocument } from "../src/types.ts";
 
 const jar = process.env.KOSIT_JAR ?? "/var/tmp/kosit/validator/validationtool-1.5.0-standalone.jar";
@@ -26,11 +26,25 @@ const samples: Record<string, InvoiceDocument> = {
   "leitweg-xr-cii": sampleDocument({ format: "xrechnung-cii", buyer: publicBuyer }),
   "leitweg-xr-ubl": sampleDocument({ format: "xrechnung-ubl", buyer: publicBuyer }),
   "leistungsdatum-xr-ubl": { ...sampleDocument({ format: "xrechnung-ubl" }), serviceFrom: "2026-09-30", serviceTo: undefined },
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).map((format) => [
+      `nur-steuernummer-${format}`,
+      { ...sampleDocument({ format }), seller: { ...sampleSeller, ustId: undefined } },
+    ]),
+  ),
+  "korrektur-gemischt-xr-cii": korrekturMitZuschlag("xrechnung-cii"),
+  "korrektur-gemischt-xr-ubl": korrekturMitZuschlag("xrechnung-ubl"),
   "nullsatz-xr-cii": sampleDocument({
     format: "xrechnung-cii",
     lines: [{ description: "Leistung zum Nullsatz", quantity: 1000, unit: "Psch.", unitPrice: 50000, taxRate: 0 }],
   }),
 };
+
+/** Korrektur mit gutgeschriebenen und einer nachberechneten Position, insgesamt negativ */
+function korrekturMitZuschlag(format: InvoiceDocument["format"]): InvoiceDocument {
+  const lines = mixedRateLines.map((line, i) => (i === 2 ? { ...line, unitPrice: -line.unitPrice } : line));
+  return sampleDocument({ kind: "korrektur", format, lines });
+}
 
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(join(outDir, "reports"), { recursive: true });
@@ -69,7 +83,7 @@ for (const file of files) {
   const errors = messages.filter((m) => m[1] === "error");
   const warnings = messages.filter((m) => m[1] === "warning");
   console.log(`${accepted ? "ANGENOMMEN" : "ABGELEHNT "} ${name} [${scenario}] ${errors.length} Fehler, ${warnings.length} Warnungen`);
-  for (const [, level, code, text] of messages) console.log(`    ${level} ${code}: ${text.trim()}`);
+  for (const [, level, code, text] of messages) console.log(`    ${level} ${code}: ${(text ?? "").trim()}`);
   if (!accepted) rejected++;
 }
 

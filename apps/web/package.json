@@ -17,6 +17,7 @@
     "@haben/core": "workspace:*",
     "@haben/einvoice": "workspace:*",
     "@haben/elster": "workspace:*",
+    "@myriaddreamin/typst-ts-node-compiler": "0.7.0",
     "@tanstack/react-router": "^1.170.41",
     "@tanstack/react-start": "^1.168.60",
     "better-auth": "^1.7.7",

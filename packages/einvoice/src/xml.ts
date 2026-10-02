@@ -8,6 +8,7 @@ import { extractFacturXXml } from "./zugferd.ts";
 
 type UblInvoice = Invoice["ubl:Invoice"];
 type InvoiceLine = UblInvoice["cac:InvoiceLine"][number];
+type CountryCode = UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:PostalAddress"]["cac:Country"]["cbc:IdentificationCode"];
 
 const SERVICE_FORMATS: Record<InvoiceFormat, string> = {
   "zugferd": "Factur-X-EN16931",
@@ -57,10 +58,11 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   };
   if (seller.telefon) sellerContact["cbc:Telephone"] = seller.telefon;
 
+  // BT-49: E-Mail, sonst Leitweg-ID (Schema 0204)
   const buyerEndpoint = buyer.email
-    ? { "cbc:EndpointID": buyer.email, "cbc:EndpointID@schemeID": "EM" }
+    ? { "cbc:EndpointID": buyer.email, "cbc:EndpointID@schemeID": "EM" as const }
     : buyer.leitwegId
-      ? { "cbc:EndpointID": buyer.leitwegId, "cbc:EndpointID@schemeID": "0204" }
+      ? { "cbc:EndpointID": buyer.leitwegId, "cbc:EndpointID@schemeID": "0204" as const }
       : {};
 
   const lines = doc.lines.map((line): InvoiceLine => {
@@ -101,11 +103,13 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       "cac:Party": {
         "cbc:EndpointID": seller.email,
         "cbc:EndpointID@schemeID": "EM",
+        // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29)
+        ...(!seller.ustId && seller.steuernummer ? { "cac:PartyIdentification": [{ "cbc:ID": seller.steuernummer }] } : {}),
         "cac:PostalAddress": {
           "cbc:StreetName": seller.strasse,
           "cbc:CityName": seller.ort,
           "cbc:PostalZone": seller.plz,
-          "cac:Country": { "cbc:IdentificationCode": seller.land.toUpperCase() },
+          "cac:Country": { "cbc:IdentificationCode": seller.land.toUpperCase() as CountryCode },
         },
         "cac:PartyTaxScheme": sellerTax as UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:PartyTaxScheme"],
         "cac:PartyLegalEntity": { "cbc:RegistrationName": seller.name },
@@ -120,7 +124,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
           "cbc:StreetName": buyer.strasse,
           "cbc:CityName": buyer.ort,
           "cbc:PostalZone": buyer.plz,
-          "cac:Country": { "cbc:IdentificationCode": buyer.land.toUpperCase() },
+          "cac:Country": { "cbc:IdentificationCode": buyer.land.toUpperCase() as CountryCode },
         },
         ...(buyer.ustId
           ? { "cac:PartyTaxScheme": { "cbc:CompanyID": buyer.ustId, "cac:TaxScheme": { "cbc:ID": "VAT" } } }

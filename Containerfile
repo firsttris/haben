@@ -15,6 +15,7 @@ FROM docker.io/library/node:22-bookworm-slim
 ENV NODE_ENV=production \
     PORT=3000 \
     ERIC_WORKER_PATH=/app/packages/elster/src/worker.ts \
+    HABEN_EINVOICE_DIR=/app/packages/einvoice \
     ERIC_LOG_DIR=/var/lib/haben/eric-log
 WORKDIR /app
 # Der ERiC-Worker läuft aus den Quellen von packages/elster (Type Stripping, nicht unter node_modules).

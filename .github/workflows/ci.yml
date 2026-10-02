@@ -35,3 +35,34 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_test
       - run: pnpm build
+
+  kosit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: pnpm install --frozen-lockfile
+      - name: KoSIT-Validator und XRechnung-Konfiguration laden
+        run: |
+          mkdir -p "$RUNNER_TEMP/kosit/validator" "$RUNNER_TEMP/kosit/xr"
+          curl -sSfL -o "$RUNNER_TEMP/validator.zip" https://github.com/itplr-kosit/validator/releases/download/v1.5.0/validator-1.5.0-distribution.zip
+          curl -sSfL -o "$RUNNER_TEMP/xr.zip" https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/release-2025-07-10/validator-configuration-xrechnung_3.0.2_2025-07-10.zip
+          unzip -q "$RUNNER_TEMP/validator.zip" -d "$RUNNER_TEMP/kosit/validator"
+          unzip -q "$RUNNER_TEMP/xr.zip" -d "$RUNNER_TEMP/kosit/xr"
+          echo "KOSIT_JAR=$(find "$RUNNER_TEMP/kosit/validator" -name 'validationtool-*-standalone.jar' ! -name '*java8*' | head -n1)" >> "$GITHUB_ENV"
+          echo "KOSIT_CONFIG=$RUNNER_TEMP/kosit/xr/scenarios.xml" >> "$GITHUB_ENV"
+      - run: pnpm --filter @haben/einvoice kosit "$RUNNER_TEMP/kosit/out"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kosit-reports
+          path: ${{ runner.temp }}/kosit/out
+          if-no-files-found: ignore

@@ -1,20 +1,21 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { formatEuro, formatQuantity, formatRate } from "@haben/core";
 import { countryName, formatDate, formatIban, paymentSentence, TITLES } from "./format.ts";
 import type { Address, InvoiceDocument } from "./types.ts";
 
-const TEMPLATE = fileURLToPath(new URL("../templates/rechnung.typ", import.meta.url));
-const FONTS = ["Regular", "Medium", "SemiBold"].map((weight) =>
-  fileURLToPath(new URL(`../fonts/IBMPlexSans-${weight}.ttf`, import.meta.url)),
-);
+// Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
+const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL("..", import.meta.url));
+const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
+const FONTS = ["Regular", "Medium", "SemiBold"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
 
 let compiler: NodeCompiler | undefined;
 
 function getCompiler(): NodeCompiler {
   compiler ??= NodeCompiler.create({
-    workspace: fileURLToPath(new URL("../templates/", import.meta.url)),
+    workspace: join(PACKAGE_DIR, "templates"),
     fontArgs: [{ fontBlobs: FONTS.map((path) => readFileSync(path)) }],
   });
   return compiler;

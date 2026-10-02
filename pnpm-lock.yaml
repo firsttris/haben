@@ -44,6 +44,9 @@ importers:
       '@haben/elster':
         specifier: workspace:*
         version: link:../../packages/elster
+      '@myriaddreamin/typst-ts-node-compiler':
+        specifier: 0.7.0
+        version: 0.7.0
       '@tanstack/react-router':
         specifier: ^1.170.41
         version: 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

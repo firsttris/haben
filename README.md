@@ -2,9 +2,24 @@
 
 Buchhaltung für einen Freelancer mit EÜR und monatlicher Umsatzsteuer-Voranmeldung. Self-hosted, Open Source (AGPL-3.0), ersetzt Lexware/Lexoffice.
 
-Stand: **Phase 1** des Implementierungsplans, Fundament und ELSTER-Übermittlung. Die Kennzahlen der Voranmeldung (Kz 81, 86, 66) gibst du noch selbst ein, Kz 83 rechnet Haben. Ab Phase 5 kommen sie automatisch aus den Buchungen.
+Stand: **Phase 1 und 2** des Implementierungsplans: Fundament, ELSTER-Übermittlung, Ausgangsrechnungen und E-Rechnung. Die Kennzahlen der Voranmeldung (Kz 81, 86, 66) gibst du noch selbst ein, Kz 83 rechnet Haben. Ab Phase 5 kommen sie automatisch aus den Buchungen.
 
-## Was Phase 1 kann
+## Phase 2: Rechnungen
+
+- Kontakte mit Kundennummer, USt-IdNr., IBAN und Leitweg-ID. Jede Änderung legt eine neue Version an; löschen geht nicht, archivieren schon
+- Rechnungseditor mit Positionen, Steuersatz je Position (19 / 7 / 0 %), Leistungszeitraum, Zahlungsziel und Live-Vorschau
+- Fortlaufender Nummernkreis je Jahr (`2026-034`), Nummer erst beim Festschreiben, lückenlos. Unter Einstellungen lässt sich die nächste Nummer setzen, um nach Lexoffice weiterzuzählen; zurücksetzen geht nicht
+- PDF mit Typst (`packages/einvoice/templates/rechnung.typ`, DIN 5008, IBM Plex Sans), daraus mit `@e-invoice-eu/core` ZUGFeRD (EN 16931, PDF/A-3) oder XRechnung 3.0 (CII oder UBL)
+- Festschreiben in einer Transaktion: Nummer, PDF, XML (mit SHA-256), Sperre und Buchung „Forderung an Erlöse + USt“. Bei Ist-Versteuerung auf „Umsatzsteuer nicht fällig“; fällig wird sie mit dem Zahlungseingang (Phase 4)
+- Stornorechnung (hebt auf, sofort festgeschrieben) und Rechnungskorrektur (mindert, als Entwurf), beide mit Bezug auf das Original (BT-25); im XML als Gutschrift (381)
+- Postgres-Trigger sperren festgeschriebene Rechnungen, Positionen und Buchungen; beim Festschreiben einer Buchung muss Soll = Haben sein
+- CI prüft alle Beispielrechnungen mit dem KoSIT-Validator (`pnpm --filter @haben/einvoice kosit`)
+
+Noch nicht: „bezahlt“ (kommt mit dem Bankabgleich), Kleinunternehmer und Reverse Charge, E-Mail-Versand.
+
+**Kontonummern prüfen:** Die Buchungen nutzen SKR03 bzw. SKR04 (Einstellung „Kontenrahmen“), u. a. 1400/1200 Forderungen, 8400/4400 Erlöse 19 %, 1766/3816 Umsatzsteuer nicht fällig 19 %. Die Zuordnung steht in `packages/core/src/posting.ts` und sollte einmal mit Lexoffice oder dem Steuerberater abgeglichen werden.
+
+## Phase 1: Umsatzsteuer-Voranmeldung
 
 - Ersteinrichtung mit genau einem Konto, Anmeldung per Passkey (Passwort als Rückfallebene)
 - Firmendaten mit Steuernummer und Bundesland; die Umrechnung ins 13-stellige ELSTER-Format übernimmt Haben
@@ -22,6 +37,7 @@ Stand: **Phase 1** des Implementierungsplans, Fundament und ELSTER-Übermittlung
 | `apps/web` | TanStack Start (React, Server Functions), Drizzle, Better Auth |
 | `packages/core` | Beträge in Cent, Zeiträume und Fälligkeiten, Steuernummer-Umrechnung, UStVA-Berechnung |
 | `packages/elster` | ERiC-Anbindung hinter `ElsterClient`, UStVA-XML, Worker-Prozess |
+| `packages/einvoice` | Rechnungs-PDF (Typst) und E-Rechnung (ZUGFeRD, XRechnung) |
 
 Geldbeträge sind immer ganze Cent, Steuersätze Basispunkte (1900 = 19 %).
 
@@ -45,6 +61,7 @@ pnpm lint
 pnpm typecheck
 TEST_DATABASE_URL=postgres://…/haben_test pnpm test   # ohne TEST_DATABASE_URL werden die DB-Tests übersprungen
 pnpm build
+KOSIT_JAR=… KOSIT_CONFIG=…/scenarios.xml pnpm --filter @haben/einvoice kosit   # braucht Java 21
 ```
 
 Schemaänderungen: `apps/web/src/server/db/schema.ts` anpassen, dann `pnpm db:generate`. Trigger und Funktionen stehen in eigenen SQL-Migrationen (`drizzle/0001_festschreibung.sql`).

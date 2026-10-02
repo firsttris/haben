@@ -318,7 +318,6 @@ export function InvoiceEditor({
           <section className="card" aria-labelledby="lines-heading">
             <h2 id="lines-heading">Positionen</h2>
             <div className="line-row head" aria-hidden="true">
-              <div>Beschreibung</div>
               <div>Menge</div>
               <div>Einheit</div>
               <div>Einzelpreis</div>
@@ -331,6 +330,8 @@ export function InvoiceEditor({
               return (
                 <div className="line-row" key={line.key}>
                   <input
+                    className="line-desc"
+                    placeholder={`Beschreibung Position ${index + 1}`}
                     aria-label={`Beschreibung Position ${index + 1}`}
                     value={line.description}
                     onChange={(e) => updateLine(line.key, { description: e.target.value })}
@@ -371,7 +372,7 @@ export function InvoiceEditor({
                     <option value={700}>7 %</option>
                     <option value={0}>0 %</option>
                   </select>
-                  <div className="num">{p.valid ? formatEuro(lineNet(p.quantity, p.unitPrice)) : "–"}</div>
+                  <div className="num line-net">{p.valid ? formatEuro(lineNet(p.quantity, p.unitPrice)) : "–"}</div>
                   <button
                     type="button"
                     className="icon-btn"

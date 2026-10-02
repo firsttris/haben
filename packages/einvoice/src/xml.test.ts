@@ -48,6 +48,14 @@ describe("buildEInvoice", () => {
     expect(xml).toContain('<cbc:EndpointID schemeID="0204">991-12345-67</cbc:EndpointID>');
   });
 
+  it("nutzt ohne USt-IdNr. die Steuernummer als Verkäuferkennung (BR-CO-26)", async () => {
+    const doc = sampleDocument({ format: "xrechnung-cii" });
+    doc.seller = { ...doc.seller, ustId: undefined };
+    const { xml } = await buildEInvoice(doc);
+    expect(xml).toMatch(/<ram:SellerTradeParty>\s*<ram:ID>13\/345\/67890<\/ram:ID>/);
+    expect(xml).not.toContain('schemeID="VA"');
+  });
+
   it("weist Rechnungen mit fehlenden Pflichtangaben zurück", async () => {
     const doc = sampleDocument({ format: "xrechnung-cii" });
     doc.seller = { ...doc.seller, telefon: undefined };

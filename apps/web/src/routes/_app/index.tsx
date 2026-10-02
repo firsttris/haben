@@ -170,10 +170,9 @@ function OverviewPage() {
           ) : (
             <div className="table">
               {data.invoices.recent.map((invoice) => (
-                <Link key={invoice.id} to="/rechnungen/$id" params={{ id: invoice.id }} className="table-row invoice-cols">
+                <Link key={invoice.id} to="/rechnungen/$id" params={{ id: invoice.id }} className="table-row invoice-cols-compact">
                   <div className="mono small">{invoice.number}</div>
-                  <div>{invoice.customer}</div>
-                  <div className="muted small">{formatDate(invoice.issueDate)}</div>
+                  <div title={invoice.customer}>{invoice.customer}</div>
                   <div className="num">{formatEuro(invoice.gross)}</div>
                   <div>
                     <InvoiceStatus status={invoice.listStatus} />

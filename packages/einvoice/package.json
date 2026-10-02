@@ -8,7 +8,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "kosit": "node --experimental-strip-types scripts/kosit-check.ts"
   },
   "dependencies": {
     "@e-invoice-eu/core": "^3.3.3",

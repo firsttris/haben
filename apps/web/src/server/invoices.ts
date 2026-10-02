@@ -251,7 +251,7 @@ function documentFor(
       taxRate: line.taxRate,
       net: line.net,
     })),
-    totals: computeInvoiceTotals(lines),
+    totals: computeInvoiceTotals(lines.map((line) => ({ ...line, taxRate: line.taxRate as 1900 | 700 | 0 }))),
     ...(corrects ? { corrects } : {}),
     ...(invoice.note ? { note: invoice.note } : {}),
   };
@@ -311,7 +311,7 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
 
     // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
     const seller = sellerFrom(company);
-    const buyer = (corrects?.buyer as Buyer | null) ?? buyerFrom(contact!);
+    const buyer = corrects?.buyer ?? buyerFrom(contact!);
     const doc = documentFor(invoice, lines, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null);
     const rendered = await buildEInvoice(doc);
     const totals = doc.totals;

@@ -16,6 +16,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { Buyer, Seller } from "@haben/einvoice";
+
 export * from "./auth-schema.ts";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
@@ -164,7 +166,7 @@ export const contactVersions = pgTable(
       .notNull()
       .references(() => contacts.id),
     version: integer("version").notNull(),
-    data: jsonb("data").notNull(),
+    data: jsonb("data").$type<Record<string, string | number | null>>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("contact_versions_contact_version").on(t.contactId, t.version)],
@@ -198,8 +200,8 @@ export const invoices = pgTable(
     tax: integer("tax").notNull().default(0),
     gross: integer("gross").notNull().default(0),
     /** Verkäufer und Käufer, wie sie auf der festgeschriebenen Rechnung stehen */
-    seller: jsonb("seller"),
-    buyer: jsonb("buyer"),
+    seller: jsonb("seller").$type<Seller>(),
+    buyer: jsonb("buyer").$type<Buyer>(),
     pdf: bytea("pdf"),
     pdfSha256: text("pdf_sha256"),
     xml: text("xml"),

@@ -15,6 +15,8 @@ function createAuth() {
     // Passwort nur für die Ersteinrichtung und als Rückfallebene; Anmeldung per Passkey.
     emailAndPassword: { enabled: true, minPasswordLength: 12 },
     rateLimit: { enabled: true, window: 60, max: 20 },
+    // Haben läuft hinter Caddy; die Client-Adresse kommt aus X-Forwarded-For.
+    advanced: { ipAddress: { ipAddressHeaders: ["x-forwarded-for"] } },
     plugins: [
       passkey({ rpID: baseUrl.hostname, rpName: "Haben", origin: baseUrl.origin }),
       tanstackStartCookies(),
