@@ -7,7 +7,7 @@ Diese Seite führt dich durch die Einrichtung nach der Installation: Konto und P
 In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltung:
 
 1. Konto anlegen und einen Passkey hinzufügen
-2. Firmendaten ausfüllen, Versteuerung und Kontenrahmen wählen
+2. Firmendaten ausfüllen, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
 5. ELSTER-Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
@@ -16,7 +16,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 8. Optional: KI-Auslesung für Belege einschalten
 
 > [!IMPORTANT]
-> Versteuerung und Kontenrahmen legst du am besten fest, bevor du die erste Rechnung festschreibst oder den ersten Beleg buchst. Gebuchtes bleibt so, wie es gebucht wurde.
+> Versteuerung, Kontenrahmen und Kleinunternehmerstatus legst du fest, bevor du die erste Rechnung festschreibst oder den ersten Beleg buchst. Sobald es im laufenden Jahr Buchungen gibt, sperrt Haben die Umstellung bis zum nächsten Jahreswechsel (siehe [Sperren](#wann-sich-die-einstellungen-ändern-lassen)).
 
 ## Konto anlegen
 
@@ -37,7 +37,7 @@ Unter **Einstellungen → Firmendaten** hinterlegst du die Angaben, die auf Rech
 | Name | Absender auf Rechnungen, Datenlieferant in der Voranmeldung. Pflicht für beides |
 | E-Mail | Absender auf Rechnungen. Pflicht zum Festschreiben einer Rechnung |
 | Straße und Hausnummer, PLZ, Ort | Anschrift auf Rechnungen und in der Voranmeldung. Pflicht für beides; die PLZ hat fünf Ziffern |
-| Bundesland | Nötig, um die Steuernummer ins ELSTER-Format umzurechnen. Pflicht für ELSTER |
+| Bundesland | Nötig, um die Steuernummer ins ELSTER-Format umzurechnen. Pflicht für ELSTER. Bestimmt außerdem die Feiertage für die Fälligkeit von Rechnungen und Voranmeldungen |
 | Steuernummer | So eingeben, wie sie auf dem Bescheid steht (z. B. `21/815/08150`). Haben rechnet sie ins 13-stellige ELSTER-Format um; eine schon 13-stellige Nummer bleibt unverändert. Pflicht für ELSTER; für Rechnungen reicht Steuernummer oder USt-IdNr. |
 | USt-IdNr. | Auf Rechnungen und im E-Rechnungs-XML. Form `DE123456789` |
 | Finanzamt | Nur zur Information. Das Empfänger-Finanzamt der Voranmeldung leitet Haben aus der Steuernummer ab |
@@ -47,6 +47,7 @@ Unter **Einstellungen → Firmendaten** hinterlegst du die Angaben, die auf Rech
 | Standard-Zahlungsziel in Tagen | Vorgabe für neue Rechnungen (0 bis 120 Tage) |
 | Standardformat für Rechnungen | ZUGFeRD (PDF mit eingebettetem XML), XRechnung (CII) oder XRechnung (UBL). Vorgabe für neue Rechnungen |
 | Versteuerung | Ist oder Soll, siehe unten |
+| Kleinunternehmer nach § 19 UStG | Haken setzen, wenn du die Kleinunternehmerregelung nutzt, siehe unten |
 
 Die Umrechnung der Steuernummer prüft die Länge je Bundesland. Passt sie nicht, meldet Haben zum Beispiel „Steuernummer für Bayern muss 11 Ziffern haben“. Für Hessen setzt Haben die führende `0` der Finanzamtsnummer wie von ELSTER verlangt auf `6`.
 
@@ -64,11 +65,11 @@ Die Einstellung bestimmt, wann die Umsatzsteuer aus deinen Rechnungen in der Vor
 
 Die Vorsteuer aus Belegen zählt in beiden Fällen nach Belegdatum. Bei Ist-Versteuerung ist der Bankabgleich deshalb Pflicht: Ein nicht zugeordneter Zahlungseingang fehlt sonst in der Voranmeldung, und die Vorprüfung warnt davor.
 
-Die Einstellung wirkt auf alles, was danach gebucht wird. Bereits festgeschriebene Rechnungen behalten ihre Buchung. Ob du Ist-Versteuerung nutzen darfst, entscheidet das Finanzamt; das klärst du mit deiner Steuerberatung. Details zur Berechnung stehen in [Umsatzsteuer](umsatzsteuer.md).
+Die Einstellung wirkt auf alles, was danach gebucht wird. Bereits festgeschriebene Rechnungen behalten ihre Buchung. Umstellen lässt sie sich nur, solange es im laufenden Jahr keine Buchungen und keine offenen Rechnungen gibt (siehe [unten](#wann-sich-die-einstellungen-ändern-lassen)). Ob du Ist-Versteuerung nutzen darfst, entscheidet das Finanzamt; das klärst du mit deiner Steuerberatung. Details zur Berechnung stehen in [Umsatzsteuer](umsatzsteuer.md).
 
 ## Kontenrahmen: SKR03 oder SKR04
 
-Der Kontenrahmen legt fest, auf welche Kontonummern Haben bucht. Wähle denselben wie in Lexoffice oder bei deiner Steuerberatung. Er wirkt auf alle Buchungen (Rechnungen, Belege, Zahlungen) und auf die Kontonamen im Journal. Jede Buchung speichert den Kontenrahmen, mit dem sie erstellt wurde; ein späterer Wechsel ändert bestehende Buchungen nicht.
+Der Kontenrahmen legt fest, auf welche Kontonummern Haben bucht. Wähle denselben wie in Lexoffice oder bei deiner Steuerberatung. Er wirkt auf alle Buchungen (Rechnungen, Belege, Zahlungen) und auf die Kontonamen im Journal. Jede Buchung speichert den Kontenrahmen, mit dem sie erstellt wurde; ein späterer Wechsel ändert bestehende Buchungen nicht. Wechseln kannst du nur zum Jahresbeginn, bevor im neuen Jahr gebucht wird.
 
 Einige Beispiele:
 
@@ -85,6 +86,33 @@ Die vollständige Zuordnung, auch die Aufwandskonten der Belegkategorien, steht 
 
 > [!NOTE]
 > Der Code selbst merkt an, dass die Kontenzuordnung vor dem Echtbetrieb mit der Steuerberatung abgeglichen werden sollte. Das gilt besonders für die Aufwandskonten der Belegkategorien.
+
+## Kleinunternehmer
+
+Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstellungen → Firmendaten** den Haken **Kleinunternehmer nach § 19 UStG**. Dann gilt:
+
+| Bereich | Wirkung |
+| --- | --- |
+| Rechnungen | Neue Rechnungen bekommen „Kleinunternehmer nach § 19 UStG“, alle Positionen 0 %, mit dem Hinweis „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ Die Auswahl im Editor ist gesperrt. Eine regulär besteuerte Rechnung lässt sich nicht festschreiben. Siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung). |
+| Belege | Gebucht ohne Vorsteuerabzug: der Bruttobetrag geht auf das Aufwandskonto. Siehe [Belege](belege.md#als-kleinunternehmer). |
+| Voranmeldung | Die Seite weist darauf hin, dass du in der Regel keine Voranmeldung abgibst. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). |
+| Übersicht | Die Aufgaben „Voranmeldung senden“, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER entfallen. |
+| EÜR | Die Einnahmen stehen in der Zeile „Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer“. |
+
+Überschreitest du die Umsatzgrenze, nimmst du den Haken heraus; ab dann gilt die Regelbesteuerung. Ausschalten geht jederzeit, auch mitten im Jahr. Eine Kleinunternehmer-Rechnung lässt sich danach nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
+
+## Wann sich die Einstellungen ändern lassen
+
+Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Geschäftsjahr. Haben sperrt deshalb die Umstellung, sobald es im laufenden Kalenderjahr eine Buchung gibt. Das Auswahlfeld ist dann ausgegraut, und darunter steht der Grund. Auch der Server lehnt eine solche Änderung ab.
+
+| Einstellung | Gesperrt, wenn |
+| --- | --- |
+| Kontenrahmen | im laufenden Jahr gebucht wurde |
+| Versteuerung (Ist oder Soll) | im laufenden Jahr gebucht wurde oder Rechnungen noch offen sind; ihre Umsatzsteuer würde sonst doppelt oder gar nicht angemeldet |
+| Kleinunternehmer einschalten | im laufenden Jahr gebucht wurde |
+| Kleinunternehmer ausschalten | nie |
+
+Umstellen kannst du also nur zum Jahreswechsel, bevor im neuen Jahr die erste Buchung entsteht. Kläre einen Wechsel vorher mit deiner Steuerberatung.
 
 ## Rechnungsnummern
 

@@ -9,7 +9,7 @@ Haben läuft als drei Container in einem eigenen Netz:
 | Container (Compose / Quadlet) | Image | Aufgabe |
 | --- | --- | --- |
 | `db` / `haben-db` | `postgres:16` | Datenbank, Volume `db` bzw. `haben-db` |
-| `app` / `haben-app` | `tristanteu/haben:latest` | Die App auf Port 3000, Belegdateien im Volume `belege` bzw. `haben-belege` |
+| `app` / `haben-app` | `tristanteu/haben:latest` | Die App auf Port 3000, Belegdateien im Volume `belege` bzw. `haben-belege`, ERiC-Logs im Volume `eric-log` bzw. `haben-eric-log` |
 | `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy` |
 
 Es gibt zwei Wege, sie zu betreiben:
@@ -101,7 +101,7 @@ Die Quadlets betreiben Haben rootless unter systemd: Zugangsdaten als Podman Sec
 ```sh
 RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
 mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
-for f in haben.network haben-db.volume haben-belege.volume haben-caddy.volume \
+for f in haben.network haben-db.volume haben-belege.volume haben-eric-log.volume haben-caddy.volume \
          haben-db.container haben-app.container haben-caddy.container; do
   curl -o ~/.config/containers/systemd/$f "$RAW/quadlet/$f"
 done
@@ -110,6 +110,7 @@ curl -o ~/.config/systemd/user/haben-backup.timer "$RAW/quadlet/haben-backup.tim
 curl -o ~/.config/haben/Caddyfile "$RAW/Caddyfile"
 curl -o ~/.config/haben/haben.env "$RAW/haben.env.example"
 curl -o ~/.config/haben/backup.sh "$RAW/backup.sh" && chmod +x ~/.config/haben/backup.sh
+curl -o ~/.config/haben/restore.sh "$RAW/restore.sh" && chmod +x ~/.config/haben/restore.sh
 ```
 
 Die `.container`-, `.volume`- und `.network`-Dateien verarbeitet der Quadlet-Generator von Podman. `haben-backup.service` und `haben-backup.timer` sind gewöhnliche systemd-Units und gehören deshalb nach `~/.config/systemd/user/`.
@@ -190,7 +191,7 @@ Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` aus `
 | --- | --- |
 | Buchungen, Rechnungen (PDF und XML), Voranmeldungen mit ERiC-Protokoll, Audit-Log, verschlüsseltes ELSTER-Zertifikat, verschlüsselter Lexoffice-Schlüssel | PostgreSQL, Volume `haben-db` |
 | Belegdateien und aus Lexoffice übernommene Dateien | Volume `haben-belege` (`DOCUMENTS_DIR`), abgelegt unter dem SHA-256 der Datei (`ab/abcdef…`) |
-| ERiC-Logs | `/var/lib/haben/eric-log` im Container, ohne eigenes Volume |
+| ERiC-Logs | Volume `haben-eric-log` (Compose: `eric-log`), im Container `/var/lib/haben/eric-log` (`ERIC_LOG_DIR`). Nur zur Fehlersuche, nicht im Backup |
 | TLS-Zertifikate von Caddy | Volume `haben-caddy` |
 
 Belege und Rechnungen müssen nach GoBD zehn Jahre aufbewahrt werden. Beide Volumes mit Buchhaltungsdaten gehören deshalb ins Backup.
@@ -200,10 +201,10 @@ Belege und Rechnungen müssen nach GoBD zehn Jahre aufbewahrt werden. Beide Volu
 Für Compose steht das Backup oben bei [Docker Compose](#docker-compose). Mit den Quadlets läuft `deploy/backup.sh` über `haben-backup.timer` täglich um 03:15 Uhr (`Persistent=true`: ein verpasster Lauf wird nachgeholt). Das Skript
 
 1. erzeugt mit `podman exec haben-db pg_dump -U haben --format=plain haben` einen SQL-Dump und packt ihn mit gzip,
-2. sichert den Dump und das Verzeichnis des Volumes `haben-belege` mit `restic backup --tag haben`,
+2. sichert den Dump und das Verzeichnis des Volumes `haben-belege` mit `podman unshare restic backup --tag haben`. Im rootless Podman gehören die Belegdateien einer Unter-UID des Containers; `podman unshare` führt restic im Benutzer-Namensraum aus, wo sie lesbar sind und ihre Besitzer behalten,
 3. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`).
 
-Das Volume `haben-caddy` und der Schlüssel `HABEN_ENCRYPTION_KEY` sind nicht dabei.
+Die Volumes `haben-caddy` und `haben-eric-log` und der Schlüssel `HABEN_ENCRYPTION_KEY` sind nicht dabei.
 
 Die Unit liest `~/.config/haben/backup.env`. Darin stehen die Angaben für restic:
 
@@ -216,7 +217,27 @@ Das Repository legst du einmal mit `restic init` an. Einen Lauf von Hand startes
 
 ### Wiederherstellen
 
-Das Skript bringt kein eigenes Restore mit. So geht es von Hand, auf einem frischen System mit leeren Volumes:
+Für die Quadlets liegt `deploy/restore.sh` bei. Du hast es beim [Ablegen der Dateien](#dateien-ablegen) neben `backup.sh` nach `~/.config/haben/` geladen. Es erwartet dieselben Angaben für restic wie das Backup, also `RESTIC_REPOSITORY` und `RESTIC_PASSWORD_FILE` aus `backup.env` in der Umgebung, und einen laufenden Container `haben-db`:
+
+```sh
+set -a; . ~/.config/haben/backup.env; set +a
+restic snapshots --tag haben          # verfügbare Stände anzeigen
+~/.config/haben/restore.sh latest     # oder eine Snapshot-ID
+```
+
+Das Skript fragt nach, ob Datenbank und Belege ersetzt werden sollen, und macht nur bei der Antwort `ja` weiter. Dann
+
+1. holt es den Snapshot mit `podman unshare restic restore` in ein temporäres Verzeichnis,
+2. stoppt `haben-app.service`,
+3. löscht die Datenbank `haben`, legt sie leer neu an und spielt den Dump mit `psql` ein; ein Fehler im Dump bricht ab (`ON_ERROR_STOP`),
+4. ersetzt den Inhalt des Volumes `haben-belege` durch die Belegdateien aus dem Snapshot,
+5. startet die App wieder.
+
+Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze. Das Skript ersetzt den aktuellen Stand vollständig.
+
+Auf einem frischen System richtest du zuerst die Quadlets wie oben ein, mit denselben Secrets, startest nur `haben-db` und rufst dann `restore.sh` auf. `HABEN_ENCRYPTION_KEY` muss derselbe sein wie vorher, sonst sind ELSTER-Zertifikat und Lexoffice-Schlüssel nicht lesbar.
+
+Von Hand geht es so, ebenfalls auf einem System mit leeren Volumes:
 
 ```sh
 restic snapshots --tag haben
@@ -235,7 +256,7 @@ podman unshare chown -R 1000:1000 "$ziel"
 systemctl --user start haben-app haben-caddy
 ```
 
-Restic legt Dateien mit ihrem ursprünglichen absoluten Pfad ab, deshalb die `find`-Aufrufe. Setze vor dem Start der App dasselbe `HABEN_ENCRYPTION_KEY` wie vorher. Probiere die Wiederherstellung einmal aus, bevor du dich auf das Backup verlässt.
+Restic legt Dateien mit ihrem ursprünglichen absoluten Pfad ab, deshalb die `find`-Aufrufe. Setze vor dem Start der App dasselbe `HABEN_ENCRYPTION_KEY` wie vorher. Für Docker Compose steht der Weg oben bei [Docker Compose](#docker-compose). Probiere die Wiederherstellung einmal aus, bevor du dich auf das Backup verlässt.
 
 ## Updates
 
@@ -247,6 +268,8 @@ podman auto-update                             # neues Image ziehen und haben-ap
 ```
 
 `haben-app.container` trägt `AutoUpdate=registry`; mit `systemctl --user enable --now podman-auto-update.timer` prüft Podman täglich selbst auf neue Images. Willst du Updates von Hand steuern, setze im Quadlet eine feste Version (`Image=docker.io/tristanteu/haben:0.1`) und ändere sie bewusst. Bei einem selbst gebauten Image: `git pull`, `podman build -t haben -f Containerfile .` und `systemctl --user restart haben-app`.
+
+`podman auto-update` tauscht nur das Image. Lädst du neue Quadlet-Dateien wie `haben-app.container`, hole auch die `.volume`-Dateien, auf die sie verweisen (etwa `haben-eric-log.volume`), und führe danach `systemctl --user daemon-reload` aus.
 
 Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an; erst danach startet der Server. Schlägt eine Migration fehl, startet die App nicht, und der Fehler steht im Log.
 
@@ -319,7 +342,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **Belege werden nicht automatisch ausgelesen.** Ohne `ANTHROPIC_API_KEY` liest Haben nur E-Rechnungen. Ist der Schlüssel gesetzt, steht der Grund eines Fehlers am Beleg.
 
-**restic meldet beim Sichern der Belege „permission denied“.** Bei rootless Podman gehören die Dateien im Volume einer Unter-UID des Hosts, nicht deinem Nutzer. Dann kann der Host-Nutzer sie nicht lesen. Eine Möglichkeit ist, das Skript im Nutzer-Namespace von Podman laufen zu lassen, z. B. `ExecStart=podman unshare %h/.config/haben/backup.sh` (im Projekt nicht getestet). Prüfe danach mit `restic ls latest`, ob die Belege im Snapshot sind.
+**restic meldet beim Sichern der Belege „permission denied“.** Bei rootless Podman gehören die Dateien im Volume einer Unter-UID des Hosts, nicht deinem Nutzer. Das aktuelle `backup.sh` ruft restic deshalb über `podman unshare` auf. Tritt der Fehler auf, hast du vermutlich noch ein älteres Skript; lade `backup.sh` neu herunter. Prüfe danach mit `restic ls latest`, ob die Belege im Snapshot sind.
 
 **`systemctl --user enable haben-backup.timer` findet die Unit nicht.** Timer und Service gehören nach `~/.config/systemd/user/`, nicht ins Quadlet-Verzeichnis. Danach `systemctl --user daemon-reload`.
 

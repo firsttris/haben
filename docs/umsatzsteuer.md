@@ -13,6 +13,8 @@ Haben berechnet die monatliche Umsatzsteuer-Voranmeldung aus deinen Buchungen un
 
 Haben unterstützt nur monatliche Voranmeldungen ohne Dauerfristverlängerung.
 
+Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite oben einen Hinweis: Als Kleinunternehmer gibst du in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). Die Übersicht zeigt dann keine Aufgaben zur Voranmeldung, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER.
+
 ## So gehst du vor
 
 1. **Umsatzsteuer** öffnen. Haben springt zum Vormonat, also dem Monat, der gerade abzugeben ist. Über **Zeitraum** wählst du den laufenden Monat oder einen der zwölf davor.
@@ -35,7 +37,21 @@ Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
 | Ist (vereinnahmte Entgelte) | Buchungsdatum des Zahlungseingangs | Zuordnungen im [Bankabgleich](bank.md). Bei Teilzahlungen zählt der Anteil der Zahlung, bei mehreren Steuersätzen anteilig je Satz. Aufgehobene Zuordnungen heben sich mit ihrer Gegenzeile auf. |
 | Soll (vereinbarte Entgelte) | Rechnungsdatum | Festgeschriebene Rechnungen, Stornos und Korrekturen des Monats mit ihren Beträgen je Steuersatz. |
 
-Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Umsätze zu 0 % meldet Haben nicht; die Vorprüfung weist darauf hin.
+Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Dazu zählen nur regulär besteuerte Rechnungen. Regulär besteuerte Umsätze zu 0 % meldet Haben nicht; die Vorprüfung weist darauf hin.
+
+### Umsätze ohne Steuer (Kz 21, 45 und 48)
+
+Rechnungen ohne Steuerausweis (siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung)) meldet Haben mit ihrer Bemessungsgrundlage, ohne Steuer. Sie ändern Kz 83 nicht.
+
+| Kennzahl | Umsatzsteuer an der Rechnung | Maßgeblich |
+| --- | --- | --- |
+| 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
+| 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
+| 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
+
+Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Haben nimmt das Rechnungsdatum als Näherung dafür. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
+
+In der Tabelle der Kennzahlen stehen Kz 21, 45 und 48 nur, wenn sie nicht null sind oder du die Werte von Hand überschreibst.
 
 ### Vorsteuer (Kz 66)
 
@@ -57,6 +73,7 @@ ELSTER erwartet die Bemessungsgrundlagen in vollen Euro. Haben schneidet die Cen
 | --- | --- | --- |
 | 81 | Steuerpflichtige Umsätze 19 % | volle Euro, Cent abgeschnitten; Steuer = 19 % davon, auf Cent gerundet |
 | 86 | Steuerpflichtige Umsätze 7 % | volle Euro, Cent abgeschnitten; Steuer = 7 % davon, auf Cent gerundet |
+| 21, 45, 48 | Umsätze ohne Steuer | volle Euro, Cent abgeschnitten |
 | 66 | Vorsteuer aus Rechnungen anderer Unternehmer | centgenau |
 | 83 | Verbleibende Umsatzsteuer-Vorauszahlung | Steuer 81 + Steuer 86 − Kz 66 |
 
@@ -70,9 +87,9 @@ Unter jeder Kennzahl steht, wie viele Zahlungseingänge, Rechnungen oder Belege 
 
 ## Manuell überschreiben
 
-Mit **Manuell überschreiben** gibst du Kz 81, 86 und 66 selbst ein. Dann ist eine **Begründung der Abweichung** Pflicht (mindestens 10 Zeichen). Darunter stehen die berechneten Werte zum Vergleich. Gespeichert werden die eingegebenen Werte, die Begründung und die berechneten Werte zum Zeitpunkt des Speicherns. Nach dem Senden zeigt die Seite „Manuell überschrieben: …“ mit der Begründung.
+Mit **Manuell überschreiben** gibst du Kz 81, 86, 21, 45, 48 und 66 selbst ein. Dann ist eine **Begründung der Abweichung** Pflicht (mindestens 10 Zeichen). Darunter stehen die berechneten Werte zum Vergleich. Gespeichert werden die eingegebenen Werte, die Begründung und die berechneten Werte zum Zeitpunkt des Speicherns. Nach dem Senden zeigt die Seite „Manuell überschrieben: …“ mit der Begründung.
 
-Manuelle Werte müssen null oder positiv sein. Mit **Aus Buchungen berechnet** kehrst du zu den berechneten Werten zurück.
+Manuelle Werte dürfen auch negativ sein, etwa wenn im Monat Gutschriften überwiegen. Mit **Aus Buchungen berechnet** kehrst du zu den berechneten Werten zurück.
 
 ## Veralteter Entwurf
 
@@ -88,13 +105,13 @@ Solange die Anmeldung nicht gesendet ist, prüft Haben, was im Monat noch fehlt 
 | … Zahlungseingänge im Zeitraum noch nicht zugeordnet | Warnung bei Ist, Hinweis bei Soll | Bankeingänge im Monat ohne volle Zuordnung. Bei Ist fehlt sonst Umsatzsteuer. |
 | … Belege sind noch nicht gebucht | Warnung | Ungebuchte Belege mit Belegdatum im Monat oder ganz ohne Belegdatum. |
 | … Rechnungsentwürfe mit Datum im Zeitraum | Hinweis | Nicht festgeschriebene Rechnungen mit Rechnungsdatum im Monat. |
-| Umsätze zu 0 % | Warnung | Im Monat gibt es Umsätze zu 0 %, die Haben nicht meldet. Prüfe, ob eine Kennzahl dafür nötig ist. |
+| Regulär besteuerte Umsätze zu 0 % | Warnung | Im Monat gibt es regulär besteuerte Umsätze zu 0 %, die Haben nicht meldet. Ist es Reverse Charge, eine Leistung ins Drittland oder steuerfrei, stellst du das an der Rechnung ein. |
 
 Die Hinweise blockieren nichts. Du entscheidest, ob du trotzdem sendest.
 
 ## Fälligkeit
 
-Die Voranmeldung ist am 10. des Folgemonats fällig. Fällt der 10. auf einen Samstag oder Sonntag, rechnet Haben mit dem folgenden Montag (`dueDate` in `packages/core/src/period.ts`). Feiertage berücksichtigt Haben nicht. Das Datum steht unter den Kennzahlen; die Übersicht zeigt die offene Voranmeldung als Aufgabe und hebt sie drei Tage vor der Frist hervor.
+Die Voranmeldung ist am 10. des Folgemonats fällig. Fällt der 10. auf einen Samstag, Sonntag oder gesetzlichen Feiertag im Bundesland aus deinen Firmendaten, rechnet Haben mit dem nächsten Werktag (`dueDate` in `packages/core/src/period.ts`). Feiertage einzelner Gemeinden zählen nicht, ohne Bundesland nur die bundesweiten. Das Datum steht unter den Kennzahlen; die Übersicht zeigt die offene Voranmeldung als Aufgabe und hebt sie drei Tage vor der Frist hervor.
 
 ## Übermitteln an ELSTER
 
@@ -110,7 +127,7 @@ Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt; 
 
 ### Was im Hintergrund passiert
 
-1. Haben erzeugt das ElsterXML der Datenart `UStVA_<Jahr>` mit 13-stelliger Steuernummer, Empfänger-Finanzamt aus der Steuernummer, Datenlieferant aus den Firmendaten und den Kennzahlen. Kz 81, 86 und 66 erscheinen nur, wenn sie nicht null sind; Kz 83 steht immer drin.
+1. Haben erzeugt das ElsterXML der Datenart `UStVA_<Jahr>` mit 13-stelliger Steuernummer, Empfänger-Finanzamt aus der Steuernummer, Datenlieferant aus den Firmendaten und den Kennzahlen. Die Kennzahlen stehen in aufsteigender Reihenfolge (10, 21, 45, 48, 66, 81, 83, 86). Kz 21, 45, 48, 66, 81 und 86 erscheinen nur, wenn sie nicht null sind; Kz 83 steht immer drin.
 2. Jeder ERiC-Aufruf läuft in einem eigenen, kurzlebigen Kindprozess mit 120 Sekunden Zeitlimit.
 3. Zum Senden wird das Zertifikat entschlüsselt und nur für die Dauer des Aufrufs in ein privates temporäres Verzeichnis geschrieben, danach gelöscht. Die PIN wird weder gespeichert noch geloggt.
 4. Beim Senden prüft ERiC, übermittelt und erzeugt das Übertragungsprotokoll als PDF.
@@ -138,6 +155,5 @@ Eine Echtübermittlung ist im simulierten Modus nicht möglich: Der Haken **Nur 
 ## Grenzen
 
 - Nur Monatszeiträume, keine Quartals- oder Jahreserklärung, keine Dauerfristverlängerung.
-- Nur die Kennzahlen 81, 86, 66, 83 und 10. Keine steuerfreien Umsätze, kein Reverse Charge, keine innergemeinschaftlichen Lieferungen oder Erwerbe.
+- Nur die Kennzahlen 81, 86, 21, 45, 48, 66, 83 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe, keine Steuer als Leistungsempfänger (§ 13b UStG), keine Zusammenfassende Meldung.
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.
-- Fälligkeit ohne Feiertage.

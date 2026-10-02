@@ -32,7 +32,7 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 
 | Paket | Aufgabe |
 | --- | --- |
-| `packages/core` | Reine Fachlogik ohne Ein- und Ausgabe: Cent-Beträge und Formatierung, Zeiträume und Fälligkeiten, Steuernummer-Umrechnung ins ELSTER-Format, Rechnungssummen, Kontenrahmen und Buchungssätze (`posting.ts`), Vorschläge für den Bankabgleich (`matching.ts`), UStVA-Berechnung, EÜR (`euer.ts`), Umsatzsteuer aus Lexoffice-Belegen (`legacy-vat.ts`) |
+| `packages/core` | Reine Fachlogik ohne Ein- und Ausgabe: Cent-Beträge und Formatierung, Zeiträume und Fälligkeiten mit Feiertagen je Bundesland (`holidays.ts`), Steuernummer-Umrechnung ins ELSTER-Format, Rechnungssummen, umsatzsteuerliche Behandlung von Rechnungen (`treatment.ts`), Kontenrahmen und Buchungssätze (`posting.ts`), Vorschläge für den Bankabgleich (`matching.ts`), UStVA-Berechnung, EÜR (`euer.ts`), Umsatzsteuer aus Lexoffice-Belegen (`legacy-vat.ts`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst (Vorlage `templates/rechnung.typ`), ZUGFeRD und XRechnung über `@e-invoice-eu/core`, Prüfung der Pflichtfelder je Format, Lesen eingehender E-Rechnungen (eingebettetes XML aus PDFs, CII und UBL) |
 | `packages/import` | Parser für Kontoauszüge (DKB, N26, CAMT.053), Dekodierung, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel (`datev.ts`), Client und Abbildungen für die Lexware-Office-API (`lexoffice/`) |
 | `packages/elster` | `ElsterClient` mit echtem ERiC-Client (Kindprozess, `koffi`) und simuliertem Client, UStVA-XML, Transfer-Ticket |
@@ -45,7 +45,7 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 | `src/routes/api/` | HTTP-Routen für Better Auth (`auth/$`), Dateien (`rechnung`, `beleg`, `altbeleg`, `archiv`, `protokoll`), Teilen-Ziel der PWA (`belege/teilen`), EÜR als CSV (`auswertungen/$jahr`) und Jahresarchiv (`export/$jahr`) |
 | `src/components/` | React-Komponenten, die mehrere Seiten nutzen (Rechnungseditor, Vorschau, Upload, Statusanzeigen), dazu `archiv/` für die Umzugsseite |
 | `src/server/functions/` | Server Functions je Bereich: Eingaben mit Zod prüfen, `authMiddleware` anhängen, Dienst aufrufen. Keine Fachlogik |
-| `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `vat`, `vat-figures`, `reports`, `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`; dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
+| `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `vat`, `vat-figures`, `reports`, `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`, `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer); dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
 | `src/server/db/` | Drizzle-Schema (`schema.ts`, `auth-schema.ts`), Verbindung, `withActor` für das Audit-Log, Migrationsskript |
 | `apps/web/drizzle/` | SQL-Migrationen; Trigger und Funktionen stehen in eigenen Dateien (`0001_festschreibung.sql`, `*_trigger.sql`) |
 | `src/styles/`, `styles.css` | Globales Stylesheet und seitenbezogene Stylesheets (Auswertungen, Archiv) |
@@ -69,10 +69,10 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
-| `invoices` | Ausgangsrechnungen, Stornos und Korrekturen mit PDF, XML und SHA-256 | gesperrt ab Festschreibung, Audit ohne PDF/XML |
+| `invoices` | Ausgangsrechnungen, Stornos und Korrekturen mit PDF, XML, SHA-256 und umsatzsteuerlicher Behandlung (`tax_treatment`, `exemption_reason`) | gesperrt ab Festschreibung, Audit ohne PDF/XML |
 | `invoice_lines` | Positionen einer Rechnung | gesperrt mit der Rechnung |
 | `invoice_number_counters` | Letzte vergebene Nummer je Jahr | darf nicht sinken, Audit |
-| `documents` | Eingangsbelege; Datei im Dateisystem, Felder aus Auslesung oder Hand | gesperrt ab Buchung, Audit |
+| `documents` | Eingangsbelege; Datei im Dateisystem, Felder aus Auslesung oder Hand, beim Buchen festgehalten, ob mit Vorsteuerabzug (`vorsteuer_abzug`) | gesperrt ab Buchung, Audit |
 | `document_amounts` | Beträge eines Belegs je Steuersatz | gesperrt mit dem Beleg |
 
 ### Buchhaltung, Bank und Umsatzsteuer
@@ -120,7 +120,7 @@ Geschützt wird an drei Stellen:
 ### Rechnung festschreiben
 
 1. Die Seite ruft die Server Function `finalizeInvoiceDraft` auf. `authMiddleware` prüft die Sitzung.
-2. `finalizeInvoice` in `server/invoices.ts` prüft vorab Firmendaten, Kunde, Positionen, Beträge und die Pflichtfelder des gewählten E-Rechnungsformats.
+2. `finalizeInvoice` in `server/invoices.ts` prüft vorab Firmendaten, Kunde, Positionen, Beträge, die umsatzsteuerliche Behandlung und die Pflichtfelder des gewählten E-Rechnungsformats.
 3. In einer Transaktion mit `withActor`:
    - Entwurf mit `SELECT … FOR UPDATE` sperren,
    - Zähler des Jahres per Upsert um eins erhöhen und Nummer bilden (`2026-034`),

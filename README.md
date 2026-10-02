@@ -48,7 +48,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 ## ✨ Funktionen
 
 - **Rechnungen mit E-Rechnung**: Editor mit Live-Vorschau, lückenloser Nummernkreis, PDF/A-3 mit Typst und
-  ZUGFeRD (EN 16931) oder XRechnung 3.0 (CII/UBL), geprüft mit dem KoSIT-Validator. Storno und Rechnungskorrektur
+  ZUGFeRD (EN 16931) oder XRechnung 3.0 (CII/UBL), geprüft mit dem KoSIT-Validator. Storno und Rechnungskorrektur, Reverse Charge, Drittland, steuerfreie Umsätze und
+  Kleinunternehmer nach § 19 UStG mit Pflichthinweis
 - **Belege**: per Drag-and-drop, Kamera oder Teilen-Menü am Handy (PWA). E-Rechnungen werden direkt gelesen,
   andere PDFs und Fotos auf Wunsch von Claude vorausgefüllt. Kategorie pro Lieferant gemerkt
 - **Bankabgleich**: Kontoauszüge von DKB, N26 oder als CAMT.053 importieren, Dubletten und Lücken erkennen,
@@ -99,7 +100,7 @@ docker compose up -d
 ```bash
 RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
 mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
-for f in haben.network haben-db.volume haben-belege.volume haben-caddy.volume \
+for f in haben.network haben-db.volume haben-belege.volume haben-eric-log.volume haben-caddy.volume \
          haben-db.container haben-app.container haben-caddy.container; do
   curl -o ~/.config/containers/systemd/$f "$RAW/quadlet/$f"
 done
@@ -108,6 +109,7 @@ curl -o ~/.config/systemd/user/haben-backup.timer "$RAW/quadlet/haben-backup.tim
 curl -o ~/.config/haben/Caddyfile "$RAW/Caddyfile"            # Domain eintragen
 curl -o ~/.config/haben/haben.env "$RAW/haben.env.example"    # Domain eintragen
 curl -o ~/.config/haben/backup.sh "$RAW/backup.sh" && chmod +x ~/.config/haben/backup.sh
+curl -o ~/.config/haben/restore.sh "$RAW/restore.sh" && chmod +x ~/.config/haben/restore.sh
 
 DBPW="$(openssl rand -hex 24)"
 printf '%s' "$DBPW" | podman secret create haben-db-password -
