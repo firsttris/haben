@@ -1,4 +1,4 @@
-import { formatEuro, TAX_TREATMENTS, type UnitLabel } from "@haben/core";
+import { DUNNING_LEVELS, formatEuro, TAX_TREATMENTS, type DunningLevel, type UnitLabel } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -202,6 +202,29 @@ function FinalInvoice({ data }: { data: Detail }) {
               SHA-256 PDF {invoice.pdfSha256?.slice(0, 16)}…
             </p>
           </section>
+
+          {(data.dunnings.length > 0 || data.overdue) && (
+            <section className="card" aria-labelledby="dunning-heading">
+              <h2 id="dunning-heading">Mahnungen</h2>
+              {data.dunnings.map((d) => (
+                <div key={d.id} className="history-row">
+                  <a href={`/api/mahnung/${d.id}`} target="_blank" rel="noreferrer">
+                    {DUNNING_LEVELS[d.level as DunningLevel].label} vom {formatDate(d.date)}
+                  </a>
+                  <span className="small muted">
+                    {formatEuro(d.total)} bis {formatDate(d.dueDate)}
+                  </span>
+                </div>
+              ))}
+              {data.overdue && (
+                <div className="actions">
+                  <Link to="/rechnungen/mahnwesen/$id" params={{ id: invoice.id }} className="btn">
+                    {data.dunnings.length === 0 ? "Zahlungserinnerung erstellen" : "Nächste Mahnstufe"}
+                  </Link>
+                </div>
+              )}
+            </section>
+          )}
 
           {correctedBy.length > 0 && (
             <section className="card" aria-labelledby="related-heading">

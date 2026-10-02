@@ -1,4 +1,5 @@
 import { splitPrivateShare, type BasisPoints, type Cents } from "./money.ts";
+import { DUNNING_INCOME_ACCOUNTS } from "./dunning.ts";
 import type { InvoiceTotals } from "./invoice.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
@@ -288,6 +289,7 @@ export const DIRECT_BOOKINGS = {
   geldtransit: "Geldtransit (eigenes Konto)",
   ustVorauszahlung: "Umsatzsteuer an das Finanzamt",
   gebuehren: "Kontoführung und Bankgebühren",
+  mahnerloes: "Mahngebühren und Verzugszinsen (vom Kunden)",
 } as const;
 
 export type DirectBooking = keyof typeof DIRECT_BOOKINGS;
@@ -303,7 +305,9 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
         ? accounts.geldtransit
         : kind === "ustVorauszahlung"
           ? accounts.ustVorauszahlung
-          : accounts.nebenkostenGeldverkehr;
+          : kind === "mahnerloes"
+            ? DUNNING_INCOME_ACCOUNTS[kontenrahmen].account
+            : accounts.nebenkostenGeldverkehr;
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter(
     (line) => line.debit !== 0 || line.credit !== 0,
   );

@@ -101,6 +101,16 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 
 Überschreitest du die Umsatzgrenze, nimmst du den Haken heraus; ab dann gilt die Regelbesteuerung. Ausschalten geht jederzeit, auch mitten im Jahr. Eine Kleinunternehmer-Rechnung lässt sich danach nicht mehr festschreiben. Belege, die vorher ohne Vorsteuerabzug gebucht wurden, bleiben so.
 
+## Mahnwesen
+
+| Feld | Bedeutung |
+|---|---|
+| Basiszinssatz in % | Grundlage der Verzugszinsen. Er ändert sich zum 1. Januar und 1. Juli und wird von der Deutschen Bundesbank veröffentlicht; trage ihn dann neu ein. Leer heißt: keine Verzugszinsen. |
+| Zahlungsfrist in Mahnungen | Tage ab dem Mahndatum, Vorgabe 10 |
+| Gebühr je Stufe | Vorschlag für Zahlungserinnerung, 1. Mahnung und letzte Mahnung, z. B. 0 €, 5 €, 10 € |
+
+Mehr unter [Rechnungen › Mahnwesen](rechnungen.md#mahnwesen).
+
 ## Privatanteile
 
 Unter **Privatanteil Telefon in %** und **Privatanteil Internet in %** legst du fest, welcher Anteil dieser Rechnungen privat ist, z. B. 20 %. Neue Belege der Kategorien übernehmen den Wert; am einzelnen Beleg lässt er sich ändern. Mehr unter [Belege](belege.md#privatanteil).

@@ -46,7 +46,7 @@ const KIND_LABEL = {
   privat: "Privat",
   geldtransit: "Geldtransit",
   ustVorauszahlung: "Umsatzsteuer",
-  gebuehren: "Bankgebühren",
+  gebuehren: "Bankgebühren", mahnerloes: "Mahngebühren und Zinsen",
 } as const;
 
 function BankPage() {

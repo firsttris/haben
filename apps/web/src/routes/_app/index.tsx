@@ -19,7 +19,7 @@ interface Todo {
   detail: string;
   action: string;
   tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank" | "/anlagen";
+  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen";
 }
 
 const DOT = { info: "var(--info-ink)", warn: "var(--warn-dot)", neutral: "var(--muted)" };
@@ -54,9 +54,9 @@ function OverviewPage() {
     todos.push({
       title: `${data.invoices.overdueCount} ${data.invoices.overdueCount === 1 ? "Rechnung" : "Rechnungen"} überfällig`,
       detail: "Zahlungseingang prüfen oder erinnern",
-      action: "Ansehen",
+      action: "Mahnen",
       tone: "warn",
-      to: "/rechnungen",
+      to: "/rechnungen/mahnwesen",
     });
   }
   for (const afa of data.afaPending) {
