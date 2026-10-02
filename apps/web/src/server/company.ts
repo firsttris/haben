@@ -14,6 +14,13 @@ export const companySchema = z.object({
   finanzamt: z.string().trim().max(200),
   bundesland: z.enum(Object.keys(BUNDESLAENDER) as [keyof typeof BUNDESLAENDER, ...(keyof typeof BUNDESLAENDER)[]]).nullable(),
   versteuerung: z.enum(["ist", "soll"]),
+  telefon: z.string().trim().max(40),
+  bank: z.string().trim().max(100),
+  iban: z.union([z.literal(""), z.string().trim().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen")]),
+  bic: z.union([z.literal(""), z.string().trim().regex(/^[A-Z0-9]{8}([A-Z0-9]{3})?$/, "BIC hat 8 oder 11 Zeichen")]),
+  kontenrahmen: z.enum(["SKR03", "SKR04"]),
+  paymentTermDays: z.number().int().min(0).max(120),
+  defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
 });
 
 export type CompanyInput = z.infer<typeof companySchema>;
@@ -42,5 +49,16 @@ export function companyIssues(company: Company): string[] {
       else throw error;
     }
   }
+  return issues;
+}
+
+/** Was auf einer Rechnung als Absender fehlt (§ 14 UStG und Zahlungsangaben). */
+export function sellerIssues(company: Company): string[] {
+  const issues: string[] = [];
+  if (!company.name) issues.push("Firmenname fehlt");
+  if (!company.strasse || !company.plz || !company.ort) issues.push("Anschrift unvollständig");
+  if (!company.steuernummer && !company.ustId) issues.push("Steuernummer oder USt-IdNr. fehlt");
+  if (!company.email) issues.push("E-Mail-Adresse fehlt");
+  if (!company.iban) issues.push("IBAN fehlt");
   return issues;
 }

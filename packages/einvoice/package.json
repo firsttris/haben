@@ -1,0 +1,22 @@
+{
+  "name": "@haben/einvoice",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "kosit": "node --experimental-strip-types scripts/kosit-check.ts"
+  },
+  "dependencies": {
+    "@e-invoice-eu/core": "^3.3.3",
+    "@haben/core": "workspace:*",
+    "@myriaddreamin/typst-ts-node-compiler": "^0.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5"
+  }
+}

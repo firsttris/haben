@@ -16,6 +16,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { Buyer, Seller } from "@haben/einvoice";
+
 export * from "./auth-schema.ts";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
@@ -28,6 +30,10 @@ export const bundeslandEnum = pgEnum("bundesland", [
 ]);
 
 export const versteuerungEnum = pgEnum("versteuerung", ["ist", "soll"]);
+
+export const kontenrahmenEnum = pgEnum("kontenrahmen", ["SKR03", "SKR04"]);
+
+export const invoiceFormatEnum = pgEnum("invoice_format", ["zugferd", "xrechnung-cii", "xrechnung-ubl"]);
 
 /** Firmendaten, genau eine Zeile (id = 1). */
 export const company = pgTable(
@@ -44,6 +50,13 @@ export const company = pgTable(
     finanzamt: text("finanzamt").notNull().default(""),
     bundesland: bundeslandEnum("bundesland"),
     versteuerung: versteuerungEnum("versteuerung").notNull().default("ist"),
+    telefon: text("telefon").notNull().default(""),
+    bank: text("bank").notNull().default(""),
+    iban: text("iban").notNull().default(""),
+    bic: text("bic").notNull().default(""),
+    kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
+    paymentTermDays: smallint("payment_term_days").notNull().default(14),
+    defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("company_single_row", sql`${t.id} = 1`)],
@@ -123,3 +136,131 @@ export const auditLog = pgTable("audit_log", {
   oldValue: jsonb("old_value"),
   newValue: jsonb("new_value"),
 });
+
+/** Kunden und Lieferanten. Jede Änderung legt per Trigger eine Version in contact_versions ab. */
+export const contacts = pgTable("contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kundennummer: text("kundennummer"),
+  name: text("name").notNull(),
+  strasse: text("strasse").notNull().default(""),
+  plz: text("plz").notNull().default(""),
+  ort: text("ort").notNull().default(""),
+  land: text("land").notNull().default("DE"),
+  email: text("email").notNull().default(""),
+  ustId: text("ust_id").notNull().default(""),
+  iban: text("iban").notNull().default(""),
+  leitwegId: text("leitweg_id").notNull().default(""),
+  defaultFormat: invoiceFormatEnum("default_format"),
+  version: integer("version").notNull().default(1),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Stand eines Kontakts je Version, nur anhängen */
+export const contactVersions = pgTable(
+  "contact_versions",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    version: integer("version").notNull(),
+    data: jsonb("data").$type<Record<string, string | number | null>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("contact_versions_contact_version").on(t.contactId, t.version)],
+);
+
+export const invoiceKindEnum = pgEnum("invoice_kind", ["rechnung", "storno", "korrektur"]);
+export const invoiceStatusEnum = pgEnum("invoice_status", ["draft", "final"]);
+
+/** Ausgangsrechnungen. Beträge in Cent, bei Storno und Korrektur negativ. */
+export const invoices = pgTable(
+  "invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: invoiceKindEnum("kind").notNull().default("rechnung"),
+    status: invoiceStatusEnum("status").notNull().default("draft"),
+    /** Erst beim Festschreiben vergeben */
+    number: text("number").unique(),
+    numberYear: smallint("number_year"),
+    numberCounter: integer("number_counter"),
+    contactId: uuid("contact_id").references(() => contacts.id),
+    contactVersion: integer("contact_version"),
+    issueDate: date("issue_date", { mode: "string" }).notNull(),
+    serviceFrom: date("service_from", { mode: "string" }),
+    serviceTo: date("service_to", { mode: "string" }),
+    paymentTermDays: smallint("payment_term_days").notNull().default(14),
+    dueDate: date("due_date", { mode: "string" }).notNull(),
+    format: invoiceFormatEnum("format").notNull().default("zugferd"),
+    note: text("note").notNull().default(""),
+    correctsId: uuid("corrects_id"),
+    net: integer("net").notNull().default(0),
+    tax: integer("tax").notNull().default(0),
+    gross: integer("gross").notNull().default(0),
+    /** Verkäufer und Käufer, wie sie auf der festgeschriebenen Rechnung stehen */
+    seller: jsonb("seller").$type<Seller>(),
+    buyer: jsonb("buyer").$type<Buyer>(),
+    pdf: bytea("pdf"),
+    pdfSha256: text("pdf_sha256"),
+    xml: text("xml"),
+    xmlSha256: text("xml_sha256"),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
+    uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
+  ],
+);
+
+export const invoiceLines = pgTable("invoice_lines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  invoiceId: uuid("invoice_id")
+    .notNull()
+    .references(() => invoices.id, { onDelete: "cascade" }),
+  position: smallint("position").notNull(),
+  description: text("description").notNull(),
+  /** Tausendstel */
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").notNull(),
+  unitPrice: integer("unit_price").notNull(),
+  taxRate: smallint("tax_rate").notNull(),
+  net: integer("net").notNull(),
+});
+
+/** Letzte vergebene laufende Nummer je Jahr; lückenlos, weil nur beim Festschreiben gezogen */
+export const invoiceNumberCounters = pgTable("invoice_number_counters", {
+  year: smallint("year").primaryKey(),
+  last: integer("last").notNull(),
+});
+
+/** Buchungen. Festgeschrieben ab Entstehung; Korrektur nur per Gegenbuchung. */
+export const journalEntries = pgTable("journal_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  date: date("date", { mode: "string" }).notNull(),
+  description: text("description").notNull(),
+  sourceType: text("source_type", { enum: ["invoice"] }).notNull(),
+  sourceId: uuid("source_id").notNull(),
+  kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
+  reversesId: uuid("reverses_id"),
+  lockedAt: timestamp("locked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const journalLines = pgTable(
+  "journal_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entryId: uuid("entry_id")
+      .notNull()
+      .references(() => journalEntries.id),
+    account: text("account").notNull(),
+    debit: integer("debit").notNull().default(0),
+    credit: integer("credit").notNull().default(0),
+    taxCode: text("tax_code"),
+  },
+  (t) => [check("journal_lines_one_side", sql`(${t.debit} >= 0 and ${t.credit} >= 0) and (${t.debit} = 0 or ${t.credit} = 0)`)],
+);

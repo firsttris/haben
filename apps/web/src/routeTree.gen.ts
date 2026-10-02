@@ -14,10 +14,17 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
+import { Route as AppKontakteIndexRouteImport } from './routes/_app/kontakte/index'
+import { Route as AppKontakteIdRouteImport } from './routes/_app/kontakte/$id'
+import { Route as AppKontakteNeuRouteImport } from './routes/_app/kontakte/neu'
+import { Route as AppRechnungenIndexRouteImport } from './routes/_app/rechnungen/index'
+import { Route as AppRechnungenIdRouteImport } from './routes/_app/rechnungen/$id'
+import { Route as AppRechnungenNeuRouteImport } from './routes/_app/rechnungen/neu'
 import { Route as AppUmsatzsteuerIndexRouteImport } from './routes/_app/umsatzsteuer/index'
 import { Route as AppUmsatzsteuerZeitraumRouteImport } from './routes/_app/umsatzsteuer/$zeitraum'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
+import { Route as ApiRechnungIdDateiRouteImport } from './routes/api/rechnung/$id.$datei'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -43,6 +50,36 @@ const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
   path: '/einstellungen',
   getParentRoute: () => AppRoute,
 } as any)
+const AppKontakteIndexRoute = AppKontakteIndexRouteImport.update({
+  id: '/kontakte/',
+  path: '/kontakte/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKontakteIdRoute = AppKontakteIdRouteImport.update({
+  id: '/kontakte/$id',
+  path: '/kontakte/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKontakteNeuRoute = AppKontakteNeuRouteImport.update({
+  id: '/kontakte/neu',
+  path: '/kontakte/neu',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRechnungenIndexRoute = AppRechnungenIndexRouteImport.update({
+  id: '/rechnungen/',
+  path: '/rechnungen/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRechnungenIdRoute = AppRechnungenIdRouteImport.update({
+  id: '/rechnungen/$id',
+  path: '/rechnungen/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRechnungenNeuRoute = AppRechnungenNeuRouteImport.update({
+  id: '/rechnungen/neu',
+  path: '/rechnungen/neu',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppUmsatzsteuerIndexRoute = AppUmsatzsteuerIndexRouteImport.update({
   id: '/umsatzsteuer/',
   path: '/umsatzsteuer/',
@@ -63,26 +100,45 @@ const ApiProtokollIdRoute = ApiProtokollIdRouteImport.update({
   path: '/api/protokoll/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRechnungIdDateiRoute = ApiRechnungIdDateiRouteImport.update({
+  id: '/api/rechnung/$id/$datei',
+  path: '/api/rechnung/$id/$datei',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/einstellungen': typeof AppEinstellungenRoute
+  '/kontakte/$id': typeof AppKontakteIdRoute
+  '/kontakte/neu': typeof AppKontakteNeuRoute
+  '/rechnungen/$id': typeof AppRechnungenIdRoute
+  '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/kontakte/': typeof AppKontakteIndexRoute
+  '/rechnungen/': typeof AppRechnungenIndexRoute
   '/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
+  '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/': typeof AppIndexRoute
+  '/kontakte/$id': typeof AppKontakteIdRoute
+  '/kontakte/neu': typeof AppKontakteNeuRoute
+  '/rechnungen/$id': typeof AppRechnungenIdRoute
+  '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/kontakte': typeof AppKontakteIndexRoute
+  '/rechnungen': typeof AppRechnungenIndexRoute
   '/umsatzsteuer': typeof AppUmsatzsteuerIndexRoute
+  '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -91,10 +147,17 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/kontakte/$id': typeof AppKontakteIdRoute
+  '/_app/kontakte/neu': typeof AppKontakteNeuRoute
+  '/_app/rechnungen/$id': typeof AppRechnungenIdRoute
+  '/_app/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/_app/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/_app/kontakte/': typeof AppKontakteIndexRoute
+  '/_app/rechnungen/': typeof AppRechnungenIndexRoute
   '/_app/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
+  '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -103,20 +166,34 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/einstellungen'
+    | '/kontakte/$id'
+    | '/kontakte/neu'
+    | '/rechnungen/$id'
+    | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
     | '/api/auth/$'
     | '/api/protokoll/$id'
+    | '/kontakte/'
+    | '/rechnungen/'
     | '/umsatzsteuer/'
+    | '/api/rechnung/$id/$datei'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/setup'
     | '/einstellungen'
     | '/'
+    | '/kontakte/$id'
+    | '/kontakte/neu'
+    | '/rechnungen/$id'
+    | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
     | '/api/auth/$'
     | '/api/protokoll/$id'
+    | '/kontakte'
+    | '/rechnungen'
     | '/umsatzsteuer'
+    | '/api/rechnung/$id/$datei'
   id:
     | '__root__'
     | '/_app'
@@ -124,10 +201,17 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/einstellungen'
     | '/_app/'
+    | '/_app/kontakte/$id'
+    | '/_app/kontakte/neu'
+    | '/_app/rechnungen/$id'
+    | '/_app/rechnungen/neu'
     | '/_app/umsatzsteuer/$zeitraum'
     | '/api/auth/$'
     | '/api/protokoll/$id'
+    | '/_app/kontakte/'
+    | '/_app/rechnungen/'
     | '/_app/umsatzsteuer/'
+    | '/api/rechnung/$id/$datei'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -136,6 +220,7 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
+  ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -175,6 +260,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEinstellungenRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/kontakte/': {
+      id: '/_app/kontakte/'
+      path: '/kontakte'
+      fullPath: '/kontakte/'
+      preLoaderRoute: typeof AppKontakteIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/kontakte/$id': {
+      id: '/_app/kontakte/$id'
+      path: '/kontakte/$id'
+      fullPath: '/kontakte/$id'
+      preLoaderRoute: typeof AppKontakteIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/kontakte/neu': {
+      id: '/_app/kontakte/neu'
+      path: '/kontakte/neu'
+      fullPath: '/kontakte/neu'
+      preLoaderRoute: typeof AppKontakteNeuRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/rechnungen/': {
+      id: '/_app/rechnungen/'
+      path: '/rechnungen'
+      fullPath: '/rechnungen/'
+      preLoaderRoute: typeof AppRechnungenIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/rechnungen/$id': {
+      id: '/_app/rechnungen/$id'
+      path: '/rechnungen/$id'
+      fullPath: '/rechnungen/$id'
+      preLoaderRoute: typeof AppRechnungenIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/rechnungen/neu': {
+      id: '/_app/rechnungen/neu'
+      path: '/rechnungen/neu'
+      fullPath: '/rechnungen/neu'
+      preLoaderRoute: typeof AppRechnungenNeuRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/umsatzsteuer/': {
       id: '/_app/umsatzsteuer/'
       path: '/umsatzsteuer'
@@ -203,20 +330,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProtokollIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/rechnung/$id/$datei': {
+      id: '/api/rechnung/$id/$datei'
+      path: '/api/rechnung/$id/$datei'
+      fullPath: '/api/rechnung/$id/$datei'
+      preLoaderRoute: typeof ApiRechnungIdDateiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AppRouteChildren {
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppKontakteIdRoute: typeof AppKontakteIdRoute
+  AppKontakteNeuRoute: typeof AppKontakteNeuRoute
+  AppRechnungenIdRoute: typeof AppRechnungenIdRoute
+  AppRechnungenNeuRoute: typeof AppRechnungenNeuRoute
   AppUmsatzsteuerZeitraumRoute: typeof AppUmsatzsteuerZeitraumRoute
+  AppKontakteIndexRoute: typeof AppKontakteIndexRoute
+  AppRechnungenIndexRoute: typeof AppRechnungenIndexRoute
   AppUmsatzsteuerIndexRoute: typeof AppUmsatzsteuerIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppIndexRoute: AppIndexRoute,
+  AppKontakteIdRoute: AppKontakteIdRoute,
+  AppKontakteNeuRoute: AppKontakteNeuRoute,
+  AppRechnungenIdRoute: AppRechnungenIdRoute,
+  AppRechnungenNeuRoute: AppRechnungenNeuRoute,
   AppUmsatzsteuerZeitraumRoute: AppUmsatzsteuerZeitraumRoute,
+  AppKontakteIndexRoute: AppKontakteIndexRoute,
+  AppRechnungenIndexRoute: AppRechnungenIndexRoute,
   AppUmsatzsteuerIndexRoute: AppUmsatzsteuerIndexRoute,
 }
 
@@ -228,6 +374,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
+  ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

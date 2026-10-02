@@ -6,15 +6,17 @@ import { authClient } from "../../lib/auth-client.ts";
 import { errorMessage, formatDate } from "../../lib/format.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { getCompany, saveCompany } from "../../server/functions/company.ts";
+import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat] = await Promise.all([
+    const [company, vat, numbering] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
+      getNumbering(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode };
+    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
   component: SettingsPage,
@@ -43,6 +45,7 @@ function SettingsPage() {
       <div className="grid-main">
         <CompanyForm />
         <div className="stack">
+          <NumberingForm />
           <CertificateForm />
           <Passkeys />
         </div>
@@ -77,6 +80,13 @@ function CompanyForm() {
           finanzamt: text("finanzamt"),
           bundesland: (text("bundesland") || null) as Bundesland | null,
           versteuerung: text("versteuerung") === "soll" ? "soll" : "ist",
+          telefon: text("telefon"),
+          bank: text("bank"),
+          iban: text("iban").toUpperCase().replace(/\s/g, ""),
+          bic: text("bic").toUpperCase().replace(/\s/g, ""),
+          kontenrahmen: text("kontenrahmen") === "SKR04" ? "SKR04" : "SKR03",
+          paymentTermDays: Number(text("paymentTermDays") || 14),
+          defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
         },
       });
       await router.invalidate();
@@ -135,6 +145,41 @@ function CompanyForm() {
         <label className="field">
           Finanzamt
           <input name="finanzamt" defaultValue={company.finanzamt} />
+        </label>
+        <label className="field">
+          Telefon (Pflicht für XRechnung)
+          <input name="telefon" type="tel" defaultValue={company.telefon} autoComplete="tel" />
+        </label>
+        <label className="field">
+          Bank
+          <input name="bank" defaultValue={company.bank} />
+        </label>
+        <label className="field">
+          IBAN
+          <input name="iban" defaultValue={company.iban} />
+        </label>
+        <label className="field">
+          BIC
+          <input name="bic" defaultValue={company.bic} />
+        </label>
+        <label className="field">
+          Kontenrahmen (wie in Lexoffice)
+          <select name="kontenrahmen" defaultValue={company.kontenrahmen}>
+            <option value="SKR03">SKR03</option>
+            <option value="SKR04">SKR04</option>
+          </select>
+        </label>
+        <label className="field">
+          Standard-Zahlungsziel in Tagen
+          <input name="paymentTermDays" inputMode="numeric" defaultValue={company.paymentTermDays} />
+        </label>
+        <label className="field">
+          Standardformat für Rechnungen
+          <select name="defaultFormat" defaultValue={company.defaultFormat}>
+            <option value="zugferd">ZUGFeRD (PDF mit XML)</option>
+            <option value="xrechnung-cii">XRechnung (CII)</option>
+            <option value="xrechnung-ubl">XRechnung (UBL)</option>
+          </select>
         </label>
         <label className="field">
           Versteuerung
@@ -285,5 +330,49 @@ function Passkeys() {
       </div>
       <NoticeBanner notice={notice} />
     </section>
+  );
+}
+
+function NumberingForm() {
+  const { numbering } = Route.useLoaderData();
+  const router = useRouter();
+  const save = useServerFn(saveNextNumber);
+  const [notice, setNotice] = useState<Notice>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const next = Number(new FormData(event.currentTarget).get("next"));
+    setBusy(true);
+    setNotice(null);
+    try {
+      await save({ data: { next } });
+      await router.invalidate();
+      setNotice({ tone: "ok", text: "Nummernkreis gespeichert." });
+    } catch (error) {
+      setNotice({ tone: "danger", text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="card" onSubmit={onSubmit} aria-labelledby="numbering-heading">
+      <h2 id="numbering-heading">Rechnungsnummern {numbering.year}</h2>
+      <p className="small muted" style={{ margin: 0 }}>
+        Nächste Nummer: <span className="mono">{numbering.next}</span>. Nummern werden erst beim Festschreiben vergeben und
+        laufen lückenlos. Um nach Lexoffice weiterzuzählen, die nächste laufende Nummer eintragen; zurücksetzen geht nicht.
+      </p>
+      <label className="field">
+        Nächste laufende Nummer
+        <input name="next" type="number" min={numbering.last + 1} defaultValue={numbering.last + 1} required />
+      </label>
+      <div className="actions">
+        <button type="submit" className="btn" disabled={busy}>
+          Übernehmen
+        </button>
+      </div>
+      <NoticeBanner notice={notice} />
+    </form>
   );
 }

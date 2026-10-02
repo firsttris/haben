@@ -15,6 +15,20 @@
       "when": 1790901743688,
       "tag": "0001_festschreibung",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790927346286,
+      "tag": "0002_rechnungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790927347215,
+      "tag": "0003_rechnungen_trigger",
+      "breakpoints": true
     }
   ]
 }

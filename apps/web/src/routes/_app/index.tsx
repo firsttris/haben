@@ -1,10 +1,15 @@
 import { formatEuro, periodKey, periodLabel } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { daysUntil, formatDate, formatLongDate } from "../../lib/format.ts";
+import { InvoiceStatus } from "../../components/InvoiceStatus.tsx";
+import { getInvoiceSummary } from "../../server/functions/invoices.ts";
 import { getOverview } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/")({
-  loader: () => getOverview(),
+  loader: async () => {
+    const [vat, invoices] = await Promise.all([getOverview(), getInvoiceSummary()]);
+    return { ...vat, invoices };
+  },
   head: () => ({ meta: [{ title: "Übersicht · Haben" }] }),
   component: OverviewPage,
 });
@@ -14,7 +19,7 @@ interface Todo {
   detail: string;
   action: string;
   tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen";
+  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen";
 }
 
 const DOT = { info: "var(--info-ink)", warn: "var(--warn-dot)", neutral: "var(--muted)" };
@@ -33,6 +38,24 @@ function OverviewPage() {
       action: "Öffnen",
       tone: daysUntil(data.dueDate) <= 3 ? "warn" : "info",
       to: "/umsatzsteuer/$zeitraum",
+    });
+  }
+  if (data.invoices.overdueCount > 0) {
+    todos.push({
+      title: `${data.invoices.overdueCount} ${data.invoices.overdueCount === 1 ? "Rechnung" : "Rechnungen"} überfällig`,
+      detail: "Zahlungseingang prüfen oder erinnern",
+      action: "Ansehen",
+      tone: "warn",
+      to: "/rechnungen",
+    });
+  }
+  if (data.invoices.drafts > 0) {
+    todos.push({
+      title: `${data.invoices.drafts} ${data.invoices.drafts === 1 ? "Rechnungsentwurf" : "Rechnungsentwürfe"}`,
+      detail: "Noch nicht festgeschrieben",
+      action: "Öffnen",
+      tone: "neutral",
+      to: "/rechnungen",
     });
   }
   if (data.companyIssues.length > 0) {
@@ -70,8 +93,11 @@ function OverviewPage() {
           <h1>Übersicht</h1>
         </div>
         <div className="actions">
-          <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: key }} className="btn btn-primary">
+          <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: key }} className="btn">
             Voranmeldung {periodLabel(data.period)}
+          </Link>
+          <Link to="/rechnungen/neu" className="btn btn-primary">
+            Neue Rechnung
           </Link>
         </div>
       </div>
@@ -83,6 +109,19 @@ function OverviewPage() {
       )}
 
       <div className="grid-4">
+        <div className="card">
+          <div className="kpi-label">Offene Forderungen</div>
+          <div className="kpi-value">{formatEuro(data.invoices.openTotal)}</div>
+          <div className="small" style={{ color: data.invoices.overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
+            {data.invoices.openCount} {data.invoices.openCount === 1 ? "Rechnung" : "Rechnungen"}
+            {data.invoices.overdueCount ? ` · ${data.invoices.overdueCount} überfällig` : ""}
+          </div>
+        </div>
+        <div className="card">
+          <div className="kpi-label">Umsatz {periodLabel(data.period).split(" ")[0]} (netto)</div>
+          <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonth.net)}</div>
+          <div className="small muted">nach Rechnungsdatum</div>
+        </div>
         <div className="card">
           <div className="kpi-label">USt-Zahllast {periodLabel(data.period)}</div>
           <div className="kpi-value">{data.current ? formatEuro(data.current.kz83) : "–"}</div>
@@ -119,6 +158,32 @@ function OverviewPage() {
             ))
           )}
         </section>
+        <section className="card" aria-labelledby="invoices-heading">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 id="invoices-heading">Letzte Rechnungen</h2>
+            <Link to="/rechnungen" className="small">
+              Alle anzeigen
+            </Link>
+          </div>
+          {data.invoices.recent.length === 0 ? (
+            <p className="muted" style={{ margin: 0 }}>Noch keine festgeschriebene Rechnung.</p>
+          ) : (
+            <div className="table">
+              {data.invoices.recent.map((invoice) => (
+                <Link key={invoice.id} to="/rechnungen/$id" params={{ id: invoice.id }} className="table-row invoice-cols-compact">
+                  <div className="mono small">{invoice.number}</div>
+                  <div title={invoice.customer}>{invoice.customer}</div>
+                  <div className="num">{formatEuro(invoice.gross)}</div>
+                  <div>
+                    <InvoiceStatus status={invoice.listStatus} />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+      <div className="grid-main">
         <section className="card" aria-labelledby="recent-heading">
           <h2 id="recent-heading">Letzte Voranmeldungen</h2>
           {data.recent.length === 0 ? (

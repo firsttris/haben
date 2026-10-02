@@ -15,7 +15,6 @@ export const Route = createFileRoute("/_app")({
 
 /** Bereiche aus dem Plan, die in späteren Phasen kommen */
 const LATER: { label: string; icon: IconName; phase: number }[] = [
-  { label: "Rechnungen", icon: "invoice", phase: 2 },
   { label: "Belege", icon: "receipt", phase: 3 },
   { label: "Bank", icon: "bank", phase: 4 },
   { label: "Buchungen", icon: "journal", phase: 4 },
@@ -23,7 +22,6 @@ const LATER: { label: string; icon: IconName; phase: number }[] = [
 
 const LATER_AFTER: { label: string; icon: IconName; phase: number }[] = [
   { label: "Auswertungen", icon: "reports", phase: 5 },
-  { label: "Kontakte", icon: "contacts", phase: 2 },
 ];
 
 function LaterLink({ label, icon, phase }: { label: string; icon: IconName; phase: number }) {
@@ -54,6 +52,10 @@ function AppLayout() {
           <Icon name="overview" />
           Übersicht
         </Link>
+        <Link to="/rechnungen" className="nav-link">
+          <Icon name="invoice" />
+          Rechnungen
+        </Link>
         {LATER.map((item) => (
           <LaterLink key={item.label} {...item} />
         ))}
@@ -64,6 +66,10 @@ function AppLayout() {
         {LATER_AFTER.map((item) => (
           <LaterLink key={item.label} {...item} />
         ))}
+        <Link to="/kontakte" className="nav-link">
+          <Icon name="contacts" />
+          Kontakte
+        </Link>
         <Link to="/einstellungen" className="nav-link">
           <Icon name="settings" />
           Einstellungen
