@@ -74,20 +74,28 @@ export async function addArchiveFile(
     const from = dates[0]!;
     const to = dates[dates.length - 1]!;
     year ??= Number(stack.header.fiscalYearStart.slice(0, 4));
+    // Zeiträume der schon übernommenen Stapel vergleichen, nicht nur einzelne Buchungstage
     const [overlap] = await db
-      .select({ filename: schema.archiveFiles.filename, n: count() })
-      .from(schema.datevBookings)
-      .innerJoin(schema.archiveFiles, eq(schema.archiveFiles.id, schema.datevBookings.fileId))
-      .where(and(gte(schema.datevBookings.date, from), lte(schema.datevBookings.date, to)))
-      .groupBy(schema.archiveFiles.filename)
+      .select({ filename: schema.archiveFiles.filename, from: sql<string>`${schema.archiveFiles.meta} ->> 'dateFrom'`, to: sql<string>`${schema.archiveFiles.meta} ->> 'dateTo'` })
+      .from(schema.archiveFiles)
+      .where(
+        and(
+          eq(schema.archiveFiles.kind, "datev"),
+          sql`${schema.archiveFiles.meta} ->> 'dateFrom' <= ${to}`,
+          sql`${schema.archiveFiles.meta} ->> 'dateTo' >= ${from}`,
+        ),
+      )
       .limit(1);
     if (overlap) {
       throw new ArchiveError(
-        `${file.filename}: Der Zeitraum ${from} bis ${to} überschneidet sich mit ${overlap.filename}. Jeder Zeitraum darf nur einmal übernommen werden.`,
+        `${file.filename}: Der Zeitraum ${from} bis ${to} überschneidet sich mit ${overlap.filename} (${overlap.from} bis ${overlap.to}). Jeder Zeitraum darf nur einmal übernommen werden.`,
       );
     }
     meta = { header: stack.header, dateFrom: from, dateTo: to, bookings: bookings.length, warnings };
   }
+
+  // Ohne Jahr zählt die Datei weder im Abgleich noch im Jahresexport
+  if (year === null) throw new ArchiveError(`${file.filename}: Bitte das Geschäftsjahr angeben.`);
 
   await storeFile(file.bytes);
   const id = await withActor(actor, async (tx) => {

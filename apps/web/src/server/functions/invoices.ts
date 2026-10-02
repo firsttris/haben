@@ -21,6 +21,7 @@ import {
   setNextNumber,
   updateDraft,
 } from "../invoices.ts";
+import { db, schema } from "../db/index.ts";
 import { today } from "../today.ts";
 
 function asUserError(error: unknown): never {
@@ -55,12 +56,13 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 
 async function editorContext() {
   const company = await loadCompany();
-  const year = Number(today().slice(0, 4));
+  // Je Jahr die letzte Nummer; der Editor zeigt die Nummer zum Jahr des Rechnungsdatums
+  const counters = await db.select().from(schema.invoiceNumberCounters);
   return {
     contacts: await listContacts(),
     company: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort, email: company.email, steuernummer: company.steuernummer, ustId: company.ustId, iban: company.iban, bic: company.bic, bank: company.bank },
     sellerIssues: sellerIssues(company),
-    nextNumber: (await numbering(year)).next,
+    numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
   };
 }
 

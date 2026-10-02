@@ -54,7 +54,7 @@ export const getVatPeriod = createServerFn({ method: "GET" })
       certificate: certificateSummary(certificate),
       companyIssues: companyIssues(company),
       mode: elsterMode(),
-      herstellerIdConfigured: Boolean(env().ELSTER_HERSTELLER_ID),
+      herstellerIdConfigured: Boolean(env().ELSTER_HERSTELLER_ID) && elsterMode() === "eric",
       /** Vorsteuer aus gebuchten Belegen dieses Monats */
       inputTax,
       /** Aus den Buchungen berechnete Kennzahlen mit ihren Quellen */

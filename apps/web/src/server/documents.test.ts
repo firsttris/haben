@@ -158,6 +158,28 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect(await documents.getDocument(id)).toBeNull();
   });
 
+  it("Löschen lässt Dateien liegen, die das Archiv noch nutzt", async () => {
+    const storage = await import("./storage.ts");
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7, 7, 7, 1]);
+    const { id } = await documents.uploadDocument(actor, { bytes, filename: "x.jpg" });
+    const sha = storage.sha256Of(bytes);
+    await sql`insert into archive_files (kind, year, filename, sha256, mime_type, size) values ('kontoauszug', 2025, 'auszug.jpg', ${sha}, 'image/jpeg', 8)`;
+    await documents.deleteDocument(actor, id);
+    expect((await storage.loadFile(sha)).byteLength).toBe(8);
+
+    const other = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 9, 9, 2]);
+    const second = await documents.uploadDocument(actor, { bytes: other, filename: "y.jpg" });
+    await documents.deleteDocument(actor, second.id);
+    await expect(storage.loadFile(storage.sha256Of(other))).rejects.toThrow();
+  });
+
+  it("gibt eine durch Neustart abgebrochene Auslesung wieder frei", async () => {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 5, 5, 5]), filename: "z.jpg" });
+    await sql`update documents set extraction_status = 'laeuft', supplier_name = '' where id = ${id}`;
+    const detail = await documents.getDocument(id);
+    expect(detail?.document).toMatchObject({ extractionStatus: "fehler", extractionError: expect.stringMatching(/unterbrochen/) });
+  });
+
   it("lehnt unbekannte Dateitypen ab", async () => {
     await expect(
       documents.uploadDocument(actor, { bytes: new TextEncoder().encode("hallo"), filename: "x.txt" }),

@@ -138,10 +138,24 @@ async function setExtractionState(actor: string, id: string, status: "laeuft" | 
   );
 }
 
+/** Auslesungen, die in diesem Prozess laufen; was sonst auf „läuft“ steht, hat ein Neustart abgebrochen */
+const runningExtractions = new Set<string>();
+
 /** KI-Auslesung; läuft im Hintergrund, der Beleg zeigt solange „wird ausgelesen“. */
 export async function runExtraction(actor: string, id: string): Promise<void> {
-  const [doc] = await db.select().from(schema.documents).where(eq(schema.documents.id, id));
-  if (!doc || doc.lockedAt) return;
+  // Vor dem ersten await eintragen, damit getDocument den Lauf nie für abgebrochen hält
+  runningExtractions.add(id);
+  try {
+    const [doc] = await db.select().from(schema.documents).where(eq(schema.documents.id, id));
+    if (!doc || doc.lockedAt) return;
+    await extract(actor, doc);
+  } finally {
+    runningExtractions.delete(id);
+  }
+}
+
+async function extract(actor: string, doc: Document): Promise<void> {
+  const id = doc.id;
   await setExtractionState(actor, id, "laeuft", null);
   try {
     const bytes = await loadFile(doc.sha256);
@@ -206,6 +220,7 @@ export async function uploadDocument(
   }
 
   if (extractionAvailable() && (type.kind === "pdf" || type.kind === "jpeg" || type.kind === "png" || type.kind === "webp")) {
+    runningExtractions.add(id);
     await setExtractionState(actor, id, "laeuft", null);
     const work = runExtraction(actor, id);
     if (options.background) options.background(work);
@@ -242,8 +257,18 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
 }
 
 export async function getDocument(id: string) {
-  const [doc] = await db.select().from(schema.documents).where(eq(schema.documents.id, id));
+  let [doc] = await db.select().from(schema.documents).where(eq(schema.documents.id, id));
   if (!doc) return null;
+  if (doc.extractionStatus === "laeuft" && !runningExtractions.has(id)) {
+    // Server während der Auslesung neu gestartet: Beleg wieder freigeben statt ewig „läuft“
+    [doc] = await db
+      .update(schema.documents)
+      .set({ extractionStatus: "fehler", extractionError: "Die Auslesung wurde unterbrochen. Bitte erneut auslesen oder von Hand ausfüllen." })
+      .where(and(eq(schema.documents.id, id), eq(schema.documents.extractionStatus, "laeuft"), sql`${schema.documents.lockedAt} is null`))
+      .returning();
+    [doc] = doc ? [doc] : await db.select().from(schema.documents).where(eq(schema.documents.id, id));
+    if (!doc) return null;
+  }
   const amounts = await db
     .select()
     .from(schema.documentAmounts)
@@ -298,14 +323,20 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
   });
 }
 
-/** Nur ungebuchte Belege lassen sich löschen; die Datei geht mit. */
+/**
+ * Nur ungebuchte Belege lassen sich löschen; die Datei geht mit, außer Archiv oder Lexoffice-Übernahme
+ * nutzen dieselbe Datei (Ablage nach Inhalt, also derselbe SHA-256).
+ */
 export async function deleteDocument(actor: string, id: string): Promise<void> {
-  const sha256 = await withActor(actor, async (tx) => {
+  const { sha256, shared } = await withActor(actor, async (tx) => {
     const doc = await lockOpen(tx, id);
     await tx.delete(schema.documents).where(eq(schema.documents.id, id));
-    return doc.sha256;
+    const [use] = await tx.execute<{ shared: boolean }>(sql`
+      select exists (select 1 from archive_files where sha256 = ${doc.sha256})
+          or exists (select 1 from lexoffice_voucher_files where sha256 = ${doc.sha256}) as shared`);
+    return { sha256: doc.sha256, shared: Boolean(use?.shared) };
   });
-  await removeFile(sha256);
+  if (!shared) await removeFile(sha256);
 }
 
 export async function listDocuments() {

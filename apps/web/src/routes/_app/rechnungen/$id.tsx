@@ -58,7 +58,7 @@ function InvoicePage() {
         seller={data.company}
         sellerIssues={data.sellerIssues}
         issues={data.issues}
-        nextNumber={data.nextNumber}
+        numberCounters={data.numberCounters}
         corrects={data.corrects}
       />
     );

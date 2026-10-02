@@ -66,3 +66,31 @@ jobs:
           name: kosit-reports
           path: ${{ runner.temp }}/kosit/out
           if-no-files-found: ignore
+
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image bauen
+        run: docker build -f Containerfile -t haben:ci .
+      - name: Mit PostgreSQL starten
+        run: |
+          docker network create haben
+          docker run -d --name haben-db --network haben -e POSTGRES_USER=haben -e POSTGRES_PASSWORD=haben -e POSTGRES_DB=haben postgres:16
+          # Das Postgres-Image startet nach der Initialisierung einmal neu; erst danach ist es bereit
+          for i in $(seq 1 60); do [ "$(docker logs haben-db 2>&1 | grep -c 'ready to accept connections')" -ge 2 ] && break; sleep 1; done
+          docker run -d --name haben-app --network haben -p 3000:3000 \
+            -e DATABASE_URL=postgres://haben:haben@haben-db:5432/haben \
+            -e BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
+            -e BETTER_AUTH_URL=http://localhost:3000 \
+            -e HABEN_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+            -e ELSTER_HERSTELLER_ID= \
+            haben:ci
+      - name: Prüfen
+        run: |
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 2; done
+          curl -sf -o /dev/null http://localhost:3000/login
+          docker logs haben-app 2>&1 | grep -q "Migrationen angewendet"
+          docker exec haben-app sh -c 'cd /app/packages/elster && node -e "require.resolve(\"koffi\")"'
+      - if: failure()
+        run: docker logs haben-app || true

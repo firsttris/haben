@@ -209,6 +209,42 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(accounts[0]?.openCount).toBe(0);
   }, 30_000);
 
+  it("Storno einer bezahlten Rechnung: Erstattung wird der Stornorechnung zugeordnet und mindert die Umsatzsteuer (Ist)", async () => {
+    const { invoice } = await finalInvoice(400_000);
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          outgoing("15.10.26", "Nordwerk Software GmbH", "DE02100100100006820101", "Erstattung RE 2026-001", "-4.760,00"),
+          incoming("20.09.26", "Nordwerk Software GmbH", "DE02100100100006820101", "RE 2026-001", "4.760,00"),
+        ]),
+        filename: "a.csv",
+      },
+      null,
+    );
+    const [refundTx] = await sql`select id from bank_transactions where amount < 0`;
+    const [paymentTx] = await sql`select id from bank_transactions where amount > 0`;
+    await bank.allocate(actor, { kind: "invoice", transactionId: paymentTx!.id, invoiceId: invoice.id, amount: 476_000 });
+
+    const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-10-10");
+    const items = await bank.openItems();
+    expect(items.map((i) => [i.id, i.open])).toEqual([[storno.id, -476_000]]);
+    expect((await invoices.listInvoices("2026-10-12")).find((i) => i.id === storno.id)).toMatchObject({ listStatus: "storno", open: -476_000 });
+    // Die stornierte Rechnung selbst nimmt keine Erstattung an
+    await expect(
+      bank.allocate(actor, { kind: "invoice", transactionId: refundTx!.id, invoiceId: invoice.id, amount: -476_000 }),
+    ).rejects.toThrow(/storniert/);
+
+    await bank.allocate(actor, { kind: "invoice", transactionId: refundTx!.id, invoiceId: storno.id, amount: -476_000 });
+    expect(await bank.openItems()).toEqual([]);
+    const balances = await sql`select account, sum(debit) - sum(credit) as saldo from journal_lines group by account order by account`;
+    const saldo = Object.fromEntries(balances.map((b) => [b.account, Number(b.saldo)]));
+    // Forderung und noch nicht fällige Steuer sind ausgeglichen, die fällige Umsatzsteuer ist wieder 0
+    expect(saldo).toMatchObject({ "1400": 0, "1766": 0, "1776": 0, "1200": 0 });
+    const figures = await import("./vat-figures.ts");
+    expect((await figures.computeVatFigures({ year: 2026, month: 10 })).kz81).toBe(-400_000);
+  }, 30_000);
+
   it("Datei ohne IBAN braucht ein gewähltes Konto", async () => {
     const n26 = new TextEncoder().encode(
       '"Booking Date","Value Date","Partner Name","Partner Iban",Type,"Payment Reference","Account Name","Amount (EUR)","Original Amount","Original Currency","Exchange Rate"\n' +

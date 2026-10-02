@@ -168,6 +168,13 @@ function VatReturnEditor({
   const stale =
     !locked && current?.source === "berechnet" && (current.kz81 !== computed.kz81 || current.kz86 !== computed.kz86 || current.kz66 !== computed.kz66);
 
+  // Gesendete Anmeldung, deren Buchungen sich danach geändert haben (z. B. Zuordnung aufgehoben)
+  const sentBasis = locked ? (current!.source === "berechnet" ? current! : current!.computed) : null;
+  const drift =
+    sentBasis !== null &&
+    sentBasis !== undefined &&
+    (sentBasis.kz81 !== computed.kz81 || sentBasis.kz86 !== computed.kz86 || sentBasis.kz66 !== computed.kz66);
+
   function update(field: FieldKey, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
     setDirty(true);
@@ -258,6 +265,13 @@ function VatReturnEditor({
             <button type="button" className={`chip${mode === "manuell" ? " active" : ""}`} aria-pressed={mode === "manuell"} onClick={() => switchMode("manuell")}>
               Manuell überschreiben
             </button>
+          </div>
+        )}
+        {drift && (
+          <div className="banner" role="alert">
+            Seit der Übermittlung haben sich die Buchungen dieses Monats geändert. Aus den Buchungen ergäben sich jetzt Kz 81{" "}
+            {formatEuro(computed.kz81)}, Kz 86 {formatEuro(computed.kz86)} und Kz 66 {formatEuro(computed.kz66)}. Prüfe die
+            Änderung und lege bei Bedarf eine berichtigte Anmeldung an.
           </div>
         )}
         {stale && mode === "berechnet" && (
@@ -545,7 +559,9 @@ function SubmitPanel({
       </label>
       {!canSendLive && (
         <p className="small muted" style={{ margin: 0 }}>
-          Echtübermittlung erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID).
+          {data.mode === "simuliert"
+            ? "Echtübermittlung erst mit eingerichtetem ERiC (ERIC_HOME) und eigener Hersteller-ID."
+            : "Echtübermittlung erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID)."}
         </p>
       )}
       {confirming && (

@@ -229,6 +229,14 @@ export async function invoicePayments(ids: string[]) {
   return paidByTarget("invoice_id", ids);
 }
 
+/**
+ * Offen bei einer Stornorechnung: Rechnung und Storno heben sich auf, übrig bleibt, was auf die Rechnung
+ * schon gezahlt und noch nicht erstattet wurde (negativ, also eine Auszahlung).
+ */
+export function stornoOpen(paidOnOriginal: number, paidOnStorno: number): number {
+  return -paidOnOriginal - paidOnStorno;
+}
+
 /** Offene Rechnungen und Belege für den Abgleich */
 export async function openItems(): Promise<OpenItem[]> {
   const invoices = await db
@@ -245,15 +253,20 @@ export async function openItems(): Promise<OpenItem[]> {
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(and(eq(schema.invoices.status, "final"), inArray(schema.invoices.kind, ["rechnung", "korrektur"])));
-  const cancelled = new Set(
-    (
-      await db
-        .select({ id: schema.invoices.correctsId })
-        .from(schema.invoices)
-        .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")))
-    ).map((r) => r.id),
-  );
-  const invoicePaid = await paidByTarget("invoice_id", invoices.map((i) => i.id));
+  const stornos = await db
+    .select({
+      id: schema.invoices.id,
+      correctsId: schema.invoices.correctsId,
+      number: schema.invoices.number,
+      issueDate: schema.invoices.issueDate,
+      buyer: schema.invoices.buyer,
+      contactIban: schema.contacts.iban,
+    })
+    .from(schema.invoices)
+    .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
+    .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
+  const cancelled = new Set(stornos.map((r) => r.correctsId));
+  const invoicePaid = await paidByTarget("invoice_id", [...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
 
   const documents = await db
     .select()
@@ -275,6 +288,21 @@ export async function openItems(): Promise<OpenItem[]> {
       open,
       partyName: inv.buyer?.name ?? "",
       partyIbans: inv.contactIban ? [inv.contactIban] : [],
+    });
+  }
+  // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet
+  for (const storno of stornos) {
+    const open = stornoOpen(invoicePaid.get(storno.correctsId!) ?? 0, invoicePaid.get(storno.id) ?? 0);
+    if (open === 0) continue;
+    items.push({
+      type: "invoice",
+      id: storno.id,
+      number: storno.number!,
+      date: storno.issueDate,
+      dueDate: storno.issueDate,
+      open,
+      partyName: storno.buyer?.name ?? "",
+      partyIbans: storno.contactIban ? [storno.contactIban] : [],
     });
   }
   for (const doc of documents) {
@@ -398,12 +426,26 @@ export async function allocate(actor: string, input: AllocationInput): Promise<v
 
     if (input.kind === "invoice") {
       const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
-      if (!invoice || invoice.status !== "final" || invoice.kind === "storno") throw new BankError("Rechnung nicht zuordenbar.");
-      const [paid] = await tx
-        .select({ sum: sql<string>`coalesce(sum(amount), 0)` })
-        .from(schema.allocations)
-        .where(eq(schema.allocations.invoiceId, invoice.id));
-      const open = invoice.gross - Number(paid?.sum ?? 0);
+      if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+      const paidOn = async (invoiceId: string) => {
+        const [paid] = await tx
+          .select({ sum: sql<string>`coalesce(sum(amount), 0)` })
+          .from(schema.allocations)
+          .where(eq(schema.allocations.invoiceId, invoiceId));
+        return Number(paid?.sum ?? 0);
+      };
+      let open: number;
+      if (invoice.kind === "storno") {
+        if (!invoice.correctsId) throw new BankError("Rechnung nicht zuordenbar.");
+        open = stornoOpen(await paidOn(invoice.correctsId), await paidOn(invoice.id));
+      } else {
+        const [storno] = await tx
+          .select({ id: schema.invoices.id })
+          .from(schema.invoices)
+          .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
+        if (storno) throw new BankError(`Rechnung ${invoice.number} ist storniert; eine Erstattung gehört zur Stornorechnung.`);
+        open = invoice.gross - (await paidOn(invoice.id));
+      }
       if (Math.sign(open) !== Math.sign(input.amount) || Math.abs(input.amount) > Math.abs(open)) {
         throw new BankError(`Rechnung ${invoice.number} ist nur noch über ${open / 100} € offen.`);
       }

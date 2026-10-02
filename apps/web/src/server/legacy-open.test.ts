@@ -129,6 +129,33 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     expect(september.kz81).toBe(0);
   });
 
+  it("Storno einer übernommenen Rechnung hebt die Eröffnungsbuchung auf, ohne Erlöse zu buchen", async () => {
+    const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF, contact: "Nordwerk Software GmbH" });
+    const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+    await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
+    const balances = await sql`select account, sum(debit) - sum(credit) as saldo from journal_lines group by account order by account`;
+    expect(balances.map((b) => [b.account, Number(b.saldo)])).toEqual([
+      ["1400", 0],
+      ["1766", 0],
+      ["9000", 0],
+    ]);
+    expect(await bank.openItems()).toEqual([]);
+  });
+
+  it("Soll: Storno einer übernommenen Rechnung mindert die in Lexoffice angemeldete Umsatzsteuer", async () => {
+    await sql`update company set versteuerung = 'soll'`;
+    const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF, contact: "Nordwerk Software GmbH" });
+    const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+    await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
+    const balances = await sql`select account, sum(debit) - sum(credit) as saldo from journal_lines group by account order by account`;
+    expect(balances.map((b) => [b.account, Number(b.saldo)])).toEqual([
+      ["1400", 0],
+      ["1776", 76_000],
+      ["9000", -76_000],
+    ]);
+    expect(await figures.computeVatFigures({ year: 2026, month: 10 })).toMatchObject({ kz81: -400_000, tax81: -76_000 });
+  });
+
   it("Soll: die Rechnung zählt nicht noch einmal in der Voranmeldung", async () => {
     await sql`update company set versteuerung = 'soll'`;
     const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF });

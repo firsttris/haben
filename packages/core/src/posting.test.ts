@@ -6,6 +6,7 @@ import {
   documentPosting,
   invoicePaymentPosting,
   invoicePosting,
+  legacyCorrectionPosting,
   openingDocumentPosting,
   openingInvoicePosting,
   paidTaxShares,
@@ -153,6 +154,31 @@ describe("Eröffnungsbuchungen für offene Posten aus Lexoffice", () => {
     expect(openingDocumentPosting(11_900, "SKR03")).toEqual([
       { account: "9000", debit: 11_900, credit: 0, taxCode: null },
       { account: "1600", debit: 0, credit: 11_900, taxCode: null },
+    ]);
+  });
+});
+
+describe("legacyCorrectionPosting", () => {
+  const storno = computeInvoiceTotals([{ quantity: 1000, unitPrice: -100_000, taxRate: 1900 }]);
+
+  it("Ist: hebt die Eröffnungsbuchung genau auf", () => {
+    const opening = openingInvoicePosting(computeInvoiceTotals([{ quantity: 1000, unitPrice: 100_000, taxRate: 1900 }]), "SKR03", "ist");
+    const lines = legacyCorrectionPosting(storno, "SKR03", "ist");
+    expect(lines).toEqual([
+      { account: "1400", debit: 0, credit: 119_000, taxCode: null },
+      { account: "1766", debit: 19_000, credit: 0, taxCode: null },
+      { account: "9000", debit: 100_000, credit: 0, taxCode: null },
+    ]);
+    const saldo = (account: string) =>
+      [...opening, ...lines].filter((l) => l.account === account).reduce((s, l) => s + l.debit - l.credit, 0);
+    expect(["1400", "1766", "9000"].map(saldo)).toEqual([0, 0, 0]);
+  });
+
+  it("Soll: mindert die schon angemeldete Umsatzsteuer", () => {
+    expect(legacyCorrectionPosting(storno, "SKR04", "soll")).toEqual([
+      { account: "1200", debit: 0, credit: 119_000, taxCode: null },
+      { account: "3806", debit: 19_000, credit: 0, taxCode: "USt19" },
+      { account: "9000", debit: 100_000, credit: 0, taxCode: null },
     ]);
   });
 });

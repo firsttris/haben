@@ -170,5 +170,4 @@ Eine Zuordnung lässt sich nur einmal aufheben.
 
 - Kein Online-Banking (FinTS, PSD2); Umsätze kommen nur per Datei.
 - Nur DKB, N26 und CAMT.053. Andere Banken gehen, wenn sie CAMT.053 exportieren.
-- Stornorechnungen sind kein offener Posten. Eine Rückzahlung an den Kunden ordnest du einer Rechnungskorrektur zu, nicht einer Stornorechnung.
-- Zuordnungen und ihre Aufhebung werden mit dem Buchungsdatum des Umsatzes gebucht. Hebst du eine Zuordnung in einem Monat auf, dessen Voranmeldung schon gesendet ist, ändern sich dessen berechnete Werte; die gesendete Anmeldung bleibt, wie sie ist (siehe [umsatzsteuer.md](umsatzsteuer.md)).
+- Zuordnungen und ihre Aufhebung werden mit dem Buchungsdatum des Umsatzes gebucht. Hebst du eine Zuordnung in einem Monat auf, dessen Voranmeldung schon gesendet ist, ändern sich dessen berechnete Werte; die gesendete Anmeldung bleibt, wie sie ist, und die Seite des Monats weist auf die Abweichung hin (siehe [umsatzsteuer.md](umsatzsteuer.md)).
