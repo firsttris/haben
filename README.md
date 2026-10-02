@@ -12,7 +12,8 @@ Stand: **Phase 1 bis 5** des Implementierungsplans: Fundament, ELSTER-Übermittl
 - Buchungen und Bankumsätze liefert die API nicht: Den DATEV-Buchungsstapel (EXTF, je Geschäftsjahr) liest Haben zeilenweise ein; sich überschneidende Zeiträume werden abgelehnt. IDEA-Export, ELSTER-Protokolle und Kontoauszüge kommen unverändert ins Archiv
 - Alles Übernommene ist unveränderlich (Trigger) und steht mit Originaldateien im Jahresexport unter `lexoffice/`
 - Abgleich je Jahr: Belege mit Datei, DATEV-Buchungen ohne passenden Beleg (über Belegfeld 1), fehlende Exporte, Summen, Umsatzsteuer je Monat zum Vergleich mit den übermittelten Voranmeldungen und die letzte Rechnungsnummer für den Nummernkreis
-- Altbestand bleibt getrennt: Er fließt nicht in Bankabgleich, Voranmeldung und Auswertungen von Haben ein
+- Offene Posten übernehmen: Rechnungen, die in Lexoffice noch unbezahlt sind, werden zu Haben-Rechnungen mit Original-PDF und Lexoffice-Nummer; offene Eingangsrechnungen zu gebuchten Belegen. Gebucht wird gegen den Saldenvortrag (Konto 9000), Zahlungen ordnest du danach im Bankabgleich zu. Bei Ist-Versteuerung wird die Umsatzsteuer mit dem Zahlungseingang in Haben fällig; bei Soll und für die Vorsteuer zählen übernommene Posten nicht noch einmal, weil Lexoffice sie schon angemeldet hat. Teilweise bezahlte Posten und unbekannte Steuersätze werden nicht übernommen und mit Grund angezeigt
+- Sonst bleibt der Altbestand getrennt: Er fließt nicht in Bankabgleich, Voranmeldung und Auswertungen von Haben ein
 
 ## Phase 5: Automatische Voranmeldung, Auswertungen, Jahresexport
 

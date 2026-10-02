@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { computeInvoiceTotals } from "./invoice.ts";
-import { directPosting, documentPaymentPosting, documentPosting, invoicePaymentPosting, invoicePosting, paidTaxShares } from "./posting.ts";
+import {
+  directPosting,
+  documentPaymentPosting,
+  documentPosting,
+  invoicePaymentPosting,
+  invoicePosting,
+  openingDocumentPosting,
+  openingInvoicePosting,
+  paidTaxShares,
+} from "./posting.ts";
 
 const balanced = (lines: { debit: number; credit: number }[]) =>
   lines.reduce((s, l) => s + l.debit, 0) === lines.reduce((s, l) => s + l.credit, 0);
@@ -115,5 +124,35 @@ describe("Zahlungen", () => {
     ]);
     expect(directPosting("privat", 10_000, "SKR04")[1]).toEqual({ account: "2180", debit: 0, credit: 10_000, taxCode: null });
     expect(directPosting("ustVorauszahlung", -191_230, "SKR03")[1]?.account).toBe("1780");
+  });
+});
+
+describe("Eröffnungsbuchungen für offene Posten aus Lexoffice", () => {
+  const totals = computeInvoiceTotals([
+    { quantity: 1000, unitPrice: 100_000, taxRate: 1900 },
+    { quantity: 1000, unitPrice: 10_000, taxRate: 700 },
+  ]);
+
+  it("Ist: Forderung an Saldenvortrag netto und Umsatzsteuer nicht fällig", () => {
+    expect(openingInvoicePosting(totals, "SKR03", "ist")).toEqual([
+      { account: "1400", debit: 129_700, credit: 0, taxCode: null },
+      { account: "1766", debit: 0, credit: 19_000, taxCode: null },
+      { account: "1761", debit: 0, credit: 700, taxCode: null },
+      { account: "9000", debit: 0, credit: 110_000, taxCode: null },
+    ]);
+  });
+
+  it("Soll: Forderung an Saldenvortrag brutto, die Steuer ist schon angemeldet", () => {
+    expect(openingInvoicePosting(totals, "SKR04", "soll")).toEqual([
+      { account: "1200", debit: 129_700, credit: 0, taxCode: null },
+      { account: "9000", debit: 0, credit: 129_700, taxCode: null },
+    ]);
+  });
+
+  it("Beleg: Saldenvortrag an Verbindlichkeiten", () => {
+    expect(openingDocumentPosting(11_900, "SKR03")).toEqual([
+      { account: "9000", debit: 11_900, credit: 0, taxCode: null },
+      { account: "1600", debit: 0, credit: 11_900, taxCode: null },
+    ]);
   });
 });

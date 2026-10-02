@@ -205,7 +205,7 @@ export async function listInvoices(today: string) {
   });
 }
 
-function sellerFrom(company: Company): Seller {
+export function sellerFrom(company: Company): Seller {
   return {
     name: company.name,
     strasse: company.strasse,
@@ -222,7 +222,7 @@ function sellerFrom(company: Company): Seller {
   };
 }
 
-function buyerFrom(contact: Contact): Buyer {
+export function buyerFrom(contact: Contact): Buyer {
   return {
     name: contact.name,
     strasse: contact.strasse,

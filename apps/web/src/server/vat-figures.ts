@@ -97,7 +97,15 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     const issued = await db
       .select()
       .from(schema.invoices)
-      .where(and(eq(schema.invoices.status, "final"), gte(schema.invoices.issueDate, start), lt(schema.invoices.issueDate, end)));
+      .where(
+        and(
+          eq(schema.invoices.status, "final"),
+          gte(schema.invoices.issueDate, start),
+          lt(schema.invoices.issueDate, end),
+          // aus Lexoffice übernommen: die Steuer ist dort schon angemeldet
+          isNull(schema.invoices.lexofficeVoucherId),
+        ),
+      );
     const totals = await invoiceTotals(issued.map((i) => i.id));
     for (const inv of issued) {
       for (const t of totals.get(inv.id)?.taxes ?? []) {
@@ -127,7 +135,14 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     })
     .from(schema.documentAmounts)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.documentAmounts.documentId))
-    .where(and(eq(schema.documents.status, "gebucht"), gte(schema.documents.documentDate, start), lt(schema.documents.documentDate, end)));
+    .where(
+      and(
+        eq(schema.documents.status, "gebucht"),
+        gte(schema.documents.documentDate, start),
+        lt(schema.documents.documentDate, end),
+        isNull(schema.documents.lexofficeVoucherId),
+      ),
+    );
   const inputTax = amounts.filter((a) => a.tax !== 0).map((a) => ({ ...a, date: a.date! }));
 
   const sum = (rows: { base: Cents; tax: Cents; rate: number }[], rate: number, key: "base" | "tax") =>

@@ -22,10 +22,11 @@ import {
   saveApiKey,
   startImport,
 } from "../lexoffice.ts";
+import { openLegacyItems, takeOverAll, takeOverLegacyItem, TakeoverError } from "../legacy-open.ts";
 import { authMiddleware } from "../middleware.ts";
 
 function asUserError(error: unknown): never {
-  if (error instanceof LexofficeError || error instanceof ArchiveError) throw new Error(error.message);
+  if (error instanceof LexofficeError || error instanceof ArchiveError || error instanceof TakeoverError) throw new Error(error.message);
   throw error;
 }
 
@@ -35,9 +36,10 @@ const yearSchema = z.number().int().min(2000).max(2100);
 export const getMigration = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
-    const [connection, check, files] = await Promise.all([connectionStatus(), reconciliation(), listArchiveFiles()]);
+    const [connection, check, files, openItems] = await Promise.all([connectionStatus(), reconciliation(), listArchiveFiles(), openLegacyItems()]);
     return {
       connection,
+      openItems,
       ...check,
       files: files.map(({ meta, ...file }) => ({
         ...file,
@@ -142,3 +144,12 @@ export const getDatevBookings = createServerFn({ method: "GET" })
     const [bookings, totals] = await Promise.all([listDatevBookings(data), accountTotals(data.year)]);
     return { ...bookings, totals };
   });
+
+export const takeOverOpenItem = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data, context }) => takeOverLegacyItem(context.user.id, data.id).catch(asUserError));
+
+export const takeOverAllOpenItems = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => takeOverAll(context.user.id));

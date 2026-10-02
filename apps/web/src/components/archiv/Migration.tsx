@@ -13,6 +13,7 @@ import {
 } from "../../server/functions/archive.ts";
 import { Icon } from "../Icon.tsx";
 import { ArchiveUpload } from "./ArchiveUpload.tsx";
+import { OpenItems } from "./OpenItems.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
@@ -29,9 +30,10 @@ export function Migration({ data }: { data: MigrationData }) {
       </div>
       <Connection connection={data.connection} />
       <ImportCard key={data.lastImport?.id ?? "neu"} connected={Boolean(data.connection)} initial={data.lastImport} />
+      <OpenItems items={data.openItems} imported={Boolean(data.lastImport)} />
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
-          <span className="step-num">3</span>
+          <span className="step-num">4</span>
           <h2 id="upload-heading" style={{ margin: 0 }}>Exporte ablegen</h2>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
@@ -43,7 +45,7 @@ export function Migration({ data }: { data: MigrationData }) {
       </section>
       <section className="stack" aria-labelledby="check-heading">
         <div className="step-head">
-          <span className="step-num">4</span>
+          <span className="step-num">5</span>
           <h2 id="check-heading" style={{ margin: 0 }}>Abgleich je Jahr</h2>
         </div>
         {data.years.length === 0 ? (

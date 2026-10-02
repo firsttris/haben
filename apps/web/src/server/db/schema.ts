@@ -214,6 +214,8 @@ export const invoices = pgTable(
     pdfSha256: text("pdf_sha256"),
     xml: text("xml"),
     xmlSha256: text("xml_sha256"),
+    /** Offene Rechnung aus Lexoffice übernommen: Original-PDF, Eröffnungsbuchung statt Erlösbuchung */
+    lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -305,6 +307,8 @@ export const documents = pgTable("documents", {
   net: integer("net").notNull().default(0),
   tax: integer("tax").notNull().default(0),
   gross: integer("gross").notNull().default(0),
+  /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
+  lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
   lockedAt: timestamp("locked_at", { withTimezone: true }),
   uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -78,6 +78,13 @@
       "when": 1790937316408,
       "tag": "0010_lexoffice_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790939030751,
+      "tag": "0011_offene_posten",
+      "breakpoints": true
     }
   ]
 }
