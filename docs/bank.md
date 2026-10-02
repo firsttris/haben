@@ -70,7 +70,7 @@ Die Filter **Alle**, **Offen** (mit Anzahl) und **Zugeordnet** schränken die Li
 | Offen | Eingang ohne Zuordnung und ohne Vorschlag. |
 | Zugeordnet | Der ganze Betrag ist zugeordnet. |
 
-Die IBAN der Gegenseite fließt nur in die Vorschläge der Detailansicht ein, nicht in den Hinweis der Liste. Ein Umsatz kann deshalb in der Liste „Beleg fehlt“ zeigen und rechts trotzdem einen Treffer haben.
+Der Hinweis „Vorschlag“ in der Liste rechnet wie die Detailansicht, also auch mit der IBAN der Gegenseite.
 
 ## Vorschläge
 

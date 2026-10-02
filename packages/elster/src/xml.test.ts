@@ -64,6 +64,15 @@ describe("buildUstvaXml", () => {
     expect(tag(xml, "Kz83")).toBe("173,55");
   });
 
+  it("schreibt Umsätze ohne Steuer (Kz 21, 45, 48) und sortiert aufsteigend", () => {
+    const xml = buildUstvaXml({ ...base, figures: { kz81: 100_000, kz86: 0, kz21: 500_099, kz45: 0, kz48: -20_000, kz66: 0, kz83: 19_000 } });
+    expect(tag(xml, "Kz21")).toBe("5000");
+    expect(tag(xml, "Kz48")).toBe("-200");
+    expect(xml).not.toContain("<Kz45>");
+    const order = [...xml.matchAll(/<Kz(\d+)>/g)].map((m) => Number(m[1]));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
   it("lässt Nullwerte weg, Kz83 aber nie", () => {
     const xml = buildUstvaXml({ ...base, figures: { kz81: 0, kz86: 0, kz66: 0, kz83: 0 } });
     expect(xml).not.toContain("<Kz81>");

@@ -149,4 +149,80 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     await vat.submitReturn(actor, manual.id, spy, { kind: "validate" });
     expect(xml).toContain("<Kz81>1000</Kz81>");
   }, 30_000);
+
+  async function specialInvoice(taxTreatment: "reverse_charge" | "drittland" | "steuerfrei", land: string, ustId: string, issueDate: string) {
+    const contact = await contacts.createContact(actor, {
+      kundennummer: "", name: "Alpenblick GmbH", strasse: "Ring 1", plz: "1010", ort: "Wien", land,
+      email: "a@b.example", ustId, iban: "", leitwegId: "", defaultFormat: null,
+    });
+    const draft = await invoices.createDraft(actor, {
+      contactId: contact.id, issueDate, serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
+      taxTreatment, exemptionReason: taxTreatment === "steuerfrei" ? "Steuerfrei nach § 4 Nr. 21 UStG" : "",
+      lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 500_000, taxRate: 0 }],
+    });
+    return invoices.finalizeInvoice(actor, draft.id);
+  }
+
+  it("Reverse Charge im Rechnungsmonat (auch bei Ist), Drittland und steuerfrei nach Zahlung", async () => {
+    const rc = await specialInvoice("reverse_charge", "AT", "ATU12345678", "2026-10-15");
+    const ch = await specialInvoice("drittland", "CH", "", "2026-09-15");
+    await specialInvoice("steuerfrei", "DE", "", "2026-10-01");
+    const [line] = await sql`select l.account, l.tax_code from journal_lines l join journal_entries e on e.id = l.entry_id
+      where e.source_id = ${rc.id} and l.credit > 0`;
+    expect(line).toMatchObject({ account: "8336", tax_code: "RC" });
+
+    await bank.importStatement(actor, { bytes: dkbCsv([row("02.10.26", "Matterhorn", `RE ${ch.number}`, "5.000,00")]), filename: "a.csv" }, null);
+    const [tx] = await sql`select id from bank_transactions`;
+    await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: ch.id, amount: 500_000 });
+
+    const result = await figures.computeVatFigures(october);
+    expect(result).toMatchObject({ kz21: 500_000, kz45: 500_000, kz48: 0, kz81: 0, steuerfrei: 0 });
+    const draft = await vat.saveDraft(actor, october, { mode: "berechnet" });
+    expect(draft).toMatchObject({ kz21: 500_000, kz45: 500_000, kz83: 0 });
+    let xml = "";
+    const spy = { validate: async (body: string) => ((xml = body), new FakeElsterClient().validate(body)), send: new FakeElsterClient().send };
+    await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
+    expect(xml).toContain("<Kz21>5000</Kz21>");
+    expect(xml).toContain("<Kz45>5000</Kz45>");
+  }, 30_000);
+
+  it("Reverse Charge ohne USt-IdNr. des Kunden lässt sich nicht festschreiben", async () => {
+    await expect(specialInvoice("reverse_charge", "AT", "", "2026-10-15")).rejects.toThrow("USt-IdNr. des Kunden");
+  }, 30_000);
+
+  it("Kleinunternehmer: Belege ohne Vorsteuer, Rechnungen nur ohne Umsatzsteuer", async () => {
+    await sql`update company set kleinunternehmer = true`;
+    const doc = await bookedDocument("2026-10-05", 3_240, 616);
+    const lines = await sql`select l.account, l.debit from journal_lines l join journal_entries e on e.id = l.entry_id
+      where e.source_id = ${doc} and l.debit > 0`;
+    expect(lines.map((l) => ({ ...l }))).toEqual([{ account: "4806", debit: 3_856 }]);
+    expect((await figures.computeVatFigures(october)).kz66).toBe(0);
+
+    expect((await invoices.newDraftDefaults("2026-10-01")).taxTreatment).toBe("kleinunternehmer");
+    await expect(invoice([{ net: 100_000, rate: 1900 }])).rejects.toThrow("Kleinunternehmer");
+  }, 30_000);
+
+  it("manuelle Werte dürfen negativ sein", async () => {
+    const manual = await vat.saveDraft(actor, october, { mode: "manuell", kz81: -50_000, kz86: 0, kz66: 0, reason: "Gutschrift überwiegt" });
+    expect(manual).toMatchObject({ kz81: -50_000, kz83: -9_500 });
+  });
+
+  it("Kontenrahmen, Versteuerung und Kleinunternehmer sind nach Buchungen im Jahr gesperrt", async () => {
+    const guard = await import("./settings-guard.ts");
+    const { loadCompany } = await import("./company.ts");
+    expect(await guard.settingsLocks("2026-10-02")).toEqual({ kontenrahmen: null, versteuerung: null, kleinunternehmer: null });
+
+    await invoice([{ net: 100_000, rate: 1900 }], "2025-12-20");
+    const locks = await guard.settingsLocks("2026-01-05");
+    // Keine Buchung im neuen Jahr, aber eine offene Rechnung: nur die Versteuerung bleibt gesperrt
+    expect(locks.kontenrahmen).toBeNull();
+    expect(locks.kleinunternehmer).toBeNull();
+    expect(locks.versteuerung).toContain("1 Rechnung ist noch offen");
+
+    const current = await loadCompany();
+    const input = { ...current, bundesland: current.bundesland, kontenrahmen: "SKR04" as const };
+    const yearLocks = await guard.settingsLocks("2025-12-30");
+    expect(guard.lockedChange(current, input, yearLocks)).toContain("Im Jahr 2025 gibt es schon Buchungen");
+    expect(guard.lockedChange(current, { ...current, kleinunternehmer: false }, yearLocks)).toBeNull();
+  }, 30_000);
 });

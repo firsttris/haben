@@ -1,11 +1,13 @@
 import {
-  addDays,
   computeInvoiceTotals,
   formatInvoiceNumber,
   invoiceLineInputSchema,
+  invoiceDueDate,
   invoicePosting,
   legacyCorrectionPosting,
   lineNet,
+  TAX_TREATMENT_KEYS,
+  type TaxTreatment,
   type UnitLabel,
 } from "@haben/core";
 import {
@@ -41,6 +43,8 @@ export const draftSchema = z
     paymentTermDays: z.number().int().min(0).max(120),
     format: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     note: z.string().max(2000),
+    taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
+    exemptionReason: z.string().trim().max(300).default(""),
     lines: z.array(invoiceLineInputSchema).max(200),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
@@ -48,7 +52,7 @@ export const draftSchema = z
     path: ["serviceTo"],
   });
 
-export type DraftInput = z.infer<typeof draftSchema>;
+export type DraftInput = z.input<typeof draftSchema>;
 
 function lineRows(invoiceId: string, lines: DraftInput["lines"]) {
   return lines.map((line, index) => ({
@@ -63,7 +67,7 @@ function lineRows(invoiceId: string, lines: DraftInput["lines"]) {
   }));
 }
 
-function draftValues(input: DraftInput) {
+function draftValues(input: DraftInput, bundesland: Company["bundesland"]) {
   const totals = computeInvoiceTotals(input.lines);
   return {
     contactId: input.contactId,
@@ -71,9 +75,11 @@ function draftValues(input: DraftInput) {
     serviceFrom: input.serviceFrom,
     serviceTo: input.serviceTo,
     paymentTermDays: input.paymentTermDays,
-    dueDate: addDays(input.issueDate, input.paymentTermDays),
+    dueDate: invoiceDueDate(input.issueDate, input.paymentTermDays, bundesland),
     format: input.format,
     note: input.note,
+    taxTreatment: input.taxTreatment ?? "regulaer",
+    exemptionReason: input.taxTreatment && input.taxTreatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
     net: totals.net,
     tax: totals.tax,
     gross: totals.gross,
@@ -82,10 +88,11 @@ function draftValues(input: DraftInput) {
 }
 
 export async function createDraft(actor: string, input: DraftInput, extra: Partial<Pick<Invoice, "kind" | "correctsId">> = {}) {
+  const { bundesland } = await loadCompany();
   return withActor(actor, async (tx) => {
     const [invoice] = await tx
       .insert(schema.invoices)
-      .values({ ...draftValues(input), ...extra })
+      .values({ ...draftValues(input, bundesland), ...extra })
       .returning();
     if (input.lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(invoice!.id, input.lines));
     return invoice!;
@@ -100,11 +107,12 @@ async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
 }
 
 export async function updateDraft(actor: string, id: string, input: DraftInput) {
+  const { bundesland } = await loadCompany();
   return withActor(actor, async (tx) => {
     await lockDraft(tx, id);
     await tx.delete(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id));
     if (input.lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(id, input.lines));
-    const [updated] = await tx.update(schema.invoices).set(draftValues(input)).where(eq(schema.invoices.id, id)).returning();
+    const [updated] = await tx.update(schema.invoices).set(draftValues(input, bundesland)).where(eq(schema.invoices.id, id)).returning();
     return updated!;
   });
 }
@@ -127,7 +135,11 @@ export async function newDraftDefaults(today: string) {
     paymentTermDays: company.paymentTermDays,
     format: company.defaultFormat,
     note: "",
-    lines: [{ description: "", quantity: 1000, unit: "Std." as UnitLabel, unitPrice: 0, taxRate: 1900 as const }],
+    taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
+    exemptionReason: "",
+    lines: [
+      { description: "", quantity: 1000, unit: "Std." as UnitLabel, unitPrice: 0, taxRate: (company.kleinunternehmer ? 0 : 1900) as 1900 | 0 },
+    ],
   } satisfies DraftInput;
 }
 
@@ -275,6 +287,8 @@ function documentFor(
     totals: computeInvoiceTotals(lines.map((line) => ({ ...line, taxRate: line.taxRate as 1900 | 700 | 0 }))),
     ...(corrects ? { corrects } : {}),
     ...(invoice.note ? { note: invoice.note } : {}),
+    ...(invoice.taxTreatment !== "regulaer" ? { taxTreatment: invoice.taxTreatment } : {}),
+    ...(invoice.exemptionReason ? { exemptionReason: invoice.exemptionReason } : {}),
   };
 }
 
@@ -285,14 +299,21 @@ export async function finalizeIssues(id: string): Promise<string[]> {
   const data = await getInvoice(id);
   if (!data) return ["Rechnung nicht gefunden"];
   const { invoice, lines, contact } = data;
-  const issues = sellerIssues(await loadCompany()).map((issue) => `Firmendaten: ${issue}`);
+  const company = await loadCompany();
+  const issues = sellerIssues(company).map((issue) => `Firmendaten: ${issue}`);
+  if (company.kleinunternehmer && invoice.taxTreatment !== "kleinunternehmer") {
+    issues.push("Als Kleinunternehmer stellst du Rechnungen ohne Umsatzsteuer (§ 19 UStG)");
+  }
+  if (!company.kleinunternehmer && invoice.taxTreatment === "kleinunternehmer") {
+    issues.push("Kleinunternehmer ist in den Einstellungen nicht eingeschaltet");
+  }
   if (!contact) issues.push("Kunde fehlt");
   if (lines.length === 0) issues.push("Keine Positionen");
   if (lines.some((line) => line.net === 0)) issues.push("Position ohne Betrag");
   if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
   if (contact && issues.length === 0) {
-    const preview = documentFor(invoice, lines, sellerFrom(await loadCompany()), buyerFrom(contact), "VORSCHAU", data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null);
+    const preview = documentFor(invoice, lines, sellerFrom(company), buyerFrom(contact), "VORSCHAU", data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null);
     issues.push(...validateForFormat(preview));
   }
   return issues;
@@ -376,7 +397,7 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
       // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern
       (corrects?.lexofficeVoucherId
         ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
-        : invoicePosting(totals, company.kontenrahmen, company.versteuerung)
+        : invoicePosting(totals, company.kontenrahmen, company.versteuerung, invoice.taxTreatment)
       ).map((line) => ({ entryId: entry!.id, ...line })),
     );
     await tx.update(schema.journalEntries).set({ lockedAt: now }).where(eq(schema.journalEntries.id, entry!.id));
@@ -420,6 +441,8 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
       paymentTermDays: 0,
       format: invoice.format,
       note: "",
+      taxTreatment: invoice.taxTreatment,
+      exemptionReason: invoice.exemptionReason,
       lines: negatedLines(lines),
     },
     { kind: "storno", correctsId: invoice.id },
@@ -445,6 +468,8 @@ export async function createCorrection(actor: string, id: string, today: string)
       paymentTermDays: 0,
       format: invoice.format,
       note: "",
+      taxTreatment: invoice.taxTreatment,
+      exemptionReason: invoice.exemptionReason,
       lines: negatedLines(lines),
     },
     { kind: "korrektur", correctsId: invoice.id },

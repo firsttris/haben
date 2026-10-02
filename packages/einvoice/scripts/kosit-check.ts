@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { buildEInvoice } from "../src/xml.ts";
-import { mixedRateLines, publicBuyer, sampleDocument, sampleSeller } from "../src/samples.ts";
+import { euBuyer, mixedRateLines, publicBuyer, sampleDocument, sampleSeller, thirdCountryBuyer, zeroRateLines } from "../src/samples.ts";
 import type { InvoiceDocument } from "../src/types.ts";
 
 const jar = process.env.KOSIT_JAR ?? "/var/tmp/kosit/validator/validationtool-1.5.0-standalone.jar";
@@ -32,6 +32,30 @@ const samples: Record<string, InvoiceDocument> = {
       { ...sampleDocument({ format }), seller: { ...sampleSeller, ustId: undefined } },
     ]),
   ),
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
+      [`reverse-charge-${format}`, sampleDocument({ format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "reverse_charge" })],
+      [`drittland-${format}`, sampleDocument({ format, buyer: thirdCountryBuyer, lines: zeroRateLines, taxTreatment: "drittland" })],
+      [
+        `steuerfrei-${format}`,
+        sampleDocument({ format, lines: zeroRateLines, taxTreatment: "steuerfrei", exemptionReason: "Steuerfrei nach § 4 Nr. 21 UStG" }),
+      ],
+      [
+        `kleinunternehmer-${format}`,
+        {
+          ...sampleDocument({ format, lines: zeroRateLines, taxTreatment: "kleinunternehmer" }),
+          seller: { ...sampleSeller, ustId: undefined },
+        },
+      ],
+    ]),
+  ),
+  "storno-reverse-charge-xr-ubl": sampleDocument({
+    kind: "storno",
+    format: "xrechnung-ubl",
+    buyer: euBuyer,
+    lines: zeroRateLines,
+    taxTreatment: "reverse_charge",
+  }),
   "korrektur-gemischt-xr-cii": korrekturMitZuschlag("xrechnung-cii"),
   "korrektur-gemischt-xr-ubl": korrekturMitZuschlag("xrechnung-ubl"),
   "nullsatz-xr-cii": sampleDocument({

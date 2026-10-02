@@ -11,7 +11,7 @@ Oben wählst du das Jahr (Vor- und Folgejahr per Pfeil, dazu alle Jahre mit Bank
 | Kennzahl | Bedeutung |
 | --- | --- |
 | Einnahmen (netto) | Summe der Monatswerte, ohne Umsatzsteuer; darunter der Bruttowert laut EÜR |
-| Ausgaben (netto) | Summe der Monatswerte, ohne Vorsteuer; darunter der Bruttowert laut EÜR mit Vorsteuer und gezahlter Umsatzsteuer |
+| Ausgaben (netto) | Summe der Monatswerte, ohne Vorsteuer (Belege ohne Vorsteuerabzug brutto); darunter der Bruttowert laut EÜR mit Vorsteuer und gezahlter Umsatzsteuer |
 | Gewinn bzw. Verlust | Betriebseinnahmen minus Betriebsausgaben laut EÜR |
 | Offene Forderungen | Summe aller offenen Rechnungen heute, mit Anzahl und Zahl der überfälligen |
 
@@ -24,7 +24,7 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Quelle | Datum | EÜR-Position |
 | --- | --- | --- |
 | Zahlungseingang, im Bankabgleich einer Rechnung zugeordnet | Buchungstag des Umsatzes | Einnahmen netto (steuerpflichtig oder steuerfrei) und vereinnahmte Umsatzsteuer |
-| Zahlung, im Bankabgleich einem Beleg zugeordnet | Buchungstag des Umsatzes | Ausgabe in der Kategorie des Belegs und gezahlte Vorsteuer |
+| Zahlung, im Bankabgleich einem Beleg zugeordnet | Buchungstag des Umsatzes | Ausgabe in der Kategorie des Belegs und gezahlte Vorsteuer; ohne Vorsteuerabzug (Kleinunternehmer) der Bruttobetrag als Ausgabe |
 | Gebuchter Beleg, privat bezahlt | Belegdatum | wie oben |
 | Bankumsatz „Umsatzsteuer an das Finanzamt“, Ausgang | Buchungstag | An das Finanzamt gezahlte Umsatzsteuer |
 | Bankumsatz „Umsatzsteuer an das Finanzamt“, Eingang | Buchungstag | Vom Finanzamt erstattete Umsatzsteuer |
@@ -45,9 +45,11 @@ Wie in der Anlage EÜR ist die vereinnahmte Umsatzsteuer eine Betriebseinnahme. 
 
 Die Tabelle „Einnahmen-Überschuss-Rechnung“ zeigt:
 
-- **Betriebseinnahmen:** Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Vereinnahmte Umsatzsteuer, Vom Finanzamt erstattete Umsatzsteuer
+- **Betriebseinnahmen:** Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer (nur, wenn es solche gibt), Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Vereinnahmte Umsatzsteuer, Vom Finanzamt erstattete Umsatzsteuer
 - **Betriebsausgaben:** eine Zeile je Belegkategorie mit Betrag (Software, Hosting, Telefon …), Gezahlte Vorsteuerbeträge, An das Finanzamt gezahlte Umsatzsteuer
 - **Gewinn bzw. Verlust**
+
+Zahlungen auf Kleinunternehmer-Rechnungen (§ 19 UStG) stehen in der eigenen Zeile für Kleinunternehmer. Rechnungen mit Reverse Charge, ins Drittland oder steuerfrei nach § 4 UStG zählen wie Umsätze zu 0 % als umsatzsteuerfrei und nicht steuerbar. Die Steuer auf Belegen, die ohne Vorsteuerabzug gebucht sind, ist Teil der Ausgabe und erscheint nicht unter den Vorsteuerbeträgen.
 
 Belege ohne gültige Kategorie landen unter „Sonstiger Aufwand“. Welche Kategorie auf welches Konto geht, steht in [Buchhaltung in Haben](buchhaltung.md#kontenrahmen).
 
@@ -66,7 +68,7 @@ Der Status zeigt, wie viele Tage ein Posten überfällig ist oder in wie vielen 
 
 ## EÜR als CSV
 
-„EÜR als CSV“ lädt `euer-<Jahr>.csv` über `/api/auswertungen/<Jahr>`. Die Datei hat drei Spalten (`Bereich;Position;Betrag (EUR)`) mit allen Zeilen der Tabelle, den beiden Summen und dem Ergebnis. Format: UTF-8 mit BOM, Semikolon als Trennzeichen, Zeilenende CRLF, Beträge deutsch mit Tausenderpunkt und Dezimalkomma (`1.234,56`). Excel und LibreOffice öffnen sie mit Doppelklick richtig.
+„EÜR als CSV“ lädt `euer-<Jahr>.csv` über `/api/auswertungen/<Jahr>`. Die Datei hat drei Spalten (`Bereich;Position;Betrag (EUR)`) mit allen Zeilen der Tabelle, den beiden Summen und dem Ergebnis. Format: UTF-8 mit BOM, Semikolon als Trennzeichen, Zeilenende CRLF, Beträge wie in den Exporten mit Dezimalkomma und ohne Tausenderpunkt (`1234,56`). Excel und LibreOffice öffnen sie mit Doppelklick richtig.
 
 ## Grenzen
 
@@ -74,7 +76,7 @@ Die Auswertung ist eine Vorschau und ersetzt nicht die Anlage EÜR. Bekannte Lü
 
 - Haben gibt keine Zeilennummern der Anlage EÜR aus. Du überträgst die Positionen selbst oder gibst die CSV an deine Steuerberatung.
 - Anlagevermögen und Abschreibungen (AfA) bildet Haben nicht ab. Die Kategorie „Hardware“ ist für geringwertige Wirtschaftsgüter bis 800 € netto gedacht und zählt voll im Jahr der Zahlung. Teurere Anschaffungen musst du außerhalb von Haben abschreiben.
-- Umsätze zu 0 % landen pauschal unter „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“, ohne weitere Unterscheidung.
+- Umsätze zu 0 %, Reverse Charge, Drittland und steuerfreie Umsätze landen gemeinsam unter „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“, ohne weitere Unterscheidung.
 - Private Kfz-Nutzung, Arbeitszimmer, Bewirtungsanteile und ähnliche Korrekturen kennt Haben nicht.
 
 > [!NOTE]

@@ -18,7 +18,7 @@ export interface UstvaXmlInput {
   period: VatPeriod;
   /** 13-stellige Steuernummer im ELSTER-Format */
   steuernummer13: string;
-  figures: Pick<UstvaFigures, "kz81" | "kz86" | "kz66" | "kz83">;
+  figures: Pick<UstvaFigures, "kz81" | "kz86" | "kz66" | "kz83"> & Partial<Pick<UstvaFigures, "kz21" | "kz45" | "kz48">>;
   datenlieferant: Datenlieferant;
   herstellerId: string;
   produktVersion: string;
@@ -85,12 +85,19 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
     throw new RangeError(`Ungültiger Monat: ${period.month}`);
   }
 
+  // Kennzahlen in aufsteigender Reihenfolge, wie im Schema
   const kennzahlen: string[] = [];
+  const base = (kz: string, cents: Cents | undefined) => {
+    if (cents !== undefined && Math.trunc(cents / 100) !== 0) kennzahlen.push(element(`Kz${kz}`, wholeEuros(cents)));
+  };
   if (input.berichtigt) kennzahlen.push(element("Kz10", "1"));
-  if (Math.trunc(figures.kz81 / 100) !== 0) kennzahlen.push(element("Kz81", wholeEuros(figures.kz81)));
-  if (Math.trunc(figures.kz86 / 100) !== 0) kennzahlen.push(element("Kz86", wholeEuros(figures.kz86)));
+  base("21", figures.kz21);
+  base("45", figures.kz45);
+  base("48", figures.kz48);
   if (figures.kz66 !== 0) kennzahlen.push(element("Kz66", elsterDecimal(figures.kz66)));
+  base("81", figures.kz81);
   kennzahlen.push(element("Kz83", elsterDecimal(figures.kz83)));
+  base("86", figures.kz86);
 
   const lieferantKurz = `${dl.name}, ${dl.strasse}, ${dl.plz} ${dl.ort}`;
 

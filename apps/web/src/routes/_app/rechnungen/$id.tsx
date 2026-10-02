@@ -1,4 +1,4 @@
-import { formatEuro, type UnitLabel } from "@haben/core";
+import { formatEuro, TAX_TREATMENTS, type UnitLabel } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -46,6 +46,8 @@ function InvoicePage() {
           paymentTermDays: invoice.paymentTermDays,
           format: invoice.format,
           note: invoice.note,
+          taxTreatment: invoice.taxTreatment,
+          exemptionReason: invoice.exemptionReason,
           lines: data.lines.map((line) => ({
             description: line.description,
             quantity: line.quantity,
@@ -60,6 +62,8 @@ function InvoicePage() {
         issues={data.issues}
         numberCounters={data.numberCounters}
         corrects={data.corrects}
+        bundesland={data.bundesland}
+        kleinunternehmer={data.kleinunternehmer}
       />
     );
   }
@@ -175,6 +179,12 @@ function FinalInvoice({ data }: { data: Detail }) {
               </dd>
               <dt>Format</dt>
               <dd>{invoice.lexofficeVoucherId ? "Original aus Lexoffice" : FORMAT_LABEL[invoice.format]}</dd>
+              {invoice.taxTreatment !== "regulaer" && (
+                <>
+                  <dt>Umsatzsteuer</dt>
+                  <dd>{TAX_TREATMENTS[invoice.taxTreatment].label}</dd>
+                </>
+              )}
               <dt>Festgeschrieben</dt>
               <dd>{invoice.lockedAt ? formatDateTime(invoice.lockedAt) : "–"}</dd>
               {corrects && (

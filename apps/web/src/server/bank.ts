@@ -207,6 +207,7 @@ export async function listTransactions(accountId: string, filter: TransactionFil
       bookingDate: schema.bankTransactions.bookingDate,
       amount: schema.bankTransactions.amount,
       counterpartyName: schema.bankTransactions.counterpartyName,
+      counterpartyIban: schema.bankTransactions.counterpartyIban,
       purpose: schema.bankTransactions.purpose,
       open: openAmountSql.mapWith(Number),
     })

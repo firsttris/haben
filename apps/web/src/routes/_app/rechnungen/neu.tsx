@@ -21,6 +21,8 @@ function NewInvoicePage() {
       issues={[]}
       numberCounters={data.numberCounters}
       corrects={null}
+      bundesland={data.bundesland}
+      kleinunternehmer={data.kleinunternehmer}
     />
   );
 }

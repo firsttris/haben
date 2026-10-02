@@ -24,7 +24,8 @@ import {
   VatError,
 } from "../vat.ts";
 
-const centsSchema = z.number().int().min(0).max(1_000_000_000_00);
+// Negativ möglich, etwa wenn Gutschriften im Monat überwiegen
+const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
 
 function certificateSummary(certificate: Awaited<ReturnType<typeof loadActiveCertificate>>) {
   return certificate ? { filename: certificate.filename, validUntil: certificate.validUntil } : null;
@@ -46,7 +47,8 @@ export const getVatPeriod = createServerFn({ method: "GET" })
     const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
     return {
       period,
-      dueDate: dueDate(period).toISOString(),
+      dueDate: dueDate(period, company.bundesland).toISOString(),
+      kleinunternehmer: company.kleinunternehmer,
       current,
       returns,
       submissions,
@@ -79,7 +81,8 @@ export const getOverview = createServerFn({ method: "GET" })
       period,
       /** Zahllast aus den Buchungen, solange keine Anmeldung gespeichert ist */
       computedKz83: computed.kz83,
-      dueDate: dueDate(period).toISOString(),
+      dueDate: dueDate(period, company.bundesland).toISOString(),
+      kleinunternehmer: company.kleinunternehmer,
       current,
       recent,
       certificate: certificateSummary(certificate),
@@ -104,6 +107,9 @@ export const saveVatDraft = createServerFn({ method: "POST" })
         period: vatPeriodSchema,
         kz81: centsSchema,
         kz86: centsSchema,
+        kz21: centsSchema,
+        kz45: centsSchema,
+        kz48: centsSchema,
         kz66: centsSchema,
         reason: z.string().trim().min(10, "Bitte begründen, warum von den berechneten Werten abgewichen wird (mindestens 10 Zeichen).").max(1000),
       }),

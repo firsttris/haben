@@ -62,6 +62,8 @@ async function editorContext() {
     contacts: await listContacts(),
     company: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort, email: company.email, steuernummer: company.steuernummer, ustId: company.ustId, iban: company.iban, bic: company.bic, bank: company.bank },
     sellerIssues: sellerIssues(company),
+    bundesland: company.bundesland,
+    kleinunternehmer: company.kleinunternehmer,
     numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
   };
 }

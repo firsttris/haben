@@ -57,7 +57,7 @@ function SettingsPage() {
 }
 
 function CompanyForm() {
-  const { company, issues } = Route.useLoaderData();
+  const { company, issues, locks } = Route.useLoaderData();
   const router = useRouter();
   const save = useServerFn(saveCompany);
   const [notice, setNotice] = useState<Notice>(null);
@@ -89,6 +89,7 @@ function CompanyForm() {
           kontenrahmen: text("kontenrahmen") === "SKR04" ? "SKR04" : "SKR03",
           paymentTermDays: Number(text("paymentTermDays") || 14),
           defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
+          kleinunternehmer: form.get("kleinunternehmer") === "on",
         },
       });
       await router.invalidate();
@@ -166,10 +167,22 @@ function CompanyForm() {
         </label>
         <label className="field">
           Kontenrahmen (wie in Lexoffice)
-          <select name="kontenrahmen" defaultValue={company.kontenrahmen}>
+          {/* Gesperrte Felder werden nicht mitgeschickt; der Wert kommt dann aus dem versteckten Feld */}
+          {locks.kontenrahmen && <input type="hidden" name="kontenrahmen" value={company.kontenrahmen} />}
+          <select
+            name={locks.kontenrahmen ? undefined : "kontenrahmen"}
+            defaultValue={company.kontenrahmen}
+            disabled={Boolean(locks.kontenrahmen)}
+            aria-describedby={locks.kontenrahmen ? "lock-kontenrahmen" : undefined}
+          >
             <option value="SKR03">SKR03</option>
             <option value="SKR04">SKR04</option>
           </select>
+          {locks.kontenrahmen && (
+            <span id="lock-kontenrahmen" className="small">
+              {locks.kontenrahmen}
+            </span>
+          )}
         </label>
         <label className="field">
           Standard-Zahlungsziel in Tagen
@@ -185,10 +198,42 @@ function CompanyForm() {
         </label>
         <label className="field">
           Versteuerung
-          <select name="versteuerung" defaultValue={company.versteuerung}>
+          {locks.versteuerung && <input type="hidden" name="versteuerung" value={company.versteuerung} />}
+          <select
+            name={locks.versteuerung ? undefined : "versteuerung"}
+            defaultValue={company.versteuerung}
+            disabled={Boolean(locks.versteuerung)}
+            aria-describedby={locks.versteuerung ? "lock-versteuerung" : undefined}
+          >
             <option value="ist">Ist (nach vereinnahmten Entgelten)</option>
             <option value="soll">Soll (nach vereinbarten Entgelten)</option>
           </select>
+          {locks.versteuerung && (
+            <span id="lock-versteuerung" className="small">
+              {locks.versteuerung}
+            </span>
+          )}
+        </label>
+        <label className="checkbox" style={{ gridColumn: "1 / -1", alignItems: "flex-start" }}>
+          {/* Einschalten mitten im Jahr gesperrt; Ausschalten geht immer (Umsatzgrenze überschritten) */}
+          <input
+            type="checkbox"
+            name="kleinunternehmer"
+            defaultChecked={company.kleinunternehmer}
+            disabled={Boolean(locks.kleinunternehmer) && !company.kleinunternehmer}
+            aria-describedby="kleinunternehmer-hint"
+          />
+          <span>
+            Kleinunternehmer nach § 19 UStG
+            <span id="kleinunternehmer-hint" className="small muted" style={{ display: "block" }}>
+              Rechnungen ohne Umsatzsteuer, keine Voranmeldung, Belege ohne Vorsteuerabzug.{" "}
+              {locks.kleinunternehmer && !company.kleinunternehmer
+                ? locks.kleinunternehmer
+                : company.kleinunternehmer
+                  ? "Ausschalten, sobald die Umsatzgrenze überschritten ist; ab dann gilt die Regelbesteuerung."
+                  : ""}
+            </span>
+          </span>
         </label>
       </div>
       <div className="actions">

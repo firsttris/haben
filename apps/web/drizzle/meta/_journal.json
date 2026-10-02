@@ -85,6 +85,13 @@
       "when": 1790939030751,
       "tag": "0011_offene_posten",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790944536031,
+      "tag": "0012_steuerfaelle",
+      "breakpoints": true
     }
   ]
 }

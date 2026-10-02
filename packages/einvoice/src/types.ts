@@ -1,4 +1,4 @@
-import type { BasisPoints, Cents, InvoiceTotals, Millis, UnitLabel } from "@haben/core";
+import type { BasisPoints, Cents, InvoiceTotals, Millis, TaxTreatment, UnitLabel } from "@haben/core";
 
 /** Rechnung, Stornorechnung oder Rechnungskorrektur (Gutschrift) */
 export type InvoiceKind = "rechnung" | "storno" | "korrektur";
@@ -68,4 +68,8 @@ export interface InvoiceDocument {
   /** Bei Storno und Korrektur: die ursprüngliche Rechnung */
   corrects?: { number: string; issueDate: string };
   note?: string;
+  /** Fehlt = regulär besteuert */
+  taxTreatment?: TaxTreatment;
+  /** Befreiungsgrund auf der Rechnung, z. B. „Steuerfrei nach § 4 Nr. 14 UStG“; sonst der Standardtext */
+  exemptionReason?: string;
 }

@@ -18,6 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
+import { TAX_TREATMENT_KEYS } from "@haben/core";
 
 export * from "./auth-schema.ts";
 
@@ -58,6 +59,8 @@ export const company = pgTable(
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
+    /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
+    kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("company_single_row", sql`${t.id} = 1`)],
@@ -87,6 +90,10 @@ export const vatReturns = pgTable(
     month: smallint("month").notNull(),
     kz81: integer("kz81").notNull().default(0),
     kz86: integer("kz86").notNull().default(0),
+    /** Umsätze ohne Steuer: Reverse Charge im EU-Ausland, nicht steuerbar, steuerfrei ohne Vorsteuerabzug */
+    kz21: integer("kz21").notNull().default(0),
+    kz45: integer("kz45").notNull().default(0),
+    kz48: integer("kz48").notNull().default(0),
     kz66: integer("kz66").notNull().default(0),
     kz83: integer("kz83").notNull().default(0),
     status: vatReturnStatusEnum("status").notNull().default("draft"),
@@ -96,7 +103,7 @@ export const vatReturns = pgTable(
     source: text("source", { enum: ["berechnet", "manuell"] }).notNull().default("manuell"),
     overrideReason: text("override_reason"),
     /** Berechnete Werte zum Zeitpunkt des Speicherns, zum Nachvollziehen einer Überschreibung */
-    computed: jsonb("computed").$type<{ kz81: number; kz86: number; kz66: number; kz83: number }>(),
+    computed: jsonb("computed").$type<{ kz81: number; kz86: number; kz21?: number; kz45?: number; kz48?: number; kz66: number; kz83: number }>(),
     correctsId: uuid("corrects_id"),
     transferTicket: text("transfer_ticket"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
@@ -203,6 +210,10 @@ export const invoices = pgTable(
     dueDate: date("due_date", { mode: "string" }).notNull(),
     format: invoiceFormatEnum("format").notNull().default("zugferd"),
     note: text("note").notNull().default(""),
+    /** Umsatzsteuerliche Behandlung; außer „regulaer“ stehen alle Positionen auf 0 % */
+    taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
+    /** Eigener Befreiungsgrund auf der Rechnung, sonst der Standardtext der Behandlung */
+    exemptionReason: text("exemption_reason").notNull().default(""),
     correctsId: uuid("corrects_id"),
     net: integer("net").notNull().default(0),
     tax: integer("tax").notNull().default(0),
@@ -307,6 +318,8 @@ export const documents = pgTable("documents", {
   net: integer("net").notNull().default(0),
   tax: integer("tax").notNull().default(0),
   gross: integer("gross").notNull().default(0),
+  /** Beim Buchen festgehalten: false bei Kleinunternehmern, dann ist die Steuer Teil des Aufwands */
+  vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
   /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
   lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
   lockedAt: timestamp("locked_at", { withTimezone: true }),

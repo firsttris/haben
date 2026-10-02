@@ -7,3 +7,5 @@ export * from "./posting.ts";
 export * from "./matching.ts";
 export * from "./euer.ts";
 export * from "./legacy-vat.ts";
+export * from "./treatment.ts";
+export * from "./holidays.ts";

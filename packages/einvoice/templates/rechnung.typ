@@ -124,6 +124,10 @@
 
 #v(8mm)
 
+#if d.taxNote != none {
+  block(breakable: false, semibold(d.taxNote))
+  v(2mm)
+}
 #block(breakable: false, d.payment)
 #if d.note != none {
   v(2mm)

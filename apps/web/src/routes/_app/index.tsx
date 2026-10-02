@@ -31,7 +31,7 @@ function OverviewPage() {
   const certificateDays = data.certificate?.validUntil ? daysUntil(data.certificate.validUntil) : null;
 
   const todos: Todo[] = [];
-  if (!sent) {
+  if (!sent && !data.kleinunternehmer) {
     todos.push({
       title: `Voranmeldung ${periodLabel(data.period)} senden`,
       detail: `Fällig ${formatLongDate(data.dueDate)}`,
@@ -68,7 +68,7 @@ function OverviewPage() {
       to: "/rechnungen",
     });
   }
-  if (data.companyIssues.length > 0) {
+  if (data.companyIssues.length > 0 && !data.kleinunternehmer) {
     todos.push({
       title: "Firmendaten vervollständigen",
       detail: data.companyIssues.join(" · "),
@@ -78,7 +78,7 @@ function OverviewPage() {
     });
   }
   if (!data.certificate) {
-    todos.push({
+    if (!data.kleinunternehmer) todos.push({
       title: "ELSTER-Zertifikat hinterlegen",
       detail: "Die .pfx-Datei aus Mein ELSTER wird zum Senden gebraucht",
       action: "Hochladen",

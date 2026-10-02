@@ -253,7 +253,20 @@ export const lexSalesDocumentSchema = z.looseObject({
   shippingConditions: z.looseObject({ shippingDate: str, shippingEndDate: str, shippingType: str }).nullish(),
   closingInvoice: bool,
   claimedGrossAmount: num,
-  downPaymentDeductions: z.array(z.looseObject({})).nullish(),
+  /** Bei Schlussrechnungen: die abgezogenen Abschlagsrechnungen */
+  downPaymentDeductions: z
+    .array(
+      z.looseObject({
+        id: str,
+        voucherType: str,
+        voucherNumber: str,
+        receivedNetAmount: num,
+        receivedTaxAmount: num,
+        receivedGrossAmount: num,
+        taxRatePercentage: num,
+      }),
+    )
+    .nullish(),
   files: z.looseObject({ documentFileId: str }).nullish(),
   relatedVouchers: z.array(z.looseObject({ id: str, voucherNumber: str, voucherType: str })).nullish(),
 });

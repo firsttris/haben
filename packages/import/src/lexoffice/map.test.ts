@@ -34,6 +34,23 @@ describe("Grundbausteine", () => {
 });
 
 describe("mapSalesDocument", () => {
+  it("rechnet bei Schlussrechnungen die Abschläge heraus", () => {
+    const closing = lexSalesDocumentSchema.parse({
+      voucherNumber: "RE1100",
+      voucherDate: "2023-05-10T00:00:00.000+02:00",
+      voucherStatus: "open",
+      closingInvoice: true,
+      claimedGrossAmount: 7140,
+      totalPrice: { currency: "EUR", totalNetAmount: 10000, totalGrossAmount: 11900, totalTaxAmount: 1900 },
+      taxAmounts: [{ taxRatePercentage: 19, taxAmount: 1900, netAmount: 10000 }],
+      downPaymentDeductions: [
+        { voucherType: "downpaymentinvoice", voucherNumber: "AR0001", receivedNetAmount: 4000, receivedTaxAmount: 760, receivedGrossAmount: 4760, taxRatePercentage: 19 },
+      ],
+    });
+    const v = mapSalesDocument("invoice", closing, "f1");
+    expect(v).toMatchObject({ gross: 714_000, tax: 114_000, net: 600_000, taxes: [{ rate: 1900, net: 600_000, tax: 114_000 }] });
+  });
+
   it("bildet eine Rechnung mit zwei Steuersätzen ab", () => {
     const v = mapSalesDocument("invoice", sales("invoice-two-rates.json"), "e9066f04-8cc7-4616-93f8-ac9ecc8479c8");
     expect(v).toEqual({

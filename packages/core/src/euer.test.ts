@@ -31,6 +31,19 @@ describe("computeEuer", () => {
     expect(euer.totalEinnahmen).toBe(mixed.gross);
   });
 
+  it("Kleinunternehmer: eigene Einnahmenzeile, Steuer auf Belegen ist Ausgabe", () => {
+    const ku = computeInvoiceTotals([{ quantity: 1000, unitPrice: 100_000, taxRate: 0 }]);
+    const euer = computeEuer(2026, [
+      { kind: "invoice", date: "2026-03-01", paid: ku.gross, totals: ku, treatment: "kleinunternehmer" },
+      { kind: "document", date: "2026-03-02", paid: telefon.gross, totals: telefon, category: "telefon", vorsteuerAbzug: false },
+    ]);
+    expect(amount(euer, "einnahmenKleinunternehmer")).toBe(100_000);
+    expect(amount(euer, "einnahmenSteuerfrei")).toBe(0);
+    expect(amount(euer, "ausgabe:telefon")).toBe(4590);
+    expect(amount(euer, "vorsteuer")).toBe(0);
+    expect(euer.gewinn).toBe(100_000 - 4590);
+  });
+
   it("Teilzahlungen werden anteilig aufgeteilt und ergeben zusammen die Rechnung", () => {
     const euer = computeEuer(2026, [
       { kind: "invoice", date: "2026-10-01", paid: 200_000, totals: invoice19 },
@@ -106,7 +119,7 @@ describe("computeEuer", () => {
   it("CSV mit Semikolon und Dezimalkomma", () => {
     const csv = euerToCsv(computeEuer(2026, [{ kind: "invoice", date: "2026-10-01", paid: 476_000, totals: invoice19 }]));
     expect(csv.startsWith("﻿Bereich;Position;Betrag (EUR)\r\n")).toBe(true);
-    expect(csv).toContain("Betriebseinnahmen;Umsatzsteuerpflichtige Betriebseinnahmen (netto);4.000,00\r\n");
-    expect(csv).toContain("Ergebnis;Gewinn;4.760,00\r\n");
+    expect(csv).toContain("Betriebseinnahmen;Umsatzsteuerpflichtige Betriebseinnahmen (netto);4000,00\r\n");
+    expect(csv).toContain("Ergebnis;Gewinn;4760,00\r\n");
   });
 });

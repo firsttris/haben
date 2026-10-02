@@ -47,7 +47,34 @@ describe("invoicePosting", () => {
   });
 });
 
+describe("invoicePosting mit Steuerfällen", () => {
+  const zero = computeInvoiceTotals([{ quantity: 1000, unitPrice: 500_000, taxRate: 0 }]);
+
+  it("Reverse Charge, Drittland, steuerfrei und Kleinunternehmer auf eigene Erlöskonten", () => {
+    expect(invoicePosting(zero, "SKR03", "ist", "reverse_charge")).toEqual([
+      { account: "1400", debit: 500_000, credit: 0, taxCode: null },
+      { account: "8336", debit: 0, credit: 500_000, taxCode: "RC" },
+    ]);
+    expect(invoicePosting(zero, "SKR04", "soll", "drittland")[1]).toMatchObject({ account: "4338", taxCode: "Drittland" });
+    expect(invoicePosting(zero, "SKR03", "soll", "steuerfrei")[1]).toMatchObject({ account: "8100", taxCode: "Steuerfrei" });
+    expect(invoicePosting(zero, "SKR04", "ist", "kleinunternehmer")[1]).toMatchObject({ account: "4185", taxCode: "KU" });
+  });
+
+  it("lehnt Steuersätze über 0 % bei Sonderfällen ab", () => {
+    const taxed = computeInvoiceTotals([{ quantity: 1000, unitPrice: 100, taxRate: 1900 }]);
+    expect(() => invoicePosting(taxed, "SKR03", "ist", "reverse_charge")).toThrow(RangeError);
+  });
+});
+
 describe("documentPosting", () => {
+  it("ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Aufwand", () => {
+    const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
+    expect(documentPosting(totals, "software", "SKR03", "bank", false)).toEqual([
+      { account: "4964", debit: 11_900, credit: 0, taxCode: "keineVSt" },
+      { account: "1600", debit: 0, credit: 11_900, taxCode: null },
+    ]);
+  });
+
   const totals = computeInvoiceTotals([
     { quantity: 1000, unitPrice: 10_000, taxRate: 1900 },
     { quantity: 1000, unitPrice: 2_000, taxRate: 700 },

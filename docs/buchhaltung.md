@@ -8,7 +8,7 @@ Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vor
 - **Doppelte Buchführung im Hintergrund.** Jeder buchungsrelevante Vorgang erzeugt eine Buchung (`journal_entries`) mit mindestens zwei Zeilen (`journal_lines`), je Zeile Konto, Soll oder Haben und Steuerschlüssel. Die Auswertungen und die Voranmeldung rechnet Haben aus den zugrunde liegenden Rechnungen, Zahlungen und Belegen; das Journal dokumentiert dieselben Vorgänge in Kontenform.
 - **Festschreibung ab Entstehung.** Eine Buchung wird in derselben Datenbanktransaktion angelegt und festgeschrieben, in der der Vorgang passiert. Beim Festschreiben prüft ein Trigger, dass Soll gleich Haben ist und die Buchung mindestens eine Zeile hat.
 - **Korrektur nur per Gegenbuchung.** Festgeschriebene Buchungen, Rechnungen, Belege und gesendete Voranmeldungen lassen sich nicht ändern oder löschen. Eine Rechnung wird storniert oder korrigiert, eine Zahlungszuordnung per Gegenzeile und Gegenbuchung aufgehoben, eine Voranmeldung berichtigt.
-- **Ein Kontenrahmen je Buchung.** Jede Buchung speichert den Kontenrahmen, mit dem sie entstanden ist. Ein Wechsel des Kontenrahmens in den Einstellungen gilt nur für künftige Buchungen.
+- **Ein Kontenrahmen je Buchung.** Jede Buchung speichert den Kontenrahmen, mit dem sie entstanden ist. Ein Wechsel des Kontenrahmens in den Einstellungen gilt nur für künftige Buchungen und ist nur möglich, solange es im laufenden Jahr noch keine Buchung gibt.
 
 ## GoBD: Unveränderbarkeit in der Datenbank
 
@@ -36,7 +36,7 @@ Die Versteuerungsart wird unter Einstellungen festgelegt. Sie bestimmt, wann die
 - **Soll:** mit der Rechnung. Die Rechnungsbuchung geht direkt auf das Konto „Umsatzsteuer“, die Voranmeldung zählt nach Rechnungsdatum.
 - **Ist:** mit dem Zahlungseingang. Die Rechnungsbuchung geht auf „Umsatzsteuer nicht fällig“. Beim Zahlungseingang wird der Steueranteil der Zahlung auf „Umsatzsteuer“ umgebucht, bei Teilzahlungen anteilig; die Voranmeldung zählt nach Buchungstag des Zahlungseingangs.
 
-Die Vorsteuer zählt in beiden Fällen nach Belegdatum. Haben liest die Einstellung bei jeder Buchung neu und verhindert keinen Wechsel. Wird gewechselt, während noch Rechnungen offen sind, passt die Zahlungsbuchung nicht mehr zur Rechnungsbuchung (etwa bleibt Steuer auf „Umsatzsteuer nicht fällig“ stehen). Die Versteuerungsart sollte deshalb vor der ersten Rechnung feststehen und nur in Absprache mit der Steuerberatung geändert werden. Die EÜR ist unabhängig davon immer eine Zufluss-Abfluss-Rechnung (siehe [Auswertungen](auswertungen.md)).
+Die Vorsteuer zählt in beiden Fällen nach Belegdatum. Haben liest die Einstellung bei jeder Buchung neu. Ein Wechsel während offener Rechnungen würde Zahlungs- und Rechnungsbuchung auseinanderbringen (etwa bliebe Steuer auf „Umsatzsteuer nicht fällig“ stehen) und ihre Umsatzsteuer doppelt oder gar nicht anmelden. Haben sperrt deshalb den Wechsel, solange Rechnungen offen sind oder es im laufenden Jahr schon Buchungen gibt (`apps/web/src/server/settings-guard.ts`, siehe [Erste Schritte](einrichtung.md#wann-sich-die-einstellungen-ändern-lassen)). Die Versteuerungsart sollte vor der ersten Rechnung feststehen und nur in Absprache mit der Steuerberatung geändert werden. Die EÜR ist unabhängig davon immer eine Zufluss-Abfluss-Rechnung (siehe [Auswertungen](auswertungen.md)).
 
 ## Kontenrahmen
 
@@ -55,6 +55,10 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Erlöse 19 % USt | 8400 | 4400 |
 | Erlöse 7 % USt | 8300 | 4300 |
 | Erlöse (ohne USt) | 8200 | 4200 |
+| Erlöse aus im anderen EU-Land steuerpflichtigen sonstigen Leistungen (Reverse Charge) | 8336 | 4336 |
+| Erlöse aus im Drittland steuerbaren Leistungen | 8338 | 4338 |
+| Steuerfreie Umsätze § 4 Nr. 8 ff. UStG | 8100 | 4100 |
+| Erlöse als Kleinunternehmer § 19 UStG | 8195 | 4185 |
 | Umsatzsteuer 19 % | 1776 | 3806 |
 | Umsatzsteuer 7 % | 1771 | 3801 |
 | Umsatzsteuer nicht fällig 19 % | 1766 | 3816 |
@@ -113,9 +117,18 @@ Beim Festschreiben einer Ausgangsrechnung, gebucht auf das Rechnungsdatum. Besch
 | Soll: 1776 / 1771 Umsatzsteuer | Soll: 3806 / 3801 Umsatzsteuer | | Steuer je Satz |
 | Ist: 1766 / 1761 USt nicht fällig | Ist: 3816 / 3811 USt nicht fällig | | Steuer je Satz |
 
+Rechnungen ohne Steuerausweis (siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung)) haben keine Steuerzeile und gehen auf ein eigenes Erlöskonto, bei Ist- wie bei Soll-Versteuerung. Beispiel Reverse Charge über 1.000,00 €:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | --- | --- |
+| 1400 Forderungen | 1200 Forderungen | 1.000,00 | |
+| 8336 Erlöse Reverse Charge | 4336 Erlöse Reverse Charge | | 1.000,00 |
+
+Leistungen ins Drittland gehen auf 8338 bzw. 4338, steuerfreie Umsätze nach § 4 UStG auf 8100 bzw. 4100, Kleinunternehmer-Rechnungen auf 8195 bzw. 4185.
+
 ### Stornorechnung und Rechnungskorrektur
 
-Eine Stornorechnung ist eine neue Rechnung mit allen Positionen der ursprünglichen, negativ, und wird sofort festgeschrieben. Eine Rechnungskorrektur entsteht als Entwurf mit negativen Positionen, die angepasst werden; sie muss den Betrag mindern. Beide bekommen eine eigene Nummer, verweisen auf die ursprüngliche Rechnung und werden wie oben gebucht, mit gedrehten Seiten:
+Eine Stornorechnung ist eine neue Rechnung mit allen Positionen der ursprünglichen, negativ, und wird sofort festgeschrieben. Eine Rechnungskorrektur entsteht als Entwurf mit negativen Positionen, die angepasst werden; sie muss den Betrag mindern. Beide bekommen eine eigene Nummer, verweisen auf die ursprüngliche Rechnung, übernehmen deren Umsatzsteuer-Behandlung und werden wie oben gebucht, mit gedrehten Seiten:
 
 | Konto SKR03 | Konto SKR04 | Soll | Haben |
 | --- | --- | --- | --- |
@@ -157,6 +170,8 @@ Beim Buchen eines Eingangsbelegs, gebucht auf das Belegdatum. Beschreibung: `Bel
 | Zahlung „privat“: 1890 Privateinlagen | Zahlung „privat“: 2180 Privateinlagen | | brutto |
 
 Ein privat bezahlter Beleg ist damit erledigt. Ein über die Bank zu zahlender bleibt als Verbindlichkeit offen, bis die Zahlung im Bankabgleich zugeordnet ist. Gutschriften (negative Beträge) drehen die Seiten.
+
+Bist du als Kleinunternehmer eingetragen, entfällt die Vorsteuerzeile: Der Bruttobetrag je Satz geht mit dem Steuerschlüssel `keineVSt` auf das Aufwandskonto. Ob mit oder ohne Vorsteuerabzug gebucht wurde, speichert Haben am Beleg (`documents.vorsteuer_abzug`), damit Voranmeldung und EÜR auch nach einem späteren Wechsel stimmen.
 
 ### Zahlung eines Belegs
 
@@ -225,18 +240,23 @@ Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, 
 | --- | --- | --- | --- |
 | `USt19` | 19 % | 81 | Umsatzsteuer 19 % |
 | `USt7` | 7 % | 86 | Umsatzsteuer 7 % |
-| `frei` | 0 % | – | Ohne Umsatzsteuer |
+| `frei` | 0 % | – | Ohne Umsatzsteuer (regulär besteuert) |
+| `RC` | 0 % | 21 | Reverse Charge, Leistung im EU-Ausland |
+| `Drittland` | 0 % | 45 | Nicht steuerbar, Leistungsort im Drittland |
+| `Steuerfrei` | 0 % | 48 | Steuerfrei ohne Vorsteuerabzug |
+| `KU` | 0 % | – | Kleinunternehmer § 19 UStG |
 | `VSt19` | 19 % | 66 | Vorsteuer 19 % |
 | `VSt7` | 7 % | 66 | Vorsteuer 7 % |
-| `keineVSt` | 0 % | – | Ohne Vorsteuer |
+| `keineVSt` | 0 % | – | Ohne Vorsteuer, auch für Belege von Kleinunternehmern |
 
 Die Kennzahlen der [Voranmeldung](umsatzsteuer.md) rechnet Haben aus denselben Quellen wie die Buchungen (`apps/web/src/server/vat-figures.ts`):
 
-- **Kz 81 und 86:** Bemessungsgrundlagen zu 19 % bzw. 7 %, bei Soll aus den festgeschriebenen Rechnungen des Monats, bei Ist aus den zugeordneten Zahlungseingängen des Monats, anteilig je Zahlung. ELSTER bekommt sie in vollen Euro, die Steuer wird daraus neu berechnet.
-- **Kz 66:** Vorsteuer aus den gebuchten Belegen des Monats nach Belegdatum.
+- **Kz 81 und 86:** Bemessungsgrundlagen der regulär besteuerten Rechnungen zu 19 % bzw. 7 %, bei Soll aus den festgeschriebenen Rechnungen des Monats, bei Ist aus den zugeordneten Zahlungseingängen des Monats, anteilig je Zahlung. ELSTER bekommt sie in vollen Euro, die Steuer wird daraus neu berechnet.
+- **Kz 21, 45 und 48:** Bemessungsgrundlagen der Rechnungen mit Reverse Charge, ins Drittland bzw. steuerfrei nach § 4 UStG, in vollen Euro und ohne Steuer. Kz 45 und 48 zählen wie Kz 81, Kz 21 immer nach Rechnungsdatum.
+- **Kz 66:** Vorsteuer aus den gebuchten Belegen des Monats nach Belegdatum, ohne Belege, die ohne Vorsteuerabzug gebucht sind.
 - **Kz 83:** Umsatzsteuer aus Kz 81 und 86 minus Kz 66.
 
-Umsätze zu 0 % meldet Haben nicht; die Vorprüfung weist darauf hin, damit geklärt werden kann, ob eine Kennzahl dafür nötig ist.
+Regulär besteuerte Umsätze zu 0 % (Schlüssel `frei`) meldet Haben nicht; die Vorprüfung weist darauf hin, damit sie an der Rechnung als Reverse Charge, Drittland oder steuerfrei eingestellt werden können, falls das zutrifft.
 
 ## Die Seite „Buchungen“
 
@@ -247,7 +267,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 ## Was Haben nicht bucht
 
 - Anlagevermögen und Abschreibungen, Sachentnahmen, private Kfz-Nutzung
-- Kleinunternehmerregelung, Reverse Charge und innergemeinschaftliche Umsätze
+- Reverse Charge als Leistungsempfänger (§ 13b UStG), innergemeinschaftliche Lieferungen und Erwerbe
 - Lohn, Kasse und Fremdwährung
 - Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten)
 

@@ -40,7 +40,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const items = rows.some((r) => r.open !== 0) ? await openItems() : [];
     const transactions = rows.map((row) => {
       if (row.open === 0) return { ...row, hint: "zugeordnet" as const };
-      const hasSuggestion = suggestMatches({ ...row, counterpartyIban: null, amount: row.open }, items, 1).length > 0;
+      const hasSuggestion = suggestMatches({ ...row, amount: row.open }, items, 1).length > 0;
       return {
         ...row,
         hint: hasSuggestion ? ("vorschlag" as const) : row.open !== row.amount ? ("teilweise" as const) : row.amount < 0 ? ("belegFehlt" as const) : ("offen" as const),

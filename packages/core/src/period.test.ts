@@ -13,6 +13,9 @@ describe("dueDate", () => {
   it("Sonntag → Montag", () => {
     expect(iso(dueDate({ year: 2026, month: 4 }))).toBe("2026-05-11");
   });
+  it("Feiertage zählen nicht: Karfreitag und Ostermontag 2020", () => {
+    expect(iso(dueDate({ year: 2020, month: 3 }))).toBe("2020-04-14");
+  });
   it("Dezember → Januar des Folgejahres", () => {
     expect(iso(dueDate({ year: 2026, month: 12 }))).toBe("2027-01-11");
   });

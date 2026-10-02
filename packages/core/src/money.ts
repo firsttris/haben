@@ -32,6 +32,12 @@ export function formatDecimal(cents: Cents): string {
   return formatter.format(cents / 100);
 }
 
+/** Für CSV-Dateien: Dezimalkomma ohne Tausenderpunkt, 123456 → "1234,56", -5 → "-0,05" */
+export function csvDecimal(cents: Cents): string {
+  const abs = Math.abs(cents);
+  return `${cents < 0 ? "-" : ""}${Math.floor(abs / 100)},${String(abs % 100).padStart(2, "0")}`;
+}
+
 /**
  * Liest einen deutsch geschriebenen Betrag ("1.234,56", "-12,5", "1234") in Cent.
  * Gibt null zurück, wenn die Eingabe kein Betrag ist.

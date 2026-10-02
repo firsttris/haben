@@ -170,8 +170,9 @@ export function mapContact(c: LexContact): ImportedContact {
 
 /**
  * Rechnung, Gutschrift oder Abschlagsrechnung aus dem Rechnungsmodul.
- * Beträge aus totalPrice (bei Schlussrechnungen also der volle Rechnungsbetrag,
- * nicht der nach Abzug der Abschläge geforderte Restbetrag `claimedGrossAmount`).
+ * Beträge aus totalPrice. Bei Schlussrechnungen werden die abgezogenen Abschläge herausgerechnet:
+ * Die Abschlagsrechnungen sind eigene Belege, sonst zählten ihre Umsätze und Steuern doppelt
+ * (im Abgleich der Voranmeldungen und als offener Posten).
  */
 export function mapSalesDocument(type: LexSalesDocumentType, d: LexSalesDocument, id: string): LegacyVoucher {
   const negative = CREDIT_NOTE_TYPES.has(type);
@@ -188,14 +189,27 @@ export function mapSalesDocument(type: LexSalesDocumentType, d: LexSalesDocument
   // Brutto und Steuer sind die verbindlichen Werte des Belegs. Netto wird daraus
   // abgeleitet, damit net + tax === gross auch dann exakt gilt, wenn die drei
   // Einzelwerte getrennt gerundet wurden (sonst entstehen Cent-Differenzen in der Buchhaltung).
-  const tax = tp?.totalTaxAmount != null ? lexToCents(tp.totalTaxAmount) : perRate.reduce((s, t) => s + t.tax, 0);
+  let tax = tp?.totalTaxAmount != null ? lexToCents(tp.totalTaxAmount) : perRate.reduce((s, t) => s + t.tax, 0);
   let gross: number;
   if (tp?.totalGrossAmount != null) gross = lexToCents(tp.totalGrossAmount);
   else if (tp?.totalNetAmount != null) gross = lexToCents(tp.totalNetAmount) + tax;
   else gross = perRate.reduce((s, t) => s + t.net + t.tax, 0);
-  const net = gross - tax;
 
   let taxes = perRate;
+  if (d.closingInvoice) {
+    // Abschläge je Satz abziehen; netto = brutto − Steuer, damit die Summen exakt bleiben
+    for (const dp of d.downPaymentDeductions ?? []) {
+      const rate = lexToBasisPoints(dp.taxRatePercentage ?? 0);
+      const dpTax = lexToCents(dp.receivedTaxAmount ?? 0);
+      const dpGross =
+        dp.receivedGrossAmount != null ? lexToCents(dp.receivedGrossAmount) : lexToCents(dp.receivedNetAmount ?? 0) + dpTax;
+      gross -= dpGross;
+      tax -= dpTax;
+      taxes = taxes.map((t) => (t.rate === rate ? { ...t, net: t.net - (dpGross - dpTax), tax: t.tax - dpTax } : t));
+    }
+  }
+  const net = gross - tax;
+
   if (taxes.length === 0) {
     // Kleinunternehmer / steuerfrei: keine taxAmounts. Ein Eintrag aus den Summen.
     // Falls doch Steuer ausgewiesen ist, den Satz aus den Positionen ableiten, wenn eindeutig.

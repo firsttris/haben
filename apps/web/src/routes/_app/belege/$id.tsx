@@ -122,6 +122,7 @@ function DocumentForm({ data }: { data: Detail }) {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
 
   const parsed = rows.map((r) => ({ taxRate: r.taxRate, net: parseEuro(r.net || "0"), tax: parseEuro(r.tax || "0") }));
@@ -133,6 +134,7 @@ function DocumentForm({ data }: { data: Detail }) {
       setter(value);
       setDirty(true);
       setConfirming(false);
+      setConfirmingDelete(false);
     };
   }
 
@@ -151,6 +153,7 @@ function DocumentForm({ data }: { data: Detail }) {
     );
     setDirty(true);
     setConfirming(false);
+    setConfirmingDelete(false);
   }
 
   async function run(work: () => Promise<void>) {
@@ -206,11 +209,18 @@ function DocumentForm({ data }: { data: Detail }) {
     });
   };
 
-  const onDelete = () =>
-    run(async () => {
+  // Wie beim Buchen: erst nachfragen, der zweite Klick löscht
+  const onDelete = () => {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      setConfirming(false);
+      return;
+    }
+    void run(async () => {
       await remove({ data: doc.id });
       await navigate({ to: "/belege" });
     });
+  };
 
   const onReextract = () =>
     run(async () => {
@@ -382,6 +392,12 @@ function DocumentForm({ data }: { data: Detail }) {
           <span>Der Beleg wird gebucht und festgeschrieben; danach ist er nicht mehr änderbar. Noch einmal klicken zum Buchen.</span>
         </div>
       )}
+      {confirmingDelete && (
+        <div className="banner" role="alert">
+          <Icon name="alert" />
+          <span>Der Beleg und seine Datei werden gelöscht. Zum Löschen noch einmal auf „Endgültig löschen“ klicken.</span>
+        </div>
+      )}
       {notice && (
         <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
           {notice.text}
@@ -401,7 +417,7 @@ function DocumentForm({ data }: { data: Detail }) {
             </button>
           )}
           <button type="button" className="btn btn-dashed" onClick={onDelete} disabled={busy || running}>
-            Löschen
+            {confirmingDelete ? "Endgültig löschen" : "Löschen"}
           </button>
         </div>
       )}

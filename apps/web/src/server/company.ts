@@ -21,6 +21,7 @@ export const companySchema = z.object({
   kontenrahmen: z.enum(["SKR03", "SKR04"]),
   paymentTermDays: z.number().int().min(0).max(120),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
+  kleinunternehmer: z.boolean(),
 });
 
 export type CompanyInput = z.infer<typeof companySchema>;
