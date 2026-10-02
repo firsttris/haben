@@ -1,138 +1,95 @@
-# Haben
+<div align="center">
 
-Buchhaltung für einen Freelancer mit EÜR und monatlicher Umsatzsteuer-Voranmeldung. Self-hosted, Open Source (AGPL-3.0), ersetzt Lexware/Lexoffice.
+<img src="docs/banner.png" alt="Haben: Rechnung 2026-031 festgeschrieben, Zahlungseingang zugeordnet, Voranmeldung September an ELSTER übermittelt" width="900">
 
-Stand: **Phase 1 bis 5** des Implementierungsplans: Fundament, ELSTER-Übermittlung, Ausgangsrechnungen, E-Rechnung, Belege, Bankabgleich, automatische Voranmeldung, Auswertungen und Jahresexport. Die Kennzahlen der Voranmeldung rechnet Haben aus den Buchungen; von Hand überschreiben geht weiterhin, mit Begründung.
+**Die Buchhaltung für Freiberufler, die du selbst betreibst.**<br>
+Rechnungen mit E-Rechnung, Belege, Bankabgleich, EÜR und die monatliche Umsatzsteuer-Voranmeldung direkt an ELSTER.
+Auf deinem Server, ohne Abo, ohne Datenabfluss.
 
-## Phase 6: Umzug aus Lexoffice / Lexware Office
+[![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
+[![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
+[![E-Rechnung](https://img.shields.io/badge/E--Rechnung-ZUGFeRD%20%7C%20XRechnung-1f6f5c)](docs/rechnungen.md)
+[![ELSTER](https://img.shields.io/badge/ELSTER-ERiC-1f6f5c)](docs/umsatzsteuer.md)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154)](https://tanstack.com/start)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Podman](https://img.shields.io/badge/Betrieb-Podman%20Quadlets-892ca0?logo=podman&logoColor=white)](docs/installation.md)
 
-- Neue Seite „Archiv“ mit Umzug in vier Schritten: API-Schlüssel hinterlegen, alles abrufen, Exporte ablegen, Abgleich je Jahr
-- Abruf über die Public API von Lexware Office (Tarif XL; `api.lexware.io`, abweichend per `LEXOFFICE_API_URL`): Kontakte, Ausgangsrechnungen, Gutschriften, Abschlagsrechnungen und Belege samt Original-PDF, E-Rechnungs-XML und angehängten Dateien, dazu Zahlungsstatus und Kategorien. Nur lesend; der Schlüssel liegt AES-verschlüsselt in der Datenbank
-- Der Abruf läuft im Hintergrund mit etwa zwei Anfragen pro Sekunde, wiederholt bei 429 und Serverfehlern und setzt nach einem Abbruch fort; Fehler einzelner Belege stehen in einer Liste und werden beim nächsten Abruf erneut versucht. Gleichnamige Kontakte in Haben werden verknüpft statt doppelt angelegt
-- Buchungen und Bankumsätze liefert die API nicht: Den DATEV-Buchungsstapel (EXTF, je Geschäftsjahr) liest Haben zeilenweise ein; sich überschneidende Zeiträume werden abgelehnt. IDEA-Export, ELSTER-Protokolle und Kontoauszüge kommen unverändert ins Archiv
-- Alles Übernommene ist unveränderlich (Trigger) und steht mit Originaldateien im Jahresexport unter `lexoffice/`
-- Abgleich je Jahr: Belege mit Datei, DATEV-Buchungen ohne passenden Beleg (über Belegfeld 1), fehlende Exporte, Summen, Umsatzsteuer je Monat zum Vergleich mit den übermittelten Voranmeldungen und die letzte Rechnungsnummer für den Nummernkreis
-- Offene Posten übernehmen: Rechnungen, die in Lexoffice noch unbezahlt sind, werden zu Haben-Rechnungen mit Original-PDF und Lexoffice-Nummer; offene Eingangsrechnungen zu gebuchten Belegen. Gebucht wird gegen den Saldenvortrag (Konto 9000), Zahlungen ordnest du danach im Bankabgleich zu. Bei Ist-Versteuerung wird die Umsatzsteuer mit dem Zahlungseingang in Haben fällig; bei Soll und für die Vorsteuer zählen übernommene Posten nicht noch einmal, weil Lexoffice sie schon angemeldet hat. Teilweise bezahlte Posten und unbekannte Steuersätze werden nicht übernommen und mit Grund angezeigt
-- Sonst bleibt der Altbestand getrennt: Er fließt nicht in Bankabgleich, Voranmeldung und Auswertungen von Haben ein
+[Warum?](#-warum-haben) •
+[Funktionen](#-funktionen) •
+[Schnellstart](#-schnellstart) •
+[Dokumentation](docs/README.md) •
+[Entwicklung](#-entwicklung)
 
-## Phase 5: Automatische Voranmeldung, Auswertungen, Jahresexport
+<img src="docs/screenshot-uebersicht.png" alt="Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben" width="900">
 
-- Kz 81, 86 und 66 kommen aus den Buchungen: bei Ist-Versteuerung die Umsatzsteuer nach Datum des zugeordneten Zahlungseingangs (bei Teilzahlungen anteilig), bei Soll nach Rechnungsdatum; Vorsteuer nach Belegdatum. Kz 83 wie gehabt gerechnet
-- Unter jeder Kennzahl lassen sich die Zahlungen, Rechnungen bzw. Belege dahinter aufklappen
-- Manuell überschreiben bleibt möglich, nur mit Begründung; gespeichert werden Begründung und die berechneten Werte zum Vergleich. Ein berechneter Entwurf wird vor dem Senden auf den aktuellen Stand gebracht
-- Vorprüfung vor dem Senden: Ausgaben ohne Beleg, nicht zugeordnete Zahlungseingänge, ungebuchte Belege, Rechnungsentwürfe im Zeitraum, Umsätze zu 0 %
-- Auswertungen: EÜR nach Zufluss und Abfluss, offene Posten, Einnahmen und Ausgaben je Monat
-- Jahresexport als ZIP für die Aufbewahrung: Belege und Rechnungen im Original, Journal, Bankumsätze, Voranmeldungen samt Protokollen, Stammdaten und Audit-Log als CSV, mit Prüfsummen
+</div>
 
-## Phase 4: Bankimport und Abgleich
+## 💡 Warum Haben?
 
-- Import von Kontoauszügen als Datei: DKB-CSV (neues und altes Format), N26-CSV und CAMT.053. Bank und Format erkennt Haben am Inhalt, auch die Zeichenkodierung
-- Konten werden über die IBAN aus der Datei angelegt; für N26 (CSV ohne eigene IBAN) das Konto vorher anlegen und beim Import auswählen
-- Deduplizierung über einen Hash aus Datum, Betrag, Gegen-IBAN und Verwendungszweck; echte Doppelbuchungen am selben Tag unterscheidet die Reihenfolge in der Datei. Überlappende Exporte lassen sich also gefahrlos mehrfach importieren
-- Saldenprüfung: passt der Anfangssaldo nicht zum Endsaldo des vorigen Imports, meldet Haben eine Lücke
-- Vorschläge mit Begründung: Betrag, Rechnungsnummer im Verwendungszweck, bekannte IBAN, Name, bei Belegen Datum ± 5 Tage. Die IBAN eines Kunden merkt sich Haben beim ersten Zahlungseingang
-- Zuordnen per Tastatur (Enter, J/K), Teilzahlungen und Sammelüberweisungen über mehrere Zuordnungen je Umsatz
-- Buchungen: Zahlungseingang Bank an Forderungen, bei Ist-Versteuerung wird der Steueranteil der Zahlung von „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ umgebucht; Belegzahlung Verbindlichkeiten an Bank; ohne Beleg als Privatentnahme/-einlage, Geldtransit, Umsatzsteuer-Vorauszahlung oder Bankgebühren
-- Importe, Umsätze und Zuordnungen sind unveränderlich; eine Zuordnung wird per Gegenzeile und Gegenbuchung aufgehoben
-- Rechnungen zeigen jetzt „bezahlt“ und „teilbezahlt“; offene Forderungen rechnen mit den Zahlungen
-- Neue Seite „Buchungen“: das Journal je Monat mit Konten, Soll, Haben und Steuerschlüssel
+Als Freiberufler brauchst du keine Finanzbuchhaltung für den Mittelstand. Du schreibst Rechnungen, sammelst Belege,
+gleichst einmal im Monat das Konto ab und schickst die Umsatzsteuer-Voranmeldung. Dafür zahlt man bei Lexware Office,
+sevDesk und Co. Jahr für Jahr ein Abo und gibt jede Rechnung und jeden Kontoauszug an einen fremden Dienst.
 
-## Phase 3: Belege und Eingangsrechnungen
+Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 
-- Upload per Drag-and-drop, Dateiauswahl oder Kamera; als installierte App (PWA) auch über das Teilen-Menü des Handys
-- Ablage im Dateisystem unter dem SHA-256 der Datei (`DOCUMENTS_DIR`); dieselbe Datei wird nie doppelt abgelegt. Der Dateityp wird am Inhalt erkannt
-- E-Rechnungen (ZUGFeRD/Factur-X, XRechnung CII und UBL, ZUGFeRD 1.0) liest Haben direkt aus; das XML wird mit pdf-lib aus dem PDF gezogen
-- Andere PDFs und Fotos liest Claude (Opus 5.5) mit festem JSON-Schema vor, wenn `ANTHROPIC_API_KEY` gesetzt ist. Die Datei geht dafür an die Anthropic-API; ohne Schlüssel bleibt alles lokal und die Felder werden von Hand ausgefüllt. Vorbefüllte Felder werden immer erst nach deiner Bestätigung gebucht
-- Kategorie je Beleg (Software, Hosting, Telefon, Reisekosten …), abgebildet auf Aufwandskonto des Kontenrahmens; Haben schlägt die Kategorie vom letzten Beleg desselben Lieferanten vor
-- Buchen: Aufwand und Vorsteuer an Verbindlichkeiten, bei privat bezahlten Belegen an Privateinlage; danach ist der Beleg gesperrt (Trigger). Ungebuchte Belege lassen sich löschen
-- Die Umsatzsteuer-Seite zeigt die Vorsteuer aus gebuchten Belegen des Monats (nach Belegdatum) und übernimmt sie auf Wunsch in Kz 66
+- **Ein Weg vom Beleg bis zum Finanzamt**: Rechnung festschreiben, Zahlung im Bankabgleich zuordnen, und die
+  Voranmeldung rechnet sich aus den Buchungen. Du prüfst, klickst auf Senden, das Übertragungsprotokoll liegt im Verlauf.
+- **Ordnungsgemäß von Anfang an**: Festgeschriebenes ändert die Datenbank selbst nicht mehr (Postgres-Trigger),
+  jede Änderung steht mit altem und neuem Wert im Protokoll, Korrekturen laufen über Storno und Gegenbuchung, wie es die GoBD verlangen.
+- **Deine Daten bleiben bei dir**: Belege im eigenen Dateisystem, Zertifikat und Schlüssel verschlüsselt in der eigenen Datenbank,
+  jedes Jahr als ZIP mit Prüfsummen zum Archivieren. Nur wenn du es einschaltest, liest eine KI Belege aus.
+- **Umzug ohne Datenverlust**: Haben holt Rechnungen, Belege und Kontakte aus Lexware Office und archiviert den DATEV-Export,
+  damit du kündigen kannst und trotzdem jede Frage des Finanzamts beantworten kannst.
 
-Belegdateien gehören ins Backup (`deploy/backup.sh` sichert das Volume `haben-belege` mit).
+## ✨ Funktionen
 
-## Phase 2: Rechnungen
+- **Rechnungen mit E-Rechnung**: Editor mit Live-Vorschau, lückenloser Nummernkreis, PDF/A-3 mit Typst und
+  ZUGFeRD (EN 16931) oder XRechnung 3.0 (CII/UBL), geprüft mit dem KoSIT-Validator. Storno und Rechnungskorrektur
+- **Belege**: per Drag-and-drop, Kamera oder Teilen-Menü am Handy (PWA). E-Rechnungen werden direkt gelesen,
+  andere PDFs und Fotos auf Wunsch von Claude vorausgefüllt. Kategorie pro Lieferant gemerkt
+- **Bankabgleich**: Kontoauszüge von DKB, N26 oder als CAMT.053 importieren, Dubletten und Lücken erkennen,
+  Vorschläge mit Begründung, Zuordnen per Tastatur, Teilzahlungen und Sammelüberweisungen
+- **Umsatzsteuer-Voranmeldung**: Kennzahlen aus den Buchungen (Ist- oder Soll-Versteuerung), Herkunft jeder Zahl aufklappbar,
+  Vorprüfung vor dem Senden, Übermittlung über ERiC mit Transfer-Ticket und Protokoll-PDF, berichtigte Anmeldungen
+- **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, Journal je Monat, Festschreibung und Audit-Log
+- **Auswertungen**: Einnahmen-Überschuss-Rechnung nach Zufluss und Abfluss, offene Posten, Monatsverlauf, CSV
+- **Jahresexport**: alle Originale, Journal, Bankumsätze, Voranmeldungen und Protokoll als ZIP mit SHA-256-Prüfsummen
+- **Umzug aus Lexoffice**: Abruf über die Public API, DATEV-Buchungsstapel, offene Posten übernehmen, Abgleich je Jahr
+- **Anmeldung mit Passkey**, Passwort als Ersatz. Ein Konto pro Installation
+- **Als App installierbar** auf Handy und Desktop, deutsche Oberfläche, auch am Smartphone bedienbar
 
-- Kontakte mit Kundennummer, USt-IdNr., IBAN und Leitweg-ID. Jede Änderung legt eine neue Version an; löschen geht nicht, archivieren schon
-- Rechnungseditor mit Positionen, Steuersatz je Position (19 / 7 / 0 %), Leistungszeitraum, Zahlungsziel und Live-Vorschau
-- Fortlaufender Nummernkreis je Jahr (`2026-034`), Nummer erst beim Festschreiben, lückenlos. Unter Einstellungen lässt sich die nächste Nummer setzen, um nach Lexoffice weiterzuzählen; zurücksetzen geht nicht
-- PDF mit Typst (`packages/einvoice/templates/rechnung.typ`, DIN 5008, IBM Plex Sans), daraus mit `@e-invoice-eu/core` ZUGFeRD (EN 16931, PDF/A-3) oder XRechnung 3.0 (CII oder UBL)
-- Festschreiben in einer Transaktion: Nummer, PDF, XML (mit SHA-256), Sperre und Buchung „Forderung an Erlöse + USt“. Bei Ist-Versteuerung auf „Umsatzsteuer nicht fällig“; fällig wird sie mit dem Zahlungseingang (Phase 4)
-- Stornorechnung (hebt auf, sofort festgeschrieben) und Rechnungskorrektur (mindert, als Entwurf), beide mit Bezug auf das Original (BT-25); im XML als Gutschrift (381)
-- Postgres-Trigger sperren festgeschriebene Rechnungen, Positionen und Buchungen; beim Festschreiben einer Buchung muss Soll = Haben sein
-- CI prüft alle Beispielrechnungen mit dem KoSIT-Validator (`pnpm --filter @haben/einvoice kosit`)
+## 📸 Screenshots
 
-Noch nicht: „bezahlt“ (kommt mit dem Bankabgleich), Kleinunternehmer und Reverse Charge, E-Mail-Versand.
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshot-rechnung.png" alt="Rechnungseditor mit Positionen links und Live-Vorschau des PDFs rechts"><br><sub><b>Rechnung schreiben</b>: Vorschau des PDFs, während du tippst</sub></td>
+    <td width="50%"><img src="docs/screenshot-bank.png" alt="Bankabgleich: Umsatz von Rheinpixel GmbH mit dem besten Treffer Rechnung 2026-033 und den Gründen"><br><sub><b>Bankabgleich</b>: Vorschlag mit Begründung, Enter ordnet zu</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshot-umsatzsteuer.png" alt="Voranmeldung September mit Kennzahlen 81, 86, 66 und 83 und dem Bereich zum Übermitteln an ELSTER"><br><sub><b>Voranmeldung</b>: aus den Buchungen berechnet, direkt an ELSTER</sub></td>
+    <td width="50%"><img src="docs/screenshot-auswertungen.png" alt="Auswertungen 2026 mit Einnahmen, Ausgaben, Gewinn und Monatsdiagramm"><br><sub><b>Auswertungen</b>: EÜR nach Zufluss und Abfluss</sub></td>
+  </tr>
+</table>
 
-**Kontonummern prüfen:** Die Buchungen nutzen SKR03 bzw. SKR04 (Einstellung „Kontenrahmen“), u. a. 1400/1200 Forderungen, 8400/4400 Erlöse 19 %, 1766/3816 Umsatzsteuer nicht fällig 19 %, 1576/1406 Vorsteuer 19 %, 1600/3300 Verbindlichkeiten, 1800/2100 Privatentnahmen, 1360/1460 Geldtransit, 1780/3820 USt-Vorauszahlungen und die Aufwandskonten der Belegkategorien. Alle Bankkonten laufen auf ein Finanzkonto (1200 bzw. 1800). Die Zuordnung steht in `packages/core/src/posting.ts` und sollte einmal mit Lexoffice oder dem Steuerberater abgeglichen werden.
+## 🚀 Schnellstart
 
-## Phase 1: Umsatzsteuer-Voranmeldung
-
-- Ersteinrichtung mit genau einem Konto, Anmeldung per Passkey (Passwort als Rückfallebene)
-- Firmendaten mit Steuernummer und Bundesland; die Umrechnung ins 13-stellige ELSTER-Format übernimmt Haben
-- ELSTER-Zertifikat (.pfx) hochladen, AES-256-GCM-verschlüsselt in der Datenbank; die PIN wird nur beim Senden abgefragt und nie gespeichert
-- Voranmeldung je Monat: Entwurf, „Nur prüfen“ (ERiC-Plausibilitätsprüfung), Testübermittlung, Echtübermittlung
-- Jede Prüfung und Übermittlung landet mit Transfer-Ticket und ERiC-Protokoll-PDF im Verlauf
-- Gesendete Voranmeldungen sind festgeschrieben (Postgres-Trigger lehnt `UPDATE`/`DELETE` ab); eine Korrektur ist eine neue, berichtigte Anmeldung (Kz 10)
-- Audit-Log mit altem und neuem Wert jeder Änderung, nur anhängen
-- Warnung 30 Tage vor Ablauf des Zertifikats
-
-## Aufbau
-
-| Pfad | Inhalt |
-| --- | --- |
-| `apps/web` | TanStack Start (React, Server Functions), Drizzle, Better Auth |
-| `packages/core` | Beträge in Cent, Zeiträume und Fälligkeiten, Steuernummer-Umrechnung, UStVA-Berechnung |
-| `packages/elster` | ERiC-Anbindung hinter `ElsterClient`, UStVA-XML, Worker-Prozess |
-| `packages/import` | Parser für Kontoauszüge (DKB, N26, CAMT.053), Deduplizierung, Saldenprüfung |
-| `packages/einvoice` | Rechnungs-PDF (Typst), E-Rechnung erzeugen (ZUGFeRD, XRechnung) und eingehende E-Rechnungen lesen |
-
-Geldbeträge sind immer ganze Cent, Steuersätze Basispunkte (1900 = 19 %).
-
-ERiC läuft nie im App-Prozess. Jeder Aufruf startet einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`), der ERiC per `koffi` lädt. Stürzt die native Bibliothek ab, bekommt die App nur eine Fehlermeldung. Ohne `ERIC_HOME` nutzt Haben einen simulierten Client, und die Oberfläche zeigt das deutlich an.
-
-## Entwicklung
-
-Voraussetzungen: Node 22, pnpm 10, PostgreSQL 16.
+Haben läuft als drei Container (App, PostgreSQL, Caddy) mit Podman Quadlets unter systemd. Du brauchst einen Linux-Server
+und eine Domain mit HTTPS, denn Passkeys funktionieren nur über eine sichere Verbindung.
 
 ```sh
-pnpm install
-cp apps/web/.env.example apps/web/.env   # Werte eintragen
-pnpm db:migrate                           # liest DATABASE_URL
-pnpm dev                                  # http://localhost:3000
-```
-
-Prüfungen wie in CI:
-
-```sh
-pnpm lint
-pnpm typecheck
-TEST_DATABASE_URL=postgres://…/haben_test pnpm test   # ohne TEST_DATABASE_URL werden die DB-Tests übersprungen
-pnpm build
-KOSIT_JAR=… KOSIT_CONFIG=…/scenarios.xml pnpm --filter @haben/einvoice kosit   # braucht Java 21
-```
-
-Schemaänderungen: `apps/web/src/server/db/schema.ts` anpassen, dann `pnpm db:generate`. Trigger und Funktionen stehen in eigenen SQL-Migrationen (`drizzle/0001_festschreibung.sql`).
-
-## ELSTER einrichten
-
-1. Als Entwickler bei ELSTER registrieren und das ERiC-Paket für Linux x86_64 laden. ERiC darf nicht weitergegeben werden und liegt deshalb nicht im Repo oder Image.
-2. ERiC entpacken, z. B. nach `/opt/eric` (darin `lib/libericapi.so` und `lib/plugins2/`), und `ERIC_HOME` setzen.
-3. In Mein ELSTER eine Zertifikatsdatei (.pfx) beantragen und in Haben unter Einstellungen hochladen.
-4. Zuerst **Nur prüfen**, dann **Testübermittlung**. Die läuft mit der Test-Hersteller-ID 74931 und Testmerker 700000004 und geht nicht an das Finanzamt.
-5. Nach erfolgreicher Testübermittlung die eigene Hersteller-ID beantragen und als `ELSTER_HERSTELLER_ID` eintragen. Erst dann ist die Echtübermittlung freigeschaltet.
-
-**Vor dem ersten echten Lauf gegen `ericapi.h` des installierten ERiC prüfen** (in `packages/elster/src/eric.ts`): die Layouts von `eric_druck_parameter_t` (Version 2) und `eric_verschluesselungs_parameter_t` (Version 3), die Flag-Kombination `ERIC_VALIDIERE | ERIC_SENDE | ERIC_DRUCKE` und den Namespace bzw. die Elementreihenfolge im UStVA-XML. Die ERiC-Bindung ist nur gegen eine nachgebaute Bibliothek getestet. Die erste Plausibilitätsprüfung mit echtem ERiC zeigt, ob das stimmt. ERiC-Updates erst nach erfolgreicher Testübermittlung einspielen.
-
-## Betrieb (Podman Quadlets + Caddy)
-
-```sh
+git clone https://github.com/firsttris/haben.git && cd haben
 podman build -t haben -f Containerfile .
-mkdir -p ~/.config/containers/systemd ~/.config/haben
-cp deploy/quadlet/* ~/.config/containers/systemd/
-cp deploy/Caddyfile deploy/backup.sh ~/.config/haben/
-cp deploy/haben.env.example ~/.config/haben/haben.env   # Domain und ERiC eintragen
 
-printf '%s' "$(openssl rand -hex 24)" | podman secret create haben-db-password -
-printf 'postgres://haben:PASSWORT@haben-db:5432/haben' | podman secret create haben-database-url -
+mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
+cp deploy/quadlet/*.container deploy/quadlet/*.volume deploy/quadlet/*.network ~/.config/containers/systemd/
+cp deploy/quadlet/haben-backup.service deploy/quadlet/haben-backup.timer ~/.config/systemd/user/
+cp deploy/Caddyfile deploy/backup.sh ~/.config/haben/
+cp deploy/haben.env.example ~/.config/haben/haben.env   # Domain eintragen, auch im Caddyfile
+
+DBPW="$(openssl rand -hex 24)"
+printf '%s' "$DBPW" | podman secret create haben-db-password -
+printf 'postgres://haben:%s@haben-db:5432/haben' "$DBPW" | podman secret create haben-database-url -
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-auth-secret -
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-encryption-key -
 
@@ -141,10 +98,67 @@ systemctl --user start haben-db haben-app haben-caddy
 systemctl --user enable --now haben-backup.timer
 ```
 
-Der App-Container wendet beim Start ausstehende Migrationen an. `HABEN_ENCRYPTION_KEY` gehört zusätzlich ins Backup: Ohne ihn ist das gespeicherte Zertifikat nicht mehr lesbar. Das Backup (`deploy/backup.sh`) läuft täglich mit `pg_dump` und restic.
+Dann öffnest du deine Domain, legst dein Konto an und richtest Firmendaten, Nummernkreis und ELSTER ein.
+Die Einzelheiten (ERiC einbinden, Backup und Wiederherstellung, Updates, Umgebungsvariablen) stehen in
+[Betrieb und Installation](docs/installation.md), die ersten Schritte in der Oberfläche in [Erste Schritte](docs/einrichtung.md).
 
-Passkeys sind an die Domain gebunden. `BETTER_AUTH_URL` muss die Adresse sein, unter der Haben im Browser läuft.
+> [!IMPORTANT]
+> Sichere `HABEN_ENCRYPTION_KEY` zusätzlich an einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und
+> Lexoffice-Schlüssel nach einer Wiederherstellung nicht mehr lesbar.
 
-## Lizenz
+## 📚 Dokumentation
 
-AGPL-3.0. Wer Haben für andere betreibt, muss ihnen den Quellcode anbieten; der Link steht in der Navigation.
+| | |
+|---|---|
+| [Betrieb und Installation](docs/installation.md) | Podman Quadlets, Caddy, Secrets, Umgebungsvariablen, ERiC, Backup und Wiederherstellung, Updates |
+| [Erste Schritte](docs/einrichtung.md) | Konto und Passkey, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, ELSTER, KI-Auslesung |
+| [Rechnungen und E-Rechnung](docs/rechnungen.md) | Editor, Festschreiben, ZUGFeRD und XRechnung, Storno und Korrektur, Kontakte |
+| [Belege](docs/belege.md) | Hochladen, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
+| [Bankimport und Abgleich](docs/bank.md) | Formate, Dubletten, Vorschläge, Zuordnen, Buchungen ohne Beleg |
+| [Umsatzsteuer-Voranmeldung](docs/umsatzsteuer.md) | Berechnung aus den Buchungen, Vorprüfung, ELSTER-Übermittlung, Berichtigung |
+| [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP, Aufbewahrung |
+| [Umzug aus Lexoffice](docs/lexoffice.md) | API-Abruf, DATEV-Import, offene Posten, Abgleich vor der Kündigung |
+| [Buchhaltung in Haben](docs/buchhaltung.md) | Buchungssätze, Kontenrahmen, Ist und Soll, GoBD und Festschreibung |
+| [Architektur](docs/architektur.md) | Module, Datenmodell, Abläufe, ERiC-Worker, Sicherheit |
+| [Entwicklung](docs/entwicklung.md) | Lokale Umgebung, Tests, Migrationen, Konventionen, Mitwirken |
+
+## 🔧 Entwicklung
+
+Voraussetzungen: Node 22, pnpm 10 und PostgreSQL 16.
+
+```sh
+pnpm install
+cp apps/web/.env.example apps/web/.env   # DATABASE_URL, BETTER_AUTH_SECRET, HABEN_ENCRYPTION_KEY eintragen
+pnpm db:migrate
+pnpm dev                                  # http://localhost:3000
+```
+
+Ohne `ERIC_HOME` simuliert Haben die ELSTER-Übermittlung und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` bleibt
+die KI-Auslesung aus.
+
+**Stack**: TanStack Start (React, Server Functions), PostgreSQL mit Drizzle, Better Auth mit Passkeys, Zod, Typst für
+die Rechnungs-PDFs, `@e-invoice-eu/core` für ZUGFeRD und XRechnung, ERiC über `koffi` in einem eigenen Prozess,
+Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](docs/architektur.md), alles Weitere
+[Entwicklung](docs/entwicklung.md).
+
+| Paket | Inhalt |
+|---|---|
+| `apps/web` | Oberfläche, Server Functions, Datenbank, Anmeldung |
+| `packages/core` | Beträge, Zeiträume, Voranmeldung, EÜR, Buchungssätze, Zuordnungsvorschläge |
+| `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
+| `packages/elster` | ERiC-Anbindung, UStVA-XML, Worker-Prozess |
+| `packages/import` | Kontoauszüge (DKB, N26, CAMT.053), DATEV-Buchungsstapel, Lexware-Office-API |
+
+## 🤝 Mitwirken
+
+Fehler und Ideen gern als Issue. Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
+kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte `pnpm lint`, `pnpm typecheck` und
+`pnpm test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](docs/entwicklung.md)).
+
+---
+
+<div align="center">
+<sub>Haben ist keine Steuerberatung. Konten, Kategorien und Aufbewahrung vor dem Echtbetrieb mit deiner Steuerberatung abgleichen.<br>
+Lizenz: <a href="LICENSE">AGPL-3.0</a>. Wer Haben für andere betreibt, muss ihnen den Quellcode anbieten; der Link steht in der Navigation.<br>
+ELSTER ist eine Marke der Finanzverwaltung. Haben steht in keiner Verbindung zu Lexware, DATEV oder der Finanzverwaltung.</sub>
+</div>

@@ -5,7 +5,7 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   /** Öffentliche Adresse, z. B. https://haben.example.de */
   BETTER_AUTH_URL: z.string().url(),
-  /** 32 Byte, base64 – verschlüsselt die ELSTER-Zertifikatsdatei */
+  /** 32 Byte, base64 – verschlüsselt die ELSTER-Zertifikatsdatei und den Lexoffice-API-Schlüssel */
   HABEN_ENCRYPTION_KEY: z
     .string()
     .refine((value) => Buffer.from(value, "base64").length === 32, "muss 32 Byte (base64) sein"),
@@ -28,6 +28,7 @@ export type Env = z.infer<typeof envSchema>;
 let cached: Env | undefined;
 
 export function env(): Env {
-  cached ??= envSchema.parse(process.env);
+  // Leere Zeilen aus haben.env (z. B. „ELSTER_HERSTELLER_ID=“) gelten als nicht gesetzt
+  cached ??= envSchema.parse(Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== "")));
   return cached;
 }

@@ -1,0 +1,193 @@
+# Rechnungen und E-Rechnung
+
+Haben schreibt Ausgangsrechnungen als E-Rechnung: ZUGFeRD (PDF/A-3 mit eingebettetem XML, Profil EN 16931) oder XRechnung 3.0 in CII- oder UBL-Syntax. Eine Rechnung ist zuerst ein Entwurf, den du beliebig ändern kannst. Mit dem Festschreiben bekommt sie ihre Nummer, PDF und XML werden erzeugt, sie wird gebucht und ist danach unveränderlich.
+
+<img src="screenshot-rechnung.png" alt="Rechnungseditor mit Kunde, Leistungszeitraum, Positionen und Live-Vorschau der Rechnung rechts daneben" width="900">
+
+## Voraussetzungen
+
+Bevor du die erste Rechnung festschreibst, brauchst du:
+
+- **Firmendaten** unter Einstellungen: Firmenname, Anschrift, E-Mail-Adresse, IBAN und Steuernummer oder USt-IdNr. Fehlt etwas, zeigt der Editor oben „Vor dem Festschreiben: …“ mit einem Link „Firmendaten ergänzen“. Siehe [einrichtung.md](einrichtung.md).
+- **Einen Kontakt** für den Kunden (siehe [Kontakte](#kontakte)).
+- Für XRechnung zusätzlich eine **Telefonnummer** in den Firmendaten und beim Kunden eine **E-Mail-Adresse oder Leitweg-ID**.
+
+## So gehst du vor
+
+1. Unter **Rechnungen** auf **Neue Rechnung** klicken.
+2. **Kunde** wählen. Hat der Kontakt ein Standardformat, wird es übernommen; hat er eine Leitweg-ID und kein Standardformat, stellt Haben auf XRechnung 3.0 (CII) um.
+3. **Rechnungsdatum** und **Zahlungsziel in Tagen** (0 bis 120) eintragen. Darunter steht das errechnete Fälligkeitsdatum. Vorgabe für das Zahlungsziel ist der Wert aus den Firmendaten.
+4. Optional **Leistung von** und **Leistung bis**. Ohne Angabe gilt das Rechnungsdatum als Leistungsdatum; ist nur ein Tag angegeben oder sind beide gleich, erscheint auf der Rechnung „Leistungsdatum“, sonst „Leistungszeitraum“.
+5. **E-Rechnungsformat** prüfen.
+6. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
+7. Optional einen **Hinweis auf der Rechnung** eintragen (bis 2000 Zeichen).
+8. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt einmal nach: erst der zweite Klick auf **Jetzt festschreiben** führt es aus.
+
+Rechts zeigt die Vorschau die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
+
+Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**. Das geht nur, solange er nicht festgeschrieben ist.
+
+### Positionen
+
+| Feld | Werte |
+| --- | --- |
+| Menge | Bis zu drei Nachkommastellen, z. B. `0,5` oder `152`. Muss größer als null sein. |
+| Einheit | `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.`, `km` |
+| Einzelpreis | In Euro, z. B. `95,00`. Negative Preise sind möglich, etwa für einen Rabatt. |
+| Steuersatz | 19 %, 7 % oder 0 % |
+
+Das Zeilennetto ist Menge mal Einzelpreis, kaufmännisch auf Cent gerundet. Die Umsatzsteuer rechnet Haben nach EN 16931 je Steuersatz auf die Summe der Zeilennetto, nicht als Summe der Steuer je Zeile. Bei mehreren Steuersätzen weist das PDF die Steuer je Satz mit ihrer Bemessungsgrundlage aus.
+
+Die Einheiten gehen mit ihren UN/ECE-Codes ins XML (`HUR`, `DAY`, `MON`, `H87`, `LS`, `KMT`).
+
+### Format wählen
+
+| Auswahl im Editor | Was entsteht |
+| --- | --- |
+| ZUGFeRD · EN 16931 (PDF mit XML) | PDF/A-3 mit eingebetteter `factur-x.xml` (CII, Profil EN 16931). Das XML steht zusätzlich einzeln zum Download bereit. |
+| XRechnung 3.0 (CII) | XRechnung als CII-XML; das PDF ist eine Sichtkopie. |
+| XRechnung 3.0 (UBL) | XRechnung als UBL-XML; das PDF ist eine Sichtkopie. |
+
+Die Reihenfolge, nach der Haben das Format vorschlägt: Standardformat des Kontakts, sonst XRechnung (CII) bei vorhandener Leitweg-ID, sonst das Standardformat aus den Einstellungen. Du kannst es im Entwurf jederzeit ändern.
+
+### Was vor dem Festschreiben geprüft wird
+
+Der Editor listet alles auf, was noch fehlt. Geprüft werden:
+
+- Firmendaten: Name, Anschrift, E-Mail-Adresse, IBAN, Steuernummer oder USt-IdNr.
+- Kunde gewählt, mindestens eine Position, keine Position mit Betrag 0.
+- Eine Rechnung muss einen positiven Gesamtbetrag haben, eine Rechnungskorrektur einen negativen.
+- Formatabhängige Pflichtangaben (aus `validateForFormat` in `packages/einvoice`):
+
+| Angabe | ZUGFeRD | XRechnung |
+| --- | --- | --- |
+| Name und vollständige Anschrift des Rechnungsstellers | Pflicht | Pflicht |
+| E-Mail-Adresse des Rechnungsstellers | Pflicht | Pflicht |
+| Steuernummer oder USt-IdNr. | Pflicht | Pflicht |
+| Telefonnummer des Rechnungsstellers | – | Pflicht |
+| IBAN (bei Rechnungen mit positivem Betrag) | Pflicht | Pflicht |
+| Name und vollständige Anschrift des Kunden | Pflicht | Pflicht |
+| E-Mail-Adresse oder Leitweg-ID des Kunden | – | Pflicht |
+| Bezug zur ursprünglichen Rechnung (Storno, Korrektur) | Pflicht | Pflicht |
+
+## Was beim Festschreiben passiert
+
+Alles läuft in einer einzigen Datenbanktransaktion. Schlägt ein Schritt fehl, bleibt der Entwurf ohne Nummer zurück und im Nummernkreis entsteht keine Lücke.
+
+1. **Nummer ziehen.** Der Zähler je Jahr des Rechnungsdatums wird um eins erhöht. Das Format ist `JJJJ-NNN`, also `2026-034`. Ein Datenbank-Trigger verhindert, dass der Zähler zurückgesetzt wird.
+2. **Anschriften einfrieren.** Absender (aus den Firmendaten) und Empfänger (aus dem Kontakt) werden mit der Rechnung gespeichert, dazu die Version des Kontakts. Spätere Änderungen am Kontakt ändern die Rechnung nicht.
+3. **PDF erzeugen.** Die sichtbare Rechnung entsteht mit Typst aus einer Vorlage als PDF/A-3b. Als Erstellungszeit steht das Rechnungsdatum im PDF.
+4. **XML erzeugen.** Die Bibliothek `@e-invoice-eu/core` erzeugt je nach Format Factur-X EN 16931 (und bettet es ins PDF ein), XRechnung CII oder XRechnung UBL.
+5. **Prüfsummen.** Von PDF und XML wird je ein SHA-256 gespeichert. Die ersten Zeichen des PDF-Hashes stehen auf der Detailseite.
+6. **Buchen.** Haben legt den Buchungssatz an (siehe unten) und schreibt ihn fest.
+7. **Sperren.** Die Rechnung bekommt einen Festschreibungszeitpunkt. Ab dann lehnen Datenbank-Trigger jede Änderung oder Löschung der Rechnung und ihrer Positionen ab.
+
+## Buchungen
+
+Beispiel: Rechnung über 1.000,00 € netto zu 19 %.
+
+**Soll-Versteuerung** (nach vereinbarten Entgelten):
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 1400 Forderungen | 1200 Forderungen | 1.190,00 | |
+| 8400 Erlöse 19 % | 4400 Erlöse 19 % | | 1.000,00 |
+| 1776 Umsatzsteuer 19 % | 3806 Umsatzsteuer 19 % | | 190,00 |
+
+**Ist-Versteuerung** (nach vereinnahmten Entgelten): Die Steuer landet zunächst auf „Umsatzsteuer nicht fällig“ und wird erst mit dem Zahlungseingang fällig (siehe [bank.md](bank.md)).
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 1400 Forderungen | 1200 Forderungen | 1.190,00 | |
+| 8400 Erlöse 19 % | 4400 Erlöse 19 % | | 1.000,00 |
+| 1766 USt nicht fällig 19 % | 3816 USt nicht fällig 19 % | | 190,00 |
+
+Für 7 % gelten die Konten 8300/1771/1761 (SKR03) bzw. 4300/3801/3811 (SKR04), für 0 % das Erlöskonto 8200 bzw. 4200 ohne Steuerzeile. Storno und Rechnungskorrektur haben negative Beträge; dabei tauschen Soll und Haben die Seiten.
+
+> [!IMPORTANT]
+> Die Kontenzuordnung stammt aus `packages/core/src/posting.ts`. Gleiche sie vor dem Echtbetrieb mit deiner Steuerberatung ab.
+
+## Rechnungsliste und Status
+
+Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und einen Status. Der Status wird bei jedem Aufruf aus den Zuordnungen im Bankabgleich abgeleitet; gespeichert ist nur „Entwurf“ oder „festgeschrieben“.
+
+| Status | Bedeutung |
+| --- | --- |
+| Entwurf | Noch nicht festgeschrieben, ohne Nummer. |
+| Offen | Festgeschrieben, nicht fällig, noch keine Zahlung zugeordnet. |
+| Teilbezahlt | Ein Teil ist bezahlt, die Fälligkeit ist noch nicht überschritten. |
+| Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet. |
+| Überfällig | Fälligkeit überschritten und noch etwas offen, auch bei Teilzahlung. |
+| Storniert | Zu dieser Rechnung gibt es eine festgeschriebene Stornorechnung. |
+| Storno | Die Stornorechnung selbst. |
+| Korrektur | Eine Rechnungskorrektur. |
+
+## Festgeschriebene Rechnung
+
+Die Detailseite zeigt das PDF, die Eckdaten (Kunde, Rechnungsdatum, Fälligkeit, Netto, Umsatzsteuer, Brutto, Format, Zeitpunkt der Festschreibung) und den Anfang des SHA-256 des PDFs.
+
+- **PDF herunterladen** liefert `Rechnung-<Nummer>.pdf`.
+- **XML herunterladen** liefert `Rechnung-<Nummer>-cii.xml` bzw. `-ubl.xml`. Bei ZUGFeRD ist das dasselbe XML, das im PDF steckt.
+
+Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreiben entstanden sind. Sie werden nie neu erzeugt.
+
+## Storno und Rechnungskorrektur
+
+Eine festgeschriebene Rechnung änderst du nicht, du stellst eine neue aus. Auf der Detailseite einer Rechnung gibt es dafür den Abschnitt **Korrigieren**.
+
+| | Stornieren | Rechnungskorrektur anlegen |
+| --- | --- | --- |
+| Zweck | Hebt die Rechnung vollständig auf. | Mindert den Betrag teilweise. |
+| Ergebnis | Stornorechnung mit allen Positionen negativ, sofort festgeschrieben und gebucht. | Entwurf mit allen Positionen negativ, den du anpasst. |
+| Bestätigung | Zweiter Klick auf **Jetzt stornieren**. | Festschreiben wie bei einer Rechnung. |
+| Bedingung | – | Gesamtbetrag muss negativ bleiben. |
+
+Für beide gilt:
+
+- Sie bekommen eine eigene Nummer aus demselben Nummernkreis und das heutige Datum.
+- Sie gehen an die Anschrift, die auf der ursprünglichen Rechnung steht; der Kunde ist im Editor nicht wählbar.
+- PDF und XML verweisen auf die ursprüngliche Rechnung („zur Rechnung 2026-034 vom …“, im XML als BillingReference).
+- Im XML erscheinen sie als Gutschrift (Typcode 381) mit positiven Beträgen; der Zahlungsweg ist offen gelassen, das PDF sagt „Der Betrag wird Ihnen erstattet.“
+- Eine bereits stornierte Rechnung lässt sich nicht noch einmal stornieren oder korrigieren. Storno und Korrektur selbst lassen sich nicht weiter korrigieren.
+
+Die ursprüngliche Rechnung zeigt unter **Korrekturen** alle Stornos und Korrekturen, die sich auf sie beziehen, eine stornierte Rechnung zusätzlich einen roten Hinweis mit Link zur Stornorechnung.
+
+Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskorrektur erscheint dort als offener Posten mit negativem Betrag, dem du eine Rückzahlung zuordnen kannst.
+
+## Kontakte
+
+Kontakte erreichst du über **Rechnungen** › **Kontakte** oder direkt unter `/kontakte`.
+
+| Feld | Hinweis |
+| --- | --- |
+| Name oder Firma | Pflicht |
+| Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. |
+| E-Mail | Für XRechnung: elektronische Adresse des Käufers (BT-49). |
+| Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |
+| Land (ISO-Code) | Zwei Buchstaben, Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
+| USt-IdNr. | Form `DE123456789`, steht dann auf der Rechnung. |
+| IBAN | Hilft beim Bankabgleich. Wird beim ersten zugeordneten Zahlungseingang automatisch gemerkt, wenn das Feld leer ist. |
+| Leitweg-ID (öffentliche Auftraggeber) | Steht auf der Rechnung und wird im XML als Käuferreferenz verwendet. |
+| Standardformat für Rechnungen | ZUGFeRD, XRechnung (CII), XRechnung (UBL) oder „wie in den Einstellungen“. |
+
+**Versionen.** Jede Änderung erhöht die Versionsnummer, der vorige Stand bleibt als Version erhalten. Die Detailseite listet alle Versionen mit Zeitpunkt. Festgeschriebene Rechnungen behalten die Anschrift, die beim Festschreiben galt.
+
+**Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
+
+## Rechnungen aus Lexoffice
+
+Offene Rechnungen, die du bei der Migration aus Lexoffice übernimmst (siehe [lexoffice.md](lexoffice.md)), erscheinen als festgeschriebene Rechnungen mit ihrer Lexoffice-Nummer. Als Format steht dort **Original aus Lexoffice**: Das PDF ist das Original aus Lexoffice, ein XML gibt es nur, wenn Lexoffice eines geliefert hat. Haben bildet je Steuersatz eine Pauschalposition nach, damit Zahlungen im Bankabgleich zugeordnet werden können.
+
+Gebucht werden diese Rechnungen nicht als Erlös, sondern gegen den Saldenvortrag (9000), weil der Erlös schon in den alten Büchern steht. Bei Ist-Versteuerung kommt die noch nicht angemeldete Umsatzsteuer auf „Umsatzsteuer nicht fällig“ und wird mit dem Zahlungseingang fällig.
+
+## Prüfung gegen den KoSIT-Validator
+
+Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten E-Rechnungen mit dem offiziellen KoSIT-Validator (Version 1.5.0) und der XRechnung-Konfiguration 3.0.2. Geprüft werden Beispielrechnungen in den drei Formaten, darunter einfache Rechnung zu 19 %, gemischte Steuersätze, Storno, Rechnungskorrektur, Leitweg-ID, einzelnes Leistungsdatum, Absender nur mit Steuernummer und eine Rechnung zum Nullsatz. Die Prüfberichte liegen als Artefakt am CI-Lauf. Wie du die Prüfung lokal startest, steht in [entwicklung.md](entwicklung.md).
+
+## Grenzen
+
+- Nur Euro und nur die Steuersätze 19 %, 7 % und 0 %.
+- 0 % geht als Steuerkategorie „Z“ (Nullsatz) ins XML. Eigene Kategorien für Kleinunternehmer, Reverse Charge oder steuerfreie Umsätze gibt es nicht, ebenso keinen Pflichthinweis dazu; den müsstest du über das Feld „Hinweis auf der Rechnung“ ergänzen.
+- Keine Abschlags- oder Schlussrechnungen, keine Skonto-Angaben, keine Zu- oder Abschläge auf Belegebene.
+- Höchstens 200 Positionen je Rechnung.
+- Haben versendet Rechnungen nicht; du lädst PDF oder XML herunter und verschickst sie selbst.
