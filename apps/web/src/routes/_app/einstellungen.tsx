@@ -90,6 +90,8 @@ function CompanyForm() {
           paymentTermDays: Number(text("paymentTermDays") || 14),
           defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
+          taetigkeit: text("taetigkeit"),
           dunning: {
             // Prozent mit zwei Nachkommastellen wie ein Eurobetrag lesen: "1,27" → 127 Basispunkte
             baseRate: text("dunning-baseRate").trim() ? parseEuro(text("dunning-baseRate")) : null,
@@ -163,6 +165,18 @@ function CompanyForm() {
         <label className="field">
           Finanzamt
           <input name="finanzamt" defaultValue={company.finanzamt} />
+        </label>
+        <label className="field">
+          Einkunftsart (für die Anlage EÜR)
+          <select name="einkunftsart" defaultValue={company.einkunftsart ?? ""}>
+            <option value="">Bitte wählen</option>
+            <option value="selbstaendig">Selbständige Arbeit (freier Beruf, z. B. Entwickler, Berater)</option>
+            <option value="gewerbe">Gewerbebetrieb</option>
+          </select>
+        </label>
+        <label className="field">
+          Art des Betriebs (für die Anlage EÜR)
+          <input name="taetigkeit" defaultValue={company.taetigkeit} placeholder="z. B. Softwareentwicklung" maxLength={100} />
         </label>
         <label className="field">
           Telefon (Pflicht für XRechnung)

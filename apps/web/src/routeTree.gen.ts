@@ -23,6 +23,8 @@ import { Route as AppAnlagenNeuRouteImport } from './routes/_app/anlagen/neu'
 import { Route as AppArchivIndexRouteImport } from './routes/_app/archiv/index'
 import { Route as AppBelegeIndexRouteImport } from './routes/_app/belege/index'
 import { Route as AppBelegeIdRouteImport } from './routes/_app/belege/$id'
+import { Route as AppJahreserklaerungIndexRouteImport } from './routes/_app/jahreserklaerung/index'
+import { Route as AppJahreserklaerungJahrRouteImport } from './routes/_app/jahreserklaerung/$jahr'
 import { Route as AppKontakteIndexRouteImport } from './routes/_app/kontakte/index'
 import { Route as AppKontakteIdRouteImport } from './routes/_app/kontakte/$id'
 import { Route as AppKontakteNeuRouteImport } from './routes/_app/kontakte/neu'
@@ -116,6 +118,17 @@ const AppBelegeIndexRoute = AppBelegeIndexRouteImport.update({
 const AppBelegeIdRoute = AppBelegeIdRouteImport.update({
   id: '/belege/$id',
   path: '/belege/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppJahreserklaerungIndexRoute =
+  AppJahreserklaerungIndexRouteImport.update({
+    id: '/jahreserklaerung/',
+    path: '/jahreserklaerung/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppJahreserklaerungJahrRoute = AppJahreserklaerungJahrRouteImport.update({
+  id: '/jahreserklaerung/$jahr',
+  path: '/jahreserklaerung/$jahr',
   getParentRoute: () => AppRoute,
 } as any)
 const AppKontakteIndexRoute = AppKontakteIndexRouteImport.update({
@@ -260,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
+  '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
   '/rechnungen/$id': typeof AppRechnungenIdRoute
@@ -278,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/anlagen/': typeof AppAnlagenIndexRoute
   '/archiv/': typeof AppArchivIndexRoute
   '/belege/': typeof AppBelegeIndexRoute
+  '/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/kontakte/': typeof AppKontakteIndexRoute
   '/rechnungen/': typeof AppRechnungenIndexRoute
   '/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
@@ -300,6 +315,7 @@ export interface FileRoutesByTo {
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
+  '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
   '/rechnungen/$id': typeof AppRechnungenIdRoute
@@ -318,6 +334,7 @@ export interface FileRoutesByTo {
   '/anlagen': typeof AppAnlagenIndexRoute
   '/archiv': typeof AppArchivIndexRoute
   '/belege': typeof AppBelegeIndexRoute
+  '/jahreserklaerung': typeof AppJahreserklaerungIndexRoute
   '/kontakte': typeof AppKontakteIndexRoute
   '/rechnungen': typeof AppRechnungenIndexRoute
   '/umsatzsteuer': typeof AppUmsatzsteuerIndexRoute
@@ -342,6 +359,7 @@ export interface FileRoutesById {
   '/_app/anlagen/$id': typeof AppAnlagenIdRoute
   '/_app/anlagen/neu': typeof AppAnlagenNeuRoute
   '/_app/belege/$id': typeof AppBelegeIdRoute
+  '/_app/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/_app/kontakte/$id': typeof AppKontakteIdRoute
   '/_app/kontakte/neu': typeof AppKontakteNeuRoute
   '/_app/rechnungen/$id': typeof AppRechnungenIdRoute
@@ -360,6 +378,7 @@ export interface FileRoutesById {
   '/_app/anlagen/': typeof AppAnlagenIndexRoute
   '/_app/archiv/': typeof AppArchivIndexRoute
   '/_app/belege/': typeof AppBelegeIndexRoute
+  '/_app/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/_app/kontakte/': typeof AppKontakteIndexRoute
   '/_app/rechnungen/': typeof AppRechnungenIndexRoute
   '/_app/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
@@ -384,6 +403,7 @@ export interface FileRouteTypes {
     | '/anlagen/$id'
     | '/anlagen/neu'
     | '/belege/$id'
+    | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
     | '/rechnungen/$id'
@@ -402,6 +422,7 @@ export interface FileRouteTypes {
     | '/anlagen/'
     | '/archiv/'
     | '/belege/'
+    | '/jahreserklaerung/'
     | '/kontakte/'
     | '/rechnungen/'
     | '/umsatzsteuer/'
@@ -424,6 +445,7 @@ export interface FileRouteTypes {
     | '/anlagen/$id'
     | '/anlagen/neu'
     | '/belege/$id'
+    | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
     | '/rechnungen/$id'
@@ -442,6 +464,7 @@ export interface FileRouteTypes {
     | '/anlagen'
     | '/archiv'
     | '/belege'
+    | '/jahreserklaerung'
     | '/kontakte'
     | '/rechnungen'
     | '/umsatzsteuer'
@@ -465,6 +488,7 @@ export interface FileRouteTypes {
     | '/_app/anlagen/$id'
     | '/_app/anlagen/neu'
     | '/_app/belege/$id'
+    | '/_app/jahreserklaerung/$jahr'
     | '/_app/kontakte/$id'
     | '/_app/kontakte/neu'
     | '/_app/rechnungen/$id'
@@ -483,6 +507,7 @@ export interface FileRouteTypes {
     | '/_app/anlagen/'
     | '/_app/archiv/'
     | '/_app/belege/'
+    | '/_app/jahreserklaerung/'
     | '/_app/kontakte/'
     | '/_app/rechnungen/'
     | '/_app/umsatzsteuer/'
@@ -610,6 +635,20 @@ declare module '@tanstack/react-router' {
       path: '/belege/$id'
       fullPath: '/belege/$id'
       preLoaderRoute: typeof AppBelegeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/jahreserklaerung/': {
+      id: '/_app/jahreserklaerung/'
+      path: '/jahreserklaerung'
+      fullPath: '/jahreserklaerung/'
+      preLoaderRoute: typeof AppJahreserklaerungIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/jahreserklaerung/$jahr': {
+      id: '/_app/jahreserklaerung/$jahr'
+      path: '/jahreserklaerung/$jahr'
+      fullPath: '/jahreserklaerung/$jahr'
+      preLoaderRoute: typeof AppJahreserklaerungJahrRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/kontakte/': {
@@ -799,6 +838,7 @@ interface AppRouteChildren {
   AppAnlagenIdRoute: typeof AppAnlagenIdRoute
   AppAnlagenNeuRoute: typeof AppAnlagenNeuRoute
   AppBelegeIdRoute: typeof AppBelegeIdRoute
+  AppJahreserklaerungJahrRoute: typeof AppJahreserklaerungJahrRoute
   AppKontakteIdRoute: typeof AppKontakteIdRoute
   AppKontakteNeuRoute: typeof AppKontakteNeuRoute
   AppRechnungenIdRoute: typeof AppRechnungenIdRoute
@@ -807,6 +847,7 @@ interface AppRouteChildren {
   AppAnlagenIndexRoute: typeof AppAnlagenIndexRoute
   AppArchivIndexRoute: typeof AppArchivIndexRoute
   AppBelegeIndexRoute: typeof AppBelegeIndexRoute
+  AppJahreserklaerungIndexRoute: typeof AppJahreserklaerungIndexRoute
   AppKontakteIndexRoute: typeof AppKontakteIndexRoute
   AppRechnungenIndexRoute: typeof AppRechnungenIndexRoute
   AppUmsatzsteuerIndexRoute: typeof AppUmsatzsteuerIndexRoute
@@ -827,6 +868,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAnlagenIdRoute: AppAnlagenIdRoute,
   AppAnlagenNeuRoute: AppAnlagenNeuRoute,
   AppBelegeIdRoute: AppBelegeIdRoute,
+  AppJahreserklaerungJahrRoute: AppJahreserklaerungJahrRoute,
   AppKontakteIdRoute: AppKontakteIdRoute,
   AppKontakteNeuRoute: AppKontakteNeuRoute,
   AppRechnungenIdRoute: AppRechnungenIdRoute,
@@ -835,6 +877,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAnlagenIndexRoute: AppAnlagenIndexRoute,
   AppArchivIndexRoute: AppArchivIndexRoute,
   AppBelegeIndexRoute: AppBelegeIndexRoute,
+  AppJahreserklaerungIndexRoute: AppJahreserklaerungIndexRoute,
   AppKontakteIndexRoute: AppKontakteIndexRoute,
   AppRechnungenIndexRoute: AppRechnungenIndexRoute,
   AppUmsatzsteuerIndexRoute: AppUmsatzsteuerIndexRoute,

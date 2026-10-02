@@ -1,6 +1,6 @@
 # Auswertungen und Jahresexport
 
-Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter.
+Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).
 
 <img src="screenshot-auswertungen.png" alt="Seite Auswertungen mit Kennzahlen, Säulendiagramm der Einnahmen und Ausgaben je Monat und der EÜR-Tabelle" width="900">
 

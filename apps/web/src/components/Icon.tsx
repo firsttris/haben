@@ -29,6 +29,7 @@ const PATHS = {
     </>
   ),
   reports: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  annual: <path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h4" />,
   assets: <path d="M5 17h14M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0M3 17V12l2-5h11l3 5h2v5M7 12h12" />,
   contacts: (
     <>

@@ -68,7 +68,7 @@ Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kom
 | Bereich | Was getestet wird |
 | --- | --- |
 | `packages/core` | Beträge und Rundung, Rechnungssummen und Nummernformat, Zeiträume und Fälligkeit der Voranmeldung, Feiertage je Bundesland, Steuerfälle von Rechnungen, Steuernummer-Umrechnung, Kennzahlen der UStVA, Buchungssätze für SKR03/SKR04 und Ist/Soll, Zuordnungsvorschläge im Bankabgleich, EÜR, Umsatzsteuer des Lexoffice-Altbestands |
-| `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 10), Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz) und Mock-ERiC über koffi |
+| `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 10), XML der Umsatzsteuererklärung und der Anlage EÜR mit AVEÜR, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz) und Mock-ERiC über koffi |
 | `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno und Leitweg-ID, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
 | `packages/import` | DKB- (neu und alt), N26- und CAMT.053-Parser, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel, Lexoffice-API-Client (Paging, 429, Fehler) und Abbildung der Lexoffice-Daten |
 | `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge |
@@ -123,7 +123,7 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 | `apps/web/src/components`, `lib` | React-Komponenten, Auth-Client, Formatierung |
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
-| `packages/elster` | ERiC-Anbindung, UStVA-XML, Worker |
+| `packages/elster` | ERiC-Anbindung, XML für Voranmeldung und Jahreserklärungen, Worker |
 | `packages/import` | Kontoauszugs-Parser, Deduplizierung, DATEV, Lexoffice-Client |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `deploy` | Quadlets, Caddyfile, Backup- und Startskript |

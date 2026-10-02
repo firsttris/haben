@@ -12,8 +12,9 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 4. Nächste Rechnungsnummer setzen
 5. ELSTER-Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
 6. Hersteller-ID beantragen und eintragen
-7. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
-8. Optional: KI-Auslesung für Belege einschalten
+7. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
+8. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
+9. Optional: KI-Auslesung für Belege einschalten
 
 > [!IMPORTANT]
 > Versteuerung, Kontenrahmen und Kleinunternehmerstatus legst du fest, bevor du die erste Rechnung festschreibst oder den ersten Beleg buchst. Sobald es im laufenden Jahr Buchungen gibt, sperrt Haben die Umstellung bis zum nächsten Jahreswechsel (siehe [Sperren](#wann-sich-die-einstellungen-ändern-lassen)).
