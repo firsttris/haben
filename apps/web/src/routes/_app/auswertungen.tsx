@@ -84,7 +84,7 @@ function ReportsPage() {
           <div className="kpi-label">Offene Forderungen</div>
           <div className="kpi-value">{formatEuro(open.receivablesTotal)}</div>
           <div className="small" style={{ color: overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
-            {open.receivables.length} {open.receivables.length === 1 ? "Posten" : "Posten"}
+            {open.receivables.length} Posten
             {overdueCount ? ` · ${overdueCount} überfällig` : ""} · Stand {formatDate(today)}
           </div>
         </div>
@@ -394,7 +394,11 @@ function MonthlyChart({ year, einnahmen, ausgaben }: { year: number; einnahmen: 
         <div
           className="chart-tooltip"
           role="presentation"
-          style={{ left: `${((M.left + slot * active + slot / 2) / W) * 100}%` }}
+          style={{
+            left: `${((M.left + slot * active + slot / 2) / W) * 100}%`,
+            // am Rand nicht über die Karte hinausragen
+            transform: active < 2 ? "translateX(-20%)" : active > 9 ? "translateX(-80%)" : "translateX(-50%)",
+          }}
         >
           <div className="tt-title">
             {MONTHS_LONG[active]} {year}

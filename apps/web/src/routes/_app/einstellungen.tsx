@@ -2,6 +2,7 @@ import { BUNDESLAENDER, currentFilingPeriod, type Bundesland } from "@haben/core
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
+import { ExportCard } from "../../components/ExportCard.tsx";
 import { authClient } from "../../lib/auth-client.ts";
 import { errorMessage, formatDate } from "../../lib/format.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
@@ -48,6 +49,7 @@ function SettingsPage() {
           <NumberingForm />
           <CertificateForm />
           <Passkeys />
+          <ExportCard />
         </div>
       </div>
     </>
