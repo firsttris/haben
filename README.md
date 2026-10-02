@@ -13,6 +13,9 @@ Auf deinem Server, ohne Abo, ohne Datenabfluss.
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154)](https://tanstack.com/start)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
+[![Image Size](https://img.shields.io/docker/image-size/tristanteu/haben/latest?logo=docker&logoColor=white&label=image)](https://hub.docker.com/r/tristanteu/haben)
+[![Plattformen](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey)](https://hub.docker.com/r/tristanteu/haben/tags)
 [![Podman](https://img.shields.io/badge/Betrieb-Podman%20Quadlets-892ca0?logo=podman&logoColor=white)](docs/installation.md)
 
 [Warum?](#-warum-haben) •
@@ -74,12 +77,12 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 
 ## 🚀 Schnellstart
 
-Haben läuft als drei Container (App, PostgreSQL, Caddy) mit Podman Quadlets unter systemd. Du brauchst einen Linux-Server
-und eine Domain mit HTTPS, denn Passkeys funktionieren nur über eine sichere Verbindung.
+Haben läuft als drei Container (App, PostgreSQL, Caddy) mit Podman Quadlets unter systemd. Das App-Image
+`tristanteu/haben` kommt fertig von Docker Hub (amd64 und arm64). Du brauchst einen Linux-Server und eine Domain mit
+HTTPS, denn Passkeys funktionieren nur über eine sichere Verbindung.
 
 ```sh
 git clone https://github.com/firsttris/haben.git && cd haben
-podman build -t haben -f Containerfile .
 
 mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
 cp deploy/quadlet/*.container deploy/quadlet/*.volume deploy/quadlet/*.network ~/.config/containers/systemd/

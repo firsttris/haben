@@ -1,6 +1,6 @@
 # Betrieb und Installation
 
-Diese Seite beschreibt, wie du Haben auf einem eigenen Server betreibst: Image bauen, Podman Quadlets, Caddy, Secrets, Umgebungsvariablen, Backup und Updates. Was du danach in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
+Diese Seite beschreibt, wie du Haben auf einem eigenen Server betreibst: Image, Podman Quadlets, Caddy, Secrets, Umgebungsvariablen, Backup und Updates. Was du danach in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
 
 ## Überblick
 
@@ -9,7 +9,7 @@ Haben läuft als drei Container in einem eigenen Podman-Netz (`haben`), gesteuer
 | Container | Image | Aufgabe |
 | --- | --- | --- |
 | `haben-db` | `docker.io/library/postgres:16` | Datenbank, Volume `haben-db` |
-| `haben-app` | `localhost/haben:latest` (selbst gebaut) | Die App auf Port 3000, Belegdateien im Volume `haben-belege` |
+| `haben-app` | `docker.io/tristanteu/haben:latest` | Die App auf Port 3000, Belegdateien im Volume `haben-belege` |
 | `haben-caddy` | `docker.io/library/caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `haben-caddy` |
 
 Dazu kommt ein systemd-Timer, der täglich um 03:15 Uhr `deploy/backup.sh` startet.
@@ -25,15 +25,33 @@ Dazu kommt ein systemd-Timer, der täglich um 03:15 Uhr `deploy/backup.sh` start
 > [!NOTE]
 > Rootless Podman darf Ports unter 1024 standardmäßig nicht öffnen. Entweder du senkst die Grenze (`sysctl net.ipv4.ip_unprivileged_port_start=80`) oder du veröffentlichst Caddy auf anderen Ports und leitest weiter. Damit die Dienste ohne angemeldete Sitzung laufen, braucht der Nutzer außerdem `loginctl enable-linger`.
 
-## Image bauen
+## Image
 
-Das `Containerfile` baut die App in zwei Stufen auf Basis von `node:22-bookworm-slim`. ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf; es wird zur Laufzeit nach `/opt/eric` gemountet.
+Das fertige Image gibt es für amd64 und arm64 auf Docker Hub und in der GitHub Container Registry:
+
+| Image | Inhalt |
+| --- | --- |
+| `docker.io/tristanteu/haben:latest` | Letzte veröffentlichte Version (Quadlet-Standard) |
+| `docker.io/tristanteu/haben:0.1` / `:0.1.0` | Feste Version, wenn du Updates selbst steuern willst |
+| `docker.io/tristanteu/haben:edge` | Stand von `main`, nur zum Ausprobieren |
+| `ghcr.io/firsttris/haben:…` | Dieselben Tags bei GitHub |
+
+ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf; es wird zur Laufzeit nach `/opt/eric` gemountet. ERiC gibt es nur für Linux x86_64: Auf arm64 (z. B. Raspberry Pi) läuft alles außer der ELSTER-Übermittlung.
+
+Für die Dateien unten brauchst du das Repository:
 
 ```sh
 git clone https://github.com/firsttris/haben.git
 cd haben
+```
+
+Selbst bauen geht auch, zum Beispiel für einen eigenen Stand. Dann in `haben-app.container` die Zeile `Image=localhost/haben:latest` verwenden:
+
+```sh
 podman build -t haben -f Containerfile .
 ```
+
+Das `Containerfile` baut die App in zwei Stufen auf Basis von `node:22-bookworm-slim`.
 
 Das Image läuft als Nutzer `node` und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_WORKER_PATH` und `HABEN_EINVOICE_DIR`.
 
@@ -176,12 +194,11 @@ Restic legt Dateien mit ihrem ursprünglichen absoluten Pfad ab, deshalb die `fi
 ## Updates
 
 ```sh
-cd haben
-git pull
 systemctl --user start haben-backup.service   # Stand vor dem Update sichern
-podman build -t haben -f Containerfile .
-systemctl --user restart haben-app
+podman auto-update                             # neues Image ziehen und haben-app neu starten
 ```
+
+`haben-app.container` trägt `AutoUpdate=registry`; mit `systemctl --user enable --now podman-auto-update.timer` prüft Podman täglich selbst auf neue Images. Willst du Updates von Hand steuern, setze im Quadlet eine feste Version (`Image=docker.io/tristanteu/haben:0.1`) und ändere sie bewusst. Bei einem selbst gebauten Image: `git pull`, `podman build -t haben -f Containerfile .` und `systemctl --user restart haben-app`.
 
 Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an; erst danach startet der Server. Schlägt eine Migration fehl, startet die App nicht, und der Fehler steht im Log.
 

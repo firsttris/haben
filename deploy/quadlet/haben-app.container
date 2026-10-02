@@ -5,7 +5,10 @@ After=haben-db.service
 
 [Container]
 ContainerName=haben-app
-Image=localhost/haben:latest
+# Fertiges Image von Docker Hub (amd64 und arm64); selbst gebaut: Image=localhost/haben:latest
+Image=docker.io/tristanteu/haben:latest
+# `podman auto-update` zieht neue Images und startet den Dienst neu
+AutoUpdate=registry
 Network=haben.network
 # Entpacktes ERiC-Paket für Linux x86_64, Version fest (siehe README)
 Volume=/opt/eric:/opt/eric:ro
