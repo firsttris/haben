@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XRechnung-UBL-Gutschrift: cbc ist Default-Namensraum, Fälligkeit in PaymentMeans -->
+<ubl:CreditNote xmlns:ubl="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
+    xmlns="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
+    xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2">
+  <CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</CustomizationID>
+  <ID>GS-2026-12</ID>
+  <IssueDate>2026-09-28</IssueDate>
+  <CreditNoteTypeCode>381</CreditNoteTypeCode>
+  <DocumentCurrencyCode>EUR</DocumentCurrencyCode>
+  <BuyerReference>n/a</BuyerReference>
+  <cac:BillingReference><cac:InvoiceDocumentReference><ID>RE-2026-11</ID></cac:InvoiceDocumentReference></cac:BillingReference>
+  <cac:AccountingSupplierParty>
+    <cac:Party>
+      <EndpointID schemeID="EM">info@druckerei.example</EndpointID>
+      <cac:PostalAddress>
+        <StreetName>Am Hafen 2</StreetName><CityName>Bremen</CityName><PostalZone>28195</PostalZone>
+        <cac:Country><IdentificationCode>DE</IdentificationCode></cac:Country>
+      </cac:PostalAddress>
+      <cac:PartyTaxScheme><CompanyID>DE222333444</CompanyID><cac:TaxScheme><ID>VAT</ID></cac:TaxScheme></cac:PartyTaxScheme>
+      <cac:PartyTaxScheme><CompanyID>60/123/45678</CompanyID><cac:TaxScheme><ID>FC</ID></cac:TaxScheme></cac:PartyTaxScheme>
+      <cac:PartyLegalEntity><RegistrationName>Druckerei Nord GmbH</RegistrationName></cac:PartyLegalEntity>
+      <cac:Contact><Name>Buchhaltung</Name><Telephone>0421 123</Telephone><ElectronicMail>buchhaltung@druckerei.example</ElectronicMail></cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:PaymentMeans>
+    <PaymentMeansCode>58</PaymentMeansCode>
+    <PaymentDueDate>2026-10-12</PaymentDueDate>
+    <cac:PayeeFinancialAccount><ID>DE75512108001245126199</ID></cac:PayeeFinancialAccount>
+  </cac:PaymentMeans>
+  <cac:TaxTotal>
+    <TaxAmount currencyID="EUR">9.50</TaxAmount>
+    <cac:TaxSubtotal>
+      <TaxableAmount currencyID="EUR">50.00</TaxableAmount><TaxAmount currencyID="EUR">9.50</TaxAmount>
+      <cac:TaxCategory><ID>S</ID><Percent>19</Percent><cac:TaxScheme><ID>VAT</ID></cac:TaxScheme></cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <LineExtensionAmount currencyID="EUR">50.00</LineExtensionAmount>
+    <TaxExclusiveAmount currencyID="EUR">50.00</TaxExclusiveAmount>
+    <TaxInclusiveAmount currencyID="EUR">59.50</TaxInclusiveAmount>
+    <PayableAmount currencyID="EUR">59.50</PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:CreditNoteLine>
+    <ID>1</ID>
+    <CreditedQuantity unitCode="H87">500</CreditedQuantity>
+    <LineExtensionAmount currencyID="EUR">50.00</LineExtensionAmount>
+    <cac:Item><Name>Flyer DIN A6 (Fehldruck)</Name><cac:ClassifiedTaxCategory><ID>S</ID><Percent>19</Percent><cac:TaxScheme><ID>VAT</ID></cac:TaxScheme></cac:ClassifiedTaxCategory></cac:Item>
+    <cac:Price><PriceAmount currencyID="EUR">0.10</PriceAmount></cac:Price>
+  </cac:CreditNoteLine>
+</ubl:CreditNote>

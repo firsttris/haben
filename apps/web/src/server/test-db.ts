@@ -1,4 +1,7 @@
 import { randomBytes } from "node:crypto";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
@@ -12,6 +15,7 @@ export async function setupTestDb(): Promise<postgres.Sql> {
     BETTER_AUTH_SECRET: "x".repeat(32),
     BETTER_AUTH_URL: "http://localhost:3000",
     HABEN_ENCRYPTION_KEY: process.env.HABEN_ENCRYPTION_KEY ?? randomBytes(32).toString("base64"),
+    DOCUMENTS_DIR: mkdtempSync(join(tmpdir(), "haben-belege-")),
   });
   const sql = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
   await sql`drop schema if exists public cascade`;

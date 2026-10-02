@@ -15,7 +15,6 @@ export const Route = createFileRoute("/_app")({
 
 /** Bereiche aus dem Plan, die in späteren Phasen kommen */
 const LATER: { label: string; icon: IconName; phase: number }[] = [
-  { label: "Belege", icon: "receipt", phase: 3 },
   { label: "Bank", icon: "bank", phase: 4 },
   { label: "Buchungen", icon: "journal", phase: 4 },
 ];
@@ -55,6 +54,10 @@ function AppLayout() {
         <Link to="/rechnungen" className="nav-link">
           <Icon name="invoice" />
           Rechnungen
+        </Link>
+        <Link to="/belege" className="nav-link">
+          <Icon name="receipt" />
+          Belege
         </Link>
         {LATER.map((item) => (
           <LaterLink key={item.label} {...item} />

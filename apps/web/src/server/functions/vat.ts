@@ -7,6 +7,7 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { companyIssues, loadCompany } from "../company.ts";
+import { inputTaxForPeriod } from "../documents.ts";
 import { elsterClient, elsterMode } from "../elster.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -31,11 +32,12 @@ export const getVatPeriod = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(vatPeriodSchema)
   .handler(async ({ data: period }) => {
-    const [returns, company, certificate, recent] = await Promise.all([
+    const [returns, company, certificate, recent, inputTax] = await Promise.all([
       returnsForPeriod(period),
       loadCompany(),
       loadActiveCertificate(),
       recentSentReturns(),
+      inputTaxForPeriod(period),
     ]);
     const submissions = await submissionsFor(returns.map((r) => r.id));
     const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
@@ -50,6 +52,8 @@ export const getVatPeriod = createServerFn({ method: "GET" })
       companyIssues: companyIssues(company),
       mode: elsterMode(),
       herstellerIdConfigured: Boolean(env().ELSTER_HERSTELLER_ID),
+      /** Vorsteuer aus gebuchten Belegen dieses Monats, als Vorschlag für Kz 66 */
+      inputTax,
     };
   });
 

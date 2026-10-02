@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XRechnung-CII mit ungewöhnlichen Präfixen, zwei Steuersätzen und Steuer zusätzlich in Buchungswährung -->
+<inv:CrossIndustryInvoice xmlns:inv="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+    xmlns:a="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+    xmlns:q="urn:un:unece:uncefact:data:standard:QualifiedDataType:100"
+    xmlns:u="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+  <inv:ExchangedDocumentContext>
+    <a:GuidelineSpecifiedDocumentContextParameter>
+      <a:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</a:ID>
+    </a:GuidelineSpecifiedDocumentContextParameter>
+  </inv:ExchangedDocumentContext>
+  <inv:ExchangedDocument>
+    <a:ID>RE-2026/0815</a:ID>
+    <a:TypeCode>380</a:TypeCode>
+    <a:IssueDateTime><u:DateTimeString format="102">20260915</u:DateTimeString></a:IssueDateTime>
+  </inv:ExchangedDocument>
+  <inv:SupplyChainTradeTransaction>
+    <a:IncludedSupplyChainTradeLineItem>
+      <a:AssociatedDocumentLineDocument><a:LineID>1</a:LineID></a:AssociatedDocumentLineDocument>
+      <a:SpecifiedTradeProduct><a:Name>Webhosting &amp; Domain „Business“</a:Name></a:SpecifiedTradeProduct>
+      <a:SpecifiedLineTradeAgreement>
+        <a:NetPriceProductTradePrice><a:ChargeAmount>12.3456</a:ChargeAmount></a:NetPriceProductTradePrice>
+      </a:SpecifiedLineTradeAgreement>
+      <a:SpecifiedLineTradeDelivery><a:BilledQuantity unitCode="MON">12.5</a:BilledQuantity></a:SpecifiedLineTradeDelivery>
+      <a:SpecifiedLineTradeSettlement>
+        <a:ApplicableTradeTax><a:TypeCode>VAT</a:TypeCode><a:CategoryCode>S</a:CategoryCode><a:RateApplicablePercent>19.00</a:RateApplicablePercent></a:ApplicableTradeTax>
+        <a:SpecifiedTradeSettlementLineMonetarySummation><a:LineTotalAmount>154.32</a:LineTotalAmount></a:SpecifiedTradeSettlementLineMonetarySummation>
+      </a:SpecifiedLineTradeSettlement>
+    </a:IncludedSupplyChainTradeLineItem>
+    <a:IncludedSupplyChainTradeLineItem>
+      <a:AssociatedDocumentLineDocument><a:LineID>2</a:LineID></a:AssociatedDocumentLineDocument>
+      <a:SpecifiedTradeProduct><a:Name>Handbuch</a:Name></a:SpecifiedTradeProduct>
+      <a:SpecifiedLineTradeAgreement>
+        <a:NetPriceProductTradePrice><a:ChargeAmount>29.9</a:ChargeAmount></a:NetPriceProductTradePrice>
+      </a:SpecifiedLineTradeAgreement>
+      <a:SpecifiedLineTradeDelivery><a:BilledQuantity unitCode="H87">1</a:BilledQuantity></a:SpecifiedLineTradeDelivery>
+      <a:SpecifiedLineTradeSettlement>
+        <a:ApplicableTradeTax><a:TypeCode>VAT</a:TypeCode><a:CategoryCode>S</a:CategoryCode><a:RateApplicablePercent>7</a:RateApplicablePercent></a:ApplicableTradeTax>
+        <a:SpecifiedTradeSettlementLineMonetarySummation><a:LineTotalAmount>29.9</a:LineTotalAmount></a:SpecifiedTradeSettlementLineMonetarySummation>
+      </a:SpecifiedLineTradeSettlement>
+    </a:IncludedSupplyChainTradeLineItem>
+    <a:ApplicableHeaderTradeAgreement>
+      <a:BuyerReference>04011000-12345-34</a:BuyerReference>
+      <a:SellerTradeParty>
+        <a:Name>Netzwerk Hosting GmbH</a:Name>
+        <a:DefinedTradeContact>
+          <a:PersonName>Support</a:PersonName>
+          <a:EmailURIUniversalCommunication><a:URIID>billing@netzwerk-hosting.example</a:URIID></a:EmailURIUniversalCommunication>
+        </a:DefinedTradeContact>
+        <a:PostalTradeAddress>
+          <a:PostcodeCode>80331</a:PostcodeCode>
+          <a:LineOne>Marienplatz 8</a:LineOne>
+          <a:CityName>M&#252;nchen</a:CityName>
+          <a:CountryID>DE</a:CountryID>
+        </a:PostalTradeAddress>
+        <a:URIUniversalCommunication><a:URIID schemeID="EM">einvoice@netzwerk-hosting.example</a:URIID></a:URIUniversalCommunication>
+        <a:SpecifiedTaxRegistration><a:ID schemeID="FC">143/123/45678</a:ID></a:SpecifiedTaxRegistration>
+        <a:SpecifiedTaxRegistration><a:ID schemeID="VA">DE987654321</a:ID></a:SpecifiedTaxRegistration>
+      </a:SellerTradeParty>
+      <a:BuyerTradeParty><a:Name>Erika Mustermann</a:Name></a:BuyerTradeParty>
+    </a:ApplicableHeaderTradeAgreement>
+    <a:ApplicableHeaderTradeDelivery>
+      <a:ActualDeliverySupplyChainEvent><a:OccurrenceDateTime><u:DateTimeString format="102">20260831</u:DateTimeString></a:OccurrenceDateTime></a:ActualDeliverySupplyChainEvent>
+    </a:ApplicableHeaderTradeDelivery>
+    <a:ApplicableHeaderTradeSettlement>
+      <a:PaymentReference>RE-2026/0815 K4711</a:PaymentReference>
+      <a:TaxCurrencyCode>CHF</a:TaxCurrencyCode>
+      <a:InvoiceCurrencyCode>EUR</a:InvoiceCurrencyCode>
+      <a:SpecifiedTradeSettlementPaymentMeans>
+        <a:TypeCode>58</a:TypeCode>
+        <a:PayeePartyCreditorFinancialAccount><a:IBANID>DE02 1203 0000 0000 2020 51</a:IBANID></a:PayeePartyCreditorFinancialAccount>
+      </a:SpecifiedTradeSettlementPaymentMeans>
+      <a:ApplicableTradeTax>
+        <a:CalculatedAmount>29.32</a:CalculatedAmount><a:TypeCode>VAT</a:TypeCode><a:BasisAmount>154.32</a:BasisAmount>
+        <a:CategoryCode>S</a:CategoryCode><a:RateApplicablePercent>19</a:RateApplicablePercent>
+      </a:ApplicableTradeTax>
+      <a:ApplicableTradeTax>
+        <a:CalculatedAmount>2.09</a:CalculatedAmount><a:TypeCode>VAT</a:TypeCode><a:BasisAmount>29.90</a:BasisAmount>
+        <a:CategoryCode>S</a:CategoryCode><a:RateApplicablePercent>7.00</a:RateApplicablePercent>
+      </a:ApplicableTradeTax>
+      <a:BillingSpecifiedPeriod>
+        <a:StartDateTime><u:DateTimeString format="102">20260801</u:DateTimeString></a:StartDateTime>
+        <a:EndDateTime><u:DateTimeString format="102">20260831</u:DateTimeString></a:EndDateTime>
+      </a:BillingSpecifiedPeriod>
+      <a:SpecifiedTradePaymentTerms>
+        <a:DueDateDateTime><u:DateTimeString format="102">20260929</u:DateTimeString></a:DueDateDateTime>
+      </a:SpecifiedTradePaymentTerms>
+      <a:SpecifiedTradeSettlementHeaderMonetarySummation>
+        <a:LineTotalAmount>184.22</a:LineTotalAmount>
+        <a:TaxBasisTotalAmount>184.22</a:TaxBasisTotalAmount>
+        <a:TaxTotalAmount currencyID="CHF">29.80</a:TaxTotalAmount>
+        <a:TaxTotalAmount currencyID="EUR">31.41</a:TaxTotalAmount>
+        <a:GrandTotalAmount>215.63</a:GrandTotalAmount>
+        <a:TotalPrepaidAmount>15.63</a:TotalPrepaidAmount>
+        <a:DuePayableAmount>200.00</a:DuePayableAmount>
+      </a:SpecifiedTradeSettlementHeaderMonetarySummation>
+    </a:ApplicableHeaderTradeSettlement>
+  </inv:SupplyChainTradeTransaction>
+</inv:CrossIndustryInvoice>

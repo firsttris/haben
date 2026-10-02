@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Peppol-UBL: Wurzel im Default-Namensraum, Aggregate mit eigenem Präfix -->
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+    xmlns:agg="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+    xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0</cbc:CustomizationID>
+  <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+  <cbc:ID>INV-77</cbc:ID>
+  <cbc:IssueDate>2026-09-20</cbc:IssueDate>
+  <cbc:DueDate>2026-10-20</cbc:DueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>Projekt Alpha</cbc:BuyerReference>
+  <agg:InvoicePeriod><cbc:StartDate>2026-09-01</cbc:StartDate><cbc:EndDate>2026-09-15</cbc:EndDate></agg:InvoicePeriod>
+  <agg:AccountingSupplierParty>
+    <agg:Party>
+      <cbc:EndpointID schemeID="EM">ap@cloudtools.example</cbc:EndpointID>
+      <agg:PartyName><cbc:Name>CloudTools</cbc:Name></agg:PartyName>
+      <agg:PostalAddress>
+        <cbc:StreetName>Keizersgracht 100</cbc:StreetName>
+        <cbc:CityName>Amsterdam</cbc:CityName>
+        <cbc:PostalZone>1015 CX</cbc:PostalZone>
+        <agg:Country><cbc:IdentificationCode>NL</cbc:IdentificationCode></agg:Country>
+      </agg:PostalAddress>
+      <agg:PartyTaxScheme><cbc:CompanyID>NL123456789B01</cbc:CompanyID><agg:TaxScheme><cbc:ID>VAT</cbc:ID></agg:TaxScheme></agg:PartyTaxScheme>
+      <agg:PartyLegalEntity><cbc:RegistrationName>CloudTools B.V.</cbc:RegistrationName></agg:PartyLegalEntity>
+    </agg:Party>
+  </agg:AccountingSupplierParty>
+  <agg:AccountingCustomerParty><agg:Party><agg:PartyLegalEntity><cbc:RegistrationName>Erika Mustermann</cbc:RegistrationName></agg:PartyLegalEntity></agg:Party></agg:AccountingCustomerParty>
+  <agg:PaymentMeans>
+    <cbc:PaymentMeansCode>58</cbc:PaymentMeansCode>
+    <cbc:PaymentID>INV-77</cbc:PaymentID>
+    <agg:PayeeFinancialAccount><cbc:ID>NL91ABNA0417164300</cbc:ID></agg:PayeeFinancialAccount>
+  </agg:PaymentMeans>
+  <agg:TaxTotal>
+    <cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount>
+    <agg:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="EUR">49.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="EUR">0.00</cbc:TaxAmount>
+      <agg:TaxCategory><cbc:ID>AE</cbc:ID><cbc:Percent>0</cbc:Percent><agg:TaxScheme><cbc:ID>VAT</cbc:ID></agg:TaxScheme></agg:TaxCategory>
+    </agg:TaxSubtotal>
+  </agg:TaxTotal>
+  <agg:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="EUR">49.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="EUR">49.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="EUR">49.00</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="EUR">49.00</cbc:PayableAmount>
+  </agg:LegalMonetaryTotal>
+  <agg:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="C62">1</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="EUR">49.00</cbc:LineExtensionAmount>
+    <agg:Item>
+      <cbc:Name>Team-Abo September</cbc:Name>
+      <agg:ClassifiedTaxCategory><cbc:ID>AE</cbc:ID><cbc:Percent>0</cbc:Percent><agg:TaxScheme><cbc:ID>VAT</cbc:ID></agg:TaxScheme></agg:ClassifiedTaxCategory>
+    </agg:Item>
+    <agg:Price><cbc:PriceAmount currencyID="EUR">49.00</cbc:PriceAmount></agg:Price>
+  </agg:InvoiceLine>
+</Invoice>

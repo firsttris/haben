@@ -253,6 +253,14 @@ function VatReturnEditor({
               aria-invalid={parsed.kz66 === null}
             />
           </div>
+          {!locked && data.inputTax !== 0 && data.inputTax !== parsed.kz66 && (
+            <div className="small" style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, padding: "0 4px 8px", flexWrap: "wrap" }}>
+              <span className="muted">Vorsteuer aus gebuchten Belegen: {formatEuro(data.inputTax)}</span>
+              <button type="button" className="btn" style={{ minHeight: 32, padding: "0 12px" }} onClick={() => update("kz66", formatDecimal(data.inputTax))}>
+                Übernehmen
+              </button>
+            </div>
+          )}
           <div className="kz-row total">
             <div className="kz-num">83</div>
             <div>{figures.kz83 < 0 ? "Verbleibender Überschuss (Erstattung)" : "Verbleibende Umsatzsteuer-Vorauszahlung"}</div>
