@@ -35,6 +35,7 @@ import { Route as ApiAltbelegIdRouteImport } from './routes/api/altbeleg/$id'
 import { Route as ApiArchivIdRouteImport } from './routes/api/archiv/$id'
 import { Route as ApiAuswertungenJahrRouteImport } from './routes/api/auswertungen/$jahr'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiBankCallbackRouteImport } from './routes/api/bank/callback'
 import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
@@ -177,6 +178,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBankCallbackRoute = ApiBankCallbackRouteImport.update({
+  id: '/api/bank/callback',
+  path: '/api/bank/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBelegIdRoute = ApiBelegIdRouteImport.update({
   id: '/api/beleg/$id',
   path: '/api/beleg/$id',
@@ -263,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/bank/callback': typeof ApiBankCallbackRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
@@ -302,6 +309,7 @@ export interface FileRoutesByTo {
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/bank/callback': typeof ApiBankCallbackRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
@@ -343,6 +351,7 @@ export interface FileRoutesById {
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/bank/callback': typeof ApiBankCallbackRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
@@ -384,6 +393,7 @@ export interface FileRouteTypes {
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
+    | '/api/bank/callback'
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
@@ -423,6 +433,7 @@ export interface FileRouteTypes {
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
+    | '/api/bank/callback'
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
@@ -463,6 +474,7 @@ export interface FileRouteTypes {
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
+    | '/api/bank/callback'
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
@@ -491,6 +503,7 @@ export interface RootRouteChildren {
   ApiArchivIdRoute: typeof ApiArchivIdRoute
   ApiAuswertungenJahrRoute: typeof ApiAuswertungenJahrRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBankCallbackRoute: typeof ApiBankCallbackRoute
   ApiBelegIdRoute: typeof ApiBelegIdRoute
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
@@ -683,6 +696,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/bank/callback': {
+      id: '/api/bank/callback'
+      path: '/api/bank/callback'
+      fullPath: '/api/bank/callback'
+      preLoaderRoute: typeof ApiBankCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/beleg/$id': {
       id: '/api/beleg/$id'
       path: '/api/beleg/$id'
@@ -836,6 +856,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiArchivIdRoute: ApiArchivIdRoute,
   ApiAuswertungenJahrRoute: ApiAuswertungenJahrRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBankCallbackRoute: ApiBankCallbackRoute,
   ApiBelegIdRoute: ApiBelegIdRoute,
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,

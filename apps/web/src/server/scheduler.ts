@@ -1,3 +1,4 @@
+import { runDueBankSyncs } from "./bank-sync.ts";
 import { runDueRecurring } from "./recurring.ts";
 import { today } from "./today.ts";
 
@@ -17,6 +18,13 @@ export async function runScheduledJobs(): Promise<void> {
     }
   } catch (error) {
     console.error("Wiederkehrende Rechnungen", error);
+  }
+  try {
+    const result = await runDueBankSyncs();
+    if (result.synced > 0) console.log(`Kontoabruf: ${result.synced} Verbindungen, ${result.added} neue Umsätze`);
+    for (const error of result.errors) console.warn(error);
+  } catch (error) {
+    console.error("Kontoabruf", error);
   } finally {
     running = false;
   }

@@ -38,6 +38,8 @@ services:
       ERIC_HOME: ${ERIC_HOME:-}
       ELSTER_HERSTELLER_ID: ${ELSTER_HERSTELLER_ID:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
+      ENABLE_BANKING_KEY_FILE: /run/secrets/enablebanking.pem
     volumes:
       # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
       - belege:/var/lib/haben/belege
@@ -45,6 +47,8 @@ services:
       - eric-log:/var/lib/haben/eric-log
       # ERiC (nur Linux x86_64): nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME=/opt/eric in .env
       # - /opt/eric:/opt/eric:ro
+      # Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung, Zeile einkommentieren
+      # - ./enablebanking.pem:/run/secrets/enablebanking.pem:ro
 
   caddy:
     image: caddy:2

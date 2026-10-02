@@ -8,7 +8,7 @@ import {
   type OpenItem,
   type PostingLine,
 } from "@haben/core";
-import { checkBalanceContinuity, parseStatement, StatementParseError, withDedupHashes } from "@haben/import";
+import { checkBalanceContinuity, parseStatement, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "./company.ts";
@@ -77,108 +77,124 @@ export async function importStatement(actor: string, file: { bytes: Uint8Array; 
     if (error instanceof StatementParseError) throw new BankError(`${file.filename}: ${error.message}`);
     throw error;
   }
+  return withActor(actor, (tx) => storeStatement(tx, statement, { filename: file.filename, sha256: sha256Of(file.bytes) }, accountId));
+}
 
-  return withActor(actor, async (tx) => {
-    let account: typeof schema.bankAccounts.$inferSelect | undefined;
-    const fileIban = statement.accountIban ? normalizeIban(statement.accountIban) : null;
-    if (accountId) {
-      [account] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.id, accountId));
-      if (!account) throw new BankError("Konto nicht gefunden.");
-      if (fileIban && fileIban !== account.iban) {
-        throw new BankError(`Die Datei gehört zum Konto ${fileIban}, nicht zu ${account.name}.`);
-      }
-    } else if (fileIban) {
-      [account] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, fileIban));
-      if (!account) {
-        [account] = await tx
-          .insert(schema.bankAccounts)
-          .values({ iban: fileIban, name: statement.accountName || `Konto …${fileIban.slice(-4)}` })
-          .returning();
-      }
-    } else {
-      throw new BankError(`${file.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
+/**
+ * Speichert einen Kontoauszug, egal ob aus einer Datei oder vom automatischen Abruf. Ohne `accountId`
+ * wird das Konto über die IBAN gefunden oder angelegt.
+ */
+export async function storeStatement(
+  tx: Tx,
+  statement: ParsedStatement,
+  source: { filename: string; sha256: string },
+  accountId: string | null,
+): Promise<ImportResult> {
+  let account: typeof schema.bankAccounts.$inferSelect | undefined;
+  const fileIban = statement.accountIban ? normalizeIban(statement.accountIban) : null;
+  if (accountId) {
+    [account] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.id, accountId));
+    if (!account) throw new BankError("Konto nicht gefunden.");
+    if (fileIban && fileIban !== account.iban) {
+      throw new BankError(`Die Datei gehört zum Konto ${fileIban}, nicht zu ${account.name}.`);
     }
+  } else if (fileIban) {
+    account = await accountForIban(tx, fileIban, statement.accountName);
+  } else {
+    throw new BankError(`${source.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
+  }
 
-    const [previous] = await tx
-      .select({ closingBalance: schema.bankImports.closingBalance, periodTo: schema.bankImports.periodTo })
-      .from(schema.bankImports)
-      .where(
-        and(
-          eq(schema.bankImports.bankAccountId, account!.id),
-          statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`,
-        ),
-      )
-      .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
-      .limit(1);
-    const continuity = checkBalanceContinuity(
-      previous ? { closingBalance: previous.closingBalance ?? undefined, periodTo: previous.periodTo ?? undefined } : null,
-      { openingBalance: statement.openingBalance, periodFrom: statement.periodFrom },
-    );
+  const [previous] = await tx
+    .select({ closingBalance: schema.bankImports.closingBalance, periodTo: schema.bankImports.periodTo })
+    .from(schema.bankImports)
+    .where(
+      and(
+        eq(schema.bankImports.bankAccountId, account.id),
+        statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`,
+      ),
+    )
+    .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
+    .limit(1);
+  const continuity = checkBalanceContinuity(
+    previous ? { closingBalance: previous.closingBalance ?? undefined, periodTo: previous.periodTo ?? undefined } : null,
+    { openingBalance: statement.openingBalance, periodFrom: statement.periodFrom },
+  );
 
-    // Konto sperren, damit parallele Importe dieselben Umsätze nicht doppelt anlegen
-    await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, account!.id)).for("update");
-    const transactions = withDedupHashes(statement.transactions);
-    const known = new Set(
-      transactions.length === 0
-        ? []
-        : (
-            await tx
-              .select({ hash: schema.bankTransactions.dedupHash })
-              .from(schema.bankTransactions)
-              .where(
-                and(
-                  eq(schema.bankTransactions.bankAccountId, account!.id),
-                  inArray(schema.bankTransactions.dedupHash, transactions.map((t) => t.dedupHash)),
-                ),
-              )
-          ).map((r) => r.hash),
-    );
-    const fresh = transactions.filter((t) => !known.has(t.dedupHash));
-    const added = fresh.length;
-    const [imported] = await tx
-      .insert(schema.bankImports)
-      .values({
-        bankAccountId: account!.id,
-        filename: file.filename.slice(0, 200),
-        sha256: sha256Of(file.bytes),
-        format: statement.format,
-        periodFrom: statement.periodFrom ?? null,
-        periodTo: statement.periodTo ?? null,
-        openingBalance: statement.openingBalance ?? null,
-        closingBalance: statement.closingBalance ?? null,
-        added,
-        skipped: transactions.length - added,
-        warnings: statement.warnings,
-      })
-      .returning();
-    if (fresh.length > 0) {
-      await tx.insert(schema.bankTransactions).values(
-        fresh.map((t) => ({
-          bankAccountId: account!.id,
-          importId: imported!.id,
-          bookingDate: t.bookingDate,
-          valueDate: t.valueDate ?? null,
-          amount: t.amount,
-          currency: t.currency,
-          counterpartyName: t.counterpartyName,
-          counterpartyIban: t.counterpartyIban ? normalizeIban(t.counterpartyIban) : null,
-          purpose: t.purpose,
-          type: t.type ?? null,
-          bankReference: t.bankReference ?? null,
-          dedupHash: t.dedupHash,
-        })),
-      );
-    }
-
-    return {
-      accountId: account!.id,
-      accountName: account!.name,
+  // Konto sperren, damit parallele Importe dieselben Umsätze nicht doppelt anlegen
+  await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.id, account.id)).for("update");
+  const transactions = withDedupHashes(statement.transactions);
+  const known = new Set(
+    transactions.length === 0
+      ? []
+      : (
+          await tx
+            .select({ hash: schema.bankTransactions.dedupHash })
+            .from(schema.bankTransactions)
+            .where(
+              and(
+                eq(schema.bankTransactions.bankAccountId, account.id),
+                inArray(schema.bankTransactions.dedupHash, transactions.map((t) => t.dedupHash)),
+              ),
+            )
+        ).map((r) => r.hash),
+  );
+  const fresh = transactions.filter((t) => !known.has(t.dedupHash));
+  const added = fresh.length;
+  const [imported] = await tx
+    .insert(schema.bankImports)
+    .values({
+      bankAccountId: account.id,
+      filename: source.filename.slice(0, 200),
+      sha256: source.sha256,
+      format: statement.format,
+      periodFrom: statement.periodFrom ?? null,
+      periodTo: statement.periodTo ?? null,
+      openingBalance: statement.openingBalance ?? null,
+      closingBalance: statement.closingBalance ?? null,
       added,
       skipped: transactions.length - added,
       warnings: statement.warnings,
-      gap: continuity.ok ? null : (continuity.message ?? "Lücke zum vorigen Import"),
-    };
-  });
+    })
+    .returning();
+  if (fresh.length > 0) {
+    await tx.insert(schema.bankTransactions).values(
+      fresh.map((t) => ({
+        bankAccountId: account.id,
+        importId: imported!.id,
+        bookingDate: t.bookingDate,
+        valueDate: t.valueDate ?? null,
+        amount: t.amount,
+        currency: t.currency,
+        counterpartyName: t.counterpartyName,
+        counterpartyIban: t.counterpartyIban ? normalizeIban(t.counterpartyIban) : null,
+        purpose: t.purpose,
+        type: t.type ?? null,
+        bankReference: t.bankReference ?? null,
+        dedupHash: t.dedupHash,
+      })),
+    );
+  }
+
+  return {
+    accountId: account.id,
+    accountName: account.name,
+    added,
+    skipped: transactions.length - added,
+    warnings: statement.warnings,
+    gap: continuity.ok ? null : (continuity.message ?? "Lücke zum vorigen Import"),
+  };
+}
+
+/** Konto zur IBAN; fehlt es, wird es angelegt */
+export async function accountForIban(tx: Tx, iban: string, name?: string) {
+  const normalized = normalizeIban(iban);
+  const [existing] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, normalized));
+  if (existing) return existing;
+  const [created] = await tx
+    .insert(schema.bankAccounts)
+    .values({ iban: normalized, name: name || `Konto …${normalized.slice(-4)}` })
+    .returning();
+  return created!;
 }
 
 /** Noch nicht zugeordneter Teil eines Umsatzes */

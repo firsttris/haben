@@ -179,7 +179,11 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Ohne sie ist nur die Testübermittlung möglich | `12345` |
 | `DOCUMENTS_DIR` | nein | Ablage der Belegdateien. Standard `data/belege` (relativ zum Arbeitsverzeichnis); im Image `/var/lib/haben/belege` | `/var/lib/haben/belege` |
 | `ANTHROPIC_API_KEY` | nein | Schaltet die KI-Auslesung von Belegen ein | `sk-ant-…` |
-| `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (wiederkehrende Rechnungen), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
+| `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (wiederkehrende Rechnungen, Kontoabruf), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
+| `ENABLE_BANKING_APP_ID` | nein | Application ID der Enable-Banking-Anwendung. Schaltet zusammen mit dem Schlüssel den automatischen Kontoabruf ein | `0b7c3f1e-…` |
+| `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
+| `ENABLE_BANKING_KEY` | nein | Alternativ der Schlüssel selbst; Zeilenumbrüche als `\n` erlaubt | `-----BEGIN PRIVATE KEY-----\n…` |
+| `ENABLE_BANKING_API_URL` | nein | Andere Basis-URL der API, nur zum Testen. Standard `https://api.enablebanking.com` | `http://localhost:4555` |
 | `LEXOFFICE_API_URL` | nein | Andere Basis-URL der Lexware-Office-API. Standard `https://api.lexware.io/v1` | `https://api.lexoffice.io/v1` |
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
 | `HABEN_EINVOICE_DIR` | nein | Verzeichnis von `packages/einvoice` (Typst-Vorlage und Schriften für das Rechnungs-PDF). Im Image gesetzt | `/app/packages/einvoice` |
@@ -306,6 +310,33 @@ Was an Anthropic geht und wann:
 - Die Felder werden nur vorbefüllt; gebucht wird erst nach deiner Bestätigung.
 
 Ohne Schlüssel bleibt alles lokal, und du füllst die Felder von Hand aus. Mehr dazu in [Belege](belege.md).
+
+## Kontoabruf (Enable Banking)
+
+Optional. Haben holt die Umsätze einmal täglich selbst über [Enable Banking](https://enablebanking.com), einen PSD2-Dienst mit Zugang zu fast allen deutschen Banken (DKB, Sparkassen, Volksbanken, N26 und viele mehr). Ohne Einrichtung bleibt der Import per CSV oder CAMT; beides geht auch nebeneinander.
+
+1. Bei Enable Banking ein Konto anlegen und im Kontrollzentrum unter **API applications** eine Anwendung registrieren.
+2. Als **Redirect URL** die Adresse `https://<deine Domain>/api/bank/callback` eintragen. Haben zeigt sie beim Verbinden auch an.
+3. Den Schlüssel im Browser erzeugen lassen. Enable Banking lädt dann `<Application ID>.pem` herunter; die Application ID steht auch in der Übersicht.
+4. Für eigene Konten genügt in der Regel der kostenlose eingeschränkte Produktionszugang: Die Anwendung wird aktiviert, indem du im Kontrollzentrum deine eigenen Konten verknüpfst, und darf danach nur diese abrufen. Die aktuellen Bedingungen stehen bei Enable Banking. Zum Ausprobieren gibt es eine Sandbox mit Testbanken.
+
+Schlüssel und ID an Haben übergeben:
+
+```sh
+# Compose: Datei neben compose.yml legen, Volume-Zeile in compose.yml einkommentieren, ID in .env
+cp ~/Downloads/<Application ID>.pem ./enablebanking.pem && chown 1000:1000 enablebanking.pem && chmod 400 enablebanking.pem
+echo 'ENABLE_BANKING_APP_ID=<Application ID>' >> .env
+docker compose up -d
+
+# Quadlets: Schlüssel als Secret, Zeile "Secret=haben-enablebanking-key,…" in haben-app.container einkommentieren
+podman secret create haben-enablebanking-key ~/Downloads/<Application ID>.pem
+# in haben.env: ENABLE_BANKING_APP_ID=<Application ID>
+systemctl --user daemon-reload && systemctl --user restart haben-app
+```
+
+Danach erscheint unter **Bank** der Knopf **Bank verbinden**. Ablauf, Zustimmung und Dubletten stehen in [Bankimport und Abgleich](bank.md#automatischer-abruf).
+
+Was an Enable Banking geht: beim Verbinden die gewählte Bank und die Rückleitungsadresse, danach nur Abrufe von Umsätzen und Kontoständen der freigegebenen Konten. Die Anmeldung bei der Bank geschieht auf deren Seite; Haben sieht weder Zugangsdaten noch TAN. Zahlungen auslösen kann Haben nicht.
 
 ## Lexware-Office-API
 
