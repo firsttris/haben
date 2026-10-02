@@ -1,6 +1,6 @@
 import type { Cents } from "@haben/core";
 
-export type StatementFormat = "dkb-csv" | "dkb-csv-alt" | "n26-csv" | "camt053";
+export type StatementFormat = "dkb-csv" | "dkb-csv-alt" | "n26-csv" | "camt053" | "enablebanking";
 
 /** Ein Umsatz, wie er in der Datei steht. Eingänge positiv, Ausgänge negativ. */
 export interface ParsedTransaction {

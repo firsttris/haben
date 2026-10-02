@@ -148,6 +148,20 @@
       "when": 1790977051468,
       "tag": "0020_mahnwesen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790978165099,
+      "tag": "0021_bankabruf",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790978166128,
+      "tag": "0022_bankabruf_trigger",
+      "breakpoints": true
     }
   ]
 }

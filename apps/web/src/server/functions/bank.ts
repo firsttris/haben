@@ -15,6 +15,7 @@ import {
   reverseAllocation,
   transactionDetail,
 } from "../bank.ts";
+import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../bank-sync.ts";
 import { authMiddleware } from "../middleware.ts";
 
 function asUserError(error: unknown): never {
@@ -54,6 +55,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
       transactions,
       detail: detail && detail.transaction.bankAccountId === account?.id ? detail : null,
       directKinds: Object.entries(DIRECT_BOOKINGS).map(([value, label]) => ({ value, label })),
+      sync: { configured: enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
     };
   });
 
@@ -102,5 +104,30 @@ export const reverseTransactionAllocation = createServerFn({ method: "POST" })
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
     await reverseAllocation(context.user.id, data).catch(asUserError);
+    return { ok: true };
+  });
+
+export const getEnableBanks = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async () => listBanks("DE").catch(asUserError));
+
+export const connectBank = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ aspspName: z.string().min(1).max(200), psuType: z.enum(["personal", "business"]) }))
+  .handler(async ({ data, context }) => startConnection(context.user.id, { ...data, country: "DE" }).catch(asUserError));
+
+export const syncBankConnection = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => {
+    const result = await syncConnection(context.user.id, data).catch(asUserError);
+    return { added: result.added, error: result.error, gaps: result.accounts.flatMap((a) => (a.gap ? [a.gap] : [])) };
+  });
+
+export const disconnectBank = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => {
+    await removeConnection(context.user.id, data).catch(asUserError);
     return { ok: true };
   });

@@ -21,6 +21,11 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   /** Basis-URL der Lexware-Office-API, nur zum Testen oder falls Lexware die Adresse ändert */
   LEXOFFICE_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
+  /** Automatischer Kontoabruf: Application ID und privater Schlüssel (PEM oder Pfad zur PEM-Datei) der Enable-Banking-Anwendung */
+  ENABLE_BANKING_APP_ID: z.string().optional(),
+  ENABLE_BANKING_KEY: z.string().optional(),
+  ENABLE_BANKING_KEY_FILE: z.string().optional(),
+  ENABLE_BANKING_API_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

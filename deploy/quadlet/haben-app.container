@@ -22,6 +22,8 @@ Secret=haben-auth-secret,type=env,target=BETTER_AUTH_SECRET
 Secret=haben-encryption-key,type=env,target=HABEN_ENCRYPTION_KEY
 # Optional: KI-Auslesung von Belegen
 # Secret=haben-anthropic-key,type=env,target=ANTHROPIC_API_KEY
+# Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung als Datei
+# Secret=haben-enablebanking-key,type=mount,target=enablebanking.pem,uid=1000,mode=0400
 
 [Service]
 Restart=always

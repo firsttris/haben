@@ -8,3 +8,4 @@ export { checkBalanceContinuity } from "./continuity.ts";
 export { parseDatevBuchungsstapel, isDatevFile, datevAccountTotals, DatevParseError } from "./datev.ts";
 export type { DatevHeader, DatevBooking, DatevStack } from "./datev.ts";
 export * from "./lexoffice/index.ts";
+export * from "./enablebanking/index.ts";

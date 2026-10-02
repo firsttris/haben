@@ -53,7 +53,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
   automatisch festgeschrieben. Mahnwesen mit drei Stufen, Verzugszinsen und PDF
 - **Belege**: per Drag-and-drop, Kamera oder Teilen-Menü am Handy (PWA). E-Rechnungen werden direkt gelesen,
   andere PDFs und Fotos auf Wunsch von Claude vorausgefüllt. Kategorie pro Lieferant gemerkt
-- **Bankabgleich**: Kontoauszüge von DKB, N26 oder als CAMT.053 importieren, Dubletten und Lücken erkennen,
+- **Bankabgleich**: Umsätze täglich automatisch über Enable Banking (PSD2) abrufen oder Kontoauszüge von DKB, N26
+  oder als CAMT.053 importieren, Dubletten und Lücken erkennen,
   Vorschläge mit Begründung, Zuordnen per Tastatur, Teilzahlungen und Sammelüberweisungen
 - **Umsatzsteuer-Voranmeldung**: Kennzahlen aus den Buchungen (Ist- oder Soll-Versteuerung), Herkunft jeder Zahl aufklappbar,
   Vorprüfung vor dem Senden, Übermittlung über ERiC mit Transfer-Ticket und Protokoll-PDF, berichtigte Anmeldungen
@@ -143,7 +144,7 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 | [Erste Schritte](docs/einrichtung.md) | Konto und Passkey, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, ELSTER, KI-Auslesung |
 | [Rechnungen und E-Rechnung](docs/rechnungen.md) | Editor, Festschreiben, ZUGFeRD und XRechnung, Storno und Korrektur, Kontakte |
 | [Belege](docs/belege.md) | Hochladen, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
-| [Bankimport und Abgleich](docs/bank.md) | Formate, Dubletten, Vorschläge, Zuordnen, Buchungen ohne Beleg |
+| [Bankimport und Abgleich](docs/bank.md) | Automatischer Abruf, Formate, Dubletten, Vorschläge, Zuordnen, Buchungen ohne Beleg |
 | [Umsatzsteuer-Voranmeldung](docs/umsatzsteuer.md) | Berechnung aus den Buchungen, Vorprüfung, ELSTER-Übermittlung, Berichtigung |
 | [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, Übernahme aus Lexoffice, AfA zum Jahresende |
 | [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP, Aufbewahrung |

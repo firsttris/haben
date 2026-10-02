@@ -395,6 +395,35 @@ export const bankImports = pgTable("bank_imports", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export type BankConnectionAccount = {
+  /** Kennung des Kontos bei Enable Banking, gilt für die Dauer der Zustimmung */
+  uid: string;
+  iban: string;
+  name: string;
+  bankAccountId: string;
+  /** Abgerufen bis einschließlich dieses Tages */
+  syncedTo: string | null;
+};
+
+/**
+ * Zustimmungen für den automatischen Kontoabruf über Enable Banking. Die Sitzungskennung liegt
+ * verschlüsselt in `ciphertext`; `state` verknüpft die Rückleitung der Bank mit dem Eintrag.
+ */
+export const bankConnections = pgTable("bank_connections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  aspspName: text("aspsp_name").notNull(),
+  aspspCountry: text("aspsp_country").notNull(),
+  psuType: text("psu_type", { enum: ["personal", "business"] }).notNull(),
+  status: text("status", { enum: ["wartet", "aktiv", "abgelaufen", "widerrufen", "fehler"] }).notNull().default("wartet"),
+  state: text("state").unique(),
+  ciphertext: bytea("ciphertext"),
+  validUntil: timestamp("valid_until", { withTimezone: true }),
+  accounts: jsonb("accounts").$type<BankConnectionAccount[]>().notNull().default([]),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Importierte Umsätze; unveränderlich ab Import. Eingang positiv, Ausgang negativ. */
 export const bankTransactions = pgTable(
   "bank_transactions",

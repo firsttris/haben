@@ -12,7 +12,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 4. Nächste Rechnungsnummer setzen
 5. ELSTER-Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
 6. Hersteller-ID beantragen und eintragen
-7. Bankkonten anlegen bzw. ersten Kontoauszug importieren, siehe [Bank](bank.md)
+7. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
 8. Optional: KI-Auslesung für Belege einschalten
 
 > [!IMPORTANT]
@@ -165,7 +165,7 @@ Dabei geht die Belegdatei an die Anthropic-API. Ohne Schlüssel bleibt alles lok
 
 ## Bankkonten
 
-Bankkonten musst du meist nicht von Hand anlegen: Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
+Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf über Enable Banking legt Haben die freigegebenen Konten beim Verbinden an (Einrichtung in [Installation](installation.md#kontoabruf-enable-banking), Ablauf in [Bank](bank.md#automatischer-abruf)). Beim ersten Import eines DKB-CSV oder CAMT.053-Auszugs legt Haben das Konto über die IBAN aus der Datei an. N26-CSV-Dateien enthalten keine eigene IBAN. Dafür legst du das Konto vorher an:
 
 1. Auf der Seite **Bank** „Konto hinzufügen“ wählen.
 2. Name (z. B. „N26 Business“) und IBAN eintragen und „Konto anlegen“.

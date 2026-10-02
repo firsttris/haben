@@ -4,13 +4,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { Icon } from "../../components/Icon.tsx";
-import { errorMessage, formatDate, daysUntil } from "../../lib/format.ts";
+import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import {
   addBankAccount,
   allocateTransaction,
+  connectBank,
+  disconnectBank,
   getBankOverview,
+  getEnableBanks,
   importStatements,
   reverseTransactionAllocation,
+  syncBankConnection,
 } from "../../server/functions/bank.ts";
 
 const searchSchema = z.object({
@@ -18,11 +22,14 @@ const searchSchema = z.object({
   filter: z.enum(["offen", "zugeordnet", "alle"]).optional(),
   suche: z.string().optional(),
   umsatz: z.uuid().optional(),
+  /** Ergebnis der Rückleitung von der Bank */
+  abruf: z.enum(["ok", "fehler"]).optional(),
+  meldung: z.string().max(500).optional(),
 });
 
 export const Route = createFileRoute("/_app/bank")({
   validateSearch: searchSchema,
-  loaderDeps: ({ search }) => search,
+  loaderDeps: ({ search }) => ({ konto: search.konto, filter: search.filter, suche: search.suche, umsatz: search.umsatz }),
   loader: ({ deps }) =>
     getBankOverview({ data: { konto: deps.konto, filter: deps.filter ?? "offen", suche: deps.suche ?? "", umsatz: deps.umsatz } }),
   head: () => ({ meta: [{ title: "Bank · Haben" }] }),
@@ -48,6 +55,8 @@ const KIND_LABEL = {
   ustVorauszahlung: "Umsatzsteuer",
   gebuehren: "Bankgebühren", mahnerloes: "Mahngebühren und Zinsen",
 } as const;
+
+const FORMAT_LABEL = (format: string) => (format === "enablebanking" ? "Abruf" : format.startsWith("camt") ? "CAMT.053" : "CSV");
 
 function BankPage() {
   const data = Route.useLoaderData();
@@ -86,12 +95,15 @@ function BankPage() {
         <ImportControls data={data} />
       </div>
 
+      <BankSync sync={data.sync} result={search.abruf ? { ok: search.abruf === "ok", message: search.meldung ?? "" } : null} />
+
       {data.accounts.length === 0 ? (
         <section className="card">
           <h2>Noch kein Konto</h2>
           <p className="muted" style={{ margin: 0 }}>
-            Exportiere bei deiner Bank die Umsätze als CSV oder CAMT.053 und importiere die Datei. DKB-Dateien und CAMT
-            nennen die IBAN, das Konto wird dann automatisch angelegt; für N26 lege das Konto vorher an.
+            Verbinde dein Konto für den automatischen Abruf oder exportiere bei deiner Bank die Umsätze als CSV oder CAMT.053
+            und importiere die Datei. DKB-Dateien und CAMT nennen die IBAN, das Konto wird dann automatisch angelegt; für N26
+            lege das Konto vorher an.
           </p>
         </section>
       ) : (
@@ -111,7 +123,7 @@ function BankPage() {
                   <span style={{ fontSize: 14, fontWeight: 600 }}>{account.name}</span>
                   <span className="small" style={{ color: age !== null && age > 7 ? "var(--warn-ink)" : "var(--muted)" }}>
                     {account.lastImport
-                      ? `${account.lastImport.format.startsWith("camt") ? "CAMT.053" : "CSV"} · zuletzt ${formatDate(account.lastImport.createdAt)}`
+                      ? `${FORMAT_LABEL(account.lastImport.format)} · zuletzt ${formatDate(account.lastImport.createdAt)}`
                       : "noch kein Import"}
                     {account.lastImport?.closingBalance != null ? ` · ${formatEuro(account.lastImport.closingBalance)}` : ""}
                   </span>
@@ -185,6 +197,263 @@ function BankPage() {
         </>
       )}
     </>
+  );
+}
+
+type Sync = Data["sync"];
+
+const CONNECTION_STATUS = {
+  aktiv: { text: "Aktiv", tone: "pill-ok" },
+  abgelaufen: { text: "Abgelaufen", tone: "pill-warn" },
+  fehler: { text: "Fehler", tone: "pill-danger" },
+  widerrufen: { text: "Getrennt", tone: "" },
+  wartet: { text: "Wartet auf Bank", tone: "pill-info" },
+} as const;
+
+/** Automatischer Abruf über Enable Banking: verbundene Banken, Abruf, Erneuern und Trennen */
+function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message: string } | null }) {
+  const router = useRouter();
+  const navigate = useNavigate({ from: "/bank" });
+  const syncFn = useServerFn(syncBankConnection);
+  const disconnectFn = useServerFn(disconnectBank);
+  const connectFn = useServerFn(connectBank);
+  const [connecting, setConnecting] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [messages, setMessages] = useState<{ tone: "ok" | "danger" | "info"; text: string }[]>([]);
+
+  if (!sync.configured && sync.connections.length === 0) {
+    return (
+      <p className="small muted" style={{ margin: "0 0 16px" }}>
+        Automatischer Abruf: mit einer Enable-Banking-Anwendung holt Haben die Umsätze täglich selbst. Einrichtung siehe{" "}
+        <a href="https://github.com/firsttris/haben/blob/main/docs/bank.md#automatischer-abruf" target="_blank" rel="noreferrer">
+          Dokumentation
+        </a>
+        .
+      </p>
+    );
+  }
+
+  async function run(id: string, work: () => Promise<void>) {
+    setBusy(id);
+    setMessages([]);
+    try {
+      await work();
+      await router.invalidate();
+    } catch (error) {
+      setMessages([{ tone: "danger", text: errorMessage(error) }]);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function renew(aspspName: string, psuType: "personal" | "business") {
+    await run("renew", async () => {
+      const { url } = await connectFn({ data: { aspspName, psuType } });
+      window.location.assign(url);
+    });
+  }
+
+  return (
+    <section className="card" aria-label="Automatischer Abruf" style={{ marginBottom: 16, gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0 }}>Automatischer Abruf</h2>
+        {sync.configured && (
+          <button type="button" className="btn" onClick={() => setConnecting((v) => !v)} disabled={busy !== null}>
+            Bank verbinden
+          </button>
+        )}
+      </div>
+
+      {result && (
+        <div className={`banner banner-${result.ok ? "ok" : "danger"}`} role="status" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+          <span>{result.message || (result.ok ? "Bank verbunden." : "Die Verbindung ist fehlgeschlagen.")}</span>
+          <button
+            type="button"
+            className="btn"
+            style={{ minHeight: 32 }}
+            onClick={() => void navigate({ search: (prev) => ({ ...prev, abruf: undefined, meldung: undefined }), replace: true })}
+          >
+            Schließen
+          </button>
+        </div>
+      )}
+
+      {connecting && <ConnectForm onCancel={() => setConnecting(false)} callbackUrl={sync.callbackUrl} connect={connectFn} />}
+
+      {sync.connections.length === 0 && !connecting && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Noch keine Bank verbunden. Nach der Freigabe bei deiner Bank holt Haben die Umsätze einmal täglich; der Import per CSV oder
+          CAMT bleibt daneben möglich.
+        </p>
+      )}
+
+      {sync.connections.map((c) => {
+        const status = CONNECTION_STATUS[c.status];
+        const canSync = c.status === "aktiv";
+        return (
+          <div key={c.id} className="history-row" style={{ alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: "1 1 260px" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontWeight: 600 }}>{c.aspspName}</span>
+                <span className={`pill ${status.tone}`}>{status.text}</span>
+                {c.renewSoon && <span className="pill pill-warn">Läuft bald ab</span>}
+              </div>
+              <span className="small muted">
+                {c.accounts.map((a) => `${a.name} …${a.iban.slice(-4)}`).join(" · ") || "Keine Konten"}
+              </span>
+              <span className="small muted">
+                {c.lastSyncAt ? `Zuletzt abgerufen ${formatDateTime(c.lastSyncAt)}` : "Noch nicht abgerufen"}
+                {c.validUntil ? ` · Zustimmung bis ${formatDate(c.validUntil)}` : ""}
+              </span>
+              {c.lastError && <span className="field-error">{c.lastError}</span>}
+            </div>
+            <div className="actions">
+              {canSync && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={busy !== null}
+                  onClick={() =>
+                    void run(c.id, async () => {
+                      const r = await syncFn({ data: c.id });
+                      setMessages([
+                        r.error ? { tone: "danger", text: r.error } : { tone: "ok", text: `${c.aspspName}: ${r.added} neue Umsätze.` },
+                        ...r.gaps.map((g) => ({ tone: "danger" as const, text: g })),
+                      ]);
+                    })
+                  }
+                >
+                  {busy === c.id ? "Rufe ab …" : "Jetzt abrufen"}
+                </button>
+              )}
+              {sync.configured && (c.status !== "aktiv" || c.renewSoon) && (
+                <button type="button" className="btn" disabled={busy !== null} onClick={() => void renew(c.aspspName, c.psuType)}>
+                  Zustimmung erneuern
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn"
+                disabled={busy !== null}
+                onClick={() => {
+                  if (window.confirm(`Verbindung zu ${c.aspspName} trennen? Die abgerufenen Umsätze bleiben erhalten.`)) {
+                    void run(`x-${c.id}`, async () => {
+                      await disconnectFn({ data: c.id });
+                    });
+                  }
+                }}
+              >
+                Trennen
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {messages.length > 0 && (
+        <ul className="upload-messages" role="status">
+          {messages.map((m, i) => (
+            <li key={i} className={`banner banner-${m.tone}`}>
+              {m.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ConnectForm({
+  onCancel,
+  callbackUrl,
+  connect,
+}: {
+  onCancel: () => void;
+  callbackUrl: string;
+  connect: (args: { data: { aspspName: string; psuType: "personal" | "business" } }) => Promise<{ url: string }>;
+}) {
+  const loadBanks = useServerFn(getEnableBanks);
+  const [banks, setBanks] = useState<Awaited<ReturnType<typeof getEnableBanks>> | null>(null);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState("");
+  const [psuType, setPsuType] = useState<"business" | "personal">("business");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadBanks()
+      .then(setBanks)
+      .catch((e: unknown) => setError(errorMessage(e)));
+  }, [loadBanks]);
+
+  const term = query.trim().toLowerCase();
+  const visible = (banks ?? []).filter((b) => !term || b.name.toLowerCase().includes(term));
+  const bank = banks?.find((b) => b.name === selected);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!bank) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { url } = await connect({ data: { aspspName: bank.name, psuType } });
+      window.location.assign(url);
+    } catch (e) {
+      setError(errorMessage(e));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="stack" style={{ gap: 12, maxWidth: 560 }}>
+      <label className="field">
+        Bank suchen
+        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="z. B. DKB, Sparkasse, N26" autoFocus />
+      </label>
+      <label className="field">
+        Bank
+        <select size={8} value={selected} onChange={(e) => setSelected(e.target.value)} required aria-busy={banks === null}>
+          {banks === null && !error && <option disabled>Lade Banken …</option>}
+          {visible.slice(0, 300).map((b) => (
+            <option key={b.name} value={b.name}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {bank && bank.psuTypes.length > 1 && (
+        <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend>Kontoart</legend>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="radio" name="psuType" checked={psuType === "business"} onChange={() => setPsuType("business")} />
+            Geschäftskonto
+          </label>
+          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="radio" name="psuType" checked={psuType === "personal"} onChange={() => setPsuType("personal")} />
+            Privatkonto (auch Einzelunternehmer mit Privatzugang)
+          </label>
+        </fieldset>
+      )}
+      {bank && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Du wirst zu {bank.name} weitergeleitet und gibst dort den Lesezugriff für {bank.maxConsentDays} Tage frei. Danach geht es
+          zurück zu Haben ({callbackUrl}).
+        </p>
+      )}
+      {error && (
+        <div className="banner banner-danger" role="alert">
+          {error}
+        </div>
+      )}
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={!bank || busy}>
+          {busy ? "Weiterleiten …" : "Weiter zur Bank"}
+        </button>
+        <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+          Abbrechen
+        </button>
+      </div>
+    </form>
   );
 }
 
