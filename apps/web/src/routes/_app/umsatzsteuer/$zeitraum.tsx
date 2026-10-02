@@ -147,6 +147,8 @@ function VatReturnEditor({
     kz66: formatDecimal(current?.source === "manuell" ? current.kz66 : computed.kz66),
   });
   const [reason, setReason] = useState(current?.overrideReason ?? "");
+  const [openSources, setOpenSources] = useState<string | null>(null);
+  const toggleSources = (kz: string) => setOpenSources((open) => (open === kz ? null : kz));
   const [dirty, setDirty] = useState(!current);
   const [busy, setBusy] = useState(false);
 
@@ -276,7 +278,16 @@ function VatReturnEditor({
                 <div className="kz-num">{row.kz}</div>
                 <div className="kz-label">
                   <label htmlFor={`kz-${row.kz}`}>{row.label}</label>
-                  {!locked && <Sources kind="revenue" rows={row.sources} versteuerung={data.figures.versteuerung} />}
+                  {!locked && (
+                    <SourcesToggle
+                      kind="revenue"
+                      rows={row.sources}
+                      versteuerung={data.figures.versteuerung}
+                      open={openSources === row.kz}
+                      controls={`kz-${row.kz}-quellen`}
+                      onToggle={() => toggleSources(row.kz)}
+                    />
+                  )}
                 </div>
                 {editable ? (
                   <input
@@ -294,13 +305,23 @@ function VatReturnEditor({
                 )}
                 <div className="kz-amount">{formatEuro(row.tax)}</div>
               </div>
+              {!locked && openSources === row.kz && <SourcesTable id={`kz-${row.kz}-quellen`} kind="revenue" rows={row.sources} />}
             </div>
           ))}
           <div className="kz-row">
             <div className="kz-num">66</div>
             <div className="kz-label">
               <label htmlFor="kz-66">Vorsteuer aus Rechnungen anderer Unternehmer</label>
-              {!locked && <Sources kind="inputTax" rows={data.figures.inputTax} versteuerung={data.figures.versteuerung} />}
+              {!locked && (
+                <SourcesToggle
+                  kind="inputTax"
+                  rows={data.figures.inputTax}
+                  versteuerung={data.figures.versteuerung}
+                  open={openSources === "66"}
+                  controls="kz-66-quellen"
+                  onToggle={() => toggleSources("66")}
+                />
+              )}
             </div>
             <div />
             {editable ? (
@@ -311,6 +332,7 @@ function VatReturnEditor({
               </output>
             )}
           </div>
+          {!locked && openSources === "66" && <SourcesTable id="kz-66-quellen" kind="inputTax" rows={data.figures.inputTax} />}
           <div className="kz-row total">
             <div className="kz-num">83</div>
             <div>{shown.kz83 < 0 ? "Verbleibender Überschuss (Erstattung)" : "Verbleibende Umsatzsteuer-Vorauszahlung"}</div>
@@ -375,14 +397,22 @@ function VatReturnEditor({
 }
 
 /** Aufklappbare Liste der Zahlungen, Rechnungen bzw. Belege hinter einer Kennzahl */
-function Sources({
+type SourceRows = PageData["figures"]["revenue"] | PageData["figures"]["inputTax"];
+
+function SourcesToggle({
   kind,
   rows,
   versteuerung,
+  open,
+  controls,
+  onToggle,
 }: {
   kind: "revenue" | "inputTax";
-  rows: PageData["figures"]["revenue"] | PageData["figures"]["inputTax"];
+  rows: SourceRows;
   versteuerung: "ist" | "soll";
+  open: boolean;
+  controls: string;
+  onToggle: () => void;
 }) {
   if (rows.length === 0) return <span className="small muted">keine Buchungen</span>;
   const summary =
@@ -392,8 +422,15 @@ function Sources({
         ? `${rows.length} ${rows.length === 1 ? "Zahlungseingang" : "Zahlungseingänge"}`
         : `${rows.length} ${rows.length === 1 ? "Rechnung" : "Rechnungen"}`;
   return (
-    <details className="kz-sources">
-      <summary>{summary}</summary>
+    <button type="button" className="kz-sources-toggle" aria-expanded={open} aria-controls={controls} onClick={onToggle}>
+      <span aria-hidden="true">{open ? "▾" : "▸"}</span> {summary}
+    </button>
+  );
+}
+
+function SourcesTable({ id, kind, rows }: { id: string; kind: "revenue" | "inputTax"; rows: SourceRows }) {
+  return (
+    <div id={id} className="kz-sources">
       <table>
         <thead>
           <tr>
@@ -406,7 +443,7 @@ function Sources({
         <tbody>
           {rows.map((row, i) => (
             <tr key={i}>
-              <td>{formatDate(row.date)}</td>
+              <td className="date">{formatDate(row.date)}</td>
               <td>
                 {"invoiceId" in row ? (
                   <Link to="/rechnungen/$id" params={{ id: row.invoiceId }}>
@@ -425,7 +462,7 @@ function Sources({
           ))}
         </tbody>
       </table>
-    </details>
+    </div>
   );
 }
 
