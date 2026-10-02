@@ -10,8 +10,8 @@ Image=docker.io/tristanteu/haben:latest
 # `podman auto-update` zieht neue Images und startet den Dienst neu
 AutoUpdate=registry
 Network=haben.network
-# Entpacktes ERiC-Paket für Linux x86_64, Version fest (siehe README)
-Volume=/opt/eric:/opt/eric:ro
+# ERiC (nur Linux x86_64): nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME in haben.env setzen
+# Volume=/opt/eric:/opt/eric:ro
 # Belegdateien (GoBD: 10 Jahre aufbewahren, gehört ins Backup)
 Volume=haben-belege.volume:/var/lib/haben/belege
 EnvironmentFile=%h/.config/haben/haben.env
