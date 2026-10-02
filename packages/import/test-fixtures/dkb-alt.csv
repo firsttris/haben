@@ -1,0 +1,13 @@
+"Kontonummer:";"DE12120300001234567890 / Girokonto";
+
+"Von:";"01.09.2026";
+"Bis:";"30.09.2026";
+"Kontostand vom 30.09.2026:";"18.658,72 EUR";
+
+"Buchungstag";"Wertstellung";"Buchungstext";"Auftraggeber / Begünstigter";"Verwendungszweck";"Kontonummer";"BLZ";"Betrag (EUR)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz";
+"30.09.2026";"30.09.2026";"Lastschrift";"Finanzamt Musterstadt";"St.-Nr. 123/456/78901 UStVA 08/2026";"DE21300500000001234567";"BYLADEM1SKB";"-1.234,56";"";"";"";
+"29.09.2026";"29.09.2026";"Folgelastschrift";"Hosting AG";"Rechnung 99812";"DE44500105175407324931";"DEUTDEFFXXX";"-11,90";"DE98ZZZ09999999999";"HOST-0815";"";
+"29.09.2026";"29.09.2026";"Folgelastschrift";"Hosting AG";"Rechnung 99812";"DE44500105175407324931";"DEUTDEFFXXX";"-11,90";"DE98ZZZ09999999999";"HOST-0815";"";
+"15.09.2026";"15.09.2026";"Lastschrift";"Büro & Co. KG";"Miete Coworking September";"DE75512108001245126199";"GENODEF1ESN";"-3.000,00";"";"";"KREF-2026-09";
+"02.09.2026";"02.09.2026";"Gutschrift";"Nordwerk Software GmbH";"RE 2026-030 Leistungen Juli";"DE89370400440532013000";"COBADEFFXXX";"4.760,00";"";"";"NONREF";
+"01.09.2026";"01.09.2026";"Überweisung";"Bäckerei Müßig";"Frühstück Kundentermin Größe M";"DE02120300000000202051";"BYLADEM1001";"-23,40";"";"";"";

@@ -19,7 +19,7 @@ interface Todo {
   detail: string;
   action: string;
   tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen";
+  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank";
 }
 
 const DOT = { info: "var(--info-ink)", warn: "var(--warn-dot)", neutral: "var(--muted)" };
@@ -38,6 +38,16 @@ function OverviewPage() {
       action: "Öffnen",
       tone: daysUntil(data.dueDate) <= 3 ? "warn" : "info",
       to: "/umsatzsteuer/$zeitraum",
+    });
+  }
+  const openBank = data.invoices.bank.reduce((sum, a) => sum + a.openCount, 0);
+  if (openBank > 0) {
+    todos.push({
+      title: `${openBank} ${openBank === 1 ? "Bankumsatz" : "Bankumsätze"} ohne Zuordnung`,
+      detail: data.invoices.bank.filter((a) => a.openCount > 0).map((a) => a.name).join(" und "),
+      action: "Zuordnen",
+      tone: "info",
+      to: "/bank",
     });
   }
   if (data.invoices.overdueCount > 0) {
@@ -129,6 +139,13 @@ function OverviewPage() {
             {sent ? `gesendet ${formatDate(data.current!.sentAt!)}` : `Voranmeldung fällig ${formatDate(data.dueDate)}`}
           </div>
         </div>
+        {data.invoices.bank.filter((a) => a.balance !== null).slice(0, 1).map((a) => (
+          <div className="card" key={a.id}>
+            <div className="kpi-label">Kontostand {a.name}</div>
+            <div className="kpi-value">{formatEuro(a.balance!)}</div>
+            <div className="small muted">{a.balanceDate ? `Stand letzter Import ${formatDate(a.balanceDate)}` : "Stand letzter Import"}</div>
+          </div>
+        ))}
         <div className="card">
           <div className="kpi-label">ELSTER-Zertifikat</div>
           <div className="kpi-value" style={{ fontSize: 18, fontFamily: "var(--sans)" }}>

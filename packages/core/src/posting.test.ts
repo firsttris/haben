@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeInvoiceTotals } from "./invoice.ts";
-import { documentPosting, invoicePosting } from "./posting.ts";
+import { directPosting, documentPaymentPosting, documentPosting, invoicePaymentPosting, invoicePosting, paidTaxShares } from "./posting.ts";
 
 const balanced = (lines: { debit: number; credit: number }[]) =>
   lines.reduce((s, l) => s + l.debit, 0) === lines.reduce((s, l) => s + l.credit, 0);
@@ -69,5 +69,51 @@ describe("documentPosting", () => {
       { account: "1576", debit: 0, credit: 1_900, taxCode: "VSt19" },
       { account: "1600", debit: 11_900, credit: 0, taxCode: null },
     ]);
+  });
+});
+
+describe("Zahlungen", () => {
+  const totals = computeInvoiceTotals([
+    { quantity: 1000, unitPrice: 100_000, taxRate: 1900 },
+    { quantity: 1000, unitPrice: 10_000, taxRate: 700 },
+  ]);
+
+  it("Zahlungseingang bei Ist-Versteuerung macht die USt fällig", () => {
+    const lines = invoicePaymentPosting(totals, totals.gross, "SKR03", "ist");
+    expect(lines).toEqual([
+      { account: "1200", debit: 129_700, credit: 0, taxCode: null },
+      { account: "1400", debit: 0, credit: 129_700, taxCode: null },
+      { account: "1766", debit: 19_000, credit: 0, taxCode: "USt19" },
+      { account: "1776", debit: 0, credit: 19_000, taxCode: "USt19" },
+      { account: "1761", debit: 700, credit: 0, taxCode: "USt7" },
+      { account: "1771", debit: 0, credit: 700, taxCode: "USt7" },
+    ]);
+    expect(balanced(lines)).toBe(true);
+  });
+
+  it("Soll-Versteuerung: nur Bank an Forderungen", () => {
+    expect(invoicePaymentPosting(totals, 50_000, "SKR04", "soll").map((l) => l.account)).toEqual(["1800", "1200"]);
+  });
+
+  it("Teilzahlung verteilt die Steuer anteilig und exakt", () => {
+    const shares = paidTaxShares(totals, 50_000);
+    expect(shares.reduce((s, r) => s + r.base + r.tax, 0)).toBe(50_000);
+    expect(shares.reduce((s, r) => s + r.tax, 0)).toBe(Math.round((19_700 * 50_000) / 129_700));
+  });
+
+  it("Belegzahlung: Verbindlichkeiten an Bank", () => {
+    expect(documentPaymentPosting(-4_590, "SKR03")).toEqual([
+      { account: "1600", debit: 4_590, credit: 0, taxCode: null },
+      { account: "1200", debit: 0, credit: 4_590, taxCode: null },
+    ]);
+  });
+
+  it("Privatentnahme und Einlage", () => {
+    expect(directPosting("privat", -300_000, "SKR03")).toEqual([
+      { account: "1200", debit: 0, credit: 300_000, taxCode: null },
+      { account: "1800", debit: 300_000, credit: 0, taxCode: null },
+    ]);
+    expect(directPosting("privat", 10_000, "SKR04")[1]).toEqual({ account: "2180", debit: 0, credit: 10_000, taxCode: null });
+    expect(directPosting("ustVorauszahlung", -191_230, "SKR03")[1]?.account).toBe("1780");
   });
 });

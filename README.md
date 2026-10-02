@@ -2,7 +2,20 @@
 
 Buchhaltung für einen Freelancer mit EÜR und monatlicher Umsatzsteuer-Voranmeldung. Self-hosted, Open Source (AGPL-3.0), ersetzt Lexware/Lexoffice.
 
-Stand: **Phase 1 bis 3** des Implementierungsplans: Fundament, ELSTER-Übermittlung, Ausgangsrechnungen, E-Rechnung und Belege. Die Kennzahlen der Voranmeldung (Kz 81, 86, 66) gibst du noch selbst ein, Kz 83 rechnet Haben. Ab Phase 5 kommen sie automatisch aus den Buchungen.
+Stand: **Phase 1 bis 4** des Implementierungsplans: Fundament, ELSTER-Übermittlung, Ausgangsrechnungen, E-Rechnung, Belege und Bankabgleich. Die Kennzahlen der Voranmeldung (Kz 81, 86, 66) gibst du noch selbst ein, Kz 83 rechnet Haben. Ab Phase 5 kommen sie automatisch aus den Buchungen.
+
+## Phase 4: Bankimport und Abgleich
+
+- Import von Kontoauszügen als Datei: DKB-CSV (neues und altes Format), N26-CSV und CAMT.053. Bank und Format erkennt Haben am Inhalt, auch die Zeichenkodierung
+- Konten werden über die IBAN aus der Datei angelegt; für N26 (CSV ohne eigene IBAN) das Konto vorher anlegen und beim Import auswählen
+- Deduplizierung über einen Hash aus Datum, Betrag, Gegen-IBAN und Verwendungszweck; echte Doppelbuchungen am selben Tag unterscheidet die Reihenfolge in der Datei. Überlappende Exporte lassen sich also gefahrlos mehrfach importieren
+- Saldenprüfung: passt der Anfangssaldo nicht zum Endsaldo des vorigen Imports, meldet Haben eine Lücke
+- Vorschläge mit Begründung: Betrag, Rechnungsnummer im Verwendungszweck, bekannte IBAN, Name, bei Belegen Datum ± 5 Tage. Die IBAN eines Kunden merkt sich Haben beim ersten Zahlungseingang
+- Zuordnen per Tastatur (Enter, J/K), Teilzahlungen und Sammelüberweisungen über mehrere Zuordnungen je Umsatz
+- Buchungen: Zahlungseingang Bank an Forderungen, bei Ist-Versteuerung wird der Steueranteil der Zahlung von „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ umgebucht; Belegzahlung Verbindlichkeiten an Bank; ohne Beleg als Privatentnahme/-einlage, Geldtransit, Umsatzsteuer-Vorauszahlung oder Bankgebühren
+- Importe, Umsätze und Zuordnungen sind unveränderlich; eine Zuordnung wird per Gegenzeile und Gegenbuchung aufgehoben
+- Rechnungen zeigen jetzt „bezahlt“ und „teilbezahlt“; offene Forderungen rechnen mit den Zahlungen
+- Neue Seite „Buchungen“: das Journal je Monat mit Konten, Soll, Haben und Steuerschlüssel
 
 ## Phase 3: Belege und Eingangsrechnungen
 
@@ -29,7 +42,7 @@ Belegdateien gehören ins Backup (`deploy/backup.sh` sichert das Volume `haben-b
 
 Noch nicht: „bezahlt“ (kommt mit dem Bankabgleich), Kleinunternehmer und Reverse Charge, E-Mail-Versand.
 
-**Kontonummern prüfen:** Die Buchungen nutzen SKR03 bzw. SKR04 (Einstellung „Kontenrahmen“), u. a. 1400/1200 Forderungen, 8400/4400 Erlöse 19 %, 1766/3816 Umsatzsteuer nicht fällig 19 %, 1576/1406 Vorsteuer 19 %, 1600/3300 Verbindlichkeiten und die Aufwandskonten der Belegkategorien. Die Zuordnung steht in `packages/core/src/posting.ts` und sollte einmal mit Lexoffice oder dem Steuerberater abgeglichen werden.
+**Kontonummern prüfen:** Die Buchungen nutzen SKR03 bzw. SKR04 (Einstellung „Kontenrahmen“), u. a. 1400/1200 Forderungen, 8400/4400 Erlöse 19 %, 1766/3816 Umsatzsteuer nicht fällig 19 %, 1576/1406 Vorsteuer 19 %, 1600/3300 Verbindlichkeiten, 1800/2100 Privatentnahmen, 1360/1460 Geldtransit, 1780/3820 USt-Vorauszahlungen und die Aufwandskonten der Belegkategorien. Alle Bankkonten laufen auf ein Finanzkonto (1200 bzw. 1800). Die Zuordnung steht in `packages/core/src/posting.ts` und sollte einmal mit Lexoffice oder dem Steuerberater abgeglichen werden.
 
 ## Phase 1: Umsatzsteuer-Voranmeldung
 
@@ -49,6 +62,7 @@ Noch nicht: „bezahlt“ (kommt mit dem Bankabgleich), Kleinunternehmer und Rev
 | `apps/web` | TanStack Start (React, Server Functions), Drizzle, Better Auth |
 | `packages/core` | Beträge in Cent, Zeiträume und Fälligkeiten, Steuernummer-Umrechnung, UStVA-Berechnung |
 | `packages/elster` | ERiC-Anbindung hinter `ElsterClient`, UStVA-XML, Worker-Prozess |
+| `packages/import` | Parser für Kontoauszüge (DKB, N26, CAMT.053), Deduplizierung, Saldenprüfung |
 | `packages/einvoice` | Rechnungs-PDF (Typst), E-Rechnung erzeugen (ZUGFeRD, XRechnung) und eingehende E-Rechnungen lesen |
 
 Geldbeträge sind immer ganze Cent, Steuersätze Basispunkte (1900 = 19 %).

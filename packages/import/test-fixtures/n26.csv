@@ -1,0 +1,5 @@
+"Booking Date","Value Date","Partner Name","Partner Iban",Type,"Payment Reference","Account Name","Amount (EUR)","Original Amount","Original Currency","Exchange Rate"
+"2026-09-01","2026-09-01","Nordwerk Software GmbH","DE89370400440532013000",Income,"RE 2026-030","Main Account",4760.00,,,
+"2026-09-03","2026-09-03","Bäckerei Müßig","",Presentment,"-","Main Account",-4.5,,,
+"2026-09-05","2026-09-06","Cloud Services Inc.","",Presentment,"Subscription   September","Main Account",-21.37,-25.00,USD,1.1699
+"2026-09-10","2026-09-10","Krankenkasse Muster","DE02 1001 0010 0068 2010 11","Direct Debit","Beitrag 09/2026","Main Account",-512.30,,,

@@ -242,7 +242,7 @@ export const journalEntries = pgTable("journal_entries", {
   id: uuid("id").primaryKey().defaultRandom(),
   date: date("date", { mode: "string" }).notNull(),
   description: text("description").notNull(),
-  sourceType: text("source_type", { enum: ["invoice", "document"] }).notNull(),
+  sourceType: text("source_type", { enum: ["invoice", "document", "allocation"] }).notNull(),
   sourceId: uuid("source_id").notNull(),
   kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
   reversesId: uuid("reverses_id"),
@@ -316,3 +316,84 @@ export const documentAmounts = pgTable(
   },
   (t) => [uniqueIndex("document_amounts_rate").on(t.documentId, t.taxRate)],
 );
+
+/** Bankkonten; der Import ordnet Umsätze über die IBAN zu. */
+export const bankAccounts = pgTable("bank_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  iban: text("iban").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Jede importierte Datei, nur anhängen */
+export const bankImports = pgTable("bank_imports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bankAccountId: uuid("bank_account_id")
+    .notNull()
+    .references(() => bankAccounts.id),
+  filename: text("filename").notNull(),
+  sha256: text("sha256").notNull(),
+  format: text("format").notNull(),
+  periodFrom: date("period_from", { mode: "string" }),
+  periodTo: date("period_to", { mode: "string" }),
+  openingBalance: integer("opening_balance"),
+  closingBalance: integer("closing_balance"),
+  /** Neu angelegt / als Duplikat übersprungen */
+  added: integer("added").notNull(),
+  skipped: integer("skipped").notNull(),
+  warnings: jsonb("warnings").$type<string[]>().notNull().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Importierte Umsätze; unveränderlich ab Import. Eingang positiv, Ausgang negativ. */
+export const bankTransactions = pgTable(
+  "bank_transactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    bankAccountId: uuid("bank_account_id")
+      .notNull()
+      .references(() => bankAccounts.id),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => bankImports.id),
+    bookingDate: date("booking_date", { mode: "string" }).notNull(),
+    valueDate: date("value_date", { mode: "string" }),
+    amount: integer("amount").notNull(),
+    currency: text("currency").notNull().default("EUR"),
+    counterpartyName: text("counterparty_name").notNull().default(""),
+    counterpartyIban: text("counterparty_iban"),
+    purpose: text("purpose").notNull().default(""),
+    type: text("type"),
+    bankReference: text("bank_reference"),
+    dedupHash: text("dedup_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("bank_transactions_dedup").on(t.bankAccountId, t.dedupHash)],
+);
+
+export const allocationKindEnum = pgEnum("allocation_kind", [
+  "invoice",
+  "document",
+  "privat",
+  "geldtransit",
+  "ustVorauszahlung",
+  "gebuehren",
+]);
+
+/**
+ * Zuordnung eines Bankumsatzes (ganz oder teilweise) zu Rechnung, Beleg oder einer Buchung ohne Beleg.
+ * Nur anhängen; aufgehoben wird per Gegenzeile mit negativem Betrag (reversesId).
+ */
+export const allocations = pgTable("allocations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  transactionId: uuid("transaction_id")
+    .notNull()
+    .references(() => bankTransactions.id),
+  kind: allocationKindEnum("kind").notNull(),
+  invoiceId: uuid("invoice_id").references(() => invoices.id),
+  documentId: uuid("document_id").references(() => documents.id),
+  /** Mit dem Vorzeichen des Umsatzes */
+  amount: integer("amount").notNull(),
+  reversesId: uuid("reverses_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
