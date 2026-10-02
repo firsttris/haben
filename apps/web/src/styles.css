@@ -137,6 +137,8 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .invoice-cols { grid-template-columns: 110px minmax(0, 1fr) 100px 130px 120px; }
 .contact-cols { grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr) 160px; }
 .plan-cols { grid-template-columns: 60px repeat(5, minmax(0, 1fr)) 80px; }
+.recurring-cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) 120px 110px 120px; }
+.recurring-history-cols { grid-template-columns: 110px minmax(0, 1fr) 120px; }
 .asset-cols { grid-template-columns: minmax(0, 2fr) 110px repeat(5, minmax(0, 1fr)); }
 .num { text-align: right; font-family: var(--mono); font-size: 13px; }
 @media (max-width: 760px) {
@@ -145,6 +147,8 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
   .contact-cols { grid-template-columns: minmax(0, 1fr); }
   .contact-cols > :not(:nth-child(2)) { display: none; }
   .asset-cols { grid-template-columns: minmax(0, 1fr) 110px; }
+  .recurring-cols { grid-template-columns: minmax(0, 1fr) 110px; }
+  .recurring-cols > :nth-child(2), .recurring-cols > :nth-child(3), .recurring-cols > :nth-child(5) { display: none; }
   .asset-cols > :nth-child(n + 2):not(:nth-child(5)) { display: none; }
 }
 

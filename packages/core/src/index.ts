@@ -11,3 +11,4 @@ export * from "./treatment.ts";
 export * from "./holidays.ts";
 export * from "./afa.ts";
 export * from "./private-use.ts";
+export * from "./recurring.ts";

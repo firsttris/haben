@@ -49,7 +49,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 
 - **Rechnungen mit E-Rechnung**: Editor mit Live-Vorschau, lückenloser Nummernkreis, PDF/A-3 mit Typst und
   ZUGFeRD (EN 16931) oder XRechnung 3.0 (CII/UBL), geprüft mit dem KoSIT-Validator. Storno und Rechnungskorrektur, Reverse Charge, Drittland, steuerfreie Umsätze und
-  Kleinunternehmer nach § 19 UStG mit Pflichthinweis
+  Kleinunternehmer nach § 19 UStG mit Pflichthinweis. Wiederkehrende Rechnungen mit Platzhaltern wie {monat}, als Entwurf oder
+  automatisch festgeschrieben
 - **Belege**: per Drag-and-drop, Kamera oder Teilen-Menü am Handy (PWA). E-Rechnungen werden direkt gelesen,
   andere PDFs und Fotos auf Wunsch von Claude vorausgefüllt. Kategorie pro Lieferant gemerkt
 - **Bankabgleich**: Kontoauszüge von DKB, N26 oder als CAMT.053 importieren, Dubletten und Lücken erkennen,

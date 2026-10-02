@@ -120,6 +120,20 @@
       "when": 1790950650831,
       "tag": "0016_privatnutzung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790956560832,
+      "tag": "0017_wiederkehrend",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790956561819,
+      "tag": "0018_wiederkehrend_trigger",
+      "breakpoints": true
     }
   ]
 }

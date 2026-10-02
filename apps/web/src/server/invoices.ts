@@ -87,7 +87,11 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"]) {
   };
 }
 
-export async function createDraft(actor: string, input: DraftInput, extra: Partial<Pick<Invoice, "kind" | "correctsId">> = {}) {
+export async function createDraft(
+  actor: string,
+  input: DraftInput,
+  extra: Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate">> = {},
+) {
   const { bundesland } = await loadCompany();
   return withActor(actor, async (tx) => {
     const [invoice] = await tx
