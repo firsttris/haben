@@ -56,6 +56,7 @@ Der Schritt ist erledigt, wenn ein Lauf fertig ist und die Liste der fehlgeschla
 - **Keine Buchungen.** Kontierung, Umbuchungen und Kontensalden gibt es nur im DATEV-Export (Schritt 4).
 - **Keine Bankumsätze.** Die Kontoauszüge holst du bei deiner Bank.
 - **Keine übermittelten Voranmeldungen** und keine ELSTER-Protokolle.
+- **Kein Anlagenverzeichnis.** Anlagen wie ein Firmenwagen trägst du unter **Anlagen › Anlage übernehmen** mit dem Restbuchwert zum Stichtag ein, siehe [Anlagen und AfA](anlagen.md#übernahme-aus-lexoffice).
 - Angebote, Auftragsbestätigungen, Lieferscheine und Mahnungen ruft Haben nicht ab.
 
 ## Schritt 3: Offene Posten übernehmen

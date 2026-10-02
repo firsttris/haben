@@ -18,7 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
-import { TAX_TREATMENT_KEYS } from "@haben/core";
+import { ASSET_KIND_KEYS, ASSET_METHOD_KEYS, TAX_TREATMENT_KEYS, type AssetKind, type AssetMethod } from "@haben/core";
 
 export * from "./auth-schema.ts";
 
@@ -263,7 +263,7 @@ export const journalEntries = pgTable("journal_entries", {
   id: uuid("id").primaryKey().defaultRandom(),
   date: date("date", { mode: "string" }).notNull(),
   description: text("description").notNull(),
-  sourceType: text("source_type", { enum: ["invoice", "document", "allocation"] }).notNull(),
+  sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset"] }).notNull(),
   sourceId: uuid("source_id").notNull(),
   kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
   reversesId: uuid("reverses_id"),
@@ -318,6 +318,8 @@ export const documents = pgTable("documents", {
   net: integer("net").notNull().default(0),
   tax: integer("tax").notNull().default(0),
   gross: integer("gross").notNull().default(0),
+  /** Bei Kategorie „anlage“: Angaben für die Anlage, die beim Buchen entsteht */
+  asset: jsonb("asset").$type<{ name: string; kind: AssetKind; method: AssetMethod; usefulLifeMonths: number | null }>(),
   /** Beim Buchen festgehalten: false bei Kleinunternehmern, dann ist die Steuer Teil des Aufwands */
   vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
   /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
@@ -565,4 +567,60 @@ export const lexofficeVoucherFiles = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("lexoffice_voucher_files_unique").on(t.voucherId, t.sha256)],
+);
+
+/**
+ * Anlagenverzeichnis. Anschaffung per Beleg (Kategorie „anlage“) oder übernommen aus der
+ * Vorgänger-Buchhaltung mit Restbuchwert zum Stichtag. Sobald eine Abschreibung gebucht ist,
+ * sind die Berechnungsgrundlagen unveränderlich (Trigger).
+ */
+export const assets = pgTable(
+  "assets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    kind: text("kind", { enum: ASSET_KIND_KEYS }).notNull(),
+    method: text("method", { enum: ASSET_METHOD_KEYS }).notNull(),
+    /** Anlagekonto, beim Anlegen festgelegt */
+    account: text("account").notNull(),
+    acquisitionDate: date("acquisition_date", { mode: "string" }).notNull(),
+    /** Anschaffungskosten netto (ohne Vorsteuerabzug brutto) */
+    cost: integer("cost").notNull(),
+    usefulLifeMonths: smallint("useful_life_months"),
+    documentId: uuid("document_id")
+      .unique()
+      .references(() => documents.id),
+    /** Übernahme: Buchwert zum Stichtag; gebucht als Eröffnung gegen den Saldenvortrag */
+    openingDate: date("opening_date", { mode: "string" }),
+    openingBookValue: integer("opening_book_value"),
+    openingEntryId: uuid("opening_entry_id"),
+    disposalDate: date("disposal_date", { mode: "string" }),
+    note: text("note").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("assets_opening_complete", sql`(${t.openingDate} is null) = (${t.openingBookValue} is null)`),
+    check("assets_cost_positive", sql`${t.cost} > 0`),
+  ],
+);
+
+/** Gebuchte Abschreibungen je Anlage und Jahr, nur anhängen */
+export const assetDepreciations = pgTable(
+  "asset_depreciations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    assetId: uuid("asset_id")
+      .notNull()
+      .references(() => assets.id),
+    year: smallint("year").notNull(),
+    depreciation: integer("depreciation").notNull(),
+    /** Restbuchwert beim Abgang */
+    disposal: integer("disposal").notNull().default(0),
+    entryId: uuid("entry_id")
+      .notNull()
+      .references(() => journalEntries.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("asset_depreciations_year").on(t.assetId, t.year)],
 );

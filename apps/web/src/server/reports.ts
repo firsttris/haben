@@ -8,6 +8,7 @@ import {
   type InvoiceTotals,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
+import { depreciationForEuer } from "./assets.ts";
 import { db, schema } from "./db/index.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
@@ -134,7 +135,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
 }
 
 export async function euerForYear(year: number): Promise<EuerResult> {
-  return computeEuer(year, await euerPayments(year));
+  return computeEuer(year, await euerPayments(year), await depreciationForEuer(year));
 }
 
 export interface OpenPosition {

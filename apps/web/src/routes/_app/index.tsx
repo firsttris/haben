@@ -19,7 +19,7 @@ interface Todo {
   detail: string;
   action: string;
   tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank";
+  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank" | "/anlagen";
 }
 
 const DOT = { info: "var(--info-ink)", warn: "var(--warn-dot)", neutral: "var(--muted)" };
@@ -57,6 +57,15 @@ function OverviewPage() {
       action: "Ansehen",
       tone: "warn",
       to: "/rechnungen",
+    });
+  }
+  for (const afa of data.afaPending) {
+    todos.push({
+      title: `AfA ${afa.year} buchen`,
+      detail: `${afa.count} ${afa.count === 1 ? "Anlage" : "Anlagen"} im Anlagenverzeichnis`,
+      action: "Öffnen",
+      tone: "info",
+      to: "/anlagen",
     });
   }
   if (data.invoices.drafts > 0) {

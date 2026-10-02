@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/buchungen")({
   component: JournalPage,
 });
 
-const SOURCE = { invoice: "Rechnung", document: "Beleg", allocation: "Bank" } as const;
+const SOURCE = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage" } as const;
 
 function nextPeriod({ year, month }: VatPeriod): VatPeriod {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };

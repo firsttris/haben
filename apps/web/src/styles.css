@@ -136,12 +136,16 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .table-row.head { min-height: 32px; border-top: 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .invoice-cols { grid-template-columns: 110px minmax(0, 1fr) 100px 130px 120px; }
 .contact-cols { grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr) 160px; }
+.plan-cols { grid-template-columns: 60px repeat(5, minmax(0, 1fr)) 80px; }
+.asset-cols { grid-template-columns: minmax(0, 2fr) 110px repeat(5, minmax(0, 1fr)); }
 .num { text-align: right; font-family: var(--mono); font-size: 13px; }
 @media (max-width: 760px) {
   .invoice-cols { grid-template-columns: minmax(0, 1fr) 110px; }
   .invoice-cols > :nth-child(1), .invoice-cols > :nth-child(3), .invoice-cols > :nth-child(5) { display: none; }
   .contact-cols { grid-template-columns: minmax(0, 1fr); }
   .contact-cols > :not(:nth-child(2)) { display: none; }
+  .asset-cols { grid-template-columns: minmax(0, 1fr) 110px; }
+  .asset-cols > :nth-child(n + 2):not(:nth-child(5)) { display: none; }
 }
 
 /* Rechnungseditor */

@@ -57,6 +57,10 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 - **Umsatzsteuer-Voranmeldung**: Kennzahlen aus den Buchungen (Ist- oder Soll-Versteuerung), Herkunft jeder Zahl aufklappbar,
   Vorprüfung vor dem Senden, Übermittlung über ERiC mit Transfer-Ticket und Protokoll-PDF, berichtigte Anmeldungen
 - **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, Journal je Monat, Festschreibung und Audit-Log
+- **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
+  Übernahme mit Restbuchwert aus Lexoffice, AfA-Buchung zum Jahresende
+- **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
+  Übernahme mit Restbuchwert aus Lexoffice, AfA-Buchung zum Jahresende
 - **Auswertungen**: Einnahmen-Überschuss-Rechnung nach Zufluss und Abfluss, offene Posten, Monatsverlauf, CSV
 - **Jahresexport**: alle Originale, Journal, Bankumsätze, Voranmeldungen und Protokoll als ZIP mit SHA-256-Prüfsummen
 - **Umzug aus Lexoffice**: Abruf über die Public API, DATEV-Buchungsstapel, offene Posten übernehmen, Abgleich je Jahr
@@ -140,6 +144,7 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 | [Belege](docs/belege.md) | Hochladen, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
 | [Bankimport und Abgleich](docs/bank.md) | Formate, Dubletten, Vorschläge, Zuordnen, Buchungen ohne Beleg |
 | [Umsatzsteuer-Voranmeldung](docs/umsatzsteuer.md) | Berechnung aus den Buchungen, Vorprüfung, ELSTER-Übermittlung, Berichtigung |
+| [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, Übernahme aus Lexoffice, AfA zum Jahresende |
 | [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP, Aufbewahrung |
 | [Umzug aus Lexoffice](docs/lexoffice.md) | API-Abruf, DATEV-Import, offene Posten, Abgleich vor der Kündigung |
 | [Buchhaltung in Haben](docs/buchhaltung.md) | Buchungssätze, Kontenrahmen, Ist und Soll, GoBD und Festschreibung |

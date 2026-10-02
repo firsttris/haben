@@ -15,6 +15,8 @@ import {
 } from "../documents.ts";
 import { extractionAvailable } from "../extraction.ts";
 import { authMiddleware } from "../middleware.ts";
+import { db, schema } from "../db/index.ts";
+import { eq } from "drizzle-orm";
 
 function asUserError(error: unknown): never {
   if (error instanceof DocumentError) throw new Error(error.message);
@@ -38,8 +40,10 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
     if (!result) throw new Error("Beleg nicht gefunden.");
     // Rohdaten der Auslesung bleiben auf dem Server
     const { extraction: _extraction, ...document } = result.document;
+    const [asset] = await db.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.documentId, data));
     return {
       document,
+      assetId: asset?.id ?? null,
       amounts: result.amounts,
       issues: result.document.lockedAt ? [] : bookingIssues(result.document, result.amounts),
       aiAvailable: extractionAvailable(),
