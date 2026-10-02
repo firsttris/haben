@@ -143,6 +143,24 @@ Das Format wird als Text in `bank_imports.format` gespeichert; eine Migration is
 
 Die Kategorien stehen in `EXPENSE_CATEGORIES` in `packages/core/src/posting.ts`, je mit Bezeichnung und Aufwandskonto für SKR03 und SKR04. Ein neuer Eintrag erscheint automatisch in der Auswahl am Beleg, in der Anweisung für die KI-Auslesung, im Journal und in der EÜR. Die Kategorie steht als Text am Beleg, eine Migration ist nicht nötig. Für übernommene Lexoffice-Belege kannst du in `apps/web/src/server/legacy-open.ts` (`CATEGORY_HINTS`) ein Suchmuster ergänzen. Die Kontonummern stimmst du mit der Steuerberatung ab.
 
+## Veröffentlichen
+
+Images baut der Workflow `.github/workflows/release.yml`. Ein Tag `vX.Y.Z` veröffentlicht eine Version:
+
+1. Der Tag muss zu `version` in der `package.json` im Wurzelverzeichnis passen.
+2. Die komplette CI läuft (Lint, Typecheck, Tests, Build, KoSIT, Container-Test).
+3. Das Image wird für `linux/amd64` und `linux/arm64` gebaut und als `:x.y.z`, `:x.y` und `:latest` nach Docker Hub (`tristanteu/haben`) und GHCR (`ghcr.io/firsttris/haben`) geschoben. Die README landet mit absoluten Links als Beschreibung auf Docker Hub.
+4. Erst danach entsteht das GitHub-Release mit erzeugten Notizen.
+
+```sh
+pnpm version patch   # oder minor, major: erhöht die Version, legt Commit und Tag an
+git push --follow-tags
+```
+
+Von Hand gestartet (Actions → Release → Run workflow) laufen auf `main` dieselben Prüfungen, danach wird nur `:edge` veröffentlicht, ohne Release.
+
+Der Workflow braucht das Repository-Secret `DOCKER_PAT`, ein Docker-Hub-Zugriffstoken mit Schreibrecht für `tristanteu/haben`. Für GHCR reicht das eingebaute `GITHUB_TOKEN`; das Paket ist nach dem ersten Push privat und muss einmal in den Paket-Einstellungen auf öffentlich gestellt werden.
+
 ## Mitwirken
 
 Vor einem Pull Request bitte dieselben Prüfungen wie in CI laufen lassen:

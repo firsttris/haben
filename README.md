@@ -13,6 +13,9 @@ Auf deinem Server, ohne Abo, ohne Datenabfluss.
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-ff4154)](https://tanstack.com/start)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169e1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker Pulls](https://img.shields.io/docker/pulls/tristanteu/haben?logo=docker&logoColor=white)](https://hub.docker.com/r/tristanteu/haben)
+[![Image Size](https://img.shields.io/docker/image-size/tristanteu/haben/latest?logo=docker&logoColor=white&label=image)](https://hub.docker.com/r/tristanteu/haben)
+[![Plattformen](https://img.shields.io/badge/platform-amd64%20%7C%20arm64-lightgrey)](https://hub.docker.com/r/tristanteu/haben/tags)
 [![Podman](https://img.shields.io/badge/Betrieb-Podman%20Quadlets-892ca0?logo=podman&logoColor=white)](docs/installation.md)
 
 [Warum?](#-warum-haben) •
@@ -74,18 +77,37 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 
 ## 🚀 Schnellstart
 
-Haben läuft als drei Container (App, PostgreSQL, Caddy) mit Podman Quadlets unter systemd. Du brauchst einen Linux-Server
-und eine Domain mit HTTPS, denn Passkeys funktionieren nur über eine sichere Verbindung.
+Haben läuft als drei Container: die App (`tristanteu/haben`, amd64 und arm64), PostgreSQL und Caddy für HTTPS.
+Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
+denn Passkeys funktionieren nur über HTTPS.
 
-```sh
-git clone https://github.com/firsttris/haben.git && cd haben
-podman build -t haben -f Containerfile .
+```bash
+mkdir haben && cd haben
+curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
+curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+# in .env eintragen: DOMAIN, DB_PASSWORD (openssl rand -hex 24),
+# AUTH_SECRET und ENCRYPTION_KEY (je openssl rand -base64 32), dann
+docker compose up -d
+```
 
+Öffne **https://deine-domain**, leg dein Konto an und richte Firmendaten, Nummernkreis und ELSTER ein, wie in
+[Erste Schritte](docs/einrichtung.md) beschrieben.
+
+<details>
+<summary><b>Podman Quadlet (systemd)</b></summary>
+
+```bash
+RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
 mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
-cp deploy/quadlet/*.container deploy/quadlet/*.volume deploy/quadlet/*.network ~/.config/containers/systemd/
-cp deploy/quadlet/haben-backup.service deploy/quadlet/haben-backup.timer ~/.config/systemd/user/
-cp deploy/Caddyfile deploy/backup.sh ~/.config/haben/
-cp deploy/haben.env.example ~/.config/haben/haben.env   # Domain eintragen, auch im Caddyfile
+for f in haben.network haben-db.volume haben-belege.volume haben-caddy.volume \
+         haben-db.container haben-app.container haben-caddy.container; do
+  curl -o ~/.config/containers/systemd/$f "$RAW/quadlet/$f"
+done
+curl -o ~/.config/systemd/user/haben-backup.service "$RAW/quadlet/haben-backup.service"
+curl -o ~/.config/systemd/user/haben-backup.timer "$RAW/quadlet/haben-backup.timer"
+curl -o ~/.config/haben/Caddyfile "$RAW/Caddyfile"            # Domain eintragen
+curl -o ~/.config/haben/haben.env "$RAW/haben.env.example"    # Domain eintragen
+curl -o ~/.config/haben/backup.sh "$RAW/backup.sh" && chmod +x ~/.config/haben/backup.sh
 
 DBPW="$(openssl rand -hex 24)"
 printf '%s' "$DBPW" | podman secret create haben-db-password -
@@ -95,16 +117,16 @@ openssl rand -base64 32 | tr -d '\n' | podman secret create haben-encryption-key
 
 systemctl --user daemon-reload
 systemctl --user start haben-db haben-app haben-caddy
-systemctl --user enable --now haben-backup.timer
 ```
 
-Dann öffnest du deine Domain, legst dein Konto an und richtest Firmendaten, Nummernkreis und ELSTER ein.
-Die Einzelheiten (ERiC einbinden, Backup und Wiederherstellung, Updates, Umgebungsvariablen) stehen in
-[Betrieb und Installation](docs/installation.md), die ersten Schritte in der Oberfläche in [Erste Schritte](docs/einrichtung.md).
+</details>
+
+ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und alle Umgebungsvariablen stehen in
+[Betrieb und Installation](docs/installation.md).
 
 > [!IMPORTANT]
-> Sichere `HABEN_ENCRYPTION_KEY` zusätzlich an einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und
-> Lexoffice-Schlüssel nach einer Wiederherstellung nicht mehr lesbar.
+> Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) zusätzlich an
+> einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und Lexoffice-Schlüssel nach einer Wiederherstellung nicht mehr lesbar.
 
 ## 📚 Dokumentation
 

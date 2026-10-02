@@ -1,0 +1,78 @@
+# Haben mit Docker Compose: App, PostgreSQL und Caddy (HTTPS mit automatischem Zertifikat).
+#
+#   mkdir haben && cd haben
+#   curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
+#   curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+#   # .env ausfüllen: Domain, Datenbank-Passwort und die beiden Schlüssel
+#   docker compose up -d
+#
+# Braucht Docker Compose 2.23 oder neuer (für die eingebettete Caddy-Konfiguration).
+name: haben
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: haben
+      POSTGRES_DB: haben
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD fehlt in .env}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "haben"]
+      interval: 5s
+      retries: 20
+
+  app:
+    image: tristanteu/haben:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://haben:${DB_PASSWORD}@db:5432/haben
+      BETTER_AUTH_URL: https://${DOMAIN:?DOMAIN fehlt in .env}
+      BETTER_AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET fehlt in .env}
+      HABEN_ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY fehlt in .env}
+      ERIC_HOME: ${ERIC_HOME:-}
+      ELSTER_HERSTELLER_ID: ${ELSTER_HERSTELLER_ID:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
+      - belege:/var/lib/haben/belege
+      # ERiC (nur Linux x86_64): nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME=/opt/eric in .env
+      # - /opt/eric:/opt/eric:ro
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    volumes:
+      - caddy:/data
+
+configs:
+  caddyfile:
+    content: |
+      ${DOMAIN} {
+        encode zstd gzip
+        header {
+          Strict-Transport-Security "max-age=31536000; includeSubDomains"
+          X-Content-Type-Options nosniff
+          Referrer-Policy same-origin
+          X-Frame-Options DENY
+        }
+        reverse_proxy app:3000
+      }
+
+volumes:
+  db:
+  belege:
+  caddy:

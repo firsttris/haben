@@ -1,55 +1,120 @@
 # Betrieb und Installation
 
-Diese Seite beschreibt, wie du Haben auf einem eigenen Server betreibst: Image bauen, Podman Quadlets, Caddy, Secrets, Umgebungsvariablen, Backup und Updates. Was du danach in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
+Diese Seite beschreibt, wie du Haben auf einem eigenen Server betreibst: mit Docker Compose (am einfachsten) oder mit Podman Quadlets unter systemd, dazu Umgebungsvariablen, Backup und Updates. Was du danach in der Oberfläche einrichtest, steht in [Erste Schritte](einrichtung.md).
 
 ## Überblick
 
-Haben läuft als drei Container in einem eigenen Podman-Netz (`haben`), gesteuert über systemd:
+Haben läuft als drei Container in einem eigenen Netz:
 
-| Container | Image | Aufgabe |
+| Container (Compose / Quadlet) | Image | Aufgabe |
 | --- | --- | --- |
-| `haben-db` | `docker.io/library/postgres:16` | Datenbank, Volume `haben-db` |
-| `haben-app` | `localhost/haben:latest` (selbst gebaut) | Die App auf Port 3000, Belegdateien im Volume `haben-belege` |
-| `haben-caddy` | `docker.io/library/caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `haben-caddy` |
+| `db` / `haben-db` | `postgres:16` | Datenbank, Volume `db` bzw. `haben-db` |
+| `app` / `haben-app` | `tristanteu/haben:latest` | Die App auf Port 3000, Belegdateien im Volume `belege` bzw. `haben-belege` |
+| `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy` |
 
-Dazu kommt ein systemd-Timer, der täglich um 03:15 Uhr `deploy/backup.sh` startet.
+Es gibt zwei Wege, sie zu betreiben:
+
+| Weg | Gut für | Dateien |
+| --- | --- | --- |
+| [Docker Compose](#docker-compose) | Schnell startklar, Docker oder Podman mit Compose | `deploy/compose.yml`, `deploy/compose.env.example` |
+| [Podman Quadlets](#podman-quadlets) | Rootless unter systemd, Secrets statt Datei, täglicher Backup-Timer, `podman auto-update` | `deploy/quadlet/*`, `deploy/Caddyfile`, `deploy/haben.env.example`, `deploy/backup.sh` |
+
+Beide holen die Dateien per `curl`; das Repository musst du nicht klonen.
 
 ## Voraussetzungen
 
-- Ein Linux-Server (x86_64, wenn du ERiC nutzen willst) mit Podman und systemd. Die Quadlets sind für den Betrieb als normaler Nutzer (rootless) geschrieben, die Pfade nutzen `%h` bzw. `~/.config`.
+- Ein Linux-Server (x86_64, wenn du ERiC nutzen willst) mit Docker und Compose 2.23 oder neuer, oder mit Podman und systemd. Die Quadlets sind für den Betrieb als normaler Nutzer (rootless) geschrieben, die Pfade nutzen `%h` bzw. `~/.config`.
 - Eine Domain, die auf den Server zeigt, und erreichbare Ports 80 und 443. Caddy holt das TLS-Zertifikat selbst.
 - HTTPS ist Pflicht: Passkeys und die Installation als App (PWA) funktionieren nur über eine sichere Verbindung.
 - Für ELSTER das ERiC-Paket für Linux x86_64 (siehe [ERiC einbinden](#eric-einbinden)).
-- Für das Backup `restic` auf dem Host.
+- Für das Backup mit Quadlets `restic` auf dem Host.
 
 > [!NOTE]
-> Rootless Podman darf Ports unter 1024 standardmäßig nicht öffnen. Entweder du senkst die Grenze (`sysctl net.ipv4.ip_unprivileged_port_start=80`) oder du veröffentlichst Caddy auf anderen Ports und leitest weiter. Damit die Dienste ohne angemeldete Sitzung laufen, braucht der Nutzer außerdem `loginctl enable-linger`.
+> Nur Podman: Rootless Podman darf Ports unter 1024 standardmäßig nicht öffnen. Entweder du senkst die Grenze (`sysctl net.ipv4.ip_unprivileged_port_start=80`) oder du veröffentlichst Caddy auf anderen Ports und leitest weiter. Damit die Dienste ohne angemeldete Sitzung laufen, braucht der Nutzer außerdem `loginctl enable-linger`.
 
-## Image bauen
+## Image
 
-Das `Containerfile` baut die App in zwei Stufen auf Basis von `node:22-bookworm-slim`. ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf; es wird zur Laufzeit nach `/opt/eric` gemountet.
+Das fertige Image gibt es für amd64 und arm64 auf Docker Hub und in der GitHub Container Registry:
+
+| Image | Inhalt |
+| --- | --- |
+| `docker.io/tristanteu/haben:latest` | Letzte veröffentlichte Version (Standard in Compose und Quadlet) |
+| `docker.io/tristanteu/haben:0.1` / `:0.1.0` | Feste Version, wenn du Updates selbst steuern willst |
+| `docker.io/tristanteu/haben:edge` | Stand von `main`, nur zum Ausprobieren |
+| `ghcr.io/firsttris/haben:…` | Dieselben Tags bei GitHub |
+
+ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf; es wird zur Laufzeit nach `/opt/eric` gemountet. ERiC gibt es nur für Linux x86_64: Auf arm64 (z. B. Raspberry Pi) läuft alles außer der ELSTER-Übermittlung.
+
+Selbst bauen geht auch, zum Beispiel für einen eigenen Stand. Dafür brauchst du das Repository; danach in `compose.yml` `image: haben` bzw. in `haben-app.container` `Image=localhost/haben:latest` eintragen:
 
 ```sh
-git clone https://github.com/firsttris/haben.git
-cd haben
-podman build -t haben -f Containerfile .
+git clone https://github.com/firsttris/haben.git && cd haben
+podman build -t haben -f Containerfile .   # oder docker build
 ```
+
+Das `Containerfile` baut die App in zwei Stufen auf Basis von `node:22-bookworm-slim`.
 
 Das Image läuft als Nutzer `node` und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_WORKER_PATH` und `HABEN_EINVOICE_DIR`.
 
-## Dateien ablegen
+## Docker Compose
 
 ```sh
+mkdir haben && cd haben
+curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
+curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
+```
+
+In `.env` trägst du ein:
+
+| Variable | Inhalt |
+| --- | --- |
+| `DOMAIN` | Domain ohne `https://`, z. B. `haben.example.de`. Caddy holt dafür das Zertifikat, die App nutzt `https://DOMAIN` als `BETTER_AUTH_URL` |
+| `DB_PASSWORD` | Datenbank-Passwort, nur Buchstaben und Ziffern, weil es in der Verbindungs-URL steht: `openssl rand -hex 24` |
+| `AUTH_SECRET` | `openssl rand -base64 32` |
+| `ENCRYPTION_KEY` | `openssl rand -base64 32`, zusätzlich an einem zweiten Ort sichern |
+| `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
+
+```sh
+docker compose up -d
+docker compose logs -f app   # „Migrationen angewendet“, dann „Listening on …“
+```
+
+Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern wie im `Caddyfile`). Für ERiC entpackst du das Paket nach `/opt/eric`, kommentierst in `compose.yml` die Zeile `- /opt/eric:/opt/eric:ro` ein und setzt `ERIC_HOME=/opt/eric` in `.env`.
+
+**Updates:** `docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App.
+
+**Backup:** Sichere die Datenbank und das Volume mit den Belegen, zum Beispiel per Cronjob:
+
+```sh
+docker compose exec -T db pg_dump -U haben haben | gzip > haben-$(date +%F).sql.gz
+docker run --rm -v haben_belege:/belege:ro -v "$PWD":/backup alpine tar czf /backup/belege-$(date +%F).tar.gz -C /belege .
+```
+
+Beides gehört anschließend auf ein zweites System, etwa mit restic wie im Quadlet-Backup unten. Zum Wiederherstellen erst nur `docker compose up -d db` starten, den Dump mit `gunzip -c … | docker compose exec -T db psql -U haben -d haben` einspielen, die Belege mit `tar xzf` ins Volume `haben_belege` entpacken und danach `docker compose up -d` ausführen.
+
+## Podman Quadlets
+
+Die Quadlets betreiben Haben rootless unter systemd: Zugangsdaten als Podman Secrets, ein täglicher Backup-Timer mit restic und Updates über `podman auto-update`.
+
+### Dateien ablegen
+
+```sh
+RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
 mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
-cp deploy/quadlet/*.container deploy/quadlet/*.volume deploy/quadlet/*.network ~/.config/containers/systemd/
-cp deploy/quadlet/haben-backup.service deploy/quadlet/haben-backup.timer ~/.config/systemd/user/
-cp deploy/Caddyfile deploy/backup.sh ~/.config/haben/
-cp deploy/haben.env.example ~/.config/haben/haben.env
+for f in haben.network haben-db.volume haben-belege.volume haben-caddy.volume \
+         haben-db.container haben-app.container haben-caddy.container; do
+  curl -o ~/.config/containers/systemd/$f "$RAW/quadlet/$f"
+done
+curl -o ~/.config/systemd/user/haben-backup.service "$RAW/quadlet/haben-backup.service"
+curl -o ~/.config/systemd/user/haben-backup.timer "$RAW/quadlet/haben-backup.timer"
+curl -o ~/.config/haben/Caddyfile "$RAW/Caddyfile"
+curl -o ~/.config/haben/haben.env "$RAW/haben.env.example"
+curl -o ~/.config/haben/backup.sh "$RAW/backup.sh" && chmod +x ~/.config/haben/backup.sh
 ```
 
 Die `.container`-, `.volume`- und `.network`-Dateien verarbeitet der Quadlet-Generator von Podman. `haben-backup.service` und `haben-backup.timer` sind gewöhnliche systemd-Units und gehören deshalb nach `~/.config/systemd/user/`.
 
-## Secrets anlegen
+### Secrets anlegen
 
 Zugangsdaten liegen nicht in `haben.env`, sondern als Podman Secrets. Die Quadlets reichen sie als Umgebungsvariablen in die Container.
 
@@ -72,13 +137,12 @@ openssl rand -base64 32 | tr -d '\n' | podman secret create haben-encryption-key
 > [!IMPORTANT]
 > Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat und den Lexoffice-API-Schlüssel (AES-256-GCM). Ohne den Schlüssel sind beide nach einer Wiederherstellung nicht mehr lesbar. Das Backup-Skript sichert ihn nicht mit. Den Wert liest du aus, solange der Container läuft: `podman exec haben-app printenv HABEN_ENCRYPTION_KEY`.
 
-## Konfiguration
+### Konfiguration
 
 In `~/.config/haben/haben.env` stehen die Werte, die nicht geheim sind. Mindestens die Domain anpassen:
 
 ```sh
 BETTER_AUTH_URL=https://haben.example.de
-ERIC_HOME=/opt/eric
 ```
 
 Im `Caddyfile` dieselbe Domain eintragen (erste Zeile `haben.example.de {`). Caddy leitet alles an `haben-app:3000` weiter und setzt HSTS, `X-Content-Type-Options`, `Referrer-Policy` und `X-Frame-Options`.
@@ -86,7 +150,19 @@ Im `Caddyfile` dieselbe Domain eintragen (erste Zeile `haben.example.de {`). Cad
 > [!NOTE]
 > Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Trag die Hersteller-ID erst ein, wenn du sie hast; sie muss dann genau fünf Ziffern haben.
 
-### Umgebungsvariablen
+### Starten
+
+```sh
+systemctl --user daemon-reload
+systemctl --user start haben-db haben-app haben-caddy
+systemctl --user enable --now haben-backup.timer
+```
+
+Die Container-Units starten über `[Install] WantedBy=default.target` beim nächsten Boot von selbst, sobald `daemon-reload` gelaufen ist. Logs liest du mit `journalctl --user -u haben-app` (bzw. `haben-db`, `haben-caddy`).
+
+Danach rufst du die Domain im Browser auf und legst das Konto an, siehe [Erste Schritte](einrichtung.md).
+
+## Umgebungsvariablen
 
 Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugriff. Ein Fehler steht dann im Log von `haben-app`.
 
@@ -106,19 +182,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
 | `HABEN_EINVOICE_DIR` | nein | Verzeichnis von `packages/einvoice` (Typst-Vorlage und Schriften für das Rechnungs-PDF). Im Image gesetzt | `/app/packages/einvoice` |
 
-Für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
-
-## Starten
-
-```sh
-systemctl --user daemon-reload
-systemctl --user start haben-db haben-app haben-caddy
-systemctl --user enable --now haben-backup.timer
-```
-
-Die Container-Units starten über `[Install] WantedBy=default.target` beim nächsten Boot von selbst, sobald `daemon-reload` gelaufen ist. Logs liest du mit `journalctl --user -u haben-app` (bzw. `haben-db`, `haben-caddy`).
-
-Danach rufst du die Domain im Browser auf und legst das Konto an, siehe [Erste Schritte](einrichtung.md).
+Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` aus `DB_PASSWORD`, `BETTER_AUTH_URL` aus `DOMAIN`, `BETTER_AUTH_SECRET` aus `AUTH_SECRET`, `HABEN_ENCRYPTION_KEY` aus `ENCRYPTION_KEY`). Bei den Quadlets kommen die geheimen Werte aus Podman Secrets, der Rest aus `haben.env`; für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
 
 ## Datenablage
 
@@ -133,7 +197,7 @@ Belege und Rechnungen müssen nach GoBD zehn Jahre aufbewahrt werden. Beide Volu
 
 ## Backup
 
-`deploy/backup.sh` läuft über `haben-backup.timer` täglich um 03:15 Uhr (`Persistent=true`: ein verpasster Lauf wird nachgeholt). Das Skript
+Für Compose steht das Backup oben bei [Docker Compose](#docker-compose). Mit den Quadlets läuft `deploy/backup.sh` über `haben-backup.timer` täglich um 03:15 Uhr (`Persistent=true`: ein verpasster Lauf wird nachgeholt). Das Skript
 
 1. erzeugt mit `podman exec haben-db pg_dump -U haben --format=plain haben` einen SQL-Dump und packt ihn mit gzip,
 2. sichert den Dump und das Verzeichnis des Volumes `haben-belege` mit `restic backup --tag haben`,
@@ -175,23 +239,30 @@ Restic legt Dateien mit ihrem ursprünglichen absoluten Pfad ab, deshalb die `fi
 
 ## Updates
 
+Mit Compose: `docker compose pull && docker compose up -d`. Mit den Quadlets:
+
 ```sh
-cd haben
-git pull
 systemctl --user start haben-backup.service   # Stand vor dem Update sichern
-podman build -t haben -f Containerfile .
-systemctl --user restart haben-app
+podman auto-update                             # neues Image ziehen und haben-app neu starten
 ```
+
+`haben-app.container` trägt `AutoUpdate=registry`; mit `systemctl --user enable --now podman-auto-update.timer` prüft Podman täglich selbst auf neue Images. Willst du Updates von Hand steuern, setze im Quadlet eine feste Version (`Image=docker.io/tristanteu/haben:0.1`) und ändere sie bewusst. Bei einem selbst gebauten Image: `git pull`, `podman build -t haben -f Containerfile .` und `systemctl --user restart haben-app`.
 
 Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an; erst danach startet der Server. Schlägt eine Migration fehl, startet die App nicht, und der Fehler steht im Log.
 
 ## ERiC einbinden
 
-ERiC lädst du als registrierter Entwickler bei ELSTER herunter. Das Paket entpackst du auf dem Host nach `/opt/eric`, sodass `/opt/eric/lib/libericapi.so` und `/opt/eric/lib/plugins2/` existieren. `haben-app.container` mountet das Verzeichnis schreibgeschützt nach `/opt/eric`, `haben.env` setzt `ERIC_HOME=/opt/eric`.
+ERiC lädst du als registrierter Entwickler bei ELSTER herunter. Das Paket entpackst du auf dem Host nach `/opt/eric`, sodass `/opt/eric/lib/libericapi.so` und `/opt/eric/lib/plugins2/` existieren. Dann bindest du es ein:
+
+| | Compose | Quadlet |
+| --- | --- | --- |
+| Verzeichnis mounten | in `compose.yml` die Zeile `- /opt/eric:/opt/eric:ro` einkommentieren | in `haben-app.container` die Zeile `Volume=/opt/eric:/opt/eric:ro` einkommentieren |
+| Variable | `ERIC_HOME=/opt/eric` in `.env` | `ERIC_HOME=/opt/eric` in `haben.env` einkommentieren |
+| Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
 ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet einen kurzlebigen Kindprozess, der die Bibliothek lädt. Ohne `ERIC_HOME` nutzt Haben einen simulierten Client; die Oberfläche zeigt dann „ERiC ist nicht eingerichtet“ an, und nichts geht an das Finanzamt.
 
-Wenn du ERiC (noch) nicht nutzt, kommentiere die Zeile `Volume=/opt/eric:/opt/eric:ro` in `haben-app.container` aus und entferne `ERIC_HOME` aus `haben.env`. Der weitere Ablauf (Zertifikat, Testübermittlung, Hersteller-ID) steht in [Erste Schritte](einrichtung.md#elster-einrichten).
+Beides ist ab Werk auskommentiert, damit Haben auch ohne ERiC startet. Der weitere Ablauf (Zertifikat, Testübermittlung, Hersteller-ID) steht in [Erste Schritte](einrichtung.md#elster-einrichten).
 
 ## KI-Auslesung (Anthropic)
 
@@ -232,7 +303,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **Die App zeigt nur einen Fehler, im Log steht ein Zod-Fehler zu einer Variablen.** Die Umgebung besteht die Prüfung in `env.ts` nicht. Häufig: `ELSTER_HERSTELLER_ID` hat nicht genau fünf Ziffern, `HABEN_ENCRYPTION_KEY` ist nicht genau 32 Byte base64 oder `BETTER_AUTH_SECRET` ist kürzer als 32 Zeichen.
 
-**`haben-app` startet nicht, Fehler beim Mount von `/opt/eric`.** Podman bricht ab, wenn das Quellverzeichnis eines Bind-Mounts fehlt. Lege ERiC dort ab oder kommentiere die `Volume`-Zeile aus.
+**`haben-app` startet nicht, Fehler beim Mount von `/opt/eric`.** Podman bricht ab, wenn das Quellverzeichnis eines Bind-Mounts fehlt. Lege ERiC dort ab oder lass die `Volume`-Zeile auskommentiert.
 
 **„DATABASE_URL fehlt“ oder Verbindungsfehler beim Start.** Das Secret `haben-database-url` fehlt oder das Passwort darin passt nicht zu `haben-db-password`. Beachte: Postgres übernimmt `POSTGRES_PASSWORD` nur beim ersten Anlegen des Volumes. Ein später geändertes Secret ändert das Passwort in der Datenbank nicht.
 
@@ -240,7 +311,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **„Haben ist bereits eingerichtet.“** Haben hat genau ein Konto. Ein zweites lässt sich nicht anlegen, auch nicht über die API.
 
-**Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** `ERIC_HOME` ist in der App nicht gesetzt. Prüfe `haben.env` und starte `haben-app` neu.
+**Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** `ERIC_HOME` ist in der App nicht gesetzt. Prüfe `.env` bzw. `haben.env` und starte die App neu.
 
 **ERiC ist eingerichtet, aber Prüfen oder Senden scheitert sofort.** Prüfe, ob unter `ERIC_HOME` die Dateien `lib/libericapi.so` und `lib/plugins2/` liegen und ob das Paket für Linux x86_64 ist. Ein Absturz der Bibliothek beendet nur den Kindprozess; die App zeigt die Meldung an. Details stehen in den ERiC-Logs unter `ERIC_LOG_DIR`.
 
