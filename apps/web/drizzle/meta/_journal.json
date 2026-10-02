@@ -134,6 +134,20 @@
       "when": 1790956561819,
       "tag": "0018_wiederkehrend_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790977050408,
+      "tag": "0019_mahnwesen",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790977051468,
+      "tag": "0020_mahnwesen_trigger",
+      "breakpoints": true
     }
   ]
 }

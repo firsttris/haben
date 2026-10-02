@@ -38,8 +38,11 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
+import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as AppArchivBelegIdRouteImport } from './routes/_app/archiv/beleg.$id'
+import { Route as AppRechnungenMahnwesenIndexRouteImport } from './routes/_app/rechnungen/mahnwesen/index'
+import { Route as AppRechnungenMahnwesenIdRouteImport } from './routes/_app/rechnungen/mahnwesen/$id'
 import { Route as AppRechnungenWiederkehrendIndexRouteImport } from './routes/_app/rechnungen/wiederkehrend/index'
 import { Route as AppRechnungenWiederkehrendIdRouteImport } from './routes/_app/rechnungen/wiederkehrend/$id'
 import { Route as AppRechnungenWiederkehrendNeuRouteImport } from './routes/_app/rechnungen/wiederkehrend/neu'
@@ -189,6 +192,11 @@ const ApiExportJahrRoute = ApiExportJahrRouteImport.update({
   path: '/api/export/$jahr',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMahnungIdRoute = ApiMahnungIdRouteImport.update({
+  id: '/api/mahnung/$id',
+  path: '/api/mahnung/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProtokollIdRoute = ApiProtokollIdRouteImport.update({
   id: '/api/protokoll/$id',
   path: '/api/protokoll/$id',
@@ -199,6 +207,18 @@ const AppArchivBelegIdRoute = AppArchivBelegIdRouteImport.update({
   path: '/archiv/beleg/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRechnungenMahnwesenIndexRoute =
+  AppRechnungenMahnwesenIndexRouteImport.update({
+    id: '/rechnungen/mahnwesen/',
+    path: '/rechnungen/mahnwesen/',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppRechnungenMahnwesenIdRoute =
+  AppRechnungenMahnwesenIdRouteImport.update({
+    id: '/rechnungen/mahnwesen/$id',
+    path: '/rechnungen/mahnwesen/$id',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppRechnungenWiederkehrendIndexRoute =
   AppRechnungenWiederkehrendIndexRouteImport.update({
     id: '/rechnungen/wiederkehrend/',
@@ -246,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
+  '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/anlagen/': typeof AppAnlagenIndexRoute
   '/archiv/': typeof AppArchivIndexRoute
@@ -254,9 +275,11 @@ export interface FileRoutesByFullPath {
   '/rechnungen/': typeof AppRechnungenIndexRoute
   '/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
   '/archiv/beleg/$id': typeof AppArchivBelegIdRoute
+  '/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
   '/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
+  '/rechnungen/mahnwesen/': typeof AppRechnungenMahnwesenIndexRoute
   '/rechnungen/wiederkehrend/': typeof AppRechnungenWiederkehrendIndexRoute
 }
 export interface FileRoutesByTo {
@@ -282,6 +305,7 @@ export interface FileRoutesByTo {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
+  '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/anlagen': typeof AppAnlagenIndexRoute
   '/archiv': typeof AppArchivIndexRoute
@@ -290,9 +314,11 @@ export interface FileRoutesByTo {
   '/rechnungen': typeof AppRechnungenIndexRoute
   '/umsatzsteuer': typeof AppUmsatzsteuerIndexRoute
   '/archiv/beleg/$id': typeof AppArchivBelegIdRoute
+  '/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
   '/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
+  '/rechnungen/mahnwesen': typeof AppRechnungenMahnwesenIndexRoute
   '/rechnungen/wiederkehrend': typeof AppRechnungenWiederkehrendIndexRoute
 }
 export interface FileRoutesById {
@@ -320,6 +346,7 @@ export interface FileRoutesById {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
+  '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/_app/anlagen/': typeof AppAnlagenIndexRoute
   '/_app/archiv/': typeof AppArchivIndexRoute
@@ -328,9 +355,11 @@ export interface FileRoutesById {
   '/_app/rechnungen/': typeof AppRechnungenIndexRoute
   '/_app/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
   '/_app/archiv/beleg/$id': typeof AppArchivBelegIdRoute
+  '/_app/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
   '/_app/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/_app/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
+  '/_app/rechnungen/mahnwesen/': typeof AppRechnungenMahnwesenIndexRoute
   '/_app/rechnungen/wiederkehrend/': typeof AppRechnungenWiederkehrendIndexRoute
 }
 export interface FileRouteTypes {
@@ -358,6 +387,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
+    | '/api/mahnung/$id'
     | '/api/protokoll/$id'
     | '/anlagen/'
     | '/archiv/'
@@ -366,9 +396,11 @@ export interface FileRouteTypes {
     | '/rechnungen/'
     | '/umsatzsteuer/'
     | '/archiv/beleg/$id'
+    | '/rechnungen/mahnwesen/$id'
     | '/rechnungen/wiederkehrend/$id'
     | '/rechnungen/wiederkehrend/neu'
     | '/api/rechnung/$id/$datei'
+    | '/rechnungen/mahnwesen/'
     | '/rechnungen/wiederkehrend/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -394,6 +426,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
+    | '/api/mahnung/$id'
     | '/api/protokoll/$id'
     | '/anlagen'
     | '/archiv'
@@ -402,9 +435,11 @@ export interface FileRouteTypes {
     | '/rechnungen'
     | '/umsatzsteuer'
     | '/archiv/beleg/$id'
+    | '/rechnungen/mahnwesen/$id'
     | '/rechnungen/wiederkehrend/$id'
     | '/rechnungen/wiederkehrend/neu'
     | '/api/rechnung/$id/$datei'
+    | '/rechnungen/mahnwesen'
     | '/rechnungen/wiederkehrend'
   id:
     | '__root__'
@@ -431,6 +466,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
+    | '/api/mahnung/$id'
     | '/api/protokoll/$id'
     | '/_app/anlagen/'
     | '/_app/archiv/'
@@ -439,9 +475,11 @@ export interface FileRouteTypes {
     | '/_app/rechnungen/'
     | '/_app/umsatzsteuer/'
     | '/_app/archiv/beleg/$id'
+    | '/_app/rechnungen/mahnwesen/$id'
     | '/_app/rechnungen/wiederkehrend/$id'
     | '/_app/rechnungen/wiederkehrend/neu'
     | '/api/rechnung/$id/$datei'
+    | '/_app/rechnungen/mahnwesen/'
     | '/_app/rechnungen/wiederkehrend/'
   fileRoutesById: FileRoutesById
 }
@@ -456,6 +494,7 @@ export interface RootRouteChildren {
   ApiBelegIdRoute: typeof ApiBelegIdRoute
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
+  ApiMahnungIdRoute: typeof ApiMahnungIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
 }
@@ -665,6 +704,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiExportJahrRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/mahnung/$id': {
+      id: '/api/mahnung/$id'
+      path: '/api/mahnung/$id'
+      fullPath: '/api/mahnung/$id'
+      preLoaderRoute: typeof ApiMahnungIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/protokoll/$id': {
       id: '/api/protokoll/$id'
       path: '/api/protokoll/$id'
@@ -677,6 +723,20 @@ declare module '@tanstack/react-router' {
       path: '/archiv/beleg/$id'
       fullPath: '/archiv/beleg/$id'
       preLoaderRoute: typeof AppArchivBelegIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/rechnungen/mahnwesen/': {
+      id: '/_app/rechnungen/mahnwesen/'
+      path: '/rechnungen/mahnwesen'
+      fullPath: '/rechnungen/mahnwesen/'
+      preLoaderRoute: typeof AppRechnungenMahnwesenIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/rechnungen/mahnwesen/$id': {
+      id: '/_app/rechnungen/mahnwesen/$id'
+      path: '/rechnungen/mahnwesen/$id'
+      fullPath: '/rechnungen/mahnwesen/$id'
+      preLoaderRoute: typeof AppRechnungenMahnwesenIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/rechnungen/wiederkehrend/': {
@@ -731,8 +791,10 @@ interface AppRouteChildren {
   AppRechnungenIndexRoute: typeof AppRechnungenIndexRoute
   AppUmsatzsteuerIndexRoute: typeof AppUmsatzsteuerIndexRoute
   AppArchivBelegIdRoute: typeof AppArchivBelegIdRoute
+  AppRechnungenMahnwesenIdRoute: typeof AppRechnungenMahnwesenIdRoute
   AppRechnungenWiederkehrendIdRoute: typeof AppRechnungenWiederkehrendIdRoute
   AppRechnungenWiederkehrendNeuRoute: typeof AppRechnungenWiederkehrendNeuRoute
+  AppRechnungenMahnwesenIndexRoute: typeof AppRechnungenMahnwesenIndexRoute
   AppRechnungenWiederkehrendIndexRoute: typeof AppRechnungenWiederkehrendIndexRoute
 }
 
@@ -757,8 +819,10 @@ const AppRouteChildren: AppRouteChildren = {
   AppRechnungenIndexRoute: AppRechnungenIndexRoute,
   AppUmsatzsteuerIndexRoute: AppUmsatzsteuerIndexRoute,
   AppArchivBelegIdRoute: AppArchivBelegIdRoute,
+  AppRechnungenMahnwesenIdRoute: AppRechnungenMahnwesenIdRoute,
   AppRechnungenWiederkehrendIdRoute: AppRechnungenWiederkehrendIdRoute,
   AppRechnungenWiederkehrendNeuRoute: AppRechnungenWiederkehrendNeuRoute,
+  AppRechnungenMahnwesenIndexRoute: AppRechnungenMahnwesenIndexRoute,
   AppRechnungenWiederkehrendIndexRoute: AppRechnungenWiederkehrendIndexRoute,
 }
 
@@ -775,6 +839,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBelegIdRoute: ApiBelegIdRoute,
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
+  ApiMahnungIdRoute: ApiMahnungIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,
 }

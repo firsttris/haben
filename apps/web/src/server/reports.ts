@@ -67,7 +67,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
       and(
         gte(schema.bankTransactions.bookingDate, start),
         lt(schema.bankTransactions.bookingDate, end),
-        inArray(schema.allocations.kind, ["invoice", "document", "ustVorauszahlung", "gebuehren"]),
+        inArray(schema.allocations.kind, ["invoice", "document", "ustVorauszahlung", "gebuehren", "mahnerloes"]),
       ),
     );
 
@@ -120,7 +120,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
         privateShare: a.privateShare ?? 0,
         group,
       });
-    } else if (a.kind === "ustVorauszahlung" || a.kind === "gebuehren") {
+    } else if (a.kind === "ustVorauszahlung" || a.kind === "gebuehren" || a.kind === "mahnerloes") {
       payments.push({ kind: a.kind, date: a.date, amount: a.amount, group });
     }
   }

@@ -9,6 +9,7 @@ import type { Address, InvoiceDocument } from "./types.ts";
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
 const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL("..", import.meta.url));
 const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
+const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
 const FONTS = ["Regular", "Medium", "SemiBold"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
 
 let compiler: NodeCompiler | undefined;
@@ -21,7 +22,7 @@ function getCompiler(): NodeCompiler {
   return compiler;
 }
 
-function addressLines(address: Address): string[] {
+export function addressLines(address: Address): string[] {
   const lines = [address.strasse, `${address.plz} ${address.ort}`];
   if (address.land.toUpperCase() !== "DE") lines.push(countryName(address.land).toUpperCase());
   return lines;
@@ -55,16 +56,6 @@ export function pdfData(doc: InvoiceDocument) {
     value: formatEuro(t.tax),
   }));
 
-  const contact = [seller.name, ...addressLines(seller), seller.email];
-  if (seller.telefon) contact.push(`Tel. ${seller.telefon}`);
-  const bank: string[] = [];
-  if (seller.bank) bank.push(seller.bank);
-  if (seller.iban) bank.push(`IBAN ${formatIban(seller.iban)}`);
-  if (seller.bic) bank.push(`BIC ${seller.bic}`);
-  const tax: string[] = [];
-  if (seller.steuernummer) tax.push(`Steuernummer ${seller.steuernummer}`);
-  if (seller.ustId) tax.push(`USt-IdNr. ${seller.ustId}`);
-
   return {
     docTitle: `${title} ${doc.number}`,
     author: seller.name,
@@ -88,21 +79,44 @@ export function pdfData(doc: InvoiceDocument) {
     payment: paymentSentence(doc),
     taxNote: treatmentNote(treatment, doc.exemptionReason),
     note: doc.note?.trim() ? doc.note.trim() : null,
-    footer: [contact, bank, tax],
+    footer: footerColumns(seller),
   };
 }
 
 /** Sichtbare Rechnung als PDF/A-3b (Grundlage für ZUGFeRD). */
 export function renderInvoicePdf(doc: InvoiceDocument): Uint8Array {
+  return compilePdf(TEMPLATE, pdfData(doc), doc.issueDate, "Rechnungs-PDF");
+}
+
+/** Mahnung als PDF/A-3b; die Daten kommen fertig formatiert aus dunningPdfData */
+export function renderDunningPdf(data: unknown, date: string): Uint8Array {
+  return compilePdf(DUNNING_TEMPLATE, data, date, "Mahnungs-PDF");
+}
+
+/** Fußzeile wie auf der Rechnung: Kontakt, Bank, Steuernummern */
+export function footerColumns(seller: InvoiceDocument["seller"]): string[][] {
+  const contact = [seller.name, ...addressLines(seller), seller.email];
+  if (seller.telefon) contact.push(`Tel. ${seller.telefon}`);
+  const bank: string[] = [];
+  if (seller.bank) bank.push(seller.bank);
+  if (seller.iban) bank.push(`IBAN ${formatIban(seller.iban)}`);
+  if (seller.bic) bank.push(`BIC ${seller.bic}`);
+  const tax: string[] = [];
+  if (seller.steuernummer) tax.push(`Steuernummer ${seller.steuernummer}`);
+  if (seller.ustId) tax.push(`USt-IdNr. ${seller.ustId}`);
+  return [contact, bank, tax];
+}
+
+function compilePdf(template: string, data: unknown, date: string, label: string): Uint8Array {
   const typst = getCompiler();
-  const result = typst.compile({ mainFilePath: TEMPLATE, inputs: { data: JSON.stringify(pdfData(doc)) } });
+  const result = typst.compile({ mainFilePath: template, inputs: { data: JSON.stringify(data) } });
   const document = result.result;
   if (result.hasError() || !document) {
     const error = result.takeError();
     const diagnostics = error ? typst.fetchDiagnostics(error) : [];
-    throw new Error(`Rechnungs-PDF konnte nicht erzeugt werden: ${JSON.stringify(diagnostics)}`);
+    throw new Error(`${label} konnte nicht erzeugt werden: ${JSON.stringify(diagnostics)}`);
   }
-  const pdf = typst.pdf(document, { pdfStandard: "a-3b", creationTimestamp: Math.floor(Date.parse(`${doc.issueDate}T12:00:00Z`) / 1000) });
+  const pdf = typst.pdf(document, { pdfStandard: "a-3b", creationTimestamp: Math.floor(Date.parse(`${date}T12:00:00Z`) / 1000) });
   typst.evictCache(10);
   return new Uint8Array(pdf.buffer, pdf.byteOffset, pdf.byteLength);
 }

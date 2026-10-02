@@ -22,6 +22,7 @@ import {
   updateDraft,
 } from "../invoices.ts";
 import { db, schema } from "../db/index.ts";
+import { dunningsFor } from "../dunning.ts";
 import { today } from "../today.ts";
 
 function asUserError(error: unknown): never {
@@ -79,7 +80,17 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
     const result = await getInvoice(data);
     if (!result) throw new Error("Rechnung nicht gefunden.");
     const issues = result.invoice.status === "draft" ? await finalizeIssues(data) : [];
-    return { ...result, invoice: withoutFiles(result.invoice), issues, ...(await editorContext()) };
+    // Mahnungen und ob die Rechnung gerade überfällig ist (offen und Fälligkeit vorbei)
+    const listed = result.invoice.status === "final" ? (await listInvoices(today())).find((i) => i.id === data) : undefined;
+    return {
+      ...result,
+      invoice: withoutFiles(result.invoice),
+      issues,
+      dunnings: await dunningsFor([data]),
+      overdue: listed?.listStatus === "ueberfaellig",
+      open: listed?.open ?? 0,
+      ...(await editorContext()),
+    };
   });
 
 export const saveInvoiceDraft = createServerFn({ method: "POST" })

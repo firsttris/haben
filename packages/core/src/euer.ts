@@ -38,7 +38,7 @@ export type EuerPayment =
     }
   | {
       /** Umsatzsteuer an das Finanzamt bzw. Erstattung; Vorzeichen wie auf dem Konto */
-      kind: "ustVorauszahlung" | "gebuehren";
+      kind: "ustVorauszahlung" | "gebuehren" | "mahnerloes";
       date: string;
       amount: Cents;
       group?: string;
@@ -179,6 +179,11 @@ export function computeEuer(
         // Ausgang: Zahlung an das Finanzamt; Eingang: Erstattung
         if (p.sum < 0) add("gezahlteUst", -p.sum);
         else add("erstatteteUst", p.sum);
+        break;
+      case "mahnerloes":
+        // Verzugszinsen und Mahngebühren: Betriebseinnahme ohne Umsatzsteuer
+        add("einnahmenSteuerfrei", p.sum);
+        monthlyIn[month]! += p.sum;
         break;
       case "gebuehren":
         add("ausgabe:geldverkehr", -p.sum);

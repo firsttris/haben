@@ -26,6 +26,9 @@ function InvoicesPage() {
           <Link to="/rechnungen/wiederkehrend" className="btn">
             Wiederkehrend
           </Link>
+          <Link to="/rechnungen/mahnwesen" className="btn">
+            Mahnwesen
+          </Link>
           <Link to="/rechnungen/neu" className="btn btn-primary">
             Neue Rechnung
           </Link>

@@ -70,6 +70,14 @@ export const company = pgTable(
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
     privateShares: jsonb("private_shares").$type<Record<string, number>>().notNull().default({}),
+    /**
+     * Mahnwesen: Basiszinssatz in Basispunkten (null = keine Verzugszinsen), Mahngebühr je Stufe in Cent,
+     * Zahlungsfrist in Tagen
+     */
+    dunning: jsonb("dunning")
+      .$type<{ baseRate: number | null; fees: Record<"1" | "2" | "3", number>; deadlineDays: number }>()
+      .notNull()
+      .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("company_single_row", sql`${t.id} = 1`)],
@@ -420,6 +428,7 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "geldtransit",
   "ustVorauszahlung",
   "gebuehren",
+  "mahnerloes",
 ]);
 
 /**
@@ -686,3 +695,29 @@ export const recurringInvoices = pgTable(
     check("recurring_anchor_day", sql`${t.anchorDay} between 1 and 31`),
   ],
 );
+
+/** Mahnungen und Zahlungserinnerungen mit PDF; wie ein verschicktes Schreiben unveränderlich */
+export const dunnings = pgTable("dunnings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  invoiceId: uuid("invoice_id")
+    .notNull()
+    .references(() => invoices.id),
+  /** 1 Zahlungserinnerung, 2 Mahnung, 3 letzte Mahnung */
+  level: smallint("level").notNull(),
+  date: date("date", { mode: "string" }).notNull(),
+  /** Neue Zahlungsfrist */
+  dueDate: date("due_date", { mode: "string" }).notNull(),
+  open: integer("open").notNull(),
+  fee: integer("fee").notNull().default(0),
+  flatFee: integer("flat_fee").notNull().default(0),
+  interest: integer("interest").notNull().default(0),
+  /** Zinssatz in Basispunkten (Basiszinssatz plus Aufschlag) */
+  interestRate: integer("interest_rate").notNull().default(0),
+  interestDays: integer("interest_days").notNull().default(0),
+  total: integer("total").notNull(),
+  intro: text("intro").notNull(),
+  closing: text("closing").notNull(),
+  pdf: bytea("pdf").notNull(),
+  pdfSha256: text("pdf_sha256").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

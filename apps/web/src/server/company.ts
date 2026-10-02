@@ -24,6 +24,13 @@ export const companySchema = z.object({
   kleinunternehmer: z.boolean(),
   /** Vorgabe für den Privatanteil je Belegkategorie in Prozent */
   privateShares: z.record(z.string(), z.number().int().min(0).max(100)).default({}),
+  dunning: z
+    .object({
+      baseRate: z.number().int().min(-1_000).max(2_000).nullable(),
+      fees: z.object({ "1": z.number().int().min(0).max(100_000), "2": z.number().int().min(0).max(100_000), "3": z.number().int().min(0).max(100_000) }),
+      deadlineDays: z.number().int().min(1).max(60),
+    })
+    .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
 });
 
 export type CompanyInput = z.infer<typeof companySchema>;

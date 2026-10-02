@@ -1,4 +1,4 @@
-import { BUNDESLAENDER, currentFilingPeriod, type Bundesland } from "@haben/core";
+import { BUNDESLAENDER, currentFilingPeriod, formatDecimal, parseEuro, type Bundesland } from "@haben/core";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -90,6 +90,16 @@ function CompanyForm() {
           paymentTermDays: Number(text("paymentTermDays") || 14),
           defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          dunning: {
+            // Prozent mit zwei Nachkommastellen wie ein Eurobetrag lesen: "1,27" → 127 Basispunkte
+            baseRate: text("dunning-baseRate").trim() ? parseEuro(text("dunning-baseRate")) : null,
+            fees: {
+              "1": parseEuro(text("dunning-fee-1") || "0") ?? 0,
+              "2": parseEuro(text("dunning-fee-2") || "0") ?? 0,
+              "3": parseEuro(text("dunning-fee-3") || "0") ?? 0,
+            },
+            deadlineDays: Number(text("dunning-deadlineDays") || 10),
+          },
           privateShares: Object.fromEntries(
             (["telefon", "internet"] as const)
               .map((key) => [key, Number(text(`privateShare-${key}`) || 0)] as const)
@@ -258,6 +268,38 @@ function CompanyForm() {
           Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine
           Entnahme. Am einzelnen Beleg lässt sich der Anteil ändern.
         </p>
+        <fieldset className="form-grid" style={{ gridColumn: "1 / -1", border: 0, padding: 0, margin: 0 }}>
+          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Mahnwesen</legend>
+          <label className="field">
+            Basiszinssatz in %
+            <input
+              name="dunning-baseRate"
+              inputMode="decimal"
+              defaultValue={company.dunning.baseRate === null ? "" : formatDecimal(company.dunning.baseRate)}
+              placeholder="z. B. 1,27"
+              aria-describedby="base-rate-hint"
+            />
+            <span id="base-rate-hint" className="small">
+              Ändert sich zum 1. Januar und 1. Juli, veröffentlicht von der Deutschen Bundesbank. Leer = keine Verzugszinsen.
+            </span>
+          </label>
+          <label className="field">
+            Zahlungsfrist in Mahnungen (Tage)
+            <input name="dunning-deadlineDays" inputMode="numeric" defaultValue={company.dunning.deadlineDays} />
+          </label>
+          <label className="field">
+            Gebühr Zahlungserinnerung (€)
+            <input name="dunning-fee-1" inputMode="decimal" defaultValue={company.dunning.fees["1"] ? formatDecimal(company.dunning.fees["1"]) : ""} placeholder="0,00" />
+          </label>
+          <label className="field">
+            Gebühr 1. Mahnung (€)
+            <input name="dunning-fee-2" inputMode="decimal" defaultValue={company.dunning.fees["2"] ? formatDecimal(company.dunning.fees["2"]) : ""} placeholder="0,00" />
+          </label>
+          <label className="field">
+            Gebühr letzte Mahnung (€)
+            <input name="dunning-fee-3" inputMode="decimal" defaultValue={company.dunning.fees["3"] ? formatDecimal(company.dunning.fees["3"]) : ""} placeholder="0,00" />
+          </label>
+        </fieldset>
       </div>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>

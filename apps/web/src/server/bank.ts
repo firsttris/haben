@@ -396,7 +396,7 @@ export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invoice"), transactionId: z.uuid(), invoiceId: z.uuid(), amount: z.number().int() }),
   z.object({ kind: z.literal("document"), transactionId: z.uuid(), documentId: z.uuid(), amount: z.number().int() }),
   z.object({
-    kind: z.enum(["privat", "geldtransit", "ustVorauszahlung", "gebuehren"]),
+    kind: z.enum(["privat", "geldtransit", "ustVorauszahlung", "gebuehren", "mahnerloes"]),
     transactionId: z.uuid(),
     amount: z.number().int(),
   }),

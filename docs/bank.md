@@ -118,6 +118,7 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Ohne Rechnung buchen**, wäh
 | Geldtransit (eigenes Konto) | 1360 | 1460 |
 | Umsatzsteuer an das Finanzamt | 1780 | 3820 |
 | Kontoführung und Bankgebühren | 4970 | 6855 |
+| Mahngebühren und Verzugszinsen (vom Kunden) | 2650 | 7100 |
 
 Für Ausgaben mit Rechnung gilt: erst den Beleg unter [Belege](belege.md) hochladen und buchen, dann hier zuordnen. Direkt gebuchte Ausgaben haben keine Vorsteuer.
 

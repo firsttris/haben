@@ -1,5 +1,6 @@
 export * from "./types.ts";
 export { renderInvoicePdf } from "./pdf.ts";
+export { buildDunningPdf, dunningPdfData, type DunningDocument } from "./dunning.ts";
 export { buildEInvoice } from "./xml.ts";
 export { validateForFormat } from "./validate.ts";
 export { extractFacturXXml } from "./zugferd.ts";
