@@ -1,0 +1,26 @@
+{
+  "id": "0c1d2e3f-4a5b-4c6d-8e7f-8091a2b3c4d5",
+  "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+  "createdDate": "2021-11-30T09:12:00.000+01:00",
+  "updatedDate": "2021-12-02T10:00:00.000+01:00",
+  "version": 4,
+  "language": "de",
+  "archived": true,
+  "voucherStatus": "paidoff",
+  "voucherNumber": "RE0042",
+  "voucherDate": "2021-11-30T00:00:00.000+01:00",
+  "address": { "name": "Erika Mustermann", "street": "Musterweg 1", "zip": "50667", "city": "Köln", "countryCode": "DE" },
+  "lineItems": [
+    {
+      "type": "custom",
+      "name": "Fotoshooting",
+      "quantity": 1,
+      "unitName": "Pauschal",
+      "unitPrice": { "currency": "EUR", "netAmount": 450.0, "grossAmount": 450.0, "taxRatePercentage": 0 },
+      "lineItemAmount": 450.0
+    }
+  ],
+  "totalPrice": { "currency": "EUR", "totalNetAmount": 450.0, "totalGrossAmount": 450.0, "totalTaxAmount": 0 },
+  "taxConditions": { "taxType": "vatfree", "taxTypeNote": "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet." },
+  "shippingConditions": { "shippingDate": "2021-11-27T00:00:00.000+01:00", "shippingType": "service" }
+}

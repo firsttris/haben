@@ -19,6 +19,8 @@ const envSchema = z.object({
   DOCUMENTS_DIR: z.string().default("data/belege"),
   /** Ohne Schlüssel keine KI-Auslesung von Belegen; E-Rechnungen werden trotzdem gelesen */
   ANTHROPIC_API_KEY: z.string().optional(),
+  /** Basis-URL der Lexware-Office-API, nur zum Testen oder falls Lexware die Adresse ändert */
+  LEXOFFICE_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

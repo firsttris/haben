@@ -1,0 +1,13 @@
+{
+  "id": "c0ffee00-1111-4222-8333-444455556666",
+  "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+  "type": "purchaseinvoice",
+  "voucherStatus": "unchecked",
+  "taxType": "gross",
+  "useCollectiveContact": false,
+  "voucherItems": [],
+  "files": ["7f7f7f7f-0000-4000-8000-000000000001"],
+  "createdDate": "2024-01-05T23:30:00.000+01:00",
+  "updatedDate": "2024-01-05T23:30:00.000+01:00",
+  "version": 1
+}

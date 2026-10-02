@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@haben/core": "workspace:*",
-    "fast-xml-parser": "^5.11.2"
+    "fast-xml-parser": "^5.11.2",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^22.20.5"

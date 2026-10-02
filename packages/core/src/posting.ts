@@ -19,6 +19,7 @@ export const ACCOUNTS = {
     geldtransit: "1360",
     ustVorauszahlung: "1780",
     nebenkostenGeldverkehr: "4970",
+    saldenvortrag: "9000",
   },
   SKR04: {
     forderungen: "1200",
@@ -33,6 +34,7 @@ export const ACCOUNTS = {
     geldtransit: "1460",
     ustVorauszahlung: "3820",
     nebenkostenGeldverkehr: "6855",
+    saldenvortrag: "9000",
   },
 } as const;
 
@@ -77,6 +79,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "8200": "Erlöse",
     "8300": "Erlöse 7 % USt",
     "8400": "Erlöse 19 % USt",
+    "9000": "Saldenvorträge Sachkonten",
   },
   SKR04: {
     "1200": "Forderungen aus Lieferungen und Leistungen",
@@ -88,6 +91,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "4200": "Erlöse",
     "4300": "Erlöse 7 % USt",
     "4400": "Erlöse 19 % USt",
+    "9000": "Saldenvorträge Sachkonten",
   },
 };
 
@@ -247,6 +251,33 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
           ? accounts.ustVorauszahlung
           : accounts.nebenkostenGeldverkehr;
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
+}
+
+/**
+ * Eröffnungsbuchung für eine offene Rechnung aus der Vorgänger-Buchhaltung: Forderung an Saldenvortrag.
+ * Die Erlöse stehen schon in den alten Büchern. Bei Ist-Versteuerung ist die Umsatzsteuer dort noch
+ * nicht angemeldet; sie kommt auf „Umsatzsteuer nicht fällig“ und wird mit dem Zahlungseingang fällig.
+ */
+export function openingInvoicePosting(totals: InvoiceTotals, kontenrahmen: Kontenrahmen, versteuerung: Versteuerung): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const lines: PostingLine[] = [side(accounts.forderungen, totals.gross, true, null)];
+  if (versteuerung === "ist") {
+    for (const { rate, tax } of totals.taxes) {
+      if (tax !== 0) lines.push(side(accounts.ustNichtFaellig[rate as 1900 | 700], tax, false, null));
+    }
+    lines.push(side(accounts.saldenvortrag, totals.net, false, null));
+  } else {
+    lines.push(side(accounts.saldenvortrag, totals.gross, false, null));
+  }
+  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/** Eröffnungsbuchung für einen offenen Eingangsbeleg: Saldenvortrag an Verbindlichkeiten. Vorsteuer ist schon angemeldet. */
+export function openingDocumentPosting(gross: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  return [side(accounts.saldenvortrag, gross, true, null), side(accounts.verbindlichkeiten, gross, false, null)].filter(
     (line) => line.debit !== 0 || line.credit !== 0,
   );
 }

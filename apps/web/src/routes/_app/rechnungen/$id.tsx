@@ -174,7 +174,7 @@ function FinalInvoice({ data }: { data: Detail }) {
                 {formatEuro(invoice.gross)}
               </dd>
               <dt>Format</dt>
-              <dd>{FORMAT_LABEL[invoice.format]}</dd>
+              <dd>{invoice.lexofficeVoucherId ? "Original aus Lexoffice" : FORMAT_LABEL[invoice.format]}</dd>
               <dt>Festgeschrieben</dt>
               <dd>{invoice.lockedAt ? formatDateTime(invoice.lockedAt) : "–"}</dd>
               {corrects && (

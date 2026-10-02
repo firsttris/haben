@@ -1,0 +1,16 @@
+{
+  "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+  "companyName": "Testfirma Teufel",
+  "created": {
+    "userId": "1aea9d7e-a0ae-4c0f-9e95-5f1d9f2e7b11",
+    "userName": "Tristan Teufel",
+    "userEmail": "test@example.org",
+    "date": "2017-01-03T13:15:45.000+01:00"
+  },
+  "connectionId": "3dea098b-fc8f-4b7a-aa5e-bc3c3c0a2b59",
+  "features": ["cashbox"],
+  "businessFeatures": ["INVOICING", "BOOKKEEPING"],
+  "subscriptionStatus": "active",
+  "taxType": "net",
+  "smallBusiness": false
+}

@@ -1,0 +1,10 @@
+{
+  "id": "4b4b4b4b-1234-4567-89ab-cdef01234567",
+  "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+  "version": 1,
+  "roles": { "customer": { "number": 10309 }, "vendor": { "number": 70001 } },
+  "person": { "salutation": "Frau", "firstName": "Inge", "lastName": "Musterfrau" },
+  "addresses": { "billing": [{ "street": "Rue de la Paix 3", "zip": "75002", "city": "Paris", "countryCode": "FR" }] },
+  "emailAddresses": { "private": ["inge@example.org"] },
+  "archived": true
+}

@@ -139,6 +139,11 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: invoice.id, amount: 300_000 }),
     ).rejects.toThrow(/größer als der noch offene Teil/);
     await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: invoice.id, amount: 200_000 });
+    // Liste und Filter rechnen den offenen Betrag gleich
+    const [txRow] = await sql<{ bank_account_id: string }[]>`select bank_account_id from bank_transactions`;
+    const accountId = txRow!.bank_account_id;
+    expect((await bank.listTransactions(accountId, "alle", "")).map((t) => t.open)).toEqual([0]);
+    expect(await bank.listTransactions(accountId, "offen", "")).toEqual([]);
     expect((await invoices.listInvoices("2026-09-10")).find((i) => i.id === invoice.id)).toMatchObject({
       listStatus: "teilbezahlt",
       open: 276_000,

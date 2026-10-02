@@ -1,0 +1,19 @@
+{
+  "id": "b1c2d3e4-0000-4a4a-8b8b-c0c0c0c0c0c0",
+  "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+  "type": "purchasecreditnote",
+  "voucherStatus": "open",
+  "voucherNumber": "GS-88",
+  "voucherDate": "2023-03-31T00:00:00.000+02:00",
+  "totalGrossAmount": 59.5,
+  "totalTaxAmount": 9.5,
+  "taxType": "net",
+  "useCollectiveContact": true,
+  "voucherItems": [
+    { "amount": 50.0, "taxAmount": 9.5, "taxRatePercent": 19, "categoryId": "16d04a28-b1d0-11e6-b4e8-8f6d5b2f9e0a" }
+  ],
+  "files": [],
+  "createdDate": "2023-04-01T08:15:22.000+02:00",
+  "updatedDate": "2023-04-01T08:15:22.000+02:00",
+  "version": 1
+}

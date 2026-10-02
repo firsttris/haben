@@ -182,7 +182,8 @@ export async function importStatement(actor: string, file: { bytes: Uint8Array; 
 }
 
 /** Noch nicht zugeordneter Teil eines Umsatzes */
-const openAmountSql = sql<number>`(${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = ${schema.bankTransactions.id}), 0))`;
+// Tabelle ausdrücklich nennen: in der Spaltenliste schreibt drizzle nur "id", das träfe a.id
+const openAmountSql = sql<number>`(${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = bank_transactions.id), 0))`;
 
 export type TransactionFilter = "offen" | "zugeordnet" | "alle";
 

@@ -1,0 +1,25 @@
+{
+  "id": "97c5794f-8ab2-43ad-b459-c5980b055e4d",
+  "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+  "version": 2,
+  "roles": { "customer": { "number": 10308 } },
+  "company": {
+    "name": "Berliner Kindl GmbH",
+    "taxNumber": "12345/12345",
+    "vatRegistrationId": "DE123456789",
+    "allowTaxFreeInvoices": false,
+    "contactPersons": [
+      { "salutation": "Herr", "firstName": "Max", "lastName": "Mustermann", "primary": true, "emailAddress": "max@kindl.de" }
+    ]
+  },
+  "addresses": {
+    "billing": [
+      { "supplement": "Gebäude 10", "street": "Jubiläumsweg 25", "zip": "14089", "city": "Berlin", "countryCode": "DE" }
+    ],
+    "shipping": [{ "street": "Lagerstr. 1", "zip": "14089", "city": "Berlin", "countryCode": "DE" }]
+  },
+  "emailAddresses": { "office": ["office@kindl.de"], "other": ["other@kindl.de"] },
+  "phoneNumbers": { "business": ["+49 30 1234567"] },
+  "note": "Wichtiger Kunde",
+  "archived": false
+}

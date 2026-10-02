@@ -12,6 +12,7 @@ import {
   smallint,
   text,
   timestamp,
+  index,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -156,6 +157,8 @@ export const contacts = pgTable("contacts", {
   iban: text("iban").notNull().default(""),
   leitwegId: text("leitweg_id").notNull().default(""),
   defaultFormat: invoiceFormatEnum("default_format"),
+  /** Herkunft aus dem Lexoffice-Import, damit alte Rechnungen und Belege ihm zugeordnet bleiben */
+  lexofficeId: text("lexoffice_id").unique(),
   version: integer("version").notNull().default(1),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -211,6 +214,8 @@ export const invoices = pgTable(
     pdfSha256: text("pdf_sha256"),
     xml: text("xml"),
     xmlSha256: text("xml_sha256"),
+    /** Offene Rechnung aus Lexoffice übernommen: Original-PDF, Eröffnungsbuchung statt Erlösbuchung */
+    lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -302,6 +307,8 @@ export const documents = pgTable("documents", {
   net: integer("net").notNull().default(0),
   tax: integer("tax").notNull().default(0),
   gross: integer("gross").notNull().default(0),
+  /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
+  lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
   lockedAt: timestamp("locked_at", { withTimezone: true }),
   uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -402,3 +409,147 @@ export const allocations = pgTable("allocations", {
   reversesId: uuid("reverses_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Original-Exporte und Nachweise (DATEV, IDEA, ELSTER-Protokolle, Kontoauszüge) unverändert unter ihrem SHA-256.
+ * Nur anhängen.
+ */
+export const archiveFiles = pgTable(
+  "archive_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind", { enum: ["datev", "idea", "elster", "kontoauszug", "sonstiges"] }).notNull(),
+    /** Geschäftsjahr, auf das sich die Datei bezieht */
+    year: smallint("year"),
+    filename: text("filename").notNull(),
+    sha256: text("sha256").notNull().unique(),
+    mimeType: text("mime_type").notNull(),
+    size: integer("size").notNull(),
+    note: text("note").notNull().default(""),
+    /** Bei DATEV: Kopfzeile, Zeitraum und Warnungen des Parsers */
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("archive_files_year").on(t.year, t.kind)],
+);
+
+/** Buchungen aus einem DATEV-Buchungsstapel, je Zeile unverändert. Nur anhängen. */
+export const datevBookings = pgTable(
+  "datev_bookings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => archiveFiles.id),
+    /** Zeilennummer in der Originaldatei */
+    row: integer("row").notNull(),
+    date: date("date", { mode: "string" }).notNull(),
+    /** Cent, immer positiv; die Richtung steht in side */
+    amount: integer("amount").notNull(),
+    side: text("side", { enum: ["S", "H"] }).notNull(),
+    currency: text("currency").notNull().default("EUR"),
+    account: text("account").notNull(),
+    contraAccount: text("contra_account").notNull(),
+    buKey: text("bu_key").notNull().default(""),
+    voucherField1: text("voucher_field1").notNull().default(""),
+    voucherField2: text("voucher_field2").notNull().default(""),
+    text: text("text").notNull().default(""),
+    documentLink: text("document_link").notNull().default(""),
+    raw: jsonb("raw").$type<Record<string, string>>().notNull(),
+  },
+  (t) => [uniqueIndex("datev_bookings_file_row").on(t.fileId, t.row), index("datev_bookings_date").on(t.date)],
+);
+
+/** API-Schlüssel für Lexware Office, AES-256-GCM-verschlüsselt; eine Zeile */
+export const lexofficeConnection = pgTable(
+  "lexoffice_connection",
+  {
+    id: smallint("id").primaryKey().default(1),
+    ciphertext: bytea("ciphertext").notNull(),
+    organizationName: text("organization_name").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("lexoffice_connection_single_row", sql`${t.id} = 1`)],
+);
+
+export type LexofficeImportProgress = {
+  phase: "kontakte" | "liste" | "belege" | "fertig";
+  contacts: number;
+  contactsLinked: number;
+  listed: number;
+  imported: number;
+  skipped: number;
+  files: number;
+  failed: { lexofficeId: string; number: string; message: string }[];
+};
+
+/** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
+export const lexofficeImports = pgTable("lexoffice_imports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  status: text("status", { enum: ["laeuft", "fertig", "fehler", "abgebrochen"] }).notNull().default("laeuft"),
+  progress: jsonb("progress").$type<LexofficeImportProgress>().notNull(),
+  error: text("error"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
+
+export type LegacyTaxRow = { rate: number; net: number; tax: number };
+export type LegacyCategoryRow = { categoryId: string; name: string; rate: number; net: number; tax: number };
+export type LegacyPayment = { status: string; openAmount: number; paidDate: string | null; items: { type: string; date: string; amount: number }[] };
+
+/**
+ * Rechnungen, Gutschriften und Belege aus Lexoffice, so wie die API sie geliefert hat. Nur anhängen.
+ * Beträge in Cent, Gutschriften negativ.
+ */
+export const lexofficeVouchers = pgTable(
+  "lexoffice_vouchers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    lexofficeId: text("lexoffice_id").notNull().unique(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    type: text("type").notNull(),
+    direction: text("direction", { enum: ["einnahme", "ausgabe"] }).notNull(),
+    number: text("number").notNull().default(""),
+    date: date("date", { mode: "string" }).notNull(),
+    dueDate: date("due_date", { mode: "string" }),
+    serviceFrom: date("service_from", { mode: "string" }),
+    serviceTo: date("service_to", { mode: "string" }),
+    status: text("status").notNull(),
+    contactId: uuid("contact_id").references(() => contacts.id),
+    contactName: text("contact_name").notNull().default(""),
+    currency: text("currency").notNull().default("EUR"),
+    net: integer("net").notNull(),
+    tax: integer("tax").notNull(),
+    gross: integer("gross").notNull(),
+    taxes: jsonb("taxes").$type<LegacyTaxRow[]>().notNull(),
+    categories: jsonb("categories").$type<LegacyCategoryRow[]>().notNull(),
+    payment: jsonb("payment").$type<LegacyPayment>(),
+    remark: text("remark").notNull().default(""),
+    /** Antwort der API, zum Nachweis */
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("lexoffice_vouchers_date").on(t.date), index("lexoffice_vouchers_number").on(t.number)],
+);
+
+/** Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. */
+export const lexofficeVoucherFiles = pgTable(
+  "lexoffice_voucher_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    voucherId: uuid("voucher_id")
+      .notNull()
+      .references(() => lexofficeVouchers.id),
+    role: text("role", { enum: ["pdf", "xml", "anhang"] }).notNull(),
+    lexofficeFileId: text("lexoffice_file_id"),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("lexoffice_voucher_files_unique").on(t.voucherId, t.sha256)],
+);
