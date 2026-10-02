@@ -44,7 +44,7 @@ function detect(text: string, label: string): Detected {
  */
 export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStatement {
   const label = filename ? `„${filename}“` : "Die Datei";
-  const text = decodeText(bytes).replace(/^﻿/, "");
+  const text = decodeText(bytes).replace(/^\uFEFF/, "");
   if (text.trim() === "") throw new StatementParseError(`${label} ist leer.`);
   if (text.includes("\u0000")) throw new StatementParseError(`${label} ist keine Text- oder XML-Datei.`);
 
@@ -64,7 +64,7 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
 /** Nur das Format bestimmen, ohne die Umsätze zu lesen. */
 export function detectStatementFormat(bytes: Uint8Array): StatementFormat | null {
   try {
-    return detect(decodeText(bytes).replace(/^﻿/, ""), "Die Datei").format;
+    return detect(decodeText(bytes).replace(/^\uFEFF/, ""), "Die Datei").format;
   } catch {
     return null;
   }

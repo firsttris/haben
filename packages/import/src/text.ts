@@ -27,9 +27,9 @@ function joinCents(negative: boolean, whole: string, fraction: string): Cents {
 
 function stripAmount(input: string): { negative: boolean; body: string } {
   let body = input
-    .replace(/[\s  ]/g, "")
+    .replace(/[\s\u00a0\u202f]/g, "")
     .replace(/€|EUR/gi, "")
-    .replace(/[−–]/g, "-");
+    .replace(/[\u2212\u2013]/g, "-");
   let negative = false;
   if (body.startsWith("-")) {
     negative = true;
