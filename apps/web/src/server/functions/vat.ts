@@ -8,10 +8,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { companyIssues, loadCompany } from "../company.ts";
 import { inputTaxForPeriod } from "../documents.ts";
+import { computeVatFigures, preflight } from "../vat-figures.ts";
 import { elsterClient, elsterMode } from "../elster.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
+  computedValues,
   createCorrection,
   loadActiveCertificate,
   recentSentReturns,
@@ -32,12 +34,13 @@ export const getVatPeriod = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(vatPeriodSchema)
   .handler(async ({ data: period }) => {
-    const [returns, company, certificate, recent, inputTax] = await Promise.all([
+    const [returns, company, certificate, recent, inputTax, figures] = await Promise.all([
       returnsForPeriod(period),
       loadCompany(),
       loadActiveCertificate(),
       recentSentReturns(),
       inputTaxForPeriod(period),
+      computeVatFigures(period),
     ]);
     const submissions = await submissionsFor(returns.map((r) => r.id));
     const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
@@ -52,8 +55,11 @@ export const getVatPeriod = createServerFn({ method: "GET" })
       companyIssues: companyIssues(company),
       mode: elsterMode(),
       herstellerIdConfigured: Boolean(env().ELSTER_HERSTELLER_ID),
-      /** Vorsteuer aus gebuchten Belegen dieses Monats, als Vorschlag für Kz 66 */
+      /** Vorsteuer aus gebuchten Belegen dieses Monats */
       inputTax,
+      /** Aus den Buchungen berechnete Kennzahlen mit ihren Quellen */
+      figures,
+      preflight: await preflight(period, figures),
     };
   });
 
@@ -61,15 +67,18 @@ export const getOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const period: VatPeriod = currentFilingPeriod(new Date());
-    const [returns, company, certificate, recent] = await Promise.all([
+    const [returns, company, certificate, recent, computed] = await Promise.all([
       returnsForPeriod(period),
       loadCompany(),
       loadActiveCertificate(),
       recentSentReturns(3),
+      computedValues(period),
     ]);
     const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
     return {
       period,
+      /** Zahllast aus den Buchungen, solange keine Anmeldung gespeichert ist */
+      computedKz83: computed.kz83,
       dueDate: dueDate(period).toISOString(),
       current,
       recent,
@@ -88,10 +97,21 @@ function asUserError(error: unknown): never {
 export const saveVatDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    z.object({ period: vatPeriodSchema, kz81: centsSchema, kz86: centsSchema, kz66: centsSchema }),
+    z.discriminatedUnion("mode", [
+      z.object({ mode: z.literal("berechnet"), period: vatPeriodSchema }),
+      z.object({
+        mode: z.literal("manuell"),
+        period: vatPeriodSchema,
+        kz81: centsSchema,
+        kz86: centsSchema,
+        kz66: centsSchema,
+        reason: z.string().trim().min(10, "Bitte begründen, warum von den berechneten Werten abgewichen wird (mindestens 10 Zeichen).").max(1000),
+      }),
+    ]),
   )
   .handler(async ({ data, context }) => {
-    const saved = await saveDraft(context.user.id, data.period, data).catch(asUserError);
+    const { period, ...input } = data;
+    const saved = await saveDraft(context.user.id, period, input).catch(asUserError);
     return { id: saved.id };
   });
 

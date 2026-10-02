@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAuswertungenRouteImport } from './routes/_app/auswertungen'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppBuchungenRouteImport } from './routes/_app/buchungen'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
@@ -26,9 +27,11 @@ import { Route as AppRechnungenIdRouteImport } from './routes/_app/rechnungen/$i
 import { Route as AppRechnungenNeuRouteImport } from './routes/_app/rechnungen/neu'
 import { Route as AppUmsatzsteuerIndexRouteImport } from './routes/_app/umsatzsteuer/index'
 import { Route as AppUmsatzsteuerZeitraumRouteImport } from './routes/_app/umsatzsteuer/$zeitraum'
+import { Route as ApiAuswertungenJahrRouteImport } from './routes/api/auswertungen/$jahr'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
+import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as ApiRechnungIdDateiRouteImport } from './routes/api/rechnung/$id.$datei'
 
@@ -49,6 +52,11 @@ const SetupRoute = SetupRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuswertungenRoute = AppAuswertungenRouteImport.update({
+  id: '/auswertungen',
+  path: '/auswertungen',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBankRoute = AppBankRouteImport.update({
@@ -116,6 +124,11 @@ const AppUmsatzsteuerZeitraumRoute = AppUmsatzsteuerZeitraumRouteImport.update({
   path: '/umsatzsteuer/$zeitraum',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiAuswertungenJahrRoute = ApiAuswertungenJahrRouteImport.update({
+  id: '/api/auswertungen/$jahr',
+  path: '/api/auswertungen/$jahr',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -129,6 +142,11 @@ const ApiBelegIdRoute = ApiBelegIdRouteImport.update({
 const ApiBelegeTeilenRoute = ApiBelegeTeilenRouteImport.update({
   id: '/api/belege/teilen',
   path: '/api/belege/teilen',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiExportJahrRoute = ApiExportJahrRouteImport.update({
+  id: '/api/export/$jahr',
+  path: '/api/export/$jahr',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiProtokollIdRoute = ApiProtokollIdRouteImport.update({
@@ -146,6 +164,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
   '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
@@ -155,9 +174,11 @@ export interface FileRoutesByFullPath {
   '/rechnungen/$id': typeof AppRechnungenIdRoute
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
+  '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
+  '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/belege/': typeof AppBelegeIndexRoute
   '/kontakte/': typeof AppKontakteIndexRoute
@@ -168,6 +189,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
   '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
@@ -178,9 +200,11 @@ export interface FileRoutesByTo {
   '/rechnungen/$id': typeof AppRechnungenIdRoute
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
+  '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
+  '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/belege': typeof AppBelegeIndexRoute
   '/kontakte': typeof AppKontakteIndexRoute
@@ -193,6 +217,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/_app/auswertungen': typeof AppAuswertungenRoute
   '/_app/bank': typeof AppBankRoute
   '/_app/buchungen': typeof AppBuchungenRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
@@ -203,9 +228,11 @@ export interface FileRoutesById {
   '/_app/rechnungen/$id': typeof AppRechnungenIdRoute
   '/_app/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/_app/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
+  '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
+  '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/_app/belege/': typeof AppBelegeIndexRoute
   '/_app/kontakte/': typeof AppKontakteIndexRoute
@@ -219,6 +246,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
+    | '/auswertungen'
     | '/bank'
     | '/buchungen'
     | '/einstellungen'
@@ -228,9 +256,11 @@ export interface FileRouteTypes {
     | '/rechnungen/$id'
     | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
+    | '/api/auswertungen/$jahr'
     | '/api/auth/$'
     | '/api/beleg/$id'
     | '/api/belege/teilen'
+    | '/api/export/$jahr'
     | '/api/protokoll/$id'
     | '/belege/'
     | '/kontakte/'
@@ -241,6 +271,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/setup'
+    | '/auswertungen'
     | '/bank'
     | '/buchungen'
     | '/einstellungen'
@@ -251,9 +282,11 @@ export interface FileRouteTypes {
     | '/rechnungen/$id'
     | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
+    | '/api/auswertungen/$jahr'
     | '/api/auth/$'
     | '/api/beleg/$id'
     | '/api/belege/teilen'
+    | '/api/export/$jahr'
     | '/api/protokoll/$id'
     | '/belege'
     | '/kontakte'
@@ -265,6 +298,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/setup'
+    | '/_app/auswertungen'
     | '/_app/bank'
     | '/_app/buchungen'
     | '/_app/einstellungen'
@@ -275,9 +309,11 @@ export interface FileRouteTypes {
     | '/_app/rechnungen/$id'
     | '/_app/rechnungen/neu'
     | '/_app/umsatzsteuer/$zeitraum'
+    | '/api/auswertungen/$jahr'
     | '/api/auth/$'
     | '/api/beleg/$id'
     | '/api/belege/teilen'
+    | '/api/export/$jahr'
     | '/api/protokoll/$id'
     | '/_app/belege/'
     | '/_app/kontakte/'
@@ -290,9 +326,11 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  ApiAuswertungenJahrRoute: typeof ApiAuswertungenJahrRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBelegIdRoute: typeof ApiBelegIdRoute
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
+  ApiExportJahrRoute: typeof ApiExportJahrRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
 }
@@ -325,6 +363,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/auswertungen': {
+      id: '/_app/auswertungen'
+      path: '/auswertungen'
+      fullPath: '/auswertungen'
+      preLoaderRoute: typeof AppAuswertungenRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/bank': {
@@ -418,6 +463,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUmsatzsteuerZeitraumRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/auswertungen/$jahr': {
+      id: '/api/auswertungen/$jahr'
+      path: '/api/auswertungen/$jahr'
+      fullPath: '/api/auswertungen/$jahr'
+      preLoaderRoute: typeof ApiAuswertungenJahrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -439,6 +491,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBelegeTeilenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/export/$jahr': {
+      id: '/api/export/$jahr'
+      path: '/api/export/$jahr'
+      fullPath: '/api/export/$jahr'
+      preLoaderRoute: typeof ApiExportJahrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/protokoll/$id': {
       id: '/api/protokoll/$id'
       path: '/api/protokoll/$id'
@@ -457,6 +516,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAuswertungenRoute: typeof AppAuswertungenRoute
   AppBankRoute: typeof AppBankRoute
   AppBuchungenRoute: typeof AppBuchungenRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
@@ -474,6 +534,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAuswertungenRoute: AppAuswertungenRoute,
   AppBankRoute: AppBankRoute,
   AppBuchungenRoute: AppBuchungenRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
@@ -496,9 +557,11 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  ApiAuswertungenJahrRoute: ApiAuswertungenJahrRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBelegIdRoute: ApiBelegIdRoute,
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
+  ApiExportJahrRoute: ApiExportJahrRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,
 }

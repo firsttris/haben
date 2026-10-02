@@ -245,3 +245,17 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .journal-lines td { padding: 3px 8px 3px 0; }
 .journal-lines td:first-child { width: 64px; }
 .journal-lines td.num { width: 130px; }
+
+/* Voranmeldung: Herkunft und Quellen der Kennzahlen */
+.mode-switch { display: flex; gap: 8px; flex-wrap: wrap; }
+.mode-switch .chip { cursor: pointer; font: inherit; font-size: 13px; }
+.kz-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kz-sources-toggle { display: block; padding: 2px 0; text-align: left; border: 0; background: none; cursor: pointer; font: inherit; font-size: 13px; color: var(--accent); }
+.kz-sources { margin: 0 4px 12px 64px; padding: 8px 12px; border-radius: 8px; background: var(--ground); }
+.kz-sources table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.kz-sources th { text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 4px 12px 4px 0; }
+.kz-sources td { padding: 6px 12px 6px 0; border-top: 1px solid var(--line-soft); }
+.kz-sources td.date, .kz-sources .num { white-space: nowrap; }
+.kz-sources .num { padding-right: 0; padding-left: 12px; }
+@media (max-width: 640px) { .kz-sources { margin-left: 0; } }
+output.kz-amount { display: block; }

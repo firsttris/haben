@@ -65,6 +65,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(kysely@0.29.6)(postgres@3.4.9)
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       postgres:
         specifier: ^3.4.9
         version: 3.4.9

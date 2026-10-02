@@ -134,7 +134,7 @@ function OverviewPage() {
         </div>
         <div className="card">
           <div className="kpi-label">USt-Zahllast {periodLabel(data.period)}</div>
-          <div className="kpi-value">{data.current ? formatEuro(data.current.kz83) : "–"}</div>
+          <div className="kpi-value">{formatEuro(data.current?.status === "sent" ? data.current.kz83 : data.computedKz83)}</div>
           <div className="small muted">
             {sent ? `gesendet ${formatDate(data.current!.sentAt!)}` : `Voranmeldung fällig ${formatDate(data.dueDate)}`}
           </div>

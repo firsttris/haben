@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { Icon, type IconName } from "../components/Icon.tsx";
+import { Icon } from "../components/Icon.tsx";
 import { authClient } from "../lib/auth-client.ts";
 import { getAuthState } from "../server/functions/setup.ts";
 
@@ -13,20 +13,6 @@ export const Route = createFileRoute("/_app")({
   component: AppLayout,
 });
 
-/** Bereiche aus dem Plan, die in späteren Phasen kommen */
-
-const LATER_AFTER: { label: string; icon: IconName; phase: number }[] = [
-  { label: "Auswertungen", icon: "reports", phase: 5 },
-];
-
-function LaterLink({ label, icon, phase }: { label: string; icon: IconName; phase: number }) {
-  return (
-    <span className="nav-link" aria-disabled="true" title={`Folgt in Phase ${phase}`}>
-      <Icon name={icon} />
-      {label}
-    </span>
-  );
-}
 
 function AppLayout() {
   const { user } = Route.useRouteContext();
@@ -67,9 +53,10 @@ function AppLayout() {
           <Icon name="vat" />
           Umsatzsteuer
         </Link>
-        {LATER_AFTER.map((item) => (
-          <LaterLink key={item.label} {...item} />
-        ))}
+        <Link to="/auswertungen" className="nav-link">
+          <Icon name="reports" />
+          Auswertungen
+        </Link>
         <Link to="/kontakte" className="nav-link">
           <Icon name="contacts" />
           Kontakte
