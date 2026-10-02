@@ -1,6 +1,7 @@
 import type { InvoiceTotals } from "./invoice.ts";
-import { formatDecimal, type Cents } from "./money.ts";
+import { csvDecimal, type Cents } from "./money.ts";
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory } from "./posting.ts";
+import type { TaxTreatment } from "./treatment.ts";
 
 /**
  * Einnahmen-Überschuss-Rechnung (§ 4 Abs. 3 EStG) nach Zufluss und Abfluss, Bruttomethode
@@ -18,6 +19,7 @@ export type EuerPayment =
       /** Gezahlter Teil der Rechnung, Vorzeichen wie die Rechnung (Eingang positiv) */
       paid: Cents;
       totals: InvoiceTotals;
+      treatment?: TaxTreatment;
       group?: string;
     }
   | {
@@ -28,6 +30,8 @@ export type EuerPayment =
       paid: Cents;
       totals: InvoiceTotals;
       category: ExpenseCategory;
+      /** false bei Kleinunternehmern: die Steuer auf dem Beleg ist Teil der Ausgabe */
+      vorsteuerAbzug?: boolean;
       group?: string;
     }
   | {
@@ -39,6 +43,7 @@ export type EuerPayment =
     };
 
 export type EuerLineKey =
+  | "einnahmenKleinunternehmer"
   | "einnahmenSteuerpflichtig"
   | "einnahmenSteuerfrei"
   | "vereinnahmteUst"
@@ -66,6 +71,7 @@ export interface EuerResult {
 }
 
 export const EUER_LABELS = {
+  einnahmenKleinunternehmer: "Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer",
   einnahmenSteuerpflichtig: "Umsatzsteuerpflichtige Betriebseinnahmen (netto)",
   einnahmenSteuerfrei: "Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen",
   vereinnahmteUst: "Vereinnahmte Umsatzsteuer",
@@ -109,13 +115,21 @@ export function computeEuer(year: number, payments: EuerPayment[]): EuerResult {
     switch (p.kind) {
       case "invoice":
         for (const { rate, base, tax } of paidTaxShares(p.totals, p.sum)) {
-          add(rate === 0 ? "einnahmenSteuerfrei" : "einnahmenSteuerpflichtig", base);
+          add(
+            p.treatment === "kleinunternehmer" ? "einnahmenKleinunternehmer" : rate === 0 ? "einnahmenSteuerfrei" : "einnahmenSteuerpflichtig",
+            base,
+          );
           add("vereinnahmteUst", tax);
           monthlyIn[month]! += base;
         }
         break;
       case "document":
         for (const { base, tax } of paidTaxShares(p.totals, p.sum)) {
+          if (p.vorsteuerAbzug === false) {
+            add(`ausgabe:${p.category}`, base + tax);
+            monthlyOut[month]! += base + tax;
+            continue;
+          }
           add(`ausgabe:${p.category}`, base);
           add("vorsteuer", tax);
           monthlyOut[month]! += base;
@@ -140,6 +154,7 @@ export function computeEuer(year: number, payments: EuerPayment[]): EuerResult {
     ...(note ? { note } : {}),
   });
   const einnahmen = [
+    ...(sums.has("einnahmenKleinunternehmer") ? [line("einnahmenKleinunternehmer", EUER_LABELS.einnahmenKleinunternehmer)] : []),
     line("einnahmenSteuerpflichtig", EUER_LABELS.einnahmenSteuerpflichtig),
     line("einnahmenSteuerfrei", EUER_LABELS.einnahmenSteuerfrei),
     line("vereinnahmteUst", EUER_LABELS.vereinnahmteUst),
@@ -176,13 +191,13 @@ function csvField(value: string): string {
   return /[";\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-/** EÜR als CSV für Excel/LibreOffice: Semikolon, Dezimalkomma, UTF-8 mit BOM */
+/** EÜR als CSV für Excel/LibreOffice: Semikolon, Dezimalkomma ohne Tausenderpunkt (wie die Exporte), UTF-8 mit BOM */
 export function euerToCsv(euer: EuerResult): string {
   const rows: string[][] = [["Bereich", "Position", "Betrag (EUR)"]];
-  for (const l of euer.einnahmen) rows.push(["Betriebseinnahmen", l.label, formatDecimal(l.amount)]);
-  rows.push(["Betriebseinnahmen", "Summe Betriebseinnahmen", formatDecimal(euer.totalEinnahmen)]);
-  for (const l of euer.ausgaben) rows.push(["Betriebsausgaben", l.label, formatDecimal(l.amount)]);
-  rows.push(["Betriebsausgaben", "Summe Betriebsausgaben", formatDecimal(euer.totalAusgaben)]);
-  rows.push(["Ergebnis", euer.gewinn >= 0 ? "Gewinn" : "Verlust", formatDecimal(euer.gewinn)]);
+  for (const l of euer.einnahmen) rows.push(["Betriebseinnahmen", l.label, csvDecimal(l.amount)]);
+  rows.push(["Betriebseinnahmen", "Summe Betriebseinnahmen", csvDecimal(euer.totalEinnahmen)]);
+  for (const l of euer.ausgaben) rows.push(["Betriebsausgaben", l.label, csvDecimal(l.amount)]);
+  rows.push(["Betriebsausgaben", "Summe Betriebsausgaben", csvDecimal(euer.totalAusgaben)]);
+  rows.push(["Ergebnis", euer.gewinn >= 0 ? "Gewinn" : "Verlust", csvDecimal(euer.gewinn)]);
   return "﻿" + rows.map((r) => r.map(csvField).join(";")).join("\r\n") + "\r\n";
 }

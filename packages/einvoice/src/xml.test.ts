@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildEInvoice } from "./xml.ts";
 import { extractFacturXXml } from "./zugferd.ts";
-import { mixedRateLines, publicBuyer, sampleDocument } from "./samples.ts";
+import { euBuyer, mixedRateLines, publicBuyer, sampleDocument, thirdCountryBuyer, zeroRateLines } from "./samples.ts";
 
 const ascii = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
 
@@ -60,5 +60,24 @@ describe("buildEInvoice", () => {
     const doc = sampleDocument({ format: "xrechnung-cii" });
     doc.seller = { ...doc.seller, telefon: undefined };
     await expect(buildEInvoice(doc)).rejects.toThrow("Telefonnummer fehlt");
+  });
+
+  it("Reverse Charge: Kategorie AE mit Befreiungsgrund", async () => {
+    const { xml } = await buildEInvoice(sampleDocument({ format: "xrechnung-ubl", buyer: euBuyer, lines: zeroRateLines, taxTreatment: "reverse_charge" }));
+    expect(xml).toContain("<cbc:ID>AE</cbc:ID>");
+    expect(xml).toContain("<cbc:TaxExemptionReasonCode>VATEX-EU-AE</cbc:TaxExemptionReasonCode>");
+    expect(xml).toContain("<cbc:CompanyID>ATU12345678</cbc:CompanyID>");
+  });
+
+  it("Drittland: Kategorie O ohne USt-IdNrn.", async () => {
+    const { xml } = await buildEInvoice(sampleDocument({ format: "xrechnung-ubl", buyer: thirdCountryBuyer, lines: zeroRateLines, taxTreatment: "drittland" }));
+    expect(xml).toContain("<cbc:ID>O</cbc:ID>");
+    expect(xml).not.toContain("DE123456789");
+    expect(xml).not.toContain("CHE-123");
+  });
+
+  it("lehnt Reverse Charge ohne USt-IdNr. des Kunden ab", async () => {
+    const doc = sampleDocument({ lines: zeroRateLines, taxTreatment: "reverse_charge", buyer: { ...euBuyer, ustId: undefined } });
+    await expect(buildEInvoice(doc)).rejects.toThrow("USt-IdNr. des Kunden");
   });
 });

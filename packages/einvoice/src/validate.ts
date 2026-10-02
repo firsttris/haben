@@ -1,3 +1,4 @@
+import { treatmentIssues } from "@haben/core";
 import { isCreditNote } from "./format.ts";
 import type { InvoiceDocument } from "./types.ts";
 
@@ -30,6 +31,15 @@ export function validateForFormat(doc: InvoiceDocument): string[] {
     problems.push("Nur Steuersätze 19 %, 7 % und 0 % werden unterstützt");
   }
   if (isCreditNote(doc) && !doc.corrects) problems.push("Bezug zur ursprünglichen Rechnung fehlt");
+  problems.push(
+    ...treatmentIssues(doc.taxTreatment ?? "regulaer", {
+      rates: doc.lines.map((l) => l.taxRate),
+      sellerUstId: seller.ustId,
+      buyerUstId: buyer.ustId,
+      buyerCountry: buyer.land,
+      exemptionReason: doc.exemptionReason,
+    }),
+  );
 
   return problems;
 }

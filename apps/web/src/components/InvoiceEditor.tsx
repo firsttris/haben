@@ -1,14 +1,18 @@
 import {
-  addDays,
   formatDecimal,
   formatEuro,
   formatInvoiceNumber,
   formatQuantity,
+  invoiceDueDate,
   lineNet,
   parseEuro,
   parseQuantity,
+  TAX_TREATMENTS,
+  treatmentNote,
   UNITS,
+  type Bundesland,
   type InvoiceLineInput,
+  type TaxTreatment,
   type UnitLabel,
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
@@ -88,6 +92,8 @@ export function InvoiceEditor({
   issues,
   numberCounters,
   corrects,
+  bundesland,
+  kleinunternehmer,
 }: {
   id: string | null;
   kind: keyof typeof KIND_TITLE;
@@ -99,6 +105,9 @@ export function InvoiceEditor({
   /** Letzte vergebene Nummer je Jahr */
   numberCounters: Record<number, number>;
   corrects: { number: string | null; issueDate: string } | null;
+  /** Für die Fälligkeit: Feiertage im Bundesland */
+  bundesland: Bundesland | null;
+  kleinunternehmer: boolean;
 }) {
   const router = useRouter();
   const navigate = useNavigate();
@@ -113,6 +122,8 @@ export function InvoiceEditor({
   const [paymentTermDays, setPaymentTermDays] = useState(String(initial.paymentTermDays));
   const [format, setFormat] = useState(initial.format);
   const [note, setNote] = useState(initial.note);
+  const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
+  const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [dirty, setDirty] = useState(id === null);
   const [busy, setBusy] = useState(false);
@@ -123,10 +134,12 @@ export function InvoiceEditor({
   const parsed = lines.map(parseLine);
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
-  const dueDate = addDays(issueDate || initial.issueDate, termValid ? term : 0);
+  const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
+  const special = taxTreatment !== "regulaer";
   const numberYear = Number((issueDate || initial.issueDate).slice(0, 4));
   const nextNumber = formatInvoiceNumber(numberYear, (numberCounters[numberYear] ?? 0) + 1);
-  const allValid = parsed.every((l) => l.valid) && termValid && Boolean(issueDate);
+  const allValid =
+    parsed.every((l) => l.valid) && termValid && Boolean(issueDate) && (taxTreatment !== "steuerfrei" || exemptionReason.trim() !== "");
 
   function touch<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -140,6 +153,12 @@ export function InvoiceEditor({
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
     setDirty(true);
     setConfirming(false);
+  }
+
+  function chooseTreatment(value: TaxTreatment) {
+    touch(setTaxTreatment)(value);
+    // Ohne Steuerausweis stehen alle Positionen auf 0 %
+    if (value !== "regulaer") setLines((prev) => prev.map((line) => ({ ...line, taxRate: 0 })));
   }
 
   function chooseContact(value: string) {
@@ -158,6 +177,8 @@ export function InvoiceEditor({
       paymentTermDays: term,
       format,
       note,
+      taxTreatment,
+      exemptionReason: special ? exemptionReason : "",
       lines: parsed.filter((l) => l.valid).map(({ valid: _valid, ...line }) => line),
     };
   }
@@ -311,6 +332,46 @@ export function InvoiceEditor({
                   ))}
                 </select>
               </label>
+              <label className="field" style={{ gridColumn: "1 / -1" }}>
+                Umsatzsteuer
+                <select
+                  value={taxTreatment}
+                  onChange={(e) => chooseTreatment(e.target.value as TaxTreatment)}
+                  disabled={kind !== "rechnung" || kleinunternehmer}
+                  aria-describedby="treatment-hint"
+                >
+                  {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
+                    .filter((t) => (kleinunternehmer ? t === "kleinunternehmer" : t !== "kleinunternehmer" || taxTreatment === t))
+                    .map((t) => (
+                      <option key={t} value={t}>
+                        {TAX_TREATMENTS[t].label}
+                      </option>
+                    ))}
+                </select>
+                {kleinunternehmer && (
+                  <span id="treatment-hint" className="small">
+                    In den Einstellungen als Kleinunternehmer eingetragen.
+                  </span>
+                )}
+                {taxTreatment === "reverse_charge" && (
+                  <span id="treatment-hint" className="small">
+                    Nur für Leistungen an Unternehmen im EU-Ausland mit USt-IdNr.; zusätzlich in der Zusammenfassenden Meldung angeben.
+                  </span>
+                )}
+              </label>
+              {special && (
+                <label className="field" style={{ gridColumn: "1 / -1" }}>
+                  {taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"}
+                  <input
+                    value={exemptionReason}
+                    onChange={(e) => touch(setExemptionReason)(e.target.value)}
+                    maxLength={300}
+                    placeholder={TAX_TREATMENTS[taxTreatment].note ?? ""}
+                    required={taxTreatment === "steuerfrei"}
+                    aria-invalid={taxTreatment === "steuerfrei" && !exemptionReason.trim()}
+                  />
+                </label>
+              )}
             </div>
             {!contacts.length && (
               <p className="small muted" style={{ margin: 0 }}>
@@ -370,6 +431,7 @@ export function InvoiceEditor({
                   <select
                     aria-label={`Steuersatz Position ${index + 1}`}
                     value={line.taxRate}
+                    disabled={special}
                     onChange={(e) => updateLine(line.key, { taxRate: Number(e.target.value) as 1900 | 700 | 0 })}
                   >
                     <option value={1900}>19 %</option>
@@ -402,7 +464,7 @@ export function InvoiceEditor({
                   const last = lines[lines.length - 1];
                   setLines((prev) => [
                     ...prev,
-                    { key: nextKey++, description: "", quantity: "1", unit: last?.unit ?? "Std.", unitPrice: "", taxRate: last?.taxRate ?? 1900 },
+                    { key: nextKey++, description: "", quantity: "1", unit: last?.unit ?? "Std.", unitPrice: "", taxRate: special ? 0 : (last?.taxRate ?? 1900) },
                   ]);
                   setDirty(true);
                 }}
@@ -447,6 +509,7 @@ export function InvoiceEditor({
             buyer={contact}
             lines={parsed}
             note={note}
+            taxNote={treatmentNote(taxTreatment, exemptionReason)}
             corrects={corrects}
           />
         </section>

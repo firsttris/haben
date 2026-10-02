@@ -302,7 +302,9 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
       ...totalsOf(amounts),
       taxes: [...amounts].sort((a, b) => b.taxRate - a.taxRate).map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })),
     };
-    const lines = documentPosting(totals, doc.category as ExpenseCategory, company.kontenrahmen, doc.payment);
+    // Kleinunternehmer ziehen keine Vorsteuer ab; festgehalten am Beleg, damit spätere Auswertungen stimmen
+    const vorsteuerAbzug = !company.kleinunternehmer;
+    const lines = documentPosting(totals, doc.category as ExpenseCategory, company.kontenrahmen, doc.payment, vorsteuerAbzug);
     const now = new Date();
     const [entry] = await tx
       .insert(schema.journalEntries)
@@ -318,7 +320,7 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
     await tx.update(schema.journalEntries).set({ lockedAt: now }).where(eq(schema.journalEntries.id, entry!.id));
     await tx
       .update(schema.documents)
-      .set({ status: "gebucht", lockedAt: now, updatedAt: now })
+      .set({ status: "gebucht", vorsteuerAbzug, lockedAt: now, updatedAt: now })
       .where(eq(schema.documents.id, id));
   });
 }

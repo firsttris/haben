@@ -1,4 +1,4 @@
-import { computeInvoiceTotals, lineNet, type InvoiceLineInput } from "@haben/core";
+import { computeInvoiceTotals, lineNet, type InvoiceLineInput, type TaxTreatment } from "@haben/core";
 import type { Buyer, InvoiceDocument, InvoiceFormat, InvoiceKind, Seller } from "./types.ts";
 
 // Beispielbelege für Tests und KoSIT-Prüfung
@@ -44,6 +44,8 @@ interface SampleOptions {
   buyer?: Buyer;
   lines?: InvoiceLineInput[];
   note?: string;
+  taxTreatment?: TaxTreatment;
+  exemptionReason?: string;
 }
 
 export function sampleDocument(options: SampleOptions = {}): InvoiceDocument {
@@ -79,6 +81,8 @@ export function sampleDocument(options: SampleOptions = {}): InvoiceDocument {
     totals: computeInvoiceTotals(inputs),
     corrects: kind === "rechnung" ? undefined : { number: "2026-034", issueDate: "2026-09-30" },
     note: options.note,
+    ...(options.taxTreatment ? { taxTreatment: options.taxTreatment } : {}),
+    ...(options.exemptionReason ? { exemptionReason: options.exemptionReason } : {}),
   };
 }
 
@@ -87,3 +91,29 @@ export const mixedRateLines: InvoiceLineInput[] = [
   { description: "Fachbuch Steuerrecht", quantity: 3000, unit: "Stk.", unitPrice: 4990, taxRate: 700 },
   { description: "Fahrtkosten", quantity: 287500, unit: "km", unitPrice: 30, taxRate: 1900 },
 ];
+
+export const zeroRateLines: InvoiceLineInput[] = [
+  { description: "Beratung Oktober", quantity: 10000, unit: "Std.", unitPrice: 12000, taxRate: 0 },
+];
+
+/** Unternehmen in Österreich (Reverse Charge) */
+export const euBuyer: Buyer = {
+  name: "Alpenblick Software GmbH",
+  strasse: "Mariahilfer Straße 10",
+  plz: "1070",
+  ort: "Wien",
+  land: "AT",
+  email: "rechnung@alpenblick.example",
+  ustId: "ATU12345678",
+};
+
+/** Unternehmen in der Schweiz (Drittland) */
+export const thirdCountryBuyer: Buyer = {
+  name: "Matterhorn Data AG",
+  strasse: "Bahnhofstrasse 1",
+  plz: "8001",
+  ort: "Zürich",
+  land: "CH",
+  email: "invoices@matterhorn.example",
+  ustId: "CHE-123.456.789 MWST",
+};

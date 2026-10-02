@@ -141,7 +141,8 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
 
     const open = await reports.openPositions("2026-10-02");
     expect(open.receivables).toEqual([
-      expect.objectContaining({ id: invoice.id, number: invoice.number, party: "Nordwerk Software GmbH", gross: 476_000, open: 276_000, dueDate: "2026-09-19", daysOverdue: 13 }),
+      // 05.09. + 14 Tage = Samstag 19.09., fällig am Montag
+      expect.objectContaining({ id: invoice.id, number: invoice.number, party: "Nordwerk Software GmbH", gross: 476_000, open: 276_000, dueDate: "2026-09-21", daysOverdue: 11 }),
     ]);
     expect(open.payables).toEqual([
       expect.objectContaining({ id: software, party: "JetBrains", gross: 11_900, open: 11_900, dueDate: "2026-10-10", daysOverdue: -8 }),

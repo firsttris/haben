@@ -1,5 +1,5 @@
 import { InvoiceService, type Invoice, type InvoiceServiceOptions, type Logger } from "@e-invoice-eu/core";
-import { UNITS, type Cents, type Millis } from "@haben/core";
+import { TAX_TREATMENTS, treatmentNote, UNITS, type Cents, type Millis } from "@haben/core";
 import { compactIban, formatDate, isCreditNote, paymentSentence, servicePeriod } from "./format.ts";
 import { renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
@@ -33,8 +33,23 @@ function percent(rate: number): string {
   return String(rate / 100);
 }
 
-function taxCategory(rate: number): "S" | "Z" {
+type TaxCategoryCode = "S" | "Z" | "E" | "AE" | "O";
+
+/** Steuerkategorie (UNTDID 5305): Behandlung der Rechnung, sonst S bzw. Z für den Nullsatz */
+function taxCategory(doc: InvoiceDocument, rate: number): TaxCategoryCode {
+  const treatment = doc.taxTreatment ?? "regulaer";
+  if (treatment !== "regulaer") return TAX_TREATMENTS[treatment].category;
   return rate === 0 ? "Z" : "S";
+}
+
+/**
+ * Kategorie und Satz. Bei „nicht steuerbar“ (O) darf in der Position kein Satz stehen (BR-O-05);
+ * in der Steueraufschlüsselung verlangt XRechnung ihn trotzdem (BR-DE-14), dort steht 0.
+ */
+function categoryWithRate(doc: InvoiceDocument, rate: number, place: "line" | "breakdown") {
+  const id = taxCategory(doc, rate);
+  const withRate = id !== "O" || place === "breakdown";
+  return { "cbc:ID": id, ...(withRate ? { "cbc:Percent": percent(rate) } : {}), "cac:TaxScheme": { "cbc:ID": "VAT" } };
 }
 
 /**
@@ -47,9 +62,13 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const sign = credit ? -1 : 1;
   const currency = doc.currency;
   const period = servicePeriod(doc);
+  const treatment = doc.taxTreatment ?? "regulaer";
+  // BR-O-02: bei nicht steuerbaren Umsätzen keine USt-IdNr. von Verkäufer und Käufer
+  const outOfScope = treatment === "drittland";
+  const exemption = treatment === "regulaer" ? null : TAX_TREATMENTS[treatment];
 
   const sellerTax: { "cbc:CompanyID": string; "cac:TaxScheme": { "cbc:ID": string } }[] = [];
-  if (seller.ustId) sellerTax.push({ "cbc:CompanyID": seller.ustId, "cac:TaxScheme": { "cbc:ID": "VAT" } });
+  if (seller.ustId && !outOfScope) sellerTax.push({ "cbc:CompanyID": seller.ustId, "cac:TaxScheme": { "cbc:ID": "VAT" } });
   if (seller.steuernummer) sellerTax.push({ "cbc:CompanyID": seller.steuernummer, "cac:TaxScheme": { "cbc:ID": "FC" } });
 
   const sellerContact: NonNullable<UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:Contact"]> = {
@@ -77,11 +96,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       "cbc:LineExtensionAmount@currencyID": currency,
       "cac:Item": {
         "cbc:Name": line.description,
-        "cac:ClassifiedTaxCategory": {
-          "cbc:ID": taxCategory(line.taxRate),
-          "cbc:Percent": percent(line.taxRate),
-          "cac:TaxScheme": { "cbc:ID": "VAT" },
-        },
+        "cac:ClassifiedTaxCategory": categoryWithRate(doc, line.taxRate, "line") as InvoiceLine["cac:Item"]["cac:ClassifiedTaxCategory"],
       },
       "cac:Price": {
         "cbc:PriceAmount": amount(Math.abs(line.unitPrice)),
@@ -104,14 +119,18 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
         "cbc:EndpointID": seller.email,
         "cbc:EndpointID@schemeID": "EM",
         // BR-CO-26: ohne USt-IdNr. dient die Steuernummer als Verkäuferkennung (BT-29)
-        ...(!seller.ustId && seller.steuernummer ? { "cac:PartyIdentification": [{ "cbc:ID": seller.steuernummer }] } : {}),
+        ...((!seller.ustId || outOfScope) && (seller.steuernummer || seller.ustId)
+          ? { "cac:PartyIdentification": [{ "cbc:ID": seller.steuernummer || seller.ustId! }] }
+          : {}),
         "cac:PostalAddress": {
           "cbc:StreetName": seller.strasse,
           "cbc:CityName": seller.ort,
           "cbc:PostalZone": seller.plz,
           "cac:Country": { "cbc:IdentificationCode": seller.land.toUpperCase() as CountryCode },
         },
-        "cac:PartyTaxScheme": sellerTax as UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:PartyTaxScheme"],
+        ...(sellerTax.length > 0
+          ? { "cac:PartyTaxScheme": sellerTax as UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:PartyTaxScheme"] }
+          : {}),
         "cac:PartyLegalEntity": { "cbc:RegistrationName": seller.name },
         "cac:Contact": sellerContact,
       },
@@ -126,7 +145,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
           "cbc:PostalZone": buyer.plz,
           "cac:Country": { "cbc:IdentificationCode": buyer.land.toUpperCase() as CountryCode },
         },
-        ...(buyer.ustId
+        ...(buyer.ustId && !outOfScope
           ? { "cac:PartyTaxScheme": { "cbc:CompanyID": buyer.ustId, "cac:TaxScheme": { "cbc:ID": "VAT" } } }
           : {}),
         "cac:PartyLegalEntity": { "cbc:RegistrationName": buyer.name },
@@ -143,9 +162,10 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
           "cbc:TaxAmount": amount(sign * t.tax),
           "cbc:TaxAmount@currencyID": currency,
           "cac:TaxCategory": {
-            "cbc:ID": taxCategory(t.rate),
-            "cbc:Percent": percent(t.rate),
-            "cac:TaxScheme": { "cbc:ID": "VAT" },
+            ...categoryWithRate(doc, t.rate, "breakdown"),
+            // BR-E-10, BR-AE-10, BR-O-10: Befreiungsgrund als Code und/oder Text
+            ...(exemption?.reasonCode ? { "cbc:TaxExemptionReasonCode": exemption.reasonCode } : {}),
+            ...(exemption ? { "cbc:TaxExemptionReason": treatmentNote(treatment, doc.exemptionReason)! } : {}),
           },
         })),
       },

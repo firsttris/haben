@@ -44,6 +44,7 @@ export function InvoicePreview({
   buyer,
   lines,
   note,
+  taxNote,
   corrects,
 }: {
   kind: keyof typeof TITLE;
@@ -56,6 +57,8 @@ export function InvoicePreview({
   buyer: PreviewBuyer | null;
   lines: (InvoiceLineInput & { valid: boolean })[];
   note: string;
+  /** Pflichthinweis bei Rechnungen ohne Steuerausweis; dann keine Steuerspalte */
+  taxNote?: string | null;
   corrects?: { number: string | null; issueDate: string } | null;
 }) {
   const valid = lines.filter((l) => l.valid);
@@ -134,7 +137,7 @@ export function InvoicePreview({
                 {formatQuantity(line.quantity)} {line.unit}
               </td>
               <td className="num">{formatDecimal(line.unitPrice)}</td>
-              <td className="num">{formatRate(line.taxRate)}</td>
+              <td className="num">{taxNote ? "–" : formatRate(line.taxRate)}</td>
               <td className="num">{formatDecimal(lineNet(line.quantity, line.unitPrice))}</td>
             </tr>
           ))}
@@ -154,6 +157,7 @@ export function InvoicePreview({
         <dt className="strong">Gesamtbetrag</dt>
         <dd className="strong">{formatEuro(totals.gross)}</dd>
       </dl>
+      {taxNote && <p className="paper-small strong">{taxNote}</p>}
       {note && <p className="paper-small" style={{ whiteSpace: "pre-wrap" }}>{note}</p>}
       <p className="paper-small">
         {totals.gross >= 0

@@ -1,5 +1,6 @@
 import type { BasisPoints, Cents } from "./money.ts";
 import type { InvoiceTotals } from "./invoice.ts";
+import type { TaxTreatment } from "./treatment.ts";
 
 export type Kontenrahmen = "SKR03" | "SKR04";
 export type Versteuerung = "ist" | "soll";
@@ -10,6 +11,7 @@ export const ACCOUNTS = {
     forderungen: "1400",
     bank: "1200",
     erloese: { 1900: "8400", 700: "8300", 0: "8200" },
+    erloeseSonder: { reverse_charge: "8336", drittland: "8338", steuerfrei: "8100", kleinunternehmer: "8195" },
     ust: { 1900: "1776", 700: "1771" },
     ustNichtFaellig: { 1900: "1766", 700: "1761" },
     vorsteuer: { 1900: "1576", 700: "1571" },
@@ -25,6 +27,7 @@ export const ACCOUNTS = {
     forderungen: "1200",
     bank: "1800",
     erloese: { 1900: "4400", 700: "4300", 0: "4200" },
+    erloeseSonder: { reverse_charge: "4336", drittland: "4338", steuerfrei: "4100", kleinunternehmer: "4185" },
     ust: { 1900: "3806", 700: "3801" },
     ustNichtFaellig: { 1900: "3816", 700: "3811" },
     vorsteuer: { 1900: "1406", 700: "1401" },
@@ -76,8 +79,12 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1766": "Umsatzsteuer nicht fällig 19 %",
     "1771": "Umsatzsteuer 7 %",
     "1776": "Umsatzsteuer 19 %",
+    "8100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
+    "8195": "Erlöse als Kleinunternehmer § 19 UStG",
     "8200": "Erlöse",
     "8300": "Erlöse 7 % USt",
+    "8336": "Erlöse aus im anderen EU-Land steuerpflichtigen sonstigen Leistungen (Reverse Charge)",
+    "8338": "Erlöse aus im Drittland steuerbaren Leistungen",
     "8400": "Erlöse 19 % USt",
     "9000": "Saldenvorträge Sachkonten",
   },
@@ -88,8 +95,12 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "3806": "Umsatzsteuer 19 %",
     "3811": "Umsatzsteuer nicht fällig 7 %",
     "3816": "Umsatzsteuer nicht fällig 19 %",
+    "4100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
+    "4185": "Erlöse als Kleinunternehmer § 19 UStG",
     "4200": "Erlöse",
     "4300": "Erlöse 7 % USt",
+    "4336": "Erlöse aus im anderen EU-Land steuerpflichtigen sonstigen Leistungen (Reverse Charge)",
+    "4338": "Erlöse aus im Drittland steuerbaren Leistungen",
     "4400": "Erlöse 19 % USt",
     "9000": "Saldenvorträge Sachkonten",
   },
@@ -100,6 +111,10 @@ export const TAX_CODES = {
   USt19: { rate: 1900, kz: "81", name: "Umsatzsteuer 19 %" },
   USt7: { rate: 700, kz: "86", name: "Umsatzsteuer 7 %" },
   frei: { rate: 0, kz: null, name: "Ohne Umsatzsteuer" },
+  RC: { rate: 0, kz: "21", name: "Reverse Charge, Leistung im EU-Ausland" },
+  Drittland: { rate: 0, kz: "45", name: "Nicht steuerbar, Leistungsort im Drittland" },
+  Steuerfrei: { rate: 0, kz: "48", name: "Steuerfrei ohne Vorsteuerabzug" },
+  KU: { rate: 0, kz: null, name: "Kleinunternehmer § 19 UStG" },
   VSt19: { rate: 1900, kz: "66", name: "Vorsteuer 19 %" },
   VSt7: { rate: 700, kz: "66", name: "Vorsteuer 7 %" },
   keineVSt: { rate: 0, kz: null, name: "Ohne Vorsteuer" },
@@ -107,7 +122,13 @@ export const TAX_CODES = {
 
 export type TaxCode = keyof typeof TAX_CODES;
 
-export function revenueTaxCode(rate: BasisPoints): TaxCode {
+const TREATMENT_TAX_CODES = { reverse_charge: "RC", drittland: "Drittland", steuerfrei: "Steuerfrei", kleinunternehmer: "KU" } as const;
+
+export function revenueTaxCode(rate: BasisPoints, treatment: TaxTreatment = "regulaer"): TaxCode {
+  if (treatment !== "regulaer") {
+    if (rate !== 0) throw new RangeError(`${treatment}: Steuersatz muss 0 % sein`);
+    return TREATMENT_TAX_CODES[treatment];
+  }
   if (rate === 1900) return "USt19";
   if (rate === 700) return "USt7";
   if (rate === 0) return "frei";
@@ -129,14 +150,21 @@ function side(account: string, amount: Cents, debitIfPositive: boolean, taxCode:
 /**
  * Buchung einer festgeschriebenen Ausgangsrechnung: Forderung an Erlöse und Umsatzsteuer.
  * Bei Ist-Versteuerung auf „Umsatzsteuer nicht fällig“; fällig wird sie mit dem Zahlungseingang.
- * Negative Summen (Storno, Korrektur) drehen die Seiten.
+ * Negative Summen (Storno, Korrektur) drehen die Seiten. Reverse Charge, Drittland, steuerfreie
+ * und Kleinunternehmer-Umsätze gehen auf eigene Erlöskonten.
  */
-export function invoicePosting(totals: InvoiceTotals, kontenrahmen: Kontenrahmen, versteuerung: Versteuerung): PostingLine[] {
+export function invoicePosting(
+  totals: InvoiceTotals,
+  kontenrahmen: Kontenrahmen,
+  versteuerung: Versteuerung,
+  treatment: TaxTreatment = "regulaer",
+): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const lines: PostingLine[] = [side(accounts.forderungen, totals.gross, true, null)];
   for (const { rate, base, tax } of totals.taxes) {
-    const code = revenueTaxCode(rate);
-    if (base !== 0) lines.push(side(accounts.erloese[rate as 1900 | 700 | 0], base, false, code));
+    const code = revenueTaxCode(rate, treatment);
+    const revenue = treatment === "regulaer" ? accounts.erloese[rate as 1900 | 700 | 0] : accounts.erloeseSonder[treatment];
+    if (base !== 0) lines.push(side(revenue, base, false, code));
     if (tax !== 0) {
       const taxAccounts = versteuerung === "ist" ? accounts.ustNichtFaellig : accounts.ust;
       lines.push(side(taxAccounts[rate as 1900 | 700], tax, false, code));
@@ -158,17 +186,23 @@ export type DocumentPayment = "bank" | "privat";
 /**
  * Buchung eines Belegs: Aufwand und Vorsteuer an Verbindlichkeiten
  * (oder Privateinlage, wenn privat bezahlt). Gutschriften (negativ) drehen die Seiten.
+ * Ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Teil des Aufwands.
  */
 export function documentPosting(
   totals: InvoiceTotals,
   category: ExpenseCategory,
   kontenrahmen: Kontenrahmen,
   payment: DocumentPayment,
+  vorsteuerAbzug = true,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const expense = EXPENSE_CATEGORIES[category][kontenrahmen];
   const lines: PostingLine[] = [];
   for (const { rate, base, tax } of totals.taxes) {
+    if (!vorsteuerAbzug) {
+      if (base + tax !== 0) lines.push(side(expense, base + tax, true, "keineVSt"));
+      continue;
+    }
     const code = inputTaxCode(rate);
     if (base !== 0) lines.push(side(expense, base, true, code));
     if (tax !== 0) lines.push(side(accounts.vorsteuer[rate as 1900 | 700], tax, true, code));

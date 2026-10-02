@@ -41,6 +41,8 @@ services:
     volumes:
       # Belegdateien: gehören ins Backup, GoBD-Aufbewahrung 10 Jahre
       - belege:/var/lib/haben/belege
+      # Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung
+      - eric-log:/var/lib/haben/eric-log
       # ERiC (nur Linux x86_64): nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME=/opt/eric in .env
       # - /opt/eric:/opt/eric:ro
 
@@ -75,4 +77,5 @@ configs:
 volumes:
   db:
   belege:
+  eric-log:
   caddy:

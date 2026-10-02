@@ -54,10 +54,13 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
       transactionId: schema.allocations.transactionId,
       date: schema.bankTransactions.bookingDate,
       category: schema.documents.category,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+      treatment: schema.invoices.taxTreatment,
     })
     .from(schema.allocations)
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
     .leftJoin(schema.documents, eq(schema.documents.id, schema.allocations.documentId))
+    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
     .where(
       and(
         gte(schema.bankTransactions.bookingDate, start),
@@ -67,7 +70,13 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
     );
 
   const privateDocs = await db
-    .select({ id: schema.documents.id, date: schema.documents.documentDate, gross: schema.documents.gross, category: schema.documents.category })
+    .select({
+      id: schema.documents.id,
+      date: schema.documents.documentDate,
+      gross: schema.documents.gross,
+      category: schema.documents.category,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+    })
     .from(schema.documents)
     .where(
       and(
@@ -89,7 +98,14 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
     // Zuordnung und Gegenzeile hängen am selben Umsatz und heben sich so exakt auf
     const group = `${a.transactionId}|${a.invoiceId ?? a.documentId ?? a.kind}`;
     if (a.kind === "invoice" && a.invoiceId) {
-      payments.push({ kind: "invoice", date: a.date, paid: a.amount, totals: invoiceTotals.get(a.invoiceId)!, group });
+      payments.push({
+        kind: "invoice",
+        date: a.date,
+        paid: a.amount,
+        totals: invoiceTotals.get(a.invoiceId)!,
+        treatment: a.treatment ?? "regulaer",
+        group,
+      });
     } else if (a.kind === "document" && a.documentId) {
       payments.push({
         kind: "document",
@@ -97,6 +113,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
         paid: -a.amount,
         totals: docTotals.get(a.documentId)!,
         category: isCategory(a.category) ? a.category : "sonstiges",
+        vorsteuerAbzug: a.vorsteuerAbzug ?? true,
         group,
       });
     } else if (a.kind === "ustVorauszahlung" || a.kind === "gebuehren") {
@@ -110,6 +127,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
       paid: d.gross,
       totals: docTotals.get(d.id)!,
       category: isCategory(d.category) ? d.category : "sonstiges",
+      vorsteuerAbzug: d.vorsteuerAbzug,
     });
   }
   return payments;

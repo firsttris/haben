@@ -14,6 +14,8 @@ Network=haben.network
 # Volume=/opt/eric:/opt/eric:ro
 # Belegdateien (GoBD: 10 Jahre aufbewahren, gehört ins Backup)
 Volume=haben-belege.volume:/var/lib/haben/belege
+# Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung
+Volume=haben-eric-log.volume:/var/lib/haben/eric-log
 EnvironmentFile=%h/.config/haben/haben.env
 Secret=haben-database-url,type=env,target=DATABASE_URL
 Secret=haben-auth-secret,type=env,target=BETTER_AUTH_SECRET

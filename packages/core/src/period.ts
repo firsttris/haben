@@ -1,3 +1,5 @@
+import { isNonWorkingDay } from "./holidays.ts";
+import type { Bundesland } from "./steuernummer.ts";
 import { z } from "zod";
 
 export const vatPeriodSchema = z.object({
@@ -40,12 +42,10 @@ export function currentFilingPeriod(today: Date): VatPeriod {
 
 /**
  * Fälligkeit ohne Dauerfristverlängerung: der 10. des Folgemonats,
- * fällt er auf ein Wochenende, der nächste Montag.
+ * fällt er auf ein Wochenende oder einen Feiertag, der nächste Werktag.
  */
-export function dueDate({ year, month }: VatPeriod): Date {
+export function dueDate({ year, month }: VatPeriod, bundesland: Bundesland | null = null): Date {
   const due = new Date(Date.UTC(month === 12 ? year + 1 : year, month % 12, 10));
-  const weekday = due.getUTCDay();
-  if (weekday === 6) due.setUTCDate(12);
-  if (weekday === 0) due.setUTCDate(11);
+  while (isNonWorkingDay(due.toISOString().slice(0, 10), bundesland)) due.setUTCDate(due.getUTCDate() + 1);
   return due;
 }

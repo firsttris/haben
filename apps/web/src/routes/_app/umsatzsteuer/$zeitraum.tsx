@@ -34,7 +34,15 @@ export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
 });
 
 type PageData = Awaited<ReturnType<typeof getVatPeriod>>;
-type FieldKey = "kz81" | "kz86" | "kz66";
+type FieldKey = "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66";
+const FIELDS: FieldKey[] = ["kz81", "kz86", "kz21", "kz45", "kz48", "kz66"];
+
+type Figures = Pick<Record<FieldKey, number>, "kz81" | "kz86" | "kz66"> & Partial<Record<FieldKey, number>>;
+
+/** Gleiche Kennzahlen? Fehlende Kz 21/45/48 (ältere Anmeldungen) zählen als 0 */
+function sameFigures(a: Figures, b: Figures): boolean {
+  return FIELDS.every((field) => (a[field] ?? 0) === (b[field] ?? 0));
+}
 type Notice = { tone: "ok" | "danger" | "info"; text: string } | null;
 type PeriodNotice = { key: string; notice: Notice };
 
@@ -46,6 +54,14 @@ function periodOptions(today = new Date()): VatPeriod[] {
     period = previousPeriod(period);
   }
   return options;
+}
+
+/** „Kz 81 1.000,00 €, Kz 86 0,00 € und Kz 66 12,00 €“; Kz 21/45/48 nur, wenn belegt */
+function describe(figures: Record<FieldKey, number>): string {
+  const parts = FIELDS.filter((f) => ["kz81", "kz86", "kz66"].includes(f) || figures[f] !== 0).map(
+    (f) => `Kz ${f.slice(2)} ${formatEuro(figures[f])}`,
+  );
+  return `${parts.slice(0, -1).join(", ")} und ${parts.at(-1)}`;
 }
 
 const KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" } as const;
@@ -139,41 +155,34 @@ function VatReturnEditor({
 
   const current = data.current;
   const locked = current?.status === "sent";
-  const computed = computeUstva({ kz81: data.figures.kz81, kz86: data.figures.kz86, kz66: data.figures.kz66 });
+  const computed = computeUstva(data.figures);
   const [mode, setMode] = useState<"berechnet" | "manuell">(current?.source === "manuell" ? "manuell" : "berechnet");
-  const [values, setValues] = useState<Record<FieldKey, string>>({
-    kz81: formatDecimal(current?.source === "manuell" ? current.kz81 : computed.kz81),
-    kz86: formatDecimal(current?.source === "manuell" ? current.kz86 : computed.kz86),
-    kz66: formatDecimal(current?.source === "manuell" ? current.kz66 : computed.kz66),
-  });
+  const [values, setValues] = useState<Record<FieldKey, string>>(
+    () => Object.fromEntries(FIELDS.map((f) => [f, formatDecimal(current?.source === "manuell" ? current[f] : computed[f])])) as Record<FieldKey, string>,
+  );
   const [reason, setReason] = useState(current?.overrideReason ?? "");
   const [openSources, setOpenSources] = useState<string | null>(null);
   const toggleSources = (kz: string) => setOpenSources((open) => (open === kz ? null : kz));
   const [dirty, setDirty] = useState(!current);
   const [busy, setBusy] = useState(false);
 
-  const parsed = {
-    kz81: parseEuro(values.kz81),
-    kz86: parseEuro(values.kz86),
-    kz66: parseEuro(values.kz66),
-  };
-  const manualValid = Object.values(parsed).every((v) => v !== null && v >= 0) && reason.trim().length >= 10;
+  const parsed = Object.fromEntries(FIELDS.map((f) => [f, parseEuro(values[f])])) as Record<FieldKey, number | null>;
+  // Negative Werte sind erlaubt, etwa wenn Gutschriften im Monat überwiegen
+  const manualValid = Object.values(parsed).every((v) => v !== null) && reason.trim().length >= 10;
+  const manualFigures = Object.fromEntries(FIELDS.map((f) => [f, parsed[f] ?? 0])) as Record<FieldKey, number>;
   const valid = mode === "berechnet" || manualValid;
   const shown = locked
-    ? computeUstva({ kz81: current!.kz81, kz86: current!.kz86, kz66: current!.kz66 })
+    ? computeUstva(current!)
     : mode === "manuell"
-      ? computeUstva({ kz81: parsed.kz81 ?? 0, kz86: parsed.kz86 ?? 0, kz66: parsed.kz66 ?? 0 })
+      ? computeUstva(manualFigures)
       : computed;
   // Gespeicherter berechneter Entwurf, dessen Werte sich inzwischen geändert haben
   const stale =
-    !locked && current?.source === "berechnet" && (current.kz81 !== computed.kz81 || current.kz86 !== computed.kz86 || current.kz66 !== computed.kz66);
+    !locked && current?.source === "berechnet" && !sameFigures(current, computed);
 
   // Gesendete Anmeldung, deren Buchungen sich danach geändert haben (z. B. Zuordnung aufgehoben)
   const sentBasis = locked ? (current!.source === "berechnet" ? current! : current!.computed) : null;
-  const drift =
-    sentBasis !== null &&
-    sentBasis !== undefined &&
-    (sentBasis.kz81 !== computed.kz81 || sentBasis.kz86 !== computed.kz86 || sentBasis.kz66 !== computed.kz66);
+  const drift = sentBasis !== null && sentBasis !== undefined && !sameFigures(sentBasis, computed);
 
   function update(field: FieldKey, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -190,7 +199,7 @@ function VatReturnEditor({
       data:
         mode === "berechnet"
           ? { mode: "berechnet", period: data.period }
-          : { mode: "manuell", period: data.period, kz81: parsed.kz81!, kz86: parsed.kz86!, kz66: parsed.kz66!, reason },
+          : { mode: "manuell", period: data.period, ...manualFigures, reason },
     });
     setDirty(false);
     return result.id;
@@ -244,11 +253,23 @@ function VatReturnEditor({
     });
 
   const editable = !locked && mode === "manuell";
-  const revenue = (rate: number) => data.figures.revenue.filter((r) => r.rate === rate);
+  const revenue = (rate: number) => data.figures.revenue.filter((r) => r.treatment === "regulaer" && r.rate === rate);
+  const treated = (treatment: string) => data.figures.revenue.filter((r) => r.treatment === treatment);
   const rows = [
-    { kz: "81", field: "kz81" as const, label: "Steuerpflichtige Umsätze 19 %", base: shown.kz81, tax: shown.tax81, sources: revenue(1900) },
-    { kz: "86", field: "kz86" as const, label: "Steuerpflichtige Umsätze 7 %", base: shown.kz86, tax: shown.tax86, sources: revenue(700) },
-  ];
+    { kz: "81", field: "kz81" as const, label: "Steuerpflichtige Umsätze 19 %", base: shown.kz81, tax: shown.tax81 as number | null, sources: revenue(1900) },
+    { kz: "86", field: "kz86" as const, label: "Steuerpflichtige Umsätze 7 %", base: shown.kz86, tax: shown.tax86 as number | null, sources: revenue(700) },
+    {
+      kz: "21",
+      field: "kz21" as const,
+      label: "Nicht steuerbare sonstige Leistungen im EU-Ausland (Reverse Charge)",
+      base: shown.kz21,
+      tax: null,
+      sources: treated("reverse_charge"),
+    },
+    { kz: "45", field: "kz45" as const, label: "Übrige nicht steuerbare Umsätze (Leistungsort nicht im Inland)", base: shown.kz45, tax: null, sources: treated("drittland") },
+    { kz: "48", field: "kz48" as const, label: "Steuerfreie Umsätze ohne Vorsteuerabzug", base: shown.kz48, tax: null, sources: treated("steuerfrei") },
+    // Kz 21, 45 und 48 nur zeigen, wenn es dort etwas gibt oder von Hand eingetragen wird
+  ].filter((row) => ["81", "86"].includes(row.kz) || editable || row.base !== 0 || computed[row.field] !== 0);
 
   return (
     <div className="grid-main">
@@ -257,6 +278,15 @@ function VatReturnEditor({
           <h2 id="kz-heading">Kennzahlen</h2>
           <StatusPill current={current} />
         </div>
+        {data.kleinunternehmer && (
+          <div className="banner banner-info" role="status">
+            <Icon name="info" />
+            <span>
+              Du bist als Kleinunternehmer (§ 19 UStG) eingetragen und gibst in der Regel keine Voranmeldung ab. Nötig ist sie nur,
+              wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge).
+            </span>
+          </div>
+        )}
         {!locked && (
           <div className="mode-switch" role="group" aria-label="Herkunft der Kennzahlen">
             <button type="button" className={`chip${mode === "berechnet" ? " active" : ""}`} aria-pressed={mode === "berechnet"} onClick={() => switchMode("berechnet")}>
@@ -269,9 +299,8 @@ function VatReturnEditor({
         )}
         {drift && (
           <div className="banner" role="alert">
-            Seit der Übermittlung haben sich die Buchungen dieses Monats geändert. Aus den Buchungen ergäben sich jetzt Kz 81{" "}
-            {formatEuro(computed.kz81)}, Kz 86 {formatEuro(computed.kz86)} und Kz 66 {formatEuro(computed.kz66)}. Prüfe die
-            Änderung und lege bei Bedarf eine berichtigte Anmeldung an.
+            Seit der Übermittlung haben sich die Buchungen dieses Monats geändert. Aus den Buchungen ergäben sich jetzt{" "}
+            {describe(computed)}. Prüfe die Änderung und lege bei Bedarf eine berichtigte Anmeldung an.
           </div>
         )}
         {stale && mode === "berechnet" && (
@@ -317,7 +346,7 @@ function VatReturnEditor({
                     {formatEuro(row.base)}
                   </output>
                 )}
-                <div className="kz-amount">{formatEuro(row.tax)}</div>
+                <div className="kz-amount">{row.tax === null ? "" : formatEuro(row.tax)}</div>
               </div>
               {!locked && openSources === row.kz && <SourcesTable id={`kz-${row.kz}-quellen`} kind="revenue" rows={row.sources} />}
             </div>
@@ -367,7 +396,7 @@ function VatReturnEditor({
               placeholder="z. B. Zahlung vom 30.09. erst im Oktober zugeordnet"
             />
             <span className="small">
-              Berechnet wären Kz 81 {formatEuro(computed.kz81)}, Kz 86 {formatEuro(computed.kz86)}, Kz 66 {formatEuro(computed.kz66)}.
+              Berechnet wären {describe(computed)}.
             </span>
           </label>
         )}

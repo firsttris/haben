@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { and, asc, between, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../package.json" with { type: "json" };
+import { csvDecimal } from "@haben/core";
 import { db, schema } from "./db/index.ts";
 import { accountName } from "./functions/journal.ts";
 import { loadFile } from "./storage.ts";
@@ -43,9 +44,7 @@ export function csv(header: string[], rows: CsvValue[][]): Uint8Array {
 /** Cent als Dezimalzahl mit Komma, ohne Tausenderpunkt: 123456 → "1234,56" */
 export function money(cents: number | null | undefined): string {
   if (cents === null || cents === undefined) return "";
-  const sign = cents < 0 ? "-" : "";
-  const abs = Math.abs(cents);
-  return `${sign}${Math.floor(abs / 100)},${String(abs % 100).padStart(2, "0")}`;
+  return csvDecimal(cents);
 }
 
 function groupBy<T, K>(items: T[], key: (item: T) => K): Map<K, T[]> {

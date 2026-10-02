@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
-import { formatEuro, formatQuantity, formatRate } from "@haben/core";
+import { formatEuro, formatQuantity, formatRate, treatmentNote } from "@haben/core";
 import { countryName, formatDate, formatIban, paymentSentence, TITLES } from "./format.ts";
 import type { Address, InvoiceDocument } from "./types.ts";
 
@@ -44,10 +44,13 @@ export function pdfData(doc: InvoiceDocument) {
   }
   if (buyer.kundennummer) meta.push({ label: "Kundennummer", value: buyer.kundennummer });
   if (buyer.leitwegId) meta.push({ label: "Leitweg-ID", value: buyer.leitwegId });
+  // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)
   if (buyer.ustId) meta.push({ label: "Ihre USt-IdNr.", value: buyer.ustId });
 
+  const treatment = doc.taxTreatment ?? "regulaer";
   const multipleRates = doc.totals.taxes.length > 1;
-  const taxRows = doc.totals.taxes.map((t) => ({
+  // Ohne Steuerausweis (Kleinunternehmer, Reverse Charge usw.) keine Zeile „Umsatzsteuer 0 %“
+  const taxRows = (treatment === "regulaer" ? doc.totals.taxes : []).map((t) => ({
     label: multipleRates ? `Umsatzsteuer ${formatRate(t.rate)} auf ${formatEuro(t.base)}` : `Umsatzsteuer ${formatRate(t.rate)}`,
     value: formatEuro(t.tax),
   }));
@@ -75,7 +78,7 @@ export function pdfData(doc: InvoiceDocument) {
       description: line.description,
       quantity: `${formatQuantity(line.quantity)} ${line.unit}`,
       unitPrice: formatEuro(line.unitPrice),
-      rate: formatRate(line.taxRate),
+      rate: treatment === "regulaer" ? formatRate(line.taxRate) : "–",
       net: formatEuro(line.net),
     })),
     totals: {
@@ -83,6 +86,7 @@ export function pdfData(doc: InvoiceDocument) {
       gross: { label: "Gesamtbetrag", value: formatEuro(doc.totals.gross) },
     },
     payment: paymentSentence(doc),
+    taxNote: treatmentNote(treatment, doc.exemptionReason),
     note: doc.note?.trim() ? doc.note.trim() : null,
     footer: [contact, bank, tax],
   };
