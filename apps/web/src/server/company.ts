@@ -22,6 +22,8 @@ export const companySchema = z.object({
   paymentTermDays: z.number().int().min(0).max(120),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
   kleinunternehmer: z.boolean(),
+  /** Vorgabe für den Privatanteil je Belegkategorie in Prozent */
+  privateShares: z.record(z.string(), z.number().int().min(0).max(100)).default({}),
 });
 
 export type CompanyInput = z.infer<typeof companySchema>;

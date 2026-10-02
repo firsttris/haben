@@ -445,7 +445,7 @@ type SourceRows = PageData["figures"]["revenue"] | PageData["figures"]["inputTax
 function SourcesToggle({
   kind,
   rows,
-  versteuerung,
+  versteuerung: _versteuerung,
   open,
   controls,
   onToggle,
@@ -458,12 +458,16 @@ function SourcesToggle({
   onToggle: () => void;
 }) {
   if (rows.length === 0) return <span className="small muted">keine Buchungen</span>;
+  const count = (type: string) => rows.filter((row) => "type" in row && row.type === type).length;
+  const plural = (n: number, one: string, many: string) => (n > 0 ? [`${n} ${n === 1 ? one : many}`] : []);
   const summary =
     kind === "inputTax"
       ? `${rows.length} ${rows.length === 1 ? "Beleg" : "Belege"}`
-      : versteuerung === "ist"
-        ? `${rows.length} ${rows.length === 1 ? "Zahlungseingang" : "Zahlungseingänge"}`
-        : `${rows.length} ${rows.length === 1 ? "Rechnung" : "Rechnungen"}`;
+      : [
+          ...plural(count("payment"), "Zahlungseingang", "Zahlungseingänge"),
+          ...plural(count("invoice"), "Rechnung", "Rechnungen"),
+          ...plural(count("entnahme"), "Privatnutzung", "Privatnutzungen"),
+        ].join(", ");
   return (
     <button type="button" className="kz-sources-toggle" aria-expanded={open} aria-controls={controls} onClick={onToggle}>
       <span aria-hidden="true">{open ? "▾" : "▸"}</span> {summary}
@@ -488,7 +492,11 @@ function SourcesTable({ id, kind, rows }: { id: string; kind: "revenue" | "input
             <tr key={i}>
               <td className="date">{formatDate(row.date)}</td>
               <td>
-                {"invoiceId" in row ? (
+                {"assetId" in row && row.assetId ? (
+                  <Link to="/anlagen/$id" params={{ id: row.assetId }}>
+                    Privatnutzung · {row.customer}
+                  </Link>
+                ) : "invoiceId" in row ? (
                   <Link to="/rechnungen/$id" params={{ id: row.invoiceId }}>
                     {row.number} · {row.customer}
                   </Link>

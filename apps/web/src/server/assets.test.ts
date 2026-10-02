@@ -117,4 +117,62 @@ describe.skipIf(!testDatabaseUrl)("Anlagenverzeichnis (Postgres)", () => {
     await assets.deleteAsset(actor, asset.id);
     expect(await assets.listAssets(2026)).toEqual([]);
   });
+
+  it("Elektroauto mit 0,25 %: Entnahme in EÜR, Umsatzsteuer vom vollen Listenpreis in der Voranmeldung, Buchung je Monat", async () => {
+    const figures = await import("./vat-figures.ts");
+    const car = await assets.createAsset(actor, {
+      ...takeover,
+      name: "Tesla Model Y",
+      privateUse: { listPrice: 5_890_000, drive: "elektro", rate: 25, vat: true },
+    });
+    const october = await figures.computeVatFigures({ year: 2026, month: 10 });
+    expect(october.revenue.filter((r) => r.type === "entnahme")).toEqual([
+      expect.objectContaining({ assetId: car.id, base: 47_120, tax: 8_953, rate: 1900 }),
+    ]);
+    expect(october).toMatchObject({ kz81: 47_120, tax81: 8_953 });
+
+    const euer = await reports.euerForYear(2026);
+    const amount = (key: string) => euer.einnahmen.find((l) => l.key === key)?.amount ?? 0;
+    expect(amount("privateKfz")).toBe(12 * 14_725);
+    expect(amount("ustEntnahmen")).toBe(12 * 8_953);
+
+    await assets.bookDepreciation(actor, 2026, "2026-12-05");
+    const [sums] = await sql`select count(*)::int as entries, sum(l.credit) filter (where l.account = '1776')::int as vat
+      from journal_entries e join journal_lines l on l.entry_id = e.id where e.source_id = ${car.id} and e.description like 'Privatnutzung%'`;
+    expect(sums).toMatchObject({ vat: 12 * 8_953 });
+    const [row] = await sql`select private_use, private_use_vat from asset_depreciations where asset_id = ${car.id}`;
+    expect(row).toMatchObject({ private_use: 12 * 14_725, private_use_vat: 12 * 8_953 });
+    await expect(
+      assets.updateAsset(actor, car.id, { name: "Tesla", privateUse: { listPrice: 5_000_000, drive: "elektro", rate: 25, vat: true } }),
+    ).rejects.toThrow("Privatnutzung");
+  });
+
+  it("Privatnutzung nur bei Fahrzeugen, Kleinunternehmer ohne Umsatzsteuer", async () => {
+    await expect(
+      assets.createAsset(actor, { ...takeover, kind: "buero", privateUse: { listPrice: 100_000, drive: "elektro", rate: 25, vat: true } }),
+    ).rejects.toThrow("nur für Fahrzeuge");
+    await sql`update company set kleinunternehmer = true`;
+    const car = await assets.createAsset(actor, { ...takeover, privateUse: { listPrice: 4_000_000, drive: "verbrenner", rate: 100, vat: true } });
+    expect(car.privateUse?.vat).toBe(false);
+  });
+
+  it("Beleg mit Privatanteil: nur der betriebliche Teil zählt als Vorsteuer und Ausgabe", async () => {
+    const figures = await import("./vat-figures.ts");
+    await sql`update company set private_shares = '{"telefon": 20}'::jsonb`;
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9]), filename: "telekom.jpg" });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Telekom", supplierUstId: "", invoiceNumber: "T-1", documentDate: "2026-10-05", dueDate: null,
+      category: "telefon", payment: "privat", note: "", privateShare: 20, amounts: [{ taxRate: 1900, net: 4_000, tax: 760 }],
+    });
+    await documents.bookDocument(actor, id);
+    expect(await linesOf(id)).toEqual([
+      { date: "2026-10-05", account: "4920", debit: 3_200, credit: 0 },
+      { date: "2026-10-05", account: "1800", debit: 952, credit: 0 },
+      { date: "2026-10-05", account: "1576", debit: 608, credit: 0 },
+      { date: "2026-10-05", account: "1890", debit: 0, credit: 4_760 },
+    ]);
+    expect((await figures.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(608);
+    const euer = await reports.euerForYear(2026);
+    expect(euer.ausgaben.find((l) => l.key === "ausgabe:telefon")?.amount).toBe(3_200);
+  });
 });

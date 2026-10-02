@@ -58,6 +58,20 @@ describe("computeEuer", () => {
     expect(euer.totalAusgaben).toBe(570_000 + 416_667);
   });
 
+  it("Privatanteil am Beleg und private Kfz-Nutzung", () => {
+    const euer = computeEuer(
+      2026,
+      [{ kind: "document", date: "2026-03-02", paid: telefon.gross, totals: telefon, category: "telefon", privateShare: 20 }],
+      undefined,
+      { privateKfz: 176_700, ustEntnahmen: 107_436 },
+    );
+    expect(amount(euer, "ausgabe:telefon")).toBe(3_086);
+    expect(amount(euer, "vorsteuer")).toBe(586);
+    expect(amount(euer, "privateKfz")).toBe(176_700);
+    expect(amount(euer, "ustEntnahmen")).toBe(107_436);
+    expect(euer.totalEinnahmen).toBe(176_700 + 107_436);
+  });
+
   it("Teilzahlungen werden anteilig aufgeteilt und ergeben zusammen die Rechnung", () => {
     const euer = computeEuer(2026, [
       { kind: "invoice", date: "2026-10-01", paid: 200_000, totals: invoice19 },

@@ -50,3 +50,9 @@ export function parseEuro(input: string): Cents | null {
   const cents = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
   return negative ? -cents : cents;
 }
+
+/** Aufteilung eines Betrags nach Privatanteil in Prozent: privat wird gerundet, betrieblich ist der Rest */
+export function splitPrivateShare(amount: Cents, percent: number): { business: Cents; private: Cents } {
+  const privatePart = Math.round((amount * percent) / 100);
+  return { business: amount - privatePart, private: privatePart };
+}

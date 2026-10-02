@@ -1,11 +1,14 @@
-import { computeInvoiceTotals, paidTaxShares, type Cents, type InvoiceTotals, type TaxTreatment, type VatPeriod } from "@haben/core";
+import { computeInvoiceTotals, paidTaxShares, splitPrivateShare, type Cents, type InvoiceTotals, type TaxTreatment, type VatPeriod } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { privateUseForMonth } from "./assets.ts";
 import { loadCompany } from "./company.ts";
 import { db, schema } from "./db/index.ts";
 
 export interface RevenueSource {
-  /** payment = Zahlungseingang (Ist), invoice = Rechnung (Soll) */
-  type: "payment" | "invoice";
+  /** payment = Zahlungseingang (Ist), invoice = Rechnung (Soll), entnahme = private Kfz-Nutzung */
+  type: "payment" | "invoice" | "entnahme";
+  /** Bei Entnahmen: das Fahrzeug */
+  assetId?: string;
   date: string;
   invoiceId: string;
   number: string;
@@ -146,6 +149,23 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     }
   }
 
+  // Private Kfz-Nutzung: unentgeltliche Wertabgabe im Monat der Nutzung, auch bei Ist-Versteuerung
+  const lastDay = new Date(Date.UTC(period.year, period.month, 0)).toISOString().slice(0, 10);
+  for (const use of await privateUseForMonth(period.year, period.month)) {
+    revenue.push({
+      type: "entnahme",
+      date: lastDay,
+      invoiceId: "",
+      assetId: use.assetId,
+      number: "Privatnutzung",
+      customer: use.name,
+      treatment: "regulaer",
+      rate: 1900,
+      base: use.base,
+      tax: use.tax,
+    });
+  }
+
   const amounts = await db
     .select({
       documentId: schema.documents.id,
@@ -155,6 +175,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       rate: schema.documentAmounts.taxRate,
       base: schema.documentAmounts.net,
       tax: schema.documentAmounts.tax,
+      privateShare: schema.documents.privateShare,
     })
     .from(schema.documentAmounts)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.documentAmounts.documentId))
@@ -168,7 +189,15 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
         eq(schema.documents.vorsteuerAbzug, true),
       ),
     );
-  const inputTax = amounts.filter((a) => a.tax !== 0).map((a) => ({ ...a, date: a.date! }));
+  // Mit Privatanteil zählt nur der betriebliche Teil
+  const inputTax = amounts
+    .map(({ privateShare, ...a }) => ({
+      ...a,
+      date: a.date!,
+      base: splitPrivateShare(a.base, privateShare).business,
+      tax: splitPrivateShare(a.tax, privateShare).business,
+    }))
+    .filter((a) => a.tax !== 0);
 
   const regular = revenue.filter((r) => r.treatment === "regulaer");
   const sum = (rows: { base: Cents; tax: Cents; rate: number }[], rate: number, key: "base" | "tax") =>

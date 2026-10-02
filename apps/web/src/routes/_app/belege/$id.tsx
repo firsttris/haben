@@ -124,6 +124,7 @@ function DocumentForm({ data }: { data: Detail }) {
   const [dueDate, setDueDate] = useState(doc.dueDate ?? "");
   const [category, setCategory] = useState(doc.category ?? "");
   const [payment, setPayment] = useState(doc.payment);
+  const [privateShare, setPrivateShare] = useState(doc.privateShare ? String(doc.privateShare) : "");
   // Angaben zur Anlage bei Kategorie „anlage“; Vorschläge laut AfA-Tabelle
   const [assetName, setAssetName] = useState(doc.asset?.name ?? "");
   const [assetKind, setAssetKind] = useState<AssetKind>(doc.asset?.kind ?? "edv");
@@ -146,7 +147,10 @@ function DocumentForm({ data }: { data: Detail }) {
   const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
 
   const parsed = rows.map((r) => ({ taxRate: r.taxRate, net: parseEuro(r.net || "0"), tax: parseEuro(r.tax || "0") }));
-  const valid = parsed.every((p) => p.net !== null && p.tax !== null) && new Set(rows.map((r) => r.taxRate)).size === rows.length;
+  const privateShareValue = category === "anlage" ? 0 : Number(privateShare || 0);
+  const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
+  const valid =
+    parsed.every((p) => p.net !== null && p.tax !== null) && new Set(rows.map((r) => r.taxRate)).size === rows.length && privateShareValid;
   const gross = valid ? parsed.reduce((s, p) => s + p.net! + p.tax!, 0) : null;
 
   function touch<T>(setter: (value: T) => void) {
@@ -201,6 +205,7 @@ function DocumentForm({ data }: { data: Detail }) {
           category: (category || null) as ExpenseCategory | null,
           payment,
           note,
+          privateShare: privateShareValue,
           asset:
             category === "anlage"
               ? {
@@ -308,7 +313,15 @@ function DocumentForm({ data }: { data: Detail }) {
           </label>
           <label className="field" style={{ gridColumn: "1 / -1" }}>
             Kategorie
-            <select value={category} onChange={(e) => touch(setCategory)(e.target.value)}>
+            <select
+              value={category}
+              onChange={(e) => {
+                touch(setCategory)(e.target.value);
+                // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
+                const preset = data.privateShares[e.target.value];
+                setPrivateShare(preset ? String(preset) : "");
+              }}
+            >
               <option value="">Bitte wählen</option>
               {categories.map((c) => (
                 <option key={c.value} value={c.value}>
@@ -437,6 +450,22 @@ function DocumentForm({ data }: { data: Detail }) {
           </div>
         </div>
         <p className="small muted" style={{ margin: 0 }}>Gutschriften mit Minus eingeben.</p>
+        {category !== "anlage" && (
+          <label className="field" style={{ maxWidth: 220 }}>
+            Privatanteil in %
+            <input
+              inputMode="numeric"
+              value={privateShare}
+              placeholder="0"
+              onChange={(e) => touch(setPrivateShare)(e.target.value.replace(/\D/g, "").slice(0, 3))}
+              aria-invalid={!privateShareValid}
+              aria-describedby="private-share-hint"
+            />
+            <span id="private-share-hint" className="small">
+              Z. B. beim Handyvertrag: nur der betriebliche Teil wird Ausgabe und Vorsteuer.
+            </span>
+          </label>
+        )}
       </fieldset>
 
       <fieldset className="card" disabled={locked || running} style={{ margin: 0 }}>

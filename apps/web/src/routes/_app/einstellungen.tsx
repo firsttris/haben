@@ -90,6 +90,11 @@ function CompanyForm() {
           paymentTermDays: Number(text("paymentTermDays") || 14),
           defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          privateShares: Object.fromEntries(
+            (["telefon", "internet"] as const)
+              .map((key) => [key, Number(text(`privateShare-${key}`) || 0)] as const)
+              .filter(([, value]) => Number.isInteger(value) && value > 0 && value <= 100),
+          ),
         },
       });
       await router.invalidate();
@@ -235,6 +240,24 @@ function CompanyForm() {
             </span>
           </span>
         </label>
+        <label className="field">
+          Privatanteil Telefon in %
+          <input
+            name="privateShare-telefon"
+            inputMode="numeric"
+            defaultValue={company.privateShares.telefon ?? ""}
+            placeholder="0"
+            aria-describedby="private-share-hint"
+          />
+        </label>
+        <label className="field">
+          Privatanteil Internet in %
+          <input name="privateShare-internet" inputMode="numeric" defaultValue={company.privateShares.internet ?? ""} placeholder="0" aria-describedby="private-share-hint" />
+        </label>
+        <p id="private-share-hint" className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
+          Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine
+          Entnahme. Am einzelnen Beleg lässt sich der Anteil ändern.
+        </p>
       </div>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>

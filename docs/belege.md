@@ -102,6 +102,11 @@ Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/
 | Versicherungen | 4360 | 6400 |
 | Beiträge | 4380 | 6420 |
 | Sonstiger Aufwand | 4900 | 6300 |
+| Kfz: Laden, Tanken, Wartung | 4530 | 6530 |
+| Kfz: Versicherung | 4520 | 6520 |
+| Kfz: Steuer | 4510 | 7685 |
+| Kfz: Reparaturen | 4540 | 6540 |
+| Kfz: Leasing | 4570 | 6560 |
 | Anlagegut (wird abgeschrieben) | Anlagekonto je Art | Anlagekonto je Art |
 
 Mit **Anlagegut** wird der Beleg nicht zum Aufwand, sondern legt beim Buchen eine Anlage im Verzeichnis an, die über die Nutzungsdauer abgeschrieben wird. Das Formular fragt dann nach Bezeichnung, Art, Abschreibung und Nutzungsdauer. Mehr unter [Anlagen und AfA](anlagen.md).
@@ -114,6 +119,18 @@ Mit **Anlagegut** wird der Beleg nicht zum Aufwand, sondern legt beim Buchen ein
 Du gibst je Steuersatz Netto und Vorsteuer ein. Solange du die Vorsteuer nicht selbst geändert hast, rechnet Haben sie aus dem Netto vor. Beim Buchen übernimmt Haben die Vorsteuer genau so, wie sie im Formular steht, und rechnet nicht nach: maßgeblich ist der Betrag auf der Rechnung.
 
 Gutschriften gibst du mit Minus ein.
+
+## Privatanteil
+
+Wird etwas auch privat genutzt, etwa der Handy- oder Internetvertrag, trägst du unter den Beträgen den **Privatanteil in %** ein. Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme:
+
+```
+4920 Telefon             32,00
+1576 Vorsteuer 19 %       6,08
+1800 Privatentnahmen      9,52   an  1600 Verbindlichkeiten   47,60
+```
+
+Vorgaben je Kategorie stellst du in den [Einstellungen](einrichtung.md#privatanteile) ein (Telefon, Internet). Sie werden beim Wählen der Kategorie und beim Auslesen übernommen. Bei Anlagegütern gibt es keinen Privatanteil; für Firmenwagen gilt die [Listenpreismethode](anlagen.md#private-nutzung-von-firmenwagen).
 
 ## Bezahlung
 

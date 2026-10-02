@@ -1,5 +1,5 @@
 import type { InvoiceTotals } from "./invoice.ts";
-import { csvDecimal, type Cents } from "./money.ts";
+import { csvDecimal, splitPrivateShare, type Cents } from "./money.ts";
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory } from "./posting.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
@@ -32,6 +32,8 @@ export type EuerPayment =
       category: ExpenseCategory;
       /** false bei Kleinunternehmern: die Steuer auf dem Beleg ist Teil der Ausgabe */
       vorsteuerAbzug?: boolean;
+      /** Privatanteil in Prozent: nur der betriebliche Teil ist Ausgabe bzw. Vorsteuer */
+      privateShare?: number;
       group?: string;
     }
   | {
@@ -46,6 +48,8 @@ export type EuerLineKey =
   | "einnahmenKleinunternehmer"
   | "einnahmenSteuerpflichtig"
   | "einnahmenSteuerfrei"
+  | "privateKfz"
+  | "ustEntnahmen"
   | "vereinnahmteUst"
   | "erstatteteUst"
   | `ausgabe:${ExpenseCategory}`
@@ -78,7 +82,9 @@ export const EUER_LABELS = {
   einnahmenKleinunternehmer: "Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer",
   einnahmenSteuerpflichtig: "Umsatzsteuerpflichtige Betriebseinnahmen (netto)",
   einnahmenSteuerfrei: "Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen",
+  privateKfz: "Private Kfz-Nutzung",
   vereinnahmteUst: "Vereinnahmte Umsatzsteuer",
+  ustEntnahmen: "Umsatzsteuer auf unentgeltliche Wertabgaben",
   erstatteteUst: "Vom Finanzamt erstattete Umsatzsteuer",
   afa: "AfA auf bewegliche Wirtschaftsgüter",
   gwg: "Sofortabschreibung geringwertiger Wirtschaftsgüter",
@@ -120,7 +126,18 @@ export interface EuerDepreciation {
   restbuchwert: Cents;
 }
 
-export function computeEuer(year: number, payments: EuerPayment[], depreciation?: EuerDepreciation): EuerResult {
+/** Private Nutzung von Firmenwagen im Jahr: Entnahme und Umsatzsteuer darauf */
+export interface EuerWithdrawals {
+  privateKfz: Cents;
+  ustEntnahmen: Cents;
+}
+
+export function computeEuer(
+  year: number,
+  payments: EuerPayment[],
+  depreciation?: EuerDepreciation,
+  withdrawals?: EuerWithdrawals,
+): EuerResult {
   const sums = new Map<EuerLineKey, Cents>();
   const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
   const monthlyIn: Cents[] = Array.from({ length: 12 }, () => 0);
@@ -140,7 +157,9 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
         }
         break;
       case "document":
-        for (const { base, tax } of paidTaxShares(p.totals, p.sum)) {
+        for (const share of paidTaxShares(p.totals, p.sum)) {
+          const base = splitPrivateShare(share.base, p.privateShare ?? 0).business;
+          const tax = splitPrivateShare(share.tax, p.privateShare ?? 0).business;
           // Anschaffung einer Anlage ist keine Ausgabe; sie wirkt über die AfA. Die Vorsteuer schon.
           if (p.category === "anlage") {
             if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
@@ -174,11 +193,18 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     amount: sums.get(key) ?? 0,
     ...(note ? { note } : {}),
   });
+  if (withdrawals) {
+    add("privateKfz", withdrawals.privateKfz);
+    add("ustEntnahmen", withdrawals.ustEntnahmen);
+  }
+  const optional = (key: "privateKfz" | "ustEntnahmen") => ((sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : []);
   const einnahmen = [
     ...(sums.has("einnahmenKleinunternehmer") ? [line("einnahmenKleinunternehmer", EUER_LABELS.einnahmenKleinunternehmer)] : []),
     line("einnahmenSteuerpflichtig", EUER_LABELS.einnahmenSteuerpflichtig),
     line("einnahmenSteuerfrei", EUER_LABELS.einnahmenSteuerfrei),
+    ...optional("privateKfz"),
     line("vereinnahmteUst", EUER_LABELS.vereinnahmteUst),
+    ...optional("ustEntnahmen"),
     line("erstatteteUst", EUER_LABELS.erstatteteUst),
   ];
   const categories = (Object.keys(EXPENSE_CATEGORIES) as ExpenseCategory[])

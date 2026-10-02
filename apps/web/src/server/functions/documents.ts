@@ -15,6 +15,7 @@ import {
 } from "../documents.ts";
 import { extractionAvailable } from "../extraction.ts";
 import { authMiddleware } from "../middleware.ts";
+import { loadCompany } from "../company.ts";
 import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 
@@ -44,6 +45,7 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
     return {
       document,
       assetId: asset?.id ?? null,
+      privateShares: (await loadCompany()).privateShares,
       amounts: result.amounts,
       issues: result.document.lockedAt ? [] : bookingIssues(result.document, result.amounts),
       aiAvailable: extractionAvailable(),
