@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { listAccounts } from "../bank.ts";
 import { loadCompany, sellerIssues } from "../company.ts";
 import { listContacts } from "../contacts.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -38,7 +39,19 @@ export const getInvoices = createServerFn({ method: "GET" })
 
 export const getInvoiceSummary = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(() => invoiceSummary(today()));
+  .handler(async () => {
+    const accounts = await listAccounts();
+    return {
+      ...(await invoiceSummary(today())),
+      bank: accounts.map((a) => ({
+        id: a.id,
+        name: a.name,
+        openCount: a.openCount,
+        balance: a.lastImport?.closingBalance ?? null,
+        balanceDate: a.lastImport?.periodTo ?? null,
+      })),
+    };
+  });
 
 async function editorContext() {
   const company = await loadCompany();

@@ -15,6 +15,10 @@ export const ACCOUNTS = {
     vorsteuer: { 1900: "1576", 700: "1571" },
     verbindlichkeiten: "1600",
     privateinlagen: "1890",
+    privatentnahmen: "1800",
+    geldtransit: "1360",
+    ustVorauszahlung: "1780",
+    nebenkostenGeldverkehr: "4970",
   },
   SKR04: {
     forderungen: "1200",
@@ -25,6 +29,10 @@ export const ACCOUNTS = {
     vorsteuer: { 1900: "1406", 700: "1401" },
     verbindlichkeiten: "3300",
     privateinlagen: "2180",
+    privatentnahmen: "2100",
+    geldtransit: "1460",
+    ustVorauszahlung: "3820",
+    nebenkostenGeldverkehr: "6855",
   },
 } as const;
 
@@ -164,4 +172,81 @@ export function documentPosting(
   const counter = payment === "privat" ? accounts.privateinlagen : accounts.verbindlichkeiten;
   lines.push(side(counter, totals.gross, false, null));
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Anteil der Steuer je Satz, der auf eine (Teil-)Zahlung entfällt. Rundung so verteilt,
+ * dass die Summe dem gerundeten Gesamtanteil entspricht.
+ */
+export function paidTaxShares(totals: InvoiceTotals, paid: Cents): { rate: BasisPoints; base: Cents; tax: Cents }[] {
+  if (totals.gross === 0) return [];
+  const share = (value: Cents) => Math.round((value * paid) / totals.gross);
+  const totalTax = share(totals.tax);
+  const totalNet = paid - totalTax;
+  const rows = totals.taxes.map((t) => ({ rate: t.rate, base: share(t.base), tax: share(t.tax) }));
+  // Rundungsrest dem größten Posten zuschlagen
+  const largest = rows.reduce((best, row, i) => (Math.abs(row.base) > Math.abs(rows[best]!.base) ? i : best), 0);
+  if (rows[largest]) {
+    rows[largest]!.tax += totalTax - rows.reduce((s, r) => s + r.tax, 0);
+    rows[largest]!.base += totalNet - rows.reduce((s, r) => s + r.base, 0);
+  }
+  return rows;
+}
+
+/**
+ * Zahlungseingang auf eine Rechnung: Bank an Forderungen. Bei Ist-Versteuerung wird der
+ * Steueranteil der Zahlung von „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ umgebucht.
+ */
+export function invoicePaymentPosting(
+  totals: InvoiceTotals,
+  paid: Cents,
+  kontenrahmen: Kontenrahmen,
+  versteuerung: Versteuerung,
+): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const lines: PostingLine[] = [side(accounts.bank, paid, true, null), side(accounts.forderungen, paid, false, null)];
+  if (versteuerung === "ist") {
+    for (const { rate, tax } of paidTaxShares(totals, paid)) {
+      if (tax === 0 || rate === 0) continue;
+      const code = revenueTaxCode(rate);
+      lines.push(side(accounts.ustNichtFaellig[rate as 1900 | 700], tax, true, code));
+      lines.push(side(accounts.ust[rate as 1900 | 700], tax, false, code));
+    }
+  }
+  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/** Zahlung eines gebuchten Belegs: Verbindlichkeiten an Bank (amount wie auf dem Konto, Ausgang negativ). */
+export function documentPaymentPosting(amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  return [side(accounts.verbindlichkeiten, -amount, true, null), side(accounts.bank, amount, true, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
+}
+
+/** Bankumsätze ohne Rechnung oder Beleg */
+export const DIRECT_BOOKINGS = {
+  privat: "Privat (Entnahme oder Einlage)",
+  geldtransit: "Geldtransit (eigenes Konto)",
+  ustVorauszahlung: "Umsatzsteuer an das Finanzamt",
+  gebuehren: "Kontoführung und Bankgebühren",
+} as const;
+
+export type DirectBooking = keyof typeof DIRECT_BOOKINGS;
+
+export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const counter =
+    kind === "privat"
+      ? amount < 0
+        ? accounts.privatentnahmen
+        : accounts.privateinlagen
+      : kind === "geldtransit"
+        ? accounts.geldtransit
+        : kind === "ustVorauszahlung"
+          ? accounts.ustVorauszahlung
+          : accounts.nebenkostenGeldverkehr;
+  return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
 }

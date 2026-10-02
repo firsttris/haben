@@ -1,0 +1,4 @@
+"Date","Payee","Account number","Transaction type","Payment reference","Amount (EUR)","Amount (Foreign Currency)","Type Foreign Currency","Exchange Rate"
+"2022-03-01","Nordwerk Software GmbH","DE89370400440532013000","Income","RE 2022-011","1190.0","","",""
+"2022-03-02","Bäckerei Müßig","","MasterCard Payment","","-4.5","-4.5","EUR","1.0"
+"2022-03-15","Hausverwaltung Beispiel","DE75512108001245126199","Outgoing Transfer","Miete März 2022","-850.0","","",""

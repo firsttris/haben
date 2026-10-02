@@ -20,6 +20,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, sellerIssues, type Company } from "./company.ts";
 import type { Contact } from "./contacts.ts";
+import { invoicePayments } from "./bank.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 
@@ -154,9 +155,17 @@ export async function getInvoice(id: string) {
   return { invoice, lines, contact: contact ?? null, corrects: corrects ?? null, correctedBy };
 }
 
-export type InvoiceListStatus = "entwurf" | "offen" | "ueberfaellig" | "storniert" | "storno" | "korrektur";
+export type InvoiceListStatus =
+  | "entwurf"
+  | "offen"
+  | "teilbezahlt"
+  | "bezahlt"
+  | "ueberfaellig"
+  | "storniert"
+  | "storno"
+  | "korrektur";
 
-/** Rechnungsliste mit abgeleitetem Status. Bezahlt-Status kommt mit dem Bankabgleich (Phase 4). */
+/** Rechnungsliste mit abgeleitetem Status; bezahlt über die Zuordnungen im Bankabgleich. */
 export async function listInvoices(today: string) {
   const rows = await db
     .select({
@@ -176,18 +185,23 @@ export async function listInvoices(today: string) {
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .orderBy(sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt));
 
+  const paid = await invoicePayments(rows.filter((r) => r.status === "final").map((r) => r.id));
   const cancelled = new Set(
     rows.filter((r) => r.kind === "storno" && r.status === "final" && r.correctsId).map((r) => r.correctsId!),
   );
   return rows.map((row) => {
+    const paidAmount = paid.get(row.id) ?? 0;
+    const open = row.status === "final" && row.kind !== "storno" && !cancelled.has(row.id) ? row.gross - paidAmount : 0;
     let status: InvoiceListStatus;
     if (row.status === "draft") status = "entwurf";
     else if (row.kind === "storno") status = "storno";
-    else if (row.kind === "korrektur") status = "korrektur";
     else if (cancelled.has(row.id)) status = "storniert";
+    else if (open === 0) status = row.kind === "korrektur" ? "korrektur" : "bezahlt";
+    else if (row.kind === "korrektur") status = "korrektur";
     else if (row.dueDate < today) status = "ueberfaellig";
+    else if (paidAmount !== 0) status = "teilbezahlt";
     else status = "offen";
-    return { ...row, customer: row.buyerName ?? row.contactName ?? "–", listStatus: status };
+    return { ...row, customer: row.buyerName ?? row.contactName ?? "–", listStatus: status, paid: paidAmount, open };
   });
 }
 
@@ -447,10 +461,10 @@ export async function setNextNumber(actor: string, year: number, next: number) {
 /** Kennzahlen für die Übersicht */
 export async function invoiceSummary(today: string) {
   const list = await listInvoices(today);
-  const open = list.filter((i) => i.listStatus === "offen" || i.listStatus === "ueberfaellig");
+  const open = list.filter((i) => i.kind === "rechnung" && i.open !== 0);
   const openIds = new Set(open.map((i) => i.id));
-  // Korrekturen mindern die offene Forderung ihrer Rechnung
-  const corrections = list.filter((i) => i.listStatus === "korrektur" && i.correctsId && openIds.has(i.correctsId));
+  // Offene Korrekturen mindern die Forderung ihrer Rechnung
+  const corrections = list.filter((i) => i.kind === "korrektur" && i.open !== 0 && i.correctsId && openIds.has(i.correctsId));
   const month = today.slice(0, 7);
   const previousMonth = (() => {
     const [y, m] = month.split("-").map(Number) as [number, number];
@@ -460,7 +474,7 @@ export async function invoiceSummary(today: string) {
   const revenue = (prefix: string) =>
     finals.filter((i) => i.issueDate.startsWith(prefix)).reduce((sum, i) => sum + i.net, 0);
   return {
-    openTotal: [...open, ...corrections].reduce((sum, i) => sum + i.gross, 0),
+    openTotal: [...open, ...corrections].reduce((sum, i) => sum + i.open, 0),
     openCount: open.length,
     overdueCount: open.filter((i) => i.listStatus === "ueberfaellig").length,
     revenueMonth: { key: month, net: revenue(month) },

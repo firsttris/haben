@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<camt:Document xmlns:camt="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <camt:BkToCstmrStmt>
+    <camt:GrpHdr>
+      <camt:MsgId>STMT-20261002-77</camt:MsgId>
+      <camt:CreDtTm>2026-10-02T22:00:00+02:00</camt:CreDtTm>
+    </camt:GrpHdr>
+    <camt:Stmt>
+      <camt:Id>2026-10-01</camt:Id>
+      <camt:Acct>
+        <camt:Id><camt:IBAN>DE12 1203 0000 1234 5678 90</camt:IBAN></camt:Id>
+        <camt:Ccy>EUR</camt:Ccy>
+      </camt:Acct>
+      <camt:Bal>
+        <camt:Tp><camt:CdOrPrtry><camt:Cd>OPBD</camt:Cd></camt:CdOrPrtry></camt:Tp>
+        <camt:Amt Ccy="EUR">150.00</camt:Amt>
+        <camt:CdtDbtInd>DBIT</camt:CdtDbtInd>
+        <camt:Dt><camt:Dt>2026-09-30</camt:Dt></camt:Dt>
+      </camt:Bal>
+      <camt:Bal>
+        <camt:Tp><camt:CdOrPrtry><camt:Cd>CLBD</camt:Cd></camt:CdOrPrtry></camt:Tp>
+        <camt:Amt Ccy="EUR">850.00</camt:Amt>
+        <camt:CdtDbtInd>CRDT</camt:CdtDbtInd>
+        <camt:Dt><camt:Dt>2026-10-01</camt:Dt></camt:Dt>
+      </camt:Bal>
+      <camt:Ntry>
+        <camt:Amt Ccy="EUR">1000.00</camt:Amt>
+        <camt:CdtDbtInd>CRDT</camt:CdtDbtInd>
+        <camt:Sts><camt:Cd>BOOK</camt:Cd></camt:Sts>
+        <camt:BookgDt><camt:Dt>2026-10-01</camt:Dt></camt:BookgDt>
+        <camt:ValDt><camt:Dt>2026-10-01</camt:Dt></camt:ValDt>
+        <camt:AcctSvcrRef>REF-1001</camt:AcctSvcrRef>
+        <camt:NtryDtls>
+          <camt:TxDtls>
+            <camt:Refs><camt:EndToEndId>INV-2026-032</camt:EndToEndId></camt:Refs>
+            <camt:Amt Ccy="EUR">1000.00</camt:Amt>
+            <camt:CdtDbtInd>CRDT</camt:CdtDbtInd>
+            <camt:RltdPties>
+              <camt:Dbtr><camt:Pty><camt:Nm>Lindenhof   Verlag e.K.</camt:Nm></camt:Pty></camt:Dbtr>
+              <camt:DbtrAcct><camt:Id><camt:IBAN>DE68210501700012345678</camt:IBAN></camt:Id></camt:DbtrAcct>
+            </camt:RltdPties>
+            <camt:RmtInf><camt:Ustrd>RE 2026-032 Lektorat</camt:Ustrd></camt:RmtInf>
+          </camt:TxDtls>
+        </camt:NtryDtls>
+      </camt:Ntry>
+    </camt:Stmt>
+    <camt:Stmt>
+      <camt:Id>2026-10-02</camt:Id>
+      <camt:Acct>
+        <camt:Id><camt:IBAN>DE12120300001234567890</camt:IBAN></camt:Id>
+        <camt:Ccy>EUR</camt:Ccy>
+      </camt:Acct>
+      <camt:Bal>
+        <camt:Tp><camt:CdOrPrtry><camt:Cd>PRCD</camt:Cd></camt:CdOrPrtry></camt:Tp>
+        <camt:Amt Ccy="EUR">850.00</camt:Amt>
+        <camt:CdtDbtInd>CRDT</camt:CdtDbtInd>
+        <camt:Dt><camt:Dt>2026-10-01</camt:Dt></camt:Dt>
+      </camt:Bal>
+      <camt:Bal>
+        <camt:Tp><camt:CdOrPrtry><camt:Cd>CLBD</camt:Cd></camt:CdOrPrtry></camt:Tp>
+        <camt:Amt Ccy="EUR">790.50</camt:Amt>
+        <camt:CdtDbtInd>CRDT</camt:CdtDbtInd>
+        <camt:Dt><camt:Dt>2026-10-02</camt:Dt></camt:Dt>
+      </camt:Bal>
+      <camt:Ntry>
+        <camt:Amt Ccy="EUR">59.50</camt:Amt>
+        <camt:CdtDbtInd>DBIT</camt:CdtDbtInd>
+        <camt:Sts><camt:Cd>BOOK</camt:Cd></camt:Sts>
+        <camt:BookgDt><camt:Dt>2026-10-02</camt:Dt></camt:BookgDt>
+        <camt:ValDt><camt:Dt>2026-10-02</camt:Dt></camt:ValDt>
+        <camt:BkTxCd><camt:Prtry><camt:Cd>NDDT+105</camt:Cd><camt:Issr>DK</camt:Issr></camt:Prtry></camt:BkTxCd>
+        <camt:NtryDtls>
+          <camt:TxDtls>
+            <camt:Refs><camt:EndToEndId>TEL-2026-10</camt:EndToEndId><camt:MndtId>TEL-778899</camt:MndtId></camt:Refs>
+            <camt:Amt Ccy="EUR">59.50</camt:Amt>
+            <camt:RltdPties>
+              <camt:Cdtr><camt:Pty><camt:Nm>Telefon GmbH</camt:Nm></camt:Pty></camt:Cdtr>
+              <camt:CdtrAcct><camt:Id><camt:IBAN>DE91100000000123456789</camt:IBAN></camt:Id></camt:CdtrAcct>
+            </camt:RltdPties>
+            <camt:RmtInf>
+              <camt:Strd><camt:CdtrRefInf><camt:Ref>RF18539007547034</camt:Ref></camt:CdtrRefInf></camt:Strd>
+            </camt:RmtInf>
+          </camt:TxDtls>
+        </camt:NtryDtls>
+      </camt:Ntry>
+    </camt:Stmt>
+  </camt:BkToCstmrStmt>
+</camt:Document>

@@ -4,3 +4,4 @@ export * from "./steuernummer.ts";
 export * from "./ustva.ts";
 export * from "./invoice.ts";
 export * from "./posting.ts";
+export * from "./matching.ts";

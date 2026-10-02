@@ -56,9 +56,6 @@ function InvoicesPage() {
           </div>
         )}
       </section>
-      <p className="small muted" style={{ margin: 0 }}>
-        Zahlungseingänge ordnet Haben ab dem Bankabgleich (Phase 4) zu; bis dahin bleiben festgeschriebene Rechnungen offen.
-      </p>
     </>
   );
 }

@@ -13,6 +13,8 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppBankRouteImport } from './routes/_app/bank'
+import { Route as AppBuchungenRouteImport } from './routes/_app/buchungen'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
 import { Route as AppBelegeIndexRouteImport } from './routes/_app/belege/index'
 import { Route as AppBelegeIdRouteImport } from './routes/_app/belege/$id'
@@ -47,6 +49,16 @@ const SetupRoute = SetupRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBankRoute = AppBankRouteImport.update({
+  id: '/bank',
+  path: '/bank',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBuchungenRoute = AppBuchungenRouteImport.update({
+  id: '/buchungen',
+  path: '/buchungen',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
@@ -134,6 +146,8 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/bank': typeof AppBankRoute
+  '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/belege/$id': typeof AppBelegeIdRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
@@ -154,6 +168,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/bank': typeof AppBankRoute
+  '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/': typeof AppIndexRoute
   '/belege/$id': typeof AppBelegeIdRoute
@@ -177,6 +193,8 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/_app/bank': typeof AppBankRoute
+  '/_app/buchungen': typeof AppBuchungenRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/': typeof AppIndexRoute
   '/_app/belege/$id': typeof AppBelegeIdRoute
@@ -201,6 +219,8 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
+    | '/bank'
+    | '/buchungen'
     | '/einstellungen'
     | '/belege/$id'
     | '/kontakte/$id'
@@ -221,6 +241,8 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/setup'
+    | '/bank'
+    | '/buchungen'
     | '/einstellungen'
     | '/'
     | '/belege/$id'
@@ -243,6 +265,8 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/setup'
+    | '/_app/bank'
+    | '/_app/buchungen'
     | '/_app/einstellungen'
     | '/_app/'
     | '/_app/belege/$id'
@@ -301,6 +325,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/bank': {
+      id: '/_app/bank'
+      path: '/bank'
+      fullPath: '/bank'
+      preLoaderRoute: typeof AppBankRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/buchungen': {
+      id: '/_app/buchungen'
+      path: '/buchungen'
+      fullPath: '/buchungen'
+      preLoaderRoute: typeof AppBuchungenRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/einstellungen': {
@@ -419,6 +457,8 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppBankRoute: typeof AppBankRoute
+  AppBuchungenRoute: typeof AppBuchungenRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppIndexRoute: typeof AppIndexRoute
   AppBelegeIdRoute: typeof AppBelegeIdRoute
@@ -434,6 +474,8 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppBankRoute: AppBankRoute,
+  AppBuchungenRoute: AppBuchungenRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppIndexRoute: AppIndexRoute,
   AppBelegeIdRoute: AppBelegeIdRoute,
