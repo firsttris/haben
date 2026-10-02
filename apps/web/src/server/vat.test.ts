@@ -59,13 +59,28 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
     expect(submissions[0]).toMatchObject({ kind: "test", ok: true, hasPdf: true });
   });
 
+  /** Wie ERiC: kein simulierter Client, damit die Echtübermittlung durchgeht */
+  const liveClient = (): ElsterClient => {
+    const fake = new FakeElsterClient();
+    return { validate: (xml) => fake.validate(xml), send: (...args) => fake.send(...args) };
+  };
+
+  it("simulierter Client darf nicht echt übermitteln", async () => {
+    const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 0 });
+    await expect(
+      vat.submitReturn(actor, draft.id, new FakeElsterClient(), { kind: "send", pin: "1234", herstellerId: "12345" }),
+    ).rejects.toThrow(/Ohne ERiC/);
+    const [row] = await sql`select status from vat_returns where id = ${draft.id}`;
+    expect(row!.status).toBe("draft");
+  });
+
   it("Echtübermittlung schreibt fest; danach sind Änderungen gesperrt", async () => {
     const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 0 });
     await expect(
       vat.submitReturn(actor, draft.id, new FakeElsterClient(), { kind: "send", pin: "1234" }),
     ).rejects.toThrow(/Hersteller-ID/);
 
-    const result = await vat.submitReturn(actor, draft.id, new FakeElsterClient(), {
+    const result = await vat.submitReturn(actor, draft.id, liveClient(), {
       kind: "send",
       pin: "1234",
       herstellerId: "12345",
@@ -83,7 +98,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
 
   it("berichtigte Anmeldung übernimmt die Werte und trägt Kz 10", async () => {
     const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 500 });
-    await vat.submitReturn(actor, draft.id, new FakeElsterClient(), { kind: "send", pin: "1", herstellerId: "12345" });
+    await vat.submitReturn(actor, draft.id, liveClient(), { kind: "send", pin: "1", herstellerId: "12345" });
     const correction = await vat.createCorrection(actor, period);
     expect(correction).toMatchObject({ berichtigt: true, correctsId: draft.id, kz81: 100_000, kz66: 500 });
 

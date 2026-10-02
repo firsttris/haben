@@ -4,6 +4,7 @@ import {
   formatInvoiceNumber,
   invoiceLineInputSchema,
   invoicePosting,
+  legacyCorrectionPosting,
   lineNet,
   type UnitLabel,
 } from "@haben/core";
@@ -20,7 +21,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, sellerIssues, type Company } from "./company.ts";
 import type { Contact } from "./contacts.ts";
-import { invoicePayments } from "./bank.ts";
+import { invoicePayments, stornoOpen } from "./bank.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 
@@ -191,7 +192,13 @@ export async function listInvoices(today: string) {
   );
   return rows.map((row) => {
     const paidAmount = paid.get(row.id) ?? 0;
-    const open = row.status === "final" && row.kind !== "storno" && !cancelled.has(row.id) ? row.gross - paidAmount : 0;
+    // Bei einem Storno bleibt offen, was auf die Rechnung gezahlt und noch nicht erstattet wurde
+    const open =
+      row.status !== "final" || cancelled.has(row.id)
+        ? 0
+        : row.kind === "storno"
+          ? stornoOpen(paid.get(row.correctsId!) ?? 0, paidAmount)
+          : row.gross - paidAmount;
     let status: InvoiceListStatus;
     if (row.status === "draft") status = "entwurf";
     else if (row.kind === "storno") status = "storno";
@@ -366,7 +373,11 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
       })
       .returning();
     await tx.insert(schema.journalLines).values(
-      invoicePosting(totals, company.kontenrahmen, company.versteuerung).map((line) => ({ entryId: entry!.id, ...line })),
+      // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern
+      (corrects?.lexofficeVoucherId
+        ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
+        : invoicePosting(totals, company.kontenrahmen, company.versteuerung)
+      ).map((line) => ({ entryId: entry!.id, ...line })),
     );
     await tx.update(schema.journalEntries).set({ lockedAt: now }).where(eq(schema.journalEntries.id, entry!.id));
 

@@ -70,6 +70,8 @@ export function ArchiveUpload({ kinds }: { kinds: Kind[] }) {
             id={`${id}-year`}
             inputMode="numeric"
             placeholder={kind === "datev" ? "aus der Datei" : "z. B. 2024"}
+            required={kind !== "datev"}
+            pattern="[0-9]{4}"
             value={year}
             onChange={(event) => setYear(event.target.value.replace(/\D/g, "").slice(0, 4))}
           />

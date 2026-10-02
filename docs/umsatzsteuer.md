@@ -133,12 +133,11 @@ Das Zertifikat lädst du unter Einstellungen hoch. Es wird mit `HABEN_ENCRYPTION
 
 Ist `ERIC_HOME` nicht gesetzt, zeigt die Seite „ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.“ Ein Ersatz-Client prüft dann nur, ob das XML wohlgeformt ist und Kz 83 enthält. Übermittlungen bekommen ein erfundenes Ticket (`fake-…`) und ein Protokoll-PDF mit dem Text „Testprotokoll – keine echte Übermittlung“.
 
-> [!IMPORTANT]
-> Auch im simulierten Modus gilt eine erfolgreiche Übermittlung ohne Testhaken als gesendet und sperrt die Anmeldung. Setze `ELSTER_HERSTELLER_ID` deshalb erst, wenn ERiC eingerichtet ist.
+Eine Echtübermittlung ist im simulierten Modus nicht möglich: Der Haken **Nur Testübermittlung** bleibt gesetzt, und Haben lehnt eine Echtübermittlung ab, solange kein ERiC eingerichtet ist. So wird keine Anmeldung als gesendet festgeschrieben, die nie beim Finanzamt war.
 
 ## Grenzen
 
 - Nur Monatszeiträume, keine Quartals- oder Jahreserklärung, keine Dauerfristverlängerung.
 - Nur die Kennzahlen 81, 86, 66, 83 und 10. Keine steuerfreien Umsätze, kein Reverse Charge, keine innergemeinschaftlichen Lieferungen oder Erwerbe.
-- Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich; sie ändern die berechneten Werte für eine berichtigte Anmeldung.
+- Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.
 - Fälligkeit ohne Feiertage.

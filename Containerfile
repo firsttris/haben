@@ -4,12 +4,15 @@ WORKDIR /app
 RUN corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/
+# Alle Workspace-Pakete, sonst fehlen deren Abhängigkeiten (z. B. pdf-lib in einvoice, zod in import)
 COPY packages/core/package.json packages/core/
+COPY packages/einvoice/package.json packages/einvoice/
 COPY packages/elster/package.json packages/elster/
+COPY packages/import/package.json packages/import/
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm --filter @haben/web build \
- && pnpm install --frozen-lockfile --prod --offline
+ && CI=true pnpm install --frozen-lockfile --prod --offline
 
 FROM docker.io/library/node:22-bookworm-slim
 ENV NODE_ENV=production \

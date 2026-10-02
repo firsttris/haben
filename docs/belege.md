@@ -143,7 +143,7 @@ Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung fü
 
 ## Löschen
 
-**Löschen** gibt es nur für Belege, die noch nicht gebucht sind. Der Beleg verschwindet ohne Rückfrage, die Datei wird aus der Ablage entfernt. Einen gebuchten Beleg kannst du nicht löschen und nicht ändern.
+**Löschen** gibt es nur für Belege, die noch nicht gebucht sind. Der Beleg verschwindet ohne Rückfrage, die Datei wird aus der Ablage entfernt. Nutzt das Archiv oder der Lexoffice-Umzug dieselbe Datei (gleicher Inhalt, gleicher SHA-256), bleibt sie liegen. Einen gebuchten Beleg kannst du nicht löschen und nicht ändern.
 
 ## Liste und Status
 
@@ -151,7 +151,7 @@ Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechn
 
 | Status | Bedeutung |
 | --- | --- |
-| Wird ausgelesen | Die KI liest den Beleg gerade. Das Formular ist solange gesperrt. |
+| Wird ausgelesen | Die KI liest den Beleg gerade. Das Formular ist solange gesperrt. Wurde der Server während der Auslesung neu gestartet, zeigt der Beleg beim nächsten Öffnen einen Fehler, und du liest ihn erneut aus oder füllst ihn von Hand aus. |
 | Zu prüfen | Bereit zur Prüfung, noch nicht gebucht. |
 | Prüfen | Die Auslesung ist fehlgeschlagen; der Grund steht am Beleg. |
 | Gebucht | Festgeschrieben. |

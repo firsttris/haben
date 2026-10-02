@@ -2,6 +2,7 @@ import {
   addDays,
   formatDecimal,
   formatEuro,
+  formatInvoiceNumber,
   formatQuantity,
   lineNet,
   parseEuro,
@@ -85,7 +86,7 @@ export function InvoiceEditor({
   seller,
   sellerIssues,
   issues,
-  nextNumber,
+  numberCounters,
   corrects,
 }: {
   id: string | null;
@@ -95,7 +96,8 @@ export function InvoiceEditor({
   seller: PreviewSeller;
   sellerIssues: string[];
   issues: string[];
-  nextNumber: string;
+  /** Letzte vergebene Nummer je Jahr */
+  numberCounters: Record<number, number>;
   corrects: { number: string | null; issueDate: string } | null;
 }) {
   const router = useRouter();
@@ -122,6 +124,8 @@ export function InvoiceEditor({
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
   const dueDate = addDays(issueDate || initial.issueDate, termValid ? term : 0);
+  const numberYear = Number((issueDate || initial.issueDate).slice(0, 4));
+  const nextNumber = formatInvoiceNumber(numberYear, (numberCounters[numberYear] ?? 0) + 1);
   const allValid = parsed.every((l) => l.valid) && termValid && Boolean(issueDate);
 
   function touch<T>(setter: (value: T) => void) {

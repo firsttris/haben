@@ -281,3 +281,21 @@ export function openingDocumentPosting(gross: Cents, kontenrahmen: Kontenrahmen)
     (line) => line.debit !== 0 || line.credit !== 0,
   );
 }
+
+/**
+ * Storno oder Korrektur einer aus der Vorgänger-Buchhaltung übernommenen Rechnung (negative Summen).
+ * Die Erlöse stehen in den alten Büchern, deshalb geht der Nettobetrag wie bei der Eröffnung gegen den
+ * Saldenvortrag. Bei Soll mindert die Korrektur die dort schon angemeldete Umsatzsteuer, bei Ist die
+ * noch nicht fällige.
+ */
+export function legacyCorrectionPosting(totals: InvoiceTotals, kontenrahmen: Kontenrahmen, versteuerung: Versteuerung): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const lines: PostingLine[] = [side(accounts.forderungen, totals.gross, true, null)];
+  for (const { rate, tax } of totals.taxes) {
+    if (tax === 0) continue;
+    if (versteuerung === "ist") lines.push(side(accounts.ustNichtFaellig[rate as 1900 | 700], tax, false, null));
+    else lines.push(side(accounts.ust[rate as 1900 | 700], tax, false, revenueTaxCode(rate)));
+  }
+  lines.push(side(accounts.saldenvortrag, totals.net, false, null));
+  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}

@@ -176,6 +176,13 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
     const overlapping = new TextEncoder().encode([header, columns, rows[0]!.replace("Zahlung", "Andere Zahlung")].join("\r\n"));
     await expect(archive.addArchiveFile(actor, { bytes: overlapping, filename: "teil.csv", kind: "datev", year: null })).rejects.toThrow(/überschneidet sich/);
 
+    // Ein Stapel, der zwischen zwei vorhandene Buchungstage fällt, überschneidet sich trotzdem
+    const between = new TextEncoder().encode([header, columns, `10,00;"S";"EUR";;;;1200;8400;"";1505;"RE-X";"";;"Zwischen"`].join("\r\n"));
+    await expect(archive.addArchiveFile(actor, { bytes: between, filename: "mai.csv", kind: "datev", year: null })).rejects.toThrow(/überschneidet sich/);
+    await expect(
+      archive.addArchiveFile(actor, { bytes: new TextEncoder().encode("Protokoll"), filename: "protokoll.pdf", kind: "elster", year: null }),
+    ).rejects.toThrow(/Geschäftsjahr/);
+
     const unmatched = await archive.listDatevBookings({ year: 2023, search: "", unmatched: true, page: 0 });
     expect(unmatched.rows.map((r) => r.voucherField1)).toEqual(["", "X-404"]);
     const totals = await archive.accountTotals(2023);

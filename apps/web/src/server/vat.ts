@@ -204,6 +204,10 @@ export async function submitReturn(
   if (!herstellerId) {
     throw new VatError("Für die Echtübermittlung fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
   }
+  // Der simulierte Client sendet nichts; eine „Echtübermittlung“ würde die Anmeldung sonst festschreiben, ohne dass sie beim Finanzamt ist
+  if (!test && "isFake" in client && client.isFake) {
+    throw new VatError("Ohne ERiC (ERIC_HOME) ist keine Echtübermittlung möglich; Prüfen und Testübermittlung laufen nur simuliert.");
+  }
 
   const xml = buildUstvaXml({
     period: { year: vatReturn.year, month: vatReturn.month },

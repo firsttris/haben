@@ -95,7 +95,7 @@ Außerdem lehnt Haben die Übernahme ab, wenn die Rechnungsnummer in Haben schon
 
 ## Schritt 4: Exporte ablegen
 
-Was die API nicht liefert, lädst du als Datei hoch. Wähle die Art, optional das Geschäftsjahr, und eine oder mehrere Dateien (bis zu 50 auf einmal, je höchstens 100 MB):
+Was die API nicht liefert, lädst du als Datei hoch. Wähle die Art, das Geschäftsjahr (beim DATEV-Stapel optional) und eine oder mehrere Dateien (bis zu 50 auf einmal, je höchstens 100 MB):
 
 | Art | Woher | Was Haben damit macht |
 | --- | --- | --- |
@@ -108,7 +108,7 @@ Was die API nicht liefert, lädst du als Datei hoch. Wähle die Art, optional da
 Jede Datei bleibt byte-genau erhalten und liegt unter ihrem SHA-256. Dieselbe Datei zweimal hochzuladen lehnt Haben ab.
 
 > [!IMPORTANT]
-> Gib bei IDEA-Export, ELSTER-Protokollen und Kontoauszügen das **Geschäftsjahr** an. Nur Dateien mit Jahr zählen im Abgleich und landen im Jahresexport.
+> Bei IDEA-Export, ELSTER-Protokollen und Kontoauszügen ist das **Geschäftsjahr** Pflicht; danach richten sich Abgleich und Jahresexport.
 
 ### DATEV-Buchungsstapel
 
