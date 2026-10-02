@@ -1,0 +1,54 @@
+import { describe, expect, it } from "vitest";
+import { decimalToCents, toFields, type Extraction } from "./extraction.ts";
+
+const base: Extraction = {
+  lieferant: " Hetzner Online GmbH ",
+  lieferantUstId: "de 812871812",
+  rechnungsnummer: "R0018834512",
+  belegdatum: "2026-09-30",
+  faelligAm: null,
+  waehrung: "eur",
+  istGutschrift: false,
+  betraege: [{ steuersatz: "19", netto: "32.40", steuer: "6.16" }],
+  brutto: "38.56",
+  kategorie: "edv",
+  hinweis: null,
+};
+
+describe("KI-Auslesung umwandeln", () => {
+  it("Dezimaltext exakt in Cent", () => {
+    expect(decimalToCents("1234.5")).toBe(123450);
+    expect(decimalToCents("0,99")).toBe(99);
+    expect(decimalToCents("-3")).toBe(-300);
+    expect(decimalToCents("12.345")).toBeNull();
+    expect(decimalToCents("abc")).toBeNull();
+  });
+
+  it("übernimmt Felder und prüft die Summe", () => {
+    const fields = toFields(base);
+    expect(fields).toMatchObject({
+      supplierName: "Hetzner Online GmbH",
+      supplierUstId: "DE812871812",
+      invoiceNumber: "R0018834512",
+      documentDate: "2026-09-30",
+      currency: "EUR",
+      category: "edv",
+      amounts: [{ taxRate: 1900, net: 3240, tax: 616 }],
+      warnings: [],
+    });
+  });
+
+  it("warnt bei abweichender Summe, fremder Währung und ungültigem Datum", () => {
+    const fields = toFields({ ...base, brutto: "40.00", waehrung: "USD", belegdatum: "30.09.2026", hinweis: "Beleg unscharf" });
+    expect(fields.documentDate).toBeNull();
+    expect(fields.warnings).toEqual([
+      "Summe aus Netto und Steuer weicht vom Gesamtbetrag ab",
+      "Währung USD: bitte in Euro umrechnen",
+      "Beleg unscharf",
+    ]);
+  });
+
+  it("Gutschrift wird negativ", () => {
+    expect(toFields({ ...base, istGutschrift: true, brutto: "38.56" }).amounts).toEqual([{ taxRate: 1900, net: -3240, tax: -616 }]);
+  });
+});

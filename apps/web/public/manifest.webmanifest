@@ -1,0 +1,33 @@
+{
+  "name": "Haben – Buchhaltung",
+  "short_name": "Haben",
+  "lang": "de",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F4F5F2",
+  "theme_color": "#16211C",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Beleg hochladen", "url": "/belege" },
+    { "name": "Neue Rechnung", "url": "/rechnungen/neu" }
+  ],
+  "share_target": {
+    "action": "/api/belege/teilen",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "files",
+          "accept": ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", ".pdf", ".jpg", ".jpeg", ".png", ".xml", "application/xml", "text/xml"]
+        }
+      ]
+    }
+  }
+}

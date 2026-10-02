@@ -9,10 +9,14 @@ Image=localhost/haben:latest
 Network=haben.network
 # Entpacktes ERiC-Paket für Linux x86_64, Version fest (siehe README)
 Volume=/opt/eric:/opt/eric:ro
+# Belegdateien (GoBD: 10 Jahre aufbewahren, gehört ins Backup)
+Volume=haben-belege.volume:/var/lib/haben/belege
 EnvironmentFile=%h/.config/haben/haben.env
 Secret=haben-database-url,type=env,target=DATABASE_URL
 Secret=haben-auth-secret,type=env,target=BETTER_AUTH_SECRET
 Secret=haben-encryption-key,type=env,target=HABEN_ENCRYPTION_KEY
+# Optional: KI-Auslesung von Belegen
+# Secret=haben-anthropic-key,type=env,target=ANTHROPIC_API_KEY
 
 [Service]
 Restart=always

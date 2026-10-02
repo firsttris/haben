@@ -56,7 +56,9 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
-  .nav { width: 100%; flex-direction: row; flex-wrap: wrap; padding: 12px; }
+  .nav { width: 100%; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 12px; gap: 2px; }
+  .nav-link { white-space: nowrap; flex-shrink: 0; }
+  .nav-link[aria-disabled="true"] { display: none; }
   .brand { padding: 4px 12px; }
   .nav-spacer, .nav-foot { display: none; }
   .main { padding: 20px 16px; }
@@ -190,3 +192,26 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .facts dd { margin: 0; text-align: right; }
 .invoice-cols-compact { grid-template-columns: 80px minmax(0, 1fr) 110px 96px; }
 .invoice-cols-compact > div:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Belege */
+.dropzone { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 16px; border: 2px dashed var(--line-strong); border-radius: 12px; color: var(--ink-2); background: var(--ground); }
+.dropzone.dragging { border-color: var(--accent); background: var(--accent-tint); }
+.upload-messages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.document-cols { grid-template-columns: 96px minmax(0, 1fr) 180px 120px 130px; }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.camera-only { display: none; }
+.camera-only-text { display: none; }
+@media (pointer: coarse) {
+  .camera-only { display: inline-flex; }
+  .camera-only-text { display: inline; }
+  .pointer-fine { display: none; }
+}
+@media (max-width: 760px) {
+  .document-cols { grid-template-columns: minmax(0, 1fr) 100px; }
+  .document-cols > :nth-child(1), .document-cols > :nth-child(3), .document-cols > :nth-child(5) { display: none; }
+}
+.doc-preview { width: 100%; height: 820px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
+.doc-image { width: 100%; max-height: 820px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
+.amount-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: end; }
+.amount-row input, .amount-row select { width: 100%; min-width: 0; }
+.page-head .actions { align-items: center; }

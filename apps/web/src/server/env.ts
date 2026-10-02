@@ -15,6 +15,10 @@ const envSchema = z.object({
   ERIC_WORKER_PATH: z.string().optional(),
   /** Hersteller-ID für den Echtbetrieb; ohne sie geht nur die Testübermittlung */
   ELSTER_HERSTELLER_ID: z.string().regex(/^\d{5}$/).optional(),
+  /** Ablage der Belegdateien; im Container ein Volume */
+  DOCUMENTS_DIR: z.string().default("data/belege"),
+  /** Ohne Schlüssel keine KI-Auslesung von Belegen; E-Rechnungen werden trotzdem gelesen */
+  ANTHROPIC_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

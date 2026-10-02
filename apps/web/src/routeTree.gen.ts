@@ -14,6 +14,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
+import { Route as AppBelegeIndexRouteImport } from './routes/_app/belege/index'
+import { Route as AppBelegeIdRouteImport } from './routes/_app/belege/$id'
 import { Route as AppKontakteIndexRouteImport } from './routes/_app/kontakte/index'
 import { Route as AppKontakteIdRouteImport } from './routes/_app/kontakte/$id'
 import { Route as AppKontakteNeuRouteImport } from './routes/_app/kontakte/neu'
@@ -23,6 +25,8 @@ import { Route as AppRechnungenNeuRouteImport } from './routes/_app/rechnungen/n
 import { Route as AppUmsatzsteuerIndexRouteImport } from './routes/_app/umsatzsteuer/index'
 import { Route as AppUmsatzsteuerZeitraumRouteImport } from './routes/_app/umsatzsteuer/$zeitraum'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
+import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as ApiRechnungIdDateiRouteImport } from './routes/api/rechnung/$id.$datei'
 
@@ -48,6 +52,16 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
   id: '/einstellungen',
   path: '/einstellungen',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBelegeIndexRoute = AppBelegeIndexRouteImport.update({
+  id: '/belege/',
+  path: '/belege/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBelegeIdRoute = AppBelegeIdRouteImport.update({
+  id: '/belege/$id',
+  path: '/belege/$id',
   getParentRoute: () => AppRoute,
 } as any)
 const AppKontakteIndexRoute = AppKontakteIndexRouteImport.update({
@@ -95,6 +109,16 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBelegIdRoute = ApiBelegIdRouteImport.update({
+  id: '/api/beleg/$id',
+  path: '/api/beleg/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBelegeTeilenRoute = ApiBelegeTeilenRouteImport.update({
+  id: '/api/belege/teilen',
+  path: '/api/belege/teilen',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProtokollIdRoute = ApiProtokollIdRouteImport.update({
   id: '/api/protokoll/$id',
   path: '/api/protokoll/$id',
@@ -111,13 +135,17 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/einstellungen': typeof AppEinstellungenRoute
+  '/belege/$id': typeof AppBelegeIdRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
   '/rechnungen/$id': typeof AppRechnungenIdRoute
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/beleg/$id': typeof ApiBelegIdRoute
+  '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/belege/': typeof AppBelegeIndexRoute
   '/kontakte/': typeof AppKontakteIndexRoute
   '/rechnungen/': typeof AppRechnungenIndexRoute
   '/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
@@ -128,13 +156,17 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/': typeof AppIndexRoute
+  '/belege/$id': typeof AppBelegeIdRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
   '/rechnungen/$id': typeof AppRechnungenIdRoute
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/beleg/$id': typeof ApiBelegIdRoute
+  '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/belege': typeof AppBelegeIndexRoute
   '/kontakte': typeof AppKontakteIndexRoute
   '/rechnungen': typeof AppRechnungenIndexRoute
   '/umsatzsteuer': typeof AppUmsatzsteuerIndexRoute
@@ -147,13 +179,17 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/belege/$id': typeof AppBelegeIdRoute
   '/_app/kontakte/$id': typeof AppKontakteIdRoute
   '/_app/kontakte/neu': typeof AppKontakteNeuRoute
   '/_app/rechnungen/$id': typeof AppRechnungenIdRoute
   '/_app/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/_app/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/beleg/$id': typeof ApiBelegIdRoute
+  '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/_app/belege/': typeof AppBelegeIndexRoute
   '/_app/kontakte/': typeof AppKontakteIndexRoute
   '/_app/rechnungen/': typeof AppRechnungenIndexRoute
   '/_app/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
@@ -166,13 +202,17 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/einstellungen'
+    | '/belege/$id'
     | '/kontakte/$id'
     | '/kontakte/neu'
     | '/rechnungen/$id'
     | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
     | '/api/auth/$'
+    | '/api/beleg/$id'
+    | '/api/belege/teilen'
     | '/api/protokoll/$id'
+    | '/belege/'
     | '/kontakte/'
     | '/rechnungen/'
     | '/umsatzsteuer/'
@@ -183,13 +223,17 @@ export interface FileRouteTypes {
     | '/setup'
     | '/einstellungen'
     | '/'
+    | '/belege/$id'
     | '/kontakte/$id'
     | '/kontakte/neu'
     | '/rechnungen/$id'
     | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
     | '/api/auth/$'
+    | '/api/beleg/$id'
+    | '/api/belege/teilen'
     | '/api/protokoll/$id'
+    | '/belege'
     | '/kontakte'
     | '/rechnungen'
     | '/umsatzsteuer'
@@ -201,13 +245,17 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/einstellungen'
     | '/_app/'
+    | '/_app/belege/$id'
     | '/_app/kontakte/$id'
     | '/_app/kontakte/neu'
     | '/_app/rechnungen/$id'
     | '/_app/rechnungen/neu'
     | '/_app/umsatzsteuer/$zeitraum'
     | '/api/auth/$'
+    | '/api/beleg/$id'
+    | '/api/belege/teilen'
     | '/api/protokoll/$id'
+    | '/_app/belege/'
     | '/_app/kontakte/'
     | '/_app/rechnungen/'
     | '/_app/umsatzsteuer/'
@@ -219,6 +267,8 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBelegIdRoute: typeof ApiBelegIdRoute
+  ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
 }
@@ -258,6 +308,20 @@ declare module '@tanstack/react-router' {
       path: '/einstellungen'
       fullPath: '/einstellungen'
       preLoaderRoute: typeof AppEinstellungenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/belege/': {
+      id: '/_app/belege/'
+      path: '/belege'
+      fullPath: '/belege/'
+      preLoaderRoute: typeof AppBelegeIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/belege/$id': {
+      id: '/_app/belege/$id'
+      path: '/belege/$id'
+      fullPath: '/belege/$id'
+      preLoaderRoute: typeof AppBelegeIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/kontakte/': {
@@ -323,6 +387,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/beleg/$id': {
+      id: '/api/beleg/$id'
+      path: '/api/beleg/$id'
+      fullPath: '/api/beleg/$id'
+      preLoaderRoute: typeof ApiBelegIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/belege/teilen': {
+      id: '/api/belege/teilen'
+      path: '/api/belege/teilen'
+      fullPath: '/api/belege/teilen'
+      preLoaderRoute: typeof ApiBelegeTeilenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/protokoll/$id': {
       id: '/api/protokoll/$id'
       path: '/api/protokoll/$id'
@@ -343,11 +421,13 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppBelegeIdRoute: typeof AppBelegeIdRoute
   AppKontakteIdRoute: typeof AppKontakteIdRoute
   AppKontakteNeuRoute: typeof AppKontakteNeuRoute
   AppRechnungenIdRoute: typeof AppRechnungenIdRoute
   AppRechnungenNeuRoute: typeof AppRechnungenNeuRoute
   AppUmsatzsteuerZeitraumRoute: typeof AppUmsatzsteuerZeitraumRoute
+  AppBelegeIndexRoute: typeof AppBelegeIndexRoute
   AppKontakteIndexRoute: typeof AppKontakteIndexRoute
   AppRechnungenIndexRoute: typeof AppRechnungenIndexRoute
   AppUmsatzsteuerIndexRoute: typeof AppUmsatzsteuerIndexRoute
@@ -356,11 +436,13 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppIndexRoute: AppIndexRoute,
+  AppBelegeIdRoute: AppBelegeIdRoute,
   AppKontakteIdRoute: AppKontakteIdRoute,
   AppKontakteNeuRoute: AppKontakteNeuRoute,
   AppRechnungenIdRoute: AppRechnungenIdRoute,
   AppRechnungenNeuRoute: AppRechnungenNeuRoute,
   AppUmsatzsteuerZeitraumRoute: AppUmsatzsteuerZeitraumRoute,
+  AppBelegeIndexRoute: AppBelegeIndexRoute,
   AppKontakteIndexRoute: AppKontakteIndexRoute,
   AppRechnungenIndexRoute: AppRechnungenIndexRoute,
   AppUmsatzsteuerIndexRoute: AppUmsatzsteuerIndexRoute,
@@ -373,6 +455,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBelegIdRoute: ApiBelegIdRoute,
+  ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,
 }

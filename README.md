@@ -2,7 +2,19 @@
 
 Buchhaltung für einen Freelancer mit EÜR und monatlicher Umsatzsteuer-Voranmeldung. Self-hosted, Open Source (AGPL-3.0), ersetzt Lexware/Lexoffice.
 
-Stand: **Phase 1 und 2** des Implementierungsplans: Fundament, ELSTER-Übermittlung, Ausgangsrechnungen und E-Rechnung. Die Kennzahlen der Voranmeldung (Kz 81, 86, 66) gibst du noch selbst ein, Kz 83 rechnet Haben. Ab Phase 5 kommen sie automatisch aus den Buchungen.
+Stand: **Phase 1 bis 3** des Implementierungsplans: Fundament, ELSTER-Übermittlung, Ausgangsrechnungen, E-Rechnung und Belege. Die Kennzahlen der Voranmeldung (Kz 81, 86, 66) gibst du noch selbst ein, Kz 83 rechnet Haben. Ab Phase 5 kommen sie automatisch aus den Buchungen.
+
+## Phase 3: Belege und Eingangsrechnungen
+
+- Upload per Drag-and-drop, Dateiauswahl oder Kamera; als installierte App (PWA) auch über das Teilen-Menü des Handys
+- Ablage im Dateisystem unter dem SHA-256 der Datei (`DOCUMENTS_DIR`); dieselbe Datei wird nie doppelt abgelegt. Der Dateityp wird am Inhalt erkannt
+- E-Rechnungen (ZUGFeRD/Factur-X, XRechnung CII und UBL, ZUGFeRD 1.0) liest Haben direkt aus; das XML wird mit pdf-lib aus dem PDF gezogen
+- Andere PDFs und Fotos liest Claude (Opus 5.5) mit festem JSON-Schema vor, wenn `ANTHROPIC_API_KEY` gesetzt ist. Die Datei geht dafür an die Anthropic-API; ohne Schlüssel bleibt alles lokal und die Felder werden von Hand ausgefüllt. Vorbefüllte Felder werden immer erst nach deiner Bestätigung gebucht
+- Kategorie je Beleg (Software, Hosting, Telefon, Reisekosten …), abgebildet auf Aufwandskonto des Kontenrahmens; Haben schlägt die Kategorie vom letzten Beleg desselben Lieferanten vor
+- Buchen: Aufwand und Vorsteuer an Verbindlichkeiten, bei privat bezahlten Belegen an Privateinlage; danach ist der Beleg gesperrt (Trigger). Ungebuchte Belege lassen sich löschen
+- Die Umsatzsteuer-Seite zeigt die Vorsteuer aus gebuchten Belegen des Monats (nach Belegdatum) und übernimmt sie auf Wunsch in Kz 66
+
+Belegdateien gehören ins Backup (`deploy/backup.sh` sichert das Volume `haben-belege` mit).
 
 ## Phase 2: Rechnungen
 
@@ -17,7 +29,7 @@ Stand: **Phase 1 und 2** des Implementierungsplans: Fundament, ELSTER-Übermittl
 
 Noch nicht: „bezahlt“ (kommt mit dem Bankabgleich), Kleinunternehmer und Reverse Charge, E-Mail-Versand.
 
-**Kontonummern prüfen:** Die Buchungen nutzen SKR03 bzw. SKR04 (Einstellung „Kontenrahmen“), u. a. 1400/1200 Forderungen, 8400/4400 Erlöse 19 %, 1766/3816 Umsatzsteuer nicht fällig 19 %. Die Zuordnung steht in `packages/core/src/posting.ts` und sollte einmal mit Lexoffice oder dem Steuerberater abgeglichen werden.
+**Kontonummern prüfen:** Die Buchungen nutzen SKR03 bzw. SKR04 (Einstellung „Kontenrahmen“), u. a. 1400/1200 Forderungen, 8400/4400 Erlöse 19 %, 1766/3816 Umsatzsteuer nicht fällig 19 %, 1576/1406 Vorsteuer 19 %, 1600/3300 Verbindlichkeiten und die Aufwandskonten der Belegkategorien. Die Zuordnung steht in `packages/core/src/posting.ts` und sollte einmal mit Lexoffice oder dem Steuerberater abgeglichen werden.
 
 ## Phase 1: Umsatzsteuer-Voranmeldung
 
@@ -37,7 +49,7 @@ Noch nicht: „bezahlt“ (kommt mit dem Bankabgleich), Kleinunternehmer und Rev
 | `apps/web` | TanStack Start (React, Server Functions), Drizzle, Better Auth |
 | `packages/core` | Beträge in Cent, Zeiträume und Fälligkeiten, Steuernummer-Umrechnung, UStVA-Berechnung |
 | `packages/elster` | ERiC-Anbindung hinter `ElsterClient`, UStVA-XML, Worker-Prozess |
-| `packages/einvoice` | Rechnungs-PDF (Typst) und E-Rechnung (ZUGFeRD, XRechnung) |
+| `packages/einvoice` | Rechnungs-PDF (Typst), E-Rechnung erzeugen (ZUGFeRD, XRechnung) und eingehende E-Rechnungen lesen |
 
 Geldbeträge sind immer ganze Cent, Steuersätze Basispunkte (1900 = 19 %).
 

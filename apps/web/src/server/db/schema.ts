@@ -242,7 +242,7 @@ export const journalEntries = pgTable("journal_entries", {
   id: uuid("id").primaryKey().defaultRandom(),
   date: date("date", { mode: "string" }).notNull(),
   description: text("description").notNull(),
-  sourceType: text("source_type", { enum: ["invoice"] }).notNull(),
+  sourceType: text("source_type", { enum: ["invoice", "document"] }).notNull(),
   sourceId: uuid("source_id").notNull(),
   kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
   reversesId: uuid("reverses_id"),
@@ -263,4 +263,56 @@ export const journalLines = pgTable(
     taxCode: text("tax_code"),
   },
   (t) => [check("journal_lines_one_side", sql`(${t.debit} >= 0 and ${t.credit} >= 0) and (${t.debit} = 0 or ${t.credit} = 0)`)],
+);
+
+export const documentStatusEnum = pgEnum("document_status", ["neu", "gebucht"]);
+export const extractionStatusEnum = pgEnum("extraction_status", ["keine", "laeuft", "fertig", "fehler"]);
+
+/**
+ * Belege (Eingangsrechnungen, Quittungen). Die Datei liegt im Dateisystem unter ihrem SHA-256;
+ * Beträge in Cent, Gutschriften negativ. Beim Buchen gesperrt.
+ */
+export const documents = pgTable("documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sha256: text("sha256").notNull().unique(),
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  status: documentStatusEnum("status").notNull().default("neu"),
+  /** Woher die Felder stammen: zugferd, xrechnung, ki oder manuell */
+  extractedBy: text("extracted_by", { enum: ["zugferd", "xrechnung", "ki", "manuell"] }),
+  extractionStatus: extractionStatusEnum("extraction_status").notNull().default("keine"),
+  extractionError: text("extraction_error"),
+  /** Rohdaten der Auslesung zum Nachvollziehen */
+  extraction: jsonb("extraction").$type<Record<string, unknown>>(),
+  supplierName: text("supplier_name").notNull().default(""),
+  supplierUstId: text("supplier_ust_id").notNull().default(""),
+  invoiceNumber: text("invoice_number").notNull().default(""),
+  documentDate: date("document_date", { mode: "string" }),
+  dueDate: date("due_date", { mode: "string" }),
+  category: text("category"),
+  payment: text("payment", { enum: ["bank", "privat"] }).notNull().default("bank"),
+  note: text("note").notNull().default(""),
+  currency: text("currency").notNull().default("EUR"),
+  net: integer("net").notNull().default(0),
+  tax: integer("tax").notNull().default(0),
+  gross: integer("gross").notNull().default(0),
+  lockedAt: timestamp("locked_at", { withTimezone: true }),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Beträge eines Belegs je Steuersatz */
+export const documentAmounts = pgTable(
+  "document_amounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    taxRate: smallint("tax_rate").notNull(),
+    net: integer("net").notNull(),
+    tax: integer("tax").notNull(),
+  },
+  (t) => [uniqueIndex("document_amounts_rate").on(t.documentId, t.taxRate)],
 );
