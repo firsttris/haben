@@ -179,6 +179,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Ohne sie ist nur die Testübermittlung möglich | `12345` |
 | `DOCUMENTS_DIR` | nein | Ablage der Belegdateien. Standard `data/belege` (relativ zum Arbeitsverzeichnis); im Image `/var/lib/haben/belege` | `/var/lib/haben/belege` |
 | `ANTHROPIC_API_KEY` | nein | Schaltet die KI-Auslesung von Belegen ein | `sk-ant-…` |
+| `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (wiederkehrende Rechnungen), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
 | `LEXOFFICE_API_URL` | nein | Andere Basis-URL der Lexware-Office-API. Standard `https://api.lexware.io/v1` | `https://api.lexoffice.io/v1` |
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
 | `HABEN_EINVOICE_DIR` | nein | Verzeichnis von `packages/einvoice` (Typst-Vorlage und Schriften für das Rechnungs-PDF). Im Image gesetzt | `/app/packages/einvoice` |

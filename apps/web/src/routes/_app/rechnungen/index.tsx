@@ -23,6 +23,9 @@ function InvoicesPage() {
           <Link to="/kontakte" className="btn">
             Kontakte
           </Link>
+          <Link to="/rechnungen/wiederkehrend" className="btn">
+            Wiederkehrend
+          </Link>
           <Link to="/rechnungen/neu" className="btn btn-primary">
             Neue Rechnung
           </Link>

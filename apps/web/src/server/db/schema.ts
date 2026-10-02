@@ -234,6 +234,9 @@ export const invoices = pgTable(
     pdfSha256: text("pdf_sha256"),
     xml: text("xml"),
     xmlSha256: text("xml_sha256"),
+    /** Aus einer wiederkehrenden Rechnung erzeugt, mit dem Termin; je Termin genau eine Rechnung */
+    recurringId: uuid("recurring_id"),
+    recurringDate: date("recurring_date", { mode: "string" }),
     /** Offene Rechnung aus Lexoffice übernommen: Original-PDF, Eröffnungsbuchung statt Erlösbuchung */
     lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
     lockedAt: timestamp("locked_at", { withTimezone: true }),
@@ -243,6 +246,7 @@ export const invoices = pgTable(
   (t) => [
     check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
     uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
+    uniqueIndex("invoices_recurring_date").on(t.recurringId, t.recurringDate),
   ],
 );
 
@@ -640,4 +644,45 @@ export const assetDepreciations = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("asset_depreciations_year").on(t.assetId, t.year)],
+);
+
+/**
+ * Vorlage für wiederkehrende Rechnungen. Ein Hintergrundjob legt zu jedem fälligen Termin eine Rechnung
+ * an (als Entwurf oder festgeschrieben) und rückt den nächsten Termin weiter.
+ */
+export const recurringInvoices = pgTable(
+  "recurring_invoices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    active: boolean("active").notNull().default(true),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id),
+    format: invoiceFormatEnum("format").notNull().default("zugferd"),
+    paymentTermDays: smallint("payment_term_days").notNull().default(14),
+    note: text("note").notNull().default(""),
+    taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
+    exemptionReason: text("exemption_reason").notNull().default(""),
+    lines: jsonb("lines")
+      .$type<{ description: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>()
+      .notNull(),
+    /** Monate zwischen zwei Rechnungen: 1, 3, 6 oder 12 */
+    intervalMonths: smallint("interval_months").notNull(),
+    /** Tag im Monat, auf den die Termine fallen (31 = Monatsende) */
+    anchorDay: smallint("anchor_day").notNull(),
+    nextDate: date("next_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }),
+    servicePeriod: text("service_period", { enum: ["laufend", "vorher", "keiner"] }).notNull().default("laufend"),
+    /** entwurf = nur anlegen, festschreiben = Nummer ziehen und buchen */
+    mode: text("mode", { enum: ["entwurf", "festschreiben"] }).notNull().default("entwurf"),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("recurring_interval", sql`${t.intervalMonths} in (1, 3, 6, 12)`),
+    check("recurring_anchor_day", sql`${t.anchorDay} between 1 and 31`),
+  ],
 );

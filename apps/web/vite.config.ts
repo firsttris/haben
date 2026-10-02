@@ -22,7 +22,7 @@ export default defineConfig({
     keepNativeExternal(),
     tanstackStart(),
     // die native Bindung löst der Server zur Laufzeit aus apps/web/node_modules auf
-    nitro(),
+    nitro({ plugins: ["./src/server/plugins/scheduler.ts"] }),
     viteReact(),
   ],
 });
