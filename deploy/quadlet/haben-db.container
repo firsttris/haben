@@ -1,0 +1,18 @@
+[Unit]
+Description=Haben – PostgreSQL
+
+[Container]
+ContainerName=haben-db
+Image=docker.io/library/postgres:16
+Network=haben.network
+Volume=haben-db.volume:/var/lib/postgresql/data
+Environment=POSTGRES_USER=haben POSTGRES_DB=haben
+Secret=haben-db-password,type=env,target=POSTGRES_PASSWORD
+HealthCmd=pg_isready -U haben
+HealthInterval=10s
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

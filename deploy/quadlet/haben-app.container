@@ -1,0 +1,21 @@
+[Unit]
+Description=Haben – App
+Requires=haben-db.service
+After=haben-db.service
+
+[Container]
+ContainerName=haben-app
+Image=localhost/haben:latest
+Network=haben.network
+# Entpacktes ERiC-Paket für Linux x86_64, Version fest (siehe README)
+Volume=/opt/eric:/opt/eric:ro
+EnvironmentFile=%h/.config/haben/haben.env
+Secret=haben-database-url,type=env,target=DATABASE_URL
+Secret=haben-auth-secret,type=env,target=BETTER_AUTH_SECRET
+Secret=haben-encryption-key,type=env,target=HABEN_ENCRYPTION_KEY
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

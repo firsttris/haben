@@ -1,0 +1,8 @@
+[Unit]
+Description=Haben – Backup (pg_dump + restic)
+After=haben-db.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/haben/backup.env
+ExecStart=%h/.config/haben/backup.sh

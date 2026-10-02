@@ -1,0 +1,18 @@
+[Unit]
+Description=Haben – Caddy (TLS)
+After=haben-app.service
+
+[Container]
+ContainerName=haben-caddy
+Image=docker.io/library/caddy:2
+Network=haben.network
+PublishPort=80:80
+PublishPort=443:443
+Volume=%h/.config/haben/Caddyfile:/etc/caddy/Caddyfile:ro
+Volume=haben-caddy.volume:/data
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.output/
+.vinxi/
+.tanstack/
+.nitro/
+*.log
+.env
+.env.*
+!.env.example
+data/
+coverage/

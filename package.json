@@ -1,0 +1,28 @@
+{
+  "name": "haben",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @haben/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "db:generate": "pnpm --filter @haben/web db:generate",
+    "db:migrate": "pnpm --filter @haben/web db:migrate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  }
+}
