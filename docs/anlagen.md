@@ -89,6 +89,43 @@ Wird eine Anlage verkauft, entnommen oder verschrottet, trägst du das **Abgangs
 
 Den Verkaufserlös stellst du als normale [Rechnung](rechnungen.md) mit Umsatzsteuer. Er zählt in der EÜR als Einnahme. Der Abgang lässt sich nur in ein Jahr legen, für das die AfA noch nicht gebucht ist.
 
+## Private Nutzung von Firmenwagen
+
+Für Fahrzeuge ohne Fahrtenbuch rechnet Haben die private Nutzung nach der Listenpreismethode (§ 6 Abs. 1 Nr. 4 EStG). Auf der Seite der Anlage hakst du **Auch privat genutzt** an und trägst ein:
+
+| Feld | Bedeutung |
+|---|---|
+| Bruttolistenpreis | Inländischer Listenpreis bei Erstzulassung inklusive Sonderausstattung und Umsatzsteuer, nicht der Kaufpreis. Haben rundet auf volle 100 € ab. |
+| Antrieb | Verbrenner, Plug-in-Hybrid (begünstigt) oder Elektro |
+| Satz je Monat | Vorschlag aus Antrieb, Listenpreis und Anschaffungsdatum, änderbar |
+| Umsatzsteuer auf die Privatnutzung | Aus, wenn du beim Kauf keine Vorsteuer gezogen hast. Als Kleinunternehmer immer aus. |
+
+| Antrieb | Satz |
+|---|---|
+| Verbrenner | 1 % |
+| Plug-in-Hybrid, begünstigt | 0,5 % |
+| Elektro bis zur Preisgrenze | 0,25 % |
+| Elektro über der Preisgrenze | 0,5 % |
+
+Die Preisgrenze für 0,25 % liegt bei 60.000 € für Anschaffungen bis 2023, 70.000 € bis Juni 2025 und 100.000 € danach. Vor 2019 angeschaffte Elektro- und Hybridautos schlägt Haben mit 1 % vor.
+
+Die Pauschale fällt in jedem Monat ab der Anschaffung bzw. dem Übernahmestichtag an, bis einschließlich des Abgangsmonats. Beispiel Elektroauto mit 58.990 € Listenpreis: 0,25 % von 58.900 € sind 147,25 € Entnahme im Monat.
+
+**Umsatzsteuer:** Die Privatnutzung ist eine unentgeltliche Wertabgabe. Bemessung ist 1 % des vollen Listenpreises abzüglich 20 % für Kosten ohne Vorsteuer, auch bei Elektroautos; die Ermäßigung gilt nur für die Einkommensteuer. Im Beispiel 471,20 € Bemessung und 89,53 € Umsatzsteuer im Monat. Sie steht in der [Voranmeldung](umsatzsteuer.md) unter Kz 81 als „Privatnutzung“, auch bei Ist-Versteuerung im Monat der Nutzung.
+
+**EÜR:** Die Entnahme steht als „Private Kfz-Nutzung“ in den Einnahmen, die Umsatzsteuer darauf als „Umsatzsteuer auf unentgeltliche Wertabgaben“.
+
+**Buchung:** Mit **AfA … buchen** zum Jahresende bucht Haben je Monat zum Monatsende:
+
+```
+1800 Privatentnahmen   236,78   an  8921 Kfz-Nutzung 19 % USt    147,25
+                                    1776 Umsatzsteuer 19 %         89,53
+```
+
+Bei Verbrennern geht die Entnahme bis zur Höhe der Bemessung auf 8921 (SKR04 4645), der Rest ohne Umsatzsteuer auf 8924 (SKR04 4639). Die Kennzahl 81 rechnet Haben aus der Bemessung, nicht aus dem Erlöskonto.
+
+Ist schon gebucht, lässt sich die Privatnutzung nicht mehr ändern.
+
 ## In der EÜR
 
 Die [EÜR](auswertungen.md) bekommt je nach Bedarf die Zeilen **AfA auf bewegliche Wirtschaftsgüter**, **Sofortabschreibung geringwertiger Wirtschaftsgüter**, **Auflösung Sammelposten** und **Restbuchwert ausgeschiedener Anlagegüter**. Die Werte kommen aus dem Abschreibungsplan, ob schon gebucht oder nicht.
@@ -100,6 +137,6 @@ Im Jahresexport liegt `anlagen/anlagenverzeichnis.csv` mit Buchwert am Jahresanf
 - Nur bewegliche Wirtschaftsgüter, keine Gebäude und keine immateriellen Wirtschaftsgüter außer Software.
 - Nur lineare AfA. Keine degressive AfA, keine Sonderabschreibung (§ 7g EStG) und kein Investitionsabzugsbetrag.
 - Kein Erinnerungswert von 1 €; bei der EÜR wird bis 0 abgeschrieben.
-- Die private Nutzung eines Firmenwagens (1-%-Regelung oder Fahrtenbuch) bucht Haben noch nicht.
+- Private Kfz-Nutzung nur nach der Listenpreismethode: kein Fahrtenbuch, keine Fahrten zwischen Wohnung und Betriebsstätte (0,03 %) und keine Kostendeckelung.
 - Gebuchte AfA lässt sich nicht stornieren.
 - Kontenzuordnung vor dem Echtbetrieb mit dem Steuerberater abgleichen.

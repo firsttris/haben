@@ -77,7 +77,7 @@ function AssetsPage() {
         <div className="banner" role="alert">
           <Icon name="alert" />
           <span>
-            Die Abschreibungen für {year} werden für {data.pending} {data.pending === 1 ? "Anlage" : "Anlagen"} gebucht und festgeschrieben;
+            Die Abschreibungen und die private Kfz-Nutzung für {year} werden für {data.pending} {data.pending === 1 ? "Anlage" : "Anlagen"} gebucht und festgeschrieben;
             danach lassen sich Anschaffungskosten, Nutzungsdauer und Abgang in {year} nicht mehr ändern. Noch einmal klicken zum Buchen.
           </span>
         </div>
@@ -122,6 +122,9 @@ function AssetsPage() {
                   ) : null}
                   <div className="small muted">
                     {ASSET_KINDS[asset.kind].label} · {ASSET_METHODS[asset.method]}
+                    {asset.privateUseYear && asset.privateUseYear.months.length > 0
+                      ? ` · Privatnutzung ${formatEuro(asset.privateUseYear.withdrawal)}`
+                      : ""}
                   </div>
                 </div>
                 <div className="small">

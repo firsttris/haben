@@ -128,9 +128,11 @@ function AssetPage() {
               openingDate: asset.openingDate ?? "",
               openingBookValue: asset.openingBookValue ?? 0,
               disposalDate: asset.disposalDate,
+              privateUse: asset.privateUse,
               note: asset.note,
             }}
             locked={booked || fromDocument}
+            privateUseLocked={booked}
             lifeEditable={!booked}
             showOpening={!fromDocument}
             submitLabel="Speichern"

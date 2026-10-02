@@ -18,7 +18,14 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
-import { ASSET_KIND_KEYS, ASSET_METHOD_KEYS, TAX_TREATMENT_KEYS, type AssetKind, type AssetMethod } from "@haben/core";
+import {
+  ASSET_KIND_KEYS,
+  ASSET_METHOD_KEYS,
+  TAX_TREATMENT_KEYS,
+  type AssetKind,
+  type AssetMethod,
+  type CarPrivateUse,
+} from "@haben/core";
 
 export * from "./auth-schema.ts";
 
@@ -61,6 +68,8 @@ export const company = pgTable(
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
+    /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
+    privateShares: jsonb("private_shares").$type<Record<string, number>>().notNull().default({}),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("company_single_row", sql`${t.id} = 1`)],
@@ -322,6 +331,8 @@ export const documents = pgTable("documents", {
   asset: jsonb("asset").$type<{ name: string; kind: AssetKind; method: AssetMethod; usefulLifeMonths: number | null }>(),
   /** Beim Buchen festgehalten: false bei Kleinunternehmern, dann ist die Steuer Teil des Aufwands */
   vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
+  /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
+  privateShare: smallint("private_share").notNull().default(0),
   /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
   lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
   lockedAt: timestamp("locked_at", { withTimezone: true }),
@@ -595,6 +606,8 @@ export const assets = pgTable(
     openingBookValue: integer("opening_book_value"),
     openingEntryId: uuid("opening_entry_id"),
     disposalDate: date("disposal_date", { mode: "string" }),
+    /** Firmenwagen: private Nutzung nach der Listenpreismethode */
+    privateUse: jsonb("private_use").$type<CarPrivateUse>(),
     note: text("note").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -602,6 +615,7 @@ export const assets = pgTable(
   (t) => [
     check("assets_opening_complete", sql`(${t.openingDate} is null) = (${t.openingBookValue} is null)`),
     check("assets_cost_positive", sql`${t.cost} > 0`),
+    check("assets_private_use_car", sql`${t.privateUse} is null or ${t.kind} = 'kfz'`),
   ],
 );
 
@@ -617,6 +631,9 @@ export const assetDepreciations = pgTable(
     depreciation: integer("depreciation").notNull(),
     /** Restbuchwert beim Abgang */
     disposal: integer("disposal").notNull().default(0),
+    /** Private Kfz-Nutzung im Jahr: Entnahme und Umsatzsteuer */
+    privateUse: integer("private_use").notNull().default(0),
+    privateUseVat: integer("private_use_vat").notNull().default(0),
     entryId: uuid("entry_id")
       .notNull()
       .references(() => journalEntries.id),

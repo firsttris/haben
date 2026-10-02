@@ -31,9 +31,7 @@ export const getAssets = createServerFn({ method: "GET" })
   .validator(yearSchema)
   .handler(async ({ data: year }) => {
     const assets = await listAssets(year);
-    const pending = assets.filter(
-      (a) => a.year && (a.year.depreciation !== 0 || a.year.disposal !== 0) && !a.bookedYears.includes(year),
-    ).length;
+    const pending = assets.filter((a) => a.pending).length;
     return { year, assets, pending, canBook: canBookYear(year, today()) };
   });
 

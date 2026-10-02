@@ -1,4 +1,4 @@
-import type { BasisPoints, Cents } from "./money.ts";
+import { splitPrivateShare, type BasisPoints, type Cents } from "./money.ts";
 import type { InvoiceTotals } from "./invoice.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
@@ -62,6 +62,11 @@ export const EXPENSE_CATEGORIES = {
   buchfuehrung: { label: "Buchführung und Steuerberatung", SKR03: "4955", SKR04: "6830" },
   fremdleistung: { label: "Fremdleistungen", SKR03: "3100", SKR04: "5900" },
   geldverkehr: { label: "Kontoführung und Gebühren", SKR03: "4970", SKR04: "6855" },
+  kfzBetrieb: { label: "Kfz: Laden, Tanken, Wartung", SKR03: "4530", SKR04: "6530" },
+  kfzVersicherung: { label: "Kfz: Versicherung", SKR03: "4520", SKR04: "6520" },
+  kfzSteuer: { label: "Kfz: Steuer", SKR03: "4510", SKR04: "7685" },
+  kfzReparatur: { label: "Kfz: Reparaturen", SKR03: "4540", SKR04: "6540" },
+  kfzLeasing: { label: "Kfz: Leasing", SKR03: "4570", SKR04: "6560" },
   versicherung: { label: "Versicherungen", SKR03: "4360", SKR04: "6400" },
   beitraege: { label: "Beiträge", SKR03: "4380", SKR04: "6420" },
   sonstiges: { label: "Sonstiger Aufwand", SKR03: "4900", SKR04: "6300" },
@@ -198,11 +203,20 @@ export function documentPosting(
   vorsteuerAbzug = true,
   /** Abweichendes Konto statt des Kategoriekontos, z. B. das Anlagekonto einer Anlage */
   account?: string,
+  /** Privatanteil in Prozent, z. B. beim Handyvertrag: nur der betriebliche Teil ist Aufwand und Vorsteuer */
+  privateShare = 0,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
   const lines: PostingLine[] = [];
-  for (const { rate, base, tax } of totals.taxes) {
+  let privatePart = 0;
+  for (const row of totals.taxes) {
+    const baseSplit = splitPrivateShare(row.base, privateShare);
+    const taxSplit = splitPrivateShare(row.tax, privateShare);
+    privatePart += baseSplit.private + taxSplit.private;
+    const { rate } = row;
+    const base = baseSplit.business;
+    const tax = taxSplit.business;
     if (!vorsteuerAbzug) {
       if (base + tax !== 0) lines.push(side(expense, base + tax, true, "keineVSt"));
       continue;
@@ -211,6 +225,8 @@ export function documentPosting(
     if (base !== 0) lines.push(side(expense, base, true, code));
     if (tax !== 0) lines.push(side(accounts.vorsteuer[rate as 1900 | 700], tax, true, code));
   }
+  // Der private Teil ist eine Entnahme; privat bezahlt heben sich Einlage und Entnahme insoweit auf
+  if (privatePart !== 0) lines.push(side(accounts.privatentnahmen, privatePart, true, null));
   const counter = payment === "privat" ? accounts.privateinlagen : accounts.verbindlichkeiten;
   lines.push(side(counter, totals.gross, false, null));
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);

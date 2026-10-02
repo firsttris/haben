@@ -197,7 +197,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(invoiceLines[1]).toContain(";4000,00;760,00;4760,00;ZUGFeRD;");
 
     const belege = text(files["belege/belege.csv"]);
-    expect(belege).toContain('2026-09-29;"Müller; ""Büro"" GmbH/Filiale";DE123475223;MF-2026-09;telefon;38,57;7,33;;;;38,57;7,33;45,90;EUR;Bank;gebucht;');
+    expect(belege).toContain('2026-09-29;"Müller; ""Büro"" GmbH/Filiale";DE123475223;MF-2026-09;telefon;38,57;7,33;;;;38,57;7,33;45,90;0;EUR;Bank;gebucht;');
     expect(belege).toContain('"Zeile 1\nZeile 2"');
     expect(belege).toContain(`${sha256(JPEG)};quittung foto.jpg;2026-09-29_Mueller-Buero-GmbH-Filiale_${documentId.slice(0, 8)}.jpg`);
 

@@ -40,9 +40,11 @@ function NewAssetPage() {
               openingDate: `${year}-01-01`,
               openingBookValue: 0,
               disposalDate: null,
+              privateUse: null,
               note: "",
             }}
             locked={false}
+            privateUseLocked={false}
             lifeEditable
             showOpening
             submitLabel="Anlage übernehmen"

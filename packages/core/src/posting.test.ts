@@ -67,6 +67,17 @@ describe("invoicePosting mit Steuerfällen", () => {
 });
 
 describe("documentPosting", () => {
+  it("Privatanteil: betrieblicher Teil ist Aufwand und Vorsteuer, der Rest Entnahme", () => {
+    const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 4_000, taxRate: 1900 }]);
+    const lines = documentPosting(totals, "telefon", "SKR03", "bank", true, undefined, 20);
+    expect(lines).toEqual([
+      { account: "4920", debit: 3_200, credit: 0, taxCode: "VSt19" },
+      { account: "1576", debit: 608, credit: 0, taxCode: "VSt19" },
+      { account: "1800", debit: 952, credit: 0, taxCode: null },
+      { account: "1600", debit: 0, credit: 4_760, taxCode: null },
+    ]);
+  });
+
   it("ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Aufwand", () => {
     const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
     expect(documentPosting(totals, "software", "SKR03", "bank", false)).toEqual([

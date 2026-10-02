@@ -47,7 +47,7 @@ Wie in der Anlage EÜR ist die vereinnahmte Umsatzsteuer eine Betriebseinnahme. 
 
 Die Tabelle „Einnahmen-Überschuss-Rechnung“ zeigt:
 
-- **Betriebseinnahmen:** Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer (nur, wenn es solche gibt), Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Vereinnahmte Umsatzsteuer, Vom Finanzamt erstattete Umsatzsteuer
+- **Betriebseinnahmen:** Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer (nur, wenn es solche gibt), Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Private Kfz-Nutzung, Vereinnahmte Umsatzsteuer, Umsatzsteuer auf unentgeltliche Wertabgaben (beide nur bei privat genutzten Firmenwagen), Vom Finanzamt erstattete Umsatzsteuer. Belege mit Privatanteil zählen nur mit dem betrieblichen Teil
 - **Betriebsausgaben:** eine Zeile je Belegkategorie mit Betrag (Software, Hosting, Telefon …), die Abschreibungen aus dem Anlagenverzeichnis (nur, wenn es welche gibt), Gezahlte Vorsteuerbeträge, An das Finanzamt gezahlte Umsatzsteuer
 - **Gewinn bzw. Verlust**
 

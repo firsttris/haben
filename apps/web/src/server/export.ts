@@ -342,6 +342,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       net: schema.documents.net,
       tax: schema.documents.tax,
       gross: schema.documents.gross,
+      privateShare: schema.documents.privateShare,
       lockedAt: schema.documents.lockedAt,
       uploadedAt: schema.documents.uploadedAt,
     })
@@ -385,6 +386,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       money(doc.net),
       money(doc.tax),
       money(doc.gross),
+      doc.privateShare,
       doc.currency,
       doc.payment === "privat" ? "privat" : "Bank",
       doc.status,
@@ -404,7 +406,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     content: csv(
       [
         "Datum", "Lieferant", "USt-IdNr.", "Rechnungsnummer", "Kategorie", "Netto 19 %", "Vorsteuer 19 %", "Netto 7 %",
-        "Vorsteuer 7 %", "Netto 0 %", "Netto", "Vorsteuer", "Brutto", "Währung", "Zahlung", "Status", "Gebucht am", "Quelle",
+        "Vorsteuer 7 %", "Netto 0 %", "Netto", "Vorsteuer", "Brutto", "Privatanteil %", "Währung", "Zahlung", "Status", "Gebucht am", "Quelle",
         "Fällig", "Notiz", "SHA-256", "Originaldateiname", "Datei im Archiv", "Hochgeladen", "ID",
       ],
       documentRows,
@@ -458,7 +460,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
 
   // Anlagen --------------------------------------------------------------
   const assetRows: CsvValue[][] = (await listAssets(year))
-    .filter((a) => a.year !== null)
+    // auch voll abgeschriebene Fahrzeuge, die noch privat genutzt werden
+    .filter((a) => a.year !== null || (a.privateUseYear?.months.length ?? 0) > 0)
     .map((a) => [
       a.name,
       ASSET_KINDS[a.kind].label,
@@ -469,12 +472,16 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       a.usefulLifeMonths,
       a.openingDate,
       a.openingBookValue === null ? "" : money(a.openingBookValue),
-      money(a.year!.opening),
-      money(a.year!.addition),
-      money(a.year!.depreciation),
-      money(a.year!.disposal),
-      money(a.year!.closing),
+      money(a.year?.opening ?? 0),
+      money(a.year?.addition ?? 0),
+      money(a.year?.depreciation ?? 0),
+      money(a.year?.disposal ?? 0),
+      money(a.year?.closing ?? 0),
       a.disposalDate,
+      a.privateUse ? `${a.privateUse.rate / 100} %`.replace(".", ",") : "",
+      a.privateUse ? money(a.privateUse.listPrice) : "",
+      a.privateUseYear ? money(a.privateUseYear.withdrawal) : "",
+      a.privateUseYear ? money(a.privateUseYear.vat) : "",
       a.bookedYears.includes(year),
       a.documentId,
       a.id,
@@ -485,7 +492,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       [
         "Bezeichnung", "Art", "Abschreibung", "Anlagekonto", "Anschaffung", "Anschaffungskosten", "Nutzungsdauer (Monate)",
         "Übernommen zum", "Buchwert bei Übernahme", "Buchwert Jahresanfang", "Zugang", "AfA", "Abgang (Restbuchwert)",
-        "Buchwert Jahresende", "Abgangsdatum", "AfA gebucht", "Beleg-ID", "ID",
+        "Buchwert Jahresende", "Abgangsdatum", "Privatnutzung Satz", "Bruttolistenpreis", "Privatnutzung Entnahme",
+        "Privatnutzung Umsatzsteuer", "AfA gebucht", "Beleg-ID", "ID",
       ],
       assetRows,
     ),

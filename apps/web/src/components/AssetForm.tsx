@@ -1,4 +1,18 @@
-import { ASSET_KINDS, ASSET_METHODS, formatDecimal, parseEuro, type AssetKind, type AssetMethod } from "@haben/core";
+import {
+  ASSET_KINDS,
+  ASSET_METHODS,
+  CAR_DRIVES,
+  formatDecimal,
+  formatEuro,
+  parseEuro,
+  privateUseMonth,
+  suggestedPrivateUseRate,
+  type AssetKind,
+  type AssetMethod,
+  type CarDrive,
+  type CarPrivateUse,
+  type PrivateUseRate,
+} from "@haben/core";
 import { useState, type FormEvent } from "react";
 
 export interface AssetFormValues {
@@ -11,8 +25,11 @@ export interface AssetFormValues {
   openingDate: string;
   openingBookValue: number;
   disposalDate: string | null;
+  privateUse: CarPrivateUse | null;
   note: string;
 }
+
+const RATE_LABELS: Record<PrivateUseRate, string> = { 100: "1 %", 50: "0,5 %", 25: "0,25 %" };
 
 /**
  * Formular für eine Anlage. `locked` sperrt die Berechnungsgrundlagen (gebucht oder aus einem Beleg),
@@ -22,6 +39,7 @@ export function AssetForm({
   initial,
   locked,
   lifeEditable,
+  privateUseLocked,
   showOpening,
   submitLabel,
   busy,
@@ -30,6 +48,8 @@ export function AssetForm({
   initial: AssetFormValues;
   locked: boolean;
   lifeEditable: boolean;
+  /** Privatnutzung gesperrt (schon gebucht) */
+  privateUseLocked: boolean;
   showOpening: boolean;
   submitLabel: string;
   busy: boolean;
@@ -45,12 +65,27 @@ export function AssetForm({
   const [openingBookValue, setOpeningBookValue] = useState(initial.openingDate ? formatDecimal(initial.openingBookValue) : "");
   const [disposalDate, setDisposalDate] = useState(initial.disposalDate ?? "");
   const [note, setNote] = useState(initial.note);
+  const [privateUsed, setPrivateUsed] = useState(initial.privateUse !== null);
+  const [listPrice, setListPrice] = useState(initial.privateUse ? formatDecimal(initial.privateUse.listPrice) : "");
+  const [drive, setDrive] = useState<CarDrive>(initial.privateUse?.drive ?? "elektro");
+  const [rate, setRate] = useState<PrivateUseRate>(initial.privateUse?.rate ?? 25);
+  const [rateTouched, setRateTouched] = useState(initial.privateUse !== null);
+  const [vat, setVat] = useState(initial.privateUse?.vat ?? true);
 
   const parsedCost = parseEuro(cost);
   const parsedOpening = parseEuro(openingBookValue);
   const parsedYears = Number(years.replace(",", "."));
   const lifeValid = method !== "linear" || (Number.isFinite(parsedYears) && parsedYears > 0 && Number.isInteger(parsedYears * 12));
+  const parsedListPrice = parseEuro(listPrice);
+  const privateUseValid = kind !== "kfz" || !privateUsed || (parsedListPrice !== null && parsedListPrice > 0);
+  // Satz folgt Antrieb und Listenpreis, bis er von Hand gewählt wurde
+  const suggestion = suggestedPrivateUseRate(drive, parsedListPrice ?? 0, acquisitionDate || "2026-01-01");
+  const effectiveRate = rateTouched ? rate : suggestion;
+  const privateUse: CarPrivateUse | null =
+    kind === "kfz" && privateUsed && parsedListPrice ? { listPrice: parsedListPrice, drive, rate: effectiveRate, vat } : null;
+  const monthly = privateUse ? privateUseMonth(privateUse) : null;
   const valid =
+    privateUseValid &&
     name.trim() !== "" &&
     Boolean(acquisitionDate) &&
     parsedCost !== null &&
@@ -79,6 +114,7 @@ export function AssetForm({
       openingDate,
       openingBookValue: parsedOpening ?? 0,
       disposalDate: disposalDate || null,
+      privateUse,
       note,
     });
   }
@@ -164,6 +200,70 @@ export function AssetForm({
             Bis zum Abgangsmonat wird abgeschrieben, der Rest geht als Restbuchwert in die Ausgaben. Einen Verkauf stellst du als Rechnung.
           </span>
         </label>
+        {kind === "kfz" && (
+          <fieldset className="stack" style={{ gridColumn: "1 / -1", border: 0, padding: 0, margin: 0, gap: 12 }} disabled={privateUseLocked}>
+            <label className="checkbox">
+              <input type="checkbox" checked={privateUsed} onChange={(e) => setPrivateUsed(e.target.checked)} />
+              Auch privat genutzt (Listenpreismethode, ohne Fahrtenbuch)
+            </label>
+            {privateUsed && (
+              <div className="form-grid">
+                <label className="field">
+                  Bruttolistenpreis (€)
+                  <input
+                    inputMode="decimal"
+                    value={listPrice}
+                    onChange={(e) => setListPrice(e.target.value)}
+                    aria-invalid={parsedListPrice === null}
+                    aria-describedby="list-price-hint"
+                  />
+                  <span id="list-price-hint" className="small">
+                    Inländischer Listenpreis bei Erstzulassung inklusive Sonderausstattung und Umsatzsteuer, nicht der Kaufpreis.
+                  </span>
+                </label>
+                <label className="field">
+                  Antrieb
+                  <select value={drive} onChange={(e) => setDrive(e.target.value as CarDrive)}>
+                    {Object.entries(CAR_DRIVES).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  Satz je Monat
+                  <select
+                    value={effectiveRate}
+                    onChange={(e) => {
+                      setRate(Number(e.target.value) as PrivateUseRate);
+                      setRateTouched(true);
+                    }}
+                  >
+                    {([100, 50, 25] as const).map((r) => (
+                      <option key={r} value={r}>
+                        {RATE_LABELS[r]}
+                        {r === suggestion ? " (Vorschlag)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="checkbox" style={{ alignSelf: "end" }}>
+                  <input type="checkbox" checked={vat} onChange={(e) => setVat(e.target.checked)} />
+                  Umsatzsteuer auf die Privatnutzung
+                </label>
+                {monthly && (
+                  <p className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
+                    Je Monat {formatEuro(monthly.withdrawal)} Entnahme
+                    {monthly.vat ? `, Umsatzsteuer ${formatEuro(monthly.vat)} auf ${formatEuro(monthly.vatBase)} (1 % des Listenpreises abzüglich 20 %)` : ""}.
+                    Die Umsatzsteuer kommt in die Voranmeldung, gebucht wird mit der AfA zum Jahresende. Ohne Vorsteuerabzug beim Kauf oder als
+                    Kleinunternehmer fällt keine Umsatzsteuer an.
+                  </p>
+                )}
+              </div>
+            )}
+          </fieldset>
+        )}
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           Notiz
           <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />

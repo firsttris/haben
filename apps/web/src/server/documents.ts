@@ -37,6 +37,8 @@ export const documentInputSchema = z.object({
   category: z.enum(EXPENSE_CATEGORY_KEYS).nullable(),
   payment: z.enum(["bank", "privat"]),
   note: z.string().max(2000),
+  /** Privatanteil in Prozent, z. B. beim Handyvertrag */
+  privateShare: z.number().int().min(0).max(100).default(0),
   /** Nur bei Kategorie „anlage“ */
   asset: z
     .object({
@@ -115,6 +117,9 @@ async function applyFields(
 ) {
   const category = (await guessCategory(fields.supplierName, fields.supplierUstId)) ?? (categoryKnown ? fields.category : null);
   const totals = totalsOf(fields.amounts);
+  // Privatanteil aus den Vorgaben der Firmendaten, z. B. Telefon 20 %
+  const { privateShares } = await loadCompany();
+  const privateShare = category ? (privateShares[category] ?? 0) : 0;
   await withActor(actor, async (tx) => {
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, id)).for("update");
     if (!doc || doc.lockedAt) return;
@@ -132,6 +137,7 @@ async function applyFields(
         dueDate: fields.dueDate,
         currency: fields.currency,
         category,
+        privateShare,
         ...totals,
         extractedBy,
         extractionStatus: "fertig",
@@ -303,6 +309,7 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[]): string[
   if (doc.category === "anlage") {
     const net = amounts.reduce((s, a) => s + a.net, 0);
     if (!doc.asset) issues.push("Angaben zur Anlage fehlen");
+    else if (doc.privateShare > 0) issues.push("Ein Privatanteil bei Anlagegütern wird nicht unterstützt");
     else if (net <= 0) issues.push("Gutschriften zu Anlagen werden nicht unterstützt");
     else if (doc.documentDate) {
       issues.push(
@@ -332,7 +339,15 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
     // Anlage: auf das Anlagekonto statt in den Aufwand; ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten
     const asset = doc.category === "anlage" ? doc.asset : null;
     const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, company.kontenrahmen) : undefined;
-    const lines = documentPosting(totals, doc.category as ExpenseCategory, company.kontenrahmen, doc.payment, vorsteuerAbzug, assetAccountNo);
+    const lines = documentPosting(
+      totals,
+      doc.category as ExpenseCategory,
+      company.kontenrahmen,
+      doc.payment,
+      vorsteuerAbzug,
+      assetAccountNo,
+      doc.privateShare,
+    );
     const now = new Date();
     const [entry] = await tx
       .insert(schema.journalEntries)
