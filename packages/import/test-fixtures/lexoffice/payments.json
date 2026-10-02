@@ -1,0 +1,12 @@
+{
+  "openAmount": 0.0,
+  "currency": "EUR",
+  "paymentStatus": "balanced",
+  "voucherType": "invoice",
+  "voucherStatus": "paid",
+  "paidDate": "2023-03-01T00:00:00.000+01:00",
+  "paymentItems": [
+    { "paymentItemType": "partPaymentFinancialTransaction", "postingDate": "2023-02-28T00:00:00.000+01:00", "amount": 1000.0, "currency": "EUR" },
+    { "paymentItemType": "manualPayment", "postingDate": "2023-03-01T00:00:00.000+01:00", "amount": 172.5, "currency": "EUR" }
+  ]
+}

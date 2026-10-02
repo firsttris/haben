@@ -61,6 +61,10 @@ function AppLayout() {
           <Icon name="contacts" />
           Kontakte
         </Link>
+        <Link to="/archiv" className="nav-link">
+          <Icon name="archive" />
+          Archiv
+        </Link>
         <Link to="/einstellungen" className="nav-link">
           <Icon name="settings" />
           Einstellungen

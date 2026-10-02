@@ -1,0 +1,39 @@
+{
+  "id": "e9066f04-8cc7-4616-93f8-ac9ecc8479c9",
+  "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+  "createdDate": "2023-06-17T18:32:07.480+02:00",
+  "updatedDate": "2023-06-17T18:32:07.551+02:00",
+  "version": 2,
+  "language": "de",
+  "archived": false,
+  "voucherStatus": "open",
+  "voucherNumber": "GS0007",
+  "voucherDate": "2023-06-17T00:00:00.000+02:00",
+  "address": {
+    "contactId": "97c5794f-8ab2-43ad-b459-c5980b055e4d",
+    "name": "Berliner Kindl GmbH",
+    "street": "Jubiläumsweg 25",
+    "city": "Berlin",
+    "zip": "14089",
+    "countryCode": "DE"
+  },
+  "lineItems": [
+    {
+      "id": "97b98491-e953-4dc9-97a9-ae437a8052b5",
+      "type": "custom",
+      "name": "Gutschrift Beratung",
+      "quantity": 1,
+      "unitName": "Stück",
+      "unitPrice": { "currency": "EUR", "netAmount": 100.0, "grossAmount": 119.0, "taxRatePercentage": 19 },
+      "lineItemAmount": 100.0
+    }
+  ],
+  "totalPrice": { "currency": "EUR", "totalNetAmount": 100.0, "totalGrossAmount": 119.0, "totalTaxAmount": 19.0 },
+  "taxAmounts": [{ "taxRatePercentage": 19, "taxAmount": 19.0, "netAmount": 100.0 }],
+  "taxConditions": { "taxType": "net" },
+  "relatedVouchers": [
+    { "id": "e9066f04-8cc7-4616-93f8-ac9ecc8479c8", "voucherNumber": "RE1019", "voucherType": "invoice" }
+  ],
+  "title": "Rechnungskorrektur",
+  "files": { "documentFileId": "9b6a8b0c-1111-4a6b-8f3a-6f0f1d2e3c4b" }
+}

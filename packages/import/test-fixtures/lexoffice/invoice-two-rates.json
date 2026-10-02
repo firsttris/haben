@@ -1,0 +1,76 @@
+{
+  "id": "e9066f04-8cc7-4616-93f8-ac9ecc8479c8",
+  "organizationId": "aa93e8a8-2aa3-470b-b914-caad8a255dd8",
+  "createdDate": "2023-02-21T14:43:28.000+01:00",
+  "updatedDate": "2023-02-21T14:45:01.000+01:00",
+  "version": 3,
+  "language": "de",
+  "archived": false,
+  "voucherStatus": "paid",
+  "voucherNumber": "RE1019",
+  "voucherDate": "2023-02-21T00:00:00.000+01:00",
+  "dueDate": "2023-03-07T00:00:00.000+01:00",
+  "address": {
+    "contactId": "97c5794f-8ab2-43ad-b459-c5980b055e4d",
+    "name": "Berliner Kindl GmbH",
+    "street": "Jubiläumsweg 25",
+    "city": "Berlin",
+    "zip": "14089",
+    "countryCode": "DE"
+  },
+  "xRechnung": null,
+  "lineItems": [
+    {
+      "id": "97b98491-e953-4dc9-97a9-ae437a8052b4",
+      "type": "custom",
+      "name": "Beratung",
+      "description": "Konzeption Webshop",
+      "quantity": 10,
+      "unitName": "Stunde",
+      "unitPrice": { "currency": "EUR", "netAmount": 95.0, "grossAmount": 113.05, "taxRatePercentage": 19 },
+      "discountPercentage": 0,
+      "lineItemAmount": 950.0
+    },
+    {
+      "id": "dc4c805b-7df1-4310-a548-22be4499eb04",
+      "type": "custom",
+      "name": "Fachbuch",
+      "quantity": 1,
+      "unitName": "Stück",
+      "unitPrice": { "currency": "EUR", "netAmount": 39.25, "grossAmount": 42.0, "taxRatePercentage": 7 },
+      "discountPercentage": 0,
+      "lineItemAmount": 39.25
+    },
+    { "type": "text", "name": "Hinweis", "description": "Vielen Dank für Ihren Auftrag." }
+  ],
+  "totalPrice": {
+    "currency": "EUR",
+    "totalNetAmount": 989.25,
+    "totalGrossAmount": 1172.5,
+    "totalTaxAmount": 183.25
+  },
+  "taxAmounts": [
+    { "taxRatePercentage": 19, "taxAmount": 180.5, "netAmount": 950.0 },
+    { "taxRatePercentage": 7, "taxAmount": 2.75, "netAmount": 39.25 }
+  ],
+  "taxConditions": { "taxType": "net" },
+  "paymentConditions": {
+    "paymentTermLabel": "Zahlbar innerhalb von 14 Tagen",
+    "paymentTermLabelTemplate": "Zahlbar innerhalb von {paymentRange} Tagen",
+    "paymentTermDuration": 14
+  },
+  "shippingConditions": {
+    "shippingDate": "2023-02-01T00:00:00.000+01:00",
+    "shippingEndDate": "2023-02-17T00:00:00.000+01:00",
+    "shippingType": "serviceperiod"
+  },
+  "closingInvoice": false,
+  "claimedGrossAmount": 1172.5,
+  "downPaymentDeductions": [],
+  "recurringTemplateId": null,
+  "relatedVouchers": [],
+  "title": "Rechnung",
+  "introduction": "Ihre bestellten Positionen stellen wir Ihnen hiermit in Rechnung",
+  "remark": "Vielen Dank für Ihren Einkauf",
+  "files": { "documentFileId": "75b7d5a1-1c4f-4b1a-9a31-e5f2e5ea4ba0" }
+}

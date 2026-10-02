@@ -6,3 +6,4 @@ export * from "./invoice.ts";
 export * from "./posting.ts";
 export * from "./matching.ts";
 export * from "./euer.ts";
+export * from "./legacy-vat.ts";

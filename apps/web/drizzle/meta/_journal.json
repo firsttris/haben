@@ -64,6 +64,20 @@
       "when": 1790934298339,
       "tag": "0008_ustva_berechnet",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790937308403,
+      "tag": "0009_lexoffice",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790937316408,
+      "tag": "0010_lexoffice_trigger",
+      "breakpoints": true
     }
   ]
 }

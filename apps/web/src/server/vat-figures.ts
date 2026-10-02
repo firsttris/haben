@@ -156,7 +156,7 @@ export interface PreflightIssue {
 export async function preflight(period: VatPeriod, figures: VatFigures): Promise<PreflightIssue[]> {
   const { start, end } = monthRange(period);
   const issues: PreflightIssue[] = [];
-  const open = sql`(${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = ${schema.bankTransactions.id}), 0))`;
+  const open = sql`(${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = bank_transactions.id), 0))`;
 
   const [bank] = await db
     .select({

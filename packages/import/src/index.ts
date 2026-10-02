@@ -5,3 +5,6 @@ export { decodeText } from "./decode.ts";
 export { parseStatement, detectStatementFormat } from "./parse.ts";
 export { transactionHash, withDedupHashes } from "./dedup.ts";
 export { checkBalanceContinuity } from "./continuity.ts";
+export { parseDatevBuchungsstapel, isDatevFile, datevAccountTotals, DatevParseError } from "./datev.ts";
+export type { DatevHeader, DatevBooking, DatevStack } from "./datev.ts";
+export * from "./lexoffice/index.ts";

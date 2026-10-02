@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, between, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../package.json" with { type: "json" };
 import { db, schema } from "./db/index.ts";
@@ -212,7 +212,10 @@ export async function exportYears(now = new Date()): Promise<number[]> {
     union select extract(year from coalesce(document_date, (uploaded_at at time zone 'Europe/Berlin')::date))::int from documents
     union select extract(year from date)::int from journal_entries
     union select extract(year from booking_date)::int from bank_transactions
-    union select year::int from vat_returns`);
+    union select year::int from vat_returns
+    union select extract(year from date)::int from lexoffice_vouchers
+    union select extract(year from date)::int from datev_bookings
+    union select year::int from archive_files where year is not null`);
   const current = Number(today(now).slice(0, 4));
   const years = new Set([current, current - 1, ...rows.map((r) => Number(r.y))]);
   return [...years].sort((a, b) => b - a);
@@ -647,6 +650,9 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     };
   }
 
+  // Altbestand aus Lexoffice ---------------------------------------------------
+  yield* legacyFiles(year, problems);
+
   // Stammdaten ------------------------------------------------------------
   const contacts = await db.select().from(schema.contacts).orderBy(asc(schema.contacts.name), asc(schema.contacts.id));
   yield {
@@ -684,6 +690,116 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
 
   if (problems.length > 0) {
     yield { path: "FEHLER.txt", content: encoder.encode(`Beim Erstellen des Archivs fehlten Dateien:\n\n${problems.join("\n")}\n`), compress: true };
+  }
+}
+
+const LEGACY_TYPE_LABELS: Record<string, string> = {
+  invoice: "Rechnung",
+  creditnote: "Gutschrift",
+  downpaymentinvoice: "Abschlagsrechnung",
+  salesinvoice: "Einnahmebeleg",
+  salescreditnote: "Einnahme-Gutschrift",
+  purchaseinvoice: "Ausgabebeleg",
+  purchasecreditnote: "Ausgabe-Gutschrift",
+};
+
+/** Aus Lexoffice übernommene Belege, DATEV-Buchungen und Originalexporte des Jahres */
+async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile> {
+  const vouchers = await db
+    .select()
+    .from(schema.lexofficeVouchers)
+    .where(between(schema.lexofficeVouchers.date, yearStart(year), yearEnd(year)))
+    .orderBy(asc(schema.lexofficeVouchers.date), asc(schema.lexofficeVouchers.number), asc(schema.lexofficeVouchers.id));
+  const files = vouchers.length
+    ? await db
+        .select()
+        .from(schema.lexofficeVoucherFiles)
+        .where(inArray(schema.lexofficeVoucherFiles.voucherId, vouchers.map((v) => v.id)))
+        .orderBy(asc(schema.lexofficeVoucherFiles.createdAt), asc(schema.lexofficeVoucherFiles.id))
+    : [];
+  const filesByVoucher = groupBy(files, (f) => f.voucherId);
+  const usedPaths = new Set<string>();
+  const rows: CsvValue[][] = [];
+  for (const voucher of vouchers) {
+    const paths: string[] = [];
+    for (const file of filesByVoucher.get(voucher.id) ?? []) {
+      const ext = EXTENSIONS[file.mimeType] ?? /\.([A-Za-z0-9]{1,5})$/.exec(file.filename)?.[1]?.toLowerCase() ?? "bin";
+      const path = uniquePath(
+        usedPaths,
+        `lexoffice/belege/${voucher.date}_${safeName(voucher.number || voucher.contactName)}_${voucher.id.slice(0, 8)}.${ext}`,
+      );
+      try {
+        yield { path, content: new Uint8Array(await loadFile(file.sha256)), compress: ext === "xml" };
+        paths.push(path.slice("lexoffice/".length));
+      } catch (error) {
+        problems.push(`Lexoffice-Beleg ${voucher.number || voucher.id}: Datei ${file.filename} nicht lesbar – ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    rows.push([
+      voucher.date,
+      LEGACY_TYPE_LABELS[voucher.type] ?? voucher.type,
+      voucher.direction === "einnahme" ? "Einnahme" : "Ausgabe",
+      voucher.number,
+      voucher.contactName,
+      money(voucher.net),
+      money(voucher.tax),
+      money(voucher.gross),
+      voucher.currency,
+      voucher.status,
+      voucher.dueDate,
+      voucher.payment?.paidDate ?? "",
+      json(voucher.taxes),
+      json(voucher.categories),
+      voucher.remark,
+      paths.join(" | "),
+      (filesByVoucher.get(voucher.id) ?? []).map((f) => f.sha256).join(" | "),
+      voucher.lexofficeId,
+    ]);
+  }
+  if (vouchers.length > 0) {
+    yield {
+      path: "lexoffice/belege.csv",
+      content: csv(
+        ["Datum", "Art", "Richtung", "Nummer", "Kontakt", "Netto", "Steuer", "Brutto", "Währung", "Status in Lexoffice", "Fällig", "Bezahlt am", "Steuersätze (JSON)", "Kategorien (JSON)", "Notiz", "Dateien", "SHA-256", "Lexoffice-ID"],
+        rows,
+      ),
+      compress: true,
+    };
+  }
+
+  const bookings = await db
+    .select({ booking: schema.datevBookings, filename: schema.archiveFiles.filename })
+    .from(schema.datevBookings)
+    .innerJoin(schema.archiveFiles, eq(schema.archiveFiles.id, schema.datevBookings.fileId))
+    .where(between(schema.datevBookings.date, yearStart(year), yearEnd(year)))
+    .orderBy(asc(schema.datevBookings.date), asc(schema.archiveFiles.filename), asc(schema.datevBookings.row));
+  if (bookings.length > 0) {
+    yield {
+      path: "lexoffice/datev-buchungen.csv",
+      content: csv(
+        ["Datum", "Umsatz", "Soll/Haben", "Währung", "Konto", "Gegenkonto", "BU-Schlüssel", "Belegfeld 1", "Belegfeld 2", "Buchungstext", "Beleglink", "Datei", "Zeile"],
+        bookings.map(({ booking: b, filename }) => [
+          b.date, money(b.amount), b.side, b.currency, b.account, b.contraAccount, b.buKey, b.voucherField1, b.voucherField2, b.text,
+          b.documentLink, filename, b.row,
+        ]),
+      ),
+      compress: true,
+    };
+  }
+
+  const originals = await db
+    .select()
+    .from(schema.archiveFiles)
+    .where(eq(schema.archiveFiles.year, year))
+    .orderBy(asc(schema.archiveFiles.kind), asc(schema.archiveFiles.filename));
+  for (const file of originals) {
+    const ext = /\.([A-Za-z0-9]{1,5})$/.exec(file.filename)?.[1]?.toLowerCase() ?? EXTENSIONS[file.mimeType] ?? "bin";
+    const path = uniquePath(usedPaths, `lexoffice/originale/${file.kind}/${safeName(file.filename.replace(/\.[^.]+$/, ""), 80)}.${ext}`);
+    try {
+      yield { path, content: new Uint8Array(await loadFile(file.sha256)), compress: !/^(application\/(pdf|zip)|image\/)/.test(file.mimeType) };
+    } catch (error) {
+      problems.push(`Archivdatei ${file.filename}: nicht lesbar – ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 }
 
@@ -774,6 +890,11 @@ umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldun
                          ERiC-Protokoll (PDF) und gesendetem bzw. empfangenem XML.
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
+lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
+                         Lexware Office mit Originaldateien (belege.csv), die Zeilen des
+                         DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten
+                         Originalexporte des Jahres (originale/: DATEV, IDEA,
+                         ELSTER-Protokolle, Kontoauszüge).
 protokoll/audit.csv      Änderungsprotokoll des Jahres mit altem und neuem Wert.
 pruefsummen.sha256       SHA-256 jeder Datei in diesem Archiv.
 
