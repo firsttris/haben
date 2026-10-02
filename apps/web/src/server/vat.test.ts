@@ -1,16 +1,9 @@
 import { FakeElsterClient, type ElsterClient } from "@haben/elster";
-import { randomBytes } from "node:crypto";
-import { fileURLToPath } from "node:url";
-import postgres from "postgres";
+import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
 
-/**
- * Integrationstest gegen eine echte Postgres-Datenbank.
- * Läuft nur mit TEST_DATABASE_URL; die Datenbank wird dabei geleert.
- */
-const url = process.env.TEST_DATABASE_URL;
-
-describe.skipIf(!url)("Voranmeldung (Postgres)", () => {
+describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
   let vat: typeof import("./vat.ts");
   let db: typeof import("./db/index.ts");
   let crypto: typeof import("./crypto.ts");
@@ -19,20 +12,7 @@ describe.skipIf(!url)("Voranmeldung (Postgres)", () => {
   const period = { year: 2026, month: 10 };
 
   beforeAll(async () => {
-    Object.assign(process.env, {
-      DATABASE_URL: url,
-      BETTER_AUTH_SECRET: "x".repeat(32),
-      BETTER_AUTH_URL: "http://localhost:3000",
-      HABEN_ENCRYPTION_KEY: randomBytes(32).toString("base64"),
-    });
-    sql = postgres(url!, { max: 1, onnotice: () => {} });
-    await sql`drop schema if exists public cascade`;
-    await sql`drop schema if exists drizzle cascade`;
-    await sql`create schema public`;
-    const { drizzle } = await import("drizzle-orm/postgres-js");
-    const { migrate } = await import("drizzle-orm/postgres-js/migrator");
-    await migrate(drizzle(sql), { migrationsFolder: fileURLToPath(new URL("../../drizzle", import.meta.url)) });
-
+    sql = await setupTestDb();
     vat = await import("./vat.ts");
     db = await import("./db/index.ts");
     crypto = await import("./crypto.ts");
