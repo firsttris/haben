@@ -13,6 +13,7 @@ import {
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { companyIssues, loadCompany } from "./company.ts";
 import { decrypt } from "./crypto.ts";
+import { computeVatFigures } from "./vat-figures.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 
@@ -67,10 +68,27 @@ export interface FiguresInput {
   kz66: Cents;
 }
 
+/** Aus den Buchungen berechnen oder von Hand überschreiben (mit Begründung) */
+export type DraftInput = { mode: "berechnet" } | ({ mode: "manuell"; reason?: string } & FiguresInput);
+
+/** Berechnete Kennzahlen in der Form der Voranmeldung (Bemessungsgrundlagen auf volle Euro) */
+export async function computedValues(period: VatPeriod) {
+  const figures = await computeVatFigures(period);
+  const ustva = computeUstva({ kz81: figures.kz81, kz86: figures.kz86, kz66: figures.kz66 });
+  return { kz81: ustva.kz81, kz86: ustva.kz86, kz66: ustva.kz66, kz83: ustva.kz83 };
+}
+
 /** Legt den Entwurf des Zeitraums an oder aktualisiert ihn. */
-export async function saveDraft(actor: string, period: VatPeriod, input: FiguresInput): Promise<VatReturn> {
-  const figures = computeUstva(input);
-  const values = { kz81: figures.kz81, kz86: figures.kz86, kz66: figures.kz66, kz83: figures.kz83 };
+export async function saveDraft(actor: string, period: VatPeriod, input: DraftInput | FiguresInput): Promise<VatReturn> {
+  const draftInput: DraftInput = "mode" in input ? input : { mode: "manuell", ...input };
+  const computed = await computedValues(period);
+  const manual = draftInput.mode === "manuell" ? computeUstva(draftInput) : null;
+  const values = {
+    ...(manual ? { kz81: manual.kz81, kz86: manual.kz86, kz66: manual.kz66, kz83: manual.kz83 } : computed),
+    source: draftInput.mode,
+    overrideReason: draftInput.mode === "manuell" ? (draftInput.reason?.trim() || null) : null,
+    computed,
+  };
   return withActor(actor, async (tx) => {
     const [draft] = await tx
       .select()
@@ -138,6 +156,9 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
         kz86: latest.kz86,
         kz66: latest.kz66,
         kz83: latest.kz83,
+        source: latest.source,
+        overrideReason: latest.overrideReason,
+        computed: latest.computed,
         berichtigt: true,
         correctsId: latest.id,
       })
@@ -166,9 +187,13 @@ export async function submitReturn(
   client: ElsterClient,
   options: SubmitOptions,
 ): Promise<ElsterResult> {
-  const [vatReturn] = await db.select().from(schema.vatReturns).where(eq(schema.vatReturns.id, returnId));
+  let [vatReturn] = await db.select().from(schema.vatReturns).where(eq(schema.vatReturns.id, returnId));
   if (!vatReturn) throw new VatError("Anmeldung nicht gefunden.");
   if (vatReturn.status !== "draft") throw new VatError("Diese Anmeldung ist bereits gesendet.");
+  // Berechnete Entwürfe vor dem Senden auf den aktuellen Stand der Buchungen bringen
+  if (vatReturn.source === "berechnet") {
+    vatReturn = await saveDraft(actor, { year: vatReturn.year, month: vatReturn.month }, { mode: "berechnet" });
+  }
 
   const company = await loadCompany();
   const issues = companyIssues(company);

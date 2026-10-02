@@ -245,3 +245,13 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .journal-lines td { padding: 3px 8px 3px 0; }
 .journal-lines td:first-child { width: 64px; }
 .journal-lines td.num { width: 130px; }
+
+/* Voranmeldung: Herkunft und Quellen der Kennzahlen */
+.mode-switch { display: flex; gap: 8px; flex-wrap: wrap; }
+.mode-switch .chip { cursor: pointer; font: inherit; font-size: 13px; }
+.kz-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kz-sources summary { cursor: pointer; font-size: 13px; color: var(--accent); width: fit-content; }
+.kz-sources table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 6px 0 4px; }
+.kz-sources th { text-align: left; font-weight: 500; color: var(--muted); padding: 2px 6px 2px 0; }
+.kz-sources td { padding: 2px 6px 2px 0; border-top: 1px solid var(--line-soft); }
+output.kz-amount { display: block; }

@@ -91,6 +91,11 @@ export const vatReturns = pgTable(
     status: vatReturnStatusEnum("status").notNull().default("draft"),
     /** Berichtigte Anmeldung (Kz 10) */
     berichtigt: boolean("berichtigt").notNull().default(false),
+    /** Kennzahlen aus den Buchungen berechnet oder von Hand überschrieben */
+    source: text("source", { enum: ["berechnet", "manuell"] }).notNull().default("manuell"),
+    overrideReason: text("override_reason"),
+    /** Berechnete Werte zum Zeitpunkt des Speicherns, zum Nachvollziehen einer Überschreibung */
+    computed: jsonb("computed").$type<{ kz81: number; kz86: number; kz66: number; kz83: number }>(),
     correctsId: uuid("corrects_id"),
     transferTicket: text("transfer_ticket"),
     sentAt: timestamp("sent_at", { withTimezone: true }),

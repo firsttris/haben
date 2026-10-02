@@ -102,6 +102,16 @@ function VatPeriodPage() {
         </div>
       )}
 
+      {data.current?.status !== "sent" &&
+        data.preflight.map((issue) => (
+          <div key={issue.text} className={`banner ${issue.tone === "info" ? "banner-info" : ""}`} role="status">
+            <Icon name={issue.tone === "info" ? "info" : "alert"} />
+            <span>
+              {issue.text} <Link to={issue.link}>{issue.link === "/bank" ? "Zur Bank" : issue.link === "/belege" ? "Zu den Belegen" : "Zu den Rechnungen"}</Link>
+            </span>
+          </div>
+        ))}
+
       {/* key: Formular bei Zeitraum- oder Anmeldungswechsel neu aufsetzen */}
       <VatReturnEditor
         key={`${key}-${data.current?.id ?? "neu"}-${data.current?.updatedAt ?? ""}`}
@@ -129,12 +139,15 @@ function VatReturnEditor({
 
   const current = data.current;
   const locked = current?.status === "sent";
+  const computed = computeUstva({ kz81: data.figures.kz81, kz86: data.figures.kz86, kz66: data.figures.kz66 });
+  const [mode, setMode] = useState<"berechnet" | "manuell">(current?.source === "manuell" ? "manuell" : "berechnet");
   const [values, setValues] = useState<Record<FieldKey, string>>({
-    kz81: formatDecimal(current?.kz81 ?? 0),
-    kz86: formatDecimal(current?.kz86 ?? 0),
-    kz66: formatDecimal(current?.kz66 ?? 0),
+    kz81: formatDecimal(current?.source === "manuell" ? current.kz81 : computed.kz81),
+    kz86: formatDecimal(current?.source === "manuell" ? current.kz86 : computed.kz86),
+    kz66: formatDecimal(current?.source === "manuell" ? current.kz66 : computed.kz66),
   });
-  const [dirty, setDirty] = useState(false);
+  const [reason, setReason] = useState(current?.overrideReason ?? "");
+  const [dirty, setDirty] = useState(!current);
   const [busy, setBusy] = useState(false);
 
   const parsed = {
@@ -142,17 +155,33 @@ function VatReturnEditor({
     kz86: parseEuro(values.kz86),
     kz66: parseEuro(values.kz66),
   };
-  const valid = Object.values(parsed).every((v) => v !== null && v >= 0);
-  const figures = computeUstva({ kz81: parsed.kz81 ?? 0, kz86: parsed.kz86 ?? 0, kz66: parsed.kz66 ?? 0 });
+  const manualValid = Object.values(parsed).every((v) => v !== null && v >= 0) && reason.trim().length >= 10;
+  const valid = mode === "berechnet" || manualValid;
+  const shown = locked
+    ? computeUstva({ kz81: current!.kz81, kz86: current!.kz86, kz66: current!.kz66 })
+    : mode === "manuell"
+      ? computeUstva({ kz81: parsed.kz81 ?? 0, kz86: parsed.kz86 ?? 0, kz66: parsed.kz66 ?? 0 })
+      : computed;
+  // Gespeicherter berechneter Entwurf, dessen Werte sich inzwischen geändert haben
+  const stale =
+    !locked && current?.source === "berechnet" && (current.kz81 !== computed.kz81 || current.kz86 !== computed.kz86 || current.kz66 !== computed.kz66);
 
   function update(field: FieldKey, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
     setDirty(true);
   }
 
+  function switchMode(next: "berechnet" | "manuell") {
+    setMode(next);
+    setDirty(true);
+  }
+
   async function persist(): Promise<string> {
     const result = await save({
-      data: { period: data.period, kz81: parsed.kz81!, kz86: parsed.kz86!, kz66: parsed.kz66! },
+      data:
+        mode === "berechnet"
+          ? { mode: "berechnet", period: data.period }
+          : { mode: "manuell", period: data.period, kz81: parsed.kz81!, kz86: parsed.kz86!, kz66: parsed.kz66!, reason },
     });
     setDirty(false);
     return result.id;
@@ -202,12 +231,14 @@ function VatReturnEditor({
     run(async () => {
       await correct({ data: data.period });
       await router.invalidate();
-      setNotice({ tone: "info", text: "Berichtigte Anmeldung angelegt. Werte anpassen und erneut senden." });
+      setNotice({ tone: "info", text: "Berichtigte Anmeldung angelegt. Werte prüfen und erneut senden." });
     });
 
-  const rows: { kz: string; label: string; field?: FieldKey; base?: number; tax: number }[] = [
-    { kz: "81", label: "Steuerpflichtige Umsätze 19 %", field: "kz81", base: figures.kz81, tax: figures.tax81 },
-    { kz: "86", label: "Steuerpflichtige Umsätze 7 %", field: "kz86", base: figures.kz86, tax: figures.tax86 },
+  const editable = !locked && mode === "manuell";
+  const revenue = (rate: number) => data.figures.revenue.filter((r) => r.rate === rate);
+  const rows = [
+    { kz: "81", field: "kz81" as const, label: "Steuerpflichtige Umsätze 19 %", base: shown.kz81, tax: shown.tax81, sources: revenue(1900) },
+    { kz: "86", field: "kz86" as const, label: "Steuerpflichtige Umsätze 7 %", base: shown.kz86, tax: shown.tax86, sources: revenue(700) },
   ];
 
   return (
@@ -217,6 +248,21 @@ function VatReturnEditor({
           <h2 id="kz-heading">Kennzahlen</h2>
           <StatusPill current={current} />
         </div>
+        {!locked && (
+          <div className="mode-switch" role="group" aria-label="Herkunft der Kennzahlen">
+            <button type="button" className={`chip${mode === "berechnet" ? " active" : ""}`} aria-pressed={mode === "berechnet"} onClick={() => switchMode("berechnet")}>
+              Aus Buchungen berechnet
+            </button>
+            <button type="button" className={`chip${mode === "manuell" ? " active" : ""}`} aria-pressed={mode === "manuell"} onClick={() => switchMode("manuell")}>
+              Manuell überschreiben
+            </button>
+          </div>
+        )}
+        {stale && mode === "berechnet" && (
+          <div className="banner banner-info" role="status">
+            Die Buchungen haben sich seit dem Speichern geändert; angezeigt sind die aktuellen Werte. Beim Senden werden sie übernommen.
+          </div>
+        )}
         <div className="kz-table">
           <div className="kz-row head">
             <div>Kz</div>
@@ -225,56 +271,83 @@ function VatReturnEditor({
             <div style={{ textAlign: "right" }}>Steuer</div>
           </div>
           {rows.map((row) => (
-            <div className="kz-row" key={row.kz}>
-              <div className="kz-num">{row.kz}</div>
-              <label htmlFor={`kz-${row.kz}`}>{row.label}</label>
-              <input
-                id={`kz-${row.kz}`}
-                inputMode="decimal"
-                value={values[row.field!]}
-                onChange={(event) => update(row.field!, event.target.value)}
-                readOnly={locked}
-                aria-invalid={parsed[row.field!] === null}
-                aria-describedby="kz-hint"
-              />
-              <div className="kz-amount">{formatEuro(row.tax)}</div>
+            <div key={row.kz}>
+              <div className="kz-row">
+                <div className="kz-num">{row.kz}</div>
+                <div className="kz-label">
+                  <label htmlFor={`kz-${row.kz}`}>{row.label}</label>
+                  {!locked && <Sources kind="revenue" rows={row.sources} versteuerung={data.figures.versteuerung} />}
+                </div>
+                {editable ? (
+                  <input
+                    id={`kz-${row.kz}`}
+                    inputMode="decimal"
+                    value={values[row.field]}
+                    onChange={(event) => update(row.field, event.target.value)}
+                    aria-invalid={parsed[row.field] === null}
+                    aria-describedby="kz-hint"
+                  />
+                ) : (
+                  <output id={`kz-${row.kz}`} className="kz-amount">
+                    {formatEuro(row.base)}
+                  </output>
+                )}
+                <div className="kz-amount">{formatEuro(row.tax)}</div>
+              </div>
             </div>
           ))}
           <div className="kz-row">
             <div className="kz-num">66</div>
-            <label htmlFor="kz-66">Vorsteuer aus Rechnungen anderer Unternehmer</label>
-            <div />
-            <input
-              id="kz-66"
-              inputMode="decimal"
-              value={values.kz66}
-              onChange={(event) => update("kz66", event.target.value)}
-              readOnly={locked}
-              aria-invalid={parsed.kz66 === null}
-            />
-          </div>
-          {!locked && data.inputTax !== 0 && data.inputTax !== parsed.kz66 && (
-            <div className="small" style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, padding: "0 4px 8px", flexWrap: "wrap" }}>
-              <span className="muted">Vorsteuer aus gebuchten Belegen: {formatEuro(data.inputTax)}</span>
-              <button type="button" className="btn" style={{ minHeight: 32, padding: "0 12px" }} onClick={() => update("kz66", formatDecimal(data.inputTax))}>
-                Übernehmen
-              </button>
+            <div className="kz-label">
+              <label htmlFor="kz-66">Vorsteuer aus Rechnungen anderer Unternehmer</label>
+              {!locked && <Sources kind="inputTax" rows={data.figures.inputTax} versteuerung={data.figures.versteuerung} />}
             </div>
-          )}
+            <div />
+            {editable ? (
+              <input id="kz-66" inputMode="decimal" value={values.kz66} onChange={(event) => update("kz66", event.target.value)} aria-invalid={parsed.kz66 === null} />
+            ) : (
+              <output id="kz-66" className="kz-amount">
+                {formatEuro(shown.kz66)}
+              </output>
+            )}
+          </div>
           <div className="kz-row total">
             <div className="kz-num">83</div>
-            <div>{figures.kz83 < 0 ? "Verbleibender Überschuss (Erstattung)" : "Verbleibende Umsatzsteuer-Vorauszahlung"}</div>
+            <div>{shown.kz83 < 0 ? "Verbleibender Überschuss (Erstattung)" : "Verbleibende Umsatzsteuer-Vorauszahlung"}</div>
             <div />
-            <div className="kz-amount">{formatEuro(figures.kz83)}</div>
+            <div className="kz-amount">{formatEuro(shown.kz83)}</div>
           </div>
         </div>
+        {editable && (
+          <label className="field">
+            Begründung der Abweichung (Pflicht)
+            <textarea
+              value={reason}
+              onChange={(event) => {
+                setReason(event.target.value);
+                setDirty(true);
+              }}
+              aria-invalid={reason.trim().length < 10}
+              placeholder="z. B. Zahlung vom 30.09. erst im Oktober zugeordnet"
+            />
+            <span className="small">
+              Berechnet wären Kz 81 {formatEuro(computed.kz81)}, Kz 86 {formatEuro(computed.kz86)}, Kz 66 {formatEuro(computed.kz66)}.
+            </span>
+          </label>
+        )}
+        {locked && current?.source === "manuell" && current.overrideReason && (
+          <p className="small muted" style={{ margin: 0 }}>Manuell überschrieben: {current.overrideReason}</p>
+        )}
         <p id="kz-hint" className="small muted" style={{ margin: 0 }}>
-          Bemessungsgrundlagen meldet ELSTER in vollen Euro; Cent werden abgeschnitten. Versteuerung nach vereinnahmten
-          Entgelten (Ist). Fällig am {formatLongDate(data.dueDate)}.
+          Bemessungsgrundlagen meldet ELSTER in vollen Euro; Cent werden abgeschnitten.{" "}
+          {data.figures.versteuerung === "ist"
+            ? "Versteuerung nach vereinnahmten Entgelten (Ist): Umsatzsteuer nach Zahlungseingang, Vorsteuer nach Belegdatum."
+            : "Versteuerung nach vereinbarten Entgelten (Soll): Umsatzsteuer nach Rechnungsdatum, Vorsteuer nach Belegdatum."}{" "}
+          Fällig am {formatLongDate(data.dueDate)}.
         </p>
         {!locked && (
           <div className="actions">
-            <button type="submit" className="btn" disabled={busy || !valid || (!dirty && Boolean(current))}>
+            <button type="submit" className="btn" disabled={busy || !valid || (!dirty && Boolean(current) && !stale)}>
               Entwurf speichern
             </button>
           </div>
@@ -294,12 +367,65 @@ function VatReturnEditor({
       </form>
 
       <div className="stack">
-        {!locked && (
-          <SubmitPanel data={data} busy={busy} valid={valid} onSubmit={onSubmit} />
-        )}
+        {!locked && <SubmitPanel data={data} busy={busy} valid={valid} onSubmit={onSubmit} />}
         <History data={data} />
       </div>
     </div>
+  );
+}
+
+/** Aufklappbare Liste der Zahlungen, Rechnungen bzw. Belege hinter einer Kennzahl */
+function Sources({
+  kind,
+  rows,
+  versteuerung,
+}: {
+  kind: "revenue" | "inputTax";
+  rows: PageData["figures"]["revenue"] | PageData["figures"]["inputTax"];
+  versteuerung: "ist" | "soll";
+}) {
+  if (rows.length === 0) return <span className="small muted">keine Buchungen</span>;
+  const summary =
+    kind === "inputTax"
+      ? `${rows.length} ${rows.length === 1 ? "Beleg" : "Belege"}`
+      : versteuerung === "ist"
+        ? `${rows.length} ${rows.length === 1 ? "Zahlungseingang" : "Zahlungseingänge"}`
+        : `${rows.length} ${rows.length === 1 ? "Rechnung" : "Rechnungen"}`;
+  return (
+    <details className="kz-sources">
+      <summary>{summary}</summary>
+      <table>
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>{kind === "inputTax" ? "Beleg" : "Rechnung"}</th>
+            <th className="num">Netto</th>
+            <th className="num">Steuer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}>
+              <td>{formatDate(row.date)}</td>
+              <td>
+                {"invoiceId" in row ? (
+                  <Link to="/rechnungen/$id" params={{ id: row.invoiceId }}>
+                    {row.number} · {row.customer}
+                  </Link>
+                ) : (
+                  <Link to="/belege/$id" params={{ id: row.documentId }}>
+                    {row.supplier}
+                    {row.number ? ` · ${row.number}` : ""}
+                  </Link>
+                )}
+              </td>
+              <td className="num">{formatEuro(row.base)}</td>
+              <td className="num">{formatEuro(row.tax)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
   );
 }
 

@@ -2,7 +2,16 @@
 
 Buchhaltung für einen Freelancer mit EÜR und monatlicher Umsatzsteuer-Voranmeldung. Self-hosted, Open Source (AGPL-3.0), ersetzt Lexware/Lexoffice.
 
-Stand: **Phase 1 bis 4** des Implementierungsplans: Fundament, ELSTER-Übermittlung, Ausgangsrechnungen, E-Rechnung, Belege und Bankabgleich. Die Kennzahlen der Voranmeldung (Kz 81, 86, 66) gibst du noch selbst ein, Kz 83 rechnet Haben. Ab Phase 5 kommen sie automatisch aus den Buchungen.
+Stand: **Phase 1 bis 5** des Implementierungsplans: Fundament, ELSTER-Übermittlung, Ausgangsrechnungen, E-Rechnung, Belege, Bankabgleich, automatische Voranmeldung, Auswertungen und Jahresexport. Die Kennzahlen der Voranmeldung rechnet Haben aus den Buchungen; von Hand überschreiben geht weiterhin, mit Begründung.
+
+## Phase 5: Automatische Voranmeldung, Auswertungen, Jahresexport
+
+- Kz 81, 86 und 66 kommen aus den Buchungen: bei Ist-Versteuerung die Umsatzsteuer nach Datum des zugeordneten Zahlungseingangs (bei Teilzahlungen anteilig), bei Soll nach Rechnungsdatum; Vorsteuer nach Belegdatum. Kz 83 wie gehabt gerechnet
+- Unter jeder Kennzahl lassen sich die Zahlungen, Rechnungen bzw. Belege dahinter aufklappen
+- Manuell überschreiben bleibt möglich, nur mit Begründung; gespeichert werden Begründung und die berechneten Werte zum Vergleich. Ein berechneter Entwurf wird vor dem Senden auf den aktuellen Stand gebracht
+- Vorprüfung vor dem Senden: Ausgaben ohne Beleg, nicht zugeordnete Zahlungseingänge, ungebuchte Belege, Rechnungsentwürfe im Zeitraum, Umsätze zu 0 %
+- Auswertungen: EÜR nach Zufluss und Abfluss, offene Posten, Einnahmen und Ausgaben je Monat
+- Jahresexport als ZIP für die Aufbewahrung: Belege und Rechnungen im Original, Journal, Bankumsätze, Voranmeldungen samt Protokollen, Stammdaten und Audit-Log als CSV, mit Prüfsummen
 
 ## Phase 4: Bankimport und Abgleich
 
