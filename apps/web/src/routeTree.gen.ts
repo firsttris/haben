@@ -17,6 +17,9 @@ import { Route as AppAuswertungenRouteImport } from './routes/_app/auswertungen'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppBuchungenRouteImport } from './routes/_app/buchungen'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
+import { Route as AppAnlagenIndexRouteImport } from './routes/_app/anlagen/index'
+import { Route as AppAnlagenIdRouteImport } from './routes/_app/anlagen/$id'
+import { Route as AppAnlagenNeuRouteImport } from './routes/_app/anlagen/neu'
 import { Route as AppArchivIndexRouteImport } from './routes/_app/archiv/index'
 import { Route as AppBelegeIndexRouteImport } from './routes/_app/belege/index'
 import { Route as AppBelegeIdRouteImport } from './routes/_app/belege/$id'
@@ -76,6 +79,21 @@ const AppBuchungenRoute = AppBuchungenRouteImport.update({
 const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
   id: '/einstellungen',
   path: '/einstellungen',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnlagenIndexRoute = AppAnlagenIndexRouteImport.update({
+  id: '/anlagen/',
+  path: '/anlagen/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnlagenIdRoute = AppAnlagenIdRouteImport.update({
+  id: '/anlagen/$id',
+  path: '/anlagen/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnlagenNeuRoute = AppAnlagenNeuRouteImport.update({
+  id: '/anlagen/neu',
+  path: '/anlagen/neu',
   getParentRoute: () => AppRoute,
 } as any)
 const AppArchivIndexRoute = AppArchivIndexRouteImport.update({
@@ -192,6 +210,8 @@ export interface FileRoutesByFullPath {
   '/bank': typeof AppBankRoute
   '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
+  '/anlagen/$id': typeof AppAnlagenIdRoute
+  '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -206,6 +226,7 @@ export interface FileRoutesByFullPath {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/anlagen/': typeof AppAnlagenIndexRoute
   '/archiv/': typeof AppArchivIndexRoute
   '/belege/': typeof AppBelegeIndexRoute
   '/kontakte/': typeof AppKontakteIndexRoute
@@ -222,6 +243,8 @@ export interface FileRoutesByTo {
   '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/': typeof AppIndexRoute
+  '/anlagen/$id': typeof AppAnlagenIdRoute
+  '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -236,6 +259,7 @@ export interface FileRoutesByTo {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/anlagen': typeof AppAnlagenIndexRoute
   '/archiv': typeof AppArchivIndexRoute
   '/belege': typeof AppBelegeIndexRoute
   '/kontakte': typeof AppKontakteIndexRoute
@@ -254,6 +278,8 @@ export interface FileRoutesById {
   '/_app/buchungen': typeof AppBuchungenRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/anlagen/$id': typeof AppAnlagenIdRoute
+  '/_app/anlagen/neu': typeof AppAnlagenNeuRoute
   '/_app/belege/$id': typeof AppBelegeIdRoute
   '/_app/kontakte/$id': typeof AppKontakteIdRoute
   '/_app/kontakte/neu': typeof AppKontakteNeuRoute
@@ -268,6 +294,7 @@ export interface FileRoutesById {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/_app/anlagen/': typeof AppAnlagenIndexRoute
   '/_app/archiv/': typeof AppArchivIndexRoute
   '/_app/belege/': typeof AppBelegeIndexRoute
   '/_app/kontakte/': typeof AppKontakteIndexRoute
@@ -286,6 +313,8 @@ export interface FileRouteTypes {
     | '/bank'
     | '/buchungen'
     | '/einstellungen'
+    | '/anlagen/$id'
+    | '/anlagen/neu'
     | '/belege/$id'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -300,6 +329,7 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/export/$jahr'
     | '/api/protokoll/$id'
+    | '/anlagen/'
     | '/archiv/'
     | '/belege/'
     | '/kontakte/'
@@ -316,6 +346,8 @@ export interface FileRouteTypes {
     | '/buchungen'
     | '/einstellungen'
     | '/'
+    | '/anlagen/$id'
+    | '/anlagen/neu'
     | '/belege/$id'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -330,6 +362,7 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/export/$jahr'
     | '/api/protokoll/$id'
+    | '/anlagen'
     | '/archiv'
     | '/belege'
     | '/kontakte'
@@ -347,6 +380,8 @@ export interface FileRouteTypes {
     | '/_app/buchungen'
     | '/_app/einstellungen'
     | '/_app/'
+    | '/_app/anlagen/$id'
+    | '/_app/anlagen/neu'
     | '/_app/belege/$id'
     | '/_app/kontakte/$id'
     | '/_app/kontakte/neu'
@@ -361,6 +396,7 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/export/$jahr'
     | '/api/protokoll/$id'
+    | '/_app/anlagen/'
     | '/_app/archiv/'
     | '/_app/belege/'
     | '/_app/kontakte/'
@@ -441,6 +477,27 @@ declare module '@tanstack/react-router' {
       path: '/einstellungen'
       fullPath: '/einstellungen'
       preLoaderRoute: typeof AppEinstellungenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/anlagen/': {
+      id: '/_app/anlagen/'
+      path: '/anlagen'
+      fullPath: '/anlagen/'
+      preLoaderRoute: typeof AppAnlagenIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/anlagen/$id': {
+      id: '/_app/anlagen/$id'
+      path: '/anlagen/$id'
+      fullPath: '/anlagen/$id'
+      preLoaderRoute: typeof AppAnlagenIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/anlagen/neu': {
+      id: '/_app/anlagen/neu'
+      path: '/anlagen/neu'
+      fullPath: '/anlagen/neu'
+      preLoaderRoute: typeof AppAnlagenNeuRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/archiv/': {
@@ -599,12 +656,15 @@ interface AppRouteChildren {
   AppBuchungenRoute: typeof AppBuchungenRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAnlagenIdRoute: typeof AppAnlagenIdRoute
+  AppAnlagenNeuRoute: typeof AppAnlagenNeuRoute
   AppBelegeIdRoute: typeof AppBelegeIdRoute
   AppKontakteIdRoute: typeof AppKontakteIdRoute
   AppKontakteNeuRoute: typeof AppKontakteNeuRoute
   AppRechnungenIdRoute: typeof AppRechnungenIdRoute
   AppRechnungenNeuRoute: typeof AppRechnungenNeuRoute
   AppUmsatzsteuerZeitraumRoute: typeof AppUmsatzsteuerZeitraumRoute
+  AppAnlagenIndexRoute: typeof AppAnlagenIndexRoute
   AppArchivIndexRoute: typeof AppArchivIndexRoute
   AppBelegeIndexRoute: typeof AppBelegeIndexRoute
   AppKontakteIndexRoute: typeof AppKontakteIndexRoute
@@ -619,12 +679,15 @@ const AppRouteChildren: AppRouteChildren = {
   AppBuchungenRoute: AppBuchungenRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAnlagenIdRoute: AppAnlagenIdRoute,
+  AppAnlagenNeuRoute: AppAnlagenNeuRoute,
   AppBelegeIdRoute: AppBelegeIdRoute,
   AppKontakteIdRoute: AppKontakteIdRoute,
   AppKontakteNeuRoute: AppKontakteNeuRoute,
   AppRechnungenIdRoute: AppRechnungenIdRoute,
   AppRechnungenNeuRoute: AppRechnungenNeuRoute,
   AppUmsatzsteuerZeitraumRoute: AppUmsatzsteuerZeitraumRoute,
+  AppAnlagenIndexRoute: AppAnlagenIndexRoute,
   AppArchivIndexRoute: AppArchivIndexRoute,
   AppBelegeIndexRoute: AppBelegeIndexRoute,
   AppKontakteIndexRoute: AppKontakteIndexRoute,

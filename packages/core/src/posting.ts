@@ -65,6 +65,8 @@ export const EXPENSE_CATEGORIES = {
   versicherung: { label: "Versicherungen", SKR03: "4360", SKR04: "6400" },
   beitraege: { label: "Beiträge", SKR03: "4380", SKR04: "6420" },
   sonstiges: { label: "Sonstiger Aufwand", SKR03: "4900", SKR04: "6300" },
+  // Kein Aufwand: gebucht wird auf das Anlagekonto der Anlage, abgeschrieben über das Anlagenverzeichnis
+  anlage: { label: "Anlagegut (wird abgeschrieben)", SKR03: "0490", SKR04: "0690" },
 } as const;
 
 export type ExpenseCategory = keyof typeof EXPENSE_CATEGORIES;
@@ -194,9 +196,11 @@ export function documentPosting(
   kontenrahmen: Kontenrahmen,
   payment: DocumentPayment,
   vorsteuerAbzug = true,
+  /** Abweichendes Konto statt des Kategoriekontos, z. B. das Anlagekonto einer Anlage */
+  account?: string,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
-  const expense = EXPENSE_CATEGORIES[category][kontenrahmen];
+  const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
   const lines: PostingLine[] = [];
   for (const { rate, base, tax } of totals.taxes) {
     if (!vorsteuerAbzug) {

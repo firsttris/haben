@@ -44,6 +44,20 @@ describe("computeEuer", () => {
     expect(euer.gewinn).toBe(100_000 - 4590);
   });
 
+  it("Anlagekauf: nur die Vorsteuer ist Ausgabe, abgeschrieben wird über die AfA", () => {
+    const auto = computeInvoiceTotals([{ quantity: 1000, unitPrice: 3_000_000, taxRate: 1900 }]);
+    const euer = computeEuer(
+      2026,
+      [{ kind: "document", date: "2026-03-10", paid: auto.gross, totals: auto, category: "anlage" }],
+      { afa: 416_667, gwg: 0, sammelposten: 0, restbuchwert: 0 },
+    );
+    expect(amount(euer, "vorsteuer")).toBe(570_000);
+    expect(amount(euer, "ausgabe:anlage")).toBe(0);
+    expect(amount(euer, "afa")).toBe(416_667);
+    expect(euer.ausgaben.map((l) => l.key)).not.toContain("gwg");
+    expect(euer.totalAusgaben).toBe(570_000 + 416_667);
+  });
+
   it("Teilzahlungen werden anteilig aufgeteilt und ergeben zusammen die Rechnung", () => {
     const euer = computeEuer(2026, [
       { kind: "invoice", date: "2026-10-01", paid: 200_000, totals: invoice19 },

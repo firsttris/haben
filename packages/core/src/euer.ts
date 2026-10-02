@@ -49,6 +49,10 @@ export type EuerLineKey =
   | "vereinnahmteUst"
   | "erstatteteUst"
   | `ausgabe:${ExpenseCategory}`
+  | "afa"
+  | "gwg"
+  | "sammelposten"
+  | "restbuchwert"
   | "vorsteuer"
   | "gezahlteUst";
 
@@ -76,6 +80,10 @@ export const EUER_LABELS = {
   einnahmenSteuerfrei: "Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen",
   vereinnahmteUst: "Vereinnahmte Umsatzsteuer",
   erstatteteUst: "Vom Finanzamt erstattete Umsatzsteuer",
+  afa: "AfA auf bewegliche Wirtschaftsgüter",
+  gwg: "Sofortabschreibung geringwertiger Wirtschaftsgüter",
+  sammelposten: "Auflösung Sammelposten",
+  restbuchwert: "Restbuchwert ausgeschiedener Anlagegüter",
   vorsteuer: "Gezahlte Vorsteuerbeträge",
   gezahlteUst: "An das Finanzamt gezahlte Umsatzsteuer",
 } as const;
@@ -104,7 +112,15 @@ function netGroups(payments: EuerPayment[]): Netted[] {
   return result.filter((p) => p.sum !== 0);
 }
 
-export function computeEuer(year: number, payments: EuerPayment[]): EuerResult {
+/** Abschreibungen eines Jahres aus dem Anlagenverzeichnis */
+export interface EuerDepreciation {
+  afa: Cents;
+  gwg: Cents;
+  sammelposten: Cents;
+  restbuchwert: Cents;
+}
+
+export function computeEuer(year: number, payments: EuerPayment[], depreciation?: EuerDepreciation): EuerResult {
   const sums = new Map<EuerLineKey, Cents>();
   const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
   const monthlyIn: Cents[] = Array.from({ length: 12 }, () => 0);
@@ -125,6 +141,11 @@ export function computeEuer(year: number, payments: EuerPayment[]): EuerResult {
         break;
       case "document":
         for (const { base, tax } of paidTaxShares(p.totals, p.sum)) {
+          // Anschaffung einer Anlage ist keine Ausgabe; sie wirkt über die AfA. Die Vorsteuer schon.
+          if (p.category === "anlage") {
+            if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
+            continue;
+          }
           if (p.vorsteuerAbzug === false) {
             add(`ausgabe:${p.category}`, base + tax);
             monthlyOut[month]! += base + tax;
@@ -169,8 +190,13 @@ export function computeEuer(year: number, payments: EuerPayment[]): EuerResult {
         c === "hardware" ? "Als geringwertige Wirtschaftsgüter sofort abgezogen" : undefined,
       ),
     );
+  if (depreciation) for (const key of ["afa", "gwg", "sammelposten", "restbuchwert"] as const) add(key, depreciation[key]);
+  const depreciationLines = (["afa", "gwg", "sammelposten", "restbuchwert"] as const)
+    .filter((key) => (sums.get(key) ?? 0) !== 0)
+    .map((key) => line(key, EUER_LABELS[key]));
   const ausgaben = [
     ...categories,
+    ...depreciationLines,
     line("vorsteuer", EUER_LABELS.vorsteuer),
     line("gezahlteUst", EUER_LABELS.gezahlteUst),
   ];

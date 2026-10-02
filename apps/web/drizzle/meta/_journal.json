@@ -92,6 +92,20 @@
       "when": 1790944536031,
       "tag": "0012_steuerfaelle",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790947012959,
+      "tag": "0013_anlagen",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790947013909,
+      "tag": "0014_anlagen_trigger",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,8 @@ import { computeVatFigures, preflight } from "../vat-figures.ts";
 import { elsterClient, elsterMode } from "../elster.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
+import { pendingDepreciation } from "../assets.ts";
+import { today } from "../today.ts";
 import {
   computedValues,
   createCorrection,
@@ -83,6 +85,7 @@ export const getOverview = createServerFn({ method: "GET" })
       computedKz83: computed.kz83,
       dueDate: dueDate(period, company.bundesland).toISOString(),
       kleinunternehmer: company.kleinunternehmer,
+      afaPending: await pendingDepreciation(today()),
       current,
       recent,
       certificate: certificateSummary(certificate),

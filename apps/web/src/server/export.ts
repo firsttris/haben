@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { and, asc, between, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../package.json" with { type: "json" };
-import { csvDecimal } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, csvDecimal } from "@haben/core";
+import { listAssets } from "./assets.ts";
 import { db, schema } from "./db/index.ts";
 import { accountName } from "./functions/journal.ts";
 import { loadFile } from "./storage.ts";
@@ -184,7 +185,7 @@ const berlinStart = (year: number) => sql`(${`${year}-01-01 00:00:00`}::timestam
 
 const KIND_LABELS: Record<string, string> = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" };
 const FORMAT_LABELS: Record<string, string> = { zugferd: "ZUGFeRD", "xrechnung-cii": "XRechnung (CII)", "xrechnung-ubl": "XRechnung (UBL)" };
-const SOURCE_LABELS: Record<string, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Zahlung" };
+const SOURCE_LABELS: Record<string, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Zahlung", asset: "Anlage" };
 const ALLOCATION_LABELS: Record<string, string> = {
   invoice: "Rechnung",
   document: "Beleg",
@@ -451,6 +452,42 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         "Steuerschlüssel", "Gegenbuchung zu", "Festgeschrieben", "Erfasst",
       ],
       journalRows,
+    ),
+    compress: true,
+  };
+
+  // Anlagen --------------------------------------------------------------
+  const assetRows: CsvValue[][] = (await listAssets(year))
+    .filter((a) => a.year !== null)
+    .map((a) => [
+      a.name,
+      ASSET_KINDS[a.kind].label,
+      ASSET_METHODS[a.method],
+      a.account,
+      a.acquisitionDate,
+      money(a.cost),
+      a.usefulLifeMonths,
+      a.openingDate,
+      a.openingBookValue === null ? "" : money(a.openingBookValue),
+      money(a.year!.opening),
+      money(a.year!.addition),
+      money(a.year!.depreciation),
+      money(a.year!.disposal),
+      money(a.year!.closing),
+      a.disposalDate,
+      a.bookedYears.includes(year),
+      a.documentId,
+      a.id,
+    ]);
+  yield {
+    path: "anlagen/anlagenverzeichnis.csv",
+    content: csv(
+      [
+        "Bezeichnung", "Art", "Abschreibung", "Anlagekonto", "Anschaffung", "Anschaffungskosten", "Nutzungsdauer (Monate)",
+        "Übernommen zum", "Buchwert bei Übernahme", "Buchwert Jahresanfang", "Zugang", "AfA", "Abgang (Restbuchwert)",
+        "Buchwert Jahresende", "Abgangsdatum", "AfA gebucht", "Beleg-ID", "ID",
+      ],
+      assetRows,
     ),
     compress: true,
   };
@@ -879,6 +916,9 @@ belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Steuersatz, Status, SHA-256 und ursprünglichem Dateinamen.
 buchungen/journal.csv    Journal, eine Zeile je Buchungszeile (Konto, Soll, Haben,
                          Steuerschlüssel); Stornos verweisen auf die Ursprungsbuchung.
+anlagen/anlagenverzeichnis.csv
+                         Anlagenverzeichnis des Jahres: Anschaffung, Buchwert am
+                         Jahresanfang, Zugang, AfA, Abgang und Buchwert am Jahresende.
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto.
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.

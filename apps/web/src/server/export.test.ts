@@ -159,6 +159,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
         `belege/2026-09-29_Mueller-Buero-GmbH-Filiale_${documentId.slice(0, 8)}.jpg`,
         "belege/belege.csv",
         "buchungen/journal.csv",
+        "anlagen/anlagenverzeichnis.csv",
         "bank/DE12120300001234567890/umsaetze.csv",
         "bank/zuordnungen.csv",
         "bank/importe.csv",

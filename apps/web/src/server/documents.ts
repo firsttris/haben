@@ -1,5 +1,9 @@
 import {
   ACCOUNTS,
+  ASSET_KIND_KEYS,
+  ASSET_METHOD_KEYS,
+  assetAccount,
+  assetIssues,
   documentPosting,
   EXPENSE_CATEGORY_KEYS,
   type ExpenseCategory,
@@ -33,13 +37,23 @@ export const documentInputSchema = z.object({
   category: z.enum(EXPENSE_CATEGORY_KEYS).nullable(),
   payment: z.enum(["bank", "privat"]),
   note: z.string().max(2000),
+  /** Nur bei Kategorie „anlage“ */
+  asset: z
+    .object({
+      name: z.string().trim().min(1, "Bezeichnung der Anlage fehlt").max(200),
+      kind: z.enum(ASSET_KIND_KEYS),
+      method: z.enum(ASSET_METHOD_KEYS),
+      usefulLifeMonths: z.number().int().min(1).max(600).nullable(),
+    })
+    .nullable()
+    .default(null),
   amounts: z
     .array(z.object({ taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]), net: cents, tax: cents }))
     .max(3)
     .refine((rows) => new Set(rows.map((r) => r.taxRate)).size === rows.length, "Jeder Steuersatz nur einmal"),
 });
 
-export type DocumentInput = z.infer<typeof documentInputSchema>;
+export type DocumentInput = z.input<typeof documentInputSchema>;
 
 function totalsOf(amounts: { taxRate: number; net: number; tax: number }[]) {
   const net = amounts.reduce((s, a) => s + a.net, 0);
@@ -243,11 +257,12 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
     if (input.amounts.length > 0) {
       await tx.insert(schema.documentAmounts).values(input.amounts.map((a) => ({ documentId: id, ...a })));
     }
-    const { amounts, ...fields } = input;
+    const { amounts, asset, ...fields } = input;
     await tx
       .update(schema.documents)
       .set({
         ...fields,
+        asset: fields.category === "anlage" ? (asset ?? null) : null,
         supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
         ...totalsOf(amounts),
         updatedAt: new Date(),
@@ -285,6 +300,16 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[]): string[
   if (!doc.category) issues.push("Kategorie fehlt");
   if (doc.currency !== "EUR") issues.push("Nur Belege in Euro können gebucht werden");
   if (amounts.length === 0 || amounts.every((a) => a.net === 0 && a.tax === 0)) issues.push("Beträge fehlen");
+  if (doc.category === "anlage") {
+    const net = amounts.reduce((s, a) => s + a.net, 0);
+    if (!doc.asset) issues.push("Angaben zur Anlage fehlen");
+    else if (net <= 0) issues.push("Gutschriften zu Anlagen werden nicht unterstützt");
+    else if (doc.documentDate) {
+      issues.push(
+        ...assetIssues({ acquisitionDate: doc.documentDate, cost: net, method: doc.asset.method, usefulLifeMonths: doc.asset.usefulLifeMonths }),
+      );
+    }
+  }
   return issues;
 }
 
@@ -304,7 +329,10 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
     };
     // Kleinunternehmer ziehen keine Vorsteuer ab; festgehalten am Beleg, damit spätere Auswertungen stimmen
     const vorsteuerAbzug = !company.kleinunternehmer;
-    const lines = documentPosting(totals, doc.category as ExpenseCategory, company.kontenrahmen, doc.payment, vorsteuerAbzug);
+    // Anlage: auf das Anlagekonto statt in den Aufwand; ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten
+    const asset = doc.category === "anlage" ? doc.asset : null;
+    const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, company.kontenrahmen) : undefined;
+    const lines = documentPosting(totals, doc.category as ExpenseCategory, company.kontenrahmen, doc.payment, vorsteuerAbzug, assetAccountNo);
     const now = new Date();
     const [entry] = await tx
       .insert(schema.journalEntries)
@@ -322,6 +350,18 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
       .update(schema.documents)
       .set({ status: "gebucht", vorsteuerAbzug, lockedAt: now, updatedAt: now })
       .where(eq(schema.documents.id, id));
+    if (asset) {
+      await tx.insert(schema.assets).values({
+        name: asset.name,
+        kind: asset.kind,
+        method: asset.method,
+        account: assetAccountNo!,
+        acquisitionDate: doc.documentDate!,
+        cost: vorsteuerAbzug ? totals.net : totals.gross,
+        usefulLifeMonths: asset.method === "linear" ? asset.usefulLifeMonths : null,
+        documentId: id,
+      });
+    }
   });
 }
 

@@ -29,6 +29,7 @@ const PATHS = {
     </>
   ),
   reports: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  assets: <path d="M5 17h14M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0M3 17V12l2-5h11l3 5h2v5M7 12h12" />,
   contacts: (
     <>
       <circle cx="9" cy="8" r="3.5" />

@@ -18,9 +18,10 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 | --- | --- | --- |
 | Festschreibung | `journal_entries`, `invoices`, `documents`, `vat_returns` | `UPDATE` und `DELETE` werden abgelehnt, sobald `locked_at` gesetzt ist |
 | Abhängige Zeilen | `journal_lines`, `invoice_lines`, `document_amounts` | Einfügen, Ändern und Löschen abgelehnt, wenn die Buchung, Rechnung bzw. der Beleg festgeschrieben ist |
-| Nur anhängen | `audit_log`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files` | `UPDATE` und `DELETE` immer abgelehnt (`audit_log` auch `TRUNCATE`) |
+| Nur anhängen | `audit_log`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files`, `asset_depreciations` | `UPDATE` und `DELETE` immer abgelehnt (`audit_log` auch `TRUNCATE`) |
 | Kontakte | `contacts` | Löschen abgelehnt; jede Änderung erhöht die Version und legt eine Kopie in `contact_versions` ab |
 | Nummernkreis | `invoice_number_counters` | Zähler darf nicht sinken, Zeilen nicht gelöscht werden |
+| Anlagen | `assets` | Sobald AfA oder Eröffnung gebucht ist, sind Art, Abschreibung, Konto, Datum, Kosten, Nutzungsdauer und Übernahmewerte fest; Löschen nur ohne Buchung und ohne Beleg |
 | Zuordnungen | `allocations` | Vorzeichen muss dem Bankumsatz entsprechen, die Summe darf den Umsatz nicht übersteigen |
 
 ### Änderungsprotokoll
@@ -232,6 +233,10 @@ Offener Eingangsbeleg (die Vorsteuer ist schon angemeldet):
 
 Die spätere Zahlung wird wie jede andere gebucht. Für die Voranmeldung zählt bei Soll-Versteuerung eine übernommene Rechnung nicht noch einmal, ebenso wenig die Vorsteuer eines übernommenen Belegs.
 
+### Anlagen und AfA
+
+Ein Beleg mit der Kategorie „Anlagegut“ bucht den Nettobetrag auf das Anlagekonto statt in den Aufwand (ohne Vorsteuerabzug den Bruttobetrag). Zum Jahresende bucht **AfA … buchen** je Anlage AfA-Konto an Anlagekonto, beim Abgang zusätzlich den Restbuchwert (2310 bzw. 6895) an Anlagekonto. Übernommene Anlagen bekommen mit der ersten AfA ihre Eröffnung Anlagekonto an 9000. Konten und Beispiele stehen unter [Anlagen und AfA](anlagen.md).
+
 ## Steuerschlüssel und Kennzahlen
 
 Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, Verbindlichkeiten, Bank, Privat- und Saldenvortragskonten bleiben ohne; ebenso die Zeilen der Eröffnungsbuchungen.
@@ -266,7 +271,8 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 
 ## Was Haben nicht bucht
 
-- Anlagevermögen und Abschreibungen, Sachentnahmen, private Kfz-Nutzung
+- Gebäude, degressive AfA, Sonderabschreibungen und Investitionsabzugsbetrag
+- Sachentnahmen und private Kfz-Nutzung
 - Reverse Charge als Leistungsempfänger (§ 13b UStG), innergemeinschaftliche Lieferungen und Erwerbe
 - Lohn, Kasse und Fremdwährung
 - Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten)

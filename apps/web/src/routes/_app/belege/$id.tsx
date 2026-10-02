@@ -1,4 +1,14 @@
-import { formatDecimal, formatEuro, parseEuro, taxOf, type ExpenseCategory } from "@haben/core";
+import {
+  ASSET_KINDS,
+  ASSET_METHODS,
+  formatDecimal,
+  formatEuro,
+  parseEuro,
+  taxOf,
+  type AssetKind,
+  type AssetMethod,
+  type ExpenseCategory,
+} from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
@@ -57,6 +67,11 @@ function DocumentPage() {
         </div>
         <div className="actions">
           <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} />
+          {data.assetId && (
+            <Link to="/anlagen/$id" params={{ id: data.assetId }} className="btn">
+              Zur Anlage
+            </Link>
+          )}
           <a className="btn" href={`/api/beleg/${doc.id}?download`}>
             Original herunterladen
           </a>
@@ -109,6 +124,11 @@ function DocumentForm({ data }: { data: Detail }) {
   const [dueDate, setDueDate] = useState(doc.dueDate ?? "");
   const [category, setCategory] = useState(doc.category ?? "");
   const [payment, setPayment] = useState(doc.payment);
+  // Angaben zur Anlage bei Kategorie „anlage“; Vorschläge laut AfA-Tabelle
+  const [assetName, setAssetName] = useState(doc.asset?.name ?? "");
+  const [assetKind, setAssetKind] = useState<AssetKind>(doc.asset?.kind ?? "edv");
+  const [assetMethod, setAssetMethod] = useState<AssetMethod>(doc.asset?.method ?? "digital");
+  const [assetYears, setAssetYears] = useState(doc.asset?.usefulLifeMonths ? String(doc.asset.usefulLifeMonths / 12) : "");
   const [note, setNote] = useState(doc.note);
   const [rows, setRows] = useState<AmountState[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0 }]).map((a) => ({
@@ -181,6 +201,15 @@ function DocumentForm({ data }: { data: Detail }) {
           category: (category || null) as ExpenseCategory | null,
           payment,
           note,
+          asset:
+            category === "anlage"
+              ? {
+                  name: assetName.trim() || supplierName.trim() || "Anlage",
+                  kind: assetKind,
+                  method: assetMethod,
+                  usefulLifeMonths: assetMethod === "linear" && Number(assetYears) > 0 ? Math.round(Number(assetYears.replace(",", ".")) * 12) : null,
+                }
+              : null,
           amounts: parsed.filter((p) => p.net !== 0 || p.tax !== 0).map((p) => ({ taxRate: p.taxRate, net: p.net!, tax: p.tax! })),
         },
       },
@@ -288,6 +317,52 @@ function DocumentForm({ data }: { data: Detail }) {
               ))}
             </select>
           </label>
+          {category === "anlage" && (
+            <>
+              <label className="field" style={{ gridColumn: "1 / -1" }}>
+                Bezeichnung der Anlage
+                <input value={assetName} onChange={(e) => touch(setAssetName)(e.target.value)} placeholder="z. B. VW Passat, MacBook Pro" maxLength={200} />
+              </label>
+              <label className="field">
+                Art
+                <select
+                  value={assetKind}
+                  onChange={(e) => {
+                    const kind = e.target.value as AssetKind;
+                    touch(setAssetKind)(kind);
+                    setAssetMethod(ASSET_KINDS[kind].method);
+                    const years = ASSET_KINDS[kind].usefulLifeYears;
+                    if (years && ASSET_KINDS[kind].method === "linear") setAssetYears(String(years));
+                  }}
+                >
+                  {Object.entries(ASSET_KINDS).map(([value, k]) => (
+                    <option key={value} value={value}>
+                      {k.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                Abschreibung
+                <select value={assetMethod} onChange={(e) => touch(setAssetMethod)(e.target.value as AssetMethod)}>
+                  {Object.entries(ASSET_METHODS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {assetMethod === "linear" && (
+                <label className="field">
+                  Nutzungsdauer in Jahren
+                  <input inputMode="decimal" value={assetYears} onChange={(e) => touch(setAssetYears)(e.target.value)} />
+                </label>
+              )}
+              <p className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
+                Beim Buchen entsteht die Anlage im <Link to="/anlagen">Anlagenverzeichnis</Link>; abgeschrieben wird ab dem Belegdatum.
+              </p>
+            </>
+          )}
         </div>
       </fieldset>
 
