@@ -293,4 +293,54 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     const protocol = await annual.loadAnnualProtocol((await sql`select id from annual_submissions where form = 'est' and kind = 'test'`)[0]!.id);
     expect(protocol?.filename).toBe("Einkommensteuererklaerung-2025-Protokoll.pdf");
   });
+
+  it("Einkommensteuer mit Anlage N: Arbeitslohn, Werbungskosten, Lohnsteuer in der Prognose, Homeoffice-Hinweis", async () => {
+    const taxpayer = await import("./taxpayer.ts");
+    const incomeTax = await import("./income-tax.ts");
+    const pauschalen = await import("./pauschalen.ts");
+    await sql`truncate income_tax_inputs`;
+    await year2025();
+    await assets.bookDepreciation(actor, 2025, TODAY);
+    const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" };
+    await taxpayer.saveTaxpayer(actor, {
+      a: person,
+      b: { ...person, anrede: "Frau", vorname: "Erika", religion: "02" },
+      veranlagung: "zusammen",
+      verheiratetSeit: "2015-06-20",
+    });
+    const lohn = { steuerklasse: 4 as const, brutto: 4_200_000, lohnsteuer: 612_340, kirchensteuer: 48_987, rvArbeitnehmer: 390_600, rvArbeitgeber: 390_600, kvArbeitnehmer: 341_200 };
+    await expect(
+      incomeTax.saveEstAngaben(actor, 2025, { arbeitnehmer: { b: { bescheinigungen: [{ ...lohn, brutto: 0 }] } } }),
+    ).rejects.toThrow(/Bruttoarbeitslohn/);
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      arbeitnehmer: {
+        a: { bescheinigungen: [{ steuerklasse: 1, brutto: 200_000 }], werbungskosten: { homeofficeTage: 30 } },
+        b: { bescheinigungen: [lohn], werbungskosten: { wege: { tage: 200, km: 25, adresse: "77815 Bühl, Industriestraße 4" }, arbeitsmittel: 50_000 } },
+      },
+    });
+    for (const month of ["01", "02", "03", "04", "05", "06", "07", "08", "09"]) {
+      await pauschalen.createPauschale(actor, { art: "homeoffice", month: `2025-${month}`, tage: 20 }, TODAY);
+    }
+
+    const overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.est.anlagen).toEqual(["ESt 1 A", "S", "N (Max)", "N (Erika)", "Vorsorgeaufwand"]);
+    // 2025: 200 × (20 × 0,30 € + 5 × 0,38 €) + 500 € Arbeitsmittel; bei Max der Pauschbetrag
+    const p = overview.est.prognose;
+    expect(p.einkuenfteArbeit).toBe(4_200_000 - (1_580_00 + 500_00) + (200_000 - 123_000));
+    expect(p.steuerabzug).toBe(612_340 + 48_987);
+    expect(p.verbleibend).toBe(p.gesamt - 661_327);
+    // 180 Tage in der EÜR plus 30 in Anlage N sind genau 210; ein Tag mehr gibt einen Hinweis
+    expect(overview.est.issues.some((i) => /Homeoffice/.test(i.text))).toBe(false);
+    await pauschalen.createPauschale(actor, { art: "homeoffice", month: "2025-10", tage: 1 }, TODAY);
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Homeoffice/.test(i.text))).toMatchObject({ tone: "hinweis", link: "/pauschalen" });
+
+    const client = new elster.FakeElsterClient();
+    expect((await annual.submitAnnual(actor, "est", 2025, client, { kind: "validate", today: TODAY })).ok).toBe(true);
+    const [row] = await sql`select request_xml from annual_submissions where form = 'est' order by created_at desc limit 1`;
+    const xml: string = row!.request_xml;
+    expect(xml).toMatch(/<N>\s*<Person>PersonA<\/Person>[\s\S]*<E0204507>30<\/E0204507>/);
+    expect(xml).toMatch(/<N>\s*<Person>PersonB<\/Person>\s*<ArbL>\s*<LStB_1_5_Einz>\s*<E0200204>42000,00<\/E0200204>/);
+    expect(xml).toContain("<E0203501>77815 Bühl, Industriestraße 4</E0203501>");
+    expect(xml).toMatch(/<AVor>\s*<Person>PersonB<\/Person>\s*<E2000401>3906<\/E2000401>\s*<E2000801>3906<\/E2000801>/);
+  });
 });

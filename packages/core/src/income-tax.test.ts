@@ -89,6 +89,42 @@ describe("steuerPrognose", () => {
     expect(p.jeQuartal).toBe(Math.round(p.gesamt / 4 / 100) * 100);
   });
 
+  it("rechnet Arbeitslohn des Ehegatten ein und die Lohnsteuer an", () => {
+    const p = steuerPrognose({
+      ...base,
+      angaben: {
+        ...base.angaben,
+        vorsorge: { a: base.angaben.vorsorge.a, b: {}, sonstige: 500_00 },
+        arbeitnehmer: {
+          b: {
+            bescheinigungen: [
+              {
+                brutto: 42_000_00,
+                lohnsteuer: 6_123_40,
+                rvArbeitgeber: 3_906_05,
+                rvArbeitnehmer: 3_906_05,
+                kvArbeitnehmer: 3_412_04,
+                pvArbeitnehmer: 756_01,
+                avArbeitnehmer: 546_01,
+              },
+            ],
+            // 2026: 180 × 23 × 0,38 € = 1.573,20 €, dazu Arbeitsmittel
+            werbungskosten: { wege: { tage: 180, km: 23 }, arbeitsmittel: 349_00 },
+          },
+        },
+      },
+    });
+    expect(p.einkuenfteArbeit).toBe(42_000_00 - 1_922_20);
+    expect(p.gesamtbetragEinkuenfte).toBe(85_000_00 + 40_077_80);
+    // Rente: Arbeitnehmeranteil; Basis: PKV/PPV von A, 96 % der GKV und die PV von B; über dem Höchstbetrag 2.800 € + 1.900 €
+    expect(p.vorsorge).toBe(3_906_05 + 6_400_00 + 3_275_55 + 756_01);
+    expect(p.steuerabzug).toBe(6_123_40);
+    expect(p.verbleibend).toBe(p.gesamt - 6_123_40);
+    expect(p.jeQuartal).toBe(Math.round(p.verbleibend / 4 / 100) * 100);
+    // Ohne Zusammenveranlagung zählt der Arbeitslohn des Ehegatten nicht
+    expect(steuerPrognose({ ...base, zusammen: false, angaben: { ...base.angaben, arbeitnehmer: { b: { bescheinigungen: [{ brutto: 1_00 }], werbungskosten: {} } } } }).einkuenfteArbeit).toBe(0);
+  });
+
   it("rechnet Kirchensteuer mit 8 % in BW, bei einem Ehegatten zur Hälfte", () => {
     const beide = steuerPrognose({ ...base, kirche: { a: true, b: true } });
     expect(beide.kirchensteuer).toBe(Math.floor(beide.einkommensteuer * 0.08));

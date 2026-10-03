@@ -2,6 +2,7 @@ import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
+import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
 import { errorMessage, formatDate, formatDateTime } from "../../../lib/format.ts";
@@ -25,7 +26,13 @@ type Notice = { tone: "ok" | "danger" | "info"; text: string } | null;
 
 const KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" } as const;
 const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" } as const;
-const LINK_LABEL = { "/einstellungen": "Zu den Einstellungen", "/anlagen": "Zu den Anlagen", "/umsatzsteuer": "Zur Umsatzsteuer", "/bank": "Zur Bank" } as const;
+const LINK_LABEL = {
+  "/einstellungen": "Zu den Einstellungen",
+  "/anlagen": "Zu den Anlagen",
+  "/umsatzsteuer": "Zur Umsatzsteuer",
+  "/bank": "Zur Bank",
+  "/pauschalen": "Zu den Pauschalen",
+} as const;
 
 function AnnualPage() {
   const data = Route.useLoaderData();
@@ -60,7 +67,7 @@ function AnnualPage() {
 
       <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
         Haben berechnet Umsatzsteuererklärung und Anlage EÜR aus den Buchungen des Jahres und übermittelt sie wie die Voranmeldung über
-        ERiC. Für die Einkommensteuererklärung kommt der Gewinn aus der EÜR; Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst
+        ERiC. Für die Einkommensteuererklärung kommt der Gewinn aus der EÜR; Arbeitslohn, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst
         du unten ein.
       </p>
 
@@ -267,6 +274,10 @@ function EstSection({ data }: { data: Data }) {
   const router = useRouter();
   const save = useServerFn(saveIncomeTaxInputs);
   const [kinder, setKinder] = useState<KindDraft[]>(() => a.kinder.map((k, key) => ({ ...k, key, kinderbetreuung: centsText(k.kinderbetreuung) })));
+  const [anA, setAnA] = useState(() => toArbeitnehmerDraft(a.arbeitnehmer?.a));
+  const [anB, setAnB] = useState(() => toArbeitnehmerDraft(a.arbeitnehmer?.b));
+  const nameA = est.person.a?.split(" ")[0] ?? "Person A";
+  const nameB = est.person.b?.split(" ")[0] ?? "Ehegatte";
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const blocked = est.issues.some((i) => i.tone === "fehler");
@@ -331,6 +342,10 @@ function EstSection({ data }: { data: Data }) {
         soli: amount("kapSoli", "Solidaritätszuschlag"),
         kirchensteuer: amount("kapKiSt", "Kirchensteuer auf Kapitalerträge"),
       },
+      arbeitnehmer: {
+        a: parseArbeitnehmer(anA, nameA, bad),
+        ...(est.zusammen ? { b: parseArbeitnehmer(anB, nameB, bad) } : {}),
+      },
     };
     if (bad.length > 0) {
       setNotice({ tone: "danger", text: `Kein gültiger Betrag: ${bad.join(", ")}.` });
@@ -375,6 +390,7 @@ function EstSection({ data }: { data: Data }) {
             <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
             <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} text />
             <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />
+            {est.prognose.einkuenfteArbeit !== 0 && <Row label="Einkünfte aus Arbeitslohn (geschätzt)" value={formatEuro(est.prognose.einkuenfteArbeit)} />}
             <Row label="Anlagen" value={est.anlagen.join(", ")} text />
             <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
             <Row
@@ -388,8 +404,21 @@ function EstSection({ data }: { data: Data }) {
                 .filter(Boolean)
                 .join(" · ")}
             />
+            {est.prognose.steuerabzug > 0 && (
+              <>
+                <Row label="Bereits einbehalten (Lohnsteuer, Soli, KiSt)" value={formatEuro(est.prognose.steuerabzug)} />
+                <Row
+                  label={est.prognose.verbleibend >= 0 ? "Voraussichtlich nachzuzahlen" : "Voraussichtliche Erstattung"}
+                  value={formatEuro(Math.abs(est.prognose.verbleibend))}
+                  total
+                />
+              </>
+            )}
           </tbody>
         </table>
+
+        <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />
+        {est.zusammen && <AnlageNFields wer={nameB} draft={anB} onChange={setAnB} />}
 
         <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
           <legend className="subhead">Vorsorgeaufwand {est.zusammen ? `· ${est.person.a ?? "Person A"}` : ""}</legend>

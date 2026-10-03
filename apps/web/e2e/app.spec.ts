@@ -250,6 +250,30 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await vast.screenshot({ path: `${SHOTS}/desktop/16b-belege-elster.png` });
 });
 
+test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const form = page.getByRole("form", { name: "Angaben zur Einkommensteuer" });
+  const n = form.getByRole("group", { name: "Anlage N · Erika" });
+  await n.getByLabel("Erika hatte Arbeitslohn aus einer Anstellung").check();
+  const lstb = n.getByRole("group", { name: "Lohnsteuerbescheinigung 1 · Erika" });
+  await lstb.getByLabel("Steuerklasse").selectOption("4");
+  await lstb.getByLabel("Nr. 3 Bruttoarbeitslohn", { exact: true }).fill("42.000,00");
+  await lstb.getByLabel("Nr. 4 Lohnsteuer", { exact: true }).fill("6.123,40");
+  await lstb.getByLabel("Nr. 23a Rentenversicherung Arbeitnehmer", { exact: true }).fill("3.906,00");
+  await lstb.getByLabel("Nr. 22a Rentenversicherung Arbeitgeber", { exact: true }).fill("3.906,00");
+  await lstb.getByLabel("Nr. 25 Krankenversicherung", { exact: true }).fill("3.412,00");
+  const wk = n.getByRole("group", { name: "Werbungskosten · Erika" });
+  await wk.getByLabel("Erste Tätigkeitsstätte (PLZ, Ort, Straße)").fill("77815 Bühl, Industriestraße 4");
+  await wk.getByLabel("Tage dort").fill("200");
+  await wk.getByLabel("Einfache Entfernung in km").fill("25");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(form.getByRole("status").filter({ hasText: "Angaben gespeichert." })).toBeVisible();
+  await expect(form.getByText(/N \(Erika\)/)).toBeVisible();
+  await expect(form.getByText("Bereits einbehalten (Lohnsteuer, Soli, KiSt)")).toBeVisible();
+  await expect(form.getByText("6.123,40\u00a0€").first()).toBeVisible();
+  await n.screenshot({ path: `${SHOTS}/desktop/17-anlage-n.png` });
+});
+
 test("Fristen und Kalender-Abo", async () => {
   await go("/fristen");
   await expect(page.getByRole("heading", { name: "Fristen", level: 1 })).toBeVisible();

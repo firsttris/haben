@@ -7,7 +7,6 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 | Thema | Worum es geht | Stand |
 | --- | --- | --- |
 | Dauerfristverlängerung | Antrag auf Dauerfristverlängerung mit Sondervorauszahlung (USt 1 H) über ELSTER; Voranmeldungen dürfen dann einen Monat später kommen | geplant |
-| Anlage N | Arbeitslohn, etwa eines angestellten Ehegatten, in der Einkommensteuererklärung | geplant |
 | Zusammenfassende Meldung | Meldung der innergemeinschaftlichen Leistungen an das BZSt, nur bei Kunden in anderen EU-Ländern nötig | bei Bedarf |
 
 ## Blockiert
@@ -32,6 +31,7 @@ Bei der Suche nach Feldkennungen und Abläufen geprüft:
 | [EasyCash&Tax](https://github.com/Thomas-Mielke-Software/EasyCash) | GPL-3.0 | Feldkennungen der Anlage EÜR und AVEÜR |
 | [finamt](https://github.com/spaceoctahedron/finamt) | AGPL-3.0 | Umsatzsteuererklärung |
 | [elster-form-helper-api](https://github.com/dennismenken/elster-form-helper-api) | MIT | Zeilen und Texte der Vordrucke für USt, GewSt und KSt 2020–2025, aber keine Feldkennungen |
+| [sturm](https://github.com/C-0711/sturm.0711.io) | ohne Lizenzangabe | Feldliste der Jahresdokumentation 2024 (Kontext, Kennung, Format) für alle Anlagen der Einkommensteuer; Haben übernimmt daraus nur die amtlichen Feldkennungen der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand |
 | [lohnsteuer-bmf](https://pypi.org/project/lohnsteuer-bmf/) | MIT | Einkommensteuertarif und Parameter 2024–2026 nach BMF-Programmablaufplan; Referenz für die Tests der Steuerprognose |
 
 Nicht gefunden wurden die Kennungen für Kz 21/45/48 der Umsatzsteuererklärung und ein Schema für den Antrag auf Anpassung der Vorauszahlungen, weder in diesen Projekten noch in Paketen auf npm oder PyPI.

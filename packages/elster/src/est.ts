@@ -6,8 +6,9 @@ import { elsterDecimal } from "./xml.ts";
 
 /**
  * Einkommensteuererklärung (E10, Unterfallart 10) mit Hauptvordruck ESt 1 A und den Anlagen
- * Sonderausgaben, außergewöhnliche Belastungen, haushaltsnahe Aufwendungen, Kind, G bzw. S, KAP
- * und Vorsorgeaufwand. Aufbau und Feldkennungen wie bei viking; die Reihenfolge der Elemente folgt
+ * Sonderausgaben, außergewöhnliche Belastungen, haushaltsnahe Aufwendungen, Kind, G bzw. S, N, KAP
+ * und Vorsorgeaufwand. Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der
+ * Anlage Vorsorgeaufwand aus der Jahresdokumentation 2024. Aufbau und Feldkennungen wie bei viking; die Reihenfolge der Elemente folgt
  * der Jahresdokumentation der Finanzverwaltung (XSD-Reihenfolge).
  */
 
@@ -67,6 +68,51 @@ export interface EstKap {
   kirchensteuer?: Cents;
 }
 
+/** Eine Lohnsteuerbescheinigung; die Nummern beziehen sich auf deren Zeilen */
+export interface EstLohnsteuerbescheinigung {
+  steuerklasse: 1 | 2 | 3 | 4 | 5 | 6;
+  /** Nr. 3 Bruttoarbeitslohn */
+  brutto: Cents;
+  /** Nr. 4 */
+  lohnsteuer?: Cents;
+  /** Nr. 5 */
+  soli?: Cents;
+  /** Nr. 6 Kirchensteuer des Arbeitnehmers */
+  kirchensteuer?: Cents;
+  /** Nr. 7 Kirchensteuer des Ehegatten (nur bei Konfessionsverschiedenheit) */
+  kirchensteuerEhegatte?: Cents;
+  /** Nr. 22a Arbeitgeberanteil zur gesetzlichen Rentenversicherung */
+  rvArbeitgeber?: Cents;
+  /** Nr. 23a Arbeitnehmeranteil zur gesetzlichen Rentenversicherung */
+  rvArbeitnehmer?: Cents;
+  /** Nr. 25 Arbeitnehmerbeiträge zur gesetzlichen Krankenversicherung */
+  kvArbeitnehmer?: Cents;
+  /** Nr. 26 Arbeitnehmerbeiträge zur sozialen Pflegeversicherung */
+  pvArbeitnehmer?: Cents;
+  /** Nr. 27 Arbeitnehmerbeiträge zur Arbeitslosenversicherung */
+  avArbeitnehmer?: Cents;
+}
+
+export interface EstWerbungskosten {
+  /** Wege zur ersten Tätigkeitsstätte (Entfernungspauschale) */
+  wege?: { tage: number; km: number; adresse: string; arbeitstageJeWoche?: number; urlaubstage?: number };
+  /** Homeoffice-Tage ohne Besuch der ersten Tätigkeitsstätte */
+  homeofficeTage?: number;
+  /** Für die Tätigkeit steht dauerhaft kein anderer Arbeitsplatz zur Verfügung */
+  keinAndererArbeitsplatz?: boolean;
+  arbeitsmittel?: Cents;
+  fortbildung?: Cents;
+  berufsverbaende?: Cents;
+  /** Weitere, etwa Kontoführung oder Bewerbungen */
+  sonstige?: Cents;
+}
+
+/** Arbeitslohn einer Person, Anlage N */
+export interface EstArbeitnehmer {
+  bescheinigungen: EstLohnsteuerbescheinigung[];
+  werbungskosten: EstWerbungskosten;
+}
+
 export interface EstAngaben {
   vorsorge: { a: EstVorsorgePerson; b?: EstVorsorgePerson; /** Weitere sonstige Vorsorgeaufwendungen (Haftpflicht, Unfall, Risikoleben) */ sonstige?: Cents };
   sonderausgaben: { kirchensteuerGezahlt?: Cents; kirchensteuerErstattet?: Cents; spenden?: Cents };
@@ -75,6 +121,8 @@ export interface EstAngaben {
   haushaltsnah: { minijobs?: Cents; dienstleistungen?: Cents; /** nur Lohn-, Maschinen- und Fahrtkosten */ handwerker?: Cents };
   kinder: EstKind[];
   kap?: EstKap;
+  /** Anlage N je Person */
+  arbeitnehmer?: { a?: EstArbeitnehmer; b?: EstArbeitnehmer };
 }
 
 export interface EstXmlInput extends Omit<Envelope, "datenArt" | "absender"> {
@@ -400,6 +448,14 @@ export function buildEstXml(input: EstXmlInput): string {
         ]
       : null;
 
+  const personen: [string, EstArbeitnehmer | undefined][] = [
+    ["PersonA", x.arbeitnehmer?.a],
+    ["PersonB", zusammen ? x.arbeitnehmer?.b : undefined],
+  ];
+  const anlagenN = personen.flatMap(([person, an]) => (an && an.bescheinigungen.length > 0 ? [anlageN(person, an)] : []));
+  const lstb = (an: EstArbeitnehmer | undefined, key: keyof Omit<EstLohnsteuerbescheinigung, "steuerklasse">) =>
+    an ? an.bescheinigungen.reduce((s, b) => s + (b[key] ?? 0), 0) : 0;
+
   const k = x.kap;
   const kapHatWerte =
     k &&
@@ -437,38 +493,51 @@ export function buildEstXml(input: EstXmlInput): string {
     ["PersonA", x.vorsorge.a],
     ["PersonB", zusammen ? x.vorsorge.b : undefined],
   ];
+  const arbeitnehmerVon = (person: string) => personen.find(([p]) => p === person)?.[1];
   const vor: XmlNode = [
     "VOR",
     [
-      ...vorsorgePersonen.map(([person, v]): XmlNode | null =>
-        euro(v?.rentenversicherung)
-          ? [
-              "AVor",
-              [
-                ["Person", person],
-                ["E2000601", euro(v?.rentenversicherung)],
-              ],
-            ]
-          : null,
-      ),
-      ...vorsorgePersonen.map(([person, v]): XmlNode | null =>
-        euro(v?.gkv) || euro(v?.gpv) || euro(v?.gkvZusatz)
-          ? [
-              "Beitr_g_KV_PV_Inl",
-              [
-                ["Person", person],
-                [
+      ...vorsorgePersonen.map(([person, v]): XmlNode | null => {
+        const an = arbeitnehmerVon(person);
+        const felder: XmlNode[] = [
+          ["E2000401", euro(lstb(an, "rvArbeitnehmer"))],
+          ["E2000601", euro(v?.rentenversicherung)],
+          ["E2000801", euro(lstb(an, "rvArbeitgeber"))],
+        ];
+        return felder.some((f) => f[1]) ? ["AVor", [["Person", person], ...felder]] : null;
+      }),
+      ...vorsorgePersonen.map(([person, v]): XmlNode | null => {
+        const an = arbeitnehmerVon(person);
+        const kvAn = euro(lstb(an, "kvArbeitnehmer"));
+        const pvAn = euro(lstb(an, "pvArbeitnehmer"));
+        const andere = euro(v?.gkv) || euro(v?.gpv) || euro(v?.gkvZusatz);
+        if (!kvAn && !pvAn && !andere) return null;
+        return [
+          "Beitr_g_KV_PV_Inl",
+          [
+            ["Person", person],
+            kvAn || pvAn
+              ? [
+                  "AN",
+                  [
+                    ["E2001203", kvAn],
+                    ["E2001505", pvAn],
+                  ],
+                ]
+              : null,
+            andere
+              ? [
                   "And_Pers",
                   [
                     ["E2001805", euro(v?.gkv)],
                     ["E2002105", euro(v?.gpv)],
                     ["E2002206", euro(v?.gkvZusatz)],
                   ],
-                ],
-              ],
-            ]
-          : null,
-      ),
+                ]
+              : null,
+          ],
+        ];
+      }),
       ...vorsorgePersonen.map(([person, v]): XmlNode | null =>
         euro(v?.pkv) || euro(v?.ppv) || euro(v?.pkvErstattung)
           ? [
@@ -482,14 +551,143 @@ export function buildEstXml(input: EstXmlInput): string {
             ]
           : null,
       ),
-      ["Weit_Sons_VorAW", [["A_B_LP", [["U_HP_Ris_Vers", [["Sum", [["E2001803", euro(x.vorsorge.sonstige)]]]]]]]]],
+      [
+        "Weit_Sons_VorAW",
+        [
+          ...vorsorgePersonen.map(([person]): XmlNode | null => {
+            const av = euro(lstb(arbeitnehmerVon(person), "avArbeitnehmer"));
+            return av
+              ? [
+                  "Pers",
+                  [
+                    ["Person", person],
+                    ["E2004403", av],
+                  ],
+                ]
+              : null;
+          }),
+          ["A_B_LP", [["U_HP_Ris_Vers", [["Sum", [["E2001803", euro(x.vorsorge.sonstige)]]]]]]],
+        ],
+      ],
     ],
   ];
 
   return envelope(envelopeInput, [
     `<E10 xmlns="http://finkonsens.de/elster/elstererklaerung/est/e10/v${input.year}" version="${input.year}">`,
-    ...[est1a, sa, agb, ha35a, ...kinder, anlageG, anlageS, kap, vor].flatMap((node) => render(node, "  ")),
+    ...[est1a, sa, agb, ha35a, ...kinder, anlageG, anlageS, ...anlagenN, kap, vor].flatMap((node) => render(node, "  ")),
     ...render(vorsatz("10", envelopeInput), "  "),
     `</E10>`,
   ]);
+}
+
+/** Volle Kilometer bzw. Tage, sonst entfällt das Feld */
+const ganz = (n: number | undefined) => (n && n > 0 ? String(Math.floor(n)) : undefined);
+
+/** Ein Einzelposten mit Bezeichnung und Betrag und seine Summe */
+const posten = (name: string, felder: [string, string, string], text: string, cents: Cents | undefined): XmlNode | null => {
+  const value = euro(cents);
+  if (!value) return null;
+  return [
+    name,
+    [
+      [
+        "Einz",
+        [
+          [felder[0], text],
+          [felder[1], value],
+        ],
+      ],
+      ["Sum", [[felder[2], value]]],
+    ],
+  ];
+};
+
+/** Anlage N einer Person: Lohnsteuerbescheinigungen (Steuerklasse 1–5 bzw. 6) und Werbungskosten */
+export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
+  for (const b of an.bescheinigungen) {
+    if (!(b.brutto > 0)) throw new Error("Anlage N: Der Bruttoarbeitslohn fehlt.");
+    if (![1, 2, 3, 4, 5, 6].includes(b.steuerklasse)) throw new Error("Anlage N: Die Steuerklasse fehlt.");
+  }
+  const sum = (list: EstLohnsteuerbescheinigung[], key: keyof Omit<EstLohnsteuerbescheinigung, "steuerklasse">) => list.reduce((s, b) => s + (b[key] ?? 0), 0);
+  const gruppe = (list: EstLohnsteuerbescheinigung[], einz: string, summe: string, ids: { einz: string[]; sum: string[] }, mitKlasse: boolean): XmlNode[] => {
+    if (list.length === 0) return [];
+    const keys = ["brutto", "lohnsteuer", "soli", "kirchensteuer", "kirchensteuerEhegatte"] as const;
+    return [
+      ...list.map((b): XmlNode => [einz, keys.map((key, i): XmlNode => [ids.einz[i]!, mitCent(b[key])])]),
+      [
+        summe,
+        [
+          mitKlasse ? ["E0200002", String(list[0]!.steuerklasse)] : null,
+          ...keys.map((key, i): XmlNode => [ids.sum[i]!, i === 0 ? euro(sum(list, key)) : mitCent(sum(list, key))]),
+        ],
+      ],
+    ];
+  };
+  const klasse1bis5 = an.bescheinigungen.filter((b) => b.steuerklasse !== 6);
+  const klasse6 = an.bescheinigungen.filter((b) => b.steuerklasse === 6);
+  const w = an.werbungskosten;
+  const wege = w.wege && w.wege.tage > 0 && w.wege.km > 0 ? w.wege : undefined;
+  if (wege && !wege.adresse.trim()) throw new Error("Anlage N: Die Anschrift der Tätigkeitsstätte fehlt.");
+
+  const wk: XmlNode = [
+    "Wk",
+    [
+      wege
+        ? [
+            "EP",
+            [
+              [
+                "Erste_Taetig",
+                [
+                  ["E0203003", "1"],
+                  ["E0203501", wege.adresse.trim()],
+                  ["E0203101", "01.01-31.12"],
+                  ["E0203508", ganz(wege.arbeitstageJeWoche)],
+                  ["E0203509", ganz(wege.urlaubstage)],
+                  ["E0203503", ganz(wege.tage)],
+                  ["E0203504", ganz(wege.km)],
+                  ["E0203505", ganz(wege.km)],
+                ],
+              ],
+            ],
+          ]
+        : null,
+      posten("Berufsverb", ["E0204001", "E0204003", "E0204002"], "Berufsverbände und Gewerkschaft", w.berufsverbaende),
+      posten("Arbeitsmittel", ["E0204401", "E0204402", "E0204403"], "Arbeitsmittel", w.arbeitsmittel),
+      ganz(w.homeofficeTage)
+        ? ["Homeoffice", [[w.keinAndererArbeitsplatz ? "E0206206" : "E0204507", ganz(w.homeofficeTage)]]]
+        : null,
+      posten("Fortb", ["E0204804", "E0204808", "E0204812"], "Fortbildung", w.fortbildung),
+      euro(w.sonstige)
+        ? [
+            "Weitere_Wk",
+            [
+              [
+                "Sonst",
+                [
+                  ["E0205405", "Weitere Werbungskosten (z. B. Kontoführung)"],
+                  ["E0205406", euro(w.sonstige)],
+                ],
+              ],
+              ["Sum", [["E0204803", euro(w.sonstige)]]],
+            ],
+          ]
+        : null,
+    ],
+  ];
+
+  return [
+    "N",
+    [
+      ["Person", person],
+      [
+        "ArbL",
+        [
+          ...gruppe(klasse1bis5, "LStB_1_5_Einz", "LStB_1_5_Sum", { einz: ["E0200204", "E0200304", "E0200404", "E0200504", "E0200604"], sum: ["E0200201", "E0200301", "E0200401", "E0200501", "E0200601"] }, true),
+          ...gruppe(klasse6, "LStB_6_Einz", "LStB_6_Sum", { einz: ["E0200202", "E0200302", "E0200402", "E0200502", "E0200602"], sum: ["E0200203", "E0200303", "E0200403", "E0200503", "E0200603"] }, false),
+        ],
+      ],
+      wk,
+    ],
+  ];
 }

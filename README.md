@@ -59,7 +59,7 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 - **Umsatzsteuer-Voranmeldung**: Kennzahlen aus den Buchungen (Ist- oder Soll-Versteuerung), Herkunft jeder Zahl aufklappbar,
   Vorprüfung vor dem Senden, Übermittlung über ERiC mit Transfer-Ticket und Protokoll-PDF, berichtigte Anmeldungen
 - **Jahreserklärungen**: Umsatzsteuererklärung und Anlage EÜR mit Anlagenverzeichnis (AVEÜR) aus den Buchungen,
-  Einkommensteuererklärung mit Anlage S/G, Vorsorgeaufwand, Sonderausgaben, Kind und KAP, auch zusammen veranlagt;
+  Einkommensteuererklärung mit Anlage S/G, N (Arbeitslohn), Vorsorgeaufwand, Sonderausgaben, Kind und KAP, auch zusammen veranlagt;
   Prüfen, Test- und Echtübermittlung über ERiC; Belege der vorausgefüllten Steuererklärung (Lohnsteuerbescheinigung,
   Rentenbezüge, Beiträge) von ELSTER abrufen
 - **Angebote**: eigener Nummernkreis, PDF im Layout der Rechnung, Versand per E-Mail, Antwort des Kunden festhalten
