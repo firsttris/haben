@@ -29,6 +29,16 @@ Sollten Sie inzwischen bezahlt haben, betrachten Sie dieses Schreiben bitte als 
 Mit freundlichen Grüßen
 {firma}`;
 
+export const DEFAULT_QUOTE_SUBJECT = "Angebot {nummer} von {firma}";
+export const DEFAULT_QUOTE_BODY = `Guten Tag,
+
+anbei erhalten Sie unser Angebot {nummer} vom {datum} über {betrag}. Es gilt bis zum {gueltig}.
+
+Für Rückfragen sind wir gern für Sie da.
+
+Mit freundlichen Grüßen
+{firma}`;
+
 /** Ersetzt {name} durch den Wert; unbekannte Platzhalter bleiben stehen */
 export function fillTemplate(template: string, values: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, name: string) => values[name] ?? match);
@@ -223,4 +233,76 @@ export async function invoicesSentByMail(): Promise<Set<string>> {
     .from(schema.mailLog)
     .where(and(eq(schema.mailLog.kind, "rechnung"), eq(schema.mailLog.ok, true)));
   return new Set(rows.flatMap((r) => (r.invoiceId ? [r.invoiceId] : [])));
+}
+
+async function loadQuote(id: string) {
+  const [quote] = await db.select().from(schema.quotes).where(eq(schema.quotes.id, id));
+  if (!quote) throw new MailError("Angebot nicht gefunden.");
+  if (quote.status !== "final" || !quote.number || !quote.pdf) throw new MailError("Nur festgeschriebene Angebote lassen sich versenden.");
+  return quote;
+}
+
+function quoteValues(quote: typeof schema.quotes.$inferSelect, firma: string) {
+  return {
+    nummer: quote.number ?? "",
+    datum: germanDate(quote.issueDate),
+    gueltig: germanDate(quote.validUntil),
+    betrag: formatEuro(quote.gross),
+    kunde: (quote.buyer as { name?: string } | null)?.name ?? "",
+    firma,
+  };
+}
+
+/** Vorschlag für das Formular beim Angebot */
+export async function quoteMailDraft(quoteId: string) {
+  const [quote, company, settings] = await Promise.all([loadQuote(quoteId), loadCompany(), loadMailSettings()]);
+  const values = quoteValues(quote, company.name);
+  return {
+    to: await customerEmail(quote),
+    subject: fillTemplate(DEFAULT_QUOTE_SUBJECT, values),
+    body: fillTemplate(DEFAULT_QUOTE_BODY, values),
+    attachments: [`Angebot-${quote.number}.pdf`],
+    configured: Boolean(settings),
+  };
+}
+
+export async function sendQuoteMail(actor: string, quoteId: string, input: OutgoingMail) {
+  const mail = outgoingMailSchema.parse(input);
+  const [quote, settings] = await Promise.all([loadQuote(quoteId), loadMailSettings()]);
+  if (!settings) throw new MailError("Es ist kein E-Mail-Zugang eingerichtet (Einstellungen › E-Mail-Versand).");
+  return send(actor, {
+    kind: "angebot",
+    to: mail.to,
+    ...(mail.copyToMe ? { bcc: settings.fromAddress } : {}),
+    subject: mail.subject,
+    text: mail.body,
+    html: textToHtml(mail.body),
+    attachments: [{ filename: `Angebot-${quote.number}.pdf`, content: Buffer.from(quote.pdf!), contentType: "application/pdf" }],
+    quoteId,
+  });
+}
+
+/** Versand eines Angebots, neueste zuerst */
+export async function mailsForQuote(quoteId: string) {
+  return db
+    .select({
+      id: schema.mailLog.id,
+      recipient: schema.mailLog.recipient,
+      subject: schema.mailLog.subject,
+      ok: schema.mailLog.ok,
+      error: schema.mailLog.error,
+      createdAt: schema.mailLog.createdAt,
+    })
+    .from(schema.mailLog)
+    .where(eq(schema.mailLog.quoteId, quoteId))
+    .orderBy(desc(schema.mailLog.createdAt));
+}
+
+/** Erfolgreich per E-Mail versandte Angebote, für die Liste */
+export async function quotesSentByMail(): Promise<Set<string>> {
+  const rows = await db
+    .selectDistinct({ quoteId: schema.mailLog.quoteId })
+    .from(schema.mailLog)
+    .where(and(eq(schema.mailLog.kind, "angebot"), eq(schema.mailLog.ok, true)));
+  return new Set(rows.flatMap((r) => (r.quoteId ? [r.quoteId] : [])));
 }

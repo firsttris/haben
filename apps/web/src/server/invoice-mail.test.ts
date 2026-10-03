@@ -66,7 +66,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
   beforeEach(async () => {
     sent.length = 0;
     fail = false;
-    await sql`truncate mail_log, mail_settings, dunnings, journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices,
+    await sql`truncate mail_log, mail_settings, dunnings, quote_lines, quotes, quote_number_counters, journal_lines, journal_entries, invoice_lines, invoices, recurring_invoices,
       invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
@@ -127,6 +127,25 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     expect(await invoiceMail.sendInvoiceMail(actor, xr, { to: "a@example.com", subject: "s", body: "b" })).toEqual({ ok: false, error: "Postfach voll" });
     expect((await invoiceMail.mailsForInvoice(xr))[0]).toMatchObject({ ok: false, error: "Postfach voll" });
     expect(await invoiceMail.invoicesSentByMail()).toEqual(new Set());
+  });
+
+  it("schickt Angebote mit PDF und eigenem Protokoll", async () => {
+    const quotes = await import("./quotes.ts");
+    const draft = await quotes.createQuoteDraft(actor, {
+      contactId, issueDate: "2026-09-01", validUntil: "2026-09-30", serviceFrom: null, serviceTo: null, note: "",
+      lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+    });
+    await expect(invoiceMail.quoteMailDraft(draft.id)).rejects.toThrow(/Nur festgeschriebene Angebote/);
+    const quote = await quotes.finalizeQuote(actor, draft.id);
+    await mail.saveMailSettings(actor, settings);
+    const prepared = await invoiceMail.quoteMailDraft(quote.id);
+    expect(prepared).toMatchObject({ to: "buchhaltung@nordwerk.example", subject: "Angebot AN-2026-001 von Testfirma", attachments: ["Angebot-AN-2026-001.pdf"] });
+    expect(prepared.body).toMatch(/unser Angebot AN-2026-001 vom 01\.09\.2026 über 1\.190,00\s€\. Es gilt bis zum 30\.09\.2026\./);
+    expect(await invoiceMail.sendQuoteMail(actor, quote.id, { to: prepared.to, subject: prepared.subject, body: prepared.body })).toEqual({ ok: true, error: null });
+    expect(sent[0]!.attachments!.map((a) => a.filename)).toEqual(["Angebot-AN-2026-001.pdf"]);
+    expect(await invoiceMail.mailsForQuote(quote.id)).toEqual([expect.objectContaining({ recipient: "buchhaltung@nordwerk.example", ok: true })]);
+    expect(await invoiceMail.quotesSentByMail()).toEqual(new Set([quote.id]));
+    expect(await invoiceMail.mailsForInvoice(invoiceId)).toEqual([]);
   });
 
   it("schickt Mahnungen mit eigenem PDF", async () => {

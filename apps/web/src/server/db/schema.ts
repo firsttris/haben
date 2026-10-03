@@ -379,13 +379,14 @@ export const mailSettings = pgTable(
 /** Gesendete E-Mails; Fristen-Erinnerungen merken sich, welche Frist zu welcher Stufe schon erinnert wurde */
 export const mailLog = pgTable("mail_log", {
   id: uuid("id").primaryKey().defaultRandom(),
-  kind: text("kind", { enum: ["test", "fristen", "rechnung", "mahnung"] }).notNull(),
+  kind: text("kind", { enum: ["test", "fristen", "rechnung", "mahnung", "angebot"] }).notNull(),
   /** Empfänger, bei mehreren durch Komma getrennt */
   recipient: text("recipient").notNull(),
   /** Blindkopie an sich selbst */
   bcc: text("bcc"),
   invoiceId: uuid("invoice_id").references(() => invoices.id),
   dunningId: uuid("dunning_id").references(() => dunnings.id),
+  quoteId: uuid("quote_id").references(() => quotes.id),
   /** Dateinamen der Anhänge */
   attachments: text("attachments").array().notNull().default(sql`'{}'::text[]`),
   subject: text("subject").notNull(),
@@ -539,6 +540,71 @@ export const invoiceLines = pgTable("invoice_lines", {
 
 /** Letzte vergebene laufende Nummer je Jahr; lückenlos, weil nur beim Festschreiben gezogen */
 export const invoiceNumberCounters = pgTable("invoice_number_counters", {
+  year: smallint("year").primaryKey(),
+  last: integer("last").notNull(),
+});
+
+/**
+ * Angebote: Entwurf frei änderbar, beim Festschreiben Nummer (eigener Kreis) und PDF, danach fest.
+ * Nur Entscheidung (angenommen, abgelehnt) und die daraus erstellte Rechnung lassen sich noch setzen.
+ */
+export const quotes = pgTable(
+  "quotes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    status: invoiceStatusEnum("status").notNull().default("draft"),
+    number: text("number").unique(),
+    numberYear: smallint("number_year"),
+    numberCounter: integer("number_counter"),
+    contactId: uuid("contact_id").references(() => contacts.id),
+    contactVersion: integer("contact_version"),
+    issueDate: date("issue_date", { mode: "string" }).notNull(),
+    validUntil: date("valid_until", { mode: "string" }).notNull(),
+    serviceFrom: date("service_from", { mode: "string" }),
+    serviceTo: date("service_to", { mode: "string" }),
+    note: text("note").notNull().default(""),
+    taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
+    exemptionReason: text("exemption_reason").notNull().default(""),
+    net: integer("net").notNull().default(0),
+    tax: integer("tax").notNull().default(0),
+    gross: integer("gross").notNull().default(0),
+    seller: jsonb("seller").$type<Seller>(),
+    buyer: jsonb("buyer").$type<Buyer>(),
+    pdf: bytea("pdf"),
+    pdfSha256: text("pdf_sha256"),
+    /** Antwort des Kunden */
+    decision: text("decision", { enum: ["angenommen", "abgelehnt"] }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    /** Rechnung, die aus dem Angebot entstanden ist */
+    invoiceId: uuid("invoice_id").references(() => invoices.id),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("quotes_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
+    check("quotes_decision_final", sql`${t.decision} is null or ${t.status} = 'final'`),
+    uniqueIndex("quotes_number_counter").on(t.numberYear, t.numberCounter),
+  ],
+);
+
+export const quoteLines = pgTable("quote_lines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  quoteId: uuid("quote_id")
+    .notNull()
+    .references(() => quotes.id, { onDelete: "cascade" }),
+  position: smallint("position").notNull(),
+  description: text("description").notNull(),
+  /** Tausendstel */
+  quantity: integer("quantity").notNull(),
+  unit: text("unit").notNull(),
+  unitPrice: integer("unit_price").notNull(),
+  taxRate: smallint("tax_rate").notNull(),
+  net: integer("net").notNull(),
+});
+
+/** Letzte Angebotsnummer je Jahr */
+export const quoteNumberCounters = pgTable("quote_number_counters", {
   year: smallint("year").primaryKey(),
   last: integer("last").notNull(),
 });

@@ -15,6 +15,7 @@ gebucht wird und wie der Code aufgebaut ist. Den schnellen Überblick gibt die [
 | | |
 |---|---|
 | [Rechnungen und E-Rechnung](rechnungen.md) | Editor, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Storno und Korrektur, Kontakte |
+| [Angebote](angebote.md) | Eigener Nummernkreis, PDF, Versand per E-Mail, Antwort des Kunden, Rechnung aus dem Angebot |
 | [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
 | [Pauschalen](pauschalen.md) | Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand; Buchung und Storno |
 | [Anlagen und AfA](anlagen.md) | Anlagenverzeichnis, Anschaffung per Beleg, Übernahme aus Lexoffice, AfA buchen, Abgang |

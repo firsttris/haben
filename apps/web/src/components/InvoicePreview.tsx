@@ -30,7 +30,7 @@ export interface PreviewBuyer {
   kundennummer?: string | null;
 }
 
-const TITLE = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" } as const;
+const TITLE = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur", angebot: "Angebot" } as const;
 
 /** HTML-Abbild des PDFs für den Editor; das verbindliche Dokument rendert Typst. */
 export function InvoicePreview({
@@ -38,6 +38,7 @@ export function InvoicePreview({
   number,
   issueDate,
   dueDate,
+  validUntil = null,
   serviceFrom,
   serviceTo,
   seller,
@@ -51,6 +52,8 @@ export function InvoicePreview({
   number: string;
   issueDate: string;
   dueDate: string;
+  /** Nur beim Angebot */
+  validUntil?: string | null;
   serviceFrom: string | null;
   serviceTo: string | null;
   seller: PreviewSeller;
@@ -72,7 +75,7 @@ export function InvoicePreview({
         : formatDate(issueDate);
 
   return (
-    <div className="paper" aria-label="Vorschau der Rechnung">
+    <div className="paper" aria-label={kind === "angebot" ? "Vorschau des Angebots" : "Vorschau der Rechnung"}>
       <div className="paper-head">
         <div className="paper-company">{seller.name || "[Firmenname]"}</div>
         <div className="paper-contact">
@@ -104,6 +107,12 @@ export function InvoicePreview({
           <dd>{number}</dd>
           <dt>Datum</dt>
           <dd>{formatDate(issueDate)}</dd>
+          {kind === "angebot" && (
+            <>
+              <dt>Gültig bis</dt>
+              <dd>{validUntil ? formatDate(validUntil) : "–"}</dd>
+            </>
+          )}
           <dt>Leistung</dt>
           <dd>{service}</dd>
           {buyer?.kundennummer && (
@@ -154,13 +163,15 @@ export function InvoicePreview({
               <dd>{formatEuro(t.tax)}</dd>
             </div>
           ))}
-        <dt className="strong">Gesamtbetrag</dt>
+        <dt className="strong">{kind === "angebot" ? "Angebotssumme" : "Gesamtbetrag"}</dt>
         <dd className="strong">{formatEuro(totals.gross)}</dd>
       </dl>
       {taxNote && <p className="paper-small strong">{taxNote}</p>}
       {note && <p className="paper-small" style={{ whiteSpace: "pre-wrap" }}>{note}</p>}
       <p className="paper-small">
-        {totals.gross >= 0
+        {kind === "angebot"
+          ? `Dieses Angebot gilt bis zum ${validUntil ? formatDate(validUntil) : "…"}. Wir freuen uns auf Ihren Auftrag.`
+          : totals.gross >= 0
           ? `Bitte überweisen Sie den Betrag bis zum ${formatDate(dueDate)} unter Angabe der Rechnungsnummer.`
           : "Der Betrag wird Ihnen erstattet."}
       </p>

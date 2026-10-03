@@ -10,7 +10,7 @@ type Draft = Awaited<ReturnType<typeof getMailDraft>>;
  * Formular zum Versand einer Rechnung oder Mahnung per E-Mail. Empfänger, Betreff und Text kommen aus der
  * Vorlage und lassen sich vor dem Senden ändern.
  */
-export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung"; id: string; onDone: (message: string) => void }) {
+export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung" | "angebot"; id: string; onDone: (message: string) => void }) {
   const load = useServerFn(getMailDraft);
   const send = useServerFn(sendDocumentMail);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -72,7 +72,7 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
   }
 
   return (
-    <form className="stack" style={{ gap: 10 }} onSubmit={onSubmit} aria-label={kind === "rechnung" ? "Rechnung per E-Mail senden" : "Mahnung per E-Mail senden"}>
+    <form className="stack" style={{ gap: 10 }} onSubmit={onSubmit} aria-label={`${{ rechnung: "Rechnung", mahnung: "Mahnung", angebot: "Angebot" }[kind]} per E-Mail senden`}>
       <label className="field">
         An
         <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="kunde@example.com" required />

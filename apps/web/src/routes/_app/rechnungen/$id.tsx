@@ -199,6 +199,16 @@ function FinalInvoice({ data }: { data: Detail }) {
               )}
               <dt>Festgeschrieben</dt>
               <dd>{invoice.lockedAt ? formatDateTime(invoice.lockedAt) : "–"}</dd>
+              {data.fromQuote && (
+                <>
+                  <dt>Aus Angebot</dt>
+                  <dd>
+                    <Link to="/angebote/$id" params={{ id: data.fromQuote.id }}>
+                      {data.fromQuote.number}
+                    </Link>
+                  </dd>
+                </>
+              )}
               {corrects && (
                 <>
                   <dt>Bezieht sich auf</dt>

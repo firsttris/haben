@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, computeInvoiceTotals, formatInvoiceNumber, lineNet, parseQuantity } from "./invoice.ts";
+import { addDays, computeInvoiceTotals, formatInvoiceNumber, formatQuoteNumber, lineNet, parseQuantity } from "./invoice.ts";
 
 describe("Rechnungssummen", () => {
   it("Zeilennetto aus Tausendstel-Menge", () => {
@@ -43,5 +43,6 @@ describe("Hilfen", () => {
   });
   it("Rechnungsnummer", () => {
     expect(formatInvoiceNumber(2026, 34)).toBe("2026-034");
+    expect(formatQuoteNumber(2026, 7)).toBe("AN-2026-007");
   });
 });
