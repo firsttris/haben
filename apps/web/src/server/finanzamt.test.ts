@@ -60,6 +60,20 @@ describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () 
   it("rechnet den Gewinn aufs Jahr hoch", async () => {
     const basis = await finanzamt.prepaymentBasis("2026-07-02");
     expect(basis).toMatchObject({ year: 2026, until: "2026-07-02", profitSoFar: 0, profitForecast: 0, einkunftsart: "selbstaendig" });
+    expect(basis.prognose).toMatchObject({ einkommensteuer: 0, gesamt: 0, jeQuartal: 0 });
+  });
+
+  it("schätzt die Steuer mit den Angaben des Vorjahres, wenn es fürs laufende Jahr keine gibt", async () => {
+    const incomeTax = await import("./income-tax.ts");
+    await sql`truncate income_tax_inputs`;
+    expect((await finanzamt.prepaymentBasis("2026-07-02")).angabenAus).toBeNull();
+    await incomeTax.saveEstAngaben(actor, 2025, { vorsorge: { a: { pkv: 500_000 } } });
+    const basis = await finanzamt.prepaymentBasis("2026-07-02");
+    expect(basis.angabenAus).toBe(2025);
+    expect(basis.prognose.vorsorge).toBe(500_000);
+    await incomeTax.saveEstAngaben(actor, 2023, {});
+    await sql`delete from income_tax_inputs where year = 2025`;
+    expect((await finanzamt.prepaymentBasis("2026-07-02")).angabenAus).toBeNull();
   });
 
   describe("Bankverbindung ändern", () => {

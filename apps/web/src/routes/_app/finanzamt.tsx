@@ -1,4 +1,4 @@
-import { formatEuro, parseEuro } from "@haben/core";
+import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -35,7 +35,7 @@ const DATENART_LABEL: Record<string, string> = {
 };
 
 /** Formloser Antrag nach § 37 Abs. 3 EStG mit den Zahlen aus der Buchhaltung */
-function prepaymentLetter(data: Data, current: number | null, wanted: number | null, reason: string) {
+function prepaymentLetter(data: Data, current: number | null, wanted: number | null, reason: string, usePrognose: boolean) {
   const b = data.basis;
   const art = b.einkunftsart === "gewerbe" ? "Gewerbebetrieb" : "selbständiger Arbeit";
   const lines = [
@@ -48,6 +48,17 @@ function prepaymentLetter(data: Data, current: number | null, wanted: number | n
     `Mein Gewinn aus ${art} beträgt nach meiner Buchführung vom 1. Januar bis ${formatDate(b.until)} ${formatEuro(b.profitSoFar)}. ` +
       `Auf das Jahr hochgerechnet erwarte ich einen Gewinn von rund ${formatEuro(b.profitForecast)} (Vorjahr: ${formatEuro(b.profitLastYear)}).` +
       (current !== null ? ` Die bisher festgesetzten Vorauszahlungen von ${formatEuro(current)} je Quartal sind deshalb zu hoch.` : ""),
+    ...(usePrognose
+      ? [
+          "",
+          `Nach meiner Berechnung ergibt sich daraus nach Abzug der Vorsorgeaufwendungen und Sonderausgaben eine voraussichtliche ` +
+            `Einkommensteuer von ${formatEuro(b.prognose.einkommensteuer)}` +
+            (b.prognose.soli || b.prognose.kirchensteuer
+              ? ` zuzüglich ${[b.prognose.soli ? `${formatEuro(b.prognose.soli)} Solidaritätszuschlag` : "", b.prognose.kirchensteuer ? `${formatEuro(b.prognose.kirchensteuer)} Kirchensteuer` : ""].filter(Boolean).join(" und ")}`
+              : "") +
+            ".",
+        ]
+      : []),
     ...(reason.trim() ? ["", reason.trim()] : []),
     "",
     "Eine Gewinnermittlung für den bisherigen Zeitraum reiche ich auf Anforderung gerne nach.",
@@ -111,12 +122,14 @@ function FinanzamtPage() {
 
 function PrepaymentForm({ data }: { data: Data }) {
   const [current, setCurrent] = useState("");
-  const [wanted, setWanted] = useState("");
-  const [reason, setReason] = useState("");
   const b = data.basis;
+  const p = b.prognose;
+  const [wanted, setWanted] = useState(p.jeQuartal > 0 ? formatDecimal(p.jeQuartal) : "");
+  const [reason, setReason] = useState("");
+  const [usePrognose, setUsePrognose] = useState(true);
   const currentCents = current.trim() ? parseEuro(current) : null;
   const wantedCents = wanted.trim() ? parseEuro(wanted) : null;
-  const letter = prepaymentLetter(data, currentCents, wantedCents, reason);
+  const letter = prepaymentLetter(data, currentCents, wantedCents, reason, usePrognose);
 
   return (
     <div className="stack" style={{ gap: 16 }}>
@@ -143,6 +156,58 @@ function PrepaymentForm({ data }: { data: Data }) {
             </tr>
           </tbody>
         </table>
+        <h3 style={{ margin: "8px 0 0", fontSize: "1rem" }}>Voraussichtliche Steuer {b.year}</h3>
+        <table className="report-table" style={{ maxWidth: 520 }}>
+          <tbody>
+            <tr>
+              <th scope="row">Hochgerechneter Gewinn</th>
+              <td className="num">{formatEuro(p.gesamtbetragEinkuenfte)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Vorsorge, Sonderausgaben, Kinderbetreuung, Belastungen</th>
+              <td className="num">−{formatEuro(p.vorsorge + p.sonderausgaben + p.kinderbetreuung + p.aussergewoehnlich)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Zu versteuerndes Einkommen{p.kinderfreibetrag ? " (mit Kinderfreibeträgen)" : ""}</th>
+              <td className="num">{formatEuro(p.zvE)}</td>
+            </tr>
+            <tr>
+              <th scope="row">Einkommensteuer</th>
+              <td className="num">{formatEuro(p.einkommensteuer)}</td>
+            </tr>
+            {p.soli > 0 && (
+              <tr>
+                <th scope="row">Solidaritätszuschlag</th>
+                <td className="num">{formatEuro(p.soli)}</td>
+              </tr>
+            )}
+            {p.kirchensteuer > 0 && (
+              <tr>
+                <th scope="row">Kirchensteuer</th>
+                <td className="num">{formatEuro(p.kirchensteuer)}</td>
+              </tr>
+            )}
+            <tr style={{ fontWeight: 600 }}>
+              <th scope="row" style={{ fontWeight: 600 }}>
+                Je Vorauszahlungstermin (ein Viertel)
+              </th>
+              <td className="num">{formatEuro(p.jeQuartal)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p className="small muted" style={{ margin: 0 }}>
+          {b.angabenAus === null
+            ? "Ohne gespeicherte Angaben zur Einkommensteuer (Vorsorge, Kinder …) rechnet Haben nur mit dem Sonderausgaben-Pauschbetrag. "
+            : b.angabenAus < b.year
+              ? `Abzüge aus deinen Angaben zur Einkommensteuer ${b.angabenAus}. `
+              : ""}
+          Grundlage ist allein der Gewinn aus der Buchhaltung; weitere Einkünfte (Arbeitslohn, Vermietung) und Kapitalerträge fehlen. Eine
+          Schätzung, keine Steuerberechnung. <Link to="/jahreserklaerung/$jahr" params={{ jahr: String(b.year) }}>Angaben bearbeiten</Link>
+        </p>
+        <label className="checkbox">
+          <input type="checkbox" checked={usePrognose} onChange={(e) => setUsePrognose(e.target.checked)} />
+          Voraussichtliche Steuer im Antrag nennen
+        </label>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <label className="field" style={{ flex: "1 1 200px" }}>
             Bisherige Vorauszahlung je Quartal (€)
@@ -158,8 +223,8 @@ function PrepaymentForm({ data }: { data: Data }) {
           <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="z. B. ein großer Auftrag ist weggefallen" />
         </label>
         <p className="small muted" style={{ margin: 0 }}>
-          Die Hochrechnung nimmt den bisherigen Gewinn taggenau aufs Jahr. Welche Vorauszahlung passt, hängt von deiner gesamten
-          Einkommensteuer ab (weitere Einkünfte, Sonderausgaben, Zusammenveranlagung); die Zahl trägst du deshalb selbst ein.
+          Die Hochrechnung nimmt den bisherigen Gewinn taggenau aufs Jahr. Die gewünschte Vorauszahlung ist mit einem Viertel der
+          voraussichtlichen Steuer vorbelegt, du kannst sie ändern.
         </p>
       </section>
       <MessageForm key={`${letter.betreff}|${letter.text}`} data={data} topic="vorauszahlung" initial={letter} figures={{ ...b, current: currentCents, wanted: wantedCents }} />

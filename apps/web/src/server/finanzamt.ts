@@ -1,4 +1,4 @@
-import { toElsterSteuernummer, type Cents } from "@haben/core";
+import { toElsterSteuernummer, type Cents, type Prognose } from "@haben/core";
 import {
   buildBankverbindungXml,
   buildNachrichtXml,
@@ -14,6 +14,7 @@ import { desc } from "drizzle-orm";
 import { z } from "zod";
 import { companyIssues, loadCompany } from "./company.ts";
 import { decrypt } from "./crypto.ts";
+import { latestEstAngaben, prognose } from "./income-tax.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { euerForYear } from "./reports.ts";
@@ -44,21 +45,28 @@ export interface PrepaymentBasis {
   /** Gewinn des Vorjahres laut EÜR */
   profitLastYear: Cents;
   einkunftsart: "gewerbe" | "selbstaendig" | null;
+  /** Geschätzte Steuer des Jahres aus der Hochrechnung und den Angaben zur Einkommensteuer */
+  prognose: Prognose;
+  /** Jahr der Angaben, auf denen die Prognose beruht; null = keine gespeichert */
+  angabenAus: number | null;
 }
 
 /** Zahlen für den Antrag auf Herabsetzung der Einkommensteuer-Vorauszahlungen */
 export async function prepaymentBasis(today: string): Promise<PrepaymentBasis> {
   const year = Number(today.slice(0, 4));
-  const [current, last, company] = await Promise.all([euerForYear(year), euerForYear(year - 1), loadCompany()]);
+  const [current, last, company, latest] = await Promise.all([euerForYear(year), euerForYear(year - 1), loadCompany(), latestEstAngaben(year)]);
   const days = dayOfYear(today);
   const daysInYear = dayOfYear(`${year}-12-31`);
+  const profitForecast = Math.round((current.gewinn * daysInYear) / days / 100) * 100;
   return {
     year,
     until: today,
     profitSoFar: current.gewinn,
-    profitForecast: Math.round((current.gewinn * daysInYear) / days / 100) * 100,
+    profitForecast,
     profitLastYear: last.gewinn,
     einkunftsart: company.einkunftsart,
+    prognose: await prognose(year, profitForecast, latest.angaben),
+    angabenAus: latest.fromYear,
   };
 }
 

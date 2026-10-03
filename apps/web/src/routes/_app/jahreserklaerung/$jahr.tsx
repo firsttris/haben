@@ -365,6 +365,18 @@ function EstSection({ data }: { data: Data }) {
             <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} />
             <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />
             <Row label="Anlagen" value={est.anlagen.join(", ")} />
+            <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
+            <Row
+              label="Voraussichtliche Steuer"
+              value={formatEuro(est.prognose.gesamt)}
+              kz={[
+                `ESt ${formatEuro(est.prognose.einkommensteuer)}`,
+                est.prognose.soli ? `Soli ${formatEuro(est.prognose.soli)}` : "",
+                est.prognose.kirchensteuer ? `KiSt ${formatEuro(est.prognose.kirchensteuer)}` : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            />
           </tbody>
         </table>
 

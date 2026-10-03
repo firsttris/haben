@@ -62,8 +62,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
   Einkommensteuererklärung mit Anlage S/G, Vorsorgeaufwand, Sonderausgaben, Kind und KAP, auch zusammen veranlagt;
   Prüfen, Test- und Echtübermittlung über ERiC
 - **Post vom und an das Finanzamt**: Steuerbescheide aus dem ELSTER-Postfach abholen, Nachrichten über ELSTER,
-  Bankverbindung ändern, Antrag auf Herabsetzung der Einkommensteuer-Vorauszahlungen mit Gewinn und Hochrechnung
-  aus der Buchhaltung
+  Bankverbindung ändern, Antrag auf Herabsetzung der Einkommensteuer-Vorauszahlungen mit Hochrechnung des Gewinns
+  und Steuerprognose (Tarif, Splitting, Soli, Kirchensteuer)
 - **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, Journal je Monat, Festschreibung und Audit-Log
 - **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
   Übernahme mit Restbuchwert aus Lexoffice, AfA-Buchung zum Jahresende
@@ -160,6 +160,7 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 | [Buchhaltung in Haben](docs/buchhaltung.md) | Buchungssätze, Kontenrahmen, Ist und Soll, GoBD und Festschreibung |
 | [Architektur](docs/architektur.md) | Module, Datenmodell, Abläufe, ERiC-Worker, Sicherheit |
 | [Entwicklung](docs/entwicklung.md) | Lokale Umgebung, Tests, Migrationen, Konventionen, Mitwirken |
+| [Roadmap](docs/roadmap.md) | Geplante Funktionen, Blocker und Quellen |
 
 ## 🔧 Entwicklung
 
