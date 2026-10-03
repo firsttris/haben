@@ -1,6 +1,7 @@
 import { runDueBankSyncs } from "./bank-sync.ts";
 import { elsterClient, elsterMode } from "./elster.ts";
 import { env } from "./env.ts";
+import { runDueFristenMails } from "./mail.ts";
 import { runDuePostfachFetch } from "./postfach.ts";
 import { runDueRecurring } from "./recurring.ts";
 import { today } from "./today.ts";
@@ -36,6 +37,12 @@ export async function runScheduledJobs(): Promise<void> {
     }
   } catch (error) {
     console.error("ELSTER-Postfach", error);
+  }
+  try {
+    const result = await runDueFristenMails(today());
+    if (result?.sent) console.log(`Fristen-Erinnerung: ${result.sent} Frist(en) per E-Mail erinnert`);
+  } catch (error) {
+    console.error("Fristen-Erinnerung", error);
   } finally {
     running = false;
   }

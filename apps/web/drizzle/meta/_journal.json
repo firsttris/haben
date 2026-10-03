@@ -260,6 +260,27 @@
       "when": 1791030686757,
       "tag": "0036_berechtigung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791033226570,
+      "tag": "0037_fristen_kalender",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791033462703,
+      "tag": "0038_mail",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1791033463827,
+      "tag": "0039_mail_trigger",
+      "breakpoints": true
     }
   ]
 }

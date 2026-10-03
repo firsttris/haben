@@ -103,6 +103,8 @@ export const company = pgTable(
       .$type<{ baseRate: number | null; fees: Record<"1" | "2" | "3", number>; deadlineDays: number }>()
       .notNull()
       .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
+    /** SHA-256 des geheimen Tokens im Kalender-Abo der Fristen; null = kein Abo */
+    calendarTokenHash: text("calendar_token_hash"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("company_single_row", sql`${t.id} = 1`)],
@@ -343,6 +345,42 @@ export const brmRequests = pgTable("brm_requests", {
   requestXml: text("request_xml").notNull(),
   responseXml: text("response_xml").notNull(),
   serverResponseXml: text("server_response_xml").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** SMTP-Zugang für E-Mails von Haben (Erinnerungen an Fristen), genau eine Zeile (id = 1) */
+export const mailSettings = pgTable(
+  "mail_settings",
+  {
+    id: smallint("id").primaryKey().default(1),
+    host: text("host").notNull(),
+    port: integer("port").notNull(),
+    /** true: TLS ab Verbindungsaufbau (meist Port 465); false: STARTTLS (meist Port 587) */
+    secure: boolean("secure").notNull(),
+    username: text("username").notNull(),
+    /** Passwort AES-256-GCM-verschlüsselt wie das Zertifikat; bleibt aus dem Audit-Log */
+    ciphertext: bytea("ciphertext").notNull(),
+    fromAddress: text("from_address").notNull(),
+    /** Empfänger der Erinnerungen */
+    reminderTo: text("reminder_to").notNull(),
+    remindersEnabled: boolean("reminders_enabled").notNull().default(true),
+    /** Erinnern so viele Tage vor einer Frist, 0 = am Tag selbst */
+    reminderDays: smallint("reminder_days").array().notNull().default(sql`'{7,1}'::smallint[]`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("mail_settings_single_row", sql`${t.id} = 1`)],
+);
+
+/** Gesendete E-Mails; Fristen-Erinnerungen merken sich, welche Frist zu welcher Stufe schon erinnert wurde */
+export const mailLog = pgTable("mail_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: text("kind", { enum: ["test", "fristen"] }).notNull(),
+  recipient: text("recipient").notNull(),
+  subject: text("subject").notNull(),
+  ok: boolean("ok").notNull(),
+  error: text("error"),
+  /** Fristen-ID und Tage vorher, z. B. ustva-2026-09:7 */
+  reminderKeys: text("reminder_keys").array().notNull().default(sql`'{}'::text[]`),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -76,15 +76,16 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await page.waitForURL("**/einstellungen");
   await page.waitForLoadState("networkidle");
 
-  await page.getByLabel("Name", { exact: true }).fill("Mustermann IT · Max Mustermann");
-  await page.getByLabel("E-Mail", { exact: true }).fill("rechnung@mustermann.example");
-  await page.getByLabel("Straße und Hausnummer").fill("Musterstraße 12");
-  await page.getByLabel("PLZ").fill("93047");
-  await page.getByLabel("Ort").fill("Regensburg");
-  await page.getByLabel("Bundesland").selectOption("BY");
-  await page.getByLabel(/^Steuernummer/).fill("198/113/10010");
-  await page.getByLabel("IBAN").fill("DE89370400440532013000");
-  await page.getByRole("button", { name: "Speichern" }).first().click();
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await firma.getByLabel("Name", { exact: true }).fill("Mustermann IT · Max Mustermann");
+  await firma.getByLabel("E-Mail", { exact: true }).fill("rechnung@mustermann.example");
+  await firma.getByLabel("Straße und Hausnummer").fill("Musterstraße 12");
+  await firma.getByLabel("PLZ").fill("93047");
+  await firma.getByLabel("Ort").fill("Regensburg");
+  await firma.getByLabel("Bundesland").selectOption("BY");
+  await firma.getByLabel(/^Steuernummer/).fill("198/113/10010");
+  await firma.getByLabel("IBAN").fill("DE89370400440532013000");
+  await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
 });
 
@@ -249,6 +250,20 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await vast.screenshot({ path: `${SHOTS}/desktop/16b-belege-elster.png` });
 });
 
+test("Fristen und Kalender-Abo", async () => {
+  await go("/fristen");
+  await expect(page.getByRole("heading", { name: "Fristen", level: 1 })).toBeVisible();
+  await expect(page.getByText(/Umsatzsteuer-Voranmeldung/).first()).toBeVisible();
+  const abo = page.getByRole("region", { name: "Erinnerungen im Kalender" });
+  await abo.getByRole("button", { name: "Kalender-Abo einrichten" }).click();
+  const url = await abo.getByLabel(/Abo-Link/).inputValue();
+  expect(url).toMatch(/\/api\/fristen\/kalender\?token=[\w-]{32}$/);
+  const ics = await page.request.get(url);
+  expect(ics.status()).toBe(200);
+  expect(await ics.text()).toContain("BEGIN:VCALENDAR");
+  expect((await page.request.get(url.replace(/token=.*/, "token=falsch"))).status()).toBe(404);
+});
+
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go("/auswertungen");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -295,6 +310,7 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
     ["umsatzsteuer", "/umsatzsteuer"],
     ["jahreserklaerung", `/jahreserklaerung/${YEAR - 1}`],
     ["finanzamt", "/finanzamt"],
+    ["fristen", "/fristen"],
     ["auswertungen", "/auswertungen"],
     ["kontakte", "/kontakte"],
     ["kontakt", details.kontakt],

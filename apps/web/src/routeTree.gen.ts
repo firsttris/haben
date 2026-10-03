@@ -18,6 +18,7 @@ import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppBuchungenRouteImport } from './routes/_app/buchungen'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
 import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
+import { Route as AppFristenRouteImport } from './routes/_app/fristen'
 import { Route as AppAnlagenIndexRouteImport } from './routes/_app/anlagen/index'
 import { Route as AppAnlagenIdRouteImport } from './routes/_app/anlagen/$id'
 import { Route as AppAnlagenNeuRouteImport } from './routes/_app/anlagen/neu'
@@ -44,6 +45,7 @@ import { Route as ApiBankCallbackRouteImport } from './routes/api/bank/callback'
 import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
+import { Route as ApiFristenKalenderRouteImport } from './routes/api/fristen/kalender'
 import { Route as ApiKontenJahrRouteImport } from './routes/api/konten/$jahr'
 import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
@@ -99,6 +101,11 @@ const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
 const AppFinanzamtRoute = AppFinanzamtRouteImport.update({
   id: '/finanzamt',
   path: '/finanzamt',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFristenRoute = AppFristenRouteImport.update({
+  id: '/fristen',
+  path: '/fristen',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAnlagenIndexRoute = AppAnlagenIndexRouteImport.update({
@@ -232,6 +239,11 @@ const ApiExportJahrRoute = ApiExportJahrRouteImport.update({
   path: '/api/export/$jahr',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFristenKalenderRoute = ApiFristenKalenderRouteImport.update({
+  id: '/api/fristen/kalender',
+  path: '/api/fristen/kalender',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiKontenJahrRoute = ApiKontenJahrRouteImport.update({
   id: '/api/konten/$jahr',
   path: '/api/konten/$jahr',
@@ -307,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
+  '/fristen': typeof AppFristenRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
@@ -325,6 +338,7 @@ export interface FileRoutesByFullPath {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
+  '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
@@ -354,6 +368,7 @@ export interface FileRoutesByTo {
   '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
+  '/fristen': typeof AppFristenRoute
   '/': typeof AppIndexRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
@@ -373,6 +388,7 @@ export interface FileRoutesByTo {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
+  '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
@@ -404,6 +420,7 @@ export interface FileRoutesById {
   '/_app/buchungen': typeof AppBuchungenRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/finanzamt': typeof AppFinanzamtRoute
+  '/_app/fristen': typeof AppFristenRoute
   '/_app/': typeof AppIndexRoute
   '/_app/anlagen/$id': typeof AppAnlagenIdRoute
   '/_app/anlagen/neu': typeof AppAnlagenNeuRoute
@@ -423,6 +440,7 @@ export interface FileRoutesById {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
+  '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
@@ -455,6 +473,7 @@ export interface FileRouteTypes {
     | '/buchungen'
     | '/einstellungen'
     | '/finanzamt'
+    | '/fristen'
     | '/anlagen/$id'
     | '/anlagen/neu'
     | '/belege/$id'
@@ -473,6 +492,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
+    | '/api/fristen/kalender'
     | '/api/konten/$jahr'
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
@@ -502,6 +522,7 @@ export interface FileRouteTypes {
     | '/buchungen'
     | '/einstellungen'
     | '/finanzamt'
+    | '/fristen'
     | '/'
     | '/anlagen/$id'
     | '/anlagen/neu'
@@ -521,6 +542,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
+    | '/api/fristen/kalender'
     | '/api/konten/$jahr'
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
@@ -551,6 +573,7 @@ export interface FileRouteTypes {
     | '/_app/buchungen'
     | '/_app/einstellungen'
     | '/_app/finanzamt'
+    | '/_app/fristen'
     | '/_app/'
     | '/_app/anlagen/$id'
     | '/_app/anlagen/neu'
@@ -570,6 +593,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
+    | '/api/fristen/kalender'
     | '/api/konten/$jahr'
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
@@ -604,6 +628,7 @@ export interface RootRouteChildren {
   ApiBelegIdRoute: typeof ApiBelegIdRoute
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
+  ApiFristenKalenderRoute: typeof ApiFristenKalenderRoute
   ApiKontenJahrRoute: typeof ApiKontenJahrRoute
   ApiMahnungIdRoute: typeof ApiMahnungIdRoute
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
@@ -675,6 +700,13 @@ declare module '@tanstack/react-router' {
       path: '/finanzamt'
       fullPath: '/finanzamt'
       preLoaderRoute: typeof AppFinanzamtRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/fristen': {
+      id: '/_app/fristen'
+      path: '/fristen'
+      fullPath: '/fristen'
+      preLoaderRoute: typeof AppFristenRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/anlagen/': {
@@ -859,6 +891,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiExportJahrRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/fristen/kalender': {
+      id: '/api/fristen/kalender'
+      path: '/api/fristen/kalender'
+      fullPath: '/api/fristen/kalender'
+      preLoaderRoute: typeof ApiFristenKalenderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/konten/$jahr': {
       id: '/api/konten/$jahr'
       path: '/api/konten/$jahr'
@@ -952,6 +991,7 @@ interface AppRouteChildren {
   AppBuchungenRoute: typeof AppBuchungenRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppFinanzamtRoute: typeof AppFinanzamtRoute
+  AppFristenRoute: typeof AppFristenRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAnlagenIdRoute: typeof AppAnlagenIdRoute
   AppAnlagenNeuRoute: typeof AppAnlagenNeuRoute
@@ -985,6 +1025,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBuchungenRoute: AppBuchungenRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppFinanzamtRoute: AppFinanzamtRoute,
+  AppFristenRoute: AppFristenRoute,
   AppIndexRoute: AppIndexRoute,
   AppAnlagenIdRoute: AppAnlagenIdRoute,
   AppAnlagenNeuRoute: AppAnlagenNeuRoute,
@@ -1026,6 +1067,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBelegIdRoute: ApiBelegIdRoute,
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
+  ApiFristenKalenderRoute: ApiFristenKalenderRoute,
   ApiKontenJahrRoute: ApiKontenJahrRoute,
   ApiMahnungIdRoute: ApiMahnungIdRoute,
   ApiPostfachIdRoute: ApiPostfachIdRoute,
