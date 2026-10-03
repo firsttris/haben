@@ -1,3 +1,4 @@
+import { invoicesSentByMail, mailsForInvoice } from "../invoice-mail.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { listAccounts } from "../bank.ts";
@@ -37,7 +38,10 @@ function withoutFiles<T extends { pdf: unknown; xml: unknown }>({ pdf, xml, ...r
 
 export const getInvoices = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(() => listInvoices(today()));
+  .handler(async () => {
+    const [invoices, mailed] = await Promise.all([listInvoices(today()), invoicesSentByMail()]);
+    return invoices.map((invoice) => ({ ...invoice, mailed: mailed.has(invoice.id) }));
+  });
 
 export const getInvoiceSummary = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -87,6 +91,7 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
       invoice: withoutFiles(result.invoice),
       issues,
       dunnings: await dunningsFor([data]),
+      mails: result.invoice.status === "final" ? await mailsForInvoice(data) : [],
       overdue: listed?.listStatus === "ueberfaellig",
       open: listed?.open ?? 0,
       ...(await editorContext()),

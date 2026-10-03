@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { deleteMailSettings, lastMails, mailSettingsSchema, mailSettingsSummary, MailError, saveMailSettings, sendTestMail, SMTP_PRESETS } from "../mail.ts";
+import { DEFAULT_DUNNING_BODY, DEFAULT_DUNNING_SUBJECT, DEFAULT_INVOICE_BODY, DEFAULT_INVOICE_SUBJECT } from "../invoice-mail.ts";
 import { authMiddleware } from "../middleware.ts";
 
 const rethrow = (error: unknown): never => {
@@ -9,7 +10,12 @@ const rethrow = (error: unknown): never => {
 
 export const getMailSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => ({ settings: await mailSettingsSummary(), presets: SMTP_PRESETS, last: await lastMails() }));
+  .handler(async () => ({
+    settings: await mailSettingsSummary(),
+    presets: SMTP_PRESETS,
+    last: await lastMails(),
+    defaults: { invoiceSubject: DEFAULT_INVOICE_SUBJECT, invoiceBody: DEFAULT_INVOICE_BODY, dunningSubject: DEFAULT_DUNNING_SUBJECT, dunningBody: DEFAULT_DUNNING_BODY },
+  }));
 
 export const saveMail = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

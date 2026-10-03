@@ -17,7 +17,7 @@ export async function runScheduledJobs(): Promise<void> {
   try {
     const result = await runDueRecurring(today());
     if (result.created > 0 || result.errors.length > 0) {
-      console.log(`Wiederkehrende Rechnungen: ${result.created} angelegt, ${result.finalized} festgeschrieben`);
+      console.log(`Wiederkehrende Rechnungen: ${result.created} angelegt, ${result.finalized} festgeschrieben, ${result.mailed} per E-Mail versandt`);
       for (const error of result.errors) console.warn(error);
     }
   } catch (error) {

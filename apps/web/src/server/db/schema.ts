@@ -366,6 +366,11 @@ export const mailSettings = pgTable(
     remindersEnabled: boolean("reminders_enabled").notNull().default(true),
     /** Erinnern so viele Tage vor einer Frist, 0 = am Tag selbst */
     reminderDays: smallint("reminder_days").array().notNull().default(sql`'{7,1}'::smallint[]`),
+    /** Vorlagen für Rechnungen und Mahnungen; leer = Standardtext. Platzhalter wie {nummer}, {betrag} */
+    invoiceSubject: text("invoice_subject").notNull().default(""),
+    invoiceBody: text("invoice_body").notNull().default(""),
+    dunningSubject: text("dunning_subject").notNull().default(""),
+    dunningBody: text("dunning_body").notNull().default(""),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("mail_settings_single_row", sql`${t.id} = 1`)],
@@ -374,8 +379,15 @@ export const mailSettings = pgTable(
 /** Gesendete E-Mails; Fristen-Erinnerungen merken sich, welche Frist zu welcher Stufe schon erinnert wurde */
 export const mailLog = pgTable("mail_log", {
   id: uuid("id").primaryKey().defaultRandom(),
-  kind: text("kind", { enum: ["test", "fristen"] }).notNull(),
+  kind: text("kind", { enum: ["test", "fristen", "rechnung", "mahnung"] }).notNull(),
+  /** Empfänger, bei mehreren durch Komma getrennt */
   recipient: text("recipient").notNull(),
+  /** Blindkopie an sich selbst */
+  bcc: text("bcc"),
+  invoiceId: uuid("invoice_id").references(() => invoices.id),
+  dunningId: uuid("dunning_id").references(() => dunnings.id),
+  /** Dateinamen der Anhänge */
+  attachments: text("attachments").array().notNull().default(sql`'{}'::text[]`),
   subject: text("subject").notNull(),
   ok: boolean("ok").notNull(),
   error: text("error"),
@@ -943,6 +955,8 @@ export const recurringInvoices = pgTable(
     servicePeriod: text("service_period", { enum: ["laufend", "vorher", "keiner"] }).notNull().default("laufend"),
     /** entwurf = nur anlegen, festschreiben = Nummer ziehen und buchen */
     mode: text("mode", { enum: ["entwurf", "festschreiben"] }).notNull().default("entwurf"),
+    /** Nur mit festschreiben: die Rechnung gleich per E-Mail an den Kunden schicken */
+    sendByMail: boolean("send_by_mail").notNull().default(false),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     lastError: text("last_error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

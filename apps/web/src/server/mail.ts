@@ -44,6 +44,10 @@ export const mailSettingsSchema = z.object({
   reminderTo: email,
   remindersEnabled: z.boolean(),
   reminderDays: z.array(z.number().int().min(0).max(60)).max(5),
+  invoiceSubject: z.string().trim().max(300).default(""),
+  invoiceBody: z.string().trim().max(5000).default(""),
+  dunningSubject: z.string().trim().max(300).default(""),
+  dunningBody: z.string().trim().max(5000).default(""),
 });
 
 export type MailSettingsInput = z.input<typeof mailSettingsSchema>;
@@ -101,17 +105,22 @@ export function setMailTransportForTests(factory: typeof transportFactory): void
   transportFactory = factory;
 }
 
-interface Message {
-  kind: "test" | "fristen";
+export interface Message {
+  kind: "test" | "fristen" | "rechnung" | "mahnung";
+  /** ein oder mehrere Empfänger, durch Komma getrennt */
   to: string;
+  bcc?: string;
   subject: string;
   text: string;
   html: string;
+  attachments?: { filename: string; content: Buffer | string; contentType: string }[];
   reminderKeys?: string[];
+  invoiceId?: string;
+  dunningId?: string;
 }
 
 /** Sendet und protokolliert; Fehler des Servers kommen als Ergebnis zurück, nicht als Ausnahme */
-async function send(actor: string, message: Message): Promise<{ ok: boolean; error: string | null }> {
+export async function send(actor: string, message: Message): Promise<{ ok: boolean; error: string | null }> {
   const settings = await loadMailSettings();
   if (!settings) throw new MailError("Es ist kein E-Mail-Zugang eingerichtet.");
   let error: string | null = null;
@@ -119,9 +128,11 @@ async function send(actor: string, message: Message): Promise<{ ok: boolean; err
     await transportFactory(settings).sendMail({
       from: { name: "Haben", address: settings.fromAddress },
       to: message.to,
+      ...(message.bcc ? { bcc: message.bcc } : {}),
       subject: message.subject,
       text: message.text,
       html: message.html,
+      ...(message.attachments ? { attachments: message.attachments } : {}),
     });
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
@@ -134,12 +145,16 @@ async function send(actor: string, message: Message): Promise<{ ok: boolean; err
       ok: error === null,
       error,
       reminderKeys: error === null ? (message.reminderKeys ?? []) : [],
+      bcc: message.bcc ?? null,
+      invoiceId: message.invoiceId ?? null,
+      dunningId: message.dunningId ?? null,
+      attachments: (message.attachments ?? []).map((a) => a.filename),
     }),
   );
   return { ok: error === null, error };
 }
 
-const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+export const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const baseUrl = () => env().BETTER_AUTH_URL.replace(/\/$/, "");
 
 export async function sendTestMail(actor: string) {

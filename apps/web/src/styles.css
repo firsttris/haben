@@ -318,3 +318,7 @@ fieldset.card > legend + * { clear: both; }
 
 /* Senden-Karte neben langen Formularen bleibt beim Scrollen sichtbar */
 @media (min-width: 1101px) { .sticky-panel { position: sticky; top: 16px; align-self: start; } }
+
+/* Knopf, der wie ein Link aussieht (z. B. „per E-Mail“ in Listen) */
+.link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--accent-ink); text-decoration: underline; cursor: pointer; }
+.link-button:hover { color: var(--accent-hover); }

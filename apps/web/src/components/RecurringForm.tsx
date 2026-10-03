@@ -38,6 +38,7 @@ export interface RecurringValues {
   endDate: string | null;
   servicePeriod: ServicePeriodMode;
   mode: "entwurf" | "festschreiben";
+  sendByMail: boolean;
 }
 
 interface LineState {
@@ -86,6 +87,7 @@ export function RecurringForm({
   const [endDate, setEndDate] = useState(initial.endDate ?? "");
   const [servicePeriod, setServicePeriod] = useState<ServicePeriodMode>(initial.servicePeriod);
   const [mode, setMode] = useState(initial.mode);
+  const [sendByMail, setSendByMail] = useState(initial.sendByMail);
   const [lines, setLines] = useState<LineState[]>(() =>
     initial.lines.map((line) => ({
       key: nextKey++,
@@ -149,6 +151,7 @@ export function RecurringForm({
       endDate: endDate || null,
       servicePeriod,
       mode,
+      sendByMail: mode === "festschreiben" && sendByMail,
     });
   }
 
@@ -253,6 +256,12 @@ export function RecurringForm({
             <input type="radio" name="mode" checked={mode === "festschreiben"} onChange={() => setMode("festschreiben")} />
             Direkt festschreiben (Nummer, PDF und XML, gebucht)
           </label>
+          {mode === "festschreiben" && (
+            <label className="checkbox" style={{ marginLeft: 24 }}>
+              <input type="checkbox" checked={sendByMail} onChange={(e) => setSendByMail(e.target.checked)} />
+              Und per E-Mail an den Kunden schicken (Vorlage aus Einstellungen › E-Mail-Versand)
+            </label>
+          )}
           <label className="checkbox">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
             Aktiv
