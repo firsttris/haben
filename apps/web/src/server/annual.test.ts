@@ -240,4 +240,57 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect((await annual.annualOverview(2025, TODAY)).ust.sent).not.toBeNull();
     await expect(sql`update annual_submissions set ok = false`).rejects.toThrow();
   });
+
+  it("Einkommensteuer: Gewinn aus der EÜR, gespeicherte Angaben und Zusammenveranlagung", async () => {
+    const taxpayer = await import("./taxpayer.ts");
+    const incomeTax = await import("./income-tax.ts");
+    await sql`truncate income_tax_inputs`;
+    await year2025();
+    await assets.bookDepreciation(actor, 2025, TODAY);
+    const client = new elster.FakeElsterClient();
+
+    let overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.est.issues.some((i) => i.tone === "fehler" && i.text.includes("Persönliche Angaben"))).toBe(true);
+    await expect(annual.submitAnnual(actor, "est", 2025, client, { kind: "validate", today: TODAY })).rejects.toThrow(/Persönliche Angaben/);
+
+    const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" };
+    await taxpayer.saveTaxpayer(actor, {
+      a: person,
+      b: { ...person, anrede: "Frau", vorname: "Erika", religion: "02" },
+      veranlagung: "zusammen",
+      verheiratetSeit: "2015-06-20",
+    });
+    await incomeTax.saveEstAngaben(actor, 2025, {
+      vorsorge: { a: { pkv: 600_000 }, b: { gkv: 300_000 } },
+      sonderausgaben: { spenden: 10_000 },
+      kinder: [{ vorname: "Lena", geburtsdatum: "2020-01-15", kinderbetreuung: 150_000 }],
+    });
+    await expect(incomeTax.saveEstAngaben(actor, 2025, { kinder: [{ vorname: "", geburtsdatum: "x" }] })).rejects.toThrow();
+
+    overview = await annual.annualOverview(2025, TODAY);
+    expect(overview.est.issues.filter((i) => i.tone === "fehler")).toEqual([]);
+    expect(overview.est.zusammen).toBe(true);
+    expect(overview.est.anlagen).toEqual(["ESt 1 A", "Sonderausgaben", "Kind (1)", "S", "Vorsorgeaufwand"]);
+
+    const result = await annual.submitAnnual(actor, "est", 2025, client, { kind: "validate", today: TODAY });
+    expect(result.ok).toBe(true);
+    const [row] = await sql`select figures, request_xml from annual_submissions where form = 'est'`;
+    const euer = await annual.euerYear(2025);
+    expect(row!.figures.gewinn).toBe(euer.gewinn);
+    const xml: string = row!.request_xml;
+    expect(xml).toContain("<DatenArt>ESt</DatenArt>");
+    expect(xml).toContain(`<E0803202>${Math.round(euer.gewinn / 100)}</E0803202>`);
+    expect(xml).toContain("<E0803101>Softwareentwicklung</E0803101>");
+    expect(xml).toContain("<E0100801>Erika</E0100801>");
+    expect(xml).toContain("<E0102102>DE89370400440532013000</E0102102>");
+    expect(xml).toContain("<E2003104>6000</E2003104>");
+    expect(xml).toContain("<E0506105>1500</E0506105>");
+    expect(xml).toContain("<StNr>9198011310010</StNr>");
+
+    await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1]))})`;
+    const tested = await annual.submitAnnual(actor, "est", 2025, client, { kind: "test", pin: "1234", today: TODAY });
+    expect(tested.ok).toBe(true);
+    const protocol = await annual.loadAnnualProtocol((await sql`select id from annual_submissions where form = 'est' and kind = 'test'`)[0]!.id);
+    expect(protocol?.filename).toBe("Einkommensteuererklaerung-2025-Protokoll.pdf");
+  });
 });

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AnnualError, annualOverview, submitAnnual } from "../annual.ts";
 import { elsterClient, elsterMode } from "../elster.ts";
 import { env } from "../env.ts";
+import { estAngabenSchema, saveEstAngaben } from "../income-tax.ts";
 import { authMiddleware } from "../middleware.ts";
 import { reportYears } from "../reports.ts";
 import { today } from "../today.ts";
@@ -47,7 +48,7 @@ export const submitAnnualReturn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
     z.object({
-      form: z.enum(["ust", "euer"]),
+      form: z.enum(["ust", "euer", "est"]),
       year: yearSchema,
       kind: z.enum(["validate", "test", "send"]),
       pin: z.string().max(64).optional(),
@@ -61,4 +62,12 @@ export const submitAnnualReturn = createServerFn({ method: "POST" })
       today: today(),
     }).catch(asUserError);
     return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
+  });
+
+export const saveIncomeTaxInputs = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ year: yearSchema, angaben: estAngabenSchema }))
+  .handler(async ({ data, context }) => {
+    await saveEstAngaben(context.user.id, data.year, data.angaben);
+    return { ok: true };
   });

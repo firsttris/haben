@@ -1,6 +1,6 @@
 # Jahreserklärungen
 
-Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **Umsatzsteuererklärung** und die **Anlage EÜR** mit dem Anlagenverzeichnis (**Anlage AVEÜR**) und übermittelt beide über ERiC an das Finanzamt, wie die [Voranmeldung](umsatzsteuer.md). Die Einkommensteuererklärung selbst gibst du weiter im ELSTER-Portal ab (oder über deine Steuerberatung); die übermittelte Anlage EÜR ordnet das Finanzamt ihr über die Steuernummer zu.
+Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **Umsatzsteuererklärung** und die **Anlage EÜR** mit dem Anlagenverzeichnis (**Anlage AVEÜR**) und übermittelt beide über ERiC an das Finanzamt, wie die [Voranmeldung](umsatzsteuer.md). Dazu kommt die **Einkommensteuererklärung** mit den Anlagen, die ein Selbständiger typischerweise braucht: Der Gewinn kommt aus der EÜR, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
 
 Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eigenen Bereich zum Übermitteln. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
@@ -66,8 +66,33 @@ Nicht abgebildet sind Bewirtung, Geschenke, Arbeitszimmer, Fahrten zwischen Wohn
 
 Das Anlagenverzeichnis listet jede Anlage mit Bezeichnung, Anschaffungsdatum, Anschaffungskosten, Buchwert zu Beginn, AfA, Abgang und Buchwert am Ende, gruppiert nach Kraftfahrzeugen, Büroeinrichtung und anderen beweglichen Wirtschaftsgütern; Sammelposten stehen je Jahrgang. Geringwertige Wirtschaftsgüter gehören nicht hinein. Anlagen, die im Jahr angeschafft wurden, stehen mit den Anschaffungskosten im Buchwert zu Beginn, wie es auch EasyCash&Tax übermittelt.
 
+## Einkommensteuererklärung
+
+Die Einkommensteuererklärung (Datenart ESt, Vordruck E10) setzt Haben aus drei Quellen zusammen:
+
+| Teil | Woher |
+| --- | --- |
+| Hauptvordruck ESt 1 A | [Persönliche Angaben](einrichtung.md#persönliche-angaben) (Steuer-ID, Name, Geburtsdatum, Religion, Beruf, bei Zusammenveranlagung Ehegatte und Heiratsdatum), Anschrift, Telefon und IBAN aus den Firmendaten |
+| Anlage S oder G | Gewinn laut Anlage EÜR des Jahres in vollen Euro, Tätigkeit aus „Art des Betriebs“; selbständige Arbeit geht in Anlage S, Gewerbe in Anlage G |
+| Übrige Anlagen | Angaben, die du auf der Seite einträgst und speicherst |
+
+Die eingetragenen Angaben speichert Haben je Jahr; jede Änderung steht im Audit-Log. Übermittelt wird, was gespeichert ist. Leere Anlagen schickt Haben nicht mit.
+
+| Anlage | Angaben |
+| --- | --- |
+| Vorsorgeaufwand | Je Person: gesetzliche Rentenversicherung, gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen; weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
+| Sonderausgaben | Gezahlte und erstattete Kirchensteuer, Spenden an steuerbegünstigte Empfänger im Inland |
+| Außergewöhnliche Belastungen | Selbst getragene Krankheitskosten |
+| Haushaltsnahe Aufwendungen (§ 35a EStG) | Minijobs im Haushalt, haushaltsnahe Dienstleistungen, Handwerkerleistungen (nur Arbeits-, Maschinen- und Fahrtkosten) |
+| Kind | Je Kind Vorname, Geburtsdatum, Steuer-ID, Familienkasse und Kinderbetreuungskosten; leibliches Kind beider Ehegatten bzw. der steuerpflichtigen Person, Wohnsitz im Inland im ganzen Jahr bzw. ab Geburt |
+| KAP | Erträge mit und ohne inländischen Steuerabzug, genutzter Sparer-Pauschbetrag, einbehaltene Kapitalertragsteuer, Solidaritätszuschlag und Kirchensteuer, Antrag auf Günstigerprüfung |
+
+Beträge gehen in vollen Euro an ELSTER, nur die Steuern auf Kapitalerträge mit Cent. Bei der Einzelveranlagung trägt Haben Kinderbetreuungskosten als selbst getragen ein.
+
+Nicht abgebildet sind unter anderem Arbeitslohn (Anlage N, etwa für einen angestellten Ehegatten), Renten, Vermietung, Unterhalt, Riester sowie Kinder mit anderem Kindschaftsverhältnis oder Wohnsitz im Ausland. Brauchst du davon etwas, gibst du die Erklärung im ELSTER-Portal ab, statt sie hier zu senden; ein Nachsenden einzelner Anlagen ist nicht möglich.
+
 ## Herkunft der Feldkennungen
 
-Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung), für die Jahre ab 2023.
+Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen.
 
 Die Vordrucke ändern sich jedes Jahr ein wenig. Deshalb vor der Echtübermittlung immer erst prüfen oder testweise senden: Meldet ERiC ein unbekanntes Feld oder eine verletzte Regel, steht die Meldung im Verlauf. Bitte dann als Issue melden.

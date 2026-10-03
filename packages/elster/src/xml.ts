@@ -37,8 +37,8 @@ export function ustvaDatenartVersion(year: number): string {
 export function datenartVersionFromXml(xml: string): string | undefined {
   const ustva = /<Anmeldungssteuern\b[^>]*\bversion="(\d{4})"/.exec(xml);
   if (ustva?.[1]) return ustvaDatenartVersion(Number(ustva[1]));
-  const erklaerung = /<(E50|E77)\b[^>]*\bversion="(\d{4})"/.exec(xml);
-  if (erklaerung?.[1] && erklaerung[2]) return `${erklaerung[1] === "E50" ? "USt" : "EUER"}_${erklaerung[2]}`;
+  const erklaerung = /<(E10|E50|E77)\b[^>]*\bversion="(\d{4})"/.exec(xml);
+  if (erklaerung?.[1] && erklaerung[2]) return `${{ E10: "ESt", E50: "USt", E77: "EUER" }[erklaerung[1]]}_${erklaerung[2]}`;
   const nachricht = /<DatenArt>(SonstigeNachrichten)<\/DatenArt>[\s\S]*<Nachricht\b[^>]*\bversion="(\d+)"/.exec(xml);
   if (nachricht?.[1] && nachricht[2]) return `${nachricht[1]}_${nachricht[2]}`;
   const bank = /<AenderungBankverbindung\b[^>]*\bversion="(\d+)"/.exec(xml);

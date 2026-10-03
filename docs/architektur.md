@@ -35,7 +35,7 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 | `packages/core` | Reine Fachlogik ohne Ein- und Ausgabe: Cent-Beträge und Formatierung, Zeiträume und Fälligkeiten mit Feiertagen je Bundesland (`holidays.ts`), Steuernummer-Umrechnung ins ELSTER-Format, Rechnungssummen, umsatzsteuerliche Behandlung von Rechnungen (`treatment.ts`), Kontenrahmen und Buchungssätze (`posting.ts`), Vorschläge für den Bankabgleich (`matching.ts`), UStVA-Berechnung, EÜR (`euer.ts`), Umsatzsteuer aus Lexoffice-Belegen (`legacy-vat.ts`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst (Vorlage `templates/rechnung.typ`), ZUGFeRD und XRechnung über `@e-invoice-eu/core`, Prüfung der Pflichtfelder je Format, Lesen eingehender E-Rechnungen (eingebettetes XML aus PDFs, CII und UBL) |
 | `packages/import` | Parser für Kontoauszüge (DKB, N26, CAMT.053), Dekodierung, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel (`datev.ts`), Client und Abbildungen für die Lexware-Office-API (`lexoffice/`), Client und Abbildung für den Kontoabruf über Enable Banking (`enablebanking/`) |
-| `packages/elster` | `ElsterClient` mit echtem ERiC-Client (Kindprozess, `koffi`) und simuliertem Client, UStVA-XML, XML der Jahreserklärungen (Umsatzsteuererklärung E50, Anlage EÜR mit AVEÜR E77, `erklaerung.ts`), Sonstige Nachricht (`nachricht.ts`), Änderung der Bankverbindung (`bankverbindung.ts`), Datenabholung aus dem Postfach (`postfach.ts`, Download der Anhänge über Otto), Transfer-Ticket, ERiC-Download (`install.ts`) |
+| `packages/elster` | `ElsterClient` mit echtem ERiC-Client (Kindprozess, `koffi`) und simuliertem Client, UStVA-XML, XML der Jahreserklärungen (Umsatzsteuererklärung E50, Anlage EÜR mit AVEÜR E77, `erklaerung.ts`; Einkommensteuererklärung E10, `est.ts`), Sonstige Nachricht (`nachricht.ts`), Änderung der Bankverbindung (`bankverbindung.ts`), Datenabholung aus dem Postfach (`postfach.ts`, Download der Anhänge über Otto), Transfer-Ticket, ERiC-Download (`install.ts`) |
 
 ### apps/web
 
@@ -45,7 +45,7 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 | `src/routes/api/` | HTTP-Routen für Better Auth (`auth/$`), Dateien (`rechnung`, `beleg`, `altbeleg`, `archiv`, `protokoll`), Teilen-Ziel der PWA (`belege/teilen`), EÜR als CSV (`auswertungen/$jahr`) und Jahresarchiv (`export/$jahr`) |
 | `src/components/` | React-Komponenten, die mehrere Seiten nutzen (Rechnungseditor, Vorschau, Upload, Statusanzeigen), dazu `archiv/` für die Umzugsseite |
 | `src/server/functions/` | Server Functions je Bereich: Eingaben mit Zod prüfen, `authMiddleware` anhängen, Dienst aufrufen. Keine Fachlogik |
-| `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `bank-sync` (Kontoabruf), `annual` (Jahreserklärungen), `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `taxpayer` (persönliche Angaben), `vat`, `vat-figures`, `reports`, `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`, `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer); dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
+| `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `bank-sync` (Kontoabruf), `annual` (Jahreserklärungen), `income-tax` (Angaben zur Einkommensteuer), `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `taxpayer` (persönliche Angaben), `vat`, `vat-figures`, `reports`, `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`, `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer); dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
 | `src/server/db/` | Drizzle-Schema (`schema.ts`, `auth-schema.ts`), Verbindung, `withActor` für das Audit-Log, Migrationsskript |
 | `apps/web/drizzle/` | SQL-Migrationen; Trigger und Funktionen stehen in eigenen Dateien (`0001_festschreibung.sql`, `*_trigger.sql`) |
 | `src/styles/`, `styles.css` | Globales Stylesheet und seitenbezogene Stylesheets (Auswertungen, Archiv) |
@@ -93,6 +93,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `postfach_requests` | Abrufe des ELSTER-Postfachs und Bestätigungen der Abholung mit XML | nur anhängen, Audit |
 | `postfach_documents` | Abgeholte Bescheide und Mitteilungen, Datei im Dokumentenspeicher | nur anhängen, Audit |
 | `annual_submissions` | Prüfungen und Übermittlungen der Jahreserklärungen mit Werten, XML und Protokoll-PDF; höchstens eine erfolgreiche Echtübermittlung je Erklärung und Jahr | nur anhängen, Audit ohne PDF |
+| `income_tax_inputs` | Angaben zur Einkommensteuererklärung je Jahr (Vorsorge, Sonderausgaben, Kinder, KAP) | änderbar, Audit |
 | `assets` | Anlagenverzeichnis: Art, Abschreibung, Anlagekonto, Anschaffung, Nutzungsdauer, Übernahme, Abgang | Grundlagen fest nach der ersten Buchung, Audit |
 | `asset_depreciations` | Gebuchte AfA je Anlage und Jahr mit Verweis auf die Buchung | nur anhängen, Audit |
 

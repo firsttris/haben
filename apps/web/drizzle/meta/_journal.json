@@ -204,6 +204,20 @@
       "when": 1791010051566,
       "tag": "0028_postfach_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791011214814,
+      "tag": "0029_einkommensteuer",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791011215893,
+      "tag": "0030_einkommensteuer_trigger",
+      "breakpoints": true
     }
   ]
 }

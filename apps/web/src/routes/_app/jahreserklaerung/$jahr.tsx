@@ -1,10 +1,10 @@
-import { formatEuro } from "@haben/core";
+import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
 import { Icon } from "../../../components/Icon.tsx";
 import { errorMessage, formatDate, formatDateTime } from "../../../lib/format.ts";
-import { getAnnualReturns, submitAnnualReturn } from "../../../server/functions/annual.ts";
+import { getAnnualReturns, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
@@ -18,12 +18,12 @@ export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
 });
 
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
-type Form = "ust" | "euer";
+type Form = "ust" | "euer" | "est";
 type Issue = Data["ust"]["issues"][number];
 type Notice = { tone: "ok" | "danger" | "info"; text: string } | null;
 
 const KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" } as const;
-const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR" } as const;
+const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" } as const;
 const LINK_LABEL = { "/einstellungen": "Zu den Einstellungen", "/anlagen": "Zu den Anlagen", "/umsatzsteuer": "Zur Umsatzsteuer", "/bank": "Zur Bank" } as const;
 
 function AnnualPage() {
@@ -58,13 +58,15 @@ function AnnualPage() {
       )}
 
       <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
-        Haben berechnet beide Erklärungen aus den Buchungen des Jahres und übermittelt sie wie die Voranmeldung über ERiC. Die
-        Einkommensteuererklärung selbst gibst du weiter im ELSTER-Portal ab; die übermittelte Anlage EÜR ordnet das Finanzamt ihr zu.
+        Haben berechnet Umsatzsteuererklärung und Anlage EÜR aus den Buchungen des Jahres und übermittelt sie wie die Voranmeldung über
+        ERiC. Für die Einkommensteuererklärung kommt der Gewinn aus der EÜR; Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst
+        du unten ein.
       </p>
 
       <div className="stack" style={{ gap: 24 }}>
         <UstSection data={data} />
         <EuerSection data={data} />
+        <EstSection key={data.year} data={data} />
         <History data={data} />
       </div>
     </>
@@ -227,6 +229,251 @@ function EuerSection({ data }: { data: Data }) {
         )}
       </div>
       <SubmitPanel form="euer" data={data} blocked={euer.issues.some((i) => i.tone === "fehler")} sent={Boolean(euer.sent)} />
+    </section>
+  );
+}
+
+type Angaben = Data["est"]["angaben"];
+type Kind = Angaben["kinder"][number];
+type KindDraft = Omit<Kind, "kinderbetreuung"> & { key: number; kinderbetreuung: string };
+
+const centsText = (cents: number | undefined) => (cents ? formatDecimal(cents) : "");
+
+/** Ein Betragsfeld; leer heißt 0 */
+function Amount({ name, label, value, hint }: { name: string; label: string; value: number | undefined; hint?: string }) {
+  return (
+    <label className="field">
+      {label}
+      <input name={name} inputMode="decimal" defaultValue={centsText(value)} placeholder="0,00" />
+      {hint && <span className="small muted">{hint}</span>}
+    </label>
+  );
+}
+
+function EstSection({ data }: { data: Data }) {
+  const { est } = data;
+  const a = est.angaben;
+  const router = useRouter();
+  const save = useServerFn(saveIncomeTaxInputs);
+  const [kinder, setKinder] = useState<KindDraft[]>(() => a.kinder.map((k, key) => ({ ...k, key, kinderbetreuung: centsText(k.kinderbetreuung) })));
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<Notice>(null);
+  const blocked = est.issues.some((i) => i.tone === "fehler");
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const bad: string[] = [];
+    const amount = (name: string, label: string) => {
+      const text = String(form.get(name) ?? "").trim();
+      if (!text) return undefined;
+      const cents = parseEuro(text);
+      if (cents === null || cents < 0) {
+        bad.push(label);
+        return undefined;
+      }
+      return cents || undefined;
+    };
+    const kidAmount = (k: KindDraft) => {
+      if (!k.kinderbetreuung.trim()) return undefined;
+      const cents = parseEuro(k.kinderbetreuung);
+      if (cents === null || cents < 0) bad.push(`Kinderbetreuung ${k.vorname}`);
+      return cents || undefined;
+    };
+    const vorsorge = (p: "a" | "b") => ({
+      rentenversicherung: amount(`${p}-rv`, "Rentenversicherung"),
+      gkv: amount(`${p}-gkv`, "Krankenversicherung"),
+      gpv: amount(`${p}-gpv`, "Pflegeversicherung"),
+      gkvZusatz: amount(`${p}-gkvZusatz`, "Wahlleistungen"),
+      pkv: amount(`${p}-pkv`, "Private Krankenversicherung"),
+      ppv: amount(`${p}-ppv`, "Private Pflegeversicherung"),
+      pkvErstattung: amount(`${p}-pkvErstattung`, "Erstattungen"),
+    });
+    const angaben = {
+      vorsorge: { a: vorsorge("a"), ...(est.zusammen ? { b: vorsorge("b") } : {}), sonstige: amount("sonstige", "Weitere Vorsorge") },
+      sonderausgaben: {
+        kirchensteuerGezahlt: amount("kistGezahlt", "Kirchensteuer"),
+        kirchensteuerErstattet: amount("kistErstattet", "Kirchensteuer erstattet"),
+        spenden: amount("spenden", "Spenden"),
+      },
+      krankheitskosten: amount("krankheitskosten", "Krankheitskosten"),
+      haushaltsnah: {
+        minijobs: amount("minijobs", "Minijobs"),
+        dienstleistungen: amount("dienstleistungen", "Haushaltsnahe Dienstleistungen"),
+        handwerker: amount("handwerker", "Handwerkerleistungen"),
+      },
+      kinder: kinder.map((k) => ({
+        idnr: k.idnr?.trim() || undefined,
+        vorname: k.vorname,
+        name: k.name?.trim() || undefined,
+        geburtsdatum: k.geburtsdatum,
+        familienkasse: k.familienkasse?.trim() || undefined,
+        kinderbetreuung: kidAmount(k),
+      })),
+      kap: {
+        guenstigerpruefung: form.get("guenstigerpruefung") === "on",
+        ertraegeMitSteuerabzug: amount("kapMit", "Kapitalerträge"),
+        sparerPauschbetrag: amount("kapSpb", "Sparer-Pauschbetrag"),
+        ertraegeOhneSteuerabzugInland: amount("kapOhneInl", "Kapitalerträge ohne Steuerabzug"),
+        ertraegeAusland: amount("kapAusl", "Ausländische Kapitalerträge"),
+        kapitalertragsteuer: amount("kapESt", "Kapitalertragsteuer"),
+        soli: amount("kapSoli", "Solidaritätszuschlag"),
+        kirchensteuer: amount("kapKiSt", "Kirchensteuer auf Kapitalerträge"),
+      },
+    };
+    if (bad.length > 0) {
+      setNotice({ tone: "danger", text: `Kein gültiger Betrag: ${bad.join(", ")}.` });
+      return;
+    }
+    setBusy(true);
+    setNotice(null);
+    try {
+      await save({ data: { year: data.year, angaben } });
+      await router.invalidate();
+      setNotice({ tone: "ok", text: "Angaben gespeichert." });
+    } catch (error) {
+      setNotice({ tone: "danger", text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const updateKind = (key: number, patch: Partial<KindDraft>) => setKinder((list) => list.map((k) => (k.key === key ? { ...k, ...patch } : k)));
+  const vorsorgeFields = (p: "a" | "b", v: Angaben["vorsorge"]["a"] | undefined) => (
+    <div className="form-grid">
+      <Amount name={`${p}-rv`} label="Gesetzliche Rentenversicherung" value={v?.rentenversicherung} />
+      <Amount name={`${p}-gkv`} label="Gesetzliche Krankenversicherung" value={v?.gkv} hint="ohne Anteil für Krankengeld" />
+      <Amount name={`${p}-gpv`} label="Soziale Pflegeversicherung" value={v?.gpv} />
+      <Amount name={`${p}-gkvZusatz`} label="Gesetzlich: Krankengeldanteil, Wahlleistungen" value={v?.gkvZusatz} />
+      <Amount name={`${p}-pkv`} label="Private Krankenversicherung (Basis)" value={v?.pkv} hint="laut Bescheinigung der Versicherung" />
+      <Amount name={`${p}-ppv`} label="Private Pflege-Pflichtversicherung" value={v?.ppv} />
+      <Amount name={`${p}-pkvErstattung`} label="Erstattungen der privaten KV/PV" value={v?.pkvErstattung} />
+    </div>
+  );
+
+  return (
+    <section className="grid-main" aria-labelledby="est-heading">
+      <form className="card" onSubmit={onSubmit} aria-label="Angaben zur Einkommensteuer">
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
+          <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
+          <SentPill sent={est.sent} />
+        </div>
+        <Issues issues={est.issues} />
+        <table className="report-table">
+          <tbody>
+            <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} />
+            <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} />
+            <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />
+            <Row label="Anlagen" value={est.anlagen.join(", ")} />
+          </tbody>
+        </table>
+
+        <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
+          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Vorsorgeaufwand {est.zusammen ? `· ${est.person.a ?? "Person A"}` : ""}</legend>
+          {vorsorgeFields("a", a.vorsorge.a)}
+        </fieldset>
+        {est.zusammen && (
+          <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
+            <legend style={{ fontWeight: 600, marginBottom: 8 }}>Vorsorgeaufwand · {est.person.b ?? "Ehegatte"}</legend>
+            {vorsorgeFields("b", a.vorsorge.b)}
+          </fieldset>
+        )}
+        <div className="form-grid">
+          <Amount name="sonstige" label="Weitere Vorsorge (Haftpflicht, Unfall, Risikoleben)" value={a.vorsorge.sonstige} />
+        </div>
+
+        <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Sonderausgaben und Belastungen</legend>
+          <Amount name="kistGezahlt" label="Gezahlte Kirchensteuer" value={a.sonderausgaben.kirchensteuerGezahlt} hint="ohne Kirchensteuer auf Kapitalerträge" />
+          <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
+          <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
+          <Amount name="krankheitskosten" label="Krankheitskosten" value={a.krankheitskosten} hint="selbst getragen, nach Erstattungen" />
+        </fieldset>
+
+        <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Haushaltsnahe Aufwendungen (§ 35a EStG)</legend>
+          <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
+          <Amount name="dienstleistungen" label="Haushaltsnahe Dienstleistungen" value={a.haushaltsnah.dienstleistungen} hint="z. B. Reinigung, Gartenpflege" />
+          <Amount name="handwerker" label="Handwerkerleistungen" value={a.haushaltsnah.handwerker} hint="nur Arbeits-, Maschinen- und Fahrtkosten" />
+        </fieldset>
+
+        <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
+          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Kinder</legend>
+          {kinder.map((k, index) => (
+            <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
+              <label className="field">
+                Vorname
+                <input value={k.vorname} onChange={(e) => updateKind(k.key, { vorname: e.target.value })} required />
+              </label>
+              <label className="field">
+                Geburtsdatum
+                <input type="date" value={k.geburtsdatum} onChange={(e) => updateKind(k.key, { geburtsdatum: e.target.value })} required />
+              </label>
+              <label className="field">
+                Steuer-ID
+                <input inputMode="numeric" value={k.idnr ?? ""} onChange={(e) => updateKind(k.key, { idnr: e.target.value })} />
+              </label>
+              <label className="field">
+                Familienkasse
+                <input value={k.familienkasse ?? ""} onChange={(e) => updateKind(k.key, { familienkasse: e.target.value })} />
+              </label>
+              <label className="field">
+                Abweichender Nachname
+                <input value={k.name ?? ""} onChange={(e) => updateKind(k.key, { name: e.target.value })} />
+              </label>
+              <label className="field">
+                Kinderbetreuungskosten (€)
+                <input inputMode="decimal" value={k.kinderbetreuung} onChange={(e) => updateKind(k.key, { kinderbetreuung: e.target.value })} placeholder="0,00" />
+              </label>
+              <div className="actions" style={{ gridColumn: "1 / -1" }}>
+                <button type="button" className="btn" onClick={() => setKinder((list) => list.filter((x) => x.key !== k.key))}>
+                  Kind entfernen
+                </button>
+              </div>
+            </div>
+          ))}
+          <div>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setKinder((list) => [...list, { key: Math.max(-1, ...list.map((x) => x.key)) + 1, vorname: "", geburtsdatum: "", kinderbetreuung: "" }])}
+            >
+              + Kind hinzufügen
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Kapitalerträge (Anlage KAP)</legend>
+          <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />
+          <Amount name="kapSpb" label="Davon genutzter Sparer-Pauschbetrag" value={a.kap?.sparerPauschbetrag} />
+          <Amount name="kapOhneInl" label="Inländische Erträge ohne Steuerabzug" value={a.kap?.ertraegeOhneSteuerabzugInland} />
+          <Amount name="kapAusl" label="Ausländische Erträge" value={a.kap?.ertraegeAusland} />
+          <Amount name="kapESt" label="Einbehaltene Kapitalertragsteuer" value={a.kap?.kapitalertragsteuer} />
+          <Amount name="kapSoli" label="Solidaritätszuschlag" value={a.kap?.soli} />
+          <Amount name="kapKiSt" label="Kirchensteuer zur Kapitalertragsteuer" value={a.kap?.kirchensteuer} />
+          <label className="checkbox" style={{ alignSelf: "end" }}>
+            <input type="checkbox" name="guenstigerpruefung" defaultChecked={a.kap?.guenstigerpruefung ?? false} />
+            Günstigerprüfung beantragen
+          </label>
+        </fieldset>
+
+        {notice && (
+          <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
+            {notice.text}
+          </div>
+        )}
+        <div className="actions">
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            Angaben speichern
+          </button>
+        </div>
+        <p className="small muted" style={{ margin: 0 }}>
+          Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten
+          Angaben.
+        </p>
+      </form>
+      <SubmitPanel form="est" data={data} blocked={blocked} sent={Boolean(est.sent)} />
     </section>
   );
 }
