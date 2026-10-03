@@ -1,10 +1,16 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { errorMessage, formatDateTime } from "../lib/format.ts";
+import { errorMessage, formatDate, formatDateTime } from "../lib/format.ts";
 import { formatWert } from "../lib/vast.ts";
 import type { getAnnualReturns } from "../server/functions/annual.ts";
-import { fetchVast } from "../server/functions/annual.ts";
+import {
+  activateVastBerechtigung,
+  fetchVast,
+  refreshVastBerechtigung,
+  requestVastBerechtigung,
+  revokeVastBerechtigung,
+} from "../server/functions/annual.ts";
 
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 type Beleg = Data["vast"]["belege"][number];
@@ -66,15 +72,14 @@ export function VastBelege({ data }: { data: Data }) {
   const live = !testOnly && data.herstellerIdConfigured;
   const canUseSavedPin = vast.pinSaved && live;
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  const canSend = Boolean(data.certificate) && (pin.length > 0 || canUseSavedPin);
+
+  /** Führt einen ELSTER-Schritt aus und zeigt das Ergebnis; die PIN wird danach geleert */
+  async function run(work: (base: { kind: "test" | "send"; pin?: string }) => Promise<Notice>) {
     setBusy(true);
     setNotice(null);
     try {
-      const result = await fetchBelege({ data: { year: data.year, person, kind: live ? "send" : "test", pin: pin || undefined } });
-      const parts = [result.message];
-      if (result.fehler.length > 0) parts.push(`${result.fehler.length} Beleg(e) nicht lesbar: ${result.fehler.map((f) => f.fehler).join("; ")}.`);
-      setNotice({ tone: result.ok && result.fehler.length === 0 ? "ok" : "danger", text: parts.join(" ") });
+      setNotice(await work({ kind: live ? "send" : "test", pin: pin || undefined }));
       setPin("");
       await router.invalidate();
     } catch (error) {
@@ -82,6 +87,16 @@ export function VastBelege({ data }: { data: Data }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    void run(async (base) => {
+      const result = await fetchBelege({ data: { year: data.year, person, ...base } });
+      const parts = [result.message];
+      if (result.fehler.length > 0) parts.push(`${result.fehler.length} Beleg(e) nicht lesbar: ${result.fehler.map((f) => f.fehler).join("; ")}.`);
+      return { tone: result.ok && result.fehler.length === 0 ? "ok" : "danger", text: parts.join(" ") };
+    });
   }
 
   return (
@@ -130,12 +145,6 @@ export function VastBelege({ data }: { data: Data }) {
                 </select>
               </label>
             )}
-            {person === "b" && (
-              <p className="small muted" style={{ margin: 0 }}>
-                Für die Belege des Ehegatten braucht dein Zertifikat eine Abrufberechtigung. Die beantragst du in Mein ELSTER; der
-                Freischaltcode kommt per Post an den Ehegatten.
-              </p>
-            )}
             <label className="field">
               Zertifikats-PIN
               <input
@@ -157,12 +166,22 @@ export function VastBelege({ data }: { data: Data }) {
                   : "Echter Abruf erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID)."}
               </p>
             )}
+            {person === "b" && (
+              <BerechtigungPanel
+                data={data}
+                live={live}
+                name={vast.personen.find((p) => p.key === "b")?.name.split(" ")[0] ?? "Ehegatte"}
+                busy={busy}
+                canSend={canSend}
+                run={run}
+              />
+            )}
             {notice && (
               <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"} style={{ overflowWrap: "anywhere" }}>
                 {notice.text}
               </div>
             )}
-            <button type="submit" className="btn btn-primary" disabled={busy || !data.certificate || (pin.length === 0 && !canUseSavedPin)}>
+            <button type="submit" className="btn btn-primary" disabled={busy || !canSend}>
               {busy ? "Läuft …" : live ? "Belege abrufen" : "Testweise abrufen"}
             </button>
             <p className="small muted" style={{ margin: 0 }}>
@@ -174,5 +193,152 @@ export function VastBelege({ data }: { data: Data }) {
         )}
       </div>
     </section>
+  );
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  offen: "beantragt, wartet auf Freischaltung",
+  genehmigt: "genehmigt",
+  widerrufen: "widerrufen",
+  abgelaufen: "abgelaufen",
+  abgelehnt: "abgelehnt",
+};
+
+/**
+ * Berechtigung für die Belege des Ehegatten: beantragen, mit dem Code aus dem Brief freischalten,
+ * widerrufen und den Stand bei ELSTER prüfen. PIN und Test/echt kommen aus dem Formular darüber.
+ */
+function BerechtigungPanel({
+  data,
+  live,
+  name,
+  busy,
+  canSend,
+  run,
+}: {
+  data: Data;
+  live: boolean;
+  name: string;
+  busy: boolean;
+  canSend: boolean;
+  run: (work: (base: { kind: "test" | "send"; pin?: string }) => Promise<Notice>) => Promise<void>;
+}) {
+  const request = useServerFn(requestVastBerechtigung);
+  const activate = useServerFn(activateVastBerechtigung);
+  const revoke = useServerFn(revokeVastBerechtigung);
+  const refresh = useServerFn(refreshVastBerechtigung);
+  const { berechtigung: b } = data.vast;
+  const current = live ? b.live : b.test;
+  const [gueltigBis, setGueltigBis] = useState(b.gueltigBisVorschlag);
+  const [code, setCode] = useState("");
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const status = current?.status;
+  const disabled = busy || !canSend;
+  const tone = (ok: boolean) => (ok ? "ok" : "danger") as "ok" | "danger";
+
+  return (
+    <div className="banner banner-info stack" role="group" aria-label={`Berechtigung für ${name}`} style={{ gap: 8, display: "flex", flexDirection: "column", alignItems: "stretch" }}>
+      <div>
+        <strong>Berechtigung für {name}</strong>
+        {current ? (
+          <span>
+            : {STATUS_LABEL[current.status] ?? current.status}
+            {current.test ? " (Test)" : ""}
+          </span>
+        ) : (
+          <span>: noch keine{live ? "" : " (Test)"}</span>
+        )}
+      </div>
+      {status === "offen" && (
+        <p className="small" style={{ margin: 0 }}>
+          Beantragt am {formatDate(current!.beantragtAm)}. {name} bekommt von ELSTER einen Brief mit dem Freischaltcode
+          {current!.genehmigenBis ? `; einzugeben bis ${formatDate(current!.genehmigenBis)}` : ""}.
+        </p>
+      )}
+      {status === "genehmigt" && (
+        <p className="small" style={{ margin: 0 }}>
+          Haben darf die Belege von {name} abrufen{current!.gueltigBis ? `, bis ${formatDate(current!.gueltigBis)}` : ""}.
+        </p>
+      )}
+      {(!status || !["offen", "genehmigt"].includes(status)) && (
+        <>
+          <p className="small" style={{ margin: 0 }}>
+            Für die Belege von {name} braucht dein Zertifikat ihre Zustimmung: Haben beantragt das Recht bei ELSTER, {name} bekommt einen
+            Brief mit Freischaltcode, den du hier eingibst.
+          </p>
+          <label className="field">
+            Gültig bis
+            <input type="date" value={gueltigBis} onChange={(e) => setGueltigBis(e.target.value)} />
+          </label>
+          <button
+            type="button"
+            className="btn"
+            disabled={disabled || !gueltigBis}
+            onClick={() =>
+              void run(async (base) => {
+                const result = await request({ data: { ...base, gueltigBis } });
+                return { tone: tone(result.ok), text: result.message };
+              })
+            }
+          >
+            Berechtigung beantragen
+          </button>
+        </>
+      )}
+      {status === "offen" && (
+        <>
+          <label className="field">
+            Freischaltcode aus dem Brief
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="XXXX-XXXX-XXXX" autoComplete="off" />
+          </label>
+          <button
+            type="button"
+            className="btn"
+            disabled={disabled || code.trim().length === 0}
+            onClick={() =>
+              void run(async (base) => {
+                const result = await activate({ data: { ...base, freischaltcode: code } });
+                if (result.ok) setCode("");
+                return { tone: tone(result.ok), text: result.message };
+              })
+            }
+          >
+            Freischalten
+          </button>
+        </>
+      )}
+      <div className="actions" style={{ flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="btn"
+          disabled={disabled}
+          onClick={() =>
+            void run(async (base) => {
+              const result = await refresh({ data: base });
+              return { tone: tone(result.ok), text: result.message };
+            })
+          }
+        >
+          Stand bei ELSTER prüfen
+        </button>
+        {(status === "offen" || status === "genehmigt") && (
+          <button
+            type="button"
+            className="btn"
+            disabled={disabled}
+            onClick={() => {
+              if (!confirmRevoke) return setConfirmRevoke(true);
+              setConfirmRevoke(false);
+              void run(async (base) => {
+                const result = await revoke({ data: base });
+                return { tone: tone(result.ok), text: result.message };
+              });
+            }}
+          >
+            {confirmRevoke ? "Wirklich widerrufen?" : status === "offen" ? "Antrag zurückziehen" : "Widerrufen"}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

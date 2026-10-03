@@ -9,7 +9,6 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 | Dauerfristverlängerung | Antrag auf Dauerfristverlängerung mit Sondervorauszahlung (USt 1 H) über ELSTER; Voranmeldungen dürfen dann einen Monat später kommen | geplant |
 | Fristen und Erinnerungen | Kalender mit Voranmeldung, Vorauszahlungsterminen, Abgabefristen und Ablauf des Zertifikats, optional per E-Mail | geplant |
 | Anlage N | Arbeitslohn, etwa eines angestellten Ehegatten, in der Einkommensteuererklärung | geplant |
-| Abrufberechtigung für den Ehegatten | Berechtigung zum Belegabruf für eine andere Person beantragen und mit dem Freischaltcode aus dem Brief freischalten (Verfahren ElsterBRM, wie in erica); bis dahin über Mein ELSTER | geplant |
 | Zusammenfassende Meldung | Meldung der innergemeinschaftlichen Leistungen an das BZSt, nur bei Kunden in anderen EU-Ländern nötig | bei Bedarf |
 
 ## Blockiert

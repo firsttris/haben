@@ -106,9 +106,19 @@ Jeder Beleg erscheint mit seiner Art und allen gemeldeten Werten; Beträge zeigt
 Gut zu wissen:
 
 - Die meisten Meldungen liegen ab Ende Februar des Folgejahres vor; die Belege lassen sich beliebig oft abrufen, eine Bestätigung wie beim Postfach gibt es nicht.
-- Mit dem eigenen Zertifikat, das mit deiner Steuer-ID registriert ist, holst du deine eigenen Belege. Für die Belege des Ehegatten braucht dein Zertifikat eine Abrufberechtigung, die du in Mein ELSTER beantragst; der Freischaltcode kommt per Brief an den Ehegatten. Alternativ ruft der Ehegatte mit dem eigenen Zertifikat ab.
+- Mit dem eigenen Zertifikat, das mit deiner Steuer-ID registriert ist, holst du deine eigenen Belege. Für die Belege des Ehegatten braucht dein Zertifikat eine Berechtigung, siehe unten. Alternativ ruft der Ehegatte mit dem eigenen Zertifikat ab.
 - Der Testabruf trägt den Testmerker der Datenabholung (`370000001`). Ohne ERiC liefert er zwei erfundene Beispielbelege.
 - Haben übernimmt die Werte noch nicht von selbst in die Erklärung. Die Belege dienen zum Abgleich mit den Angaben oben; das Finanzamt hat sie ohnehin und gleicht selbst ab. Für eine sichere Zuordnung zu den Feldern fehlen die Schemas der einzelnen Belegarten ([Roadmap](roadmap.md#blockiert)).
+
+### Berechtigung für den Ehegatten
+
+Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben](einrichtung.md#persönliche-angaben)), zeigt Haben den Stand der Berechtigung (ELSTER-Verfahren ElsterBRM):
+
+1. **Berechtigung beantragen:** mit Steuer-ID und Geburtsdatum des Ehegatten, für alle Jahre und gültig bis zum gewählten Datum (Vorschlag: Ende des übernächsten Jahres). ELSTER schickt dem Ehegatten einen Brief mit Freischaltcode; die E-Mail-Adresse aus den Firmendaten bekommt Benachrichtigungen.
+2. **Freischalten:** den Code aus dem Brief eingeben, bevor die Frist abläuft, die Haben beim Antrag anzeigt. Danach steht die Berechtigung auf „genehmigt“ und der Belegabruf für den Ehegatten funktioniert wie der eigene.
+3. **Widerrufen** oder einen offenen Antrag zurückziehen geht jederzeit, mit Rückfrage.
+
+**Stand bei ELSTER prüfen** fragt alle eigenen Anträge ab. So erkennt Haben auch einen Antrag, den du in Mein ELSTER gestellt hast, und ob eine Berechtigung abgelaufen ist. Jeder Schritt braucht die Zertifikats-PIN (oder die gespeicherte) und steht unveränderlich im Verlauf; den Freischaltcode speichert Haben nicht. Test und echt sind getrennt: Der Testserver führt eigene Anträge, im simulierten Betrieb gilt jeder Code.
 
 ## Herkunft der Feldkennungen
 

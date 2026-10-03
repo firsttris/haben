@@ -12,6 +12,14 @@ import { FinanzamtError } from "../finanzamt.ts";
 import { today } from "../today.ts";
 import { loadActiveCertificate } from "../vat.ts";
 import { fetchVastBelege, lastVastRequest, listVastBelege } from "../vast.ts";
+import {
+  activateBerechtigung,
+  berechtigungEhegatte,
+  defaultGueltigBis,
+  refreshBerechtigungen,
+  requestBerechtigung,
+  revokeBerechtigung,
+} from "../berechtigung.ts";
 
 function asUserError(error: unknown): never {
   if (error instanceof AnnualError) throw new Error(error.message);
@@ -30,13 +38,15 @@ export const getAnnualReturns = createServerFn({ method: "GET" })
   .validator(yearSchema)
   .handler(async ({ data: year }) => {
     const now = today();
-    const [overview, years, certificate, belege, lastVast, company] = await Promise.all([
+    const [overview, years, certificate, belege, lastVast, company, berechtigungLive, berechtigungTest] = await Promise.all([
       annualOverview(year, now),
       reportYears(),
       loadActiveCertificate(),
       listVastBelege(year),
       lastVastRequest(year),
       loadCompany(),
+      berechtigungEhegatte(false),
+      berechtigungEhegatte(true),
     ]);
     const t = company.taxpayer;
     const current = Number(now.slice(0, 4));
@@ -55,6 +65,7 @@ export const getAnnualReturns = createServerFn({ method: "GET" })
         last: lastVast,
         personen: (["a", "b"] as const).flatMap((key) => (t[key] ? [{ key, name: `${t[key].vorname} ${t[key].name}` }] : [])),
         pinSaved: Boolean(certificate?.pinCiphertext),
+        berechtigung: { live: berechtigungLive, test: berechtigungTest, gueltigBisVorschlag: defaultGueltigBis(now) },
       },
       mode: elsterMode(),
       herstellerIdConfigured: Boolean(env().ELSTER_HERSTELLER_ID) && elsterMode() === "eric",
@@ -100,3 +111,41 @@ export const fetchVast = createServerFn({ method: "POST" })
       throw error;
     }
   });
+
+const brmBase = z.object({ kind: z.enum(["test", "send"]), pin: z.string().max(64).optional() });
+
+/** Fehler aus dem Berechtigungsmanagement als Meldung für die Oberfläche */
+async function brm<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    if (error instanceof FinanzamtError) throw new Error(error.message, { cause: error });
+    throw error;
+  }
+}
+
+export const requestVastBerechtigung = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(brmBase.extend({ gueltigBis: z.iso.date() }))
+  .handler(({ data, context }) =>
+    brm(() => requestBerechtigung(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID })),
+  );
+
+export const activateVastBerechtigung = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(brmBase.extend({ freischaltcode: z.string().trim().min(1).max(20) }))
+  .handler(({ data, context }) =>
+    brm(() => activateBerechtigung(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID })),
+  );
+
+export const revokeVastBerechtigung = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(brmBase)
+  .handler(({ data, context }) => brm(() => revokeBerechtigung(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID })));
+
+export const refreshVastBerechtigung = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(brmBase)
+  .handler(({ data, context }) =>
+    brm(() => refreshBerechtigungen(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID })),
+  );

@@ -206,6 +206,13 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await taxpayer.getByLabel("Vorname").fill("Max");
   await taxpayer.getByLabel("Nachname").fill("Mustermann");
   await taxpayer.getByLabel("Geburtsdatum").fill("1985-04-12");
+  await taxpayer.getByLabel("Art").selectOption("zusammen");
+  const ehegatte = taxpayer.getByRole("group", { name: "Ehegatte (Person B)" });
+  await ehegatte.getByLabel("Anrede").selectOption("Frau");
+  await ehegatte.getByLabel("Steuer-ID").fill("86095742719");
+  await ehegatte.getByLabel("Vorname").fill("Erika");
+  await ehegatte.getByLabel("Nachname").fill("Mustermann");
+  await ehegatte.getByLabel("Geburtsdatum").fill("1987-03-01");
   await taxpayer.getByRole("button", { name: "Speichern" }).click();
   await expect(taxpayer.getByRole("status")).toBeVisible();
   const cert = page.getByRole("form", { name: "ELSTER-Zertifikat" });
@@ -221,6 +228,20 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await expect(vast.getByRole("status")).toContainText("2 Belege bei ELSTER, 2 neu gespeichert.");
   await vast.getByText("Rentenbezugsmitteilung").click();
   await expect(vast.getByRole("cell", { name: "1.200,00 €" })).toBeVisible();
+
+  // Berechtigung für die Belege des Ehegatten: beantragen und mit dem Code aus dem Brief freischalten
+  await vast.getByLabel("Für").selectOption({ label: "Erika Mustermann" });
+  const berechtigung = vast.getByRole("group", { name: "Berechtigung für Erika" });
+  await expect(berechtigung).toContainText("noch keine (Test)");
+  await vast.getByLabel("Zertifikats-PIN").fill("123456");
+  await berechtigung.getByRole("button", { name: "Berechtigung beantragen" }).click();
+  await expect(vast.getByRole("status")).toContainText("Erika bekommt von ELSTER einen Brief");
+  await expect(berechtigung).toContainText("beantragt, wartet auf Freischaltung");
+  await vast.screenshot({ path: `${SHOTS}/desktop/16c-berechtigung-beantragt.png` });
+  await vast.getByLabel("Zertifikats-PIN").fill("123456");
+  await berechtigung.getByLabel("Freischaltcode aus dem Brief").fill("ABCD-EFGH-1234");
+  await berechtigung.getByRole("button", { name: "Freischalten" }).click();
+  await expect(berechtigung).toContainText("genehmigt");
   mkdirSync(`${SHOTS}/desktop`, { recursive: true });
   await vast.screenshot({ path: `${SHOTS}/desktop/16b-belege-elster.png` });
 });

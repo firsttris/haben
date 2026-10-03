@@ -28,11 +28,10 @@ export interface VastFetchSummary {
 }
 
 /**
- * Holt die Belege der vorausgefüllten Steuererklärung (Lohnsteuerbescheinigung, Rentenbezüge, Beiträge …)
- * für eine Person und ein Jahr von ELSTER, entschlüsselt und speichert sie. Bereits gespeicherte Belege
- * bleiben, wie sie sind; ein berichtigter Beleg kommt bei ELSTER mit neuer ID.
+ * Gemeinsame Vorbereitung für Belegabruf und Berechtigungen: Hersteller-ID, kein Echtabruf ohne ERiC,
+ * Zertifikat und PIN; ohne eingegebene PIN die für den Postfachabruf gespeicherte.
  */
-export async function fetchVastBelege(actor: string, client: ElsterClient, options: VastFetchOptions): Promise<VastFetchSummary> {
+export async function prepareElsterAbruf(client: ElsterClient, options: { kind: "test" | "send"; pin?: string; herstellerId?: string }) {
   const test = options.kind !== "send";
   const herstellerId = test ? TEST_HERSTELLER_ID : options.herstellerId;
   if (!herstellerId) throw new FinanzamtError("Für den echten Abruf fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
@@ -43,6 +42,16 @@ export async function fetchVastBelege(actor: string, client: ElsterClient, optio
   if (!certificate) throw new FinanzamtError("Es ist kein ELSTER-Zertifikat hinterlegt.");
   const pin = options.pin || (certificate.pinCiphertext ? new TextDecoder().decode(decrypt(certificate.pinCiphertext)) : "");
   if (!pin) throw new FinanzamtError("Die Zertifikats-PIN fehlt.");
+  return { test, herstellerId, pfx: decrypt(certificate.ciphertext), pin };
+}
+
+/**
+ * Holt die Belege der vorausgefüllten Steuererklärung (Lohnsteuerbescheinigung, Rentenbezüge, Beiträge …)
+ * für eine Person und ein Jahr von ELSTER, entschlüsselt und speichert sie. Bereits gespeicherte Belege
+ * bleiben, wie sie sind; ein berichtigter Beleg kommt bei ELSTER mit neuer ID.
+ */
+export async function fetchVastBelege(actor: string, client: ElsterClient, options: VastFetchOptions): Promise<VastFetchSummary> {
+  const { test, herstellerId, pfx, pin } = await prepareElsterAbruf(client, options);
   const company = await loadCompany();
   const person = company.taxpayer[options.person];
   if (!person) {
@@ -54,7 +63,7 @@ export async function fetchVastBelege(actor: string, client: ElsterClient, optio
 
   const result = await client.fetchBelege(
     { idnr: person.idnr, veranlagungsjahr: options.year, datenlieferant, herstellerId, test },
-    decrypt(certificate.ciphertext),
+    pfx,
     pin,
   );
   const refs = new Map(result.liste.map((ref) => [ref.id, ref]));

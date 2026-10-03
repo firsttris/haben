@@ -33,7 +33,7 @@ export class FakeElsterClient implements ElsterClient {
       responseXml: fakeResponse(),
       serverResponseXml:
         `<?xml version="1.0" encoding="UTF-8"?><Elster><TransferHeader><TransferTicket>${transferTicket}</TransferTicket>` +
-        `</TransferHeader></Elster>`,
+        `</TransferHeader>${fakeBrmNutzdaten(xml)}</Elster>`,
       transferTicket,
       ...(options.print === false ? {} : { pdf: fakeProtokollPdf() }),
     };
@@ -103,6 +103,24 @@ export class FakeElsterClient implements ElsterClient {
       belege: belege.map((b) => ({ id: b.ref.id, xml: b.xml })),
     };
   }
+}
+
+/** Erfundene Antworten des Berechtigungsmanagements: Antrag offen, Freischaltung genehmigt, Widerruf widerrufen */
+function fakeBrmNutzdaten(xml: string): string {
+  const datenart = /<DatenArt>(SpezRecht\w+)<\/DatenArt>/.exec(xml)?.[1];
+  if (!datenart) return "";
+  const antragsId = /<AntragsID>([^<]+)<\/AntragsID>/.exec(xml)?.[1] ?? `fakebr${randomBytes(8).toString("hex")}`;
+  const heute = new Date().toISOString().slice(0, 10);
+  const in90Tagen = new Date(Date.now() + 90 * 86_400_000).toISOString().slice(0, 10);
+  const nutzdaten = {
+    SpezRechtAntrag: `<SpezRechtAntrag version="3"><AntragAntwort><AntragsID>${antragsId}</AntragsID><AntragsDatum>${heute}T12:00:00</AntragsDatum><GenehmigenBis>${in90Tagen}</GenehmigenBis><AntragsStatus>offen</AntragsStatus></AntragAntwort></SpezRechtAntrag>`,
+    SpezRechtFreischaltung: `<SpezRechtFreischaltung version="1"><AntragsID>${antragsId}</AntragsID><FreischaltenAntwort><AntragsStatus>genehmigt</AntragsStatus><Recht>AbrufEBelege</Recht></FreischaltenAntwort></SpezRechtFreischaltung>`,
+    SpezRechtStorno: `<SpezRechtStorno version="3"><AntragsID>${antragsId}</AntragsID><StornoAntwort><Recht>AbrufEBelege</Recht><AntragsStatus>widerrufen</AntragsStatus></StornoAntwort></SpezRechtStorno>`,
+    SpezRechtListe: `<SpezRechtListe version="7"/>`,
+  }[datenart];
+  return nutzdaten
+    ? `<DatenTeil><Nutzdatenblock><NutzdatenHeader version="11"><RC><Rueckgabe><Code>0</Code><Text>OK</Text></Rueckgabe></RC></NutzdatenHeader><Nutzdaten>${nutzdaten}</Nutzdaten></Nutzdatenblock></DatenTeil>`
+    : "";
 }
 
 function fakeResponse(fehler?: string): string {
