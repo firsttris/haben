@@ -266,7 +266,15 @@ Regulär besteuerte Umsätze zu 0 % (Schlüssel `frei`) meldet Haben nicht; die 
 
 ## Die Seite „Buchungen“
 
-Unter **Buchungen** steht das Journal je Monat, neueste zuerst, mit Pfeilen zum Vor- und Folgemonat. Jede Buchung zeigt Datum, Beschreibung und Herkunft („Rechnung“, „Beleg“, „Bank“ oder „Gegenbuchung“), darunter je Zeile Kontonummer, Kontoname, Soll, Haben und Steuerschlüssel. Die Seite ist nur lesend; gebucht wird ausschließlich über Rechnungen, Belege und den Bankabgleich.
+Unter **Buchungen** steht das Journal je Monat, neueste zuerst, mit Pfeilen zum Vor- und Folgemonat. Jede Buchung zeigt Datum, Beschreibung und Herkunft („Rechnung“, „Beleg“, „Bank“ oder „Gegenbuchung“), darunter je Zeile Kontonummer, Kontoname, Soll, Haben und Steuerschlüssel. Die Seite ist nur lesend; gebucht wird ausschließlich über Rechnungen, Belege und den Bankabgleich. Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+
+## Die Seite „Konten“
+
+Unter **Konten** steht die **Saldenliste**: jedes bebuchte Konto eines Jahres, Quartals oder Monats mit Eröffnung, Soll, Haben und Saldo, gruppiert nach Kontenklasse (erste Ziffer der Kontonummer, im SKR03 etwa 1 Finanz- und Privatkonten, 4 Betriebliche Aufwendungen, 8 Erlöskonten). Die Eröffnung ist der Saldo ab Jahresbeginn bis zum Beginn des gewählten Zeitraums; ein Vortrag aus dem Vorjahr gehört nicht dazu. Salden stehen mit Seite, S für Soll und H für Haben. Die Summe aller Soll- und Habenbuchungen ist immer gleich, sonst wäre eine Buchung nicht ausgeglichen. Über „Konto suchen“ lässt sich nach Nummer oder Name filtern.
+
+Ein Klick auf ein Konto öffnet das **Kontenblatt**: jede Buchung auf dem Konto im Zeitraum mit Datum, Buchungstext, Gegenkonten, Herkunft (mit Link auf Rechnung, Beleg, Anlage oder Bank), Soll, Haben und laufendem Saldo. Die Gegenkonten führen zu ihrem eigenen Kontenblatt.
+
+Beides gibt es über „CSV“ als Datei, im selben Format wie die übrigen Exporte (Semikolon, Dezimalkomma, UTF-8 mit BOM), etwa für die Steuerberatung oder zum Abgleich mit Lexoffice.
 
 Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buchungen/journal.csv`, eine Zeile je Buchungszeile, mit Buchungs-ID, Quelle, Kontenrahmen und Verweis auf die Ursprungsbuchung bei Gegenbuchungen.
 

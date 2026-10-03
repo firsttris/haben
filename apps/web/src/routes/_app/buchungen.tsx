@@ -54,6 +54,13 @@ function JournalPage() {
                 <span className="pill">{entry.reversal ? "Gegenbuchung" : SOURCE[entry.sourceType]}</span>
               </div>
               <table className="journal-lines">
+                <colgroup>
+                  <col style={{ width: 64 }} />
+                  <col />
+                  <col style={{ width: 130 }} />
+                  <col style={{ width: 130 }} />
+                  <col style={{ width: 64 }} />
+                </colgroup>
                 <thead className="visually-hidden">
                   <tr>
                     <th>Konto</th>
@@ -66,7 +73,11 @@ function JournalPage() {
                 <tbody>
                   {entry.lines.map((line) => (
                     <tr key={line.id}>
-                      <td className="mono">{line.account}</td>
+                      <td className="mono">
+                        <Link to="/konten/$konto" params={{ konto: line.account }} search={{ jahr: period.year, zeitraum: `m${period.month}` }}>
+                          {line.account}
+                        </Link>
+                      </td>
                       <td>{line.name}</td>
                       <td className="num">{line.debit ? formatEuro(line.debit) : ""}</td>
                       <td className="num">{line.credit ? formatEuro(line.credit) : ""}</td>

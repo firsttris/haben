@@ -64,7 +64,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 - **Post vom und an das Finanzamt**: Steuerbescheide aus dem ELSTER-Postfach abholen, Nachrichten über ELSTER,
   Bankverbindung ändern, Antrag auf Herabsetzung der Einkommensteuer-Vorauszahlungen mit Hochrechnung des Gewinns
   und Steuerprognose (Tarif, Splitting, Soli, Kirchensteuer)
-- **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, Journal je Monat, Festschreibung und Audit-Log
+- **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, Journal je Monat, Saldenliste und
+  Kontenblätter mit CSV-Export, Festschreibung und Audit-Log
 - **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
   Übernahme mit Restbuchwert aus Lexoffice, AfA-Buchung zum Jahresende
 - **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,

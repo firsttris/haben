@@ -29,6 +29,8 @@ import { Route as AppJahreserklaerungJahrRouteImport } from './routes/_app/jahre
 import { Route as AppKontakteIndexRouteImport } from './routes/_app/kontakte/index'
 import { Route as AppKontakteIdRouteImport } from './routes/_app/kontakte/$id'
 import { Route as AppKontakteNeuRouteImport } from './routes/_app/kontakte/neu'
+import { Route as AppKontenIndexRouteImport } from './routes/_app/konten/index'
+import { Route as AppKontenKontoRouteImport } from './routes/_app/konten/$konto'
 import { Route as AppRechnungenIndexRouteImport } from './routes/_app/rechnungen/index'
 import { Route as AppRechnungenIdRouteImport } from './routes/_app/rechnungen/$id'
 import { Route as AppRechnungenNeuRouteImport } from './routes/_app/rechnungen/neu'
@@ -42,6 +44,7 @@ import { Route as ApiBankCallbackRouteImport } from './routes/api/bank/callback'
 import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
+import { Route as ApiKontenJahrRouteImport } from './routes/api/konten/$jahr'
 import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
@@ -153,6 +156,16 @@ const AppKontakteNeuRoute = AppKontakteNeuRouteImport.update({
   path: '/kontakte/neu',
   getParentRoute: () => AppRoute,
 } as any)
+const AppKontenIndexRoute = AppKontenIndexRouteImport.update({
+  id: '/konten/',
+  path: '/konten/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKontenKontoRoute = AppKontenKontoRouteImport.update({
+  id: '/konten/$konto',
+  path: '/konten/$konto',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRechnungenIndexRoute = AppRechnungenIndexRouteImport.update({
   id: '/rechnungen/',
   path: '/rechnungen/',
@@ -216,6 +229,11 @@ const ApiBelegeTeilenRoute = ApiBelegeTeilenRouteImport.update({
 const ApiExportJahrRoute = ApiExportJahrRouteImport.update({
   id: '/api/export/$jahr',
   path: '/api/export/$jahr',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiKontenJahrRoute = ApiKontenJahrRouteImport.update({
+  id: '/api/konten/$jahr',
+  path: '/api/konten/$jahr',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiMahnungIdRoute = ApiMahnungIdRouteImport.update({
@@ -289,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
+  '/konten/$konto': typeof AppKontenKontoRoute
   '/rechnungen/$id': typeof AppRechnungenIdRoute
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
@@ -300,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
+  '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
@@ -308,6 +328,7 @@ export interface FileRoutesByFullPath {
   '/belege/': typeof AppBelegeIndexRoute
   '/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/kontakte/': typeof AppKontakteIndexRoute
+  '/konten/': typeof AppKontenIndexRoute
   '/rechnungen/': typeof AppRechnungenIndexRoute
   '/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
   '/archiv/beleg/$id': typeof AppArchivBelegIdRoute
@@ -333,6 +354,7 @@ export interface FileRoutesByTo {
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
+  '/konten/$konto': typeof AppKontenKontoRoute
   '/rechnungen/$id': typeof AppRechnungenIdRoute
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
@@ -344,6 +366,7 @@ export interface FileRoutesByTo {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
+  '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
@@ -352,6 +375,7 @@ export interface FileRoutesByTo {
   '/belege': typeof AppBelegeIndexRoute
   '/jahreserklaerung': typeof AppJahreserklaerungIndexRoute
   '/kontakte': typeof AppKontakteIndexRoute
+  '/konten': typeof AppKontenIndexRoute
   '/rechnungen': typeof AppRechnungenIndexRoute
   '/umsatzsteuer': typeof AppUmsatzsteuerIndexRoute
   '/archiv/beleg/$id': typeof AppArchivBelegIdRoute
@@ -379,6 +403,7 @@ export interface FileRoutesById {
   '/_app/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/_app/kontakte/$id': typeof AppKontakteIdRoute
   '/_app/kontakte/neu': typeof AppKontakteNeuRoute
+  '/_app/konten/$konto': typeof AppKontenKontoRoute
   '/_app/rechnungen/$id': typeof AppRechnungenIdRoute
   '/_app/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/_app/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
@@ -390,6 +415,7 @@ export interface FileRoutesById {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
+  '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
@@ -398,6 +424,7 @@ export interface FileRoutesById {
   '/_app/belege/': typeof AppBelegeIndexRoute
   '/_app/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/_app/kontakte/': typeof AppKontakteIndexRoute
+  '/_app/konten/': typeof AppKontenIndexRoute
   '/_app/rechnungen/': typeof AppRechnungenIndexRoute
   '/_app/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
   '/_app/archiv/beleg/$id': typeof AppArchivBelegIdRoute
@@ -425,6 +452,7 @@ export interface FileRouteTypes {
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
+    | '/konten/$konto'
     | '/rechnungen/$id'
     | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
@@ -436,6 +464,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
+    | '/api/konten/$jahr'
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
@@ -444,6 +473,7 @@ export interface FileRouteTypes {
     | '/belege/'
     | '/jahreserklaerung/'
     | '/kontakte/'
+    | '/konten/'
     | '/rechnungen/'
     | '/umsatzsteuer/'
     | '/archiv/beleg/$id'
@@ -469,6 +499,7 @@ export interface FileRouteTypes {
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
+    | '/konten/$konto'
     | '/rechnungen/$id'
     | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
@@ -480,6 +511,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
+    | '/api/konten/$jahr'
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
@@ -488,6 +520,7 @@ export interface FileRouteTypes {
     | '/belege'
     | '/jahreserklaerung'
     | '/kontakte'
+    | '/konten'
     | '/rechnungen'
     | '/umsatzsteuer'
     | '/archiv/beleg/$id'
@@ -514,6 +547,7 @@ export interface FileRouteTypes {
     | '/_app/jahreserklaerung/$jahr'
     | '/_app/kontakte/$id'
     | '/_app/kontakte/neu'
+    | '/_app/konten/$konto'
     | '/_app/rechnungen/$id'
     | '/_app/rechnungen/neu'
     | '/_app/umsatzsteuer/$zeitraum'
@@ -525,6 +559,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/export/$jahr'
+    | '/api/konten/$jahr'
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
@@ -533,6 +568,7 @@ export interface FileRouteTypes {
     | '/_app/belege/'
     | '/_app/jahreserklaerung/'
     | '/_app/kontakte/'
+    | '/_app/konten/'
     | '/_app/rechnungen/'
     | '/_app/umsatzsteuer/'
     | '/_app/archiv/beleg/$id'
@@ -556,6 +592,7 @@ export interface RootRouteChildren {
   ApiBelegIdRoute: typeof ApiBelegIdRoute
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
+  ApiKontenJahrRoute: typeof ApiKontenJahrRoute
   ApiMahnungIdRoute: typeof ApiMahnungIdRoute
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
@@ -704,6 +741,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppKontakteNeuRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/konten/': {
+      id: '/_app/konten/'
+      path: '/konten'
+      fullPath: '/konten/'
+      preLoaderRoute: typeof AppKontenIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/konten/$konto': {
+      id: '/_app/konten/$konto'
+      path: '/konten/$konto'
+      fullPath: '/konten/$konto'
+      preLoaderRoute: typeof AppKontenKontoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/rechnungen/': {
       id: '/_app/rechnungen/'
       path: '/rechnungen'
@@ -795,6 +846,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiExportJahrRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/konten/$jahr': {
+      id: '/api/konten/$jahr'
+      path: '/api/konten/$jahr'
+      fullPath: '/api/konten/$jahr'
+      preLoaderRoute: typeof ApiKontenJahrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/mahnung/$id': {
       id: '/api/mahnung/$id'
       path: '/api/mahnung/$id'
@@ -881,6 +939,7 @@ interface AppRouteChildren {
   AppJahreserklaerungJahrRoute: typeof AppJahreserklaerungJahrRoute
   AppKontakteIdRoute: typeof AppKontakteIdRoute
   AppKontakteNeuRoute: typeof AppKontakteNeuRoute
+  AppKontenKontoRoute: typeof AppKontenKontoRoute
   AppRechnungenIdRoute: typeof AppRechnungenIdRoute
   AppRechnungenNeuRoute: typeof AppRechnungenNeuRoute
   AppUmsatzsteuerZeitraumRoute: typeof AppUmsatzsteuerZeitraumRoute
@@ -889,6 +948,7 @@ interface AppRouteChildren {
   AppBelegeIndexRoute: typeof AppBelegeIndexRoute
   AppJahreserklaerungIndexRoute: typeof AppJahreserklaerungIndexRoute
   AppKontakteIndexRoute: typeof AppKontakteIndexRoute
+  AppKontenIndexRoute: typeof AppKontenIndexRoute
   AppRechnungenIndexRoute: typeof AppRechnungenIndexRoute
   AppUmsatzsteuerIndexRoute: typeof AppUmsatzsteuerIndexRoute
   AppArchivBelegIdRoute: typeof AppArchivBelegIdRoute
@@ -912,6 +972,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJahreserklaerungJahrRoute: AppJahreserklaerungJahrRoute,
   AppKontakteIdRoute: AppKontakteIdRoute,
   AppKontakteNeuRoute: AppKontakteNeuRoute,
+  AppKontenKontoRoute: AppKontenKontoRoute,
   AppRechnungenIdRoute: AppRechnungenIdRoute,
   AppRechnungenNeuRoute: AppRechnungenNeuRoute,
   AppUmsatzsteuerZeitraumRoute: AppUmsatzsteuerZeitraumRoute,
@@ -920,6 +981,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBelegeIndexRoute: AppBelegeIndexRoute,
   AppJahreserklaerungIndexRoute: AppJahreserklaerungIndexRoute,
   AppKontakteIndexRoute: AppKontakteIndexRoute,
+  AppKontenIndexRoute: AppKontenIndexRoute,
   AppRechnungenIndexRoute: AppRechnungenIndexRoute,
   AppUmsatzsteuerIndexRoute: AppUmsatzsteuerIndexRoute,
   AppArchivBelegIdRoute: AppArchivBelegIdRoute,
@@ -944,6 +1006,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBelegIdRoute: ApiBelegIdRoute,
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
+  ApiKontenJahrRoute: ApiKontenJahrRoute,
   ApiMahnungIdRoute: ApiMahnungIdRoute,
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
