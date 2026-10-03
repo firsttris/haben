@@ -264,6 +264,35 @@ test("Fristen und Kalender-Abo", async () => {
   expect((await page.request.get(url.replace(/token=.*/, "token=falsch"))).status()).toBe(404);
 });
 
+test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", async () => {
+  await go("/einstellungen");
+  const zugang = page.getByRole("form", { name: "E-Mail-Versand" });
+  // Port 1 auf dem eigenen Rechner: kein Mailserver, der Versand scheitert sofort und sichtbar
+  await zugang.getByLabel("SMTP-Server", { exact: true }).fill("127.0.0.1");
+  await zugang.getByLabel("Port", { exact: true }).fill("1");
+  await zugang.getByLabel("Benutzername", { exact: true }).fill("max");
+  await zugang.getByLabel("Passwort", { exact: true }).fill("geheim");
+  await zugang.getByLabel("Absender", { exact: true }).fill("rechnung@mustermann.example");
+  await zugang.getByLabel("Erinnerungen an", { exact: true }).fill("max@mustermann.example");
+  await zugang.getByRole("button", { name: "Speichern" }).click();
+  await expect(zugang.getByRole("status")).toHaveText("E-Mail-Zugang gespeichert.");
+
+  const rechnung = await firstLink("/rechnungen", /^\/rechnungen\/[0-9a-f-]{36}$/);
+  await go(rechnung!);
+  const bereich = page.getByRole("region", { name: "Per E-Mail" });
+  await bereich.getByRole("button", { name: "Rechnung senden" }).click();
+  const formular = bereich.getByRole("form", { name: "Rechnung per E-Mail senden" });
+  await expect(formular.getByLabel("Betreff", { exact: true })).toHaveValue(/^Rechnung \d{4}-\d{3} von Mustermann IT/);
+  await expect(formular.getByText(/Anhang: Rechnung-\d{4}-\d{3}\.pdf/)).toBeVisible();
+  await formular.getByLabel("An", { exact: true }).fill("buchhaltung@nordwerk.example");
+  await page.screenshot({ path: `${SHOTS}/desktop/04b-rechnung-email.png`, fullPage: true });
+  await formular.getByRole("button", { name: "Jetzt senden" }).click();
+  await expect(formular.getByRole("alert")).toContainText("Nicht gesendet");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText("fehlgeschlagen");
+});
+
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go("/auswertungen");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

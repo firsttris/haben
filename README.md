@@ -62,6 +62,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
   Einkommensteuererklärung mit Anlage S/G, Vorsorgeaufwand, Sonderausgaben, Kind und KAP, auch zusammen veranlagt;
   Prüfen, Test- und Echtübermittlung über ERiC; Belege der vorausgefüllten Steuererklärung (Lohnsteuerbescheinigung,
   Rentenbezüge, Beiträge) von ELSTER abrufen
+- **Rechnungen per E-Mail**: Rechnungen, Stornos und Mahnungen mit PDF bzw. XRechnung-XML direkt aus Haben verschicken,
+  mit Vorlagen und Protokoll; wiederkehrende Rechnungen auf Wunsch automatisch
 - **Fristen und Erinnerungen**: Voranmeldungen, Abgabefristen, Vorauszahlungen, Einspruchsfristen und Ablauf des
   Zertifikats auf einer Seite, als Kalender-Abo und per E-Mail über den eigenen SMTP-Zugang (auch Gmail)
 - **Post vom und an das Finanzamt**: Steuerbescheide aus dem ELSTER-Postfach abholen, Nachrichten über ELSTER,

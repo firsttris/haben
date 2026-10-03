@@ -77,7 +77,7 @@ function RecurringPage() {
                 <div>
                   {recurring.name} {!recurring.active && <span className="pill">inaktiv</span>}
                   {recurring.lastError && <span className="pill pill-warn">Fehler</span>}
-                  <div className="small muted">{recurring.mode === "festschreiben" ? "wird festgeschrieben" : "als Entwurf"}</div>
+                  <div className="small muted">{recurring.mode === "festschreiben" ? (recurring.sendByMail ? "wird festgeschrieben und gemailt" : "wird festgeschrieben") : "als Entwurf"}</div>
                 </div>
                 <div>{contactName}</div>
                 <div className="small">{RECURRING_INTERVALS[recurring.intervalMonths as RecurringInterval]}</div>

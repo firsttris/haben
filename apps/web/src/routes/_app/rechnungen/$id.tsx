@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
+import { SendMailForm } from "../../../components/SendMail.tsx";
 import { errorMessage, formatDate, formatDateTime } from "../../../lib/format.ts";
 import {
   cancelFinalInvoice,
@@ -79,7 +80,15 @@ function FinalInvoice({ data }: { data: Detail }) {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Was gerade per E-Mail versendet wird: die Rechnung oder eine Mahnung */
+  const [mailing, setMailing] = useState<{ kind: "rechnung" | "mahnung"; id: string } | null>(null);
+  const [mailNotice, setMailNotice] = useState<string | null>(null);
   const buyer = invoice.buyer as { name: string } | null;
+  const mailDone = (message: string) => {
+    setMailing(null);
+    setMailNotice(message);
+    void router.invalidate();
+  };
   const cancelled = correctedBy.find((c) => c.kind === "storno" && c.status === "final");
   const canAmend = invoice.kind === "rechnung" && !cancelled;
 
@@ -206,6 +215,46 @@ function FinalInvoice({ data }: { data: Detail }) {
             </p>
           </section>
 
+          <section className="card" aria-labelledby="mail-heading">
+            <h2 id="mail-heading">Per E-Mail</h2>
+            {data.mails.length > 0 ? (
+              data.mails.map((m) => (
+                <div key={m.id} className="history-row">
+                  <span>
+                    {m.kind === "mahnung" ? "Mahnung" : KIND_TITLE[invoice.kind]} an {m.recipient}
+                    {!m.ok && <span className="small" style={{ color: "var(--danger-ink)" }}> · fehlgeschlagen: {m.error}</span>}
+                  </span>
+                  <span className={`pill ${m.ok ? "pill-ok" : ""}`}>{formatDateTime(m.createdAt)}</span>
+                </div>
+              ))
+            ) : (
+              <p className="small muted" style={{ margin: 0 }}>
+                Noch nicht per E-Mail versendet.
+              </p>
+            )}
+            {mailNotice && (
+              <div className="banner banner-ok" role="status">
+                {mailNotice}
+              </div>
+            )}
+            {mailing?.kind === "rechnung" ? (
+              <SendMailForm kind="rechnung" id={invoice.id} onDone={mailDone} />
+            ) : (
+              <div className="actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setMailNotice(null);
+                    setMailing({ kind: "rechnung", id: invoice.id });
+                  }}
+                >
+                  {data.mails.some((m) => m.kind === "rechnung" && m.ok) ? "Erneut senden" : `${KIND_TITLE[invoice.kind]} senden`}
+                </button>
+              </div>
+            )}
+          </section>
+
           {(data.dunnings.length > 0 || data.overdue) && (
             <section className="card" aria-labelledby="dunning-heading">
               <h2 id="dunning-heading">Mahnungen</h2>
@@ -215,10 +264,21 @@ function FinalInvoice({ data }: { data: Detail }) {
                     {DUNNING_LEVELS[d.level as DunningLevel].label} vom {formatDate(d.date)}
                   </a>
                   <span className="small muted">
-                    {formatEuro(d.total)} bis {formatDate(d.dueDate)}
+                    {formatEuro(d.total)} bis {formatDate(d.dueDate)}{" "}
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => {
+                        setMailNotice(null);
+                        setMailing({ kind: "mahnung", id: d.id });
+                      }}
+                    >
+                      per E-Mail
+                    </button>
                   </span>
                 </div>
               ))}
+              {mailing?.kind === "mahnung" && <SendMailForm key={mailing.id} kind="mahnung" id={mailing.id} onDone={mailDone} />}
               {data.overdue && (
                 <div className="actions">
                   <Link to="/rechnungen/mahnwesen/$id" params={{ id: invoice.id }} className="btn">

@@ -60,6 +60,10 @@ export function MailCard({ data }: { data: Data }) {
           reminderTo: text("reminderTo"),
           remindersEnabled: form.get("remindersEnabled") === "on",
           reminderDays: days,
+          invoiceSubject: text("invoiceSubject"),
+          invoiceBody: text("invoiceBody"),
+          dunningSubject: text("dunningSubject"),
+          dunningBody: text("dunningBody"),
         },
       });
       (event.target as HTMLFormElement).querySelector<HTMLInputElement>("input[name=password]")!.value = "";
@@ -71,7 +75,7 @@ export function MailCard({ data }: { data: Data }) {
     <form className="card" onSubmit={onSubmit} aria-labelledby="mail-heading">
       <h2 id="mail-heading">E-Mail-Versand</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Haben schickt Erinnerungen an Fristen über deinen eigenen E-Mail-Zugang (SMTP). Bei Gmail, GMX und web.de brauchst du dafür ein
+        Haben schickt Rechnungen, Mahnungen und Erinnerungen an Fristen über deinen eigenen E-Mail-Zugang (SMTP). Bei Gmail, GMX und web.de brauchst du dafür ein
         App-Passwort bzw. musst SMTP im Postfach freischalten. Das Passwort liegt verschlüsselt in der Datenbank.
       </p>
       <label className="field">
@@ -143,6 +147,32 @@ export function MailCard({ data }: { data: Data }) {
           Morgens nach 7 Uhr, mehrere Fristen in einer Mail; Überfälliges einmal. Erledigte Fristen werden nicht erinnert.
         </p>
       </fieldset>
+      <details>
+        <summary style={{ cursor: "pointer", fontWeight: 500 }}>Vorlagen für Rechnungen und Mahnungen</summary>
+        <div className="stack" style={{ gap: 10, marginTop: 10 }}>
+          <p className="small muted" style={{ margin: 0 }}>
+            Leer lassen für den Standardtext. Platzhalter: {"{art}"} (Rechnung, Stornorechnung …), {"{nummer}"}, {"{datum}"}, {"{betrag}"},{" "}
+            {"{faellig}"}, {"{zahlbar}"} („, zahlbar bis zum …“, nur bei Rechnungen), {"{kunde}"}, {"{firma}"}; für Mahnungen zusätzlich{" "}
+            {"{stufe}"} und {"{frist}"}, {"{betrag}"} ist dort der offene Gesamtbetrag.
+          </p>
+          <label className="field">
+            Betreff Rechnung
+            <input name="invoiceSubject" defaultValue={s?.invoiceSubject ?? ""} placeholder={data.defaults.invoiceSubject} />
+          </label>
+          <label className="field">
+            Text Rechnung
+            <textarea name="invoiceBody" rows={6} defaultValue={s?.invoiceBody ?? ""} placeholder={data.defaults.invoiceBody} />
+          </label>
+          <label className="field">
+            Betreff Mahnung
+            <input name="dunningSubject" defaultValue={s?.dunningSubject ?? ""} placeholder={data.defaults.dunningSubject} />
+          </label>
+          <label className="field">
+            Text Mahnung
+            <textarea name="dunningBody" rows={6} defaultValue={s?.dunningBody ?? ""} placeholder={data.defaults.dunningBody} />
+          </label>
+        </div>
+      </details>
       <div className="actions" style={{ flexWrap: "wrap" }}>
         <button type="submit" className="btn btn-primary" disabled={busy}>
           Speichern

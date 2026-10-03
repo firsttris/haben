@@ -55,6 +55,7 @@ function NewRecurringPage() {
           endDate: null,
           servicePeriod: "laufend",
           mode: "entwurf",
+          sendByMail: false,
         }}
         contacts={contacts}
         kleinunternehmer={defaults.kleinunternehmer}

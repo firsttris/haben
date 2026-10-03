@@ -87,6 +87,7 @@ function RecurringDetailPage() {
             endDate: recurring.endDate,
             servicePeriod: recurring.servicePeriod as ServicePeriodMode,
             mode: recurring.mode,
+            sendByMail: recurring.sendByMail,
           }}
           contacts={contacts}
           kleinunternehmer={defaults.kleinunternehmer}

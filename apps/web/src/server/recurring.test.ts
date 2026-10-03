@@ -52,7 +52,7 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
 
   it("holt verpasste Termine als Entwürfe nach, mit Platzhaltern und Leistungszeitraum", async () => {
     const created = await recurring.createRecurring(actor, template());
-    expect(await recurring.runDueRecurring("2026-10-02")).toEqual({ created: 2, finalized: 0, errors: [] });
+    expect(await recurring.runDueRecurring("2026-10-02")).toEqual({ created: 2, finalized: 0, mailed: 0, errors: [] });
     const rows = await sql`select i.issue_date::text, i.service_from::text, i.service_to::text, i.status, i.note, l.description
       from invoices i join invoice_lines l on l.invoice_id = i.id order by i.issue_date`;
     expect(rows.map((r) => ({ ...r }))).toEqual([
@@ -67,7 +67,7 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
 
   it("schreibt fest und endet nach dem Enddatum", async () => {
     const created = await recurring.createRecurring(actor, template({ mode: "festschreiben", nextDate: "2026-09-01", endDate: "2026-10-15" }));
-    expect(await recurring.runDueRecurring("2026-12-01")).toEqual({ created: 2, finalized: 2, errors: [] });
+    expect(await recurring.runDueRecurring("2026-12-01")).toEqual({ created: 2, finalized: 2, mailed: 0, errors: [] });
     const numbers = await sql`select number from invoices where status = 'final' order by number`;
     expect(numbers.map((r) => r.number)).toEqual(["2026-001", "2026-002"]);
     const [after] = await sql`select active from recurring_invoices where id = ${created.id}`;

@@ -14,6 +14,8 @@ import { z } from "zod";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { createDraft, finalizeInvoice, InvoiceError } from "./invoices.ts";
+import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
+import { MailError } from "./mail.ts";
 
 export type RecurringInvoice = typeof schema.recurringInvoices.$inferSelect;
 
@@ -39,15 +41,19 @@ export const recurringInputSchema = z.object({
   endDate: isoDate.nullable(),
   servicePeriod: z.enum(["laufend", "vorher", "keiner"]),
   mode: z.enum(["entwurf", "festschreiben"]),
+  /** Nur mit festschreiben wirksam */
+  sendByMail: z.boolean().default(false),
 });
 
-export type RecurringInput = z.infer<typeof recurringInputSchema>;
+export type RecurringInput = z.input<typeof recurringInputSchema>;
 
-function values(input: RecurringInput) {
+function values(raw: RecurringInput) {
+  const input = recurringInputSchema.parse(raw);
   if (input.endDate && input.endDate < input.nextDate) throw new RecurringError("Das Enddatum liegt vor dem nächsten Termin.");
   return {
     ...input,
     exemptionReason: input.taxTreatment === "regulaer" ? "" : input.exemptionReason,
+    sendByMail: input.mode === "festschreiben" && input.sendByMail,
     anchorDay: Number(input.nextDate.slice(8, 10)),
     updatedAt: new Date(),
   };
@@ -137,6 +143,8 @@ export function invoiceForDate(recurring: RecurringInvoice, date: string) {
 export interface RunResult {
   created: number;
   finalized: number;
+  /** per E-Mail an den Kunden geschickt */
+  mailed: number;
   errors: string[];
 }
 
@@ -145,7 +153,7 @@ export interface RunResult {
  * Je Termin entsteht höchstens eine Rechnung (eindeutiger Index), auch wenn zwei Läufe gleichzeitig starten.
  */
 export async function runDueRecurring(today: string): Promise<RunResult> {
-  const result: RunResult = { created: 0, finalized: 0, errors: [] };
+  const result: RunResult = { created: 0, finalized: 0, mailed: 0, errors: [] };
   const due = await db
     .select()
     .from(schema.recurringInvoices)
@@ -180,6 +188,19 @@ export async function runDueRecurring(today: string): Promise<RunResult> {
           // Entwurf bleibt stehen, damit nichts verloren geht
           lastError = `Rechnung vom ${date} als Entwurf angelegt, Festschreiben fehlgeschlagen: ${error.message}`;
           result.errors.push(`${recurring.name}: ${lastError}`);
+          continue;
+        }
+        if (recurring.sendByMail) {
+          try {
+            const sent = await sendInvoiceMailWithTemplate(RECURRING_ACTOR, draftId);
+            if (sent.ok) result.mailed++;
+            else throw new MailError(sent.error ?? "unbekannter Fehler");
+          } catch (error) {
+            if (!(error instanceof MailError)) throw error;
+            // Die Rechnung ist festgeschrieben; nur der Versand fehlt, von Hand auf der Rechnungsseite nachholbar
+            lastError = `Rechnung vom ${date} festgeschrieben, E-Mail nicht gesendet: ${error.message}`;
+            result.errors.push(`${recurring.name}: ${lastError}`);
+          }
         }
       }
     }

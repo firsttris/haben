@@ -155,7 +155,7 @@ Für Monatspauschalen, Wartungsverträge oder Hosting legst du unter **Rechnunge
 | Nächste Rechnung am | Rechnungsdatum des nächsten Termins. Die folgenden Termine liegen am selben Tag im Monat; der 31. wird in kürzeren Monaten zum Monatsende und springt danach zurück. |
 | Endet nach dem | optional. Danach wird die Vorlage inaktiv. |
 | Leistungszeitraum | **Laufend:** die Monate ab dem Rechnungsmonat (Vorauszahlung). **Vergangen:** die Monate davor (Abrechnung). **Keiner:** ohne Leistungszeitraum, dann gilt das Rechnungsdatum. |
-| Was am Termin passiert | **Entwurf anlegen:** du prüfst und schreibst selbst fest. **Direkt festschreiben:** Nummer, PDF, XML und Buchung wie beim Festschreiben von Hand. |
+| Was am Termin passiert | **Entwurf anlegen:** du prüfst und schreibst selbst fest. **Direkt festschreiben:** Nummer, PDF, XML und Buchung wie beim Festschreiben von Hand; auf Wunsch **und per E-Mail an den Kunden schicken** (Vorlage und Adresse wie beim [Versand von Hand](#per-e-mail-versenden)). |
 | Kunde, Positionen, Zahlungsziel, Format, Umsatzsteuer, Hinweis | wie im Rechnungseditor |
 
 In Beschreibungen und im Hinweis ersetzt Haben Platzhalter:
@@ -171,7 +171,7 @@ Bezug ist der Leistungszeitraum, ohne Leistungszeitraum das Rechnungsdatum. „W
 
 **Wann die Rechnungen entstehen:** Der Server prüft kurz nach dem Start und danach stündlich, welche Termine fällig sind. War Haben aus, werden verpasste Termine mit ihrem eigenen Datum nachgeholt. Je Termin entsteht höchstens eine Rechnung, auch bei mehreren gleichzeitigen Läufen. Mit **… fällige jetzt anlegen** in der Liste startest du den Lauf sofort.
 
-Scheitert das Festschreiben, etwa weil in den Firmendaten die IBAN fehlt, bleibt die Rechnung als Entwurf stehen. Die Vorlage zeigt den Fehler, bis du sie das nächste Mal speicherst.
+Scheitert das Festschreiben, etwa weil in den Firmendaten die IBAN fehlt, bleibt die Rechnung als Entwurf stehen. Scheitert nur der E-Mail-Versand (kein E-Mail-Zugang, keine Adresse beim Kunden, Server nicht erreichbar), ist die Rechnung festgeschrieben und du schickst sie auf ihrer Seite von Hand. Die Vorlage zeigt den Fehler, bis du sie das nächste Mal speicherst.
 
 Die Seite einer Vorlage listet alle daraus erzeugten Rechnungen. Löschen lässt sich eine Vorlage nur, solange daraus keine Rechnung entstanden ist; sonst deaktivierst du sie.
 
@@ -206,7 +206,7 @@ Auf der Seite der Rechnung stehen alle Mahnungen mit Link zum PDF, bei überfäl
 
 **Gebühren und Zinsen buchen:** Sie sind keine Rechnung und erhöhen nicht die Forderung. Zahlt der Kunde mehr als die Rechnung, ordnest du im Bankabgleich die Rechnung und den Rest als **Mahngebühren und Verzugszinsen** zu. Gebucht wird Bank an 2650 bzw. 7100 „Sonstige Zinsen und ähnliche Erträge“, ohne Umsatzsteuer (Schadensersatz, kein Entgelt). In der EÜR zählt das als umsatzsteuerfreie Betriebseinnahme.
 
-Haben verschickt keine E-Mails; das PDF sendest du selbst.
+Jede Mahnung lässt sich auf der Seite der Rechnung **per E-Mail** schicken, mit dem PDF der Mahnung im Anhang (siehe [Per E-Mail versenden](#per-e-mail-versenden)).
 
 ## Rechnungsliste und Status
 
@@ -231,6 +231,36 @@ Die Detailseite zeigt das PDF, die Eckdaten (Kunde, Rechnungsdatum, Fälligkeit,
 - **XML herunterladen** liefert `Rechnung-<Nummer>-cii.xml` bzw. `-ubl.xml`. Bei ZUGFeRD ist das dasselbe XML, das im PDF steckt.
 
 Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreiben entstanden sind. Sie werden nie neu erzeugt.
+
+## Per E-Mail versenden
+
+Mit einem E-Mail-Zugang ([Einstellungen › E-Mail-Versand](einrichtung.md#e-mail)) verschickt Haben festgeschriebene Rechnungen, Stornos, Korrekturen und Mahnungen. Auf der Seite der Rechnung unter **Per E-Mail**:
+
+1. **Rechnung senden** öffnet das Formular. Vorbelegt sind die E-Mail-Adresse des Kunden (aus der Rechnung, sonst aus dem Kontakt), Betreff und Text aus der Vorlage. Alles lässt sich vor dem Senden ändern; mehrere Empfänger trennst du mit Komma (höchstens fünf).
+2. **Blindkopie an mich** schickt eine Kopie an den Absender aus den Einstellungen.
+3. **Jetzt senden** verschickt die Mail sofort.
+
+| Format | Anhang |
+| --- | --- |
+| ZUGFeRD | `Rechnung-<Nummer>.pdf` mit eingebettetem XML |
+| XRechnung | `Rechnung-<Nummer>.pdf` zur Ansicht und `Rechnung-<Nummer>-cii.xml` bzw. `-ubl.xml` als E-Rechnung |
+| Mahnung | das PDF der Mahnung, z. B. `Zahlungserinnerung-<Nummer>.pdf` |
+
+Jeder Versand steht mit Zeitpunkt und Empfänger unter **Per E-Mail**, auch fehlgeschlagene mit der Meldung des Servers. In der Rechnungsliste markiert ✉ per E-Mail versendete Rechnungen. Das Protokoll ist unveränderlich (`mail_log`).
+
+**Vorlagen:** Betreff und Text für Rechnungen und Mahnungen stellst du unter Einstellungen › E-Mail-Versand › Vorlagen ein; leer heißt Standardtext. Platzhalter:
+
+| Platzhalter | Inhalt |
+| --- | --- |
+| `{art}` | Rechnung, Stornorechnung oder Rechnungskorrektur |
+| `{nummer}`, `{datum}` | Rechnungsnummer und -datum |
+| `{betrag}` | Bruttobetrag, bei Mahnungen der offene Gesamtbetrag mit Gebühren und Zinsen |
+| `{faellig}` | Fälligkeit der Rechnung |
+| `{zahlbar}` | „, zahlbar bis zum …“ bei Rechnungen mit Betrag, sonst leer |
+| `{kunde}`, `{firma}` | Name des Kunden und deiner Firma |
+| `{stufe}`, `{frist}` | nur Mahnungen: Zahlungserinnerung, 1. Mahnung oder Letzte Mahnung und die neue Zahlungsfrist |
+
+Öffentliche Auftraggeber verlangen XRechnungen oft über ihr eigenes Portal (ZRE, OZG-RE oder Peppol) statt per E-Mail; das kann Haben nicht.
 
 ## Storno und Rechnungskorrektur
 
@@ -293,4 +323,4 @@ Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten 
 - Keine innergemeinschaftlichen Lieferungen von Waren (§ 4 Nr. 1b UStG) und keine Zusammenfassende Meldung; die ZM für Reverse-Charge-Rechnungen gibst du selbst ab.
 - Keine Abschlags- oder Schlussrechnungen, keine Skonto-Angaben, keine Zu- oder Abschläge auf Belegebene.
 - Höchstens 200 Positionen je Rechnung.
-- Haben versendet Rechnungen nicht; du lädst PDF oder XML herunter und verschickst sie selbst.
+- Rechnungen gehen per E-Mail über deinen SMTP-Zugang, nicht über Peppol oder die Portale öffentlicher Auftraggeber.

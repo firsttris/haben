@@ -56,6 +56,11 @@ function InvoicesPage() {
                 <div className="num">{formatEuro(invoice.gross)}</div>
                 <div>
                   <InvoiceStatus status={invoice.listStatus} />
+                  {invoice.mailed && (
+                    <span className="small muted" title="per E-Mail versendet" style={{ marginLeft: 6 }}>
+                      ✉<span className="visually-hidden"> per E-Mail versendet</span>
+                    </span>
+                  )}
                 </div>
               </Link>
             ))}
