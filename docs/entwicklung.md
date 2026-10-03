@@ -68,7 +68,7 @@ Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kom
 | Bereich | Was getestet wird |
 | --- | --- |
 | `packages/core` | Beträge und Rundung, Rechnungssummen und Nummernformat, Zeiträume und Fälligkeit der Voranmeldung, Feiertage je Bundesland, Steuerfälle von Rechnungen, Steuernummer-Umrechnung, Kennzahlen der UStVA, Buchungssätze für SKR03/SKR04 und Ist/Soll, Zuordnungsvorschläge im Bankabgleich, EÜR, Umsatzsteuer des Lexoffice-Altbestands |
-| `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 10), XML der Umsatzsteuererklärung und der Anlage EÜR mit AVEÜR, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz), Mock-ERiC über koffi und ERiC-Download (Entpacken nur Linux, Umschalten erst bei vollständiger Version, Pfade im Archiv) |
+| `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 10), XML der Umsatzsteuererklärung, der Anlage EÜR mit AVEÜR und der Sonstigen Nachricht, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz), Mock-ERiC über koffi und ERiC-Download (Entpacken nur Linux, Umschalten erst bei vollständiger Version, Pfade im Archiv) |
 | `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno und Leitweg-ID, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
 | `packages/import` | DKB- (neu und alt), N26- und CAMT.053-Parser, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel, Lexoffice-API-Client (Paging, 429, Fehler) und Abbildung der Lexoffice-Daten |
 | `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge |

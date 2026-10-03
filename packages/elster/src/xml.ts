@@ -39,6 +39,8 @@ export function datenartVersionFromXml(xml: string): string | undefined {
   if (ustva?.[1]) return ustvaDatenartVersion(Number(ustva[1]));
   const erklaerung = /<(E50|E77)\b[^>]*\bversion="(\d{4})"/.exec(xml);
   if (erklaerung?.[1] && erklaerung[2]) return `${erklaerung[1] === "E50" ? "USt" : "EUER"}_${erklaerung[2]}`;
+  const nachricht = /<DatenArt>(SonstigeNachrichten)<\/DatenArt>[\s\S]*<Nachricht\b[^>]*\bversion="(\d+)"/.exec(xml);
+  if (nachricht?.[1] && nachricht[2]) return `${nachricht[1]}_${nachricht[2]}`;
   return undefined;
 }
 

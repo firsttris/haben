@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
+import { buildNachrichtXml } from "./nachricht.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { buildUstvaXml, TEST_HERSTELLER_ID } from "./xml.ts";
 
@@ -122,9 +123,27 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
   it("sendet mit Flags, Druck- und Verschlüsselungsparametern", async () => {
     const result = await client().send(xml(), new Uint8Array([1]), "geheim", { test: true });
     expect(result.ok).toBe(true);
-    expect(result.responseXml).toMatch(/<F>38<\/F><D>2:[^<]*protokoll\.pdf<\/D><C>3:42:geheim<\/C>/);
+    expect(result.responseXml).toMatch(/<F>38<\/F><D>4:[^<]*protokoll\.pdf<\/D><C>3:42:geheim<\/C>/);
     expect(result.transferTicket).toBe("tt-123");
     expect(Buffer.from(result.pdf!).toString()).toBe("%PDF-mock");
+  });
+
+  it("sendet Nachrichten ohne Transferhandle und ohne Druck", async () => {
+    const nachricht = buildNachrichtXml({
+      steuernummer13: "9198011310010",
+      bundesland: "BY",
+      absender: { name: "Testfirma", strasse: "Musterstraße 1", plz: "93047", ort: "Regensburg" },
+      betreff: "Test",
+      text: "Hallo",
+      herstellerId: "74931",
+      produktVersion: "0.1.0",
+      test: true,
+    });
+    const result = await client().send(nachricht, new Uint8Array([1]), "geheim", { test: true, print: false });
+    expect(result.ok).toBe(true);
+    expect(result.responseXml).toMatch(/<V>SonstigeNachrichten_21<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
+    expect(result.responseXml).toContain("<TH>(nil)</TH>");
+    expect(result.pdf).toBeUndefined();
   });
 
   it("überlebt einen Segfault in der Bibliothek", async () => {

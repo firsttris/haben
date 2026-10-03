@@ -154,7 +154,7 @@ Die PIN fragt Haben bei jeder Übermittlung ab und speichert sie nie. Für den V
 Vor dem Senden prüft Haben die Firmendaten: Name, Anschrift, Bundesland und eine gültige Steuernummer müssen vorhanden sein.
 
 > [!IMPORTANT]
-> Die ERiC-Anbindung ist bisher nur gegen eine nachgebaute Bibliothek getestet. Vor dem ersten echten Lauf sollten in `packages/elster/src/eric.ts` die Strukturen `eric_druck_parameter_t` (Version 2) und `eric_verschluesselungs_parameter_t` (Version 3), die Flag-Kombination `ERIC_VALIDIERE | ERIC_SENDE | ERIC_DRUCKE` sowie Namespace und Elementreihenfolge im UStVA-XML mit der `ericapi.h` des installierten ERiC verglichen werden. Die erste Prüfung mit echtem ERiC zeigt, ob das stimmt. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
+> Die ERiC-Anbindung ist gegen eine nachgebaute Bibliothek getestet; Funktionssignaturen, Flags und die Strukturen `eric_druck_parameter_t` (Version 4) und `eric_verschluesselungs_parameter_t` (Version 3) entsprechen den Headern von ERiC 43. Die erste Prüfung mit echtem ERiC zeigt, ob alles passt. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
 
 Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatzsteuer](umsatzsteuer.md).
 
