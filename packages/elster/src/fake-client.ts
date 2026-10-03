@@ -3,7 +3,8 @@
  * Es wird nichts übermittelt; Ticket und Protokoll sind erfunden.
  */
 import { randomBytes } from "node:crypto";
-import { failure, type ElsterClient, type ElsterResult, type PostfachOptions, type PostfachResult, type SendOptions } from "./types.ts";
+import { buildVastAnfrageXml, type VastXmlInput } from "./vast.ts";
+import { failure, type BelegabrufResult, type ElsterClient, type ElsterResult, type PostfachOptions, type PostfachResult, type SendOptions } from "./types.ts";
 import { hasTestmerker } from "./xml.ts";
 
 export const FAKE_HINWEIS = "Testprotokoll – keine echte Übermittlung";
@@ -60,6 +61,46 @@ export class FakeElsterClient implements ElsterClient {
         },
       ],
       dateien: [{ referenzId: `fake-anhang-${jahr}`, inhalt: fakeProtokollPdf() }],
+    };
+  }
+
+  /** Liefert zwei erfundene Belege im Aufbau der ELSTER-Beispiele (Rentenbezugsmitteilung, persönliche Daten). */
+  async fetchBelege(input: VastXmlInput, certificate: Uint8Array, pin: string): Promise<BelegabrufResult> {
+    const leer = { requestXml: "", liste: [], belege: [] };
+    let requestXml: string;
+    try {
+      requestXml = buildVastAnfrageXml(input);
+    } catch (error) {
+      return { ...failure(error instanceof Error ? error.message : String(error)), ...leer };
+    }
+    const sent = await this.send(requestXml, certificate, pin, { test: input.test, print: false });
+    if (!sent.ok) return { ...sent, ...leer, requestXml };
+    const jahr = input.veranlagungsjahr;
+    const belege = [
+      {
+        ref: { id: `fake-rbm-${jahr}`, belegart: "VaSt_RBM", groesse: 1, hashwert: "", schemaversion: "202001" },
+        xml:
+          `<?xml version="1.0" encoding="UTF-8"?><VaSt_RBM version="202001"><Eingangsdatum>01.03.${jahr + 1} 00:00:00</Eingangsdatum>` +
+          `<LeistungsEmpfaenger><IdNr>${input.idnr}</IdNr><Vorname>ERIKA</Vorname><Name>MUSTER</Name></LeistungsEmpfaenger>` +
+          `<Mitteilung><Zuflussjahr>${jahr}</Zuflussjahr><MitteilungsPflichtigerName>Testrentenkasse (Fake)</MitteilungsPflichtigerName>` +
+          `<Leistung><Waehrung>EUR</Waehrung><Teilleistung><Grundlage>01</Grundlage><Betrag>1200.00</Betrag></Teilleistung></Leistung>` +
+          `<Krankenversicherung><Beitragsart>01</Beitragsart><Beginn>01</Beginn><Ende>12</Ende><Jahr>${jahr}</Jahr><Betrag>98.40</Betrag></Krankenversicherung>` +
+          `</Mitteilung></VaSt_RBM>`,
+      },
+      {
+        ref: { id: `fake-pers1-${jahr}`, belegart: "VaSt_Pers1", groesse: 1, hashwert: "", schemaversion: "4" },
+        xml:
+          `<?xml version="1.0" encoding="UTF-8"?><Belege><VaSt_Pers1 version="4"><Inhaber><NatPers><Vorname>ERIKA</Vorname><Name>MUSTER</Name>` +
+          `<SteuerIDs><PersIdNr>${input.idnr}</PersIdNr></SteuerIDs><AdrKette><StrAdr><Str>Teststraße</Str><HausNr>1</HausNr>` +
+          `<Plz>12345</Plz><Ort>Testort</Ort></StrAdr></AdrKette></NatPers></Inhaber></VaSt_Pers1></Belege>`,
+      },
+    ];
+    return {
+      ...sent,
+      message: "Belegabruf simuliert (Fake, nichts wurde bei ELSTER abgeholt).",
+      requestXml,
+      liste: belege.map((b) => b.ref),
+      belege: belege.map((b) => ({ id: b.ref.id, xml: b.xml })),
     };
   }
 }

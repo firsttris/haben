@@ -93,6 +93,23 @@ Beträge gehen in vollen Euro an ELSTER, nur die Steuern auf Kapitalerträge mit
 
 Nicht abgebildet sind unter anderem Arbeitslohn (Anlage N, etwa für einen angestellten Ehegatten), Renten, Vermietung, Unterhalt, Riester sowie Kinder mit anderem Kindschaftsverhältnis oder Wohnsitz im Ausland. Brauchst du davon etwas, gibst du die Erklärung im ELSTER-Portal ab, statt sie hier zu senden; ein Nachsenden einzelner Anlagen ist nicht möglich.
 
+## Belege von ELSTER
+
+Arbeitgeber, Rentenversicherung, Krankenkassen und andere Stellen melden dem Finanzamt Daten für die Steuererklärung: Lohnsteuerbescheinigung, Rentenbezüge, Beiträge zur Kranken- und Pflegeversicherung, Lohnersatzleistungen und mehr. Diese Belege der vorausgefüllten Steuererklärung (VaSt) holt Haben unter **Belege von ELSTER** auf der Seite des Jahres ab:
+
+1. Persönliche Angaben mit Steuer-ID hinterlegen ([Einstellungen](einrichtung.md#persönliche-angaben)) und das ELSTER-Zertifikat hochladen.
+2. Person wählen (bei Zusammenveranlagung), PIN eingeben, **Belege abrufen**. Ist der automatische Postfachabruf an, reicht die gespeicherte PIN.
+3. Haben fragt die Liste der Belege für Steuer-ID und Jahr ab, holt alle Belege in einem zweiten Schritt und entschlüsselt sie mit dem Zertifikat.
+
+Jeder Beleg erscheint mit seiner Art und allen gemeldeten Werten; Beträge zeigt Haben in Euro, Datumsangaben als Datum. Das XML lässt sich so öffnen, wie es von ELSTER kam. Abrufe und Belege sind wie Postfach-Abrufe unveränderlich gespeichert, das Beleg-XML steht wegen der persönlichen Daten nicht im Audit-Log. Wiederholte Abrufe legen nur neue Belege ab; eine berichtigte Meldung kommt bei ELSTER mit neuer ID. Testbelege blendet Haben aus, sobald es echte für das Jahr gibt.
+
+Gut zu wissen:
+
+- Die meisten Meldungen liegen ab Ende Februar des Folgejahres vor; die Belege lassen sich beliebig oft abrufen, eine Bestätigung wie beim Postfach gibt es nicht.
+- Mit dem eigenen Zertifikat, das mit deiner Steuer-ID registriert ist, holst du deine eigenen Belege. Für die Belege des Ehegatten braucht dein Zertifikat eine Abrufberechtigung, die du in Mein ELSTER beantragst; der Freischaltcode kommt per Brief an den Ehegatten. Alternativ ruft der Ehegatte mit dem eigenen Zertifikat ab.
+- Der Testabruf trägt den Testmerker der Datenabholung (`370000001`). Ohne ERiC liefert er zwei erfundene Beispielbelege.
+- Haben übernimmt die Werte noch nicht von selbst in die Erklärung. Die Belege dienen zum Abgleich mit den Angaben oben; das Finanzamt hat sie ohnehin und gleicht selbst ab. Für eine sichere Zuordnung zu den Feldern fehlen die Schemas der einzelnen Belegarten ([Roadmap](roadmap.md#blockiert)).
+
 ## Herkunft der Feldkennungen
 
 Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen.

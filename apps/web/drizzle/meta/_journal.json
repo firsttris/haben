@@ -232,6 +232,20 @@
       "when": 1791015409920,
       "tag": "0032_postfach_auto_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791028310159,
+      "tag": "0033_vast",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791028311270,
+      "tag": "0034_vast_trigger",
+      "breakpoints": true
     }
   ]
 }

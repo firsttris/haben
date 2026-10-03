@@ -8,6 +8,7 @@
  */
 import { parsePostfachAntwort, type PostfachBereitstellung } from "./postfach.ts";
 import { parseTransferTicket } from "./ticket.ts";
+import { buildVastAbholungXml, parseVastBelegListe, parseVastDatenpakete, VAST_DATENART_VERSION, type VastBelegRef, type VastXmlInput } from "./vast.ts";
 
 export const ERIC_OK = 0;
 export const ERIC_VALIDIERE = 1 << 1;
@@ -26,8 +27,11 @@ export interface EricConfig {
 }
 
 export interface EricRequest {
-  /** postfach: PostfachAnfrage senden und die Anhänge über Otto herunterladen (ohne Bestätigung) */
-  op: "validate" | "send" | "postfach";
+  /**
+   * postfach: PostfachAnfrage senden und die Anhänge über Otto herunterladen (ohne Bestätigung);
+   * vast: Belegliste anfragen (xml), alle Belege abholen und entschlüsseln
+   */
+  op: "validate" | "send" | "postfach" | "vast";
   xml: string;
   datenartVersion: string;
   /** nur bei send */
@@ -37,6 +41,24 @@ export interface EricRequest {
   pdfPath?: string;
   /** nur bei postfach: für den Download über Otto */
   herstellerId?: string;
+  /** nur bei vast: Angaben für die Abholung, passend zur Anfrage in xml */
+  vast?: VastXmlInput;
+}
+
+/** Ein entschlüsselter Beleg oder der Grund, warum er fehlt */
+export interface VastBelegDatei {
+  id: string;
+  xml?: string;
+  fehler?: string;
+}
+
+/** Zweiter Schritt des Belegabrufs, für das Protokoll */
+export interface VastAbholung {
+  requestXml: string;
+  code: number;
+  message: string;
+  responseXml: string;
+  serverResponseXml: string;
 }
 
 /** Ein heruntergeladener Anhang; Inhalt base64, weil er per IPC als JSON reist */
@@ -53,6 +75,7 @@ export interface EricRawResult {
   serverResponseXml: string;
   transferTicket?: string;
   postfach?: { bereitstellungen: PostfachBereitstellung[]; dateien: PostfachDatei[] };
+  vast?: { liste: VastBelegRef[]; abholung?: VastAbholung; belege: VastBelegDatei[] };
 }
 
 export function ericLibraryPath(ericHome: string): string {
@@ -79,6 +102,7 @@ interface EricApi {
   EricGetHandleToCertificate: Fn;
   EricCloseHandleToCertificate: Fn;
   EricBearbeiteVorgang: Fn;
+  EricDekodiereDaten: Fn;
 }
 
 async function loadEric(libraryPath: string): Promise<EricApi> {
@@ -124,6 +148,9 @@ async function loadEric(libraryPath: string): Promise<EricApi> {
         "_Inout_ uint32_t *transferHandle, EricRueckgabepufferHandle rueckgabeXmlPuffer, " +
         "EricRueckgabepufferHandle serverantwortXmlPuffer)",
     ),
+    EricDekodiereDaten: lib.func(
+      "int EricDekodiereDaten(uint32_t zertifikatHandle, const char *pin, const char *base64Eingabe, EricRueckgabepufferHandle rueckgabePuffer)",
+    ),
   };
 }
 
@@ -137,15 +164,13 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
     return { code: initCode, message: fehlerText(eric, initCode), responseXml: "", serverResponseXml: "" };
   }
 
-  const rueckgabe = eric.EricRueckgabepufferErzeugen();
-  const serverantwort = eric.EricRueckgabepufferErzeugen();
   let zertifikatHandle: number | undefined;
   try {
     let flags = ERIC_VALIDIERE;
     let druck: object | null = null;
     let crypto: object | null = null;
 
-    if (request.op === "send" || request.op === "postfach") {
+    if (request.op === "send" || request.op === "postfach" || request.op === "vast") {
       if (!request.certificatePath || request.pin === undefined) {
         throw new Error("Senden braucht Zertifikat und PIN.");
       }
@@ -177,28 +202,37 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
       };
     }
 
-    // Laut ericapi.h nur bei der Datenabholung (Postfach) ein Transferhandle, sonst immer NULL
-    const transferHandle = request.datenartVersion.startsWith("Postfach") ? [0] : null;
-    const code = eric.EricBearbeiteVorgang(
-      request.xml,
-      request.datenartVersion,
-      flags,
-      druck,
-      crypto,
-      transferHandle,
-      rueckgabe,
-      serverantwort,
-    ) as number;
-
-    const responseXml = (eric.EricRueckgabepufferInhalt(rueckgabe) as string | null) ?? "";
-    const serverResponseXml = (eric.EricRueckgabepufferInhalt(serverantwort) as string | null) ?? "";
-    const result: EricRawResult = {
-      code,
-      message: fehlerText(eric, code),
-      responseXml,
-      serverResponseXml,
-      transferTicket: parseTransferTicket(serverResponseXml),
+    // Laut ericapi.h nur bei der Datenabholung (Postfach, Belegabruf) ein Transferhandle, sonst immer NULL
+    const datenabholung = request.datenartVersion.startsWith("Postfach") || request.datenartVersion === VAST_DATENART_VERSION;
+    const bearbeite = (xml: string) => {
+      const rueckgabe = eric.EricRueckgabepufferErzeugen();
+      const serverantwort = eric.EricRueckgabepufferErzeugen();
+      try {
+        const code = eric.EricBearbeiteVorgang(
+          xml,
+          request.datenartVersion,
+          flags,
+          druck,
+          crypto,
+          datenabholung ? [0] : null,
+          rueckgabe,
+          serverantwort,
+        ) as number;
+        return {
+          code,
+          message: fehlerText(eric, code),
+          responseXml: (eric.EricRueckgabepufferInhalt(rueckgabe) as string | null) ?? "",
+          serverResponseXml: (eric.EricRueckgabepufferInhalt(serverantwort) as string | null) ?? "",
+        };
+      } finally {
+        eric.EricRueckgabepufferFreigeben(rueckgabe);
+        eric.EricRueckgabepufferFreigeben(serverantwort);
+      }
     };
+
+    const first = bearbeite(request.xml);
+    const { code, serverResponseXml } = first;
+    const result: EricRawResult = { ...first, transferTicket: parseTransferTicket(serverResponseXml) };
     if (request.op === "postfach" && code === ERIC_OK) {
       const bereitstellungen = parsePostfachAntwort(serverResponseXml);
       const anhaenge = bereitstellungen.flatMap((b) => b.anhaenge);
@@ -208,11 +242,37 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
           : await downloadOtto(config, logDir, anhaenge, request.certificatePath!, request.pin!, request.herstellerId ?? "");
       result.postfach = { bereitstellungen, dateien };
     }
+    if (request.op === "vast" && code === ERIC_OK) {
+      if (!request.vast) throw new Error("Belegabruf ohne Angaben zur Abholung.");
+      const liste = parseVastBelegListe(serverResponseXml);
+      result.vast = { liste, belege: [] };
+      if (liste.length > 0) {
+        const requestXml = buildVastAbholungXml(
+          liste.map((b) => b.id),
+          request.vast,
+        );
+        const abholung = bearbeite(requestXml);
+        result.vast.abholung = { requestXml, ...abholung };
+        if (abholung.code === ERIC_OK) {
+          const pakete = new Map(parseVastDatenpakete(abholung.serverResponseXml).map((p) => [p.id, p.datenpaket]));
+          result.vast.belege = liste.map(({ id }) => {
+            const paket = pakete.get(id);
+            if (!paket) return { id, fehler: "Beleg nicht in der Antwort enthalten." };
+            const puffer = eric.EricRueckgabepufferErzeugen();
+            try {
+              const decode = eric.EricDekodiereDaten(zertifikatHandle, request.pin, paket, puffer) as number;
+              if (decode !== ERIC_OK) return { id, fehler: fehlerText(eric, decode) };
+              return { id, xml: (eric.EricRueckgabepufferInhalt(puffer) as string | null) ?? "" };
+            } finally {
+              eric.EricRueckgabepufferFreigeben(puffer);
+            }
+          });
+        }
+      }
+    }
     return result;
   } finally {
     if (zertifikatHandle !== undefined) eric.EricCloseHandleToCertificate(zertifikatHandle);
-    eric.EricRueckgabepufferFreigeben(rueckgabe);
-    eric.EricRueckgabepufferFreigeben(serverantwort);
     eric.EricBeende();
   }
 }

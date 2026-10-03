@@ -280,6 +280,47 @@ export const postfachDocuments = pgTable("postfach_documents", {
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Belegabrufe für die vorausgefüllte Steuererklärung (VaSt): Anfrage der Liste und Abholung der Belege */
+export const vastRequests = pgTable("vast_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** a = steuerpflichtige Person, b = Ehegatte */
+  person: text("person", { enum: ["a", "b"] }).notNull(),
+  idnr: text("idnr").notNull(),
+  year: smallint("year").notNull(),
+  test: boolean("test").notNull(),
+  ok: boolean("ok").notNull(),
+  code: integer("code").notNull(),
+  message: text("message").notNull(),
+  /** Fehler beim Abholen oder Entschlüsseln einzelner Belege */
+  fehler: jsonb("fehler").$type<{ id: string; fehler: string }[]>().notNull().default([]),
+  requestXml: text("request_xml").notNull(),
+  responseXml: text("response_xml").notNull(),
+  serverResponseXml: text("server_response_xml").notNull(),
+  /** Zweiter Schritt, nur wenn Belege vorlagen */
+  abholung: jsonb("abholung").$type<{ requestXml: string; responseXml: string; serverResponseXml: string }>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Abgeholte und entschlüsselte Belege: Lohnsteuerbescheinigung, Rentenbezüge, Beiträge … */
+export const vastBelege = pgTable("vast_belege", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** ID bei ELSTER; ein geänderter Beleg kommt mit neuer ID */
+  belegId: text("beleg_id").notNull().unique(),
+  person: text("person", { enum: ["a", "b"] }).notNull(),
+  idnr: text("idnr").notNull(),
+  year: smallint("year").notNull(),
+  belegart: text("belegart").notNull(),
+  schemaversion: text("schemaversion").notNull(),
+  hashwert: text("hashwert").notNull(),
+  /** Entschlüsseltes Beleg-XML */
+  xml: text("xml").notNull(),
+  test: boolean("test").notNull(),
+  requestId: uuid("request_id")
+    .notNull()
+    .references(() => vastRequests.id),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. */
 export const auditLog = pgTable("audit_log", {
   id: bigserial("id", { mode: "number" }).primaryKey(),

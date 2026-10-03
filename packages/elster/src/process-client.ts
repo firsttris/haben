@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { EricConfig, EricRawResult, EricRequest } from "./eric.ts";
 import type { WorkerRequest, WorkerResponse } from "./protocol.ts";
-import { failure, type ElsterClient, type ElsterResult, type PostfachOptions, type PostfachResult, type SendOptions } from "./types.ts";
+import { buildVastAnfrageXml, VAST_DATENART_VERSION, type VastXmlInput } from "./vast.ts";
+import { failure, type BelegabrufResult, type ElsterClient, type ElsterResult, type PostfachOptions, type PostfachResult, type SendOptions } from "./types.ts";
 import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
 
 export const DEFAULT_TIMEOUT_MS = 120_000;
@@ -66,6 +67,32 @@ export class EricProcessClient implements ElsterClient {
           ...(datei.base64 !== undefined ? { inhalt: new Uint8Array(Buffer.from(datei.base64, "base64")) } : {}),
           ...(datei.fehler !== undefined ? { fehler: datei.fehler } : {}),
         })),
+      };
+    });
+  }
+
+  async fetchBelege(input: VastXmlInput, certificate: Uint8Array, pin: string): Promise<BelegabrufResult> {
+    let requestXml: string;
+    try {
+      requestXml = buildVastAnfrageXml(input);
+    } catch (error) {
+      return { ...failure(error instanceof Error ? error.message : String(error)), requestXml: "", liste: [], belege: [] };
+    }
+    return this.#withCertificate(certificate, async (_dir, certificatePath) => {
+      const { result, raw } = await this.#run({ op: "vast", xml: requestXml, datenartVersion: VAST_DATENART_VERSION, certificatePath, pin, vast: input });
+      const vast = raw?.vast;
+      const abholung = vast?.abholung;
+      // Scheitert die Abholung, zählt der ganze Abruf als gescheitert
+      const failed = abholung && abholung.code !== 0;
+      return {
+        ...result,
+        ...(failed ? { ok: false, code: abholung.code, message: abholung.message } : {}),
+        requestXml,
+        liste: vast?.liste ?? [],
+        ...(abholung
+          ? { abholung: { requestXml: abholung.requestXml, responseXml: abholung.responseXml, serverResponseXml: abholung.serverResponseXml } }
+          : {}),
+        belege: vast?.belege ?? [],
       };
     });
   }

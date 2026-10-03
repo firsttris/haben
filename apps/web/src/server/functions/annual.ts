@@ -2,13 +2,16 @@ import { EUER_AUSGABEN, EUER_EINNAHMEN, EUER_FIELDS, type EuerFigures } from "@h
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { AnnualError, annualOverview, submitAnnual } from "../annual.ts";
+import { loadCompany } from "../company.ts";
 import { elsterClient, elsterMode } from "../elster.ts";
 import { env } from "../env.ts";
 import { estAngabenSchema, saveEstAngaben } from "../income-tax.ts";
 import { authMiddleware } from "../middleware.ts";
 import { reportYears } from "../reports.ts";
+import { FinanzamtError } from "../finanzamt.ts";
 import { today } from "../today.ts";
 import { loadActiveCertificate } from "../vat.ts";
+import { fetchVastBelege, lastVastRequest, listVastBelege } from "../vast.ts";
 
 function asUserError(error: unknown): never {
   if (error instanceof AnnualError) throw new Error(error.message);
@@ -27,7 +30,15 @@ export const getAnnualReturns = createServerFn({ method: "GET" })
   .validator(yearSchema)
   .handler(async ({ data: year }) => {
     const now = today();
-    const [overview, years, certificate] = await Promise.all([annualOverview(year, now), reportYears(), loadActiveCertificate()]);
+    const [overview, years, certificate, belege, lastVast, company] = await Promise.all([
+      annualOverview(year, now),
+      reportYears(),
+      loadActiveCertificate(),
+      listVastBelege(year),
+      lastVastRequest(year),
+      loadCompany(),
+    ]);
+    const t = company.taxpayer;
     const current = Number(now.slice(0, 4));
     return {
       ...overview,
@@ -39,6 +50,12 @@ export const getAnnualReturns = createServerFn({ method: "GET" })
       // Abgeschlossene Jahre mit Daten, dazu das Vorjahr
       years: [...new Set([...years.filter((y) => y < current), current - 1])].sort((a, b) => b - a),
       certificate: certificate ? { filename: certificate.filename, validUntil: certificate.validUntil } : null,
+      vast: {
+        belege,
+        last: lastVast,
+        personen: (["a", "b"] as const).flatMap((key) => (t[key] ? [{ key, name: `${t[key].vorname} ${t[key].name}` }] : [])),
+        pinSaved: Boolean(certificate?.pinCiphertext),
+      },
       mode: elsterMode(),
       herstellerIdConfigured: Boolean(env().ELSTER_HERSTELLER_ID) && elsterMode() === "eric",
     };
@@ -70,4 +87,16 @@ export const saveIncomeTaxInputs = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await saveEstAngaben(context.user.id, data.year, data.angaben);
     return { ok: true };
+  });
+
+export const fetchVast = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ year: yearSchema, person: z.enum(["a", "b"]), kind: z.enum(["test", "send"]), pin: z.string().max(64).optional() }))
+  .handler(async ({ data, context }) => {
+    try {
+      return await fetchVastBelege(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID });
+    } catch (error) {
+      if (error instanceof FinanzamtError) throw new Error(error.message, { cause: error });
+      throw error;
+    }
   });
