@@ -172,6 +172,26 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
     expect(result.responseXml).not.toContain("<TH>(nil)</TH>");
   });
 
+  it("holt Belege: Liste, Abholung mit Transferhandle, Entschlüsselung je Beleg", async () => {
+    const input = { idnr: "02293417683", veranlagungsjahr: 2025, datenlieferant: "Test", herstellerId: "74931", test: true };
+    const result = await client().fetchBelege(input, new Uint8Array([1]), "geheim");
+    expect(result.ok).toBe(true);
+    expect(result.responseXml).toMatch(/<V>ElsterVaStDaten<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
+    expect(result.responseXml).not.toContain("<TH>(nil)</TH>");
+    expect(result.requestXml).toContain("<Anfrage ");
+    expect(result.liste.map((b) => [b.id, b.belegart])).toEqual([
+      ["a-1", "VaSt_RBM"],
+      ["a-2", "VaSt_KRV"],
+      ["a-3", "VaSt_LStB"],
+    ]);
+    expect(result.abholung!.requestXml).toContain('<Abholung id="a-3"');
+    expect(result.abholung!.serverResponseXml).toContain("<TH>ja</TH><N>1</N>");
+    const [a1, a2, a3] = result.belege;
+    expect(a1!.xml).toContain("<Info>42:geheim:QUJDREVG</Info>");
+    expect(a2).toEqual({ id: "a-2", fehler: "Text zu 610301200 äö" });
+    expect(a3).toEqual({ id: "a-3", fehler: "Beleg nicht in der Antwort enthalten." });
+  });
+
   it("überlebt einen Segfault in der Bibliothek", async () => {
     const result = await client().validate(xml().replace("<Kz83>", "<Kz83>CRASH"));
     expect(result.ok).toBe(false);

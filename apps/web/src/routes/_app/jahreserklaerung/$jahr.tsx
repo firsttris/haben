@@ -3,6 +3,7 @@ import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
 import { Icon } from "../../../components/Icon.tsx";
+import { VastBelege } from "../../../components/VastBelege.tsx";
 import { errorMessage, formatDate, formatDateTime } from "../../../lib/format.ts";
 import { getAnnualReturns, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
@@ -67,6 +68,7 @@ function AnnualPage() {
         <UstSection data={data} />
         <EuerSection data={data} />
         <EstSection key={data.year} data={data} />
+        <VastBelege key={`vast-${data.year}`} data={data} />
         <History data={data} />
       </div>
     </>

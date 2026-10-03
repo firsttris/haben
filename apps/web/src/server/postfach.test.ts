@@ -76,6 +76,7 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
           ],
         };
       },
+      fetchBelege: (...args) => fake.fetchBelege(...args),
     };
     return { client, sent };
   }

@@ -3,6 +3,7 @@ import { checkXml, FakeElsterClient, fakeProtokollPdf } from "./fake-client.ts";
 import { createElsterClient } from "./factory.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { parseTransferTicket } from "./ticket.ts";
+import { parseVastBeleg } from "./vast.ts";
 import { buildUstvaXml, TEST_HERSTELLER_ID } from "./xml.ts";
 
 const xml = (test = true) =>
@@ -18,6 +19,16 @@ const xml = (test = true) =>
 
 describe("FakeElsterClient", () => {
   const client = new FakeElsterClient();
+
+  it("simuliert den Belegabruf mit lesbaren Belegen", async () => {
+    const input = { idnr: "02293417683", veranlagungsjahr: 2025, datenlieferant: "Test", herstellerId: TEST_HERSTELLER_ID, test: true };
+    const result = await client.fetchBelege(input, new Uint8Array([1]), "1234");
+    expect(result.ok).toBe(true);
+    expect(result.liste.map((b) => b.belegart)).toEqual(["VaSt_RBM", "VaSt_Pers1"]);
+    expect(result.belege.every((b) => b.xml && parseVastBeleg(b.xml).length === 1)).toBe(true);
+    expect((await client.fetchBelege({ ...input, idnr: "1" }, new Uint8Array([1]), "1234")).ok).toBe(false);
+    expect((await client.fetchBelege(input, new Uint8Array([1]), "")).ok).toBe(false);
+  });
 
   it("akzeptiert gültiges XML", async () => {
     expect((await client.validate(xml())).ok).toBe(true);

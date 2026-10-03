@@ -235,7 +235,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Eine erfolgreiche Echtübermittlung (hier direkt eingetragen) sperrt weitere
     await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
       values ('ust', 2025, 'send', true, 0, 'ok', '{}', '', '', '')`;
-    const realClient = { validate: client.validate.bind(client), send: client.send.bind(client), fetchPostfach: client.fetchPostfach.bind(client) };
+    const realClient = { validate: client.validate.bind(client), send: client.send.bind(client), fetchPostfach: client.fetchPostfach.bind(client), fetchBelege: client.fetchBelege.bind(client) };
     await expect(annual.submitAnnual(actor, "ust", 2025, realClient, { kind: "send", pin: "1234", herstellerId: "12345", today: TODAY })).rejects.toThrow(/schon übermittelt/);
     expect((await annual.annualOverview(2025, TODAY)).ust.sent).not.toBeNull();
     await expect(sql`update annual_submissions set ok = false`).rejects.toThrow();

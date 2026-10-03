@@ -6,10 +6,10 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 
 | Thema | Worum es geht | Stand |
 | --- | --- | --- |
-| Belegabruf (vorausgefüllte Steuererklärung) | Lohnsteuerbescheinigungen, Beiträge zur Kranken- und Pflegeversicherung, Rentenbezüge und weitere Meldungen über ELSTER abrufen und in die Einkommensteuererklärung übernehmen. Braucht eine einmalige Freischaltung mit Code per Brief | als Nächstes |
 | Dauerfristverlängerung | Antrag auf Dauerfristverlängerung mit Sondervorauszahlung (USt 1 H) über ELSTER; Voranmeldungen dürfen dann einen Monat später kommen | geplant |
 | Fristen und Erinnerungen | Kalender mit Voranmeldung, Vorauszahlungsterminen, Abgabefristen und Ablauf des Zertifikats, optional per E-Mail | geplant |
-| Anlage N | Arbeitslohn, etwa eines angestellten Ehegatten, in der Einkommensteuererklärung; mit dem Belegabruf aus der Lohnsteuerbescheinigung | geplant |
+| Anlage N | Arbeitslohn, etwa eines angestellten Ehegatten, in der Einkommensteuererklärung | geplant |
+| Abrufberechtigung für den Ehegatten | Berechtigung zum Belegabruf für eine andere Person beantragen und mit dem Freischaltcode aus dem Brief freischalten (Verfahren ElsterBRM, wie in erica); bis dahin über Mein ELSTER | geplant |
 | Zusammenfassende Meldung | Meldung der innergemeinschaftlichen Leistungen an das BZSt, nur bei Kunden in anderen EU-Ländern nötig | bei Bedarf |
 
 ## Blockiert
@@ -18,6 +18,7 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 | --- | --- |
 | Umsatzsteuererklärung mit Kz 21, 45 und 48 | Die Feldkennungen der Zeilen für nicht steuerbare sonstige Leistungen im übrigen Gemeinschaftsgebiet, übrige nicht steuerbare Umsätze und steuerfreie Umsätze ohne Vorsteuerabzug. Bis dahin sperrt Haben die Übermittlung, wenn solche Umsätze gebucht sind |
 | Bescheide automatisch prüfen | Das Format der Bescheiddaten (ESB), um festgesetzte Steuer und neue Vorauszahlungen zu lesen und mit der Erklärung zu vergleichen. Automatischer Abruf und Einspruchsfrist sind fertig ([Finanzamt](finanzamt.md#automatisch-abrufen)) |
+| Belege von ELSTER in die Erklärung übernehmen | Die Schemas der Belegarten (Lohnsteuerbescheinigung, Beiträge zur Kranken- und Pflegeversicherung, Rentenbezüge …), um Beträge sicher den Feldern der Erklärung zuzuordnen. Abrufen und Anzeigen ist fertig ([Jahreserklärungen](jahreserklaerung.md#belege-von-elster)) |
 | Strukturierter Antrag auf Anpassung der Vorauszahlungen | Ob es dafür eine ERiC-Datenart gibt und wie ihr Schema aussieht. Bis dahin geht der Antrag als Sonstige Nachricht mit Steuerprognose ([Finanzamt](finanzamt.md#vorauszahlungen-herabsetzen)) |
 
 Das alles steht in der **Jahresdokumentation** der Finanzverwaltung (Schemas und Feldlisten aller Datenarten). Es gibt sie nur im ELSTER-Entwicklerbereich unter developer.elster.de, nach der Registrierung als Softwarehersteller.

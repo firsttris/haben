@@ -199,6 +199,32 @@ test("Buchungen und Konten stimmen mit den Vorgängen überein", async () => {
   }
 });
 
+test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async () => {
+  await go("/einstellungen");
+  const taxpayer = page.getByRole("form", { name: "Persönliche Angaben" });
+  await taxpayer.getByLabel("Steuer-ID").fill("65929970489");
+  await taxpayer.getByLabel("Vorname").fill("Max");
+  await taxpayer.getByLabel("Nachname").fill("Mustermann");
+  await taxpayer.getByLabel("Geburtsdatum").fill("1985-04-12");
+  await taxpayer.getByRole("button", { name: "Speichern" }).click();
+  await expect(taxpayer.getByRole("status")).toBeVisible();
+  const cert = page.getByRole("form", { name: "ELSTER-Zertifikat" });
+  await cert.getByLabel("Zertifikatsdatei").setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from("kein echtes Zertifikat") });
+  await cert.getByRole("button", { name: "Hochladen" }).click();
+  await expect(cert.getByText("test.pfx")).toBeVisible();
+
+  // Ohne ERiC läuft der Abruf simuliert und liefert Beispielbelege
+  await go(`/jahreserklaerung/${YEAR - 1}`);
+  const vast = page.getByRole("region", { name: `Belege von ELSTER ${YEAR - 1}` });
+  await vast.getByLabel("Zertifikats-PIN").fill("123456");
+  await vast.getByRole("button", { name: "Testweise abrufen" }).click();
+  await expect(vast.getByRole("status")).toContainText("2 Belege bei ELSTER, 2 neu gespeichert.");
+  await vast.getByText("Rentenbezugsmitteilung").click();
+  await expect(vast.getByRole("cell", { name: "1.200,00 €" })).toBeVisible();
+  mkdirSync(`${SHOTS}/desktop`, { recursive: true });
+  await vast.screenshot({ path: `${SHOTS}/desktop/16b-belege-elster.png` });
+});
+
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go("/auswertungen");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

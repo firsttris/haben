@@ -45,11 +45,13 @@ export function datenartVersionFromXml(xml: string): string | undefined {
   if (bank?.[1]) return `AenderungBankverbindung_${bank[1]}`;
   const abholung = /<DatenArt>(PostfachAnfrage|PostfachBestaetigung)<\/DatenArt>[\s\S]*<Datenabholung\b[^>]*\bversion="(\d+)"/.exec(xml);
   if (abholung?.[1] && abholung[2]) return `${abholung[1]}_${abholung[2]}`;
+  if (/<DatenArt>ElsterVaStDaten<\/DatenArt>/.test(xml)) return "ElsterVaStDaten";
   return undefined;
 }
 
+/** 700000004 für Erklärungen und Postfach, 370000001 für den Belegabruf */
 export function hasTestmerker(xml: string): boolean {
-  return /<Testmerker>\s*700000004\s*<\/Testmerker>/.test(xml);
+  return /<Testmerker>\s*(700000004|370000001)\s*<\/Testmerker>/.test(xml);
 }
 
 export function escapeXml(value: string): string {
