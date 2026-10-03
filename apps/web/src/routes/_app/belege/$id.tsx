@@ -89,7 +89,14 @@ function DocumentPage() {
 function Preview({ doc }: { doc: Detail["document"] }) {
   const src = `/api/beleg/${doc.id}`;
   if (doc.mimeType === "application/pdf") {
-    return <iframe className="doc-preview" src={src} title={`Beleg ${doc.filename}`} />;
+    return (
+      <>
+        <iframe className="doc-preview" src={src} title={`Beleg ${doc.filename}`} />
+        <a className="btn pdf-open" href={src} target="_blank" rel="noreferrer">
+          PDF öffnen
+        </a>
+      </>
+    );
   }
   if (doc.mimeType.startsWith("image/") && doc.mimeType !== "image/heic") {
     return <img className="doc-image" src={src} alt={`Beleg ${doc.filename}`} />;

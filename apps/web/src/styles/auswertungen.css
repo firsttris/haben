@@ -86,18 +86,31 @@
   .stack-table, .stack-table tbody, .stack-table tfoot, .stack-table tr, .stack-table td, .stack-table th { display: block; width: 100%; }
   .stack-table tr { border-top: 1px solid var(--line); padding: 8px 0; }
   .stack-table td, .stack-table th { border-top: 0 !important; padding: 2px 0 !important; text-align: left !important; }
-  .stack-table td[data-label]::before { content: attr(data-label); display: inline-block; min-width: 7.5em; color: var(--muted); font-size: 12px; }
+  /* Beschriftung links in fester Spalte, der Wert bricht in seiner eigenen Spalte um */
+  .stack-table td[data-label] { position: relative; padding-left: 7.5em !important; }
+  .stack-table td[data-label]::before { content: attr(data-label); position: absolute; left: 0; width: 7em; color: var(--muted); font-size: 12px; line-height: 1.6; }
   .stack-table td:empty { display: none; }
   .stack-table .group-row, .stack-table .subtotal-row { padding: 6px 0; }
 }
 
 @media (max-width: 720px) {
   .journal-table td:first-child { display: none; }
-  .journal-table td[data-label="Datum"], .journal-table td[data-label="Herkunft"] { display: inline-block; width: auto; margin-right: 8px; }
+  .journal-table td[data-label="Datum"], .journal-table td[data-label="Herkunft"] { display: inline-block; width: auto; margin-right: 8px; padding-left: 0 !important; }
   .journal-table td[data-label="Datum"]::before, .journal-table td[data-label="Herkunft"]::before, .journal-table td[data-label="Text"]::before { content: none; }
   .journal-table td[data-label="Text"] { font-weight: 500; padding: 4px 0 !important; }
+  .journal-table td[data-label="Soll"], .journal-table td[data-label="Haben"] { padding-left: 0 !important; }
   .journal-table td[data-label="Soll"] .small, .journal-table td[data-label="Haben"] .small { display: none; }
   .journal-table td[data-label="Soll"], .journal-table td[data-label="Haben"] { display: inline-block; width: auto; margin-right: 16px; }
-  .journal-table td[data-label="Soll"]::before, .journal-table td[data-label="Haben"]::before { min-width: 0; margin-right: 6px; }
+  .journal-table td[data-label="Soll"]::before, .journal-table td[data-label="Haben"]::before { position: static; width: auto; margin-right: 6px; }
   .journal-table td[data-label="Betrag"] { font-weight: 600; }
 }
+
+@media (max-width: 720px) {
+  /* Diagramme behalten lesbare Schrift und scrollen waagrecht */
+  .chart { overflow-x: auto; }
+  .chart svg { min-width: 600px; }
+  .stack-table .group-row th, .stack-table tfoot th { padding-left: 0 !important; }
+}
+
+/* Saldo: Betrag und Hinweis in fester Breite, damit Beträge untereinander stehen */
+.saldo-hint { width: 6.5em; min-width: 0; }

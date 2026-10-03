@@ -44,6 +44,9 @@ function KontenPage() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const until = new Date(Date.parse(`${data.to}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
   const k = useMemo(() => kontenkennzahlen(data.rows), [data.rows]);
+  // Eröffnung nur zeigen, wenn es vor dem Zeitraum schon Buchungen gab
+  const showOpening = data.rows.some((r) => r.eroeffnung !== 0);
+  const cols = showOpening ? 6 : 5;
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -134,9 +137,11 @@ function KontenPage() {
               <tr>
                 <th scope="col">Konto</th>
                 <th scope="col">Bezeichnung</th>
-                <th scope="col" className="num">
-                  Eröffnung
-                </th>
+                {showOpening && (
+                  <th scope="col" className="num">
+                    Eröffnung
+                  </th>
+                )}
                 <th scope="col" className="num">
                   Soll
                 </th>
@@ -153,7 +158,7 @@ function KontenPage() {
               return (
                 <tbody key={g.klasse}>
                   <tr className="group-row">
-                    <th colSpan={3} scope="colgroup">
+                    <th colSpan={cols - 3} scope="colgroup">
                       <button type="button" className="group-toggle" aria-expanded={open} onClick={() => toggle(g.klasse)}>
                         <span className={`chevron${open ? " open" : ""}`} aria-hidden="true">
                           ›
@@ -179,9 +184,11 @@ function KontenPage() {
                           </Link>
                         </td>
                         <td data-label="Bezeichnung">{r.name || <span className="muted">ohne Bezeichnung</span>}</td>
-                        <td className="num" data-label="Eröffnung">
-                          {r.eroeffnung ? <SaldoBetrag kontenrahmen={r.kontenrahmen} account={r.account} saldo={r.eroeffnung} /> : ""}
-                        </td>
+                        {showOpening && (
+                          <td className="num" data-label="Eröffnung">
+                            {r.eroeffnung ? <SaldoBetrag kontenrahmen={r.kontenrahmen} account={r.account} saldo={r.eroeffnung} /> : ""}
+                          </td>
+                        )}
                         <td className="num" data-label="Soll">
                           {r.soll ? formatEuro(r.soll) : ""}
                         </td>
@@ -198,7 +205,7 @@ function KontenPage() {
             })}
             <tfoot>
               <tr>
-                <th scope="row" colSpan={3}>
+                <th scope="row" colSpan={cols - 3}>
                   Summe Buchungen im Zeitraum
                 </th>
                 <td className="num" data-label="Soll">

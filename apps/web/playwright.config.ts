@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 
 /**
  * Ende-zu-Ende-Tests gegen einen echten Server mit eigener, leerer Datenbank.
@@ -45,6 +46,8 @@ export default defineConfig({
       DOCUMENTS_DIR: process.env.E2E_DOCUMENTS_DIR ?? "test-results/e2e-belege",
       ERIC_DIR: "test-results/e2e-eric",
       HABEN_SCHEDULER: "off",
+      // Vorlage und Schriften für das Rechnungs-PDF; der gebaute Server findet sie sonst nicht
+      HABEN_EINVOICE_DIR: fileURLToPath(new URL("../../packages/einvoice", import.meta.url)),
       ERIC_HOME: "",
       ELSTER_HERSTELLER_ID: "",
       ANTHROPIC_API_KEY: "",

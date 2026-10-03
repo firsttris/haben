@@ -86,6 +86,33 @@ pnpm --filter @haben/einvoice kosit /tmp/haben-kosit
 
 Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/`.
 
+### Ende-zu-Ende-Tests mit Playwright
+
+`apps/web/e2e/app.spec.ts` spielt den Betrieb in einer leeren Datenbank durch:
+1. Konto und Firmendaten einrichten.
+2. Kunden anlegen.
+3. Rechnungen schreiben und festschreiben.
+4. Einen Beleg hochladen und buchen. Das Belegbild entsteht im Test, mit erfundenen Daten.
+5. Einen Kontoauszug importieren und die Umsätze zuordnen.
+6. Prüfen, dass Kennzahlen und Salden unter **Konten** dazu passen, und den Filter im Journal testen.
+
+Zum Schluss lädt der Test jede Seite am Desktop (1440 px) und am Handy (390 px) und prüft dabei:
+- Die Seite antwortet ohne Fehler und hat eine Überschrift.
+- Im Browser tritt kein Fehler auf, auch kein Hydration-Fehler.
+- Am Handy ist die Seite nicht breiter als der Bildschirm.
+- Das Handy-Menü lässt sich öffnen und bedienen.
+
+Von jeder Seite legt der Test einen Screenshot unter `apps/web/test-results/screenshots/{desktop,mobil}/` ab.
+
+```sh
+createdb haben_e2e            # einmalig; der Name muss auf „e2e“ enden, die Datenbank wird bei jedem Lauf geleert
+E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e pnpm e2e
+```
+
+Playwright startet selbst einen Server auf Port 3100 (`E2E_PORT`). Vorher leert es die Datenbank und spielt die Migrationen ein. Lokal ist das der Entwicklungsserver, in der CI der gebaute Server (`E2E_SERVER_COMMAND="node .output/server/index.mjs"` nach `pnpm build`). Chromium kommt einmalig mit `pnpm --filter @haben/web exec playwright install chromium`. Wer schon ein passendes Chromium hat, setzt stattdessen `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
+
+In der CI läuft der Job `e2e` bei jedem Pull Request. Screenshots, Playwright-Bericht und bei Fehlern Traces hängen als Artefakt `e2e-screenshots` am Lauf. So sieht man zu jeder Änderung, wie alle Seiten aussehen.
+
 ## Migrationen
 
 Das Schema steht in `apps/web/src/server/db/schema.ts`, die Migrationen in `apps/web/drizzle/`.

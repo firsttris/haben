@@ -274,8 +274,19 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
       }
       await p.screenshot({ path: `${SHOTS}/${device}/${String(index + 1).padStart(2, "0")}-${name}.png`, fullPage: true });
     }
+    if (device === "mobil") {
+      // Menü auf dem Handy: aufklappen, Seite wählen, schließt wieder
+      await p.goto("/");
+      await p.waitForLoadState("networkidle");
+      await p.getByRole("button", { name: "Menü" }).click();
+      await expect(p.getByRole("link", { name: "Konten" })).toBeVisible();
+      await p.screenshot({ path: `${SHOTS}/mobil/00-menue.png` });
+      await p.getByRole("link", { name: "Konten" }).click();
+      await p.waitForURL(/\/konten/);
+      await expect(p.getByRole("link", { name: "Einstellungen" })).toBeHidden();
+    }
     await context.close();
-    expect(errors.filter((e) => !/Hydration/i.test(e)), `Fehler im Browser (${device})`).toEqual([]);
+    expect(errors, `Fehler im Browser (${device})`).toEqual([]);
   }
 
   // Anmeldeseite ohne Sitzung
@@ -283,5 +294,5 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
   await anonymous.goto("/login");
   await anonymous.screenshot({ path: `${SHOTS}/desktop/00-login.png` });
   await anonymous.close();
-  expect(pageErrors.filter((e) => !/Hydration/i.test(e))).toEqual([]);
+  expect(pageErrors).toEqual([]);
 });

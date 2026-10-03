@@ -1,4 +1,5 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
 import { Icon } from "../components/Icon.tsx";
 import { authClient } from "../lib/auth-client.ts";
 import { getAuthState } from "../server/functions/setup.ts";
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const { user } = Route.useRouteContext();
   const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   async function signOut() {
     await authClient.signOut();
@@ -25,10 +27,15 @@ function AppLayout() {
 
   return (
     <div className="shell">
-      <nav className="nav" aria-label="Hauptnavigation">
+      <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
         <Link to="/" className="brand">
           <span className="brand-mark">H</span>Haben
         </Link>
+        <button type="button" className="nav-toggle" aria-expanded={menuOpen} aria-controls="hauptmenue" onClick={() => setMenuOpen((open) => !open)}>
+          <span aria-hidden="true">{menuOpen ? "✕" : "☰"}</span> Menü
+        </button>
+        {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
+        <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
         <Link to="/" className="nav-link" activeOptions={{ exact: true }}>
           <Icon name="overview" />
           Übersicht
@@ -96,6 +103,7 @@ function AppLayout() {
           <button type="button" onClick={signOut}>
             Abmelden
           </button>
+        </div>
         </div>
       </nav>
       <main className="main">

@@ -93,9 +93,11 @@ function KontenblattPage() {
           <div className="small muted">am {formatDate(data.from)}</div>
         </div>
         <div className="card">
-          <div className="kpi-label">Soll / Haben im Zeitraum</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>
-            {formatEuro(data.soll)} / {formatEuro(data.haben)}
+          <div className="kpi-label">Bewegungen im Zeitraum</div>
+          <div className="mono" style={{ fontSize: 15, lineHeight: 1.6, whiteSpace: "nowrap" }}>
+            Soll {formatEuro(data.soll)}
+            <br />
+            Haben {formatEuro(data.haben)}
           </div>
           <div className="small muted">{data.zeilen.length} Buchungen</div>
         </div>

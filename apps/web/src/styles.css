@@ -54,13 +54,19 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .nav-foot button { background: none; border: 0; padding: 0; color: var(--nav-ink); font: inherit; text-align: left; cursor: pointer; text-decoration: underline; min-height: 24px; }
 .main { flex-grow: 1; min-width: 0; padding: 32px 40px; display: flex; flex-direction: column; gap: 24px; }
 
+.nav-body { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
+.nav-toggle { display: none; }
+
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
-  .nav { width: 100%; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 8px 12px; gap: 2px; }
-  .nav-link { white-space: nowrap; flex-shrink: 0; }
-  .nav-link[aria-disabled="true"] { display: none; }
+  .nav { width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 8px 12px; gap: 4px; position: sticky; top: 0; z-index: 20; }
   .brand { padding: 4px 12px; }
-  .nav-spacer, .nav-foot { display: none; }
+  .nav-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid var(--nav-active); border-radius: 8px; background: none; color: #fff; font: inherit; font-size: 14px; cursor: pointer; }
+  .nav-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .nav-body { display: none; width: 100%; padding: 8px 0 4px; max-height: calc(100vh - 64px); overflow-y: auto; }
+  .nav.open .nav-body { display: flex; }
+  .nav-link[aria-disabled="true"] { display: none; }
+  .nav-spacer { display: none; }
   .main { padding: 20px 16px; }
 }
 
@@ -168,9 +174,11 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .icon-btn { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .icon-btn:hover:not(:disabled) { color: var(--danger-ink); border-color: var(--danger-ink); }
 .icon-btn:disabled { opacity: 0.4; cursor: default; }
-@media (max-width: 640px) {
-  .line-row { grid-template-columns: 1fr 1fr 40px; }
-  .line-row > .line-net { grid-column: 1 / 3; text-align: left; }
+@media (max-width: 720px) {
+  /* Handy: Beschreibung, dann Menge | Einheit, Einzelpreis | USt, Netto | Entfernen */
+  .line-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .line-row > .line-net { grid-column: 1; text-align: left; font-weight: 500; }
+  .line-row > .icon-btn { justify-self: end; }
   .line-row.head { display: none; }
 }
 textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); resize: vertical; min-height: 72px; }
@@ -263,3 +271,50 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .kz-sources .num { padding-right: 0; padding-left: 12px; }
 @media (max-width: 640px) { .kz-sources { margin-left: 0; } }
 output.kz-amount { display: block; }
+
+/* Karten-Fieldsets: Überschrift in der Karte statt auf dem Rahmen */
+fieldset.card { min-width: 0; }
+fieldset.card > legend:not(.visually-hidden) { float: left; width: 100%; padding: 0; }
+fieldset.card > legend + * { clear: both; }
+
+/* Kleine Hilfetexte lesbarer */
+.small { line-height: 1.4; }
+.kpi-value { white-space: nowrap; }
+
+@media (max-width: 720px) {
+  /* Kopf: Titel oben, Aktionen darunter in voller Breite */
+  .page-head { flex-direction: column; align-items: stretch; }
+  .page-head .actions { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+  .page-head .actions > .btn { flex: 1 1 auto; justify-content: center; }
+  .page-head .actions > .field { flex: 1 1 140px; }
+  /* Kacheln: zwei Spalten, kleinere Zahlen, letzte allein über die volle Breite */
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .kpi-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .kpi-grid .kpi-value { font-size: 17px !important; }
+}
+
+/* Handy-Browser zeigen PDFs nicht eingebettet: dort ein Knopf statt der Vorschau */
+.pdf-open { display: none; }
+@media (max-width: 720px) {
+  .pdf-frame, iframe.doc-preview { display: none; }
+  .pdf-open { display: inline-flex; justify-content: center; width: 100%; }
+}
+
+@media (max-width: 640px) {
+  /* Kennzahlen: Steuer steht in eigener Zeile, deshalb beschriftet; Kopfspalte dafür entfällt */
+  .kz-row.head > :nth-child(4) { display: none; }
+  .kz-row:not(.head):not(.total) > .kz-amount:nth-child(4)::before { content: "Steuer"; float: left; color: var(--muted); font-size: 12px; font-family: var(--sans); }
+  .kz-row.total > :nth-child(3) { display: none; }
+  .kz-row.total > :nth-child(4) { grid-column: 3; grid-row: 1; }
+}
+
+@media (max-width: 720px) {
+  /* Übrige Tabellen: Text darf umbrechen (Beträge bleiben dank geschütztem Leerzeichen zusammen),
+     was dann noch zu breit ist, scrollt in der Karte statt die Seite zu verbreitern */
+  .report-table:not(.stack-table) .num { white-space: normal; }
+  .report-table:not(.stack-table) { display: block; overflow-x: auto; }
+  .card { min-width: 0; }
+}
+
+/* Senden-Karte neben langen Formularen bleibt beim Scrollen sichtbar */
+@media (min-width: 1101px) { .sticky-panel { position: sticky; top: 16px; align-self: start; } }

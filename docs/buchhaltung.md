@@ -266,13 +266,43 @@ Regulär besteuerte Umsätze zu 0 % (Schlüssel `frei`) meldet Haben nicht; die 
 
 ## Die Seite „Buchungen“
 
-Unter **Buchungen** steht das Journal je Monat, neueste zuerst, mit Pfeilen zum Vor- und Folgemonat. Jede Buchung zeigt Datum, Beschreibung und Herkunft („Rechnung“, „Beleg“, „Bank“ oder „Gegenbuchung“), darunter je Zeile Kontonummer, Kontoname, Soll, Haben und Steuerschlüssel. Die Seite ist nur lesend; gebucht wird ausschließlich über Rechnungen, Belege und den Bankabgleich. Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+Unter **Buchungen** steht das Journal je Monat, neueste zuerst, mit Pfeilen zum Vor- und Folgemonat. Jede Buchung ist eine Zeile:
+- Datum und Herkunft („Rechnung“, „Beleg“, „Bank“, „Anlage“ oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
+- Buchungstext.
+- Soll- und Habenkonto, jeweils das größte. Weitere Konten stehen als „+n“ daneben.
+- Betrag und Steuerschlüssel.
+
+Der Pfeil links klappt alle Buchungszeilen mit Soll, Haben und Steuerschlüssel auf.
+
+Darüber lässt sich nach Herkunft, Kontonummer und Text filtern. Unten stehen die Zahl der Buchungen und ihre Summe.
+
+Die Seite ist nur lesend; gebucht wird ausschließlich über Rechnungen, Belege und den Bankabgleich. Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
 
 ## Die Seite „Konten“
 
-Unter **Konten** steht die **Saldenliste**: jedes bebuchte Konto eines Jahres, Quartals oder Monats mit Eröffnung, Soll, Haben und Saldo, gruppiert nach Kontenklasse (erste Ziffer der Kontonummer, im SKR03 etwa 1 Finanz- und Privatkonten, 4 Betriebliche Aufwendungen, 8 Erlöskonten). Die Eröffnung ist der Saldo ab Jahresbeginn bis zum Beginn des gewählten Zeitraums; ein Vortrag aus dem Vorjahr gehört nicht dazu. Salden stehen mit Seite, S für Soll und H für Haben. Die Summe aller Soll- und Habenbuchungen ist immer gleich, sonst wäre eine Buchung nicht ausgeglichen. Über „Konto suchen“ lässt sich nach Nummer oder Name filtern.
+Unter **Konten** stehen oben Kacheln:
+- Bankstand laut Buchungen.
+- Offene Forderungen und offene Verbindlichkeiten.
+- Fällige Umsatzsteuer nach Vorsteuer und Vorauszahlungen.
+- Erlöse minus Aufwand im Zeitraum.
 
-Ein Klick auf ein Konto öffnet das **Kontenblatt**: jede Buchung auf dem Konto im Zeitraum mit Datum, Buchungstext, Gegenkonten, Herkunft (mit Link auf Rechnung, Beleg, Anlage oder Bank), Soll, Haben und laufendem Saldo. Die Gegenkonten führen zu ihrem eigenen Kontenblatt.
+Bank und Umsatzsteuer rechnen ab Jahresbeginn, ein Vortrag aus dem Vorjahr fehlt.
+
+Darunter steht die **Saldenliste**: jedes bebuchte Konto des Jahres, Quartals oder Monats mit Soll, Haben und Saldo.
+- **Gruppierung:** Die Konten stehen nach Kontenklasse, also nach der ersten Ziffer der Kontonummer. Im SKR03 sind das etwa 1 Finanz- und Privatkonten, 4 Betriebliche Aufwendungen und 8 Erlöskonten. Jede Klasse hat eine Zwischensumme und lässt sich einklappen.
+- **Eröffnung:** Sie ist der Saldo ab Jahresbeginn bis zum Beginn des gewählten Zeitraums. Die Spalte erscheint nur, wenn es vorher schon Buchungen gab.
+- **Salden in Alltagssprache:** Erlöse und Aufwand stehen als positiver Betrag. Bei Bestandskonten wie Bank, Forderungen oder Steuern steht dazu „Guthaben“ oder „Schuld“. Die Buchhaltungsseite, S für Soll und H für Haben, steht klein daneben.
+- **Summe:** Soll und Haben sind in der Summe immer gleich, sonst wäre eine Buchung nicht ausgeglichen.
+- **Suche:** „Konto suchen“ filtert nach Nummer oder Name.
+
+Ein Klick auf ein Konto öffnet das **Kontenblatt**. Es zeigt:
+- Eröffnung, Bewegungen und Endsaldo als Kacheln.
+- Den Saldoverlauf als Diagramm. Beim Darüberfahren erscheinen Datum, Saldo und Buchung.
+- Jede Buchung mit Datum, Text, Gegenkonten, Herkunft, Soll, Haben und laufendem Saldo.
+
+Über ein Quartal oder Jahr kommt eine Zwischensumme je Monat dazu. Gegenkonten und Herkunft sind verlinkt.
+
+Am Handy werden die Tabellen zu Karten. Das Diagramm lässt sich dort waagrecht verschieben.
 
 Beides gibt es über „CSV“ als Datei, im selben Format wie die übrigen Exporte (Semikolon, Dezimalkomma, UTF-8 mit BOM), etwa für die Steuerberatung oder zum Abgleich mit Lexoffice.
 

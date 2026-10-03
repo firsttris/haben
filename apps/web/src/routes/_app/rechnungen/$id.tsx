@@ -154,6 +154,9 @@ function FinalInvoice({ data }: { data: Detail }) {
       <div className="grid-main">
         <section aria-label="PDF">
           <iframe className="pdf-frame" src={`/api/rechnung/${invoice.id}/pdf`} title={`PDF der Rechnung ${invoice.number}`} />
+          <a className="btn pdf-open" href={`/api/rechnung/${invoice.id}/pdf`} target="_blank" rel="noreferrer">
+            PDF öffnen
+          </a>
         </section>
         <div className="stack">
           <section className="card" aria-labelledby="facts-heading">
