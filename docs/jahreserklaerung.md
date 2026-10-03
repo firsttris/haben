@@ -83,18 +83,45 @@ Die eingetragenen Angaben speichert Haben je Jahr; jede Änderung steht im Audit
 
 | Anlage | Angaben |
 | --- | --- |
-| Vorsorgeaufwand | Je Person: gesetzliche Rentenversicherung, gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen; weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
+| N | Je Person mit Arbeitslohn: die Lohnsteuerbescheinigungen (Steuerklasse, Bruttoarbeitslohn, Lohnsteuer, Soli, Kirchensteuer) und Werbungskosten, siehe [Arbeitslohn](#arbeitslohn-anlage-n) |
+| Vorsorgeaufwand | Je Person: Beiträge laut Lohnsteuerbescheinigung (Rentenversicherung mit Arbeitgeberanteil, Kranken-, Pflege- und Arbeitslosenversicherung), gesetzliche Rentenversicherung, gesetzliche Kranken- und Pflegeversicherung (Basis, dazu Krankengeldanteil und Wahlleistungen), private Kranken- und Pflege-Pflichtversicherung samt Erstattungen; weitere sonstige Vorsorge (Haftpflicht, Unfall, Risikoleben) |
 | Sonderausgaben | Gezahlte und erstattete Kirchensteuer, Spenden an steuerbegünstigte Empfänger im Inland |
 | Außergewöhnliche Belastungen | Selbst getragene Krankheitskosten |
 | Haushaltsnahe Aufwendungen (§ 35a EStG) | Minijobs im Haushalt, haushaltsnahe Dienstleistungen, Handwerkerleistungen (nur Arbeits-, Maschinen- und Fahrtkosten) |
 | Kind | Je Kind Vorname, Geburtsdatum, Steuer-ID, Familienkasse und Kinderbetreuungskosten; leibliches Kind beider Ehegatten bzw. der steuerpflichtigen Person, Wohnsitz im Inland im ganzen Jahr bzw. ab Geburt |
 | KAP | Erträge mit und ohne inländischen Steuerabzug, genutzter Sparer-Pauschbetrag, einbehaltene Kapitalertragsteuer, Solidaritätszuschlag und Kirchensteuer, Antrag auf Günstigerprüfung |
 
-Unter den Angaben zeigt Haben das geschätzte zu versteuernde Einkommen und die voraussichtliche Steuer, berechnet wie die [Steuerprognose](finanzamt.md#steuerprognose) mit dem tatsächlichen Gewinn des Jahres.
+Unter den Angaben zeigt Haben das geschätzte zu versteuernde Einkommen und die voraussichtliche Steuer, berechnet wie die [Steuerprognose](finanzamt.md#steuerprognose) mit dem tatsächlichen Gewinn des Jahres. Mit Arbeitslohn kommen die bereits einbehaltene Lohnsteuer samt Soli und Kirchensteuer und die voraussichtliche Nachzahlung bzw. Erstattung dazu.
+
+### Arbeitslohn (Anlage N)
+
+Für jede Person, die angestellt war, setzt du den Haken „hatte Arbeitslohn“ und trägst die Lohnsteuerbescheinigung ein. Die Felder tragen die Nummern der Bescheinigung:
+
+| Nr. | Angabe | Wohin |
+| --- | --- | --- |
+| – | Steuerklasse | Anlage N; Steuerklasse 6 (zweites Dienstverhältnis) in eigene Zeilen |
+| 3 bis 7 | Bruttoarbeitslohn, Lohnsteuer, Solidaritätszuschlag, Kirchensteuer, Kirchensteuer des Ehegatten | Anlage N, Zeilen 4 bis 9 |
+| 22a, 23a | Rentenversicherung Arbeitgeber- und Arbeitnehmeranteil | Anlage Vorsorgeaufwand, Zeilen 4 und 9 |
+| 25, 26 | Arbeitnehmerbeiträge zur Kranken- und Pflegeversicherung | Anlage Vorsorgeaufwand, Zeilen 11 und 13 |
+| 27 | Arbeitslosenversicherung | Anlage Vorsorgeaufwand, Zeile 43 |
+
+Bei mehreren Arbeitgebern gibt es je Bescheinigung eine Zeile; Haben schickt jede einzeln und die Summe.
+
+Werbungskosten:
+
+- **Wege zur ersten Tätigkeitsstätte:** Anschrift, Tage dort, einfache Entfernung, optional Arbeitstage je Woche und Urlaubs- und Krankheitstage. Haben geht von Fahrten mit dem eigenen Auto aus.
+- **Homeoffice-Tage:** an denen du nicht zur Tätigkeitsstätte gefahren bist; mit dem Haken „dauerhaft kein anderer Arbeitsplatz“ in Zeile 62 statt 61.
+- **Arbeitsmittel, Fortbildung, Gewerkschaft und Berufsverbände, weitere Werbungskosten** (etwa Kontoführung) als Beträge.
+
+In der Prognose rechnet Haben die Entfernungspauschale mit 0,30 € je Kilometer, ab dem 21. Kilometer 0,38 € (ab 2026 ab dem ersten). Homeoffice zählt mit 6 € je Tag, höchstens 210 Tage; liegen die Werbungskosten unter dem Arbeitnehmer-Pauschbetrag von 1.230 €, gilt der Pauschbetrag.
+
+Die Homeoffice-Pauschale gibt es je Person nur einmal im Jahr. Hast du als Person A auch [Homeoffice-Tage in der EÜR](pauschalen.md), weist Haben darauf hin, wenn beide zusammen mehr als 210 Tage ergeben.
+
+Nicht abgebildet sind Versorgungsbezüge, ermäßigt besteuerte Entschädigungen (Abfindungen), Arbeitslohn ohne Steuerabzug oder aus dem Ausland, Kurzarbeiter- und Elterngeld, Fahrtkostenersatz des Arbeitgebers, Reisekosten, doppelte Haushaltsführung und steuerfreie Zuschüsse zur privaten Krankenversicherung (Nr. 24 der Bescheinigung).
 
 Beträge gehen in vollen Euro an ELSTER, nur die Steuern auf Kapitalerträge mit Cent. Bei der Einzelveranlagung trägt Haben Kinderbetreuungskosten als selbst getragen ein.
 
-Nicht abgebildet sind unter anderem Arbeitslohn (Anlage N, etwa für einen angestellten Ehegatten), Renten, Vermietung, Unterhalt, Riester sowie Kinder mit anderem Kindschaftsverhältnis oder Wohnsitz im Ausland. Brauchst du davon etwas, gibst du die Erklärung im ELSTER-Portal ab, statt sie hier zu senden; ein Nachsenden einzelner Anlagen ist nicht möglich.
+Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester sowie Kinder mit anderem Kindschaftsverhältnis oder Wohnsitz im Ausland. Brauchst du davon etwas, gibst du die Erklärung im ELSTER-Portal ab, statt sie hier zu senden; ein Nachsenden einzelner Anlagen ist nicht möglich.
 
 ## Belege von ELSTER
 
@@ -125,6 +152,6 @@ Wählst du unter **Für** den Ehegatten (Person B aus den [persönlichen Angaben
 
 ## Herkunft der Feldkennungen
 
-Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen.
+Das Finanzamt beschreibt jedes Feld mit einer Kennung (z. B. `E6007202` für den Gewinn). Die amtliche Liste steht in der Jahresdokumentation im ERiC-Paket. Haben nutzt die Kennungen und die Reihenfolge, mit denen andere freie Programme die Erklärungen bereits übermitteln (EasyCash&Tax für Anlage EÜR und AVEÜR, viking und finamt für die Umsatzsteuererklärung, viking für die Einkommensteuererklärung), für die Jahre ab 2023. Die Reihenfolge der Felder der Einkommensteuererklärung ist gegen die Feldliste der Jahresdokumentation 2024 abgeglichen; Feldkennungen und Kontexte der Anlage N und der Arbeitnehmerzeilen der Anlage Vorsorgeaufwand stammen direkt aus dieser Feldliste.
 
 Die Vordrucke ändern sich jedes Jahr ein wenig. Deshalb vor der Echtübermittlung immer erst prüfen oder testweise senden: Meldet ERiC ein unbekanntes Feld oder eine verletzte Regel, steht die Meldung im Verlauf. Bitte dann als Issue melden.

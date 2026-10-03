@@ -49,14 +49,15 @@ Haben füllt den Antrag mit den Zahlen aus deiner Buchhaltung und schätzt die S
 
 Haben rechnet mit dem Tarif nach § 32a EStG (2023 bis 2026, für spätere Jahre mit dem jüngsten Tarif). Die Tarifwerte sind gegen den Programmablaufplan des BMF abgeglichen. Vom hochgerechneten Gewinn zieht Haben ab:
 
-- Vorsorgeaufwand: Rentenversicherung voll, Basis-Kranken- und Pflegeversicherung voll, weitere Vorsorge bis zum Höchstbetrag von 2.800 € je Person,
+- Arbeitslohn: Einkünfte nach Werbungskosten bzw. Arbeitnehmer-Pauschbetrag kommen zum Gewinn hinzu,
+- Vorsorgeaufwand: Rentenversicherung voll (bei Arbeitnehmern abzüglich des Arbeitgeberanteils), Basis-Kranken- und Pflegeversicherung voll, weitere Vorsorge bis zum Höchstbetrag von 2.800 € je Person, 1.900 € bei Arbeitnehmern,
 - Sonderausgaben: Kirchensteuer und Spenden (bis 20 % des Gewinns), mindestens den Pauschbetrag von 36 € bzw. 72 €,
 - Kinderbetreuungskosten (bis 2024 zwei Drittel, höchstens 4.000 €; ab 2025 80 %, höchstens 4.800 € je Kind),
 - Krankheitskosten über der zumutbaren Belastung.
 
 Bei Zusammenveranlagung gilt der Splittingtarif. Für Kinder vergleicht Haben Kindergeld und Kinderfreibeträge (Günstigerprüfung), haushaltsnahe Aufwendungen mindern die Steuer nach § 35a EStG. Solidaritätszuschlag mit Freigrenze und Milderungszone; Kirchensteuer mit 8 % in Baden-Württemberg und Bayern, sonst 9 %, bei nur einem kirchensteuerpflichtigen Ehegatten vereinfacht zur Hälfte.
 
-Die Abzüge stammen aus den [Angaben zur Einkommensteuererklärung](jahreserklaerung.md#einkommensteuererklärung) des laufenden Jahres, sonst aus denen des Vorjahres. Gibt es keine, rechnet Haben nur mit dem Pauschbetrag. Andere Einkünfte als der Gewinn (Arbeitslohn, Vermietung, Renten) und Kapitalerträge fehlen; die Prognose ist eine Schätzung, keine Steuerberechnung des Finanzamts. Die Nennung im Antrag lässt sich abschalten.
+Die Abzüge stammen aus den [Angaben zur Einkommensteuererklärung](jahreserklaerung.md#einkommensteuererklärung) des laufenden Jahres, sonst aus denen des Vorjahres. Gibt es keine, rechnet Haben nur mit dem Pauschbetrag. Einbehaltene Lohnsteuer samt Soli und Kirchensteuer wird angerechnet; die Vorauszahlungen beziehen sich nur auf den Rest. Vermietung, Renten und Kapitalerträge fehlen; die Prognose ist eine Schätzung, keine Steuerberechnung des Finanzamts. Die Nennung im Antrag lässt sich abschalten.
 
 Die Herabsetzung wirkt ab dem nächsten Fälligkeitstermin. Die Antwort kommt als geänderter Vorauszahlungsbescheid, per Brief oder in dein ELSTER-Postfach.
 

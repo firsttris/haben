@@ -1,4 +1,4 @@
-import { ACCOUNTS, taxOf, toElsterSteuernummer, toWholeEuros, type Cents, type Prognose, type EuerResult, type ExpenseCategory, type PauschaleArt } from "@haben/core";
+import { ACCOUNTS, taxOf, toElsterSteuernummer, toWholeEuros, type Cents, type Prognose, type EuerResult, type ExpenseCategory, type PauschaleArt, homeofficeSatz } from "@haben/core";
 import {
   buildEstXml,
   buildEuerXml,
@@ -23,6 +23,7 @@ import { decrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
+import { listPauschalen } from "./pauschalen.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures } from "./vat-figures.ts";
 import { loadActiveCertificate, PRODUKT_VERSION } from "./vat.ts";
@@ -35,7 +36,7 @@ export interface Issue {
   /** fehler: nicht sendbar; hinweis: sendbar, aber prüfen */
   tone: "fehler" | "hinweis";
   text: string;
-  link?: "/einstellungen" | "/anlagen" | "/umsatzsteuer" | "/bank";
+  link?: "/einstellungen" | "/anlagen" | "/umsatzsteuer" | "/bank" | "/pauschalen";
 }
 
 // ------------------------------------------------------------------ Umsatzsteuererklärung
@@ -280,6 +281,10 @@ export async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
   const k = angaben.kap;
   const has = (...values: (number | undefined)[]) => values.some((v) => (v ?? 0) > 0);
   const vor = [angaben.vorsorge.a, zusammen ? angaben.vorsorge.b : undefined].flatMap((v) => (v ? Object.values(v) : []));
+  // Sozialversicherung laut Lohnsteuerbescheinigung landet ebenfalls in der Anlage Vorsorgeaufwand
+  const vorLohn = [angaben.arbeitnehmer?.a, zusammen ? angaben.arbeitnehmer?.b : undefined]
+    .flatMap((an) => an?.bescheinigungen ?? [])
+    .flatMap((b) => [b.rvArbeitnehmer, b.rvArbeitgeber, b.kvArbeitnehmer, b.pvArbeitnehmer, b.avArbeitnehmer]);
   const anlagen = [
     "ESt 1 A",
     has(angaben.sonderausgaben.kirchensteuerGezahlt, angaben.sonderausgaben.kirchensteuerErstattet, angaben.sonderausgaben.spenden) && "Sonderausgaben",
@@ -287,8 +292,14 @@ export async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
     has(angaben.haushaltsnah.minijobs, angaben.haushaltsnah.dienstleistungen, angaben.haushaltsnah.handwerker) && "Haushaltsnahe Aufwendungen",
     angaben.kinder.length > 0 && `Kind (${angaben.kinder.length})`,
     company.einkunftsart === "gewerbe" ? "G" : company.einkunftsart === "selbstaendig" ? "S" : false,
+    ...([
+      ["a", t.a?.vorname],
+      ["b", zusammen ? t.b?.vorname : undefined],
+    ] as const).map(([p, vorname]) =>
+      (p === "a" || zusammen) && (angaben.arbeitnehmer?.[p]?.bescheinigungen.length ?? 0) > 0 ? `N${vorname ? ` (${vorname})` : ""}` : false,
+    ),
     k && (k.guenstigerpruefung || has(k.ertraegeMitSteuerabzug, k.ertraegeOhneSteuerabzugInland, k.ertraegeAusland, k.kapitalertragsteuer)) && "KAP",
-    has(...vor, angaben.vorsorge.sonstige) && "Vorsorgeaufwand",
+    has(...vor, ...vorLohn, angaben.vorsorge.sonstige) && "Vorsorgeaufwand",
   ].filter((a): a is string => Boolean(a));
   return {
     angaben,
@@ -316,9 +327,25 @@ function estIssues(company: Company, euer: EuerYear): Issue[] {
   }
   issues.push({
     tone: "hinweis",
-    text: "Haben schickt nur die hier gezeigten Angaben. Arbeitslohn (Anlage N), Renten, Vermietung und andere Einkünfte ergänzt du im ELSTER-Portal, falls du sie hast.",
+    text: "Haben schickt nur die hier gezeigten Angaben. Renten, Vermietung und andere Einkünfte ergänzt du im ELSTER-Portal, falls du sie hast.",
   });
   return issues;
+}
+
+/** Die Homeoffice-Tagespauschale gibt es je Person höchstens für 210 Tage, in EÜR und Anlage N zusammen */
+async function homeofficeIssues(year: number, est: EstYear): Promise<Issue[]> {
+  const satz = homeofficeSatz(year);
+  const imN = est.angaben.arbeitnehmer?.a?.bescheinigungen.length ? (est.angaben.arbeitnehmer.a.werbungskosten.homeofficeTage ?? 0) : 0;
+  if (!satz || imN === 0) return [];
+  const { homeoffice } = await listPauschalen(year);
+  if (homeoffice.tage + imN <= satz.maxTage) return [];
+  return [
+    {
+      tone: "hinweis",
+      text: `Homeoffice: ${homeoffice.tage} Tage in der EÜR und ${imN} in der Anlage N sind zusammen mehr als ${satz.maxTage}. Die Pauschale gibt es je Person nur einmal; jeder Tag zählt entweder für die selbständige Arbeit oder für die Anstellung.`,
+      link: "/pauschalen",
+    },
+  ];
 }
 
 // ------------------------------------------------------------------ Übersicht und Übermittlung
@@ -357,7 +384,7 @@ export async function annualOverview(year: number, today: string) {
     year,
     ust: { ...ust, issues: [...base, ...ustIssues(company, ust)], sent: sent("ust") },
     euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer") },
-    est: { ...est, issues: [...base, ...estIssues(company, euer)], sent: sent("est") },
+    est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est") },
     history,
     versteuerung: company.versteuerung,
   };

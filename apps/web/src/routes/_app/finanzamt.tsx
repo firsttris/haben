@@ -168,8 +168,14 @@ function PrepaymentForm({ data }: { data: Data }) {
           <tbody>
             <tr>
               <th scope="row">Hochgerechneter Gewinn</th>
-              <td className="num">{formatEuro(p.gesamtbetragEinkuenfte)}</td>
+              <td className="num">{formatEuro(p.gesamtbetragEinkuenfte - p.einkuenfteArbeit)}</td>
             </tr>
+            {p.einkuenfteArbeit !== 0 && (
+              <tr>
+                <th scope="row">Arbeitslohn nach Werbungskosten</th>
+                <td className="num">{formatEuro(p.einkuenfteArbeit)}</td>
+              </tr>
+            )}
             <tr>
               <th scope="row">Vorsorge, Sonderausgaben, Kinderbetreuung, Belastungen</th>
               <td className="num">−{formatEuro(p.vorsorge + p.sonderausgaben + p.kinderbetreuung + p.aussergewoehnlich)}</td>
@@ -194,6 +200,12 @@ function PrepaymentForm({ data }: { data: Data }) {
                 <td className="num">{formatEuro(p.kirchensteuer)}</td>
               </tr>
             )}
+            {p.steuerabzug > 0 && (
+              <tr>
+                <th scope="row">Lohnsteuer, angerechnet</th>
+                <td className="num">−{formatEuro(p.steuerabzug)}</td>
+              </tr>
+            )}
             <tr style={{ fontWeight: 600 }}>
               <th scope="row" style={{ fontWeight: 600 }}>
                 Je Vorauszahlungstermin (ein Viertel)
@@ -208,7 +220,7 @@ function PrepaymentForm({ data }: { data: Data }) {
             : b.angabenAus < b.year
               ? `Abzüge aus deinen Angaben zur Einkommensteuer ${b.angabenAus}. `
               : ""}
-          Grundlage ist allein der Gewinn aus der Buchhaltung; weitere Einkünfte (Arbeitslohn, Vermietung) und Kapitalerträge fehlen. Eine
+          Grundlage sind der Gewinn aus der Buchhaltung und der Arbeitslohn aus deinen Angaben; Vermietung und Kapitalerträge fehlen. Eine
           Schätzung, keine Steuerberechnung. <Link to="/jahreserklaerung/$jahr" params={{ jahr: String(b.year) }}>Angaben bearbeiten</Link>
         </p>
         <label className="checkbox">

@@ -22,6 +22,45 @@ const vorsorgePerson = z
   })
   .default({});
 
+const tage = z.number().int().min(0).max(366).optional();
+
+const bescheinigung = z.object({
+  steuerklasse: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
+  brutto: z.number().int().min(1, "Bruttoarbeitslohn fehlt").max(100_000_000_00),
+  lohnsteuer: cents,
+  soli: cents,
+  kirchensteuer: cents,
+  kirchensteuerEhegatte: cents,
+  rvArbeitgeber: cents,
+  rvArbeitnehmer: cents,
+  kvArbeitnehmer: cents,
+  pvArbeitnehmer: cents,
+  avArbeitnehmer: cents,
+});
+
+const arbeitnehmer = z.object({
+  bescheinigungen: z.array(bescheinigung).max(10).default([]),
+  werbungskosten: z
+    .object({
+      wege: z
+        .object({
+          tage: z.number().int().min(1).max(366),
+          km: z.number().min(1).max(9999),
+          adresse: z.string().trim().min(1, "Anschrift der Tätigkeitsstätte fehlt").max(200),
+          arbeitstageJeWoche: z.number().int().min(1).max(7).optional(),
+          urlaubstage: tage,
+        })
+        .optional(),
+      homeofficeTage: tage,
+      keinAndererArbeitsplatz: z.boolean().optional(),
+      arbeitsmittel: cents,
+      fortbildung: cents,
+      berufsverbaende: cents,
+      sonstige: cents,
+    })
+    .default({}),
+});
+
 export const estAngabenSchema = z.object({
   vorsorge: z.object({ a: vorsorgePerson, b: vorsorgePerson.optional(), sonstige: cents }).default({ a: {} }),
   sonderausgaben: z.object({ kirchensteuerGezahlt: cents, kirchensteuerErstattet: cents, spenden: cents }).default({}),
@@ -57,6 +96,7 @@ export const estAngabenSchema = z.object({
       kirchensteuer: cents,
     })
     .optional(),
+  arbeitnehmer: z.object({ a: arbeitnehmer.optional(), b: arbeitnehmer.optional() }).optional(),
 });
 
 export type EstAngabenInput = z.input<typeof estAngabenSchema>;

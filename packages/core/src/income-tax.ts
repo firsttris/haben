@@ -1,3 +1,4 @@
+import { altersvorsorgeQuote, arbeitslohnErgebnis, type Arbeitslohn } from "./arbeitnehmer.ts";
 import type { Cents } from "./money.ts";
 import type { Bundesland } from "./steuernummer.ts";
 
@@ -144,6 +145,8 @@ export interface PrognoseAngaben {
   krankheitskosten?: Cents;
   haushaltsnah: { minijobs?: Cents; dienstleistungen?: Cents; handwerker?: Cents };
   kinder: { kinderbetreuung?: Cents }[];
+  /** Arbeitslohn je Person (Anlage N) */
+  arbeitnehmer?: { a?: Arbeitslohn; b?: Arbeitslohn };
 }
 
 export interface PrognoseInput {
@@ -159,6 +162,8 @@ export interface PrognoseInput {
 
 export interface Prognose {
   year: number;
+  /** Einkünfte aus nichtselbständiger Arbeit nach Werbungskosten bzw. Pauschbetrag */
+  einkuenfteArbeit: Cents;
   gesamtbetragEinkuenfte: Cents;
   vorsorge: Cents;
   sonderausgaben: Cents;
@@ -175,18 +180,49 @@ export interface Prognose {
   soli: Cents;
   kirchensteuer: Cents;
   gesamt: Cents;
-  /** Ein Viertel der Jahressteuer, je Vorauszahlungstermin */
+  /** Einbehaltene Lohnsteuer mit Soli und Kirchensteuer, wird angerechnet */
+  steuerabzug: Cents;
+  /** Gesamt abzüglich Steuerabzug; negativ heißt Erstattung */
+  verbleibend: Cents;
+  /** Ein Viertel der verbleibenden Jahressteuer, je Vorauszahlungstermin */
   jeQuartal: Cents;
 }
 
 const sum = (...values: (Cents | undefined)[]) => values.reduce<number>((acc, v) => acc + (v ?? 0), 0);
 
-/** Abziehbare Vorsorgeaufwendungen (§ 10 Abs. 1 Nr. 2, 3, 3a und Abs. 4 EStG), Höchstbetrag für Selbständige */
-function vorsorgeAbzug(personen: PrognoseVorsorge[], sonstige: Cents | undefined): Cents {
-  const alter = sum(...personen.map((p) => p.rentenversicherung));
-  const basis = Math.max(0, sum(...personen.map((p) => sum(p.gkv, p.gpv, p.pkv, p.ppv) - (p.pkvErstattung ?? 0))));
-  const weitere = sum(sonstige, ...personen.map((p) => p.gkvZusatz));
-  const hoechst = 2_800_00 * personen.length;
+/**
+ * Abziehbare Vorsorgeaufwendungen (§ 10 Abs. 1 Nr. 2, 3, 3a und Abs. 4 EStG). Höchstbetrag 2.800 € für
+ * Selbständige, 1.900 € für Arbeitnehmer (Zuschuss des Arbeitgebers zur Krankenversicherung). Beiträge
+ * laut Lohnsteuerbescheinigung: Rentenversicherung mit Arbeitgeberanteil abzüglich dieses Anteils,
+ * Krankenversicherung ohne den Anteil für Krankengeld (4 %).
+ */
+function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbeitslohn }[], sonstige: Cents | undefined): Cents {
+  const lstb = (an: Arbeitslohn | undefined, pick: (b: Arbeitslohn["bescheinigungen"][number]) => Cents | undefined) =>
+    an ? sum(...an.bescheinigungen.map(pick)) : 0;
+  const alter = sum(
+    ...personen.map(({ v, an }) => {
+      const ag = lstb(an, (b) => b.rvArbeitgeber);
+      const eigen = lstb(an, (b) => b.rvArbeitnehmer) + (v.rentenversicherung ?? 0);
+      return Math.max(0, Math.floor((eigen + ag) * altersvorsorgeQuote(year)) - ag);
+    }),
+  );
+  const basis = Math.max(
+    0,
+    sum(
+      ...personen.map(({ v, an }) => {
+        const kvAn = lstb(an, (b) => b.kvArbeitnehmer);
+        return sum(v.gkv, v.gpv, v.pkv, v.ppv, Math.floor(kvAn * 0.96), lstb(an, (b) => b.pvArbeitnehmer)) - (v.pkvErstattung ?? 0);
+      }),
+    ),
+  );
+  const weitere = sum(
+    sonstige,
+    ...personen.map(({ v, an }) => {
+      const kvAn = lstb(an, (b) => b.kvArbeitnehmer);
+      return sum(v.gkvZusatz, kvAn - Math.floor(kvAn * 0.96), lstb(an, (b) => b.avArbeitnehmer));
+    }),
+  );
+  const hoechst = sum(...personen.map(({ an }) => (an && an.bescheinigungen.length > 0 ? 1_900_00 : 2_800_00)));
   return alter + Math.max(basis, Math.min(basis + weitere, hoechst));
 }
 
@@ -210,10 +246,24 @@ function zumutbareBelastung(gde: Cents, zusammen: boolean, kinder: number): Cent
 export function steuerPrognose(input: PrognoseInput): Prognose {
   const { year, zusammen, angaben: x } = input;
   const t = tarif(year);
-  const gde = Math.max(0, input.gewinn);
+  const arbeit = (zusammen ? [x.arbeitnehmer?.a, x.arbeitnehmer?.b] : [x.arbeitnehmer?.a])
+    .filter((an): an is Arbeitslohn => Boolean(an && an.bescheinigungen.length > 0))
+    .map((an) => arbeitslohnErgebnis(year, an));
+  const einkuenfteArbeit = sum(...arbeit.map((a) => a.einkuenfte));
+  const steuerabzug = sum(...arbeit.map((a) => a.steuerabzug));
+  const gde = Math.max(0, input.gewinn + einkuenfteArbeit);
   const kinder = x.kinder.length;
 
-  const vorsorge = vorsorgeAbzug(zusammen ? [x.vorsorge.a, x.vorsorge.b ?? {}] : [x.vorsorge.a], x.vorsorge.sonstige);
+  const vorsorge = vorsorgeAbzug(
+    year,
+    zusammen
+      ? [
+          { v: x.vorsorge.a, an: x.arbeitnehmer?.a },
+          { v: x.vorsorge.b ?? {}, an: x.arbeitnehmer?.b },
+        ]
+      : [{ v: x.vorsorge.a, an: x.arbeitnehmer?.a }],
+    x.vorsorge.sonstige,
+  );
   const kist = Math.max(0, sum(x.sonderausgaben.kirchensteuerGezahlt) - sum(x.sonderausgaben.kirchensteuerErstattet));
   const spenden = Math.min(sum(x.sonderausgaben.spenden), Math.floor(gde * 0.2));
   const sonderausgaben = Math.max(kist + spenden, (zusammen ? 72 : 36) * 100);
@@ -254,8 +304,10 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
   const kirchensteuer = Math.floor(basisZuschlag * kirchensteuerSatz(input.bundesland) * kirchenAnteil);
 
   const gesamt = est + soli + kirchensteuer;
+  const verbleibend = gesamt - steuerabzug;
   return {
     year,
+    einkuenfteArbeit,
     gesamtbetragEinkuenfte: gde,
     vorsorge,
     sonderausgaben,
@@ -269,6 +321,8 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
     soli,
     kirchensteuer,
     gesamt,
-    jeQuartal: Math.round(gesamt / 4 / 100) * 100,
+    steuerabzug,
+    verbleibend,
+    jeQuartal: Math.round(Math.max(0, verbleibend) / 4 / 100) * 100,
   };
 }

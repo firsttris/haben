@@ -18,3 +18,4 @@ export * from "./einspruch.ts";
 export * from "./ledger.ts";
 export * from "./fristen.ts";
 export * from "./pauschalen.ts";
+export * from "./arbeitnehmer.ts";
