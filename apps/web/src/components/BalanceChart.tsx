@@ -1,9 +1,8 @@
 import { formatEuro } from "@haben/core";
 import { useState, type PointerEvent } from "react";
-import { euroAxis, niceTicks } from "../lib/chart.ts";
+import { euroAxis, niceTicks, useChartWidth } from "../lib/chart.ts";
 import { formatDate } from "../lib/format.ts";
 
-const W = 720;
 const H = 200;
 const M = { top: 12, right: 12, bottom: 24, left: 72 };
 const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
@@ -23,6 +22,7 @@ const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`) / 86_400_000;
  */
 export function BalanceChart({ from, to, start, points, title }: { from: string; to: string; start: number; points: BalancePoint[]; title: string }) {
   const [active, setActive] = useState<number | null>(null);
+  const [chartRef, W] = useChartWidth();
   const first = day(from);
   const last = Math.max(day(to) - 1, first + 1);
   const values = [start, ...points.map((p) => p.value)];
@@ -62,7 +62,7 @@ export function BalanceChart({ from, to, start, points, title }: { from: string;
 
   const point = active !== null ? points[active] : null;
   return (
-    <div className="chart" onPointerLeave={() => setActive(null)}>
+    <div className="chart" ref={chartRef} onPointerLeave={() => setActive(null)}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title}: Saldo von ${formatEuro(start)} auf ${formatEuro(current)}`} onPointerMove={onMove}>
         <g aria-hidden="true">
           {ticks.map((t) => (
@@ -74,11 +74,14 @@ export function BalanceChart({ from, to, start, points, title }: { from: string;
             </g>
           ))}
           {monthTicks.length <= 12 &&
-            monthTicks.map((m) => (
-              <text key={m.iso} x={x(m.iso)} y={H - 6} textAnchor="start" className="tick">
-                {m.label}
-              </text>
-            ))}
+            monthTicks.map((m, i) =>
+              // Schmale Diagramme: nur jeden zweiten Monat beschriften
+              i % (W < 520 ? 2 : 1) === 0 ? (
+                <text key={m.iso} x={x(m.iso)} y={H - 6} textAnchor="start" className="tick">
+                  {m.label}
+                </text>
+              ) : null,
+            )}
         </g>
         <path d={d} className="line-series" />
         {point && (

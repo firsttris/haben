@@ -22,9 +22,9 @@ const formatter = new Intl.NumberFormat("de-DE", {
   maximumFractionDigits: 2,
 });
 
-/** 123456 → "1.234,56 €" */
+/** 123456 → "1.234,56 €", mit geschütztem Leerzeichen, damit das € nie allein in die nächste Zeile rutscht */
 export function formatEuro(cents: Cents): string {
-  return `${formatter.format(cents / 100)} €`;
+  return `${formatter.format(cents / 100)}\u00a0€`;
 }
 
 /** 123456 → "1.234,56" */

@@ -148,7 +148,7 @@ function KontenPage() {
                 <th scope="col" className="num">
                   Haben
                 </th>
-                <th scope="col" className="num">
+                <th scope="col" className="num saldo-head">
                   Saldo
                 </th>
               </tr>

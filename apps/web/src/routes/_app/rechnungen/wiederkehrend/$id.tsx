@@ -44,7 +44,7 @@ function RecurringDetailPage() {
           <div className="actions">
             <button
               type="button"
-              className="btn btn-dashed"
+              className="btn btn-danger"
               disabled={busy}
               onClick={() => {
                 if (!confirmingDelete) return setConfirmingDelete(true);

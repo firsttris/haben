@@ -20,7 +20,7 @@
 .table-scroll { overflow-x: auto; }
 .legacy-cols { grid-template-columns: 96px 140px minmax(0, 1fr) 110px 110px 60px; }
 .archive-file-cols { grid-template-columns: 60px 170px minmax(0, 1fr) 90px 150px; }
-.filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.archive-filter { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .year-block { display: flex; flex-direction: column; gap: 16px; }
 .upload-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2fr); gap: 12px; align-items: end; }
 @media (max-width: 760px) {

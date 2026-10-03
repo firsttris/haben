@@ -20,20 +20,25 @@ function InvoicesPage() {
           <h1>Rechnungen</h1>
         </div>
         <div className="actions">
-          <Link to="/kontakte" className="btn">
-            Kontakte
-          </Link>
-          <Link to="/rechnungen/wiederkehrend" className="btn">
-            Wiederkehrend
-          </Link>
-          <Link to="/rechnungen/mahnwesen" className="btn">
-            Mahnwesen
-          </Link>
           <Link to="/rechnungen/neu" className="btn btn-primary">
             Neue Rechnung
           </Link>
         </div>
       </div>
+      <nav className="subnav" aria-label="Bereiche der Rechnungen">
+        <Link to="/rechnungen" className="chip active" aria-current="page">
+          Alle Rechnungen
+        </Link>
+        <Link to="/rechnungen/wiederkehrend" className="chip">
+          Wiederkehrend
+        </Link>
+        <Link to="/rechnungen/mahnwesen" className="chip">
+          Mahnwesen
+        </Link>
+        <Link to="/kontakte" className="chip">
+          Kontakte
+        </Link>
+      </nav>
       <section className="card" aria-label="Rechnungsliste">
         {invoices.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>

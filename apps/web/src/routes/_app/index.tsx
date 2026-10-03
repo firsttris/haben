@@ -187,23 +187,44 @@ function OverviewPage() {
       </div>
 
       <div className="grid-main">
-        <section className="card" aria-labelledby="todo-heading">
-          <h2 id="todo-heading">Zu erledigen</h2>
-          {todos.length === 0 ? (
-            <p className="muted">Alles erledigt.</p>
-          ) : (
-            todos.map((todo) => (
-              <Link key={todo.title} to={todo.to} params={{ zeitraum: key }} className="todo">
-                <span className="todo-dot" style={{ background: DOT[todo.tone] }} />
-                <span className="todo-body">
-                  <span className="todo-title">{todo.title}</span>
-                  <span className="small muted">{todo.detail}</span>
-                </span>
-                <span className="todo-action">{todo.action}</span>
-              </Link>
-            ))
-          )}
-        </section>
+        <div className="stack">
+          <section className="card" aria-labelledby="todo-heading">
+            <h2 id="todo-heading">Zu erledigen</h2>
+            {todos.length === 0 ? (
+              <p className="muted">Alles erledigt.</p>
+            ) : (
+              todos.map((todo) => (
+                <Link key={todo.title} to={todo.to} params={{ zeitraum: key }} className="todo">
+                  <span className="todo-dot" style={{ background: DOT[todo.tone] }} />
+                  <span className="todo-body">
+                    <span className="todo-title">{todo.title}</span>
+                    <span className="small muted">{todo.detail}</span>
+                  </span>
+                  <span className="todo-action">{todo.action}</span>
+                </Link>
+              ))
+            )}
+          </section>
+          <section className="card" aria-labelledby="recent-heading">
+            <h2 id="recent-heading">Letzte Voranmeldungen</h2>
+            {data.recent.length === 0 ? (
+              <p className="muted">Noch keine Voranmeldung über Haben gesendet.</p>
+            ) : (
+              data.recent.map((entry) => (
+                <div key={entry.id} className="history-row">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: periodKey(entry) }}>
+                      {periodLabel(entry)}
+                      {entry.berichtigt ? " (berichtigt)" : ""}
+                    </Link>
+                    <span className="small muted">gesendet {formatDate(entry.sentAt!)}</span>
+                  </div>
+                  <span className="mono">{formatEuro(entry.kz83)}</span>
+                </div>
+              ))
+            )}
+          </section>
+        </div>
         <section className="card" aria-labelledby="invoices-heading">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h2 id="invoices-heading">Letzte Rechnungen</h2>
@@ -226,27 +247,6 @@ function OverviewPage() {
                 </Link>
               ))}
             </div>
-          )}
-        </section>
-      </div>
-      <div className="grid-main">
-        <section className="card" aria-labelledby="recent-heading">
-          <h2 id="recent-heading">Letzte Voranmeldungen</h2>
-          {data.recent.length === 0 ? (
-            <p className="muted">Noch keine Voranmeldung über Haben gesendet.</p>
-          ) : (
-            data.recent.map((entry) => (
-              <div key={entry.id} className="history-row">
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: periodKey(entry) }}>
-                    {periodLabel(entry)}
-                    {entry.berichtigt ? " (berichtigt)" : ""}
-                  </Link>
-                  <span className="small muted">gesendet {formatDate(entry.sentAt!)}</span>
-                </div>
-                <span className="mono">{formatEuro(entry.kz83)}</span>
-              </div>
-            ))
           )}
         </section>
       </div>

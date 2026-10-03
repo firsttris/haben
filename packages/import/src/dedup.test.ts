@@ -65,7 +65,7 @@ describe("checkBalanceContinuity", () => {
       { openingBalance: 1900000, periodFrom: "2026-10-15" },
     );
     expect(r.ok).toBe(false);
-    expect(r.message).toMatch(/^Lücke: Anfangssaldo 19\.000,00 € passt nicht zum Endsaldo 18\.658,72 €/);
+    expect(r.message).toMatch(/^Lücke: Anfangssaldo 19\.000,00\s€ passt nicht zum Endsaldo 18\.658,72\s€/);
     expect(r.message).toMatch(/des vorigen Imports/);
   });
 

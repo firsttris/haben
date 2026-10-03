@@ -206,7 +206,7 @@ function KalenderAbo() {
             <button type="button" className="btn" disabled={busy} onClick={() => void neu()}>
               Neuen Link erzeugen
             </button>
-            <button type="button" className="btn" disabled={busy} onClick={() => void run(async () => void (await revoke()))}>
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void run(async () => void (await revoke()))}>
               Abo beenden
             </button>
           </div>

@@ -23,7 +23,7 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
     <div className="stack">
       <section className="card stack" aria-label={`DATEV-Buchungen ${year}`}>
         <YearSwitch year={year} years={years} search={search} />
-        <div className="filter-row" style={{ justifyContent: "space-between" }}>
+        <div className="archive-filter" style={{ justifyContent: "space-between" }}>
           <Link
             to="/archiv" activeProps={{}}
             search={{ ...search, ohneBeleg: search.ohneBeleg ? undefined : true, seite: undefined }}
@@ -86,7 +86,7 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
           </div>
         )}
         {pages > 1 && (
-          <nav className="filter-row" aria-label="Seiten">
+          <nav className="archive-filter" aria-label="Seiten">
             {page > 0 && (
               <Link to="/archiv" activeProps={{}} search={{ ...search, seite: page - 1 || undefined }} className="btn">
                 ‹ zurück

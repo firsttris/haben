@@ -113,7 +113,7 @@ function Connection({ connection }: { connection: MigrationData["connection"] })
             Verbunden mit <strong>{connection.organizationName || "Lexware Office"}</strong>
             <div className="small muted">Schlüssel hinterlegt am {formatDateTime(connection.createdAt)}, verschlüsselt gespeichert.</div>
           </div>
-          <button type="button" className="btn" onClick={onRemove} disabled={busy}>
+          <button type="button" className="btn btn-danger" onClick={onRemove} disabled={busy}>
             Schlüssel entfernen
           </button>
         </div>

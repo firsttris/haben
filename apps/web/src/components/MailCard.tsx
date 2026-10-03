@@ -196,7 +196,7 @@ export function MailCard({ data }: { data: Data }) {
             </button>
             <button
               type="button"
-              className="btn"
+              className="btn btn-danger"
               disabled={busy}
               onClick={() =>
                 void run(async () => {
