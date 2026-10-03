@@ -7,6 +7,7 @@ export * from "./bankverbindung.ts";
 export * from "./postfach.ts";
 export * from "./vast.ts";
 export * from "./berechtigung.ts";
+export * from "./formatprobe.ts";
 export { parseTransferTicket } from "./ticket.ts";
 export { ERIC_DRUCKE, ERIC_OK, ERIC_SENDE, ERIC_VALIDIERE, type EricConfig } from "./eric.ts";
 export * from "./process-client.ts";

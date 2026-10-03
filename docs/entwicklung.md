@@ -65,6 +65,12 @@ Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`. Ohn
 
 Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kompilieren eine kleine C-Bibliothek mit `cc`. Gibt es keinen Compiler, werden sie übersprungen.
 
+Mit echtem ERiC prüft ein Kommando die Nachrichten von Belegabruf, Berechtigung und Postfach gegen die Schemas von ERiC, ohne zu senden (Exit-Code 1 bei Fehlern):
+
+```sh
+node --experimental-strip-types packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DIR
+```
+
 | Bereich | Was getestet wird |
 | --- | --- |
 | `packages/core` | Beträge und Rundung, Rechnungssummen und Nummernformat, Zeiträume und Fälligkeit der Voranmeldung, Feiertage je Bundesland, Steuerfälle von Rechnungen, Steuernummer-Umrechnung, Kennzahlen der UStVA, Buchungssätze für SKR03/SKR04 und Ist/Soll, Zuordnungsvorschläge im Bankabgleich, EÜR, Umsatzsteuer des Lexoffice-Altbestands |

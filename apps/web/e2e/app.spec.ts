@@ -219,6 +219,9 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await cert.getByLabel("Zertifikatsdatei").setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from("kein echtes Zertifikat") });
   await cert.getByRole("button", { name: "Hochladen" }).click();
   await expect(cert.getByText("test.pfx")).toBeVisible();
+  const formate = page.getByRole("group", { name: "Formate prüfen" });
+  await formate.getByRole("button", { name: "Formate mit ERiC prüfen" }).click();
+  await expect(formate.getByRole("status")).toHaveText("Alle 8 Nachrichten sind gültig (simuliert, ohne ERiC).");
 
   // Ohne ERiC läuft der Abruf simuliert und liefert Beispielbelege
   await go(`/jahreserklaerung/${YEAR - 1}`);

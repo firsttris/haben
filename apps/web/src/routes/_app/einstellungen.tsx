@@ -9,7 +9,7 @@ import { removeCertificate, uploadCertificate } from "../../server/functions/cer
 import { RELIGIONEN } from "../../lib/religion.ts";
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
-import { getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
+import { checkElsterFormats, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
@@ -649,7 +649,75 @@ function EricCard() {
         </>
       )}
       <NoticeBanner notice={notice} />
+      <FormatCheck simuliert={eric.mode !== "eric"} />
     </form>
+  );
+}
+
+/** ERiC prüft Belegabruf, Berechtigung und Postfach gegen seine Schemas, ohne zu senden */
+function FormatCheck({ simuliert }: { simuliert: boolean }) {
+  const check = useServerFn(checkElsterFormats);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof checkElsterFormats>> | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(await check());
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const failed = result?.results.filter((r) => !r.ok).length ?? 0;
+  return (
+    <div className="stack" style={{ gap: 8, borderTop: "1px solid var(--line)", paddingTop: 12 }} aria-label="Formate prüfen" role="group">
+      <p className="small muted" style={{ margin: 0 }}>
+        Belegabruf, Berechtigung und Postfach baut Haben nach freien Vorlagen, nicht nach der amtlichen Jahresdokumentation. Hier prüft
+        ERiC diese Nachrichten gegen seine Schemas; gesendet wird nichts.
+        {simuliert ? " Ohne ERiC ist die Prüfung nur simuliert." : ""}
+      </p>
+      <div className="actions">
+        <button type="button" className="btn" disabled={busy} onClick={() => void run()}>
+          {busy ? "Prüft …" : "Formate mit ERiC prüfen"}
+        </button>
+      </div>
+      {error && (
+        <div className="banner banner-danger" role="alert">
+          {error}
+        </div>
+      )}
+      {result && (
+        <>
+          <div className={`banner ${failed === 0 ? "banner-ok" : "banner-danger"}`} role="status">
+            {failed === 0
+              ? `Alle ${result.results.length} Nachrichten sind gültig${result.mode === "simuliert" ? " (simuliert, ohne ERiC)" : ""}.`
+              : `${failed} von ${result.results.length} Nachrichten bemängelt ERiC. Bitte die Meldungen als Issue melden.`}
+          </div>
+          <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
+            {result.results.map((r) => (
+              <li key={r.name}>
+                {r.ok ? "✓" : "✗"} {r.name} <span className="muted mono">{r.datenartVersion}</span>
+                {!r.ok && (
+                  <div style={{ overflowWrap: "anywhere" }}>
+                    {r.code}: {r.message}
+                    {r.meldungen.map((m) => (
+                      <div key={m} className="muted">
+                        {m}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
   );
 }
 
