@@ -54,13 +54,16 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Fremdleistungen | Bezogene Fremdleistungen |
 | Kontoführung und Gebühren, Sonstiger Aufwand | Übrige Betriebsausgaben |
 | AfA aus dem Anlagenverzeichnis | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
+| [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
+| [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
+| [Pauschale](pauschalen.md): Verpflegungsmehraufwand | Verpflegungsmehraufwendungen (beschränkt abziehbar) |
 | Private Kfz-Nutzung | Private Kfz-Nutzung (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
 
-**Entnahmen und Einlagen** kommen aus dem Journal: alles, was auf den Privatkonten gebucht ist (Privatüberweisungen im Bankabgleich, privat bezahlte Belege, Privatanteile, Privatnutzung der Firmenwagen mit Umsatzsteuer).
+**Entnahmen und Einlagen** kommen aus dem Journal: alles, was auf den Privatkonten gebucht ist (Privatüberweisungen im Bankabgleich, privat bezahlte Belege, Pauschalen ohne Beleg, Privatanteile, Privatnutzung der Firmenwagen mit Umsatzsteuer).
 
 **Allgemeine Angaben:** Rechtsform „Angehörige freier Berufe“ bzw. „Einzelgewerbetreibende“, Betriebsinhaber ist die steuerpflichtige Person, keine Veräußerung von Grundstücken. Für Gesellschaften ist die Anlage EÜR in Haben nicht gedacht.
 
-Nicht abgebildet sind Bewirtung, Geschenke, Arbeitszimmer, Fahrten zwischen Wohnung und Betriebsstätte, Investitionsabzugsbeträge und Rücklagen. Brauchst du davon etwas, ergänze die Anlage im ELSTER-Portal statt sie hier zu senden.
+Nicht abgebildet sind Bewirtung, Geschenke, das häusliche Arbeitszimmer als Mittelpunkt (die Tagespauschale schon), Verpflegung im Ausland, Fahrten zwischen Wohnung und Betriebsstätte, Investitionsabzugsbeträge und Rücklagen. Brauchst du davon etwas, ergänze die Anlage im ELSTER-Portal statt sie hier zu senden.
 
 ### Anlage AVEÜR
 

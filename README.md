@@ -71,6 +71,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
   und Steuerprognose (Tarif, Splitting, Soli, Kirchensteuer)
 - **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, Journal je Monat, Saldenliste und
   Kontenblätter mit CSV-Export, Festschreibung und Audit-Log
+- **Pauschalen ohne Beleg**: Homeoffice-Tagespauschale, Kilometer mit dem eigenen Auto und Verpflegungsmehraufwand
+  auf Geschäftsreisen mit den gesetzlichen Sätzen, gebucht an Privateinlage und in den richtigen Zeilen der Anlage EÜR
 - **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
   Übernahme mit Restbuchwert aus Lexoffice, AfA-Buchung zum Jahresende
 - **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
@@ -161,6 +163,7 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 | [Finanzamt](docs/finanzamt.md) | Bescheide aus dem ELSTER-Postfach, Nachrichten, Bankverbindung ändern, Herabsetzung der Vorauszahlungen |
 | [Fristen](docs/fristen.md) | Alle Steuertermine, Kalender-Abo und Erinnerungen per E-Mail (SMTP) |
 | [Jahreserklärungen](docs/jahreserklaerung.md) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung an ELSTER, Belege von ELSTER abrufen |
+| [Pauschalen](docs/pauschalen.md) | Homeoffice-Tage, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand |
 | [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, Übernahme aus Lexoffice, AfA zum Jahresende |
 | [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP, Aufbewahrung |
 | [Umzug aus Lexoffice](docs/lexoffice.md) | API-Abruf, DATEV-Import, offene Posten, Abgleich vor der Kündigung |

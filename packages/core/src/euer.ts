@@ -1,6 +1,7 @@
 import type { InvoiceTotals } from "./invoice.ts";
 import { csvDecimal, splitPrivateShare, type Cents } from "./money.ts";
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory } from "./posting.ts";
+import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
 /**
@@ -37,6 +38,14 @@ export type EuerPayment =
       group?: string;
     }
   | {
+      /** Pauschale ohne Beleg (Homeoffice, Fahrten, Verpflegung), privat bezahlt; Storno negativ */
+      kind: "pauschale";
+      date: string;
+      amount: Cents;
+      art: PauschaleArt;
+      group?: string;
+    }
+  | {
       /** Umsatzsteuer an das Finanzamt bzw. Erstattung; Vorzeichen wie auf dem Konto */
       kind: "ustVorauszahlung" | "gebuehren" | "mahnerloes";
       date: string;
@@ -53,6 +62,7 @@ export type EuerLineKey =
   | "vereinnahmteUst"
   | "erstatteteUst"
   | `ausgabe:${ExpenseCategory}`
+  | `pauschale:${PauschaleArt}`
   | "afa"
   | "gwg"
   | "sammelposten"
@@ -189,6 +199,10 @@ export function computeEuer(
         add("ausgabe:geldverkehr", -p.sum);
         monthlyOut[month]! -= p.sum;
         break;
+      case "pauschale":
+        add(`pauschale:${p.art}`, p.sum);
+        monthlyOut[month]! += p.sum;
+        break;
     }
   }
 
@@ -225,8 +239,12 @@ export function computeEuer(
   const depreciationLines = (["afa", "gwg", "sammelposten", "restbuchwert"] as const)
     .filter((key) => (sums.get(key) ?? 0) !== 0)
     .map((key) => line(key, EUER_LABELS[key]));
+  const pauschalen = (Object.keys(PAUSCHALE_LABEL) as PauschaleArt[])
+    .filter((art) => (sums.get(`pauschale:${art}`) ?? 0) !== 0)
+    .map((art) => line(`pauschale:${art}`, PAUSCHALE_LABEL[art], "Pauschale ohne Beleg, privat bezahlt"));
   const ausgaben = [
     ...categories,
+    ...pauschalen,
     ...depreciationLines,
     line("vorsteuer", EUER_LABELS.vorsteuer),
     line("gezahlteUst", EUER_LABELS.gezahlteUst),

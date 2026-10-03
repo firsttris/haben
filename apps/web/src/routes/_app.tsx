@@ -48,6 +48,10 @@ function AppLayout() {
           <Icon name="receipt" />
           Belege
         </Link>
+        <Link to="/pauschalen" className="nav-link">
+          <Icon name="pauschale" />
+          Pauschalen
+        </Link>
         <Link to="/bank" className="nav-link">
           <Icon name="bank" />
           Bank

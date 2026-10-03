@@ -264,6 +264,40 @@ test("Fristen und Kalender-Abo", async () => {
   expect((await page.request.get(url.replace(/token=.*/, "token=falsch"))).status()).toBe(404);
 });
 
+test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
+  await go("/pauschalen");
+  await expect(page.getByRole("heading", { name: /^Pauschalen \d{4}$/, level: 1 })).toBeVisible();
+  const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+
+  const homeoffice = neu.getByRole("form", { name: "Homeoffice-Pauschale" });
+  await homeoffice.getByLabel("Tage im Homeoffice", { exact: true }).fill("12");
+  await homeoffice.getByRole("button", { name: "72,00\u00a0€ buchen" }).click();
+  await expect(neu.getByRole("status")).toHaveText("Homeoffice-Pauschale über 72,00\u00a0€ gebucht.");
+
+  await neu.getByRole("button", { name: "Fahrt", exact: true }).click();
+  const fahrt = neu.getByRole("form", { name: "Fahrt mit dem Privatfahrzeug" });
+  await fahrt.getByLabel("Anlass und Ziel", { exact: true }).fill("Workshop Nordwerk, Karlsruhe");
+  await fahrt.getByLabel("Kilometer einfach", { exact: true }).fill("42,5");
+  await fahrt.getByRole("button", { name: "25,50\u00a0€ buchen" }).click();
+  await expect(neu.getByRole("status")).toHaveText("Fahrt über 25,50\u00a0€ gebucht.");
+
+  await neu.getByRole("button", { name: "Verpflegung", exact: true }).click();
+  const verpflegung = neu.getByRole("form", { name: "Verpflegungsmehraufwand" });
+  await verpflegung.getByLabel("Anlass und Ort", { exact: true }).fill("Kundenprojekt, München");
+  await verpflegung.getByRole("combobox", { name: /^Reisetag/ }).selectOption("ganztag");
+  await verpflegung.getByLabel("Frühstück", { exact: true }).check();
+  await verpflegung.getByRole("button", { name: "22,40\u00a0€ buchen" }).click();
+  await expect(neu.getByRole("status")).toHaveText("Verpflegungsmehraufwand über 22,40\u00a0€ gebucht.");
+
+  const liste = page.getByRole("region", { name: /^Eingetragen in/ });
+  await expect(liste.getByRole("row")).toHaveCount(4);
+  const zeile = liste.getByRole("row").filter({ hasText: "Karlsruhe" });
+  await zeile.getByRole("button", { name: "Stornieren" }).click();
+  await zeile.getByRole("button", { name: "Wirklich stornieren" }).click();
+  await expect(zeile.getByText("storniert", { exact: true })).toBeVisible();
+  await expect(page.getByText("94,40\u00a0€", { exact: true })).toBeVisible();
+});
+
 test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", async () => {
   await go("/einstellungen");
   const zugang = page.getByRole("form", { name: "E-Mail-Versand" });
@@ -330,6 +364,7 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
     ["wiederkehrend", "/rechnungen/wiederkehrend"],
     ["belege", "/belege"],
     ["beleg", details.beleg],
+    ["pauschalen", "/pauschalen"],
     ["bank", "/bank"],
     ["anlagen", "/anlagen"],
     ["anlage-neu", "/anlagen/neu"],

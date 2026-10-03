@@ -1,4 +1,4 @@
-import { ACCOUNTS, taxOf, toElsterSteuernummer, toWholeEuros, type Cents, type Prognose, type EuerResult, type ExpenseCategory } from "@haben/core";
+import { ACCOUNTS, taxOf, toElsterSteuernummer, toWholeEuros, type Cents, type Prognose, type EuerResult, type ExpenseCategory, type PauschaleArt } from "@haben/core";
 import {
   buildEstXml,
   buildEuerXml,
@@ -146,6 +146,13 @@ export const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage">, Eu
   sonstiges: "uebrige",
 };
 
+/** Pauschalen ohne Beleg: Homeoffice als Tagespauschale, Fahrten als Nutzungseinlage, Verpflegung als beschränkt abziehbar */
+const PAUSCHALE_FIELDS: Record<PauschaleArt, EuerFigureKey> = {
+  homeoffice: "tagespauschale",
+  fahrt: "fahrtNutzungseinlage",
+  verpflegung: "verpflegung",
+};
+
 /** Verteilt die EÜR von Haben auf die Zeilen der Anlage EÜR. Summen und Gewinn bleiben gleich. */
 export function euerFigures(euer: EuerResult): EuerFigures {
   const figures: EuerFigures = {};
@@ -156,6 +163,10 @@ export function euerFigures(euer: EuerResult): EuerFigures {
     if (line.key.startsWith("ausgabe:")) {
       const category = line.key.slice("ausgabe:".length) as ExpenseCategory;
       add(category in EUER_CATEGORY_FIELDS ? EUER_CATEGORY_FIELDS[category as keyof typeof EUER_CATEGORY_FIELDS] : "uebrige", line.amount);
+      continue;
+    }
+    if (line.key.startsWith("pauschale:")) {
+      add(PAUSCHALE_FIELDS[line.key.slice("pauschale:".length) as PauschaleArt], line.amount);
       continue;
     }
     const key = (
@@ -174,7 +185,7 @@ export function euerFigures(euer: EuerResult): EuerFigures {
         vorsteuer: "vorsteuer",
         gezahlteUst: "gezahlteUst",
       } as const
-    )[line.key as Exclude<EuerResult["einnahmen"][number]["key"], `ausgabe:${string}`>];
+    )[line.key as Exclude<EuerResult["einnahmen"][number]["key"], `ausgabe:${string}` | `pauschale:${string}`>];
     add(key, line.amount);
   }
   return figures;

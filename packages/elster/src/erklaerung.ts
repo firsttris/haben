@@ -288,9 +288,14 @@ export interface EuerFigures {
   vorsteuer?: Cents;
   gezahlteUst?: Cents;
   uebrige?: Cents;
+  /** Beschränkt abziehbar: Verpflegungsmehraufwand und Homeoffice-Tagespauschale */
+  verpflegung?: Cents;
+  tagespauschale?: Cents;
   kfzLeasing?: Cents;
   kfzSteuerVersicherung?: Cents;
   kfzSonstige?: Cents;
+  /** Fahrten mit dem Privatfahrzeug (Kilometersatz), als Nutzungseinlage */
+  fahrtNutzungseinlage?: Cents;
   // Entnahmen und Einlagen (Einzelunternehmen)
   entnahmen?: Cents;
   einlagen?: Cents;
@@ -314,9 +319,12 @@ export const EUER_AUSGABEN = [
   "vorsteuer",
   "gezahlteUst",
   "uebrige",
+  "verpflegung",
+  "tagespauschale",
   "kfzLeasing",
   "kfzSteuerVersicherung",
   "kfzSonstige",
+  "fahrtNutzungseinlage",
 ] as const;
 
 export type EuerFigureKey = (typeof EUER_EINNAHMEN)[number] | (typeof EUER_AUSGABEN)[number];
@@ -352,6 +360,10 @@ export const EUER_FIELDS: Record<EuerFigureKey | "entnahmen" | "einlagen", { kz:
   kfzLeasing: { kz: "E6005801", label: "Leasingkosten für Kraftfahrzeuge" },
   kfzSteuerVersicherung: { kz: "E6005903", label: "Steuern, Versicherungen und Maut für Kraftfahrzeuge" },
   kfzSonstige: { kz: "E6006003", label: "Sonstige tatsächliche Fahrtkosten ohne AfA und Zinsen" },
+  // Kennungen und Reihenfolge wie im EÜR-Formular 2025 von EasyCash&Tax, das ECTElster in dieser Reihenfolge übermittelt
+  verpflegung: { kz: "E6005002", label: "Verpflegungsmehraufwendungen" },
+  tagespauschale: { kz: "E6006405", label: "Tagespauschale für die Tätigkeit in der häuslichen Wohnung" },
+  fahrtNutzungseinlage: { kz: "E6006103", label: "Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage)" },
   entnahmen: { kz: "E6006601", label: "Entnahmen einschließlich Sach-, Leistungs- und Nutzungsentnahmen" },
   einlagen: { kz: "E6006701", label: "Einlagen einschließlich Sach-, Leistungs- und Nutzungseinlagen" },
 };
@@ -602,11 +614,25 @@ export function buildEuerXml(input: EuerXmlInput): string {
             ],
           ],
           [
+            "Beschr_abziehbar",
+            [
+              [
+                "Abziehbar",
+                [
+                  sumNode("Verpflegung", kz("verpflegung"), f.verpflegung),
+                  // Die Tagespauschale steht ohne Sum-Ebene
+                  f.tagespauschale ? ["Tagespauschale_1", [[kz("tagespauschale"), elsterDecimal(f.tagespauschale)]]] : null,
+                ],
+              ],
+            ],
+          ],
+          [
             "KFZ_u_Fahrtkosten",
             [
               sumNode("Leasing", kz("kfzLeasing"), f.kfzLeasing),
               sumNode("Steuer_Versicherung_Maut", kz("kfzSteuerVersicherung"), f.kfzSteuerVersicherung),
               sumNode("Sonst", kz("kfzSonstige"), f.kfzSonstige),
+              sumNode("Fahrtkosten_Nutzungseinlage", kz("fahrtNutzungseinlage"), f.fahrtNutzungseinlage),
             ],
           ],
           ["Summe_BAus", [["E6005301", elsterDecimal(ausgaben)]]],

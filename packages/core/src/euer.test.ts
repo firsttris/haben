@@ -151,3 +151,22 @@ describe("computeEuer", () => {
     expect(csv).toContain("Ergebnis;Gewinn;4760,00\r\n");
   });
 });
+
+describe("computeEuer mit Pauschalen", () => {
+  it("zählt Pauschalen je Art als Ausgabe, Stornos heben sie auf", () => {
+    const euer = computeEuer(2025, [
+      { kind: "pauschale", date: "2025-03-31", amount: 9_600, art: "homeoffice" },
+      { kind: "pauschale", date: "2025-04-02", amount: 3_720, art: "fahrt" },
+      { kind: "pauschale", date: "2025-04-02", amount: 1_400, art: "verpflegung" },
+      { kind: "pauschale", date: "2025-04-03", amount: -1_400, art: "verpflegung" },
+      { kind: "pauschale", date: "2024-12-31", amount: 600, art: "homeoffice" },
+    ]);
+    const ausgabe = (key: string) => euer.ausgaben.find((l) => l.key === key)?.amount;
+    expect(ausgabe("pauschale:homeoffice")).toBe(9_600);
+    expect(ausgabe("pauschale:fahrt")).toBe(3_720);
+    expect(ausgabe("pauschale:verpflegung")).toBeUndefined();
+    expect(euer.totalAusgaben).toBe(13_320);
+    expect(euer.gewinn).toBe(-13_320);
+    expect(euer.monthly.ausgaben[3]).toBe(3_720);
+  });
+});

@@ -138,6 +138,23 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(tag(xml, "E6017399")).toBe("280,00");
   });
 
+  it("übermittelt Pauschalen beschränkt abziehbar und als Nutzungseinlage, in der Reihenfolge des Formulars", () => {
+    const withPauschalen = { ...figures, verpflegung: 4_200, tagespauschale: 126_000, fahrtNutzungseinlage: 37_200 };
+    const xml = buildEuerXml({ ...base, allgemein, figures: withPauschalen, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(xml).toMatch(/<Beschr_abziehbar>\s*<Abziehbar>\s*<Verpflegung>\s*<Sum>\s*<E6005002>42,00<\/E6005002>/);
+    expect(xml).toMatch(/<Tagespauschale_1>\s*<E6006405>1260,00<\/E6006405>\s*<\/Tagespauschale_1>/);
+    expect(xml).toMatch(/<Fahrtkosten_Nutzungseinlage>\s*<Sum>\s*<E6006103>372,00<\/E6006103>/);
+    expect(xml).not.toContain("<Nicht_abziehbar>");
+    const [sonst, beschr, kfz, summe] = order(xml, ["Sonst_unbeschraenkt", "Beschr_abziehbar", "KFZ_u_Fahrtkosten", "Summe_BAus"]);
+    expect(sonst! < beschr! && beschr! < kfz! && kfz! < summe!).toBe(true);
+    const [kfzSonst, nutzung] = order(xml, ["E6006003", "E6006103"]);
+    expect(kfzSonst! < nutzung!).toBe(true);
+    // Summe der Ausgaben enthält die Pauschalen
+    expect(tag(xml, "E6005301")).toBe("27674,00");
+    expect(euerTotals(withPauschalen).ausgaben).toBe(2_600_000 + 4_200 + 126_000 + 37_200);
+  });
+
   it("lässt die AVEÜR ohne Anlagen weg", () => {
     const xml = buildEuerXml({ ...base, allgemein: { artDesBetriebs: "Handel", einkunftsart: "gewerbe" }, figures: { steuerpflichtig: 100 }, anlagen: [] });
     expect(xml).not.toContain("<AVEUER>");

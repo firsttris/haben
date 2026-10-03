@@ -396,6 +396,29 @@ export const mailLog = pgTable("mail_log", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand),
+ * gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
+ */
+export const pauschalen = pgTable("pauschalen", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung"] }).notNull(),
+  /** Homeoffice: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
+  date: date("date", { mode: "string" }).notNull(),
+  /** Anlass, Ziel, Kunde */
+  description: text("description").notNull(),
+  /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend } */
+  details: jsonb("details").$type<Record<string, string | number | boolean>>().notNull(),
+  /** Cent; beim Storno negativ */
+  amount: integer("amount").notNull(),
+  /** Storno: die aufgehobene Pauschale */
+  reversesId: uuid("reverses_id"),
+  journalEntryId: uuid("journal_entry_id")
+    .notNull()
+    .references(() => journalEntries.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. */
 export const auditLog = pgTable("audit_log", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -525,7 +548,7 @@ export const journalEntries = pgTable("journal_entries", {
   id: uuid("id").primaryKey().defaultRandom(),
   date: date("date", { mode: "string" }).notNull(),
   description: text("description").notNull(),
-  sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset"] }).notNull(),
+  sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale"] }).notNull(),
   sourceId: uuid("source_id").notNull(),
   kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
   reversesId: uuid("reverses_id"),
