@@ -3,9 +3,8 @@
  * Wird nur im Worker-Prozess geladen: ein Absturz der nativen Bibliothek
  * darf nie den Server-Prozess mitreißen.
  *
- * Achtung: Die Struktur-Versionen und -Layouts unten entsprechen dem
- * ERiC-Entwicklerhandbuch zum Zeitpunkt der Implementierung. Vor dem Einsatz
- * mit der installierten ERiC-Version gegen ericapi.h / ericdef.h abgleichen.
+ * Struktur-Versionen und -Layouts entsprechen eric_types.h und ericapi.h aus ERiC 43
+ * (eric_druck_parameter_t Version 4, eric_verschluesselungs_parameter_t Version 3).
  */
 import { parseTransferTicket } from "./ticket.ts";
 
@@ -14,9 +13,9 @@ export const ERIC_VALIDIERE = 1 << 1;
 export const ERIC_SENDE = 1 << 2;
 export const ERIC_DRUCKE = 1 << 5;
 
-/** Version von eric_druck_parameter_t – gegen ericapi.h prüfen. */
-export const DRUCK_PARAMETER_VERSION = 2;
-/** Version von eric_verschluesselungs_parameter_t – gegen ericapi.h prüfen. */
+/** Version von eric_druck_parameter_t laut eric_types.h (ERiC 43) */
+export const DRUCK_PARAMETER_VERSION = 4;
+/** Version von eric_verschluesselungs_parameter_t laut eric_types.h (ERiC 43) */
 export const VERSCHLUESSELUNGS_PARAMETER_VERSION = 3;
 
 export interface EricConfig {
@@ -73,15 +72,16 @@ async function loadEric(libraryPath: string): Promise<EricApi> {
   koffi.opaque("EricRueckgabepuffer");
   koffi.alias("EricRueckgabepufferHandle", "EricRueckgabepuffer *");
 
-  // typedef struct { uint32_t version; uint32_t vorschau; uint32_t ersteSeite;
-  //                  uint32_t duplexDruck; const char* pdfName; const char* fussText; }
+  // typedef struct { uint32_t version; uint32_t vorschau; uint32_t duplexDruck; const char* pdfName;
+  //                  const char* fussText; EricPdfCallback pdfCallback; void* pdfCallbackBenutzerdaten; }
   koffi.struct("eric_druck_parameter_t", {
     version: "uint32_t",
     vorschau: "uint32_t",
-    ersteSeite: "uint32_t",
     duplexDruck: "uint32_t",
     pdfName: "const char *",
     fussText: "const char *",
+    pdfCallback: "void *",
+    pdfCallbackBenutzerdaten: "void *",
   });
 
   // typedef struct { uint32_t version; EricZertifikatHandle zertifikatHandle; const char* pin; }
@@ -147,10 +147,11 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
         druck = {
           version: DRUCK_PARAMETER_VERSION,
           vorschau: 0,
-          ersteSeite: 0,
           duplexDruck: 0,
           pdfName: request.pdfPath,
           fussText: null,
+          pdfCallback: null,
+          pdfCallbackBenutzerdaten: null,
         };
       }
       crypto = {
@@ -160,8 +161,8 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
       };
     }
 
-    // Für ElsterAnmeldung (UStVA) kein Transferhandle; Erklärungen, Nachrichten und Datenabholung bekommen einen wie bei viking
-    const transferHandle = request.datenartVersion.startsWith("UStVA_") ? null : [0];
+    // Laut ericapi.h nur bei der Datenabholung (Postfach) ein Transferhandle, sonst immer NULL
+    const transferHandle = request.datenartVersion.startsWith("Postfach") ? [0] : null;
     const code = eric.EricBearbeiteVorgang(
       request.xml,
       request.datenartVersion,

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 typedef struct { char* s; } Puffer;
-typedef struct { uint32_t version, vorschau, ersteSeite, duplexDruck; const char* pdfName; const char* fussText; } druck_t;
+typedef struct { uint32_t version, vorschau, duplexDruck; const char* pdfName; const char* fussText; void* pdfCallback; void* pdfCallbackBenutzerdaten; } druck_t;
 typedef struct { uint32_t version; uint32_t zertifikatHandle; const char* pin; } crypto_t;
 static void put(Puffer* p, const char* s){ free(p->s); p->s = strdup(s); }
 int EricInitialisiere(const char* plugin, const char* log){ fprintf(stderr,"init %s %s\n",plugin,log); return 0; }
