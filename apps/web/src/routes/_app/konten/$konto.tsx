@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_app/konten/$konto")({
   component: KontenblattPage,
 });
 
-const SOURCE = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage" } as const;
+const SOURCE = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage", pauschale: "Pauschale" } as const;
 const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
 function SourceLink({ type, id, reversal }: { type: string; id: string; reversal: boolean }) {
@@ -31,6 +31,7 @@ function SourceLink({ type, id, reversal }: { type: string; id: string; reversal
   if (type === "document") return <Link to="/belege/$id" params={{ id }}>{label}</Link>;
   if (type === "asset") return <Link to="/anlagen/$id" params={{ id }}>{label}</Link>;
   if (type === "allocation") return <Link to="/bank">{label}</Link>;
+  if (type === "pauschale") return <Link to="/pauschalen">{label}</Link>;
   return <>{label}</>;
 }
 

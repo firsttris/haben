@@ -1,4 +1,13 @@
-import { ACCOUNT_NAMES, ACCOUNTS, ASSET_ACCOUNT_NAMES, DUNNING_INCOME_ACCOUNTS, EXPENSE_CATEGORIES, PRIVATE_USE_ACCOUNT_NAMES, type Kontenrahmen } from "@haben/core";
+import {
+  ACCOUNT_NAMES,
+  ACCOUNTS,
+  ASSET_ACCOUNT_NAMES,
+  DUNNING_INCOME_ACCOUNTS,
+  EXPENSE_CATEGORIES,
+  PAUSCHALE_KONTEN,
+  PRIVATE_USE_ACCOUNT_NAMES,
+  type Kontenrahmen,
+} from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { and, asc, desc, gte, inArray, lt } from "drizzle-orm";
 import { z } from "zod";
@@ -18,6 +27,7 @@ const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     ...ASSET_ACCOUNT_NAMES.SKR03,
     [DUNNING_INCOME_ACCOUNTS.SKR03.account]: DUNNING_INCOME_ACCOUNTS.SKR03.name,
     ...PRIVATE_USE_ACCOUNT_NAMES.SKR03,
+    ...Object.fromEntries(Object.values(PAUSCHALE_KONTEN).map((k) => [k.SKR03.konto, k.SKR03.name])),
   },
   SKR04: {
     [ACCOUNTS.SKR04.vorsteuer[1900]]: "Vorsteuer 19 %",
@@ -31,6 +41,7 @@ const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     ...ASSET_ACCOUNT_NAMES.SKR04,
     [DUNNING_INCOME_ACCOUNTS.SKR04.account]: DUNNING_INCOME_ACCOUNTS.SKR04.name,
     ...PRIVATE_USE_ACCOUNT_NAMES.SKR04,
+    ...Object.fromEntries(Object.values(PAUSCHALE_KONTEN).map((k) => [k.SKR04.konto, k.SKR04.name])),
   },
 };
 

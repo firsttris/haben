@@ -288,6 +288,20 @@
       "when": 1791034424416,
       "tag": "0040_rechnung_mail",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791052026778,
+      "tag": "0041_pauschalen",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791052027982,
+      "tag": "0042_pauschalen_trigger",
+      "breakpoints": true
     }
   ]
 }

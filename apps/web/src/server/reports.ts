@@ -135,6 +135,11 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
       privateShare: d.privateShare,
     });
   }
+  const pauschalen = await db
+    .select({ date: schema.pauschalen.date, amount: schema.pauschalen.amount, art: schema.pauschalen.art, id: schema.pauschalen.id, reversesId: schema.pauschalen.reversesId })
+    .from(schema.pauschalen)
+    .where(and(gte(schema.pauschalen.date, `${year}-01-01`), lt(schema.pauschalen.date, `${year + 1}-01-01`)));
+  for (const p of pauschalen) payments.push({ kind: "pauschale", date: p.date, amount: p.amount, art: p.art, group: p.reversesId ?? p.id });
   return payments;
 }
 

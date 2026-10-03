@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, asc, between, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../package.json" with { type: "json" };
-import { ASSET_KINDS, ASSET_METHODS, csvDecimal } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, csvDecimal, PAUSCHALE_LABEL } from "@haben/core";
 import { listAssets } from "./assets.ts";
 import { db, schema } from "./db/index.ts";
 import { accountName } from "./functions/journal.ts";
@@ -185,7 +185,7 @@ const berlinStart = (year: number) => sql`(${`${year}-01-01 00:00:00`}::timestam
 
 const KIND_LABELS: Record<string, string> = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" };
 const FORMAT_LABELS: Record<string, string> = { zugferd: "ZUGFeRD", "xrechnung-cii": "XRechnung (CII)", "xrechnung-ubl": "XRechnung (UBL)" };
-const SOURCE_LABELS: Record<string, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Zahlung", asset: "Anlage" };
+const SOURCE_LABELS: Record<string, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Zahlung", asset: "Anlage", pauschale: "Pauschale" };
 const ALLOCATION_LABELS: Record<string, string> = {
   invoice: "Rechnung",
   document: "Beleg",
@@ -499,6 +499,33 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
+
+  // Pauschalen (Eigenbelege) ---------------------------------------------
+  const pauschalen = await db
+    .select()
+    .from(schema.pauschalen)
+    .where(between(schema.pauschalen.date, yearStart(year), yearEnd(year)))
+    .orderBy(asc(schema.pauschalen.date), asc(schema.pauschalen.createdAt), asc(schema.pauschalen.id));
+  if (pauschalen.length > 0) {
+    yield {
+      path: "pauschalen/pauschalen.csv",
+      content: csv(
+        ["Datum", "Art", "Beschreibung", "Angaben", "Betrag", "Storno von", "Buchungs-ID", "Erfasst", "ID"],
+        pauschalen.map((p) => [
+          p.date,
+          PAUSCHALE_LABEL[p.art],
+          p.description,
+          JSON.stringify(p.details),
+          money(p.amount),
+          p.reversesId,
+          p.journalEntryId,
+          p.createdAt.toISOString(),
+          p.id,
+        ]),
+      ),
+      compress: true,
+    };
+  }
 
   // Bank ------------------------------------------------------------------
   const accounts = await db.select().from(schema.bankAccounts).orderBy(asc(schema.bankAccounts.iban));
@@ -927,6 +954,10 @@ buchungen/journal.csv    Journal, eine Zeile je Buchungszeile (Konto, Soll, Habe
 anlagen/anlagenverzeichnis.csv
                          Anlagenverzeichnis des Jahres: Anschaffung, Buchwert am
                          Jahresanfang, Zugang, AfA, Abgang und Buchwert am Jahresende.
+pauschalen/pauschalen.csv
+                         Nur wenn vorhanden: Pauschalen ohne Beleg (Homeoffice-Tage,
+                         Fahrten, Verpflegungsmehraufwand) mit ihren Angaben als
+                         Eigenbeleg; Stornos als Gegenzeile.
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto.
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.

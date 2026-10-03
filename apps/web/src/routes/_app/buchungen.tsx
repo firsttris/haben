@@ -19,8 +19,8 @@ export const Route = createFileRoute("/_app/buchungen")({
 });
 
 type Entry = Awaited<ReturnType<typeof getJournal>>[number];
-type Source = "invoice" | "document" | "allocation" | "asset";
-const SOURCE: Record<Source, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage" };
+type Source = "invoice" | "document" | "allocation" | "asset" | "pauschale";
+const SOURCE: Record<Source, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage", pauschale: "Pauschale" };
 
 function nextPeriod({ year, month }: VatPeriod): VatPeriod {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
@@ -33,6 +33,7 @@ function SourcePill({ entry }: { entry: Entry }) {
   if (entry.sourceType === "invoice") return <Link to="/rechnungen/$id" params={{ id }} className="pill">{label}</Link>;
   if (entry.sourceType === "document") return <Link to="/belege/$id" params={{ id }} className="pill">{label}</Link>;
   if (entry.sourceType === "asset") return <Link to="/anlagen/$id" params={{ id }} className="pill">{label}</Link>;
+  if (entry.sourceType === "pauschale") return <Link to="/pauschalen" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">{label}</Link>;
   return <Link to="/bank" className="pill">{label}</Link>;
 }
 
@@ -101,7 +102,7 @@ function JournalPage() {
 
       <div className="filter-row">
         <div className="chip-row" role="group" aria-label="Herkunft">
-          {(["alle", "invoice", "document", "allocation", "asset"] as const).map((s) => (
+          {(["alle", "invoice", "document", "allocation", "asset", "pauschale"] as const).map((s) => (
             <button key={s} type="button" className={`chip${source === s ? " active" : ""}`} aria-pressed={source === s} onClick={() => setSource(s)}>
               {s === "alle" ? `Alle (${entries.length})` : `${SOURCE[s]} (${counts[s] ?? 0})`}
             </button>

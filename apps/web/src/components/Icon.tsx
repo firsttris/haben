@@ -33,6 +33,7 @@ const PATHS = {
   mail: <path d="M3 6h18v12H3zM3 7l9 6 9-6" />,
   calendar: <path d="M4 5h16v16H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2" />,
   annual: <path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h4" />,
+  pauschale: <path d="M3 11l7-6 7 6M5 9.5V19h10V9.5M8.5 19v-5h3v5M19 4v16M19 8h2M19 14h2" />,
   assets: <path d="M5 17h14M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0M3 17V12l2-5h11l3 5h2v5M7 12h12" />,
   contacts: (
     <>
