@@ -290,7 +290,7 @@ test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", asy
   await expect(formular.getByRole("alert")).toContainText("Nicht gesendet");
   await page.reload();
   await page.waitForLoadState("networkidle");
-  await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText("fehlgeschlagen");
+  await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText("Fehlgeschlagen");
 });
 
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {

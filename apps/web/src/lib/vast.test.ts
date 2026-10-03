@@ -6,6 +6,8 @@ describe("formatWert", () => {
     expect(formatWert(["Teilleistung", "Betrag"], "22000.20")).toMatch(/^22\.000,20\s€$/);
     expect(formatWert(["Bruttoarbeitslohn"], "1000.00")).toMatch(/^1\.000,00\s€$/);
     expect(formatWert(["Leistung", "Beginn"], "20100112")).toBe("12.01.2010");
+    expect(formatWert(["Eingangsdatum"], "01.03.2026 00:00:00")).toBe("01.03.2026");
+    expect(formatWert(["Eingangsdatum"], "01.03.2026 14:12:00")).toBe("01.03.2026 14:12:00");
   });
 
   it("lässt Schlüssel, Monate und IdNr unverändert", () => {

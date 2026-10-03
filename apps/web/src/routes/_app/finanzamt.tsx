@@ -587,7 +587,7 @@ function Postfach({ data }: { data: Data }) {
               Automatischer Abruf ist an{auto.since ? ` seit ${formatDate(auto.since)}` : ""}.
               {auto.lastLive ? ` Letzter Abruf ${formatDateTime(auto.lastLive.createdAt)}${auto.lastLive.ok ? "" : ` (Fehler: ${auto.lastLive.message})`}.` : ""}
             </span>
-            <button type="button" className="btn" disabled={busy} onClick={() => void turnOff()}>
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void turnOff()}>
               Ausschalten
             </button>
           </div>

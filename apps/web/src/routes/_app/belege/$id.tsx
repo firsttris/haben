@@ -527,7 +527,7 @@ function DocumentForm({ data }: { data: Detail }) {
               Mit KI neu auslesen
             </button>
           )}
-          <button type="button" className="btn btn-dashed" onClick={onDelete} disabled={busy || running}>
+          <button type="button" className="btn btn-danger" onClick={onDelete} disabled={busy || running}>
             {confirmingDelete ? "Endgültig löschen" : "Löschen"}
           </button>
         </div>

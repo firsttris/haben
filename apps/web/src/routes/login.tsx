@@ -83,7 +83,7 @@ function LoginPage() {
             </button>
           </form>
         ) : (
-          <button type="button" className="btn btn-dashed" onClick={() => setShowPassword(true)}>
+          <button type="button" className="btn" onClick={() => setShowPassword(true)}>
             Passwort verwenden
           </button>
         )}

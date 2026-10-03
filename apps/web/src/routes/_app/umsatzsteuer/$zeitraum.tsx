@@ -419,7 +419,7 @@ function VatReturnEditor({
         )}
         {locked && (
           <div className="actions">
-            <button type="button" className="btn btn-dashed" onClick={onCorrect} disabled={busy}>
+            <button type="button" className="btn" onClick={onCorrect} disabled={busy}>
               Berichtigte Anmeldung anlegen
             </button>
           </div>

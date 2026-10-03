@@ -85,10 +85,12 @@
   .stack-table thead { display: none; }
   .stack-table, .stack-table tbody, .stack-table tfoot, .stack-table tr, .stack-table td, .stack-table th { display: block; width: 100%; }
   .stack-table tr { border-top: 1px solid var(--line); padding: 8px 0; }
+  .stack-table tbody:first-of-type tr:first-child { border-top: 0; }
   .stack-table td, .stack-table th { border-top: 0 !important; padding: 2px 0 !important; text-align: left !important; }
   /* Beschriftung links in fester Spalte, der Wert bricht in seiner eigenen Spalte um */
-  .stack-table td[data-label] { position: relative; padding-left: 7.5em !important; }
-  .stack-table td[data-label]::before { content: attr(data-label); position: absolute; left: 0; width: 7em; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  /* Feste Pixelbreite, damit die Werte unabhängig von der Schrift der Zelle bündig stehen */
+  .stack-table td[data-label] { position: relative; padding-left: 108px !important; }
+  .stack-table td[data-label]::before { content: attr(data-label); position: absolute; left: 0; width: 100px; color: var(--muted); font-family: var(--sans); font-weight: 400; font-size: 12px; line-height: 1.6; }
   .stack-table td:empty { display: none; }
   .stack-table .group-row, .stack-table .subtotal-row { padding: 6px 0; }
 }
@@ -106,11 +108,11 @@
 }
 
 @media (max-width: 720px) {
-  /* Diagramme behalten lesbare Schrift und scrollen waagrecht */
-  .chart { overflow-x: auto; }
-  .chart svg { min-width: 600px; }
   .stack-table .group-row th, .stack-table tfoot th { padding-left: 0 !important; }
 }
 
 /* Saldo: Betrag und Hinweis in fester Breite, damit Beträge untereinander stehen */
 .saldo-hint { width: 6.5em; min-width: 0; }
+
+/* Kopf „Saldo“ über den Beträgen, nicht über dem S/H-Hinweis daneben (6px Abstand + 6.5em bei 12px) */
+.report-table th.saldo-head { padding-right: calc(8px + 6px + 78px); }

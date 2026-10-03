@@ -33,8 +33,8 @@ export function LegacyVouchers({ year, years, rows, search }: { year: number; ye
   return (
     <section className="card stack" aria-label={`Belege ${year}`}>
       <YearSwitch year={year} years={years} search={search} />
-      <div className="filter-row" style={{ justifyContent: "space-between" }}>
-        <div className="filter-row" role="group" aria-label="Richtung">
+      <div className="archive-filter" style={{ justifyContent: "space-between" }}>
+        <div className="archive-filter" role="group" aria-label="Richtung">
           {(["alle", "einnahme", "ausgabe"] as const).map((value) => (
             <Link
               key={value}

@@ -29,7 +29,7 @@ function ContactPage() {
           </Link>
           <button
             type="button"
-            className="btn btn-dashed"
+            className="btn"
             onClick={async () => {
               await archive({ data: { id: contact.id, archived: !contact.archivedAt } });
               await router.invalidate();

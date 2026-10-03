@@ -126,6 +126,11 @@ export function InvoiceEditor({
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [dirty, setDirty] = useState(id === null);
+  /** Fehler einer Position erst zeigen, wenn sie verlassen oder gespeichert wurde, nicht schon beim Öffnen */
+  const [touched, setTouched] = useState<Set<number>>(() => new Set());
+  const [attempted, setAttempted] = useState(false);
+  const showError = (key: number) => attempted || touched.has(key);
+  const markTouched = (key: number) => setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
@@ -203,6 +208,7 @@ export function InvoiceEditor({
 
   const onSave = (event: FormEvent) => {
     event.preventDefault();
+    setAttempted(true);
     void run(async () => {
       const savedId = await persist();
       if (id === null) {
@@ -215,6 +221,7 @@ export function InvoiceEditor({
   };
 
   const onFinalize = () => {
+    setAttempted(true);
     if (!confirming) {
       setConfirming(true);
       return;
@@ -400,15 +407,18 @@ export function InvoiceEditor({
                     aria-label={`Beschreibung Position ${index + 1}`}
                     value={line.description}
                     onChange={(e) => updateLine(line.key, { description: e.target.value })}
-                    aria-invalid={line.description.trim() === ""}
+                    onBlur={() => markTouched(line.key)}
+                    aria-invalid={showError(line.key) && line.description.trim() === ""}
                   />
                   <input
                     className="num"
                     inputMode="decimal"
                     aria-label={`Menge Position ${index + 1}`}
+                    placeholder="Menge"
                     value={line.quantity}
                     onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
-                    aria-invalid={parseQuantity(line.quantity) === null}
+                    onBlur={() => markTouched(line.key)}
+                    aria-invalid={showError(line.key) && parseQuantity(line.quantity) === null}
                   />
                   <select
                     aria-label={`Einheit Position ${index + 1}`}
@@ -424,9 +434,10 @@ export function InvoiceEditor({
                     inputMode="decimal"
                     aria-label={`Einzelpreis Position ${index + 1} in Euro`}
                     value={line.unitPrice}
-                    placeholder="0,00"
+                    placeholder="Einzelpreis"
                     onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
-                    aria-invalid={parseEuro(line.unitPrice) === null}
+                    onBlur={() => markTouched(line.key)}
+                    aria-invalid={showError(line.key) && parseEuro(line.unitPrice) === null}
                   />
                   <select
                     aria-label={`Steuersatz Position ${index + 1}`}
@@ -438,7 +449,10 @@ export function InvoiceEditor({
                     <option value={700}>7 %</option>
                     <option value={0}>0 %</option>
                   </select>
-                  <div className="num line-net">{p.valid ? formatEuro(lineNet(p.quantity, p.unitPrice)) : "–"}</div>
+                  <div className="num line-net">
+                    <span className="line-net-label">Netto </span>
+                    {p.valid ? formatEuro(lineNet(p.quantity, p.unitPrice)) : "–"}
+                  </div>
                   <button
                     type="button"
                     className="icon-btn"
@@ -487,7 +501,7 @@ export function InvoiceEditor({
           </div>
           {id && (
             <div className="actions">
-              <button type="button" className="btn btn-dashed" onClick={onDelete} disabled={busy}>
+              <button type="button" className="btn btn-danger" onClick={onDelete} disabled={busy}>
                 Entwurf löschen
               </button>
             </div>

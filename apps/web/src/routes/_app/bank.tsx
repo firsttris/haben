@@ -269,8 +269,7 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
           <span>{result.message || (result.ok ? "Bank verbunden." : "Die Verbindung ist fehlgeschlagen.")}</span>
           <button
             type="button"
-            className="btn"
-            style={{ minHeight: 32 }}
+            className="btn btn-sm"
             onClick={() => void navigate({ search: (prev) => ({ ...prev, abruf: undefined, meldung: undefined }), replace: true })}
           >
             Schließen
@@ -689,7 +688,7 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
                 <span className="small muted">{a.reversed ? "aufgehoben" : formatEuro(Math.abs(a.amount))}</span>
               </div>
               {!a.reversed && (
-                <button type="button" className="btn" style={{ minHeight: 36 }} onClick={() => run(() => reverseFn({ data: a.id }))} disabled={busy}>
+                <button type="button" className="btn btn-sm btn-danger" onClick={() => run(() => reverseFn({ data: a.id }))} disabled={busy}>
                   Aufheben
                 </button>
               )}
@@ -813,11 +812,11 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
             )}
           </div>
           {mode !== "direct" && (
-            <button type="button" className="btn btn-dashed" onClick={() => setMode("direct")} disabled={busy}>
+            <button type="button" className="btn" onClick={() => setMode("direct")} disabled={busy}>
               Ohne Rechnung buchen
             </button>
           )}
-          <div className="small muted">Tastatur: Enter ordnet zu, J und K springen zum nächsten Umsatz.</div>
+          <div className="small muted pointer-fine">Tastatur: Enter ordnet zu, J und K springen zum nächsten Umsatz.</div>
         </>
       )}
     </aside>

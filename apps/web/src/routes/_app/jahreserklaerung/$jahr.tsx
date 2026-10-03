@@ -90,16 +90,25 @@ function Issues({ issues }: { issues: Issue[] }) {
   );
 }
 
-/** Zeile einer Betragstabelle; kz = Feldkennung bzw. Zusatzspalte */
-function Row({ label, kz, value, extra, total }: { label: string; kz?: string; value: string; extra?: string; total?: boolean }) {
+/**
+ * Zeile einer Betragstabelle; kz = Feldkennung, extra = Zusatzspalte (Bemessungsgrundlage),
+ * text = Wert ist Text statt Betrag. Die data-label beschriften die Werte, wenn die Tabelle auf dem Handy gestapelt ist.
+ */
+function Row({ label, kz, value, extra, total, text }: { label: string; kz?: string; value: string; extra?: string; total?: boolean; text?: boolean }) {
   return (
     <tr style={total ? { fontWeight: 600 } : undefined}>
       <th scope="row" style={total ? { fontWeight: 600 } : undefined}>
         {label}
         {kz && <span className="small muted mono"> {kz}</span>}
       </th>
-      {extra !== undefined && <td className="num">{extra}</td>}
-      <td className="num">{value}</td>
+      {extra !== undefined && (
+        <td className="num" data-label="Bemessung">
+          {extra}
+        </td>
+      )}
+      <td className={text ? undefined : "num"} style={text ? { textAlign: "right" } : undefined} data-label={extra !== undefined ? "Steuer" : text ? undefined : "Betrag"}>
+        {value}
+      </td>
     </tr>
   );
 }
@@ -125,7 +134,7 @@ function UstSection({ data }: { data: Data }) {
           <SentPill sent={ust.sent} />
         </div>
         <Issues issues={ust.issues} />
-        <table className="report-table">
+        <table className="report-table stack-table">
           <thead>
             <tr>
               <th scope="col">Zeile</th>
@@ -139,9 +148,9 @@ function UstSection({ data }: { data: Data }) {
             {ust.kz21 !== 0 && <Row label="Leistungen im EU-Ausland (Reverse Charge)" extra={formatEuro(ust.kz21)} value="–" />}
             {ust.kz45 !== 0 && <Row label="Nicht steuerbare Umsätze (Drittland)" extra={formatEuro(ust.kz45)} value="–" />}
             {ust.kz48 !== 0 && <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug" extra={formatEuro(ust.kz48)} value="–" />}
-            <Row label="Abziehbare Vorsteuer" extra="" value={`− ${formatEuro(f.vorsteuer)}`} />
+            <Row label="Abziehbare Vorsteuer" extra="" value={`−${formatEuro(f.vorsteuer)}`} />
             <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
-            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={`− ${formatEuro(f.vorauszahlungen)}`} />
+            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={`−${formatEuro(f.vorauszahlungen)}`} />
             <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(Math.abs(ust.abschluss))} total />
           </tbody>
         </table>
@@ -363,10 +372,10 @@ function EstSection({ data }: { data: Data }) {
         <Issues issues={est.issues} />
         <table className="report-table">
           <tbody>
-            <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} />
-            <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} />
+            <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
+            <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} text />
             <Row label="Gewinn laut EÜR" value={formatEuro(est.gewinn)} />
-            <Row label="Anlagen" value={est.anlagen.join(", ")} />
+            <Row label="Anlagen" value={est.anlagen.join(", ")} text />
             <Row label="Zu versteuerndes Einkommen (geschätzt)" value={formatEuro(est.prognose.zvE)} />
             <Row
               label="Voraussichtliche Steuer"
@@ -383,12 +392,12 @@ function EstSection({ data }: { data: Data }) {
         </table>
 
         <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
-          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Vorsorgeaufwand {est.zusammen ? `· ${est.person.a ?? "Person A"}` : ""}</legend>
+          <legend className="subhead">Vorsorgeaufwand {est.zusammen ? `· ${est.person.a ?? "Person A"}` : ""}</legend>
           {vorsorgeFields("a", a.vorsorge.a)}
         </fieldset>
         {est.zusammen && (
           <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
-            <legend style={{ fontWeight: 600, marginBottom: 8 }}>Vorsorgeaufwand · {est.person.b ?? "Ehegatte"}</legend>
+            <legend className="subhead">Vorsorgeaufwand · {est.person.b ?? "Ehegatte"}</legend>
             {vorsorgeFields("b", a.vorsorge.b)}
           </fieldset>
         )}
@@ -397,7 +406,7 @@ function EstSection({ data }: { data: Data }) {
         </div>
 
         <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
-          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Sonderausgaben und Belastungen</legend>
+          <legend className="subhead">Sonderausgaben und Belastungen</legend>
           <Amount name="kistGezahlt" label="Gezahlte Kirchensteuer" value={a.sonderausgaben.kirchensteuerGezahlt} hint="ohne Kirchensteuer auf Kapitalerträge" />
           <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
           <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
@@ -405,14 +414,14 @@ function EstSection({ data }: { data: Data }) {
         </fieldset>
 
         <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
-          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Haushaltsnahe Aufwendungen (§ 35a EStG)</legend>
+          <legend className="subhead">Haushaltsnahe Aufwendungen (§ 35a EStG)</legend>
           <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
           <Amount name="dienstleistungen" label="Haushaltsnahe Dienstleistungen" value={a.haushaltsnah.dienstleistungen} hint="z. B. Reinigung, Gartenpflege" />
           <Amount name="handwerker" label="Handwerkerleistungen" value={a.haushaltsnah.handwerker} hint="nur Arbeits-, Maschinen- und Fahrtkosten" />
         </fieldset>
 
         <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
-          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Kinder</legend>
+          <legend className="subhead">Kinder</legend>
           {kinder.map((k, index) => (
             <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
               <label className="field">
@@ -440,7 +449,7 @@ function EstSection({ data }: { data: Data }) {
                 <input inputMode="decimal" value={k.kinderbetreuung} onChange={(e) => updateKind(k.key, { kinderbetreuung: e.target.value })} placeholder="0,00" />
               </label>
               <div className="actions" style={{ gridColumn: "1 / -1" }}>
-                <button type="button" className="btn" onClick={() => setKinder((list) => list.filter((x) => x.key !== k.key))}>
+                <button type="button" className="btn btn-danger" onClick={() => setKinder((list) => list.filter((x) => x.key !== k.key))}>
                   Kind entfernen
                 </button>
               </div>
@@ -458,7 +467,7 @@ function EstSection({ data }: { data: Data }) {
         </fieldset>
 
         <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
-          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Kapitalerträge (Anlage KAP)</legend>
+          <legend className="subhead">Kapitalerträge (Anlage KAP)</legend>
           <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />
           <Amount name="kapSpb" label="Davon genutzter Sparer-Pauschbetrag" value={a.kap?.sparerPauschbetrag} />
           <Amount name="kapOhneInl" label="Inländische Erträge ohne Steuerabzug" value={a.kap?.ertraegeOhneSteuerabzugInland} />

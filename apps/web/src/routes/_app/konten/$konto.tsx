@@ -92,13 +92,14 @@ function KontenblattPage() {
           </div>
           <div className="small muted">am {formatDate(data.from)}</div>
         </div>
-        <div className="card">
+        <div className="card kpi-wide">
           <div className="kpi-label">Bewegungen im Zeitraum</div>
-          <div className="mono" style={{ fontSize: 15, lineHeight: 1.6, whiteSpace: "nowrap" }}>
-            Soll {formatEuro(data.soll)}
-            <br />
-            Haben {formatEuro(data.haben)}
-          </div>
+          <dl className="facts" style={{ gap: "2px 12px", fontSize: 15 }}>
+            <dt>Soll</dt>
+            <dd className="mono">{formatEuro(data.soll)}</dd>
+            <dt>Haben</dt>
+            <dd className="mono">{formatEuro(data.haben)}</dd>
+          </dl>
           <div className="small muted">{data.zeilen.length} Buchungen</div>
         </div>
         <div className="card">
@@ -137,7 +138,7 @@ function KontenblattPage() {
               <th scope="col" className="num">
                 Haben
               </th>
-              <th scope="col" className="num">
+              <th scope="col" className="num saldo-head">
                 Saldo
               </th>
             </tr>

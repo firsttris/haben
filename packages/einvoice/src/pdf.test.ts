@@ -26,8 +26,8 @@ describe("pdfData", () => {
     expect(data.meta).toContainEqual({ label: "Rechnungsnummer", value: "2026-034" });
     expect(data.meta).toContainEqual({ label: "Leistungszeitraum", value: "01.09.2026 – 30.09.2026" });
     expect(data.meta).toContainEqual({ label: "Kundennummer", value: "K-1007" });
-    expect(data.lines[0]).toMatchObject({ quantity: "152 Std.", unitPrice: "95,00 €", rate: "19 %", net: "14.440,00 €" });
-    expect(data.totals.gross.value).toBe("17.409,58 €");
+    expect(data.lines[0]).toMatchObject({ quantity: "152 Std.", unitPrice: "95,00\u00a0€", rate: "19 %", net: "14.440,00\u00a0€" });
+    expect(data.totals.gross.value).toBe("17.409,58\u00a0€");
     expect(data.payment).toBe("Bitte überweisen Sie den Betrag bis zum 16.10.2026 unter Angabe der Rechnungsnummer.");
     expect(data.footer[1]).toContain("IBAN DE89 3704 0044 0532 0130 00");
     expect(data.footer[2]).toEqual(["Steuernummer 13/345/67890", "USt-IdNr. DE123456789"]);
@@ -40,8 +40,8 @@ describe("pdfData", () => {
     expect(data.payment).toBe("Der Betrag wird Ihnen erstattet.");
     expect(data.totals.rows.map((r) => r.label)).toEqual([
       "Summe netto",
-      "Umsatzsteuer 19 % auf -2.486,25 €",
-      "Umsatzsteuer 7 % auf -149,70 €",
+      "Umsatzsteuer 19 % auf -2.486,25\u00a0€",
+      "Umsatzsteuer 7 % auf -149,70\u00a0€",
     ]);
   });
 

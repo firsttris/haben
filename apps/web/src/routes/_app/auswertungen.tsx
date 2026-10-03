@@ -2,7 +2,7 @@ import { formatEuro, type EuerLine } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
-import { euroAxis, niceTicks } from "../../lib/chart.ts";
+import { euroAxis, niceTicks, useChartWidth } from "../../lib/chart.ts";
 import { formatDate } from "../../lib/format.ts";
 import type { OpenPosition } from "../../server/reports.ts";
 import { getReports } from "../../server/functions/reports.ts";
@@ -36,7 +36,7 @@ function ReportsPage() {
         </div>
         <div className="actions">
           <nav className="year-switch" aria-label="Jahr wählen">
-            <Link to="/auswertungen" search={{ jahr: year - 1 }} className="btn" aria-label={`Vorjahr ${year - 1}`}>
+            <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`}>
               ‹ {year - 1}
             </Link>
             {yearOptions.map((y) => (
@@ -50,7 +50,7 @@ function ReportsPage() {
                 {y}
               </Link>
             ))}
-            <Link to="/auswertungen" search={{ jahr: year + 1 }} className="btn" aria-label={`Folgejahr ${year + 1}`}>
+            <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`}>
               {year + 1} ›
             </Link>
           </nav>
@@ -305,10 +305,8 @@ function DueStatus({ days }: { days: number }) {
 
 /** Runde Achsenschritte (1, 2, 2,5, 5 × 10ⁿ) in Cent */
 
-const W = 720;
 const H = 260;
 const M = { top: 12, right: 8, bottom: 28, left: 72 };
-const BAR = 18;
 const GAP = 2;
 
 /** Balken mit 4px runder Datenkante, eckig an der Grundlinie */
@@ -325,6 +323,7 @@ function barPath(x: number, y0: number, y1: number, w: number): string {
 
 function MonthlyChart({ year, einnahmen, ausgaben }: { year: number; einnahmen: number[]; ausgaben: number[] }) {
   const [active, setActive] = useState<number | null>(null);
+  const [chartRef, W] = useChartWidth();
   const values = [...einnahmen, ...ausgaben];
   const ticks = niceTicks(Math.min(0, ...values), Math.max(0, ...values));
   const lo = ticks[0]!;
@@ -333,11 +332,14 @@ function MonthlyChart({ year, einnahmen, ausgaben }: { year: number; einnahmen: 
   const plotH = H - M.top - M.bottom;
   const y = (v: number) => M.top + plotH - ((v - lo) / (hi - lo)) * plotH;
   const slot = plotW / 12;
+  const BAR = Math.min(18, Math.floor(slot * 0.38));
+  // Schmale Diagramme: nur jeden zweiten Monat beschriften
+  const labelEvery = slot < 34 ? 2 : 1;
   const base = y(0);
   const empty = values.every((v) => v === 0);
 
   return (
-    <div className="chart" onPointerLeave={() => setActive(null)}>
+    <div className="chart" ref={chartRef} onPointerLeave={() => setActive(null)}>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         role="group"
@@ -352,11 +354,13 @@ function MonthlyChart({ year, einnahmen, ausgaben }: { year: number; einnahmen: 
               </text>
             </g>
           ))}
-          {MONTHS_SHORT.map((m, i) => (
-            <text key={m} x={M.left + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="tick">
-              {m}
-            </text>
-          ))}
+          {MONTHS_SHORT.map((m, i) =>
+            i % labelEvery === 0 ? (
+              <text key={m} x={M.left + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="tick">
+                {m}
+              </text>
+            ) : null,
+          )}
         </g>
         {MONTHS_LONG.map((m, i) => {
           const cx = M.left + slot * i + slot / 2;

@@ -38,7 +38,7 @@ function LegacyVoucherPage() {
       <div className="grid-main">
         <section className="card stack" aria-label="Datei">
           {files.length > 1 && (
-            <div className="filter-row" role="group" aria-label="Datei wählen">
+            <div className="archive-filter" role="group" aria-label="Datei wählen">
               {files.map((f) => (
                 <button
                   key={f.id}

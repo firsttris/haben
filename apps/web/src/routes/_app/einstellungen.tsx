@@ -295,7 +295,7 @@ function CompanyForm() {
           Entnahme. Am einzelnen Beleg lässt sich der Anteil ändern.
         </p>
         <fieldset className="form-grid" style={{ gridColumn: "1 / -1", border: 0, padding: 0, margin: 0 }}>
-          <legend style={{ fontWeight: 600, marginBottom: 8 }}>Mahnwesen</legend>
+          <legend className="subhead">Mahnwesen</legend>
           <label className="field">
             Basiszinssatz in %
             <input
@@ -522,7 +522,7 @@ function CertificateForm() {
           </div>
           <button
             type="button"
-            className="btn"
+            className="btn btn-danger"
             disabled={busy}
             onClick={() => run(() => remove(), "Zertifikat entfernt.")}
           >
@@ -761,7 +761,7 @@ function Passkeys() {
             </div>
             <button
               type="button"
-              className="btn"
+              className="btn btn-danger"
               disabled={busy}
               onClick={() => run(() => authClient.passkey.deletePasskey({ id: passkey.id }), "Passkey entfernt.")}
             >

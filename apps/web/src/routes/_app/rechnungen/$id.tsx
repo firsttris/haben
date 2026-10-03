@@ -220,11 +220,14 @@ function FinalInvoice({ data }: { data: Detail }) {
             {data.mails.length > 0 ? (
               data.mails.map((m) => (
                 <div key={m.id} className="history-row">
-                  <span>
+                  <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                     {m.kind === "mahnung" ? "Mahnung" : KIND_TITLE[invoice.kind]} an {m.recipient}
-                    {!m.ok && <span className="small" style={{ color: "var(--danger-ink)" }}> · fehlgeschlagen: {m.error}</span>}
+                    <span className="small muted" style={{ display: "block" }}>
+                      {formatDateTime(m.createdAt)}
+                      {!m.ok && ` · ${m.error}`}
+                    </span>
                   </span>
-                  <span className={`pill ${m.ok ? "pill-ok" : ""}`}>{formatDateTime(m.createdAt)}</span>
+                  <span className={`pill ${m.ok ? "pill-ok" : "pill-danger"}`}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</span>
                 </div>
               ))
             ) : (
@@ -316,10 +319,10 @@ function FinalInvoice({ data }: { data: Detail }) {
                 </div>
               )}
               <div className="actions">
-                <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+                <button type="button" className="btn btn-danger" onClick={onCancel} disabled={busy}>
                   {confirming ? "Jetzt stornieren" : "Stornieren"}
                 </button>
-                <button type="button" className="btn btn-dashed" onClick={onCorrect} disabled={busy}>
+                <button type="button" className="btn" onClick={onCorrect} disabled={busy}>
                   Rechnungskorrektur anlegen
                 </button>
               </div>
