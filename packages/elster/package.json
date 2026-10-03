@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@haben/core": "workspace:*",
+    "fast-xml-parser": "^5.11.2",
     "fflate": "^0.8.3",
     "koffi": "^3.3.2"
   },

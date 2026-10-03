@@ -61,4 +61,50 @@ describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () 
     const basis = await finanzamt.prepaymentBasis("2026-07-02");
     expect(basis).toMatchObject({ year: 2026, until: "2026-07-02", profitSoFar: 0, profitForecast: 0, einkunftsart: "selbstaendig" });
   });
+
+  describe("Bankverbindung ändern", () => {
+    let taxpayer: typeof import("./taxpayer.ts");
+    beforeAll(async () => {
+      taxpayer = await import("./taxpayer.ts");
+    });
+    const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1980-03-15" };
+
+    it("braucht die persönlichen Angaben und eine gültige IBAN", async () => {
+      const client = new elster.FakeElsterClient();
+      await expect(finanzamt.sendBankChange(actor, { iban: "DE89370400440532013000" }, client, { kind: "validate" })).rejects.toThrow(/Persönliche Angaben/);
+      await taxpayer.saveTaxpayer(actor, { a: person });
+      await expect(finanzamt.sendBankChange(actor, { iban: "DE00370400440532013000" }, client, { kind: "validate" })).rejects.toThrow(/IBAN/);
+    });
+
+    it("sendet testweise und speichert den Vorgang im Verlauf", async () => {
+      const client = new elster.FakeElsterClient();
+      await taxpayer.saveTaxpayer(actor, { a: person });
+      await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1]))})`;
+      const result = await finanzamt.sendBankChange(actor, { iban: "de89 3704 0044 0532 0130 00" }, client, { kind: "test", pin: "1234" });
+      expect(result.ok).toBe(true);
+      const [row] = await sql`select topic, kind, text, figures, request_xml from elster_messages where topic = 'bankverbindung'`;
+      expect(row).toMatchObject({ topic: "bankverbindung", kind: "test", figures: { iban: "DE89370400440532013000" } });
+      expect(row!.text).toContain("DE89 3704 0044 0532 0130 00");
+      expect(row!.request_xml).toContain("<IBAN>DE89370400440532013000</IBAN>");
+      expect(row!.request_xml).toContain("<Geburtsdatum>15.03.1980</Geburtsdatum>");
+      expect(row!.request_xml).toContain(`<Empfaenger id="F">9198</Empfaenger>`);
+    });
+  });
+
+  describe("Persönliche Angaben", () => {
+    let taxpayer: typeof import("./taxpayer.ts");
+    beforeAll(async () => {
+      taxpayer = await import("./taxpayer.ts");
+    });
+
+    it("prüft die Identifikationsnummer und verlangt bei Zusammenveranlagung den Ehegatten", async () => {
+      const a = { idnr: "86095742719", anrede: "Frau" as const, vorname: "Erika", name: "Muster", geburtsdatum: "1985-01-02" };
+      await expect(taxpayer.saveTaxpayer(actor, { a: { ...a, idnr: "12345678901" } })).rejects.toThrow(/Identifikationsnummer/);
+      await expect(taxpayer.saveTaxpayer(actor, { a, veranlagung: "zusammen" })).rejects.toThrow(/Ehegatten/);
+      await taxpayer.saveTaxpayer(actor, { a: { ...a, idnr: "86 095 742 719" } });
+      expect(await taxpayer.loadTaxpayer()).toEqual({ a: { ...a, religion: "11", beruf: "" } });
+      const [audit] = await sql`select new_value from audit_log where table_name = 'company' order by id desc limit 1`;
+      expect(audit!.new_value.taxpayer.a.idnr).toBe("86095742719");
+    });
+  });
 });

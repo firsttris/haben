@@ -43,6 +43,7 @@ import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
 import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
+import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as AppArchivBelegIdRouteImport } from './routes/_app/archiv/beleg.$id'
 import { Route as AppRechnungenMahnwesenIndexRouteImport } from './routes/_app/rechnungen/mahnwesen/index'
@@ -222,6 +223,11 @@ const ApiMahnungIdRoute = ApiMahnungIdRouteImport.update({
   path: '/api/mahnung/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPostfachIdRoute = ApiPostfachIdRouteImport.update({
+  id: '/api/postfach/$id',
+  path: '/api/postfach/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiProtokollIdRoute = ApiProtokollIdRouteImport.update({
   id: '/api/protokoll/$id',
   path: '/api/protokoll/$id',
@@ -295,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
+  '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/anlagen/': typeof AppAnlagenIndexRoute
   '/archiv/': typeof AppArchivIndexRoute
@@ -338,6 +345,7 @@ export interface FileRoutesByTo {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
+  '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/anlagen': typeof AppAnlagenIndexRoute
   '/archiv': typeof AppArchivIndexRoute
@@ -383,6 +391,7 @@ export interface FileRoutesById {
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
+  '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/_app/anlagen/': typeof AppAnlagenIndexRoute
   '/_app/archiv/': typeof AppArchivIndexRoute
@@ -428,6 +437,7 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/export/$jahr'
     | '/api/mahnung/$id'
+    | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/anlagen/'
     | '/archiv/'
@@ -471,6 +481,7 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/export/$jahr'
     | '/api/mahnung/$id'
+    | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/anlagen'
     | '/archiv'
@@ -515,6 +526,7 @@ export interface FileRouteTypes {
     | '/api/belege/teilen'
     | '/api/export/$jahr'
     | '/api/mahnung/$id'
+    | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/_app/anlagen/'
     | '/_app/archiv/'
@@ -545,6 +557,7 @@ export interface RootRouteChildren {
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
   ApiMahnungIdRoute: typeof ApiMahnungIdRoute
+  ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
 }
@@ -789,6 +802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMahnungIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/postfach/$id': {
+      id: '/api/postfach/$id'
+      path: '/api/postfach/$id'
+      fullPath: '/api/postfach/$id'
+      preLoaderRoute: typeof ApiPostfachIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/protokoll/$id': {
       id: '/api/protokoll/$id'
       path: '/api/protokoll/$id'
@@ -925,6 +945,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
   ApiMahnungIdRoute: ApiMahnungIdRoute,
+  ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,
 }

@@ -6,7 +6,9 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { authClient } from "../../lib/auth-client.ts";
 import { errorMessage, formatDate } from "../../lib/format.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
-import { getCompany, saveCompany } from "../../server/functions/company.ts";
+import { RELIGIONEN } from "../../lib/religion.ts";
+import type { TaxpayerPerson } from "../../server/db/schema.ts";
+import { getCompany, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import { getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
@@ -46,7 +48,10 @@ function SettingsPage() {
         </div>
       </div>
       <div className="grid-main">
-        <CompanyForm />
+        <div className="stack">
+          <CompanyForm />
+          <TaxpayerForm />
+        </div>
         <div className="stack">
           <NumberingForm />
           <CertificateForm />
@@ -318,6 +323,143 @@ function CompanyForm() {
           </label>
         </fieldset>
       </div>
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          Speichern
+        </button>
+      </div>
+      <NoticeBanner notice={notice} />
+    </form>
+  );
+}
+
+type PersonKey = "a" | "b";
+
+function PersonFields({ prefix, person }: { prefix: PersonKey; person: TaxpayerPerson | undefined }) {
+  const id = (name: string) => `${prefix}-${name}`;
+  return (
+    <div className="form-grid">
+      <label className="field">
+        Anrede
+        <select name={id("anrede")} defaultValue={person?.anrede ?? "Herrn"}>
+          <option value="Herrn">Herr</option>
+          <option value="Frau">Frau</option>
+        </select>
+      </label>
+      <label className="field">
+        Steuer-ID
+        <input name={id("idnr")} inputMode="numeric" defaultValue={person?.idnr ?? ""} placeholder="11 Ziffern" autoComplete="off" />
+      </label>
+      <label className="field">
+        Vorname
+        <input name={id("vorname")} defaultValue={person?.vorname ?? ""} />
+      </label>
+      <label className="field">
+        Nachname
+        <input name={id("name")} defaultValue={person?.name ?? ""} />
+      </label>
+      <label className="field">
+        Geburtsdatum
+        <input name={id("geburtsdatum")} type="date" defaultValue={person?.geburtsdatum ?? ""} />
+      </label>
+      <label className="field">
+        Religion
+        <select name={id("religion")} defaultValue={person?.religion ?? "11"}>
+          {RELIGIONEN.map((r) => (
+            <option key={r.code} value={r.code}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field" style={{ gridColumn: "1 / -1" }}>
+        Ausgeübter Beruf
+        <input name={id("beruf")} defaultValue={person?.beruf ?? ""} placeholder="z. B. IT-Berater" />
+      </label>
+    </div>
+  );
+}
+
+/** Persönliche Angaben für ELSTER: Bankverbindung ändern, Einkommensteuererklärung */
+function TaxpayerForm() {
+  const { company } = Route.useLoaderData();
+  const taxpayer = company.taxpayer;
+  const router = useRouter();
+  const save = useServerFn(saveTaxpayerData);
+  const [veranlagung, setVeranlagung] = useState(taxpayer.veranlagung ?? "einzel");
+  const [notice, setNotice] = useState<Notice>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const text = (name: string) => String(form.get(name) ?? "").trim();
+    const person = (key: PersonKey) => {
+      if (!text(`${key}-idnr`) && !text(`${key}-vorname`) && !text(`${key}-name`)) return undefined;
+      return {
+        anrede: text(`${key}-anrede`) === "Frau" ? ("Frau" as const) : ("Herrn" as const),
+        idnr: text(`${key}-idnr`),
+        vorname: text(`${key}-vorname`),
+        name: text(`${key}-name`),
+        geburtsdatum: text(`${key}-geburtsdatum`),
+        religion: text(`${key}-religion`) || "11",
+        beruf: text(`${key}-beruf`),
+      };
+    };
+    setBusy(true);
+    setNotice(null);
+    try {
+      const zusammen = veranlagung === "zusammen";
+      await save({
+        data: {
+          a: person("a"),
+          b: zusammen ? person("b") : undefined,
+          veranlagung,
+          verheiratetSeit: zusammen && text("verheiratetSeit") ? text("verheiratetSeit") : undefined,
+        },
+      });
+      await router.invalidate();
+      setNotice({ tone: "ok", text: "Persönliche Angaben gespeichert." });
+    } catch (error) {
+      setNotice({ tone: "danger", text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form className="card" onSubmit={onSubmit} aria-labelledby="taxpayer-heading">
+      <h2 id="taxpayer-heading">Persönliche Angaben</h2>
+      <p className="small muted" style={{ margin: 0 }}>
+        Für die Änderung der Bankverbindung und die Einkommensteuererklärung über ELSTER.
+      </p>
+      <PersonFields prefix="a" person={taxpayer.a} />
+      <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
+        <legend className="small" style={{ fontWeight: 500, marginBottom: 8 }}>
+          Veranlagung
+        </legend>
+        <label className="field">
+          Art
+          <select value={veranlagung} onChange={(e) => setVeranlagung(e.target.value === "zusammen" ? "zusammen" : "einzel")}>
+            <option value="einzel">Einzelveranlagung</option>
+            <option value="zusammen">Zusammenveranlagung mit Ehegatten</option>
+          </select>
+        </label>
+        {veranlagung === "zusammen" && (
+          <label className="field">
+            Verheiratet seit
+            <input name="verheiratetSeit" type="date" defaultValue={taxpayer.verheiratetSeit ?? ""} />
+          </label>
+        )}
+      </fieldset>
+      {veranlagung === "zusammen" && (
+        <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="small" style={{ fontWeight: 500, marginBottom: 8 }}>
+            Ehegatte (Person B)
+          </legend>
+          <PersonFields prefix="b" person={taxpayer.b} />
+        </fieldset>
+      )}
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           Speichern

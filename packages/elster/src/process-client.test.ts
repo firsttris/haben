@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { buildNachrichtXml } from "./nachricht.ts";
+import { buildPostfachAnfrageXml, buildPostfachBestaetigungXml } from "./postfach.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { buildUstvaXml, TEST_HERSTELLER_ID } from "./xml.ts";
 
@@ -97,6 +98,9 @@ function compileMockEric(): string | undefined {
     execFileSync("cc", ["-shared", "-fPIC", "-o", join(home, "lib/libericapi.so"), join(fixtures, "mock-eric.c")], {
       stdio: "ignore",
     });
+    execFileSync("cc", ["-shared", "-fPIC", "-o", join(home, "lib/libotto.so"), join(fixtures, "mock-otto.c")], {
+      stdio: "ignore",
+    });
     return home;
   } catch {
     rmSync(home, { recursive: true, force: true });
@@ -144,6 +148,28 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
     expect(result.responseXml).toMatch(/<V>SonstigeNachrichten_21<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
     expect(result.responseXml).toContain("<TH>(nil)</TH>");
     expect(result.pdf).toBeUndefined();
+  });
+
+  it("fragt das Postfach ab und lädt die Anhänge über Otto, Fehler je Datei", async () => {
+    const anfrage = buildPostfachAnfrageXml({ datenlieferant: "Test", herstellerId: "74931", produktVersion: "0.1.0", test: true });
+    const result = await client().fetchPostfach(anfrage, new Uint8Array([1]), "geheim", { test: true, herstellerId: "74931" });
+    expect(result.ok).toBe(true);
+    expect(result.responseXml).toMatch(/<V>PostfachAnfrage_31<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
+    expect(result.responseXml).not.toContain("<TH>(nil)</TH>");
+    expect(result.bereitstellungen).toEqual([
+      expect.objectContaining({ id: "b-1", datenart: "DivaBescheidESt", veranlagungszeitraum: "2025", anhaenge: expect.any(Array) }),
+    ]);
+    const [ok, fehlt] = result.dateien;
+    expect(ok!.referenzId).toBe("ref-1");
+    expect(Buffer.from(ok!.inhalt!).toString("latin1")).toBe("%PDF\0ref-1|12|geheim|74931");
+    expect(fehlt).toEqual({ referenzId: "fehlt", fehler: "Otto-Fehler 610: Objekt nicht gefunden" });
+  });
+
+  it("bestätigt die Abholung mit Transferhandle", async () => {
+    const xml = buildPostfachBestaetigungXml(["b-1"], { datenlieferant: "Test", herstellerId: "74931", produktVersion: "0.1.0", test: true });
+    const result = await client().send(xml, new Uint8Array([1]), "geheim", { test: true, print: false });
+    expect(result.responseXml).toContain("<V>PostfachBestaetigung_31</V>");
+    expect(result.responseXml).not.toContain("<TH>(nil)</TH>");
   });
 
   it("überlebt einen Segfault in der Bibliothek", async () => {

@@ -138,7 +138,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
 
     await bookedDocument("2026-10-06", 1_000, 190);
     let xml = "";
-    const spy = { validate: async (body: string) => ((xml = body), new FakeElsterClient().validate(body)), send: new FakeElsterClient().send };
+    const spy = { validate: async (body: string) => ((xml = body), new FakeElsterClient().validate(body)), send: new FakeElsterClient().send, fetchPostfach: new FakeElsterClient().fetchPostfach };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
     expect(xml).toContain("<Kz66>8,06</Kz66>");
     const [stored] = await sql`select kz66 from vat_returns where id = ${draft.id}`;
@@ -180,7 +180,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     const draft = await vat.saveDraft(actor, october, { mode: "berechnet" });
     expect(draft).toMatchObject({ kz21: 500_000, kz45: 500_000, kz83: 0 });
     let xml = "";
-    const spy = { validate: async (body: string) => ((xml = body), new FakeElsterClient().validate(body)), send: new FakeElsterClient().send };
+    const spy = { validate: async (body: string) => ((xml = body), new FakeElsterClient().validate(body)), send: new FakeElsterClient().send, fetchPostfach: new FakeElsterClient().fetchPostfach };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
     expect(xml).toContain("<Kz21>5000</Kz21>");
     expect(xml).toContain("<Kz45>5000</Kz45>");

@@ -44,6 +44,26 @@ export const kontenrahmenEnum = pgEnum("kontenrahmen", ["SKR03", "SKR04"]);
 
 export const invoiceFormatEnum = pgEnum("invoice_format", ["zugferd", "xrechnung-cii", "xrechnung-ubl"]);
 
+export interface TaxpayerPerson {
+  idnr: string;
+  anrede: "Herrn" | "Frau";
+  vorname: string;
+  name: string;
+  /** JJJJ-MM-TT */
+  geburtsdatum: string;
+  /** Religionsschlüssel laut ELSTER, z. B. "11" (keine) */
+  religion: string;
+  beruf: string;
+}
+
+export interface TaxpayerData {
+  a?: TaxpayerPerson;
+  b?: TaxpayerPerson;
+  veranlagung?: "einzel" | "zusammen";
+  /** JJJJ-MM-TT */
+  verheiratetSeit?: string;
+}
+
 /** Firmendaten, genau eine Zeile (id = 1). */
 export const company = pgTable(
   "company",
@@ -71,6 +91,8 @@ export const company = pgTable(
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
+    /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
+    taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
     privateShares: jsonb("private_shares").$type<Record<string, number>>().notNull().default({}),
     /**
@@ -193,7 +215,7 @@ export const annualSubmissions = pgTable(
  */
 export const elsterMessages = pgTable("elster_messages", {
   id: uuid("id").primaryKey().defaultRandom(),
-  topic: text("topic", { enum: ["nachricht", "vorauszahlung"] }).notNull(),
+  topic: text("topic", { enum: ["nachricht", "vorauszahlung", "bankverbindung"] }).notNull(),
   betreff: text("betreff").notNull(),
   text: text("text").notNull(),
   /** Beim Antrag auf Herabsetzung: die Zahlen, auf die er sich stützt */
@@ -207,6 +229,45 @@ export const elsterMessages = pgTable("elster_messages", {
   responseXml: text("response_xml").notNull(),
   serverResponseXml: text("server_response_xml").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Abrufe des ELSTER-Postfachs (PostfachAnfrage) und Bestätigungen der Abholung (PostfachBestaetigung) */
+export const postfachRequests = pgTable("postfach_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  art: text("art", { enum: ["anfrage", "bestaetigung"] }).notNull(),
+  test: boolean("test").notNull(),
+  ok: boolean("ok").notNull(),
+  code: integer("code").notNull(),
+  message: text("message").notNull(),
+  /** anfrage: vollständig abgeholte Bereitstellungen; bestaetigung: die bestätigten */
+  bereitstellungIds: text("bereitstellung_ids").array().notNull().default(sql`'{}'::text[]`),
+  /** Fehler beim Download einzelner Anhänge */
+  fehler: jsonb("fehler").$type<{ referenzId: string; fehler: string }[]>().notNull().default([]),
+  requestXml: text("request_xml").notNull(),
+  responseXml: text("response_xml").notNull(),
+  serverResponseXml: text("server_response_xml").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Aus dem ELSTER-Postfach abgeholte Dokumente: Bescheide und Mitteilungen des Finanzamts */
+export const postfachDocuments = pgTable("postfach_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  referenzId: text("referenz_id").notNull().unique(),
+  bereitstellungId: text("bereitstellung_id").notNull(),
+  datenart: text("datenart").notNull(),
+  veranlagungszeitraum: text("veranlagungszeitraum").notNull(),
+  steuernummer: text("steuernummer").notNull(),
+  bescheiddatum: text("bescheiddatum").notNull(),
+  dateibezeichnung: text("dateibezeichnung").notNull(),
+  mimeType: text("mime_type").notNull(),
+  filename: text("filename").notNull(),
+  sha256: text("sha256").notNull(),
+  size: integer("size").notNull(),
+  test: boolean("test").notNull(),
+  requestId: uuid("request_id")
+    .notNull()
+    .references(() => postfachRequests.id),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /** Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. */

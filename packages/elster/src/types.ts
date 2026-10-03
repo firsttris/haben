@@ -1,3 +1,5 @@
+import type { PostfachBereitstellung } from "./postfach.ts";
+
 /** Ergebnis einer ERiC-Bearbeitung, unabhängig davon, wer sie ausgeführt hat. */
 export interface ElsterResult {
   ok: boolean;
@@ -20,11 +22,25 @@ export interface SendOptions {
   print?: boolean;
 }
 
+export interface PostfachOptions {
+  test: boolean;
+  /** Für den Download über Otto */
+  herstellerId: string;
+}
+
+/** Antwort auf eine PostfachAnfrage samt abgeholter Anhänge; bestätigt ist damit noch nichts. */
+export interface PostfachResult extends ElsterResult {
+  bereitstellungen: PostfachBereitstellung[];
+  dateien: { referenzId: string; inhalt?: Uint8Array; fehler?: string }[];
+}
+
 /** Alles, was die App von ELSTER weiß. ERiC bleibt dahinter verborgen. */
 export interface ElsterClient {
   validate(xml: string): Promise<ElsterResult>;
   /** certificate: Inhalt der .pfx-Datei. Die PIN wird weder geloggt noch gespeichert. */
   send(xml: string, certificate: Uint8Array, pin: string, options: SendOptions): Promise<ElsterResult>;
+  /** Sendet eine PostfachAnfrage und holt alle Anhänge ab. Bestätigt wird danach per send(). */
+  fetchPostfach(xml: string, certificate: Uint8Array, pin: string, options: PostfachOptions): Promise<PostfachResult>;
 }
 
 export function failure(message: string, code = -1): ElsterResult {
