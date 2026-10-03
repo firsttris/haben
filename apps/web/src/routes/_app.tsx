@@ -53,6 +53,10 @@ function AppLayout() {
           <Icon name="journal" />
           Buchungen
         </Link>
+        <Link to="/konten" className="nav-link">
+          <Icon name="ledger" />
+          Konten
+        </Link>
         <Link to="/umsatzsteuer" className="nav-link">
           <Icon name="vat" />
           Umsatzsteuer
