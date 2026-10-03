@@ -21,6 +21,14 @@ int EricBearbeiteVorgang(const char* d, const char* v, uint32_t flags, const dru
   put(r,b);
   if (dr && dr->pdfName){ FILE* f=fopen(dr->pdfName,"wb"); fputs("%PDF-mock",f); fclose(f); }
   if (flags & 4) put(s,"<Elster><TransferHeader><TransferTicket>tt-123</TransferTicket></TransferHeader></Elster>");
+  if ((flags & 4) && strcmp(v,"PostfachAnfrage_31")==0) put(s,
+    "<Elster xmlns=\"http://www.elster.de/elsterxml/schema/v11\"><DatenTeil><Nutzdatenblock><Nutzdaten>"
+    "<Datenabholung xmlns=\"http://finkonsens.de/elster/elsterdatenabholung/v3\" version=\"31\"><PostfachAnfrage>"
+    "<DatenartBereitstellung name=\"DivaBescheidESt\" anzahltreffer=\"1\"><Bereitstellung id=\"b-1\" groesse=\"20\">"
+    "<Meta name=\"veranlagungszeitraum\">2025</Meta>"
+    "<Anhang><Dateibezeichnung>Bescheid</Dateibezeichnung><Dateityp>application/pdf</Dateityp><DateiReferenzId>ref-1</DateiReferenzId><DateiGroesse>12</DateiGroesse></Anhang>"
+    "<Anhang><Dateibezeichnung>Weg</Dateibezeichnung><Dateityp>application/pdf</Dateityp><DateiReferenzId>fehlt</DateiReferenzId><DateiGroesse>1</DateiGroesse></Anhang>"
+    "</Bereitstellung></DatenartBereitstellung></PostfachAnfrage></Datenabholung></Nutzdaten></Nutzdatenblock></DatenTeil></Elster>");
   if (strstr(d,"CRASH")) { *(volatile int*)0 = 1; }
   return 0;
 }

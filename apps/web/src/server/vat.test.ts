@@ -62,7 +62,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
   /** Wie ERiC: kein simulierter Client, damit die Echtübermittlung durchgeht */
   const liveClient = (): ElsterClient => {
     const fake = new FakeElsterClient();
-    return { validate: (xml) => fake.validate(xml), send: (...args) => fake.send(...args) };
+    return { validate: (xml) => fake.validate(xml), send: (...args) => fake.send(...args), fetchPostfach: (...args) => fake.fetchPostfach(...args) };
   };
 
   it("simulierter Client darf nicht echt übermitteln", async () => {
@@ -109,6 +109,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
         return new FakeElsterClient().validate(body);
       },
       send: (...args) => new FakeElsterClient().send(...args),
+      fetchPostfach: (...args) => new FakeElsterClient().fetchPostfach(...args),
     };
     await vat.submitReturn(actor, correction.id, spy, { kind: "validate" });
     expect(xml).toContain("<Kz10>1</Kz10>");
@@ -120,6 +121,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
     const failing: ElsterClient = {
       validate: async () => ({ ok: false, code: 610301202, message: "Fehler", responseXml: "", serverResponseXml: "" }),
       send: async () => ({ ok: false, code: 610301202, message: "Fehler", responseXml: "", serverResponseXml: "" }),
+      fetchPostfach: async () => ({ ok: false, code: 610301202, message: "Fehler", responseXml: "", serverResponseXml: "", bereitstellungen: [], dateien: [] }),
     };
     const result = await vat.submitReturn(actor, draft.id, failing, { kind: "send", pin: "1", herstellerId: "12345" });
     expect(result.ok).toBe(false);

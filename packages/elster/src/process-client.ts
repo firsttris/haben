@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { EricConfig, EricRawResult, EricRequest } from "./eric.ts";
 import type { WorkerRequest, WorkerResponse } from "./protocol.ts";
-import { failure, type ElsterClient, type ElsterResult, type SendOptions } from "./types.ts";
+import { failure, type ElsterClient, type ElsterResult, type PostfachOptions, type PostfachResult, type SendOptions } from "./types.ts";
 import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
 
 export const DEFAULT_TIMEOUT_MS = 120_000;
@@ -31,48 +31,71 @@ export class EricProcessClient implements ElsterClient {
   async validate(xml: string): Promise<ElsterResult> {
     const datenartVersion = datenartVersionFromXml(xml);
     if (!datenartVersion) return failure("Datenart-Version im XML nicht gefunden.");
-    return this.#run({ op: "validate", xml, datenartVersion });
+    return (await this.#run({ op: "validate", xml, datenartVersion })).result;
   }
 
   async send(xml: string, certificate: Uint8Array, pin: string, options: SendOptions): Promise<ElsterResult> {
     const datenartVersion = datenartVersionFromXml(xml);
     if (!datenartVersion) return failure("Datenart-Version im XML nicht gefunden.");
-    if (hasTestmerker(xml) !== options.test) {
-      return failure(
-        options.test
-          ? "Testübermittlung angefordert, aber das XML trägt keinen Testmerker."
-          : "Echte Übermittlung angefordert, aber das XML trägt einen Testmerker.",
-      );
-    }
+    const mismatch = testmerkerMismatch(xml, options.test);
+    if (mismatch) return failure(mismatch);
 
-    // mkdtemp legt das Verzeichnis mit 0700 an.
+    return this.#withCertificate(certificate, async (dir, certificatePath) => {
+      const pdfPath = options.print === false ? undefined : join(dir, "protokoll.pdf");
+      const { result } = await this.#run({ op: "send", xml, datenartVersion, certificatePath, pin, ...(pdfPath ? { pdfPath } : {}) });
+      const pdf = pdfPath ? await readFile(pdfPath).catch(() => undefined) : undefined;
+      return pdf ? { ...result, pdf: new Uint8Array(pdf) } : result;
+    });
+  }
+
+  async fetchPostfach(xml: string, certificate: Uint8Array, pin: string, options: PostfachOptions): Promise<PostfachResult> {
+    const leer = { bereitstellungen: [], dateien: [] };
+    const datenartVersion = datenartVersionFromXml(xml);
+    if (datenartVersion !== "PostfachAnfrage_31") return { ...failure("Keine PostfachAnfrage (Version 31)."), ...leer };
+    const mismatch = testmerkerMismatch(xml, options.test);
+    if (mismatch) return { ...failure(mismatch), ...leer };
+
+    return this.#withCertificate(certificate, async (_dir, certificatePath) => {
+      const { result, raw } = await this.#run({ op: "postfach", xml, datenartVersion, certificatePath, pin, herstellerId: options.herstellerId });
+      const postfach = raw?.postfach;
+      return {
+        ...result,
+        bereitstellungen: postfach?.bereitstellungen ?? [],
+        dateien: (postfach?.dateien ?? []).map((datei) => ({
+          referenzId: datei.referenzId,
+          ...(datei.base64 !== undefined ? { inhalt: new Uint8Array(Buffer.from(datei.base64, "base64")) } : {}),
+          ...(datei.fehler !== undefined ? { fehler: datei.fehler } : {}),
+        })),
+      };
+    });
+  }
+
+  /** Legt das Zertifikat in einem eigenen Temp-Verzeichnis ab (mkdtemp: 0700) und räumt danach auf. */
+  async #withCertificate<T>(certificate: Uint8Array, run: (dir: string, certificatePath: string) => Promise<T>): Promise<T> {
     const dir = await mkdtemp(join(tmpdir(), "haben-eric-"));
     try {
       const certificatePath = join(dir, "zertifikat.pfx");
-      const pdfPath = options.print === false ? undefined : join(dir, "protokoll.pdf");
       await writeFile(certificatePath, certificate, { mode: 0o600, flag: "wx" });
-      const result = await this.#run({ op: "send", xml, datenartVersion, certificatePath, pin, ...(pdfPath ? { pdfPath } : {}) });
-      const pdf = pdfPath ? await readFile(pdfPath).catch(() => undefined) : undefined;
-      return pdf ? { ...result, pdf: new Uint8Array(pdf) } : result;
+      return await run(dir, certificatePath);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   }
 
-  #run(request: EricRequest): Promise<ElsterResult> {
+  async #run(request: EricRequest): Promise<{ result: ElsterResult; raw?: EricRawResult }> {
     const { timeoutMs = DEFAULT_TIMEOUT_MS, workerPath = DEFAULT_WORKER_PATH, execArgv } = this.#options;
     const config: EricConfig = { ericHome: this.#options.ericHome, logDir: this.#options.logDir };
 
-    return new Promise((resolve) => {
+    return new Promise<{ result: ElsterResult; raw?: EricRawResult }>((resolve) => {
       let response: WorkerResponse | undefined;
       let settled = false;
       let stderr = "";
 
-      const finish = (result: ElsterResult) => {
+      const finish = (result: ElsterResult, raw?: EricRawResult) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        resolve(result);
+        resolve(raw ? { result, raw } : { result });
       };
 
       const child = fork(workerPath, [], {
@@ -98,7 +121,7 @@ export class EricProcessClient implements ElsterClient {
         finish(failure(`ERiC-Prozess konnte nicht gestartet werden: ${error.message}`));
       });
       child.on("close", (code, signal) => {
-        if (response?.type === "result") return finish(toElsterResult(response.result));
+        if (response?.type === "result") return finish(toElsterResult(response.result), response.result);
         if (response?.type === "error") return finish(failure(response.message));
         const grund = signal ? `Signal ${signal}` : `Exit-Code ${code}`;
         const detail = stderr.trim() ? `: ${stderr.trim().split("\n").slice(-3).join(" ")}` : "";
@@ -114,6 +137,13 @@ export class EricProcessClient implements ElsterClient {
       });
     });
   }
+}
+
+function testmerkerMismatch(xml: string, test: boolean): string | undefined {
+  if (hasTestmerker(xml) === test) return undefined;
+  return test
+    ? "Testübermittlung angefordert, aber das XML trägt keinen Testmerker."
+    : "Echte Übermittlung angefordert, aber das XML trägt einen Testmerker.";
 }
 
 function toElsterResult(raw: EricRawResult): ElsterResult {

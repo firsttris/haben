@@ -3,7 +3,7 @@
  * Es wird nichts übermittelt; Ticket und Protokoll sind erfunden.
  */
 import { randomBytes } from "node:crypto";
-import { failure, type ElsterClient, type ElsterResult, type SendOptions } from "./types.ts";
+import { failure, type ElsterClient, type ElsterResult, type PostfachOptions, type PostfachResult, type SendOptions } from "./types.ts";
 import { hasTestmerker } from "./xml.ts";
 
 export const FAKE_HINWEIS = "Testprotokoll – keine echte Übermittlung";
@@ -35,6 +35,31 @@ export class FakeElsterClient implements ElsterClient {
         `</TransferHeader></Elster>`,
       transferTicket,
       ...(options.print === false ? {} : { pdf: fakeProtokollPdf() }),
+    };
+  }
+
+  /** Liefert immer denselben erfundenen Bescheid, damit sich die Oberfläche ohne ERiC ausprobieren lässt. */
+  async fetchPostfach(xml: string, certificate: Uint8Array, pin: string, options: PostfachOptions): Promise<PostfachResult> {
+    const leer = { bereitstellungen: [], dateien: [] };
+    const sent = await this.send(xml, certificate, pin, { test: options.test, print: false });
+    if (!sent.ok) return { ...sent, ...leer };
+    if (!/<DatenArt>PostfachAnfrage<\/DatenArt>/.test(xml)) return { ...failure("Keine PostfachAnfrage."), ...leer };
+    const jahr = String(new Date().getFullYear() - 1);
+    return {
+      ...sent,
+      message: "Postfach simuliert (Fake, nichts wurde bei ELSTER abgeholt).",
+      bereitstellungen: [
+        {
+          id: `fake-bereitstellung-${jahr}`,
+          datenart: "DivaBescheidESt",
+          groesse: 1,
+          veranlagungszeitraum: jahr,
+          steuernummer: "",
+          bescheiddatum: `${jahr}-12-01`,
+          anhaenge: [{ dateibezeichnung: "Testbescheid", dateityp: "application/pdf", referenzId: `fake-anhang-${jahr}`, groesse: 1 }],
+        },
+      ],
+      dateien: [{ referenzId: `fake-anhang-${jahr}`, inhalt: fakeProtokollPdf() }],
     };
   }
 }

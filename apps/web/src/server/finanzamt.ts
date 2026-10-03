@@ -1,5 +1,15 @@
 import { toElsterSteuernummer, type Cents } from "@haben/core";
-import { buildNachrichtXml, NACHRICHT_BETREFF_MAX, NACHRICHT_TEXT_MAX, splitStrasse, TEST_HERSTELLER_ID, type ElsterClient, type ElsterResult } from "@haben/elster";
+import {
+  buildBankverbindungXml,
+  buildNachrichtXml,
+  isValidIban,
+  NACHRICHT_BETREFF_MAX,
+  NACHRICHT_TEXT_MAX,
+  splitStrasse,
+  TEST_HERSTELLER_ID,
+  type ElsterClient,
+  type ElsterResult,
+} from "@haben/elster";
 import { desc } from "drizzle-orm";
 import { z } from "zod";
 import { companyIssues, loadCompany } from "./company.ts";
@@ -91,6 +101,72 @@ export async function sendMessage(actor: string, rawInput: MessageInput, client:
   const issues = messageIssues(company);
   if (issues.length > 0) throw new FinanzamtError(`Firmendaten unvollständig: ${issues.join(", ")}.`);
 
+  return submit(actor, { topic: input.topic, betreff: input.betreff, text: input.text, figures: input.figures }, client, options, (herstellerId, test) =>
+    buildNachrichtXml({
+      steuernummer13: toElsterSteuernummer(company.steuernummer, company.bundesland!),
+      bundesland: company.bundesland!,
+      absender: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort },
+      betreff: input.betreff,
+      text: input.text,
+      herstellerId,
+      produktVersion: PRODUKT_VERSION,
+      test,
+    }),
+  );
+}
+
+export const bankChangeSchema = z.object({
+  iban: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/\s+/g, "").toUpperCase())
+    .refine(isValidIban, "Die IBAN ist ungültig"),
+});
+
+/** Was fehlt, bevor die Bankverbindung geändert werden kann */
+export function bankChangeIssues(company: Awaited<ReturnType<typeof loadCompany>>): string[] {
+  const issues = companyIssues(company).filter((issue) => issue !== "Anschrift unvollständig");
+  if (!company.taxpayer.a) issues.push("Persönliche Angaben (Identifikationsnummer, Name, Geburtsdatum) fehlen");
+  return issues;
+}
+
+/** Teilt dem Finanzamt eine neue Bankverbindung für alle Steuerarten mit. */
+export async function sendBankChange(
+  actor: string,
+  rawInput: z.input<typeof bankChangeSchema>,
+  client: ElsterClient,
+  options: SendMessageOptions,
+): Promise<ElsterResult> {
+  const { iban } = bankChangeSchema.parse(rawInput);
+  const company = await loadCompany();
+  const issues = bankChangeIssues(company);
+  if (issues.length > 0) throw new FinanzamtError(`Angaben unvollständig: ${issues.join(", ")}.`);
+  const person = company.taxpayer.a!;
+
+  const text = `Neue Bankverbindung für alle Steuerarten: ${iban.replace(/(.{4})/g, "$1 ").trim()}`;
+  return submit(actor, { topic: "bankverbindung", betreff: "Änderung der Bankverbindung", text, figures: { iban } }, client, options, (herstellerId, test) =>
+    buildBankverbindungXml({
+      steuernummer13: toElsterSteuernummer(company.steuernummer, company.bundesland!),
+      bundesland: company.bundesland!,
+      person,
+      iban,
+      herstellerId,
+      produktVersion: PRODUKT_VERSION,
+      test,
+    }),
+  );
+}
+
+type MessageRecord = Pick<typeof schema.elsterMessages.$inferInsert, "topic" | "betreff" | "text" | "figures">;
+
+/** Prüfen, Test- oder Echtversand; jeder Versuch landet unveränderlich in elster_messages. */
+async function submit(
+  actor: string,
+  record: MessageRecord,
+  client: ElsterClient,
+  options: SendMessageOptions,
+  buildXml: (herstellerId: string, test: boolean) => string,
+): Promise<ElsterResult> {
   const test = options.kind !== "send";
   const herstellerId = test ? TEST_HERSTELLER_ID : options.herstellerId;
   if (!herstellerId) throw new FinanzamtError("Für das echte Senden fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
@@ -98,16 +174,7 @@ export async function sendMessage(actor: string, rawInput: MessageInput, client:
     throw new FinanzamtError("Ohne ERiC ist kein echtes Senden möglich; Prüfen und Testübermittlung laufen nur simuliert.");
   }
 
-  const xml = buildNachrichtXml({
-    steuernummer13: toElsterSteuernummer(company.steuernummer, company.bundesland!),
-    bundesland: company.bundesland!,
-    absender: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort },
-    betreff: input.betreff,
-    text: input.text,
-    herstellerId,
-    produktVersion: PRODUKT_VERSION,
-    test,
-  });
+  const xml = buildXml(herstellerId, test);
 
   let result: ElsterResult;
   if (options.kind === "validate") {
@@ -121,10 +188,7 @@ export async function sendMessage(actor: string, rawInput: MessageInput, client:
 
   await withActor(actor, (tx) =>
     tx.insert(schema.elsterMessages).values({
-      topic: input.topic,
-      betreff: input.betreff,
-      text: input.text,
-      figures: input.figures,
+      ...record,
       kind: options.kind,
       ok: result.ok,
       code: result.code,
