@@ -6,8 +6,7 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 
 | Thema | Worum es geht | Stand |
 | --- | --- | --- |
-| Bescheide automatisch abholen und prüfen | Der Scheduler ruft das ELSTER-Postfach regelmäßig ab und meldet neue Bescheide. Aus den Bescheiddaten (ESB) liest Haben festgesetzte Steuer und neue Vorauszahlungen und vergleicht sie mit der Erklärung, damit die Einspruchsfrist (ein Monat) nicht verstreicht | als Nächstes |
-| Belegabruf (vorausgefüllte Steuererklärung) | Lohnsteuerbescheinigungen, Beiträge zur Kranken- und Pflegeversicherung, Rentenbezüge und weitere Meldungen über ELSTER abrufen und in die Einkommensteuererklärung übernehmen. Braucht eine einmalige Freischaltung mit Code per Brief | geplant |
+| Belegabruf (vorausgefüllte Steuererklärung) | Lohnsteuerbescheinigungen, Beiträge zur Kranken- und Pflegeversicherung, Rentenbezüge und weitere Meldungen über ELSTER abrufen und in die Einkommensteuererklärung übernehmen. Braucht eine einmalige Freischaltung mit Code per Brief | als Nächstes |
 | Dauerfristverlängerung | Antrag auf Dauerfristverlängerung mit Sondervorauszahlung (USt 1 H) über ELSTER; Voranmeldungen dürfen dann einen Monat später kommen | geplant |
 | Fristen und Erinnerungen | Kalender mit Voranmeldung, Vorauszahlungsterminen, Abgabefristen und Ablauf des Zertifikats, optional per E-Mail | geplant |
 | Anlage N | Arbeitslohn, etwa eines angestellten Ehegatten, in der Einkommensteuererklärung; mit dem Belegabruf aus der Lohnsteuerbescheinigung | geplant |
@@ -18,9 +17,10 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 | Thema | Was fehlt |
 | --- | --- |
 | Umsatzsteuererklärung mit Kz 21, 45 und 48 | Die Feldkennungen der Zeilen für nicht steuerbare sonstige Leistungen im übrigen Gemeinschaftsgebiet, übrige nicht steuerbare Umsätze und steuerfreie Umsätze ohne Vorsteuerabzug. Bis dahin sperrt Haben die Übermittlung, wenn solche Umsätze gebucht sind |
+| Bescheide automatisch prüfen | Das Format der Bescheiddaten (ESB), um festgesetzte Steuer und neue Vorauszahlungen zu lesen und mit der Erklärung zu vergleichen. Automatischer Abruf und Einspruchsfrist sind fertig ([Finanzamt](finanzamt.md#automatisch-abrufen)) |
 | Strukturierter Antrag auf Anpassung der Vorauszahlungen | Ob es dafür eine ERiC-Datenart gibt und wie ihr Schema aussieht. Bis dahin geht der Antrag als Sonstige Nachricht mit Steuerprognose ([Finanzamt](finanzamt.md#vorauszahlungen-herabsetzen)) |
 
-Beides steht in der **Jahresdokumentation** der Finanzverwaltung (Schemas und Feldlisten aller Datenarten). Es gibt sie nur im ELSTER-Entwicklerbereich unter developer.elster.de, nach der Registrierung als Softwarehersteller.
+Das alles steht in der **Jahresdokumentation** der Finanzverwaltung (Schemas und Feldlisten aller Datenarten). Es gibt sie nur im ELSTER-Entwicklerbereich unter developer.elster.de, nach der Registrierung als Softwarehersteller.
 
 ## Quellen
 

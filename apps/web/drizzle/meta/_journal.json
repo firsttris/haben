@@ -218,6 +218,20 @@
       "when": 1791011215893,
       "tag": "0030_einkommensteuer_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791015408845,
+      "tag": "0031_postfach_auto",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791015409920,
+      "tag": "0032_postfach_auto_audit",
+      "breakpoints": true
     }
   ]
 }

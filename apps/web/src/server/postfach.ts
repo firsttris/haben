@@ -6,9 +6,10 @@ import {
   type ElsterClient,
   type PostfachBereitstellung,
 } from "@haben/elster";
+import { einspruchsfrist, parseBescheiddatum, type Bundesland } from "@haben/core";
 import { and, desc, eq } from "drizzle-orm";
 import { loadCompany } from "./company.ts";
-import { decrypt } from "./crypto.ts";
+import { decrypt, encrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { FinanzamtError } from "./finanzamt.ts";
@@ -32,23 +33,48 @@ export interface PostfachFetchSummary {
   bestaetigungFehler: string | null;
 }
 
+/** Wer den automatischen Abruf im Audit-Log ausgelöst hat */
+export const POSTFACH_ACTOR = "system:postfach";
+/** Abstand zwischen zwei automatischen Abrufen */
+export const AUTO_FETCH_INTERVAL_MS = 20 * 60 * 60 * 1000;
+
+/** Bescheide haben eine Einspruchsfrist, Mitteilungen nicht */
+const isBescheid = (datenart: string) => datenart !== "EPMitteilung";
+
 export async function listPostfachDocuments(limit = 200) {
-  return db
-    .select({
-      id: schema.postfachDocuments.id,
-      datenart: schema.postfachDocuments.datenart,
-      veranlagungszeitraum: schema.postfachDocuments.veranlagungszeitraum,
-      bescheiddatum: schema.postfachDocuments.bescheiddatum,
-      dateibezeichnung: schema.postfachDocuments.dateibezeichnung,
-      filename: schema.postfachDocuments.filename,
-      mimeType: schema.postfachDocuments.mimeType,
-      size: schema.postfachDocuments.size,
-      test: schema.postfachDocuments.test,
-      fetchedAt: schema.postfachDocuments.fetchedAt,
-    })
-    .from(schema.postfachDocuments)
-    .orderBy(desc(schema.postfachDocuments.fetchedAt))
-    .limit(limit);
+  const [company, rows] = await Promise.all([
+    loadCompany(),
+    db
+      .select({
+        id: schema.postfachDocuments.id,
+        bereitstellungId: schema.postfachDocuments.bereitstellungId,
+        datenart: schema.postfachDocuments.datenart,
+        veranlagungszeitraum: schema.postfachDocuments.veranlagungszeitraum,
+        bescheiddatum: schema.postfachDocuments.bescheiddatum,
+        dateibezeichnung: schema.postfachDocuments.dateibezeichnung,
+        filename: schema.postfachDocuments.filename,
+        mimeType: schema.postfachDocuments.mimeType,
+        size: schema.postfachDocuments.size,
+        test: schema.postfachDocuments.test,
+        fetchedAt: schema.postfachDocuments.fetchedAt,
+      })
+      .from(schema.postfachDocuments)
+      .orderBy(desc(schema.postfachDocuments.fetchedAt))
+      .limit(limit),
+  ]);
+  return rows.map((row) => {
+    const datum = parseBescheiddatum(row.bescheiddatum);
+    return { ...row, bescheiddatumIso: datum, frist: datum && isBescheid(row.datenart) ? einspruchsfrist(datum, company.bundesland as Bundesland | null) : null };
+  });
+}
+
+/** Echte Bescheide, deren Einspruchsfrist heute noch läuft; je Bereitstellung einer */
+export async function openAppealDeadlines(today: string) {
+  const seen = new Set<string>();
+  return (await listPostfachDocuments())
+    .filter((d) => !d.test && d.frist && d.frist.fristende >= today)
+    .filter((d) => (seen.has(d.bereitstellungId) ? false : (seen.add(d.bereitstellungId), true)))
+    .sort((a, b) => a.frist!.fristende.localeCompare(b.frist!.fristende));
 }
 
 export async function postfachDocumentFile(id: string) {
@@ -195,4 +221,54 @@ async function storeAll(bereitstellungen: PostfachBereitstellung[], inhalt: Map<
     stored.set(anhang.referenzId, { sha256, mimeType, size: bytes.byteLength });
   }
   return stored;
+}
+
+/** Stand des automatischen Abrufs: an, seit wann, letzter echter Abruf */
+export async function autoFetchStatus() {
+  const certificate = await loadActiveCertificate();
+  const [last] = await db
+    .select({ createdAt: schema.postfachRequests.createdAt, ok: schema.postfachRequests.ok, message: schema.postfachRequests.message })
+    .from(schema.postfachRequests)
+    .where(and(eq(schema.postfachRequests.art, "anfrage"), eq(schema.postfachRequests.test, false)))
+    .orderBy(desc(schema.postfachRequests.createdAt))
+    .limit(1);
+  return { enabled: Boolean(certificate?.pinCiphertext), since: certificate?.pinSavedAt ?? null, lastLive: last ?? null };
+}
+
+/**
+ * Schaltet den automatischen Abruf ein: ruft sofort echt ab und speichert die PIN erst, wenn das klappt,
+ * verschlüsselt am aktiven Zertifikat. Ein neues Zertifikat schaltet den Abruf damit wieder aus.
+ */
+export async function enableAutoFetch(actor: string, client: ElsterClient, pin: string, herstellerId: string | undefined): Promise<PostfachFetchSummary> {
+  const summary = await fetchPostfach(actor, client, { kind: "send", pin, herstellerId });
+  if (!summary.ok) throw new FinanzamtError(`Abruf fehlgeschlagen, die PIN wurde nicht gespeichert: ${summary.message}`);
+  const certificate = await loadActiveCertificate();
+  await withActor(actor, (tx) =>
+    tx
+      .update(schema.elsterCertificates)
+      .set({ pinCiphertext: encrypt(new TextEncoder().encode(pin)), pinSavedAt: new Date() })
+      .where(eq(schema.elsterCertificates.id, certificate!.id)),
+  );
+  return summary;
+}
+
+export async function disableAutoFetch(actor: string): Promise<void> {
+  await withActor(actor, (tx) =>
+    tx.update(schema.elsterCertificates).set({ pinCiphertext: null, pinSavedAt: null }).where(eq(schema.elsterCertificates.active, true)),
+  );
+}
+
+/** Für den Scheduler: echter Abruf mit gespeicherter PIN, höchstens alle 20 Stunden */
+export async function runDuePostfachFetch(
+  client: ElsterClient,
+  herstellerId: string | undefined,
+  now = new Date(),
+): Promise<PostfachFetchSummary | null> {
+  if (!herstellerId || ("isFake" in client && client.isFake)) return null;
+  const certificate = await loadActiveCertificate();
+  if (!certificate?.pinCiphertext) return null;
+  const { lastLive } = await autoFetchStatus();
+  if (lastLive && now.getTime() - lastLive.createdAt.getTime() < AUTO_FETCH_INTERVAL_MS) return null;
+  const pin = new TextDecoder().decode(decrypt(certificate.pinCiphertext));
+  return fetchPostfach(POSTFACH_ACTOR, client, { kind: "send", pin, herstellerId });
 }

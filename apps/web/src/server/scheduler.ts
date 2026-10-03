@@ -1,4 +1,7 @@
 import { runDueBankSyncs } from "./bank-sync.ts";
+import { elsterClient, elsterMode } from "./elster.ts";
+import { env } from "./env.ts";
+import { runDuePostfachFetch } from "./postfach.ts";
 import { runDueRecurring } from "./recurring.ts";
 import { today } from "./today.ts";
 
@@ -25,6 +28,14 @@ export async function runScheduledJobs(): Promise<void> {
     for (const error of result.errors) console.warn(error);
   } catch (error) {
     console.error("Kontoabruf", error);
+  }
+  try {
+    if (elsterMode() === "eric") {
+      const result = await runDuePostfachFetch(elsterClient(), env().ELSTER_HERSTELLER_ID);
+      if (result) console.log(`ELSTER-Postfach: ${result.message}${result.bestaetigungFehler ? ` Bestätigung fehlgeschlagen: ${result.bestaetigungFehler}` : ""}`);
+    }
+  } catch (error) {
+    console.error("ELSTER-Postfach", error);
   } finally {
     running = false;
   }

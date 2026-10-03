@@ -4,7 +4,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Icon } from "../../components/Icon.tsx";
 import { errorMessage, formatDate, formatDateTime } from "../../lib/format.ts";
-import { fetchFinanzamtPostfach, getFinanzamt, sendFinanzamtBankChange, sendFinanzamtMessage } from "../../server/functions/finanzamt.ts";
+import {
+  disablePostfachAutoFetch,
+  enablePostfachAutoFetch,
+  fetchFinanzamtPostfach,
+  getFinanzamt,
+  sendFinanzamtBankChange,
+  sendFinanzamtMessage,
+} from "../../server/functions/finanzamt.ts";
 import styles from "../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/finanzamt")({
@@ -451,19 +458,39 @@ function NoticeBanner({ notice }: { notice: Notice }) {
 function Postfach({ data }: { data: Data }) {
   const router = useRouter();
   const fetchPostfach = useServerFn(fetchFinanzamtPostfach);
+  const enableAuto = useServerFn(enablePostfachAutoFetch);
+  const disableAuto = useServerFn(disablePostfachAutoFetch);
+  const [savePin, setSavePin] = useState(false);
   const [pin, setPin] = useState("");
   const [testOnly, setTestOnly] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const live = !testOnly && data.herstellerIdConfigured;
   const pending = live ? data.pendingConfirmations.live : data.pendingConfirmations.test;
+  const today = new Date().toISOString().slice(0, 10);
+  const auto = data.autoFetch;
+
+  async function turnOff() {
+    setBusy(true);
+    setNotice(null);
+    try {
+      await disableAuto();
+      setNotice({ tone: "ok", text: "Automatischer Abruf ausgeschaltet, die PIN ist gelöscht." });
+      await router.invalidate();
+    } catch (error) {
+      setNotice({ tone: "danger", text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setNotice(null);
     try {
-      const result = await fetchPostfach({ data: { kind: live ? "send" : "test", pin } });
+      const result = live && savePin ? await enableAuto({ data: { pin } }) : await fetchPostfach({ data: { kind: live ? "send" : "test", pin } });
+      if (live && savePin) setSavePin(false);
       const parts = [result.message];
       if (result.fehler.length > 0) parts.push(`${result.fehler.length} Anhang/Anhänge nicht abgeholt: ${result.fehler.map((f) => f.fehler).join("; ")}.`);
       if (result.bestaetigungFehler) parts.push(`Bestätigung fehlgeschlagen: ${result.bestaetigungFehler}. Bitte innerhalb von 24 Stunden erneut abrufen.`);
@@ -492,6 +519,7 @@ function Postfach({ data }: { data: Data }) {
               <tr>
                 <th scope="col">Dokument</th>
                 <th scope="col">Jahr</th>
+                <th scope="col">Einspruch bis</th>
                 <th scope="col">Abgeholt</th>
               </tr>
             </thead>
@@ -504,11 +532,18 @@ function Postfach({ data }: { data: Data }) {
                     </a>
                     <div className="small muted">
                       {DATENART_LABEL[d.datenart] ?? d.datenart}
-                      {d.bescheiddatum ? ` vom ${/^\d{4}-\d{2}-\d{2}$/.test(d.bescheiddatum) ? formatDate(d.bescheiddatum) : d.bescheiddatum}` : ""}
+                      {d.bescheiddatum ? ` vom ${d.bescheiddatumIso ? formatDate(d.bescheiddatumIso) : d.bescheiddatum}` : ""}
                       {d.test ? " · Test" : ""}
                     </div>
                   </td>
                   <td>{d.veranlagungszeitraum || "–"}</td>
+                  <td className="small">
+                    {d.frist ? (
+                      <span style={d.frist.fristende >= today ? { fontWeight: 600 } : { color: "var(--muted)" }}>{formatDate(d.frist.fristende)}</span>
+                    ) : (
+                      "–"
+                    )}
+                  </td>
                   <td className="small">{formatDateTime(d.fetchedAt)}</td>
                 </tr>
               ))}
@@ -534,12 +569,36 @@ function Postfach({ data }: { data: Data }) {
           <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" />
         </label>
         <TestOnlyToggle data={data} testOnly={testOnly} onChange={setTestOnly} />
+        {live && !auto.enabled && (
+          <label className="checkbox">
+            <input type="checkbox" checked={savePin} onChange={(e) => setSavePin(e.target.checked)} />
+            PIN verschlüsselt speichern und täglich automatisch abrufen
+          </label>
+        )}
         <NoticeBanner notice={notice} />
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={busy || !data.certificate || pin.length === 0} style={{ flexGrow: 1 }}>
-            {busy ? "Läuft …" : live ? "Postfach abrufen" : "Testweise abrufen"}
+            {busy ? "Läuft …" : live ? (savePin ? "Abrufen und automatisch einschalten" : "Postfach abrufen") : "Testweise abrufen"}
           </button>
         </div>
+        {auto.enabled ? (
+          <div className="banner banner-info" role="status" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <span>
+              Automatischer Abruf ist an{auto.since ? ` seit ${formatDate(auto.since)}` : ""}.
+              {auto.lastLive ? ` Letzter Abruf ${formatDateTime(auto.lastLive.createdAt)}${auto.lastLive.ok ? "" : ` (Fehler: ${auto.lastLive.message})`}.` : ""}
+            </span>
+            <button type="button" className="btn" disabled={busy} onClick={() => void turnOff()}>
+              Ausschalten
+            </button>
+          </div>
+        ) : (
+          live && (
+            <p className="small muted" style={{ margin: 0 }}>
+              Mit gespeicherter PIN ruft Haben das Postfach einmal am Tag selbst ab und bestätigt die Abholung. Die PIN liegt dann
+              verschlüsselt wie das Zertifikat in der Datenbank.
+            </p>
+          )
+        )}
       </form>
     </div>
   );

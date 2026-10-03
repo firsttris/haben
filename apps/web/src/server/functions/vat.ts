@@ -12,6 +12,7 @@ import { computeVatFigures, preflight } from "../vat-figures.ts";
 import { elsterClient, elsterMode } from "../elster.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
+import { openAppealDeadlines } from "../postfach.ts";
 import { pendingDepreciation } from "../assets.ts";
 import { today } from "../today.ts";
 import {
@@ -86,6 +87,12 @@ export const getOverview = createServerFn({ method: "GET" })
       dueDate: dueDate(period, company.bundesland).toISOString(),
       kleinunternehmer: company.kleinunternehmer,
       afaPending: await pendingDepreciation(today()),
+      appeals: (await openAppealDeadlines(today())).map((d) => ({
+        id: d.id,
+        datenart: d.datenart,
+        veranlagungszeitraum: d.veranlagungszeitraum,
+        fristende: d.frist!.fristende,
+      })),
       current,
       recent,
       certificate: certificateSummary(certificate),
