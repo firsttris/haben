@@ -15,14 +15,22 @@ import {
   sendMessage,
 } from "../finanzamt.ts";
 import { authMiddleware } from "../middleware.ts";
-import { fetchPostfach, lastPostfachRequest, listPostfachDocuments, pendingConfirmations } from "../postfach.ts";
+import {
+  autoFetchStatus,
+  disableAutoFetch,
+  enableAutoFetch,
+  fetchPostfach,
+  lastPostfachRequest,
+  listPostfachDocuments,
+  pendingConfirmations,
+} from "../postfach.ts";
 import { today } from "../today.ts";
 import { loadActiveCertificate } from "../vat.ts";
 
 export const getFinanzamt = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
-    const [company, basis, messages, certificate, documents, lastFetch, pendingTest, pendingLive] = await Promise.all([
+    const [company, basis, messages, certificate, documents, lastFetch, pendingTest, pendingLive, autoFetch] = await Promise.all([
       loadCompany(),
       prepaymentBasis(today()),
       listMessages(),
@@ -31,6 +39,7 @@ export const getFinanzamt = createServerFn({ method: "GET" })
       lastPostfachRequest(),
       pendingConfirmations(true),
       pendingConfirmations(false),
+      autoFetchStatus(),
     ]);
     return {
       company: { name: company.name, finanzamt: company.finanzamt, steuernummer: company.steuernummer, iban: company.iban },
@@ -40,6 +49,7 @@ export const getFinanzamt = createServerFn({ method: "GET" })
       documents,
       lastFetch,
       pendingConfirmations: { test: pendingTest.length, live: pendingLive.length },
+      autoFetch,
       basis,
       messages,
       certificate: certificate ? { filename: certificate.filename } : null,
@@ -89,4 +99,22 @@ export const fetchFinanzamtPostfach = createServerFn({ method: "POST" })
     } catch (error) {
       return rethrow(error);
     }
+  });
+
+export const enablePostfachAutoFetch = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ pin: z.string().min(1).max(64) }))
+  .handler(async ({ data, context }) => {
+    try {
+      return await enableAutoFetch(context.user.id, elsterClient(), data.pin, env().ELSTER_HERSTELLER_ID);
+    } catch (error) {
+      return rethrow(error);
+    }
+  });
+
+export const disablePostfachAutoFetch = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await disableAutoFetch(context.user.id);
+    return { ok: true };
   });

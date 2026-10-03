@@ -19,8 +19,18 @@ interface Todo {
   detail: string;
   action: string;
   tone: "info" | "warn" | "neutral";
-  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen";
+  to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
 }
+
+const BESCHEID_LABEL: Record<string, string> = {
+  ESB: "Steuerbescheid",
+  DivaBescheidESt: "Einkommensteuerbescheid",
+  DivaBescheidUSt: "Umsatzsteuerbescheid",
+  DivaBescheidGewSt: "Gewerbesteuer-Messbescheid",
+  DivaBescheidKSt: "Körperschaftsteuerbescheid",
+  DivaBescheidFEIN: "Feststellungsbescheid",
+  DivaSonstigerVA: "Bescheid",
+};
 
 const DOT = { info: "var(--info-ink)", warn: "var(--warn-dot)", neutral: "var(--muted)" };
 
@@ -57,6 +67,16 @@ function OverviewPage() {
       action: "Mahnen",
       tone: "warn",
       to: "/rechnungen/mahnwesen",
+    });
+  }
+  for (const appeal of data.appeals) {
+    const days = daysUntil(appeal.fristende);
+    todos.push({
+      title: `Bescheid ${appeal.veranlagungszeitraum ? `${appeal.veranlagungszeitraum} ` : ""}prüfen`,
+      detail: `${BESCHEID_LABEL[appeal.datenart] ?? "Bescheid"} · Einspruch bis ${formatDate(appeal.fristende)}`,
+      action: "Ansehen",
+      tone: days <= 7 ? "warn" : "info",
+      to: "/finanzamt",
     });
   }
   for (const afa of data.afaPending) {

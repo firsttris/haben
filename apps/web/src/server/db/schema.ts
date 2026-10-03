@@ -114,6 +114,9 @@ export const elsterCertificates = pgTable("elster_certificates", {
   filename: text("filename").notNull(),
   ciphertext: bytea("ciphertext").notNull(),
   validUntil: date("valid_until", { mode: "string" }),
+  /** PIN für den automatischen Postfachabruf, nur auf Wunsch, verschlüsselt wie das Zertifikat */
+  pinCiphertext: bytea("pin_ciphertext"),
+  pinSavedAt: timestamp("pin_saved_at", { withTimezone: true }),
   active: boolean("active").notNull().default(true),
   uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -16,6 +16,18 @@ Der Abruf läuft in drei Schritten, wie bei viking:
 
 ELSTER erwartet die Bestätigung innerhalb von 24 Stunden, sonst droht die Sperre der Hersteller-ID. Scheitert sie, zeigt die Seite einen Hinweis; der nächste Abruf holt die Bestätigung nach. Abgeholte Dokumente legt Haben nicht doppelt ab. Jeder Abruf und jede Bestätigung wird mit dem XML gespeichert, ebenso wie die Dokumente unveränderlich.
 
+### Automatisch abrufen
+
+Mit Hersteller-ID und eingerichtetem ERiC kannst du beim Abruf „PIN verschlüsselt speichern und täglich automatisch abrufen“ wählen. Haben ruft dann sofort echt ab und speichert die PIN erst, wenn das klappt. Danach holt der Hintergrundjob das Postfach höchstens alle 20 Stunden selbst ab und bestätigt die Abholung; die 24-Stunden-Frist für die Bestätigung ist damit automatisch eingehalten.
+
+Die PIN liegt wie das Zertifikat mit AES-256-GCM verschlüsselt in der Datenbank (Schlüssel aus `HABEN_ENCRYPTION_KEY`) und landet nicht im Audit-Log; dort steht nur, wann sie gespeichert wurde. Wer Datenbank und Schlüssel hat, kann damit in deinem Namen über ELSTER senden. „Ausschalten“ löscht die PIN; ein neues Zertifikat schaltet den automatischen Abruf ebenfalls aus.
+
+### Einspruchsfrist
+
+Zu jedem Bescheid zeigt Haben, bis wann ein Einspruch möglich ist (§ 355 AO): ein Monat ab Bekanntgabe. Die Bekanntgabe gilt am vierten Tag nach dem Bescheiddatum, für Bescheide bis 2024 am dritten. Fällt die Bekanntgabe oder das Fristende auf ein Wochenende oder einen Feiertag im Bundesland, gilt der nächste Werktag. Solange die Frist läuft, steht der Bescheid in der Übersicht unter den Aufgaben, in der letzten Woche hervorgehoben. Mitteilungen haben keine Frist.
+
+Bei Bescheiden, die nur im Postfach bereitgestellt werden, beginnt die Frist genau genommen mit der Bereitstellung; Haben rechnet mit dem Bescheiddatum, das meist derselbe Tag ist. Im Zweifel gilt das Datum im Bescheid.
+
 Der Testabruf läuft wie die Testübermittlung mit Testmerker und Test-Hersteller-ID. Ohne ERiC liefert er einen erfundenen Testbescheid, damit du die Seite ausprobieren kannst.
 
 ## Vorauszahlungen herabsetzen

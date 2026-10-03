@@ -128,4 +128,51 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
     const summary = await postfach.fetchPostfach(actor, new elster.FakeElsterClient(), { kind: "test", pin: "1234" });
     expect(summary).toMatchObject({ ok: true, neu: 1, bestaetigt: 1 });
   });
+
+  it("schaltet den automatischen Abruf nur nach erfolgreichem Echtabruf ein und hält die PIN aus dem Audit-Log", async () => {
+    const { client } = scriptedClient();
+    await expect(postfach.enableAutoFetch(actor, new elster.FakeElsterClient(), "1234", "12345")).rejects.toThrow(/Ohne ERiC/);
+    expect((await postfach.autoFetchStatus()).enabled).toBe(false);
+
+    const summary = await postfach.enableAutoFetch(actor, client, "geheim", "12345");
+    expect(summary).toMatchObject({ ok: true, neu: 2 });
+    const status = await postfach.autoFetchStatus();
+    expect(status.enabled).toBe(true);
+    expect(status.lastLive?.ok).toBe(true);
+    const [cert] = await sql`select pin_ciphertext from elster_certificates`;
+    expect(Buffer.from(cert!.pin_ciphertext).toString()).not.toContain("geheim");
+    const audit = await sql`select new_value from audit_log where table_name = 'elster_certificates' order by id desc limit 1`;
+    expect(audit[0]!.new_value).not.toHaveProperty("pin_ciphertext");
+    expect(audit[0]!.new_value.pin_saved_at).toBeTruthy();
+
+    // Innerhalb von 20 Stunden kein weiterer Abruf, danach mit gespeicherter PIN
+    expect(await postfach.runDuePostfachFetch(client, "12345")).toBeNull();
+    const later = new Date(Date.now() + 21 * 60 * 60 * 1000);
+    const pins: string[] = [];
+    const spy = { ...client, fetchPostfach: (xml: string, cert: Uint8Array, pin: string, opts: Parameters<typeof client.fetchPostfach>[3]) => (pins.push(pin), client.fetchPostfach(xml, cert, pin, opts)) };
+    expect(await postfach.runDuePostfachFetch(spy, "12345", later)).toMatchObject({ ok: true });
+    expect(pins).toEqual(["geheim"]);
+    expect(await postfach.runDuePostfachFetch(spy, undefined, later)).toBeNull();
+
+    await postfach.disableAutoFetch(actor);
+    expect((await postfach.autoFetchStatus()).enabled).toBe(false);
+    expect(await postfach.runDuePostfachFetch(spy, "12345", new Date(Date.now() + 48 * 60 * 60 * 1000))).toBeNull();
+  });
+
+  it("zeigt Einspruchsfristen nur für Bescheide und nur aus Echtabrufen", async () => {
+    await postfach.fetchPostfach(actor, scriptedClient().client, { kind: "test", pin: "1234" });
+    let docs = await postfach.listPostfachDocuments();
+    const bescheid = docs.find((d) => d.datenart === "DivaBescheidESt")!;
+    // 30.6.2025 + 4 Tage = 4.7. (Freitag), Frist 4.8.2025 (Montag)
+    expect(bescheid.frist).toEqual({ bekanntgabe: "2025-07-04", fristende: "2025-08-04" });
+    expect(docs.find((d) => d.datenart === "EPMitteilung")!.frist).toBeNull();
+    expect(await postfach.openAppealDeadlines("2025-07-10")).toEqual([]);
+
+    await sql`truncate postfach_documents, postfach_requests cascade`;
+    await postfach.fetchPostfach(actor, scriptedClient().client, { kind: "send", pin: "1234", herstellerId: "12345" });
+    docs = await postfach.listPostfachDocuments();
+    expect(docs.every((d) => !d.test)).toBe(true);
+    expect((await postfach.openAppealDeadlines("2025-07-10")).map((d) => d.frist!.fristende)).toEqual(["2025-08-04"]);
+    expect(await postfach.openAppealDeadlines("2025-08-05")).toEqual([]);
+  });
 });

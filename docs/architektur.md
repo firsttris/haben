@@ -60,7 +60,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
 | `company` | Firmendaten, Versteuerungsart, Kontenrahmen, Zahlungsziel, Rechnungsformat; genau eine Zeile | Audit |
-| `elster_certificates` | ELSTER-Zertifikatsdatei, verschlüsselt | Audit ohne Chiffrat |
+| `elster_certificates` | ELSTER-Zertifikatsdatei, verschlüsselt; auf Wunsch die PIN für den automatischen Postfachabruf, ebenfalls verschlüsselt | Audit ohne Chiffrat und PIN |
 | `contacts` | Kunden und Lieferanten, mit Herkunft aus Lexoffice | nicht löschbar, versioniert, Audit |
 | `contact_versions` | Stand eines Kontakts je Version | nur anhängen |
 | `bank_accounts` | Bankkonten, über die IBAN zugeordnet | Audit |
