@@ -2,6 +2,7 @@ import {
   formatDecimal,
   formatEuro,
   formatInvoiceNumber,
+  formatQuoteNumber,
   formatQuantity,
   invoiceDueDate,
   lineNet,
@@ -24,6 +25,7 @@ import {
   removeInvoiceDraft,
   saveInvoiceDraft,
 } from "../server/functions/invoices.ts";
+import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
 import type { DraftInput } from "../server/invoices.ts";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
@@ -54,7 +56,7 @@ const FORMATS: { value: DraftInput["format"]; label: string }[] = [
   { value: "xrechnung-ubl", label: "XRechnung 3.0 (UBL)" },
 ];
 
-const KIND_TITLE = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" } as const;
+const KIND_TITLE = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur", angebot: "Angebot" } as const;
 
 let nextKey = 1;
 
@@ -97,7 +99,8 @@ export function InvoiceEditor({
 }: {
   id: string | null;
   kind: keyof typeof KIND_TITLE;
-  initial: DraftInput;
+  /** Beim Angebot zusätzlich die Gültigkeit; Zahlungsziel und Format spielen dort keine Rolle */
+  initial: DraftInput & { validUntil?: string };
   contacts: ContactOption[];
   seller: PreviewSeller;
   sellerIssues: string[];
@@ -114,12 +117,19 @@ export function InvoiceEditor({
   const save = useServerFn(saveInvoiceDraft);
   const finalize = useServerFn(finalizeInvoiceDraft);
   const remove = useServerFn(removeInvoiceDraft);
+  const saveQuote = useServerFn(saveQuoteDraft);
+  const finalizeQuote = useServerFn(finalizeQuoteDraft);
+  const removeQuote = useServerFn(removeQuoteDraft);
+  const quote = kind === "angebot";
+  /** Rechnung oder Angebot, an dem Kunde und Steuer noch frei wählbar sind */
+  const editable = kind === "rechnung" || quote;
 
   const [contactId, setContactId] = useState(initial.contactId ?? "");
   const [issueDate, setIssueDate] = useState(initial.issueDate);
   const [serviceFrom, setServiceFrom] = useState(initial.serviceFrom ?? "");
   const [serviceTo, setServiceTo] = useState(initial.serviceTo ?? "");
   const [paymentTermDays, setPaymentTermDays] = useState(String(initial.paymentTermDays));
+  const [validUntil, setValidUntil] = useState(initial.validUntil ?? "");
   const [format, setFormat] = useState(initial.format);
   const [note, setNote] = useState(initial.note);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
@@ -142,9 +152,13 @@ export function InvoiceEditor({
   const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
   const special = taxTreatment !== "regulaer";
   const numberYear = Number((issueDate || initial.issueDate).slice(0, 4));
-  const nextNumber = formatInvoiceNumber(numberYear, (numberCounters[numberYear] ?? 0) + 1);
+  const nextNumber = (quote ? formatQuoteNumber : formatInvoiceNumber)(numberYear, (numberCounters[numberYear] ?? 0) + 1);
+  const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   const allValid =
-    parsed.every((l) => l.valid) && termValid && Boolean(issueDate) && (taxTreatment !== "steuerfrei" || exemptionReason.trim() !== "");
+    parsed.every((l) => l.valid) &&
+    (quote ? validUntilOk : termValid) &&
+    Boolean(issueDate) &&
+    (taxTreatment !== "steuerfrei" || exemptionReason.trim() !== "");
 
   function touch<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -201,10 +215,14 @@ export function InvoiceEditor({
   }
 
   async function persist(): Promise<string> {
-    const result = await save({ data: { id, draft: draft() } });
+    const { paymentTermDays: _term, format: _format, ...common } = draft();
+    const result = quote ? await saveQuote({ data: { id, draft: { ...common, validUntil } } }) : await save({ data: { id, draft: draft() } });
     setDirty(false);
     return result.id;
   }
+
+  const openSaved = (savedId: string) =>
+    quote ? navigate({ to: "/angebote/$id", params: { id: savedId } }) : navigate({ to: "/rechnungen/$id", params: { id: savedId } });
 
   const onSave = (event: FormEvent) => {
     event.preventDefault();
@@ -212,7 +230,7 @@ export function InvoiceEditor({
     void run(async () => {
       const savedId = await persist();
       if (id === null) {
-        await navigate({ to: "/rechnungen/$id", params: { id: savedId } });
+        await openSaved(savedId);
       } else {
         await router.invalidate();
         setNotice({ tone: "ok", text: "Entwurf gespeichert." });
@@ -228,17 +246,17 @@ export function InvoiceEditor({
     }
     void run(async () => {
       const savedId = dirty || id === null ? await persist() : id;
-      await finalize({ data: savedId });
+      await (quote ? finalizeQuote({ data: savedId }) : finalize({ data: savedId }));
       setConfirming(false);
-      if (id === null) await navigate({ to: "/rechnungen/$id", params: { id: savedId } });
+      if (id === null) await openSaved(savedId);
       else await router.invalidate();
     });
   };
 
   const onDelete = () =>
     run(async () => {
-      if (id) await remove({ data: id });
-      await navigate({ to: "/rechnungen" });
+      if (id) await (quote ? removeQuote({ data: id }) : remove({ data: id }));
+      await (quote ? navigate({ to: "/angebote" }) : navigate({ to: "/rechnungen" }));
     });
 
   const blocking = [...sellerIssues.map((i) => `Firmendaten: ${i}`), ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten")))];
@@ -248,7 +266,7 @@ export function InvoiceEditor({
       <div className="page-head">
         <div>
           <div className="eyebrow">
-            <Link to="/rechnungen">Rechnungen</Link> › Entwurf
+            {quote ? <Link to="/angebote">Angebote</Link> : <Link to="/rechnungen">Rechnungen</Link>} › Entwurf
           </div>
           <h1>
             {KIND_TITLE[kind]} {nextNumber}
@@ -277,8 +295,10 @@ export function InvoiceEditor({
         <div className="banner" role="alert">
           <Icon name="alert" />
           <span>
-            Die Rechnung bekommt die Nummer {nextNumber}, PDF und XML werden erzeugt und gebucht. Danach ist sie nicht mehr
-            änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur. Noch einmal klicken zum Festschreiben.
+            {quote
+              ? `Das Angebot bekommt die Nummer ${nextNumber} und sein PDF. Danach ist es nicht mehr änderbar; für ein geändertes Angebot kopierst du es. Gebucht wird nichts.`
+              : `Die Rechnung bekommt die Nummer ${nextNumber}, PDF und XML werden erzeugt und gebucht. Danach ist sie nicht mehr änderbar; Korrekturen laufen über Storno oder Rechnungskorrektur.`}{" "}
+            Noch einmal klicken zum Festschreiben.
           </span>
         </div>
       )}
@@ -290,11 +310,11 @@ export function InvoiceEditor({
 
       <div className="editor-grid">
         <form id="invoice-form" className="stack" onSubmit={onSave}>
-          <section className="card" aria-label="Rechnungsdaten">
+          <section className="card" aria-label={quote ? "Angebotsdaten" : "Rechnungsdaten"}>
             <div className="form-grid">
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 Kunde
-                <select value={contactId} onChange={(e) => chooseContact(e.target.value)} disabled={kind !== "rechnung"}>
+                <select value={contactId} onChange={(e) => chooseContact(e.target.value)} disabled={!editable}>
                   <option value="">Bitte wählen</option>
                   {contacts.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -305,9 +325,22 @@ export function InvoiceEditor({
                 </select>
               </label>
               <label className="field">
-                Rechnungsdatum
+                {quote ? "Angebotsdatum" : "Rechnungsdatum"}
                 <input type="date" value={issueDate} onChange={(e) => touch(setIssueDate)(e.target.value)} required />
               </label>
+              {quote ? (
+                <label className="field">
+                  Gültig bis
+                  <input
+                    type="date"
+                    value={validUntil}
+                    min={issueDate || undefined}
+                    onChange={(e) => touch(setValidUntil)(e.target.value)}
+                    aria-invalid={!validUntilOk}
+                    required
+                  />
+                </label>
+              ) : (
               <label className="field">
                 Zahlungsziel in Tagen
                 <input
@@ -321,6 +354,7 @@ export function InvoiceEditor({
                   fällig {dueDate.split("-").reverse().join(".")}
                 </span>
               </label>
+              )}
               <label className="field">
                 Leistung von
                 <input type="date" value={serviceFrom} onChange={(e) => touch(setServiceFrom)(e.target.value)} />
@@ -329,6 +363,7 @@ export function InvoiceEditor({
                 Leistung bis
                 <input type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />
               </label>
+              {!quote && (
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 E-Rechnungsformat
                 <select value={format} onChange={(e) => touch(setFormat)(e.target.value as DraftInput["format"])}>
@@ -339,12 +374,13 @@ export function InvoiceEditor({
                   ))}
                 </select>
               </label>
+              )}
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 Umsatzsteuer
                 <select
                   value={taxTreatment}
                   onChange={(e) => chooseTreatment(e.target.value as TaxTreatment)}
-                  disabled={kind !== "rechnung" || kleinunternehmer}
+                  disabled={!editable || kleinunternehmer}
                   aria-describedby="treatment-hint"
                 >
                   {(Object.keys(TAX_TREATMENTS) as TaxTreatment[])
@@ -487,7 +523,7 @@ export function InvoiceEditor({
               </button>
             </div>
             <label className="field">
-              Hinweis auf der Rechnung (optional)
+              {quote ? "Hinweis auf dem Angebot (optional)" : "Hinweis auf der Rechnung (optional)"}
               <textarea value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />
             </label>
           </section>
@@ -495,8 +531,9 @@ export function InvoiceEditor({
           <div className="banner banner-info">
             <Icon name="info" />
             <span>
-              Nach dem Festschreiben bekommt die Rechnung ihre endgültige Nummer und ist nicht mehr änderbar. Korrekturen laufen über
-              eine Stornorechnung oder Rechnungskorrektur.
+              {quote
+                ? "Nach dem Festschreiben bekommt das Angebot seine Nummer und ist nicht mehr änderbar. Nimmt der Kunde an, machst du daraus mit einem Klick eine Rechnung."
+                : "Nach dem Festschreiben bekommt die Rechnung ihre endgültige Nummer und ist nicht mehr änderbar. Korrekturen laufen über eine Stornorechnung oder Rechnungskorrektur."}
             </span>
           </div>
           {id && (
@@ -510,13 +547,14 @@ export function InvoiceEditor({
 
         <section aria-label="Vorschau" className="stack" style={{ gap: 8 }}>
           <div className="small muted">
-            Vorschau · {format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
+            Vorschau · {quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
           </div>
           <InvoicePreview
             kind={kind}
             number={nextNumber}
             issueDate={issueDate || initial.issueDate}
             dueDate={dueDate}
+            validUntil={quote ? validUntil || null : null}
             serviceFrom={serviceFrom || null}
             serviceTo={serviceTo || null}
             seller={seller}

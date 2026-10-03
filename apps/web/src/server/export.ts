@@ -319,6 +319,62 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     compress: true,
   };
 
+  // Angebote (Handelsbriefe, nur wenn vorhanden) -------------------------
+  const quotes = await db
+    .select({
+      id: schema.quotes.id,
+      number: schema.quotes.number,
+      issueDate: schema.quotes.issueDate,
+      validUntil: schema.quotes.validUntil,
+      buyer: schema.quotes.buyer,
+      net: schema.quotes.net,
+      tax: schema.quotes.tax,
+      gross: schema.quotes.gross,
+      decision: schema.quotes.decision,
+      invoiceNumber: schema.invoices.number,
+      lockedAt: schema.quotes.lockedAt,
+      pdfSha256: schema.quotes.pdfSha256,
+    })
+    .from(schema.quotes)
+    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.quotes.invoiceId))
+    .where(and(eq(schema.quotes.status, "final"), gte(schema.quotes.issueDate, yearStart(year)), lte(schema.quotes.issueDate, yearEnd(year))))
+    .orderBy(asc(schema.quotes.issueDate), asc(schema.quotes.number));
+  if (quotes.length > 0) {
+    const usedQuotePaths = new Set<string>();
+    const quoteRows: CsvValue[][] = [];
+    for (const quote of quotes) {
+      const [file] = await db.select({ pdf: schema.quotes.pdf }).from(schema.quotes).where(eq(schema.quotes.id, quote.id));
+      let pdfPath = "";
+      if (file?.pdf) {
+        pdfPath = uniquePath(usedQuotePaths, `angebote/${safeName(quote.number ?? quote.id, 60)}.pdf`);
+        yield { path: pdfPath, content: new Uint8Array(file.pdf), compress: false };
+      }
+      quoteRows.push([
+        quote.number,
+        quote.issueDate,
+        quote.validUntil,
+        quote.buyer?.name ?? "",
+        money(quote.net),
+        money(quote.tax),
+        money(quote.gross),
+        quote.decision ?? "",
+        quote.invoiceNumber ?? "",
+        iso(quote.lockedAt),
+        quote.pdfSha256,
+        pdfPath.replace(/^angebote\//, ""),
+        quote.id,
+      ]);
+    }
+    yield {
+      path: "angebote/angebote.csv",
+      content: csv(
+        ["Nummer", "Datum", "Gültig bis", "Kunde", "Netto", "USt", "Brutto", "Antwort", "Rechnung", "Festgeschrieben", "SHA-256 PDF", "Datei PDF", "ID"],
+        quoteRows,
+      ),
+      compress: true,
+    };
+  }
+
   // Belege ----------------------------------------------------------------
   const documentDay = sql<string>`coalesce(${schema.documents.documentDate}, (${schema.documents.uploadedAt} at time zone 'Europe/Berlin')::date)::text`;
   const documents = await db
@@ -946,6 +1002,9 @@ rechnungen/              Festgeschriebene Ausgangsrechnungen als PDF und E-Rechn
                          (bei ZUGFeRD steckt das XML zusätzlich im PDF), dazu
                          rechnungen.csv mit Beträgen und SHA-256 aus der Festschreibung.
                          Entwürfe ohne Rechnungsnummer sind nicht enthalten.
+angebote/                Nur wenn vorhanden: festgeschriebene Angebote des Jahres als PDF,
+                         angebote.csv mit Antwort des Kunden und daraus entstandener
+                         Rechnung.
 belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Name: Datum_Lieferant_Kurz-ID; belege.csv mit Beträgen je
                          Steuersatz, Status, SHA-256 und ursprünglichem Dateinamen.

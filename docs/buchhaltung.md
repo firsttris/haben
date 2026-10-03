@@ -17,10 +17,11 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 | Art | Tabellen | Wirkung |
 | --- | --- | --- |
 | Festschreibung | `journal_entries`, `invoices`, `documents`, `vat_returns` | `UPDATE` und `DELETE` werden abgelehnt, sobald `locked_at` gesetzt ist |
-| Abhängige Zeilen | `journal_lines`, `invoice_lines`, `document_amounts` | Einfügen, Ändern und Löschen abgelehnt, wenn die Buchung, Rechnung bzw. der Beleg festgeschrieben ist |
+| Abhängige Zeilen | `journal_lines`, `invoice_lines`, `quote_lines`, `document_amounts` | Einfügen, Ändern und Löschen abgelehnt, wenn die Buchung, Rechnung bzw. der Beleg festgeschrieben ist |
 | Nur anhängen | `audit_log`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files`, `asset_depreciations`, `pauschalen` | `UPDATE` und `DELETE` immer abgelehnt (`audit_log` auch `TRUNCATE`) |
 | Kontakte | `contacts` | Löschen abgelehnt; jede Änderung erhöht die Version und legt eine Kopie in `contact_versions` ab |
-| Nummernkreis | `invoice_number_counters` | Zähler darf nicht sinken, Zeilen nicht gelöscht werden |
+| Angebote | `quotes` | Nach dem Festschreiben nur noch Antwort des Kunden und Verweis auf die Rechnung änderbar, Löschen abgelehnt |
+| Nummernkreis | `invoice_number_counters`, `quote_number_counters` | Zähler darf nicht sinken, Zeilen nicht gelöscht werden |
 | Anlagen | `assets` | Sobald AfA oder Eröffnung gebucht ist, sind Art, Abschreibung, Konto, Datum, Kosten, Nutzungsdauer und Übernahmewerte fest; Löschen nur ohne Buchung und ohne Beleg |
 | Zuordnungen | `allocations` | Vorzeichen muss dem Bankumsatz entsprechen, die Summe darf den Umsatz nicht übersteigen |
 

@@ -20,6 +20,9 @@ import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellunge
 import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
 import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
+import { Route as AppAngeboteIndexRouteImport } from './routes/_app/angebote/index'
+import { Route as AppAngeboteIdRouteImport } from './routes/_app/angebote/$id'
+import { Route as AppAngeboteNeuRouteImport } from './routes/_app/angebote/neu'
 import { Route as AppAnlagenIndexRouteImport } from './routes/_app/anlagen/index'
 import { Route as AppAnlagenIdRouteImport } from './routes/_app/anlagen/$id'
 import { Route as AppAnlagenNeuRouteImport } from './routes/_app/anlagen/neu'
@@ -39,6 +42,7 @@ import { Route as AppRechnungenNeuRouteImport } from './routes/_app/rechnungen/n
 import { Route as AppUmsatzsteuerIndexRouteImport } from './routes/_app/umsatzsteuer/index'
 import { Route as AppUmsatzsteuerZeitraumRouteImport } from './routes/_app/umsatzsteuer/$zeitraum'
 import { Route as ApiAltbelegIdRouteImport } from './routes/api/altbeleg/$id'
+import { Route as ApiAngebotIdRouteImport } from './routes/api/angebot/$id'
 import { Route as ApiArchivIdRouteImport } from './routes/api/archiv/$id'
 import { Route as ApiAuswertungenJahrRouteImport } from './routes/api/auswertungen/$jahr'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -112,6 +116,21 @@ const AppFristenRoute = AppFristenRouteImport.update({
 const AppPauschalenRoute = AppPauschalenRouteImport.update({
   id: '/pauschalen',
   path: '/pauschalen',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAngeboteIndexRoute = AppAngeboteIndexRouteImport.update({
+  id: '/angebote/',
+  path: '/angebote/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAngeboteIdRoute = AppAngeboteIdRouteImport.update({
+  id: '/angebote/$id',
+  path: '/angebote/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAngeboteNeuRoute = AppAngeboteNeuRouteImport.update({
+  id: '/angebote/neu',
+  path: '/angebote/neu',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAnlagenIndexRoute = AppAnlagenIndexRouteImport.update({
@@ -208,6 +227,11 @@ const AppUmsatzsteuerZeitraumRoute = AppUmsatzsteuerZeitraumRouteImport.update({
 const ApiAltbelegIdRoute = ApiAltbelegIdRouteImport.update({
   id: '/api/altbeleg/$id',
   path: '/api/altbeleg/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAngebotIdRoute = ApiAngebotIdRouteImport.update({
+  id: '/api/angebot/$id',
+  path: '/api/angebot/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiArchivIdRoute = ApiArchivIdRouteImport.update({
@@ -327,6 +351,8 @@ export interface FileRoutesByFullPath {
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
   '/pauschalen': typeof AppPauschalenRoute
+  '/angebote/$id': typeof AppAngeboteIdRoute
+  '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
@@ -338,6 +364,7 @@ export interface FileRoutesByFullPath {
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
+  '/api/angebot/$id': typeof ApiAngebotIdRoute
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -351,6 +378,7 @@ export interface FileRoutesByFullPath {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/vast/$id': typeof ApiVastIdRoute
+  '/angebote/': typeof AppAngeboteIndexRoute
   '/anlagen/': typeof AppAnlagenIndexRoute
   '/archiv/': typeof AppArchivIndexRoute
   '/belege/': typeof AppBelegeIndexRoute
@@ -378,6 +406,8 @@ export interface FileRoutesByTo {
   '/fristen': typeof AppFristenRoute
   '/pauschalen': typeof AppPauschalenRoute
   '/': typeof AppIndexRoute
+  '/angebote/$id': typeof AppAngeboteIdRoute
+  '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
@@ -389,6 +419,7 @@ export interface FileRoutesByTo {
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
+  '/api/angebot/$id': typeof ApiAngebotIdRoute
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -402,6 +433,7 @@ export interface FileRoutesByTo {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/vast/$id': typeof ApiVastIdRoute
+  '/angebote': typeof AppAngeboteIndexRoute
   '/anlagen': typeof AppAnlagenIndexRoute
   '/archiv': typeof AppArchivIndexRoute
   '/belege': typeof AppBelegeIndexRoute
@@ -431,6 +463,8 @@ export interface FileRoutesById {
   '/_app/fristen': typeof AppFristenRoute
   '/_app/pauschalen': typeof AppPauschalenRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/angebote/$id': typeof AppAngeboteIdRoute
+  '/_app/angebote/neu': typeof AppAngeboteNeuRoute
   '/_app/anlagen/$id': typeof AppAnlagenIdRoute
   '/_app/anlagen/neu': typeof AppAnlagenNeuRoute
   '/_app/belege/$id': typeof AppBelegeIdRoute
@@ -442,6 +476,7 @@ export interface FileRoutesById {
   '/_app/rechnungen/neu': typeof AppRechnungenNeuRoute
   '/_app/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
+  '/api/angebot/$id': typeof ApiAngebotIdRoute
   '/api/archiv/$id': typeof ApiArchivIdRoute
   '/api/auswertungen/$jahr': typeof ApiAuswertungenJahrRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -455,6 +490,7 @@ export interface FileRoutesById {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/vast/$id': typeof ApiVastIdRoute
+  '/_app/angebote/': typeof AppAngeboteIndexRoute
   '/_app/anlagen/': typeof AppAnlagenIndexRoute
   '/_app/archiv/': typeof AppArchivIndexRoute
   '/_app/belege/': typeof AppBelegeIndexRoute
@@ -484,6 +520,8 @@ export interface FileRouteTypes {
     | '/finanzamt'
     | '/fristen'
     | '/pauschalen'
+    | '/angebote/$id'
+    | '/angebote/neu'
     | '/anlagen/$id'
     | '/anlagen/neu'
     | '/belege/$id'
@@ -495,6 +533,7 @@ export interface FileRouteTypes {
     | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
+    | '/api/angebot/$id'
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
@@ -508,6 +547,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/vast/$id'
+    | '/angebote/'
     | '/anlagen/'
     | '/archiv/'
     | '/belege/'
@@ -535,6 +575,8 @@ export interface FileRouteTypes {
     | '/fristen'
     | '/pauschalen'
     | '/'
+    | '/angebote/$id'
+    | '/angebote/neu'
     | '/anlagen/$id'
     | '/anlagen/neu'
     | '/belege/$id'
@@ -546,6 +588,7 @@ export interface FileRouteTypes {
     | '/rechnungen/neu'
     | '/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
+    | '/api/angebot/$id'
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
@@ -559,6 +602,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/vast/$id'
+    | '/angebote'
     | '/anlagen'
     | '/archiv'
     | '/belege'
@@ -587,6 +631,8 @@ export interface FileRouteTypes {
     | '/_app/fristen'
     | '/_app/pauschalen'
     | '/_app/'
+    | '/_app/angebote/$id'
+    | '/_app/angebote/neu'
     | '/_app/anlagen/$id'
     | '/_app/anlagen/neu'
     | '/_app/belege/$id'
@@ -598,6 +644,7 @@ export interface FileRouteTypes {
     | '/_app/rechnungen/neu'
     | '/_app/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
+    | '/api/angebot/$id'
     | '/api/archiv/$id'
     | '/api/auswertungen/$jahr'
     | '/api/auth/$'
@@ -611,6 +658,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/vast/$id'
+    | '/_app/angebote/'
     | '/_app/anlagen/'
     | '/_app/archiv/'
     | '/_app/belege/'
@@ -633,6 +681,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
   ApiAltbelegIdRoute: typeof ApiAltbelegIdRoute
+  ApiAngebotIdRoute: typeof ApiAngebotIdRoute
   ApiArchivIdRoute: typeof ApiArchivIdRoute
   ApiAuswertungenJahrRoute: typeof ApiAuswertungenJahrRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -726,6 +775,27 @@ declare module '@tanstack/react-router' {
       path: '/pauschalen'
       fullPath: '/pauschalen'
       preLoaderRoute: typeof AppPauschalenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/angebote/': {
+      id: '/_app/angebote/'
+      path: '/angebote'
+      fullPath: '/angebote/'
+      preLoaderRoute: typeof AppAngeboteIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/angebote/$id': {
+      id: '/_app/angebote/$id'
+      path: '/angebote/$id'
+      fullPath: '/angebote/$id'
+      preLoaderRoute: typeof AppAngeboteIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/angebote/neu': {
+      id: '/_app/angebote/neu'
+      path: '/angebote/neu'
+      fullPath: '/angebote/neu'
+      preLoaderRoute: typeof AppAngeboteNeuRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/anlagen/': {
@@ -859,6 +929,13 @@ declare module '@tanstack/react-router' {
       path: '/api/altbeleg/$id'
       fullPath: '/api/altbeleg/$id'
       preLoaderRoute: typeof ApiAltbelegIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/angebot/$id': {
+      id: '/api/angebot/$id'
+      path: '/api/angebot/$id'
+      fullPath: '/api/angebot/$id'
+      preLoaderRoute: typeof ApiAngebotIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/archiv/$id': {
@@ -1013,6 +1090,8 @@ interface AppRouteChildren {
   AppFristenRoute: typeof AppFristenRoute
   AppPauschalenRoute: typeof AppPauschalenRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAngeboteIdRoute: typeof AppAngeboteIdRoute
+  AppAngeboteNeuRoute: typeof AppAngeboteNeuRoute
   AppAnlagenIdRoute: typeof AppAnlagenIdRoute
   AppAnlagenNeuRoute: typeof AppAnlagenNeuRoute
   AppBelegeIdRoute: typeof AppBelegeIdRoute
@@ -1023,6 +1102,7 @@ interface AppRouteChildren {
   AppRechnungenIdRoute: typeof AppRechnungenIdRoute
   AppRechnungenNeuRoute: typeof AppRechnungenNeuRoute
   AppUmsatzsteuerZeitraumRoute: typeof AppUmsatzsteuerZeitraumRoute
+  AppAngeboteIndexRoute: typeof AppAngeboteIndexRoute
   AppAnlagenIndexRoute: typeof AppAnlagenIndexRoute
   AppArchivIndexRoute: typeof AppArchivIndexRoute
   AppBelegeIndexRoute: typeof AppBelegeIndexRoute
@@ -1048,6 +1128,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppFristenRoute: AppFristenRoute,
   AppPauschalenRoute: AppPauschalenRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAngeboteIdRoute: AppAngeboteIdRoute,
+  AppAngeboteNeuRoute: AppAngeboteNeuRoute,
   AppAnlagenIdRoute: AppAnlagenIdRoute,
   AppAnlagenNeuRoute: AppAnlagenNeuRoute,
   AppBelegeIdRoute: AppBelegeIdRoute,
@@ -1058,6 +1140,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRechnungenIdRoute: AppRechnungenIdRoute,
   AppRechnungenNeuRoute: AppRechnungenNeuRoute,
   AppUmsatzsteuerZeitraumRoute: AppUmsatzsteuerZeitraumRoute,
+  AppAngeboteIndexRoute: AppAngeboteIndexRoute,
   AppAnlagenIndexRoute: AppAnlagenIndexRoute,
   AppArchivIndexRoute: AppArchivIndexRoute,
   AppBelegeIndexRoute: AppBelegeIndexRoute,
@@ -1081,6 +1164,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
   ApiAltbelegIdRoute: ApiAltbelegIdRoute,
+  ApiAngebotIdRoute: ApiAngebotIdRoute,
   ApiArchivIdRoute: ApiArchivIdRoute,
   ApiAuswertungenJahrRoute: ApiAuswertungenJahrRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

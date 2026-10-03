@@ -88,6 +88,11 @@ export function renderInvoicePdf(doc: InvoiceDocument): Uint8Array {
   return compilePdf(TEMPLATE, pdfData(doc), doc.issueDate, "Rechnungs-PDF");
 }
 
+/** Angebot als PDF/A-3b; die Daten kommen fertig formatiert aus quotePdfData */
+export function renderQuotePdfData(data: unknown, date: string): Uint8Array {
+  return compilePdf(TEMPLATE, data, date, "Angebots-PDF");
+}
+
 /** Mahnung als PDF/A-3b; die Daten kommen fertig formatiert aus dunningPdfData */
 export function renderDunningPdf(data: unknown, date: string): Uint8Array {
   return compilePdf(DUNNING_TEMPLATE, data, date, "Mahnungs-PDF");

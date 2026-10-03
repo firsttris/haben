@@ -264,6 +264,35 @@ test("Fristen und Kalender-Abo", async () => {
   expect((await page.request.get(url.replace(/token=.*/, "token=falsch"))).status()).toBe(404);
 });
 
+test("Angebot festschreiben, annehmen und abrechnen", async () => {
+  await go("/angebote/neu");
+  await expect(page.getByRole("heading", { name: /^Angebot AN-\d{4}-001$/, level: 1 })).toBeVisible();
+  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await page.getByLabel("Beschreibung Position 1").fill("Workshop Softwarearchitektur");
+  await page.getByLabel("Menge Position 1").fill("16");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("110");
+  await expect(page.getByLabel("Vorschau des Angebots")).toContainText("Dieses Angebot gilt bis zum");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  const antwort = page.getByRole("region", { name: /Antwort des Kunden/ });
+  await expect(antwort).toContainText("Offen", { timeout: 30_000 });
+  await expect(page.getByText("2.094,40\u00a0€").first()).toBeVisible();
+  await page.screenshot({ path: `${SHOTS}/desktop/03b-angebot.png`, fullPage: true });
+
+  await antwort.getByRole("button", { name: "Rechnung erstellen" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Softwarearchitektur");
+  await expect(page.getByLabel(/Hinweis auf der Rechnung/)).toHaveValue(/^Gemäß unserem Angebot AN-\d{4}-001 vom/);
+  // Den Entwurf wieder verwerfen; das Angebot lässt sich danach erneut abrechnen
+  await page.getByRole("button", { name: "Entwurf löschen" }).click();
+  await page.waitForURL(/\/rechnungen$/);
+  await go("/angebote");
+  await expect(page.getByRole("link", { name: /AN-\d{4}-001/ })).toContainText("Angenommen");
+});
+
 test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await go("/pauschalen");
   await expect(page.getByRole("heading", { name: /^Pauschalen \d{4}$/, level: 1 })).toBeVisible();
@@ -359,6 +388,7 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
     ["uebersicht", "/"],
     ["rechnungen", "/rechnungen"],
     ["rechnung-neu", "/rechnungen/neu"],
+    ["angebote", "/angebote"],
     ["rechnung", details.rechnung],
     ["mahnwesen", "/rechnungen/mahnwesen"],
     ["wiederkehrend", "/rechnungen/wiederkehrend"],

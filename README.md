@@ -62,6 +62,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
   Einkommensteuererklärung mit Anlage S/G, Vorsorgeaufwand, Sonderausgaben, Kind und KAP, auch zusammen veranlagt;
   Prüfen, Test- und Echtübermittlung über ERiC; Belege der vorausgefüllten Steuererklärung (Lohnsteuerbescheinigung,
   Rentenbezüge, Beiträge) von ELSTER abrufen
+- **Angebote**: eigener Nummernkreis, PDF im Layout der Rechnung, Versand per E-Mail, Antwort des Kunden festhalten
+  und mit einem Klick in eine Rechnung übernehmen
 - **Rechnungen per E-Mail**: Rechnungen, Stornos und Mahnungen mit PDF bzw. XRechnung-XML direkt aus Haben verschicken,
   mit Vorlagen und Protokoll; wiederkehrende Rechnungen auf Wunsch automatisch
 - **Fristen und Erinnerungen**: Voranmeldungen, Abgabefristen, Vorauszahlungen, Einspruchsfristen und Ablauf des
@@ -157,6 +159,7 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 | [Betrieb und Installation](docs/installation.md) | Podman Quadlets, Caddy, Secrets, Umgebungsvariablen, ERiC, Backup und Wiederherstellung, Updates |
 | [Erste Schritte](docs/einrichtung.md) | Konto und Passkey, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, ELSTER, KI-Auslesung |
 | [Rechnungen und E-Rechnung](docs/rechnungen.md) | Editor, Festschreiben, ZUGFeRD und XRechnung, Storno und Korrektur, Kontakte |
+| [Angebote](docs/angebote.md) | Angebot schreiben, festschreiben, senden, in eine Rechnung übernehmen |
 | [Belege](docs/belege.md) | Hochladen, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
 | [Bankimport und Abgleich](docs/bank.md) | Automatischer Abruf, Formate, Dubletten, Vorschläge, Zuordnen, Buchungen ohne Beleg |
 | [Umsatzsteuer-Voranmeldung](docs/umsatzsteuer.md) | Berechnung aus den Buchungen, Vorprüfung, ELSTER-Übermittlung, Berichtigung |

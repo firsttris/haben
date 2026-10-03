@@ -124,6 +124,8 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
 export async function deleteDraft(actor: string, id: string) {
   await withActor(actor, async (tx) => {
     await lockDraft(tx, id);
+    // Aus einem Angebot entstanden: das Angebot lässt sich danach wieder abrechnen
+    await tx.update(schema.quotes).set({ invoiceId: null, updatedAt: new Date() }).where(eq(schema.quotes.invoiceId, id));
     await tx.delete(schema.invoices).where(eq(schema.invoices.id, id));
   });
 }

@@ -106,7 +106,7 @@ export function setMailTransportForTests(factory: typeof transportFactory): void
 }
 
 export interface Message {
-  kind: "test" | "fristen" | "rechnung" | "mahnung";
+  kind: "test" | "fristen" | "rechnung" | "mahnung" | "angebot";
   /** ein oder mehrere Empfänger, durch Komma getrennt */
   to: string;
   bcc?: string;
@@ -117,6 +117,7 @@ export interface Message {
   reminderKeys?: string[];
   invoiceId?: string;
   dunningId?: string;
+  quoteId?: string;
 }
 
 /** Sendet und protokolliert; Fehler des Servers kommen als Ergebnis zurück, nicht als Ausnahme */
@@ -148,6 +149,7 @@ export async function send(actor: string, message: Message): Promise<{ ok: boole
       bcc: message.bcc ?? null,
       invoiceId: message.invoiceId ?? null,
       dunningId: message.dunningId ?? null,
+      quoteId: message.quoteId ?? null,
       attachments: (message.attachments ?? []).map((a) => a.filename),
     }),
   );

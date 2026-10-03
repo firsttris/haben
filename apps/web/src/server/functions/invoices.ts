@@ -1,5 +1,6 @@
 import { invoicesSentByMail, mailsForInvoice } from "../invoice-mail.ts";
 import { createServerFn } from "@tanstack/react-start";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { listAccounts } from "../bank.ts";
 import { loadCompany, sellerIssues } from "../company.ts";
@@ -93,6 +94,9 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
       dunnings: await dunningsFor([data]),
       mails: result.invoice.status === "final" ? await mailsForInvoice(data) : [],
       overdue: listed?.listStatus === "ueberfaellig",
+      fromQuote: (
+        await db.select({ id: schema.quotes.id, number: schema.quotes.number }).from(schema.quotes).where(eq(schema.quotes.invoiceId, data))
+      )[0] ?? null,
       open: listed?.open ?? 0,
       ...(await editorContext()),
     };

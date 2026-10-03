@@ -302,6 +302,20 @@
       "when": 1791052027982,
       "tag": "0042_pauschalen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791053964010,
+      "tag": "0043_angebote",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1791053965411,
+      "tag": "0044_angebote_trigger",
+      "breakpoints": true
     }
   ]
 }

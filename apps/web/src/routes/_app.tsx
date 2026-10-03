@@ -40,6 +40,10 @@ function AppLayout() {
           <Icon name="overview" />
           Übersicht
         </Link>
+        <Link to="/angebote" className="nav-link">
+          <Icon name="quote" />
+          Angebote
+        </Link>
         <Link to="/rechnungen" className="nav-link">
           <Icon name="invoice" />
           Rechnungen
