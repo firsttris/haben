@@ -663,7 +663,7 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
     <aside className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
-        <div style={{ fontSize: 18, fontWeight: 600 }}>{tx.counterpartyName || "–"}</div>
+        <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
         <div className="mono" style={{ fontSize: 22, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
           {tx.amount > 0 ? "+" : "−"}
           {formatEuro(Math.abs(tx.amount))}

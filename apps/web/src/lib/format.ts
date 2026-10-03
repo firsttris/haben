@@ -1,6 +1,8 @@
-const dateFormat = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
-const longDateFormat = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-const dateTimeFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
+// Immer deutsche Zeit: Server und Browser formatieren sonst je nach Zeitzone unterschiedlich (Hydration-Fehler)
+const timeZone = "Europe/Berlin";
+const dateFormat = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", timeZone });
+const longDateFormat = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone });
+const dateTimeFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short", timeZone });
 
 export const formatDate = (value: string | Date) => dateFormat.format(new Date(value));
 export const formatLongDate = (value: string | Date) => longDateFormat.format(new Date(value));

@@ -1,5 +1,5 @@
 import { csvDecimal, type Cents } from "./money.ts";
-import type { Kontenrahmen } from "./posting.ts";
+import { ACCOUNTS, type Kontenrahmen } from "./posting.ts";
 
 /** Kontenklassen nach der ersten Ziffer der Kontonummer */
 export const KONTENKLASSEN: Record<Kontenrahmen, Record<string, string>> = {
@@ -28,6 +28,71 @@ export const KONTENKLASSEN: Record<Kontenrahmen, Record<string, string>> = {
 
 export function kontenklasse(kontenrahmen: Kontenrahmen, account: string): string {
   return KONTENKLASSEN[kontenrahmen][account.charAt(0)] ?? "Sonstige Konten";
+}
+
+export type Kontoart = "ertrag" | "aufwand" | "bestand";
+
+/**
+ * Art eines Kontos nach Kontenklasse: Erlöse, Aufwand oder Bestand (Bank, Forderungen, Steuern,
+ * Privat). Klassen mit gemischtem Inhalt (SKR03 2, SKR04 7) ordnet die Seite des Saldos zu.
+ */
+export function kontoart(kontenrahmen: Kontenrahmen, account: string, saldo = 0): Kontoart {
+  const klasse = account.charAt(0);
+  const gemischt = saldo < 0 ? "ertrag" : "aufwand";
+  if (kontenrahmen === "SKR03") {
+    if (klasse === "8") return "ertrag";
+    if (klasse === "3" || klasse === "4") return "aufwand";
+    if (klasse === "2") return gemischt;
+    return "bestand";
+  }
+  if (klasse === "4") return "ertrag";
+  if (klasse === "5" || klasse === "6") return "aufwand";
+  if (klasse === "7") return gemischt;
+  return "bestand";
+}
+
+export interface SaldoAnzeige {
+  /** Betrag aus Sicht des Kontos: Erlöse und Aufwand positiv, Bestände ohne Vorzeichen */
+  betrag: Cents;
+  /** Erläuterung für Bestandskonten, sonst leer */
+  hinweis: "Guthaben" | "Schuld" | "";
+}
+
+/** Saldo so, wie man ihn ohne Buchhaltungswissen liest */
+export function saldoAnzeige(kontenrahmen: Kontenrahmen, account: string, saldo: Cents): SaldoAnzeige {
+  const art = kontoart(kontenrahmen, account, saldo);
+  if (art === "ertrag") return { betrag: -saldo, hinweis: "" };
+  if (art === "aufwand") return { betrag: saldo, hinweis: "" };
+  return { betrag: Math.abs(saldo), hinweis: saldo > 0 ? "Guthaben" : saldo < 0 ? "Schuld" : "" };
+}
+
+export interface Kontenkennzahlen {
+  /** Bankkonto laut Buchungen ab Jahresbeginn (ohne Vortrag aus dem Vorjahr) */
+  bank: Cents;
+  forderungen: Cents;
+  verbindlichkeiten: Cents;
+  /** Fällige Umsatzsteuer abzüglich Vorsteuer und geleisteter Vorauszahlungen; negativ = Erstattung */
+  umsatzsteuer: Cents;
+  /** Erlöse und Aufwand im Zeitraum */
+  ertraege: Cents;
+  aufwand: Cents;
+}
+
+/** Kennzahlen für die Kacheln über der Saldenliste */
+export function kontenkennzahlen(rows: SaldenZeile[]): Kontenkennzahlen {
+  const result: Kontenkennzahlen = { bank: 0, forderungen: 0, verbindlichkeiten: 0, umsatzsteuer: 0, ertraege: 0, aufwand: 0 };
+  for (const r of rows) {
+    const a = ACCOUNTS[r.kontenrahmen];
+    const steuer = [...Object.values(a.ust), ...Object.values(a.vorsteuer), a.ustVorauszahlung] as string[];
+    if (r.account === a.bank) result.bank += r.saldo;
+    else if (r.account === a.forderungen) result.forderungen += r.saldo;
+    else if (r.account === a.verbindlichkeiten) result.verbindlichkeiten -= r.saldo;
+    else if (steuer.includes(r.account)) result.umsatzsteuer -= r.saldo;
+    const art = kontoart(r.kontenrahmen, r.account, r.saldo);
+    if (art === "ertrag") result.ertraege += r.haben - r.soll;
+    if (art === "aufwand") result.aufwand += r.soll - r.haben;
+  }
+  return result;
 }
 
 /** Saldo mit Seite wie in der Buchhaltung üblich: 1.234,00 S oder 56,00 H */

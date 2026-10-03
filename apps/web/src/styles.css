@@ -249,13 +249,6 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
   .tx-cols { grid-template-columns: minmax(0, 1fr) 110px; }
   .tx-cols > :nth-child(1), .tx-cols > :nth-child(4) { display: none; }
 }
-.journal-entry { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-top: 1px solid var(--line-soft); }
-.journal-entry:first-child { border-top: 0; }
-.journal-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
-.journal-lines { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-.journal-lines td { padding: 3px 8px 3px 0; }
-.journal-lines td:first-child { width: 64px; }
-.journal-lines td.num { width: 130px; }
 
 /* Voranmeldung: Herkunft und Quellen der Kennzahlen */
 .mode-switch { display: flex; gap: 8px; flex-wrap: wrap; }
