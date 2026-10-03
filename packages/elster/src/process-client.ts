@@ -49,10 +49,10 @@ export class EricProcessClient implements ElsterClient {
     const dir = await mkdtemp(join(tmpdir(), "haben-eric-"));
     try {
       const certificatePath = join(dir, "zertifikat.pfx");
-      const pdfPath = join(dir, "protokoll.pdf");
+      const pdfPath = options.print === false ? undefined : join(dir, "protokoll.pdf");
       await writeFile(certificatePath, certificate, { mode: 0o600, flag: "wx" });
-      const result = await this.#run({ op: "send", xml, datenartVersion, certificatePath, pin, pdfPath });
-      const pdf = await readFile(pdfPath).catch(() => undefined);
+      const result = await this.#run({ op: "send", xml, datenartVersion, certificatePath, pin, ...(pdfPath ? { pdfPath } : {}) });
+      const pdf = pdfPath ? await readFile(pdfPath).catch(() => undefined) : undefined;
       return pdf ? { ...result, pdf: new Uint8Array(pdf) } : result;
     } finally {
       await rm(dir, { recursive: true, force: true });

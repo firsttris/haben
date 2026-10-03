@@ -32,7 +32,7 @@ export interface EricRequest {
   /** nur bei send */
   certificatePath?: string;
   pin?: string;
-  /** Zielpfad für das Übertragungsprotokoll, nur bei send */
+  /** Zielpfad für das Übertragungsprotokoll, nur bei send; ohne Pfad kein Druck */
   pdfPath?: string;
 }
 
@@ -130,8 +130,8 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
     let crypto: object | null = null;
 
     if (request.op === "send") {
-      if (!request.certificatePath || request.pin === undefined || !request.pdfPath) {
-        throw new Error("Senden braucht Zertifikat, PIN und PDF-Pfad.");
+      if (!request.certificatePath || request.pin === undefined) {
+        throw new Error("Senden braucht Zertifikat und PIN.");
       }
       const handle = [0];
       const pinSupport = [0];
@@ -141,15 +141,18 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
       }
       zertifikatHandle = handle[0];
 
-      flags = ERIC_SENDE | ERIC_VALIDIERE | ERIC_DRUCKE;
-      druck = {
-        version: DRUCK_PARAMETER_VERSION,
-        vorschau: 0,
-        ersteSeite: 0,
-        duplexDruck: 0,
-        pdfName: request.pdfPath,
-        fussText: null,
-      };
+      flags = ERIC_SENDE | ERIC_VALIDIERE;
+      if (request.pdfPath) {
+        flags |= ERIC_DRUCKE;
+        druck = {
+          version: DRUCK_PARAMETER_VERSION,
+          vorschau: 0,
+          ersteSeite: 0,
+          duplexDruck: 0,
+          pdfName: request.pdfPath,
+          fussText: null,
+        };
+      }
       crypto = {
         version: VERSCHLUESSELUNGS_PARAMETER_VERSION,
         zertifikatHandle,
@@ -157,14 +160,15 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
       };
     }
 
-    // Für ElsterAnmeldung wird kein Transferhandle benötigt.
+    // Für ElsterAnmeldung (UStVA) kein Transferhandle; Erklärungen, Nachrichten und Datenabholung bekommen einen wie bei viking
+    const transferHandle = request.datenartVersion.startsWith("UStVA_") ? null : [0];
     const code = eric.EricBearbeiteVorgang(
       request.xml,
       request.datenartVersion,
       flags,
       druck,
       crypto,
-      null,
+      transferHandle,
       rueckgabe,
       serverantwort,
     ) as number;

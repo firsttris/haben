@@ -60,6 +60,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
   Vorprüfung vor dem Senden, Übermittlung über ERiC mit Transfer-Ticket und Protokoll-PDF, berichtigte Anmeldungen
 - **Jahreserklärungen**: Umsatzsteuererklärung und Anlage EÜR mit Anlagenverzeichnis (AVEÜR) aus den Buchungen,
   Vorschau mit Feldkennungen, Prüfen, Test- und Echtübermittlung über ERiC
+- **Post an das Finanzamt**: Nachrichten über ELSTER, Antrag auf Herabsetzung der Einkommensteuer-Vorauszahlungen
+  mit Gewinn und Hochrechnung aus der Buchhaltung
 - **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, Journal je Monat, Festschreibung und Audit-Log
 - **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
   Übernahme mit Restbuchwert aus Lexoffice, AfA-Buchung zum Jahresende
@@ -148,6 +150,7 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 | [Belege](docs/belege.md) | Hochladen, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
 | [Bankimport und Abgleich](docs/bank.md) | Automatischer Abruf, Formate, Dubletten, Vorschläge, Zuordnen, Buchungen ohne Beleg |
 | [Umsatzsteuer-Voranmeldung](docs/umsatzsteuer.md) | Berechnung aus den Buchungen, Vorprüfung, ELSTER-Übermittlung, Berichtigung |
+| [Finanzamt](docs/finanzamt.md) | Nachrichten über ELSTER, Antrag auf Herabsetzung der Vorauszahlungen |
 | [Jahreserklärungen](docs/jahreserklaerung.md) | Umsatzsteuererklärung und Anlage EÜR mit AVEÜR an ELSTER |
 | [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, Übernahme aus Lexoffice, AfA zum Jahresende |
 | [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP, Aufbewahrung |

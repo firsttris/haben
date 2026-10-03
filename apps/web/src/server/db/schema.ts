@@ -187,6 +187,28 @@ export const annualSubmissions = pgTable(
   ],
 );
 
+/**
+ * Nachrichten an das Finanzamt über ELSTER (Sonstige Nachricht), etwa der Antrag auf Herabsetzung der
+ * Vorauszahlungen; jede Prüfung und Übermittlung mit XML, nur anhängen.
+ */
+export const elsterMessages = pgTable("elster_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  topic: text("topic", { enum: ["nachricht", "vorauszahlung"] }).notNull(),
+  betreff: text("betreff").notNull(),
+  text: text("text").notNull(),
+  /** Beim Antrag auf Herabsetzung: die Zahlen, auf die er sich stützt */
+  figures: jsonb("figures").$type<Record<string, unknown>>(),
+  kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
+  ok: boolean("ok").notNull(),
+  code: integer("code").notNull(),
+  message: text("message").notNull(),
+  transferTicket: text("transfer_ticket"),
+  requestXml: text("request_xml").notNull(),
+  responseXml: text("response_xml").notNull(),
+  serverResponseXml: text("server_response_xml").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. */
 export const auditLog = pgTable("audit_log", {
   id: bigserial("id", { mode: "number" }).primaryKey(),

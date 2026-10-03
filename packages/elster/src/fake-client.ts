@@ -34,7 +34,7 @@ export class FakeElsterClient implements ElsterClient {
         `<?xml version="1.0" encoding="UTF-8"?><Elster><TransferHeader><TransferTicket>${transferTicket}</TransferTicket>` +
         `</TransferHeader></Elster>`,
       transferTicket,
-      pdf: fakeProtokollPdf(),
+      ...(options.print === false ? {} : { pdf: fakeProtokollPdf() }),
     };
   }
 }

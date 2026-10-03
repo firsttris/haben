@@ -16,6 +16,8 @@ export interface ElsterResult {
 export interface SendOptions {
   /** Muss zum Testmerker im XML passen. */
   test: boolean;
+  /** Übertragungsprotokoll als PDF drucken (Standard); Nachrichten an das Finanzamt haben keins */
+  print?: boolean;
 }
 
 /** Alles, was die App von ELSTER weiß. ERiC bleibt dahinter verborgen. */

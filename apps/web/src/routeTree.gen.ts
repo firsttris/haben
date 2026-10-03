@@ -17,6 +17,7 @@ import { Route as AppAuswertungenRouteImport } from './routes/_app/auswertungen'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppBuchungenRouteImport } from './routes/_app/buchungen'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
+import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppAnlagenIndexRouteImport } from './routes/_app/anlagen/index'
 import { Route as AppAnlagenIdRouteImport } from './routes/_app/anlagen/$id'
 import { Route as AppAnlagenNeuRouteImport } from './routes/_app/anlagen/neu'
@@ -88,6 +89,11 @@ const AppBuchungenRoute = AppBuchungenRouteImport.update({
 const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
   id: '/einstellungen',
   path: '/einstellungen',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFinanzamtRoute = AppFinanzamtRouteImport.update({
+  id: '/finanzamt',
+  path: '/finanzamt',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAnlagenIndexRoute = AppAnlagenIndexRouteImport.update({
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/bank': typeof AppBankRoute
   '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
+  '/finanzamt': typeof AppFinanzamtRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
@@ -311,6 +318,7 @@ export interface FileRoutesByTo {
   '/bank': typeof AppBankRoute
   '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
+  '/finanzamt': typeof AppFinanzamtRoute
   '/': typeof AppIndexRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
@@ -355,6 +363,7 @@ export interface FileRoutesById {
   '/_app/bank': typeof AppBankRoute
   '/_app/buchungen': typeof AppBuchungenRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
+  '/_app/finanzamt': typeof AppFinanzamtRoute
   '/_app/': typeof AppIndexRoute
   '/_app/anlagen/$id': typeof AppAnlagenIdRoute
   '/_app/anlagen/neu': typeof AppAnlagenNeuRoute
@@ -400,6 +409,7 @@ export interface FileRouteTypes {
     | '/bank'
     | '/buchungen'
     | '/einstellungen'
+    | '/finanzamt'
     | '/anlagen/$id'
     | '/anlagen/neu'
     | '/belege/$id'
@@ -441,6 +451,7 @@ export interface FileRouteTypes {
     | '/bank'
     | '/buchungen'
     | '/einstellungen'
+    | '/finanzamt'
     | '/'
     | '/anlagen/$id'
     | '/anlagen/neu'
@@ -484,6 +495,7 @@ export interface FileRouteTypes {
     | '/_app/bank'
     | '/_app/buchungen'
     | '/_app/einstellungen'
+    | '/_app/finanzamt'
     | '/_app/'
     | '/_app/anlagen/$id'
     | '/_app/anlagen/neu'
@@ -593,6 +605,13 @@ declare module '@tanstack/react-router' {
       path: '/einstellungen'
       fullPath: '/einstellungen'
       preLoaderRoute: typeof AppEinstellungenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/finanzamt': {
+      id: '/_app/finanzamt'
+      path: '/finanzamt'
+      fullPath: '/finanzamt'
+      preLoaderRoute: typeof AppFinanzamtRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/anlagen/': {
@@ -834,6 +853,7 @@ interface AppRouteChildren {
   AppBankRoute: typeof AppBankRoute
   AppBuchungenRoute: typeof AppBuchungenRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
+  AppFinanzamtRoute: typeof AppFinanzamtRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAnlagenIdRoute: typeof AppAnlagenIdRoute
   AppAnlagenNeuRoute: typeof AppAnlagenNeuRoute
@@ -864,6 +884,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBankRoute: AppBankRoute,
   AppBuchungenRoute: AppBuchungenRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
+  AppFinanzamtRoute: AppFinanzamtRoute,
   AppIndexRoute: AppIndexRoute,
   AppAnlagenIdRoute: AppAnlagenIdRoute,
   AppAnlagenNeuRoute: AppAnlagenNeuRoute,
