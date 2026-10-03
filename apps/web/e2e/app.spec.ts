@@ -166,7 +166,9 @@ test("Kontoauszug importieren und zuordnen", async () => {
     await expect(page.getByRole("heading", { name: party })).toBeVisible();
     await expect(page.getByText("Bester Treffer")).toBeVisible();
     await page.getByRole("button", { name: "Zuordnen" }).click();
-    await expect(page.getByText("Zugeordnet", { exact: true }).first()).toBeVisible();
+    // Erst weiter, wenn die Zuordnung dieses Umsatzes gespeichert ist; „Zugeordnet“ steht schon bei früheren Umsätzen
+    // in der Liste, und ein vorzeitiges Weiterklicken bricht die laufende Anfrage ab.
+    await expect(page.getByRole("complementary", { name: "Zuordnung" }).getByRole("button", { name: "Aufheben" })).toBeVisible();
   }
 });
 
