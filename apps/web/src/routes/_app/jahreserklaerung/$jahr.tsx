@@ -1,0 +1,365 @@
+import { formatEuro } from "@haben/core";
+import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useId, useState, type FormEvent } from "react";
+import { Icon } from "../../../components/Icon.tsx";
+import { errorMessage, formatDate, formatDateTime } from "../../../lib/format.ts";
+import { getAnnualReturns, submitAnnualReturn } from "../../../server/functions/annual.ts";
+import styles from "../../../styles/auswertungen.css?url";
+
+export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
+  loader: ({ params }) => {
+    const year = Number(params.jahr);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) throw notFound();
+    return getAnnualReturns({ data: year });
+  },
+  head: ({ loaderData }) => ({ meta: [{ title: `Jahreserklärung ${loaderData?.year ?? ""} · Haben` }], links: [{ rel: "stylesheet", href: styles }] }),
+  component: AnnualPage,
+});
+
+type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
+type Form = "ust" | "euer";
+type Issue = Data["ust"]["issues"][number];
+type Notice = { tone: "ok" | "danger" | "info"; text: string } | null;
+
+const KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" } as const;
+const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR" } as const;
+const LINK_LABEL = { "/einstellungen": "Zu den Einstellungen", "/anlagen": "Zu den Anlagen", "/umsatzsteuer": "Zur Umsatzsteuer", "/bank": "Zur Bank" } as const;
+
+function AnnualPage() {
+  const data = Route.useLoaderData();
+  const navigate = useNavigate();
+  const selectId = useId();
+
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">Jahreserklärung</div>
+          <h1>Steuerjahr {data.year}</h1>
+        </div>
+        <label className="field" htmlFor={selectId}>
+          Jahr
+          <select id={selectId} value={data.year} onChange={(e) => navigate({ to: "/jahreserklaerung/$jahr", params: { jahr: e.target.value } })}>
+            {(data.years.includes(data.year) ? data.years : [data.year, ...data.years]).map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {data.mode === "simuliert" && (
+        <div className="banner banner-info" role="status">
+          <Icon name="info" />
+          <span>ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.</span>
+        </div>
+      )}
+
+      <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
+        Haben berechnet beide Erklärungen aus den Buchungen des Jahres und übermittelt sie wie die Voranmeldung über ERiC. Die
+        Einkommensteuererklärung selbst gibst du weiter im ELSTER-Portal ab; die übermittelte Anlage EÜR ordnet das Finanzamt ihr zu.
+      </p>
+
+      <div className="stack" style={{ gap: 24 }}>
+        <UstSection data={data} />
+        <EuerSection data={data} />
+        <History data={data} />
+      </div>
+    </>
+  );
+}
+
+function Issues({ issues }: { issues: Issue[] }) {
+  return (
+    <>
+      {issues.map((issue) => (
+        <div key={issue.text} className={`banner ${issue.tone === "hinweis" ? "banner-info" : ""}`} role="status">
+          <Icon name={issue.tone === "hinweis" ? "info" : "alert"} />
+          <span>
+            {issue.text} {issue.link && <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>}
+          </span>
+        </div>
+      ))}
+    </>
+  );
+}
+
+/** Zeile einer Betragstabelle; kz = Feldkennung bzw. Zusatzspalte */
+function Row({ label, kz, value, extra, total }: { label: string; kz?: string; value: string; extra?: string; total?: boolean }) {
+  return (
+    <tr style={total ? { fontWeight: 600 } : undefined}>
+      <th scope="row" style={total ? { fontWeight: 600 } : undefined}>
+        {label}
+        {kz && <span className="small muted mono"> {kz}</span>}
+      </th>
+      {extra !== undefined && <td className="num">{extra}</td>}
+      <td className="num">{value}</td>
+    </tr>
+  );
+}
+
+function SentPill({ sent }: { sent: Data["ust"]["sent"] }) {
+  return sent ? (
+    <span className="pill pill-ok">Übermittelt {formatDate(sent.createdAt)}</span>
+  ) : (
+    <span className="pill">Noch nicht übermittelt</span>
+  );
+}
+
+function UstSection({ data }: { data: Data }) {
+  const { ust } = data;
+  const f = ust.figures;
+  return (
+    <section className="grid-main" aria-labelledby="ust-heading">
+      <div className="card" style={{ gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <h2 id="ust-heading" style={{ margin: 0 }}>
+            Umsatzsteuererklärung
+          </h2>
+          <SentPill sent={ust.sent} />
+        </div>
+        <Issues issues={ust.issues} />
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th scope="col">Zeile</th>
+              <th scope="col" className="num">Bemessungsgrundlage</th>
+              <th scope="col" className="num">Steuer</th>
+            </tr>
+          </thead>
+          <tbody>
+            <Row label="Umsätze zu 19 %" extra={formatEuro(f.base19)} value={formatEuro(f.tax19)} />
+            <Row label="Umsätze zu 7 %" extra={formatEuro(f.base7)} value={formatEuro(f.tax7)} />
+            {ust.kz21 !== 0 && <Row label="Leistungen im EU-Ausland (Reverse Charge)" extra={formatEuro(ust.kz21)} value="–" />}
+            {ust.kz45 !== 0 && <Row label="Nicht steuerbare Umsätze (Drittland)" extra={formatEuro(ust.kz45)} value="–" />}
+            {ust.kz48 !== 0 && <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug" extra={formatEuro(ust.kz48)} value="–" />}
+            <Row label="Abziehbare Vorsteuer" extra="" value={`− ${formatEuro(f.vorsteuer)}`} />
+            <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
+            <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={`− ${formatEuro(f.vorauszahlungen)}`} />
+            <Row label={ust.abschluss >= 0 ? "Abschlusszahlung" : "Erstattung"} extra="" value={formatEuro(Math.abs(ust.abschluss))} total />
+          </tbody>
+        </table>
+        <p className="small muted" style={{ margin: 0 }}>
+          Bemessungsgrundlagen in vollen Euro, die Steuer daraus wie in der Voranmeldung. {data.versteuerung === "ist" ? "Ist-Versteuerung" : "Soll-Versteuerung"}.
+          Die private Kfz-Nutzung ist in den Umsätzen zu 19 % enthalten.
+        </p>
+      </div>
+      <SubmitPanel form="ust" data={data} blocked={ust.issues.some((i) => i.tone === "fehler")} sent={Boolean(ust.sent)} />
+    </section>
+  );
+}
+
+function EuerSection({ data }: { data: Data }) {
+  const { euer, euerRows } = data;
+  return (
+    <section className="grid-main" aria-labelledby="euer-heading">
+      <div className="card" style={{ gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <h2 id="euer-heading" style={{ margin: 0 }}>
+            Anlage EÜR
+          </h2>
+          <SentPill sent={euer.sent} />
+        </div>
+        <Issues issues={euer.issues} />
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th scope="col">Zeile und Feldkennung</th>
+              <th scope="col" className="num">Betrag</th>
+            </tr>
+          </thead>
+          <tbody>
+            {euerRows.einnahmen.map((r) => (
+              <Row key={r.key} label={r.label} kz={r.kz} value={formatEuro(r.amount)} />
+            ))}
+            <Row label="Summe Betriebseinnahmen" value={formatEuro(euer.einnahmen)} total />
+            {euerRows.ausgaben.map((r) => (
+              <Row key={r.key} label={r.label} kz={r.kz} value={formatEuro(r.amount)} />
+            ))}
+            <Row label="Summe Betriebsausgaben" value={formatEuro(euer.ausgaben)} total />
+            <Row label={euer.gewinn >= 0 ? "Gewinn" : "Verlust"} value={formatEuro(euer.gewinn)} total />
+            {euerRows.privat.map((r) => (
+              <Row key={r.key} label={r.label} kz={r.kz} value={formatEuro(r.amount)} />
+            ))}
+          </tbody>
+        </table>
+        {euer.anlagen.length > 0 && (
+          <div className="stack" style={{ gap: 6 }}>
+            <div className="section-label">Anlagenverzeichnis (Anlage AVEÜR)</div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="report-table">
+                <thead>
+                  <tr>
+                    <th>Anlage</th>
+                    <th className="num">Gruppe</th>
+                    <th className="num">Buchwert Beginn</th>
+                    <th className="num">AfA</th>
+                    <th className="num">Abgang</th>
+                    <th className="num">Buchwert Ende</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {euer.anlagen.map((a) => (
+                    <tr key={`${a.bezeichnung}-${a.anschaffung}`}>
+                      <td>
+                        {a.bezeichnung}
+                        <div className="small muted">
+                          {formatDate(a.anschaffung)} · {formatEuro(a.anschaffungskosten)}
+                        </div>
+                      </td>
+                      <td className="num small muted">{a.gruppe === "kfz" ? "Kfz" : a.gruppe === "buero" ? "Büro" : a.gruppe === "sammelposten" ? "Sammelposten" : "Andere"}</td>
+                      <td className="num mono">{formatEuro(a.buchwertBeginn)}</td>
+                      <td className="num mono">{formatEuro(a.afa)}</td>
+                      <td className="num mono">{a.abgang ? formatEuro(a.abgang) : "–"}</td>
+                      <td className="num mono">{formatEuro(a.buchwertEnde)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="small muted" style={{ margin: 0 }}>
+              Anlagen, die im Jahr angeschafft wurden, stehen mit den Anschaffungskosten im Buchwert zu Beginn. Geringwertige
+              Wirtschaftsgüter gehören nicht ins Verzeichnis.
+            </p>
+          </div>
+        )}
+      </div>
+      <SubmitPanel form="euer" data={data} blocked={euer.issues.some((i) => i.tone === "fehler")} sent={Boolean(euer.sent)} />
+    </section>
+  );
+}
+
+function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; blocked: boolean; sent: boolean }) {
+  const router = useRouter();
+  const submit = useServerFn(submitAnnualReturn);
+  const [pin, setPin] = useState("");
+  const [testOnly, setTestOnly] = useState(true);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<Notice>(null);
+  const canSendLive = data.herstellerIdConfigured && !sent;
+  const headingId = `${form}-submit-heading`;
+
+  async function run(kind: "validate" | "test" | "send", withPin?: string) {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const result = await submit({ data: { form, year: data.year, kind, pin: withPin } });
+      const ticket = result.transferTicket ? ` Transfer-Ticket ${result.transferTicket}.` : "";
+      setNotice(
+        result.ok
+          ? { tone: "ok", text: kind === "validate" ? "Prüfung ohne Fehler." : kind === "test" ? `Testübermittlung erfolgreich.${ticket}` : `Übermittelt.${ticket}` }
+          : { tone: "danger", text: `${KIND_LABEL[kind]} fehlgeschlagen (${result.code}): ${result.message}` },
+      );
+      await router.invalidate();
+    } catch (error) {
+      setNotice({ tone: "danger", text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (!testOnly && !confirming) {
+      setConfirming(true);
+      return;
+    }
+    await run(testOnly ? "test" : "send", pin);
+    setPin("");
+    setConfirming(false);
+  }
+
+  return (
+    <form className="card" onSubmit={onSubmit} aria-labelledby={headingId}>
+      <h2 id={headingId}>{FORM_LABEL[form]} übermitteln</h2>
+      {!data.certificate && (
+        <p className="small" style={{ margin: 0 }}>
+          Kein ELSTER-Zertifikat hinterlegt. <Link to="/einstellungen">In den Einstellungen hochladen</Link>
+        </p>
+      )}
+      <label className="field">
+        Zertifikats-PIN
+        <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" required />
+      </label>
+      <label className="checkbox">
+        <input
+          type="checkbox"
+          checked={testOnly || !canSendLive}
+          onChange={(e) => {
+            setTestOnly(e.target.checked);
+            setConfirming(false);
+          }}
+          disabled={!canSendLive}
+        />
+        Nur Testübermittlung
+      </label>
+      {!canSendLive && (
+        <p className="small muted" style={{ margin: 0 }}>
+          {sent
+            ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal."
+            : data.mode === "simuliert"
+              ? "Echtübermittlung erst mit eingerichtetem ERiC (Einstellungen) und eigener Hersteller-ID."
+              : "Echtübermittlung erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID)."}
+        </p>
+      )}
+      {confirming && (
+        <div className="banner" role="alert">
+          Die {FORM_LABEL[form]} {data.year} geht verbindlich an das Finanzamt. Noch einmal klicken zum Senden.
+        </div>
+      )}
+      {notice && (
+        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"} style={{ overflowWrap: "anywhere" }}>
+          {notice.text}
+        </div>
+      )}
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={busy || blocked || !data.certificate || pin.length === 0} style={{ flexGrow: 1 }}>
+          {busy ? "Läuft …" : confirming ? "Jetzt verbindlich senden" : testOnly || !canSendLive ? "Prüfen und testweise senden" : "Prüfen und senden"}
+        </button>
+        <button type="button" className="btn" disabled={busy || blocked} onClick={() => void run("validate")}>
+          Nur prüfen
+        </button>
+      </div>
+      <p className="small muted" style={{ margin: 0 }}>
+        Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert.
+      </p>
+    </form>
+  );
+}
+
+function History({ data }: { data: Data }) {
+  return (
+    <section className="card" aria-labelledby="history-heading">
+      <h2 id="history-heading">Verlauf {data.year}</h2>
+      {data.history.length === 0 ? (
+        <p className="muted" style={{ margin: 0 }}>
+          Noch nichts geprüft oder gesendet.
+        </p>
+      ) : (
+        data.history.map((entry) => (
+          <div key={entry.id} className="history-row">
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <span style={{ fontWeight: 500 }}>
+                {FORM_LABEL[entry.form]} · {KIND_LABEL[entry.kind]}{" "}
+                <span className={`pill ${entry.ok ? "pill-ok" : "pill-danger"}`}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</span>
+              </span>
+              <span className="small muted" style={{ overflowWrap: "anywhere" }}>
+                {formatDateTime(entry.createdAt)}
+                {entry.transferTicket ? ` · Ticket ${entry.transferTicket}` : ""}
+                {!entry.ok ? ` · ${entry.message}` : ""}
+              </span>
+            </div>
+            {entry.hasPdf && (
+              <a href={`/api/protokoll/${entry.id}`} target="_blank" rel="noreferrer" className="small">
+                Protokoll
+              </a>
+            )}
+          </div>
+        ))
+      )}
+    </section>
+  );
+}

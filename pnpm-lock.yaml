@@ -142,6 +142,9 @@ importers:
       '@haben/core':
         specifier: workspace:*
         version: link:../core
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       koffi:
         specifier: ^3.3.2
         version: 3.3.2

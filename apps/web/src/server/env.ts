@@ -13,6 +13,10 @@ const envSchema = z.object({
   ERIC_HOME: z.string().optional(),
   ERIC_LOG_DIR: z.string().optional(),
   ERIC_WORKER_PATH: z.string().optional(),
+  /** Ziel für ERiC, das Haben selbst herunterlädt; gilt, wenn ERIC_HOME nicht gesetzt ist. Im Image ein Volume */
+  ERIC_DIR: z.string().default("data/eric"),
+  /** Andere Download-Adresse für ERiC, nur zum Testen */
+  ERIC_DOWNLOAD_URL: z.string().url().optional(),
   /** Hersteller-ID für den Echtbetrieb; ohne sie geht nur die Testübermittlung */
   ELSTER_HERSTELLER_ID: z.string().regex(/^\d{5}$/).optional(),
   /** Ablage der Belegdateien; im Container ein Volume */

@@ -162,6 +162,20 @@
       "when": 1790978166128,
       "tag": "0022_bankabruf_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790980650596,
+      "tag": "0023_jahreserklaerungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790980651683,
+      "tag": "0024_jahreserklaerungen_trigger",
+      "breakpoints": true
     }
   ]
 }

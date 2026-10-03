@@ -9,7 +9,7 @@ Haben läuft als drei Container in einem eigenen Netz:
 | Container (Compose / Quadlet) | Image | Aufgabe |
 | --- | --- | --- |
 | `db` / `haben-db` | `postgres:16` | Datenbank, Volume `db` bzw. `haben-db` |
-| `app` / `haben-app` | `tristanteu/haben:latest` | Die App auf Port 3000, Belegdateien im Volume `belege` bzw. `haben-belege`, ERiC-Logs im Volume `eric-log` bzw. `haben-eric-log` |
+| `app` / `haben-app` | `tristanteu/haben:latest` | Die App auf Port 3000, Belegdateien im Volume `belege` bzw. `haben-belege`, ERiC im Volume `eric` bzw. `haben-eric`, ERiC-Logs im Volume `eric-log` bzw. `haben-eric-log` |
 | `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy` |
 
 Es gibt zwei Wege, sie zu betreiben:
@@ -26,7 +26,7 @@ Beide holen die Dateien per `curl`; das Repository musst du nicht klonen.
 - Ein Linux-Server (x86_64, wenn du ERiC nutzen willst) mit Docker und Compose 2.23 oder neuer, oder mit Podman und systemd. Die Quadlets sind für den Betrieb als normaler Nutzer (rootless) geschrieben, die Pfade nutzen `%h` bzw. `~/.config`.
 - Eine Domain, die auf den Server zeigt, und erreichbare Ports 80 und 443. Caddy holt das TLS-Zertifikat selbst.
 - HTTPS ist Pflicht: Passkeys und die Installation als App (PWA) funktionieren nur über eine sichere Verbindung.
-- Für ELSTER das ERiC-Paket für Linux x86_64 (siehe [ERiC einbinden](#eric-einbinden)).
+- Für ELSTER ERiC für Linux x86_64; Haben lädt es auf Wunsch selbst herunter (siehe [ERiC einbinden](#eric-einbinden)).
 - Für das Backup mit Quadlets `restic` auf dem Host.
 
 > [!NOTE]
@@ -43,7 +43,7 @@ Das fertige Image gibt es für amd64 und arm64 auf Docker Hub und in der GitHub 
 | `docker.io/tristanteu/haben:edge` | Stand von `main`, nur zum Ausprobieren |
 | `ghcr.io/firsttris/haben:…` | Dieselben Tags bei GitHub |
 
-ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf; es wird zur Laufzeit nach `/opt/eric` gemountet. ERiC gibt es nur für Linux x86_64: Auf arm64 (z. B. Raspberry Pi) läuft alles außer der ELSTER-Übermittlung.
+ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf. Haben lädt es auf deinen Wunsch direkt von der Finanzverwaltung in das Volume `eric` (siehe [ERiC einbinden](#eric-einbinden)), oder du mountest es selbst. ERiC gibt es nur für Linux x86_64: Auf arm64 (z. B. Raspberry Pi) läuft alles außer der ELSTER-Übermittlung.
 
 Selbst bauen geht auch, zum Beispiel für einen eigenen Stand. Dafür brauchst du das Repository; danach in `compose.yml` `image: haben` bzw. in `haben-app.container` `Image=localhost/haben:latest` eintragen:
 
@@ -79,7 +79,7 @@ docker compose up -d
 docker compose logs -f app   # „Migrationen angewendet“, dann „Listening on …“
 ```
 
-Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern wie im `Caddyfile`). Für ERiC entpackst du das Paket nach `/opt/eric`, kommentierst in `compose.yml` die Zeile `- /opt/eric:/opt/eric:ro` ein und setzt `ERIC_HOME=/opt/eric` in `.env`.
+Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern wie im `Caddyfile`). ERiC lädst du unter **Einstellungen › ERiC** herunter oder mit `ERIC_AUTO_INSTALL=ja` in `.env` beim Start, siehe [ERiC einbinden](#eric-einbinden).
 
 **Updates:** `docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App.
 
@@ -101,7 +101,7 @@ Die Quadlets betreiben Haben rootless unter systemd: Zugangsdaten als Podman Sec
 ```sh
 RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
 mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
-for f in haben.network haben-db.volume haben-belege.volume haben-eric-log.volume haben-caddy.volume \
+for f in haben.network haben-db.volume haben-belege.volume haben-eric-log.volume haben-eric.volume haben-caddy.volume \
          haben-db.container haben-app.container haben-caddy.container; do
   curl -o ~/.config/containers/systemd/$f "$RAW/quadlet/$f"
 done
@@ -173,7 +173,10 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `BETTER_AUTH_SECRET` | ja | Geheimnis für Sitzungen, mindestens 32 Zeichen | Ausgabe von `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | ja | Öffentliche Adresse, unter der Haben im Browser läuft. Bestimmt die Domain der Passkeys | `https://haben.example.de` |
 | `HABEN_ENCRYPTION_KEY` | ja | Genau 32 Byte, base64-kodiert. Verschlüsselt ELSTER-Zertifikat und Lexoffice-Schlüssel | Ausgabe von `openssl rand -base64 32` |
-| `ERIC_HOME` | nein | Verzeichnis des entpackten ERiC-Pakets. Leer oder nicht gesetzt: Prüfen und Senden werden simuliert | `/opt/eric` |
+| `ERIC_HOME` | nein | Verzeichnis eines von Hand entpackten ERiC-Pakets; hat Vorrang vor dem heruntergeladenen. Ohne beides werden Prüfen und Senden simuliert | `/opt/eric` |
+| `ERIC_DIR` | nein | Ziel für das von Haben heruntergeladene ERiC. Standard `data/eric`; im Image `/var/lib/haben/eric` (Volume) | `/var/lib/haben/eric` |
+| `ERIC_AUTO_INSTALL` | nein | `ja`: fehlt ERiC, lädt der Container es beim Start (Zustimmung zu den Nutzungsbedingungen) | `ja` |
+| `ERIC_DOWNLOAD_URL` | nein | Andere Download-Adresse für ERiC, nur zum Testen. Standard `https://download.elster.de/download/eric` | `http://localhost:4556/eric` |
 | `ERIC_LOG_DIR` | nein | Logverzeichnis für ERiC. Ohne Angabe das temporäre Verzeichnis; im Image `/var/lib/haben/eric-log` | `/var/lib/haben/eric-log` |
 | `ERIC_WORKER_PATH` | nein | Pfad zum ERiC-Worker (`packages/elster/src/worker.ts`). Im Image gesetzt, sonst nicht nötig | `/app/packages/elster/src/worker.ts` |
 | `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Ohne sie ist nur die Testübermittlung möglich | `12345` |
@@ -196,6 +199,7 @@ Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` aus `
 | --- | --- |
 | Buchungen, Rechnungen (PDF und XML), Voranmeldungen mit ERiC-Protokoll, Audit-Log, verschlüsseltes ELSTER-Zertifikat, verschlüsselter Lexoffice-Schlüssel | PostgreSQL, Volume `haben-db` |
 | Belegdateien und aus Lexoffice übernommene Dateien | Volume `haben-belege` (`DOCUMENTS_DIR`), abgelegt unter dem SHA-256 der Datei (`ab/abcdef…`) |
+| ERiC, von Haben heruntergeladen | Volume `haben-eric` (Compose: `eric`), im Container `/var/lib/haben/eric` (`ERIC_DIR`). Lässt sich jederzeit neu laden, nicht im Backup |
 | ERiC-Logs | Volume `haben-eric-log` (Compose: `eric-log`), im Container `/var/lib/haben/eric-log` (`ERIC_LOG_DIR`). Nur zur Fehlersuche, nicht im Backup |
 | TLS-Zertifikate von Caddy | Volume `haben-caddy` |
 
@@ -209,7 +213,7 @@ Für Compose steht das Backup oben bei [Docker Compose](#docker-compose). Mit de
 2. sichert den Dump und das Verzeichnis des Volumes `haben-belege` mit `podman unshare restic backup --tag haben`. Im rootless Podman gehören die Belegdateien einer Unter-UID des Containers; `podman unshare` führt restic im Benutzer-Namensraum aus, wo sie lesbar sind und ihre Besitzer behalten,
 3. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`).
 
-Die Volumes `haben-caddy` und `haben-eric-log` und der Schlüssel `HABEN_ENCRYPTION_KEY` sind nicht dabei.
+Die Volumes `haben-caddy`, `haben-eric` und `haben-eric-log` und der Schlüssel `HABEN_ENCRYPTION_KEY` sind nicht dabei.
 
 Die Unit liest `~/.config/haben/backup.env`. Darin stehen die Angaben für restic:
 
@@ -280,7 +284,19 @@ Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus u
 
 ## ERiC einbinden
 
-ERiC lädst du als registrierter Entwickler bei ELSTER herunter. Das Paket entpackst du auf dem Host nach `/opt/eric`, sodass `/opt/eric/lib/libericapi.so` und `/opt/eric/lib/plugins2/` existieren. Dann bindest du es ein:
+ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, darf aber nicht mit Haben weitergegeben werden. Deshalb lädt Haben sie auf deinen Wunsch direkt von `download.elster.de` auf deinen Server, nur den Teil für Linux x86_64 (rund 300 MB). Mit dem Download stimmst du den [Nutzungsbedingungen von ERiC](https://www.elster.de/elsterweb/entwickler/infoseite/eric) zu.
+
+| Weg | So geht's |
+| --- | --- |
+| Per Knopf | **Einstellungen › ERiC**: Version prüfen, den Nutzungsbedingungen zustimmen, **Herunterladen und einrichten**. Der Download läuft im Hintergrund; danach prüft und sendet Haben ohne Neustart über ERiC |
+| Beim Start | `ERIC_AUTO_INSTALL=ja` in `.env` bzw. `haben.env`. Fehlt ERiC, lädt der Container es vor dem Start der App; schlägt das fehl, startet die App trotzdem (simuliert) |
+| Auf der Kommandozeile | `docker compose exec app node --experimental-strip-types /app/packages/elster/src/install-cli.ts --lizenz-akzeptiert [Version]` bzw. `podman exec haben-app …` |
+
+ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
+
+Für Prüfen und Testübermittlungen reicht das. Für die Echtübermittlung brauchst du zusätzlich eine eigene Hersteller-ID, siehe [Erste Schritte](einrichtung.md#elster-einrichten).
+
+Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/eric/lib/libericapi.so` und `/opt/eric/lib/plugins2/` existieren, und binde es ein. `ERIC_HOME` hat Vorrang vor dem heruntergeladenen ERiC.
 
 | | Compose | Quadlet |
 | --- | --- | --- |
@@ -288,9 +304,9 @@ ERiC lädst du als registrierter Entwickler bei ELSTER herunter. Das Paket entpa
 | Variable | `ERIC_HOME=/opt/eric` in `.env` | `ERIC_HOME=/opt/eric` in `haben.env` einkommentieren |
 | Neu starten | `docker compose up -d` | `systemctl --user daemon-reload && systemctl --user restart haben-app` |
 
-ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet einen kurzlebigen Kindprozess, der die Bibliothek lädt. Ohne `ERIC_HOME` nutzt Haben einen simulierten Client; die Oberfläche zeigt dann „ERiC ist nicht eingerichtet“ an, und nichts geht an das Finanzamt.
+ERiC läuft nie im App-Prozess. Jede Prüfung und jede Übermittlung startet einen kurzlebigen Kindprozess, der die Bibliothek lädt. Ohne ERiC nutzt Haben einen simulierten Client; die Oberfläche zeigt dann „ERiC ist nicht eingerichtet“ an, und nichts geht an das Finanzamt.
 
-Beides ist ab Werk auskommentiert, damit Haben auch ohne ERiC startet. Der weitere Ablauf (Zertifikat, Testübermittlung, Hersteller-ID) steht in [Erste Schritte](einrichtung.md#elster-einrichten).
+Der weitere Ablauf (Zertifikat, Testübermittlung, Hersteller-ID) steht in [Erste Schritte](einrichtung.md#elster-einrichten).
 
 ## KI-Auslesung (Anthropic)
 
@@ -366,9 +382,11 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **„Haben ist bereits eingerichtet.“** Haben hat genau ein Konto. Ein zweites lässt sich nicht anlegen, auch nicht über die API.
 
-**Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** `ERIC_HOME` ist in der App nicht gesetzt. Prüfe `.env` bzw. `haben.env` und starte die App neu.
+**Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** Unter **Einstellungen › ERiC** herunterladen. Hast du ERiC von Hand eingebunden, ist `ERIC_HOME` in der App nicht gesetzt; prüfe `.env` bzw. `haben.env` und starte die App neu.
 
-**ERiC ist eingerichtet, aber Prüfen oder Senden scheitert sofort.** Prüfe, ob unter `ERIC_HOME` die Dateien `lib/libericapi.so` und `lib/plugins2/` liegen und ob das Paket für Linux x86_64 ist. Ein Absturz der Bibliothek beendet nur den Kindprozess; die App zeigt die Meldung an. Details stehen in den ERiC-Logs unter `ERIC_LOG_DIR`.
+**Der ERiC-Download scheitert.** Die Meldung steht unter **Einstellungen › ERiC**. „Gibt es nicht (mehr)“ heißt: Die Version ist zu alt oder vertippt; die aktuelle steht auf der Infoseite. Der Server muss `download.elster.de` per HTTPS erreichen und für die Dauer des Downloads etwa 600 MB im temporären Verzeichnis frei haben.
+
+**ERiC ist eingerichtet, aber Prüfen oder Senden scheitert sofort.** Bei einem von Hand eingebundenen ERiC prüfe, ob unter `ERIC_HOME` die Dateien `lib/libericapi.so` und `lib/plugins2/` liegen und ob das Paket für Linux x86_64 ist. Ein Absturz der Bibliothek beendet nur den Kindprozess; die App zeigt die Meldung an. Details stehen in den ERiC-Logs unter `ERIC_LOG_DIR`.
 
 **Echtübermittlung ist ausgegraut.** Es fehlt `ELSTER_HERSTELLER_ID`. Siehe [Erste Schritte](einrichtung.md#elster-einrichten).
 

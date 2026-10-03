@@ -1,4 +1,5 @@
-# Haben – App-Container. ERiC wird nicht mitgeliefert (Lizenz), sondern nach /opt/eric gemountet.
+# Haben – App-Container. ERiC wird nicht mitgeliefert (Lizenz); Haben lädt es auf Wunsch nach /var/lib/haben/eric
+# (Volume) oder es wird nach /opt/eric gemountet.
 FROM docker.io/library/node:22-bookworm-slim AS build
 WORKDIR /app
 RUN corepack enable
@@ -20,7 +21,8 @@ ENV NODE_ENV=production \
     ERIC_WORKER_PATH=/app/packages/elster/src/worker.ts \
     HABEN_EINVOICE_DIR=/app/packages/einvoice \
     DOCUMENTS_DIR=/var/lib/haben/belege \
-    ERIC_LOG_DIR=/var/lib/haben/eric-log
+    ERIC_LOG_DIR=/var/lib/haben/eric-log \
+    ERIC_DIR=/var/lib/haben/eric
 WORKDIR /app
 # Der ERiC-Worker läuft aus den Quellen von packages/elster (Type Stripping, nicht unter node_modules).
 COPY --from=build /app/node_modules ./node_modules
@@ -32,7 +34,7 @@ COPY --from=build /app/apps/web/src/server/db/migrate.ts ./apps/web/src/server/d
 COPY --from=build /app/apps/web/package.json ./apps/web/package.json
 COPY --from=build /app/package.json ./package.json
 COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
-RUN mkdir -p /var/lib/haben/eric-log /var/lib/haben/belege && chown -R node:node /var/lib/haben
+RUN mkdir -p /var/lib/haben/eric-log /var/lib/haben/eric /var/lib/haben/belege && chown -R node:node /var/lib/haben
 USER node
 EXPOSE 3000
 ENTRYPOINT ["haben-entrypoint"]

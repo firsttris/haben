@@ -22,6 +22,9 @@ export const companySchema = z.object({
   paymentTermDays: z.number().int().min(0).max(120),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
   kleinunternehmer: z.boolean(),
+  /** Anlage EÜR: Gewerbebetrieb oder selbständige (freiberufliche) Arbeit und Art des Betriebs */
+  einkunftsart: z.enum(["gewerbe", "selbstaendig"]).nullable().default(null),
+  taetigkeit: z.string().trim().max(100).default(""),
   /** Vorgabe für den Privatanteil je Belegkategorie in Prozent */
   privateShares: z.record(z.string(), z.number().int().min(0).max(100)).default({}),
   dunning: z

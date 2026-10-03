@@ -45,7 +45,7 @@ function fakeResponse(fehler?: string): string {
   }</EricBearbeiteVorgang>`;
 }
 
-/** Minimalprüfung: Tags korrekt verschachtelt, Wurzel Elster, Kz83 vorhanden. */
+/** Minimalprüfung: Tags korrekt verschachtelt, Wurzel Elster, bei der Voranmeldung Kz83 vorhanden. */
 export function checkXml(xml: string): string | undefined {
   const body = xml.replace(/^\s*<\?xml[^>]*\?>/, "").trim();
   if (!body.startsWith("<Elster")) return "Wurzelelement Elster fehlt.";
@@ -58,7 +58,7 @@ export function checkXml(xml: string): string | undefined {
     else if (stack.pop() !== name) return `Fehlerhafte Verschachtelung bei </${name}>.`;
   }
   if (stack.length > 0) return `Nicht geschlossenes Element <${stack.at(-1)}>.`;
-  if (!/<Kz83>[^<]+<\/Kz83>/.test(body)) return "Kennzahl 83 fehlt.";
+  if (/<DatenArt>UStVA<\/DatenArt>/.test(body) && !/<Kz83>[^<]+<\/Kz83>/.test(body)) return "Kennzahl 83 fehlt.";
   return undefined;
 }
 

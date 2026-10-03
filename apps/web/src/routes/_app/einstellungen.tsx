@@ -1,23 +1,25 @@
 import { BUNDESLAENDER, currentFilingPeriod, formatDecimal, parseEuro, type Bundesland } from "@haben/core";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { authClient } from "../../lib/auth-client.ts";
 import { errorMessage, formatDate } from "../../lib/format.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { getCompany, saveCompany } from "../../server/functions/company.ts";
+import { getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering] = await Promise.all([
+    const [company, vat, numbering, eric] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
       getNumbering(),
+      getEricStatus(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering };
+    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
   component: SettingsPage,
@@ -48,6 +50,7 @@ function SettingsPage() {
         <div className="stack">
           <NumberingForm />
           <CertificateForm />
+          <EricCard />
           <Passkeys />
           <ExportCard />
         </div>
@@ -90,6 +93,8 @@ function CompanyForm() {
           paymentTermDays: Number(text("paymentTermDays") || 14),
           defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
+          taetigkeit: text("taetigkeit"),
           dunning: {
             // Prozent mit zwei Nachkommastellen wie ein Eurobetrag lesen: "1,27" → 127 Basispunkte
             baseRate: text("dunning-baseRate").trim() ? parseEuro(text("dunning-baseRate")) : null,
@@ -163,6 +168,18 @@ function CompanyForm() {
         <label className="field">
           Finanzamt
           <input name="finanzamt" defaultValue={company.finanzamt} />
+        </label>
+        <label className="field">
+          Einkunftsart (für die Anlage EÜR)
+          <select name="einkunftsart" defaultValue={company.einkunftsart ?? ""}>
+            <option value="">Bitte wählen</option>
+            <option value="selbstaendig">Selbständige Arbeit (freier Beruf, z. B. Entwickler, Berater)</option>
+            <option value="gewerbe">Gewerbebetrieb</option>
+          </select>
+        </label>
+        <label className="field">
+          Art des Betriebs (für die Anlage EÜR)
+          <input name="taetigkeit" defaultValue={company.taetigkeit} placeholder="z. B. Softwareentwicklung" maxLength={100} />
         </label>
         <label className="field">
           Telefon (Pflicht für XRechnung)
@@ -380,6 +397,115 @@ function CertificateForm() {
           Hochladen
         </button>
       </div>
+      <NoticeBanner notice={notice} />
+    </form>
+  );
+}
+
+const ERIC_INFO_URL = "https://www.elster.de/elsterweb/entwickler/infoseite/eric";
+
+/** ERiC von download.elster.de laden, mit Fortschritt; läuft im Hintergrund weiter */
+function EricCard() {
+  const { eric } = Route.useLoaderData();
+  const router = useRouter();
+  const install = useServerFn(installEricLibrary);
+  const [version, setVersion] = useState(eric.version ?? eric.defaultVersion);
+  const [accepted, setAccepted] = useState(false);
+  const [notice, setNotice] = useState<Notice>(null);
+  const [busy, setBusy] = useState(false);
+  const running = eric.install?.status === "laeuft";
+
+  // Während des Downloads alle zwei Sekunden den Stand holen
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(() => void router.invalidate(), 2000);
+    return () => clearInterval(timer);
+  }, [running, router]);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setNotice(null);
+    try {
+      await install({ data: { version: version.trim(), acceptLicense: accepted as true } });
+      await router.invalidate();
+    } catch (error) {
+      setNotice({ tone: "danger", text: errorMessage(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const progress = eric.install?.status === "laeuft" ? eric.install.progress : null;
+  const megabytes = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
+
+  return (
+    <form className="card" onSubmit={onSubmit} aria-labelledby="eric-heading">
+      <h2 id="eric-heading">ERiC</h2>
+      <p className="small muted" style={{ margin: 0 }}>
+        Die Bibliothek der Finanzverwaltung für die Übermittlung an ELSTER. Haben darf sie nicht mitliefern, lädt sie aber hier direkt
+        von download.elster.de auf deinen Server (rund 300 MB, nur Linux x86_64).
+      </p>
+      <div className="history-row">
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontWeight: 500 }}>
+            {eric.mode === "eric" ? `Eingerichtet${eric.version ? `: Version ${eric.version}` : ""}` : "Nicht eingerichtet, Senden wird simuliert"}
+          </span>
+          {eric.home && <span className="small muted mono">{eric.home}{eric.source === "env" ? " (ERIC_HOME)" : ""}</span>}
+        </div>
+        <span className={`pill ${eric.mode === "eric" ? "pill-ok" : ""}`}>{eric.mode === "eric" ? "ERiC" : "Simuliert"}</span>
+      </div>
+      {eric.source === "env" ? (
+        <p className="small muted" style={{ margin: 0 }}>
+          ERiC ist über ERIC_HOME eingebunden. Zum Aktualisieren das Paket dort austauschen oder ERIC_HOME entfernen und hier herunterladen.
+        </p>
+      ) : !eric.platformSupported ? (
+        <p className="small muted" style={{ margin: 0 }}>
+          Dieser Server ist kein Linux x86_64; dafür gibt es kein ERiC. Prüfen und Senden bleiben simuliert.
+        </p>
+      ) : (
+        <>
+          <label className="field">
+            Version
+            <input value={version} onChange={(e) => setVersion(e.target.value)} placeholder={eric.defaultVersion} disabled={running} />
+            <span className="small">
+              Die aktuelle Version steht auf der{" "}
+              <a href={ERIC_INFO_URL} target="_blank" rel="noreferrer">
+                ERiC-Infoseite von ELSTER
+              </a>
+              . Neue Vordrucke (etwa für das nächste Steuerjahr) brauchen meist eine neue Version.
+            </span>
+          </label>
+          <label className="checkbox">
+            <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} disabled={running} />
+            Ich stimme den Nutzungsbedingungen von ERiC zu (siehe Infoseite).
+          </label>
+          {running && (
+            <div className="banner banner-info" role="status">
+              {progress?.phase === "entpacken"
+                ? `Entpacke … ${megabytes(progress.bytes)}`
+                : progress
+                  ? `Lade ERiC ${eric.install!.version} … ${megabytes(progress.bytes)}${progress.total ? ` von ${megabytes(progress.total)}` : ""}`
+                  : `Lade ERiC ${eric.install!.version} …`}
+            </div>
+          )}
+          {eric.install?.status === "fertig" && (
+            <div className="banner banner-ok" role="status">
+              ERiC {eric.install.version} ist eingerichtet. Prüfen und Senden laufen jetzt über ERiC.
+            </div>
+          )}
+          {eric.install?.status === "fehler" && (
+            <div className="banner banner-danger" role="alert">
+              Download fehlgeschlagen: {eric.install.message}
+            </div>
+          )}
+          <div className="actions">
+            <button type="submit" className="btn btn-primary" disabled={busy || running || !accepted || !version.trim()}>
+              {running ? "Läuft …" : eric.source === "download" ? "Neu herunterladen" : "Herunterladen und einrichten"}
+            </button>
+          </div>
+        </>
+      )}
       <NoticeBanner notice={notice} />
     </form>
   );

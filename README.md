@@ -58,6 +58,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
   Vorschläge mit Begründung, Zuordnen per Tastatur, Teilzahlungen und Sammelüberweisungen
 - **Umsatzsteuer-Voranmeldung**: Kennzahlen aus den Buchungen (Ist- oder Soll-Versteuerung), Herkunft jeder Zahl aufklappbar,
   Vorprüfung vor dem Senden, Übermittlung über ERiC mit Transfer-Ticket und Protokoll-PDF, berichtigte Anmeldungen
+- **Jahreserklärungen**: Umsatzsteuererklärung und Anlage EÜR mit Anlagenverzeichnis (AVEÜR) aus den Buchungen,
+  Vorschau mit Feldkennungen, Prüfen, Test- und Echtübermittlung über ERiC
 - **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, Journal je Monat, Festschreibung und Audit-Log
 - **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
   Übernahme mit Restbuchwert aus Lexoffice, AfA-Buchung zum Jahresende
@@ -146,6 +148,7 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 | [Belege](docs/belege.md) | Hochladen, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
 | [Bankimport und Abgleich](docs/bank.md) | Automatischer Abruf, Formate, Dubletten, Vorschläge, Zuordnen, Buchungen ohne Beleg |
 | [Umsatzsteuer-Voranmeldung](docs/umsatzsteuer.md) | Berechnung aus den Buchungen, Vorprüfung, ELSTER-Übermittlung, Berichtigung |
+| [Jahreserklärungen](docs/jahreserklaerung.md) | Umsatzsteuererklärung und Anlage EÜR mit AVEÜR an ELSTER |
 | [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, Übernahme aus Lexoffice, AfA zum Jahresende |
 | [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP, Aufbewahrung |
 | [Umzug aus Lexoffice](docs/lexoffice.md) | API-Abruf, DATEV-Import, offene Posten, Abgleich vor der Kündigung |
@@ -164,7 +167,7 @@ pnpm db:migrate
 pnpm dev                                  # http://localhost:3000
 ```
 
-Ohne `ERIC_HOME` simuliert Haben die ELSTER-Übermittlung und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` bleibt
+Ohne ERiC (unter Einstellungen per Knopf von der Finanzverwaltung geladen) simuliert Haben die ELSTER-Übermittlung und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` bleibt
 die KI-Auslesung aus.
 
 **Stack**: TanStack Start (React, Server Functions), PostgreSQL mit Drizzle, Better Auth mit Passkeys, Zod, Typst für

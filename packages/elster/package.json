@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@haben/core": "workspace:*",
+    "fflate": "^0.8.3",
     "koffi": "^3.3.2"
   },
   "devDependencies": {

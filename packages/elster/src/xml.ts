@@ -33,10 +33,13 @@ export function ustvaDatenartVersion(year: number): string {
   return `UStVA_${year}`;
 }
 
-/** Liest die Datenart-Version aus einem UStVA-XML (für validate/send ohne Zusatzangaben). */
+/** Liest die Datenart-Version aus dem XML (für validate/send ohne Zusatzangaben): UStVA_2026, USt_2025, EUER_2025 */
 export function datenartVersionFromXml(xml: string): string | undefined {
-  const match = /<Anmeldungssteuern\b[^>]*\bversion="(\d{4})"/.exec(xml);
-  return match?.[1] ? ustvaDatenartVersion(Number(match[1])) : undefined;
+  const ustva = /<Anmeldungssteuern\b[^>]*\bversion="(\d{4})"/.exec(xml);
+  if (ustva?.[1]) return ustvaDatenartVersion(Number(ustva[1]));
+  const erklaerung = /<(E50|E77)\b[^>]*\bversion="(\d{4})"/.exec(xml);
+  if (erklaerung?.[1] && erklaerung[2]) return `${erklaerung[1] === "E50" ? "USt" : "EUER"}_${erklaerung[2]}`;
+  return undefined;
 }
 
 export function hasTestmerker(xml: string): boolean {

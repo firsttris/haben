@@ -57,6 +57,10 @@ function AppLayout() {
           <Icon name="vat" />
           Umsatzsteuer
         </Link>
+        <Link to="/jahreserklaerung" className="nav-link">
+          <Icon name="annual" />
+          Jahreserklärung
+        </Link>
         <Link to="/auswertungen" className="nav-link">
           <Icon name="reports" />
           Auswertungen

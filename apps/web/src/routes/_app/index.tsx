@@ -123,7 +123,7 @@ function OverviewPage() {
 
       {data.mode === "simuliert" && (
         <div className="banner banner-info" role="status">
-          ERiC ist nicht eingerichtet (ERIC_HOME fehlt). Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.
+          ERiC ist nicht eingerichtet (Einstellungen › ERiC). Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.
         </div>
       )}
 

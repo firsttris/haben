@@ -68,6 +68,9 @@ export const company = pgTable(
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
+    /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
+    einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
+    taetigkeit: text("taetigkeit").notNull().default(""),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
     privateShares: jsonb("private_shares").$type<Record<string, number>>().notNull().default({}),
     /**
@@ -154,6 +157,35 @@ export const vatReturnSubmissions = pgTable("vat_return_submissions", {
   protocolPdf: bytea("protocol_pdf"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Prüfungen und Übermittlungen der Jahreserklärungen (Umsatzsteuererklärung, Anlage EÜR), nur anhängen.
+ * `figures` hält die gesendeten Werte fest, unabhängig davon, wie sich die Buchungen später ändern.
+ */
+export const annualSubmissions = pgTable(
+  "annual_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    form: text("form", { enum: ["ust", "euer"] }).notNull(),
+    year: smallint("year").notNull(),
+    kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
+    ok: boolean("ok").notNull(),
+    code: integer("code").notNull(),
+    message: text("message").notNull(),
+    transferTicket: text("transfer_ticket"),
+    figures: jsonb("figures").$type<Record<string, unknown>>().notNull(),
+    requestXml: text("request_xml").notNull(),
+    responseXml: text("response_xml").notNull(),
+    serverResponseXml: text("server_response_xml").notNull(),
+    protocolPdf: bytea("protocol_pdf"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("annual_submissions_form_year").on(t.form, t.year),
+    // Je Erklärung und Jahr höchstens eine erfolgreiche Echtübermittlung
+    uniqueIndex("annual_submissions_sent").on(t.form, t.year).where(sql`${t.kind} = 'send' and ${t.ok}`),
+  ],
+);
 
 /** Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. */
 export const auditLog = pgTable("audit_log", {
