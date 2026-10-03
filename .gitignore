@@ -10,3 +10,5 @@ dist/
 !.env.example
 data/
 coverage/
+test-results/
+playwright-report/

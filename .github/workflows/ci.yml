@@ -38,6 +38,46 @@ jobs:
           TEST_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_test
       - run: pnpm build
 
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: haben
+          POSTGRES_PASSWORD: haben
+          POSTGRES_DB: haben_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U haben"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @haben/web exec playwright install --with-deps chromium
+      - run: pnpm build
+      - name: Ende-zu-Ende-Tests mit Screenshots aller Seiten
+        run: pnpm e2e
+        env:
+          E2E_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_e2e
+          # Der gebaute Server statt des Entwicklungsservers
+          E2E_SERVER_COMMAND: node .output/server/index.mjs
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: |
+            apps/web/test-results
+            apps/web/playwright-report
+          if-no-files-found: ignore
+
   kosit:
     runs-on: ubuntu-latest
     steps:

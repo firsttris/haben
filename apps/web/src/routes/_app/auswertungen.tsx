@@ -2,6 +2,7 @@ import { formatEuro, type EuerLine } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
+import { euroAxis, niceTicks } from "../../lib/chart.ts";
 import { formatDate } from "../../lib/format.ts";
 import type { OpenPosition } from "../../server/reports.ts";
 import { getReports } from "../../server/functions/reports.ts";
@@ -301,18 +302,8 @@ function DueStatus({ days }: { days: number }) {
 
 /* Diagramm */
 
-const euroAxis = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 });
 
 /** Runde Achsenschritte (1, 2, 2,5, 5 × 10ⁿ) in Cent */
-function niceTicks(min: number, max: number, count = 4): number[] {
-  const range = Math.max(max - min, 100_00);
-  const raw = range / count;
-  const power = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 2.5, 5, 10].map((m) => m * power).find((s) => s >= raw)!;
-  const ticks: number[] = [];
-  for (let v = Math.floor(min / step) * step; v <= Math.ceil(max / step) * step + step / 2; v += step) ticks.push(v);
-  return ticks;
-}
 
 const W = 720;
 const H = 260;

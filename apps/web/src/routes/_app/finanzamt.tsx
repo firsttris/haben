@@ -147,7 +147,7 @@ function PrepaymentForm({ data }: { data: Data }) {
           weniger, kannst du formlos eine Herabsetzung beantragen. Haben schreibt den Antrag mit den Zahlen aus deiner EÜR; du prüfst
           den Text und schickst ihn als Nachricht an dein Finanzamt.
         </p>
-        <table className="report-table" style={{ maxWidth: 520 }}>
+        <table className="report-table">
           <tbody>
             <tr>
               <th scope="row">Gewinn 1. Januar bis {formatDate(b.until)}</th>
@@ -164,7 +164,7 @@ function PrepaymentForm({ data }: { data: Data }) {
           </tbody>
         </table>
         <h3 style={{ margin: "8px 0 0", fontSize: "1rem" }}>Voraussichtliche Steuer {b.year}</h3>
-        <table className="report-table" style={{ maxWidth: 520 }}>
+        <table className="report-table">
           <tbody>
             <tr>
               <th scope="row">Hochgerechneter Gewinn</th>

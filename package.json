@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "db:generate": "pnpm --filter @haben/web db:generate",
-    "db:migrate": "pnpm --filter @haben/web db:migrate"
+    "db:migrate": "pnpm --filter @haben/web db:migrate",
+    "e2e": "pnpm --filter @haben/web e2e"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

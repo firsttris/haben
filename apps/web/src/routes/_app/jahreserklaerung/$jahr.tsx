@@ -532,7 +532,7 @@ function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; bl
   }
 
   return (
-    <form className="card" onSubmit={onSubmit} aria-labelledby={headingId}>
+    <form className="card sticky-panel" onSubmit={onSubmit} aria-labelledby={headingId}>
       <h2 id={headingId}>{FORM_LABEL[form]} übermitteln</h2>
       {!data.certificate && (
         <p className="small" style={{ margin: 0 }}>
