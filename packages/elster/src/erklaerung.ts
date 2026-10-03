@@ -17,7 +17,7 @@ export const ERSTES_ERKLAERUNGSJAHR = 2023;
 /** Element mit Text, mit Kindelementen oder weggelassen (undefined bzw. ohne Kinder) */
 export type XmlNode = readonly [name: string, content: string | readonly (XmlNode | null | undefined | false)[] | undefined];
 
-function render(node: XmlNode | null | undefined | false, indent: string): string[] {
+export function render(node: XmlNode | null | undefined | false, indent: string): string[] {
   if (!node) return [];
   const [name, content] = node;
   if (content === undefined) return [];
@@ -40,8 +40,8 @@ export interface ErklaerungAbsender {
   ort: string;
 }
 
-interface Envelope {
-  datenArt: "USt" | "EUER";
+export interface Envelope {
+  datenArt: "USt" | "EUER" | "ESt";
   year: number;
   steuernummer13: string;
   /** Kürzel des Bundeslands, z. B. "BW"; Empfänger im TransferHeader */
@@ -52,7 +52,7 @@ interface Envelope {
   test: boolean;
 }
 
-function checkEnvelope(input: Envelope) {
+export function checkEnvelope(input: Envelope) {
   if (!/^\d{13}$/.test(input.steuernummer13)) {
     throw new Error(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${input.steuernummer13}`);
   }
@@ -62,7 +62,7 @@ function checkEnvelope(input: Envelope) {
   if (!/^[A-Z]{2}$/.test(input.bundesland)) throw new Error(`Bundesland fehlt: ${input.bundesland}`);
 }
 
-function vorsatz(unterfallart: "50" | "77", input: Envelope): XmlNode {
+export function vorsatz(unterfallart: "10" | "50" | "77", input: Envelope): XmlNode {
   const a = input.absender;
   return [
     "Vorsatz",
@@ -83,7 +83,7 @@ function vorsatz(unterfallart: "50" | "77", input: Envelope): XmlNode {
   ];
 }
 
-function envelope(input: Envelope, nutzdaten: string[]): string {
+export function envelope(input: Envelope, nutzdaten: string[]): string {
   const a = input.absender;
   return [
     `<?xml version="1.0" encoding="UTF-8"?>`,

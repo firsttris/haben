@@ -1,7 +1,9 @@
 import { ACCOUNTS, taxOf, toElsterSteuernummer, toWholeEuros, type Cents, type EuerResult, type ExpenseCategory } from "@haben/core";
 import {
+  buildEstXml,
   buildEuerXml,
   buildUstErklaerungXml,
+  splitStrasse,
   ERSTES_ERKLAERUNGSJAHR,
   euerTotals,
   TEST_HERSTELLER_ID,
@@ -9,6 +11,7 @@ import {
   type AveuerAnlage,
   type ElsterClient,
   type ElsterResult,
+  type EstAngaben,
   type EuerFigureKey,
   type EuerFigures,
   type UstErklaerungFigures,
@@ -19,13 +22,14 @@ import { companyIssues, loadCompany, type Company } from "./company.ts";
 import { decrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
+import { loadEstAngaben } from "./income-tax.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures } from "./vat-figures.ts";
 import { loadActiveCertificate, PRODUKT_VERSION } from "./vat.ts";
 
 export class AnnualError extends Error {}
 
-export type AnnualForm = "ust" | "euer";
+export type AnnualForm = "ust" | "euer" | "est";
 
 export interface Issue {
   /** fehler: nicht sendbar; hinweis: sendbar, aber prüfen */
@@ -244,6 +248,65 @@ function euerIssues(company: Company, data: EuerYear): Issue[] {
   return issues;
 }
 
+// ------------------------------------------------------------------ Einkommensteuererklärung
+
+export interface EstYear {
+  angaben: EstAngaben;
+  /** Gewinn laut EÜR, landet in Anlage S bzw. G */
+  gewinn: Cents;
+  zusammen: boolean;
+  person: { a: string | null; b: string | null };
+  /** Anlagen, die Haben mitschickt */
+  anlagen: string[];
+}
+
+export async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
+  const [company, angaben, euerData] = await Promise.all([loadCompany(), loadEstAngaben(year), euer ?? euerYear(year)]);
+  const t = company.taxpayer;
+  const zusammen = t.veranlagung === "zusammen";
+  const k = angaben.kap;
+  const has = (...values: (number | undefined)[]) => values.some((v) => (v ?? 0) > 0);
+  const vor = [angaben.vorsorge.a, zusammen ? angaben.vorsorge.b : undefined].flatMap((v) => (v ? Object.values(v) : []));
+  const anlagen = [
+    "ESt 1 A",
+    has(angaben.sonderausgaben.kirchensteuerGezahlt, angaben.sonderausgaben.kirchensteuerErstattet, angaben.sonderausgaben.spenden) && "Sonderausgaben",
+    has(angaben.krankheitskosten) && "Außergewöhnliche Belastungen",
+    has(angaben.haushaltsnah.minijobs, angaben.haushaltsnah.dienstleistungen, angaben.haushaltsnah.handwerker) && "Haushaltsnahe Aufwendungen",
+    angaben.kinder.length > 0 && `Kind (${angaben.kinder.length})`,
+    company.einkunftsart === "gewerbe" ? "G" : company.einkunftsart === "selbstaendig" ? "S" : false,
+    k && (k.guenstigerpruefung || has(k.ertraegeMitSteuerabzug, k.ertraegeOhneSteuerabzugInland, k.ertraegeAusland, k.kapitalertragsteuer)) && "KAP",
+    has(...vor, angaben.vorsorge.sonstige) && "Vorsorgeaufwand",
+  ].filter((a): a is string => Boolean(a));
+  return {
+    angaben,
+    gewinn: euerData.gewinn,
+    zusammen,
+    person: { a: t.a ? `${t.a.vorname} ${t.a.name}` : null, b: zusammen && t.b ? `${t.b.vorname} ${t.b.name}` : null },
+    anlagen,
+  };
+}
+
+function estIssues(company: Company, euer: EuerYear): Issue[] {
+  const issues: Issue[] = [];
+  const t = company.taxpayer;
+  if (!t.a) issues.push({ tone: "fehler", text: "Persönliche Angaben (Steuer-ID, Name, Geburtsdatum) fehlen.", link: "/einstellungen" });
+  if (t.veranlagung === "zusammen" && (!t.b || !t.verheiratetSeit)) {
+    issues.push({ tone: "fehler", text: "Für die Zusammenveranlagung fehlen Angaben zum Ehegatten oder das Heiratsdatum.", link: "/einstellungen" });
+  }
+  if (company.strasse && !splitStrasse(company.strasse)) issues.push({ tone: "fehler", text: "In der Anschrift fehlt die Hausnummer.", link: "/einstellungen" });
+  if (!company.einkunftsart) {
+    issues.push({ tone: "fehler", text: "Einkunftsart fehlt; ohne sie weiß Haben nicht, ob der Gewinn in Anlage G oder S gehört.", link: "/einstellungen" });
+  }
+  if (euer.pendingAssets > 0) {
+    issues.push({ tone: "fehler", text: "AfA bzw. Privatnutzung des Jahres ist noch nicht gebucht; der Gewinn wäre falsch.", link: "/anlagen" });
+  }
+  issues.push({
+    tone: "hinweis",
+    text: "Haben schickt nur die hier gezeigten Angaben. Arbeitslohn (Anlage N), Renten, Vermietung und andere Einkünfte ergänzt du im ELSTER-Portal, falls du sie hast.",
+  });
+  return issues;
+}
+
 // ------------------------------------------------------------------ Übersicht und Übermittlung
 
 function yearIssues(year: number, today: string): Issue[] {
@@ -273,12 +336,14 @@ export async function submissions(year: number) {
 export async function annualOverview(year: number, today: string) {
   const company = await loadCompany();
   const [ust, euer, history] = await Promise.all([ustYear(year), euerYear(year), submissions(year)]);
+  const est = await estYear(year, euer);
   const base = [...yearIssues(year, today), ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen" }))];
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
   return {
     year,
     ust: { ...ust, issues: [...base, ...ustIssues(company, ust)], sent: sent("ust") },
     euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer") },
+    est: { ...est, issues: [...base, ...estIssues(company, euer)], sent: sent("est") },
     history,
     versteuerung: company.versteuerung,
   };
@@ -301,10 +366,12 @@ export async function submitAnnual(
 ): Promise<ElsterResult> {
   const company = await loadCompany();
   const data = form === "ust" ? await ustYear(year) : await euerYear(year);
+  const formIssues =
+    form === "ust" ? ustIssues(company, data as UstYear) : form === "euer" ? euerIssues(company, data as EuerYear) : estIssues(company, data as EuerYear);
   const issues = [
     ...yearIssues(year, options.today),
     ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text })),
-    ...(form === "ust" ? ustIssues(company, data as UstYear) : euerIssues(company, data as EuerYear)),
+    ...formIssues,
   ].filter((i) => i.tone === "fehler");
   if (issues.length > 0) throw new AnnualError(issues.map((i) => i.text).join(" "));
 
@@ -338,6 +405,21 @@ export async function submitAnnual(
     const ust = data as UstYear;
     xml = buildUstErklaerungXml({ ...common, versteuerung: company.versteuerung, figures: ust.figures });
     figures = { ...ust.figures, steuer: ust.steuer, abschluss: ust.abschluss };
+  } else if (form === "est") {
+    const euer = data as EuerYear;
+    const est = await estYear(year, euer);
+    const t = company.taxpayer;
+    xml = buildEstXml({
+      ...common,
+      personA: t.a!,
+      ...(est.zusammen ? { personB: t.b!, verheiratetSeit: t.verheiratetSeit! } : {}),
+      anschrift: { strasse: company.strasse, plz: company.plz, ort: company.ort },
+      telefon: company.telefon,
+      iban: company.iban || undefined,
+      gewinn: { einkunftsart: company.einkunftsart!, taetigkeit: company.taetigkeit, betrag: est.gewinn },
+      angaben: est.angaben,
+    });
+    figures = { ...est.angaben, gewinn: est.gewinn, zusammen: est.zusammen };
   } else {
     const euer = data as EuerYear;
     xml = buildEuerXml({
@@ -384,6 +466,7 @@ export async function loadAnnualProtocol(id: string) {
     .from(schema.annualSubmissions)
     .where(eq(schema.annualSubmissions.id, id));
   if (!row?.pdf) return null;
-  return { pdf: row.pdf, filename: `${row.form === "ust" ? "Umsatzsteuererklaerung" : "EUER"}-${row.year}-Protokoll.pdf` };
+  const name = { ust: "Umsatzsteuererklaerung", euer: "EUER", est: "Einkommensteuererklaerung" }[row.form];
+  return { pdf: row.pdf, filename: `${name}-${row.year}-Protokoll.pdf` };
 }
 

@@ -188,7 +188,7 @@ export const annualSubmissions = pgTable(
   "annual_submissions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    form: text("form", { enum: ["ust", "euer"] }).notNull(),
+    form: text("form", { enum: ["ust", "euer", "est"] }).notNull(),
     year: smallint("year").notNull(),
     kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
     ok: boolean("ok").notNull(),
@@ -229,6 +229,13 @@ export const elsterMessages = pgTable("elster_messages", {
   responseXml: text("response_xml").notNull(),
   serverResponseXml: text("server_response_xml").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Angaben zur Einkommensteuererklärung je Jahr, die nicht aus der Buchhaltung kommen (Vorsorge, Sonderausgaben, Kinder …) */
+export const incomeTaxInputs = pgTable("income_tax_inputs", {
+  year: smallint("year").primaryKey(),
+  data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /** Abrufe des ELSTER-Postfachs (PostfachAnfrage) und Bestätigungen der Abholung (PostfachBestaetigung) */
