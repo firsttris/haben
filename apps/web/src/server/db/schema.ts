@@ -321,6 +321,31 @@ export const vastBelege = pgTable("vast_belege", {
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Berechtigungen zum Belegabruf für andere Personen (ElsterBRM): Antrag, Freischaltung, Widerruf, Liste */
+export const brmRequests = pgTable("brm_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  art: text("art", { enum: ["antrag", "freischaltung", "storno", "liste"] }).notNull(),
+  /** Steuer-IdNr der Person, deren Belege abgerufen werden sollen; leer bei der Liste */
+  dateninhaberIdnr: text("dateninhaber_idnr"),
+  antragsId: text("antrags_id"),
+  /** Status laut ELSTER nach diesem Schritt: offen, genehmigt, widerrufen … */
+  status: text("status"),
+  /** Antrag: bis wann der Freischaltcode einzugeben ist; JJJJ-MM-TT */
+  genehmigenBis: text("genehmigen_bis"),
+  /** Antrag: bis wann die Berechtigung gilt; JJJJ-MM-TT */
+  gueltigBis: text("gueltig_bis"),
+  /** Nur bei der Liste: alle Anträge laut ELSTER */
+  liste: jsonb("liste").$type<{ antragsId: string; status: string; dateninhaberIdnr: string; gueltigBis: string; jahre: number[] }[]>(),
+  test: boolean("test").notNull(),
+  ok: boolean("ok").notNull(),
+  code: integer("code").notNull(),
+  message: text("message").notNull(),
+  requestXml: text("request_xml").notNull(),
+  responseXml: text("response_xml").notNull(),
+  serverResponseXml: text("server_response_xml").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. */
 export const auditLog = pgTable("audit_log", {
   id: bigserial("id", { mode: "number" }).primaryKey(),

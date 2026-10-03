@@ -46,6 +46,9 @@ export function datenartVersionFromXml(xml: string): string | undefined {
   const abholung = /<DatenArt>(PostfachAnfrage|PostfachBestaetigung)<\/DatenArt>[\s\S]*<Datenabholung\b[^>]*\bversion="(\d+)"/.exec(xml);
   if (abholung?.[1] && abholung[2]) return `${abholung[1]}_${abholung[2]}`;
   if (/<DatenArt>ElsterVaStDaten<\/DatenArt>/.test(xml)) return "ElsterVaStDaten";
+  // Berechtigungsmanagement: Datenart = Datenart-Version
+  const brm = /<DatenArt>(SpezRecht(?:Antrag|Freischaltung|Storno|Liste))<\/DatenArt>/.exec(xml);
+  if (brm?.[1]) return brm[1];
   return undefined;
 }
 
