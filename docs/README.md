@@ -20,6 +20,7 @@ gebucht wird und wie der Code aufgebaut ist. Den schnellen Überblick gibt die [
 | [Bankimport und Abgleich](bank.md) | DKB, N26, CAMT.053, Dubletten, Saldenprüfung, Vorschläge, Teilzahlungen, Buchungen ohne Beleg |
 | [Umsatzsteuer-Voranmeldung](umsatzsteuer.md) | Kennzahlen aus den Buchungen, Vorprüfung, Prüfen, Test- und Echtübermittlung, Berichtigung |
 | [Finanzamt](finanzamt.md) | Nachrichten über ELSTER, Antrag auf Herabsetzung der Vorauszahlungen |
+| [Fristen](fristen.md) | Voranmeldungen, Abgabefristen, Vorauszahlungen, Einspruchsfristen; Kalender-Abo und Erinnerungen per E-Mail |
 | [Jahreserklärungen](jahreserklaerung.md) | Umsatzsteuererklärung und Anlage EÜR mit AVEÜR aus den Buchungen, Prüfen, Test- und Echtübermittlung |
 | [Auswertungen und Jahresexport](auswertungen.md) | EÜR, offene Posten, Monatsverlauf, CSV, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
 | [Umzug aus Lexoffice](lexoffice.md) | API-Abruf, DATEV-Buchungsstapel, Originalexporte, offene Posten, Abgleich vor der Kündigung |

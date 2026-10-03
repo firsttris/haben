@@ -62,6 +62,8 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
   Einkommensteuererklärung mit Anlage S/G, Vorsorgeaufwand, Sonderausgaben, Kind und KAP, auch zusammen veranlagt;
   Prüfen, Test- und Echtübermittlung über ERiC; Belege der vorausgefüllten Steuererklärung (Lohnsteuerbescheinigung,
   Rentenbezüge, Beiträge) von ELSTER abrufen
+- **Fristen und Erinnerungen**: Voranmeldungen, Abgabefristen, Vorauszahlungen, Einspruchsfristen und Ablauf des
+  Zertifikats auf einer Seite, als Kalender-Abo und per E-Mail über den eigenen SMTP-Zugang (auch Gmail)
 - **Post vom und an das Finanzamt**: Steuerbescheide aus dem ELSTER-Postfach abholen, Nachrichten über ELSTER,
   Bankverbindung ändern, Antrag auf Herabsetzung der Einkommensteuer-Vorauszahlungen mit Hochrechnung des Gewinns
   und Steuerprognose (Tarif, Splitting, Soli, Kirchensteuer)
@@ -155,6 +157,7 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 | [Bankimport und Abgleich](docs/bank.md) | Automatischer Abruf, Formate, Dubletten, Vorschläge, Zuordnen, Buchungen ohne Beleg |
 | [Umsatzsteuer-Voranmeldung](docs/umsatzsteuer.md) | Berechnung aus den Buchungen, Vorprüfung, ELSTER-Übermittlung, Berichtigung |
 | [Finanzamt](docs/finanzamt.md) | Bescheide aus dem ELSTER-Postfach, Nachrichten, Bankverbindung ändern, Herabsetzung der Vorauszahlungen |
+| [Fristen](docs/fristen.md) | Alle Steuertermine, Kalender-Abo und Erinnerungen per E-Mail (SMTP) |
 | [Jahreserklärungen](docs/jahreserklaerung.md) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung an ELSTER, Belege von ELSTER abrufen |
 | [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, Übernahme aus Lexoffice, AfA zum Jahresende |
 | [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP, Aufbewahrung |

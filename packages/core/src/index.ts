@@ -16,3 +16,4 @@ export * from "./dunning.ts";
 export * from "./income-tax.ts";
 export * from "./einspruch.ts";
 export * from "./ledger.ts";
+export * from "./fristen.ts";

@@ -1,0 +1,1 @@
+ALTER TABLE "company" ADD COLUMN "calendar_token_hash" text;

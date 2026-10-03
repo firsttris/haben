@@ -42,10 +42,10 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 | Ordner | Aufgabe |
 | --- | --- |
 | `src/routes/` | Dateibasiertes Routing. `_app/` enthält alle Seiten hinter der Anmeldung (Übersicht, Rechnungen, Belege, Bank, Umsatzsteuer, Auswertungen, Buchungen, Kontakte, Archiv, Einstellungen); `setup.tsx` und `login.tsx` sind öffentlich |
-| `src/routes/api/` | HTTP-Routen für Better Auth (`auth/$`), Dateien (`rechnung`, `beleg`, `altbeleg`, `archiv`, `protokoll`, `postfach`, `vast`), Teilen-Ziel der PWA (`belege/teilen`), EÜR als CSV (`auswertungen/$jahr`) und Jahresarchiv (`export/$jahr`) |
+| `src/routes/api/` | HTTP-Routen für Better Auth (`auth/$`), Dateien (`rechnung`, `beleg`, `altbeleg`, `archiv`, `protokoll`, `postfach`, `vast`), Kalender-Abo der Fristen (`fristen/kalender`, mit geheimem Token statt Sitzung), Teilen-Ziel der PWA (`belege/teilen`), EÜR als CSV (`auswertungen/$jahr`) und Jahresarchiv (`export/$jahr`) |
 | `src/components/` | React-Komponenten, die mehrere Seiten nutzen (Rechnungseditor, Vorschau, Upload, Statusanzeigen), dazu `archiv/` für die Umzugsseite |
 | `src/server/functions/` | Server Functions je Bereich: Eingaben mit Zod prüfen, `authMiddleware` anhängen, Dienst aufrufen. Keine Fachlogik |
-| `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `bank-sync` (Kontoabruf), `annual` (Jahreserklärungen), `income-tax` (Angaben zur Einkommensteuer), `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `taxpayer` (persönliche Angaben), `vat`, `vat-figures`, `reports`, `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`, `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer); dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
+| `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `bank-sync` (Kontoabruf), `annual` (Jahreserklärungen), `income-tax` (Angaben zur Einkommensteuer), `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `fristen` (Steuertermine, Kalender-Abo), `mail` (SMTP, Erinnerungen), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `taxpayer` (persönliche Angaben), `vat`, `vat-figures`, `reports`, `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`, `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer); dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
 | `src/server/db/` | Drizzle-Schema (`schema.ts`, `auth-schema.ts`), Verbindung, `withActor` für das Audit-Log, Migrationsskript |
 | `apps/web/drizzle/` | SQL-Migrationen; Trigger und Funktionen stehen in eigenen Dateien (`0001_festschreibung.sql`, `*_trigger.sql`) |
 | `src/styles/`, `styles.css` | Globales Stylesheet und seitenbezogene Stylesheets (Auswertungen, Archiv) |
@@ -93,6 +93,8 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `postfach_requests` | Abrufe des ELSTER-Postfachs und Bestätigungen der Abholung mit XML | nur anhängen, Audit |
 | `postfach_documents` | Abgeholte Bescheide und Mitteilungen, Datei im Dokumentenspeicher | nur anhängen, Audit |
 | `vast_requests` | Belegabrufe (Liste und Abholung) mit XML, je Person und Jahr | nur anhängen, Audit |
+| `mail_settings` | SMTP-Zugang (eine Zeile), Passwort verschlüsselt, Einstellungen der Erinnerungen | Audit ohne Passwort |
+| `mail_log` | Gesendete E-Mails mit Fehler und den erinnerten Fristen (Schlüssel Frist:Stufe) | nur anhängen, Audit |
 | `brm_requests` | Anträge, Freischaltungen, Widerrufe und Listen der Abrufberechtigung mit XML (ohne Freischaltcode); der Stand ergibt sich aus dem Verlauf | nur anhängen, Audit |
 | `vast_belege` | Abgeholte, entschlüsselte Belege (Lohnsteuerbescheinigung, Rentenbezüge, Beiträge …) als XML | nur anhängen, Audit ohne XML |
 | `annual_submissions` | Prüfungen und Übermittlungen der Jahreserklärungen mit Werten, XML und Protokoll-PDF; höchstens eine erfolgreiche Echtübermittlung je Erklärung und Jahr | nur anhängen, Audit ohne PDF |

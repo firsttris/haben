@@ -72,6 +72,10 @@ function AppLayout() {
           <Icon name="annual" />
           Jahreserklärung
         </Link>
+        <Link to="/fristen" className="nav-link">
+          <Icon name="calendar" />
+          Fristen
+        </Link>
         <Link to="/finanzamt" className="nav-link">
           <Icon name="mail" />
           Finanzamt

@@ -68,6 +68,9 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+      nodemailer:
+        specifier: ^10.0.13
+        version: 10.0.13
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -2264,6 +2267,10 @@ packages:
   node-releases@2.0.57:
     resolution: {integrity: sha512-kQK9LGGFiHtrWiNhZtA7Qbw17AQz+dmsEKODRIVTXA9+e5MS/2gZEBhYJt13GrAz5/IOZKddH/0Z3TP/Zgo+yw==}
     engines: {node: '>=18'}
+
+  nodemailer@10.0.13:
+    resolution: {integrity: sha512-SzG86OlvcW/NNhUFC6uROMwRTL4n7MswfQqC/T8mhkmnY1YVa23zUEMYi4ijSeXSl9GLz9ZeTJDUatEDuY5FeQ==}
+    engines: {node: '>=20.0.0'}
 
   obug@2.2.1:
     resolution: {integrity: sha512-XrsrhT5sybtKI6wakr2SPOlGZWWYbUXZ7a0jT8/QOeAPau+1X/bSegNe5YR75oJmEZQbKningirmGOEJCIk61Q==}
@@ -4577,6 +4584,8 @@ snapshots:
       html-entities: 2.6.0
 
   node-releases@2.0.57: {}
+
+  nodemailer@10.0.13: {}
 
   obug@2.2.1: {}
 
