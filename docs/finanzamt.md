@@ -22,16 +22,29 @@ Der Testabruf läuft wie die Testübermittlung mit Testmerker und Test-Herstelle
 
 Das Finanzamt setzt Einkommensteuer-Vorauszahlungen (fällig 10.3., 10.6., 10.9. und 10.12.) nach dem letzten Bescheid fest. Verdienst du in diesem Jahr weniger, kannst du die Herabsetzung formlos beantragen (§ 37 Abs. 3 EStG). Ein eigenes ELSTER-Formular dafür braucht es nicht; Haben schickt den Antrag als Sonstige Nachricht.
 
-Haben füllt den Antrag mit den Zahlen aus deiner Buchhaltung:
+Haben füllt den Antrag mit den Zahlen aus deiner Buchhaltung und schätzt die Steuer des Jahres:
 
 | Angabe | Woher |
 | --- | --- |
 | Gewinn bis heute | EÜR des laufenden Jahres, wie unter [Auswertungen](auswertungen.md) |
 | Hochrechnung | Gewinn bis heute taggenau auf das ganze Jahr hochgerechnet |
 | Vorjahr | EÜR des Vorjahres |
-| Bisherige und gewünschte Vorauszahlung je Quartal | trägst du ein |
+| Voraussichtliche Steuer | Einkommensteuer, Solidaritätszuschlag und Kirchensteuer aus der Hochrechnung, siehe unten |
+| Gewünschte Vorauszahlung je Quartal | vorbelegt mit einem Viertel der voraussichtlichen Steuer, änderbar |
+| Bisherige Vorauszahlung je Quartal | trägst du ein |
 
-Welche Vorauszahlung passt, hängt von deiner gesamten Einkommensteuer ab (weitere Einkünfte, Sonderausgaben, Zusammenveranlagung). Deshalb rechnet Haben keine Steuer aus, sondern du trägst den gewünschten Betrag ein. Den fertigen Text kannst du vor dem Senden frei ändern.
+### Steuerprognose
+
+Haben rechnet mit dem Tarif nach § 32a EStG (2023 bis 2026, für spätere Jahre mit dem jüngsten Tarif). Die Tarifwerte sind gegen den Programmablaufplan des BMF abgeglichen. Vom hochgerechneten Gewinn zieht Haben ab:
+
+- Vorsorgeaufwand: Rentenversicherung voll, Basis-Kranken- und Pflegeversicherung voll, weitere Vorsorge bis zum Höchstbetrag von 2.800 € je Person,
+- Sonderausgaben: Kirchensteuer und Spenden (bis 20 % des Gewinns), mindestens den Pauschbetrag von 36 € bzw. 72 €,
+- Kinderbetreuungskosten (bis 2024 zwei Drittel, höchstens 4.000 €; ab 2025 80 %, höchstens 4.800 € je Kind),
+- Krankheitskosten über der zumutbaren Belastung.
+
+Bei Zusammenveranlagung gilt der Splittingtarif. Für Kinder vergleicht Haben Kindergeld und Kinderfreibeträge (Günstigerprüfung), haushaltsnahe Aufwendungen mindern die Steuer nach § 35a EStG. Solidaritätszuschlag mit Freigrenze und Milderungszone; Kirchensteuer mit 8 % in Baden-Württemberg und Bayern, sonst 9 %, bei nur einem kirchensteuerpflichtigen Ehegatten vereinfacht zur Hälfte.
+
+Die Abzüge stammen aus den [Angaben zur Einkommensteuererklärung](jahreserklaerung.md#einkommensteuererklärung) des laufenden Jahres, sonst aus denen des Vorjahres. Gibt es keine, rechnet Haben nur mit dem Pauschbetrag. Andere Einkünfte als der Gewinn (Arbeitslohn, Vermietung, Renten) und Kapitalerträge fehlen; die Prognose ist eine Schätzung, keine Steuerberechnung des Finanzamts. Die Nennung im Antrag lässt sich abschalten.
 
 Die Herabsetzung wirkt ab dem nächsten Fälligkeitstermin. Die Antwort kommt als geänderter Vorauszahlungsbescheid, per Brief oder in dein ELSTER-Postfach.
 

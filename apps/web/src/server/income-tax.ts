@@ -1,6 +1,8 @@
 import type { EstAngaben } from "@haben/elster";
-import { eq } from "drizzle-orm";
+import { kirchensteuerpflichtig, steuerPrognose, type Cents, type Prognose } from "@haben/core";
+import { desc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
+import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 
@@ -66,6 +68,33 @@ export async function loadEstAngaben(year: number): Promise<EstAngaben> {
   if (!row) return EMPTY;
   const parsed = estAngabenSchema.safeParse(row.data);
   return parsed.success ? (parsed.data as EstAngaben) : EMPTY;
+}
+
+/** Angaben des Jahres, sonst die des Vorjahres als Schätzung (z. B. für die Prognose im laufenden Jahr) */
+export async function latestEstAngaben(year: number): Promise<{ angaben: EstAngaben; fromYear: number | null }> {
+  const [row] = await db
+    .select({ year: schema.incomeTaxInputs.year })
+    .from(schema.incomeTaxInputs)
+    .where(lte(schema.incomeTaxInputs.year, year))
+    .orderBy(desc(schema.incomeTaxInputs.year))
+    .limit(1);
+  if (!row || row.year < year - 1) return { angaben: EMPTY, fromYear: null };
+  return { angaben: await loadEstAngaben(row.year), fromYear: row.year };
+}
+
+/** Steuerprognose aus Gewinn, Veranlagung, Religion und Angaben */
+export async function prognose(year: number, gewinn: Cents, angaben: EstAngaben): Promise<Prognose> {
+  const company = await loadCompany();
+  const t = company.taxpayer;
+  const zusammen = t.veranlagung === "zusammen" && Boolean(t.b);
+  return steuerPrognose({
+    year,
+    gewinn,
+    zusammen,
+    kirche: { a: kirchensteuerpflichtig(t.a?.religion), b: zusammen && kirchensteuerpflichtig(t.b?.religion) },
+    bundesland: company.bundesland,
+    angaben,
+  });
 }
 
 export async function saveEstAngaben(actor: string, year: number, input: EstAngabenInput): Promise<EstAngaben> {

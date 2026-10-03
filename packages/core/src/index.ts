@@ -13,3 +13,4 @@ export * from "./afa.ts";
 export * from "./private-use.ts";
 export * from "./recurring.ts";
 export * from "./dunning.ts";
+export * from "./income-tax.ts";

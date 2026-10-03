@@ -1,4 +1,4 @@
-import { ACCOUNTS, taxOf, toElsterSteuernummer, toWholeEuros, type Cents, type EuerResult, type ExpenseCategory } from "@haben/core";
+import { ACCOUNTS, taxOf, toElsterSteuernummer, toWholeEuros, type Cents, type Prognose, type EuerResult, type ExpenseCategory } from "@haben/core";
 import {
   buildEstXml,
   buildEuerXml,
@@ -22,7 +22,7 @@ import { companyIssues, loadCompany, type Company } from "./company.ts";
 import { decrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
-import { loadEstAngaben } from "./income-tax.ts";
+import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures } from "./vat-figures.ts";
 import { loadActiveCertificate, PRODUKT_VERSION } from "./vat.ts";
@@ -258,6 +258,8 @@ export interface EstYear {
   person: { a: string | null; b: string | null };
   /** Anlagen, die Haben mitschickt */
   anlagen: string[];
+  /** Geschätzte Steuer aus Gewinn und Angaben */
+  prognose: Prognose;
 }
 
 export async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
@@ -283,6 +285,7 @@ export async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
     zusammen,
     person: { a: t.a ? `${t.a.vorname} ${t.a.name}` : null, b: zusammen && t.b ? `${t.b.vorname} ${t.b.name}` : null },
     anlagen,
+    prognose: await prognose(year, euerData.gewinn, angaben),
   };
 }
 
