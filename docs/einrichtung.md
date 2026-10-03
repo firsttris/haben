@@ -141,8 +141,8 @@ Unter **Einstellungen → Rechnungsnummern** siehst du die nächste Nummer des l
 
 Haben übermittelt die Umsatzsteuer-Voranmeldung über ERiC, die offizielle Bibliothek der Steuerverwaltung. Ohne ERiC laufen Prüfen und Senden simuliert, und die Oberfläche weist darauf hin.
 
-1. **Als Entwickler bei ELSTER registrieren** und das ERiC-Paket für Linux x86_64 laden. ERiC darf nicht weitergegeben werden und liegt deshalb weder im Repository noch im Image.
-2. **ERiC entpacken**, z. B. nach `/opt/eric` (darin `lib/libericapi.so` und `lib/plugins2/`), und `ERIC_HOME` setzen. Wie du ERiC in den Container einbindest (Compose oder Quadlet), steht in [ERiC einbinden](installation.md#eric-einbinden).
+1. **ERiC laden:** unter **Einstellungen › ERiC** den Nutzungsbedingungen zustimmen und **Herunterladen und einrichten** klicken. ERiC darf nicht weitergegeben werden und liegt deshalb weder im Repository noch im Image; Haben holt es direkt von der Finanzverwaltung (Linux x86_64).
+2. **Oder von Hand:** das Paket z. B. nach `/opt/eric` entpacken (darin `lib/libericapi.so` und `lib/plugins2/`) und `ERIC_HOME` setzen. Beides steht in [ERiC einbinden](installation.md#eric-einbinden).
 3. **Zertifikat beantragen und hochladen.** In Mein ELSTER eine Zertifikatsdatei (.pfx) beantragen und unter **Einstellungen → ELSTER-Zertifikat** hochladen (höchstens 64 KB). Haben speichert die Datei AES-256-GCM-verschlüsselt in der Datenbank. Trägst du „Gültig bis“ ein, warnt die Übersicht 30 Tage vor Ablauf. Ein neues Zertifikat ersetzt das alte.
 4. **Nur prüfen.** Auf der Seite einer Voranmeldung lässt „Nur prüfen“ ERiC die Daten auf Plausibilität prüfen. Dafür braucht es weder Zertifikat noch PIN.
 5. **Testübermittlung.** Mit gesetztem Haken „Nur Testübermittlung“, PIN und „Prüfen und testweise senden“. Die Testübermittlung läuft mit der Test-Hersteller-ID `74931` und dem Testmerker `700000004`; der ELSTER-Server nimmt sie an, leitet sie aber nicht an das Finanzamt weiter. Die Anmeldung bleibt ein Entwurf.

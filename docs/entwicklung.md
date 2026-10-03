@@ -21,7 +21,7 @@ cp apps/web/.env.example apps/web/.env
 In `apps/web/.env` trägst du mindestens `DATABASE_URL`, `BETTER_AUTH_SECRET` und `HABEN_ENCRYPTION_KEY` ein (beide mit `openssl rand -base64 32`). `BETTER_AUTH_URL` bleibt `http://localhost:3000`. Alle Variablen erklärt [Betrieb und Installation](installation.md#umgebungsvariablen).
 
 > [!NOTE]
-> Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Ohne `ERIC_HOME` arbeitet Haben mit dem simulierten ELSTER-Client, ohne `ANTHROPIC_API_KEY` ohne KI-Auslesung. Für die Entwicklung reicht beides.
+> Leere Zeilen wie `ELSTER_HERSTELLER_ID=` gelten als nicht gesetzt. Ohne ERiC (`ERIC_HOME` oder unter Einstellungen geladen nach `ERIC_DIR`) arbeitet Haben mit dem simulierten ELSTER-Client, ohne `ANTHROPIC_API_KEY` ohne KI-Auslesung. Für die Entwicklung reicht beides.
 
 Datenbank anlegen und Migrationen anwenden. Das Migrationsskript liest `DATABASE_URL` aus der Umgebung, nicht aus der `.env`-Datei:
 
@@ -68,7 +68,7 @@ Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kom
 | Bereich | Was getestet wird |
 | --- | --- |
 | `packages/core` | Beträge und Rundung, Rechnungssummen und Nummernformat, Zeiträume und Fälligkeit der Voranmeldung, Feiertage je Bundesland, Steuerfälle von Rechnungen, Steuernummer-Umrechnung, Kennzahlen der UStVA, Buchungssätze für SKR03/SKR04 und Ist/Soll, Zuordnungsvorschläge im Bankabgleich, EÜR, Umsatzsteuer des Lexoffice-Altbestands |
-| `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 10), XML der Umsatzsteuererklärung und der Anlage EÜR mit AVEÜR, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz) und Mock-ERiC über koffi |
+| `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 10), XML der Umsatzsteuererklärung und der Anlage EÜR mit AVEÜR, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz), Mock-ERiC über koffi und ERiC-Download (Entpacken nur Linux, Umschalten erst bei vollständiger Version, Pfade im Archiv) |
 | `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno und Leitweg-ID, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
 | `packages/import` | DKB- (neu und alt), N26- und CAMT.053-Parser, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel, Lexoffice-API-Client (Paging, 429, Fehler) und Abbildung der Lexoffice-Daten |
 | `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge |

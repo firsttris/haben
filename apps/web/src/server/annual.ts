@@ -320,7 +320,7 @@ export async function submitAnnual(
   const herstellerId = test ? TEST_HERSTELLER_ID : options.herstellerId;
   if (!herstellerId) throw new AnnualError("Für die Echtübermittlung fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
   if (!test && "isFake" in client && client.isFake) {
-    throw new AnnualError("Ohne ERiC (ERIC_HOME) ist keine Echtübermittlung möglich; Prüfen und Testübermittlung laufen nur simuliert.");
+    throw new AnnualError("Ohne ERiC ist keine Echtübermittlung möglich; Prüfen und Testübermittlung laufen nur simuliert.");
   }
 
   const common = {

@@ -301,7 +301,7 @@ function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; bl
           {sent
             ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal."
             : data.mode === "simuliert"
-              ? "Echtübermittlung erst mit eingerichtetem ERiC (ERIC_HOME) und eigener Hersteller-ID."
+              ? "Echtübermittlung erst mit eingerichtetem ERiC (Einstellungen) und eigener Hersteller-ID."
               : "Echtübermittlung erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID)."}
         </p>
       )}

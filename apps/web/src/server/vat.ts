@@ -216,7 +216,7 @@ export async function submitReturn(
   }
   // Der simulierte Client sendet nichts; eine „Echtübermittlung“ würde die Anmeldung sonst festschreiben, ohne dass sie beim Finanzamt ist
   if (!test && "isFake" in client && client.isFake) {
-    throw new VatError("Ohne ERiC (ERIC_HOME) ist keine Echtübermittlung möglich; Prüfen und Testübermittlung laufen nur simuliert.");
+    throw new VatError("Ohne ERiC ist keine Echtübermittlung möglich; Prüfen und Testübermittlung laufen nur simuliert.");
   }
 
   const xml = buildUstvaXml({

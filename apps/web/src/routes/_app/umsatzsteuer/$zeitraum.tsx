@@ -597,7 +597,7 @@ function SubmitPanel({
       {!canSendLive && (
         <p className="small muted" style={{ margin: 0 }}>
           {data.mode === "simuliert"
-            ? "Echtübermittlung erst mit eingerichtetem ERiC (ERIC_HOME) und eigener Hersteller-ID."
+            ? "Echtübermittlung erst mit eingerichtetem ERiC (Einstellungen) und eigener Hersteller-ID."
             : "Echtübermittlung erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID)."}
         </p>
       )}

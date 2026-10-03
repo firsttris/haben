@@ -36,6 +36,7 @@ services:
       BETTER_AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET fehlt in .env}
       HABEN_ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY fehlt in .env}
       ERIC_HOME: ${ERIC_HOME:-}
+      ERIC_AUTO_INSTALL: ${ERIC_AUTO_INSTALL:-}
       ELSTER_HERSTELLER_ID: ${ELSTER_HERSTELLER_ID:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
@@ -45,7 +46,9 @@ services:
       - belege:/var/lib/haben/belege
       # Protokolle von ERiC (eric.log), zur Fehlersuche bei der Übermittlung
       - eric-log:/var/lib/haben/eric-log
-      # ERiC (nur Linux x86_64): nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME=/opt/eric in .env
+      # ERiC, von Haben heruntergeladen (Einstellungen › ERiC oder ERIC_AUTO_INSTALL=ja)
+      - eric:/var/lib/haben/eric
+      # Alternativ ERiC von Hand: nach /opt/eric entpacken, Zeile einkommentieren, ERIC_HOME=/opt/eric in .env
       # - /opt/eric:/opt/eric:ro
       # Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung, Zeile einkommentieren
       # - ./enablebanking.pem:/run/secrets/enablebanking.pem:ro
@@ -82,4 +85,5 @@ volumes:
   db:
   belege:
   eric-log:
+  eric:
   caddy:
