@@ -41,6 +41,15 @@ interface ContactOption {
   leitwegId: string;
 }
 
+interface ArticleOption {
+  id: string;
+  number: string;
+  description: string;
+  unit: string;
+  unitPrice: number;
+  taxRate: number;
+}
+
 interface LineState {
   key: number;
   description: string;
@@ -96,6 +105,7 @@ export function InvoiceEditor({
   corrects,
   bundesland,
   kleinunternehmer,
+  articles = [],
 }: {
   id: string | null;
   kind: keyof typeof KIND_TITLE;
@@ -111,6 +121,8 @@ export function InvoiceEditor({
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
   kleinunternehmer: boolean;
+  /** Artikelkatalog zum Einfügen von Positionen */
+  articles?: ArticleOption[];
 }) {
   const router = useRouter();
   const navigate = useNavigate();
@@ -170,6 +182,23 @@ export function InvoiceEditor({
 
   function updateLine(key: number, patch: Partial<LineState>) {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
+    setDirty(true);
+    setConfirming(false);
+  }
+
+  /** Position aus dem Katalog; ersetzt eine noch leere einzige Zeile, sonst wird angehängt */
+  function insertArticle(articleId: string) {
+    const article = articles.find((a) => a.id === articleId);
+    if (!article) return;
+    const line: LineState = {
+      key: nextKey++,
+      description: article.description,
+      quantity: "1",
+      unit: article.unit as UnitLabel,
+      unitPrice: formatDecimal(article.unitPrice),
+      taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
+    };
+    setLines((prev) => (prev.length === 1 && !prev[0]!.description.trim() && !prev[0]!.unitPrice.trim() ? [line] : [...prev, line]));
     setDirty(true);
     setConfirming(false);
   }
@@ -521,6 +550,25 @@ export function InvoiceEditor({
               >
                 + Position hinzufügen
               </button>
+              {articles.length > 0 && (
+                <select
+                  aria-label="Aus dem Artikelkatalog einfügen"
+                  value=""
+                  onChange={(e) => {
+                    insertArticle(e.target.value);
+                    e.target.value = "";
+                  }}
+                  style={{ maxWidth: 320 }}
+                >
+                  <option value="">Aus dem Katalog einfügen …</option>
+                  {articles.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.number ? `${a.number} · ` : ""}
+                      {a.description.split("\n")[0]} · {formatEuro(a.unitPrice)}/{a.unit}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <label className="field">
               {quote ? "Hinweis auf dem Angebot (optional)" : "Hinweis auf der Rechnung (optional)"}

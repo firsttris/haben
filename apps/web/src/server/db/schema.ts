@@ -603,6 +603,23 @@ export const quoteLines = pgTable("quote_lines", {
   net: integer("net").notNull(),
 });
 
+/** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise netto in Cent */
+export const articles = pgTable("articles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Eigene Artikelnummer, optional */
+  number: text("number").notNull().default(""),
+  /** Text der Position auf Rechnung und Angebot */
+  description: text("description").notNull(),
+  unit: text("unit").notNull(),
+  unitPrice: integer("unit_price").notNull(),
+  taxRate: smallint("tax_rate").notNull(),
+  /** Interne Notiz, erscheint nicht auf Belegen */
+  note: text("note").notNull().default(""),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Letzte Angebotsnummer je Jahr */
 export const quoteNumberCounters = pgTable("quote_number_counters", {
   year: smallint("year").primaryKey(),

@@ -55,6 +55,7 @@ function QuotePage() {
         corrects={null}
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}
+        articles={data.articles}
       />
     );
   }
