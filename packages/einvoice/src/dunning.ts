@@ -1,6 +1,7 @@
 import { DUNNING_LEVELS, formatEuro, type DunningAmounts, type DunningLevel } from "@haben/core";
 import { formatDate, formatIban } from "./format.ts";
 import { addressLines, footerColumns, renderDunningPdf } from "./pdf.ts";
+import { girocodeSvg } from "./qr.ts";
 import type { Buyer, Seller } from "./types.ts";
 
 export interface DunningDocument {
@@ -62,6 +63,9 @@ export function dunningPdfData(doc: DunningDocument) {
     rows,
     total: { label: "Zu zahlen", value: formatEuro(amounts.total) },
     payment: `Bitte überweisen Sie ${formatEuro(amounts.total)} bis zum ${formatDate(doc.dueDate)}${account} unter Angabe der Rechnungsnummer ${doc.invoice.number}.`,
+    qr: seller.iban
+      ? girocodeSvg({ name: seller.name, iban: seller.iban, ...(seller.bic ? { bic: seller.bic } : {}), amount: amounts.total, text: `Rechnung ${doc.invoice.number}` })
+      : null,
     closing: doc.closing.trim(),
     greeting: `Mit freundlichen Grüßen\n${seller.name}`,
     footer: footerColumns(seller),

@@ -128,7 +128,19 @@
   block(breakable: false, semibold(d.taxNote))
   v(2mm)
 }
-#block(breakable: false, d.payment)
+#let girocode = if d.at("qr", default: none) != none {
+  // GiroCode: Banking-App scannen statt abtippen
+  box(width: 24mm, {
+    image(bytes(d.qr), format: "svg", width: 24mm)
+    v(1mm)
+    align(center, text(size: 6.5pt, fill: muted)[GiroCode])
+  })
+}
+#if girocode != none {
+  block(breakable: false, grid(columns: (1fr, 24mm), column-gutter: 8mm, align: (left + top, right + top), d.payment, girocode))
+} else {
+  block(breakable: false, d.payment)
+}
 #if d.note != none {
   v(2mm)
   d.note

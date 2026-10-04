@@ -27,6 +27,7 @@ describe("Mahnung als PDF", () => {
     ]);
     expect(data.payment).toContain("bis zum 26.10.2026");
     expect(data.payment).toContain("IBAN DE89 3704 0044 0532 0130 00");
+    expect(data.qr).toMatch(/^<svg /);
   });
 
   it("erzeugt ein PDF", () => {
