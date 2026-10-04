@@ -39,6 +39,7 @@ interface ContactOption {
   kundennummer: string | null;
   defaultFormat: DraftInput["format"] | null;
   leitwegId: string;
+  language: "de" | "en";
 }
 
 interface ArticleOption {
@@ -146,6 +147,7 @@ export function InvoiceEditor({
   const [note, setNote] = useState(initial.note);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
+  const [language, setLanguage] = useState<"de" | "en">(initial.language ?? "de");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [dirty, setDirty] = useState(id === null);
   /** Fehler einer Position erst zeigen, wenn sie verlassen oder gespeichert wurde, nicht schon beim Öffnen */
@@ -214,6 +216,7 @@ export function InvoiceEditor({
     const chosen = contacts.find((c) => c.id === value);
     if (chosen?.defaultFormat) setFormat(chosen.defaultFormat);
     else if (chosen?.leitwegId) setFormat("xrechnung-cii");
+    if (chosen) setLanguage(chosen.language);
   }
 
   function draft(): DraftInput {
@@ -227,6 +230,7 @@ export function InvoiceEditor({
       note,
       taxTreatment,
       exemptionReason: special ? exemptionReason : "",
+      language,
       lines: parsed.filter((l) => l.valid).map(({ valid: _valid, ...line }) => line),
     };
   }
@@ -391,6 +395,16 @@ export function InvoiceEditor({
               <label className="field">
                 Leistung bis
                 <input type="date" value={serviceTo} onChange={(e) => touch(setServiceTo)(e.target.value)} />
+              </label>
+              <label className="field" style={{ gridColumn: "1 / -1" }}>
+                Sprache
+                <select value={language} onChange={(e) => touch(setLanguage)(e.target.value as "de" | "en")} disabled={!editable} aria-describedby="language-hint">
+                  <option value="de">Deutsch</option>
+                  <option value="en">Englisch</option>
+                </select>
+                <span id="language-hint" className="small">
+                  Texte im PDF und in der E-Mail; die E-Rechnung selbst bleibt maschinenlesbar wie gehabt.
+                </span>
               </label>
               {!quote && (
               <label className="field" style={{ gridColumn: "1 / -1" }}>
@@ -596,6 +610,7 @@ export function InvoiceEditor({
         <section aria-label="Vorschau" className="stack" style={{ gap: 8 }}>
           <div className="small muted">
             Vorschau · {quote ? "PDF" : format === "zugferd" ? "PDF/A-3 mit eingebettetem XML" : "XRechnung (XML) mit PDF-Sichtkopie"}
+            {language === "en" && " · Das PDF erscheint auf Englisch, die Vorschau zeigt den Aufbau."}
           </div>
           <InvoicePreview
             kind={kind}

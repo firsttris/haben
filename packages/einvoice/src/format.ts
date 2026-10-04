@@ -39,6 +39,6 @@ export function paymentSentence(doc: InvoiceDocument): string {
   return `Bitte überweisen Sie den Betrag bis zum ${formatDate(doc.dueDate)} unter Angabe der Rechnungsnummer.`;
 }
 
-export function countryName(code: string): string {
-  return new Intl.DisplayNames(["de"], { type: "region" }).of(code.toUpperCase()) ?? code;
+export function countryName(code: string, locale = "de"): string {
+  return new Intl.DisplayNames([locale], { type: "region" }).of(code.toUpperCase()) ?? code;
 }

@@ -117,7 +117,7 @@ export async function deleteRecurring(actor: string, id: string): Promise<void> 
 }
 
 /** Rechnung zu einem Termin: Leistungszeitraum und Platzhalter aus der Vorlage */
-export function invoiceForDate(recurring: RecurringInvoice, date: string) {
+export function invoiceForDate(recurring: RecurringInvoice, date: string, language: "de" | "en" = "de") {
   const period = servicePeriodFor(date, recurring.intervalMonths as RecurringInterval, recurring.servicePeriod as ServicePeriodMode);
   const reference = period ?? { from: date, to: date };
   return {
@@ -130,6 +130,7 @@ export function invoiceForDate(recurring: RecurringInvoice, date: string) {
     note: fillPlaceholders(recurring.note, reference),
     taxTreatment: recurring.taxTreatment,
     exemptionReason: recurring.exemptionReason,
+    language,
     lines: recurring.lines.map((line) => ({
       description: fillPlaceholders(line.description, reference),
       quantity: line.quantity,
@@ -163,6 +164,8 @@ export async function runDueRecurring(today: string): Promise<RunResult> {
     const interval = recurring.intervalMonths as RecurringInterval;
     const dates = dueDates(recurring.nextDate, interval, recurring.anchorDay, today, recurring.endDate);
     let lastError: string | null = null;
+    // Sprache aus dem Kontakt, wie beim Anlegen im Editor
+    const [contact] = await db.select({ language: schema.contacts.language }).from(schema.contacts).where(eq(schema.contacts.id, recurring.contactId));
     for (const date of dates) {
       const [existing] = await db
         .select({ id: schema.invoices.id })
@@ -171,7 +174,7 @@ export async function runDueRecurring(today: string): Promise<RunResult> {
       if (existing) continue;
       let draftId: string;
       try {
-        const draft = await createDraft(RECURRING_ACTOR, invoiceForDate(recurring, date), { recurringId: recurring.id, recurringDate: date });
+        const draft = await createDraft(RECURRING_ACTOR, invoiceForDate(recurring, date, contact?.language), { recurringId: recurring.id, recurringDate: date });
         draftId = draft.id;
         result.created++;
       } catch (error) {

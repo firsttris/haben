@@ -39,6 +39,7 @@ function QuotePage() {
           note: quote.note,
           taxTreatment: quote.taxTreatment,
           exemptionReason: quote.exemptionReason,
+          language: quote.language,
           lines: data.lines.map((line) => ({
             description: line.description,
             quantity: line.quantity,

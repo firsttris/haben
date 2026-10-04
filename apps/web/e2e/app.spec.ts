@@ -108,6 +108,22 @@ test("Kunden anlegen", async () => {
   for (const c of CUSTOMERS) await expect(page.getByText(c.name).first()).toBeVisible();
 });
 
+test("Kunde mit Rechnungen auf Englisch", async () => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Harbour Labs Ltd");
+  await page.getByLabel("Ort").fill("London");
+  await page.getByRole("combobox", { name: /^Sprache von Rechnungen/ }).selectOption("en");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  await go("/rechnungen/neu");
+  const sprache = page.getByRole("combobox", { name: /^Sprache/ });
+  await expect(sprache).toHaveValue("de");
+  await page.getByLabel("Kunde").selectOption({ label: "Harbour Labs Ltd · London" });
+  await expect(sprache).toHaveValue("en");
+  await expect(page.getByText("Das PDF erscheint auf Englisch")).toBeVisible();
+});
+
 test("Rechnungen schreiben und festschreiben", async () => {
   for (const invoice of INVOICES) {
     await go("/rechnungen/neu");

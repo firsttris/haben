@@ -80,4 +80,6 @@ export interface InvoiceDocument {
   exemptionReason?: string;
   /** Nur für das PDF, nicht für das XML */
   logo?: Logo;
+  /** Sprache des PDFs; fehlt = Deutsch */
+  language?: "de" | "en";
 }

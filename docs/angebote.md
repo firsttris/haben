@@ -34,6 +34,8 @@ Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Fü
 - Auf Wunsch geht eine Blindkopie an dich.
 - Jeder Versand steht beim Angebot und in der Liste (✉).
 
+Für Kunden mit Sprache Englisch sind Angebot und E-Mail englisch, siehe [Rechnungen auf Englisch](rechnungen.md#rechnungen-auf-englisch).
+
 ## Antwort und Rechnung
 
 Auf der Seite des Angebots hältst du die Antwort des Kunden fest:

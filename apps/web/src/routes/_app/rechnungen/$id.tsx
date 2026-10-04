@@ -49,6 +49,7 @@ function InvoicePage() {
           note: invoice.note,
           taxTreatment: invoice.taxTreatment,
           exemptionReason: invoice.exemptionReason,
+          language: invoice.language,
           lines: data.lines.map((line) => ({
             description: line.description,
             quantity: line.quantity,

@@ -148,6 +148,44 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     expect(await invoiceMail.mailsForInvoice(invoiceId)).toEqual([]);
   });
 
+  it("schreibt Kunden mit Sprache Englisch auf Englisch an, vom Angebot bis zur Stornorechnung", async () => {
+    const quotes = await import("./quotes.ts");
+    const english = await contacts.createContact(actor, {
+      kundennummer: "10002", name: "Harbour Labs Ltd", strasse: "1 Dock Road", plz: "E14 5AB", ort: "London", land: "GB",
+      email: "accounts@harbour.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null, language: "en",
+    });
+    expect(english.language).toBe("en");
+    await mail.saveMailSettings(actor, { ...settings, invoiceSubject: "{art} {nummer} für {kunde}", invoiceBody: "Hallo {kunde}" });
+    const quote = await quotes.finalizeQuote(
+      actor,
+      (
+        await quotes.createQuoteDraft(actor, {
+          contactId: english.id, issueDate: "2026-09-01", validUntil: "2026-09-30", serviceFrom: null, serviceTo: null, note: "",
+          taxTreatment: "drittland", language: "en",
+          lines: [{ description: "Consulting", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 0 }],
+        })
+      ).id,
+    );
+    expect(quote.pdf?.subarray(0, 5).toString()).toBe("%PDF-");
+    const quoteMail = await invoiceMail.quoteMailDraft(quote.id);
+    expect(quoteMail.subject).toBe("Quote AN-2026-001 from Testfirma");
+    expect(quoteMail.body).toContain("our quote AN-2026-001 dated 1 Sept 2026 for €1,000.00. It is valid until 30 Sept 2026.");
+
+    const draft = await quotes.quoteToInvoice(actor, quote.id, "2026-09-10");
+    expect(draft).toMatchObject({ language: "en", note: "As per our quote AN-2026-001 of 1 Sept 2026." });
+    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    const invoiceDraft = await invoiceMail.invoiceMailDraft(invoice.id);
+    // Die eigene Vorlage ist deutsch und gilt nur für deutsche Rechnungen
+    expect(invoiceDraft.subject).toBe("Invoice 2026-002 from Testfirma");
+    expect(invoiceDraft.body).toContain("please find attached Invoice 2026-002 dated 10 Sept 2026 for €1,000.00, payable by 24 Sept 2026.");
+
+    const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-09-11");
+    expect(storno.language).toBe("en");
+    expect((await invoiceMail.invoiceMailDraft(storno.id)).subject).toBe("Cancellation invoice 2026-003 from Testfirma");
+    // Deutsche Rechnungen nutzen weiter die eigene Vorlage
+    expect((await invoiceMail.invoiceMailDraft(invoiceId)).subject).toBe("Rechnung 2026-001 für Nordwerk Software GmbH");
+  });
+
   it("schickt Mahnungen mit eigenem PDF", async () => {
     await mail.saveMailSettings(actor, settings);
     const created = await dunning.createDunning(
