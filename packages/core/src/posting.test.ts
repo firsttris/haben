@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { computeInvoiceTotals } from "./invoice.ts";
 import {
+  cashPosting,
   directPosting,
   documentPaymentPosting,
   documentPosting,
@@ -246,6 +247,29 @@ describe("legacyCorrectionPosting", () => {
       { account: "1200", debit: 0, credit: 119_000, taxCode: null },
       { account: "3806", debit: 19_000, credit: 0, taxCode: "USt19" },
       { account: "9000", debit: 100_000, credit: 0, taxCode: null },
+    ]);
+  });
+});
+
+describe("Kasse", () => {
+  it("bar bezahlter Beleg geht gegen die Kasse", () => {
+    const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 1_000, taxRate: 1900 }]);
+    expect(documentPosting(totals, "buero", "SKR03", "kasse").at(-1)).toEqual({ account: "1000", debit: 0, credit: 1_190, taxCode: null });
+    expect(documentPosting(totals, "buero", "SKR04", "kasse").at(-1)).toMatchObject({ account: "1600", credit: 1_190 });
+  });
+
+  it("Einlage, Entnahme und Geldtransit", () => {
+    expect(cashPosting("privat", 5_000, "SKR03")).toEqual([
+      { account: "1000", debit: 5_000, credit: 0, taxCode: null },
+      { account: "1890", debit: 0, credit: 5_000, taxCode: null },
+    ]);
+    expect(cashPosting("privat", -2_000, "SKR03").map((l) => [l.account, l.debit, l.credit])).toEqual([
+      ["1000", 0, 2_000],
+      ["1800", 2_000, 0],
+    ]);
+    expect(cashPosting("geldtransit", 10_000, "SKR04").map((l) => [l.account, l.debit, l.credit])).toEqual([
+      ["1600", 10_000, 0],
+      ["1460", 0, 10_000],
     ]);
   });
 });

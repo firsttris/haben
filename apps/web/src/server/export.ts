@@ -7,6 +7,7 @@ import { listAssets } from "./assets.ts";
 import { db, schema } from "./db/index.ts";
 import { accountName } from "./functions/journal.ts";
 import { loadFile } from "./storage.ts";
+import { cashBookCsv } from "./cash.ts";
 import { today } from "./today.ts";
 
 /**
@@ -191,7 +192,14 @@ const KIND_LABELS: Record<string, string> = {
   schluss: "Schlussrechnung",
 };
 const FORMAT_LABELS: Record<string, string> = { zugferd: "ZUGFeRD", "xrechnung-cii": "XRechnung (CII)", "xrechnung-ubl": "XRechnung (UBL)" };
-const SOURCE_LABELS: Record<string, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Zahlung", asset: "Anlage", pauschale: "Pauschale" };
+const SOURCE_LABELS: Record<string, string> = {
+  invoice: "Rechnung",
+  document: "Beleg",
+  allocation: "Zahlung",
+  asset: "Anlage",
+  pauschale: "Pauschale",
+  kasse: "Kasse",
+};
 const ALLOCATION_LABELS: Record<string, string> = {
   invoice: "Rechnung",
   document: "Beleg",
@@ -451,7 +459,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       money(doc.gross),
       doc.privateShare,
       doc.currency,
-      doc.payment === "privat" ? "privat" : "Bank",
+      doc.payment === "privat" ? "privat" : doc.payment === "kasse" ? "Kasse" : "Bank",
       doc.status,
       iso(doc.lockedAt),
       doc.extractedBy,
@@ -588,6 +596,11 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       ),
       compress: true,
     };
+  }
+
+  // Kassenbuch: mit Anfangsbestand und Bestand nach jeder Zeile
+  if ((await db.select({ id: schema.cashEntries.id }).from(schema.cashEntries).limit(1)).length > 0) {
+    yield { path: "kasse/kassenbuch.csv", content: encoder.encode(await cashBookCsv(year)), compress: true };
   }
 
   // Bank ------------------------------------------------------------------
@@ -1024,6 +1037,8 @@ pauschalen/pauschalen.csv
                          Nur wenn vorhanden: Pauschalen ohne Beleg (Homeoffice-Tage,
                          Fahrten, Verpflegungsmehraufwand) mit ihren Angaben als
                          Eigenbeleg; Stornos als Gegenzeile.
+kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufender
+                         Nummer, Anfangsbestand und Bestand nach jeder Zeile.
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto.
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.

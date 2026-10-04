@@ -533,6 +533,10 @@ function DocumentForm({ data }: { data: Detail }) {
           <input type="radio" name="payment" checked={payment === "privat"} onChange={() => touch(setPayment)("privat")} />
           Privat bezahlt (Privateinlage)
         </label>
+        <label className="checkbox">
+          <input type="radio" name="payment" checked={payment === "kasse"} onChange={() => touch(setPayment)("kasse")} />
+          Bar aus der Kasse (Zeile im Kassenbuch)
+        </label>
         <label className="field">
           Notiz
           <textarea value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />

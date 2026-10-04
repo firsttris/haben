@@ -60,6 +60,10 @@ function AppLayout() {
           <Icon name="bank" />
           Bank
         </Link>
+        <Link to="/kasse" className="nav-link">
+          <Icon name="cash" />
+          Kasse
+        </Link>
         <Link to="/anlagen" className="nav-link">
           <Icon name="assets" />
           Anlagen

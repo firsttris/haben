@@ -167,6 +167,7 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 | [Fristen](docs/fristen.md) | Alle Steuertermine, Kalender-Abo und Erinnerungen per E-Mail (SMTP) |
 | [Jahreserklärungen](docs/jahreserklaerung.md) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung an ELSTER, Belege von ELSTER abrufen |
 | [Pauschalen](docs/pauschalen.md) | Homeoffice-Tage, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand |
+| [Kassenbuch](docs/kasse.md) | Barkasse mit fortlaufender Nummer, Einlage, Entnahme, Geldtransit und bar bezahlten Belegen |
 | [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, Übernahme aus Lexoffice, AfA zum Jahresende |
 | [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP, Aufbewahrung |
 | [Umzug aus Lexoffice](docs/lexoffice.md) | API-Abruf, DATEV-Import, offene Posten, Abgleich vor der Kündigung |

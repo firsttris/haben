@@ -522,6 +522,27 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.waitForURL(/\/belege$/);
 });
 
+test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () => {
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByLabel("Betrag (€)").fill("50");
+  await form.getByLabel("Text (optional)").fill("Wechselgeld");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Nr. 1 gebucht" })).toBeVisible();
+  await form.getByRole("button", { name: "Entnahme" }).click();
+  await form.getByLabel("Betrag (€)").fill("80");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(page.getByRole("alert")).toContainText("negativ");
+  const liste = page.getByRole("region", { name: "Kassenbuch" });
+  await expect(liste).toContainText("Wechselgeld");
+  const stornieren = liste.getByRole("button", { name: "Nr. 1 stornieren" });
+  await stornieren.click();
+  await expect(stornieren).toHaveText("Jetzt stornieren");
+  await stornieren.click();
+  await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr. 2" })).toBeVisible();
+  await expect(liste).toContainText("Storno Nr. 1: Wechselgeld");
+});
+
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go("/auswertungen");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
@@ -562,6 +583,7 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
     ["belege", "/belege"],
     ["beleg", details.beleg],
     ["pauschalen", "/pauschalen"],
+    ["kasse", "/kasse"],
     ["bank", "/bank"],
     ["anlagen", "/anlagen"],
     ["anlage-neu", "/anlagen/neu"],
