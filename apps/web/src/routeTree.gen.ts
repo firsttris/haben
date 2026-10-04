@@ -50,6 +50,7 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBankCallbackRouteImport } from './routes/api/bank/callback'
 import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
+import { Route as ApiDatevJahrRouteImport } from './routes/api/datev/$jahr'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
 import { Route as ApiFristenKalenderRouteImport } from './routes/api/fristen/kalender'
 import { Route as ApiKontenJahrRouteImport } from './routes/api/konten/$jahr'
@@ -271,6 +272,11 @@ const ApiBelegeTeilenRoute = ApiBelegeTeilenRouteImport.update({
   path: '/api/belege/teilen',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDatevJahrRoute = ApiDatevJahrRouteImport.update({
+  id: '/api/datev/$jahr',
+  path: '/api/datev/$jahr',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiExportJahrRoute = ApiExportJahrRouteImport.update({
   id: '/api/export/$jahr',
   path: '/api/export/$jahr',
@@ -385,6 +391,7 @@ export interface FileRoutesByFullPath {
   '/api/bank/callback': typeof ApiBankCallbackRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
+  '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
@@ -442,6 +449,7 @@ export interface FileRoutesByTo {
   '/api/bank/callback': typeof ApiBankCallbackRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
+  '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
@@ -501,6 +509,7 @@ export interface FileRoutesById {
   '/api/bank/callback': typeof ApiBankCallbackRoute
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
+  '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
@@ -560,6 +569,7 @@ export interface FileRouteTypes {
     | '/api/bank/callback'
     | '/api/beleg/$id'
     | '/api/belege/teilen'
+    | '/api/datev/$jahr'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/konten/$jahr'
@@ -617,6 +627,7 @@ export interface FileRouteTypes {
     | '/api/bank/callback'
     | '/api/beleg/$id'
     | '/api/belege/teilen'
+    | '/api/datev/$jahr'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/konten/$jahr'
@@ -675,6 +686,7 @@ export interface FileRouteTypes {
     | '/api/bank/callback'
     | '/api/beleg/$id'
     | '/api/belege/teilen'
+    | '/api/datev/$jahr'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/konten/$jahr'
@@ -714,6 +726,7 @@ export interface RootRouteChildren {
   ApiBankCallbackRoute: typeof ApiBankCallbackRoute
   ApiBelegIdRoute: typeof ApiBelegIdRoute
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
+  ApiDatevJahrRoute: typeof ApiDatevJahrRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
   ApiFristenKalenderRoute: typeof ApiFristenKalenderRoute
   ApiKontenJahrRoute: typeof ApiKontenJahrRoute
@@ -1013,6 +1026,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBelegeTeilenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/datev/$jahr': {
+      id: '/api/datev/$jahr'
+      path: '/api/datev/$jahr'
+      fullPath: '/api/datev/$jahr'
+      preLoaderRoute: typeof ApiDatevJahrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/export/$jahr': {
       id: '/api/export/$jahr'
       path: '/api/export/$jahr'
@@ -1214,6 +1234,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBankCallbackRoute: ApiBankCallbackRoute,
   ApiBelegIdRoute: ApiBelegIdRoute,
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
+  ApiDatevJahrRoute: ApiDatevJahrRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
   ApiFristenKalenderRoute: ApiFristenKalenderRoute,
   ApiKontenJahrRoute: ApiKontenJahrRoute,

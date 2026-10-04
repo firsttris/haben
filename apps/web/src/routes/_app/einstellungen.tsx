@@ -2,6 +2,7 @@ import { BUNDESLAENDER, currentFilingPeriod, formatDecimal, parseEuro, type Bund
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
+import { DatevCard } from "../../components/DatevCard.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
@@ -66,6 +67,7 @@ function SettingsPage() {
           <MailCard data={Route.useLoaderData().mail} />
           <Passkeys />
           <ExportCard />
+          <DatevCard />
         </div>
       </div>
     </>
