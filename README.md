@@ -49,7 +49,7 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 
 - **Rechnungen mit E-Rechnung**: Editor mit Live-Vorschau, Artikelkatalog und eigenem Logo, lückenloser Nummernkreis, PDF/A-3 mit Typst und
   ZUGFeRD (EN 16931) oder XRechnung 3.0 (CII/UBL), geprüft mit dem KoSIT-Validator. Storno und Rechnungskorrektur, Reverse Charge, Drittland, steuerfreie Umsätze und
-  Kleinunternehmer nach § 19 UStG mit Pflichthinweis. Abschlags- und Schlussrechnungen. Rechnungen und Angebote auf Deutsch oder Englisch. Wiederkehrende Rechnungen mit Platzhaltern wie {monat}, als Entwurf oder
+  Kleinunternehmer nach § 19 UStG mit Pflichthinweis. Abschlags- und Schlussrechnungen, Auftragsbestätigung und Lieferschein. Rechnungen und Angebote auf Deutsch oder Englisch. Wiederkehrende Rechnungen mit Platzhaltern wie {monat}, als Entwurf oder
   automatisch festgeschrieben. Mahnwesen mit drei Stufen, Verzugszinsen und PDF; GiroCode zum Bezahlen per Banking-App
 - **Belege**: per Drag-and-drop, Kamera, Teilen-Menü am Handy (PWA) oder per E-Mail (IMAP-Abruf). E-Rechnungen werden direkt gelesen,
   andere PDFs und Fotos auf Wunsch von Claude vorausgefüllt. Kategorie pro Lieferant gemerkt

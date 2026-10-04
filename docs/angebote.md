@@ -61,6 +61,15 @@ Vor dem Festschreiben passt du den Entwurf an, etwa die tatsächlich geleisteten
 
 Jedes Angebot lässt sich nur einmal abrechnen. Löschst du den Rechnungsentwurf, kannst du das Angebot wieder abrechnen. Ein abgelehntes Angebot rechnet Haben nicht ab; mit **Antwort zurücknehmen** setzt du es wieder auf offen.
 
+## Auftragsbestätigung und Lieferschein
+
+Bei einem angenommenen Angebot stehen unter **Antwort des Kunden** zwei weitere PDFs:
+
+- **Auftragsbestätigung:** dieselben Positionen und Preise wie im Angebot, datiert auf den Tag der Annahme, mit Bezug auf das Angebot und der Auftragssumme.
+- **Lieferschein:** die Positionen mit Menge, ohne Preise, mit einem Feld für die Empfangsbestätigung des Kunden. Als Lieferdatum gilt das Ende des Leistungszeitraums, sonst der Tag der Annahme.
+
+Beide entstehen beim Abruf aus dem festgeschriebenen Angebot, buchen nichts und sehen jedes Mal gleich aus, solange die Antwort „angenommen“ bleibt. Sprache und Logo folgen dem Angebot bzw. den Einstellungen. Einen Lieferschein gibt es auch zu jeder festgeschriebenen Rechnung (Schaltfläche **Lieferschein** auf der Rechnung).
+
 ## Aufbewahrung
 
 Angebote sind Handelsbriefe (§ 257 HGB, § 147 AO) und werden sechs Jahre aufbewahrt.

@@ -184,7 +184,7 @@ export async function listQuotes(today: string) {
   return rows.map((row) => ({ ...row, customer: row.buyerName ?? row.contactName ?? "–", listStatus: quoteStatus(row, today) }));
 }
 
-function documentFor(quote: Quote, lines: QuoteLine[], seller: QuoteDocument["seller"], buyer: QuoteDocument["buyer"], number: string): QuoteDocument {
+export function quoteDocumentFor(quote: Quote, lines: QuoteLine[], seller: QuoteDocument["seller"], buyer: QuoteDocument["buyer"], number: string): QuoteDocument {
   return {
     number,
     issueDate: quote.issueDate,
@@ -247,7 +247,7 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     const number = formatQuoteNumber(year, counter!.last);
     const seller = sellerFrom(company);
     const buyer = buyerFrom(contact!);
-    const doc = documentFor(quote, lines, seller, buyer, number);
+    const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
     const logo = await loadLogo();
     const pdf = buildQuotePdf(logo ? { ...doc, logo } : doc);
     const now = new Date();

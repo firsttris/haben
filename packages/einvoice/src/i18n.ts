@@ -29,6 +29,16 @@ export const TEXTS = {
   de: {
     titles: { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur", angebot: "Angebot" } as Record<InvoiceKind | "angebot", string>,
     variants: { abschlag: "Abschlagsrechnung", schluss: "Schlussrechnung" },
+    confirmation: "Auftragsbestätigung",
+    deliveryNote: "Lieferschein",
+    date_: "Datum",
+    quoteRef: "Zu Angebot",
+    invoiceRef: "Zu Rechnung",
+    deliveryDate: "Lieferdatum",
+    orderTotal: "Auftragssumme",
+    confirmationText: "Vielen Dank für Ihren Auftrag. Wir bestätigen ihn mit den oben genannten Positionen und Preisen.",
+    received: "Leistung vollständig und ordnungsgemäß erhalten:",
+    signature: "Datum, Unterschrift",
     deduction: (number: string, date: string, net: string, tax: string | null) =>
       `Abzüglich Abschlagsrechnung ${number} vom ${date} (netto ${net}${tax ? `, USt ${tax}` : ""})`,
     invoiceNumber: "Rechnungsnummer",
@@ -68,6 +78,16 @@ export const TEXTS = {
   en: {
     titles: { rechnung: "Invoice", storno: "Cancellation invoice", korrektur: "Corrective invoice", angebot: "Quote" } as Record<InvoiceKind | "angebot", string>,
     variants: { abschlag: "Partial invoice", schluss: "Final invoice" },
+    confirmation: "Order confirmation",
+    deliveryNote: "Delivery note",
+    date_: "Date",
+    quoteRef: "Quote",
+    invoiceRef: "Invoice",
+    deliveryDate: "Delivery date",
+    orderTotal: "Order total",
+    confirmationText: "Thank you for your order. We hereby confirm it with the items and prices listed above.",
+    received: "Received in full and in good order:",
+    signature: "Date, signature",
     deduction: (number: string, date: string, net: string, tax: string | null) =>
       `Less partial invoice ${number} of ${date} (net ${net}${tax ? `, VAT ${tax}` : ""})`,
     invoiceNumber: "Invoice number",

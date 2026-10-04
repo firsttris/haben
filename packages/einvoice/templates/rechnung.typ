@@ -90,30 +90,29 @@
 #v(5mm)
 
 #let head(body) = medium(text(size: 8pt, fill: accent, body))
+// Lieferschein: nur Position, Beschreibung und Menge
+#let noPrices = d.at("noPrices", default: false)
+#let cols = d.at("labels", default: (columns: (pos: "Pos.", description: "Beschreibung", quantity: "Menge", unitPrice: "Einzelpreis", vat: "USt", net: "Netto"))).columns
 #table(
-  columns: (auto, 1fr, auto, auto, auto, auto),
-  align: (left, left, right, right, right, right),
+  columns: if noPrices { (auto, 1fr, auto) } else { (auto, 1fr, auto, auto, auto, auto) },
+  align: if noPrices { (left, left, right) } else { (left, left, right, right, right, right) },
   stroke: (x, y) => if y == 0 { (bottom: 0.6pt + accent) } else { (bottom: 0.4pt + rule) },
   inset: (x: 1.6mm, y: 2.2mm),
   table.header(
-    ..{
-      let c = d.at("labels", default: (columns: (pos: "Pos.", description: "Beschreibung", quantity: "Menge", unitPrice: "Einzelpreis", vat: "USt", net: "Netto"))).columns
-      (head(c.pos), head(c.description), head(c.quantity), head(c.unitPrice), head(c.vat), head(c.net))
+    ..if noPrices {
+      (head(cols.pos), head(cols.description), head(cols.quantity))
+    } else {
+      (head(cols.pos), head(cols.description), head(cols.quantity), head(cols.unitPrice), head(cols.vat), head(cols.net))
     },
   ),
-  ..d.lines.map(l => (
-    l.pos,
-    l.description,
-    l.quantity,
-    l.unitPrice,
-    l.rate,
-    l.net,
-  )).flatten()
+  ..d.lines.map(l => if noPrices { (l.pos, l.description, l.quantity) } else {
+    (l.pos, l.description, l.quantity, l.unitPrice, l.rate, l.net)
+  }).flatten()
 )
 
 #v(3mm)
 
-#align(right, block(width: 80mm, {
+#if d.totals != none { align(right, block(width: 80mm, {
   set block(spacing: 0pt)
   grid(
     columns: (1fr, auto),
@@ -132,7 +131,7 @@
     semibold(d.totals.gross.label),
     semibold(d.totals.gross.value),
   )
-}))
+})) }
 
 #v(8mm)
 
@@ -150,8 +149,21 @@
 }
 #if girocode != none {
   block(breakable: false, grid(columns: (1fr, 24mm), column-gutter: 8mm, align: (left + top, right + top), d.payment, girocode))
-} else {
+} else if d.payment != none {
   block(breakable: false, d.payment)
+}
+#let signature = d.at("signature", default: none)
+#if signature != none {
+  // Empfangsbestätigung auf dem Lieferschein
+  block(breakable: false, {
+    signature.text
+    v(14mm)
+    block(width: 80mm, {
+      line(length: 100%, stroke: 0.5pt + muted)
+      v(1.5mm)
+      text(size: 8pt, fill: muted, signature.label)
+    })
+  })
 }
 #if d.note != none {
   v(2mm)

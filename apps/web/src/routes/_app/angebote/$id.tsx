@@ -184,6 +184,16 @@ function FinalQuote({ data }: { data: Detail }) {
                 </div>
               </>
             )}
+            {quote.decision === "angenommen" && (
+              <div className="actions" style={{ flexWrap: "wrap" }}>
+                <a className="btn btn-sm" href={`/api/dokument/auftragsbestaetigung/${quote.id}`} target="_blank" rel="noreferrer">
+                  Auftragsbestätigung (PDF)
+                </a>
+                <a className="btn btn-sm" href={`/api/dokument/lieferschein-angebot/${quote.id}`} target="_blank" rel="noreferrer">
+                  Lieferschein (PDF)
+                </a>
+              </div>
+            )}
           </section>
 
           <section className="card" aria-labelledby="facts-heading">

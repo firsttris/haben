@@ -392,6 +392,15 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await page.waitForURL(/\/rechnungen$/);
   await go("/angebote");
   await expect(page.getByRole("link", { name: /AN-\d{4}-001/ })).toContainText("Angenommen");
+
+  // Zum angenommenen Angebot: Auftragsbestätigung und Lieferschein als PDF
+  await page.getByRole("link", { name: /AN-\d{4}-001/ }).click();
+  await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
+  for (const name of ["Auftragsbestätigung (PDF)", "Lieferschein (PDF)"]) {
+    const response = await page.request.get((await page.getByRole("link", { name }).getAttribute("href"))!);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toBe("application/pdf");
+  }
 });
 
 test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
@@ -472,6 +481,8 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
   await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
   await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
   const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Abschlagsrechnung ", "").trim();
+  const lieferschein = await page.request.get((await page.getByRole("link", { name: "Lieferschein" }).getAttribute("href"))!);
+  expect(lieferschein.headers()["content-type"]).toBe("application/pdf");
 
   await page.getByRole("link", { name: "Schlussrechnung erstellen" }).click();
   await page.waitForURL(/rechnungen\/neu\?schluss=/);

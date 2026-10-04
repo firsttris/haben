@@ -65,6 +65,7 @@ import { Route as AppRechnungenMahnwesenIdRouteImport } from './routes/_app/rech
 import { Route as AppRechnungenWiederkehrendIndexRouteImport } from './routes/_app/rechnungen/wiederkehrend/index'
 import { Route as AppRechnungenWiederkehrendIdRouteImport } from './routes/_app/rechnungen/wiederkehrend/$id'
 import { Route as AppRechnungenWiederkehrendNeuRouteImport } from './routes/_app/rechnungen/wiederkehrend/neu'
+import { Route as ApiDokumentArtIdRouteImport } from './routes/api/dokument/$art.$id'
 import { Route as ApiRechnungIdDateiRouteImport } from './routes/api/rechnung/$id.$datei'
 
 const AppRoute = AppRouteImport.update({
@@ -353,6 +354,11 @@ const AppRechnungenWiederkehrendNeuRoute =
     path: '/rechnungen/wiederkehrend/neu',
     getParentRoute: () => AppRoute,
   } as any)
+const ApiDokumentArtIdRoute = ApiDokumentArtIdRouteImport.update({
+  id: '/api/dokument/$art/$id',
+  path: '/api/dokument/$art/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRechnungIdDateiRoute = ApiRechnungIdDateiRouteImport.update({
   id: '/api/rechnung/$id/$datei',
   path: '/api/rechnung/$id/$datei',
@@ -412,6 +418,7 @@ export interface FileRoutesByFullPath {
   '/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
   '/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
+  '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
   '/rechnungen/artikel/': typeof AppRechnungenArtikelIndexRoute
   '/rechnungen/mahnwesen/': typeof AppRechnungenMahnwesenIndexRoute
@@ -470,6 +477,7 @@ export interface FileRoutesByTo {
   '/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
   '/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
+  '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
   '/rechnungen/artikel': typeof AppRechnungenArtikelIndexRoute
   '/rechnungen/mahnwesen': typeof AppRechnungenMahnwesenIndexRoute
@@ -530,6 +538,7 @@ export interface FileRoutesById {
   '/_app/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
   '/_app/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/_app/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
+  '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
   '/_app/rechnungen/artikel/': typeof AppRechnungenArtikelIndexRoute
   '/_app/rechnungen/mahnwesen/': typeof AppRechnungenMahnwesenIndexRoute
@@ -590,6 +599,7 @@ export interface FileRouteTypes {
     | '/rechnungen/mahnwesen/$id'
     | '/rechnungen/wiederkehrend/$id'
     | '/rechnungen/wiederkehrend/neu'
+    | '/api/dokument/$art/$id'
     | '/api/rechnung/$id/$datei'
     | '/rechnungen/artikel/'
     | '/rechnungen/mahnwesen/'
@@ -648,6 +658,7 @@ export interface FileRouteTypes {
     | '/rechnungen/mahnwesen/$id'
     | '/rechnungen/wiederkehrend/$id'
     | '/rechnungen/wiederkehrend/neu'
+    | '/api/dokument/$art/$id'
     | '/api/rechnung/$id/$datei'
     | '/rechnungen/artikel'
     | '/rechnungen/mahnwesen'
@@ -707,6 +718,7 @@ export interface FileRouteTypes {
     | '/_app/rechnungen/mahnwesen/$id'
     | '/_app/rechnungen/wiederkehrend/$id'
     | '/_app/rechnungen/wiederkehrend/neu'
+    | '/api/dokument/$art/$id'
     | '/api/rechnung/$id/$datei'
     | '/_app/rechnungen/artikel/'
     | '/_app/rechnungen/mahnwesen/'
@@ -734,6 +746,7 @@ export interface RootRouteChildren {
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiVastIdRoute: typeof ApiVastIdRoute
+  ApiDokumentArtIdRoute: typeof ApiDokumentArtIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
 }
 
@@ -1131,6 +1144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRechnungenWiederkehrendNeuRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/dokument/$art/$id': {
+      id: '/api/dokument/$art/$id'
+      path: '/api/dokument/$art/$id'
+      fullPath: '/api/dokument/$art/$id'
+      preLoaderRoute: typeof ApiDokumentArtIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/rechnung/$id/$datei': {
       id: '/api/rechnung/$id/$datei'
       path: '/api/rechnung/$id/$datei'
@@ -1242,6 +1262,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiVastIdRoute: ApiVastIdRoute,
+  ApiDokumentArtIdRoute: ApiDokumentArtIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,
 }
 export const routeTree = rootRouteImport
