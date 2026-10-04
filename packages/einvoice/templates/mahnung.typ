@@ -121,7 +121,22 @@
 
 #v(8mm)
 
-#block(breakable: false, semibold(d.payment))
+#if d.at("qr", default: none) != none {
+  // GiroCode über den offenen Gesamtbetrag
+  block(breakable: false, grid(
+    columns: (1fr, 24mm),
+    column-gutter: 8mm,
+    align: (left + top, right + top),
+    semibold(d.payment),
+    box(width: 24mm, {
+      image(bytes(d.qr), format: "svg", width: 24mm)
+      v(1mm)
+      align(center, text(size: 6.5pt, fill: muted)[GiroCode])
+    }),
+  ))
+} else {
+  block(breakable: false, semibold(d.payment))
+}
 #v(2mm)
 #d.closing
 

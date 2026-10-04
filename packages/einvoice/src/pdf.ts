@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { formatEuro, formatQuantity, formatRate, treatmentNote } from "@haben/core";
 import { countryName, formatDate, formatIban, paymentSentence, TITLES } from "./format.ts";
+import { girocodeSvg } from "./qr.ts";
 import type { Address, InvoiceDocument } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
@@ -77,6 +78,11 @@ export function pdfData(doc: InvoiceDocument) {
       gross: { label: "Gesamtbetrag", value: formatEuro(doc.totals.gross) },
     },
     payment: paymentSentence(doc),
+    // GiroCode nur für Rechnungen mit Zahlbetrag und Konto des Verkäufers
+    qr:
+      doc.kind === "rechnung" && doc.totals.gross > 0 && seller.iban
+        ? girocodeSvg({ name: seller.name, iban: seller.iban, ...(seller.bic ? { bic: seller.bic } : {}), amount: doc.totals.gross, text: `Rechnung ${doc.number}` })
+        : null,
     taxNote: treatmentNote(treatment, doc.exemptionReason),
     note: doc.note?.trim() ? doc.note.trim() : null,
     footer: footerColumns(seller),

@@ -38,11 +38,21 @@ describe("pdfData", () => {
     expect(data.title).toBe("Stornorechnung");
     expect(data.reference).toBe("zur Rechnung 2026-034 vom 30.09.2026");
     expect(data.payment).toBe("Der Betrag wird Ihnen erstattet.");
+    // Kein GiroCode für Erstattungen
+    expect(data.qr).toBeNull();
     expect(data.totals.rows.map((r) => r.label)).toEqual([
       "Summe netto",
       "Umsatzsteuer 19 % auf -2.486,25\u00a0€",
       "Umsatzsteuer 7 % auf -149,70\u00a0€",
     ]);
+  });
+
+  it("druckt einen GiroCode über den Rechnungsbetrag, nur mit IBAN", () => {
+    const data = pdfData(sampleDocument());
+    expect(data.qr).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 (\d+) \1"/);
+    const ohneKonto = sampleDocument();
+    delete ohneKonto.seller.iban;
+    expect(pdfData(ohneKonto).qr).toBeNull();
   });
 
   it("nennt das Leistungsdatum, wenn kein Zeitraum vorliegt", () => {
