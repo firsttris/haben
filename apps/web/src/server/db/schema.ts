@@ -486,6 +486,8 @@ export const contacts = pgTable("contacts", {
   iban: text("iban").notNull().default(""),
   leitwegId: text("leitweg_id").notNull().default(""),
   defaultFormat: invoiceFormatEnum("default_format"),
+  /** Sprache von Rechnungen und Angeboten an diesen Kontakt */
+  language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
   /** Herkunft aus dem Lexoffice-Import, damit alte Rechnungen und Belege ihm zugeordnet bleiben */
   lexofficeId: text("lexoffice_id").unique(),
   version: integer("version").notNull().default(1),
@@ -532,6 +534,8 @@ export const invoices = pgTable(
     dueDate: date("due_date", { mode: "string" }).notNull(),
     format: invoiceFormatEnum("format").notNull().default("zugferd"),
     note: text("note").notNull().default(""),
+    /** Sprache des PDFs */
+    language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
     /** Umsatzsteuerliche Behandlung; außer „regulaer“ stehen alle Positionen auf 0 % */
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     /** Eigener Befreiungsgrund auf der Rechnung, sonst der Standardtext der Behandlung */
@@ -603,6 +607,7 @@ export const quotes = pgTable(
     serviceFrom: date("service_from", { mode: "string" }),
     serviceTo: date("service_to", { mode: "string" }),
     note: text("note").notNull().default(""),
+    language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),
     net: integer("net").notNull().default(0),

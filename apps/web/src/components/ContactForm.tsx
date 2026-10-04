@@ -17,6 +17,7 @@ const EMPTY: ContactInput = {
   iban: "",
   leitwegId: "",
   defaultFormat: null,
+  language: "de",
 };
 
 export function ContactForm({ contact }: { contact: Contact | null }) {
@@ -52,6 +53,7 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
             iban: text("iban").replace(/\s/g, "").toUpperCase(),
             leitwegId: text("leitwegId"),
             defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
+            language: text("language") === "en" ? "en" : "de",
           },
         },
       });
@@ -118,6 +120,13 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
             <option value="zugferd">ZUGFeRD</option>
             <option value="xrechnung-cii">XRechnung (CII)</option>
             <option value="xrechnung-ubl">XRechnung (UBL)</option>
+          </select>
+        </label>
+        <label className="field">
+          Sprache von Rechnungen und Angeboten
+          <select name="language" defaultValue={initial.language ?? "de"}>
+            <option value="de">Deutsch</option>
+            <option value="en">Englisch</option>
           </select>
         </label>
       </div>

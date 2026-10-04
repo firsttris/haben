@@ -1,4 +1,5 @@
 export * from "./types.ts";
+export { LANGUAGES, texts, type Language } from "./i18n.ts";
 export { logoFormat, renderInvoicePdf } from "./pdf.ts";
 export { buildQuotePdf, quotePdfData, type QuoteDocument } from "./quote.ts";
 export { buildDunningPdf, dunningPdfData, type DunningDocument } from "./dunning.ts";

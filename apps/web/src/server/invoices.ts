@@ -46,6 +46,8 @@ export const draftSchema = z
     note: z.string().max(2000),
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
     exemptionReason: z.string().trim().max(300).default(""),
+    /** Sprache des PDFs für den Kunden */
+    language: z.enum(["de", "en"]).default("de"),
     lines: z.array(invoiceLineInputSchema).max(200),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
@@ -81,6 +83,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"]) {
     note: input.note,
     taxTreatment: input.taxTreatment ?? "regulaer",
     exemptionReason: input.taxTreatment && input.taxTreatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
+    language: input.language ?? "de",
     net: totals.net,
     tax: totals.tax,
     gross: totals.gross,
@@ -144,6 +147,7 @@ export async function newDraftDefaults(today: string) {
     note: "",
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",
+    language: "de" as const,
     lines: [
       { description: "", quantity: 1000, unit: "Std." as UnitLabel, unitPrice: 0, taxRate: (company.kleinunternehmer ? 0 : 1900) as 1900 | 0 },
     ],
@@ -296,6 +300,7 @@ function documentFor(
     ...(invoice.note ? { note: invoice.note } : {}),
     ...(invoice.taxTreatment !== "regulaer" ? { taxTreatment: invoice.taxTreatment } : {}),
     ...(invoice.exemptionReason ? { exemptionReason: invoice.exemptionReason } : {}),
+    language: invoice.language,
   };
 }
 
@@ -451,6 +456,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
       note: "",
       taxTreatment: invoice.taxTreatment,
       exemptionReason: invoice.exemptionReason,
+      language: invoice.language,
       lines: negatedLines(lines),
     },
     { kind: "storno", correctsId: invoice.id },
@@ -478,6 +484,7 @@ export async function createCorrection(actor: string, id: string, today: string)
       note: "",
       taxTreatment: invoice.taxTreatment,
       exemptionReason: invoice.exemptionReason,
+      language: invoice.language,
       lines: negatedLines(lines),
     },
     { kind: "korrektur", correctsId: invoice.id },

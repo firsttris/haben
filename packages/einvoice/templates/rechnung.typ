@@ -45,7 +45,8 @@
     let total = counter(page).final().first()
     if total > 1 {
       v(2.5mm)
-      align(right, text(size: 7pt, fill: muted)[Seite #counter(page).display() von #total])
+      let labels = d.at("labels", default: (page: ("Seite", "von", "")))
+      align(right, text(size: 7pt, fill: muted)[#labels.page.at(0) #counter(page).display() #labels.page.at(1) #total#labels.page.at(2)])
     }
   },
 )
@@ -95,7 +96,10 @@
   stroke: (x, y) => if y == 0 { (bottom: 0.6pt + accent) } else { (bottom: 0.4pt + rule) },
   inset: (x: 1.6mm, y: 2.2mm),
   table.header(
-    head[Pos.], head[Beschreibung], head[Menge], head[Einzelpreis], head[USt], head[Netto],
+    ..{
+      let c = d.at("labels", default: (columns: (pos: "Pos.", description: "Beschreibung", quantity: "Menge", unitPrice: "Einzelpreis", vat: "USt", net: "Netto"))).columns
+      (head(c.pos), head(c.description), head(c.quantity), head(c.unitPrice), head(c.vat), head(c.net))
+    },
   ),
   ..d.lines.map(l => (
     l.pos,

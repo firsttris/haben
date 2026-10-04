@@ -1,6 +1,6 @@
-import { formatEuro, formatQuantity, formatRate, treatmentNote, type InvoiceTotals, type TaxTreatment } from "@haben/core";
-import { formatDate } from "./format.ts";
-import { addressLines, footerColumns, renderQuotePdfData } from "./pdf.ts";
+import type { InvoiceTotals, TaxTreatment } from "@haben/core";
+import { texts, type Language } from "./i18n.ts";
+import { addressLines, footerColumns, renderQuotePdfData, templateLabels } from "./pdf.ts";
 import type { Buyer, InvoiceDocumentLine, Logo, Seller } from "./types.ts";
 
 /** Angebot: wie eine Rechnung aufgebaut, aber ohne Zahlungsaufforderung und ohne E-Rechnungs-XML */
@@ -19,54 +19,57 @@ export interface QuoteDocument {
   taxTreatment?: TaxTreatment;
   exemptionReason?: string;
   logo?: Logo;
+  language?: Language;
 }
 
 /** Druckfertige Texte für templates/rechnung.typ */
 export function quotePdfData(doc: QuoteDocument) {
   const { seller, buyer } = doc;
-  const meta = [
-    { label: "Angebotsnummer", value: doc.number },
-    { label: "Angebotsdatum", value: formatDate(doc.issueDate) },
-    { label: "Gültig bis", value: formatDate(doc.validUntil) },
+  const t = texts(doc.language);
+  const meta: { label: string; value: string }[] = [
+    { label: t.quoteNumber, value: doc.number },
+    { label: t.quoteDate, value: t.date(doc.issueDate) },
+    { label: t.validUntil, value: t.date(doc.validUntil) },
   ];
   if (doc.serviceFrom && doc.serviceTo && doc.serviceFrom !== doc.serviceTo) {
-    meta.push({ label: "Leistungszeitraum", value: `${formatDate(doc.serviceFrom)} – ${formatDate(doc.serviceTo)}` });
+    meta.push({ label: t.servicePeriod, value: `${t.date(doc.serviceFrom)} – ${t.date(doc.serviceTo)}` });
   } else if (doc.serviceFrom ?? doc.serviceTo) {
-    meta.push({ label: "Leistungsdatum", value: formatDate((doc.serviceFrom ?? doc.serviceTo)!) });
+    meta.push({ label: t.serviceDate, value: t.date((doc.serviceFrom ?? doc.serviceTo)!) });
   }
-  if (buyer.kundennummer) meta.push({ label: "Kundennummer", value: buyer.kundennummer });
+  if (buyer.kundennummer) meta.push({ label: t.customerNumber, value: buyer.kundennummer });
 
   const treatment = doc.taxTreatment ?? "regulaer";
   const multipleRates = doc.totals.taxes.length > 1;
-  const taxRows = (treatment === "regulaer" ? doc.totals.taxes : []).map((t) => ({
-    label: multipleRates ? `Umsatzsteuer ${formatRate(t.rate)} auf ${formatEuro(t.base)}` : `Umsatzsteuer ${formatRate(t.rate)}`,
-    value: formatEuro(t.tax),
+  const taxRows = (treatment === "regulaer" ? doc.totals.taxes : []).map((tax) => ({
+    label: t.vat(t.rate(tax.rate), multipleRates ? t.money(tax.base) : undefined),
+    value: t.money(tax.tax),
   }));
 
   return {
-    docTitle: `Angebot ${doc.number}`,
+    docTitle: `${t.titles.angebot} ${doc.number}`,
     author: seller.name,
-    title: "Angebot",
+    title: t.titles.angebot,
+    labels: templateLabels(t),
     reference: null,
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
-    recipient: [buyer.name, ...addressLines(buyer)],
+    recipient: [buyer.name, ...addressLines(buyer, t)],
     meta,
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
       description: line.description,
-      quantity: `${formatQuantity(line.quantity)} ${line.unit}`,
-      unitPrice: formatEuro(line.unitPrice),
-      rate: treatment === "regulaer" ? formatRate(line.taxRate) : "–",
-      net: formatEuro(line.net),
+      quantity: t.quantity(line.quantity, line.unit),
+      unitPrice: t.money(line.unitPrice),
+      rate: treatment === "regulaer" ? t.rate(line.taxRate) : "–",
+      net: t.money(line.net),
     })),
     totals: {
-      rows: [{ label: "Summe netto", value: formatEuro(doc.totals.net) }, ...taxRows],
-      gross: { label: "Angebotssumme", value: formatEuro(doc.totals.gross) },
+      rows: [{ label: t.totalNet, value: t.money(doc.totals.net) }, ...taxRows],
+      gross: { label: t.quoteTotal, value: t.money(doc.totals.gross) },
     },
-    payment: `Dieses Angebot gilt bis zum ${formatDate(doc.validUntil)}. Wir freuen uns auf Ihren Auftrag.`,
-    taxNote: treatmentNote(treatment, doc.exemptionReason),
+    payment: t.quoteValid(t.date(doc.validUntil)),
+    taxNote: t.note(treatment, doc.exemptionReason),
     note: doc.note?.trim() ? doc.note.trim() : null,
-    footer: footerColumns(seller),
+    footer: footerColumns(seller, t),
   };
 }
 

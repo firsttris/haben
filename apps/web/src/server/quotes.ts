@@ -9,7 +9,7 @@ import {
   type TaxTreatment,
   type UnitLabel,
 } from "@haben/core";
-import { buildQuotePdf, type QuoteDocument } from "@haben/einvoice";
+import { buildQuotePdf, texts, type QuoteDocument } from "@haben/einvoice";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -42,6 +42,8 @@ export const quoteDraftSchema = z
     note: z.string().max(2000),
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
     exemptionReason: z.string().trim().max(300).default(""),
+    /** Sprache des PDFs für den Kunden */
+    language: z.enum(["de", "en"]).default("de"),
     lines: z.array(invoiceLineInputSchema).max(200),
   })
   .refine((d) => d.validUntil >= d.issueDate, { message: "Das Angebot muss mindestens bis zum Angebotsdatum gelten", path: ["validUntil"] })
@@ -79,6 +81,7 @@ function draftValues(input: QuoteDraftInput) {
     note: input.note,
     taxTreatment: treatment,
     exemptionReason: treatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
+    language: input.language ?? "de",
     net: totals.net,
     tax: totals.tax,
     gross: totals.gross,
@@ -132,6 +135,7 @@ export async function newQuoteDefaults(today: string) {
     note: "",
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",
+    language: "de" as const,
     lines: [
       { description: "", quantity: 1000, unit: "Std." as UnitLabel, unitPrice: 0, taxRate: (company.kleinunternehmer ? 0 : 1900) as 1900 | 0 },
     ],
@@ -202,6 +206,7 @@ function documentFor(quote: Quote, lines: QuoteLine[], seller: QuoteDocument["se
     ...(quote.note ? { note: quote.note } : {}),
     ...(quote.taxTreatment !== "regulaer" ? { taxTreatment: quote.taxTreatment } : {}),
     ...(quote.exemptionReason ? { exemptionReason: quote.exemptionReason } : {}),
+    language: quote.language,
   };
 }
 
@@ -308,9 +313,10 @@ export async function quoteToInvoice(actor: string, id: string, today: string): 
     serviceTo: quote.serviceTo,
     paymentTermDays: company.paymentTermDays,
     format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
-    note: `Gemäß unserem Angebot ${quote.number} vom ${quote.issueDate.split("-").reverse().join(".")}.`,
+    note: texts(quote.language).fromQuote(quote.number ?? "", texts(quote.language).date(quote.issueDate)),
     taxTreatment: quote.taxTreatment,
     exemptionReason: quote.exemptionReason,
+    language: quote.language,
     lines: lines.map((line) => ({
       description: line.description,
       quantity: line.quantity,
@@ -350,6 +356,7 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
     note: quote.note,
     taxTreatment: quote.taxTreatment,
     exemptionReason: quote.exemptionReason,
+    language: quote.language,
     lines: lines.map((line) => ({
       description: line.description,
       quantity: line.quantity,

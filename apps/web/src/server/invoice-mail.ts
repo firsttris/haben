@@ -1,4 +1,5 @@
 import { DUNNING_LEVELS, formatEuro, type DunningLevel } from "@haben/core";
+import { texts } from "@haben/einvoice";
 import { and, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "./company.ts";
@@ -37,6 +38,24 @@ anbei erhalten Sie unser Angebot {nummer} vom {datum} über {betrag}. Es gilt bi
 Für Rückfragen sind wir gern für Sie da.
 
 Mit freundlichen Grüßen
+{firma}`;
+
+/** Englische Vorlagen für Kunden mit Sprache Englisch; die eigenen Vorlagen in den Einstellungen sind deutsch */
+export const DEFAULT_INVOICE_SUBJECT_EN = "{art} {nummer} from {firma}";
+export const DEFAULT_INVOICE_BODY_EN = `Dear Sir or Madam,
+
+please find attached {art} {nummer} dated {datum} for {betrag}{zahlbar}.
+
+Kind regards
+{firma}`;
+export const DEFAULT_QUOTE_SUBJECT_EN = "Quote {nummer} from {firma}";
+export const DEFAULT_QUOTE_BODY_EN = `Dear Sir or Madam,
+
+please find attached our quote {nummer} dated {datum} for {betrag}. It is valid until {gueltig}.
+
+Please do not hesitate to contact us if you have any questions.
+
+Kind regards
 {firma}`;
 
 /** Ersetzt {name} durch den Wert; unbekannte Platzhalter bleiben stehen */
@@ -100,6 +119,19 @@ async function customerEmail(invoice: { buyer: unknown; contactId: string | null
 }
 
 function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: string) {
+  if (invoice.language === "en") {
+    const t = texts("en");
+    return {
+      art: t.titles[invoice.kind],
+      nummer: invoice.number ?? "",
+      datum: t.date(invoice.issueDate),
+      betrag: t.money(invoice.gross),
+      faellig: t.date(invoice.dueDate),
+      zahlbar: invoice.kind === "rechnung" && invoice.gross > 0 ? `, payable by ${t.date(invoice.dueDate)}` : "",
+      kunde: (invoice.buyer as { name?: string } | null)?.name ?? "",
+      firma,
+    };
+  }
   return {
     art: KIND_LABEL[invoice.kind],
     nummer: invoice.number ?? "",
@@ -129,8 +161,8 @@ export async function invoiceMailDraft(invoiceId: string) {
   const values = invoiceValues(invoice, company.name);
   return {
     to: await customerEmail(invoice),
-    subject: fillTemplate(settings?.invoiceSubject || DEFAULT_INVOICE_SUBJECT, values),
-    body: fillTemplate(settings?.invoiceBody || DEFAULT_INVOICE_BODY, values),
+    subject: fillTemplate(invoice.language === "en" ? DEFAULT_INVOICE_SUBJECT_EN : settings?.invoiceSubject || DEFAULT_INVOICE_SUBJECT, values),
+    body: fillTemplate(invoice.language === "en" ? DEFAULT_INVOICE_BODY_EN : settings?.invoiceBody || DEFAULT_INVOICE_BODY, values),
     attachments: invoiceAttachments(invoice).map((a) => a.filename),
     configured: Boolean(settings),
   };
@@ -243,6 +275,17 @@ async function loadQuote(id: string) {
 }
 
 function quoteValues(quote: typeof schema.quotes.$inferSelect, firma: string) {
+  if (quote.language === "en") {
+    const t = texts("en");
+    return {
+      nummer: quote.number ?? "",
+      datum: t.date(quote.issueDate),
+      gueltig: t.date(quote.validUntil),
+      betrag: t.money(quote.gross),
+      kunde: (quote.buyer as { name?: string } | null)?.name ?? "",
+      firma,
+    };
+  }
   return {
     nummer: quote.number ?? "",
     datum: germanDate(quote.issueDate),
@@ -259,8 +302,8 @@ export async function quoteMailDraft(quoteId: string) {
   const values = quoteValues(quote, company.name);
   return {
     to: await customerEmail(quote),
-    subject: fillTemplate(DEFAULT_QUOTE_SUBJECT, values),
-    body: fillTemplate(DEFAULT_QUOTE_BODY, values),
+    subject: fillTemplate(quote.language === "en" ? DEFAULT_QUOTE_SUBJECT_EN : DEFAULT_QUOTE_SUBJECT, values),
+    body: fillTemplate(quote.language === "en" ? DEFAULT_QUOTE_BODY_EN : DEFAULT_QUOTE_BODY, values),
     attachments: [`Angebot-${quote.number}.pdf`],
     configured: Boolean(settings),
   };

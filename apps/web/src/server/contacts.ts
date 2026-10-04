@@ -15,9 +15,11 @@ export const contactSchema = z.object({
   iban: z.union([z.literal(""), z.string().trim().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen")]),
   leitwegId: z.string().trim().max(46),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
+  /** Sprache von Rechnungen und Angeboten */
+  language: z.enum(["de", "en"]).default("de"),
 });
 
-export type ContactInput = z.infer<typeof contactSchema>;
+export type ContactInput = z.input<typeof contactSchema>;
 export type Contact = typeof schema.contacts.$inferSelect;
 
 export class ContactError extends Error {}
