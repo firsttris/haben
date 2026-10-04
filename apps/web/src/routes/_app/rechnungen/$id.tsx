@@ -152,6 +152,11 @@ function FinalInvoice({ data }: { data: Detail }) {
               XML herunterladen
             </a>
           )}
+          {invoice.kind === "rechnung" && (
+            <a className="btn" href={`/api/dokument/lieferschein-rechnung/${invoice.id}`} target="_blank" rel="noreferrer">
+              Lieferschein
+            </a>
+          )}
         </div>
       </div>
 
