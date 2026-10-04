@@ -168,6 +168,21 @@ Neben der Zahlungsaufforderung druckt Haben einen GiroCode, also einen EPC-QR-Co
 
 Der Code steht nur auf Rechnungen mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen.
 
+## Abschlags- und Schlussrechnung
+
+Bei größeren Aufträgen rechnest du in Teilen ab: zuerst Abschlagsrechnungen, am Ende eine Schlussrechnung über alles.
+
+1. **Abschlagsrechnung:** Neue Rechnung, unter **Rechnungsart** „Abschlagsrechnung“ wählen und den Teilbetrag als Position eintragen, z. B. „1. Abschlag 30 % gemäß Angebot AN-2026-004“. Sie wird wie jede Rechnung festgeschrieben, gebucht, bezahlt und gemahnt. Im XML trägt sie den Typ 326 (Teilrechnung).
+2. **Schlussrechnung:** In der festgeschriebenen Abschlagsrechnung auf **Schlussrechnung erstellen** klicken oder bei einer neuen Rechnung „Schlussrechnung“ wählen. Haben schlägt alle offenen Abschlagsrechnungen des Kunden zum Abzug vor; per Häkchen wählst du sie ab oder wieder an. Unter **Positionen** steht die gesamte Leistung.
+
+Die Abzüge setzt Haben selbst als eigene Positionen darunter, je Abschlagsrechnung und Steuersatz eine, mit Netto und Umsatzsteuer der Abschlagsrechnung, z. B. „Abzüglich Abschlagsrechnung 2026-031 vom 15.09.2026 (netto 3.000,00 €, USt 570,00 €)“. So weist die Schlussrechnung nur noch die Umsatzsteuer auf den Rest aus (§ 14 Abs. 5 UStG), und gebucht wird nur der Restbetrag; die Abschläge sind schon als Erlös gebucht. Im XML verweist die Schlussrechnung auf jede abgezogene Abschlagsrechnung.
+
+Regeln:
+
+- Abziehen lassen sich nur festgeschriebene, nicht stornierte Abschlagsrechnungen desselben Kunden mit derselben Umsatzsteuer-Behandlung, jede nur in einer Schlussrechnung.
+- Die Abschläge dürfen die Gesamtleistung nicht übersteigen; ein Restbetrag von 0 € ist erlaubt.
+- Eine abgezogene Abschlagsrechnung lässt sich erst stornieren, wenn die Schlussrechnung storniert ist. Danach ist sie wieder frei.
+
 ## Rechnungen auf Englisch
 
 Für Kunden im Ausland stellst du im Kontakt **Sprache von Rechnungen und Angeboten** auf Englisch. Neue Rechnungen und Angebote für diesen Kunden übernehmen die Sprache; im Editor lässt sie sich je Beleg unter **Sprache** ändern.
@@ -356,6 +371,6 @@ Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten 
 
 - Nur Euro und nur die Steuersätze 19 %, 7 % und 0 %.
 - Keine innergemeinschaftlichen Lieferungen von Waren (§ 4 Nr. 1b UStG) und keine Zusammenfassende Meldung; die ZM für Reverse-Charge-Rechnungen gibst du selbst ab.
-- Keine Abschlags- oder Schlussrechnungen, keine Skonto-Angaben, keine Zu- oder Abschläge auf Belegebene.
+- Keine Skonto-Angaben, keine Zu- oder Abschläge auf Belegebene.
 - Höchstens 200 Positionen je Rechnung.
 - Rechnungen gehen per E-Mail über deinen SMTP-Zugang, nicht über Peppol oder die Portale öffentlicher Auftraggeber.

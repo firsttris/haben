@@ -38,7 +38,7 @@ export function templateLabels(t: Texts) {
 export function pdfData(doc: InvoiceDocument) {
   const { seller, buyer } = doc;
   const t = texts(doc.language);
-  const title = t.titles[doc.kind];
+  const title = doc.kind === "rechnung" && doc.variant ? t.variants[doc.variant] : t.titles[doc.kind];
 
   const meta: { label: string; value: string }[] = [
     { label: t.invoiceNumber, value: doc.number },

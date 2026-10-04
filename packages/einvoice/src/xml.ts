@@ -111,7 +111,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const invoice: UblInvoice = {
     "cbc:ID": doc.number,
     "cbc:IssueDate": doc.issueDate,
-    "cbc:InvoiceTypeCode": credit ? "381" : "380",
+    // 326 = Teilrechnung (Abschlag); die Schlussrechnung ist eine normale Rechnung
+    "cbc:InvoiceTypeCode": credit ? "381" : doc.variant === "abschlag" ? "326" : "380",
     "cbc:DocumentCurrencyCode": currency,
     "cbc:BuyerReference": buyer.leitwegId ?? buyer.kundennummer ?? doc.number,
     "cac:AccountingSupplierParty": {
@@ -191,10 +192,11 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     invoice["cac:InvoicePeriod"] = { "cbc:StartDate": period.from, "cbc:EndDate": period.to };
   }
 
-  if (doc.corrects) {
-    invoice["cac:BillingReference"] = [
-      { "cac:InvoiceDocumentReference": { "cbc:ID": doc.corrects.number, "cbc:IssueDate": doc.corrects.issueDate } },
-    ];
+  const references = [...(doc.corrects ? [doc.corrects] : []), ...(doc.deducted ?? [])];
+  if (references.length > 0) {
+    invoice["cac:BillingReference"] = references.map((ref) => ({
+      "cac:InvoiceDocumentReference": { "cbc:ID": ref.number, "cbc:IssueDate": ref.issueDate },
+    }));
   }
 
   if (!credit) {

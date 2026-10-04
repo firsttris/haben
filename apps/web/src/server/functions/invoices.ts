@@ -22,6 +22,8 @@ import {
   listInvoices,
   newDraftDefaults,
   numbering,
+  abschlagLinks,
+  openAbschlaege,
   setNextNumber,
   updateDraft,
 } from "../invoices.ts";
@@ -74,6 +76,7 @@ async function editorContext() {
     bundesland: company.bundesland,
     kleinunternehmer: company.kleinunternehmer,
     numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
+    abschlaege: (await openAbschlaege()).map(({ id, contactId, number, issueDate, gross, rates, taxTreatment }) => ({ id, contactId, number, issueDate, gross, rates, taxTreatment })),
   };
 }
 
@@ -101,6 +104,7 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
         await db.select({ id: schema.quotes.id, number: schema.quotes.number }).from(schema.quotes).where(eq(schema.quotes.invoiceId, data))
       )[0] ?? null,
       open: listed?.open ?? 0,
+      ...(await abschlagLinks(data)),
       ...(await editorContext()),
     };
   });
@@ -111,7 +115,7 @@ export const saveInvoiceDraft = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const saved = data.id
       ? await updateDraft(context.user.id, data.id, data.draft).catch(asUserError)
-      : await createDraft(context.user.id, data.draft);
+      : await createDraft(context.user.id, data.draft).catch(asUserError);
     return { id: saved.id };
   });
 

@@ -58,11 +58,26 @@ const samples: Record<string, InvoiceDocument> = {
   }),
   "korrektur-gemischt-xr-cii": korrekturMitZuschlag("xrechnung-cii"),
   "korrektur-gemischt-xr-ubl": korrekturMitZuschlag("xrechnung-ubl"),
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
+      [`abschlag-${format}`, { ...sampleDocument({ format }), variant: "abschlag" as const }],
+      [`schluss-${format}`, schlussrechnung(format)],
+    ]),
+  ),
   "nullsatz-xr-cii": sampleDocument({
     format: "xrechnung-cii",
     lines: [{ description: "Leistung zum Nullsatz", quantity: 1000, unit: "Psch.", unitPrice: 50000, taxRate: 0 }],
   }),
 };
+
+/** Schlussrechnung mit zwei Steuersätzen, abzüglich einer Abschlagsrechnung als negative Positionen */
+function schlussrechnung(format: InvoiceDocument["format"]): InvoiceDocument {
+  const deductions = [
+    { description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 1.000,00 €, USt 190,00 €)", quantity: 1000, unit: "Psch." as const, unitPrice: -100000, taxRate: 1900 as const },
+    { description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 50,00 €, USt 3,50 €)", quantity: 1000, unit: "Psch." as const, unitPrice: -5000, taxRate: 700 as const },
+  ];
+  return { ...sampleDocument({ format, lines: [...mixedRateLines, ...deductions] }), variant: "schluss", deducted: [{ number: "2026-030", issueDate: "2026-09-15" }] };
+}
 
 /** Korrektur mit gutgeschriebenen und einer nachberechneten Position, insgesamt negativ */
 function korrekturMitZuschlag(format: InvoiceDocument["format"]): InvoiceDocument {

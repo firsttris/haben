@@ -3,6 +3,9 @@ import type { BasisPoints, Cents, InvoiceTotals, Millis, TaxTreatment, UnitLabel
 /** Rechnung, Stornorechnung oder Rechnungskorrektur (Gutschrift) */
 export type InvoiceKind = "rechnung" | "storno" | "korrektur";
 
+/** Abschlagsrechnung über einen Teil der Leistung, Schlussrechnung über alles abzüglich der Abschläge */
+export type InvoiceVariant = "abschlag" | "schluss";
+
 /** zugferd = PDF/A-3 mit eingebettetem CII (Profil EN 16931); xrechnung-* = reines XML */
 export type InvoiceFormat = "zugferd" | "xrechnung-cii" | "xrechnung-ubl";
 
@@ -82,4 +85,8 @@ export interface InvoiceDocument {
   logo?: Logo;
   /** Sprache des PDFs; fehlt = Deutsch */
   language?: "de" | "en";
+  /** Nur bei kind „rechnung“; fehlt = normale Rechnung */
+  variant?: InvoiceVariant;
+  /** Schlussrechnung: abgezogene Abschlagsrechnungen (BT-25); die Abzüge selbst stehen als negative Positionen in lines */
+  deducted?: { number: string; issueDate: string }[];
 }

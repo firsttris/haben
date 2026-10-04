@@ -162,4 +162,59 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     const pdf = final.pdf!.toString("latin1");
     expect(pdf).toMatch(/factur-x\.xml|zugferd-invoice\.xml/);
   }, 30_000);
+  it("Abschlags- und Schlussrechnung: Abzug mit Netto und Steuer, nur einmal, Storno in der richtigen Reihenfolge", async () => {
+    const final = async (input: Parameters<typeof invoices.createDraft>[1]) => invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    const a1 = await final({ ...draft([line(300_000)]), variant: "abschlag" });
+    const a2 = await final({ ...draft([line(100_000), line(10_000, 700)]), variant: "abschlag" });
+    expect(a1).toMatchObject({ number: "2026-001", variant: "abschlag", gross: 357_000 });
+    expect(a1.xml).toContain("<ram:TypeCode>326</ram:TypeCode>");
+    const other = await contacts.createContact(actor, {
+      kundennummer: "", name: "Alpenblick Media AG", strasse: "Isartorplatz 1", plz: "80331", ort: "München", land: "DE",
+      email: "", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+    });
+    const b1 = await final({ ...draft([line(50_000)]), contactId: other.id, variant: "abschlag" });
+
+    expect((await invoices.openAbschlaege()).map((a) => a.number)).toEqual(["2026-001", "2026-002", "2026-003"]);
+    const full = [line(1_000_000), line(20_000, 700)];
+    await expect(invoices.createDraft(actor, { ...draft(full), variant: "schluss", deducts: [b1.id] })).rejects.toThrow(/anderen Kunden/);
+
+    const schluss = await invoices.createDraft(actor, { ...draft(full), variant: "schluss", deducts: [a1.id, a2.id] });
+    // 19 %: 10.000 − 3.000 − 1.000 = 6.000 netto, 1.140 USt; 7 %: 200 − 100 = 100 netto, 7 USt
+    expect(schluss).toMatchObject({ net: 610_000, tax: 114_700, gross: 724_700 });
+    const stored = (await invoices.getInvoice(schluss.id))!.lines;
+    expect(stored.map((l) => [l.position, l.net, l.deductionOf])).toEqual([
+      [1, 1_000_000, null],
+      [2, 20_000, null],
+      [3, -300_000, a1.id],
+      [4, -100_000, a2.id],
+      [5, -10_000, a2.id],
+    ]);
+    expect(stored[2]!.description).toMatch(/^Abzüglich Abschlagsrechnung 2026-001 vom 02\.10\.2026 \(netto 3\.000,00\s€, USt 570,00\s€\)$/);
+
+    const finalSchluss = await invoices.finalizeInvoice(actor, schluss.id);
+    expect(finalSchluss.number).toBe("2026-004");
+    expect(finalSchluss.xml).toContain("<ram:TypeCode>380</ram:TypeCode>");
+    expect(finalSchluss.xml).toMatch(/InvoiceReferencedDocument>\s*<ram:IssuerAssignedID>2026-001</);
+    expect(finalSchluss.xml).toMatch(/InvoiceReferencedDocument>\s*<ram:IssuerAssignedID>2026-002</);
+    const [entry] = await sql`select description from journal_entries where source_id = ${schluss.id}`;
+    expect(entry!.description).toBe("Schlussrechnung 2026-004 · Nordwerk Software GmbH");
+    const posted = await sql`select account, debit, credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${schluss.id}`;
+    expect(posted.reduce((sum, l) => sum + Number(l.debit), 0)).toBe(724_700);
+
+    expect((await invoices.openAbschlaege()).map((a) => a.number)).toEqual(["2026-003"]);
+    expect(await invoices.abschlagLinks(a1.id)).toMatchObject({ deducts: [], deductedIn: [{ id: schluss.id, number: "2026-004" }] });
+    expect((await invoices.abschlagLinks(schluss.id)).deducts.map((d) => d.number).sort()).toEqual(["2026-001", "2026-002"]);
+    await expect(invoices.createDraft(actor, { ...draft(full), variant: "schluss", deducts: [a1.id] })).rejects.toThrow(/schon in Schlussrechnung 2026-004/);
+    await expect(invoices.cancelInvoice(actor, a1.id, "2026-10-05")).rejects.toThrow(/Storniere zuerst die Schlussrechnung/);
+
+    // Storno der Schlussrechnung gibt die Abschläge wieder frei
+    await invoices.cancelInvoice(actor, finalSchluss.id, "2026-10-05");
+    expect((await invoices.openAbschlaege()).map((a) => a.number)).toEqual(["2026-001", "2026-002", "2026-003"]);
+    const storno = await invoices.cancelInvoice(actor, a1.id, "2026-10-05");
+    expect(storno.variant).toBeNull();
+
+    const empty = await invoices.createDraft(actor, { ...draft(full), variant: "schluss" });
+    expect(await invoices.finalizeIssues(empty.id)).toContain("Keine Abschlagsrechnung abgezogen");
+    await expect(sql`update invoices set variant = 'abschlag' where id = ${storno.id}`).rejects.toThrow();
+  });
 });

@@ -183,7 +183,13 @@ const yearEnd = (year: number) => `${year}-12-31`;
 /** Beginn eines Jahres in deutscher Zeit, für Zeitstempel-Spalten */
 const berlinStart = (year: number) => sql`(${`${year}-01-01 00:00:00`}::timestamp at time zone 'Europe/Berlin')`;
 
-const KIND_LABELS: Record<string, string> = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" };
+const KIND_LABELS: Record<string, string> = {
+  rechnung: "Rechnung",
+  storno: "Stornorechnung",
+  korrektur: "Rechnungskorrektur",
+  abschlag: "Abschlagsrechnung",
+  schluss: "Schlussrechnung",
+};
 const FORMAT_LABELS: Record<string, string> = { zugferd: "ZUGFeRD", "xrechnung-cii": "XRechnung (CII)", "xrechnung-ubl": "XRechnung (UBL)" };
 const SOURCE_LABELS: Record<string, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Zahlung", asset: "Anlage", pauschale: "Pauschale" };
 const ALLOCATION_LABELS: Record<string, string> = {
@@ -246,6 +252,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       pdfSha256: schema.invoices.pdfSha256,
       xmlSha256: schema.invoices.xmlSha256,
       correctsId: schema.invoices.correctsId,
+      variant: schema.invoices.variant,
     })
     .from(schema.invoices)
     .where(
@@ -288,7 +295,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     }
     invoiceRows.push([
       invoice.number,
-      KIND_LABELS[invoice.kind] ?? invoice.kind,
+      KIND_LABELS[invoice.variant ?? invoice.kind] ?? invoice.kind,
       invoice.issueDate,
       invoice.dueDate,
       invoice.serviceFrom,

@@ -4,14 +4,13 @@ import { and, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "./company.ts";
 import { db, schema } from "./db/index.ts";
+import { invoiceTitle } from "./invoices.ts";
 import { escapeHtml, loadMailSettings, MailError, send } from "./mail.ts";
 
 /**
  * Rechnungen und Mahnungen per E-Mail: Empfänger aus der Rechnung bzw. dem Kontakt, Betreff und Text aus
  * Vorlagen mit Platzhaltern, PDF und bei XRechnung das XML im Anhang. Jeder Versand steht im Mail-Protokoll.
  */
-
-const KIND_LABEL = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" } as const;
 
 export const DEFAULT_INVOICE_SUBJECT = "{art} {nummer} von {firma}";
 export const DEFAULT_INVOICE_BODY = `Guten Tag,
@@ -122,7 +121,7 @@ function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: stri
   if (invoice.language === "en") {
     const t = texts("en");
     return {
-      art: t.titles[invoice.kind],
+      art: invoice.kind === "rechnung" && invoice.variant ? t.variants[invoice.variant] : t.titles[invoice.kind],
       nummer: invoice.number ?? "",
       datum: t.date(invoice.issueDate),
       betrag: t.money(invoice.gross),
@@ -133,7 +132,7 @@ function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: stri
     };
   }
   return {
-    art: KIND_LABEL[invoice.kind],
+    art: invoiceTitle(invoice),
     nummer: invoice.number ?? "",
     datum: germanDate(invoice.issueDate),
     betrag: formatEuro(invoice.gross),
