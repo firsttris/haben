@@ -23,6 +23,7 @@ function NewInvoicePage() {
       corrects={null}
       bundesland={data.bundesland}
       kleinunternehmer={data.kleinunternehmer}
+      articles={data.articles}
     />
   );
 }

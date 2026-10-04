@@ -35,6 +35,9 @@ function InvoicesPage() {
         <Link to="/rechnungen/mahnwesen" className="chip">
           Mahnwesen
         </Link>
+        <Link to="/rechnungen/artikel" className="chip">
+          Artikel
+        </Link>
         <Link to="/kontakte" className="chip">
           Kontakte
         </Link>

@@ -41,6 +41,19 @@ Das Zeilennetto ist Menge mal Einzelpreis, kaufmännisch auf Cent gerundet. Die 
 
 Die Einheiten gehen mit ihren UN/ECE-Codes ins XML (`HUR`, `DAY`, `MON`, `H87`, `LS`, `KMT`).
 
+### Artikelkatalog
+
+Unter **Rechnungen › Artikel** legst du Positionen an, die du oft brauchst: Stundensatz, Tagessatz, Wartungspauschale.
+
+- Jeder Artikel hat Bezeichnung, optional eine Artikelnummer, Einheit, Nettopreis und Steuersatz, dazu eine interne Notiz.
+- Im Editor für Rechnungen und Angebote fügt **Aus dem Katalog einfügen** den Artikel als Position mit Menge 1 ein. Ist die einzige Zeile noch leer, ersetzt er sie.
+- Text, Menge und Preis passt du danach in der Position an.
+- Ohne Steuerausweis (Kleinunternehmer, Reverse Charge, steuerfrei) setzt Haben den Steuersatz der Position auf 0 %.
+- Änderungen am Katalog wirken nur auf neue Positionen. Festgeschriebene Rechnungen bleiben, wie sie sind.
+- Nicht mehr gebrauchte Artikel archivierst du; sie lassen sich wiederherstellen. Jede Änderung steht im Änderungsprotokoll.
+
+Wiederkehrende Rechnungen haben ihre Positionen in der Vorlage und nutzen den Katalog nicht.
+
 ### Umsatzsteuer auf der Rechnung
 
 Das Feld **Umsatzsteuer** legt fest, wie die Rechnung umsatzsteuerlich behandelt wird. Gespeichert wird die Auswahl an der Rechnung; sie bestimmt Erlöskonto, Kennzahl der [Voranmeldung](umsatzsteuer.md), Steuerkategorie im XML und den Pflichthinweis.

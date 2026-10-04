@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { loadCompany, sellerIssues } from "../company.ts";
+import { listArticles } from "../articles.ts";
 import { listContacts } from "../contacts.ts";
 import { db, schema } from "../db/index.ts";
 import { mailsForQuote, quotesSentByMail } from "../invoice-mail.ts";
@@ -40,6 +41,7 @@ async function editorContext() {
   const counters = await db.select().from(schema.quoteNumberCounters);
   return {
     contacts: await listContacts(),
+    articles: (await listArticles()).map(({ id, number, description, unit, unitPrice, taxRate }) => ({ id, number, description, unit, unitPrice, taxRate })),
     company: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort, email: company.email, steuernummer: company.steuernummer, ustId: company.ustId, iban: company.iban, bic: company.bic, bank: company.bank },
     sellerIssues: sellerIssues(company),
     bundesland: company.bundesland,

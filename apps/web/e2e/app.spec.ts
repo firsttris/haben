@@ -276,6 +276,24 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
   await n.screenshot({ path: `${SHOTS}/desktop/17-anlage-n.png` });
 });
 
+test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
+  await go("/rechnungen/artikel");
+  const form = page.getByRole("form", { name: "Neuer Artikel" });
+  await form.getByLabel("Bezeichnung").fill("Beratung Softwarearchitektur");
+  await form.getByLabel("Artikelnummer (optional)").fill("B-01");
+  await form.getByLabel("Preis netto (€)").fill("110,00");
+  await form.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Artikel angelegt." })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Artikelliste" })).toContainText("110,00\u00a0€ je Std.");
+
+  // Im Editor ersetzt der Artikel die leere erste Zeile; gespeichert wird nichts
+  await go("/rechnungen/neu");
+  await page.getByLabel("Aus dem Artikelkatalog einfügen").selectOption({ label: "B-01 · Beratung Softwarearchitektur · 110,00\u00a0€/Std." });
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Beratung Softwarearchitektur");
+  await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("110,00");
+  await expect(page.getByLabel("Beschreibung Position 2")).toHaveCount(0);
+});
+
 test("Fristen und Kalender-Abo", async () => {
   await go("/fristen");
   await expect(page.getByRole("heading", { name: "Fristen", level: 1 })).toBeVisible();
@@ -418,6 +436,7 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
     ["rechnung", details.rechnung],
     ["mahnwesen", "/rechnungen/mahnwesen"],
     ["wiederkehrend", "/rechnungen/wiederkehrend"],
+    ["artikel", "/rechnungen/artikel"],
     ["belege", "/belege"],
     ["beleg", details.beleg],
     ["pauschalen", "/pauschalen"],
