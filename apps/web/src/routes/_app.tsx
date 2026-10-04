@@ -14,6 +14,50 @@ export const Route = createFileRoute("/_app")({
   component: AppLayout,
 });
 
+/** Hauptnavigation nach Arbeitsbereichen; Einstellungen stehen unten bei Konto und Abmelden */
+const NAV_GROUPS = [
+  {
+    label: "Verkauf",
+    links: [
+      { to: "/angebote", icon: "quote", label: "Angebote" },
+      { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
+      { to: "/kontakte", icon: "contacts", label: "Kontakte" },
+    ],
+  },
+  {
+    label: "Ausgaben",
+    links: [
+      { to: "/belege", icon: "receipt", label: "Belege" },
+      { to: "/pauschalen", icon: "pauschale", label: "Pauschalen" },
+      { to: "/anlagen", icon: "assets", label: "Anlagen" },
+    ],
+  },
+  {
+    label: "Geld",
+    links: [
+      { to: "/bank", icon: "bank", label: "Bank" },
+      { to: "/kasse", icon: "cash", label: "Kasse" },
+    ],
+  },
+  {
+    label: "Steuern",
+    links: [
+      { to: "/umsatzsteuer", icon: "vat", label: "Umsatzsteuer" },
+      { to: "/jahreserklaerung", icon: "annual", label: "Jahreserklärung" },
+      { to: "/finanzamt", icon: "mail", label: "Finanzamt" },
+      { to: "/fristen", icon: "calendar", label: "Fristen" },
+    ],
+  },
+  {
+    label: "Buchhaltung",
+    links: [
+      { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
+      { to: "/buchungen", icon: "journal", label: "Buchungen" },
+      { to: "/konten", icon: "ledger", label: "Konten" },
+      { to: "/archiv", icon: "archive", label: "Archiv" },
+    ],
+  },
+] as const;
 
 function AppLayout() {
   const { user } = Route.useRouteContext();
@@ -40,78 +84,26 @@ function AppLayout() {
           <Icon name="overview" />
           Übersicht
         </Link>
-        <Link to="/angebote" className="nav-link">
-          <Icon name="quote" />
-          Angebote
-        </Link>
-        <Link to="/rechnungen" className="nav-link">
-          <Icon name="invoice" />
-          Rechnungen
-        </Link>
-        <Link to="/belege" className="nav-link">
-          <Icon name="receipt" />
-          Belege
-        </Link>
-        <Link to="/pauschalen" className="nav-link">
-          <Icon name="pauschale" />
-          Pauschalen
-        </Link>
-        <Link to="/bank" className="nav-link">
-          <Icon name="bank" />
-          Bank
-        </Link>
-        <Link to="/kasse" className="nav-link">
-          <Icon name="cash" />
-          Kasse
-        </Link>
-        <Link to="/anlagen" className="nav-link">
-          <Icon name="assets" />
-          Anlagen
-        </Link>
-        <Link to="/buchungen" className="nav-link">
-          <Icon name="journal" />
-          Buchungen
-        </Link>
-        <Link to="/konten" className="nav-link">
-          <Icon name="ledger" />
-          Konten
-        </Link>
-        <Link to="/umsatzsteuer" className="nav-link">
-          <Icon name="vat" />
-          Umsatzsteuer
-        </Link>
-        <Link to="/jahreserklaerung" className="nav-link">
-          <Icon name="annual" />
-          Jahreserklärung
-        </Link>
-        <Link to="/fristen" className="nav-link">
-          <Icon name="calendar" />
-          Fristen
-        </Link>
-        <Link to="/finanzamt" className="nav-link">
-          <Icon name="mail" />
-          Finanzamt
-        </Link>
-        <Link to="/auswertungen" className="nav-link">
-          <Icon name="reports" />
-          Auswertungen
-        </Link>
-        <Link to="/kontakte" className="nav-link">
-          <Icon name="contacts" />
-          Kontakte
-        </Link>
-        <Link to="/archiv" className="nav-link">
-          <Icon name="archive" />
-          Archiv
-        </Link>
-        <Link to="/einstellungen" className="nav-link">
-          <Icon name="settings" />
-          Einstellungen
-        </Link>
+        {NAV_GROUPS.map((group) => (
+          <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
+            <div className="nav-group-label" aria-hidden="true">
+              {group.label}
+            </div>
+            {group.links.map((link) => (
+              <Link key={link.to} to={link.to} className="nav-link">
+                <Icon name={link.icon} />
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        ))}
         <div className="nav-spacer" />
         <div className="nav-foot">
           <span>Geschäftsjahr {new Date().getFullYear()}</span>
           <span>{user.name}</span>
+          <Link to="/einstellungen" className="nav-foot-link">
+            Einstellungen
+          </Link>
           {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
           <a href="https://github.com/firsttris/haben" style={{ color: "inherit" }}>
             Quellcode (AGPL)
