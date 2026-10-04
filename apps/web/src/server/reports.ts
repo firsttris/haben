@@ -35,7 +35,19 @@ async function invoiceTotalsById(ids: string[]): Promise<Map<string, InvoiceTota
 async function documentTotalsById(ids: string[]): Promise<Map<string, InvoiceTotals>> {
   if (ids.length === 0) return new Map();
   const amounts = await db.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, ids));
-  return new Map(ids.map((id) => [id, documentTotals(amounts.filter((a) => a.documentId === id))]));
+  const reverseCharge = new Set(
+    (await db.select({ id: schema.documents.id }).from(schema.documents).where(and(inArray(schema.documents.id, ids), isNotNull(schema.documents.reverseCharge)))).map(
+      (d) => d.id,
+    ),
+  );
+  // § 13b: Gezahlt ist nur netto. Die selbst geschuldete Steuer und die Vorsteuer daraus heben sich auf;
+  // ohne Vorsteuerabzug zählt die Steuer, wenn sie mit der Voranmeldung ans Finanzamt geht.
+  return new Map(
+    ids.map((id) => {
+      const rows = amounts.filter((a) => a.documentId === id);
+      return [id, documentTotals(reverseCharge.has(id) ? rows.map((a) => ({ ...a, tax: 0 })) : rows)];
+    }),
+  );
 }
 
 /**

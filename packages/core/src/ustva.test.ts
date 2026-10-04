@@ -12,6 +12,11 @@ describe("computeUstva", () => {
       kz45: 0,
       kz48: 0,
       kz66: 17_355,
+      kz46: 0,
+      kz47: 0,
+      kz84: 0,
+      kz85: 0,
+      kz67: 0,
       kz83: 37_745,
     });
   });
@@ -30,5 +35,12 @@ describe("computeUstva", () => {
 
   it("Erstattung ergibt negatives Kz 83", () => {
     expect(computeUstva({ kz81: 0, kz86: 0, kz66: 12_000 }).kz83).toBe(-12_000);
+  });
+
+  it("§ 13b: Steuer aus Kz 47/85 zählt, Vorsteuer Kz 67 zieht sie wieder ab", () => {
+    const result = computeUstva({ kz81: 0, kz86: 0, kz66: 0, kz46: 10_050, kz47: 1_910, kz84: 20_000, kz85: 3_800, kz67: 5_710 });
+    expect(result).toMatchObject({ kz46: 10_000, kz47: 1_910, kz84: 20_000, kz85: 3_800, kz67: 5_710, kz83: 0 });
+    // Ohne Vorsteuerabzug (Kleinunternehmer) bleibt die Steuer als Zahllast
+    expect(computeUstva({ kz81: 0, kz86: 0, kz66: 0, kz46: 10_000, kz47: 1_900 }).kz83).toBe(1_900);
   });
 });

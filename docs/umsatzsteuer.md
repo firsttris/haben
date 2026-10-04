@@ -57,6 +57,18 @@ In der Tabelle der Kennzahlen stehen Kz 21, 45 und 48 nur, wenn sie nicht null s
 
 Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **Belegdatum**, bei Ist- wie bei Soll-Versteuerung. Ob und wann der Beleg bezahlt wurde, spielt keine Rolle.
 
+### § 13b als Leistungsempfänger
+
+Aus [Belegen mit § 13b](belege.md#reverse-charge-als-leistungsempfänger-13b) nach Belegdatum:
+
+| Kz | Inhalt |
+| --- | --- |
+| 46 / 47 | Sonstige Leistungen eines Unternehmers aus dem EU-Ausland (§ 13b Abs. 1): Netto in vollen Euro, Steuer centgenau |
+| 84 / 85 | Andere Leistungen nach § 13b Abs. 2, hier Leistungen von Unternehmern aus dem Drittland: Netto in vollen Euro, Steuer centgenau |
+| 67 | Vorsteuer aus diesen Leistungen, bei Privatanteil nur der betriebliche Teil; bei Kleinunternehmern 0 |
+
+Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst.
+
 ### Übernahmen aus Lexoffice
 
 Bei der [Migration aus Lexoffice](lexoffice.md) übernommene offene Posten sind schon in Lexoffice gemeldet und werden nicht doppelt gezählt:
@@ -75,7 +87,9 @@ ELSTER erwartet die Bemessungsgrundlagen in vollen Euro. Haben schneidet die Cen
 | 86 | Steuerpflichtige Umsätze 7 % | volle Euro, Cent abgeschnitten; Steuer = 7 % davon, auf Cent gerundet |
 | 21, 45, 48 | Umsätze ohne Steuer | volle Euro, Cent abgeschnitten |
 | 66 | Vorsteuer aus Rechnungen anderer Unternehmer | centgenau |
-| 83 | Verbleibende Umsatzsteuer-Vorauszahlung | Steuer 81 + Steuer 86 − Kz 66 |
+| 46, 84 | Leistungen nach § 13b | volle Euro, Cent abgeschnitten |
+| 47, 85, 67 | Steuer und Vorsteuer nach § 13b | centgenau |
+| 83 | Verbleibende Umsatzsteuer-Vorauszahlung | Steuer 81 + Steuer 86 + Kz 47 + Kz 85 − Kz 66 − Kz 67 |
 
 Ist Kz 83 negativ, heißt die Zeile „Verbleibender Überschuss (Erstattung)“.
 
@@ -155,5 +169,6 @@ Eine Echtübermittlung ist im simulierten Modus nicht möglich: Der Haken **Nur 
 ## Grenzen
 
 - Nur Monatszeiträume, keine Quartals- oder Jahreserklärung, keine Dauerfristverlängerung.
-- Nur die Kennzahlen 81, 86, 21, 45, 48, 66, 83 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe, keine Steuer als Leistungsempfänger (§ 13b UStG), keine Zusammenfassende Meldung.
+- Nur die Kennzahlen 81, 86, 21, 45, 46, 47, 48, 66, 67, 83, 84, 85 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe, keine Zusammenfassende Meldung.
+- Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.

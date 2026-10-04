@@ -34,8 +34,8 @@ export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
 });
 
 type PageData = Awaited<ReturnType<typeof getVatPeriod>>;
-type FieldKey = "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66";
-const FIELDS: FieldKey[] = ["kz81", "kz86", "kz21", "kz45", "kz48", "kz66"];
+type FieldKey = "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67";
+const FIELDS: FieldKey[] = ["kz81", "kz86", "kz21", "kz45", "kz46", "kz47", "kz48", "kz66", "kz67", "kz84", "kz85"];
 
 type Figures = Pick<Record<FieldKey, number>, "kz81" | "kz86" | "kz66"> & Partial<Record<FieldKey, number>>;
 
@@ -270,6 +270,26 @@ function VatReturnEditor({
     { kz: "48", field: "kz48" as const, label: "Steuerfreie Umsätze ohne Vorsteuerabzug", base: shown.kz48, tax: null, sources: treated("steuerfrei") },
     // Kz 21, 45 und 48 nur zeigen, wenn es dort etwas gibt oder von Hand eingetragen wird
   ].filter((row) => ["81", "86"].includes(row.kz) || editable || row.base !== 0 || computed[row.field] !== 0);
+  // § 13b als Leistungsempfänger: Bemessungsgrundlage und Steuer, nur wenn belegt oder von Hand
+  const rcSources = (kind: "eu" | "drittland") => data.figures.reverseCharge.filter((r) => r.reverseCharge === kind);
+  const rcRows = [
+    {
+      kz: "46",
+      taxKz: "47",
+      base: "kz46" as const,
+      tax: "kz47" as const,
+      label: "Sonstige Leistungen eines Unternehmers aus dem EU-Ausland (§ 13b Abs. 1 UStG)",
+      sources: rcSources("eu"),
+    },
+    {
+      kz: "84",
+      taxKz: "85",
+      base: "kz84" as const,
+      tax: "kz85" as const,
+      label: "Andere Leistungen, für die du die Steuer schuldest (§ 13b Abs. 2 UStG)",
+      sources: rcSources("drittland"),
+    },
+  ].filter((row) => editable || shown[row.base] !== 0 || shown[row.tax] !== 0 || computed[row.base] !== 0 || computed[row.tax] !== 0);
 
   return (
     <div className="grid-main">
@@ -376,6 +396,70 @@ function VatReturnEditor({
             )}
           </div>
           {!locked && openSources === "66" && <SourcesTable id="kz-66-quellen" kind="inputTax" rows={data.figures.inputTax} />}
+          {rcRows.map((row) => (
+            <div key={row.kz}>
+              <div className="kz-row">
+                <div className="kz-num">
+                  {row.kz}/{row.taxKz}
+                </div>
+                <div className="kz-label">
+                  <label htmlFor={`kz-${row.kz}`}>{row.label}</label>
+                  {!locked && (
+                    <SourcesToggle
+                      kind="inputTax"
+                      rows={row.sources}
+                      versteuerung={data.figures.versteuerung}
+                      open={openSources === row.kz}
+                      controls={`kz-${row.kz}-quellen`}
+                      onToggle={() => toggleSources(row.kz)}
+                    />
+                  )}
+                </div>
+                {editable ? (
+                  <>
+                    <input
+                      id={`kz-${row.kz}`}
+                      inputMode="decimal"
+                      value={values[row.base]}
+                      onChange={(event) => update(row.base, event.target.value)}
+                      aria-invalid={parsed[row.base] === null}
+                    />
+                    <input
+                      aria-label={`Steuer zu Kz ${row.kz} (Kz ${row.taxKz})`}
+                      inputMode="decimal"
+                      value={values[row.tax]}
+                      onChange={(event) => update(row.tax, event.target.value)}
+                      aria-invalid={parsed[row.tax] === null}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <output id={`kz-${row.kz}`} className="kz-amount">
+                      {formatEuro(shown[row.base])}
+                    </output>
+                    <div className="kz-amount">{formatEuro(shown[row.tax])}</div>
+                  </>
+                )}
+              </div>
+              {!locked && openSources === row.kz && <SourcesTable id={`kz-${row.kz}-quellen`} kind="inputTax" rows={row.sources} />}
+            </div>
+          ))}
+          {(rcRows.length > 0 || shown.kz67 !== 0) && (
+            <div className="kz-row">
+              <div className="kz-num">67</div>
+              <div className="kz-label">
+                <label htmlFor="kz-67">Vorsteuer aus Leistungen nach § 13b UStG</label>
+              </div>
+              <div />
+              {editable ? (
+                <input id="kz-67" inputMode="decimal" value={values.kz67} onChange={(event) => update("kz67", event.target.value)} aria-invalid={parsed.kz67 === null} />
+              ) : (
+                <output id="kz-67" className="kz-amount">
+                  {formatEuro(shown.kz67)}
+                </output>
+              )}
+            </div>
+          )}
           <div className="kz-row total">
             <div className="kz-num">83</div>
             <div>{shown.kz83 < 0 ? "Verbleibender Überschuss (Erstattung)" : "Verbleibende Umsatzsteuer-Vorauszahlung"}</div>

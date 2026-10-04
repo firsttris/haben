@@ -52,10 +52,10 @@ async function go(path: string) {
 }
 
 /** Erfundene Mobilfunkrechnung als JPEG, gerendert im Browser */
-async function receiptJpeg(browser: Browser): Promise<Buffer> {
+async function receiptJpeg(browser: Browser, title = "Funknetz Mobil GmbH"): Promise<Buffer> {
   const p = await browser.newPage({ viewport: { width: 620, height: 640 } });
   await p.setContent(`<body style="font: 14px sans-serif; padding: 40px">
-    <h2>Funknetz Mobil GmbH</h2><p>Hafenallee 10 · 28217 Bremen · USt-IdNr. DE298765432</p>
+    <h2>${title}</h2><p>Hafenallee 10 · 28217 Bremen · USt-IdNr. DE298765432</p>
     <h1>Mobilfunkrechnung</h1><p>Rechnungsnummer MF-0815 · Rechnungsdatum ${day(-9)}</p>
     <table style="width:100%"><tr><td>Tarif Business M</td><td align="right">38,57 €</td></tr>
     <tr><td>Umsatzsteuer 19 %</td><td align="right">7,33 €</td></tr><tr><th align="left">Rechnungsbetrag</th><th align="right">45,90 €</th></tr></table>
@@ -499,6 +499,27 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
   await expect(vorschau).toContainText("3.570,00");
   await abzug.uncheck();
   await expect(vorschau).not.toContainText("Abzüglich Abschlagsrechnung");
+});
+
+test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ browser }) => {
+  await go("/belege");
+  await page.locator("input[type=file][multiple]").setInputFiles([{ name: "cloud.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Cloud EMEA Ltd") }]);
+  await expect(page.getByText("cloud.jpg: abgelegt.")).toBeVisible();
+  await page.getByRole("link", { name: /cloud\.jpg/ }).first().click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("IE6388047V");
+  await page.getByLabel("Netto", { exact: true }).fill("100");
+  await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
+  await expect(page.getByText(/meist § 13b/)).toBeVisible();
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
+  await expect(page.getByLabel("Steuer § 13b")).toHaveValue("19,00");
+  await expect(page.getByText(/Kz 46\/47/)).toBeVisible();
+  await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
+  // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern
+  await page.getByRole("button", { name: "Löschen" }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
 });
 
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {

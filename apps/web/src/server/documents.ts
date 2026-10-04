@@ -39,6 +39,8 @@ export const documentInputSchema = z.object({
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
   privateShare: z.number().int().min(0).max(100).default(0),
+  /** § 13b: Steuer schuldest du als Leistungsempfänger; die Beträge tragen die selbst berechnete Steuer */
+  reverseCharge: z.enum(["eu", "drittland"]).nullable().default(null),
   /** Nur bei Kategorie „anlage“ */
   asset: z
     .object({
@@ -57,10 +59,11 @@ export const documentInputSchema = z.object({
 
 export type DocumentInput = z.input<typeof documentInputSchema>;
 
-function totalsOf(amounts: { taxRate: number; net: number; tax: number }[]) {
+/** Bei § 13b zahlst du nur netto; die Steuer geht ans Finanzamt, nicht an den Lieferanten */
+function totalsOf(amounts: { taxRate: number; net: number; tax: number }[], reverseCharge: string | null = null) {
   const net = amounts.reduce((s, a) => s + a.net, 0);
   const tax = amounts.reduce((s, a) => s + a.tax, 0);
-  return { net, tax, gross: net + tax };
+  return { net, tax, gross: reverseCharge ? net : net + tax };
 }
 
 /** Kategorie wie beim letzten gebuchten Beleg desselben Lieferanten */
@@ -270,7 +273,7 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
         ...fields,
         asset: fields.category === "anlage" ? (asset ?? null) : null,
         supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
-        ...totalsOf(amounts),
+        ...totalsOf(amounts, fields.reverseCharge ?? null),
         updatedAt: new Date(),
       })
       .where(eq(schema.documents.id, id));
@@ -306,6 +309,10 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[]): string[
   if (!doc.category) issues.push("Kategorie fehlt");
   if (doc.currency !== "EUR") issues.push("Nur Belege in Euro können gebucht werden");
   if (amounts.length === 0 || amounts.every((a) => a.net === 0 && a.tax === 0)) issues.push("Beträge fehlen");
+  if (doc.reverseCharge) {
+    if (amounts.some((a) => a.taxRate === 0)) issues.push("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
+    if (doc.category === "anlage") issues.push("§ 13b bei Anlagegütern wird nicht unterstützt");
+  }
   if (doc.category === "anlage") {
     const net = amounts.reduce((s, a) => s + a.net, 0);
     if (!doc.asset) issues.push("Angaben zur Anlage fehlen");
@@ -331,7 +338,7 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
 
     // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
     const totals = {
-      ...totalsOf(amounts),
+      ...totalsOf(amounts, doc.reverseCharge),
       taxes: [...amounts].sort((a, b) => b.taxRate - a.taxRate).map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })),
     };
     // Kleinunternehmer ziehen keine Vorsteuer ab; festgehalten am Beleg, damit spätere Auswertungen stimmen
@@ -347,6 +354,7 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
       vorsteuerAbzug,
       assetAccountNo,
       doc.privateShare,
+      doc.reverseCharge,
     );
     const now = new Date();
     const [entry] = await tx

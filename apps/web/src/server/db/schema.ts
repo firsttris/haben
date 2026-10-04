@@ -145,6 +145,12 @@ export const vatReturns = pgTable(
     kz45: integer("kz45").notNull().default(0),
     kz48: integer("kz48").notNull().default(0),
     kz66: integer("kz66").notNull().default(0),
+    /** § 13b als Leistungsempfänger: Bemessungsgrundlagen 46/84, Steuer 47/85, Vorsteuer 67 */
+    kz46: integer("kz46").notNull().default(0),
+    kz47: integer("kz47").notNull().default(0),
+    kz84: integer("kz84").notNull().default(0),
+    kz85: integer("kz85").notNull().default(0),
+    kz67: integer("kz67").notNull().default(0),
     kz83: integer("kz83").notNull().default(0),
     status: vatReturnStatusEnum("status").notNull().default("draft"),
     /** Berichtigte Anmeldung (Kz 10) */
@@ -153,7 +159,20 @@ export const vatReturns = pgTable(
     source: text("source", { enum: ["berechnet", "manuell"] }).notNull().default("manuell"),
     overrideReason: text("override_reason"),
     /** Berechnete Werte zum Zeitpunkt des Speicherns, zum Nachvollziehen einer Überschreibung */
-    computed: jsonb("computed").$type<{ kz81: number; kz86: number; kz21?: number; kz45?: number; kz48?: number; kz66: number; kz83: number }>(),
+    computed: jsonb("computed").$type<{
+      kz81: number;
+      kz86: number;
+      kz21?: number;
+      kz45?: number;
+      kz48?: number;
+      kz66: number;
+      kz46?: number;
+      kz47?: number;
+      kz84?: number;
+      kz85?: number;
+      kz67?: number;
+      kz83: number;
+    }>(),
     correctsId: uuid("corrects_id"),
     transferTicket: text("transfer_ticket"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
@@ -756,6 +775,11 @@ export const documents = pgTable("documents", {
   vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
   /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
   privateShare: smallint("private_share").notNull().default(0),
+  /**
+   * § 13b: Die Steuer schuldest du als Leistungsempfänger. Die Beträge tragen die selbst berechnete Steuer,
+   * gezahlt wird nur netto (gross = net).
+   */
+  reverseCharge: text("reverse_charge", { enum: ["eu", "drittland"] }),
   /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
   lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
   lockedAt: timestamp("locked_at", { withTimezone: true }),

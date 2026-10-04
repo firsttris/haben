@@ -29,6 +29,13 @@ export interface InputTaxSource {
   tax: Cents;
 }
 
+/** Beleg, bei dem du die Steuer als Leistungsempfänger schuldest (§ 13b UStG) */
+export interface ReverseChargeSource extends InputTaxSource {
+  reverseCharge: "eu" | "drittland";
+  /** Davon als Vorsteuer abziehbar (Kz 67): betrieblicher Teil, bei Kleinunternehmern 0 */
+  deductible: Cents;
+}
+
 export interface VatFigures {
   versteuerung: "ist" | "soll";
   /** Kleinunternehmer geben keine Voranmeldung ab */
@@ -43,10 +50,17 @@ export interface VatFigures {
   kz45: Cents;
   kz48: Cents;
   kz66: Cents;
+  /** § 13b als Leistungsempfänger: EU (46/47), Drittland (84/85), Vorsteuer daraus (67) */
+  kz46: Cents;
+  kz47: Cents;
+  kz84: Cents;
+  kz85: Cents;
+  kz67: Cents;
   /** Regulär besteuerte Umsätze zu 0 %, die in dieser Voranmeldung nicht gemeldet werden */
   steuerfrei: Cents;
   revenue: RevenueSource[];
   inputTax: InputTaxSource[];
+  reverseCharge: ReverseChargeSource[];
 }
 
 function monthRange({ year, month }: VatPeriod) {
@@ -176,6 +190,8 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       base: schema.documentAmounts.net,
       tax: schema.documentAmounts.tax,
       privateShare: schema.documents.privateShare,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+      reverseCharge: schema.documents.reverseCharge,
     })
     .from(schema.documentAmounts)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.documentAmounts.documentId))
@@ -185,19 +201,29 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
         gte(schema.documents.documentDate, start),
         lt(schema.documents.documentDate, end),
         isNull(schema.documents.lexofficeVoucherId),
-        // Kleinunternehmer: kein Vorsteuerabzug
-        eq(schema.documents.vorsteuerAbzug, true),
       ),
     );
-  // Mit Privatanteil zählt nur der betriebliche Teil
+  // Mit Privatanteil zählt nur der betriebliche Teil; Kleinunternehmer ziehen keine Vorsteuer ab
   const inputTax = amounts
-    .map(({ privateShare, ...a }) => ({
+    .filter((a) => a.vorsteuerAbzug && !a.reverseCharge)
+    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, ...a }) => ({
       ...a,
       date: a.date!,
       base: splitPrivateShare(a.base, privateShare).business,
       tax: splitPrivateShare(a.tax, privateShare).business,
     }))
     .filter((a) => a.tax !== 0);
+  // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
+  const reverseCharge: ReverseChargeSource[] = amounts
+    .filter((a) => a.reverseCharge)
+    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, ...a }) => ({
+      ...a,
+      date: a.date!,
+      reverseCharge: rc!,
+      deductible: vorsteuerAbzug ? splitPrivateShare(a.tax, privateShare).business : 0,
+    }));
+  const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") =>
+    reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
 
   const regular = revenue.filter((r) => r.treatment === "regulaer");
   const sum = (rows: { base: Cents; tax: Cents; rate: number }[], rate: number, key: "base" | "tax") =>
@@ -215,9 +241,15 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     kz45: treated("drittland"),
     kz48: treated("steuerfrei"),
     kz66: inputTax.reduce((s, a) => s + a.tax, 0),
+    kz46: rcSum("eu", "base"),
+    kz47: rcSum("eu", "tax"),
+    kz84: rcSum("drittland", "base"),
+    kz85: rcSum("drittland", "tax"),
+    kz67: reverseCharge.reduce((s, r) => s + r.deductible, 0),
     steuerfrei: sum(regular, 0, "base"),
     revenue,
     inputTax,
+    reverseCharge,
   };
 }
 

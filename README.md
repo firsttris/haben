@@ -52,7 +52,7 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
   Kleinunternehmer nach § 19 UStG mit Pflichthinweis. Abschlags- und Schlussrechnungen, Auftragsbestätigung und Lieferschein. Rechnungen und Angebote auf Deutsch oder Englisch. Wiederkehrende Rechnungen mit Platzhaltern wie {monat}, als Entwurf oder
   automatisch festgeschrieben. Mahnwesen mit drei Stufen, Verzugszinsen und PDF; GiroCode zum Bezahlen per Banking-App
 - **Belege**: per Drag-and-drop, Kamera, Teilen-Menü am Handy (PWA) oder per E-Mail (IMAP-Abruf). E-Rechnungen werden direkt gelesen,
-  andere PDFs und Fotos auf Wunsch von Claude vorausgefüllt. Kategorie pro Lieferant gemerkt
+  andere PDFs und Fotos auf Wunsch von Claude vorausgefüllt. Kategorie pro Lieferant gemerkt, Reverse Charge nach § 13b (z. B. Google, AWS)
 - **Bankabgleich**: Umsätze täglich automatisch über Enable Banking (PSD2) abrufen oder Kontoauszüge von DKB, N26
   oder als CAMT.053 importieren, Dubletten und Lücken erkennen,
   Vorschläge mit Begründung, Zuordnen per Tastatur, Teilzahlungen und Sammelüberweisungen

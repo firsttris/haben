@@ -78,6 +78,35 @@ describe("documentPosting", () => {
     ]);
   });
 
+  it("§ 13b: Steuer selbst schulden und als Vorsteuer abziehen, gezahlt wird netto", () => {
+    const base = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
+    const totals = { ...base, gross: base.net };
+    const lines = documentPosting(totals, "software", "SKR03", "bank", true, undefined, 0, "eu");
+    expect(lines).toEqual([
+      { account: "4964", debit: 10_000, credit: 0, taxCode: "RC13bEU" },
+      { account: "1577", debit: 1_900, credit: 0, taxCode: "VSt13b" },
+      { account: "1787", debit: 0, credit: 1_900, taxCode: "RC13bEU" },
+      { account: "1600", debit: 0, credit: 10_000, taxCode: null },
+    ]);
+    expect(documentPosting(totals, "software", "SKR04", "privat", true, undefined, 0, "drittland").map((l) => [l.account, l.taxCode])).toEqual([
+      ["6837", "RC13bDrittland"],
+      ["1407", "VSt13b"],
+      ["3837", "RC13bDrittland"],
+      ["2180", null],
+    ]);
+    // Kleinunternehmer: Steuer schulden, nicht abziehen; sie ist Aufwand
+    expect(documentPosting(totals, "software", "SKR03", "bank", false, undefined, 0, "eu")).toEqual([
+      { account: "4964", debit: 11_900, credit: 0, taxCode: "RC13bEU" },
+      { account: "1787", debit: 0, credit: 1_900, taxCode: "RC13bEU" },
+      { account: "1600", debit: 0, credit: 10_000, taxCode: null },
+    ]);
+    // Privatanteil: Vorsteuer nur für den betrieblichen Teil, Umsatzsteuer voll
+    const shared = documentPosting(totals, "telefon", "SKR03", "bank", true, undefined, 20, "eu");
+    expect(shared.find((l) => l.account === "1577")!.debit).toBe(1_520);
+    expect(shared.find((l) => l.account === "1787")!.credit).toBe(1_900);
+    expect(balanced(shared)).toBe(true);
+  });
+
   it("ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Aufwand", () => {
     const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
     expect(documentPosting(totals, "software", "SKR03", "bank", false)).toEqual([
