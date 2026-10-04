@@ -2,7 +2,7 @@ import { DUNNING_LEVELS, formatEuro, type DunningAmounts, type DunningLevel } fr
 import { formatDate, formatIban } from "./format.ts";
 import { addressLines, footerColumns, renderDunningPdf } from "./pdf.ts";
 import { girocodeSvg } from "./qr.ts";
-import type { Buyer, Seller } from "./types.ts";
+import type { Buyer, Logo, Seller } from "./types.ts";
 
 export interface DunningDocument {
   level: DunningLevel;
@@ -16,6 +16,7 @@ export interface DunningDocument {
   amounts: DunningAmounts;
   intro: string;
   closing: string;
+  logo?: Logo;
 }
 
 const percent = (basisPoints: number) =>
@@ -73,5 +74,5 @@ export function dunningPdfData(doc: DunningDocument) {
 }
 
 export function buildDunningPdf(doc: DunningDocument): Uint8Array {
-  return renderDunningPdf(dunningPdfData(doc), doc.date);
+  return renderDunningPdf(dunningPdfData(doc), doc.date, doc.logo);
 }

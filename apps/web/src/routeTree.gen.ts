@@ -20,6 +20,7 @@ import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellunge
 import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
 import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
+import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as AppAngeboteIndexRouteImport } from './routes/_app/angebote/index'
 import { Route as AppAngeboteIdRouteImport } from './routes/_app/angebote/$id'
 import { Route as AppAngeboteNeuRouteImport } from './routes/_app/angebote/neu'
@@ -118,6 +119,11 @@ const AppPauschalenRoute = AppPauschalenRouteImport.update({
   id: '/pauschalen',
   path: '/pauschalen',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiLogoRoute = ApiLogoRouteImport.update({
+  id: '/api/logo',
+  path: '/api/logo',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppAngeboteIndexRoute = AppAngeboteIndexRouteImport.update({
   id: '/angebote/',
@@ -358,6 +364,7 @@ export interface FileRoutesByFullPath {
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
   '/pauschalen': typeof AppPauschalenRoute
+  '/api/logo': typeof ApiLogoRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
@@ -413,6 +420,7 @@ export interface FileRoutesByTo {
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
   '/pauschalen': typeof AppPauschalenRoute
+  '/api/logo': typeof ApiLogoRoute
   '/': typeof AppIndexRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
@@ -471,6 +479,7 @@ export interface FileRoutesById {
   '/_app/finanzamt': typeof AppFinanzamtRoute
   '/_app/fristen': typeof AppFristenRoute
   '/_app/pauschalen': typeof AppPauschalenRoute
+  '/api/logo': typeof ApiLogoRoute
   '/_app/': typeof AppIndexRoute
   '/_app/angebote/$id': typeof AppAngeboteIdRoute
   '/_app/angebote/neu': typeof AppAngeboteNeuRoute
@@ -530,6 +539,7 @@ export interface FileRouteTypes {
     | '/finanzamt'
     | '/fristen'
     | '/pauschalen'
+    | '/api/logo'
     | '/angebote/$id'
     | '/angebote/neu'
     | '/anlagen/$id'
@@ -585,6 +595,7 @@ export interface FileRouteTypes {
     | '/finanzamt'
     | '/fristen'
     | '/pauschalen'
+    | '/api/logo'
     | '/'
     | '/angebote/$id'
     | '/angebote/neu'
@@ -642,6 +653,7 @@ export interface FileRouteTypes {
     | '/_app/finanzamt'
     | '/_app/fristen'
     | '/_app/pauschalen'
+    | '/api/logo'
     | '/_app/'
     | '/_app/angebote/$id'
     | '/_app/angebote/neu'
@@ -693,6 +705,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  ApiLogoRoute: typeof ApiLogoRoute
   ApiAltbelegIdRoute: typeof ApiAltbelegIdRoute
   ApiAngebotIdRoute: typeof ApiAngebotIdRoute
   ApiArchivIdRoute: typeof ApiArchivIdRoute
@@ -789,6 +802,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/pauschalen'
       preLoaderRoute: typeof AppPauschalenRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/logo': {
+      id: '/api/logo'
+      path: '/api/logo'
+      fullPath: '/api/logo'
+      preLoaderRoute: typeof ApiLogoRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/angebote/': {
       id: '/_app/angebote/'
@@ -1185,6 +1205,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  ApiLogoRoute: ApiLogoRoute,
   ApiAltbelegIdRoute: ApiAltbelegIdRoute,
   ApiAngebotIdRoute: ApiAngebotIdRoute,
   ApiArchivIdRoute: ApiArchivIdRoute,

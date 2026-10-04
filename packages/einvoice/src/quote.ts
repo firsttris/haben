@@ -1,7 +1,7 @@
 import { formatEuro, formatQuantity, formatRate, treatmentNote, type InvoiceTotals, type TaxTreatment } from "@haben/core";
 import { formatDate } from "./format.ts";
 import { addressLines, footerColumns, renderQuotePdfData } from "./pdf.ts";
-import type { Buyer, InvoiceDocumentLine, Seller } from "./types.ts";
+import type { Buyer, InvoiceDocumentLine, Logo, Seller } from "./types.ts";
 
 /** Angebot: wie eine Rechnung aufgebaut, aber ohne Zahlungsaufforderung und ohne E-Rechnungs-XML */
 export interface QuoteDocument {
@@ -18,6 +18,7 @@ export interface QuoteDocument {
   note?: string;
   taxTreatment?: TaxTreatment;
   exemptionReason?: string;
+  logo?: Logo;
 }
 
 /** Druckfertige Texte für templates/rechnung.typ */
@@ -71,5 +72,5 @@ export function quotePdfData(doc: QuoteDocument) {
 
 /** Angebot als PDF/A-3b mit derselben Vorlage wie die Rechnung */
 export function buildQuotePdf(doc: QuoteDocument): Uint8Array {
-  return renderQuotePdfData(quotePdfData(doc), doc.issueDate);
+  return renderQuotePdfData(quotePdfData(doc), doc.issueDate, doc.logo);
 }

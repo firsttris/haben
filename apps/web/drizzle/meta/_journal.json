@@ -330,6 +330,20 @@
       "when": 1791085998959,
       "tag": "0046_artikel_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791086518673,
+      "tag": "0047_logo",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1791086519850,
+      "tag": "0048_logo_trigger",
+      "breakpoints": true
     }
   ]
 }

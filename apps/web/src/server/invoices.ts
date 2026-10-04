@@ -23,6 +23,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, sellerIssues, type Company } from "./company.ts";
 import type { Contact } from "./contacts.ts";
+import { loadLogo } from "./logo.ts";
 import { invoicePayments, stornoOpen } from "./bank.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
@@ -361,7 +362,8 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
     const seller = sellerFrom(company);
     const buyer = corrects?.buyer ?? buyerFrom(contact!);
     const doc = documentFor(invoice, lines, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null);
-    const rendered = await buildEInvoice(doc);
+    const logo = await loadLogo();
+    const rendered = await buildEInvoice(logo ? { ...doc, logo } : doc);
     const totals = doc.totals;
     const now = new Date();
 

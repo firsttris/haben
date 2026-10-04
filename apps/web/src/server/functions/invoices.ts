@@ -5,6 +5,7 @@ import { z } from "zod";
 import { listAccounts } from "../bank.ts";
 import { loadCompany, sellerIssues } from "../company.ts";
 import { listArticles } from "../articles.ts";
+import { logoInfo } from "../logo.ts";
 import { listContacts } from "../contacts.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
@@ -68,7 +69,7 @@ async function editorContext() {
   return {
     contacts: await listContacts(),
     articles: (await listArticles()).map(({ id, number, description, unit, unitPrice, taxRate }) => ({ id, number, description, unit, unitPrice, taxRate })),
-    company: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort, email: company.email, steuernummer: company.steuernummer, ustId: company.ustId, iban: company.iban, bic: company.bic, bank: company.bank },
+    company: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort, email: company.email, steuernummer: company.steuernummer, ustId: company.ustId, iban: company.iban, bic: company.bic, bank: company.bank, logo: (await logoInfo())?.sha256 ?? null },
     sellerIssues: sellerIssues(company),
     bundesland: company.bundesland,
     kleinunternehmer: company.kleinunternehmer,
