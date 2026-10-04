@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
+import { InboxCard } from "../../components/InboxCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
 import { authClient } from "../../lib/auth-client.ts";
@@ -14,21 +15,23 @@ import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import { checkElsterFormats, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
+import { getInbox } from "../../server/functions/inbox.ts";
 import { getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo] = await Promise.all([
+    const [company, vat, numbering, eric, mail, logo, inbox] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
       getNumbering(),
       getEricStatus(),
       getMailSettings(),
       getLogo(),
+      getInbox(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo };
+    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
   component: SettingsPage,
@@ -65,6 +68,7 @@ function SettingsPage() {
           <CertificateForm />
           <EricCard />
           <MailCard data={Route.useLoaderData().mail} />
+          <InboxCard data={Route.useLoaderData().inbox} />
           <Passkeys />
           <ExportCard />
           <DatevCard />

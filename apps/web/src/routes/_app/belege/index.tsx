@@ -3,7 +3,7 @@ import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { DocumentUpload } from "../../../components/DocumentUpload.tsx";
-import { formatDate } from "../../../lib/format.ts";
+import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { getDocuments } from "../../../server/functions/documents.ts";
 
 export const Route = createFileRoute("/_app/belege/")({
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_app/belege/")({
 });
 
 function DocumentsPage() {
-  const { documents, aiAvailable } = Route.useLoaderData();
+  const { documents, aiAvailable, inbox } = Route.useLoaderData();
   const router = useRouter();
   const running = documents.some((d) => d.extractionStatus === "laeuft");
   const open = documents.filter((d) => d.status === "neu").length;
@@ -35,6 +35,18 @@ function DocumentsPage() {
         {open > 0 && <span className="pill pill-info">{open} zu prüfen</span>}
       </div>
       <DocumentUpload aiAvailable={aiAvailable} />
+      {inbox ? (
+        <p className="small muted" style={{ margin: 0, overflowWrap: "anywhere" }}>
+          Belege per E-Mail: Anhänge an {inbox.username}
+          {inbox.folder !== "INBOX" ? ` (Ordner ${inbox.folder})` : ""} landen stündlich hier
+          {inbox.lastRunAt ? `, zuletzt abgerufen ${formatDateTime(inbox.lastRunAt)}` : ""}.
+          {inbox.lastError && <span style={{ color: "var(--danger-ink)" }}> Letzter Abruf fehlgeschlagen: {inbox.lastError}</span>}
+        </p>
+      ) : (
+        <p className="small muted" style={{ margin: 0 }}>
+          Rechnungen per E-Mail? Mit einem <Link to="/einstellungen">Postfach für Belege</Link> holt Haben die Anhänge selbst ab.
+        </p>
+      )}
       <section className="card" aria-label="Belegliste">
         {documents.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>

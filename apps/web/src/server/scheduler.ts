@@ -1,6 +1,7 @@
 import { runDueBankSyncs } from "./bank-sync.ts";
 import { elsterClient, elsterMode } from "./elster.ts";
 import { env } from "./env.ts";
+import { runDueInboxFetch } from "./inbox.ts";
 import { runDueFristenMails } from "./mail.ts";
 import { runDuePostfachFetch } from "./postfach.ts";
 import { runDueRecurring } from "./recurring.ts";
@@ -37,6 +38,12 @@ export async function runScheduledJobs(): Promise<void> {
     }
   } catch (error) {
     console.error("ELSTER-Postfach", error);
+  }
+  try {
+    const result = await runDueInboxFetch();
+    if (result?.messages) console.log(`Belege per E-Mail: ${result.messages} Mails, ${result.documents} neue Belege`);
+  } catch (error) {
+    console.error("Belege per E-Mail", error);
   }
   try {
     const result = await runDueFristenMails(today());
