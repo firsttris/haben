@@ -16,6 +16,9 @@ export const ACCOUNTS = {
     ust: { 1900: "1776", 700: "1771" },
     ustNichtFaellig: { 1900: "1766", 700: "1761" },
     vorsteuer: { 1900: "1576", 700: "1571" },
+    /** § 13b: selbst geschuldete Umsatzsteuer und die Vorsteuer daraus */
+    ustRc: "1787",
+    vorsteuerRc: "1577",
     verbindlichkeiten: "1600",
     privateinlagen: "1890",
     privatentnahmen: "1800",
@@ -32,6 +35,8 @@ export const ACCOUNTS = {
     ust: { 1900: "3806", 700: "3801" },
     ustNichtFaellig: { 1900: "3816", 700: "3811" },
     vorsteuer: { 1900: "1406", 700: "1401" },
+    ustRc: "3837",
+    vorsteuerRc: "1407",
     verbindlichkeiten: "3300",
     privateinlagen: "2180",
     privatentnahmen: "2100",
@@ -87,6 +92,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1766": "Umsatzsteuer nicht fällig 19 %",
     "1771": "Umsatzsteuer 7 %",
     "1776": "Umsatzsteuer 19 %",
+    "1787": "Umsatzsteuer nach § 13b UStG",
     "8100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
     "8195": "Erlöse als Kleinunternehmer § 19 UStG",
     "8200": "Erlöse",
@@ -101,6 +107,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1800": "Bank",
     "3801": "Umsatzsteuer 7 %",
     "3806": "Umsatzsteuer 19 %",
+    "3837": "Umsatzsteuer nach § 13b UStG",
     "3811": "Umsatzsteuer nicht fällig 7 %",
     "3816": "Umsatzsteuer nicht fällig 19 %",
     "4100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
@@ -126,7 +133,21 @@ export const TAX_CODES = {
   VSt19: { rate: 1900, kz: "66", name: "Vorsteuer 19 %" },
   VSt7: { rate: 700, kz: "66", name: "Vorsteuer 7 %" },
   keineVSt: { rate: 0, kz: null, name: "Ohne Vorsteuer" },
+  RC13bEU: { rate: 1900, kz: "46", name: "§ 13b: Leistung eines Unternehmers aus dem EU-Ausland" },
+  RC13bDrittland: { rate: 1900, kz: "84", name: "§ 13b: Leistung eines Unternehmers aus dem Drittland" },
+  VSt13b: { rate: 1900, kz: "67", name: "Vorsteuer aus Leistungen nach § 13b UStG" },
 } as const;
+
+/**
+ * Steuerschuld als Leistungsempfänger (§ 13b UStG) für Belege: sonstige Leistungen eines Unternehmers
+ * aus dem übrigen EU-Gebiet (Abs. 1, Kz 46/47) oder aus dem Drittland (Abs. 2 Nr. 1, Kz 84/85)
+ */
+export type ReverseChargeIn = "eu" | "drittland";
+
+export const REVERSE_CHARGE_IN: Record<ReverseChargeIn, { label: string; code: "RC13bEU" | "RC13bDrittland"; kz: string; taxKz: string }> = {
+  eu: { label: "Leistung eines Unternehmers aus dem EU-Ausland (§ 13b Abs. 1 UStG)", code: "RC13bEU", kz: "46", taxKz: "47" },
+  drittland: { label: "Leistung eines Unternehmers aus dem Drittland (§ 13b Abs. 2 Nr. 1 UStG)", code: "RC13bDrittland", kz: "84", taxKz: "85" },
+};
 
 export type TaxCode = keyof typeof TAX_CODES;
 
@@ -206,6 +227,11 @@ export function documentPosting(
   account?: string,
   /** Privatanteil in Prozent, z. B. beim Handyvertrag: nur der betriebliche Teil ist Aufwand und Vorsteuer */
   privateShare = 0,
+  /**
+   * § 13b: Die Steuer in totals schuldest du selbst, gezahlt wird nur netto (totals.gross = Netto).
+   * Gebucht wird die Steuer als Umsatzsteuer und, mit Vorsteuerabzug, im selben Betrag als Vorsteuer.
+   */
+  reverseCharge: ReverseChargeIn | null = null,
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
@@ -218,6 +244,18 @@ export function documentPosting(
     const { rate } = row;
     const base = baseSplit.business;
     const tax = taxSplit.business;
+    if (reverseCharge) {
+      if (rate === 0) throw new RangeError("§ 13b: Steuersatz muss 19 % oder 7 % sein");
+      const code = REVERSE_CHARGE_IN[reverseCharge].code;
+      if (!vorsteuerAbzug) {
+        if (base + tax !== 0) lines.push(side(expense, base + tax, true, code));
+      } else {
+        if (base !== 0) lines.push(side(expense, base, true, code));
+        if (tax !== 0) lines.push(side(accounts.vorsteuerRc, tax, true, "VSt13b"));
+      }
+      if (row.tax !== 0) lines.push(side(accounts.ustRc, row.tax, false, code));
+      continue;
+    }
     if (!vorsteuerAbzug) {
       if (base + tax !== 0) lines.push(side(expense, base + tax, true, "keineVSt"));
       continue;

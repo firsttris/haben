@@ -146,6 +146,26 @@ Wird etwas auch privat genutzt, etwa der Handy- oder Internetvertrag, trägst du
 
 Vorgaben je Kategorie stellst du in den [Einstellungen](einrichtung.md#privatanteile) ein (Telefon, Internet). Sie werden beim Wählen der Kategorie und beim Auslesen übernommen. Bei Anlagegütern gibt es keinen Privatanteil; für Firmenwagen gilt die [Listenpreismethode](anlagen.md#private-nutzung-von-firmenwagen).
 
+## Reverse Charge als Leistungsempfänger (§ 13b)
+
+Viele Anbieter von Software und Cloud-Diensten aus dem EU-Ausland (Google, Microsoft, AWS, JetBrains, Adobe aus Irland oder den Niederlanden) stellen Unternehmern Rechnungen ohne Umsatzsteuer mit dem Hinweis „Reverse Charge“. Die Steuer schuldest dann du (§ 13b UStG) und ziehst sie im selben Zug als Vorsteuer wieder ab.
+
+Unter **Umsatzsteuer auf dem Beleg** wählst du:
+
+| Auswahl | Wann | Kennzahlen |
+| --- | --- | --- |
+| § 13b: Leistung eines Unternehmers aus dem EU-Ausland | sonstige Leistung eines Unternehmers mit Sitz in einem anderen EU-Land | Kz 46 (netto) und 47 (Steuer) |
+| § 13b: Leistung eines Unternehmers aus dem Drittland | Leistung eines Unternehmers ohne Sitz in der EU, z. B. aus den USA, ohne deutsche Umsatzsteuer | Kz 84 (netto) und 85 (Steuer) |
+
+Du trägst nur das Netto aus der Rechnung ein; Haben rechnet die Steuer zum gewählten Satz aus (änderbar). Bezahlt wird der Nettobetrag, der Bankabgleich erwartet also netto. Hat der Lieferant eine USt-IdNr. aus einem anderen EU-Land und steht keine Steuer auf dem Beleg, weist Haben darauf hin.
+
+Gebucht wird (SKR03, SKR04 in Klammern):
+
+- Aufwand netto an Verbindlichkeiten bzw. Privateinlage,
+- Vorsteuer nach § 13b auf 1577 (1407) an Umsatzsteuer nach § 13b auf 1787 (3837).
+
+In der [Voranmeldung](umsatzsteuer.md#13b-als-leistungsempfänger) heben sich Steuer und Vorsteuer auf. Als Kleinunternehmer schuldest du die Steuer trotzdem, ziehst aber nichts ab: Sie wird Teil des Aufwands und ist mit der Voranmeldung zu zahlen. Mit Privatanteil ist die Steuer voll geschuldet, abziehbar nur der betriebliche Teil. In der EÜR zählt der gezahlte Nettobetrag; die Steuer an das Finanzamt erscheint dort, wenn sie gezahlt wird.
+
 ## Bezahlung
 
 | Auswahl | Gegenkonto | Folge |
@@ -200,6 +220,6 @@ Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hoch
 
 - Nur Belege in Euro lassen sich buchen.
 - Nur die Steuersätze 19 %, 7 % und 0 %, je Satz eine Zeile.
-- Kein Reverse Charge als Leistungsempfänger (§ 13b UStG, etwa für Leistungen ausländischer Unternehmer an dich) und keine innergemeinschaftlichen Erwerbe; dafür gibt es keine Kennzahlen.
+- § 13b nur für sonstige Leistungen ausländischer Unternehmer (Kz 46/47 und 84/85), nicht für Bauleistungen, Gebäudereinigung, Gold oder Mobilfunkgeräte, und nicht bei Anlagegütern. Keine innergemeinschaftlichen Erwerbe von Waren.
 - Keine Abschreibung über mehrere Jahre; die Kategorie Hardware ist für geringwertige Wirtschaftsgüter gedacht.
 - HEIC-Fotos werden abgelegt, aber weder in der Vorschau angezeigt noch von der KI gelesen.

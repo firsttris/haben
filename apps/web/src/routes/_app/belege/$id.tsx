@@ -44,6 +44,9 @@ interface AmountState {
 
 let nextKey = 1;
 
+/** USt-IdNr. aus einem anderen EU-Land (ohne DE); Griechenland hat EL */
+const EU_VAT_PREFIX = /^(AT|BE|BG|CY|CZ|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK)[0-9A-Z]{2,12}$/;
+
 function DocumentPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
@@ -138,6 +141,7 @@ function DocumentForm({ data }: { data: Detail }) {
   const [assetMethod, setAssetMethod] = useState<AssetMethod>(doc.asset?.method ?? "digital");
   const [assetYears, setAssetYears] = useState(doc.asset?.usefulLifeMonths ? String(doc.asset.usefulLifeMonths / 12) : "");
   const [note, setNote] = useState(doc.note);
+  const [reverseCharge, setReverseCharge] = useState<"eu" | "drittland" | null>(doc.reverseCharge ?? null);
   const [rows, setRows] = useState<AmountState[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0 }]).map((a) => ({
       key: nextKey++,
@@ -158,7 +162,25 @@ function DocumentForm({ data }: { data: Detail }) {
   const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
   const valid =
     parsed.every((p) => p.net !== null && p.tax !== null) && new Set(rows.map((r) => r.taxRate)).size === rows.length && privateShareValid;
-  const gross = valid ? parsed.reduce((s, p) => s + p.net! + p.tax!, 0) : null;
+  // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
+  const gross = valid ? parsed.reduce((s, p) => s + p.net! + (reverseCharge ? 0 : p.tax!), 0) : null;
+  // Lieferant mit USt-IdNr. aus einem anderen EU-Land und keine Steuer auf dem Beleg: vermutlich § 13b
+  const looksLikeReverseCharge =
+    !reverseCharge && EU_VAT_PREFIX.test(supplierUstId.replace(/\s/g, "").toUpperCase()) && parsed.every((p) => p.tax === 0) && parsed.some((p) => p.net);
+
+  function chooseReverseCharge(value: "eu" | "drittland" | null) {
+    touch(setReverseCharge)(value);
+    // Die Steuer steht nicht auf der Rechnung; Haben rechnet sie aus dem Netto, 0 % gibt es bei § 13b nicht
+    if (value) {
+      setRows((prev) =>
+        prev.map((row) => {
+          const taxRate = row.taxRate === 0 ? 1900 : row.taxRate;
+          const net = parseEuro(row.net || "0");
+          return { ...row, taxRate, taxTouched: false, tax: net === null ? row.tax : formatDecimal(taxOf(net, taxRate)) };
+        }),
+      );
+    }
+  }
 
   function touch<T>(setter: (value: T) => void) {
     return (value: T) => {
@@ -213,6 +235,7 @@ function DocumentForm({ data }: { data: Detail }) {
           payment,
           note,
           privateShare: privateShareValue,
+          reverseCharge,
           asset:
             category === "anlage"
               ? {
@@ -388,6 +411,31 @@ function DocumentForm({ data }: { data: Detail }) {
 
       <fieldset className="card" disabled={locked || running} style={{ margin: 0 }}>
         <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Beträge je Steuersatz</legend>
+        <label className="field">
+          Umsatzsteuer auf dem Beleg
+          <select
+            value={reverseCharge ?? ""}
+            onChange={(e) => chooseReverseCharge((e.target.value || null) as "eu" | "drittland" | null)}
+            aria-describedby="rc-hint"
+          >
+            <option value="">Mit deutscher Umsatzsteuer (Vorsteuer)</option>
+            <option value="eu">§ 13b: Leistung eines Unternehmers aus dem EU-Ausland</option>
+            <option value="drittland">§ 13b: Leistung eines Unternehmers aus dem Drittland</option>
+          </select>
+          {reverseCharge ? (
+            <span id="rc-hint" className="small">
+              Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem
+              Netto, meldet sie in Kz {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht sie zugleich als Vorsteuer ab (Kz 67).
+              Bezahlt wird nur der Nettobetrag.
+            </span>
+          ) : (
+            looksLikeReverseCharge && (
+              <span id="rc-hint" className="small">
+                Lieferant aus dem EU-Ausland ohne Umsatzsteuer auf der Rechnung, etwa Google, Microsoft oder AWS? Dann ist es meist § 13b.
+              </span>
+            )
+          )}
+        </label>
         {rows.map((row, index) => (
           <div className="amount-row" key={row.key}>
             <label className="field">
@@ -395,7 +443,7 @@ function DocumentForm({ data }: { data: Detail }) {
               <select value={row.taxRate} onChange={(e) => updateRow(row.key, { taxRate: Number(e.target.value) as Rate })}>
                 <option value={1900}>19 %</option>
                 <option value={700}>7 %</option>
-                <option value={0}>0 %</option>
+                {!reverseCharge && <option value={0}>0 %</option>}
               </select>
             </label>
             <label className="field">
@@ -410,7 +458,7 @@ function DocumentForm({ data }: { data: Detail }) {
               />
             </label>
             <label className="field">
-              Vorsteuer
+              {reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
               <input
                 className="mono"
                 inputMode="decimal"
@@ -450,7 +498,7 @@ function DocumentForm({ data }: { data: Detail }) {
             + Steuersatz
           </button>
           <div>
-            <span className="muted small">Gesamt </span>
+            <span className="muted small">{reverseCharge ? "Zu zahlen (netto) " : "Gesamt "}</span>
             <span className="mono" style={{ fontWeight: 600 }}>
               {gross === null ? "–" : formatEuro(gross)}
             </span>

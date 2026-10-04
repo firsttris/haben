@@ -6,7 +6,9 @@ import { vatPeriodSchema } from "./period.ts";
  * Kennzahlen der Umsatzsteuer-Voranmeldung, die Haben derzeit unterstützt.
  * Kz 81 und 86 sind steuerpflichtige Bemessungsgrundlagen, Kz 21 (Reverse Charge im EU-Ausland),
  * 45 (nicht steuerbar) und 48 (steuerfrei ohne Vorsteuerabzug) Umsätze ohne Steuer; ELSTER erwartet
- * dort volle Euro. Kz 66 ist Vorsteuer in Cent, Kz 83 wird gerechnet. Alle Werte dürfen negativ
+ * dort volle Euro. Kz 46 und 84 sind Bemessungsgrundlagen von Leistungen, für die du als Empfänger die Steuer
+ * schuldest (§ 13b UStG), in vollen Euro; Kz 47 und 85 die Steuer dazu in Cent. Kz 66 ist Vorsteuer, Kz 67
+ * die Vorsteuer aus § 13b, beide in Cent. Kz 83 wird gerechnet. Alle Werte dürfen negativ
  * sein, etwa wenn Gutschriften im Monat überwiegen.
  */
 export const ustvaInputSchema = z.object({
@@ -17,6 +19,11 @@ export const ustvaInputSchema = z.object({
   kz45: z.number().int().default(0),
   kz48: z.number().int().default(0),
   kz66: z.number().int(),
+  kz46: z.number().int().default(0),
+  kz47: z.number().int().default(0),
+  kz84: z.number().int().default(0),
+  kz85: z.number().int().default(0),
+  kz67: z.number().int().default(0),
 });
 
 export type UstvaInput = z.infer<typeof ustvaInputSchema>;
@@ -33,6 +40,12 @@ export interface UstvaFigures {
   kz45: Cents;
   kz48: Cents;
   kz66: Cents;
+  /** § 13b: Bemessungsgrundlagen in vollen Euro, Steuer und Vorsteuer in Cent */
+  kz46: Cents;
+  kz47: Cents;
+  kz84: Cents;
+  kz85: Cents;
+  kz67: Cents;
   /** Verbleibende Vorauszahlung; negativ = Erstattung */
   kz83: Cents;
 }
@@ -42,7 +55,8 @@ export function toWholeEuros(cents: Cents): Cents {
   return Math.trunc(cents / 100) * 100;
 }
 
-export type UstvaValues = Pick<UstvaInput, "kz81" | "kz86" | "kz66"> & Partial<Pick<UstvaInput, "kz21" | "kz45" | "kz48">>;
+export type UstvaValues = Pick<UstvaInput, "kz81" | "kz86" | "kz66"> &
+  Partial<Pick<UstvaInput, "kz21" | "kz45" | "kz48" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67">>;
 
 export function computeUstva(input: UstvaValues): UstvaFigures {
   const kz81 = toWholeEuros(input.kz81);
@@ -58,6 +72,11 @@ export function computeUstva(input: UstvaValues): UstvaFigures {
     kz45: toWholeEuros(input.kz45 ?? 0),
     kz48: toWholeEuros(input.kz48 ?? 0),
     kz66: input.kz66,
-    kz83: tax81 + tax86 - input.kz66,
+    kz46: toWholeEuros(input.kz46 ?? 0),
+    kz47: input.kz47 ?? 0,
+    kz84: toWholeEuros(input.kz84 ?? 0),
+    kz85: input.kz85 ?? 0,
+    kz67: input.kz67 ?? 0,
+    kz83: tax81 + tax86 + (input.kz47 ?? 0) + (input.kz85 ?? 0) - input.kz66 - (input.kz67 ?? 0),
   };
 }

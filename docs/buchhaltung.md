@@ -325,7 +325,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 
 - Gebäude, degressive AfA, Sonderabschreibungen und Investitionsabzugsbetrag
 - Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
-- Reverse Charge als Leistungsempfänger (§ 13b UStG), innergemeinschaftliche Lieferungen und Erwerbe
+- Innergemeinschaftliche Lieferungen und Erwerbe von Waren; § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn, Kasse und Fremdwährung
 - Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten)
 

@@ -49,6 +49,8 @@ export interface UstYear {
   kz21: Cents;
   kz45: Cents;
   kz48: Cents;
+  /** § 13b als Leistungsempfänger: Steuer (Kz 47 und 85), noch nicht in der Erklärung */
+  reverseChargeTax: Cents;
   /** Monate ohne gesendete Voranmeldung */
   missingMonths: number[];
 }
@@ -56,7 +58,7 @@ export interface UstYear {
 /** Zahlen der Umsatzsteuererklärung: Summe der zwölf Monate aus den Buchungen, Vorauszahlungen aus den gesendeten Voranmeldungen */
 export async function ustYear(year: number): Promise<UstYear> {
   const months = await Promise.all(Array.from({ length: 12 }, (_, i) => computeVatFigures({ year, month: i + 1 })));
-  const total = (key: "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66") => months.reduce((s, m) => s + m[key], 0);
+  const total = (key: "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz47" | "kz85") => months.reduce((s, m) => s + m[key], 0);
   // Wie in der Voranmeldung: Bemessungsgrundlage in vollen Euro, Steuer daraus
   const base19 = toWholeEuros(total("kz81"));
   const base7 = toWholeEuros(total("kz86"));
@@ -84,6 +86,7 @@ export async function ustYear(year: number): Promise<UstYear> {
     kz21: total("kz21"),
     kz45: total("kz45"),
     kz48: total("kz48"),
+    reverseChargeTax: total("kz47") + total("kz85"),
     missingMonths: Array.from({ length: 12 }, (_, i) => i + 1).filter((m) => !latest.has(m)),
   };
 }
@@ -97,6 +100,7 @@ function ustIssues(company: Company, data: UstYear): Issue[] {
     data.kz21 !== 0 && "Leistungen im EU-Ausland (Reverse Charge, Kz 21)",
     data.kz45 !== 0 && "nicht steuerbare Umsätze im Drittland (Kz 45)",
     data.kz48 !== 0 && "steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48)",
+    data.reverseChargeTax !== 0 && "Steuer als Leistungsempfänger nach § 13b UStG (Kz 46/47, 84/85)",
   ].filter(Boolean);
   if (unsupported.length > 0) {
     issues.push({

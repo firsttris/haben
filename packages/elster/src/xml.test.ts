@@ -73,6 +73,20 @@ describe("buildUstvaXml", () => {
     expect(order).toEqual([...order].sort((a, b) => a - b));
   });
 
+  it("schreibt § 13b als Leistungsempfänger: Kz 46/84 in Euro, Steuer 47/85 und Vorsteuer 67 in Cent", () => {
+    const xml = buildUstvaXml({
+      ...base,
+      figures: { kz81: 0, kz86: 0, kz66: 0, kz46: 12_345, kz47: 2_345, kz84: 5_000, kz85: 950, kz67: 3_295, kz83: 0 },
+    });
+    expect(tag(xml, "Kz46")).toBe("123");
+    expect(tag(xml, "Kz47")).toBe("23,45");
+    expect(tag(xml, "Kz84")).toBe("50");
+    expect(tag(xml, "Kz85")).toBe("9,50");
+    expect(tag(xml, "Kz67")).toBe("32,95");
+    const order = [...xml.matchAll(/<Kz(\d+)>/g)].map((m) => Number(m[1]));
+    expect(order).toEqual([46, 47, 67, 83, 84, 85]);
+  });
+
   it("lässt Nullwerte weg, Kz83 aber nie", () => {
     const xml = buildUstvaXml({ ...base, figures: { kz81: 0, kz86: 0, kz66: 0, kz83: 0 } });
     expect(xml).not.toContain("<Kz81>");

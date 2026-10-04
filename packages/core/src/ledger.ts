@@ -83,7 +83,7 @@ export function kontenkennzahlen(rows: SaldenZeile[]): Kontenkennzahlen {
   const result: Kontenkennzahlen = { bank: 0, forderungen: 0, verbindlichkeiten: 0, umsatzsteuer: 0, ertraege: 0, aufwand: 0 };
   for (const r of rows) {
     const a = ACCOUNTS[r.kontenrahmen];
-    const steuer = [...Object.values(a.ust), ...Object.values(a.vorsteuer), a.ustVorauszahlung] as string[];
+    const steuer = [...Object.values(a.ust), ...Object.values(a.vorsteuer), a.ustRc, a.vorsteuerRc, a.ustVorauszahlung] as string[];
     if (r.account === a.bank) result.bank += r.saldo;
     else if (r.account === a.forderungen) result.forderungen += r.saldo;
     else if (r.account === a.verbindlichkeiten) result.verbindlichkeiten -= r.saldo;

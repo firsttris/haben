@@ -18,6 +18,7 @@ const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
     [ACCOUNTS.SKR03.vorsteuer[1900]]: "Vorsteuer 19 %",
     [ACCOUNTS.SKR03.vorsteuer[700]]: "Vorsteuer 7 %",
+    [ACCOUNTS.SKR03.vorsteuerRc]: "Abziehbare Vorsteuer nach § 13b UStG",
     [ACCOUNTS.SKR03.verbindlichkeiten]: "Verbindlichkeiten aus Lieferungen und Leistungen",
     [ACCOUNTS.SKR03.privateinlagen]: "Privateinlagen",
     [ACCOUNTS.SKR03.privatentnahmen]: "Privatentnahmen",
@@ -32,6 +33,7 @@ const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR04: {
     [ACCOUNTS.SKR04.vorsteuer[1900]]: "Vorsteuer 19 %",
     [ACCOUNTS.SKR04.vorsteuer[700]]: "Vorsteuer 7 %",
+    [ACCOUNTS.SKR04.vorsteuerRc]: "Abziehbare Vorsteuer nach § 13b UStG",
     [ACCOUNTS.SKR04.verbindlichkeiten]: "Verbindlichkeiten aus Lieferungen und Leistungen",
     [ACCOUNTS.SKR04.privateinlagen]: "Privateinlagen",
     [ACCOUNTS.SKR04.privatentnahmen]: "Privatentnahmen",

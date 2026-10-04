@@ -202,6 +202,62 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     await expect(invoice([{ net: 100_000, rate: 1900 }])).rejects.toThrow("Kleinunternehmer");
   }, 30_000);
 
+  async function reverseChargeDocument(date: string, net: number, kind: "eu" | "drittland", payment: "bank" | "privat" = "bank") {
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, net % 256, kind.length, 2]);
+    const { id } = await documents.uploadDocument(actor, { bytes, filename: "rc.jpg" });
+    await documents.updateDocument(actor, id, {
+      supplierName: kind === "eu" ? "Google Cloud EMEA Ltd" : "Example Software Inc.", supplierUstId: kind === "eu" ? "IE6388047V" : "",
+      invoiceNumber: "RC1", documentDate: date, dueDate: null, category: "software", payment, note: "",
+      reverseCharge: kind, amounts: [{ taxRate: 1900, net, tax: Math.round(net * 0.19) }],
+    });
+    await documents.bookDocument(actor, id);
+    return id;
+  }
+
+  it("§ 13b als Leistungsempfänger: Steuer in Kz 47/85, zugleich Vorsteuer Kz 67, gezahlt wird netto", async () => {
+    await bookedDocument("2026-10-05", 3_240, 616);
+    const eu = await reverseChargeDocument("2026-10-07", 10_000, "eu");
+    await reverseChargeDocument("2026-10-08", 5_000, "drittland", "privat");
+    const [doc] = await sql`select net, tax, gross from documents where id = ${eu}`;
+    expect({ ...doc }).toEqual({ net: 10_000, tax: 1_900, gross: 10_000 });
+    const lines = await sql`select l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
+      where e.source_id = ${eu} order by l.debit desc, l.credit desc`;
+    expect(lines.map((l) => ({ ...l }))).toEqual([
+      { account: "4964", debit: 10_000, credit: 0 },
+      { account: "1577", debit: 1_900, credit: 0 },
+      { account: "1600", debit: 0, credit: 10_000 },
+      { account: "1787", debit: 0, credit: 1_900 },
+    ]);
+
+    const result = await figures.computeVatFigures(october);
+    expect(result).toMatchObject({ kz66: 616, kz46: 10_000, kz47: 1_900, kz84: 5_000, kz85: 950, kz67: 2_850 });
+    expect(result.reverseCharge.map((r) => r.supplier)).toEqual(expect.arrayContaining(["Google Cloud EMEA Ltd", "Example Software Inc."]));
+    const draft = await vat.saveDraft(actor, october, { mode: "berechnet" });
+    // Steuer und Vorsteuer aus § 13b heben sich auf
+    expect(draft).toMatchObject({ kz46: 10_000, kz47: 1_900, kz84: 5_000, kz85: 950, kz67: 2_850, kz83: -616 });
+    let xml = "";
+    const spy = { validate: async (body: string) => ((xml = body), new FakeElsterClient().validate(body)), send: new FakeElsterClient().send, fetchPostfach: new FakeElsterClient().fetchPostfach, fetchBelege: new FakeElsterClient().fetchBelege };
+    await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
+    expect(xml).toMatch(/<Kz46>100<\/Kz46>\s*<Kz47>19,00<\/Kz47>/);
+    expect(xml).toContain("<Kz67>28,50</Kz67>");
+    expect(xml).toMatch(/<Kz84>50<\/Kz84>\s*<Kz85>9,50<\/Kz85>/);
+
+    // EÜR: Ausgabe ist der gezahlte Nettobetrag, keine Vorsteuer aus § 13b
+    const reports = await import("./reports.ts");
+    const payments = (await reports.euerPayments(2026)).filter((p) => p.kind === "document");
+    expect(payments).toEqual([expect.objectContaining({ paid: 5_000, totals: expect.objectContaining({ tax: 0, gross: 5_000 }) })]);
+    // Die Jahreserklärung kann § 13b noch nicht übermitteln und sagt das
+    const annual = await import("./annual.ts");
+    expect((await annual.ustYear(2026)).reverseChargeTax).toBe(2_850);
+  }, 30_000);
+
+  it("§ 13b als Kleinunternehmer: Steuer schulden, keine Vorsteuer", async () => {
+    await sql`update company set kleinunternehmer = true`;
+    await reverseChargeDocument("2026-10-07", 10_000, "eu");
+    const draft = await vat.saveDraft(actor, october, { mode: "berechnet" });
+    expect(draft).toMatchObject({ kz46: 10_000, kz47: 1_900, kz67: 0, kz83: 1_900 });
+  }, 30_000);
+
   it("manuelle Werte dürfen negativ sein", async () => {
     const manual = await vat.saveDraft(actor, october, { mode: "manuell", kz81: -50_000, kz86: 0, kz66: 0, reason: "Gutschrift überwiegt" });
     expect(manual).toMatchObject({ kz81: -50_000, kz83: -9_500 });

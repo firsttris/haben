@@ -379,6 +379,13 @@
       "when": 1791089452052,
       "tag": "0053_abschlag",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791091090238,
+      "tag": "0054_paragraph13b",
+      "breakpoints": true
     }
   ]
 }

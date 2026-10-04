@@ -69,11 +69,29 @@ export interface FiguresInput {
   kz45?: Cents;
   kz48?: Cents;
   kz66: Cents;
+  kz46?: Cents;
+  kz47?: Cents;
+  kz84?: Cents;
+  kz85?: Cents;
+  kz67?: Cents;
 }
 
 /** Die gespeicherten Kennzahlen einer Anmeldung */
 function stored(ustva: ReturnType<typeof computeUstva>) {
-  return { kz81: ustva.kz81, kz86: ustva.kz86, kz21: ustva.kz21, kz45: ustva.kz45, kz48: ustva.kz48, kz66: ustva.kz66, kz83: ustva.kz83 };
+  return {
+    kz81: ustva.kz81,
+    kz86: ustva.kz86,
+    kz21: ustva.kz21,
+    kz45: ustva.kz45,
+    kz48: ustva.kz48,
+    kz66: ustva.kz66,
+    kz46: ustva.kz46,
+    kz47: ustva.kz47,
+    kz84: ustva.kz84,
+    kz85: ustva.kz85,
+    kz67: ustva.kz67,
+    kz83: ustva.kz83,
+  };
 }
 
 /** Aus den Buchungen berechnen oder von Hand überschreiben (mit Begründung) */
@@ -165,6 +183,11 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
         kz45: latest.kz45,
         kz48: latest.kz48,
         kz66: latest.kz66,
+        kz46: latest.kz46,
+        kz47: latest.kz47,
+        kz84: latest.kz84,
+        kz85: latest.kz85,
+        kz67: latest.kz67,
         kz83: latest.kz83,
         source: latest.source,
         overrideReason: latest.overrideReason,
