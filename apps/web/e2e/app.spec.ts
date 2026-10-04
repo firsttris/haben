@@ -457,6 +457,39 @@ test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", asy
   await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText("Fehlgeschlagen");
 });
 
+test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async () => {
+  await go("/rechnungen/neu");
+  await page.getByRole("combobox", { name: /^Rechnungsart/ }).selectOption("abschlag");
+  await expect(page.getByRole("heading", { name: /^Abschlagsrechnung \d{4}-\d{3}$/, level: 1 })).toBeVisible();
+  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await page.getByLabel("Beschreibung Position 1").fill("1. Abschlag Relaunch Website");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("2000");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+  const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Abschlagsrechnung ", "").trim();
+
+  await page.getByRole("link", { name: "Schlussrechnung erstellen" }).click();
+  await page.waitForURL(/rechnungen\/neu\?schluss=/);
+  await expect(page.getByRole("heading", { name: /^Schlussrechnung /, level: 1 })).toBeVisible();
+  await expect(page.getByLabel("Kunde")).toHaveValue(/[0-9a-f-]{36}/);
+  const abzug = page.getByRole("checkbox", { name: new RegExp(`Abschlagsrechnung ${number}`) });
+  await expect(abzug).toBeChecked();
+  await page.getByLabel("Beschreibung Position 1").fill("Relaunch Website gesamt");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("5000");
+  const vorschau = page.getByLabel("Vorschau der Rechnung");
+  await expect(vorschau).toContainText(`Abzüglich Abschlagsrechnung ${number}`);
+  // 5.000 − 2.000 netto, zuzüglich 19 %
+  await expect(vorschau).toContainText("3.570,00");
+  await abzug.uncheck();
+  await expect(vorschau).not.toContainText("Abzüglich Abschlagsrechnung");
+});
+
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go("/auswertungen");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

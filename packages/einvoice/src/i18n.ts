@@ -28,6 +28,9 @@ const isoParts = (iso: string) => iso.split("-").map(Number) as [number, number,
 export const TEXTS = {
   de: {
     titles: { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur", angebot: "Angebot" } as Record<InvoiceKind | "angebot", string>,
+    variants: { abschlag: "Abschlagsrechnung", schluss: "Schlussrechnung" },
+    deduction: (number: string, date: string, net: string, tax: string | null) =>
+      `Abzüglich Abschlagsrechnung ${number} vom ${date} (netto ${net}${tax ? `, USt ${tax}` : ""})`,
     invoiceNumber: "Rechnungsnummer",
     invoiceDate: "Rechnungsdatum",
     quoteNumber: "Angebotsnummer",
@@ -64,6 +67,9 @@ export const TEXTS = {
   },
   en: {
     titles: { rechnung: "Invoice", storno: "Cancellation invoice", korrektur: "Corrective invoice", angebot: "Quote" } as Record<InvoiceKind | "angebot", string>,
+    variants: { abschlag: "Partial invoice", schluss: "Final invoice" },
+    deduction: (number: string, date: string, net: string, tax: string | null) =>
+      `Less partial invoice ${number} of ${date} (net ${net}${tax ? `, VAT ${tax}` : ""})`,
     invoiceNumber: "Invoice number",
     invoiceDate: "Invoice date",
     quoteNumber: "Quote number",

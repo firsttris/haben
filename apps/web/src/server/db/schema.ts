@@ -541,6 +541,8 @@ export const invoices = pgTable(
     /** Eigener Befreiungsgrund auf der Rechnung, sonst der Standardtext der Behandlung */
     exemptionReason: text("exemption_reason").notNull().default(""),
     correctsId: uuid("corrects_id"),
+    /** Abschlags- oder Schlussrechnung; nur bei kind „rechnung“ */
+    variant: text("variant", { enum: ["abschlag", "schluss"] }),
     net: integer("net").notNull().default(0),
     tax: integer("tax").notNull().default(0),
     gross: integer("gross").notNull().default(0),
@@ -562,6 +564,7 @@ export const invoices = pgTable(
   },
   (t) => [
     check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
+    check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
     uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
     uniqueIndex("invoices_recurring_date").on(t.recurringId, t.recurringDate),
   ],
@@ -580,6 +583,8 @@ export const invoiceLines = pgTable("invoice_lines", {
   unitPrice: integer("unit_price").notNull(),
   taxRate: smallint("tax_rate").notNull(),
   net: integer("net").notNull(),
+  /** Schlussrechnung: Abzug dieser Abschlagsrechnung; erzeugt Haben, nicht der Editor */
+  deductionOf: uuid("deduction_of").references(() => invoices.id),
 });
 
 /** Letzte vergebene laufende Nummer je Jahr; lückenlos, weil nur beim Festschreiben gezogen */

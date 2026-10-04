@@ -49,6 +49,7 @@ export function InvoicePreview({
   note,
   taxNote,
   corrects,
+  title,
 }: {
   kind: keyof typeof TITLE;
   number: string;
@@ -65,6 +66,8 @@ export function InvoicePreview({
   /** Pflichthinweis bei Rechnungen ohne Steuerausweis; dann keine Steuerspalte */
   taxNote?: string | null;
   corrects?: { number: string | null; issueDate: string } | null;
+  /** Abweichender Titel, z. B. Abschlagsrechnung */
+  title?: string;
 }) {
   const valid = lines.filter((l) => l.valid);
   const totals = computeInvoiceTotals(valid);
@@ -104,7 +107,7 @@ export function InvoicePreview({
         )}
       </div>
       <div className="paper-title-row">
-        <div className="paper-title">{TITLE[kind]}</div>
+        <div className="paper-title">{title ?? TITLE[kind]}</div>
         <dl className="paper-meta">
           <dt>Nummer</dt>
           <dd>{number}</dd>

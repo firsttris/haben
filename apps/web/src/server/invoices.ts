@@ -12,13 +12,14 @@ import {
 } from "@haben/core";
 import {
   buildEInvoice,
+  texts,
   validateForFormat,
   type Buyer,
   type InvoiceDocument,
   type InvoiceFormat,
   type Seller,
 } from "@haben/einvoice";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, sellerIssues, type Company } from "./company.ts";
@@ -48,6 +49,10 @@ export const draftSchema = z
     exemptionReason: z.string().trim().max(300).default(""),
     /** Sprache des PDFs für den Kunden */
     language: z.enum(["de", "en"]).default("de"),
+    /** Abschlags- oder Schlussrechnung; null = normale Rechnung */
+    variant: z.enum(["abschlag", "schluss"]).nullable().default(null),
+    /** Schlussrechnung: abzuziehende Abschlagsrechnungen */
+    deducts: z.array(z.uuid()).max(50).default([]),
     lines: z.array(invoiceLineInputSchema).max(200),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
@@ -56,8 +61,9 @@ export const draftSchema = z
   });
 
 export type DraftInput = z.input<typeof draftSchema>;
+type LineInput = DraftInput["lines"][number] & { deductionOf?: string };
 
-function lineRows(invoiceId: string, lines: DraftInput["lines"]) {
+function lineRows(invoiceId: string, lines: LineInput[]) {
   return lines.map((line, index) => ({
     invoiceId,
     position: index + 1,
@@ -67,11 +73,145 @@ function lineRows(invoiceId: string, lines: DraftInput["lines"]) {
     unitPrice: line.unitPrice,
     taxRate: line.taxRate,
     net: lineNet(line.quantity, line.unitPrice),
+    deductionOf: line.deductionOf ?? null,
   }));
 }
 
-function draftValues(input: DraftInput, bundesland: Company["bundesland"]) {
-  const totals = computeInvoiceTotals(input.lines);
+/** Titel je Rechnung, auch für Buchungstext und E-Mail */
+export function invoiceTitle(invoice: Pick<Invoice, "kind" | "variant">): string {
+  if (invoice.kind === "rechnung" && invoice.variant) return { abschlag: "Abschlagsrechnung", schluss: "Schlussrechnung" }[invoice.variant];
+  return { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" }[invoice.kind];
+}
+
+/** Festgeschriebene Rechnungen, die eine Stornorechnung aufhebt */
+const cancelledIds = sql`select corrects_id from invoices where kind = 'storno' and status = 'final' and corrects_id is not null`;
+
+/**
+ * Schlussrechnungen, die eine Abschlagsrechnung schon abziehen (festgeschrieben, nicht storniert),
+ * je Abschlagsrechnung die Nummer der Schlussrechnung
+ */
+async function deductedElsewhere(abschlagIds: string[], exceptInvoiceId: string | null): Promise<Map<string, string>> {
+  if (abschlagIds.length === 0) return new Map();
+  const rows = await db
+    .select({ abschlag: schema.invoiceLines.deductionOf, number: schema.invoices.number })
+    .from(schema.invoiceLines)
+    .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.invoiceId))
+    .where(
+      and(
+        inArray(schema.invoiceLines.deductionOf, abschlagIds),
+        eq(schema.invoices.status, "final"),
+        sql`${schema.invoices.id} not in (${cancelledIds})`,
+        exceptInvoiceId ? ne(schema.invoices.id, exceptInvoiceId) : undefined,
+      ),
+    );
+  return new Map(rows.map((r) => [r.abschlag!, r.number ?? ""]));
+}
+
+/** Abschlagsrechnungen eines Kunden, die eine Schlussrechnung noch abziehen kann */
+export async function openAbschlaege(exceptInvoiceId: string | null = null) {
+  const rows = await db
+    .select()
+    .from(schema.invoices)
+    .where(
+      and(
+        eq(schema.invoices.kind, "rechnung"),
+        eq(schema.invoices.variant, "abschlag"),
+        eq(schema.invoices.status, "final"),
+        sql`${schema.invoices.id} not in (${cancelledIds})`,
+      ),
+    )
+    .orderBy(asc(schema.invoices.issueDate), asc(schema.invoices.number));
+  const taken = await deductedElsewhere(
+    rows.map((r) => r.id),
+    exceptInvoiceId,
+  );
+  const open = rows.filter((r) => !taken.has(r.id));
+  const lines = open.length
+    ? await db.select().from(schema.invoiceLines).where(inArray(schema.invoiceLines.invoiceId, open.map((r) => r.id)))
+    : [];
+  return open.map((r) => ({
+    id: r.id,
+    contactId: r.contactId,
+    number: r.number!,
+    issueDate: r.issueDate,
+    taxTreatment: r.taxTreatment,
+    net: r.net,
+    tax: r.tax,
+    gross: r.gross,
+    /** Netto und Steuer je Steuersatz, wie sie abgezogen werden */
+    rates: computeInvoiceTotals(
+      lines.filter((l) => l.invoiceId === r.id).map((l) => ({ ...l, taxRate: l.taxRate as 1900 | 700 | 0 })),
+    ).taxes.map((t) => ({ rate: t.rate, base: t.base, tax: t.tax })),
+  }));
+}
+
+export type OpenAbschlag = Awaited<ReturnType<typeof openAbschlaege>>[number];
+
+/** Abzugspositionen der Schlussrechnung: je Abschlagsrechnung und Steuersatz eine negative Position */
+export function deductionLinesFor(abschlaege: OpenAbschlag[], language: "de" | "en", taxTreatment: TaxTreatment): LineInput[] {
+  const t = texts(language);
+  return abschlaege.flatMap((a) =>
+    a.rates
+      .filter((r) => r.base !== 0)
+      .map((r) => ({
+        description: t.deduction(a.number, t.date(a.issueDate), t.money(r.base), taxTreatment === "regulaer" ? t.money(r.tax) : null),
+        quantity: 1000,
+        unit: "Psch." as UnitLabel,
+        unitPrice: -r.base,
+        taxRate: r.rate as 1900 | 700 | 0,
+        deductionOf: a.id,
+      })),
+  );
+}
+
+/** Für die Detailseite: welche Abschläge eine Schlussrechnung abzieht und wo eine Abschlagsrechnung abgezogen ist */
+export async function abschlagLinks(invoiceId: string) {
+  const deducts = await db
+    .selectDistinct({ id: schema.invoices.id, number: schema.invoices.number })
+    .from(schema.invoiceLines)
+    .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.deductionOf))
+    .where(eq(schema.invoiceLines.invoiceId, invoiceId));
+  const deductedIn = await db
+    .selectDistinct({ id: schema.invoices.id, number: schema.invoices.number, status: schema.invoices.status })
+    .from(schema.invoiceLines)
+    .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.invoiceId))
+    .where(and(eq(schema.invoiceLines.deductionOf, invoiceId), sql`${schema.invoices.id} not in (${cancelledIds})`));
+  return { deducts, deductedIn };
+}
+
+/** Prüft die gewählten Abschlagsrechnungen; leere Liste = in Ordnung */
+async function deductionProblems(invoiceId: string | null, input: Pick<DraftInput, "contactId" | "deducts" | "taxTreatment">) {
+  const ids = [...new Set(input.deducts ?? [])];
+  const open = await openAbschlaege(invoiceId);
+  const problems: string[] = [];
+  const chosen: OpenAbschlag[] = [];
+  for (const id of ids) {
+    const abschlag = open.find((a) => a.id === id);
+    if (!abschlag) {
+      const [row] = await db.select({ number: schema.invoices.number }).from(schema.invoices).where(eq(schema.invoices.id, id));
+      const taken = (await deductedElsewhere([id], invoiceId)).get(id);
+      problems.push(
+        taken
+          ? `Abschlagsrechnung ${row?.number ?? ""} ist schon in Schlussrechnung ${taken} abgezogen`
+          : `Abschlagsrechnung ${row?.number ?? id} ist nicht festgeschrieben oder storniert`,
+      );
+    } else if (abschlag.contactId !== input.contactId) problems.push(`Abschlagsrechnung ${abschlag.number} gehört zu einem anderen Kunden`);
+    else if (abschlag.taxTreatment !== (input.taxTreatment ?? "regulaer")) problems.push(`Abschlagsrechnung ${abschlag.number} hat eine andere Umsatzsteuer-Behandlung`);
+    else chosen.push(abschlag);
+  }
+  return { problems, chosen };
+}
+
+/** Positionen einer Rechnung samt Abzügen bei der Schlussrechnung */
+async function allLines(invoiceId: string | null, input: DraftInput): Promise<LineInput[]> {
+  if (input.variant !== "schluss") return input.lines;
+  const { problems, chosen } = await deductionProblems(invoiceId, input);
+  if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
+  return [...input.lines, ...deductionLinesFor(chosen, input.language ?? "de", input.taxTreatment ?? "regulaer")];
+}
+
+function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines: LineInput[]) {
+  const totals = computeInvoiceTotals(lines);
   return {
     contactId: input.contactId,
     issueDate: input.issueDate,
@@ -84,6 +224,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"]) {
     taxTreatment: input.taxTreatment ?? "regulaer",
     exemptionReason: input.taxTreatment && input.taxTreatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
     language: input.language ?? "de",
+    variant: input.variant ?? null,
     net: totals.net,
     tax: totals.tax,
     gross: totals.gross,
@@ -97,12 +238,13 @@ export async function createDraft(
   extra: Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate">> = {},
 ) {
   const { bundesland } = await loadCompany();
+  const lines = await allLines(null, input);
   return withActor(actor, async (tx) => {
     const [invoice] = await tx
       .insert(schema.invoices)
-      .values({ ...draftValues(input, bundesland), ...extra })
+      .values({ ...draftValues(input, bundesland, lines), ...extra })
       .returning();
-    if (input.lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(invoice!.id, input.lines));
+    if (lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(invoice!.id, lines));
     return invoice!;
   });
 }
@@ -116,11 +258,13 @@ async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
 
 export async function updateDraft(actor: string, id: string, input: DraftInput) {
   const { bundesland } = await loadCompany();
+  const lines = await allLines(id, input);
   return withActor(actor, async (tx) => {
-    await lockDraft(tx, id);
+    const draft = await lockDraft(tx, id);
+    if (input.variant && draft.kind !== "rechnung") throw new InvoiceError("Storno und Korrektur sind keine Abschlags- oder Schlussrechnung.");
     await tx.delete(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id));
-    if (input.lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(id, input.lines));
-    const [updated] = await tx.update(schema.invoices).set(draftValues(input, bundesland)).where(eq(schema.invoices.id, id)).returning();
+    if (lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(id, lines));
+    const [updated] = await tx.update(schema.invoices).set(draftValues(input, bundesland, lines)).where(eq(schema.invoices.id, id)).returning();
     return updated!;
   });
 }
@@ -148,6 +292,8 @@ export async function newDraftDefaults(today: string) {
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",
     language: "de" as const,
+    variant: null,
+    deducts: [] as string[],
     lines: [
       { description: "", quantity: 1000, unit: "Std." as UnitLabel, unitPrice: 0, taxRate: (company.kleinunternehmer ? 0 : 1900) as 1900 | 0 },
     ],
@@ -195,6 +341,7 @@ export async function listInvoices(today: string) {
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
+      variant: schema.invoices.variant,
       status: schema.invoices.status,
       number: schema.invoices.number,
       issueDate: schema.invoices.issueDate,
@@ -273,6 +420,7 @@ function documentFor(
   buyer: Buyer,
   number: string,
   corrects: { number: string; issueDate: string } | null,
+  deducted: { number: string; issueDate: string }[] = [],
 ): InvoiceDocument {
   return {
     kind: invoice.kind,
@@ -301,7 +449,20 @@ function documentFor(
     ...(invoice.taxTreatment !== "regulaer" ? { taxTreatment: invoice.taxTreatment } : {}),
     ...(invoice.exemptionReason ? { exemptionReason: invoice.exemptionReason } : {}),
     language: invoice.language,
+    ...(invoice.kind === "rechnung" && invoice.variant ? { variant: invoice.variant } : {}),
+    ...(deducted.length > 0 ? { deducted } : {}),
   };
+}
+
+/** Nummer und Datum der Abschlagsrechnungen, die eine Schlussrechnung abzieht, in Reihenfolge der Positionen */
+async function deductedRefs(lines: InvoiceLine[]) {
+  const ids = [...new Set(lines.map((l) => l.deductionOf).filter((id): id is string => Boolean(id)))];
+  if (ids.length === 0) return [];
+  const rows = await db
+    .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
+    .from(schema.invoices)
+    .where(inArray(schema.invoices.id, ids));
+  return ids.map((id) => rows.find((r) => r.id === id)!).map((r) => ({ number: r.number ?? "", issueDate: r.issueDate }));
 }
 
 const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
@@ -322,10 +483,23 @@ export async function finalizeIssues(id: string): Promise<string[]> {
   if (!contact) issues.push("Kunde fehlt");
   if (lines.length === 0) issues.push("Keine Positionen");
   if (lines.some((line) => line.net === 0)) issues.push("Position ohne Betrag");
-  if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
+  if (invoice.variant === "schluss") {
+    const deducts = [...new Set(lines.map((l) => l.deductionOf).filter((id): id is string => Boolean(id)))];
+    if (deducts.length === 0) issues.push("Keine Abschlagsrechnung abgezogen");
+    issues.push(...(await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment })).problems);
+    if (invoice.gross < 0) issues.push("Die Abschläge übersteigen die Gesamtleistung");
+  } else if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
   if (contact && issues.length === 0) {
-    const preview = documentFor(invoice, lines, sellerFrom(company), buyerFrom(contact), "VORSCHAU", data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null);
+    const preview = documentFor(
+      invoice,
+      lines,
+      sellerFrom(company),
+      buyerFrom(contact),
+      "VORSCHAU",
+      data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
+      await deductedRefs(lines),
+    );
     issues.push(...validateForFormat(preview));
   }
   return issues;
@@ -366,7 +540,7 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
     // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
     const seller = sellerFrom(company);
     const buyer = corrects?.buyer ?? buyerFrom(contact!);
-    const doc = documentFor(invoice, lines, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null);
+    const doc = documentFor(invoice, lines, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null, await deductedRefs(lines));
     const logo = await loadLogo();
     const rendered = await buildEInvoice(logo ? { ...doc, logo } : doc);
     const totals = doc.totals;
@@ -395,7 +569,7 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
       .where(eq(schema.invoices.id, id))
       .returning();
 
-    const label = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" }[invoice.kind];
+    const label = invoiceTitle(invoice);
     const [entry] = await tx
       .insert(schema.journalEntries)
       .values({
@@ -428,6 +602,8 @@ async function finalOriginal(id: string) {
   if (data.correctedBy.some((c) => c.kind === "storno" && c.status === "final")) {
     throw new InvoiceError("Die Rechnung ist bereits storniert.");
   }
+  const schluss = (await deductedElsewhere([id], null)).get(id);
+  if (schluss) throw new InvoiceError(`Die Abschlagsrechnung ist in Schlussrechnung ${schluss} abgezogen. Storniere zuerst die Schlussrechnung.`);
   return data;
 }
 

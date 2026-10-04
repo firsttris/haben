@@ -23,6 +23,9 @@ export const Route = createFileRoute("/_app/rechnungen/$id")({
 type Detail = Awaited<ReturnType<typeof getInvoiceDetail>>;
 
 const KIND_TITLE = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" } as const;
+const VARIANT_TITLE = { abschlag: "Abschlagsrechnung", schluss: "Schlussrechnung" } as const;
+const titleOf = (invoice: { kind: keyof typeof KIND_TITLE; variant: keyof typeof VARIANT_TITLE | null }) =>
+  invoice.kind === "rechnung" && invoice.variant ? VARIANT_TITLE[invoice.variant] : KIND_TITLE[invoice.kind];
 const FORMAT_LABEL = {
   zugferd: "ZUGFeRD · EN 16931",
   "xrechnung-cii": "XRechnung 3.0 (CII)",
@@ -50,7 +53,10 @@ function InvoicePage() {
           taxTreatment: invoice.taxTreatment,
           exemptionReason: invoice.exemptionReason,
           language: invoice.language,
-          lines: data.lines.map((line) => ({
+          variant: invoice.variant,
+          deducts: [...new Set(data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])))],
+          // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
+          lines: data.lines.filter((line) => !line.deductionOf).map((line) => ({
             description: line.description,
             quantity: line.quantity,
             unit: line.unit as UnitLabel,
@@ -67,6 +73,7 @@ function InvoicePage() {
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}
         articles={data.articles}
+        abschlaege={data.abschlaege}
       />
     );
   }
@@ -130,10 +137,10 @@ function FinalInvoice({ data }: { data: Detail }) {
       <div className="page-head">
         <div>
           <div className="eyebrow">
-            <Link to="/rechnungen">Rechnungen</Link> › {KIND_TITLE[invoice.kind]}
+            <Link to="/rechnungen">Rechnungen</Link> › {titleOf(invoice)}
           </div>
           <h1>
-            {KIND_TITLE[invoice.kind]} {invoice.number}
+            {titleOf(invoice)} {invoice.number}
           </h1>
         </div>
         <div className="actions">
@@ -201,6 +208,41 @@ function FinalInvoice({ data }: { data: Detail }) {
               )}
               <dt>Festgeschrieben</dt>
               <dd>{invoice.lockedAt ? formatDateTime(invoice.lockedAt) : "–"}</dd>
+              {data.deducts.length > 0 && (
+                <>
+                  <dt>Abgezogen</dt>
+                  <dd>
+                    {data.deducts.map((d, i) => (
+                      <span key={d.id}>
+                        {i > 0 && ", "}
+                        <Link to="/rechnungen/$id" params={{ id: d.id }}>
+                          {d.number}
+                        </Link>
+                      </span>
+                    ))}
+                  </dd>
+                </>
+              )}
+              {invoice.variant === "abschlag" && (
+                <>
+                  <dt>Schlussrechnung</dt>
+                  <dd>
+                    {data.deductedIn.length > 0 ? (
+                      data.deductedIn.map((d) => (
+                        <Link key={d.id} to="/rechnungen/$id" params={{ id: d.id }}>
+                          {d.number ?? "Entwurf"}
+                        </Link>
+                      ))
+                    ) : cancelled ? (
+                      "–"
+                    ) : (
+                      <Link to="/rechnungen/neu" search={{ schluss: invoice.id }}>
+                        Schlussrechnung erstellen
+                      </Link>
+                    )}
+                  </dd>
+                </>
+              )}
               {data.fromQuote && (
                 <>
                   <dt>Aus Angebot</dt>
@@ -233,7 +275,7 @@ function FinalInvoice({ data }: { data: Detail }) {
               data.mails.map((m) => (
                 <div key={m.id} className="history-row">
                   <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                    {m.kind === "mahnung" ? "Mahnung" : KIND_TITLE[invoice.kind]} an {m.recipient}
+                    {m.kind === "mahnung" ? "Mahnung" : titleOf(invoice)} an {m.recipient}
                     <span className="small muted" style={{ display: "block" }}>
                       {formatDateTime(m.createdAt)}
                       {!m.ok && ` · ${m.error}`}
@@ -264,7 +306,7 @@ function FinalInvoice({ data }: { data: Detail }) {
                     setMailing({ kind: "rechnung", id: invoice.id });
                   }}
                 >
-                  {data.mails.some((m) => m.kind === "rechnung" && m.ok) ? "Erneut senden" : `${KIND_TITLE[invoice.kind]} senden`}
+                  {data.mails.some((m) => m.kind === "rechnung" && m.ok) ? "Erneut senden" : `${titleOf(invoice)} senden`}
                 </button>
               </div>
             )}

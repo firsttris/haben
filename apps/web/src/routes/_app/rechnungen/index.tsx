@@ -59,7 +59,14 @@ function InvoicesPage() {
             {invoices.map((invoice) => (
               <Link key={invoice.id} to="/rechnungen/$id" params={{ id: invoice.id }} className="table-row invoice-cols">
                 <div className="mono small">{invoice.number ?? "–"}</div>
-                <div>{invoice.customer}</div>
+                <div>
+                  {invoice.customer}
+                  {invoice.variant && (
+                    <span className="small muted" style={{ display: "block" }}>
+                      {invoice.variant === "abschlag" ? "Abschlagsrechnung" : "Schlussrechnung"}
+                    </span>
+                  )}
+                </div>
                 <div className="muted small">{formatDate(invoice.issueDate)}</div>
                 <div className="num">{formatEuro(invoice.gross)}</div>
                 <div>

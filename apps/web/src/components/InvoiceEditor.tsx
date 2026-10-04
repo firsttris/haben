@@ -19,7 +19,7 @@ import {
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { errorMessage } from "../lib/format.ts";
+import { errorMessage, formatDate } from "../lib/format.ts";
 import {
   finalizeInvoiceDraft,
   removeInvoiceDraft,
@@ -50,6 +50,19 @@ interface ArticleOption {
   unitPrice: number;
   taxRate: number;
 }
+
+/** Abschlagsrechnung, die eine Schlussrechnung abziehen kann */
+export interface AbschlagOption {
+  id: string;
+  contactId: string | null;
+  number: string;
+  issueDate: string;
+  gross: number;
+  rates: { rate: number; base: number; tax: number }[];
+  taxTreatment: TaxTreatment;
+}
+
+const VARIANT_TITLE = { abschlag: "Abschlagsrechnung", schluss: "Schlussrechnung" } as const;
 
 interface LineState {
   key: number;
@@ -107,6 +120,7 @@ export function InvoiceEditor({
   bundesland,
   kleinunternehmer,
   articles = [],
+  abschlaege = [],
 }: {
   id: string | null;
   kind: keyof typeof KIND_TITLE;
@@ -124,6 +138,8 @@ export function InvoiceEditor({
   kleinunternehmer: boolean;
   /** Artikelkatalog zum Einfügen von Positionen */
   articles?: ArticleOption[];
+  /** Offene Abschlagsrechnungen für die Schlussrechnung */
+  abschlaege?: AbschlagOption[];
 }) {
   const router = useRouter();
   const navigate = useNavigate();
@@ -148,6 +164,8 @@ export function InvoiceEditor({
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
   const [language, setLanguage] = useState<"de" | "en">(initial.language ?? "de");
+  const [variant, setVariant] = useState<"abschlag" | "schluss" | null>(initial.variant ?? null);
+  const [deducts, setDeducts] = useState<string[]>(initial.deducts ?? []);
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [dirty, setDirty] = useState(id === null);
   /** Fehler einer Position erst zeigen, wenn sie verlassen oder gespeichert wurde, nicht schon beim Öffnen */
@@ -161,6 +179,24 @@ export function InvoiceEditor({
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
   const parsed = lines.map(parseLine);
+  const schluss = kind === "rechnung" && variant === "schluss";
+  /** Abschlagsrechnungen des gewählten Kunden; schon gewählte bleiben sichtbar */
+  const customerAbschlaege = abschlaege.filter((a) => a.contactId === contactId);
+  const deducted = schluss ? customerAbschlaege.filter((a) => deducts.includes(a.id)) : [];
+  // Vorschau: je Abschlagsrechnung und Steuersatz eine negative Position, wie beim Speichern
+  const deductionPreview = deducted.flatMap((a) =>
+    a.rates
+      .filter((r) => r.base !== 0)
+      .map((r) => ({
+        description: `Abzüglich Abschlagsrechnung ${a.number} vom ${formatDate(a.issueDate)}`,
+        quantity: 1000,
+        unit: "Psch." as UnitLabel,
+        unitPrice: -r.base,
+        taxRate: r.rate as 1900 | 700 | 0,
+        valid: true,
+      })),
+  );
+  const title = kind === "rechnung" && variant ? VARIANT_TITLE[variant] : KIND_TITLE[kind];
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
   const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
@@ -217,6 +253,17 @@ export function InvoiceEditor({
     if (chosen?.defaultFormat) setFormat(chosen.defaultFormat);
     else if (chosen?.leitwegId) setFormat("xrechnung-cii");
     if (chosen) setLanguage(chosen.language);
+    // Schlussrechnung: alle offenen Abschläge des neuen Kunden vorschlagen
+    setDeducts(abschlaege.filter((a) => a.contactId === value).map((a) => a.id));
+  }
+
+  function chooseVariant(value: "abschlag" | "schluss" | null) {
+    touch(setVariant)(value);
+    if (value === "schluss" && deducts.length === 0) setDeducts(customerAbschlaege.map((a) => a.id));
+  }
+
+  function toggleDeduct(abschlagId: string, on: boolean) {
+    touch(setDeducts)(on ? [...deducts, abschlagId] : deducts.filter((d) => d !== abschlagId));
   }
 
   function draft(): DraftInput {
@@ -231,6 +278,8 @@ export function InvoiceEditor({
       taxTreatment,
       exemptionReason: special ? exemptionReason : "",
       language,
+      variant: kind === "rechnung" ? variant : null,
+      deducts: schluss ? deducted.map((a) => a.id) : [],
       lines: parsed.filter((l) => l.valid).map(({ valid: _valid, ...line }) => line),
     };
   }
@@ -302,7 +351,7 @@ export function InvoiceEditor({
             {quote ? <Link to="/angebote">Angebote</Link> : <Link to="/rechnungen">Rechnungen</Link>} › Entwurf
           </div>
           <h1>
-            {KIND_TITLE[kind]} {nextNumber}
+            {title} {nextNumber}
           </h1>
         </div>
         <div className="actions">
@@ -345,6 +394,27 @@ export function InvoiceEditor({
         <form id="invoice-form" className="stack" onSubmit={onSave}>
           <section className="card" aria-label={quote ? "Angebotsdaten" : "Rechnungsdaten"}>
             <div className="form-grid">
+              {kind === "rechnung" && (
+                <label className="field" style={{ gridColumn: "1 / -1" }}>
+                  Rechnungsart
+                  <select
+                    value={variant ?? ""}
+                    onChange={(e) => chooseVariant((e.target.value || null) as "abschlag" | "schluss" | null)}
+                    aria-describedby="variant-hint"
+                  >
+                    <option value="">Rechnung</option>
+                    <option value="abschlag">Abschlagsrechnung</option>
+                    <option value="schluss">Schlussrechnung</option>
+                  </select>
+                  {variant && (
+                    <span id="variant-hint" className="small">
+                      {variant === "abschlag"
+                        ? "Über einen Teil der Leistung, z. B. 30 % bei Auftrag; wird gebucht wie eine Rechnung."
+                        : "Über die gesamte Leistung; die gewählten Abschlagsrechnungen werden mit Netto und Umsatzsteuer abgezogen."}
+                    </span>
+                  )}
+                </label>
+              )}
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 Kunde
                 <select value={contactId} onChange={(e) => chooseContact(e.target.value)} disabled={!editable}>
@@ -465,6 +535,34 @@ export function InvoiceEditor({
               </p>
             )}
           </section>
+
+          {schluss && (
+            <section className="card" aria-labelledby="deducts-heading">
+              <h2 id="deducts-heading">Abschlagsrechnungen abziehen</h2>
+              {!contactId ? (
+                <p className="small muted" style={{ margin: 0 }}>
+                  Erst den Kunden wählen.
+                </p>
+              ) : customerAbschlaege.length === 0 ? (
+                <p className="small muted" style={{ margin: 0 }}>
+                  Für diesen Kunden gibt es keine offenen festgeschriebenen Abschlagsrechnungen.
+                </p>
+              ) : (
+                customerAbschlaege.map((a) => (
+                  <label key={a.id} className="checkbox">
+                    <input type="checkbox" checked={deducts.includes(a.id)} onChange={(e) => toggleDeduct(a.id, e.target.checked)} />
+                    <span>
+                      Abschlagsrechnung {a.number} vom {formatDate(a.issueDate)} · {formatEuro(a.gross)}
+                    </span>
+                  </label>
+                ))
+              )}
+              <p className="small muted" style={{ margin: 0 }}>
+                Unter Positionen steht die gesamte Leistung. Die Abzüge erscheinen auf der Rechnung als eigene Positionen mit Netto und
+                Umsatzsteuer der Abschlagsrechnung (§ 14 Abs. 5 UStG).
+              </p>
+            </section>
+          )}
 
           <section className="card" aria-labelledby="lines-heading">
             <h2 id="lines-heading">Positionen</h2>
@@ -622,10 +720,11 @@ export function InvoiceEditor({
             serviceTo={serviceTo || null}
             seller={seller}
             buyer={contact}
-            lines={parsed}
+            lines={[...parsed, ...deductionPreview]}
             note={note}
             taxNote={treatmentNote(taxTreatment, exemptionReason)}
             corrects={corrects}
+            title={title}
           />
         </section>
       </div>
