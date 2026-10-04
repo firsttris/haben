@@ -351,6 +351,20 @@
       "when": 1791087482305,
       "tag": "0049_datev_export",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791087958755,
+      "tag": "0050_belege_mail",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1791087959950,
+      "tag": "0051_belege_mail_trigger",
+      "breakpoints": true
     }
   ]
 }

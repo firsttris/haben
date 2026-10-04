@@ -315,6 +315,26 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   expect(body).toContain(";29098;55003;");
 });
 
+test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
+  await go("/einstellungen");
+  const card = page.getByRole("form", { name: "Belege per E-Mail" });
+  // Port 1 auf dem eigenen Rechner: kein IMAP-Server, der Abruf scheitert sofort
+  await card.getByLabel("IMAP-Server").fill("127.0.0.1");
+  await card.getByLabel("Port", { exact: true }).fill("1");
+  await card.getByLabel("Verschlüsselung").selectOption("starttls");
+  await card.getByLabel("Benutzername").fill("belege@mustermann.example");
+  await card.getByLabel("Passwort").fill("geheim");
+  await card.getByLabel("Ordner").fill("Belege");
+  await card.getByRole("button", { name: "Speichern" }).click();
+  await expect(card.getByRole("status")).toHaveText("Postfach gespeichert.");
+  await card.getByRole("button", { name: "Jetzt abrufen" }).click();
+  await expect(card.getByRole("alert")).toContainText("Abruf fehlgeschlagen");
+
+  await go("/belege");
+  await expect(page.getByText(/Belege per E-Mail: Anhänge an belege@mustermann\.example \(Ordner Belege\)/)).toBeVisible();
+  await expect(page.getByText(/Letzter Abruf fehlgeschlagen/)).toBeVisible();
+});
+
 test("Fristen und Kalender-Abo", async () => {
   await go("/fristen");
   await expect(page.getByRole("heading", { name: "Fristen", level: 1 })).toBeVisible();

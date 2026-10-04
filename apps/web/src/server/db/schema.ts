@@ -379,6 +379,43 @@ export const mailSettings = pgTable(
   (t) => [check("mail_settings_single_row", sql`${t.id} = 1`)],
 );
 
+/** Postfach für eingehende Belege (IMAP); Passwort verschlüsselt wie beim SMTP-Zugang */
+export const inboxSettings = pgTable(
+  "inbox_settings",
+  {
+    id: smallint("id").primaryKey().default(1),
+    host: text("host").notNull(),
+    port: integer("port").notNull(),
+    /** true: TLS ab Verbindungsaufbau (Port 993); false: STARTTLS (Port 143) */
+    secure: boolean("secure").notNull(),
+    username: text("username").notNull(),
+    ciphertext: bytea("ciphertext").notNull(),
+    /** Ordner, aus dem Haben ungelesene Mails holt */
+    folder: text("folder").notNull().default("INBOX"),
+    enabled: boolean("enabled").notNull().default(true),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("inbox_settings_single_row", sql`${t.id} = 1`)],
+);
+
+/** Abgerufene Mails mit den daraus angelegten Belegen; je Message-ID genau einmal */
+export const inboxMessages = pgTable("inbox_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  messageId: text("message_id").notNull().unique(),
+  sender: text("sender").notNull(),
+  subject: text("subject").notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true }),
+  /** Neu angelegte Belege */
+  documentIds: uuid("document_ids").array().notNull().default(sql`'{}'::uuid[]`),
+  /** Anhänge, die schon als Beleg vorhanden waren */
+  duplicates: integer("duplicates").notNull().default(0),
+  /** Übersprungene Anhänge mit Grund */
+  skipped: text("skipped").array().notNull().default(sql`'{}'::text[]`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Gesendete E-Mails; Fristen-Erinnerungen merken sich, welche Frist zu welcher Stufe schon erinnert wurde */
 export const mailLog = pgTable("mail_log", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -1,4 +1,5 @@
 import { EXPENSE_CATEGORIES } from "@haben/core";
+import { loadInboxSettings } from "../inbox.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
@@ -31,7 +32,14 @@ export const categoryOptions = Object.entries(EXPENSE_CATEGORIES).map(([value, {
 
 export const getDocuments = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => ({ documents: await listDocuments(), aiAvailable: extractionAvailable() }));
+  .handler(async () => {
+    const inbox = await loadInboxSettings();
+    return {
+      documents: await listDocuments(),
+      aiAvailable: extractionAvailable(),
+      inbox: inbox?.enabled ? { username: inbox.username, folder: inbox.folder, lastRunAt: inbox.lastRunAt, lastError: inbox.lastError } : null,
+    };
+  });
 
 export const getDocumentDetail = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

@@ -26,6 +26,8 @@
     "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.3",
     "fflate": "^0.8.3",
+    "imapflow": "^1.7.8",
+    "mailparser": "^3.9.34",
     "nodemailer": "^10.0.13",
     "postgres": "^3.4.9",
     "react": "^19.3.0",
@@ -34,6 +36,7 @@
   },
   "devDependencies": {
     "@playwright/test": "1.56.1",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
