@@ -3,6 +3,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { ExportCard } from "../../components/ExportCard.tsx";
+import { LogoCard } from "../../components/LogoCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
 import { authClient } from "../../lib/auth-client.ts";
 import { errorMessage, formatDate } from "../../lib/format.ts";
@@ -12,19 +13,21 @@ import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import { checkElsterFormats, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
+import { getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail] = await Promise.all([
+    const [company, vat, numbering, eric, mail, logo] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
       getNumbering(),
       getEricStatus(),
       getMailSettings(),
+      getLogo(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail };
+    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
   component: SettingsPage,
@@ -57,6 +60,7 @@ function SettingsPage() {
         </div>
         <div className="stack">
           <NumberingForm />
+          <LogoCard info={Route.useLoaderData().logo} />
           <CertificateForm />
           <EricCard />
           <MailCard data={Route.useLoaderData().mail} />

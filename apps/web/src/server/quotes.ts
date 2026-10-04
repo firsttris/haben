@@ -16,6 +16,7 @@ import { z } from "zod";
 import { loadCompany, sellerIssues } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
+import { loadLogo } from "./logo.ts";
 import { buyerFrom, createDraft, deleteDraft, sellerFrom, type Invoice } from "./invoices.ts";
 
 /**
@@ -242,7 +243,8 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     const seller = sellerFrom(company);
     const buyer = buyerFrom(contact!);
     const doc = documentFor(quote, lines, seller, buyer, number);
-    const pdf = buildQuotePdf(doc);
+    const logo = await loadLogo();
+    const pdf = buildQuotePdf(logo ? { ...doc, logo } : doc);
     const now = new Date();
     const [finalized] = await tx
       .update(schema.quotes)

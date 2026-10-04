@@ -20,6 +20,8 @@ export interface PreviewSeller {
   iban: string;
   bic: string;
   bank: string;
+  /** SHA-256 des Logos, wenn eines hinterlegt ist */
+  logo?: string | null;
 }
 
 export interface PreviewBuyer {
@@ -85,6 +87,7 @@ export function InvoicePreview({
           <br />
           {seller.email}
         </div>
+        {seller.logo && <img src={`/api/logo?v=${seller.logo.slice(0, 12)}`} alt="Logo" style={{ maxHeight: 40, maxWidth: 130, minWidth: 0, objectFit: "contain", marginLeft: "auto" }} />}
       </div>
       <div className="paper-window">
         <div className="paper-sender">{sender || "[Absender]"}</div>

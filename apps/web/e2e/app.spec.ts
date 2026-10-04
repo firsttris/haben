@@ -87,6 +87,11 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await firma.getByLabel("IBAN").fill("DE89370400440532013000");
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+
+  const logo = page.getByRole("region", { name: "Logo" });
+  await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
+  await expect(logo.getByRole("status")).toContainText("Logo gespeichert.");
+  await expect(logo.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
 });
 
 test("Kunden anlegen", async () => {

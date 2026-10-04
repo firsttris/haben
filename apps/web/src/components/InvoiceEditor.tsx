@@ -558,7 +558,7 @@ export function InvoiceEditor({
                     insertArticle(e.target.value);
                     e.target.value = "";
                   }}
-                  style={{ maxWidth: 320 }}
+                  className="catalog-select"
                 >
                   <option value="">Aus dem Katalog einfügen …</option>
                   {articles.map((a) => (

@@ -46,6 +46,12 @@ export interface InvoiceDocumentLine {
   net: Cents;
 }
 
+/** Firmenlogo für den Briefkopf; PNG oder JPEG */
+export interface Logo {
+  data: Uint8Array;
+  format: "png" | "jpg";
+}
+
 /**
  * Alles, was für PDF und XML einer festgeschriebenen Rechnung nötig ist.
  * Beträge sind wie gespeichert vorzeichenbehaftet (Storno negativ).
@@ -72,4 +78,6 @@ export interface InvoiceDocument {
   taxTreatment?: TaxTreatment;
   /** Befreiungsgrund auf der Rechnung, z. B. „Steuerfrei nach § 4 Nr. 14 UStG“; sonst der Standardtext */
   exemptionReason?: string;
+  /** Nur für das PDF, nicht für das XML */
+  logo?: Logo;
 }

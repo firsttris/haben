@@ -603,6 +603,20 @@ export const quoteLines = pgTable("quote_lines", {
   net: integer("net").notNull(),
 });
 
+/** Firmenlogo für Rechnungen, Angebote und Mahnungen; höchstens eine Zeile */
+export const companyLogo = pgTable(
+  "company_logo",
+  {
+    id: smallint("id").primaryKey().default(1),
+    /** PNG oder JPEG; bleibt wie alle Binärdaten aus dem Änderungsprotokoll */
+    logo: bytea("logo").notNull(),
+    format: text("format", { enum: ["png", "jpg"] }).notNull(),
+    sha256: text("sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("company_logo_single", sql`${t.id} = 1`)],
+);
+
 /** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise netto in Cent */
 export const articles = pgTable("articles", {
   id: uuid("id").primaryKey().defaultRandom(),

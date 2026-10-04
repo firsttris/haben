@@ -50,6 +50,14 @@
   },
 )
 
+// Logo oben rechts im Briefkopf, höchstens 18 mm hoch und 60 mm breit
+#if d.at("logo", default: none) != none {
+  place(top + right, context {
+    let hoch = image(d.logo, height: 18mm)
+    if measure(hoch).width > 60mm { image(d.logo, width: 60mm) } else { hoch }
+  })
+}
+
 // Anschriftfeld: 20 mm von links, 45 mm von oben, 85 × 45 mm
 #place(top + left, dx: 20mm - 25mm, dy: 45mm - 20mm, box(width: 85mm, height: 45mm, {
   set block(spacing: 0pt)

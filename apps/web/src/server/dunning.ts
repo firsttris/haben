@@ -14,6 +14,7 @@ import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { listInvoices } from "./invoices.ts";
+import { loadLogo } from "./logo.ts";
 
 export class DunningError extends Error {}
 
@@ -121,7 +122,9 @@ export async function createDunning(actor: string, input: DunningInput, today: s
     flatFee: input.flatFee,
     interestRate: input.interest ? company.dunning.baseRate! + DEFAULT_INTEREST_MARKUP[input.interest] : null,
   });
+  const logo = await loadLogo();
   const pdf = buildDunningPdf({
+    ...(logo ? { logo } : {}),
     level: input.level,
     date: today,
     dueDate: input.dueDate,

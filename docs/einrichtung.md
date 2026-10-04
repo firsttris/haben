@@ -54,6 +54,15 @@ Die Umrechnung der Steuernummer prüft die Länge je Bundesland. Passt sie nicht
 
 Mehr zu den Pflichtangaben auf Rechnungen steht in [Rechnungen](rechnungen.md).
 
+### Logo
+
+Unter **Einstellungen › Logo** lädst du dein Logo hoch, als PNG (gern mit transparentem Hintergrund) oder JPEG bis 1 MB.
+
+- Es steht oben rechts im Briefkopf von Rechnungen, Angeboten und Mahnungen, höchstens 18 mm hoch und 60 mm breit, ohne Verzerrung.
+- Die Vorschau im Rechnungs- und Angebotseditor zeigt es ebenfalls.
+- Es gilt für alles, was ab dann festgeschrieben wird; schon festgeschriebene PDFs bleiben unverändert.
+- Im Änderungsprotokoll steht, wann sich das Logo geändert hat, mit SHA-256, aber ohne die Bilddaten.
+
 ## Persönliche Angaben
 
 Unter **Einstellungen → Persönliche Angaben** stehen die Angaben zu dir als Person, die ELSTER für manche Vorgänge braucht: Anrede, steuerliche Identifikationsnummer (Steuer-ID), Vor- und Nachname, Geburtsdatum, Religion und ausgeübter Beruf. Bei der Zusammenveranlagung kommen das Heiratsdatum und dieselben Angaben zum Ehegatten dazu.

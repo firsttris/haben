@@ -5,7 +5,7 @@ import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { formatEuro, formatQuantity, formatRate, treatmentNote } from "@haben/core";
 import { countryName, formatDate, formatIban, paymentSentence, TITLES } from "./format.ts";
 import { girocodeSvg } from "./qr.ts";
-import type { Address, InvoiceDocument } from "./types.ts";
+import type { Address, InvoiceDocument, Logo } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
 const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL("..", import.meta.url));
@@ -91,17 +91,17 @@ export function pdfData(doc: InvoiceDocument) {
 
 /** Sichtbare Rechnung als PDF/A-3b (Grundlage für ZUGFeRD). */
 export function renderInvoicePdf(doc: InvoiceDocument): Uint8Array {
-  return compilePdf(TEMPLATE, pdfData(doc), doc.issueDate, "Rechnungs-PDF");
+  return compilePdf(TEMPLATE, pdfData(doc), doc.issueDate, "Rechnungs-PDF", doc.logo);
 }
 
 /** Angebot als PDF/A-3b; die Daten kommen fertig formatiert aus quotePdfData */
-export function renderQuotePdfData(data: unknown, date: string): Uint8Array {
-  return compilePdf(TEMPLATE, data, date, "Angebots-PDF");
+export function renderQuotePdfData(data: unknown, date: string, logo?: Logo): Uint8Array {
+  return compilePdf(TEMPLATE, data, date, "Angebots-PDF", logo);
 }
 
 /** Mahnung als PDF/A-3b; die Daten kommen fertig formatiert aus dunningPdfData */
-export function renderDunningPdf(data: unknown, date: string): Uint8Array {
-  return compilePdf(DUNNING_TEMPLATE, data, date, "Mahnungs-PDF");
+export function renderDunningPdf(data: unknown, date: string, logo?: Logo): Uint8Array {
+  return compilePdf(DUNNING_TEMPLATE, data, date, "Mahnungs-PDF", logo);
 }
 
 /** Fußzeile wie auf der Rechnung: Kontakt, Bank, Steuernummern */
@@ -118,8 +118,26 @@ export function footerColumns(seller: InvoiceDocument["seller"]): string[][] {
   return [contact, bank, tax];
 }
 
-function compilePdf(template: string, data: unknown, date: string, label: string): Uint8Array {
+/** Erkennt PNG und JPEG an den ersten Bytes; anderes lehnt Haben als Logo ab */
+export function logoFormat(data: Uint8Array): Logo["format"] | null {
+  if (data.length > 8 && data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) return "png";
+  if (data.length > 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) return "jpg";
+  return null;
+}
+
+function compilePdf(template: string, data: unknown, date: string, label: string, logo?: Logo): Uint8Array {
   const typst = getCompiler();
+  // Das Logo liegt nur für diesen Lauf als Datei neben der Vorlage
+  const logoPath = logo ? join(PACKAGE_DIR, "templates", `logo.${logo.format}`) : null;
+  if (logo && logoPath) typst.mapShadow(logoPath, Buffer.from(logo.data));
+  try {
+    return compileWith(typst, template, logo ? { ...(data as object), logo: `logo.${logo.format}` } : data, date, label);
+  } finally {
+    if (logoPath) typst.unmapShadow(logoPath);
+  }
+}
+
+function compileWith(typst: NodeCompiler, template: string, data: unknown, date: string, label: string): Uint8Array {
   const result = typst.compile({ mainFilePath: template, inputs: { data: JSON.stringify(data) } });
   const document = result.result;
   if (result.hasError() || !document) {
