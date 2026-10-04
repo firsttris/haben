@@ -19,8 +19,8 @@ export const Route = createFileRoute("/_app/buchungen")({
 });
 
 type Entry = Awaited<ReturnType<typeof getJournal>>[number];
-type Source = "invoice" | "document" | "allocation" | "asset" | "pauschale";
-const SOURCE: Record<Source, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage", pauschale: "Pauschale" };
+type Source = "invoice" | "document" | "allocation" | "asset" | "pauschale" | "kasse";
+const SOURCE: Record<Source, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage", pauschale: "Pauschale", kasse: "Kasse" };
 
 function nextPeriod({ year, month }: VatPeriod): VatPeriod {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
@@ -34,6 +34,7 @@ function SourcePill({ entry }: { entry: Entry }) {
   if (entry.sourceType === "document") return <Link to="/belege/$id" params={{ id }} className="pill">{label}</Link>;
   if (entry.sourceType === "asset") return <Link to="/anlagen/$id" params={{ id }} className="pill">{label}</Link>;
   if (entry.sourceType === "pauschale") return <Link to="/pauschalen" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">{label}</Link>;
+  if (entry.sourceType === "kasse") return <Link to="/kasse" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">{label}</Link>;
   return <Link to="/bank" className="pill">{label}</Link>;
 }
 

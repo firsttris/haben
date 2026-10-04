@@ -18,6 +18,7 @@ gebucht wird und wie der Code aufgebaut ist. Den schnellen Überblick gibt die [
 | [Angebote](angebote.md) | Eigener Nummernkreis, PDF, Versand per E-Mail, Antwort des Kunden, Rechnung aus dem Angebot |
 | [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
 | [Pauschalen](pauschalen.md) | Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand; Buchung und Storno |
+| [Kassenbuch](kasse.md) | Barkasse: Einlage, Entnahme, Geldtransit, bar bezahlte Belege; nie negativer Bestand, Storno |
 | [Anlagen und AfA](anlagen.md) | Anlagenverzeichnis, Anschaffung per Beleg, Übernahme aus Lexoffice, AfA buchen, Abgang |
 | [Bankimport und Abgleich](bank.md) | DKB, N26, CAMT.053, Dubletten, Saldenprüfung, Vorschläge, Teilzahlungen, Buchungen ohne Beleg |
 | [Umsatzsteuer-Voranmeldung](umsatzsteuer.md) | Kennzahlen aus den Buchungen, Vorprüfung, Prüfen, Test- und Echtübermittlung, Berichtigung |

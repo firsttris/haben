@@ -20,6 +20,7 @@ const PATHS = {
     </>
   ),
   bank: <path d="M3 10l9-6 9 6M5 10v8M19 10v8M9 10v8M15 10v8M3 21h18" />,
+  cash: <path d="M3 7h18v10H3zM7 7v10M17 7v10M12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />,
   ledger: <path d="M4 4h16v16H4zM4 9h16M9 9v11M14 9v11" />,
   journal: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
   vat: (

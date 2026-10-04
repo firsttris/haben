@@ -96,7 +96,8 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
     .where(
       and(
         eq(schema.documents.status, "gebucht"),
-        eq(schema.documents.payment, "privat"),
+        // Privat oder bar aus der Kasse bezahlt: Abfluss am Belegdatum
+        inArray(schema.documents.payment, ["privat", "kasse"]),
         isNotNull(schema.documents.documentDate),
         gte(schema.documents.documentDate, start),
         lt(schema.documents.documentDate, end),

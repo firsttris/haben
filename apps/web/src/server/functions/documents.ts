@@ -14,6 +14,7 @@ import {
   updateDocument,
   uploadDocument,
 } from "../documents.ts";
+import { CashError } from "../cash.ts";
 import { extractionAvailable } from "../extraction.ts";
 import { authMiddleware } from "../middleware.ts";
 import { loadCompany } from "../company.ts";
@@ -21,7 +22,7 @@ import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 
 function asUserError(error: unknown): never {
-  if (error instanceof DocumentError) throw new Error(error.message);
+  if (error instanceof DocumentError || error instanceof CashError) throw new Error(error.message);
   throw error;
 }
 

@@ -479,6 +479,31 @@ export const pauschalen = pgTable("pauschalen", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Kassenbuch: jede Bewegung der Barkasse mit fortlaufender Nummer, nur anhängen. Bar bezahlte Belege
+ * stehen hier mit ihrem Beleg; Einlagen, Entnahmen und Geldtransit von und zur Bank ohne Beleg.
+ * Korrekturen nur per Storno (Gegenzeile).
+ */
+export const cashEntries = pgTable(
+  "cash_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Lfd. Nr. im Kassenbuch, lückenlos */
+    number: integer("number").notNull().unique(),
+    date: date("date", { mode: "string" }).notNull(),
+    /** Cent; Eingang positiv, Ausgang negativ */
+    amount: integer("amount").notNull(),
+    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung"] }).notNull(),
+    text: text("text").notNull(),
+    documentId: uuid("document_id").references(() => documents.id),
+    /** Storno: die aufgehobene Zeile */
+    reversesId: uuid("reverses_id"),
+    journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("cash_entries_document").on(t.documentId), uniqueIndex("cash_entries_reverses").on(t.reversesId)],
+);
+
 /** Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. */
 export const auditLog = pgTable("audit_log", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -714,7 +739,7 @@ export const journalEntries = pgTable("journal_entries", {
   id: uuid("id").primaryKey().defaultRandom(),
   date: date("date", { mode: "string" }).notNull(),
   description: text("description").notNull(),
-  sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale"] }).notNull(),
+  sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse"] }).notNull(),
   sourceId: uuid("source_id").notNull(),
   kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
   reversesId: uuid("reverses_id"),
@@ -763,7 +788,7 @@ export const documents = pgTable("documents", {
   documentDate: date("document_date", { mode: "string" }),
   dueDate: date("due_date", { mode: "string" }),
   category: text("category"),
-  payment: text("payment", { enum: ["bank", "privat"] }).notNull().default("bank"),
+  payment: text("payment", { enum: ["bank", "privat", "kasse"] }).notNull().default("bank"),
   note: text("note").notNull().default(""),
   currency: text("currency").notNull().default("EUR"),
   net: integer("net").notNull().default(0),

@@ -13,6 +13,7 @@ import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "./company.ts";
+import { addDocumentCashEntry } from "./cash.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
@@ -35,7 +36,7 @@ export const documentInputSchema = z.object({
   documentDate: isoDate.nullable(),
   dueDate: isoDate.nullable(),
   category: z.enum(EXPENSE_CATEGORY_KEYS).nullable(),
-  payment: z.enum(["bank", "privat"]),
+  payment: z.enum(["bank", "privat", "kasse"]),
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
   privateShare: z.number().int().min(0).max(100).default(0),
@@ -369,6 +370,16 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
       .returning();
     await tx.insert(schema.journalLines).values(lines.map((line) => ({ entryId: entry!.id, ...line })));
     await tx.update(schema.journalEntries).set({ lockedAt: now }).where(eq(schema.journalEntries.id, entry!.id));
+    // Bar aus der Kasse: Zeile im Kassenbuch; lehnt ab, wenn der Bestand dadurch negativ würde
+    if (doc.payment === "kasse") {
+      await addDocumentCashEntry(tx, {
+        id,
+        date: doc.documentDate!,
+        gross: totals.gross,
+        text: `${doc.supplierName}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
+        journalEntryId: entry!.id,
+      });
+    }
     await tx
       .update(schema.documents)
       .set({ status: "gebucht", vorsteuerAbzug, lockedAt: now, updatedAt: now })

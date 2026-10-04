@@ -11,6 +11,7 @@ export const ACCOUNTS = {
   SKR03: {
     forderungen: "1400",
     bank: "1200",
+    kasse: "1000",
     erloese: { 1900: "8400", 700: "8300", 0: "8200" },
     erloeseSonder: { reverse_charge: "8336", drittland: "8338", steuerfrei: "8100", kleinunternehmer: "8195" },
     ust: { 1900: "1776", 700: "1771" },
@@ -30,6 +31,7 @@ export const ACCOUNTS = {
   SKR04: {
     forderungen: "1200",
     bank: "1800",
+    kasse: "1600",
     erloese: { 1900: "4400", 700: "4300", 0: "4200" },
     erloeseSonder: { reverse_charge: "4336", drittland: "4338", steuerfrei: "4100", kleinunternehmer: "4185" },
     ust: { 1900: "3806", 700: "3801" },
@@ -86,6 +88,7 @@ export const EXPENSE_CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORIES) as [Expense
 
 export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
+    "1000": "Kasse",
     "1200": "Bank",
     "1400": "Forderungen aus Lieferungen und Leistungen",
     "1761": "Umsatzsteuer nicht fällig 7 %",
@@ -104,6 +107,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   },
   SKR04: {
     "1200": "Forderungen aus Lieferungen und Leistungen",
+    "1600": "Kasse",
     "1800": "Bank",
     "3801": "Umsatzsteuer 7 %",
     "3806": "Umsatzsteuer 19 %",
@@ -210,7 +214,7 @@ export function inputTaxCode(rate: BasisPoints): TaxCode {
 }
 
 /** Wie ein Beleg bezahlt wird: offen über die Bank (Abgleich in Phase 4) oder privat ausgelegt. */
-export type DocumentPayment = "bank" | "privat";
+export type DocumentPayment = "bank" | "privat" | "kasse";
 
 /**
  * Buchung eines Belegs: Aufwand und Vorsteuer an Verbindlichkeiten
@@ -266,7 +270,7 @@ export function documentPosting(
   }
   // Der private Teil ist eine Entnahme; privat bezahlt heben sich Einlage und Entnahme insoweit auf
   if (privatePart !== 0) lines.push(side(accounts.privatentnahmen, privatePart, true, null));
-  const counter = payment === "privat" ? accounts.privateinlagen : accounts.verbindlichkeiten;
+  const counter = payment === "privat" ? accounts.privateinlagen : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
   lines.push(side(counter, totals.gross, false, null));
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
 }
@@ -349,6 +353,23 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter(
     (line) => line.debit !== 0 || line.credit !== 0,
   );
+}
+
+/** Kassenbuchungen ohne Beleg: Einlage und Entnahme, Geld von der Bank in die Kasse und zurück */
+export const CASH_BOOKINGS = {
+  einlage: { label: "Einlage", sign: 1, kind: "privat" },
+  entnahme: { label: "Entnahme", sign: -1, kind: "privat" },
+  abhebung: { label: "Abhebung von der Bank", sign: 1, kind: "geldtransit" },
+  einzahlung: { label: "Einzahlung auf die Bank", sign: -1, kind: "geldtransit" },
+} as const;
+
+export type CashBooking = keyof typeof CASH_BOOKINGS;
+
+/** Kasse an Privateinlage bzw. Geldtransit; Ausgänge aus der Kasse (negativ) drehen die Seiten */
+export function cashPosting(kind: "privat" | "geldtransit", amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const counter = kind === "geldtransit" ? accounts.geldtransit : amount < 0 ? accounts.privatentnahmen : accounts.privateinlagen;
+  return [side(accounts.kasse, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 
 /**
