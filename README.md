@@ -71,7 +71,7 @@ Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
 - **Post vom und an das Finanzamt**: Steuerbescheide aus dem ELSTER-Postfach abholen, Nachrichten über ELSTER,
   Bankverbindung ändern, Antrag auf Herabsetzung der Einkommensteuer-Vorauszahlungen mit Hochrechnung des Gewinns
   und Steuerprognose (Tarif, Splitting, Soli, Kirchensteuer)
-- **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, Journal je Monat, Saldenliste und
+- **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, DATEV-Export für die Steuerberatung, Journal je Monat, Saldenliste und
   Kontenblätter mit CSV-Export, Festschreibung und Audit-Log
 - **Pauschalen ohne Beleg**: Homeoffice-Tagespauschale, Kilometer mit dem eigenen Auto und Verpflegungsmehraufwand
   auf Geschäftsreisen mit den gesetzlichen Sätzen, gebucht an Privateinlage und in den richtigen Zeilen der Anlage EÜR

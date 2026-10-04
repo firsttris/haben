@@ -344,6 +344,13 @@
       "when": 1791086519850,
       "tag": "0048_logo_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1791087482305,
+      "tag": "0049_datev_export",
+      "breakpoints": true
     }
   ]
 }

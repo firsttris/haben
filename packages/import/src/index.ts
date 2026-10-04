@@ -6,6 +6,7 @@ export { parseStatement, detectStatementFormat } from "./parse.ts";
 export { transactionHash, withDedupHashes } from "./dedup.ts";
 export { checkBalanceContinuity } from "./continuity.ts";
 export { parseDatevBuchungsstapel, isDatevFile, datevAccountTotals, DatevParseError } from "./datev.ts";
+export { buildDatevBuchungsstapel, DATEV_AUTOMATIC_ACCOUNTS, type DatevExportEntry } from "./datev-export.ts";
 export type { DatevHeader, DatevBooking, DatevStack } from "./datev.ts";
 export * from "./lexoffice/index.ts";
 export * from "./enablebanking/index.ts";

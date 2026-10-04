@@ -299,6 +299,22 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(page.getByLabel("Beschreibung Position 2")).toHaveCount(0);
 });
 
+test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () => {
+  await go("/einstellungen");
+  const card = page.getByRole("form", { name: "DATEV-Export" });
+  await card.getByLabel("Beraternummer").fill("29098");
+  await card.getByLabel("Mandantennummer").fill("55003");
+  await card.getByRole("button", { name: "Nummern speichern" }).click();
+  await expect(card.getByRole("status")).toHaveText("Nummern gespeichert.");
+  const link = card.getByRole("link", { name: "Buchungsstapel herunterladen" });
+  const response = await page.request.get((await link.getAttribute("href"))!);
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-disposition"]).toMatch(/EXTF_Buchungsstapel_\d{4}\.csv/);
+  const body = new TextDecoder("latin1").decode(await response.body());
+  expect(body.startsWith('"EXTF";700;21;"Buchungsstapel";13;')).toBe(true);
+  expect(body).toContain(";29098;55003;");
+});
+
 test("Fristen und Kalender-Abo", async () => {
   await go("/fristen");
   await expect(page.getByRole("heading", { name: "Fristen", level: 1 })).toBeVisible();

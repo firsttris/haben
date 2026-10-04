@@ -85,6 +85,19 @@ Die Auswertung ist eine Vorschau und ersetzt nicht die Anlage EÜR. Bekannte Lü
 > [!NOTE]
 > Lass die EÜR vor der Abgabe von deiner Steuerberatung prüfen, besonders im ersten Jahr mit Haben und wenn du Altbestand aus Lexoffice übernommen hast.
 
+## DATEV-Export für die Steuerberatung
+
+Unter **Einstellungen › DATEV-Export** lädst du die Buchungen eines Jahres als DATEV-Buchungsstapel herunter. Das ist die Datei, die Kanzleien in DATEV Unternehmen online oder Kanzlei-Rechnungswesen einlesen.
+
+- **Format:** EXTF, Formatkategorie 21, Version 13, Windows-1252.
+- **Kopfdaten:** Berater- und Mandantennummer (von der Kanzlei), Wirtschaftsjahr ist das Kalenderjahr, Sachkontenlänge 4, Kontenrahmen SKR03 bzw. SKR04 wie in Haben.
+- **Buchungssätze:** Jede Buchung aus dem Journal wird in Buchungssätze „Konto an Gegenkonto“ zerlegt. Die Summe je Konto ist danach genau die aus der [Saldenliste](buchhaltung.md#die-seite-konten).
+- **Umsatzsteuer:** Haben bucht die Steuer als eigene Zeile, bei Ist-Versteuerung zuerst auf „Umsatzsteuer nicht fällig“. Damit DATEV sie nicht ein zweites Mal aus den Erlösen herausrechnet, tragen Buchungen auf Automatikkonten (SKR03 8400 und 8300, SKR04 4400 und 4300) den BU-Schlüssel 40 (Aufhebung der Automatik).
+- **Belegfeld 1:** die Rechnungsnummer bzw. die Belegnummer des Lieferanten; **Buchungstext:** wie im Journal, auf 60 Zeichen gekürzt.
+- **Festschreibung:** gesetzt, wie in Haben.
+
+Stimm die Übergabe einmal mit der Kanzlei ab: manche Kanzleien buchen lieber brutto mit Steuerschlüssel. Die Belege selbst stehen im Jahresarchiv.
+
 ## Jahresexport
 
 Unter **Einstellungen → Jahresarchiv** wählst du ein Jahr und lädst mit „ZIP herunterladen“ alles herunter, was Haben zu diesem Jahr gespeichert hat. Zur Auswahl stehen alle Jahre mit Daten, dazu immer das laufende und das vorige Jahr. Die Datei heißt `Haben-<Jahr>-<Datum>.zip` und kommt von `/api/export/<Jahr>`.

@@ -91,6 +91,9 @@ export const company = pgTable(
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
+    /** Für den DATEV-Export: Nummern bei der Steuerberatung */
+    datevBeraterNr: text("datev_berater_nr").notNull().default(""),
+    datevMandantNr: text("datev_mandant_nr").notNull().default(""),
     /** Persönliche Angaben für ELSTER (Bankverbindung, Einkommensteuer): Person A, ggf. Ehegatte B */
     taxpayer: jsonb("taxpayer").$type<TaxpayerData>().notNull().default({}),
     /** Vorgabe für den Privatanteil in Prozent je Belegkategorie, z. B. { telefon: 20 } */
