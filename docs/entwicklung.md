@@ -185,9 +185,13 @@ Images baut der Workflow `.github/workflows/release.yml`: die CI liegt hier, Ima
 3. Das Image wird für `linux/amd64` und `linux/arm64` gebaut und als `:x.y.z`, `:x.y` und `:latest` nach Docker Hub (`tristanteu/haben`) und GHCR (`ghcr.io/firsttris/haben`) geschoben. Die README landet mit absoluten Links als Beschreibung auf Docker Hub.
 4. Erst danach entsteht das GitHub-Release mit erzeugten Notizen.
 
+Den Tag legt einer von zwei Wegen an, nach demselben Schema wie in den anderen Projekten:
+
+- ohne Checkout: Actions → *Bump version* → patch, minor oder major (`bump.yml`). Erhöht die Version in der `package.json`, committet sie als `Release vX.Y.Z` auf `main`, taggt und startet `release.yml` auf dem Tag.
+- lokal:
+
 ```sh
-pnpm version patch   # oder minor, major: erhöht die Version, legt Commit und Tag an
-git push --follow-tags
+pnpm release:patch   # oder :minor, :major: erhöht die Version, legt Commit und Tag an und pusht beides
 ```
 
 Von Hand gestartet (Actions → Release → Run workflow) laufen auf `main` dieselben Prüfungen, danach wird nur `:edge` veröffentlicht, ohne Release.
