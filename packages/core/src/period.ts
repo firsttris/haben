@@ -1,11 +1,11 @@
 import { isNonWorkingDay } from "./holidays.ts";
 import type { Bundesland } from "./steuernummer.ts";
-import { z } from "zod";
+import { z } from "zod/mini";
 
 export const vatPeriodSchema = z.object({
-  year: z.number().int().min(2000).max(2100),
+  year: z.int().check(z.minimum(2000), z.maximum(2100)),
   /** 1–12 für Monatszeiträume */
-  month: z.number().int().min(1).max(12),
+  month: z.int().check(z.minimum(1), z.maximum(12)),
 });
 
 export type VatPeriod = z.infer<typeof vatPeriodSchema>;

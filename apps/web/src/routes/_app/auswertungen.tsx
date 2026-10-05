@@ -1,7 +1,7 @@
 import { formatEuro, type EuerLine } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { euroAxis, niceTicks, useChartWidth } from "../../lib/chart.ts";
 import { formatDate } from "../../lib/format.ts";
 import type { OpenPosition } from "../../server/reports.ts";
@@ -9,7 +9,7 @@ import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/auswertungen")({
-  validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional() }),
+  validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => getReports({ data: { year: deps.jahr ?? new Date().getFullYear() } }),
   head: () => ({ meta: [{ title: "Auswertungen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),

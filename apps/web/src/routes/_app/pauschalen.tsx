@@ -15,13 +15,13 @@ import {
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { errorMessage, formatDate } from "../../lib/format.ts";
 import { createPauschaleFn, getPauschalen, reversePauschaleFn } from "../../server/functions/pauschalen.ts";
 import styles from "../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/pauschalen")({
-  validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional() }),
+  validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
   loaderDeps: ({ search }) => ({ year: search.jahr ?? new Date().getFullYear() }),
   loader: ({ deps }) => getPauschalen({ data: deps.year }),
   head: () => ({ meta: [{ title: "Pauschalen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),

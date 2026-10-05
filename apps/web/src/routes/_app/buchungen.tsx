@@ -1,13 +1,13 @@
 import { formatEuro, periodLabel, previousPeriod, type VatPeriod } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { shortDate } from "../../components/Ledger.tsx";
 import { getJournal } from "../../server/functions/journal.ts";
 import styles from "../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/buchungen")({
-  validateSearch: z.object({ jahr: z.number().int().optional(), monat: z.number().int().min(1).max(12).optional() }),
+  validateSearch: z.object({ jahr: z.optional(z.int()), monat: z.optional(z.int().check(z.minimum(1), z.maximum(12))) }),
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => {
     const now = new Date();

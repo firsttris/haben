@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { ArchiveFiles } from "../../../components/archiv/ArchiveFiles.tsx";
 import { DatevBookings } from "../../../components/archiv/DatevBookings.tsx";
 import { LegacyVouchers } from "../../../components/archiv/LegacyVouchers.tsx";
@@ -8,13 +8,13 @@ import { getDatevBookings, getLegacyVouchers, getMigration } from "../../../serv
 import styles from "../../../styles/archiv.css?url";
 
 const searchSchema = z.object({
-  ansicht: z.enum(["umzug", "belege", "buchungen", "dateien"]).optional(),
-  jahr: z.number().int().min(2000).max(2100).optional(),
-  richtung: z.enum(["alle", "einnahme", "ausgabe"]).optional(),
-  suche: z.string().max(100).optional(),
-  ohneDatei: z.boolean().optional(),
-  ohneBeleg: z.boolean().optional(),
-  seite: z.number().int().min(0).optional(),
+  ansicht: z.optional(z.enum(["umzug", "belege", "buchungen", "dateien"])),
+  jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))),
+  richtung: z.optional(z.enum(["alle", "einnahme", "ausgabe"])),
+  suche: z.optional(z.string().check(z.maxLength(100))),
+  ohneDatei: z.optional(z.boolean()),
+  ohneBeleg: z.optional(z.boolean()),
+  seite: z.optional(z.int().check(z.minimum(0))),
 });
 
 export type ArchiveSearch = z.infer<typeof searchSchema>;

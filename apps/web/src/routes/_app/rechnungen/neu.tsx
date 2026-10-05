@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { getNewInvoice } from "../../../server/functions/invoices.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/neu")({
   /** schluss: Schlussrechnung zu dieser Abschlagsrechnung vorbereiten */
-  validateSearch: z.object({ schluss: z.uuid().optional() }),
+  validateSearch: z.object({ schluss: z.optional(z.uuid()) }),
   loader: () => getNewInvoice(),
   head: () => ({ meta: [{ title: "Neue Rechnung · Haben" }] }),
   component: NewInvoicePage,

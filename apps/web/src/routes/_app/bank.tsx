@@ -2,7 +2,7 @@ import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { Icon } from "../../components/Icon.tsx";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import {
@@ -18,13 +18,13 @@ import {
 } from "../../server/functions/bank.ts";
 
 const searchSchema = z.object({
-  konto: z.uuid().optional(),
-  filter: z.enum(["offen", "zugeordnet", "alle"]).optional(),
-  suche: z.string().optional(),
-  umsatz: z.uuid().optional(),
+  konto: z.optional(z.uuid()),
+  filter: z.optional(z.enum(["offen", "zugeordnet", "alle"])),
+  suche: z.optional(z.string()),
+  umsatz: z.optional(z.uuid()),
   /** Ergebnis der Rückleitung von der Bank */
-  abruf: z.enum(["ok", "fehler"]).optional(),
-  meldung: z.string().max(500).optional(),
+  abruf: z.optional(z.enum(["ok", "fehler"])),
+  meldung: z.optional(z.string().check(z.maxLength(500))),
 });
 
 export const Route = createFileRoute("/_app/bank")({

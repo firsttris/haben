@@ -1,10 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { kontenblatt, ledgerRange, saldenliste } from "../ledger.ts";
+import { kontenblatt, ledgerPeriodSchema, ledgerRange, saldenliste } from "../ledger.ts";
 import { authMiddleware } from "../middleware.ts";
 import { reportYears } from "../reports.ts";
 
-export const ledgerPeriodSchema = z.string().regex(/^(jahr|q[1-4]|m([1-9]|1[0-2]))$/).default("jahr");
 const yearSchema = z.number().int().min(2000).max(2100);
 
 export const getSaldenliste = createServerFn({ method: "GET" })

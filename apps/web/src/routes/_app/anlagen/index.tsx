@@ -2,13 +2,13 @@ import { ASSET_KINDS, ASSET_METHODS, formatEuro } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { Icon } from "../../../components/Icon.tsx";
 import { errorMessage, formatDate } from "../../../lib/format.ts";
 import { bookDepreciationFn, getAssets } from "../../../server/functions/assets.ts";
 
 export const Route = createFileRoute("/_app/anlagen/")({
-  validateSearch: z.object({ jahr: z.number().int().min(2000).max(2100).optional() }),
+  validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
   loaderDeps: ({ search }) => ({ year: search.jahr ?? new Date().getFullYear() }),
   loader: ({ deps }) => getAssets({ data: deps.year }),
   head: () => ({ meta: [{ title: "Anlagen · Haben" }] }),
