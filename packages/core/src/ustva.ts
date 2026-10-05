@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/mini";
 import { taxOf, type Cents } from "./money.ts";
 import { vatPeriodSchema } from "./period.ts";
 
@@ -13,17 +13,17 @@ import { vatPeriodSchema } from "./period.ts";
  */
 export const ustvaInputSchema = z.object({
   period: vatPeriodSchema,
-  kz81: z.number().int(),
-  kz86: z.number().int(),
-  kz21: z.number().int().default(0),
-  kz45: z.number().int().default(0),
-  kz48: z.number().int().default(0),
-  kz66: z.number().int(),
-  kz46: z.number().int().default(0),
-  kz47: z.number().int().default(0),
-  kz84: z.number().int().default(0),
-  kz85: z.number().int().default(0),
-  kz67: z.number().int().default(0),
+  kz81: z.int(),
+  kz86: z.int(),
+  kz21: z._default(z.int(), 0),
+  kz45: z._default(z.int(), 0),
+  kz48: z._default(z.int(), 0),
+  kz66: z.int(),
+  kz46: z._default(z.int(), 0),
+  kz47: z._default(z.int(), 0),
+  kz84: z._default(z.int(), 0),
+  kz85: z._default(z.int(), 0),
+  kz67: z._default(z.int(), 0),
 });
 
 export type UstvaInput = z.infer<typeof ustvaInputSchema>;

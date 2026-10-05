@@ -1,15 +1,15 @@
 import { formatEuro, kontenkennzahlen, kontenklasse } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { SaldoBetrag, ZEITRAEUME } from "../../../components/Ledger.tsx";
 import { formatDate } from "../../../lib/format.ts";
 import { getSaldenliste } from "../../../server/functions/ledger.ts";
 import styles from "../../../styles/auswertungen.css?url";
 
 const search = z.object({
-  jahr: z.number().int().optional(),
-  zeitraum: z.string().regex(/^(jahr|q[1-4]|m([1-9]|1[0-2]))$/).optional(),
+  jahr: z.optional(z.int()),
+  zeitraum: z.optional(z.string().check(z.regex(/^(jahr|q[1-4]|m([1-9]|1[0-2]))$/))),
 });
 
 export const Route = createFileRoute("/_app/konten/")({

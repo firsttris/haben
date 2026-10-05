@@ -1,9 +1,9 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { getContacts } from "../../../server/functions/contacts.ts";
 
 export const Route = createFileRoute("/_app/kontakte/")({
-  validateSearch: z.object({ archiv: z.boolean().optional() }),
+  validateSearch: z.object({ archiv: z.optional(z.boolean()) }),
   loaderDeps: ({ search }) => ({ archived: search.archiv ?? false }),
   loader: ({ deps }) => getContacts({ data: { archived: deps.archived } }),
   head: () => ({ meta: [{ title: "Kontakte · Haben" }] }),

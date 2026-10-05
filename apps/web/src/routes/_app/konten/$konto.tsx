@@ -1,7 +1,7 @@
 import { formatEuro, kontoart, type Kontenrahmen } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { Fragment } from "react";
-import { z } from "zod";
+import { z } from "zod/mini";
 import { BalanceChart } from "../../../components/BalanceChart.tsx";
 import { SaldoBetrag, ZEITRAEUME, shortDate } from "../../../components/Ledger.tsx";
 import { formatDate } from "../../../lib/format.ts";
@@ -10,8 +10,8 @@ import styles from "../../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/konten/$konto")({
   validateSearch: z.object({
-    jahr: z.number().int().optional(),
-    zeitraum: z.string().regex(/^(jahr|q[1-4]|m([1-9]|1[0-2]))$/).optional(),
+    jahr: z.optional(z.int()),
+    zeitraum: z.optional(z.string().check(z.regex(/^(jahr|q[1-4]|m([1-9]|1[0-2]))$/))),
   }),
   loaderDeps: ({ search }) => search,
   loader: ({ params, deps }) => {

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/mini";
 import { taxOf, type BasisPoints, type Cents } from "./money.ts";
 
 /** Mengen als ganze Tausendstel: 152 Std. = 152000, 0,5 Tage = 500. */
@@ -18,10 +18,10 @@ export const UNITS = {
 export type UnitLabel = keyof typeof UNITS;
 
 export const invoiceLineInputSchema = z.object({
-  description: z.string().trim().min(1, "Beschreibung fehlt").max(500),
-  quantity: z.number().int().min(1).max(1_000_000_000),
+  description: z.string().check(z.trim(), z.minLength(1, "Beschreibung fehlt"), z.maxLength(500)),
+  quantity: z.int().check(z.minimum(1), z.maximum(1_000_000_000)),
   unit: z.enum(Object.keys(UNITS) as [UnitLabel, ...UnitLabel[]]),
-  unitPrice: z.number().int().min(-100_000_000_00).max(100_000_000_00),
+  unitPrice: z.int().check(z.minimum(-100_000_000_00), z.maximum(100_000_000_00)),
   taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
 });
 
