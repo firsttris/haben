@@ -30,60 +30,32 @@ Auf deinem Server, ohne Abo, ohne Datenabfluss.
 
 ## 💡 Warum Haben?
 
-Als Freiberufler brauchst du keine Finanzbuchhaltung für den Mittelstand. Du schreibst Rechnungen, sammelst Belege,
-gleichst einmal im Monat das Konto ab und schickst die Umsatzsteuer-Voranmeldung. Dafür zahlt man bei Lexware Office,
-sevDesk und Co. Jahr für Jahr ein Abo und gibt jede Rechnung und jeden Kontoauszug an einen fremden Dienst.
+Als Freiberufler schreibst du Rechnungen, sammelst Belege, gleichst das Konto ab und schickst die Voranmeldung.
+Dafür braucht es kein Abo bei Lexware Office oder sevDesk und keinen fremden Dienst, der jede Rechnung sieht.
 
-Haben macht genau diese Arbeit und läuft auf deinem eigenen Server:
-
-- **Ein Weg vom Beleg bis zum Finanzamt**: Rechnung festschreiben, Zahlung im Bankabgleich zuordnen, und die
-  Voranmeldung rechnet sich aus den Buchungen. Du prüfst, klickst auf Senden, das Übertragungsprotokoll liegt im Verlauf.
-- **Ordnungsgemäß von Anfang an**: Festgeschriebenes ändert die Datenbank selbst nicht mehr (Postgres-Trigger),
-  jede Änderung steht mit altem und neuem Wert im Protokoll, Korrekturen laufen über Storno und Gegenbuchung, wie es die GoBD verlangen.
-- **Deine Daten bleiben bei dir**: Belege im eigenen Dateisystem, Zertifikat und Schlüssel verschlüsselt in der eigenen Datenbank,
-  jedes Jahr als ZIP mit Prüfsummen zum Archivieren. Nur wenn du es einschaltest, liest eine KI Belege aus.
-- **Umzug ohne Datenverlust**: Haben holt Rechnungen, Belege und Kontakte aus Lexware Office und archiviert den DATEV-Export,
-  damit du kündigen kannst und trotzdem jede Frage des Finanzamts beantworten kannst.
+- **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
+- **GoBD-konform von Anfang an**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
+- **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch
+- **Umzug ohne Datenverlust**: Rechnungen, Belege und Kontakte aus Lexware Office übernehmen, DATEV-Export archivieren
 
 ## ✨ Funktionen
 
-- **Rechnungen mit E-Rechnung**: Editor mit Live-Vorschau, Artikelkatalog und eigenem Logo, lückenloser Nummernkreis, PDF/A-3 mit Typst und
-  ZUGFeRD (EN 16931) oder XRechnung 3.0 (CII/UBL), geprüft mit dem KoSIT-Validator. Storno und Rechnungskorrektur, Reverse Charge, Drittland, steuerfreie Umsätze und
-  Kleinunternehmer nach § 19 UStG mit Pflichthinweis. Abschlags- und Schlussrechnungen, Auftragsbestätigung und Lieferschein. Rechnungen und Angebote auf Deutsch oder Englisch. Wiederkehrende Rechnungen mit Platzhaltern wie {monat}, als Entwurf oder
-  automatisch festgeschrieben. Mahnwesen mit drei Stufen, Verzugszinsen und PDF; GiroCode zum Bezahlen per Banking-App
-- **Belege**: per Drag-and-drop, Kamera, Teilen-Menü am Handy (PWA) oder per E-Mail (IMAP-Abruf). E-Rechnungen werden direkt gelesen,
-  andere PDFs und Fotos auf Wunsch von Claude vorausgefüllt. Kategorie pro Lieferant gemerkt, Reverse Charge nach § 13b (z. B. Google, AWS)
-- **Bankabgleich**: Umsätze täglich automatisch über Enable Banking (PSD2) abrufen oder Kontoauszüge von DKB, N26
-  oder als CAMT.053 importieren, Dubletten und Lücken erkennen,
-  Vorschläge mit Begründung, Zuordnen per Tastatur, Teilzahlungen und Sammelüberweisungen
-- **Umsatzsteuer-Voranmeldung**: Kennzahlen aus den Buchungen (Ist- oder Soll-Versteuerung), Herkunft jeder Zahl aufklappbar,
-  Vorprüfung vor dem Senden, Übermittlung über ERiC mit Transfer-Ticket und Protokoll-PDF, berichtigte Anmeldungen
-- **Jahreserklärungen**: Umsatzsteuererklärung und Anlage EÜR mit Anlagenverzeichnis (AVEÜR) aus den Buchungen,
-  Einkommensteuererklärung mit Anlage S/G, N (Arbeitslohn), Vorsorgeaufwand, Sonderausgaben, Kind und KAP, auch zusammen veranlagt;
-  Prüfen, Test- und Echtübermittlung über ERiC; Belege der vorausgefüllten Steuererklärung (Lohnsteuerbescheinigung,
-  Rentenbezüge, Beiträge) von ELSTER abrufen
-- **Angebote**: eigener Nummernkreis, PDF im Layout der Rechnung, Versand per E-Mail, Antwort des Kunden festhalten
-  und mit einem Klick in eine Rechnung übernehmen
-- **Rechnungen per E-Mail**: Rechnungen, Stornos und Mahnungen mit PDF bzw. XRechnung-XML direkt aus Haben verschicken,
-  mit Vorlagen und Protokoll; wiederkehrende Rechnungen auf Wunsch automatisch
-- **Fristen und Erinnerungen**: Voranmeldungen, Abgabefristen, Vorauszahlungen, Einspruchsfristen und Ablauf des
-  Zertifikats auf einer Seite, als Kalender-Abo und per E-Mail über den eigenen SMTP-Zugang (auch Gmail)
-- **Post vom und an das Finanzamt**: Steuerbescheide aus dem ELSTER-Postfach abholen, Nachrichten über ELSTER,
-  Bankverbindung ändern, Antrag auf Herabsetzung der Einkommensteuer-Vorauszahlungen mit Hochrechnung des Gewinns
-  und Steuerprognose (Tarif, Splitting, Soli, Kirchensteuer)
-- **Buchhaltung im Hintergrund**: doppelte Buchführung nach SKR03 oder SKR04, DATEV-Export für die Steuerberatung, Journal je Monat, Saldenliste und
-  Kontenblätter mit CSV-Export, Festschreibung und Audit-Log
-- **Pauschalen ohne Beleg**: Homeoffice-Tagespauschale, Kilometer mit dem eigenen Auto und Verpflegungsmehraufwand
-  auf Geschäftsreisen mit den gesetzlichen Sätzen, gebucht an Privateinlage und in den richtigen Zeilen der Anlage EÜR
-- **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
-  Übernahme mit Restbuchwert aus Lexoffice, AfA-Buchung zum Jahresende
-- **Anlagen und AfA**: Anlagenverzeichnis mit linearer AfA, GWG und Sammelposten, Anschaffung per Beleg,
-  Übernahme mit Restbuchwert aus Lexoffice, AfA-Buchung zum Jahresende
-- **Auswertungen**: Einnahmen-Überschuss-Rechnung nach Zufluss und Abfluss, offene Posten, Monatsverlauf, CSV
-- **Jahresexport**: alle Originale, Journal, Bankumsätze, Voranmeldungen und Protokoll als ZIP mit SHA-256-Prüfsummen
-- **Umzug aus Lexoffice**: Abruf über die Public API, DATEV-Buchungsstapel, offene Posten übernehmen, Abgleich je Jahr
-- **Anmeldung mit Passkey**, Passwort als Ersatz. Ein Konto pro Installation
-- **Als App installierbar** auf Handy und Desktop, deutsche Oberfläche, auch am Smartphone bedienbar
+| Bereich | Was Haben kann |
+|---|---|
+| 🧾 [Rechnungen](docs/rechnungen.md) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), Storno, Reverse Charge, § 19 UStG, Abschlagsrechnungen, wiederkehrende Rechnungen, Mahnwesen, Versand per E-Mail |
+| 📝 [Angebote](docs/angebote.md) | Eigener Nummernkreis, PDF und Versand, mit einem Klick zur Rechnung |
+| 📎 [Belege](docs/belege.md) | Drag-and-drop, Kamera, Teilen am Handy oder per E-Mail (IMAP); E-Rechnungen direkt gelesen, sonst optional per KI |
+| 🏦 [Bankabgleich](docs/bank.md) | Automatischer Abruf per PSD2 oder Import (DKB, N26, CAMT.053), Vorschläge mit Begründung, Teil- und Sammelzahlungen |
+| 📤 [Voranmeldung](docs/umsatzsteuer.md) | Kennzahlen aus den Buchungen (Ist oder Soll), Herkunft jeder Zahl, Vorprüfung, Übermittlung per ERiC, Berichtigung |
+| 📑 [Jahreserklärungen](docs/jahreserklaerung.md) | USt-Erklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung; vorausgefüllte Belege von ELSTER abrufen |
+| 🏛️ [Finanzamt](docs/finanzamt.md) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen mit Steuerprognose |
+| ⏰ [Fristen](docs/fristen.md) | Alle Steuertermine auf einer Seite, als Kalender-Abo und per E-Mail |
+| 🚗 [Pauschalen](docs/pauschalen.md) · [Kasse](docs/kasse.md) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Kassenbuch für Barzahlungen |
+| 🖥️ [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, lineare AfA, GWG und Sammelposten, AfA-Buchung zum Jahresende |
+| 📊 [Auswertungen](docs/auswertungen.md) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
+| 📚 [Buchhaltung](docs/buchhaltung.md) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export |
+| 📦 [Umzug aus Lexoffice](docs/lexoffice.md) | Abruf über die Public API, DATEV-Buchungsstapel, offene Posten und Anlagen übernehmen |
+| 🔐 Anmeldung und App | Passkey (Passwort als Ersatz), installierbar als PWA auf Handy und Desktop |
 
 ## 📸 Screenshots
 
@@ -116,36 +88,7 @@ docker compose up -d
 Öffne **https://deine-domain**, leg dein Konto an und richte Firmendaten, Nummernkreis und ELSTER ein, wie in
 [Erste Schritte](docs/einrichtung.md) beschrieben.
 
-<details>
-<summary><b>Podman Quadlet (systemd)</b></summary>
-
-```bash
-RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
-mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
-for f in haben.network haben-db.volume haben-belege.volume haben-eric-log.volume haben-caddy.volume \
-         haben-db.container haben-app.container haben-caddy.container; do
-  curl -o ~/.config/containers/systemd/$f "$RAW/quadlet/$f"
-done
-curl -o ~/.config/systemd/user/haben-backup.service "$RAW/quadlet/haben-backup.service"
-curl -o ~/.config/systemd/user/haben-backup.timer "$RAW/quadlet/haben-backup.timer"
-curl -o ~/.config/haben/Caddyfile "$RAW/Caddyfile"            # Domain eintragen
-curl -o ~/.config/haben/haben.env "$RAW/haben.env.example"    # Domain eintragen
-curl -o ~/.config/haben/backup.sh "$RAW/backup.sh" && chmod +x ~/.config/haben/backup.sh
-curl -o ~/.config/haben/restore.sh "$RAW/restore.sh" && chmod +x ~/.config/haben/restore.sh
-
-DBPW="$(openssl rand -hex 24)"
-printf '%s' "$DBPW" | podman secret create haben-db-password -
-printf 'postgres://haben:%s@haben-db:5432/haben' "$DBPW" | podman secret create haben-database-url -
-openssl rand -base64 32 | tr -d '\n' | podman secret create haben-auth-secret -
-openssl rand -base64 32 | tr -d '\n' | podman secret create haben-encryption-key -
-
-systemctl --user daemon-reload
-systemctl --user start haben-db haben-app haben-caddy
-```
-
-</details>
-
-ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und alle Umgebungsvariablen stehen in
+Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Umgebungsvariablen stehen in
 [Betrieb und Installation](docs/installation.md).
 
 > [!IMPORTANT]
@@ -154,27 +97,9 @@ ERiC für die ELSTER-Übermittlung, Backup und Wiederherstellung, Updates und al
 
 ## 📚 Dokumentation
 
-| | |
-|---|---|
-| [Betrieb und Installation](docs/installation.md) | Podman Quadlets, Caddy, Secrets, Umgebungsvariablen, ERiC, Backup und Wiederherstellung, Updates |
-| [Erste Schritte](docs/einrichtung.md) | Konto und Passkey, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, ELSTER, KI-Auslesung |
-| [Rechnungen und E-Rechnung](docs/rechnungen.md) | Editor, Festschreiben, ZUGFeRD und XRechnung, Storno und Korrektur, Kontakte |
-| [Angebote](docs/angebote.md) | Angebot schreiben, festschreiben, senden, in eine Rechnung übernehmen |
-| [Belege](docs/belege.md) | Hochladen, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
-| [Bankimport und Abgleich](docs/bank.md) | Automatischer Abruf, Formate, Dubletten, Vorschläge, Zuordnen, Buchungen ohne Beleg |
-| [Umsatzsteuer-Voranmeldung](docs/umsatzsteuer.md) | Berechnung aus den Buchungen, Vorprüfung, ELSTER-Übermittlung, Berichtigung |
-| [Finanzamt](docs/finanzamt.md) | Bescheide aus dem ELSTER-Postfach, Nachrichten, Bankverbindung ändern, Herabsetzung der Vorauszahlungen |
-| [Fristen](docs/fristen.md) | Alle Steuertermine, Kalender-Abo und Erinnerungen per E-Mail (SMTP) |
-| [Jahreserklärungen](docs/jahreserklaerung.md) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung an ELSTER, Belege von ELSTER abrufen |
-| [Pauschalen](docs/pauschalen.md) | Homeoffice-Tage, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand |
-| [Kassenbuch](docs/kasse.md) | Barkasse mit fortlaufender Nummer, Einlage, Entnahme, Geldtransit und bar bezahlten Belegen |
-| [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, Übernahme aus Lexoffice, AfA zum Jahresende |
-| [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP, Aufbewahrung |
-| [Umzug aus Lexoffice](docs/lexoffice.md) | API-Abruf, DATEV-Import, offene Posten, Abgleich vor der Kündigung |
-| [Buchhaltung in Haben](docs/buchhaltung.md) | Buchungssätze, Kontenrahmen, Ist und Soll, GoBD und Festschreibung |
-| [Architektur](docs/architektur.md) | Module, Datenmodell, Abläufe, ERiC-Worker, Sicherheit |
-| [Entwicklung](docs/entwicklung.md) | Lokale Umgebung, Tests, Migrationen, Konventionen, Mitwirken |
-| [Roadmap](docs/roadmap.md) | Geplante Funktionen, Blocker und Quellen |
+Alles im Detail steht in der [Dokumentation](docs/README.md): [Installation](docs/installation.md),
+[Erste Schritte](docs/einrichtung.md), jede Funktion einzeln, [Buchhaltung](docs/buchhaltung.md),
+[Architektur](docs/architektur.md) und [Roadmap](docs/roadmap.md).
 
 ## 🔧 Entwicklung
 
