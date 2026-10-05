@@ -1,6 +1,6 @@
 name: Release
 
-# Ein Tag vX.Y.Z (pnpm version patch|minor|major && git push --follow-tags) veröffentlicht diese
+# Ein Tag vX.Y.Z (Button in bump.yml oder pnpm release:patch|minor|major) veröffentlicht diese
 # Version: erst die komplette CI, dann der gemeinsame Docker-Release aus firsttris/workflows. Der
 # prüft den Tag gegen package.json, pusht :x.y.z, :x.y und :latest auf Docker Hub und GHCR
 # (amd64 und arm64), aktualisiert die Beschreibung auf Docker Hub und legt danach das GitHub-Release an.

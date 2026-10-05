@@ -1,0 +1,20 @@
+name: Bump version
+
+# Erhöht die Version in package.json, taggt vX.Y.Z und startet release.yml auf dem Tag, ohne Checkout; dasselbe wie pnpm release:patch|minor|major.
+# Same scheme as in every project, see https://github.com/firsttris/workflows#bump-version
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+jobs:
+  bump:
+    uses: firsttris/workflows/.github/workflows/bump-version.yml@v1
+    with:
+      bump: ${{ inputs.bump }}
+    permissions:
+      contents: write
+      actions: write
