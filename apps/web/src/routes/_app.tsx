@@ -1,7 +1,6 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { Icon } from "../components/Icon.tsx";
-import { authClient } from "../lib/auth-client.ts";
 import { getAuthState } from "../server/functions/setup.ts";
 
 export const Route = createFileRoute("/_app")({
@@ -65,6 +64,8 @@ function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   async function signOut() {
+    // Erst beim Abmelden laden: der Auth-Client bringt den Passkey-Code mit, den nur Anmeldung und Einstellungen brauchen
+    const { authClient } = await import("../lib/auth-client.ts");
     await authClient.signOut();
     await router.navigate({ to: "/login" });
   }
