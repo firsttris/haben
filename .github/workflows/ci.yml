@@ -4,11 +4,19 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   # Der Release-Workflow lässt vor dem Veröffentlichen dieselben Prüfungen laufen.
   workflow_call:
 
+# Ein neuer Push in einen Pull Request bricht dessen veralteten Lauf ab; Läufe auf main und Tags laufen zu Ende
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   check:
+    # Draft-Pull-Requests bauen nicht; "Ready for review" startet den Lauf
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -39,6 +47,7 @@ jobs:
       - run: pnpm build
 
   e2e:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -79,6 +88,7 @@ jobs:
           if-no-files-found: ignore
 
   kosit:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -110,6 +120,7 @@ jobs:
           if-no-files-found: ignore
 
   container:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
