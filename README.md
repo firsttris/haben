@@ -1,10 +1,12 @@
 <div align="center">
 
+<h1>Haben: Open-Source-Buchhaltung für Freiberufler, selbst gehostet</h1>
+
 <img src="docs/banner.png" alt="Haben: Rechnung 2026-031 festgeschrieben, Zahlungseingang zugeordnet, Voranmeldung September an ELSTER übermittelt" width="900">
 
-**Die Buchhaltung für Freiberufler, die du selbst betreibst.**<br>
-Rechnungen mit E-Rechnung, Belege, Bankabgleich, EÜR und die monatliche Umsatzsteuer-Voranmeldung direkt an ELSTER.
-Auf deinem Server, ohne Abo, ohne Datenabfluss.
+**Die Buchhaltungssoftware für Freiberufler, Selbstständige und Kleinunternehmer, die du selbst betreibst.**<br>
+Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR und die Umsatzsteuer-Voranmeldung
+direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Abo, ohne Datenabfluss.
 
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
@@ -24,6 +26,8 @@ Auf deinem Server, ohne Abo, ohne Datenabfluss.
 [Dokumentation](https://firsttris.github.io/haben/) •
 [Entwicklung](#-entwicklung)
 
+<sub>English: self-hosted open-source bookkeeping for German freelancers and small businesses, with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR and VAT returns via ELSTER. The app and its [documentation](https://firsttris.github.io/haben/) are in German.</sub>
+
 <img src="docs/screenshot-uebersicht.png" alt="Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben" width="900">
 
 </div>
@@ -31,12 +35,16 @@ Auf deinem Server, ohne Abo, ohne Datenabfluss.
 ## 💡 Warum Haben?
 
 Als Freiberufler schreibst du Rechnungen, sammelst Belege, gleichst das Konto ab und schickst die Voranmeldung.
-Dafür braucht es kein Abo bei Lexware Office oder sevDesk und keinen fremden Dienst, der jede Rechnung sieht.
+Dafür braucht es kein Abo bei Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der jede
+Rechnung sieht. Haben ist die Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen,
+die du mit Docker oder Podman auf deinem eigenen Server betreibst.
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
 - **GoBD-konform von Anfang an**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
 - **Deine Daten bleiben bei dir**: eigener Server, Schlüssel verschlüsselt, Jahresarchiv mit Prüfsummen; KI nur auf Wunsch
 - **Umzug ohne Datenverlust**: Rechnungen, Belege und Kontakte aus Lexware Office übernehmen, DATEV-Export archivieren
+- **Für Freiberufler und Kleingewerbe**: Einnahmen-Überschuss-Rechnung (EÜR), Ist- oder Soll-Versteuerung,
+  Kleinunternehmerregelung nach § 19 UStG, Kontenrahmen SKR03 oder SKR04
 
 ## ✨ Funktionen
 
@@ -97,9 +105,26 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 
 ## 📚 Dokumentation
 
-Alles im Detail steht in der [Dokumentation](docs/README.md): [Installation](docs/installation.md),
-[Erste Schritte](docs/einrichtung.md), jede Funktion einzeln, [Buchhaltung](docs/buchhaltung.md),
-[Architektur](docs/architektur.md) und [Roadmap](docs/roadmap.md).
+Auch als Website mit Suche: **https://firsttris.github.io/haben/**
+
+| | |
+|---|---|
+| [Betrieb und Installation](docs/installation.md) | Docker Compose, Podman Quadlets, Caddy, Secrets, ERiC einbinden, Backup, Updates, häufige Probleme |
+| [Erste Schritte](docs/einrichtung.md) | Konto und Passkey, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, ELSTER-Zertifikat, Bankkonten |
+| [Rechnungen und E-Rechnung](docs/rechnungen.md) | Editor, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Storno, Mahnwesen |
+| [Angebote](docs/angebote.md) | Nummernkreis, PDF, Versand, Rechnung aus dem Angebot |
+| [Belege](docs/belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Reverse Charge |
+| [Pauschalen](docs/pauschalen.md) · [Kassenbuch](docs/kasse.md) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Barkasse |
+| [Anlagen und AfA](docs/anlagen.md) | Anlagenverzeichnis, lineare AfA, GWG, Sammelposten, Abgang |
+| [Bankimport und Abgleich](docs/bank.md) | PSD2, DKB, N26, CAMT.053, Vorschläge, Teilzahlungen |
+| [Umsatzsteuer-Voranmeldung](docs/umsatzsteuer.md) | Kennzahlen, Vorprüfung, Übermittlung an ELSTER, Berichtigung |
+| [Jahreserklärungen](docs/jahreserklaerung.md) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung |
+| [Finanzamt](docs/finanzamt.md) · [Fristen](docs/fristen.md) | ELSTER-Postfach, Vorauszahlungen, alle Steuertermine als Kalender-Abo |
+| [Auswertungen und Jahresexport](docs/auswertungen.md) | EÜR, offene Posten, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
+| [Umzug aus Lexoffice](docs/lexoffice.md) | API-Abruf, DATEV-Buchungsstapel, offene Posten, Abgleich vor der Kündigung |
+| [Buchhaltung in Haben](docs/buchhaltung.md) | GoBD, Festschreibung, Kontenrahmen, alle Buchungssätze, Steuerschlüssel |
+| [Architektur](docs/architektur.md) · [Entwicklung](docs/entwicklung.md) | Aufbau, Datenmodell, ERiC-Worker; lokale Umgebung, Tests, Mitwirken |
+| [Roadmap](docs/roadmap.md) | Was als Nächstes kommt |
 
 ## 🔧 Entwicklung
 
