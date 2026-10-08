@@ -21,7 +21,7 @@ Auf deinem Server, ohne Abo, ohne Datenabfluss.
 [Warum?](#-warum-haben) •
 [Funktionen](#-funktionen) •
 [Schnellstart](#-schnellstart) •
-[Dokumentation](docs/README.md) •
+[Dokumentation](https://firsttris.github.io/haben/) •
 [Entwicklung](#-entwicklung)
 
 <img src="docs/screenshot-uebersicht.png" alt="Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben" width="900">

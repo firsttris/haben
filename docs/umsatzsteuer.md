@@ -59,7 +59,7 @@ Die Vorsteuer kommt aus gebuchten [Belegen](belege.md), zugeordnet nach ihrem **
 
 ### § 13b als Leistungsempfänger
 
-Aus [Belegen mit § 13b](belege.md#reverse-charge-als-leistungsempfänger-13b) nach Belegdatum:
+Aus [Belegen mit § 13b](belege.md#reverse-charge-als-leistungsempfänger--13b) nach Belegdatum:
 
 | Kz | Inhalt |
 | --- | --- |

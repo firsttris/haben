@@ -12,3 +12,6 @@ data/
 coverage/
 test-results/
 playwright-report/
+
+# MkDocs build (mkdocs build)
+site/
