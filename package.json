@@ -20,7 +20,8 @@
     "test": "vitest run",
     "db:generate": "pnpm --filter @haben/web db:generate",
     "db:migrate": "pnpm --filter @haben/web db:migrate",
-    "e2e": "pnpm --filter @haben/web e2e"
+    "e2e": "pnpm --filter @haben/web e2e",
+    "docs:social-preview": "node scripts/social-preview/render.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

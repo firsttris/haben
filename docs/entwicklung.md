@@ -48,6 +48,7 @@ Belegdateien landen ohne weitere Angabe in `apps/web/data/belege` (`DOCUMENTS_DI
 | `pnpm --filter @haben/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `pnpm --filter @haben/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
 | `pip install -r requirements-docs.txt && mkdocs serve` | Diese Dokumentation als Website lokal auf Port 8000 (MkDocs Material); `mkdocs build --strict` wie in der CI |
+| `pnpm docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
 
 ## Tests
 
