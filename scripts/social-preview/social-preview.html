@@ -1,0 +1,80 @@
+<!doctype html>
+<!-- Vorlage für das Social-Media-Bild des Repos (Settings → Social preview), 1280 × 640.
+     Rendern: pnpm docs:social-preview → docs/social-preview.png -->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "IBM Plex Sans"; font-weight: 400; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2"); }
+  @font-face { font-family: "IBM Plex Sans"; font-weight: 500; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff2") format("woff2"); }
+  @font-face { font-family: "IBM Plex Sans"; font-weight: 600; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2") format("woff2"); }
+  @font-face { font-family: "IBM Plex Sans"; font-weight: 700; src: url("../../apps/web/node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-700-normal.woff2") format("woff2"); }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    position: relative;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    color: #eef3f0;
+    /* Farben der App: --nav #16211c, --brand #3fa284, --accent #1f6f5c */
+    background:
+      radial-gradient(60% 55% at 8% 0%, rgba(63,162,132,.28), transparent 70%),
+      radial-gradient(45% 50% at 100% 100%, rgba(31,111,92,.32), transparent 70%),
+      linear-gradient(135deg, #1b2a23, #0f1713);
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(#23332c 1px, transparent 1px),
+      linear-gradient(90deg, #23332c 1px, transparent 1px);
+    background-size: 32px 32px; opacity: .55;
+  }
+  .head { position: absolute; left: 64px; top: 56px; display: flex; align-items: center; gap: 22px; }
+  .logo {
+    width: 84px; height: 84px; border-radius: 21px; background: #3fa284; color: #16211c;
+    display: grid; place-items: center; font-size: 50px; font-weight: 600;
+    box-shadow: 0 8px 30px rgba(63,162,132,.45);
+  }
+  h1 { font-size: 60px; font-weight: 700; letter-spacing: -1.6px; line-height: 1; }
+  h1 span { color: #9fb3aa; font-weight: 500; font-size: 34px; letter-spacing: -.4px; margin-left: 14px; }
+  .sub { position: absolute; left: 64px; top: 168px; font-size: 26px; color: #c3cec8; letter-spacing: -.2px; }
+  .sub b { color: #f6f9f7; font-weight: 600; }
+  .chips { position: absolute; left: 64px; top: 222px; display: flex; gap: 10px; }
+  .chip {
+    font-size: 16px; font-weight: 500; color: #e3ebe7; padding: 7px 14px; border-radius: 999px;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .shot {
+    position: absolute; left: 64px; top: 292px; width: 880px;
+    border-radius: 14px 14px 0 0; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.14); border-bottom: 0;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .shot img { width: 100%; display: block; }
+  .phone {
+    position: absolute; left: 980px; top: 268px; width: 236px;
+    border-radius: 30px 30px 0 0; overflow: hidden; padding: 8px 8px 0;
+    background: #0c120f; border: 1px solid rgba(255,255,255,.16); border-bottom: 0;
+    box-shadow: 0 20px 60px rgba(0,0,0,.55);
+  }
+  .phone img { width: 100%; display: block; border-radius: 22px 22px 0 0; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="head">
+    <div class="logo">H</div>
+    <h1>Haben<span>Open-Source-Buchhaltung</span></h1>
+  </div>
+  <p class="sub">Für <b>Freiberufler</b> und <b>Kleinunternehmer</b>: vom Beleg bis zum Finanzamt, selbst gehostet.</p>
+  <div class="chips">
+    <span class="chip"><i style="background:#6fd1ad"></i>E-Rechnung: ZUGFeRD, XRechnung</span>
+    <span class="chip"><i style="background:#60a5fa"></i>Bankabgleich</span>
+    <span class="chip"><i style="background:#eab308"></i>EÜR und UStVA an ELSTER</span>
+    <span class="chip"><i style="background:#f472b6"></i>GoBD-konform</span>
+  </div>
+  <div class="shot"><img src="../../docs/screenshot-uebersicht.png" alt=""></div>
+  <div class="phone"><img src="../../docs/screenshot-mobil.png" alt=""></div>
+</body>
+</html>
