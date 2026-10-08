@@ -3,8 +3,9 @@
 # Lokal: pip install -r requirements-docs.txt && mkdocs serve
 site_name: Haben
 site_description: >-
-  Haben, die selbst gehostete Buchhaltung für Freiberufler: E-Rechnung, Bankabgleich,
-  EÜR, Umsatzsteuer-Voranmeldung und Jahreserklärungen per ELSTER.
+  Haben, die Open-Source-Buchhaltung für Freiberufler, Selbstständige und Kleinunternehmer,
+  selbst gehostet: E-Rechnung (ZUGFeRD, XRechnung), Bankabgleich, EÜR,
+  Umsatzsteuer-Voranmeldung und Jahreserklärungen per ELSTER. Alternative zu Lexware Office und sevDesk.
 site_url: https://firsttris.github.io/haben/
 repo_url: https://github.com/firsttris/haben
 repo_name: firsttris/haben
