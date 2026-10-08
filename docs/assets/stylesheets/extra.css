@@ -1,0 +1,21 @@
+/* Farben der App (styles.css --accent, --accent-hover, --brand): Grün wie Badges und Icon */
+:root {
+  --md-primary-fg-color: #1f6f5c;
+  --md-primary-fg-color--light: #3fa284;
+  --md-primary-fg-color--dark: #174f42;
+  --md-accent-fg-color: #174f42;
+}
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: #3fa284;
+}
+/* Screenshots: Rahmen und Schatten, nie breiter als der Text */
+.md-typeset img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+}
+/* Breite, scrollbare Tabellen (Buchungssätze, Kennzahlen, Umgebungsvariablen) */
+.md-typeset table:not([class]) {
+  font-size: .75rem;
+}

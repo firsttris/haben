@@ -207,4 +207,4 @@ Jede IBAN gibt es nur einmal. Alle Bankkonten buchen auf dasselbe Finanzkonto (1
 - [Umsatzsteuer](umsatzsteuer.md): monatliche Voranmeldung
 - [Auswertungen](auswertungen.md) und Jahresexport
 
-[Zurück zur Übersicht](../README.md)
+[Zurück zur Übersicht](README.md)

@@ -1,0 +1,131 @@
+# Dokumentation als Website: https://firsttris.github.io/haben/
+# Quelle ist docs/, gebaut mit MkDocs Material (.github/workflows/docs.yml).
+# Lokal: pip install -r requirements-docs.txt && mkdocs serve
+site_name: Haben
+site_description: >-
+  Haben, die selbst gehostete Buchhaltung für Freiberufler: E-Rechnung, Bankabgleich,
+  EÜR, Umsatzsteuer-Voranmeldung und Jahreserklärungen per ELSTER.
+site_url: https://firsttris.github.io/haben/
+repo_url: https://github.com/firsttris/haben
+repo_name: firsttris/haben
+edit_uri: edit/main/docs/
+copyright: >-
+  Lizenz AGPL-3.0 · Keine Steuerberatung. ELSTER und ERiC sind Angebote der
+  Finanzverwaltung; dieses Projekt steht in keiner Verbindung zu ihr.
+
+docs_dir: docs
+# Seiten als rechnungen.html statt rechnungen/: so stimmen die relativen Bildpfade
+# der <img>-Tags, die auch auf GitHub funktionieren müssen
+use_directory_urls: false
+exclude_docs: |
+  banner.svg
+
+nav:
+  - Übersicht: README.md
+  - Betrieb:
+      - Betrieb und Installation: installation.md
+      - Erste Schritte: einrichtung.md
+  - Im Alltag:
+      - Rechnungen und E-Rechnung: rechnungen.md
+      - Angebote: angebote.md
+      - Belege: belege.md
+      - Pauschalen: pauschalen.md
+      - Kassenbuch: kasse.md
+      - Anlagen und AfA: anlagen.md
+      - Bankimport und Abgleich: bank.md
+      - Umsatzsteuer-Voranmeldung: umsatzsteuer.md
+      - Finanzamt: finanzamt.md
+      - Fristen: fristen.md
+      - Jahreserklärungen: jahreserklaerung.md
+      - Auswertungen und Jahresexport: auswertungen.md
+      - Umzug aus Lexoffice: lexoffice.md
+  - Hintergrund:
+      - Buchhaltung in Haben: buchhaltung.md
+      - Architektur: architektur.md
+      - Entwicklung: entwicklung.md
+      - Roadmap: roadmap.md
+
+theme:
+  name: material
+  language: de
+  logo: assets/icon.svg
+  favicon: assets/favicon.png
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    # Folgt der Systemeinstellung, umschaltbar wie in der App
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Dunkles Design
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Helles Design
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - toc.follow
+    - content.code.copy
+    - content.action.edit
+    - content.tabs.link
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+plugins:
+  - search:
+      lang: de
+  - git-revision-date-localized:
+      type: date
+      locale: de
+      fallback_to_build_date: true
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Link zu diesem Abschnitt
+      # Umlaute in Ankern behalten, damit #umsatzsteuer-voranmeldung-prüfen wie auf GitHub funktioniert
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/firsttris/haben
+      name: Quellcode auf GitHub
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/r/tristanteu/haben
+      name: Image auf Docker Hub

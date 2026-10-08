@@ -47,6 +47,7 @@ Belegdateien landen ohne weitere Angabe in `apps/web/data/belege` (`DOCUMENTS_DI
 | `pnpm db:migrate` | Ausstehende Migrationen anwenden |
 | `pnpm --filter @haben/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `pnpm --filter @haben/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
+| `pip install -r requirements-docs.txt && mkdocs serve` | Diese Dokumentation als Website lokal auf Port 8000 (MkDocs Material); `mkdocs build --strict` wie in der CI |
 
 ## Tests
 
@@ -160,6 +161,7 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 | `packages/import` | Kontoauszugs-Parser, Deduplizierung, DATEV, Lexoffice-Client |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
 | `deploy` | Quadlets, Caddyfile, Backup- und Startskript |
+| `docs`, `mkdocs.yml` | Diese Dokumentation; auf `main` baut `.github/workflows/docs.yml` sie nach https://firsttris.github.io/haben/ |
 
 ## Neues Bankformat
 
@@ -216,4 +218,4 @@ pnpm build
 
 Haben steht unter der AGPL-3.0.
 
-[Zurück zur Übersicht](../README.md)
+[Zurück zur Übersicht](README.md)

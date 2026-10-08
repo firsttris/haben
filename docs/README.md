@@ -1,7 +1,7 @@
 # Dokumentation
 
 Hier steht alles über Haben im Detail: wie du es betreibst und einrichtest, was jede Seite macht, was im Hintergrund
-gebucht wird und wie der Code aufgebaut ist. Den schnellen Überblick gibt die [README](../README.md).
+gebucht wird und wie der Code aufgebaut ist. Den schnellen Überblick gibt die [README auf GitHub](https://github.com/firsttris/haben#readme).
 
 ## Betrieb
 
