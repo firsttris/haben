@@ -22,7 +22,6 @@ export const CAR_DRIVE_KEYS = Object.keys(CAR_DRIVES) as [CarDrive, ...CarDrive[
 
 /** Monatlicher Satz in Hundertstel Prozent: 100 = 1 %, 50 = 0,5 %, 25 = 0,25 % */
 export type PrivateUseRate = 100 | 50 | 25;
-export const PRIVATE_USE_RATES: PrivateUseRate[] = [100, 50, 25];
 
 export interface CarPrivateUse {
   /** Bruttolistenpreis inklusive Sonderausstattung und Umsatzsteuer, in Cent */
@@ -109,6 +108,7 @@ export const PRIVATE_USE_ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, stri
  * Buchung eines Monats: Privatentnahmen an Erlöse aus Kfz-Nutzung (mit USt bis zur Höhe der
  * Bemessungsgrundlage, der Rest ohne USt) und Umsatzsteuer. Die Kennzahl 81 rechnet Haben aus der
  * Bemessungsgrundlage, nicht aus dem Erlöskonto, weil sie bei Elektroautos über der Entnahme liegt.
+ * Dann trägt die Erlöszeile keinen Steuerschlüssel, denn 19 % auf ihren Betrag ergäben nicht die gebuchte Steuer.
  */
 export function privateUsePosting(month: PrivateUseMonth, kontenrahmen: Kontenrahmen): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
@@ -116,7 +116,7 @@ export function privateUsePosting(month: PrivateUseMonth, kontenrahmen: Kontenra
   const withVat = Math.min(month.withdrawal, month.vatBase);
   const lines: PostingLine[] = [
     { account: accounts.privatentnahmen, debit: month.withdrawal + month.vat, credit: 0, taxCode: null },
-    { account: revenue.mitUst, debit: 0, credit: withVat, taxCode: "USt19" },
+    { account: revenue.mitUst, debit: 0, credit: withVat, taxCode: withVat === month.vatBase ? "USt19" : null },
     { account: revenue.ohneUst, debit: 0, credit: month.withdrawal - withVat, taxCode: null },
     { account: accounts.ust[1900], debit: 0, credit: month.vat, taxCode: "USt19" },
   ];

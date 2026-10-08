@@ -105,18 +105,36 @@ function isXmlSubtype(spec: PDFDict, context: PDFContext): boolean {
   return subtype instanceof PDFName && /xml/i.test(subtype.decodeText());
 }
 
+/** Obergrenze für eine entpackte Anlage: ein kleiner Upload darf nicht Gigabytes entpacken (Deflate-Bombe) */
+export const MAX_EMBEDDED_BYTES = 32 * 1024 * 1024;
+
 function embeddedBytes(spec: PDFDict, context: PDFContext): Uint8Array | null {
   const stream = embeddedFile(spec, context);
   if (!stream) return null;
-  try {
-    return decodePDFRawStream(stream).decode();
-  } catch {
-    // z. B. Flate mit Prädiktor oder kaputter Filtereintrag
+  const filter = stream.dict.lookup(PDFName.of("Filter"));
+  const filters = filter instanceof PDFArray ? filter.asArray().map((f) => context.lookup(f)) : filter ? [filter] : [];
+  if (filters.length === 0) return stream.contents;
+  if (filters.length > 1 || filters[0] !== PDFName.of("FlateDecode")) {
+    // seltene Filter (LZW, ASCII85 …) stückweise lesen und beim Limit abbrechen
     try {
-      return inflateSync(stream.contents);
+      const decoded = decodePDFRawStream(stream);
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      for (let chunk = decoded.getBytes(65_536); chunk.length > 0; chunk = decoded.getBytes(65_536)) {
+        total += chunk.length;
+        if (total > MAX_EMBEDDED_BYTES) return null;
+        chunks.push(chunk as Uint8Array);
+      }
+      return Buffer.concat(chunks);
     } catch {
-      return null;
+      // kaputter Filtereintrag: Flate versuchen
     }
+  }
+  // Flate über zlib mit Größenlimit (pdf-libs Decoder kennt keins); Prädiktoren kommen bei XML-Anlagen nicht vor
+  try {
+    return inflateSync(stream.contents, { maxOutputLength: MAX_EMBEDDED_BYTES });
+  } catch {
+    return null;
   }
 }
 

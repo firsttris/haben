@@ -17,6 +17,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { z } from "zod/mini";
 import { errorMessage, formatDate } from "../../lib/format.ts";
+import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import { useAction, type Notice } from "../../lib/use-action.ts";
 import { createPauschaleFn, getPauschalen, reversePauschaleFn } from "../../server/functions/pauschalen.ts";
 import styles from "../../styles/auswertungen.css?url";
 
@@ -30,7 +32,6 @@ export const Route = createFileRoute("/_app/pauschalen")({
 
 type Data = Awaited<ReturnType<typeof getPauschalen>>;
 type Entry = Data["entries"][number];
-type Notice = { tone: "ok" | "danger"; text: string } | null;
 
 const ARTEN: PauschaleArt[] = ["homeoffice", "fahrt", "verpflegung"];
 const ART_KURZ: Record<PauschaleArt, string> = { homeoffice: "Homeoffice", fahrt: "Fahrt", verpflegung: "Verpflegung" };
@@ -133,11 +134,7 @@ function PauschalenPage() {
           {art === "homeoffice" && <HomeofficeForm data={data} onNotice={setNotice} />}
           {art === "fahrt" && <FahrtForm data={data} onNotice={setNotice} />}
           {art === "verpflegung" && <VerpflegungForm data={data} onNotice={setNotice} />}
-          {notice && (
-            <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-              {notice.text}
-            </div>
-          )}
+          <NoticeBanner notice={notice} />
         </section>
 
         <Liste data={data} />
@@ -367,25 +364,18 @@ function Liste({ data }: { data: Data }) {
   const router = useRouter();
   const reverse = useServerFn(reversePauschaleFn);
   const [confirm, setConfirm] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, notice, run } = useAction();
 
   async function storno(id: string) {
     if (confirm !== id) {
       setConfirm(id);
       return;
     }
-    setBusy(true);
-    setError(null);
-    try {
+    await run(async () => {
       await reverse({ data: id });
       setConfirm(null);
       await router.invalidate();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   return (
@@ -393,11 +383,7 @@ function Liste({ data }: { data: Data }) {
       <h2 id="liste-heading" style={{ margin: 0, fontSize: 16 }}>
         Eingetragen in {data.year} <span className="small muted">({data.entries.length})</span>
       </h2>
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
       {data.entries.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
           Noch keine Pauschalen für {data.year}.

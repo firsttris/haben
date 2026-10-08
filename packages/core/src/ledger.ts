@@ -1,4 +1,4 @@
-import { csvDecimal, type Cents } from "./money.ts";
+import { csvDecimal, toCsv, type Cents } from "./money.ts";
 import { ACCOUNTS, type Kontenrahmen } from "./posting.ts";
 
 /** Kontenklassen nach der ersten Ziffer der Kontonummer */
@@ -123,32 +123,26 @@ export interface KontenblattZeile {
   saldo: Cents;
 }
 
-function csvField(value: string): string {
-  return /[;"\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-}
-
-const csv = (rows: string[][]) => "﻿" + rows.map((r) => r.map(csvField).join(";")).join("\r\n") + "\r\n";
-
 export function saldenlisteToCsv(rows: SaldenZeile[]): string {
-  return csv([
+  return toCsv([
     ["Konto", "Bezeichnung", "Kontenklasse", "Eröffnung (EUR)", "Soll (EUR)", "Haben (EUR)", "Saldo (EUR)", "S/H"],
     ...rows.map((r) => [
       r.account,
       r.name,
       kontenklasse(r.kontenrahmen, r.account),
       csvDecimal(Math.abs(r.eroeffnung)) + (r.eroeffnung ? ` ${saldoSeite(r.eroeffnung)}` : ""),
-      csvDecimal(r.soll),
-      csvDecimal(r.haben),
-      csvDecimal(Math.abs(r.saldo)),
+      r.soll,
+      r.haben,
+      Math.abs(r.saldo),
       saldoSeite(r.saldo),
     ]),
   ]);
 }
 
 export function kontenblattToCsv(eroeffnung: Cents, rows: KontenblattZeile[]): string {
-  return csv([
+  return toCsv([
     ["Datum", "Buchungstext", "Gegenkonto", "Soll (EUR)", "Haben (EUR)", "Saldo (EUR)", "S/H"],
-    ["", "Eröffnung", "", "", "", csvDecimal(Math.abs(eroeffnung)), saldoSeite(eroeffnung)],
-    ...rows.map((r) => [r.date, r.description, r.gegenkonten.join(", "), r.soll ? csvDecimal(r.soll) : "", r.haben ? csvDecimal(r.haben) : "", csvDecimal(Math.abs(r.saldo)), saldoSeite(r.saldo)]),
+    ["", "Eröffnung", "", "", "", Math.abs(eroeffnung), saldoSeite(eroeffnung)],
+    ...rows.map((r) => [r.date, r.description, r.gegenkonten.join(", "), r.soll || "", r.haben || "", Math.abs(r.saldo), saldoSeite(r.saldo)]),
   ]);
 }

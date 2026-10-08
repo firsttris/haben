@@ -81,10 +81,13 @@ function splitLines(text: string): Line[] {
   let fields: string[] = [];
   let field = "";
   let quoted = false;
+  let fieldStart = true;
   let line = 1;
   let start = 1;
   for (let i = 0; i < text.length; i++) {
     const c = text[i]!;
+    const atStart = fieldStart;
+    fieldStart = !quoted && (c === ";" || c === "\n" || c === "\r");
     if (quoted) {
       if (c === '"' && text[i + 1] === '"') {
         field += '"';
@@ -95,7 +98,7 @@ function splitLines(text: string): Line[] {
         if (c === "\n") line++;
         field += c;
       }
-    } else if (c === '"') {
+    } else if (c === '"' && atStart) {
       quoted = true;
     } else if (c === ";") {
       fields.push(field);

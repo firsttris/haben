@@ -4,7 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { z } from "zod/mini";
 import { Icon } from "../../../components/Icon.tsx";
-import { errorMessage, formatDate } from "../../../lib/format.ts";
+import { formatDate } from "../../../lib/format.ts";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../lib/use-action.ts";
 import { bookDepreciationFn, getAssets } from "../../../server/functions/assets.ts";
 
 export const Route = createFileRoute("/_app/anlagen/")({
@@ -20,8 +22,7 @@ function AssetsPage() {
   const router = useRouter();
   const book = useServerFn(bookDepreciationFn);
   const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
+  const { busy, notice, setNotice, run } = useAction();
   const { year, assets } = data;
 
   // Jahre, in denen es Anlagen gibt, und das aktuelle
@@ -36,16 +37,12 @@ function AssetsPage() {
       setConfirming(true);
       return;
     }
-    setBusy(true);
-    setNotice(null);
-    book({ data: year })
-      .then(async (result) => {
-        setConfirming(false);
-        await router.invalidate();
-        setNotice({ tone: "ok", text: `AfA ${year} für ${result.booked} ${result.booked === 1 ? "Anlage" : "Anlagen"} gebucht.` });
-      })
-      .catch((error: unknown) => setNotice({ tone: "danger", text: errorMessage(error) }))
-      .finally(() => setBusy(false));
+    void run(async () => {
+      const result = await book({ data: year });
+      setConfirming(false);
+      await router.invalidate();
+      setNotice({ tone: "ok", text: `AfA ${year} für ${result.booked} ${result.booked === 1 ? "Anlage" : "Anlagen"} gebucht.` });
+    });
   };
 
   return (
@@ -88,11 +85,7 @@ function AssetsPage() {
           <span>Die AfA für {year} lässt sich ab dem 1. Dezember buchen. In der EÜR ist sie schon enthalten.</span>
         </div>
       )}
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-          {notice.text}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
 
       <section className="card" aria-label="Anlagen">
         {shown.length === 0 ? (

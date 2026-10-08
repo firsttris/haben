@@ -3,9 +3,13 @@ import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
+import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
-import { errorMessage, formatDate, formatDateTime } from "../../../lib/format.ts";
+import { ELSTER_KIND_LABEL, elsterNotice } from "../../../lib/elster.ts";
+import { formatDate, formatDateTime } from "../../../lib/format.ts";
+import { useAction } from "../../../lib/use-action.ts";
 import { getAnnualReturns, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
 
@@ -22,9 +26,6 @@ export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 type Form = "ust" | "euer" | "est";
 type Issue = Data["ust"]["issues"][number];
-type Notice = { tone: "ok" | "danger" | "info"; text: string } | null;
-
-const KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" } as const;
 const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" } as const;
 const LINK_LABEL = {
   "/einstellungen": "Zu den Einstellungen",
@@ -279,8 +280,7 @@ function EstSection({ data }: { data: Data }) {
   const [anB, setAnB] = useState(() => toArbeitnehmerDraft(a.arbeitnehmer?.b));
   const nameA = est.person.a?.split(" ")[0] ?? "Person A";
   const nameB = est.person.b?.split(" ")[0] ?? "Ehegatte";
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<Notice>(null);
+  const { busy, notice, setNotice, run } = useAction();
   const blocked = est.issues.some((i) => i.tone === "fehler");
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -352,17 +352,10 @@ function EstSection({ data }: { data: Data }) {
       setNotice({ tone: "danger", text: `Kein gültiger Betrag: ${bad.join(", ")}.` });
       return;
     }
-    setBusy(true);
-    setNotice(null);
-    try {
+    await run(async () => {
       await save({ data: { year: data.year, angaben } });
       await router.invalidate();
-      setNotice({ tone: "ok", text: "Angaben gespeichert." });
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
+    }, "Angaben gespeichert.");
   }
 
   const updateKind = (key: number, patch: Partial<KindDraft>) => setKinder((list) => list.map((k) => (k.key === key ? { ...k, ...patch } : k)));
@@ -511,11 +504,7 @@ function EstSection({ data }: { data: Data }) {
           </label>
         </fieldset>
 
-        {notice && (
-          <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-            {notice.text}
-          </div>
-        )}
+        <NoticeBanner notice={notice} />
         <div className="actions">
           <button type="submit" className="btn btn-primary" disabled={busy}>
             Angaben speichern
@@ -534,99 +523,27 @@ function EstSection({ data }: { data: Data }) {
 function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; blocked: boolean; sent: boolean }) {
   const router = useRouter();
   const submit = useServerFn(submitAnnualReturn);
-  const [pin, setPin] = useState("");
-  const [testOnly, setTestOnly] = useState(true);
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<Notice>(null);
-  const canSendLive = data.herstellerIdConfigured && !sent;
-  const headingId = `${form}-submit-heading`;
-
-  async function run(kind: "validate" | "test" | "send", withPin?: string) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      const result = await submit({ data: { form, year: data.year, kind, pin: withPin } });
-      const ticket = result.transferTicket ? ` Transfer-Ticket ${result.transferTicket}.` : "";
-      setNotice(
-        result.ok
-          ? { tone: "ok", text: kind === "validate" ? "Prüfung ohne Fehler." : kind === "test" ? `Testübermittlung erfolgreich.${ticket}` : `Übermittelt.${ticket}` }
-          : { tone: "danger", text: `${KIND_LABEL[kind]} fehlgeschlagen (${result.code}): ${result.message}` },
-      );
-      await router.invalidate();
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!testOnly && !confirming) {
-      setConfirming(true);
-      return;
-    }
-    await run(testOnly ? "test" : "send", pin);
-    setPin("");
-    setConfirming(false);
-  }
+  const { busy, notice, setNotice, run } = useAction();
 
   return (
-    <form className="card sticky-panel" onSubmit={onSubmit} aria-labelledby={headingId}>
-      <h2 id={headingId}>{FORM_LABEL[form]} übermitteln</h2>
-      {!data.certificate && (
-        <p className="small" style={{ margin: 0 }}>
-          Kein ELSTER-Zertifikat hinterlegt. <Link to="/einstellungen">In den Einstellungen hochladen</Link>
-        </p>
-      )}
-      <label className="field">
-        Zertifikats-PIN
-        <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" required />
-      </label>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={testOnly || !canSendLive}
-          onChange={(e) => {
-            setTestOnly(e.target.checked);
-            setConfirming(false);
-          }}
-          disabled={!canSendLive}
-        />
-        Nur Testübermittlung
-      </label>
-      {!canSendLive && (
-        <p className="small muted" style={{ margin: 0 }}>
-          {sent
-            ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal."
-            : data.mode === "simuliert"
-              ? "Echtübermittlung erst mit eingerichtetem ERiC (Einstellungen) und eigener Hersteller-ID."
-              : "Echtübermittlung erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID)."}
-        </p>
-      )}
-      {confirming && (
-        <div className="banner" role="alert">
-          Die {FORM_LABEL[form]} {data.year} geht verbindlich an das Finanzamt. Noch einmal klicken zum Senden.
-        </div>
-      )}
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"} style={{ overflowWrap: "anywhere" }}>
-          {notice.text}
-        </div>
-      )}
-      <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={busy || blocked || !data.certificate || pin.length === 0} style={{ flexGrow: 1 }}>
-          {busy ? "Läuft …" : confirming ? "Jetzt verbindlich senden" : testOnly || !canSendLive ? "Prüfen und testweise senden" : "Prüfen und senden"}
-        </button>
-        <button type="button" className="btn" disabled={busy || blocked} onClick={() => void run("validate")}>
-          Nur prüfen
-        </button>
-      </div>
-      <p className="small muted" style={{ margin: 0 }}>
-        Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert.
-      </p>
-    </form>
+    <ElsterSubmit
+      setup={data}
+      title={`${FORM_LABEL[form]} übermitteln`}
+      className="card sticky-panel"
+      ready={!blocked}
+      busy={busy}
+      notice={notice}
+      lockedHint={sent ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
+      confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt. Noch einmal klicken zum Senden.`}
+      footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."
+      onSubmit={(kind, pin) =>
+        run(async () => {
+          const result = await submit({ data: { form, year: data.year, kind, pin } });
+          setNotice(elsterNotice(kind, result, "Übermittelt."));
+          await router.invalidate();
+        })
+      }
+    />
   );
 }
 
@@ -643,7 +560,7 @@ function History({ data }: { data: Data }) {
           <div key={entry.id} className="history-row">
             <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
               <span style={{ fontWeight: 500 }}>
-                {FORM_LABEL[entry.form]} · {KIND_LABEL[entry.kind]}{" "}
+                {FORM_LABEL[entry.form]} · {ELSTER_KIND_LABEL[entry.kind]}{" "}
                 <span className={`pill ${entry.ok ? "pill-ok" : "pill-danger"}`}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</span>
               </span>
               <span className="small muted" style={{ overflowWrap: "anywhere" }}>

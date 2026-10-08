@@ -1,7 +1,9 @@
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ContactForm } from "../../../components/ContactForm.tsx";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { formatDateTime } from "../../../lib/format.ts";
+import { useAction } from "../../../lib/use-action.ts";
 import { archiveContact, getContactDetail } from "../../../server/functions/contacts.ts";
 
 export const Route = createFileRoute("/_app/kontakte/$id")({
@@ -14,6 +16,7 @@ function ContactPage() {
   const { contact, versions } = Route.useLoaderData();
   const router = useRouter();
   const archive = useServerFn(archiveContact);
+  const { busy, notice, run } = useAction();
   return (
     <>
       <div className="page-head">
@@ -30,15 +33,19 @@ function ContactPage() {
           <button
             type="button"
             className="btn"
-            onClick={async () => {
-              await archive({ data: { id: contact.id, archived: !contact.archivedAt } });
-              await router.invalidate();
-            }}
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                await archive({ data: { id: contact.id, archived: !contact.archivedAt } });
+                await router.invalidate();
+              })
+            }
           >
             {contact.archivedAt ? "Wiederherstellen" : "Archivieren"}
           </button>
         </div>
       </div>
+      <NoticeBanner notice={notice} />
       <div className="grid-main">
         <ContactForm key={contact.version} contact={contact} />
         <section className="card" aria-labelledby="versions-heading">

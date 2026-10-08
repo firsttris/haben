@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   ACCOUNTS,
   fahrtBetrag,
@@ -22,7 +23,7 @@ import { db, schema, type Tx } from "./db/index.ts";
  * Privateinlage; aufgehoben wird per Storno (Gegenzeile und Gegenbuchung).
  */
 
-export class PauschaleError extends Error {}
+export class PauschaleError extends UserError {}
 
 export type Pauschale = typeof schema.pauschalen.$inferSelect;
 

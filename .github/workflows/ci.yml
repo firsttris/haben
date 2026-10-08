@@ -17,6 +17,10 @@ on:
   # Der Release-Workflow lässt vor dem Veröffentlichen dieselben Prüfungen laufen.
   workflow_call:
 
+# Standard für alle Jobs; Jobs, die mehr brauchen, setzen eigene permissions
+permissions:
+  contents: read
+
 # Ein neuer Push in einen Pull Request bricht dessen veralteten Lauf ab; Läufe auf main und Tags laufen zu Ende
 concurrency:
   group: ci-${{ github.ref }}

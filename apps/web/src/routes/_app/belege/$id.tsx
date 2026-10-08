@@ -14,7 +14,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
-import { errorMessage, formatDateTime } from "../../../lib/format.ts";
+import { formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../lib/use-action.ts";
 import {
   bookDocumentFn,
   deleteDocumentFn,
@@ -152,10 +154,9 @@ function DocumentForm({ data }: { data: Detail }) {
     })),
   );
   const [dirty, setDirty] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
 
   const parsed = rows.map((r) => ({ taxRate: r.taxRate, net: parseEuro(r.net || "0"), tax: parseEuro(r.tax || "0") }));
   const privateShareValue = category === "anlage" ? 0 : Number(privateShare || 0);
@@ -209,18 +210,6 @@ function DocumentForm({ data }: { data: Detail }) {
     setConfirmingDelete(false);
   }
 
-  async function run(work: () => Promise<void>) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      await work();
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function persist() {
     await save({
       data: {
@@ -242,7 +231,7 @@ function DocumentForm({ data }: { data: Detail }) {
                   name: assetName.trim() || supplierName.trim() || "Anlage",
                   kind: assetKind,
                   method: assetMethod,
-                  usefulLifeMonths: assetMethod === "linear" && Number(assetYears) > 0 ? Math.round(Number(assetYears.replace(",", ".")) * 12) : null,
+                  usefulLifeMonths: assetMethod === "linear" ? parseUsefulLifeMonths(assetYears) : null,
                 }
               : null,
           amounts: parsed.filter((p) => p.net !== 0 || p.tax !== 0).map((p) => ({ taxRate: p.taxRate, net: p.net!, tax: p.tax! })),
@@ -561,11 +550,7 @@ function DocumentForm({ data }: { data: Detail }) {
           <span>Der Beleg und seine Datei werden gelöscht. Zum Löschen noch einmal auf „Endgültig löschen“ klicken.</span>
         </div>
       )}
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-          {notice.text}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
       {!locked && (
         <div className="actions">
           <button type="button" className="btn btn-primary" onClick={onBook} disabled={busy || running || !valid}>

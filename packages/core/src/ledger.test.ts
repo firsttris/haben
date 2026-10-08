@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { computeEuer, euerToCsv } from "./euer.ts";
 import { kontenblattToCsv, kontenkennzahlen, kontenklasse, kontoart, saldenlisteToCsv, saldoAnzeige, saldoSeite } from "./ledger.ts";
 
 describe("Konten", () => {
@@ -22,6 +23,13 @@ describe("Konten", () => {
     const blatt = kontenblattToCsv(0, [{ date: "2026-01-05", description: "Rechnung; RE-1", gegenkonten: ["1200", "1776"], soll: 0, haben: 50_000, saldo: -50_000 }]);
     expect(blatt).toContain(';Eröffnung;;;;0,00;\r\n');
     expect(blatt).toContain('2026-01-05;"Rechnung; RE-1";1200, 1776;;500,00;500,00;H');
+  });
+
+  it("entschärft Formeln in Textfeldern, nicht in Beträgen", () => {
+    const blatt = kontenblattToCsv(-500, [{ date: "2026-01-05", description: "=HYPERLINK(\"x\")", gegenkonten: ["@1200"], soll: 0, haben: 50_000, saldo: -50_000 }]);
+    expect(blatt).toContain(';Eröffnung;;;;5,00;H\r\n');
+    expect(blatt).toContain('2026-01-05;"\'=HYPERLINK(""x"")";\'@1200;;500,00;500,00;H');
+    expect(euerToCsv({ ...computeEuer(2026, []), gewinn: -1_234 })).toContain("Ergebnis;Verlust;-12,34\r\n");
   });
 
   it("erkennt die Kontoart und zeigt Salden ohne Buchhaltungssprache", () => {

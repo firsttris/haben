@@ -1,4 +1,4 @@
-import { formatEuro, type EuerLine } from "@haben/core";
+import { MONTHS, formatEuro, type EuerLine } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod/mini";
@@ -16,8 +16,7 @@ export const Route = createFileRoute("/_app/auswertungen")({
   component: ReportsPage,
 });
 
-const MONTHS_SHORT = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
-const MONTHS_LONG = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
 function ReportsPage() {
   const { euer, open, years, today, versteuerung } = Route.useLoaderData();
@@ -58,11 +57,6 @@ function ReportsPage() {
             EÜR als CSV
           </a>
         </div>
-      </div>
-
-      <div className="banner banner-info" role="note">
-        Vorschau nach Zufluss und Abfluss; ersetzt nicht die Anlage EÜR. Anschaffungen über 800 € netto (Anlagevermögen mit
-        Abschreibung) bildet Haben noch nicht ab, Hardware zählt als geringwertiges Wirtschaftsgut voll im Jahr der Zahlung.
       </div>
 
       <div className="grid-4">
@@ -124,7 +118,7 @@ function ReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {MONTHS_LONG.map((m, i) => (
+              {MONTHS.map((m, i) => (
                 <tr key={m}>
                   <th scope="row">{m}</th>
                   <td className="num">{formatEuro(euer.monthly.einnahmen[i]!)}</td>
@@ -302,9 +296,6 @@ function DueStatus({ days }: { days: number }) {
 
 /* Diagramm */
 
-
-/** Runde Achsenschritte (1, 2, 2,5, 5 × 10ⁿ) in Cent */
-
 const H = 260;
 const M = { top: 12, right: 8, bottom: 28, left: 72 };
 const GAP = 2;
@@ -362,7 +353,7 @@ function MonthlyChart({ year, einnahmen, ausgaben }: { year: number; einnahmen: 
             ) : null,
           )}
         </g>
-        {MONTHS_LONG.map((m, i) => {
+        {MONTHS.map((m, i) => {
           const cx = M.left + slot * i + slot / 2;
           const inV = einnahmen[i]!;
           const outV = ausgaben[i]!;
@@ -396,7 +387,7 @@ function MonthlyChart({ year, einnahmen, ausgaben }: { year: number; einnahmen: 
           }}
         >
           <div className="tt-title">
-            {MONTHS_LONG[active]} {year}
+            {MONTHS[active]} {year}
           </div>
           <div className="tt-row">
             <span className="tt-key tt-in" />

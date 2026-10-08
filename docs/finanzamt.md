@@ -20,7 +20,7 @@ ELSTER erwartet die Bestätigung innerhalb von 24 Stunden, sonst droht die Sperr
 
 Mit Hersteller-ID und eingerichtetem ERiC kannst du beim Abruf „PIN verschlüsselt speichern und täglich automatisch abrufen“ wählen. Haben ruft dann sofort echt ab und speichert die PIN erst, wenn das klappt. Danach holt der Hintergrundjob das Postfach höchstens alle 20 Stunden selbst ab und bestätigt die Abholung; die 24-Stunden-Frist für die Bestätigung ist damit automatisch eingehalten.
 
-Die PIN liegt wie das Zertifikat mit AES-256-GCM verschlüsselt in der Datenbank (Schlüssel aus `HABEN_ENCRYPTION_KEY`) und landet nicht im Audit-Log; dort steht nur, wann sie gespeichert wurde. Wer Datenbank und Schlüssel hat, kann damit in deinem Namen über ELSTER senden. „Ausschalten“ löscht die PIN; ein neues Zertifikat schaltet den automatischen Abruf ebenfalls aus.
+Die PIN liegt wie das Zertifikat mit AES-256-GCM verschlüsselt in der Datenbank (Schlüssel aus `HABEN_ENCRYPTION_KEY`) und landet nicht im Audit-Log; dort steht nur, wann sie gespeichert wurde. Wer Datenbank und Schlüssel hat, kann damit in deinem Namen über ELSTER senden. Lässt du beim Belegabruf oder bei Anträgen auf Abrufberechtigung (Jahreserklärung) das PIN-Feld leer, nutzt Haben ebenfalls die gespeicherte PIN. „Ausschalten“ löscht die PIN; ein neues Zertifikat schaltet den automatischen Abruf ebenfalls aus.
 
 ### Einspruchsfrist
 

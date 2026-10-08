@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { toElsterSteuernummer, type Cents, type Prognose } from "@haben/core";
 import {
   buildBankverbindungXml,
@@ -20,13 +21,18 @@ import { db, schema } from "./db/index.ts";
 import { euerForYear } from "./reports.ts";
 import { loadActiveCertificate, PRODUKT_VERSION } from "./vat.ts";
 
-export class FinanzamtError extends Error {}
+export class FinanzamtError extends UserError {}
 
 export const messageSchema = z.object({
   topic: z.enum(["nachricht", "vorauszahlung"]),
   betreff: z.string().trim().min(1, "Betreff fehlt").max(NACHRICHT_BETREFF_MAX, `Der Betreff hat höchstens ${NACHRICHT_BETREFF_MAX} Zeichen`),
   text: z.string().trim().min(1, "Text fehlt").max(NACHRICHT_TEXT_MAX, `Der Text hat höchstens ${NACHRICHT_TEXT_MAX} Zeichen`),
-  figures: z.record(z.string(), z.unknown()).nullable().default(null),
+  /** Zahlen aus der Oberfläche, die mit der Nachricht festgehalten werden; klein halten, sie landen im Audit-Log */
+  figures: z
+    .record(z.string().max(40), z.unknown())
+    .refine((figures) => JSON.stringify(figures).length <= 20_000, "Zu viele Angaben zur Nachricht")
+    .nullable()
+    .default(null),
 });
 
 export type MessageInput = z.input<typeof messageSchema>;

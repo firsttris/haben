@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   ACCOUNTS,
   ASSET_KIND_KEYS,
@@ -15,14 +16,14 @@ import { z } from "zod";
 import { loadCompany } from "./company.ts";
 import { addDocumentCashEntry } from "./cash.ts";
 import { withActor } from "./db/actor.ts";
-import { db, schema } from "./db/index.ts";
+import { db, schema, type Tx } from "./db/index.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "./storage.ts";
 
 export type Document = typeof schema.documents.$inferSelect;
 export type DocumentAmount = typeof schema.documentAmounts.$inferSelect;
 
-export class DocumentError extends Error {}
+export class DocumentError extends UserError {}
 
 export const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
 
@@ -253,7 +254,7 @@ export async function uploadDocument(
   return { id, duplicate: false };
 }
 
-async function lockOpen(tx: Parameters<Parameters<typeof db.transaction>[0]>[0], id: string): Promise<Document> {
+async function lockOpen(tx: Tx, id: string): Promise<Document> {
   const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, id)).for("update");
   if (!doc) throw new DocumentError("Beleg nicht gefunden.");
   if (doc.lockedAt) throw new DocumentError("Der Beleg ist gebucht und kann nicht mehr geändert werden.");
@@ -286,11 +287,13 @@ export async function getDocument(id: string) {
   if (!doc) return null;
   if (doc.extractionStatus === "laeuft" && !runningExtractions.has(id)) {
     // Server während der Auslesung neu gestartet: Beleg wieder freigeben statt ewig „läuft“
-    [doc] = await db
-      .update(schema.documents)
-      .set({ extractionStatus: "fehler", extractionError: "Die Auslesung wurde unterbrochen. Bitte erneut auslesen oder von Hand ausfüllen." })
-      .where(and(eq(schema.documents.id, id), eq(schema.documents.extractionStatus, "laeuft"), sql`${schema.documents.lockedAt} is null`))
-      .returning();
+    [doc] = await withActor("system:auslesung", (tx) =>
+      tx
+        .update(schema.documents)
+        .set({ extractionStatus: "fehler", extractionError: "Die Auslesung wurde unterbrochen. Bitte erneut auslesen oder von Hand ausfüllen." })
+        .where(and(eq(schema.documents.id, id), eq(schema.documents.extractionStatus, "laeuft"), sql`${schema.documents.lockedAt} is null`))
+        .returning(),
+    );
     [doc] = doc ? [doc] : await db.select().from(schema.documents).where(eq(schema.documents.id, id));
     if (!doc) return null;
   }
@@ -399,18 +402,22 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
   });
 }
 
-/**
- * Nur ungebuchte Belege lassen sich löschen; die Datei geht mit, außer Archiv oder Lexoffice-Übernahme
- * nutzen dieselbe Datei (Ablage nach Inhalt, also derselbe SHA-256).
- */
+/** Ob ein anderer Datensatz dieselbe Datei nutzt (Ablage nach Inhalt, also derselbe SHA-256) */
+async function fileInUse(tx: Tx, sha256: string): Promise<boolean> {
+  const [use] = await tx.execute<{ used: boolean }>(sql`
+    select exists (select 1 from documents where sha256 = ${sha256})
+        or exists (select 1 from archive_files where sha256 = ${sha256})
+        or exists (select 1 from lexoffice_voucher_files where sha256 = ${sha256})
+        or exists (select 1 from postfach_documents where sha256 = ${sha256}) as used`);
+  return Boolean(use?.used);
+}
+
+/** Nur ungebuchte Belege lassen sich löschen; die Datei geht mit, solange sie sonst niemand nutzt. */
 export async function deleteDocument(actor: string, id: string): Promise<void> {
   const { sha256, shared } = await withActor(actor, async (tx) => {
     const doc = await lockOpen(tx, id);
     await tx.delete(schema.documents).where(eq(schema.documents.id, id));
-    const [use] = await tx.execute<{ shared: boolean }>(sql`
-      select exists (select 1 from archive_files where sha256 = ${doc.sha256})
-          or exists (select 1 from lexoffice_voucher_files where sha256 = ${doc.sha256}) as shared`);
-    return { sha256: doc.sha256, shared: Boolean(use?.shared) };
+    return { sha256: doc.sha256, shared: await fileInUse(tx, doc.sha256) };
   });
   if (!shared) await removeFile(sha256);
 }

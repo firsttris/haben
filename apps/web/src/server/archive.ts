@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { DatevParseError, isDatevFile, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "./db/actor.ts";
@@ -16,7 +17,7 @@ export const ARCHIVE_KINDS = {
 
 export type ArchiveKind = keyof typeof ARCHIVE_KINDS;
 
-export class ArchiveError extends Error {}
+export class ArchiveError extends UserError {}
 
 const EXTENSION_TYPES: Record<string, string> = {
   csv: "text/csv",
@@ -163,11 +164,7 @@ export async function loadArchiveFile(id: string) {
   return { ...row, bytes: await loadFile(row.sha256) };
 }
 
-/** Nummern vergleichbar machen: ohne Leerzeichen, Groß-/Kleinschreibung egal */
-export function normalizeVoucherNumber(value: string): string {
-  return value.replace(/\s+/g, "").toLowerCase();
-}
-
+/** Gegenstück in Lexoffice: Belegnummer ohne Leerzeichen, Groß-/Kleinschreibung egal */
 const matchedSql = sql<boolean>`exists (select 1 from lexoffice_vouchers v where v.number <> '' and lower(regexp_replace(v.number, '\\s+', '', 'g')) = lower(regexp_replace(datev_bookings.voucher_field1, '\\s+', '', 'g')))`;
 
 export async function listDatevBookings(filter: { year: number; search: string; unmatched: boolean; page: number }) {

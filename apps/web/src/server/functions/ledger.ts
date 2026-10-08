@@ -3,8 +3,7 @@ import { z } from "zod";
 import { kontenblatt, ledgerPeriodSchema, ledgerRange, saldenliste } from "../ledger.ts";
 import { authMiddleware } from "../middleware.ts";
 import { reportYears } from "../reports.ts";
-
-const yearSchema = z.number().int().min(2000).max(2100);
+import { yearSchema } from "./schemas.ts";
 
 export const getSaldenliste = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

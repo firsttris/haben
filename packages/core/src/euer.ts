@@ -1,5 +1,5 @@
 import type { InvoiceTotals } from "./invoice.ts";
-import { csvDecimal, splitPrivateShare, type Cents } from "./money.ts";
+import { splitPrivateShare, toCsv, type Cents } from "./money.ts";
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory } from "./posting.ts";
 import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
 import type { TaxTreatment } from "./treatment.ts";
@@ -262,17 +262,13 @@ export function computeEuer(
   };
 }
 
-function csvField(value: string): string {
-  return /[";\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-}
-
 /** EÜR als CSV für Excel/LibreOffice: Semikolon, Dezimalkomma ohne Tausenderpunkt (wie die Exporte), UTF-8 mit BOM */
 export function euerToCsv(euer: EuerResult): string {
-  const rows: string[][] = [["Bereich", "Position", "Betrag (EUR)"]];
-  for (const l of euer.einnahmen) rows.push(["Betriebseinnahmen", l.label, csvDecimal(l.amount)]);
-  rows.push(["Betriebseinnahmen", "Summe Betriebseinnahmen", csvDecimal(euer.totalEinnahmen)]);
-  for (const l of euer.ausgaben) rows.push(["Betriebsausgaben", l.label, csvDecimal(l.amount)]);
-  rows.push(["Betriebsausgaben", "Summe Betriebsausgaben", csvDecimal(euer.totalAusgaben)]);
-  rows.push(["Ergebnis", euer.gewinn >= 0 ? "Gewinn" : "Verlust", csvDecimal(euer.gewinn)]);
-  return "﻿" + rows.map((r) => r.map(csvField).join(";")).join("\r\n") + "\r\n";
+  const rows: (string | Cents)[][] = [["Bereich", "Position", "Betrag (EUR)"]];
+  for (const l of euer.einnahmen) rows.push(["Betriebseinnahmen", l.label, l.amount]);
+  rows.push(["Betriebseinnahmen", "Summe Betriebseinnahmen", euer.totalEinnahmen]);
+  for (const l of euer.ausgaben) rows.push(["Betriebsausgaben", l.label, l.amount]);
+  rows.push(["Betriebsausgaben", "Summe Betriebsausgaben", euer.totalAusgaben]);
+  rows.push(["Ergebnis", euer.gewinn >= 0 ? "Gewinn" : "Verlust", euer.gewinn]);
+  return toCsv(rows);
 }

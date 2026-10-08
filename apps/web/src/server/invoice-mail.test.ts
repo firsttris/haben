@@ -127,6 +127,11 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     expect(await invoiceMail.sendInvoiceMail(actor, xr, { to: "a@example.com", subject: "s", body: "b" })).toEqual({ ok: false, error: "Postfach voll" });
     expect((await invoiceMail.mailsForInvoice(xr))[0]).toMatchObject({ ok: false, error: "Postfach voll" });
     expect(await invoiceMail.invoicesSentByMail()).toEqual(new Set());
+
+    // Kein Zeilenumbruch im Betreff
+    fail = false;
+    await invoiceMail.sendInvoiceMail(actor, xr, { to: "a@example.com", subject: "Rechnung\r\nBcc: fremd@example.com", body: "b" });
+    expect(sent.at(-1)?.subject).toBe("Rechnung Bcc: fremd@example.com");
   });
 
   it("schickt Angebote mit PDF und eigenem Protokoll", async () => {

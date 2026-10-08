@@ -93,7 +93,7 @@ export function splitEntry(entry: DatevExportEntry, kontenrahmen: DatevExportHea
   return rows;
 }
 
-/** Spalten der Formatversion 13; DATEV liest EXTF-Dateien nach Position */
+/** Spalten der Formatversion 13 (125, Version 9 endete mit „Land“); DATEV liest EXTF-Dateien nach Position */
 export const DATEV_COLUMNS = [
   "Umsatz (ohne Soll/Haben-Kz)", "Soll/Haben-Kennzeichen", "WKZ Umsatz", "Kurs", "Basis-Umsatz", "WKZ Basis-Umsatz", "Konto",
   "Gegenkonto (ohne BU-Schlüssel)", "BU-Schlüssel", "Belegdatum", "Belegfeld 1", "Belegfeld 2", "Skonto", "Buchungstext",
@@ -108,7 +108,8 @@ export const DATEV_COLUMNS = [
   "Erlöskonto (Anzahlungen)", "Herkunft-Kz", "Buchungs GUID", "KOST-Datum", "SEPA-Mandatsreferenz", "Skontosperre", "Gesellschaftername",
   "Beteiligtennummer", "Identifikationsnummer", "Zeichnernummer", "Postensperre bis", "Bezeichnung SoBil-Sachverhalt",
   "Kennzeichen SoBil-Buchung", "Festschreibung", "Leistungsdatum", "Datum Zuord. Steuerperiode", "Fälligkeit", "Generalumkehr (GU)",
-  "Steuersatz", "Land",
+  "Steuersatz", "Land", "Abrechnungsreferenz", "BVV-Position", "EU-Mitgliedstaat u. UStID (Ursprung)", "EU-Steuersatz (Ursprung)",
+  "Abw. Skontokonto",
 ] as const;
 
 const text = (value: string) => `"${value.replace(/"/g, '""').replace(/[\r\n]+/g, " ")}"`;

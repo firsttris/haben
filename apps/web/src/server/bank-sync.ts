@@ -7,7 +7,7 @@ import {
   type Aspsp,
   type EnableBankingClientOptions,
 } from "@haben/import";
-import { and, desc, eq, inArray, max, ne } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, max, ne } from "drizzle-orm";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
 import { decrypt, encrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
@@ -28,6 +28,8 @@ const OVERLAP_DAYS = 7;
 const FALLBACK_HISTORY_DAYS = 89;
 /** Der automatische Abruf läuft höchstens so oft (PSD2 erlaubt ohne Nutzer etwa vier Abrufe am Tag) */
 const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 60 * 1000;
+/** So lange gilt die Rückleitung der Bank nach dem Start der Verbindung */
+const STATE_MAX_AGE_MS = 60 * 60 * 1000;
 /** Hinweis zum Erneuern der Zustimmung so viele Tage vor Ablauf */
 export const RENEW_WARNING_DAYS = 14;
 
@@ -143,13 +145,26 @@ export async function completeConnection(
   actor: string,
   input: { state: string; code?: string; error?: string; errorDescription?: string },
 ): Promise<{ connectionId: string; ok: boolean; message: string }> {
-  const [connection] = await db.select().from(schema.bankConnections).where(eq(schema.bankConnections.state, input.state));
-  if (!connection || connection.status !== "wartet") throw new BankError("Unbekannte oder schon verwendete Freigabe. Bitte erneut verbinden.");
+  // state atomar verbrauchen: ein zweiter Aufruf mit demselben Wert findet nichts mehr
+  const [connection] = await withActor(actor, (tx) =>
+    tx
+      .update(schema.bankConnections)
+      .set({ state: null })
+      .where(
+        and(
+          eq(schema.bankConnections.state, input.state),
+          eq(schema.bankConnections.status, "wartet"),
+          gt(schema.bankConnections.createdAt, new Date(Date.now() - STATE_MAX_AGE_MS)),
+        ),
+      )
+      .returning(),
+  );
+  if (!connection) throw new BankError("Unbekannte, abgelaufene oder schon verwendete Freigabe. Bitte erneut verbinden.");
 
   if (!input.code) {
     const message = input.errorDescription || input.error || "Die Bank hat die Freigabe nicht erteilt.";
     await withActor(actor, (tx) =>
-      tx.update(schema.bankConnections).set({ status: "fehler", state: null, lastError: message }).where(eq(schema.bankConnections.id, connection.id)),
+      tx.update(schema.bankConnections).set({ status: "fehler", lastError: message }).where(eq(schema.bankConnections.id, connection.id)),
     );
     return { connectionId: connection.id, ok: false, message };
   }
@@ -160,7 +175,7 @@ export async function completeConnection(
   } catch (error) {
     const message = `Die Bank hat die Freigabe nicht bestätigt: ${apiMessage(error)}`;
     await withActor(actor, (tx) =>
-      tx.update(schema.bankConnections).set({ status: "fehler", state: null, lastError: message }).where(eq(schema.bankConnections.id, connection.id)),
+      tx.update(schema.bankConnections).set({ status: "fehler", lastError: message }).where(eq(schema.bankConnections.id, connection.id)),
     );
     return { connectionId: connection.id, ok: false, message };
   }
@@ -196,7 +211,6 @@ export async function completeConnection(
       .update(schema.bankConnections)
       .set({
         status: accounts.length > 0 ? "aktiv" : "fehler",
-        state: null,
         ciphertext: encrypt(Buffer.from(session.session_id, "utf8")),
         validUntil: session.access?.valid_until ? new Date(session.access.valid_until) : connection.validUntil,
         accounts,

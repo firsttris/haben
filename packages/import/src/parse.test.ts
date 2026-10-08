@@ -1,15 +1,26 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  checkBalanceContinuity,
   detectStatementFormat,
   parseDotAmount,
   parseGermanAmount,
   parseStatement,
   StatementParseError,
 } from "./index.ts";
+import { parseCsv } from "./csv.ts";
 
 const fixture = (name: string) =>
   new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
+
+describe("parseCsv", () => {
+  it("öffnet Anführungszeichen nur am Feldanfang", () => {
+    expect(parseCsv(`a;12" Monitor;b\n"x;y";"sagt ""hi""";z`, ";")).toEqual([
+      ["a", '12" Monitor', "b"],
+      ["x;y", 'sagt "hi"', "z"],
+    ]);
+  });
+});
 
 describe("parseGermanAmount", () => {
   it.each([
@@ -105,6 +116,19 @@ describe("DKB (neues Format)", () => {
       [2000, "Zahler AG"],
     ]);
     expect(r.openingBalance).toBe(99000);
+  });
+
+  it("ordnet den Kontostand ohne Zeitraum seinem Stichtag zu", () => {
+    const csv = [
+      `"Girokonto";"DE02120300000000202051"`,
+      `"Kontostand vom 08.10.2026:";"1.000,00 €"`,
+      `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)"`,
+      `"01.09.26";"01.09.26";"Gebucht";"Ich";"Laden";"Einkauf";"Ausgang";"";"-10,00"`,
+    ].join("\n");
+    const r = parseStatement(new TextEncoder().encode(csv));
+    expect(r).toMatchObject({ periodFrom: "2026-09-01", periodTo: "2026-10-08", closingBalance: 100000, openingBalance: 101000 });
+    // Folgeimport ab 02.09.: Saldo vom 08.10. ist kein Endsaldo zum 01.09., also keine falsche Lücke
+    expect(checkBalanceContinuity(r, { openingBalance: 100500, periodFrom: "2026-09-02" })).toMatchObject({ ok: true });
   });
 
   it("übernimmt keinen Saldo, der vor der letzten Buchung liegt", () => {
@@ -257,9 +281,15 @@ describe("CAMT.053", () => {
         purpose: "RF18539007547034",
         bankReference: "TEL-2026-10",
         mandateReference: "TEL-778899",
+        creditorId: "DE98ZZZ09999999999",
         type: "NDDT+105",
       }),
     ]);
+  });
+
+  it("akzeptiert fünf Nachkommastellen nur, wenn der Rest nach dem Cent null ist", () => {
+    const xml = new TextDecoder().decode(fixture("camt053-001-08.xml")).replace(">59.50000<", ">59.50001<");
+    expect(() => parseStatement(new TextEncoder().encode(xml))).toThrow(/Ungültiger Betrag „59.50001“/);
   });
 
   it("lehnt Dateien mit mehreren Konten ab", () => {

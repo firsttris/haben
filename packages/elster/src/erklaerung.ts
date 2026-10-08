@@ -1,5 +1,6 @@
 import { finanzamtsnummer, type Cents } from "@haben/core";
-import { elsterDecimal, escapeXml, PRODUKT_NAME, TESTMERKER, wholeEuros } from "./xml.ts";
+import { germanDate } from "./bankverbindung.ts";
+import { checkSteuernummer13, elsterDecimal, elsterXml, escapeXml, PRODUKT_NAME, TESTMERKER, wholeEuros } from "./xml.ts";
 
 /**
  * Jahreserklärungen im Verfahren ElsterErklaerung: Umsatzsteuererklärung (E50, Datenart USt) und
@@ -31,7 +32,6 @@ export function render(node: XmlNode | null | undefined | false, indent: string)
 const amount = (cents: Cents | undefined): string | undefined => (cents ? elsterDecimal(cents) : undefined);
 
 /** TT.MM.JJJJ */
-const germanDate = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
 export interface ErklaerungAbsender {
   name: string;
@@ -53,9 +53,7 @@ export interface Envelope {
 }
 
 export function checkEnvelope(input: Envelope) {
-  if (!/^\d{13}$/.test(input.steuernummer13)) {
-    throw new Error(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${input.steuernummer13}`);
-  }
+  checkSteuernummer13(input.steuernummer13);
   if (!Number.isInteger(input.year) || input.year < ERSTES_ERKLAERUNGSJAHR) {
     throw new RangeError(`Jahreserklärungen gehen ab ${ERSTES_ERKLAERUNGSJAHR}, nicht für ${input.year}.`);
   }
@@ -85,40 +83,17 @@ export function vorsatz(unterfallart: "10" | "50" | "77", input: Envelope): XmlN
 
 export function envelope(input: Envelope, nutzdaten: string[]): string {
   const a = input.absender;
-  return [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<Elster xmlns="http://www.elster.de/elsterxml/schema/v11">`,
-    `<TransferHeader version="11">`,
-    `<Verfahren>ElsterErklaerung</Verfahren>`,
-    `<DatenArt>${input.datenArt}</DatenArt>`,
-    `<Vorgang>send-Auth</Vorgang>`,
-    ...(input.test ? [`<Testmerker>${TESTMERKER}</Testmerker>`] : []),
-    `<Empfaenger id="L"><Ziel>${escapeXml(input.bundesland)}</Ziel></Empfaenger>`,
-    `<HerstellerID>${escapeXml(input.herstellerId)}</HerstellerID>`,
-    `<DatenLieferant>${escapeXml(`${a.name}, ${a.strasse}, ${a.plz} ${a.ort}`)}</DatenLieferant>`,
-    `<Datei>`,
-    `<Verschluesselung>CMSEncryptedData</Verschluesselung>`,
-    `<Kompression>GZIP</Kompression>`,
-    `<TransportSchluessel></TransportSchluessel>`,
-    `</Datei>`,
-    `</TransferHeader>`,
-    `<DatenTeil>`,
-    `<Nutzdatenblock>`,
-    `<NutzdatenHeader version="11">`,
-    `<NutzdatenTicket>1</NutzdatenTicket>`,
-    `<Empfaenger id="F">${escapeXml(finanzamtsnummer(input.steuernummer13))}</Empfaenger>`,
-    `<Hersteller>`,
-    `<ProduktName>${PRODUKT_NAME}</ProduktName>`,
-    `<ProduktVersion>${escapeXml(input.produktVersion)}</ProduktVersion>`,
-    `</Hersteller>`,
-    `</NutzdatenHeader>`,
-    `<Nutzdaten>`,
-    ...nutzdaten,
-    `</Nutzdaten>`,
-    `</Nutzdatenblock>`,
-    `</DatenTeil>`,
-    `</Elster>`,
-  ].join("\n");
+  return elsterXml(
+    {
+      verfahren: "ElsterErklaerung",
+      datenArt: input.datenArt,
+      testmerker: input.test ? TESTMERKER : undefined,
+      ziel: input.bundesland,
+      herstellerId: input.herstellerId,
+      datenlieferant: `${a.name}, ${a.strasse}, ${a.plz} ${a.ort}`,
+    },
+    [{ ticket: "1", empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) }, produktVersion: input.produktVersion, nutzdaten }],
+  );
 }
 
 // ------------------------------------------------------------------ Umsatzsteuererklärung

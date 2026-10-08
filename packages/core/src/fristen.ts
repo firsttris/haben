@@ -1,4 +1,4 @@
-import { isNonWorkingDay } from "./holidays.ts";
+import { naechsterWerktag } from "./holidays.ts";
 import type { Bundesland } from "./steuernummer.ts";
 
 /**
@@ -6,13 +6,6 @@ import type { Bundesland } from "./steuernummer.ts";
  * Fällt eine Frist auf Samstag, Sonntag oder einen Feiertag am Sitz des Finanzamts, endet sie am nächsten
  * Werktag (§ 108 Abs. 3 AO).
  */
-
-/** Verschiebt ein Datum (JJJJ-MM-TT) auf den nächsten Werktag */
-export function naechsterWerktag(isoDate: string, bundesland: Bundesland | null): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  while (isNonWorkingDay(date.toISOString().slice(0, 10), bundesland)) date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString().slice(0, 10);
-}
 
 /**
  * Abgabefrist für Einkommensteuer-, Umsatzsteuererklärung und Anlage EÜR ohne Steuerberater (§ 149 Abs. 2 AO):

@@ -14,6 +14,32 @@ Legende: **Hoch** = fachlich oder rechtlich falsches Ergebnis bzw. Datenverlust 
 
 ---
 
+## Umsetzung
+
+Alle Befunde wurden vor dem Fix im Code nachgeprüft und minimal behoben; Verhalten ist mit Tests belegt (neu u. a. Trigger-Negativtests, Race-Tests für Storno, Abschlag, Echtsendung, Mahnstufe und Lexoffice-Start, defektes ERiC-Archiv, Dekompressionslimit, DATEV-Spaltenzahl). Stand nach der Umsetzung: Lint und Typecheck sauber, 634 Tests grün (2 übersprungen), Build ok, E2E 21 von 21.
+
+**Behoben** sind alle Punkte der Top-12-Liste und die übrigen Befunde aus 1.1 bis 6 und Anhang A, mit diesen Ausnahmen:
+
+| Befund | Entscheidung |
+|---|---|
+| App-Rolle ist Superuser | Nicht umgebaut. Selbst gehostete Einnutzer-Installation, der Betreiber hat ohnehin Root auf dem Host; die Trigger schützen gegen Versehen und Programmfehler. Doku in `architektur.md` und `buchhaltung.md` präzisiert. |
+| Testmerker Postfach (700000004 vs. 370000001) | Offen. Einzige erreichbare Quelle ist inoffiziell (digitalservicebund/erica: Datenabholung 370000001). Vor einer Änderung im ERiC-Entwicklerhandbuch prüfen. |
+| E0200204 mit Cent | Offen, keine öffentliche Feldbeschreibung gefunden. |
+| AES-GCM ohne AAD und Key-Version | Nicht umgebaut: bestehende Chiffrate wären ohne Datenmigration unlesbar; GCM mit zufälligem IV ist korrekt. |
+| `text` statt `date` (Bescheiddatum, BRM-Fristen) | Bleibt: Rohdaten aus ELSTER, ein strengerer Typ könnte den Nachweis einer erfolgten Übermittlung verwerfen. |
+| CHECK `gross = net + tax`, `quantity > 0` | Befund falsch: § 13b (brutto = netto) und Stornos (negative Mengen). Übernommen nur die sicheren CHECKs und FKs, jeweils `NOT VALID`. |
+| Archiv-Abgleich O(n·m) | Befund übertrieben: Postgres plant einen Hash Anti Join (20.000 × 5.000 Zeilen in 45 ms). |
+| BT-10 fällt auf Rechnungsnummer zurück | Zulässig nach BR-DE-15; für XRechnung verlangt `validate.ts` Leitweg-ID oder E-Mail. |
+| E-Rechnungs-XML sprachabhängig | Bleibt deutsch, wie die übrigen Freitextfelder im XML. |
+| SHA-Pinning der Actions, KoSIT-Prüfsumme | Nicht gemacht (kein Netz-Lookup); `firsttris/workflows` gehört demselben Besitzer. Top-level `permissions` ergänzt. |
+| Graceful Shutdown | Nitro/srvx beendet bei SIGTERM schon geordnet; Scheduler-Läufe sind idempotent. |
+| Protokoll vor Mailversand, verwaiste ERiC-Temp-Verzeichnisse | Bräuchte Schemaänderung bzw. Lock-Logik beim Start; Nutzen zu gering. |
+| `openItems` in SQL, `invoiceSummary` als Aggregat, 12 Aufrufe in `ustYear` | Größerer Umbau ohne messbaren Bedarf; die Indizes sind gesetzt. |
+| Positions-Editor teilen, Duplikate `quotes.ts`/`invoices.ts`, `bank.tsx` aufteilen, Postfach/VaSt im gemeinsamen Sendepanel | Varianten weichen fachlich ab; zusammengelegt würde es nicht kürzer. Gemeinsam sind jetzt `useAction`, `NoticeBanner`, `ElsterSubmit`, Formate und Titel. |
+| `as`-Casts für `unit`/`taxRate`, Namenskonventionen in `functions/`, Hardware-Sonderfall in `euer.ts` | Reine Churn bzw. neue Struktur nötig. |
+
+---
+
 ## Top 12 nach Dringlichkeit
 
 | # | Bereich | Befund | Schwere |
@@ -288,4 +314,3 @@ Damit die Liste oben nicht täuscht, die Stärken, die die Agenten explizit veri
 - Acht parallele Review-Durchgänge je Bereich (core; einvoice + import; elster; Dienste A; Dienste B; Functions + API + Auth; React; Schema + Migrationen + Deploy + CI). Jeder hat seine Dateien vollständig gelesen, tote Exporte repo-weit gegrept und Rechen- oder Parser-Befunde mit kleinen Skripten (`node --experimental-strip-types`) nachgestellt.
 - Die mit ✔ markierten Befunde habe ich zusätzlich selbst im Code bzw. in den installierten Bibliotheken (`@tanstack/start-server-core`, `drizzle-orm`) nachgeprüft.
 - Nicht geprüft: tatsächliche Annahme der DATEV-Datei durch DATEV, der korrekte ELSTER-Testmerker für das Postfach (beides braucht die externe Spezifikation), Laufzeitverhalten unter Last.
-- Keine Dateien des Projekts wurden geändert; diese Datei ist die einzige Ergänzung.

@@ -12,7 +12,10 @@ import {
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
+import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import {
   createVatCorrection,
@@ -20,6 +23,7 @@ import {
   saveVatDraft,
   submitVatReturn,
 } from "../../../server/functions/vat.ts";
+import type { Notice } from "../../../lib/use-action.ts";
 
 export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
   loader: ({ params }) => {
@@ -43,7 +47,6 @@ type Figures = Pick<Record<FieldKey, number>, "kz81" | "kz86" | "kz66"> & Partia
 function sameFigures(a: Figures, b: Figures): boolean {
   return FIELDS.every((field) => (a[field] ?? 0) === (b[field] ?? 0));
 }
-type Notice = { tone: "ok" | "danger" | "info"; text: string } | null;
 type PeriodNotice = { key: string; notice: Notice };
 
 function periodOptions(today = new Date()): VatPeriod[] {
@@ -63,8 +66,6 @@ function describe(figures: Record<FieldKey, number>): string {
   );
   return `${parts.slice(0, -1).join(", ")} und ${parts.at(-1)}`;
 }
-
-const KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" } as const;
 
 function VatPeriodPage() {
   const data = Route.useLoaderData();
@@ -226,23 +227,12 @@ function VatReturnEditor({
     });
   };
 
-  const onSubmit = (kind: "validate" | "test" | "send", pin?: string) =>
+  const onSubmit = (kind: ElsterKind, pin?: string) =>
     run(async () => {
       const id = dirty || !current ? await persist() : current.id;
       const result = await submit({ data: { id, kind, pin } });
       await router.invalidate();
-      if (result.ok) {
-        const ticket = result.transferTicket ? ` Transfer-Ticket ${result.transferTicket}.` : "";
-        const text =
-          kind === "validate"
-            ? "ERiC hat die Daten geprüft, keine Fehler."
-            : kind === "test"
-              ? `Testübermittlung erfolgreich.${ticket}`
-              : `Voranmeldung übermittelt und festgeschrieben.${ticket}`;
-        setNotice({ tone: "ok", text });
-      } else {
-        setNotice({ tone: "danger", text: `${KIND_LABEL[kind]} fehlgeschlagen (${result.code}): ${result.message}` });
-      }
+      setNotice(elsterNotice(kind, result, "Voranmeldung übermittelt und festgeschrieben."));
     });
 
   const onCorrect = () =>
@@ -345,7 +335,6 @@ function VatReturnEditor({
                     <SourcesToggle
                       kind="revenue"
                       rows={row.sources}
-                      versteuerung={data.figures.versteuerung}
                       open={openSources === row.kz}
                       controls={`kz-${row.kz}-quellen`}
                       onToggle={() => toggleSources(row.kz)}
@@ -379,7 +368,6 @@ function VatReturnEditor({
                 <SourcesToggle
                   kind="inputTax"
                   rows={data.figures.inputTax}
-                  versteuerung={data.figures.versteuerung}
                   open={openSources === "66"}
                   controls="kz-66-quellen"
                   onToggle={() => toggleSources("66")}
@@ -408,7 +396,6 @@ function VatReturnEditor({
                     <SourcesToggle
                       kind="inputTax"
                       rows={row.sources}
-                      versteuerung={data.figures.versteuerung}
                       open={openSources === row.kz}
                       controls={`kz-${row.kz}-quellen`}
                       onToggle={() => toggleSources(row.kz)}
@@ -508,15 +495,21 @@ function VatReturnEditor({
             </button>
           </div>
         )}
-        {notice && (
-          <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-            {notice.text}
-          </div>
-        )}
+        <NoticeBanner notice={notice} />
       </form>
 
       <div className="stack">
-        {!locked && <SubmitPanel data={data} busy={busy} valid={valid} onSubmit={onSubmit} />}
+        {!locked && (
+          <ElsterSubmit
+            setup={data}
+            title="An ELSTER übermitteln"
+            ready={valid && data.companyIssues.length === 0}
+            busy={busy}
+            confirmText="Die Voranmeldung geht an das Finanzamt und wird danach festgeschrieben. Noch einmal klicken zum Senden."
+            footer="ERiC prüft die Daten vor dem Versand. Das Übertragungsprotokoll wird als PDF abgelegt. Die PIN wird nicht gespeichert."
+            onSubmit={onSubmit}
+          />
+        )}
         <History data={data} />
       </div>
     </div>
@@ -529,14 +522,12 @@ type SourceRows = PageData["figures"]["revenue"] | PageData["figures"]["inputTax
 function SourcesToggle({
   kind,
   rows,
-  versteuerung: _versteuerung,
   open,
   controls,
   onToggle,
 }: {
   kind: "revenue" | "inputTax";
   rows: SourceRows;
-  versteuerung: "ist" | "soll";
   open: boolean;
   controls: string;
   onToggle: () => void;
@@ -609,102 +600,6 @@ function StatusPill({ current }: { current: PageData["current"] }) {
   return <span className="pill pill-info">Entwurf{current.berichtigt ? " · berichtigte Anmeldung" : ""}</span>;
 }
 
-function SubmitPanel({
-  data,
-  busy,
-  valid,
-  onSubmit,
-}: {
-  data: PageData;
-  busy: boolean;
-  valid: boolean;
-  onSubmit: (kind: "validate" | "test" | "send", pin?: string) => Promise<void>;
-}) {
-  const [pin, setPin] = useState("");
-  const [testOnly, setTestOnly] = useState(true);
-  const [confirming, setConfirming] = useState(false);
-  const canSendLive = data.herstellerIdConfigured;
-  const ready = valid && data.companyIssues.length === 0;
-
-  async function send(event: FormEvent) {
-    event.preventDefault();
-    if (!testOnly && !confirming) {
-      setConfirming(true);
-      return;
-    }
-    await onSubmit(testOnly ? "test" : "send", pin);
-    setPin("");
-    setConfirming(false);
-  }
-
-  return (
-    <form className="card" onSubmit={send} aria-labelledby="elster-heading">
-      <h2 id="elster-heading">An ELSTER übermitteln</h2>
-      <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "12px 14px", background: "var(--ground)", borderRadius: 10 }}>
-        <Icon name={data.certificate ? "check" : "alert"} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span style={{ fontWeight: 500 }}>{data.certificate ? "Zertifikat hinterlegt" : "Kein Zertifikat hinterlegt"}</span>
-          <span className="small muted">
-            {data.certificate ? (
-              <>
-                {data.certificate.filename}
-                {data.certificate.validUntil ? ` · gültig bis ${formatDate(data.certificate.validUntil)}` : ""}
-              </>
-            ) : (
-              <Link to="/einstellungen">In den Einstellungen hochladen</Link>
-            )}
-          </span>
-        </div>
-      </div>
-      <label className="field">
-        Zertifikats-PIN
-        <input
-          type="password"
-          value={pin}
-          onChange={(event) => setPin(event.target.value)}
-          autoComplete="off"
-          required
-        />
-      </label>
-      <label className="checkbox">
-        <input
-          type="checkbox"
-          checked={testOnly}
-          onChange={(event) => {
-            setTestOnly(event.target.checked);
-            setConfirming(false);
-          }}
-          disabled={!canSendLive}
-        />
-        Nur Testübermittlung
-      </label>
-      {!canSendLive && (
-        <p className="small muted" style={{ margin: 0 }}>
-          {data.mode === "simuliert"
-            ? "Echtübermittlung erst mit eingerichtetem ERiC (Einstellungen) und eigener Hersteller-ID."
-            : "Echtübermittlung erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID)."}
-        </p>
-      )}
-      {confirming && (
-        <div className="banner" role="alert">
-          Die Voranmeldung geht an das Finanzamt und wird danach festgeschrieben. Noch einmal klicken zum Senden.
-        </div>
-      )}
-      <div className="actions">
-        <button type="submit" className="btn btn-primary" disabled={busy || !ready || !data.certificate || pin.length === 0} style={{ flexGrow: 1 }}>
-          {confirming ? "Jetzt verbindlich senden" : testOnly ? "Prüfen und testweise senden" : "Prüfen und senden"}
-        </button>
-        <button type="button" className="btn" disabled={busy || !ready} onClick={() => onSubmit("validate")}>
-          Nur prüfen
-        </button>
-      </div>
-      <p className="small muted" style={{ margin: 0 }}>
-        ERiC prüft die Daten vor dem Versand. Das Übertragungsprotokoll wird als PDF abgelegt. Die PIN wird nicht gespeichert.
-      </p>
-    </form>
-  );
-}
-
 function History({ data }: { data: PageData }) {
   return (
     <section className="card" aria-labelledby="history-heading">
@@ -716,7 +611,7 @@ function History({ data }: { data: PageData }) {
           <div key={entry.id} className="history-row">
             <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
               <span style={{ fontWeight: 500 }}>
-                {KIND_LABEL[entry.kind]}{" "}
+                {ELSTER_KIND_LABEL[entry.kind]}{" "}
                 <span className={`pill ${entry.ok ? "pill-ok" : "pill-danger"}`}>{entry.ok ? "OK" : `Fehler ${entry.code}`}</span>
               </span>
               <span className="small muted" style={{ overflowWrap: "anywhere" }}>

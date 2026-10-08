@@ -1,11 +1,12 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { errorMessage, formatDateTime } from "../lib/format.ts";
+import { formatDateTime } from "../lib/format.ts";
+import { useAction, type Notice } from "../lib/use-action.ts";
+import { NoticeBanner } from "./NoticeBanner.tsx";
 import { removeMail, saveMail, sendMailTest, type getMailSettings } from "../server/functions/mail.ts";
 
 type Data = Awaited<ReturnType<typeof getMailSettings>>;
-type Notice = { tone: "ok" | "danger"; text: string } | null;
 
 const STUFEN = [14, 7, 3, 1, 0];
 
@@ -20,21 +21,14 @@ export function MailCard({ data }: { data: Data }) {
   const [port, setPort] = useState(String(s?.port ?? 465));
   const [secure, setSecure] = useState(s?.secure ?? true);
   const [days, setDays] = useState<number[]>(s?.reminderDays ?? [7, 1]);
-  const [notice, setNotice] = useState<Notice>(null);
-  const [busy, setBusy] = useState(false);
+  const action = useAction();
+  const { busy, notice } = action;
 
-  async function run(work: () => Promise<Notice>) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      setNotice(await work());
+  const run = (work: () => Promise<Notice>) =>
+    action.run(async () => {
+      action.setNotice(await work());
       await router.invalidate();
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
+    });
 
   function preset(key: string) {
     const p = data.presets[key as keyof typeof data.presets];
@@ -210,11 +204,7 @@ export function MailCard({ data }: { data: Data }) {
           </>
         )}
       </div>
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"} style={{ overflowWrap: "anywhere" }}>
-          {notice.text}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
       {data.last.length > 0 && (
         <ul className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
           {data.last.map((m, i) => (

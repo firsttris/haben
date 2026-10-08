@@ -1,11 +1,12 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type ChangeEvent } from "react";
-import { errorMessage, formatDateTime } from "../lib/format.ts";
+import type { ChangeEvent } from "react";
+import { formatDateTime } from "../lib/format.ts";
+import { useAction } from "../lib/use-action.ts";
+import { NoticeBanner } from "./NoticeBanner.tsx";
 import { deleteLogo, uploadLogo, type getLogo } from "../server/functions/logo.ts";
 
 type Info = Awaited<ReturnType<typeof getLogo>>;
-type Notice = { tone: "ok" | "danger"; text: string } | null;
 
 /** Datei als Base64 ohne data:-Präfix */
 function readBase64(file: File): Promise<string> {
@@ -22,22 +23,15 @@ export function LogoCard({ info }: { info: Info }) {
   const router = useRouter();
   const upload = useServerFn(uploadLogo);
   const remove = useServerFn(deleteLogo);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<Notice>(null);
+  const action = useAction();
+  const { busy, notice } = action;
 
-  async function run(work: () => Promise<string>) {
-    setBusy(true);
-    setNotice(null);
-    try {
+  const run = (work: () => Promise<string>) =>
+    action.run(async () => {
       const text = await work();
       await router.invalidate();
-      setNotice({ tone: "ok", text });
-    } catch (e) {
-      setNotice({ tone: "danger", text: errorMessage(e) });
-    } finally {
-      setBusy(false);
-    }
-  }
+      action.setNotice({ tone: "ok", text });
+    });
 
   function onFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -84,11 +78,7 @@ export function LogoCard({ info }: { info: Info }) {
           </button>
         )}
       </div>
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-          {notice.text}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
     </section>
   );
 }

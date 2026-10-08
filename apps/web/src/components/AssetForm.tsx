@@ -14,6 +14,7 @@ import {
   type PrivateUseRate,
 } from "@haben/core";
 import { useState, type FormEvent } from "react";
+import { parseUsefulLifeMonths } from "../lib/format.ts";
 
 export interface AssetFormValues {
   name: string;
@@ -74,12 +75,12 @@ export function AssetForm({
 
   const parsedCost = parseEuro(cost);
   const parsedOpening = parseEuro(openingBookValue);
-  const parsedYears = Number(years.replace(",", "."));
-  const lifeValid = method !== "linear" || (Number.isFinite(parsedYears) && parsedYears > 0 && Number.isInteger(parsedYears * 12));
+  const lifeMonths = parseUsefulLifeMonths(years);
+  const lifeValid = method !== "linear" || lifeMonths !== null;
   const parsedListPrice = parseEuro(listPrice);
   const privateUseValid = kind !== "kfz" || !privateUsed || (parsedListPrice !== null && parsedListPrice > 0);
-  // Satz folgt Antrieb und Listenpreis, bis er von Hand gewählt wurde
-  const suggestion = suggestedPrivateUseRate(drive, parsedListPrice ?? 0, acquisitionDate || "2026-01-01");
+  // Satz folgt Antrieb, Listenpreis und Anschaffungsdatum, bis er von Hand gewählt wurde (ohne Datum: 1 %)
+  const suggestion = suggestedPrivateUseRate(drive, parsedListPrice ?? 0, acquisitionDate);
   const effectiveRate = rateTouched ? rate : suggestion;
   const privateUse: CarPrivateUse | null =
     kind === "kfz" && privateUsed && parsedListPrice ? { listPrice: parsedListPrice, drive, rate: effectiveRate, vat } : null;
@@ -110,7 +111,7 @@ export function AssetForm({
       method,
       acquisitionDate,
       cost: parsedCost!,
-      usefulLifeMonths: method === "linear" ? Math.round(parsedYears * 12) : null,
+      usefulLifeMonths: method === "linear" ? lifeMonths : null,
       openingDate,
       openingBookValue: parsedOpening ?? 0,
       disposalDate: disposalDate || null,

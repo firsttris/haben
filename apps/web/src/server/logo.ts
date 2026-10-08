@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { logoFormat, type Logo } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
@@ -6,7 +7,7 @@ import { db, schema } from "./db/index.ts";
 
 /** Firmenlogo für den Briefkopf von Rechnungen, Angeboten und Mahnungen */
 
-export class LogoError extends Error {}
+export class LogoError extends UserError {}
 
 export const MAX_LOGO_BYTES = 1024 * 1024;
 

@@ -11,7 +11,9 @@ import {
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { errorMessage, formatDate } from "../../../../lib/format.ts";
+import { formatDate } from "../../../../lib/format.ts";
+import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../../lib/use-action.ts";
 import { createDunningFn, getDunningDraft } from "../../../../server/functions/dunning.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/mahnwesen/$id")({
@@ -20,8 +22,8 @@ export const Route = createFileRoute("/_app/rechnungen/mahnwesen/$id")({
   component: NewDunningPage,
 });
 
-const percent = (basisPoints: number) =>
-  `${new Intl.NumberFormat("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(basisPoints / 100)} %`;
+/** Basispunkte als Prozent: 127 → „1,27 %“ */
+const percent = (basisPoints: number) => `${formatDecimal(basisPoints)} %`;
 
 function NewDunningPage() {
   const draft = Route.useLoaderData();
@@ -34,8 +36,7 @@ function NewDunningPage() {
   const [interest, setInterest] = useState<CustomerType | "">("");
   const [intro, setIntro] = useState(draft.texts[draft.level].intro);
   const [closing, setClosing] = useState(draft.texts[draft.level].closing);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, notice, run } = useAction();
 
   const parsedFee = fee.trim() ? parseEuro(fee) : 0;
   const interestRate = interest && draft.baseRate !== null ? draft.baseRate + DEFAULT_INTEREST_MARKUP[interest] : null;
@@ -58,15 +59,11 @@ function NewDunningPage() {
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!valid) return;
-    setBusy(true);
-    setError(null);
-    create({ data: { invoiceId: draft.invoice.id, level, dueDate, fee: parsedFee ?? 0, flatFee, interest: interest || null, intro, closing } })
-      .then(async (result) => {
-        window.open(`/api/mahnung/${result.id}`, "_blank", "noopener");
-        await navigate({ to: "/rechnungen/$id", params: { id: draft.invoice.id } });
-      })
-      .catch((e: unknown) => setError(errorMessage(e)))
-      .finally(() => setBusy(false));
+    void run(async () => {
+      const result = await create({ data: { invoiceId: draft.invoice.id, level, dueDate, fee: parsedFee ?? 0, flatFee, interest: interest || null, intro, closing } });
+      window.open(`/api/mahnung/${result.id}`, "_blank", "noopener");
+      await navigate({ to: "/rechnungen/$id", params: { id: draft.invoice.id } });
+    });
   }
 
   return (
@@ -79,11 +76,7 @@ function NewDunningPage() {
           <h1>{DUNNING_LEVELS[level].label}</h1>
         </div>
       </div>
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
       <form className="editor-grid" onSubmit={onSubmit}>
         <section className="card stack" aria-label="Mahnung">
           <p className="small muted" style={{ margin: 0 }}>
@@ -94,7 +87,7 @@ function NewDunningPage() {
             <label className="field">
               Stufe
               <select value={level} onChange={(e) => chooseLevel(Number(e.target.value) as DunningLevel)}>
-                {([1, 2, 3] as const).map((l) => (
+                {([1, 2, 3] as const).filter((l) => l >= draft.level).map((l) => (
                   <option key={l} value={l}>
                     {DUNNING_LEVELS[l].label}
                   </option>

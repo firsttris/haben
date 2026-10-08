@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   computeInvoiceTotals,
   formatInvoiceNumber,
@@ -27,12 +28,12 @@ import type { Contact } from "./contacts.ts";
 import { loadLogo } from "./logo.ts";
 import { invoicePayments, stornoOpen } from "./bank.ts";
 import { withActor } from "./db/actor.ts";
-import { db, schema, type Tx } from "./db/index.ts";
+import { db, schema, type Db, type Tx } from "./db/index.ts";
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
 
-export class InvoiceError extends Error {}
+export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
 
@@ -90,9 +91,9 @@ const cancelledIds = sql`select corrects_id from invoices where kind = 'storno' 
  * Schlussrechnungen, die eine Abschlagsrechnung schon abziehen (festgeschrieben, nicht storniert),
  * je Abschlagsrechnung die Nummer der Schlussrechnung
  */
-async function deductedElsewhere(abschlagIds: string[], exceptInvoiceId: string | null): Promise<Map<string, string>> {
+async function deductedElsewhere(abschlagIds: string[], exceptInvoiceId: string | null, q: Db | Tx = db): Promise<Map<string, string>> {
   if (abschlagIds.length === 0) return new Map();
-  const rows = await db
+  const rows = await q
     .select({ abschlag: schema.invoiceLines.deductionOf, number: schema.invoices.number })
     .from(schema.invoiceLines)
     .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.invoiceId))
@@ -108,8 +109,8 @@ async function deductedElsewhere(abschlagIds: string[], exceptInvoiceId: string 
 }
 
 /** Abschlagsrechnungen eines Kunden, die eine Schlussrechnung noch abziehen kann */
-export async function openAbschlaege(exceptInvoiceId: string | null = null) {
-  const rows = await db
+export async function openAbschlaege(exceptInvoiceId: string | null = null, q: Db | Tx = db) {
+  const rows = await q
     .select()
     .from(schema.invoices)
     .where(
@@ -124,10 +125,11 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null) {
   const taken = await deductedElsewhere(
     rows.map((r) => r.id),
     exceptInvoiceId,
+    q,
   );
   const open = rows.filter((r) => !taken.has(r.id));
   const lines = open.length
-    ? await db.select().from(schema.invoiceLines).where(inArray(schema.invoiceLines.invoiceId, open.map((r) => r.id)))
+    ? await q.select().from(schema.invoiceLines).where(inArray(schema.invoiceLines.invoiceId, open.map((r) => r.id)))
     : [];
   return open.map((r) => ({
     id: r.id,
@@ -148,7 +150,7 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null) {
 export type OpenAbschlag = Awaited<ReturnType<typeof openAbschlaege>>[number];
 
 /** Abzugspositionen der Schlussrechnung: je Abschlagsrechnung und Steuersatz eine negative Position */
-export function deductionLinesFor(abschlaege: OpenAbschlag[], language: "de" | "en", taxTreatment: TaxTreatment): LineInput[] {
+function deductionLinesFor(abschlaege: OpenAbschlag[], language: "de" | "en", taxTreatment: TaxTreatment): LineInput[] {
   const t = texts(language);
   return abschlaege.flatMap((a) =>
     a.rates
@@ -180,16 +182,16 @@ export async function abschlagLinks(invoiceId: string) {
 }
 
 /** Prüft die gewählten Abschlagsrechnungen; leere Liste = in Ordnung */
-async function deductionProblems(invoiceId: string | null, input: Pick<DraftInput, "contactId" | "deducts" | "taxTreatment">) {
+async function deductionProblems(invoiceId: string | null, input: Pick<DraftInput, "contactId" | "deducts" | "taxTreatment">, q: Db | Tx = db) {
   const ids = [...new Set(input.deducts ?? [])];
-  const open = await openAbschlaege(invoiceId);
+  const open = await openAbschlaege(invoiceId, q);
   const problems: string[] = [];
   const chosen: OpenAbschlag[] = [];
   for (const id of ids) {
     const abschlag = open.find((a) => a.id === id);
     if (!abschlag) {
-      const [row] = await db.select({ number: schema.invoices.number }).from(schema.invoices).where(eq(schema.invoices.id, id));
-      const taken = (await deductedElsewhere([id], invoiceId)).get(id);
+      const [row] = await q.select({ number: schema.invoices.number }).from(schema.invoices).where(eq(schema.invoices.id, id));
+      const taken = (await deductedElsewhere([id], invoiceId, q)).get(id);
       problems.push(
         taken
           ? `Abschlagsrechnung ${row?.number ?? ""} ist schon in Schlussrechnung ${taken} abgezogen`
@@ -335,8 +337,8 @@ export type InvoiceListStatus =
   | "storno"
   | "korrektur";
 
-/** Rechnungsliste mit abgeleitetem Status; bezahlt über die Zuordnungen im Bankabgleich. */
-export async function listInvoices(today: string) {
+/** Rechnungsliste mit abgeleitetem Status; bezahlt über die Zuordnungen im Bankabgleich. Mit `id` nur diese Rechnung. */
+export async function listInvoices(today: string, id?: string) {
   const rows = await db
     .select({
       id: schema.invoices.id,
@@ -351,20 +353,22 @@ export async function listInvoices(today: string) {
       correctsId: schema.invoices.correctsId,
       contactName: schema.contacts.name,
       buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
+      cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
     })
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
+    .where(id ? eq(schema.invoices.id, id) : undefined)
     .orderBy(sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt));
 
-  const paid = await invoicePayments(rows.filter((r) => r.status === "final").map((r) => r.id));
-  const cancelled = new Set(
-    rows.filter((r) => r.kind === "storno" && r.status === "final" && r.correctsId).map((r) => r.correctsId!),
-  );
-  return rows.map((row) => {
+  const paid = await invoicePayments([
+    ...rows.filter((r) => r.status === "final").map((r) => r.id),
+    ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!),
+  ]);
+  return rows.map(({ cancelled, ...row }) => {
     const paidAmount = paid.get(row.id) ?? 0;
     // Bei einem Storno bleibt offen, was auf die Rechnung gezahlt und noch nicht erstattet wurde
     const open =
-      row.status !== "final" || cancelled.has(row.id)
+      row.status !== "final" || cancelled
         ? 0
         : row.kind === "storno"
           ? stornoOpen(paid.get(row.correctsId!) ?? 0, paidAmount)
@@ -372,7 +376,7 @@ export async function listInvoices(today: string) {
     let status: InvoiceListStatus;
     if (row.status === "draft") status = "entwurf";
     else if (row.kind === "storno") status = "storno";
-    else if (cancelled.has(row.id)) status = "storniert";
+    else if (cancelled) status = "storniert";
     else if (open === 0) status = row.kind === "korrektur" ? "korrektur" : "bezahlt";
     else if (row.kind === "korrektur") status = "korrektur";
     else if (row.dueDate < today) status = "ueberfaellig";
@@ -454,9 +458,12 @@ function documentFor(
   };
 }
 
+/** Abschlagsrechnungen, die eine Schlussrechnung abzieht, in Reihenfolge der Positionen */
+const deductionIds = (lines: InvoiceLine[]) => [...new Set(lines.map((l) => l.deductionOf).filter((id): id is string => Boolean(id)))];
+
 /** Nummer und Datum der Abschlagsrechnungen, die eine Schlussrechnung abzieht, in Reihenfolge der Positionen */
 async function deductedRefs(lines: InvoiceLine[]) {
-  const ids = [...new Set(lines.map((l) => l.deductionOf).filter((id): id is string => Boolean(id)))];
+  const ids = deductionIds(lines);
   if (ids.length === 0) return [];
   const rows = await db
     .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
@@ -483,8 +490,13 @@ export async function finalizeIssues(id: string): Promise<string[]> {
   if (!contact) issues.push("Kunde fehlt");
   if (lines.length === 0) issues.push("Keine Positionen");
   if (lines.some((line) => line.net === 0)) issues.push("Position ohne Betrag");
+  if (invoice.correctsId) {
+    const [original] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
+    const problem = original ? await originalProblem(original) : "Die korrigierte Rechnung fehlt";
+    if (problem) issues.push(problem);
+  }
   if (invoice.variant === "schluss") {
-    const deducts = [...new Set(lines.map((l) => l.deductionOf).filter((id): id is string => Boolean(id)))];
+    const deducts = deductionIds(lines);
     if (deducts.length === 0) issues.push("Keine Abschlagsrechnung abgezogen");
     issues.push(...(await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment })).problems);
     if (invoice.gross < 0) issues.push("Die Abschläge übersteigen die Gesamtleistung");
@@ -523,10 +535,22 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
       .orderBy(asc(schema.invoiceLines.position));
     const [contact] = await tx.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId!));
 
+    // Original und abgezogene Abschläge sperren und erneut prüfen: Ein paralleles Storno, eine Korrektur
+    // oder eine andere Schlussrechnung kann seit finalizeIssues festgeschrieben worden sein.
+    const deducts = deductionIds(lines);
+    const referenced = [...(invoice.correctsId ? [invoice.correctsId] : []), ...deducts];
+    if (referenced.length > 0) {
+      await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(inArray(schema.invoices.id, referenced)).orderBy(asc(schema.invoices.id)).for("update");
+    }
     let corrects: Invoice | undefined;
     if (invoice.correctsId) {
       [corrects] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-      if (!corrects?.number) throw new InvoiceError("Die korrigierte Rechnung ist nicht festgeschrieben.");
+      const problem = corrects ? await originalProblem(corrects, tx) : "Die korrigierte Rechnung fehlt";
+      if (problem) throw new InvoiceError(`${problem}.`);
+    }
+    if (deducts.length > 0) {
+      const { problems } = await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, tx);
+      if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
     }
 
     const year = Number(invoice.issueDate.slice(0, 4));
@@ -593,17 +617,25 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
   });
 }
 
+/** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */
+async function originalProblem(original: Invoice, q: Db | Tx = db): Promise<string | null> {
+  if (original.status !== "final" || original.kind !== "rechnung") return "Nur festgeschriebene Rechnungen können storniert oder korrigiert werden";
+  const [storno] = await q
+    .select({ id: schema.invoices.id })
+    .from(schema.invoices)
+    .where(and(eq(schema.invoices.correctsId, original.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")))
+    .limit(1);
+  if (storno) return `Die Rechnung ${original.number} ist bereits storniert`;
+  const schluss = (await deductedElsewhere([original.id], null, q)).get(original.id);
+  if (schluss) return `Die Abschlagsrechnung ist in Schlussrechnung ${schluss} abgezogen. Storniere zuerst die Schlussrechnung`;
+  return null;
+}
+
 async function finalOriginal(id: string) {
   const data = await getInvoice(id);
   if (!data) throw new InvoiceError("Rechnung nicht gefunden.");
-  if (data.invoice.status !== "final" || data.invoice.kind !== "rechnung") {
-    throw new InvoiceError("Nur festgeschriebene Rechnungen können storniert oder korrigiert werden.");
-  }
-  if (data.correctedBy.some((c) => c.kind === "storno" && c.status === "final")) {
-    throw new InvoiceError("Die Rechnung ist bereits storniert.");
-  }
-  const schluss = (await deductedElsewhere([id], null)).get(id);
-  if (schluss) throw new InvoiceError(`Die Abschlagsrechnung ist in Schlussrechnung ${schluss} abgezogen. Storniere zuerst die Schlussrechnung.`);
+  const problem = await originalProblem(data.invoice);
+  if (problem) throw new InvoiceError(`${problem}.`);
   return data;
 }
 

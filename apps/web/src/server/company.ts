@@ -1,14 +1,18 @@
-import { BUNDESLAENDER, toElsterSteuernummer, SteuernummerError } from "@haben/core";
+import { BUNDESLAENDER, EXPENSE_CATEGORY_KEYS, toElsterSteuernummer, SteuernummerError } from "@haben/core";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { listArticles } from "./articles.ts";
+import { listContacts } from "./contacts.ts";
+import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
+import { logoInfo } from "./logo.ts";
 
 export const companySchema = z.object({
   name: z.string().trim().max(200),
   strasse: z.string().trim().max(200),
   plz: z.string().trim().regex(/^(\d{5})?$/, "PLZ hat fünf Ziffern"),
   ort: z.string().trim().max(100),
-  email: z.union([z.literal(""), z.string().trim().email("Keine gültige E-Mail-Adresse")]),
+  email: z.union([z.literal(""), z.string().trim().pipe(z.email("Keine gültige E-Mail-Adresse").max(320))]),
   steuernummer: z.string().trim().max(20),
   ustId: z.union([z.literal(""), z.string().trim().regex(/^DE\d{9}$/, "USt-IdNr. hat die Form DE123456789")]),
   finanzamt: z.string().trim().max(200),
@@ -26,7 +30,7 @@ export const companySchema = z.object({
   einkunftsart: z.enum(["gewerbe", "selbstaendig"]).nullable().default(null),
   taetigkeit: z.string().trim().max(100).default(""),
   /** Vorgabe für den Privatanteil je Belegkategorie in Prozent */
-  privateShares: z.record(z.string(), z.number().int().min(0).max(100)).default({}),
+  privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), z.number().int().min(0).max(100)).default({}),
   dunning: z
     .object({
       baseRate: z.number().int().min(-1_000).max(2_000).nullable(),
@@ -42,8 +46,34 @@ export type Company = typeof schema.company.$inferSelect;
 export async function loadCompany(): Promise<Company> {
   const [row] = await db.select().from(schema.company).where(eq(schema.company.id, 1));
   if (row) return row;
-  const [created] = await db.insert(schema.company).values({ id: 1 }).onConflictDoNothing().returning();
+  const [created] = await withActor("system:setup", (tx) => tx.insert(schema.company).values({ id: 1 }).onConflictDoNothing().returning());
   return created ?? (await loadCompany());
+}
+
+/** Firmendaten speichern; ob gesperrte Einstellungen geändert werden, prüft der Aufrufer vorher (settings-guard.ts). */
+export async function updateCompany(actor: string, input: CompanyInput): Promise<void> {
+  await withActor(actor, (tx) => tx.update(schema.company).set({ ...input, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
+}
+
+/** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
+export async function editorContext(kind: "rechnung" | "angebot") {
+  const [company, counters, contacts, articles, logo] = await Promise.all([
+    loadCompany(),
+    kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
+    listContacts(),
+    listArticles(),
+    logoInfo(),
+  ]);
+  const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank } = company;
+  return {
+    contacts,
+    articles: articles.map(({ id, number, description, unit, unitPrice, taxRate }) => ({ id, number, description, unit, unitPrice, taxRate })),
+    company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, logo: logo?.sha256 ?? null },
+    sellerIssues: sellerIssues(company),
+    bundesland: company.bundesland,
+    kleinunternehmer: company.kleinunternehmer,
+    numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
+  };
 }
 
 /** Was fehlt, bevor eine Voranmeldung gesendet werden kann. */

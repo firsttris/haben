@@ -17,6 +17,13 @@ describe("toElsterSteuernummer", () => {
 
   it("lässt das ELSTER-Format unverändert", () => {
     expect(toElsterSteuernummer("9198011310010", "BY")).toBe("9198011310010");
+    expect(toElsterSteuernummer("2613081508153", "HE")).toBe("2613081508153");
+  });
+
+  it("prüft 13-stellige Eingaben auf Länderpräfix und die 0 an fünfter Stelle", () => {
+    expect(() => toElsterSteuernummer("9198011310010", "NW")).toThrow(SteuernummerError);
+    expect(() => toElsterSteuernummer("9198111310010", "BY")).toThrow(SteuernummerError);
+    expect(() => toElsterSteuernummer("2013081508153", "HE")).toThrow(SteuernummerError);
   });
 
   it("meldet falsche Länge", () => {

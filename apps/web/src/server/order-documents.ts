@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { buildConfirmationPdf, buildDeliveryNotePdf, type Buyer, type Seller } from "@haben/einvoice";
 import type { UnitLabel } from "@haben/core";
 import { asc, eq } from "drizzle-orm";
@@ -11,7 +12,7 @@ import { today } from "./today.ts";
  * Rechnungen. Sie buchen nichts; Inhalt und Datum folgen aus dem gespeicherten Beleg.
  */
 
-export class OrderDocumentError extends Error {}
+export class OrderDocumentError extends UserError {}
 
 async function acceptedQuote(id: string) {
   const [quote] = await db.select().from(schema.quotes).where(eq(schema.quotes.id, id));

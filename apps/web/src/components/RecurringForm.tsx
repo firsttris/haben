@@ -19,15 +19,15 @@ import {
 } from "@haben/core";
 import { useState, type FormEvent } from "react";
 import { formatDate } from "../lib/format.ts";
+import { FORMAT_LABEL, FORMATS, type InvoiceFormat } from "../lib/invoice.ts";
 
 type Rate = 1900 | 700 | 0;
-type Format = "zugferd" | "xrechnung-cii" | "xrechnung-ubl";
 
 export interface RecurringValues {
   name: string;
   active: boolean;
   contactId: string;
-  format: Format;
+  format: InvoiceFormat;
   paymentTermDays: number;
   note: string;
   taxTreatment: TaxTreatment;
@@ -51,12 +51,6 @@ interface LineState {
 }
 
 let nextKey = 1;
-
-const FORMATS: { value: Format; label: string }[] = [
-  { value: "zugferd", label: "ZUGFeRD · EN 16931 (PDF mit XML)" },
-  { value: "xrechnung-cii", label: "XRechnung 3.0 (CII)" },
-  { value: "xrechnung-ubl", label: "XRechnung 3.0 (UBL)" },
-];
 
 /** Formular für eine Vorlage; Platzhalter wie {monat} werden in der Vorschau ersetzt */
 export function RecurringForm({
@@ -212,10 +206,10 @@ export function RecurringForm({
           </label>
           <label className="field">
             E-Rechnungsformat
-            <select value={format} onChange={(e) => setFormat(e.target.value as Format)}>
+            <select value={format} onChange={(e) => setFormat(e.target.value as InvoiceFormat)}>
               {FORMATS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
+                <option key={f} value={f}>
+                  {FORMAT_LABEL[f]}
                 </option>
               ))}
             </select>

@@ -3,7 +3,9 @@ import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-r
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { RecurringForm } from "../../../../components/RecurringForm.tsx";
-import { errorMessage, formatDate, formatDateTime } from "../../../../lib/format.ts";
+import { formatDate, formatDateTime } from "../../../../lib/format.ts";
+import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../../lib/use-action.ts";
 import { getRecurringDetail, removeRecurring, saveRecurring } from "../../../../server/functions/recurring.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/wiederkehrend/$id")({
@@ -18,18 +20,8 @@ function RecurringDetailPage() {
   const navigate = useNavigate();
   const save = useServerFn(saveRecurring);
   const remove = useServerFn(removeRecurring);
-  const [busy, setBusy] = useState(false);
+  const { busy, notice, run } = useAction();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
-
-  function run(work: () => Promise<unknown>, success?: string) {
-    setBusy(true);
-    setNotice(null);
-    work()
-      .then(() => success && setNotice({ tone: "ok", text: success }))
-      .catch((error: unknown) => setNotice({ tone: "danger", text: errorMessage(error) }))
-      .finally(() => setBusy(false));
-  }
 
   return (
     <>
@@ -64,11 +56,7 @@ function RecurringDetailPage() {
           {recurring.lastError}
         </div>
       )}
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-          {notice.text}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
       <div className="editor-grid">
         <RecurringForm
           key={String(recurring.updatedAt)}

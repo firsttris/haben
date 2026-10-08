@@ -33,7 +33,8 @@ export function dunningPdfData(doc: DunningDocument) {
   if (buyer.kundennummer) meta.push({ label: "Kundennummer", value: buyer.kundennummer });
 
   const rows = [{ label: "Offener Rechnungsbetrag", value: formatEuro(amounts.open) }];
-  if (amounts.fee) rows.push({ label: "Mahngebühr", value: formatEuro(amounts.fee) });
+  // Mit Pauschale ist amounts.fee nur der Teil der Mahngebühr, der die Pauschale übersteigt (§ 288 Abs. 5 Satz 3 BGB)
+  if (amounts.fee) rows.push({ label: amounts.flatFee ? "Mahngebühr, soweit über der Pauschale" : "Mahngebühr", value: formatEuro(amounts.fee) });
   if (amounts.flatFee) rows.push({ label: "Verzugspauschale (§ 288 Abs. 5 BGB)", value: formatEuro(amounts.flatFee) });
   if (amounts.interest) {
     rows.push({

@@ -15,6 +15,8 @@ export const Route = createFileRoute("/_app/")({
 });
 
 interface Todo {
+  /** Nur bei Einträgen aus Listen nötig; sonst ist der Titel eindeutig */
+  id?: string;
   title: string;
   detail: string;
   action: string;
@@ -72,6 +74,7 @@ function OverviewPage() {
   for (const appeal of data.appeals) {
     const days = daysUntil(appeal.fristende);
     todos.push({
+      id: `bescheid-${appeal.id}`,
       title: `Bescheid ${appeal.veranlagungszeitraum ? `${appeal.veranlagungszeitraum} ` : ""}prüfen`,
       detail: `${BESCHEID_LABEL[appeal.datenart] ?? "Bescheid"} · Einspruch bis ${formatDate(appeal.fristende)}`,
       action: "Ansehen",
@@ -81,6 +84,7 @@ function OverviewPage() {
   }
   for (const afa of data.afaPending) {
     todos.push({
+      id: `afa-${afa.year}`,
       title: `AfA ${afa.year} buchen`,
       detail: `${afa.count} ${afa.count === 1 ? "Anlage" : "Anlagen"} im Anlagenverzeichnis`,
       action: "Öffnen",
@@ -194,7 +198,7 @@ function OverviewPage() {
               <p className="muted">Alles erledigt.</p>
             ) : (
               todos.map((todo) => (
-                <Link key={todo.title} to={todo.to} params={{ zeitraum: key }} className="todo">
+                <Link key={todo.id ?? todo.title} to={todo.to} params={{ zeitraum: key }} className="todo">
                   <span className="todo-dot" style={{ background: DOT[todo.tone] }} />
                   <span className="todo-body">
                     <span className="todo-title">{todo.title}</span>

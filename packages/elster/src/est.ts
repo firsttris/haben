@@ -1,5 +1,5 @@
-import type { Cents } from "@haben/core";
-import { isValidIdnr } from "./bankverbindung.ts";
+import { roundHalfAwayFromZero, type Cents } from "@haben/core";
+import { germanDate, isValidIdnr } from "./bankverbindung.ts";
 import { checkEnvelope, envelope, render, vorsatz, type Envelope, type ErklaerungAbsender, type XmlNode } from "./erklaerung.ts";
 import { splitStrasse } from "./nachricht.ts";
 import { elsterDecimal } from "./xml.ts";
@@ -143,11 +143,10 @@ export interface EstXmlInput extends Omit<Envelope, "datenArt" | "absender"> {
 /** Ganze Euro, kaufmännisch gerundet; leer bei 0 (das Feld entfällt dann) */
 const euro = (cents: Cents | undefined): string | undefined => {
   if (!cents) return undefined;
-  const value = Math.round(cents / 100);
+  const value = roundHalfAwayFromZero(cents / 100);
   return value === 0 ? undefined : String(value);
 };
 const mitCent = (cents: Cents | undefined) => (cents ? elsterDecimal(cents) : undefined);
-const germanDate = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 const isIsoDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 /** Zeitraum TT.MM-TT.MM im Jahr: ab Geburt, wenn das Kind im Jahr geboren ist */
@@ -399,7 +398,7 @@ export function buildEstXml(input: EstXmlInput): string {
   });
 
   const gewinn = input.gewinn;
-  const gewinnEuro = gewinn ? String(Math.round(gewinn.betrag / 100)) : undefined;
+  const gewinnEuro = gewinn ? String(roundHalfAwayFromZero(gewinn.betrag / 100)) : undefined;
   const anlageG: XmlNode | null =
     gewinn?.einkunftsart === "gewerbe"
       ? [

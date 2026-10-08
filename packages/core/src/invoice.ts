@@ -1,10 +1,13 @@
 import { z } from "zod/mini";
-import { taxOf, type BasisPoints, type Cents } from "./money.ts";
+import { roundHalfAwayFromZero, taxOf, type BasisPoints, type Cents } from "./money.ts";
 
 /** Mengen als ganze Tausendstel: 152 Std. = 152000, 0,5 Tage = 500. */
 export type Millis = number;
 
 export const TAX_RATES = [1900, 700, 0] as const;
+
+/** Unterstützte Steuersätze in Basispunkten */
+export type TaxRate = (typeof TAX_RATES)[number];
 
 export const UNITS = {
   "Std.": "HUR",
@@ -22,7 +25,7 @@ export const invoiceLineInputSchema = z.object({
   quantity: z.int().check(z.minimum(1), z.maximum(1_000_000_000)),
   unit: z.enum(Object.keys(UNITS) as [UnitLabel, ...UnitLabel[]]),
   unitPrice: z.int().check(z.minimum(-100_000_000_00), z.maximum(100_000_000_00)),
-  taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
+  taxRate: z.literal(TAX_RATES),
 });
 
 export type InvoiceLineInput = z.infer<typeof invoiceLineInputSchema>;
@@ -43,8 +46,7 @@ export interface InvoiceTotals {
 
 /** Zeilennetto: Menge × Einzelpreis, kaufmännisch gerundet. */
 export function lineNet(quantity: Millis, unitPrice: Cents): Cents {
-  const raw = (quantity * unitPrice) / 1000;
-  return Math.sign(raw) * Math.round(Math.abs(raw));
+  return roundHalfAwayFromZero((quantity * unitPrice) / 1000);
 }
 
 /**
@@ -64,11 +66,11 @@ export function computeInvoiceTotals(lines: Pick<InvoiceLineInput, "quantity" | 
   return { net, tax, gross: net + tax, taxes };
 }
 
-/** "152" → 152000, "0,5" → 500; null, wenn keine Menge */
+/** "152" → 152000, "0,5" → 500, "1.500" → 1500000; null, wenn keine Menge ("1.5" ist mehrdeutig) */
 export function parseQuantity(input: string): Millis | null {
-  const cleaned = input.trim().replace(/\./g, "");
-  if (!/^\d+(,\d{1,3})?$/.test(cleaned)) return null;
-  const [whole = "0", fraction = ""] = cleaned.split(",");
+  const cleaned = input.trim();
+  if (!/^(\d{1,3}(\.\d{3})+|\d+)(,\d{1,3})?$/.test(cleaned)) return null;
+  const [whole = "0", fraction = ""] = cleaned.replace(/\./g, "").split(",");
   return Number(whole) * 1000 + Number(fraction.padEnd(3, "0"));
 }
 
@@ -80,13 +82,6 @@ export function formatQuantity(quantity: Millis): string {
 
 export function formatRate(rate: BasisPoints): string {
   return `${rate / 100} %`;
-}
-
-/** Fälligkeit = Rechnungsdatum + Zahlungsziel (ISO-Daten) */
-export function addDays(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
 }
 
 /** Rechnungsnummer aus Jahr und laufender Nummer: 2026, 34 → "2026-034" */

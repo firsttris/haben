@@ -96,6 +96,41 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
     await expect(vat.saveDraft(actor, period, { kz81: 1, kz86: 0, kz66: 0 })).rejects.toThrow(/berichtigte/);
   });
 
+  it("gleichzeitige Echtübermittlungen senden nur einmal", async () => {
+    const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 0 });
+    let sends = 0;
+    const fake = new FakeElsterClient();
+    const counting: ElsterClient = {
+      ...liveClient(),
+      send: async (...args) => {
+        sends++;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return fake.send(...args);
+      },
+    };
+    const options = { kind: "send" as const, pin: "1234", herstellerId: "12345" };
+    const results = await Promise.allSettled([vat.submitReturn(actor, draft.id, counting, options), vat.submitReturn(actor, draft.id, counting, options)]);
+    expect(sends).toBe(1);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(String((results.find((r) => r.status === "rejected") as PromiseRejectedResult).reason)).toMatch(/bereits gesendet/);
+  });
+
+  it("scheitert das Protokoll nach der Echtübermittlung, bleibt der Nachweis im Log", async () => {
+    const errors: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => void errors.push(args);
+    try {
+      await expect(
+        vat.protocolSubmission("send", { ok: true, code: 0, message: "ok", transferTicket: "tt-1", responseXml: "", serverResponseXml: "" }, "<xml/>", async () => {
+          throw new Error("DB weg");
+        }),
+      ).rejects.toThrow(/Transferticket tt-1.*nicht erneut senden/);
+    } finally {
+      console.error = original;
+    }
+    expect(errors[0]?.[1]).toEqual({ transferTicket: "tt-1", requestXml: "<xml/>" });
+  });
+
   it("berichtigte Anmeldung übernimmt die Werte und trägt Kz 10", async () => {
     const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 500 });
     await vat.submitReturn(actor, draft.id, liveClient(), { kind: "send", pin: "1", herstellerId: "12345" });

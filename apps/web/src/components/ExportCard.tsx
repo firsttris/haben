@@ -1,26 +1,8 @@
-import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
-import { getExportYears } from "../server/functions/export.ts";
+import { useState } from "react";
 
-/** Jahresarchiv als ZIP herunterladen (Einstellungen) */
-export function ExportCard() {
-  const current = new Date().getFullYear();
-  const loadYears = useServerFn(getExportYears);
-  const [years, setYears] = useState<number[]>([current, current - 1]);
-  const [year, setYear] = useState(current);
-
-  useEffect(() => {
-    let active = true;
-    loadYears().then(
-      (list) => {
-        if (active && list.length > 0) setYears(list);
-      },
-      () => {},
-    );
-    return () => {
-      active = false;
-    };
-  }, [loadYears]);
+/** Jahresarchiv als ZIP herunterladen (Einstellungen); `years` kommt aus dem Loader */
+export function ExportCard({ years }: { years: number[] }) {
+  const [year, setYear] = useState(() => new Date().getFullYear());
 
   return (
     <section className="card" aria-labelledby="export-heading">

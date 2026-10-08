@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   addDays,
   computeInvoiceTotals,
@@ -7,7 +8,7 @@ import {
 } from "@haben/core";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { createHash } from "node:crypto";
-import { loadCompany } from "./company.ts";
+import { loadCompany, type Company } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 import type { LegacyCategoryRow } from "./db/schema.ts";
@@ -15,7 +16,7 @@ import { buyerFrom, sellerFrom } from "./invoices.ts";
 import { loadFile } from "./storage.ts";
 import { today } from "./today.ts";
 
-export class TakeoverError extends Error {}
+export class TakeoverError extends UserError {}
 
 type LegacyVoucher = typeof schema.lexofficeVouchers.$inferSelect;
 
@@ -48,14 +49,12 @@ function openAmount(voucher: Pick<LegacyVoucher, "payment" | "status" | "gross">
 
 function blockerFor(voucher: LegacyVoucher, hasPdf: boolean): string | null {
   if (voucher.currency !== "EUR") return "Fremdwährung";
-  if (open(voucher) !== Math.abs(voucher.gross)) return "teilweise bezahlt – Restbetrag erst in Lexoffice ausgleichen oder ohne Rechnung buchen";
+  if (openAmount(voucher) !== Math.abs(voucher.gross)) return "teilweise bezahlt – Restbetrag erst in Lexoffice ausgleichen oder ohne Rechnung buchen";
   if (voucher.taxes.some((t) => ![1900, 700, 0].includes(t.rate))) return "Steuersatz, den Haben nicht kennt";
   if (voucher.gross <= 0) return "Betrag nicht positiv";
   if (!hasPdf) return "keine Datei aus Lexoffice";
   return null;
 }
-
-const open = openAmount;
 
 /** Offene Rechnungen und Eingangsbelege aus Lexoffice, die in Haben noch bezahlt werden */
 export async function openLegacyItems(): Promise<OpenLegacyItem[]> {
@@ -64,7 +63,7 @@ export async function openLegacyItems(): Promise<OpenLegacyItem[]> {
     .from(schema.lexofficeVouchers)
     .where(inArray(schema.lexofficeVouchers.type, [...SALES, ...PURCHASES]))
     .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number);
-  const candidates = vouchers.filter((v) => open(v) > 0);
+  const candidates = vouchers.filter((v) => openAmount(v) > 0);
   if (candidates.length === 0) return [];
   const ids = candidates.map((v) => v.id);
   const [files, invoices, documents] = await Promise.all([
@@ -96,7 +95,7 @@ export async function openLegacyItems(): Promise<OpenLegacyItem[]> {
       dueDate: v.dueDate,
       contactName: v.contactName,
       gross: v.gross,
-      open: open(v),
+      open: openAmount(v),
       takenOver: invoiceId ? { kind: "invoice", id: invoiceId } : documentId ? { kind: "document", id: documentId } : null,
       blocker: blockerFor(v, withFile.has(v.id)),
     };
@@ -125,14 +124,17 @@ const CATEGORY_HINTS: [RegExp, ExpenseCategory][] = [
   [/beitr/i, "beitraege"],
 ];
 
-export function categoryFor(categories: LegacyCategoryRow[]): ExpenseCategory {
+function categoryFor(categories: LegacyCategoryRow[]): ExpenseCategory {
   const names = categories.map((c) => c.name).join(" ");
   return CATEGORY_HINTS.find(([pattern]) => pattern.test(names))?.[1] ?? "sonstiges";
 }
 
-async function journal(tx: Tx, entry: { date: string; description: string; sourceType: "invoice" | "document"; sourceId: string }, lines: ReturnType<typeof openingDocumentPosting>) {
-  const company = await loadCompany();
-  const [row] = await tx.insert(schema.journalEntries).values({ ...entry, kontenrahmen: company.kontenrahmen }).returning();
+async function journal(
+  tx: Tx,
+  entry: { date: string; description: string; sourceType: "invoice" | "document"; sourceId: string; kontenrahmen: Company["kontenrahmen"] },
+  lines: ReturnType<typeof openingDocumentPosting>,
+) {
+  const [row] = await tx.insert(schema.journalEntries).values(entry).returning();
   await tx.insert(schema.journalLines).values(lines.map((line) => ({ entryId: row!.id, ...line })));
   await tx.update(schema.journalEntries).set({ lockedAt: new Date() }).where(eq(schema.journalEntries.id, row!.id));
 }
@@ -148,8 +150,12 @@ export async function takeOverLegacyItem(actor: string, voucherId: string): Prom
   if (!item) throw new TakeoverError("Dieser Beleg ist in Lexoffice nicht offen.");
   if (item.takenOver) throw new TakeoverError("Schon übernommen.");
   if (item.blocker) throw new TakeoverError(`Nicht übernehmbar: ${item.blocker}.`);
-  const [voucher] = await db.select().from(schema.lexofficeVouchers).where(eq(schema.lexofficeVouchers.id, voucherId));
-  const files = await db.select().from(schema.lexofficeVoucherFiles).where(eq(schema.lexofficeVoucherFiles.voucherId, voucherId));
+  return takeOver(actor, item);
+}
+
+async function takeOver(actor: string, item: OpenLegacyItem): Promise<{ kind: "invoice" | "document"; id: string }> {
+  const [voucher] = await db.select().from(schema.lexofficeVouchers).where(eq(schema.lexofficeVouchers.id, item.id));
+  const files = await db.select().from(schema.lexofficeVoucherFiles).where(eq(schema.lexofficeVoucherFiles.voucherId, item.id));
   return item.direction === "einnahme" ? takeOverInvoice(actor, voucher!, files) : takeOverDocument(actor, voucher!, files);
 }
 
@@ -243,7 +249,13 @@ async function takeOverInvoice(
       .where(eq(schema.invoices.id, id));
     await journal(
       tx,
-      { date: today(), description: `Offene Rechnung ${voucher.number} aus Lexoffice · ${contact!.name}`, sourceType: "invoice", sourceId: id },
+      {
+        date: today(),
+        description: `Offene Rechnung ${voucher.number} aus Lexoffice · ${contact!.name}`,
+        sourceType: "invoice",
+        sourceId: id,
+        kontenrahmen: company.kontenrahmen,
+      },
       openingInvoicePosting(totals, company.kontenrahmen, company.versteuerung),
     );
     return { kind: "invoice" as const, id };
@@ -287,7 +299,13 @@ async function takeOverDocument(
     await tx.insert(schema.documentAmounts).values(voucher.taxes.map((t) => ({ documentId: id, taxRate: t.rate, net: t.net, tax: t.tax })));
     await journal(
       tx,
-      { date: today(), description: `Offener Beleg ${voucher.number || file.filename} aus Lexoffice · ${voucher.contactName}`, sourceType: "document", sourceId: id },
+      {
+        date: today(),
+        description: `Offener Beleg ${voucher.number || file.filename} aus Lexoffice · ${voucher.contactName}`,
+        sourceType: "document",
+        sourceId: id,
+        kontenrahmen: company.kontenrahmen,
+      },
       openingDocumentPosting(voucher.gross, company.kontenrahmen),
     );
     await tx.update(schema.documents).set({ status: "gebucht", lockedAt: now, updatedAt: now }).where(eq(schema.documents.id, id));
@@ -301,7 +319,7 @@ export async function takeOverAll(actor: string) {
   const results: { number: string; error?: string }[] = [];
   for (const item of items) {
     try {
-      await takeOverLegacyItem(actor, item.id);
+      await takeOver(actor, item);
       results.push({ number: item.number });
     } catch (error) {
       if (!(error instanceof TakeoverError)) throw error;

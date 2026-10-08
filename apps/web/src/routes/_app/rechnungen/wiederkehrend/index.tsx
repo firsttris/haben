@@ -1,8 +1,9 @@
 import { RECURRING_INTERVALS, formatEuro, lineNet, type RecurringInterval } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
-import { errorMessage, formatDate } from "../../../../lib/format.ts";
+import { formatDate } from "../../../../lib/format.ts";
+import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../../lib/use-action.ts";
 import { getRecurringList, runRecurringNow } from "../../../../server/functions/recurring.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/wiederkehrend/")({
@@ -14,23 +15,17 @@ export const Route = createFileRoute("/_app/rechnungen/wiederkehrend/")({
 function RecurringPage() {
   const { items, today } = Route.useLoaderData();
   const router = useRouter();
-  const run = useServerFn(runRecurringNow);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
+  const runNow = useServerFn(runRecurringNow);
+  const { busy, notice, setNotice, run } = useAction();
   const due = items.filter(({ recurring }) => recurring.active && recurring.nextDate <= today).length;
 
-  const onRun = () => {
-    setBusy(true);
-    setNotice(null);
-    run()
-      .then(async (result) => {
-        await router.invalidate();
-        const text = `${result.created} ${result.created === 1 ? "Rechnung" : "Rechnungen"} angelegt, ${result.finalized} festgeschrieben.`;
-        setNotice(result.errors.length ? { tone: "danger", text: `${text} ${result.errors.join(" ")}` } : { tone: "ok", text });
-      })
-      .catch((error: unknown) => setNotice({ tone: "danger", text: errorMessage(error) }))
-      .finally(() => setBusy(false));
-  };
+  const onRun = () =>
+    run(async () => {
+      const result = await runNow();
+      await router.invalidate();
+      const text = `${result.created} ${result.created === 1 ? "Rechnung" : "Rechnungen"} angelegt, ${result.finalized} festgeschrieben.`;
+      setNotice(result.errors.length ? { tone: "danger", text: `${text} ${result.errors.join(" ")}` } : { tone: "ok", text });
+    });
 
   return (
     <>
@@ -52,11 +47,7 @@ function RecurringPage() {
           </Link>
         </div>
       </div>
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-          {notice.text}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
       <section className="card" aria-label="Vorlagen">
         {items.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>

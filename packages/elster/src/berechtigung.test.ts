@@ -38,6 +38,8 @@ describe("Berechtigungsmanagement-XML", () => {
     expect(xml).not.toContain("DatenabruferMail");
     expect(() => buildSpezRechtAntragXml({ ...antrag, test: false })).toThrow(/IdNr/);
     expect(() => buildSpezRechtAntragXml({ ...antrag, gueltigBis: "31.12.2028" })).toThrow(/Gültig/);
+    expect(() => buildSpezRechtAntragXml({ ...antrag, jahre: [2025, 25] })).toThrow(/Ungültiges Jahr: 25/);
+    expect(() => buildSpezRechtAntragXml({ ...antrag, jahre: [2024.5] })).toThrow(/Ungültiges Jahr/);
   });
 
   it("schaltet frei, widerruft und listet", () => {

@@ -1,5 +1,4 @@
 import type { Cents } from "./money.ts";
-import type { Kontenrahmen } from "./posting.ts";
 
 /** Mahnstufen; nach der letzten Mahnung bleibt nur Inkasso oder Mahnbescheid */
 export const DUNNING_LEVELS = {
@@ -45,7 +44,10 @@ export function daysOverdue(dueDate: string, until: string): number {
   return Math.max(0, dayIndex(until) - dayIndex(dueDate));
 }
 
-/** Verzugszinsen auf den offenen Betrag, taggenau mit 365 Tagen je Jahr, kaufmännisch gerundet */
+/**
+ * Verzugszinsen auf den offenen Betrag, taggenau, kaufmännisch gerundet. Bewusst vereinfacht mit 365 Tagen
+ * je Jahr, auch im Schaltjahr (dort wären es 366); der Unterschied liegt bei rund 0,3 % der Zinsen.
+ */
 export function lateInterest(open: Cents, rateBasisPoints: number, days: number): Cents {
   if (open <= 0 || rateBasisPoints <= 0 || days <= 0) return 0;
   return Math.round((open * rateBasisPoints * days) / (10_000 * 365));
@@ -53,6 +55,7 @@ export function lateInterest(open: Cents, rateBasisPoints: number, days: number)
 
 export interface DunningAmounts {
   open: Cents;
+  /** Mahngebühr, soweit sie die Pauschale übersteigt (sie wird auf die Pauschale angerechnet) */
   fee: Cents;
   flatFee: Cents;
   interest: Cents;
@@ -72,23 +75,17 @@ export function dunningAmounts(input: {
 }): DunningAmounts {
   const interestDays = input.interestRate === null ? 0 : daysOverdue(input.dueDate, input.date);
   const interest = input.interestRate === null ? 0 : lateInterest(input.open, input.interestRate, interestDays);
+  // Die Pauschale ist auf Kosten der Rechtsverfolgung anzurechnen (§ 288 Abs. 5 Satz 3 BGB):
+  // gefordert wird höchstens der größere der beiden Beträge, nicht ihre Summe.
   const flatFee = input.flatFee ? LATE_PAYMENT_FLAT_FEE : 0;
+  const fee = Math.max(0, input.fee - flatFee);
   return {
     open: input.open,
-    fee: input.fee,
+    fee,
     flatFee,
     interest,
     interestRate: input.interestRate ?? 0,
     interestDays,
-    total: input.open + input.fee + flatFee + interest,
+    total: input.open + fee + flatFee + interest,
   };
 }
-
-/**
- * Konto für bezahlte Mahngebühren, Pauschalen und Verzugszinsen. Kein Entgelt für eine Leistung,
- * deshalb ohne Umsatzsteuer. Vor dem Echtbetrieb mit dem Steuerberater abgleichen.
- */
-export const DUNNING_INCOME_ACCOUNTS: Record<Kontenrahmen, { account: string; name: string }> = {
-  SKR03: { account: "2650", name: "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)" },
-  SKR04: { account: "7100", name: "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)" },
-};

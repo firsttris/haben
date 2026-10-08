@@ -10,6 +10,7 @@ import {
 import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "./assets.ts";
 import { db, schema } from "./db/index.ts";
+import { today as todayInGermany } from "./today.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
 
@@ -241,7 +242,7 @@ export async function openPositions(today: string) {
   const documentPaid = await paidSums(schema.allocations.documentId, documents.map((d) => d.id));
   const payables: OpenPosition[] = documents
     .map((d) => {
-      const date = d.documentDate ?? d.uploadedAt.toISOString().slice(0, 10);
+      const date = d.documentDate ?? todayInGermany(d.uploadedAt);
       const dueDate = d.dueDate ?? date;
       // Zuordnungen tragen das Vorzeichen des Kontos (Ausgang negativ)
       return {
@@ -271,8 +272,6 @@ export async function openPositions(today: string) {
     payablesOverdue: total(overdue(payables)),
   };
 }
-
-export type OpenPositions = Awaited<ReturnType<typeof openPositions>>;
 
 /** Jahre mit Bankumsätzen, Rechnungen oder Belegen, für die Jahresauswahl */
 export async function reportYears(): Promise<number[]> {

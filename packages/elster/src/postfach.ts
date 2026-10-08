@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
-import { escapeXml, PRODUKT_NAME, TESTMERKER } from "./xml.ts";
+import { elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
+import { findDeep, int, text } from "./xml-lesen.ts";
 
 /**
  * Datenabholung aus dem ELSTER-Postfach (Verfahren ElsterDatenabholung, Version 31): Bescheide und
@@ -21,17 +22,6 @@ export const POSTFACH_DATENARTEN = [
   "DivaBescheidFEIN",
   "DivaSonstigerVA",
 ] as const;
-
-export const POSTFACH_DATENART_LABEL: Record<string, string> = {
-  ESB: "Steuerbescheid (Daten)",
-  EPMitteilung: "Mitteilung",
-  DivaBescheidESt: "Einkommensteuerbescheid",
-  DivaBescheidUSt: "Umsatzsteuerbescheid",
-  DivaBescheidGewSt: "Gewerbesteuer-Messbescheid",
-  DivaBescheidKSt: "Körperschaftsteuerbescheid",
-  DivaBescheidFEIN: "Feststellungsbescheid",
-  DivaSonstigerVA: "Sonstiger Verwaltungsakt",
-};
 
 export interface PostfachAnhang {
   dateibezeichnung: string;
@@ -59,42 +49,17 @@ export interface PostfachXmlInput {
 }
 
 function datenabholungXml(datenArt: "PostfachAnfrage" | "PostfachBestaetigung", body: string[], input: PostfachXmlInput): string {
-  const e = escapeXml;
-  return [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<Elster xmlns="http://www.elster.de/elsterxml/schema/v11">`,
-    `<TransferHeader version="11">`,
-    `<Verfahren>ElsterDatenabholung</Verfahren>`,
-    `<DatenArt>${datenArt}</DatenArt>`,
-    `<Vorgang>send-Auth</Vorgang>`,
-    ...(input.test ? [`<Testmerker>${TESTMERKER}</Testmerker>`] : []),
-    `<HerstellerID>${e(input.herstellerId)}</HerstellerID>`,
-    `<DatenLieferant>${e(input.datenlieferant)}</DatenLieferant>`,
-    `<Datei>`,
-    `<Verschluesselung>CMSEncryptedData</Verschluesselung>`,
-    `<Kompression>GZIP</Kompression>`,
-    `<TransportSchluessel></TransportSchluessel>`,
-    `</Datei>`,
-    `</TransferHeader>`,
-    `<DatenTeil>`,
-    `<Nutzdatenblock>`,
-    `<NutzdatenHeader version="11">`,
-    `<NutzdatenTicket>1</NutzdatenTicket>`,
-    `<Empfaenger id="L">CS</Empfaenger>`,
-    `<Hersteller>`,
-    `<ProduktName>${PRODUKT_NAME}</ProduktName>`,
-    `<ProduktVersion>${e(input.produktVersion)}</ProduktVersion>`,
-    `</Hersteller>`,
-    `</NutzdatenHeader>`,
-    `<Nutzdaten>`,
-    `<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="31">`,
-    ...body,
-    `</Datenabholung>`,
-    `</Nutzdaten>`,
-    `</Nutzdatenblock>`,
-    `</DatenTeil>`,
-    `</Elster>`,
-  ].join("\n");
+  return elsterXml(
+    { verfahren: "ElsterDatenabholung", datenArt, testmerker: input.test ? TESTMERKER : undefined, herstellerId: input.herstellerId, datenlieferant: input.datenlieferant },
+    [
+      {
+        ticket: "1",
+        empfaenger: { id: "L", wert: "CS" },
+        produktVersion: input.produktVersion,
+        nutzdaten: [`<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="31">`, ...body, `</Datenabholung>`],
+      },
+    ],
+  );
 }
 
 export function buildPostfachAnfrageXml(input: PostfachXmlInput): string {
@@ -124,8 +89,6 @@ export function buildPostfachBestaetigungXml(ids: readonly string[], input: Post
   );
 }
 
-type Node = Record<string, unknown>;
-
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@",
@@ -135,33 +98,6 @@ const parser = new XMLParser({
   isArray: (name) => ["DatenartBereitstellung", "Bereitstellung", "Meta", "Anhang"].includes(name),
 });
 
-const asNodes = (value: unknown): Node[] =>
-  (Array.isArray(value) ? value : value === undefined ? [] : [value]).filter((v): v is Node => typeof v === "object" && v !== null);
-
-/** Alle Elemente mit diesem Namen, egal wie tief */
-function findDeep(node: unknown, name: string, out: Node[] = []): Node[] {
-  if (Array.isArray(node)) {
-    for (const item of node) findDeep(item, name, out);
-  } else if (typeof node === "object" && node !== null) {
-    for (const [key, value] of Object.entries(node)) {
-      if (key === name) out.push(...asNodes(value));
-      else if (!key.startsWith("@")) findDeep(value, name, out);
-    }
-  }
-  return out;
-}
-
-const text = (value: unknown): string => {
-  if (typeof value === "string" || typeof value === "number") return String(value).trim();
-  if (typeof value === "object" && value !== null && "#text" in value) return String((value as Node)["#text"]).trim();
-  return "";
-};
-
-const int = (value: unknown) => {
-  const n = Number.parseInt(text(value), 10);
-  return Number.isFinite(n) ? n : 0;
-};
-
 /** Liest die Bereitstellungen aus der Serverantwort auf eine PostfachAnfrage */
 export function parsePostfachAntwort(serverResponseXml: string): PostfachBereitstellung[] {
   if (!serverResponseXml.trim()) return [];
@@ -169,7 +105,6 @@ export function parsePostfachAntwort(serverResponseXml: string): PostfachBereits
   const result: PostfachBereitstellung[] = [];
   for (const dab of findDeep(doc, "DatenartBereitstellung")) {
     const datenart = text(dab["@name"]);
-    if (int(dab["@anzahltreffer"]) === 0) continue;
     for (const bs of findDeep(dab, "Bereitstellung")) {
       const id = text(bs["@id"]);
       if (!id) continue;

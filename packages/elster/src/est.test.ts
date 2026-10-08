@@ -74,6 +74,11 @@ describe("buildEstXml", () => {
     expect(xml).toContain("<E0800302>-1000</E0800302>");
   });
 
+  it("rundet negative Beträge kaufmännisch (symmetrisch zur Null)", () => {
+    const xml = buildEstXml(estInput({ gewinn: { einkunftsart: "gewerbe", taetigkeit: "Handel", betrag: -100_050 } }));
+    expect(xml).toContain("<E0800302>-1001</E0800302>");
+  });
+
   it("baut Anlage N je Person mit Lohnsteuerbescheinigungen, Werbungskosten und Vorsorge aus der Bescheinigung", () => {
     const base = estInput();
     const xml = buildEstXml({

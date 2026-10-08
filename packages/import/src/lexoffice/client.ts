@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
 import {
   lexContactSchema,
   lexDocumentFileSchema,
@@ -29,9 +30,6 @@ const VOUCHERLIST_PAGE_SIZE = 250;
 const CONTACTS_PAGE_SIZE = 100;
 /** Schutz gegen eine Endlosschleife, falls die API nie `last: true` meldet. */
 const MAX_PAGES = 10_000;
-const RETRY_STATUSES = new Set([429, 502, 503, 504]);
-const MAX_BACKOFF_MS = 60_000;
-const MAX_RETRY_AFTER_MS = 300_000;
 const FILE_ACCEPT = "application/pdf, image/*, application/xml, */*";
 
 /** Fehler beim Zugriff auf die Lexware-Office-API (HTTP-Fehler, Netzwerk, unerwartete Antwort). */
@@ -353,10 +351,6 @@ function isAbortError(e: unknown): boolean {
   return e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 }
 
-function backoff(attempt: number): number {
-  return Math.min(1000 * 2 ** attempt, MAX_BACKOFF_MS);
-}
-
 function abortableSleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(signal.reason);
@@ -370,16 +364,6 @@ function abortableSleep(ms: number, signal: AbortSignal | undefined): Promise<vo
     };
     signal?.addEventListener("abort", onAbort, { once: true });
   });
-}
-
-/** Retry-After als Sekunden oder HTTP-Datum → Millisekunden (null, wenn unbrauchbar). */
-export function parseRetryAfter(value: string | null, now: number): number | null {
-  if (!value) return null;
-  const v = value.trim();
-  if (/^\d+(\.\d+)?$/.test(v)) return Math.min(Math.round(Number(v) * 1000), MAX_RETRY_AFTER_MS);
-  const date = Date.parse(v);
-  if (Number.isNaN(date)) return null;
-  return Math.min(Math.max(date - now, 0), MAX_RETRY_AFTER_MS);
 }
 
 function errorMessage(status: number, path: string, body: string): string {

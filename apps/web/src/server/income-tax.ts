@@ -1,4 +1,4 @@
-import type { EstAngaben } from "@haben/elster";
+import { isValidIdnr, type EstAngaben } from "@haben/elster";
 import { kirchensteuerpflichtig, steuerPrognose, type Cents, type Prognose } from "@haben/core";
 import { desc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
@@ -8,7 +8,7 @@ import { db, schema } from "./db/index.ts";
 
 /** Betrag in Cent, nicht negativ */
 const cents = z.number().int().min(0).max(100_000_000_00).optional();
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum im Format JJJJ-MM-TT");
+const isoDate = z.iso.date("Gültiges Datum im Format JJJJ-MM-TT");
 
 const vorsorgePerson = z
   .object({
@@ -73,7 +73,7 @@ export const estAngabenSchema = z.object({
           .string()
           .trim()
           .transform((v) => v.replace(/\s+/g, ""))
-          .refine((v) => v === "" || /^\d{11}$/.test(v), "Die Identifikationsnummer hat 11 Ziffern")
+          .refine((v) => v === "" || isValidIdnr(v), "Die Identifikationsnummer ist ungültig (11 Ziffern mit Prüfziffer)")
           .optional(),
         vorname: z.string().trim().min(1, "Vorname des Kindes fehlt").max(100),
         name: z.string().trim().max(100).optional(),
@@ -107,7 +107,10 @@ export async function loadEstAngaben(year: number): Promise<EstAngaben> {
   const [row] = await db.select({ data: schema.incomeTaxInputs.data }).from(schema.incomeTaxInputs).where(eq(schema.incomeTaxInputs.year, year));
   if (!row) return EMPTY;
   const parsed = estAngabenSchema.safeParse(row.data);
-  return parsed.success ? (parsed.data as EstAngaben) : EMPTY;
+  if (parsed.success) return parsed.data as EstAngaben;
+  // Gespeichert wurde über dasselbe Schema; passt es nach einer Verschärfung nicht mehr, die Angaben nicht verwerfen
+  console.warn(`Angaben zur Einkommensteuer ${year} passen nicht zum Schema:\n${z.prettifyError(parsed.error)}`);
+  return { ...EMPTY, ...(row.data as Partial<EstAngaben>) };
 }
 
 /** Angaben des Jahres, sonst die des Vorjahres als Schätzung (z. B. für die Prognose im laufenden Jahr) */

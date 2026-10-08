@@ -1,14 +1,13 @@
 import { EUER_AUSGABEN, EUER_EINNAHMEN, EUER_FIELDS, type EuerFigures } from "@haben/elster";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { AnnualError, annualOverview, submitAnnual } from "../annual.ts";
+import { annualOverview, submitAnnual } from "../annual.ts";
 import { loadCompany } from "../company.ts";
 import { elsterClient, elsterMode } from "../elster.ts";
 import { env } from "../env.ts";
 import { estAngabenSchema, saveEstAngaben } from "../income-tax.ts";
 import { authMiddleware } from "../middleware.ts";
 import { reportYears } from "../reports.ts";
-import { FinanzamtError } from "../finanzamt.ts";
 import { today } from "../today.ts";
 import { loadActiveCertificate } from "../vat.ts";
 import { fetchVastBelege, lastVastRequest, listVastBelege } from "../vast.ts";
@@ -20,18 +19,12 @@ import {
   requestBerechtigung,
   revokeBerechtigung,
 } from "../berechtigung.ts";
-
-function asUserError(error: unknown): never {
-  if (error instanceof AnnualError) throw new Error(error.message);
-  throw error;
-}
+import { yearSchema } from "./schemas.ts";
 
 /** Zeilen der Anlage EÜR mit Feldkennung und amtlichem Text, nur belegte */
 function euerRows(figures: EuerFigures, keys: readonly (keyof typeof EUER_FIELDS)[]) {
   return keys.filter((key) => (figures[key] ?? 0) !== 0).map((key) => ({ key, ...EUER_FIELDS[key], amount: figures[key]! }));
 }
-
-const yearSchema = z.number().int().min(2000).max(2100);
 
 export const getAnnualReturns = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -88,7 +81,7 @@ export const submitAnnualReturn = createServerFn({ method: "POST" })
       pin: data.pin,
       herstellerId: env().ELSTER_HERSTELLER_ID,
       today: today(),
-    }).catch(asUserError);
+    });
     return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
   });
 
@@ -103,49 +96,26 @@ export const saveIncomeTaxInputs = createServerFn({ method: "POST" })
 export const fetchVast = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ year: yearSchema, person: z.enum(["a", "b"]), kind: z.enum(["test", "send"]), pin: z.string().max(64).optional() }))
-  .handler(async ({ data, context }) => {
-    try {
-      return await fetchVastBelege(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID });
-    } catch (error) {
-      if (error instanceof FinanzamtError) throw new Error(error.message, { cause: error });
-      throw error;
-    }
-  });
+  .handler(({ data, context }) => fetchVastBelege(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID }));
 
 const brmBase = z.object({ kind: z.enum(["test", "send"]), pin: z.string().max(64).optional() });
-
-/** Fehler aus dem Berechtigungsmanagement als Meldung für die Oberfläche */
-async function brm<T>(work: () => Promise<T>): Promise<T> {
-  try {
-    return await work();
-  } catch (error) {
-    if (error instanceof FinanzamtError) throw new Error(error.message, { cause: error });
-    throw error;
-  }
-}
 
 export const requestVastBerechtigung = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(brmBase.extend({ gueltigBis: z.iso.date() }))
-  .handler(({ data, context }) =>
-    brm(() => requestBerechtigung(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID })),
-  );
+  .handler(({ data, context }) => requestBerechtigung(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID }));
 
 export const activateVastBerechtigung = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(brmBase.extend({ freischaltcode: z.string().trim().min(1).max(20) }))
-  .handler(({ data, context }) =>
-    brm(() => activateBerechtigung(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID })),
-  );
+  .handler(({ data, context }) => activateBerechtigung(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID }));
 
 export const revokeVastBerechtigung = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(brmBase)
-  .handler(({ data, context }) => brm(() => revokeBerechtigung(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID })));
+  .handler(({ data, context }) => revokeBerechtigung(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID }));
 
 export const refreshVastBerechtigung = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(brmBase)
-  .handler(({ data, context }) =>
-    brm(() => refreshBerechtigungen(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID })),
-  );
+  .handler(({ data, context }) => refreshBerechtigungen(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID }));

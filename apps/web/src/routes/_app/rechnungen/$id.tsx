@@ -5,7 +5,10 @@ import { useState } from "react";
 import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { SendMailForm } from "../../../components/SendMail.tsx";
-import { errorMessage, formatDate, formatDateTime } from "../../../lib/format.ts";
+import { formatDate, formatDateTime } from "../../../lib/format.ts";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../lib/use-action.ts";
+import { FORMAT_LABEL, KIND_TITLE, invoiceTitle } from "../../../lib/invoice.ts";
 import {
   cancelFinalInvoice,
   correctFinalInvoice,
@@ -22,15 +25,7 @@ export const Route = createFileRoute("/_app/rechnungen/$id")({
 
 type Detail = Awaited<ReturnType<typeof getInvoiceDetail>>;
 
-const KIND_TITLE = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur" } as const;
-const VARIANT_TITLE = { abschlag: "Abschlagsrechnung", schluss: "Schlussrechnung" } as const;
-const titleOf = (invoice: { kind: keyof typeof KIND_TITLE; variant: keyof typeof VARIANT_TITLE | null }) =>
-  invoice.kind === "rechnung" && invoice.variant ? VARIANT_TITLE[invoice.variant] : KIND_TITLE[invoice.kind];
-const FORMAT_LABEL = {
-  zugferd: "ZUGFeRD · EN 16931",
-  "xrechnung-cii": "XRechnung 3.0 (CII)",
-  "xrechnung-ubl": "XRechnung 3.0 (UBL)",
-} as const;
+const titleOf = (invoice: Detail["invoice"]) => invoiceTitle(invoice.kind, invoice.variant);
 
 function InvoicePage() {
   const data = Route.useLoaderData();
@@ -86,9 +81,8 @@ function FinalInvoice({ data }: { data: Detail }) {
   const navigate = useNavigate();
   const cancel = useServerFn(cancelFinalInvoice);
   const correct = useServerFn(correctFinalInvoice);
-  const [busy, setBusy] = useState(false);
+  const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   /** Was gerade per E-Mail versendet wird: die Rechnung oder eine Mahnung */
   const [mailing, setMailing] = useState<{ kind: "rechnung" | "mahnung"; id: string } | null>(null);
   const [mailNotice, setMailNotice] = useState<string | null>(null);
@@ -100,18 +94,6 @@ function FinalInvoice({ data }: { data: Detail }) {
   };
   const cancelled = correctedBy.find((c) => c.kind === "storno" && c.status === "final");
   const canAmend = invoice.kind === "rechnung" && !cancelled;
-
-  async function run(work: () => Promise<void>) {
-    setBusy(true);
-    setError(null);
-    try {
-      await work();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   const onCancel = () => {
     if (!confirming) {
@@ -168,11 +150,7 @@ function FinalInvoice({ data }: { data: Detail }) {
           </span>
         </div>
       )}
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
 
       <div className="grid-main">
         <section aria-label="PDF">

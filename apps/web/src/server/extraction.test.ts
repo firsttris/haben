@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { decimalToCents, toFields, type Extraction } from "./extraction.ts";
+import { describe, expect, it, vi } from "vitest";
+import { decimalToCents, describeExtractionError, toFields, type Extraction } from "./extraction.ts";
 
 const base: Extraction = {
   lieferant: " Hetzner Online GmbH ",
@@ -22,6 +22,21 @@ describe("KI-Auslesung umwandeln", () => {
     expect(decimalToCents("-3")).toBe(-300);
     expect(decimalToCents("12.345")).toBeNull();
     expect(decimalToCents("abc")).toBeNull();
+    // Mehr als 3 Mio. € passt nicht sicher in die Spalten
+    expect(decimalToCents("3000000")).toBe(300_000_000);
+    expect(decimalToCents("3000000.01")).toBeNull();
+  });
+
+  it("verwirft unmögliche Daten und kürzt lange Texte", () => {
+    const fields = toFields({ ...base, belegdatum: "2025-13-45", faelligAm: "2026-02-30", lieferant: "x".repeat(500), rechnungsnummer: "1".repeat(300) });
+    expect(fields).toMatchObject({ documentDate: null, dueDate: null });
+    expect(fields.supplierName).toHaveLength(200);
+    expect(fields.invoiceNumber).toHaveLength(100);
+  });
+
+  it("gibt Datenbankfehler nicht roh an den Beleg weiter", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(describeExtractionError(new Error('Failed query: update "documents" set ...'))).toMatch(/^Die Auslesung ist fehlgeschlagen/);
   });
 
   it("übernimmt Felder und prüft die Summe", () => {

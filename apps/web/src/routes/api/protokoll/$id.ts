@@ -4,6 +4,7 @@ import { z } from "zod";
 import { loadAnnualProtocol } from "../../../server/annual.ts";
 import { auth } from "../../../server/auth.ts";
 import { db, schema } from "../../../server/db/index.ts";
+import { fileResponse } from "../../../server/file-response.ts";
 
 /** Übertragungsprotokoll (PDF) einer Übermittlung: Voranmeldung oder Jahreserklärung */
 export const Route = createFileRoute("/api/protokoll/$id")({
@@ -38,12 +39,4 @@ export const Route = createFileRoute("/api/protokoll/$id")({
   },
 });
 
-function pdfResponse(pdf: Uint8Array, filename: string): Response {
-  return new Response(new Uint8Array(pdf), {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${filename}"`,
-      "Cache-Control": "private, no-store",
-    },
-  });
-}
+const pdfResponse = (pdf: Uint8Array, filename: string) => fileResponse(pdf, { mimeType: "application/pdf", filename }, false);

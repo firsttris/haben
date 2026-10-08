@@ -24,7 +24,6 @@ import {
   saveDraft,
   submissionsFor,
   submitReturn,
-  VatError,
 } from "../vat.ts";
 
 // Negativ möglich, etwa wenn Gutschriften im Monat überwiegen
@@ -50,7 +49,7 @@ export const getVatPeriod = createServerFn({ method: "GET" })
     const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
     return {
       period,
-      dueDate: dueDate(period, company.bundesland).toISOString(),
+      dueDate: dueDate(period, company.bundesland),
       kleinunternehmer: company.kleinunternehmer,
       current,
       returns,
@@ -84,7 +83,7 @@ export const getOverview = createServerFn({ method: "GET" })
       period,
       /** Zahllast aus den Buchungen, solange keine Anmeldung gespeichert ist */
       computedKz83: computed.kz83,
-      dueDate: dueDate(period, company.bundesland).toISOString(),
+      dueDate: dueDate(period, company.bundesland),
       kleinunternehmer: company.kleinunternehmer,
       afaPending: await pendingDepreciation(today()),
       appeals: (await openAppealDeadlines(today())).map((d) => ({
@@ -101,11 +100,6 @@ export const getOverview = createServerFn({ method: "GET" })
       mode: elsterMode(),
     };
   });
-
-function asUserError(error: unknown): never {
-  if (error instanceof VatError) throw new Error(error.message);
-  throw error;
-}
 
 export const saveVatDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -132,7 +126,7 @@ export const saveVatDraft = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { period, ...input } = data;
-    const saved = await saveDraft(context.user.id, period, input).catch(asUserError);
+    const saved = await saveDraft(context.user.id, period, input);
     return { id: saved.id };
   });
 
@@ -140,7 +134,7 @@ export const createVatCorrection = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(vatPeriodSchema)
   .handler(async ({ data, context }) => {
-    const created = await createCorrection(context.user.id, data).catch(asUserError);
+    const created = await createCorrection(context.user.id, data);
     return { id: created.id };
   });
 
@@ -158,7 +152,7 @@ export const submitVatReturn = createServerFn({ method: "POST" })
       kind: data.kind,
       pin: data.pin,
       herstellerId: env().ELSTER_HERSTELLER_ID,
-    }).catch(asUserError);
+    });
     return {
       ok: result.ok,
       code: result.code,

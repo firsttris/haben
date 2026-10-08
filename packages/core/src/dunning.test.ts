@@ -15,16 +15,20 @@ describe("Mahnung", () => {
     expect(lateInterest(1_000_000, 0, 30)).toBe(0);
   });
 
-  it("Gesamtforderung mit Gebühr, Pauschale und Zinsen", () => {
+  it("Gesamtforderung: Gebühr wird auf die Pauschale angerechnet (§ 288 Abs. 5 Satz 3 BGB)", () => {
     expect(dunningAmounts({ open: 119_000, dueDate: "2026-09-01", date: "2026-10-01", fee: 500, flatFee: true, interestRate: 1_027 })).toEqual({
       open: 119_000,
-      fee: 500,
+      fee: 0,
       flatFee: 4_000,
       interest: 1_004,
       interestRate: 1_027,
       interestDays: 30,
-      total: 124_504,
+      total: 124_004,
     });
+    // Übersteigt die Gebühr die Pauschale, wird nur der Mehrbetrag zusätzlich gefordert
+    const hoch = dunningAmounts({ open: 100_000, dueDate: "2026-09-01", date: "2026-10-01", fee: 5_000, flatFee: true, interestRate: null });
+    expect(hoch).toMatchObject({ fee: 1_000, flatFee: 4_000, total: 105_000 });
+    expect(dunningAmounts({ open: 100_000, dueDate: "2026-09-01", date: "2026-10-01", fee: 1_000, flatFee: false, interestRate: null }).total).toBe(101_000);
     expect(dunningAmounts({ open: 119_000, dueDate: "2026-09-01", date: "2026-10-01", fee: 0, flatFee: false, interestRate: null }).total).toBe(119_000);
   });
 

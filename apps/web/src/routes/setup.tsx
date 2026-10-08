@@ -25,14 +25,19 @@ function SetupPage() {
     const form = new FormData(event.currentTarget);
     setBusy(true);
     setError(null);
-    const { error } = await authClient.signUp.email({
-      name: String(form.get("name")),
-      email: String(form.get("email")),
-      password: String(form.get("password")),
-    });
-    setBusy(false);
-    if (error) setError(error.message ?? "Konto konnte nicht angelegt werden.");
-    else await router.invalidate();
+    try {
+      const { error } = await authClient.signUp.email({
+        name: String(form.get("name")),
+        email: String(form.get("email")),
+        password: String(form.get("password")),
+      });
+      if (error) setError(error.message ?? "Konto konnte nicht angelegt werden.");
+      else await router.invalidate();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function addPasskey() {

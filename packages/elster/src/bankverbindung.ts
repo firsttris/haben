@@ -1,5 +1,5 @@
 import { finanzamtsnummer } from "@haben/core";
-import { escapeXml, PRODUKT_NAME, TESTMERKER } from "./xml.ts";
+import { checkSteuernummer13, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
 
 /**
  * Änderung der Bankverbindung beim Finanzamt (Verfahren ElsterNachricht, Datenart AenderungBankverbindung,
@@ -62,7 +62,7 @@ export function germanDate(isoDate: string): string {
 }
 
 export function buildBankverbindungXml(input: BankverbindungXmlInput): string {
-  if (!/^\d{13}$/.test(input.steuernummer13)) throw new Error(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${input.steuernummer13}`);
+  checkSteuernummer13(input.steuernummer13);
   const iban = input.iban.replace(/\s+/g, "").toUpperCase();
   if (!isValidIban(iban)) throw new Error("Die IBAN ist ungültig.");
   const p = input.person;
@@ -70,62 +70,48 @@ export function buildBankverbindungXml(input: BankverbindungXmlInput): string {
   if (!p.vorname.trim() || !p.name.trim()) throw new Error("Vor- und Nachname fehlen.");
   const e = escapeXml;
   const datenlieferant = input.datenlieferant?.trim() || `${p.vorname} ${p.name}`;
-  return [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<Elster xmlns="http://www.elster.de/elsterxml/schema/v11">`,
-    `<TransferHeader version="11">`,
-    `<Verfahren>ElsterNachricht</Verfahren>`,
-    `<DatenArt>AenderungBankverbindung</DatenArt>`,
-    `<Vorgang>send-Auth</Vorgang>`,
-    ...(input.test ? [`<Testmerker>${TESTMERKER}</Testmerker>`] : []),
-    `<Empfaenger id="L"><Ziel>${e(input.bundesland)}</Ziel></Empfaenger>`,
-    `<HerstellerID>${e(input.herstellerId)}</HerstellerID>`,
-    `<DatenLieferant>${e(datenlieferant)}</DatenLieferant>`,
-    `<Datei>`,
-    `<Verschluesselung>CMSEncryptedData</Verschluesselung>`,
-    `<Kompression>GZIP</Kompression>`,
-    `<TransportSchluessel></TransportSchluessel>`,
-    `</Datei>`,
-    `</TransferHeader>`,
-    `<DatenTeil>`,
-    `<Nutzdatenblock>`,
-    `<NutzdatenHeader version="11">`,
-    `<NutzdatenTicket>1</NutzdatenTicket>`,
-    `<Empfaenger id="F">${e(finanzamtsnummer(input.steuernummer13))}</Empfaenger>`,
-    `<Hersteller>`,
-    `<ProduktName>${PRODUKT_NAME}</ProduktName>`,
-    `<ProduktVersion>${e(input.produktVersion)}</ProduktVersion>`,
-    `</Hersteller>`,
-    `</NutzdatenHeader>`,
-    `<Nutzdaten>`,
-    `<AenderungBankverbindung xmlns="http://finkonsens.de/elster/elsternachricht/aenderungbankverbindung/v20" version="20">`,
-    `<Ordnungsbegriff>`,
-    `<Steuernummer>${input.steuernummer13}</Steuernummer>`,
-    `</Ordnungsbegriff>`,
-    `<Persoenliche_Daten>`,
-    `<Person_A>`,
-    `<Identifikationsnummer>${p.idnr}</Identifikationsnummer>`,
-    `<Anrede>${e(p.anrede)}</Anrede>`,
-    `<Vorname>${e(p.vorname.trim())}</Vorname>`,
-    `<Name>${e(p.name.trim())}</Name>`,
-    `<Geburtsdatum>${germanDate(p.geburtsdatum)}</Geburtsdatum>`,
-    `</Person_A>`,
-    `</Persoenliche_Daten>`,
-    `<Aenderung_der_Bankverbindung>`,
-    `<Bankverbindungen>`,
-    `<Bankverbindung>`,
-    `<IBAN>${iban}</IBAN>`,
-    `<Kontoinhaber>Person_A</Kontoinhaber>`,
-    `<Steuerarten>`,
-    `<Steuerart>Alle (übrigen)</Steuerart>`,
-    `</Steuerarten>`,
-    `</Bankverbindung>`,
-    `</Bankverbindungen>`,
-    `</Aenderung_der_Bankverbindung>`,
-    `</AenderungBankverbindung>`,
-    `</Nutzdaten>`,
-    `</Nutzdatenblock>`,
-    `</DatenTeil>`,
-    `</Elster>`,
-  ].join("\n");
+  return elsterXml(
+    {
+      verfahren: "ElsterNachricht",
+      datenArt: "AenderungBankverbindung",
+      testmerker: input.test ? TESTMERKER : undefined,
+      ziel: input.bundesland,
+      herstellerId: input.herstellerId,
+      datenlieferant,
+    },
+    [
+      {
+        ticket: "1",
+        empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) },
+        produktVersion: input.produktVersion,
+        nutzdaten: [
+          `<AenderungBankverbindung xmlns="http://finkonsens.de/elster/elsternachricht/aenderungbankverbindung/v20" version="20">`,
+          `<Ordnungsbegriff>`,
+          `<Steuernummer>${input.steuernummer13}</Steuernummer>`,
+          `</Ordnungsbegriff>`,
+          `<Persoenliche_Daten>`,
+          `<Person_A>`,
+          `<Identifikationsnummer>${p.idnr}</Identifikationsnummer>`,
+          `<Anrede>${e(p.anrede)}</Anrede>`,
+          `<Vorname>${e(p.vorname.trim())}</Vorname>`,
+          `<Name>${e(p.name.trim())}</Name>`,
+          `<Geburtsdatum>${germanDate(p.geburtsdatum)}</Geburtsdatum>`,
+          `</Person_A>`,
+          `</Persoenliche_Daten>`,
+          `<Aenderung_der_Bankverbindung>`,
+          `<Bankverbindungen>`,
+          `<Bankverbindung>`,
+          `<IBAN>${iban}</IBAN>`,
+          `<Kontoinhaber>Person_A</Kontoinhaber>`,
+          `<Steuerarten>`,
+          `<Steuerart>Alle (übrigen)</Steuerart>`,
+          `</Steuerarten>`,
+          `</Bankverbindung>`,
+          `</Bankverbindungen>`,
+          `</Aenderung_der_Bankverbindung>`,
+          `</AenderungBankverbindung>`,
+        ],
+      },
+    ],
+  );
 }

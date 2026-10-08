@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { z } from "zod/mini";
 import { errorMessage, formatDate } from "../../lib/format.ts";
+import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import type { Notice } from "../../lib/use-action.ts";
 import { createCashEntryFn, getCashBook, reverseCashEntryFn } from "../../server/functions/cash.ts";
 
 export const Route = createFileRoute("/_app/kasse")({
@@ -15,7 +17,6 @@ export const Route = createFileRoute("/_app/kasse")({
 });
 
 type Data = Awaited<ReturnType<typeof getCashBook>>;
-type Notice = { tone: "ok" | "danger"; text: string } | null;
 
 const KINDS = Object.keys(CASH_BOOKINGS) as CashBooking[];
 
@@ -76,11 +77,7 @@ function CashPage() {
 
       <div className="stack" style={{ gap: 16 }}>
         <CashForm data={data} onNotice={setNotice} />
-        {notice && (
-          <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-            {notice.text}
-          </div>
-        )}
+        <NoticeBanner notice={notice} />
         <CashList data={data} onNotice={setNotice} />
       </div>
     </>

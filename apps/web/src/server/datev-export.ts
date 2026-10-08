@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { buildDatevBuchungsstapel, type DatevExportEntry } from "@haben/import";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { z } from "zod";
@@ -7,7 +8,7 @@ import { db, schema } from "./db/index.ts";
 
 /** DATEV-Buchungsstapel eines Jahres für die Steuerberatung */
 
-export class DatevExportError extends Error {}
+export class DatevExportError extends UserError {}
 
 export const datevNumbersSchema = z.object({
   beraterNr: z.string().trim().regex(/^\d{4,7}$/, "Die Beraternummer hat 4 bis 7 Ziffern."),
@@ -57,9 +58,12 @@ export async function datevExport(year: number, now = new Date()): Promise<{ byt
     .from(schema.journalEntries)
     .where(and(gte(schema.journalEntries.date, `${year}-01-01`), lte(schema.journalEntries.date, `${year}-12-31`)))
     .orderBy(asc(schema.journalEntries.date), asc(schema.journalEntries.createdAt), asc(schema.journalEntries.id));
-  if (entries.some((e) => e.kontenrahmen !== company.kontenrahmen)) {
-    throw new DatevExportError(`Im Jahr ${year} gibt es Buchungen in einem anderen Kontenrahmen als ${company.kontenrahmen}.`);
+  // Kontenrahmen des Jahres aus den Buchungen: Nach einem Wechsel bleibt das Vorjahr im alten Rahmen exportierbar
+  const rahmen = [...new Set(entries.map((e) => e.kontenrahmen))].sort();
+  if (rahmen.length > 1) {
+    throw new DatevExportError(`Im Jahr ${year} gibt es Buchungen in ${rahmen.join(" und ")}. Ein DATEV-Stapel hat nur einen Kontenrahmen.`);
   }
+  const kontenrahmen = rahmen[0] ?? company.kontenrahmen;
   const lines = entries.length
     ? await db
         .select()
@@ -89,7 +93,7 @@ export async function datevExport(year: number, now = new Date()): Promise<{ byt
       dateFrom: `${year}-01-01`,
       dateTo: `${year}-12-31`,
       description: `Haben ${year}`,
-      kontenrahmen: company.kontenrahmen,
+      kontenrahmen,
       createdAt: now,
     },
     exportEntries,

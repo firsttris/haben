@@ -78,6 +78,10 @@ configs:
           Referrer-Policy same-origin
           X-Frame-Options DENY
         }
+        # Uploads: Archivdateien bis 100 MB, Belege bis 20 MB je Datei; mehrere Dateien gehen in einer Anfrage
+        request_body {
+          max_size 250MB
+        }
         reverse_proxy app:3000
       }
 

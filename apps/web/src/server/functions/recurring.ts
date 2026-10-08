@@ -10,16 +10,11 @@ import {
   invoiceForDate,
   listRecurring,
   recurringInputSchema,
-  RecurringError,
   runDueRecurring,
   updateRecurring,
 } from "../recurring.ts";
 import { today } from "../today.ts";
-
-function asUserError(error: unknown): never {
-  if (error instanceof RecurringError) throw new Error(error.message);
-  throw error;
-}
+import { UserError } from "../errors.ts";
 
 async function formContext() {
   const company = await loadCompany();
@@ -43,7 +38,7 @@ export const getRecurringDetail = createServerFn({ method: "GET" })
   .validator(z.uuid())
   .handler(async ({ data }) => {
     const result = await getRecurring(data);
-    if (!result) throw new Error("Vorlage nicht gefunden.");
+    if (!result) throw new UserError("Vorlage nicht gefunden.");
     // Vorschau der nächsten Rechnung mit ersetzten Platzhaltern
     return { ...result, preview: invoiceForDate(result.recurring, result.recurring.nextDate), ...(await formContext()) };
   });
@@ -53,8 +48,8 @@ export const saveRecurring = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid().nullable(), recurring: recurringInputSchema }))
   .handler(async ({ data, context }) => {
     const saved = data.id
-      ? await updateRecurring(context.user.id, data.id, data.recurring).catch(asUserError)
-      : await createRecurring(context.user.id, data.recurring).catch(asUserError);
+      ? await updateRecurring(context.user.id, data.id, data.recurring)
+      : await createRecurring(context.user.id, data.recurring);
     return { id: saved.id };
   });
 
@@ -62,7 +57,7 @@ export const removeRecurring = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
-    await deleteRecurring(context.user.id, data).catch(asUserError);
+    await deleteRecurring(context.user.id, data);
     return { ok: true };
   });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { abgabefrist, naechsterWerktag, tageBis, vorauszahlungstermine } from "./fristen.ts";
+import { abgabefrist, tageBis, vorauszahlungstermine } from "./fristen.ts";
+import { naechsterWerktag } from "./holidays.ts";
 
 describe("Fristen", () => {
   it("verschiebt auf den nächsten Werktag, Feiertage je Bundesland", () => {

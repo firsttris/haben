@@ -7,13 +7,18 @@ import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
+import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { authClient } from "../../lib/auth-client.ts";
-import { errorMessage, formatDate } from "../../lib/format.ts";
+import { formatDate } from "../../lib/format.ts";
+import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
+import { useAction } from "../../lib/use-action.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
+import { getDatevNumbers } from "../../server/functions/datev-export.ts";
 import { checkElsterFormats, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
+import { getExportYears } from "../../server/functions/export.ts";
 import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
 import { getLogo } from "../../server/functions/logo.ts";
@@ -22,7 +27,7 @@ import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox] = await Promise.all([
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
       getNumbering(),
@@ -30,25 +35,17 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getMailSettings(),
       getLogo(),
       getInbox(),
+      getExportYears(),
+      getDatevNumbers(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox };
+    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
   component: SettingsPage,
 });
 
-type Notice = { tone: "ok" | "danger"; text: string } | null;
-
-function NoticeBanner({ notice }: { notice: Notice }) {
-  if (!notice) return null;
-  return (
-    <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-      {notice.text}
-    </div>
-  );
-}
-
 function SettingsPage() {
+  const { logo, mail, inbox, exportYears, datev } = Route.useLoaderData();
   return (
     <>
       <div className="page-head">
@@ -64,14 +61,14 @@ function SettingsPage() {
         </div>
         <div className="stack">
           <NumberingForm />
-          <LogoCard info={Route.useLoaderData().logo} />
+          <LogoCard info={logo} />
           <CertificateForm />
           <EricCard />
-          <MailCard data={Route.useLoaderData().mail} />
-          <InboxCard data={Route.useLoaderData().inbox} />
+          <MailCard data={mail} />
+          <InboxCard data={inbox} />
           <Passkeys />
-          <ExportCard />
-          <DatevCard />
+          <ExportCard years={exportYears} />
+          <DatevCard years={exportYears} numbers={datev} />
         </div>
       </div>
     </>
@@ -82,16 +79,13 @@ function CompanyForm() {
   const { company, issues, locks } = Route.useLoaderData();
   const router = useRouter();
   const save = useServerFn(saveCompany);
-  const [notice, setNotice] = useState<Notice>(null);
-  const [busy, setBusy] = useState(false);
+  const { busy, notice, run } = useAction();
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "");
-    setBusy(true);
-    setNotice(null);
-    try {
+    void run(async () => {
       await save({
         data: {
           name: text("name"),
@@ -132,12 +126,7 @@ function CompanyForm() {
         },
       });
       await router.invalidate();
-      setNotice({ tone: "ok", text: "Firmendaten gespeichert." });
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
+    }, "Firmendaten gespeichert.");
   }
 
   return (
@@ -242,9 +231,11 @@ function CompanyForm() {
         <label className="field">
           Standardformat für Rechnungen
           <select name="defaultFormat" defaultValue={company.defaultFormat}>
-            <option value="zugferd">ZUGFeRD (PDF mit XML)</option>
-            <option value="xrechnung-cii">XRechnung (CII)</option>
-            <option value="xrechnung-ubl">XRechnung (UBL)</option>
+            {FORMATS.map((f) => (
+              <option key={f} value={f}>
+                {FORMAT_LABEL[f]}
+              </option>
+            ))}
           </select>
         </label>
         <label className="field">
@@ -401,10 +392,9 @@ function TaxpayerForm() {
   const router = useRouter();
   const save = useServerFn(saveTaxpayerData);
   const [veranlagung, setVeranlagung] = useState(taxpayer.veranlagung ?? "einzel");
-  const [notice, setNotice] = useState<Notice>(null);
-  const [busy, setBusy] = useState(false);
+  const { busy, notice, run } = useAction();
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "").trim();
@@ -420,9 +410,7 @@ function TaxpayerForm() {
         beruf: text(`${key}-beruf`),
       };
     };
-    setBusy(true);
-    setNotice(null);
-    try {
+    void run(async () => {
       const zusammen = veranlagung === "zusammen";
       await save({
         data: {
@@ -433,12 +421,7 @@ function TaxpayerForm() {
         },
       });
       await router.invalidate();
-      setNotice({ tone: "ok", text: "Persönliche Angaben gespeichert." });
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
+    }, "Persönliche Angaben gespeichert.");
   }
 
   return (
@@ -489,22 +472,7 @@ function CertificateForm() {
   const router = useRouter();
   const upload = useServerFn(uploadCertificate);
   const remove = useServerFn(removeCertificate);
-  const [notice, setNotice] = useState<Notice>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function run(work: () => Promise<unknown>, success: string) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      await work();
-      await router.invalidate();
-      setNotice({ tone: "ok", text: success });
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { busy, notice, run } = useAction();
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -512,6 +480,7 @@ function CertificateForm() {
     void run(async () => {
       await upload({ data: new FormData(form) });
       form.reset();
+      await router.invalidate();
     }, "Zertifikat verschlüsselt gespeichert.");
   }
 
@@ -534,7 +503,12 @@ function CertificateForm() {
             type="button"
             className="btn btn-danger"
             disabled={busy}
-            onClick={() => run(() => remove(), "Zertifikat entfernt.")}
+            onClick={() =>
+              void run(async () => {
+                await remove();
+                await router.invalidate();
+              }, "Zertifikat entfernt.")
+            }
           >
             Entfernen
           </button>
@@ -562,34 +536,41 @@ const ERIC_INFO_URL = "https://www.elster.de/elsterweb/entwickler/infoseite/eric
 
 /** ERiC von download.elster.de laden, mit Fortschritt; läuft im Hintergrund weiter */
 function EricCard() {
-  const { eric } = Route.useLoaderData();
+  const loaded = Route.useLoaderData().eric;
   const router = useRouter();
   const install = useServerFn(installEricLibrary);
+  const getStatus = useServerFn(getEricStatus);
+  // Stand während des Downloads; danach gilt wieder der Loader
+  const [polled, setPolled] = useState<typeof loaded | null>(null);
+  const eric = polled ?? loaded;
   const [version, setVersion] = useState(eric.version ?? eric.defaultVersion);
   const [accepted, setAccepted] = useState(false);
-  const [notice, setNotice] = useState<Notice>(null);
-  const [busy, setBusy] = useState(false);
+  const { busy, notice, run } = useAction();
   const running = eric.install?.status === "laeuft";
 
-  // Während des Downloads alle zwei Sekunden den Stand holen
+  // Während des Downloads alle zwei Sekunden nur den ERiC-Stand holen; am Ende einmal die ganze Seite
   useEffect(() => {
     if (!running) return;
-    const timer = setInterval(() => void router.invalidate(), 2000);
+    const timer = setInterval(() => {
+      getStatus().then(
+        (next) => {
+          if (next.install?.status === "laeuft") return setPolled(next);
+          setPolled(null);
+          void router.invalidate();
+        },
+        // Netzfehler: der nächste Takt fragt erneut
+        () => {},
+      );
+    }, 2000);
     return () => clearInterval(timer);
-  }, [running, router]);
+  }, [running, getStatus, router]);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true);
-    setNotice(null);
-    try {
+    void run(async () => {
       await install({ data: { version: version.trim(), acceptLicense: accepted as true } });
       await router.invalidate();
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   const progress = eric.install?.status === "laeuft" ? eric.install.progress : null;
@@ -671,21 +652,8 @@ function EricCard() {
 /** ERiC prüft Belegabruf, Berechtigung und Postfach gegen seine Schemas, ohne zu senden */
 function FormatCheck({ simuliert }: { simuliert: boolean }) {
   const check = useServerFn(checkElsterFormats);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, notice, run } = useAction();
   const [result, setResult] = useState<Awaited<ReturnType<typeof checkElsterFormats>> | null>(null);
-
-  async function run() {
-    setBusy(true);
-    setError(null);
-    try {
-      setResult(await check());
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   const failed = result?.results.filter((r) => !r.ok).length ?? 0;
   return (
@@ -696,15 +664,11 @@ function FormatCheck({ simuliert }: { simuliert: boolean }) {
         {simuliert ? " Ohne ERiC ist die Prüfung nur simuliert." : ""}
       </p>
       <div className="actions">
-        <button type="button" className="btn" disabled={busy} onClick={() => void run()}>
+        <button type="button" className="btn" disabled={busy} onClick={() => void run(async () => setResult(await check()))}>
           {busy ? "Prüft …" : "Formate mit ERiC prüfen"}
         </button>
       </div>
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
       {result && (
         <>
           <div className={`banner ${failed === 0 ? "banner-ok" : "banner-danger"}`} role="status">
@@ -738,22 +702,15 @@ function FormatCheck({ simuliert }: { simuliert: boolean }) {
 function Passkeys() {
   // aktualisiert sich nach Hinzufügen und Entfernen selbst
   const passkeys = authClient.useListPasskeys().data ?? [];
-  const [notice, setNotice] = useState<Notice>(null);
-  const [busy, setBusy] = useState(false);
+  const action = useAction();
+  const { busy, notice } = action;
 
-  async function run(work: () => Promise<{ error?: { message?: string } | null } | undefined>, success: string) {
-    setBusy(true);
-    setNotice(null);
-    try {
+  // better-auth meldet Fehler im Ergebnis statt per Exception
+  const run = (work: () => Promise<{ error?: { message?: string } | null } | undefined>, success: string) =>
+    action.run(async () => {
       const result = await work();
       if (result?.error) throw new Error(result.error.message ?? "Fehlgeschlagen");
-      setNotice({ tone: "ok", text: success });
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
+    }, success);
 
   return (
     <section className="card" aria-labelledby="passkey-heading">
@@ -799,23 +756,15 @@ function NumberingForm() {
   const { numbering } = Route.useLoaderData();
   const router = useRouter();
   const save = useServerFn(saveNextNumber);
-  const [notice, setNotice] = useState<Notice>(null);
-  const [busy, setBusy] = useState(false);
+  const { busy, notice, run } = useAction();
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const next = Number(new FormData(event.currentTarget).get("next"));
-    setBusy(true);
-    setNotice(null);
-    try {
+    void run(async () => {
       await save({ data: { next } });
       await router.invalidate();
-      setNotice({ tone: "ok", text: "Nummernkreis gespeichert." });
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
+    }, "Nummernkreis gespeichert.");
   }
 
   return (

@@ -10,6 +10,8 @@ Environment=POSTGRES_USER=haben POSTGRES_DB=haben
 Secret=haben-db-password,type=env,target=POSTGRES_PASSWORD
 HealthCmd=pg_isready -U haben
 HealthInterval=10s
+# Gilt erst als gestartet, wenn pg_isready durchgeht; haben-app (After=haben-db.service) wartet darauf. Ab Podman 5.0.
+Notify=healthy
 
 [Service]
 Restart=always

@@ -72,7 +72,7 @@ export function textToHtml(text: string): string {
     .join("\n");
 }
 
-export const recipientsSchema = z
+const recipientsSchema = z
   .string()
   .trim()
   .min(1, "Empfänger fehlt")
@@ -94,7 +94,13 @@ export const recipientsSchema = z
 
 export const outgoingMailSchema = z.object({
   to: recipientsSchema,
-  subject: z.string().trim().min(1, "Betreff fehlt").max(300),
+  // Zeilenumbrüche haben im Betreff nichts zu suchen (Header-Injection), auch nicht aus Vorlagen
+  subject: z
+    .string()
+    .trim()
+    .min(1, "Betreff fehlt")
+    .max(300)
+    .transform((value) => value.replace(/\s*[\r\n]+\s*/g, " ")),
   body: z.string().trim().min(1, "Text fehlt").max(10_000),
   copyToMe: z.boolean().default(false),
 });

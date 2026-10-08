@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   computeUstva,
   toElsterSteuernummer,
@@ -10,7 +11,7 @@ import {
   type ElsterClient,
   type ElsterResult,
 } from "@haben/elster";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { companyIssues, loadCompany } from "./company.ts";
 import { decrypt } from "./crypto.ts";
 import { computeVatFigures } from "./vat-figures.ts";
@@ -21,7 +22,7 @@ export const PRODUKT_VERSION = "0.1.0";
 
 export type VatReturn = typeof schema.vatReturns.$inferSelect;
 
-export class VatError extends Error {}
+export class VatError extends UserError {}
 
 export async function loadActiveCertificate() {
   const [row] = await db
@@ -211,15 +212,40 @@ export interface SubmitOptions {
 }
 
 /**
+ * Echtübermittlung unter Sperre: Ein zweiter Aufruf (Doppelklick) wartet, bis der erste protokolliert ist,
+ * und prüft den Status erst danach. Die Transaktion hält nur die Sperre, gearbeitet wird auf anderen Verbindungen.
+ */
+export function underSendLock<T>(key: string, kind: SubmitKind, work: () => Promise<T>): Promise<T> {
+  if (kind !== "send") return work();
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${key}))`);
+    return work();
+  });
+}
+
+/** Protokolliert einen Versuch. Scheitert das nach erfolgter Echtübermittlung, bleibt der Nachweis wenigstens im Server-Log. */
+export async function protocolSubmission(kind: SubmitKind, result: ElsterResult, xml: string, write: () => Promise<unknown>): Promise<void> {
+  try {
+    await write();
+  } catch (error) {
+    if (kind !== "send" || !result.ok) throw error;
+    console.error("ELSTER: Echtübermittlung erfolgt, Protokoll nicht gespeichert", { transferTicket: result.transferTicket, requestXml: xml }, error);
+    throw new UserError(
+      `Die Übermittlung ist erfolgt (Transferticket ${result.transferTicket ?? "unbekannt"}), ließ sich aber nicht speichern. Bitte nicht erneut senden; Transferticket und gesendete Daten stehen im Server-Log.`,
+      { cause: error },
+    );
+  }
+}
+
+/**
  * Prüft oder übermittelt den Entwurf. Jeder Versuch landet in vat_return_submissions;
  * eine erfolgreiche Echtübermittlung schreibt die Anmeldung fest.
  */
-export async function submitReturn(
-  actor: string,
-  returnId: string,
-  client: ElsterClient,
-  options: SubmitOptions,
-): Promise<ElsterResult> {
+export function submitReturn(actor: string, returnId: string, client: ElsterClient, options: SubmitOptions): Promise<ElsterResult> {
+  return underSendLock(`haben.ustva.${returnId}`, options.kind, () => submit(actor, returnId, client, options));
+}
+
+async function submit(actor: string, returnId: string, client: ElsterClient, options: SubmitOptions): Promise<ElsterResult> {
   let [vatReturn] = await db.select().from(schema.vatReturns).where(eq(schema.vatReturns.id, returnId));
   if (!vatReturn) throw new VatError("Anmeldung nicht gefunden.");
   if (vatReturn.status !== "draft") throw new VatError("Diese Anmeldung ist bereits gesendet.");
@@ -264,33 +290,35 @@ export async function submitReturn(
     result = await client.send(xml, decrypt(certificate.ciphertext), options.pin, { test });
   }
 
-  await withActor(actor, async (tx) => {
-    await tx.insert(schema.vatReturnSubmissions).values({
-      vatReturnId: vatReturn.id,
-      kind: options.kind,
-      ok: result.ok,
-      code: result.code,
-      message: result.message,
-      transferTicket: result.transferTicket ?? null,
-      requestXml: xml,
-      responseXml: result.responseXml,
-      serverResponseXml: result.serverResponseXml,
-      protocolPdf: result.pdf ? Buffer.from(result.pdf) : null,
-    });
-    if (result.ok && options.kind === "send") {
-      const now = new Date();
-      await tx
-        .update(schema.vatReturns)
-        .set({
-          status: "sent",
-          transferTicket: result.transferTicket ?? null,
-          sentAt: now,
-          lockedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(schema.vatReturns.id, vatReturn.id));
-    }
-  });
+  await protocolSubmission(options.kind, result, xml, () =>
+    withActor(actor, async (tx) => {
+      await tx.insert(schema.vatReturnSubmissions).values({
+        vatReturnId: vatReturn.id,
+        kind: options.kind,
+        ok: result.ok,
+        code: result.code,
+        message: result.message,
+        transferTicket: result.transferTicket ?? null,
+        requestXml: xml,
+        responseXml: result.responseXml,
+        serverResponseXml: result.serverResponseXml,
+        protocolPdf: result.pdf ? Buffer.from(result.pdf) : null,
+      });
+      if (result.ok && options.kind === "send") {
+        const now = new Date();
+        await tx
+          .update(schema.vatReturns)
+          .set({
+            status: "sent",
+            transferTicket: result.transferTicket ?? null,
+            sentAt: now,
+            lockedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(schema.vatReturns.id, vatReturn.id));
+      }
+    }),
+  );
 
   return result;
 }

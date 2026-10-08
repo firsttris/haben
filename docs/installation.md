@@ -79,7 +79,7 @@ docker compose up -d
 docker compose logs -f app   # „Migrationen angewendet“, dann „Listening on …“
 ```
 
-Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern wie im `Caddyfile`). ERiC lädst du unter **Einstellungen › ERiC** herunter oder mit `ERIC_AUTO_INSTALL=ja` in `.env` beim Start, siehe [ERiC einbinden](#eric-einbinden).
+Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern und Upload-Grenze wie im `Caddyfile`). Caddy nimmt Anfragen bis 250 MB an; das reicht für eine Archivdatei bis 100 MB oder ein gutes Dutzend Belege auf einmal. Größere Mengen lädst du in mehreren Schritten hoch oder erhöhst `max_size`. ERiC lädst du unter **Einstellungen › ERiC** herunter oder mit `ERIC_AUTO_INSTALL=ja` in `.env` beim Start, siehe [ERiC einbinden](#eric-einbinden).
 
 **Updates:** `docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App.
 
@@ -87,6 +87,8 @@ Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern 
 
 ```sh
 docker compose exec -T db pg_dump -U haben haben | gzip > haben-$(date +%F).sql.gz
+# Ein abgebrochener Dump fällt sonst nicht auf: die letzte Zeile muss „dump complete“ melden
+gunzip -c haben-$(date +%F).sql.gz | tail -n 20 | grep -q "PostgreSQL database dump complete" || echo "Dump unvollständig" >&2
 docker run --rm -v haben_belege:/belege:ro -v "$PWD":/backup alpine tar czf /backup/belege-$(date +%F).tar.gz -C /belege .
 ```
 
@@ -136,7 +138,7 @@ openssl rand -base64 32 | tr -d '\n' | podman secret create haben-encryption-key
 | `haben-anthropic-key` (optional) | `ANTHROPIC_API_KEY` | Für die KI-Auslesung, siehe unten |
 
 > [!IMPORTANT]
-> Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat und den Lexoffice-API-Schlüssel (AES-256-GCM). Ohne den Schlüssel sind beide nach einer Wiederherstellung nicht mehr lesbar. Das Backup-Skript sichert ihn nicht mit. Den Wert liest du aus, solange der Container läuft: `podman exec haben-app printenv HABEN_ENCRYPTION_KEY`.
+> Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat samt gespeicherter PIN, die Passwörter für SMTP und IMAP, die Sitzung des Bankabrufs und den Lexoffice-API-Schlüssel (AES-256-GCM). Ohne den Schlüssel sind sie nach einer Wiederherstellung nicht mehr lesbar. Das Backup-Skript sichert ihn nicht mit. Den Wert liest du aus, solange der Container läuft: `podman exec haben-app printenv HABEN_ENCRYPTION_KEY`.
 
 ### Konfiguration
 
@@ -209,7 +211,7 @@ Belege und Rechnungen müssen nach GoBD zehn Jahre aufbewahrt werden. Beide Volu
 
 Für Compose steht das Backup oben bei [Docker Compose](#docker-compose). Mit den Quadlets läuft `deploy/backup.sh` über `haben-backup.timer` täglich um 03:15 Uhr (`Persistent=true`: ein verpasster Lauf wird nachgeholt). Das Skript
 
-1. erzeugt mit `podman exec haben-db pg_dump -U haben --format=plain haben` einen SQL-Dump und packt ihn mit gzip,
+1. erzeugt mit `podman exec haben-db pg_dump -U haben --format=plain haben` einen SQL-Dump, packt ihn mit gzip und prüft ihn: Das Archiv muss sich entpacken lassen und mit der Abschlusszeile von `pg_dump` enden, sonst bricht das Backup mit Fehler ab (`set -o pipefail`, ein Fehler von `pg_dump` zählt also),
 2. sichert den Dump und das Verzeichnis des Volumes `haben-belege` mit `podman unshare restic backup --tag haben`. Im rootless Podman gehören die Belegdateien einer Unter-UID des Containers; `podman unshare` führt restic im Benutzer-Namensraum aus, wo sie lesbar sind und ihre Besitzer behalten,
 3. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`).
 
@@ -236,15 +238,15 @@ restic snapshots --tag haben          # verfügbare Stände anzeigen
 
 Das Skript fragt nach, ob Datenbank und Belege ersetzt werden sollen, und macht nur bei der Antwort `ja` weiter. Dann
 
-1. holt es den Snapshot mit `podman unshare restic restore` in ein temporäres Verzeichnis,
-2. stoppt `haben-app.service`,
-3. löscht die Datenbank `haben`, legt sie leer neu an und spielt den Dump mit `psql` ein; ein Fehler im Dump bricht ab (`ON_ERROR_STOP`),
+1. holt es den Snapshot mit `podman unshare restic restore` in ein temporäres Verzeichnis und prüft den Dump (lesbar, vollständig),
+2. spielt den Dump mit `psql` in eine neue Datenbank `haben_restore` ein; ein Fehler bricht ab (`ON_ERROR_STOP`), die bisherige Datenbank bleibt dann unverändert,
+3. stoppt `haben-app.service`, löscht die Datenbank `haben` und benennt `haben_restore` in `haben` um,
 4. ersetzt den Inhalt des Volumes `haben-belege` durch die Belegdateien aus dem Snapshot,
 5. startet die App wieder.
 
 Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze. Das Skript ersetzt den aktuellen Stand vollständig.
 
-Auf einem frischen System richtest du zuerst die Quadlets wie oben ein, mit denselben Secrets, startest nur `haben-db` und rufst dann `restore.sh` auf. `HABEN_ENCRYPTION_KEY` muss derselbe sein wie vorher, sonst sind ELSTER-Zertifikat und Lexoffice-Schlüssel nicht lesbar.
+Auf einem frischen System richtest du zuerst die Quadlets wie oben ein, mit denselben Secrets, startest nur `haben-db` und rufst dann `restore.sh` auf. `HABEN_ENCRYPTION_KEY` muss derselbe sein wie vorher, sonst sind ELSTER-Zertifikat, PIN, Mail-Zugänge, Bankabruf und Lexoffice-Schlüssel nicht lesbar.
 
 Von Hand geht es so, ebenfalls auf einem System mit leeren Volumes:
 

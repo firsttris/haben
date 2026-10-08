@@ -200,6 +200,14 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect((await sync.listConnections()).map((c) => c.status).sort()).toEqual(["aktiv", "fehler"]);
   });
 
+  it("lehnt eine Rückleitung nach mehr als einer Stunde ab", async () => {
+    await sync.startConnection(actor, { aspspName: "Testbank", country: "DE", psuType: "personal" });
+    const auth = api.calls.findLast((c) => c.path === "/auth")!.body as { state: string };
+    await sql`update bank_connections set created_at = now() - interval '2 hours' where state = ${auth.state}`;
+    await expect(sync.completeConnection(actor, { state: auth.state, code: "x" })).rejects.toThrow(/abgelaufene/);
+    await sql`delete from bank_connections where status = 'wartet'`;
+  });
+
   it("trennt eine Verbindung, die Umsätze bleiben", async () => {
     for (const c of await sync.listConnections()) await sync.removeConnection(actor, c.id);
     expect(await sync.listConnections()).toEqual([]);

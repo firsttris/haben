@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,6 +37,17 @@ describe("EricProcessClient mit Stub-Worker", () => {
     });
   });
 
+  it("legt die ERiC-Logs ohne ERIC_LOG_DIR ins Temp-Verzeichnis des Aufrufs, das danach gelöscht wird", async () => {
+    const before = ericTempDirs();
+    const result = await stub("answer").validate(xml());
+    const { logDir } = JSON.parse(result.responseXml).config as { logDir: string };
+    expect(logDir.startsWith(join(tmpdir(), "haben-eric-"))).toBe(true);
+    expect(existsSync(logDir)).toBe(false);
+    expect(ericTempDirs()).toEqual(before);
+    const fest = new EricProcessClient({ ericHome: "/opt/eric", logDir: "/var/log/eric", workerPath: join(fixtures, "worker-answer.mjs") });
+    expect(JSON.parse((await fest.validate(xml())).responseXml).config.logDir).toBe("/var/log/eric");
+  });
+
   it("legt das Zertifikat mit 0600 ab, liest das PDF und räumt auf", async () => {
     const before = ericTempDirs();
     const result = await stub("answer").send(xml(), new Uint8Array([1, 2, 3]), "1234", { test: true });
@@ -72,6 +83,11 @@ describe("EricProcessClient mit Stub-Worker", () => {
     expect(result.ok).toBe(false);
     expect(result.message).toContain("Zeitüberschreitung");
     expect(Date.now() - started).toBeLessThan(5_000);
+  });
+
+  it("verwirft eine schon eingetroffene Antwort nicht, wenn der Prozess danach hängt", async () => {
+    const result = await stub("answer-hang", 500).validate(xml());
+    expect(result).toMatchObject({ ok: true, transferTicket: "stub-ticket" });
   });
 
   it("meldet einen fehlenden Worker", async () => {

@@ -280,5 +280,11 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     const yearLocks = await guard.settingsLocks("2025-12-30");
     expect(guard.lockedChange(current, input, yearLocks)).toContain("Im Jahr 2025 gibt es schon Buchungen");
     expect(guard.lockedChange(current, { ...current, kleinunternehmer: false }, yearLocks)).toBeNull();
+
+    // Ein ungebuchter Beleg aus dem Vorjahr sperrt den Wechsel, auch ohne Buchung im neuen Jahr
+    await sql`insert into documents (sha256, filename, mime_type, size, document_date) values ('abc', 'dezember.pdf', 'application/pdf', 1, '2025-12-28')`;
+    expect((await guard.settingsLocks("2026-01-05")).kontenrahmen).toBe(
+      "Im Jahr 2025 ist noch nicht alles gebucht (ein Beleg). Erst das alte Jahr abschließen, dann umstellen.",
+    );
   }, 30_000);
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDatevBuchungsstapel, encodeCp1252, splitEntry, type DatevExportEntry, type DatevExportHeader } from "./datev-export.ts";
+import { buildDatevBuchungsstapel, DATEV_COLUMNS, encodeCp1252, splitEntry, type DatevExportEntry, type DatevExportHeader } from "./datev-export.ts";
 import { parseDatevBuchungsstapel } from "./datev.ts";
 
 const header: DatevExportHeader = {
@@ -84,6 +84,16 @@ describe("DATEV-Buchungsstapel", () => {
     expect(first).toMatchObject({ date: "2026-09-01", voucherField1: "2026-001", buKey: "40", text: "Rechnung 2026-001 · Nordwerk Software GmbH" });
     // Belegfeld 1 nur mit erlaubten Zeichen; Umlaute in Windows-1252
     expect(stack.bookings.at(-1)).toMatchObject({ voucherField1: "MF-0815/9", text: "Mobilfunk Funknetz, 20 % privat, Gerät" });
+  });
+
+  it("schreibt Formatversion 13 mit 125 Spalten in Kopf, Überschrift und jeder Zeile", () => {
+    // Version 13 ergänzt nach „Land“ (Spalte 120) Abrechnungsreferenz bis Abw. Skontokonto
+    expect(DATEV_COLUMNS.length).toBe(125);
+    expect(DATEV_COLUMNS.indexOf("Land")).toBe(119);
+    expect(DATEV_COLUMNS.at(-1)).toBe("Abw. Skontokonto");
+    const lines = new TextDecoder("windows-1252").decode(buildDatevBuchungsstapel(header, entries).bytes).split("\r\n").filter(Boolean);
+    expect(lines[0]!.split(";").slice(0, 5)).toEqual(['"EXTF"', "700", "21", '"Buchungsstapel"', "13"]);
+    for (const line of lines.slice(1)) expect(line.split(";")).toHaveLength(125);
   });
 
   it("prüft Berater- und Mandantennummer und kodiert Windows-1252", () => {

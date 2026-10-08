@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   computeInvoiceTotals,
   directPosting,
@@ -15,8 +16,9 @@ import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 import { sha256Of } from "./storage.ts";
+import { today } from "./today.ts";
 
-export class BankError extends Error {}
+export class BankError extends UserError {}
 
 const normalizeIban = (iban: string) => iban.replace(/\s/g, "").toUpperCase();
 
@@ -286,7 +288,15 @@ export async function openItems(): Promise<OpenItem[]> {
   const invoicePaid = await paidByTarget("invoice_id", [...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
 
   const documents = await db
-    .select()
+    .select({
+      id: schema.documents.id,
+      invoiceNumber: schema.documents.invoiceNumber,
+      documentDate: schema.documents.documentDate,
+      uploadedAt: schema.documents.uploadedAt,
+      dueDate: schema.documents.dueDate,
+      gross: schema.documents.gross,
+      supplierName: schema.documents.supplierName,
+    })
     .from(schema.documents)
     .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank")));
   const documentPaid = await paidByTarget("document_id", documents.map((d) => d.id));
@@ -329,7 +339,7 @@ export async function openItems(): Promise<OpenItem[]> {
       type: "document",
       id: doc.id,
       number: doc.invoiceNumber,
-      date: doc.documentDate ?? doc.uploadedAt.toISOString().slice(0, 10),
+      date: doc.documentDate ?? today(doc.uploadedAt),
       dueDate: doc.dueDate,
       open,
       partyName: doc.supplierName,
@@ -479,7 +489,8 @@ export async function allocate(actor: string, input: AllocationInput): Promise<v
           .where(and(eq(schema.contacts.id, invoice.contactId), eq(schema.contacts.iban, "")));
       }
     } else if (input.kind === "document") {
-      const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId));
+      // Sperre wie bei der Rechnung: Zwei gleichzeitige Zuordnungen könnten den Beleg sonst überzahlen
+      const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
       if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
       if (doc.payment !== "bank") throw new BankError("Der Beleg ist als privat bezahlt gebucht.");
       const [paid] = await tx

@@ -15,7 +15,7 @@ interface Call {
   body: unknown;
 }
 
-function setup(handler: (call: Call) => Response) {
+function setup(handler: (call: Call) => Response, sleeps: number[] = []) {
   const calls: Call[] = [];
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const call = {
@@ -27,7 +27,7 @@ function setup(handler: (call: Call) => Response) {
     calls.push(call);
     return handler(call);
   }) as typeof fetch;
-  const client = new EnableBankingClient({ applicationId: "app-123", privateKey, fetch: fetchFn, now: () => Date.UTC(2026, 9, 2, 12) });
+  const client = new EnableBankingClient({ applicationId: "app-123", privateKey, fetch: fetchFn, now: () => Date.UTC(2026, 9, 2, 12), sleep: async (ms) => void sleeps.push(ms) });
   return { client, calls };
 }
 
@@ -96,6 +96,26 @@ describe("EnableBankingClient", () => {
     expect(error).toBeInstanceOf(EnableBankingApiError);
     expect((error as EnableBankingApiError).status).toBe(401);
     expect((error as Error).message).toBe("Zugriff abgelehnt: Session expired");
+  });
+
+  it("wiederholt lesende Abrufe bei 429/5xx mit Retry-After oder Backoff", async () => {
+    const sleeps: number[] = [];
+    const answers = [
+      new Response("", { status: 429, headers: { "retry-after": "7" } }),
+      new Response("", { status: 503 }),
+      json({ balances: [] }),
+    ];
+    const { client, calls } = setup(() => answers.shift()!, sleeps);
+    await expect(client.balances("uid-1")).resolves.toEqual([]);
+    expect(calls).toHaveLength(3);
+    expect(sleeps).toEqual([7000, 2000]);
+
+    const failing = setup(() => new Response("", { status: 502 }), []);
+    await expect(failing.client.balances("uid-1")).rejects.toMatchObject({ status: 502 });
+    expect(failing.calls).toHaveLength(4);
+    const post = setup(() => new Response("", { status: 503 }), []);
+    await expect(post.client.createSession("code")).rejects.toMatchObject({ status: 503 });
+    expect(post.calls).toHaveLength(1);
   });
 
   it("nimmt eine abgelaufene Sitzung beim Löschen hin", async () => {

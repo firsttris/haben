@@ -1,9 +1,11 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
-import { errorMessage } from "../lib/format.ts";
+import type { FormEvent } from "react";
 import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/contacts.ts";
+import { NoticeBanner } from "./NoticeBanner.tsx";
+import { FORMAT_LABEL, FORMATS } from "../lib/invoice.ts";
+import { useAction } from "../lib/use-action.ts";
 
 const EMPTY: ContactInput = {
   kundennummer: "",
@@ -24,20 +26,17 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
+  const { busy, notice, setNotice, run } = useAction();
   const initial: ContactInput = contact
     ? { ...EMPTY, ...contact, kundennummer: contact.kundennummer ?? "", defaultFormat: contact.defaultFormat }
     : EMPTY;
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (name: keyof ContactInput) => String(form.get(name) ?? "").trim();
     const format = text("defaultFormat");
-    setBusy(true);
-    setNotice(null);
-    try {
+    void run(async () => {
       const result = await save({
         data: {
           id: contact?.id ?? null,
@@ -63,11 +62,7 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
       } else {
         await navigate({ to: "/kontakte/$id", params: { id: result.id } });
       }
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   return (
@@ -117,9 +112,11 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
           Standardformat für Rechnungen
           <select name="defaultFormat" defaultValue={initial.defaultFormat ?? ""}>
             <option value="">wie in den Einstellungen</option>
-            <option value="zugferd">ZUGFeRD</option>
-            <option value="xrechnung-cii">XRechnung (CII)</option>
-            <option value="xrechnung-ubl">XRechnung (UBL)</option>
+            {FORMATS.map((f) => (
+              <option key={f} value={f}>
+                {FORMAT_LABEL[f]}
+              </option>
+            ))}
           </select>
         </label>
         <label className="field">
@@ -138,11 +135,7 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
           Abbrechen
         </Link>
       </div>
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-          {notice.text}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
     </form>
   );
 }

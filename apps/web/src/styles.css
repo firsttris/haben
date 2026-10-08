@@ -289,7 +289,7 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .account-tabs { display: flex; gap: 12px; flex-wrap: wrap; }
 .account-tab { min-height: 64px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-decoration: none; display: flex; flex-direction: column; gap: 2px; min-width: 220px; }
 .account-tab:hover { color: var(--ink); border-color: var(--line-strong); }
-.account-tab[aria-selected="true"] { border: 2px solid var(--accent); padding: 9px 15px; }
+.account-tab[aria-current="page"] { border: 2px solid var(--accent); padding: 9px 15px; }
 .tx-toolbar { display: flex; gap: 8px; padding: 12px 20px 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
 .chip { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 13px; text-decoration: none; }
 .chip:hover { color: var(--ink); }

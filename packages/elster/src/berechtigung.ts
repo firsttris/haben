@@ -1,7 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
 import { isValidIdnr } from "./bankverbindung.ts";
 import { VAST_TESTMERKER } from "./vast.ts";
-import { escapeXml } from "./xml.ts";
+import { elsterXml, escapeXml } from "./xml.ts";
+import { int, text, type Node } from "./xml-lesen.ts";
 
 /**
  * Berechtigungsmanagement für den Belegabruf (Verfahren ElsterBRM): das Recht beantragen, die Belege
@@ -37,36 +38,10 @@ export interface SpezRechtAntragInput extends BrmXmlInput {
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 function brmXml(datenart: SpezRechtDatenart, body: string[], input: BrmXmlInput): string {
-  const e = escapeXml;
-  return [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<Elster xmlns="http://www.elster.de/elsterxml/schema/v11">`,
-    `<TransferHeader version="11">`,
-    `<Verfahren>ElsterBRM</Verfahren>`,
-    `<DatenArt>${datenart}</DatenArt>`,
-    `<Vorgang>send-Auth</Vorgang>`,
-    ...(input.test ? [`<Testmerker>${VAST_TESTMERKER}</Testmerker>`] : []),
-    `<HerstellerID>${e(input.herstellerId)}</HerstellerID>`,
-    `<DatenLieferant>${e(input.datenlieferant)}</DatenLieferant>`,
-    `<Datei>`,
-    `<Verschluesselung>CMSEncryptedData</Verschluesselung>`,
-    `<Kompression>GZIP</Kompression>`,
-    `<TransportSchluessel></TransportSchluessel>`,
-    `</Datei>`,
-    `</TransferHeader>`,
-    `<DatenTeil>`,
-    `<Nutzdatenblock>`,
-    `<NutzdatenHeader version="11">`,
-    `<NutzdatenTicket>1</NutzdatenTicket>`,
-    `<Empfaenger id="L">CS</Empfaenger>`,
-    `</NutzdatenHeader>`,
-    `<Nutzdaten>`,
-    ...body,
-    `</Nutzdaten>`,
-    `</Nutzdatenblock>`,
-    `</DatenTeil>`,
-    `</Elster>`,
-  ].join("\n");
+  return elsterXml(
+    { verfahren: "ElsterBRM", datenArt: datenart, testmerker: input.test ? VAST_TESTMERKER : undefined, herstellerId: input.herstellerId, datenlieferant: input.datenlieferant },
+    [{ ticket: "1", empfaenger: { id: "L", wert: "CS" }, nutzdaten: body }],
+  );
 }
 
 /** Antrag auf das Recht, die Belege (AbrufEBelege) einer anderen Person abzurufen */
@@ -75,7 +50,9 @@ export function buildSpezRechtAntragXml(input: SpezRechtAntragInput): string {
   if (!idnrOk) throw new Error(`Ungültige Steuer-IdNr: ${input.dateninhaberIdnr}`);
   if (!isoDate.test(input.dateninhaberGeburtsdatum)) throw new Error("Geburtsdatum im Format JJJJ-MM-TT fehlt.");
   if (!isoDate.test(input.gueltigBis)) throw new Error("Gültig-bis-Datum im Format JJJJ-MM-TT fehlt.");
-  const jahre = [...new Set(input.jahre ?? [])].sort();
+  const jahre = [...new Set(input.jahre ?? [])].sort((a, b) => a - b);
+  const falschesJahr = jahre.find((j) => !Number.isInteger(j) || j < 2000 || j > 9999);
+  if (falschesJahr !== undefined) throw new RangeError(`Ungültiges Jahr: ${falschesJahr}`);
   return brmXml(
     "SpezRechtAntrag",
     [
@@ -129,16 +106,12 @@ export function buildSpezRechtListeXml(input: BrmXmlInput): string {
   return brmXml("SpezRechtListe", [`<SpezRechtListe version="7"/>`], input);
 }
 
-type Node = Record<string, unknown>;
-
 const parser = new XMLParser({
   ignoreAttributes: true,
   removeNSPrefix: true,
   parseTagValue: false,
   isArray: (name) => ["Antrag", "Jahr"].includes(name),
 });
-
-const text = (value: unknown): string => (typeof value === "string" || typeof value === "number" ? String(value).trim() : "");
 
 function find(node: unknown, name: string): Node | undefined {
   if (Array.isArray(node)) {
@@ -163,7 +136,7 @@ export function parseBrmRueckgabe(serverResponseXml: string): { code: number; te
   const header = find(parse(serverResponseXml), "NutzdatenHeader");
   const rueckgabe = header ? find(header, "Rueckgabe") : undefined;
   if (!rueckgabe) return undefined;
-  return { code: Number.parseInt(text(rueckgabe.Code), 10) || 0, text: text(rueckgabe.Text).replace(/\s+/g, " ") };
+  return { code: int(rueckgabe.Code), text: text(rueckgabe.Text).replace(/\s+/g, " ") };
 }
 
 export interface SpezRechtAntragAntwort {

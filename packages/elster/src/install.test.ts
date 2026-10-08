@@ -75,9 +75,13 @@ describe("ERiC installieren", () => {
     });
     await installEric({ version: "44.1.0.0", dir, fetch: fakeFetch(next).fn, checkPlatform: false });
     expect(ericHomeIn(dir)).toBe(join(dir, "ERiC-44.1.0.0"));
-    // Dieselbe Version erneut
+    // Dieselbe Version erneut: landet neben der laufenden, AKTUELL wird nur umgeschaltet
+    await installEric({ version: "44.1.0.0", dir, fetch: fakeFetch(next).fn, checkPlatform: false });
+    expect((await readdir(dir)).filter((e) => e.startsWith("ERiC-") || e === "AKTUELL").sort()).toEqual(["AKTUELL", "ERiC-44.1.0.0-2"]);
+    expect(await installedEricVersion(ericHomeIn(dir)!)).toBe("44.1.0.0");
     await installEric({ version: "44.1.0.0", dir, fetch: fakeFetch(next).fn, checkPlatform: false });
     expect((await readdir(dir)).filter((e) => e.startsWith("ERiC-") || e === "AKTUELL").sort()).toEqual(["AKTUELL", "ERiC-44.1.0.0"]);
+    expect(ericHomeIn(dir)).toBe(join(dir, "ERiC-44.1.0.0"));
   });
 
   it("lehnt Pakete ohne Linux-Teil und Pfade außerhalb des Ziels ab", async () => {
@@ -87,5 +91,26 @@ describe("ERiC installieren", () => {
     const evil = jar({ "ERiC/Linux-x86_64/../../../boese.so": new TextEncoder().encode("x") });
     await expect(installEric({ version: "43.4.6.0", dir, fetch: fakeFetch(evil).fn, checkPlatform: false })).rejects.toThrow(/Unzulässiger Pfad|keine Dateien/);
     expect(existsSync(join(dir, "..", "boese.so"))).toBe(false);
+  });
+
+  it("meldet ein defektes Archiv als Fehler, ohne unhandled rejection und ohne Reste", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const dir = join(await tempDir(), "eric");
+      // Komprimierte Daten mitten im großen Eintrag verfälschen bzw. das Archiv abschneiden
+      const corrupt = goodJar.slice();
+      corrupt.fill(0xff, 200_000, 400_000);
+      await expect(installEric({ version: "43.4.6.0", dir, fetch: fakeFetch(corrupt).fn, checkPlatform: false })).rejects.toThrow();
+      const truncated = goodJar.slice(0, Math.floor(goodJar.length / 2));
+      await expect(installEric({ version: "43.4.6.0", dir, fetch: fakeFetch(truncated).fn, checkPlatform: false })).rejects.toThrow();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(unhandled).toEqual([]);
+      expect(await readdir(dir)).toEqual([]);
+      expect(ericHomeIn(dir)).toBeNull();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
   });
 });

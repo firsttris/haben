@@ -1,9 +1,13 @@
-/** Zerlegt CSV mit Anführungszeichen (RFC 4180) in Zeilen und Felder. Leere Zeilen entfallen nicht. */
+/**
+ * Zerlegt CSV mit Anführungszeichen (RFC 4180) in Zeilen und Felder. Leere Zeilen entfallen nicht.
+ * Ein Anführungszeichen öffnet nur am Feldanfang; mitten im Feld ist es ein normales Zeichen.
+ */
 export function parseCsv(text: string, delimiter: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
   let quoted = false;
+  let fieldStart = true;
   let i = 0;
   while (i < text.length) {
     const c = text[i]!;
@@ -21,7 +25,7 @@ export function parseCsv(text: string, delimiter: string): string[][] {
       i++;
       continue;
     }
-    if (c === '"') {
+    if (c === '"' && fieldStart) {
       quoted = true;
     } else if (c === delimiter) {
       row.push(field);
@@ -35,6 +39,7 @@ export function parseCsv(text: string, delimiter: string): string[][] {
     } else {
       field += c;
     }
+    fieldStart = c === delimiter || c === "\n" || c === "\r";
     i++;
   }
   if (field !== "" || row.length > 0) {

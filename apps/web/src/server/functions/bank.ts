@@ -17,11 +17,7 @@ import {
 } from "../bank.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../bank-sync.ts";
 import { authMiddleware } from "../middleware.ts";
-
-function asUserError(error: unknown): never {
-  if (error instanceof BankError) throw new Error(error.message);
-  throw error;
-}
+import { UserError } from "../errors.ts";
 
 export const getBankOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -62,10 +58,11 @@ export const getBankOverview = createServerFn({ method: "GET" })
 export const importStatements = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: unknown) => {
-    if (!(data instanceof FormData)) throw new Error("FormData erwartet");
+    if (!(data instanceof FormData)) throw new UserError("FormData erwartet");
     const files = data.getAll("files").filter((f): f is File => f instanceof File);
-    if (files.length === 0) throw new Error("Keine Datei ausgewählt.");
-    if (files.some((f) => f.size > 20 * 1024 * 1024)) throw new Error("Eine Datei ist größer als 20 MB.");
+    if (files.length === 0) throw new UserError("Keine Datei ausgewählt.");
+    if (files.length > 50) throw new UserError("Höchstens 50 Dateien auf einmal.");
+    if (files.some((f) => f.size > 20 * 1024 * 1024)) throw new UserError("Eine Datei ist größer als 20 MB.");
     const accountId = z.uuid().nullable().parse(data.get("accountId") || null);
     return { files, accountId };
   })
@@ -87,7 +84,7 @@ export const addBankAccount = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(accountSchema)
   .handler(async ({ data, context }) => {
-    const account = await createAccount(context.user.id, data).catch(asUserError);
+    const account = await createAccount(context.user.id, data);
     return { id: account.id };
   });
 
@@ -95,7 +92,7 @@ export const allocateTransaction = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(allocationSchema)
   .handler(async ({ data, context }) => {
-    await allocate(context.user.id, data).catch(asUserError);
+    await allocate(context.user.id, data);
     return { ok: true };
   });
 
@@ -103,24 +100,24 @@ export const reverseTransactionAllocation = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
-    await reverseAllocation(context.user.id, data).catch(asUserError);
+    await reverseAllocation(context.user.id, data);
     return { ok: true };
   });
 
 export const getEnableBanks = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => listBanks("DE").catch(asUserError));
+  .handler(async () => listBanks("DE"));
 
 export const connectBank = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ aspspName: z.string().min(1).max(200), psuType: z.enum(["personal", "business"]) }))
-  .handler(async ({ data, context }) => startConnection(context.user.id, { ...data, country: "DE" }).catch(asUserError));
+  .handler(async ({ data, context }) => startConnection(context.user.id, { ...data, country: "DE" }));
 
 export const syncBankConnection = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
-    const result = await syncConnection(context.user.id, data).catch(asUserError);
+    const result = await syncConnection(context.user.id, data);
     return { added: result.added, error: result.error, gaps: result.accounts.flatMap((a) => (a.gap ? [a.gap] : [])) };
   });
 
@@ -128,6 +125,6 @@ export const disconnectBank = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
-    await removeConnection(context.user.id, data).catch(asUserError);
+    await removeConnection(context.user.id, data);
     return { ok: true };
   });

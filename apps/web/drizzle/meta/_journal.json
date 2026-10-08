@@ -400,6 +400,20 @@
       "when": 1791091807738,
       "tag": "0056_kassenbuch_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1791499223515,
+      "tag": "0057_indizes",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791499250117,
+      "tag": "0058_sperren_audit",
+      "breakpoints": true
     }
   ]
 }

@@ -5,23 +5,25 @@
 import { randomBytes } from "node:crypto";
 import { buildVastAnfrageXml, type VastXmlInput } from "./vast.ts";
 import { failure, type BelegabrufResult, type ElsterClient, type ElsterResult, type PostfachOptions, type PostfachResult, type SendOptions } from "./types.ts";
-import { hasTestmerker } from "./xml.ts";
+import { testmerkerMismatch } from "./xml.ts";
 
-export const FAKE_HINWEIS = "Testprotokoll – keine echte Übermittlung";
+/** ERIC_GLOBAL_PRUEF_FEHLER: das XML verletzt die Plausibilitätsprüfung */
+const ERIC_GLOBAL_PRUEF_FEHLER = 610001002;
 
 export class FakeElsterClient implements ElsterClient {
   readonly isFake = true;
 
   async validate(xml: string): Promise<ElsterResult> {
     const fehler = checkXml(xml);
-    if (fehler) return { ...failure(fehler, 610001002), responseXml: fakeResponse(fehler) };
+    if (fehler) return { ...failure(fehler, ERIC_GLOBAL_PRUEF_FEHLER), responseXml: fakeResponse(fehler) };
     return { ok: true, code: 0, message: "Validierung erfolgreich (Fake, ohne ERiC).", responseXml: fakeResponse(), serverResponseXml: "" };
   }
 
   async send(xml: string, certificate: Uint8Array, pin: string, options: SendOptions): Promise<ElsterResult> {
     const validation = await this.validate(xml);
     if (!validation.ok) return validation;
-    if (hasTestmerker(xml) !== options.test) return failure("Testmerker im XML passt nicht zur Option test.");
+    const mismatch = testmerkerMismatch(xml, options.test);
+    if (mismatch) return failure(mismatch);
     if (certificate.byteLength === 0) return failure("Kein Zertifikat übergeben.");
     if (pin.length === 0) return failure("Keine PIN übergeben.");
 

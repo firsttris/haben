@@ -1,9 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { encrypt } from "../crypto.ts";
-import { withActor } from "../db/actor.ts";
-import { schema } from "../db/index.ts";
+import { deactivateCertificate, saveCertificate } from "../certificate.ts";
+import { UserError } from "../errors.ts";
 import { authMiddleware } from "../middleware.ts";
 
 const MAX_SIZE = 64 * 1024;
@@ -19,33 +17,18 @@ const uploadSchema = z.object({
 export const uploadCertificate = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: unknown) => {
-    if (!(data instanceof FormData)) throw new Error("FormData erwartet");
+    if (!(data instanceof FormData)) throw new UserError("FormData erwartet");
     return uploadSchema.parse({ file: data.get("file"), validUntil: data.get("validUntil") ?? "" });
   })
   .handler(async ({ data, context }) => {
     const bytes = new Uint8Array(await data.file.arrayBuffer());
-    await withActor(context.user.id, async (tx) => {
-      await tx
-        .update(schema.elsterCertificates)
-        .set({ active: false })
-        .where(eq(schema.elsterCertificates.active, true));
-      await tx.insert(schema.elsterCertificates).values({
-        filename: data.file.name,
-        ciphertext: encrypt(bytes),
-        validUntil: data.validUntil || null,
-      });
-    });
+    await saveCertificate(context.user.id, { filename: data.file.name, bytes, validUntil: data.validUntil || null });
     return { ok: true };
   });
 
 export const removeCertificate = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await withActor(context.user.id, (tx) =>
-      tx
-        .update(schema.elsterCertificates)
-        .set({ active: false })
-        .where(eq(schema.elsterCertificates.active, true)),
-    );
+    await deactivateCertificate(context.user.id);
     return { ok: true };
   });
