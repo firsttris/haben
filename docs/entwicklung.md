@@ -48,6 +48,7 @@ Belegdateien landen ohne weitere Angabe in `apps/web/data/belege` (`DOCUMENTS_DI
 | `pnpm --filter @haben/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `pnpm --filter @haben/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
 | `pip install -r requirements-docs.txt && mkdocs serve` | Diese Dokumentation als Website lokal auf Port 8000 (MkDocs Material); `mkdocs build --strict` wie in der CI |
+| `pnpm docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
 | `pnpm docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
 
 ## Tests
@@ -120,6 +121,21 @@ E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e pnpm e2e
 Playwright startet selbst einen Server auf Port 3100 (`E2E_PORT`). Vorher leert es die Datenbank und spielt die Migrationen ein. Lokal ist das der Entwicklungsserver, in der CI der gebaute Server (`E2E_SERVER_COMMAND="node .output/server/index.mjs"` nach `pnpm build`). Chromium kommt einmalig mit `pnpm --filter @haben/web exec playwright install chromium`. Wer schon ein passendes Chromium hat, setzt stattdessen `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
 In der CI läuft der Job `e2e` bei jedem Pull Request. Screenshots, Playwright-Bericht und bei Fehlern Traces hängen als Artefakt `e2e-screenshots` am Lauf. So sieht man zu jeder Änderung, wie alle Seiten aussehen.
+
+### Bilder für README und Doku
+
+Die Bilder in README und Doku (`docs/screenshot-*.png`) entstehen aus denselben Daten: nach `app.spec.ts`
+läuft `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und fotografiert Übersicht, Rechnungseditor,
+Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy. Ohne
+`DOKU_SCREENSHOTS=1` überspringt es sich selbst, die normalen Tests bleiben unverändert.
+
+```sh
+E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e pnpm docs:screenshots
+```
+
+Nach einer Änderung am Aussehen den Workflow **Update screenshots** (Actions → Run workflow) auf dem
+Branch starten: er nimmt die Bilder im offiziellen Playwright-Image mit einer eigenen Datenbank auf und
+committet, was sich geändert hat.
 
 ## Migrationen
 

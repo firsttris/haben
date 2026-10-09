@@ -1,0 +1,27 @@
+name: Update screenshots
+
+# Nimmt die Bilder in README und Doku (docs/screenshot-*.png) und das Vorschaubild neu auf und
+# committet, was sich geändert hat: die Ende-zu-Ende-Tests legen die Daten an,
+# e2e/zz-doku-screenshots.spec.ts fotografiert (pnpm docs:screenshots). Nach einer Änderung am
+# Aussehen von Hand starten.
+on:
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    uses: firsttris/workflows/.github/workflows/screenshots.yml@v1
+    with:
+      lockfile: pnpm-lock.yaml
+      install: npm install --global corepack@latest && corepack enable && pnpm install --frozen-lockfile
+      postgres: postgres:16
+      # Die Tests leeren nur eine Datenbank, deren Name auf „e2e“ endet
+      postgres-db: haben_e2e
+      command: >-
+        pnpm build &&
+        E2E_DATABASE_URL="$POSTGRES_URL" E2E_SERVER_COMMAND="node .output/server/index.mjs" pnpm docs:screenshots
+      paths: |
+        docs/screenshot-*.png
+        docs/social-preview.png
+      commit-message: Screenshots erneuert
+    permissions:
+      contents: write

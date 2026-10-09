@@ -21,6 +21,7 @@
     "db:generate": "pnpm --filter @haben/web db:generate",
     "db:migrate": "pnpm --filter @haben/web db:migrate",
     "e2e": "pnpm --filter @haben/web e2e",
+    "docs:screenshots": "DOKU_SCREENSHOTS=1 LANG=de_DE.UTF-8 LANGUAGE=de pnpm e2e && pnpm docs:social-preview",
     "docs:social-preview": "node scripts/social-preview/render.mjs"
   },
   "devDependencies": {
