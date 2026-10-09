@@ -26,7 +26,8 @@ export type BescheinigungDraft = { key: number; steuerklasse: string } & Record<
 const WK_BETRAEGE = [
   ["arbeitsmittel", "Arbeitsmittel", "z. B. Laptop, Fachliteratur, Arbeitskleidung"],
   ["fortbildung", "Fortbildung", undefined],
-  ["berufsverbaende", "Gewerkschaft, Berufsverbände", undefined],
+  ["gewerkschaft", "Gewerkschaft", "ab 2026 zusätzlich zum Pauschbetrag"],
+  ["berufsverbaende", "Berufsverbände", undefined],
   ["sonstige", "Weitere Werbungskosten", "z. B. Kontoführung pauschal 16 €, Bewerbungen"],
 ] as const;
 

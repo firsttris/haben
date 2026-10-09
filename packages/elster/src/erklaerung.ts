@@ -266,7 +266,11 @@ export interface EuerFigures {
   vorsteuer?: Cents;
   gezahlteUst?: Cents;
   uebrige?: Cents;
-  /** Beschränkt abziehbar: Verpflegungsmehraufwand und Homeoffice-Tagespauschale */
+  /** Beschränkt abziehbar: Geschenke bis 50 €, Bewirtung (abziehbare 70 %), Verpflegungsmehraufwand, Homeoffice-Tagespauschale */
+  geschenke?: Cents;
+  bewirtung?: Cents;
+  /** Nicht abziehbare 30 % der Bewirtung; nur zur Information, nicht in den Betriebsausgaben */
+  bewirtungNichtAbziehbar?: Cents;
   verpflegung?: Cents;
   tagespauschale?: Cents;
   kfzLeasing?: Cents;
@@ -297,6 +301,8 @@ export const EUER_AUSGABEN = [
   "vorsteuer",
   "gezahlteUst",
   "uebrige",
+  "geschenke",
+  "bewirtung",
   "verpflegung",
   "tagespauschale",
   "kfzLeasing",
@@ -308,7 +314,7 @@ export const EUER_AUSGABEN = [
 export type EuerFigureKey = (typeof EUER_EINNAHMEN)[number] | (typeof EUER_AUSGABEN)[number];
 
 /** Zeile der Anlage EÜR 2025 und amtlicher Text, für die Vorschau */
-export const EUER_FIELDS: Record<EuerFigureKey | "entnahmen" | "einlagen", { kz: string; label: string }> = {
+export const EUER_FIELDS: Record<EuerFigureKey | "bewirtungNichtAbziehbar" | "entnahmen" | "einlagen", { kz: string; label: string }> = {
   kleinunternehmer: { kz: "E6000101", label: "Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer" },
   steuerpflichtig: { kz: "E6000401", label: "Umsatzsteuerpflichtige Betriebseinnahmen" },
   steuerfrei: {
@@ -339,6 +345,9 @@ export const EUER_FIELDS: Record<EuerFigureKey | "entnahmen" | "einlagen", { kz:
   kfzSteuerVersicherung: { kz: "E6005903", label: "Steuern, Versicherungen und Maut für Kraftfahrzeuge" },
   kfzSonstige: { kz: "E6006003", label: "Sonstige tatsächliche Fahrtkosten ohne AfA und Zinsen" },
   // Kennungen und Reihenfolge wie im EÜR-Formular 2025 von EasyCash&Tax, das ECTElster in dieser Reihenfolge übermittelt
+  geschenke: { kz: "E6004002", label: "Geschenke (abziehbar)" },
+  bewirtung: { kz: "E6004102", label: "Bewirtungsaufwendungen (abziehbar)" },
+  bewirtungNichtAbziehbar: { kz: "E6004101", label: "Bewirtungsaufwendungen (nicht abziehbar)" },
   verpflegung: { kz: "E6005002", label: "Verpflegungsmehraufwendungen" },
   tagespauschale: { kz: "E6006405", label: "Tagespauschale für die Tätigkeit in der häuslichen Wohnung" },
   fahrtNutzungseinlage: { kz: "E6006103", label: "Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage)" },
@@ -600,9 +609,13 @@ export function buildEuerXml(input: EuerXmlInput): string {
           [
             "Beschr_abziehbar",
             [
+              // Der nicht abziehbare Teil steht nur nachrichtlich in der Anlage und muss positiv sein
+              (f.bewirtungNichtAbziehbar ?? 0) > 0 && ["Nicht_abziehbar", [sumNode("Bewirtung", EUER_FIELDS.bewirtungNichtAbziehbar.kz, f.bewirtungNichtAbziehbar)]],
               [
                 "Abziehbar",
                 [
+                  sumNode("Geschenke", kz("geschenke"), f.geschenke),
+                  sumNode("Bewirtung", kz("bewirtung"), f.bewirtung),
                   sumNode("Verpflegung", kz("verpflegung"), f.verpflegung),
                   // Ab 2024 eigene Tagespauschale ohne Sum-Ebene, 2023 noch unter „Tätigkeit in der häuslichen Wohnung“
                   input.year >= 2024

@@ -144,6 +144,8 @@ const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage">, EuerFigur
   fahrtkosten: "kfzSonstige",
   uebernachtung: "reisekosten",
   werbung: "werbung",
+  bewirtung: "bewirtung",
+  geschenke: "geschenke",
   beratung: "beratung",
   buchfuehrung: "beratung",
   fremdleistung: "fremdleistungen",
@@ -200,6 +202,7 @@ function euerFigures(euer: EuerResult): EuerFigures {
     )[line.key as Exclude<EuerResult["einnahmen"][number]["key"], `ausgabe:${string}` | `pauschale:${string}`>];
     add(key, line.amount);
   }
+  if (euer.bewirtungNichtAbziehbar !== 0) figures.bewirtungNichtAbziehbar = euer.bewirtungNichtAbziehbar;
   return figures;
 }
 

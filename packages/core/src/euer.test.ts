@@ -44,6 +44,25 @@ describe("computeEuer", () => {
     expect(euer.gewinn).toBe(100_000 - 4590);
   });
 
+  it("Bewirtung: 70 % Ausgabe, 30 % nicht abziehbar, Vorsteuer voll; Geschenke voll", () => {
+    const essen = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
+    const euer = computeEuer(2026, [
+      { kind: "document", date: "2026-03-02", paid: essen.gross, totals: essen, category: "bewirtung" },
+      { kind: "document", date: "2026-03-03", paid: telefon.gross, totals: telefon, category: "geschenke" },
+    ]);
+    expect(amount(euer, "ausgabe:bewirtung")).toBe(7_000);
+    expect(euer.bewirtungNichtAbziehbar).toBe(3_000);
+    expect(amount(euer, "ausgabe:geschenke")).toBe(3857);
+    expect(amount(euer, "vorsteuer")).toBe(1_900 + 733);
+    expect(euer.gewinn).toBe(-(7_000 + 1_900 + telefon.gross));
+    expect(euer.monthly.ausgaben[2]).toBe(7_000 + 3857);
+    expect(euerToCsv(euer)).toContain("Nicht abziehbare Bewirtungsaufwendungen (30 %);30,00");
+    // Ohne Vorsteuerabzug zählt die Steuer zur Ausgabe und wird mit aufgeteilt
+    const ku = computeEuer(2026, [{ kind: "document", date: "2026-03-02", paid: essen.gross, totals: essen, category: "bewirtung", vorsteuerAbzug: false }]);
+    expect(amount(ku, "ausgabe:bewirtung")).toBe(8_330);
+    expect(ku.bewirtungNichtAbziehbar).toBe(3_570);
+  });
+
   it("Anlagekauf: nur die Vorsteuer ist Ausgabe, abgeschrieben wird über die AfA", () => {
     const auto = computeInvoiceTotals([{ quantity: 1000, unitPrice: 3_000_000, taxRate: 1900 }]);
     const euer = computeEuer(

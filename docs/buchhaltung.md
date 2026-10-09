@@ -94,6 +94,8 @@ Jeder Beleg bekommt eine Kategorie. Sie bestimmt das Aufwandskonto und die Zeile
 | Reisekosten: Übernachtung | 4676 | 6680 |
 | Porto | 4910 | 6800 |
 | Werbung | 4600 | 6600 |
+| Bewirtung von Geschäftspartnern (70 % abziehbar) | 4650 | 6640 |
+| Geschenke an Geschäftspartner (bis 50 € je Empfänger und Jahr) | 4630 | 6610 |
 | Rechts- und Beratungskosten | 4950 | 6825 |
 | Buchführung und Steuerberatung | 4955 | 6830 |
 | Fremdleistungen | 3100 | 5900 |

@@ -48,7 +48,11 @@ export const getAnnualReturns = createServerFn({ method: "GET" })
       euerRows: {
         einnahmen: euerRows(overview.euer.figures, EUER_EINNAHMEN),
         ausgaben: euerRows(overview.euer.figures, EUER_AUSGABEN),
-        privat: (["entnahmen", "einlagen"] as const).map((key) => ({ key, ...EUER_FIELDS[key], amount: overview.euer.figures[key] ?? 0 })),
+        // Nach dem Gewinn: nachrichtlich die nicht abziehbare Bewirtung, dann Entnahmen und Einlagen
+        privat: [
+          ...euerRows(overview.euer.figures, ["bewirtungNichtAbziehbar"]),
+          ...(["entnahmen", "einlagen"] as const).map((key) => ({ key, ...EUER_FIELDS[key], amount: overview.euer.figures[key] ?? 0 })),
+        ],
       },
       // Abgeschlossene Jahre mit Daten, dazu das Vorjahr
       years: [...new Set([...years.filter((y) => y < current), current - 1])].sort((a, b) => b - a),

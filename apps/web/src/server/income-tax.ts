@@ -56,6 +56,7 @@ const arbeitnehmer = z.object({
       arbeitsmittel: cents,
       fortbildung: cents,
       berufsverbaende: cents,
+      gewerkschaft: cents,
       sonstige: cents,
     })
     .default({}),

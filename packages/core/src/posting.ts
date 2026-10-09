@@ -68,6 +68,9 @@ export const EXPENSE_CATEGORIES = {
   uebernachtung: { label: "Reisekosten: Übernachtung", SKR03: "4676", SKR04: "6680" },
   porto: { label: "Porto", SKR03: "4910", SKR04: "6800" },
   werbung: { label: "Werbung", SKR03: "4600", SKR04: "6600" },
+  // Bewirtung: 70 % Betriebsausgabe, die Vorsteuer voll (§ 4 Abs. 5 Nr. 2 EStG); die Aufteilung macht die EÜR
+  bewirtung: { label: "Bewirtung von Geschäftspartnern (70 % abziehbar)", SKR03: "4650", SKR04: "6640" },
+  geschenke: { label: "Geschenke an Geschäftspartner (bis 50 € je Empfänger und Jahr)", SKR03: "4630", SKR04: "6610" },
   beratung: { label: "Rechts- und Beratungskosten", SKR03: "4950", SKR04: "6825" },
   buchfuehrung: { label: "Buchführung und Steuerberatung", SKR03: "4955", SKR04: "6830" },
   fremdleistung: { label: "Fremdleistungen", SKR03: "3100", SKR04: "5900" },

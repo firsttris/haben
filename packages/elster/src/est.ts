@@ -103,6 +103,7 @@ export interface EstWerbungskosten {
   arbeitsmittel?: Cents;
   fortbildung?: Cents;
   berufsverbaende?: Cents;
+  gewerkschaft?: Cents;
   /** Weitere, etwa Kontoführung oder Bewerbungen */
   sonstige?: Cents;
 }
@@ -640,7 +641,7 @@ export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
             ],
           ]
         : null,
-      posten("Berufsverb", ["E0204001", "E0204003", "E0204002"], "Berufsverbände und Gewerkschaft", w.berufsverbaende),
+      posten("Berufsverb", ["E0204001", "E0204003", "E0204002"], "Berufsverbände und Gewerkschaft", (w.berufsverbaende ?? 0) + (w.gewerkschaft ?? 0)),
       posten("Arbeitsmittel", ["E0204401", "E0204402", "E0204403"], "Arbeitsmittel", w.arbeitsmittel),
       ganz(w.homeofficeTage)
         ? ["Homeoffice", [[w.keinAndererArbeitsplatz ? "E0206206" : "E0204507", ganz(w.homeofficeTage)]]]
