@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { isValidIdnr } from "./bankverbindung.ts";
-import { elsterXml, escapeXml } from "./xml.ts";
+import { ElsterEingabeError, elsterXml, escapeXml } from "./xml.ts";
 import { findDeep, int, text } from "./xml-lesen.ts";
 
 /**
@@ -57,8 +57,8 @@ export interface VastDatenpaket {
 function checkInput(input: VastXmlInput) {
   // Test-IdNrs von ELSTER beginnen mit 0 und tragen keine gültige Prüfziffer
   const ok = input.test ? /^\d{11}$/.test(input.idnr) : isValidIdnr(input.idnr);
-  if (!ok) throw new Error(`Ungültige Steuer-IdNr: ${input.idnr}`);
-  if (!Number.isInteger(input.veranlagungsjahr) || input.veranlagungsjahr < 2000) throw new RangeError(`Ungültiges Jahr: ${input.veranlagungsjahr}`);
+  if (!ok) throw new ElsterEingabeError(`Ungültige Steuer-IdNr: ${input.idnr}`);
+  if (!Number.isInteger(input.veranlagungsjahr) || input.veranlagungsjahr < 2000) throw new ElsterEingabeError(`Ungültiges Jahr: ${input.veranlagungsjahr}`);
 }
 
 function vastXml(nutzdaten: { ticket: string; body: string }[], input: VastXmlInput): string {
@@ -83,7 +83,7 @@ export function buildVastAnfrageXml(input: VastXmlInput): string {
 /** Schritt 2: Sammelabholung, ein Nutzdatenblock je Beleg mit der Beleg-ID als Ticket */
 export function buildVastAbholungXml(ids: readonly string[], input: VastXmlInput): string {
   checkInput(input);
-  if (ids.length === 0) throw new Error("Keine Belege zum Abholen.");
+  if (ids.length === 0) throw new ElsterEingabeError("Keine Belege zum Abholen.");
   return vastXml(
     ids.map((id) => ({
       ticket: id,

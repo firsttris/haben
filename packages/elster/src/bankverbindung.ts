@@ -1,5 +1,5 @@
 import { finanzamtsnummer } from "@haben/core";
-import { checkSteuernummer13, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
+import { checkSteuernummer13, ElsterEingabeError, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
 
 /**
  * Änderung der Bankverbindung beim Finanzamt (Verfahren ElsterNachricht, Datenart AenderungBankverbindung,
@@ -57,17 +57,17 @@ export function isValidIban(iban: string): boolean {
 /** 1980-03-15 → 15.03.1980 */
 export function germanDate(isoDate: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-  if (!match) throw new Error(`Datum im Format JJJJ-MM-TT erwartet: ${isoDate}`);
+  if (!match) throw new ElsterEingabeError(`Datum im Format JJJJ-MM-TT erwartet: ${isoDate}`);
   return `${match[3]}.${match[2]}.${match[1]}`;
 }
 
 export function buildBankverbindungXml(input: BankverbindungXmlInput): string {
   checkSteuernummer13(input.steuernummer13);
   const iban = input.iban.replace(/\s+/g, "").toUpperCase();
-  if (!isValidIban(iban)) throw new Error("Die IBAN ist ungültig.");
+  if (!isValidIban(iban)) throw new ElsterEingabeError("Die IBAN ist ungültig.");
   const p = input.person;
-  if (!isValidIdnr(p.idnr)) throw new Error("Die steuerliche Identifikationsnummer ist ungültig.");
-  if (!p.vorname.trim() || !p.name.trim()) throw new Error("Vor- und Nachname fehlen.");
+  if (!isValidIdnr(p.idnr)) throw new ElsterEingabeError("Die steuerliche Identifikationsnummer ist ungültig.");
+  if (!p.vorname.trim() || !p.name.trim()) throw new ElsterEingabeError("Vor- und Nachname fehlen.");
   const e = escapeXml;
   const datenlieferant = input.datenlieferant?.trim() || `${p.vorname} ${p.name}`;
   return elsterXml(

@@ -1,5 +1,5 @@
 import { finanzamtsnummer } from "@haben/core";
-import { checkSteuernummer13, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
+import { checkSteuernummer13, ElsterEingabeError, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
 
 /**
  * Sonstige Nachricht an das Finanzamt (Verfahren ElsterNachricht, Datenart SonstigeNachrichten,
@@ -34,10 +34,10 @@ export function buildNachrichtXml(input: NachrichtXmlInput): string {
   checkSteuernummer13(input.steuernummer13);
   const betreff = input.betreff.trim();
   const text = input.text.trim();
-  if (!betreff || betreff.length > NACHRICHT_BETREFF_MAX) throw new Error(`Der Betreff braucht 1 bis ${NACHRICHT_BETREFF_MAX} Zeichen.`);
-  if (!text || text.length > NACHRICHT_TEXT_MAX) throw new Error(`Der Text braucht 1 bis ${NACHRICHT_TEXT_MAX} Zeichen.`);
+  if (!betreff || betreff.length > NACHRICHT_BETREFF_MAX) throw new ElsterEingabeError(`Der Betreff braucht 1 bis ${NACHRICHT_BETREFF_MAX} Zeichen.`);
+  if (!text || text.length > NACHRICHT_TEXT_MAX) throw new ElsterEingabeError(`Der Text braucht 1 bis ${NACHRICHT_TEXT_MAX} Zeichen.`);
   const adresse = splitStrasse(input.absender.strasse);
-  if (!adresse) throw new Error("In der Anschrift fehlt die Hausnummer.");
+  if (!adresse) throw new ElsterEingabeError("In der Anschrift fehlt die Hausnummer.");
   const a = input.absender;
   const e = escapeXml;
   return elsterXml(

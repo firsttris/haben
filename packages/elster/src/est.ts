@@ -2,7 +2,7 @@ import { roundHalfAwayFromZero, type Cents } from "@haben/core";
 import { germanDate, isValidIdnr } from "./bankverbindung.ts";
 import { checkEnvelope, envelope, render, vorsatz, type Envelope, type ErklaerungAbsender, type XmlNode } from "./erklaerung.ts";
 import { splitStrasse } from "./nachricht.ts";
-import { elsterDecimal } from "./xml.ts";
+import { elsterDecimal, ElsterEingabeError } from "./xml.ts";
 
 /**
  * Einkommensteuererklärung (E10, Unterfallart 10) mit Hauptvordruck ESt 1 A und den Anlagen
@@ -175,9 +175,9 @@ const einzelUndSumme = (name: string, art: [string, string], betrag: string, sum
 };
 
 function checkPerson(label: string, p: EstPerson) {
-  if (!isValidIdnr(p.idnr)) throw new Error(`${label}: Die Identifikationsnummer ist ungültig.`);
-  if (!p.vorname.trim() || !p.name.trim()) throw new Error(`${label}: Vor- und Nachname fehlen.`);
-  if (!isIsoDate(p.geburtsdatum)) throw new Error(`${label}: Das Geburtsdatum fehlt.`);
+  if (!isValidIdnr(p.idnr)) throw new ElsterEingabeError(`${label}: Die Identifikationsnummer ist ungültig.`);
+  if (!p.vorname.trim() || !p.name.trim()) throw new ElsterEingabeError(`${label}: Vor- und Nachname fehlen.`);
+  if (!isIsoDate(p.geburtsdatum)) throw new ElsterEingabeError(`${label}: Das Geburtsdatum fehlt.`);
 }
 
 export function buildEstXml(input: EstXmlInput): string {
@@ -186,15 +186,21 @@ export function buildEstXml(input: EstXmlInput): string {
   checkPerson("Person A", a);
   if (b) {
     checkPerson("Ehegatte", b);
-    if (!input.verheiratetSeit || !isIsoDate(input.verheiratetSeit)) throw new Error("Für die Zusammenveranlagung fehlt das Heiratsdatum.");
+    if (!input.verheiratetSeit || !isIsoDate(input.verheiratetSeit)) throw new ElsterEingabeError("Für die Zusammenveranlagung fehlt das Heiratsdatum.");
   }
   const adresse = splitStrasse(input.anschrift.strasse);
-  if (!adresse) throw new Error("In der Anschrift fehlt die Hausnummer.");
+  if (!adresse) throw new ElsterEingabeError("In der Anschrift fehlt die Hausnummer.");
   const absender: ErklaerungAbsender = { name: `${a.vorname} ${a.name}`, ...input.anschrift };
   const envelopeInput: Envelope = { ...input, absender, datenArt: "ESt" };
   checkEnvelope(envelopeInput);
   const x = input.angaben;
   const zusammen = Boolean(b);
+  // ELSTER verlangt eine Bankverbindung oder die ausdrückliche Erklärung, dass keine besteht
+  if (!input.iban?.trim()) throw new ElsterEingabeError("Für die Einkommensteuererklärung fehlt die Bankverbindung (IBAN in den Firmendaten).");
+  // Ohne Zusammenveranlagung verlangt die Anlage Kind Angaben zum anderen Elternteil, die Haben nicht erfasst
+  if (!zusammen && input.angaben.kinder.length > 0) {
+    throw new ElsterEingabeError("Kinder bei Einzelveranlagung: ELSTER verlangt Angaben zum anderen Elternteil, die Haben noch nicht erfasst. Bitte über Mein ELSTER abgeben.");
+  }
 
   const est1a: XmlNode = [
     "ESt1A",
@@ -278,8 +284,8 @@ export function buildEstXml(input: EstXmlInput): string {
   ];
 
   const kinder: XmlNode[] = x.kinder.map((kind): XmlNode => {
-    if (!kind.vorname.trim() || !isIsoDate(kind.geburtsdatum)) throw new Error("Kind: Vorname und Geburtsdatum fehlen.");
-    if (kind.idnr && !isValidIdnr(kind.idnr)) throw new Error(`Kind ${kind.vorname}: Die Identifikationsnummer ist ungültig.`);
+    if (!kind.vorname.trim() || !isIsoDate(kind.geburtsdatum)) throw new ElsterEingabeError("Kind: Vorname und Geburtsdatum fehlen.");
+    if (kind.idnr && !isValidIdnr(kind.idnr)) throw new ElsterEingabeError(`Kind ${kind.vorname}: Die Identifikationsnummer ist ungültig.`);
     const zeitraum = kindZeitraum(input.year, kind.geburtsdatum);
     const betreuung = euro(kind.kinderbetreuung);
     return [
@@ -312,15 +318,14 @@ export function buildEstXml(input: EstXmlInput): string {
                 ["E0500601", zeitraum],
               ],
             ],
-            zusammen
-              ? [
-                  "K_Verh_B",
-                  [
-                    ["E0500808", "1"],
-                    ["E0500805", zeitraum],
-                  ],
-                ]
-              : null,
+            // Kinder gibt es nur bei Zusammenveranlagung (siehe oben), also immer auch zu Person B
+            [
+              "K_Verh_B",
+              [
+                ["E0500808", "1"],
+                ["E0500805", zeitraum],
+              ],
+            ],
           ],
         ],
         betreuung
@@ -341,52 +346,18 @@ export function buildEstXml(input: EstXmlInput): string {
                     ["Sum", [["E0506105", betreuung]]],
                   ],
                 ],
-                zusammen
-                  ? [
-                      "Ang_HH",
+                [
+                  "Ang_HH",
+                  [
+                    [
+                      "Gem_HH_Elt",
                       [
-                        [
-                          "Gem_HH_Elt",
-                          [
-                            ["E0504807", zeitraum],
-                            ["E0504808", zeitraum],
-                          ],
-                        ],
-                      ],
-                    ]
-                  : [
-                      "Ang_HH",
-                      [
-                        [
-                          "K_gem_HH_Elt",
-                          [
-                            ["E0505201", zeitraum],
-                            ["E0505202", zeitraum],
-                          ],
-                        ],
+                        ["E0504807", zeitraum],
+                        ["E0504808", zeitraum],
                       ],
                     ],
-                // Ohne Zusammenveranlagung: selbst getragene Kosten, hier die vollen Kosten
-                zusammen
-                  ? null
-                  : [
-                      "Elt_k_ZV",
-                      [
-                        [
-                          "Kosten",
-                          [
-                            [
-                              "Einz",
-                              [
-                                ["E0506606", zeitraum],
-                                ["E0506605", betreuung],
-                              ],
-                            ],
-                            ["Sum", [["E0506604", betreuung]]],
-                          ],
-                        ],
-                      ],
-                    ],
+                  ],
+                ],
               ],
             ]
           : null,
@@ -498,6 +469,8 @@ export function buildEstXml(input: EstXmlInput): string {
           ],
         ]
       : null;
+  // Die Günstigerprüfung gilt bei Zusammenveranlagung nur, wenn beide sie beantragen
+  const kapB: XmlNode | null = zusammen && k?.guenstigerpruefung ? ["KAP", [["Person", "PersonB"], ["Ant", [["E1900401", "1"]]]]] : null;
 
   const vorsorgePersonen: [string, EstVorsorgePerson | undefined][] = [
     ["PersonA", x.vorsorge.a],
@@ -584,7 +557,7 @@ export function buildEstXml(input: EstXmlInput): string {
 
   return envelope(envelopeInput, [
     `<E10 xmlns="http://finkonsens.de/elster/elstererklaerung/est/e10/v${input.year}" version="${input.year}">`,
-    ...[est1a, sa, agb, ha35a, ...kinder, anlageG, anlageS, ...anlagenN, kap, vor].flatMap((node) => render(node, "  ")),
+    ...[est1a, sa, agb, ha35a, ...kinder, anlageG, anlageS, ...anlagenN, kap, kapB, vor].flatMap((node) => render(node, "  ")),
     ...render(vorsatz("10", envelopeInput, { a: a.idnr, ...(b ? { b: b.idnr } : {}) }), "  "),
     `</E10>`,
   ]);
@@ -615,20 +588,21 @@ const posten = (name: string, felder: [string, string, string], text: string, ce
 /** Anlage N einer Person: Lohnsteuerbescheinigungen (Steuerklasse 1–5 bzw. 6) und Werbungskosten */
 export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
   for (const b of an.bescheinigungen) {
-    if (!(b.brutto > 0)) throw new Error("Anlage N: Der Bruttoarbeitslohn fehlt.");
-    if (![1, 2, 3, 4, 5, 6].includes(b.steuerklasse)) throw new Error("Anlage N: Die Steuerklasse fehlt.");
+    if (!(b.brutto > 0)) throw new ElsterEingabeError("Anlage N: Der Bruttoarbeitslohn fehlt.");
+    if (![1, 2, 3, 4, 5, 6].includes(b.steuerklasse)) throw new ElsterEingabeError("Anlage N: Die Steuerklasse fehlt.");
   }
   const sum = (list: EstLohnsteuerbescheinigung[], key: keyof Omit<EstLohnsteuerbescheinigung, "steuerklasse">) => list.reduce((s, b) => s + (b[key] ?? 0), 0);
   const gruppe = (list: EstLohnsteuerbescheinigung[], einz: string, summe: string, ids: { einz: string[]; sum: string[] }, mitKlasse: boolean): XmlNode[] => {
     if (list.length === 0) return [];
     const keys = ["brutto", "lohnsteuer", "soli", "kirchensteuer", "kirchensteuerEhegatte"] as const;
     return [
-      ...list.map((b): XmlNode => [einz, keys.map((key, i): XmlNode => [ids.einz[i]!, mitCent(b[key])])]),
+      // Kirchensteuer verlangt ELSTER ausdrücklich, ggf. mit 0
+      ...list.map((b): XmlNode => [einz, keys.map((key, i): XmlNode => [ids.einz[i]!, key === "kirchensteuer" ? elsterDecimal(b[key] ?? 0) : mitCent(b[key])])]),
       [
         summe,
         [
           mitKlasse ? ["E0200002", String(list[0]!.steuerklasse)] : null,
-          ...keys.map((key, i): XmlNode => [ids.sum[i]!, i === 0 ? euro(sum(list, key)) : mitCent(sum(list, key))]),
+          ...keys.map((key, i): XmlNode => [ids.sum[i]!, i === 0 ? euro(sum(list, key)) : key === "kirchensteuer" ? elsterDecimal(sum(list, key)) : mitCent(sum(list, key))]),
         ],
       ],
     ];
@@ -637,7 +611,7 @@ export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
   const klasse6 = an.bescheinigungen.filter((b) => b.steuerklasse === 6);
   const w = an.werbungskosten;
   const wege = w.wege && w.wege.tage > 0 && w.wege.km > 0 ? w.wege : undefined;
-  if (wege && !wege.adresse.trim()) throw new Error("Anlage N: Die Anschrift der Tätigkeitsstätte fehlt.");
+  if (wege && !wege.adresse.trim()) throw new ElsterEingabeError("Anlage N: Die Anschrift der Tätigkeitsstätte fehlt.");
 
   const wk: XmlNode = [
     "Wk",

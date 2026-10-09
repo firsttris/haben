@@ -1,6 +1,6 @@
 import { finanzamtsnummer, type Cents } from "@haben/core";
 import { germanDate } from "./bankverbindung.ts";
-import { checkSteuernummer13, elsterDecimal, elsterXml, escapeXml, PRODUKT_NAME, TESTMERKER, wholeEuros } from "./xml.ts";
+import { checkSteuernummer13, elsterDecimal, ElsterEingabeError, elsterXml, escapeXml, PRODUKT_NAME, TESTMERKER, wholeEuros } from "./xml.ts";
 
 /**
  * Jahreserklärungen im Verfahren ElsterErklaerung: Umsatzsteuererklärung (E50, Datenart USt) und
@@ -55,9 +55,9 @@ export interface Envelope {
 export function checkEnvelope(input: Envelope) {
   checkSteuernummer13(input.steuernummer13);
   if (!Number.isInteger(input.year) || input.year < ERSTES_ERKLAERUNGSJAHR) {
-    throw new RangeError(`Jahreserklärungen gehen ab ${ERSTES_ERKLAERUNGSJAHR}, nicht für ${input.year}.`);
+    throw new ElsterEingabeError(`Jahreserklärungen gehen ab ${ERSTES_ERKLAERUNGSJAHR}, nicht für ${input.year}.`);
   }
-  if (!/^[A-Z]{2}$/.test(input.bundesland)) throw new Error(`Bundesland fehlt: ${input.bundesland}`);
+  if (!/^[A-Z]{2}$/.test(input.bundesland)) throw new ElsterEingabeError(`Bundesland fehlt: ${input.bundesland}`);
 }
 
 /** Identifikationsnummern stehen bei der Einkommensteuer im Vorsatz, nicht in den Personendaten */
@@ -136,7 +136,7 @@ export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
   const f = input.figures;
   const umsatzsteuer = f.tax19 + f.tax7;
   if (umsatzsteuer === 0 && f.vorsteuer === 0) {
-    throw new Error("Ohne Umsätze und Vorsteuer gibt es nichts zu erklären; eine Nullerklärung geht über das ELSTER-Portal.");
+    throw new ElsterEingabeError("Ohne Umsätze und Vorsteuer gibt es nichts zu erklären; eine Nullerklärung geht über das ELSTER-Portal.");
   }
   const { steuer, abschluss } = ustErklaerungResult(f);
   const a = input.absender;

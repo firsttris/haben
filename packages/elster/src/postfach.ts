@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
+import { ElsterEingabeError, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
 import { findDeep, int, text } from "./xml-lesen.ts";
 
 /**
@@ -75,7 +75,7 @@ export function buildPostfachAnfrageXml(input: PostfachXmlInput): string {
 }
 
 export function buildPostfachBestaetigungXml(ids: readonly string[], input: PostfachXmlInput): string {
-  if (ids.length === 0) throw new Error("Keine Bereitstellungen zum Bestätigen.");
+  if (ids.length === 0) throw new ElsterEingabeError("Keine Bereitstellungen zum Bestätigen.");
   return datenabholungXml(
     "PostfachBestaetigung",
     [

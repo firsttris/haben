@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildEstXml, kindZeitraum, type EstXmlInput } from "./est.ts";
+import { datenartVersionFromXml, ElsterEingabeError, hasTestmerker } from "./xml.ts";
 import { checkXml } from "./fake-client.ts";
-import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
+
 
 const estInput = (overrides: Partial<EstXmlInput> = {}): EstXmlInput => ({
   year: 2025,
@@ -123,7 +124,7 @@ describe("buildEstXml", () => {
     const n = /<N>[\s\S]*?<\/N>/.exec(xml)![0];
     expect(n).toMatch(/^<N>\s*<Person>PersonB<\/Person>\s*<ArbL>\s*<LStB_1_5_Einz>\s*<E0200204>42000,50<\/E0200204>\s*<E0200304>6123,40<\/E0200304>\s*<E0200504>489,87<\/E0200504>\s*<\/LStB_1_5_Einz>/);
     expect(n).toMatch(/<LStB_1_5_Sum>\s*<E0200002>4<\/E0200002>\s*<E0200201>42001<\/E0200201>\s*<E0200301>6123,40<\/E0200301>\s*<E0200501>489,87<\/E0200501>\s*<\/LStB_1_5_Sum>/);
-    expect(n).toMatch(/<LStB_6_Einz>\s*<E0200202>6000,00<\/E0200202>\s*<E0200302>800,00<\/E0200302>\s*<\/LStB_6_Einz>\s*<LStB_6_Sum>\s*<E0200203>6000<\/E0200203>\s*<E0200303>800,00<\/E0200303>/);
+    expect(n).toMatch(/<LStB_6_Einz>\s*<E0200202>6000,00<\/E0200202>\s*<E0200302>800,00<\/E0200302>\s*<E0200502>0,00<\/E0200502>\s*<\/LStB_6_Einz>\s*<LStB_6_Sum>\s*<E0200203>6000<\/E0200203>\s*<E0200303>800,00<\/E0200303>\s*<E0200503>0,00<\/E0200503>/);
     expect(n).toMatch(
       /<Wk>\s*<EP>\s*<Erste_Taetig>\s*<E0203003>1<\/E0203003>\s*<E0203501>77815 Bühl, Industriestraße 4<\/E0203501>\s*<E0203101>01\.01-31\.12<\/E0203101>\s*<E0203508>5<\/E0203508>\s*<E0203509>30<\/E0203509>\s*<E0203503>180<\/E0203503>\s*<E0203504>23<\/E0203504>\s*<E0203505>23<\/E0203505>/,
     );
@@ -150,22 +151,30 @@ describe("buildEstXml", () => {
     );
   });
 
-  it("lässt bei Einzelveranlagung Ehegatte und K_Verh_B weg", () => {
-    const xml = buildEstXml(estInput({ personB: undefined, verheiratetSeit: undefined }));
+  it("baut die Einzelveranlagung ohne Ehegatte; Kinder brauchen dann Angaben zum anderen Elternteil", () => {
+    const single = estInput({ personB: undefined, verheiratetSeit: undefined, angaben: { ...estInput().angaben, vorsorge: { a: {} }, kinder: [] } });
+    const xml = buildEstXml(single);
     expect(xml).not.toContain("<B>");
     expect(xml).not.toContain("<Vlg_Art>");
     expect(xml).not.toContain("<E0100701>");
-    expect(xml).not.toContain("<K_Verh_B>");
     expect(xml).not.toContain("PersonB");
-    expect(xml).toContain("<K_gem_HH_Elt>");
-    expect(xml).toContain("<E0506604>2000</E0506604>");
+    expect(xml).toMatch(/<StNr>\d+<\/StNr>\s*<ID>86095742719<\/ID>\s*<Zeitraum>/);
+    // Laut ERiC fehlen sonst die Angaben zum anderen Elternteil
+    expect(() => buildEstXml({ ...single, angaben: { ...single.angaben, kinder: estInput().angaben.kinder } })).toThrow(ElsterEingabeError);
+  });
+
+  it("beantragt die Günstigerprüfung bei Zusammenveranlagung für beide", () => {
+    const base = estInput();
+    const xml = buildEstXml({ ...base, angaben: { ...base.angaben, kap: { ...base.angaben.kap, guenstigerpruefung: true } } });
+    expect(xml).toMatch(/<KAP>\s*<Person>PersonA<\/Person>\s*<Ant>\s*<E1900401>1<\/E1900401>\s*<\/Ant>/);
+    expect(xml).toMatch(/<KAP>\s*<Person>PersonB<\/Person>\s*<Ant>\s*<E1900401>1<\/E1900401>\s*<\/Ant>\s*<\/KAP>/);
   });
 
   it("lässt leere Anlagen ganz weg", () => {
     const xml = buildEstXml(
-      estInput({ angaben: { vorsorge: { a: {} }, sonderausgaben: {}, haushaltsnah: {}, kinder: [] }, iban: undefined, telefon: undefined }),
+      estInput({ angaben: { vorsorge: { a: {} }, sonderausgaben: {}, haushaltsnah: {}, kinder: [] }, telefon: undefined }),
     );
-    for (const tag of ["<SA>", "<AgB>", "<HA_35a>", "<Kind>", "<KAP>", "<VOR>", "<BV>", "<E0100008>"]) expect(xml).not.toContain(tag);
+    for (const tag of ["<SA>", "<AgB>", "<HA_35a>", "<Kind>", "<KAP>", "<VOR>", "<E0100008>"]) expect(xml).not.toContain(tag);
     expect(checkXml(xml)).toBeUndefined();
   });
 
@@ -174,6 +183,7 @@ describe("buildEstXml", () => {
     expect(() => buildEstXml(estInput({ verheiratetSeit: undefined }))).toThrow(/Heiratsdatum/);
     expect(() => buildEstXml(estInput({ anschrift: { strasse: "Am Markt", plz: "1", ort: "X" } }))).toThrow(/Hausnummer/);
     expect(() => buildEstXml(estInput({ year: 2022 }))).toThrow();
+    expect(() => buildEstXml(estInput({ iban: undefined }))).toThrow(/Bankverbindung/);
   });
 
   it("berechnet den Zeitraum des Kindes", () => {

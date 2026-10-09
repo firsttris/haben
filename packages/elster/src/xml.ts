@@ -1,5 +1,8 @@
 import { finanzamtsnummer, type Cents, type UstvaFigures, type VatPeriod } from "@haben/core";
 
+/** Fehlende oder ungültige Angaben für eine ELSTER-Nachricht; die Meldung ist für den Nutzer bestimmt */
+export class ElsterEingabeError extends Error {}
+
 /** Hersteller-ID für Testübermittlungen laut ERiC-Dokumentation. */
 export const TEST_HERSTELLER_ID = "74931";
 /** Testmerker für Testfälle, die der Server annimmt, aber nicht weiterleitet. */
@@ -80,7 +83,7 @@ export function escapeXml(value: string): string {
 }
 
 export function checkSteuernummer13(steuernummer13: string): void {
-  if (!/^\d{13}$/.test(steuernummer13)) throw new Error(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${steuernummer13}`);
+  if (!/^\d{13}$/.test(steuernummer13)) throw new ElsterEingabeError(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${steuernummer13}`);
 }
 
 /** Bemessungsgrundlage in vollen Euro: 123456 → "1234" */
@@ -90,7 +93,7 @@ export function wholeEuros(cents: Cents): string {
 
 /** Betrag mit Komma, ohne Tausenderpunkte: -1200 → "-12,00" */
 export function elsterDecimal(cents: Cents): string {
-  if (!Number.isSafeInteger(cents)) throw new RangeError(`Kein ganzzahliger Centbetrag: ${cents}`);
+  if (!Number.isSafeInteger(cents)) throw new ElsterEingabeError(`Kein ganzzahliger Centbetrag: ${cents}`);
   const abs = Math.abs(cents);
   const euros = Math.trunc(abs / 100);
   const rest = String(abs % 100).padStart(2, "0");
@@ -170,7 +173,7 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
   const { period, figures, datenlieferant: dl } = input;
   checkSteuernummer13(input.steuernummer13);
   if (!Number.isInteger(period.month) || period.month < 1 || period.month > 12) {
-    throw new RangeError(`Ungültiger Monat: ${period.month}`);
+    throw new ElsterEingabeError(`Ungültiger Monat: ${period.month}`);
   }
 
   // Kennzahlen in aufsteigender Reihenfolge, wie im Schema
