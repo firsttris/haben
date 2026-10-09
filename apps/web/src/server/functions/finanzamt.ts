@@ -6,7 +6,6 @@ import { env } from "../env.ts";
 import {
   bankChangeIssues,
   bankChangeSchema,
-  FinanzamtError,
   listMessages,
   messageIssues,
   messageSchema,
@@ -63,54 +62,28 @@ export const sendFinanzamtMessage = createServerFn({ method: "POST" })
   .validator(messageSchema.extend({ kind: z.enum(["validate", "test", "send"]), pin: z.string().max(64).optional() }))
   .handler(async ({ data, context }) => {
     const { kind, pin, ...message } = data;
-    try {
-      const result = await sendMessage(context.user.id, message, elsterClient(), { kind, pin, herstellerId: env().ELSTER_HERSTELLER_ID });
-      return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
-    } catch (error) {
-      if (error instanceof FinanzamtError) throw new Error(error.message, { cause: error });
-      throw error;
-    }
+    const result = await sendMessage(context.user.id, message, elsterClient(), { kind, pin, herstellerId: env().ELSTER_HERSTELLER_ID });
+    return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
   });
-
-const rethrow = (error: unknown): never => {
-  if (error instanceof FinanzamtError) throw new Error(error.message, { cause: error });
-  throw error;
-};
 
 export const sendFinanzamtBankChange = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(bankChangeSchema.extend({ kind: z.enum(["validate", "test", "send"]), pin: z.string().max(64).optional() }))
   .handler(async ({ data, context }) => {
     const { kind, pin, ...input } = data;
-    try {
-      const result = await sendBankChange(context.user.id, input, elsterClient(), { kind, pin, herstellerId: env().ELSTER_HERSTELLER_ID });
-      return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
-    } catch (error) {
-      return rethrow(error);
-    }
+    const result = await sendBankChange(context.user.id, input, elsterClient(), { kind, pin, herstellerId: env().ELSTER_HERSTELLER_ID });
+    return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
   });
 
 export const fetchFinanzamtPostfach = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ kind: z.enum(["test", "send"]), pin: z.string().min(1).max(64) }))
-  .handler(async ({ data, context }) => {
-    try {
-      return await fetchPostfach(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID });
-    } catch (error) {
-      return rethrow(error);
-    }
-  });
+  .handler(({ data, context }) => fetchPostfach(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID }));
 
 export const enablePostfachAutoFetch = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ pin: z.string().min(1).max(64) }))
-  .handler(async ({ data, context }) => {
-    try {
-      return await enableAutoFetch(context.user.id, elsterClient(), data.pin, env().ELSTER_HERSTELLER_ID);
-    } catch (error) {
-      return rethrow(error);
-    }
-  });
+  .handler(({ data, context }) => enableAutoFetch(context.user.id, elsterClient(), data.pin, env().ELSTER_HERSTELLER_ID));
 
 export const disablePostfachAutoFetch = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

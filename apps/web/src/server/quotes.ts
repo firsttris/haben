@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   addDays,
   computeInvoiceTotals,
@@ -28,7 +29,7 @@ import { buyerFrom, createDraft, deleteDraft, sellerFrom, type Invoice } from ".
 export type Quote = typeof schema.quotes.$inferSelect;
 export type QuoteLine = typeof schema.quoteLines.$inferSelect;
 
-export class QuoteError extends Error {}
+export class QuoteError extends UserError {}
 
 const isoDate = z.iso.date();
 

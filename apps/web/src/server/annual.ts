@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { ACCOUNTS, taxOf, toElsterSteuernummer, toWholeEuros, type Cents, type Prognose, type EuerResult, type ExpenseCategory, type PauschaleArt, homeofficeSatz } from "@haben/core";
 import {
   buildEstXml,
@@ -16,7 +17,7 @@ import {
   type EuerFigures,
   type UstErklaerungFigures,
 } from "@haben/elster";
-import { and, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { listAssets } from "./assets.ts";
 import { companyIssues, loadCompany, type Company } from "./company.ts";
 import { decrypt } from "./crypto.ts";
@@ -26,9 +27,9 @@ import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { listPauschalen } from "./pauschalen.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures } from "./vat-figures.ts";
-import { loadActiveCertificate, PRODUKT_VERSION } from "./vat.ts";
+import { loadActiveCertificate, PRODUKT_VERSION, protocolSubmission, underSendLock } from "./vat.ts";
 
-export class AnnualError extends Error {}
+export class AnnualError extends UserError {}
 
 export type AnnualForm = "ust" | "euer" | "est";
 
@@ -124,7 +125,7 @@ function ustIssues(company: Company, data: UstYear): Issue[] {
 // ------------------------------------------------------------------ Anlage EÜR
 
 /** Kategorie der Belege → Zeile der Anlage EÜR */
-export const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage">, EuerFigureKey> = {
+const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage">, EuerFigureKey> = {
   software: "edv",
   edv: "edv",
   hardware: "gwg",
@@ -159,7 +160,7 @@ const PAUSCHALE_FIELDS: Record<PauschaleArt, EuerFigureKey> = {
 };
 
 /** Verteilt die EÜR von Haben auf die Zeilen der Anlage EÜR. Summen und Gewinn bleiben gleich. */
-export function euerFigures(euer: EuerResult): EuerFigures {
+function euerFigures(euer: EuerResult): EuerFigures {
   const figures: EuerFigures = {};
   const add = (key: EuerFigureKey, cents: Cents) => {
     if (cents !== 0) figures[key] = (figures[key] ?? 0) + cents;
@@ -196,11 +197,11 @@ export function euerFigures(euer: EuerResult): EuerFigures {
   return figures;
 }
 
-/** Entnahmen und Einlagen laut Journal (Privatkonten) */
-async function privateMovements(year: number, kontenrahmen: Company["kontenrahmen"]) {
-  const accounts = ACCOUNTS[kontenrahmen];
+/** Entnahmen und Einlagen laut Journal (Privatkonten), je Buchung in deren Kontenrahmen, damit ein Wechsel das Vorjahr nicht verfälscht */
+async function privateMovements(year: number) {
   const rows = await db
     .select({
+      kontenrahmen: schema.journalEntries.kontenrahmen,
       account: schema.journalLines.account,
       saldo: sql<string>`coalesce(sum(${schema.journalLines.debit} - ${schema.journalLines.credit}), 0)`,
     })
@@ -208,14 +209,19 @@ async function privateMovements(year: number, kontenrahmen: Company["kontenrahme
     .innerJoin(schema.journalEntries, eq(schema.journalEntries.id, schema.journalLines.entryId))
     .where(
       and(
-        inArray(schema.journalLines.account, [accounts.privatentnahmen, accounts.privateinlagen]),
         gte(schema.journalEntries.date, `${year}-01-01`),
         lt(schema.journalEntries.date, `${year + 1}-01-01`),
+        or(
+          ...(["SKR03", "SKR04"] as const).map((kr) =>
+            and(eq(schema.journalEntries.kontenrahmen, kr), inArray(schema.journalLines.account, [ACCOUNTS[kr].privatentnahmen, ACCOUNTS[kr].privateinlagen])),
+          ),
+        ),
       ),
     )
-    .groupBy(schema.journalLines.account);
-  const saldo = (account: string) => Number(rows.find((r) => r.account === account)?.saldo ?? 0);
-  return { entnahmen: saldo(accounts.privatentnahmen), einlagen: -saldo(accounts.privateinlagen) || 0 };
+    .groupBy(schema.journalEntries.kontenrahmen, schema.journalLines.account);
+  const saldo = (key: "privatentnahmen" | "privateinlagen") =>
+    rows.filter((r) => r.account === ACCOUNTS[r.kontenrahmen][key]).reduce((sum, r) => sum + Number(r.saldo), 0);
+  return { entnahmen: saldo("privatentnahmen"), einlagen: -saldo("privateinlagen") || 0 };
 }
 
 export interface EuerYear {
@@ -229,8 +235,7 @@ export interface EuerYear {
 }
 
 export async function euerYear(year: number): Promise<EuerYear> {
-  const company = await loadCompany();
-  const [euer, movements, assets] = await Promise.all([euerForYear(year), privateMovements(year, company.kontenrahmen), listAssets(year)]);
+  const [euer, movements, assets] = await Promise.all([euerForYear(year), privateMovements(year), listAssets(year)]);
   const figures: EuerFigures = { ...euerFigures(euer), ...movements };
   const anlagen: AveuerAnlage[] = assets
     .filter((a) => a.year && a.method !== "gwg")
@@ -278,7 +283,7 @@ export interface EstYear {
   prognose: Prognose;
 }
 
-export async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
+async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
   const [company, angaben, euerData] = await Promise.all([loadCompany(), loadEstAngaben(year), euer ?? euerYear(year)]);
   const t = company.taxpayer;
   const zusammen = t.veranlagung === "zusammen";
@@ -402,13 +407,11 @@ export interface AnnualSubmitOptions {
 }
 
 /** Prüft oder übermittelt eine Jahreserklärung; jeder Versuch wird mit XML und Werten gespeichert. */
-export async function submitAnnual(
-  actor: string,
-  form: AnnualForm,
-  year: number,
-  client: ElsterClient,
-  options: AnnualSubmitOptions,
-): Promise<ElsterResult> {
+export function submitAnnual(actor: string, form: AnnualForm, year: number, client: ElsterClient, options: AnnualSubmitOptions): Promise<ElsterResult> {
+  return underSendLock(`haben.jahreserklaerung.${form}.${year}`, options.kind, () => submit(actor, form, year, client, options));
+}
+
+async function submit(actor: string, form: AnnualForm, year: number, client: ElsterClient, options: AnnualSubmitOptions): Promise<ElsterResult> {
   const company = await loadCompany();
   const data = form === "ust" ? await ustYear(year) : await euerYear(year);
   const formIssues =
@@ -486,21 +489,23 @@ export async function submitAnnual(
     result = await client.send(xml, decrypt(certificate.ciphertext), options.pin, { test });
   }
 
-  await withActor(actor, (tx) =>
-    tx.insert(schema.annualSubmissions).values({
-      form,
-      year,
-      kind: options.kind,
-      ok: result.ok,
-      code: result.code,
-      message: result.message,
-      transferTicket: result.transferTicket ?? null,
-      figures,
-      requestXml: xml,
-      responseXml: result.responseXml,
-      serverResponseXml: result.serverResponseXml,
-      protocolPdf: result.pdf ? Buffer.from(result.pdf) : null,
-    }),
+  await protocolSubmission(options.kind, result, xml, () =>
+    withActor(actor, (tx) =>
+      tx.insert(schema.annualSubmissions).values({
+        form,
+        year,
+        kind: options.kind,
+        ok: result.ok,
+        code: result.code,
+        message: result.message,
+        transferTicket: result.transferTicket ?? null,
+        figures,
+        requestXml: xml,
+        responseXml: result.responseXml,
+        serverResponseXml: result.serverResponseXml,
+        protocolPdf: result.pdf ? Buffer.from(result.pdf) : null,
+      }),
+    ),
   );
   return result;
 }

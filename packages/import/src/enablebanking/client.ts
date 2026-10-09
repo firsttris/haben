@@ -1,5 +1,6 @@
 import { createSign } from "node:crypto";
 import { z } from "zod";
+import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
 
 export const ENABLE_BANKING_DEFAULT_BASE_URL = "https://api.enablebanking.com";
 
@@ -24,6 +25,8 @@ export interface EnableBankingClientOptions {
   baseUrl?: string;
   fetch?: typeof fetch;
   now?: () => number;
+  /** Für Tests injizierbar; Standard setTimeout */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 const aspspSchema = z.looseObject({
@@ -99,6 +102,8 @@ export type EbBalance = z.infer<typeof balanceSchema>;
 
 /** Schutz gegen eine Endlosschleife, falls die Bank immer einen continuation_key liefert */
 const MAX_PAGES = 500;
+/** Wiederholungen lesender Abrufe bei 429/502/503/504 und Netzwerkfehlern */
+const MAX_RETRIES = 3;
 
 const base64url = (input: string | Buffer) => Buffer.from(input).toString("base64url");
 
@@ -112,6 +117,7 @@ export class EnableBankingClient {
   readonly #baseUrl: string;
   readonly #fetch: typeof fetch;
   readonly #now: () => number;
+  readonly #sleep: (ms: number) => Promise<void>;
   #token: { value: string; expires: number } | null = null;
 
   constructor(options: EnableBankingClientOptions) {
@@ -122,6 +128,7 @@ export class EnableBankingClient {
     this.#baseUrl = (options.baseUrl ?? ENABLE_BANKING_DEFAULT_BASE_URL).replace(/\/+$/, "");
     this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
     this.#now = options.now ?? Date.now;
+    this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
   /** JWT für die Authentifizierung gegenüber Enable Banking */
@@ -215,25 +222,35 @@ export class EnableBankingClient {
   }
 
   async #request(method: string, path: string, body?: unknown): Promise<Response> {
-    let response: Response;
-    try {
-      response = await this.#fetch(`${this.#baseUrl}${path}`, {
-        method,
-        headers: {
-          authorization: `Bearer ${this.token()}`,
-          accept: "application/json",
-          ...(body === undefined ? {} : { "content-type": "application/json" }),
-        },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
-    } catch (cause) {
-      throw new EnableBankingApiError(`Enable Banking nicht erreichbar: ${cause instanceof Error ? cause.message : String(cause)}`, 0, path, { cause });
-    }
-    if (!response.ok) {
+    // Nur lesende Abrufe wiederholen; POST (Code gegen Sitzung tauschen) ist nicht idempotent
+    const retries = method === "GET" ? MAX_RETRIES : 0;
+    for (let attempt = 0; ; attempt++) {
+      let response: Response;
+      try {
+        response = await this.#fetch(`${this.#baseUrl}${path}`, {
+          method,
+          headers: {
+            authorization: `Bearer ${this.token()}`,
+            accept: "application/json",
+            ...(body === undefined ? {} : { "content-type": "application/json" }),
+          },
+          body: body === undefined ? undefined : JSON.stringify(body),
+        });
+      } catch (cause) {
+        if (attempt < retries) {
+          await this.#sleep(backoff(attempt));
+          continue;
+        }
+        throw new EnableBankingApiError(`Enable Banking nicht erreichbar: ${cause instanceof Error ? cause.message : String(cause)}`, 0, path, { cause });
+      }
+      if (response.ok) return response;
       const text = await response.text().catch(() => "");
+      if (RETRY_STATUSES.has(response.status) && attempt < retries) {
+        await this.#sleep(parseRetryAfter(response.headers.get("retry-after"), this.#now()) ?? backoff(attempt));
+        continue;
+      }
       throw new EnableBankingApiError(errorText(response.status, text), response.status, path);
     }
-    return response;
   }
 }
 

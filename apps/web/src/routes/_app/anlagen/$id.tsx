@@ -3,7 +3,9 @@ import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-r
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AssetForm } from "../../../components/AssetForm.tsx";
-import { errorMessage, formatDate } from "../../../lib/format.ts";
+import { formatDate } from "../../../lib/format.ts";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../lib/use-action.ts";
 import { deleteAssetFn, getAssetDetail, updateAssetFn } from "../../../server/functions/assets.ts";
 
 export const Route = createFileRoute("/_app/anlagen/$id")({
@@ -18,22 +20,12 @@ function AssetPage() {
   const navigate = useNavigate();
   const update = useServerFn(updateAssetFn);
   const remove = useServerFn(deleteAssetFn);
-  const [busy, setBusy] = useState(false);
+  const { busy, notice, run } = useAction();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
 
   const booked = bookedYears.length > 0 || asset.openingEntryId !== null;
   const fromDocument = asset.documentId !== null;
   const deletable = !booked && !fromDocument;
-
-  function run(work: () => Promise<unknown>, success?: string) {
-    setBusy(true);
-    setNotice(null);
-    work()
-      .then(() => success && setNotice({ tone: "ok", text: success }))
-      .catch((error: unknown) => setNotice({ tone: "danger", text: errorMessage(error) }))
-      .finally(() => setBusy(false));
-  }
 
   return (
     <>
@@ -63,11 +55,7 @@ function AssetPage() {
           </div>
         )}
       </div>
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-          {notice.text}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
 
       <div className="grid-main">
         <section className="card stack" aria-labelledby="plan-heading">

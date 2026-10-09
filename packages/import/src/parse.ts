@@ -23,15 +23,16 @@ function detect(text: string, label: string): Detected {
     throw new StatementParseError(`${label} ist eine XML-Datei, aber kein CAMT.053-Kontoauszug.`);
   }
 
-  const semicolon = parseCsv(text, ";");
+  // Erkennung an den ersten 40 Zeilen (weiter sucht findHeaderRow nicht), dann einmal komplett parsen
+  const head = text.split("\n", 40).join("\n");
+  const semicolon = parseCsv(head, ";");
   const dkb = findHeaderRow(semicolon, isDkbHeader);
-  if (dkb >= 0) return { format: "dkb-csv", rows: semicolon, headerRow: dkb };
+  if (dkb >= 0) return { format: "dkb-csv", rows: parseCsv(text, ";"), headerRow: dkb };
   const dkbAlt = findHeaderRow(semicolon, isDkbAltHeader);
-  if (dkbAlt >= 0) return { format: "dkb-csv-alt", rows: semicolon, headerRow: dkbAlt };
+  if (dkbAlt >= 0) return { format: "dkb-csv-alt", rows: parseCsv(text, ";"), headerRow: dkbAlt };
 
-  const comma = parseCsv(text, ",");
-  const n26 = findHeaderRow(comma, isN26Header);
-  if (n26 >= 0) return { format: "n26-csv", rows: comma, headerRow: n26 };
+  const n26 = findHeaderRow(parseCsv(head, ","), isN26Header);
+  if (n26 >= 0) return { format: "n26-csv", rows: parseCsv(text, ","), headerRow: n26 };
 
   throw new StatementParseError(
     `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB und N26 sowie CAMT.053 (XML).`,

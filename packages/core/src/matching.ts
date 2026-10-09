@@ -32,7 +32,7 @@ export interface Suggestion {
 
 const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-const STOP_WORDS = new Set(["gmbh", "ag", "ug", "kg", "ohg", "mbh", "co", "und", "der", "die", "das", "e.k.", "ek", "se", "ltd", "inc"]);
+const STOP_WORDS = new Set(["gmbh", "ag", "ug", "kg", "ohg", "mbh", "co", "und", "der", "die", "das", "ek", "se", "ltd", "inc"]);
 
 function words(value: string): Set<string> {
   return new Set(

@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   addDays,
   DEFAULT_INTEREST_MARKUP,
@@ -16,7 +17,7 @@ import { db, schema } from "./db/index.ts";
 import { listInvoices } from "./invoices.ts";
 import { loadLogo } from "./logo.ts";
 
-export class DunningError extends Error {}
+export class DunningError extends UserError {}
 
 export type Dunning = Omit<typeof schema.dunnings.$inferSelect, "pdf">;
 
@@ -44,7 +45,7 @@ export async function dunningsFor(invoiceIds: string[]): Promise<Dunning[]> {
   return db.select(dunningColumns).from(schema.dunnings).where(inArray(schema.dunnings.invoiceId, invoiceIds)).orderBy(desc(schema.dunnings.date), desc(schema.dunnings.createdAt));
 }
 
-const nextLevel = (last: Dunning | undefined): DunningLevel => (Math.min((last?.level ?? 0) + 1, 3) as DunningLevel);
+const nextLevel = (last: Pick<Dunning, "level"> | undefined): DunningLevel => (Math.min((last?.level ?? 0) + 1, 3) as DunningLevel);
 
 /**
  * Überfällige Rechnungen mit ihrer letzten Mahnung. „Frist läuft“, solange die Frist der letzten
@@ -65,7 +66,7 @@ export async function overdueInvoices(today: string) {
 }
 
 async function openInvoice(invoiceId: string, today: string) {
-  const invoice = (await listInvoices(today)).find((i) => i.id === invoiceId);
+  const [invoice] = await listInvoices(today, invoiceId);
   if (!invoice || invoice.status !== "final") throw new DunningError("Rechnung nicht gefunden.");
   if (invoice.kind !== "rechnung" || invoice.open <= 0) throw new DunningError("Für diese Rechnung ist nichts offen.");
   return invoice;
@@ -111,31 +112,44 @@ export async function createDunning(actor: string, input: DunningInput, today: s
   if (input.interest && company.dunning.baseRate === null) {
     throw new DunningError("Für Verzugszinsen bitte zuerst den Basiszinssatz in den Einstellungen eintragen.");
   }
-  const [invoice] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId));
-  if (!invoice?.seller || !invoice.buyer || !invoice.number) throw new DunningError("Rechnung nicht gefunden.");
-
-  const amounts = dunningAmounts({
-    open: listed.open,
-    dueDate: invoice.dueDate,
-    date: today,
-    fee: input.fee,
-    flatFee: input.flatFee,
-    interestRate: input.interest ? company.dunning.baseRate! + DEFAULT_INTEREST_MARKUP[input.interest] : null,
-  });
   const logo = await loadLogo();
-  const pdf = buildDunningPdf({
-    ...(logo ? { logo } : {}),
-    level: input.level,
-    date: today,
-    dueDate: input.dueDate,
-    seller: invoice.seller,
-    buyer: invoice.buyer,
-    invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate },
-    amounts,
-    intro: input.intro,
-    closing: input.closing,
-  });
   return withActor(actor, async (tx) => {
+    // Rechnung sperren und letzte Mahnung erst danach lesen: Zwei gleichzeitige Mahnungen derselben Stufe sind so ausgeschlossen.
+    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
+    if (!invoice?.seller || !invoice.buyer || !invoice.number) throw new DunningError("Rechnung nicht gefunden.");
+    const [last] = await tx
+      .select({ level: schema.dunnings.level })
+      .from(schema.dunnings)
+      .where(eq(schema.dunnings.invoiceId, invoice.id))
+      .orderBy(desc(schema.dunnings.date), desc(schema.dunnings.createdAt))
+      .limit(1);
+    const allowed = nextLevel(last);
+    if (input.level < allowed) {
+      throw new DunningError(
+        `Die Rechnung ist schon mit „${DUNNING_LEVELS[last!.level as DunningLevel].label}“ gemahnt. Als Nächstes folgt „${DUNNING_LEVELS[allowed].label}“.`,
+      );
+    }
+
+    const amounts = dunningAmounts({
+      open: listed.open,
+      dueDate: invoice.dueDate,
+      date: today,
+      fee: input.fee,
+      flatFee: input.flatFee,
+      interestRate: input.interest ? company.dunning.baseRate! + DEFAULT_INTEREST_MARKUP[input.interest] : null,
+    });
+    const pdf = buildDunningPdf({
+      ...(logo ? { logo } : {}),
+      level: input.level,
+      date: today,
+      dueDate: input.dueDate,
+      seller: invoice.seller,
+      buyer: invoice.buyer,
+      invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate },
+      amounts,
+      intro: input.intro,
+      closing: input.closing,
+    });
     const [created] = await tx
       .insert(schema.dunnings)
       .values({

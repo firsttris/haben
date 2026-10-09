@@ -196,6 +196,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect((await annual.annualOverview(2025, TODAY)).euer.issues).toEqual([]);
     expect(car.id).toBeTruthy();
 
+    // Wechsel auf SKR04 zum neuen Jahr: Entnahmen und Einlagen des Vorjahres zählen in dessen Kontenrahmen weiter
+    await sql`update company set kontenrahmen = 'SKR04'`;
+    expect((await annual.euerYear(2025)).figures).toMatchObject({ entnahmen: 300_000 + 12 * (14_725 + 8_953), einlagen: 1_190 });
+    await sql`update company set kontenrahmen = 'SKR03'`;
+
     await sql`update company set einkunftsart = null`;
     expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]!.link).toBe("/einstellungen");
   });

@@ -2,7 +2,7 @@ import { formatEuro, kontenkennzahlen, kontenklasse } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { z } from "zod/mini";
-import { SaldoBetrag, ZEITRAEUME } from "../../../components/Ledger.tsx";
+import { SaldoBetrag, ZEITRAEUME, lastDayBefore } from "../../../components/Ledger.tsx";
 import { formatDate } from "../../../lib/format.ts";
 import { getSaldenliste } from "../../../server/functions/ledger.ts";
 import styles from "../../../styles/auswertungen.css?url";
@@ -42,7 +42,7 @@ function KontenPage() {
   const zeitraum = deps.zeitraum ?? "jahr";
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const until = new Date(Date.parse(`${data.to}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const until = lastDayBefore(data.to);
   const k = useMemo(() => kontenkennzahlen(data.rows), [data.rows]);
   // Eröffnung nur zeigen, wenn es vor dem Zeitraum schon Buchungen gab
   const showOpening = data.rows.some((r) => r.eroeffnung !== 0);

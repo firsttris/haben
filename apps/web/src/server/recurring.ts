@@ -1,3 +1,4 @@
+import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "./errors.ts";
 import {
   addMonthsAnchored,
   dueDates,
@@ -13,13 +14,13 @@ import { and, asc, desc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
-import { createDraft, finalizeInvoice, InvoiceError } from "./invoices.ts";
+import { createDraft, finalizeInvoice } from "./invoices.ts";
 import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
 import { MailError } from "./mail.ts";
 
 export type RecurringInvoice = typeof schema.recurringInvoices.$inferSelect;
 
-export class RecurringError extends Error {}
+export class RecurringError extends UserError {}
 
 /** Wer die Rechnungen eines Laufs im Audit-Log angelegt hat */
 export const RECURRING_ACTOR = "system:wiederkehrend";
@@ -149,6 +150,70 @@ export interface RunResult {
   errors: string[];
 }
 
+/** Meldung für lastError: Fachfehler und Eingabefehler im Klartext, alles andere nur ins Server-Log */
+function describe(error: unknown): string {
+  const message = userMessage(error);
+  if (message === undefined) console.error("Wiederkehrende Rechnung:", error);
+  return message ?? INTERNAL_ERROR;
+}
+
+
+async function runOne(recurring: RecurringInvoice, today: string, result: RunResult): Promise<void> {
+  const interval = recurring.intervalMonths as RecurringInterval;
+  const dates = dueDates(recurring.nextDate, interval, recurring.anchorDay, today, recurring.endDate);
+  let lastError: string | null = null;
+  // Sprache aus dem Kontakt, wie beim Anlegen im Editor
+  const [contact] = await db.select({ language: schema.contacts.language }).from(schema.contacts).where(eq(schema.contacts.id, recurring.contactId));
+  for (const date of dates) {
+    const [existing] = await db
+      .select({ id: schema.invoices.id })
+      .from(schema.invoices)
+      .where(and(eq(schema.invoices.recurringId, recurring.id), eq(schema.invoices.recurringDate, date)));
+    if (existing) continue;
+    let draftId: string;
+    try {
+      const draft = await createDraft(RECURRING_ACTOR, invoiceForDate(recurring, date, contact?.language), { recurringId: recurring.id, recurringDate: date });
+      draftId = draft.id;
+      result.created++;
+    } catch (error) {
+      // Gleichzeitiger Lauf hat den Termin schon angelegt
+      if (isUniqueViolation(error, "invoices_recurring_date")) continue;
+      throw error;
+    }
+    if (recurring.mode === "festschreiben") {
+      try {
+        await finalizeInvoice(RECURRING_ACTOR, draftId);
+        result.finalized++;
+      } catch (error) {
+        // Entwurf bleibt stehen, damit nichts verloren geht
+        lastError = `Rechnung vom ${date} als Entwurf angelegt, Festschreiben fehlgeschlagen: ${describe(error)}`;
+        result.errors.push(`${recurring.name}: ${lastError}`);
+        continue;
+      }
+      if (recurring.sendByMail) {
+        try {
+          const sent = await sendInvoiceMailWithTemplate(RECURRING_ACTOR, draftId);
+          if (sent.ok) result.mailed++;
+          else throw new MailError(sent.error ?? "unbekannter Fehler");
+        } catch (error) {
+          // Die Rechnung ist festgeschrieben; nur der Versand fehlt, von Hand auf der Rechnungsseite nachholbar
+          lastError = `Rechnung vom ${date} festgeschrieben, E-Mail nicht gesendet: ${describe(error)}`;
+          result.errors.push(`${recurring.name}: ${lastError}`);
+        }
+      }
+    }
+  }
+  const last = dates.at(-1);
+  const nextDate = last ? addMonthsAnchored(last, interval, recurring.anchorDay) : recurring.nextDate;
+  const ended = recurring.endDate !== null && nextDate > recurring.endDate;
+  await withActor(RECURRING_ACTOR, (tx) =>
+    tx
+      .update(schema.recurringInvoices)
+      .set({ nextDate, active: !ended, lastRunAt: new Date(), lastError })
+      .where(eq(schema.recurringInvoices.id, recurring.id)),
+  );
+}
+
 /**
  * Legt für alle fälligen Termine Rechnungen an, verpasste werden nachgeholt (je Termin mit seinem Datum).
  * Je Termin entsteht höchstens eine Rechnung (eindeutiger Index), auch wenn zwei Läufe gleichzeitig starten.
@@ -161,61 +226,16 @@ export async function runDueRecurring(today: string): Promise<RunResult> {
     .where(and(eq(schema.recurringInvoices.active, true), lte(schema.recurringInvoices.nextDate, today)));
 
   for (const recurring of due) {
-    const interval = recurring.intervalMonths as RecurringInterval;
-    const dates = dueDates(recurring.nextDate, interval, recurring.anchorDay, today, recurring.endDate);
-    let lastError: string | null = null;
-    // Sprache aus dem Kontakt, wie beim Anlegen im Editor
-    const [contact] = await db.select({ language: schema.contacts.language }).from(schema.contacts).where(eq(schema.contacts.id, recurring.contactId));
-    for (const date of dates) {
-      const [existing] = await db
-        .select({ id: schema.invoices.id })
-        .from(schema.invoices)
-        .where(and(eq(schema.invoices.recurringId, recurring.id), eq(schema.invoices.recurringDate, date)));
-      if (existing) continue;
-      let draftId: string;
-      try {
-        const draft = await createDraft(RECURRING_ACTOR, invoiceForDate(recurring, date, contact?.language), { recurringId: recurring.id, recurringDate: date });
-        draftId = draft.id;
-        result.created++;
-      } catch (error) {
-        // Gleichzeitiger Lauf hat den Termin schon angelegt
-        if (error instanceof Error && /invoices_recurring_date/.test(`${error.message} ${String((error as { cause?: unknown }).cause)}`)) continue;
-        throw error;
-      }
-      if (recurring.mode === "festschreiben") {
-        try {
-          await finalizeInvoice(RECURRING_ACTOR, draftId);
-          result.finalized++;
-        } catch (error) {
-          if (!(error instanceof InvoiceError)) throw error;
-          // Entwurf bleibt stehen, damit nichts verloren geht
-          lastError = `Rechnung vom ${date} als Entwurf angelegt, Festschreiben fehlgeschlagen: ${error.message}`;
-          result.errors.push(`${recurring.name}: ${lastError}`);
-          continue;
-        }
-        if (recurring.sendByMail) {
-          try {
-            const sent = await sendInvoiceMailWithTemplate(RECURRING_ACTOR, draftId);
-            if (sent.ok) result.mailed++;
-            else throw new MailError(sent.error ?? "unbekannter Fehler");
-          } catch (error) {
-            if (!(error instanceof MailError)) throw error;
-            // Die Rechnung ist festgeschrieben; nur der Versand fehlt, von Hand auf der Rechnungsseite nachholbar
-            lastError = `Rechnung vom ${date} festgeschrieben, E-Mail nicht gesendet: ${error.message}`;
-            result.errors.push(`${recurring.name}: ${lastError}`);
-          }
-        }
-      }
+    try {
+      await runOne(recurring, today, result);
+    } catch (error) {
+      // Der Lauf geht mit der nächsten Vorlage weiter; nextDate bleibt, schon angelegte Termine überspringt der nächste Lauf
+      const lastError = describe(error);
+      result.errors.push(`${recurring.name}: ${lastError}`);
+      await withActor(RECURRING_ACTOR, (tx) =>
+        tx.update(schema.recurringInvoices).set({ lastRunAt: new Date(), lastError }).where(eq(schema.recurringInvoices.id, recurring.id)),
+      ).catch((e: unknown) => console.error("Wiederkehrende Rechnung: Fehler nicht gespeichert", e));
     }
-    const last = dates.at(-1);
-    const nextDate = last ? addMonthsAnchored(last, interval, recurring.anchorDay) : recurring.nextDate;
-    const ended = recurring.endDate !== null && nextDate > recurring.endDate;
-    await withActor(RECURRING_ACTOR, (tx) =>
-      tx
-        .update(schema.recurringInvoices)
-        .set({ nextDate, active: !ended, lastRunAt: new Date(), lastError })
-        .where(eq(schema.recurringInvoices.id, recurring.id)),
-    );
   }
   return result;
 }

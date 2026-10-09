@@ -6,7 +6,9 @@ import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { QuoteStatus } from "../../../components/QuoteStatus.tsx";
 import { SendMailForm } from "../../../components/SendMail.tsx";
-import { errorMessage, formatDate, formatDateTime } from "../../../lib/format.ts";
+import { formatDate, formatDateTime } from "../../../lib/format.ts";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../lib/use-action.ts";
 import { copyQuoteFn, decideQuote, getQuoteDetail, invoiceFromQuote } from "../../../server/functions/quotes.ts";
 
 export const Route = createFileRoute("/_app/angebote/$id")({
@@ -70,23 +72,10 @@ function FinalQuote({ data }: { data: Detail }) {
   const decide = useServerFn(decideQuote);
   const toInvoice = useServerFn(invoiceFromQuote);
   const copy = useServerFn(copyQuoteFn);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, notice, run } = useAction();
   const [mailing, setMailing] = useState(false);
   const [mailNotice, setMailNotice] = useState<string | null>(null);
   const buyer = quote.buyer as { name: string } | null;
-
-  async function run(work: () => Promise<void>) {
-    setBusy(true);
-    setError(null);
-    try {
-      await work();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   const setDecision = (decision: "angenommen" | "abgelehnt" | null) =>
     run(async () => {
@@ -125,11 +114,7 @@ function FinalQuote({ data }: { data: Detail }) {
         </div>
       </div>
 
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
 
       <div className="grid-main">
         <section aria-label="PDF">

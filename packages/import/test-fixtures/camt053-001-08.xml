@@ -63,7 +63,7 @@
         <camt:Dt><camt:Dt>2026-10-02</camt:Dt></camt:Dt>
       </camt:Bal>
       <camt:Ntry>
-        <camt:Amt Ccy="EUR">59.50</camt:Amt>
+        <camt:Amt Ccy="EUR">59.50000</camt:Amt>
         <camt:CdtDbtInd>DBIT</camt:CdtDbtInd>
         <camt:Sts><camt:Cd>BOOK</camt:Cd></camt:Sts>
         <camt:BookgDt><camt:Dt>2026-10-02</camt:Dt></camt:BookgDt>
@@ -74,7 +74,12 @@
             <camt:Refs><camt:EndToEndId>TEL-2026-10</camt:EndToEndId><camt:MndtId>TEL-778899</camt:MndtId></camt:Refs>
             <camt:Amt Ccy="EUR">59.50</camt:Amt>
             <camt:RltdPties>
-              <camt:Cdtr><camt:Pty><camt:Nm>Telefon GmbH</camt:Nm></camt:Pty></camt:Cdtr>
+              <camt:Cdtr>
+                <camt:Pty>
+                  <camt:Nm>Telefon GmbH</camt:Nm>
+                  <camt:Id><camt:PrvtId><camt:Othr><camt:Id>DE98ZZZ09999999999</camt:Id><camt:SchmeNm><camt:Prtry>SEPA</camt:Prtry></camt:SchmeNm></camt:Othr></camt:PrvtId></camt:Id>
+                </camt:Pty>
+              </camt:Cdtr>
               <camt:CdtrAcct><camt:Id><camt:IBAN>DE91100000000123456789</camt:IBAN></camt:Id></camt:CdtrAcct>
             </camt:RltdPties>
             <camt:RmtInf>

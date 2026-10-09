@@ -89,6 +89,14 @@ describe("steuerPrognose", () => {
     expect(p.jeQuartal).toBe(Math.round(p.gesamt / 4 / 100) * 100);
   });
 
+  it("begrenzt die Altersvorsorge auf den Höchstbetrag des Jahres (§ 10 Abs. 3 EStG)", () => {
+    const einzeln = { ...base, year: 2025, zusammen: false, angaben: { ...base.angaben, vorsorge: { a: { rentenversicherung: 35_000_00 } } } };
+    expect(steuerPrognose(einzeln).vorsorge).toBe(29_344_00);
+    // Zusammenveranlagung: doppelter Höchstbetrag, auch wenn nur einer einzahlt
+    expect(steuerPrognose({ ...einzeln, zusammen: true }).vorsorge).toBe(35_000_00);
+    expect(steuerPrognose({ ...einzeln, zusammen: true, angaben: { ...einzeln.angaben, vorsorge: { a: { rentenversicherung: 70_000_00 } } } }).vorsorge).toBe(58_688_00);
+  });
+
   it("rechnet Arbeitslohn des Ehegatten ein und die Lohnsteuer an", () => {
     const p = steuerPrognose({
       ...base,

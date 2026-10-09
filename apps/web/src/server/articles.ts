@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { UNITS, type UnitLabel } from "@haben/core";
 import { asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
@@ -8,7 +9,7 @@ import { db, schema } from "./db/index.ts";
 
 export type Article = typeof schema.articles.$inferSelect;
 
-export class ArticleError extends Error {}
+export class ArticleError extends UserError {}
 
 export const articleInputSchema = z.object({
   number: z.string().trim().max(50).default(""),

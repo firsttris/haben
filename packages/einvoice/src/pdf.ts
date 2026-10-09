@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
-import { countryName, formatIban } from "./format.ts";
+import { countryName, formatIban, paymentSentence } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import type { Address, InvoiceDocument, Logo } from "./types.ts";
@@ -34,6 +34,39 @@ export function templateLabels(t: Texts) {
   return { columns: t.columns, page: t.page("#", "#").split("#").map((part) => part.trim()) };
 }
 
+/** Gemeinsamer Teil von Rechnung und Angebot: Adressen, Positionen, Summenzeilen, Hinweise, Fußzeile */
+export function documentPdfData(
+  doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "note">,
+  t: Texts,
+) {
+  const { seller, buyer } = doc;
+  const treatment = doc.taxTreatment ?? "regulaer";
+  const multipleRates = doc.totals.taxes.length > 1;
+  // Ohne Steuerausweis (Kleinunternehmer, Reverse Charge usw.) keine Zeile „Umsatzsteuer 0 %“
+  const taxRows = (treatment === "regulaer" ? doc.totals.taxes : []).map((tax) => ({
+    label: t.vat(t.rate(tax.rate), multipleRates ? t.money(tax.base) : undefined),
+    value: t.money(tax.tax),
+  }));
+  return {
+    author: seller.name,
+    labels: templateLabels(t),
+    senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
+    recipient: [buyer.name, ...addressLines(buyer, t)],
+    lines: doc.lines.map((line) => ({
+      pos: String(line.position),
+      description: line.description,
+      quantity: t.quantity(line.quantity, line.unit),
+      unitPrice: t.money(line.unitPrice),
+      rate: treatment === "regulaer" ? t.rate(line.taxRate) : "–",
+      net: t.money(line.net),
+    })),
+    totalRows: [{ label: t.totalNet, value: t.money(doc.totals.net) }, ...taxRows],
+    taxNote: t.note(treatment, doc.exemptionReason),
+    note: doc.note?.trim() ? doc.note.trim() : null,
+    footer: footerColumns(seller, t),
+  };
+}
+
 /** Druckfertige Texte für das Typst-Template; formatiert wird ausschließlich hier. */
 export function pdfData(doc: InvoiceDocument) {
   const { seller, buyer } = doc;
@@ -55,45 +88,20 @@ export function pdfData(doc: InvoiceDocument) {
   // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)
   if (buyer.ustId) meta.push({ label: t.buyerVatId, value: buyer.ustId });
 
-  const treatment = doc.taxTreatment ?? "regulaer";
-  const multipleRates = doc.totals.taxes.length > 1;
-  // Ohne Steuerausweis (Kleinunternehmer, Reverse Charge usw.) keine Zeile „Umsatzsteuer 0 %“
-  const taxRows = (treatment === "regulaer" ? doc.totals.taxes : []).map((tax) => ({
-    label: t.vat(t.rate(tax.rate), multipleRates ? t.money(tax.base) : undefined),
-    value: t.money(tax.tax),
-  }));
-  const payment = doc.totals.gross < 0 ? t.refund : doc.totals.gross === 0 ? t.noPayment : t.payBy(t.date(doc.dueDate));
-
+  const { totalRows, ...body } = documentPdfData(doc, t);
   return {
+    ...body,
     docTitle: `${title} ${doc.number}`,
-    author: seller.name,
     title,
-    labels: templateLabels(t),
     reference: doc.corrects ? t.reference(doc.corrects.number, t.date(doc.corrects.issueDate)) : null,
-    senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
-    recipient: [buyer.name, ...addressLines(buyer, t)],
     meta,
-    lines: doc.lines.map((line) => ({
-      pos: String(line.position),
-      description: line.description,
-      quantity: t.quantity(line.quantity, line.unit),
-      unitPrice: t.money(line.unitPrice),
-      rate: treatment === "regulaer" ? t.rate(line.taxRate) : "–",
-      net: t.money(line.net),
-    })),
-    totals: {
-      rows: [{ label: t.totalNet, value: t.money(doc.totals.net) }, ...taxRows],
-      gross: { label: t.totalGross, value: t.money(doc.totals.gross) },
-    },
-    payment,
+    totals: { rows: totalRows, gross: { label: t.totalGross, value: t.money(doc.totals.gross) } },
+    payment: paymentSentence(doc, t),
     // GiroCode nur für Rechnungen mit Zahlbetrag und Konto des Verkäufers
     qr:
       doc.kind === "rechnung" && doc.totals.gross > 0 && seller.iban
         ? girocodeSvg({ name: seller.name, iban: seller.iban, ...(seller.bic ? { bic: seller.bic } : {}), amount: doc.totals.gross, text: t.girocodeText(doc.number) })
         : null,
-    taxNote: t.note(treatment, doc.exemptionReason),
-    note: doc.note?.trim() ? doc.note.trim() : null,
-    footer: footerColumns(seller, t),
   };
 }
 

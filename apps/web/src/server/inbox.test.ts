@@ -10,7 +10,7 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
   let sql: postgres.Sql;
   const actor = "test-user";
   /** Postfach im Speicher: UID → Quelltext, gelesen ja/nein */
-  let box: Map<number, { source: Buffer; seen: boolean }>;
+  let box: Map<number, { source: Buffer; seen: boolean; tooLarge?: boolean }>;
   let failConnect = false;
   let lastPassword = "";
 
@@ -30,7 +30,11 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
       if (failConnect) throw new Error("AUTHENTICATIONFAILED");
       return {
         unseen: async () => [...box].filter(([, m]) => !m.seen).map(([uid]) => uid),
-        source: async (uid) => box.get(uid)!.source,
+        source: async (uid) => {
+          const { source, tooLarge = false } = box.get(uid)!;
+          // Zu groß: der echte Abruf liefert dann nur die Kopfzeilen
+          return { bytes: tooLarge ? source.subarray(0, source.indexOf("\r\n\r\n") + 4) : source, tooLarge };
+        },
         markSeen: async (uid) => void (box.get(uid)!.seen = true),
         close: async () => {},
       };
@@ -97,6 +101,17 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     const summary = await inbox.inboxSummary();
     expect(summary.settings).toMatchObject({ folder: "Belege", lastError: null });
     expect(summary.settings).not.toHaveProperty("ciphertext");
+  });
+
+  it("lädt zu große Mails nicht, vermerkt sie und markiert sie gelesen", async () => {
+    await inbox.saveInboxSettings(actor, settings);
+    await deliver({ subject: "Riesig", messageId: "<riesig@funknetz.example>", attachments: [{ filename: "Rechnung.pdf", content: pdf("gross") }] });
+    box.get(1)!.tooLarge = true;
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 0, duplicates: 0, skipped: 1 });
+    expect(box.get(1)!.seen).toBe(true);
+    const [log] = await sql`select subject, skipped from inbox_messages where message_id = '<riesig@funknetz.example>'`;
+    expect(log).toEqual({ subject: "Riesig", skipped: ["Mail größer als 60 MB, Anhänge bitte einzeln hochladen"] });
+    expect(await sql`select 1 from documents`).toHaveLength(0);
   });
 
   it("merkt sich Fehler beim Verbinden und hält das Passwort aus dem Protokoll", async () => {

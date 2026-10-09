@@ -29,6 +29,8 @@ export function applyStatedBalance(
   const sum = statement.transactions.reduce((acc, t) => acc + t.amount, 0);
   statement.closingBalance = stated.amount;
   statement.openingBalance = stated.amount - sum;
+  // Ohne Zeitraum (neues DKB-Format) gilt der Endsaldo am Stichtag, nicht am letzten Buchungstag
+  statement.periodTo ??= stated.date;
 }
 
 /** Zeitraum aus den Buchungstagen ergänzen, Währung prüfen. */

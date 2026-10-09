@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { UserError } from "./errors.ts";
+import { asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
@@ -22,7 +23,7 @@ export const contactSchema = z.object({
 export type ContactInput = z.input<typeof contactSchema>;
 export type Contact = typeof schema.contacts.$inferSelect;
 
-export class ContactError extends Error {}
+export class ContactError extends UserError {}
 
 export async function listContacts(includeArchived = false): Promise<Contact[]> {
   return db
@@ -65,7 +66,7 @@ export async function updateContact(actor: string, id: string, input: ContactInp
     const [updated] = await tx
       .update(schema.contacts)
       .set(clean(input))
-      .where(and(eq(schema.contacts.id, id)))
+      .where(eq(schema.contacts.id, id))
       .returning();
     if (!updated) throw new ContactError("Kontakt nicht gefunden.");
     return updated;

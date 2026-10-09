@@ -3,6 +3,8 @@ import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../../../../lib/format.ts";
+import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
+import type { Notice } from "../../../../lib/use-action.ts";
 import { archiveArticle, getArticles, saveArticle } from "../../../../server/functions/articles.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/artikel/")({
@@ -12,7 +14,6 @@ export const Route = createFileRoute("/_app/rechnungen/artikel/")({
 });
 
 type Article = Awaited<ReturnType<typeof getArticles>>[number];
-type Notice = { tone: "ok" | "danger"; text: string } | null;
 
 const RATES = [
   [1900, "19 %"],
@@ -166,11 +167,7 @@ function ArticlesPage() {
             setNotice(n);
           }}
         />
-        {notice && (
-          <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-            {notice.text}
-          </div>
-        )}
+        <NoticeBanner notice={notice} />
         <section className="card" aria-label="Artikelliste">
           <div className="chip-row" role="group" aria-label="Filter">
             <button type="button" className={`chip${showArchived ? "" : " active"}`} aria-pressed={!showArchived} onClick={() => setShowArchived(false)}>

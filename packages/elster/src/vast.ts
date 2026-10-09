@@ -1,6 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { isValidIdnr } from "./bankverbindung.ts";
-import { escapeXml } from "./xml.ts";
+import { elsterXml, escapeXml } from "./xml.ts";
+import { findDeep, int, text } from "./xml-lesen.ts";
 
 /**
  * Belegabruf für die vorausgefüllte Steuererklärung (VaSt): Verfahren ElsterDatenabholung, Datenart
@@ -12,7 +13,7 @@ import { escapeXml } from "./xml.ts";
  */
 
 export const VAST_DATENART_VERSION = "ElsterVaStDaten";
-/** Testmerker der Datenabholung und Berechtigungsverwaltung laut ERiC-Dokumentation */
+/** Testmerker für Belegabruf und Berechtigungsmanagement wie bei erica (ElsterDatenabholung, ElsterBRM) */
 export const VAST_TESTMERKER = "370000001";
 
 export const VAST_BELEGART_LABEL: Record<string, string> = {
@@ -60,40 +61,16 @@ function checkInput(input: VastXmlInput) {
 }
 
 function vastXml(nutzdaten: { ticket: string; body: string }[], input: VastXmlInput): string {
-  const e = escapeXml;
-  return [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<Elster xmlns="http://www.elster.de/elsterxml/schema/v11">`,
-    `<TransferHeader version="11">`,
-    `<Verfahren>ElsterDatenabholung</Verfahren>`,
-    `<DatenArt>ElsterVaStDaten</DatenArt>`,
-    `<Vorgang>send-Auth</Vorgang>`,
-    ...(input.test ? [`<Testmerker>${VAST_TESTMERKER}</Testmerker>`] : []),
-    `<HerstellerID>${e(input.herstellerId)}</HerstellerID>`,
-    `<DatenLieferant>${e(input.datenlieferant)}</DatenLieferant>`,
-    `<Datei>`,
-    `<Verschluesselung>CMSEncryptedData</Verschluesselung>`,
-    `<Kompression>GZIP</Kompression>`,
-    `<TransportSchluessel></TransportSchluessel>`,
-    `</Datei>`,
-    `</TransferHeader>`,
-    `<DatenTeil>`,
-    ...nutzdaten.flatMap(({ ticket, body }) => [
-      `<Nutzdatenblock>`,
-      `<NutzdatenHeader version="11">`,
-      `<NutzdatenTicket>${e(ticket)}</NutzdatenTicket>`,
-      `<Empfaenger id="L">CS</Empfaenger>`,
-      `</NutzdatenHeader>`,
-      `<Nutzdaten>`,
-      `<Datenabholung version="10">`,
-      body,
-      `</Datenabholung>`,
-      `</Nutzdaten>`,
-      `</Nutzdatenblock>`,
-    ]),
-    `</DatenTeil>`,
-    `</Elster>`,
-  ].join("\n");
+  return elsterXml(
+    {
+      verfahren: "ElsterDatenabholung",
+      datenArt: "ElsterVaStDaten",
+      testmerker: input.test ? VAST_TESTMERKER : undefined,
+      herstellerId: input.herstellerId,
+      datenlieferant: input.datenlieferant,
+    },
+    nutzdaten.map(({ ticket, body }) => ({ ticket, empfaenger: { id: "L", wert: "CS" }, nutzdaten: [`<Datenabholung version="10">`, body, `</Datenabholung>`] })),
+  );
 }
 
 /** Schritt 1: welche Belege liegen für IdNr und Jahr vor? */
@@ -115,8 +92,6 @@ export function buildVastAbholungXml(ids: readonly string[], input: VastXmlInput
   );
 }
 
-type Node = Record<string, unknown>;
-
 const listParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@",
@@ -125,27 +100,6 @@ const listParser = new XMLParser({
   parseAttributeValue: false,
   isArray: (name) => ["Nutzdatenblock", "Id", "Abholung"].includes(name),
 });
-
-const asNodes = (value: unknown): Node[] =>
-  (Array.isArray(value) ? value : value === undefined ? [] : [value]).filter((v): v is Node => typeof v === "object" && v !== null);
-
-function findDeep(node: unknown, name: string, out: Node[] = []): Node[] {
-  if (Array.isArray(node)) {
-    for (const item of node) findDeep(item, name, out);
-  } else if (typeof node === "object" && node !== null) {
-    for (const [key, value] of Object.entries(node)) {
-      if (key === name) out.push(...asNodes(value).concat(typeof value === "string" ? [{ "#text": value }] : []));
-      else if (!key.startsWith("@")) findDeep(value, name, out);
-    }
-  }
-  return out;
-}
-
-const text = (value: unknown): string => {
-  if (typeof value === "string" || typeof value === "number") return String(value).trim();
-  if (typeof value === "object" && value !== null && "#text" in value) return String((value as Node)["#text"]).trim();
-  return "";
-};
 
 /** Liest die Beleg-IDs aus der Antwort auf die Anfrage */
 export function parseVastBelegListe(serverResponseXml: string): VastBelegRef[] {
@@ -156,7 +110,7 @@ export function parseVastBelegListe(serverResponseXml: string): VastBelegRef[] {
     .map((node) => ({
       id: text(node),
       belegart: text(node["@belegart"]),
-      groesse: Number.parseInt(text(node["@groesse"]), 10) || 0,
+      groesse: int(node["@groesse"]),
       hashwert: text(node["@hashwert"]),
       schemaversion: text(node["@schemaversion"]),
     }))

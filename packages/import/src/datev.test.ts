@@ -198,6 +198,14 @@ describe("parseDatevBuchungsstapel", () => {
       [5, "2025-01-01", ""],
     ]);
   });
+
+  it("wertet Anführungszeichen mitten im Feld nicht als Öffner", () => {
+    const stack = parseDatevBuchungsstapel(file(HEADER, COLUMNS, `1,00;"S";1200;8400;;0101;Monitor 27"`, `2,00;"S";1200;8400;;0201;"x"`));
+    expect(stack.bookings.map((b) => [b.amount, b.text])).toEqual([
+      [100, 'Monitor 27"'],
+      [200, "x"],
+    ]);
+  });
 });
 
 describe("isDatevFile", () => {

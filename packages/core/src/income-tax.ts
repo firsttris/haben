@@ -24,6 +24,12 @@ interface Tarif {
   kinderfreibetrag: number;
   /** Kindergeld je Kind und Monat */
   kindergeld: number;
+  /**
+   * Höchstbetrag der Altersvorsorgeaufwendungen (§ 10 Abs. 3 Satz 1 EStG): Höchstbeitrag zur knappschaftlichen
+   * Rentenversicherung, also Beitragsbemessungsgrenze × 24,7 %, auf volle Euro aufgerundet (BMF-Schreiben zu
+   * § 10 EStG). Bei Zusammenveranlagung doppelt.
+   */
+  altersvorsorgeHoechst: number;
 }
 
 const TARIFE: Record<number, Tarif> = {
@@ -38,6 +44,7 @@ const TARIFE: Record<number, Tarif> = {
     soliFreigrenze: 17_543,
     kinderfreibetrag: 8952,
     kindergeld: 250,
+    altersvorsorgeHoechst: 26_528, // 107.400 € × 24,7 %
   },
   2024: {
     grundfreibetrag: 11_784,
@@ -50,6 +57,7 @@ const TARIFE: Record<number, Tarif> = {
     soliFreigrenze: 18_130,
     kinderfreibetrag: 9540,
     kindergeld: 250,
+    altersvorsorgeHoechst: 27_566, // 111.600 € × 24,7 %
   },
   2025: {
     grundfreibetrag: 12_096,
@@ -62,6 +70,7 @@ const TARIFE: Record<number, Tarif> = {
     soliFreigrenze: 19_950,
     kinderfreibetrag: 9600,
     kindergeld: 255,
+    altersvorsorgeHoechst: 29_344, // 118.800 € × 24,7 %
   },
   2026: {
     grundfreibetrag: 12_348,
@@ -74,6 +83,7 @@ const TARIFE: Record<number, Tarif> = {
     soliFreigrenze: 20_350,
     kinderfreibetrag: 9756,
     kindergeld: 259,
+    altersvorsorgeHoechst: 30_826, // 124.800 € (10.400 € im Monat) × 24,7 %
   },
 };
 
@@ -191,7 +201,8 @@ export interface Prognose {
 const sum = (...values: (Cents | undefined)[]) => values.reduce<number>((acc, v) => acc + (v ?? 0), 0);
 
 /**
- * Abziehbare Vorsorgeaufwendungen (§ 10 Abs. 1 Nr. 2, 3, 3a und Abs. 4 EStG). Höchstbetrag 2.800 € für
+ * Abziehbare Vorsorgeaufwendungen (§ 10 Abs. 1 Nr. 2, 3, 3a und Abs. 3, 4 EStG). Altersvorsorge bis zum
+ * Höchstbetrag des Jahres, davon der Arbeitgeberanteil ab. Übrige Vorsorge: Höchstbetrag 2.800 € für
  * Selbständige, 1.900 € für Arbeitnehmer (Zuschuss des Arbeitgebers zur Krankenversicherung). Beiträge
  * laut Lohnsteuerbescheinigung: Rentenversicherung mit Arbeitgeberanteil abzüglich dieses Anteils,
  * Krankenversicherung ohne den Anteil für Krankengeld (4 %).
@@ -199,13 +210,10 @@ const sum = (...values: (Cents | undefined)[]) => values.reduce<number>((acc, v)
 function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbeitslohn }[], sonstige: Cents | undefined): Cents {
   const lstb = (an: Arbeitslohn | undefined, pick: (b: Arbeitslohn["bescheinigungen"][number]) => Cents | undefined) =>
     an ? sum(...an.bescheinigungen.map(pick)) : 0;
-  const alter = sum(
-    ...personen.map(({ v, an }) => {
-      const ag = lstb(an, (b) => b.rvArbeitgeber);
-      const eigen = lstb(an, (b) => b.rvArbeitnehmer) + (v.rentenversicherung ?? 0);
-      return Math.max(0, Math.floor((eigen + ag) * altersvorsorgeQuote(year)) - ag);
-    }),
-  );
+  const ag = sum(...personen.map(({ an }) => lstb(an, (b) => b.rvArbeitgeber)));
+  const eigen = sum(...personen.map(({ v, an }) => lstb(an, (b) => b.rvArbeitnehmer) + (v.rentenversicherung ?? 0)));
+  const hoechstAlter = tarif(year).altersvorsorgeHoechst * personen.length * 100;
+  const alter = Math.max(0, Math.floor(Math.min(eigen + ag, hoechstAlter) * altersvorsorgeQuote(year)) - ag);
   const basis = Math.max(
     0,
     sum(

@@ -1,9 +1,9 @@
-import { formatEuro, kontoart, type Kontenrahmen } from "@haben/core";
+import { MONTHS, formatEuro, kontoart, type Kontenrahmen } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { Fragment } from "react";
 import { z } from "zod/mini";
 import { BalanceChart } from "../../../components/BalanceChart.tsx";
-import { SaldoBetrag, ZEITRAEUME, shortDate } from "../../../components/Ledger.tsx";
+import { JOURNAL_SOURCE, SaldoBetrag, ZEITRAEUME, lastDayBefore, shortDate } from "../../../components/Ledger.tsx";
 import { formatDate } from "../../../lib/format.ts";
 import { getKontenblatt } from "../../../server/functions/ledger.ts";
 import styles from "../../../styles/auswertungen.css?url";
@@ -22,11 +22,9 @@ export const Route = createFileRoute("/_app/konten/$konto")({
   component: KontenblattPage,
 });
 
-const SOURCE = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage", pauschale: "Pauschale", kasse: "Kasse" } as const;
-const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
 function SourceLink({ type, id, reversal }: { type: string; id: string; reversal: boolean }) {
-  const label = reversal ? "Gegenbuchung" : (SOURCE[type as keyof typeof SOURCE] ?? type);
+  const label = reversal ? "Gegenbuchung" : (JOURNAL_SOURCE[type as keyof typeof JOURNAL_SOURCE] ?? type);
   if (type === "invoice") return <Link to="/rechnungen/$id" params={{ id }}>{label}</Link>;
   if (type === "document") return <Link to="/belege/$id" params={{ id }}>{label}</Link>;
   if (type === "asset") return <Link to="/anlagen/$id" params={{ id }}>{label}</Link>;
@@ -109,7 +107,7 @@ function KontenblattPage() {
           <div className="kpi-value" style={{ fontSize: 22 }}>
             <SaldoBetrag kontenrahmen={kr} account={konto} saldo={data.saldo} />
           </div>
-          <div className="small muted">am {formatDate(new Date(Date.parse(`${data.to}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10))}</div>
+          <div className="small muted">am {formatDate(lastDayBefore(data.to))}</div>
         </div>
       </div>
 
@@ -186,7 +184,7 @@ function KontenblattPage() {
                 {multiMonth && (
                   <tr className="subtotal-row">
                     <th scope="row" colSpan={4}>
-                      Summe {MONATE[Number(month.slice(5, 7)) - 1]}
+                      Summe {MONTHS[Number(month.slice(5, 7)) - 1]}
                     </th>
                     <td className="num" data-label="Soll">
                       {formatEuro(rows.reduce((s, z) => s + z.soll, 0))}

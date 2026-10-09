@@ -19,7 +19,10 @@ import {
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { errorMessage, formatDate } from "../lib/format.ts";
+import { formatDate } from "../lib/format.ts";
+import { NoticeBanner } from "./NoticeBanner.tsx";
+import { useAction } from "../lib/use-action.ts";
+import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import {
   finalizeInvoiceDraft,
   removeInvoiceDraft,
@@ -62,8 +65,6 @@ export interface AbschlagOption {
   taxTreatment: TaxTreatment;
 }
 
-const VARIANT_TITLE = { abschlag: "Abschlagsrechnung", schluss: "Schlussrechnung" } as const;
-
 interface LineState {
   key: number;
   description: string;
@@ -72,14 +73,6 @@ interface LineState {
   unitPrice: string;
   taxRate: 1900 | 700 | 0;
 }
-
-const FORMATS: { value: DraftInput["format"]; label: string }[] = [
-  { value: "zugferd", label: "ZUGFeRD · EN 16931 (PDF mit XML)" },
-  { value: "xrechnung-cii", label: "XRechnung 3.0 (CII)" },
-  { value: "xrechnung-ubl", label: "XRechnung 3.0 (UBL)" },
-];
-
-const KIND_TITLE = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur", angebot: "Angebot" } as const;
 
 let nextKey = 1;
 
@@ -173,9 +166,9 @@ export function InvoiceEditor({
   const [attempted, setAttempted] = useState(false);
   const showError = (key: number) => attempted || touched.has(key);
   const markTouched = (key: number) => setTouched((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
-  const [busy, setBusy] = useState(false);
+  const { busy, notice, setNotice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "danger"; text: string } | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const contact = contacts.find((c) => c.id === contactId) ?? null;
   const parsed = lines.map(parseLine);
@@ -196,7 +189,7 @@ export function InvoiceEditor({
         valid: true,
       })),
   );
-  const title = kind === "rechnung" && variant ? VARIANT_TITLE[variant] : KIND_TITLE[kind];
+  const title = invoiceTitle(kind, variant);
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
   const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
@@ -215,6 +208,7 @@ export function InvoiceEditor({
       setter(value);
       setDirty(true);
       setConfirming(false);
+      setConfirmingDelete(false);
     };
   }
 
@@ -222,6 +216,7 @@ export function InvoiceEditor({
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
     setDirty(true);
     setConfirming(false);
+    setConfirmingDelete(false);
   }
 
   /** Position aus dem Katalog; ersetzt eine noch leere einzige Zeile, sonst wird angehängt */
@@ -284,18 +279,6 @@ export function InvoiceEditor({
     };
   }
 
-  async function run(work: () => Promise<void>) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      await work();
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function persist(): Promise<string> {
     const { paymentTermDays: _term, format: _format, ...common } = draft();
     const result = quote ? await saveQuote({ data: { id, draft: { ...common, validUntil } } }) : await save({ data: { id, draft: draft() } });
@@ -335,11 +318,17 @@ export function InvoiceEditor({
     });
   };
 
-  const onDelete = () =>
-    run(async () => {
+  // Wie beim Festschreiben: erst nachfragen, der zweite Klick löscht
+  const onDelete = () => {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
+    void run(async () => {
       if (id) await (quote ? removeQuote({ data: id }) : remove({ data: id }));
       await (quote ? navigate({ to: "/angebote" }) : navigate({ to: "/rechnungen" }));
     });
+  };
 
   const blocking = [...sellerIssues.map((i) => `Firmendaten: ${i}`), ...(dirty ? [] : issues.filter((i) => !i.startsWith("Firmendaten")))];
 
@@ -384,11 +373,7 @@ export function InvoiceEditor({
           </span>
         </div>
       )}
-      {notice && (
-        <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"}>
-          {notice.text}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
 
       <div className="editor-grid">
         <form id="invoice-form" className="stack" onSubmit={onSave}>
@@ -454,7 +439,7 @@ export function InvoiceEditor({
                   aria-describedby="due-hint"
                 />
                 <span id="due-hint" className="small">
-                  fällig {dueDate.split("-").reverse().join(".")}
+                  fällig {formatDate(dueDate)}
                 </span>
               </label>
               )}
@@ -481,8 +466,8 @@ export function InvoiceEditor({
                 E-Rechnungsformat
                 <select value={format} onChange={(e) => touch(setFormat)(e.target.value as DraftInput["format"])}>
                   {FORMATS.map((f) => (
-                    <option key={f.value} value={f.value}>
-                      {f.label}
+                    <option key={f} value={f}>
+                      {FORMAT_LABEL[f]}
                     </option>
                   ))}
                 </select>
@@ -699,7 +684,7 @@ export function InvoiceEditor({
           {id && (
             <div className="actions">
               <button type="button" className="btn btn-danger" onClick={onDelete} disabled={busy}>
-                Entwurf löschen
+                {confirmingDelete ? "Entwurf endgültig löschen" : "Entwurf löschen"}
               </button>
             </div>
           )}

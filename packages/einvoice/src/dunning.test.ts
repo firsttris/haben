@@ -10,7 +10,7 @@ const doc = {
   seller: sampleSeller,
   buyer: sampleBuyer,
   invoice: { number: "2026-034", issueDate: "2026-09-02", dueDate: "2026-09-16" },
-  amounts: dunningAmounts({ open: 1_740_958, dueDate: "2026-09-16", date: "2026-10-16", fee: 500, flatFee: true, interestRate: 1_027 }),
+  amounts: dunningAmounts({ open: 1_740_958, dueDate: "2026-09-16", date: "2026-10-16", fee: 5_000, flatFee: true, interestRate: 1_027 }),
   intro: "leider haben wir keinen Zahlungseingang erhalten.",
   closing: "Sollten Sie bereits gezahlt haben, ist dieses Schreiben gegenstandslos.",
 };
@@ -21,10 +21,11 @@ describe("Mahnung als PDF", () => {
     expect(data.title).toBe("Mahnung");
     expect(data.rows.map((r) => r.label)).toEqual([
       "Offener Rechnungsbetrag",
-      "Mahngebühr",
+      "Mahngebühr, soweit über der Pauschale",
       "Verzugspauschale (§ 288 Abs. 5 BGB)",
       "Verzugszinsen 10,27 % p. a. für 30 Tage",
     ]);
+    expect(data.rows.map((r) => r.value).slice(1, 3)).toEqual(["10,00\u00a0€", "40,00\u00a0€"]);
     expect(data.payment).toContain("bis zum 26.10.2026");
     expect(data.payment).toContain("IBAN DE89 3704 0044 0532 0130 00");
     expect(data.qr).toMatch(/^<svg /);

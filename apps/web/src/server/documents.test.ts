@@ -173,11 +173,42 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     await expect(storage.loadFile(storage.sha256Of(other))).rejects.toThrow();
   });
 
+  it("Löschen lässt Dateien liegen, die ein Bescheid aus dem Postfach nutzt", async () => {
+    const storage = await import("./storage.ts");
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 3, 3, 3, 3]);
+    const { id } = await documents.uploadDocument(actor, { bytes, filename: "bescheid.jpg" });
+    const sha = storage.sha256Of(bytes);
+    const [request] = await sql<{ id: string }[]>`
+      insert into postfach_requests (art, test, ok, code, message, request_xml, response_xml, server_response_xml)
+      values ('anfrage', true, true, 0, '', '', '', '') returning id`;
+    await sql`
+      insert into postfach_documents (referenz_id, bereitstellung_id, datenart, veranlagungszeitraum, steuernummer,
+        bescheiddatum, dateibezeichnung, mime_type, filename, sha256, size, test, request_id)
+      values ('r1', 'b1', 'ESt', '2025', '', '', '', 'image/jpeg', 'bescheid.jpg', ${sha}, 8, true, ${request!.id})`;
+    await documents.deleteDocument(actor, id);
+    expect((await storage.loadFile(sha)).byteLength).toBe(8);
+  });
+
+  it("stellt eine beschädigte Datei beim erneuten Ablegen wieder her", async () => {
+    const storage = await import("./storage.ts");
+    const { writeFile } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 4, 4, 4, 4]);
+    const sha = await storage.storeFile(bytes);
+    await writeFile(join(process.env.DOCUMENTS_DIR!, sha.slice(0, 2), sha), "");
+    await expect(storage.loadFile(sha)).rejects.toThrow(/beschädigt/);
+    await storage.storeFile(bytes);
+    expect((await storage.loadFile(sha)).byteLength).toBe(8);
+  });
+
   it("gibt eine durch Neustart abgebrochene Auslesung wieder frei", async () => {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 5, 5, 5]), filename: "z.jpg" });
     await sql`update documents set extraction_status = 'laeuft', supplier_name = '' where id = ${id}`;
     const detail = await documents.getDocument(id);
     expect(detail?.document).toMatchObject({ extractionStatus: "fehler", extractionError: expect.stringMatching(/unterbrochen/) });
+    const [audit] = await sql`
+      select actor from audit_log where table_name = 'documents' and row_id = ${id} and new_value->>'extraction_status' = 'fehler'`;
+    expect(audit?.actor).toBe("system:auslesung");
   });
 
   it("lehnt unbekannte Dateitypen ab", async () => {

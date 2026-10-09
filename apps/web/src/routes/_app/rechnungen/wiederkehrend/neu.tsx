@@ -1,9 +1,9 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
 import { RecurringForm } from "../../../../components/RecurringForm.tsx";
-import { errorMessage } from "../../../../lib/format.ts";
 import { getRecurringForm, saveRecurring } from "../../../../server/functions/recurring.ts";
+import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../../lib/use-action.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/wiederkehrend/neu")({
   loader: () => getRecurringForm(),
@@ -22,8 +22,7 @@ function NewRecurringPage() {
   const { contacts, defaults, today } = Route.useLoaderData();
   const navigate = useNavigate();
   const save = useServerFn(saveRecurring);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, notice, run } = useAction();
   return (
     <>
       <div className="page-head">
@@ -34,11 +33,7 @@ function NewRecurringPage() {
           <h1>Neue Vorlage</h1>
         </div>
       </div>
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
       <RecurringForm
         initial={{
           name: "",
@@ -61,14 +56,12 @@ function NewRecurringPage() {
         kleinunternehmer={defaults.kleinunternehmer}
         busy={busy}
         submitLabel="Vorlage anlegen"
-        onSubmit={(values) => {
-          setBusy(true);
-          setError(null);
-          save({ data: { id: null, recurring: values } })
-            .then((result) => navigate({ to: "/rechnungen/wiederkehrend/$id", params: { id: result.id } }))
-            .catch((e: unknown) => setError(errorMessage(e)))
-            .finally(() => setBusy(false));
-        }}
+        onSubmit={(values) =>
+          void run(async () => {
+            const result = await save({ data: { id: null, recurring: values } });
+            await navigate({ to: "/rechnungen/wiederkehrend/$id", params: { id: result.id } });
+          })
+        }
       />
     </>
   );

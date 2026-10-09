@@ -12,6 +12,7 @@ vi.mock("./extraction.ts", async (importOriginal) => ({
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 2, 3, 0xff, 0xd9]);
 const SECRET = "GEHEIMES-ZERTIFIKAT-4711";
+const CALENDAR_HASH = "KALENDER-TOKEN-HASH-4711";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom 01.10.2026:";"1.000,00 €"\n""\n`;
@@ -43,6 +44,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
+    await sql`update company set calendar_token_hash = ${CALENDAR_HASH}`;
     await sql`insert into elster_certificates (filename, ciphertext, valid_until)
       values ('zertifikat.pfx', ${Buffer.from(SECRET)}, '2028-01-01')`;
 
@@ -245,9 +247,20 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
         expect(content).not.toContain("Altjahr");
       }
       expect(content).not.toContain(SECRET);
+      expect(content).not.toContain(CALENDAR_HASH);
       expect(content).not.toContain(Buffer.from(SECRET).toString("hex"));
       expect(content).not.toContain(Buffer.from(SECRET).toString("base64"));
     }
+  });
+
+  it("bricht ab, statt ein ZIP ohne ZIP64 mit zu vielen Dateien zu bauen", async () => {
+    async function* many() {
+      for (let i = 0; i <= 0xffff; i++) yield { path: `${i}.txt`, content: new Uint8Array(0), compress: false };
+    }
+    const run = async () => {
+      for await (const chunk of exporter.zipArchive(many(), new Date())) void chunk;
+    };
+    await expect(run()).rejects.toThrow(/65\.535 Dateien/);
   });
 
   it("listet Jahre mit Daten", async () => {

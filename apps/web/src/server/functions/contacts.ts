@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
-  ContactError,
   contactSchema,
   createContact,
   getContact,
@@ -10,11 +9,7 @@ import {
   updateContact,
 } from "../contacts.ts";
 import { authMiddleware } from "../middleware.ts";
-
-function asUserError(error: unknown): never {
-  if (error instanceof ContactError) throw new Error(error.message);
-  throw error;
-}
+import { UserError } from "../errors.ts";
 
 export const getContacts = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -26,7 +21,7 @@ export const getContactDetail = createServerFn({ method: "GET" })
   .validator(z.uuid())
   .handler(async ({ data }) => {
     const result = await getContact(data);
-    if (!result) throw new Error("Kontakt nicht gefunden.");
+    if (!result) throw new UserError("Kontakt nicht gefunden.");
     return result;
   });
 
@@ -35,7 +30,7 @@ export const saveContact = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.uuid().nullable(), contact: contactSchema }))
   .handler(async ({ data, context }) => {
     const saved = data.id
-      ? await updateContact(context.user.id, data.id, data.contact).catch(asUserError)
+      ? await updateContact(context.user.id, data.id, data.contact)
       : await createContact(context.user.id, data.contact);
     return { id: saved.id };
   });

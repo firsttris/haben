@@ -2,6 +2,7 @@ import { formatEuro } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
 import { formatDate } from "../../../lib/format.ts";
+import { VARIANT_TITLE } from "../../../lib/invoice.ts";
 import { getInvoices } from "../../../server/functions/invoices.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/")({
@@ -63,7 +64,7 @@ function InvoicesPage() {
                   {invoice.customer}
                   {invoice.variant && (
                     <span className="small muted" style={{ display: "block" }}>
-                      {invoice.variant === "abschlag" ? "Abschlagsrechnung" : "Schlussrechnung"}
+                      {VARIANT_TITLE[invoice.variant]}
                     </span>
                   )}
                 </div>

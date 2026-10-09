@@ -7,7 +7,7 @@ import type { EricConfig, EricRawResult, EricRequest } from "./eric.ts";
 import type { WorkerRequest, WorkerResponse } from "./protocol.ts";
 import { buildVastAnfrageXml, VAST_DATENART_VERSION, type VastXmlInput } from "./vast.ts";
 import { failure, type BelegabrufResult, type ElsterClient, type ElsterResult, type PostfachOptions, type PostfachResult, type SendOptions } from "./types.ts";
-import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
+import { datenartVersionFromXml, testmerkerMismatch } from "./xml.ts";
 
 export const DEFAULT_TIMEOUT_MS = 120_000;
 export const DEFAULT_WORKER_PATH = fileURLToPath(new URL("./worker.ts", import.meta.url));
@@ -32,7 +32,7 @@ export class EricProcessClient implements ElsterClient {
   async validate(xml: string): Promise<ElsterResult> {
     const datenartVersion = datenartVersionFromXml(xml);
     if (!datenartVersion) return failure("Datenart-Version im XML nicht gefunden.");
-    return (await this.#run({ op: "validate", xml, datenartVersion })).result;
+    return this.#inTempDir(async (dir) => (await this.#run({ op: "validate", xml, datenartVersion }, dir)).result);
   }
 
   async send(xml: string, certificate: Uint8Array, pin: string, options: SendOptions): Promise<ElsterResult> {
@@ -43,7 +43,7 @@ export class EricProcessClient implements ElsterClient {
 
     return this.#withCertificate(certificate, async (dir, certificatePath) => {
       const pdfPath = options.print === false ? undefined : join(dir, "protokoll.pdf");
-      const { result } = await this.#run({ op: "send", xml, datenartVersion, certificatePath, pin, ...(pdfPath ? { pdfPath } : {}) });
+      const { result } = await this.#run({ op: "send", xml, datenartVersion, certificatePath, pin, ...(pdfPath ? { pdfPath } : {}) }, dir);
       const pdf = pdfPath ? await readFile(pdfPath).catch(() => undefined) : undefined;
       return pdf ? { ...result, pdf: new Uint8Array(pdf) } : result;
     });
@@ -56,8 +56,8 @@ export class EricProcessClient implements ElsterClient {
     const mismatch = testmerkerMismatch(xml, options.test);
     if (mismatch) return { ...failure(mismatch), ...leer };
 
-    return this.#withCertificate(certificate, async (_dir, certificatePath) => {
-      const { result, raw } = await this.#run({ op: "postfach", xml, datenartVersion, certificatePath, pin, herstellerId: options.herstellerId });
+    return this.#withCertificate(certificate, async (dir, certificatePath) => {
+      const { result, raw } = await this.#run({ op: "postfach", xml, datenartVersion, certificatePath, pin, herstellerId: options.herstellerId }, dir);
       const postfach = raw?.postfach;
       return {
         ...result,
@@ -78,8 +78,8 @@ export class EricProcessClient implements ElsterClient {
     } catch (error) {
       return { ...failure(error instanceof Error ? error.message : String(error)), requestXml: "", liste: [], belege: [] };
     }
-    return this.#withCertificate(certificate, async (_dir, certificatePath) => {
-      const { result, raw } = await this.#run({ op: "vast", xml: requestXml, datenartVersion: VAST_DATENART_VERSION, certificatePath, pin, vast: input });
+    return this.#withCertificate(certificate, async (dir, certificatePath) => {
+      const { result, raw } = await this.#run({ op: "vast", xml: requestXml, datenartVersion: VAST_DATENART_VERSION, certificatePath, pin, vast: input }, dir);
       const vast = raw?.vast;
       const abholung = vast?.abholung;
       // Scheitert die Abholung, zählt der ganze Abruf als gescheitert
@@ -97,21 +97,28 @@ export class EricProcessClient implements ElsterClient {
     });
   }
 
-  /** Legt das Zertifikat in einem eigenen Temp-Verzeichnis ab (mkdtemp: 0700) und räumt danach auf. */
-  async #withCertificate<T>(certificate: Uint8Array, run: (dir: string, certificatePath: string) => Promise<T>): Promise<T> {
+  /** Eigenes Temp-Verzeichnis je Aufruf (mkdtemp: 0700) für Zertifikat, Protokoll und Logs; wird danach gelöscht. */
+  async #inTempDir<T>(run: (dir: string) => Promise<T>): Promise<T> {
     const dir = await mkdtemp(join(tmpdir(), "haben-eric-"));
     try {
-      const certificatePath = join(dir, "zertifikat.pfx");
-      await writeFile(certificatePath, certificate, { mode: 0o600, flag: "wx" });
-      return await run(dir, certificatePath);
+      return await run(dir);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   }
 
-  async #run(request: EricRequest): Promise<{ result: ElsterResult; raw?: EricRawResult }> {
+  async #withCertificate<T>(certificate: Uint8Array, run: (dir: string, certificatePath: string) => Promise<T>): Promise<T> {
+    return this.#inTempDir(async (dir) => {
+      const certificatePath = join(dir, "zertifikat.pfx");
+      await writeFile(certificatePath, certificate, { mode: 0o600, flag: "wx" });
+      return run(dir, certificatePath);
+    });
+  }
+
+  /** tempDir: Logs von ERiC und Otto landen dort, wenn kein ERIC_LOG_DIR gesetzt ist */
+  async #run(request: EricRequest, tempDir: string): Promise<{ result: ElsterResult; raw?: EricRawResult }> {
     const { timeoutMs = DEFAULT_TIMEOUT_MS, workerPath = DEFAULT_WORKER_PATH, execArgv } = this.#options;
-    const config: EricConfig = { ericHome: this.#options.ericHome, logDir: this.#options.logDir };
+    const config: EricConfig = { ericHome: this.#options.ericHome, logDir: this.#options.logDir ?? tempDir };
 
     return new Promise<{ result: ElsterResult; raw?: EricRawResult }>((resolve) => {
       let response: WorkerResponse | undefined;
@@ -131,9 +138,17 @@ export class EricProcessClient implements ElsterClient {
         serialization: "json",
       });
 
+      /** Beendet mit der Antwort des Workers, falls schon eine da ist */
+      const finishWithResponse = (): boolean => {
+        if (response?.type === "result") finish(toElsterResult(response.result), response.result);
+        else if (response?.type === "error") finish(failure(response.message));
+        return response !== undefined;
+      };
+
       const timer = setTimeout(() => {
         child.kill("SIGKILL");
-        finish(failure(`ERiC-Prozess nach ${Math.round(timeoutMs / 1000)} s abgebrochen (Zeitüberschreitung).`));
+        // Hängt der Prozess erst nach der Antwort (z. B. beim Beenden von ERiC), gilt die Antwort
+        if (!finishWithResponse()) finish(failure(`ERiC-Prozess nach ${Math.round(timeoutMs / 1000)} s abgebrochen (Zeitüberschreitung).`));
       }, timeoutMs);
 
       child.stderr?.setEncoding("utf8");
@@ -148,8 +163,7 @@ export class EricProcessClient implements ElsterClient {
         finish(failure(`ERiC-Prozess konnte nicht gestartet werden: ${error.message}`));
       });
       child.on("close", (code, signal) => {
-        if (response?.type === "result") return finish(toElsterResult(response.result), response.result);
-        if (response?.type === "error") return finish(failure(response.message));
+        if (finishWithResponse()) return;
         const grund = signal ? `Signal ${signal}` : `Exit-Code ${code}`;
         const detail = stderr.trim() ? `: ${stderr.trim().split("\n").slice(-3).join(" ")}` : "";
         finish(failure(`ERiC-Prozess abgestürzt (${grund})${detail}`));
@@ -164,13 +178,6 @@ export class EricProcessClient implements ElsterClient {
       });
     });
   }
-}
-
-function testmerkerMismatch(xml: string, test: boolean): string | undefined {
-  if (hasTestmerker(xml) === test) return undefined;
-  return test
-    ? "Testübermittlung angefordert, aber das XML trägt keinen Testmerker."
-    : "Echte Übermittlung angefordert, aber das XML trägt einen Testmerker.";
 }
 
 function toElsterResult(raw: EricRawResult): ElsterResult {

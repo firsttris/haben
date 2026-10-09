@@ -1,4 +1,5 @@
 import type { Cents } from "@haben/core";
+import { applyStatedBalance } from "../common.ts";
 import { normalizeIban, normalizeText, parseDotAmount } from "../text.ts";
 import type { ParsedStatement, ParsedTransaction } from "../types.ts";
 import type { EbAccount, EbBalance, EbTransaction } from "./client.ts";
@@ -12,12 +13,8 @@ function cents(amount: string): Cents | null {
   return value === null || Number.isNaN(value) ? null : value;
 }
 
-/**
- * Ein Umsatz aus der API. Vorgemerkte Umsätze (PDNG) fehlen absichtlich: Sie können sich noch
- * ändern oder wegfallen, und Umsätze sind ab Import unveränderlich.
- */
+/** Ein gebuchter Umsatz aus der API; null ohne gültiges Datum oder Betrag */
 export function mapEnableBankingTransaction(t: EbTransaction, index: number): ParsedTransaction | null {
-  if (t.status && t.status !== "BOOK") return null;
   const bookingDate = day(t.booking_date) ?? day(t.value_date) ?? day(t.transaction_date);
   const amount = cents(t.transaction_amount.amount);
   if (!bookingDate || amount === null) return null;
@@ -38,13 +35,17 @@ export function mapEnableBankingTransaction(t: EbTransaction, index: number): Pa
   };
 }
 
-/** Gebuchter Kontostand: Tagesendsaldo, sonst der aktuelle gebuchte Saldo */
-const BALANCE_PREFERENCE = ["CLBD", "ITBD", "XPCD", "ITAV", "CLAV", "OPBD"];
+/**
+ * Gebuchter Kontostand: Tagesendsaldo, sonst der aktuelle gebuchte Saldo. Verfügbare oder erwartete
+ * Salden (ITAV, CLAV, XPCD) enthalten Vormerkungen oder Kreditlinien; Anfangssalden (OPBD, PRCD)
+ * gelten vor den Buchungen ihres Stichtags. Beide passen nicht als Endsaldo.
+ */
+const BALANCE_PREFERENCE = ["CLBD", "ITBD"];
 
 export function bookedBalance(balances: EbBalance[]): { amount: Cents; date?: string } | null {
-  const ranked = [...balances]
-    .filter((b) => b.balance_amount.currency === "EUR" || !b.balance_amount.currency)
-    .sort((a, b) => rank(a.balance_type) - rank(b.balance_type));
+  const ranked = balances
+    .filter((b) => BALANCE_PREFERENCE.includes(b.balance_type ?? "") && (b.balance_amount.currency === "EUR" || !b.balance_amount.currency))
+    .sort((a, b) => BALANCE_PREFERENCE.indexOf(a.balance_type!) - BALANCE_PREFERENCE.indexOf(b.balance_type!));
   for (const balance of ranked) {
     const amount = cents(balance.balance_amount.amount);
     if (amount !== null) return { amount, date: day(balance.reference_date) };
@@ -52,13 +53,9 @@ export function bookedBalance(balances: EbBalance[]): { amount: Cents; date?: st
   return null;
 }
 
-function rank(type: string | null | undefined): number {
-  const index = BALANCE_PREFERENCE.indexOf(type ?? "");
-  return index === -1 ? BALANCE_PREFERENCE.length : index;
-}
-
 /**
- * Baut aus einem Abruf einen Kontoauszug wie aus einer Datei. Die Umsätze werden nach Buchungstag
+ * Baut aus einem Abruf einen Kontoauszug wie aus einer Datei. Vorgemerkte Umsätze (PDNG) fehlen
+ * absichtlich: Sie können sich noch ändern oder wegfallen, und Umsätze sind ab Import unveränderlich. Die Umsätze werden nach Buchungstag
  * sortiert (bei gleichem Tag in der Reihenfolge der Bank), damit gleiche Umsätze an einem Tag bei
  * jedem Abruf dieselbe laufende Nummer und damit denselben Hash bekommen.
  */
@@ -73,13 +70,14 @@ export function enableBankingStatement(input: {
   const mapped: ParsedTransaction[] = [];
   let pending = 0;
   input.transactions.forEach((t, i) => {
-    if (t.status && t.status !== "BOOK") {
-      pending++;
-      return;
+    const ref = t.entry_reference ?? t.transaction_id ?? i + 1;
+    if (t.status === "PDNG") pending++;
+    else if (t.status && t.status !== "BOOK") warnings.push(`Umsatz ${ref} mit Status ${t.status} übersprungen.`);
+    else {
+      const tx = mapEnableBankingTransaction(t, i);
+      if (tx) mapped.push(tx);
+      else warnings.push(`Umsatz ${ref} ohne gültiges Datum oder Betrag übersprungen.`);
     }
-    const tx = mapEnableBankingTransaction(t, i);
-    if (tx) mapped.push(tx);
-    else warnings.push(`Umsatz ${t.entry_reference ?? t.transaction_id ?? i + 1} ohne gültiges Datum oder Betrag übersprungen.`);
   });
   if (pending > 0) warnings.push(`${pending} vorgemerkte Umsätze folgen, sobald die Bank sie bucht.`);
   const transactions = mapped
@@ -87,16 +85,16 @@ export function enableBankingStatement(input: {
     .sort((a, b) => a.t.bookingDate.localeCompare(b.t.bookingDate) || a.order - b.order)
     .map(({ t }, index) => ({ ...t, index }));
   const balance = bookedBalance(input.balances);
-  return {
+  const statement: ParsedStatement = {
     format: "enablebanking",
     accountIban: normalizeIban(input.account.account_id?.iban ?? undefined),
     accountName: normalizeText(input.account.name ?? input.account.product ?? "") || undefined,
     currency: input.account.currency || "EUR",
     periodFrom: input.dateFrom,
     periodTo: input.dateTo,
-    closingBalance: balance?.amount,
-    statedBalance: balance ? { date: balance.date ?? input.dateTo, amount: balance.amount } : undefined,
     transactions,
     warnings,
   };
+  applyStatedBalance(statement, balance ? { date: balance.date ?? input.dateTo, amount: balance.amount } : undefined);
+  return statement;
 }

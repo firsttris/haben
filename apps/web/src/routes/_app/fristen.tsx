@@ -2,7 +2,9 @@ import { tageBis } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { errorMessage, formatDate } from "../../lib/format.ts";
+import { formatDate } from "../../lib/format.ts";
+import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import { useAction } from "../../lib/use-action.ts";
 import { createFristenAbo, getFristen, revokeFristenAbo } from "../../server/functions/fristen.ts";
 import styles from "../../styles/auswertungen.css?url";
 
@@ -141,28 +143,16 @@ function KalenderAbo() {
   const create = useServerFn(createFristenAbo);
   const revoke = useServerFn(revokeFristenAbo);
   const [url, setUrl] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, notice, run } = useAction();
   const [copied, setCopied] = useState(false);
 
-  async function run(work: () => Promise<void>) {
-    setBusy(true);
-    setError(null);
-    try {
-      await work();
-      await router.invalidate();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   const neu = () =>
     run(async () => {
       const { token } = await create();
       setCopied(false);
       setUrl(`${window.location.origin}/api/fristen/kalender?token=${token}`);
+      await router.invalidate();
     });
 
   return (
@@ -206,7 +196,12 @@ function KalenderAbo() {
             <button type="button" className="btn" disabled={busy} onClick={() => void neu()}>
               Neuen Link erzeugen
             </button>
-            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void run(async () => void (await revoke()))}>
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() =>
+                void run(async () => {
+                  await revoke();
+                  await router.invalidate();
+                })
+              }>
               Abo beenden
             </button>
           </div>
@@ -218,11 +213,7 @@ function KalenderAbo() {
           </button>
         </div>
       )}
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
+      <NoticeBanner notice={notice} />
     </section>
   );
 }

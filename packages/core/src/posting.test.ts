@@ -273,3 +273,29 @@ describe("Kasse", () => {
     ]);
   });
 });
+
+describe("Rundung bei Storno", () => {
+  const saldo = (...buchungen: { account: string; debit: number; credit: number }[][]) => {
+    const sums = new Map<string, number>();
+    for (const line of buchungen.flat()) sums.set(line.account, (sums.get(line.account) ?? 0) + line.debit - line.credit);
+    return [...sums.values()].filter((v) => v !== 0);
+  };
+
+  it("Beleg mit Privatanteil und sein Storno heben sich exakt auf", () => {
+    // 12,34 € netto, 25 % privat: 308,5 Cent und 58,5 Cent liegen genau auf der Hälfte
+    const beleg = computeInvoiceTotals([{ quantity: 1000, unitPrice: 1_234, taxRate: 1900 }]);
+    const storno = computeInvoiceTotals([{ quantity: 1000, unitPrice: -1_234, taxRate: 1900 }]);
+    expect(saldo(documentPosting(beleg, "telefon", "SKR03", "bank", true, undefined, 25), documentPosting(storno, "telefon", "SKR03", "bank", true, undefined, 25))).toEqual([]);
+  });
+
+  it("Steueranteile einer Zahlung und ihrer Rückzahlung sind spiegelbildlich", () => {
+    // Hälfte von 11,90 €: Anteile 50,5 / 9,5 / 35 Cent liegen auf der Hälfte
+    const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 101, taxRate: 1900 }, { quantity: 1000, unitPrice: 1_000, taxRate: 700 }]);
+    const negated = computeInvoiceTotals([{ quantity: 1000, unitPrice: -101, taxRate: 1900 }, { quantity: 1000, unitPrice: -1_000, taxRate: 700 }]);
+    for (const paid of [1, 113, 595]) {
+      const hin = paidTaxShares(totals, paid);
+      const zurueck = paidTaxShares(negated, -paid);
+      expect(zurueck.map((r) => [r.base, r.tax])).toEqual(hin.map((r) => [-r.base, -r.tax]));
+    }
+  });
+});

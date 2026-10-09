@@ -1,11 +1,11 @@
-import { formatEuro } from "@haben/core";
+import { MONTHS, formatEuro } from "@haben/core";
 import { useState, type PointerEvent } from "react";
 import { euroAxis, niceTicks, useChartWidth } from "../lib/chart.ts";
 import { formatDate } from "../lib/format.ts";
 
 const H = 200;
 const M = { top: 12, right: 12, bottom: 24, left: 72 };
-const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
 export interface BalancePoint {
   date: string;
@@ -46,7 +46,7 @@ export function BalanceChart({ from, to, start, points, title }: { from: string;
   const monthTicks: { iso: string; label: string }[] = [];
   for (let m = new Date(`${from}T00:00:00Z`); day(m.toISOString().slice(0, 10)) <= last; m.setUTCMonth(m.getUTCMonth() + 1)) {
     const iso = m.toISOString().slice(0, 10);
-    monthTicks.push({ iso, label: MONTHS[m.getUTCMonth()]! });
+    monthTicks.push({ iso, label: MONTHS_SHORT[m.getUTCMonth()]! });
   }
 
   function onMove(event: PointerEvent<SVGSVGElement>) {

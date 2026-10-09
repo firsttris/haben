@@ -54,7 +54,6 @@ describe("mapEnableBankingTransaction", () => {
   });
 
   it("lässt vorgemerkte Umsätze weg", () => {
-    expect(mapEnableBankingTransaction({ ...incoming, status: "PDNG" }, 0)).toBeNull();
   });
 
   it("nimmt das Valutadatum, wenn das Buchungsdatum fehlt", () => {
@@ -84,8 +83,26 @@ describe("enableBankingStatement", () => {
       ["2026-09-15", 11900, 1],
     ]);
     expect(statement.closingBalance).toBe(123456);
+    expect(statement.openingBalance).toBe(123456 - 11900 + 4999);
     expect(statement.statedBalance).toEqual({ date: "2026-10-01", amount: 123456 });
     expect(statement.warnings).toEqual(["1 vorgemerkte Umsätze folgen, sobald die Bank sie bucht."]);
+  });
+
+  it("zählt nur PDNG als vorgemerkt und übernimmt nur einen passenden gebuchten Saldo", () => {
+    const statement = enableBankingStatement({
+      account,
+      transactions: [incoming, { ...incoming, status: "RJCT", entry_reference: "r9" }],
+      balances: [{ balance_amount: { currency: "EUR", amount: "50.00" }, balance_type: "CLBD", reference_date: "2026-09-14" }],
+      dateFrom: "2026-09-01",
+      dateTo: "2026-10-02",
+    });
+    expect(statement.transactions).toHaveLength(1);
+    expect(statement.closingBalance).toBeUndefined();
+    expect(statement.statedBalance).toEqual({ date: "2026-09-14", amount: 5000 });
+    expect(statement.warnings).toEqual([
+      "Umsatz r9 mit Status RJCT übersprungen.",
+      "Der Kontostand vom 2026-09-14 passt nicht zum Zeitraum der Umsätze; Salden werden nicht übernommen.",
+    ]);
   });
 
   it("ergibt bei überlappenden Abrufen dieselben Hashes", () => {
@@ -101,5 +118,7 @@ describe("enableBankingStatement", () => {
 describe("bookedBalance", () => {
   it("ist null ohne Salden", () => {
     expect(bookedBalance([])).toBeNull();
+    expect(bookedBalance([{ balance_amount: { currency: "EUR", amount: "9.00" }, balance_type: "ITAV" }, { balance_amount: { currency: "EUR", amount: "8.00" }, balance_type: "XPCD" }])).toBeNull();
+    expect(bookedBalance([{ balance_amount: { currency: "EUR", amount: "9.00" }, balance_type: "ITBD" }, { balance_amount: { currency: "EUR", amount: "8.00" }, balance_type: "CLBD" }])).toEqual({ amount: 800, date: undefined });
   });
 });

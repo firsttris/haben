@@ -68,7 +68,7 @@ export async function listFristen(today: string): Promise<Frist[]> {
       periods.unshift(p);
     }
     for (const period of periods) {
-      const datum = dueDate(period, bundesland).toISOString().slice(0, 10);
+      const datum = dueDate(period, bundesland);
       const erledigt = sent.has(periodKey(period));
       if (!relevant(datum, !erledigt)) continue;
       fristen.push({

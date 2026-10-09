@@ -1,6 +1,6 @@
 import { texts, type Language } from "./i18n.ts";
 import { addressLines, footerColumns, renderQuotePdfData, templateLabels } from "./pdf.ts";
-import { quotePdfData, type QuoteDocument } from "./quote.ts";
+import { quoteDetails, quotePdfData, type QuoteDocument } from "./quote.ts";
 import type { Buyer, InvoiceDocumentLine, Logo, Seller } from "./types.ts";
 
 /**
@@ -12,16 +12,15 @@ import type { Buyer, InvoiceDocumentLine, Logo, Seller } from "./types.ts";
 export function confirmationPdfData(doc: QuoteDocument, date: string) {
   const t = texts(doc.language);
   const base = quotePdfData(doc);
-  // Angebotsnummer, -datum und Gültigkeit ersetzt der Bezug aufs Angebot
-  const skip = new Set<string>([t.quoteNumber, t.quoteDate, t.validUntil]);
   return {
     ...base,
     docTitle: `${t.confirmation} ${doc.number}`,
     title: t.confirmation,
+    // Angebotsnummer, -datum und Gültigkeit ersetzt der Bezug aufs Angebot
     meta: [
       { label: t.date_, value: t.date(date) },
       { label: t.quoteRef, value: `${doc.number} (${t.date(doc.issueDate)})` },
-      ...base.meta.filter((m) => !skip.has(m.label)),
+      ...quoteDetails(doc, t),
     ],
     totals: { ...base.totals, gross: { ...base.totals.gross, label: t.orderTotal } },
     payment: t.confirmationText,

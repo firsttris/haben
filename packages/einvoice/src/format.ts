@@ -1,4 +1,5 @@
-import type { InvoiceDocument, InvoiceKind } from "./types.ts";
+import { TEXTS, type Texts } from "./i18n.ts";
+import type { InvoiceDocument } from "./types.ts";
 
 /** "2026-10-02" → "02.10.2026" */
 export function formatDate(isoDate: string): string {
@@ -15,12 +16,6 @@ export function compactIban(iban: string): string {
   return iban.replace(/\s+/g, "").toUpperCase();
 }
 
-export const TITLES: Record<InvoiceKind, string> = {
-  rechnung: "Rechnung",
-  storno: "Stornorechnung",
-  korrektur: "Rechnungskorrektur",
-};
-
 /** Gutschriftartige Belege (Storno, Korrektur) gehen als Typ 381 mit positiven Beträgen ins XML. */
 export function isCreditNote(doc: Pick<InvoiceDocument, "kind">): boolean {
   return doc.kind !== "rechnung";
@@ -33,10 +28,11 @@ export function servicePeriod(doc: InvoiceDocument): { from: string; to: string 
   return { from, to };
 }
 
-export function paymentSentence(doc: InvoiceDocument): string {
-  if (doc.totals.gross < 0) return "Der Betrag wird Ihnen erstattet.";
-  if (doc.totals.gross === 0) return "Es ist keine Zahlung erforderlich.";
-  return `Bitte überweisen Sie den Betrag bis zum ${formatDate(doc.dueDate)} unter Angabe der Rechnungsnummer.`;
+/** Zahlungssatz unter der Summe; das XML bleibt wie BT-20 und BT-120 deutsch (siehe i18n.ts) */
+export function paymentSentence(doc: Pick<InvoiceDocument, "totals" | "dueDate">, t: Texts = TEXTS.de): string {
+  if (doc.totals.gross < 0) return t.refund;
+  if (doc.totals.gross === 0) return t.noPayment;
+  return t.payBy(t.date(doc.dueDate));
 }
 
 export function countryName(code: string, locale = "de"): string {

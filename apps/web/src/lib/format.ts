@@ -19,3 +19,9 @@ export function daysUntil(value: string | Date, today = new Date()): number {
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unbekannter Fehler";
 }
+
+/** Nutzungsdauer „2,5“ oder „2.5“ Jahre in ganzen Monaten; null, wenn leer, nicht positiv oder kein ganzer Monat */
+export function parseUsefulLifeMonths(years: string): number | null {
+  const months = Number(years.trim().replace(",", ".")) * 12;
+  return years.trim() !== "" && Number.isInteger(months) && months > 0 ? months : null;
+}

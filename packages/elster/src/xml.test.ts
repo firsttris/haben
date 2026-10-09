@@ -3,6 +3,7 @@ import {
   buildUstvaXml,
   datenartVersionFromXml,
   elsterDecimal,
+  escapeXml,
   hasTestmerker,
   TEST_HERSTELLER_ID,
   ustvaDatenartVersion,
@@ -106,6 +107,20 @@ describe("buildUstvaXml", () => {
     const echt = buildUstvaXml({ ...base, test: false });
     expect(echt).not.toContain("Testmerker");
     expect(hasTestmerker(echt)).toBe(false);
+  });
+
+  it("erkennt jeden Testmerker, nicht nur die von Haben gesetzten", () => {
+    expect(hasTestmerker("<Testmerker>700000001</Testmerker>")).toBe(true);
+    expect(hasTestmerker("<Testmerker> 370000001 </Testmerker>")).toBe(true);
+    expect(hasTestmerker("<Testmerker></Testmerker>")).toBe(false);
+    expect(hasTestmerker("<Testmerker> </Testmerker>")).toBe(false);
+  });
+
+  it("maskiert Sonderzeichen und entfernt in XML 1.0 unzulässige Steuerzeichen", () => {
+    expect(escapeXml(`a&b<c>"d"'e'`)).toBe("a&amp;b&lt;c&gt;&quot;d&quot;&apos;e&apos;");
+    expect(escapeXml("A\u0000B\u0007C\u001FD\uFFFEE\uD800F")).toBe("ABCDEF");
+    // Tab, Zeilenumbrüche, Umlaute und Emoji (Surrogatpaar) bleiben
+    expect(escapeXml("x\ty\r\nzäö😀")).toBe("x\ty\r\nzäö😀");
   });
 
   it("markiert berichtigte Anmeldungen mit Kz10", () => {

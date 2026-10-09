@@ -48,10 +48,13 @@ function attr(node: unknown, name: string, ...path: string[]): string | undefine
   return typeof a === "string" ? a : undefined;
 }
 
-/** <Amt Ccy="EUR">12.34</Amt> mit <CdtDbtInd>DBIT</CdtDbtInd> → -1234 */
+/**
+ * <Amt Ccy="EUR">12.34</Amt> mit <CdtDbtInd>DBIT</CdtDbtInd> → -1234. ISO 20022 erlaubt bis zu fünf
+ * Nachkommastellen; was über den Cent hinausgeht, muss null sein.
+ */
 function signedAmount(amountNode: unknown, indicator: string | undefined, where: string): Cents {
   const raw = text(amountNode) ?? "";
-  const cents = requireAmount(parseDotAmount(raw), raw, where);
+  const cents = requireAmount(parseDotAmount(raw.trim().replace(/(\.\d{2})0{1,3}$/, "$1")), raw, where);
   return indicator === "DBIT" ? -cents : cents;
 }
 
@@ -209,7 +212,10 @@ export function parseCamt053(xml: string): ParsedStatement {
             optionalReference(text(d, "Refs", "AcctSvcrRef")) ??
             (inBatch ? (endToEnd ?? entryRef) : (entryRef ?? endToEnd)),
           mandateReference: optional(normalizeText(text(d, "Refs", "MndtId"))),
-          creditorId: optional(normalizeText(text(d, "RltdPties", "Cdtr", "Id", "PrvtId", "Othr", "Id"))),
+          // bis .001.02 direkt unter Cdtr, ab .001.08 unter Cdtr/Pty
+          creditorId: optional(
+            normalizeText(text(d, "RltdPties", "Cdtr", "Id", "PrvtId", "Othr", "Id") ?? text(d, "RltdPties", "Cdtr", "Pty", "Id", "PrvtId", "Othr", "Id")),
+          ),
         };
       };
 

@@ -5,6 +5,7 @@ import {
   check,
   customType,
   date,
+  foreignKey,
   integer,
   jsonb,
   pgEnum,
@@ -182,6 +183,7 @@ export const vatReturns = pgTable(
   },
   (t) => [
     check("vat_returns_month", sql`${t.month} between 1 and 12`),
+    foreignKey({ name: "vat_returns_corrects_fk", columns: [t.correctsId], foreignColumns: [t.id] }),
     // höchstens ein Entwurf je Zeitraum
     uniqueIndex("vat_returns_one_draft_per_period")
       .on(t.year, t.month)
@@ -460,24 +462,28 @@ export const mailLog = pgTable("mail_log", {
  * Pauschalen ohne Beleg (Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand),
  * gebucht Aufwand an Privateinlage. Nur anhängen: ein Storno ist eine eigene Zeile mit negativem Betrag.
  */
-export const pauschalen = pgTable("pauschalen", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung"] }).notNull(),
-  /** Homeoffice: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
-  date: date("date", { mode: "string" }).notNull(),
-  /** Anlass, Ziel, Kunde */
-  description: text("description").notNull(),
-  /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend } */
-  details: jsonb("details").$type<Record<string, string | number | boolean>>().notNull(),
-  /** Cent; beim Storno negativ */
-  amount: integer("amount").notNull(),
-  /** Storno: die aufgehobene Pauschale */
-  reversesId: uuid("reverses_id"),
-  journalEntryId: uuid("journal_entry_id")
-    .notNull()
-    .references(() => journalEntries.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const pauschalen = pgTable(
+  "pauschalen",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    art: text("art", { enum: ["homeoffice", "fahrt", "verpflegung"] }).notNull(),
+    /** Homeoffice: letzter Tag des Monats; sonst der Tag der Fahrt bzw. Reise */
+    date: date("date", { mode: "string" }).notNull(),
+    /** Anlass, Ziel, Kunde */
+    description: text("description").notNull(),
+    /** Homeoffice: { tage }; Fahrt: { km, fahrzeug, hinUndZurueck }; Verpflegung: { tag, fruehstueck, mittag, abend } */
+    details: jsonb("details").$type<Record<string, string | number | boolean>>().notNull(),
+    /** Cent; beim Storno negativ */
+    amount: integer("amount").notNull(),
+    /** Storno: die aufgehobene Pauschale */
+    reversesId: uuid("reverses_id"),
+    journalEntryId: uuid("journal_entry_id")
+      .notNull()
+      .references(() => journalEntries.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [foreignKey({ name: "pauschalen_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] })],
+);
 
 /**
  * Kassenbuch: jede Bewegung der Barkasse mit fortlaufender Nummer, nur anhängen. Bar bezahlte Belege
@@ -501,20 +507,28 @@ export const cashEntries = pgTable(
     journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("cash_entries_document").on(t.documentId), uniqueIndex("cash_entries_reverses").on(t.reversesId)],
+  (t) => [
+    uniqueIndex("cash_entries_document").on(t.documentId),
+    uniqueIndex("cash_entries_reverses").on(t.reversesId),
+    foreignKey({ name: "cash_entries_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
 );
 
 /** Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. */
-export const auditLog = pgTable("audit_log", {
-  id: bigserial("id", { mode: "number" }).primaryKey(),
-  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
-  actor: text("actor"),
-  tableName: text("table_name").notNull(),
-  rowId: text("row_id"),
-  action: text("action", { enum: ["INSERT", "UPDATE", "DELETE"] }).notNull(),
-  oldValue: jsonb("old_value"),
-  newValue: jsonb("new_value"),
-});
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    actor: text("actor"),
+    tableName: text("table_name").notNull(),
+    rowId: text("row_id"),
+    action: text("action", { enum: ["INSERT", "UPDATE", "DELETE"] }).notNull(),
+    oldValue: jsonb("old_value"),
+    newValue: jsonb("new_value"),
+  },
+  (t) => [index("audit_log_at").on(t.at), index("audit_log_row").on(t.tableName, t.rowId)],
+);
 
 /** Kunden und Lieferanten. Jede Änderung legt per Trigger eine Version in contact_versions ab. */
 export const contacts = pgTable("contacts", {
@@ -609,27 +623,40 @@ export const invoices = pgTable(
   (t) => [
     check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
+    // Storno und Korrektur verweisen immer auf das Original
+    check("invoices_corrects_original", sql`${t.kind} = 'rechnung' or ${t.correctsId} is not null`),
     uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
     uniqueIndex("invoices_recurring_date").on(t.recurringId, t.recurringDate),
+    index("invoices_corrects").on(t.correctsId),
+    // höchstens ein festgeschriebenes Storno je Rechnung
+    uniqueIndex("invoices_one_storno").on(t.correctsId).where(sql`${t.kind} = 'storno' and ${t.status} = 'final'`),
+    foreignKey({ name: "invoices_corrects_fk", columns: [t.correctsId], foreignColumns: [t.id] }),
+    // in 0011 und 0018 von Hand angelegt
+    foreignKey({ name: "invoices_recurring_fk", columns: [t.recurringId], foreignColumns: [recurringInvoices.id] }),
+    foreignKey({ name: "invoices_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
   ],
 );
 
-export const invoiceLines = pgTable("invoice_lines", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  invoiceId: uuid("invoice_id")
-    .notNull()
-    .references(() => invoices.id, { onDelete: "cascade" }),
-  position: smallint("position").notNull(),
-  description: text("description").notNull(),
-  /** Tausendstel */
-  quantity: integer("quantity").notNull(),
-  unit: text("unit").notNull(),
-  unitPrice: integer("unit_price").notNull(),
-  taxRate: smallint("tax_rate").notNull(),
-  net: integer("net").notNull(),
-  /** Schlussrechnung: Abzug dieser Abschlagsrechnung; erzeugt Haben, nicht der Editor */
-  deductionOf: uuid("deduction_of").references(() => invoices.id),
-});
+export const invoiceLines = pgTable(
+  "invoice_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+    position: smallint("position").notNull(),
+    description: text("description").notNull(),
+    /** Tausendstel */
+    quantity: integer("quantity").notNull(),
+    unit: text("unit").notNull(),
+    unitPrice: integer("unit_price").notNull(),
+    taxRate: smallint("tax_rate").notNull(),
+    net: integer("net").notNull(),
+    /** Schlussrechnung: Abzug dieser Abschlagsrechnung; erzeugt Haben, nicht der Editor */
+    deductionOf: uuid("deduction_of").references(() => invoices.id),
+  },
+  (t) => [index("invoice_lines_invoice").on(t.invoiceId)],
+);
 
 /** Letzte vergebene laufende Nummer je Jahr; lückenlos, weil nur beim Festschreiben gezogen */
 export const invoiceNumberCounters = pgTable("invoice_number_counters", {
@@ -735,17 +762,25 @@ export const quoteNumberCounters = pgTable("quote_number_counters", {
 });
 
 /** Buchungen. Festgeschrieben ab Entstehung; Korrektur nur per Gegenbuchung. */
-export const journalEntries = pgTable("journal_entries", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  date: date("date", { mode: "string" }).notNull(),
-  description: text("description").notNull(),
-  sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse"] }).notNull(),
-  sourceId: uuid("source_id").notNull(),
-  kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
-  reversesId: uuid("reverses_id"),
-  lockedAt: timestamp("locked_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const journalEntries = pgTable(
+  "journal_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: date("date", { mode: "string" }).notNull(),
+    description: text("description").notNull(),
+    sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse"] }).notNull(),
+    sourceId: uuid("source_id").notNull(),
+    kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
+    reversesId: uuid("reverses_id"),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("journal_entries_date").on(t.date),
+    index("journal_entries_source").on(t.sourceType, t.sourceId),
+    foreignKey({ name: "journal_entries_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
 
 export const journalLines = pgTable(
   "journal_lines",
@@ -759,7 +794,11 @@ export const journalLines = pgTable(
     credit: integer("credit").notNull().default(0),
     taxCode: text("tax_code"),
   },
-  (t) => [check("journal_lines_one_side", sql`(${t.debit} >= 0 and ${t.credit} >= 0) and (${t.debit} = 0 or ${t.credit} = 0)`)],
+  (t) => [
+    check("journal_lines_one_side", sql`(${t.debit} >= 0 and ${t.credit} >= 0) and (${t.debit} = 0 or ${t.credit} = 0)`),
+    index("journal_lines_entry").on(t.entryId),
+    index("journal_lines_account").on(t.account),
+  ],
 );
 
 export const documentStatusEnum = pgEnum("document_status", ["neu", "gebucht"]);
@@ -769,48 +808,56 @@ export const extractionStatusEnum = pgEnum("extraction_status", ["keine", "laeuf
  * Belege (Eingangsrechnungen, Quittungen). Die Datei liegt im Dateisystem unter ihrem SHA-256;
  * Beträge in Cent, Gutschriften negativ. Beim Buchen gesperrt.
  */
-export const documents = pgTable("documents", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  sha256: text("sha256").notNull().unique(),
-  filename: text("filename").notNull(),
-  mimeType: text("mime_type").notNull(),
-  size: integer("size").notNull(),
-  status: documentStatusEnum("status").notNull().default("neu"),
-  /** Woher die Felder stammen: zugferd, xrechnung, ki oder manuell */
-  extractedBy: text("extracted_by", { enum: ["zugferd", "xrechnung", "ki", "manuell"] }),
-  extractionStatus: extractionStatusEnum("extraction_status").notNull().default("keine"),
-  extractionError: text("extraction_error"),
-  /** Rohdaten der Auslesung zum Nachvollziehen */
-  extraction: jsonb("extraction").$type<Record<string, unknown>>(),
-  supplierName: text("supplier_name").notNull().default(""),
-  supplierUstId: text("supplier_ust_id").notNull().default(""),
-  invoiceNumber: text("invoice_number").notNull().default(""),
-  documentDate: date("document_date", { mode: "string" }),
-  dueDate: date("due_date", { mode: "string" }),
-  category: text("category"),
-  payment: text("payment", { enum: ["bank", "privat", "kasse"] }).notNull().default("bank"),
-  note: text("note").notNull().default(""),
-  currency: text("currency").notNull().default("EUR"),
-  net: integer("net").notNull().default(0),
-  tax: integer("tax").notNull().default(0),
-  gross: integer("gross").notNull().default(0),
-  /** Bei Kategorie „anlage“: Angaben für die Anlage, die beim Buchen entsteht */
-  asset: jsonb("asset").$type<{ name: string; kind: AssetKind; method: AssetMethod; usefulLifeMonths: number | null }>(),
-  /** Beim Buchen festgehalten: false bei Kleinunternehmern, dann ist die Steuer Teil des Aufwands */
-  vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
-  /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
-  privateShare: smallint("private_share").notNull().default(0),
-  /**
-   * § 13b: Die Steuer schuldest du als Leistungsempfänger. Die Beträge tragen die selbst berechnete Steuer,
-   * gezahlt wird nur netto (gross = net).
-   */
-  reverseCharge: text("reverse_charge", { enum: ["eu", "drittland"] }),
-  /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
-  lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
-  lockedAt: timestamp("locked_at", { withTimezone: true }),
-  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const documents = pgTable(
+  "documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sha256: text("sha256").notNull().unique(),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    size: integer("size").notNull(),
+    status: documentStatusEnum("status").notNull().default("neu"),
+    /** Woher die Felder stammen: zugferd, xrechnung, ki oder manuell */
+    extractedBy: text("extracted_by", { enum: ["zugferd", "xrechnung", "ki", "manuell"] }),
+    extractionStatus: extractionStatusEnum("extraction_status").notNull().default("keine"),
+    extractionError: text("extraction_error"),
+    /** Rohdaten der Auslesung zum Nachvollziehen */
+    extraction: jsonb("extraction").$type<Record<string, unknown>>(),
+    supplierName: text("supplier_name").notNull().default(""),
+    supplierUstId: text("supplier_ust_id").notNull().default(""),
+    invoiceNumber: text("invoice_number").notNull().default(""),
+    documentDate: date("document_date", { mode: "string" }),
+    dueDate: date("due_date", { mode: "string" }),
+    category: text("category"),
+    payment: text("payment", { enum: ["bank", "privat", "kasse"] }).notNull().default("bank"),
+    note: text("note").notNull().default(""),
+    currency: text("currency").notNull().default("EUR"),
+    net: integer("net").notNull().default(0),
+    tax: integer("tax").notNull().default(0),
+    gross: integer("gross").notNull().default(0),
+    /** Bei Kategorie „anlage“: Angaben für die Anlage, die beim Buchen entsteht */
+    asset: jsonb("asset").$type<{ name: string; kind: AssetKind; method: AssetMethod; usefulLifeMonths: number | null }>(),
+    /** Beim Buchen festgehalten: false bei Kleinunternehmern, dann ist die Steuer Teil des Aufwands */
+    vorsteuerAbzug: boolean("vorsteuer_abzug").notNull().default(true),
+    /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
+    privateShare: smallint("private_share").notNull().default(0),
+    /**
+     * § 13b: Die Steuer schuldest du als Leistungsempfänger. Die Beträge tragen die selbst berechnete Steuer,
+     * gezahlt wird nur netto (gross = net).
+     */
+    reverseCharge: text("reverse_charge", { enum: ["eu", "drittland"] }),
+    /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
+    lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // in 0011 und 0016 von Hand angelegt
+  (t) => [
+    check("documents_private_share_range", sql`${t.privateShare} between 0 and 100`),
+    foreignKey({ name: "documents_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
+  ],
+);
 
 /** Beträge eines Belegs je Steuersatz */
 export const documentAmounts = pgTable(
@@ -907,7 +954,10 @@ export const bankTransactions = pgTable(
     dedupHash: text("dedup_hash").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("bank_transactions_dedup").on(t.bankAccountId, t.dedupHash)],
+  (t) => [
+    uniqueIndex("bank_transactions_dedup").on(t.bankAccountId, t.dedupHash),
+    index("bank_transactions_account_date").on(t.bankAccountId, t.bookingDate),
+  ],
 );
 
 export const allocationKindEnum = pgEnum("allocation_kind", [
@@ -924,19 +974,32 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
  * Zuordnung eines Bankumsatzes (ganz oder teilweise) zu Rechnung, Beleg oder einer Buchung ohne Beleg.
  * Nur anhängen; aufgehoben wird per Gegenzeile mit negativem Betrag (reversesId).
  */
-export const allocations = pgTable("allocations", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  transactionId: uuid("transaction_id")
-    .notNull()
-    .references(() => bankTransactions.id),
-  kind: allocationKindEnum("kind").notNull(),
-  invoiceId: uuid("invoice_id").references(() => invoices.id),
-  documentId: uuid("document_id").references(() => documents.id),
-  /** Mit dem Vorzeichen des Umsatzes */
-  amount: integer("amount").notNull(),
-  reversesId: uuid("reverses_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const allocations = pgTable(
+  "allocations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transactionId: uuid("transaction_id")
+      .notNull()
+      .references(() => bankTransactions.id),
+    kind: allocationKindEnum("kind").notNull(),
+    invoiceId: uuid("invoice_id").references(() => invoices.id),
+    documentId: uuid("document_id").references(() => documents.id),
+    /** Mit dem Vorzeichen des Umsatzes */
+    amount: integer("amount").notNull(),
+    reversesId: uuid("reverses_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "allocations_target",
+      sql`(${t.kind} <> 'invoice' or ${t.invoiceId} is not null) and (${t.kind} <> 'document' or ${t.documentId} is not null)`,
+    ),
+    index("allocations_transaction").on(t.transactionId),
+    index("allocations_invoice").on(t.invoiceId),
+    index("allocations_document").on(t.documentId),
+    foreignKey({ name: "allocations_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
 
 /**
  * Original-Exporte und Nachweise (DATEV, IDEA, ELSTER-Protokolle, Kontoauszüge) unverändert unter ihrem SHA-256.
@@ -1012,15 +1075,20 @@ export type LexofficeImportProgress = {
 };
 
 /** Abrufe über die API; der Fortschritt wird während des Laufs fortgeschrieben. */
-export const lexofficeImports = pgTable("lexoffice_imports", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  status: text("status", { enum: ["laeuft", "fertig", "fehler", "abgebrochen"] }).notNull().default("laeuft"),
-  progress: jsonb("progress").$type<LexofficeImportProgress>().notNull(),
-  error: text("error"),
-  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  finishedAt: timestamp("finished_at", { withTimezone: true }),
-});
+export const lexofficeImports = pgTable(
+  "lexoffice_imports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    status: text("status", { enum: ["laeuft", "fertig", "fehler", "abgebrochen"] }).notNull().default("laeuft"),
+    progress: jsonb("progress").$type<LexofficeImportProgress>().notNull(),
+    error: text("error"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  // höchstens ein laufender Abruf
+  (t) => [uniqueIndex("lexoffice_imports_one_running").on(t.status).where(sql`${t.status} = 'laeuft'`)],
+);
 
 export type LegacyTaxRow = { rate: number; net: number; tax: number };
 export type LegacyCategoryRow = { categoryId: string; name: string; rate: number; net: number; tax: number };
@@ -1118,6 +1186,7 @@ export const assets = pgTable(
     check("assets_opening_complete", sql`(${t.openingDate} is null) = (${t.openingBookValue} is null)`),
     check("assets_cost_positive", sql`${t.cost} > 0`),
     check("assets_private_use_car", sql`${t.privateUse} is null or ${t.kind} = 'kfz'`),
+    foreignKey({ name: "assets_opening_entry_fk", columns: [t.openingEntryId], foreignColumns: [journalEntries.id] }),
   ],
 );
 
@@ -1188,27 +1257,35 @@ export const recurringInvoices = pgTable(
 );
 
 /** Mahnungen und Zahlungserinnerungen mit PDF; wie ein verschicktes Schreiben unveränderlich */
-export const dunnings = pgTable("dunnings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  invoiceId: uuid("invoice_id")
-    .notNull()
-    .references(() => invoices.id),
-  /** 1 Zahlungserinnerung, 2 Mahnung, 3 letzte Mahnung */
-  level: smallint("level").notNull(),
-  date: date("date", { mode: "string" }).notNull(),
-  /** Neue Zahlungsfrist */
-  dueDate: date("due_date", { mode: "string" }).notNull(),
-  open: integer("open").notNull(),
-  fee: integer("fee").notNull().default(0),
-  flatFee: integer("flat_fee").notNull().default(0),
-  interest: integer("interest").notNull().default(0),
-  /** Zinssatz in Basispunkten (Basiszinssatz plus Aufschlag) */
-  interestRate: integer("interest_rate").notNull().default(0),
-  interestDays: integer("interest_days").notNull().default(0),
-  total: integer("total").notNull(),
-  intro: text("intro").notNull(),
-  closing: text("closing").notNull(),
-  pdf: bytea("pdf").notNull(),
-  pdfSha256: text("pdf_sha256").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const dunnings = pgTable(
+  "dunnings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id),
+    /** 1 Zahlungserinnerung, 2 Mahnung, 3 letzte Mahnung */
+    level: smallint("level").notNull(),
+    date: date("date", { mode: "string" }).notNull(),
+    /** Neue Zahlungsfrist */
+    dueDate: date("due_date", { mode: "string" }).notNull(),
+    open: integer("open").notNull(),
+    fee: integer("fee").notNull().default(0),
+    flatFee: integer("flat_fee").notNull().default(0),
+    interest: integer("interest").notNull().default(0),
+    /** Zinssatz in Basispunkten (Basiszinssatz plus Aufschlag) */
+    interestRate: integer("interest_rate").notNull().default(0),
+    interestDays: integer("interest_days").notNull().default(0),
+    total: integer("total").notNull(),
+    intro: text("intro").notNull(),
+    closing: text("closing").notNull(),
+    pdf: bytea("pdf").notNull(),
+    pdfSha256: text("pdf_sha256").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // in 0020 von Hand angelegt
+    check("dunnings_level", sql`${t.level} between 1 and 3`),
+    index("dunnings_invoice").on(t.invoiceId),
+  ],
+);

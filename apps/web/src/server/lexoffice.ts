@@ -1,3 +1,4 @@
+import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "./errors.ts";
 import {
   LexofficeApiError,
   LexofficeClient,
@@ -19,7 +20,7 @@ import { db, schema } from "./db/index.ts";
 import type { LexofficeImportProgress } from "./db/schema.ts";
 import { sha256Of, sniff, storeFile } from "./storage.ts";
 
-export class LexofficeError extends Error {}
+export class LexofficeError extends UserError {}
 
 /** Für Tests austauschbar: baut den API-Client */
 let clientFactory = (options: LexofficeClientOptions) => new LexofficeClient({ baseUrl: env().LEXOFFICE_API_URL || undefined, ...options });
@@ -39,10 +40,10 @@ function isSalesType(type: string): type is SalesType {
 /** Läuft ein Abruf länger als so lange ohne Fortschritt, gilt er als abgebrochen (Neustart des Servers). */
 const STALE_MS = 3 * 60 * 1000;
 
-function userMessage(error: unknown): string {
-  if (error instanceof LexofficeApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return String(error);
+function progressMessage(error: unknown): string {
+  const message = userMessage(error);
+  if (message === undefined) console.error("Lexoffice-Abruf", error);
+  return message ?? INTERNAL_ERROR;
 }
 
 async function apiKey(): Promise<string | null> {
@@ -67,7 +68,7 @@ export async function saveApiKey(actor: string, key: string): Promise<{ organiza
     const profile = await clientFactory({ apiKey: trimmed }).profile();
     organizationName = profile.companyName ?? "";
   } catch (error) {
-    throw new LexofficeError(`Lexware Office lehnt den Schlüssel ab: ${userMessage(error)}`);
+    throw new LexofficeError(`Lexware Office lehnt den Schlüssel ab: ${progressMessage(error)}`);
   }
   await withActor(actor, async (tx) => {
     await tx.delete(schema.lexofficeConnection).where(eq(schema.lexofficeConnection.id, 1));
@@ -118,7 +119,11 @@ export async function startImport(actor: string, options: { wait?: boolean } = {
   };
   const [row] = await withActor(actor, (tx) =>
     tx.insert(schema.lexofficeImports).values({ progress }).returning({ id: schema.lexofficeImports.id }),
-  );
+  ).catch((error: unknown) => {
+    // Gleichzeitig gestartet: der eindeutige Index lässt nur einen laufenden Abruf zu
+    if (isUniqueViolation(error, "lexoffice_imports_one_running")) throw new LexofficeError("Ein Abruf läuft bereits.");
+    throw error;
+  });
   const id = row!.id;
   const controller = new AbortController();
   running.set(id, controller);
@@ -126,8 +131,10 @@ export async function startImport(actor: string, options: { wait?: boolean } = {
   const job = runImport(actor, id, client, progress)
     .then(() => finish(id, progress, "fertig", null))
     .catch((error: unknown) =>
-      finish(id, progress, controller.signal.aborted ? "abgebrochen" : "fehler", controller.signal.aborted ? "Abgebrochen." : userMessage(error)),
+      finish(id, progress, controller.signal.aborted ? "abgebrochen" : "fehler", controller.signal.aborted ? "Abgebrochen." : progressMessage(error)),
     )
+    // Scheitert auch das Speichern des Abschlusses, darf das keine unbehandelte Ablehnung werden
+    .catch((error: unknown) => console.error("Lexware-Office-Abruf: Abschluss nicht gespeichert", error))
     .finally(() => running.delete(id));
   if (options.wait) await job;
   return id;
@@ -216,13 +223,14 @@ async function runImport(actor: string, importId: string, client: LexofficeClien
       continue;
     }
     try {
-      await importVoucher(actor, importId, client, item, categories, progress);
-      progress.imported += 1;
+      // false: ein gleichzeitiger Lauf hat den Beleg schon übernommen
+      if (await importVoucher(actor, importId, client, item, categories, progress)) progress.imported += 1;
+      else progress.skipped += 1;
     } catch (error) {
       // Schlüssel ungültig, Tarif gewechselt oder abgebrochen: weitermachen ist sinnlos
       if (error instanceof LexofficeApiError && (error.status === 401 || error.status === 403)) throw error;
       if (error instanceof Error && error.name === "AbortError") throw error;
-      progress.failed.push({ lexofficeId: item.id, number: item.number, message: userMessage(error) });
+      progress.failed.push({ lexofficeId: item.id, number: item.number, message: progressMessage(error) });
     }
     await save();
   }
@@ -236,7 +244,7 @@ async function importVoucher(
   item: { id: string; type: string },
   categories: Map<string, string>,
   progress: LexofficeImportProgress,
-) {
+): Promise<boolean> {
   let voucher: LegacyVoucher;
   let raw: unknown;
   const files: { role: "pdf" | "xml" | "anhang"; lexofficeFileId: string | null; file: LexFile }[] = [];
@@ -258,7 +266,7 @@ async function importVoucher(
 
   for (const entry of files) await storeFile(entry.file.bytes);
 
-  await withActor(actor, async (tx) => {
+  return withActor(actor, async (tx) => {
     const [contact] = voucher.contactLexofficeId
       ? await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.lexofficeId, voucher.contactLexofficeId))
       : [];
@@ -289,7 +297,7 @@ async function importVoucher(
       })
       .onConflictDoNothing({ target: schema.lexofficeVouchers.lexofficeId })
       .returning({ id: schema.lexofficeVouchers.id });
-    if (!row) return;
+    if (!row) return false;
     const seen = new Set<string>();
     for (const entry of files) {
       const sha256 = sha256Of(entry.file.bytes);
@@ -306,6 +314,7 @@ async function importVoucher(
       });
       progress.files += 1;
     }
+    return true;
   });
 }
 

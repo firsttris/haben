@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addDays, computeInvoiceTotals, formatInvoiceNumber, formatQuoteNumber, lineNet, parseQuantity } from "./invoice.ts";
+import { addDays } from "./holidays.ts";
+import { computeInvoiceTotals, formatInvoiceNumber, formatQuoteNumber, lineNet, parseQuantity } from "./invoice.ts";
 
 describe("Rechnungssummen", () => {
   it("Zeilennetto aus Tausendstel-Menge", () => {
@@ -35,6 +36,8 @@ describe("Hilfen", () => {
     expect(parseQuantity("152")).toBe(152_000);
     expect(parseQuantity("0,5")).toBe(500);
     expect(parseQuantity("1.000")).toBe(1_000_000);
+    expect(parseQuantity("1.000,25")).toBe(1_000_250);
+    expect(parseQuantity("1.5")).toBeNull();
     expect(parseQuantity("x")).toBeNull();
   });
   it("Fälligkeit", () => {

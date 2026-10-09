@@ -52,8 +52,8 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
       { invoiceId, level: 2, dueDate: "2026-10-25", fee: 500, flatFee: true, interest: "geschaeftskunde", intro: "Bitte zahlen.", closing: "" },
       "2026-10-15",
     );
-    // 1.190 € zu 10,27 % für 30 Tage = 10,04 €
-    expect(created).toMatchObject({ level: 2, open: 119_000, fee: 500, flatFee: 4_000, interest: 1_004, interestRate: 1_027, interestDays: 30, total: 124_504 });
+    // 1.190 € zu 10,27 % für 30 Tage = 10,04 €; die Mahngebühr von 5 € geht in der Pauschale von 40 € auf
+    expect(created).toMatchObject({ level: 2, open: 119_000, fee: 0, flatFee: 4_000, interest: 1_004, interestRate: 1_027, interestDays: 30, total: 124_004 });
     const pdf = await dunning.loadDunningPdf(created.id);
     expect(Buffer.from(pdf!.pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
     expect(pdf!.filename).toMatch(/^Mahnung-2026-001\.pdf$/);
@@ -61,6 +61,17 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
     const [after] = await dunning.overdueInvoices("2026-10-20");
     expect(after).toMatchObject({ nextLevel: 3, waiting: true });
     await expect(sql`delete from dunnings`).rejects.toThrow("darf nur ergänzt werden");
+  });
+
+  it("keine zweite Mahnung derselben oder einer niedrigeren Stufe, auch nicht gleichzeitig", async () => {
+    const input = { invoiceId, level: 1 as const, dueDate: "2026-10-25", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" };
+    const results = await Promise.allSettled([dunning.createDunning(actor, input, "2026-10-15"), dunning.createDunning(actor, input, "2026-10-15")]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(String((results.find((r) => r.status === "rejected") as PromiseRejectedResult).reason)).toMatch(/schon mit „Zahlungserinnerung“ gemahnt/);
+    await dunning.createDunning(actor, { ...input, level: 3 }, "2026-10-16");
+    await expect(dunning.createDunning(actor, { ...input, level: 2 }, "2026-10-17")).rejects.toThrow(/Als Nächstes folgt „Letzte Mahnung“/);
+    // Die letzte Stufe darf sich wiederholen
+    expect((await dunning.createDunning(actor, { ...input, level: 3 }, "2026-10-17")).level).toBe(3);
   });
 
   it("lehnt Mahnungen vor Fälligkeit und mit Frist in der Vergangenheit ab", async () => {

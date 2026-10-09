@@ -2,7 +2,7 @@ import type { Cents, KontenblattZeile, Kontenrahmen, SaldenZeile } from "@haben/
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "./db/index.ts";
-import { accountName } from "./functions/journal.ts";
+import { accountName } from "./journal.ts";
 
 /** Zeitraum mit Beginn (einschließlich) und Ende (ausschließlich), beide JJJJ-MM-TT, innerhalb eines Jahres */
 export interface LedgerRange {

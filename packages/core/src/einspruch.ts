@@ -1,17 +1,5 @@
-import { isNonWorkingDay } from "./holidays.ts";
+import { addDays, naechsterWerktag } from "./holidays.ts";
 import type { Bundesland } from "./steuernummer.ts";
-
-const addDays = (iso: string, days: number) => {
-  const date = new Date(`${iso}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-};
-
-const nextWorkingDay = (iso: string, bundesland: Bundesland | null) => {
-  let date = iso;
-  while (isNonWorkingDay(date, bundesland)) date = addDays(date, 1);
-  return date;
-};
 
 /** Datum aus ELSTER-Metadaten: JJJJ-MM-TT, TT.MM.JJJJ oder JJJJMMTT; sonst null */
 export function parseBescheiddatum(value: string): string | null {
@@ -49,6 +37,6 @@ export interface Einspruchsfrist {
  */
 export function einspruchsfrist(bescheiddatum: string, bundesland: Bundesland | null): Einspruchsfrist {
   const tage = bescheiddatum >= "2025-01-01" ? 4 : 3;
-  const bekanntgabe = nextWorkingDay(addDays(bescheiddatum, tage), bundesland);
-  return { bekanntgabe, fristende: nextWorkingDay(addMonth(bekanntgabe), bundesland) };
+  const bekanntgabe = naechsterWerktag(addDays(bescheiddatum, tage), bundesland);
+  return { bekanntgabe, fristende: naechsterWerktag(addMonth(bekanntgabe), bundesland) };
 }

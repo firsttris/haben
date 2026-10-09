@@ -1,8 +1,7 @@
 import { finanzamtsnummer, type Cents, type UstvaFigures, type VatPeriod } from "@haben/core";
 
-/** Hersteller-ID und Bundesfinanzamt für Testübermittlungen laut ERiC-Dokumentation. */
+/** Hersteller-ID für Testübermittlungen laut ERiC-Dokumentation. */
 export const TEST_HERSTELLER_ID = "74931";
-export const TEST_STEUERNUMMER_BUFA = "9198";
 /** Testmerker für Testfälle, die der Server annimmt, aber nicht weiterleitet. */
 export const TESTMERKER = "700000004";
 export const PRODUKT_NAME = "Haben";
@@ -52,18 +51,36 @@ export function datenartVersionFromXml(xml: string): string | undefined {
   return undefined;
 }
 
-/** 700000004 für Erklärungen und Postfach, 370000001 für den Belegabruf */
+/**
+ * Trägt das XML irgendeinen Testmerker? Haben setzt 700000004 (Anmeldungen, Erklärungen, Nachrichten,
+ * Postfach) und 370000001 (Belegabruf, Berechtigungsmanagement); jeder andere Wert gilt ebenso als Test.
+ */
 export function hasTestmerker(xml: string): boolean {
-  return /<Testmerker>\s*(700000004|370000001)\s*<\/Testmerker>/.test(xml);
+  return /<Testmerker>\s*[^<\s][^<]*<\/Testmerker>/.test(xml);
 }
 
+/** Fehlermeldung, wenn Testmerker im XML und angeforderte Übermittlungsart nicht zusammenpassen */
+export function testmerkerMismatch(xml: string, test: boolean): string | undefined {
+  if (hasTestmerker(xml) === test) return undefined;
+  return test
+    ? "Testübermittlung angefordert, aber das XML trägt keinen Testmerker."
+    : "Echte Übermittlung angefordert, aber das XML trägt einen Testmerker.";
+}
+
+/** Maskiert für Text und Attribute; in XML 1.0 unzulässige Steuerzeichen fallen weg (sonst Parserfehler in ERiC) */
 export function escapeXml(value: string): string {
   return value
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
+}
+
+export function checkSteuernummer13(steuernummer13: string): void {
+  if (!/^\d{13}$/.test(steuernummer13)) throw new Error(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${steuernummer13}`);
 }
 
 /** Bemessungsgrundlage in vollen Euro: 123456 → "1234" */
@@ -90,11 +107,68 @@ function element(name: string, value: string): string {
   return `<${name}>${escapeXml(value)}</${name}>`;
 }
 
+export interface TransferKopf {
+  verfahren: string;
+  datenArt: string;
+  /** Fehlt bei Echtfällen */
+  testmerker: string | undefined;
+  /** Bundesland als Ziel im TransferHeader (ElsterErklaerung, ElsterNachricht) */
+  ziel?: string;
+  herstellerId: string;
+  datenlieferant: string;
+}
+
+export interface Nutzdatenblock {
+  ticket: string;
+  /** F: Finanzamtsnummer, L: Clearingstelle (CS) */
+  empfaenger: { id: "F" | "L"; wert: string };
+  /** Ohne Produktversion entfällt der Hersteller-Block */
+  produktVersion?: string;
+  nutzdaten: string[];
+}
+
+/** ELSTER-Umschlag: TransferHeader und je Block NutzdatenHeader um die fertigen Nutzdaten */
+export function elsterXml(kopf: TransferKopf, bloecke: Nutzdatenblock[]): string {
+  return [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<Elster xmlns="http://www.elster.de/elsterxml/schema/v11">`,
+    `<TransferHeader version="11">`,
+    element("Verfahren", kopf.verfahren),
+    element("DatenArt", kopf.datenArt),
+    element("Vorgang", "send-Auth"),
+    ...(kopf.testmerker ? [element("Testmerker", kopf.testmerker)] : []),
+    ...(kopf.ziel !== undefined ? [`<Empfaenger id="L">${element("Ziel", kopf.ziel)}</Empfaenger>`] : []),
+    element("HerstellerID", kopf.herstellerId),
+    element("DatenLieferant", kopf.datenlieferant),
+    `<Datei>`,
+    element("Verschluesselung", "CMSEncryptedData"),
+    element("Kompression", "GZIP"),
+    `<TransportSchluessel></TransportSchluessel>`,
+    `</Datei>`,
+    `</TransferHeader>`,
+    `<DatenTeil>`,
+    ...bloecke.flatMap((block) => [
+      `<Nutzdatenblock>`,
+      `<NutzdatenHeader version="11">`,
+      element("NutzdatenTicket", block.ticket),
+      `<Empfaenger id="${block.empfaenger.id}">${escapeXml(block.empfaenger.wert)}</Empfaenger>`,
+      ...(block.produktVersion !== undefined
+        ? [`<Hersteller>`, element("ProduktName", PRODUKT_NAME), element("ProduktVersion", block.produktVersion), `</Hersteller>`]
+        : []),
+      `</NutzdatenHeader>`,
+      `<Nutzdaten>`,
+      ...block.nutzdaten,
+      `</Nutzdaten>`,
+      `</Nutzdatenblock>`,
+    ]),
+    `</DatenTeil>`,
+    `</Elster>`,
+  ].join("\n");
+}
+
 export function buildUstvaXml(input: UstvaXmlInput): string {
   const { period, figures, datenlieferant: dl } = input;
-  if (!/^\d{13}$/.test(input.steuernummer13)) {
-    throw new Error(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${input.steuernummer13}`);
-  }
+  checkSteuernummer13(input.steuernummer13);
   if (!Number.isInteger(period.month) || period.month < 1 || period.month > 12) {
     throw new RangeError(`Ungültiger Monat: ${period.month}`);
   }
@@ -123,53 +197,33 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
 
   const lieferantKurz = `${dl.name}, ${dl.strasse}, ${dl.plz} ${dl.ort}`;
 
-  return [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<Elster xmlns="http://www.elster.de/elsterxml/schema/v11">`,
-    `<TransferHeader version="11">`,
-    element("Verfahren", "ElsterAnmeldung"),
-    element("DatenArt", "UStVA"),
-    element("Vorgang", "send-Auth"),
-    ...(input.test ? [element("Testmerker", TESTMERKER)] : []),
-    element("HerstellerID", input.herstellerId),
-    element("DatenLieferant", lieferantKurz),
-    `<Datei>`,
-    element("Verschluesselung", "CMSEncryptedData"),
-    element("Kompression", "GZIP"),
-    `<TransportSchluessel></TransportSchluessel>`,
-    `</Datei>`,
-    `</TransferHeader>`,
-    `<DatenTeil>`,
-    `<Nutzdatenblock>`,
-    `<NutzdatenHeader version="11">`,
-    element("NutzdatenTicket", "1"),
-    `<Empfaenger id="F">${escapeXml(finanzamtsnummer(input.steuernummer13))}</Empfaenger>`,
-    `<Hersteller>`,
-    element("ProduktName", PRODUKT_NAME),
-    element("ProduktVersion", input.produktVersion),
-    `</Hersteller>`,
-    `</NutzdatenHeader>`,
-    `<Nutzdaten>`,
-    `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${period.year}" art="UStVA" version="${period.year}">`,
-    `<DatenLieferant>`,
-    element("Name", dl.name),
-    element("Strasse", dl.strasse),
-    element("PLZ", dl.plz),
-    element("Ort", dl.ort),
-    `</DatenLieferant>`,
-    element("Erstellungsdatum", yyyymmdd(input.erstellungsdatum ?? new Date())),
-    `<Steuerfall>`,
-    `<Umsatzsteuervoranmeldung>`,
-    element("Jahr", String(period.year)),
-    element("Zeitraum", String(period.month).padStart(2, "0")),
-    element("Steuernummer", input.steuernummer13),
-    ...kennzahlen,
-    `</Umsatzsteuervoranmeldung>`,
-    `</Steuerfall>`,
-    `</Anmeldungssteuern>`,
-    `</Nutzdaten>`,
-    `</Nutzdatenblock>`,
-    `</DatenTeil>`,
-    `</Elster>`,
-  ].join("\n");
+  return elsterXml(
+    { verfahren: "ElsterAnmeldung", datenArt: "UStVA", testmerker: input.test ? TESTMERKER : undefined, herstellerId: input.herstellerId, datenlieferant: lieferantKurz },
+    [
+      {
+        ticket: "1",
+        empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) },
+        produktVersion: input.produktVersion,
+        nutzdaten: [
+          `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${period.year}" art="UStVA" version="${period.year}">`,
+          `<DatenLieferant>`,
+          element("Name", dl.name),
+          element("Strasse", dl.strasse),
+          element("PLZ", dl.plz),
+          element("Ort", dl.ort),
+          `</DatenLieferant>`,
+          element("Erstellungsdatum", yyyymmdd(input.erstellungsdatum ?? new Date())),
+          `<Steuerfall>`,
+          `<Umsatzsteuervoranmeldung>`,
+          element("Jahr", String(period.year)),
+          element("Zeitraum", String(period.month).padStart(2, "0")),
+          element("Steuernummer", input.steuernummer13),
+          ...kennzahlen,
+          `</Umsatzsteuervoranmeldung>`,
+          `</Steuerfall>`,
+          `</Anmeldungssteuern>`,
+        ],
+      },
+    ],
+  );
 }

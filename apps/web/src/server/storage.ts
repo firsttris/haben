@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import { env } from "./env.ts";
 
 /** Belegdateien liegen unveränderlich unter ihrem SHA-256: <dir>/ab/abcdef… */
@@ -13,16 +13,32 @@ export function sha256Of(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-/** Schreibt die Datei, falls sie noch nicht liegt; atomar über eine temporäre Datei. */
+/**
+ * Schreibt die Datei, falls sie noch nicht (unbeschädigt) liegt; atomar über eine temporäre Datei,
+ * mit fsync, damit nach einem Absturz keine leere Datei unter dem Hash liegt.
+ */
 export async function storeFile(bytes: Uint8Array): Promise<string> {
   const sha256 = sha256Of(bytes);
   const target = pathFor(sha256);
-  const exists = await stat(target).then(() => true, () => false);
-  if (!exists) {
-    await mkdir(join(target, ".."), { recursive: true });
+  const intact = await readFile(target).then((existing) => sha256Of(existing) === sha256, () => false);
+  if (!intact) {
+    const dir = dirname(target);
+    await mkdir(dir, { recursive: true });
     const tmp = `${target}.${randomBytes(6).toString("hex")}.tmp`;
-    await writeFile(tmp, bytes, { mode: 0o640 });
+    const file = await open(tmp, "w", 0o640);
+    try {
+      await file.writeFile(bytes);
+      await file.sync();
+    } finally {
+      await file.close();
+    }
     await rename(tmp, target);
+    const folder = await open(dir, "r");
+    try {
+      await folder.sync();
+    } finally {
+      await folder.close();
+    }
   }
   return sha256;
 }

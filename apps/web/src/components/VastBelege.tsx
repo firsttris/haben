@@ -1,8 +1,10 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { errorMessage, formatDate, formatDateTime } from "../lib/format.ts";
+import { formatDate, formatDateTime } from "../lib/format.ts";
+import { useAction, type Notice } from "../lib/use-action.ts";
 import { formatWert } from "../lib/vast.ts";
+import { NoticeBanner } from "./NoticeBanner.tsx";
 import type { getAnnualReturns } from "../server/functions/annual.ts";
 import {
   activateVastBerechtigung,
@@ -14,7 +16,6 @@ import {
 
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 type Beleg = Data["vast"]["belege"][number];
-type Notice = { tone: "ok" | "danger"; text: string } | null;
 
 function BelegDetails({ beleg }: { beleg: Beleg }) {
   return (
@@ -67,27 +68,20 @@ export function VastBelege({ data }: { data: Data }) {
   const [person, setPerson] = useState<"a" | "b">("a");
   const [pin, setPin] = useState("");
   const [testOnly, setTestOnly] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<Notice>(null);
+  const action = useAction();
+  const { busy, notice } = action;
   const live = !testOnly && data.herstellerIdConfigured;
   const canUseSavedPin = vast.pinSaved && live;
 
   const canSend = Boolean(data.certificate) && (pin.length > 0 || canUseSavedPin);
 
   /** Führt einen ELSTER-Schritt aus und zeigt das Ergebnis; die PIN wird danach geleert */
-  async function run(work: (base: { kind: "test" | "send"; pin?: string }) => Promise<Notice>) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      setNotice(await work({ kind: live ? "send" : "test", pin: pin || undefined }));
+  const run = (work: (base: { kind: "test" | "send"; pin?: string }) => Promise<Notice>) =>
+    action.run(async () => {
+      action.setNotice(await work({ kind: live ? "send" : "test", pin: pin || undefined }));
       setPin("");
       await router.invalidate();
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
+    });
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -176,11 +170,7 @@ export function VastBelege({ data }: { data: Data }) {
                 run={run}
               />
             )}
-            {notice && (
-              <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"} style={{ overflowWrap: "anywhere" }}>
-                {notice.text}
-              </div>
-            )}
+            <NoticeBanner notice={notice} />
             <button type="submit" className="btn btn-primary" disabled={busy || !canSend}>
               {busy ? "Läuft …" : live ? "Belege abrufen" : "Testweise abrufen"}
             </button>
@@ -221,7 +211,7 @@ function BerechtigungPanel({
   name: string;
   busy: boolean;
   canSend: boolean;
-  run: (work: (base: { kind: "test" | "send"; pin?: string }) => Promise<Notice>) => Promise<void>;
+  run: (work: (base: { kind: "test" | "send"; pin?: string }) => Promise<Notice>) => Promise<unknown>;
 }) {
   const request = useServerFn(requestVastBerechtigung);
   const activate = useServerFn(activateVastBerechtigung);

@@ -2,7 +2,7 @@ import { formatEuro, periodLabel, previousPeriod, type VatPeriod } from "@haben/
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Fragment, useMemo, useState } from "react";
 import { z } from "zod/mini";
-import { shortDate } from "../../components/Ledger.tsx";
+import { JOURNAL_SOURCE, shortDate, type JournalSource } from "../../components/Ledger.tsx";
 import { getJournal } from "../../server/functions/journal.ts";
 import styles from "../../styles/auswertungen.css?url";
 
@@ -19,8 +19,6 @@ export const Route = createFileRoute("/_app/buchungen")({
 });
 
 type Entry = Awaited<ReturnType<typeof getJournal>>[number];
-type Source = "invoice" | "document" | "allocation" | "asset" | "pauschale" | "kasse";
-const SOURCE: Record<Source, string> = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage", pauschale: "Pauschale", kasse: "Kasse" };
 
 function nextPeriod({ year, month }: VatPeriod): VatPeriod {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
@@ -28,7 +26,7 @@ function nextPeriod({ year, month }: VatPeriod): VatPeriod {
 
 /** Herkunft als Link auf Rechnung, Beleg, Anlage oder Bank */
 function SourcePill({ entry }: { entry: Entry }) {
-  const label = entry.reversal ? "Gegenbuchung" : SOURCE[entry.sourceType];
+  const label = entry.reversal ? "Gegenbuchung" : JOURNAL_SOURCE[entry.sourceType];
   const id = entry.sourceId;
   if (entry.sourceType === "invoice") return <Link to="/rechnungen/$id" params={{ id }} className="pill">{label}</Link>;
   if (entry.sourceType === "document") return <Link to="/belege/$id" params={{ id }} className="pill">{label}</Link>;
@@ -57,7 +55,7 @@ function JournalPage() {
   const { period, entries } = Route.useLoaderData();
   const prev = previousPeriod(period);
   const next = nextPeriod(period);
-  const [source, setSource] = useState<Source | "alle">("alle");
+  const [source, setSource] = useState<JournalSource | "alle">("alle");
   const [account, setAccount] = useState("");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<Set<string>>(new Set());
@@ -103,9 +101,9 @@ function JournalPage() {
 
       <div className="filter-row">
         <div className="chip-row" role="group" aria-label="Herkunft">
-          {(["alle", "invoice", "document", "allocation", "asset", "pauschale"] as const).map((s) => (
+          {(["alle", ...(Object.keys(JOURNAL_SOURCE) as JournalSource[])] as const).map((s) => (
             <button key={s} type="button" className={`chip${source === s ? " active" : ""}`} aria-pressed={source === s} onClick={() => setSource(s)}>
-              {s === "alle" ? `Alle (${entries.length})` : `${SOURCE[s]} (${counts[s] ?? 0})`}
+              {s === "alle" ? `Alle (${entries.length})` : `${JOURNAL_SOURCE[s]} (${counts[s] ?? 0})`}
             </button>
           ))}
         </div>

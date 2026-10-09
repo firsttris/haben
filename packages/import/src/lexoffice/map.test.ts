@@ -51,6 +51,25 @@ describe("mapSalesDocument", () => {
     expect(v).toMatchObject({ gross: 714_000, tax: 114_000, net: 600_000, taxes: [{ rate: 1900, net: 600_000, tax: 114_000 }] });
   });
 
+  it("führt einen Abschlag mit anderem Steuersatz als eigenen Eintrag", () => {
+    const closing = lexSalesDocumentSchema.parse({
+      voucherDate: "2023-05-10T00:00:00.000+02:00",
+      closingInvoice: true,
+      totalPrice: { currency: "EUR", totalNetAmount: 10000, totalGrossAmount: 11900, totalTaxAmount: 1900 },
+      taxAmounts: [{ taxRatePercentage: 19, taxAmount: 1900, netAmount: 10000 }],
+      downPaymentDeductions: [
+        { voucherType: "downpaymentinvoice", voucherNumber: "AR0002", receivedNetAmount: 1000, receivedTaxAmount: 160, receivedGrossAmount: 1160, taxRatePercentage: 16 },
+      ],
+    });
+    const v = mapSalesDocument("invoice", closing, "f2");
+    expect(v.taxes).toEqual([
+      { rate: 1900, net: 1_000_000, tax: 190_000 },
+      { rate: 1600, net: -100_000, tax: -16_000 },
+    ]);
+    expect(v.taxes.reduce((s, t) => s + t.net, 0)).toBe(v.net);
+    expect(v.taxes.reduce((s, t) => s + t.tax, 0)).toBe(v.tax);
+  });
+
   it("bildet eine Rechnung mit zwei Steuersätzen ab", () => {
     const v = mapSalesDocument("invoice", sales("invoice-two-rates.json"), "e9066f04-8cc7-4616-93f8-ac9ecc8479c8");
     expect(v).toEqual({

@@ -8,6 +8,7 @@ import {
   type InvoiceLineInput,
 } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
+import { KIND_TITLE } from "../lib/invoice.ts";
 
 export interface PreviewSeller {
   name: string;
@@ -32,7 +33,6 @@ export interface PreviewBuyer {
   kundennummer?: string | null;
 }
 
-const TITLE = { rechnung: "Rechnung", storno: "Stornorechnung", korrektur: "Rechnungskorrektur", angebot: "Angebot" } as const;
 
 /** HTML-Abbild des PDFs für den Editor; das verbindliche Dokument rendert Typst. */
 export function InvoicePreview({
@@ -51,7 +51,7 @@ export function InvoicePreview({
   corrects,
   title,
 }: {
-  kind: keyof typeof TITLE;
+  kind: keyof typeof KIND_TITLE;
   number: string;
   issueDate: string;
   dueDate: string;
@@ -107,7 +107,7 @@ export function InvoicePreview({
         )}
       </div>
       <div className="paper-title-row">
-        <div className="paper-title">{title ?? TITLE[kind]}</div>
+        <div className="paper-title">{title ?? KIND_TITLE[kind]}</div>
         <dl className="paper-meta">
           <dt>Nummer</dt>
           <dd>{number}</dd>

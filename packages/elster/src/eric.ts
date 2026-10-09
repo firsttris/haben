@@ -10,19 +10,19 @@ import { parsePostfachAntwort, type PostfachBereitstellung } from "./postfach.ts
 import { parseTransferTicket } from "./ticket.ts";
 import { buildVastAbholungXml, parseVastBelegListe, parseVastDatenpakete, VAST_DATENART_VERSION, type VastBelegRef, type VastXmlInput } from "./vast.ts";
 
-export const ERIC_OK = 0;
-export const ERIC_VALIDIERE = 1 << 1;
-export const ERIC_SENDE = 1 << 2;
-export const ERIC_DRUCKE = 1 << 5;
+const ERIC_OK = 0;
+const ERIC_VALIDIERE = 1 << 1;
+const ERIC_SENDE = 1 << 2;
+const ERIC_DRUCKE = 1 << 5;
 
 /** Version von eric_druck_parameter_t laut eric_types.h (ERiC 43) */
-export const DRUCK_PARAMETER_VERSION = 4;
+const DRUCK_PARAMETER_VERSION = 4;
 /** Version von eric_verschluesselungs_parameter_t laut eric_types.h (ERiC 43) */
-export const VERSCHLUESSELUNGS_PARAMETER_VERSION = 3;
+const VERSCHLUESSELUNGS_PARAMETER_VERSION = 3;
 
 export interface EricConfig {
   ericHome: string;
-  /** Verzeichnis für eric.log; Standard: Systemtemp */
+  /** Verzeichnis für eric.log und das Otto-Log; EricProcessClient nimmt ohne ERIC_LOG_DIR das Temp-Verzeichnis des Aufrufs */
   logDir?: string;
 }
 
@@ -34,7 +34,7 @@ export interface EricRequest {
   op: "validate" | "send" | "postfach" | "vast";
   xml: string;
   datenartVersion: string;
-  /** nur bei send */
+  /** bei send, postfach und vast */
   certificatePath?: string;
   pin?: string;
   /** Zielpfad für das Übertragungsprotokoll, nur bei send; ohne Pfad kein Druck */
@@ -82,7 +82,7 @@ export function ericLibraryPath(ericHome: string): string {
   return `${ericHome}/lib/libericapi.so`;
 }
 
-export function ottoLibraryPath(ericHome: string): string {
+function ottoLibraryPath(ericHome: string): string {
   return `${ericHome}/lib/libotto.so`;
 }
 
@@ -90,19 +90,29 @@ export function ericPluginPath(ericHome: string): string {
   return `${ericHome}/lib/plugins2`;
 }
 
-type Fn = (...args: unknown[]) => unknown;
+/** Opaker Rückgabepuffer von ERiC */
+type Puffer = unknown;
 
 interface EricApi {
-  EricInitialisiere: Fn;
-  EricBeende: Fn;
-  EricRueckgabepufferErzeugen: Fn;
-  EricRueckgabepufferInhalt: Fn;
-  EricRueckgabepufferFreigeben: Fn;
-  EricHoleFehlerText: Fn;
-  EricGetHandleToCertificate: Fn;
-  EricCloseHandleToCertificate: Fn;
-  EricBearbeiteVorgang: Fn;
-  EricDekodiereDaten: Fn;
+  EricInitialisiere: (pluginPfad: string, logPfad: string) => number;
+  EricBeende: () => number;
+  EricRueckgabepufferErzeugen: () => Puffer;
+  EricRueckgabepufferInhalt: (puffer: Puffer) => string | null;
+  EricRueckgabepufferFreigeben: (puffer: Puffer) => number;
+  EricHoleFehlerText: (fehlerkode: number, puffer: Puffer) => number;
+  EricGetHandleToCertificate: (hToken: number[], iInfoPinSupport: number[], pathToKeystore: string) => number;
+  EricCloseHandleToCertificate: (hToken: number) => number;
+  EricBearbeiteVorgang: (
+    datenpuffer: string,
+    datenartVersion: string,
+    bearbeitungsFlags: number,
+    druckParameter: object | null,
+    cryptoParameter: object | null,
+    transferHandle: number[] | null,
+    rueckgabeXmlPuffer: Puffer,
+    serverantwortXmlPuffer: Puffer,
+  ) => number;
+  EricDekodiereDaten: (zertifikatHandle: number, pin: string, base64Eingabe: string, rueckgabePuffer: Puffer) => number;
 }
 
 async function loadEric(libraryPath: string): Promise<EricApi> {
@@ -159,7 +169,7 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
   const eric = await loadEric(ericLibraryPath(config.ericHome));
   const logDir = config.logDir ?? (await import("node:os")).tmpdir();
 
-  const initCode = eric.EricInitialisiere(ericPluginPath(config.ericHome), logDir) as number;
+  const initCode = eric.EricInitialisiere(ericPluginPath(config.ericHome), logDir);
   if (initCode !== ERIC_OK) {
     return { code: initCode, message: fehlerText(eric, initCode), responseXml: "", serverResponseXml: "" };
   }
@@ -176,7 +186,7 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
       }
       const handle = [0];
       const pinSupport = [0];
-      const certCode = eric.EricGetHandleToCertificate(handle, pinSupport, request.certificatePath) as number;
+      const certCode = eric.EricGetHandleToCertificate(handle, pinSupport, request.certificatePath);
       if (certCode !== ERIC_OK) {
         return { code: certCode, message: fehlerText(eric, certCode), responseXml: "", serverResponseXml: "" };
       }
@@ -217,12 +227,12 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
           datenabholung ? [0] : null,
           rueckgabe,
           serverantwort,
-        ) as number;
+        );
         return {
           code,
           message: fehlerText(eric, code),
-          responseXml: (eric.EricRueckgabepufferInhalt(rueckgabe) as string | null) ?? "",
-          serverResponseXml: (eric.EricRueckgabepufferInhalt(serverantwort) as string | null) ?? "",
+          responseXml: eric.EricRueckgabepufferInhalt(rueckgabe) ?? "",
+          serverResponseXml: eric.EricRueckgabepufferInhalt(serverantwort) ?? "",
         };
       } finally {
         eric.EricRueckgabepufferFreigeben(rueckgabe);
@@ -260,9 +270,9 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
             if (!paket) return { id, fehler: "Beleg nicht in der Antwort enthalten." };
             const puffer = eric.EricRueckgabepufferErzeugen();
             try {
-              const decode = eric.EricDekodiereDaten(zertifikatHandle, request.pin, paket, puffer) as number;
+              const decode = eric.EricDekodiereDaten(zertifikatHandle!, request.pin!, paket, puffer);
               if (decode !== ERIC_OK) return { id, fehler: fehlerText(eric, decode) };
-              return { id, xml: (eric.EricRueckgabepufferInhalt(puffer) as string | null) ?? "" };
+              return { id, xml: eric.EricRueckgabepufferInhalt(puffer) ?? "" };
             } finally {
               eric.EricRueckgabepufferFreigeben(puffer);
             }
@@ -281,7 +291,7 @@ function fehlerText(eric: EricApi, code: number): string {
   const puffer = eric.EricRueckgabepufferErzeugen();
   try {
     eric.EricHoleFehlerText(code, puffer);
-    return (eric.EricRueckgabepufferInhalt(puffer) as string | null) || `ERiC-Fehler ${code}`;
+    return eric.EricRueckgabepufferInhalt(puffer) || `ERiC-Fehler ${code}`;
   } finally {
     eric.EricRueckgabepufferFreigeben(puffer);
   }

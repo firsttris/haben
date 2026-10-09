@@ -1,6 +1,5 @@
-import { splitPrivateShare, type BasisPoints, type Cents } from "./money.ts";
-import { DUNNING_INCOME_ACCOUNTS } from "./dunning.ts";
-import type { InvoiceTotals } from "./invoice.ts";
+import { roundHalfAwayFromZero, splitPrivateShare, type BasisPoints, type Cents } from "./money.ts";
+import type { InvoiceTotals, TaxRate } from "./invoice.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
 export type Kontenrahmen = "SKR03" | "SKR04";
@@ -27,6 +26,8 @@ export const ACCOUNTS = {
     ustVorauszahlung: "1780",
     nebenkostenGeldverkehr: "4970",
     saldenvortrag: "9000",
+    /** Bezahlte Mahngebühren, Pauschalen und Verzugszinsen: kein Entgelt für eine Leistung, deshalb ohne Umsatzsteuer */
+    mahnerloes: "2650",
   },
   SKR04: {
     forderungen: "1200",
@@ -46,6 +47,7 @@ export const ACCOUNTS = {
     ustVorauszahlung: "3820",
     nebenkostenGeldverkehr: "6855",
     saldenvortrag: "9000",
+    mahnerloes: "7100",
   },
 } as const;
 
@@ -96,6 +98,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1771": "Umsatzsteuer 7 %",
     "1776": "Umsatzsteuer 19 %",
     "1787": "Umsatzsteuer nach § 13b UStG",
+    "2650": "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)",
     "8100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
     "8195": "Erlöse als Kleinunternehmer § 19 UStG",
     "8200": "Erlöse",
@@ -121,26 +124,19 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "4336": "Erlöse aus im anderen EU-Land steuerpflichtigen sonstigen Leistungen (Reverse Charge)",
     "4338": "Erlöse aus im Drittland steuerbaren Leistungen",
     "4400": "Erlöse 19 % USt",
+    "7100": "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)",
     "9000": "Saldenvorträge Sachkonten",
   },
 };
 
-/** Steuerschlüssel mit Kennzahl der Voranmeldung */
-export const TAX_CODES = {
-  USt19: { rate: 1900, kz: "81", name: "Umsatzsteuer 19 %" },
-  USt7: { rate: 700, kz: "86", name: "Umsatzsteuer 7 %" },
-  frei: { rate: 0, kz: null, name: "Ohne Umsatzsteuer" },
-  RC: { rate: 0, kz: "21", name: "Reverse Charge, Leistung im EU-Ausland" },
-  Drittland: { rate: 0, kz: "45", name: "Nicht steuerbar, Leistungsort im Drittland" },
-  Steuerfrei: { rate: 0, kz: "48", name: "Steuerfrei ohne Vorsteuerabzug" },
-  KU: { rate: 0, kz: null, name: "Kleinunternehmer § 19 UStG" },
-  VSt19: { rate: 1900, kz: "66", name: "Vorsteuer 19 %" },
-  VSt7: { rate: 700, kz: "66", name: "Vorsteuer 7 %" },
-  keineVSt: { rate: 0, kz: null, name: "Ohne Vorsteuer" },
-  RC13bEU: { rate: 1900, kz: "46", name: "§ 13b: Leistung eines Unternehmers aus dem EU-Ausland" },
-  RC13bDrittland: { rate: 1900, kz: "84", name: "§ 13b: Leistung eines Unternehmers aus dem Drittland" },
-  VSt13b: { rate: 1900, kz: "67", name: "Vorsteuer aus Leistungen nach § 13b UStG" },
-} as const;
+/**
+ * Steuerschlüssel einer Buchungszeile, mit Kennzahl der Voranmeldung: USt19 (Kz 81), USt7 (86), frei,
+ * RC (21), Drittland (45), Steuerfrei (48), KU (Kleinunternehmer), VSt19/VSt7 (66), keineVSt,
+ * RC13bEU (46/47), RC13bDrittland (84/85), VSt13b (67)
+ */
+export type TaxCode =
+  | "USt19" | "USt7" | "frei" | "RC" | "Drittland" | "Steuerfrei" | "KU"
+  | "VSt19" | "VSt7" | "keineVSt" | "RC13bEU" | "RC13bDrittland" | "VSt13b";
 
 /**
  * Steuerschuld als Leistungsempfänger (§ 13b UStG) für Belege: sonstige Leistungen eines Unternehmers
@@ -153,8 +149,6 @@ export const REVERSE_CHARGE_IN: Record<ReverseChargeIn, { label: string; code: "
   drittland: { label: "Leistung eines Unternehmers aus dem Drittland (§ 13b Abs. 2 Nr. 1 UStG)", code: "RC13bDrittland", kz: "84", taxKz: "85" },
 };
 
-export type TaxCode = keyof typeof TAX_CODES;
-
 const TREATMENT_TAX_CODES = { reverse_charge: "RC", drittland: "Drittland", steuerfrei: "Steuerfrei", kleinunternehmer: "KU" } as const;
 
 export function revenueTaxCode(rate: BasisPoints, treatment: TaxTreatment = "regulaer"): TaxCode {
@@ -166,6 +160,12 @@ export function revenueTaxCode(rate: BasisPoints, treatment: TaxTreatment = "reg
   if (rate === 700) return "USt7";
   if (rate === 0) return "frei";
   throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
+}
+
+/** Steuersatz mit eigenem Umsatzsteuer- und Vorsteuerkonto */
+function vatRate(rate: BasisPoints): Exclude<TaxRate, 0> {
+  if (rate !== 1900 && rate !== 700) throw new RangeError(`Steuersatz ${rate} wird nicht unterstützt`);
+  return rate;
 }
 
 export interface PostingLine {
@@ -196,11 +196,11 @@ export function invoicePosting(
   const lines: PostingLine[] = [side(accounts.forderungen, totals.gross, true, null)];
   for (const { rate, base, tax } of totals.taxes) {
     const code = revenueTaxCode(rate, treatment);
-    const revenue = treatment === "regulaer" ? accounts.erloese[rate as 1900 | 700 | 0] : accounts.erloeseSonder[treatment];
+    const revenue = treatment === "regulaer" ? accounts.erloese[rate === 0 ? 0 : vatRate(rate)] : accounts.erloeseSonder[treatment];
     if (base !== 0) lines.push(side(revenue, base, false, code));
     if (tax !== 0) {
       const taxAccounts = versteuerung === "ist" ? accounts.ustNichtFaellig : accounts.ust;
-      lines.push(side(taxAccounts[rate as 1900 | 700], tax, false, code));
+      lines.push(side(taxAccounts[vatRate(rate)], tax, false, code));
     }
   }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
@@ -266,7 +266,7 @@ export function documentPosting(
     }
     const code = inputTaxCode(rate);
     if (base !== 0) lines.push(side(expense, base, true, code));
-    if (tax !== 0) lines.push(side(accounts.vorsteuer[rate as 1900 | 700], tax, true, code));
+    if (tax !== 0) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, true, code));
   }
   // Der private Teil ist eine Entnahme; privat bezahlt heben sich Einlage und Entnahme insoweit auf
   if (privatePart !== 0) lines.push(side(accounts.privatentnahmen, privatePart, true, null));
@@ -281,7 +281,7 @@ export function documentPosting(
  */
 export function paidTaxShares(totals: InvoiceTotals, paid: Cents): { rate: BasisPoints; base: Cents; tax: Cents }[] {
   if (totals.gross === 0) return [];
-  const share = (value: Cents) => Math.round((value * paid) / totals.gross);
+  const share = (value: Cents) => roundHalfAwayFromZero((value * paid) / totals.gross);
   const totalTax = share(totals.tax);
   const totalNet = paid - totalTax;
   const rows = totals.taxes.map((t) => ({ rate: t.rate, base: share(t.base), tax: share(t.tax) }));
@@ -310,8 +310,8 @@ export function invoicePaymentPosting(
     for (const { rate, tax } of paidTaxShares(totals, paid)) {
       if (tax === 0 || rate === 0) continue;
       const code = revenueTaxCode(rate);
-      lines.push(side(accounts.ustNichtFaellig[rate as 1900 | 700], tax, true, code));
-      lines.push(side(accounts.ust[rate as 1900 | 700], tax, false, code));
+      lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code));
+      lines.push(side(accounts.ust[vatRate(rate)], tax, false, code));
     }
   }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
@@ -348,7 +348,7 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
         : kind === "ustVorauszahlung"
           ? accounts.ustVorauszahlung
           : kind === "mahnerloes"
-            ? DUNNING_INCOME_ACCOUNTS[kontenrahmen].account
+            ? accounts.mahnerloes
             : accounts.nebenkostenGeldverkehr;
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter(
     (line) => line.debit !== 0 || line.credit !== 0,
@@ -382,7 +382,7 @@ export function openingInvoicePosting(totals: InvoiceTotals, kontenrahmen: Konte
   const lines: PostingLine[] = [side(accounts.forderungen, totals.gross, true, null)];
   if (versteuerung === "ist") {
     for (const { rate, tax } of totals.taxes) {
-      if (tax !== 0) lines.push(side(accounts.ustNichtFaellig[rate as 1900 | 700], tax, false, null));
+      if (tax !== 0) lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, false, null));
     }
     lines.push(side(accounts.saldenvortrag, totals.net, false, null));
   } else {
@@ -410,8 +410,8 @@ export function legacyCorrectionPosting(totals: InvoiceTotals, kontenrahmen: Kon
   const lines: PostingLine[] = [side(accounts.forderungen, totals.gross, true, null)];
   for (const { rate, tax } of totals.taxes) {
     if (tax === 0) continue;
-    if (versteuerung === "ist") lines.push(side(accounts.ustNichtFaellig[rate as 1900 | 700], tax, false, null));
-    else lines.push(side(accounts.ust[rate as 1900 | 700], tax, false, revenueTaxCode(rate)));
+    if (versteuerung === "ist") lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, false, null));
+    else lines.push(side(accounts.ust[vatRate(rate)], tax, false, revenueTaxCode(rate)));
   }
   lines.push(side(accounts.saldenvortrag, totals.net, false, null));
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);

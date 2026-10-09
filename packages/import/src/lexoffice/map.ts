@@ -205,7 +205,12 @@ export function mapSalesDocument(type: LexSalesDocumentType, d: LexSalesDocument
         dp.receivedGrossAmount != null ? lexToCents(dp.receivedGrossAmount) : lexToCents(dp.receivedNetAmount ?? 0) + dpTax;
       gross -= dpGross;
       tax -= dpTax;
-      taxes = taxes.map((t) => (t.rate === rate ? { ...t, net: t.net - (dpGross - dpTax), tax: t.tax - dpTax } : t));
+      if (taxes.some((t) => t.rate === rate)) {
+        taxes = taxes.map((t) => (t.rate === rate ? { ...t, net: t.net - (dpGross - dpTax), tax: t.tax - dpTax } : t));
+      } else if (taxes.length > 0) {
+        // Abschlag zu einem Satz, den die Schlussrechnung nicht mehr hat: eigener (negativer) Eintrag
+        taxes = [...taxes, { rate, net: -(dpGross - dpTax), tax: -dpTax }];
+      }
     }
   }
   const net = gross - tax;

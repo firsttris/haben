@@ -208,8 +208,3 @@ export function depreciationSchedule(asset: ScheduleAsset): ScheduleYear[] {
   }
   return rows;
 }
-
-/** Zeile des Plans für ein Jahr; ohne Eintrag ist nichts abzuschreiben */
-export function scheduleForYear(asset: ScheduleAsset, year: number): ScheduleYear | null {
-  return depreciationSchedule(asset).find((row) => row.year === year) ?? null;
-}

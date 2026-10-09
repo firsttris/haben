@@ -152,6 +152,13 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
     expect(attachment).toMatchObject({ filename: "Quittung Büro.jpg", mime_type: "image/jpeg" });
   });
 
+  it("startet nie zwei Abrufe gleichzeitig", async () => {
+    useApi();
+    const results = await Promise.allSettled([lexoffice.startImport(actor, { wait: true }), lexoffice.startImport(actor, { wait: true })]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.find((r) => r.status === "rejected")).toMatchObject({ reason: expect.objectContaining({ message: "Ein Abruf läuft bereits." }) });
+  });
+
   it("hält die Übernahme unveränderlich", async () => {
     await expect(sql`update lexoffice_vouchers set gross = 0`).rejects.toThrow(/darf nur ergänzt werden/);
     await expect(sql`delete from lexoffice_voucher_files`).rejects.toThrow(/darf nur ergänzt werden/);

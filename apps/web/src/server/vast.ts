@@ -12,7 +12,7 @@ export interface VastFetchOptions {
   year: number;
   /** a = steuerpflichtige Person, b = Ehegatte */
   person: "a" | "b";
-  /** leer: die für den Postfachabruf gespeicherte PIN */
+  /** leer: die gespeicherte PIN (beim Postfachabruf hinterlegt, gilt für alle Abrufe mit dem Zertifikat) */
   pin?: string;
   herstellerId?: string;
 }
@@ -29,7 +29,8 @@ export interface VastFetchSummary {
 
 /**
  * Gemeinsame Vorbereitung für Belegabruf und Berechtigungen: Hersteller-ID, kein Echtabruf ohne ERiC,
- * Zertifikat und PIN; ohne eingegebene PIN die für den Postfachabruf gespeicherte.
+ * Zertifikat und PIN. Ohne eingegebene PIN gilt die gespeicherte: Sie wird beim Postfachabruf hinterlegt,
+ * aber auch für Belegabruf und Berechtigungsanträge genutzt; die Oberfläche zeigt das im PIN-Feld an.
  */
 export async function prepareElsterAbruf(client: ElsterClient, options: { kind: "test" | "send"; pin?: string; herstellerId?: string }) {
   const test = options.kind !== "send";

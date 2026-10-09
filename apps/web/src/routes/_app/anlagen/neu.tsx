@@ -1,9 +1,9 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
 import { AssetForm } from "../../../components/AssetForm.tsx";
-import { errorMessage } from "../../../lib/format.ts";
 import { createAssetFn } from "../../../server/functions/assets.ts";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../lib/use-action.ts";
 
 export const Route = createFileRoute("/_app/anlagen/neu")({
   head: () => ({ meta: [{ title: "Anlage übernehmen · Haben" }] }),
@@ -13,8 +13,7 @@ export const Route = createFileRoute("/_app/anlagen/neu")({
 function NewAssetPage() {
   const navigate = useNavigate();
   const create = useServerFn(createAssetFn);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, notice, run } = useAction();
   const year = new Date().getFullYear();
 
   return (
@@ -49,20 +48,14 @@ function NewAssetPage() {
             showOpening
             submitLabel="Anlage übernehmen"
             busy={busy}
-            onSubmit={(values) => {
-              setBusy(true);
-              setError(null);
-              create({ data: values })
-                .then((result) => navigate({ to: "/anlagen/$id", params: { id: result.id } }))
-                .catch((e: unknown) => setError(errorMessage(e)))
-                .finally(() => setBusy(false));
-            }}
+            onSubmit={(values) =>
+              void run(async () => {
+                const result = await create({ data: values });
+                await navigate({ to: "/anlagen/$id", params: { id: result.id } });
+              })
+            }
           />
-          {error && (
-            <div className="banner banner-danger" role="alert">
-              {error}
-            </div>
-          )}
+          <NoticeBanner notice={notice} />
         </section>
         <aside className="card stack" aria-label="Hinweise">
           <h2>Aus Lexoffice übernehmen</h2>

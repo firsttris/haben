@@ -1,5 +1,6 @@
+import { UserError } from "./errors.ts";
 import { CASH_BOOKINGS, cashPosting, formatEuro, type CashBooking, type Cents } from "@haben/core";
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq, gte, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
@@ -10,7 +11,7 @@ import { db, schema, type Tx } from "./db/index.ts";
  * Tag negativ werden; eine Zeile, die das bewirken würde, lehnt Haben ab.
  */
 
-export class CashError extends Error {}
+export class CashError extends UserError {}
 
 export type CashEntry = typeof schema.cashEntries.$inferSelect;
 
@@ -29,20 +30,24 @@ export type CashInput = z.input<typeof cashInputSchema>;
 /** Prüft, ob der Bestand mit der neuen Zeile an jedem Tag ab ihrem Datum nicht negativ wird */
 async function assertNeverNegative(tx: Tx, date: string, amount: Cents) {
   if (amount >= 0) return;
-  const rows = await tx
-    .select({ date: schema.cashEntries.date, amount: schema.cashEntries.amount })
+  const [before] = await tx
+    .select({ sum: sql<string>`coalesce(sum(${schema.cashEntries.amount}), 0)` })
     .from(schema.cashEntries)
-    .orderBy(asc(schema.cashEntries.date), asc(schema.cashEntries.number));
+    .where(lt(schema.cashEntries.date, date));
+  const days = await tx
+    .select({ date: schema.cashEntries.date, sum: sql<string>`sum(${schema.cashEntries.amount})` })
+    .from(schema.cashEntries)
+    .where(gte(schema.cashEntries.date, date))
+    .groupBy(schema.cashEntries.date)
+    .orderBy(asc(schema.cashEntries.date));
   // Bestand am Ende jedes Tages ab dem Datum der neuen Zeile
-  let balance = amount;
-  const byDay = new Map<string, Cents>();
-  for (const row of rows) byDay.set(row.date, (byDay.get(row.date) ?? 0) + row.amount);
-  const days = [...new Set([...byDay.keys(), date])].sort();
+  let balance = Number(before?.sum ?? 0) + amount;
+  if (days[0]?.date !== date) days.unshift({ date, sum: "0" });
   for (const day of days) {
-    balance += byDay.get(day) ?? 0;
+    balance += Number(day.sum);
     // Erster Tag, an dem der Bestand unter null fiele
-    if (day >= date && balance < 0) {
-      const [y, m, d] = day.split("-");
+    if (balance < 0) {
+      const [y, m, d] = day.date.split("-");
       throw new CashError(`Der Kassenbestand würde am ${d}.${m}.${y} negativ (${formatEuro(balance)}). Erfasse vorher die Einlage oder Abhebung.`);
     }
   }
@@ -160,7 +165,8 @@ export async function cashBook(year: number) {
   return { year, opening, closing: balance, current: rows.reduce((s, r) => s + r.amount, 0), entries };
 }
 
-const csvText = (value: string) => `"${value.replace(/"/g, '""')}"`;
+/** Gequotetes Textfeld; beginnt es mit = + - @, wird ein ' vorangestellt, damit Excel es nicht als Formel ausführt */
+const csvText = (value: string) => `"${(/^[=+\-@\t\r]/.test(value) ? `'${value}` : value).replace(/"/g, '""')}"`;
 const csvAmount = (cents: Cents) => (cents / 100).toFixed(2).replace(".", ",");
 
 /** Kassenbuch als CSV (Semikolon, Dezimalkomma, UTF-8 mit BOM), wie die übrigen Exporte */

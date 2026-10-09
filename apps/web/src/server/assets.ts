@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import {
   ACCOUNTS,
   ASSET_ACCOUNTS,
@@ -25,7 +26,7 @@ import { db, schema } from "./db/index.ts";
 
 export type Asset = typeof schema.assets.$inferSelect;
 
-export class AssetUserError extends Error {}
+export class AssetUserError extends UserError {}
 
 const isoDate = z.iso.date();
 
@@ -61,7 +62,7 @@ export type AssetInput = z.input<typeof assetInputSchema>;
 /** Was an einer Anlage nach der Anlage noch geändert werden darf */
 export const assetUpdateSchema = assetInputSchema.partial().extend({ name: z.string().trim().min(1).max(200) });
 
-export function scheduleInput(asset: Asset): ScheduleAsset {
+function scheduleInput(asset: Asset): ScheduleAsset {
   return {
     acquisitionDate: asset.acquisitionDate,
     cost: asset.cost,
@@ -81,7 +82,7 @@ function scheduleOf(asset: Asset): ScheduleYear[] {
 }
 
 /** Privatnutzung eines Jahres: Monate, Entnahme und Umsatzsteuer */
-export function privateUseForYear(asset: Asset, year: number) {
+function privateUseForYear(asset: Asset, year: number) {
   if (!asset.privateUse) return null;
   const months = privateUseMonths(asset, year);
   const month = privateUseMonth(asset.privateUse);
@@ -95,7 +96,7 @@ export function privateUseForYear(asset: Asset, year: number) {
 }
 
 /** Was im Jahr zu buchen ist: AfA laut Plan und Privatnutzung */
-export function yearPlan(asset: Asset, year: number) {
+function yearPlan(asset: Asset, year: number) {
   const row = scheduleOf(asset).find((r) => r.year === year) ?? null;
   const privateUse = privateUseForYear(asset, year);
   const hasWork = Boolean((row && (row.depreciation !== 0 || row.disposal !== 0)) || (privateUse && privateUse.withdrawal !== 0));

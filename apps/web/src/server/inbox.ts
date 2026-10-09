@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { desc, eq } from "drizzle-orm";
 import { ImapFlow } from "imapflow";
 import { simpleParser, type Attachment } from "mailparser";
@@ -6,7 +7,7 @@ import { z } from "zod";
 import { decrypt, encrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
-import { DocumentError, uploadDocument } from "./documents.ts";
+import { DocumentError, MAX_DOCUMENT_SIZE, uploadDocument } from "./documents.ts";
 
 /**
  * Belege per E-Mail: Haben ruft ein Postfach über IMAP ab, legt die Anhänge ungelesener Mails als
@@ -14,14 +15,17 @@ import { DocumentError, uploadDocument } from "./documents.ts";
  * danach als gelesen. Jede Mail steht mit ihrer Message-ID genau einmal im Abrufprotokoll.
  */
 
-export class InboxError extends Error {}
+export class InboxError extends UserError {}
 
 export const INBOX_ACTOR = "system:belege-mail";
 
 /** Je Lauf höchstens so viele Mails; der Rest folgt beim nächsten Abruf */
 const MAX_MESSAGES = 50;
 
-export const IMAP_PRESETS = {
+/** Größere Mails lädt Haben nicht; drei Anhänge an der Belegobergrenze passen trotz Base64 hinein */
+const MAX_MAIL_SIZE = 3 * MAX_DOCUMENT_SIZE;
+
+const IMAP_PRESETS = {
   gmail: { label: "Gmail", host: "imap.gmail.com", port: 993, secure: true },
   gmx: { label: "GMX", host: "imap.gmx.net", port: 993, secure: true },
   webde: { label: "web.de", host: "imap.web.de", port: 993, secure: true },
@@ -51,7 +55,8 @@ type InboxSettings = typeof schema.inboxSettings.$inferSelect;
 /** Was ein Abruf braucht; im Test durch ein Postfach im Speicher ersetzt */
 export interface InboxConnection {
   unseen(): Promise<number[]>;
-  source(uid: number): Promise<Buffer>;
+  /** Quelltext der Mail; ist sie größer als MAX_MAIL_SIZE, nur die Kopfzeilen */
+  source(uid: number): Promise<{ bytes: Buffer; tooLarge: boolean }>;
   markSeen(uid: number): Promise<void>;
   close(): Promise<void>;
 }
@@ -68,16 +73,28 @@ async function imapConnect(settings: InboxSettings, password: string): Promise<I
     socketTimeout: 60_000,
   });
   await client.connect();
-  const lock = await client.getMailboxLock(settings.folder);
+  let lock: Awaited<ReturnType<typeof client.getMailboxLock>>;
+  try {
+    lock = await client.getMailboxLock(settings.folder);
+  } catch (error) {
+    // z. B. Ordner gibt es nicht: Verbindung nicht offen lassen
+    await client.logout().catch(() => {});
+    throw error;
+  }
   return {
     unseen: async () => {
       const found = await client.search({ seen: false }, { uid: true });
       return (found || []).sort((a, b) => a - b);
     },
     source: async (uid) => {
+      // Erst die Größe, damit eine riesige Mail gar nicht erst in den Speicher kommt
+      const head = await client.fetchOne(String(uid), { size: true, headers: true }, { uid: true });
+      if (head && head.size !== undefined && head.size > MAX_MAIL_SIZE && head.headers) {
+        return { bytes: Buffer.concat([head.headers, Buffer.from("\r\n")]), tooLarge: true };
+      }
       const message = await client.fetchOne(String(uid), { source: true }, { uid: true });
       if (!message || !message.source) throw new InboxError(`Mail ${uid} ließ sich nicht laden.`);
-      return message.source;
+      return { bytes: message.source, tooLarge: false };
     },
     markSeen: async (uid) => {
       await client.messageFlagsAdd(String(uid), ["\\Seen"], { uid: true });
@@ -157,9 +174,9 @@ export interface InboxRunResult {
   skipped: number;
 }
 
-async function processMessage(actor: string, source: Buffer, background: (work: Promise<void>) => void) {
-  const mail = await simpleParser(source);
-  const messageId = mail.messageId?.trim() || `sha256:${createHash("sha256").update(source).digest("hex")}`;
+async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: boolean }, background: (work: Promise<void>) => void) {
+  const mail = await simpleParser(source.bytes);
+  const messageId = mail.messageId?.trim() || `sha256:${createHash("sha256").update(source.bytes).digest("hex")}`;
   const [seen] = await db.select({ id: schema.inboxMessages.id }).from(schema.inboxMessages).where(eq(schema.inboxMessages.messageId, messageId));
   if (seen) return null;
 
@@ -169,8 +186,9 @@ async function processMessage(actor: string, source: Buffer, background: (work: 
   const documentIds: string[] = [];
   const skipped: string[] = [];
   let duplicates = 0;
-  const attachments = mail.attachments.filter(isBeleg);
-  if (attachments.length === 0) skipped.push("keine Anhänge");
+  const attachments = source.tooLarge ? [] : mail.attachments.filter(isBeleg);
+  if (source.tooLarge) skipped.push(`Mail größer als ${MAX_MAIL_SIZE / 1024 / 1024} MB, Anhänge bitte einzeln hochladen`);
+  else if (attachments.length === 0) skipped.push("keine Anhänge");
   for (const [index, attachment] of attachments.entries()) {
     const filename = attachment.filename?.trim() || `Anhang-${index + 1}`;
     try {

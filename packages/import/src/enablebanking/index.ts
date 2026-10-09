@@ -9,4 +9,4 @@ export {
   type EbTransaction,
   type EbBalance,
 } from "./client.ts";
-export { enableBankingStatement, mapEnableBankingTransaction, bookedBalance } from "./map.ts";
+export { enableBankingStatement } from "./map.ts";

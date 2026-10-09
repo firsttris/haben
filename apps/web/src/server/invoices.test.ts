@@ -121,6 +121,30 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     expect(Number(balance?.forderungen)).toBe(0);
   }, 30_000);
 
+  it("doppeltes Storno wird abgelehnt, auch gleichzeitig", async () => {
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const results = await Promise.allSettled([
+      invoices.cancelInvoice(actor, original.id, "2026-10-05"),
+      invoices.cancelInvoice(actor, original.id, "2026-10-05"),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+    expect(String(rejected.reason)).toMatch(/bereits storniert/);
+    const rows = await sql`select status from invoices where kind = 'storno' and corrects_id = ${original.id}`;
+    // Der Entwurf des abgelehnten Stornos ist wieder weg
+    expect(rows.map((r) => r.status)).toEqual(["final"]);
+  }, 30_000);
+
+  it("Korrektur nach Storno wird abgelehnt", async () => {
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const correction = await invoices.createCorrection(actor, original.id, "2026-10-05");
+    await invoices.cancelInvoice(actor, original.id, "2026-10-05");
+    expect(await invoices.finalizeIssues(correction.id)).toContain(`Die Rechnung ${original.number} ist bereits storniert`);
+    await expect(invoices.finalizeInvoice(actor, correction.id)).rejects.toThrow(/bereits storniert/);
+    const [row] = await sql`select status, number from invoices where id = ${correction.id}`;
+    expect(row).toMatchObject({ status: "draft", number: null });
+  }, 30_000);
+
   it("Rechnungskorrektur mindert den Betrag und muss negativ sein", async () => {
     const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
     const correction = await invoices.createCorrection(actor, original.id, "2026-10-05");
@@ -212,6 +236,14 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     expect((await invoices.openAbschlaege()).map((a) => a.number)).toEqual(["2026-001", "2026-002", "2026-003"]);
     const storno = await invoices.cancelInvoice(actor, a1.id, "2026-10-05");
     expect(storno.variant).toBeNull();
+
+    // Zwei Schlussrechnungs-Entwürfe mit derselben Abschlagsrechnung: nur einer lässt sich festschreiben, auch gleichzeitig
+    const a3 = await final({ ...draft([line(100_000)]), variant: "abschlag" });
+    const s1 = await invoices.createDraft(actor, { ...draft(full), variant: "schluss", deducts: [a3.id] });
+    const s2 = await invoices.createDraft(actor, { ...draft(full), variant: "schluss", deducts: [a3.id] });
+    const finals = await Promise.allSettled([invoices.finalizeInvoice(actor, s1.id), invoices.finalizeInvoice(actor, s2.id)]);
+    expect(finals.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(String((finals.find((r) => r.status === "rejected") as PromiseRejectedResult).reason)).toMatch(/schon in Schlussrechnung/);
 
     const empty = await invoices.createDraft(actor, { ...draft(full), variant: "schluss" });
     expect(await invoices.finalizeIssues(empty.id)).toContain("Keine Abschlagsrechnung abgezogen");

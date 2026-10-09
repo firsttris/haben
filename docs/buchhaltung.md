@@ -12,13 +12,13 @@ Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vor
 
 ## GoBD: Unveränderbarkeit in der Datenbank
 
-Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres (`apps/web/drizzle/0001_festschreibung.sql` und folgende `*_trigger.sql`). Sie greifen also auch bei direktem Zugriff auf die Datenbank.
+Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres (`apps/web/drizzle/0001_festschreibung.sql` und folgende `*_trigger.sql`). Sie greifen also auch bei SQL von Hand, etwa mit `psql`. Gegen Absicht schützen sie nicht: Wer als Eigentümer der Tabellen verbunden ist, wie die App selbst, kann Trigger abschalten. Bei einer selbst gehosteten Installation hat der Betreiber ohnehin vollen Zugriff auf den Server; die Trigger verhindern Versehen und Programmfehler.
 
 | Art | Tabellen | Wirkung |
 | --- | --- | --- |
 | Festschreibung | `journal_entries`, `invoices`, `documents`, `vat_returns` | `UPDATE` und `DELETE` werden abgelehnt, sobald `locked_at` gesetzt ist |
-| Abhängige Zeilen | `journal_lines`, `invoice_lines`, `quote_lines`, `document_amounts` | Einfügen, Ändern und Löschen abgelehnt, wenn die Buchung, Rechnung bzw. der Beleg festgeschrieben ist |
-| Nur anhängen | `audit_log`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files`, `asset_depreciations`, `pauschalen` | `UPDATE` und `DELETE` immer abgelehnt (`audit_log` auch `TRUNCATE`) |
+| Abhängige Zeilen | `journal_lines`, `invoice_lines`, `quote_lines`, `document_amounts` | Einfügen, Ändern und Löschen abgelehnt, wenn die Buchung, Rechnung bzw. der Beleg festgeschrieben ist; auch das Umhängen einer Zeile aus einer festgeschriebenen Buchung oder in sie hinein |
+| Nur anhängen | `audit_log`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files`, `asset_depreciations`, `pauschalen`, `cash_entries` | `UPDATE` und `DELETE` immer abgelehnt (`audit_log` auch `TRUNCATE`) |
 | Kontakte | `contacts` | Löschen abgelehnt; jede Änderung erhöht die Version und legt eine Kopie in `contact_versions` ab |
 | Angebote | `quotes` | Nach dem Festschreiben nur noch Antwort des Kunden und Verweis auf die Rechnung änderbar, Löschen abgelehnt |
 | Nummernkreis | `invoice_number_counters`, `quote_number_counters` | Zähler darf nicht sinken, Zeilen nicht gelöscht werden |
@@ -27,7 +27,7 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 
 ### Änderungsprotokoll
 
-Trigger schreiben jede Änderung an den wichtigen Tabellen mit altem und neuem Wert als JSON in `audit_log`: Firmendaten, Zertifikate, Voranmeldungen und Übermittlungen, Kontakte, Rechnungen, Buchungen, Nummernkreis, Belege, Bankkonten, Importe, Zuordnungen, Archivdateien, Lexoffice-Abrufe und -Verbindung. Binärdaten (PDF, XML, Protokoll-PDF) und verschlüsselte Inhalte werden dabei weggelassen.
+Trigger schreiben jede Änderung an den wichtigen Tabellen mit altem und neuem Wert als JSON in `audit_log`: Firmendaten, Zertifikate, Voranmeldungen und Übermittlungen, Kontakte, Rechnungen, Buchungen, Nummernkreis, Belege, Bankkonten, Importe, Zuordnungen, Archivdateien, Lexoffice-Abrufe und -Verbindung. Weggelassen werden Binärdaten und große Nachrichten, die unveränderlich in ihrer eigenen Tabelle stehen, sowie verschlüsselte Inhalte, nämlich die Spalten `pdf`, `protocol_pdf`, `xml`, `logo`, `request_xml`, `response_xml`, `server_response_xml`, `abholung` (VaSt), `ciphertext` und `pin_ciphertext`. Bei Tabellen ohne `id` (Nummernkreise, Angaben zur Einkommensteuer) steht das Jahr als Zeilenkennung im Protokoll.
 
 Jede schreibende Aktion läuft in einer Transaktion, die vorher `haben.actor` auf die ID des angemeldeten Nutzers setzt (`withActor` in `apps/web/src/server/db/actor.ts`). Der Trigger übernimmt diesen Wert in die Spalte `actor`. So ist jede Änderung einer Person zugeordnet.
 

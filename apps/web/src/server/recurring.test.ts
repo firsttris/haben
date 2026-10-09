@@ -1,3 +1,4 @@
+import { INTERNAL_ERROR } from "./errors.ts";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
@@ -85,6 +86,26 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
     const [after] = await sql`select last_error, next_date::text from recurring_invoices where id = ${created.id}`;
     expect(after).toMatchObject({ next_date: "2026-11-01" });
     expect(after?.last_error).toContain("als Entwurf angelegt");
+  });
+
+  it("ein unerwarteter Fehler einer Vorlage hält die übrigen nicht auf", async () => {
+    const broken = await recurring.createRecurring(actor, template({ name: "Kaputt", nextDate: "2026-10-01" }));
+    // Betrag jenseits von int4: das Anlegen scheitert in Postgres
+    await sql`update recurring_invoices set lines = jsonb_set(lines, '{0,unitPrice}', '100000000000') where id = ${broken.id}`;
+    await recurring.createRecurring(actor, template({ name: "Heil", nextDate: "2026-10-01" }));
+    const result = await recurring.runDueRecurring("2026-10-02");
+    expect(result.created).toBe(1);
+    expect(result.errors).toEqual([`Kaputt: ${INTERNAL_ERROR}`]);
+    const [after] = await sql`select last_error, next_date::text from recurring_invoices where id = ${broken.id}`;
+    expect(after).toEqual({ last_error: INTERNAL_ERROR, next_date: "2026-10-01" });
+  });
+
+  it("zwei gleichzeitige Läufe legen jeden Termin nur einmal an", async () => {
+    await recurring.createRecurring(actor, template());
+    const [a, b] = await Promise.all([recurring.runDueRecurring("2026-10-02"), recurring.runDueRecurring("2026-10-02")]);
+    expect(a.errors.concat(b.errors)).toEqual([]);
+    const [count] = await sql`select count(*)::int as n from invoices`;
+    expect(count?.n).toBe(2);
   });
 
   it("Vorlage mit Rechnungen lässt sich nicht löschen", async () => {

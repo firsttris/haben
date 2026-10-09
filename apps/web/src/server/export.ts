@@ -5,7 +5,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { ASSET_KINDS, ASSET_METHODS, csvDecimal, PAUSCHALE_LABEL } from "@haben/core";
 import { listAssets } from "./assets.ts";
 import { db, schema } from "./db/index.ts";
-import { accountName } from "./functions/journal.ts";
+import { accountName } from "./journal.ts";
 import { loadFile } from "./storage.ts";
 import { cashBookCsv } from "./cash.ts";
 import { today } from "./today.ts";
@@ -28,7 +28,9 @@ export type CsvValue = string | number | boolean | null | undefined;
 
 export function csvField(value: CsvValue): string {
   if (value === null || value === undefined) return "";
-  const text = typeof value === "boolean" ? (value ? "ja" : "nein") : String(value);
+  const raw = typeof value === "boolean" ? (value ? "ja" : "nein") : String(value);
+  // Text, den Tabellenprogramme als Formel lesen würden, entschärfen; negative Beträge bleiben Zahlen
+  const text = typeof value === "string" && /^[=+@\t\r]|^-(?!\d+(,\d+)?$)/.test(raw) ? `'${raw}` : raw;
   return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
@@ -119,9 +121,14 @@ export const CHECKSUM_FILE = "pruefsummen.sha256";
 export async function* zipArchive(files: AsyncIterable<ArchiveFile>, mtime: Date): AsyncGenerator<Uint8Array> {
   const queue: Uint8Array[] = [];
   let failure: Error | null = null;
+  let written = 0;
+  let entries = 0;
   const zip = new Zip((error, chunk) => {
     if (error) failure = error;
-    else if (chunk.length > 0) queue.push(chunk);
+    else if (chunk.length > 0) {
+      written += chunk.length;
+      queue.push(chunk);
+    }
   });
   function* drain(): Generator<Uint8Array> {
     if (failure) throw failure;
@@ -130,6 +137,8 @@ export async function* zipArchive(files: AsyncIterable<ArchiveFile>, mtime: Date
 
   const checksums: string[] = [];
   const add = async function* (file: ArchiveFile): AsyncGenerator<Uint8Array> {
+    // fflate kennt kein ZIP64: lieber abbrechen als ein still kaputtes Archiv ausliefern
+    if (++entries > 0xffff || written >= 0xffffffff) throw new Error("Das Jahresarchiv überschreitet 4 GB oder 65.535 Dateien; das kann das ZIP-Format ohne ZIP64 nicht.");
     const entry = file.compress ? new ZipDeflate(file.path, { level: 6 }) : new ZipPassThrough(file.path);
     entry.mtime = mtime;
     zip.add(entry);
@@ -151,6 +160,7 @@ export async function* zipArchive(files: AsyncIterable<ArchiveFile>, mtime: Date
 
   for await (const file of files) yield* add(file);
   yield* add({ path: CHECKSUM_FILE, content: encoder.encode(checksums.join("\n") + "\n"), compress: true });
+  if (written >= 0xffffffff) throw new Error("Das Jahresarchiv überschreitet 4 GB; das kann das ZIP-Format ohne ZIP64 nicht.");
   zip.end();
   yield* drain();
 }
@@ -200,13 +210,14 @@ const SOURCE_LABELS: Record<string, string> = {
   pauschale: "Pauschale",
   kasse: "Kasse",
 };
-const ALLOCATION_LABELS: Record<string, string> = {
+const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[number], string> = {
   invoice: "Rechnung",
   document: "Beleg",
   privat: "Privat",
   geldtransit: "Geldtransit",
   ustVorauszahlung: "USt-Vorauszahlung",
   gebuehren: "Bankgebühren",
+  mahnerloes: "Mahngebühren und Zinsen",
 };
 const SUBMISSION_LABELS: Record<string, string> = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" };
 
@@ -684,7 +695,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         return [
           t?.bookingDate,
           t ? accountById.get(t.bankAccountId)?.iban : "",
-          ALLOCATION_LABELS[a.kind] ?? a.kind,
+          ALLOCATION_LABELS[a.kind],
           a.invoiceId ? (invoiceNumbers.get(a.invoiceId) ?? "") : "",
           a.documentId ? (documentPaths.get(a.documentId)?.replace(/^belege\//, "") ?? "") : "",
           money(a.amount),
@@ -752,7 +763,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       const suffix = returns.length > 1 ? `-${index + 1}` : "";
       yield { path: `${dir}/anmeldung${suffix}.json`, content: encoder.encode(JSON.stringify(vatReturn, null, 2) + "\n"), compress: true };
       for (const submission of submissions.filter((s) => s.vatReturnId === vatReturn.id)) {
-        const stem = `${submission.createdAt.toISOString().slice(0, 10)}_${submission.kind}_${submission.id.slice(0, 8)}`;
+        const stem = `${today(submission.createdAt)}_${submission.kind}_${submission.id.slice(0, 8)}`;
         const [files] = await db
           .select({
             protocolPdf: schema.vatReturnSubmissions.protocolPdf,
@@ -830,7 +841,9 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     content: csv(["Name", "IBAN", "Angelegt", "ID"], accounts.map((a) => [a.name, a.iban, iso(a.createdAt), a.id])),
     compress: true,
   };
-  yield { path: "stammdaten/firma.json", content: encoder.encode(JSON.stringify(company ?? null, null, 2) + "\n"), compress: true };
+  // Ohne den Hash des Kalender-Tokens: der gehört zum Zugang, nicht zu den Stammdaten
+  const firma = company && { ...company, calendarTokenHash: undefined };
+  yield { path: "stammdaten/firma.json", content: encoder.encode(JSON.stringify(firma, null, 2) + "\n"), compress: true };
 
   // Änderungsprotokoll, seitenweise gelesen ----------------------------------
   yield { path: "protokoll/audit.csv", content: auditCsv(year), compress: true };
@@ -951,7 +964,7 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
 }
 
 /** Felder, die nie ins Archiv dürfen (das Audit-Log früher Versionen enthielt sie noch) */
-const SECRET_KEYS = new Set(["ciphertext"]);
+const SECRET_KEYS = new Set(["ciphertext", "pin_ciphertext", "calendar_token_hash"]);
 
 function withoutSecrets(table: string, value: unknown): unknown {
   if (!value || typeof value !== "object") return value;

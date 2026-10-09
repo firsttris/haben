@@ -10,7 +10,7 @@ import {
   type ElsterClient,
   type ElsterResult,
 } from "@haben/elster";
-import { asc } from "drizzle-orm";
+import { and, asc, eq, getTableColumns } from "drizzle-orm";
 import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
@@ -27,7 +27,7 @@ import { prepareElsterAbruf } from "./vast.ts";
 
 export interface BrmOptions {
   kind: "test" | "send";
-  /** leer: die für den Postfachabruf gespeicherte PIN */
+  /** leer: die gespeicherte PIN (beim Postfachabruf hinterlegt, gilt für alle Abrufe mit dem Zertifikat) */
   pin?: string;
   herstellerId?: string;
 }
@@ -195,11 +195,19 @@ export async function berechtigungEhegatte(test: boolean): Promise<Berechtigung 
   const company = await loadCompany();
   const idnr = company.taxpayer.b?.idnr;
   if (!idnr) return null;
-  const rows = await db.select().from(schema.brmRequests).orderBy(asc(schema.brmRequests.createdAt));
-  return rows.filter((row) => row.test === test && row.ok).reduce<Berechtigung | null>((current, row) => step(current, row, idnr), null);
+  // Ohne die XML-Protokolle, die braucht der Status nicht
+  const { requestXml: _request, responseXml: _response, serverResponseXml: _server, ...columns } = getTableColumns(schema.brmRequests);
+  const rows = await db
+    .select(columns)
+    .from(schema.brmRequests)
+    .where(and(eq(schema.brmRequests.test, test), eq(schema.brmRequests.ok, true)))
+    .orderBy(asc(schema.brmRequests.createdAt));
+  return rows.reduce<Berechtigung | null>((current, row) => step(current, row, idnr), null);
 }
 
-function step(current: Berechtigung | null, row: typeof schema.brmRequests.$inferSelect, idnr: string): Berechtigung | null {
+type StatusRow = Omit<typeof schema.brmRequests.$inferSelect, "requestXml" | "responseXml" | "serverResponseXml">;
+
+function step(current: Berechtigung | null, row: StatusRow, idnr: string): Berechtigung | null {
   if (row.art === "antrag" && row.dateninhaberIdnr === idnr && row.antragsId) {
     return {
       antragsId: row.antragsId,

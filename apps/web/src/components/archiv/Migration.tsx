@@ -1,8 +1,10 @@
-import { formatEuro } from "@haben/core";
+import { MONTHS, formatEuro } from "@haben/core";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { errorMessage, formatDateTime } from "../../lib/format.ts";
+import { formatDateTime } from "../../lib/format.ts";
+import { useAction } from "../../lib/use-action.ts";
+import { NoticeBanner } from "../NoticeBanner.tsx";
 import {
   cancelLexofficeImport,
   getImportStatus,
@@ -17,8 +19,6 @@ import { OpenItems } from "./OpenItems.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
-
-const MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 
 export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready);
@@ -72,34 +72,24 @@ function Connection({ connection }: { connection: MigrationData["connection"] })
   const save = useServerFn(saveLexofficeKey);
   const remove = useServerFn(removeLexofficeKey);
   const [key, setKey] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { busy, notice, run } = useAction();
+  const error = notice?.text ?? null;
   const keyId = useId();
 
-  async function onSubmit(event: FormEvent) {
+  function onSubmit(event: FormEvent) {
     event.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
+    void run(async () => {
       await save({ data: { apiKey: key } });
       setKey("");
       await router.invalidate();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
-  async function onRemove() {
-    setBusy(true);
-    try {
+  const onRemove = () =>
+    run(async () => {
       await remove();
       await router.invalidate();
-    } finally {
-      setBusy(false);
-    }
-  }
+    });
 
   return (
     <section className={`card stack${connection ? " step-done" : ""}`} aria-labelledby="connection-heading">
@@ -116,6 +106,7 @@ function Connection({ connection }: { connection: MigrationData["connection"] })
           <button type="button" className="btn btn-danger" onClick={onRemove} disabled={busy}>
             Schlüssel entfernen
           </button>
+          <NoticeBanner notice={notice} />
         </div>
       ) : (
         <form className="stack" onSubmit={onSubmit}>
@@ -160,8 +151,7 @@ function ImportCard({ connected, initial }: { connected: boolean; initial: Impor
   const cancel = useServerFn(cancelLexofficeImport);
   const poll = useServerFn(getImportStatus);
   const [run, setRun] = useState<ImportRow | null>(initial);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const action = useAction();
   const running = run?.status === "laeuft";
 
   useEffect(() => {
@@ -179,18 +169,11 @@ function ImportCard({ connected, initial }: { connected: boolean; initial: Impor
     };
   }, [running, poll, router]);
 
-  async function onStart() {
-    setBusy(true);
-    setError(null);
-    try {
+  const onStart = () =>
+    action.run(async () => {
       await start();
       setRun(await poll());
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+    });
 
   const progress = run?.progress;
   const done = run?.status === "fertig" && (progress?.failed.length ?? 0) === 0;
@@ -257,18 +240,14 @@ function ImportCard({ connected, initial }: { connected: boolean; initial: Impor
           )}
         </div>
       )}
-      {error && (
-        <div className="banner banner-danger" role="alert">
-          {error}
-        </div>
-      )}
+      <NoticeBanner notice={action.notice} />
       <div className="actions">
         {running ? (
-          <button type="button" className="btn" onClick={() => run && void cancel({ data: { id: run.id } })}>
+          <button type="button" className="btn" disabled={action.busy} onClick={() => run && void action.run(() => cancel({ data: { id: run.id } }))}>
             Abbrechen
           </button>
         ) : (
-          <button type="button" className="btn btn-primary" onClick={onStart} disabled={!connected || busy}>
+          <button type="button" className="btn btn-primary" onClick={onStart} disabled={!connected || action.busy}>
             {run ? "Erneut abrufen" : "Alles abrufen"}
           </button>
         )}

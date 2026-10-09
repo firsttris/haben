@@ -1,5 +1,11 @@
-import { addDays } from "./invoice.ts";
 import type { Bundesland } from "./steuernummer.ts";
+
+/** ISO-Datum plus Tage, z. B. Fälligkeit = Rechnungsdatum + Zahlungsziel */
+export function addDays(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
 
 /** Ostersonntag nach der Gaußschen Osterformel (Anonymer Gregorianischer Algorithmus) */
 export function easterSunday(year: number): string {
@@ -64,13 +70,18 @@ export function isNonWorkingDay(isoDate: string, bundesland: Bundesland | null):
   return publicHolidays(Number(isoDate.slice(0, 4)), bundesland).has(isoDate);
 }
 
+/** Das Datum selbst oder, wenn es auf Samstag, Sonntag oder einen Feiertag fällt, der nächste Werktag (§ 193 BGB, § 108 Abs. 3 AO) */
+export function naechsterWerktag(isoDate: string, bundesland: Bundesland | null): string {
+  let date = isoDate;
+  while (isNonWorkingDay(date, bundesland)) date = addDays(date, 1);
+  return date;
+}
+
 /**
  * Fälligkeit: Rechnungsdatum plus Zahlungsziel. Fällt das Ende auf ein Wochenende oder einen
  * Feiertag, gilt der nächste Werktag (§ 193 BGB).
  */
 export function invoiceDueDate(issueDate: string, paymentTermDays: number, bundesland: Bundesland | null): string {
-  let date = addDays(issueDate, paymentTermDays);
-  if (paymentTermDays === 0) return date;
-  while (isNonWorkingDay(date, bundesland)) date = addDays(date, 1);
-  return date;
+  const date = addDays(issueDate, paymentTermDays);
+  return paymentTermDays === 0 ? date : naechsterWerktag(date, bundesland);
 }

@@ -1,12 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { deleteMailSettings, lastMails, mailSettingsSchema, mailSettingsSummary, MailError, saveMailSettings, sendTestMail, SMTP_PRESETS } from "../mail.ts";
+import { deleteMailSettings, lastMails, mailSettingsSchema, mailSettingsSummary, saveMailSettings, sendTestMail, SMTP_PRESETS } from "../mail.ts";
 import { DEFAULT_DUNNING_BODY, DEFAULT_DUNNING_SUBJECT, DEFAULT_INVOICE_BODY, DEFAULT_INVOICE_SUBJECT } from "../invoice-mail.ts";
 import { authMiddleware } from "../middleware.ts";
-
-const rethrow = (error: unknown): never => {
-  if (error instanceof MailError) throw new Error(error.message, { cause: error });
-  throw error;
-};
 
 export const getMailSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -21,13 +16,13 @@ export const saveMail = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(mailSettingsSchema)
   .handler(async ({ data, context }) => {
-    await saveMailSettings(context.user.id, data).catch(rethrow);
+    await saveMailSettings(context.user.id, data);
     return { ok: true };
   });
 
 export const sendMailTest = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => sendTestMail(context.user.id).catch(rethrow));
+  .handler(async ({ context }) => sendTestMail(context.user.id));
 
 export const removeMail = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

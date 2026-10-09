@@ -79,6 +79,9 @@ describe.skipIf(!testDatabaseUrl)("Kassenbuch (Postgres)", () => {
     const csv = await cash.cashBookCsv(2026);
     expect(csv.startsWith("﻿")).toBe(true);
     expect(csv).toContain('2;"2026-10-02";"Beleg";"Schreibwaren Huber · B-17";;23,80;26,20');
+    // Text, den Excel als Formel läse, bekommt ein ' vorangestellt
+    await cash.createCashEntry(actor, { kind: "einlage", date: today, amount: 100, text: '=HYPERLINK("http://x")' }, today);
+    expect(await cash.cashBookCsv(2026)).toContain(`"'=HYPERLINK(""http://x"")"`);
 
     // EÜR: bar bezahlter Beleg zählt am Belegdatum
     const reports = await import("./reports.ts");

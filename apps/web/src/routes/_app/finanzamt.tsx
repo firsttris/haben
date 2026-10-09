@@ -2,8 +2,12 @@ import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { CertificateStatus, ElsterSubmit, TestOnlyToggle } from "../../components/ElsterSubmit.tsx";
 import { Icon } from "../../components/Icon.tsx";
-import { errorMessage, formatDate, formatDateTime } from "../../lib/format.ts";
+import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import { elsterNotice, type ElsterKind } from "../../lib/elster.ts";
+import { formatDate, formatDateTime } from "../../lib/format.ts";
+import { useAction } from "../../lib/use-action.ts";
 import {
   disablePostfachAutoFetch,
   enablePostfachAutoFetch,
@@ -12,22 +16,23 @@ import {
   sendFinanzamtBankChange,
   sendFinanzamtMessage,
 } from "../../server/functions/finanzamt.ts";
+import { today } from "../../server/today.ts";
 import styles from "../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/finanzamt")({
-  loader: () => getFinanzamt(),
+  // Datum in Deutschland, nicht UTC; kommt beim ersten Aufruf mit den Loader-Daten vom Server
+  loader: async () => ({ ...(await getFinanzamt()), today: today() }),
   head: () => ({ meta: [{ title: "Finanzamt · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: FinanzamtPage,
 });
 
-type Data = Awaited<ReturnType<typeof getFinanzamt>>;
+type Data = Awaited<ReturnType<typeof getFinanzamt>> & { today: string };
 type Topic = "vorauszahlung" | "nachricht";
 type Tab = Topic | "bankverbindung";
-type Kind = "validate" | "test" | "send";
 type SendResult = { ok: boolean; code: number; message: string; transferTicket: string | null };
-type Notice = { tone: "ok" | "danger" | "info"; text: string } | null;
 
-const KIND_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Gesendet" } as const;
+/** Status im Verlauf */
+const STATUS_LABEL = { validate: "Prüfung", test: "Testübermittlung", send: "Gesendet" } as const;
 const TOPIC_LABEL = { vorauszahlung: "Herabsetzung der Vorauszahlungen", nachricht: "Nachricht", bankverbindung: "Bankverbindung ändern" } as const;
 const TAB_LABEL = { vorauszahlung: "Vorauszahlungen herabsetzen", nachricht: "Freie Nachricht", bankverbindung: "Bankverbindung ändern" } as const;
 const DATENART_LABEL: Record<string, string> = {
@@ -246,7 +251,7 @@ function PrepaymentForm({ data }: { data: Data }) {
           voraussichtlichen Steuer vorbelegt, du kannst sie ändern.
         </p>
       </section>
-      <MessageForm key={`${letter.betreff}|${letter.text}`} data={data} topic="vorauszahlung" initial={letter} figures={{ ...b, current: currentCents, wanted: wantedCents }} />
+      <MessageForm data={data} topic="vorauszahlung" initial={letter} figures={{ ...b, current: currentCents, wanted: wantedCents }} />
     </div>
   );
 }
@@ -263,20 +268,22 @@ function MessageForm({
   figures?: Record<string, unknown>;
 }) {
   const send = useServerFn(sendFinanzamtMessage);
-  const [betreff, setBetreff] = useState(initial.betreff);
-  const [text, setText] = useState(initial.text);
+  // Ohne eigene Änderung folgen Betreff und Text dem Vorschlag (beim Antrag den Zahlen darüber)
+  const [ownBetreff, setBetreff] = useState<string | null>(null);
+  const [ownText, setText] = useState<string | null>(null);
+  const betreff = ownBetreff ?? initial.betreff;
+  const text = ownText ?? initial.text;
   const ready = data.issues.length === 0 && betreff.trim() !== "" && text.trim() !== "";
 
   return (
     <SendPanel
       data={data}
-      label={TOPIC_LABEL[topic]}
       ready={ready}
       confirmText="Die Nachricht geht an das Finanzamt. Noch einmal klicken zum Senden."
       footer="Die Antwort des Finanzamts kommt als Brief oder in dein ELSTER-Postfach. Die PIN wird nicht gespeichert."
-      run={(kind, pin) => send({ data: { topic, betreff, text, figures: figures ?? null, kind, pin } })}
+      send={(kind, pin) => send({ data: { topic, betreff, text, figures: figures ?? null, kind, pin } })}
     >
-      <section className="card">
+      <section className="card" aria-label={TOPIC_LABEL[topic]}>
         <h2>{topic === "vorauszahlung" ? "Antrag" : "Nachricht an das Finanzamt"}</h2>
         <p className="small muted" style={{ margin: 0 }}>
           An {data.company.finanzamt || "das Finanzamt"} zur Steuernummer {data.company.steuernummer || "–"}. Für Einzelunternehmer ist das
@@ -306,13 +313,12 @@ function BankChangeForm({ data }: { data: Data }) {
   return (
     <SendPanel
       data={data}
-      label={TOPIC_LABEL.bankverbindung}
       ready={ready}
       confirmText="Das Finanzamt nutzt danach dieses Konto für alle Steuerarten. Noch einmal klicken zum Senden."
       footer="Gilt für Erstattungen und, falls du eine Lastschrift erteilt hast, für den Einzug. Die PIN wird nicht gespeichert."
-      run={(kind, pin) => send({ data: { iban: compact, kind, pin } })}
+      send={(kind, pin) => send({ data: { iban: compact, kind, pin } })}
     >
-      <section className="card">
+      <section className="card" aria-label={TOPIC_LABEL.bankverbindung}>
         <h2>Bankverbindung beim Finanzamt ändern</h2>
         <p className="small muted" style={{ margin: 0 }}>
           Teilt {data.company.finanzamt || "dem Finanzamt"} zur Steuernummer {data.company.steuernummer || "–"} ein neues Konto für alle
@@ -341,127 +347,42 @@ function BankChangeForm({ data }: { data: Data }) {
   );
 }
 
-/** Rechte Spalte zum Prüfen, Testen und Senden; links steht der Inhalt */
+/** Links der Inhalt, rechts Prüfen, Testen und Senden */
 function SendPanel({
   data,
-  label,
   ready,
   confirmText,
   footer,
-  run: execute,
+  send,
   children,
 }: {
   data: Data;
-  label: string;
   ready: boolean;
   confirmText: string;
   footer: string;
-  run: (kind: Kind, pin?: string) => Promise<SendResult>;
+  send: (kind: ElsterKind, pin?: string) => Promise<SendResult>;
   children: ReactNode;
 }) {
   const router = useRouter();
-  const [pin, setPin] = useState("");
-  const [testOnly, setTestOnly] = useState(true);
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<Notice>(null);
-  const canSendLive = data.herstellerIdConfigured;
-
-  async function run(kind: Kind, withPin?: string) {
-    setBusy(true);
-    setNotice(null);
-    try {
-      const result = await execute(kind, withPin);
-      const ticket = result.transferTicket ? ` Transfer-Ticket ${result.transferTicket}.` : "";
-      setNotice(
-        result.ok
-          ? { tone: "ok", text: kind === "validate" ? "Prüfung ohne Fehler." : kind === "test" ? `Testübermittlung erfolgreich.${ticket}` : `An das Finanzamt gesendet.${ticket}` }
-          : { tone: "danger", text: `${KIND_LABEL[kind]} fehlgeschlagen (${result.code}): ${result.message}` },
-      );
-      await router.invalidate();
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    const live = !testOnly && canSendLive;
-    if (live && !confirming) {
-      setConfirming(true);
-      return;
-    }
-    await run(live ? "send" : "test", pin);
-    setPin("");
-    setConfirming(false);
-  }
-
+  const { busy, notice, setNotice, run } = useAction();
   return (
-    <form className="grid-main" onSubmit={onSubmit} aria-label={label}>
+    <div className="grid-main">
       {children}
-      <section className="card" aria-label="Senden">
-        <h2>Über ELSTER senden</h2>
-        <CertificateHint data={data} />
-        <label className="field">
-          Zertifikats-PIN
-          <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" />
-        </label>
-        <TestOnlyToggle data={data} testOnly={testOnly} onChange={(value) => { setTestOnly(value); setConfirming(false); }} />
-        {confirming && (
-          <div className="banner" role="alert">
-            {confirmText}
-          </div>
-        )}
-        <NoticeBanner notice={notice} />
-        <div className="actions">
-          <button type="submit" className="btn btn-primary" disabled={busy || !ready || !data.certificate || pin.length === 0} style={{ flexGrow: 1 }}>
-            {busy ? "Läuft …" : confirming ? "Jetzt verbindlich senden" : testOnly || !canSendLive ? "Testweise senden" : "Senden"}
-          </button>
-          <button type="button" className="btn" disabled={busy || !ready} onClick={() => void run("validate")}>
-            Nur prüfen
-          </button>
-        </div>
-        <p className="small muted" style={{ margin: 0 }}>
-          {footer}
-        </p>
-      </section>
-    </form>
-  );
-}
-
-function CertificateHint({ data }: { data: Data }) {
-  if (data.certificate) return null;
-  return (
-    <p className="small" style={{ margin: 0 }}>
-      Kein ELSTER-Zertifikat hinterlegt. <Link to="/einstellungen">In den Einstellungen hochladen</Link>
-    </p>
-  );
-}
-
-function TestOnlyToggle({ data, testOnly, onChange }: { data: Data; testOnly: boolean; onChange: (value: boolean) => void }) {
-  const canSendLive = data.herstellerIdConfigured;
-  return (
-    <>
-      <label className="checkbox">
-        <input type="checkbox" checked={testOnly || !canSendLive} onChange={(e) => onChange(e.target.checked)} disabled={!canSendLive} />
-        Nur Testübermittlung
-      </label>
-      {!canSendLive && (
-        <p className="small muted" style={{ margin: 0 }}>
-          {data.mode === "simuliert" ? "Echt erst mit eingerichtetem ERiC und eigener Hersteller-ID." : "Echt erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID)."}
-        </p>
-      )}
-    </>
-  );
-}
-
-function NoticeBanner({ notice }: { notice: Notice }) {
-  if (!notice) return null;
-  return (
-    <div className={`banner banner-${notice.tone}`} role={notice.tone === "danger" ? "alert" : "status"} style={{ overflowWrap: "anywhere" }}>
-      {notice.text}
+      <ElsterSubmit
+        setup={data}
+        title="Über ELSTER senden"
+        ready={ready}
+        busy={busy}
+        notice={notice}
+        confirmText={confirmText}
+        footer={footer}
+        onSubmit={(kind, pin) =>
+          run(async () => {
+            setNotice(elsterNotice(kind, await send(kind, pin), "An das Finanzamt gesendet."));
+            await router.invalidate();
+          })
+        }
+      />
     </div>
   );
 }
@@ -475,32 +396,20 @@ function Postfach({ data }: { data: Data }) {
   const [savePin, setSavePin] = useState(false);
   const [pin, setPin] = useState("");
   const [testOnly, setTestOnly] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<Notice>(null);
+  const { busy, notice, setNotice, run } = useAction();
   const live = !testOnly && data.herstellerIdConfigured;
   const pending = live ? data.pendingConfirmations.live : data.pendingConfirmations.test;
-  const today = new Date().toISOString().slice(0, 10);
   const auto = data.autoFetch;
 
-  async function turnOff() {
-    setBusy(true);
-    setNotice(null);
-    try {
+  const turnOff = () =>
+    run(async () => {
       await disableAuto();
-      setNotice({ tone: "ok", text: "Automatischer Abruf ausgeschaltet, die PIN ist gelöscht." });
       await router.invalidate();
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
-  }
+    }, "Automatischer Abruf ausgeschaltet, die PIN ist gelöscht.");
 
-  async function onSubmit(event: FormEvent) {
+  function onSubmit(event: FormEvent) {
     event.preventDefault();
-    setBusy(true);
-    setNotice(null);
-    try {
+    void run(async () => {
       const result = live && savePin ? await enableAuto({ data: { pin } }) : await fetchPostfach({ data: { kind: live ? "send" : "test", pin } });
       if (live && savePin) setSavePin(false);
       const parts = [result.message];
@@ -509,11 +418,7 @@ function Postfach({ data }: { data: Data }) {
       setNotice({ tone: result.ok && !result.bestaetigungFehler && result.fehler.length === 0 ? "ok" : "danger", text: parts.join(" ") });
       setPin("");
       await router.invalidate();
-    } catch (error) {
-      setNotice({ tone: "danger", text: errorMessage(error) });
-    } finally {
-      setBusy(false);
-    }
+    });
   }
 
   return (
@@ -551,7 +456,7 @@ function Postfach({ data }: { data: Data }) {
                   <td>{d.veranlagungszeitraum || "–"}</td>
                   <td className="small">
                     {d.frist ? (
-                      <span style={d.frist.fristende >= today ? { fontWeight: 600 } : { color: "var(--muted)" }}>{formatDate(d.frist.fristende)}</span>
+                      <span style={d.frist.fristende >= data.today ? { fontWeight: 600 } : { color: "var(--muted)" }}>{formatDate(d.frist.fristende)}</span>
                     ) : (
                       "–"
                     )}
@@ -575,12 +480,12 @@ function Postfach({ data }: { data: Data }) {
             innerhalb von 24 Stunden.
           </div>
         )}
-        <CertificateHint data={data} />
+        <CertificateStatus certificate={data.certificate} />
         <label className="field">
           Zertifikats-PIN
           <input type="password" value={pin} onChange={(e) => setPin(e.target.value)} autoComplete="off" />
         </label>
-        <TestOnlyToggle data={data} testOnly={testOnly} onChange={setTestOnly} />
+        <TestOnlyToggle setup={data} testOnly={testOnly} onChange={setTestOnly} />
         {live && !auto.enabled && (
           <label className="checkbox">
             <input type="checkbox" checked={savePin} onChange={(e) => setSavePin(e.target.checked)} />
@@ -630,7 +535,7 @@ function History({ data }: { data: Data }) {
             <summary style={{ cursor: "pointer" }}>
               <span style={{ fontWeight: 500 }}>{m.betreff}</span>{" "}
               <span className={`pill ${m.ok ? (m.kind === "send" ? "pill-ok" : "pill-info") : "pill-danger"}`}>
-                {m.ok ? KIND_LABEL[m.kind] : `Fehler ${m.code}`}
+                {m.ok ? STATUS_LABEL[m.kind] : `Fehler ${m.code}`}
               </span>
               <span className="small muted">
                 {" "}

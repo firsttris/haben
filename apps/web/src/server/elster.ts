@@ -1,3 +1,4 @@
+import { UserError } from "./errors.ts";
 import { resolve } from "node:path";
 import {
   createElsterClient,
@@ -33,7 +34,7 @@ export function elsterMode(): "eric" | "simuliert" {
   return ericHome() ? "eric" : "simuliert";
 }
 
-export class EricSetupError extends Error {}
+export class EricSetupError extends UserError {}
 
 type InstallState =
   | { status: "laeuft"; version: string; progress: InstallProgress | null; startedAt: string }

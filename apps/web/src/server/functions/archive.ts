@@ -15,22 +15,16 @@ import {
   connectionStatus,
   latestImport,
   legacyVoucherDetail,
-  LexofficeError,
   listLegacyVouchers,
   reconciliation,
   removeApiKey,
   saveApiKey,
   startImport,
 } from "../lexoffice.ts";
-import { openLegacyItems, takeOverAll, takeOverLegacyItem, TakeoverError } from "../legacy-open.ts";
+import { openLegacyItems, takeOverAll, takeOverLegacyItem } from "../legacy-open.ts";
 import { authMiddleware } from "../middleware.ts";
-
-function asUserError(error: unknown): never {
-  if (error instanceof LexofficeError || error instanceof ArchiveError || error instanceof TakeoverError) throw new Error(error.message);
-  throw error;
-}
-
-const yearSchema = z.number().int().min(2000).max(2100);
+import { UserError } from "../errors.ts";
+import { yearSchema } from "./schemas.ts";
 
 /** Umzug: Verbindung, letzter Abruf, Abgleich je Jahr und archivierte Dateien */
 export const getMigration = createServerFn({ method: "GET" })
@@ -58,7 +52,7 @@ export const getImportStatus = createServerFn({ method: "GET" })
 export const saveLexofficeKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ apiKey: z.string().trim().min(1, "Schlüssel fehlt").max(200) }))
-  .handler(async ({ data, context }) => saveApiKey(context.user.id, data.apiKey).catch(asUserError));
+  .handler(async ({ data, context }) => saveApiKey(context.user.id, data.apiKey));
 
 export const removeLexofficeKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -69,7 +63,7 @@ export const removeLexofficeKey = createServerFn({ method: "POST" })
 
 export const startLexofficeImport = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => ({ id: await startImport(context.user.id).catch(asUserError) }));
+  .handler(async ({ context }) => ({ id: await startImport(context.user.id) }));
 
 export const cancelLexofficeImport = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -81,11 +75,11 @@ const kindSchema = z.enum(Object.keys(ARCHIVE_KINDS) as [ArchiveKind, ...Archive
 export const uploadArchiveFiles = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: unknown) => {
-    if (!(data instanceof FormData)) throw new Error("FormData erwartet");
+    if (!(data instanceof FormData)) throw new UserError("FormData erwartet");
     const files = data.getAll("files").filter((f): f is File => f instanceof File);
-    if (files.length === 0) throw new Error("Keine Datei ausgewählt.");
-    if (files.length > 50) throw new Error("Höchstens 50 Dateien auf einmal.");
-    if (files.some((f) => f.size > MAX_ARCHIVE_SIZE)) throw new Error("Eine Datei ist größer als 100 MB.");
+    if (files.length === 0) throw new UserError("Keine Datei ausgewählt.");
+    if (files.length > 50) throw new UserError("Höchstens 50 Dateien auf einmal.");
+    if (files.some((f) => f.size > MAX_ARCHIVE_SIZE)) throw new UserError("Eine Datei ist größer als 100 MB.");
     const year = String(data.get("year") ?? "");
     return {
       files,
@@ -126,7 +120,7 @@ export const getLegacyVoucher = createServerFn({ method: "GET" })
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => {
     const detail = await legacyVoucherDetail(data.id);
-    if (!detail) throw new Error("Beleg nicht gefunden.");
+    if (!detail) throw new UserError("Beleg nicht gefunden.");
     return detail;
   });
 
@@ -148,7 +142,7 @@ export const getDatevBookings = createServerFn({ method: "GET" })
 export const takeOverOpenItem = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid() }))
-  .handler(async ({ data, context }) => takeOverLegacyItem(context.user.id, data.id).catch(asUserError));
+  .handler(async ({ data, context }) => takeOverLegacyItem(context.user.id, data.id));
 
 export const takeOverAllOpenItems = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

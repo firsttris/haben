@@ -38,14 +38,14 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
       kundennummer: "", name: "Nordwerk GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
       email: "", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
     });
-    const draft = await invoices.createDraft(actor, {
-      contactId: contact.id, issueDate: "2026-09-01", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
+    const input = {
+      contactId: contact.id, issueDate: "2026-09-01", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd" as const, note: "",
       lines: [
-        { description: "Beratung", quantity: 10_000, unit: "Std.", unitPrice: 10_000, taxRate: 1900 },
-        { description: "Fachbuch", quantity: 1000, unit: "Stk.", unitPrice: 5_000, taxRate: 700 },
+        { description: "Beratung", quantity: 10_000, unit: "Std." as const, unitPrice: 10_000, taxRate: 1900 as const },
+        { description: "Fachbuch", quantity: 1000, unit: "Stk." as const, unitPrice: 5_000, taxRate: 700 as const },
       ],
-    });
-    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    };
+    const invoice = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
 
     const { bytes, filename, bookings } = await datev.datevExport(2026, new Date(2026, 9, 4, 8, 0, 0));
     expect(filename).toBe("EXTF_Buchungsstapel_2026.csv");
@@ -66,5 +66,12 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
     const liste = await ledger.saldenliste(ledger.ledgerRange(2026));
     expect(liste.length).toBeGreaterThan(0);
     for (const zeile of liste) expect(saldo.get(zeile.account) ?? 0, zeile.account).toBe(zeile.saldo);
+
+    // Nach einem Wechsel des Kontenrahmens bleibt das Jahr im Rahmen seiner Buchungen exportierbar
+    await sql`update company set kontenrahmen = 'SKR04'`;
+    expect(parseDatevBuchungsstapel((await datev.datevExport(2026)).bytes).header.kontenrahmen).toBe("SKR03");
+    // Gemischte Rahmen in einem Jahr: klare Meldung statt eines falschen Stapels
+    await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    await expect(datev.datevExport(2026)).rejects.toThrow(/Buchungen in SKR03 und SKR04/);
   });
 });

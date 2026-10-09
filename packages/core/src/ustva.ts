@@ -1,6 +1,4 @@
-import { z } from "zod/mini";
 import { taxOf, type Cents } from "./money.ts";
-import { vatPeriodSchema } from "./period.ts";
 
 /**
  * Kennzahlen der Umsatzsteuer-Voranmeldung, die Haben derzeit unterstützt.
@@ -11,22 +9,19 @@ import { vatPeriodSchema } from "./period.ts";
  * die Vorsteuer aus § 13b, beide in Cent. Kz 83 wird gerechnet. Alle Werte dürfen negativ
  * sein, etwa wenn Gutschriften im Monat überwiegen.
  */
-export const ustvaInputSchema = z.object({
-  period: vatPeriodSchema,
-  kz81: z.int(),
-  kz86: z.int(),
-  kz21: z._default(z.int(), 0),
-  kz45: z._default(z.int(), 0),
-  kz48: z._default(z.int(), 0),
-  kz66: z.int(),
-  kz46: z._default(z.int(), 0),
-  kz47: z._default(z.int(), 0),
-  kz84: z._default(z.int(), 0),
-  kz85: z._default(z.int(), 0),
-  kz67: z._default(z.int(), 0),
-});
-
-export type UstvaInput = z.infer<typeof ustvaInputSchema>;
+export interface UstvaValues {
+  kz81: Cents;
+  kz86: Cents;
+  kz66: Cents;
+  kz21?: Cents;
+  kz45?: Cents;
+  kz48?: Cents;
+  kz46?: Cents;
+  kz47?: Cents;
+  kz84?: Cents;
+  kz85?: Cents;
+  kz67?: Cents;
+}
 
 export interface UstvaFigures {
   /** Bemessungsgrundlage 19 % in Cent, auf volle Euro abgerundet */
@@ -54,9 +49,6 @@ export interface UstvaFigures {
 export function toWholeEuros(cents: Cents): Cents {
   return Math.trunc(cents / 100) * 100;
 }
-
-export type UstvaValues = Pick<UstvaInput, "kz81" | "kz86" | "kz66"> &
-  Partial<Pick<UstvaInput, "kz21" | "kz45" | "kz48" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67">>;
 
 export function computeUstva(input: UstvaValues): UstvaFigures {
   const kz81 = toWholeEuros(input.kz81);

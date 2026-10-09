@@ -6,7 +6,7 @@ import { withActor } from "./db/actor.ts";
 import { schema } from "./db/index.ts";
 import type { TaxpayerData } from "./db/schema.ts";
 
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Datum im Format JJJJ-MM-TT");
+const isoDate = z.iso.date("Gültiges Datum im Format JJJJ-MM-TT");
 
 export const personSchema = z.object({
   idnr: z

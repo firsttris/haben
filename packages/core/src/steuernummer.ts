@@ -48,10 +48,15 @@ export class SteuernummerError extends Error {}
 
 export function toElsterSteuernummer(steuernummer: string, land: Bundesland): string {
   const digits = steuernummer.replace(/\D/g, "");
-  // Bereits im ELSTER-Format
-  if (digits.length === 13) return digits;
-
   const rule = RULES[land];
+  // Bereits im ELSTER-Format: Länderpräfix (Hessen 26), Finanzamt, an fünfter Stelle eine 0
+  if (digits.length === 13) {
+    if (!digits.startsWith(land === "HE" ? "26" : rule.prefix) || digits[4] !== "0") {
+      throw new SteuernummerError(`Die 13-stellige Steuernummer passt nicht zum ELSTER-Format für ${BUNDESLAENDER[land]}.`);
+    }
+    return digits;
+  }
+
   if (digits.length !== rule.length) {
     throw new SteuernummerError(
       `Steuernummer für ${BUNDESLAENDER[land]} muss ${rule.length} Ziffern haben, hat ${digits.length}.`,

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { UNITS } from "@haben/core";
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
-import { extractEmbeddedXml } from "./embedded.ts";
+import { extractEmbeddedXml, MAX_EMBEDDED_BYTES } from "./embedded.ts";
 import { EInvoiceParseError, parseDecimal, parseEInvoiceXml, readEInvoice } from "./incoming.ts";
 import { mixedRateLines, sampleDocument } from "./samples.ts";
 import type { InvoiceFormat, InvoiceKind } from "./types.ts";
@@ -272,6 +272,13 @@ describe("eingebettete XML in PDFs", () => {
     expect(await extractEmbeddedXml(Buffer.from("kein pdf"))).toBeNull();
     expect(await readEInvoice({ bytes: plain, mimeType: "application/pdf", filename: "beleg.pdf" })).toBeNull();
     expect(await readEInvoice({ bytes: new Uint8Array([0xff, 0xd8, 0xff]), mimeType: "image/jpeg", filename: "beleg.jpg" })).toBeNull();
+  });
+
+  it("entpackt Anlagen höchstens bis zum Limit", async () => {
+    const bomb = `<a>${" ".repeat(MAX_EMBEDDED_BYTES)}</a>`;
+    const pdf = await pdfWith([{ name: "factur-x.xml", content: bomb }]);
+    expect(pdf.length).toBeLessThan(1024 * 1024);
+    expect(await extractEmbeddedXml(pdf)).toBeNull();
   });
 
   it("wirft bei XML-Dateien, die keine E-Rechnung sind", async () => {

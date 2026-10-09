@@ -1,5 +1,5 @@
 import { finanzamtsnummer } from "@haben/core";
-import { escapeXml, PRODUKT_NAME, TESTMERKER } from "./xml.ts";
+import { checkSteuernummer13, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
 
 /**
  * Sonstige Nachricht an das Finanzamt (Verfahren ElsterNachricht, Datenart SonstigeNachrichten,
@@ -28,7 +28,7 @@ export function splitStrasse(strasse: string): { strasse: string; hausnummer: st
 }
 
 export function buildNachrichtXml(input: NachrichtXmlInput): string {
-  if (!/^\d{13}$/.test(input.steuernummer13)) throw new Error(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${input.steuernummer13}`);
+  checkSteuernummer13(input.steuernummer13);
   const betreff = input.betreff.trim();
   const text = input.text.trim();
   if (!betreff || betreff.length > NACHRICHT_BETREFF_MAX) throw new Error(`Der Betreff braucht 1 bis ${NACHRICHT_BETREFF_MAX} Zeichen.`);
@@ -37,56 +37,42 @@ export function buildNachrichtXml(input: NachrichtXmlInput): string {
   if (!adresse) throw new Error("In der Anschrift fehlt die Hausnummer.");
   const a = input.absender;
   const e = escapeXml;
-  return [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<Elster xmlns="http://www.elster.de/elsterxml/schema/v11">`,
-    `<TransferHeader version="11">`,
-    `<Verfahren>ElsterNachricht</Verfahren>`,
-    `<DatenArt>SonstigeNachrichten</DatenArt>`,
-    `<Vorgang>send-Auth</Vorgang>`,
-    ...(input.test ? [`<Testmerker>${TESTMERKER}</Testmerker>`] : []),
-    `<Empfaenger id="L"><Ziel>${e(input.bundesland)}</Ziel></Empfaenger>`,
-    `<HerstellerID>${e(input.herstellerId)}</HerstellerID>`,
-    `<DatenLieferant>${e(a.name)}</DatenLieferant>`,
-    `<Datei>`,
-    `<Verschluesselung>CMSEncryptedData</Verschluesselung>`,
-    `<Kompression>GZIP</Kompression>`,
-    `<TransportSchluessel></TransportSchluessel>`,
-    `</Datei>`,
-    `</TransferHeader>`,
-    `<DatenTeil>`,
-    `<Nutzdatenblock>`,
-    `<NutzdatenHeader version="11">`,
-    `<NutzdatenTicket>1</NutzdatenTicket>`,
-    `<Empfaenger id="F">${e(finanzamtsnummer(input.steuernummer13))}</Empfaenger>`,
-    `<Hersteller>`,
-    `<ProduktName>${PRODUKT_NAME}</ProduktName>`,
-    `<ProduktVersion>${e(input.produktVersion)}</ProduktVersion>`,
-    `</Hersteller>`,
-    `</NutzdatenHeader>`,
-    `<Nutzdaten>`,
-    `<Nachricht xmlns="http://finkonsens.de/elster/elsternachricht/sonstigenachrichten/v21" version="21">`,
-    `<Steuernummer>${input.steuernummer13}</Steuernummer>`,
-    `<Steuerpflichtiger>`,
-    `<SteuerpflichtigerTyp>NichtNatPerson</SteuerpflichtigerTyp>`,
-    `<Name>${e(a.name)}</Name>`,
-    `<Adresse>`,
-    `<StrAdrInl>`,
-    `<Strasse>${e(adresse.strasse)}</Strasse>`,
-    `<Hausnummer>${e(adresse.hausnummer)}</Hausnummer>`,
-    `<Postleitzahl>${e(a.plz)}</Postleitzahl>`,
-    `<Ort>${e(a.ort)}</Ort>`,
-    `</StrAdrInl>`,
-    `</Adresse>`,
-    `</Steuerpflichtiger>`,
-    `<Inhalt>`,
-    `<Betreff>${e(betreff)}</Betreff>`,
-    `<Text>${e(text)}</Text>`,
-    `</Inhalt>`,
-    `</Nachricht>`,
-    `</Nutzdaten>`,
-    `</Nutzdatenblock>`,
-    `</DatenTeil>`,
-    `</Elster>`,
-  ].join("\n");
+  return elsterXml(
+    {
+      verfahren: "ElsterNachricht",
+      datenArt: "SonstigeNachrichten",
+      testmerker: input.test ? TESTMERKER : undefined,
+      ziel: input.bundesland,
+      herstellerId: input.herstellerId,
+      datenlieferant: a.name,
+    },
+    [
+      {
+        ticket: "1",
+        empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) },
+        produktVersion: input.produktVersion,
+        nutzdaten: [
+          `<Nachricht xmlns="http://finkonsens.de/elster/elsternachricht/sonstigenachrichten/v21" version="21">`,
+          `<Steuernummer>${input.steuernummer13}</Steuernummer>`,
+          `<Steuerpflichtiger>`,
+          `<SteuerpflichtigerTyp>NichtNatPerson</SteuerpflichtigerTyp>`,
+          `<Name>${e(a.name)}</Name>`,
+          `<Adresse>`,
+          `<StrAdrInl>`,
+          `<Strasse>${e(adresse.strasse)}</Strasse>`,
+          `<Hausnummer>${e(adresse.hausnummer)}</Hausnummer>`,
+          `<Postleitzahl>${e(a.plz)}</Postleitzahl>`,
+          `<Ort>${e(a.ort)}</Ort>`,
+          `</StrAdrInl>`,
+          `</Adresse>`,
+          `</Steuerpflichtiger>`,
+          `<Inhalt>`,
+          `<Betreff>${e(betreff)}</Betreff>`,
+          `<Text>${e(text)}</Text>`,
+          `</Inhalt>`,
+          `</Nachricht>`,
+        ],
+      },
+    ],
+  );
 }

@@ -37,4 +37,7 @@ COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
 RUN mkdir -p /var/lib/haben/eric-log /var/lib/haben/eric /var/lib/haben/belege && chown -R node:node /var/lib/haben
 USER node
 EXPOSE 3000
+# Ohne curl im Image: Node hat fetch eingebaut. Die Startphase deckt die Migrationen ab.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
+  CMD ["node", "-e", "fetch('http://127.0.0.1:3000/login').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 ENTRYPOINT ["haben-entrypoint"]

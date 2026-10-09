@@ -1,5 +1,6 @@
+import { UserError } from "./errors.ts";
 import { tageBis } from "@haben/core";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import nodemailer, { type Transporter } from "nodemailer";
 import { z } from "zod";
 import { decrypt, encrypt } from "./crypto.ts";
@@ -13,7 +14,7 @@ import { listFristen, type Frist } from "./fristen.ts";
  * Das Passwort liegt verschlüsselt wie das ELSTER-Zertifikat in der Datenbank.
  */
 
-export class MailError extends Error {}
+export class MailError extends UserError {}
 
 export const MAIL_ACTOR = "system:mail";
 
@@ -178,7 +179,7 @@ function wann(tage: number): string {
 }
 
 /** Inhalt einer Erinnerung; neu: was heute erinnert wird, offen: alles Überfällige als Hinweis dazu */
-export function fristenMail(neu: { frist: Frist; tage: number }[], today: string) {
+function fristenMail(neu: { frist: Frist; tage: number }[], today: string) {
   const subject =
     neu.length === 1 ? `Frist ${wann(neu[0]!.tage)}: ${neu[0]!.frist.titel}` : `${neu.length} Steuerfristen stehen an`;
   const zeilen = neu.map(({ frist, tage }) => ({ frist, text: `${datum(frist.datum)} (${wann(tage)}): ${frist.titel}` }));
@@ -204,7 +205,10 @@ export function fristenMail(neu: { frist: Frist; tage: number }[], today: string
 
 /** Schlüssel, zu denen schon erfolgreich erinnert wurde */
 async function sentReminderKeys(): Promise<Set<string>> {
-  const rows = await db.select({ keys: schema.mailLog.reminderKeys }).from(schema.mailLog).where(eq(schema.mailLog.ok, true));
+  const rows = await db
+    .select({ keys: schema.mailLog.reminderKeys })
+    .from(schema.mailLog)
+    .where(and(eq(schema.mailLog.kind, "fristen"), eq(schema.mailLog.ok, true)));
   return new Set(rows.flatMap((r) => r.keys));
 }
 

@@ -387,8 +387,9 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Softwarearchitektur");
   await expect(page.getByLabel(/Hinweis auf der Rechnung/)).toHaveValue(/^Gemäß unserem Angebot AN-\d{4}-001 vom/);
-  // Den Entwurf wieder verwerfen; das Angebot lässt sich danach erneut abrechnen
+  // Den Entwurf wieder verwerfen (zweiter Klick bestätigt); das Angebot lässt sich danach erneut abrechnen
   await page.getByRole("button", { name: "Entwurf löschen" }).click();
+  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
   await page.waitForURL(/\/rechnungen$/);
   await go("/angebote");
   await expect(page.getByRole("link", { name: /AN-\d{4}-001/ })).toContainText("Angenommen");

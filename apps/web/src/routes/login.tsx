@@ -52,10 +52,13 @@ function LoginPage() {
     const form = new FormData(event.currentTarget);
     setBusy(true);
     setError(null);
-    await onResult(
-      await authClient.signIn.email({ email: String(form.get("email")), password: String(form.get("password")) }),
-    );
-    setBusy(false);
+    try {
+      await onResult(await authClient.signIn.email({ email: String(form.get("email")), password: String(form.get("password")) }));
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (

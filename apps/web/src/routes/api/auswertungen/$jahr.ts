@@ -1,7 +1,8 @@
 import { euerToCsv } from "@haben/core";
 import { createFileRoute } from "@tanstack/react-router";
-import { z } from "zod";
 import { auth } from "../../../server/auth.ts";
+import { csvResponse } from "../../../server/file-response.ts";
+import { yearSchema } from "../../../server/functions/schemas.ts";
 import { euerForYear } from "../../../server/reports.ts";
 
 /** EÜR eines Jahres als CSV */
@@ -11,16 +12,9 @@ export const Route = createFileRoute("/api/auswertungen/$jahr")({
       GET: async ({ request, params }) => {
         const session = await auth().api.getSession({ headers: request.headers });
         if (!session) return new Response("Nicht angemeldet", { status: 401 });
-        const year = z.coerce.number().int().min(2000).max(2100).safeParse(params.jahr);
+        const year = yearSchema.safeParse(Number(params.jahr));
         if (!year.success) return new Response("Nicht gefunden", { status: 404 });
-        const csv = euerToCsv(await euerForYear(year.data));
-        return new Response(csv, {
-          headers: {
-            "Content-Type": "text/csv; charset=utf-8",
-            "Content-Disposition": `attachment; filename="euer-${year.data}.csv"`,
-            "Cache-Control": "private, no-store",
-          },
-        });
+        return csvResponse(euerToCsv(await euerForYear(year.data)), `euer-${year.data}.csv`);
       },
     },
   },

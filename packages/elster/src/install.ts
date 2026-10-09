@@ -7,9 +7,9 @@ import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSyn
 import { once } from "node:events";
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, normalize } from "node:path";
+import { basename, dirname, join, normalize } from "node:path";
 import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
+import { finished, pipeline } from "node:stream/promises";
 import { Unzip, UnzipInflate, type UnzipFile } from "fflate";
 import { ericLibraryPath, ericPluginPath } from "./eric.ts";
 
@@ -47,7 +47,7 @@ export function isEricInstalled(dir: string): boolean {
 export function ericHomeIn(dir: string): string | null {
   try {
     const name = readFileSync(join(dir, CURRENT_FILE), "utf8").trim();
-    if (/^ERiC-[\d.]+$/.test(name) && isEricInstalled(join(dir, name))) return join(dir, name);
+    if (/^ERiC-[\d.]+(-2)?$/.test(name) && isEricInstalled(join(dir, name))) return join(dir, name);
   } catch {
     // keine Zeigerdatei
   }
@@ -90,7 +90,7 @@ export async function installEric(options: InstallOptions): Promise<{ version: s
     throw new EricInstallError(`ERiC gibt es für Server nur für Linux x86_64, nicht für ${process.platform}/${process.arch}.`);
   }
   const url = ericDownloadUrl(options.version, options.baseUrl);
-  const work = await mkdtemp(join(tmpdir(), "haben-eric-"));
+  const work = await mkdtemp(join(tmpdir(), "haben-ericdl-"));
   try {
     const jar = join(work, "eric.jar");
     await download(url, jar, options);
@@ -102,30 +102,27 @@ export async function installEric(options: InstallOptions): Promise<{ version: s
     const name = `ERiC-${options.version}`;
     const fresh = join(root, `${name}.neu`);
     await rm(fresh, { recursive: true, force: true });
-    const files = await extractPlatform(jar, fresh, options.onProgress);
-    if (!isEricInstalled(fresh)) {
+    let files: number;
+    try {
+      files = await extractPlatform(jar, fresh, options.onProgress);
+      if (!isEricInstalled(fresh)) throw new EricInstallError(`Im Paket fehlt lib/libericapi.so oder lib/plugins2 für ${ERIC_PLATFORM}.`);
+      await writeFile(join(fresh, VERSION_FILE), `${options.version}\n`);
+    } catch (error) {
       await rm(fresh, { recursive: true, force: true });
-      throw new EricInstallError(`Im Paket fehlt lib/libericapi.so oder lib/plugins2 für ${ERIC_PLATFORM}.`);
+      throw error;
     }
-    await writeFile(join(fresh, VERSION_FILE), `${options.version}\n`);
 
-    const target = join(root, name);
+    // Dieselbe Version noch einmal: neben die laufende legen, damit AKTUELL nie ins Leere zeigt
     const active = ericHomeIn(root);
-    // Dieselbe Version noch einmal: die laufende bleibt bis zum Umschalten unter anderem Namen erhalten
-    const previous = active === target ? join(root, `${name}.alt`) : active;
-    if (active === target) {
-      await rm(previous!, { recursive: true, force: true });
-      await rename(target, previous!);
-    } else {
-      await rm(target, { recursive: true, force: true });
-    }
+    const target = [name, `${name}-2`].map((n) => join(root, n)).find((path) => path !== active)!;
+    await rm(target, { recursive: true, force: true });
     await rename(fresh, target);
     const pointer = join(root, `${CURRENT_FILE}.neu`);
-    await writeFile(pointer, `${name}\n`);
+    await writeFile(pointer, `${basename(target)}\n`);
     await rename(pointer, join(root, CURRENT_FILE));
     // Alte Versionen aufräumen; laufende Prüfungen haben ihre Bibliothek schon geladen
     for (const entry of await readdir(root)) {
-      if (entry.startsWith("ERiC-") && entry !== name) await rm(join(root, entry), { recursive: true, force: true });
+      if (entry.startsWith("ERiC-") && entry !== basename(target)) await rm(join(root, entry), { recursive: true, force: true });
     }
     options.onProgress?.({ phase: "fertig", bytes: 0, total: null });
     return { version: options.version, files };
@@ -184,12 +181,10 @@ async function extractPlatform(jar: string, target: string, onProgress?: (p: Ins
     const out = createWriteStream(path);
     open.add(out);
     out.on("close", () => open.delete(out));
-    writes.push(
-      new Promise<void>((resolve, reject) => {
-        out.on("error", reject);
-        out.on("finish", resolve);
-      }),
-    );
+    const written = finished(out);
+    // Als behandelt markieren: ausgewertet wird über Promise.all/allSettled, ggf. erst später
+    written.catch(() => {});
+    writes.push(written);
     file.ondata = (error, chunk, final) => {
       if (error) {
         failure = error;
@@ -203,18 +198,25 @@ async function extractPlatform(jar: string, target: string, onProgress?: (p: Ins
   });
   unzip.register(UnzipInflate);
 
-  let bytes = 0;
-  for await (const chunk of createReadStream(jar, { highWaterMark: 1 << 20 })) {
-    unzip.push(chunk as Uint8Array);
-    bytes += (chunk as Buffer).length;
-    onProgress?.({ phase: "entpacken", bytes, total: null });
+  try {
+    let bytes = 0;
+    for await (const chunk of createReadStream(jar, { highWaterMark: 1 << 20 })) {
+      unzip.push(chunk as Uint8Array);
+      bytes += (chunk as Buffer).length;
+      onProgress?.({ phase: "entpacken", bytes, total: null });
+      if (failure) throw failure;
+      // Nicht schneller lesen als geschrieben wird
+      for (const out of open) if (out.writableNeedDrain) await once(out, "drain");
+    }
+    unzip.push(new Uint8Array(0), true);
     if (failure) throw failure;
-    // Nicht schneller lesen als geschrieben wird
-    for (const out of open) if (out.writableNeedDrain) await once(out, "drain");
+    await Promise.all(writes);
+  } catch (error) {
+    // Offene Streams schließen, bevor der Aufrufer das Verzeichnis löscht
+    for (const out of open) out.destroy();
+    await Promise.allSettled(writes);
+    throw error;
   }
-  unzip.push(new Uint8Array(0), true);
-  await Promise.all(writes);
-  if (failure) throw failure;
   if (files === 0) throw new EricInstallError(`Das Paket enthält keine Dateien für ${ERIC_PLATFORM}.`);
   return files;
 }

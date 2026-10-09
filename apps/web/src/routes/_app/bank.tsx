@@ -1,10 +1,13 @@
-import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
+import { formatDecimal, formatEuro, parseEuro, type DirectBooking } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { z } from "zod/mini";
 import { Icon } from "../../components/Icon.tsx";
+import { shortDate } from "../../components/Ledger.tsx";
+import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
+import { useAction } from "../../lib/use-action.ts";
 import {
   addBankAccount,
   allocateTransaction,
@@ -108,7 +111,7 @@ function BankPage() {
         </section>
       ) : (
         <>
-          <div className="account-tabs" role="tablist" aria-label="Konten">
+          <nav className="account-tabs" aria-label="Konten">
             {data.accounts.map((account) => {
               const age = account.lastImport ? -daysUntil(account.lastImport.createdAt) : null;
               return (
@@ -116,8 +119,7 @@ function BankPage() {
                   key={account.id}
                   to="/bank"
                   search={{ konto: account.id, filter }}
-                  role="tab"
-                  aria-selected={account.id === data.accountId}
+                  aria-current={account.id === data.accountId ? "page" : undefined}
                   className="account-tab"
                 >
                   <span style={{ fontSize: 14, fontWeight: 600 }}>{account.name}</span>
@@ -130,7 +132,7 @@ function BankPage() {
                 </Link>
               );
             })}
-          </div>
+          </nav>
 
           <div className="grid-main">
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">
@@ -148,7 +150,8 @@ function BankPage() {
                     </Link>
                   ))}
                 </div>
-                <SearchBox initial={search.suche ?? ""} />
+                {/* key: beim Kontowechsel leer neu aufsetzen, sonst trägt die Suche ins neue Konto */}
+                <SearchBox key={data.accountId ?? ""} initial={search.suche ?? ""} />
               </div>
               <div className="table-row head tx-cols" style={{ padding: "0 20px" }}>
                 <div>Datum</div>
@@ -171,7 +174,7 @@ function BankPage() {
                   className={`table-row tx-cols tx-row${tx.id === selectedId ? " selected" : ""}`}
                   aria-current={tx.id === selectedId ? "true" : undefined}
                 >
-                  <div className="muted small">{formatDate(tx.bookingDate).slice(0, 6)}</div>
+                  <div className="muted small">{shortDate(tx.bookingDate)}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                     <span className="ellipsis" style={{ fontWeight: 500 }}>{tx.counterpartyName || "–"}</span>
                     <span className="small muted ellipsis">{tx.purpose}</span>
@@ -603,32 +606,25 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
   const best = suggestions[0];
   const [mode, setMode] = useState<"best" | "other" | "direct">(best ? "best" : candidates.length ? "other" : "direct");
   const [candidate, setCandidate] = useState(best ? `${best.item.type}:${best.item.id}` : "");
-  const [directKind, setDirectKind] = useState(tx.amount < 0 ? "privat" : "privat");
+  const [directKind, setDirectKind] = useState<DirectBooking>("privat");
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const action = useAction();
+  const { busy, notice } = action;
   const primaryButton = useRef<HTMLButtonElement>(null);
 
   const parsedAmount = parseEuro(amount);
   const signedAmount = parsedAmount === null ? null : Math.sign(tx.amount) * Math.abs(parsedAmount);
 
-  async function run(work: () => Promise<unknown>) {
-    setBusy(true);
-    setError(null);
-    try {
+  const run = (work: () => Promise<unknown>) =>
+    action.run(async () => {
       await work();
       await router.invalidate();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+    });
 
   function submitAllocation() {
     if (signedAmount === null || signedAmount === 0) return;
     if (mode === "direct") {
-      return run(() => allocateFn({ data: { kind: directKind as "privat", transactionId: tx.id, amount: signedAmount } }));
+      return run(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }));
     }
     const choice = mode === "best" && best ? `${best.item.type}:${best.item.id}` : candidate;
     const [type, id] = choice.split(":");
@@ -654,7 +650,7 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, [tx.open]);
 
   const selectedCandidate = candidates.find((c) => `${c.type}:${c.id}` === candidate);
 
@@ -696,6 +692,8 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
           ))}
         </div>
       )}
+
+      <NoticeBanner notice={notice} />
 
       {tx.open !== 0 && (
         <>
@@ -756,7 +754,7 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
           {mode === "direct" && (
             <label className="field">
               Buchen als
-              <select value={directKind} onChange={(e) => setDirectKind(e.target.value)}>
+              <select value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectBooking)}>
                 {directKinds.map((k) => (
                   <option key={k.value} value={k.value}>
                     {k.label}
@@ -782,12 +780,6 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
               style={{ textAlign: "right" }}
             />
           </label>
-
-          {error && (
-            <div className="banner banner-danger" role="alert">
-              {error}
-            </div>
-          )}
 
           <div className="actions">
             <button
