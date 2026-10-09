@@ -1,18 +1,19 @@
 import { XMLParser } from "fast-xml-parser";
 import { isValidIdnr } from "./bankverbindung.ts";
-import { elsterXml, escapeXml } from "./xml.ts";
+import { ElsterEingabeError, elsterXml, escapeXml } from "./xml.ts";
 import { findDeep, int, text } from "./xml-lesen.ts";
 
 /**
  * Belegabruf für die vorausgefüllte Steuererklärung (VaSt): Verfahren ElsterDatenabholung, Datenart
- * ElsterVaStDaten, Datenabholung Version 10. Ablauf wie bei erica (digitalservicebund, MIT):
+ * ElsterVaStDaten, Datenabholung Version 31 (wie das Postfach). Ablauf wie bei erica (digitalservicebund, MIT):
  * 1. Anfrage listet die Belege eines Jahres zur IdNr (Lohnsteuerbescheinigung, Rentenbezüge, Beiträge …),
  * 2. Abholung holt sie, ein Nutzdatenblock je Beleg-ID, Inhalt verschlüsselt im Datenpaket,
  * 3. EricDekodiereDaten entschlüsselt jedes Datenpaket mit dem Zertifikat zu Beleg-XML.
  * Eine Bestätigung wie beim Postfach gibt es nicht; die Belege lassen sich beliebig oft abholen.
  */
 
-export const VAST_DATENART_VERSION = "ElsterVaStDaten";
+/** Datenartversion wie im ERiC-Plugin ElsterDatenabholung (ERiC 43: _31 und _32) */
+export const VAST_DATENART_VERSION = "ElsterVaStDaten_31";
 /** Testmerker für Belegabruf und Berechtigungsmanagement wie bei erica (ElsterDatenabholung, ElsterBRM) */
 export const VAST_TESTMERKER = "370000001";
 
@@ -56,8 +57,8 @@ export interface VastDatenpaket {
 function checkInput(input: VastXmlInput) {
   // Test-IdNrs von ELSTER beginnen mit 0 und tragen keine gültige Prüfziffer
   const ok = input.test ? /^\d{11}$/.test(input.idnr) : isValidIdnr(input.idnr);
-  if (!ok) throw new Error(`Ungültige Steuer-IdNr: ${input.idnr}`);
-  if (!Number.isInteger(input.veranlagungsjahr) || input.veranlagungsjahr < 2000) throw new RangeError(`Ungültiges Jahr: ${input.veranlagungsjahr}`);
+  if (!ok) throw new ElsterEingabeError(`Ungültige Steuer-IdNr: ${input.idnr}`);
+  if (!Number.isInteger(input.veranlagungsjahr) || input.veranlagungsjahr < 2000) throw new ElsterEingabeError(`Ungültiges Jahr: ${input.veranlagungsjahr}`);
 }
 
 function vastXml(nutzdaten: { ticket: string; body: string }[], input: VastXmlInput): string {
@@ -69,7 +70,7 @@ function vastXml(nutzdaten: { ticket: string; body: string }[], input: VastXmlIn
       herstellerId: input.herstellerId,
       datenlieferant: input.datenlieferant,
     },
-    nutzdaten.map(({ ticket, body }) => ({ ticket, empfaenger: { id: "L", wert: "CS" }, nutzdaten: [`<Datenabholung version="10">`, body, `</Datenabholung>`] })),
+    nutzdaten.map(({ ticket, body }) => ({ ticket, empfaenger: { id: "L", wert: "CS" }, nutzdaten: [`<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="31">`, body, `</Datenabholung>`] })),
   );
 }
 
@@ -82,7 +83,7 @@ export function buildVastAnfrageXml(input: VastXmlInput): string {
 /** Schritt 2: Sammelabholung, ein Nutzdatenblock je Beleg mit der Beleg-ID als Ticket */
 export function buildVastAbholungXml(ids: readonly string[], input: VastXmlInput): string {
   checkInput(input);
-  if (ids.length === 0) throw new Error("Keine Belege zum Abholen.");
+  if (ids.length === 0) throw new ElsterEingabeError("Keine Belege zum Abholen.");
   return vastXml(
     ids.map((id) => ({
       ticket: id,

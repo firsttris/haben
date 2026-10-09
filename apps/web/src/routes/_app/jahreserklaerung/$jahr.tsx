@@ -330,7 +330,7 @@ function EstSection({ data }: { data: Data }) {
         vorname: k.vorname,
         name: k.name?.trim() || undefined,
         geburtsdatum: k.geburtsdatum,
-        familienkasse: k.familienkasse?.trim() || undefined,
+        familienkasse: k.familienkasse?.trim() ?? "",
         kinderbetreuung: kidAmount(k),
       })),
       kap: {
@@ -461,7 +461,7 @@ function EstSection({ data }: { data: Data }) {
               </label>
               <label className="field">
                 Familienkasse
-                <input value={k.familienkasse ?? ""} onChange={(e) => updateKind(k.key, { familienkasse: e.target.value })} />
+                <input required value={k.familienkasse ?? ""} onChange={(e) => updateKind(k.key, { familienkasse: e.target.value })} />
               </label>
               <label className="field">
                 Abweichender Nachname

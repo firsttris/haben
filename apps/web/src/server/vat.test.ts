@@ -1,4 +1,5 @@
-import { FakeElsterClient, type ElsterClient } from "@haben/elster";
+import { EricGeprueftClient } from "./test-eric.ts";
+import type { ElsterClient } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
@@ -50,7 +51,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
 
   it("Testübermittlung schreibt nicht fest", async () => {
     const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 0 });
-    const result = await vat.submitReturn(actor, draft.id, new FakeElsterClient(), { kind: "test", pin: "1234" });
+    const result = await vat.submitReturn(actor, draft.id, new EricGeprueftClient(), { kind: "test", pin: "1234" });
     expect(result.ok).toBe(true);
     const [row] = await sql`select status, locked_at from vat_returns where id = ${draft.id}`;
     expect(row).toMatchObject({ status: "draft", locked_at: null });
@@ -61,14 +62,14 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
 
   /** Wie ERiC: kein simulierter Client, damit die Echtübermittlung durchgeht */
   const liveClient = (): ElsterClient => {
-    const fake = new FakeElsterClient();
+    const fake = new EricGeprueftClient();
     return { validate: (xml) => fake.validate(xml), send: (...args) => fake.send(...args), fetchPostfach: (...args) => fake.fetchPostfach(...args), fetchBelege: (...args) => fake.fetchBelege(...args) };
   };
 
   it("simulierter Client darf nicht echt übermitteln", async () => {
     const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 0 });
     await expect(
-      vat.submitReturn(actor, draft.id, new FakeElsterClient(), { kind: "send", pin: "1234", herstellerId: "12345" }),
+      vat.submitReturn(actor, draft.id, new EricGeprueftClient(), { kind: "send", pin: "1234", herstellerId: "12345" }),
     ).rejects.toThrow(/Ohne ERiC/);
     const [row] = await sql`select status from vat_returns where id = ${draft.id}`;
     expect(row!.status).toBe("draft");
@@ -77,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
   it("Echtübermittlung schreibt fest; danach sind Änderungen gesperrt", async () => {
     const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 0 });
     await expect(
-      vat.submitReturn(actor, draft.id, new FakeElsterClient(), { kind: "send", pin: "1234" }),
+      vat.submitReturn(actor, draft.id, new EricGeprueftClient(), { kind: "send", pin: "1234" }),
     ).rejects.toThrow(/Hersteller-ID/);
 
     const result = await vat.submitReturn(actor, draft.id, liveClient(), {
@@ -99,7 +100,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
   it("gleichzeitige Echtübermittlungen senden nur einmal", async () => {
     const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 0 });
     let sends = 0;
-    const fake = new FakeElsterClient();
+    const fake = new EricGeprueftClient();
     const counting: ElsterClient = {
       ...liveClient(),
       send: async (...args) => {
@@ -141,11 +142,11 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
     const spy: ElsterClient = {
       validate: async (body) => {
         xml = body;
-        return new FakeElsterClient().validate(body);
+        return new EricGeprueftClient().validate(body);
       },
-      send: (...args) => new FakeElsterClient().send(...args),
-      fetchPostfach: (...args) => new FakeElsterClient().fetchPostfach(...args),
-      fetchBelege: (...args) => new FakeElsterClient().fetchBelege(...args),
+      send: (...args) => new EricGeprueftClient().send(...args),
+      fetchPostfach: (...args) => new EricGeprueftClient().fetchPostfach(...args),
+      fetchBelege: (...args) => new EricGeprueftClient().fetchBelege(...args),
     };
     await vat.submitReturn(actor, correction.id, spy, { kind: "validate" });
     expect(xml).toContain("<Kz10>1</Kz10>");
@@ -170,7 +171,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
   it("verlangt vollständige Firmendaten", async () => {
     await sql`update company set steuernummer = ''`;
     const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 0 });
-    await expect(vat.submitReturn(actor, draft.id, new FakeElsterClient(), { kind: "validate" })).rejects.toThrow(
+    await expect(vat.submitReturn(actor, draft.id, new EricGeprueftClient(), { kind: "validate" })).rejects.toThrow(
       /Steuernummer fehlt/,
     );
   });

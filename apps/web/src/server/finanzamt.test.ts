@@ -1,10 +1,10 @@
+import { EricGeprueftClient } from "./test-eric.ts";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () => {
   let finanzamt: typeof import("./finanzamt.ts");
-  let elster: typeof import("@haben/elster");
   let crypto: typeof import("./crypto.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -12,7 +12,6 @@ describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () 
   beforeAll(async () => {
     sql = await setupTestDb();
     finanzamt = await import("./finanzamt.ts");
-    elster = await import("@haben/elster");
     crypto = await import("./crypto.ts");
   }, 30_000);
 
@@ -29,7 +28,7 @@ describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () 
   const antrag = { topic: "vorauszahlung" as const, betreff: "Antrag auf Herabsetzung", text: "Bitte herabsetzen.", figures: { wanted: 100_000 } };
 
   it("prüft und sendet testweise, speichert Text, Werte und XML", async () => {
-    const client = new elster.FakeElsterClient();
+    const client = new EricGeprueftClient();
     expect((await finanzamt.sendMessage(actor, antrag, client, { kind: "validate" })).ok).toBe(true);
     await expect(finanzamt.sendMessage(actor, antrag, client, { kind: "test", pin: "1234" })).rejects.toThrow(/Zertifikat/);
     await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1]))})`;
@@ -51,7 +50,7 @@ describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () 
   });
 
   it("lehnt leere Nachrichten und Anschriften ohne Hausnummer ab", async () => {
-    const client = new elster.FakeElsterClient();
+    const client = new EricGeprueftClient();
     await expect(finanzamt.sendMessage(actor, { ...antrag, betreff: " " }, client, { kind: "validate" })).rejects.toThrow(/Betreff/);
     await sql`update company set strasse = 'Am Markt'`;
     await expect(finanzamt.sendMessage(actor, antrag, client, { kind: "validate" })).rejects.toThrow(/Hausnummer/);
@@ -84,14 +83,14 @@ describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () 
     const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1980-03-15" };
 
     it("braucht die persönlichen Angaben und eine gültige IBAN", async () => {
-      const client = new elster.FakeElsterClient();
+      const client = new EricGeprueftClient();
       await expect(finanzamt.sendBankChange(actor, { iban: "DE89370400440532013000" }, client, { kind: "validate" })).rejects.toThrow(/Persönliche Angaben/);
       await taxpayer.saveTaxpayer(actor, { a: person });
       await expect(finanzamt.sendBankChange(actor, { iban: "DE00370400440532013000" }, client, { kind: "validate" })).rejects.toThrow(/IBAN/);
     });
 
     it("sendet testweise und speichert den Vorgang im Verlauf", async () => {
-      const client = new elster.FakeElsterClient();
+      const client = new EricGeprueftClient();
       await taxpayer.saveTaxpayer(actor, { a: person });
       await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1]))})`;
       const result = await finanzamt.sendBankChange(actor, { iban: "de89 3704 0044 0532 0130 00" }, client, { kind: "test", pin: "1234" });

@@ -39,7 +39,11 @@ describe("buildUstvaXml", () => {
     expect(xml).toContain('<NutzdatenHeader version="11">');
     expect(tag(xml, "ProduktName")).toBe("Haben");
     expect(tag(xml, "ProduktVersion")).toBe("0.1.0");
-    expect(xml).toContain('art="UStVA" version="2026"');
+    expect(xml).toContain('version="2026"');
+    expect(xml).not.toContain('art="UStVA"');
+    // Schema 2026: Erstellungsdatum vor DatenLieferant, Kz09 mit der Hersteller-ID direkt nach der Steuernummer
+    expect(xml).toMatch(/<Erstellungsdatum>\d+<\/Erstellungsdatum>\s*<DatenLieferant>/);
+    expect(xml).toMatch(/<Steuernummer>\d+<\/Steuernummer>\s*<Kz09>74931<\/Kz09>/);
     expect(tag(xml, "Erstellungsdatum")).toBe("20260405");
     expect(tag(xml, "Jahr")).toBe("2026");
     expect(tag(xml, "Steuernummer")).toBe("9198011310010");
@@ -61,8 +65,8 @@ describe("buildUstvaXml", () => {
     const xml = buildUstvaXml(base);
     expect(tag(xml, "Kz81")).toBe("1000");
     expect(tag(xml, "Kz86")).toBe("500");
-    expect(tag(xml, "Kz66")).toBe("17,45");
-    expect(tag(xml, "Kz83")).toBe("173,55");
+    expect(tag(xml, "Kz66")).toBe("17.45");
+    expect(tag(xml, "Kz83")).toBe("173.55");
   });
 
   it("schreibt Umsätze ohne Steuer (Kz 21, 45, 48) und sortiert aufsteigend", () => {
@@ -80,12 +84,12 @@ describe("buildUstvaXml", () => {
       figures: { kz81: 0, kz86: 0, kz66: 0, kz46: 12_345, kz47: 2_345, kz84: 5_000, kz85: 950, kz67: 3_295, kz83: 0 },
     });
     expect(tag(xml, "Kz46")).toBe("123");
-    expect(tag(xml, "Kz47")).toBe("23,45");
+    expect(tag(xml, "Kz47")).toBe("23.45");
     expect(tag(xml, "Kz84")).toBe("50");
-    expect(tag(xml, "Kz85")).toBe("9,50");
-    expect(tag(xml, "Kz67")).toBe("32,95");
+    expect(tag(xml, "Kz85")).toBe("9.50");
+    expect(tag(xml, "Kz67")).toBe("32.95");
     const order = [...xml.matchAll(/<Kz(\d+)>/g)].map((m) => Number(m[1]));
-    expect(order).toEqual([46, 47, 67, 83, 84, 85]);
+    expect(order).toEqual([9, 46, 47, 67, 83, 84, 85]);
   });
 
   it("lässt Nullwerte weg, Kz83 aber nie", () => {
@@ -93,12 +97,12 @@ describe("buildUstvaXml", () => {
     expect(xml).not.toContain("<Kz81>");
     expect(xml).not.toContain("<Kz86>");
     expect(xml).not.toContain("<Kz66>");
-    expect(tag(xml, "Kz83")).toBe("0,00");
+    expect(tag(xml, "Kz83")).toBe("0.00");
   });
 
   it("schreibt Erstattungen negativ", () => {
     const xml = buildUstvaXml({ ...base, figures: { kz81: 0, kz86: 0, kz66: 1_200, kz83: -1_200 } });
-    expect(tag(xml, "Kz83")).toBe("-12,00");
+    expect(tag(xml, "Kz83")).toBe("-12.00");
   });
 
   it("setzt den Testmerker nur im Testfall", () => {

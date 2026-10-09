@@ -172,9 +172,6 @@ importers:
       fast-xml-parser:
         specifier: ^5.11.2
         version: 5.11.2
-      fflate:
-        specifier: ^0.8.3
-        version: 0.8.3
       koffi:
         specifier: ^3.3.2
         version: 3.3.2
@@ -182,6 +179,9 @@ importers:
       '@types/node':
         specifier: ^22.20.5
         version: 22.20.5
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
 
   packages/import:
     dependencies:

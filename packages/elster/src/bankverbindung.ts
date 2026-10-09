@@ -1,5 +1,5 @@
 import { finanzamtsnummer } from "@haben/core";
-import { checkSteuernummer13, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
+import { checkSteuernummer13, ElsterEingabeError, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
 
 /**
  * Änderung der Bankverbindung beim Finanzamt (Verfahren ElsterNachricht, Datenart AenderungBankverbindung,
@@ -28,9 +28,16 @@ export interface BankverbindungXmlInput {
   test: boolean;
 }
 
-/** Prüfziffer der steuerlichen Identifikationsnummer (ISO 7064, MOD 11,10) */
+/**
+ * Steuerliche Identifikationsnummer: In den ersten zehn Ziffern kommt genau eine Ziffer zwei- oder dreimal
+ * vor (dreimal nicht direkt hintereinander), alle anderen höchstens einmal; dazu die Prüfziffer nach
+ * ISO 7064, MOD 11,10.
+ */
 export function isValidIdnr(idnr: string): boolean {
   if (!/^[1-9]\d{10}$/.test(idnr)) return false;
+  const counts = [..."0123456789"].map((d) => idnr.slice(0, 10).split(d).length - 1);
+  const repeated = counts.filter((n) => n > 1);
+  if (repeated.length !== 1 || repeated[0]! > 3 || /(\d)\1\1/.test(idnr.slice(0, 10))) return false;
   let product = 10;
   for (const digit of idnr.slice(0, 10)) {
     let sum = (Number(digit) + product) % 10;
@@ -57,17 +64,17 @@ export function isValidIban(iban: string): boolean {
 /** 1980-03-15 → 15.03.1980 */
 export function germanDate(isoDate: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-  if (!match) throw new Error(`Datum im Format JJJJ-MM-TT erwartet: ${isoDate}`);
+  if (!match) throw new ElsterEingabeError(`Datum im Format JJJJ-MM-TT erwartet: ${isoDate}`);
   return `${match[3]}.${match[2]}.${match[1]}`;
 }
 
 export function buildBankverbindungXml(input: BankverbindungXmlInput): string {
   checkSteuernummer13(input.steuernummer13);
   const iban = input.iban.replace(/\s+/g, "").toUpperCase();
-  if (!isValidIban(iban)) throw new Error("Die IBAN ist ungültig.");
+  if (!isValidIban(iban)) throw new ElsterEingabeError("Die IBAN ist ungültig.");
   const p = input.person;
-  if (!isValidIdnr(p.idnr)) throw new Error("Die steuerliche Identifikationsnummer ist ungültig.");
-  if (!p.vorname.trim() || !p.name.trim()) throw new Error("Vor- und Nachname fehlen.");
+  if (!isValidIdnr(p.idnr)) throw new ElsterEingabeError("Die steuerliche Identifikationsnummer ist ungültig.");
+  if (!p.vorname.trim() || !p.name.trim()) throw new ElsterEingabeError("Vor- und Nachname fehlen.");
   const e = escapeXml;
   const datenlieferant = input.datenlieferant?.trim() || `${p.vorname} ${p.name}`;
   return elsterXml(

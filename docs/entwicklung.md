@@ -68,7 +68,22 @@ Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`. Ohn
 
 Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kompilieren eine kleine C-Bibliothek mit `cc`. Gibt es keinen Compiler, werden sie übersprungen.
 
-Mit echtem ERiC prüft ein Kommando die Nachrichten von Belegabruf, Berechtigung und Postfach gegen die Schemas von ERiC, ohne zu senden (Exit-Code 1 bei Fehlern):
+### Tests mit echtem ERiC
+
+ERiC darf nicht im Repository oder in der CI liegen. Ist es lokal da (`ERIC_HOME` oder per `install-cli.ts` nach `ERIC_DIR` geladen), laufen zwei Ebenen von Tests zusätzlich gegen das echte ERiC. Gesendet wird dabei nichts, ERiC prüft nur lokal Schema und Plausibilität (`ERIC_VALIDIERE`):
+
+- `packages/elster/src/eric-echt.test.ts` baut jede Nachricht in vielen Varianten: Voranmeldung 2025/2026 mit allen Kennzahlen, Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuer für 2023 bis 2025 mit allen Feldern, Sonstige Nachricht, Bankverbindung, Belegabruf, Abrufberechtigung und Postfach. Ohne ERiC wird die Datei übersprungen.
+- Die Integrationstests in `apps/web/src/server` nutzen `EricGeprueftClient` (`test-eric.ts`). Mit ERiC lässt er jedes XML, das aus den Szenarien der Datenbank entsteht, zusätzlich von ERiC prüfen.
+
+```sh
+node --experimental-strip-types packages/elster/src/install-cli.ts --lizenz-akzeptiert   # einmalig, lädt nach ERIC_DIR (Standard data/eric)
+ERIC_DIR=data/eric pnpm vitest run packages/elster
+ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test pnpm test
+```
+
+Seit ERiC 39.4 ist die frühere Test-Hersteller-ID `74931` gesperrt, auch für die lokale Prüfung. Die Tests nehmen `ELSTER_HERSTELLER_ID`, sonst eine Platzhalter-ID; für die reine Prüfung reicht das. Die Schemas der Formulare stecken komprimiert in den Plugins unter `lib/plugins`; meldet ERiC ein unerwartetes Feld, lohnt der Blick dort hinein.
+
+Für Belegabruf, Berechtigung und Postfach gibt es zusätzlich ein Kommando, das auch unter Einstellungen › ERiC als Knopf steckt (Exit-Code 1 bei Fehlern):
 
 ```sh
 node --experimental-strip-types packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DIR
@@ -77,7 +92,7 @@ node --experimental-strip-types packages/elster/src/check-formats-cli.ts   # ERi
 | Bereich | Was getestet wird |
 | --- | --- |
 | `packages/core` | Beträge und Rundung, Rechnungssummen und Nummernformat, Zeiträume und Fälligkeit der Voranmeldung, Feiertage je Bundesland, Steuerfälle von Rechnungen, Steuernummer-Umrechnung, Kennzahlen der UStVA, Buchungssätze für SKR03/SKR04 und Ist/Soll, Zuordnungsvorschläge im Bankabgleich, EÜR, Umsatzsteuer des Lexoffice-Altbestands |
-| `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 10), XML der Umsatzsteuererklärung, der Anlage EÜR mit AVEÜR und der Sonstigen Nachricht, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz), Mock-ERiC über koffi und ERiC-Download (Entpacken nur Linux, Umschalten erst bei vollständiger Version, Pfade im Archiv) |
+| `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 09/10), XML der Umsatzsteuererklärung, der Anlage EÜR mit AVEÜR, der Einkommensteuer und der Sonstigen Nachricht, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz), Mock-ERiC über koffi, ERiC-Download (Entpacken nur Linux, defektes Archiv, Umschalten erst bei vollständiger Version, Pfade im Archiv); mit echtem ERiC alle Nachrichten in vielen Varianten (siehe oben) |
 | `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno und Leitweg-ID, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
 | `packages/import` | DKB- (neu und alt), N26- und CAMT.053-Parser, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel, Lexoffice-API-Client (Paging, 429, Fehler) und Abbildung der Lexoffice-Daten |
 | `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge |

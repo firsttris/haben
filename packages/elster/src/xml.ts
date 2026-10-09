@@ -1,5 +1,8 @@
 import { finanzamtsnummer, type Cents, type UstvaFigures, type VatPeriod } from "@haben/core";
 
+/** Fehlende oder ungültige Angaben für eine ELSTER-Nachricht; die Meldung ist für den Nutzer bestimmt */
+export class ElsterEingabeError extends Error {}
+
 /** Hersteller-ID für Testübermittlungen laut ERiC-Dokumentation. */
 export const TEST_HERSTELLER_ID = "74931";
 /** Testmerker für Testfälle, die der Server annimmt, aber nicht weiterleitet. */
@@ -44,7 +47,7 @@ export function datenartVersionFromXml(xml: string): string | undefined {
   if (bank?.[1]) return `AenderungBankverbindung_${bank[1]}`;
   const abholung = /<DatenArt>(PostfachAnfrage|PostfachBestaetigung)<\/DatenArt>[\s\S]*<Datenabholung\b[^>]*\bversion="(\d+)"/.exec(xml);
   if (abholung?.[1] && abholung[2]) return `${abholung[1]}_${abholung[2]}`;
-  if (/<DatenArt>ElsterVaStDaten<\/DatenArt>/.test(xml)) return "ElsterVaStDaten";
+  if (/<DatenArt>ElsterVaStDaten<\/DatenArt>/.test(xml)) return "ElsterVaStDaten_31";
   // Berechtigungsmanagement: Datenart = Datenart-Version
   const brm = /<DatenArt>(SpezRecht(?:Antrag|Freischaltung|Storno|Liste))<\/DatenArt>/.exec(xml);
   if (brm?.[1]) return brm[1];
@@ -80,7 +83,7 @@ export function escapeXml(value: string): string {
 }
 
 export function checkSteuernummer13(steuernummer13: string): void {
-  if (!/^\d{13}$/.test(steuernummer13)) throw new Error(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${steuernummer13}`);
+  if (!/^\d{13}$/.test(steuernummer13)) throw new ElsterEingabeError(`Steuernummer muss 13-stellig im ELSTER-Format sein: ${steuernummer13}`);
 }
 
 /** Bemessungsgrundlage in vollen Euro: 123456 → "1234" */
@@ -90,7 +93,7 @@ export function wholeEuros(cents: Cents): string {
 
 /** Betrag mit Komma, ohne Tausenderpunkte: -1200 → "-12,00" */
 export function elsterDecimal(cents: Cents): string {
-  if (!Number.isSafeInteger(cents)) throw new RangeError(`Kein ganzzahliger Centbetrag: ${cents}`);
+  if (!Number.isSafeInteger(cents)) throw new ElsterEingabeError(`Kein ganzzahliger Centbetrag: ${cents}`);
   const abs = Math.abs(cents);
   const euros = Math.trunc(abs / 100);
   const rest = String(abs % 100).padStart(2, "0");
@@ -170,7 +173,7 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
   const { period, figures, datenlieferant: dl } = input;
   checkSteuernummer13(input.steuernummer13);
   if (!Number.isInteger(period.month) || period.month < 1 || period.month > 12) {
-    throw new RangeError(`Ungültiger Monat: ${period.month}`);
+    throw new ElsterEingabeError(`Ungültiger Monat: ${period.month}`);
   }
 
   // Kennzahlen in aufsteigender Reihenfolge, wie im Schema
@@ -179,8 +182,9 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
     if (cents !== undefined && Math.trunc(cents / 100) !== 0) kennzahlen.push(element(`Kz${kz}`, wholeEuros(cents)));
   };
   if (input.berichtigt) kennzahlen.push(element("Kz10", "1"));
+  // Steuerbeträge in der Voranmeldung mit Punkt ("17.35"), anders als in den Jahreserklärungen
   const tax = (kz: string, cents: Cents | undefined) => {
-    if (cents !== undefined && cents !== 0) kennzahlen.push(element(`Kz${kz}`, elsterDecimal(cents)));
+    if (cents !== undefined && cents !== 0) kennzahlen.push(element(`Kz${kz}`, elsterDecimal(cents).replace(",", ".")));
   };
   base("21", figures.kz21);
   base("45", figures.kz45);
@@ -190,7 +194,7 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
   tax("66", figures.kz66);
   tax("67", figures.kz67);
   base("81", figures.kz81);
-  kennzahlen.push(element("Kz83", elsterDecimal(figures.kz83)));
+  kennzahlen.push(element("Kz83", elsterDecimal(figures.kz83).replace(",", ".")));
   base("84", figures.kz84);
   tax("85", figures.kz85);
   base("86", figures.kz86);
@@ -205,19 +209,22 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
         empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) },
         produktVersion: input.produktVersion,
         nutzdaten: [
-          `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${period.year}" art="UStVA" version="${period.year}">`,
-          `<DatenLieferant>`,
-          element("Name", dl.name),
-          element("Strasse", dl.strasse),
-          element("PLZ", dl.plz),
-          element("Ort", dl.ort),
-          `</DatenLieferant>`,
+          `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${period.year}" version="${period.year}">`,
           element("Erstellungsdatum", yyyymmdd(input.erstellungsdatum ?? new Date())),
+          // Längen laut Schema; der Datenlieferant ist nur Absenderangabe
+          `<DatenLieferant>`,
+          element("Name", dl.name.slice(0, 45)),
+          element("Strasse", dl.strasse.slice(0, 30)),
+          element("PLZ", dl.plz),
+          element("Ort", dl.ort.slice(0, 30)),
+          `</DatenLieferant>`,
           `<Steuerfall>`,
           `<Umsatzsteuervoranmeldung>`,
           element("Jahr", String(period.year)),
           element("Zeitraum", String(period.month).padStart(2, "0")),
           element("Steuernummer", input.steuernummer13),
+          // Pflichtfeld: Hersteller-ID der Software
+          element("Kz09", input.herstellerId),
           ...kennzahlen,
           `</Umsatzsteuervoranmeldung>`,
           `</Steuerfall>`,

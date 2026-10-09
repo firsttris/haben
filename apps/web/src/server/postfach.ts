@@ -112,7 +112,8 @@ export async function pendingConfirmations(test: boolean): Promise<string[]> {
  */
 export async function fetchPostfach(actor: string, client: ElsterClient, options: PostfachFetchOptions): Promise<PostfachFetchSummary> {
   const test = options.kind !== "send";
-  const herstellerId = test ? TEST_HERSTELLER_ID : options.herstellerId;
+  // ERiC 43 sperrt die Test-Hersteller-ID 74931; auch Testfälle laufen mit der eigenen, falls vorhanden
+  const herstellerId = options.herstellerId || (test ? TEST_HERSTELLER_ID : undefined);
   if (!herstellerId) throw new FinanzamtError("Für den echten Abruf fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
   if (!test && "isFake" in client && client.isFake) {
     throw new FinanzamtError("Ohne ERiC ist kein echter Abruf möglich; der Testabruf läuft nur simuliert.");

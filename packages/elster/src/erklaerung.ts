@@ -1,6 +1,6 @@
 import { finanzamtsnummer, type Cents } from "@haben/core";
 import { germanDate } from "./bankverbindung.ts";
-import { checkSteuernummer13, elsterDecimal, elsterXml, escapeXml, PRODUKT_NAME, TESTMERKER, wholeEuros } from "./xml.ts";
+import { checkSteuernummer13, elsterDecimal, ElsterEingabeError, elsterXml, escapeXml, PRODUKT_NAME, TESTMERKER, wholeEuros } from "./xml.ts";
 
 /**
  * Jahreserklärungen im Verfahren ElsterErklaerung: Umsatzsteuererklärung (E50, Datenart USt) und
@@ -55,12 +55,13 @@ export interface Envelope {
 export function checkEnvelope(input: Envelope) {
   checkSteuernummer13(input.steuernummer13);
   if (!Number.isInteger(input.year) || input.year < ERSTES_ERKLAERUNGSJAHR) {
-    throw new RangeError(`Jahreserklärungen gehen ab ${ERSTES_ERKLAERUNGSJAHR}, nicht für ${input.year}.`);
+    throw new ElsterEingabeError(`Jahreserklärungen gehen ab ${ERSTES_ERKLAERUNGSJAHR}, nicht für ${input.year}.`);
   }
-  if (!/^[A-Z]{2}$/.test(input.bundesland)) throw new Error(`Bundesland fehlt: ${input.bundesland}`);
+  if (!/^[A-Z]{2}$/.test(input.bundesland)) throw new ElsterEingabeError(`Bundesland fehlt: ${input.bundesland}`);
 }
 
-export function vorsatz(unterfallart: "10" | "50" | "77", input: Envelope): XmlNode {
+/** Identifikationsnummern stehen bei der Einkommensteuer im Vorsatz, nicht in den Personendaten */
+export function vorsatz(unterfallart: "10" | "50" | "77", input: Envelope, idnr?: { a: string; b?: string }): XmlNode {
   const a = input.absender;
   return [
     "Vorsatz",
@@ -68,6 +69,8 @@ export function vorsatz(unterfallart: "10" | "50" | "77", input: Envelope): XmlN
       ["Unterfallart", unterfallart],
       ["Vorgang", "01"],
       ["StNr", input.steuernummer13],
+      ["ID", idnr?.a],
+      ["IDEhefrau", idnr?.b],
       ["Zeitraum", String(input.year)],
       ["AbsName", a.name.slice(0, 45)],
       ["AbsStr", a.strasse.slice(0, 30)],
@@ -133,7 +136,7 @@ export function buildUstErklaerungXml(input: UstErklaerungXmlInput): string {
   const f = input.figures;
   const umsatzsteuer = f.tax19 + f.tax7;
   if (umsatzsteuer === 0 && f.vorsteuer === 0) {
-    throw new Error("Ohne Umsätze und Vorsteuer gibt es nichts zu erklären; eine Nullerklärung geht über das ELSTER-Portal.");
+    throw new ElsterEingabeError("Ohne Umsätze und Vorsteuer gibt es nichts zu erklären; eine Nullerklärung geht über das ELSTER-Portal.");
   }
   const { steuer, abschluss } = ustErklaerungResult(f);
   const a = input.absender;
@@ -364,6 +367,8 @@ export interface AveuerAnlage {
   /** Restbuchwert beim Ausscheiden */
   abgang: Cents;
   buchwertEnde: Cents;
+  /** Nur Kfz: Elektro- oder extern aufladbares Hybridfahrzeug (Pflichtangabe in der AVEÜR) */
+  elektro?: boolean;
 }
 
 /** Feldkennungen je Gruppe: Einzelangaben und Summe (AVEÜR 2025) */
@@ -422,6 +427,8 @@ function aveuer(year: number, anlagen: AveuerAnlage[]): XmlNode | null {
               [einz.afa, amount(a.afa)],
               [einz.abgang, amount(a.abgang)],
               [einz.bwEnde, elsterDecimal(a.buchwertEnde)],
+              // Antrieb des Kfz verlangt das Formular ab 2025
+              gruppe === "kfz" && year >= 2025 ? ["E6007327", a.elektro ? "1" : "2"] : null,
             ],
           ],
         ),
@@ -433,6 +440,7 @@ function aveuer(year: number, anlagen: AveuerAnlage[]): XmlNode | null {
             [s.afa, amount(sum(list, "afa"))],
             [s.abgang, amount(sum(list, "abgang"))],
             [s.bwEnde, elsterDecimal(sum(list, "buchwertEnde"))],
+            gruppe === "kfz" && year >= 2025 ? ["E6007328", list.some((a) => a.elektro) ? "1" : "2"] : null,
           ],
         ],
       ],
@@ -551,7 +559,8 @@ export function buildEuerXml(input: EuerXmlInput): string {
           sumNode("USt_Erstattet_Verrechnet", kz("erstatteteUst"), f.erstatteteUst),
           sumNode("Anlagevermoegen", kz("anlagenabgang"), f.anlagenabgang),
           sumNode("Nutzung_Priv_Kfz", kz("privateKfz"), f.privateKfz),
-          ["GesamtSum", [["E6001201", elsterDecimal(einnahmen)]]],
+          // Summe der Einnahmen: 2023 unter „Weitere_Angabe“, ab 2024 unter „GesamtSum“
+          [input.year >= 2024 ? "GesamtSum" : "Weitere_Angabe", [["E6001201", elsterDecimal(einnahmen)]]],
         ],
       ],
       [
@@ -595,8 +604,10 @@ export function buildEuerXml(input: EuerXmlInput): string {
                 "Abziehbar",
                 [
                   sumNode("Verpflegung", kz("verpflegung"), f.verpflegung),
-                  // Die Tagespauschale steht ohne Sum-Ebene
-                  f.tagespauschale ? ["Tagespauschale_1", [[kz("tagespauschale"), elsterDecimal(f.tagespauschale)]]] : null,
+                  // Ab 2024 eigene Tagespauschale ohne Sum-Ebene, 2023 noch unter „Tätigkeit in der häuslichen Wohnung“
+                  input.year >= 2024
+                    ? f.tagespauschale ? ["Tagespauschale_1", [[kz("tagespauschale"), elsterDecimal(f.tagespauschale)]]] : null
+                    : sumNode("Arbeitszimmer", "E6003101", f.tagespauschale),
                 ],
               ],
             ],

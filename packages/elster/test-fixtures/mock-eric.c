@@ -36,17 +36,17 @@ int EricBearbeiteVorgang(const char* d, const char* v, uint32_t flags, const dru
     "<Anhang><Dateibezeichnung>Bescheid</Dateibezeichnung><Dateityp>application/pdf</Dateityp><DateiReferenzId>ref-1</DateiReferenzId><DateiGroesse>12</DateiGroesse></Anhang>"
     "<Anhang><Dateibezeichnung>Weg</Dateibezeichnung><Dateityp>application/pdf</Dateityp><DateiReferenzId>fehlt</DateiReferenzId><DateiGroesse>1</DateiGroesse></Anhang>"
     "</Bereitstellung></DatenartBereitstellung></PostfachAnfrage></Datenabholung></Nutzdaten></Nutzdatenblock></DatenTeil></Elster>");
-  if ((flags & 4) && strcmp(v,"ElsterVaStDaten")==0 && strstr(d,"<Anfrage")) put(s,
-    "<Elster xmlns=\"http://www.elster.de/elsterxml/schema/v11\"><DatenTeil><Nutzdatenblock><Nutzdaten><Datenabholung version=\"10\">"
+  if ((flags & 4) && strcmp(v,"ElsterVaStDaten_31")==0 && strstr(d,"<Anfrage")) put(s,
+    "<Elster xmlns=\"http://www.elster.de/elsterxml/schema/v11\"><DatenTeil><Nutzdatenblock><Nutzdaten><Datenabholung xmlns=\"http://finkonsens.de/elster/elsterdatenabholung/v3\" version=\"31\">"
     "<Anfrage einschraenkung=\"alle\" veranlagungsjahr=\"2025\" idnr=\"02293417683\">"
     "<Id groesse=\"1600\" belegart=\"VaSt_RBM\" hashwert=\"h1\" schemaversion=\"202001\">a-1\n</Id>"
     "<Id groesse=\"900\" belegart=\"VaSt_KRV\" hashwert=\"h2\" schemaversion=\"1\">a-2</Id>"
     "<Id groesse=\"900\" belegart=\"VaSt_LStB\" hashwert=\"h3\" schemaversion=\"1\">a-3</Id>"
     "</Anfrage></Datenabholung></Nutzdaten></Nutzdatenblock></DatenTeil></Elster>");
-  if ((flags & 4) && strcmp(v,"ElsterVaStDaten")==0 && strstr(d,"<Abholung")) {
+  if ((flags & 4) && strcmp(v,"ElsterVaStDaten_31")==0 && strstr(d,"<Abholung")) {
     /* a-2 ist kaputt verschlüsselt, a-3 fehlt in der Antwort; TH zeigt, dass ein Transferhandle kam */
     char a[1024];
-    snprintf(a,1024,"<Elster><DatenTeil><Nutzdatenblock><Nutzdaten><Datenabholung version=\"10\">"
+    snprintf(a,1024,"<Elster><DatenTeil><Nutzdatenblock><Nutzdaten><Datenabholung xmlns=\"http://finkonsens.de/elster/elsterdatenabholung/v3\" version=\"31\">"
       "<Abholung id=\"a-1\" idnr=\"02293417683\" veranlagungsjahr=\"2025\"><Datenpaket>QUJD\\r\\nREVG\n</Datenpaket></Abholung>"
       "<Abholung id=\"a-2\"><Datenpaket>kaputt</Datenpaket></Abholung>"
       "</Datenabholung></Nutzdaten></Nutzdatenblock></DatenTeil><TH>%s</TH><N>%d</N></Elster>", th ? "ja" : "nein", (int)(strstr(d,"a-3")!=NULL));

@@ -1,5 +1,5 @@
 import { finanzamtsnummer } from "@haben/core";
-import { checkSteuernummer13, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
+import { checkSteuernummer13, ElsterEingabeError, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
 
 /**
  * Sonstige Nachricht an das Finanzamt (Verfahren ElsterNachricht, Datenart SonstigeNachrichten,
@@ -20,21 +20,24 @@ export interface NachrichtXmlInput {
   test: boolean;
 }
 
-/** "Hauptstraße 12a" → Straße und Hausnummer; ELSTER will beides getrennt */
-export function splitStrasse(strasse: string): { strasse: string; hausnummer: string } | null {
-  const match = /^(.*?)\s*(\d+\s*[a-zA-Z]?(?:\s*[-/]\s*\d+\s*[a-zA-Z]?)?)$/.exec(strasse.trim());
+/**
+ * "Hauptstraße 12a" → Straße, Hausnummer (nur Ziffern, so verlangen es die ELSTER-Schemas) und Zusatz ("a", "-14").
+ */
+export function splitStrasse(strasse: string): { strasse: string; hausnummer: string; zusatz?: string } | null {
+  const match = /^(.*?)\s*(\d+)(\s*[a-zA-Z]?(?:\s*[-/]\s*\d+\s*[a-zA-Z]?)?)$/.exec(strasse.trim());
   if (!match?.[1] || !match[2]) return null;
-  return { strasse: match[1].replace(/,$/, "").trim(), hausnummer: match[2].replace(/\s+/g, "") };
+  const zusatz = match[3]!.replace(/\s+/g, "").replace(/^-(?=[a-zA-Z])/, "");
+  return { strasse: match[1].replace(/,$/, "").trim(), hausnummer: match[2], ...(zusatz ? { zusatz } : {}) };
 }
 
 export function buildNachrichtXml(input: NachrichtXmlInput): string {
   checkSteuernummer13(input.steuernummer13);
   const betreff = input.betreff.trim();
   const text = input.text.trim();
-  if (!betreff || betreff.length > NACHRICHT_BETREFF_MAX) throw new Error(`Der Betreff braucht 1 bis ${NACHRICHT_BETREFF_MAX} Zeichen.`);
-  if (!text || text.length > NACHRICHT_TEXT_MAX) throw new Error(`Der Text braucht 1 bis ${NACHRICHT_TEXT_MAX} Zeichen.`);
+  if (!betreff || betreff.length > NACHRICHT_BETREFF_MAX) throw new ElsterEingabeError(`Der Betreff braucht 1 bis ${NACHRICHT_BETREFF_MAX} Zeichen.`);
+  if (!text || text.length > NACHRICHT_TEXT_MAX) throw new ElsterEingabeError(`Der Text braucht 1 bis ${NACHRICHT_TEXT_MAX} Zeichen.`);
   const adresse = splitStrasse(input.absender.strasse);
-  if (!adresse) throw new Error("In der Anschrift fehlt die Hausnummer.");
+  if (!adresse) throw new ElsterEingabeError("In der Anschrift fehlt die Hausnummer.");
   const a = input.absender;
   const e = escapeXml;
   return elsterXml(
@@ -61,6 +64,7 @@ export function buildNachrichtXml(input: NachrichtXmlInput): string {
           `<StrAdrInl>`,
           `<Strasse>${e(adresse.strasse)}</Strasse>`,
           `<Hausnummer>${e(adresse.hausnummer)}</Hausnummer>`,
+          ...(adresse.zusatz ? [`<Hausnummernzusatz>${e(adresse.zusatz)}</Hausnummernzusatz>`] : []),
           `<Postleitzahl>${e(a.plz)}</Postleitzahl>`,
           `<Ort>${e(a.ort)}</Ort>`,
           `</StrAdrInl>`,

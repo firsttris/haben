@@ -17,11 +17,12 @@ describe.skipIf(!testDatabaseUrl)("Angaben zur Einkommensteuer (Postgres)", () =
   });
 
   it("prüft IdNr. und Geburtsdatum der Kinder", async () => {
-    const kind = { vorname: "Lena", geburtsdatum: "2020-01-15" };
+    const kind = { vorname: "Lena", geburtsdatum: "2020-01-15", familienkasse: "Familienkasse BW" };
     await expect(incomeTax.saveEstAngaben(actor, 2025, { kinder: [{ ...kind, idnr: "12345678901" }] })).rejects.toThrow(/Identifikationsnummer/);
     await expect(incomeTax.saveEstAngaben(actor, 2025, { kinder: [{ ...kind, geburtsdatum: "2020-02-30" }] })).rejects.toThrow(/Gültiges Datum/);
     await incomeTax.saveEstAngaben(actor, 2025, { kinder: [{ ...kind, idnr: "" }, { ...kind, idnr: "86 095 742 719" }] });
     expect((await incomeTax.loadEstAngaben(2025)).kinder.map((k) => k.idnr)).toEqual(["", "86095742719"]);
+    await expect(incomeTax.saveEstAngaben(actor, 2025, { kinder: [{ ...kind, familienkasse: "" }] })).rejects.toThrow(/Familienkasse/);
   });
 
   it("verwirft gespeicherte Angaben nicht, die ein verschärftes Schema ablehnt", async () => {

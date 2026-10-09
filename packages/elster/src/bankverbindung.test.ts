@@ -20,6 +20,12 @@ describe("Prüfziffern", () => {
     expect(isValidIdnr("86095742718")).toBe(false);
     expect(isValidIdnr("06095742719")).toBe(false);
     expect(isValidIdnr("8609574271")).toBe(false);
+    // Ziffernregel: genau eine Ziffer doppelt oder dreifach, dreifach nicht direkt hintereinander
+    expect(isValidIdnr("41837509269")).toBe(false);
+    expect(isValidIdnr("41837509365")).toBe(true);
+    expect(isValidIdnr("41117509363")).toBe(false);
+    expect(isValidIdnr("41137508167")).toBe(true);
+    expect(isValidIdnr("41137501366")).toBe(false);
   });
 
   it("prüft die IBAN", () => {

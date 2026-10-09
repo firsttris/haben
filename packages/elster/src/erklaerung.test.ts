@@ -126,6 +126,12 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(tag(xml, "E6007314")).toBe("34444,44");
     expect(tag(xml, "E6007320")).toBe("6666,67");
     expect(tag(xml, "E6007325")).toBe("27777,77");
+    // Antrieb je Kfz und in der Summe sind Pflicht (ERiC: Zeile 47); ohne Angabe „nein“
+    expect(tag(xml, "E6007327")).toBe("2");
+    expect(tag(xml, "E6007328")).toBe("2");
+    const elektro = buildEuerXml({ ...base, allgemein, figures, anlagen: anlagen.map((a) => (a.gruppe === "kfz" ? { ...a, elektro: true } : a)) });
+    expect(tag(elektro, "E6007327")).toBe("1");
+    expect(tag(elektro, "E6007328")).toBe("1");
     expect(tag(xml, "E6007351")).toBe("MacBook Pro");
     expect(tag(xml, "E6007364")).toBe("0,00");
     // Summe AfA beweglicher Wirtschaftsgüter = Zeile AfA der EÜR

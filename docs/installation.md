@@ -181,7 +181,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ERIC_DOWNLOAD_URL` | nein | Andere Download-Adresse für ERiC, nur zum Testen. Standard `https://download.elster.de/download/eric` | `http://localhost:4556/eric` |
 | `ERIC_LOG_DIR` | nein | Logverzeichnis für ERiC. Ohne Angabe das temporäre Verzeichnis; im Image `/var/lib/haben/eric-log` | `/var/lib/haben/eric-log` |
 | `ERIC_WORKER_PATH` | nein | Pfad zum ERiC-Worker (`packages/elster/src/worker.ts`). Im Image gesetzt, sonst nicht nötig | `/app/packages/elster/src/worker.ts` |
-| `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Ohne sie ist nur die Testübermittlung möglich | `12345` |
+| `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Mit ERiC 43 nötig für Prüfen, Test- und Echtübermittlung; ohne ERiC läuft alles simuliert | `12345` |
 | `DOCUMENTS_DIR` | nein | Ablage der Belegdateien. Standard `data/belege` (relativ zum Arbeitsverzeichnis); im Image `/var/lib/haben/belege` | `/var/lib/haben/belege` |
 | `ANTHROPIC_API_KEY` | nein | Schaltet die KI-Auslesung von Belegen ein | `sk-ant-…` |
 | `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (wiederkehrende Rechnungen, Kontoabruf), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
@@ -296,9 +296,9 @@ ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, dar
 
 ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
 
-Für Prüfen und Testübermittlungen reicht das. Für die Echtübermittlung brauchst du zusätzlich eine eigene Hersteller-ID, siehe [Erste Schritte](einrichtung.md#elster-einrichten).
+Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC 43 nimmt die frühere Test-Hersteller-ID nicht mehr an. Siehe [Erste Schritte](einrichtung.md#elster-einrichten).
 
-Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/eric/lib/libericapi.so` und `/opt/eric/lib/plugins2/` existieren, und binde es ein. `ERIC_HOME` hat Vorrang vor dem heruntergeladenen ERiC.
+Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/eric/lib/libericapi.so` und `/opt/eric/lib/plugins/` existieren (bei älteren ERiC-Versionen `lib/plugins2/`), und binde es ein. `ERIC_HOME` hat Vorrang vor dem heruntergeladenen ERiC.
 
 | | Compose | Quadlet |
 | --- | --- | --- |
@@ -388,7 +388,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **Der ERiC-Download scheitert.** Die Meldung steht unter **Einstellungen › ERiC**. „Gibt es nicht (mehr)“ heißt: Die Version ist zu alt oder vertippt; die aktuelle steht auf der Infoseite. Der Server muss `download.elster.de` per HTTPS erreichen und für die Dauer des Downloads etwa 600 MB im temporären Verzeichnis frei haben.
 
-**ERiC ist eingerichtet, aber Prüfen oder Senden scheitert sofort.** Bei einem von Hand eingebundenen ERiC prüfe, ob unter `ERIC_HOME` die Dateien `lib/libericapi.so` und `lib/plugins2/` liegen und ob das Paket für Linux x86_64 ist. Ein Absturz der Bibliothek beendet nur den Kindprozess; die App zeigt die Meldung an. Details stehen in den ERiC-Logs unter `ERIC_LOG_DIR`.
+**ERiC ist eingerichtet, aber Prüfen oder Senden scheitert sofort.** Bei einem von Hand eingebundenen ERiC prüfe, ob unter `ERIC_HOME` die Dateien `lib/libericapi.so` und `lib/plugins/` (ältere Versionen: `lib/plugins2/`) liegen und ob das Paket für Linux x86_64 ist. Ein Absturz der Bibliothek beendet nur den Kindprozess; die App zeigt die Meldung an. Details stehen in den ERiC-Logs unter `ERIC_LOG_DIR`.
 
 **Echtübermittlung ist ausgegraut.** Es fehlt `ELSTER_HERSTELLER_ID`. Siehe [Erste Schritte](einrichtung.md#elster-einrichten).
 

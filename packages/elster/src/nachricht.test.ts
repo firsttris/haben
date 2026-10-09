@@ -25,7 +25,8 @@ describe("Sonstige Nachricht", () => {
     expect(hasTestmerker(xml)).toBe(true);
     expect(xml).toContain(`<Empfaenger id="F">2893</Empfaenger>`);
     expect(tag(xml, "Strasse")).toBe("Hauptstraße");
-    expect(tag(xml, "Hausnummer")).toBe("12a");
+    expect(tag(xml, "Hausnummer")).toBe("12");
+    expect(tag(xml, "Hausnummernzusatz")).toBe("a");
     expect(tag(xml, "Name")).toBe("Tris &amp; Co");
     expect(tag(xml, "Text")).toBe("Sehr geehrte Damen und Herren,\n&lt;bitte&gt; herabsetzen.");
   });
@@ -38,8 +39,8 @@ describe("Sonstige Nachricht", () => {
 
   it("trennt Hausnummern", () => {
     expect(splitStrasse("Musterstraße 1")).toEqual({ strasse: "Musterstraße", hausnummer: "1" });
-    expect(splitStrasse("Am Ring 12 - 14")).toEqual({ strasse: "Am Ring", hausnummer: "12-14" });
-    expect(splitStrasse("Allee 3 b")).toEqual({ strasse: "Allee", hausnummer: "3b" });
+    expect(splitStrasse("Am Ring 12 - 14")).toEqual({ strasse: "Am Ring", hausnummer: "12", zusatz: "-14" });
+    expect(splitStrasse("Allee 3 b")).toEqual({ strasse: "Allee", hausnummer: "3", zusatz: "b" });
     expect(splitStrasse("Postfach")).toBeNull();
   });
 });

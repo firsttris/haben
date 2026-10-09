@@ -1,3 +1,4 @@
+import { EricGeprueftClient } from "./test-eric.ts";
 import type { BelegabrufResult, ElsterClient } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -33,7 +34,7 @@ describe.skipIf(!testDatabaseUrl)("Belegabruf VaSt (Postgres)", () => {
 
   /** Drei Belege, einer lässt sich nicht entschlüsseln */
   function scriptedClient(calls: { idnr: string; test: boolean; pin: string }[] = []): ElsterClient {
-    const fake = new elster.FakeElsterClient();
+    const fake = new EricGeprueftClient();
     // Ohne isFake, damit auch der Echtabruf durchgeht
     return {
       validate: (xml) => fake.validate(xml),
@@ -96,7 +97,7 @@ describe.skipIf(!testDatabaseUrl)("Belegabruf VaSt (Postgres)", () => {
   });
 
   it("zeigt Testbelege nur, solange es keine echten gibt", async () => {
-    await vast.fetchVastBelege(actor, new elster.FakeElsterClient(), { kind: "test", year: 2025, person: "a", pin: "1234" });
+    await vast.fetchVastBelege(actor, new EricGeprueftClient(), { kind: "test", year: 2025, person: "a", pin: "1234" });
     expect((await vast.listVastBelege(2025)).every((b) => b.test)).toBe(true);
     await vast.fetchVastBelege(actor, scriptedClient(), { kind: "send", year: 2025, person: "a", pin: "1234", herstellerId: "12345" });
     const belege = await vast.listVastBelege(2025);
@@ -112,7 +113,7 @@ describe.skipIf(!testDatabaseUrl)("Belegabruf VaSt (Postgres)", () => {
   });
 
   it("braucht Person, Zertifikat, PIN und für den Echtabruf ERiC und Hersteller-ID", async () => {
-    const fake = new elster.FakeElsterClient();
+    const fake = new EricGeprueftClient();
     await expect(vast.fetchVastBelege(actor, fake, { kind: "test", year: 2025, person: "b", pin: "1" })).rejects.toThrow(/Ehegatten/);
     await expect(vast.fetchVastBelege(actor, fake, { kind: "test", year: 2025, person: "a" })).rejects.toThrow(/PIN/);
     await expect(vast.fetchVastBelege(actor, fake, { kind: "send", year: 2025, person: "a", pin: "1", herstellerId: "12345" })).rejects.toThrow(/Ohne ERiC/);

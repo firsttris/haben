@@ -1,7 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { isValidIdnr } from "./bankverbindung.ts";
 import { VAST_TESTMERKER } from "./vast.ts";
-import { elsterXml, escapeXml } from "./xml.ts";
+import { ElsterEingabeError, elsterXml, escapeXml } from "./xml.ts";
 import { int, text, type Node } from "./xml-lesen.ts";
 
 /**
@@ -47,12 +47,12 @@ function brmXml(datenart: SpezRechtDatenart, body: string[], input: BrmXmlInput)
 /** Antrag auf das Recht, die Belege (AbrufEBelege) einer anderen Person abzurufen */
 export function buildSpezRechtAntragXml(input: SpezRechtAntragInput): string {
   const idnrOk = input.test ? /^\d{11}$/.test(input.dateninhaberIdnr) : isValidIdnr(input.dateninhaberIdnr);
-  if (!idnrOk) throw new Error(`Ungültige Steuer-IdNr: ${input.dateninhaberIdnr}`);
-  if (!isoDate.test(input.dateninhaberGeburtsdatum)) throw new Error("Geburtsdatum im Format JJJJ-MM-TT fehlt.");
-  if (!isoDate.test(input.gueltigBis)) throw new Error("Gültig-bis-Datum im Format JJJJ-MM-TT fehlt.");
+  if (!idnrOk) throw new ElsterEingabeError(`Ungültige Steuer-IdNr: ${input.dateninhaberIdnr}`);
+  if (!isoDate.test(input.dateninhaberGeburtsdatum)) throw new ElsterEingabeError("Geburtsdatum im Format JJJJ-MM-TT fehlt.");
+  if (!isoDate.test(input.gueltigBis)) throw new ElsterEingabeError("Gültig-bis-Datum im Format JJJJ-MM-TT fehlt.");
   const jahre = [...new Set(input.jahre ?? [])].sort((a, b) => a - b);
   const falschesJahr = jahre.find((j) => !Number.isInteger(j) || j < 2000 || j > 9999);
-  if (falschesJahr !== undefined) throw new RangeError(`Ungültiges Jahr: ${falschesJahr}`);
+  if (falschesJahr !== undefined) throw new ElsterEingabeError(`Ungültiges Jahr: ${falschesJahr}`);
   return brmXml(
     "SpezRechtAntrag",
     [
@@ -76,14 +76,14 @@ export function buildSpezRechtAntragXml(input: SpezRechtAntragInput): string {
 /** Freischaltcode wie im Brief, mit oder ohne Bindestriche: ABCD-EFGH-IJKL */
 export function normalizeFreischaltcode(code: string): string {
   const plain = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  if (plain.length !== 12) throw new Error("Der Freischaltcode hat 12 Zeichen (z. B. ABCD-EFGH-1234).");
+  if (plain.length !== 12) throw new ElsterEingabeError("Der Freischaltcode hat 12 Zeichen (z. B. ABCD-EFGH-1234).");
   return `${plain.slice(0, 4)}-${plain.slice(4, 8)}-${plain.slice(8)}`;
 }
 
 const antragsIdOk = (id: string) => /^[A-Za-z0-9]{8,64}$/.test(id);
 
 export function buildSpezRechtFreischaltungXml(antragsId: string, freischaltcode: string, input: BrmXmlInput): string {
-  if (!antragsIdOk(antragsId)) throw new Error("Ungültige Antrags-ID.");
+  if (!antragsIdOk(antragsId)) throw new ElsterEingabeError("Ungültige Antrags-ID.");
   return brmXml(
     "SpezRechtFreischaltung",
     [
@@ -97,7 +97,7 @@ export function buildSpezRechtFreischaltungXml(antragsId: string, freischaltcode
 }
 
 export function buildSpezRechtStornoXml(antragsId: string, input: BrmXmlInput): string {
-  if (!antragsIdOk(antragsId)) throw new Error("Ungültige Antrags-ID.");
+  if (!antragsIdOk(antragsId)) throw new ElsterEingabeError("Ungültige Antrags-ID.");
   return brmXml("SpezRechtStorno", [`<SpezRechtStorno version="3">`, `<AntragsID>${antragsId}</AntragsID>`, `</SpezRechtStorno>`], input);
 }
 

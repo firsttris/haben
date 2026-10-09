@@ -78,7 +78,7 @@ export const estAngabenSchema = z.object({
         vorname: z.string().trim().min(1, "Vorname des Kindes fehlt").max(100),
         name: z.string().trim().max(100).optional(),
         geburtsdatum: isoDate,
-        familienkasse: z.string().trim().max(100).optional(),
+        familienkasse: z.string().trim().min(1, "Für jedes Kind braucht ELSTER die zuständige Familienkasse.").max(100),
         kinderbetreuung: cents,
       }),
     )

@@ -10,8 +10,8 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 2. Firmendaten ausfüllen, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
-5. ELSTER-Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
-6. Hersteller-ID beantragen und eintragen
+5. Hersteller-ID bei ELSTER beantragen und eintragen (mit ERiC schon fürs Prüfen nötig)
+6. ELSTER-Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
 7. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
 8. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
 9. Optional: KI-Auslesung für Belege einschalten
@@ -157,12 +157,12 @@ Unter **Einstellungen → Rechnungsnummern** siehst du die nächste Nummer des l
 Haben übermittelt die Umsatzsteuer-Voranmeldung über ERiC, die offizielle Bibliothek der Steuerverwaltung. Ohne ERiC laufen Prüfen und Senden simuliert, und die Oberfläche weist darauf hin.
 
 1. **ERiC laden:** unter **Einstellungen › ERiC** den Nutzungsbedingungen zustimmen und **Herunterladen und einrichten** klicken. ERiC darf nicht weitergegeben werden und liegt deshalb weder im Repository noch im Image; Haben holt es direkt von der Finanzverwaltung (Linux x86_64).
-2. **Oder von Hand:** das Paket z. B. nach `/opt/eric` entpacken (darin `lib/libericapi.so` und `lib/plugins2/`) und `ERIC_HOME` setzen. Beides steht in [ERiC einbinden](installation.md#eric-einbinden).
+2. **Oder von Hand:** das Paket z. B. nach `/opt/eric` entpacken (darin `lib/libericapi.so` und `lib/plugins/`) und `ERIC_HOME` setzen. Beides steht in [ERiC einbinden](installation.md#eric-einbinden).
 3. **Zertifikat beantragen und hochladen.** In Mein ELSTER eine Zertifikatsdatei (.pfx) beantragen und unter **Einstellungen → ELSTER-Zertifikat** hochladen (höchstens 64 KB). Haben speichert die Datei AES-256-GCM-verschlüsselt in der Datenbank. Trägst du „Gültig bis“ ein, warnt die Übersicht 30 Tage vor Ablauf. Ein neues Zertifikat ersetzt das alte.
 4. **Formate prüfen.** Unter **Einstellungen › ERiC** lässt **Formate mit ERiC prüfen** ERiC alle Nachrichten von Belegabruf, Berechtigung und Postfach gegen seine Schemas prüfen, ohne etwas zu senden. Diese Formate stammen aus freien Projekten (erica, viking) statt aus der amtlichen Jahresdokumentation; die Prüfung zeigt sofort, ob eine Version oder ein Feldname nicht mehr passt. Bemängelt ERiC etwas, bitte die Meldungen als Issue melden.
-5. **Nur prüfen.** Auf der Seite einer Voranmeldung lässt „Nur prüfen“ ERiC die Daten auf Plausibilität prüfen. Dafür braucht es weder Zertifikat noch PIN.
-6. **Testübermittlung.** Mit gesetztem Haken „Nur Testübermittlung“, PIN und „Prüfen und testweise senden“. Die Testübermittlung läuft mit der Test-Hersteller-ID `74931` und dem Testmerker `700000004`; der ELSTER-Server nimmt sie an, leitet sie aber nicht an das Finanzamt weiter. Die Anmeldung bleibt ein Entwurf.
-7. **Hersteller-ID beantragen.** Nach erfolgreicher Testübermittlung beantragst du bei ELSTER eine eigene Hersteller-ID und trägst sie als `ELSTER_HERSTELLER_ID` (fünf Ziffern) ein. Erst dann lässt sich der Haken „Nur Testübermittlung“ entfernen.
+5. **Hersteller-ID beantragen.** Im ELSTER-Entwicklerbereich (Registrierung über elster.de) eine eigene Hersteller-ID beantragen und als `ELSTER_HERSTELLER_ID` (fünf Ziffern) eintragen. Seit ERiC 43 ist die frühere Test-Hersteller-ID `74931` gesperrt; ERiC lehnt ohne eigene ID schon das Prüfen ab („Bitte verwenden Sie Ihre eigene Hersteller-ID auch für Testfälle“). Ohne ERiC laufen Prüfen und Testübermittlung weiter simuliert.
+6. **Nur prüfen.** Auf der Seite einer Voranmeldung lässt „Nur prüfen“ ERiC die Daten auf Plausibilität prüfen. Dafür braucht es weder Zertifikat noch PIN.
+7. **Testübermittlung.** Mit gesetztem Haken „Nur Testübermittlung“, PIN und „Prüfen und testweise senden“. Die Testübermittlung läuft mit deiner Hersteller-ID und dem Testmerker `700000004`; der ELSTER-Server nimmt sie an, leitet sie aber nicht an das Finanzamt weiter. Die Anmeldung bleibt ein Entwurf. Erst danach den Haken „Nur Testübermittlung“ entfernen.
 8. **Echtübermittlung.** Ohne Haken fragt Haben noch einmal nach („Jetzt verbindlich senden“). Nach erfolgreicher Übermittlung ist die Voranmeldung festgeschrieben; eine Korrektur ist eine neue, berichtigte Anmeldung.
 
 Die PIN fragt Haben bei jeder Übermittlung ab und speichert sie nie. Für den Versand legt Haben das entschlüsselte Zertifikat kurz in ein temporäres Verzeichnis (Rechte `0600`) und löscht es danach. Jede Prüfung und Übermittlung landet mit Transfer-Ticket und ERiC-Protokoll-PDF im Verlauf der Voranmeldung.
@@ -170,7 +170,7 @@ Die PIN fragt Haben bei jeder Übermittlung ab und speichert sie nie. Für den V
 Vor dem Senden prüft Haben die Firmendaten: Name, Anschrift, Bundesland und eine gültige Steuernummer müssen vorhanden sein.
 
 > [!IMPORTANT]
-> Die ERiC-Anbindung ist gegen eine nachgebaute Bibliothek getestet; Funktionssignaturen, Flags und die Strukturen `eric_druck_parameter_t` (Version 4) und `eric_verschluesselungs_parameter_t` (Version 3) entsprechen den Headern von ERiC 43. Die erste Prüfung mit echtem ERiC zeigt, ob alles passt. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
+> Die ERiC-Anbindung ist mit ERiC 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und Protokoll-PDF mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
 
 Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatzsteuer](umsatzsteuer.md).
 

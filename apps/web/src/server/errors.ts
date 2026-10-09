@@ -1,6 +1,6 @@
 import { AssetError, SteuernummerError } from "@haben/core";
 import { EInvoiceParseError } from "@haben/einvoice";
-import { EricInstallError } from "@haben/elster";
+import { ElsterEingabeError, EricInstallError } from "@haben/elster";
 import { DatevParseError, EnableBankingApiError, LexofficeApiError, StatementParseError } from "@haben/import";
 import { ZodError } from "zod";
 
@@ -13,6 +13,7 @@ const PACKAGE_USER_ERRORS = [
   SteuernummerError,
   EInvoiceParseError,
   EricInstallError,
+  ElsterEingabeError,
   DatevParseError,
   EnableBankingApiError,
   LexofficeApiError,
