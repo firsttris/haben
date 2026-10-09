@@ -168,4 +168,10 @@ describe("steuerPrognose", () => {
     expect(p.sonderausgaben).toBe(2_000_00);
     expect(p.einkommensteuer).toBe(0);
   });
+
+  it("Sonderausgaben-Pauschbetrag deckt die Kinderbetreuung mit ab (§ 10c EStG)", () => {
+    const p = steuerPrognose({ ...base, angaben: { ...base.angaben, kinder: [{ kinderbetreuung: 50_00 }] } });
+    expect(p.kinderbetreuung).toBe(40_00);
+    expect(p.sonderausgaben + p.kinderbetreuung).toBe(72_00);
+  });
 });

@@ -75,4 +75,4 @@ Vorbelegt ist die IBAN aus den Firmendaten. Haben prüft die IBAN-Prüfsumme vor
 
 Jede Prüfung und Übermittlung speichert Haben mit Text, Transfer-Ticket und dem gesendeten XML; ändern oder löschen lässt sich das nicht. Ein Übertragungsprotokoll als PDF gibt es für Nachrichten nicht, das Transfer-Ticket ist der Nachweis.
 
-Für die Anschrift im Absender braucht ELSTER Straße und Hausnummer getrennt; Haben trennt die Hausnummer am Ende der Straße ab. Fehlt sie, meldet die Seite das.
+Für die Anschrift im Absender braucht ELSTER Straße und Hausnummer getrennt; Haben trennt die Hausnummer am Ende der Straße ab. Fehlt sie, meldet die Seite das. Sind [persönliche Angaben](einrichtung.md#persönliche-angaben) hinterlegt, geht die Nachricht unter deinem Namen und deiner Steuer-ID als natürliche Person; sonst unter dem Firmennamen.

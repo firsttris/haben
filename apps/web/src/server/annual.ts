@@ -92,10 +92,16 @@ export async function ustYear(year: number): Promise<UstYear> {
   };
 }
 
-function ustIssues(company: Company, data: UstYear): Issue[] {
+function ustIssues(company: Company, data: UstYear, year: number): Issue[] {
   const issues: Issue[] = [];
   if (company.kleinunternehmer) {
-    issues.push({ tone: "fehler", text: "Als Kleinunternehmer gibst du ab 2024 keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf." });
+    issues.push({
+      tone: "fehler",
+      text:
+        year >= 2024
+          ? "Als Kleinunternehmer gibst du ab 2024 keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf."
+          : `Für ${year} gibst du auch als Kleinunternehmer noch eine Umsatzsteuererklärung ab (erst ab 2024 nicht mehr). Die Angaben für Kleinunternehmer kann Haben nicht übermitteln; gib sie im ELSTER-Portal ab.`,
+    });
   }
   const unsupported = [
     data.kz21 !== 0 && "Leistungen im EU-Ausland (Reverse Charge, Kz 21)",
@@ -393,7 +399,7 @@ export async function annualOverview(year: number, today: string) {
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
   return {
     year,
-    ust: { ...ust, issues: [...base, ...ustIssues(company, ust)], sent: sent("ust") },
+    ust: { ...ust, issues: [...base, ...ustIssues(company, ust, year)], sent: sent("ust") },
     euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer") },
     est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est") },
     history,
@@ -417,7 +423,7 @@ async function submit(actor: string, form: AnnualForm, year: number, client: Els
   const company = await loadCompany();
   const data = form === "ust" ? await ustYear(year) : await euerYear(year);
   const formIssues =
-    form === "ust" ? ustIssues(company, data as UstYear) : form === "euer" ? euerIssues(company, data as EuerYear) : estIssues(company, data as EuerYear);
+    form === "ust" ? ustIssues(company, data as UstYear, year) : form === "euer" ? euerIssues(company, data as EuerYear) : estIssues(company, data as EuerYear);
   const issues = [
     ...yearIssues(year, options.today),
     ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text })),

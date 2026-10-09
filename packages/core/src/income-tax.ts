@@ -274,12 +274,13 @@ export function steuerPrognose(input: PrognoseInput): Prognose {
   );
   const kist = Math.max(0, sum(x.sonderausgaben.kirchensteuerGezahlt) - sum(x.sonderausgaben.kirchensteuerErstattet));
   const spenden = Math.min(sum(x.sonderausgaben.spenden), Math.floor(gde * 0.2));
-  const sonderausgaben = Math.max(kist + spenden, (zusammen ? 72 : 36) * 100);
   // Kinderbetreuung: bis 2024 zwei Drittel, höchstens 4.000 €; ab 2025 80 %, höchstens 4.800 € je Kind
   const kinderbetreuung = x.kinder.reduce((acc, k) => {
     const kosten = k.kinderbetreuung ?? 0;
     return acc + (year >= 2025 ? Math.min(Math.floor(kosten * 0.8), 4_800_00) : Math.min(Math.floor((kosten * 2) / 3), 4_000_00));
   }, 0);
+  // Der Sonderausgaben-Pauschbetrag (§ 10c EStG) deckt auch die Kinderbetreuung ab
+  const sonderausgaben = Math.max(kist + spenden, (zusammen ? 72 : 36) * 100 - kinderbetreuung);
   const aussergewoehnlich = Math.max(0, sum(x.krankheitskosten) - zumutbareBelastung(gde, zusammen, kinder));
 
   const einkommen = Math.max(0, gde - vorsorge - sonderausgaben - kinderbetreuung - aussergewoehnlich);

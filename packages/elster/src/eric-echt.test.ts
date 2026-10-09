@@ -7,6 +7,7 @@ import { checkFormats, ericMeldungen } from "./formatprobe.ts";
 import { ericHomeIn } from "./install.ts";
 import { buildNachrichtXml } from "./nachricht.ts";
 import { EricProcessClient } from "./process-client.ts";
+import { computeUstva } from "@haben/core";
 import { buildUstvaXml, type UstvaXmlInput } from "./xml.ts";
 
 /**
@@ -38,11 +39,12 @@ const envelope = (year: number) => ({ year, steuernummer13: stnr, bundesland: "B
 // ---------------------------------------------------------------------------
 // Umsatzsteuer-Voranmeldung
 
-const ustva = (year: number, figures: UstvaXmlInput["figures"], extra: Partial<UstvaXmlInput> = {}) => () =>
+/** Kz83 rechnet Haben selbst; ERiC prüft die Summe nicht nach */
+const ustva = (year: number, figures: Omit<UstvaXmlInput["figures"], "kz83">, extra: Partial<UstvaXmlInput> = {}) => () =>
   buildUstvaXml({
     period: { year, month: 3 },
     steuernummer13: "9198011310010",
-    figures,
+    figures: { ...figures, kz83: computeUstva(figures).kz83 },
     datenlieferant: { name: "Erika Mustermann", strasse: "Hauptstr. 1", plz: "10115", ort: "Berlin" },
     herstellerId,
     produktVersion: "0.1.0",
@@ -50,7 +52,7 @@ const ustva = (year: number, figures: UstvaXmlInput["figures"], extra: Partial<U
     ...extra,
   });
 /** Alle Kennzahlen, die Haben kennt, mit stimmigen Steuerbeträgen */
-const alleKennzahlen: UstvaXmlInput["figures"] = {
+const alleKennzahlen: Omit<UstvaXmlInput["figures"], "kz83"> = {
   kz81: 1_000_000,
   kz66: 30_000,
   kz86: 100_000,
@@ -62,7 +64,6 @@ const alleKennzahlen: UstvaXmlInput["figures"] = {
   kz84: 100_000,
   kz85: 19_000,
   kz67: 76_000,
-  kz83: 190_000 + 7_000 + 57_000 + 19_000 - 30_000 - 76_000,
 };
 
 // ---------------------------------------------------------------------------
@@ -168,17 +169,17 @@ const est = (year: number, overrides: Partial<EstXmlInput> = {}) => (): string =
 const jahre = [2023, 2024, 2025];
 const faelle: [string, () => string][] = [
   // Voranmeldung
-  ["UStVA 2026 einfach", ustva(2026, { kz81: 100_000, kz86: 50_000, kz66: 1_745, kz83: 17_355 })],
-  ["UStVA 2025 einfach", ustva(2025, { kz81: 100_000, kz86: 50_000, kz66: 1_745, kz83: 17_355 })],
+  ["UStVA 2026 einfach", ustva(2026, { kz81: 100_000, kz86: 50_000, kz66: 1_745 })],
+  ["UStVA 2025 einfach", ustva(2025, { kz81: 100_000, kz86: 50_000, kz66: 1_745 })],
   ["UStVA 2026 alle Kennzahlen", ustva(2026, alleKennzahlen)],
   ["UStVA 2025 alle Kennzahlen", ustva(2025, alleKennzahlen)],
-  ["UStVA § 13b als Leistungsempfänger", ustva(2026, { kz81: 0, kz86: 0, kz66: 0, kz46: 12_345, kz47: 2_345, kz84: 5_000, kz85: 950, kz67: 3_295, kz83: 0 })],
-  ["UStVA Erstattung", ustva(2026, { kz81: 0, kz86: 0, kz66: 1_200, kz83: -1_200 })],
-  ["UStVA Nullmeldung", ustva(2026, { kz81: 0, kz86: 0, kz66: 0, kz83: 0 })],
-  ["UStVA berichtigt", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 1_745, kz83: 17_255 }, { berichtigt: true })],
-  ["UStVA Dezember", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0, kz83: 19_000 }, { period: { year: 2026, month: 12 } })],
-  ["UStVA echt (ohne Testmerker)", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0, kz83: 19_000 }, { test: false })],
-  ["UStVA langer Name, Sonderzeichen", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0, kz83: 19_000 }, { datenlieferant: { name: `Müller & Söhne <"Softwareentwicklung und Beratung"> GmbH`, strasse: "Weg 'A' 1 mit sehr langem Straßennamen", plz: "10115", ort: "Frankfurt am Main-Sachsenhausen Süd" } })],
+  ["UStVA § 13b als Leistungsempfänger", ustva(2026, { kz81: 0, kz86: 0, kz66: 0, kz46: 12_345, kz47: 2_345, kz84: 5_000, kz85: 950, kz67: 3_295 })],
+  ["UStVA Erstattung", ustva(2026, { kz81: 0, kz86: 0, kz66: 1_200 })],
+  ["UStVA Nullmeldung", ustva(2026, { kz81: 0, kz86: 0, kz66: 0 })],
+  ["UStVA berichtigt", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 1_745 }, { berichtigt: true })],
+  ["UStVA Dezember", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0 }, { period: { year: 2026, month: 12 } })],
+  ["UStVA echt (ohne Testmerker)", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0 }, { test: false })],
+  ["UStVA langer Name, Sonderzeichen", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0 }, { datenlieferant: { name: `Müller & Söhne <"Softwareentwicklung und Beratung"> GmbH`, strasse: "Weg 'A' 1 mit sehr langem Straßennamen", plz: "10115", ort: "Frankfurt am Main-Sachsenhausen Süd" } })],
   // Umsatzsteuererklärung
   ...jahre.flatMap((year): [string, () => string][] => [
     [`USt-Erklärung ${year} Ist`, () => buildUstErklaerungXml({ ...envelope(year), versteuerung: "ist", figures: { base19: 10_000_049, tax19: 1_900_009, base7: 50_000, tax7: 3_500, vorsteuer: 120_000, vorauszahlungen: 1_700_000 } })],
@@ -206,6 +207,7 @@ const faelle: [string, () => string][] = [
   ["ESt 2025 ohne weitere Angaben", est(2025, { angaben: leereAngaben, telefon: undefined })],
   // Nachrichten an das Finanzamt
   ["Sonstige Nachricht", () => buildNachrichtXml({ steuernummer13: stnr, bundesland: "BW", absender, betreff: "Antrag auf Herabsetzung der Vorauszahlungen", text: "Sehr geehrte Damen und Herren,\n<bitte> herabsetzen.", herstellerId, produktVersion: "0.1.0", test: true })],
+  ["Sonstige Nachricht als natürliche Person", () => buildNachrichtXml({ steuernummer13: stnr, bundesland: "BW", absender, person: { idnr: idA, vorname: "Max", name: "Muster" }, betreff: "Test", text: "Hallo", herstellerId, produktVersion: "0.1.0", test: true })],
   ["Sonstige Nachricht, Hausnummer mit Bereich", () => buildNachrichtXml({ steuernummer13: stnr, bundesland: "BW", absender: { ...absender, strasse: "Am Ring 12-14" }, betreff: "Test", text: "x".repeat(1000), herstellerId, produktVersion: "0.1.0", test: true })],
   ["Änderung der Bankverbindung", () => buildBankverbindungXml({ steuernummer13: stnr, bundesland: "BW", person: { idnr: idA, anrede: "Herrn", vorname: "Max", name: "Muster & Sohn", geburtsdatum: "1980-03-15" }, iban: "DE89 3704 0044 0532 0130 00", herstellerId, produktVersion: "0.1.0", test: true })],
   ["Änderung der Bankverbindung, Frau", () => buildBankverbindungXml({ steuernummer13: stnr, bundesland: "BW", person: { idnr: idB, anrede: "Frau", vorname: "Erika", name: "Muster", geburtsdatum: "1987-09-01" }, iban: "DE02120300000000202051", herstellerId, produktVersion: "0.1.0", test: true })],

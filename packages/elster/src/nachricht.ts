@@ -13,6 +13,8 @@ export interface NachrichtXmlInput {
   /** Kürzel des Bundeslands, z. B. "BW" */
   bundesland: string;
   absender: { name: string; strasse: string; plz: string; ort: string };
+  /** Inhaber als natürliche Person; ohne Angabe geht die Nachricht unter dem Firmennamen als nicht natürliche Person */
+  person?: { idnr: string; vorname: string; name: string };
   betreff: string;
   text: string;
   herstellerId: string;
@@ -39,6 +41,7 @@ export function buildNachrichtXml(input: NachrichtXmlInput): string {
   const adresse = splitStrasse(input.absender.strasse);
   if (!adresse) throw new ElsterEingabeError("In der Anschrift fehlt die Hausnummer.");
   const a = input.absender;
+  const p = input.person;
   const e = escapeXml;
   return elsterXml(
     {
@@ -58,8 +61,14 @@ export function buildNachrichtXml(input: NachrichtXmlInput): string {
           `<Nachricht xmlns="http://finkonsens.de/elster/elsternachricht/sonstigenachrichten/v21" version="21">`,
           `<Steuernummer>${input.steuernummer13}</Steuernummer>`,
           `<Steuerpflichtiger>`,
-          `<SteuerpflichtigerTyp>NichtNatPerson</SteuerpflichtigerTyp>`,
-          `<Name>${e(a.name)}</Name>`,
+          ...(p
+            ? [
+                `<SteuerpflichtigerTyp>NatPerson</SteuerpflichtigerTyp>`,
+                `<IdNr>${e(p.idnr)}</IdNr>`,
+                `<Name>${e(p.name.slice(0, 72))}</Name>`,
+                `<Vorname>${e(p.vorname.slice(0, 72))}</Vorname>`,
+              ]
+            : [`<SteuerpflichtigerTyp>NichtNatPerson</SteuerpflichtigerTyp>`, `<Name>${e(a.name.slice(0, 72))}</Name>`]),
           `<Adresse>`,
           `<StrAdrInl>`,
           `<Strasse>${e(adresse.strasse)}</Strasse>`,
