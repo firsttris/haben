@@ -119,9 +119,9 @@ Die Homeoffice-Pauschale gibt es je Person nur einmal im Jahr. Hast du als Perso
 
 Nicht abgebildet sind Versorgungsbezüge, ermäßigt besteuerte Entschädigungen (Abfindungen), Arbeitslohn ohne Steuerabzug oder aus dem Ausland, Kurzarbeiter- und Elterngeld, Fahrtkostenersatz des Arbeitgebers, Reisekosten, doppelte Haushaltsführung und steuerfreie Zuschüsse zur privaten Krankenversicherung (Nr. 24 der Bescheinigung).
 
-Beträge gehen in vollen Euro an ELSTER, nur die Steuern auf Kapitalerträge mit Cent. Bei der Einzelveranlagung trägt Haben Kinderbetreuungskosten als selbst getragen ein.
+Beträge gehen in vollen Euro an ELSTER, nur die Steuern auf Kapitalerträge mit Cent. Pflicht sind die IBAN in den Firmendaten und je Kind die Familienkasse. Lohn- und Kirchensteuer einer Lohnsteuerbescheinigung schickt Haben auch mit 0, wenn das Feld leer ist; so verlangt es ELSTER.
 
-Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester sowie Kinder mit anderem Kindschaftsverhältnis oder Wohnsitz im Ausland. Brauchst du davon etwas, gibst du die Erklärung im ELSTER-Portal ab, statt sie hier zu senden; ein Nachsenden einzelner Anlagen ist nicht möglich.
+Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester, Kinder bei Einzelveranlagung (ELSTER verlangt dann Angaben zum anderen Elternteil) sowie Kinder mit anderem Kindschaftsverhältnis oder Wohnsitz im Ausland. Brauchst du davon etwas, gibst du die Erklärung im ELSTER-Portal ab, statt sie hier zu senden; ein Nachsenden einzelner Anlagen ist nicht möglich.
 
 ## Belege von ELSTER
 

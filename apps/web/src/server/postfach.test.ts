@@ -1,3 +1,4 @@
+import { EricGeprueftClient } from "./test-eric.ts";
 import type { ElsterClient, PostfachResult } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -5,7 +6,6 @@ import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
   let postfach: typeof import("./postfach.ts");
-  let elster: typeof import("@haben/elster");
   let crypto: typeof import("./crypto.ts");
   let storage: typeof import("./storage.ts");
   let sql: postgres.Sql;
@@ -14,7 +14,6 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
   beforeAll(async () => {
     sql = await setupTestDb();
     postfach = await import("./postfach.ts");
-    elster = await import("@haben/elster");
     crypto = await import("./crypto.ts");
     storage = await import("./storage.ts");
   }, 30_000);
@@ -33,7 +32,7 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
 
   /** Postfach mit zwei Bereitstellungen; der zweite Anhang von B2 lässt sich nicht abholen */
   function scriptedClient(options: { confirmOk?: boolean } = {}) {
-    const fake = new elster.FakeElsterClient();
+    const fake = new EricGeprueftClient();
     const sent: string[] = [];
     const client: ElsterClient = {
       validate: (xml) => fake.validate(xml),
@@ -118,7 +117,7 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
   });
 
   it("ruft ohne ERiC nicht echt ab und braucht ein Zertifikat", async () => {
-    const fake = new elster.FakeElsterClient();
+    const fake = new EricGeprueftClient();
     await expect(postfach.fetchPostfach(actor, fake, { kind: "send", pin: "1234", herstellerId: "12345" })).rejects.toThrow(/Ohne ERiC/);
     await expect(postfach.fetchPostfach(actor, fake, { kind: "send", pin: "1234" })).rejects.toThrow(/Hersteller-ID/);
     await sql`truncate elster_certificates`;
@@ -126,13 +125,13 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
   });
 
   it("holt mit dem simulierten Client einen Testbescheid", async () => {
-    const summary = await postfach.fetchPostfach(actor, new elster.FakeElsterClient(), { kind: "test", pin: "1234" });
+    const summary = await postfach.fetchPostfach(actor, new EricGeprueftClient(), { kind: "test", pin: "1234" });
     expect(summary).toMatchObject({ ok: true, neu: 1, bestaetigt: 1 });
   });
 
   it("schaltet den automatischen Abruf nur nach erfolgreichem Echtabruf ein und hält die PIN aus dem Audit-Log", async () => {
     const { client } = scriptedClient();
-    await expect(postfach.enableAutoFetch(actor, new elster.FakeElsterClient(), "1234", "12345")).rejects.toThrow(/Ohne ERiC/);
+    await expect(postfach.enableAutoFetch(actor, new EricGeprueftClient(), "1234", "12345")).rejects.toThrow(/Ohne ERiC/);
     expect((await postfach.autoFetchStatus()).enabled).toBe(false);
 
     const summary = await postfach.enableAutoFetch(actor, client, "geheim", "12345");

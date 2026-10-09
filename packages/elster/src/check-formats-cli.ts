@@ -8,7 +8,6 @@ import { resolve } from "node:path";
 import { checkFormats } from "./formatprobe.ts";
 import { ericHomeIn } from "./install.ts";
 import { EricProcessClient } from "./process-client.ts";
-import { TEST_HERSTELLER_ID } from "./xml.ts";
 
 const ericHome = process.env.ERIC_HOME?.trim() || ericHomeIn(resolve(process.env.ERIC_DIR || "data/eric"));
 if (!ericHome) {
@@ -20,7 +19,8 @@ const results = await checkFormats(new EricProcessClient({ ericHome }), {
   idnr: "65929970489",
   geburtsdatum: "1985-04-12",
   datenlieferant: "Haben Formatprüfung",
-  herstellerId: process.env.ELSTER_HERSTELLER_ID || TEST_HERSTELLER_ID,
+  // ERiC sperrt die Test-ID 74931; für die rein lokale Prüfung genügt ohne eigene ID ein Platzhalter
+  herstellerId: process.env.ELSTER_HERSTELLER_ID || "12345",
   veranlagungsjahr: new Date().getFullYear() - 1,
   produktVersion: "0.1.0",
 });

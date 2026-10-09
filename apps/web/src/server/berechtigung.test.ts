@@ -1,3 +1,4 @@
+import { EricGeprueftClient } from "./test-eric.ts";
 import type { ElsterClient, ElsterResult } from "@haben/elster";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -5,7 +6,6 @@ import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Berechtigung zum Belegabruf (Postgres)", () => {
   let brm: typeof import("./berechtigung.ts");
-  let elster: typeof import("@haben/elster");
   let crypto: typeof import("./crypto.ts");
   let taxpayer: typeof import("./taxpayer.ts");
   let sql: postgres.Sql;
@@ -15,7 +15,6 @@ describe.skipIf(!testDatabaseUrl)("Berechtigung zum Belegabruf (Postgres)", () =
   beforeAll(async () => {
     sql = await setupTestDb();
     brm = await import("./berechtigung.ts");
-    elster = await import("@haben/elster");
     crypto = await import("./crypto.ts");
     taxpayer = await import("./taxpayer.ts");
   }, 30_000);
@@ -33,7 +32,7 @@ describe.skipIf(!testDatabaseUrl)("Berechtigung zum Belegabruf (Postgres)", () =
 
   /** Wie der simulierte Client, aber ohne isFake und mit Mitschnitt der gesendeten XML */
   function recordingClient(sent: string[] = [], answer?: (xml: string) => Partial<ElsterResult>): ElsterClient {
-    const fake = new elster.FakeElsterClient();
+    const fake = new EricGeprueftClient();
     return {
       validate: (xml) => fake.validate(xml),
       send: async (xml, ...rest) => {
@@ -100,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("Berechtigung zum Belegabruf (Postgres)", () =
   });
 
   it("braucht Angaben zum Ehegatten und für den Echtabruf ERiC", async () => {
-    await expect(brm.requestBerechtigung(actor, new elster.FakeElsterClient(), { kind: "send", pin: "1", herstellerId: "12345", gueltigBis: "2028-12-31" })).rejects.toThrow(/Ohne ERiC/);
+    await expect(brm.requestBerechtigung(actor, new EricGeprueftClient(), { kind: "send", pin: "1", herstellerId: "12345", gueltigBis: "2028-12-31" })).rejects.toThrow(/Ohne ERiC/);
     await taxpayer.saveTaxpayer(actor, { a: person("65929970489", "Max") });
     await expect(brm.requestBerechtigung(actor, recordingClient(), { kind: "test", pin: "1", gueltigBis: "2028-12-31" })).rejects.toThrow(/Ehegatten/);
     expect(brm.defaultGueltigBis("2026-10-03")).toBe("2028-12-31");

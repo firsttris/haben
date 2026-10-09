@@ -6,6 +6,7 @@ import { elsterClient, elsterMode, ericStatus, startEricInstall } from "../elste
 import { env } from "../env.ts";
 import { PRODUKT_VERSION } from "../vat.ts";
 import { authMiddleware } from "../middleware.ts";
+import { UserError } from "../errors.ts";
 
 export const getEricStatus = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -27,6 +28,10 @@ export const installEricLibrary = createServerFn({ method: "POST" })
 export const checkElsterFormats = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async () => {
+    // ERiC sperrt die frühere Test-Hersteller-ID 74931 auch für die lokale Prüfung
+    if (elsterMode() === "eric" && !env().ELSTER_HERSTELLER_ID) {
+      throw new UserError("Für die Prüfung mit ERiC braucht es eine eigene Hersteller-ID (ELSTER_HERSTELLER_ID).");
+    }
     const company = await loadCompany();
     const a = company.taxpayer.a;
     const own = a && isValidIdnr(a.idnr);

@@ -427,7 +427,8 @@ function aveuer(year: number, anlagen: AveuerAnlage[]): XmlNode | null {
               [einz.afa, amount(a.afa)],
               [einz.abgang, amount(a.abgang)],
               [einz.bwEnde, elsterDecimal(a.buchwertEnde)],
-              gruppe === "kfz" ? ["E6007327", a.elektro ? "1" : "2"] : null,
+              // Antrieb des Kfz verlangt das Formular ab 2025
+              gruppe === "kfz" && year >= 2025 ? ["E6007327", a.elektro ? "1" : "2"] : null,
             ],
           ],
         ),
@@ -439,7 +440,7 @@ function aveuer(year: number, anlagen: AveuerAnlage[]): XmlNode | null {
             [s.afa, amount(sum(list, "afa"))],
             [s.abgang, amount(sum(list, "abgang"))],
             [s.bwEnde, elsterDecimal(sum(list, "buchwertEnde"))],
-            gruppe === "kfz" ? ["E6007328", list.some((a) => a.elektro) ? "1" : "2"] : null,
+            gruppe === "kfz" && year >= 2025 ? ["E6007328", list.some((a) => a.elektro) ? "1" : "2"] : null,
           ],
         ],
       ],
@@ -558,7 +559,8 @@ export function buildEuerXml(input: EuerXmlInput): string {
           sumNode("USt_Erstattet_Verrechnet", kz("erstatteteUst"), f.erstatteteUst),
           sumNode("Anlagevermoegen", kz("anlagenabgang"), f.anlagenabgang),
           sumNode("Nutzung_Priv_Kfz", kz("privateKfz"), f.privateKfz),
-          ["GesamtSum", [["E6001201", elsterDecimal(einnahmen)]]],
+          // Summe der Einnahmen: 2023 unter „Weitere_Angabe“, ab 2024 unter „GesamtSum“
+          [input.year >= 2024 ? "GesamtSum" : "Weitere_Angabe", [["E6001201", elsterDecimal(einnahmen)]]],
         ],
       ],
       [
@@ -602,8 +604,10 @@ export function buildEuerXml(input: EuerXmlInput): string {
                 "Abziehbar",
                 [
                   sumNode("Verpflegung", kz("verpflegung"), f.verpflegung),
-                  // Die Tagespauschale steht ohne Sum-Ebene
-                  f.tagespauschale ? ["Tagespauschale_1", [[kz("tagespauschale"), elsterDecimal(f.tagespauschale)]]] : null,
+                  // Ab 2024 eigene Tagespauschale ohne Sum-Ebene, 2023 noch unter „Tätigkeit in der häuslichen Wohnung“
+                  input.year >= 2024
+                    ? f.tagespauschale ? ["Tagespauschale_1", [[kz("tagespauschale"), elsterDecimal(f.tagespauschale)]]] : null
+                    : sumNode("Arbeitszimmer", "E6003101", f.tagespauschale),
                 ],
               ],
             ],

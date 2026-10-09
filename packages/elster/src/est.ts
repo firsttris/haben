@@ -186,6 +186,7 @@ export function buildEstXml(input: EstXmlInput): string {
   checkPerson("Person A", a);
   if (b) {
     checkPerson("Ehegatte", b);
+    if (b.idnr === a.idnr) throw new ElsterEingabeError("Person A und Ehegatte haben dieselbe Identifikationsnummer.");
     if (!input.verheiratetSeit || !isIsoDate(input.verheiratetSeit)) throw new ElsterEingabeError("Für die Zusammenveranlagung fehlt das Heiratsdatum.");
   }
   const adresse = splitStrasse(input.anschrift.strasse);
@@ -286,6 +287,8 @@ export function buildEstXml(input: EstXmlInput): string {
   const kinder: XmlNode[] = x.kinder.map((kind): XmlNode => {
     if (!kind.vorname.trim() || !isIsoDate(kind.geburtsdatum)) throw new ElsterEingabeError("Kind: Vorname und Geburtsdatum fehlen.");
     if (kind.idnr && !isValidIdnr(kind.idnr)) throw new ElsterEingabeError(`Kind ${kind.vorname}: Die Identifikationsnummer ist ungültig.`);
+    // ELSTER verlangt Vorname, Geburtsdatum und Familienkasse gemeinsam
+    if (!kind.familienkasse?.trim()) throw new ElsterEingabeError(`Kind ${kind.vorname}: Die zuständige Familienkasse fehlt.`);
     const zeitraum = kindZeitraum(input.year, kind.geburtsdatum);
     const betreuung = euro(kind.kinderbetreuung);
     return [
@@ -595,14 +598,15 @@ export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
   const gruppe = (list: EstLohnsteuerbescheinigung[], einz: string, summe: string, ids: { einz: string[]; sum: string[] }, mitKlasse: boolean): XmlNode[] => {
     if (list.length === 0) return [];
     const keys = ["brutto", "lohnsteuer", "soli", "kirchensteuer", "kirchensteuerEhegatte"] as const;
+    const ausdruecklich = (key: (typeof keys)[number]) => key === "lohnsteuer" || key === "kirchensteuer";
     return [
-      // Kirchensteuer verlangt ELSTER ausdrücklich, ggf. mit 0
-      ...list.map((b): XmlNode => [einz, keys.map((key, i): XmlNode => [ids.einz[i]!, key === "kirchensteuer" ? elsterDecimal(b[key] ?? 0) : mitCent(b[key])])]),
+      // Lohn- und Kirchensteuer verlangt ELSTER ausdrücklich, ggf. mit 0
+      ...list.map((b): XmlNode => [einz, keys.map((key, i): XmlNode => [ids.einz[i]!, ausdruecklich(key) ? elsterDecimal(b[key] ?? 0) : mitCent(b[key])])]),
       [
         summe,
         [
           mitKlasse ? ["E0200002", String(list[0]!.steuerklasse)] : null,
-          ...keys.map((key, i): XmlNode => [ids.sum[i]!, i === 0 ? euro(sum(list, key)) : key === "kirchensteuer" ? elsterDecimal(sum(list, key)) : mitCent(sum(list, key))]),
+          ...keys.map((key, i): XmlNode => [ids.sum[i]!, i === 0 ? euro(sum(list, key)) : ausdruecklich(key) ? elsterDecimal(sum(list, key)) : mitCent(sum(list, key))]),
         ],
       ],
     ];

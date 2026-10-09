@@ -12,7 +12,7 @@ const estInput = (overrides: Partial<EstXmlInput> = {}): EstXmlInput => ({
   produktVersion: "0.1.0",
   test: true,
   personA: { idnr: "86095742719", vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "IT-Berater" },
-  personB: { idnr: "86095742719", vorname: "Erika", name: "Muster", geburtsdatum: "1987-09-01", religion: "02", beruf: "" },
+  personB: { idnr: "65929970489", vorname: "Erika", name: "Muster", geburtsdatum: "1987-09-01", religion: "02", beruf: "" },
   verheiratetSeit: "2015-06-20",
   anschrift: { strasse: "Hauptstraße 12a", plz: "77815", ort: "Bühl" },
   telefon: "07223 12345",
@@ -23,7 +23,7 @@ const estInput = (overrides: Partial<EstXmlInput> = {}): EstXmlInput => ({
     sonderausgaben: { kirchensteuerGezahlt: 12_000, spenden: 10_000 },
     krankheitskosten: 150_000,
     haushaltsnah: { handwerker: 80_000 },
-    kinder: [{ idnr: "86095742719", vorname: "Lena", geburtsdatum: "2025-03-05", familienkasse: "Familienkasse BW", kinderbetreuung: 200_000 }],
+    kinder: [{ idnr: "57286403713", vorname: "Lena", geburtsdatum: "2025-03-05", familienkasse: "Familienkasse BW", kinderbetreuung: 200_000 }],
     kap: { ertraegeMitSteuerabzug: 120_000, sparerPauschbetrag: 100_000, kapitalertragsteuer: 5_000, soli: 275 },
   },
   ...overrides,
@@ -39,7 +39,7 @@ describe("buildEstXml", () => {
     expect(xml).toContain(`<E10 xmlns="http://finkonsens.de/elster/elstererklaerung/est/e10/v2025" version="2025">`);
     // Identifikationsnummern im Vorsatz; E0100081 füllt ELSTER selbst und darf nicht gesendet werden
     expect(xml).not.toContain("<E0100081>");
-    expect(xml).toMatch(/<StNr>\d+<\/StNr>\s*<ID>86095742719<\/ID>\s*<IDEhefrau>86095742719<\/IDEhefrau>/);
+    expect(xml).toMatch(/<StNr>\d+<\/StNr>\s*<ID>86095742719<\/ID>\s*<IDEhefrau>65929970489<\/IDEhefrau>/);
     expect(xml).toContain("<E0100401>12.04.1985</E0100401>");
     expect(xml).toContain("<E0101104>Hauptstraße</E0101104>");
     expect(xml).toContain("<E0101206>12</E0101206>");
@@ -184,6 +184,15 @@ describe("buildEstXml", () => {
     expect(() => buildEstXml(estInput({ anschrift: { strasse: "Am Markt", plz: "1", ort: "X" } }))).toThrow(/Hausnummer/);
     expect(() => buildEstXml(estInput({ year: 2022 }))).toThrow();
     expect(() => buildEstXml(estInput({ iban: undefined }))).toThrow(/Bankverbindung/);
+    expect(() => buildEstXml(estInput({ personB: { ...estInput().personB!, idnr: estInput().personA.idnr } }))).toThrow(/dieselbe Identifikationsnummer/);
+    const ohneKasse = estInput();
+    expect(() => buildEstXml({ ...ohneKasse, angaben: { ...ohneKasse.angaben, kinder: [{ vorname: "Lena", geburtsdatum: "2020-01-15" }] } })).toThrow(/Familienkasse/);
+  });
+
+  it("schreibt Lohn- und Kirchensteuer der Lohnsteuerbescheinigung ausdrücklich, auch mit 0", () => {
+    const base = estInput();
+    const xml = buildEstXml({ ...base, angaben: { ...base.angaben, arbeitnehmer: { a: { bescheinigungen: [{ steuerklasse: 1, brutto: 600_000 }], werbungskosten: {} } } } });
+    expect(xml).toMatch(/<LStB_1_5_Einz>\s*<E0200204>6000,00<\/E0200204>\s*<E0200304>0,00<\/E0200304>\s*<E0200504>0,00<\/E0200504>\s*<\/LStB_1_5_Einz>/);
   });
 
   it("berechnet den Zeitraum des Kindes", () => {

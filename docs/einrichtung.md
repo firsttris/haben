@@ -170,7 +170,7 @@ Die PIN fragt Haben bei jeder Übermittlung ab und speichert sie nie. Für den V
 Vor dem Senden prüft Haben die Firmendaten: Name, Anschrift, Bundesland und eine gültige Steuernummer müssen vorhanden sein.
 
 > [!IMPORTANT]
-> Die ERiC-Anbindung ist gegen eine nachgebaute Bibliothek getestet; Funktionssignaturen, Flags und die Strukturen `eric_druck_parameter_t` (Version 4) und `eric_verschluesselungs_parameter_t` (Version 3) entsprechen den Headern von ERiC 43. Die erste Prüfung mit echtem ERiC zeigt, ob alles passt. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
+> Die ERiC-Anbindung ist mit ERiC 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und Protokoll-PDF mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
 
 Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatzsteuer](umsatzsteuer.md).
 

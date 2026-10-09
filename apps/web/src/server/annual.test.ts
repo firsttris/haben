@@ -1,3 +1,4 @@
+import { EricGeprueftClient } from "./test-eric.ts";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
@@ -208,7 +209,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
   it("prüft und übermittelt testweise, speichert Werte und XML, sperrt eine zweite Echtübermittlung", async () => {
     await year2025();
     await assets.bookDepreciation(actor, 2025, TODAY);
-    const client = new elster.FakeElsterClient();
+    const client = new EricGeprueftClient();
 
     const validated = await annual.submitAnnual(actor, "euer", 2025, client, { kind: "validate", today: TODAY });
     expect(validated.ok).toBe(true);
@@ -252,7 +253,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     await sql`truncate income_tax_inputs`;
     await year2025();
     await assets.bookDepreciation(actor, 2025, TODAY);
-    const client = new elster.FakeElsterClient();
+    const client = new EricGeprueftClient();
 
     let overview = await annual.annualOverview(2025, TODAY);
     expect(overview.est.issues.some((i) => i.tone === "fehler" && i.text.includes("Persönliche Angaben"))).toBe(true);
@@ -261,16 +262,16 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" };
     await taxpayer.saveTaxpayer(actor, {
       a: person,
-      b: { ...person, anrede: "Frau", vorname: "Erika", religion: "02" },
+      b: { ...person, idnr: "65929970489", anrede: "Frau", vorname: "Erika", religion: "02" },
       veranlagung: "zusammen",
       verheiratetSeit: "2015-06-20",
     });
     await incomeTax.saveEstAngaben(actor, 2025, {
       vorsorge: { a: { pkv: 600_000 }, b: { gkv: 300_000 } },
       sonderausgaben: { spenden: 10_000 },
-      kinder: [{ vorname: "Lena", geburtsdatum: "2020-01-15", kinderbetreuung: 150_000 }],
+      kinder: [{ vorname: "Lena", geburtsdatum: "2020-01-15", familienkasse: "Familienkasse Baden-Württemberg", kinderbetreuung: 150_000 }],
     });
-    await expect(incomeTax.saveEstAngaben(actor, 2025, { kinder: [{ vorname: "", geburtsdatum: "x" }] })).rejects.toThrow();
+    await expect(incomeTax.saveEstAngaben(actor, 2025, { kinder: [{ vorname: "", geburtsdatum: "x", familienkasse: "Familienkasse BW" }] })).rejects.toThrow();
 
     overview = await annual.annualOverview(2025, TODAY);
     expect(overview.est.issues.filter((i) => i.tone === "fehler")).toEqual([]);
@@ -309,7 +310,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     const person = { idnr: "86095742719", anrede: "Herrn" as const, vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", beruf: "Entwickler" };
     await taxpayer.saveTaxpayer(actor, {
       a: person,
-      b: { ...person, anrede: "Frau", vorname: "Erika", religion: "02" },
+      b: { ...person, idnr: "65929970489", anrede: "Frau", vorname: "Erika", religion: "02" },
       veranlagung: "zusammen",
       verheiratetSeit: "2015-06-20",
     });
@@ -339,7 +340,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     await pauschalen.createPauschale(actor, { art: "homeoffice", month: "2025-10", tage: 1 }, TODAY);
     expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Homeoffice/.test(i.text))).toMatchObject({ tone: "hinweis", link: "/pauschalen" });
 
-    const client = new elster.FakeElsterClient();
+    const client = new EricGeprueftClient();
     expect((await annual.submitAnnual(actor, "est", 2025, client, { kind: "validate", today: TODAY })).ok).toBe(true);
     const [row] = await sql`select request_xml from annual_submissions where form = 'est' order by created_at desc limit 1`;
     const xml: string = row!.request_xml;

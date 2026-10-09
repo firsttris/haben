@@ -29,7 +29,7 @@ function idnr(first10: string): string {
 const idA = idnr("8609574271");
 const idB = idnr("6592997048");
 const idKind1 = idnr("5728640371");
-const idKind2 = idnr("4183750926");
+const idKind2 = idnr("4113750816");
 
 const stnr = "2893081508152";
 const absender = { name: "Tris Software", strasse: "Hauptstraße 12a", plz: "70173", ort: "Stuttgart" };
