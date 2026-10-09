@@ -58,7 +58,7 @@ export function TestOnlyToggle({
           {lockedHint ??
             (setup.mode === "simuliert"
               ? "Echtübermittlung erst mit eingerichtetem ERiC (Einstellungen) und eigener Hersteller-ID."
-              : "Echtübermittlung erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID).")}
+              : "ERiC nimmt Prüfungen und Übermittlungen, auch zum Test, nur mit eigener Hersteller-ID an (ELSTER_HERSTELLER_ID).")}
         </p>
       )}
     </>

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 /**
  * Anbindung an die ERiC-Bibliothek (libericapi.so) über koffi.
  * Wird nur im Worker-Prozess geladen: ein Absturz der nativen Bibliothek
@@ -86,8 +87,10 @@ function ottoLibraryPath(ericHome: string): string {
   return `${ericHome}/lib/libotto.so`;
 }
 
+/** ERiC 43 liefert die Plugins unter lib/plugins, ältere Versionen unter lib/plugins2 */
 export function ericPluginPath(ericHome: string): string {
-  return `${ericHome}/lib/plugins2`;
+  const current = `${ericHome}/lib/plugins`;
+  return existsSync(current) ? current : `${ericHome}/lib/plugins2`;
 }
 
 /** Opaker Rückgabepuffer von ERiC */

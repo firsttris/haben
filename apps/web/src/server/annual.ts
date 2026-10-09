@@ -249,6 +249,8 @@ export async function euerYear(year: number): Promise<EuerYear> {
       afa: a.year!.depreciation,
       abgang: a.year!.disposal,
       buchwertEnde: a.year!.closing,
+      // Antrieb ist nur bei erfasster Privatnutzung bekannt; ohne Angabe gilt das Kfz als Verbrenner
+      ...(a.kind === "kfz" ? { elektro: a.privateUse ? a.privateUse.drive !== "verbrenner" : false } : {}),
     }));
   return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length };
 }
@@ -432,7 +434,8 @@ async function submit(actor: string, form: AnnualForm, year: number, client: Els
   }
 
   const test = options.kind !== "send";
-  const herstellerId = test ? TEST_HERSTELLER_ID : options.herstellerId;
+  // ERiC 43 sperrt die Test-Hersteller-ID 74931; auch Testfälle laufen mit der eigenen, falls vorhanden
+  const herstellerId = options.herstellerId || (test ? TEST_HERSTELLER_ID : undefined);
   if (!herstellerId) throw new AnnualError("Für die Echtübermittlung fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
   if (!test && "isFake" in client && client.isFake) {
     throw new AnnualError("Ohne ERiC ist keine Echtübermittlung möglich; Prüfen und Testübermittlung laufen nur simuliert.");

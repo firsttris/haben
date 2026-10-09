@@ -191,7 +191,7 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       einlagen: 1_190,
     });
     expect(euer.anlagen).toEqual([
-      { gruppe: "kfz", bezeichnung: "Tesla Model Y", anschaffung: "2024-01-10", anschaffungskosten: 3_600_000, buchwertBeginn: 3_000_000, afa: 600_000, abgang: 0, buchwertEnde: 2_400_000 },
+      { gruppe: "kfz", bezeichnung: "Tesla Model Y", anschaffung: "2024-01-10", anschaffungskosten: 3_600_000, buchwertBeginn: 3_000_000, afa: 600_000, abgang: 0, buchwertEnde: 2_400_000, elektro: true },
     ]);
     expect((await annual.annualOverview(2025, TODAY)).euer.issues).toEqual([]);
     expect(car.id).toBeTruthy();

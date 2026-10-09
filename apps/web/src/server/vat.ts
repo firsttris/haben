@@ -259,7 +259,8 @@ async function submit(actor: string, returnId: string, client: ElsterClient, opt
   if (issues.length > 0) throw new VatError(`Firmendaten unvollständig: ${issues.join(", ")}.`);
 
   const test = options.kind !== "send";
-  const herstellerId = test ? TEST_HERSTELLER_ID : options.herstellerId;
+  // ERiC 43 sperrt die Test-Hersteller-ID 74931; auch Testfälle laufen mit der eigenen, falls vorhanden
+  const herstellerId = options.herstellerId || (test ? TEST_HERSTELLER_ID : undefined);
   if (!herstellerId) {
     throw new VatError("Für die Echtübermittlung fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
   }

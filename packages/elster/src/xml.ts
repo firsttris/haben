@@ -44,7 +44,7 @@ export function datenartVersionFromXml(xml: string): string | undefined {
   if (bank?.[1]) return `AenderungBankverbindung_${bank[1]}`;
   const abholung = /<DatenArt>(PostfachAnfrage|PostfachBestaetigung)<\/DatenArt>[\s\S]*<Datenabholung\b[^>]*\bversion="(\d+)"/.exec(xml);
   if (abholung?.[1] && abholung[2]) return `${abholung[1]}_${abholung[2]}`;
-  if (/<DatenArt>ElsterVaStDaten<\/DatenArt>/.test(xml)) return "ElsterVaStDaten";
+  if (/<DatenArt>ElsterVaStDaten<\/DatenArt>/.test(xml)) return "ElsterVaStDaten_31";
   // Berechtigungsmanagement: Datenart = Datenart-Version
   const brm = /<DatenArt>(SpezRecht(?:Antrag|Freischaltung|Storno|Liste))<\/DatenArt>/.exec(xml);
   if (brm?.[1]) return brm[1];
@@ -179,8 +179,9 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
     if (cents !== undefined && Math.trunc(cents / 100) !== 0) kennzahlen.push(element(`Kz${kz}`, wholeEuros(cents)));
   };
   if (input.berichtigt) kennzahlen.push(element("Kz10", "1"));
+  // Steuerbeträge in der Voranmeldung mit Punkt ("17.35"), anders als in den Jahreserklärungen
   const tax = (kz: string, cents: Cents | undefined) => {
-    if (cents !== undefined && cents !== 0) kennzahlen.push(element(`Kz${kz}`, elsterDecimal(cents)));
+    if (cents !== undefined && cents !== 0) kennzahlen.push(element(`Kz${kz}`, elsterDecimal(cents).replace(",", ".")));
   };
   base("21", figures.kz21);
   base("45", figures.kz45);
@@ -190,7 +191,7 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
   tax("66", figures.kz66);
   tax("67", figures.kz67);
   base("81", figures.kz81);
-  kennzahlen.push(element("Kz83", elsterDecimal(figures.kz83)));
+  kennzahlen.push(element("Kz83", elsterDecimal(figures.kz83).replace(",", ".")));
   base("84", figures.kz84);
   tax("85", figures.kz85);
   base("86", figures.kz86);
@@ -205,19 +206,22 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
         empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) },
         produktVersion: input.produktVersion,
         nutzdaten: [
-          `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${period.year}" art="UStVA" version="${period.year}">`,
-          `<DatenLieferant>`,
-          element("Name", dl.name),
-          element("Strasse", dl.strasse),
-          element("PLZ", dl.plz),
-          element("Ort", dl.ort),
-          `</DatenLieferant>`,
+          `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${period.year}" version="${period.year}">`,
           element("Erstellungsdatum", yyyymmdd(input.erstellungsdatum ?? new Date())),
+          // Längen laut Schema; der Datenlieferant ist nur Absenderangabe
+          `<DatenLieferant>`,
+          element("Name", dl.name.slice(0, 45)),
+          element("Strasse", dl.strasse.slice(0, 30)),
+          element("PLZ", dl.plz),
+          element("Ort", dl.ort.slice(0, 30)),
+          `</DatenLieferant>`,
           `<Steuerfall>`,
           `<Umsatzsteuervoranmeldung>`,
           element("Jahr", String(period.year)),
           element("Zeitraum", String(period.month).padStart(2, "0")),
           element("Steuernummer", input.steuernummer13),
+          // Pflichtfeld: Hersteller-ID der Software
+          element("Kz09", input.herstellerId),
           ...kennzahlen,
           `</Umsatzsteuervoranmeldung>`,
           `</Steuerfall>`,

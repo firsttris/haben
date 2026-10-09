@@ -140,7 +140,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     let xml = "";
     const spy = { validate: async (body: string) => ((xml = body), new FakeElsterClient().validate(body)), send: new FakeElsterClient().send, fetchPostfach: new FakeElsterClient().fetchPostfach, fetchBelege: new FakeElsterClient().fetchBelege };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
-    expect(xml).toContain("<Kz66>8,06</Kz66>");
+    expect(xml).toContain("<Kz66>8.06</Kz66>");
     const [stored] = await sql`select kz66 from vat_returns where id = ${draft.id}`;
     expect(stored?.kz66).toBe(806);
 
@@ -238,9 +238,9 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     let xml = "";
     const spy = { validate: async (body: string) => ((xml = body), new FakeElsterClient().validate(body)), send: new FakeElsterClient().send, fetchPostfach: new FakeElsterClient().fetchPostfach, fetchBelege: new FakeElsterClient().fetchBelege };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
-    expect(xml).toMatch(/<Kz46>100<\/Kz46>\s*<Kz47>19,00<\/Kz47>/);
-    expect(xml).toContain("<Kz67>28,50</Kz67>");
-    expect(xml).toMatch(/<Kz84>50<\/Kz84>\s*<Kz85>9,50<\/Kz85>/);
+    expect(xml).toMatch(/<Kz46>100<\/Kz46>\s*<Kz47>19.00<\/Kz47>/);
+    expect(xml).toContain("<Kz67>28.50</Kz67>");
+    expect(xml).toMatch(/<Kz84>50<\/Kz84>\s*<Kz85>9.50<\/Kz85>/);
 
     // EÜR: Ausgabe ist der gezahlte Nettobetrag, keine Vorsteuer aus § 13b
     const reports = await import("./reports.ts");

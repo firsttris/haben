@@ -36,7 +36,9 @@ describe("buildEstXml", () => {
     expect(hasTestmerker(xml)).toBe(true);
     expect(xml).toContain("<DatenArt>ESt</DatenArt>");
     expect(xml).toContain(`<E10 xmlns="http://finkonsens.de/elster/elstererklaerung/est/e10/v2025" version="2025">`);
-    expect(xml).toContain("<E0100081>86095742719</E0100081>");
+    // Identifikationsnummern im Vorsatz; E0100081 füllt ELSTER selbst und darf nicht gesendet werden
+    expect(xml).not.toContain("<E0100081>");
+    expect(xml).toMatch(/<StNr>\d+<\/StNr>\s*<ID>86095742719<\/ID>\s*<IDEhefrau>86095742719<\/IDEhefrau>/);
     expect(xml).toContain("<E0100401>12.04.1985</E0100401>");
     expect(xml).toContain("<E0101104>Hauptstraße</E0101104>");
     expect(xml).toContain("<E0101206>12</E0101206>");
@@ -61,6 +63,9 @@ describe("buildEstXml", () => {
     expect(xml).toContain("<E1904701>50,00</E1904701>");
     expect(xml).toContain("<E1904901>2,75</E1904901>");
     expect(xml).toContain("<E1901401>1000</E1901401>");
+    // Erträge mit Steuerabzug ohne Günstigerprüfung: Antrag auf Überprüfung des Steuereinbehalts (ERiC-Pflicht)
+    expect(xml).toMatch(/<Ant>\s*<E1900501>1<\/E1900501>\s*<\/Ant>/);
+    expect(xml).toMatch(/<Sp_PB>\s*<E1901401>1000<\/E1901401>\s*<E1901402>0<\/E1901402>/);
     // §35a mit Einzelposten und Summe
     expect(xml).toMatch(/<Handw_L>\s*<Einz>\s*<E0111217>Handwerkerleistungen<\/E0111217>\s*<E0111214>800<\/E0111214>\s*<\/Einz>\s*<Sum>\s*<E0111215>800/);
     expect(xml).toMatch(/<Unterfallart>10<\/Unterfallart>[\s\S]*<StNr>2836216146249<\/StNr>[\s\S]*<Zeitraum>2025<\/Zeitraum>/);

@@ -60,7 +60,8 @@ export function checkEnvelope(input: Envelope) {
   if (!/^[A-Z]{2}$/.test(input.bundesland)) throw new Error(`Bundesland fehlt: ${input.bundesland}`);
 }
 
-export function vorsatz(unterfallart: "10" | "50" | "77", input: Envelope): XmlNode {
+/** Identifikationsnummern stehen bei der Einkommensteuer im Vorsatz, nicht in den Personendaten */
+export function vorsatz(unterfallart: "10" | "50" | "77", input: Envelope, idnr?: { a: string; b?: string }): XmlNode {
   const a = input.absender;
   return [
     "Vorsatz",
@@ -68,6 +69,8 @@ export function vorsatz(unterfallart: "10" | "50" | "77", input: Envelope): XmlN
       ["Unterfallart", unterfallart],
       ["Vorgang", "01"],
       ["StNr", input.steuernummer13],
+      ["ID", idnr?.a],
+      ["IDEhefrau", idnr?.b],
       ["Zeitraum", String(input.year)],
       ["AbsName", a.name.slice(0, 45)],
       ["AbsStr", a.strasse.slice(0, 30)],
@@ -364,6 +367,8 @@ export interface AveuerAnlage {
   /** Restbuchwert beim Ausscheiden */
   abgang: Cents;
   buchwertEnde: Cents;
+  /** Nur Kfz: Elektro- oder extern aufladbares Hybridfahrzeug (Pflichtangabe in der AVEÜR) */
+  elektro?: boolean;
 }
 
 /** Feldkennungen je Gruppe: Einzelangaben und Summe (AVEÜR 2025) */
@@ -422,6 +427,7 @@ function aveuer(year: number, anlagen: AveuerAnlage[]): XmlNode | null {
               [einz.afa, amount(a.afa)],
               [einz.abgang, amount(a.abgang)],
               [einz.bwEnde, elsterDecimal(a.buchwertEnde)],
+              gruppe === "kfz" ? ["E6007327", a.elektro ? "1" : "2"] : null,
             ],
           ],
         ),
@@ -433,6 +439,7 @@ function aveuer(year: number, anlagen: AveuerAnlage[]): XmlNode | null {
             [s.afa, amount(sum(list, "afa"))],
             [s.abgang, amount(sum(list, "abgang"))],
             [s.bwEnde, elsterDecimal(sum(list, "buchwertEnde"))],
+            gruppe === "kfz" ? ["E6007328", list.some((a) => a.elektro) ? "1" : "2"] : null,
           ],
         ],
       ],

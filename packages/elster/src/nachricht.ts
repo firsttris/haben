@@ -20,11 +20,14 @@ export interface NachrichtXmlInput {
   test: boolean;
 }
 
-/** "Hauptstraße 12a" → Straße und Hausnummer; ELSTER will beides getrennt */
-export function splitStrasse(strasse: string): { strasse: string; hausnummer: string } | null {
-  const match = /^(.*?)\s*(\d+\s*[a-zA-Z]?(?:\s*[-/]\s*\d+\s*[a-zA-Z]?)?)$/.exec(strasse.trim());
+/**
+ * "Hauptstraße 12a" → Straße, Hausnummer (nur Ziffern, so verlangen es die ELSTER-Schemas) und Zusatz ("a", "-14").
+ */
+export function splitStrasse(strasse: string): { strasse: string; hausnummer: string; zusatz?: string } | null {
+  const match = /^(.*?)\s*(\d+)(\s*[a-zA-Z]?(?:\s*[-/]\s*\d+\s*[a-zA-Z]?)?)$/.exec(strasse.trim());
   if (!match?.[1] || !match[2]) return null;
-  return { strasse: match[1].replace(/,$/, "").trim(), hausnummer: match[2].replace(/\s+/g, "") };
+  const zusatz = match[3]!.replace(/\s+/g, "").replace(/^-(?=[a-zA-Z])/, "");
+  return { strasse: match[1].replace(/,$/, "").trim(), hausnummer: match[2], ...(zusatz ? { zusatz } : {}) };
 }
 
 export function buildNachrichtXml(input: NachrichtXmlInput): string {
@@ -61,6 +64,7 @@ export function buildNachrichtXml(input: NachrichtXmlInput): string {
           `<StrAdrInl>`,
           `<Strasse>${e(adresse.strasse)}</Strasse>`,
           `<Hausnummer>${e(adresse.hausnummer)}</Hausnummer>`,
+          ...(adresse.zusatz ? [`<Hausnummernzusatz>${e(adresse.zusatz)}</Hausnummernzusatz>`] : []),
           `<Postleitzahl>${e(a.plz)}</Postleitzahl>`,
           `<Ort>${e(a.ort)}</Ort>`,
           `</StrAdrInl>`,

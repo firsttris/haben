@@ -12,8 +12,8 @@ describe("Belegabruf-XML", () => {
     expect(xml).toContain("<DatenArt>ElsterVaStDaten</DatenArt>");
     expect(xml).toContain("<Testmerker>370000001</Testmerker>");
     expect(xml).toContain('<Empfaenger id="L">CS</Empfaenger>');
-    expect(xml).toContain('<Datenabholung version="10">\n<Anfrage idnr="02293417683" veranlagungsjahr="2025"/>');
-    expect(datenartVersionFromXml(xml)).toBe("ElsterVaStDaten");
+    expect(xml).toContain('<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="31">\n<Anfrage idnr="02293417683" veranlagungsjahr="2025"/>');
+    expect(datenartVersionFromXml(xml)).toBe("ElsterVaStDaten_31");
     expect(hasTestmerker(xml)).toBe(true);
   });
 

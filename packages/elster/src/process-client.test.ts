@@ -192,7 +192,7 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
     const input = { idnr: "02293417683", veranlagungsjahr: 2025, datenlieferant: "Test", herstellerId: "74931", test: true };
     const result = await client().fetchBelege(input, new Uint8Array([1]), "geheim");
     expect(result.ok).toBe(true);
-    expect(result.responseXml).toMatch(/<V>ElsterVaStDaten<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
+    expect(result.responseXml).toMatch(/<V>ElsterVaStDaten_31<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
     expect(result.responseXml).not.toContain("<TH>(nil)</TH>");
     expect(result.requestXml).toContain("<Anfrage ");
     expect(result.liste.map((b) => [b.id, b.belegart])).toEqual([

@@ -16,7 +16,7 @@ function jar(files: Record<string, Uint8Array>) {
 const goodJar = jar({
   "ERiC-43.4.6.0/Linux-x86_64/lib/libericapi.so": new TextEncoder().encode("api"),
   "ERiC-43.4.6.0/Linux-x86_64/lib/libericxerces.so": big,
-  "ERiC-43.4.6.0/Linux-x86_64/lib/plugins2/libcheckUStVA_2026.so": new TextEncoder().encode("plugin"),
+  "ERiC-43.4.6.0/Linux-x86_64/lib/plugins/libcheckUStVA_2026.so": new TextEncoder().encode("plugin"),
   "ERiC-43.4.6.0/Windows-x86_64/dll/ericapi.dll": new TextEncoder().encode("win"),
   "ERiC-43.4.6.0/Dokumentation/Liesmich.txt": new TextEncoder().encode("doku"),
 });
@@ -63,7 +63,7 @@ describe("ERiC installieren", () => {
     expect(ericHomeIn(dir)).toBe(dir);
 
     const broken = jar({ "ERiC-44.0.0.0/Linux-x86_64/lib/libericapi.so": new TextEncoder().encode("neu") });
-    await expect(installEric({ version: "44.0.0.0", dir, fetch: fakeFetch(broken).fn, checkPlatform: false })).rejects.toThrow(/plugins2/);
+    await expect(installEric({ version: "44.0.0.0", dir, fetch: fakeFetch(broken).fn, checkPlatform: false })).rejects.toThrow(/lib\/plugins/);
     expect(ericHomeIn(dir)).toBe(dir);
     await expect(installEric({ version: "44.0.0.0", dir, fetch: fakeFetch(null, 404).fn, checkPlatform: false })).rejects.toThrow(/nicht \(mehr\)/);
 

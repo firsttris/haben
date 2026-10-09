@@ -190,7 +190,6 @@ export function buildEstXml(input: EstXmlInput): string {
   }
   const adresse = splitStrasse(input.anschrift.strasse);
   if (!adresse) throw new Error("In der Anschrift fehlt die Hausnummer.");
-  const hausnummer = /^(\d+)(.*)$/.exec(adresse.hausnummer);
   const absender: ErklaerungAbsender = { name: `${a.vorname} ${a.name}`, ...input.anschrift };
   const envelopeInput: Envelope = { ...input, absender, datenArt: "ESt" };
   checkEnvelope(envelopeInput);
@@ -208,15 +207,14 @@ export function buildEstXml(input: EstXmlInput): string {
           [
             "A",
             [
-              ["E0100081", a.idnr],
               ["E0100401", germanDate(a.geburtsdatum)],
               ["E0100201", a.name.trim()],
               ["E0100301", a.vorname.trim()],
               ["E0100402", a.religion || "11"],
               ["E0100403", a.beruf.trim() || undefined],
               ["E0101104", adresse.strasse],
-              ["E0101206", hausnummer?.[1] ?? adresse.hausnummer],
-              ["E0101207", hausnummer?.[2]?.replace(/^[\s-]+/, "") || undefined],
+              ["E0101206", adresse.hausnummer],
+              ["E0101207", adresse.zusatz?.replace(/^[-/]/, "")],
               ["E0100601", input.anschrift.plz],
               ["E0100602", input.anschrift.ort],
               ["E0100701", zusammen ? germanDate(input.verheiratetSeit!) : undefined],
@@ -227,7 +225,6 @@ export function buildEstXml(input: EstXmlInput): string {
             ? [
                 "B",
                 [
-                  ["E0100082", b.idnr],
                   ["E0101001", germanDate(b.geburtsdatum)],
                   ["E0100901", b.name.trim()],
                   ["E0100801", b.vorname.trim()],
@@ -465,10 +462,24 @@ export function buildEstXml(input: EstXmlInput): string {
           "KAP",
           [
             ["Person", "PersonA"],
-            ["Ant", [["E1900401", k.guenstigerpruefung ? "1" : undefined]]],
+            [
+              "Ant",
+              [
+                ["E1900401", k.guenstigerpruefung ? "1" : undefined],
+                // Erträge mit Steuerabzug brauchen einen Grund; ohne Günstigerprüfung die Überprüfung des Einbehalts
+                ["E1900501", !k.guenstigerpruefung && k.ertraegeMitSteuerabzug ? "1" : undefined],
+              ],
+            ],
             ["KapErt_inl_StAbz", [["Betr_lt_StBesch", [["E1900701", euro(k.ertraegeMitSteuerabzug)]]]]],
             // Nur zusammen mit Erträgen mit Steuerabzug (ERiC-Regel 192021)
-            ["Sp_PB", [["E1901401", k.ertraegeMitSteuerabzug ? euro(k.sparerPauschbetrag) : undefined]]],
+            [
+              "Sp_PB",
+              [
+                ["E1901401", k.ertraegeMitSteuerabzug ? euro(k.sparerPauschbetrag) : undefined],
+                // Pflicht beim Antrag auf Überprüfung: Haben erklärt alle Erträge in der Anlage KAP, also 0
+                ["E1901402", !k.guenstigerpruefung && k.ertraegeMitSteuerabzug ? "0" : undefined],
+              ],
+            ],
             [
               "KapErt_kein_inl_StAbz",
               [
@@ -574,7 +585,7 @@ export function buildEstXml(input: EstXmlInput): string {
   return envelope(envelopeInput, [
     `<E10 xmlns="http://finkonsens.de/elster/elstererklaerung/est/e10/v${input.year}" version="${input.year}">`,
     ...[est1a, sa, agb, ha35a, ...kinder, anlageG, anlageS, ...anlagenN, kap, vor].flatMap((node) => render(node, "  ")),
-    ...render(vorsatz("10", envelopeInput), "  "),
+    ...render(vorsatz("10", envelopeInput, { a: a.idnr, ...(b ? { b: b.idnr } : {}) }), "  "),
     `</E10>`,
   ]);
 }

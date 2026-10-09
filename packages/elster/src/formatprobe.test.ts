@@ -9,8 +9,8 @@ describe("Formatprüfung", () => {
   it("baut je Nachricht eine Probe wie beim echten Senden", () => {
     const proben = formatProben(input);
     expect(proben.map((p) => datenartVersionFromXml(p.xml))).toEqual([
-      "ElsterVaStDaten",
-      "ElsterVaStDaten",
+      "ElsterVaStDaten_31",
+      "ElsterVaStDaten_31",
       "SpezRechtAntrag",
       "SpezRechtFreischaltung",
       "SpezRechtStorno",

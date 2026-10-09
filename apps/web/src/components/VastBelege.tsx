@@ -157,7 +157,7 @@ export function VastBelege({ data }: { data: Data }) {
               <p className="small muted" style={{ margin: 0 }}>
                 {data.mode === "simuliert"
                   ? "Der Testabruf läuft ohne ERiC simuliert und liefert Beispielbelege."
-                  : "Echter Abruf erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID)."}
+                  : "ERiC nimmt Abrufe, auch zum Test, nur mit eigener Hersteller-ID an (ELSTER_HERSTELLER_ID)."}
               </p>
             )}
             {person === "b" && (

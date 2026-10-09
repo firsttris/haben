@@ -134,10 +134,10 @@ Rechts steht der Bereich **An ELSTER übermitteln** mit dem hinterlegten Zertifi
 | Aktion | Braucht | Was passiert |
 | --- | --- | --- |
 | **Nur prüfen** | vollständige Firmendaten | ERiC prüft das XML gegen die Regeln, ohne zu senden. |
-| **Prüfen und testweise senden** | Zertifikat, PIN | Prüfung und Übermittlung mit Testmerker `700000004` und der Test-Hersteller-ID `74931`. Der Server nimmt die Daten an, leitet sie aber nicht ans Finanzamt weiter. |
+| **Prüfen und testweise senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Prüfung und Übermittlung mit Testmerker `700000004` und deiner Hersteller-ID (ERiC 43 sperrt die frühere Test-ID `74931`). Der Server nimmt die Daten an, leitet sie aber nicht ans Finanzamt weiter. |
 | **Prüfen und senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Echte Übermittlung nach einer zweiten Bestätigung („Jetzt verbindlich senden“). |
 
-Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt; die Seite sagt dann „Echtübermittlung erst mit eigener Hersteller-ID (ELSTER_HERSTELLER_ID).“
+Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt. Mit echtem ERiC scheitern dann auch Prüfen und Test mit der Meldung, die eigene Hersteller-ID auch für Testfälle zu verwenden.
 
 ### Was im Hintergrund passiert
 

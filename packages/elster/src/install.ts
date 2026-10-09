@@ -3,14 +3,13 @@
  * Finanzverwaltung), lädt sie aber auf Wunsch direkt von download.elster.de herunter und entpackt
  * nur den Teil für Linux x86_64.
  */
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync, type WriteStream } from "node:fs";
-import { once } from "node:events";
-import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { createReadStream, createWriteStream, existsSync, readFileSync } from "node:fs";
+import { type FileHandle, mkdir, mkdtemp, open, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, normalize } from "node:path";
 import { Readable } from "node:stream";
-import { finished, pipeline } from "node:stream/promises";
-import { Unzip, UnzipInflate, type UnzipFile } from "fflate";
+import { pipeline } from "node:stream/promises";
+import { crc32, createInflateRaw } from "node:zlib";
 import { ericLibraryPath, ericPluginPath } from "./eric.ts";
 
 /** Zuletzt bekannte ERiC-Version; neuere stehen im Entwicklerbereich von ELSTER */
@@ -105,7 +104,7 @@ export async function installEric(options: InstallOptions): Promise<{ version: s
     let files: number;
     try {
       files = await extractPlatform(jar, fresh, options.onProgress);
-      if (!isEricInstalled(fresh)) throw new EricInstallError(`Im Paket fehlt lib/libericapi.so oder lib/plugins2 für ${ERIC_PLATFORM}.`);
+      if (!isEricInstalled(fresh)) throw new EricInstallError(`Im Paket fehlt lib/libericapi.so oder lib/plugins für ${ERIC_PLATFORM}.`);
       await writeFile(join(fresh, VERSION_FILE), `${options.version}\n`);
     } catch (error) {
       await rm(fresh, { recursive: true, force: true });
@@ -157,66 +156,103 @@ async function download(url: string, path: string, options: InstallOptions) {
   await pipeline(body, createWriteStream(path));
 }
 
+interface ZipEntry {
+  name: string;
+  method: number;
+  crc: number;
+  compressedSize: number;
+  size: number;
+  localOffset: number;
+}
+
+const invalidZip = () => new EricInstallError("Das ERiC-Paket ist beschädigt oder kein ZIP-Archiv.");
+
+/**
+ * Liest das Inhaltsverzeichnis am Ende des Archivs. Das ERiC-Paket ist ein Java-JAR mit nachgestellten
+ * Größenangaben (Datendeskriptor); ein Streaming-Entpacker muss dort das Ende eines Eintrags raten und
+ * scheitert z. B. an eingebetteten JARs. Hier stehen Größe, Prüfsumme und Position jedes Eintrags fest.
+ */
+async function zipEntries(file: FileHandle, fileSize: number): Promise<ZipEntry[]> {
+  // End of Central Directory: 22 Byte plus höchstens 64 KB Kommentar
+  const tail = Buffer.alloc(Math.min(fileSize, 22 + 0xffff));
+  await file.read(tail, 0, tail.length, fileSize - tail.length);
+  const eocd = tail.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  if (eocd < 0 || eocd + 22 > tail.length) throw invalidZip();
+  const count = tail.readUInt16LE(eocd + 10);
+  const directorySize = tail.readUInt32LE(eocd + 12);
+  const directoryOffset = tail.readUInt32LE(eocd + 16);
+  // ZIP64 braucht ERiC nicht (unter 4 GB, unter 65.535 Einträge)
+  if (count === 0xffff || directoryOffset === 0xffffffff || directoryOffset + directorySize > fileSize) throw invalidZip();
+  const directory = Buffer.alloc(directorySize);
+  await file.read(directory, 0, directorySize, directoryOffset);
+
+  const entries: ZipEntry[] = [];
+  let pos = 0;
+  for (let i = 0; i < count; i++) {
+    if (pos + 46 > directory.length || directory.readUInt32LE(pos) !== 0x02014b50) throw invalidZip();
+    const nameLength = directory.readUInt16LE(pos + 28);
+    entries.push({
+      method: directory.readUInt16LE(pos + 10),
+      crc: directory.readUInt32LE(pos + 16),
+      compressedSize: directory.readUInt32LE(pos + 20),
+      size: directory.readUInt32LE(pos + 24),
+      localOffset: directory.readUInt32LE(pos + 42),
+      name: directory.toString("utf8", pos + 46, pos + 46 + nameLength),
+    });
+    pos += 46 + nameLength + directory.readUInt16LE(pos + 30) + directory.readUInt16LE(pos + 32);
+  }
+  return entries;
+}
+
+/** Entpackt einen Eintrag (gespeichert oder Deflate) und prüft Größe und CRC-32 */
+async function extractEntry(jar: string, file: FileHandle, entry: ZipEntry, path: string): Promise<void> {
+  const header = Buffer.alloc(30);
+  await file.read(header, 0, 30, entry.localOffset);
+  if (header.readUInt32LE(0) !== 0x04034b50) throw invalidZip();
+  const start = entry.localOffset + 30 + header.readUInt16LE(26) + header.readUInt16LE(28);
+  if (entry.method !== 0 && entry.method !== 8) throw new EricInstallError(`Nicht unterstützte Kompression im ERiC-Paket: ${entry.name}`);
+
+  let crc = 0;
+  let size = 0;
+  async function* check(chunks: AsyncIterable<Buffer>) {
+    for await (const chunk of chunks) {
+      crc = crc32(chunk, crc);
+      size += chunk.length;
+      yield chunk;
+    }
+  }
+  // createReadStream mit end < start liefert nichts; leere Dateien brauchen das
+  const source = createReadStream(jar, { start, end: start + entry.compressedSize - 1 });
+  if (entry.method === 8) await pipeline(source, createInflateRaw(), check, createWriteStream(path));
+  else await pipeline(source, check, createWriteStream(path));
+  if (size !== entry.size || crc >>> 0 !== entry.crc) throw new EricInstallError(`Beschädigter Eintrag im ERiC-Paket: ${entry.name}`);
+}
+
 /** Entpackt die Einträge unter `<irgendwas>/Linux-x86_64/` ohne dieses Präfix; liefert die Anzahl Dateien */
 async function extractPlatform(jar: string, target: string, onProgress?: (p: InstallProgress) => void): Promise<number> {
   const marker = `/${ERIC_PLATFORM}/`;
-  const writes: Promise<void>[] = [];
-  let files = 0;
-  let failure: unknown = null;
-  const open = new Set<WriteStream>();
-
-  const unzip = new Unzip((file: UnzipFile) => {
-    const index = `/${file.name}`.indexOf(marker);
-    if (index < 0 || file.name.endsWith("/")) return;
-    const relative = `/${file.name}`.slice(index + marker.length);
-    const path = normalize(join(target, relative));
-    // Keine Pfade außerhalb des Ziels (../ im Archiv)
-    if (!path.startsWith(`${target}/`)) {
-      failure = new EricInstallError(`Unzulässiger Pfad im Archiv: ${file.name}`);
-      return;
-    }
-    files++;
-    // Synchron anmelden: fflate überspringt Dateien, für die start() nicht sofort aufgerufen wird
-    mkdirSync(dirname(path), { recursive: true });
-    const out = createWriteStream(path);
-    open.add(out);
-    out.on("close", () => open.delete(out));
-    const written = finished(out);
-    // Als behandelt markieren: ausgewertet wird über Promise.all/allSettled, ggf. erst später
-    written.catch(() => {});
-    writes.push(written);
-    file.ondata = (error, chunk, final) => {
-      if (error) {
-        failure = error;
-        out.destroy(error);
-        return;
-      }
-      out.write(chunk);
-      if (final) out.end();
-    };
-    file.start();
-  });
-  unzip.register(UnzipInflate);
-
+  const file = await open(jar, "r");
   try {
+    const wanted = (await zipEntries(file, (await file.stat()).size)).flatMap((entry) => {
+      const index = `/${entry.name}`.indexOf(marker);
+      if (index < 0 || entry.name.endsWith("/")) return [];
+      const path = normalize(join(target, `/${entry.name}`.slice(index + marker.length)));
+      // Keine Pfade außerhalb des Ziels (../ im Archiv)
+      if (!path.startsWith(`${target}/`)) throw new EricInstallError(`Unzulässiger Pfad im Archiv: ${entry.name}`);
+      return [{ entry, path }];
+    });
+    if (wanted.length === 0) throw new EricInstallError(`Das Paket enthält keine Dateien für ${ERIC_PLATFORM}.`);
+
+    const total = wanted.reduce((sum, { entry }) => sum + entry.compressedSize, 0);
     let bytes = 0;
-    for await (const chunk of createReadStream(jar, { highWaterMark: 1 << 20 })) {
-      unzip.push(chunk as Uint8Array);
-      bytes += (chunk as Buffer).length;
-      onProgress?.({ phase: "entpacken", bytes, total: null });
-      if (failure) throw failure;
-      // Nicht schneller lesen als geschrieben wird
-      for (const out of open) if (out.writableNeedDrain) await once(out, "drain");
+    for (const { entry, path } of wanted) {
+      await mkdir(dirname(path), { recursive: true });
+      await extractEntry(jar, file, entry, path);
+      bytes += entry.compressedSize;
+      onProgress?.({ phase: "entpacken", bytes, total });
     }
-    unzip.push(new Uint8Array(0), true);
-    if (failure) throw failure;
-    await Promise.all(writes);
-  } catch (error) {
-    // Offene Streams schließen, bevor der Aufrufer das Verzeichnis löscht
-    for (const out of open) out.destroy();
-    await Promise.allSettled(writes);
-    throw error;
+    return wanted.length;
+  } finally {
+    await file.close();
   }
-  if (files === 0) throw new EricInstallError(`Das Paket enthält keine Dateien für ${ERIC_PLATFORM}.`);
-  return files;
 }

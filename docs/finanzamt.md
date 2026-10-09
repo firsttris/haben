@@ -28,7 +28,7 @@ Zu jedem Bescheid zeigt Haben, bis wann ein Einspruch möglich ist (§ 355 AO): 
 
 Bei Bescheiden, die nur im Postfach bereitgestellt werden, beginnt die Frist genau genommen mit der Bereitstellung; Haben rechnet mit dem Bescheiddatum, das meist derselbe Tag ist. Im Zweifel gilt das Datum im Bescheid.
 
-Der Testabruf läuft wie die Testübermittlung mit Testmerker und Test-Hersteller-ID. Ohne ERiC liefert er einen erfundenen Testbescheid, damit du die Seite ausprobieren kannst.
+Der Testabruf läuft wie die Testübermittlung mit Testmerker und deiner Hersteller-ID. Ohne ERiC liefert er einen erfundenen Testbescheid, damit du die Seite ausprobieren kannst.
 
 ## Vorauszahlungen herabsetzen
 
