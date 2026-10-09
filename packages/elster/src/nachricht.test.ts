@@ -27,8 +27,18 @@ describe("Sonstige Nachricht", () => {
     expect(tag(xml, "Strasse")).toBe("Hauptstraße");
     expect(tag(xml, "Hausnummer")).toBe("12");
     expect(tag(xml, "Hausnummernzusatz")).toBe("a");
+    expect(tag(xml, "SteuerpflichtigerTyp")).toBe("NichtNatPerson");
     expect(tag(xml, "Name")).toBe("Tris &amp; Co");
     expect(tag(xml, "Text")).toBe("Sehr geehrte Damen und Herren,\n&lt;bitte&gt; herabsetzen.");
+  });
+
+  it("sendet als natürliche Person, wenn der Inhaber bekannt ist", () => {
+    const xml = buildNachrichtXml({ ...input, person: { idnr: "86095742719", vorname: "Max", name: "Muster" } });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(tag(xml, "SteuerpflichtigerTyp")).toBe("NatPerson");
+    expect(tag(xml, "IdNr")).toBe("86095742719");
+    expect(tag(xml, "Name")).toBe("Muster");
+    expect(tag(xml, "Vorname")).toBe("Max");
   });
 
   it("prüft Betreff, Text und Hausnummer", () => {

@@ -253,8 +253,8 @@ function FahrtForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => vo
     <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Fahrt mit dem Privatfahrzeug">
       <p className="small muted" style={{ margin: 0 }}>
         Fahrten zu Kunden, Terminen und auf Geschäftsreisen mit deinem privaten Fahrzeug: {formatEuro(KM_SATZ.pkw)} je gefahrenem Kilometer mit dem Auto,{" "}
-        {formatEuro(KM_SATZ.andere)} mit Motorrad oder Roller. Fährst du dauerhaft zum selben Kunden, gilt das nur für die ersten drei Monate; danach zählt
-        die Entfernungspauschale, die Haben noch nicht abbildet.
+        {formatEuro(KM_SATZ.andere)} mit Motorrad oder Roller. Arbeitest du dauerhaft beim selben Kunden, kann dort eine
+        Betriebsstätte entstehen; dann zählt die Entfernungspauschale, die Haben noch nicht abbildet.
       </p>
       <div className="form-grid">
         <label className="field">

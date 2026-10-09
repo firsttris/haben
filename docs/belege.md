@@ -109,6 +109,8 @@ Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/
 | Reisekosten: Übernachtung | 4676 | 6680 |
 | Porto | 4910 | 6800 |
 | Werbung | 4600 | 6600 |
+| Bewirtung von Geschäftspartnern (70 % abziehbar) | 4650 | 6640 |
+| Geschenke an Geschäftspartner (bis 50 € je Empfänger und Jahr) | 4630 | 6610 |
 | Rechts- und Beratungskosten | 4950 | 6825 |
 | Buchführung und Steuerberatung | 4955 | 6830 |
 | Fremdleistungen | 3100 | 5900 |
@@ -122,6 +124,8 @@ Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/
 | Kfz: Reparaturen | 4540 | 6540 |
 | Kfz: Leasing | 4570 | 6560 |
 | Anlagegut (wird abgeschrieben) | Anlagekonto je Art | Anlagekonto je Art |
+
+**Bewirtung** von Geschäftspartnern zählt zu 70 % als Betriebsausgabe, die Vorsteuer voll; die Aufteilung macht die EÜR. **Geschenke** an Geschäftspartner sind nur bis 50 € netto je Empfänger und Jahr abziehbar (bis 2023: 35 €). Teurere Geschenke sind keine Betriebsausgabe, auch die Vorsteuer nicht: Buche sie mit Privatanteil 100 %.
 
 Mit **Anlagegut** wird der Beleg nicht zum Aufwand, sondern legt beim Buchen eine Anlage im Verzeichnis an, die über die Nutzungsdauer abgeschrieben wird. Das Formular fragt dann nach Bezeichnung, Art, Abschreibung und Nutzungsdauer. Mehr unter [Anlagen und AfA](anlagen.md).
 

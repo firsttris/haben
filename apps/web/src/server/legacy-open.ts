@@ -104,6 +104,9 @@ export async function openLegacyItems(): Promise<OpenLegacyItem[]> {
 
 /** Lexoffice-Kategorie grob auf die Ausgabenkategorie von Haben abbilden; sie zählt nur für die EÜR-Aufteilung */
 const CATEGORY_HINTS: [RegExp, ExpenseCategory][] = [
+  [/bewirtung/i, "bewirtung"],
+  // Nur abziehbare Geschenke; „Geschenke über 50 €“ bzw. „nicht abzugsfähig“ fallen nicht darunter
+  [/^(?!.*(über|nicht abz)).*geschenk/i, "geschenke"],
   [/software|lizenz/i, "software"],
   [/hosting|server|cloud|edv|it-/i, "edv"],
   [/hardware|gwg|geringwertig/i, "hardware"],

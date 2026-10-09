@@ -33,4 +33,13 @@ describe("Arbeitslohn", () => {
     // Der Pauschbetrag erzeugt keinen Verlust
     expect(arbeitslohnErgebnis(2025, { bescheinigungen: [{ brutto: 500_00 }], werbungskosten: {} }).einkuenfte).toBe(0);
   });
+
+  it("zieht Gewerkschaftsbeiträge ab 2026 neben dem Pauschbetrag ab", () => {
+    const bescheinigungen = [{ brutto: 40_000_00 }];
+    const werbungskosten = { arbeitsmittel: 300_00, gewerkschaft: 400_00 };
+    expect(arbeitslohnErgebnis(2025, { bescheinigungen, werbungskosten }).abzug).toBe(1_230_00);
+    expect(arbeitslohnErgebnis(2026, { bescheinigungen, werbungskosten }).abzug).toBe(1_230_00 + 400_00);
+    // Liegen die übrigen Werbungskosten über dem Pauschbetrag, kommen die Beiträge obendrauf
+    expect(arbeitslohnErgebnis(2026, { bescheinigungen, werbungskosten: { arbeitsmittel: 2_000_00, gewerkschaft: 400_00 } }).abzug).toBe(2_400_00);
+  });
 });

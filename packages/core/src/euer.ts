@@ -1,5 +1,5 @@
 import type { InvoiceTotals } from "./invoice.ts";
-import { splitPrivateShare, toCsv, type Cents } from "./money.ts";
+import { roundHalfAwayFromZero, splitPrivateShare, toCsv, type Cents } from "./money.ts";
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory } from "./posting.ts";
 import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
 import type { TaxTreatment } from "./treatment.ts";
@@ -84,6 +84,8 @@ export interface EuerResult {
   totalEinnahmen: Cents;
   totalAusgaben: Cents;
   gewinn: Cents;
+  /** Nicht abziehbarer Teil der Bewirtung (30 %): mindert den Gewinn nicht, steht aber in der Anlage EÜR */
+  bewirtungNichtAbziehbar: Cents;
   /** Netto je Monat (ohne Umsatzsteuer, Vorsteuer und Zahlungen an/vom Finanzamt), Index 0 = Januar */
   monthly: { einnahmen: Cents[]; ausgaben: Cents[] };
 }
@@ -152,6 +154,7 @@ export function computeEuer(
   const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
   const monthlyIn: Cents[] = Array.from({ length: 12 }, () => 0);
   const monthlyOut: Cents[] = Array.from({ length: 12 }, () => 0);
+  let bewirtungNichtAbziehbar = 0;
 
   for (const p of netGroups(payments.filter((p) => yearOf(p.date) === year))) {
     const month = monthIndex(p.date);
@@ -175,14 +178,14 @@ export function computeEuer(
             if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
             continue;
           }
-          if (p.vorsteuerAbzug === false) {
-            add(`ausgabe:${p.category}`, base + tax);
-            monthlyOut[month]! += base + tax;
-            continue;
-          }
-          add(`ausgabe:${p.category}`, base);
-          add("vorsteuer", tax);
-          monthlyOut[month]! += base;
+          // Ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Teil der Ausgabe
+          const ausgabe = p.vorsteuerAbzug === false ? base + tax : base;
+          if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
+          // Bewirtung: 30 % sind nicht abziehbar (§ 4 Abs. 5 Nr. 2 EStG), die Vorsteuer bleibt voll abziehbar
+          const nichtAbziehbar = p.category === "bewirtung" ? ausgabe - roundHalfAwayFromZero(ausgabe * 0.7) : 0;
+          bewirtungNichtAbziehbar += nichtAbziehbar;
+          add(`ausgabe:${p.category}`, ausgabe - nichtAbziehbar);
+          monthlyOut[month]! += ausgabe - nichtAbziehbar;
         }
         break;
       case "ustVorauszahlung":
@@ -232,7 +235,11 @@ export function computeEuer(
       line(
         `ausgabe:${c}`,
         EXPENSE_CATEGORIES[c].label,
-        c === "hardware" ? "Als geringwertige Wirtschaftsgüter sofort abgezogen" : undefined,
+        c === "hardware"
+          ? "Als geringwertige Wirtschaftsgüter sofort abgezogen"
+          : c === "bewirtung"
+            ? "Abziehbarer Teil (70 %)"
+            : undefined,
       ),
     );
   if (depreciation) for (const key of ["afa", "gwg", "sammelposten", "restbuchwert"] as const) add(key, depreciation[key]);
@@ -258,6 +265,7 @@ export function computeEuer(
     totalEinnahmen,
     totalAusgaben,
     gewinn: totalEinnahmen - totalAusgaben,
+    bewirtungNichtAbziehbar,
     monthly: { einnahmen: monthlyIn, ausgaben: monthlyOut },
   };
 }
@@ -270,5 +278,6 @@ export function euerToCsv(euer: EuerResult): string {
   for (const l of euer.ausgaben) rows.push(["Betriebsausgaben", l.label, l.amount]);
   rows.push(["Betriebsausgaben", "Summe Betriebsausgaben", euer.totalAusgaben]);
   rows.push(["Ergebnis", euer.gewinn >= 0 ? "Gewinn" : "Verlust", euer.gewinn]);
+  if (euer.bewirtungNichtAbziehbar !== 0) rows.push(["Nachrichtlich", "Nicht abziehbare Bewirtungsaufwendungen (30 %)", euer.bewirtungNichtAbziehbar]);
   return toCsv(rows);
 }

@@ -161,7 +161,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect((await annual.annualOverview(2026, TODAY)).ust.issues[0]!.text).toMatch(/nach Ablauf des Jahres/);
 
     await sql`update company set kleinunternehmer = true`;
-    expect((await annual.annualOverview(2025, TODAY)).ust.issues.some((i) => i.tone === "fehler" && /Kleinunternehmer/.test(i.text))).toBe(true);
+    expect((await annual.annualOverview(2025, TODAY)).ust.issues.some((i) => i.tone === "fehler" && /ab 2024 keine/.test(i.text))).toBe(true);
+    // Für 2023 müssen auch Kleinunternehmer noch eine Erklärung abgeben
+    expect((await annual.annualOverview(2023, TODAY)).ust.issues.some((i) => i.tone === "fehler" && /auch als Kleinunternehmer/.test(i.text))).toBe(true);
   });
 
   it("Anlage EÜR: Zeilen, Gewinn wie in den Auswertungen, Entnahmen, Einlagen und Anlagenverzeichnis", async () => {

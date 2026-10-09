@@ -85,9 +85,11 @@ export async function listFristen(today: string): Promise<Frist[]> {
 
   // Jahreserklärungen ohne Steuerberater, ab dem ersten Buchungsjahr
   const sentForms = new Set(sentAnnual.map((s) => `${s.form}-${s.year}`));
-  const forms = [...(company.kleinunternehmer ? [] : (["ust"] as const)), "euer" as const, ...(company.taxpayer.a ? (["est"] as const) : [])];
   for (let year = Number(start.slice(0, 4)); year <= Number(today.slice(0, 4)); year++) {
     const datum = abgabefrist(year, bundesland);
+    // Kleinunternehmer geben erst ab 2024 keine Umsatzsteuererklärung mehr ab (§ 18 Abs. 3 UStG)
+    const ust = !company.kleinunternehmer || year < 2024;
+    const forms = [...(ust ? (["ust"] as const) : []), "euer" as const, ...(company.taxpayer.a ? (["est"] as const) : [])];
     for (const form of forms) {
       const erledigt = sentForms.has(`${form}-${year}`);
       if (!relevant(datum, !erledigt)) continue;

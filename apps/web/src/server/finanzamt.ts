@@ -120,6 +120,7 @@ export async function sendMessage(actor: string, rawInput: MessageInput, client:
       steuernummer13: toElsterSteuernummer(company.steuernummer, company.bundesland!),
       bundesland: company.bundesland!,
       absender: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort },
+      ...(company.taxpayer.a ? { person: company.taxpayer.a } : {}),
       betreff: input.betreff,
       text: input.text,
       herstellerId,

@@ -161,6 +161,16 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(euerTotals(withPauschalen).ausgaben).toBe(2_600_000 + 4_200 + 126_000 + 37_200);
   });
 
+  it("übermittelt Geschenke und Bewirtung, den nicht abziehbaren Teil nur nachrichtlich", () => {
+    const mitBewirtung = { ...figures, geschenke: 15_000, bewirtung: 7_000, bewirtungNichtAbziehbar: 3_000 };
+    const xml = buildEuerXml({ ...base, allgemein, figures: mitBewirtung, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(xml).toMatch(/<Beschr_abziehbar>\s*<Nicht_abziehbar>\s*<Bewirtung>\s*<Sum>\s*<E6004101>30,00<\/E6004101>/);
+    expect(xml).toMatch(/<Abziehbar>\s*<Geschenke>\s*<Sum>\s*<E6004002>150,00<\/E6004002>[\s\S]*<Bewirtung>\s*<Sum>\s*<E6004102>70,00<\/E6004102>/);
+    // Der nicht abziehbare Teil mindert den Gewinn nicht
+    expect(euerTotals(mitBewirtung).ausgaben).toBe(euerTotals(figures).ausgaben + 15_000 + 7_000);
+  });
+
   it("lässt die AVEÜR ohne Anlagen weg", () => {
     const xml = buildEuerXml({ ...base, allgemein: { artDesBetriebs: "Handel", einkunftsart: "gewerbe" }, figures: { steuerpflichtig: 100 }, anlagen: [] });
     expect(xml).not.toContain("<AVEUER>");

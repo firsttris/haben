@@ -28,6 +28,8 @@ export interface Arbeitslohn {
     arbeitsmittel?: Cents;
     fortbildung?: Cents;
     berufsverbaende?: Cents;
+    /** Ab 2026 zusätzlich zum Pauschbetrag (§ 9a Satz 3 EStG) */
+    gewerkschaft?: Cents;
     sonstige?: Cents;
   };
 }
@@ -79,10 +81,13 @@ export function arbeitslohnErgebnis(year: number, an: Arbeitslohn): ArbeitslohnE
   const werbungskosten =
     (w.wege ? entfernungspauschale(year, w.wege.tage, w.wege.km) : 0) +
     homeofficeWerbungskosten(year, w.homeofficeTage) +
-    sum([w.arbeitsmittel, w.fortbildung, w.berufsverbaende, w.sonstige]);
+    sum([w.arbeitsmittel, w.fortbildung, w.berufsverbaende, w.gewerkschaft, w.sonstige]);
   const pausch = arbeitnehmerPauschbetrag(year);
+  // Gewerkschaftsbeiträge zählen ab 2026 neben dem Pauschbetrag (§ 9a Satz 3 EStG), vorher wie alle Werbungskosten
+  const neben = year >= 2026 ? (w.gewerkschaft ?? 0) : 0;
+  const uebrige = werbungskosten - neben;
   // Der Pauschbetrag mindert nur bis auf 0; höhere Werbungskosten können einen Verlust ergeben
-  const abzug = werbungskosten > pausch ? werbungskosten : Math.min(pausch, brutto);
+  const abzug = (uebrige > pausch ? uebrige : Math.min(pausch, brutto)) + neben;
   return {
     brutto,
     werbungskosten,

@@ -30,7 +30,7 @@ Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 
 - das Jahr Leistungen im EU-Ausland (Reverse Charge, Kz 21), nicht steuerbare Umsätze im Drittland (Kz 45) oder steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält oder Steuer, die du als Leistungsempfänger nach § 13b schuldest (Kz 46/47, 84/85). Für diese Zeilen fehlen Haben noch die geprüften Feldkennungen; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
-- du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf.
+- du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf. Für 2023 brauchst du sie noch; die Angaben für Kleinunternehmer übermittelst du dann im ELSTER-Portal.
 - es weder Umsätze noch Vorsteuer gibt (Nullerklärung über das ELSTER-Portal).
 
 ## Anlage EÜR
@@ -51,6 +51,8 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Rechts- und Beratungskosten, Buchführung und Steuerberatung | Rechts- und Steuerberatung, Buchführung |
 | Versicherungen, Beiträge | Beiträge, Gebühren, Abgaben und Versicherungen |
 | Werbung | Werbekosten |
+| Geschenke an Geschäftspartner | Geschenke (beschränkt abziehbar, Spalte „abziehbar“) |
+| Bewirtung von Geschäftspartnern | Bewirtungsaufwendungen: 70 % „abziehbar“, 30 % „nicht abziehbar“. Die Vorsteuer bleibt voll abziehbar. |
 | Fremdleistungen | Bezogene Fremdleistungen |
 | Kontoführung und Gebühren, Sonstiger Aufwand | Übrige Betriebsausgaben |
 | AfA aus dem Anlagenverzeichnis | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
@@ -111,7 +113,7 @@ Werbungskosten:
 
 - **Wege zur ersten Tätigkeitsstätte:** Anschrift, Tage dort, einfache Entfernung, optional Arbeitstage je Woche und Urlaubs- und Krankheitstage. Haben geht von Fahrten mit dem eigenen Auto aus.
 - **Homeoffice-Tage:** an denen du nicht zur Tätigkeitsstätte gefahren bist; mit dem Haken „dauerhaft kein anderer Arbeitsplatz“ in Zeile 62 statt 61.
-- **Arbeitsmittel, Fortbildung, Gewerkschaft und Berufsverbände, weitere Werbungskosten** (etwa Kontoführung) als Beträge.
+- **Arbeitsmittel, Fortbildung, Gewerkschaft, Berufsverbände, weitere Werbungskosten** (etwa Kontoführung) als Beträge. Gewerkschaftsbeiträge zieht die Steuerschätzung ab 2026 zusätzlich zum Arbeitnehmer-Pauschbetrag ab (§ 9a Satz 3 EStG); in der Anlage N bis 2025 stehen sie mit den Berufsverbänden in einer Zeile.
 
 In der Prognose rechnet Haben die Entfernungspauschale mit 0,30 € je Kilometer, ab dem 21. Kilometer 0,38 € (ab 2026 ab dem ersten). Homeoffice zählt mit 6 € je Tag, höchstens 210 Tage; liegen die Werbungskosten unter dem Arbeitnehmer-Pauschbetrag von 1.230 €, gilt der Pauschbetrag.
 
