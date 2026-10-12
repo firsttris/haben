@@ -10,7 +10,7 @@ Haben läuft als drei Container in einem eigenen Netz:
 | --- | --- | --- |
 | `db` / `haben-db` | `postgres:16` | Datenbank, Volume `db` bzw. `haben-db` |
 | `app` / `haben-app` | `tristanteu/haben:latest` | Die App auf Port 3000, Belegdateien im Volume `belege` bzw. `haben-belege`, ERiC im Volume `eric` bzw. `haben-eric`, ERiC-Logs im Volume `eric-log` bzw. `haben-eric-log` |
-| `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy` |
+| `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy`. Läuft bei dir schon ein Reverse Proxy, entfällt er, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
 
 Es gibt zwei Wege, sie zu betreiben:
 
@@ -24,7 +24,7 @@ Beide holen die Dateien per `curl`; das Repository musst du nicht klonen.
 ## Voraussetzungen
 
 - Ein Linux-Server (x86_64, wenn du ERiC nutzen willst) mit Docker und Compose 2.23 oder neuer, oder mit Podman und systemd. Die Quadlets sind für den Betrieb als normaler Nutzer (rootless) geschrieben, die Pfade nutzen `%h` bzw. `~/.config`.
-- Eine Domain, die auf den Server zeigt, und erreichbare Ports 80 und 443. Caddy holt das TLS-Zertifikat selbst.
+- Eine Domain, die auf den Server zeigt, und erreichbare Ports 80 und 443. Caddy holt das TLS-Zertifikat selbst. Hast du schon einen Reverse Proxy (Caddy, nginx, Nginx Proxy Manager, Traefik), nutzt du den, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy).
 - HTTPS ist Pflicht: Passkeys und die Installation als App (PWA) funktionieren nur über eine sichere Verbindung.
 - Für ELSTER ERiC für Linux x86_64; Haben lädt es auf Wunsch selbst herunter (siehe [ERiC einbinden](#eric-einbinden)).
 - Für das Backup mit Quadlets `restic` auf dem Host.
@@ -164,6 +164,91 @@ systemctl --user enable --now haben-backup.timer
 Die Container-Units starten über `[Install] WantedBy=default.target` beim nächsten Boot von selbst, sobald `daemon-reload` gelaufen ist. Logs liest du mit `journalctl --user -u haben-app` (bzw. `haben-db`, `haben-caddy`).
 
 Danach rufst du die Domain im Browser auf und legst das Konto an, siehe [Erste Schritte](einrichtung.md).
+
+## Eigener Reverse Proxy
+
+Läuft auf dem Server schon ein Reverse Proxy, etwa ein Caddy-, nginx-, Nginx-Proxy-Manager- oder Traefik-Container, braucht Haben keinen eigenen. Dein Proxy leitet die Domain an die App auf Port 3000 weiter. Er muss:
+
+- HTTPS für die Domain bereitstellen. Die Domain ist dieselbe wie `DOMAIN` in `.env` bzw. `BETTER_AUTH_URL`; sonst funktionieren Passkeys nicht.
+- an `haben-app:3000` weiterleiten (Proxy im selben Container-Netz) oder an `127.0.0.1:3000` (Proxy direkt auf dem Host).
+- Anfragen bis 250 MB annehmen (Archivdateien bis 100 MB, mehrere Belege auf einmal).
+- `X-Forwarded-For` setzen. Haben begrenzt Anmeldeversuche je Client-Adresse; ohne den Header zählen alle Anfragen als eine Adresse. Caddy, Nginx Proxy Manager und Traefik setzen ihn von selbst, bei nginx trägst du ihn ein.
+
+Port 3000 der App gehört nicht ins Internet: Dort könnte jeder `X-Forwarded-For` fälschen, und es gäbe kein HTTPS.
+
+### Compose
+
+Neben `compose.yml` eine `compose.override.yml` ablegen; Compose liest sie automatisch mit, `compose.yml` bleibt unverändert und lässt sich bei Updates neu herunterladen:
+
+```sh
+curl -o compose.override.yml https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.override.example.yml
+```
+
+Darin `DEIN_PROXY_NETZ` durch das Netz deines Proxy-Containers ersetzen. Das zeigt:
+
+```sh
+docker inspect DEIN_PROXY_CONTAINER -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
+```
+
+Die Datei startet den mitgelieferten Caddy nicht mehr und hängt die App zusätzlich in dieses Netz, dort heißt sie `haben-app`. `docker compose up -d` startet dann nur `db` und `app`.
+
+Läuft dein Proxy direkt auf dem Host statt in einem Container, nimmst du die Variante, die am Ende der Datei auskommentiert steht: Sie veröffentlicht die App nur auf `127.0.0.1:3000`, dorthin leitest du weiter.
+
+### Quadlets
+
+`haben-caddy.container`, `haben-caddy.volume` und das `Caddyfile` nicht ablegen und nur `haben-db` und `haben-app` starten. Die App hängt im Netz `haben`:
+
+- Proxy als Podman-Container: ihn zusätzlich in das Netz `haben` hängen. In seiner Quadlet-Datei eine weitere Zeile `Network=haben.network`, sonst `podman network connect haben DEIN_PROXY_CONTAINER`. Weiterleiten an `haben-app:3000`.
+- Proxy auf dem Host: in `haben-app.container` die Zeile `PublishPort=127.0.0.1:3000:3000` ergänzen und an `127.0.0.1:3000` weiterleiten.
+
+### Beispiele
+
+**Caddy:** Den Block aus `deploy/Caddyfile` in dein Caddyfile übernehmen, mit deiner Domain, und `caddy reload` ausführen:
+
+```
+haben.example.de {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		X-Frame-Options DENY
+	}
+	request_body {
+		max_size 250MB
+	}
+	reverse_proxy haben-app:3000
+}
+```
+
+**nginx:** Zertifikat wie für deine anderen Seiten (etwa certbot). Wichtig sind `client_max_body_size` (Standard ist 1 MB) und die `proxy_set_header`-Zeilen:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name haben.example.de;
+    ssl_certificate     /etc/letsencrypt/live/haben.example.de/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/haben.example.de/privkey.pem;
+
+    client_max_body_size 250M;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy same-origin always;
+    add_header X-Frame-Options DENY always;
+
+    location / {
+        proxy_pass http://haben-app:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}
+```
+
+**Nginx Proxy Manager:** Neuer Proxy Host mit deiner Domain, Scheme `http`, Forward Hostname `haben-app`, Forward Port `3000`. Unter SSL ein Let's-Encrypt-Zertifikat anfordern und „Force SSL“ einschalten, unter Advanced `client_max_body_size 250M;` eintragen.
+
+**Traefik:** Router für die Domain mit TLS auf den Service `haben-app:3000`. Traefik begrenzt die Größe von Anfragen nur mit der Middleware `buffering` (`maxRequestBodyBytes`); nutzt du sie, dann mit mindestens 250 MB.
 
 ## Umgebungsvariablen
 

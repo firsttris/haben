@@ -1,0 +1,35 @@
+# Haben hinter einem Reverse Proxy, der schon auf dem Server läuft (Caddy, nginx, Nginx Proxy Manager, Traefik …).
+#
+#   curl -o compose.override.yml https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.override.example.yml
+#   # DEIN_PROXY_NETZ unten ersetzen, dann:
+#   docker compose up -d
+#
+# Docker Compose liest compose.override.yml neben compose.yml automatisch mit; compose.yml bleibt unverändert
+# und lässt sich bei Updates einfach neu herunterladen. Den Netznamen deines Proxy-Containers zeigt:
+#   docker inspect DEIN_PROXY_CONTAINER -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'
+# Dein Proxy leitet dann an haben-app:3000 weiter. Was er sonst braucht: docs/installation.md, „Eigener Reverse Proxy“.
+services:
+  # Der mitgelieferte Caddy startet nicht: Er bekommt ein Profil, das nie aktiviert wird
+  caddy:
+    profiles: [eigener-proxy]
+  # Die App kommt zusätzlich ins Netz deines Proxys und ist dort als haben-app:3000 erreichbar
+  app:
+    networks:
+      default:
+      proxy:
+        aliases: [haben-app]
+
+networks:
+  proxy:
+    external: true
+    name: DEIN_PROXY_NETZ
+
+# Läuft dein Proxy direkt auf dem Host statt in einem Container, nimm stattdessen diesen Inhalt
+# (nur auf 127.0.0.1, nie öffentlich) und leite an 127.0.0.1:3000 weiter:
+#
+# services:
+#   caddy:
+#     profiles: [eigener-proxy]
+#   app:
+#     ports:
+#       - "127.0.0.1:3000:3000"
