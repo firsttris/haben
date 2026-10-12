@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { checkFormats, isValidIdnr, TEST_HERSTELLER_ID } from "@haben/elster";
 import { loadCompany } from "../company.ts";
-import { elsterClient, elsterMode, ericStatus, startEricInstall } from "../elster.ts";
+import { confirmElsterDatenschutz, elsterClient, elsterMode, ericStatus, startEricInstall } from "../elster.ts";
 import { env } from "../env.ts";
 import { PRODUKT_VERSION } from "../vat.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -11,6 +11,14 @@ import { UserError } from "../errors.ts";
 export const getEricStatus = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(() => ericStatus());
+
+/** Bestätigt die Datenschutzhinweise der Finanzverwaltung (ERiC-Lizenz § 5) */
+export const confirmElsterPrivacy = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await confirmElsterDatenschutz(context.user.id);
+    return { ok: true };
+  });
 
 export const installEricLibrary = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

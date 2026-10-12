@@ -414,6 +414,13 @@
       "when": 1791499250117,
       "tag": "0058_sperren_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1791787069354,
+      "tag": "0059_elster_datenschutz",
+      "breakpoints": true
     }
   ]
 }

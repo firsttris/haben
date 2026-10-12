@@ -10,8 +10,8 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 2. Firmendaten ausfüllen, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
-5. Hersteller-ID bei ELSTER beantragen und eintragen (mit ERiC schon fürs Prüfen nötig)
-6. ELSTER-Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
+5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert ein bis zwei Wochen, siehe [Was du brauchst](#was-du-brauchst)
+6. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
 7. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
 8. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
 9. Optional: KI-Auslesung für Belege einschalten
@@ -156,16 +156,55 @@ Unter **Einstellungen → Rechnungsnummern** siehst du die nächste Nummer des l
 
 Haben übermittelt die Umsatzsteuer-Voranmeldung über ERiC, die offizielle Bibliothek der Steuerverwaltung. Ohne ERiC laufen Prüfen und Senden simuliert, und die Oberfläche weist darauf hin.
 
+### Was du brauchst
+
+| | Wofür | Woher | Dauer |
+| --- | --- | --- | --- |
+| **ERiC** | Bibliothek der Finanzverwaltung: prüft, verschlüsselt und überträgt | Haben lädt sie selbst, siehe [Schritte](#schritte) | Minuten |
+| **Hersteller-ID** (fünf Ziffern) | Kennung der Software in jeder Übermittlung; ERiC 43 verlangt sie schon fürs Prüfen | ELSTER-Entwicklerbereich: auf elster.de als Entwickler registrieren, das Bayerische Landesamt für Steuern prüft den Antrag | Tage bis Wochen |
+| **Zertifikatsdatei** (.pfx) und PIN | unterschreibt jede Übermittlung | ELSTER-Benutzerkonto mit der Anmeldeart „Zertifikatsdatei“, siehe [unten](#zertifikatsdatei-statt-elster-secure) | ein bis zwei Wochen (Brief) |
+
+Bis Hersteller-ID und Zertifikat da sind, arbeitest du ganz normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER; Haben zeigt jede Kennzahl und Zeile zum Übertragen.
+
+### Zertifikatsdatei statt ELSTER Secure
+
+Haben unterschreibt über ERiC, und ERiC braucht eine Zertifikatsdatei mit PIN. Mit der App ELSTER Secure meldest du dich nur im Browser bei Mein ELSTER an; Programme wie Haben können sie nicht nutzen.
+
+Ein ELSTER-Benutzerkonto hat genau eine Anmeldeart. Du legst deshalb ein zweites Konto an; dein bisheriges bleibt:
+
+1. Auf elster.de **Benutzerkonto erstellen**, Anmeldeart **Zertifikatsdatei**, **Für mich** mit deiner Steuer-ID. Das persönliche Konto reicht auch für Umsatzsteuer und EÜR deines Einzelunternehmens und ist für den [Belegabruf](jahreserklaerung.md) zur Einkommensteuer nötig.
+2. Die Aktivierungs-ID kommt per E-Mail, der Aktivierungscode per Post.
+3. Mit beiden das Konto aktivieren, die `.pfx`-Datei herunterladen und die PIN festlegen. Das Zertifikat gilt drei Jahre.
+
+### Hersteller-ID: wer ist Hersteller?
+
+Die Hersteller-ID gehört dem Softwarehersteller, nicht dem Steuerpflichtigen. Bei gekaufter Software senden alle Kunden mit der ID des Anbieters. Bei Haben ist jeder, der es betreibt, selbst Hersteller: Jede Installation trägt ihre eigene ID in `ELSTER_HERSTELLER_ID` ein, Haben bringt keine mit.
+
+Betreibst du Haben für andere mit deiner ID, bist du für sie Softwarehersteller im Sinne des ERiC-Lizenzvertrags (`lizenz.pdf` im ERiC-Paket):
+
+- Den Support für diese Nutzer leistest du (§ 7).
+- Du setzt mindestens die Mindestversion von ERiC ein, die ELSTER vorgibt (§ 5).
+- Die Nutzer bestätigen vor der ersten Nutzung die Datenschutzhinweise der Finanzverwaltung (§ 5); das fragt Haben unter **Einstellungen › ERiC** ab.
+
+Bei Verstößen kann das Landesamt die Hersteller-ID sperren (§ 9); dann kann niemand mehr damit senden. Wer Haben verändert und weitergibt, braucht eine eigene ID (§ 4). Die Hersteller-ID ist kein Geheimnis, sie steht in jeder Übermittlung. Trag sie trotzdem nur in `.env` bzw. `haben.env` ein, nicht ins Repository oder Image.
+
+### Warum Lexoffice ohne dein Zertifikat sendet
+
+Cloud-Dienste wie Lexware Office übermitteln in deinem Auftrag mit ihrem eigenen Zertifikat (Datenübermittlung im Auftrag, § 87d AO). Der Anbieter muss dafür seine Auftraggeber identifizieren und die Übermittlungen aufbewahren. Haben läuft auf deinem eigenen Server, ohne Anbieter dazwischen: Du sendest selbst und brauchst dein eigenes Zertifikat.
+
+### Schritte
+
 1. **ERiC laden:** unter **Einstellungen › ERiC** den Nutzungsbedingungen zustimmen und **Herunterladen und einrichten** klicken. ERiC darf nicht weitergegeben werden und liegt deshalb weder im Repository noch im Image; Haben holt es direkt von der Finanzverwaltung (Linux x86_64).
 2. **Oder von Hand:** das Paket z. B. nach `/opt/eric` entpacken (darin `lib/libericapi.so` und `lib/plugins/`) und `ERIC_HOME` setzen. Beides steht in [ERiC einbinden](installation.md#eric-einbinden).
-3. **Zertifikat beantragen und hochladen.** In Mein ELSTER eine Zertifikatsdatei (.pfx) beantragen und unter **Einstellungen → ELSTER-Zertifikat** hochladen (höchstens 64 KB). Haben speichert die Datei AES-256-GCM-verschlüsselt in der Datenbank. Trägst du „Gültig bis“ ein, warnt die Übersicht 30 Tage vor Ablauf. Ein neues Zertifikat ersetzt das alte.
-4. **Formate prüfen.** Unter **Einstellungen › ERiC** lässt **Formate mit ERiC prüfen** ERiC alle Nachrichten von Belegabruf, Berechtigung und Postfach gegen seine Schemas prüfen, ohne etwas zu senden. Diese Formate stammen aus freien Projekten (erica, viking) statt aus der amtlichen Jahresdokumentation; die Prüfung zeigt sofort, ob eine Version oder ein Feldname nicht mehr passt. Bemängelt ERiC etwas, bitte die Meldungen als Issue melden.
-5. **Hersteller-ID beantragen.** Im ELSTER-Entwicklerbereich (Registrierung über elster.de) eine eigene Hersteller-ID beantragen und als `ELSTER_HERSTELLER_ID` (fünf Ziffern) eintragen. Seit ERiC 43 ist die frühere Test-Hersteller-ID `74931` gesperrt; ERiC lehnt ohne eigene ID schon das Prüfen ab („Bitte verwenden Sie Ihre eigene Hersteller-ID auch für Testfälle“). Ohne ERiC laufen Prüfen und Testübermittlung weiter simuliert.
-6. **Nur prüfen.** Auf der Seite einer Voranmeldung lässt „Nur prüfen“ ERiC die Daten auf Plausibilität prüfen. Dafür braucht es weder Zertifikat noch PIN.
-7. **Testübermittlung.** Mit gesetztem Haken „Nur Testübermittlung“, PIN und „Prüfen und testweise senden“. Die Testübermittlung läuft mit deiner Hersteller-ID und dem Testmerker `700000004`; der ELSTER-Server nimmt sie an, leitet sie aber nicht an das Finanzamt weiter. Die Anmeldung bleibt ein Entwurf. Erst danach den Haken „Nur Testübermittlung“ entfernen.
-8. **Echtübermittlung.** Ohne Haken fragt Haben noch einmal nach („Jetzt verbindlich senden“). Nach erfolgreicher Übermittlung ist die Voranmeldung festgeschrieben; eine Korrektur ist eine neue, berichtigte Anmeldung.
+3. **Hersteller-ID eintragen.** Die eigene Hersteller-ID aus dem ELSTER-Entwicklerbereich ([siehe oben](#was-du-brauchst)) als `ELSTER_HERSTELLER_ID` (fünf Ziffern) eintragen. Seit ERiC 43 ist die frühere Test-Hersteller-ID `74931` gesperrt; ERiC lehnt ohne eigene ID schon das Prüfen ab („Bitte verwenden Sie Ihre eigene Hersteller-ID auch für Testfälle“). Ohne ERiC laufen Prüfen und Testübermittlung weiter simuliert.
+4. **Datenschutzhinweise bestätigen.** Unter **Einstellungen › ERiC** die Datenschutzhinweise der Finanzverwaltung lesen und bestätigen. Der ERiC-Lizenzvertrag verlangt das vor der ersten Nutzung; ohne Bestätigung lehnt Haben jeden Aufruf von ERiC ab. Die Bestätigung gilt für die Installation und steht im Änderungsprotokoll.
+5. **Zertifikat hochladen.** Die `.pfx`-Datei aus deinem Konto mit Anmeldeart Zertifikatsdatei ([siehe oben](#zertifikatsdatei-statt-elster-secure)) unter **Einstellungen → ELSTER-Zertifikat** hochladen (höchstens 64 KB). Haben speichert die Datei AES-256-GCM-verschlüsselt in der Datenbank. Trägst du „Gültig bis“ ein, warnt die Übersicht 30 Tage vor Ablauf. Ein neues Zertifikat ersetzt das alte.
+6. **Formate prüfen.** Unter **Einstellungen › ERiC** lässt **Formate mit ERiC prüfen** ERiC alle Nachrichten von Belegabruf, Berechtigung und Postfach gegen seine Schemas prüfen, ohne etwas zu senden. Diese Formate stammen aus freien Projekten (erica, viking) statt aus der amtlichen Jahresdokumentation; die Prüfung zeigt sofort, ob eine Version oder ein Feldname nicht mehr passt. Bemängelt ERiC etwas, bitte die Meldungen als Issue melden.
+7. **Nur prüfen.** Auf der Seite einer Voranmeldung lässt „Nur prüfen“ ERiC die Daten auf Plausibilität prüfen. Dafür braucht es weder Zertifikat noch PIN.
+8. **Testübermittlung.** Mit gesetztem Haken „Nur Testübermittlung“, PIN und „Prüfen und testweise senden“. Die Testübermittlung läuft mit deiner Hersteller-ID und dem Testmerker `700000004`; der ELSTER-Server nimmt sie an, leitet sie aber nicht an das Finanzamt weiter. Die Anmeldung bleibt ein Entwurf. Erst danach den Haken „Nur Testübermittlung“ entfernen.
+9. **Echtübermittlung.** Ohne Haken fragt Haben noch einmal nach („Jetzt verbindlich senden“). Nach erfolgreicher Übermittlung ist die Voranmeldung festgeschrieben; eine Korrektur ist eine neue, berichtigte Anmeldung.
 
-Die PIN fragt Haben bei jeder Übermittlung ab und speichert sie nie. Für den Versand legt Haben das entschlüsselte Zertifikat kurz in ein temporäres Verzeichnis (Rechte `0600`) und löscht es danach. Jede Prüfung und Übermittlung landet mit Transfer-Ticket und ERiC-Protokoll-PDF im Verlauf der Voranmeldung.
+Die PIN fragt Haben bei jeder Übermittlung ab. Nur für den automatischen Postfach-Abruf kannst du sie verschlüsselt speichern, siehe [Finanzamt](finanzamt.md#automatisch-abrufen). Für den Versand legt Haben das entschlüsselte Zertifikat kurz in ein temporäres Verzeichnis (Rechte `0600`) und löscht es danach. Jede Prüfung und Übermittlung landet mit Transfer-Ticket und ERiC-Protokoll-PDF im Verlauf der Voranmeldung.
 
 Vor dem Senden prüft Haben die Firmendaten: Name, Anschrift, Bundesland und eine gültige Steuernummer müssen vorhanden sein.
 

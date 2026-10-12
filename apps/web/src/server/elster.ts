@@ -1,5 +1,6 @@
 import { UserError } from "./errors.ts";
 import { resolve } from "node:path";
+import { eq } from "drizzle-orm";
 import {
   createElsterClient,
   DEFAULT_ERIC_VERSION,
@@ -11,6 +12,9 @@ import {
   type ElsterClient,
   type InstallProgress,
 } from "@haben/elster";
+import { loadCompany } from "./company.ts";
+import { withActor } from "./db/actor.ts";
+import { schema } from "./db/index.ts";
 import { env } from "./env.ts";
 
 let client: { home: string | undefined; client: ElsterClient } | undefined;
@@ -25,8 +29,42 @@ export function ericHome(): string | undefined {
 export function elsterClient(): ElsterClient {
   const home = ericHome();
   // Nach einem Download ohne Neustart auf das echte ERiC umschalten
-  if (!client || client.home !== home) client = { home, client: createElsterClient({ ...env(), ERIC_HOME: home }) };
+  if (!client || client.home !== home) {
+    const created = createElsterClient({ ...env(), ERIC_HOME: home });
+    client = { home, client: home ? mitDatenschutzPruefung(created, requireElsterDatenschutz) : created };
+  }
   return client.client;
+}
+
+export class ElsterDatenschutzError extends UserError {}
+
+/**
+ * Der ERiC-Lizenzvertrag (§ 5 Abs. 1 und 2) verlangt, dass der Nutzer vor der ersten Nutzung die Datenschutzhinweise
+ * der Finanzverwaltung zur Kenntnis nimmt und das bestätigt. Gilt nur mit echtem ERiC; simuliert geht nichts an die Verwaltung.
+ */
+export async function requireElsterDatenschutz(): Promise<void> {
+  if (!(await loadCompany()).elsterDatenschutzAt) {
+    throw new ElsterDatenschutzError("Bitte zuerst unter Einstellungen › ERiC die Datenschutzhinweise der Finanzverwaltung lesen und bestätigen.");
+  }
+}
+
+export async function confirmElsterDatenschutz(actor: string): Promise<void> {
+  await loadCompany();
+  await withActor(actor, (tx) => tx.update(schema.company).set({ elsterDatenschutzAt: new Date(), updatedAt: new Date() }).where(eq(schema.company.id, 1)));
+}
+
+/** Jeder Aufruf des Clients prüft vorher die Bestätigung */
+export function mitDatenschutzPruefung(inner: ElsterClient, check: () => Promise<void>): ElsterClient {
+  return new Proxy(inner, {
+    get(target, prop, receiver) {
+      const value: unknown = Reflect.get(target, prop, receiver);
+      if (typeof value !== "function") return value;
+      return async (...args: unknown[]) => {
+        await check();
+        return (value as (...a: unknown[]) => unknown).apply(target, args);
+      };
+    },
+  });
 }
 
 /** Ohne ERiC läuft alles gegen einen simulierten Client. */
@@ -56,6 +94,8 @@ export async function ericStatus() {
     defaultVersion: DEFAULT_ERIC_VERSION,
     platformSupported: process.platform === "linux" && process.arch === "x64",
     install: installState,
+    /** Wann die Datenschutzhinweise der Finanzverwaltung bestätigt wurden; null = noch nicht */
+    datenschutzBestaetigt: (await loadCompany()).elsterDatenschutzAt?.toISOString() ?? null,
   };
 }
 

@@ -109,6 +109,8 @@ export const company = pgTable(
       .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
     /** SHA-256 des geheimen Tokens im Kalender-Abo der Fristen; null = kein Abo */
     calendarTokenHash: text("calendar_token_hash"),
+    /** Datenschutzhinweise der Finanzverwaltung vor der ersten Nutzung von ERiC bestätigt (ERiC-Lizenz § 5) */
+    elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("company_single_row", sql`${t.id} = 1`)],

@@ -17,7 +17,7 @@ import { RELIGIONEN } from "../../lib/religion.ts";
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import { getDatevNumbers } from "../../server/functions/datev-export.ts";
-import { checkElsterFormats, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
+import { checkElsterFormats, confirmElsterPrivacy, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getExportYears } from "../../server/functions/export.ts";
 import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
@@ -488,8 +488,9 @@ function CertificateForm() {
     <form className="card" onSubmit={onSubmit} aria-labelledby="cert-heading">
       <h2 id="cert-heading">ELSTER-Zertifikat</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Die Zertifikatsdatei (.pfx) aus Mein ELSTER. Sie wird verschlüsselt abgelegt; die PIN fragt Haben erst beim
-        Senden ab und speichert sie nie. ERiC: {mode === "eric" ? "eingerichtet" : "nicht eingerichtet, Senden simuliert"}.
+        Die Zertifikatsdatei (.pfx) aus deinem ELSTER-Konto mit der Anmeldeart Zertifikatsdatei; ELSTER Secure geht nicht. Sie wird
+        verschlüsselt abgelegt. Die PIN fragt Haben beim Senden ab; speichern kannst du sie nur für den automatischen Postfach-Abruf.
+        ERiC: {mode === "eric" ? "eingerichtet" : "nicht eingerichtet, Senden simuliert"}.
       </p>
       {certificate && (
         <div className="history-row">
@@ -644,8 +645,55 @@ function EricCard() {
         </>
       )}
       <NoticeBanner notice={notice} />
+      <DatenschutzBestaetigung bestaetigt={eric.datenschutzBestaetigt} />
       <FormatCheck simuliert={eric.mode !== "eric"} />
     </form>
+  );
+}
+
+/** ERiC-Lizenz § 5: Datenschutzhinweise der Finanzverwaltung einmal vor der ersten Nutzung bestätigen */
+function DatenschutzBestaetigung({ bestaetigt }: { bestaetigt: string | null }) {
+  const router = useRouter();
+  const confirm = useServerFn(confirmElsterPrivacy);
+  const [gelesen, setGelesen] = useState(false);
+  const { busy, notice, run } = useAction();
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <div className="section-label">Datenschutzhinweise der Finanzverwaltung</div>
+      <p className="small muted" style={{ margin: 0 }}>
+        Bevor Haben über ERiC prüft oder sendet, nimmst du einmal die{" "}
+        <a href="/elster-datenschutz.html" target="_blank" rel="noreferrer">
+          Datenschutzhinweise der Finanzverwaltung
+        </a>{" "}
+        zur Kenntnis; so verlangt es der Lizenzvertrag zu ERiC.
+      </p>
+      {bestaetigt ? (
+        <span className="small">Bestätigt am {new Date(bestaetigt).toLocaleDateString("de-DE")}.</span>
+      ) : (
+        <>
+          <label className="checkbox">
+            <input type="checkbox" checked={gelesen} onChange={(e) => setGelesen(e.target.checked)} />
+            Ich habe die Datenschutzhinweise der Finanzverwaltung zur Kenntnis genommen.
+          </label>
+          <div className="actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || !gelesen}
+              onClick={() =>
+                void run(async () => {
+                  await confirm();
+                  await router.invalidate();
+                }, "Bestätigt.")
+              }
+            >
+              Bestätigen
+            </button>
+          </div>
+        </>
+      )}
+      <NoticeBanner notice={notice} />
+    </div>
   );
 }
 

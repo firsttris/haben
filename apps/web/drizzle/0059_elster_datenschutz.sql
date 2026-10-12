@@ -1,0 +1,1 @@
+ALTER TABLE "company" ADD COLUMN "elster_datenschutz_at" timestamp with time zone;
