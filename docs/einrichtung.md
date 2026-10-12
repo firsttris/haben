@@ -188,6 +188,12 @@ Betreibst du Haben für andere mit deiner ID, bist du für sie Softwareherstelle
 
 Bei Verstößen kann das Landesamt die Hersteller-ID sperren (§ 9); dann kann niemand mehr damit senden. Wer Haben verändert und weitergibt, braucht eine eigene ID (§ 4). Die Hersteller-ID ist kein Geheimnis, sie steht in jeder Übermittlung. Trag sie trotzdem nur in `.env` bzw. `haben.env` ein, nicht ins Repository oder Image.
 
+### Open Source und die Hersteller-ID
+
+Die Hersteller-ID ist für Software gedacht, hinter der ein Hersteller mit einem Produkt steht. Für ein freies Projekt wie Haben passt das schlecht: Jeder, der es betreibt oder verändert, ist selbst Hersteller und braucht eine eigene ID. Eine gemeinsame ID für ein Open-Source-Projekt sieht ELSTER nicht vor. Das ist seit Langem bekannt; schon 2005 kritisierte [netzpolitik.org](https://netzpolitik.org/2005/elster-in-der-kritik/), dass die Hersteller-ID an Produkt und Hersteller gebunden ist und freie Software damit kaum vorgesehen ist.
+
+Eine offizielle Aussage der Finanzverwaltung zu Open-Source-Projekten haben wir nicht gefunden. Zuständig ist das Bayerische Landesamt für Steuern, das ELSTER bundesweit koordiniert. Registrierung und Hersteller-ID laufen über die [ELSTER-Entwicklerseite](https://www.elster.de/eportal/infoseite/entwickler); mit dem Zugang zum Entwicklerbereich kannst du dort auch nachfragen, wie das Landesamt freie Software sieht. Erfährst du dabei etwas, freuen wir uns über ein Issue, damit es hier stehen kann.
+
 ### Warum Lexoffice ohne dein Zertifikat sendet
 
 Cloud-Dienste wie Lexware Office übermitteln in deinem Auftrag mit ihrem eigenen Zertifikat (Datenübermittlung im Auftrag, § 87d AO). Der Anbieter muss dafür seine Auftraggeber identifizieren und die Übermittlungen aufbewahren. Haben läuft auf deinem eigenen Server, ohne Anbieter dazwischen: Du sendest selbst und brauchst dein eigenes Zertifikat.
