@@ -202,7 +202,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
 /* Position: Beschreibung über die volle Breite, darunter die Zahlen */
-.line-row { display: grid; grid-template-columns: 76px 92px minmax(96px, 1fr) 80px minmax(96px, 1fr) 40px; gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+.line-row { display: grid; grid-template-columns: 76px 92px minmax(96px, 1fr) 80px minmax(96px, 1fr) 88px; gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line-soft); }
 .line-row > .line-desc { grid-column: 1 / -1; }
 .line-row input, .line-row select { min-height: 40px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); width: 100%; min-width: 0; }
 .line-row input.num { font-family: var(--mono); }
@@ -212,12 +212,14 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .icon-btn { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .icon-btn:hover:not(:disabled) { color: var(--danger-ink); border-color: var(--danger-ink); }
 .icon-btn:disabled { opacity: 0.4; cursor: default; }
+.icon-btn-plain:hover:not(:disabled) { color: var(--ink); border-color: var(--line-strong); }
+.line-actions { display: flex; gap: 8px; justify-content: flex-end; }
 @media (max-width: 720px) {
   /* Handy: Beschreibung, dann Menge | Einheit, Einzelpreis | USt, Netto | Entfernen */
   .line-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .line-row > .line-net { grid-column: 1; text-align: left; font-weight: 500; }
   .line-row .line-net-label { display: inline; color: var(--muted); font-family: var(--sans); font-size: 12px; font-weight: 400; }
-  .line-row > .icon-btn { justify-self: end; }
+  .line-row > .line-actions { justify-self: end; }
   .line-row.head { display: none; }
 }
 textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); resize: vertical; min-height: 72px; }

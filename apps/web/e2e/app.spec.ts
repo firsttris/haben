@@ -313,6 +313,22 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Beratung Softwarearchitektur");
   await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("110,00");
   await expect(page.getByLabel("Beschreibung Position 2")).toHaveCount(0);
+  // Bereits im Katalog: nicht noch einmal speichern
+  await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
+
+  // Vorschlag aus dem Katalog beim Tippen: die Bezeichnung übernimmt Einheit und Preis
+  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByLabel("Beschreibung Position 2").fill("Beratung Softwarearchitektur");
+  await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("110,00");
+
+  // Eine neue Position als Artikel speichern; danach steht sie im Katalog
+  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByLabel("Beschreibung Position 3").fill("Wartungspauschale");
+  await page.getByLabel(/Einzelpreis Position 3/).fill("250,00");
+  await page.getByRole("button", { name: "Position 3 als Artikel speichern" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "„Wartungspauschale“ ist jetzt im Artikelkatalog." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Position 3 als Artikel speichern" })).toBeDisabled();
+  await expect(page.getByLabel("Aus dem Artikelkatalog einfügen").locator("option", { hasText: "Wartungspauschale · 250,00" })).toHaveCount(1);
 });
 
 test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () => {

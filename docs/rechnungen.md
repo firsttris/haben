@@ -47,6 +47,8 @@ Unter **Rechnungen › Artikel** legst du Positionen an, die du oft brauchst: St
 
 - Jeder Artikel hat Bezeichnung, optional eine Artikelnummer, Einheit, Nettopreis und Steuersatz, dazu eine interne Notiz.
 - Im Editor für Rechnungen und Angebote fügt **Aus dem Katalog einfügen** den Artikel als Position mit Menge 1 ein. Ist die einzige Zeile noch leer, ersetzt er sie.
+- Beim Tippen der Beschreibung einer Position schlägt der Browser passende Artikel vor (per Tastatur oder Maus auswählbar). Stimmt die Beschreibung mit einem Artikel überein, übernimmt die Position dessen Einheit, Preis und Steuersatz; die Menge bleibt.
+- Das Lesezeichen-Symbol neben einer Position speichert sie als Artikel: Beschreibung, Einheit, Preis und Steuersatz der Position. Steht genau diese Position schon im Katalog, ist der Knopf ausgegraut.
 - Text, Menge und Preis passt du danach in der Position an.
 - Ohne Steuerausweis (Kleinunternehmer, Reverse Charge, steuerfrei) setzt Haben den Steuersatz der Position auf 0 %.
 - Änderungen am Katalog wirken nur auf neue Positionen. Festgeschriebene Rechnungen bleiben, wie sie sind.

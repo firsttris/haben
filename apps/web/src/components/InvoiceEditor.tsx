@@ -29,6 +29,7 @@ import {
   saveInvoiceDraft,
 } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
+import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/invoices.ts";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
@@ -75,6 +76,9 @@ interface LineState {
 }
 
 let nextKey = 1;
+
+/** Bezeichnungen vergleichen, ohne dass Zeilenumbrüche und doppelte Leerzeichen zählen */
+const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
 
 function toLineState(line: DraftInput["lines"][number]): LineState {
   return {
@@ -142,6 +146,7 @@ export function InvoiceEditor({
   const saveQuote = useServerFn(saveQuoteDraft);
   const finalizeQuote = useServerFn(finalizeQuoteDraft);
   const removeQuote = useServerFn(removeQuoteDraft);
+  const storeArticle = useServerFn(saveArticle);
   const quote = kind === "angebot";
   /** Rechnung oder Angebot, an dem Kunde und Steuer noch frei wählbar sind */
   const editable = kind === "rechnung" || quote;
@@ -217,6 +222,30 @@ export function InvoiceEditor({
     setDirty(true);
     setConfirming(false);
     setConfirmingDelete(false);
+  }
+
+  /** Tippt man die Bezeichnung eines Artikels (Vorschlag aus dem Katalog), übernimmt die Position dessen Einheit, Preis und Steuersatz */
+  function changeDescription(line: LineState, description: string) {
+    const article = !sameText(line.description, description) ? articles.find((a) => sameText(a.description, description)) : undefined;
+    updateLine(
+      line.key,
+      article
+        ? {
+            description: article.description,
+            unit: article.unit as UnitLabel,
+            unitPrice: formatDecimal(article.unitPrice),
+            taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
+          }
+        : { description },
+    );
+  }
+
+  /** Position als Artikel in den Katalog übernehmen; die Position selbst bleibt unverändert */
+  function storeAsArticle(p: ReturnType<typeof parseLine>) {
+    void run(async () => {
+      await storeArticle({ data: { id: null, article: { description: p.description, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate } } });
+      await router.invalidate();
+    }, `„${p.description.split("\n")[0]}“ ist jetzt im Artikelkatalog.`);
   }
 
   /** Position aus dem Katalog; ersetzt eine noch leere einzige Zeile, sonst wird angehängt */
@@ -559,8 +588,16 @@ export function InvoiceEditor({
               <div style={{ textAlign: "right" }}>Netto</div>
               <div />
             </div>
+            {articles.length > 0 && (
+              <datalist id="artikel-vorschlaege">
+                {articles.map((a) => (
+                  <option key={a.id} value={a.description} label={`${a.number ? `${a.number} · ` : ""}${formatEuro(a.unitPrice)}/${a.unit}`} />
+                ))}
+              </datalist>
+            )}
             {lines.map((line, index) => {
               const p = parsed[index]!;
+              const inCatalog = articles.some((a) => sameText(a.description, p.description) && a.unitPrice === p.unitPrice && a.unit === p.unit);
               return (
                 <div className="line-row" key={line.key}>
                   <input
@@ -568,7 +605,9 @@ export function InvoiceEditor({
                     placeholder={`Beschreibung Position ${index + 1}`}
                     aria-label={`Beschreibung Position ${index + 1}`}
                     value={line.description}
-                    onChange={(e) => updateLine(line.key, { description: e.target.value })}
+                    list={articles.length > 0 ? "artikel-vorschlaege" : undefined}
+                    autoComplete="off"
+                    onChange={(e) => changeDescription(line, e.target.value)}
                     onBlur={() => markTouched(line.key)}
                     aria-invalid={showError(line.key) && line.description.trim() === ""}
                   />
@@ -615,6 +654,19 @@ export function InvoiceEditor({
                     <span className="line-net-label">Netto </span>
                     {p.valid ? formatEuro(lineNet(p.quantity, p.unitPrice)) : "–"}
                   </div>
+                  <div className="line-actions">
+                  <button
+                    type="button"
+                    className="icon-btn icon-btn-plain"
+                    aria-label={`Position ${index + 1} als Artikel speichern`}
+                    title={inCatalog ? "Steht schon im Artikelkatalog" : "Als Artikel speichern"}
+                    disabled={busy || !p.valid || inCatalog}
+                    onClick={() => storeAsArticle(p)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </button>
                   <button
                     type="button"
                     className="icon-btn"
@@ -629,6 +681,7 @@ export function InvoiceEditor({
                       <path d="M6 6l12 12M18 6L6 18" />
                     </svg>
                   </button>
+                  </div>
                 </div>
               );
             })}
