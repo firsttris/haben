@@ -1,9 +1,11 @@
 name: Release
 
 # Ein Tag vX.Y.Z (Button in bump.yml oder pnpm release:patch|minor|major) veröffentlicht diese
-# Version: erst die komplette CI, dann der gemeinsame Docker-Release aus firsttris/workflows. Der
-# prüft den Tag gegen package.json, pusht :x.y.z, :x.y und :latest auf Docker Hub und GHCR
-# (amd64 und arm64), aktualisiert die Beschreibung auf Docker Hub und legt danach das GitHub-Release an.
+# Version: erst die komplette CI (übersprungen, wenn die CI auf main denselben Code schon geprüft hat,
+# siehe https://github.com/firsttris/workflows#tested-on-main), dann der gemeinsame Docker-Release
+# aus firsttris/workflows. Der prüft den Tag gegen package.json, pusht :x.y.z, :x.y und :latest auf
+# Docker Hub und GHCR (amd64 und arm64), aktualisiert die Beschreibung auf Docker Hub und legt
+# danach das GitHub-Release an.
 # Von Hand auf main gestartet: dieselben Prüfungen, dann das Image als :edge; kein Release.
 on:
   push:
@@ -15,11 +17,24 @@ permissions:
   contents: read
 
 jobs:
+  tested:
+    uses: firsttris/workflows/.github/workflows/tested-on-main.yml@ccr-161f105b-9ns022
+    permissions:
+      actions: read
+      contents: read
+
   checks:
+    needs: tested
+    if: needs.tested.outputs.tested != 'true'
     uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      packages: write # der Image-Test der CI hält seinen Build-Cache
 
   docker:
-    needs: checks
+    needs: [tested, checks]
+    # Die Prüfungen liefen durch oder waren nicht nötig
+    if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
     uses: firsttris/workflows/.github/workflows/docker-release.yml@v1
     with:
       image: tristanteu/haben

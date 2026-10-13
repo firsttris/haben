@@ -83,7 +83,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @haben/web exec playwright install --with-deps chromium
+      # Chromium aus dem Cache, je Playwright-Version; die Systembibliotheken kommen bei jedem Lauf.
+      # Die Screenshots werden nur als Artefakt angehängt, nicht verglichen: die Umgebung bleibt die des Runners
+      - id: playwright
+        run: echo "version=$(pnpm --filter @haben/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - id: browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-chromium
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm --filter @haben/web exec playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm --filter @haben/web exec playwright install-deps chromium
       - run: pnpm build
       - name: Ende-zu-Ende-Tests mit Screenshots aller Seiten
         run: pnpm e2e
@@ -135,10 +147,17 @@ jobs:
   container:
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Build-Cache des Images, geteilt mit dem Release
     steps:
       - uses: actions/checkout@v4
+      # Mit dem Build-Cache des Releases: nur geänderte Schichten werden neu gebaut
       - name: Image bauen
-        run: docker build -f Containerfile -t haben:ci .
+        uses: firsttris/workflows/actions/docker-build@ccr-161f105b-9ns022
+        with:
+          dockerfile: Containerfile
+          tags: haben:ci
       - name: Mit PostgreSQL starten
         run: |
           docker network create haben

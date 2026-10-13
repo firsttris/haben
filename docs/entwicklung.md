@@ -215,7 +215,7 @@ Die Kategorien stehen in `EXPENSE_CATEGORIES` in `packages/core/src/posting.ts`,
 Images baut der Workflow `.github/workflows/release.yml`: die CI liegt hier, Image, Docker-Hub-Beschreibung und GitHub-Release kommen aus dem gemeinsamen [`docker-release.yml`](https://github.com/firsttris/workflows) in `firsttris/workflows`. Ein Tag `vX.Y.Z` veröffentlicht eine Version:
 
 1. Der Tag muss zu `version` in der `package.json` im Wurzelverzeichnis passen.
-2. Die komplette CI läuft (Lint, Typecheck, Tests, Build, KoSIT, Container-Test).
+2. Die komplette CI läuft (Lint, Typecheck, Tests, Build, KoSIT, Container-Test), außer die CI auf `main` hat denselben Code schon geprüft: ein Commit von *Bump version* ändert nur die Version, dann zählt der grüne Lauf des Commits davor.
 3. Das Image wird für `linux/amd64` und `linux/arm64` gebaut und als `:x.y.z`, `:x.y` und `:latest` nach Docker Hub (`tristanteu/haben`) und GHCR (`ghcr.io/firsttris/haben`) geschoben. Die README landet mit absoluten Links als Beschreibung auf Docker Hub.
 4. Erst danach entsteht das GitHub-Release mit erzeugten Notizen.
 
