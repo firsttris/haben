@@ -250,6 +250,54 @@ server {
 
 **Traefik:** Router für die Domain mit TLS auf den Service `haben-app:3000`. Traefik begrenzt die Größe von Anfragen nur mit der Middleware `buffering` (`maxRequestBodyBytes`); nutzt du sie, dann mit mindestens 250 MB.
 
+## Mehrere Instanzen
+
+Haben führt genau eine Buchhaltung: ein Unternehmen, ein Konto. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy.
+
+```
+haben-firma1/
+  compose.yml              # unverändert aus deploy/
+  compose.override.yml     # aus deploy/compose.override.example.yml
+  .env
+haben-firma2/
+  …
+```
+
+Je Instanz unterscheiden sich drei Dinge:
+
+| Wo | Was | Beispiel |
+| --- | --- | --- |
+| `.env` | `COMPOSE_PROJECT_NAME`: trennt Container, Netz und Volumes der Instanzen (Vorrang vor `name: haben` in `compose.yml`) | `COMPOSE_PROJECT_NAME=haben-firma1` |
+| `.env` | eigene `DOMAIN`, eigenes `DB_PASSWORD`, eigene Schlüssel (`AUTH_SECRET`, `ENCRYPTION_KEY`) | `DOMAIN=firma1.example.de` |
+| `compose.override.yml` | eigener Name im Netz des Proxys: den Alias `haben-app` ersetzen | `aliases: [haben-firma1]` |
+
+Der mitgelieferte Caddy belegt Port 80 und 443 und kann deshalb nur einmal laufen. Mit mehreren Instanzen nutzt jede die `compose.override.yml` aus [Eigener Reverse Proxy](#eigener-reverse-proxy), und ein gemeinsamer Proxy verteilt die Subdomains, etwa mit Caddy:
+
+```
+firma1.example.de {
+	request_body {
+		max_size 250MB
+	}
+	reverse_proxy haben-firma1:3000
+}
+firma2.example.de {
+	request_body {
+		max_size 250MB
+	}
+	reverse_proxy haben-firma2:3000
+}
+```
+
+(Header wie im Beispiel unter [Eigener Reverse Proxy](#beispiele).) Starten, aktualisieren und sichern machst du im Verzeichnis der jeweiligen Instanz wie oben unter [Docker Compose](#docker-compose); die Volumes heißen dann `haben-firma1_belege` usw. statt `haben_belege`, das gilt auch für den Backup-Befehl.
+
+Weitere Punkte:
+
+- **ERiC** lädt jede Instanz einzeln (rund 300 MB). Wer Platz sparen will, entpackt es einmal nach `/opt/eric` und bindet es überall mit `ERIC_HOME` ein, siehe [ERiC einbinden](#eric-einbinden).
+- **Hersteller-ID:** Für deine eigenen Instanzen nimmst du dieselbe ID. Betreibst du eine Instanz für jemand anderen, bist du für diese Person Softwarehersteller nach der ERiC-Lizenz, siehe [Hersteller-ID: wer ist Hersteller?](einrichtung.md#hersteller-id-wer-ist-hersteller). Wer Buchhaltungsdaten für andere hostet, ist zudem Auftragsverarbeiter nach DSGVO.
+- **Quadlets** sind auf eine Instanz ausgelegt (feste Namen wie `haben-app`). Für mehrere Instanzen ist Compose einfacher.
+
+Eine Instanz mit mehreren Mandanten gibt es bewusst nicht: Eine gemeinsame Datenbank würde jede Abfrage, die GoBD-Trigger, die Belegablage und das Backup um eine Mandantentrennung erweitern, und ein Fehler darin legte fremde Buchhaltungsdaten offen.
+
 ## Umgebungsvariablen
 
 Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugriff. Ein Fehler steht dann im Log von `haben-app`.
