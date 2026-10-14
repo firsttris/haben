@@ -297,6 +297,14 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
   await n.screenshot({ path: `${SHOTS}/desktop/17-anlage-n.png` });
 });
 
+test("Seiten nur von derselben Origin einbettbar", async () => {
+  // Clickjacking-Schutz kommt von der App selbst, damit der Proxy SAMEORIGIN statt DENY setzen kann
+  const html = await page.request.get("/rechnungen");
+  expect(html.headers()["content-type"]).toContain("text/html");
+  expect(html.headers()["content-security-policy"]).toBe("frame-ancestors 'self'");
+  expect(html.headers()["x-frame-options"]).toBeUndefined();
+});
+
 test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await go("/artikel");
   const form = page.getByRole("form", { name: "Neuer Artikel" });

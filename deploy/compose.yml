@@ -76,7 +76,7 @@ configs:
           Strict-Transport-Security "max-age=31536000; includeSubDomains"
           X-Content-Type-Options nosniff
           Referrer-Policy same-origin
-          X-Frame-Options DENY
+          X-Frame-Options SAMEORIGIN
         }
         # Uploads: Archivdateien bis 100 MB, Belege bis 20 MB je Datei; mehrere Dateien gehen in einer Anfrage
         request_body {
