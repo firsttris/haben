@@ -1,2 +1,4 @@
 [Network]
 NetworkName=haben
+# Fester DNS-Server statt der Einträge aus /etc/resolv.conf des Hosts (siehe Häufige Probleme in docs/installation.md)
+#DNS=192.168.178.1

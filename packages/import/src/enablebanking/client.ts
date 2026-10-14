@@ -1,5 +1,6 @@
 import { createSign } from "node:crypto";
 import { z } from "zod";
+import { networkErrorText } from "@haben/core";
 import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
 
 export const ENABLE_BANKING_DEFAULT_BASE_URL = "https://api.enablebanking.com";
@@ -241,7 +242,7 @@ export class EnableBankingClient {
           await this.#sleep(backoff(attempt));
           continue;
         }
-        throw new EnableBankingApiError(`Enable Banking nicht erreichbar: ${cause instanceof Error ? cause.message : String(cause)}`, 0, path, { cause });
+        throw new EnableBankingApiError(`Enable Banking nicht erreichbar: ${networkErrorText(cause)}`, 0, path, { cause });
       }
       if (response.ok) return response;
       const text = await response.text().catch(() => "");

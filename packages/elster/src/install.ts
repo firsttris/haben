@@ -10,6 +10,7 @@ import { basename, dirname, join, normalize } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { crc32, createInflateRaw } from "node:zlib";
+import { networkErrorText } from "@haben/core";
 import { ericLibraryPath, ericPluginPath } from "./eric.ts";
 
 /** Zuletzt bekannte ERiC-Version; neuere stehen im Entwicklerbereich von ELSTER */
@@ -135,7 +136,7 @@ async function download(url: string, path: string, options: InstallOptions) {
   try {
     response = await (options.fetch ?? fetch)(url);
   } catch (cause) {
-    throw new EricInstallError(`download.elster.de nicht erreichbar: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+    throw new EricInstallError(`download.elster.de nicht erreichbar: ${networkErrorText(cause)}`, { cause });
   }
   if (response.status === 404) {
     throw new EricInstallError(`ERiC ${options.version} gibt es nicht (mehr) zum Download. Die aktuelle Version steht auf ${ERIC_INFO_URL}.`);
