@@ -1,6 +1,5 @@
 import {
   computeInvoiceTotals,
-  formatDecimal,
   formatEuro,
   formatQuantity,
   formatRate,
@@ -71,131 +70,135 @@ export function InvoicePreview({
 }) {
   const valid = lines.filter((l) => l.valid);
   const totals = computeInvoiceTotals(valid);
+  const quote = kind === "angebot";
   const sender = [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`.trim()].filter(Boolean).join(" · ");
-  const service =
-    serviceFrom && serviceTo && serviceFrom !== serviceTo
-      ? `${formatDate(serviceFrom)} – ${formatDate(serviceTo)}`
-      : serviceFrom || serviceTo
-        ? formatDate((serviceFrom ?? serviceTo)!)
-        : formatDate(issueDate);
+  const meta: [string, string][] = [
+    [quote ? "Angebotsnummer" : "Rechnungsnummer", number],
+    [quote ? "Angebotsdatum" : "Rechnungsdatum", formatDate(issueDate)],
+  ];
+  if (quote) meta.push(["Gültig bis", validUntil ? formatDate(validUntil) : "–"]);
+  if (serviceFrom && serviceTo && serviceFrom !== serviceTo) {
+    meta.push(["Leistungszeitraum", `${formatDate(serviceFrom)} – ${formatDate(serviceTo)}`]);
+  } else if (serviceFrom || serviceTo) {
+    meta.push(["Leistungsdatum", formatDate((serviceFrom ?? serviceTo)!)]);
+  } else if (!quote) {
+    meta.push(["Leistungsdatum", "entspricht Rechnungsdatum"]);
+  }
+  if (buyer?.kundennummer) meta.push(["Kundennummer", buyer.kundennummer]);
+  // Wie im PDF: bei mehreren Steuersätzen steht die Bemessungsgrundlage dabei
+  const taxes = taxNote ? [] : totals.taxes;
+  const payment = quote
+    ? `Dieses Angebot gilt bis zum ${validUntil ? formatDate(validUntil) : "…"}. Wir freuen uns auf Ihren Auftrag.`
+    : totals.gross < 0
+      ? "Der Betrag wird Ihnen erstattet."
+      : totals.gross === 0
+        ? "Es ist keine Zahlung erforderlich."
+        : `Bitte überweisen Sie den Betrag bis zum ${formatDate(dueDate)} unter Angabe der Rechnungsnummer.`;
+  const footer = [
+    [seller.name || "[Firmenname]", seller.strasse, `${seller.plz} ${seller.ort}`.trim(), seller.email],
+    [seller.bank, `IBAN ${seller.iban || "[IBAN]"}`, seller.bic && `BIC ${seller.bic}`],
+    [seller.steuernummer && `Steuernummer ${seller.steuernummer}`, seller.ustId && `USt-IdNr. ${seller.ustId}`],
+  ].map((column) => column.filter(Boolean));
 
+  // Maße in mm wie in templates/rechnung.typ (DIN 5008 Form B), über --mm auf die Breite skaliert
   return (
-    <div className="paper" aria-label={kind === "angebot" ? "Vorschau des Angebots" : "Vorschau der Rechnung"}>
-      <div className="paper-head">
-        <div className="paper-company">{seller.name || "[Firmenname]"}</div>
-        <div className="paper-contact">
-          {seller.strasse || "[Anschrift]"}
-          <br />
-          {seller.plz} {seller.ort}
-          <br />
-          {seller.email}
-        </div>
-        {seller.logo && <img src={`/api/logo?v=${seller.logo.slice(0, 12)}`} alt="Logo" style={{ maxHeight: 40, maxWidth: 130, minWidth: 0, objectFit: "contain", marginLeft: "auto" }} />}
-      </div>
-      <div className="paper-window">
-        <div className="paper-sender">{sender || "[Absender]"}</div>
-        {buyer ? (
-          <>
-            <div>{buyer.name}</div>
-            <div>{buyer.strasse}</div>
+    <div className="sheet-frame">
+      <div className="sheet" aria-label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}>
+        <span className="sheet-fold" style={{ top: "calc(105 * var(--mm))" }} />
+        <span className="sheet-fold long" style={{ top: "calc(148.5 * var(--mm))" }} />
+        <span className="sheet-fold" style={{ top: "calc(210 * var(--mm))" }} />
+        {seller.logo && <img className="sheet-logo" src={`/api/logo?v=${seller.logo.slice(0, 12)}`} alt="Logo" />}
+        <div className="sheet-address">
+          <div className="sheet-sender">{sender || "[Absender]"}</div>
+          {buyer ? (
             <div>
+              {buyer.name}
+              <br />
+              {buyer.strasse}
+              <br />
               {buyer.plz} {buyer.ort}
             </div>
-          </>
-        ) : (
-          <div className="muted">[Kunde wählen]</div>
-        )}
-      </div>
-      <div className="paper-title-row">
-        <div className="paper-title">{title ?? KIND_TITLE[kind]}</div>
-        <dl className="paper-meta">
-          <dt>Nummer</dt>
-          <dd>{number}</dd>
-          <dt>Datum</dt>
-          <dd>{formatDate(issueDate)}</dd>
-          {kind === "angebot" && (
-            <>
-              <dt>Gültig bis</dt>
-              <dd>{validUntil ? formatDate(validUntil) : "–"}</dd>
-            </>
+          ) : (
+            <div className="sheet-muted">[Kunde wählen]</div>
           )}
-          <dt>Leistung</dt>
-          <dd>{service}</dd>
-          {buyer?.kundennummer && (
-            <>
-              <dt>Kunde</dt>
-              <dd>{buyer.kundennummer}</dd>
-            </>
-          )}
-        </dl>
-      </div>
-      {corrects && (
-        <p className="paper-small">
-          zur Rechnung {corrects.number} vom {formatDate(corrects.issueDate)}
-        </p>
-      )}
-      <table className="paper-table">
-        <thead>
-          <tr>
-            <th>Beschreibung</th>
-            <th className="num">Menge</th>
-            <th className="num">Preis</th>
-            <th className="num">USt</th>
-            <th className="num">Netto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {valid.map((line, index) => (
-            <tr key={index}>
-              <td>{line.description}</td>
-              <td className="num">
-                {formatQuantity(line.quantity)} {line.unit}
-              </td>
-              <td className="num">{formatDecimal(line.unitPrice)}</td>
-              <td className="num">{taxNote ? "–" : formatRate(line.taxRate)}</td>
-              <td className="num">{formatDecimal(lineNet(line.quantity, line.unitPrice))}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <dl className="paper-totals">
-        <dt>Summe netto</dt>
-        <dd>{formatEuro(totals.net)}</dd>
-        {totals.taxes
-          .filter((t) => t.rate > 0)
-          .map((t) => (
-            <div key={t.rate} style={{ display: "contents" }}>
-              <dt>Umsatzsteuer {formatRate(t.rate)}</dt>
-              <dd>{formatEuro(t.tax)}</dd>
+        </div>
+        <dl className="sheet-meta">
+          {meta.map(([label, value]) => (
+            <div key={label} style={{ display: "contents" }}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
             </div>
           ))}
-        <dt className="strong">{kind === "angebot" ? "Angebotssumme" : "Gesamtbetrag"}</dt>
-        <dd className="strong">{formatEuro(totals.gross)}</dd>
-      </dl>
-      {taxNote && <p className="paper-small strong">{taxNote}</p>}
-      {note && <p className="paper-small" style={{ whiteSpace: "pre-wrap" }}>{note}</p>}
-      <p className="paper-small">
-        {kind === "angebot"
-          ? `Dieses Angebot gilt bis zum ${validUntil ? formatDate(validUntil) : "…"}. Wir freuen uns auf Ihren Auftrag.`
-          : totals.gross >= 0
-          ? `Bitte überweisen Sie den Betrag bis zum ${formatDate(dueDate)} unter Angabe der Rechnungsnummer.`
-          : "Der Betrag wird Ihnen erstattet."}
-      </p>
-      <div className="paper-foot">
-        <span>
-          {seller.name}
-          <br />
-          {seller.strasse}, {seller.plz} {seller.ort}
-        </span>
-        <span>
-          {seller.bank || "Bank"}
-          <br />
-          IBAN {seller.iban || "[IBAN]"}
-        </span>
-        <span>
-          {seller.steuernummer && <>Steuernummer {seller.steuernummer}<br /></>}
-          {seller.ustId && <>USt-IdNr. {seller.ustId}</>}
-        </span>
+        </dl>
+        <div className="sheet-body">
+          <div className="sheet-title">{title ?? KIND_TITLE[kind]}</div>
+          {corrects && (
+            <div className="sheet-muted">
+              zur Rechnung {corrects.number} vom {formatDate(corrects.issueDate)}
+            </div>
+          )}
+          <table className="sheet-table">
+            <thead>
+              <tr>
+                <th>Pos.</th>
+                <th>Beschreibung</th>
+                <th className="num">Menge</th>
+                <th className="num">Einzelpreis</th>
+                <th className="num">USt</th>
+                <th className="num">Netto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {valid.map((line, index) => (
+                <tr key={index}>
+                  <td>{index + 1}</td>
+                  <td className="desc">{line.description}</td>
+                  <td className="num">
+                    {formatQuantity(line.quantity)} {line.unit}
+                  </td>
+                  <td className="num">{formatEuro(line.unitPrice)}</td>
+                  <td className="num">{taxNote ? "–" : formatRate(line.taxRate)}</td>
+                  <td className="num">{formatEuro(lineNet(line.quantity, line.unitPrice))}</td>
+                </tr>
+              ))}
+              {valid.length === 0 && (
+                <tr>
+                  <td />
+                  <td className="sheet-muted" colSpan={5}>
+                    [Positionen]
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <dl className="sheet-totals">
+            <dt>Summe netto</dt>
+            <dd>{formatEuro(totals.net)}</dd>
+            {taxes.map((t) => (
+              <div key={t.rate} style={{ display: "contents" }}>
+                <dt>
+                  Umsatzsteuer {formatRate(t.rate)}
+                  {taxes.length > 1 && ` auf ${formatEuro(t.base)}`}
+                </dt>
+                <dd>{formatEuro(t.tax)}</dd>
+              </div>
+            ))}
+            <dt className="gross">{quote ? "Angebotssumme" : "Gesamtbetrag"}</dt>
+            <dd className="gross">{formatEuro(totals.gross)}</dd>
+          </dl>
+          {taxNote && <p className="sheet-strong">{taxNote}</p>}
+          <p>{payment}</p>
+          {note && <p style={{ whiteSpace: "pre-wrap" }}>{note}</p>}
+        </div>
+        <div className="sheet-foot">
+          {footer.map((column, index) => (
+            <div key={index}>
+              {column.map((line, i) => (
+                <div key={i}>{line}</div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
