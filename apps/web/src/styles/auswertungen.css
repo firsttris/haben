@@ -73,7 +73,6 @@
 .expand-btn { all: unset; cursor: pointer; color: var(--muted); padding: 0 4px; border-radius: 4px; }
 .expand-btn:focus-visible { outline: 2px solid var(--accent); }
 .filter-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 16px; }
-.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* Saldoverlauf im Kontenblatt */
 .chart .line-series { fill: none; stroke: var(--series-in); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
@@ -107,6 +106,33 @@
   .journal-table td[data-label="Betrag"] { font-weight: 600; }
 }
 
+/* Fristen auf dem Handy: Datum und Art in einer Zeile, darunter die Frist, ohne wiederholte Beschriftungen */
+@media (max-width: 720px) {
+  .fristen-table tr { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; }
+  .fristen-table td[data-label] { padding-left: 0 !important; width: auto !important; }
+  .fristen-table td[data-label]::before { content: none; }
+  .fristen-table td[data-label="Datum"] { grid-column: 1; grid-row: 1; }
+  .fristen-table td[data-label="Datum"] > div { display: inline; margin-left: 8px; }
+  .fristen-table td[data-label="Art"] { grid-column: 2; grid-row: 1; }
+  .fristen-table td[data-label="Frist"] { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* Offene Posten auf dem Handy: Nummer, Partei und Fälligkeit links, offener Betrag und Status rechts */
+@media (max-width: 720px) {
+  .open-table, .open-table tbody { display: block; width: 100%; min-width: 0; }
+  .open-table thead { display: none; }
+  .open-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .open-table tbody tr:first-child { border-top: 0; }
+  .open-table th, .open-table td { display: block; padding: 0 !important; border: 0 !important; text-align: left; }
+  .open-table tr > :nth-child(1) { grid-column: 1; grid-row: 1; font-size: 12px; }
+  .open-table tr > :nth-child(2) { grid-column: 1; grid-row: 2; white-space: normal; }
+  .open-table tr > :nth-child(3), .open-table tr > :nth-child(5) { display: none; }
+  .open-table tr > :nth-child(4) { grid-column: 1; grid-row: 3; font-size: 12px; color: var(--muted); }
+  .open-table tr > :nth-child(4)::before { content: "fällig "; }
+  .open-table tr > :nth-child(6) { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; font-weight: 600; }
+  .open-table tr > :nth-child(7) { grid-column: 2; grid-row: 3; justify-self: end; }
+}
+
 @media (max-width: 720px) {
   .stack-table .group-row th, .stack-table tfoot th { padding-left: 0 !important; }
 }
@@ -116,3 +142,21 @@
 
 /* Kopf „Saldo“ über den Beträgen, nicht über dem S/H-Hinweis daneben (6px Abstand + 6.5em bei 12px) */
 .report-table th.saldo-head { padding-right: calc(8px + 6px + 78px); }
+
+/* Jahreserklärung: Sprungleiste, zuklappbare Blöcke, Speichern am unteren Rand */
+.jump-nav { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; flex-wrap: wrap; padding: 8px 0; background: var(--ground); border-bottom: 1px solid var(--line); }
+.jump-nav a { padding: 6px 12px; border-radius: 16px; color: var(--ink-2); text-decoration: none; font-size: 13px; font-weight: 500; }
+.jump-nav a:hover { background: var(--accent-tint); color: var(--ink); }
+.jump-target { scroll-margin-top: 64px; }
+.est-block { border: 1px solid var(--line); border-radius: 10px; padding: 0 16px; }
+.est-block[open] { padding-bottom: 16px; }
+.est-block > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; list-style: none; }
+.est-block > summary::-webkit-details-marker { display: none; }
+.est-block > summary::before { content: "›"; display: inline-block; width: 12px; color: var(--muted); transition: transform 0.15s; }
+.est-block[open] > summary::before { transform: rotate(90deg); }
+.est-block-title { flex: 1; font-weight: 600; }
+.est-sub { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+.form-sticky-footer { position: sticky; bottom: 0; z-index: 4; display: flex; flex-direction: column; gap: 8px; margin: 0 -20px -20px; padding: 12px 20px; background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 12px 12px; }
+@media (max-width: 860px) {
+  .jump-nav { top: 60px; }
+}

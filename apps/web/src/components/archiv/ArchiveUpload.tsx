@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useId, useRef, useState, type FormEvent } from "react";
 import { errorMessage } from "../../lib/format.ts";
 import { uploadArchiveFiles } from "../../server/functions/archive.ts";
+import { FilePicker } from "../FilePicker.tsx";
 
 type Message = { tone: "ok" | "warn" | "danger"; text: string };
 type Kind = { value: "datev" | "idea" | "elster" | "kontoauszug" | "sonstiges"; label: string };
@@ -78,7 +79,7 @@ export function ArchiveUpload({ kinds }: { kinds: Kind[] }) {
         </label>
         <label className="field" htmlFor={`${id}-files`}>
           Dateien
-          <input id={`${id}-files`} ref={fileInput} type="file" multiple aria-label="Dateien für das Archiv" />
+          <FilePicker id={`${id}-files`} inputRef={fileInput} multiple ariaLabel="Dateien für das Archiv" />
         </label>
       </div>
       <div className="actions">

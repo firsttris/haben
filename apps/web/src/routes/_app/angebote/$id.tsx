@@ -152,14 +152,15 @@ function FinalQuote({ data }: { data: Detail }) {
                     </button>
                   )}
                   {quote.decision === null && (
-                    <>
-                      <button type="button" className="btn" onClick={() => void setDecision("angenommen")} disabled={busy}>
+                    <div className="actions" style={{ flexBasis: "100%", alignItems: "center", gap: 8 }}>
+                      <span className="small muted">Nur markieren:</span>
+                      <button type="button" className="btn btn-sm" onClick={() => void setDecision("angenommen")} disabled={busy}>
                         Angenommen
                       </button>
-                      <button type="button" className="btn btn-danger" onClick={() => void setDecision("abgelehnt")} disabled={busy}>
+                      <button type="button" className="btn btn-sm btn-danger" onClick={() => void setDecision("abgelehnt")} disabled={busy}>
                         Abgelehnt
                       </button>
-                    </>
+                    </div>
                   )}
                   {quote.decision !== null && (
                     <button type="button" className="btn" onClick={() => void setDecision(null)} disabled={busy}>

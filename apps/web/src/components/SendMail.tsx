@@ -66,7 +66,7 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
   if (!draft.configured) {
     return (
       <p className="small" style={{ margin: 0 }}>
-        Für den Versand fehlt noch der E-Mail-Zugang: <Link to="/einstellungen">Einstellungen › E-Mail-Versand</Link>.
+        Für den Versand fehlt noch der E-Mail-Zugang: <Link to="/einstellungen" search={{ bereich: "email" }}>Einstellungen › E-Mail</Link>.
       </p>
     );
   }

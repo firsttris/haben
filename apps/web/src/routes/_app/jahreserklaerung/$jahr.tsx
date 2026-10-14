@@ -1,7 +1,7 @@
 import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { Icon } from "../../../components/Icon.tsx";
@@ -66,17 +66,26 @@ function AnnualPage() {
         </div>
       )}
 
-      <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
-        Haben berechnet Umsatzsteuererklärung und Anlage EÜR aus den Buchungen des Jahres und übermittelt sie wie die Voranmeldung über
-        ERiC. Für die Einkommensteuererklärung kommt der Gewinn aus der EÜR; Arbeitslohn, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst
-        du unten ein.
+      <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+        Umsatzsteuererklärung und Anlage EÜR rechnet Haben aus den Buchungen. Für die Einkommensteuer kommt der Gewinn aus der EÜR;
+        Arbeitslohn, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
       </p>
+
+      <nav className="jump-nav" aria-label="Abschnitte der Jahreserklärung">
+        <a href="#ust">Umsatzsteuer</a>
+        <a href="#euer">Anlage EÜR</a>
+        <a href="#est">Einkommensteuer</a>
+        <a href="#vast">Belege von ELSTER</a>
+        <a href="#verlauf">Verlauf</a>
+      </nav>
 
       <div className="stack" style={{ gap: 24 }}>
         <UstSection data={data} />
         <EuerSection data={data} />
         <EstSection key={data.year} data={data} />
-        <VastBelege key={`vast-${data.year}`} data={data} />
+        <div id="vast" className="jump-target">
+          <VastBelege key={`vast-${data.year}`} data={data} />
+        </div>
         <History data={data} />
       </div>
     </>
@@ -133,7 +142,7 @@ function UstSection({ data }: { data: Data }) {
   const { ust } = data;
   const f = ust.figures;
   return (
-    <section className="grid-main" aria-labelledby="ust-heading">
+    <section className="grid-main jump-target" id="ust" aria-labelledby="ust-heading">
       <div className="card" style={{ gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h2 id="ust-heading" style={{ margin: 0 }}>
@@ -176,7 +185,7 @@ function UstSection({ data }: { data: Data }) {
 function EuerSection({ data }: { data: Data }) {
   const { euer, euerRows } = data;
   return (
-    <section className="grid-main" aria-labelledby="euer-heading">
+    <section className="grid-main jump-target" id="euer" aria-labelledby="euer-heading">
       <div className="card" style={{ gap: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h2 id="euer-heading" style={{ margin: 0 }}>
@@ -269,6 +278,24 @@ function Amount({ name, label, value, hint }: { name: string; label: string; val
     </label>
   );
 }
+
+/** Zuklappbarer Teil der Einkommensteuer-Angaben; im Titel steht, was gespeichert ist */
+function Block({ title, summary, open, children }: { title: string; summary: string; open: boolean; children: ReactNode }) {
+  return (
+    <details className="est-block" open={open}>
+      <summary>
+        <span className="est-block-title">{title}</span>
+        <span className="small muted">{summary}</span>
+      </summary>
+      <div className="stack" style={{ gap: 12, paddingTop: 12 }}>
+        {children}
+      </div>
+    </details>
+  );
+}
+
+const sumOf = (...values: (number | undefined)[]) => values.reduce<number>((s, v) => s + (v ?? 0), 0);
+const sumText = (cents: number) => (cents === 0 ? "nichts eingetragen" : formatEuro(cents));
 
 function EstSection({ data }: { data: Data }) {
   const { est } = data;
@@ -372,7 +399,7 @@ function EstSection({ data }: { data: Data }) {
   );
 
   return (
-    <section className="grid-main" aria-labelledby="est-heading">
+    <section className="grid-main jump-target" id="est" aria-labelledby="est-heading">
       <form className="card" onSubmit={onSubmit} aria-label="Angaben zur Einkommensteuer">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
           <h2 id="est-heading">Einkommensteuererklärung {data.year}</h2>
@@ -414,37 +441,55 @@ function EstSection({ data }: { data: Data }) {
         <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />
         {est.zusammen && <AnlageNFields wer={nameB} draft={anB} onChange={setAnB} />}
 
-        <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
-          <legend className="subhead">Vorsorgeaufwand {est.zusammen ? `· ${est.person.a ?? "Person A"}` : ""}</legend>
-          {vorsorgeFields("a", a.vorsorge.a)}
-        </fieldset>
-        {est.zusammen && (
-          <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
-            <legend className="subhead">Vorsorgeaufwand · {est.person.b ?? "Ehegatte"}</legend>
-            {vorsorgeFields("b", a.vorsorge.b)}
-          </fieldset>
-        )}
-        <div className="form-grid">
-          <Amount name="sonstige" label="Weitere Vorsorge (Haftpflicht, Unfall, Risikoleben)" value={a.vorsorge.sonstige} />
-        </div>
+        {(() => {
+          const v = (p: "a" | "b") => {
+            const x = a.vorsorge[p];
+            return sumOf(x?.rentenversicherung, x?.gkv, x?.gpv, x?.gkvZusatz, x?.pkv, x?.ppv);
+          };
+          const total = v("a") + (est.zusammen ? v("b") : 0) + (a.vorsorge.sonstige ?? 0);
+          return (
+            <Block title="Vorsorgeaufwand" summary={sumText(total)} open={total > 0}>
+              <h4 className="est-sub">{est.zusammen ? est.person.a ?? "Person A" : "Beiträge"}</h4>
+              {vorsorgeFields("a", a.vorsorge.a)}
+              {est.zusammen && (
+                <>
+                  <h4 className="est-sub">{est.person.b ?? "Ehegatte"}</h4>
+                  {vorsorgeFields("b", a.vorsorge.b)}
+                </>
+              )}
+              <div className="form-grid">
+                <Amount name="sonstige" label="Weitere Vorsorge (Haftpflicht, Unfall, Risikoleben)" value={a.vorsorge.sonstige} />
+              </div>
+            </Block>
+          );
+        })()}
 
-        <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
-          <legend className="subhead">Sonderausgaben und Belastungen</legend>
+        <Block
+          title="Sonderausgaben und Belastungen"
+          summary={sumText(sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.spenden, a.krankheitskosten))}
+          open={sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.kirchensteuerErstattet, a.sonderausgaben.spenden, a.krankheitskosten) > 0}
+        >
+        <div className="form-grid">
           <Amount name="kistGezahlt" label="Gezahlte Kirchensteuer" value={a.sonderausgaben.kirchensteuerGezahlt} hint="ohne Kirchensteuer auf Kapitalerträge" />
           <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
           <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
           <Amount name="krankheitskosten" label="Krankheitskosten" value={a.krankheitskosten} hint="selbst getragen, nach Erstattungen" />
-        </fieldset>
+        </div>
+        </Block>
 
-        <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
-          <legend className="subhead">Haushaltsnahe Aufwendungen (§ 35a EStG)</legend>
+        <Block
+          title="Haushaltsnahe Aufwendungen (§ 35a EStG)"
+          summary={sumText(sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker))}
+          open={sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker) > 0}
+        >
+        <div className="form-grid">
           <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
           <Amount name="dienstleistungen" label="Haushaltsnahe Dienstleistungen" value={a.haushaltsnah.dienstleistungen} hint="z. B. Reinigung, Gartenpflege" />
           <Amount name="handwerker" label="Handwerkerleistungen" value={a.haushaltsnah.handwerker} hint="nur Arbeits-, Maschinen- und Fahrtkosten" />
-        </fieldset>
+        </div>
+        </Block>
 
-        <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }}>
-          <legend className="subhead">Kinder</legend>
+        <Block title="Kinder" summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`} open={a.kinder.length > 0}>
           {kinder.map((k, index) => (
             <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
               <label className="field">
@@ -487,10 +532,14 @@ function EstSection({ data }: { data: Data }) {
               + Kind hinzufügen
             </button>
           </div>
-        </fieldset>
+        </Block>
 
-        <fieldset className="form-grid" style={{ border: 0, padding: 0, margin: 0 }}>
-          <legend className="subhead">Kapitalerträge (Anlage KAP)</legend>
+        <Block
+          title="Kapitalerträge (Anlage KAP)"
+          summary={sumText(sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland))}
+          open={sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland, a.kap?.kapitalertragsteuer) > 0 || Boolean(a.kap?.guenstigerpruefung)}
+        >
+        <div className="form-grid">
           <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />
           <Amount name="kapSpb" label="Davon genutzter Sparer-Pauschbetrag" value={a.kap?.sparerPauschbetrag} />
           <Amount name="kapOhneInl" label="Inländische Erträge ohne Steuerabzug" value={a.kap?.ertraegeOhneSteuerabzugInland} />
@@ -502,13 +551,18 @@ function EstSection({ data }: { data: Data }) {
             <input type="checkbox" name="guenstigerpruefung" defaultChecked={a.kap?.guenstigerpruefung ?? false} />
             Günstigerprüfung beantragen
           </label>
-        </fieldset>
+        </div>
+        </Block>
 
-        <NoticeBanner notice={notice} />
-        <div className="actions">
-          <button type="submit" className="btn btn-primary" disabled={busy}>
-            Angaben speichern
-          </button>
+        {/* Speichern bleibt am unteren Rand sichtbar, solange das Formular im Bild ist */}
+        <div className="form-sticky-footer">
+          <NoticeBanner notice={notice} />
+          <div className="actions" style={{ alignItems: "center" }}>
+            <button type="submit" className="btn btn-primary" disabled={busy}>
+              Angaben speichern
+            </button>
+            <span className="small muted">Voraussichtliche Steuer {formatEuro(est.prognose.gesamt)}</span>
+          </div>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
           Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten
@@ -549,7 +603,7 @@ function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; bl
 
 function History({ data }: { data: Data }) {
   return (
-    <section className="card" aria-labelledby="history-heading">
+    <section className="card jump-target" id="verlauf" aria-labelledby="history-heading">
       <h2 id="history-heading">Verlauf {data.year}</h2>
       {data.history.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>

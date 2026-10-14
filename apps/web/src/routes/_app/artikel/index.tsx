@@ -29,8 +29,7 @@ function ArticleForm({ article, onDone }: { article: Article | null; onDone: (no
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const element = event.currentTarget;
-    const form = new FormData(element);
+    const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "").trim();
     const price = parseEuro(text("unitPrice"));
     if (price === null) {
@@ -54,7 +53,6 @@ function ArticleForm({ article, onDone }: { article: Article | null; onDone: (no
         },
       });
       await router.invalidate();
-      if (!article) element.reset();
       onDone({ tone: "ok", text: article ? "Artikel gespeichert." : "Artikel angelegt." });
     } catch (e) {
       setError(errorMessage(e));
@@ -64,12 +62,12 @@ function ArticleForm({ article, onDone }: { article: Article | null; onDone: (no
   }
 
   return (
-    <form className="card" onSubmit={onSubmit} aria-label={article ? "Artikel bearbeiten" : "Neuer Artikel"}>
+    <form className="card" style={{ maxWidth: 720 }} onSubmit={onSubmit} aria-label={article ? "Artikel bearbeiten" : "Neuer Artikel"}>
       <h2 style={{ margin: 0, fontSize: 16 }}>{article ? "Artikel bearbeiten" : "Neuer Artikel"}</h2>
       <div className="form-grid">
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           Bezeichnung
-          <textarea name="description" rows={2} defaultValue={article?.description ?? ""} maxLength={500} required />
+          <textarea name="description" rows={2} defaultValue={article?.description ?? ""} maxLength={500} required autoFocus />
           <span className="small muted">So steht die Position auf Rechnung und Angebot.</span>
         </label>
         <label className="field">
@@ -112,11 +110,9 @@ function ArticleForm({ article, onDone }: { article: Article | null; onDone: (no
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {article ? "Speichern" : "Anlegen"}
         </button>
-        {article && (
-          <button type="button" className="btn" onClick={() => onDone(null)}>
-            Abbrechen
-          </button>
-        )}
+        <button type="button" className="btn" onClick={() => onDone(null)}>
+          Abbrechen
+        </button>
       </div>
     </form>
   );
@@ -127,6 +123,7 @@ function ArticlesPage() {
   const router = useRouter();
   const archive = useServerFn(archiveArticle);
   const [editing, setEditing] = useState<Article | null>(null);
+  const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [showArchived, setShowArchived] = useState(false);
   const active = articles.filter((a) => !a.archivedAt);
@@ -143,6 +140,13 @@ function ArticlesPage() {
     }
   }
 
+  const formOpen = creating || editing !== null;
+  const newButton = (
+    <button type="button" className="btn btn-primary" onClick={() => (setEditing(null), setCreating(true), setNotice(null))}>
+      Neuer Artikel
+    </button>
+  );
+
   return (
     <>
       <div className="page-head">
@@ -150,21 +154,24 @@ function ArticlesPage() {
           <div className="eyebrow">Verkauf</div>
           <h1>Artikel und Leistungen</h1>
         </div>
+        {!formOpen && <div className="actions">{newButton}</div>}
       </div>
-      <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
-        Wiederkehrende Positionen wie Stundensätze, Tagessätze oder Pauschalen legst du hier einmal an. Im Editor für Rechnungen und
-        Angebote fügst du sie mit „Aus dem Katalog einfügen“ ein und passt Menge und Text dort an. Änderungen am Katalog wirken nur auf
-        neue Positionen.
+      <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+        Stundensätze, Tagessätze oder Pauschalen legst du einmal an und fügst sie im Editor mit „Aus dem Katalog einfügen“ ein.
+        Änderungen wirken nur auf neue Positionen.
       </p>
       <div className="stack" style={{ gap: 16 }}>
-        <ArticleForm
-          key={editing?.id ?? "neu"}
-          article={editing}
-          onDone={(n) => {
-            setEditing(null);
-            setNotice(n);
-          }}
-        />
+        {formOpen && (
+          <ArticleForm
+            key={editing?.id ?? "neu"}
+            article={editing}
+            onDone={(n) => {
+              setEditing(null);
+              setCreating(false);
+              setNotice(n);
+            }}
+          />
+        )}
         <NoticeBanner notice={notice} />
         <section className="card" aria-label="Artikelliste">
           <div className="chip-row" role="group" aria-label="Filter">
@@ -177,24 +184,35 @@ function ArticlesPage() {
           </div>
           {shown.length === 0 ? (
             <p className="muted" style={{ margin: 0 }}>
-              {showArchived ? "Keine archivierten Artikel." : "Noch keine Artikel."}
+              {showArchived ? "Keine archivierten Artikel." : "Noch keine Artikel. Lege den ersten mit „Neuer Artikel“ an oder speichere eine Position im Rechnungseditor."}
             </p>
           ) : (
             <div className="table">
+              <div className="table-row head article-cols">
+                <div>Bezeichnung</div>
+                <div className="num">Preis netto</div>
+                <div>USt</div>
+                <div />
+              </div>
               {shown.map((a) => (
-                <div key={a.id} className="history-row" style={{ alignItems: "center" }}>
+                <div key={a.id} className="table-row article-cols">
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 500, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                      {a.number && <span className="mono small muted">{a.number} · </span>}
-                      {a.description}
-                    </div>
-                    <div className="small muted">
-                      {formatEuro(a.unitPrice)} je {a.unit} · {a.taxRate / 100} % USt{a.note ? ` · ${a.note}` : ""}
-                    </div>
+                    <div style={{ fontWeight: 500, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{a.description}</div>
+                    {(a.number || a.note) && (
+                      <div className="small muted">
+                        {a.number && <span className="mono">{a.number}</span>}
+                        {a.number && a.note ? " · " : ""}
+                        {a.note}
+                      </div>
+                    )}
                   </div>
-                  <div className="actions" style={{ flexShrink: 0 }}>
+                  <div className="num">
+                    {formatEuro(a.unitPrice)} je {a.unit}
+                  </div>
+                  <div className="small muted">{a.taxRate / 100} %</div>
+                  <div className="actions" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
                     {!a.archivedAt && (
-                      <button type="button" className="btn btn-sm" onClick={() => setEditing(a)} aria-label={`${a.description} bearbeiten`}>
+                      <button type="button" className="btn btn-sm" onClick={() => (setCreating(false), setEditing(a))} aria-label={`${a.description} bearbeiten`}>
                         Bearbeiten
                       </button>
                     )}

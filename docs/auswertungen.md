@@ -87,7 +87,7 @@ Die Auswertung ist eine Vorschau und ersetzt nicht die Anlage EÜR. Bekannte Lü
 
 ## DATEV-Export für die Steuerberatung
 
-Unter **Einstellungen › DATEV-Export** lädst du die Buchungen eines Jahres als DATEV-Buchungsstapel herunter. Das ist die Datei, die Kanzleien in DATEV Unternehmen online oder Kanzlei-Rechnungswesen einlesen.
+Unter **Einstellungen › Export › DATEV-Export** lädst du die Buchungen eines Jahres als DATEV-Buchungsstapel herunter. Das ist die Datei, die Kanzleien in DATEV Unternehmen online oder Kanzlei-Rechnungswesen einlesen.
 
 - **Format:** EXTF, Formatkategorie 21, Version 13, Windows-1252.
 - **Kopfdaten:** Berater- und Mandantennummer (von der Kanzlei), Wirtschaftsjahr ist das Kalenderjahr, Sachkontenlänge 4, Kontenrahmen SKR03 bzw. SKR04 wie in Haben.

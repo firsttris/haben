@@ -79,7 +79,7 @@ docker compose up -d
 docker compose logs -f app   # „Migrationen angewendet“, dann „Listening on …“
 ```
 
-Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern und Upload-Grenze wie im `Caddyfile`). Caddy nimmt Anfragen bis 250 MB an; das reicht für eine Archivdatei bis 100 MB oder ein gutes Dutzend Belege auf einmal. Größere Mengen lädst du in mehreren Schritten hoch oder erhöhst `max_size`. ERiC lädst du unter **Einstellungen › ERiC** herunter oder mit `ERIC_AUTO_INSTALL=ja` in `.env` beim Start, siehe [ERiC einbinden](#eric-einbinden).
+Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern und Upload-Grenze wie im `Caddyfile`). Caddy nimmt Anfragen bis 250 MB an; das reicht für eine Archivdatei bis 100 MB oder ein gutes Dutzend Belege auf einmal. Größere Mengen lädst du in mehreren Schritten hoch oder erhöhst `max_size`. ERiC lädst du unter **Einstellungen › ELSTER › ERiC** herunter oder mit `ERIC_AUTO_INSTALL=ja` in `.env` beim Start, siehe [ERiC einbinden](#eric-einbinden).
 
 **Updates:** `docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App.
 
@@ -423,13 +423,13 @@ ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, dar
 
 | Weg | So geht's |
 | --- | --- |
-| Per Knopf | **Einstellungen › ERiC**: Version prüfen, den Nutzungsbedingungen zustimmen, **Herunterladen und einrichten**. Der Download läuft im Hintergrund; danach prüft und sendet Haben ohne Neustart über ERiC |
+| Per Knopf | **Einstellungen › ELSTER › ERiC**: Version prüfen, den Nutzungsbedingungen zustimmen, **Herunterladen und einrichten**. Der Download läuft im Hintergrund; danach prüft und sendet Haben ohne Neustart über ERiC |
 | Beim Start | `ERIC_AUTO_INSTALL=ja` in `.env` bzw. `haben.env`. Fehlt ERiC, lädt der Container es vor dem Start der App; schlägt das fehl, startet die App trotzdem (simuliert) |
 | Auf der Kommandozeile | `docker compose exec app node --experimental-strip-types /app/packages/elster/src/install-cli.ts --lizenz-akzeptiert [Version]` bzw. `podman exec haben-app …` |
 
 ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
 
-Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC 43 nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [Erste Schritte](einrichtung.md#elster-einrichten), dort auch, wer bei Haben als Hersteller gilt.
+Zum Prüfen und Übermitteln brauchst du zusätzlich eine eigene Hersteller-ID; ERiC 43 nimmt die frühere Test-Hersteller-ID nicht mehr an. Vor der ersten Nutzung bestätigst du außerdem unter **Einstellungen › ELSTER › ERiC** die Datenschutzhinweise der Finanzverwaltung, wie es der ERiC-Lizenzvertrag verlangt. Siehe [Erste Schritte](einrichtung.md#elster-einrichten), dort auch, wer bei Haben als Hersteller gilt.
 
 Lieber von Hand? Entpacke das Paket auf dem Host nach `/opt/eric`, sodass `/opt/eric/lib/libericapi.so` und `/opt/eric/lib/plugins/` existieren (bei älteren ERiC-Versionen `lib/plugins2/`), und binde es ein. `ERIC_HOME` hat Vorrang vor dem heruntergeladenen ERiC.
 
@@ -517,9 +517,9 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **„Haben ist bereits eingerichtet.“** Haben hat genau ein Konto. Ein zweites lässt sich nicht anlegen, auch nicht über die API.
 
-**Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** Unter **Einstellungen › ERiC** herunterladen. Hast du ERiC von Hand eingebunden, ist `ERIC_HOME` in der App nicht gesetzt; prüfe `.env` bzw. `haben.env` und starte die App neu.
+**Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** Unter **Einstellungen › ELSTER › ERiC** herunterladen. Hast du ERiC von Hand eingebunden, ist `ERIC_HOME` in der App nicht gesetzt; prüfe `.env` bzw. `haben.env` und starte die App neu.
 
-**Der ERiC-Download scheitert.** Die Meldung steht unter **Einstellungen › ERiC**. „Gibt es nicht (mehr)“ heißt: Die Version ist zu alt oder vertippt; die aktuelle steht auf der Infoseite. Der Server muss `download.elster.de` per HTTPS erreichen und für die Dauer des Downloads etwa 600 MB im temporären Verzeichnis frei haben.
+**Der ERiC-Download scheitert.** Die Meldung steht unter **Einstellungen › ELSTER › ERiC**. „Gibt es nicht (mehr)“ heißt: Die Version ist zu alt oder vertippt; die aktuelle steht auf der Infoseite. Der Server muss `download.elster.de` per HTTPS erreichen und für die Dauer des Downloads etwa 600 MB im temporären Verzeichnis frei haben.
 
 **Die Vorschau von Belegen, Rechnungen oder Angeboten bleibt leer oder zeigt „Verbindung abgelehnt“.** Die Vorschau ist ein eingebettetes Fenster (iframe) auf derselben Adresse. Setzt der Reverse Proxy `X-Frame-Options DENY`, verbietet das auch diese Einbettung. Stell den Header auf `SAMEORIGIN` um (so steht es im mitgelieferten `Caddyfile` und in `compose.yml`); vor Clickjacking durch fremde Seiten schützt die App selbst mit `Content-Security-Policy: frame-ancestors 'self'`. Bei Caddy mit einzeln gemounteter `Caddyfile` (Quadlet) reicht nach dem Bearbeiten `caddy reload` nicht: Editoren und `sed -i` legen eine neue Datei an, der Bind-Mount zeigt weiter auf die alte. Starte den Container neu (`systemctl --user restart haben-caddy` bzw. ohne `--user` bei rootful Podman).
 

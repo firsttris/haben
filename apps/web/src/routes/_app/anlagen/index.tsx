@@ -56,19 +56,24 @@ function AssetsPage() {
           <Link to="/anlagen/neu" className="btn">
             Anlage übernehmen
           </Link>
-          <button type="button" className="btn btn-primary" onClick={onBook} disabled={busy || !data.canBook || data.pending === 0}>
-            {confirming ? "Jetzt buchen" : `AfA ${year} buchen`}
-          </button>
+          {/* Ohne offene Abschreibung kein Knopf, der nur gesperrt herumsteht */}
+          {data.pending > 0 && (
+            <button type="button" className="btn btn-primary" onClick={onBook} disabled={busy || !data.canBook}>
+              {confirming ? "Jetzt buchen" : `AfA ${year} buchen`}
+            </button>
+          )}
         </div>
       </div>
 
-      <nav className="filter-row" aria-label="Jahr wählen">
-        {years.map((y) => (
-          <Link key={y} to="/anlagen" activeProps={{}} search={{ jahr: y }} className={y === year ? "chip active" : "chip"} aria-current={y === year ? "page" : undefined}>
-            {y}
-          </Link>
-        ))}
-      </nav>
+      {years.length > 1 && (
+        <nav className="filter-row" aria-label="Jahr wählen">
+          {years.map((y) => (
+            <Link key={y} to="/anlagen" activeProps={{}} search={{ jahr: y }} className={y === year ? "chip active" : "chip"} aria-current={y === year ? "page" : undefined}>
+              {y}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       {confirming && (
         <div className="banner" role="alert">

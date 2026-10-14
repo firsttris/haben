@@ -40,7 +40,7 @@ Ohne E-Rechnung und ohne KI füllst du die Felder von Hand aus.
 
 ## Belege per E-Mail
 
-Viele Rechnungen kommen per Mail. Unter **Einstellungen › Belege per E-Mail** trägst du ein Postfach ein, aus dem Haben sie selbst abholt:
+Viele Rechnungen kommen per Mail. Unter **Einstellungen › E-Mail › Belege per E-Mail** trägst du ein Postfach ein, aus dem Haben sie selbst abholt:
 
 - **Zugang:** IMAP-Server, Port, Verschlüsselung, Benutzername, Passwort und Ordner. Für Gmail, GMX, web.de, Posteo und mailbox.org sind Server und Port vorbelegt; Gmail, GMX und web.de brauchen ein App-Passwort bzw. freigeschaltetes IMAP. Das Passwort liegt verschlüsselt in der Datenbank.
 - **Was abgeholt wird:** jede ungelesene Mail im Ordner. Ihre Anhänge gehen wie beim Hochladen zu den Belegen. E-Rechnungen werden gelesen, sonst greift die KI-Auslesung, und Dubletten erkennt Haben am Inhalt.

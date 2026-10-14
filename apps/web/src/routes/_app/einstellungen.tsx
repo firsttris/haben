@@ -1,8 +1,9 @@
 import { BUNDESLAENDER, currentFilingPeriod, formatDecimal, parseEuro, type Bundesland } from "@haben/core";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { DatevCard } from "../../components/DatevCard.tsx";
+import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
@@ -14,6 +15,7 @@ import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
+import { SETTINGS_AREAS, type SettingsArea } from "../../lib/settings-areas.ts";
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
 import { getCompany, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
 import { getDatevNumbers } from "../../server/functions/datev-export.ts";
@@ -41,11 +43,15 @@ export const Route = createFileRoute("/_app/einstellungen")({
     return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
+  validateSearch: (search: Record<string, unknown>): { bereich?: SettingsArea } =>
+    SETTINGS_AREAS.some((a) => a.id === search.bereich) ? { bereich: search.bereich as SettingsArea } : {},
   component: SettingsPage,
 });
 
 function SettingsPage() {
   const { logo, mail, inbox, exportYears, datev } = Route.useLoaderData();
+  const { bereich = "firma" } = Route.useSearch();
+  const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
     <>
       <div className="page-head">
@@ -54,21 +60,43 @@ function SettingsPage() {
           <h1>Einstellungen</h1>
         </div>
       </div>
-      <div className="grid-main">
-        <div className="stack">
-          <CompanyForm />
-          <TaxpayerForm />
-        </div>
-        <div className="stack">
-          <NumberingForm />
-          <LogoCard info={logo} />
-          <CertificateForm />
-          <EricCard />
-          <MailCard data={mail} />
-          <InboxCard data={inbox} />
-          <Passkeys />
-          <ExportCard years={exportYears} />
-          <DatevCard years={exportYears} numbers={datev} />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Bereiche der Einstellungen">
+          {SETTINGS_AREAS.map((a) => (
+            <Link key={a.id} to="/einstellungen" search={{ bereich: a.id }} className="settings-nav-link" aria-current={a.id === bereich ? "page" : undefined}>
+              <span>{a.label}</span>
+              <span className="settings-nav-hint">{a.hint}</span>
+            </Link>
+          ))}
+        </nav>
+        <div className="stack settings-content" aria-label={area.label}>
+          {bereich === "firma" && <CompanyForm />}
+          {bereich === "persoenlich" && <TaxpayerForm />}
+          {bereich === "rechnungen" && (
+            <>
+              <NumberingForm />
+              <LogoCard info={logo} />
+            </>
+          )}
+          {bereich === "elster" && (
+            <>
+              <CertificateForm />
+              <EricCard />
+            </>
+          )}
+          {bereich === "email" && (
+            <>
+              <MailCard data={mail} />
+              <InboxCard data={inbox} />
+            </>
+          )}
+          {bereich === "sicherheit" && <Passkeys />}
+          {bereich === "export" && (
+            <>
+              <ExportCard years={exportYears} />
+              <DatevCard years={exportYears} numbers={datev} />
+            </>
+          )}
         </div>
       </div>
     </>
@@ -574,7 +602,7 @@ function CertificateForm() {
       )}
       <label className="field">
         {certificate ? "Neue Zertifikatsdatei" : "Zertifikatsdatei"}
-        <input name="file" type="file" accept=".pfx" required />
+        <FilePicker name="file" accept=".pfx" required />
       </label>
       <label className="field">
         Gültig bis (für die Erinnerung 30 Tage vorher)

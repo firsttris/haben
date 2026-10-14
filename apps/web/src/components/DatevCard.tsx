@@ -40,10 +40,12 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
         </label>
       </div>
       <p className="small muted" style={{ margin: 0 }}>Beide Nummern bekommst du von deiner Steuerberatung.</p>
-      <div className="actions" style={{ flexWrap: "wrap", alignItems: "end" }}>
+      <div className="actions">
         <button type="submit" className="btn" disabled={busy || saved}>
           Nummern speichern
         </button>
+      </div>
+      <div className="actions" style={{ alignItems: "flex-end", borderTop: "1px solid var(--line)", paddingTop: 16 }}>
         <label className="field" style={{ minWidth: 120 }}>
           Jahr
           <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
@@ -59,7 +61,7 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
             Buchungsstapel herunterladen
           </a>
         ) : (
-          <span className="small muted">Zum Herunterladen erst die Nummern speichern.</span>
+          <span className="small muted" style={{ alignSelf: "center" }}>Zum Herunterladen erst die Nummern speichern.</span>
         )}
       </div>
       <NoticeBanner notice={notice} />

@@ -99,7 +99,7 @@ function FinanzamtPage() {
           <Icon name="info" />
           <span>
             ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.{" "}
-            <Link to="/einstellungen">ERiC einrichten</Link>
+            <Link to="/einstellungen" search={{ bereich: "elster" }}>ERiC einrichten</Link>
           </span>
         </div>
       )}
@@ -295,7 +295,7 @@ function MessageForm({
         </label>
         <label className="field">
           Text
-          <textarea rows={topic === "vorauszahlung" ? 14 : 10} value={text} onChange={(e) => setText(e.target.value)} maxLength={15_000} required />
+          <textarea className="autogrow" rows={topic === "vorauszahlung" ? 14 : 10} value={text} onChange={(e) => setText(e.target.value)} maxLength={15_000} required />
           <span className="small muted">{text.length} von 15.000 Zeichen</span>
         </label>
       </section>
@@ -427,8 +427,8 @@ function Postfach({ data }: { data: Data }) {
         <h2 id="postfach-heading">Bescheide aus dem ELSTER-Postfach</h2>
         {data.documents.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Noch nichts abgeholt. Bescheide, die du in Mein ELSTER der elektronischen Bekanntgabe zugestimmt hast, und Mitteilungen des
-            Finanzamts landen hier.
+            Noch nichts abgeholt. Mit „Postfach abrufen“ holst du Bescheide (wenn du in Mein ELSTER der elektronischen Bekanntgabe
+            zugestimmt hast) und Mitteilungen des Finanzamts hierher.
           </p>
         ) : (
           <table className="report-table">

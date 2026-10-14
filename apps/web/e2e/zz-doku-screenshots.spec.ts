@@ -21,6 +21,8 @@ let page: Page;
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage({ viewport: DESKTOP, locale: "de-DE", timezoneId: "Europe/Berlin" });
   await page.goto("/login");
+  // Erst nach dem Hydrieren reagiert der Knopf
+  await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Passwort verwenden" }).click();
   await page.getByLabel("E-Mail").fill(USER.email);
   await page.getByLabel("Passwort").fill(USER.password);

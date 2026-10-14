@@ -57,8 +57,13 @@ function FristRow({ frist, today }: { frist: Frist; today: string }) {
   );
 }
 
-function Gruppe({ titel, fristen, today, leer }: { titel: string; fristen: Frist[]; today: string; leer?: string }) {
+/** Lange Gruppen zeigen erst die nächsten Fristen; der Rest klappt auf */
+const KURZ = 6;
+
+function Gruppe({ titel, fristen, today, leer, kurz }: { titel: string; fristen: Frist[]; today: string; leer?: string; kurz?: boolean }) {
+  const [alle, setAlle] = useState(false);
   if (fristen.length === 0 && !leer) return null;
+  const gezeigt = kurz && !alle ? fristen.slice(0, KURZ) : fristen;
   const id = `fristen-${titel.toLowerCase().replace(/\W+/g, "-")}`;
   return (
     <section className="card" aria-labelledby={id}>
@@ -70,7 +75,7 @@ function Gruppe({ titel, fristen, today, leer }: { titel: string; fristen: Frist
           {leer}
         </p>
       ) : (
-        <table className="report-table stack-table">
+        <table className="report-table stack-table fristen-table">
           <thead>
             <tr>
               <th scope="col" style={{ width: 140 }}>
@@ -83,11 +88,16 @@ function Gruppe({ titel, fristen, today, leer }: { titel: string; fristen: Frist
             </tr>
           </thead>
           <tbody>
-            {fristen.map((f) => (
+            {gezeigt.map((f) => (
               <FristRow key={f.id} frist={f} today={today} />
             ))}
           </tbody>
         </table>
+      )}
+      {gezeigt.length < fristen.length && (
+        <button type="button" className="btn btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setAlle(true)}>
+          Alle {fristen.length} zeigen
+        </button>
       )}
     </section>
   );
@@ -109,7 +119,7 @@ function FristenPage() {
           <h1>Fristen</h1>
         </div>
       </div>
-      <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
+      <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
         Voranmeldungen, Jahreserklärungen, Vorauszahlungen, Einspruchsfristen aus dem <Link to="/finanzamt">ELSTER-Postfach</Link> und der
         Ablauf des Zertifikats. Fällt eine Frist auf ein Wochenende oder einen Feiertag, gilt der nächste Werktag. Erledigt ist, was echt
         übermittelt ist.
@@ -117,12 +127,12 @@ function FristenPage() {
       <div className="stack" style={{ gap: 16 }}>
         {ueberfaellig.length > 0 && <Gruppe titel="Überfällig" fristen={ueberfaellig} today={today} />}
         <Gruppe titel="Nächste 30 Tage" fristen={naechste} today={today} leer="In den nächsten 30 Tagen ist nichts fällig." />
-        <Gruppe titel="Später" fristen={spaeter} today={today} />
+        <Gruppe titel="Später" fristen={spaeter} today={today} kurz />
         <KalenderAbo />
         {erledigt.length > 0 && (
           <details className="card">
             <summary style={{ cursor: "pointer", fontWeight: 600 }}>Erledigt ({erledigt.length})</summary>
-            <table className="report-table stack-table" style={{ marginTop: 8 }}>
+            <table className="report-table stack-table fristen-table" style={{ marginTop: 8 }}>
               <tbody>
                 {erledigt.map((f) => (
                   <FristRow key={f.id} frist={f} today={today} />

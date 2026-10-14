@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction, type Notice } from "../lib/use-action.ts";
+import { errorKind } from "./ErrorBanner.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { removeMail, saveMail, sendMailTest, type getMailSettings } from "../server/functions/mail.ts";
 
@@ -209,7 +210,14 @@ export function MailCard({ data }: { data: Data }) {
         <ul className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
           {data.last.map((m, i) => (
             <li key={i}>
-              {formatDateTime(m.createdAt)}: {m.subject} {m.ok ? "" : `(Fehler: ${m.error})`}
+              {formatDateTime(m.createdAt)}: {m.subject}{" "}
+              {m.ok ? (
+                ""
+              ) : (
+                <span style={{ color: "var(--danger-ink)" }} title={m.error ?? ""}>
+                  · nicht gesendet ({errorKind(m.error ?? "")})
+                </span>
+              )}
             </li>
           ))}
         </ul>

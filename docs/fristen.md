@@ -33,4 +33,4 @@ Mit einem E-Mail-Zugang (siehe [Einrichtung](einrichtung.md#e-mail)) schickt Hab
 - einmal, wenn eine Voranmeldung oder Erklärung überfällig ist,
 - morgens nach 7 Uhr (Berliner Zeit) mit dem stündlichen Hintergrundjob, mehrere Fristen in einer Mail.
 
-Jede Frist und Stufe erinnert nur einmal. War der Server aus, holt der nächste Lauf die engste schon erreichte Stufe nach. Scheitert der Versand, steht der Fehler im Protokoll unter Einstellungen › E-Mail-Versand, und der nächste Lauf versucht es erneut. Gesendete Mails stehen unveränderlich im Protokoll.
+Jede Frist und Stufe erinnert nur einmal. War der Server aus, holt der nächste Lauf die engste schon erreichte Stufe nach. Scheitert der Versand, steht der Fehler im Protokoll unter Einstellungen › E-Mail › E-Mail-Versand, und der nächste Lauf versucht es erneut. Gesendete Mails stehen unveränderlich im Protokoll.

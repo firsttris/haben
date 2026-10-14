@@ -287,7 +287,7 @@ Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreib
 
 ## Per E-Mail versenden
 
-Mit einem E-Mail-Zugang ([Einstellungen › E-Mail-Versand](einrichtung.md#e-mail)) verschickt Haben festgeschriebene Rechnungen, Stornos, Korrekturen und Mahnungen. Auf der Seite der Rechnung unter **Per E-Mail**:
+Mit einem E-Mail-Zugang ([Einstellungen › E-Mail › E-Mail-Versand](einrichtung.md#e-mail)) verschickt Haben festgeschriebene Rechnungen, Stornos, Korrekturen und Mahnungen. Auf der Seite der Rechnung unter **Per E-Mail**:
 
 1. **Rechnung senden** öffnet das Formular. Vorbelegt sind die E-Mail-Adresse des Kunden (aus der Rechnung, sonst aus dem Kontakt), Betreff und Text aus der Vorlage. Alles lässt sich vor dem Senden ändern; mehrere Empfänger trennst du mit Komma (höchstens fünf).
 2. **Blindkopie an mich** schickt eine Kopie an den Absender aus den Einstellungen.
@@ -301,7 +301,7 @@ Mit einem E-Mail-Zugang ([Einstellungen › E-Mail-Versand](einrichtung.md#e-mai
 
 Jeder Versand steht mit Zeitpunkt und Empfänger unter **Per E-Mail**, auch fehlgeschlagene mit der Meldung des Servers. In der Rechnungsliste markiert ✉ per E-Mail versendete Rechnungen. Das Protokoll ist unveränderlich (`mail_log`).
 
-**Vorlagen:** Betreff und Text für Rechnungen und Mahnungen stellst du unter Einstellungen › E-Mail-Versand › Vorlagen ein; leer heißt Standardtext. Platzhalter:
+**Vorlagen:** Betreff und Text für Rechnungen und Mahnungen stellst du unter Einstellungen › E-Mail › E-Mail-Versand › Vorlagen ein; leer heißt Standardtext. Platzhalter:
 
 | Platzhalter | Inhalt |
 | --- | --- |

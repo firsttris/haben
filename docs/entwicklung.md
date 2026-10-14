@@ -83,7 +83,7 @@ ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben
 
 Seit ERiC 39.4 ist die frühere Test-Hersteller-ID `74931` gesperrt, auch für die lokale Prüfung. Die Tests nehmen `ELSTER_HERSTELLER_ID`, sonst eine Platzhalter-ID; für die reine Prüfung reicht das. Die Schemas der Formulare stecken komprimiert in den Plugins unter `lib/plugins`; meldet ERiC ein unerwartetes Feld, lohnt der Blick dort hinein.
 
-Für Belegabruf, Berechtigung und Postfach gibt es zusätzlich ein Kommando, das auch unter Einstellungen › ERiC als Knopf steckt (Exit-Code 1 bei Fehlern):
+Für Belegabruf, Berechtigung und Postfach gibt es zusätzlich ein Kommando, das auch unter Einstellungen › ELSTER › ERiC als Knopf steckt (Exit-Code 1 bei Fehlern):
 
 ```sh
 node --experimental-strip-types packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DIR

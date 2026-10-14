@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction, type Notice } from "../lib/use-action.ts";
+import { ErrorBanner } from "./ErrorBanner.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { fetchInboxNow, removeInbox, saveInbox, type getInbox } from "../server/functions/inbox.ts";
 
@@ -144,9 +145,9 @@ export function InboxCard({ data }: { data: Data }) {
       {s?.lastRunAt && (
         <p className="small muted" style={{ margin: 0, overflowWrap: "anywhere" }}>
           Zuletzt abgerufen {formatDateTime(s.lastRunAt)}
-          {s.lastError ? ` · Fehler: ${s.lastError}` : ""}
         </p>
       )}
+      {s?.lastError && <ErrorBanner title="Letzter Abruf" detail={s.lastError} />}
       {data.last.length > 0 && (
         <ul className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
           {data.last.map((m) => (

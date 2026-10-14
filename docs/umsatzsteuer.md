@@ -9,7 +9,7 @@ Haben berechnet die monatliche Umsatzsteuer-Voranmeldung aus deinen Buchungen un
 - **Firmendaten** mit Name, Anschrift, Bundesland und einer Steuernummer, die zum Bundesland passt. Fehlt etwas, zeigt die Seite „Firmendaten unvollständig: …“ und Prüfen und Senden bleiben gesperrt. Siehe [einrichtung.md](einrichtung.md).
 - **Versteuerungsart** (Ist oder Soll) in den Firmendaten.
 - Zum Übermitteln ein **ELSTER-Zertifikat** (.pfx aus einem ELSTER-Konto mit Anmeldeart Zertifikatsdatei; ELSTER Secure geht nicht), hochgeladen unter Einstellungen, und dessen PIN. Siehe [Zertifikatsdatei statt ELSTER Secure](einrichtung.md#zertifikatsdatei-statt-elster-secure).
-- Mit ERiC einmal die bestätigten **Datenschutzhinweise der Finanzverwaltung** (Einstellungen › ERiC).
+- Mit ERiC einmal die bestätigten **Datenschutzhinweise der Finanzverwaltung** (Einstellungen › ELSTER › ERiC).
 - Für echte Übermittlungen ein eingerichtetes **ERiC** (`ERIC_HOME`) und eine eigene **Hersteller-ID** (`ELSTER_HERSTELLER_ID`). Siehe [installation.md](installation.md).
 
 Haben unterstützt nur monatliche Voranmeldungen ohne Dauerfristverlängerung.

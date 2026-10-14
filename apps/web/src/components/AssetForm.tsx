@@ -121,86 +121,108 @@ export function AssetForm({
   }
 
   return (
-    <form className="stack" onSubmit={submit}>
-      <div className="form-grid">
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
+    <form className="stack plain-sections" onSubmit={submit}>
+      <section className="form-section" aria-labelledby="asset-basics">
+        <h3 id="asset-basics">Anlage</h3>
+        <label className="field">
           Bezeichnung
           <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} placeholder="z. B. VW Passat, Kennzeichen R-AB 123" />
         </label>
-        <label className="field">
-          Art
-          <select value={kind} onChange={(e) => chooseKind(e.target.value as AssetKind)} disabled={locked}>
-            {Object.entries(ASSET_KINDS).map(([value, k]) => (
-              <option key={value} value={value}>
-                {k.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Abschreibung
-          <select value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={locked}>
-            {Object.entries(ASSET_METHODS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Anschaffungsdatum
-          <input type="date" value={acquisitionDate} onChange={(e) => setAcquisitionDate(e.target.value)} disabled={locked} required />
-        </label>
+        <div className="form-row cols-2">
+          <label className="field">
+            Art
+            <select value={kind} onChange={(e) => chooseKind(e.target.value as AssetKind)} disabled={locked}>
+              {Object.entries(ASSET_KINDS).map(([value, k]) => (
+                <option key={value} value={value}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            Anschaffungsdatum
+            <input type="date" value={acquisitionDate} onChange={(e) => setAcquisitionDate(e.target.value)} disabled={locked} required />
+          </label>
+        </div>
         <label className="field">
           Anschaffungskosten netto (€)
           <input inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} disabled={locked} aria-invalid={parsedCost === null} />
         </label>
-        {method === "linear" && (
+      </section>
+
+      <section className="form-section" aria-labelledby="asset-depreciation">
+        <h3 id="asset-depreciation">Abschreibung</h3>
+        <div className="form-row cols-2">
           <label className="field">
-            Nutzungsdauer in Jahren
-            <input
-              inputMode="decimal"
-              value={years}
-              onChange={(e) => setYears(e.target.value)}
-              disabled={locked && !lifeEditable}
-              aria-invalid={!lifeValid}
-              aria-describedby="life-hint"
-            />
-            <span id="life-hint" className="small">
-              Laut AfA-Tabelle z. B. Pkw 6, Büromöbel 13 Jahre.
-            </span>
+            Abschreibung
+            <select value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={locked}>
+              {Object.entries(ASSET_METHODS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </label>
+          {method === "linear" && (
+            <label className="field">
+              Nutzungsdauer in Jahren
+              <input
+                inputMode="decimal"
+                value={years}
+                onChange={(e) => setYears(e.target.value)}
+                disabled={locked && !lifeEditable}
+                aria-invalid={!lifeValid}
+                aria-describedby="life-hint"
+              />
+            </label>
+          )}
+        </div>
+        {method === "linear" && (
+          <p id="life-hint" className="field-hint">
+            Laut AfA-Tabelle z. B. Pkw 6, Büromöbel 13 Jahre.
+          </p>
         )}
         {showOpening && (
           <>
-            <label className="field">
-              Übernahmestichtag
-              <input type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} disabled={locked} required aria-describedby="opening-hint" />
-            </label>
-            <label className="field">
-              Restbuchwert zum Stichtag (€)
-              <input
-                inputMode="decimal"
-                value={openingBookValue}
-                onChange={(e) => setOpeningBookValue(e.target.value)}
-                disabled={locked}
-                aria-invalid={parsedOpening === null}
-                aria-describedby="opening-hint"
-              />
-            </label>
-            <p id="opening-hint" className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
+            <div className="form-row cols-2">
+              <label className="field">
+                Übernahmestichtag
+                <input type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} disabled={locked} required aria-describedby="opening-hint" />
+              </label>
+              <label className="field">
+                Restbuchwert zum Stichtag (€)
+                <input
+                  inputMode="decimal"
+                  value={openingBookValue}
+                  onChange={(e) => setOpeningBookValue(e.target.value)}
+                  disabled={locked}
+                  aria-invalid={parsedOpening === null}
+                  aria-describedby="opening-hint"
+                />
+              </label>
+            </div>
+            <p id="opening-hint" className="field-hint">
               Aus dem Anlagenverzeichnis der bisherigen Buchhaltung, z. B. Buchwert zum 31.12. des Vorjahres und Stichtag 01.01. Haben
               schreibt ab dem Stichtag über die restliche Nutzungsdauer ab.
             </p>
           </>
         )}
-        <label className="field">
-          Abgang (Verkauf, Entnahme, Verschrottung)
-          <input type="date" value={disposalDate} onChange={(e) => setDisposalDate(e.target.value)} aria-describedby="disposal-hint" />
-          <span id="disposal-hint" className="small">
-            Bis zum Abgangsmonat wird abgeschrieben, der Rest geht als Restbuchwert in die Ausgaben. Einen Verkauf stellst du als Rechnung.
-          </span>
-        </label>
+      </section>
+
+      <section className="form-section" aria-labelledby="asset-disposal">
+        <h3 id="asset-disposal">Abgang</h3>
+        <div className="form-row cols-2">
+          <label className="field">
+            Abgang (Verkauf, Entnahme, Verschrottung)
+            <input type="date" value={disposalDate} onChange={(e) => setDisposalDate(e.target.value)} aria-describedby="disposal-hint" />
+          </label>
+        </div>
+        <p id="disposal-hint" className="field-hint">
+          Bis zum Abgangsmonat wird abgeschrieben, der Rest geht als Restbuchwert in die Ausgaben. Einen Verkauf stellst du als Rechnung.
+        </p>
+      </section>
+
+      <div className="form-grid">
         {kind === "kfz" && (
           <fieldset className="stack" style={{ gridColumn: "1 / -1", border: 0, padding: 0, margin: 0, gap: 12 }} disabled={privateUseLocked}>
             <label className="checkbox">
@@ -265,11 +287,15 @@ export function AssetForm({
             )}
           </fieldset>
         )}
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
-          Notiz
+      </div>
+
+      <section className="form-section" aria-labelledby="asset-note">
+        <h3 id="asset-note">Notiz</h3>
+        <label className="field">
+          <span className="visually-hidden">Notiz</span>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} />
         </label>
-      </div>
+      </section>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
           {submitLabel}

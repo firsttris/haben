@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatWert } from "./vast.ts";
+import { feldname, formatWert } from "./vast.ts";
 
 describe("formatWert", () => {
   it("zeigt Beträge in Euro und Datumsangaben als Datum", () => {
@@ -15,5 +15,19 @@ describe("formatWert", () => {
     expect(formatWert(["Krankenversicherung", "Beginn"], "01")).toBe("01");
     expect(formatWert(["LeistungsEmpfaenger", "IdNr"], "65929970489")).toBe("65929970489");
     expect(formatWert(["Steuerklasse"], "3")).toBe("3");
+  });
+});
+
+describe("feldname", () => {
+  it("setzt Umlaute und zusammengesetzte Namen zurück", () => {
+    expect(feldname("LeistungsEmpfaenger")).toBe("Leistungsempfänger");
+    expect(feldname("Waehrung")).toBe("Währung");
+    expect(feldname("BeitragsArt")).toBe("Beitragsart");
+  });
+
+  it("lässt Abkürzungen und Wörter mit „ue“ im Wortinneren stehen", () => {
+    expect(feldname("IdNr")).toBe("IdNr");
+    expect(feldname("Steuerbetrag")).toBe("Steuerbetrag");
+    expect(feldname("Betrag")).toBe("Betrag");
   });
 });

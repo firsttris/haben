@@ -40,34 +40,34 @@ function CashPage() {
           </a>
         </div>
       </div>
-      <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
-        Jede Bewegung der Barkasse steht hier mit fortlaufender Nummer. Bar bezahlte <Link to="/belege">Belege</Link> landen beim Buchen
-        automatisch im Kassenbuch; Einlagen, Entnahmen und Geld von der Bank oder zur Bank trägst du hier ein. Einträge lassen sich nicht
-        ändern, nur stornieren, und der Bestand darf nie negativ werden. Zähle die Kasse regelmäßig und vergleiche mit dem Bestand.
+      <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+        Bar bezahlte <Link to="/belege">Belege</Link> landen beim Buchen automatisch hier; Einlagen, Entnahmen und Geld von oder zur Bank
+        trägst du ein. Einträge lassen sich nur stornieren, der Bestand darf nie negativ werden.
       </p>
 
-      <nav className="filter-row" aria-label="Jahr wählen">
-        <div className="chip-row">
-          {years.map((y) => (
-            <Link key={y} to="/kasse" search={{ jahr: y }} className={y === year ? "chip active" : "chip"} aria-current={y === year ? "page" : undefined}>
-              {y}
-            </Link>
-          ))}
-        </div>
-      </nav>
+      {years.length > 1 && (
+        <nav className="filter-row" aria-label="Jahr wählen" style={{ marginBottom: 0 }}>
+          <div className="chip-row">
+            {years.map((y) => (
+              <Link key={y} to="/kasse" search={{ jahr: y }} className={y === year ? "chip active" : "chip"} aria-current={y === year ? "page" : undefined}>
+                {y}
+              </Link>
+            ))}
+          </div>
+        </nav>
+      )}
 
-      <div className="grid-4" style={{ marginBottom: 16 }}>
-        <div className="card">
-          <div className="kpi-label">Anfangsbestand {year}</div>
-          <div className="kpi-value">{formatEuro(data.opening)}</div>
-        </div>
-        <div className="card">
-          <div className="kpi-label">Endbestand {year}</div>
-          <div className="kpi-value">{formatEuro(data.closing)}</div>
-        </div>
+      <div className="grid-3">
         <div className="card">
           <div className="kpi-label">Bestand heute</div>
           <div className="kpi-value">{formatEuro(data.current)}</div>
+        </div>
+        <div className="card">
+          <div className="kpi-label">Bestand {year}</div>
+          <div className="kpi-value" style={{ fontSize: 18 }}>
+            {formatEuro(data.opening)} → {formatEuro(data.closing)}
+          </div>
+          <div className="small muted">Anfang → Ende des Jahres</div>
         </div>
         <div className="card">
           <div className="kpi-label">Einträge {year}</div>
@@ -184,29 +184,37 @@ function CashList({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
         </p>
       ) : (
         <div className="table">
+          <div className="table-row head cash-cols">
+            <div>Nr.</div>
+            <div>Datum</div>
+            <div>Text</div>
+            <div className="num">Betrag</div>
+            <div className="num">Bestand</div>
+            <div />
+          </div>
           {data.entries.map((e) => (
-            <div key={e.id} className="history-row" style={{ alignItems: "center" }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 500, overflowWrap: "anywhere" }}>
-                  <span className="mono small muted">Nr. {e.number} · </span>
-                  {e.documentId ? (
-                    <Link to="/belege/$id" params={{ id: e.documentId }}>
-                      {e.text}
-                    </Link>
-                  ) : (
-                    e.text
-                  )}
-                </div>
-                <div className="small muted">
-                  {formatDate(e.date)} · {e.kind === "beleg" ? "Beleg" : CASH_BOOKINGS[e.kind].label}
-                  {e.reversed && " · storniert"} · Bestand {formatEuro(e.balance)}
-                </div>
-              </div>
-              <div className="actions" style={{ flexShrink: 0, alignItems: "center" }}>
-                <span className="mono" style={{ fontWeight: 600 }}>
-                  {e.amount > 0 ? "+" : ""}
-                  {formatEuro(e.amount)}
+            <div key={e.id} className="table-row cash-cols">
+              <div className="mono small muted">{e.number}</div>
+              <div className="small muted">{formatDate(e.date)}</div>
+              <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                {e.documentId ? (
+                  <Link to="/belege/$id" params={{ id: e.documentId }}>
+                    {e.text}
+                  </Link>
+                ) : (
+                  e.text
+                )}
+                <span className="small muted" style={{ display: "block" }}>
+                  {e.kind === "beleg" ? "Beleg" : CASH_BOOKINGS[e.kind].label}
+                  {e.reversed && " · storniert"}
                 </span>
+              </div>
+              <div className="num" style={{ fontWeight: 600, color: e.amount < 0 ? "var(--ink)" : "var(--accent-ink)" }}>
+                {e.amount > 0 ? "+" : ""}
+                {formatEuro(e.amount)}
+              </div>
+              <div className="num muted">{formatEuro(e.balance)}</div>
+              <div style={{ justifySelf: "end" }}>
                 {e.kind !== "beleg" && !e.reversesId && !e.reversed && (
                   <button type="button" className="btn btn-sm" onClick={() => void onReverse(e.id)} aria-label={`Nr. ${e.number} stornieren`}>
                     {confirming === e.id ? "Jetzt stornieren" : "Stornieren"}

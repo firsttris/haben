@@ -44,24 +44,24 @@ export function Migration({ data }: { data: MigrationData }) {
         <ArchiveUpload kinds={data.kinds} />
       </section>
       <section className="stack" aria-labelledby="check-heading">
-        <div className="step-head">
-          <span className="step-num">5</span>
-          <h2 id="check-heading" style={{ margin: 0 }}>Abgleich je Jahr</h2>
-        </div>
-        {data.years.length === 0 ? (
-          <div className="card muted">Noch nichts übernommen.</div>
-        ) : (
-          <>
+        <div className="card stack">
+          <div className="step-head">
+            <span className="step-num">5</span>
+            <h2 id="check-heading" style={{ margin: 0 }}>Abgleich je Jahr</h2>
+          </div>
+          {data.years.length === 0 ? (
+            <p className="small muted" style={{ margin: 0 }}>Noch nichts übernommen. Der Abgleich erscheint, sobald die ersten Daten aus Schritt 2 oder 4 da sind.</p>
+          ) : (
             <div className={ready ? "banner banner-ok" : "banner banner-info"} role="status">
               {ready
                 ? "Alle Prüfungen sind erfüllt. Vergleiche noch die Summen und die Umsatzsteuer je Monat mit Lexware Office, dann kannst du kündigen."
                 : "Noch nicht alles beisammen. Offene Punkte stehen bei den Jahren unten."}
             </div>
-            {data.years.map((year) => (
-              <YearCheck key={year.year} year={year} versteuerung={data.versteuerung} />
-            ))}
-          </>
-        )}
+          )}
+        </div>
+        {data.years.map((year) => (
+          <YearCheck key={year.year} year={year} versteuerung={data.versteuerung} />
+        ))}
       </section>
     </div>
   );
@@ -343,7 +343,7 @@ function YearCheck({ year, versteuerung }: { year: MigrationData["years"][number
       {year.year === new Date().getFullYear() && year.lastInvoiceNumber && (
         <p className="small" style={{ margin: 0 }}>
           Deine Rechnungsnummern sollen lückenlos weiterlaufen: Stelle die nächste Nummer in den{" "}
-          <Link to="/einstellungen">Einstellungen</Link> auf die Nummer nach {year.lastInvoiceNumber}.
+          <Link to="/einstellungen" search={{ bereich: "rechnungen" }}>Einstellungen</Link> auf die Nummer nach {year.lastInvoiceNumber}.
         </p>
       )}
     </section>

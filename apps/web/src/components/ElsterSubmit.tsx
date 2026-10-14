@@ -26,7 +26,7 @@ export function CertificateStatus({ certificate }: { certificate: ElsterSetup["c
               {certificate.validUntil ? ` · gültig bis ${formatDate(certificate.validUntil)}` : ""}
             </>
           ) : (
-            <Link to="/einstellungen">In den Einstellungen hochladen</Link>
+            <Link to="/einstellungen" search={{ bereich: "elster" }}>In den Einstellungen hochladen</Link>
           )}
         </span>
       </div>

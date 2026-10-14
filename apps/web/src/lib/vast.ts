@@ -16,3 +16,33 @@ export function formatWert(pfad: string[], wert: string): string {
   if (mitMitternacht) return mitMitternacht[1]!;
   return wert;
 }
+
+/** Umschreibungen ohne Umlaute im ELSTER-XML; nur ganze Wortteile, damit „Steuer“ nicht zu „Steür“ wird */
+const UMLAUTE: [RegExp, string][] = [
+  [/Empfaenger/g, "Empfänger"],
+  [/Waehrung/g, "Währung"],
+  [/Beitraeg/g, "Beiträg"],
+  [/Zuschuess/g, "Zuschüss"],
+  [/Bezuege/g, "Bezüge"],
+  [/Gueltig/g, "Gültig"],
+  [/Aenderung/g, "Änderung"],
+  [/Ueberweis/g, "Überweis"],
+  [/Hoehe/g, "Höhe"],
+  [/Koerperschaft/g, "Körperschaft"],
+  [/Saeule/g, "Säule"],
+  [/Laender/g, "Länder"],
+  [/Schaed/g, "Schäd"],
+  [/Groesse/g, "Größe"],
+];
+
+/**
+ * Feldname aus dem ELSTER-XML lesbar: Umlaute zurück, zusammengesetzte Namen als ein Wort
+ * („LeistungsEmpfaenger“ → „Leistungsempfänger“). Kurze Abkürzungen wie „IdNr“ bleiben.
+ */
+export function feldname(name: string): string {
+  let text = name;
+  for (const [pattern, replacement] of UMLAUTE) text = text.replace(pattern, replacement);
+  const parts = text.split(/(?<=[a-zäöüß])(?=[A-ZÄÖÜ])/);
+  if (parts.length < 2 || parts.some((p) => p.length <= 2)) return text;
+  return parts[0] + parts.slice(1).map((p) => p.toLowerCase()).join("");
+}

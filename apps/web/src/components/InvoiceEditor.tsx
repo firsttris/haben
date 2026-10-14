@@ -635,7 +635,7 @@ export function InvoiceEditor({
                     inputMode="decimal"
                     aria-label={`Einzelpreis Position ${index + 1} in Euro`}
                     value={line.unitPrice}
-                    placeholder="Einzelpreis"
+                    placeholder="0,00"
                     onChange={(e) => updateLine(line.key, { unitPrice: e.target.value })}
                     onBlur={() => markTouched(line.key)}
                     aria-invalid={showError(line.key) && parseEuro(line.unitPrice) === null}

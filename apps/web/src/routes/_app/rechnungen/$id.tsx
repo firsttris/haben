@@ -2,6 +2,7 @@ import { DUNNING_LEVELS, formatEuro, TAX_TREATMENTS, type DunningLevel, type Uni
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { SendMailForm } from "../../../components/SendMail.tsx";
@@ -121,9 +122,13 @@ function FinalInvoice({ data }: { data: Detail }) {
           <div className="eyebrow">
             <Link to="/rechnungen">Rechnungen</Link> › {titleOf(invoice)}
           </div>
-          <h1>
-            {titleOf(invoice)} {invoice.number}
-          </h1>
+          {/* Status neben, nicht in der Überschrift: der Titel bleibt „Rechnung 2026-001“ */}
+          <div className="title-with-status">
+            <h1>
+              {titleOf(invoice)} {invoice.number}
+            </h1>
+            {data.listStatus && <InvoiceStatus status={data.listStatus} />}
+          </div>
         </div>
         <div className="actions">
           <a className="btn" href={`/api/rechnung/${invoice.id}/pdf?download`}>

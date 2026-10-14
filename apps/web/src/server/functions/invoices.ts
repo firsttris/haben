@@ -88,6 +88,7 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
         await db.select({ id: schema.quotes.id, number: schema.quotes.number }).from(schema.quotes).where(eq(schema.quotes.invoiceId, data))
       )[0] ?? null,
       open: listed?.open ?? 0,
+      listStatus: listed?.listStatus ?? null,
       ...(await abschlagLinks(data)),
       ...(await invoiceEditorContext()),
     };

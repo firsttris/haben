@@ -4,6 +4,7 @@ import { daysUntil, formatDate, formatLongDate } from "../../lib/format.ts";
 import { InvoiceStatus } from "../../components/InvoiceStatus.tsx";
 import { getInvoiceSummary } from "../../server/functions/invoices.ts";
 import { getOverview } from "../../server/functions/vat.ts";
+import type { SettingsArea } from "../../lib/settings-areas.ts";
 
 export const Route = createFileRoute("/_app/")({
   loader: async () => {
@@ -22,6 +23,8 @@ interface Todo {
   action: string;
   tone: "info" | "warn" | "neutral";
   to: "/umsatzsteuer/$zeitraum" | "/einstellungen" | "/rechnungen" | "/bank" | "/anlagen" | "/rechnungen/mahnwesen" | "/finanzamt";
+  /** Bereich der Einstellungen, wenn to „/einstellungen“ ist */
+  bereich?: SettingsArea;
 }
 
 const BESCHEID_LABEL: Record<string, string> = {
@@ -117,6 +120,7 @@ function OverviewPage() {
       action: "Hochladen",
       tone: "neutral",
       to: "/einstellungen",
+      bereich: "elster",
     });
   } else if (certificateDays !== null && certificateDays <= 30) {
     todos.push({
@@ -125,6 +129,7 @@ function OverviewPage() {
       action: "Erneuern",
       tone: "warn",
       to: "/einstellungen",
+      bereich: "elster",
     });
   }
 
@@ -198,7 +203,7 @@ function OverviewPage() {
               <p className="muted">Alles erledigt.</p>
             ) : (
               todos.map((todo) => (
-                <Link key={todo.id ?? todo.title} to={todo.to} params={{ zeitraum: key }} className="todo">
+                <Link key={todo.id ?? todo.title} to={todo.to} params={{ zeitraum: key }} search={todo.bereich ? { bereich: todo.bereich } : {}} className="todo">
                   <span className="todo-dot" style={{ background: DOT[todo.tone] }} />
                   <span className="todo-body">
                     <span className="todo-title">{todo.title}</span>

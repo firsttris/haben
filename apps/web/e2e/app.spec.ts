@@ -88,6 +88,7 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
 
+  await go("/einstellungen?bereich=rechnungen");
   const logo = page.getByRole("region", { name: "Logo" });
   await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
   await expect(logo.getByRole("status")).toContainText("Logo gespeichert.");
@@ -224,7 +225,7 @@ test("Buchungen und Konten stimmen mit den Vorgängen überein", async () => {
 });
 
 test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async () => {
-  await go("/einstellungen");
+  await go("/einstellungen?bereich=persoenlich");
   const taxpayer = page.getByRole("form", { name: "Persönliche Angaben" });
   await taxpayer.getByLabel("Steuer-ID").fill("65929970489");
   await taxpayer.getByLabel("Vorname").fill("Max");
@@ -239,6 +240,7 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await ehegatte.getByLabel("Geburtsdatum").fill("1987-03-01");
   await taxpayer.getByRole("button", { name: "Speichern" }).click();
   await expect(taxpayer.getByRole("status")).toBeVisible();
+  await go("/einstellungen?bereich=elster");
   const cert = page.getByRole("form", { name: "ELSTER-Zertifikat" });
   await cert.getByLabel("Zertifikatsdatei").setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from("kein echtes Zertifikat") });
   await cert.getByRole("button", { name: "Hochladen" }).click();
@@ -307,6 +309,7 @@ test("Seiten nur von derselben Origin einbettbar", async () => {
 
 test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await go("/artikel");
+  await page.getByRole("button", { name: "Neuer Artikel" }).click();
   const form = page.getByRole("form", { name: "Neuer Artikel" });
   await form.getByLabel("Bezeichnung").fill("Beratung Softwarearchitektur");
   await form.getByLabel("Artikelnummer (optional)").fill("B-01");
@@ -340,7 +343,7 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
 });
 
 test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () => {
-  await go("/einstellungen");
+  await go("/einstellungen?bereich=export");
   const card = page.getByRole("form", { name: "DATEV-Export" });
   await card.getByLabel("Beraternummer").fill("29098");
   await card.getByLabel("Mandantennummer").fill("55003");
@@ -356,7 +359,7 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
 });
 
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
-  await go("/einstellungen");
+  await go("/einstellungen?bereich=email");
   const card = page.getByRole("form", { name: "Belege per E-Mail" });
   // Port 1 auf dem eigenen Rechner: kein IMAP-Server, der Abruf scheitert sofort
   await card.getByLabel("IMAP-Server").fill("127.0.0.1");
@@ -372,7 +375,7 @@ test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async
 
   await go("/belege");
   await expect(page.getByText(/Belege per E-Mail: Anhänge an belege@mustermann\.example \(Ordner Belege\)/)).toBeVisible();
-  await expect(page.getByText(/Letzter Abruf fehlgeschlagen/)).toBeVisible();
+  await expect(page.getByText("Belege per E-Mail: Server nicht erreichbar.")).toBeVisible();
 });
 
 test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation", async () => {
@@ -476,7 +479,7 @@ test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
 });
 
 test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", async () => {
-  await go("/einstellungen");
+  await go("/einstellungen?bereich=email");
   const zugang = page.getByRole("form", { name: "E-Mail-Versand" });
   // Port 1 auf dem eigenen Rechner: kein Mailserver, der Versand scheitert sofort und sichtbar
   await zugang.getByLabel("SMTP-Server", { exact: true }).fill("127.0.0.1");
@@ -637,6 +640,9 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
     ["kontakt", details.kontakt],
     ["archiv", "/archiv"],
     ["einstellungen", "/einstellungen"],
+    ["einstellungen-elster", "/einstellungen?bereich=elster"],
+    ["einstellungen-email", "/einstellungen?bereich=email"],
+    ["einstellungen-export", "/einstellungen?bereich=export"],
   ];
   const storage = await page.context().storageState();
   for (const [device, viewport] of [

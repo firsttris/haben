@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDate, formatDateTime } from "../lib/format.ts";
 import { useAction, type Notice } from "../lib/use-action.ts";
-import { formatWert } from "../lib/vast.ts";
+import { feldname, formatWert } from "../lib/vast.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import type { getAnnualReturns } from "../server/functions/annual.ts";
 import {
@@ -36,8 +36,8 @@ function BelegDetails({ beleg }: { beleg: Beleg }) {
             {beleg.werte.map((w, i) => (
               <tr key={i}>
                 <th scope="row" style={{ fontWeight: 400 }}>
-                  {w.pfad.length > 1 && <span className="small muted">{w.pfad.slice(0, -1).join(" › ")} › </span>}
-                  {w.pfad.at(-1)}
+                  {w.pfad.length > 1 && <span className="small muted">{w.pfad.slice(0, -1).map(feldname).join(" › ")} › </span>}
+                  {feldname(w.pfad.at(-1) ?? "")}
                 </th>
                 <td className="num" style={{ overflowWrap: "anywhere" }}>
                   {formatWert(w.pfad, w.wert)}
@@ -262,7 +262,7 @@ function BerechtigungPanel({
           </label>
           <button
             type="button"
-            className="btn"
+            className="btn btn-primary"
             disabled={disabled || !gueltigBis}
             onClick={() =>
               void run(async (base) => {
@@ -283,7 +283,7 @@ function BerechtigungPanel({
           </label>
           <button
             type="button"
-            className="btn"
+            className="btn btn-primary"
             disabled={disabled || code.trim().length === 0}
             onClick={() =>
               void run(async (base) => {
@@ -297,10 +297,10 @@ function BerechtigungPanel({
           </button>
         </>
       )}
-      <div className="actions" style={{ flexWrap: "wrap" }}>
+      <div className="actions" style={{ flexWrap: "wrap", borderTop: "1px solid currentColor", borderTopColor: "rgba(127,127,127,0.25)", paddingTop: 8 }}>
         <button
           type="button"
-          className="btn"
+          className="btn btn-sm"
           disabled={disabled}
           onClick={() =>
             void run(async (base) => {
@@ -314,7 +314,7 @@ function BerechtigungPanel({
         {(status === "offen" || status === "genehmigt") && (
           <button
             type="button"
-            className="btn"
+            className="btn btn-sm btn-danger"
             disabled={disabled}
             onClick={() => {
               if (!confirmRevoke) return setConfirmRevoke(true);
