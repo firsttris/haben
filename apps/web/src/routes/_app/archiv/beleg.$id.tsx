@@ -55,7 +55,7 @@ function LegacyVoucherPage() {
           {!file || !src ? (
             <div className="banner banner-info">Zu diesem Beleg hat Lexware Office keine Datei geliefert.</div>
           ) : file.mimeType === "application/pdf" ? (
-            <iframe className="doc-preview" src={src} title={`Datei ${file.filename}`} />
+            <iframe className="doc-preview" src={`${src}#view=Fit`} title={`Datei ${file.filename}`} />
           ) : file.mimeType.startsWith("image/") ? (
             <img className="doc-image" src={src} alt={`Beleg ${file.filename}`} />
           ) : (

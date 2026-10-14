@@ -96,7 +96,7 @@ function Preview({ doc }: { doc: Detail["document"] }) {
   if (doc.mimeType === "application/pdf") {
     return (
       <>
-        <iframe className="doc-preview" src={src} title={`Beleg ${doc.filename}`} />
+        <iframe className="doc-preview" src={`${src}#view=Fit`} title={`Beleg ${doc.filename}`} />
         <a className="btn pdf-open" href={src} target="_blank" rel="noreferrer">
           PDF öffnen
         </a>

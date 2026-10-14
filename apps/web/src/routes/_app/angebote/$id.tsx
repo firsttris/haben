@@ -118,7 +118,7 @@ function FinalQuote({ data }: { data: Detail }) {
 
       <div className="grid-main">
         <section aria-label="PDF">
-          <iframe className="pdf-frame" src={`/api/angebot/${quote.id}`} title={`PDF des Angebots ${quote.number}`} />
+          <iframe className="pdf-frame" src={`/api/angebot/${quote.id}#view=Fit`} title={`PDF des Angebots ${quote.number}`} />
           <a className="btn pdf-open" href={`/api/angebot/${quote.id}`} target="_blank" rel="noreferrer">
             PDF öffnen
           </a>
