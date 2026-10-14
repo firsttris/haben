@@ -431,6 +431,8 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .chip { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: 13px; text-decoration: none; }
 .chip:hover { color: var(--ink); }
 .chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Filter über Listen: Suchfeld, Auswahl, Chips nebeneinander; gilt auf allen Seiten, nicht nur den Auswertungen */
+.filter-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 16px; }
 .chip.active { background: var(--ink); border-color: var(--ink); color: var(--surface); font-weight: 500; }
 .search-box { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; color: var(--muted); min-width: 200px; }
 .search-box input { border: 0; outline: none; font: inherit; font-size: 13px; color: var(--ink); background: transparent; width: 100%; }

@@ -4,10 +4,14 @@ import { useState } from "react";
 import { LEGACY_TYPES } from "../../../components/archiv/LegacyVouchers.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { getLegacyVoucher } from "../../../server/functions/archive.ts";
+import styles from "../../../styles/archiv.css?url";
 
 export const Route = createFileRoute("/_app/archiv/beleg/$id")({
   loader: ({ params }) => getLegacyVoucher({ data: { id: params.id } }),
-  head: ({ loaderData }) => ({ meta: [{ title: `${loaderData?.voucher.number || "Beleg"} · Archiv · Haben` }] }),
+  head: ({ loaderData }) => ({
+    meta: [{ title: `${loaderData?.voucher.number || "Beleg"} · Archiv · Haben` }],
+    links: [{ rel: "stylesheet", href: styles }],
+  }),
   component: LegacyVoucherPage,
 });
 
