@@ -66,7 +66,7 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
   }
 
   return (
-    <form className="card contact-form" onSubmit={onSubmit} aria-label="Kontakt">
+    <form className="card form-card contact-form" onSubmit={onSubmit} aria-label="Kontakt">
       <section className="form-section" aria-labelledby="contact-basics">
         <h2 id="contact-basics">Allgemein</h2>
         <label className="field">
