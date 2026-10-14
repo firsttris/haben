@@ -1,7 +1,11 @@
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
+import { readFileSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
+
+// Version der ausgelieferten App, angezeigt unten in der Navigation
+const VERSION = (JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string }).version;
 
 const NATIVE = ["@myriaddreamin/typst-ts-node-compiler"];
 
@@ -18,6 +22,7 @@ function keepNativeExternal(): Plugin {
 
 export default defineConfig({
   server: { port: 3000 },
+  define: { __HABEN_VERSION__: JSON.stringify(VERSION) },
   plugins: [
     keepNativeExternal(),
     tanstackStart(),

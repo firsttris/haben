@@ -375,6 +375,19 @@ test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async
   await expect(page.getByText(/Letzter Abruf fehlgeschlagen/)).toBeVisible();
 });
 
+test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation", async () => {
+  await go("/");
+  const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
+  await expect(nav.getByRole("link", { name: /^Haben \d+\.\d+\.\d+$/ })).toBeVisible();
+  await nav.getByLabel("Theme").selectOption("tiefsee");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "tiefsee");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "tiefsee");
+  await expect(nav.getByLabel("Theme")).toHaveValue("tiefsee");
+  await nav.getByLabel("Theme").selectOption("wald");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "wald");
+});
+
 test("Fristen und Kalender-Abo", async () => {
   await go("/fristen");
   await expect(page.getByRole("heading", { name: "Fristen", level: 1 })).toBeVisible();

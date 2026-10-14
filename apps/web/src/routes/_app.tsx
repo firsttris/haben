@@ -1,5 +1,6 @@
 import { Link, Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
+import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 
@@ -113,6 +114,14 @@ function AppLayout() {
           <button type="button" onClick={signOut}>
             Abmelden
           </button>
+          <ThemePicker />
+          <a
+            className="nav-version"
+            href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`}
+            title="Versionshinweise auf GitHub"
+          >
+            Haben {__HABEN_VERSION__}
+          </a>
         </div>
         </div>
       </nav>
