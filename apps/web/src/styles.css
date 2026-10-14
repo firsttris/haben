@@ -122,6 +122,26 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .field input, .field select { min-height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); }
 .field input:focus-visible, .field select:focus-visible, .btn:focus-visible, .nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .field-error { color: var(--danger-ink); font-size: 13px; }
+/* Formular in Abschnitten, z. B. Kontakt */
+.contact-form { max-width: 760px; gap: 0; padding: 0; }
+.form-section { display: flex; flex-direction: column; gap: 14px; padding: 20px 24px; border-top: 1px solid var(--line); }
+.form-section:first-child { border-top: 0; }
+.form-section > h2 { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.form-row { display: grid; gap: 14px; }
+.form-row.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form-row.cols-address { grid-template-columns: 120px minmax(0, 1fr) 120px; }
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.field input.mono { font-family: var(--mono); font-size: 13px; letter-spacing: 0.02em; }
+.field input.uppercase { text-transform: uppercase; }
+.form-footer { padding: 16px 24px; border-top: 1px solid var(--line); }
+.contact-form > .banner { margin: 0 24px 16px; }
+@media (max-width: 640px) {
+  .form-section, .form-footer { padding-left: 16px; padding-right: 16px; }
+  .form-row.cols-2 { grid-template-columns: minmax(0, 1fr); }
+  .form-row.cols-address { grid-template-columns: 100px minmax(0, 1fr); }
+  .form-row.cols-address > :last-child { grid-column: 1 / -1; }
+}
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
 .checkbox input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }

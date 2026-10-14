@@ -66,68 +66,96 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
   }
 
   return (
-    <form className="card" onSubmit={onSubmit} aria-label="Kontakt">
-      <div className="form-grid">
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
+    <form className="card contact-form" onSubmit={onSubmit} aria-label="Kontakt">
+      <section className="form-section" aria-labelledby="contact-basics">
+        <h2 id="contact-basics">Allgemein</h2>
+        <label className="field">
           Name oder Firma
-          <input name="name" defaultValue={initial.name} required autoComplete="organization" />
+          <input name="name" defaultValue={initial.name} required autoComplete="organization" placeholder="z. B. Muster GmbH" />
         </label>
-        <label className="field">
-          Kundennummer
-          <input name="kundennummer" defaultValue={initial.kundennummer} />
-        </label>
-        <label className="field">
-          E-Mail
-          <input name="email" type="email" defaultValue={initial.email} />
-        </label>
+        <div className="form-row cols-2">
+          <label className="field">
+            E-Mail
+            <input name="email" type="email" defaultValue={initial.email} autoComplete="email" placeholder="rechnung@kunde.de" />
+          </label>
+          <label className="field">
+            Kundennummer
+            <input name="kundennummer" defaultValue={initial.kundennummer} placeholder="optional" />
+          </label>
+        </div>
+      </section>
+
+      <section className="form-section" aria-labelledby="contact-address">
+        <h2 id="contact-address">Anschrift</h2>
         <label className="field">
           Straße und Hausnummer
-          <input name="strasse" defaultValue={initial.strasse} />
+          <input name="strasse" defaultValue={initial.strasse} autoComplete="street-address" />
         </label>
-        <label className="field">
-          PLZ
-          <input name="plz" defaultValue={initial.plz} />
-        </label>
-        <label className="field">
-          Ort
-          <input name="ort" defaultValue={initial.ort} />
-        </label>
-        <label className="field">
-          Land (ISO-Code)
-          <input name="land" defaultValue={initial.land} maxLength={2} />
-        </label>
-        <label className="field">
-          USt-IdNr.
-          <input name="ustId" defaultValue={initial.ustId} placeholder="DE123456789" />
-        </label>
-        <label className="field">
-          IBAN
-          <input name="iban" defaultValue={initial.iban} />
-        </label>
-        <label className="field">
-          Leitweg-ID (öffentliche Auftraggeber)
-          <input name="leitwegId" defaultValue={initial.leitwegId} />
-        </label>
-        <label className="field">
-          Standardformat für Rechnungen
-          <select name="defaultFormat" defaultValue={initial.defaultFormat ?? ""}>
-            <option value="">wie in den Einstellungen</option>
-            {FORMATS.map((f) => (
-              <option key={f} value={f}>
-                {FORMAT_LABEL[f]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          Sprache von Rechnungen und Angeboten
-          <select name="language" defaultValue={initial.language ?? "de"}>
-            <option value="de">Deutsch</option>
-            <option value="en">Englisch</option>
-          </select>
-        </label>
-      </div>
-      <div className="actions">
+        <div className="form-row cols-address">
+          <label className="field">
+            PLZ
+            <input name="plz" defaultValue={initial.plz} autoComplete="postal-code" inputMode="numeric" />
+          </label>
+          <label className="field">
+            Ort
+            <input name="ort" defaultValue={initial.ort} autoComplete="address-level2" />
+          </label>
+          <label className="field">
+            Land (ISO-Code)
+            <input name="land" defaultValue={initial.land} maxLength={2} autoComplete="country" className="uppercase" />
+          </label>
+        </div>
+      </section>
+
+      <section className="form-section" aria-labelledby="contact-tax">
+        <h2 id="contact-tax">Steuer und Zahlung</h2>
+        <div className="form-row cols-2">
+          <label className="field">
+            USt-IdNr.
+            <input name="ustId" defaultValue={initial.ustId} placeholder="DE123456789" className="mono" />
+          </label>
+          <label className="field">
+            IBAN
+            <input name="iban" defaultValue={initial.iban} placeholder="DE00 0000 0000 0000 0000 00" className="mono" />
+          </label>
+        </div>
+        <div className="field-group">
+          <label className="field">
+            Leitweg-ID (öffentliche Auftraggeber)
+            <input name="leitwegId" defaultValue={initial.leitwegId} aria-describedby="leitweg-hint" className="mono" />
+          </label>
+          <p id="leitweg-hint" className="field-hint">
+            Nur bei Rechnungen an Behörden nötig; steht in deren Auftrag.
+          </p>
+        </div>
+      </section>
+
+      <section className="form-section" aria-labelledby="contact-invoices">
+        <h2 id="contact-invoices">Rechnungen</h2>
+        <div className="form-row cols-2">
+          <label className="field">
+            Standardformat für Rechnungen
+            <select name="defaultFormat" defaultValue={initial.defaultFormat ?? ""}>
+              <option value="">wie in den Einstellungen</option>
+              {FORMATS.map((f) => (
+                <option key={f} value={f}>
+                  {FORMAT_LABEL[f]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            Sprache von Rechnungen und Angeboten
+            <select name="language" defaultValue={initial.language ?? "de"}>
+              <option value="de">Deutsch</option>
+              <option value="en">Englisch</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <NoticeBanner notice={notice} />
+      <div className="actions form-footer">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {contact ? "Speichern" : "Kontakt anlegen"}
         </button>
@@ -135,7 +163,6 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
           Abbrechen
         </Link>
       </div>
-      <NoticeBanner notice={notice} />
     </form>
   );
 }
