@@ -100,7 +100,7 @@ Stimm die Übergabe einmal mit der Kanzlei ab: manche Kanzleien buchen lieber br
 
 ## Jahresexport
 
-Unter **Einstellungen → Jahresarchiv** wählst du ein Jahr und lädst mit „ZIP herunterladen“ alles herunter, was Haben zu diesem Jahr gespeichert hat. Zur Auswahl stehen alle Jahre mit Daten, dazu immer das laufende und das vorige Jahr. Die Datei heißt `Haben-<Jahr>-<Datum>.zip` und kommt von `/api/export/<Jahr>`.
+Unter **Einstellungen › Export › Jahresarchiv** wählst du ein Jahr und lädst mit „ZIP herunterladen“ alles herunter, was Haben zu diesem Jahr gespeichert hat. Zur Auswahl stehen alle Jahre mit Daten, dazu immer das laufende und das vorige Jahr. Die Datei heißt `Haben-<Jahr>-<Datum>.zip` und kommt von `/api/export/<Jahr>`.
 
 Das ZIP wird beim Herunterladen Datei für Datei erzeugt und gestreamt. Auch große Jahre brauchen deshalb kaum Arbeitsspeicher auf dem Server; der Download beginnt sofort, eine Gesamtgröße zeigt der Browser aber nicht an.
 

@@ -342,7 +342,7 @@ Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskor
 
 ## Kontakte
 
-Kontakte erreichst du über **Rechnungen** › **Kontakte** oder direkt unter `/kontakte`.
+Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Das Suchfeld über der Liste filtert nach Name, Kundennummer, E-Mail und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein.
 
 | Feld | Hinweis |
 | --- | --- |

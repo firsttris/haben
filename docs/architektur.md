@@ -48,7 +48,9 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 | `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `bank-sync` (Kontoabruf), `annual` (Jahreserklärungen), `income-tax` (Angaben zur Einkommensteuer), `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `fristen` (Steuertermine, Kalender-Abo), `mail` (SMTP, Erinnerungen), `quotes` (Angebote), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `inbox` (Belege per E-Mail über IMAP), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `taxpayer` (persönliche Angaben), `vat`, `vat-figures`, `reports`, `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`, `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer); dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
 | `src/server/db/` | Drizzle-Schema (`schema.ts`, `auth-schema.ts`), Verbindung, `withActor` für das Audit-Log, Migrationsskript |
 | `apps/web/drizzle/` | SQL-Migrationen; Trigger und Funktionen stehen in eigenen Dateien (`0001_festschreibung.sql`, `*_trigger.sql`) |
-| `src/styles/`, `styles.css` | Globales Stylesheet und seitenbezogene Stylesheets (Auswertungen, Archiv) |
+| `src/styles/`, `styles.css` | Globales Stylesheet und seitenbezogene Stylesheets (Auswertungen, Archiv). Farben stehen als CSS-Variablen in `:root`; ein Theme überschreibt sie per `[data-theme="…"]`. Klassen, die mehr als eine Seite nutzt, gehören ins globale Stylesheet, sonst fehlen sie auf Seiten, die das seitenbezogene nicht laden |
+| `src/lib/theme.ts` | Themes: Liste, Speicherung im `localStorage` und ein Inline-Skript, das `<html data-theme>` vor dem ersten Zeichnen setzt (`__root.tsx`) |
+| `vite.config.ts` | Setzt `__HABEN_VERSION__` aus der Root-`package.json`; die Navigation zeigt so die ausgelieferte Version |
 | `src/lib/` | Formatierung und Better-Auth-Client für den Browser |
 
 ## Datenmodell

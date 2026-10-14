@@ -107,6 +107,13 @@ test("Kunden anlegen", async () => {
   }
   await go("/kontakte");
   for (const c of CUSTOMERS) await expect(page.getByText(c.name).first()).toBeVisible();
+  // Die Suche filtert die Liste, ohne neu zu laden
+  const liste = page.getByRole("region", { name: "Kontaktliste" });
+  await page.getByPlaceholder(/^Suchen:/).fill("hamburg");
+  await expect(liste.getByRole("link")).toHaveCount(1);
+  await expect(liste).toContainText("Nordwerk Software GmbH");
+  await page.getByPlaceholder(/^Suchen:/).fill("gibt es nicht");
+  await expect(liste).toContainText("Kein Kontakt passt");
 });
 
 test("Kunde mit Rechnungen auf Englisch", async () => {
@@ -394,6 +401,12 @@ test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation"
 test("Fristen und Kalender-Abo", async () => {
   await go("/fristen");
   await expect(page.getByRole("heading", { name: "Fristen", level: 1 })).toBeVisible();
+  // „Später“ zeigt erst sechs Fristen, der Rest klappt auf
+  const spaeter = page.getByRole("region", { name: /^Später/ });
+  await expect(spaeter.getByRole("row")).toHaveCount(7);
+  await spaeter.getByRole("button", { name: /^Alle \d+ zeigen$/ }).click();
+  await expect(spaeter.getByRole("button", { name: /^Alle \d+ zeigen$/ })).toHaveCount(0);
+  expect(await spaeter.getByRole("row").count()).toBeGreaterThan(7);
   await expect(page.getByText(/Umsatzsteuer-Voranmeldung/).first()).toBeVisible();
   const abo = page.getByRole("region", { name: "Erinnerungen im Kalender" });
   await abo.getByRole("button", { name: "Kalender-Abo einrichten" }).click();

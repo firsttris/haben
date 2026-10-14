@@ -69,7 +69,7 @@ Betreff (bis 99 Zeichen) und Text (bis 15.000 Zeichen) für alles andere, etwa e
 
 Teilt dem Finanzamt ein neues Konto für Erstattungen und, falls du eine Lastschrift erteilt hast, für den Einzug mit (Datenart AenderungBankverbindung, Version 20). Die Änderung gilt für alle Steuerarten zur Steuernummer, Kontoinhaber bist du selbst (Person A).
 
-Vorbelegt ist die IBAN aus den Firmendaten. Haben prüft die IBAN-Prüfsumme vor dem Senden. ELSTER braucht dazu deine persönlichen Angaben, also Steuer-ID, Name und Geburtsdatum, aus [Einstellungen → Persönliche Angaben](einrichtung.md#persönliche-angaben).
+Vorbelegt ist die IBAN aus den Firmendaten. Haben prüft die IBAN-Prüfsumme vor dem Senden. ELSTER braucht dazu deine persönlichen Angaben, also Steuer-ID, Name und Geburtsdatum, aus [Einstellungen › Persönliche Angaben](einrichtung.md#persönliche-angaben).
 
 ## Verlauf
 
