@@ -1,5 +1,6 @@
 import { DUNNING_LEVELS, daysOverdue, formatEuro, type DunningLevel } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { InvoiceTabs } from "../../../../components/InvoiceTabs.tsx";
 import { formatDate } from "../../../../lib/format.ts";
 import { getOverdue } from "../../../../server/functions/dunning.ts";
 
@@ -15,12 +16,11 @@ function DunningPage() {
     <>
       <div className="page-head">
         <div>
-          <div className="eyebrow">
-            <Link to="/rechnungen">Rechnungen</Link> › Mahnwesen
-          </div>
-          <h1>Überfällige Rechnungen</h1>
+          <div className="eyebrow">Verkauf</div>
+          <h1>Rechnungen</h1>
         </div>
       </div>
+      <InvoiceTabs />
       <section className="card" aria-label="Überfällige Rechnungen">
         {items.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>

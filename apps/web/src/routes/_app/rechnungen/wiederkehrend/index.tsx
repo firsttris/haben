@@ -1,5 +1,6 @@
 import { RECURRING_INTERVALS, formatEuro, lineNet, type RecurringInterval } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { InvoiceTabs } from "../../../../components/InvoiceTabs.tsx";
 import { useServerFn } from "@tanstack/react-start";
 import { formatDate } from "../../../../lib/format.ts";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
@@ -31,10 +32,8 @@ function RecurringPage() {
     <>
       <div className="page-head">
         <div>
-          <div className="eyebrow">
-            <Link to="/rechnungen">Rechnungen</Link> › Wiederkehrend
-          </div>
-          <h1>Wiederkehrende Rechnungen</h1>
+          <div className="eyebrow">Verkauf</div>
+          <h1>Rechnungen</h1>
         </div>
         <div className="actions">
           {due > 0 && (
@@ -47,6 +46,7 @@ function RecurringPage() {
           </Link>
         </div>
       </div>
+      <InvoiceTabs />
       <NoticeBanner notice={notice} />
       <section className="card" aria-label="Vorlagen">
         {items.length === 0 ? (

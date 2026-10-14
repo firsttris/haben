@@ -298,7 +298,7 @@ test("Anlage N: Arbeitslohn des Ehegatten in der Einkommensteuer", async () => {
 });
 
 test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
-  await go("/rechnungen/artikel");
+  await go("/artikel");
   const form = page.getByRole("form", { name: "Neuer Artikel" });
   await form.getByLabel("Bezeichnung").fill("Beratung Softwarearchitektur");
   await form.getByLabel("Artikelnummer (optional)").fill("B-01");
@@ -596,7 +596,7 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
     ["rechnung", details.rechnung],
     ["mahnwesen", "/rechnungen/mahnwesen"],
     ["wiederkehrend", "/rechnungen/wiederkehrend"],
-    ["artikel", "/rechnungen/artikel"],
+    ["artikel", "/artikel"],
     ["belege", "/belege"],
     ["beleg", details.beleg],
     ["pauschalen", "/pauschalen"],

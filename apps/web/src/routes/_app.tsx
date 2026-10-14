@@ -21,6 +21,7 @@ const NAV_GROUPS = [
       { to: "/angebote", icon: "quote", label: "Angebote" },
       { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
       { to: "/kontakte", icon: "contacts", label: "Kontakte" },
+      { to: "/artikel", icon: "article", label: "Artikel" },
     ],
   },
   {

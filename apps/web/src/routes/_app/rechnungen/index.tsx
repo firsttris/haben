@@ -1,5 +1,6 @@
 import { formatEuro } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { InvoiceTabs } from "../../../components/InvoiceTabs.tsx";
 import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
 import { formatDate } from "../../../lib/format.ts";
 import { VARIANT_TITLE } from "../../../lib/invoice.ts";
@@ -17,7 +18,7 @@ function InvoicesPage() {
     <>
       <div className="page-head">
         <div>
-          <div className="eyebrow">Ausgangsrechnungen</div>
+          <div className="eyebrow">Verkauf</div>
           <h1>Rechnungen</h1>
         </div>
         <div className="actions">
@@ -26,23 +27,7 @@ function InvoicesPage() {
           </Link>
         </div>
       </div>
-      <nav className="subnav" aria-label="Bereiche der Rechnungen">
-        <Link to="/rechnungen" className="chip active" aria-current="page">
-          Alle Rechnungen
-        </Link>
-        <Link to="/rechnungen/wiederkehrend" className="chip">
-          Wiederkehrend
-        </Link>
-        <Link to="/rechnungen/mahnwesen" className="chip">
-          Mahnwesen
-        </Link>
-        <Link to="/rechnungen/artikel" className="chip">
-          Artikel
-        </Link>
-        <Link to="/kontakte" className="chip">
-          Kontakte
-        </Link>
-      </nav>
+      <InvoiceTabs />
       <section className="card" aria-label="Rechnungsliste">
         {invoices.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>

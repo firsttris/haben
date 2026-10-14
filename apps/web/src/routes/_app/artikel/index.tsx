@@ -1,13 +1,13 @@
 import { formatDecimal, formatEuro, parseEuro, UNITS, type UnitLabel } from "@haben/core";
-import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
-import { errorMessage } from "../../../../lib/format.ts";
-import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
-import type { Notice } from "../../../../lib/use-action.ts";
-import { archiveArticle, getArticles, saveArticle } from "../../../../server/functions/articles.ts";
+import { errorMessage } from "../../../lib/format.ts";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import type { Notice } from "../../../lib/use-action.ts";
+import { archiveArticle, getArticles, saveArticle } from "../../../server/functions/articles.ts";
 
-export const Route = createFileRoute("/_app/rechnungen/artikel/")({
+export const Route = createFileRoute("/_app/artikel/")({
   loader: () => getArticles(),
   head: () => ({ meta: [{ title: "Artikel · Haben" }] }),
   component: ArticlesPage,
@@ -147,9 +147,7 @@ function ArticlesPage() {
     <>
       <div className="page-head">
         <div>
-          <div className="eyebrow">
-            <Link to="/rechnungen">Rechnungen</Link> › Artikel
-          </div>
+          <div className="eyebrow">Verkauf</div>
           <h1>Artikel und Leistungen</h1>
         </div>
       </div>

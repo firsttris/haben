@@ -37,6 +37,12 @@ const PATHS = {
   quote: <path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h3M15.5 16.5l1.5 1.5 3-3" />,
   pauschale: <path d="M3 11l7-6 7 6M5 9.5V19h10V9.5M8.5 19v-5h3v5M19 4v16M19 8h2M19 14h2" />,
   assets: <path d="M5 17h14M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0M3 17V12l2-5h11l3 5h2v5M7 12h12" />,
+  article: (
+    <>
+      <path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" />
+      <circle cx="7.5" cy="7.5" r="1.5" />
+    </>
+  ),
   contacts: (
     <>
       <circle cx="9" cy="8" r="3.5" />

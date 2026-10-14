@@ -43,7 +43,7 @@ Die Einheiten gehen mit ihren UN/ECE-Codes ins XML (`HUR`, `DAY`, `MON`, `H87`, 
 
 ### Artikelkatalog
 
-Unter **Rechnungen › Artikel** legst du Positionen an, die du oft brauchst: Stundensatz, Tagessatz, Wartungspauschale.
+Unter **Artikel** (Seitenleiste, Bereich Verkauf) legst du Positionen an, die du oft brauchst: Stundensatz, Tagessatz, Wartungspauschale.
 
 - Jeder Artikel hat Bezeichnung, optional eine Artikelnummer, Einheit, Nettopreis und Steuersatz, dazu eine interne Notiz.
 - Im Editor für Rechnungen und Angebote fügt **Aus dem Katalog einfügen** den Artikel als Position mit Menge 1 ein. Ist die einzige Zeile noch leer, ersetzt er sie.
