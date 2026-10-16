@@ -102,7 +102,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `postfach_requests` | Abrufe des ELSTER-Postfachs und Bestätigungen der Abholung mit XML | nur anhängen, Audit ohne XML |
 | `postfach_documents` | Abgeholte Bescheide und Mitteilungen, Datei im Dokumentenspeicher | nur anhängen, Audit |
 | `vast_requests` | Belegabrufe (Liste und Abholung) mit XML, je Person und Jahr | nur anhängen, Audit ohne XML |
-| `mail_settings` | SMTP-Zugang (eine Zeile), Passwort verschlüsselt, Einstellungen der Erinnerungen | Audit ohne Passwort |
+| `mail_settings` | SMTP-Zugang (eine Zeile), Passwort verschlüsselt, Einstellungen der Erinnerungen und der wöchentlichen Mail mit dem Prüfwert des Audit-Logs | Audit ohne Passwort |
 | `inbox_settings` | IMAP-Zugang für Belege per E-Mail (Passwort verschlüsselt), Ordner, letzter Abruf und Fehler | Audit nur bei Änderungen am Zugang, ohne Passwort |
 | `inbox_messages` | Abgerufene Mails je Message-ID mit angelegten Belegen, Dubletten und übersprungenen Anhängen | nur anhängen, Audit |
 | `mail_log` | Gesendete E-Mails mit Empfänger, Blindkopie, Anhängen, Fehler, Bezug zu Rechnung bzw. Mahnung und den erinnerten Fristen (Schlüssel Frist:Stufe) | nur anhängen, Audit |
@@ -129,7 +129,9 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
-| `audit_log` | Jede Änderung mit Zeitpunkt, Nutzer, Tabelle, altem und neuem Wert | nur anhängen, auch kein `TRUNCATE` |
+| `audit_log` | Jede Änderung mit Zeitpunkt, Nutzer, Tabelle, altem und neuem Wert; als Hash-Kette mit Nummer (`seq`), Vorgänger-Hash und Hash | nur anhängen, auch kein `TRUNCATE` |
+| `audit_chain` | Kopf der Hash-Kette: letzte Nummer und Hash, genau eine Zeile | nur vom Trigger auf `audit_log` fortgeschrieben |
+| `seals` | Siegel festgeschriebener Buchungen, Rechnungen, Belege und Voranmeldungen: SHA-256 über Datensatz und abhängige Zeilen, mit den Spalten, über die er gebildet ist | nur anhängen, Audit |
 | `user`, `session`, `account`, `verification`, `passkey` | Tabellen von Better Auth samt Passkey-Plugin | – |
 
 ## Anmeldung
@@ -210,6 +212,7 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 
 - **Verschlüsselung:** ELSTER-Zertifikat, Lexware-API-Schlüssel und die Sitzungskennung des Kontoabrufs liegen mit AES-256-GCM verschlüsselt in der Datenbank (`server/crypto.ts`, Format IV | Tag | Chiffrat). Der Schlüssel `HABEN_ENCRYPTION_KEY` (32 Byte, base64) steht nur in der Umgebung.
 - **Dateiauslieferung:** Gespeicherte Dateien gehen mit `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store` und einer Content-Security-Policy hinaus: für PDFs `default-src 'none'; object-src 'self'`, sonst `sandbox`. Nur PDFs und Bilder werden im Browser angezeigt; XML und JSON kommen als Text, alles andere als Download.
+- **Manipulationserkennung:** Das Audit-Log ist eine Hash-Kette, festgeschriebene Datensätze tragen ein Siegel (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)). Berechnet und geprüft wird beides in Postgres, damit der Hash nicht von einer Nachbildung des JSON in TypeScript abhängt. Der Kopf der Kette wird je Transaktion bis zum Commit gesperrt; wer in einer Transaktion weitere Sperren nimmt (etwa die der Kasse), nimmt sie vor der ersten Änderung mit Audit-Eintrag. Migrationen, die eine Spalte einer versiegelten Tabelle (`journal_entries`, `journal_lines`, `invoices`, `invoice_lines`, `invoice_taxes`, `documents`, `document_amounts`, `vat_returns`) umbenennen, löschen oder deren Werte umrechnen, lassen die Siegel nicht mehr passen; die Prüfung meldet das zu Recht als Änderung festgeschriebener Daten. Neue Spalten sind unkritisch.
 - **Kein Geheimnis im Export:** Das Jahresarchiv enthält weder Zertifikat noch API-Schlüssel. Das Audit-Log speichert Chiffrate gar nicht erst, der Export filtert sie zusätzlich heraus.
 - **Kontoabruf:** Die Rückleitung der Bank (`/api/bank/callback`) verlangt eine angemeldete Sitzung und einen `state`, den Haben beim Start zufällig erzeugt und nur einmal annimmt. Der Zugriff ist lesend; Zahlungen kann Haben nicht auslösen. Der private Schlüssel der Enable-Banking-Anwendung liegt nur in der Umgebung bzw. als Datei, nie in der Datenbank.
 - **Proxy:** Caddy terminiert TLS und setzt HSTS, `X-Frame-Options: SAMEORIGIN` und `Referrer-Policy: same-origin`. `SAMEORIGIN` statt `DENY`, weil die Vorschauen von Belegen, Rechnungen und Angeboten iframes auf derselben Origin sind. Die App setzt zusätzlich selbst `Content-Security-Policy: frame-ancestors 'self'` auf alle HTML-Antworten (`src/start.ts`, `server/security-headers.ts`); Dateien aus `file-response.ts` behalten ihre eigene CSP.

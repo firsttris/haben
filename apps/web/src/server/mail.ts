@@ -1,6 +1,6 @@
 import { UserError } from "./errors.ts";
 import { tageBis } from "@haben/core";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import nodemailer, { type Transporter } from "nodemailer";
 import { z } from "zod";
 import { decrypt, encrypt } from "./crypto.ts";
@@ -8,6 +8,7 @@ import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { env } from "./env.ts";
 import { listFristen, type Frist } from "./fristen.ts";
+import { chainHead, checkIntegrity, formatPruefwert } from "./integrity.ts";
 
 /**
  * E-Mail über SMTP: jeder Anbieter mit SMTP-Zugang, auch Gmail (smtp.gmail.com mit App-Passwort).
@@ -49,6 +50,7 @@ export const mailSettingsSchema = z.object({
   invoiceBody: z.string().trim().max(5000).default(""),
   dunningSubject: z.string().trim().max(300).default(""),
   dunningBody: z.string().trim().max(5000).default(""),
+  pruefwertMail: z.boolean().default(true),
 });
 
 export type MailSettingsInput = z.input<typeof mailSettingsSchema>;
@@ -107,7 +109,7 @@ export function setMailTransportForTests(factory: typeof transportFactory): void
 }
 
 export interface Message {
-  kind: "test" | "fristen" | "rechnung" | "mahnung" | "angebot";
+  kind: "test" | "fristen" | "rechnung" | "mahnung" | "angebot" | "pruefwert";
   /** ein oder mehrere Empfänger, durch Komma getrennt */
   to: string;
   bcc?: string;
@@ -251,6 +253,74 @@ export async function runDueFristenMails(today: string, now = new Date()) {
   const result = await send(MAIL_ACTOR, { kind: "fristen", to: settings.reminderTo, ...mail, reminderKeys: neu.map((n) => n.key) });
   if (!result.ok) throw new MailError(`Erinnerung nicht gesendet: ${result.error}`);
   return { sent: neu.length };
+}
+
+const WEEK = 7 * 24 * 60 * 60 * 1000;
+const DAY = 24 * 60 * 60 * 1000;
+
+/** Ob das Audit-Log seit Eintrag seq mehr enthält als die Protokollzeilen der Prüfwert-Mails selbst */
+async function changedSince(seq: number): Promise<boolean> {
+  const [row] = await db
+    .select({ seq: schema.auditLog.seq })
+    .from(schema.auditLog)
+    .where(
+      sql`${schema.auditLog.seq} > ${seq} and not (${schema.auditLog.tableName} = 'mail_log' and ${schema.auditLog.newValue} ->> 'kind' = 'pruefwert')`,
+    )
+    .limit(1);
+  return row !== undefined;
+}
+
+/**
+ * Für den Scheduler: Schickt den Prüfwert des Audit-Logs (Kopf der Hash-Kette) einmal pro Woche an die Adresse
+ * für Erinnerungen, damit er außerhalb des Servers liegt. Nur wenn sich seit der letzten Mail etwas geändert hat;
+ * nach einem Fehlschlag frühestens am nächsten Tag wieder. Prüft vorher Kette und Siegel und meldet Befunde mit.
+ */
+export async function runDuePruefwertMail(now = new Date()) {
+  const settings = await loadMailSettings();
+  if (!settings?.pruefwertMail || berlinHour(now) < 7) return null;
+  const [lastOk] = await db
+    .select({ createdAt: schema.mailLog.createdAt, keys: schema.mailLog.reminderKeys })
+    .from(schema.mailLog)
+    .where(and(eq(schema.mailLog.kind, "pruefwert"), eq(schema.mailLog.ok, true)))
+    .orderBy(desc(schema.mailLog.createdAt))
+    .limit(1);
+  if (lastOk && now.getTime() - lastOk.createdAt.getTime() < WEEK) return null;
+  const [lastTry] = await db
+    .select({ createdAt: schema.mailLog.createdAt })
+    .from(schema.mailLog)
+    .where(and(eq(schema.mailLog.kind, "pruefwert"), eq(schema.mailLog.ok, false)))
+    .orderBy(desc(schema.mailLog.createdAt))
+    .limit(1);
+  if (lastTry && now.getTime() - lastTry.createdAt.getTime() < DAY) return null;
+  const head = await chainHead();
+  if (!head) return null;
+  const lastSeq = Number(lastOk?.keys[0]);
+  if (lastOk && Number.isFinite(lastSeq) && !(await changedSince(lastSeq))) return null;
+
+  const report = await checkIntegrity();
+  const pruefwert = formatPruefwert(head);
+  const stand = new Intl.DateTimeFormat("de-DE", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Berlin" }).format(now);
+  const befund =
+    report.problems.length === 0
+      ? `Prüfung von Kette und Siegel: unverändert (${report.entries} Einträge, ${report.seals} Siegel).`
+      : `Prüfung von Kette und Siegel: ${report.problems.length}${report.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert; Einzelheiten unter ${baseUrl()}/einstellungen?bereich=export`;
+  const intro = `Prüfwert des Änderungsprotokolls von Haben (${baseUrl()}), Stand ${stand}:`;
+  const aufbewahren =
+    "Bitte diese Mail aufbewahren, nicht nur auf dem Server von Haben. Mit dem Prüfwert lässt sich später zeigen, dass das Änderungsprotokoll und die festgeschriebenen Daten bis zu diesem Stand nicht nachträglich verändert wurden: in Haben unter Einstellungen → Export → Änderungsprotokoll prüfen einfügen und vergleichen.";
+  const hinweis = "Diese Mail kommt höchstens einmal pro Woche und nur, wenn sich etwas geändert hat. Abschalten in den E-Mail-Einstellungen.";
+  const text = [intro, "", pruefwert, "", befund, "", aufbewahren, "", hinweis].join("\n");
+  const html = [
+    `<p>${escapeHtml(intro)}</p>`,
+    `<p><code>${escapeHtml(pruefwert)}</code></p>`,
+    `<p>${escapeHtml(befund)}</p>`,
+    `<p>${escapeHtml(aufbewahren)}</p>`,
+    `<p><small>${escapeHtml(hinweis)}</small></p>`,
+  ].join("\n");
+  const subject =
+    report.problems.length === 0 ? `Haben: Prüfwert des Änderungsprotokolls (Nr. ${head.seq})` : `Haben: Änderungsprotokoll mit Befunden (Nr. ${head.seq})`;
+  const result = await send(MAIL_ACTOR, { kind: "pruefwert", to: settings.reminderTo, subject, text, html, reminderKeys: [String(head.seq)] });
+  if (!result.ok) throw new MailError(`Prüfwert nicht gesendet: ${result.error}`);
+  return { seq: head.seq, problems: report.problems.length };
 }
 
 export async function lastMails(limit = 5) {

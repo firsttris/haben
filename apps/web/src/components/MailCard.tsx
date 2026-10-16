@@ -59,6 +59,7 @@ export function MailCard({ data }: { data: Data }) {
           invoiceBody: text("invoiceBody"),
           dunningSubject: text("dunningSubject"),
           dunningBody: text("dunningBody"),
+          pruefwertMail: form.get("pruefwertMail") === "on",
         },
       });
       (event.target as HTMLFormElement).querySelector<HTMLInputElement>("input[name=password]")!.value = "";
@@ -142,6 +143,16 @@ export function MailCard({ data }: { data: Data }) {
           Morgens nach 7 Uhr, mehrere Fristen in einer Mail; Überfälliges einmal. Erledigte Fristen werden nicht erinnert.
         </p>
       </fieldset>
+      <div>
+        <label className="checkbox">
+          <input type="checkbox" name="pruefwertMail" defaultChecked={s?.pruefwertMail ?? true} />
+          Prüfwert des Änderungsprotokolls wöchentlich mailen
+        </label>
+        <p className="small muted" style={{ margin: "6px 0 0" }}>
+          Damit liegt der Stand des Audit-Logs auch außerhalb des Servers. Mit einem aufbewahrten Prüfwert lässt sich später zeigen, dass bis dahin nichts
+          nachträglich verändert wurde (Einstellungen → Export).
+        </p>
+      </div>
       <details>
         <summary style={{ cursor: "pointer", fontWeight: 500 }}>Vorlagen für Rechnungen und Mahnungen</summary>
         <div className="stack" style={{ gap: 10, marginTop: 10 }}>

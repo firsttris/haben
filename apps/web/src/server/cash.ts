@@ -17,6 +17,15 @@ export type CashEntry = typeof schema.cashEntries.$inferSelect;
 
 const lock = sql`select pg_advisory_xact_lock(hashtext('haben.kasse'))`;
 
+/**
+ * Sperrt das Kassenbuch bis zum Ende der Transaktion. Wer auch Buchungen schreibt, sperrt die Kasse vorher: Jede
+ * Änderung mit Audit-Eintrag sperrt den Kopf der Hash-Kette, in umgekehrter Reihenfolge blockierten sich zwei
+ * Transaktionen gegenseitig.
+ */
+export async function lockCash(tx: Tx): Promise<void> {
+  await tx.execute(lock);
+}
+
 export const cashInputSchema = z.object({
   kind: z.enum(Object.keys(CASH_BOOKINGS) as [CashBooking, ...CashBooking[]]),
   date: z.iso.date(),

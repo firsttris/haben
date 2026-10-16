@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, between, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, between, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../package.json" with { type: "json" };
 import { ASSET_KINDS, ASSET_METHODS, csvDecimal, PAUSCHALE_LABEL } from "@haben/core";
@@ -8,6 +8,7 @@ import { db, schema } from "./db/index.ts";
 import { accountName } from "./journal.ts";
 import { loadFile } from "./storage.ts";
 import { cashBookCsv } from "./cash.ts";
+import { chainHead, formatPruefwert } from "./integrity.ts";
 import { today } from "./today.ts";
 
 /**
@@ -847,6 +848,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
 
   // Änderungsprotokoll, seitenweise gelesen ----------------------------------
   yield { path: "protokoll/audit.csv", content: auditCsv(year), compress: true };
+  yield { path: "protokoll/pruefwert.txt", content: encoder.encode(await pruefwertText(year, now)), compress: true };
 
   if (problems.length > 0) {
     yield { path: "FEHLER.txt", content: encoder.encode(`Beim Erstellen des Archivs fehlten Dateien:\n\n${problems.join("\n")}\n`), compress: true };
@@ -976,20 +978,22 @@ function withoutSecrets(table: string, value: unknown): unknown {
   return Object.fromEntries(entries);
 }
 
+const yearOfAudit = (year: number) =>
+  sql`${schema.auditLog.at} >= ${berlinStart(year)} and ${schema.auditLog.at} < ${berlinStart(year + 1)}`;
+
+/** In der Reihenfolge der Hash-Kette; Nr. ist die laufende ID, Ketten-Nr. die Position in der Kette */
 async function* auditCsv(year: number): AsyncGenerator<Uint8Array> {
-  yield encoder.encode(BOM + csvLine(["Zeitpunkt", "Benutzer", "Tabelle", "Zeilen-ID", "Aktion", "Alter Wert (JSON)", "Neuer Wert (JSON)", "Nr."]));
+  yield encoder.encode(
+    BOM +
+      csvLine(["Zeitpunkt", "Benutzer", "Tabelle", "Zeilen-ID", "Aktion", "Alter Wert (JSON)", "Neuer Wert (JSON)", "Nr.", "Ketten-Nr.", "Vorgänger-Hash", "Hash"]),
+  );
   let after = 0;
   for (;;) {
     const rows = await db
       .select()
       .from(schema.auditLog)
-      .where(
-        and(
-          gt(schema.auditLog.id, after),
-          sql`${schema.auditLog.at} >= ${berlinStart(year)} and ${schema.auditLog.at} < ${berlinStart(year + 1)}`,
-        ),
-      )
-      .orderBy(asc(schema.auditLog.id))
+      .where(and(gt(schema.auditLog.seq, after), yearOfAudit(year)))
+      .orderBy(asc(schema.auditLog.seq))
       .limit(1000);
     if (rows.length === 0) return;
     yield encoder.encode(
@@ -1004,12 +1008,41 @@ async function* auditCsv(year: number): AsyncGenerator<Uint8Array> {
             json(withoutSecrets(r.tableName, r.oldValue)),
             json(withoutSecrets(r.tableName, r.newValue)),
             r.id,
+            r.seq,
+            r.prevHash.toString("hex"),
+            r.rowHash.toString("hex"),
           ]),
         )
         .join(""),
     );
-    after = rows.at(-1)!.id;
+    after = rows.at(-1)!.seq;
   }
+}
+
+/** Kopf der Kette beim Erstellen und letzter Eintrag des Jahres, zum Aufbewahren außerhalb des Servers */
+async function pruefwertText(year: number, now: Date): Promise<string> {
+  const [head, [last]] = await Promise.all([
+    chainHead(),
+    db
+      .select({ seq: schema.auditLog.seq, hash: schema.auditLog.rowHash })
+      .from(schema.auditLog)
+      .where(yearOfAudit(year))
+      .orderBy(desc(schema.auditLog.seq))
+      .limit(1),
+  ]);
+  return [
+    `Prüfwert des Änderungsprotokolls`,
+    ``,
+    `Beim Erstellen dieses Archivs (${now.toISOString()}):`,
+    head ? formatPruefwert(head) : "keiner",
+    ``,
+    `Letzter Eintrag des Jahres ${year}:`,
+    last ? formatPruefwert({ seq: last.seq, hash: last.hash.toString("hex") }) : "keiner",
+    ``,
+    `In Haben unter Einstellungen → Export → Änderungsprotokoll prüfen einfügen und vergleichen.`,
+    `Stimmt der Wert, sind Audit-Log und festgeschriebene Daten bis zu diesem Eintrag unverändert.`,
+    ``,
+  ].join("\n");
 }
 
 function readme(year: number, now: Date, company: typeof schema.company.$inferSelect | undefined): string {
@@ -1067,7 +1100,10 @@ lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege
                          DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten
                          Originalexporte des Jahres (originale/: DATEV, IDEA,
                          ELSTER-Protokolle, Kontoauszüge).
-protokoll/audit.csv      Änderungsprotokoll des Jahres mit altem und neuem Wert.
+protokoll/audit.csv      Änderungsprotokoll des Jahres mit altem und neuem Wert, in der
+                         Reihenfolge der Hash-Kette mit Vorgänger-Hash und Hash je Eintrag.
+protokoll/pruefwert.txt  Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am
+                         Ende des Jahres.
 pruefsummen.sha256       SHA-256 jeder Datei in diesem Archiv.
 
 
@@ -1076,6 +1112,18 @@ ORIGINALE
 PDF-, XML- und Bilddateien sind byte-genau die gespeicherten Originale, unverändert.
 Die SHA-256-Werte in rechnungen.csv und belege.csv wurden beim Festschreiben bzw.
 Hochladen berechnet und müssen zu den Dateien passen.
+
+
+ÄNDERUNGSPROTOKOLL
+
+Jeder Eintrag im Audit-Log ist mit seinem Vorgänger verkettet: Hash = SHA-256 aus
+Vorgänger-Hash und Inhalt. Festgeschriebene Buchungen, Rechnungen, Belege und
+Voranmeldungen tragen ein Siegel über ihren Inhalt, das selbst im Protokoll steht.
+Geprüft wird beides in Haben (Einstellungen → Export → Änderungsprotokoll prüfen).
+Den Prüfwert aus protokoll/pruefwert.txt außerhalb des Servers aufbewahren: Er zeigt
+später, ob das Protokoll bis zu diesem Eintrag nachträglich verändert wurde. Die Kette
+verhindert keine Änderung, sie macht sie sichtbar. Geheimnisse (Zugangsdaten) sind
+in audit.csv entfernt; den Hash eines Eintrags nachrechnen kann daher nur Haben.
 
 
 PRÜFSUMMEN PRÜFEN

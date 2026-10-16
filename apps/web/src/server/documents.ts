@@ -14,7 +14,7 @@ import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "./company.ts";
-import { addDocumentCashEntry } from "./cash.ts";
+import { addDocumentCashEntry, lockCash } from "./cash.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
@@ -336,6 +336,8 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
   const company = await loadCompany();
   await withActor(actor, async (tx) => {
     const doc = await lockOpen(tx, id);
+    // Kasse vor der ersten Buchung sperren, wie beim Kassenbuch selbst (siehe lockCash)
+    if (doc.payment === "kasse") await lockCash(tx);
     const amounts = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
     const issues = bookingIssues(doc, amounts);
     if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);

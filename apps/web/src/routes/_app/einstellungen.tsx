@@ -6,6 +6,7 @@ import { DatevCard } from "../../components/DatevCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
+import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
@@ -23,13 +24,14 @@ import { checkElsterFormats, confirmElsterPrivacy, getEricStatus, installEricLib
 import { getExportYears } from "../../server/functions/export.ts";
 import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
+import { getChainHead } from "../../server/functions/integrity.ts";
 import { getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev] = await Promise.all([
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
       getNumbering(),
@@ -39,8 +41,9 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getInbox(),
       getExportYears(),
       getDatevNumbers(),
+      getChainHead(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev };
+    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
   validateSearch: (search: Record<string, unknown>): { bereich?: SettingsArea } =>
@@ -49,7 +52,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { logo, mail, inbox, exportYears, datev } = Route.useLoaderData();
+  const { logo, mail, inbox, exportYears, datev, chainHead } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
@@ -95,6 +98,7 @@ function SettingsPage() {
             <>
               <ExportCard years={exportYears} />
               <DatevCard years={exportYears} numbers={datev} />
+              <IntegrityCard head={chainHead} />
             </>
           )}
         </div>

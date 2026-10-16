@@ -170,6 +170,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
         "stammdaten/bankkonten.csv",
         "stammdaten/firma.json",
         "protokoll/audit.csv",
+        "protokoll/pruefwert.txt",
         "umsatzsteuer/2026-09/anmeldung.json",
         "umsatzsteuer/2026-09/übermittlungen.csv",
         `umsatzsteuer/2026-09/2026-10-02_validate_${vatSubmissionPrefix}_protokoll.pdf`,
@@ -190,7 +191,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(sha256(files[`rechnungen/${invoice.number}.xml`]!)).toBe(invoice.xmlSha256);
   });
 
-  it("schreibt CSV mit BOM, Semikolon, Dezimalkomma und Quoting", () => {
+  it("schreibt CSV mit BOM, Semikolon, Dezimalkomma und Quoting", async () => {
     const invoicesCsv = text(files["rechnungen/rechnungen.csv"]);
     expect(invoicesCsv.startsWith("﻿Nummer;Art;Datum;")).toBe(true);
     const invoiceLines = invoicesCsv.trim().split("\r\n");
@@ -221,6 +222,11 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     expect(text(files["stammdaten/kontakte.csv"])).toContain("10001;Nordwerk Software GmbH;Hafenstraße 5;");
     expect(JSON.parse(text(files["stammdaten/firma.json"]))).toMatchObject({ name: "Testfirma", steuernummer: "198/113/10010" });
     expect(text(files["protokoll/audit.csv"])).toContain(";invoices;");
+    expect(text(files["protokoll/audit.csv"])).toMatch(/^\uFEFFZeitpunkt;.*;Nr\.;Ketten-Nr\.;Vorgänger-Hash;Hash\r\n/);
+    expect(text(files["protokoll/audit.csv"])).toMatch(/;[0-9a-f]{64};[0-9a-f]{64}\r\n/);
+    const [head] = await sql`select seq, encode(hash, 'hex') as hash from audit_chain`;
+    expect(text(files["protokoll/pruefwert.txt"])).toMatch(/^Beim Erstellen dieses Archivs .*:\nNr\. \d+ · [0-9a-f]{64}$/m);
+    expect(Number(head!.seq)).toBeGreaterThanOrEqual(Number(/Nr\. (\d+)/.exec(text(files["protokoll/pruefwert.txt"]))![1]));
 
     expect(JSON.parse(text(files["umsatzsteuer/2026-09/anmeldung.json"]))).toMatchObject({ year: 2026, month: 9, kz81: 400000, kz66: 733 });
     const uebermittlungen = text(files["umsatzsteuer/2026-09/übermittlungen.csv"]);

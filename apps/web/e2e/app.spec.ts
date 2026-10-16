@@ -393,6 +393,22 @@ test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () =
   expect(body).toContain(";29098;55003;");
 });
 
+test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
+  await go("/einstellungen?bereich=export");
+  const card = page.getByRole("region", { name: "Änderungsprotokoll prüfen" });
+  const pruefwert = (await card.locator("code").textContent())!;
+  expect(pruefwert).toMatch(/^Nr\. \d+ · [0-9a-f]{64}$/);
+  await card.getByRole("button", { name: "Kette prüfen" }).click();
+  await expect(card.getByRole("status")).toContainText("Kette und Siegel sind unverändert");
+  const field = card.getByLabel("Prüfwert aus Mail oder Jahresarchiv");
+  await field.fill(pruefwert);
+  await card.getByRole("button", { name: "Vergleichen" }).click();
+  await expect(card.getByRole("status")).toContainText("stimmt: Das Protokoll ist bis zu diesem Eintrag unverändert");
+  await field.fill(pruefwert.slice(0, -1) + (pruefwert.endsWith("0") ? "1" : "0"));
+  await card.getByRole("button", { name: "Vergleichen" }).click();
+  await expect(card.getByRole("alert")).toContainText("stimmt nicht");
+});
+
 test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async () => {
   await go("/einstellungen?bereich=email");
   const card = page.getByRole("form", { name: "Belege per E-Mail" });

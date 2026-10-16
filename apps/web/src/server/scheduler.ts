@@ -2,7 +2,7 @@ import { runDueBankSyncs } from "./bank-sync.ts";
 import { elsterClient, elsterMode } from "./elster.ts";
 import { env } from "./env.ts";
 import { runDueInboxFetch } from "./inbox.ts";
-import { runDueFristenMails } from "./mail.ts";
+import { runDueFristenMails, runDuePruefwertMail } from "./mail.ts";
 import { runDuePostfachFetch } from "./postfach.ts";
 import { runDueRecurring } from "./recurring.ts";
 import { today } from "./today.ts";
@@ -50,6 +50,12 @@ export async function runScheduledJobs(): Promise<void> {
     if (result?.sent) console.log(`Fristen-Erinnerung: ${result.sent} Frist(en) per E-Mail erinnert`);
   } catch (error) {
     console.error("Fristen-Erinnerung", error);
+  }
+  try {
+    const result = await runDuePruefwertMail();
+    if (result) console.log(`Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde`);
+  } catch (error) {
+    console.error("Prüfwert-Mail", error);
   } finally {
     running = false;
   }

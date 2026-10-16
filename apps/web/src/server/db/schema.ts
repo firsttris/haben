@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   bigserial,
   boolean,
   check,
@@ -399,6 +400,8 @@ export const mailSettings = pgTable(
     invoiceBody: text("invoice_body").notNull().default(""),
     dunningSubject: text("dunning_subject").notNull().default(""),
     dunningBody: text("dunning_body").notNull().default(""),
+    /** Kopf der Kette im Audit-Log wöchentlich an reminder_to, damit er außerhalb des Servers liegt */
+    pruefwertMail: boolean("pruefwert_mail").notNull().default(true),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [check("mail_settings_single_row", sql`${t.id} = 1`)],
@@ -444,7 +447,7 @@ export const inboxMessages = pgTable("inbox_messages", {
 /** Gesendete E-Mails; Fristen-Erinnerungen merken sich, welche Frist zu welcher Stufe schon erinnert wurde */
 export const mailLog = pgTable("mail_log", {
   id: uuid("id").primaryKey().defaultRandom(),
-  kind: text("kind", { enum: ["test", "fristen", "rechnung", "mahnung", "angebot"] }).notNull(),
+  kind: text("kind", { enum: ["test", "fristen", "rechnung", "mahnung", "angebot", "pruefwert"] }).notNull(),
   /** Empfänger, bei mehreren durch Komma getrennt */
   recipient: text("recipient").notNull(),
   /** Blindkopie an sich selbst */
@@ -518,7 +521,10 @@ export const cashEntries = pgTable(
   ],
 );
 
-/** Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. */
+/**
+ * Jede Änderung mit altem und neuem Wert, per Trigger befüllt, nur anhängen. Jeder Eintrag ist mit seinem
+ * Vorgänger verkettet: row_hash = SHA-256(prev_hash || Inhalt), berechnet vom Trigger in der Datenbank.
+ */
 export const auditLog = pgTable(
   "audit_log",
   {
@@ -530,8 +536,48 @@ export const auditLog = pgTable(
     action: text("action", { enum: ["INSERT", "UPDATE", "DELETE"] }).notNull(),
     oldValue: jsonb("old_value"),
     newValue: jsonb("new_value"),
+    /** Position in der Kette, lückenlos ab 1 in der Reihenfolge der Verkettung */
+    seq: bigint("seq", { mode: "number" }).notNull(),
+    prevHash: bytea("prev_hash").notNull(),
+    rowHash: bytea("row_hash").notNull(),
   },
-  (t) => [index("audit_log_at").on(t.at), index("audit_log_row").on(t.tableName, t.rowId)],
+  (t) => [
+    index("audit_log_at").on(t.at),
+    index("audit_log_row").on(t.tableName, t.rowId),
+    uniqueIndex("audit_log_seq").on(t.seq),
+  ],
+);
+
+/** Kopf der Kette im Audit-Log, genau eine Zeile; nur der Trigger auf audit_log schreibt sie fort. */
+export const auditChain = pgTable(
+  "audit_chain",
+  {
+    id: smallint("id").primaryKey().default(1),
+    seq: bigint("seq", { mode: "number" }).notNull(),
+    hash: bytea("hash").notNull(),
+  },
+  (t) => [check("audit_chain_single_row", sql`${t.id} = 1`)],
+);
+
+/**
+ * Siegel festgeschriebener Datensätze: SHA-256 über die Zeile und ihre abhängigen Zeilen (Buchungszeilen,
+ * Positionen, Steuerbeträge), angelegt per Trigger beim Festschreiben. Steht über das Audit-Log in der Kette.
+ * Nur anhängen.
+ */
+export const seals = pgTable(
+  "seals",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    tableName: text("table_name", { enum: ["journal_entries", "invoices", "documents", "vat_returns"] }).notNull(),
+    rowId: uuid("row_id").notNull(),
+    /** Spalten je Tabelle, über die der Hash gebildet ist; spätere neue Spalten bleiben außen vor */
+    columns: jsonb("columns").$type<Record<string, string[]>>().notNull(),
+    digest: text("digest").notNull(),
+    /** true: nachträglich für schon festgeschriebene Datensätze angelegt, nicht beim Festschreiben */
+    genesis: boolean("genesis").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("seals_row").on(t.tableName, t.rowId)],
 );
 
 /** Kunden und Lieferanten. Jede Änderung legt per Trigger eine Version in contact_versions ab. */

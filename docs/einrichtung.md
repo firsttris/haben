@@ -31,7 +31,7 @@ Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weit
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Logo), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Sicherheit** (Passkeys) und **Export** (Jahresarchiv, DATEV). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Logo), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Sicherheit** (Passkeys) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`.
 
 Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
 
@@ -229,7 +229,7 @@ Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatz
 
 ## E-Mail
 
-Für [Rechnungen und Mahnungen per E-Mail](rechnungen.md#per-e-mail-versenden) und [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail) braucht Haben einen E-Mail-Zugang über SMTP. Unter **Einstellungen › E-Mail › E-Mail-Versand** den Anbieter wählen (Gmail, GMX, web.de, Posteo, mailbox.org belegen Server, Port und Verschlüsselung vor) oder einen eigenen Server eintragen, dazu Benutzername, Passwort, Absender und den Empfänger der Erinnerungen. **Test-Mail senden** prüft den Zugang.
+Für [Rechnungen und Mahnungen per E-Mail](rechnungen.md#per-e-mail-versenden) und [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail) braucht Haben einen E-Mail-Zugang über SMTP. Unter **Einstellungen › E-Mail › E-Mail-Versand** den Anbieter wählen (Gmail, GMX, web.de, Posteo, mailbox.org belegen Server, Port und Verschlüsselung vor) oder einen eigenen Server eintragen, dazu Benutzername, Passwort, Absender und den Empfänger der Erinnerungen. **Test-Mail senden** prüft den Zugang. Solange „Prüfwert des Änderungsprotokolls wöchentlich mailen“ eingeschaltet ist, kommt an dieselbe Adresse einmal pro Woche der aktuelle Prüfwert, wenn sich etwas geändert hat. Bewahre diese Mails auf: Mit ihnen lässt sich später zeigen, dass das Protokoll bis dahin nicht nachträglich verändert wurde (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)).
 
 - **Gmail:** Zwei-Faktor-Anmeldung einschalten und unter myaccount.google.com › Sicherheit › App-Passwörter ein App-Passwort erzeugen; das ist das Passwort für Haben, Benutzername ist die Gmail-Adresse. Eine eigene Gmail-Anbindung über die Google-API braucht es nicht.
 - **GMX und web.de:** im Postfach unter Einstellungen › POP3/IMAP den Zugriff per externem Programm erlauben.

@@ -1,0 +1,333 @@
+import nodemailer from "nodemailer";
+import postgres from "postgres";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { parsePruefwert } from "../lib/pruefwert.ts";
+import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
+
+describe("Prüfwert lesen", () => {
+  const hash = "0a".repeat(32);
+
+  it("versteht die Form aus Mail, Archiv und Oberfläche", () => {
+    expect(parsePruefwert(`Nr. 1234 · ${hash}`)).toEqual({ seq: 1234, hash });
+    expect(parsePruefwert(`  Nr. 7 ·\n${hash.toUpperCase()}  `)).toEqual({ seq: 7, hash });
+    expect(parsePruefwert(`1234:${hash}`)).toEqual({ seq: 1234, hash });
+    expect(parsePruefwert(`Prüfwert 2026, Stand 16.10.2026: Nr. 12 · ${hash}`)).toEqual({ seq: 12, hash });
+  });
+
+  it("lehnt Unvollständiges ab", () => {
+    expect(parsePruefwert("Nr. 1234")).toBeNull();
+    expect(parsePruefwert(`Nr. 1234 · ${hash.slice(1)}`)).toBeNull();
+    expect(parsePruefwert(`Nr. 1234 · ${hash}0`)).toBeNull();
+    expect(parsePruefwert(hash)).toBeNull();
+  });
+});
+
+describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
+  let sql: postgres.Sql;
+  let integrity: typeof import("./integrity.ts");
+
+  beforeAll(async () => {
+    sql = await setupTestDb();
+    integrity = await import("./integrity.ts");
+  }, 30_000);
+
+  afterAll(async () => {
+    await sql?.end();
+  });
+
+  const problems = (tx: postgres.Sql | postgres.TransactionSql = sql) =>
+    tx<{ art: string; tabelle: string; zeile: string | null; befund: string }[]>`select art, tabelle, zeile, befund from haben_integrity_problems()`;
+
+  /** Führt work in einer Transaktion aus, die danach zurückgerollt wird; liefert ihr Ergebnis */
+  async function rolledBack<T>(work: (tx: postgres.TransactionSql) => Promise<T>): Promise<T> {
+    let result: T;
+    const rollback = new Error("rollback");
+    await sql
+      .begin(async (tx) => {
+        result = await work(tx);
+        throw rollback;
+      })
+      .catch((error) => {
+        if (error !== rollback) throw error;
+      });
+    return result!;
+  }
+
+  /** Wie ein Betreiber mit vollem Zugriff: Trigger abgeschaltet */
+  async function tamper(tx: postgres.TransactionSql, work: () => Promise<unknown>) {
+    await tx`set local session_replication_role = replica`;
+    await work();
+    await tx`set local session_replication_role = origin`;
+  }
+
+  async function lockedEntry() {
+    const [e] = await sql`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+      values ('2026-01-10', 'Test', 'invoice', gen_random_uuid(), 'SKR03') returning id`;
+    await sql`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, '1400', 11900, 0), (${e!.id}, '8400', 0, 11900)`;
+    await sql`update journal_entries set locked_at = now() where id = ${e!.id}`;
+    return e!.id as string;
+  }
+
+  async function lockedInvoice() {
+    const [i] = await sql`insert into invoices (issue_date, due_date, net, tax, gross, pdf)
+      values ('2026-01-10', '2026-01-24', 10000, 1900, 11900, ${Buffer.from("%PDF-1.7")}) returning id`;
+    await sql`insert into invoice_lines (invoice_id, position, description, quantity, unit, unit_price, tax_rate, net)
+      values (${i!.id}, 1, 'Beratung', 1000, 'h', 10000, 1900, 10000)`;
+    await sql`insert into invoice_taxes (invoice_id, rate, base, tax) values (${i!.id}, 1900, 10000, 1900)`;
+    await sql`update invoices set status = 'final', number = ${`2026-${i!.id.slice(0, 6)}`}, locked_at = now() where id = ${i!.id}`;
+    return i!.id as string;
+  }
+
+  it("verkettet jeden Eintrag lückenlos und hält den Kopf aktuell", async () => {
+    await lockedEntry();
+    const rows = await sql`select seq, prev_hash, row_hash from audit_log order by seq`;
+    expect(rows.length).toBeGreaterThan(3);
+    rows.forEach((r, i) => {
+      expect(Number(r.seq)).toBe(i + 1);
+      if (i > 0) expect(r.prev_hash).toEqual(rows[i - 1]!.row_hash);
+    });
+    // Erster Eintrag: Hinweis der Migration auf die nachträglich gebildete Kette
+    const [first] = await sql`select table_name, actor, prev_hash from audit_log where seq = 1`;
+    expect(first).toMatchObject({ table_name: "audit_chain", actor: "system:migration" });
+    expect(first!.prev_hash).toEqual(Buffer.alloc(32));
+    const head = await integrity.chainHead();
+    expect(head).toMatchObject({ seq: rows.length, hash: rows.at(-1)!.row_hash.toString("hex") });
+    expect(await problems()).toEqual([]);
+  });
+
+  it("versiegelt beim Festschreiben, auch die abhängigen Zeilen", async () => {
+    const entry = await lockedEntry();
+    const invoice = await lockedInvoice();
+    const seals = await sql`select table_name, row_id, genesis, columns from seals where row_id in (${entry}, ${invoice})`;
+    expect(seals.map((s) => s.table_name).sort()).toEqual(["invoices", "journal_entries"]);
+    expect(seals.every((s) => s.genesis === false)).toBe(true);
+    expect(seals.find((s) => s.table_name === "invoices")!.columns).toHaveProperty("invoice_taxes");
+    // Das Siegel steht selbst in der Kette
+    const [audited] = await sql`select new_value from audit_log where table_name = 'seals' and new_value ->> 'row_id' = ${invoice}`;
+    expect(audited!.new_value).toHaveProperty("digest");
+    // Siegel und Kopf sind nicht direkt änderbar
+    await expect(sql`update seals set digest = 'x' where row_id = ${invoice}`).rejects.toThrow(/nur ergänzt/);
+    await expect(sql`update audit_chain set seq = 1`).rejects.toThrow(/nur vom Audit-Log/);
+    await expect(sql`delete from audit_chain`).rejects.toThrow(/nur vom Audit-Log/);
+    expect(await problems()).toEqual([]);
+  });
+
+  it("erkennt geänderte Buchungszeilen, Positionen und Steuerbeträge", async () => {
+    const entry = await lockedEntry();
+    const invoice = await lockedInvoice();
+    expect(
+      await rolledBack(async (tx) => {
+        await tamper(tx, () => tx`update journal_lines set account = '8300' where entry_id = ${entry} and account = '8400'`);
+        return problems(tx);
+      }),
+    ).toEqual([{ art: "siegel", tabelle: "journal_entries", zeile: entry, befund: "Inhalt passt nicht zum Siegel" }]);
+    expect(
+      await rolledBack(async (tx) => {
+        await tamper(tx, () => tx`update invoice_taxes set tax = 1 where invoice_id = ${invoice}`);
+        return problems(tx);
+      }),
+    ).toEqual([{ art: "siegel", tabelle: "invoices", zeile: invoice, befund: "Inhalt passt nicht zum Siegel" }]);
+    // Auch das PDF selbst, nicht nur seine Prüfsumme
+    expect(
+      await rolledBack(async (tx) => {
+        await tamper(tx, () => tx`update invoices set pdf = ${Buffer.from("%PDF-1.7 gefälscht")} where id = ${invoice}`);
+        return problems(tx);
+      }),
+    ).toHaveLength(1);
+    expect(await problems()).toEqual([]);
+  });
+
+  it("erkennt aufgehobene Festschreibungen, gelöschte Datensätze und fehlende Siegel", async () => {
+    const entry = await lockedEntry();
+    const [doc] = await sql`insert into documents (sha256, filename, mime_type, size) values ('aufheben', 'a.pdf', 'application/pdf', 1) returning id`;
+    await sql`insert into document_amounts (document_id, tax_rate, net, tax) values (${doc!.id}, 1900, 100, 19)`;
+    await sql`update documents set locked_at = now() where id = ${doc!.id}`;
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        await tx`update documents set locked_at = null where id = ${doc!.id}`;
+        await tx`delete from journal_lines where entry_id = ${entry}`;
+        await tx`delete from journal_entries where id = ${entry}`;
+        await tx`insert into documents (sha256, filename, mime_type, size, locked_at) values ('x', 'x.pdf', 'application/pdf', 1, now())`;
+      });
+      return problems(tx);
+    });
+    expect(found.map((p) => p.befund).sort()).toEqual([
+      "Festgeschrieben, aber ohne Siegel",
+      "Festschreibung aufgehoben",
+      "Versiegelter Datensatz fehlt",
+    ]);
+  });
+
+  it("erkennt ein gefälschtes Siegel über den Eintrag in der Kette", async () => {
+    const invoice = await lockedInvoice();
+    const found = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        await tx`update invoice_lines set net = 1 where invoice_id = ${invoice}`;
+        await tx`update seals set digest = haben_seal_digest(table_name, row_id, columns) where row_id = ${invoice}`;
+      });
+      return problems(tx);
+    });
+    expect(found).toEqual([expect.objectContaining({ art: "siegel", zeile: invoice, befund: "Siegel weicht vom Eintrag im Audit-Log ab" })]);
+  });
+
+  it("erkennt geänderte, gelöschte und abgeschnittene Einträge im Audit-Log", async () => {
+    await lockedEntry();
+    const [{ seq }] = (await sql`select max(seq)::int as seq from audit_log`) as unknown as [{ seq: number }];
+    const changed = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`update audit_log set actor = 'jemand' where seq = ${seq - 2}`);
+      return problems(tx);
+    });
+    expect(changed).toEqual([{ art: "kette", tabelle: "audit_log", zeile: expect.any(String), befund: "Inhalt passt nicht zum Hash" }]);
+
+    const deleted = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`delete from audit_log where seq = ${seq - 2}`);
+      return problems(tx);
+    });
+    expect(deleted.map((p) => p.befund)).toEqual([`Lücke: auf Eintrag ${seq - 3} folgt ${seq - 1}`]);
+
+    const cut = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`delete from audit_log where seq = ${seq}`);
+      return problems(tx);
+    });
+    // Der letzte Eintrag ist das Siegel der Buchung; es fehlt nun auch in der Kette
+    expect(cut).toEqual([
+      expect.objectContaining({ art: "kopf", befund: `Kopf steht bei ${seq}, das Audit-Log endet bei ${seq - 1}` }),
+      expect.objectContaining({ art: "siegel", tabelle: "journal_entries", befund: "Siegel fehlt im Audit-Log" }),
+    ]);
+  });
+
+  it("eine neu berechnete Kette fällt erst beim Prüfwert von außerhalb auf", async () => {
+    await lockedEntry();
+    const head = (await integrity.chainHead())!;
+    expect(await integrity.checkPruefwert(head.seq, head.hash.toUpperCase())).toEqual({ status: "ok", seq: head.seq });
+    expect(await integrity.checkPruefwert(head.seq + 1000, head.hash)).toEqual({ status: "fehlt", seq: head.seq + 1000, head: head.seq });
+
+    // Ein Betreiber ändert einen Eintrag und rechnet die ganze Kette samt Kopf neu
+    const result = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        await tx`update audit_log set actor = 'jemand' where seq = 2`;
+        await tx`do $$
+          declare r audit_log; prev bytea := haben_audit_genesis();
+          begin
+            for r in select * from audit_log order by seq loop
+              update audit_log set prev_hash = prev, row_hash = haben_audit_hash(prev, r) where id = r.id returning row_hash into prev;
+            end loop;
+            update audit_chain set hash = prev;
+          end $$`;
+      });
+      const [row] = await tx`select encode(row_hash, 'hex') as hash from audit_log where seq = ${head.seq}`;
+      return { problems: await problems(tx), hash: row!.hash as string };
+    });
+    expect(result.problems).toEqual([]);
+    expect(result.hash).not.toBe(head.hash);
+  });
+
+  it("bleibt eindeutig bei parallelen Transaktionen", async () => {
+    const pool = postgres(testDatabaseUrl!, { max: 8, onnotice: () => {} });
+    try {
+      await Promise.all(
+        Array.from({ length: 16 }, (_, i) =>
+          pool.begin(async (tx) => {
+            await tx`insert into bank_accounts (name, iban) values (${`K${i}`}, ${`DE00PARALLEL${i}A`})`;
+            await tx`select pg_sleep(${(i % 4) * 0.02})`;
+            await tx`insert into bank_accounts (name, iban) values (${`L${i}`}, ${`DE00PARALLEL${i}B`})`;
+          }),
+        ),
+      );
+    } finally {
+      await pool.end();
+    }
+    const [stats] = await sql`select count(*)::int as n, max(seq)::int as max, count(distinct prev_hash)::int as prevs from audit_log`;
+    expect(stats).toMatchObject({ n: stats!.max, prevs: stats!.n });
+    expect(await problems()).toEqual([]);
+  });
+
+  it("hängt nicht von Zeitzone oder späteren Spalten ab", async () => {
+    await lockedInvoice();
+    const found = await rolledBack(async (tx) => {
+      await tx`set local timezone = 'America/New_York'`;
+      await tx`alter table invoices add column spaeter text not null default 'neu'`;
+      await tx`alter table journal_lines add column spaeter integer not null default 1`;
+      return problems(tx);
+    });
+    expect(found).toEqual([]);
+  });
+
+  it("meldet einen Befund in der Prüfung mit Anzahl und Kopf", async () => {
+    const report = await integrity.checkIntegrity();
+    expect(report.problems).toEqual([]);
+    expect(report.entries).toBe(report.head!.seq);
+    expect(report.seals).toBeGreaterThan(0);
+    expect(report.truncated).toBe(false);
+  });
+});
+
+describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
+  let sql: postgres.Sql;
+  let mail: typeof import("./mail.ts");
+  const sent: { to: string; subject: string; text: string }[] = [];
+  const DAY = 24 * 60 * 60 * 1000;
+  /** Vormittags in Berlin, so viele Tage ab heute */
+  const at = (days: number) => {
+    const date = new Date(Date.now() + days * DAY);
+    date.setUTCHours(9, 0, 0, 0);
+    return date;
+  };
+
+  beforeAll(async () => {
+    sql = await setupTestDb();
+    mail = await import("./mail.ts");
+    mail.setMailTransportForTests(() => {
+      const transport = nodemailer.createTransport({ jsonTransport: true });
+      return {
+        sendMail: async (message: { to: string; subject: string; text: string }) => {
+          sent.push(message);
+          return transport.sendMail(message);
+        },
+      } as unknown as ReturnType<typeof nodemailer.createTransport>;
+    });
+  }, 30_000);
+
+  afterAll(async () => {
+    await sql?.end();
+  });
+
+  it("schickt den Prüfwert wöchentlich, nur bei Änderungen und nur wenn eingeschaltet", async () => {
+    expect(await mail.runDuePruefwertMail(at(1))).toBeNull(); // kein E-Mail-Zugang
+    await mail.saveMailSettings("test", {
+      host: "smtp.example.com",
+      port: 465,
+      secure: true,
+      username: "max",
+      password: "geheim",
+      fromAddress: "haben@example.com",
+      reminderTo: "max@example.com",
+      remindersEnabled: false,
+      reminderDays: [],
+    });
+
+    const first = await mail.runDuePruefwertMail(at(1));
+    expect(first).toEqual({ seq: expect.any(Number), problems: 0 });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.to).toBe("max@example.com");
+    expect(sent[0]!.subject).toBe(`Haben: Prüfwert des Änderungsprotokolls (Nr. ${first!.seq})`);
+    const [row] = await sql`select encode(row_hash, 'hex') as hash from audit_log where seq = ${first!.seq}`;
+    expect(sent[0]!.text).toContain(`Nr. ${first!.seq} · ${row!.hash}`);
+    expect(sent[0]!.text).toContain("unverändert");
+
+    // Innerhalb einer Woche nicht noch einmal
+    expect(await mail.runDuePruefwertMail(at(5))).toBeNull();
+    // Nach einer Woche nicht, wenn nur die eigene Mail im Protokoll steht
+    expect(await mail.runDuePruefwertMail(at(9))).toBeNull();
+    // Nach einer Änderung schon
+    await sql`insert into bank_accounts (name, iban) values ('Neu', 'DE00PRUEFWERT')`;
+    expect(await mail.runDuePruefwertMail(at(9))).toEqual({ seq: expect.any(Number), problems: 0 });
+    expect(sent).toHaveLength(2);
+
+    // Abgeschaltet: keine Mail
+    await sql`update mail_settings set pruefwert_mail = false`;
+    await sql`insert into bank_accounts (name, iban) values ('Neu 2', 'DE00PRUEFWERT2')`;
+    expect(await mail.runDuePruefwertMail(at(30))).toBeNull();
+    expect(sent).toHaveLength(2);
+  });
+});

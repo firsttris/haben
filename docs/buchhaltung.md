@@ -18,7 +18,7 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 | --- | --- | --- |
 | Festschreibung | `journal_entries`, `invoices`, `documents`, `vat_returns` | `UPDATE` und `DELETE` werden abgelehnt, sobald `locked_at` gesetzt ist |
 | Abhängige Zeilen | `journal_lines`, `invoice_lines`, `invoice_taxes`, `quote_lines`, `document_amounts` | Einfügen, Ändern und Löschen abgelehnt, wenn die Buchung, Rechnung bzw. der Beleg festgeschrieben ist; auch das Umhängen einer Zeile aus einer festgeschriebenen Buchung oder in sie hinein |
-| Nur anhängen | `audit_log`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files`, `asset_depreciations`, `pauschalen`, `cash_entries` | `UPDATE` und `DELETE` immer abgelehnt (`audit_log` auch `TRUNCATE`) |
+| Nur anhängen | `audit_log`, `seals`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files`, `asset_depreciations`, `pauschalen`, `cash_entries` | `UPDATE` und `DELETE` immer abgelehnt (`audit_log` auch `TRUNCATE`) |
 | Kontakte | `contacts` | Löschen abgelehnt; jede Änderung erhöht die Version und legt eine Kopie in `contact_versions` ab |
 | Angebote | `quotes` | Nach dem Festschreiben nur noch Antwort des Kunden und Verweis auf die Rechnung änderbar, Löschen abgelehnt |
 | Nummernkreis | `invoice_number_counters`, `quote_number_counters` | Zähler darf nicht sinken, Zeilen nicht gelöscht werden |
@@ -30,6 +30,23 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 Trigger schreiben jede Änderung an den wichtigen Tabellen mit altem und neuem Wert als JSON in `audit_log`: Firmendaten, Zertifikate, Voranmeldungen und Übermittlungen, Kontakte, Rechnungen, Buchungen, Nummernkreis, Belege, Bankkonten, Importe, Zuordnungen, Archivdateien, Lexoffice-Abrufe und -Verbindung. Weggelassen werden Binärdaten und große Nachrichten, die unveränderlich in ihrer eigenen Tabelle stehen, sowie verschlüsselte Inhalte, nämlich die Spalten `pdf`, `protocol_pdf`, `xml`, `logo`, `request_xml`, `response_xml`, `server_response_xml`, `abholung` (VaSt), `ciphertext` und `pin_ciphertext`. Bei Tabellen ohne `id` (Nummernkreise, Angaben zur Einkommensteuer) steht das Jahr als Zeilenkennung im Protokoll.
 
 Jede schreibende Aktion läuft in einer Transaktion, die vorher `haben.actor` auf die ID des angemeldeten Nutzers setzt (`withActor` in `apps/web/src/server/db/actor.ts`). Der Trigger übernimmt diesen Wert in die Spalte `actor`. So ist jede Änderung einer Person zugeordnet.
+
+### Manipulationserkennung: Hash-Kette und Siegel
+
+Die Trigger oben verhindern Versehen, aber wer die Datenbank direkt ändern kann (Betreiber, Wiederherstellung eines Backups), kommt an ihnen vorbei. Damit solche Änderungen auffallen, verkettet Haben das Änderungsprotokoll und versiegelt festgeschriebene Datensätze (`apps/web/drizzle/0063_hash_kette_trigger.sql`).
+
+- **Hash-Kette:** Jeder Eintrag in `audit_log` bekommt eine lückenlose Nummer `seq`, den Hash seines Vorgängers `prev_hash` und seinen eigenen `row_hash` = SHA-256(`prev_hash` ‖ Inhalt). Der Inhalt sind Nummer, Zeitpunkt (UTC), Nutzer, Tabelle, Zeile, Aktion, alter und neuer Wert, so wie sie gespeichert sind. Den Kopf der Kette (letzte Nummer und Hash) hält die einzeilige Tabelle `audit_chain`; nur der Trigger auf `audit_log` schreibt ihn fort. Er sperrt die Kopfzeile bis zum Ende der Transaktion, parallele Transaktionen verketten also nacheinander und die Kette verzweigt nie.
+- **Siegel:** Wird eine Buchung, Rechnung, ein Beleg oder eine Voranmeldung festgeschrieben, legt ein Trigger in `seals` einen SHA-256 über den Datensatz und seine abhängigen Zeilen ab: Buchungszeilen, Rechnungspositionen und Steuerbeträge je Satz, Beträge des Belegs. Das PDF einer Rechnung zählt mit, nicht nur seine Prüfsumme. Diese Zeilen stehen sonst nicht im Audit-Log. Das Siegel merkt sich, über welche Spalten es gebildet ist; Spalten, die eine spätere Version von Haben ergänzt, ändern es nicht. Das Siegel steht selbst als Eintrag in der Kette.
+- **Bestand:** Beim Update verkettet die Migration die vorhandenen Einträge in der Reihenfolge ihrer ID und versiegelt alles schon Festgeschriebene (`genesis = true`). Ein Eintrag der Migration im Protokoll weist darauf hin. Für die Zeit davor bezeugt die Kette nichts.
+
+**Prüfen** unter **Einstellungen › Export › Änderungsprotokoll prüfen**: „Kette prüfen“ rechnet jeden Hash und jedes Siegel nach und meldet geänderte, gelöschte oder fehlende Einträge, einen Kopf, der nicht zum Ende passt, festgeschriebene Datensätze ohne oder mit abweichendem Siegel, aufgehobene Festschreibungen und Siegel, die nicht zu ihrem Eintrag in der Kette passen.
+
+**Was die Kette nicht kann:** Sie verhindert keine Änderung, sie macht sie sichtbar. Wer vollen Zugriff hat, kann nach einer Änderung auch die ganze Kette und alle Siegel neu berechnen; dann ist sie in sich wieder stimmig. Das fällt nur mit einem Prüfwert auf, der außerhalb des Servers liegt und zu dem der Eintrag dieser Nummer nicht mehr passt. Deshalb:
+
+- schickt Haben den Prüfwert (`Nr. <seq> · <Hash>`) einmal pro Woche per E-Mail an die Adresse für Erinnerungen, wenn sich etwas geändert hat (abschaltbar unter Einstellungen › E-Mail),
+- steht er im Jahresarchiv in `protokoll/pruefwert.txt`.
+
+Ein aufbewahrter Prüfwert lässt sich unter „Änderungsprotokoll prüfen“ einfügen und vergleichen. Stimmt er, sind Protokoll und Siegel bis zu diesem Eintrag unverändert. Fehlt der Eintrag, wurde entweder ein älteres Backup eingespielt oder es wurden Einträge gelöscht. Eine stärkere Absicherung sind schreibgeschützte Backups (z. B. Object Lock) oder später ein qualifizierter Zeitstempel (RFC 3161) auf den Prüfwert.
 
 ## Ist- und Soll-Versteuerung
 

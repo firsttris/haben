@@ -122,7 +122,8 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `umsatzsteuer/<JJJJ-MM>/` | Je Monat die Voranmeldung als `anmeldung.json` (bei mehreren, etwa berichtigten, `anmeldung-1.json`, `anmeldung-2.json` …), `übermittlungen.csv` und je Prüfung oder Übermittlung das ERiC-Protokoll (PDF) sowie das gesendete und empfangene XML |
 | `lexoffice/` | Nur bei übernommenem Altbestand, siehe unten |
 | `stammdaten/` | `kontakte.csv` (aktueller Stand), `kontakt-versionen.csv` (alle Versionen), `bankkonten.csv`, `firma.json` |
-| `protokoll/audit.csv` | Änderungsprotokoll des Jahres mit altem und neuem Wert als JSON |
+| `protokoll/audit.csv` | Änderungsprotokoll des Jahres mit altem und neuem Wert als JSON, in der Reihenfolge der Hash-Kette mit Ketten-Nr., Vorgänger-Hash und Hash |
+| `protokoll/pruefwert.txt` | Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am Ende des Jahres, zum Aufbewahren außerhalb des Servers |
 | `FEHLER.txt` | Nur wenn eine Datei nicht lesbar war, mit Liste der betroffenen Belege |
 | `pruefsummen.sha256` | SHA-256 jeder anderen Datei im Archiv |
 
@@ -161,6 +162,10 @@ shasum -a 256 -c pruefsummen.sha256       # macOS
 Unter Windows berechnest du den Hash einzelner Dateien in PowerShell mit `Get-FileHash -Algorithm SHA256 <Datei>` und vergleichst ihn mit der Zeile in `pruefsummen.sha256`.
 
 Zusätzlich stehen in `rechnungen.csv` und `belege.csv` die SHA-256-Werte, die Haben beim Festschreiben bzw. Hochladen berechnet hat. Sie müssen zu den Dateien im Archiv passen; so siehst du, dass sich seitdem nichts verändert hat.
+
+### Änderungsprotokoll prüfen
+
+Unter **Einstellungen › Export › Änderungsprotokoll prüfen** rechnet „Kette prüfen“ die Hash-Kette des Audit-Logs und die Siegel aller festgeschriebenen Datensätze nach. In das Feld darunter fügst du einen aufbewahrten Prüfwert ein, etwa aus `protokoll/pruefwert.txt` oder aus der wöchentlichen Mail, und vergleichst ihn mit dem Protokoll. Was die Prüfung erkennt und was nicht, steht unter [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel).
 
 ### Keine Geheimnisse im Export
 
