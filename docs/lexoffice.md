@@ -92,7 +92,7 @@ So wird keine Steuer doppelt angemeldet. In der EÜR von Haben zählt die Zahlun
 | Betrag nicht positiv | Gutschriften werden nicht übernommen |
 | keine Datei aus Lexoffice | Erst die Datei in Lexware Office anhängen und erneut abrufen |
 
-Außerdem lehnt Haben die Übernahme ab, wenn die Rechnungsnummer in Haben schon vergeben ist, wenn sich die Steuer aus den Positionen nicht centgenau nachbilden lässt oder wenn die Datei eines Belegs schon als Beleg in Haben liegt (dann bezahlst du dort).
+Außerdem lehnt Haben die Übernahme ab, wenn die Rechnungsnummer in Haben schon vergeben ist, wenn sich die Steuer aus den Positionen nicht centgenau nachbilden lässt (weder mit Netto- noch mit Bruttopreisen, siehe [Rechnungen](rechnungen.md#netto-oder-bruttopreise)) oder wenn die Datei eines Belegs schon als Beleg in Haben liegt (dann bezahlst du dort).
 
 ## Schritt 4: Exporte ablegen
 

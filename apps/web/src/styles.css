@@ -376,6 +376,8 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .sheet-totals dt { color: var(--ink-muted); }
 .sheet-totals dd { text-align: right; white-space: nowrap; }
 .sheet-totals .gross { color: var(--ink); font-weight: 600; border-top: 0.6pt solid var(--brand); padding-top: calc(2.2 * var(--mm)); margin-top: 0; }
+/* Bruttopreise: Netto und Umsatzsteuer, die im Gesamtbetrag enthalten sind */
+.sheet-totals .sheet-included { color: var(--ink-muted); font-size: 0.9em; }
 .sheet-foot { position: absolute; left: calc(25 * var(--mm)); right: calc(20 * var(--mm)); bottom: calc(14 * var(--mm)); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: calc(6 * var(--mm)); padding-top: calc(3 * var(--mm)); border-top: 0.4pt solid var(--rule); font-size: calc(7 * 0.3528 * var(--mm)); line-height: 1.45; color: var(--ink-muted); overflow-wrap: anywhere; }
 .paper-totals { display: grid; grid-template-columns: auto 120px; gap: 4px 16px; margin: 0 0 0 auto; }
 .paper-totals dt { text-align: right; color: var(--muted); }

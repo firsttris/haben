@@ -142,6 +142,18 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     expect(await bank.openItems()).toEqual([]);
   });
 
+  it("übernimmt eine in Lexoffice brutto gerechnete Rechnung centgenau, das Storno hebt sie exakt auf", async () => {
+    // 9,80 € brutto: 8,24 € netto, 1,56 € Steuer; netto nachgerechnet wären es 1,57 €
+    const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1022", date: "2026-09-20", net: 824, tax: 156, file: PDF, contact: "Nordwerk Software GmbH" });
+    const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+    const [invoice] = await sql`select price_mode, net, tax, gross from invoices where id = ${invoiceId}`;
+    expect({ ...invoice }).toEqual({ price_mode: "brutto", net: 824, tax: 156, gross: 980 });
+    const storno = await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
+    expect(storno).toMatchObject({ priceMode: "brutto", net: -824, tax: -156, gross: -980 });
+    const taxes = await sql`select base, tax from invoice_taxes where invoice_id = ${storno.id}`;
+    expect(taxes.map((t) => ({ ...t }))).toEqual([{ base: -824, tax: -156 }]);
+  });
+
   it("Soll: Storno einer übernommenen Rechnung mindert die in Lexoffice angemeldete Umsatzsteuer", async () => {
     await sql`update company set versteuerung = 'soll'`;
     const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF, contact: "Nordwerk Software GmbH" });

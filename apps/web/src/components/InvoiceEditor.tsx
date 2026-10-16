@@ -1,11 +1,12 @@
 import {
+  convertPrice,
   formatDecimal,
   formatEuro,
   formatInvoiceNumber,
   formatQuoteNumber,
   formatQuantity,
   invoiceDueDate,
-  lineNet,
+  lineAmount,
   parseEuro,
   parseQuantity,
   TAX_TREATMENTS,
@@ -13,6 +14,7 @@ import {
   UNITS,
   type Bundesland,
   type InvoiceLineInput,
+  type PriceMode,
   type TaxTreatment,
   type UnitLabel,
 } from "@haben/core";
@@ -53,6 +55,8 @@ interface ArticleOption {
   unit: string;
   unitPrice: number;
   taxRate: number;
+  /** Preis inklusive Umsatzsteuer */
+  priceIncludesTax: boolean;
 }
 
 /** Abschlagsrechnung, die eine Schlussrechnung abziehen kann */
@@ -64,6 +68,7 @@ export interface AbschlagOption {
   gross: number;
   rates: { rate: number; base: number; tax: number }[];
   taxTreatment: TaxTreatment;
+  priceMode: PriceMode;
 }
 
 interface LineState {
@@ -160,6 +165,7 @@ export function InvoiceEditor({
   const [format, setFormat] = useState(initial.format);
   const [note, setNote] = useState(initial.note);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
+  const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode ?? "netto");
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
   const [language, setLanguage] = useState<"de" | "en">(initial.language ?? "de");
   const [variant, setVariant] = useState<"abschlag" | "schluss" | null>(initial.variant ?? null);
@@ -181,6 +187,10 @@ export function InvoiceEditor({
   /** Abschlagsrechnungen des gewählten Kunden; schon gewählte bleiben sichtbar */
   const customerAbschlaege = abschlaege.filter((a) => a.contactId === contactId);
   const deducted = schluss ? customerAbschlaege.filter((a) => deducts.includes(a.id)) : [];
+  const special = taxTreatment !== "regulaer";
+  /** Bruttopreise nur mit Steuerausweis; ohne sind netto und brutto gleich */
+  const grossPrices = !special && priceMode === "brutto";
+  const amountLabel = grossPrices ? "Brutto" : "Netto";
   // Vorschau: je Abschlagsrechnung und Steuersatz eine negative Position, wie beim Speichern
   const deductionPreview = deducted.flatMap((a) =>
     a.rates
@@ -189,7 +199,7 @@ export function InvoiceEditor({
         description: `Abzüglich Abschlagsrechnung ${a.number} vom ${formatDate(a.issueDate)}`,
         quantity: 1000,
         unit: "Psch." as UnitLabel,
-        unitPrice: -r.base,
+        unitPrice: -(grossPrices ? r.base + r.tax : r.base),
         taxRate: r.rate as 1900 | 700 | 0,
         valid: true,
       })),
@@ -198,7 +208,6 @@ export function InvoiceEditor({
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
   const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
-  const special = taxTreatment !== "regulaer";
   const numberYear = Number((issueDate || initial.issueDate).slice(0, 4));
   const nextNumber = (quote ? formatQuoteNumber : formatInvoiceNumber)(numberYear, (numberCounters[numberYear] ?? 0) + 1);
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
@@ -224,6 +233,12 @@ export function InvoiceEditor({
     setConfirmingDelete(false);
   }
 
+  /** Preis eines Artikels für diese Rechnung: netto oder brutto umgerechnet, wenn der Artikel anders gepflegt ist */
+  function articlePrice(article: ArticleOption): string {
+    if (special) return formatDecimal(article.unitPrice);
+    return formatDecimal(convertPrice(article.unitPrice, article.taxRate, article.priceIncludesTax ? "brutto" : "netto", grossPrices ? "brutto" : "netto"));
+  }
+
   /** Tippt man die Bezeichnung eines Artikels (Vorschlag aus dem Katalog), übernimmt die Position dessen Einheit, Preis und Steuersatz */
   function changeDescription(line: LineState, description: string) {
     const article = !sameText(line.description, description) ? articles.find((a) => sameText(a.description, description)) : undefined;
@@ -233,7 +248,7 @@ export function InvoiceEditor({
         ? {
             description: article.description,
             unit: article.unit as UnitLabel,
-            unitPrice: formatDecimal(article.unitPrice),
+            unitPrice: articlePrice(article),
             taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
           }
         : { description },
@@ -243,7 +258,9 @@ export function InvoiceEditor({
   /** Position als Artikel in den Katalog übernehmen; die Position selbst bleibt unverändert */
   function storeAsArticle(p: ReturnType<typeof parseLine>) {
     void run(async () => {
-      await storeArticle({ data: { id: null, article: { description: p.description, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate } } });
+      await storeArticle({
+        data: { id: null, article: { description: p.description, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
+      });
       await router.invalidate();
     }, `„${p.description.split("\n")[0]}“ ist jetzt im Artikelkatalog.`);
   }
@@ -257,7 +274,7 @@ export function InvoiceEditor({
       description: article.description,
       quantity: "1",
       unit: article.unit as UnitLabel,
-      unitPrice: formatDecimal(article.unitPrice),
+      unitPrice: articlePrice(article),
       taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
     };
     setLines((prev) => (prev.length === 1 && !prev[0]!.description.trim() && !prev[0]!.unitPrice.trim() ? [line] : [...prev, line]));
@@ -301,6 +318,7 @@ export function InvoiceEditor({
       note,
       taxTreatment,
       exemptionReason: special ? exemptionReason : "",
+      priceMode: grossPrices ? "brutto" : "netto",
       language,
       variant: kind === "rechnung" ? variant : null,
       deducts: schluss ? deducted.map((a) => a.id) : [],
@@ -529,6 +547,26 @@ export function InvoiceEditor({
                   </span>
                 )}
               </label>
+              {!special && (
+                <label className="field" style={{ gridColumn: "1 / -1" }}>
+                  Preise
+                  <select
+                    value={priceMode}
+                    onChange={(e) => touch(setPriceMode)(e.target.value as PriceMode)}
+                    disabled={!editable}
+                    aria-describedby="price-mode-hint"
+                  >
+                    <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
+                    <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
+                  </select>
+                  <span id="price-mode-hint" className="small">
+                    {grossPrices
+                      ? "Endpreise für Verbraucher: Die Umsatzsteuer wird je Steuersatz aus der Summe herausgerechnet."
+                      : "Üblich zwischen Unternehmen: Die Umsatzsteuer kommt auf die Einzelpreise."}
+                    {!editable && " Wie in der ursprünglichen Rechnung."}
+                  </span>
+                </label>
+              )}
               {special && (
                 <label className="field" style={{ gridColumn: "1 / -1" }}>
                   {taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"}
@@ -585,19 +623,21 @@ export function InvoiceEditor({
               <div>Einheit</div>
               <div>Einzelpreis</div>
               <div>USt</div>
-              <div style={{ textAlign: "right" }}>Netto</div>
+              <div style={{ textAlign: "right" }}>{amountLabel}</div>
               <div />
             </div>
             {articles.length > 0 && (
               <datalist id="artikel-vorschlaege">
                 {articles.map((a) => (
-                  <option key={a.id} value={a.description} label={`${a.number ? `${a.number} · ` : ""}${formatEuro(a.unitPrice)}/${a.unit}`} />
+                  <option key={a.id} value={a.description} label={`${a.number ? `${a.number} · ` : ""}${formatEuro(a.unitPrice)}${a.priceIncludesTax ? " brutto" : ""}/${a.unit}`} />
                 ))}
               </datalist>
             )}
             {lines.map((line, index) => {
               const p = parsed[index]!;
-              const inCatalog = articles.some((a) => sameText(a.description, p.description) && a.unitPrice === p.unitPrice && a.unit === p.unit);
+              const inCatalog = articles.some(
+                (a) => sameText(a.description, p.description) && a.unitPrice === p.unitPrice && a.unit === p.unit && a.priceIncludesTax === grossPrices,
+              );
               return (
                 <div className="line-row" key={line.key}>
                   <input
@@ -651,8 +691,8 @@ export function InvoiceEditor({
                     <option value={0}>0 %</option>
                   </select>
                   <div className="num line-net">
-                    <span className="line-net-label">Netto </span>
-                    {p.valid ? formatEuro(lineNet(p.quantity, p.unitPrice)) : "–"}
+                    <span className="line-net-label">{amountLabel} </span>
+                    {p.valid ? formatEuro(lineAmount(p.quantity, p.unitPrice)) : "–"}
                   </div>
                   <div className="line-actions">
                   <button
@@ -714,7 +754,8 @@ export function InvoiceEditor({
                   {articles.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.number ? `${a.number} · ` : ""}
-                      {a.description.split("\n")[0]} · {formatEuro(a.unitPrice)}/{a.unit}
+                      {a.description.split("\n")[0]} · {formatEuro(a.unitPrice)}
+                      {a.priceIncludesTax ? " brutto" : ""}/{a.unit}
                     </option>
                   ))}
                 </select>
@@ -760,6 +801,7 @@ export function InvoiceEditor({
             buyer={contact}
             lines={[...parsed, ...deductionPreview]}
             note={note}
+            priceMode={grossPrices ? "brutto" : "netto"}
             taxNote={treatmentNote(taxTreatment, exemptionReason)}
             corrects={corrects}
             title={title}

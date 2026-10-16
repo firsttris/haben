@@ -1,4 +1,4 @@
-import type { InvoiceTotals, TaxTreatment } from "@haben/core";
+import type { InvoiceTotals, PriceMode, TaxTreatment } from "@haben/core";
 import { texts, type Language, type Texts } from "./i18n.ts";
 import { documentPdfData, renderQuotePdfData } from "./pdf.ts";
 import type { Buyer, InvoiceDocumentLine, Logo, Seller } from "./types.ts";
@@ -18,6 +18,8 @@ export interface QuoteDocument {
   note?: string;
   taxTreatment?: TaxTreatment;
   exemptionReason?: string;
+  /** Fehlt = Nettopreise */
+  priceMode?: PriceMode;
   logo?: Logo;
   language?: Language;
 }
@@ -37,7 +39,7 @@ export function quoteDetails(doc: QuoteDocument, t: Texts): { label: string; val
 /** Druckfertige Texte für templates/rechnung.typ */
 export function quotePdfData(doc: QuoteDocument) {
   const t = texts(doc.language);
-  const { totalRows, ...body } = documentPdfData(doc, t);
+  const { totalRows, included, grossLabel, ...body } = documentPdfData(doc, t);
   return {
     ...body,
     docTitle: `${t.titles.angebot} ${doc.number}`,
@@ -49,7 +51,7 @@ export function quotePdfData(doc: QuoteDocument) {
       { label: t.validUntil, value: t.date(doc.validUntil) },
       ...quoteDetails(doc, t),
     ],
-    totals: { rows: totalRows, gross: { label: t.quoteTotal, value: t.money(doc.totals.gross) } },
+    totals: { rows: totalRows, gross: { label: grossLabel(t.quoteTotal), value: t.money(doc.totals.gross) }, included },
     payment: t.quoteValid(t.date(doc.validUntil)),
   };
 }

@@ -1,4 +1,4 @@
-import { computeInvoiceTotals, lineNet, type InvoiceLineInput, type TaxTreatment } from "@haben/core";
+import { computeInvoice, type InvoiceLineInput, type PriceMode, type TaxTreatment } from "@haben/core";
 import type { Buyer, InvoiceDocument, InvoiceFormat, InvoiceKind, Seller } from "./types.ts";
 
 // Beispielbelege für Tests und KoSIT-Prüfung
@@ -46,6 +46,7 @@ interface SampleOptions {
   note?: string;
   taxTreatment?: TaxTreatment;
   exemptionReason?: string;
+  priceMode?: PriceMode;
 }
 
 export function sampleDocument(options: SampleOptions = {}): InvoiceDocument {
@@ -57,6 +58,8 @@ export function sampleDocument(options: SampleOptions = {}): InvoiceDocument {
       { description: "Reisekosten Hamburg", quantity: 1000, unit: "Psch.", unitPrice: 18990, taxRate: 1900 },
     ]
   ).map((line) => ({ ...line, unitPrice: sign * line.unitPrice }));
+  const priceMode = options.priceMode ?? "netto";
+  const { totals, lineNets } = computeInvoice(inputs, priceMode);
   return {
     kind,
     format: options.format ?? "zugferd",
@@ -76,13 +79,14 @@ export function sampleDocument(options: SampleOptions = {}): InvoiceDocument {
       unit: line.unit,
       unitPrice: line.unitPrice,
       taxRate: line.taxRate,
-      net: lineNet(line.quantity, line.unitPrice),
+      net: lineNets[index]!,
     })),
-    totals: computeInvoiceTotals(inputs),
+    totals,
     corrects: kind === "rechnung" ? undefined : { number: "2026-034", issueDate: "2026-09-30" },
     note: options.note,
     ...(options.taxTreatment ? { taxTreatment: options.taxTreatment } : {}),
     ...(options.exemptionReason ? { exemptionReason: options.exemptionReason } : {}),
+    ...(priceMode === "brutto" ? { priceMode } : {}),
   };
 }
 
@@ -90,6 +94,14 @@ export const mixedRateLines: InvoiceLineInput[] = [
   { description: "Workshop „Buchhaltung für Freiberufler“", quantity: 2000, unit: "Tag", unitPrice: 120000, taxRate: 1900 },
   { description: "Fachbuch Steuerrecht", quantity: 3000, unit: "Stk.", unitPrice: 4990, taxRate: 700 },
   { description: "Fahrtkosten", quantity: 287500, unit: "km", unitPrice: 30, taxRate: 1900 },
+];
+
+/** Endpreise für Privatkunden: glatte Bruttobeträge, die netto nicht centgenau erreichbar wären */
+export const grossPriceLines: InvoiceLineInput[] = [
+  { description: "Fotoshooting Familie", quantity: 1000, unit: "Psch.", unitPrice: 24900, taxRate: 1900 },
+  { description: "Abzug 13 × 18 cm", quantity: 7000, unit: "Stk.", unitPrice: 980, taxRate: 1900 },
+  { description: "Fotobuch", quantity: 3000, unit: "Stk.", unitPrice: 3990, taxRate: 700 },
+  { description: "Anfahrt", quantity: 23500, unit: "km", unitPrice: 42, taxRate: 1900 },
 ];
 
 export const zeroRateLines: InvoiceLineInput[] = [

@@ -1,8 +1,9 @@
-import { computeInvoiceTotals, paidTaxShares, splitPrivateShare, type Cents, type InvoiceTotals, type TaxTreatment, type VatPeriod } from "@haben/core";
-import { and, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { paidTaxShares, splitPrivateShare, type Cents, type TaxTreatment, type VatPeriod } from "@haben/core";
+import { and, eq, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "./assets.ts";
 import { loadCompany } from "./company.ts";
 import { db, schema } from "./db/index.ts";
+import { invoiceTotalsById } from "./invoice-taxes.ts";
 
 export interface RevenueSource {
   /** payment = Zahlungseingang (Ist), invoice = Rechnung (Soll), entnahme = private Kfz-Nutzung */
@@ -69,16 +70,6 @@ function monthRange({ year, month }: VatPeriod) {
   return { start, end };
 }
 
-async function invoiceTotals(ids: string[]): Promise<Map<string, InvoiceTotals>> {
-  if (ids.length === 0) return new Map();
-  const lines = await db.select().from(schema.invoiceLines).where(inArray(schema.invoiceLines.invoiceId, ids));
-  const byInvoice = new Map<string, typeof lines>();
-  for (const line of lines) byInvoice.set(line.invoiceId, [...(byInvoice.get(line.invoiceId) ?? []), line]);
-  return new Map(
-    [...byInvoice].map(([id, rows]) => [id, computeInvoiceTotals(rows.map((r) => ({ ...r, taxRate: r.taxRate as 1900 | 700 | 0 })))]),
-  );
-}
-
 /**
  * Kennzahlen eines Monats aus den Buchungen. Ist-Versteuerung: Umsatzsteuer nach Datum des
  * zugeordneten Zahlungseingangs, bei Teilzahlungen anteilig. Soll: nach Rechnungsdatum.
@@ -111,7 +102,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
           ne(schema.invoices.taxTreatment, "reverse_charge"),
         ),
       );
-    const totals = await invoiceTotals([...new Set(payments.map((p) => p.invoiceId))]);
+    const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))]);
     for (const p of payments) {
       for (const share of paidTaxShares(totals.get(p.invoiceId)!, p.amount)) {
         revenue.push({
@@ -145,7 +136,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
           ...(company.versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
         ),
       );
-    const totals = await invoiceTotals(issued.map((i) => i.id));
+    const totals = await invoiceTotalsById(issued.map((i) => i.id));
     for (const inv of issued) {
       for (const t of totals.get(inv.id)?.taxes ?? []) {
         revenue.push({

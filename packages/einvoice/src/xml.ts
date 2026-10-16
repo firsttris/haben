@@ -29,6 +29,24 @@ function quantity(millis: Millis): string {
   return `${millis < 0 ? "-" : ""}${Math.floor(abs / 1000)}${fraction ? `.${fraction}` : ""}`;
 }
 
+/**
+ * Netto-Einzelpreis bei Bruttopreisen: Zeilennetto ÷ Menge mit so vielen Nachkommastellen, dass
+ * Menge × Preis wieder das Zeilennetto ergibt (PEPPOL-EN16931-R120). Ganzzahlig gerechnet, ohne Rundungsfehler.
+ */
+export function netUnitPrice(net: Cents, millis: Millis): string {
+  const n = BigInt(Math.abs(net));
+  const q = BigInt(Math.abs(millis));
+  for (let decimals = 2; ; decimals++) {
+    const scale = 10n ** BigInt(decimals + 1);
+    // Preis in 10^-decimals Euro: net/100 ÷ millis/1000, kaufmännisch gerundet
+    const price = (2n * n * scale + q) / (2n * q);
+    if (decimals >= 10 || 2n * (q * price > n * scale ? q * price - n * scale : n * scale - q * price) <= scale) {
+      const digits = price.toString().padStart(decimals + 1, "0");
+      return `${digits.slice(0, -decimals)}.${digits.slice(-decimals)}`;
+    }
+  }
+}
+
 function percent(rate: number): string {
   return String(rate / 100);
 }
@@ -84,6 +102,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       ? { "cbc:EndpointID": buyer.leitwegId, "cbc:EndpointID@schemeID": "0204" as const }
       : {};
 
+  const grossPrices = doc.priceMode === "brutto";
   const lines = doc.lines.map((line): InvoiceLine => {
     const net = sign * line.net;
     // Preise sind nie negativ (BR-27); ein Vorzeichen trägt die Menge
@@ -99,7 +118,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
         "cac:ClassifiedTaxCategory": categoryWithRate(doc, line.taxRate, "line") as InvoiceLine["cac:Item"]["cac:ClassifiedTaxCategory"],
       },
       "cac:Price": {
-        "cbc:PriceAmount": amount(Math.abs(line.unitPrice)),
+        // Bei Bruttopreisen steht im XML der Nettopreis (BT-146), mit mehr Nachkommastellen
+        "cbc:PriceAmount": grossPrices ? netUnitPrice(line.net, line.quantity) : amount(Math.abs(line.unitPrice)),
         "cbc:PriceAmount@currencyID": currency,
       },
     };
@@ -107,7 +127,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const [firstLine, ...otherLines] = lines;
   if (!firstLine) throw new Error("Rechnung ohne Positionen");
 
-  const gross = sign * doc.totals.gross;
+  const payable = sign * doc.totals.gross;
   const invoice: UblInvoice = {
     "cbc:ID": doc.number,
     "cbc:IssueDate": doc.issueDate,
@@ -176,9 +196,9 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       "cbc:LineExtensionAmount@currencyID": currency,
       "cbc:TaxExclusiveAmount": amount(sign * doc.totals.net),
       "cbc:TaxExclusiveAmount@currencyID": currency,
-      "cbc:TaxInclusiveAmount": amount(gross),
+      "cbc:TaxInclusiveAmount": amount(payable),
       "cbc:TaxInclusiveAmount@currencyID": currency,
-      "cbc:PayableAmount": amount(gross),
+      "cbc:PayableAmount": amount(payable),
       "cbc:PayableAmount@currencyID": currency,
     },
     "cac:InvoiceLine": [firstLine, ...otherLines],

@@ -1,36 +1,23 @@
 import {
   computeEuer,
-  computeInvoiceTotals,
   EXPENSE_CATEGORIES,
   type EuerPayment,
   type EuerResult,
   type ExpenseCategory,
   type InvoiceTotals,
+  totalsFromTaxes,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "./assets.ts";
 import { db, schema } from "./db/index.ts";
+import { invoiceTotalsById } from "./invoice-taxes.ts";
 import { today as todayInGermany } from "./today.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
 
 /** Summen aus den Beträgen eines Belegs je Steuersatz */
 function documentTotals(amounts: { taxRate: number; net: number; tax: number }[]): InvoiceTotals {
-  const taxes = [...amounts].sort((a, b) => b.taxRate - a.taxRate).map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }));
-  const net = taxes.reduce((s, t) => s + t.base, 0);
-  const tax = taxes.reduce((s, t) => s + t.tax, 0);
-  return { net, tax, gross: net + tax, taxes };
-}
-
-async function invoiceTotalsById(ids: string[]): Promise<Map<string, InvoiceTotals>> {
-  if (ids.length === 0) return new Map();
-  const lines = await db.select().from(schema.invoiceLines).where(inArray(schema.invoiceLines.invoiceId, ids));
-  return new Map(
-    ids.map((id) => [
-      id,
-      computeInvoiceTotals(lines.filter((l) => l.invoiceId === id).map((l) => ({ ...l, taxRate: l.taxRate as 1900 | 700 | 0 }))),
-    ]),
-  );
+  return totalsFromTaxes(amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })));
 }
 
 async function documentTotalsById(ids: string[]): Promise<Map<string, InvoiceTotals>> {

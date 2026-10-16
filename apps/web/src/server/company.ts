@@ -67,7 +67,15 @@ export async function editorContext(kind: "rechnung" | "angebot") {
   const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank } = company;
   return {
     contacts,
-    articles: articles.map(({ id, number, description, unit, unitPrice, taxRate }) => ({ id, number, description, unit, unitPrice, taxRate })),
+    articles: articles.map(({ id, number, description, unit, unitPrice, taxRate, priceIncludesTax }) => ({
+      id,
+      number,
+      description,
+      unit,
+      unitPrice,
+      taxRate,
+      priceIncludesTax,
+    })),
     company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, logo: logo?.sha256 ?? null },
     sellerIssues: sellerIssues(company),
     bundesland: company.bundesland,

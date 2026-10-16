@@ -1,9 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { buildEInvoice } from "./xml.ts";
+import { buildEInvoice, netUnitPrice } from "./xml.ts";
 import { extractFacturXXml } from "./zugferd.ts";
-import { euBuyer, mixedRateLines, publicBuyer, sampleDocument, thirdCountryBuyer, zeroRateLines } from "./samples.ts";
+import { euBuyer, grossPriceLines, mixedRateLines, publicBuyer, sampleDocument, thirdCountryBuyer, zeroRateLines } from "./samples.ts";
 
 const ascii = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
+
+describe("netUnitPrice", () => {
+  it("nimmt so viele Nachkommastellen wie nötig, damit Menge × Preis das Zeilennetto ergibt", () => {
+    expect(netUnitPrice(824, 1000)).toBe("8.24");
+    expect(netUnitPrice(5765, 7000)).toBe("8.236");
+    expect(netUnitPrice(829, 23500)).toBe("0.3528");
+    expect(netUnitPrice(-5765, 7000)).toBe("8.236");
+    expect(netUnitPrice(0, 1000)).toBe("0.00");
+  });
+
+  it("bleibt bei großen Mengen innerhalb eines halben Cents", () => {
+    const net = 72_626_420;
+    const millis = 123_456_789;
+    const price = Number(netUnitPrice(net, millis));
+    expect(Math.abs((price * millis) / 1000 - net / 100)).toBeLessThanOrEqual(0.005);
+  });
+});
 
 describe("buildEInvoice", () => {
   it("bettet bei ZUGFeRD factur-x.xml in das PDF ein", async () => {
@@ -31,6 +48,24 @@ describe("buildEInvoice", () => {
     expect(xml).toContain('<cbc:PayableAmount currencyID="EUR">3118.82</cbc:PayableAmount>');
     expect(xml).toContain('<cbc:PriceAmount currencyID="EUR">1200.00</cbc:PriceAmount>');
     expect(xml).not.toMatch(/>-\d/);
+  });
+
+  it("Bruttopreise: Netto je Satz, Zeilennetto und Netto-Einzelpreis im XML (UBL)", async () => {
+    const { xml } = await buildEInvoice(sampleDocument({ format: "xrechnung-ubl", lines: grossPriceLines, priceMode: "brutto" }));
+    expect(xml).toContain('<cbc:PayableAmount currencyID="EUR">447.17</cbc:PayableAmount>');
+    expect(xml).toMatch(/<cbc:TaxableAmount currencyID="EUR">275.18<\/cbc:TaxableAmount>\s*<cbc:TaxAmount currencyID="EUR">52.29<\/cbc:TaxAmount>/);
+    expect(xml).toMatch(/<cbc:TaxableAmount currencyID="EUR">111.87<\/cbc:TaxableAmount>\s*<cbc:TaxAmount currencyID="EUR">7.83<\/cbc:TaxAmount>/);
+    // 7 Abzüge zu 9,80 € brutto: 57,65 € netto, also 8,236 € je Stück
+    expect(xml).toContain('<cbc:LineExtensionAmount currencyID="EUR">57.65</cbc:LineExtensionAmount>');
+    expect(xml).toContain('<cbc:PriceAmount currencyID="EUR">8.236</cbc:PriceAmount>');
+    const lineNets = [...xml.matchAll(/<cac:InvoiceLine>[\s\S]*?<cbc:LineExtensionAmount currencyID="EUR">([\d.]+)</g)].map((m) => Number(m[1]));
+    expect(lineNets.reduce((a, b) => a + b, 0)).toBeCloseTo(387.05, 2);
+  });
+
+  it("Bruttopreise im CII", async () => {
+    const { xml } = await buildEInvoice(sampleDocument({ format: "xrechnung-cii", lines: grossPriceLines, priceMode: "brutto" }));
+    expect(xml).toContain("<ram:GrandTotalAmount>447.17</ram:GrandTotalAmount>");
+    expect(xml).toMatch(/<ram:NetPriceProductTradePrice>\s*<ram:ChargeAmount>8.236<\/ram:ChargeAmount>/);
   });
 
   it("schreibt Storno als 381 mit Rechnungsbezug (CII)", async () => {

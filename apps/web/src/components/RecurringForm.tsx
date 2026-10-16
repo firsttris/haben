@@ -3,7 +3,7 @@ import {
   formatDecimal,
   formatEuro,
   formatQuantity,
-  lineNet,
+  lineAmount,
   parseEuro,
   parseQuantity,
   RECURRING_INTERVALS,
@@ -12,6 +12,7 @@ import {
   servicePeriodFor,
   TAX_TREATMENTS,
   UNITS,
+  type PriceMode,
   type RecurringInterval,
   type ServicePeriodMode,
   type TaxTreatment,
@@ -32,6 +33,7 @@ export interface RecurringValues {
   note: string;
   taxTreatment: TaxTreatment;
   exemptionReason: string;
+  priceMode: PriceMode;
   lines: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: Rate }[];
   intervalMonths: RecurringInterval;
   nextDate: string;
@@ -76,6 +78,7 @@ export function RecurringForm({
   const [note, setNote] = useState(initial.note);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment);
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason);
+  const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode);
   const [intervalMonths, setIntervalMonths] = useState<RecurringInterval>(initial.intervalMonths);
   const [nextDate, setNextDate] = useState(initial.nextDate);
   const [endDate, setEndDate] = useState(initial.endDate ?? "");
@@ -94,6 +97,9 @@ export function RecurringForm({
   );
 
   const special = taxTreatment !== "regulaer";
+  /** Bruttopreise nur mit Steuerausweis */
+  const grossPrices = !special && priceMode === "brutto";
+  const amountLabel = grossPrices ? "Brutto" : "Netto";
   const parsed = lines.map((line) => {
     const quantity = parseQuantity(line.quantity);
     const unitPrice = parseEuro(line.unitPrice);
@@ -121,7 +127,7 @@ export function RecurringForm({
 
   const period = nextDate ? servicePeriodFor(nextDate, intervalMonths, servicePeriod) : null;
   const reference = period ?? (nextDate ? { from: nextDate, to: nextDate } : null);
-  const net = parsed.reduce((s, l) => s + (l.valid ? lineNet(l.quantity, l.unitPrice) : 0), 0);
+  const sum = parsed.reduce((s, l) => s + (l.valid ? lineAmount(l.quantity, l.unitPrice) : 0), 0);
 
   function updateLine(key: number, patch: Partial<LineState>) {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -139,6 +145,7 @@ export function RecurringForm({
       note,
       taxTreatment,
       exemptionReason: special ? exemptionReason : "",
+      priceMode: grossPrices ? "brutto" : "netto",
       lines: parsed.map(({ valid: _valid, ...line }) => line),
       intervalMonths,
       nextDate,
@@ -226,6 +233,15 @@ export function RecurringForm({
                 ))}
             </select>
           </label>
+          {!special && (
+            <label className="field">
+              Preise
+              <select value={priceMode} onChange={(e) => setPriceMode(e.target.value as PriceMode)}>
+                <option value="netto">Netto, zuzüglich Umsatzsteuer</option>
+                <option value="brutto">Brutto, inklusive Umsatzsteuer (Endpreise)</option>
+              </select>
+            </label>
+          )}
           {special && (
             <label className="field">
               {taxTreatment === "steuerfrei" ? "Befreiungsvorschrift" : "Hinweis zur Umsatzsteuer (optional)"}
@@ -270,7 +286,7 @@ export function RecurringForm({
           <div>Einheit</div>
           <div>Einzelpreis</div>
           <div>USt</div>
-          <div style={{ textAlign: "right" }}>Netto</div>
+          <div style={{ textAlign: "right" }}>{amountLabel}</div>
           <div />
         </div>
         {lines.map((line, index) => {
@@ -317,7 +333,7 @@ export function RecurringForm({
                 <option value={700}>7 %</option>
                 <option value={0}>0 %</option>
               </select>
-              <div className="num line-net">{p.valid ? formatEuro(lineNet(p.quantity, p.unitPrice)) : "–"}</div>
+              <div className="num line-net">{p.valid ? formatEuro(lineAmount(p.quantity, p.unitPrice)) : "–"}</div>
               <button
                 type="button"
                 className="icon-btn"
@@ -362,7 +378,8 @@ export function RecurringForm({
           <h2>Nächste Rechnung</h2>
           <p className="small" style={{ margin: 0 }}>
             Am {formatDate(nextDate)}
-            {period ? `, Leistungszeitraum ${formatDate(period.from)} – ${formatDate(period.to)}` : ""}, netto {formatEuro(net)}
+            {period ? `, Leistungszeitraum ${formatDate(period.from)} – ${formatDate(period.to)}` : ""}, {amountLabel.toLowerCase()}{" "}
+            {formatEuro(sum)}
           </p>
           <ul className="small" style={{ margin: 0 }}>
             {parsed

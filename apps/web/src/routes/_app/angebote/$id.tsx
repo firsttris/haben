@@ -41,6 +41,7 @@ function QuotePage() {
           note: quote.note,
           taxTreatment: quote.taxTreatment,
           exemptionReason: quote.exemptionReason,
+          priceMode: quote.priceMode,
           language: quote.language,
           lines: data.lines.map((line) => ({
             description: line.description,
@@ -199,6 +200,12 @@ function FinalQuote({ data }: { data: Detail }) {
               <dd className="mono" style={{ fontWeight: 600 }}>
                 {formatEuro(quote.gross)}
               </dd>
+              {quote.priceMode === "brutto" && (
+                <>
+                  <dt>Preise</dt>
+                  <dd>brutto, inklusive Umsatzsteuer</dd>
+                </>
+              )}
               {quote.taxTreatment !== "regulaer" && (
                 <>
                   <dt>Besteuerung</dt>

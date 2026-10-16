@@ -5,6 +5,7 @@ import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { countryName, formatIban, paymentSentence } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
+import { lineAmount } from "@haben/core";
 import type { Address, InvoiceDocument, Logo } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
@@ -29,27 +30,42 @@ export function addressLines(address: Address, t: Texts = TEXTS.de): string[] {
   return lines;
 }
 
-/** Spaltenköpfe und Seitenzahl für das Template */
-export function templateLabels(t: Texts) {
-  return { columns: t.columns, page: t.page("#", "#").split("#").map((part) => part.trim()) };
+/** Spaltenköpfe und Seitenzahl für das Template; bei Bruttopreisen steht in der letzten Spalte der Bruttobetrag */
+export function templateLabels(t: Texts, gross = false) {
+  return {
+    columns: gross ? { ...t.columns, net: t.grossColumn } : t.columns,
+    page: t.page("#", "#").split("#").map((part) => part.trim()),
+  };
+}
+
+/** Bruttopreise gibt es nur bei regulärer Besteuerung; ohne Steuerausweis sind netto und brutto gleich */
+export function showsGrossPrices(doc: Pick<InvoiceDocument, "taxTreatment" | "priceMode">): boolean {
+  return (doc.taxTreatment ?? "regulaer") === "regulaer" && doc.priceMode === "brutto";
 }
 
 /** Gemeinsamer Teil von Rechnung und Angebot: Adressen, Positionen, Summenzeilen, Hinweise, Fußzeile */
 export function documentPdfData(
-  doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "note">,
+  doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "note" | "priceMode">,
   t: Texts,
 ) {
   const { seller, buyer } = doc;
   const treatment = doc.taxTreatment ?? "regulaer";
+  const gross = showsGrossPrices(doc);
   const multipleRates = doc.totals.taxes.length > 1;
   // Ohne Steuerausweis (Kleinunternehmer, Reverse Charge usw.) keine Zeile „Umsatzsteuer 0 %“
-  const taxRows = (treatment === "regulaer" ? doc.totals.taxes : []).map((tax) => ({
+  const taxes = treatment === "regulaer" ? doc.totals.taxes : [];
+  const taxRows = taxes.map((tax) => ({
     label: t.vat(t.rate(tax.rate), multipleRates ? t.money(tax.base) : undefined),
     value: t.money(tax.tax),
   }));
+  // Bruttopreise: unter dem Gesamtbetrag „darin enthalten“ Netto und Umsatzsteuer je Satz (§ 14 Abs. 4 Nr. 7 und 8 UStG)
+  const includedRows = taxes.flatMap((tax) => [
+    { label: t.includedNet(multipleRates ? t.rate(tax.rate) : undefined), value: t.money(tax.base) },
+    { label: t.vat(t.rate(tax.rate)), value: t.money(tax.tax) },
+  ]);
   return {
     author: seller.name,
-    labels: templateLabels(t),
+    labels: templateLabels(t, gross),
     senderLine: [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`].join(" · "),
     recipient: [buyer.name, ...addressLines(buyer, t)],
     lines: doc.lines.map((line) => ({
@@ -58,9 +74,11 @@ export function documentPdfData(
       quantity: t.quantity(line.quantity, line.unit),
       unitPrice: t.money(line.unitPrice),
       rate: treatment === "regulaer" ? t.rate(line.taxRate) : "–",
-      net: t.money(line.net),
+      net: t.money(gross ? lineAmount(line.quantity, line.unitPrice) : line.net),
     })),
-    totalRows: [{ label: t.totalNet, value: t.money(doc.totals.net) }, ...taxRows],
+    totalRows: gross ? [] : [{ label: t.totalNet, value: t.money(doc.totals.net) }, ...taxRows],
+    included: gross ? { label: t.included, rows: includedRows } : null,
+    grossLabel: (label: string) => (gross ? t.inclVat(label) : label),
     taxNote: t.note(treatment, doc.exemptionReason),
     note: doc.note?.trim() ? doc.note.trim() : null,
     footer: footerColumns(seller, t),
@@ -88,14 +106,14 @@ export function pdfData(doc: InvoiceDocument) {
   // Bei Reverse Charge ist die USt-IdNr. des Kunden Pflichtangabe (§ 14a Abs. 1 UStG)
   if (buyer.ustId) meta.push({ label: t.buyerVatId, value: buyer.ustId });
 
-  const { totalRows, ...body } = documentPdfData(doc, t);
+  const { totalRows, included, grossLabel, ...body } = documentPdfData(doc, t);
   return {
     ...body,
     docTitle: `${title} ${doc.number}`,
     title,
     reference: doc.corrects ? t.reference(doc.corrects.number, t.date(doc.corrects.issueDate)) : null,
     meta,
-    totals: { rows: totalRows, gross: { label: t.totalGross, value: t.money(doc.totals.gross) } },
+    totals: { rows: totalRows, gross: { label: grossLabel(t.totalGross), value: t.money(doc.totals.gross) }, included },
     payment: paymentSentence(doc, t),
     // GiroCode nur für Rechnungen mit Zahlbetrag und Konto des Verkäufers
     qr:

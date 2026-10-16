@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { logoFormat, pdfData, renderInvoicePdf } from "./pdf.ts";
-import { mixedRateLines, sampleDocument } from "./samples.ts";
+import { grossPriceLines, mixedRateLines, sampleDocument, zeroRateLines } from "./samples.ts";
 
 const ascii = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
 
@@ -66,8 +66,49 @@ describe("pdfData", () => {
     const data = pdfData(sampleDocument());
     expect(data.qr).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 (\d+) \1"/);
     const ohneKonto = sampleDocument();
-    delete ohneKonto.seller.iban;
+    // Kopie: sampleDocument teilt den Verkäufer mit allen anderen Tests
+    ohneKonto.seller = { ...ohneKonto.seller, iban: undefined };
     expect(pdfData(ohneKonto).qr).toBeNull();
+  });
+
+  it("zeigt Bruttopreise mit „darin enthalten“ Netto und Umsatzsteuer je Satz", () => {
+    const data = pdfData(sampleDocument({ lines: grossPriceLines, priceMode: "brutto" }));
+    expect(data.labels.columns.net).toBe("Brutto");
+    // Einzelpreis und Zeilenbetrag wie eingegeben, brutto
+    expect(data.lines[1]).toMatchObject({ quantity: "7 Stk.", unitPrice: "9,80\u00a0€", rate: "19 %", net: "68,60\u00a0€" });
+    expect(data.totals.rows).toEqual([]);
+    expect(data.totals.gross).toEqual({ label: "Gesamtbetrag (inkl. USt)", value: "447,17\u00a0€" });
+    expect(data.totals.included).toEqual({
+      label: "darin enthalten",
+      rows: [
+        { label: "Netto 19 %", value: "275,18\u00a0€" },
+        { label: "Umsatzsteuer 19 %", value: "52,29\u00a0€" },
+        { label: "Netto 7 %", value: "111,87\u00a0€" },
+        { label: "Umsatzsteuer 7 %", value: "7,83\u00a0€" },
+      ],
+    });
+    // Der GiroCode fordert den Endpreis an
+    expect(data.qr).not.toBeNull();
+  });
+
+  it("zeigt Bruttopreise auch auf Englisch", () => {
+    const data = pdfData({ ...sampleDocument({ lines: [grossPriceLines[1]!], priceMode: "brutto" }), language: "en" });
+    expect(data.labels.columns.net).toBe("Gross");
+    expect(data.totals.gross.label).toBe("Total amount (incl. VAT)");
+    expect(data.totals.included?.rows.map((r) => r.label)).toEqual(["Net", "VAT 19 %"]);
+  });
+
+  it("ohne Steuerausweis bleibt es bei der normalen Darstellung", () => {
+    const doc = sampleDocument({ lines: zeroRateLines, taxTreatment: "kleinunternehmer", priceMode: "brutto" });
+    const data = pdfData(doc);
+    expect(data.labels.columns.net).toBe("Netto");
+    expect(data.totals.gross.label).toBe("Gesamtbetrag");
+    expect(data.totals.included).toBeNull();
+  });
+
+  it("erzeugt ein PDF mit Bruttopreisen", () => {
+    const pdf = renderInvoicePdf(sampleDocument({ lines: grossPriceLines, priceMode: "brutto" }));
+    expect(Buffer.from(pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
   });
 
   it("nennt das Leistungsdatum, wenn kein Zeitraum vorliegt", () => {

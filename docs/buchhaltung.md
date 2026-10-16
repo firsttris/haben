@@ -17,7 +17,7 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 | Art | Tabellen | Wirkung |
 | --- | --- | --- |
 | Festschreibung | `journal_entries`, `invoices`, `documents`, `vat_returns` | `UPDATE` und `DELETE` werden abgelehnt, sobald `locked_at` gesetzt ist |
-| Abhängige Zeilen | `journal_lines`, `invoice_lines`, `quote_lines`, `document_amounts` | Einfügen, Ändern und Löschen abgelehnt, wenn die Buchung, Rechnung bzw. der Beleg festgeschrieben ist; auch das Umhängen einer Zeile aus einer festgeschriebenen Buchung oder in sie hinein |
+| Abhängige Zeilen | `journal_lines`, `invoice_lines`, `invoice_taxes`, `quote_lines`, `document_amounts` | Einfügen, Ändern und Löschen abgelehnt, wenn die Buchung, Rechnung bzw. der Beleg festgeschrieben ist; auch das Umhängen einer Zeile aus einer festgeschriebenen Buchung oder in sie hinein |
 | Nur anhängen | `audit_log`, `vat_return_submissions`, `contact_versions`, `bank_imports`, `bank_transactions`, `allocations`, `archive_files`, `datev_bookings`, `lexoffice_vouchers`, `lexoffice_voucher_files`, `asset_depreciations`, `pauschalen`, `cash_entries` | `UPDATE` und `DELETE` immer abgelehnt (`audit_log` auch `TRUNCATE`) |
 | Kontakte | `contacts` | Löschen abgelehnt; jede Änderung erhöht die Version und legt eine Kopie in `contact_versions` ab |
 | Angebote | `quotes` | Nach dem Festschreiben nur noch Antwort des Kunden und Verweis auf die Rechnung änderbar, Löschen abgelehnt |

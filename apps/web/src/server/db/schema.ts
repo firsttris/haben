@@ -10,6 +10,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -22,6 +23,7 @@ import type { Buyer, Seller } from "@haben/einvoice";
 import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
+  PRICE_MODES,
   TAX_TREATMENT_KEYS,
   type AssetKind,
   type AssetMethod,
@@ -600,6 +602,8 @@ export const invoices = pgTable(
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     /** Eigener Befreiungsgrund auf der Rechnung, sonst der Standardtext der Behandlung */
     exemptionReason: text("exemption_reason").notNull().default(""),
+    /** Preise netto oder brutto inkl. USt; brutto nur bei regulärer Besteuerung */
+    priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
     correctsId: uuid("corrects_id"),
     /** Abschlags- oder Schlussrechnung; nur bei kind „rechnung“ */
     variant: text("variant", { enum: ["abschlag", "schluss"] }),
@@ -651,13 +655,33 @@ export const invoiceLines = pgTable(
     /** Tausendstel */
     quantity: integer("quantity").notNull(),
     unit: text("unit").notNull(),
+    /** Wie eingegeben: netto oder brutto, je nach Preismodus der Rechnung */
     unitPrice: integer("unit_price").notNull(),
     taxRate: smallint("tax_rate").notNull(),
+    /** Zeilennetto; bei Bruttopreisen der Anteil an der Bemessungsgrundlage des Satzes */
     net: integer("net").notNull(),
     /** Schlussrechnung: Abzug dieser Abschlagsrechnung; erzeugt Haben, nicht der Editor */
     deductionOf: uuid("deduction_of").references(() => invoices.id),
   },
   (t) => [index("invoice_lines_invoice").on(t.invoiceId)],
+);
+
+/**
+ * Netto und Umsatzsteuer je Steuersatz, einmal beim Speichern berechnet. Voranmeldung, Zahlungsbuchung,
+ * Auswertungen, PDF und XML lesen nur diese Werte; mit der Rechnung festgeschrieben.
+ */
+export const invoiceTaxes = pgTable(
+  "invoice_taxes",
+  {
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+    /** Basispunkte: 1900 = 19 % */
+    rate: smallint("rate").notNull(),
+    base: integer("base").notNull(),
+    tax: integer("tax").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.invoiceId, t.rate] })],
 );
 
 /** Letzte vergebene laufende Nummer je Jahr; lückenlos, weil nur beim Festschreiben gezogen */
@@ -688,6 +712,8 @@ export const quotes = pgTable(
     language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),
+    /** Preise netto oder brutto inkl. USt, wie bei der Rechnung */
+    priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
     net: integer("net").notNull().default(0),
     tax: integer("tax").notNull().default(0),
     gross: integer("gross").notNull().default(0),
@@ -740,7 +766,7 @@ export const companyLogo = pgTable(
   (t) => [check("company_logo_single", sql`${t.id} = 1`)],
 );
 
-/** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise netto in Cent */
+/** Artikel und Leistungen zum Einfügen in Rechnungen und Angebote; Preise in Cent, wie eingegeben */
 export const articles = pgTable("articles", {
   id: uuid("id").primaryKey().defaultRandom(),
   /** Eigene Artikelnummer, optional */
@@ -750,6 +776,8 @@ export const articles = pgTable("articles", {
   unit: text("unit").notNull(),
   unitPrice: integer("unit_price").notNull(),
   taxRate: smallint("tax_rate").notNull(),
+  /** Preis enthält die Umsatzsteuer; passt das nicht zur Rechnung, wird beim Einfügen umgerechnet */
+  priceIncludesTax: boolean("price_includes_tax").notNull().default(false),
   /** Interne Notiz, erscheint nicht auf Belegen */
   note: text("note").notNull().default(""),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
@@ -1233,6 +1261,8 @@ export const recurringInvoices = pgTable(
     note: text("note").notNull().default(""),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),
+    /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */
+    priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
     lines: jsonb("lines")
       .$type<{ description: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>()
       .notNull(),

@@ -1,6 +1,5 @@
 import { UserError } from "./errors.ts";
 import {
-  computeInvoiceTotals,
   directPosting,
   documentPaymentPosting,
   invoicePaymentPosting,
@@ -15,6 +14,7 @@ import { z } from "zod";
 import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
+import { invoiceTotalsById } from "./invoice-taxes.ts";
 import { sha256Of } from "./storage.ts";
 import { today } from "./today.ts";
 
@@ -476,8 +476,7 @@ export async function allocate(actor: string, input: AllocationInput): Promise<v
       if (Math.sign(open) !== Math.sign(input.amount) || Math.abs(input.amount) > Math.abs(open)) {
         throw new BankError(`Rechnung ${invoice.number} ist nur noch über ${open / 100} € offen.`);
       }
-      const invoiceLines = await tx.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, invoice.id));
-      const totals = computeInvoiceTotals(invoiceLines.map((l) => ({ ...l, taxRate: l.taxRate as 1900 | 700 | 0 })));
+      const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
       lines = invoicePaymentPosting(totals, input.amount, company.kontenrahmen, company.versteuerung);
       description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
       target = { invoiceId: invoice.id };

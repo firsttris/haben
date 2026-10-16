@@ -11,6 +11,7 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - **Gültig bis**, vorbelegt mit 30 Tagen
 - optional der geplante Leistungszeitraum
 - Umsatzsteuer: regulär, Kleinunternehmer, Reverse Charge, steuerfrei
+- Preise netto oder brutto inklusive Umsatzsteuer, wie bei der [Rechnung](rechnungen.md#netto-oder-bruttopreise)
 - Positionen und ein Hinweis
 
 Rechts siehst du die Vorschau. Der Entwurf lässt sich beliebig speichern, ändern und löschen.

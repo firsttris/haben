@@ -48,6 +48,7 @@ function ArticleForm({ article, onDone }: { article: Article | null; onDone: (no
             unit: text("unit") as UnitLabel,
             unitPrice: price,
             taxRate: Number(text("taxRate")) as 1900 | 700 | 0,
+            priceIncludesTax: text("priceMode") === "brutto",
             note: text("note"),
           },
         },
@@ -83,7 +84,7 @@ function ArticleForm({ article, onDone }: { article: Article | null; onDone: (no
           </select>
         </label>
         <label className="field">
-          Preis netto (€)
+          Preis (€)
           <input name="unitPrice" inputMode="decimal" defaultValue={article ? formatDecimal(article.unitPrice) : ""} placeholder="0,00" required />
         </label>
         <label className="field">
@@ -95,6 +96,16 @@ function ArticleForm({ article, onDone }: { article: Article | null; onDone: (no
               </option>
             ))}
           </select>
+        </label>
+        <label className="field" style={{ gridColumn: "1 / -1" }}>
+          Preis ist
+          <select name="priceMode" defaultValue={article?.priceIncludesTax ? "brutto" : "netto"} aria-describedby="price-mode-hint">
+            <option value="netto">netto, zuzüglich Umsatzsteuer</option>
+            <option value="brutto">brutto, inklusive Umsatzsteuer</option>
+          </select>
+          <span id="price-mode-hint" className="small muted">
+            Passt das nicht zur Rechnung, rechnet Haben den Preis beim Einfügen um.
+          </span>
         </label>
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           Interne Notiz (optional)
@@ -190,7 +201,7 @@ function ArticlesPage() {
             <div className="table">
               <div className="table-row head article-cols">
                 <div>Bezeichnung</div>
-                <div className="num">Preis netto</div>
+                <div className="num">Preis</div>
                 <div>USt</div>
                 <div />
               </div>
@@ -207,7 +218,8 @@ function ArticlesPage() {
                     )}
                   </div>
                   <div className="num">
-                    {formatEuro(a.unitPrice)} je {a.unit}
+                    {formatEuro(a.unitPrice)}
+                    {a.priceIncludesTax ? " brutto" : ""} je {a.unit}
                   </div>
                   <div className="small muted">{a.taxRate / 100} %</div>
                   <div className="actions" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>

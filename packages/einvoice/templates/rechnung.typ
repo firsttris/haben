@@ -114,14 +114,16 @@
 
 #if d.totals != none { align(right, block(width: 80mm, {
   set block(spacing: 0pt)
-  grid(
-    columns: (1fr, auto),
-    align: (left, right),
-    row-gutter: 2.2mm,
-    inset: (x: 1.6mm),
-    ..d.totals.rows.map(r => (text(fill: muted, r.label), r.value)).flatten()
-  )
-  v(2.2mm)
+  if d.totals.rows.len() > 0 {
+    grid(
+      columns: (1fr, auto),
+      align: (left, right),
+      row-gutter: 2.2mm,
+      inset: (x: 1.6mm),
+      ..d.totals.rows.map(r => (text(fill: muted, r.label), r.value)).flatten()
+    )
+    v(2.2mm)
+  }
   line(length: 100%, stroke: 0.6pt + accent)
   v(2.2mm)
   grid(
@@ -131,6 +133,20 @@
     semibold(d.totals.gross.label),
     semibold(d.totals.gross.value),
   )
+  // Bruttopreise: Netto und Umsatzsteuer je Satz, die im Gesamtbetrag enthalten sind
+  let included = d.totals.at("included", default: none)
+  if included != none and included.rows.len() > 0 {
+    v(2.2mm)
+    set text(size: 8.5pt)
+    grid(
+      columns: (1fr, auto),
+      align: (left, right),
+      row-gutter: 1.8mm,
+      inset: (x: 1.6mm),
+      grid.cell(colspan: 2, text(fill: muted, included.label + ":")),
+      ..included.rows.map(r => (text(fill: muted, r.label), text(fill: muted, r.value))).flatten()
+    )
+  }
 })) }
 
 #v(8mm)

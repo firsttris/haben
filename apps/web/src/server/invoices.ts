@@ -1,13 +1,17 @@
 import { UserError } from "./errors.ts";
 import {
-  computeInvoiceTotals,
+  computeInvoice,
   formatInvoiceNumber,
   invoiceLineInputSchema,
   invoiceDueDate,
   invoicePosting,
   legacyCorrectionPosting,
-  lineNet,
+  lineAmount,
+  PRICE_MODES,
   TAX_TREATMENT_KEYS,
+  type InvoiceCalculation,
+  type InvoiceTotals,
+  type PriceMode,
   type TaxTreatment,
   type UnitLabel,
 } from "@haben/core";
@@ -29,6 +33,7 @@ import { loadLogo } from "./logo.ts";
 import { invoicePayments, stornoOpen } from "./bank.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Db, type Tx } from "./db/index.ts";
+import { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
@@ -48,6 +53,8 @@ export const draftSchema = z
     note: z.string().max(2000),
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
     exemptionReason: z.string().trim().max(300).default(""),
+    /** Einzelpreise netto oder brutto inkl. USt; brutto nur bei regulärer Besteuerung */
+    priceMode: z.enum(PRICE_MODES).default("netto"),
     /** Sprache des PDFs für den Kunden */
     language: z.enum(["de", "en"]).default("de"),
     /** Abschlags- oder Schlussrechnung; null = normale Rechnung */
@@ -64,7 +71,12 @@ export const draftSchema = z
 export type DraftInput = z.input<typeof draftSchema>;
 type LineInput = DraftInput["lines"][number] & { deductionOf?: string };
 
-function lineRows(invoiceId: string, lines: LineInput[]) {
+/** Ohne Steuerausweis gibt es keine Bruttopreise: dort sind netto und brutto gleich */
+export function effectivePriceMode(input: { priceMode?: PriceMode | undefined; taxTreatment?: TaxTreatment | undefined }): PriceMode {
+  return (input.taxTreatment ?? "regulaer") === "regulaer" ? (input.priceMode ?? "netto") : "netto";
+}
+
+function lineRows(invoiceId: string, lines: LineInput[], lineNets: number[]) {
   return lines.map((line, index) => ({
     invoiceId,
     position: index + 1,
@@ -73,9 +85,16 @@ function lineRows(invoiceId: string, lines: LineInput[]) {
     unit: line.unit,
     unitPrice: line.unitPrice,
     taxRate: line.taxRate,
-    net: lineNet(line.quantity, line.unitPrice),
+    net: lineNets[index]!,
     deductionOf: line.deductionOf ?? null,
   }));
+}
+
+/** Positionen und Steuerzeilen eines Entwurfs speichern, wie sie draftValues berechnet hat */
+async function storeLines(tx: Tx, invoiceId: string, lines: LineInput[], { totals, lineNets }: InvoiceCalculation) {
+  await tx.delete(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, invoiceId));
+  if (lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(invoiceId, lines, lineNets));
+  await storeInvoiceTaxes(tx, invoiceId, totals.taxes);
 }
 
 /** Titel je Rechnung, auch für Buchungstext und E-Mail */
@@ -128,29 +147,29 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null, q: D
     q,
   );
   const open = rows.filter((r) => !taken.has(r.id));
-  const lines = open.length
-    ? await q.select().from(schema.invoiceLines).where(inArray(schema.invoiceLines.invoiceId, open.map((r) => r.id)))
-    : [];
+  const totals = await invoiceTotalsById(open.map((r) => r.id), q);
   return open.map((r) => ({
     id: r.id,
     contactId: r.contactId,
     number: r.number!,
     issueDate: r.issueDate,
     taxTreatment: r.taxTreatment,
+    priceMode: r.priceMode,
     net: r.net,
     tax: r.tax,
     gross: r.gross,
     /** Netto und Steuer je Steuersatz, wie sie abgezogen werden */
-    rates: computeInvoiceTotals(
-      lines.filter((l) => l.invoiceId === r.id).map((l) => ({ ...l, taxRate: l.taxRate as 1900 | 700 | 0 })),
-    ).taxes.map((t) => ({ rate: t.rate, base: t.base, tax: t.tax })),
+    rates: totals.get(r.id)!.taxes,
   }));
 }
 
 export type OpenAbschlag = Awaited<ReturnType<typeof openAbschlaege>>[number];
 
-/** Abzugspositionen der Schlussrechnung: je Abschlagsrechnung und Steuersatz eine negative Position */
-function deductionLinesFor(abschlaege: OpenAbschlag[], language: "de" | "en", taxTreatment: TaxTreatment): LineInput[] {
+/**
+ * Abzugspositionen der Schlussrechnung: je Abschlagsrechnung und Steuersatz eine negative Position,
+ * bei Bruttopreisen über Netto und Umsatzsteuer der Abschlagsrechnung
+ */
+function deductionLinesFor(abschlaege: OpenAbschlag[], language: "de" | "en", taxTreatment: TaxTreatment, priceMode: PriceMode): LineInput[] {
   const t = texts(language);
   return abschlaege.flatMap((a) =>
     a.rates
@@ -159,7 +178,7 @@ function deductionLinesFor(abschlaege: OpenAbschlag[], language: "de" | "en", ta
         description: t.deduction(a.number, t.date(a.issueDate), t.money(r.base), taxTreatment === "regulaer" ? t.money(r.tax) : null),
         quantity: 1000,
         unit: "Psch." as UnitLabel,
-        unitPrice: -r.base,
+        unitPrice: -(priceMode === "brutto" ? r.base + r.tax : r.base),
         taxRate: r.rate as 1900 | 700 | 0,
         deductionOf: a.id,
       })),
@@ -209,12 +228,18 @@ async function allLines(invoiceId: string | null, input: DraftInput): Promise<Li
   if (input.variant !== "schluss") return input.lines;
   const { problems, chosen } = await deductionProblems(invoiceId, input);
   if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
-  return [...input.lines, ...deductionLinesFor(chosen, input.language ?? "de", input.taxTreatment ?? "regulaer")];
+  return [...input.lines, ...deductionLinesFor(chosen, input.language ?? "de", input.taxTreatment ?? "regulaer", effectivePriceMode(input))];
 }
 
+/**
+ * Felder eines Entwurfs samt Summen. Netto und Umsatzsteuer je Satz werden nur hier berechnet; danach
+ * lesen alle anderen Stellen die gespeicherten Werte (invoice_taxes).
+ */
 function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines: LineInput[]) {
-  const totals = computeInvoiceTotals(lines);
-  return {
+  const priceMode = effectivePriceMode(input);
+  const calculation = computeInvoice(lines, priceMode);
+  const { totals } = calculation;
+  const values = {
     contactId: input.contactId,
     issueDate: input.issueDate,
     serviceFrom: input.serviceFrom,
@@ -225,6 +250,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     note: input.note,
     taxTreatment: input.taxTreatment ?? "regulaer",
     exemptionReason: input.taxTreatment && input.taxTreatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
+    priceMode,
     language: input.language ?? "de",
     variant: input.variant ?? null,
     net: totals.net,
@@ -232,6 +258,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     gross: totals.gross,
     updatedAt: new Date(),
   };
+  return { values, calculation };
 }
 
 export async function createDraft(
@@ -241,12 +268,13 @@ export async function createDraft(
 ) {
   const { bundesland } = await loadCompany();
   const lines = await allLines(null, input);
+  const { values, calculation } = draftValues(input, bundesland, lines);
   return withActor(actor, async (tx) => {
     const [invoice] = await tx
       .insert(schema.invoices)
-      .values({ ...draftValues(input, bundesland, lines), ...extra })
+      .values({ ...values, ...extra })
       .returning();
-    if (lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(invoice!.id, lines));
+    await storeLines(tx, invoice!.id, lines, calculation);
     return invoice!;
   });
 }
@@ -264,9 +292,10 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
   return withActor(actor, async (tx) => {
     const draft = await lockDraft(tx, id);
     if (input.variant && draft.kind !== "rechnung") throw new InvoiceError("Storno und Korrektur sind keine Abschlags- oder Schlussrechnung.");
-    await tx.delete(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id));
-    if (lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(id, lines));
-    const [updated] = await tx.update(schema.invoices).set(draftValues(input, bundesland, lines)).where(eq(schema.invoices.id, id)).returning();
+    // Eine Korrektur rechnet wie die ursprüngliche Rechnung, netto oder brutto
+    const { values, calculation } = draftValues(draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode }, bundesland, lines);
+    const [updated] = await tx.update(schema.invoices).set(values).where(eq(schema.invoices.id, id)).returning();
+    await storeLines(tx, id, lines, calculation);
     return updated!;
   });
 }
@@ -293,6 +322,7 @@ export async function newDraftDefaults(today: string) {
     note: "",
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",
+    priceMode: "netto" as PriceMode,
     language: "de" as const,
     variant: null,
     deducts: [] as string[],
@@ -420,6 +450,7 @@ export function buyerFrom(contact: Contact): Buyer {
 function documentFor(
   invoice: Invoice,
   lines: InvoiceLine[],
+  totals: InvoiceTotals,
   seller: Seller,
   buyer: Buyer,
   number: string,
@@ -447,11 +478,12 @@ function documentFor(
       taxRate: line.taxRate,
       net: line.net,
     })),
-    totals: computeInvoiceTotals(lines.map((line) => ({ ...line, taxRate: line.taxRate as 1900 | 700 | 0 }))),
+    totals,
     ...(corrects ? { corrects } : {}),
     ...(invoice.note ? { note: invoice.note } : {}),
     ...(invoice.taxTreatment !== "regulaer" ? { taxTreatment: invoice.taxTreatment } : {}),
     ...(invoice.exemptionReason ? { exemptionReason: invoice.exemptionReason } : {}),
+    ...(invoice.priceMode === "brutto" ? { priceMode: invoice.priceMode } : {}),
     language: invoice.language,
     ...(invoice.kind === "rechnung" && invoice.variant ? { variant: invoice.variant } : {}),
     ...(deducted.length > 0 ? { deducted } : {}),
@@ -489,7 +521,7 @@ export async function finalizeIssues(id: string): Promise<string[]> {
   }
   if (!contact) issues.push("Kunde fehlt");
   if (lines.length === 0) issues.push("Keine Positionen");
-  if (lines.some((line) => line.net === 0)) issues.push("Position ohne Betrag");
+  if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (invoice.correctsId) {
     const [original] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
     const problem = original ? await originalProblem(original) : "Die korrigierte Rechnung fehlt";
@@ -506,6 +538,7 @@ export async function finalizeIssues(id: string): Promise<string[]> {
     const preview = documentFor(
       invoice,
       lines,
+      (await invoiceTotalsById([id])).get(id)!,
       sellerFrom(company),
       buyerFrom(contact),
       "VORSCHAU",
@@ -564,10 +597,10 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
     // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
     const seller = sellerFrom(company);
     const buyer = corrects?.buyer ?? buyerFrom(contact!);
-    const doc = documentFor(invoice, lines, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null, await deductedRefs(lines));
+    const totals = (await invoiceTotalsById([id], tx)).get(id)!;
+    const doc = documentFor(invoice, lines, totals, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null, await deductedRefs(lines));
     const logo = await loadLogo();
     const rendered = await buildEInvoice(logo ? { ...doc, logo } : doc);
-    const totals = doc.totals;
     const now = new Date();
 
     const [finalized] = await tx
@@ -664,6 +697,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
       note: "",
       taxTreatment: invoice.taxTreatment,
       exemptionReason: invoice.exemptionReason,
+      priceMode: invoice.priceMode,
       language: invoice.language,
       lines: negatedLines(lines),
     },
@@ -692,6 +726,7 @@ export async function createCorrection(actor: string, id: string, today: string)
       note: "",
       taxTreatment: invoice.taxTreatment,
       exemptionReason: invoice.exemptionReason,
+      priceMode: invoice.priceMode,
       language: invoice.language,
       lines: negatedLines(lines),
     },

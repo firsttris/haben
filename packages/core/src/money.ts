@@ -14,7 +14,12 @@ export function taxOf(net: Cents, rate: BasisPoints): Cents {
   return roundHalfAwayFromZero((net * rate) / 10_000);
 }
 
-const formatter = new Intl.NumberFormat("de-DE", {
+/** Im Bruttobetrag enthaltene Steuer, kaufmännisch gerundet: 9,80 € zu 19 % → 1,56 € */
+export function taxIncluded(gross: Cents, rate: BasisPoints): Cents {
+  return roundHalfAwayFromZero((gross * rate) / (10_000 + rate));
+}
+
+const formatter =new Intl.NumberFormat("de-DE", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });

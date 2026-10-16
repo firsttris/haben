@@ -48,6 +48,7 @@ function InvoicePage() {
           note: invoice.note,
           taxTreatment: invoice.taxTreatment,
           exemptionReason: invoice.exemptionReason,
+          priceMode: invoice.priceMode,
           language: invoice.language,
           variant: invoice.variant,
           deducts: [...new Set(data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])))],
@@ -186,6 +187,12 @@ function FinalInvoice({ data }: { data: Detail }) {
               <dd className="mono" style={{ fontWeight: 600 }}>
                 {formatEuro(invoice.gross)}
               </dd>
+              {invoice.priceMode === "brutto" && (
+                <>
+                  <dt>Preise</dt>
+                  <dd>brutto, inklusive Umsatzsteuer</dd>
+                </>
+              )}
               <dt>Format</dt>
               <dd>{invoice.lexofficeVoucherId ? "Original aus Lexoffice" : FORMAT_LABEL[invoice.format]}</dd>
               {invoice.taxTreatment !== "regulaer" && (

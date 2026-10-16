@@ -4,6 +4,7 @@ import {
   dueDates,
   fillPlaceholders,
   invoiceLineInputSchema,
+  PRICE_MODES,
   servicePeriodFor,
   TAX_TREATMENT_KEYS,
   type RecurringInterval,
@@ -14,7 +15,7 @@ import { and, asc, desc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
-import { createDraft, finalizeInvoice } from "./invoices.ts";
+import { createDraft, effectivePriceMode, finalizeInvoice } from "./invoices.ts";
 import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
 import { MailError } from "./mail.ts";
 
@@ -36,6 +37,8 @@ export const recurringInputSchema = z.object({
   note: z.string().max(2000),
   taxTreatment: z.enum(TAX_TREATMENT_KEYS),
   exemptionReason: z.string().trim().max(300),
+  /** Einzelpreise netto oder brutto inkl. USt */
+  priceMode: z.enum(PRICE_MODES).default("netto"),
   lines: z.array(invoiceLineInputSchema).min(1, "Mindestens eine Position").max(200),
   intervalMonths: z.union([z.literal(1), z.literal(3), z.literal(6), z.literal(12)]),
   nextDate: isoDate,
@@ -54,6 +57,7 @@ function values(raw: RecurringInput) {
   return {
     ...input,
     exemptionReason: input.taxTreatment === "regulaer" ? "" : input.exemptionReason,
+    priceMode: effectivePriceMode(input),
     sendByMail: input.mode === "festschreiben" && input.sendByMail,
     anchorDay: Number(input.nextDate.slice(8, 10)),
     updatedAt: new Date(),
@@ -131,6 +135,7 @@ export function invoiceForDate(recurring: RecurringInvoice, date: string, langua
     note: fillPlaceholders(recurring.note, reference),
     taxTreatment: recurring.taxTreatment,
     exemptionReason: recurring.exemptionReason,
+    priceMode: recurring.priceMode,
     language,
     lines: recurring.lines.map((line) => ({
       description: fillPlaceholders(line.description, reference),

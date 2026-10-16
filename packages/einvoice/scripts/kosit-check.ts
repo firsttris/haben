@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { buildEInvoice } from "../src/xml.ts";
-import { euBuyer, mixedRateLines, publicBuyer, sampleDocument, sampleSeller, thirdCountryBuyer, zeroRateLines } from "../src/samples.ts";
+import { euBuyer, grossPriceLines, mixedRateLines, publicBuyer, sampleDocument, sampleSeller, thirdCountryBuyer, zeroRateLines } from "../src/samples.ts";
 import type { InvoiceDocument } from "../src/types.ts";
 
 const jar = process.env.KOSIT_JAR ?? "/var/tmp/kosit/validator/validationtool-1.5.0-standalone.jar";
@@ -64,19 +64,52 @@ const samples: Record<string, InvoiceDocument> = {
       [`schluss-${format}`, schlussrechnung(format)],
     ]),
   ),
+  // Bruttopreise: Netto je Satz herausgerechnet, Netto-Einzelpreise mit mehr Nachkommastellen
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
+      [`brutto-${format}`, sampleDocument({ format, lines: grossPriceLines, priceMode: "brutto" })],
+      [`brutto-storno-${format}`, sampleDocument({ kind: "storno", format, lines: grossPriceLines, priceMode: "brutto" })],
+      // 9,80 € brutto: Steuer 1,56 € auf 8,24 € netto, nachgerechnet wären es 1,57 € (BR-CO-17 erlaubt das)
+      [
+        `brutto-980-${format}`,
+        sampleDocument({
+          format,
+          lines: [{ description: "Abzug 13 × 18 cm", quantity: 1000, unit: "Stk.", unitPrice: 980, taxRate: 1900 }],
+          priceMode: "brutto",
+        }),
+      ],
+      [`brutto-schluss-${format}`, schlussrechnung(format, "brutto")],
+    ]),
+  ),
+  "brutto-grosse-menge-xr-ubl": sampleDocument({
+    format: "xrechnung-ubl",
+    lines: [
+      { description: "Druckseiten", quantity: 123_456_789, unit: "Stk.", unitPrice: 7, taxRate: 1900 },
+      { description: "Versand", quantity: 3000, unit: "Psch.", unitPrice: 499, taxRate: 1900 },
+    ],
+    priceMode: "brutto",
+  }),
   "nullsatz-xr-cii": sampleDocument({
     format: "xrechnung-cii",
     lines: [{ description: "Leistung zum Nullsatz", quantity: 1000, unit: "Psch.", unitPrice: 50000, taxRate: 0 }],
   }),
 };
 
-/** Schlussrechnung mit zwei Steuersätzen, abzüglich einer Abschlagsrechnung als negative Positionen */
-function schlussrechnung(format: InvoiceDocument["format"]): InvoiceDocument {
+/**
+ * Schlussrechnung mit zwei Steuersätzen, abzüglich einer Abschlagsrechnung als negative Positionen;
+ * bei Bruttopreisen werden die Abschläge brutto abgezogen
+ */
+function schlussrechnung(format: InvoiceDocument["format"], priceMode: "netto" | "brutto" = "netto"): InvoiceDocument {
+  const gross = priceMode === "brutto";
   const deductions = [
-    { description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 1.000,00 €, USt 190,00 €)", quantity: 1000, unit: "Psch." as const, unitPrice: -100000, taxRate: 1900 as const },
-    { description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 50,00 €, USt 3,50 €)", quantity: 1000, unit: "Psch." as const, unitPrice: -5000, taxRate: 700 as const },
+    { description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 1.000,00 €, USt 190,00 €)", quantity: 1000, unit: "Psch." as const, unitPrice: gross ? -119000 : -100000, taxRate: 1900 as const },
+    { description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 50,00 €, USt 3,50 €)", quantity: 1000, unit: "Psch." as const, unitPrice: gross ? -5350 : -5000, taxRate: 700 as const },
   ];
-  return { ...sampleDocument({ format, lines: [...mixedRateLines, ...deductions] }), variant: "schluss", deducted: [{ number: "2026-030", issueDate: "2026-09-15" }] };
+  return {
+    ...sampleDocument({ format, lines: [...(gross ? grossPriceLines.map((l) => ({ ...l, quantity: l.quantity * 10 })) : mixedRateLines), ...deductions], priceMode }),
+    variant: "schluss",
+    deducted: [{ number: "2026-030", issueDate: "2026-09-15" }],
+  };
 }
 
 /** Korrektur mit gutgeschriebenen und einer nachberechneten Position, insgesamt negativ */

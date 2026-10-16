@@ -16,7 +16,7 @@ function NewInvoicePage() {
   const { schluss } = Route.useSearch();
   const abschlag = schluss ? data.abschlaege.find((a) => a.id === schluss) : undefined;
   const contact = abschlag ? data.contacts.find((c) => c.id === abschlag.contactId) : undefined;
-  // Von einer Abschlagsrechnung aus: Kunde, Steuer und alle offenen Abschläge des Kunden übernehmen
+  // Von einer Abschlagsrechnung aus: Kunde, Steuer, Preismodus und alle offenen Abschläge des Kunden übernehmen
   const initial =
     abschlag && contact
       ? {
@@ -25,6 +25,7 @@ function NewInvoicePage() {
           language: contact.language,
           format: contact.defaultFormat ?? (contact.leitwegId ? ("xrechnung-cii" as const) : data.draft.format),
           taxTreatment: abschlag.taxTreatment,
+          priceMode: abschlag.priceMode,
           variant: "schluss" as const,
           deducts: data.abschlaege.filter((a) => a.contactId === contact.id).map((a) => a.id),
         }

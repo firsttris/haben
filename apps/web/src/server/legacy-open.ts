@@ -1,16 +1,18 @@
 import { UserError } from "./errors.ts";
 import {
   addDays,
-  computeInvoiceTotals,
+  computeInvoice,
   openingDocumentPosting,
   openingInvoicePosting,
   type ExpenseCategory,
+  type PriceMode,
 } from "@haben/core";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { loadCompany, type Company } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
+import { storeInvoiceTaxes } from "./invoice-taxes.ts";
 import type { LegacyCategoryRow } from "./db/schema.ts";
 import { buyerFrom, sellerFrom } from "./invoices.ts";
 import { loadFile } from "./storage.ts";
@@ -174,22 +176,27 @@ async function takeOverInvoice(
   const pdf = await loadFile(pdfFile.sha256);
   const xml = xmlFile ? (await loadFile(xmlFile.sha256)).toString("utf8") : null;
 
-  // Eine Position je Steuersatz; die Summen müssen exakt zu Lexoffice passen, sonst stimmt die Steuer nicht
-  const lines = voucher.taxes
-    .filter((t) => t.net !== 0)
-    .map((t, i) => ({
+  // Eine Position je Steuersatz. Die Summen müssen exakt zu Lexoffice passen, sonst stimmt die Steuer nicht,
+  // auch nicht bei einem späteren Storno: erst netto nachbilden, sonst brutto (in Lexoffice mit Endpreisen gerechnet)
+  const taxes = voucher.taxes.filter((t) => t.net !== 0);
+  const rebuild = (priceMode: PriceMode) => {
+    const lines = taxes.map((t, i) => ({
       position: i + 1,
-      description: `Rechnung ${voucher.number} aus Lexoffice${voucher.taxes.length > 1 ? ` (${t.rate / 100} %)` : ""}`,
+      description: `Rechnung ${voucher.number} aus Lexoffice${taxes.length > 1 ? ` (${t.rate / 100} %)` : ""}`,
       quantity: 1000,
       unit: "Psch.",
-      unitPrice: t.net,
-      taxRate: t.rate,
-      net: t.net,
+      unitPrice: priceMode === "brutto" ? t.net + t.tax : t.net,
+      taxRate: t.rate as 1900 | 700 | 0,
     }));
-  const totals = computeInvoiceTotals(lines.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, taxRate: l.taxRate as 1900 | 700 | 0 })));
+    const { totals, lineNets } = computeInvoice(lines, priceMode);
+    return { priceMode, totals, lines: lines.map((l, i) => ({ ...l, net: lineNets[i]! })) };
+  };
+  const matches = (r: ReturnType<typeof rebuild>) => r.totals.gross === voucher.gross && r.totals.tax === voucher.tax;
+  const netto = rebuild("netto");
+  const { priceMode, totals, lines } = matches(netto) ? netto : rebuild("brutto");
   if (totals.gross !== voucher.gross || totals.tax !== voucher.tax) {
     throw new TakeoverError(
-      `Die Steuer lässt sich nicht centgenau nachbilden (Lexoffice ${voucher.tax / 100} €, Haben ${totals.tax / 100} €).`,
+      `Die Steuer lässt sich nicht centgenau nachbilden (Lexoffice ${voucher.tax / 100} €, Haben ${netto.totals.tax / 100} €).`,
     );
   }
 
@@ -225,6 +232,7 @@ async function takeOverInvoice(
         paymentTermDays: term,
         dueDate,
         note: "Aus Lexoffice übernommen; das PDF ist das Original.",
+        priceMode,
         net: totals.net,
         tax: totals.tax,
         gross: totals.gross,
@@ -232,6 +240,7 @@ async function takeOverInvoice(
       .returning({ id: schema.invoices.id });
     const id = invoice!.id;
     await tx.insert(schema.invoiceLines).values(lines.map((l) => ({ ...l, invoiceId: id })));
+    await storeInvoiceTaxes(tx, id, totals.taxes);
     const now = new Date();
     await tx
       .update(schema.invoices)

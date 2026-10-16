@@ -20,9 +20,10 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 4. Optional **Leistung von** und **Leistung bis**. Ohne Angabe gilt das Rechnungsdatum als Leistungsdatum; ist nur ein Tag angegeben oder sind beide gleich, erscheint auf der Rechnung „Leistungsdatum“, sonst „Leistungszeitraum“.
 5. **E-Rechnungsformat** prüfen.
 6. Unter **Umsatzsteuer** die steuerliche Behandlung wählen, im Normalfall „Regulär besteuert“ (siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung)).
-7. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
-8. Optional einen **Hinweis auf der Rechnung** eintragen (bis 2000 Zeichen).
-9. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt einmal nach: erst der zweite Klick auf **Jetzt festschreiben** führt es aus.
+7. Unter **Preise** wählen, ob die Einzelpreise netto oder brutto inklusive Umsatzsteuer gelten (siehe [Netto- oder Bruttopreise](#netto-oder-bruttopreise)). Vorgabe ist netto.
+8. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
+9. Optional einen **Hinweis auf der Rechnung** eintragen (bis 2000 Zeichen).
+10. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt einmal nach: erst der zweite Klick auf **Jetzt festschreiben** führt es aus.
 
 Rechts zeigt die Vorschau die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
 
@@ -37,18 +38,40 @@ Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**
 | Einzelpreis | In Euro, z. B. `95,00`. Negative Preise sind möglich, etwa für einen Rabatt. |
 | Steuersatz | 19 %, 7 % oder 0 % |
 
-Das Zeilennetto ist Menge mal Einzelpreis, kaufmännisch auf Cent gerundet. Die Umsatzsteuer rechnet Haben nach EN 16931 je Steuersatz auf die Summe der Zeilennetto, nicht als Summe der Steuer je Zeile. Bei mehreren Steuersätzen weist das PDF die Steuer je Satz mit ihrer Bemessungsgrundlage aus.
+Der Zeilenbetrag ist Menge mal Einzelpreis, kaufmännisch auf Cent gerundet. Bei Nettopreisen rechnet Haben die Umsatzsteuer nach EN 16931 je Steuersatz auf die Summe der Zeilennetto, nicht als Summe der Steuer je Zeile. Bei mehreren Steuersätzen weist das PDF die Steuer je Satz mit ihrer Bemessungsgrundlage aus.
 
 Die Einheiten gehen mit ihren UN/ECE-Codes ins XML (`HUR`, `DAY`, `MON`, `H87`, `LS`, `KMT`).
+
+### Netto- oder Bruttopreise
+
+Zwischen Unternehmen sind Nettopreise üblich, das ist die Vorgabe. Wer an Verbraucher verkauft, nennt Endpreise inklusive Umsatzsteuer, z. B. 9,80 € für einen Fotoabzug. Netto lässt sich so ein Preis oft nicht centgenau treffen: 8,23 € netto ergeben 9,79 €, 8,24 € netto 9,81 €. Mit **Preise: Brutto, inklusive Umsatzsteuer** gibst du die Endpreise direkt ein.
+
+| | Netto (Vorgabe) | Brutto |
+| --- | --- | --- |
+| Einzelpreis | ohne Umsatzsteuer | mit Umsatzsteuer |
+| Berechnung | Summe netto je Steuersatz, Umsatzsteuer darauf | Summe brutto je Steuersatz, Umsatzsteuer daraus herausgerechnet (bei 19 % brutto × 19/119), Netto ist die Differenz |
+| Letzte Spalte in Vorschau und PDF | Netto | Brutto |
+| Summenblock | Summe netto, Umsatzsteuer je Satz, Gesamtbetrag | Gesamtbetrag (inkl. USt), darunter „darin enthalten“ Netto und Umsatzsteuer je Satz |
+
+Der Gesamtbetrag stimmt damit auf den Cent mit den Endpreisen überein. Weil die Steuer aus der Summe je Satz herausgerechnet wird und nicht je Zeile, kann sie einen Cent von der Summe der einzelnen Zeilen abweichen; so verlangt es auch EN 16931.
+
+- Bruttopreise gibt es nur bei „Regulär besteuert“. Ohne Steuerausweis (Kleinunternehmer, Reverse Charge, steuerfrei, Nicht-EU-Ausland) sind netto und brutto gleich; Haben speichert die Rechnung dann als netto.
+- Stornorechnung und Rechnungskorrektur rechnen immer wie die ursprüngliche Rechnung. Die Stornorechnung hebt sie auf den Cent genau auf.
+- Eine Schlussrechnung mit Bruttopreisen zieht die Abschlagsrechnungen brutto ab, also mit Netto und Umsatzsteuer der Abschlagsrechnung zusammen. Legst du sie aus einer Abschlagsrechnung an, übernimmt sie deren Preismodus.
+- Angebote und wiederkehrende Rechnungen haben dieselbe Auswahl. Eine Rechnung aus einem Angebot oder einer Vorlage übernimmt den Preismodus.
+- Den Preismodus zu wechseln rechnet die eingegebenen Preise nicht um. Die eingetragenen Beträge gelten ab dann als netto bzw. brutto.
+
+**In der E-Rechnung** stehen immer Nettobeträge, so verlangt es EN 16931. Haben verteilt das Netto je Steuersatz so auf die Positionen, dass ihre Summe genau die Bemessungsgrundlage ergibt; einen Rundungsrest von höchstens einigen Cent trägt die Position mit dem größten Betrag. Den Netto-Einzelpreis (BT-146) schreibt Haben mit so vielen Nachkommastellen wie nötig, damit Menge × Preis wieder das Zeilennetto ergibt (PEPPOL-EN16931-R120), z. B. 8,236 € für 7 Abzüge zu je 9,80 € brutto. Die Steuer je Satz (1,56 € auf 8,24 €) kann um einen Cent von Netto × Satz (1,57 €) abweichen; EN 16931 lässt das zu (BR-CO-17). Der KoSIT-Validator nimmt diese Rechnungen in allen drei Formaten an.
 
 ### Artikelkatalog
 
 Unter **Artikel** (Seitenleiste, Bereich Verkauf) legst du Positionen an, die du oft brauchst: Stundensatz, Tagessatz, Wartungspauschale.
 
-- Jeder Artikel hat Bezeichnung, optional eine Artikelnummer, Einheit, Nettopreis und Steuersatz, dazu eine interne Notiz.
+- Jeder Artikel hat Bezeichnung, optional eine Artikelnummer, Einheit, Preis und Steuersatz, dazu eine interne Notiz. Unter **Preis ist** legst du fest, ob der Preis netto oder brutto inklusive Umsatzsteuer gilt; in der Liste steht bei Bruttopreisen „brutto“.
+- Passt der Preis nicht zum Preismodus der Rechnung, rechnet Haben ihn beim Einfügen um, kaufmännisch auf Cent gerundet: Ein Artikel zu 9,80 € brutto steht in einer Netto-Rechnung mit 8,24 €, ein Artikel zu 100,00 € netto in einer Brutto-Rechnung mit 119,00 €. Ohne Steuerausweis übernimmt Haben den Preis unverändert.
 - Im Editor für Rechnungen und Angebote fügt **Aus dem Katalog einfügen** den Artikel als Position mit Menge 1 ein. Ist die einzige Zeile noch leer, ersetzt er sie.
 - Beim Tippen der Beschreibung einer Position schlägt der Browser passende Artikel vor (per Tastatur oder Maus auswählbar). Stimmt die Beschreibung mit einem Artikel überein, übernimmt die Position dessen Einheit, Preis und Steuersatz; die Menge bleibt.
-- Das Lesezeichen-Symbol neben einer Position speichert sie als Artikel: Beschreibung, Einheit, Preis und Steuersatz der Position. Steht genau diese Position schon im Katalog, ist der Knopf ausgegraut.
+- Das Lesezeichen-Symbol neben einer Position speichert sie als Artikel: Beschreibung, Einheit, Preis und Steuersatz der Position, bei einer Brutto-Rechnung als Bruttopreis. Steht genau diese Position schon im Katalog, ist der Knopf ausgegraut.
 - Text, Menge und Preis passt du danach in der Position an.
 - Ohne Steuerausweis (Kleinunternehmer, Reverse Charge, steuerfrei) setzt Haben den Steuersatz der Position auf 0 %.
 - Änderungen am Katalog wirken nur auf neue Positionen. Festgeschriebene Rechnungen bleiben, wie sie sind.
@@ -208,7 +231,7 @@ Für Monatspauschalen, Wartungsverträge oder Hosting legst du unter **Rechnunge
 | Endet nach dem | optional. Danach wird die Vorlage inaktiv. |
 | Leistungszeitraum | **Laufend:** die Monate ab dem Rechnungsmonat (Vorauszahlung). **Vergangen:** die Monate davor (Abrechnung). **Keiner:** ohne Leistungszeitraum, dann gilt das Rechnungsdatum. |
 | Was am Termin passiert | **Entwurf anlegen:** du prüfst und schreibst selbst fest. **Direkt festschreiben:** Nummer, PDF, XML und Buchung wie beim Festschreiben von Hand; auf Wunsch **und per E-Mail an den Kunden schicken** (Vorlage und Adresse wie beim [Versand von Hand](#per-e-mail-versenden)). |
-| Kunde, Positionen, Zahlungsziel, Format, Umsatzsteuer, Hinweis | wie im Rechnungseditor |
+| Kunde, Positionen, Zahlungsziel, Format, Umsatzsteuer, Preise (netto oder brutto), Hinweis | wie im Rechnungseditor |
 
 In Beschreibungen und im Hinweis ersetzt Haben Platzhalter:
 
@@ -368,7 +391,7 @@ Gebucht werden diese Rechnungen nicht als Erlös, sondern gegen den Saldenvortra
 
 ## Prüfung gegen den KoSIT-Validator
 
-Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten E-Rechnungen mit dem offiziellen KoSIT-Validator (Version 1.5.0) und der XRechnung-Konfiguration 3.0.2. Geprüft werden Beispielrechnungen in den drei Formaten, darunter einfache Rechnung zu 19 %, gemischte Steuersätze, Storno, Rechnungskorrektur, Leitweg-ID, einzelnes Leistungsdatum, Absender nur mit Steuernummer, eine Rechnung zum Nullsatz sowie je eine Rechnung mit Reverse Charge, ins Drittland, steuerfrei nach § 4 UStG und als Kleinunternehmer. Die Prüfberichte liegen als Artefakt am CI-Lauf. Wie du die Prüfung lokal startest, steht in [entwicklung.md](entwicklung.md).
+Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten E-Rechnungen mit dem offiziellen KoSIT-Validator (Version 1.5.0) und der XRechnung-Konfiguration 3.0.2. Geprüft werden Beispielrechnungen in den drei Formaten, darunter einfache Rechnung zu 19 %, gemischte Steuersätze, Storno, Rechnungskorrektur, Leitweg-ID, einzelnes Leistungsdatum, Absender nur mit Steuernummer, eine Rechnung zum Nullsatz, je eine Rechnung mit Reverse Charge, ins Drittland, steuerfrei nach § 4 UStG und als Kleinunternehmer sowie Rechnungen mit Bruttopreisen (gemischte Sätze, Storno, 9,80 € zu 19 %, Schlussrechnung, große Mengen). Die Prüfberichte liegen als Artefakt am CI-Lauf. Wie du die Prüfung lokal startest, steht in [entwicklung.md](entwicklung.md).
 
 ## Grenzen
 

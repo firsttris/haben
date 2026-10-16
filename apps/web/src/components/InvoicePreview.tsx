@@ -3,8 +3,9 @@ import {
   formatEuro,
   formatQuantity,
   formatRate,
-  lineNet,
+  lineAmount,
   type InvoiceLineInput,
+  type PriceMode,
 } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { KIND_TITLE } from "../lib/invoice.ts";
@@ -46,6 +47,7 @@ export function InvoicePreview({
   buyer,
   lines,
   note,
+  priceMode = "netto",
   taxNote,
   corrects,
   title,
@@ -62,6 +64,8 @@ export function InvoicePreview({
   buyer: PreviewBuyer | null;
   lines: (InvoiceLineInput & { valid: boolean })[];
   note: string;
+  /** Bruttopreise: letzte Spalte brutto, unter dem Gesamtbetrag „darin enthalten“ */
+  priceMode?: PriceMode;
   /** Pflichthinweis bei Rechnungen ohne Steuerausweis; dann keine Steuerspalte */
   taxNote?: string | null;
   corrects?: { number: string | null; issueDate: string } | null;
@@ -69,7 +73,8 @@ export function InvoicePreview({
   title?: string;
 }) {
   const valid = lines.filter((l) => l.valid);
-  const totals = computeInvoiceTotals(valid);
+  const gross = priceMode === "brutto";
+  const totals = computeInvoiceTotals(valid, priceMode);
   const quote = kind === "angebot";
   const sender = [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`.trim()].filter(Boolean).join(" · ");
   const meta: [string, string][] = [
@@ -145,7 +150,7 @@ export function InvoicePreview({
                 <th className="num">Menge</th>
                 <th className="num">Einzelpreis</th>
                 <th className="num">USt</th>
-                <th className="num">Netto</th>
+                <th className="num">{gross ? "Brutto" : "Netto"}</th>
               </tr>
             </thead>
             <tbody>
@@ -158,7 +163,7 @@ export function InvoicePreview({
                   </td>
                   <td className="num">{formatEuro(line.unitPrice)}</td>
                   <td className="num">{taxNote ? "–" : formatRate(line.taxRate)}</td>
-                  <td className="num">{formatEuro(lineNet(line.quantity, line.unitPrice))}</td>
+                  <td className="num">{formatEuro(lineAmount(line.quantity, line.unitPrice))}</td>
                 </tr>
               ))}
               {valid.length === 0 && (
@@ -172,19 +177,40 @@ export function InvoicePreview({
             </tbody>
           </table>
           <dl className="sheet-totals">
-            <dt>Summe netto</dt>
-            <dd>{formatEuro(totals.net)}</dd>
-            {taxes.map((t) => (
-              <div key={t.rate} style={{ display: "contents" }}>
-                <dt>
-                  Umsatzsteuer {formatRate(t.rate)}
-                  {taxes.length > 1 && ` auf ${formatEuro(t.base)}`}
-                </dt>
-                <dd>{formatEuro(t.tax)}</dd>
-              </div>
-            ))}
-            <dt className="gross">{quote ? "Angebotssumme" : "Gesamtbetrag"}</dt>
+            {!gross && (
+              <>
+                <dt>Summe netto</dt>
+                <dd>{formatEuro(totals.net)}</dd>
+                {taxes.map((t) => (
+                  <div key={t.rate} style={{ display: "contents" }}>
+                    <dt>
+                      Umsatzsteuer {formatRate(t.rate)}
+                      {taxes.length > 1 && ` auf ${formatEuro(t.base)}`}
+                    </dt>
+                    <dd>{formatEuro(t.tax)}</dd>
+                  </div>
+                ))}
+              </>
+            )}
+            <dt className="gross">
+              {quote ? "Angebotssumme" : "Gesamtbetrag"}
+              {gross && " (inkl. USt)"}
+            </dt>
             <dd className="gross">{formatEuro(totals.gross)}</dd>
+            {gross && taxes.length > 0 && (
+              <>
+                <dt className="sheet-included">darin enthalten:</dt>
+                <dd className="sheet-included" />
+                {taxes.map((t) => (
+                  <div key={t.rate} style={{ display: "contents" }}>
+                    <dt className="sheet-included">Netto{taxes.length > 1 && ` ${formatRate(t.rate)}`}</dt>
+                    <dd className="sheet-included">{formatEuro(t.base)}</dd>
+                    <dt className="sheet-included">Umsatzsteuer {formatRate(t.rate)}</dt>
+                    <dd className="sheet-included">{formatEuro(t.tax)}</dd>
+                  </div>
+                ))}
+              </>
+            )}
           </dl>
           {taxNote && <p className="sheet-strong">{taxNote}</p>}
           <p>{payment}</p>

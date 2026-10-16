@@ -1,5 +1,5 @@
 import { z } from "zod/mini";
-import { roundHalfAwayFromZero, taxOf, type BasisPoints, type Cents } from "./money.ts";
+import { roundHalfAwayFromZero, taxIncluded, taxOf, type BasisPoints, type Cents } from "./money.ts";
 
 /** Mengen als ganze Tausendstel: 152 Std. = 152000, 0,5 Tage = 500. */
 export type Millis = number;
@@ -44,23 +44,78 @@ export interface InvoiceTotals {
   taxes: TaxBreakdown[];
 }
 
-/** Zeilennetto: Menge × Einzelpreis, kaufmännisch gerundet. */
-export function lineNet(quantity: Millis, unitPrice: Cents): Cents {
+/**
+ * Preise netto (Standard, B2B) oder brutto inklusive Umsatzsteuer (Endpreise für Privatkunden).
+ * Im Brutto-Modus sind Einzelpreis und Zeilenbetrag brutto; die Steuer wird je Satz herausgerechnet.
+ */
+export const PRICE_MODES = ["netto", "brutto"] as const;
+
+export type PriceMode = (typeof PRICE_MODES)[number];
+
+/** Zeilenbetrag: Menge × Einzelpreis, kaufmännisch gerundet; netto oder brutto wie der Einzelpreis */
+export function lineAmount(quantity: Millis, unitPrice: Cents): Cents {
   return roundHalfAwayFromZero((quantity * unitPrice) / 1000);
 }
 
+/** Summen und das Netto jeder Zeile in Reihenfolge der Eingabe */
+export interface InvoiceCalculation {
+  totals: InvoiceTotals;
+  lineNets: Cents[];
+}
+
+type CalculationLine = Pick<InvoiceLineInput, "quantity" | "unitPrice" | "taxRate">;
+
 /**
- * Summen nach EN 16931: Steuer je Steuersatz auf die Summe der Zeilennetto,
- * nicht als Summe der Zeilensteuern.
+ * Summen nach EN 16931: Steuer je Steuersatz auf die Summe der Zeilenbeträge, nicht als Summe der
+ * Zeilensteuern.
+ *
+ * netto: Bemessungsgrundlage = Summe der Zeilen, Steuer darauf.
+ * brutto: Bruttosumme je Satz, die Steuer daraus herausgerechnet, Netto ist die Differenz. So stimmt
+ * der Endpreis auf den Cent (9,80 € statt 9,79 € oder 9,81 €). Das Netto wird auf die Zeilen verteilt,
+ * damit ihre Summe exakt die Bemessungsgrundlage ergibt (BR-CO-10); den Rundungsrest trägt die
+ * betragsmäßig größte Zeile des Satzes. Negierte Zeilen (Storno) ergeben exakt negierte Werte.
  */
-export function computeInvoiceTotals(lines: Pick<InvoiceLineInput, "quantity" | "unitPrice" | "taxRate">[]): InvoiceTotals {
-  const bases = new Map<BasisPoints, Cents>();
-  for (const line of lines) {
-    bases.set(line.taxRate, (bases.get(line.taxRate) ?? 0) + lineNet(line.quantity, line.unitPrice));
-  }
-  const taxes = [...bases.entries()]
+export function computeInvoice(lines: CalculationLine[], priceMode: PriceMode = "netto"): InvoiceCalculation {
+  const amounts = lines.map((line) => lineAmount(line.quantity, line.unitPrice));
+  const sums = new Map<BasisPoints, Cents>();
+  lines.forEach((line, i) => sums.set(line.taxRate, (sums.get(line.taxRate) ?? 0) + amounts[i]!));
+  const taxes = [...sums.entries()]
     .sort(([a], [b]) => b - a)
-    .map(([rate, base]) => ({ rate, base, tax: taxOf(base, rate) }));
+    .map(([rate, sum]) => {
+      if (priceMode === "netto") return { rate, base: sum, tax: taxOf(sum, rate) };
+      const tax = taxIncluded(sum, rate);
+      return { rate, base: sum - tax, tax };
+    });
+
+  const lineNets = priceMode === "netto" ? amounts : amounts.map((amount, i) => amount - taxIncluded(amount, lines[i]!.taxRate));
+  if (priceMode === "brutto") {
+    for (const t of taxes) {
+      const indexes = lines.map((line, i) => (line.taxRate === t.rate ? i : -1)).filter((i) => i >= 0);
+      const rest = t.base - indexes.reduce((sum, i) => sum + lineNets[i]!, 0);
+      if (rest === 0) continue;
+      const largest = indexes.reduce((best, i) => (Math.abs(amounts[i]!) > Math.abs(amounts[best]!) ? i : best), indexes[0]!);
+      lineNets[largest] = lineNets[largest]! + rest;
+    }
+  }
+
+  const net = taxes.reduce((sum, t) => sum + t.base, 0);
+  const tax = taxes.reduce((sum, t) => sum + t.tax, 0);
+  return { totals: { net, tax, gross: net + tax, taxes }, lineNets };
+}
+
+export function computeInvoiceTotals(lines: CalculationLine[], priceMode: PriceMode = "netto"): InvoiceTotals {
+  return computeInvoice(lines, priceMode).totals;
+}
+
+/** Preis von einem Modus in den anderen umrechnen, z. B. einen Nettoartikel in eine Bruttorechnung */
+export function convertPrice(unitPrice: Cents, taxRate: BasisPoints, from: PriceMode, to: PriceMode): Cents {
+  if (from === to) return unitPrice;
+  return to === "brutto" ? unitPrice + taxOf(unitPrice, taxRate) : unitPrice - taxIncluded(unitPrice, taxRate);
+}
+
+/** Summen aus den gespeicherten Beträgen je Steuersatz */
+export function totalsFromTaxes(rows: TaxBreakdown[]): InvoiceTotals {
+  const taxes = [...rows].sort((a, b) => b.rate - a.rate).map(({ rate, base, tax }) => ({ rate, base, tax }));
   const net = taxes.reduce((sum, t) => sum + t.base, 0);
   const tax = taxes.reduce((sum, t) => sum + t.tax, 0);
   return { net, tax, gross: net + tax, taxes };

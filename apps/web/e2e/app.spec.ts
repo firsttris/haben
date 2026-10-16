@@ -320,7 +320,7 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   const form = page.getByRole("form", { name: "Neuer Artikel" });
   await form.getByLabel("Bezeichnung").fill("Beratung Softwarearchitektur");
   await form.getByLabel("Artikelnummer (optional)").fill("B-01");
-  await form.getByLabel("Preis netto (€)").fill("110,00");
+  await form.getByLabel("Preis (€)").fill("110,00");
   await form.getByRole("button", { name: "Anlegen" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Artikel angelegt." })).toBeVisible();
   await expect(page.getByRole("region", { name: "Artikelliste" })).toContainText("110,00\u00a0€ je Std.");
@@ -347,6 +347,34 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(page.getByRole("status").filter({ hasText: "„Wartungspauschale“ ist jetzt im Artikelkatalog." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Position 3 als Artikel speichern" })).toBeDisabled();
   await expect(page.getByLabel("Aus dem Artikelkatalog einfügen").locator("option", { hasText: "Wartungspauschale · 250,00" })).toHaveCount(1);
+});
+
+test("Bruttopreise: Artikel mit Endpreis, Umrechnung beim Einfügen, Vorschau mit „darin enthalten“", async () => {
+  await go("/artikel");
+  await page.getByRole("button", { name: "Neuer Artikel" }).click();
+  const form = page.getByRole("form", { name: "Neuer Artikel" });
+  await form.getByLabel("Bezeichnung").fill("Fotoabzug 13 × 18 cm");
+  await form.getByLabel("Einheit").selectOption("Stk.");
+  await form.getByLabel("Preis (€)").fill("9,80");
+  await form.getByLabel(/^Preis ist/).selectOption("brutto");
+  await form.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByRole("region", { name: "Artikelliste" })).toContainText("9,80\u00a0€ brutto je Stk.");
+
+  // Netto-Rechnung: der Endpreis wird herausgerechnet
+  await go("/rechnungen/neu");
+  const catalog = page.getByLabel("Aus dem Artikelkatalog einfügen");
+  await catalog.selectOption({ label: "Fotoabzug 13 × 18 cm · 9,80\u00a0€ brutto/Stk." });
+  await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("8,24");
+
+  // Brutto-Rechnung: der Endpreis bleibt, die Steuer steht unter dem Gesamtbetrag
+  await page.getByLabel(/^Preise/).selectOption("brutto");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("9,80");
+  const preview = page.getByLabel("Vorschau der Rechnung");
+  await expect(preview).toContainText("Gesamtbetrag (inkl. USt)9,80\u00a0€");
+  await expect(preview).toContainText("darin enthalten:");
+  await expect(preview).toContainText("Umsatzsteuer 19 %1,56\u00a0€");
+  await catalog.selectOption({ label: "Fotoabzug 13 × 18 cm · 9,80\u00a0€ brutto/Stk." });
+  await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("9,80");
 });
 
 test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () => {

@@ -1,4 +1,4 @@
-import { RECURRING_INTERVALS, formatEuro, lineNet, type RecurringInterval } from "@haben/core";
+import { computeInvoiceTotals, formatEuro, RECURRING_INTERVALS, type RecurringInterval } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { InvoiceTabs } from "../../../../components/InvoiceTabs.tsx";
 import { useServerFn } from "@tanstack/react-start";
@@ -73,7 +73,14 @@ function RecurringPage() {
                 <div>{contactName}</div>
                 <div className="small">{RECURRING_INTERVALS[recurring.intervalMonths as RecurringInterval]}</div>
                 <div className="small">{recurring.active ? formatDate(recurring.nextDate) : "–"}</div>
-                <div className="num">{formatEuro(recurring.lines.reduce((s, l) => s + lineNet(l.quantity, l.unitPrice), 0))}</div>
+                <div className="num">
+                  {formatEuro(
+                    computeInvoiceTotals(
+                      recurring.lines.map((l) => ({ ...l, taxRate: l.taxRate as 1900 | 700 | 0 })),
+                      recurring.taxTreatment === "regulaer" ? recurring.priceMode : "netto",
+                    ).net,
+                  )}
+                </div>
               </Link>
             ))}
           </div>

@@ -1,4 +1,4 @@
-import type { BasisPoints, Cents, InvoiceTotals, Millis, TaxTreatment, UnitLabel } from "@haben/core";
+import type { BasisPoints, Cents, InvoiceTotals, Millis, PriceMode, TaxTreatment, UnitLabel } from "@haben/core";
 
 /** Rechnung, Stornorechnung oder Rechnungskorrektur (Gutschrift) */
 export type InvoiceKind = "rechnung" | "storno" | "korrektur";
@@ -42,10 +42,10 @@ export interface InvoiceDocumentLine {
   description: string;
   quantity: Millis;
   unit: UnitLabel;
-  /** Bei Storno und Korrektur negativ */
+  /** Wie eingegeben: netto, bei Bruttopreisen brutto; bei Storno und Korrektur negativ */
   unitPrice: Cents;
   taxRate: BasisPoints;
-  /** Zeilennetto, bei Storno und Korrektur negativ */
+  /** Zeilennetto, bei Bruttopreisen der Anteil an der Bemessungsgrundlage; bei Storno und Korrektur negativ */
   net: Cents;
 }
 
@@ -79,6 +79,8 @@ export interface InvoiceDocument {
   note?: string;
   /** Fehlt = regulär besteuert */
   taxTreatment?: TaxTreatment;
+  /** Fehlt = Nettopreise; brutto nur bei regulärer Besteuerung */
+  priceMode?: PriceMode;
   /** Befreiungsgrund auf der Rechnung, z. B. „Steuerfrei nach § 4 Nr. 14 UStG“; sonst der Standardtext */
   exemptionReason?: string;
   /** Nur für das PDF, nicht für das XML */

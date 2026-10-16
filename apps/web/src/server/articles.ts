@@ -17,6 +17,8 @@ export const articleInputSchema = z.object({
   unit: z.enum(Object.keys(UNITS) as [UnitLabel, ...UnitLabel[]]),
   unitPrice: z.number().int().min(-100_000_000_00).max(100_000_000_00),
   taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
+  /** Preis inklusive Umsatzsteuer; beim Einfügen in eine Rechnung mit anderem Preismodus umgerechnet */
+  priceIncludesTax: z.boolean().default(false),
   note: z.string().trim().max(1000).default(""),
 });
 

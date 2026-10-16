@@ -1,5 +1,5 @@
 import { texts, type Language } from "./i18n.ts";
-import { addressLines, footerColumns, renderQuotePdfData, templateLabels } from "./pdf.ts";
+import { addressLines, footerColumns, renderQuotePdfData, showsGrossPrices, templateLabels } from "./pdf.ts";
 import { quoteDetails, quotePdfData, type QuoteDocument } from "./quote.ts";
 import type { Buyer, InvoiceDocumentLine, Logo, Seller } from "./types.ts";
 
@@ -22,7 +22,7 @@ export function confirmationPdfData(doc: QuoteDocument, date: string) {
       { label: t.quoteRef, value: `${doc.number} (${t.date(doc.issueDate)})` },
       ...quoteDetails(doc, t),
     ],
-    totals: { ...base.totals, gross: { ...base.totals.gross, label: t.orderTotal } },
+    totals: { ...base.totals, gross: { ...base.totals.gross, label: showsGrossPrices(doc) ? t.inclVat(t.orderTotal) : t.orderTotal } },
     payment: t.confirmationText,
   };
 }

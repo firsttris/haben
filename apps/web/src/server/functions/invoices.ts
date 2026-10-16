@@ -60,7 +60,16 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 async function invoiceEditorContext() {
   return {
     ...(await editorContext("rechnung")),
-    abschlaege: (await openAbschlaege()).map(({ id, contactId, number, issueDate, gross, rates, taxTreatment }) => ({ id, contactId, number, issueDate, gross, rates, taxTreatment })),
+    abschlaege: (await openAbschlaege()).map(({ id, contactId, number, issueDate, gross, rates, taxTreatment, priceMode }) => ({
+      id,
+      contactId,
+      number,
+      issueDate,
+      gross,
+      rates,
+      taxTreatment,
+      priceMode,
+    })),
   };
 }
 

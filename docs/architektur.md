@@ -75,14 +75,15 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `invoices` | Ausgangsrechnungen, Stornos und Korrekturen mit PDF, XML, SHA-256 und umsatzsteuerlicher Behandlung (`tax_treatment`, `exemption_reason`); aus Vorlagen mit `recurring_id` und Termin (`recurring_date`, eindeutig je Vorlage); höchstens ein festgeschriebenes Storno je Rechnung | gesperrt ab Festschreibung, Audit ohne PDF/XML |
 | `recurring_invoices` | Vorlagen für wiederkehrende Rechnungen: Positionen, Intervall, nächster Termin, Modus (Entwurf oder festschreiben) | Audit |
 | `dunnings` | Zahlungserinnerungen und Mahnungen mit Stufe, Frist, Gebühr, Pauschale, Zinsen und PDF | nur anhängen, Audit ohne PDF |
-| `invoice_lines` | Positionen einer Rechnung | gesperrt mit der Rechnung |
+| `invoice_lines` | Positionen einer Rechnung: Einzelpreis wie eingegeben (netto oder brutto, `invoices.price_mode`), Zeilennetto | gesperrt mit der Rechnung |
+| `invoice_taxes` | Netto und Umsatzsteuer je Steuersatz, einmal beim Speichern des Entwurfs berechnet; Voranmeldung, Zahlungsbuchung, Auswertungen, Schlussrechnung, PDF und XML lesen nur diese Werte | gesperrt mit der Rechnung |
 | `invoice_number_counters` | Letzte vergebene Nummer je Jahr | darf nicht sinken, Audit |
 | `quotes` | Angebote mit Gültigkeit, PDF, SHA-256, Antwort des Kunden (`decision`) und daraus entstandener Rechnung (`invoice_id`) | gesperrt ab Festschreibung bis auf Antwort und Rechnung, Audit ohne PDF |
 | `quote_lines` | Positionen eines Angebots | gesperrt mit dem Angebot |
 | `quote_number_counters` | Letzte Angebotsnummer je Jahr (`AN-2026-001`) | darf nicht sinken, Audit |
 | `documents` | Eingangsbelege; Datei im Dateisystem, Felder aus Auslesung oder Hand, beim Buchen festgehalten, ob mit Vorsteuerabzug (`vorsteuer_abzug`) | gesperrt ab Buchung, Audit |
 | `document_amounts` | Beträge eines Belegs je Steuersatz | gesperrt mit dem Beleg |
-| `articles` | Artikel und Leistungen zum Einfügen in Rechnungen und Angebote, Preis netto, Steuersatz, archivierbar | änderbar, Audit |
+| `articles` | Artikel und Leistungen zum Einfügen in Rechnungen und Angebote, Preis netto oder brutto (`price_includes_tax`), Steuersatz, archivierbar | änderbar, Audit |
 
 ### Buchhaltung, Bank und Umsatzsteuer
 
@@ -150,7 +151,7 @@ Geschützt wird an drei Stellen:
 3. In einer Transaktion mit `withActor`:
    - Entwurf mit `SELECT … FOR UPDATE` sperren,
    - Zähler des Jahres per Upsert um eins erhöhen und Nummer bilden (`2026-034`),
-   - PDF und XML erzeugen (siehe unten),
+   - PDF und XML aus Positionen und den gespeicherten Steuerzeilen (`invoice_taxes`) erzeugen (siehe unten),
    - Rechnung auf `final` setzen, mit Verkäufer- und Käuferdaten, Summen, PDF, XML, SHA-256 und `locked_at`,
    - Buchung und Zeilen anlegen und festschreiben; der Trigger prüft Soll = Haben.
 4. Schlägt ein Schritt fehl, wird alles zurückgerollt. Die Nummer ist dann nicht verbraucht; der Nummernkreis bleibt lückenlos.

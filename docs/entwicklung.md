@@ -91,16 +91,16 @@ node --experimental-strip-types packages/elster/src/check-formats-cli.ts   # ERi
 
 | Bereich | Was getestet wird |
 | --- | --- |
-| `packages/core` | Beträge und Rundung, Rechnungssummen und Nummernformat, Zeiträume und Fälligkeit der Voranmeldung, Feiertage je Bundesland, Steuerfälle von Rechnungen, Steuernummer-Umrechnung, Kennzahlen der UStVA, Buchungssätze für SKR03/SKR04 und Ist/Soll, Zuordnungsvorschläge im Bankabgleich, EÜR, Umsatzsteuer des Lexoffice-Altbestands |
+| `packages/core` | Beträge und Rundung, Rechnungssummen netto und brutto und Nummernformat, Zeiträume und Fälligkeit der Voranmeldung, Feiertage je Bundesland, Steuerfälle von Rechnungen, Steuernummer-Umrechnung, Kennzahlen der UStVA, Buchungssätze für SKR03/SKR04 und Ist/Soll, Zuordnungsvorschläge im Bankabgleich, EÜR, Umsatzsteuer des Lexoffice-Altbestands |
 | `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 09/10), XML der Umsatzsteuererklärung, der Anlage EÜR mit AVEÜR, der Einkommensteuer und der Sonstigen Nachricht, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz), Mock-ERiC über koffi, ERiC-Download (Entpacken nur Linux, defektes Archiv, Umschalten erst bei vollständiger Version, Pfade im Archiv); mit echtem ERiC alle Nachrichten in vielen Varianten (siehe oben) |
-| `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno und Leitweg-ID, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
+| `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno, Leitweg-ID und Bruttopreisen, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
 | `packages/import` | DKB- (neu und alt), N26- und CAMT.053-Parser, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel, Lexoffice-API-Client (Paging, 429, Fehler) und Abbildung der Lexoffice-Daten |
 | `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge |
 | `apps/web` mit DB | Rechnungen festschreiben und sperren, Belege hochladen und buchen, Bankimport und Zuordnung, Voranmeldung (Entwurf, Test, Echt, Berichtigung, Audit-Log) und Berechnung aus Buchungen, Auswertungen, Jahresexport, Lexoffice-Übernahme und offene Posten |
 
 ### KoSIT-Validator
 
-Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` Beispielrechnungen in allen Formaten (19 %, gemischte Sätze, Storno, Korrektur, Leitweg-ID, nur Steuernummer, Nullsatz, Reverse Charge, Drittland, steuerfrei, Kleinunternehmer) und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal brauchst du Java 21 sowie den Validator und die Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`; welche Versionen CI nutzt, steht in `.github/workflows/ci.yml`):
+Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` Beispielrechnungen in allen Formaten (19 %, gemischte Sätze, Storno, Korrektur, Leitweg-ID, nur Steuernummer, Nullsatz, Reverse Charge, Drittland, steuerfrei, Kleinunternehmer, Bruttopreise) und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal brauchst du Java 21 sowie den Validator und die Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`; welche Versionen CI nutzt, steht in `.github/workflows/ci.yml`):
 
 ```sh
 KOSIT_JAR=/pfad/validationtool-1.5.0-standalone.jar \

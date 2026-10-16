@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildQuotePdf, quotePdfData, type QuoteDocument } from "./quote.ts";
-import { sampleDocument } from "./samples.ts";
+import { grossPriceLines, sampleDocument } from "./samples.ts";
 
 function sampleQuote(overrides: Partial<QuoteDocument> = {}): QuoteDocument {
   const { seller, buyer, lines, totals } = sampleDocument();
@@ -21,6 +21,14 @@ describe("Angebot", () => {
     expect(data.totals.gross.label).toBe("Angebotssumme");
     expect(data.payment).toBe("Dieses Angebot gilt bis zum 31.10.2026. Wir freuen uns auf Ihren Auftrag.");
     expect(data.taxNote).toBeNull();
+  });
+
+  it("zeigt Bruttopreise mit „darin enthalten“", () => {
+    const { lines, totals } = sampleDocument({ lines: grossPriceLines, priceMode: "brutto" });
+    const data = quotePdfData(sampleQuote({ lines, totals, priceMode: "brutto" }));
+    expect(data.totals.gross).toEqual({ label: "Angebotssumme (inkl. USt)", value: "447,17\u00a0€" });
+    expect(data.totals.included?.rows).toHaveLength(4);
+    expect(data.labels.columns.net).toBe("Brutto");
   });
 
   it("zeigt bei Kleinunternehmern den Hinweis statt der Steuer", () => {

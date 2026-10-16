@@ -1,12 +1,15 @@
 import { UserError } from "./errors.ts";
 import {
   addDays,
+  computeInvoice,
   computeInvoiceTotals,
   formatQuoteNumber,
   invoiceLineInputSchema,
-  lineNet,
+  lineAmount,
+  PRICE_MODES,
   QUOTE_VALID_DAYS,
   TAX_TREATMENT_KEYS,
+  type PriceMode,
   type TaxTreatment,
   type UnitLabel,
 } from "@haben/core";
@@ -18,7 +21,7 @@ import { loadCompany, sellerIssues } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 import { loadLogo } from "./logo.ts";
-import { buyerFrom, createDraft, deleteDraft, sellerFrom, type Invoice } from "./invoices.ts";
+import { buyerFrom, createDraft, deleteDraft, effectivePriceMode, sellerFrom, type Invoice } from "./invoices.ts";
 
 /**
  * Angebote: eigener Nummernkreis (AN-2026-001), PDF mit der Rechnungsvorlage, keine Buchung.
@@ -43,6 +46,8 @@ export const quoteDraftSchema = z
     note: z.string().max(2000),
     taxTreatment: z.enum(TAX_TREATMENT_KEYS).default("regulaer"),
     exemptionReason: z.string().trim().max(300).default(""),
+    /** Einzelpreise netto oder brutto inkl. USt; brutto nur bei regulärer Besteuerung */
+    priceMode: z.enum(PRICE_MODES).default("netto"),
     /** Sprache des PDFs für den Kunden */
     language: z.enum(["de", "en"]).default("de"),
     lines: z.array(invoiceLineInputSchema).max(200),
@@ -57,8 +62,9 @@ export type QuoteDraftInput = z.input<typeof quoteDraftSchema>;
 
 export type QuoteListStatus = "entwurf" | "offen" | "abgelaufen" | "angenommen" | "abgelehnt" | "abgerechnet";
 
-function lineRows(quoteId: string, lines: QuoteDraftInput["lines"]) {
-  return lines.map((line, index) => ({
+function lineRows(quoteId: string, input: QuoteDraftInput) {
+  const { lineNets } = computeInvoice(input.lines, effectivePriceMode(input));
+  return input.lines.map((line, index) => ({
     quoteId,
     position: index + 1,
     description: line.description,
@@ -66,12 +72,13 @@ function lineRows(quoteId: string, lines: QuoteDraftInput["lines"]) {
     unit: line.unit,
     unitPrice: line.unitPrice,
     taxRate: line.taxRate,
-    net: lineNet(line.quantity, line.unitPrice),
+    net: lineNets[index]!,
   }));
 }
 
 function draftValues(input: QuoteDraftInput) {
-  const totals = computeInvoiceTotals(input.lines);
+  const priceMode = effectivePriceMode(input);
+  const totals = computeInvoiceTotals(input.lines, priceMode);
   const treatment = input.taxTreatment ?? "regulaer";
   return {
     contactId: input.contactId,
@@ -82,6 +89,7 @@ function draftValues(input: QuoteDraftInput) {
     note: input.note,
     taxTreatment: treatment,
     exemptionReason: treatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
+    priceMode,
     language: input.language ?? "de",
     net: totals.net,
     tax: totals.tax,
@@ -94,7 +102,7 @@ export async function createQuoteDraft(actor: string, input: QuoteDraftInput): P
   const parsed = quoteDraftSchema.parse(input);
   return withActor(actor, async (tx) => {
     const [quote] = await tx.insert(schema.quotes).values(draftValues(parsed)).returning();
-    if (parsed.lines.length > 0) await tx.insert(schema.quoteLines).values(lineRows(quote!.id, parsed.lines));
+    if (parsed.lines.length > 0) await tx.insert(schema.quoteLines).values(lineRows(quote!.id, parsed));
     return quote!;
   });
 }
@@ -111,7 +119,7 @@ export async function updateQuoteDraft(actor: string, id: string, input: QuoteDr
   return withActor(actor, async (tx) => {
     await lockDraft(tx, id);
     await tx.delete(schema.quoteLines).where(eq(schema.quoteLines.quoteId, id));
-    if (parsed.lines.length > 0) await tx.insert(schema.quoteLines).values(lineRows(id, parsed.lines));
+    if (parsed.lines.length > 0) await tx.insert(schema.quoteLines).values(lineRows(id, parsed));
     const [updated] = await tx.update(schema.quotes).set(draftValues(parsed)).where(eq(schema.quotes.id, id)).returning();
     return updated!;
   });
@@ -136,6 +144,7 @@ export async function newQuoteDefaults(today: string) {
     note: "",
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",
+    priceMode: "netto" as PriceMode,
     language: "de" as const,
     lines: [
       { description: "", quantity: 1000, unit: "Std." as UnitLabel, unitPrice: 0, taxRate: (company.kleinunternehmer ? 0 : 1900) as 1900 | 0 },
@@ -203,10 +212,14 @@ export function quoteDocumentFor(quote: Quote, lines: QuoteLine[], seller: Quote
       taxRate: line.taxRate,
       net: line.net,
     })),
-    totals: computeInvoiceTotals(lines.map((line) => ({ ...line, taxRate: line.taxRate as 1900 | 700 | 0 }))),
+    totals: computeInvoiceTotals(
+      lines.map((line) => ({ ...line, taxRate: line.taxRate as 1900 | 700 | 0 })),
+      quote.priceMode,
+    ),
     ...(quote.note ? { note: quote.note } : {}),
     ...(quote.taxTreatment !== "regulaer" ? { taxTreatment: quote.taxTreatment } : {}),
     ...(quote.exemptionReason ? { exemptionReason: quote.exemptionReason } : {}),
+    ...(quote.priceMode === "brutto" ? { priceMode: quote.priceMode } : {}),
     language: quote.language,
   };
 }
@@ -223,7 +236,7 @@ export async function quoteIssues(id: string): Promise<string[]> {
   if (quote.taxTreatment === "steuerfrei" && !quote.exemptionReason) issues.push("Befreiungsvorschrift fehlt");
   if (!contact) issues.push("Kunde fehlt");
   if (lines.length === 0) issues.push("Keine Positionen");
-  if (lines.some((line) => line.net === 0)) issues.push("Position ohne Betrag");
+  if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (quote.gross <= 0) issues.push("Angebotssumme muss positiv sein");
   return issues;
 }
@@ -317,6 +330,7 @@ export async function quoteToInvoice(actor: string, id: string, today: string): 
     note: texts(quote.language).fromQuote(quote.number ?? "", texts(quote.language).date(quote.issueDate)),
     taxTreatment: quote.taxTreatment,
     exemptionReason: quote.exemptionReason,
+    priceMode: quote.priceMode,
     language: quote.language,
     lines: lines.map((line) => ({
       description: line.description,
@@ -357,6 +371,7 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
     note: quote.note,
     taxTreatment: quote.taxTreatment,
     exemptionReason: quote.exemptionReason,
+    priceMode: quote.priceMode,
     language: quote.language,
     lines: lines.map((line) => ({
       description: line.description,
