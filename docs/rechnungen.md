@@ -20,7 +20,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 4. Optional **Leistung von** und **Leistung bis**. Ohne Angabe gilt das Rechnungsdatum als Leistungsdatum; ist nur ein Tag angegeben oder sind beide gleich, erscheint auf der Rechnung „Leistungsdatum“, sonst „Leistungszeitraum“.
 5. **E-Rechnungsformat** prüfen.
 6. Unter **Umsatzsteuer** die steuerliche Behandlung wählen, im Normalfall „Regulär besteuert“ (siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung)).
-7. Unter **Preise** wählen, ob die Einzelpreise netto oder brutto inklusive Umsatzsteuer gelten (siehe [Netto- oder Bruttopreise](#netto-oder-bruttopreise)). Vorgabe ist netto.
+7. Unter **Preise** wählen, ob die Einzelpreise netto oder brutto inklusive Umsatzsteuer gelten (siehe [Netto- oder Bruttopreise](#nettopreise-oder-bruttopreise)). Vorgabe ist netto.
 8. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
 9. Optional einen **Hinweis auf der Rechnung** eintragen (bis 2000 Zeichen).
 10. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt einmal nach: erst der zweite Klick auf **Jetzt festschreiben** führt es aus.
@@ -42,7 +42,7 @@ Der Zeilenbetrag ist Menge mal Einzelpreis, kaufmännisch auf Cent gerundet. Bei
 
 Die Einheiten gehen mit ihren UN/ECE-Codes ins XML (`HUR`, `DAY`, `MON`, `H87`, `LS`, `KMT`).
 
-### Netto- oder Bruttopreise
+### Nettopreise oder Bruttopreise
 
 Zwischen Unternehmen sind Nettopreise üblich, das ist die Vorgabe. Wer an Verbraucher verkauft, nennt Endpreise inklusive Umsatzsteuer, z. B. 9,80 € für einen Fotoabzug. Netto lässt sich so ein Preis oft nicht centgenau treffen: 8,23 € netto ergeben 9,79 €, 8,24 € netto 9,81 €. Mit **Preise: Brutto, inklusive Umsatzsteuer** gibst du die Endpreise direkt ein.
 
