@@ -19,7 +19,7 @@ import {
 } from "@haben/elster";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { listAssets } from "./assets.ts";
-import { companyIssues, loadCompany, type Company } from "./company.ts";
+import { companyIssues, loadCompany, versteuerungForYear, type Company } from "./company.ts";
 import { decrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
@@ -406,7 +406,7 @@ export async function annualOverview(year: number, today: string) {
     euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer") },
     est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est") },
     history,
-    versteuerung: company.versteuerung,
+    versteuerung: await versteuerungForYear(year),
   };
 }
 
@@ -463,7 +463,8 @@ async function submit(actor: string, form: AnnualForm, year: number, client: Els
   let figures: Record<string, unknown>;
   if (form === "ust") {
     const ust = data as UstYear;
-    xml = buildUstErklaerungXml({ ...common, versteuerung: company.versteuerung, figures: ust.figures });
+    // Die Erklärung geht im Folgejahr raus; maßgeblich ist die Versteuerung des Jahres, nicht die aktuelle
+    xml = buildUstErklaerungXml({ ...common, versteuerung: await versteuerungForYear(year), figures: ust.figures });
     figures = { ...ust.figures, steuer: ust.steuer, abschluss: ust.abschluss };
   } else if (form === "est") {
     const euer = data as EuerYear;

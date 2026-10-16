@@ -1,7 +1,7 @@
 import { paidTaxShares, splitPrivateShare, type Cents, type TaxTreatment, type VatPeriod } from "@haben/core";
 import { and, eq, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "./assets.ts";
-import { loadCompany } from "./company.ts";
+import { loadCompany, versteuerungForYear } from "./company.ts";
 import { db, schema } from "./db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
 
@@ -78,9 +78,11 @@ function monthRange({ year, month }: VatPeriod) {
 export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> {
   const { start, end } = monthRange(period);
   const company = await loadCompany();
+  // Die Versteuerung des Jahres, nicht die aktuelle: nach einem Wechsel zum Jahreswechsel rechnet das Vorjahr weiter wie gebucht
+  const versteuerung = await versteuerungForYear(period.year);
   const revenue: RevenueSource[] = [];
 
-  if (company.versteuerung === "ist") {
+  if (versteuerung === "ist") {
     const payments = await db
       .select({
         date: schema.bankTransactions.bookingDate,
@@ -133,7 +135,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
           lt(schema.invoices.issueDate, end),
           // aus Lexoffice übernommen: die Steuer ist dort schon angemeldet
           isNull(schema.invoices.lexofficeVoucherId),
-          ...(company.versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
+          ...(versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
         ),
       );
     const totals = await invoiceTotalsById(issued.map((i) => i.id));
@@ -222,7 +224,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
   const treated = (treatment: TaxTreatment) => revenue.filter((r) => r.treatment === treatment).reduce((s, r) => s + r.base, 0);
 
   return {
-    versteuerung: company.versteuerung,
+    versteuerung,
     kleinunternehmer: company.kleinunternehmer,
     kz81: sum(regular, 1900, "base"),
     tax81: sum(regular, 1900, "tax"),

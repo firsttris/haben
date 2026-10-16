@@ -263,6 +263,40 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     expect(manual).toMatchObject({ kz81: -50_000, kz83: -9_500 });
   });
 
+  it("Versteuerung des Jahres: nach einem Wechsel zum Jahreswechsel rechnet das Vorjahr weiter wie gebucht", async () => {
+    const company = await import("./company.ts");
+    const annual = await import("./annual.ts");
+    // 2025 nach Soll gebucht, bezahlt ist alles (sonst sperrt Haben den Wechsel)
+    await sql`update company set versteuerung = 'soll'`;
+    const nov = await invoice([{ net: 100_000, rate: 1900 }], "2025-11-10");
+    await bank.importStatement(actor, { bytes: dkbCsv([row("05.12.25", "Nordwerk", `RE ${nov.number}`, "1.190,00")]), filename: "a.csv" }, null);
+    const [tx] = await sql`select id from bank_transactions`;
+    await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: nov.id, amount: 119_000 });
+    // Zum Jahreswechsel auf Ist umgestellt, danach im neuen Jahr gebucht
+    await sql`update company set versteuerung = 'ist'`;
+    await invoice([{ net: 50_000, rate: 1900 }], "2026-01-15");
+
+    expect(await company.versteuerungForYear(2025)).toBe("soll");
+    expect(await company.versteuerungForYear(2026)).toBe("ist");
+    // Ohne Buchung im Jahr: die aktuelle Einstellung
+    expect(await company.versteuerungForYear(2027)).toBe("ist");
+
+    // November 2025 nach Soll (Rechnungsdatum), Dezember ohne die Zahlung, die nach Ist dort stünde
+    expect(await figures.computeVatFigures({ year: 2025, month: 11 })).toMatchObject({ versteuerung: "soll", kz81: 100_000, tax81: 19_000 });
+    expect(await figures.computeVatFigures({ year: 2025, month: 12 })).toMatchObject({ versteuerung: "soll", kz81: 0 });
+    // Januar 2026 nach Ist: noch nicht bezahlt
+    expect(await figures.computeVatFigures({ year: 2026, month: 1 })).toMatchObject({ versteuerung: "ist", kz81: 0 });
+
+    // Die Umsatzsteuererklärung 2025 entsteht 2026, rechnet und meldet aber nach Soll
+    expect((await annual.ustYear(2025)).figures).toMatchObject({ base19: 100_000, tax19: 19_000 });
+    expect((await annual.annualOverview(2025, "2026-03-01")).versteuerung).toBe("soll");
+    expect((await annual.annualOverview(2026, "2026-03-01")).versteuerung).toBe("ist");
+
+    // Eine spätere Änderung der Firmendaten ändert die Versteuerung früherer Jahre nicht
+    await sql`update company set name = 'Testfirma GmbH'`;
+    expect(await company.versteuerungForYear(2025)).toBe("soll");
+  }, 30_000);
+
   it("Kontenrahmen, Versteuerung und Kleinunternehmer sind nach Buchungen im Jahr gesperrt", async () => {
     const guard = await import("./settings-guard.ts");
     const { loadCompany } = await import("./company.ts");

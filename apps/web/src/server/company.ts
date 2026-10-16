@@ -1,5 +1,5 @@
-import { BUNDESLAENDER, EXPENSE_CATEGORY_KEYS, toElsterSteuernummer, SteuernummerError } from "@haben/core";
-import { eq } from "drizzle-orm";
+import { BUNDESLAENDER, EXPENSE_CATEGORY_KEYS, toElsterSteuernummer, SteuernummerError, type Versteuerung } from "@haben/core";
+import { and, desc, eq, gte, lt, lte, min } from "drizzle-orm";
 import { z } from "zod";
 import { listArticles } from "./articles.ts";
 import { listContacts } from "./contacts.ts";
@@ -48,6 +48,32 @@ export async function loadCompany(): Promise<Company> {
   if (row) return row;
   const [created] = await withActor("system:setup", (tx) => tx.insert(schema.company).values({ id: 1 }).onConflictDoNothing().returning());
   return created ?? (await loadCompany());
+}
+
+/**
+ * Versteuerung (Ist oder Soll), nach der ein Jahr gebucht ist. Umstellen geht nur zum Jahreswechsel, bevor im neuen
+ * Jahr gebucht wird (settings-guard.ts); es gilt also, was beim Anlegen der ersten Buchung des Jahres eingestellt war.
+ * Das steht im Audit-Log der Firmendaten. Ohne Buchung im Jahr gilt die aktuelle Einstellung.
+ *
+ * Wichtig für alles, was frühere Zeiträume rechnet: Voranmeldungen des Vorjahres und vor allem die
+ * Umsatzsteuererklärung, die erst im Folgejahr abgegeben wird, nach einem Wechsel also schon unter der neuen Einstellung.
+ */
+export async function versteuerungForYear(year: number): Promise<Versteuerung> {
+  const [first] = await db
+    .select({ at: min(schema.journalEntries.createdAt) })
+    .from(schema.journalEntries)
+    .where(and(gte(schema.journalEntries.date, `${year}-01-01`), lt(schema.journalEntries.date, `${year + 1}-01-01`)));
+  if (first?.at) {
+    const [setting] = await db
+      .select({ newValue: schema.auditLog.newValue })
+      .from(schema.auditLog)
+      .where(and(eq(schema.auditLog.tableName, "company"), lte(schema.auditLog.at, first.at)))
+      .orderBy(desc(schema.auditLog.seq))
+      .limit(1);
+    const value = (setting?.newValue as { versteuerung?: unknown } | null)?.versteuerung;
+    if (value === "ist" || value === "soll") return value;
+  }
+  return (await loadCompany()).versteuerung;
 }
 
 /** Firmendaten speichern; ob gesperrte Einstellungen geändert werden, prüft der Aufrufer vorher (settings-guard.ts). */

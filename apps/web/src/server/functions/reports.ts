@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { loadCompany } from "../company.ts";
+import { versteuerungForYear } from "../company.ts";
 import { authMiddleware } from "../middleware.ts";
 import { euerForYear, openPositions, reportYears } from "../reports.ts";
 import { today } from "../today.ts";
@@ -12,6 +12,6 @@ export const getReports = createServerFn({ method: "GET" })
   .validator(z.object({ year: yearSchema }))
   .handler(async ({ data }) => {
     const now = today();
-    const [euer, open, years, company] = await Promise.all([euerForYear(data.year), openPositions(now), reportYears(), loadCompany()]);
-    return { euer, open, years, today: now, versteuerung: company.versteuerung };
+    const [euer, open, years, versteuerung] = await Promise.all([euerForYear(data.year), openPositions(now), reportYears(), versteuerungForYear(data.year)]);
+    return { euer, open, years, today: now, versteuerung };
   });
