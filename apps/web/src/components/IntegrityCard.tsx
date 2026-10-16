@@ -1,3 +1,4 @@
+import { formatEuro } from "@haben/core";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
@@ -64,7 +65,8 @@ export function IntegrityCard({ head }: { head: Head }) {
       <h2 id="integrity-heading">Änderungsprotokoll prüfen</h2>
       <p className="small muted" style={{ margin: 0 }}>
         Jede Änderung steht im Audit-Log, jeder Eintrag ist per SHA-256 mit seinem Vorgänger verkettet. Festgeschriebene Buchungen, Rechnungen,
-        Belege, Voranmeldungen, Kassenbuch, Zuordnungen, Pauschalen und AfA tragen zusätzlich ein Siegel über ihren Inhalt. Die Prüfung findet nachträgliche Änderungen an der Datenbank,
+        Belege, Voranmeldungen, Kassenbuch, Zuordnungen, Pauschalen und AfA tragen zusätzlich ein Siegel über ihren Inhalt. Außerdem gleicht
+        die Prüfung das Journal mit Umsatzsteuer und EÜR ab. Sie findet nachträgliche Änderungen an der Datenbank,
         verhindert sie aber nicht. Wer die Datenbank ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem
         Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
       </p>
@@ -84,10 +86,19 @@ export function IntegrityCard({ head }: { head: Head }) {
             void action.run(async () => {
               const result = await check();
               setReport(result);
+              const differences = result.abgleich.abweichungen.length;
               action.setNotice(
-                result.problems.length === 0
-                  ? { tone: "ok", text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft.` }
-                  : { tone: "danger", text: `${result.problems.length}${result.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.` },
+                result.problems.length > 0
+                  ? { tone: "danger", text: `${result.problems.length}${result.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.` }
+                  : differences > 0
+                    ? {
+                        tone: "danger",
+                        text: `Kette und Siegel sind unverändert, aber Journal und Steuerwerte weichen ${differences === 1 ? "an einer Stelle" : `an ${differences} Stellen`} voneinander ab.`,
+                      }
+                    : {
+                        tone: "ok",
+                        text: `Kette und Siegel sind unverändert: ${result.entries} Einträge, ${result.seals} Siegel geprüft. Journal, Umsatzsteuer und EÜR stimmen überein.`,
+                      },
               );
             })
           }
@@ -105,6 +116,26 @@ export function IntegrityCard({ head }: { head: Head }) {
             </li>
           ))}
         </ul>
+      )}
+      {report && (report.abgleich.abweichungen.length > 0 || report.abgleich.hinweise.length > 0) && (
+        <div className="small">
+          <div className="muted">Abgleich von Journal, Umsatzsteuer und EÜR</div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            {report.abgleich.abweichungen.map((a, i) => (
+              <li key={i}>
+                <strong>
+                  {a.bereich === "ustva" ? "Voranmeldung" : "EÜR"} {a.zeitraum}
+                </strong>
+                , {a.posten}: Journal {formatEuro(a.journal)}, laut Rechnungen, Belegen und Zahlungen {formatEuro(a.quelle)}
+              </li>
+            ))}
+            {report.abgleich.hinweise.map((h) => (
+              <li key={h} className="muted">
+                {h}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <form className="actions" style={{ alignItems: "flex-end", borderTop: "1px solid var(--line)", paddingTop: 16 }} onSubmit={onCompare}>
         <label className="field" style={{ flex: 1, minWidth: 0 }}>

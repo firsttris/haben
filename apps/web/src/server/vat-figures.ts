@@ -249,7 +249,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
 export interface PreflightIssue {
   tone: "warn" | "info";
   text: string;
-  link: "/bank" | "/belege" | "/rechnungen";
+  link: "/bank" | "/belege" | "/rechnungen" | "/konten";
 }
 
 /** Vorprüfung vor dem Senden: was im Zeitraum noch offen ist und die Zahlen verfälschen könnte */

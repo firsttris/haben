@@ -5,7 +5,7 @@ Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vor
 ## Grundsätze
 
 - **Beträge in Cent.** Alle Geldbeträge sind ganze Cent (`integer`), Steuersätze Basispunkte (1900 = 19 %). Es gibt keine Gleitkommarechnung mit Geld. Rechnungen runden die Steuer je Steuersatz auf die Summe der Positionen, nicht je Position.
-- **Doppelte Buchführung im Hintergrund.** Jeder buchungsrelevante Vorgang erzeugt eine Buchung (`journal_entries`) mit mindestens zwei Zeilen (`journal_lines`), je Zeile Konto, Soll oder Haben und Steuerschlüssel. Die Auswertungen und die Voranmeldung rechnet Haben aus den zugrunde liegenden Rechnungen, Zahlungen und Belegen; das Journal dokumentiert dieselben Vorgänge in Kontenform.
+- **Doppelte Buchführung im Hintergrund.** Jeder buchungsrelevante Vorgang erzeugt eine Buchung (`journal_entries`) mit mindestens zwei Zeilen (`journal_lines`), je Zeile Konto, Soll oder Haben und Steuerschlüssel. Die Auswertungen und die Voranmeldung rechnet Haben aus den zugrunde liegenden Rechnungen, Zahlungen und Belegen; das Journal dokumentiert dieselben Vorgänge in Kontenform. Ein [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) prüft, dass beides übereinstimmt.
 - **Festschreibung ab Entstehung.** Eine Buchung wird in derselben Datenbanktransaktion angelegt und festgeschrieben, in der der Vorgang passiert. Geschrieben wird das Journal nur an einer Stelle, dem Hauptbuch (`ledger.post` in `apps/web/src/server/ledger.ts`). Beim Festschreiben prüft ein Trigger, dass Soll gleich Haben ist und die Buchung mindestens eine Zeile hat; eine Buchung, die beim Commit nicht festgeschrieben ist, lehnt die Datenbank ab.
 - **Korrektur nur per Gegenbuchung.** Festgeschriebene Buchungen, Rechnungen, Belege und gesendete Voranmeldungen lassen sich nicht ändern oder löschen. Eine Rechnung wird storniert oder korrigiert, eine Zahlungszuordnung per Gegenzeile und Gegenbuchung aufgehoben, eine Voranmeldung berichtigt.
 - **Ein Kontenrahmen je Buchung.** Jede Buchung speichert den Kontenrahmen, mit dem sie entstanden ist, und das ist immer der aus den Firmendaten (die Datenbank prüft das beim Einfügen). Ein Wechsel des Kontenrahmens in den Einstellungen gilt nur für künftige Buchungen und ist nur möglich, solange es im laufenden Jahr noch keine Buchung gibt.
@@ -53,6 +53,28 @@ Ein aufbewahrter Prüfwert lässt sich unter „Änderungsprotokoll prüfen“ e
 Die wöchentliche Mail prüft vorher Kette und Siegel und vergleicht den Prüfwert der letzten Mail mit dem Eintrag dieser Nummer. Befunde stehen in der Mail, auch wenn ohne neuen Eintrag manipuliert wurde.
 
 **Nicht abgedeckt** sind direkte Änderungen an Tabellen ohne Siegel: Mahnungen, Übermittlungen an ELSTER, Anlagen (die Stammdaten; ihre AfA ist versiegelt), Kontaktversionen und Angebote. Ihr Anlegen steht in der Kette, eine spätere stille Änderung der Zeile selbst findet die Prüfung aber nicht. Bankumsätze (`bank_transactions`) stehen gar nicht im Audit-Log; ihre Auszugsdatei ist über `bank_imports` mit SHA-256 erfasst.
+
+## Abgleich von Journal, Umsatzsteuer und EÜR
+
+Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pauschalen und dem Anlagenverzeichnis. Das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Der Abgleich steht in `apps/web/src/server/abgleich.ts`.
+
+| Bereich | Verglichen wird | Journal |
+| --- | --- | --- |
+| Voranmeldung, je Monat | Umsatzsteuer 19 % (Kz 81) und 7 % (Kz 86) | Saldo der Konten Umsatzsteuer 19 % und 7 %, ohne die Privatnutzung von Fahrzeugen |
+| | Umsatzsteuer nach § 13b (Kz 47, 85) | Saldo des Kontos „Umsatzsteuer nach § 13b“ |
+| | Vorsteuer (Kz 66) | Saldo der Vorsteuerkonten 19 % und 7 % |
+| | Vorsteuer nach § 13b (Kz 67) | Saldo des Kontos „Abziehbare Vorsteuer nach § 13b“ |
+| EÜR, je Jahr | Pauschalen | Aufwandskonten der Pauschalen |
+| | Umsatzsteuer an das Finanzamt abzüglich Erstattungen | Konto Umsatzsteuer-Vorauszahlungen |
+| | AfA, GWG, Sammelposten, Restbuchwert | AfA-Konten und Restbuchwert, sobald die AfA des Jahres gebucht ist |
+| | Private Kfz-Nutzung und die Umsatzsteuer darauf | Erlöskonten der Privatnutzung und Umsatzsteuer 19 % aus den Buchungen der Anlagen, ebenfalls erst nach der AfA |
+
+Nicht verglichen werden:
+
+- **Einnahmen und Ausgaben der EÜR.** Die EÜR rechnet nach Zahlung, das Journal bucht Rechnungen und Belege zum Rechnungs- bzw. Belegdatum. Zwischen beiden liegen Forderungen und Verbindlichkeiten.
+- **Privatnutzung von Fahrzeugen in der Voranmeldung.** Sie zählt monatlich, gebucht wird sie erst mit der AfA im Dezember. Abgeglichen wird sie deshalb mit der EÜR, sobald das Jahr gebucht ist.
+
+**Wo der Abgleich erscheint:** in der [Vorprüfung](umsatzsteuer.md#vorprüfung) der Voranmeldung, unter **Einstellungen › Export › Änderungsprotokoll prüfen** und in der wöchentlichen Mail mit dem Prüfwert. Eine Abweichung ist kein Beweis für eine Manipulation, aber ein Widerspruch in den Büchern. Kläre ihn, bevor du die Voranmeldung sendest.
 
 ## Ist- und Soll-Versteuerung
 

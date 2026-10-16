@@ -315,7 +315,7 @@ export async function runDuePruefwertMail(now = new Date()) {
   const lastNow = known ? await rowHashAt(lastSeq) : null;
   const rewritten = known && lastHash !== undefined && lastNow !== lastHash;
   const report = await checkIntegrity();
-  if (!changed && !rewritten && report.problems.length === 0) {
+  if (!changed && !rewritten && report.problems.length === 0 && report.abgleich.abweichungen.length === 0) {
     quietCheckAt = now.getTime();
     return null;
   }
@@ -332,6 +332,14 @@ export async function runDuePruefwertMail(now = new Date()) {
       : []),
     ...(report.problems.length > 0
       ? [`Prüfung von Kette und Siegel: ${report.problems.length}${report.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`]
+      : []),
+    ...(report.abgleich.abweichungen.length > 0
+      ? [
+          `Abgleich von Journal und Steuerwerten: ${report.abgleich.abweichungen.length} ${report.abgleich.abweichungen.length === 1 ? "Abweichung" : "Abweichungen"} (${report.abgleich.abweichungen
+            .slice(0, 3)
+            .map((a) => `${a.zeitraum} ${a.posten}`)
+            .join("; ")}${report.abgleich.abweichungen.length > 3 ? " …" : ""}).`,
+        ]
       : []),
   ];
   const befund =

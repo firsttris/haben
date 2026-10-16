@@ -9,6 +9,7 @@ import { z } from "zod";
 import { companyIssues, loadCompany } from "../company.ts";
 import { inputTaxForPeriod } from "../documents.ts";
 import { computeVatFigures, preflight } from "../vat-figures.ts";
+import { abgleichIssues, vatAbgleich } from "../abgleich.ts";
 import { elsterClient, elsterMode } from "../elster.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -63,7 +64,8 @@ export const getVatPeriod = createServerFn({ method: "GET" })
       inputTax,
       /** Aus den Buchungen berechnete Kennzahlen mit ihren Quellen */
       figures,
-      preflight: await preflight(period, figures),
+      // Offenes im Zeitraum und der Abgleich mit dem Journal
+      preflight: [...(await preflight(period, figures)), ...abgleichIssues(await vatAbgleich(period))],
     };
   });
 

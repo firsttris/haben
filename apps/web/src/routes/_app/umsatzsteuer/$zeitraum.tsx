@@ -124,7 +124,14 @@ function VatPeriodPage() {
           <div key={issue.text} className={`banner ${issue.tone === "info" ? "banner-info" : ""}`} role="status">
             <Icon name={issue.tone === "info" ? "info" : "alert"} />
             <span>
-              {issue.text} <Link to={issue.link}>{issue.link === "/bank" ? "Zur Bank" : issue.link === "/belege" ? "Zu den Belegen" : "Zu den Rechnungen"}</Link>
+              {issue.text} <Link to={issue.link}>{
+                {
+                  "/bank": "Zur Bank",
+                  "/belege": "Zu den Belegen",
+                  "/rechnungen": "Zu den Rechnungen",
+                  "/konten": "Zu den Konten",
+                }[issue.link]
+              }</Link>
             </span>
           </div>
         ))}

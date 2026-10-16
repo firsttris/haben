@@ -1,5 +1,7 @@
 import { count, eq, sql } from "drizzle-orm";
+import { abgleichAll, abweichungen, type AbgleichZeile } from "./abgleich.ts";
 import { db, schema } from "./db/index.ts";
+import { today } from "./today.ts";
 
 export { formatPruefwert, parsePruefwert } from "../lib/pruefwert.ts";
 
@@ -34,6 +36,11 @@ export interface IntegrityReport {
   problems: IntegrityProblem[];
   /** true, wenn eine Art von Befund mehr als die angezeigten hat */
   truncated: boolean;
+  /**
+   * Abgleich Journal ↔ Umsatzsteuer und EÜR (abgleich.ts): Abweichungen und was nicht verglichen werden konnte.
+   * Eine Abweichung ist kein Beweis für eine Manipulation, aber ein Widerspruch in den Büchern, der zu klären ist.
+   */
+  abgleich: { abweichungen: AbgleichZeile[]; hinweise: string[] };
 }
 
 export async function chainHead(): Promise<ChainHead | null> {
@@ -47,15 +54,16 @@ export async function chainHead(): Promise<ChainHead | null> {
 
 const MAX_ROWS = 100;
 
-/** Prüft die ganze Kette und alle Siegel. Dauert bei großen Datenbanken einige Sekunden. */
-export async function checkIntegrity(): Promise<IntegrityReport> {
-  const [rows, head, [entries], [seals]] = await Promise.all([
+/** Prüft die ganze Kette, alle Siegel und gleicht Journal und Steuerwerte ab. Dauert bei großen Datenbanken einige Sekunden. */
+export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
+  const [rows, head, [entries], [seals], abgleich] = await Promise.all([
     db.execute<{ art: IntegrityProblem["art"]; tabelle: string; zeile: string | null; seq: string | null; befund: string }>(
       sql`select art, tabelle, zeile, seq, befund from haben_integrity_problems(${MAX_ROWS})`,
     ),
     chainHead(),
     db.select({ n: count() }).from(schema.auditLog),
     db.select({ n: count() }).from(schema.seals),
+    abgleichAll(now),
   ]);
   const problems = [...rows].map((r) => ({ ...r, seq: r.seq === null ? null : Number(r.seq) }));
   const perKind = new Map<string, number>();
@@ -66,6 +74,7 @@ export async function checkIntegrity(): Promise<IntegrityReport> {
     seals: seals!.n,
     problems,
     truncated: [...perKind.values()].some((n) => n >= MAX_ROWS),
+    abgleich: { abweichungen: abweichungen(abgleich.zeilen), hinweise: abgleich.hinweise },
   };
 }
 
