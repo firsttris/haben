@@ -131,7 +131,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | --- | --- | --- |
 | `audit_log` | Jede Änderung mit Zeitpunkt, Nutzer, Tabelle, altem und neuem Wert; als Hash-Kette mit Nummer (`seq`), Vorgänger-Hash und Hash | nur anhängen, auch kein `TRUNCATE` |
 | `audit_chain` | Kopf der Hash-Kette: letzte Nummer und Hash, genau eine Zeile | nur vom Trigger auf `audit_log` fortgeschrieben |
-| `seals` | Siegel festgeschriebener Buchungen, Rechnungen, Belege und Voranmeldungen sowie jeder Kassenbuchzeile: SHA-256 über Datensatz und abhängige Zeilen, mit den Spalten, über die er gebildet ist | nur anhängen, Audit |
+| `seals` | Siegel festgeschriebener Buchungen, Rechnungen, Belege und Voranmeldungen sowie jeder Zeile in Kassenbuch, Zuordnungen, Pauschalen und AfA: SHA-256 über Datensatz und abhängige Zeilen, mit den Spalten, über die er gebildet ist | nur anhängen, Audit |
 | `user`, `session`, `account`, `verification`, `passkey` | Tabellen von Better Auth samt Passkey-Plugin | – |
 
 ## Anmeldung

@@ -185,6 +185,52 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     expect(unsealed).toEqual([expect.objectContaining({ tabelle: "cash_entries", befund: "Festgeschrieben, aber ohne Siegel" })]);
   });
 
+  it("versiegelt Zuordnungen, Pauschalen und AfA beim Anlegen und erkennt stille Änderungen", async () => {
+    const entry = await lockedEntry();
+    const [account] = await sql`insert into bank_accounts (name, iban) values ('Giro', ${`DE${entry.replace(/\D/g, "").padEnd(20, "0").slice(0, 20)}`}) returning id`;
+    const [imported] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
+      values (${account!.id}, 'auszug.csv', ${entry}, 'csv', 1, 0) returning id`;
+    const [transaction] = await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, dedup_hash)
+      values (${account!.id}, ${imported!.id}, '2026-01-20', 11900, ${entry}) returning id`;
+    const [allocation] = await sql`insert into allocations (transaction_id, kind, amount) values (${transaction!.id}, 'privat', 11900) returning id`;
+    const [pauschale] = await sql`insert into pauschalen (art, date, description, details, amount, journal_entry_id)
+      values ('fahrt', '2026-01-20', 'Kunde', '{"km": 40}', 1200, ${entry}) returning id`;
+    const [asset] = await sql`insert into assets (name, kind, method, account, acquisition_date, cost)
+      values ('Laptop', 'edv', 'digital', '0650', '2026-01-05', 150000) returning id`;
+    const [afa] = await sql`insert into asset_depreciations (asset_id, year, depreciation, entry_id)
+      values (${asset!.id}, 2026, 150000, ${entry}) returning id`;
+    const rows = { allocations: allocation!.id, pauschalen: pauschale!.id, asset_depreciations: afa!.id } as Record<string, string>;
+
+    const seals = await sql`select table_name, row_id, genesis from seals where row_id in ${sql(Object.values(rows))}`;
+    expect(Object.fromEntries(seals.map((s) => [s.table_name, s.row_id]))).toEqual(rows);
+    expect(seals.every((s) => s.genesis === false)).toBe(true);
+    expect(await problems()).toEqual([]);
+
+    const changed = await rolledBack(async (tx) => {
+      await tamper(tx, async () => {
+        await tx`update allocations set kind = 'gebuehren' where id = ${rows.allocations!}`;
+        await tx`update pauschalen set details = '{"km": 400}' where id = ${rows.pauschalen!}`;
+        await tx`update asset_depreciations set depreciation = 1 where id = ${rows.asset_depreciations!}`;
+      });
+      return problems(tx);
+    });
+    expect(changed.map(({ tabelle, zeile, befund }) => ({ tabelle, zeile, befund }))).toEqual(
+      Object.entries(rows).map(([tabelle, zeile]) => ({ tabelle, zeile, befund: "Inhalt passt nicht zum Siegel" })),
+    );
+
+    const deleted = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`delete from pauschalen where id = ${rows.pauschalen!}`);
+      return problems(tx);
+    });
+    expect(deleted).toEqual([{ art: "siegel", tabelle: "pauschalen", zeile: rows.pauschalen, befund: "Versiegelter Datensatz fehlt" }]);
+
+    const unsealed = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`insert into allocations (transaction_id, kind, amount, reverses_id) values (${transaction!.id}, 'privat', -11900, ${rows.allocations!})`);
+      return problems(tx);
+    });
+    expect(unsealed).toEqual([expect.objectContaining({ tabelle: "allocations", befund: "Festgeschrieben, aber ohne Siegel" })]);
+  });
+
   it("erkennt ein gefälschtes Siegel über den Eintrag in der Kette", async () => {
     const invoice = await lockedInvoice();
     const found = await rolledBack(async (tx) => {

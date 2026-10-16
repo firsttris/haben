@@ -561,14 +561,17 @@ export const auditChain = pgTable(
 
 /**
  * Siegel festgeschriebener Datensätze: SHA-256 über die Zeile und ihre abhängigen Zeilen (Buchungszeilen,
- * Positionen, Steuerbeträge), angelegt per Trigger beim Festschreiben, für das Kassenbuch beim Einfügen. Steht über das Audit-Log in der Kette.
+ * Positionen, Steuerbeträge), angelegt per Trigger beim Festschreiben; für nur anhängbare Tabellen (Kassenbuch, Zuordnungen,
+ * Pauschalen, AfA) beim Einfügen. Steht über das Audit-Log in der Kette.
  * Nur anhängen.
  */
 export const seals = pgTable(
   "seals",
   {
     id: bigserial("id", { mode: "number" }).primaryKey(),
-    tableName: text("table_name", { enum: ["journal_entries", "invoices", "documents", "vat_returns", "cash_entries"] }).notNull(),
+    tableName: text("table_name", {
+      enum: ["journal_entries", "invoices", "documents", "vat_returns", "cash_entries", "allocations", "pauschalen", "asset_depreciations"],
+    }).notNull(),
     rowId: uuid("row_id").notNull(),
     /** Spalten je Tabelle, über die der Hash gebildet ist; spätere neue Spalten bleiben außen vor */
     columns: jsonb("columns").$type<Record<string, string[]>>().notNull(),
