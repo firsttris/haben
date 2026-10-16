@@ -158,6 +158,33 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     ]);
   });
 
+  it("versiegelt jede Kassenbuchzeile beim Anlegen und erkennt stille Änderungen", async () => {
+    const [{ n }] = (await sql`select coalesce(max(number), 0)::int + 1 as n from cash_entries`) as unknown as [{ n: number }];
+    const [entry] = await sql`insert into cash_entries (number, date, amount, kind, text)
+      values (${n}, '2026-03-01', 5000, 'einlage', 'Wechselgeld') returning id`;
+    const [seal] = await sql`select genesis from seals where table_name = 'cash_entries' and row_id = ${entry!.id}`;
+    expect(seal).toEqual({ genesis: false });
+    expect(await problems()).toEqual([]);
+
+    const changed = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`update cash_entries set text = 'Privat', amount = 500 where id = ${entry!.id}`);
+      return problems(tx);
+    });
+    expect(changed).toEqual([{ art: "siegel", tabelle: "cash_entries", zeile: entry!.id, befund: "Inhalt passt nicht zum Siegel" }]);
+
+    const deleted = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`delete from cash_entries where id = ${entry!.id}`);
+      return problems(tx);
+    });
+    expect(deleted).toEqual([{ art: "siegel", tabelle: "cash_entries", zeile: entry!.id, befund: "Versiegelter Datensatz fehlt" }]);
+
+    const unsealed = await rolledBack(async (tx) => {
+      await tamper(tx, () => tx`insert into cash_entries (number, date, amount, kind, text) values (${n + 1}, '2026-03-02', 100, 'einlage', 'nachgeschoben')`);
+      return problems(tx);
+    });
+    expect(unsealed).toEqual([expect.objectContaining({ tabelle: "cash_entries", befund: "Festgeschrieben, aber ohne Siegel" })]);
+  });
+
   it("erkennt ein gefälschtes Siegel über den Eintrag in der Kette", async () => {
     const invoice = await lockedInvoice();
     const found = await rolledBack(async (tx) => {

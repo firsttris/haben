@@ -154,6 +154,7 @@ LANGUAGE sql STABLE AS $$
     WHEN 'documents' THEN jsonb_build_object(
       'documents', haben_columns('documents'), 'document_amounts', haben_columns('document_amounts'))
     WHEN 'vat_returns' THEN jsonb_build_object('vat_returns', haben_columns('vat_returns'))
+    WHEN 'cash_entries' THEN jsonb_build_object('cash_entries', haben_columns('cash_entries'))
   END
 $$;
 --> statement-breakpoint
@@ -188,6 +189,9 @@ BEGIN
     WHEN 'vat_returns' THEN
       content := jsonb_build_object(
         'vat_returns', (SELECT haben_pick(to_jsonb(v), cols -> 'vat_returns') FROM vat_returns v WHERE v.id = rid));
+    WHEN 'cash_entries' THEN
+      content := jsonb_build_object(
+        'cash_entries', (SELECT haben_pick(to_jsonb(c), cols -> 'cash_entries') FROM cash_entries c WHERE c.id = rid));
     ELSE
       RAISE EXCEPTION 'Für % gibt es kein Siegel', tbl;
   END CASE;
@@ -228,6 +232,10 @@ CREATE TRIGGER vat_returns_seal AFTER UPDATE OF locked_at ON vat_returns
 CREATE TRIGGER vat_returns_seal_insert AFTER INSERT ON vat_returns
   FOR EACH ROW WHEN (NEW.locked_at IS NOT NULL) EXECUTE FUNCTION haben_seal();
 --> statement-breakpoint
+-- Das Kassenbuch ist nur anhängbar: jede Zeile ist ab dem Einfügen fest
+CREATE TRIGGER cash_entries_seal AFTER INSERT ON cash_entries
+  FOR EACH ROW EXECUTE FUNCTION haben_seal();
+--> statement-breakpoint
 CREATE TRIGGER seals_append_only BEFORE UPDATE OR DELETE ON seals
   FOR EACH ROW EXECUTE FUNCTION haben_append_only();
 --> statement-breakpoint
@@ -245,6 +253,7 @@ SELECT tbl, id, haben_seal_columns(tbl), haben_seal_digest(tbl, id, haben_seal_c
     UNION ALL SELECT 'invoices', id, locked_at FROM invoices WHERE locked_at IS NOT NULL
     UNION ALL SELECT 'documents', id, locked_at FROM documents WHERE locked_at IS NOT NULL
     UNION ALL SELECT 'vat_returns', id, locked_at FROM vat_returns WHERE locked_at IS NOT NULL
+    UNION ALL SELECT 'cash_entries', id, created_at FROM cash_entries
   ) locked
  ORDER BY locked_at, tbl, id;
 --> statement-breakpoint
@@ -255,6 +264,7 @@ RETURNS TABLE (art text, tabelle text, zeile text, seq bigint, befund text)
 LANGUAGE plpgsql STABLE AS $$
 DECLARE
   tbl text;
+  locked text;
 BEGIN
   RETURN QUERY
   SELECT 'kette'::text, 'audit_log'::text, c.id::text, c.seq,
@@ -287,28 +297,30 @@ BEGIN
   LEFT JOIN LATERAL (SELECT a.seq, a.row_hash FROM audit_log a ORDER BY a.seq DESC LIMIT 1) last ON true
   WHERE h.id IS NULL OR last.seq IS DISTINCT FROM h.seq OR last.row_hash IS DISTINCT FROM h.hash;
 
-  FOREACH tbl IN ARRAY ARRAY['journal_entries', 'invoices', 'documents', 'vat_returns'] LOOP
+  -- Festgeschrieben heißt: locked_at gesetzt; Kassenbuchzeilen sind es ab dem Einfügen
+  FOREACH tbl IN ARRAY ARRAY['journal_entries', 'invoices', 'documents', 'vat_returns', 'cash_entries'] LOOP
+    locked := CASE tbl WHEN 'cash_entries' THEN 'true' ELSE 't.locked_at IS NOT NULL' END;
     RETURN QUERY EXECUTE format($q$
       (SELECT 'siegel'::text, %1$L::text, s.row_id::text, NULL::bigint,
          CASE
            WHEN t.id IS NULL THEN 'Versiegelter Datensatz fehlt'
-           WHEN t.locked_at IS NULL THEN 'Festschreibung aufgehoben'
+           WHEN NOT (%2$s) THEN 'Festschreibung aufgehoben'
            ELSE 'Inhalt passt nicht zum Siegel'
          END
          FROM seals s
          LEFT JOIN %1$I t ON t.id = s.row_id
         WHERE s.table_name = %1$L
-          AND (t.id IS NULL OR t.locked_at IS NULL OR haben_seal_digest(s.table_name, s.row_id, s.columns) <> s.digest)
+          AND (t.id IS NULL OR NOT (%2$s) OR haben_seal_digest(s.table_name, s.row_id, s.columns) <> s.digest)
         ORDER BY s.id
         LIMIT $1)
       UNION ALL
       (SELECT 'siegel'::text, %1$L::text, t.id::text, NULL::bigint, 'Festgeschrieben, aber ohne Siegel'
          FROM %1$I t
-        WHERE t.locked_at IS NOT NULL
+        WHERE %2$s
           AND NOT EXISTS (SELECT 1 FROM seals s WHERE s.table_name = %1$L AND s.row_id = t.id)
-        ORDER BY t.locked_at
+        ORDER BY t.id
         LIMIT $1)
-    $q$, tbl) USING max_rows;
+    $q$, tbl, locked) USING max_rows;
   END LOOP;
 
   -- Ein Siegel gilt nur so, wie es in der Kette steht

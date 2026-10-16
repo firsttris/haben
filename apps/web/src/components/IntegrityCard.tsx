@@ -15,6 +15,7 @@ const TABELLEN: Record<string, string> = {
   invoices: "Rechnung",
   documents: "Beleg",
   vat_returns: "Voranmeldung",
+  cash_entries: "Kassenbuch",
 };
 
 /** Hash-Kette des Audit-Logs und Siegel festgeschriebener Datensätze prüfen (Einstellungen → Export) */
@@ -60,7 +61,7 @@ export function IntegrityCard({ head }: { head: Head }) {
       <h2 id="integrity-heading">Änderungsprotokoll prüfen</h2>
       <p className="small muted" style={{ margin: 0 }}>
         Jede Änderung steht im Audit-Log, jeder Eintrag ist per SHA-256 mit seinem Vorgänger verkettet. Festgeschriebene Buchungen, Rechnungen,
-        Belege und Voranmeldungen tragen zusätzlich ein Siegel über ihren Inhalt. Die Prüfung findet nachträgliche Änderungen an der Datenbank,
+        Belege, Voranmeldungen und das Kassenbuch tragen zusätzlich ein Siegel über ihren Inhalt. Die Prüfung findet nachträgliche Änderungen an der Datenbank,
         verhindert sie aber nicht. Wer die Datenbank ändern kann, kann auch die Kette neu berechnen; das zeigt erst ein Vergleich mit einem
         Prüfwert, den du außerhalb des Servers aufbewahrst (wöchentliche Mail, Jahresarchiv).
       </p>

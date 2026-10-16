@@ -1117,8 +1117,9 @@ Hochladen berechnet und müssen zu den Dateien passen.
 ÄNDERUNGSPROTOKOLL
 
 Jeder Eintrag im Audit-Log ist mit seinem Vorgänger verkettet: Hash = SHA-256 aus
-Vorgänger-Hash und Inhalt. Festgeschriebene Buchungen, Rechnungen, Belege und
-Voranmeldungen tragen ein Siegel über ihren Inhalt, das selbst im Protokoll steht.
+Vorgänger-Hash und Inhalt. Festgeschriebene Buchungen, Rechnungen, Belege,
+Voranmeldungen und die Zeilen des Kassenbuchs tragen ein Siegel über ihren Inhalt,
+das selbst im Protokoll steht.
 Geprüft wird beides in Haben (Einstellungen → Export → Änderungsprotokoll prüfen).
 Den Prüfwert aus protokoll/pruefwert.txt außerhalb des Servers aufbewahren: Er zeigt
 später, ob das Protokoll bis zu diesem Eintrag nachträglich verändert wurde. Die Kette
