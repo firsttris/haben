@@ -55,23 +55,26 @@ ALTER TABLE audit_log ALTER COLUMN row_hash SET NOT NULL;
 --> statement-breakpoint
 CREATE UNIQUE INDEX "audit_log_seq" ON "audit_log" USING btree ("seq");
 --> statement-breakpoint
--- Jeder neue Eintrag hängt sich an den Kopf. Das UPDATE sperrt die Kopfzeile bis zum Ende der Transaktion,
--- parallele Transaktionen verketten also nacheinander. Unter REPEATABLE READ bricht die zweite mit einem
--- Serialisierungsfehler ab, statt die Kette zu verzweigen. Eine zurückgerollte Transaktion nimmt ihre Einträge
--- und den Kopf mit, die Nummern bleiben lückenlos.
+-- Jeder neue Eintrag hängt sich an den letzten. Die Sperre hält bis zum Ende der Transaktion, parallele Transaktionen
+-- verketten also nacheinander; unter READ COMMITTED sieht jede Anweisung danach den zuletzt bestätigten Eintrag. Unter
+-- REPEATABLE READ oder SERIALIZABLE gilt der Snapshot vom Anfang der Transaktion, der Vorgänger wäre womöglich nicht
+-- sichtbar und die Kette verzweigte sich; dort wird abgelehnt. Eine zurückgerollte Transaktion nimmt ihre Einträge
+-- mit, die Nummern bleiben lückenlos. Der Vorgänger kommt über den Index auf seq, der Aufwand je Eintrag bleibt
+-- auch bei vielen Einträgen in einer Transaktion gleich.
 CREATE FUNCTION haben_audit_chain() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE
-  head audit_chain;
+  last audit_log;
 BEGIN
-  UPDATE audit_chain SET seq = seq + 1 WHERE id = 1 RETURNING * INTO head;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Der Kopf der Kette im Audit-Log fehlt' USING ERRCODE = 'check_violation';
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
+    RAISE EXCEPTION 'Änderungen mit Eintrag im Audit-Log nur unter READ COMMITTED, sonst verzweigt die Hash-Kette'
+      USING ERRCODE = 'check_violation';
   END IF;
-  NEW.seq := head.seq;
-  NEW.prev_hash := head.hash;
-  NEW.row_hash := haben_audit_hash(head.hash, NEW);
-  UPDATE audit_chain SET hash = NEW.row_hash WHERE id = 1;
+  PERFORM pg_advisory_xact_lock(hashtext('haben.audit_chain'));
+  SELECT * INTO last FROM audit_log ORDER BY seq DESC LIMIT 1;
+  NEW.seq := coalesce(last.seq, 0) + 1;
+  NEW.prev_hash := coalesce(last.row_hash, haben_audit_genesis());
+  NEW.row_hash := haben_audit_hash(NEW.prev_hash, NEW);
   RETURN NEW;
 END;
 $$;
@@ -79,7 +82,26 @@ $$;
 CREATE TRIGGER audit_log_chain BEFORE INSERT ON audit_log
   FOR EACH ROW EXECUTE FUNCTION haben_audit_chain();
 --> statement-breakpoint
--- Den Kopf schreibt nur der Trigger oben fort (dort ist die Trigger-Tiefe größer als 1), sonst niemand.
+-- Den Kopf erst beim Commit fortschreiben, einmal je Transaktion mit ihrem letzten Eintrag; die Kette selbst steht
+-- schon in audit_log. Der Kopf zeigt, ob am Ende Einträge fehlen.
+CREATE FUNCTION haben_audit_chain_head() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.seq = (SELECT max(seq) FROM audit_log) THEN
+    UPDATE audit_chain SET seq = NEW.seq, hash = NEW.row_hash WHERE id = 1;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Der Kopf der Kette im Audit-Log fehlt' USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+--> statement-breakpoint
+CREATE CONSTRAINT TRIGGER audit_log_chain_head AFTER INSERT ON audit_log
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION haben_audit_chain_head();
+--> statement-breakpoint
+-- Den Kopf schreibt nur haben_audit_chain_head fort (dort ist die Trigger-Tiefe größer als 1), sonst niemand.
 CREATE FUNCTION haben_audit_chain_guard() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN

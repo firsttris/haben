@@ -270,10 +270,21 @@ async function changedSince(seq: number): Promise<boolean> {
   return row !== undefined;
 }
 
+/** Hash des Eintrags seq, null wenn es ihn nicht gibt */
+async function rowHashAt(seq: number): Promise<string | null> {
+  const [row] = await db.select({ hash: schema.auditLog.rowHash }).from(schema.auditLog).where(eq(schema.auditLog.seq, seq));
+  return row ? row.hash.toString("hex") : null;
+}
+
+/** Prüfungen ohne Anlass für eine Mail höchstens einmal am Tag; im Prozess gemerkt */
+let quietCheckAt = 0;
+
 /**
  * Für den Scheduler: Schickt den Prüfwert des Audit-Logs (Kopf der Hash-Kette) einmal pro Woche an die Adresse
- * für Erinnerungen, damit er außerhalb des Servers liegt. Nur wenn sich seit der letzten Mail etwas geändert hat;
- * nach einem Fehlschlag frühestens am nächsten Tag wieder. Prüft vorher Kette und Siegel und meldet Befunde mit.
+ * für Erinnerungen, damit er außerhalb des Servers liegt. Vorher prüft sie Kette und Siegel und vergleicht den
+ * Prüfwert der letzten Mail mit dem Eintrag dieser Nummer. Gesendet wird, wenn sich etwas geändert hat oder die
+ * Prüfung etwas findet; auch Manipulationen ohne neuen Eintrag fallen so auf. Ohne Anlass wird höchstens einmal am
+ * Tag geprüft, nach einem Fehlschlag frühestens am nächsten Tag wieder gesendet.
  */
 export async function runDuePruefwertMail(now = new Date()) {
   const settings = await loadMailSettings();
@@ -292,22 +303,45 @@ export async function runDuePruefwertMail(now = new Date()) {
     .orderBy(desc(schema.mailLog.createdAt))
     .limit(1);
   if (lastTry && now.getTime() - lastTry.createdAt.getTime() < DAY) return null;
+  if (now.getTime() - quietCheckAt < DAY) return null;
   const head = await chainHead();
   if (!head) return null;
-  const lastSeq = Number(lastOk?.keys[0]);
-  if (lastOk && Number.isFinite(lastSeq) && !(await changedSince(lastSeq))) return null;
 
+  // Prüfwert der letzten Mail: Nummer und Hash
+  const [lastSeqKey, lastHash] = lastOk?.keys ?? [];
+  const lastSeq = Number(lastSeqKey);
+  const known = lastOk !== undefined && Number.isInteger(lastSeq);
+  const changed = !known || (await changedSince(lastSeq));
+  const lastNow = known ? await rowHashAt(lastSeq) : null;
+  const rewritten = known && lastHash !== undefined && lastNow !== lastHash;
   const report = await checkIntegrity();
+  if (!changed && !rewritten && report.problems.length === 0) {
+    quietCheckAt = now.getTime();
+    return null;
+  }
+
   const pruefwert = formatPruefwert(head);
   const stand = new Intl.DateTimeFormat("de-DE", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Berlin" }).format(now);
+  const findings = [
+    ...(rewritten
+      ? [
+          lastNow === null
+            ? `Eintrag Nr. ${lastSeq} aus der letzten Mail fehlt im Protokoll: Einträge wurden gelöscht oder ein älteres Backup eingespielt.`
+            : `Eintrag Nr. ${lastSeq} aus der letzten Mail hat jetzt einen anderen Hash (${lastNow} statt ${lastHash}): Das Protokoll wurde nachträglich verändert und neu verkettet.`,
+        ]
+      : []),
+    ...(report.problems.length > 0
+      ? [`Prüfung von Kette und Siegel: ${report.problems.length}${report.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`]
+      : []),
+  ];
   const befund =
-    report.problems.length === 0
+    findings.length === 0
       ? `Prüfung von Kette und Siegel: unverändert (${report.entries} Einträge, ${report.seals} Siegel).`
-      : `Prüfung von Kette und Siegel: ${report.problems.length}${report.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert; Einzelheiten unter ${baseUrl()}/einstellungen?bereich=export`;
+      : `${findings.join(" ")} Einzelheiten unter ${baseUrl()}/einstellungen?bereich=export`;
   const intro = `Prüfwert des Änderungsprotokolls von Haben (${baseUrl()}), Stand ${stand}:`;
   const aufbewahren =
     "Bitte diese Mail aufbewahren, nicht nur auf dem Server von Haben. Mit dem Prüfwert lässt sich später zeigen, dass das Änderungsprotokoll und die festgeschriebenen Daten bis zu diesem Stand nicht nachträglich verändert wurden: in Haben unter Einstellungen → Export → Änderungsprotokoll prüfen einfügen und vergleichen.";
-  const hinweis = "Diese Mail kommt höchstens einmal pro Woche und nur, wenn sich etwas geändert hat. Abschalten in den E-Mail-Einstellungen.";
+  const hinweis = "Diese Mail kommt höchstens einmal pro Woche, wenn sich etwas geändert hat oder die Prüfung etwas findet. Abschalten in den E-Mail-Einstellungen.";
   const text = [intro, "", pruefwert, "", befund, "", aufbewahren, "", hinweis].join("\n");
   const html = [
     `<p>${escapeHtml(intro)}</p>`,
@@ -317,10 +351,10 @@ export async function runDuePruefwertMail(now = new Date()) {
     `<p><small>${escapeHtml(hinweis)}</small></p>`,
   ].join("\n");
   const subject =
-    report.problems.length === 0 ? `Haben: Prüfwert des Änderungsprotokolls (Nr. ${head.seq})` : `Haben: Änderungsprotokoll mit Befunden (Nr. ${head.seq})`;
-  const result = await send(MAIL_ACTOR, { kind: "pruefwert", to: settings.reminderTo, subject, text, html, reminderKeys: [String(head.seq)] });
+    findings.length === 0 ? `Haben: Prüfwert des Änderungsprotokolls (Nr. ${head.seq})` : `Haben: Änderungsprotokoll mit Befunden (Nr. ${head.seq})`;
+  const result = await send(MAIL_ACTOR, { kind: "pruefwert", to: settings.reminderTo, subject, text, html, reminderKeys: [String(head.seq), head.hash] });
   if (!result.ok) throw new MailError(`Prüfwert nicht gesendet: ${result.error}`);
-  return { seq: head.seq, problems: report.problems.length };
+  return { seq: head.seq, problems: report.problems.length, rewritten };
 }
 
 export async function lastMails(limit = 5) {

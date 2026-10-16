@@ -32,7 +32,15 @@ export function IntegrityCard({ head }: { head: Head }) {
     void action.run(async () => {
       const result = await compare({ data: { text } });
       if (result.status === "ok") {
-        action.setNotice({ tone: "ok", text: `Prüfwert Nr. ${result.seq} stimmt: Das Protokoll ist bis zu diesem Eintrag unverändert.` });
+        action.setNotice({
+          tone: "ok",
+          text: `Prüfwert Nr. ${result.seq} stimmt und die Kette ist bis dorthin lückenlos: Das Protokoll ist bis zu diesem Eintrag unverändert. Siegel und spätere Einträge prüft „Kette prüfen“.`,
+        });
+      } else if (result.status === "beschaedigt") {
+        action.setNotice({
+          tone: "danger",
+          text: `Prüfwert Nr. ${result.seq} stimmt, aber Eintrag Nr. ${result.first} davor passt nicht mehr zur Kette (${result.befund}). Er wurde nachträglich verändert.`,
+        });
       } else if (result.status === "abweichend") {
         action.setNotice({
           tone: "danger",

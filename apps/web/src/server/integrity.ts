@@ -70,14 +70,19 @@ export async function checkIntegrity(): Promise<IntegrityReport> {
 }
 
 export type PruefwertResult =
-  /** Eintrag vorhanden, Hash stimmt: bis hierhin unverändert */
+  /** Eintrag vorhanden, Hash stimmt und die Kette bis dahin ist nachgerechnet lückenlos: bis hierhin unverändert */
   | { status: "ok"; seq: number }
+  /** Hash stimmt, aber ein früherer Eintrag passt nicht mehr zur Kette (bei abgeschalteten Triggern geändert) */
+  | { status: "beschaedigt"; seq: number; first: number; befund: string }
   /** Eintrag vorhanden, Hash anders: die Kette wurde bis zu diesem Eintrag neu berechnet */
   | { status: "abweichend"; seq: number; expected: string; actual: string }
   /** Kein Eintrag mit dieser Nummer: Einträge gelöscht oder ein älteres Backup eingespielt */
   | { status: "fehlt"; seq: number; head: number | null };
 
-/** Vergleicht einen Prüfwert von außerhalb (Mail, Jahresarchiv) mit dem Eintrag dieser Nummer */
+/**
+ * Vergleicht einen Prüfwert von außerhalb (Mail, Jahresarchiv) mit dem Eintrag dieser Nummer und rechnet die Kette
+ * bis dorthin nach. Erst beides zusammen zeigt, dass kein Eintrag bis zu dieser Nummer verändert wurde.
+ */
 export async function checkPruefwert(seq: number, hash: string): Promise<PruefwertResult> {
   const [row] = await db
     .select({ hash: schema.auditLog.rowHash })
@@ -85,5 +90,9 @@ export async function checkPruefwert(seq: number, hash: string): Promise<Pruefwe
     .where(eq(schema.auditLog.seq, seq));
   if (!row) return { status: "fehlt", seq, head: (await chainHead())?.seq ?? null };
   const actual = row.hash.toString("hex");
-  return actual === hash.toLowerCase() ? { status: "ok", seq } : { status: "abweichend", seq, expected: hash.toLowerCase(), actual };
+  if (actual !== hash.toLowerCase()) return { status: "abweichend", seq, expected: hash.toLowerCase(), actual };
+  const [broken] = await db.execute<{ seq: string; befund: string }>(
+    sql`select seq, befund from haben_integrity_problems(1) where art = 'kette' and seq <= ${seq} order by seq limit 1`,
+  );
+  return broken ? { status: "beschaedigt", seq, first: Number(broken.seq), befund: broken.befund } : { status: "ok", seq };
 }

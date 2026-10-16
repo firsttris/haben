@@ -403,7 +403,7 @@ test("Änderungsprotokoll: Kette prüfen, Prüfwert vergleichen", async () => {
   const field = card.getByLabel("Prüfwert aus Mail oder Jahresarchiv");
   await field.fill(pruefwert);
   await card.getByRole("button", { name: "Vergleichen" }).click();
-  await expect(card.getByRole("status")).toContainText("stimmt: Das Protokoll ist bis zu diesem Eintrag unverändert");
+  await expect(card.getByRole("status")).toContainText("stimmt und die Kette ist bis dorthin lückenlos");
   await field.fill(pruefwert.slice(0, -1) + (pruefwert.endsWith("0") ? "1" : "0"));
   await card.getByRole("button", { name: "Vergleichen" }).click();
   await expect(card.getByRole("alert")).toContainText("stimmt nicht");

@@ -19,7 +19,7 @@ const lock = sql`select pg_advisory_xact_lock(hashtext('haben.kasse'))`;
 
 /**
  * Sperrt das Kassenbuch bis zum Ende der Transaktion. Wer auch Buchungen schreibt, sperrt die Kasse vorher: Jede
- * Änderung mit Audit-Eintrag sperrt den Kopf der Hash-Kette, in umgekehrter Reihenfolge blockierten sich zwei
+ * Änderung mit Audit-Eintrag nimmt die Sperre der Hash-Kette, in umgekehrter Reihenfolge blockierten sich zwei
  * Transaktionen gegenseitig.
  */
 export async function lockCash(tx: Tx): Promise<void> {

@@ -202,6 +202,26 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     expect(await integrity.checkPruefwert(head.seq, head.hash.toUpperCase())).toEqual({ status: "ok", seq: head.seq });
     expect(await integrity.checkPruefwert(head.seq + 1000, head.hash)).toEqual({ status: "fehlt", seq: head.seq + 1000, head: head.seq });
 
+    // Ein früherer Eintrag geändert, die Hashes stehen gelassen: der Hash an der Nummer stimmt noch, die Kette nicht
+    const [original] = await sql`select actor from audit_log where seq = 2`;
+    const setActor = (actor: string | null) =>
+      sql.begin(async (tx) => {
+        await tx`set local session_replication_role = replica`;
+        await tx`update audit_log set actor = ${actor} where seq = 2`;
+      });
+    await setActor("jemand");
+    try {
+      expect(await integrity.checkPruefwert(head.seq, head.hash)).toEqual({
+        status: "beschaedigt",
+        seq: head.seq,
+        first: 2,
+        befund: "Inhalt passt nicht zum Hash",
+      });
+    } finally {
+      await setActor(original!.actor);
+    }
+    expect(await integrity.checkPruefwert(head.seq, head.hash)).toEqual({ status: "ok", seq: head.seq });
+
     // Ein Betreiber ändert einen Eintrag und rechnet die ganze Kette samt Kopf neu
     const result = await rolledBack(async (tx) => {
       await tamper(tx, async () => {
@@ -239,6 +259,35 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     }
     const [stats] = await sql`select count(*)::int as n, max(seq)::int as max, count(distinct prev_hash)::int as prevs from audit_log`;
     expect(stats).toMatchObject({ n: stats!.max, prevs: stats!.n });
+    expect(await problems()).toEqual([]);
+  });
+
+  it("lehnt REPEATABLE READ ab, Savepoints lassen Kette und Kopf stimmig", async () => {
+    await expect(
+      sql.begin("isolation level repeatable read", (tx) => tx`insert into bank_accounts (name, iban) values ('RR', 'DE00RR')`),
+    ).rejects.toThrow(/nur unter READ COMMITTED/);
+    await sql.begin(async (tx) => {
+      await tx`insert into bank_accounts (name, iban) values ('S1', 'DE00SAVE1')`;
+      await tx.savepoint((sp) => sp`insert into bank_accounts (name, iban) values ('S2', 'DE00SAVE2')`).catch(() => {});
+      await tx
+        .savepoint(async (sp) => {
+          await sp`insert into bank_accounts (name, iban) values ('S3', 'DE00SAVE3')`;
+          throw new Error("zurück");
+        })
+        .catch(() => {});
+    });
+    const [head] = await sql`select seq, hash from audit_chain`;
+    const [last] = await sql`select seq, row_hash from audit_log order by seq desc limit 1`;
+    expect(Number(head!.seq)).toBe(Number(last!.seq));
+    expect(head!.hash).toEqual(last!.row_hash);
+    expect(await problems()).toEqual([]);
+  });
+
+  it("verkettet viele Einträge einer Transaktion ohne quadratischen Aufwand", async () => {
+    const started = performance.now();
+    await sql`insert into bank_accounts (name, iban) select 'Massen ' || g, 'DE00MASSE' || g from generate_series(1, 20000) g`;
+    // Mit einer Kopfzeile, die je Eintrag geändert wird, wären es rund 15 s; jetzt etwa 1,5 s (Luft für langsame CI)
+    expect(performance.now() - started).toBeLessThan(10_000);
     expect(await problems()).toEqual([]);
   });
 
@@ -307,7 +356,7 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
     });
 
     const first = await mail.runDuePruefwertMail(at(1));
-    expect(first).toEqual({ seq: expect.any(Number), problems: 0 });
+    expect(first).toEqual({ seq: expect.any(Number), problems: 0, rewritten: false });
     expect(sent).toHaveLength(1);
     expect(sent[0]!.to).toBe("max@example.com");
     expect(sent[0]!.subject).toBe(`Haben: Prüfwert des Änderungsprotokolls (Nr. ${first!.seq})`);
@@ -317,17 +366,36 @@ describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
 
     // Innerhalb einer Woche nicht noch einmal
     expect(await mail.runDuePruefwertMail(at(5))).toBeNull();
-    // Nach einer Woche nicht, wenn nur die eigene Mail im Protokoll steht
+    // Nach einer Woche nicht, wenn nur die eigene Mail im Protokoll steht; danach wird nur einmal am Tag geprüft
     expect(await mail.runDuePruefwertMail(at(9))).toBeNull();
-    // Nach einer Änderung schon
     await sql`insert into bank_accounts (name, iban) values ('Neu', 'DE00PRUEFWERT')`;
-    expect(await mail.runDuePruefwertMail(at(9))).toEqual({ seq: expect.any(Number), problems: 0 });
+    expect(await mail.runDuePruefwertMail(at(9))).toBeNull();
+    // Nach einer Änderung am nächsten Tag schon
+    expect(await mail.runDuePruefwertMail(at(10))).toEqual({ seq: expect.any(Number), problems: 0, rewritten: false });
     expect(sent).toHaveLength(2);
+
+    // Ohne neuen Eintrag, aber neu verkettet: der Prüfwert der letzten Mail passt nicht mehr
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`update audit_log set actor = 'jemand' where seq = 2`;
+      await tx`do $$
+        declare r audit_log; prev bytea := haben_audit_genesis();
+        begin
+          for r in select * from audit_log order by seq loop
+            update audit_log set prev_hash = prev, row_hash = haben_audit_hash(prev, r) where id = r.id returning row_hash into prev;
+          end loop;
+          update audit_chain set hash = prev;
+        end $$`;
+    });
+    expect(await mail.runDuePruefwertMail(at(18))).toMatchObject({ problems: 0, rewritten: true });
+    expect(sent).toHaveLength(3);
+    expect(sent[2]!.subject).toMatch(/^Haben: Änderungsprotokoll mit Befunden/);
+    expect(sent[2]!.text).toContain("hat jetzt einen anderen Hash");
 
     // Abgeschaltet: keine Mail
     await sql`update mail_settings set pruefwert_mail = false`;
     await sql`insert into bank_accounts (name, iban) values ('Neu 2', 'DE00PRUEFWERT2')`;
     expect(await mail.runDuePruefwertMail(at(30))).toBeNull();
-    expect(sent).toHaveLength(2);
+    expect(sent).toHaveLength(3);
   });
 });
