@@ -175,7 +175,8 @@ type MessageRecord = Pick<typeof schema.elsterMessages.$inferInsert, "topic" | "
 
 /**
  * Prüfen, Test- oder Echtversand über das ELSTER-Gateway; jeder Versuch landet unveränderlich in elster_messages.
- * Gleiche Nachrichten laufen unter derselben Sendesperre: Ein Doppelklick schickt sie nicht zweimal gleichzeitig.
+ * Gleiche Nachrichten laufen unter derselben Sendesperre, nacheinander statt gleichzeitig. Ob eine zweite gleiche Nachricht
+ * gewollt ist, prüft Haben nicht; die Oberfläche sperrt den Knopf, solange gesendet wird.
  */
 function submit(
   actor: string,

@@ -205,7 +205,7 @@ Jede Übermittlung an die Finanzverwaltung läuft über `server/elster-gateway.t
 | --- | --- | --- |
 | Zugang | `zugang` | Testfälle mit der eigenen Hersteller-ID, sonst der Test-ID; echt nur mit eigener ID und nie mit dem simulierten Client, der nichts sendet und sonst festschreiben würde, ohne dass etwas beim Finanzamt ist |
 | Signatur | `signatur`, `prepareAbruf` | aktives Zertifikat und PIN; die gespeicherte PIN nur bei Abrufen und Anträgen |
-| Sendesperre | `underSendLock` | eine Echtübermittlung desselben Vorgangs nie zweimal gleichzeitig (Doppelklick); die Transaktion hält nur die Sperre, gearbeitet wird auf anderen Verbindungen |
+| Sendesperre | `underSendLock` | eine Echtübermittlung desselben Vorgangs nie zweimal gleichzeitig; Voranmeldung und Jahreserklärung sehen beim zweiten Aufruf danach „bereits gesendet“, Nachrichten und Anträge ohne Status laufen nacheinander und gehen dann zweimal raus. Die Transaktion hält nur die Sperre, gearbeitet wird auf anderen Verbindungen |
 | Protokoll | `protocolSubmission` | jeder Versuch wird gespeichert; scheitert das nach erfolgter Echtübermittlung, stehen Transferticket und XML im Server-Log, und die Meldung sagt, dass nicht erneut gesendet werden soll |
 | Ablauf | `uebermitteln` | Sperre, Zugang, XML bauen, prüfen oder senden, protokollieren, in dieser Reihenfolge |
 

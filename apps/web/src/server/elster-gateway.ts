@@ -10,7 +10,9 @@ import { UserError } from "./errors.ts";
  * - Zugang: Hersteller-ID (ERiC 43 sperrt die Test-Hersteller-ID 74931 auch für Testfälle, deshalb die eigene, falls
  *   vorhanden) und keine Echtübermittlung mit dem simulierten Client.
  * - Signatur: aktives Zertifikat und PIN, eingegeben oder gespeichert.
- * - Sendesperre: Eine Echtübermittlung desselben Vorgangs läuft nie zweimal gleichzeitig (Doppelklick).
+ * - Sendesperre: Eine Echtübermittlung desselben Vorgangs läuft nie zweimal gleichzeitig. Wo der Vorgang einen Status hat
+ *   (Voranmeldung, Jahreserklärung), sieht der zweite Aufruf danach „bereits gesendet“; Nachrichten und Anträge ohne
+ *   Status laufen nacheinander, gesendet werden sie dann zweimal.
  * - Protokoll: Jeder Versuch wird gespeichert; scheitert das nach erfolgter Echtübermittlung, bleibt der Nachweis im
  *   Server-Log, und der Nutzer erfährt, dass er nicht erneut senden soll.
  *

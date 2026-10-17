@@ -61,7 +61,8 @@ async function ehegatte() {
 
 /**
  * Sendet einen Schritt und protokolliert ihn; fachliche Fehler im Nutzdatenblock zählen als Fehler. Echte Anträge laufen
- * unter der Sendesperre des ELSTER-Gateways (Doppelklick), das Protokoll wie bei allen Übermittlungen abgesichert.
+ * unter der Sendesperre des ELSTER-Gateways (nacheinander statt gleichzeitig), das Protokoll wie bei allen Übermittlungen
+ * abgesichert. Ins Protokoll und ins Server-Log kommt das XML ohne Freischaltcode.
  */
 function sendBrm(
   actor: string,
@@ -97,7 +98,9 @@ async function sendBrmLocked(
   const rueckgabe = result.ok ? parseBrmRueckgabe(result.serverResponseXml) : undefined;
   const ok = result.ok && (rueckgabe?.code ?? 0) === 0;
   const message = result.ok && !ok ? `${rueckgabe!.text} (${rueckgabe!.code})` : result.message;
-  await protocolSubmission(options.kind, result, xml, () =>
+  // Der Freischaltcode gilt nur einmal und bleibt aus Datenbank, Audit-Log und Server-Log heraus
+  const protokollXml = xml.replace(/<Freischaltcode>[^<]*<\/Freischaltcode>/, "<Freischaltcode>XXXX-XXXX-XXXX</Freischaltcode>");
+  await protocolSubmission(options.kind, result, protokollXml, () =>
     withActor(actor, (tx) =>
       tx.insert(schema.brmRequests).values({
         art,
@@ -106,8 +109,7 @@ async function sendBrmLocked(
         ok,
         code: ok ? 0 : (rueckgabe?.code ?? result.code),
         message,
-        // Der Freischaltcode gilt nur einmal und bleibt aus Datenbank und Audit-Log heraus
-        requestXml: xml.replace(/<Freischaltcode>[^<]*<\/Freischaltcode>/, "<Freischaltcode>XXXX-XXXX-XXXX</Freischaltcode>"),
+        requestXml: protokollXml,
         responseXml: result.responseXml,
         serverResponseXml: result.serverResponseXml,
         ...(ok ? extract(result) : {}),

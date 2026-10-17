@@ -164,7 +164,7 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Gateway (Postgres)", () => {
   });
 
   it("Berechtigungen: echte Anträge unter der Sendesperre, das Protokoll abgesichert", async () => {
-    const person = (idnr: string, vorname: string) => ({ idnr, anrede: "Herrn", vorname, name: "Muster", geburtsdatum: "1987-03-01", religion: "11", beruf: "" });
+    const person = (idnr: string, vorname: string) => ({ idnr, anrede: "Herrn" as const, vorname, name: "Muster", geburtsdatum: "1987-03-01", religion: "11", beruf: "" });
     await taxpayer.saveTaxpayer(actor, { a: person("65929970489", "Max"), b: person("86095742719", "Erika"), veranlagung: "zusammen" });
     await certificate("1234");
     const client = liveClient([], { delay: 100 });
@@ -175,5 +175,32 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Gateway (Postgres)", () => {
     ]);
     expect(Date.now() - started).toBeGreaterThanOrEqual(200);
     expect(await sql`select art from brm_requests`).toHaveLength(2);
+  });
+
+  it("scheitert das Protokoll nach einer echten Freischaltung, steht der Freischaltcode nicht im Server-Log", async () => {
+    const person = (idnr: string, vorname: string) => ({ idnr, anrede: "Herrn" as const, vorname, name: "Muster", geburtsdatum: "1987-03-01", religion: "11", beruf: "" });
+    await taxpayer.saveTaxpayer(actor, { a: person("65929970489", "Max"), b: person("86095742719", "Erika"), veranlagung: "zusammen" });
+    await certificate("1234");
+    const client = liveClient();
+    await brm.requestBerechtigung(actor, client, { kind: "send", herstellerId: "12345", gueltigBis: "2028-12-31" });
+    // Speichern der Freischaltung scheitert nach dem Senden
+    await sql`create function haben_test_fail() returns trigger language plpgsql as $$ begin raise exception 'DB weg'; end $$`;
+    await sql`create trigger haben_test_fail before insert on brm_requests for each row when (new.art = 'freischaltung') execute function haben_test_fail()`;
+    const logged: unknown[][] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => void logged.push(args);
+    try {
+      await expect(
+        brm.activateBerechtigung(actor, client, { kind: "send", herstellerId: "12345", freischaltcode: "abcd efgh 1234" }),
+      ).rejects.toThrow(/nicht erneut senden/);
+    } finally {
+      console.error = original;
+      await sql`drop trigger haben_test_fail on brm_requests`;
+      await sql`drop function haben_test_fail()`;
+    }
+    expect(logged).toHaveLength(1);
+    const text = JSON.stringify(logged[0]);
+    expect(text).toContain("<Freischaltcode>XXXX-XXXX-XXXX</Freischaltcode>");
+    expect(text).not.toContain("ABCD-EFGH-1234");
   });
 });
