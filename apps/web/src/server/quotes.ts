@@ -26,6 +26,7 @@ import { loadCompany, sellerIssues } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Db, type Tx } from "./db/index.ts";
 import { loadLogo } from "./logo.ts";
+import { peekNumber, takeNumber } from "./number-counter.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, sellerFrom, type Invoice } from "./invoices.ts";
 
 /**
@@ -253,29 +254,27 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
   if (issues.length > 0) throw new QuoteError(`Noch nicht bereit: ${issues.join(", ")}.`);
   return withActor(actor, async (tx) => {
     const quote = await lockDraft(tx, id);
-    const company = await loadCompany();
+    const company = await loadCompany(tx);
     const lines = await tx.select().from(schema.quoteLines).where(eq(schema.quoteLines.quoteId, id)).orderBy(asc(schema.quoteLines.position));
     const [contact] = await tx.select().from(schema.contacts).where(eq(schema.contacts.id, quote.contactId!));
+    // Wie bei Rechnungen: Nummer lesen, PDF erzeugen, erst dann schreiben (number-counter.ts)
     const year = Number(quote.issueDate.slice(0, 4));
-    const [counter] = await tx
-      .insert(schema.quoteNumberCounters)
-      .values({ year, last: 1 })
-      .onConflictDoUpdate({ target: schema.quoteNumberCounters.year, set: { last: sql`${schema.quoteNumberCounters.last} + 1` } })
-      .returning();
-    const number = formatQuoteNumber(year, counter!.last);
+    const counter = await peekNumber(tx, "angebot", year);
+    const number = formatQuoteNumber(year, counter);
     const seller = sellerFrom(company);
     const buyer = buyerFrom(contact!);
     const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
     const logo = await loadLogo();
     const pdf = buildQuotePdf(logo ? { ...doc, logo } : doc);
     const now = new Date();
+    await takeNumber(tx, "angebot", year, counter);
     const [finalized] = await tx
       .update(schema.quotes)
       .set({
         status: "final",
         number,
         numberYear: year,
-        numberCounter: counter!.last,
+        numberCounter: counter,
         contactVersion: contact!.version,
         seller,
         buyer,

@@ -40,6 +40,7 @@ import { withActor } from "./db/actor.ts";
 import { db, schema, type Db, type Tx } from "./db/index.ts";
 import { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "./ledger.ts";
+import { lockNumbering, peekNumber, setNextNumber as setNextCounter, takeNumber } from "./number-counter.ts";
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
@@ -589,13 +590,11 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
   }
 
+  // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
+  // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
   const year = Number(invoice.issueDate.slice(0, 4));
-  const [counter] = await tx
-    .insert(schema.invoiceNumberCounters)
-    .values({ year, last: 1 })
-    .onConflictDoUpdate({ target: schema.invoiceNumberCounters.year, set: { last: sql`${schema.invoiceNumberCounters.last} + 1` } })
-    .returning();
-  const number = formatInvoiceNumber(year, counter!.last);
+  const counter = await peekNumber(tx, "rechnung", year);
+  const number = formatInvoiceNumber(year, counter);
 
   // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
   const seller = sellerFrom(company);
@@ -606,13 +605,14 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   const rendered = await buildEInvoice(logo ? { ...doc, logo } : doc);
   const now = new Date();
 
+  await takeNumber(tx, "rechnung", year, counter);
   const [finalized] = await tx
     .update(schema.invoices)
     .set({
       status: "final",
       number,
       numberYear: year,
-      numberCounter: counter!.last,
+      numberCounter: counter,
       contactVersion: contact!.version,
       seller,
       buyer,
@@ -678,6 +678,10 @@ function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
  */
 export async function cancelInvoice(actor: string, id: string, today: string): Promise<Invoice> {
   return withActor(actor, async (tx) => {
+    // Nummernkreis vor allem, was einen Audit-Eintrag schreibt (der Entwurf): Reihenfolge der Sperren wie beim
+    // Festschreiben, Kreis vor Kette (number-counter.ts). Das PDF entsteht hier nach dem Entwurf, also mit gesperrter
+    // Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
+    await lockNumbering(tx, "rechnung", Number(today.slice(0, 4)));
     // Original zuerst sperren: Ein zweites Storno wartet hier und sieht danach das erste. Erst mit dem Entwurf
     // (Fremdschlüssel auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
     await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
@@ -735,14 +739,8 @@ export async function numbering(year: number) {
 }
 
 export async function setNextNumber(actor: string, year: number, next: number) {
-  const { last } = await numbering(year);
-  if (next <= last) throw new InvoiceError(`Die nächste Nummer muss größer als ${formatInvoiceNumber(year, last)} sein.`);
-  await withActor(actor, (tx) =>
-    tx
-      .insert(schema.invoiceNumberCounters)
-      .values({ year, last: next - 1 })
-      .onConflictDoUpdate({ target: schema.invoiceNumberCounters.year, set: { last: next - 1 } }),
-  );
+  const result = await withActor(actor, (tx) => setNextCounter(tx, "rechnung", year, next));
+  if (!result.ok) throw new InvoiceError(`Die nächste Nummer muss größer als ${formatInvoiceNumber(year, result.last)} sein.`);
 }
 
 /** Kennzahlen für die Übersicht */
