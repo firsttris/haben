@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "../../../server/auth.ts";
 import { csvResponse } from "../../../server/file-response.ts";
 import { yearSchema } from "../../../server/functions/schemas.ts";
-import { euerForYear } from "../../../server/reports.ts";
+import { euerForYear } from "../../../server/modules/auswertungen/reports.ts";
 
 /** EÜR eines Jahres als CSV */
 export const Route = createFileRoute("/api/auswertungen/$jahr")({

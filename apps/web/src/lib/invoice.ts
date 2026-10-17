@@ -1,4 +1,4 @@
-import type { DraftInput } from "../server/invoices.ts";
+import type { DraftInput } from "../server/modules/rechnungen/invoices.ts";
 
 export type InvoiceFormat = DraftInput["format"];
 

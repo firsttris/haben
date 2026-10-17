@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { cashBook, cashInputSchema, createCashEntry, reverseCashEntry } from "../cash.ts";
+import { cashBook, cashInputSchema, createCashEntry, reverseCashEntry } from "../modules/bank/cash.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";

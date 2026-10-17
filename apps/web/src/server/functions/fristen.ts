@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { calendarTokenActive, createCalendarToken, listFristen, revokeCalendarToken } from "../fristen.ts";
+import { calendarTokenActive, createCalendarToken, listFristen, revokeCalendarToken } from "../modules/finanzamt/fristen.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 

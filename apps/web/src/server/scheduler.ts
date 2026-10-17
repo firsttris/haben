@@ -1,10 +1,10 @@
-import { runDueBankSyncs } from "./bank-sync.ts";
-import { elsterClient, elsterMode } from "./elster.ts";
+import { runDueBankSyncs } from "./modules/bank/bank-sync.ts";
+import { elsterClient, elsterMode } from "./modules/elster/elster.ts";
 import { env } from "./env.ts";
-import { runDueInboxFetch } from "./inbox.ts";
-import { runDueFristenMails, runDuePruefwertMail } from "./mail.ts";
-import { runDuePostfachFetch } from "./postfach.ts";
-import { runDueRecurring } from "./recurring.ts";
+import { runDueInboxFetch } from "./modules/belege/inbox.ts";
+import { runDueFristenMails, runDuePruefwertMail } from "./modules/mail/mail.ts";
+import { runDuePostfachFetch } from "./modules/finanzamt/postfach.ts";
+import { runDueRecurring } from "./modules/rechnungen/recurring.ts";
 import { today } from "./today.ts";
 
 const HOUR = 60 * 60 * 1000;

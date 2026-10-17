@@ -6,15 +6,15 @@ import {
 } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../company.ts";
-import { inputTaxForPeriod } from "../documents.ts";
-import { computeVatFigures, preflight } from "../vat-figures.ts";
-import { abgleichIssues, vatAbgleich } from "../abgleich.ts";
-import { elsterClient, elsterMode } from "../elster.ts";
+import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../modules/stammdaten/company.ts";
+import { inputTaxForPeriod } from "../modules/belege/documents.ts";
+import { computeVatFigures, preflight } from "../modules/umsatzsteuer/vat-figures.ts";
+import { abgleichIssues, vatAbgleich } from "../modules/auswertungen/abgleich.ts";
+import { elsterClient, elsterMode } from "../modules/elster/elster.ts";
 import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
-import { openAppealDeadlines } from "../postfach.ts";
-import { pendingDepreciation } from "../assets.ts";
+import { openAppealDeadlines } from "../modules/finanzamt/postfach.ts";
+import { pendingDepreciation } from "../modules/buchhaltung/assets.ts";
 import { today } from "../today.ts";
 import {
   computedValues,
@@ -24,8 +24,8 @@ import {
   saveDraft,
   submissionsFor,
   submitReturn,
-} from "../vat.ts";
-import { loadActiveCertificate } from "../elster-gateway.ts";
+} from "../modules/umsatzsteuer/vat.ts";
+import { loadActiveCertificate } from "../modules/elster/elster-gateway.ts";
 
 // Negativ möglich, etwa wenn Gutschriften im Monat überwiegen
 const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);

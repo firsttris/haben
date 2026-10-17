@@ -2,7 +2,7 @@ import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import type { FormEvent } from "react";
 import { saveContact } from "../server/functions/contacts.ts";
-import type { Contact, ContactInput } from "../server/contacts.ts";
+import type { Contact, ContactInput } from "../server/modules/stammdaten/contacts.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { FORMAT_LABEL, FORMATS } from "../lib/invoice.ts";
 import { useAction } from "../lib/use-action.ts";

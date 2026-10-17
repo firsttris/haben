@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { articleInputSchema, createArticle, listArticles, setArticleArchived, updateArticle } from "../articles.ts";
+import { articleInputSchema, createArticle, listArticles, setArticleArchived, updateArticle } from "../modules/stammdaten/articles.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getArticles = createServerFn({ method: "GET" })

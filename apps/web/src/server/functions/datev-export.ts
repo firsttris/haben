@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { loadCompany } from "../company.ts";
-import { datevNumbersSchema, saveDatevNumbers } from "../datev-export.ts";
+import { loadCompany } from "../modules/stammdaten/company.ts";
+import { datevNumbersSchema, saveDatevNumbers } from "../modules/auswertungen/datev-export.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getDatevNumbers = createServerFn({ method: "GET" })

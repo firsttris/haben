@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { versteuerungForYear } from "../company.ts";
+import { versteuerungForYear } from "../modules/stammdaten/company.ts";
 import { authMiddleware } from "../middleware.ts";
-import { euerForYear, openPositions, reportYears } from "../reports.ts";
+import { euerForYear, openPositions, reportYears } from "../modules/auswertungen/reports.ts";
 import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";
 

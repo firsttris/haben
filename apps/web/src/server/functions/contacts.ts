@@ -7,7 +7,7 @@ import {
   listContacts,
   setContactArchived,
   updateContact,
-} from "../contacts.ts";
+} from "../modules/stammdaten/contacts.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 

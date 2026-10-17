@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { checkFormats, isValidIdnr } from "@haben/elster";
-import { loadCompany } from "../company.ts";
-import { confirmElsterDatenschutz, elsterClient, elsterMode, ericStatus, startEricInstall } from "../elster.ts";
+import { loadCompany } from "../modules/stammdaten/company.ts";
+import { confirmElsterDatenschutz, elsterClient, elsterMode, ericStatus, startEricInstall } from "../modules/elster/elster.ts";
 import { env } from "../env.ts";
-import { PRODUKT_VERSION, zugang } from "../elster-gateway.ts";
+import { PRODUKT_VERSION, zugang } from "../modules/elster/elster-gateway.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 

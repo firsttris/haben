@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { checkCalendarToken, fristenToIcs, listFristen } from "../../../server/fristen.ts";
+import { checkCalendarToken, fristenToIcs, listFristen } from "../../../server/modules/finanzamt/fristen.ts";
 import { env } from "../../../server/env.ts";
 import { today } from "../../../server/today.ts";
 

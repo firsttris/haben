@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "../../../server/auth.ts";
 import { csvResponse } from "../../../server/file-response.ts";
 import { yearSchema } from "../../../server/functions/schemas.ts";
-import { kontenblatt, ledgerPeriodSchema, ledgerRange, saldenliste } from "../../../server/ledger.ts";
+import { kontenblatt, ledgerPeriodSchema, ledgerRange, saldenliste } from "../../../server/modules/buchhaltung/ledger.ts";
 
 /** Saldenliste bzw. mit ?konto= das Kontenblatt eines Zeitraums als CSV */
 export const Route = createFileRoute("/api/konten/$jahr")({

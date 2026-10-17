@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { loadJournal } from "../journal.ts";
+import { loadJournal } from "../modules/buchhaltung/journal.ts";
 import { authMiddleware } from "../middleware.ts";
 import { yearSchema } from "./schemas.ts";
 

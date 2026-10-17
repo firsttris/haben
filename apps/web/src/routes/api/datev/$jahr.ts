@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "../../../server/auth.ts";
-import { DatevExportError, datevExport } from "../../../server/datev-export.ts";
+import { DatevExportError, datevExport } from "../../../server/modules/auswertungen/datev-export.ts";
 
 /** DATEV-Buchungsstapel eines Jahres: /api/datev/2026 */
 export const Route = createFileRoute("/api/datev/$jahr")({

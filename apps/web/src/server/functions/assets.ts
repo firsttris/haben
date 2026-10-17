@@ -10,7 +10,7 @@ import {
   getAsset,
   listAssets,
   updateAsset,
-} from "../assets.ts";
+} from "../modules/buchhaltung/assets.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { UserError } from "../errors.ts";

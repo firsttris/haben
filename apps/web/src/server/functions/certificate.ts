@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { deactivateCertificate, saveCertificate } from "../certificate.ts";
+import { deactivateCertificate, saveCertificate } from "../modules/elster/certificate.ts";
 import { UserError } from "../errors.ts";
 import { authMiddleware } from "../middleware.ts";
 

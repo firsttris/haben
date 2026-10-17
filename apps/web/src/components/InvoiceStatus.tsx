@@ -1,4 +1,4 @@
-import type { InvoiceListStatus } from "../server/invoices.ts";
+import type { InvoiceListStatus } from "../server/modules/rechnungen/invoices.ts";
 
 const LABELS: Record<InvoiceListStatus, { text: string; tone: string }> = {
   entwurf: { text: "Entwurf", tone: "pill-info" },

@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { kontenblatt, ledgerPeriodSchema, ledgerRange, saldenliste } from "../ledger.ts";
+import { kontenblatt, ledgerPeriodSchema, ledgerRange, saldenliste } from "../modules/buchhaltung/ledger.ts";
 import { authMiddleware } from "../middleware.ts";
-import { reportYears } from "../reports.ts";
+import { reportYears } from "../modules/auswertungen/reports.ts";
 import { yearSchema } from "./schemas.ts";
 
 export const getSaldenliste = createServerFn({ method: "GET" })

@@ -1,9 +1,9 @@
-import { invoicesSentByMail, mailsForInvoice } from "../invoice-mail.ts";
+import { invoicesSentByMail, mailsForInvoice } from "../modules/rechnungen/invoice-mail.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { listAccounts } from "../bank.ts";
-import { editorContext } from "../company.ts";
+import { listAccounts } from "../modules/bank/bank.ts";
+import { editorContext } from "../modules/stammdaten/company.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
   cancelInvoice,
@@ -22,9 +22,9 @@ import {
   openAbschlaege,
   setNextNumber,
   updateDraft,
-} from "../invoices.ts";
+} from "../modules/rechnungen/invoices.ts";
 import { db, schema } from "../db/index.ts";
-import { dunningsFor } from "../dunning.ts";
+import { dunningsFor } from "../modules/rechnungen/dunning.ts";
 import { today } from "../today.ts";
 import { UserError } from "../errors.ts";
 

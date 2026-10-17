@@ -9,7 +9,7 @@ import {
   listDatevBookings,
   MAX_ARCHIVE_SIZE,
   type ArchiveKind,
-} from "../archive.ts";
+} from "../modules/archiv/archive.ts";
 import {
   cancelImport,
   connectionStatus,
@@ -20,8 +20,8 @@ import {
   removeApiKey,
   saveApiKey,
   startImport,
-} from "../lexoffice.ts";
-import { openLegacyItems, takeOverAll, takeOverLegacyItem } from "../legacy-open.ts";
+} from "../modules/archiv/lexoffice.ts";
+import { openLegacyItems, takeOverAll, takeOverLegacyItem } from "../modules/archiv/legacy-open.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 import { yearSchema } from "./schemas.ts";

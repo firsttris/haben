@@ -32,7 +32,7 @@ import {
 } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
 import { saveArticle } from "../server/functions/articles.ts";
-import type { DraftInput } from "../server/invoices.ts";
+import type { DraftInput } from "../server/modules/rechnungen/invoices.ts";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
 

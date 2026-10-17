@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { authMiddleware } from "../middleware.ts";
-import { createPauschale, listPauschalen, pauschaleInputSchema, reversePauschale } from "../pauschalen.ts";
+import { createPauschale, listPauschalen, pauschaleInputSchema, reversePauschale } from "../modules/buchhaltung/pauschalen.ts";
 import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";
 

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createDunning, dunningDraft, dunningInputSchema, overdueInvoices } from "../dunning.ts";
+import { createDunning, dunningDraft, dunningInputSchema, overdueInvoices } from "../modules/rechnungen/dunning.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 

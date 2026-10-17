@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "../../../server/auth.ts";
-import { BankError } from "../../../server/bank.ts";
-import { completeConnection } from "../../../server/bank-sync.ts";
+import { BankError } from "../../../server/modules/bank/bank.ts";
+import { completeConnection } from "../../../server/modules/bank/bank-sync.ts";
 
 /** Rückleitung der Bank nach der Freigabe im Enable-Banking-Ablauf; leitet weiter auf /bank */
 export const Route = createFileRoute("/api/bank/callback")({
