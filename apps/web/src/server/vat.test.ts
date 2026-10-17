@@ -116,22 +116,6 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
     expect(String((results.find((r) => r.status === "rejected") as PromiseRejectedResult).reason)).toMatch(/bereits gesendet/);
   });
 
-  it("scheitert das Protokoll nach der Echtübermittlung, bleibt der Nachweis im Log", async () => {
-    const errors: unknown[][] = [];
-    const original = console.error;
-    console.error = (...args: unknown[]) => void errors.push(args);
-    try {
-      await expect(
-        vat.protocolSubmission("send", { ok: true, code: 0, message: "ok", transferTicket: "tt-1", responseXml: "", serverResponseXml: "" }, "<xml/>", async () => {
-          throw new Error("DB weg");
-        }),
-      ).rejects.toThrow(/Transferticket tt-1.*nicht erneut senden/);
-    } finally {
-      console.error = original;
-    }
-    expect(errors[0]?.[1]).toEqual({ transferTicket: "tt-1", requestXml: "<xml/>" });
-  });
-
   it("berichtigte Anmeldung übernimmt die Werte und trägt Kz 10", async () => {
     const draft = await vat.saveDraft(actor, period, { kz81: 100_000, kz86: 0, kz66: 500 });
     await vat.submitReturn(actor, draft.id, liveClient(), { kind: "send", pin: "1", herstellerId: "12345" });

@@ -7,19 +7,18 @@ import {
   NACHRICHT_BETREFF_MAX,
   NACHRICHT_TEXT_MAX,
   splitStrasse,
-  TEST_HERSTELLER_ID,
   type ElsterClient,
   type ElsterResult,
 } from "@haben/elster";
 import { desc } from "drizzle-orm";
 import { z } from "zod";
 import { companyIssues, loadCompany } from "./company.ts";
-import { decrypt } from "./crypto.ts";
 import { latestEstAngaben, prognose } from "./income-tax.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { euerForYear } from "./reports.ts";
-import { loadActiveCertificate, PRODUKT_VERSION } from "./vat.ts";
+import { PRODUKT_VERSION, SENDEN, uebermitteln } from "./elster-gateway.ts";
+import { createHash } from "node:crypto";
 
 export class FinanzamtError extends UserError {}
 
@@ -174,46 +173,39 @@ export async function sendBankChange(
 
 type MessageRecord = Pick<typeof schema.elsterMessages.$inferInsert, "topic" | "betreff" | "text" | "figures">;
 
-/** Prüfen, Test- oder Echtversand; jeder Versuch landet unveränderlich in elster_messages. */
-async function submit(
+/**
+ * Prüfen, Test- oder Echtversand über das ELSTER-Gateway; jeder Versuch landet unveränderlich in elster_messages.
+ * Gleiche Nachrichten laufen unter derselben Sendesperre: Ein Doppelklick schickt sie nicht zweimal gleichzeitig.
+ */
+function submit(
   actor: string,
   record: MessageRecord,
   client: ElsterClient,
   options: SendMessageOptions,
   buildXml: (herstellerId: string, test: boolean) => string,
 ): Promise<ElsterResult> {
-  const test = options.kind !== "send";
-  // ERiC 43 sperrt die Test-Hersteller-ID 74931; auch Testfälle laufen mit der eigenen, falls vorhanden
-  const herstellerId = options.herstellerId || (test ? TEST_HERSTELLER_ID : undefined);
-  if (!herstellerId) throw new FinanzamtError("Für das echte Senden fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
-  if (!test && "isFake" in client && client.isFake) {
-    throw new FinanzamtError("Ohne ERiC ist kein echtes Senden möglich; Prüfen und Testübermittlung laufen nur simuliert.");
-  }
-
-  const xml = buildXml(herstellerId, test);
-
-  let result: ElsterResult;
-  if (options.kind === "validate") {
-    result = await client.validate(xml);
-  } else {
-    if (!options.pin) throw new FinanzamtError("Die Zertifikats-PIN fehlt.");
-    const certificate = await loadActiveCertificate();
-    if (!certificate) throw new FinanzamtError("Es ist kein ELSTER-Zertifikat hinterlegt.");
-    result = await client.send(xml, decrypt(certificate.ciphertext), options.pin, { test, print: false });
-  }
-
-  await withActor(actor, (tx) =>
-    tx.insert(schema.elsterMessages).values({
-      ...record,
-      kind: options.kind,
-      ok: result.ok,
-      code: result.code,
-      message: result.message,
-      transferTicket: result.transferTicket ?? null,
-      requestXml: xml,
-      responseXml: result.responseXml,
-      serverResponseXml: result.serverResponseXml,
-    }),
-  );
-  return result;
+  const key = createHash("sha256").update(JSON.stringify([record.topic, record.betreff, record.text, record.figures ?? null])).digest("hex");
+  return uebermitteln(client, {
+    sperre: `haben.nachricht.${key}`,
+    vorgang: options.kind,
+    herstellerId: options.herstellerId,
+    pin: options.pin,
+    bezeichnung: SENDEN,
+    print: false,
+    vorbereiten: async ({ herstellerId, test }) => ({ xml: buildXml(herstellerId, test), daten: null }),
+    protokollieren: (result, xml) =>
+      withActor(actor, (tx) =>
+        tx.insert(schema.elsterMessages).values({
+          ...record,
+          kind: options.kind,
+          ok: result.ok,
+          code: result.code,
+          message: result.message,
+          transferTicket: result.transferTicket ?? null,
+          requestXml: xml,
+          responseXml: result.responseXml,
+          serverResponseXml: result.serverResponseXml,
+        }),
+      ),
+  });
 }

@@ -24,7 +24,7 @@ import {
   pendingConfirmations,
 } from "../postfach.ts";
 import { today } from "../today.ts";
-import { loadActiveCertificate } from "../vat.ts";
+import { loadActiveCertificate } from "../elster-gateway.ts";
 
 export const getFinanzamt = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

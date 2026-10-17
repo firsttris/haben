@@ -5,34 +5,17 @@ import {
   type Cents,
   type VatPeriod,
 } from "@haben/core";
-import {
-  buildUstvaXml,
-  TEST_HERSTELLER_ID,
-  type ElsterClient,
-  type ElsterResult,
-} from "@haben/elster";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { buildUstvaXml, type ElsterClient, type ElsterResult } from "@haben/elster";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { companyIssues, loadCompany } from "./company.ts";
-import { decrypt } from "./crypto.ts";
+import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "./elster-gateway.ts";
 import { computeVatFigures } from "./vat-figures.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 
-export const PRODUKT_VERSION = "0.1.0";
-
 export type VatReturn = typeof schema.vatReturns.$inferSelect;
 
 export class VatError extends UserError {}
-
-export async function loadActiveCertificate() {
-  const [row] = await db
-    .select()
-    .from(schema.elsterCertificates)
-    .where(eq(schema.elsterCertificates.active, true))
-    .orderBy(desc(schema.elsterCertificates.uploadedAt))
-    .limit(1);
-  return row ?? null;
-}
 
 /** Alle Anmeldungen eines Zeitraums, neueste zuerst. */
 export async function returnsForPeriod({ year, month }: VatPeriod): Promise<VatReturn[]> {
@@ -201,7 +184,7 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
   });
 }
 
-export type SubmitKind = "validate" | "test" | "send";
+export type SubmitKind = ElsterVorgang;
 
 export interface SubmitOptions {
   kind: SubmitKind;
@@ -212,116 +195,62 @@ export interface SubmitOptions {
 }
 
 /**
- * Echtübermittlung unter Sperre: Ein zweiter Aufruf (Doppelklick) wartet, bis der erste protokolliert ist,
- * und prüft den Status erst danach. Die Transaktion hält nur die Sperre, gearbeitet wird auf anderen Verbindungen.
- */
-export function underSendLock<T>(key: string, kind: SubmitKind, work: () => Promise<T>): Promise<T> {
-  if (kind !== "send") return work();
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${key}))`);
-    return work();
-  });
-}
-
-/** Protokolliert einen Versuch. Scheitert das nach erfolgter Echtübermittlung, bleibt der Nachweis wenigstens im Server-Log. */
-export async function protocolSubmission(kind: SubmitKind, result: ElsterResult, xml: string, write: () => Promise<unknown>): Promise<void> {
-  try {
-    await write();
-  } catch (error) {
-    if (kind !== "send" || !result.ok) throw error;
-    console.error("ELSTER: Echtübermittlung erfolgt, Protokoll nicht gespeichert", { transferTicket: result.transferTicket, requestXml: xml }, error);
-    throw new UserError(
-      `Die Übermittlung ist erfolgt (Transferticket ${result.transferTicket ?? "unbekannt"}), ließ sich aber nicht speichern. Bitte nicht erneut senden; Transferticket und gesendete Daten stehen im Server-Log.`,
-      { cause: error },
-    );
-  }
-}
-
-/**
- * Prüft oder übermittelt den Entwurf. Jeder Versuch landet in vat_return_submissions;
+ * Prüft oder übermittelt den Entwurf über das ELSTER-Gateway. Jeder Versuch landet in vat_return_submissions;
  * eine erfolgreiche Echtübermittlung schreibt die Anmeldung fest.
  */
 export function submitReturn(actor: string, returnId: string, client: ElsterClient, options: SubmitOptions): Promise<ElsterResult> {
-  return underSendLock(`haben.ustva.${returnId}`, options.kind, () => submit(actor, returnId, client, options));
-}
-
-async function submit(actor: string, returnId: string, client: ElsterClient, options: SubmitOptions): Promise<ElsterResult> {
-  let [vatReturn] = await db.select().from(schema.vatReturns).where(eq(schema.vatReturns.id, returnId));
-  if (!vatReturn) throw new VatError("Anmeldung nicht gefunden.");
-  if (vatReturn.status !== "draft") throw new VatError("Diese Anmeldung ist bereits gesendet.");
-  // Berechnete Entwürfe vor dem Senden auf den aktuellen Stand der Buchungen bringen
-  if (vatReturn.source === "berechnet") {
-    vatReturn = await saveDraft(actor, { year: vatReturn.year, month: vatReturn.month }, { mode: "berechnet" });
-  }
-
-  const company = await loadCompany();
-  const issues = companyIssues(company);
-  if (issues.length > 0) throw new VatError(`Firmendaten unvollständig: ${issues.join(", ")}.`);
-
-  const test = options.kind !== "send";
-  // ERiC 43 sperrt die Test-Hersteller-ID 74931; auch Testfälle laufen mit der eigenen, falls vorhanden
-  const herstellerId = options.herstellerId || (test ? TEST_HERSTELLER_ID : undefined);
-  if (!herstellerId) {
-    throw new VatError("Für die Echtübermittlung fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
-  }
-  // Der simulierte Client sendet nichts; eine „Echtübermittlung“ würde die Anmeldung sonst festschreiben, ohne dass sie beim Finanzamt ist
-  if (!test && "isFake" in client && client.isFake) {
-    throw new VatError("Ohne ERiC ist keine Echtübermittlung möglich; Prüfen und Testübermittlung laufen nur simuliert.");
-  }
-
-  const xml = buildUstvaXml({
-    period: { year: vatReturn.year, month: vatReturn.month },
-    steuernummer13: toElsterSteuernummer(company.steuernummer, company.bundesland!),
-    figures: computeUstva(vatReturn),
-    datenlieferant: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort },
-    herstellerId,
-    produktVersion: PRODUKT_VERSION,
-    test,
-    berichtigt: vatReturn.berichtigt,
-    erstellungsdatum: options.now,
-  });
-
-  let result: ElsterResult;
-  if (options.kind === "validate") {
-    result = await client.validate(xml);
-  } else {
-    if (!options.pin) throw new VatError("Die Zertifikats-PIN fehlt.");
-    const certificate = await loadActiveCertificate();
-    if (!certificate) throw new VatError("Es ist kein ELSTER-Zertifikat hinterlegt.");
-    result = await client.send(xml, decrypt(certificate.ciphertext), options.pin, { test });
-  }
-
-  await protocolSubmission(options.kind, result, xml, () =>
-    withActor(actor, async (tx) => {
-      await tx.insert(schema.vatReturnSubmissions).values({
-        vatReturnId: vatReturn.id,
-        kind: options.kind,
-        ok: result.ok,
-        code: result.code,
-        message: result.message,
-        transferTicket: result.transferTicket ?? null,
-        requestXml: xml,
-        responseXml: result.responseXml,
-        serverResponseXml: result.serverResponseXml,
-        protocolPdf: result.pdf ? Buffer.from(result.pdf) : null,
-      });
-      if (result.ok && options.kind === "send") {
-        const now = new Date();
-        await tx
-          .update(schema.vatReturns)
-          .set({
-            status: "sent",
-            transferTicket: result.transferTicket ?? null,
-            sentAt: now,
-            lockedAt: now,
-            updatedAt: now,
-          })
-          .where(eq(schema.vatReturns.id, vatReturn.id));
+  return uebermitteln(client, {
+    sperre: `haben.ustva.${returnId}`,
+    vorgang: options.kind,
+    herstellerId: options.herstellerId,
+    pin: options.pin,
+    vorbereiten: async ({ test, herstellerId }) => {
+      let [vatReturn] = await db.select().from(schema.vatReturns).where(eq(schema.vatReturns.id, returnId));
+      if (!vatReturn) throw new VatError("Anmeldung nicht gefunden.");
+      if (vatReturn.status !== "draft") throw new VatError("Diese Anmeldung ist bereits gesendet.");
+      // Berechnete Entwürfe vor dem Senden auf den aktuellen Stand der Buchungen bringen
+      if (vatReturn.source === "berechnet") {
+        vatReturn = await saveDraft(actor, { year: vatReturn.year, month: vatReturn.month }, { mode: "berechnet" });
       }
-    }),
-  );
-
-  return result;
+      const company = await loadCompany();
+      const issues = companyIssues(company);
+      if (issues.length > 0) throw new VatError(`Firmendaten unvollständig: ${issues.join(", ")}.`);
+      const xml = buildUstvaXml({
+        period: { year: vatReturn.year, month: vatReturn.month },
+        steuernummer13: toElsterSteuernummer(company.steuernummer, company.bundesland!),
+        figures: computeUstva(vatReturn),
+        datenlieferant: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort },
+        herstellerId,
+        produktVersion: PRODUKT_VERSION,
+        test,
+        berichtigt: vatReturn.berichtigt,
+        erstellungsdatum: options.now,
+      });
+      return { xml, daten: vatReturn };
+    },
+    protokollieren: (result, xml, vatReturn) =>
+      withActor(actor, async (tx) => {
+        await tx.insert(schema.vatReturnSubmissions).values({
+          vatReturnId: vatReturn.id,
+          kind: options.kind,
+          ok: result.ok,
+          code: result.code,
+          message: result.message,
+          transferTicket: result.transferTicket ?? null,
+          requestXml: xml,
+          responseXml: result.responseXml,
+          serverResponseXml: result.serverResponseXml,
+          protocolPdf: result.pdf ? Buffer.from(result.pdf) : null,
+        });
+        if (result.ok && options.kind === "send") {
+          const now = new Date();
+          await tx
+            .update(schema.vatReturns)
+            .set({ status: "sent", transferTicket: result.transferTicket ?? null, sentAt: now, lockedAt: now, updatedAt: now })
+            .where(eq(schema.vatReturns.id, vatReturn.id));
+        }
+      }),
+  });
 }
 
 /** Letzte gesendete Anmeldungen, für den Verlauf. */

@@ -7,7 +7,6 @@ import {
   splitStrasse,
   ERSTES_ERKLAERUNGSJAHR,
   euerTotals,
-  TEST_HERSTELLER_ID,
   ustErklaerungResult,
   type AveuerAnlage,
   type ElsterClient,
@@ -20,14 +19,13 @@ import {
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { listAssets } from "./assets.ts";
 import { companyIssues, kleinunternehmerForYear, loadCompany, versteuerungForYear, type Company } from "./company.ts";
-import { decrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { listPauschalen } from "./pauschalen.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures } from "./vat-figures.ts";
-import { loadActiveCertificate, PRODUKT_VERSION, protocolSubmission, underSendLock } from "./vat.ts";
+import { PRODUKT_VERSION, uebermitteln } from "./elster-gateway.ts";
 
 export class AnnualError extends UserError {}
 
@@ -418,12 +416,36 @@ export interface AnnualSubmitOptions {
   today: string;
 }
 
-/** Prüft oder übermittelt eine Jahreserklärung; jeder Versuch wird mit XML und Werten gespeichert. */
+/** Prüft oder übermittelt eine Jahreserklärung über das ELSTER-Gateway; jeder Versuch wird mit XML und Werten gespeichert. */
 export function submitAnnual(actor: string, form: AnnualForm, year: number, client: ElsterClient, options: AnnualSubmitOptions): Promise<ElsterResult> {
-  return underSendLock(`haben.jahreserklaerung.${form}.${year}`, options.kind, () => submit(actor, form, year, client, options));
+  return uebermitteln(client, {
+    sperre: `haben.jahreserklaerung.${form}.${year}`,
+    vorgang: options.kind,
+    herstellerId: options.herstellerId,
+    pin: options.pin,
+    vorbereiten: ({ test, herstellerId }) => prepare(form, year, options, test, herstellerId),
+    protokollieren: (result, xml, figures) =>
+      withActor(actor, (tx) =>
+        tx.insert(schema.annualSubmissions).values({
+          form,
+          year,
+          kind: options.kind,
+          ok: result.ok,
+          code: result.code,
+          message: result.message,
+          transferTicket: result.transferTicket ?? null,
+          figures,
+          requestXml: xml,
+          responseXml: result.responseXml,
+          serverResponseXml: result.serverResponseXml,
+          protocolPdf: result.pdf ? Buffer.from(result.pdf) : null,
+        }),
+      ),
+  });
 }
 
-async function submit(actor: string, form: AnnualForm, year: number, client: ElsterClient, options: AnnualSubmitOptions): Promise<ElsterResult> {
+/** Unter der Sendesperre: Prüfungen, schon übermittelt?, XML und die gespeicherten Werte */
+async function prepare(form: AnnualForm, year: number, options: AnnualSubmitOptions, test: boolean, herstellerId: string) {
   const company = await loadCompany();
   const data = form === "ust" ? await ustYear(year) : await euerYear(year);
   const formIssues =
@@ -442,15 +464,6 @@ async function submit(actor: string, form: AnnualForm, year: number, client: Els
   if (already && options.kind === "send") {
     throw new AnnualError("Diese Erklärung ist schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal.");
   }
-
-  const test = options.kind !== "send";
-  // ERiC 43 sperrt die Test-Hersteller-ID 74931; auch Testfälle laufen mit der eigenen, falls vorhanden
-  const herstellerId = options.herstellerId || (test ? TEST_HERSTELLER_ID : undefined);
-  if (!herstellerId) throw new AnnualError("Für die Echtübermittlung fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
-  if (!test && "isFake" in client && client.isFake) {
-    throw new AnnualError("Ohne ERiC ist keine Echtübermittlung möglich; Prüfen und Testübermittlung laufen nur simuliert.");
-  }
-
   const common = {
     year,
     steuernummer13: toElsterSteuernummer(company.steuernummer, company.bundesland!),
@@ -493,35 +506,7 @@ async function submit(actor: string, form: AnnualForm, year: number, client: Els
     figures = { ...euer.figures, gewinn: euer.gewinn, anlagen: euer.anlagen };
   }
 
-  let result: ElsterResult;
-  if (options.kind === "validate") {
-    result = await client.validate(xml);
-  } else {
-    if (!options.pin) throw new AnnualError("Die Zertifikats-PIN fehlt.");
-    const certificate = await loadActiveCertificate();
-    if (!certificate) throw new AnnualError("Es ist kein ELSTER-Zertifikat hinterlegt.");
-    result = await client.send(xml, decrypt(certificate.ciphertext), options.pin, { test });
-  }
-
-  await protocolSubmission(options.kind, result, xml, () =>
-    withActor(actor, (tx) =>
-      tx.insert(schema.annualSubmissions).values({
-        form,
-        year,
-        kind: options.kind,
-        ok: result.ok,
-        code: result.code,
-        message: result.message,
-        transferTicket: result.transferTicket ?? null,
-        figures,
-        requestXml: xml,
-        responseXml: result.responseXml,
-        serverResponseXml: result.serverResponseXml,
-        protocolPdf: result.pdf ? Buffer.from(result.pdf) : null,
-      }),
-    ),
-  );
-  return result;
+  return { xml, daten: figures };
 }
 
 export async function loadAnnualProtocol(id: string) {

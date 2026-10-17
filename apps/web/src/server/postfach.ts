@@ -2,23 +2,24 @@ import {
   buildPostfachAnfrageXml,
   buildPostfachBestaetigungXml,
   postfachDateiname,
-  TEST_HERSTELLER_ID,
   type ElsterClient,
   type PostfachBereitstellung,
 } from "@haben/elster";
 import { einspruchsfrist, parseBescheiddatum, type Bundesland } from "@haben/core";
 import { and, desc, eq } from "drizzle-orm";
 import { loadCompany } from "./company.ts";
-import { decrypt, encrypt } from "./crypto.ts";
+import { encrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { FinanzamtError } from "./finanzamt.ts";
 import { sniff, storeFile } from "./storage.ts";
-import { loadActiveCertificate, PRODUKT_VERSION } from "./vat.ts";
+import { ABRUF, isSimulated, loadActiveCertificate, PRODUKT_VERSION, signatur, zugang } from "./elster-gateway.ts";
 
 export interface PostfachFetchOptions {
   kind: "test" | "send";
-  pin: string;
+  pin?: string;
+  /** Ohne PIN die gespeicherte nehmen (automatischer Abruf) */
+  gespeichertePin?: boolean;
   herstellerId?: string;
 }
 
@@ -111,24 +112,15 @@ export async function pendingConfirmations(test: boolean): Promise<string[]> {
  * Bestätigt wird nur, was vollständig gespeichert ist; eine gescheiterte Bestätigung holt der nächste Abruf nach.
  */
 export async function fetchPostfach(actor: string, client: ElsterClient, options: PostfachFetchOptions): Promise<PostfachFetchSummary> {
-  const test = options.kind !== "send";
-  // ERiC 43 sperrt die Test-Hersteller-ID 74931; auch Testfälle laufen mit der eigenen, falls vorhanden
-  const herstellerId = options.herstellerId || (test ? TEST_HERSTELLER_ID : undefined);
-  if (!herstellerId) throw new FinanzamtError("Für den echten Abruf fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
-  if (!test && "isFake" in client && client.isFake) {
-    throw new FinanzamtError("Ohne ERiC ist kein echter Abruf möglich; der Testabruf läuft nur simuliert.");
-  }
-  if (!options.pin) throw new FinanzamtError("Die Zertifikats-PIN fehlt.");
-  const certificate = await loadActiveCertificate();
-  if (!certificate) throw new FinanzamtError("Es ist kein ELSTER-Zertifikat hinterlegt.");
+  const { test, herstellerId } = zugang(client, options.kind, options.herstellerId, ABRUF);
+  const { pfx, pin } = await signatur({ pin: options.pin, gespeichertePin: options.gespeichertePin });
   const company = await loadCompany();
   const person = company.taxpayer.a;
   const datenlieferant = (person ? `${person.vorname} ${person.name}` : company.name).trim() || "Haben";
   const xmlInput = { datenlieferant, herstellerId, produktVersion: PRODUKT_VERSION, test };
-  const pfx = decrypt(certificate.ciphertext);
 
   const anfrageXml = buildPostfachAnfrageXml(xmlInput);
-  const result = await client.fetchPostfach(anfrageXml, pfx, options.pin, { test, herstellerId });
+  const result = await client.fetchPostfach(anfrageXml, pfx, pin, { test, herstellerId });
 
   const inhalt = new Map(result.dateien.flatMap((d) => (d.inhalt ? [[d.referenzId, d.inhalt] as const] : [])));
   const fehler = result.dateien.flatMap((d) => (d.fehler ? [{ referenzId: d.referenzId, fehler: d.fehler }] : []));
@@ -188,7 +180,7 @@ export async function fetchPostfach(actor: string, client: ElsterClient, options
   let bestaetigungFehler: string | null = null;
   if (pending.length > 0) {
     const bestaetigungXml = buildPostfachBestaetigungXml(pending, xmlInput);
-    const confirmation = await client.send(bestaetigungXml, pfx, options.pin, { test, print: false });
+    const confirmation = await client.send(bestaetigungXml, pfx, pin, { test, print: false });
     await withActor(actor, (tx) =>
       tx.insert(schema.postfachRequests).values({
         art: "bestaetigung",
@@ -265,11 +257,10 @@ export async function runDuePostfachFetch(
   herstellerId: string | undefined,
   now = new Date(),
 ): Promise<PostfachFetchSummary | null> {
-  if (!herstellerId || ("isFake" in client && client.isFake)) return null;
+  if (!herstellerId || isSimulated(client)) return null;
   const certificate = await loadActiveCertificate();
   if (!certificate?.pinCiphertext) return null;
   const { lastLive } = await autoFetchStatus();
   if (lastLive && now.getTime() - lastLive.createdAt.getTime() < AUTO_FETCH_INTERVAL_MS) return null;
-  const pin = new TextDecoder().decode(decrypt(certificate.pinCiphertext));
-  return fetchPostfach(POSTFACH_ACTOR, client, { kind: "send", pin, herstellerId });
+  return fetchPostfach(POSTFACH_ACTOR, client, { kind: "send", gespeichertePin: true, herstellerId });
 }

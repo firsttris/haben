@@ -1,11 +1,10 @@
-import { parseVastBeleg, TEST_HERSTELLER_ID, vastBelegartLabel, type ElsterClient } from "@haben/elster";
+import { parseVastBeleg, vastBelegartLabel, type ElsterClient } from "@haben/elster";
 import { desc, eq } from "drizzle-orm";
 import { loadCompany } from "./company.ts";
-import { decrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { FinanzamtError } from "./finanzamt.ts";
-import { loadActiveCertificate } from "./vat.ts";
+import { prepareAbruf } from "./elster-gateway.ts";
 
 export interface VastFetchOptions {
   kind: "test" | "send";
@@ -27,25 +26,6 @@ export interface VastFetchSummary {
   fehler: { id: string; fehler: string }[];
 }
 
-/**
- * Gemeinsame Vorbereitung für Belegabruf und Berechtigungen: Hersteller-ID, kein Echtabruf ohne ERiC,
- * Zertifikat und PIN. Ohne eingegebene PIN gilt die gespeicherte: Sie wird beim Postfachabruf hinterlegt,
- * aber auch für Belegabruf und Berechtigungsanträge genutzt; die Oberfläche zeigt das im PIN-Feld an.
- */
-export async function prepareElsterAbruf(client: ElsterClient, options: { kind: "test" | "send"; pin?: string; herstellerId?: string }) {
-  const test = options.kind !== "send";
-  // ERiC 43 sperrt die Test-Hersteller-ID 74931; auch Testfälle laufen mit der eigenen, falls vorhanden
-  const herstellerId = options.herstellerId || (test ? TEST_HERSTELLER_ID : undefined);
-  if (!herstellerId) throw new FinanzamtError("Für den echten Abruf fehlt die Hersteller-ID (ELSTER_HERSTELLER_ID).");
-  if (!test && "isFake" in client && client.isFake) {
-    throw new FinanzamtError("Ohne ERiC ist kein echter Abruf möglich; der Testabruf läuft nur simuliert.");
-  }
-  const certificate = await loadActiveCertificate();
-  if (!certificate) throw new FinanzamtError("Es ist kein ELSTER-Zertifikat hinterlegt.");
-  const pin = options.pin || (certificate.pinCiphertext ? new TextDecoder().decode(decrypt(certificate.pinCiphertext)) : "");
-  if (!pin) throw new FinanzamtError("Die Zertifikats-PIN fehlt.");
-  return { test, herstellerId, pfx: decrypt(certificate.ciphertext), pin };
-}
 
 /**
  * Holt die Belege der vorausgefüllten Steuererklärung (Lohnsteuerbescheinigung, Rentenbezüge, Beiträge …)
@@ -53,7 +33,7 @@ export async function prepareElsterAbruf(client: ElsterClient, options: { kind: 
  * bleiben, wie sie sind; ein berichtigter Beleg kommt bei ELSTER mit neuer ID.
  */
 export async function fetchVastBelege(actor: string, client: ElsterClient, options: VastFetchOptions): Promise<VastFetchSummary> {
-  const { test, herstellerId, pfx, pin } = await prepareElsterAbruf(client, options);
+  const { test, herstellerId, pfx, pin } = await prepareAbruf(client, options);
   const company = await loadCompany();
   const person = company.taxpayer[options.person];
   if (!person) {

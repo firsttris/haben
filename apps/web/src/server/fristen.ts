@@ -14,7 +14,7 @@ import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "./company.
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
-import { loadActiveCertificate } from "./vat.ts";
+import { loadActiveCertificate } from "./elster-gateway.ts";
 
 export type FristArt = "ustva" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
 

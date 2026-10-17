@@ -9,7 +9,7 @@ import { estAngabenSchema, saveEstAngaben } from "../income-tax.ts";
 import { authMiddleware } from "../middleware.ts";
 import { reportYears } from "../reports.ts";
 import { today } from "../today.ts";
-import { loadActiveCertificate } from "../vat.ts";
+import { loadActiveCertificate } from "../elster-gateway.ts";
 import { fetchVastBelege, lastVastRequest, listVastBelege } from "../vast.ts";
 import {
   activateBerechtigung,

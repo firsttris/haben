@@ -19,13 +19,13 @@ import { today } from "../today.ts";
 import {
   computedValues,
   createCorrection,
-  loadActiveCertificate,
   recentSentReturns,
   returnsForPeriod,
   saveDraft,
   submissionsFor,
   submitReturn,
 } from "../vat.ts";
+import { loadActiveCertificate } from "../elster-gateway.ts";
 
 // Negativ möglich, etwa wenn Gutschriften im Monat überwiegen
 const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);

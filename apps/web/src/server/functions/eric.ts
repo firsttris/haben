@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { checkFormats, isValidIdnr, TEST_HERSTELLER_ID } from "@haben/elster";
+import { checkFormats, isValidIdnr } from "@haben/elster";
 import { loadCompany } from "../company.ts";
 import { confirmElsterDatenschutz, elsterClient, elsterMode, ericStatus, startEricInstall } from "../elster.ts";
 import { env } from "../env.ts";
-import { PRODUKT_VERSION } from "../vat.ts";
+import { PRODUKT_VERSION, zugang } from "../elster-gateway.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 
@@ -47,7 +47,7 @@ export const checkElsterFormats = createServerFn({ method: "POST" })
       idnr: own ? a.idnr : "65929970489",
       geburtsdatum: own ? a.geburtsdatum : "1985-04-12",
       datenlieferant: (own ? `${a.vorname} ${a.name}` : company.name) || "Haben",
-      herstellerId: env().ELSTER_HERSTELLER_ID || TEST_HERSTELLER_ID,
+      herstellerId: zugang(elsterClient(), "validate", env().ELSTER_HERSTELLER_ID).herstellerId,
       veranlagungsjahr: new Date().getFullYear() - 1,
       produktVersion: PRODUKT_VERSION,
     });
