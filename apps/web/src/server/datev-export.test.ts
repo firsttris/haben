@@ -75,8 +75,18 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
       await tx`update company set kontenrahmen = 'SKR04'`;
     });
     expect(parseDatevBuchungsstapel((await datev.datevExport(2026)).bytes).header.kontenrahmen).toBe("SKR03");
-    // Gemischte Rahmen in einem Jahr: klare Meldung statt eines falschen Stapels
+    // Haben bucht in das Jahr nichts mehr im neuen Rahmen (ledger.post)
+    await expect(invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id)).rejects.toThrow(/Das Jahr 2026 ist im Kontenrahmen SKR03 gebucht/);
+    // Gemischte Rahmen in einem Jahr aus Daten von vorher: klare Meldung statt eines falschen Stapels
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`update company set kontenrahmen = 'SKR03'`;
+    });
     await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`update journal_entries set kontenrahmen = 'SKR04' where id = (select id from journal_entries order by created_at desc limit 1)`;
+    });
     await expect(datev.datevExport(2026)).rejects.toThrow(/Buchungen in SKR03 und SKR04/);
   });
 });

@@ -61,13 +61,13 @@ export async function loadCompany(q: Db | Tx = db): Promise<Company> {
  * Wichtig für alles, was frühere Zeiträume rechnet: Voranmeldungen des Vorjahres und vor allem die
  * Umsatzsteuererklärung, die erst im Folgejahr abgegeben wird, nach einem Wechsel also schon unter der neuen Einstellung.
  */
-export async function versteuerungForYear(year: number): Promise<Versteuerung> {
-  const [first] = await db
+export async function versteuerungForYear(year: number, q: Db | Tx = db): Promise<Versteuerung> {
+  const [first] = await q
     .select({ at: min(schema.journalEntries.createdAt) })
     .from(schema.journalEntries)
     .where(and(gte(schema.journalEntries.date, `${year}-01-01`), lt(schema.journalEntries.date, `${year + 1}-01-01`)));
   if (first?.at) {
-    const [setting] = await db
+    const [setting] = await q
       .select({ newValue: schema.auditLog.newValue })
       .from(schema.auditLog)
       .where(and(eq(schema.auditLog.tableName, "company"), lte(schema.auditLog.at, first.at)))
@@ -76,7 +76,7 @@ export async function versteuerungForYear(year: number): Promise<Versteuerung> {
     const value = (setting?.newValue as { versteuerung?: unknown } | null)?.versteuerung;
     if (value === "ist" || value === "soll") return value;
   }
-  return (await loadCompany()).versteuerung;
+  return (await loadCompany(q)).versteuerung;
 }
 
 /**

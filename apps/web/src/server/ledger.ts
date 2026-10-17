@@ -1,5 +1,5 @@
 import type { Cents, KontenblattZeile, Kontenrahmen, PostingLine, SaldenZeile } from "@haben/core";
-import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, type Company } from "./company.ts";
 import { db, schema, type Tx } from "./db/index.ts";
@@ -54,6 +54,25 @@ export async function post(tx: Tx, books: Books, posting: Posting): Promise<stri
   const current = await loadCompany(tx);
   if (current.kontenrahmen !== books.kontenrahmen || current.versteuerung !== books.versteuerung || current.kleinunternehmer !== books.kleinunternehmer) {
     throw new LedgerError("Kontenrahmen, Versteuerung oder Kleinunternehmer wurden gerade geändert. Bitte noch einmal buchen.");
+  }
+  // Ein Jahr hat genau einen Kontenrahmen. Nach einem Wechsel zum Jahreswechsel stünde eine Buchung ins Vorjahr
+  // (Storno einer Zuordnung, rückdatierte Rechnung) sonst mit Kontonummern des neuen Rahmens zwischen denen des alten.
+  const year = posting.date.slice(0, 4);
+  const [other] = await tx
+    .select({ kontenrahmen: schema.journalEntries.kontenrahmen })
+    .from(schema.journalEntries)
+    .where(
+      and(
+        gte(schema.journalEntries.date, `${year}-01-01`),
+        lt(schema.journalEntries.date, `${Number(year) + 1}-01-01`),
+        ne(schema.journalEntries.kontenrahmen, books.kontenrahmen),
+      ),
+    )
+    .limit(1);
+  if (other) {
+    throw new LedgerError(
+      `Das Jahr ${year} ist im Kontenrahmen ${other.kontenrahmen} gebucht, eingestellt ist jetzt ${books.kontenrahmen}. In dieses Jahr lässt sich nach dem Wechsel nichts mehr buchen.`,
+    );
   }
   const lines = posting.lines.filter((line) => line.debit !== 0 || line.credit !== 0);
   if (lines.length > 0) await tx.insert(schema.journalLines).values(lines.map((line) => ({ entryId: entry!.id, ...line })));

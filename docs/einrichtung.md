@@ -150,7 +150,14 @@ Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Ges
 | Kleinunternehmer einschalten | im laufenden Jahr gebucht wurde |
 | Kleinunternehmer ausschalten | nie |
 
-Umstellen kannst du also nur zum Jahreswechsel, bevor im neuen Jahr die erste Buchung entsteht. Das Vorjahr rechnet danach weiter nach der alten Versteuerung, auch die Umsatzsteuererklärung dafür. Ebenso beim Kleinunternehmerstatus: Wer zum 1. Januar Kleinunternehmer wird, sieht die Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres weiter als Frist und kann sie abgeben; maßgeblich ist der Stand im jeweiligen Monat bzw. Jahr laut Änderungsprotokoll. Kläre einen Wechsel vorher mit deiner Steuerberatung.
+Umstellen kannst du also nur zum Jahreswechsel, bevor im neuen Jahr die erste Buchung entsteht. Das Vorjahr rechnet danach weiter nach der alten Versteuerung, auch die Umsatzsteuererklärung dafür. Ebenso beim Kleinunternehmerstatus: Wer zum 1. Januar Kleinunternehmer wird, sieht die Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres weiter als Frist und kann sie abgeben; maßgeblich ist der Stand im jeweiligen Monat bzw. Jahr laut Änderungsprotokoll.
+
+Ins Vorjahr buchen geht nach einem Wechsel nur noch, wo es nicht von der Einstellung abhängt:
+
+- **Kontenrahmen:** In ein Jahr, das im alten Kontenrahmen gebucht ist, bucht Haben nichts mehr, auch keine Gegenbuchung beim Aufheben einer Zuordnung. Ordne Zahlungen des Vorjahres also vor dem Wechsel richtig zu.
+- **Versteuerung:** Eine Rechnung mit Datum im Vorjahr lässt sich nicht mehr festschreiben; ihre Umsatzsteuer stünde sonst doppelt (Soll → Ist) oder gar nicht (Ist → Soll) in den Voranmeldungen. Schreibe Entwürfe des Vorjahres vor dem Wechsel fest oder gib ihnen ein Datum im neuen Jahr.
+
+Kläre einen Wechsel vorher mit deiner Steuerberatung.
 
 Lehnt die Datenbank eine Umstellung ab, weil gleichzeitig gebucht wurde, siehst du ihre Begründung statt „Interner Fehler“.
 

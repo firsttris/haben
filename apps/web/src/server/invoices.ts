@@ -32,7 +32,7 @@ import {
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany, sellerIssues, type Company } from "./company.ts";
+import { loadCompany, sellerIssues, versteuerungForYear, type Company } from "./company.ts";
 import type { Contact } from "./contacts.ts";
 import { loadLogo } from "./logo.ts";
 import { invoicePayments } from "./bank.ts";
@@ -508,6 +508,8 @@ async function deductedRefs(lines: InvoiceLine[], q: Db | Tx = db) {
 const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
 
 /** Prüft, ob ein Entwurf festgeschrieben werden kann; leere Liste = bereit. */
+const VERSTEUERUNG = { soll: "Soll-Versteuerung", ist: "Ist-Versteuerung" } as const;
+
 export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<string[]> {
   const data = await getInvoice(id, q);
   if (!data) return ["Rechnung nicht gefunden"];
@@ -519,6 +521,18 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   }
   if (!company.kleinunternehmer && invoice.taxTreatment === "kleinunternehmer") {
     issues.push("Kleinunternehmer ist in den Einstellungen nicht eingeschaltet");
+  }
+  // Gebucht wird nach der aktuellen Versteuerung, die Voranmeldung rechnet das Jahr aber nach der, die dort galt
+  // (versteuerungForYear). Nach einem Wechsel zum Jahreswechsel stünde die Steuer einer Rechnung im Vorjahr sonst
+  // zweimal in der Anmeldung (Soll → Ist) oder gar nicht (Ist → Soll).
+  if (!company.kleinunternehmer) {
+    const year = Number(invoice.issueDate.slice(0, 4));
+    const versteuerung = await versteuerungForYear(year, q);
+    if (versteuerung !== company.versteuerung) {
+      issues.push(
+        `Das Jahr ${year} ist nach ${VERSTEUERUNG[versteuerung]} gebucht, eingestellt ist jetzt ${VERSTEUERUNG[company.versteuerung]}; bitte ein Rechnungsdatum im laufenden Jahr wählen`,
+      );
+    }
   }
   if (!contact) issues.push("Kunde fehlt");
   if (lines.length === 0) issues.push("Keine Positionen");
