@@ -36,6 +36,19 @@ describe("Lint-Regel haben/modulgrenzen", () => {
     expect(lint("modules/umsatzsteuer/vat.ts", `export { loadCompany } from "../stammdaten/company.ts";`)).toHaveLength(1);
     expect(lint("modules/umsatzsteuer/vat.ts", `export * from "../stammdaten/company.ts";`)).toHaveLength(1);
     expect(lint("modules/umsatzsteuer/vat.ts", `const m = await import("../stammdaten/company.ts");`)).toHaveLength(1);
+    expect(lint("modules/umsatzsteuer/vat.ts", `type C = import("../stammdaten/company.ts").Company;`)).toHaveLength(1);
+    expect(lint("../components/InvoiceEditor.tsx", `type I = import("../server/modules/rechnungen/invoices.ts").Invoice;`)).toHaveLength(1);
+    expect(lint("modules/umsatzsteuer/vat.ts", `type C = import("../stammdaten/index.ts").Company;`)).toEqual([]);
+  });
+
+  it("der Modulordner selbst und index ohne Endung zählen als index.ts", () => {
+    expect(lint("modules/umsatzsteuer/vat.ts", `import { loadCompany } from "../stammdaten";`)).toEqual([]);
+    expect(lint("modules/umsatzsteuer/vat.ts", `import { loadCompany } from "../stammdaten/";`)).toEqual([]);
+    expect(lint("modules/umsatzsteuer/vat.ts", `import { loadCompany } from "../stammdaten/index";`)).toEqual([]);
+    // Für die Infrastruktur bleibt das ein Modulimport
+    expect(lint("today.ts", `import { loadCompany } from "./modules/stammdaten";`)).toHaveLength(1);
+    expect(lint("db/actor.ts", `import { post } from "../modules/buchhaltung";`)).toHaveLength(1);
+    expect(lint("today.ts", `type C = import("./modules/stammdaten").Company;`)).toHaveLength(1);
   });
 
   it("innerhalb eines Moduls frei, auch von außen über index.ts", () => {

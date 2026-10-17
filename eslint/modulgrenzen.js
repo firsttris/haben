@@ -18,12 +18,17 @@ const SERVER = `${sep}src${sep}server${sep}`;
 const COMPOSITION = [`${SERVER}functions${sep}`, `${SERVER}plugins${sep}`];
 const OUTSIDE = [`${SERVER}functions${sep}`, `${SERVER}plugins${sep}`, `${sep}src${sep}routes${sep}`, `${sep}src${sep}components${sep}`];
 
-/** Modulname und Pfad unterhalb des Moduls, oder null außerhalb von modules/ */
+/**
+ * Modulname und Pfad unterhalb des Moduls, oder null außerhalb von modules/. Der Modulordner selbst und `index` ohne
+ * Endung lösen wie `index.ts` auf.
+ */
 function moduleOf(file) {
   const at = file.lastIndexOf(MODULES);
   if (at < 0) return null;
-  const [name, ...rest] = file.slice(at + MODULES.length).split(sep);
-  return rest.length > 0 ? { name, inner: rest.join("/") } : null;
+  const [name, ...rest] = file.slice(at + MODULES.length).split(sep).filter(Boolean);
+  if (!name) return null;
+  const inner = rest.join("/");
+  return { name, inner: inner === "" || inner === "index" ? "index.ts" : inner };
 }
 
 function isInfrastructure(file) {
@@ -72,6 +77,8 @@ const modulgrenzen = {
       ExportNamedDeclaration: check,
       ExportAllDeclaration: check,
       ImportExpression: check,
+      // type T = import("…").T
+      TSImportType: check,
     };
   },
 };
