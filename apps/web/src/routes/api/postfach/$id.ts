@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { auth } from "../../../server/auth.ts";
 import { fileResponse } from "../../../server/file-response.ts";
-import { postfachDocumentFile } from "../../../server/modules/finanzamt/postfach.ts";
+import { postfachDocumentFile } from "../../../server/modules/finanzamt/index.ts";
 import { loadFile } from "../../../server/storage.ts";
 
 /** Ein aus dem ELSTER-Postfach abgeholtes Dokument (Bescheid, Mitteilung) */

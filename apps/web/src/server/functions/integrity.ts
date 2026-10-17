@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { UserError } from "../errors.ts";
-import { chainHead, checkIntegrity, checkPruefwert, parsePruefwert } from "../modules/auswertungen/integrity.ts";
+import { chainHead, checkIntegrity, checkPruefwert, parsePruefwert } from "../modules/auswertungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 /** Kopf der Kette für die Einstellungen */

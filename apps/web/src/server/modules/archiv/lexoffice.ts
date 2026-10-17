@@ -12,7 +12,7 @@ import {
 } from "@haben/import";
 import { legacyVatByMonth, type Versteuerung } from "@haben/core";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";

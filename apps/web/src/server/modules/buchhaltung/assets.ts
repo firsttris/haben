@@ -21,7 +21,7 @@ import {
 } from "@haben/core";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";

@@ -5,7 +5,7 @@ import { formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { comparePruefwert, runIntegrityCheck, type getChainHead } from "../server/functions/integrity.ts";
-import type { IntegrityReport } from "../server/modules/auswertungen/integrity.ts";
+import type { IntegrityReport } from "../server/modules/auswertungen/index.ts";
 
 type Head = Awaited<ReturnType<typeof getChainHead>>;
 

@@ -9,10 +9,10 @@ import {
   documentOpen,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
-import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/assets.ts";
+import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
-import { invoiceTotalsById } from "../rechnungen/invoice-taxes.ts";
-import { listInvoices } from "../rechnungen/invoices.ts";
+import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;

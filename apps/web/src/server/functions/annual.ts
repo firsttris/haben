@@ -1,16 +1,16 @@
 import { EUER_AUSGABEN, EUER_EINNAHMEN, EUER_FIELDS, type EuerFigures } from "@haben/elster";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { annualOverview, submitAnnual } from "../modules/jahreserklaerung/annual.ts";
-import { loadCompany } from "../modules/stammdaten/company.ts";
-import { elsterClient, elsterMode } from "../modules/elster/elster.ts";
+import { annualOverview, submitAnnual } from "../modules/jahreserklaerung/index.ts";
+import { loadCompany } from "../modules/stammdaten/index.ts";
+import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
-import { estAngabenSchema, saveEstAngaben } from "../modules/jahreserklaerung/income-tax.ts";
+import { estAngabenSchema, saveEstAngaben } from "../modules/jahreserklaerung/index.ts";
 import { authMiddleware } from "../middleware.ts";
-import { reportYears } from "../modules/auswertungen/reports.ts";
+import { reportYears } from "../modules/auswertungen/index.ts";
 import { today } from "../today.ts";
-import { loadActiveCertificate } from "../modules/elster/elster-gateway.ts";
-import { fetchVastBelege, lastVastRequest, listVastBelege } from "../modules/finanzamt/vast.ts";
+import { loadActiveCertificate } from "../modules/elster/index.ts";
+import { fetchVastBelege, lastVastRequest, listVastBelege } from "../modules/finanzamt/index.ts";
 import {
   activateBerechtigung,
   berechtigungEhegatte,
@@ -18,7 +18,7 @@ import {
   refreshBerechtigungen,
   requestBerechtigung,
   revokeBerechtigung,
-} from "../modules/finanzamt/berechtigung.ts";
+} from "../modules/finanzamt/index.ts";
 import { yearSchema } from "./schemas.ts";
 
 /** Zeilen der Anlage EÜR mit Feldkennung und amtlichem Text, nur belegte */

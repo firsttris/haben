@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "../../../server/auth.ts";
-import { DocumentError, MAX_DOCUMENT_SIZE, uploadDocument } from "../../../server/modules/belege/documents.ts";
+import { DocumentError, MAX_DOCUMENT_SIZE, uploadDocument } from "../../../server/modules/belege/index.ts";
 import { env } from "../../../server/env.ts";
 
 /** Nur die eigene Seite oder das Teilen-Menü des Systems (Sec-Fetch-Site: none), keine Formulare fremder Seiten */

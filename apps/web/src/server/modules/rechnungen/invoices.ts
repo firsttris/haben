@@ -32,14 +32,14 @@ import {
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany, sellerIssues, versteuerungForYear, type Company } from "../stammdaten/company.ts";
-import type { Contact } from "../stammdaten/contacts.ts";
-import { loadLogo } from "../stammdaten/logo.ts";
-import { invoicePayments } from "../bank/bank.ts";
+import { loadCompany, sellerIssues, versteuerungForYear, type Company } from "../stammdaten/index.ts";
+import type { Contact } from "../stammdaten/index.ts";
+import { loadLogo } from "../stammdaten/index.ts";
+import { invoicePayments } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
-import { openBooks, post } from "../buchhaltung/ledger.ts";
+import { openBooks, post } from "../buchhaltung/index.ts";
 import { lockNumbering, peekNumber, setNextNumber as setNextCounter, takeNumber } from "./number-counter.ts";
 
 export type Invoice = typeof schema.invoices.$inferSelect;

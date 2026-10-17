@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "../../server/auth.ts";
 import { fileResponse } from "../../server/file-response.ts";
-import { loadLogo } from "../../server/modules/stammdaten/logo.ts";
+import { loadLogo } from "../../server/modules/stammdaten/index.ts";
 
 /** Firmenlogo für Vorschau und Einstellungen */
 export const Route = createFileRoute("/api/logo")({

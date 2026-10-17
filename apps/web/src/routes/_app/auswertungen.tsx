@@ -4,7 +4,7 @@ import { useState } from "react";
 import { z } from "zod/mini";
 import { euroAxis, niceTicks, useChartWidth } from "../../lib/chart.ts";
 import { formatDate } from "../../lib/format.ts";
-import type { OpenPosition } from "../../server/modules/auswertungen/reports.ts";
+import type { OpenPosition } from "../../server/modules/auswertungen/index.ts";
 import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
 

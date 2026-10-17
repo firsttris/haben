@@ -1,9 +1,9 @@
 import { paidTaxShares, splitPrivateShare, type Cents, type TaxTreatment, type VatPeriod } from "@haben/core";
 import { and, eq, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
-import { privateUseForMonth } from "../buchhaltung/assets.ts";
-import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/company.ts";
+import { privateUseForMonth } from "../buchhaltung/index.ts";
+import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
 import { db, schema } from "../../db/index.ts";
-import { invoiceTotalsById } from "../rechnungen/invoice-taxes.ts";
+import { invoiceTotalsById } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
   /** payment = Zahlungseingang (Ist), invoice = Rechnung (Soll), entnahme = private Kfz-Nutzung */

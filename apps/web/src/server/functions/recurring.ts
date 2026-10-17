@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { loadCompany } from "../modules/stammdaten/company.ts";
-import { listContacts } from "../modules/stammdaten/contacts.ts";
+import { loadCompany } from "../modules/stammdaten/index.ts";
+import { listContacts } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
   createRecurring,
@@ -12,7 +12,7 @@ import {
   recurringInputSchema,
   runDueRecurring,
   updateRecurring,
-} from "../modules/rechnungen/recurring.ts";
+} from "../modules/rechnungen/index.ts";
 import { today } from "../today.ts";
 import { UserError } from "../errors.ts";
 

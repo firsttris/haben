@@ -1,10 +1,10 @@
 import { parseVastBeleg, vastBelegartLabel, type ElsterClient } from "@haben/elster";
 import { desc, eq } from "drizzle-orm";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { FinanzamtError } from "./finanzamt.ts";
-import { prepareAbruf } from "../elster/elster-gateway.ts";
+import { prepareAbruf } from "../elster/index.ts";
 
 export interface VastFetchOptions {
   kind: "test" | "send";

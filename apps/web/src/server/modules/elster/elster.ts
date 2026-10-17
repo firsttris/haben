@@ -12,7 +12,7 @@ import {
   type ElsterClient,
   type InstallProgress,
 } from "@haben/elster";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { schema } from "../../db/index.ts";
 import { env } from "../../env.ts";

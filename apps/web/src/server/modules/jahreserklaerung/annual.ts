@@ -17,15 +17,15 @@ import {
   type UstErklaerungFigures,
 } from "@haben/elster";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
-import { listAssets } from "../buchhaltung/assets.ts";
-import { companyIssues, kleinunternehmerForYear, loadCompany, versteuerungForYear, type Company } from "../stammdaten/company.ts";
+import { listAssets } from "../buchhaltung/index.ts";
+import { companyIssues, kleinunternehmerForYear, loadCompany, versteuerungForYear, type Company } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
-import { listPauschalen } from "../buchhaltung/pauschalen.ts";
-import { euerForYear } from "../auswertungen/reports.ts";
-import { computeVatFigures } from "../umsatzsteuer/vat-figures.ts";
-import { PRODUKT_VERSION, uebermitteln } from "../elster/elster-gateway.ts";
+import { listPauschalen } from "../buchhaltung/index.ts";
+import { euerForYear } from "../auswertungen/index.ts";
+import { computeVatFigures } from "../umsatzsteuer/index.ts";
+import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
 export class AnnualError extends UserError {}
 

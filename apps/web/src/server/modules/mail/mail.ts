@@ -7,8 +7,8 @@ import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { env } from "../../env.ts";
-import { listFristen, type Frist } from "../finanzamt/fristen.ts";
-import { chainHead, checkIntegrity, formatPruefwert } from "../auswertungen/integrity.ts";
+import { listFristen, type Frist } from "../finanzamt/index.ts";
+import { chainHead, checkIntegrity, formatPruefwert } from "../auswertungen/index.ts";
 
 /**
  * E-Mail über SMTP: jeder Anbieter mit SMTP-Zugang, auch Gmail (smtp.gmail.com mit App-Passwort).

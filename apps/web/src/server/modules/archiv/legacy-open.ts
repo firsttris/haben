@@ -10,11 +10,11 @@ import {
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
-import { openBooks, post } from "../buchhaltung/ledger.ts";
+import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
-import { storeInvoiceTaxes } from "../rechnungen/invoice-taxes.ts";
+import { storeInvoiceTaxes } from "../rechnungen/index.ts";
 import type { LegacyCategoryRow } from "../../db/schema.ts";
-import { buyerFrom, sellerFrom } from "../rechnungen/invoices.ts";
+import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
 

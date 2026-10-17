@@ -1,4 +1,4 @@
-import type { QuoteListStatus } from "../server/modules/rechnungen/quotes.ts";
+import type { QuoteListStatus } from "../server/modules/rechnungen/index.ts";
 
 const LABELS: Record<QuoteListStatus, { text: string; tone: string }> = {
   entwurf: { text: "Entwurf", tone: "pill-info" },

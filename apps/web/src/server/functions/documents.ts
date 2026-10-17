@@ -1,5 +1,5 @@
 import { EXPENSE_CATEGORIES } from "@haben/core";
-import { loadInboxSettings } from "../modules/belege/inbox.ts";
+import { loadInboxSettings } from "../modules/belege/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
@@ -14,10 +14,10 @@ import {
   runExtraction,
   updateDocument,
   uploadDocument,
-} from "../modules/belege/documents.ts";
-import { extractionAvailable } from "../modules/belege/extraction.ts";
+} from "../modules/belege/index.ts";
+import { extractionAvailable } from "../modules/belege/index.ts";
 import { authMiddleware } from "../middleware.ts";
-import { loadCompany } from "../modules/stammdaten/company.ts";
+import { loadCompany } from "../modules/stammdaten/index.ts";
 import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 import { UserError } from "../errors.ts";

@@ -3,7 +3,7 @@ import { buildConfirmationPdf, buildDeliveryNotePdf, type Buyer, type Seller } f
 import type { UnitLabel } from "@haben/core";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { loadLogo } from "../stammdaten/logo.ts";
+import { loadLogo } from "../stammdaten/index.ts";
 import { quoteDocumentFor } from "./quotes.ts";
 import { today } from "../../today.ts";
 

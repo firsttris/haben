@@ -9,8 +9,8 @@ import {
 } from "@haben/core";
 import { buildUstvaXml, type ElsterClient, type ElsterResult } from "@haben/elster";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { companyIssues, loadCompany } from "../stammdaten/company.ts";
-import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/elster-gateway.ts";
+import { companyIssues, loadCompany } from "../stammdaten/index.ts";
+import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/index.ts";
 import { computeVatFigures } from "./vat-figures.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";

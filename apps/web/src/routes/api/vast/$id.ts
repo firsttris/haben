@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { auth } from "../../../server/auth.ts";
 import { fileResponse } from "../../../server/file-response.ts";
-import { vastBelegXml } from "../../../server/modules/finanzamt/vast.ts";
+import { vastBelegXml } from "../../../server/modules/finanzamt/index.ts";
 
 /** Ein von ELSTER abgeholter Beleg als XML, wie er entschlüsselt ankam */
 export const Route = createFileRoute("/api/vast/$id")({

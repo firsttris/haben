@@ -7,13 +7,13 @@ import {
 } from "@haben/elster";
 import { einspruchsfrist, parseBescheiddatum, type Bundesland } from "@haben/core";
 import { and, desc, eq } from "drizzle-orm";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { FinanzamtError } from "./finanzamt.ts";
 import { sniff, storeFile } from "../../storage.ts";
-import { ABRUF, isSimulated, loadActiveCertificate, PRODUKT_VERSION, signatur, zugang } from "../elster/elster-gateway.ts";
+import { ABRUF, isSimulated, loadActiveCertificate, PRODUKT_VERSION, signatur, zugang } from "../elster/index.ts";
 
 export interface PostfachFetchOptions {
   kind: "test" | "send";

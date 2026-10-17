@@ -11,11 +11,11 @@ import {
   type ElsterResult,
 } from "@haben/elster";
 import { and, asc, eq, getTableColumns } from "drizzle-orm";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { FinanzamtError } from "./finanzamt.ts";
-import { prepareAbruf, protocolSubmission, underSendLock } from "../elster/elster-gateway.ts";
+import { prepareAbruf, protocolSubmission, underSendLock } from "../elster/index.ts";
 
 /**
  * Berechtigung, die Belege des Ehegatten (Person B) abzurufen. Ablauf bei ELSTER:

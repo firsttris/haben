@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "../modules/stammdaten/logo.ts";
+import { logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getLogo = createServerFn({ method: "GET" })

@@ -177,7 +177,8 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 - **Oberfläche auf Deutsch**, auch Fehlermeldungen, die beim Nutzer ankommen.
 - **Unveränderlichkeit (GoBD) in der Datenbank:** Festgeschriebene Rechnungen, Buchungen, gesendete Voranmeldungen, Bankumsätze und übernommene Lexoffice-Daten sperren Postgres-Trigger gegen `UPDATE` und `DELETE`. Korrekturen sind neue Datensätze (Storno, Gegenbuchung, berichtigte Anmeldung). Beim Festschreiben einer Buchung prüft ein Trigger Soll = Haben.
 - **Audit-Log:** Änderungen laufen über `withActor` (`apps/web/src/server/db/actor.ts`), damit der Trigger sie dem Nutzer zuschreibt.
-- **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik in `apps/web/src/server/*.ts` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.
+- **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.
+- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Lint-Regel `haben/modulgrenzen` bricht die CI sonst ab. Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
 
 ## Projektstruktur
@@ -185,7 +186,8 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 | Pfad | Inhalt |
 | --- | --- |
 | `apps/web/src/routes` | Seiten (TanStack Router) und API-Routen unter `api/` |
-| `apps/web/src/server` | Serverlogik je Bereich, `db/` mit Schema und Migrationsskript, `functions/` mit den Server-Funktionen |
+| `apps/web/src/server` | `modules/` mit der Serverlogik je Fachbereich (öffentlich über `index.ts`), `db/` mit Schema und Migrationsskript, `functions/` mit den Server-Funktionen, daneben gemeinsame Infrastruktur |
+| `eslint/` | Eigene Lint-Regel für die Modulgrenzen |
 | `apps/web/src/components`, `lib` | React-Komponenten, Auth-Client, Formatierung |
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
@@ -208,7 +210,7 @@ Das Format wird als Text in `bank_imports.format` gespeichert; eine Migration is
 
 ## Neue Ausgabenkategorie
 
-Die Kategorien stehen in `EXPENSE_CATEGORIES` in `packages/core/src/posting.ts`, je mit Bezeichnung und Aufwandskonto für SKR03 und SKR04. Ein neuer Eintrag erscheint automatisch in der Auswahl am Beleg, in der Anweisung für die KI-Auslesung, im Journal und in der EÜR. Die Kategorie steht als Text am Beleg, eine Migration ist nicht nötig. Für übernommene Lexoffice-Belege kannst du in `apps/web/src/server/legacy-open.ts` (`CATEGORY_HINTS`) ein Suchmuster ergänzen. Die Kontonummern stimmst du mit der Steuerberatung ab.
+Die Kategorien stehen in `EXPENSE_CATEGORIES` in `packages/core/src/posting.ts`, je mit Bezeichnung und Aufwandskonto für SKR03 und SKR04. Ein neuer Eintrag erscheint automatisch in der Auswahl am Beleg, in der Anweisung für die KI-Auslesung, im Journal und in der EÜR. Die Kategorie steht als Text am Beleg, eine Migration ist nicht nötig. Für übernommene Lexoffice-Belege kannst du in `apps/web/src/server/modules/archiv/legacy-open.ts` (`CATEGORY_HINTS`) ein Suchmuster ergänzen. Die Kontonummern stimmst du mit der Steuerberatung ab.
 
 ## Veröffentlichen
 

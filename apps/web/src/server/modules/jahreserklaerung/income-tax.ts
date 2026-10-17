@@ -2,7 +2,7 @@ import { isValidIdnr, type EstAngaben } from "@haben/elster";
 import { kirchensteuerpflichtig, steuerPrognose, type Cents, type Prognose } from "@haben/core";
 import { desc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 

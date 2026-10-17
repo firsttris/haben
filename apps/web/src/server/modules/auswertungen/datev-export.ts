@@ -2,7 +2,7 @@ import { UserError } from "../../errors.ts";
 import { buildDatevBuchungsstapel, type DatevExportEntry } from "@haben/import";
 import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 

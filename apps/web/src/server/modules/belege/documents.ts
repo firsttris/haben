@@ -13,10 +13,10 @@ import {
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/company.ts";
-import { addDocumentCashEntry, lockCash } from "../bank/cash.ts";
+import { loadCompany } from "../stammdaten/index.ts";
+import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
-import { openBooks, post } from "../buchhaltung/ledger.ts";
+import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";

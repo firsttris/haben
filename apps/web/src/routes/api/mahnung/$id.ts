@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { auth } from "../../../server/auth.ts";
-import { loadDunningPdf } from "../../../server/modules/rechnungen/dunning.ts";
+import { loadDunningPdf } from "../../../server/modules/rechnungen/index.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 
 /** PDF einer Mahnung: /api/mahnung/<id>, mit ?download als Datei */

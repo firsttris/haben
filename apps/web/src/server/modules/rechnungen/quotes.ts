@@ -22,10 +22,10 @@ import { buildQuotePdf, texts, type QuoteDocument } from "@haben/einvoice";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany, sellerIssues } from "../stammdaten/company.ts";
+import { loadCompany, sellerIssues } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { loadLogo } from "../stammdaten/logo.ts";
+import { loadLogo } from "../stammdaten/index.ts";
 import { peekNumber, takeNumber } from "./number-counter.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, sellerFrom, type Invoice } from "./invoices.ts";
 

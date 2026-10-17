@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { auth } from "../../../server/auth.ts";
 import { fileResponse } from "../../../server/file-response.ts";
-import { legacyVoucherFile } from "../../../server/modules/archiv/lexoffice.ts";
+import { legacyVoucherFile } from "../../../server/modules/archiv/index.ts";
 import { loadFile } from "../../../server/storage.ts";
 
 /** Datei zu einem aus Lexoffice übernommenen Beleg */

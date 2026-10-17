@@ -8,7 +8,7 @@ import {
   sendDunningMail,
   sendInvoiceMail,
   sendQuoteMail,
-} from "../modules/rechnungen/invoice-mail.ts";
+} from "../modules/rechnungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 const target = z.object({ kind: z.enum(["rechnung", "mahnung", "angebot"]), id: z.uuid() });

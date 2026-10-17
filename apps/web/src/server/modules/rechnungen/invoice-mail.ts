@@ -2,10 +2,10 @@ import { DUNNING_LEVELS, formatEuro, type DunningLevel } from "@haben/core";
 import { texts } from "@haben/einvoice";
 import { and, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { invoiceTitle } from "./invoices.ts";
-import { escapeHtml, loadMailSettings, MailError, send } from "../mail/mail.ts";
+import { escapeHtml, loadMailSettings, MailError, send } from "../mail/index.ts";
 
 /**
  * Rechnungen und Mahnungen per E-Mail: Empfänger aus der Rechnung bzw. dem Kontakt, Betreff und Text aus

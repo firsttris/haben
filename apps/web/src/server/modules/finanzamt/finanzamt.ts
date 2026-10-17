@@ -12,12 +12,12 @@ import {
 } from "@haben/elster";
 import { desc } from "drizzle-orm";
 import { z } from "zod";
-import { companyIssues, loadCompany } from "../stammdaten/company.ts";
-import { latestEstAngaben, prognose } from "../jahreserklaerung/income-tax.ts";
+import { companyIssues, loadCompany } from "../stammdaten/index.ts";
+import { latestEstAngaben, prognose } from "../jahreserklaerung/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
-import { euerForYear } from "../auswertungen/reports.ts";
-import { PRODUKT_VERSION, SENDEN, uebermitteln } from "../elster/elster-gateway.ts";
+import { euerForYear } from "../auswertungen/index.ts";
+import { PRODUKT_VERSION, SENDEN, uebermitteln } from "../elster/index.ts";
 import { createHash } from "node:crypto";
 
 export class FinanzamtError extends UserError {}

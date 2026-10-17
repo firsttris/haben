@@ -12,7 +12,7 @@ flowchart LR
   subgraph Web["apps/web · TanStack Start auf Node 22"]
     Routes["routes/<br/>Seiten und Loader"] --> Functions["server/functions/<br/>Server Functions + authMiddleware"]
     Api["routes/api/<br/>Downloads, Export, Auth"]
-    Functions --> Services["server/*.ts<br/>Dienste"]
+    Functions --> Services["server/modules/<br/>Dienste je Fachbereich"]
     Api --> Services
     Services --> Packages["packages/<br/>core · einvoice · import · elster"]
   end
@@ -45,13 +45,43 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 | `src/routes/api/` | HTTP-Routen für Better Auth (`auth/$`), Dateien (`rechnung`, `angebot`, `mahnung`, `beleg`, `altbeleg`, `archiv`, `protokoll`, `postfach`, `vast`), Kalender-Abo der Fristen (`fristen/kalender`, mit geheimem Token statt Sitzung), Teilen-Ziel der PWA (`belege/teilen`), EÜR als CSV (`auswertungen/$jahr`) und Jahresarchiv (`export/$jahr`) |
 | `src/components/` | React-Komponenten, die mehrere Seiten nutzen (Rechnungseditor, Vorschau, Upload, Statusanzeigen), dazu `archiv/` für die Umzugsseite |
 | `src/server/functions/` | Server Functions je Bereich: Eingaben mit Zod prüfen, `authMiddleware` anhängen, Dienst aufrufen. Keine Fachlogik |
-| `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `bank-sync` (Kontoabruf), `annual` (Jahreserklärungen), `income-tax` (Angaben zur Einkommensteuer), `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `fristen` (Steuertermine, Kalender-Abo), `mail` (SMTP, Erinnerungen), `quotes` (Angebote), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `inbox` (Belege per E-Mail über IMAP), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `taxpayer` (persönliche Angaben), `vat`, `vat-figures`, `elster-gateway` (Zugang, Zertifikat und PIN, Sendesperre und Protokoll für jede Übermittlung), `reports`, `ledger` (Hauptbuch: einziger Schreiber des Journals, Saldenliste, Kontenblatt), `abgleich` (Journal gegen Umsatzsteuer und EÜR), `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`, `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer, Speichern der Firmendaten); dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
+| `src/server/modules/<name>/` | Dienste je Fachbereich, jeweils mit öffentlicher `index.ts` (siehe [Module im Server](#module-im-server)) |
+| `src/server/*.ts` | Gemeinsame Infrastruktur ohne Fachlogik: `auth`, `middleware`, `crypto`, `storage`, `file-response`, `env`, `errors`, `today`, `security-headers`; dazu `scheduler.ts`, der die Hintergrundarbeit der Module zusammensetzt |
 | `src/server/db/` | Drizzle-Schema (`schema.ts`, `auth-schema.ts`), Verbindung, `withActor` für das Audit-Log, Migrationsskript |
 | `apps/web/drizzle/` | SQL-Migrationen; Trigger und Funktionen stehen in eigenen Dateien (`0001_festschreibung.sql`, `*_trigger.sql`) |
 | `src/styles/`, `styles.css` | Globales Stylesheet und seitenbezogene Stylesheets (Auswertungen, Archiv). Farben stehen als CSS-Variablen in `:root`; ein Theme überschreibt sie per `[data-theme="…"]`. Klassen, die mehr als eine Seite nutzt, gehören ins globale Stylesheet, sonst fehlen sie auf Seiten, die das seitenbezogene nicht laden |
 | `src/lib/theme.ts` | Themes: Liste, Speicherung im `localStorage` und ein Inline-Skript, das `<html data-theme>` vor dem ersten Zeichnen setzt (`__root.tsx`) |
 | `vite.config.ts` | Setzt `__HABEN_VERSION__` aus der Root-`package.json`; die Navigation zeigt so die ausgelieferte Version |
 | `src/lib/` | Formatierung und Better-Auth-Client für den Browser |
+
+### Module im Server
+
+Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich. Ein Modul besitzt seine Tabellen und bietet nach außen nur an, was in seiner `index.ts` steht.
+
+| Modul | Inhalt |
+| --- | --- |
+| `stammdaten` | `company` (Firmendaten, Versteuerung und Kleinunternehmer je Jahr), `contacts`, `articles`, `logo`, `taxpayer` (persönliche Angaben), `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer, Speichern der Firmendaten) |
+| `rechnungen` | `invoices`, `invoice-taxes` (Steuerzeilen), `number-counter` (Nummernkreise), `quotes` (Angebote), `order-documents` (Auftragsbestätigung, Lieferschein), `dunning` (Mahnungen), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `recurring` (Serienrechnungen) |
+| `belege` | `documents`, `extraction` (Auslesen), `inbox` (Belege per E-Mail über IMAP) |
+| `bank` | `bank` (Kontoauszüge, Zuordnung), `bank-sync` (Kontoabruf), `cash` (Kassenbuch) |
+| `buchhaltung` | `ledger` (Hauptbuch: einziger Schreiber des Journals, Saldenliste, Kontenblatt), `journal` (Kontennamen), `assets` (Anlagenverzeichnis, AfA), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg) |
+| `umsatzsteuer` | `vat-figures` (Zahlen und Vorprüfung), `vat` (Entwürfe, Berichtigung, Übermittlung) |
+| `elster` | `elster-gateway` (Zugang, Zertifikat und PIN, Sendesperre und Protokoll für jede Übermittlung), `certificate`, `elster` (Datenschutzhinweise der Finanzverwaltung) |
+| `finanzamt` | `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `fristen` (Steuertermine, Kalender-Abo) |
+| `jahreserklaerung` | `annual` (Umsatzsteuererklärung, Anlage EÜR, Einkommensteuer), `income-tax` (Angaben zur Einkommensteuer) |
+| `auswertungen` | `reports` (EÜR, offene Posten), `abgleich` (Journal gegen Umsatzsteuer und EÜR), `integrity` (Prüfung von Hash-Kette, Siegeln und Abgleich), `datev-export` |
+| `archiv` | `archive` (Umzugsdateien), `export` (Jahresarchiv), `lexoffice` (Import), `legacy-open` (übernommene offene Posten) |
+| `mail` | `mail` (SMTP, Erinnerungen, wöchentliche Integritätsmail) |
+
+Die Lint-Regel `haben/modulgrenzen` (`eslint/modulgrenzen.js`) läuft mit `pnpm lint` in der CI und prüft jeden relativen Import:
+
+- **Aus einem anderen Modul nur über dessen `index.ts`.** Braucht ein Modul, eine Server Function oder eine Route etwas, das dort fehlt, wird es in der `index.ts` ergänzt. Die Datei enthält nur `export { … } from "./…"`, keine Logik.
+- **Infrastruktur importiert keine Module.** `server/*.ts` und `server/db/` bleiben unabhängig von der Fachlogik. Ausgenommen sind die Stellen, die Module zusammensetzen: `server/functions/`, `server/plugins/` und `scheduler.ts`.
+- **Module importieren weder Server Functions noch Oberfläche** (`server/functions/`, `server/plugins/`, `routes/`, `components/`). Gemeinsames ohne Serverbezug liegt in `src/lib/`.
+
+Tests sind ausgenommen und dürfen auch Dateien hinter der `index.ts` anderer Module importieren. `modulgrenzen.test.ts` prüft die Regel selbst und die Struktur: Jedes Modul hat eine `index.ts`, und direkt unter `server/` liegt nur Infrastruktur.
+
+Zwischen Modulen gibt es Abhängigkeiten in beide Richtungen, etwa `rechnungen` ↔ `bank` (Zahlungen einer Rechnung, Zuordnung zu einer Rechnung) oder `stammdaten` → `rechnungen` (die Sperre der Firmendaten zählt offene Rechnungen). Die Regel verbietet sie nicht, macht sie aber an der `index.ts` sichtbar.
 
 ## Datenmodell
 
@@ -149,11 +179,11 @@ Geschützt wird an drei Stellen:
 ### Rechnung festschreiben
 
 1. Die Seite ruft die Server Function `finalizeInvoiceDraft` auf. `authMiddleware` prüft die Sitzung.
-2. `finalizeInvoice` in `server/invoices.ts` öffnet eine Transaktion mit `withActor`.
+2. `finalizeInvoice` in `server/modules/rechnungen/invoices.ts` öffnet eine Transaktion mit `withActor`.
 3. In dieser Transaktion:
    - Entwurf mit `SELECT … FOR UPDATE` sperren,
    - Firmendaten, Kunde, Positionen, Beträge, die umsatzsteuerliche Behandlung und die Pflichtfelder des gewählten E-Rechnungsformats prüfen (`finalizeIssues`, dieselbe Prüfung wie in der Oberfläche, hier mit der Transaktion),
-   - den Nummernkreis des Jahres sperren und die nächste Nummer nur lesen (`peekNumber` in `server/number-counter.ts`, Advisory Lock je Kreis und Jahr),
+   - den Nummernkreis des Jahres sperren und die nächste Nummer nur lesen (`peekNumber` in `server/modules/rechnungen/number-counter.ts`, Advisory Lock je Kreis und Jahr),
    - PDF und XML aus Positionen und den gespeicherten Steuerzeilen (`invoice_taxes`) erzeugen (siehe unten); bis hierhin hat die Transaktion nichts mit Audit-Eintrag geschrieben, die Hash-Kette ist also frei,
    - den Zähler auf diese Nummer setzen (`takeNumber`; ab hier ist die Kette gesperrt),
    - Rechnung auf `final` setzen, mit Verkäufer- und Käuferdaten, Summen, PDF, XML, SHA-256 und `locked_at`,
@@ -166,7 +196,7 @@ Angebote nummeriert `finalizeQuote` nach demselben Muster (eigener Kreis). Die R
 
 ### Hauptbuch und Transaktionen
 
-- **Ein Schreiber.** Ins Journal schreibt nur `post(tx, books, posting)` in `server/ledger.ts`: Buchung anlegen, Zeilen anlegen, sperren. Die sieben Stellen, die buchen (Rechnungen, Belege, Bank, Kasse, Pauschalen, Anlagen, offene Posten aus Lexoffice), rufen nur noch `post` auf. Ein Test (`hauptbuch.test.ts`) schlägt fehl, sobald eine andere Datei `journal_entries` oder `journal_lines` beschreibt.
+- **Ein Schreiber.** Ins Journal schreibt nur `post(tx, books, posting)` in `server/modules/buchhaltung/ledger.ts`: Buchung anlegen, Zeilen anlegen, sperren. Die sieben Stellen, die buchen (Rechnungen, Belege, Bank, Kasse, Pauschalen, Anlagen, offene Posten aus Lexoffice), rufen nur noch `post` auf. Ein Test (`hauptbuch.test.ts`) schlägt fehl, sobald eine andere Datei `journal_entries` oder `journal_lines` beschreibt.
 - **Firmendaten in der Transaktion.** `openBooks(tx)` liest Kontenrahmen, Versteuerung und Kleinunternehmer in der buchenden Transaktion, die Buchungszeilen werden danach berechnet. Nach dem Einfügen hält die Transaktion die Sperre der Hash-Kette; `post` liest die Firmendaten dann noch einmal und lehnt ab, wenn sie sich dazwischen geändert haben. Die Datenbank prüft zusätzlich den Kontenrahmen jeder Buchung und lehnt Buchungen ab, die beim Commit nicht festgeschrieben sind (`0065_hauptbuch_sperren.sql`).
 - **Ein Kontenrahmen je Jahr.** `post` lehnt eine Buchung ab, wenn im Jahr ihres Datums schon in einem anderen Kontenrahmen gebucht ist. Umstellen geht nur zum Jahreswechsel; danach würde eine Buchung ins Vorjahr (Aufheben einer Zuordnung, rückdatierte Rechnung) sonst Kontonummern des neuen Rahmens zwischen die des alten stellen. Die Datenbank kann das nicht prüfen, sie kennt nur den Kontenrahmen der Firmendaten.
 - **Transaktion ausdrücklich weitergeben.** Lesefunktionen nehmen eine Verbindung an (`q: Db | Tx = db`, etwa `loadCompany(tx)`, `getInvoice(id, tx)`, `finalizeIssues(id, tx)`), Schreibfunktionen gibt es auch ohne eigene Transaktion (`insertDraft(tx, …)`). `withActor` öffnet immer eine neue Transaktion und tritt keiner offenen bei. Ein stilles Beitreten hätte die ELSTER-Sendesperre geändert: `underSendLock` im ELSTER-Gateway hält eine Transaktion nur für die Sperre, protokolliert wird bewusst auf anderen Verbindungen, damit ein späterer Fehler das Protokoll einer Echtübermittlung nicht zurückrollt.
@@ -175,7 +205,7 @@ Angebote nummeriert `finalizeQuote` nach demselben Muster (eigener Kreis). Die R
 
 ### Bankumsatz zuordnen
 
-1. `allocateTransaction` → `allocate` in `server/bank.ts`, in einer Transaktion mit `withActor`.
+1. `allocateTransaction` → `allocate` in `server/modules/bank/bank.ts`, in einer Transaktion mit `withActor`.
 2. Der Umsatz wird mit `FOR UPDATE` gesperrt; Vorzeichen und offener Betrag werden geprüft, ebenso der offene Betrag der Rechnung bzw. des Belegs.
 3. Haben liest die Firmendaten in der Transaktion (`openBooks`), bildet den Buchungssatz mit `@haben/core` (`invoicePaymentPosting`, `documentPaymentPosting` oder `directPosting`), legt die Zuordnung an und bucht über `ledger.post` auf den Buchungstag des Umsatzes.
 4. Der Trigger auf `allocations` prüft noch einmal, dass die Summe der Zuordnungen den Umsatz nicht übersteigt. Bei einem Zahlungseingang merkt sich Haben die IBAN des Kunden, falls noch keine hinterlegt ist.
@@ -203,7 +233,7 @@ ERiC selbst liefert Haben nicht mit. `packages/elster/src/install.ts` lädt das 
 
 ## ELSTER-Gateway
 
-Jede Übermittlung an die Finanzverwaltung läuft über `server/elster-gateway.ts`: Voranmeldung, Jahreserklärungen, Nachrichten an das Finanzamt, Änderung der Bankverbindung, Postfach, Belegabruf (VaSt) und Berechtigungen. Das Gateway übernimmt, was jede davon braucht, damit eine neue Übermittlungsart nichts vergessen kann:
+Jede Übermittlung an die Finanzverwaltung läuft über `server/modules/elster/elster-gateway.ts`: Voranmeldung, Jahreserklärungen, Nachrichten an das Finanzamt, Änderung der Bankverbindung, Postfach, Belegabruf (VaSt) und Berechtigungen. Das Gateway übernimmt, was jede davon braucht, damit eine neue Übermittlungsart nichts vergessen kann:
 
 | Aufgabe | Funktion | Was sie sicherstellt |
 | --- | --- | --- |
@@ -231,8 +261,8 @@ Eingehende E-Rechnungen liest `packages/einvoice` direkt: das eingebettete XML a
 Haben hat keine Job-Queue. Länger laufende Arbeit läuft als Promise im Serverprozess weiter, nachdem die Anfrage beantwortet ist:
 
 - **KI-Auslesung von Belegen:** Nach dem Hochladen eines PDFs oder Fotos ohne E-Rechnung setzt Haben den Status „läuft“ und schickt die Datei an die Anthropic-API, wenn `ANTHROPIC_API_KEY` gesetzt ist. Die Antwort folgt einem festen Zod-Schema; Beträge kommen als Dezimaltext, damit nichts gerundet wird. Ohne Schlüssel verlässt keine Datei den Server.
-- **Wiederkehrende Rechnungen:** Ein Nitro-Plugin (`server/plugins/scheduler.ts`) startet beim Serverstart einen Timer: 30 Sekunden nach dem Start und danach stündlich legt `runDueRecurring` die fälligen Rechnungen an (`server/recurring.ts`). Verpasste Termine holt der Lauf mit ihrem Datum nach; ein eindeutiger Index auf `(recurring_id, recurring_date)` verhindert Doppelte. Im Audit-Log steht als Akteur `system:wiederkehrend`. `HABEN_SCHEDULER=off` schaltet den Timer ab.
-- **Kontoabruf:** Derselbe Timer ruft `runDueBankSyncs` auf (`server/bank-sync.ts`). Jede aktive Verbindung wird höchstens alle 20 Stunden abgerufen, auch nach einem Fehler, weil PSD2 Banken nur wenige Zugriffe ohne den Nutzer am Tag erlaubt. Der Abruf baut aus der API-Antwort einen `ParsedStatement` und speichert ihn über denselben Weg wie eine Datei (`storeStatement`), also mit Hash-Dubletten und Kontosperre. Akteur im Audit-Log ist `system:bankabruf`.
+- **Wiederkehrende Rechnungen:** Ein Nitro-Plugin (`server/plugins/scheduler.ts`) startet beim Serverstart einen Timer: 30 Sekunden nach dem Start und danach stündlich legt `runDueRecurring` die fälligen Rechnungen an (`server/modules/rechnungen/recurring.ts`). Verpasste Termine holt der Lauf mit ihrem Datum nach; ein eindeutiger Index auf `(recurring_id, recurring_date)` verhindert Doppelte. Im Audit-Log steht als Akteur `system:wiederkehrend`. `HABEN_SCHEDULER=off` schaltet den Timer ab.
+- **Kontoabruf:** Derselbe Timer ruft `runDueBankSyncs` auf (`server/modules/bank/bank-sync.ts`). Jede aktive Verbindung wird höchstens alle 20 Stunden abgerufen, auch nach einem Fehler, weil PSD2 Banken nur wenige Zugriffe ohne den Nutzer am Tag erlaubt. Der Abruf baut aus der API-Antwort einen `ParsedStatement` und speichert ihn über denselben Weg wie eine Datei (`storeStatement`), also mit Hash-Dubletten und Kontosperre. Akteur im Audit-Log ist `system:bankabruf`.
 - **Lexoffice-Abruf:** läuft mit einem `AbortController` im Prozess und schreibt seinen Fortschritt höchstens einmal je Sekunde in `lexoffice_imports`. Nach einem Neustart erkennt Haben einen hängengebliebenen Lauf an drei Minuten ohne Fortschritt; ein neuer Lauf setzt fort, weil vorhandene Belege übersprungen werden.
 
 Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, ohne dass der Prozess ihn ausliest (Neustart während der Auslesung), setzt Haben ihn beim nächsten Öffnen auf „Fehler“, damit er wieder bearbeitet werden kann.

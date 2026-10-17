@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { deleteInboxSettings, fetchInbox, inboxSettingsSchema, inboxSummary, saveInboxSettings } from "../modules/belege/inbox.ts";
+import { deleteInboxSettings, fetchInbox, inboxSettingsSchema, inboxSummary, saveInboxSettings } from "../modules/belege/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getInbox = createServerFn({ method: "GET" })

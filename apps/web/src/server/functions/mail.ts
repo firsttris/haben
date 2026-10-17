@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { deleteMailSettings, lastMails, mailSettingsSchema, mailSettingsSummary, saveMailSettings, sendTestMail, SMTP_PRESETS } from "../modules/mail/mail.ts";
-import { DEFAULT_DUNNING_BODY, DEFAULT_DUNNING_SUBJECT, DEFAULT_INVOICE_BODY, DEFAULT_INVOICE_SUBJECT } from "../modules/rechnungen/invoice-mail.ts";
+import { deleteMailSettings, lastMails, mailSettingsSchema, mailSettingsSummary, saveMailSettings, sendTestMail, SMTP_PRESETS } from "../modules/mail/index.ts";
+import { DEFAULT_DUNNING_BODY, DEFAULT_DUNNING_SUBJECT, DEFAULT_INVOICE_BODY, DEFAULT_INVOICE_SUBJECT } from "../modules/rechnungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getMailSettings = createServerFn({ method: "GET" })

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { loadAnnualProtocol } from "../../../server/modules/jahreserklaerung/annual.ts";
+import { loadAnnualProtocol } from "../../../server/modules/jahreserklaerung/index.ts";
 import { auth } from "../../../server/auth.ts";
 import { db, schema } from "../../../server/db/index.ts";
 import { fileResponse } from "../../../server/file-response.ts";

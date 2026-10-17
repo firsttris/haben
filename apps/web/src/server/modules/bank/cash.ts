@@ -3,7 +3,7 @@ import { CASH_BOOKINGS, cashPosting, formatEuro, type CashBooking, type Cents } 
 import { asc, eq, gte, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { openBooks, post } from "../buchhaltung/ledger.ts";
+import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 
 /**

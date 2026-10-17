@@ -10,11 +10,11 @@ import {
   type VatPeriod,
 } from "@haben/core";
 import { and, eq, min } from "drizzle-orm";
-import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/company.ts";
+import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
-import { loadActiveCertificate } from "../elster/elster-gateway.ts";
+import { loadActiveCertificate } from "../elster/index.ts";
 
 export type FristArt = "ustva" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
 

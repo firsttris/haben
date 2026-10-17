@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "../../../server/auth.ts";
-import { cashBookCsv } from "../../../server/modules/bank/cash.ts";
+import { cashBookCsv } from "../../../server/modules/bank/index.ts";
 import { csvResponse } from "../../../server/file-response.ts";
 import { yearSchema } from "../../../server/functions/schemas.ts";
 

@@ -14,9 +14,9 @@ import { checkBalanceContinuity, parseStatement, StatementParseError, withDedupH
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { openBooks, post } from "../buchhaltung/ledger.ts";
+import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { invoiceTotalsById } from "../rechnungen/invoice-taxes.ts";
+import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
 

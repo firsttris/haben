@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { auth } from "../../../server/auth.ts";
 import { fileResponse } from "../../../server/file-response.ts";
-import { confirmationPdf, deliveryNotePdf, OrderDocumentError } from "../../../server/modules/rechnungen/order-documents.ts";
+import { confirmationPdf, deliveryNotePdf, OrderDocumentError } from "../../../server/modules/rechnungen/index.ts";
 
 /**
  * Begleitdokumente als PDF: /api/dokument/auftragsbestaetigung/<angebot>,

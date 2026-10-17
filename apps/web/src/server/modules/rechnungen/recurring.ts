@@ -17,7 +17,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { createDraft, effectivePriceMode, finalizeInvoice } from "./invoices.ts";
 import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
-import { MailError } from "../mail/mail.ts";
+import { MailError } from "../mail/index.ts";
 
 export type RecurringInvoice = typeof schema.recurringInvoices.$inferSelect;
 

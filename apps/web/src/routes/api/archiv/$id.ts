@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { loadArchiveFile } from "../../../server/modules/archiv/archive.ts";
+import { loadArchiveFile } from "../../../server/modules/archiv/index.ts";
 import { auth } from "../../../server/auth.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 

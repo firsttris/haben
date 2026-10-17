@@ -11,10 +11,10 @@ import {
   type VatPeriod,
 } from "@haben/core";
 import { and, gte, lt, sql } from "drizzle-orm";
-import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/assets.ts";
+import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { euerForYear } from "./reports.ts";
-import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/vat-figures.ts";
+import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
 
 /*
  * Abgleich Journal ↔ Umsatzsteuer und EÜR (#81). Voranmeldung und EÜR rechnen aus Rechnungen, Belegen, Zuordnungen,

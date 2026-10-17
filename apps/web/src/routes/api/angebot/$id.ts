@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { auth } from "../../../server/auth.ts";
 import { fileResponse } from "../../../server/file-response.ts";
-import { loadQuotePdf } from "../../../server/modules/rechnungen/quotes.ts";
+import { loadQuotePdf } from "../../../server/modules/rechnungen/index.ts";
 
 /** PDF eines Angebots: /api/angebot/<id>, mit ?download als Datei */
 export const Route = createFileRoute("/api/angebot/$id")({

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { auth } from "../../../server/auth.ts";
-import { exportFilename, exportYear, toReadableStream } from "../../../server/modules/archiv/export.ts";
+import { exportFilename, exportYear, toReadableStream } from "../../../server/modules/archiv/index.ts";
 
 /** Jahresarchiv als ZIP: /api/export/<jahr>, gestreamt */
 export const Route = createFileRoute("/api/export/$jahr")({

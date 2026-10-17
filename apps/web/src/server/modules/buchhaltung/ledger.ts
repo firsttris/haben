@@ -1,7 +1,7 @@
 import type { Cents, KontenblattZeile, Kontenrahmen, PostingLine, SaldenZeile } from "@haben/core";
 import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany, type Company } from "../stammdaten/company.ts";
+import { loadCompany, type Company } from "../stammdaten/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { accountName } from "./journal.ts";
 import { UserError } from "../../errors.ts";

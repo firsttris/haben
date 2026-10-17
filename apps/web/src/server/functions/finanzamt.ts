@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { loadCompany } from "../modules/stammdaten/company.ts";
-import { elsterClient, elsterMode } from "../modules/elster/elster.ts";
+import { loadCompany } from "../modules/stammdaten/index.ts";
+import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
 import {
   bankChangeIssues,
@@ -12,7 +12,7 @@ import {
   prepaymentBasis,
   sendBankChange,
   sendMessage,
-} from "../modules/finanzamt/finanzamt.ts";
+} from "../modules/finanzamt/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
   autoFetchStatus,
@@ -22,9 +22,9 @@ import {
   lastPostfachRequest,
   listPostfachDocuments,
   pendingConfirmations,
-} from "../modules/finanzamt/postfach.ts";
+} from "../modules/finanzamt/index.ts";
 import { today } from "../today.ts";
-import { loadActiveCertificate } from "../modules/elster/elster-gateway.ts";
+import { loadActiveCertificate } from "../modules/elster/index.ts";
 
 export const getFinanzamt = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

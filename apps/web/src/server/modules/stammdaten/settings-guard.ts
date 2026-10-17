@@ -1,6 +1,6 @@
 import { and, count, eq, gte, lt } from "drizzle-orm";
-import { listAssets } from "../buchhaltung/assets.ts";
-import { listInvoices } from "../rechnungen/invoices.ts";
+import { listAssets } from "../buchhaltung/index.ts";
+import { listInvoices } from "../rechnungen/index.ts";
 import { loadCompany, type Company, type CompanyInput } from "./company.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";

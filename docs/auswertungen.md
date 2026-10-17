@@ -17,7 +17,7 @@ Oben wählst du das Jahr (Vor- und Folgejahr per Pfeil, dazu alle Jahre mit Bank
 
 ## EÜR nach Zufluss und Abfluss
 
-Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nicht wann eine Rechnung geschrieben oder ein Beleg gebucht wurde. Die Berechnung steht in `packages/core/src/euer.ts`, die Daten sammelt `apps/web/src/server/reports.ts`.
+Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nicht wann eine Rechnung geschrieben oder ein Beleg gebucht wurde. Die Berechnung steht in `packages/core/src/euer.ts`, die Daten sammelt `apps/web/src/server/modules/auswertungen/reports.ts`.
 
 ### Was zählt
 

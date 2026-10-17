@@ -11,11 +11,11 @@ import { buildDunningPdf } from "@haben/einvoice";
 import { desc, eq, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/company.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { listInvoices } from "./invoices.ts";
-import { loadLogo } from "../stammdaten/logo.ts";
+import { loadLogo } from "../stammdaten/index.ts";
 
 export class DunningError extends UserError {}
 

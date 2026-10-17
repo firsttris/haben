@@ -6,7 +6,7 @@ Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vor
 
 - **Beträge in Cent.** Alle Geldbeträge sind ganze Cent (`integer`), Steuersätze Basispunkte (1900 = 19 %). Es gibt keine Gleitkommarechnung mit Geld. Rechnungen runden die Steuer je Steuersatz auf die Summe der Positionen, nicht je Position.
 - **Doppelte Buchführung im Hintergrund.** Jeder buchungsrelevante Vorgang erzeugt eine Buchung (`journal_entries`) mit mindestens zwei Zeilen (`journal_lines`), je Zeile Konto, Soll oder Haben und Steuerschlüssel. Die Auswertungen und die Voranmeldung rechnet Haben aus den zugrunde liegenden Rechnungen, Zahlungen und Belegen; das Journal dokumentiert dieselben Vorgänge in Kontenform. Ein [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) prüft, dass beides übereinstimmt.
-- **Festschreibung ab Entstehung.** Eine Buchung wird in derselben Datenbanktransaktion angelegt und festgeschrieben, in der der Vorgang passiert. Geschrieben wird das Journal nur an einer Stelle, dem Hauptbuch (`ledger.post` in `apps/web/src/server/ledger.ts`). Beim Festschreiben prüft ein Trigger, dass Soll gleich Haben ist und die Buchung mindestens eine Zeile hat; eine Buchung, die beim Commit nicht festgeschrieben ist, lehnt die Datenbank ab.
+- **Festschreibung ab Entstehung.** Eine Buchung wird in derselben Datenbanktransaktion angelegt und festgeschrieben, in der der Vorgang passiert. Geschrieben wird das Journal nur an einer Stelle, dem Hauptbuch (`ledger.post` in `apps/web/src/server/modules/buchhaltung/ledger.ts`). Beim Festschreiben prüft ein Trigger, dass Soll gleich Haben ist und die Buchung mindestens eine Zeile hat; eine Buchung, die beim Commit nicht festgeschrieben ist, lehnt die Datenbank ab.
 - **Korrektur nur per Gegenbuchung.** Festgeschriebene Buchungen, Rechnungen, Belege und gesendete Voranmeldungen lassen sich nicht ändern oder löschen. Eine Rechnung wird storniert oder korrigiert, eine Zahlungszuordnung per Gegenzeile und Gegenbuchung aufgehoben, eine Voranmeldung berichtigt.
 - **Ein Kontenrahmen je Buchung.** Jede Buchung speichert den Kontenrahmen, mit dem sie entstanden ist, und das ist immer der aus den Firmendaten (die Datenbank prüft das beim Einfügen). Ein Wechsel des Kontenrahmens in den Einstellungen gilt nur für künftige Buchungen und ist nur möglich, solange es im laufenden Jahr noch keine Buchung gibt.
 
@@ -56,7 +56,7 @@ Die wöchentliche Mail prüft vorher Kette und Siegel und vergleicht den Prüfwe
 
 ## Abgleich von Journal, Umsatzsteuer und EÜR
 
-Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pauschalen und dem Anlagenverzeichnis. Das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Der Abgleich steht in `apps/web/src/server/abgleich.ts`.
+Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pauschalen und dem Anlagenverzeichnis. Das Journal bucht dieselben Vorgänge getrennt davon. Beides muss übereinstimmen. Weicht es ab, ist eine der beiden Rechnungen falsch, oder jemand hat Daten an Haben vorbei geändert. Der Abgleich steht in `apps/web/src/server/modules/auswertungen/abgleich.ts`.
 
 | Bereich | Verglichen wird | Journal |
 | --- | --- | --- |
@@ -83,9 +83,9 @@ Die Versteuerungsart wird unter Einstellungen festgelegt. Sie bestimmt, wann die
 - **Soll:** mit der Rechnung. Die Rechnungsbuchung geht direkt auf das Konto „Umsatzsteuer“, die Voranmeldung zählt nach Rechnungsdatum.
 - **Ist:** mit dem Zahlungseingang. Die Rechnungsbuchung geht auf „Umsatzsteuer nicht fällig“. Beim Zahlungseingang wird der Steueranteil der Zahlung auf „Umsatzsteuer“ umgebucht, bei Teilzahlungen anteilig; die Voranmeldung zählt nach Buchungstag des Zahlungseingangs.
 
-Die Vorsteuer zählt in beiden Fällen nach Belegdatum. Haben liest die Einstellung bei jeder Buchung neu. Ein Wechsel während offener Rechnungen würde Zahlungs- und Rechnungsbuchung auseinanderbringen (etwa bliebe Steuer auf „Umsatzsteuer nicht fällig“ stehen) und ihre Umsatzsteuer doppelt oder gar nicht anmelden. Haben sperrt deshalb den Wechsel, solange Rechnungen offen sind oder es im laufenden Jahr schon Buchungen gibt (`apps/web/src/server/settings-guard.ts`, siehe [Erste Schritte](einrichtung.md#wann-sich-die-einstellungen-ändern-lassen)). Die Versteuerungsart sollte vor der ersten Rechnung feststehen und nur in Absprache mit der Steuerberatung geändert werden. Die EÜR ist unabhängig davon immer eine Zufluss-Abfluss-Rechnung (siehe [Auswertungen](auswertungen.md)).
+Die Vorsteuer zählt in beiden Fällen nach Belegdatum. Haben liest die Einstellung bei jeder Buchung neu. Ein Wechsel während offener Rechnungen würde Zahlungs- und Rechnungsbuchung auseinanderbringen (etwa bliebe Steuer auf „Umsatzsteuer nicht fällig“ stehen) und ihre Umsatzsteuer doppelt oder gar nicht anmelden. Haben sperrt deshalb den Wechsel, solange Rechnungen offen sind oder es im laufenden Jahr schon Buchungen gibt (`apps/web/src/server/modules/stammdaten/settings-guard.ts`, siehe [Erste Schritte](einrichtung.md#wann-sich-die-einstellungen-ändern-lassen)). Die Versteuerungsart sollte vor der ersten Rechnung feststehen und nur in Absprache mit der Steuerberatung geändert werden. Die EÜR ist unabhängig davon immer eine Zufluss-Abfluss-Rechnung (siehe [Auswertungen](auswertungen.md)).
 
-Voranmeldungen und Umsatzsteuererklärung rechnen ein Jahr nach der Versteuerung, nach der es gebucht ist, nicht nach der aktuellen Einstellung. Maßgeblich ist, was beim Anlegen der ersten Buchung des Jahres eingestellt war; das steht im Änderungsprotokoll der Firmendaten (`versteuerungForYear` in `apps/web/src/server/company.ts`). Ohne Buchung im Jahr gilt die aktuelle Einstellung. Stellst du zum Jahreswechsel um, rechnen die Monate des Vorjahres und die Umsatzsteuererklärung dafür, die du erst im neuen Jahr abgibst, also weiter nach dem alten Verfahren.
+Voranmeldungen und Umsatzsteuererklärung rechnen ein Jahr nach der Versteuerung, nach der es gebucht ist, nicht nach der aktuellen Einstellung. Maßgeblich ist, was beim Anlegen der ersten Buchung des Jahres eingestellt war; das steht im Änderungsprotokoll der Firmendaten (`versteuerungForYear` in `apps/web/src/server/modules/stammdaten/company.ts`). Ohne Buchung im Jahr gilt die aktuelle Einstellung. Stellst du zum Jahreswechsel um, rechnen die Monate des Vorjahres und die Umsatzsteuererklärung dafür, die du erst im neuen Jahr abgibst, also weiter nach dem alten Verfahren.
 
 ## Kontenrahmen
 
@@ -317,7 +317,7 @@ Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, 
 | `VSt7` | 7 % | 66 | Vorsteuer 7 % |
 | `keineVSt` | 0 % | – | Ohne Vorsteuer, auch für Belege von Kleinunternehmern |
 
-Die Kennzahlen der [Voranmeldung](umsatzsteuer.md) rechnet Haben aus denselben Quellen wie die Buchungen (`apps/web/src/server/vat-figures.ts`):
+Die Kennzahlen der [Voranmeldung](umsatzsteuer.md) rechnet Haben aus denselben Quellen wie die Buchungen (`apps/web/src/server/modules/umsatzsteuer/vat-figures.ts`):
 
 - **Kz 81 und 86:** Bemessungsgrundlagen der regulär besteuerten Rechnungen zu 19 % bzw. 7 %, bei Soll aus den festgeschriebenen Rechnungen des Monats, bei Ist aus den zugeordneten Zahlungseingängen des Monats, anteilig je Zahlung. ELSTER bekommt sie in vollen Euro, die Steuer wird daraus neu berechnet.
 - **Kz 21, 45 und 48:** Bemessungsgrundlagen der Rechnungen mit Reverse Charge, ins Drittland bzw. steuerfrei nach § 4 UStG, in vollen Euro und ohne Steuer. Kz 45 und 48 zählen wie Kz 81, Kz 21 immer nach Rechnungsdatum.

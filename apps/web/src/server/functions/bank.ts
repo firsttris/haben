@@ -14,8 +14,8 @@ import {
   openItems,
   reverseAllocation,
   transactionDetail,
-} from "../modules/bank/bank.ts";
-import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/bank-sync.ts";
+} from "../modules/bank/index.ts";
+import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 
