@@ -14,6 +14,11 @@ import {
   type PriceMode,
   type TaxTreatment,
   type UnitLabel,
+  cancellationProblem,
+  invoiceEditProblem,
+  invoiceListStatus,
+  invoiceOpen,
+  type InvoiceListStatus,
 } from "@haben/core";
 import {
   buildEInvoice,
@@ -30,7 +35,7 @@ import { z } from "zod";
 import { loadCompany, sellerIssues, type Company } from "./company.ts";
 import type { Contact } from "./contacts.ts";
 import { loadLogo } from "./logo.ts";
-import { invoicePayments, stornoOpen } from "./bank.ts";
+import { invoicePayments } from "./bank.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Db, type Tx } from "./db/index.ts";
 import { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
@@ -284,7 +289,8 @@ export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra =
 async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
   const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
   if (!invoice) throw new InvoiceError("Rechnung nicht gefunden.");
-  if (invoice.status !== "draft") throw new InvoiceError("Die Rechnung ist festgeschrieben und kann nicht mehr geändert werden.");
+  const problem = invoiceEditProblem(invoice);
+  if (problem) throw new InvoiceError(problem);
   return invoice;
 }
 
@@ -359,19 +365,15 @@ export async function getInvoice(id: string, q: Db | Tx = db) {
   return { invoice, lines, contact: contact ?? null, corrects: corrects ?? null, correctedBy };
 }
 
-export type InvoiceListStatus =
-  | "entwurf"
-  | "offen"
-  | "teilbezahlt"
-  | "bezahlt"
-  | "ueberfaellig"
-  | "storniert"
-  | "storno"
-  | "korrektur";
+export type { InvoiceListStatus };
 
-/** Rechnungsliste mit abgeleitetem Status; bezahlt über die Zuordnungen im Bankabgleich. Mit `id` nur diese Rechnung. */
-export async function listInvoices(today: string, id?: string) {
-  const rows = await db
+/**
+ * Rechnungsliste mit offenem Betrag und Status (Regeln in @haben/core, lebenszyklus.ts); bezahlt über die Zuordnungen
+ * im Bankabgleich. Mit `id` nur diese Rechnung. Rechnungsliste, offene Posten, Mahnwesen und die Sperre der
+ * Firmendaten zählen über diese Funktion, damit „offen“ überall dasselbe heißt.
+ */
+export async function listInvoices(today: string, id?: string, q: Db | Tx = db) {
+  const rows = await q
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
@@ -392,29 +394,25 @@ export async function listInvoices(today: string, id?: string) {
     .where(id ? eq(schema.invoices.id, id) : undefined)
     .orderBy(sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt));
 
-  const paid = await invoicePayments([
-    ...rows.filter((r) => r.status === "final").map((r) => r.id),
-    ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!),
-  ]);
+  const paid = await invoicePayments(
+    [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
+    q,
+  );
   return rows.map(({ cancelled, ...row }) => {
-    const paidAmount = paid.get(row.id) ?? 0;
-    // Bei einem Storno bleibt offen, was auf die Rechnung gezahlt und noch nicht erstattet wurde
-    const open =
-      row.status !== "final" || cancelled
-        ? 0
-        : row.kind === "storno"
-          ? stornoOpen(paid.get(row.correctsId!) ?? 0, paidAmount)
-          : row.gross - paidAmount;
-    let status: InvoiceListStatus;
-    if (row.status === "draft") status = "entwurf";
-    else if (row.kind === "storno") status = "storno";
-    else if (cancelled) status = "storniert";
-    else if (open === 0) status = row.kind === "korrektur" ? "korrektur" : "bezahlt";
-    else if (row.kind === "korrektur") status = "korrektur";
-    else if (row.dueDate < today) status = "ueberfaellig";
-    else if (paidAmount !== 0) status = "teilbezahlt";
-    else status = "offen";
-    return { ...row, customer: row.buyerName ?? row.contactName ?? "–", listStatus: status, paid: paidAmount, open };
+    const facts = {
+      ...row,
+      paid: paid.get(row.id) ?? 0,
+      cancelled,
+      // Bei einem Storno bleibt offen, was auf die Rechnung gezahlt und noch nicht erstattet wurde
+      paidOnOriginal: row.correctsId ? (paid.get(row.correctsId) ?? 0) : 0,
+    };
+    return {
+      ...row,
+      customer: row.buyerName ?? row.contactName ?? "–",
+      listStatus: invoiceListStatus(facts, today),
+      paid: facts.paid,
+      open: invoiceOpen(facts),
+    };
   });
 }
 
@@ -647,16 +645,13 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
 
 /** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */
 async function originalProblem(original: Invoice, q: Db | Tx = db): Promise<string | null> {
-  if (original.status !== "final" || original.kind !== "rechnung") return "Nur festgeschriebene Rechnungen können storniert oder korrigiert werden";
   const [storno] = await q
     .select({ id: schema.invoices.id })
     .from(schema.invoices)
     .where(and(eq(schema.invoices.correctsId, original.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")))
     .limit(1);
-  if (storno) return `Die Rechnung ${original.number} ist bereits storniert`;
-  const schluss = (await deductedElsewhere([original.id], null, q)).get(original.id);
-  if (schluss) return `Die Abschlagsrechnung ist in Schlussrechnung ${schluss} abgezogen. Storniere zuerst die Schlussrechnung`;
-  return null;
+  const deductedIn = (await deductedElsewhere([original.id], null, q)).get(original.id) ?? null;
+  return cancellationProblem(original, { cancelled: Boolean(storno), deductedIn });
 }
 
 async function finalOriginal(id: string, q: Db | Tx = db) {

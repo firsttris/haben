@@ -6,11 +6,13 @@ import {
   type ExpenseCategory,
   type InvoiceTotals,
   totalsFromTaxes,
+  documentOpen,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "./assets.ts";
 import { db, schema } from "./db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
+import { listInvoices } from "./invoices.ts";
 import { today as todayInGermany } from "./today.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
@@ -175,43 +177,23 @@ async function paidSums(column: typeof schema.allocations.invoiceId | typeof sch
 }
 
 /**
- * Offene Forderungen (festgeschriebene Rechnungen und Korrekturen, nicht storniert) und offene
- * Verbindlichkeiten (gebuchte, über die Bank zu zahlende Belege), nach Fälligkeit sortiert.
+ * Offene Forderungen (festgeschriebene Rechnungen und Korrekturen, nicht storniert, dazu zu erstattende Beträge aus
+ * Stornos bezahlter Rechnungen) und offene Verbindlichkeiten (gebuchte, über die Bank zu zahlende Belege), nach
+ * Fälligkeit sortiert. Offen ist, was die Rechnungsliste als offen zeigt (listInvoices, @haben/core lebenszyklus.ts).
  */
 export async function openPositions(today: string) {
-  const invoices = await db
-    .select({
-      id: schema.invoices.id,
-      number: schema.invoices.number,
-      issueDate: schema.invoices.issueDate,
-      dueDate: schema.invoices.dueDate,
-      gross: schema.invoices.gross,
-      buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
-    })
-    .from(schema.invoices)
-    .where(and(eq(schema.invoices.status, "final"), inArray(schema.invoices.kind, ["rechnung", "korrektur"])));
-  const cancelled = new Set(
-    (
-      await db
-        .select({ id: schema.invoices.correctsId })
-        .from(schema.invoices)
-        .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")))
-    ).map((r) => r.id),
-  );
-  const invoicePaid = await paidSums(schema.allocations.invoiceId, invoices.map((i) => i.id));
-  const receivables: OpenPosition[] = invoices
-    .filter((i) => !cancelled.has(i.id))
+  const receivables: OpenPosition[] = (await listInvoices(today))
+    .filter((i) => i.status === "final" && i.open !== 0)
     .map((i) => ({
       id: i.id,
       number: i.number ?? "",
-      party: i.buyerName ?? "–",
+      party: i.customer,
       date: i.issueDate,
       dueDate: i.dueDate,
       gross: i.gross,
-      open: i.gross - (invoicePaid.get(i.id) ?? 0),
+      open: i.open,
       daysOverdue: daysBetween(i.dueDate, today),
-    }))
-    .filter((i) => i.open !== 0);
+    }));
 
   const documents = await db
     .select({
@@ -239,7 +221,8 @@ export async function openPositions(today: string) {
         date,
         dueDate,
         gross: d.gross,
-        open: d.gross + (documentPaid.get(d.id) ?? 0),
+        // Als Verbindlichkeit positiv; documentOpen rechnet mit dem Vorzeichen des Kontos
+        open: -documentOpen(d.gross, documentPaid.get(d.id) ?? 0),
         daysOverdue: daysBetween(dueDate, today),
       };
     })

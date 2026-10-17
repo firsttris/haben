@@ -1,5 +1,6 @@
-import { and, count, eq, gte, lt, sql } from "drizzle-orm";
+import { and, count, eq, gte, lt } from "drizzle-orm";
 import { listAssets } from "./assets.ts";
+import { listInvoices } from "./invoices.ts";
 import { loadCompany, type Company, type CompanyInput } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Db, type Tx } from "./db/index.ts";
@@ -13,25 +14,9 @@ export interface SettingsLocks {
   kleinunternehmer: string | null;
 }
 
-/** Auf eine Rechnung gezahlt (Summe der Zuordnungen) */
-const paidOn = (invoiceId: unknown) => sql`coalesce((select sum(a.amount) from allocations a where a.invoice_id = ${invoiceId}), 0)`;
-
-/** Offene Rechnungen wie im Bankabgleich (openItems), nur gezählt */
-async function openInvoiceCount(q: Db | Tx): Promise<number> {
-  const [row] = await q
-    .select({ n: count() })
-    .from(schema.invoices)
-    .where(
-      and(
-        eq(schema.invoices.status, "final"),
-        sql`case
-          when ${schema.invoices.kind} = 'storno' then -${paidOn(schema.invoices.correctsId)} - ${paidOn(schema.invoices.id)}
-          when ${schema.invoices.id} in (select corrects_id from invoices where kind = 'storno' and status = 'final' and corrects_id is not null) then 0
-          else ${schema.invoices.gross} - ${paidOn(schema.invoices.id)}
-        end <> 0`,
-      ),
-    );
-  return row?.n ?? 0;
+/** Offene Rechnungen wie in der Rechnungsliste und im Bankabgleich (listInvoices, @haben/core lebenszyklus.ts), nur gezählt */
+async function openInvoiceCount(today: string, q: Db | Tx): Promise<number> {
+  return (await listInvoices(today, undefined, q)).filter((i) => i.status === "final" && i.open !== 0).length;
 }
 
 /** Was im Vorjahr noch zu buchen ist: AfA bzw. Privatnutzung der Anlagen und Belege mit Datum im Vorjahr */
@@ -63,7 +48,7 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
     .where(gte(schema.journalEntries.date, `${year}-01-01`));
   const booked = (entries?.n ?? 0) > 0;
   const previousOpen = booked ? [] : await previousYearOpen(year, q);
-  const openInvoices = await openInvoiceCount(q);
+  const openInvoices = await openInvoiceCount(today, q);
   const yearLock = booked
     ? `Im Jahr ${year} gibt es schon Buchungen. Umstellen nur zum Jahreswechsel, bevor im neuen Jahr gebucht wird.`
     : previousOpen.length > 0

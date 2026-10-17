@@ -21,3 +21,4 @@ export * from "./pauschalen.ts";
 export * from "./arbeitnehmer.ts";
 export * from "./girocode.ts";
 export * from "./network.ts";
+export * from "./lebenszyklus.ts";

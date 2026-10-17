@@ -12,6 +12,11 @@ import {
   type PriceMode,
   type TaxTreatment,
   type UnitLabel,
+  quoteDecisionProblem,
+  quoteEditProblem,
+  quoteInvoiceProblem,
+  quoteStatus as coreQuoteStatus,
+  type QuoteListStatus,
 } from "@haben/core";
 import { buildQuotePdf, texts, type QuoteDocument } from "@haben/einvoice";
 import { asc, desc, eq, sql } from "drizzle-orm";
@@ -60,7 +65,7 @@ export const quoteDraftSchema = z
 
 export type QuoteDraftInput = z.input<typeof quoteDraftSchema>;
 
-export type QuoteListStatus = "entwurf" | "offen" | "abgelaufen" | "angenommen" | "abgelehnt" | "abgerechnet";
+export type { QuoteListStatus };
 
 function lineRows(quoteId: string, input: QuoteDraftInput) {
   const { lineNets } = computeInvoice(input.lines, effectivePriceMode(input));
@@ -110,7 +115,8 @@ export async function createQuoteDraft(actor: string, input: QuoteDraftInput): P
 async function lockDraft(tx: Tx, id: string): Promise<Quote> {
   const [quote] = await tx.select().from(schema.quotes).where(eq(schema.quotes.id, id)).for("update");
   if (!quote) throw new QuoteError("Angebot nicht gefunden.");
-  if (quote.status !== "draft") throw new QuoteError("Das Angebot ist festgeschrieben und kann nicht mehr geändert werden.");
+  const problem = quoteEditProblem(quote);
+  if (problem) throw new QuoteError(problem);
   return quote;
 }
 
@@ -166,11 +172,9 @@ export async function getQuote(id: string, q: Db | Tx = db) {
   return { quote, lines, contact: contact ?? null, invoice: invoice ?? null };
 }
 
+/** Status für die Liste; Regeln in @haben/core (lebenszyklus.ts) */
 export function quoteStatus(quote: Pick<Quote, "status" | "decision" | "invoiceId" | "validUntil">, today: string): QuoteListStatus {
-  if (quote.status === "draft") return "entwurf";
-  if (quote.invoiceId) return "abgerechnet";
-  if (quote.decision) return quote.decision;
-  return quote.validUntil < today ? "abgelaufen" : "offen";
+  return coreQuoteStatus(quote, today);
 }
 
 export async function listQuotes(today: string) {
@@ -289,18 +293,18 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
   });
 }
 
-async function lockFinal(tx: Tx, id: string): Promise<Quote> {
+async function lockQuote(tx: Tx, id: string): Promise<Quote> {
   const [quote] = await tx.select().from(schema.quotes).where(eq(schema.quotes.id, id)).for("update");
   if (!quote) throw new QuoteError("Angebot nicht gefunden.");
-  if (quote.status !== "final") throw new QuoteError("Das Angebot ist noch ein Entwurf.");
   return quote;
 }
 
 /** Antwort des Kunden festhalten oder zurücknehmen; nicht mehr, sobald eine Rechnung daraus entstanden ist */
 export async function setQuoteDecision(actor: string, id: string, decision: "angenommen" | "abgelehnt" | null): Promise<void> {
   await withActor(actor, async (tx) => {
-    const quote = await lockFinal(tx, id);
-    if (quote.invoiceId) throw new QuoteError("Aus dem Angebot ist bereits eine Rechnung entstanden.");
+    const quote = await lockQuote(tx, id);
+    const problem = quoteDecisionProblem(quote);
+    if (problem) throw new QuoteError(problem);
     await tx
       .update(schema.quotes)
       .set({ decision, decidedAt: decision ? new Date() : null, updatedAt: new Date() })
@@ -315,13 +319,10 @@ export async function setQuoteDecision(actor: string, id: string, decision: "ang
  */
 export async function quoteToInvoice(actor: string, id: string, today: string): Promise<Invoice> {
   return withActor(actor, async (tx) => {
-    const [locked] = await tx.select().from(schema.quotes).where(eq(schema.quotes.id, id)).for("update");
-    const data = locked ? await getQuote(id, tx) : null;
-    if (!locked || !data) throw new QuoteError("Angebot nicht gefunden.");
-    const { lines, contact } = data;
-    if (locked.status !== "final") throw new QuoteError("Nur festgeschriebene Angebote lassen sich abrechnen.");
-    if (locked.invoiceId) throw new QuoteError("Aus dem Angebot ist bereits eine Rechnung entstanden.");
-    if (locked.decision === "abgelehnt") throw new QuoteError("Das Angebot ist als abgelehnt markiert.");
+    const locked = await lockQuote(tx, id);
+    const problem = quoteInvoiceProblem(locked);
+    if (problem) throw new QuoteError(problem);
+    const { lines, contact } = (await getQuote(id, tx))!;
     const company = await loadCompany(tx);
     const invoice = await insertDraft(tx, {
       contactId: locked.contactId,

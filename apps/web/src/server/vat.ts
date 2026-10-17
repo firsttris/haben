@@ -4,6 +4,8 @@ import {
   toElsterSteuernummer,
   type Cents,
   type VatPeriod,
+  vatReturnCorrectionProblem,
+  vatReturnSendProblem,
 } from "@haben/core";
 import { buildUstvaXml, type ElsterClient, type ElsterResult } from "@haben/elster";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -155,7 +157,9 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
       )
       .orderBy(desc(schema.vatReturns.sentAt))
       .limit(1);
-    if (!latest) throw new VatError("Es gibt keine gesendete Anmeldung, die berichtigt werden könnte.");
+    // Ohne gesendete Anmeldung meldet vatReturnCorrectionProblem immer etwas
+    const correctionProblem = vatReturnCorrectionProblem(latest);
+    if (correctionProblem || !latest) throw new VatError(correctionProblem!);
     const [created] = await tx
       .insert(schema.vatReturns)
       .values({
@@ -207,7 +211,8 @@ export function submitReturn(actor: string, returnId: string, client: ElsterClie
     vorbereiten: async ({ test, herstellerId }) => {
       let [vatReturn] = await db.select().from(schema.vatReturns).where(eq(schema.vatReturns.id, returnId));
       if (!vatReturn) throw new VatError("Anmeldung nicht gefunden.");
-      if (vatReturn.status !== "draft") throw new VatError("Diese Anmeldung ist bereits gesendet.");
+      const sendProblem = vatReturnSendProblem(vatReturn);
+      if (sendProblem) throw new VatError(sendProblem);
       // Berechnete Entwürfe vor dem Senden auf den aktuellen Stand der Buchungen bringen
       if (vatReturn.source === "berechnet") {
         vatReturn = await saveDraft(actor, { year: vatReturn.year, month: vatReturn.month }, { mode: "berechnet" });

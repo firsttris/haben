@@ -1,7 +1,9 @@
 import { UserError } from "./errors.ts";
 import {
   directPosting,
+  documentOpen,
   documentPaymentPosting,
+  invoiceOpen,
   invoicePaymentPosting,
   suggestMatches,
   type DirectBooking,
@@ -13,7 +15,7 @@ import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzl
 import { z } from "zod";
 import { withActor } from "./db/actor.ts";
 import { openBooks, post } from "./ledger.ts";
-import { db, schema, type Tx } from "./db/index.ts";
+import { db, schema, type Db, type Tx } from "./db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
 import { sha256Of } from "./storage.ts";
 import { today } from "./today.ts";
@@ -236,24 +238,16 @@ export async function listTransactions(accountId: string, filter: TransactionFil
 }
 
 /** Bezahlter Betrag je Rechnung bzw. Beleg (Summe der Zuordnungen, Vorzeichen wie auf dem Konto) */
-async function paidByTarget(column: "invoice_id" | "document_id", ids: string[]): Promise<Map<string, number>> {
+async function paidByTarget(column: "invoice_id" | "document_id", ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
   if (ids.length === 0) return new Map();
-  const rows = await db.execute<{ id: string; paid: string }>(
+  const rows = await q.execute<{ id: string; paid: string }>(
     sql`select ${sql.raw(column)} as id, sum(amount) as paid from allocations where ${sql.raw(column)} in ${ids} group by 1`,
   );
   return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
 }
 
-export async function invoicePayments(ids: string[]) {
-  return paidByTarget("invoice_id", ids);
-}
-
-/**
- * Offen bei einer Stornorechnung: Rechnung und Storno heben sich auf, übrig bleibt, was auf die Rechnung
- * schon gezahlt und noch nicht erstattet wurde (negativ, also eine Auszahlung).
- */
-export function stornoOpen(paidOnOriginal: number, paidOnStorno: number): number {
-  return -paidOnOriginal - paidOnStorno;
+export async function invoicePayments(ids: string[], q: Db | Tx = db) {
+  return paidByTarget("invoice_id", ids, q);
 }
 
 /** Offene Rechnungen und Belege für den Abgleich */
@@ -303,8 +297,7 @@ export async function openItems(): Promise<OpenItem[]> {
 
   const items: OpenItem[] = [];
   for (const inv of invoices) {
-    if (cancelled.has(inv.id)) continue;
-    const open = inv.gross - (invoicePaid.get(inv.id) ?? 0);
+    const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid: invoicePaid.get(inv.id) ?? 0, cancelled: cancelled.has(inv.id) });
     if (open === 0) continue;
     items.push({
       type: "invoice",
@@ -319,7 +312,14 @@ export async function openItems(): Promise<OpenItem[]> {
   }
   // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet
   for (const storno of stornos) {
-    const open = stornoOpen(invoicePaid.get(storno.correctsId!) ?? 0, invoicePaid.get(storno.id) ?? 0);
+    const open = invoiceOpen({
+      status: "final",
+      kind: "storno",
+      gross: 0,
+      paid: invoicePaid.get(storno.id) ?? 0,
+      paidOnOriginal: invoicePaid.get(storno.correctsId!) ?? 0,
+      cancelled: false,
+    });
     if (open === 0) continue;
     items.push({
       type: "invoice",
@@ -333,7 +333,7 @@ export async function openItems(): Promise<OpenItem[]> {
     });
   }
   for (const doc of documents) {
-    const open = -doc.gross - (documentPaid.get(doc.id) ?? 0);
+    const open = documentOpen(doc.gross, documentPaid.get(doc.id) ?? 0);
     if (open === 0) continue;
     items.push({
       type: "document",
@@ -447,14 +447,14 @@ export async function allocate(actor: string, input: AllocationInput): Promise<v
       let open: number;
       if (invoice.kind === "storno") {
         if (!invoice.correctsId) throw new BankError("Rechnung nicht zuordenbar.");
-        open = stornoOpen(await paidOn(invoice.correctsId), await paidOn(invoice.id));
+        open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), paidOnOriginal: await paidOn(invoice.correctsId), cancelled: false });
       } else {
         const [storno] = await tx
           .select({ id: schema.invoices.id })
           .from(schema.invoices)
           .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
         if (storno) throw new BankError(`Rechnung ${invoice.number} ist storniert; eine Erstattung gehört zur Stornorechnung.`);
-        open = invoice.gross - (await paidOn(invoice.id));
+        open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), cancelled: false });
       }
       if (Math.sign(open) !== Math.sign(input.amount) || Math.abs(input.amount) > Math.abs(open)) {
         throw new BankError(`Rechnung ${invoice.number} ist nur noch über ${open / 100} € offen.`);
@@ -479,7 +479,7 @@ export async function allocate(actor: string, input: AllocationInput): Promise<v
         .select({ sum: sql<string>`coalesce(sum(amount), 0)` })
         .from(schema.allocations)
         .where(eq(schema.allocations.documentId, doc.id));
-      const open = -doc.gross - Number(paid?.sum ?? 0);
+      const open = documentOpen(doc.gross, Number(paid?.sum ?? 0));
       if (Math.sign(open) !== Math.sign(input.amount) || Math.abs(input.amount) > Math.abs(open)) {
         throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
       }
