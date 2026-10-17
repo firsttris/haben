@@ -8,6 +8,7 @@
 Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR und die Umsatzsteuer-Voranmeldung
 direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Abo, ohne Datenabfluss.
 
+[![Status: Beta](https://img.shields.io/badge/Status-Beta-orange)](#-warum-haben)
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/firsttris/haben?logo=github&label=release)](https://github.com/firsttris/haben/releases/latest)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
@@ -33,6 +34,11 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Abo, ohne Datenabfluss.
 <img src="docs/screenshot-uebersicht.png" alt="Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben" width="900">
 
 </div>
+
+> [!WARNING]
+> **Beta:** Haben wird noch stark weiterentwickelt. Datenmodell und Abläufe können sich von Version zu Version
+> ändern, und Migrationen lassen sich nicht zurückspielen. Vor jedem Update ein Backup der Datenbank machen und
+> Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
 ## 💡 Warum Haben?
 
