@@ -68,14 +68,7 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     expect(byId.has("vz-2026-q3")).toBe(false); // vorbei
     expect(byId.get("zertifikat-" + list.find((f) => f.art === "zertifikat")!.id.slice(11))).toMatchObject({ datum: "2027-01-15" });
     expect(list.map((f) => f.datum)).toEqual([...list.map((f) => f.datum)].sort());
-
-    // Kleinunternehmer im selben Jahr: die Datenbank lehnt das nach der ersten Buchung ab (0065), hier nur für die Anzeige
-    await sql.begin(async (tx) => {
-      await tx`set local session_replication_role = replica`;
-      await tx`update company set kleinunternehmer = true`;
-    });
-    const ku = await fristen.listFristen("2026-10-03");
-    expect(ku.some((f) => f.art === "ustva" || f.id.startsWith("ust-"))).toBe(false);
+    // Kleinunternehmer: je Monat bzw. Jahr der Stand laut Änderungsprotokoll, siehe vorjahr.test.ts
   });
 
   it("liefert offene Fristen als Kalender-Abo nur mit gültigem Token", async () => {

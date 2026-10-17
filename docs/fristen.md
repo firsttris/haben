@@ -6,7 +6,7 @@ Unter **Fristen** sammelt Haben alle steuerlichen Termine an einem Ort und erinn
 
 | Frist | Datum | Erledigt, sobald |
 | --- | --- | --- |
-| Umsatzsteuer-Voranmeldung | 10. des Folgemonats (ohne Dauerfristverlängerung), ab dem ersten Buchungsmonat; nicht für Kleinunternehmer | die Voranmeldung echt übermittelt ist |
+| Umsatzsteuer-Voranmeldung | 10. des Folgemonats (ohne Dauerfristverlängerung), ab dem ersten Buchungsmonat; nicht für Monate als Kleinunternehmer (Stand im jeweiligen Monat, die Voranmeldung für Dezember bleibt also nach einer Umstellung zum Jahreswechsel) | die Voranmeldung echt übermittelt ist |
 | Umsatzsteuererklärung, Anlage EÜR, Einkommensteuererklärung | ohne Steuerberater 31. Juli des Folgejahres (§ 149 Abs. 2 AO); für 2020 bis 2023 die verlängerten Fristen (1.11.2021, 31.10.2022, 2.10.2023, 2.9.2024) | die Erklärung echt übermittelt ist |
 | Einkommensteuer-Vorauszahlung | 10. März, Juni, September und Dezember | nur Hinweis: ob und wie viel zu zahlen ist, steht im Vorauszahlungsbescheid |
 | Einspruchsfrist | ein Monat nach Bekanntgabe eines Bescheids aus dem [ELSTER-Postfach](finanzamt.md#bescheide-aus-dem-elster-postfach) | – |

@@ -19,7 +19,7 @@ import {
 } from "@haben/elster";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { listAssets } from "./assets.ts";
-import { companyIssues, loadCompany, versteuerungForYear, type Company } from "./company.ts";
+import { companyIssues, kleinunternehmerForYear, loadCompany, versteuerungForYear, type Company } from "./company.ts";
 import { decrypt } from "./crypto.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
@@ -92,9 +92,10 @@ export async function ustYear(year: number): Promise<UstYear> {
   };
 }
 
-function ustIssues(company: Company, data: UstYear, year: number): Issue[] {
+/** `kleinunternehmer`: Status im Jahr der Erklärung (kleinunternehmerForYear), nicht der heutige */
+export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number): Issue[] {
   const issues: Issue[] = [];
-  if (company.kleinunternehmer) {
+  if (kleinunternehmer) {
     issues.push({
       tone: "fehler",
       text:
@@ -118,7 +119,7 @@ function ustIssues(company: Company, data: UstYear, year: number): Issue[] {
   if (data.figures.tax19 + data.figures.tax7 === 0 && data.figures.vorsteuer === 0) {
     issues.push({ tone: "fehler", text: "Keine Umsätze und keine Vorsteuer: eine Nullerklärung geht über das ELSTER-Portal." });
   }
-  if (data.missingMonths.length > 0 && !company.kleinunternehmer) {
+  if (data.missingMonths.length > 0 && !kleinunternehmer) {
     issues.push({
       tone: "hinweis",
       text: `${data.missingMonths.length === 12 ? "Für keinen Monat gibt es" : `Für ${data.missingMonths.length} Monat${data.missingMonths.length === 1 ? "" : "e"} fehlt`} eine in Haben gesendete Voranmeldung. Als Vorauszahlungssoll zählen nur diese; Voranmeldungen aus einem anderen Programm fehlen darin.`,
@@ -402,7 +403,7 @@ export async function annualOverview(year: number, today: string) {
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
   return {
     year,
-    ust: { ...ust, issues: [...base, ...ustIssues(company, ust, year)], sent: sent("ust") },
+    ust: { ...ust, issues: [...base, ...ustIssues(await kleinunternehmerForYear(year), ust, year)], sent: sent("ust") },
     euer: { ...euer, issues: [...base, ...euerIssues(company, euer)], sent: sent("euer") },
     est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est") },
     history,
@@ -426,7 +427,7 @@ async function submit(actor: string, form: AnnualForm, year: number, client: Els
   const company = await loadCompany();
   const data = form === "ust" ? await ustYear(year) : await euerYear(year);
   const formIssues =
-    form === "ust" ? ustIssues(company, data as UstYear, year) : form === "euer" ? euerIssues(company, data as EuerYear) : estIssues(company, data as EuerYear);
+    form === "ust" ? ustIssues(await kleinunternehmerForYear(year), data as UstYear, year) : form === "euer" ? euerIssues(company, data as EuerYear) : estIssues(company, data as EuerYear);
   const issues = [
     ...yearIssues(year, options.today),
     ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text })),

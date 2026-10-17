@@ -10,7 +10,7 @@ import {
   type VatPeriod,
 } from "@haben/core";
 import { and, eq, min } from "drizzle-orm";
-import { loadCompany } from "./company.ts";
+import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema } from "./db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
@@ -60,12 +60,15 @@ export async function listFristen(today: string): Promise<Frist[]> {
   const fristen: Frist[] = [];
   const relevant = (datum: string, offen: boolean) => (datum >= seit || offen) && datum <= bis;
 
-  // Umsatzsteuer-Voranmeldungen: jeder Monat ab der ersten Buchung, bis zum letzten mit Fälligkeit im Fenster
-  if (!company.kleinunternehmer) {
+  // Umsatzsteuer-Voranmeldungen: jeder Monat ab der ersten Buchung, bis zum letzten mit Fälligkeit im Fenster; nicht in
+  // Monaten als Kleinunternehmer. Maßgeblich ist der Stand im Monat, nicht der heutige: Wer zum Jahreswechsel umstellt,
+  // schuldet die Voranmeldung für Dezember noch.
+  const kleinunternehmerAm = await kleinunternehmerHistory();
+  {
     const sent = new Set(sentReturns.map((r) => periodKey(r)));
     const periods: VatPeriod[] = [];
     for (let p = previousPeriod({ year: Number(bis.slice(0, 4)), month: Number(bis.slice(5, 7)) }); periodKey(p) >= start; p = previousPeriod(p)) {
-      periods.unshift(p);
+      if (!kleinunternehmerAm(lastDayOfMonth(p.year, p.month))) periods.unshift(p);
     }
     for (const period of periods) {
       const datum = dueDate(period, bundesland);
@@ -87,8 +90,8 @@ export async function listFristen(today: string): Promise<Frist[]> {
   const sentForms = new Set(sentAnnual.map((s) => `${s.form}-${s.year}`));
   for (let year = Number(start.slice(0, 4)); year <= Number(today.slice(0, 4)); year++) {
     const datum = abgabefrist(year, bundesland);
-    // Kleinunternehmer geben erst ab 2024 keine Umsatzsteuererklärung mehr ab (§ 18 Abs. 3 UStG)
-    const ust = !company.kleinunternehmer || year < 2024;
+    // Kleinunternehmer geben erst ab 2024 keine Umsatzsteuererklärung mehr ab (§ 18 Abs. 3 UStG); Stand im Jahr selbst
+    const ust = !kleinunternehmerAm(`${year}-12-31`) || year < 2024;
     const forms = [...(ust ? (["ust"] as const) : []), "euer" as const, ...(company.taxpayer.a ? (["est"] as const) : [])];
     for (const form of forms) {
       const erledigt = sentForms.has(`${form}-${year}`);

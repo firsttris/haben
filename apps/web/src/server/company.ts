@@ -6,6 +6,7 @@ import { listContacts } from "./contacts.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Db, type Tx } from "./db/index.ts";
 import { logoInfo } from "./logo.ts";
+import { today } from "./today.ts";
 
 export const companySchema = z.object({
   name: z.string().trim().max(200),
@@ -76,6 +77,47 @@ export async function versteuerungForYear(year: number): Promise<Versteuerung> {
     if (value === "ist" || value === "soll") return value;
   }
   return (await loadCompany()).versteuerung;
+}
+
+/**
+ * Kleinunternehmer (§ 19 UStG) an einem Tag, nach dem Änderungsprotokoll der Firmendaten. Liefert eine Funktion
+ * Datum (JJJJ-MM-TT, deutsche Zeit) → Status am Ende dieses Tages; vor dem ersten Eintrag gilt der erste bekannte
+ * Stand. Einschalten geht nur, solange im Jahr nichts gebucht ist (settings-guard.ts), ausschalten jederzeit.
+ *
+ * Für alles, was frühere Zeiträume betrifft: Wer zum Jahreswechsel auf Kleinunternehmer umstellt, schuldet die
+ * Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres trotzdem.
+ */
+export async function kleinunternehmerHistory(): Promise<(date: string) => boolean> {
+  const rows = await db
+    .select({ at: schema.auditLog.at, newValue: schema.auditLog.newValue })
+    .from(schema.auditLog)
+    .where(eq(schema.auditLog.tableName, "company"))
+    .orderBy(schema.auditLog.seq);
+  const changes = rows.flatMap((r) => {
+    const value = (r.newValue as { kleinunternehmer?: unknown } | null)?.kleinunternehmer;
+    return typeof value === "boolean" ? [{ date: today(r.at), value }] : [];
+  });
+  const current = (await loadCompany()).kleinunternehmer;
+  return (date) => {
+    const last = changes.filter((c) => c.date <= date).at(-1);
+    // Vor dem ersten Eintrag gilt der erste bekannte Stand (Anlegen der Firmendaten), ohne Protokoll der aktuelle
+    return last ? last.value : (changes[0]?.value ?? current);
+  };
+}
+
+/** Letzter Tag eines Monats, JJJJ-MM-TT */
+export function lastDayOfMonth(year: number, month: number): string {
+  return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+}
+
+/** Kleinunternehmer in einem Voranmeldungszeitraum: Stand am Monatsende */
+export async function kleinunternehmerForMonth(year: number, month: number): Promise<boolean> {
+  return (await kleinunternehmerHistory())(lastDayOfMonth(year, month));
+}
+
+/** Kleinunternehmer am Ende eines Jahres: dann für das ganze Jahr (einschalten geht nur vor der ersten Buchung) */
+export async function kleinunternehmerForYear(year: number): Promise<boolean> {
+  return (await kleinunternehmerHistory())(`${year}-12-31`);
 }
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */

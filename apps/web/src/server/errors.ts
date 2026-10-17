@@ -44,9 +44,27 @@ function validatorIssues(error: Error): string | undefined {
   return undefined;
 }
 
+/**
+ * Meldung eines unserer Trigger (RAISE EXCEPTION in drizzle/*.sql): Sie ist für Menschen geschrieben, etwa „Im Jahr 2026
+ * gibt es schon Buchungen …“. Erkennbar am Code raise_exception (P0001) oder check_violation (23514) ohne Namen einer
+ * Constraint; Verletzungen von CHECK-Constraints tragen einen Namen und bleiben intern. Drizzle verpackt den Fehler
+ * des Treibers in `cause`.
+ */
+function triggerMessage(error: unknown): string | undefined {
+  for (const candidate of [error, (error as { cause?: unknown } | null)?.cause]) {
+    // Fehler des Treibers erkennbar an severity und code (nicht am Klassennamen, der beim Bündeln verloren gehen kann)
+    const pg = candidate as { severity?: unknown; code?: unknown; constraint_name?: unknown; message?: unknown } | null;
+    if (typeof pg?.severity !== "string" || typeof pg.code !== "string" || typeof pg.message !== "string") continue;
+    if (pg.code === "P0001" || (pg.code === "23514" && !pg.constraint_name)) return pg.message;
+  }
+  return undefined;
+}
+
 /** Meldung, die der Browser sehen darf; undefined bei internen Fehlern (SQL, Dateipfade, Stack). */
 export function userMessage(error: unknown): string | undefined {
   if (error instanceof UserError || PACKAGE_USER_ERRORS.some((type) => error instanceof type)) return (error as Error).message;
+  const fromTrigger = triggerMessage(error);
+  if (fromTrigger) return fromTrigger;
   if (error instanceof ZodError) return issueText(error.issues);
   if (error instanceof Error) return validatorIssues(error);
   return undefined;

@@ -160,10 +160,18 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(overview.ust.issues.map((i) => i.tone)).toEqual(["hinweis"]);
     expect((await annual.annualOverview(2026, TODAY)).ust.issues[0]!.text).toMatch(/nach Ablauf des Jahres/);
 
+    // Heute auf Kleinunternehmer umgestellt: gilt für dieses Jahr, nicht rückwirkend für 2025 (vorjahr.test.ts)
     await sql`update company set kleinunternehmer = true`;
-    expect((await annual.annualOverview(2025, TODAY)).ust.issues.some((i) => i.tone === "fehler" && /ab 2024 keine/.test(i.text))).toBe(true);
-    // Für 2023 müssen auch Kleinunternehmer noch eine Erklärung abgeben
-    expect((await annual.annualOverview(2023, TODAY)).ust.issues.some((i) => i.tone === "fehler" && /auch als Kleinunternehmer/.test(i.text))).toBe(true);
+    const thisYear = Number(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date()).slice(0, 4));
+    expect((await annual.annualOverview(thisYear, `${thisYear + 1}-03-01`)).ust.issues.some((i) => i.tone === "fehler" && /ab 2024 keine/.test(i.text))).toBe(true);
+    expect((await annual.annualOverview(2025, TODAY)).ust.issues.some((i) => /Kleinunternehmer/.test(i.text))).toBe(false);
+    // Die Texte je nach Jahr: ab 2024 keine Erklärung, für 2023 noch eine (übers ELSTER-Portal)
+    const issue = (ku: boolean, year: number) => annual.ustIssues(ku, ust, year).map((i) => i.text).join(" ");
+    expect(issue(true, 2025)).toMatch(/ab 2024 keine Umsatzsteuererklärung/);
+    expect(issue(true, 2023)).toMatch(/Für 2023 gibst du auch als Kleinunternehmer noch eine Umsatzsteuererklärung ab/);
+    expect(issue(false, 2025)).not.toMatch(/Kleinunternehmer/);
+    // Als Kleinunternehmer kein Hinweis auf fehlende Voranmeldungen
+    expect(issue(true, 2025)).not.toMatch(/gesendete Voranmeldung/);
   });
 
   it("Anlage EÜR: Zeilen, Gewinn wie in den Auswertungen, Entnahmen, Einlagen und Anlagenverzeichnis", async () => {

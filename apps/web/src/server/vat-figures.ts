@@ -1,7 +1,7 @@
 import { paidTaxShares, splitPrivateShare, type Cents, type TaxTreatment, type VatPeriod } from "@haben/core";
 import { and, eq, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "./assets.ts";
-import { loadCompany, versteuerungForYear } from "./company.ts";
+import { kleinunternehmerForMonth, versteuerungForYear } from "./company.ts";
 import { db, schema } from "./db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
 
@@ -77,7 +77,6 @@ function monthRange({ year, month }: VatPeriod) {
  */
 export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> {
   const { start, end } = monthRange(period);
-  const company = await loadCompany();
   // Die Versteuerung des Jahres, nicht die aktuelle: nach einem Wechsel zum Jahreswechsel rechnet das Vorjahr weiter wie gebucht
   const versteuerung = await versteuerungForYear(period.year);
   const revenue: RevenueSource[] = [];
@@ -225,7 +224,8 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
 
   return {
     versteuerung,
-    kleinunternehmer: company.kleinunternehmer,
+    // Stand im Monat der Voranmeldung, nicht der heutige
+    kleinunternehmer: await kleinunternehmerForMonth(period.year, period.month),
     kz81: sum(regular, 1900, "base"),
     tax81: sum(regular, 1900, "tax"),
     kz86: sum(regular, 700, "base"),

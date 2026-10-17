@@ -6,7 +6,7 @@ import {
 } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { companyIssues, loadCompany } from "../company.ts";
+import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../company.ts";
 import { inputTaxForPeriod } from "../documents.ts";
 import { computeVatFigures, preflight } from "../vat-figures.ts";
 import { abgleichIssues, vatAbgleich } from "../abgleich.ts";
@@ -51,7 +51,8 @@ export const getVatPeriod = createServerFn({ method: "GET" })
     return {
       period,
       dueDate: dueDate(period, company.bundesland),
-      kleinunternehmer: company.kleinunternehmer,
+      // Stand im Monat der Voranmeldung: nach der Umstellung zum Jahreswechsel ist der Dezember noch fällig
+      kleinunternehmer: await kleinunternehmerForMonth(period.year, period.month),
       current,
       returns,
       submissions,
@@ -86,7 +87,8 @@ export const getOverview = createServerFn({ method: "GET" })
       /** Zahllast aus den Buchungen, solange keine Anmeldung gespeichert ist */
       computedKz83: computed.kz83,
       dueDate: dueDate(period, company.bundesland),
-      kleinunternehmer: company.kleinunternehmer,
+      // Stand im Monat der Voranmeldung: nach der Umstellung zum Jahreswechsel ist der Dezember noch fällig
+      kleinunternehmer: await kleinunternehmerForMonth(period.year, period.month),
       afaPending: await pendingDepreciation(today()),
       appeals: (await openAppealDeadlines(today())).map((d) => ({
         id: d.id,
