@@ -9,9 +9,9 @@ import { schema, type Tx } from "./db/index.ts";
  * zuerst nur gelesen (peekNumber, unter einer eigenen Sperre je Kreis und Jahr), dann entstehen PDF und XML, und erst
  * danach schreibt takeNumber den Zähler. Die Kette ist so nur für das Speichern gesperrt, nicht für das Rendern.
  *
- * Reihenfolge der Sperren: Nummernkreis vor der Kette. Wer in einer Transaktion schon etwas mit Audit-Eintrag
- * geschrieben hat und danach eine Nummer braucht (Storno: erst der Entwurf), nimmt die Sperre des Kreises vorher mit
- * lockNumbering, sonst können sich zwei Transaktionen gegenseitig blockieren.
+ * Reihenfolge der Sperren: Rechnungszeilen (FOR UPDATE), dann Nummernkreis, dann die Kette. Wer in einer Transaktion
+ * schon etwas mit Audit-Eintrag geschrieben hat und danach eine Nummer braucht (Storno: erst der Entwurf), sperrt die
+ * betroffenen Zeilen und den Kreis vorher (lockNumbering), sonst können sich zwei Transaktionen gegenseitig blockieren.
  */
 
 export type NumberKind = "rechnung" | "angebot";

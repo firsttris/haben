@@ -160,9 +160,9 @@ Geschützt wird an drei Stellen:
    - über `ledger.post` buchen und festschreiben; der Trigger prüft Soll = Haben.
 4. Schlägt ein Schritt fehl, wird alles zurückgerollt. Die Nummer ist dann nicht verbraucht; der Nummernkreis bleibt lückenlos.
 
-Ein Storno läuft genauso, nur mit dem Entwurf in derselben Transaktion (`cancelInvoice`): erst den Nummernkreis und das Original sperren, dann den Storno-Entwurf anlegen und festschreiben. Schlägt etwas fehl oder bricht der Server ab, bleibt kein Entwurf zurück. Weil der Entwurf schon einen Audit-Eintrag schreibt, entsteht das PDF des Stornos bei gesperrter Kette; Stornos sind selten, der eine Entwurf in derselben Transaktion wiegt mehr.
+Ein Storno läuft genauso, nur mit dem Entwurf in derselben Transaktion (`cancelInvoice`): erst das Original sperren (`FOR UPDATE`), dann den Nummernkreis, dann den Storno-Entwurf anlegen und festschreiben. Schlägt etwas fehl oder bricht der Server ab, bleibt kein Entwurf zurück. Weil der Entwurf schon einen Audit-Eintrag schreibt, entsteht das PDF des Stornos bei gesperrter Kette; Stornos sind selten, der eine Entwurf in derselben Transaktion wiegt mehr.
 
-Angebote nummeriert `finalizeQuote` nach demselben Muster (eigener Kreis). Die Reihenfolge der Sperren ist immer Nummernkreis vor Kette; wer in einer Transaktion schon etwas mit Audit-Eintrag geschrieben hat und danach eine Nummer braucht, sperrt den Kreis vorher (`lockNumbering`). Auch „Nächste Nummer festlegen“ nimmt die Sperre des Kreises und wartet so auf ein laufendes Festschreiben.
+Angebote nummeriert `finalizeQuote` nach demselben Muster (eigener Kreis). Die Reihenfolge der Sperren ist immer Rechnungszeilen, dann Nummernkreis, dann Kette: Das Festschreiben einer Korrektur sperrt das Original, bevor es eine Nummer zieht, also muss auch das Storno das Original vor dem Kreis sperren, sonst verklemmen sich beide. Wer in einer Transaktion schon etwas mit Audit-Eintrag geschrieben hat und danach eine Nummer braucht, sperrt den Kreis vorher (`lockNumbering`). Auch „Nächste Nummer festlegen“ nimmt die Sperre des Kreises und wartet so auf ein laufendes Festschreiben.
 
 ### Hauptbuch und Transaktionen
 

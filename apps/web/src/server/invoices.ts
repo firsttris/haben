@@ -678,13 +678,15 @@ function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
  */
 export async function cancelInvoice(actor: string, id: string, today: string): Promise<Invoice> {
   return withActor(actor, async (tx) => {
-    // Nummernkreis vor allem, was einen Audit-Eintrag schreibt (der Entwurf): Reihenfolge der Sperren wie beim
-    // Festschreiben, Kreis vor Kette (number-counter.ts). Das PDF entsteht hier nach dem Entwurf, also mit gesperrter
-    // Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
-    await lockNumbering(tx, "rechnung", Number(today.slice(0, 4)));
-    // Original zuerst sperren: Ein zweites Storno wartet hier und sieht danach das erste. Erst mit dem Entwurf
-    // (Fremdschlüssel auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
+    // Sperren in derselben Reihenfolge wie beim Festschreiben: Rechnungszeilen, dann Nummernkreis, dann (mit dem ersten
+    // Audit-Eintrag) die Hash-Kette. Sonst verklemmen sich ein Storno und eine gleichzeitig festgeschriebene Korrektur
+    // derselben Rechnung (die erst das Original, dann den Kreis sperrt).
+    // Original zuerst: Ein zweites Storno wartet hier und sieht danach das erste. Erst mit dem Entwurf (Fremdschlüssel
+    // auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
     await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+    // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts). Das PDF entsteht hier nach dem
+    // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
+    await lockNumbering(tx, "rechnung", Number(today.slice(0, 4)));
     const { invoice, lines } = await finalOriginal(id, tx);
     const draft = await insertDraft(
       tx,

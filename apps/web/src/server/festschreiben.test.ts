@@ -150,6 +150,32 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     expect(new Set([storno.number, final.number])).toEqual(new Set([`${year}-002`, `${year}-003`]));
   }, 30_000);
 
+  it("Korrektur festschreiben und dieselbe Rechnung stornieren, gleichzeitig: keine Verklemmung", async () => {
+    // finalizeDraft sperrt die korrigierte Rechnung und dann den Nummernkreis; das Storno muss dieselbe Reihenfolge
+    // nehmen. Eine eigene Verbindung hält das Original, bis beide warten: die Korrektur zuerst, dann das Storno.
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    const correction = await invoices.createCorrection(actor, original.id, `${year}-06-01`);
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => (release = resolve));
+    const holder = other.begin(async (tx) => {
+      await tx`select id from invoices where id = ${original.id} for update`;
+      await released;
+    });
+    await wait(100);
+    const outcome = (p: Promise<unknown>, ok: string) => p.then(() => ok, (e: Error) => `${e.message} ${(e as { cause?: Error }).cause?.message ?? ""}`);
+    const finalizing = outcome(invoices.finalizeInvoice(actor, correction.id), "korrigiert");
+    await wait(300);
+    const cancelling = outcome(invoices.cancelInvoice(actor, original.id, `${year}-06-02`), "storniert");
+    await wait(300);
+    release();
+    await holder;
+    const results = [await finalizing, await cancelling];
+    expect(results.join(" ")).not.toMatch(/deadlock/);
+    // Erst die Korrektur, dann das Storno; beides mit Nummer
+    expect(results).toEqual(["korrigiert", "storniert"]);
+  }, 60_000);
+
   it("Angebote: Nummer erst nach dem PDF geschrieben, lückenlos auch gleichzeitig", async () => {
     const make = () =>
       quotes.createQuoteDraft(actor, {
