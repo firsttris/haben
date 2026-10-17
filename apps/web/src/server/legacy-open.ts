@@ -9,9 +9,9 @@ import {
 } from "@haben/core";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { createHash } from "node:crypto";
-import { loadCompany, type Company } from "./company.ts";
 import { withActor } from "./db/actor.ts";
-import { db, schema, type Tx } from "./db/index.ts";
+import { openBooks, post } from "./ledger.ts";
+import { db, schema } from "./db/index.ts";
 import { storeInvoiceTaxes } from "./invoice-taxes.ts";
 import type { LegacyCategoryRow } from "./db/schema.ts";
 import { buyerFrom, sellerFrom } from "./invoices.ts";
@@ -134,16 +134,6 @@ function categoryFor(categories: LegacyCategoryRow[]): ExpenseCategory {
   return CATEGORY_HINTS.find(([pattern]) => pattern.test(names))?.[1] ?? "sonstiges";
 }
 
-async function journal(
-  tx: Tx,
-  entry: { date: string; description: string; sourceType: "invoice" | "document"; sourceId: string; kontenrahmen: Company["kontenrahmen"] },
-  lines: ReturnType<typeof openingDocumentPosting>,
-) {
-  const [row] = await tx.insert(schema.journalEntries).values(entry).returning();
-  await tx.insert(schema.journalLines).values(lines.map((line) => ({ entryId: row!.id, ...line })));
-  await tx.update(schema.journalEntries).set({ lockedAt: new Date() }).where(eq(schema.journalEntries.id, row!.id));
-}
-
 /**
  * Übernimmt einen offenen Posten aus Lexoffice, damit der Zahlungseingang bzw. die Zahlung im Bankabgleich
  * zugeordnet werden kann: Rechnungen mit Original-PDF und Lexoffice-Nummer, Belege gebucht und gesperrt.
@@ -169,7 +159,6 @@ async function takeOverInvoice(
   voucher: LegacyVoucher,
   files: (typeof schema.lexofficeVoucherFiles.$inferSelect)[],
 ): Promise<{ kind: "invoice"; id: string }> {
-  const company = await loadCompany();
   const pdfFile = files.find((f) => f.role === "pdf") ?? files.find((f) => f.mimeType === "application/pdf");
   if (!pdfFile) throw new TakeoverError("Zu dieser Rechnung fehlt das PDF.");
   const xmlFile = files.find((f) => f.role === "xml");
@@ -201,6 +190,7 @@ async function takeOverInvoice(
   }
 
   return withActor(actor, async (tx) => {
+    const company = await openBooks(tx);
     if (voucher.number) {
       const [clash] = await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.number, voucher.number));
       if (clash) throw new TakeoverError(`Die Rechnungsnummer ${voucher.number} gibt es in Haben schon.`);
@@ -259,17 +249,13 @@ async function takeOverInvoice(
         updatedAt: now,
       })
       .where(eq(schema.invoices.id, id));
-    await journal(
-      tx,
-      {
-        date: today(),
-        description: `Offene Rechnung ${voucher.number} aus Lexoffice · ${contact!.name}`,
-        sourceType: "invoice",
-        sourceId: id,
-        kontenrahmen: company.kontenrahmen,
-      },
-      openingInvoicePosting(totals, company.kontenrahmen, company.versteuerung),
-    );
+    await post(tx, company, {
+      date: today(),
+      description: `Offene Rechnung ${voucher.number} aus Lexoffice · ${contact!.name}`,
+      sourceType: "invoice",
+      sourceId: id,
+      lines: openingInvoicePosting(totals, company.kontenrahmen, company.versteuerung),
+    });
     return { kind: "invoice" as const, id };
   });
 }
@@ -281,8 +267,8 @@ async function takeOverDocument(
 ): Promise<{ kind: "document"; id: string }> {
   const file = files.find((f) => f.mimeType === "application/pdf") ?? files[0];
   if (!file) throw new TakeoverError("Zu diesem Beleg fehlt die Datei.");
-  const company = await loadCompany();
   return withActor(actor, async (tx) => {
+    const company = await openBooks(tx);
     const [existing] = await tx.select({ id: schema.documents.id }).from(schema.documents).where(eq(schema.documents.sha256, file.sha256));
     if (existing) throw new TakeoverError("Die Datei liegt in Haben schon als Beleg; bitte dort bezahlen.");
     const now = new Date();
@@ -309,17 +295,13 @@ async function takeOverDocument(
       .returning({ id: schema.documents.id });
     const id = doc!.id;
     await tx.insert(schema.documentAmounts).values(voucher.taxes.map((t) => ({ documentId: id, taxRate: t.rate, net: t.net, tax: t.tax })));
-    await journal(
-      tx,
-      {
-        date: today(),
-        description: `Offener Beleg ${voucher.number || file.filename} aus Lexoffice · ${voucher.contactName}`,
-        sourceType: "document",
-        sourceId: id,
-        kontenrahmen: company.kontenrahmen,
-      },
-      openingDocumentPosting(voucher.gross, company.kontenrahmen),
-    );
+    await post(tx, company, {
+      date: today(),
+      description: `Offener Beleg ${voucher.number || file.filename} aus Lexoffice · ${voucher.contactName}`,
+      sourceType: "document",
+      sourceId: id,
+      lines: openingDocumentPosting(voucher.gross, company.kontenrahmen),
+    });
     await tx.update(schema.documents).set({ status: "gebucht", lockedAt: now, updatedAt: now }).where(eq(schema.documents.id, id));
     return { kind: "document" as const, id };
   });

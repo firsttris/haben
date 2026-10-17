@@ -1,8 +1,65 @@
-import type { Cents, KontenblattZeile, Kontenrahmen, SaldenZeile } from "@haben/core";
+import type { Cents, KontenblattZeile, Kontenrahmen, PostingLine, SaldenZeile } from "@haben/core";
 import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
-import { db, schema } from "./db/index.ts";
+import { loadCompany, type Company } from "./company.ts";
+import { db, schema, type Tx } from "./db/index.ts";
 import { accountName } from "./journal.ts";
+import { UserError } from "./errors.ts";
+
+/*
+ * Hauptbuch: einzige Stelle, die ins Journal schreibt (post), dazu Saldenliste und Kontenblatt.
+ * Ein Test (ledger-writer.test.ts) stellt sicher, dass keine andere Datei journal_entries oder journal_lines beschreibt.
+ */
+
+export class LedgerError extends UserError {}
+
+/** Was eine Buchung von den Firmendaten braucht: Kontenrahmen, Versteuerung und Kleinunternehmer */
+export type Books = Pick<Company, "kontenrahmen" | "versteuerung" | "kleinunternehmer">;
+
+/** Firmendaten für Buchungen, gelesen in der buchenden Transaktion */
+export async function openBooks(tx: Tx): Promise<Company> {
+  return loadCompany(tx);
+}
+
+export interface Posting {
+  date: string;
+  description: string;
+  sourceType: (typeof schema.journalEntries.$inferInsert)["sourceType"];
+  sourceId: string;
+  /** Storno: die aufgehobene Buchung */
+  reversesId?: string | null;
+  lines: PostingLine[];
+}
+
+/**
+ * Bucht und schreibt fest: Buchung anlegen, Zeilen anlegen, sperren. Beim Sperren prüft die Datenbank Soll = Haben und
+ * setzt das Siegel (drizzle/0058, 0063); eine Buchung, die bis zum Commit nicht gesperrt ist, lehnt sie ab (0065).
+ *
+ * `books` sind die Firmendaten, nach denen die Zeilen berechnet wurden. Nach dem Einfügen hält die Transaktion die Sperre
+ * der Hash-Kette, Firmendaten ändern sich bis zum Commit nicht mehr (0065). Weichen sie dann von `books` ab, hat sie jemand
+ * dazwischen geändert, und die Buchung wird abgelehnt statt mit veralteten Einstellungen festgeschrieben.
+ */
+export async function post(tx: Tx, books: Books, posting: Posting): Promise<string> {
+  const [entry] = await tx
+    .insert(schema.journalEntries)
+    .values({
+      date: posting.date,
+      description: posting.description,
+      sourceType: posting.sourceType,
+      sourceId: posting.sourceId,
+      kontenrahmen: books.kontenrahmen,
+      reversesId: posting.reversesId ?? null,
+    })
+    .returning({ id: schema.journalEntries.id });
+  const current = await loadCompany(tx);
+  if (current.kontenrahmen !== books.kontenrahmen || current.versteuerung !== books.versteuerung || current.kleinunternehmer !== books.kleinunternehmer) {
+    throw new LedgerError("Kontenrahmen, Versteuerung oder Kleinunternehmer wurden gerade geändert. Bitte noch einmal buchen.");
+  }
+  const lines = posting.lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+  if (lines.length > 0) await tx.insert(schema.journalLines).values(lines.map((line) => ({ entryId: entry!.id, ...line })));
+  await tx.update(schema.journalEntries).set({ lockedAt: new Date() }).where(eq(schema.journalEntries.id, entry!.id));
+  return entry!.id;
+}
 
 /** Zeitraum mit Beginn (einschließlich) und Ende (ausschließlich), beide JJJJ-MM-TT, innerhalb eines Jahres */
 export interface LedgerRange {

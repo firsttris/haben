@@ -13,6 +13,7 @@ import {
   privateUseMonths,
   privateUsePosting,
   type CarPrivateUse,
+  type PostingLine,
   type EuerDepreciation,
   type EuerWithdrawals,
   type ScheduleAsset,
@@ -22,7 +23,8 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
-import { db, schema } from "./db/index.ts";
+import { openBooks, post } from "./ledger.ts";
+import { db, schema, type Db, type Tx } from "./db/index.ts";
 
 export type Asset = typeof schema.assets.$inferSelect;
 
@@ -103,9 +105,9 @@ function yearPlan(asset: Asset, year: number) {
   return { row, privateUse, hasWork };
 }
 
-async function bookedYears(ids: string[]): Promise<Map<string, number[]>> {
+async function bookedYears(ids: string[], q: Db | Tx = db): Promise<Map<string, number[]>> {
   if (ids.length === 0) return new Map();
-  const rows = await db
+  const rows = await q
     .select({
       assetId: schema.assetDepreciations.assetId,
       year: schema.assetDepreciations.year,
@@ -118,9 +120,9 @@ async function bookedYears(ids: string[]): Promise<Map<string, number[]>> {
 }
 
 /** Anlagenverzeichnis zum Jahr: Plan des Jahres und ob die AfA schon gebucht ist */
-export async function listAssets(year: number) {
-  const assets = await db.select().from(schema.assets).orderBy(asc(schema.assets.acquisitionDate), asc(schema.assets.name));
-  const booked = await bookedYears(assets.map((a) => a.id));
+export async function listAssets(year: number, q: Db | Tx = db) {
+  const assets = await q.select().from(schema.assets).orderBy(asc(schema.assets.acquisitionDate), asc(schema.assets.name));
+  const booked = await bookedYears(assets.map((a) => a.id), q);
   return assets.map((asset) => {
     const schedule = scheduleOf(asset);
     const row = schedule.find((r) => r.year === year) ?? null;
@@ -155,16 +157,17 @@ export async function getAsset(id: string) {
 
 /** Übernimmt eine Anlage mit Restbuchwert zum Stichtag. */
 export async function createAsset(actor: string, input: AssetInput): Promise<Asset> {
-  const company = await loadCompany();
-  const values = {
-    ...input,
-    privateUse: privateUseValue(input.kind, input.privateUse ?? null, company.kleinunternehmer),
-    usefulLifeMonths: input.method === "linear" ? input.usefulLifeMonths : null,
-    account: assetAccount(input.kind, input.method, company.kontenrahmen),
-  };
-  const issues = assetIssues(scheduleInput({ ...values, openingEntryId: null } as Asset));
-  if (issues.length > 0) throw new AssetUserError(`${issues.join(", ")}.`);
   return withActor(actor, async (tx) => {
+    // Anlagekonto und Umsatzsteuer auf die Privatnutzung nach den Firmendaten in derselben Transaktion
+    const company = await loadCompany(tx);
+    const values = {
+      ...input,
+      privateUse: privateUseValue(input.kind, input.privateUse ?? null, company.kleinunternehmer),
+      usefulLifeMonths: input.method === "linear" ? input.usefulLifeMonths : null,
+      account: assetAccount(input.kind, input.method, company.kontenrahmen),
+    };
+    const issues = assetIssues(scheduleInput({ ...values, openingEntryId: null } as Asset));
+    if (issues.length > 0) throw new AssetUserError(`${issues.join(", ")}.`);
     const [created] = await tx.insert(schema.assets).values(values).returning();
     return created!;
   });
@@ -175,10 +178,10 @@ export async function createAsset(actor: string, input: AssetInput): Promise<Ass
  * und der Abgang nur in ein Jahr, für das noch keine AfA gebucht ist.
  */
 export async function updateAsset(actor: string, id: string, input: z.infer<typeof assetUpdateSchema>): Promise<Asset> {
-  const company = await loadCompany();
   return withActor(actor, async (tx) => {
     const [asset] = await tx.select().from(schema.assets).where(eq(schema.assets.id, id)).for("update");
     if (!asset) throw new AssetUserError("Anlage nicht gefunden.");
+    const company = await loadCompany(tx);
     const years = (
       await tx.select({ year: schema.assetDepreciations.year }).from(schema.assetDepreciations).where(eq(schema.assetDepreciations.assetId, id))
     ).map((r) => r.year);
@@ -273,10 +276,10 @@ export function canBookYear(year: number, today: string): boolean {
  */
 export async function bookDepreciation(actor: string, year: number, today: string): Promise<{ booked: number }> {
   if (!canBookYear(year, today)) throw new AssetUserError(`Die AfA für ${year} lässt sich ab dem 1. Dezember ${year} buchen.`);
-  const company = await loadCompany();
-  const kr = company.kontenrahmen;
   return withActor(actor, async (tx) => {
     const assets = await tx.select().from(schema.assets).orderBy(asc(schema.assets.acquisitionDate)).for("update");
+    const books = await openBooks(tx);
+    const kr = books.kontenrahmen;
     const rows = assets.length
       ? await tx
           .select()
@@ -303,7 +306,6 @@ export async function bookDepreciation(actor: string, year: number, today: strin
     if (missing.length > 0) throw new AssetUserError(`Zuerst die AfA früherer Jahre buchen: ${missing.join("; ")}.`);
     if (todo.length === 0) throw new AssetUserError(`Für ${year} ist keine AfA (mehr) zu buchen.`);
 
-    const now = new Date();
     for (const { asset, plan } of todo) {
       const row: ScheduleYear = plan.row ?? {
         year,
@@ -314,118 +316,55 @@ export async function bookDepreciation(actor: string, year: number, today: strin
         closing: 0,
       };
       if (asset.openingDate && !asset.openingEntryId) {
-        const [opening] = await tx
-          .insert(schema.journalEntries)
-          .values({
-            date: asset.openingDate,
-            description: `Eröffnung Anlage · ${asset.name}`,
-            sourceType: "asset",
-            sourceId: asset.id,
-            kontenrahmen: kr,
-          })
-          .returning();
-        await tx.insert(schema.journalLines).values([
-          {
-            entryId: opening!.id,
-            account: asset.account,
-            debit: asset.openingBookValue!,
-            credit: 0,
-            taxCode: null,
-          },
-          {
-            entryId: opening!.id,
-            account: ACCOUNTS[kr].saldenvortrag,
-            debit: 0,
-            credit: asset.openingBookValue!,
-            taxCode: null,
-          },
-        ]);
-        await tx.update(schema.journalEntries).set({ lockedAt: now }).where(eq(schema.journalEntries.id, opening!.id));
-        await tx.update(schema.assets).set({ openingEntryId: opening!.id }).where(eq(schema.assets.id, asset.id));
+        const openingEntryId = await post(tx, books, {
+          date: asset.openingDate,
+          description: `Eröffnung Anlage · ${asset.name}`,
+          sourceType: "asset",
+          sourceId: asset.id,
+          lines: [
+            { account: asset.account, debit: asset.openingBookValue!, credit: 0, taxCode: null },
+            { account: ACCOUNTS[kr].saldenvortrag, debit: 0, credit: asset.openingBookValue!, taxCode: null },
+          ],
+        });
+        await tx.update(schema.assets).set({ openingEntryId }).where(eq(schema.assets.id, asset.id));
       }
       const disposalInYear = asset.disposalDate && Number(asset.disposalDate.slice(0, 4)) === year;
       let entryId: string | null = null;
       if (row.depreciation !== 0 || row.disposal !== 0) {
-        const [entry] = await tx
-          .insert(schema.journalEntries)
-          .values({
-            date: disposalInYear ? asset.disposalDate! : `${year}-12-31`,
-            description: `AfA ${year} · ${asset.name}${row.disposal ? " (Abgang)" : ""}`,
-            sourceType: "asset",
-            sourceId: asset.id,
-            kontenrahmen: kr,
-          })
-          .returning();
-        const lines: {
-          entryId: string;
-          account: string;
-          debit: number;
-          credit: number;
-          taxCode: string | null;
-        }[] = [];
+        const lines: PostingLine[] = [];
         if (row.depreciation !== 0) {
           lines.push(
-            {
-              entryId: entry!.id,
-              account: depreciationAccount(asset.kind, asset.method, kr),
-              debit: row.depreciation,
-              credit: 0,
-              taxCode: null,
-            },
-            {
-              entryId: entry!.id,
-              account: asset.account,
-              debit: 0,
-              credit: row.depreciation,
-              taxCode: null,
-            },
+            { account: depreciationAccount(asset.kind, asset.method, kr), debit: row.depreciation, credit: 0, taxCode: null },
+            { account: asset.account, debit: 0, credit: row.depreciation, taxCode: null },
           );
         }
         if (row.disposal !== 0) {
           lines.push(
-            {
-              entryId: entry!.id,
-              account: ASSET_ACCOUNTS[kr].restbuchwert,
-              debit: row.disposal,
-              credit: 0,
-              taxCode: null,
-            },
-            {
-              entryId: entry!.id,
-              account: asset.account,
-              debit: 0,
-              credit: row.disposal,
-              taxCode: null,
-            },
+            { account: ASSET_ACCOUNTS[kr].restbuchwert, debit: row.disposal, credit: 0, taxCode: null },
+            { account: asset.account, debit: 0, credit: row.disposal, taxCode: null },
           );
         }
-        await tx.insert(schema.journalLines).values(lines);
-        await tx.update(schema.journalEntries).set({ lockedAt: now }).where(eq(schema.journalEntries.id, entry!.id));
-        entryId = entry!.id;
+        entryId = await post(tx, books, {
+          date: disposalInYear ? asset.disposalDate! : `${year}-12-31`,
+          description: `AfA ${year} · ${asset.name}${row.disposal ? " (Abgang)" : ""}`,
+          sourceType: "asset",
+          sourceId: asset.id,
+          lines,
+        });
       }
 
       // Privatnutzung: je Monat eine Entnahme zum Monatsende
       if (plan.privateUse) {
         for (const month of plan.privateUse.months) {
           const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
-          const [use] = await tx
-            .insert(schema.journalEntries)
-            .values({
-              date: end,
-              description: `Privatnutzung ${String(month).padStart(2, "0")}/${year} · ${asset.name}`,
-              sourceType: "asset",
-              sourceId: asset.id,
-              kontenrahmen: kr,
-            })
-            .returning();
-          await tx.insert(schema.journalLines).values(
-            privateUsePosting(plan.privateUse.month, kr).map((line) => ({
-              entryId: use!.id,
-              ...line,
-            })),
-          );
-          await tx.update(schema.journalEntries).set({ lockedAt: now }).where(eq(schema.journalEntries.id, use!.id));
-          entryId ??= use!.id;
+          const useId = await post(tx, books, {
+            date: end,
+            description: `Privatnutzung ${String(month).padStart(2, "0")}/${year} · ${asset.name}`,
+            sourceType: "asset",
+            sourceId: asset.id,
+            lines: privateUsePosting(plan.privateUse.month, kr),
+          });
+          entryId ??= useId;
         }
       }
 

@@ -1,10 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { companyIssues, companySchema, loadCompany, updateCompany } from "../company.ts";
+import { companyIssues, companySchema, loadCompany } from "../company.ts";
 import { authMiddleware } from "../middleware.ts";
-import { lockedChange, settingsLocks } from "../settings-guard.ts";
+import { saveCompany as saveCompanySettings, settingsLocks } from "../settings-guard.ts";
 import { saveTaxpayer, taxpayerSchema } from "../taxpayer.ts";
 import { today } from "../today.ts";
-import { UserError } from "../errors.ts";
 
 export const getCompany = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -17,10 +16,7 @@ export const saveCompany = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(companySchema)
   .handler(async ({ data, context }) => {
-    const current = await loadCompany();
-    const locked = lockedChange(current, data, await settingsLocks(today()));
-    if (locked) throw new UserError(locked);
-    await updateCompany(context.user.id, data);
+    await saveCompanySettings(context.user.id, data, today());
     return { ok: true };
   });
 

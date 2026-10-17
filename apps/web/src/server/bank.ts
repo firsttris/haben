@@ -11,8 +11,8 @@ import {
 import { checkBalanceContinuity, parseStatement, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
+import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 import { invoiceTotalsById } from "./invoice-taxes.ts";
 import { sha256Of } from "./storage.ts";
@@ -401,23 +401,6 @@ function reverseLines(lines: PostingLine[]): PostingLine[] {
   return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
 }
 
-async function postEntry(tx: Tx, input: { date: string; description: string; sourceId: string; lines: PostingLine[]; reversesId?: string | null }) {
-  const company = await loadCompany();
-  const [entry] = await tx
-    .insert(schema.journalEntries)
-    .values({
-      date: input.date,
-      description: input.description,
-      sourceType: "allocation",
-      sourceId: input.sourceId,
-      kontenrahmen: company.kontenrahmen,
-      reversesId: input.reversesId ?? null,
-    })
-    .returning();
-  await tx.insert(schema.journalLines).values(input.lines.map((line) => ({ entryId: entry!.id, ...line })));
-  await tx.update(schema.journalEntries).set({ lockedAt: new Date() }).where(eq(schema.journalEntries.id, entry!.id));
-}
-
 export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invoice"), transactionId: z.uuid(), invoiceId: z.uuid(), amount: z.number().int() }),
   z.object({ kind: z.literal("document"), transactionId: z.uuid(), documentId: z.uuid(), amount: z.number().int() }),
@@ -432,8 +415,8 @@ export type AllocationInput = z.infer<typeof allocationSchema>;
 
 /** Ordnet (einen Teil) eines Umsatzes zu und bucht die Zahlung. */
 export async function allocate(actor: string, input: AllocationInput): Promise<void> {
-  const company = await loadCompany();
   await withActor(actor, async (tx) => {
+    const company = await openBooks(tx);
     const [bank] = await tx
       .select({ id: schema.bankTransactions.id, amount: schema.bankTransactions.amount, bookingDate: schema.bankTransactions.bookingDate, counterpartyName: schema.bankTransactions.counterpartyName, counterpartyIban: schema.bankTransactions.counterpartyIban, open: openAmountSql.mapWith(Number) })
       .from(schema.bankTransactions)
@@ -512,7 +495,7 @@ export async function allocate(actor: string, input: AllocationInput): Promise<v
       .insert(schema.allocations)
       .values({ transactionId: bank.id, kind: input.kind, amount: input.amount, ...target })
       .returning();
-    await postEntry(tx, { date: bank.bookingDate, description, sourceId: allocation!.id, lines });
+    await post(tx, company, { date: bank.bookingDate, description, sourceType: "allocation", sourceId: allocation!.id, lines });
   });
 }
 
@@ -543,9 +526,11 @@ export async function reverseAllocation(actor: string, allocationId: string): Pr
       .returning();
     if (entry) {
       const [bank] = await tx.select({ bookingDate: schema.bankTransactions.bookingDate }).from(schema.bankTransactions).where(eq(schema.bankTransactions.id, allocation.transactionId));
-      await postEntry(tx, {
+      // Gegenbuchung im Kontenrahmen der Firmendaten; wechseln kann er nur, solange im Jahr nichts gebucht ist
+      await post(tx, await openBooks(tx), {
         date: bank!.bookingDate,
         description: `Storno: ${entry.description}`,
+        sourceType: "allocation",
         sourceId: reversal!.id,
         lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
         reversesId: entry.id,

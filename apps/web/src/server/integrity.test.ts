@@ -60,12 +60,15 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     await tx`set local session_replication_role = origin`;
   }
 
+  /** Buchung wie über das Hauptbuch: anlegen, Zeilen, festschreiben, alles in einer Transaktion */
   async function lockedEntry() {
-    const [e] = await sql`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
-      values ('2026-01-10', 'Test', 'invoice', gen_random_uuid(), 'SKR03') returning id`;
-    await sql`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, '1400', 11900, 0), (${e!.id}, '8400', 0, 11900)`;
-    await sql`update journal_entries set locked_at = now() where id = ${e!.id}`;
-    return e!.id as string;
+    return sql.begin(async (tx) => {
+      const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values ('2026-01-10', 'Test', 'invoice', gen_random_uuid(), 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, '1400', 11900, 0), (${e!.id}, '8400', 0, 11900)`;
+      await tx`update journal_entries set locked_at = now() where id = ${e!.id}`;
+      return e!.id as string;
+    });
   }
 
   async function lockedInvoice() {

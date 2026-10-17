@@ -15,12 +15,16 @@ describe.skipIf(!testDatabaseUrl)("Saldenliste und Kontenblatt (Postgres)", () =
     await sql?.end();
   });
 
+  /** Festgeschriebene Buchung in einer Transaktion, wie über das Hauptbuch */
   async function entry(date: string, description: string, lines: [string, number, number][]) {
-    const [e] = await sql`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
-      values (${date}, ${description}, 'invoice', gen_random_uuid(), 'SKR03') returning id`;
-    for (const [account, debit, credit] of lines) {
-      await sql`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, ${account}, ${debit}, ${credit})`;
-    }
+    await sql.begin(async (tx) => {
+      const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values (${date}, ${description}, 'invoice', gen_random_uuid(), 'SKR03') returning id`;
+      for (const [account, debit, credit] of lines) {
+        await tx`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, ${account}, ${debit}, ${credit})`;
+      }
+      await tx`update journal_entries set locked_at = now() where id = ${e!.id}`;
+    });
   }
 
   beforeEach(async () => {

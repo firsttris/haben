@@ -13,8 +13,8 @@ import {
 } from "@haben/core";
 import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
+import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 
 /**
@@ -156,28 +156,22 @@ async function postEntry(
   tx: Tx,
   input: { id: string; art: PauschaleArt; date: string; text: string; amount: Cents; reversesId?: string | null },
 ): Promise<string> {
-  const { kontenrahmen } = await loadCompany();
-  const aufwand = PAUSCHALE_KONTEN[input.art][kontenrahmen].konto;
-  const einlage = ACCOUNTS[kontenrahmen].privateinlagen;
-  const [entry] = await tx
-    .insert(schema.journalEntries)
-    .values({
-      date: input.date,
-      description: input.text,
-      sourceType: "pauschale",
-      sourceId: input.id,
-      kontenrahmen,
-      reversesId: input.reversesId ?? null,
-    })
-    .returning();
+  const books = await openBooks(tx);
+  const aufwand = PAUSCHALE_KONTEN[input.art][books.kontenrahmen].konto;
+  const einlage = ACCOUNTS[books.kontenrahmen].privateinlagen;
   const [soll, haben] = input.amount >= 0 ? [aufwand, einlage] : [einlage, aufwand];
   const betrag = Math.abs(input.amount);
-  await tx.insert(schema.journalLines).values([
-    { entryId: entry!.id, account: soll, debit: betrag, credit: 0, taxCode: null },
-    { entryId: entry!.id, account: haben, debit: 0, credit: betrag, taxCode: null },
-  ]);
-  await tx.update(schema.journalEntries).set({ lockedAt: new Date() }).where(eq(schema.journalEntries.id, entry!.id));
-  return entry!.id;
+  return post(tx, books, {
+    date: input.date,
+    description: input.text,
+    sourceType: "pauschale",
+    sourceId: input.id,
+    reversesId: input.reversesId,
+    lines: [
+      { account: soll, debit: betrag, credit: 0, taxCode: null },
+      { account: haben, debit: 0, credit: betrag, taxCode: null },
+    ],
+  });
 }
 
 /** Trägt eine Pauschale ein und bucht sie */

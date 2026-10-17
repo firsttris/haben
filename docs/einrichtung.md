@@ -141,7 +141,7 @@ Unter **Privatanteil Telefon in %** und **Privatanteil Internet in %** legst du 
 
 ## Wann sich die Einstellungen ändern lassen
 
-Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Geschäftsjahr. Haben sperrt deshalb die Umstellung, sobald es im laufenden Kalenderjahr eine Buchung gibt. Das Auswahlfeld ist dann ausgegraut, und darunter steht der Grund. Auch der Server lehnt eine solche Änderung ab.
+Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Geschäftsjahr. Haben sperrt deshalb die Umstellung, sobald es im laufenden Kalenderjahr eine Buchung gibt. Das Auswahlfeld ist dann ausgegraut, und darunter steht der Grund. Auch der Server lehnt eine solche Änderung ab, für jeden Zugang, und die Datenbank prüft den Kern der Regel (im laufenden Jahr gebucht) noch einmal selbst.
 
 | Einstellung | Gesperrt, wenn |
 | --- | --- |

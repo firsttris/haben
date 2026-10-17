@@ -45,7 +45,7 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 | `src/routes/api/` | HTTP-Routen für Better Auth (`auth/$`), Dateien (`rechnung`, `angebot`, `mahnung`, `beleg`, `altbeleg`, `archiv`, `protokoll`, `postfach`, `vast`), Kalender-Abo der Fristen (`fristen/kalender`, mit geheimem Token statt Sitzung), Teilen-Ziel der PWA (`belege/teilen`), EÜR als CSV (`auswertungen/$jahr`) und Jahresarchiv (`export/$jahr`) |
 | `src/components/` | React-Komponenten, die mehrere Seiten nutzen (Rechnungseditor, Vorschau, Upload, Statusanzeigen), dazu `archiv/` für die Umzugsseite |
 | `src/server/functions/` | Server Functions je Bereich: Eingaben mit Zod prüfen, `authMiddleware` anhängen, Dienst aufrufen. Keine Fachlogik |
-| `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `bank-sync` (Kontoabruf), `annual` (Jahreserklärungen), `income-tax` (Angaben zur Einkommensteuer), `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `fristen` (Steuertermine, Kalender-Abo), `mail` (SMTP, Erinnerungen), `quotes` (Angebote), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `inbox` (Belege per E-Mail über IMAP), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `taxpayer` (persönliche Angaben), `vat`, `vat-figures`, `reports`, `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`, `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer); dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
+| `src/server/*.ts` | Dienste: `invoices`, `documents`, `extraction`, `bank`, `bank-sync` (Kontoabruf), `annual` (Jahreserklärungen), `income-tax` (Angaben zur Einkommensteuer), `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `fristen` (Steuertermine, Kalender-Abo), `mail` (SMTP, Erinnerungen), `quotes` (Angebote), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `inbox` (Belege per E-Mail über IMAP), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `taxpayer` (persönliche Angaben), `vat`, `vat-figures`, `reports`, `ledger` (Hauptbuch: einziger Schreiber des Journals, Saldenliste, Kontenblatt), `export`, `lexoffice`, `legacy-open`, `archive`, `contacts`, `company`, `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer, Speichern der Firmendaten); dazu `auth`, `crypto`, `storage`, `file-response`, `env` |
 | `src/server/db/` | Drizzle-Schema (`schema.ts`, `auth-schema.ts`), Verbindung, `withActor` für das Audit-Log, Migrationsskript |
 | `apps/web/drizzle/` | SQL-Migrationen; Trigger und Funktionen stehen in eigenen Dateien (`0001_festschreibung.sql`, `*_trigger.sql`) |
 | `src/styles/`, `styles.css` | Globales Stylesheet und seitenbezogene Stylesheets (Auswertungen, Archiv). Farben stehen als CSS-Variablen in `:root`; ein Theme überschreibt sie per `[data-theme="…"]`. Klassen, die mehr als eine Seite nutzt, gehören ins globale Stylesheet, sonst fehlen sie auf Seiten, die das seitenbezogene nicht laden |
@@ -61,7 +61,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
-| `company` | Firmendaten, Versteuerungsart, Kontenrahmen, Zahlungsziel, Rechnungsformat; genau eine Zeile | Audit |
+| `company` | Firmendaten, Versteuerungsart, Kontenrahmen, Zahlungsziel, Rechnungsformat; genau eine Zeile | Kontenrahmen, Versteuerung und Einschalten von § 19 gesperrt, sobald im laufenden Jahr gebucht ist; Audit |
 | `elster_certificates` | ELSTER-Zertifikatsdatei, verschlüsselt; auf Wunsch die PIN für den automatischen Postfachabruf, ebenfalls verschlüsselt | Audit ohne Chiffrat und PIN |
 | `contacts` | Kunden und Lieferanten, mit Herkunft aus Lexoffice | nicht löschbar, versioniert, Audit |
 | `contact_versions` | Stand eines Kontakts je Version | nur anhängen |
@@ -89,7 +89,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
-| `journal_entries` | Buchungen mit Herkunft (Rechnung, Beleg, Zuordnung) und Verweis auf die stornierte Buchung | gesperrt ab Entstehung, Soll = Haben beim Sperren (festgeschrieben wird erst nach den Zeilen), Audit |
+| `journal_entries` | Buchungen mit Herkunft (Rechnung, Beleg, Zuordnung) und Verweis auf die stornierte Buchung | geschrieben nur von `ledger.post`; gesperrt ab Entstehung, Soll = Haben beim Sperren (festgeschrieben wird erst nach den Zeilen), beim Commit festgeschrieben, Kontenrahmen = Firmendaten, Audit |
 | `journal_lines` | Buchungszeilen mit Konto, Soll, Haben, Steuerschlüssel | gesperrt mit der Buchung |
 | `cash_entries` | Kassenbuch: jede Bewegung der Barkasse mit lückenloser Nummer, Beleg oder Art (Einlage, Entnahme, Geldtransit), Buchung; Storno als Gegenzeile | nur anhängen, Audit |
 | `bank_imports` | Jede importierte Auszugsdatei mit SHA-256, Zeitraum, Salden | nur anhängen, Audit |
@@ -149,20 +149,31 @@ Geschützt wird an drei Stellen:
 ### Rechnung festschreiben
 
 1. Die Seite ruft die Server Function `finalizeInvoiceDraft` auf. `authMiddleware` prüft die Sitzung.
-2. `finalizeInvoice` in `server/invoices.ts` prüft vorab Firmendaten, Kunde, Positionen, Beträge, die umsatzsteuerliche Behandlung und die Pflichtfelder des gewählten E-Rechnungsformats.
-3. In einer Transaktion mit `withActor`:
+2. `finalizeInvoice` in `server/invoices.ts` öffnet eine Transaktion mit `withActor`.
+3. In dieser Transaktion:
    - Entwurf mit `SELECT … FOR UPDATE` sperren,
+   - Firmendaten, Kunde, Positionen, Beträge, die umsatzsteuerliche Behandlung und die Pflichtfelder des gewählten E-Rechnungsformats prüfen (`finalizeIssues`, dieselbe Prüfung wie in der Oberfläche, hier mit der Transaktion),
    - Zähler des Jahres per Upsert um eins erhöhen und Nummer bilden (`2026-034`),
    - PDF und XML aus Positionen und den gespeicherten Steuerzeilen (`invoice_taxes`) erzeugen (siehe unten),
    - Rechnung auf `final` setzen, mit Verkäufer- und Käuferdaten, Summen, PDF, XML, SHA-256 und `locked_at`,
-   - Buchung und Zeilen anlegen und festschreiben; der Trigger prüft Soll = Haben.
+   - über `ledger.post` buchen und festschreiben; der Trigger prüft Soll = Haben.
 4. Schlägt ein Schritt fehl, wird alles zurückgerollt. Die Nummer ist dann nicht verbraucht; der Nummernkreis bleibt lückenlos.
+
+Ein Storno läuft genauso, nur mit dem Entwurf in derselben Transaktion (`cancelInvoice`): erst das Original sperren, dann den Storno-Entwurf anlegen und festschreiben. Schlägt etwas fehl oder bricht der Server ab, bleibt kein Entwurf zurück.
+
+### Hauptbuch und Transaktionen
+
+- **Ein Schreiber.** Ins Journal schreibt nur `post(tx, books, posting)` in `server/ledger.ts`: Buchung anlegen, Zeilen anlegen, sperren. Die sieben Stellen, die buchen (Rechnungen, Belege, Bank, Kasse, Pauschalen, Anlagen, offene Posten aus Lexoffice), rufen nur noch `post` auf. Ein Test (`hauptbuch.test.ts`) schlägt fehl, sobald eine andere Datei `journal_entries` oder `journal_lines` beschreibt.
+- **Firmendaten in der Transaktion.** `openBooks(tx)` liest Kontenrahmen, Versteuerung und Kleinunternehmer in der buchenden Transaktion, die Buchungszeilen werden danach berechnet. Nach dem Einfügen hält die Transaktion die Sperre der Hash-Kette; `post` liest die Firmendaten dann noch einmal und lehnt ab, wenn sie sich dazwischen geändert haben. Die Datenbank prüft zusätzlich den Kontenrahmen jeder Buchung und lehnt Buchungen ab, die beim Commit nicht festgeschrieben sind (`0065_hauptbuch_sperren.sql`).
+- **Transaktion ausdrücklich weitergeben.** Lesefunktionen nehmen eine Verbindung an (`q: Db | Tx = db`, etwa `loadCompany(tx)`, `getInvoice(id, tx)`, `finalizeIssues(id, tx)`), Schreibfunktionen gibt es auch ohne eigene Transaktion (`insertDraft(tx, …)`). `withActor` öffnet immer eine neue Transaktion und tritt keiner offenen bei. Ein stilles Beitreten hätte die ELSTER-Sendesperre geändert: `underSendLock` in `vat.ts` hält eine Transaktion nur für die Sperre, protokolliert wird bewusst auf anderen Verbindungen, damit ein späterer Fehler das Protokoll einer Echtübermittlung nicht zurückrollt.
+- **Ein Anwendungsfall, eine Transaktion.** Storno (Entwurf und Festschreiben) und Angebot zu Rechnung (Entwurf und Verknüpfung) laufen in einer Transaktion. Die Abschlagsrechnungen einer Schlussrechnung prüft Haben in der Transaktion, die den Entwurf speichert. Firmendaten speichert `saveCompany` in `settings-guard.ts` mit Prüfung der Sperren in derselben Transaktion; die Server Function ruft nur noch das auf.
+- **Reihenfolge der Sperren.** Zeilen sperren (`FOR UPDATE`), dann schreiben; die Sperre der Hash-Kette kommt mit dem ersten Audit-Eintrag. Die Trigger aus `0065` nehmen sie in derselben Anweisung wie der Audit-Eintrag, die Reihenfolge bleibt also gleich. Wer Zeilen mit einem Fremdschlüssel auf eine Zeile anlegt, die er danach sperrt, sperrt sie vorher (siehe `cancelInvoice`), sonst verklemmen sich zwei gleichzeitige Aufrufe.
 
 ### Bankumsatz zuordnen
 
 1. `allocateTransaction` → `allocate` in `server/bank.ts`, in einer Transaktion mit `withActor`.
 2. Der Umsatz wird mit `FOR UPDATE` gesperrt; Vorzeichen und offener Betrag werden geprüft, ebenso der offene Betrag der Rechnung bzw. des Belegs.
-3. Haben bildet den Buchungssatz mit `@haben/core` (`invoicePaymentPosting`, `documentPaymentPosting` oder `directPosting`), legt die Zuordnung an und bucht auf den Buchungstag des Umsatzes.
+3. Haben liest die Firmendaten in der Transaktion (`openBooks`), bildet den Buchungssatz mit `@haben/core` (`invoicePaymentPosting`, `documentPaymentPosting` oder `directPosting`), legt die Zuordnung an und bucht über `ledger.post` auf den Buchungstag des Umsatzes.
 4. Der Trigger auf `allocations` prüft noch einmal, dass die Summe der Zuordnungen den Umsatz nicht übersteigt. Bei einem Zahlungseingang merkt sich Haben die IBAN des Kunden, falls noch keine hinterlegt ist.
 
 Aufheben legt eine Gegenzeile und eine Gegenbuchung an, statt etwas zu löschen.
@@ -212,7 +223,7 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 
 - **Verschlüsselung:** ELSTER-Zertifikat, Lexware-API-Schlüssel und die Sitzungskennung des Kontoabrufs liegen mit AES-256-GCM verschlüsselt in der Datenbank (`server/crypto.ts`, Format IV | Tag | Chiffrat). Der Schlüssel `HABEN_ENCRYPTION_KEY` (32 Byte, base64) steht nur in der Umgebung.
 - **Dateiauslieferung:** Gespeicherte Dateien gehen mit `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store` und einer Content-Security-Policy hinaus: für PDFs `default-src 'none'; object-src 'self'`, sonst `sandbox`. Nur PDFs und Bilder werden im Browser angezeigt; XML und JSON kommen als Text, alles andere als Download.
-- **Manipulationserkennung:** Das Audit-Log ist eine Hash-Kette, festgeschriebene Datensätze tragen ein Siegel (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)). Berechnet und geprüft wird beides in Postgres, damit der Hash nicht von einer Nachbildung des JSON in TypeScript abhängt. Ab dem ersten Eintrag ins Audit-Log hält eine Transaktion die Sperre der Kette bis zum Commit (Advisory Lock); Transaktionen mit Audit-Einträgen laufen also nacheinander. Wer in einer Transaktion weitere Sperren nimmt (etwa die der Kasse), nimmt sie vor der ersten Änderung mit Audit-Eintrag, sonst können sich zwei Transaktionen gegenseitig blockieren. Lange Arbeit nach dem ersten Audit-Eintrag (etwa das PDF beim Festschreiben einer Rechnung) hält andere Schreibvorgänge so lange auf. Migrationen, die eine Spalte einer versiegelten Tabelle (`journal_entries`, `journal_lines`, `invoices`, `invoice_lines`, `invoice_taxes`, `documents`, `document_amounts`, `vat_returns`, `cash_entries`) umbenennen, löschen oder deren Werte umrechnen, lassen die Siegel nicht mehr passen; die Prüfung meldet das zu Recht als Änderung festgeschriebener Daten. Neue Spalten sind unkritisch.
+- **Manipulationserkennung:** Das Audit-Log ist eine Hash-Kette, festgeschriebene Datensätze tragen ein Siegel (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)). Berechnet und geprüft wird beides in Postgres, damit der Hash nicht von einer Nachbildung des JSON in TypeScript abhängt. Ab dem ersten Eintrag ins Audit-Log hält eine Transaktion die Sperre der Kette bis zum Commit (Advisory Lock); Transaktionen mit Audit-Einträgen laufen also nacheinander. Wer in einer Transaktion weitere Sperren nimmt (etwa die der Kasse), nimmt sie vor der ersten Änderung mit Audit-Eintrag, sonst können sich zwei Transaktionen gegenseitig blockieren. Lange Arbeit nach dem ersten Audit-Eintrag (etwa das PDF beim Festschreiben einer Rechnung) hält andere Schreibvorgänge so lange auf. Migrationen, die eine Spalte einer versiegelten Tabelle (`journal_entries`, `journal_lines`, `invoices`, `invoice_lines`, `invoice_taxes`, `documents`, `document_amounts`, `vat_returns`, `cash_entries`, `allocations`, `pauschalen`, `asset_depreciations`) umbenennen, löschen oder deren Werte umrechnen, lassen die Siegel nicht mehr passen; die Prüfung meldet das zu Recht als Änderung festgeschriebener Daten. Neue Spalten sind unkritisch.
 - **Kein Geheimnis im Export:** Das Jahresarchiv enthält weder Zertifikat noch API-Schlüssel. Das Audit-Log speichert Chiffrate gar nicht erst, der Export filtert sie zusätzlich heraus.
 - **Kontoabruf:** Die Rückleitung der Bank (`/api/bank/callback`) verlangt eine angemeldete Sitzung und einen `state`, den Haben beim Start zufällig erzeugt und nur einmal annimmt. Der Zugriff ist lesend; Zahlungen kann Haben nicht auslösen. Der private Schlüssel der Enable-Banking-Anwendung liegt nur in der Umgebung bzw. als Datei, nie in der Datenbank.
 - **Proxy:** Caddy terminiert TLS und setzt HSTS, `X-Frame-Options: SAMEORIGIN` und `Referrer-Policy: same-origin`. `SAMEORIGIN` statt `DENY`, weil die Vorschauen von Belegen, Rechnungen und Angeboten iframes auf derselben Origin sind. Die App setzt zusätzlich selbst `Content-Security-Policy: frame-ancestors 'self'` auf alle HTML-Antworten (`src/start.ts`, `server/security-headers.ts`); Dateien aus `file-response.ts` behalten ihre eigene CSP.
@@ -231,6 +242,8 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 | Ein Nutzer, Passkey | Haben ist für eine Person gedacht. Kein Rollenmodell, weniger Angriffsfläche |
 | Server Functions statt eigener REST-API | Typsichere Aufrufe von der Seite bis zur Datenbank in einem Projekt; HTTP-Routen nur für Dateien |
 | Fachlogik in `packages/core` ohne Ein- und Ausgabe | Buchungssätze, EÜR und Steuerberechnung sind ohne Datenbank testbar |
+| Hauptbuch als einziger Schreiber des Journals | Festschreiben, Kontenrahmen und die Prüfung der Firmendaten stehen an einer Stelle; neue Buchungsarten können nichts davon vergessen |
+| Transaktion ausdrücklich übergeben statt implizit beitreten | Wer eine Funktion aufruft, sieht, in welcher Transaktion sie liest; `underSendLock` arbeitet bewusst auf anderen Verbindungen und bleibt davon unberührt |
 | Dateien unter SHA-256 | Keine Dubletten, Integrität bei jedem Lesen prüfbar, Hash im Export als Nachweis |
 | ERiC im Kindprozess | Eine abstürzende native Bibliothek reißt die Anwendung nicht mit |
 | Jahresexport als Stream | Ein Jahr mit vielen Belegen braucht kaum Arbeitsspeicher; die Prüfsummen entstehen beim Packen |

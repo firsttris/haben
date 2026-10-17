@@ -34,6 +34,7 @@ import { invoicePayments, stornoOpen } from "./bank.ts";
 import { withActor } from "./db/actor.ts";
 import { db, schema, type Db, type Tx } from "./db/index.ts";
 import { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
+import { openBooks, post } from "./ledger.ts";
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
@@ -223,10 +224,10 @@ async function deductionProblems(invoiceId: string | null, input: Pick<DraftInpu
   return { problems, chosen };
 }
 
-/** Positionen einer Rechnung samt Abzügen bei der Schlussrechnung */
-async function allLines(invoiceId: string | null, input: DraftInput): Promise<LineInput[]> {
+/** Positionen einer Rechnung samt Abzügen bei der Schlussrechnung; die Abschläge geprüft in der Transaktion, die speichert */
+async function allLines(tx: Tx, invoiceId: string | null, input: DraftInput): Promise<LineInput[]> {
   if (input.variant !== "schluss") return input.lines;
-  const { problems, chosen } = await deductionProblems(invoiceId, input);
+  const { problems, chosen } = await deductionProblems(invoiceId, input, tx);
   if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
   return [...input.lines, ...deductionLinesFor(chosen, input.language ?? "de", input.taxTreatment ?? "regulaer", effectivePriceMode(input))];
 }
@@ -261,22 +262,23 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
   return { values, calculation };
 }
 
-export async function createDraft(
-  actor: string,
-  input: DraftInput,
-  extra: Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate">> = {},
-) {
-  const { bundesland } = await loadCompany();
-  const lines = await allLines(null, input);
+type DraftExtra = Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate">>;
+
+export async function createDraft(actor: string, input: DraftInput, extra: DraftExtra = {}) {
+  return withActor(actor, (tx) => insertDraft(tx, input, extra));
+}
+
+/** Legt einen Entwurf in einer laufenden Transaktion an, z. B. zusammen mit dem Festschreiben (Storno) */
+export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra = {}): Promise<Invoice> {
+  const { bundesland } = await loadCompany(tx);
+  const lines = await allLines(tx, null, input);
   const { values, calculation } = draftValues(input, bundesland, lines);
-  return withActor(actor, async (tx) => {
-    const [invoice] = await tx
-      .insert(schema.invoices)
-      .values({ ...values, ...extra })
-      .returning();
-    await storeLines(tx, invoice!.id, lines, calculation);
-    return invoice!;
-  });
+  const [invoice] = await tx
+    .insert(schema.invoices)
+    .values({ ...values, ...extra })
+    .returning();
+  await storeLines(tx, invoice!.id, lines, calculation);
+  return invoice!;
 }
 
 async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
@@ -287,10 +289,10 @@ async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
 }
 
 export async function updateDraft(actor: string, id: string, input: DraftInput) {
-  const { bundesland } = await loadCompany();
-  const lines = await allLines(id, input);
   return withActor(actor, async (tx) => {
     const draft = await lockDraft(tx, id);
+    const { bundesland } = await loadCompany(tx);
+    const lines = await allLines(tx, id, input);
     if (input.variant && draft.kind !== "rechnung") throw new InvoiceError("Storno und Korrektur sind keine Abschlags- oder Schlussrechnung.");
     // Eine Korrektur rechnet wie die ursprüngliche Rechnung, netto oder brutto
     const { values, calculation } = draftValues(draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode }, bundesland, lines);
@@ -332,24 +334,24 @@ export async function newDraftDefaults(today: string) {
   } satisfies DraftInput;
 }
 
-export async function getInvoice(id: string) {
-  const [invoice] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, id));
+export async function getInvoice(id: string, q: Db | Tx = db) {
+  const [invoice] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, id));
   if (!invoice) return null;
-  const lines = await db
+  const lines = await q
     .select()
     .from(schema.invoiceLines)
     .where(eq(schema.invoiceLines.invoiceId, id))
     .orderBy(asc(schema.invoiceLines.position));
   const [contact] = invoice.contactId
-    ? await db.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId))
+    ? await q.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId))
     : [];
   const [corrects] = invoice.correctsId
-    ? await db
+    ? await q
         .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
         .from(schema.invoices)
         .where(eq(schema.invoices.id, invoice.correctsId))
     : [];
-  const correctedBy = await db
+  const correctedBy = await q
     .select({ id: schema.invoices.id, number: schema.invoices.number, kind: schema.invoices.kind, status: schema.invoices.status })
     .from(schema.invoices)
     .where(eq(schema.invoices.correctsId, id))
@@ -494,10 +496,10 @@ function documentFor(
 const deductionIds = (lines: InvoiceLine[]) => [...new Set(lines.map((l) => l.deductionOf).filter((id): id is string => Boolean(id)))];
 
 /** Nummer und Datum der Abschlagsrechnungen, die eine Schlussrechnung abzieht, in Reihenfolge der Positionen */
-async function deductedRefs(lines: InvoiceLine[]) {
+async function deductedRefs(lines: InvoiceLine[], q: Db | Tx = db) {
   const ids = deductionIds(lines);
   if (ids.length === 0) return [];
-  const rows = await db
+  const rows = await q
     .select({ id: schema.invoices.id, number: schema.invoices.number, issueDate: schema.invoices.issueDate })
     .from(schema.invoices)
     .where(inArray(schema.invoices.id, ids));
@@ -507,11 +509,11 @@ async function deductedRefs(lines: InvoiceLine[]) {
 const sha256 = (data: string | Uint8Array) => createHash("sha256").update(data).digest("hex");
 
 /** Prüft, ob ein Entwurf festgeschrieben werden kann; leere Liste = bereit. */
-export async function finalizeIssues(id: string): Promise<string[]> {
-  const data = await getInvoice(id);
+export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<string[]> {
+  const data = await getInvoice(id, q);
   if (!data) return ["Rechnung nicht gefunden"];
   const { invoice, lines, contact } = data;
-  const company = await loadCompany();
+  const company = await loadCompany(q);
   const issues = sellerIssues(company).map((issue) => `Firmendaten: ${issue}`);
   if (company.kleinunternehmer && invoice.taxTreatment !== "kleinunternehmer") {
     issues.push("Als Kleinunternehmer stellst du Rechnungen ohne Umsatzsteuer (§ 19 UStG)");
@@ -523,14 +525,14 @@ export async function finalizeIssues(id: string): Promise<string[]> {
   if (lines.length === 0) issues.push("Keine Positionen");
   if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (invoice.correctsId) {
-    const [original] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-    const problem = original ? await originalProblem(original) : "Die korrigierte Rechnung fehlt";
+    const [original] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
+    const problem = original ? await originalProblem(original, q) : "Die korrigierte Rechnung fehlt";
     if (problem) issues.push(problem);
   }
   if (invoice.variant === "schluss") {
     const deducts = deductionIds(lines);
     if (deducts.length === 0) issues.push("Keine Abschlagsrechnung abgezogen");
-    issues.push(...(await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment })).problems);
+    issues.push(...(await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, q)).problems);
     if (invoice.gross < 0) issues.push("Die Abschläge übersteigen die Gesamtleistung");
   } else if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
@@ -538,12 +540,12 @@ export async function finalizeIssues(id: string): Promise<string[]> {
     const preview = documentFor(
       invoice,
       lines,
-      (await invoiceTotalsById([id])).get(id)!,
+      (await invoiceTotalsById([id], q)).get(id)!,
       sellerFrom(company),
       buyerFrom(contact),
       "VORSCHAU",
       data.corrects?.number ? { number: data.corrects.number, issueDate: data.corrects.issueDate } : null,
-      await deductedRefs(lines),
+      await deductedRefs(lines, q),
     );
     issues.push(...validateForFormat(preview));
   }
@@ -555,99 +557,92 @@ export async function finalizeIssues(id: string): Promise<string[]> {
  * Transaktion. Schlägt etwas fehl, bleibt der Entwurf ohne Nummer und es entsteht keine Lücke.
  */
 export async function finalizeInvoice(actor: string, id: string): Promise<Invoice> {
-  const issues = await finalizeIssues(id);
+  return withActor(actor, (tx) => finalizeDraft(tx, id));
+}
+
+/** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
+async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
+  const invoice = await lockDraft(tx, id);
+  const issues = await finalizeIssues(id, tx);
   if (issues.length > 0) throw new InvoiceError(`Noch nicht bereit: ${issues.join(", ")}.`);
+  const company = await openBooks(tx);
+  const lines = await tx
+    .select()
+    .from(schema.invoiceLines)
+    .where(eq(schema.invoiceLines.invoiceId, id))
+    .orderBy(asc(schema.invoiceLines.position));
+  const [contact] = await tx.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId!));
 
-  return withActor(actor, async (tx) => {
-    const invoice = await lockDraft(tx, id);
-    const company = await loadCompany();
-    const lines = await tx
-      .select()
-      .from(schema.invoiceLines)
-      .where(eq(schema.invoiceLines.invoiceId, id))
-      .orderBy(asc(schema.invoiceLines.position));
-    const [contact] = await tx.select().from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId!));
+  // Original und abgezogene Abschläge sperren und erneut prüfen: Ein paralleles Storno, eine Korrektur
+  // oder eine andere Schlussrechnung kann seit finalizeIssues festgeschrieben worden sein.
+  const deducts = deductionIds(lines);
+  const referenced = [...(invoice.correctsId ? [invoice.correctsId] : []), ...deducts];
+  if (referenced.length > 0) {
+    await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(inArray(schema.invoices.id, referenced)).orderBy(asc(schema.invoices.id)).for("update");
+  }
+  let corrects: Invoice | undefined;
+  if (invoice.correctsId) {
+    [corrects] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
+    const problem = corrects ? await originalProblem(corrects, tx) : "Die korrigierte Rechnung fehlt";
+    if (problem) throw new InvoiceError(`${problem}.`);
+  }
+  if (deducts.length > 0) {
+    const { problems } = await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, tx);
+    if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
+  }
 
-    // Original und abgezogene Abschläge sperren und erneut prüfen: Ein paralleles Storno, eine Korrektur
-    // oder eine andere Schlussrechnung kann seit finalizeIssues festgeschrieben worden sein.
-    const deducts = deductionIds(lines);
-    const referenced = [...(invoice.correctsId ? [invoice.correctsId] : []), ...deducts];
-    if (referenced.length > 0) {
-      await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(inArray(schema.invoices.id, referenced)).orderBy(asc(schema.invoices.id)).for("update");
-    }
-    let corrects: Invoice | undefined;
-    if (invoice.correctsId) {
-      [corrects] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-      const problem = corrects ? await originalProblem(corrects, tx) : "Die korrigierte Rechnung fehlt";
-      if (problem) throw new InvoiceError(`${problem}.`);
-    }
-    if (deducts.length > 0) {
-      const { problems } = await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, tx);
-      if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
-    }
+  const year = Number(invoice.issueDate.slice(0, 4));
+  const [counter] = await tx
+    .insert(schema.invoiceNumberCounters)
+    .values({ year, last: 1 })
+    .onConflictDoUpdate({ target: schema.invoiceNumberCounters.year, set: { last: sql`${schema.invoiceNumberCounters.last} + 1` } })
+    .returning();
+  const number = formatInvoiceNumber(year, counter!.last);
 
-    const year = Number(invoice.issueDate.slice(0, 4));
-    const [counter] = await tx
-      .insert(schema.invoiceNumberCounters)
-      .values({ year, last: 1 })
-      .onConflictDoUpdate({ target: schema.invoiceNumberCounters.year, set: { last: sql`${schema.invoiceNumberCounters.last} + 1` } })
-      .returning();
-    const number = formatInvoiceNumber(year, counter!.last);
+  // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
+  const seller = sellerFrom(company);
+  const buyer = corrects?.buyer ?? buyerFrom(contact!);
+  const totals = (await invoiceTotalsById([id], tx)).get(id)!;
+  const doc = documentFor(invoice, lines, totals, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null, await deductedRefs(lines, tx));
+  const logo = await loadLogo();
+  const rendered = await buildEInvoice(logo ? { ...doc, logo } : doc);
+  const now = new Date();
 
-    // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
-    const seller = sellerFrom(company);
-    const buyer = corrects?.buyer ?? buyerFrom(contact!);
-    const totals = (await invoiceTotalsById([id], tx)).get(id)!;
-    const doc = documentFor(invoice, lines, totals, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null, await deductedRefs(lines));
-    const logo = await loadLogo();
-    const rendered = await buildEInvoice(logo ? { ...doc, logo } : doc);
-    const now = new Date();
+  const [finalized] = await tx
+    .update(schema.invoices)
+    .set({
+      status: "final",
+      number,
+      numberYear: year,
+      numberCounter: counter!.last,
+      contactVersion: contact!.version,
+      seller,
+      buyer,
+      net: totals.net,
+      tax: totals.tax,
+      gross: totals.gross,
+      pdf: Buffer.from(rendered.pdf),
+      pdfSha256: sha256(rendered.pdf),
+      xml: rendered.xml,
+      xmlSha256: sha256(rendered.xml),
+      lockedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(schema.invoices.id, id))
+    .returning();
 
-    const [finalized] = await tx
-      .update(schema.invoices)
-      .set({
-        status: "final",
-        number,
-        numberYear: year,
-        numberCounter: counter!.last,
-        contactVersion: contact!.version,
-        seller,
-        buyer,
-        net: totals.net,
-        tax: totals.tax,
-        gross: totals.gross,
-        pdf: Buffer.from(rendered.pdf),
-        pdfSha256: sha256(rendered.pdf),
-        xml: rendered.xml,
-        xmlSha256: sha256(rendered.xml),
-        lockedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(schema.invoices.id, id))
-      .returning();
-
-    const label = invoiceTitle(invoice);
-    const [entry] = await tx
-      .insert(schema.journalEntries)
-      .values({
-        date: invoice.issueDate,
-        description: `${label} ${number} · ${buyer.name}`,
-        sourceType: "invoice",
-        sourceId: id,
-        kontenrahmen: company.kontenrahmen,
-      })
-      .returning();
-    await tx.insert(schema.journalLines).values(
-      // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern
-      (corrects?.lexofficeVoucherId
-        ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
-        : invoicePosting(totals, company.kontenrahmen, company.versteuerung, invoice.taxTreatment)
-      ).map((line) => ({ entryId: entry!.id, ...line })),
-    );
-    await tx.update(schema.journalEntries).set({ lockedAt: now }).where(eq(schema.journalEntries.id, entry!.id));
-
-    return finalized!;
+  await post(tx, company, {
+    date: invoice.issueDate,
+    description: `${invoiceTitle(invoice)} ${number} · ${buyer.name}`,
+    sourceType: "invoice",
+    sourceId: id,
+    // Korrektur einer aus Lexoffice übernommenen Rechnung: deren Erlöse stehen in den alten Büchern
+    lines: corrects?.lexofficeVoucherId
+      ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
+      : invoicePosting(totals, company.kontenrahmen, company.versteuerung, invoice.taxTreatment),
   });
+
+  return finalized!;
 }
 
 /** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */
@@ -664,10 +659,10 @@ async function originalProblem(original: Invoice, q: Db | Tx = db): Promise<stri
   return null;
 }
 
-async function finalOriginal(id: string) {
-  const data = await getInvoice(id);
+async function finalOriginal(id: string, q: Db | Tx = db) {
+  const data = await getInvoice(id, q);
   if (!data) throw new InvoiceError("Rechnung nicht gefunden.");
-  const problem = await originalProblem(data.invoice);
+  const problem = await originalProblem(data.invoice, q);
   if (problem) throw new InvoiceError(`${problem}.`);
   return data;
 }
@@ -682,33 +677,36 @@ function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
   }));
 }
 
-/** Stornorechnung mit allen Positionen negativ, sofort festgeschrieben. */
+/**
+ * Stornorechnung mit allen Positionen negativ, sofort festgeschrieben. Entwurf und Festschreiben in einer Transaktion:
+ * Schlägt das Festschreiben fehl oder bricht der Server ab, bleibt kein Storno-Entwurf zurück.
+ */
 export async function cancelInvoice(actor: string, id: string, today: string): Promise<Invoice> {
-  const { invoice, lines } = await finalOriginal(id);
-  const draft = await createDraft(
-    actor,
-    {
-      contactId: invoice.contactId,
-      issueDate: today,
-      serviceFrom: invoice.serviceFrom,
-      serviceTo: invoice.serviceTo,
-      paymentTermDays: 0,
-      format: invoice.format,
-      note: "",
-      taxTreatment: invoice.taxTreatment,
-      exemptionReason: invoice.exemptionReason,
-      priceMode: invoice.priceMode,
-      language: invoice.language,
-      lines: negatedLines(lines),
-    },
-    { kind: "storno", correctsId: invoice.id },
-  );
-  try {
-    return await finalizeInvoice(actor, draft.id);
-  } catch (error) {
-    await deleteDraft(actor, draft.id);
-    throw error;
-  }
+  return withActor(actor, async (tx) => {
+    // Original zuerst sperren: Ein zweites Storno wartet hier und sieht danach das erste. Erst mit dem Entwurf
+    // (Fremdschlüssel auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
+    await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+    const { invoice, lines } = await finalOriginal(id, tx);
+    const draft = await insertDraft(
+      tx,
+      {
+        contactId: invoice.contactId,
+        issueDate: today,
+        serviceFrom: invoice.serviceFrom,
+        serviceTo: invoice.serviceTo,
+        paymentTermDays: 0,
+        format: invoice.format,
+        note: "",
+        taxTreatment: invoice.taxTreatment,
+        exemptionReason: invoice.exemptionReason,
+        priceMode: invoice.priceMode,
+        language: invoice.language,
+        lines: negatedLines(lines),
+      },
+      { kind: "storno", correctsId: invoice.id },
+    );
+    return finalizeDraft(tx, draft.id);
+  });
 }
 
 /** Rechnungskorrektur als Entwurf: Positionen negativ übernommen, zum Anpassen. */

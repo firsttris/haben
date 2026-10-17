@@ -45,8 +45,13 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     await taxpayer.saveTaxpayer(actor, {
       a: { idnr: "65929970489", anrede: "Herrn", vorname: "Max", name: "Muster", geburtsdatum: "1985-04-12", religion: "11", beruf: "" },
     });
-    // Erste Buchung im Juli 2026
-    await sql`insert into journal_entries (date, description, source_type, source_id, kontenrahmen) values ('2026-07-15', 'Test', 'invoice', gen_random_uuid(), 'SKR03')`;
+    // Erste Buchung im Juli 2026, festgeschrieben in derselben Transaktion
+    await sql.begin(async (tx) => {
+      const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values ('2026-07-15', 'Test', 'invoice', gen_random_uuid(), 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, '1400', 100, 0), (${e!.id}, '8400', 0, 100)`;
+      await tx`update journal_entries set locked_at = now() where id = ${e!.id}`;
+    });
   });
 
   it("sammelt Voranmeldungen, Erklärungen, Vorauszahlungen und das Zertifikat", async () => {
@@ -64,7 +69,11 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     expect(byId.get("zertifikat-" + list.find((f) => f.art === "zertifikat")!.id.slice(11))).toMatchObject({ datum: "2027-01-15" });
     expect(list.map((f) => f.datum)).toEqual([...list.map((f) => f.datum)].sort());
 
-    await sql`update company set kleinunternehmer = true`;
+    // Kleinunternehmer im selben Jahr: die Datenbank lehnt das nach der ersten Buchung ab (0065), hier nur für die Anzeige
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`update company set kleinunternehmer = true`;
+    });
     const ku = await fristen.listFristen("2026-10-03");
     expect(ku.some((f) => f.art === "ustva" || f.id.startsWith("ust-"))).toBe(false);
   });

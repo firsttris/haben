@@ -456,6 +456,13 @@
       "when": 1792177147569,
       "tag": "0064_siegel_nebenbuecher",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1792180964792,
+      "tag": "0065_hauptbuch_sperren",
+      "breakpoints": true
     }
   ]
 }

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { listArticles } from "./articles.ts";
 import { listContacts } from "./contacts.ts";
 import { withActor } from "./db/actor.ts";
-import { db, schema } from "./db/index.ts";
+import { db, schema, type Db, type Tx } from "./db/index.ts";
 import { logoInfo } from "./logo.ts";
 
 export const companySchema = z.object({
@@ -43,11 +43,13 @@ export const companySchema = z.object({
 export type CompanyInput = z.infer<typeof companySchema>;
 export type Company = typeof schema.company.$inferSelect;
 
-export async function loadCompany(): Promise<Company> {
-  const [row] = await db.select().from(schema.company).where(eq(schema.company.id, 1));
+/** Firmendaten; mit `q` in einer laufenden Transaktion gelesen. Fehlt die Zeile, wird sie mit den Vorgaben angelegt. */
+export async function loadCompany(q: Db | Tx = db): Promise<Company> {
+  const [row] = await q.select().from(schema.company).where(eq(schema.company.id, 1));
   if (row) return row;
-  const [created] = await withActor("system:setup", (tx) => tx.insert(schema.company).values({ id: 1 }).onConflictDoNothing().returning());
-  return created ?? (await loadCompany());
+  const insert = (w: Db | Tx) => w.insert(schema.company).values({ id: 1 }).onConflictDoNothing().returning();
+  const [created] = q === db ? await withActor("system:setup", insert) : await insert(q);
+  return created ?? (await loadCompany(q));
 }
 
 /**
@@ -74,11 +76,6 @@ export async function versteuerungForYear(year: number): Promise<Versteuerung> {
     if (value === "ist" || value === "soll") return value;
   }
   return (await loadCompany()).versteuerung;
-}
-
-/** Firmendaten speichern; ob gesperrte Einstellungen geändert werden, prüft der Aufrufer vorher (settings-guard.ts). */
-export async function updateCompany(actor: string, input: CompanyInput): Promise<void> {
-  await withActor(actor, (tx) => tx.update(schema.company).set({ ...input, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
 }
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */

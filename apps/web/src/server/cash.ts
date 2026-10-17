@@ -2,8 +2,8 @@ import { UserError } from "./errors.ts";
 import { CASH_BOOKINGS, cashPosting, formatEuro, type CashBooking, type Cents } from "@haben/core";
 import { asc, eq, gte, lt, sql } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "./company.ts";
 import { withActor } from "./db/actor.ts";
+import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 
 /**
@@ -86,14 +86,15 @@ export async function addDocumentCashEntry(
 }
 
 async function postCash(tx: Tx, input: { id: string; date: string; amount: Cents; kind: CashBooking; text: string; reversesId?: string | null }) {
-  const { kontenrahmen } = await loadCompany();
-  const [entry] = await tx
-    .insert(schema.journalEntries)
-    .values({ date: input.date, description: input.text, sourceType: "kasse", sourceId: input.id, kontenrahmen, reversesId: input.reversesId ?? null })
-    .returning();
-  await tx.insert(schema.journalLines).values(cashPosting(CASH_BOOKINGS[input.kind].kind, input.amount, kontenrahmen).map((line) => ({ entryId: entry!.id, ...line })));
-  await tx.update(schema.journalEntries).set({ lockedAt: new Date() }).where(eq(schema.journalEntries.id, entry!.id));
-  return entry!.id;
+  const books = await openBooks(tx);
+  return post(tx, books, {
+    date: input.date,
+    description: input.text,
+    sourceType: "kasse",
+    sourceId: input.id,
+    reversesId: input.reversesId,
+    lines: cashPosting(CASH_BOOKINGS[input.kind].kind, input.amount, books.kontenrahmen),
+  });
 }
 
 /** Einlage, Entnahme, Abhebung von der Bank oder Einzahlung auf die Bank */

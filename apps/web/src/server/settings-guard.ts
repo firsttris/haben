@@ -1,7 +1,9 @@
 import { and, count, eq, gte, lt, sql } from "drizzle-orm";
 import { listAssets } from "./assets.ts";
-import type { Company, CompanyInput } from "./company.ts";
-import { db, schema } from "./db/index.ts";
+import { loadCompany, type Company, type CompanyInput } from "./company.ts";
+import { withActor } from "./db/actor.ts";
+import { db, schema, type Db, type Tx } from "./db/index.ts";
+import { UserError } from "./errors.ts";
 
 /** Warum sich Kontenrahmen, Versteuerung oder Kleinunternehmer gerade nicht ändern lassen; null = frei */
 export interface SettingsLocks {
@@ -15,8 +17,8 @@ export interface SettingsLocks {
 const paidOn = (invoiceId: unknown) => sql`coalesce((select sum(a.amount) from allocations a where a.invoice_id = ${invoiceId}), 0)`;
 
 /** Offene Rechnungen wie im Bankabgleich (openItems), nur gezählt */
-async function openInvoiceCount(): Promise<number> {
-  const [row] = await db
+async function openInvoiceCount(q: Db | Tx): Promise<number> {
+  const [row] = await q
     .select({ n: count() })
     .from(schema.invoices)
     .where(
@@ -33,9 +35,9 @@ async function openInvoiceCount(): Promise<number> {
 }
 
 /** Was im Vorjahr noch zu buchen ist: AfA bzw. Privatnutzung der Anlagen und Belege mit Datum im Vorjahr */
-async function previousYearOpen(year: number): Promise<string[]> {
-  const pendingAssets = (await listAssets(year - 1)).filter((a) => a.pending).length;
-  const [documents] = await db
+async function previousYearOpen(year: number, q: Db | Tx): Promise<string[]> {
+  const pendingAssets = (await listAssets(year - 1, q)).filter((a) => a.pending).length;
+  const [documents] = await q
     .select({ n: count() })
     .from(schema.documents)
     .where(and(eq(schema.documents.status, "neu"), gte(schema.documents.documentDate, `${year - 1}-01-01`), lt(schema.documents.documentDate, `${year}-01-01`)));
@@ -53,15 +55,15 @@ async function previousYearOpen(year: number): Promise<string[]> {
  * Beim Wechsel der Versteuerung würden offene Rechnungen zusätzlich doppelt oder gar nicht
  * angemeldet (Ist: bei Zahlung, Soll: bei Rechnung).
  */
-export async function settingsLocks(today: string): Promise<SettingsLocks> {
+export async function settingsLocks(today: string, q: Db | Tx = db): Promise<SettingsLocks> {
   const year = Number(today.slice(0, 4));
-  const [entries] = await db
+  const [entries] = await q
     .select({ n: count() })
     .from(schema.journalEntries)
     .where(gte(schema.journalEntries.date, `${year}-01-01`));
   const booked = (entries?.n ?? 0) > 0;
-  const previousOpen = booked ? [] : await previousYearOpen(year);
-  const openInvoices = await openInvoiceCount();
+  const previousOpen = booked ? [] : await previousYearOpen(year, q);
+  const openInvoices = await openInvoiceCount(q);
   const yearLock = booked
     ? `Im Jahr ${year} gibt es schon Buchungen. Umstellen nur zum Jahreswechsel, bevor im neuen Jahr gebucht wird.`
     : previousOpen.length > 0
@@ -84,4 +86,19 @@ export function lockedChange(current: Company, next: CompanyInput, locks: Settin
   if (next.versteuerung !== current.versteuerung && locks.versteuerung) return `Versteuerung: ${locks.versteuerung}`;
   if (next.kleinunternehmer && !current.kleinunternehmer && locks.kleinunternehmer) return `Kleinunternehmer: ${locks.kleinunternehmer}`;
   return null;
+}
+
+/**
+ * Firmendaten speichern. Prüfung und Speichern laufen in einer Transaktion mit gesperrter Firmenzeile, damit jeder
+ * Zugang (Oberfläche, später eine API oder der Scheduler) dieselbe Sperre bekommt. Den Kern der Jahressperre prüft
+ * zusätzlich die Datenbank (drizzle/0065), auch für Änderungen an Haben vorbei.
+ */
+export async function saveCompany(actor: string, input: CompanyInput, today: string): Promise<void> {
+  await withActor(actor, async (tx) => {
+    await loadCompany(tx);
+    const [current] = await tx.select().from(schema.company).where(eq(schema.company.id, 1)).for("update");
+    const locked = lockedChange(current!, input, await settingsLocks(today, tx));
+    if (locked) throw new UserError(locked);
+    await tx.update(schema.company).set({ ...input, updatedAt: new Date() }).where(eq(schema.company.id, 1));
+  });
 }

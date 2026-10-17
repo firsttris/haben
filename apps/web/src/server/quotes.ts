@@ -19,9 +19,9 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, sellerIssues } from "./company.ts";
 import { withActor } from "./db/actor.ts";
-import { db, schema, type Tx } from "./db/index.ts";
+import { db, schema, type Db, type Tx } from "./db/index.ts";
 import { loadLogo } from "./logo.ts";
-import { buyerFrom, createDraft, deleteDraft, effectivePriceMode, sellerFrom, type Invoice } from "./invoices.ts";
+import { buyerFrom, effectivePriceMode, insertDraft, sellerFrom, type Invoice } from "./invoices.ts";
 
 /**
  * Angebote: eigener Nummernkreis (AN-2026-001), PDF mit der Rechnungsvorlage, keine Buchung.
@@ -152,13 +152,13 @@ export async function newQuoteDefaults(today: string) {
   } satisfies QuoteDraftInput;
 }
 
-export async function getQuote(id: string) {
-  const [quote] = await db.select().from(schema.quotes).where(eq(schema.quotes.id, id));
+export async function getQuote(id: string, q: Db | Tx = db) {
+  const [quote] = await q.select().from(schema.quotes).where(eq(schema.quotes.id, id));
   if (!quote) return null;
-  const lines = await db.select().from(schema.quoteLines).where(eq(schema.quoteLines.quoteId, id)).orderBy(asc(schema.quoteLines.position));
-  const [contact] = quote.contactId ? await db.select().from(schema.contacts).where(eq(schema.contacts.id, quote.contactId)) : [];
+  const lines = await q.select().from(schema.quoteLines).where(eq(schema.quoteLines.quoteId, id)).orderBy(asc(schema.quoteLines.position));
+  const [contact] = quote.contactId ? await q.select().from(schema.contacts).where(eq(schema.contacts.id, quote.contactId)) : [];
   const [invoice] = quote.invoiceId
-    ? await db
+    ? await q
         .select({ id: schema.invoices.id, number: schema.invoices.number, status: schema.invoices.status })
         .from(schema.invoices)
         .where(eq(schema.invoices.id, quote.invoiceId))
@@ -311,49 +311,44 @@ export async function setQuoteDecision(actor: string, id: string, decision: "ang
 /**
  * Rechnungsentwurf aus dem Angebot: Kunde, Positionen, Leistungszeitraum und Umsatzsteuer übernommen,
  * Datum heute, Zahlungsziel und Format wie bei neuen Rechnungen. Das Angebot gilt damit als angenommen.
+ * Entwurf und Verknüpfung entstehen in einer Transaktion mit gesperrtem Angebot.
  */
 export async function quoteToInvoice(actor: string, id: string, today: string): Promise<Invoice> {
-  const data = await getQuote(id);
-  if (!data) throw new QuoteError("Angebot nicht gefunden.");
-  const { quote, lines, contact } = data;
-  if (quote.status !== "final") throw new QuoteError("Nur festgeschriebene Angebote lassen sich abrechnen.");
-  if (quote.invoiceId) throw new QuoteError("Aus dem Angebot ist bereits eine Rechnung entstanden.");
-  if (quote.decision === "abgelehnt") throw new QuoteError("Das Angebot ist als abgelehnt markiert.");
-  const company = await loadCompany();
-  const invoice = await createDraft(actor, {
-    contactId: quote.contactId,
-    issueDate: today,
-    serviceFrom: quote.serviceFrom,
-    serviceTo: quote.serviceTo,
-    paymentTermDays: company.paymentTermDays,
-    format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
-    note: texts(quote.language).fromQuote(quote.number ?? "", texts(quote.language).date(quote.issueDate)),
-    taxTreatment: quote.taxTreatment,
-    exemptionReason: quote.exemptionReason,
-    priceMode: quote.priceMode,
-    language: quote.language,
-    lines: lines.map((line) => ({
-      description: line.description,
-      quantity: line.quantity,
-      unit: line.unit as UnitLabel,
-      unitPrice: line.unitPrice,
-      taxRate: line.taxRate as 1900 | 700 | 0,
-    })),
-  });
-  try {
-    await withActor(actor, async (tx) => {
-      const locked = await lockFinal(tx, id);
-      if (locked.invoiceId) throw new QuoteError("Aus dem Angebot ist bereits eine Rechnung entstanden.");
-      await tx
-        .update(schema.quotes)
-        .set({ invoiceId: invoice.id, decision: "angenommen", decidedAt: locked.decidedAt ?? new Date(), updatedAt: new Date() })
-        .where(eq(schema.quotes.id, id));
+  return withActor(actor, async (tx) => {
+    const [locked] = await tx.select().from(schema.quotes).where(eq(schema.quotes.id, id)).for("update");
+    const data = locked ? await getQuote(id, tx) : null;
+    if (!locked || !data) throw new QuoteError("Angebot nicht gefunden.");
+    const { lines, contact } = data;
+    if (locked.status !== "final") throw new QuoteError("Nur festgeschriebene Angebote lassen sich abrechnen.");
+    if (locked.invoiceId) throw new QuoteError("Aus dem Angebot ist bereits eine Rechnung entstanden.");
+    if (locked.decision === "abgelehnt") throw new QuoteError("Das Angebot ist als abgelehnt markiert.");
+    const company = await loadCompany(tx);
+    const invoice = await insertDraft(tx, {
+      contactId: locked.contactId,
+      issueDate: today,
+      serviceFrom: locked.serviceFrom,
+      serviceTo: locked.serviceTo,
+      paymentTermDays: company.paymentTermDays,
+      format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
+      note: texts(locked.language).fromQuote(locked.number ?? "", texts(locked.language).date(locked.issueDate)),
+      taxTreatment: locked.taxTreatment,
+      exemptionReason: locked.exemptionReason,
+      priceMode: locked.priceMode,
+      language: locked.language,
+      lines: lines.map((line) => ({
+        description: line.description,
+        quantity: line.quantity,
+        unit: line.unit as UnitLabel,
+        unitPrice: line.unitPrice,
+        taxRate: line.taxRate as 1900 | 700 | 0,
+      })),
     });
-  } catch (error) {
-    await deleteDraft(actor, invoice.id);
-    throw error;
-  }
-  return invoice;
+    await tx
+      .update(schema.quotes)
+      .set({ invoiceId: invoice.id, decision: "angenommen", decidedAt: locked.decidedAt ?? new Date(), updatedAt: new Date() })
+      .where(eq(schema.quotes.id, id));
+    return invoice;
+  });
 }
 
 /** Neuer Entwurf mit Kunde und Positionen eines vorhandenen Angebots, Datum und Gültigkeit neu */

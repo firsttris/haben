@@ -16,6 +16,7 @@ import { z } from "zod";
 import { loadCompany } from "./company.ts";
 import { addDocumentCashEntry, lockCash } from "./cash.ts";
 import { withActor } from "./db/actor.ts";
+import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Tx } from "./db/index.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "./storage.ts";
@@ -333,11 +334,11 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[]): string[
 
 /** Bucht den Beleg (Aufwand + Vorsteuer an Verbindlichkeiten bzw. Privateinlage) und sperrt ihn. */
 export async function bookDocument(actor: string, id: string): Promise<void> {
-  const company = await loadCompany();
   await withActor(actor, async (tx) => {
     const doc = await lockOpen(tx, id);
     // Kasse vor der ersten Buchung sperren, wie beim Kassenbuch selbst (siehe lockCash)
     if (doc.payment === "kasse") await lockCash(tx);
+    const company = await openBooks(tx);
     const amounts = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
     const issues = bookingIssues(doc, amounts);
     if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
@@ -363,18 +364,13 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
       doc.reverseCharge,
     );
     const now = new Date();
-    const [entry] = await tx
-      .insert(schema.journalEntries)
-      .values({
-        date: doc.documentDate!,
-        description: `Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`,
-        sourceType: "document",
-        sourceId: id,
-        kontenrahmen: company.kontenrahmen,
-      })
-      .returning();
-    await tx.insert(schema.journalLines).values(lines.map((line) => ({ entryId: entry!.id, ...line })));
-    await tx.update(schema.journalEntries).set({ lockedAt: now }).where(eq(schema.journalEntries.id, entry!.id));
+    const entryId = await post(tx, company, {
+      date: doc.documentDate!,
+      description: `Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`,
+      sourceType: "document",
+      sourceId: id,
+      lines,
+    });
     // Bar aus der Kasse: Zeile im Kassenbuch; lehnt ab, wenn der Bestand dadurch negativ würde
     if (doc.payment === "kasse") {
       await addDocumentCashEntry(tx, {
@@ -382,7 +378,7 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
         date: doc.documentDate!,
         gross: totals.gross,
         text: `${doc.supplierName}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
-        journalEntryId: entry!.id,
+        journalEntryId: entryId,
       });
     }
     await tx

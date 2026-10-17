@@ -67,8 +67,13 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
     expect(liste.length).toBeGreaterThan(0);
     for (const zeile of liste) expect(saldo.get(zeile.account) ?? 0, zeile.account).toBe(zeile.saldo);
 
-    // Nach einem Wechsel des Kontenrahmens bleibt das Jahr im Rahmen seiner Buchungen exportierbar
-    await sql`update company set kontenrahmen = 'SKR04'`;
+    // Nach einem Wechsel des Kontenrahmens bleibt das Jahr im Rahmen seiner Buchungen exportierbar. Mitten im Jahr
+    // lehnt die Datenbank den Wechsel ab (0065); gemischte Rahmen gibt es nur in Daten von vorher oder an Haben vorbei.
+    await expect(sql`update company set kontenrahmen = 'SKR04'`).rejects.toThrow(/schon Buchungen/);
+    await sql.begin(async (tx) => {
+      await tx`set local session_replication_role = replica`;
+      await tx`update company set kontenrahmen = 'SKR04'`;
+    });
     expect(parseDatevBuchungsstapel((await datev.datevExport(2026)).bytes).header.kontenrahmen).toBe("SKR03");
     // Gemischte Rahmen in einem Jahr: klare Meldung statt eines falschen Stapels
     await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id);
