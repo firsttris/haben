@@ -1,4 +1,4 @@
-import { currentFilingPeriod, dueDate, parsePeriodKey, periodKey, periodLabel, type VatPeriod } from "@haben/core";
+import { dueDate, parsePeriodKey, previousPeriod, periodKey, periodLabel, type VatPeriod } from "@haben/core";
 import { z } from "zod";
 import { env } from "../../env.ts";
 import { today as todayInGermany } from "../../today.ts";
@@ -34,7 +34,6 @@ export interface McpTool<Shape extends z.ZodRawShape = z.ZodRawShape> {
 export interface ToolContext {
   /** Heutiges Datum in Deutschland, JJJJ-MM-TT */
   today: string;
-  now: Date;
 }
 
 const euro = (cents: number) => Math.round(cents) / 100;
@@ -46,8 +45,13 @@ const KENNUNG = /idnr|identifikationsnummer|etin|steuernummer/i;
 const limitSchema = z.number().int().min(1).max(200).default(50).describe("Höchstens so viele Einträge (Standard 50)");
 const yearSchema = z.number().int().min(2000).max(2100);
 
-function periodFrom(key: string | undefined, now: Date): VatPeriod {
-  if (!key) return currentFilingPeriod(now);
+/** Monat, der als Nächstes abzugeben ist (der Vormonat), nach dem Datum in Deutschland und nicht der Zeitzone des Servers */
+function filingPeriod(today: string): VatPeriod {
+  return previousPeriod({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) });
+}
+
+function periodFrom(key: string | undefined, today: string): VatPeriod {
+  if (!key) return filingPeriod(today);
   const period = parsePeriodKey(key);
   if (!period) throw new McpError(`Zeitraum „${key}“ ungültig, erwartet JJJJ-MM.`);
   return period;
@@ -67,8 +71,8 @@ export const MCP_TOOLS: McpTool[] = [
       "nächsten offenen Fristen. Guter Einstieg vor jeder anderen Frage.",
     scope: "haben:lesen",
     input: {},
-    run: async (_args, { today, now }) => {
-      const period = currentFilingPeriod(now);
+    run: async (_args, { today }) => {
+      const period = filingPeriod(today);
       const [company, returns, computed, invoices, accounts, documents, afa, appeals, certificate, fristen, kleinunternehmer] = await Promise.all([
         loadCompany(),
         returnsForPeriod(period),
@@ -273,8 +277,8 @@ export const MCP_TOOLS: McpTool[] = [
       "Ohne Zeitraum der Monat, der als Nächstes abzugeben ist. Gesendet wird nur in Haben selbst.",
     scope: "haben:lesen",
     input: { zeitraum: z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Monat als JJJJ-MM") },
-    run: async ({ zeitraum }, { now }) => {
-      const period = periodFrom(zeitraum, now);
+    run: async ({ zeitraum }, { today }) => {
+      const period = periodFrom(zeitraum, today);
       const [company, returns, figures, abgleich, kleinunternehmer] = await Promise.all([
         loadCompany(),
         returnsForPeriod(period),
@@ -418,5 +422,5 @@ export const MCP_TOOLS: McpTool[] = [
 ];
 
 export function todayContext(now = new Date()): ToolContext {
-  return { today: todayInGermany(now), now };
+  return { today: todayInGermany(now) };
 }

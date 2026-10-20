@@ -5,6 +5,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", () => {
   let mcp: typeof import("./index.ts");
   let server: typeof import("./server.ts");
+  let tools: typeof import("./tools.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
 
@@ -12,6 +13,7 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     sql = await setupTestDb();
     mcp = await import("./index.ts");
     server = await import("./server.ts");
+    tools = await import("./tools.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -145,6 +147,32 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     expect(limited.status).toBe(429);
     expect(limited.headers.get("retry-after")).toBe("60");
     expect(server.rateLimited(id, Date.now() + 61_000)).toBe(false);
+  });
+
+  it("zählt jede Nachricht eines Batches gegen die Grenze", async () => {
+    const token = await enabledToken();
+    const batch = (n: number) =>
+      server.handleMcpRequest(
+        new Request("http://localhost:3000/api/mcp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(Array.from({ length: n }, () => ({ jsonrpc: "2.0", id: nextId++, method: "tools/list", params: {} }))),
+        }),
+      );
+    expect((await batch(100)).status).toBe(200);
+    expect((await batch(100)).status).toBe(429);
+    expect((await batch(20)).status).toBe(200);
+    expect((await rpc(token, "tools/list")).status).toBe(429);
+  });
+
+  it("nimmt den Monat der Voranmeldung nach dem Datum in Deutschland, nicht nach der Zeitzone des Servers", async () => {
+    // 31.10.2026 23:30 UTC ist in Deutschland schon der 1. November: fällig ist dann der Oktober
+    const context = tools.todayContext(new Date("2026-10-31T23:30:00Z"));
+    const run = (name: string, args = {}) => tools.MCP_TOOLS.find((t) => t.name === name)!.run(args, context) as Promise<Record<string, unknown>>;
+    const overview = await run("uebersicht");
+    expect(overview.heute).toBe("2026-11-01");
+    expect(overview.voranmeldung).toMatchObject({ zeitraum: "2026-10" });
+    expect(await run("umsatzsteuer_voranmeldung")).toMatchObject({ zeitraum: "2026-10" });
   });
 
   it("schaltet das Ein und Aus ins Änderungsprotokoll", async () => {

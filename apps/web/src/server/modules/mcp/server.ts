@@ -12,22 +12,32 @@ const INSTRUCTIONS = [
   "Haben ersetzt keine Steuerberatung; Prognosen sind Schätzungen.",
 ].join(" ");
 
-/** Anfragen je Zugang und Minute */
+/** JSON-RPC-Nachrichten je Zugang und Minute; ein Batch zählt mit jeder Nachricht */
 const RATE_LIMIT = 120;
 const WINDOW_MS = 60_000;
 const hits = new Map<string, number[]>();
 
 /** Gleitendes Fenster je Zugang, im Speicher (ein Prozess) */
-export function rateLimited(tokenId: string, now = Date.now()): boolean {
+export function rateLimited(tokenId: string, now = Date.now(), messages = 1): boolean {
   const recent = (hits.get(tokenId) ?? []).filter((t) => t > now - WINDOW_MS);
-  const limited = recent.length >= RATE_LIMIT;
-  if (!limited) recent.push(now);
+  const limited = recent.length + messages > RATE_LIMIT;
+  if (!limited) for (let i = 0; i < messages; i++) recent.push(now);
   hits.set(tokenId, recent);
   return limited;
 }
 
 export function resetRateLimitForTests() {
   hits.clear();
+}
+
+/** Anzahl der JSON-RPC-Nachrichten im Body; was sich nicht lesen lässt, zählt als eine und lehnt der Transport ab */
+async function messageCount(request: Request): Promise<number> {
+  try {
+    const body: unknown = await request.clone().json();
+    return Array.isArray(body) ? Math.max(1, body.length) : 1;
+  } catch {
+    return 1;
+  }
 }
 
 function jsonError(status: number, message: string, headers: Record<string, string> = {}): Response {
@@ -76,7 +86,7 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
   if (request.method !== "POST") return jsonError(405, "Nur POST; dieser Server hält keine Sitzungen.", { Allow: "POST" });
   const access = await authenticateMcp(request);
   if (!access) return jsonError(401, "Kein gültiges API-Token. In Haben unter Einstellungen → KI-Assistenten anlegen.", { "WWW-Authenticate": 'Bearer realm="haben"' });
-  if (rateLimited(access.tokenId)) return jsonError(429, "Zu viele Anfragen, bitte kurz warten.", { "Retry-After": "60" });
+  if (rateLimited(access.tokenId, Date.now(), await messageCount(request))) return jsonError(429, "Zu viele Anfragen, bitte kurz warten.", { "Retry-After": "60" });
 
   const server = createServer(access);
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
