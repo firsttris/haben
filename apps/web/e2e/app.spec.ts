@@ -251,7 +251,9 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   const cert = page.getByRole("form", { name: "ELSTER-Zertifikat" });
   await cert.getByLabel("Zertifikatsdatei").setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from("kein echtes Zertifikat") });
   await cert.getByRole("button", { name: "Hochladen" }).click();
-  await expect(cert.getByText("test.pfx")).toBeVisible();
+  // Den Dateinamen zeigt schon die Dateiauswahl; „Entfernen“ gibt es erst, wenn das Zertifikat gespeichert ist
+  await expect(cert.getByRole("button", { name: "Entfernen" })).toBeVisible();
+  await expect(cert.getByText("test.pfx").first()).toBeVisible();
   const formate = page.getByRole("group", { name: "Formate prüfen" });
   await formate.getByRole("button", { name: "Formate mit ERiC prüfen" }).click();
   await expect(formate.getByRole("status")).toHaveText("Alle 8 Nachrichten sind gültig (simuliert, ohne ERiC).");
