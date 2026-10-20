@@ -1,7 +1,7 @@
 #!/bin/bash
 # Einstiegspunkt des Backup-Images. Ohne Argument läuft backup.sh täglich um BACKUP_TIME (HH:MM, Zeitzone TZ),
 # so betreibt Compose den Dienst backup. Mit Argument wird der Befehl ausgeführt, etwa backup.sh,
-# restore.sh latest oder restic snapshots.
+# restore-check.sh, restore.sh latest oder restic snapshots.
 set -euo pipefail
 if [ "${1:-zeitplan}" != zeitplan ]; then
   exec "$@"

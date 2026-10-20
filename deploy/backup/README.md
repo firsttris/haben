@@ -10,7 +10,8 @@ Backup für [Haben](https://github.com/firsttris/haben), die selbst gehostete Bu
 | Befehl | |
 | --- | --- |
 | (keiner) | Zeitplan: `backup.sh` täglich um `BACKUP_TIME` |
-| `backup.sh` | Ein Backup jetzt |
+| `backup.sh` | Ein Backup jetzt; alle `RESTORE_CHECK_DAYS` Tage (Standard 7) folgt ein Test-Restore |
+| `restore-check.sh` / `restore-check.sh <id>` | Test-Restore jetzt: in eine Wegwerf-Datenbank einspielen, Hash-Kette, Siegel und Belege prüfen, nichts ersetzen |
 | `restore.sh` | Verfügbare Stände anzeigen |
 | `restore.sh latest` / `restore.sh <id>` | Datenbank und Belege ersetzen (App vorher stoppen, `/belege` schreibbar einhängen) |
 

@@ -8,6 +8,13 @@ export const formatDate = (value: string | Date) => dateFormat.format(new Date(v
 export const formatLongDate = (value: string | Date) => longDateFormat.format(new Date(value));
 export const formatDateTime = (value: string | Date) => dateTimeFormat.format(new Date(value));
 
+export function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(1).replace(".", ",")} GB`;
+}
+
 /** Tage bis zu einem Datum (negativ = vorbei) */
 export function daysUntil(value: string | Date, today = new Date()): number {
   const target = new Date(value);

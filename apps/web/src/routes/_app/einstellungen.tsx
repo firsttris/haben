@@ -2,6 +2,7 @@ import { BUNDESLAENDER, currentFilingPeriod, formatDecimal, parseEuro, type Bund
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
+import { BackupCard } from "../../components/BackupCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
@@ -14,6 +15,7 @@ import { authClient } from "../../lib/auth-client.ts";
 import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
+import { getBackupStatus } from "../../server/functions/backup.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
 import { SETTINGS_AREAS, type SettingsArea } from "../../lib/settings-areas.ts";
@@ -31,7 +33,7 @@ import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead] = await Promise.all([
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
       getNumbering(),
@@ -42,8 +44,9 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getExportYears(),
       getDatevNumbers(),
       getChainHead(),
+      getBackupStatus(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead };
+    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
   validateSearch: (search: Record<string, unknown>): { bereich?: SettingsArea } =>
@@ -52,7 +55,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { logo, mail, inbox, exportYears, datev, chainHead } = Route.useLoaderData();
+  const { logo, mail, inbox, exportYears, datev, chainHead, backup } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
@@ -99,6 +102,7 @@ function SettingsPage() {
               <ExportCard years={exportYears} />
               <DatevCard years={exportYears} numbers={datev} />
               <IntegrityCard head={chainHead} />
+              <BackupCard status={backup} />
             </>
           )}
         </div>

@@ -1370,3 +1370,28 @@ export const dunnings = pgTable(
     index("dunnings_invoice").on(t.invoiceId),
   ],
 );
+
+/**
+ * Läufe des Backup-Containers (deploy/backup): tägliches Backup und wöchentlicher Test-Restore. Der Container
+ * schreibt nach jedem Lauf eine Zeile, die App zeigt den Stand in den Einstellungen und warnt in der Übersicht.
+ * Betriebsdaten, keine Buchungsdaten: ohne Audit-Log und Siegel.
+ */
+export const backupStatus = pgTable(
+  "backup_status",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    kind: text("kind", { enum: ["backup", "restore_check"] }).notNull(),
+    ok: boolean("ok").notNull(),
+    /** restic-Snapshot des Laufs (beim Test-Restore der geprüfte) */
+    snapshot: text("snapshot"),
+    /** Backup: Größe der gesicherten Daten in Byte */
+    bytes: bigint("bytes", { mode: "number" }),
+    /** Zusammenfassung oder Fehlermeldung */
+    message: text("message").notNull().default(""),
+  },
+  (t) => [
+    check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`),
+    index("backup_status_kind_at").on(t.kind, t.at),
+  ],
+);

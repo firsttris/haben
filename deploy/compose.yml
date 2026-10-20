@@ -25,6 +25,8 @@ x-backup: &backup
     # Eigener Name je Instanz, wenn mehrere ein Repository teilen
     BACKUP_HOST: ${BACKUP_HOST:-haben}
     BACKUP_TIME: ${BACKUP_TIME:-03:15}
+    # Test-Restore nach dem Backup alle so viele Tage, 0 schaltet ihn ab
+    RESTORE_CHECK_DAYS: ${RESTORE_CHECK_DAYS:-7}
     # Zugangsdaten für ein Repository auf S3, sonst leer
     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}

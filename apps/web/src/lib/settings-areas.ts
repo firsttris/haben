@@ -6,7 +6,7 @@ export const SETTINGS_AREAS = [
   { id: "elster", label: "ELSTER", hint: "Zertifikat und ERiC" },
   { id: "email", label: "E-Mail", hint: "Versand und Belege-Postfach" },
   { id: "sicherheit", label: "Sicherheit", hint: "Passkeys" },
-  { id: "export", label: "Export", hint: "Archiv, DATEV, Prüfung" },
+  { id: "export", label: "Export", hint: "Archiv, DATEV, Prüfung, Backup" },
 ] as const;
 
 export type SettingsArea = (typeof SETTINGS_AREAS)[number]["id"];

@@ -347,13 +347,16 @@ Ein Update lässt sich nicht einfach zurücknehmen: Migrationen ändern die Date
 | Protokoll | `docker compose logs backup` | `journalctl --user -u haben-backup` |
 | Passwort des Backups | `RESTIC_PASSWORD` in `.env` | Secret `haben-restic-password` |
 | Repository auf einem zweiten System | `RESTIC_REPOSITORY` in `.env` | `RESTIC_REPOSITORY` in `~/.config/haben/backup.env` |
+| Test-Restore | alle `RESTORE_CHECK_DAYS` Tage (`.env`, Standard 7) | alle `RESTORE_CHECK_DAYS` Tage (`backup.env`, Standard 7) |
 
 Ein Lauf
 
 1. legt beim ersten Mal das restic-Repository an,
 2. erzeugt mit `pg_dump` über das Netz einen SQL-Dump der Datenbank, packt ihn mit gzip und prüft ihn: Das Archiv muss sich entpacken lassen und mit der Abschlusszeile von `pg_dump` enden, sonst bricht das Backup mit Fehler ab,
 3. sichert den Dump und die Belegdateien (Volume `belege` bzw. `haben-belege`, nur lesend eingehängt) verschlüsselt mit `restic backup --tag haben`,
-4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die zehnjährige Aufbewahrung nach GoBD ab.
+4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die zehnjährige Aufbewahrung nach GoBD ab,
+5. trägt das Ergebnis in die Datenbank ein; die App zeigt es unter Einstellungen › Export und warnt in der Übersicht, wenn ein Lauf fehlschlug oder seit zwei Tagen kein Backup durchlief,
+6. spielt einmal pro Woche das neue Backup probeweise ein (siehe [Test-Restore](#test-restore)).
 
 Die Volumes `caddy`, `eric` und `eric-log` und die Schlüssel sind nicht dabei. Mit Compose zeigt `docker compose ps` den Dienst `backup` als `unhealthy`, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief.
 
@@ -379,6 +382,18 @@ AWS_SECRET_ACCESS_KEY=…
 ```
 
 Unterstützt das Ziel schreibgeschützte Stände (etwa Object Lock bei S3), schützt das Backup auch gegen jemanden, der den Server übernommen hat.
+
+### Test-Restore
+
+Ein Backup, das sich im Ernstfall nicht einspielen lässt, merkt man sonst erst im Ernstfall. Deshalb folgt auf ein erfolgreiches Backup alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `0` schaltet es ab) `restore-check.sh`. Es ersetzt nichts:
+
+1. `restic check --read-data-subset 5%` liest einen Teil der Daten im Repository und prüft sie (`RESTORE_CHECK_SUBSET`),
+2. der Dump aus dem Snapshot wird in die Wegwerf-Datenbank `haben_restore_check` eingespielt,
+3. darin prüft es Hash-Kette und Siegel wie „Kette prüfen“ in der App, und der letzte Eintrag der Kette im Backup muss mit demselben Hash in der laufenden Datenbank stehen,
+4. 20 zufällige Belege (`RESTORE_CHECK_FILES`) kommen aus dem Snapshot und müssen ihre SHA-256-Prüfsumme haben,
+5. `haben_restore_check` wird wieder gelöscht, das Ergebnis steht in der App.
+
+Der Datenbankserver braucht dafür kurzzeitig Platz für eine zweite Kopie der Datenbank. Von Hand: `docker compose exec backup restore-check.sh` bzw. mit den Quadlets `podman run` wie unten unter Wiederherstellen, mit `restore-check.sh` statt `restore.sh latest` und `/belege` nur lesend. Eine App, die älter ist als das Backup-Image, hat die Tabelle für das Ergebnis noch nicht; dann steht es nur im Protokoll, und der Test-Restore läuft sonntags.
 
 ### Wiederherstellen
 

@@ -15,6 +15,7 @@ export {
   MAX_ARCHIVE_SIZE,
   type ArchiveKind,
 } from "./archive.ts";
+export { BACKUP_MAX_AGE_MS, backupOverview, type BackupOverview, type BackupRun } from "./backup-status.ts";
 export { exportFilename, exportYear, exportYears, toReadableStream } from "./export.ts";
 export { openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.ts";
 export {

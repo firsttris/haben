@@ -1,14 +1,8 @@
-import { formatDate, formatDateTime } from "../../lib/format.ts";
+import { formatDate, formatDateTime, formatSize } from "../../lib/format.ts";
 import type { getMigration } from "../../server/functions/archive.ts";
 import { ArchiveUpload } from "./ArchiveUpload.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
-}
 
 export function ArchiveFiles({ files, kinds }: { files: MigrationData["files"]; kinds: MigrationData["kinds"] }) {
   const label = Object.fromEntries(kinds.map((k) => [k.value, k.label]));

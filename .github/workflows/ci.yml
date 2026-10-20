@@ -201,10 +201,22 @@ jobs:
         run: |
           set -x
           docker compose up -d db backup
+          # Schema der App wie nach dem Start, damit Test-Restore, Kette und Stand in backup_status mitlaufen
+          for f in ../apps/web/drizzle/*.sql; do docker compose exec -T db psql -U haben -d haben -X -q -v ON_ERROR_STOP=1 < "$f" > /dev/null; done
           docker compose exec -T db psql -U haben -d haben -qc "CREATE TABLE t (x text); INSERT INTO t VALUES ('vorher')"
           docker compose run --rm --no-deps -T --entrypoint sh restore -c 'mkdir -p /belege/ab && echo beleg > /belege/ab/cd && chown -R 1000:1000 /belege'
+          # Ein Beleg unter seinem SHA-256 wie in der App, für die Stichprobe des Test-Restores
+          sha="$(echo beleg | sha256sum | cut -d' ' -f1)"
+          docker compose run --rm --no-deps -T --entrypoint sh restore -c "mkdir -p /belege/${sha:0:2} && echo beleg > /belege/${sha:0:2}/$sha"
+          docker compose exec -T db psql -U haben -d haben -qc \
+            "INSERT INTO documents (sha256, filename, mime_type, size, net, tax, gross) VALUES ('$sha', 'beleg.pdf', 'application/pdf', 6, 0, 0, 0)"
           docker compose exec -T backup backup.sh
           docker compose exec -T backup grep -q '^ok' /var/lib/haben-backup/status
+          # Backup und der erste Test-Restore stehen als erfolgreich in der App
+          test "$(docker compose exec -T db psql -U haben -d haben -Atc "SELECT string_agg(kind || '=' || ok, ',' ORDER BY id) FROM backup_status")" \
+            = "backup=true,restore_check=true"
+          docker compose exec -T db psql -U haben -d haben -Atc "SELECT message FROM backup_status WHERE kind = 'restore_check'" | grep -q ', 1 Beleg,'
+          test "$(docker compose exec -T db psql -U haben -d postgres -Atc "SELECT count(*) FROM pg_database WHERE datname = 'haben_restore_check'")" = 0
           docker compose exec -T db psql -U haben -d haben -qc "UPDATE t SET x = 'nachher'"
           docker compose run --rm --no-deps -T --entrypoint sh restore -c 'rm /belege/ab/cd && echo neu > /belege/neu'
           echo ja | docker compose run --rm -T restore latest

@@ -1,15 +1,16 @@
 import { formatEuro, periodKey, periodLabel } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { daysUntil, formatDate, formatLongDate } from "../../lib/format.ts";
+import { daysUntil, formatDate, formatDateTime, formatLongDate } from "../../lib/format.ts";
 import { InvoiceStatus } from "../../components/InvoiceStatus.tsx";
+import { getBackupStatus } from "../../server/functions/backup.ts";
 import { getInvoiceSummary } from "../../server/functions/invoices.ts";
 import { getOverview } from "../../server/functions/vat.ts";
 import type { SettingsArea } from "../../lib/settings-areas.ts";
 
 export const Route = createFileRoute("/_app/")({
   loader: async () => {
-    const [vat, invoices] = await Promise.all([getOverview(), getInvoiceSummary()]);
-    return { ...vat, invoices };
+    const [vat, invoices, backup] = await Promise.all([getOverview(), getInvoiceSummary(), getBackupStatus()]);
+    return { ...vat, invoices, backup };
   },
   head: () => ({ meta: [{ title: "Übersicht · Haben" }] }),
   component: OverviewPage,
@@ -130,6 +131,37 @@ function OverviewPage() {
       tone: "warn",
       to: "/einstellungen",
       bereich: "elster",
+    });
+  }
+
+  const { backup } = data;
+  if (backup.state === "fehler") {
+    const first = backup.failed[0]!;
+    todos.push({
+      title: first.kind === "backup" ? "Backup fehlgeschlagen" : "Test-Restore fehlgeschlagen",
+      detail: `${formatDateTime(first.run.at)}${first.run.message ? ` · ${first.run.message}` : ""}`,
+      action: "Ansehen",
+      tone: "warn",
+      to: "/einstellungen",
+      bereich: "export",
+    });
+  } else if (backup.state === "veraltet") {
+    todos.push({
+      title: "Backup überfällig",
+      detail: backup.lastBackup ? `Letztes erfolgreiches Backup ${formatDateTime(backup.lastBackup.at)}` : "Noch kein erfolgreiches Backup",
+      action: "Ansehen",
+      tone: "warn",
+      to: "/einstellungen",
+      bereich: "export",
+    });
+  } else if (backup.state === "keins") {
+    todos.push({
+      title: "Backup einrichten",
+      detail: "Noch kein Backup eingetragen",
+      action: "Ansehen",
+      tone: "neutral",
+      to: "/einstellungen",
+      bereich: "export",
     });
   }
 
