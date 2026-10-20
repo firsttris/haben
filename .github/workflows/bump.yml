@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   bump:
-    uses: firsttris/workflows/.github/workflows/bump-version.yml@claude/happy-sagan-5u1aom
+    uses: firsttris/workflows/.github/workflows/bump-version.yml@main
     with:
       bump: ${{ inputs.bump }}
     permissions:

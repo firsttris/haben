@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   tested:
-    uses: firsttris/workflows/.github/workflows/tested-on-main.yml@claude/happy-sagan-5u1aom
+    uses: firsttris/workflows/.github/workflows/tested-on-main.yml@main
     permissions:
       actions: read
       contents: read
@@ -36,7 +36,7 @@ jobs:
     needs: [tested, checks]
     # Die Prüfungen liefen durch oder waren nicht nötig
     if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
-    uses: firsttris/workflows/.github/workflows/docker-release.yml@claude/happy-sagan-5u1aom
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@main
     with:
       image: tristanteu/haben
       description: "Selbst gehostete Buchhaltung für Freiberufler: E-Rechnung, Bankabgleich, EÜR, ELSTER-Voranmeldung"
