@@ -102,16 +102,26 @@ function AppLayout() {
         ))}
         <div className="nav-spacer" />
         <div className="nav-foot">
-          <span>Geschäftsjahr {new Date().getFullYear()}</span>
-          <span>{user.name}</span>
-          <Link to="/einstellungen" className="nav-foot-link">
+          <div className="nav-user">
+            <span className="nav-avatar" aria-hidden="true">
+              {user.name.trim().charAt(0).toUpperCase() || "?"}
+            </span>
+            <span className="nav-user-text">
+              <span className="nav-user-name">{user.name}</span>
+              <span className="nav-user-meta">Geschäftsjahr {new Date().getFullYear()}</span>
+            </span>
+          </div>
+          <Link to="/einstellungen" className="nav-link nav-foot-link">
+            <Icon name="settings" />
             Einstellungen
           </Link>
           {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
-          <a href="https://github.com/firsttris/haben" style={{ color: "inherit" }}>
+          <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
+            <Icon name="code" />
             Quellcode (AGPL)
           </a>
-          <button type="button" onClick={signOut}>
+          <button type="button" className="nav-link nav-foot-link" onClick={signOut}>
+            <Icon name="logout" />
             Abmelden
           </button>
           <ThemePicker />
