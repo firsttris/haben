@@ -27,7 +27,7 @@ describe.skipIf(!testDatabaseUrl)("Stand des Backups (Postgres)", () => {
   }
 
   it("ohne Eintrag: kein Backup eingerichtet", async () => {
-    expect(await status.backupOverview(now)).toEqual({ state: "keins", lastBackup: null, lastCheck: null, failed: [] });
+    expect(await status.backupOverview(now)).toEqual({ state: "keins", overdue: false, lastBackup: null, lastCheck: null, failed: [] });
   });
 
   it("Backup von heute Nacht und Test-Restore: in Ordnung", async () => {
@@ -66,6 +66,14 @@ describe.skipIf(!testDatabaseUrl)("Stand des Backups (Postgres)", () => {
     const o = await status.backupOverview(now);
     expect(o.state).toBe("fehler");
     expect(o.failed.map((f) => f.kind)).toEqual(["restore_check"]);
+  });
+
+  it("ein alter Fehlschlag verdeckt nicht, dass seitdem kein Backup lief", async () => {
+    await run("backup", true, hoursAgo(120));
+    await run("restore_check", false, hoursAgo(120), "Beleg fehlt");
+    const o = await status.backupOverview(now);
+    expect(o.state).toBe("fehler");
+    expect(o.overdue).toBe(true);
   });
 
   it("die Tabelle steht nicht im Audit-Log", async () => {

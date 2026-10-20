@@ -19,6 +19,8 @@ export interface BackupRun {
 export interface BackupOverview {
   /** keins: noch nie ein Lauf; fehler: der letzte Backup- oder Testlauf schlug fehl; veraltet: kein Backup seit zwei Tagen */
   state: "keins" | "ok" | "veraltet" | "fehler";
+  /** Kein erfolgreiches Backup seit zwei Tagen, auch wenn state wegen eines Fehlschlags „fehler“ ist */
+  overdue: boolean;
   lastBackup: BackupRun | null;
   lastCheck: BackupRun | null;
   /** Der letzte Lauf je Art, wenn er fehlschlug */
@@ -51,12 +53,8 @@ export async function backupOverview(now = new Date()): Promise<BackupOverview> 
     const run = lastRuns[i];
     return run && !run.ok ? [{ kind, run }] : [];
   });
-  const state: BackupOverview["state"] = lastRuns.every((r) => !r)
-    ? "keins"
-    : failed.length > 0
-      ? "fehler"
-      : !lastBackup || now.getTime() - lastBackup.at.getTime() > BACKUP_MAX_AGE_MS
-        ? "veraltet"
-        : "ok";
-  return { state, lastBackup, lastCheck, failed };
+  const none = lastRuns.every((r) => !r);
+  const overdue = !none && (!lastBackup || now.getTime() - lastBackup.at.getTime() > BACKUP_MAX_AGE_MS);
+  const state: BackupOverview["state"] = none ? "keins" : failed.length > 0 ? "fehler" : overdue ? "veraltet" : "ok";
+  return { state, overdue, lastBackup, lastCheck, failed };
 }

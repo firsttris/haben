@@ -21,8 +21,11 @@ VALUES (:'kind', :'ok'::boolean, nullif(:'snapshot', ''), nullif(:'bytes', '')::
 SQL
 }
 
-# Die letzten Zeilen einer Fehlerausgabe als eine Meldung für die App
+# Die letzten Zeilen einer Fehlerausgabe als eine Meldung für die App. restic --json meldet Abbrüche als
+# {"message_type":"exit_error",…,"message":"Fatal: …"}; davon zählt nur die Meldung.
 last_error() {
   [ -s "$1" ] || { echo "Abgebrochen ohne Meldung"; return; }
-  grep -v '^[[:space:]]*$' "$1" | tail -n 3 | tr '\n' ' ' | sed 's/ *$//' | cut -c1-500
+  grep -v '^[[:space:]]*$' "$1" | tail -n 3 \
+    | sed 's/^{"message_type":"exit_error".*"message":"\(.*\)"}$/\1/' \
+    | tr '\n' ' ' | sed 's/ *$//' | cut -c1-500
 }

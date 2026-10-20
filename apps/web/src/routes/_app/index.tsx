@@ -135,17 +135,17 @@ function OverviewPage() {
   }
 
   const { backup } = data;
-  if (backup.state === "fehler") {
-    const first = backup.failed[0]!;
+  for (const { kind, run } of backup.failed) {
     todos.push({
-      title: first.kind === "backup" ? "Backup fehlgeschlagen" : "Test-Restore fehlgeschlagen",
-      detail: `${formatDateTime(first.run.at)}${first.run.message ? ` · ${first.run.message}` : ""}`,
+      title: kind === "backup" ? "Backup fehlgeschlagen" : "Test-Restore fehlgeschlagen",
+      detail: `${formatDateTime(run.at)}${run.message ? ` · ${run.message}` : ""}`,
       action: "Ansehen",
       tone: "warn",
       to: "/einstellungen",
       bereich: "export",
     });
-  } else if (backup.state === "veraltet") {
+  }
+  if (backup.overdue) {
     todos.push({
       title: "Backup überfällig",
       detail: backup.lastBackup ? `Letztes erfolgreiches Backup ${formatDateTime(backup.lastBackup.at)}` : "Noch kein erfolgreiches Backup",

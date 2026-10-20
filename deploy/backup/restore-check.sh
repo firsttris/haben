@@ -3,7 +3,7 @@
 # backup.sh ruft ihn wöchentlich nach einem erfolgreichen Backup auf, von Hand: restore-check.sh [snapshot-id]
 #
 #  1. restic check liest einen Teil der Daten im Repository (RESTORE_CHECK_SUBSET, Standard 5%).
-#  2. Der Dump aus dem Snapshot wird in die Wegwerf-Datenbank <PGDATABASE>_restore_check eingespielt.
+#  2. Der Dump aus dem Snapshot wird in eine Wegwerf-Datenbank <PGDATABASE>_restore_check_<Zeit>_<Zufall> eingespielt.
 #  3. Darin: Hash-Kette und Siegel prüfen (haben_integrity_problems, dieselbe Prüfung wie in der App), der Kopf
 #     der Kette muss als Eintrag in der laufenden Datenbank stehen, und RESTORE_CHECK_FILES (Standard 20)
 #     zufällige Belege kommen aus dem Snapshot und müssen ihre Prüfsumme haben.
@@ -15,9 +15,10 @@ set -euo pipefail
 snapshot="${1:-latest}"
 subset="${RESTORE_CHECK_SUBSET:-5%}"
 samples="${RESTORE_CHECK_FILES:-20}"
-[[ "$samples" =~ ^[0-9]+$ ]] || { echo "RESTORE_CHECK_FILES muss eine Zahl sein, ist aber: $samples" >&2; exit 2; }
 live="$PGDATABASE"
-check_db="${PGDATABASE}_restore_check"
+# Eigener Name je Lauf: Zwei Test-Restores (etwa der wöchentliche und einer von Hand, mit den Quadlets in
+# getrennten Containern) dürfen sich die Wegwerf-Datenbank nicht gegenseitig löschen
+check_db="${PGDATABASE}_restore_check_$(date +%Y%m%d%H%M%S)_$RANDOM"
 export PGOPTIONS="-c client_min_messages=warning"
 work="$(mktemp -d)"
 errlog="$work/fehler.log"
@@ -41,6 +42,7 @@ finish() {
 trap finish EXIT
 fail() { echo "$*" >&2; exit 1; }
 q() { psql -X -At -v ON_ERROR_STOP=1 "$@"; }
+[[ "$samples" =~ ^[0-9]{1,4}$ ]] || fail "RESTORE_CHECK_FILES muss eine Zahl bis 9999 sein, ist aber: $samples"
 
 echo "Prüfe das Repository (restic check, $subset der Daten) …"
 restic check --retry-lock 10m --read-data-subset "$subset" > /dev/null
@@ -48,14 +50,13 @@ restic check --retry-lock 10m --read-data-subset "$subset" > /dev/null
 # latest heißt der neueste Stand dieses Hosts (Filter wirken nur darauf); danach gilt die kurze ID
 filters=()
 [ "$snapshot" != latest ] || filters=(--host "$BACKUP_HOST" --tag haben)
-snapshot="$(restic snapshots --json "${filters[@]}" "$snapshot" | grep -o '"short_id":"[0-9a-f]*"' | tail -n 1 | cut -d'"' -f4)"
+snapshot="$(restic snapshots --json "${filters[@]}" "$snapshot" | { grep -o '"short_id":"[0-9a-f]*"' || true; } | tail -n 1 | cut -d'"' -f4)"
 [ -n "$snapshot" ] || fail "Kein Snapshot ${1:-latest} für Host $BACKUP_HOST gefunden."
 echo "Spiele Snapshot $snapshot in $check_db ein …"
 restic dump "$snapshot" /var/lib/haben-backup/dump/haben.sql.gz > "$work/haben.sql.gz" \
   || fail "Snapshot $snapshot enthält keinen Dump unter /var/lib/haben-backup/dump/haben.sql.gz."
 gunzip -c "$work/haben.sql.gz" | tail -n 20 | grep "PostgreSQL database dump complete" > /dev/null \
   || fail "Der Dump in Snapshot $snapshot ist unvollständig oder beschädigt."
-dropdb --if-exists "$check_db"
 createdb "$check_db"
 gunzip -c "$work/haben.sql.gz" | psql -X -d "$check_db" -v ON_ERROR_STOP=1 --quiet > /dev/null \
   || fail "Der Dump aus Snapshot $snapshot ließ sich nicht einspielen."

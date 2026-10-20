@@ -9,7 +9,7 @@ const ART = { backup: "Backup", restore_check: "Test-Restore" } as const;
 
 /** Stand von Backup und wöchentlichem Test-Restore aus dem Backup-Container (Einstellungen → Export) */
 export function BackupCard({ status }: { status: Status }) {
-  const { state, lastBackup, lastCheck, failed } = status;
+  const { state, overdue, lastBackup, lastCheck, failed } = status;
   return (
     <section className="card" aria-labelledby="backup-heading">
       <h2 id="backup-heading">Backup</h2>
@@ -25,7 +25,7 @@ export function BackupCard({ status }: { status: Status }) {
           </a>
         </div>
       )}
-      {state === "veraltet" && (
+      {overdue && (
         <div className="banner banner-danger" role="alert">
           {lastBackup
             ? `Das letzte erfolgreiche Backup ist vom ${formatDateTime(lastBackup.at)}, seitdem lief keins mehr durch. Läuft der Backup-Container?`

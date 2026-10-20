@@ -10,8 +10,14 @@ set -euo pipefail
 state=/var/lib/haben-backup
 dump="$state/dump/haben.sql.gz"
 mkdir -p "$state/dump"
+# Ein ungültiger Wert betrifft nur den Test-Restore, das Backup läuft trotzdem
 days="${RESTORE_CHECK_DAYS:-7}"
-[[ "$days" =~ ^[0-9]+$ ]] || { echo "RESTORE_CHECK_DAYS muss eine Zahl sein, ist aber: $days" >&2; exit 2; }
+if [[ "$days" =~ ^[0-9]{1,4}$ ]]; then
+  days=$((10#$days))
+else
+  echo "RESTORE_CHECK_DAYS muss eine Zahl bis 9999 sein, ist aber: $days; der Test-Restore läuft alle 7 Tage." >&2
+  days=7
+fi
 # Ein Lauf zur Zeit: Der Dump liegt immer unter demselben Pfad. Ein zweiter Lauf (etwa von Hand vor einem
 # Update, während der Zeitplan sichert) wartet bis zu einer Stunde, statt den Dump des ersten zu überschreiben.
 exec 9> "$state/lock"
@@ -75,8 +81,10 @@ record_status backup true "$snapshot" "$bytes" "${files:-?} Dateien"
 due=false
 if [ "$days" != 0 ]; then
   if status_table; then
+    # Ein Fehler hier darf das schon eingetragene Backup nicht nachträglich scheitern lassen
     due="$(psql -X -At -c "SELECT NOT EXISTS (SELECT 1 FROM backup_status WHERE kind = 'restore_check'
-      AND at > now() - interval '1 day' * $days + interval '12 hours')")"
+      AND at > now() - interval '1 day' * $days + interval '12 hours')")" \
+      || { echo "Ob ein Test-Restore fällig ist, ließ sich nicht abfragen; er entfällt diesmal." >&2; due=false; }
   elif [ "$(date +%u)" = 7 ]; then
     due=t
   fi

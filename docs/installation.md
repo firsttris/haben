@@ -388,10 +388,10 @@ Unterstützt das Ziel schreibgeschützte Stände (etwa Object Lock bei S3), sch�
 Ein Backup, das sich im Ernstfall nicht einspielen lässt, merkt man sonst erst im Ernstfall. Deshalb folgt auf ein erfolgreiches Backup alle `RESTORE_CHECK_DAYS` Tage (Standard 7, `0` schaltet es ab) `restore-check.sh`. Es ersetzt nichts:
 
 1. `restic check --read-data-subset 5%` liest einen Teil der Daten im Repository und prüft sie (`RESTORE_CHECK_SUBSET`),
-2. der Dump aus dem Snapshot wird in die Wegwerf-Datenbank `haben_restore_check` eingespielt,
+2. der Dump aus dem Snapshot wird in eine Wegwerf-Datenbank `haben_restore_check_…` eingespielt (eigener Name je Lauf),
 3. darin prüft es Hash-Kette und Siegel wie „Kette prüfen“ in der App, und der letzte Eintrag der Kette im Backup muss mit demselben Hash in der laufenden Datenbank stehen,
 4. 20 zufällige Belege (`RESTORE_CHECK_FILES`) kommen aus dem Snapshot und müssen ihre SHA-256-Prüfsumme haben,
-5. `haben_restore_check` wird wieder gelöscht, das Ergebnis steht in der App.
+5. die Wegwerf-Datenbank wird wieder gelöscht, das Ergebnis steht in der App.
 
 Der Datenbankserver braucht dafür kurzzeitig Platz für eine zweite Kopie der Datenbank. Von Hand: `docker compose exec backup restore-check.sh` bzw. mit den Quadlets `podman run` wie unten unter Wiederherstellen, mit `restore-check.sh` statt `restore.sh latest` und `/belege` nur lesend. Eine App, die älter ist als das Backup-Image, hat die Tabelle für das Ergebnis noch nicht; dann steht es nur im Protokoll, und der Test-Restore läuft sonntags.
 

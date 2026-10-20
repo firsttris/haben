@@ -216,7 +216,7 @@ jobs:
           test "$(docker compose exec -T db psql -U haben -d haben -Atc "SELECT string_agg(kind || '=' || ok, ',' ORDER BY id) FROM backup_status")" \
             = "backup=true,restore_check=true"
           docker compose exec -T db psql -U haben -d haben -Atc "SELECT message FROM backup_status WHERE kind = 'restore_check'" | grep -q ', 1 Beleg,'
-          test "$(docker compose exec -T db psql -U haben -d postgres -Atc "SELECT count(*) FROM pg_database WHERE datname = 'haben_restore_check'")" = 0
+          test "$(docker compose exec -T db psql -U haben -d postgres -Atc "SELECT count(*) FROM pg_database WHERE datname LIKE 'haben\_restore\_check%'")" = 0
           docker compose exec -T db psql -U haben -d haben -qc "UPDATE t SET x = 'nachher'"
           docker compose run --rm --no-deps -T --entrypoint sh restore -c 'rm /belege/ab/cd && echo neu > /belege/neu'
           echo ja | docker compose run --rm -T restore latest
