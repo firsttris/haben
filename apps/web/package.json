@@ -20,6 +20,7 @@
     "@haben/einvoice": "workspace:*",
     "@haben/elster": "workspace:*",
     "@haben/import": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@myriaddreamin/typst-ts-node-compiler": "0.7.0",
     "@tanstack/react-router": "^1.170.41",
     "@tanstack/react-start": "^1.168.60",

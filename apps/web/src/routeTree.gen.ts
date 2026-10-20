@@ -22,6 +22,7 @@ import { Route as AppFristenRouteImport } from './routes/_app/fristen'
 import { Route as AppKasseRouteImport } from './routes/_app/kasse'
 import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
+import { Route as ApiMcpRouteImport } from './routes/api/mcp'
 import { Route as AppAngeboteIndexRouteImport } from './routes/_app/angebote/index'
 import { Route as AppAngeboteIdRouteImport } from './routes/_app/angebote/$id'
 import { Route as AppAngeboteNeuRouteImport } from './routes/_app/angebote/neu'
@@ -132,6 +133,11 @@ const AppPauschalenRoute = AppPauschalenRouteImport.update({
 const ApiLogoRoute = ApiLogoRouteImport.update({
   id: '/api/logo',
   path: '/api/logo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAngeboteIndexRoute = AppAngeboteIndexRouteImport.update({
@@ -389,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/kasse': typeof AppKasseRoute
   '/pauschalen': typeof AppPauschalenRoute
   '/api/logo': typeof ApiLogoRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
@@ -449,6 +456,7 @@ export interface FileRoutesByTo {
   '/kasse': typeof AppKasseRoute
   '/pauschalen': typeof AppPauschalenRoute
   '/api/logo': typeof ApiLogoRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/': typeof AppIndexRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
@@ -512,6 +520,7 @@ export interface FileRoutesById {
   '/_app/kasse': typeof AppKasseRoute
   '/_app/pauschalen': typeof AppPauschalenRoute
   '/api/logo': typeof ApiLogoRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/_app/': typeof AppIndexRoute
   '/_app/angebote/$id': typeof AppAngeboteIdRoute
   '/_app/angebote/neu': typeof AppAngeboteNeuRoute
@@ -576,6 +585,7 @@ export interface FileRouteTypes {
     | '/kasse'
     | '/pauschalen'
     | '/api/logo'
+    | '/api/mcp'
     | '/angebote/$id'
     | '/angebote/neu'
     | '/anlagen/$id'
@@ -636,6 +646,7 @@ export interface FileRouteTypes {
     | '/kasse'
     | '/pauschalen'
     | '/api/logo'
+    | '/api/mcp'
     | '/'
     | '/angebote/$id'
     | '/angebote/neu'
@@ -698,6 +709,7 @@ export interface FileRouteTypes {
     | '/_app/kasse'
     | '/_app/pauschalen'
     | '/api/logo'
+    | '/api/mcp'
     | '/_app/'
     | '/_app/angebote/$id'
     | '/_app/angebote/neu'
@@ -753,6 +765,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
   ApiLogoRoute: typeof ApiLogoRoute
+  ApiMcpRoute: typeof ApiMcpRoute
   ApiAltbelegIdRoute: typeof ApiAltbelegIdRoute
   ApiAngebotIdRoute: typeof ApiAngebotIdRoute
   ApiArchivIdRoute: typeof ApiArchivIdRoute
@@ -865,6 +878,13 @@ declare module '@tanstack/react-router' {
       path: '/api/logo'
       fullPath: '/api/logo'
       preLoaderRoute: typeof ApiLogoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/angebote/': {
@@ -1286,6 +1306,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
   ApiLogoRoute: ApiLogoRoute,
+  ApiMcpRoute: ApiMcpRoute,
   ApiAltbelegIdRoute: ApiAltbelegIdRoute,
   ApiAngebotIdRoute: ApiAngebotIdRoute,
   ApiArchivIdRoute: ApiArchivIdRoute,

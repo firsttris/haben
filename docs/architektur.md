@@ -42,7 +42,7 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 | Ordner | Aufgabe |
 | --- | --- |
 | `src/routes/` | Dateibasiertes Routing. `_app/` enthält alle Seiten hinter der Anmeldung (Übersicht, Rechnungen, Belege, Bank, Umsatzsteuer, Auswertungen, Buchungen, Kontakte, Archiv, Einstellungen); `setup.tsx` und `login.tsx` sind öffentlich |
-| `src/routes/api/` | HTTP-Routen für Better Auth (`auth/$`), Dateien (`rechnung`, `angebot`, `mahnung`, `beleg`, `altbeleg`, `archiv`, `protokoll`, `postfach`, `vast`), Kalender-Abo der Fristen (`fristen/kalender`, mit geheimem Token statt Sitzung), Teilen-Ziel der PWA (`belege/teilen`), EÜR als CSV (`auswertungen/$jahr`) und Jahresarchiv (`export/$jahr`) |
+| `src/routes/api/` | HTTP-Routen für Better Auth (`auth/$`), Dateien (`rechnung`, `angebot`, `mahnung`, `beleg`, `altbeleg`, `archiv`, `protokoll`, `postfach`, `vast`), Kalender-Abo der Fristen (`fristen/kalender`, mit geheimem Token statt Sitzung), MCP-Endpunkt für KI-Assistenten (`mcp`, mit API-Token statt Sitzung), Teilen-Ziel der PWA (`belege/teilen`), EÜR als CSV (`auswertungen/$jahr`) und Jahresarchiv (`export/$jahr`) |
 | `src/components/` | React-Komponenten, die mehrere Seiten nutzen (Rechnungseditor, Vorschau, Upload, Statusanzeigen), dazu `archiv/` für die Umzugsseite |
 | `src/server/functions/` | Server Functions je Bereich: Eingaben mit Zod prüfen, `authMiddleware` anhängen, Dienst aufrufen. Keine Fachlogik |
 | `src/server/modules/<name>/` | Dienste je Fachbereich, jeweils mit öffentlicher `index.ts` (siehe [Module im Server](#module-im-server)) |
@@ -72,6 +72,7 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `auswertungen` | `reports` (EÜR, offene Posten), `abgleich` (Journal gegen Umsatzsteuer und EÜR), `integrity` (Prüfung von Hash-Kette, Siegeln und Abgleich), `datev-export` |
 | `archiv` | `archive` (Umzugsdateien), `export` (Jahresarchiv), `lexoffice` (Import), `legacy-open` (übernommene offene Posten) |
 | `mail` | `mail` (SMTP, Erinnerungen, wöchentliche Integritätsmail) |
+| `mcp` | `server` (Endpunkt für KI-Assistenten), `tokens` (API-Tokens, Schalter, Protokoll der Aufrufe), `tools` (Werkzeuge, nur lesen) |
 
 Die Lint-Regel `haben/modulgrenzen` (`eslint/modulgrenzen.js`) läuft mit `pnpm lint` in der CI und prüft jeden relativen Import:
 
@@ -172,7 +173,9 @@ Geschützt wird an drei Stellen:
 
 - Die Layout-Route `_app` leitet ohne Sitzung auf `/login` bzw. vor der Einrichtung auf `/setup` um.
 - Jede Server Function mit Daten hängt `authMiddleware` an (`apps/web/src/server/middleware.ts`), die die Sitzung prüft und den Nutzer in den Kontext legt. Die Umleitung im Browser allein schützt also nichts.
-- Jede API-Route prüft die Sitzung selbst und antwortet sonst mit 401.
+- Jede API-Route prüft die Sitzung selbst und antwortet sonst mit 401. Ausnahmen mit eigenem Token statt Sitzung sind das Kalender-Abo und `/api/mcp`.
+
+KI-Assistenten melden sich an `/api/mcp` nicht mit der Sitzung an, sondern mit einem API-Token als Bearer-Header (siehe [KI-Assistenten](ki-assistenten.md)). `routes/api/mcp.ts` reicht jede Anfrage an `handleMcpRequest` (`server/modules/mcp/`) weiter. Der Endpunkt ist zustandslos (Streamable HTTP mit JSON-Antworten, nur POST): `authenticateMcp` prüft das Token gegen den SHA-256 in `mcp_tokens` und ob der Zugang eingeschaltet ist, dann beantwortet ein frischer `McpServer` die Anfrage mit den Werkzeugen, die die Rechte des Tokens erlauben. Die Werkzeuge (`tools.ts`) rufen nur die `index.ts` der Module auf und lesen nur. Jeder Aufruf landet ohne Inhalte in `mcp_calls`. Alles hinter `authenticateMcp` kennt nur den Zugang mit seinen Rechten; OAuth für die Connectors aus claude.ai kommt dort später dazu.
 
 ## Ablauf einer Anfrage
 

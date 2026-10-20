@@ -10,6 +10,7 @@ import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
+import { McpCard } from "../../components/McpCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { authClient } from "../../lib/auth-client.ts";
 import { formatDate } from "../../lib/format.ts";
@@ -29,11 +30,12 @@ import { getInbox } from "../../server/functions/inbox.ts";
 import { getChainHead } from "../../server/functions/integrity.ts";
 import { getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
+import { getMcpSettings } from "../../server/functions/mcp.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup] = await Promise.all([
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
       getNumbering(),
@@ -45,8 +47,9 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getDatevNumbers(),
       getChainHead(),
       getBackupStatus(),
+      getMcpSettings(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup };
+    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
   validateSearch: (search: Record<string, unknown>): { bereich?: SettingsArea } =>
@@ -55,7 +58,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { logo, mail, inbox, exportYears, datev, chainHead, backup } = Route.useLoaderData();
+  const { logo, mail, inbox, exportYears, datev, chainHead, backup, mcp } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
@@ -97,6 +100,7 @@ function SettingsPage() {
             </>
           )}
           {bereich === "sicherheit" && <Passkeys />}
+          {bereich === "ki" && <McpCard data={mcp} />}
           {bereich === "export" && (
             <>
               <ExportCard years={exportYears} />

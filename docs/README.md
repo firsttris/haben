@@ -28,6 +28,7 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 | [Jahreserklärungen](jahreserklaerung.md) | Umsatzsteuererklärung und Anlage EÜR mit AVEÜR aus den Buchungen, Prüfen, Test- und Echtübermittlung |
 | [Auswertungen und Jahresexport](auswertungen.md) | EÜR, offene Posten, Monatsverlauf, CSV, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
 | [Umzug aus Lexoffice](lexoffice.md) | API-Abruf, DATEV-Buchungsstapel, Originalexporte, offene Posten, Abgleich vor der Kündigung |
+| [KI-Assistenten (MCP)](ki-assistenten.md) | Haben im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen, API-Tokens, Datenschutz |
 
 ## Hintergrund
 

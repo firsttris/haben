@@ -112,6 +112,8 @@ export const company = pgTable(
       .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
     /** SHA-256 des geheimen Tokens im Kalender-Abo der Fristen; null = kein Abo */
     calendarTokenHash: text("calendar_token_hash"),
+    /** Zugang für KI-Assistenten über MCP (/api/mcp); ausdrücklich einzuschalten, standardmäßig aus */
+    mcpEnabled: boolean("mcp_enabled").notNull().default(false),
     /** Datenschutzhinweise der Finanzverwaltung vor der ersten Nutzung von ERiC bestätigt (ERiC-Lizenz § 5) */
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1394,4 +1396,40 @@ export const backupStatus = pgTable(
     check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`),
     index("backup_status_kind_at").on(t.kind, t.at),
   ],
+);
+
+/**
+ * Zugänge für KI-Assistenten über MCP (/api/mcp): widerrufbare API-Tokens mit Ablaufdatum und Rechten. Gespeichert
+ * ist nur der SHA-256 des Tokens; das Token selbst gibt es nur beim Anlegen. Zugangsdaten, keine Buchungsdaten: ohne
+ * Audit-Log und Siegel (wie die Passkeys).
+ */
+export const mcpTokens = pgTable("mcp_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Vom Nutzer vergeben, z. B. „Claude Code am Laptop“ */
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  /** Anfang des Tokens zum Wiedererkennen, z. B. hb_3fK9 */
+  prefix: text("prefix").notNull(),
+  /** haben:lesen; später haben:entwuerfe */
+  scopes: text("scopes").array().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
+
+/** Protokoll der Werkzeugaufrufe über MCP: Werkzeug, Zeitpunkt, Zugang und Ergebnis, ohne Inhalte. 90 Tage. */
+export const mcpCalls = pgTable(
+  "mcp_calls",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    tokenId: uuid("token_id")
+      .notNull()
+      .references(() => mcpTokens.id, { onDelete: "cascade" }),
+    tool: text("tool").notNull(),
+    ok: boolean("ok").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+  },
+  (t) => [index("mcp_calls_at").on(t.at)],
 );
