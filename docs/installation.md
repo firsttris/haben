@@ -430,8 +430,9 @@ Bisher lief das Backup der Quadlets als `~/.config/haben/backup.sh` mit restic a
 
 ```sh
 RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
-# Passwort des bisherigen Repositorys als Secret
-podman secret create haben-restic-password ~/.config/haben/restic-password
+# Passwort des bisherigen Repositorys als Secret, ohne den Zeilenumbruch am Ende der Datei: restic nimmt
+# RESTIC_PASSWORD wörtlich, nur RESTIC_PASSWORD_FILE schneidet ihn ab
+tr -d '\n' < ~/.config/haben/restic-password | podman secret create haben-restic-password -
 # Neue Units, die alte Service-Unit und die Skripte entfallen
 for f in haben-backup.container haben-backups.volume; do curl -o ~/.config/containers/systemd/$f "$RAW/quadlet/$f"; done
 rm ~/.config/systemd/user/haben-backup.service ~/.config/haben/backup.sh ~/.config/haben/restore.sh

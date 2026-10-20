@@ -7,6 +7,10 @@ set -euo pipefail
 state=/var/lib/haben-backup
 dump="$state/dump/haben.sql.gz"
 mkdir -p "$state/dump"
+# Ein Lauf zur Zeit: Der Dump liegt immer unter demselben Pfad. Ein zweiter Lauf (etwa von Hand vor einem
+# Update, während der Zeitplan sichert) wartet bis zu einer Stunde, statt den Dump des ersten zu überschreiben.
+exec 9> "$state/lock"
+flock -w 3600 9 || { echo "Ein anderes Backup läuft seit über einer Stunde, Backup abgebrochen." >&2; exit 1; }
 # Ergebnis des Laufs für den Healthcheck des Compose-Dienstes: ok oder fehler, dazu der Zeitpunkt
 finish() {
   local rc=$? result=ok
@@ -36,7 +40,8 @@ gunzip -c "$dump" | tail -n 20 | grep "PostgreSQL database dump complete" > /dev
   || { echo "Dump unvollständig oder beschädigt, Backup abgebrochen." >&2; exit 1; }
 
 # Fester Host und feste Pfade: Aufbewahrt wird je Host und Tag. Mehrere Instanzen in einem Repository
-# brauchen deshalb je einen eigenen BACKUP_HOST. --retry-lock wartet, falls gerade ein anderer Lauf sichert.
+# brauchen deshalb je einen eigenen BACKUP_HOST. --retry-lock wartet auf restic-Sperren anderer Zugriffe
+# auf dasselbe Repository (etwa restic snapshots oder eine zweite Instanz).
 # 11 Jahresstände decken die zehnjährige Aufbewahrung nach GoBD ab.
 restic backup --retry-lock 10m --host "$BACKUP_HOST" --tag haben "$dump" /belege
 restic forget --retry-lock 10m --tag haben --group-by host,tags \
