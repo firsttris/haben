@@ -1,13 +1,14 @@
 name: Bump version
 
 # Erhöht die Version in package.json, taggt vX.Y.Z und startet release.yml auf dem Tag, ohne Checkout; dasselbe wie pnpm release:patch|minor|major.
+# Release Candidates: preminor (oder prepatch, premajor) taggt vX.Y.Z-rc.1, prerelease den nächsten RC, patch danach die Version.
 # Same scheme as in every project, see https://github.com/firsttris/workflows#bump-version
 on:
   workflow_dispatch:
     inputs:
       bump:
         type: choice
-        options: [patch, minor, major]
+        options: [patch, minor, major, preminor, prepatch, premajor, prerelease]
         default: patch
 
 # Standard für alle Jobs; Jobs, die mehr brauchen, setzen eigene permissions
@@ -16,7 +17,7 @@ permissions:
 
 jobs:
   bump:
-    uses: firsttris/workflows/.github/workflows/bump-version.yml@v1
+    uses: firsttris/workflows/.github/workflows/bump-version.yml@claude/happy-sagan-5u1aom
     with:
       bump: ${{ inputs.bump }}
     permissions:

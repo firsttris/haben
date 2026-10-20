@@ -5,7 +5,8 @@ name: Release
 # siehe https://github.com/firsttris/workflows#tested-on-main), dann der gemeinsame Docker-Release
 # aus firsttris/workflows. Der prüft den Tag gegen package.json, pusht :x.y.z, :x.y und :latest auf
 # Docker Hub und GHCR (amd64 und arm64), aktualisiert die Beschreibung auf Docker Hub und legt
-# danach das GitHub-Release an.
+# danach das GitHub-Release an. Ein Release Candidate vX.Y.Z-rc.N pusht stattdessen :x.y.z-rc.N und
+# :next, wird ein Pre-release auf GitHub und lässt :latest und die Beschreibung auf Docker Hub stehen.
 # Von Hand auf main gestartet: dieselben Prüfungen, dann das Image als :edge; kein Release.
 on:
   push:
@@ -18,7 +19,7 @@ permissions:
 
 jobs:
   tested:
-    uses: firsttris/workflows/.github/workflows/tested-on-main.yml@ccr-161f105b-9ns022
+    uses: firsttris/workflows/.github/workflows/tested-on-main.yml@claude/happy-sagan-5u1aom
     permissions:
       actions: read
       contents: read
@@ -35,7 +36,7 @@ jobs:
     needs: [tested, checks]
     # Die Prüfungen liefen durch oder waren nicht nötig
     if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
-    uses: firsttris/workflows/.github/workflows/docker-release.yml@v1
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@claude/happy-sagan-5u1aom
     with:
       image: tristanteu/haben
       description: "Selbst gehostete Buchhaltung für Freiberufler: E-Rechnung, Bankabgleich, EÜR, ELSTER-Voranmeldung"

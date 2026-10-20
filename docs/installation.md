@@ -40,6 +40,7 @@ Das fertige Image gibt es für amd64 und arm64 auf Docker Hub und in der GitHub 
 | --- | --- |
 | `docker.io/tristanteu/haben:latest` | Letzte veröffentlichte Version (Standard in Compose und Quadlet) |
 | `docker.io/tristanteu/haben:0.1` / `:0.1.0` | Feste Version, wenn du Updates selbst steuern willst |
+| `docker.io/tristanteu/haben:next` | Neuester Release Candidate (`:0.2.0-rc.1` usw.) zum Testen, nur mit Backup |
 | `docker.io/tristanteu/haben:edge` | Stand von `main`, nur zum Ausprobieren |
 | `ghcr.io/firsttris/haben:…` | Dieselben Tags bei GitHub |
 

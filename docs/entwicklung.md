@@ -232,6 +232,16 @@ pnpm release:patch   # oder :minor, :major: erhöht die Version, legt Commit und
 
 Von Hand gestartet (Actions → Release → Run workflow) laufen auf `main` dieselben Prüfungen, danach wird nur `:edge` veröffentlicht, ohne Release.
 
+### Release Candidates
+
+Größere Änderungen, etwa Migrationen oder Änderungen an Festschreibung, Audit-Log oder ELSTER, gehen vorher als Release Candidate raus. Alles bleibt auf `main`, die RCs sind nur Tags:
+
+1. Actions → *Bump version* → `preminor` (oder `prepatch`, `premajor`): aus `0.1.9` wird `v0.2.0-rc.1`. Das Image heißt `:0.2.0-rc.1` und `:next`; `:latest` bleibt auf `0.1.9`, das GitHub-Release ist ein Pre-release.
+2. Fehler gefunden: fixen, dann *Bump version* → `prerelease` → `v0.2.0-rc.2`.
+3. Läuft stabil: *Bump version* → `patch` → `v0.2.0`, jetzt auch `:latest`.
+
+Zwischen RC und fertiger Version nur Fixes mergen, sonst geht Ungetestetes mit raus. RCs nur mit Backup testen: Eine Migration aus einem RC ist danach schon auf den Testinstanzen angewendet und wird nicht mehr geändert.
+
 Der Workflow braucht das Repository-Secret `DOCKER_PAT`, ein Docker-Hub-Zugriffstoken mit Schreibrecht für `tristanteu/haben`. Für GHCR reicht das eingebaute `GITHUB_TOKEN`; das Paket ist nach dem ersten Push privat und muss einmal in den Paket-Einstellungen auf öffentlich gestellt werden.
 
 ## Mitwirken
