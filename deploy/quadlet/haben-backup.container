@@ -1,0 +1,23 @@
+[Unit]
+Description=Haben – Backup (pg_dump + restic)
+Requires=haben-db.service
+After=haben-db.service
+
+[Container]
+ContainerName=haben-backup
+# Image aus deploy/backup (amd64 und arm64); läuft einmal je Start von haben-backup.timer
+Image=docker.io/tristanteu/haben-backup:latest
+Exec=backup.sh
+Network=haben.network
+Environment=PGHOST=haben-db
+Secret=haben-db-password,type=env,target=PGPASSWORD
+Secret=haben-restic-password,type=env,target=RESTIC_PASSWORD
+# Optional RESTIC_REPOSITORY (sftp:…, s3:…, rest:…) und Zugangsdaten; ohne liegt das Backup im Volume haben-backups
+EnvironmentFile=%h/.config/haben/backup.env
+Volume=haben-belege.volume:/belege:ro
+Volume=haben-backups.volume:/backups
+# Repository über sftp: SSH-Schlüssel einhängen, Zeile einkommentieren
+# Volume=%h/.ssh:/root/.ssh:ro
+
+[Service]
+Type=oneshot

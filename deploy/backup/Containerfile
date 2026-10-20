@@ -1,0 +1,25 @@
+# Haben – Backup-Container: pg_dump in derselben Major-Version wie die Datenbank (postgres:16) und restic.
+# Compose betreibt ihn als Dienst mit täglichem Zeitplan, die Quadlets starten ihn über haben-backup.timer
+# einmal am Tag. Gebaut wird aus deploy/backup:  podman build -t haben-backup -f Containerfile deploy/backup
+FROM ghcr.io/restic/restic:0.18.1 AS restic
+
+FROM docker.io/library/postgres:16
+# ca-certificates für Repositories über HTTPS (s3:, rest:), openssh-client für sftp:
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates openssh-client \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=restic /usr/bin/restic /usr/local/bin/restic
+COPY entrypoint.sh backup.sh restore.sh /usr/local/bin/
+# Datenbank wie in compose.yml (Dienst db); die Quadlets setzen PGHOST=haben-db. Das Passwort kommt als
+# PGPASSWORD, das restic-Passwort als RESTIC_PASSWORD oder RESTIC_PASSWORD_FILE.
+ENV PGHOST=db \
+    PGUSER=haben \
+    PGDATABASE=haben \
+    RESTIC_REPOSITORY=/backups \
+    BACKUP_HOST=haben \
+    BACKUP_TIME=03:15 \
+    TZ=Europe/Berlin
+# postgres:16 hält mit SIGINT an; der Zeitplan endet mit SIGTERM
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["zeitplan"]

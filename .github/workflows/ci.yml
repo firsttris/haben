@@ -179,3 +179,37 @@ jobs:
           docker exec haben-app sh -c 'cd /app/packages/elster && node -e "require.resolve(\"koffi\")"'
       - if: failure()
         run: docker logs haben-app || true
+
+  backup:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy
+    env:
+      DOMAIN: haben.test
+      DB_PASSWORD: haben
+      AUTH_SECRET: ci
+      ENCRYPTION_KEY: ci
+      RESTIC_PASSWORD: ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image bauen
+        run: docker build -t tristanteu/haben-backup:latest -f backup/Containerfile backup
+      # Mit der compose.yml der Nutzer: Backup, Daten ändern, Wiederherstellen, alter Stand ist zurück
+      - name: Backup und Wiederherstellen
+        run: |
+          set -x
+          docker compose up -d db backup
+          docker compose exec -T db psql -U haben -d haben -qc "CREATE TABLE t (x text); INSERT INTO t VALUES ('vorher')"
+          docker compose run --rm --no-deps -T --entrypoint sh restore -c 'mkdir -p /belege/ab && echo beleg > /belege/ab/cd && chown -R 1000:1000 /belege'
+          docker compose exec -T backup backup.sh
+          docker compose exec -T backup grep -q '^ok' /var/lib/haben-backup/status
+          docker compose exec -T db psql -U haben -d haben -qc "UPDATE t SET x = 'nachher'"
+          docker compose run --rm --no-deps -T --entrypoint sh restore -c 'rm /belege/ab/cd && echo neu > /belege/neu'
+          echo ja | docker compose run --rm -T restore latest
+          test "$(docker compose exec -T db psql -U haben -d haben -Atc 'SELECT x FROM t')" = vorher
+          docker compose run --rm --no-deps -T --entrypoint sh restore -c \
+            'test "$(cat /belege/ab/cd)" = beleg && test ! -e /belege/neu && test "$(stat -c %u /belege/ab/cd)" = 1000'
+      - if: failure()
+        run: docker compose logs

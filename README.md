@@ -37,8 +37,9 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Abo, ohne Datenabfluss.
 
 > [!WARNING]
 > **Beta:** Haben wird noch stark weiterentwickelt. Datenmodell und Abläufe können sich von Version zu Version
-> ändern, und Migrationen lassen sich nicht zurückspielen. Vor jedem Update ein Backup der Datenbank machen und
-> Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
+> ändern, und Migrationen lassen sich nicht zurückspielen. Vor jedem Update ein Backup machen
+> (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://firsttris.github.io/haben/installation.html#backup-und-wiederherstellen))
+> und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
 ## 💡 Warum Haben?
 

@@ -8,6 +8,8 @@ name: Release
 # danach das GitHub-Release an. Ein Release Candidate vX.Y.Z-rc.N pusht stattdessen :x.y.z-rc.N und
 # :next, wird ein Pre-release auf GitHub und lässt :latest und die Beschreibung auf Docker Hub stehen.
 # Von Hand auf main gestartet: dieselben Prüfungen, dann das Image als :edge; kein Release.
+# Das Backup-Image tristanteu/haben-backup (deploy/backup) erscheint mit denselben Tags, damit App und
+# Backup zur selben Postgres-Version passen; das GitHub-Release legt nur der Lauf der App an.
 on:
   push:
     tags: ["v*"]
@@ -42,6 +44,24 @@ jobs:
       description: "Selbst gehostete Buchhaltung für Freiberufler: E-Rechnung, Bankabgleich, EÜR, ELSTER-Voranmeldung"
       dockerfile: Containerfile
       ghcr: true
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+
+  docker-backup:
+    needs: [tested, checks]
+    if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@main
+    with:
+      image: tristanteu/haben-backup
+      description: "Backup für Haben: pg_dump und Belegdateien, verschlüsselt mit restic"
+      dockerfile: deploy/backup/Containerfile
+      context: deploy/backup
+      ghcr: true
+      ghcr-image: firsttris/haben-backup
+      readme: deploy/backup/README.md
+      github-release: false
     secrets: inherit
     permissions:
       contents: write

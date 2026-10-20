@@ -194,7 +194,7 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 | `packages/elster` | ERiC-Anbindung, XML für Voranmeldung und Jahreserklärungen, Worker |
 | `packages/import` | Kontoauszugs-Parser, Deduplizierung, DATEV, Lexoffice-Client |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
-| `deploy` | Quadlets, Caddyfile, Backup- und Startskript |
+| `deploy` | Compose, Quadlets, Caddyfile, Startskript; `deploy/backup`: Backup-Image (backup.sh, restore.sh) |
 | `docs`, `mkdocs.yml` | Diese Dokumentation; auf `main` baut `.github/workflows/docs.yml` sie nach https://firsttris.github.io/haben/ |
 
 ## Neues Bankformat

@@ -4,20 +4,21 @@ Diese Seite beschreibt, wie du Haben auf einem eigenen Server betreibst: mit Doc
 
 ## Überblick
 
-Haben läuft als drei Container in einem eigenen Netz:
+Haben läuft als vier Container in einem eigenen Netz:
 
 | Container (Compose / Quadlet) | Image | Aufgabe |
 | --- | --- | --- |
 | `db` / `haben-db` | `postgres:16` | Datenbank, Volume `db` bzw. `haben-db` |
 | `app` / `haben-app` | `tristanteu/haben:latest` | Die App auf Port 3000, Belegdateien im Volume `belege` bzw. `haben-belege`, ERiC im Volume `eric` bzw. `haben-eric`, ERiC-Logs im Volume `eric-log` bzw. `haben-eric-log` |
+| `backup` / `haben-backup` | `tristanteu/haben-backup:latest` | Tägliches Backup von Datenbank und Belegen mit restic, Repository im Volume `backups` bzw. `haben-backups` oder auf einem zweiten System, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
 | `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy`. Läuft bei dir schon ein Reverse Proxy, entfällt er, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
 
 Es gibt zwei Wege, sie zu betreiben:
 
 | Weg | Gut für | Dateien |
 | --- | --- | --- |
-| [Docker Compose](#docker-compose) | Schnell startklar, Docker oder Podman mit Compose | `deploy/compose.yml`, `deploy/compose.env.example` |
-| [Podman Quadlets](#podman-quadlets) | Rootless unter systemd, Secrets statt Datei, täglicher Backup-Timer, `podman auto-update` | `deploy/quadlet/*`, `deploy/Caddyfile`, `deploy/haben.env.example`, `deploy/backup.sh` |
+| [Docker Compose](#docker-compose) | Schnell startklar, Docker oder Podman mit Compose, tägliches Backup im Container | `deploy/compose.yml`, `deploy/compose.env.example` |
+| [Podman Quadlets](#podman-quadlets) | Rootless unter systemd, Secrets statt Datei, täglicher Backup-Timer, `podman auto-update` | `deploy/quadlet/*`, `deploy/Caddyfile`, `deploy/haben.env.example` |
 
 Beide holen die Dateien per `curl`; das Repository musst du nicht klonen.
 
@@ -27,7 +28,6 @@ Beide holen die Dateien per `curl`; das Repository musst du nicht klonen.
 - Eine Domain, die auf den Server zeigt, und erreichbare Ports 80 und 443. Caddy holt das TLS-Zertifikat selbst. Hast du schon einen Reverse Proxy (Caddy, nginx, Nginx Proxy Manager, Traefik), nutzt du den, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy).
 - HTTPS ist Pflicht: Passkeys und die Installation als App (PWA) funktionieren nur über eine sichere Verbindung.
 - Für ELSTER ERiC für Linux x86_64; Haben lädt es auf Wunsch selbst herunter (siehe [ERiC einbinden](#eric-einbinden)).
-- Für das Backup mit Quadlets `restic` auf dem Host.
 
 > [!NOTE]
 > Nur Podman: Rootless Podman darf Ports unter 1024 standardmäßig nicht öffnen. Entweder du senkst die Grenze (`sysctl net.ipv4.ip_unprivileged_port_start=80`) oder du veröffentlichst Caddy auf anderen Ports und leitest weiter. Damit die Dienste ohne angemeldete Sitzung laufen, braucht der Nutzer außerdem `loginctl enable-linger`.
@@ -43,6 +43,7 @@ Das fertige Image gibt es für amd64 und arm64 auf Docker Hub und in der GitHub 
 | `docker.io/tristanteu/haben:next` | Neuester Release Candidate (`:0.2.0-rc.1` usw.) zum Testen, nur mit Backup |
 | `docker.io/tristanteu/haben:edge` | Stand von `main`, nur zum Ausprobieren |
 | `ghcr.io/firsttris/haben:…` | Dieselben Tags bei GitHub |
+| `docker.io/tristanteu/haben-backup:…` / `ghcr.io/firsttris/haben-backup:…` | Backup-Container (`postgres:16` mit restic, `deploy/backup`), dieselben Tags wie die App |
 
 ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf. Haben lädt es auf deinen Wunsch direkt von der Finanzverwaltung in das Volume `eric` (siehe [ERiC einbinden](#eric-einbinden)), oder du mountest es selbst. ERiC gibt es nur für Linux x86_64: Auf arm64 (z. B. Raspberry Pi) läuft alles außer der ELSTER-Übermittlung.
 
@@ -73,6 +74,8 @@ In `.env` trägst du ein:
 | `DB_PASSWORD` | Datenbank-Passwort, nur Buchstaben und Ziffern, weil es in der Verbindungs-URL steht: `openssl rand -hex 24` |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
 | `ENCRYPTION_KEY` | `openssl rand -base64 32`, zusätzlich an einem zweiten Ort sichern |
+| `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
+| `RESTIC_REPOSITORY` | optional: Backup auf einem zweiten System statt im Volume `backups`, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
 | `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
 
 ```sh
@@ -82,18 +85,9 @@ docker compose logs -f app   # „Migrationen angewendet“, dann „Listening o
 
 Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern und Upload-Grenze wie im `Caddyfile`). Caddy nimmt Anfragen bis 250 MB an; das reicht für eine Archivdatei bis 100 MB oder ein gutes Dutzend Belege auf einmal. Größere Mengen lädst du in mehreren Schritten hoch oder erhöhst `max_size`. ERiC lädst du unter **Einstellungen › ELSTER › ERiC** herunter oder mit `ERIC_AUTO_INSTALL=ja` in `.env` beim Start, siehe [ERiC einbinden](#eric-einbinden).
 
-**Updates:** `docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App.
+Der Dienst `backup` sichert Datenbank und Belege jeden Tag um 03:15 Uhr, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen).
 
-**Backup:** Sichere die Datenbank und das Volume mit den Belegen, zum Beispiel per Cronjob:
-
-```sh
-docker compose exec -T db pg_dump -U haben haben | gzip > haben-$(date +%F).sql.gz
-# Ein abgebrochener Dump fällt sonst nicht auf: die letzte Zeile muss „dump complete“ melden
-gunzip -c haben-$(date +%F).sql.gz | tail -n 20 | grep -q "PostgreSQL database dump complete" || echo "Dump unvollständig" >&2
-docker run --rm -v haben_belege:/belege:ro -v "$PWD":/backup alpine tar czf /backup/belege-$(date +%F).tar.gz -C /belege .
-```
-
-Beides gehört anschließend auf ein zweites System, etwa mit restic wie im Quadlet-Backup unten. Zum Wiederherstellen erst nur `docker compose up -d db` starten, den Dump mit `gunzip -c … | docker compose exec -T db psql -U haben -d haben` einspielen, die Belege mit `tar xzf` ins Volume `haben_belege` entpacken und danach `docker compose up -d` ausführen.
+**Updates:** `docker compose exec backup backup.sh && docker compose pull && docker compose up -d`. Migrationen laufen beim Start der App, siehe [Updates](#updates).
 
 ## Podman Quadlets
 
@@ -105,18 +99,16 @@ Die Quadlets betreiben Haben rootless unter systemd: Zugangsdaten als Podman Sec
 RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
 mkdir -p ~/.config/containers/systemd ~/.config/systemd/user ~/.config/haben
 for f in haben.network haben-db.volume haben-belege.volume haben-eric-log.volume haben-eric.volume haben-caddy.volume \
-         haben-db.container haben-app.container haben-caddy.container; do
+         haben-backups.volume haben-db.container haben-app.container haben-caddy.container haben-backup.container; do
   curl -o ~/.config/containers/systemd/$f "$RAW/quadlet/$f"
 done
-curl -o ~/.config/systemd/user/haben-backup.service "$RAW/quadlet/haben-backup.service"
 curl -o ~/.config/systemd/user/haben-backup.timer "$RAW/quadlet/haben-backup.timer"
 curl -o ~/.config/haben/Caddyfile "$RAW/Caddyfile"
 curl -o ~/.config/haben/haben.env "$RAW/haben.env.example"
-curl -o ~/.config/haben/backup.sh "$RAW/backup.sh" && chmod +x ~/.config/haben/backup.sh
-curl -o ~/.config/haben/restore.sh "$RAW/restore.sh" && chmod +x ~/.config/haben/restore.sh
+touch ~/.config/haben/backup.env   # optional RESTIC_REPOSITORY, siehe Backup und Wiederherstellen
 ```
 
-Die `.container`-, `.volume`- und `.network`-Dateien verarbeitet der Quadlet-Generator von Podman. `haben-backup.service` und `haben-backup.timer` sind gewöhnliche systemd-Units und gehören deshalb nach `~/.config/systemd/user/`.
+Die `.container`-, `.volume`- und `.network`-Dateien verarbeitet der Quadlet-Generator von Podman. `haben-backup.timer` ist eine gewöhnliche systemd-Unit und gehört deshalb nach `~/.config/systemd/user/`; er startet `haben-backup.service`, den der Generator aus `haben-backup.container` erzeugt.
 
 ### Secrets anlegen
 
@@ -128,6 +120,7 @@ printf '%s' "$DBPW" | podman secret create haben-db-password -
 printf 'postgres://haben:%s@haben-db:5432/haben' "$DBPW" | podman secret create haben-database-url -
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-auth-secret -
 openssl rand -base64 32 | tr -d '\n' | podman secret create haben-encryption-key -
+openssl rand -base64 32 | tr -d '\n' | podman secret create haben-restic-password -
 ```
 
 | Secret | Variable im Container | Inhalt |
@@ -136,10 +129,11 @@ openssl rand -base64 32 | tr -d '\n' | podman secret create haben-encryption-key
 | `haben-database-url` | `DATABASE_URL` | Verbindung zur Datenbank, Passwort wie oben |
 | `haben-auth-secret` | `BETTER_AUTH_SECRET` | Signiert die Sitzungen |
 | `haben-encryption-key` | `HABEN_ENCRYPTION_KEY` | Schlüssel für ELSTER-Zertifikat und Lexoffice-API-Schlüssel |
+| `haben-restic-password` | `RESTIC_PASSWORD` (in `haben-backup`) | Verschlüsselt das Backup |
 | `haben-anthropic-key` (optional) | `ANTHROPIC_API_KEY` | Für die KI-Auslesung, siehe unten |
 
 > [!IMPORTANT]
-> Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat samt gespeicherter PIN, die Passwörter für SMTP und IMAP, die Sitzung des Bankabrufs und den Lexoffice-API-Schlüssel (AES-256-GCM). Ohne den Schlüssel sind sie nach einer Wiederherstellung nicht mehr lesbar. Das Backup-Skript sichert ihn nicht mit. Den Wert liest du aus, solange der Container läuft: `podman exec haben-app printenv HABEN_ENCRYPTION_KEY`.
+> Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat samt gespeicherter PIN, die Passwörter für SMTP und IMAP, die Sitzung des Bankabrufs und den Lexoffice-API-Schlüssel (AES-256-GCM). Ohne den Schlüssel sind sie nach einer Wiederherstellung nicht mehr lesbar. Das Backup sichert ihn nicht mit. Dasselbe gilt für das Passwort des Backups. Die Werte liest du aus mit `podman exec haben-app printenv HABEN_ENCRYPTION_KEY` (solange der Container läuft) und `podman secret inspect --showsecret haben-restic-password`.
 
 ### Konfiguration
 
@@ -289,7 +283,7 @@ firma2.example.de {
 }
 ```
 
-(Header wie im Beispiel unter [Eigener Reverse Proxy](#beispiele).) Starten, aktualisieren und sichern machst du im Verzeichnis der jeweiligen Instanz wie oben unter [Docker Compose](#docker-compose); die Volumes heißen dann `haben-firma1_belege` usw. statt `haben_belege`, das gilt auch für den Backup-Befehl.
+(Header wie im Beispiel unter [Eigener Reverse Proxy](#beispiele).) Starten, aktualisieren und sichern machst du im Verzeichnis der jeweiligen Instanz wie oben unter [Docker Compose](#docker-compose); die Volumes heißen dann `haben-firma1_belege` usw. statt `haben_belege`. Jede Instanz hat ihren eigenen Dienst `backup`. Teilen sich mehrere Instanzen ein restic-Repository, braucht jede in `.env` ein eigenes `BACKUP_HOST` (z. B. `BACKUP_HOST=haben-firma1`), sonst räumt das Aufräumen der einen die Stände der anderen ab und `restore latest` nimmt den falschen Stand.
 
 Weitere Punkte:
 
@@ -338,79 +332,142 @@ Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` aus `
 | ERiC, von Haben heruntergeladen | Volume `haben-eric` (Compose: `eric`), im Container `/var/lib/haben/eric` (`ERIC_DIR`). Lässt sich jederzeit neu laden, nicht im Backup |
 | ERiC-Logs | Volume `haben-eric-log` (Compose: `eric-log`), im Container `/var/lib/haben/eric-log` (`ERIC_LOG_DIR`). Nur zur Fehlersuche, nicht im Backup |
 | TLS-Zertifikate von Caddy | Volume `haben-caddy` |
+| Backup (restic-Repository), wenn `RESTIC_REPOSITORY` nicht gesetzt ist | Volume `haben-backups` (Compose: `backups`), im Backup-Container `/backups` |
 
 Belege und Rechnungen müssen nach GoBD zehn Jahre aufbewahrt werden. Beide Volumes mit Buchhaltungsdaten gehören deshalb ins Backup.
 
-## Backup
+## Backup und Wiederherstellen
 
-Für Compose steht das Backup oben bei [Docker Compose](#docker-compose). Mit den Quadlets läuft `deploy/backup.sh` über `haben-backup.timer` täglich um 03:15 Uhr (`Persistent=true`: ein verpasster Lauf wird nachgeholt). Das Skript
+Ein Update lässt sich nicht einfach zurücknehmen: Migrationen ändern die Datenbank und laufen nicht rückwärts. Zurück geht es nur mit dem alten Image **und** dem Backup von vor dem Update. Deshalb läuft das Backup in beiden Varianten im selben Container, `tristanteu/haben-backup` (aus `deploy/backup`):
 
-1. erzeugt mit `podman exec haben-db pg_dump -U haben --format=plain haben` einen SQL-Dump, packt ihn mit gzip und prüft ihn: Das Archiv muss sich entpacken lassen und mit der Abschlusszeile von `pg_dump` enden, sonst bricht das Backup mit Fehler ab (`set -o pipefail`, ein Fehler von `pg_dump` zählt also),
-2. sichert den Dump und das Verzeichnis des Volumes `haben-belege` mit `podman unshare restic backup --tag haben`. Im rootless Podman gehören die Belegdateien einer Unter-UID des Containers; `podman unshare` führt restic im Benutzer-Namensraum aus, wo sie lesbar sind und ihre Besitzer behalten,
-3. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`).
+| | Compose | Quadlets |
+| --- | --- | --- |
+| Zeitplan | Dienst `backup`, täglich um `BACKUP_TIME` (Standard 03:15, Zeitzone Europe/Berlin) | `haben-backup.timer` startet `haben-backup.container` täglich um 03:15 Uhr, ein verpasster Lauf wird nachgeholt (`Persistent=true`) |
+| Backup jetzt | `docker compose exec backup backup.sh` | `systemctl --user start haben-backup` |
+| Protokoll | `docker compose logs backup` | `journalctl --user -u haben-backup` |
+| Passwort des Backups | `RESTIC_PASSWORD` in `.env` | Secret `haben-restic-password` |
+| Repository auf einem zweiten System | `RESTIC_REPOSITORY` in `.env` | `RESTIC_REPOSITORY` in `~/.config/haben/backup.env` |
 
-Die Volumes `haben-caddy`, `haben-eric` und `haben-eric-log` und der Schlüssel `HABEN_ENCRYPTION_KEY` sind nicht dabei.
+Ein Lauf
 
-Die Unit liest `~/.config/haben/backup.env`. Darin stehen die Angaben für restic:
+1. legt beim ersten Mal das restic-Repository an,
+2. erzeugt mit `pg_dump` über das Netz einen SQL-Dump der Datenbank, packt ihn mit gzip und prüft ihn: Das Archiv muss sich entpacken lassen und mit der Abschlusszeile von `pg_dump` enden, sonst bricht das Backup mit Fehler ab,
+3. sichert den Dump und die Belegdateien (Volume `belege` bzw. `haben-belege`, nur lesend eingehängt) verschlüsselt mit `restic backup --tag haben`,
+4. räumt alte Stände auf: 14 tägliche, 24 monatliche und 11 jährliche Snapshots bleiben (`restic forget --prune`). Die Jahresstände decken die zehnjährige Aufbewahrung nach GoBD ab.
+
+Die Volumes `caddy`, `eric` und `eric-log` und die Schlüssel sind nicht dabei. Mit Compose zeigt `docker compose ps` den Dienst `backup` als `unhealthy`, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief.
+
+> [!IMPORTANT]
+> Sichere `HABEN_ENCRYPTION_KEY` (Compose: `ENCRYPTION_KEY`) und das Passwort des Backups (`RESTIC_PASSWORD` bzw. das Secret `haben-restic-password`) getrennt vom Server, zum Beispiel im Passwortmanager. Ohne das Passwort lässt sich das Backup nicht öffnen, ohne den Schlüssel sind ELSTER-Zertifikat, PIN, Mail-Zugänge, Bankabruf und Lexoffice-Schlüssel darin nicht lesbar. Fehlt eins von beiden, ist das Backup wertlos.
+
+### Repository auf einem zweiten System
+
+Ohne `RESTIC_REPOSITORY` liegt das Backup im Volume `backups` bzw. `haben-backups` auf demselben Server. Das hilft gegen ein missglücktes Update, aber nicht gegen einen Plattenschaden, einen verlorenen Server oder ein versehentliches `docker compose down -v`, das die Volumes samt Backup löscht. Für den Ernstfall gehört das Repository auf ein zweites System. restic kennt dafür unter anderem:
+
+| Ziel | `RESTIC_REPOSITORY` | Dazu |
+| --- | --- | --- |
+| SFTP | `sftp:backup@example.de:/srv/restic/haben` | SSH-Schlüssel einhängen: in `compose.yml` die Zeile `~/.ssh:/root/.ssh:ro` bei `backup` und `restore` einkommentieren bzw. `Volume=%h/.ssh:/root/.ssh:ro` in `haben-backup.container`. Der Host muss in `known_hosts` stehen |
+| S3 (AWS, Hetzner, Backblaze …) | `s3:https://fsn1.your-objectstorage.com/bucket/haben` | `AWS_ACCESS_KEY_ID` und `AWS_SECRET_ACCESS_KEY` |
+| restic REST-Server | `rest:https://nutzer:passwort@backup.example.de/haben` | – |
+
+Mit Compose trägst du die Werte in `.env` ein, mit den Quadlets in `~/.config/haben/backup.env`, zum Beispiel:
 
 ```sh
-RESTIC_REPOSITORY=sftp:backup@example.de:/srv/restic/haben
-RESTIC_PASSWORD_FILE=/home/haben/.config/haben/restic-password
+RESTIC_REPOSITORY=s3:https://fsn1.your-objectstorage.com/bucket/haben
+AWS_ACCESS_KEY_ID=…
+AWS_SECRET_ACCESS_KEY=…
 ```
 
-Das Repository legst du einmal mit `restic init` an. Einen Lauf von Hand startest du mit `systemctl --user start haben-backup.service`, das Ergebnis steht in `journalctl --user -u haben-backup`.
+Unterstützt das Ziel schreibgeschützte Stände (etwa Object Lock bei S3), schützt das Backup auch gegen jemanden, der den Server übernommen hat.
 
 ### Wiederherstellen
 
-Für die Quadlets liegt `deploy/restore.sh` bei. Du hast es beim [Ablegen der Dateien](#dateien-ablegen) neben `backup.sh` nach `~/.config/haben/` geladen. Es erwartet dieselben Angaben für restic wie das Backup, also `RESTIC_REPOSITORY` und `RESTIC_PASSWORD_FILE` aus `backup.env` in der Umgebung, und einen laufenden Container `haben-db`:
+`restore.sh` im Backup-Image stellt einen Stand wieder her. Es ersetzt Datenbank und Belege vollständig. Die App muss dafür gestoppt sein, sonst bricht es ab, ohne etwas zu ändern. Das Skript
+
+1. fragt nach, ob Datenbank und Belege ersetzt werden sollen, und macht nur bei der Antwort `ja` weiter,
+2. holt den Snapshot mit `restic restore` und prüft den Dump (lesbar, vollständig),
+3. spielt den Dump in eine neue Datenbank `haben_restore` ein; ein Fehler bricht ab (`ON_ERROR_STOP`), die bisherige Datenbank bleibt dann unverändert,
+4. löscht die Datenbank `haben` und benennt `haben_restore` in `haben` um,
+5. ersetzt den Inhalt des Volumes mit den Belegen durch die Belegdateien aus dem Snapshot.
+
+Mit Compose:
 
 ```sh
-set -a; . ~/.config/haben/backup.env; set +a
-restic snapshots --tag haben          # verfügbare Stände anzeigen
-~/.config/haben/restore.sh latest     # oder eine Snapshot-ID
+docker compose stop app
+docker compose run --rm restore          # verfügbare Stände anzeigen
+docker compose run --rm restore latest   # oder eine Snapshot-ID
+docker compose start app
 ```
 
-Das Skript fragt nach, ob Datenbank und Belege ersetzt werden sollen, und macht nur bei der Antwort `ja` weiter. Dann
-
-1. holt es den Snapshot mit `podman unshare restic restore` in ein temporäres Verzeichnis und prüft den Dump (lesbar, vollständig),
-2. spielt den Dump mit `psql` in eine neue Datenbank `haben_restore` ein; ein Fehler bricht ab (`ON_ERROR_STOP`), die bisherige Datenbank bleibt dann unverändert,
-3. stoppt `haben-app.service`, löscht die Datenbank `haben` und benennt `haben_restore` in `haben` um,
-4. ersetzt den Inhalt des Volumes `haben-belege` durch die Belegdateien aus dem Snapshot,
-5. startet die App wieder.
-
-Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze. Das Skript ersetzt den aktuellen Stand vollständig.
-
-Auf einem frischen System richtest du zuerst die Quadlets wie oben ein, mit denselben Secrets, startest nur `haben-db` und rufst dann `restore.sh` auf. `HABEN_ENCRYPTION_KEY` muss derselbe sein wie vorher, sonst sind ELSTER-Zertifikat, PIN, Mail-Zugänge, Bankabruf und Lexoffice-Schlüssel nicht lesbar.
-
-Von Hand geht es so, ebenfalls auf einem System mit leeren Volumes:
+Mit den Quadlets:
 
 ```sh
-restic snapshots --tag haben
-restic restore latest --tag haben --target ~/haben-restore
-
-# Datenbank: nur haben-db starten, die App noch nicht (sie würde sonst Migrationen in die leere DB schreiben)
-systemctl --user start haben-db
-gunzip -c "$(find ~/haben-restore -name haben.sql.gz)" | podman exec -i haben-db psql -U haben -d haben
-
-# Belegdateien zurück ins Volume, Eigentümer ist der Nutzer node (UID 1000) im Container
-ziel="$(podman volume inspect haben-belege --format '{{.Mountpoint}}')"
-quelle="$(find ~/haben-restore -type d -path '*haben-belege/_data' | head -n1)"
-podman unshare cp -a "$quelle/." "$ziel/"
-podman unshare chown -R 1000:1000 "$ziel"
-
-systemctl --user start haben-app haben-caddy
+systemctl --user stop haben-app
+podman run --rm -it --network haben --env-file ~/.config/haben/backup.env -e PGHOST=haben-db \
+  --secret haben-db-password,type=env,target=PGPASSWORD \
+  --secret haben-restic-password,type=env,target=RESTIC_PASSWORD \
+  -v haben-belege:/belege -v haben-backups:/backups \
+  docker.io/tristanteu/haben-backup:latest restore.sh latest   # ohne latest: Stände anzeigen
+systemctl --user start haben-app
 ```
 
-Restic legt Dateien mit ihrem ursprünglichen absoluten Pfad ab, deshalb die `find`-Aufrufe. Setze vor dem Start der App dasselbe `HABEN_ENCRYPTION_KEY` wie vorher. Für Docker Compose steht der Weg oben bei [Docker Compose](#docker-compose). Probiere die Wiederherstellung einmal aus, bevor du dich auf das Backup verlässt.
+Liegt das Repository per SFTP auf einem anderen System, gehört `-v ~/.ssh:/root/.ssh:ro` dazu. Danach meldest du dich an und prüfst Stichproben, etwa die letzte Rechnung, den letzten Beleg und die Bankumsätze.
+
+Auf einem frischen System richtest du Haben zuerst wie oben ein, mit demselben `HABEN_ENCRYPTION_KEY`, demselben Passwort des Backups und demselben `RESTIC_REPOSITORY`. Dann startest du nur die Datenbank (`docker compose up -d db` bzw. `systemctl --user start haben-db`), stellst wie oben wieder her und startest danach alles. Lief die App schon, stoppst du sie vorher; `restore.sh` ersetzt die leere Datenbank dann genauso. Probiere die Wiederherstellung einmal aus, bevor du dich auf das Backup verlässt.
+
+### Update zurücknehmen
+
+1. Vor dem Update ein Backup machen (`docker compose exec backup backup.sh` bzw. `systemctl --user start haben-backup`), wie unter [Updates](#updates).
+2. Geht nach dem Update etwas schief: die vorherige Version fest eintragen, in `compose.yml` etwa `image: tristanteu/haben:0.1.9`, im Quadlet `Image=docker.io/tristanteu/haben:0.1.9`.
+3. Den Stand von vor dem Update einspielen, wie oben unter [Wiederherstellen](#wiederherstellen). Die Snapshot-ID zeigt `restore.sh` ohne Argument; `latest` passt nur, wenn seit dem Update kein Backup mehr lief.
+4. Die App starten (`docker compose up -d` bzw. `systemctl --user daemon-reload && systemctl --user start haben-app`).
+
+Nur das alte Image ohne das alte Backup reicht nicht: Die alte Version startet dann mit einer Datenbank, die schon migriert ist.
+
+### Umzug vom Host-Skript der Quadlets
+
+Bisher lief das Backup der Quadlets als `~/.config/haben/backup.sh` mit restic auf dem Host. Der Container ersetzt es, restic auf dem Host brauchst du danach nicht mehr. Das bestehende Repository und seine Stände bleiben nutzbar.
+
+```sh
+RAW=https://raw.githubusercontent.com/firsttris/haben/main/deploy
+# Passwort des bisherigen Repositorys als Secret
+podman secret create haben-restic-password ~/.config/haben/restic-password
+# Neue Units, die alte Service-Unit und die Skripte entfallen
+for f in haben-backup.container haben-backups.volume; do curl -o ~/.config/containers/systemd/$f "$RAW/quadlet/$f"; done
+rm ~/.config/systemd/user/haben-backup.service ~/.config/haben/backup.sh ~/.config/haben/restore.sh
+```
+
+Dann `~/.config/haben/backup.env` anpassen:
+
+- Die Zeile `RESTIC_PASSWORD_FILE=…` löschen; das Passwort kommt jetzt aus dem Secret.
+- `RESTIC_REPOSITORY` mit `sftp:`, `s3:` oder `rest:` bleibt stehen. Bei SFTP in `haben-backup.container` die Zeile `Volume=%h/.ssh:/root/.ssh:ro` einkommentieren.
+- Liegt das Repository in einem Verzeichnis auf dem Host (`RESTIC_REPOSITORY=/srv/restic/haben`), die Zeile löschen und in `haben-backup.container` `Volume=haben-backups.volume:/backups` durch `Volume=/srv/restic/haben:/backups` ersetzen.
+
+```sh
+systemctl --user daemon-reload
+systemctl --user start haben-backup && journalctl --user -u haben-backup -n 20
+```
+
+Die alten Stände zeigt `restore.sh` ohne Argument unter dem Hostnamen des Servers; einspielen lassen sie sich mit ihrer Snapshot-ID. Die neuen Stände laufen unter dem Host `haben`. Aufgeräumt wird je Host, die alten Stände werden also nach denselben Regeln weniger.
 
 ## Updates
 
-Mit Compose: `docker compose pull && docker compose up -d`. Mit den Quadlets:
+Vor jedem Update ein Backup machen; nur damit lässt sich das Update zurücknehmen, siehe [Update zurücknehmen](#update-zurücknehmen). Mit Compose:
 
 ```sh
-systemctl --user start haben-backup.service   # Stand vor dem Update sichern
-podman auto-update                             # neues Image ziehen und haben-app neu starten
+docker compose exec backup backup.sh   # Stand vor dem Update sichern
+docker compose pull && docker compose up -d
 ```
+
+Mit den Quadlets:
+
+```sh
+systemctl --user start haben-backup    # Stand vor dem Update sichern
+podman auto-update                     # neues Image ziehen und haben-app neu starten
+podman pull docker.io/tristanteu/haben-backup:latest
+```
+
+`podman auto-update` erfasst nur laufende Container. Das Backup läuft bloß kurz, sein Image holst du deshalb mit `podman pull`.
 
 `haben-app.container` trägt `AutoUpdate=registry`; mit `systemctl --user enable --now podman-auto-update.timer` prüft Podman täglich selbst auf neue Images. Willst du Updates von Hand steuern, setze im Quadlet eine feste Version (`Image=docker.io/tristanteu/haben:0.1`) und ändere sie bewusst. Bei einem selbst gebauten Image: `git pull`, `podman build -t haben -f Containerfile .` und `systemctl --user restart haben-app`.
 

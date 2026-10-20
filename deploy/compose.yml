@@ -3,11 +3,31 @@
 #   mkdir haben && cd haben
 #   curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
 #   curl -o .env https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.env.example
-#   # .env ausfüllen: Domain, Datenbank-Passwort und die beiden Schlüssel
+#   # .env ausfüllen: Domain, Datenbank-Passwort, die beiden Schlüssel und das Backup-Passwort
 #   docker compose up -d
+#
+# Backup von Hand, etwa vor einem Update:  docker compose exec backup backup.sh
 #
 # Braucht Docker Compose 2.23 oder neuer (für die eingebettete Caddy-Konfiguration).
 name: haben
+
+# Gemeinsam für das tägliche Backup und das Wiederherstellen (Image aus deploy/backup)
+x-backup: &backup
+  image: tristanteu/haben-backup:latest
+  depends_on:
+    db:
+      condition: service_healthy
+  environment:
+    PGPASSWORD: ${DB_PASSWORD}
+    # Standard: Volume backups auf diesem Host. Besser ein zweites System: sftp:…, s3:…, rest:…
+    RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-/backups}
+    RESTIC_PASSWORD: ${RESTIC_PASSWORD:?RESTIC_PASSWORD fehlt in .env}
+    # Eigener Name je Instanz, wenn mehrere ein Repository teilen
+    BACKUP_HOST: ${BACKUP_HOST:-haben}
+    BACKUP_TIME: ${BACKUP_TIME:-03:15}
+    # Zugangsdaten für ein Repository auf S3, sonst leer
+    AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+    AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
 
 services:
   db:
@@ -53,6 +73,30 @@ services:
       # Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung, Zeile einkommentieren
       # - ./enablebanking.pem:/run/secrets/enablebanking.pem:ro
 
+  # Tägliches Backup von Datenbank und Belegen mit restic
+  backup:
+    <<: *backup
+    restart: unless-stopped
+    volumes:
+      - belege:/belege:ro
+      - backups:/backups
+      # Repository über sftp: SSH-Schlüssel einhängen, Zeile einkommentieren
+      # - ~/.ssh:/root/.ssh:ro
+    healthcheck:
+      # Ungesund, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief; vor dem ersten Lauf gesund
+      test: ["CMD-SHELL", "s=/var/lib/haben-backup/status; [ ! -f $$s ] || { grep -q '^ok' $$s && [ -n \"$$(find $$s -mmin -2880)\" ]; }"]
+      interval: 5m
+
+  # Wiederherstellen, startet nicht mit up:  docker compose stop app && docker compose run --rm restore latest
+  restore:
+    <<: *backup
+    profiles: [restore]
+    entrypoint: ["restore.sh"]
+    volumes:
+      - belege:/belege
+      - backups:/backups
+      # - ~/.ssh:/root/.ssh:ro
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -91,3 +135,5 @@ volumes:
   eric-log:
   eric:
   caddy:
+  # restic-Repository, wenn RESTIC_REPOSITORY nicht gesetzt ist
+  backups:
