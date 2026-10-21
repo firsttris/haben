@@ -35,9 +35,15 @@ export function previousPeriod({ year, month }: VatPeriod): VatPeriod {
   return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
 }
 
-/** Der Zeitraum, der zu einem Datum gerade abzugeben ist (Vormonat). */
-export function currentFilingPeriod(today: Date): VatPeriod {
-  return previousPeriod({ year: today.getFullYear(), month: today.getMonth() + 1 });
+const berlinMonth = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit" });
+
+/**
+ * Der Zeitraum, der zu einem Zeitpunkt gerade abzugeben ist (Vormonat). Maßgeblich ist der Monat in Deutschland, nicht
+ * die Zeitzone des Servers (im Container UTC) oder des Browsers.
+ */
+export function currentFilingPeriod(now: Date): VatPeriod {
+  const [year, month] = berlinMonth.format(now).split("-").map(Number) as [number, number];
+  return previousPeriod({ year, month });
 }
 
 /**

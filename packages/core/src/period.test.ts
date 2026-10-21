@@ -33,4 +33,14 @@ describe("Zeitraum", () => {
     expect(currentFilingPeriod(new Date(2026, 9, 2))).toEqual({ year: 2026, month: 9 });
     expect(currentFilingPeriod(new Date(2027, 0, 5))).toEqual({ year: 2026, month: 12 });
   });
+  it("Monatswechsel nach deutscher Zeit, unabhängig von der Zeitzone des Prozesses", () => {
+    // 31.10.2026 23:30 UTC ist in Deutschland schon der 1. November (MEZ): abzugeben ist der Oktober
+    expect(currentFilingPeriod(new Date("2026-10-31T23:30:00Z"))).toEqual({ year: 2026, month: 10 });
+    // 30.06.2026 22:30 UTC ist der 1. Juli 00:30 (MESZ)
+    expect(currentFilingPeriod(new Date("2026-06-30T22:30:00Z"))).toEqual({ year: 2026, month: 6 });
+    // Silvester: 31.12.2026 23:30 UTC ist schon 2027
+    expect(currentFilingPeriod(new Date("2026-12-31T23:30:00Z"))).toEqual({ year: 2026, month: 12 });
+    // Kurz vor Mitternacht in Deutschland bleibt es beim alten Monat
+    expect(currentFilingPeriod(new Date("2026-10-31T22:30:00Z"))).toEqual({ year: 2026, month: 9 });
+  });
 });
