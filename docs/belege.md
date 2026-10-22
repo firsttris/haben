@@ -218,6 +218,8 @@ Nach einem Import liegen oft viele Belege auf „Zu prüfen“. Damit du sie ohn
 
 Auf dem Handy wischst du nach links zum nächsten und nach rechts zum vorigen Beleg.
 
+Im [Bankabgleich](bank.md#zuordnen) geht es genauso: Nach dem vollständigen Zuordnen springt die Auswahl zum nächsten offenen Umsatz.
+
 ## Vorsteuer in der Voranmeldung
 
 Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Siehe [umsatzsteuer.md](umsatzsteuer.md).
