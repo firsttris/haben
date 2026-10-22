@@ -33,6 +33,8 @@ export async function storeFile(bytes: Uint8Array): Promise<string> {
       await file.close();
     }
     await rename(tmp, target);
+    // fsync auf einen Ordner lehnt Windows ab (EPERM); dort entfällt dieser Schritt (nur für die Entwicklung unter Windows)
+    if (process.platform === "win32") return sha256;
     const folder = await open(dir, "r");
     try {
       await folder.sync();
