@@ -332,6 +332,25 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: 24px; }
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
+/* Beleg prüfen: nebeneinander höchstens so hoch wie die Vorschau, das Formular scrollt, die Knöpfe bleiben sichtbar */
+@media (min-width: 1201px) {
+  /* Zeile auf die Gridhöhe begrenzen, sonst wächst sie mit dem Formular und es scrollt die Seite statt der Spalte */
+  .main:has(> .doc-editor) { box-sizing: border-box; height: 100dvh; }
+  .doc-editor { flex: 1 1 0; min-height: 520px; align-items: stretch; grid-template-rows: minmax(0, 1fr); }
+  .doc-editor > .doc-preview, .doc-editor > .doc-image { position: static; height: 100%; max-height: none; min-height: 0; }
+  .doc-editor > .stack { min-height: 0; overflow-y: auto; padding-right: 4px; }
+  /* Kompakter, damit mehr ohne Scrollen passt; die 44 px für Touch bleiben auf schmalen Bildschirmen */
+  .doc-editor > .stack { gap: 12px; }
+  .doc-editor .card { padding: 14px 16px; gap: 8px; }
+  .doc-editor .form-grid { gap: 10px 12px; }
+  .doc-editor .field { gap: 4px; }
+  .doc-editor .field input, .doc-editor .field select { min-height: 36px; }
+  .doc-editor .checkbox { min-height: 28px; }
+  .doc-editor .icon-btn { width: 36px; height: 36px; }
+  .doc-editor .btn { min-height: 38px; }
+  .doc-editor textarea { min-height: 56px; }
+  .doc-editor .doc-actions { position: sticky; bottom: 0; z-index: 1; margin-top: auto; padding: 12px 0 2px; background: var(--ground); border-top: 1px solid var(--line); }
+}
 /* Position: Beschreibung über die volle Breite, darunter die Zahlen */
 .line-row { display: grid; grid-template-columns: minmax(52px, 0.7fr) minmax(72px, 0.9fr) minmax(0, 1.3fr) minmax(64px, 0.8fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line-soft); }
 .line-row > .line-desc { grid-column: 1 / -1; }

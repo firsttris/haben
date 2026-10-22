@@ -135,7 +135,7 @@ function DocumentPage() {
           <span>Der Beleg hat ungespeicherte Änderungen. Noch einmal klicken, um ohne Speichern zu wechseln.</span>
         </div>
       )}
-      <div className="editor-grid">
+      <div className="editor-grid doc-editor">
         <Preview doc={doc} />
         {/* key: nach dem Auslesen oder Speichern mit den neuen Werten aufsetzen */}
         <DocumentForm key={`${doc.id}-${String(doc.updatedAt)}`} data={data} onDirtyChange={setDirty} />
@@ -610,7 +610,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       )}
       <NoticeBanner notice={notice} />
       {!locked && (
-        <div className="actions">
+        <div className="actions doc-actions">
           <button type="button" className="btn btn-primary" onClick={onBook} disabled={busy || running || !valid}>
             {confirming ? "Jetzt buchen" : "Bestätigen und buchen"}
           </button>
