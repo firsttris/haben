@@ -103,3 +103,67 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
 
   return suggestions.sort((a, b) => b.score - a.score || a.item.date.localeCompare(b.item.date)).slice(0, limit);
 }
+
+/** Wofür ein Bankkonto dient; steuert Vorschläge für Buchungen ohne Rechnung */
+export const ACCOUNT_PURPOSES = {
+  geschaeft: "Geschäftskonto",
+  steuer: "Steuerkonto (Lastschrift und Erstattungen des Finanzamts)",
+  ruecklage: "Rücklagen- oder Sparkonto",
+  privat: "Privatkonto (nur zur Zuordnung von Überweisungen)",
+} as const;
+
+export type AccountPurpose = keyof typeof ACCOUNT_PURPOSES;
+
+export interface OwnAccount {
+  id: string;
+  name: string;
+  iban: string;
+  purpose: AccountPurpose;
+}
+
+export interface DirectSuggestion {
+  kind: "privat" | "geldtransit" | "ustVorauszahlung";
+  reasons: string[];
+  /** Bei Geldtransit: das eigene Konto auf der Gegenseite */
+  counterAccountId?: string;
+}
+
+/** Finanzkassen und Steuerverwaltung, wie sie im Namen der Gegenpartei stehen */
+const TAX_OFFICE = /finanzamt|finanzkasse|steuerverwaltung|landeshauptkasse|landesfinanzkasse|bundeskasse|staatsoberkasse|finanzbehörde/i;
+
+/**
+ * Vorschlag für einen Umsatz ohne Rechnung aus dem Zweck der Konten:
+ * - Gegenkonto ist ein eigenes Konto: Geldtransit, bei einem Privatkonto Privatentnahme bzw. -einlage
+ * - Steuerkonto und Gegenpartei ist das Finanzamt: Umsatzsteuer-Zahlung bzw. Erstattung
+ */
+export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, ownAccounts: OwnAccount[]): DirectSuggestion | null {
+  const iban = tx.counterpartyIban?.replace(/\s/g, "").toUpperCase();
+  const own = iban ? ownAccounts.find((a) => a.id !== account.id && a.iban === iban) : undefined;
+  if (own) {
+    if (own.purpose === "privat" || account.purpose === "privat") {
+      return { kind: "privat", reasons: [`Gegenkonto ist dein Privatkonto ${own.purpose === "privat" ? own.name : account.name}`] };
+    }
+    return { kind: "geldtransit", reasons: [`Gegenkonto ist dein Konto ${own.name}`], counterAccountId: own.id };
+  }
+  if (account.purpose === "steuer" && TAX_OFFICE.test(tx.counterpartyName)) {
+    return {
+      kind: "ustVorauszahlung",
+      reasons: [tx.amount < 0 ? "Lastschrift des Finanzamts auf dem Steuerkonto" : "Erstattung des Finanzamts auf das Steuerkonto"],
+    };
+  }
+  return null;
+}
+
+/**
+ * Gegenbuchung eines Geldtransits auf dem anderen eigenen Konto: gleicher Betrag mit umgekehrtem Vorzeichen,
+ * noch ganz offen, höchstens fünf Tage auseinander; bei mehreren die zeitlich nächste.
+ */
+export function findTransferCounterpart<T extends { id: string; bookingDate: string; amount: Cents; open: Cents }>(
+  tx: { bookingDate: string; amount: Cents },
+  candidates: T[],
+): T | null {
+  const matches = candidates
+    .filter((c) => c.amount === -tx.amount && c.open === c.amount && daysBetween(c.bookingDate, tx.bookingDate) <= 5)
+    .sort((a, b) => daysBetween(a.bookingDate, tx.bookingDate) - daysBetween(b.bookingDate, tx.bookingDate));
+  return matches[0] ?? null;
+}

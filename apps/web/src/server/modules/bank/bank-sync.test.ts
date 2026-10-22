@@ -119,6 +119,8 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(result.ok).toBe(true);
     expect(result.message).toContain("Testbank verbunden, 3 neue Umsätze.");
     expect(result.message).toContain("1 Konten ohne IBAN");
+    // Nur das neue Konto wird genannt; das schon per CSV angelegte behält seinen Namen
+    expect(result.message).toContain("Neu angelegt: Testbank Tagesgeld …2051.");
 
     const txCalls = api.calls.filter((c) => c.path.endsWith("/transactions"));
     expect(txCalls[0]!.query.get("date_from")).toBe("2026-09-06");
@@ -128,7 +130,7 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
 
     const accounts = await db.db.select().from(db.schema.bankAccounts);
     expect(accounts.map((a) => [a.iban, a.name]).sort()).toEqual([
-      [IBAN_B, "Tagesgeld"],
+      [IBAN_B, "Testbank Tagesgeld …2051"],
       [IBAN_A, "DKB Business"],
     ].sort());
     const rows = await sql`select purpose, amount from bank_transactions order by booking_date`;

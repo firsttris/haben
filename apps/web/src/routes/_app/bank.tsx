@@ -16,7 +16,8 @@ import {
   getBankOverview,
   getEnableBanks,
   importStatements,
-  renameBankAccount,
+  transferBetweenAccounts,
+  updateBankAccount,
   reverseTransactionAllocation,
   syncBankConnection,
 } from "../../server/functions/bank.ts";
@@ -136,7 +137,7 @@ function BankPage() {
             })}
           </nav>
           {/* key: beim Kontowechsel mit dem Namen des neuen Kontos aufsetzen */}
-          {selectedAccount && <RenameAccount key={selectedAccount.id} account={selectedAccount} />}
+          {selectedAccount && <AccountSettings key={selectedAccount.id} account={selectedAccount} purposes={data.purposes} />}
 
           <div className="grid-main">
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">
@@ -207,22 +208,26 @@ function BankPage() {
   );
 }
 
-/** Name des gewählten Kontos ändern, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
-function RenameAccount({ account }: { account: Data["accounts"][number] }) {
+const PURPOSE_SHORT = { geschaeft: "Geschäftskonto", steuer: "Steuerkonto", ruecklage: "Rücklagen", privat: "Privatkonto" } as const;
+
+/** Name und Zweck des gewählten Kontos, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
+function AccountSettings({ account, purposes }: { account: Data["accounts"][number]; purposes: Data["purposes"] }) {
   const router = useRouter();
-  const renameFn = useServerFn(renameBankAccount);
+  const navigate = useNavigate({ from: "/bank" });
+  const updateFn = useServerFn(updateBankAccount);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(account.name);
+  const [purpose, setPurpose] = useState(account.purpose);
   const { busy, notice, run } = useAction();
 
   if (!editing) {
     return (
       <div className="small muted" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "8px 0 16px" }}>
         <span>
-          {account.name} · {account.iban.replace(/(.{4})/g, "$1 ").trim()}
+          {account.name} · {PURPOSE_SHORT[account.purpose]} · {account.iban.replace(/(.{4})/g, "$1 ").trim()}
         </span>
         <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
-          Umbenennen
+          Name und Zweck
         </button>
       </div>
     );
@@ -231,19 +236,35 @@ function RenameAccount({ account }: { account: Data["accounts"][number] }) {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void run(async () => {
-      await renameFn({ data: { id: account.id, name } });
+      await updateFn({ data: { id: account.id, name, purpose } });
+      // Konto fest in die Adresse: ohne „konto“ zeigt die Seite das alphabetisch erste, nach dem Umbenennen ein anderes
+      await navigate({ search: (prev) => ({ ...prev, konto: account.id }), replace: true });
       await router.invalidate();
       setEditing(false);
     });
   }
 
   return (
-    <form onSubmit={onSubmit} className="stack" style={{ gap: 8, margin: "8px 0 16px", maxWidth: 480 }} aria-label="Konto umbenennen">
+    <form onSubmit={onSubmit} className="stack" style={{ gap: 8, margin: "8px 0 16px", maxWidth: 480 }} aria-label="Name und Zweck des Kontos">
       <label className="field">
         Name des Kontos
         <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} autoFocus />
       </label>
-      <span className="small muted">Nur die Anzeige ändert sich; Umsätze und Import über die IBAN bleiben, wie sie sind.</span>
+      <label className="field">
+        Zweck
+        <select value={purpose} onChange={(e) => setPurpose(e.target.value as typeof purpose)}>
+          {purposes.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <span className="small muted">
+        Der Name ist nur Anzeige; Umsätze und Import über die IBAN bleiben, wie sie sind. Der Zweck steuert Vorschläge im Bankabgleich
+        (Geldtransit zwischen eigenen Konten, Umsatzsteuer auf dem Steuerkonto, Privat beim Privatkonto), die IBAN für „Bankverbindung
+        ändern“ beim Finanzamt und die Deckung der Zahllast in der Übersicht. Gebucht wird weiter auf das eine Bankkonto.
+      </span>
       <NoticeBanner notice={notice} />
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()}>
@@ -254,6 +275,7 @@ function RenameAccount({ account }: { account: Data["accounts"][number] }) {
           className="btn"
           onClick={() => {
             setName(account.name);
+            setPurpose(account.purpose);
             setEditing(false);
           }}
           disabled={busy}
@@ -664,11 +686,13 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
   const router = useRouter();
   const allocateFn = useServerFn(allocateTransaction);
   const reverseFn = useServerFn(reverseTransactionAllocation);
-  const { transaction: tx, suggestions, candidates, allocations } = detail;
+  const transferFn = useServerFn(transferBetweenAccounts);
+  const { transaction: tx, suggestions, candidates, allocations, direct } = detail;
   const best = suggestions[0];
-  const [mode, setMode] = useState<"best" | "other" | "direct">(best ? "best" : candidates.length ? "other" : "direct");
+  // Ein Treffer mit Rechnung geht vor; sonst der Vorschlag aus dem Zweck der Konten (Geldtransit, Umsatzsteuer, Privat)
+  const [mode, setMode] = useState<"best" | "other" | "direct">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
   const [candidate, setCandidate] = useState(best ? `${best.item.type}:${best.item.id}` : "");
-  const [directKind, setDirectKind] = useState<DirectBooking>("privat");
+  const [directKind, setDirectKind] = useState<DirectBooking>(direct?.kind ?? "privat");
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
   const action = useAction();
   const { busy, notice } = action;
@@ -811,6 +835,39 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
               </select>
               {candidates.length === 0 && <span className="small">Keine offenen Rechnungen oder gebuchten Belege in dieser Richtung.</span>}
             </label>
+          )}
+
+          {mode === "direct" && direct && (
+            <div className="stack" style={{ gap: 10 }}>
+              <div className="section-label">Vorschlag ohne Rechnung</div>
+              <div className="match-card">
+                <span style={{ fontWeight: 600 }}>{directKinds.find((k) => k.value === direct.kind)?.label}</span>
+                <ul className="reasons">
+                  {direct.reasons.map((reason) => (
+                    <li key={reason}>
+                      <Icon name="check" size={16} />
+                      {reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {direct.counterpart && (
+                <>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => void run(() => transferFn({ data: { transactionId: tx.id, counterpartId: direct.counterpart!.id } }))}
+                  >
+                    Beide Seiten als Geldtransit buchen
+                  </button>
+                  <span className="small muted">
+                    Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über {formatEuro(Math.abs(direct.counterpart.amount))} auf dem
+                    anderen Konto; beide werden in einem Schritt zugeordnet.
+                  </span>
+                </>
+              )}
+            </div>
           )}
 
           {mode === "direct" && (

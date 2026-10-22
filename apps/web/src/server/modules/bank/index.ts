@@ -18,6 +18,7 @@ export {
 export {
   accountSchema,
   allocate,
+  allocateTransfer,
   allocationSchema,
   BankError,
   createAccount,
@@ -26,9 +27,11 @@ export {
   listAccounts,
   listTransactions,
   openItems,
-  renameAccount,
-  renameAccountSchema,
+  ownAccounts,
+  updateAccount,
+  accountSettingsSchema,
   reverseAllocation,
   transactionDetail,
+  transferSchema,
 } from "./bank.ts";
 export { addDocumentCashEntry, cashBook, cashBookCsv, cashInputSchema, createCashEntry, lockCash, reverseCashEntry } from "./cash.ts";

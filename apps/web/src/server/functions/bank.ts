@@ -1,10 +1,12 @@
-import { DIRECT_BOOKINGS } from "@haben/core";
+import { ACCOUNT_PURPOSES, DIRECT_BOOKINGS, suggestDirectBooking } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { suggestMatches } from "@haben/core";
 import {
   accountSchema,
+  accountSettingsSchema,
   allocate,
+  allocateTransfer,
   allocationSchema,
   BankError,
   createAccount,
@@ -12,10 +14,11 @@ import {
   listAccounts,
   listTransactions,
   openItems,
-  renameAccount,
-  renameAccountSchema,
+  ownAccounts,
+  updateAccount,
   reverseAllocation,
   transactionDetail,
+  transferSchema,
 } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -37,9 +40,13 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const rows = account ? await listTransactions(account.id, data.filter, data.suche) : [];
     // Hinweis je Zeile: gibt es einen Vorschlag, fehlt ein Beleg?
     const items = rows.some((r) => r.open !== 0) ? await openItems() : [];
+    const own = await ownAccounts();
+    const current = own.find((a) => a.id === account?.id);
     const transactions = rows.map((row) => {
       if (row.open === 0) return { ...row, hint: "zugeordnet" as const };
-      const hasSuggestion = suggestMatches({ ...row, amount: row.open }, items, 1).length > 0;
+      const hasSuggestion =
+        suggestMatches({ ...row, amount: row.open }, items, 1).length > 0 ||
+        (row.open === row.amount && current !== undefined && suggestDirectBooking(row, current, own) !== null);
       return {
         ...row,
         hint: hasSuggestion ? ("vorschlag" as const) : row.open !== row.amount ? ("teilweise" as const) : row.amount < 0 ? ("belegFehlt" as const) : ("offen" as const),
@@ -53,6 +60,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
       transactions,
       detail: detail && detail.transaction.bankAccountId === account?.id ? detail : null,
       directKinds: Object.entries(DIRECT_BOOKINGS).map(([value, label]) => ({ value, label })),
+      purposes: Object.entries(ACCOUNT_PURPOSES).map(([value, label]) => ({ value, label })),
       sync: { configured: enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
     };
   });
@@ -90,11 +98,19 @@ export const addBankAccount = createServerFn({ method: "POST" })
     return { id: account.id };
   });
 
-export const renameBankAccount = createServerFn({ method: "POST" })
+export const updateBankAccount = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(renameAccountSchema)
+  .validator(accountSettingsSchema)
   .handler(async ({ data, context }) => {
-    await renameAccount(context.user.id, data);
+    await updateAccount(context.user.id, data);
+    return { ok: true };
+  });
+
+export const transferBetweenAccounts = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(transferSchema)
+  .handler(async ({ data, context }) => {
+    await allocateTransfer(context.user.id, data);
     return { ok: true };
   });
 

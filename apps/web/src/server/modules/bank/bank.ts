@@ -2,12 +2,15 @@ import { UserError } from "../../errors.ts";
 import {
   directPosting,
   documentOpen,
+  findTransferCounterpart,
+  suggestDirectBooking,
   documentPaymentPosting,
   invoiceOpen,
   invoicePaymentPosting,
   suggestMatches,
   type DirectBooking,
   type OpenItem,
+  type OwnAccount,
   type PostingLine,
 } from "@haben/core";
 import { checkBalanceContinuity, parseStatement, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
@@ -24,8 +27,11 @@ export class BankError extends UserError {}
 
 const normalizeIban = (iban: string) => iban.replace(/\s/g, "").toUpperCase();
 
+const purposeSchema = z.enum(["geschaeft", "steuer", "ruecklage", "privat"]);
+
 export const accountSchema = z.object({
   name: z.string().trim().min(1, "Name fehlt").max(100),
+  purpose: purposeSchema.default("geschaeft"),
   iban: z
     .string()
     .transform(normalizeIban)
@@ -51,23 +57,27 @@ export async function listAccounts() {
   );
 }
 
-export async function createAccount(actor: string, input: z.infer<typeof accountSchema>) {
+export async function createAccount(actor: string, input: z.input<typeof accountSchema>) {
+  const data = accountSchema.parse(input);
   return withActor(actor, async (tx) => {
-    const [existing] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, input.iban));
+    const [existing] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, data.iban));
     if (existing) throw new BankError("Ein Konto mit dieser IBAN gibt es schon.");
-    const [created] = await tx.insert(schema.bankAccounts).values(input).returning();
+    const [created] = await tx.insert(schema.bankAccounts).values(data).returning();
     return created!;
   });
 }
 
-export const renameAccountSchema = z.object({ id: z.uuid(), name: accountSchema.shape.name });
+export const accountSettingsSchema = z.object({ id: z.uuid(), name: accountSchema.shape.name, purpose: purposeSchema });
 
-/** Der Name ist nur Anzeige; Umsätze hängen an der ID, der Import findet das Konto über die IBAN */
-export async function renameAccount(actor: string, input: z.infer<typeof renameAccountSchema>) {
+/**
+ * Name und Zweck eines Kontos ändern. Beides ist nur Anzeige bzw. Vorschlag: Umsätze hängen an der ID,
+ * der Import findet das Konto über die IBAN, Buchungen gehen weiter auf das eine Bankkonto.
+ */
+export async function updateAccount(actor: string, input: z.infer<typeof accountSettingsSchema>) {
   await withActor(actor, async (tx) => {
     const [updated] = await tx
       .update(schema.bankAccounts)
-      .set({ name: input.name })
+      .set({ name: input.name, purpose: input.purpose })
       .where(eq(schema.bankAccounts.id, input.id))
       .returning({ id: schema.bankAccounts.id });
     if (!updated) throw new BankError("Konto nicht gefunden.");
@@ -408,7 +418,83 @@ export async function transactionDetail(id: string) {
   // Vorschläge für den noch offenen Teil des Umsatzes
   const suggestions = tx.open === 0 ? [] : suggestMatches({ ...tx, amount: tx.open }, items);
   const candidates = items.filter((i) => Math.sign(i.open) === Math.sign(tx.amount));
-  return { transaction: tx, allocations, suggestions, candidates };
+  // Ohne Rechnung: Vorschlag aus dem Zweck der Konten, bei Geldtransit mit der Gegenbuchung auf dem anderen Konto
+  const accounts = await ownAccounts();
+  const account = accounts.find((a) => a.id === tx.bankAccountId);
+  const direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
+  const counterpart = direct?.counterAccountId ? await transferCounterpart(tx, direct.counterAccountId) : null;
+  return { transaction: tx, allocations, suggestions, candidates, direct: direct ? { ...direct, counterpart } : null };
+}
+
+/** Alle eigenen Konten mit Zweck, für Vorschläge ohne Rechnung */
+export async function ownAccounts(): Promise<OwnAccount[]> {
+  return db
+    .select({ id: schema.bankAccounts.id, name: schema.bankAccounts.name, iban: schema.bankAccounts.iban, purpose: schema.bankAccounts.purpose })
+    .from(schema.bankAccounts);
+}
+
+/** Ganz offene Gegenbuchung eines Geldtransits auf dem anderen Konto (± 5 Tage, gleicher Betrag) */
+async function transferCounterpart(tx: { id: string; bookingDate: string; amount: number }, accountId: string) {
+  const rows = await db
+    .select({
+      id: schema.bankTransactions.id,
+      bookingDate: schema.bankTransactions.bookingDate,
+      amount: schema.bankTransactions.amount,
+      counterpartyName: schema.bankTransactions.counterpartyName,
+      open: openAmountSql.mapWith(Number),
+    })
+    .from(schema.bankTransactions)
+    .where(
+      and(
+        eq(schema.bankTransactions.bankAccountId, accountId),
+        eq(schema.bankTransactions.amount, -tx.amount),
+        sql`${schema.bankTransactions.bookingDate} between ${tx.bookingDate}::date - 5 and ${tx.bookingDate}::date + 5`,
+      ),
+    );
+  const match = findTransferCounterpart(tx, rows);
+  return match ? { id: match.id, bookingDate: match.bookingDate, amount: match.amount, counterpartyName: match.counterpartyName } : null;
+}
+
+export const transferSchema = z.object({ transactionId: z.uuid(), counterpartId: z.uuid() });
+
+/**
+ * Geldtransit zwischen zwei eigenen Konten: beide Umsätze (gleicher Betrag, umgekehrtes Vorzeichen) in einem
+ * Schritt über das Geldtransitkonto buchen. Auf dem Geldtransitkonto heben sich beide Seiten auf.
+ */
+export async function allocateTransfer(actor: string, input: z.infer<typeof transferSchema>): Promise<void> {
+  await withActor(actor, async (tx) => {
+    const company = await openBooks(tx);
+    // Feste Reihenfolge beim Sperren, damit zwei gleichzeitige Aufrufe sich nicht gegenseitig blockieren
+    const ids = [input.transactionId, input.counterpartId].sort();
+    const rows = await tx
+      .select({
+        id: schema.bankTransactions.id,
+        bankAccountId: schema.bankTransactions.bankAccountId,
+        amount: schema.bankTransactions.amount,
+        bookingDate: schema.bankTransactions.bookingDate,
+        counterpartyName: schema.bankTransactions.counterpartyName,
+        open: openAmountSql.mapWith(Number),
+      })
+      .from(schema.bankTransactions)
+      .where(inArray(schema.bankTransactions.id, ids))
+      .orderBy(asc(schema.bankTransactions.id))
+      .for("update");
+    const [first, second] = rows;
+    if (!first || !second) throw new BankError("Umsatz nicht gefunden.");
+    if (first.bankAccountId === second.bankAccountId) throw new BankError("Ein Geldtransit verbindet zwei verschiedene Konten.");
+    if (first.amount !== -second.amount) throw new BankError("Die beiden Umsätze haben nicht denselben Betrag mit umgekehrtem Vorzeichen.");
+    if (first.open !== first.amount || second.open !== second.amount) throw new BankError("Beide Umsätze müssen noch ganz offen sein.");
+    for (const bank of rows) {
+      const [allocation] = await tx.insert(schema.allocations).values({ transactionId: bank.id, kind: "geldtransit", amount: bank.amount }).returning();
+      await post(tx, company, {
+        date: bank.bookingDate,
+        description: `${bank.counterpartyName || "Bankumsatz"} · geldtransit`,
+        sourceType: "allocation",
+        sourceId: allocation!.id,
+        lines: directPosting("geldtransit", bank.amount, company.kontenrahmen),
+      });
+    }
+  });
 }
 
 function reverseLines(lines: PostingLine[]): PostingLine[] {

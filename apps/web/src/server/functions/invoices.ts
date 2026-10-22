@@ -49,6 +49,7 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
       bank: accounts.map((a) => ({
         id: a.id,
         name: a.name,
+        purpose: a.purpose,
         openCount: a.openCount,
         balance: a.lastImport?.closingBalance ?? null,
         balanceDate: a.lastImport?.periodTo ?? null,

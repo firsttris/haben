@@ -25,11 +25,12 @@ import {
 } from "../modules/finanzamt/index.ts";
 import { today } from "../today.ts";
 import { loadActiveCertificate } from "../modules/elster/index.ts";
+import { ownAccounts } from "../modules/bank/index.ts";
 
 export const getFinanzamt = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
-    const [company, basis, messages, certificate, documents, lastFetch, pendingTest, pendingLive, autoFetch] = await Promise.all([
+    const [company, basis, messages, certificate, documents, lastFetch, pendingTest, pendingLive, autoFetch, accounts] = await Promise.all([
       loadCompany(),
       prepaymentBasis(today()),
       listMessages(),
@@ -39,9 +40,13 @@ export const getFinanzamt = createServerFn({ method: "GET" })
       pendingConfirmations(true),
       pendingConfirmations(false),
       autoFetchStatus(),
+      ownAccounts(),
     ]);
+    // Steuerkonto: dort zieht das Finanzamt ein und zahlt Erstattungen aus, deshalb Vorschlag für „Bankverbindung ändern“
+    const taxAccount = accounts.find((a) => a.purpose === "steuer");
     return {
       company: { name: company.name, finanzamt: company.finanzamt, steuernummer: company.steuernummer, iban: company.iban },
+      taxAccount: taxAccount ? { name: taxAccount.name, iban: taxAccount.iban } : null,
       person: company.taxpayer.a ? { vorname: company.taxpayer.a.vorname, name: company.taxpayer.a.name } : null,
       issues: messageIssues(company),
       bankIssues: bankChangeIssues(company),

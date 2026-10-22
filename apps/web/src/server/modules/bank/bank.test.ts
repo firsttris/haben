@@ -4,8 +4,8 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 const IBAN = "DE12120300001234567890";
 
-function dkbCsv(rows: string[][], balance = "23.418,72 €", date = "01.10.2026") {
-  const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom ${date}:";"${balance}"\n""\n`;
+function dkbCsv(rows: string[][], balance = "23.418,72 €", date = "01.10.2026", iban = "DE12 1203 0000 1234 5678 90") {
+  const header = `"Girokonto";"${iban}"\n""\n"Kontostand vom ${date}:";"${balance}"\n""\n`;
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
   const body = rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n");
   return new TextEncoder().encode("﻿" + header + columns + body + "\n");
@@ -107,7 +107,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       null,
     );
     expect(first.accountName).toBe("Girokonto");
-    await bank.renameAccount(actor, { id: first.accountId, name: "Steuerkonto" });
+    await bank.updateAccount(actor, { id: first.accountId, name: "Steuerkonto", purpose: "steuer" });
 
     const again = await bank.importStatement(
       actor,
@@ -119,8 +119,64 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     const [audit] = await sql`select actor from audit_log where table_name = 'bank_accounts' and action = 'UPDATE'`;
     expect(audit?.actor).toBe(actor);
 
-    await expect(bank.renameAccount(actor, { id: "00000000-0000-4000-8000-000000000000", name: "X" })).rejects.toThrow(/nicht gefunden/);
+    await expect(bank.updateAccount(actor, { id: "00000000-0000-4000-8000-000000000000", name: "X", purpose: "geschaeft" })).rejects.toThrow(/nicht gefunden/);
   });
+
+  it("Zweck der Konten: Geldtransit aufs Steuerkonto mit Gegenbuchung, Finanzamt-Lastschrift als Umsatzsteuer", async () => {
+    const TAX_IBAN = "DE02120300000000202051";
+    const business = await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([outgoing("01.10.26", "Steuerkonto", TAX_IBAN, "Rücklage USt", "-600,00")], "1.000,00 €"), filename: "a.csv" },
+      null,
+    );
+    const tax = await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv(
+          [
+            incoming("02.10.26", "Tristan Teufel", IBAN, "Rücklage USt", "600,00"),
+            outgoing("10.10.26", "Finanzamt Regensburg", "DE76750000000075001007", "USt 09/2026 StNr 244/123/45678", "-412,30"),
+          ],
+          "187,70 €",
+          "10.10.2026",
+          "DE02 1203 0000 0000 2020 51",
+        ),
+        filename: "b.csv",
+      },
+      null,
+    );
+    await bank.updateAccount(actor, { id: tax.accountId, name: "Steuerkonto", purpose: "steuer" });
+
+    const [out] = await sql`select id from bank_transactions where amount = -60000`;
+    const [into] = await sql`select id from bank_transactions where amount = 60000`;
+    const [debit] = await sql`select id from bank_transactions where amount = -41230`;
+    const outDetail = await bank.transactionDetail(out!.id);
+    expect(outDetail?.direct).toEqual({
+      kind: "geldtransit",
+      reasons: ["Gegenkonto ist dein Konto Steuerkonto"],
+      counterAccountId: tax.accountId,
+      counterpart: { id: into!.id, bookingDate: "2026-10-02", amount: 60_000, counterpartyName: "Tristan Teufel" },
+    });
+    expect((await bank.transactionDetail(debit!.id))?.direct).toEqual({
+      kind: "ustVorauszahlung",
+      reasons: ["Lastschrift des Finanzamts auf dem Steuerkonto"],
+      counterpart: null,
+    });
+
+    await expect(bank.allocateTransfer(actor, { transactionId: out!.id, counterpartId: debit!.id })).rejects.toThrow(/denselben Betrag/);
+    await bank.allocateTransfer(actor, { transactionId: out!.id, counterpartId: into!.id });
+    await expect(bank.allocateTransfer(actor, { transactionId: out!.id, counterpartId: into!.id })).rejects.toThrow(/ganz offen/);
+    expect((await bank.transactionDetail(out!.id))?.transaction.open).toBe(0);
+    expect((await bank.transactionDetail(into!.id))?.transaction.open).toBe(0);
+    // Geldtransit hebt sich auf, auf dem einen Bankkonto bleibt nichts stehen
+    const [sum] = await sql`select sum(case when account = '1360' then debit - credit else 0 end)::int as transit,
+      sum(case when account = '1200' then debit - credit else 0 end)::int as bank
+      from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_type = 'allocation'`;
+    expect(sum).toEqual({ transit: 0, bank: 0 });
+    // Ein Vorschlag gibt es nur für ganz offene Umsätze
+    expect((await bank.transactionDetail(out!.id))?.direct).toBeNull();
+    expect(business.accountId).not.toBe(tax.accountId);
+  }, 30_000);
 
   it("Zahlungseingang: Vorschlag, Zuordnung, Ist-Buchung, bezahlt", async () => {
     const { invoice, contact } = await finalInvoice(400_000);

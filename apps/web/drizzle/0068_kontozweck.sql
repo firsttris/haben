@@ -1,0 +1,2 @@
+ALTER TABLE "bank_accounts" ADD COLUMN "purpose" text DEFAULT 'geschaeft' NOT NULL;--> statement-breakpoint
+ALTER TABLE "bank_accounts" ADD CONSTRAINT "bank_accounts_purpose" CHECK ("bank_accounts"."purpose" in ('geschaeft', 'steuer', 'ruecklage', 'privat'));
