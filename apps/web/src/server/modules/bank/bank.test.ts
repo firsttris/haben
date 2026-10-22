@@ -456,9 +456,20 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect((await auswertungen.vatAbgleich({ year: 2026, month: 10 })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
   }, 30_000);
 
-  it("Kursdifferenz bei einer Rechnung in USD (Ist): Rest als Aufwand, die Umsatzsteuer wird voll fällig, Abgleich ohne Abweichung", async () => {
-    // Kunde aus der Hilfsfunktion; ihre Rechnung in Euro bleibt bei den Salden außen vor
-    const { invoice: euro, contact } = await finalInvoice(10_000);
+  it("Kursdifferenz bei einer Rechnung in USD an eine Firma im Ausland (Ist): Rest als Aufwand, Abgleich ohne Abweichung", async () => {
+    const contact = await contacts.createContact(actor, {
+      kundennummer: "",
+      name: "Matterhorn Data AG",
+      strasse: "Bahnhofstrasse 1",
+      plz: "8001",
+      ort: "Zürich",
+      land: "CH",
+      email: "invoices@matterhorn.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
     const draft = await invoices.createDraft(actor, {
       contactId: contact.id,
       issueDate: "2026-09-05",
@@ -469,26 +480,29 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       note: "",
       currency: "USD",
       exchangeRate: "1,0812",
-      lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+      // Bei Ist-Versteuerung nur ohne deutsche Umsatzsteuer (Leistung an ein Unternehmen im Drittland)
+      taxTreatment: "drittland",
+      exemptionReason: "Nicht im Inland steuerbare Leistung",
+      lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 119_000, taxRate: 0 }],
     });
     const invoice = await invoices.finalizeInvoice(actor, draft.id);
     // 1.190,00 USD / 1,0812 = 1.100,63 €
     expect(invoice.gross).toBe(110_063);
     await bank.importStatement(
       actor,
-      { bytes: dkbCsv([incoming("01.10.26", "Nordwerk Software GmbH", "DE02100100100006820101", `RE ${invoice.number}`, "1.095,00")]), filename: "a.csv" },
+      { bytes: dkbCsv([incoming("01.10.26", "Matterhorn Data AG", "CH9300762011623852957", `RE ${invoice.number}`, "1.095,00")]), filename: "a.csv" },
       null,
     );
     const [tx] = await sql`select id from bank_transactions`;
     await bank.allocateWithRest(actor, { transactionId: tx!.id, target: { kind: "invoice", invoiceId: invoice.id }, rest: "kursdifferenz" });
     expect((await invoices.listInvoices("2026-10-02")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
     const balances = Object.fromEntries(
-      (await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l join journal_entries e on e.id = l.entry_id
-                 where e.source_id <> ${euro.id} group by l.account having sum(l.debit - l.credit) <> 0 order by 1`).map((r) => [r.account, r.saldo]),
+      (await sql`select account, sum(debit - credit)::int as saldo from journal_lines group by account having sum(debit - credit) <> 0 order by 1`).map((r) => [
+        r.account,
+        r.saldo,
+      ]),
     );
-    expect(balances).toEqual({ "1200": 109_500, "1776": -(110_063 - 92_490), "2150": 563, "8400": -92_490 });
-    const vat = await import("../umsatzsteuer/index.ts");
-    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).tax81).toBe(110_063 - 92_490);
+    expect(balances).toEqual({ "1200": 109_500, "2150": 563, "8338": -110_063 });
     const auswertungen = await import("../auswertungen/index.ts");
     expect((await auswertungen.vatAbgleich({ year: 2026, month: 10 })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
     expect((await auswertungen.euerAbgleich(2026)).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
