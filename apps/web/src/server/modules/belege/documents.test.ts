@@ -46,7 +46,7 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, company cascade`;
+    await sql`truncate journal_lines, journal_entries, document_amounts, documents, exchange_rates, company cascade`;
     await sql`insert into company (id, name, kontenrahmen) values (1, 'Testfirma', 'SKR03')`;
   });
 
@@ -161,8 +161,9 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     const extracted = (await documents.getDocument(id))!;
     expect(extracted.document).toMatchObject({ currency: "USD", exchangeRate: null, net: 0, tax: 0, gross: 0 });
     expect(extracted.amounts.map((a) => [a.net, a.tax, a.originalNet, a.originalTax])).toEqual([[0, 0, 10_000, 1_900]]);
-    expect(documents.bookingIssues(extracted.document, extracted.amounts)).toEqual(["Umrechnungskurs für USD fehlt"]);
-    await expect(documents.bookDocument(actor, id)).rejects.toThrow(/Umrechnungskurs für USD fehlt/);
+    expect(documents.bookingIssues(extracted.document, extracted.amounts, "2026-10-22")).toEqual(["Umrechnungskurs für USD 09/2026 fehlt"]);
+    expect(documents.bookingIssues(extracted.document, extracted.amounts, "2026-09-30")[0]).toMatch(/^Kurs für 09\/2026 noch nicht veröffentlicht/);
+    await expect(documents.bookDocument(actor, id)).rejects.toThrow(/Kurs für 09\/2026|Umrechnungskurs für USD 09\/2026/);
 
     const input = {
       supplierName: "Figma Inc.",
@@ -188,6 +189,49 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     const lines = await sql`select l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${id}`;
     expect(lines.reduce((s, l) => s + l.debit, 0)).toBe(11_006);
     expect(lines.reduce((s, l) => s + l.credit, 0)).toBe(11_006);
+  });
+
+  it("USt-Umrechnungskurs: ohne eigenen Kurs der Kurs des Monats, nach Veröffentlichung nachgetragen, eigener Kurs bleibt", async () => {
+    const stammdaten = await import("../stammdaten/index.ts");
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 12]), filename: "gh.jpg" });
+    const input = {
+      supplierName: "GitHub Inc.",
+      supplierUstId: "",
+      invoiceNumber: "GH-1",
+      documentDate: "2026-09-15",
+      dueDate: null,
+      category: "software" as const,
+      payment: "bank" as const,
+      note: "",
+      currency: "USD",
+      exchangeRate: null,
+      amounts: [{ taxRate: 1900 as const, net: 0, tax: 0, originalNet: 10_000, originalTax: 1_900 }],
+    };
+    await documents.updateDocument(actor, id, input);
+    expect((await documents.getDocument(id))!.document).toMatchObject({ exchangeRate: null, exchangeRateSource: null, gross: 0 });
+
+    // Das BMF veröffentlicht September: der wartende Beleg wird umgerechnet
+    await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-09", rate: "1.0812" }, { currency: "USD", month: "2026-10", rate: "1.1" }], "bmf");
+    expect(await documents.applyPublishedRates(actor)).toBe(1);
+    const applied = (await documents.getDocument(id))!.document;
+    expect(applied).toMatchObject({ exchangeRate: "1.081200", exchangeRateSource: "ust", exchangeRateDate: "2026-09-01", gross: 11_006 });
+
+    // Unverändert übernommen folgt der Kurs dem Belegdatum
+    await documents.updateDocument(actor, id, { ...input, documentDate: "2026-10-02", exchangeRate: "1,0812" });
+    expect((await documents.getDocument(id))!.document).toMatchObject({ exchangeRate: "1.100000", exchangeRateSource: "ust", exchangeRateDate: "2026-10-01" });
+
+    // Eigener Kurs (z. B. aus der Bankabrechnung) bleibt; mit gestattetem Tageskurs als Tageskurs mit Datum
+    await documents.updateDocument(actor, id, { ...input, documentDate: "2026-10-02", exchangeRate: "1,0950" });
+    expect((await documents.getDocument(id))!.document).toMatchObject({ exchangeRate: "1.095000", exchangeRateSource: "manuell", exchangeRateDate: null });
+    await sql`update company set tageskurs = true`;
+    await documents.updateDocument(actor, id, { ...input, documentDate: "2026-10-02", exchangeRate: "1,0950", exchangeRateDate: "2026-10-05" });
+    expect((await documents.getDocument(id))!.document).toMatchObject({ exchangeRateSource: "tageskurs", exchangeRateDate: "2026-10-05" });
+
+    // Gebucht ändert ein neuer Kurs nichts mehr
+    await documents.bookDocument(actor, id);
+    await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-10", rate: "1.2" }], "bmf");
+    expect(await documents.applyPublishedRates(actor)).toBe(0);
+    expect((await documents.getDocument(id))!.document.exchangeRate).toBe("1.095000");
   });
 
   it("Fremdwährung mit § 13b: Steuer aus dem umgerechneten Netto; zurück auf Euro löscht Kurs und Originalbeträge", async () => {
@@ -250,7 +294,7 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     const after = (await documents.getDocument(id))!;
     expect(after.document).toMatchObject({ currency: "USD", net: 0, tax: 0, gross: 0 });
     expect(after.amounts.map((a) => [a.net, a.originalNet])).toEqual([[0, 10000]]);
-    expect(documents.bookingIssues(after.document, after.amounts)).toEqual(["Umrechnungskurs für USD fehlt"]);
+    expect(documents.bookingIssues(after.document, after.amounts, "2026-10-22")).toEqual(["Umrechnungskurs für USD 09/2026 fehlt"]);
   });
 
   it("verlangt Pflichtangaben und erlaubt Löschen ungebuchter Belege", async () => {

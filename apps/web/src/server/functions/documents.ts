@@ -48,12 +48,14 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
     // Rohdaten der Auslesung bleiben auf dem Server
     const { extraction: _extraction, ...document } = result.document;
     const [asset] = await db.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.documentId, data));
+    const company = await loadCompany();
     return {
       document,
       // Vor und zurück in der Reihenfolge der Belegliste
       navigation: documentNavigation(await listDocuments(), data),
       assetId: asset?.id ?? null,
-      privateShares: (await loadCompany()).privateShares,
+      privateShares: company.privateShares,
+      tageskurs: company.tageskurs,
       amounts: result.amounts,
       issues: result.document.lockedAt ? [] : bookingIssues(result.document, result.amounts),
       aiAvailable: extractionAvailable(),

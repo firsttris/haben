@@ -3,6 +3,7 @@ import {
   ASSET_METHODS,
   convertForeignAmounts,
   CURRENCY_CODE,
+  describeExchangeRate,
   formatDecimal,
   formatEuro,
   formatExchangeRate,
@@ -276,6 +277,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [reverseCharge, setReverseCharge] = useState<"eu" | "drittland" | null>(doc.reverseCharge ?? null);
   const [currency, setCurrency] = useState(doc.currency);
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
+  const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
   // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
   const [rows, setRows] = useState<AmountState[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null }]).map((a) => {
@@ -382,6 +384,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           reverseCharge,
           currency: currencyCode,
           exchangeRate: foreign ? exchangeRate : null,
+          exchangeRateDate: foreign && exchangeRate.trim() && exchangeRateDate ? exchangeRateDate : null,
           asset:
             category === "anlage"
               ? {
@@ -647,11 +650,23 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               />
             </label>
           )}
+          {foreign && data.tageskurs && (
+            <label className="field">
+              Kursdatum
+              <input type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />
+            </label>
+          )}
           {foreign && (
             <span id="currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
+              {doc.exchangeRate && doc.currency === currencyCode && rate === parseExchangeRate(doc.exchangeRate) && (
+                <>
+                  <strong>{describeExchangeRate(doc.currency, doc.exchangeRate, doc.exchangeRateSource, doc.exchangeRateDate)}</strong>.{" "}
+                </>
+              )}
               Beträge unten in {currencyCode || "der Fremdwährung"}, wie auf dem Beleg. Haben rechnet sie mit dem Kurs in Euro um und bucht nur
-              Euro. Für die Umsatzsteuer gilt der Umsatzsteuer-Umrechnungskurs des BMF für den Monat der Leistung (§ 16 Abs. 6 UStG); bei § 13b
-              wird die Steuer aus dem umgerechneten Netto berechnet.
+              Euro. Lässt du den Kurs leer, nimmt Haben den Umsatzsteuer-Umrechnungskurs des BMF für den Monat des Belegdatums (§ 16 Abs. 6 UStG),
+              sobald er veröffentlicht ist{data.tageskurs ? "; mit gestattetem Tageskurs trägst du Kurs und Kursdatum ein" : ""}. Bei § 13b wird die
+              Steuer aus dem umgerechneten Netto berechnet.
             </span>
           )}
         </div>
