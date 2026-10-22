@@ -1,6 +1,17 @@
 import type { Cents } from "@haben/core";
 
-export type StatementFormat = "dkb-csv" | "dkb-csv-alt" | "n26-csv" | "camt053" | "enablebanking";
+export type StatementFormat =
+  | "dkb-csv"
+  | "dkb-csv-alt"
+  | "n26-csv"
+  | "camt053"
+  | "enablebanking"
+  | "paypal-csv"
+  | "stripe-csv"
+  | "shopify-payments-csv";
+
+/** Exporte von Zahlungsdienstleistern: nur in ein Konto mit diesem Zweck importierbar */
+export const PSP_FORMATS: StatementFormat[] = ["paypal-csv", "stripe-csv", "shopify-payments-csv"];
 
 /** Ein Umsatz, wie er in der Datei steht. Eingänge positiv, Ausgänge negativ. */
 export interface ParsedTransaction {

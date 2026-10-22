@@ -1,4 +1,5 @@
-import { ACCOUNT_PURPOSES, DIRECT_BOOKINGS, suggestDirectBooking } from "@haben/core";
+import { ACCOUNT_PURPOSES, DIRECT_BOOKINGS, PAYMENT_PROVIDERS, paymentProviderAccount, suggestDirectBooking } from "@haben/core";
+import { loadCompany } from "../modules/stammdaten/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { suggestMatches } from "@haben/core";
@@ -11,6 +12,8 @@ import {
   allocationSchema,
   BankError,
   createAccount,
+  createProviderAccount,
+  providerAccountSchema,
   importStatement,
   listAccounts,
   listTransactions,
@@ -22,6 +25,8 @@ import {
   transactionDetail,
   transferSchema,
   allocateWithRest,
+  allocateFeesToDocument,
+  feesSchema,
   restSchema,
   reverseWriteOff,
   writeOff,
@@ -30,6 +35,9 @@ import {
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
+
+/** In der Liste nur sichere Vorschläge; „PayPal“ als Gegenpartei braucht die Gegenbuchung, die erst die Detailansicht sucht */
+const isCertainDirect = (s: ReturnType<typeof suggestDirectBooking>) => s !== null && !s.requiresCounterpart;
 
 export const getBankOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -53,7 +61,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
       if (row.open === 0) return { ...row, hint: "zugeordnet" as const };
       const hasSuggestion =
         suggestMatches({ ...row, amount: row.open }, items, 1).length > 0 ||
-        (row.open === row.amount && current !== undefined && suggestDirectBooking(row, current, own) !== null);
+        (row.open === row.amount && current !== undefined && isCertainDirect(suggestDirectBooking(row, current, own)));
       return {
         ...row,
         hint: hasSuggestion ? ("vorschlag" as const) : row.open !== row.amount ? ("teilweise" as const) : row.amount < 0 ? ("belegFehlt" as const) : ("offen" as const),
@@ -68,6 +76,13 @@ export const getBankOverview = createServerFn({ method: "GET" })
       detail: detail && detail.transaction.bankAccountId === account?.id ? detail : null,
       directKinds: Object.entries(DIRECT_BOOKINGS).map(([value, label]) => ({ value, label })),
       purposes: Object.entries(ACCOUNT_PURPOSES).map(([value, label]) => ({ value, label })),
+      providers: Object.entries(PAYMENT_PROVIDERS).map(([value, p]) => ({ value, label: p.label })),
+      /** Sachkonto je Zahlungsdienstleister, zur Anzeige */
+      ledgers: Object.fromEntries(
+        await Promise.all(
+          accounts.filter((a) => a.ledgerIndex !== null).map(async (a) => [a.id, paymentProviderAccount((await loadCompany()).kontenrahmen, a.ledgerIndex!)] as const),
+        ),
+      ),
       sync: { configured: enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
     };
   });
@@ -102,6 +117,14 @@ export const addBankAccount = createServerFn({ method: "POST" })
   .validator(accountSchema)
   .handler(async ({ data, context }) => {
     const account = await createAccount(context.user.id, data);
+    return { id: account.id };
+  });
+
+export const addProviderAccount = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(providerAccountSchema)
+  .handler(async ({ data, context }) => {
+    const account = await createProviderAccount(context.user.id, data);
     return { id: account.id };
   });
 
@@ -144,6 +167,11 @@ export const allocateTransactionWithRest = createServerFn({ method: "POST" })
     await allocateWithRest(context.user.id, data);
     return { ok: true };
   });
+
+export const allocateProviderFees = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(feesSchema)
+  .handler(async ({ data, context }) => ({ count: await allocateFeesToDocument(context.user.id, data) }));
 
 export const writeOffRest = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

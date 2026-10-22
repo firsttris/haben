@@ -102,6 +102,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
     "1000": "Kasse",
     "1200": "Bank",
+    ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`136${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
     "1400": "Forderungen aus Lieferungen und Leistungen",
     "1761": "Umsatzsteuer nicht fällig 7 %",
     "1766": "Umsatzsteuer nicht fällig 19 %",
@@ -125,6 +126,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1200": "Forderungen aus Lieferungen und Leistungen",
     "1600": "Kasse",
     "1800": "Bank",
+    ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`146${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
     "3801": "Umsatzsteuer 7 %",
     "3806": "Umsatzsteuer 19 %",
     "3837": "Umsatzsteuer nach § 13b UStG",
@@ -331,6 +333,15 @@ export function invoicePaymentPosting(
     }
   }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Verrechnungskonto eines Zahlungsdienstleisters (Guthaben bei PayPal, Stripe …): SKR03 1361–1369, SKR04 1461–1469,
+ * neben dem Geldtransitkonto. Nummer 1 bis 9 je Dienstleister.
+ */
+export function paymentProviderAccount(kontenrahmen: Kontenrahmen, index: number): string {
+  if (!Number.isInteger(index) || index < 1 || index > 9) throw new RangeError(`Verrechnungskonto ${index} gibt es nicht`);
+  return `${kontenrahmen === "SKR03" ? "136" : "146"}${index}`;
 }
 
 /** Ausbuchung des Rests einer Rechnung oder eines Belegs (§ 17 UStG: Entgelt hat sich geändert bzw. ist uneinbringlich) */

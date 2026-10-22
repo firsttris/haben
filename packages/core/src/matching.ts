@@ -112,18 +112,46 @@ export const ACCOUNT_PURPOSES = {
   privat: "Privatkonto (nur zur Zuordnung von Überweisungen)",
 } as const;
 
-export type AccountPurpose = keyof typeof ACCOUNT_PURPOSES;
+/** Zahlungsdienstleister mit eigenem Guthaben (Verrechnungskonto); pattern erkennt sie als Gegenpartei auf der Bank */
+export const PAYMENT_PROVIDERS = {
+  paypal: { label: "PayPal", pattern: /paypal/i },
+  stripe: { label: "Stripe", pattern: /stripe/i },
+  shopify: { label: "Shopify Payments", pattern: /shopify/i },
+  etsy: { label: "Etsy Payments", pattern: /etsy/i },
+  sumup: { label: "SumUp", pattern: /sum ?up/i },
+  sonstige: { label: "Anderer Zahlungsdienstleister", pattern: null },
+} as const;
+
+export type PaymentProvider = keyof typeof PAYMENT_PROVIDERS;
+
+/** Zweck eines Bankkontos; Zahlungsdienstleister legt Haben nur über „Zahlungsdienstleister hinzufügen“ an */
+export type AccountPurpose = keyof typeof ACCOUNT_PURPOSES | "zahlungsdienstleister";
 
 export interface OwnAccount {
   id: string;
   name: string;
-  iban: string;
+  /** Leer bei Zahlungsdienstleistern */
+  iban: string | null;
   purpose: AccountPurpose;
+  provider?: PaymentProvider | null;
+}
+
+/** Auszahlung vom Guthaben des Dienstleisters auf ein Bankkonto, wie sie im Export steht */
+const PAYOUT_PURPOSE = /auszahlung|abbuchung|payout|withdrawal|transfer to bank|überweisung auf (dein|ihr) bank/i;
+
+/** Muster, an dem die Gegenpartei auf der Bank den Dienstleister erkennt; null bei „sonstige“ */
+export function providerPattern(account: Pick<OwnAccount, "provider">): RegExp | null {
+  return account.provider ? PAYMENT_PROVIDERS[account.provider].pattern : null;
 }
 
 export interface DirectSuggestion {
   kind: "privat" | "geldtransit" | "ustVorauszahlung";
   reasons: string[];
+  /**
+   * Nur mit Gegenbuchung vorschlagen: Gegenpartei „PayPal“ auf der Bank kann auch ein mit PayPal bezahlter Einkauf sein;
+   * Geldtransit ist es erst, wenn im Konto des Dienstleisters die passende Auszahlung steht.
+   */
+  requiresCounterpart?: boolean;
   /** Bei Geldtransit: das eigene Konto auf der Gegenseite */
   counterAccountId?: string;
 }
@@ -141,6 +169,18 @@ const OTHER_TAX_PURPOSE = /einkommen|\best\b|\best[- ]?v|kirchen|\bkist\b|soli|g
  * - Steuerkonto und Gegenpartei ist das Finanzamt: Umsatzsteuer-Zahlung bzw. Erstattung
  */
 export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, ownAccounts: OwnAccount[]): DirectSuggestion | null {
+  // Zahlungsdienstleister: Auszahlung auf die Bank ist Geldtransit; das Bankkonto findet die Gegenbuchung
+  if (account.purpose === "zahlungsdienstleister") {
+    if (tx.amount < 0 && PAYOUT_PURPOSE.test(`${tx.purpose} ${tx.counterpartyName}`)) {
+      return { kind: "geldtransit", reasons: [`Auszahlung von ${account.name} auf ein eigenes Bankkonto`] };
+    }
+    return null;
+  }
+  // Auf der Bank: Gegenpartei ist ein eigener Zahlungsdienstleister (Auszahlung von PayPal, Aufladung)
+  const provider = ownAccounts.find((a) => a.purpose === "zahlungsdienstleister" && providerPattern(a)?.test(tx.counterpartyName));
+  if (provider) {
+    return { kind: "geldtransit", reasons: [`Gegenpartei ist dein Zahlungsdienstleister ${provider.name}`], counterAccountId: provider.id, requiresCounterpart: true };
+  }
   const iban = tx.counterpartyIban?.replace(/\s/g, "").toUpperCase();
   const own = iban ? ownAccounts.find((a) => a.id !== account.id && a.iban === iban) : undefined;
   if (own) {
@@ -167,15 +207,21 @@ const normalizeIban = (iban: string | null | undefined) => iban?.replace(/\s/g, 
  * Banken liefern sie bei eigenen Überträgen nicht) nur, wenn es keinen Treffer mit IBAN gibt; sonst die zeitlich nächste.
  * Eine fremde Zahlung über denselben Betrag (Erstattung, Kunde) zählt nicht.
  */
-export function findTransferCounterpart<T extends { id: string; bookingDate: string; amount: Cents; open: Cents; counterpartyIban?: string | null }>(
+export function findTransferCounterpart<
+  T extends { id: string; bookingDate: string; amount: Cents; open: Cents; counterpartyIban?: string | null; counterpartyName?: string },
+>(
   tx: { bookingDate: string; amount: Cents },
-  sourceIban: string,
+  /** IBAN des Ausgangskontos; bei einem Zahlungsdienstleister leer, dann erkennt pattern dessen Namen auf der Bank */
+  sourceIban: string | null,
   candidates: T[],
+  pattern: RegExp | null = null,
 ): T | null {
   const source = normalizeIban(sourceIban);
   const fitting = candidates.filter((c) => c.amount === -tx.amount && c.open === c.amount && daysBetween(c.bookingDate, tx.bookingDate) <= 5);
   const byDate = (a: T, b: T) => daysBetween(a.bookingDate, tx.bookingDate) - daysBetween(b.bookingDate, tx.bookingDate);
-  const withIban = fitting.filter((c) => normalizeIban(c.counterpartyIban) === source).sort(byDate);
+  const withIban = fitting
+    .filter((c) => (source !== null && normalizeIban(c.counterpartyIban) === source) || (pattern !== null && pattern.test(c.counterpartyName ?? "")))
+    .sort(byDate);
   const withoutIban = fitting.filter((c) => !c.counterpartyIban).sort(byDate);
   return withIban[0] ?? withoutIban[0] ?? null;
 }

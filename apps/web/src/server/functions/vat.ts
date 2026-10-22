@@ -27,6 +27,7 @@ import {
 } from "../modules/umsatzsteuer/index.ts";
 import { loadActiveCertificate } from "../modules/elster/index.ts";
 import { vatPaidAfter } from "../modules/bank/index.ts";
+import { transitBalance } from "../modules/buchhaltung/index.ts";
 
 // Negativ möglich, etwa wenn Gutschriften im Monat überwiegen
 const centsSchema = z.number().int().min(-1_000_000_000_00).max(1_000_000_000_00);
@@ -88,6 +89,8 @@ export const getOverview = createServerFn({ method: "GET" })
       /** Zahllast aus den Buchungen, solange keine Anmeldung gespeichert ist */
       computedKz83: computed.kz83,
       /** Nach Ende des Zeitraums schon an das Finanzamt gezahlt (zugeordnete Lastschriften), für die Deckung des Steuerkontos */
+      /** Geldtransit ohne Gegenseite (Saldo von 1360 bzw. 1460) */
+      transit: await transitBalance(),
       vatPaid: await vatPaidAfter(new Date(Date.UTC(period.year, period.month, 0)).toISOString().slice(0, 10)),
       dueDate: dueDate(period, company.bundesland),
       // Stand im Monat der Voranmeldung: nach der Umstellung zum Jahreswechsel ist der Dezember noch fällig

@@ -10,8 +10,10 @@ import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/f
 import { useAction } from "../../lib/use-action.ts";
 import {
   addBankAccount,
+  addProviderAccount,
   allocateTransaction,
   allocateTransactionWithRest,
+  allocateProviderFees,
   connectBank,
   disconnectBank,
   getBankOverview,
@@ -63,7 +65,8 @@ const KIND_LABEL = {
   gebuehren: "Bankgebühren", mahnerloes: "Mahngebühren und Zinsen",
 } as const;
 
-const FORMAT_LABEL = (format: string) => (format === "enablebanking" ? "Abruf" : format.startsWith("camt") ? "CAMT.053" : "CSV");
+const FORMAT_LABEL = (format: string) =>
+  format === "enablebanking" ? "Abruf" : format.startsWith("camt") ? "CAMT.053" : format === "paypal-csv" ? "PayPal" : format === "stripe-csv" ? "Stripe" : format === "shopify-payments-csv" ? "Shopify" : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();
@@ -133,13 +136,16 @@ function BankPage() {
                       ? `${FORMAT_LABEL(account.lastImport.format)} · zuletzt ${formatDate(account.lastImport.createdAt)}`
                       : "noch kein Import"}
                     {account.lastImport?.closingBalance != null ? ` · ${formatEuro(account.lastImport.closingBalance)}` : ""}
+                    {account.providerBalance !== null ? ` · Guthaben ${formatEuro(account.providerBalance)}` : ""}
                   </span>
                 </Link>
               );
             })}
           </nav>
           {/* key: beim Kontowechsel mit dem Namen des neuen Kontos aufsetzen */}
-          {selectedAccount && <AccountSettings key={selectedAccount.id} account={selectedAccount} purposes={data.purposes} />}
+          {selectedAccount && (
+            <AccountSettings key={selectedAccount.id} account={selectedAccount} purposes={data.purposes} ledger={data.ledgers[selectedAccount.id]} />
+          )}
 
           <div className="grid-main">
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">
@@ -215,10 +221,10 @@ function BankPage() {
   );
 }
 
-const PURPOSE_SHORT = { geschaeft: "Geschäftskonto", steuer: "Steuerkonto", ruecklage: "Rücklagen", privat: "Privatkonto" } as const;
+const PURPOSE_SHORT = { geschaeft: "Geschäftskonto", steuer: "Steuerkonto", ruecklage: "Rücklagen", privat: "Privatkonto", zahlungsdienstleister: "Zahlungsdienstleister" } as const;
 
 /** Name und Zweck des gewählten Kontos, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
-function AccountSettings({ account, purposes }: { account: Data["accounts"][number]; purposes: Data["purposes"] }) {
+function AccountSettings({ account, purposes, ledger }: { account: Data["accounts"][number]; purposes: Data["purposes"]; ledger: string | undefined }) {
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const updateFn = useServerFn(updateBankAccount);
@@ -231,7 +237,8 @@ function AccountSettings({ account, purposes }: { account: Data["accounts"][numb
     return (
       <div className="small muted" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "8px 0 16px" }}>
         <span>
-          {account.name} · {PURPOSE_SHORT[account.purpose]} · {account.iban.replace(/(.{4})/g, "$1 ").trim()}
+          {account.name} · {PURPOSE_SHORT[account.purpose]} ·{" "}
+          {account.iban ? account.iban.replace(/(.{4})/g, "$1 ").trim() : `Verrechnungskonto ${ledger ?? ""}`}
         </span>
         <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
           Name und Zweck
@@ -243,7 +250,7 @@ function AccountSettings({ account, purposes }: { account: Data["accounts"][numb
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void run(async () => {
-      await updateFn({ data: { id: account.id, name, purpose } });
+      await updateFn({ data: { id: account.id, name, purpose: purpose === "zahlungsdienstleister" ? undefined : purpose } });
       // Konto fest in die Adresse: ohne „konto“ zeigt die Seite das alphabetisch erste, nach dem Umbenennen ein anderes
       await navigate({ search: (prev) => ({ ...prev, konto: account.id }), replace: true });
       await router.invalidate();
@@ -257,16 +264,18 @@ function AccountSettings({ account, purposes }: { account: Data["accounts"][numb
         Name des Kontos
         <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} autoFocus />
       </label>
-      <label className="field">
-        Zweck
-        <select value={purpose} onChange={(e) => setPurpose(e.target.value as typeof purpose)}>
-          {purposes.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {account.purpose !== "zahlungsdienstleister" && (
+        <label className="field">
+          Zweck
+          <select value={purpose} onChange={(e) => setPurpose(e.target.value as typeof purpose)}>
+            {purposes.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <span className="small muted">
         Der Name ist nur Anzeige; Umsätze und Import über die IBAN bleiben, wie sie sind. Der Zweck steuert Vorschläge im Bankabgleich
         (Geldtransit zwischen eigenen Konten, Umsatzsteuer auf dem Steuerkonto, Privat beim Privatkonto), die IBAN für „Bankverbindung
@@ -574,6 +583,8 @@ function ImportControls({ data }: { data: Data }) {
   const router = useRouter();
   const importFiles = useServerFn(importStatements);
   const addAccount = useServerFn(addBankAccount);
+  const addProvider = useServerFn(addProviderAccount);
+  const [accountType, setAccountType] = useState<"bank" | "provider">("bank");
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
@@ -616,7 +627,10 @@ function ImportControls({ data }: { data: Data }) {
     const form = new FormData(event.currentTarget);
     setBusy(true);
     try {
-      const { id } = await addAccount({ data: { name: String(form.get("name")), iban: String(form.get("iban")) } });
+      const { id } =
+        accountType === "provider"
+          ? await addProvider({ data: { name: String(form.get("name")), provider: String(form.get("provider")) as "paypal" } })
+          : await addAccount({ data: { name: String(form.get("name")), iban: String(form.get("iban")) } });
       setShowAccount(false);
       setTargetAccount(id);
       await router.invalidate();
@@ -664,13 +678,39 @@ function ImportControls({ data }: { data: Data }) {
       {showAccount && (
         <form className="card" onSubmit={onAddAccount} style={{ minWidth: 320 }}>
           <label className="field">
-            Name
-            <input name="name" required placeholder="N26 Business" />
+            Art
+            <select value={accountType} onChange={(e) => setAccountType(e.target.value as "bank" | "provider")}>
+              <option value="bank">Bankkonto (mit IBAN)</option>
+              <option value="provider">Zahlungsdienstleister (PayPal, Stripe, Shopify …)</option>
+            </select>
           </label>
+          {accountType === "provider" && (
+            <label className="field">
+              Dienstleister
+              <select name="provider" defaultValue="paypal">
+                {data.providers.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="field">
-            IBAN
-            <input name="iban" required />
+            Name
+            <input name="name" required placeholder={accountType === "provider" ? "PayPal Geschäftskonto" : "N26 Business"} />
           </label>
+          {accountType === "bank" ? (
+            <label className="field">
+              IBAN
+              <input name="iban" required />
+            </label>
+          ) : (
+            <span className="small muted">
+              Bekommt ein eigenes Verrechnungskonto (SKR03 1361 …, SKR04 1461 …). Importiere den CSV-Export des Dienstleisters und wähle dabei
+              dieses Konto unter „Konto“.
+            </span>
+          )}
           <button type="submit" className="btn btn-primary" disabled={busy}>
             Konto anlegen
           </button>
@@ -702,6 +742,7 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   const allocateFn = useServerFn(allocateTransaction);
   const splitFn = useServerFn(splitTransaction);
   const restFn = useServerFn(allocateTransactionWithRest);
+  const feesFn = useServerFn(allocateProviderFees);
   const reverseFn = useServerFn(reverseTransactionAllocation);
   const transferFn = useServerFn(transferBetweenAccounts);
   const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct } = detail;
@@ -1009,6 +1050,19 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                 Für Auszahlungen von PayPal, Stripe oder Shopify: Die Rechnung gilt als voll bezahlt, die einbehaltene Gebühr wird
                 Aufwand (Nebenkosten des Geldverkehrs).
               </span>
+            </div>
+          )}
+          {mode === "other" && selectedCandidate?.type === "document" && tx.amount < 0 && tx.purpose.startsWith("Gebühr") && (
+            <div className="stack" style={{ gap: 6 }}>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => void run(() => feesFn({ data: { transactionId: tx.id, documentId: selectedCandidate.id } }))}
+              >
+                Alle offenen Gebühren aus {formatDate(tx.bookingDate).slice(3)} diesem Beleg zuordnen
+              </button>
+              <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
             </div>
           )}
           {restKinds.length > 0 && (

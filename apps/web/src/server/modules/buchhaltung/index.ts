@@ -20,6 +20,6 @@ export {
   updateAsset,
   withdrawalsForEuer,
 } from "./assets.ts";
-export { accountName, loadJournal } from "./journal.ts";
+export { accountName, loadJournal, transitBalance } from "./journal.ts";
 export { kontenblatt, ledgerPeriodSchema, ledgerRange, openBooks, post, saldenliste } from "./ledger.ts";
 export { createPauschale, listPauschalen, pauschaleInputSchema, reversePauschale } from "./pauschalen.ts";

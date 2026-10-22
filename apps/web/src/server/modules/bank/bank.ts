@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
+  ACCOUNTS,
+  paymentProviderAccount,
+  providerPattern,
+  type Kontenrahmen,
   directPosting,
   documentOpen,
   documentWriteOffPosting,
@@ -17,7 +21,7 @@ import {
   type OwnAccount,
   type PostingLine,
 } from "@haben/core";
-import { checkBalanceContinuity, parseStatement, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
+import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -56,7 +60,20 @@ export async function listAccounts() {
         .select({ n: sql<number>`count(*)::int` })
         .from(schema.bankTransactions)
         .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`));
-      return { ...account, lastImport: last ?? null, openCount: open?.n ?? 0 };
+      // Zahlungsdienstleister nennen keinen Kontostand: Guthaben als Summe der importierten Umsätze
+      const [sum] =
+        account.purpose === "zahlungsdienstleister"
+          ? await db.select({ total: sql<string>`coalesce(sum(${schema.bankTransactions.amount}), 0)` }).from(schema.bankTransactions).where(eq(schema.bankTransactions.bankAccountId, account.id))
+          : [];
+      // Beim Dienstleister bleibt nach zwei Wochen nichts offen, was zugeordnet werden kann; sonst fehlt eine Zuordnung
+      const [stale] =
+        account.purpose === "zahlungsdienstleister"
+          ? await db
+              .select({ n: sql<number>`count(*)::int` })
+              .from(schema.bankTransactions)
+              .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, sql`${schema.bankTransactions.bookingDate} < ${today()}::date - 14`))
+          : [];
+      return { ...account, lastImport: last ?? null, openCount: open?.n ?? 0, providerBalance: sum ? Number(sum.total) : null, staleOpenCount: stale?.n ?? 0 };
     }),
   );
 }
@@ -71,7 +88,8 @@ export async function createAccount(actor: string, input: z.input<typeof account
   });
 }
 
-export const accountSettingsSchema = z.object({ id: z.uuid(), name: accountSchema.shape.name, purpose: purposeSchema });
+/** Zweck nur bei Bankkonten; ein Zahlungsdienstleister bleibt einer */
+export const accountSettingsSchema = z.object({ id: z.uuid(), name: accountSchema.shape.name, purpose: purposeSchema.optional() });
 
 /**
  * Name und Zweck eines Kontos ändern. Beides ist nur Anzeige bzw. Vorschlag: Umsätze hängen an der ID,
@@ -79,12 +97,36 @@ export const accountSettingsSchema = z.object({ id: z.uuid(), name: accountSchem
  */
 export async function updateAccount(actor: string, input: z.infer<typeof accountSettingsSchema>) {
   await withActor(actor, async (tx) => {
-    const [updated] = await tx
-      .update(schema.bankAccounts)
-      .set({ name: input.name, purpose: input.purpose })
-      .where(eq(schema.bankAccounts.id, input.id))
-      .returning({ id: schema.bankAccounts.id });
-    if (!updated) throw new BankError("Konto nicht gefunden.");
+    const [account] = await tx.select().from(schema.bankAccounts).where(eq(schema.bankAccounts.id, input.id)).for("update");
+    if (!account) throw new BankError("Konto nicht gefunden.");
+    // Ein Zahlungsdienstleister bleibt einer (eigenes Verrechnungskonto, keine IBAN); dort ändert sich nur der Name
+    const purpose = account.purpose === "zahlungsdienstleister" ? account.purpose : (input.purpose ?? account.purpose);
+    await tx.update(schema.bankAccounts).set({ name: input.name, purpose }).where(eq(schema.bankAccounts.id, input.id));
+  });
+}
+
+export const providerAccountSchema = z.object({
+  name: z.string().trim().min(1, "Name fehlt").max(100),
+  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "sumup", "sonstige"]),
+});
+
+/**
+ * Konto für einen Zahlungsdienstleister (PayPal-Guthaben, Stripe, Shopify Payments): ohne IBAN, mit eigenem
+ * Verrechnungskonto (1361 … bzw. 1461 …). Importiert wird dessen CSV-Export in dieses Konto.
+ */
+export async function createProviderAccount(actor: string, input: z.input<typeof providerAccountSchema>) {
+  const data = providerAccountSchema.parse(input);
+  return withActor(actor, async (tx) => {
+    // Sperre gegen zwei gleichzeitige Anlagen mit derselben Nummer; die Spalte ist zusätzlich eindeutig
+    await tx.execute(sql`lock table bank_accounts in share row exclusive mode`);
+    const used = new Set((await tx.select({ i: schema.bankAccounts.ledgerIndex }).from(schema.bankAccounts)).map((r) => r.i));
+    const ledgerIndex = [1, 2, 3, 4, 5, 6, 7, 8, 9].find((i) => !used.has(i));
+    if (!ledgerIndex) throw new BankError("Es gibt schon neun Zahlungsdienstleister; mehr Verrechnungskonten sieht Haben nicht vor.");
+    const [created] = await tx
+      .insert(schema.bankAccounts)
+      .values({ name: data.name, iban: null, purpose: "zahlungsdienstleister", provider: data.provider, ledgerIndex })
+      .returning();
+    return created!;
   });
 }
 
@@ -130,8 +172,19 @@ export async function storeStatement(
     if (fileIban && fileIban !== account.iban) {
       throw new BankError(`Die Datei gehört zum Konto ${fileIban}, nicht zu ${account.name}.`);
     }
+    // Export eines Zahlungsdienstleisters nur in dessen Konto, ein Kontoauszug nie dorthin
+    const providerFile = PSP_FORMATS.includes(statement.format);
+    if (providerFile !== (account.purpose === "zahlungsdienstleister")) {
+      throw new BankError(
+        providerFile
+          ? `${source.filename}: Das ist der Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`
+          : `${source.filename}: ${account.name} ist ein Zahlungsdienstleister; dorthin gehört nur dessen Export.`,
+      );
+    }
   } else if (fileIban) {
     account = await accountForIban(tx, fileIban, statement.accountName);
+  } else if (PSP_FORMATS.includes(statement.format)) {
+    throw new BankError(`${source.filename}: Export eines Zahlungsdienstleisters. Bitte unter „Konto“ das Konto des Dienstleisters wählen.`);
   } else {
     throw new BankError(`${source.filename}: Die Datei nennt keine IBAN. Bitte das Konto auswählen.`);
   }
@@ -450,8 +503,14 @@ export async function transactionDetail(id: string) {
   // Ohne Rechnung: Vorschlag aus dem Zweck der Konten, bei Geldtransit mit der Gegenbuchung auf dem anderen Konto
   const accounts = await ownAccounts();
   const account = accounts.find((a) => a.id === tx.bankAccountId);
-  const direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
-  const counterpart = direct?.counterAccountId && account ? await transferCounterpart(tx, account.iban, direct.counterAccountId) : null;
+  let direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
+  let counterpart = null;
+  if (direct?.kind === "geldtransit" && account) {
+    // Auszahlung vom Dienstleister: Gegenbuchung auf einem Bankkonto, dort mit dem Namen des Dienstleisters
+    const targets = direct.counterAccountId ? [direct.counterAccountId] : accounts.filter((a) => a.purpose !== "zahlungsdienstleister").map((a) => a.id);
+    counterpart = await transferCounterpart(tx, account.iban, targets, providerPattern(account));
+  }
+  if (direct?.requiresCounterpart && !counterpart) direct = null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
   return { transaction: tx, allocations, suggestions, candidates, splitCandidates: items, direct: direct ? { ...direct, counterpart } : null };
 }
@@ -469,12 +528,27 @@ export async function vatPaidAfter(after: string): Promise<number> {
 /** Alle eigenen Konten mit Zweck, für Vorschläge ohne Rechnung */
 export async function ownAccounts(): Promise<OwnAccount[]> {
   return db
-    .select({ id: schema.bankAccounts.id, name: schema.bankAccounts.name, iban: schema.bankAccounts.iban, purpose: schema.bankAccounts.purpose })
+    .select({
+      id: schema.bankAccounts.id,
+      name: schema.bankAccounts.name,
+      iban: schema.bankAccounts.iban,
+      purpose: schema.bankAccounts.purpose,
+      provider: schema.bankAccounts.provider,
+    })
     .from(schema.bankAccounts);
 }
 
-/** Ganz offene Gegenbuchung eines Geldtransits auf dem anderen Konto (± 5 Tage, gleicher Betrag, Gegenkonto = sourceIban) */
-async function transferCounterpart(tx: { id: string; bookingDate: string; amount: number }, sourceIban: string, accountId: string) {
+/**
+ * Ganz offene Gegenbuchung eines Geldtransits auf einem der anderen Konten (± 5 Tage, gleicher Betrag), deren Gegenkonto
+ * das Ausgangskonto ist (sourceIban) bzw. deren Gegenpartei der Dienstleister ist (pattern)
+ */
+async function transferCounterpart(
+  tx: { id: string; bookingDate: string; amount: number },
+  sourceIban: string | null,
+  accountIds: string[],
+  pattern: RegExp | null,
+) {
+  if (accountIds.length === 0) return null;
   const rows = await db
     .select({
       id: schema.bankTransactions.id,
@@ -487,12 +561,12 @@ async function transferCounterpart(tx: { id: string; bookingDate: string; amount
     .from(schema.bankTransactions)
     .where(
       and(
-        eq(schema.bankTransactions.bankAccountId, accountId),
+        inArray(schema.bankTransactions.bankAccountId, accountIds),
         eq(schema.bankTransactions.amount, -tx.amount),
         sql`${schema.bankTransactions.bookingDate} between ${tx.bookingDate}::date - 5 and ${tx.bookingDate}::date + 5`,
       ),
     );
-  const match = findTransferCounterpart(tx, sourceIban, rows);
+  const match = findTransferCounterpart(tx, sourceIban, rows, pattern);
   return match ? { id: match.id, bookingDate: match.bookingDate, amount: match.amount, counterpartyName: match.counterpartyName } : null;
 }
 
@@ -516,6 +590,8 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
         counterpartyName: schema.bankTransactions.counterpartyName,
         counterpartyIban: schema.bankTransactions.counterpartyIban,
         accountIban: schema.bankAccounts.iban,
+        provider: schema.bankAccounts.provider,
+        ledgerIndex: schema.bankAccounts.ledgerIndex,
         open: openAmountSql.mapWith(Number),
       })
       .from(schema.bankTransactions)
@@ -528,12 +604,22 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
     if (first.bankAccountId === second.bankAccountId) throw new BankError("Ein Geldtransit verbindet zwei verschiedene Konten.");
     if (first.amount !== -second.amount) throw new BankError("Die beiden Umsätze haben nicht denselben Betrag mit umgekehrtem Vorzeichen.");
     if (first.open !== first.amount || second.open !== second.amount) throw new BankError("Beide Umsätze müssen noch ganz offen sein.");
-    // Nennt eine Seite ein Gegenkonto, muss es das andere eigene Konto sein, und mindestens eine muss es nennen;
-    // sonst ist es eine fremde Zahlung über denselben Betrag (Erstattung, Kunde)
-    const pointsTo = (a: typeof first, b: typeof first) => a.counterpartyIban === b.accountIban;
-    const named = [first, second].filter((r) => r.counterpartyIban);
-    if (named.length === 0 || (first.counterpartyIban && !pointsTo(first, second)) || (second.counterpartyIban && !pointsTo(second, first))) {
-      throw new BankError("Die beiden Umsätze nennen nicht das jeweils andere Konto als Gegenkonto.");
+    const provider = [first, second].find((r) => r.provider);
+    if (provider) {
+      // Zahlungsdienstleister ohne IBAN: die Bankseite muss ihn als Gegenpartei nennen (Auszahlung von PayPal)
+      const bankSide = provider === first ? second : first;
+      const pattern = providerPattern(provider);
+      if (bankSide.provider || !pattern || !pattern.test(bankSide.counterpartyName)) {
+        throw new BankError("Auf dem Bankkonto ist nicht der Zahlungsdienstleister die Gegenpartei.");
+      }
+    } else {
+      // Nennt eine Seite ein Gegenkonto, muss es das andere eigene Konto sein, und mindestens eine muss es nennen;
+      // sonst ist es eine fremde Zahlung über denselben Betrag (Erstattung, Kunde)
+      const pointsTo = (a: typeof first, b: typeof first) => a.counterpartyIban === b.accountIban;
+      const named = [first, second].filter((r) => r.counterpartyIban);
+      if (named.length === 0 || (first.counterpartyIban && !pointsTo(first, second)) || (second.counterpartyIban && !pointsTo(second, first))) {
+        throw new BankError("Die beiden Umsätze nennen nicht das jeweils andere Konto als Gegenkonto.");
+      }
     }
     for (const bank of rows) {
       const [allocation] = await tx.insert(schema.allocations).values({ transactionId: bank.id, kind: "geldtransit", amount: bank.amount }).returning();
@@ -542,10 +628,21 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
         description: `${bank.counterpartyName || "Bankumsatz"} · geldtransit`,
         sourceType: "allocation",
         sourceId: allocation!.id,
-        lines: directPosting("geldtransit", bank.amount, company.kontenrahmen),
+        lines: onLedger(directPosting("geldtransit", bank.amount, company.kontenrahmen), company.kontenrahmen, bank.ledgerIndex),
       });
     }
   });
+}
+
+/**
+ * Buchungszeilen eines Umsatzes auf das richtige Geldkonto: Bank (1200/1800) bzw. beim Zahlungsdienstleister dessen
+ * Verrechnungskonto (1361 … bzw. 1461 …). Die Buchungsfunktionen in @haben/core buchen immer auf die Bank.
+ */
+function onLedger(lines: PostingLine[], kontenrahmen: Kontenrahmen, ledgerIndex: number | null): PostingLine[] {
+  if (ledgerIndex === null) return lines;
+  const bank = ACCOUNTS[kontenrahmen].bank;
+  const ledger = paymentProviderAccount(kontenrahmen, ledgerIndex);
+  return lines.map((l) => (l.account === bank ? { ...l, account: ledger } : l));
 }
 
 function reverseLines(lines: PostingLine[]): PostingLine[] {
@@ -581,10 +678,19 @@ type Part = z.infer<typeof splitPartSchema>;
 /** Sperrt den Umsatz für die Dauer der Zuordnung: Zwei gleichzeitige Zuordnungen sähen sonst denselben offenen Teil */
 async function lockTransaction(tx: Tx, id: string) {
   const [bank] = await tx
-    .select({ id: schema.bankTransactions.id, amount: schema.bankTransactions.amount, bookingDate: schema.bankTransactions.bookingDate, counterpartyName: schema.bankTransactions.counterpartyName, counterpartyIban: schema.bankTransactions.counterpartyIban, open: openAmountSql.mapWith(Number) })
+    .select({
+      id: schema.bankTransactions.id,
+      amount: schema.bankTransactions.amount,
+      bookingDate: schema.bankTransactions.bookingDate,
+      counterpartyName: schema.bankTransactions.counterpartyName,
+      counterpartyIban: schema.bankTransactions.counterpartyIban,
+      ledgerIndex: schema.bankAccounts.ledgerIndex,
+      open: openAmountSql.mapWith(Number),
+    })
     .from(schema.bankTransactions)
+    .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
     .where(eq(schema.bankTransactions.id, id))
-    .for("update");
+    .for("update", { of: schema.bankTransactions });
   if (!bank) throw new BankError("Umsatz nicht gefunden.");
   return bank;
 }
@@ -651,7 +757,7 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     .insert(schema.allocations)
     .values({ transactionId: bank.id, kind: part.kind, amount: part.amount, splitId, ...target })
     .returning();
-  await post(tx, company, { date: bank.bookingDate, description, sourceType: "allocation", sourceId: allocation!.id, lines });
+  await post(tx, company, { date: bank.bookingDate, description, sourceType: "allocation", sourceId: allocation!.id, lines: onLedger(lines, company.kontenrahmen, bank.ledgerIndex) });
 }
 
 /** Ordnet (einen Teil) eines Umsatzes zu und bucht die Zahlung. */
@@ -762,6 +868,53 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       reversesId: entry.id,
     });
   }
+}
+
+export const feesSchema = z.object({ transactionId: z.uuid(), documentId: z.uuid() });
+
+/**
+ * Gebühren eines Zahlungsdienstleisters gegen seine Sammelrechnung: ordnet alle noch offenen Gebühren (Umsätze „Gebühr …“)
+ * desselben Kontos aus dem Monat des gewählten Umsatzes dem Beleg zu, wie Teilzahlungen, bis der Beleg erledigt ist.
+ * Vorsteuer bzw. § 13b laufen dann einmal über den Beleg. Gibt die Zahl der zugeordneten Gebühren zurück.
+ */
+export async function allocateFeesToDocument(actor: string, input: z.infer<typeof feesSchema>): Promise<number> {
+  return withActor(actor, async (tx) => {
+    const company = await openBooks(tx);
+    const [chosen] = await tx
+      .select({ bankAccountId: schema.bankTransactions.bankAccountId, bookingDate: schema.bankTransactions.bookingDate, purpose: schema.bankAccounts.purpose })
+      .from(schema.bankTransactions)
+      .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
+      .where(eq(schema.bankTransactions.id, input.transactionId));
+    if (!chosen) throw new BankError("Umsatz nicht gefunden.");
+    if (chosen.purpose !== "zahlungsdienstleister") throw new BankError("Sammelrechnungen gibt es nur für Gebühren eines Zahlungsdienstleisters.");
+    const month = chosen.bookingDate.slice(0, 7);
+    const fees = await tx
+      .select({ id: schema.bankTransactions.id })
+      .from(schema.bankTransactions)
+      .where(
+        and(
+          eq(schema.bankTransactions.bankAccountId, chosen.bankAccountId),
+          sql`to_char(${schema.bankTransactions.bookingDate}, 'YYYY-MM') = ${month}`,
+          sql`${schema.bankTransactions.purpose} like 'Gebühr%'`,
+          sql`${schema.bankTransactions.amount} < 0`,
+          sql`${openAmountSql} <> 0`,
+        ),
+      )
+      .orderBy(asc(schema.bankTransactions.bookingDate), asc(schema.bankTransactions.id));
+    let count = 0;
+    for (const fee of fees) {
+      const bank = await lockTransaction(tx, fee.id);
+      const [doc] = await tx.select({ gross: schema.documents.gross }).from(schema.documents).where(eq(schema.documents.id, input.documentId));
+      if (!doc) throw new BankError("Beleg nicht gefunden.");
+      const open = documentOpen(doc.gross, await settledOn(tx, "document_id", input.documentId));
+      if (open === 0 || Math.sign(open) !== Math.sign(bank.open)) break;
+      const amount = Math.abs(bank.open) <= Math.abs(open) ? bank.open : open;
+      await bookPart(tx, company, bank, { kind: "document", documentId: input.documentId, amount }, null);
+      count++;
+    }
+    if (count === 0) throw new BankError("Keine offene Gebühr in diesem Monat, oder der Beleg ist schon erledigt.");
+    return count;
+  });
 }
 
 // Ausbuchungen ----------------------------------------------------------------------------------------------

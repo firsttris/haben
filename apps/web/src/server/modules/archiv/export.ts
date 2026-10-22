@@ -650,7 +650,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   for (const [accountId, rows] of groupBy(transactions, (t) => t.bankAccountId)) {
     const account = accountById.get(accountId);
     yield {
-      path: uniquePath(usedBankPaths, `bank/${safeName(account?.iban ?? accountId, 40)}/umsaetze.csv`),
+      path: uniquePath(usedBankPaths, `bank/${safeName(account?.iban ?? account?.name ?? accountId, 40)}/umsaetze.csv`),
       content: csv(
         [
           "Buchungsdatum", "Wertstellung", "Betrag", "Währung", "Gegenpartei", "Gegen-IBAN", "Verwendungszweck", "Umsatztyp",
@@ -696,7 +696,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         const t = transactionById.get(a.transactionId);
         return [
           t?.bookingDate,
-          t ? accountById.get(t.bankAccountId)?.iban : "",
+          t ? (accountById.get(t.bankAccountId)?.iban ?? accountById.get(t.bankAccountId)?.name) : "",
           ALLOCATION_LABELS[a.kind],
           a.invoiceId ? (invoiceNumbers.get(a.invoiceId) ?? "") : "",
           a.documentId ? (documentPaths.get(a.documentId)?.replace(/^belege\//, "") ?? "") : "",
@@ -751,7 +751,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     content: csv(
       ["Konto", "Datei", "SHA-256", "Format", "Zeitraum von", "Zeitraum bis", "Anfangssaldo", "Endsaldo", "Neu", "Übersprungen", "Hinweise", "Importiert", "Import-ID"],
       imports.map((i) => [
-        accountById.get(i.bankAccountId)?.iban,
+        accountById.get(i.bankAccountId)?.iban ?? accountById.get(i.bankAccountId)?.name,
         i.filename,
         i.sha256,
         i.format,
@@ -1120,7 +1120,7 @@ pauschalen/pauschalen.csv
                          Eigenbeleg; Stornos als Gegenzeile.
 kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufender
                          Nummer, Anfangsbestand und Bestand nach jeder Zeile.
-bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto.
+bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto (Zahlungsdienstleister unter ihrem Namen).
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.
 bank/ausbuchungen.csv    Nur wenn vorhanden: ausgebuchte Reste von Rechnungen und Belegen

@@ -292,7 +292,8 @@ Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und eine
 | Entwurf | Noch nicht festgeschrieben, ohne Nummer. |
 | Offen | Festgeschrieben, nicht fällig, noch keine Zahlung zugeordnet. |
 | Teilbezahlt | Ein Teil ist bezahlt, die Fälligkeit ist noch nicht überschritten. |
-| Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet. |
+| Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet, gegebenenfalls abzüglich eines ausgebuchten Skontos. |
+| Ausgebucht | Erledigt, mit einem Forderungsausfall (siehe [Ausbuchen](#ausbuchen)). |
 | Überfällig | Fälligkeit überschritten und noch etwas offen, auch bei Teilzahlung. |
 | Storniert | Zu dieser Rechnung gibt es eine festgeschriebene Stornorechnung. |
 | Storno | Die Stornorechnung selbst. |
@@ -307,6 +308,20 @@ Die Detailseite zeigt das PDF, die Eckdaten (Kunde, Rechnungsdatum, Fälligkeit,
 - **Lieferschein** erzeugt einen Lieferschein mit den Positionen und Mengen der Rechnung, ohne Preise (siehe [Angebote](angebote.md#auftragsbestätigung-und-lieferschein)).
 
 Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreiben entstanden sind. Sie werden nie neu erzeugt.
+
+## Ausbuchen
+
+Ist eine festgeschriebene Rechnung noch offen, steht auf ihrer Seite der Abschnitt **Ausbuchen**. Dort buchst du einen Rest aus, den du nicht mehr bekommst: **Forderungsausfall** (uneinbringlich, etwa bei Insolvenz) oder **Skonto gewährt**, jeweils mit Datum und Betrag (vorbelegt: der ganze offene Betrag). Haben mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§ 17 UStG) und bucht
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 8730 Gewährte Skonti bzw. 2400 Forderungsverluste | 4730 bzw. 6930 | netto | |
+| Umsatzsteuer (bei Ist: nicht fällig) | | Steuer | |
+| 1400 Forderungen | 1200 Forderungen | | brutto |
+
+Bei Soll-Versteuerung mindert die Ausbuchung die Voranmeldung des Monats, in dem du ausbuchst; bei Ist zählt ohnehin nur, was bezahlt wurde. Ausbuchungen stehen mit Datum und Betrag in der Liste darüber und lassen sich dort aufheben (Gegenbuchung). Wurde der Rest zusammen mit einer Zahlung im Bankabgleich ausgebucht (Rest als Skonto), hebst du ihn dort mit der Zuordnung auf. Stornorechnungen lassen sich nicht ausbuchen.
+
+Zahlt der Kunde später doch, hebst du die Ausbuchung auf und ordnest die Zahlung zu.
 
 ## Per E-Mail versenden
 

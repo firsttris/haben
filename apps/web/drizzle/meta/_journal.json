@@ -512,6 +512,13 @@
       "when": 1792646920907,
       "tag": "0072_ausbuchungen_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792647655617,
+      "tag": "0073_zahlungsdienstleister",
+      "breakpoints": true
     }
   ]
 }

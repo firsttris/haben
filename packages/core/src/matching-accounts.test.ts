@@ -83,3 +83,30 @@ describe("findTransferCounterpart", () => {
     expect(findTransferCounterpart({ bookingDate: "2026-10-20", amount: -60_000 }, source, candidates)).toBeNull();
   });
 });
+
+describe("Zahlungsdienstleister", () => {
+  const paypal: OwnAccount = { id: "pp", name: "PayPal", iban: null, purpose: "zahlungsdienstleister", provider: "paypal" };
+  const accounts = [...all, paypal];
+
+  it("Auszahlung im Export des Dienstleisters ist Geldtransit, eine Zahlung an einen Händler nicht", () => {
+    expect(suggestDirectBooking(tx({ counterpartyName: "DKB", purpose: "Allgemeine Abbuchung · 4WD" }), paypal, accounts)?.kind).toBe("geldtransit");
+    expect(suggestDirectBooking(tx({ counterpartyName: "Händler GmbH", purpose: "Express-Zahlung gesendet · 5XY" }), paypal, accounts)).toBeNull();
+  });
+
+  it("auf der Bank: Gegenpartei PayPal ist Geldtransit nur mit Gegenbuchung", () => {
+    expect(suggestDirectBooking(tx({ amount: 466_450, counterpartyName: "PayPal Europe S.a.r.l. et Cie S.C.A" }), business, accounts)).toEqual({
+      kind: "geldtransit",
+      reasons: ["Gegenpartei ist dein Zahlungsdienstleister PayPal"],
+      counterAccountId: "pp",
+      requiresCounterpart: true,
+    });
+  });
+
+  it("Gegenbuchung auf der Bank über den Namen des Dienstleisters, wenn das Ausgangskonto keine IBAN hat", () => {
+    const candidates = [
+      { id: "x", bookingDate: "2026-10-06", amount: 466_450, open: 466_450, counterpartyIban: "LU89751000135104200E", counterpartyName: "PayPal Europe" },
+      { id: "y", bookingDate: "2026-10-05", amount: 466_450, open: 466_450, counterpartyIban: "DE02100100100006820101", counterpartyName: "Kunde" },
+    ];
+    expect(findTransferCounterpart({ bookingDate: "2026-10-05", amount: -466_450 }, null, candidates, /paypal/i)?.id).toBe("x");
+  });
+});

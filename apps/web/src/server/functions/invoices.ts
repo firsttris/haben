@@ -51,6 +51,7 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
         name: a.name,
         purpose: a.purpose,
         openCount: a.openCount,
+        staleOpenCount: a.staleOpenCount,
         balance: a.lastImport?.closingBalance ?? null,
         balanceDate: a.lastImport?.periodTo ?? null,
       })),

@@ -959,11 +959,23 @@ export const documentAmounts = pgTable(
 export const bankAccounts = pgTable("bank_accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  iban: text("iban").notNull().unique(),
+  /** Bei Zahlungsdienstleistern leer: deren Guthaben hat keine IBAN, importiert wird in das gewählte Konto */
+  iban: text("iban").unique(),
   /** Wofür das Konto dient (ACCOUNT_PURPOSES); steuert Vorschläge im Bankabgleich und die Vorbelegung beim Finanzamt */
-  purpose: text("purpose", { enum: ["geschaeft", "steuer", "ruecklage", "privat"] }).notNull().default("geschaeft"),
+  purpose: text("purpose", { enum: ["geschaeft", "steuer", "ruecklage", "privat", "zahlungsdienstleister"] }).notNull().default("geschaeft"),
+  /** Nur Zahlungsdienstleister: Anbieter (PAYMENT_PROVIDERS) und Nummer des Verrechnungskontos (1361 … bzw. 1461 …) */
+  provider: text("provider", { enum: ["paypal", "stripe", "shopify", "etsy", "sumup", "sonstige"] }),
+  ledgerIndex: smallint("ledger_index").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [check("bank_accounts_purpose", sql`${t.purpose} in ('geschaeft', 'steuer', 'ruecklage', 'privat')`)]);
+}, (t) => [
+  check("bank_accounts_purpose", sql`${t.purpose} in ('geschaeft', 'steuer', 'ruecklage', 'privat', 'zahlungsdienstleister')`),
+  // Zahlungsdienstleister: Anbieter und Verrechnungskonto, keine IBAN; alle anderen: IBAN, kein Anbieter
+  check(
+    "bank_accounts_provider",
+    sql`(${t.purpose} = 'zahlungsdienstleister' and ${t.provider} is not null and ${t.ledgerIndex} between 1 and 9 and ${t.iban} is null)
+      or (${t.purpose} <> 'zahlungsdienstleister' and ${t.provider} is null and ${t.ledgerIndex} is null and ${t.iban} is not null)`,
+  ),
+]);
 
 /** Jede importierte Datei, nur anhängen */
 export const bankImports = pgTable("bank_imports", {

@@ -4,6 +4,7 @@ import { decodeText } from "./decode.ts";
 import { isDkbAltHeader, isDkbHeader, parseDkb, parseDkbAlt } from "./dkb.ts";
 import { StatementParseError } from "./errors.ts";
 import { isN26Header, parseN26 } from "./n26.ts";
+import { isPayPalHeader, isShopifyHeader, isStripeHeader, parsePayPal, parseShopify, parseStripe } from "./psp.ts";
 import { findHeaderRow } from "./table.ts";
 import type { ParsedStatement, StatementFormat } from "./types.ts";
 
@@ -31,11 +32,18 @@ function detect(text: string, label: string): Detected {
   const dkbAlt = findHeaderRow(semicolon, isDkbAltHeader);
   if (dkbAlt >= 0) return { format: "dkb-csv-alt", rows: parseCsv(text, ";"), headerRow: dkbAlt };
 
-  const n26 = findHeaderRow(parseCsv(head, ","), isN26Header);
+  const comma = parseCsv(head, ",");
+  const n26 = findHeaderRow(comma, isN26Header);
   if (n26 >= 0) return { format: "n26-csv", rows: parseCsv(text, ","), headerRow: n26 };
+  const paypal = findHeaderRow(comma, isPayPalHeader);
+  if (paypal >= 0) return { format: "paypal-csv", rows: parseCsv(text, ","), headerRow: paypal };
+  const stripe = findHeaderRow(comma, isStripeHeader);
+  if (stripe >= 0) return { format: "stripe-csv", rows: parseCsv(text, ","), headerRow: stripe };
+  const shopify = findHeaderRow(comma, isShopifyHeader);
+  if (shopify >= 0) return { format: "shopify-payments-csv", rows: parseCsv(text, ","), headerRow: shopify };
 
   throw new StatementParseError(
-    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB und N26 sowie CAMT.053 (XML).`,
+    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB und N26, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe und Shopify Payments.`,
   );
 }
 
@@ -59,6 +67,12 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
       return parseDkbAlt(detected.rows, detected.headerRow);
     case "n26-csv":
       return parseN26(detected.rows, detected.headerRow);
+    case "paypal-csv":
+      return parsePayPal(detected.rows, detected.headerRow);
+    case "stripe-csv":
+      return parseStripe(detected.rows, detected.headerRow);
+    case "shopify-payments-csv":
+      return parseShopify(detected.rows, detected.headerRow);
   }
 }
 

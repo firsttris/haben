@@ -450,6 +450,87 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect((await auswertungen.vatAbgleich({ year: 2026, month: 10 })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
   }, 30_000);
 
+  it("Zahlungsdienstleister: PayPal-Export ins eigene Verrechnungskonto, Auszahlung als Geldtransit zur Bank", async () => {
+    const { invoice } = await finalInvoice(400_000);
+    const paypal = await bank.createProviderAccount(actor, { name: "PayPal", provider: "paypal" });
+    expect(paypal).toMatchObject({ iban: null, purpose: "zahlungsdienstleister", ledgerIndex: 1 });
+    const csv = [
+      `"Datum","Uhrzeit","Zeitzone","Name","Typ","Status","Währung","Brutto","Gebühr","Netto","Transaktionscode","Rechnungsnummer"`,
+      `"01.10.2026","10:00:00","CEST","Nordwerk Software GmbH","Website-Zahlung","Abgeschlossen","EUR","4.760,00","-95,50","4.664,50","1AB","${invoice.number}"`,
+      `"05.10.2026","08:00:00","CEST","DKB","Allgemeine Abbuchung","Abgeschlossen","EUR","-4.664,50","0,00","-4.664,50","2CD",""`,
+    ].join("\n");
+    const file = { bytes: new TextEncoder().encode(csv), filename: "paypal.csv" };
+    await expect(bank.importStatement(actor, file, null)).rejects.toThrow(/Konto des Dienstleisters wählen/);
+    const dkb = await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          incoming("06.10.26", "PayPal Europe S.a.r.l. et Cie S.C.A", "LU89751000135104200E", "Auszahlung PayPal", "4.664,50"),
+          outgoing("07.10.26", "PayPal Europe S.a.r.l. et Cie S.C.A", "LU89751000135104200E", "Einkauf Bürobedarf", "-39,90"),
+        ]),
+        filename: "dkb.csv",
+      },
+      null,
+    );
+    await expect(bank.importStatement(actor, file, dkb.accountId)).rejects.toThrow(/Export eines Zahlungsdienstleisters/);
+    expect(await bank.importStatement(actor, file, paypal.id)).toMatchObject({ added: 3 });
+
+    const [payment] = await sql`select id from bank_transactions where amount = 476000`;
+    const [fee] = await sql`select id from bank_transactions where amount = -9550`;
+    const [payout] = await sql`select id from bank_transactions where amount = -466450`;
+    const [incomingPayout] = await sql`select id from bank_transactions where amount = 466450`;
+    const [purchase] = await sql`select id from bank_transactions where amount = -3990`;
+
+    await bank.allocate(actor, { kind: "invoice", transactionId: payment!.id, invoiceId: invoice.id, amount: 476_000 });
+    await bank.allocate(actor, { kind: "gebuehren", transactionId: fee!.id, amount: -9_550 });
+    // Auszahlung: von beiden Seiten als Geldtransit erkannt, mit der jeweils anderen als Gegenbuchung
+    expect((await bank.transactionDetail(payout!.id))?.direct).toMatchObject({ kind: "geldtransit", counterpart: { id: incomingPayout!.id } });
+    expect((await bank.transactionDetail(incomingPayout!.id))?.direct).toMatchObject({ kind: "geldtransit", counterpart: { id: payout!.id } });
+    // Ein mit PayPal bezahlter Einkauf hat keine Auszahlung als Gegenstück: kein Geldtransit-Vorschlag
+    expect((await bank.transactionDetail(purchase!.id))?.direct).toBeNull();
+    await expect(bank.allocateTransfer(actor, { transactionId: purchase!.id, counterpartId: payout!.id })).rejects.toThrow(/denselben Betrag/);
+    await bank.allocateTransfer(actor, { transactionId: incomingPayout!.id, counterpartId: payout!.id });
+
+    const balances = Object.fromEntries(
+      (await sql`select account, sum(debit - credit)::int as saldo from journal_lines group by account having sum(debit - credit) <> 0 order by 1`).map((r) => [r.account, r.saldo]),
+    );
+    // Erlös voll (4.760), Gebühr Aufwand, Verrechnungskonto 1361 ausgeglichen, auf der Bank die Auszahlung
+    expect(balances).toEqual({ "1200": 466_450, "1776": -76_000, "4970": 9_550, "8400": -400_000 });
+    expect((await bank.listAccounts()).find((a) => a.id === paypal.id)).toMatchObject({ providerBalance: 0, openCount: 0 });
+  }, 30_000);
+
+  it("Gebühren eines Monats der Sammelrechnung des Dienstleisters zuordnen", async () => {
+    const stripe = await bank.createProviderAccount(actor, { name: "Stripe", provider: "stripe" });
+    const csv = [
+      `id,Type,Source,Amount,Fee,Net,Currency,Created (UTC),Available On (UTC),Description`,
+      `txn_1,charge,ch_1,100.00,1.50,98.50,eur,2026-10-01 10:00:00,2026-10-08 00:00:00,A`,
+      `txn_2,charge,ch_2,200.00,3.00,197.00,eur,2026-10-15 10:00:00,2026-10-22 00:00:00,B`,
+      `txn_3,charge,ch_3,50.00,1.00,49.00,eur,2026-11-02 10:00:00,2026-11-09 00:00:00,C`,
+    ].join("\n");
+    await bank.importStatement(actor, { bytes: new TextEncoder().encode(csv), filename: "stripe.csv" }, stripe.id);
+    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 11]);
+    const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "stripe-oktober.jpg" });
+    await documents.updateDocument(actor, docId, {
+      supplierName: "Stripe Payments Europe",
+      supplierUstId: "IE3206488LH",
+      invoiceNumber: "STR-2026-10",
+      documentDate: "2026-10-31",
+      dueDate: null,
+      category: "sonstiges",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 0, net: 450, tax: 0 }],
+    });
+    await documents.bookDocument(actor, docId);
+    const [firstFee] = await sql`select id from bank_transactions where amount = -150`;
+    expect(await bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).toBe(2);
+    // Oktober erledigt, November bleibt offen
+    const open = await sql`select amount from bank_transactions t where amount < 0
+      and amount - coalesce((select sum(a.amount) from allocations a where a.transaction_id = t.id), 0) <> 0`;
+    expect(open.map((r) => r.amount)).toEqual([-100]);
+    await expect(bank.allocateFeesToDocument(actor, { transactionId: firstFee!.id, documentId: docId })).rejects.toThrow(/Keine offene Gebühr/);
+  }, 30_000);
+
   it("Belegzahlung und Privatentnahme", async () => {
     const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7]);
     const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "telekom.jpg" });
