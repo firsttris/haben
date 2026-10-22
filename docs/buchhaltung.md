@@ -379,7 +379,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 - Gebäude, degressive AfA, Sonderabschreibungen und Investitionsabzugsbetrag
 - Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
 - Innergemeinschaftliche Lieferungen und Erwerbe von Waren; § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
-- Lohn; Fremdwährung nur bei Belegen mit Kurs von Hand (siehe [Belege](belege.md#fremdwährung)), ohne Kursdifferenzen und ohne Rechnungen in Fremdwährung
+- Lohn; Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
 - Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten)
 
 > [!NOTE]

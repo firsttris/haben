@@ -191,7 +191,17 @@ Neben der Zahlungsaufforderung druckt Haben einen GiroCode, also einen EPC-QR-Co
 - der Rechnungsbetrag,
 - der Verwendungszweck „Rechnung 2026-001“.
 
-Der Code steht nur auf Rechnungen mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen.
+Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen.
+
+## Rechnungen in Fremdwährung
+
+Für Kunden im Ausland stellst du die Rechnung in deren Währung aus: im Editor bei **Währung** den Code eintragen, z. B. `USD`, und die Preise in dieser Währung. PDF und E-Rechnung zeigen alle Beträge in dieser Währung. Die Umsatzsteuer steht zusätzlich in Euro auf der Rechnung, wie es § 14 Abs. 4 Nr. 8 UStG mit Abschn. 14.5 UStAE verlangt, etwa „Umsatzsteuer in Euro, 1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026): Umsatzsteuer 19 % 166,94 €“. Im XML ist Euro die Steuerwährung (BT-6) mit der Steuer in Euro (BT-111).
+
+Gebucht wird in Euro. **Kurs** leer lassen: Haben nimmt den Umsatzsteuer-Umrechnungskurs des Monats der Leistung (Ende des Leistungszeitraums, sonst Rechnungsdatum). Ist er noch nicht veröffentlicht, bleibt die Rechnung ein Entwurf („Umrechnungskurs für 10/2026 noch nicht veröffentlicht“), bis Haben die Kurse abgerufen hat oder du einen Kurs einträgst. Mit gestattetem Tageskurs trägst du Kurs und Kursdatum selbst ein. Storno und Korrektur übernehmen den Kurs der ursprünglichen Rechnung, damit sie genau dieselben Euro-Beträge zurücknehmen.
+
+Offene Posten, Bankabgleich und Auswertungen rechnen mit dem Euro-Betrag. Zahlt der Kunde umgerechnet etwas anderes, gleichst du die Differenz im Bankabgleich als [Kursdifferenz](bank.md#kursdifferenz-bei-fremdwährung) aus. Die E-Mail zur Rechnung nennt den Betrag in der Währung der Rechnung.
+
+In Fremdwährung gibt es keinen GiroCode (SEPA kennt nur Euro), keine Abschlags- und Schlussrechnungen, keine wiederkehrenden Rechnungen und keine Mahnungen aus Haben.
 
 ## Abschlags- und Schlussrechnung
 
@@ -412,7 +422,7 @@ Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten 
 
 ## Grenzen
 
-- Nur Euro und nur die Steuersätze 19 %, 7 % und 0 %.
+- Nur die Steuersätze 19 %, 7 % und 0 %. Fremdwährung mit den Einschränkungen unter [Rechnungen in Fremdwährung](#rechnungen-in-fremdwährung); Angebote nur in Euro.
 - Keine innergemeinschaftlichen Lieferungen von Waren (§ 4 Nr. 1b UStG) und keine Zusammenfassende Meldung; die ZM für Reverse-Charge-Rechnungen gibst du selbst ab.
 - Keine Skonto-Angaben, keine Zu- oder Abschläge auf Belegebene.
 - Höchstens 200 Positionen je Rechnung.

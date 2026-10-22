@@ -170,8 +170,13 @@ Ist `ERIC_HOME` nicht gesetzt, zeigt die Seite „ERiC ist nicht eingerichtet. P
 
 Eine Echtübermittlung ist im simulierten Modus nicht möglich: Der Haken **Nur Testübermittlung** bleibt gesetzt, und Haben lehnt eine Echtübermittlung ab, solange kein ERiC eingerichtet ist. So wird keine Anmeldung als gesendet festgeschrieben, die nie beim Finanzamt war.
 
+## Fremdwährung
+
+Belege und Rechnungen in Fremdwährung zählen mit ihren Euro-Beträgen, umgerechnet mit dem Umsatzsteuer-Umrechnungskurs des BMF für den Monat (§ 16 Abs. 6 UStG) oder dem eingetragenen Kurs. Das gilt auch für § 13b: Haben rechnet das Netto um und die Steuer daraus. Kursdifferenzen beim Bezahlen ändern die Umsatzsteuer nicht. Bei Ist-Versteuerung wird die Steuer einer Rechnung mit der Zahlung fällig, in Höhe der Rechnung umgerechnet mit ihrem Kurs, auch wenn die Bank etwas anderes gutschreibt.
+
 ## Grenzen
 
+- Ist-Versteuerung bei Fremdwährung: Haben nimmt den Kurs der Rechnung (Leistungsmonat), nicht den Kurs des Monats der Zahlung, den § 16 Abs. 6 UStG bei Ist-Versteuerung vorsieht. Weichen die Kurse der beiden Monate ab, korrigierst du die Kennzahlen selbst.
 - Nur Monatszeiträume, keine Quartals- oder Jahreserklärung, keine Dauerfristverlängerung.
 - Nur die Kennzahlen 81, 86, 21, 45, 46, 47, 48, 66, 67, 83, 84, 85 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe, keine Zusammenfassende Meldung.
 - Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.

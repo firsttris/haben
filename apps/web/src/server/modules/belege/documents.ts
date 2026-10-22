@@ -195,6 +195,8 @@ async function applyFields(
     amounts: fields.amounts.map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax })),
   });
   const totals = totalsOf(amounts);
+  // Mit dem Kurs des Monats ist der Hinweis auf den fehlenden Kurs erledigt
+  const warnings = rate.exchangeRate ? fields.warnings.filter((w) => !w.startsWith(`Währung ${fields.currency}`)) : fields.warnings;
   // Privatanteil aus den Vorgaben der Firmendaten, z. B. Telefon 20 %
   const { privateShares } = company;
   const privateShare = category ? (privateShares[category] ?? 0) : 0;
@@ -220,7 +222,7 @@ async function applyFields(
         ...totals,
         extractedBy,
         extractionStatus: "fertig",
-        extractionError: fields.warnings.length > 0 ? fields.warnings.join(" · ") : null,
+        extractionError: warnings.length > 0 ? warnings.join(" · ") : null,
         extraction: raw,
         updatedAt: new Date(),
       })
