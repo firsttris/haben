@@ -19,6 +19,7 @@ import {
   transferBetweenAccounts,
   updateBankAccount,
   reverseTransactionAllocation,
+  splitTransaction,
   syncBankConnection,
 } from "../../server/functions/bank.ts";
 
@@ -698,12 +699,13 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const allocateFn = useServerFn(allocateTransaction);
+  const splitFn = useServerFn(splitTransaction);
   const reverseFn = useServerFn(reverseTransactionAllocation);
   const transferFn = useServerFn(transferBetweenAccounts);
-  const { transaction: tx, suggestions, candidates, allocations, direct } = detail;
+  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct } = detail;
   const best = suggestions[0];
   // Ein Treffer mit Rechnung geht vor; sonst der Vorschlag aus dem Zweck der Konten (Geldtransit, Umsatzsteuer, Privat)
-  const [mode, setMode] = useState<"best" | "other" | "direct">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
+  const [mode, setMode] = useState<"best" | "other" | "direct" | "split">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
   const [candidate, setCandidate] = useState(best ? `${best.item.type}:${best.item.id}` : "");
   const [directKind, setDirectKind] = useState<DirectBooking>(direct?.kind ?? "privat");
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
@@ -763,6 +765,25 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   }, [tx.open]);
 
   const selectedCandidate = candidates.find((c) => `${c.type}:${c.id}` === candidate);
+  // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
+  const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
+  const feeRest = target && Math.sign(target.open) === Math.sign(tx.open) && Math.abs(target.open) > Math.abs(tx.open) ? tx.open - target.open : 0;
+
+  function bookRestAsFee() {
+    if (!target || feeRest === 0) return;
+    const first = target.type === "invoice" ? { kind: "invoice" as const, invoiceId: target.id, amount: target.open } : { kind: "document" as const, documentId: target.id, amount: target.open };
+    return run(() => splitFn({ data: { transactionId: tx.id, parts: [first, { kind: "gebuehren", amount: feeRest }] } }));
+  }
+
+  // Teile einer Aufteilung werden nur zusammen aufgehoben: Knopf nur am ersten Teil
+  const firstOfSplit = new Set<string>();
+  const seenSplits = new Set<string>();
+  for (const a of allocations) {
+    if (a.splitId && !seenSplits.has(a.splitId)) {
+      seenSplits.add(a.splitId);
+      firstOfSplit.add(a.id);
+    }
+  }
 
   return (
     <aside className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
@@ -791,11 +812,14 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                   {a.invoiceNumber ? ` ${a.invoiceNumber}` : ""}
                   {a.documentSupplier ? ` ${a.documentSupplier}${a.documentNumber ? ` (${a.documentNumber})` : ""}` : ""}
                 </span>
-                <span className="small muted">{a.reversed ? "aufgehoben" : formatEuro(Math.abs(a.amount))}</span>
+                <span className="small muted">
+                  {a.reversed ? "aufgehoben" : a.splitId ? `${a.amount < 0 ? "−" : "+"}${formatEuro(Math.abs(a.amount))}` : formatEuro(Math.abs(a.amount))}
+                  {a.splitId ? " · Teil einer Aufteilung" : ""}
+                </span>
               </div>
-              {!a.reversed && (
+              {!a.reversed && (!a.splitId || firstOfSplit.has(a.id)) && (
                 <button type="button" className="btn btn-sm btn-danger" onClick={() => run(() => reverseFn({ data: a.id }))} disabled={busy}>
-                  Aufheben
+                  {a.splitId ? "Aufteilung aufheben" : "Aufheben"}
                 </button>
               )}
             </div>
@@ -805,7 +829,20 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
 
       <NoticeBanner notice={notice} />
 
-      {tx.open !== 0 && (
+      {tx.open !== 0 && mode === "split" && (
+        <SplitForm
+          key={tx.id}
+          tx={tx}
+          initial={target}
+          splitCandidates={splitCandidates}
+          directKinds={directKinds}
+          busy={busy}
+          onCancel={() => setMode(best ? "best" : candidates.length ? "other" : "direct")}
+          onSubmit={(parts) => run(() => splitFn({ data: { transactionId: tx.id, parts } }))}
+        />
+      )}
+
+      {tx.open !== 0 && mode !== "split" && (
         <>
           {mode === "best" && best && (
             <div className="stack" style={{ gap: 10 }}>
@@ -946,14 +983,183 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
               </button>
             )}
           </div>
+          {feeRest !== 0 && (
+            <div className="stack" style={{ gap: 6 }}>
+              <button type="button" className="btn" onClick={() => void bookRestAsFee()} disabled={busy}>
+                Voll zuordnen, Rest {formatEuro(Math.abs(feeRest))} als Gebühr
+              </button>
+              <span className="small muted">
+                Für Auszahlungen von PayPal, Stripe oder Shopify: Die Rechnung gilt als voll bezahlt, die einbehaltene Gebühr wird
+                Aufwand (Nebenkosten des Geldverkehrs).
+              </span>
+            </div>
+          )}
           {mode !== "direct" && (
             <button type="button" className="btn" onClick={() => setMode("direct")} disabled={busy}>
               Ohne Rechnung buchen
             </button>
           )}
+          <button type="button" className="btn" onClick={() => setMode("split")} disabled={busy}>
+            Aufteilen
+          </button>
           <div className="small muted pointer-fine">Tastatur: Enter ordnet zu, J und K springen zum nächsten Umsatz.</div>
         </>
       )}
     </aside>
+  );
+}
+
+type SplitTarget = Detail["splitCandidates"][number];
+type SplitPart =
+  | { kind: "invoice"; invoiceId: string; amount: number }
+  | { kind: "document"; documentId: string; amount: number }
+  | { kind: DirectBooking; amount: number };
+
+interface SplitRow {
+  key: number;
+  /** "invoice:<id>", "document:<id>" oder eine Buchungsart ohne Beleg */
+  target: string;
+  amount: string;
+}
+
+let nextSplitKey = 1;
+
+const signed = (cents: number) => `${cents < 0 ? "-" : ""}${formatDecimal(Math.abs(cents))}`;
+
+/** Splitbuchung: den offenen Teil eines Umsatzes auf mehrere Ziele verteilen, Vorzeichen wie auf dem Konto */
+function SplitForm({
+  tx,
+  initial,
+  splitCandidates,
+  directKinds,
+  busy,
+  onCancel,
+  onSubmit,
+}: {
+  tx: Detail["transaction"];
+  initial: SplitTarget | undefined;
+  splitCandidates: SplitTarget[];
+  directKinds: Data["directKinds"];
+  busy: boolean;
+  onCancel: () => void;
+  onSubmit: (parts: SplitPart[]) => void;
+}) {
+  const [rows, setRows] = useState<SplitRow[]>(() =>
+    initial
+      ? [
+          { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open) },
+          { key: nextSplitKey++, target: "gebuehren", amount: signed(tx.open - initial.open) },
+        ]
+      : [
+          { key: nextSplitKey++, target: "", amount: signed(tx.open) },
+          { key: nextSplitKey++, target: "gebuehren", amount: "" },
+        ],
+  );
+
+  const parsed = rows.map((r) => parseEuro(r.amount));
+  const sum = parsed.reduce<number>((s, p) => s + (p ?? 0), 0);
+  const rest = tx.open - sum;
+  const complete = rows.every((r, i) => r.target && parsed[i] !== null && parsed[i] !== 0) && rest === 0;
+
+  function update(key: number, patch: Partial<SplitRow>) {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+
+  function toPart(row: SplitRow, amount: number): SplitPart {
+    const [type, id] = row.target.split(":");
+    if (type === "invoice") return { kind: "invoice", invoiceId: id!, amount };
+    if (type === "document") return { kind: "document", documentId: id!, amount };
+    return { kind: row.target as DirectBooking, amount };
+  }
+
+  return (
+    <form
+      className="stack"
+      style={{ gap: 10 }}
+      aria-label="Umsatz aufteilen"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!complete) return;
+        onSubmit(rows.map((r, i) => toPart(r, parsed[i]!)));
+      }}
+    >
+      <div className="section-label">Aufteilen</div>
+      <p className="small muted" style={{ margin: 0 }}>
+        Beträge mit Vorzeichen wie auf dem Konto: Zahlungseingänge positiv, Gebühren und Ausgänge negativ. Zusammen ergeben die Teile den
+        offenen Betrag von {signed(tx.open)} €; jeder Teil wird einzeln gebucht.
+      </p>
+      {rows.map((row, index) => (
+        <div key={row.key} className="split-row">
+          <label className="field">
+            Teil {index + 1}
+            <select value={row.target} onChange={(e) => {
+              const value = e.target.value;
+              const item = splitCandidates.find((c) => `${c.type}:${c.id}` === value);
+              update(row.key, item ? { target: value, amount: signed(item.open) } : { target: value });
+            }}>
+              <option value="">Bitte wählen</option>
+              <optgroup label="Rechnungen und Belege">
+                {splitCandidates.map((c) => (
+                  <option key={`${c.type}:${c.id}`} value={`${c.type}:${c.id}`}>
+                    {c.type === "invoice" ? `Rechnung ${c.number}` : `Beleg ${c.partyName} ${c.number}`} · {c.partyName} · offen {signed(c.open)} €
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Ohne Rechnung">
+                {directKinds.map((k) => (
+                  <option key={k.value} value={k.value}>
+                    {k.label}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
+          <label className="field">
+            Betrag
+            <input
+              className="mono"
+              inputMode="decimal"
+              value={row.amount}
+              placeholder="-0,00"
+              onChange={(e) => update(row.key, { amount: e.target.value })}
+              aria-invalid={parsed[index] === null}
+              style={{ textAlign: "right" }}
+            />
+          </label>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={`Teil ${index + 1} entfernen`}
+            disabled={rows.length <= 2}
+            onClick={() => setRows((prev) => prev.filter((r) => r.key !== row.key))}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+      ))}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="btn btn-dashed"
+          disabled={rows.length >= 20}
+          onClick={() => setRows((prev) => [...prev, { key: nextSplitKey++, target: "", amount: rest !== 0 ? signed(rest) : "" }])}
+        >
+          + Teil
+        </button>
+        <span className="small" aria-live="polite">
+          {rest === 0 ? "Teile ergeben den Umsatz." : `Noch zu verteilen: ${signed(rest)} €`}
+        </span>
+      </div>
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }} disabled={busy || !complete}>
+          Aufteilen und buchen
+        </button>
+        <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+          Abbrechen
+        </button>
+      </div>
+    </form>
   );
 }

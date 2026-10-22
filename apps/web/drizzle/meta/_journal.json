@@ -484,6 +484,20 @@
       "when": 1792645385800,
       "tag": "0068_kontozweck",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792645895382,
+      "tag": "0069_splitbuchung",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1792645896700,
+      "tag": "0070_splitbuchung_trigger",
+      "breakpoints": true
     }
   ]
 }

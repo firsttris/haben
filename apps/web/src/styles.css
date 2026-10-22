@@ -446,6 +446,8 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .doc-preview { width: 100%; height: var(--viewer-height); min-height: 520px; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
 .doc-image { width: 100%; max-height: var(--viewer-height); object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: var(--ground); }
 .amount-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: end; }
+.split-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 40px; gap: 8px; align-items: end; }
+.split-row select, .split-row input { width: 100%; min-width: 0; }
 .amount-row input, .amount-row select { width: 100%; min-width: 0; }
 .page-head .actions { align-items: center; }
 .doc-nav { display: flex; align-items: center; gap: 8px; }

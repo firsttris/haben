@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { UserError } from "../../errors.ts";
 import {
   directPosting,
@@ -397,6 +398,7 @@ export async function transactionDetail(id: string) {
       kind: schema.allocations.kind,
       amount: schema.allocations.amount,
       reversesId: schema.allocations.reversesId,
+      splitId: schema.allocations.splitId,
       createdAt: schema.allocations.createdAt,
       invoiceId: schema.allocations.invoiceId,
       invoiceNumber: schema.invoices.number,
@@ -408,7 +410,8 @@ export async function transactionDetail(id: string) {
     .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
     .leftJoin(schema.documents, eq(schema.documents.id, schema.allocations.documentId))
     .where(eq(schema.allocations.transactionId, id))
-    .orderBy(asc(schema.allocations.createdAt));
+    // Teile einer Aufteilung haben denselben Zeitstempel (eine Transaktion): Erlös vor Gebühr, damit die Reihenfolge feststeht
+    .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
   const reversed = new Set(allocationRows.filter((a) => a.reversesId).map((a) => a.reversesId));
   const allocations = allocationRows
     .filter((a) => !a.reversesId)
@@ -423,7 +426,8 @@ export async function transactionDetail(id: string) {
   const account = accounts.find((a) => a.id === tx.bankAccountId);
   const direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
   const counterpart = direct?.counterAccountId && account ? await transferCounterpart(tx, account.iban, direct.counterAccountId) : null;
-  return { transaction: tx, allocations, suggestions, candidates, direct: direct ? { ...direct, counterpart } : null };
+  // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
+  return { transaction: tx, allocations, suggestions, candidates, splitCandidates: items, direct: direct ? { ...direct, counterpart } : null };
 }
 
 /** Schon gezahlte Umsatzsteuer (Zuordnungen „Umsatzsteuer an das Finanzamt“, positiv) mit Buchungsdatum nach `after` */
@@ -522,11 +526,13 @@ function reverseLines(lines: PostingLine[]): PostingLine[] {
   return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
 }
 
+const DIRECT_KINDS = ["privat", "geldtransit", "ustVorauszahlung", "gebuehren", "mahnerloes"] as const;
+
 export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invoice"), transactionId: z.uuid(), invoiceId: z.uuid(), amount: z.number().int() }),
   z.object({ kind: z.literal("document"), transactionId: z.uuid(), documentId: z.uuid(), amount: z.number().int() }),
   z.object({
-    kind: z.enum(["privat", "geldtransit", "ustVorauszahlung", "gebuehren", "mahnerloes"]),
+    kind: z.enum(DIRECT_KINDS),
     transactionId: z.uuid(),
     amount: z.number().int(),
   }),
@@ -534,128 +540,192 @@ export const allocationSchema = z.discriminatedUnion("kind", [
 
 export type AllocationInput = z.infer<typeof allocationSchema>;
 
+/** Ein Teil einer Aufteilung: Ziel und Betrag, Vorzeichen wie auf dem Konto (Gebühr in einer Auszahlung also negativ) */
+const splitPartSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("invoice"), invoiceId: z.uuid(), amount: z.number().int() }),
+  z.object({ kind: z.literal("document"), documentId: z.uuid(), amount: z.number().int() }),
+  z.object({ kind: z.enum(DIRECT_KINDS), amount: z.number().int() }),
+]);
+
+export const splitSchema = z.object({ transactionId: z.uuid(), parts: z.array(splitPartSchema).min(2).max(20) });
+
+export type SplitInput = z.infer<typeof splitSchema>;
+type Part = z.infer<typeof splitPartSchema>;
+
+/** Sperrt den Umsatz für die Dauer der Zuordnung: Zwei gleichzeitige Zuordnungen sähen sonst denselben offenen Teil */
+async function lockTransaction(tx: Tx, id: string) {
+  const [bank] = await tx
+    .select({ id: schema.bankTransactions.id, amount: schema.bankTransactions.amount, bookingDate: schema.bankTransactions.bookingDate, counterpartyName: schema.bankTransactions.counterpartyName, counterpartyIban: schema.bankTransactions.counterpartyIban, open: openAmountSql.mapWith(Number) })
+    .from(schema.bankTransactions)
+    .where(eq(schema.bankTransactions.id, id))
+    .for("update");
+  if (!bank) throw new BankError("Umsatz nicht gefunden.");
+  return bank;
+}
+
+type LockedTransaction = Awaited<ReturnType<typeof lockTransaction>>;
+
+/**
+ * Bucht einen Teil eines Umsatzes auf Rechnung, Beleg oder eine Buchung ohne Beleg. Der Betrag trägt das Vorzeichen,
+ * mit dem er das Konto bewegt; geprüft wird hier nur gegen das Ziel (offener Betrag der Rechnung bzw. des Belegs).
+ */
+async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, bank: LockedTransaction, part: Part, splitId: string | null) {
+  let lines: PostingLine[];
+  let description: string;
+  let target: { invoiceId?: string; documentId?: string } = {};
+
+  if (part.kind === "invoice") {
+    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
+    if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+    const paidOn = async (invoiceId: string) => {
+      const [paid] = await tx
+        .select({ sum: sql<string>`coalesce(sum(amount), 0)` })
+        .from(schema.allocations)
+        .where(eq(schema.allocations.invoiceId, invoiceId));
+      return Number(paid?.sum ?? 0);
+    };
+    let open: number;
+    if (invoice.kind === "storno") {
+      if (!invoice.correctsId) throw new BankError("Rechnung nicht zuordenbar.");
+      open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), paidOnOriginal: await paidOn(invoice.correctsId), cancelled: false });
+    } else {
+      const [storno] = await tx
+        .select({ id: schema.invoices.id })
+        .from(schema.invoices)
+        .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
+      if (storno) throw new BankError(`Rechnung ${invoice.number} ist storniert; eine Erstattung gehört zur Stornorechnung.`);
+      open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), cancelled: false });
+    }
+    if (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open)) {
+      throw new BankError(`Rechnung ${invoice.number} ist nur noch über ${open / 100} € offen.`);
+    }
+    const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
+    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung);
+    description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
+    target = { invoiceId: invoice.id };
+    // IBAN des Kunden für künftige Vorschläge merken
+    if (invoice.contactId && bank.counterpartyIban) {
+      await tx
+        .update(schema.contacts)
+        .set({ iban: bank.counterpartyIban })
+        .where(and(eq(schema.contacts.id, invoice.contactId), eq(schema.contacts.iban, "")));
+    }
+  } else if (part.kind === "document") {
+    // Sperre wie bei der Rechnung: Zwei gleichzeitige Zuordnungen könnten den Beleg sonst überzahlen
+    const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, part.documentId)).for("update");
+    if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
+    if (doc.payment !== "bank") throw new BankError("Der Beleg ist als privat bezahlt gebucht.");
+    const [paid] = await tx
+      .select({ sum: sql<string>`coalesce(sum(amount), 0)` })
+      .from(schema.allocations)
+      .where(eq(schema.allocations.documentId, doc.id));
+    const open = documentOpen(doc.gross, Number(paid?.sum ?? 0));
+    if (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open)) {
+      throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
+    }
+    lines = documentPaymentPosting(part.amount, company.kontenrahmen);
+    description = `Zahlung Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
+    target = { documentId: doc.id };
+  } else {
+    lines = directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen);
+    description = `${bank.counterpartyName || "Bankumsatz"} · ${part.kind}`;
+  }
+
+  const [allocation] = await tx
+    .insert(schema.allocations)
+    .values({ transactionId: bank.id, kind: part.kind, amount: part.amount, splitId, ...target })
+    .returning();
+  await post(tx, company, { date: bank.bookingDate, description, sourceType: "allocation", sourceId: allocation!.id, lines });
+}
+
 /** Ordnet (einen Teil) eines Umsatzes zu und bucht die Zahlung. */
 export async function allocate(actor: string, input: AllocationInput): Promise<void> {
   await withActor(actor, async (tx) => {
     const company = await openBooks(tx);
-    const [bank] = await tx
-      .select({ id: schema.bankTransactions.id, amount: schema.bankTransactions.amount, bookingDate: schema.bankTransactions.bookingDate, counterpartyName: schema.bankTransactions.counterpartyName, counterpartyIban: schema.bankTransactions.counterpartyIban, open: openAmountSql.mapWith(Number) })
-      .from(schema.bankTransactions)
-      .where(eq(schema.bankTransactions.id, input.transactionId))
-      .for("update");
-    if (!bank) throw new BankError("Umsatz nicht gefunden.");
+    const bank = await lockTransaction(tx, input.transactionId);
     if (input.amount === 0 || Math.sign(input.amount) !== Math.sign(bank.amount)) {
       throw new BankError("Der Betrag muss das Vorzeichen des Umsatzes haben.");
     }
     if (Math.abs(input.amount) > Math.abs(bank.open)) {
       throw new BankError("Der Betrag ist größer als der noch offene Teil des Umsatzes.");
     }
-
-    let lines: PostingLine[];
-    let description: string;
-    let target: { invoiceId?: string; documentId?: string } = {};
-
-    if (input.kind === "invoice") {
-      const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
-      if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
-      const paidOn = async (invoiceId: string) => {
-        const [paid] = await tx
-          .select({ sum: sql<string>`coalesce(sum(amount), 0)` })
-          .from(schema.allocations)
-          .where(eq(schema.allocations.invoiceId, invoiceId));
-        return Number(paid?.sum ?? 0);
-      };
-      let open: number;
-      if (invoice.kind === "storno") {
-        if (!invoice.correctsId) throw new BankError("Rechnung nicht zuordenbar.");
-        open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), paidOnOriginal: await paidOn(invoice.correctsId), cancelled: false });
-      } else {
-        const [storno] = await tx
-          .select({ id: schema.invoices.id })
-          .from(schema.invoices)
-          .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
-        if (storno) throw new BankError(`Rechnung ${invoice.number} ist storniert; eine Erstattung gehört zur Stornorechnung.`);
-        open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), cancelled: false });
-      }
-      if (Math.sign(open) !== Math.sign(input.amount) || Math.abs(input.amount) > Math.abs(open)) {
-        throw new BankError(`Rechnung ${invoice.number} ist nur noch über ${open / 100} € offen.`);
-      }
-      const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
-      lines = invoicePaymentPosting(totals, input.amount, company.kontenrahmen, company.versteuerung);
-      description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
-      target = { invoiceId: invoice.id };
-      // IBAN des Kunden für künftige Vorschläge merken
-      if (invoice.contactId && bank.counterpartyIban) {
-        await tx
-          .update(schema.contacts)
-          .set({ iban: bank.counterpartyIban })
-          .where(and(eq(schema.contacts.id, invoice.contactId), eq(schema.contacts.iban, "")));
-      }
-    } else if (input.kind === "document") {
-      // Sperre wie bei der Rechnung: Zwei gleichzeitige Zuordnungen könnten den Beleg sonst überzahlen
-      const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
-      if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
-      if (doc.payment !== "bank") throw new BankError("Der Beleg ist als privat bezahlt gebucht.");
-      const [paid] = await tx
-        .select({ sum: sql<string>`coalesce(sum(amount), 0)` })
-        .from(schema.allocations)
-        .where(eq(schema.allocations.documentId, doc.id));
-      const open = documentOpen(doc.gross, Number(paid?.sum ?? 0));
-      if (Math.sign(open) !== Math.sign(input.amount) || Math.abs(input.amount) > Math.abs(open)) {
-        throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
-      }
-      lines = documentPaymentPosting(input.amount, company.kontenrahmen);
-      description = `Zahlung Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
-      target = { documentId: doc.id };
-    } else {
-      lines = directPosting(input.kind as DirectBooking, input.amount, company.kontenrahmen);
-      description = `${bank.counterpartyName || "Bankumsatz"} · ${input.kind}`;
-    }
-
-    const [allocation] = await tx
-      .insert(schema.allocations)
-      .values({ transactionId: bank.id, kind: input.kind, amount: input.amount, ...target })
-      .returning();
-    await post(tx, company, { date: bank.bookingDate, description, sourceType: "allocation", sourceId: allocation!.id, lines });
+    const { transactionId: _transactionId, ...part } = input;
+    await bookPart(tx, company, bank, part, null);
   });
 }
 
-/** Hebt eine Zuordnung per Gegenzeile und Gegenbuchung auf. */
+/**
+ * Splitbuchung: teilt den offenen Teil eines Umsatzes in mehrere Teile mit eigenem Ziel, z. B. eine Auszahlung von
+ * 90,00 € in „Rechnung +100,00 €“ und „Gebühr −10,00 €“. Die Teile dürfen unterschiedliche Vorzeichen haben,
+ * müssen zusammen aber genau den offenen Teil ergeben. Jeder Teil wird einzeln gebucht (Bruttoprinzip: voller Erlös,
+ * Gebühr als Aufwand), alles in einer Transaktion; aufgehoben wird nur die ganze Aufteilung.
+ */
+export async function allocateSplit(actor: string, input: SplitInput): Promise<void> {
+  await withActor(actor, async (tx) => {
+    const company = await openBooks(tx);
+    const bank = await lockTransaction(tx, input.transactionId);
+    if (input.parts.some((p) => p.amount === 0)) throw new BankError("Jeder Teil braucht einen Betrag.");
+    const sum = input.parts.reduce((s, p) => s + p.amount, 0);
+    if (sum !== bank.open) {
+      throw new BankError(`Die Teile ergeben ${sum / 100} €, offen sind ${bank.open / 100} €. Sie müssen genau den offenen Betrag ergeben.`);
+    }
+    const splitId = randomUUID();
+    for (const part of input.parts) await bookPart(tx, company, bank, part, splitId);
+  });
+}
+
+/** Hebt eine Zuordnung per Gegenzeile und Gegenbuchung auf; Teile einer Aufteilung nur alle zusammen. */
 export async function reverseAllocation(actor: string, allocationId: string): Promise<void> {
   await withActor(actor, async (tx) => {
     const [allocation] = await tx.select().from(schema.allocations).where(eq(schema.allocations.id, allocationId)).for("update");
     if (!allocation || allocation.reversesId) throw new BankError("Zuordnung nicht gefunden.");
     const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocationId));
     if (already) throw new BankError("Die Zuordnung ist bereits aufgehoben.");
-    const [entry] = await tx
-      .select()
-      .from(schema.journalEntries)
-      .where(and(eq(schema.journalEntries.sourceType, "allocation"), eq(schema.journalEntries.sourceId, allocationId), isNull(schema.journalEntries.reversesId)));
-    const lines = entry
-      ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id))
-      : [];
-    const [reversal] = await tx
-      .insert(schema.allocations)
-      .values({
-        transactionId: allocation.transactionId,
-        kind: allocation.kind,
-        invoiceId: allocation.invoiceId,
-        documentId: allocation.documentId,
-        amount: -allocation.amount,
-        reversesId: allocation.id,
-      })
-      .returning();
-    if (entry) {
-      const [bank] = await tx.select({ bookingDate: schema.bankTransactions.bookingDate }).from(schema.bankTransactions).where(eq(schema.bankTransactions.id, allocation.transactionId));
-      // Gegenbuchung im Kontenrahmen der Firmendaten; wechseln kann er nur, solange im Jahr nichts gebucht ist
-      await post(tx, await openBooks(tx), {
-        date: bank!.bookingDate,
-        description: `Storno: ${entry.description}`,
-        sourceType: "allocation",
-        sourceId: reversal!.id,
-        lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
-        reversesId: entry.id,
-      });
-    }
+    // Einzelne Teile einer Aufteilung ergäben allein nicht mehr den Umsatz (die Gebühr bliebe ohne den Erlös stehen)
+    const parts = allocation.splitId
+      ? await tx
+          .select()
+          .from(schema.allocations)
+          .where(and(eq(schema.allocations.splitId, allocation.splitId), isNull(schema.allocations.reversesId)))
+          .orderBy(asc(schema.allocations.createdAt))
+          .for("update")
+      : [allocation];
+    for (const part of parts) await reverseOne(tx, part);
   });
+}
+
+async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSelect) {
+  const [already] = await tx.select({ id: schema.allocations.id }).from(schema.allocations).where(eq(schema.allocations.reversesId, allocation.id));
+  if (already) return;
+  const [entry] = await tx
+    .select()
+    .from(schema.journalEntries)
+    .where(and(eq(schema.journalEntries.sourceType, "allocation"), eq(schema.journalEntries.sourceId, allocation.id), isNull(schema.journalEntries.reversesId)));
+  const lines = entry
+    ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id))
+    : [];
+  const [reversal] = await tx
+    .insert(schema.allocations)
+    .values({
+      transactionId: allocation.transactionId,
+      kind: allocation.kind,
+      invoiceId: allocation.invoiceId,
+      documentId: allocation.documentId,
+      amount: -allocation.amount,
+      splitId: allocation.splitId,
+      reversesId: allocation.id,
+    })
+    .returning();
+  if (entry) {
+    const [bank] = await tx.select({ bookingDate: schema.bankTransactions.bookingDate }).from(schema.bankTransactions).where(eq(schema.bankTransactions.id, allocation.transactionId));
+    // Gegenbuchung im Kontenrahmen der Firmendaten; wechseln kann er nur, solange im Jahr nichts gebucht ist
+    await post(tx, await openBooks(tx), {
+      date: bank!.bookingDate,
+      description: `Storno: ${entry.description}`,
+      sourceType: "allocation",
+      sourceId: reversal!.id,
+      lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+      reversesId: entry.id,
+    });
+  }
 }

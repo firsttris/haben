@@ -7,6 +7,7 @@ import {
   accountSettingsSchema,
   allocate,
   allocateTransfer,
+  allocateSplit,
   allocationSchema,
   BankError,
   createAccount,
@@ -17,6 +18,7 @@ import {
   ownAccounts,
   updateAccount,
   reverseAllocation,
+  splitSchema,
   transactionDetail,
   transferSchema,
 } from "../modules/bank/index.ts";
@@ -119,6 +121,14 @@ export const allocateTransaction = createServerFn({ method: "POST" })
   .validator(allocationSchema)
   .handler(async ({ data, context }) => {
     await allocate(context.user.id, data);
+    return { ok: true };
+  });
+
+export const splitTransaction = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(splitSchema)
+  .handler(async ({ data, context }) => {
+    await allocateSplit(context.user.id, data);
     return { ok: true };
   });
 

@@ -1067,8 +1067,10 @@ export const allocations = pgTable(
     kind: allocationKindEnum("kind").notNull(),
     invoiceId: uuid("invoice_id").references(() => invoices.id),
     documentId: uuid("document_id").references(() => documents.id),
-    /** Mit dem Vorzeichen des Umsatzes */
+    /** Mit dem Vorzeichen des Umsatzes; Teile einer Aufteilung auch mit umgekehrtem (z. B. Gebühr in einer Auszahlung) */
     amount: integer("amount").notNull(),
+    /** Teile einer Aufteilung (Splitbuchung) tragen dieselbe ID und werden nur zusammen aufgehoben */
+    splitId: uuid("split_id"),
     reversesId: uuid("reverses_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1080,6 +1082,7 @@ export const allocations = pgTable(
     index("allocations_transaction").on(t.transactionId),
     index("allocations_invoice").on(t.invoiceId),
     index("allocations_document").on(t.documentId),
+    index("allocations_split").on(t.splitId),
     foreignKey({ name: "allocations_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
   ],
 );

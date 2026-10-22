@@ -282,6 +282,79 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(Number(sum?.ust)).toBe(0);
   }, 30_000);
 
+  it("Splitbuchung: Auszahlung abzüglich Gebühr bucht vollen Erlös und Gebühr; aufgehoben wird nur die ganze Aufteilung", async () => {
+    const { invoice } = await finalInvoice(400_000);
+    // PayPal zahlt 4.760,00 € aus und behält 60,00 € Gebühr ein
+    await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("01.10.26", "PayPal Europe", "LU89751000135104200E", `Auszahlung RE ${invoice.number}`, "4.700,00")]), filename: "a.csv" },
+      null,
+    );
+    const [tx] = await sql`select id from bank_transactions`;
+    const parts = [
+      { kind: "invoice" as const, invoiceId: invoice.id, amount: 476_000 },
+      { kind: "gebuehren" as const, amount: -6_000 },
+    ];
+
+    await expect(bank.allocateSplit(actor, { transactionId: tx!.id, parts: [parts[0]!, { kind: "gebuehren", amount: -5_000 }] })).rejects.toThrow(
+      /ergeben 4710 €, offen sind 4700 €/,
+    );
+    await expect(bank.allocateSplit(actor, { transactionId: tx!.id, parts: [{ ...parts[0]!, amount: 486_000 }, { kind: "gebuehren", amount: -16_000 }] })).rejects.toThrow(
+      /nur noch über 4760 € offen/,
+    );
+    expect(Number((await sql`select count(*) as n from allocations`)[0]?.n)).toBe(0);
+
+    await bank.allocateSplit(actor, { transactionId: tx!.id, parts });
+    expect((await bank.transactionDetail(tx!.id))?.transaction.open).toBe(0);
+    expect((await invoices.listInvoices("2026-10-02")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+    // Bruttoprinzip: Bank 4.760 an Forderung (Ist: Umsatzsteuer fällig), Gebühr 60 an Bank; auf der Bank netto 4.700
+    const lines = await sql`select l.account, sum(l.debit)::int as debit, sum(l.credit)::int as credit from journal_lines l
+      join journal_entries e on e.id = l.entry_id where e.source_type = 'allocation' group by l.account order by l.account`;
+    expect(lines.map((l) => [l.account, l.debit, l.credit])).toEqual([
+      ["1200", 476_000, 6_000],
+      ["1400", 0, 476_000],
+      ["1766", 76_000, 0],
+      ["1776", 0, 76_000],
+      ["4970", 6_000, 0],
+    ]);
+
+    const [fee] = await sql`select id from allocations where kind = 'gebuehren'`;
+    await bank.reverseAllocation(actor, fee!.id);
+    const detail = await bank.transactionDetail(tx!.id);
+    expect(detail?.transaction.open).toBe(470_000);
+    expect(detail?.allocations.map((a) => [a.kind, a.reversed])).toEqual([
+      ["invoice", true],
+      ["gebuehren", true],
+    ]);
+    expect((await invoices.listInvoices("2026-10-02")).find((i) => i.id === invoice.id)).toMatchObject({ open: 476_000 });
+    const [sum] = await sql`select sum(debit) - sum(credit) as diff, sum(case when account = '1200' then debit - credit else 0 end) as bank
+      from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_type = 'allocation'`;
+    expect(Number(sum?.diff)).toBe(0);
+    expect(Number(sum?.bank)).toBe(0);
+  }, 30_000);
+
+  it("Datenbank: Teile dürfen einzeln den Umsatz übersteigen, zusammen nicht; ohne Aufteilung gilt das Vorzeichen", async () => {
+    await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("01.10.26", "Stripe", "IE29AIBK93115212345678", "Payout", "90,00")]), filename: "a.csv" },
+      null,
+    );
+    const [tx] = await sql`select id from bank_transactions`;
+    // Ohne Aufteilung: anderes Vorzeichen als der Umsatz
+    await expect(sql`insert into allocations (transaction_id, kind, amount) values (${tx!.id}, 'gebuehren', -1000)`).rejects.toThrow(/anderes Vorzeichen/);
+    // Ein Teil allein über dem Umsatz scheitert beim Abschluss der Transaktion
+    const split = "00000000-0000-4000-8000-000000000001";
+    await expect(sql`insert into allocations (transaction_id, kind, amount, split_id) values (${tx!.id}, 'privat', 10000, ${split})`).rejects.toThrow(
+      /übersteigt den Umsatz/,
+    );
+    // Beide Teile in einer Transaktion: +100 und −10 ergeben 90
+    await sql.begin(async (q) => {
+      await q`insert into allocations (transaction_id, kind, amount, split_id) values (${tx!.id}, 'privat', 10000, ${split})`;
+      await q`insert into allocations (transaction_id, kind, amount, split_id) values (${tx!.id}, 'gebuehren', -1000, ${split})`;
+    });
+    expect(Number((await sql`select sum(amount) as s from allocations`)[0]?.s)).toBe(9000);
+  });
+
   it("Belegzahlung und Privatentnahme", async () => {
     const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7]);
     const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "telekom.jpg" });
