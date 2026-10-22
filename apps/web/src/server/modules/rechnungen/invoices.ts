@@ -142,16 +142,20 @@ async function draftRate(tx: Tx, input: DraftInput, correctsId: string | null, p
       return { currency: original.currency, exchangeRate: original.exchangeRate ? parseExchangeRate(original.exchangeRate) : null, exchangeRateSource: original.exchangeRateSource, exchangeRateDate: original.exchangeRateDate };
     }
   }
-  const parsed = draftSchema.parse(input);
-  if (parsed.currency === "EUR") return { currency: "EUR", ...NO_RATE };
+  // Die Server Functions prüfen das Eingabeschema schon; hier nur die Felder der Währung, in der Form des Schemas
+  const currency = (input.currency ?? "EUR").trim().toUpperCase();
+  if (currency === "EUR") return { currency, ...NO_RATE };
+  if (!CURRENCY_CODE.test(currency)) throw new InvoiceError("Währung als dreistelliger Code, z. B. USD.");
+  const exchangeRate = input.exchangeRate?.trim() ? parseExchangeRate(input.exchangeRate) : null;
+  if (input.exchangeRate?.trim() && !exchangeRate) throw new InvoiceError("Umrechnungskurs ungültig, z. B. 1,0812.");
   const { tageskurs } = await loadCompany(tx);
   const rate = await resolveExchangeRate(
     tx,
-    { currency: parsed.currency, date: serviceDate(parsed), exchangeRate: parsed.exchangeRate, exchangeRateDate: parsed.exchangeRateDate },
-    previous && previous.currency === parsed.currency ? previous : null,
+    { currency, date: serviceDate(input), exchangeRate, exchangeRateDate: input.exchangeRateDate ?? null },
+    previous && previous.currency === currency ? previous : null,
     tageskurs,
   );
-  return { currency: parsed.currency, ...rate };
+  return { currency, ...rate };
 }
 
 /** Titel je Rechnung, auch für Buchungstext und E-Mail */
@@ -338,7 +342,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
   const calculation = computeInvoice(lines, priceMode);
   // Gebucht wird in Euro: bei Fremdwährung je Satz mit dem Kurs umgerechnet
   const taxes = euroTaxes(calculation.totals.taxes, rate.currency, rate.exchangeRate);
-  if (taxes.some((t) => Math.abs(t.base) > MAX_EURO_CENTS || Math.abs(t.tax) > MAX_EURO_CENTS)) {
+  if (rate.currency !== "EUR" && taxes.some((t) => Math.abs(t.base) > MAX_EURO_CENTS || Math.abs(t.tax) > MAX_EURO_CENTS)) {
     throw new InvoiceError("Der umgerechnete Betrag ist zu groß. Stimmt der Kurs (1 EUR = … Fremdwährung)?");
   }
   const totals = totalsFromTaxes(taxes);
