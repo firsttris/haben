@@ -224,9 +224,10 @@ function OverviewPage() {
         </div>
         {taxAccount && taxAccount.balance !== null && !data.kleinunternehmer && (
           <div className="card">
-            <div className="kpi-label">Steuerkonto {taxAccount.name}</div>
+            <div className="kpi-label">{taxAccount.name}</div>
             <div className="kpi-value">{formatEuro(taxAccount.balance)}</div>
             <div className="small" style={{ color: taxShortfall > 0 ? "var(--warn-ink)" : "var(--muted)" }}>
+              Steuerkonto ·{" "}
               {zahllast <= 0
                 ? "keine Zahllast offen"
                 : taxShortfall > 0
