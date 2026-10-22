@@ -313,7 +313,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       if (dirty) await persist();
       await book({ data: doc.id });
       setConfirming(false);
-      // Weiter zum nächsten Beleg „Zu prüfen“; der gebuchte bleibt über „Vorheriger“ erreichbar
+      // Weiter zum nächsten Beleg „Zu prüfen“; der gebuchte rückt in der Liste zu den gebuchten nach hinten
       if (navigation.nextOpenId) await navigate({ to: "/belege/$id", params: { id: navigation.nextOpenId } });
       else await router.invalidate();
     });
@@ -328,7 +328,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     }
     void run(async () => {
       await remove({ data: doc.id });
-      const next = navigation.nextOpenId ?? navigation.nextId ?? navigation.previousId;
+      // Weiter zum nächsten Beleg „Zu prüfen“; sind keine mehr offen, zurück zur Liste statt auf einen gebuchten
+      const next = navigation.nextOpenId;
       await navigate(next ? { to: "/belege/$id", params: { id: next } } : { to: "/belege" });
     });
   };
