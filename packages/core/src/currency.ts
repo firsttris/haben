@@ -115,7 +115,7 @@ function monthOfHeader(cell: string, year: number): number | null {
 
 /** Kurszelle wie „1,5523 AUD“, „15.172,93 IDR“ oder „1,0812“ → Kurs und ggf. Code */
 function rateCell(cell: string): { rate: string; code: string | null } | null {
-  const match = /^(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?|\d+\.\d+)\s*([A-Z]{3})?$/.exec(cell.replace(/ /g, " ").trim());
+  const match = /^(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?|\d+\.\d+)\s*([A-Z]{3})?$/.exec(cell.replace(/\u00a0/g, " ").trim());
   if (!match) return null;
   const number = match[1]!.includes(",") || /^\d{1,3}(\.\d{3})+$/.test(match[1]!) ? match[1]!.replace(/\./g, "") : match[1]!;
   const rate = parseExchangeRate(number);
@@ -130,7 +130,7 @@ function rateCell(cell: string): { rate: string; code: string | null } | null {
  * Ergebnis. Teilen sich Länder eine Währung, gilt der erste Kurs.
  */
 export function parseBmfRates(text: string, year: number): PublishedRate[] {
-  const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim() !== "");
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.trim() !== "");
   const delimiter = lines.some((l) => l.includes(";")) ? ";" : "\t";
   const rows = lines.map((l) => cells(l, delimiter));
   const headerIndex = rows.findIndex((r) => r.filter((c) => monthOfHeader(c, year) !== null).length >= 1);
