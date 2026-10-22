@@ -870,7 +870,8 @@ export function InvoiceEditor({
             taxNote={treatmentNote(taxTreatment, exemptionReason)}
             corrects={corrects}
             title={title}
-            currency={foreign && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
+            // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
+            currency={currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
           />
         </section>
       </div>

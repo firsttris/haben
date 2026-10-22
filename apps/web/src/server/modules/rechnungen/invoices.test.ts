@@ -60,6 +60,8 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   });
 
   it("Fremdwährung: USt-Kurs des Leistungsmonats, Steuer in Euro in PDF und XML, gebucht in Euro; Storno mit demselben Kurs", async () => {
+    // Mit deutscher Umsatzsteuer nur bei Soll-Versteuerung (siehe nächster Test)
+    await sql`update company set versteuerung = 'soll'`;
     // 10 Std. × 95,00 USD = 950,00 USD + 180,50 USD
     const usd = { ...draft(), currency: "USD" };
     const waiting = await invoices.createDraft(actor, usd);
@@ -76,12 +78,27 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     expect(final.xml).toContain('<ram:TaxTotalAmount currencyID="EUR">166.94</ram:TaxTotalAmount>');
     expect(final.xml).toContain("<ram:GrandTotalAmount>1130.50</ram:GrandTotalAmount>");
     const booked = await sql`select l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${final.id} order by l.account`;
-    expect(booked.map((l) => [l.account, l.debit - l.credit])).toEqual([["1400", 104_559], ["1766", -16_694], ["8400", -87_865]]);
+    expect(booked.map((l) => [l.account, l.debit - l.credit])).toEqual([["1400", 104_559], ["1776", -16_694], ["8400", -87_865]]);
 
     // Storno: Kurs der Rechnung, nicht der des Stornomonats
     await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-10", rate: "1.2" }], "bmf");
     const storno = await invoices.cancelInvoice(actor, final.id, "2026-10-20");
     expect(storno).toMatchObject({ currency: "USD", exchangeRate: "1.081200", net: -87_865, tax: -16_694 });
+  });
+
+  it("Fremdwährung bei Ist-Versteuerung: mit deutscher Umsatzsteuer gesperrt, ohne (Ausland, § 13b) erlaubt", async () => {
+    const withVat = await invoices.createDraft(actor, { ...draft(), currency: "CHF", exchangeRate: "0,94" });
+    expect(await invoices.finalizeIssues(withVat.id)).toContain(
+      "Rechnungen in Fremdwährung mit deutscher Umsatzsteuer gehen nur bei Soll-Versteuerung; bei Ist-Versteuerung in Euro abrechnen",
+    );
+    const abroad = await invoices.createDraft(actor, {
+      ...draft([line(9500, 0, 10_000)]),
+      currency: "CHF",
+      exchangeRate: "0,94",
+      taxTreatment: "drittland" as const,
+      exemptionReason: "Nicht im Inland steuerbare Leistung",
+    });
+    expect((await invoices.finalizeIssues(abroad.id)).filter((i) => /Fremdwährung/.test(i))).toEqual([]);
   });
 
   it("Fremdwährung: eigener Kurs bleibt, Abschlagsrechnungen nur in Euro", async () => {

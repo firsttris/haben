@@ -201,6 +201,8 @@ Gebucht wird in Euro. **Kurs** leer lassen: Haben nimmt den Umsatzsteuer-Umrechn
 
 Offene Posten, Bankabgleich und Auswertungen rechnen mit dem Euro-Betrag. Zahlt der Kunde umgerechnet etwas anderes, gleichst du die Differenz im Bankabgleich als [Kursdifferenz](bank.md#kursdifferenz-bei-fremdwährung) aus. Die E-Mail zur Rechnung nennt den Betrag in der Währung der Rechnung.
 
+Bei **Ist-Versteuerung** gehen Rechnungen in Fremdwährung nur ohne deutsche Umsatzsteuer, also an Unternehmen im Ausland (Reverse Charge in der EU, nicht steuerbare Leistung in Drittländern wie der Schweiz oder den USA). Mit deutscher Umsatzsteuer, etwa an Privatkunden im Ausland, wäre das Entgelt mit dem Kurs des Monats umzurechnen, in dem es eingeht (Abschn. 16.4 UStAE); Haben rechnet aber mit dem Kurs der Rechnung. Solche Rechnungen stellst du bei Ist-Versteuerung in Euro aus.
+
 In Fremdwährung gibt es keinen GiroCode (SEPA kennt nur Euro), keine Abschlags- und Schlussrechnungen, keine wiederkehrenden Rechnungen und keine Mahnungen aus Haben.
 
 ## Abschlags- und Schlussrechnung

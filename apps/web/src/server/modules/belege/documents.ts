@@ -393,14 +393,23 @@ export async function applyPublishedRates(actor: string): Promise<number> {
   const open = await db
     .select()
     .from(schema.documents)
-    .where(and(sql`${schema.documents.currency} <> 'EUR'`, sql`${schema.documents.exchangeRate} is null`, sql`${schema.documents.lockedAt} is null`, sql`${schema.documents.documentDate} is not null`));
+    .where(
+      and(
+        sql`${schema.documents.currency} <> 'EUR'`,
+        // Ohne Kurs oder mit übernommenem USt-Kurs: Ändert sich der Kurs in der Tabelle (der amtliche ersetzt einen vorab
+        // von Hand eingetragenen), folgen ungebuchte Belege; ein eigener Kurs am Beleg bleibt
+        sql`(${schema.documents.exchangeRate} is null or ${schema.documents.exchangeRateSource} = 'ust')`,
+        sql`${schema.documents.lockedAt} is null`,
+        sql`${schema.documents.documentDate} is not null`,
+      ),
+    );
   let count = 0;
   for (const candidate of open) {
     const applied = await withActor(actor, async (tx) => {
       const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, candidate.id)).for("update");
-      if (!doc || doc.lockedAt || doc.exchangeRate || doc.currency === "EUR") return false;
+      if (!doc || doc.lockedAt || doc.currency === "EUR" || (doc.exchangeRate && doc.exchangeRateSource !== "ust")) return false;
       const rate = await resolveRate(tx, { ...doc, exchangeRate: null, exchangeRateDate: null }, null, false);
-      if (!rate.exchangeRate) return false;
+      if (!rate.exchangeRate || (doc.exchangeRate && parseExchangeRate(doc.exchangeRate) === rate.exchangeRate)) return false;
       const rows = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, doc.id));
       let amounts;
       try {

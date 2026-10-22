@@ -62,6 +62,20 @@ describe("convertForeignAmounts", () => {
 });
 
 describe("parseBmfRates", () => {
+  it("Monatskopf mit Punkt („01.2026“)", () => {
+    const csv = ["Land;Währung;01.2026;02.2026", "Australien;1 Euro;1,5523 AUD;1,5612 AUD"].join("\n");
+    expect(parseBmfRates(csv, 2026)).toEqual([
+      { currency: "AUD", month: "2026-01", rate: "1.5523" },
+      { currency: "AUD", month: "2026-02", rate: "1.5612" },
+    ]);
+  });
+
+  it("Code aus eigener Spalte: das Land „USA“ ist kein Währungscode", () => {
+    expect(parseBmfRates(["Land;ISO-Code;Januar;Februar", "USA;USD;1,0812;1,0790"].join("\n"), 2026).map((r) => r.currency)).toEqual(["USD", "USD"]);
+    // ohne benannte Spalte: die Zelle vor den Monaten
+    expect(parseBmfRates(["Land;;Januar", "USA;USD;1,0812"].join("\n"), 2026).map((r) => r.currency)).toEqual(["USD"]);
+  });
+
   it("liest die CSV des BMF: Kurs und Code in der Zelle, Tausenderpunkte, leere Monate", () => {
     const csv = [
       "﻿Land;Währung;Januar;Februar;März;April",

@@ -50,6 +50,36 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     await sql`insert into company (id, name, kontenrahmen) values (1, 'Testfirma', 'SKR03')`;
   });
 
+  it("von Hand eingetragener Tabellenkurs: der später veröffentlichte amtliche Kurs gilt auch für ungebuchte Belege", async () => {
+    const stammdaten = await import("../stammdaten/index.ts");
+    await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-09", rate: "1.08" }], "manuell");
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 77]), filename: "gh.jpg" });
+    const input = {
+      supplierName: "GitHub Inc.",
+      supplierUstId: "",
+      invoiceNumber: "GH-1",
+      documentDate: "2026-09-15",
+      dueDate: null,
+      category: "software" as const,
+      payment: "bank" as const,
+      note: "",
+      currency: "USD",
+      exchangeRate: null as string | null,
+      amounts: [{ taxRate: 1900 as const, net: 0, tax: 0, originalNet: 10_000, originalTax: 1_900 }],
+    };
+    await documents.updateDocument(actor, id, input);
+    expect((await documents.getDocument(id))!.document).toMatchObject({ exchangeRate: "1.080000", exchangeRateSource: "ust" });
+    // Ein eigener Kurs am zweiten Beleg bleibt
+    const { id: own } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 78]), filename: "gh2.jpg" });
+    await documents.updateDocument(actor, own, { ...input, invoiceNumber: "GH-2", exchangeRate: "1,05" });
+
+    await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-09", rate: "1.0812" }], "bmf");
+    expect(await documents.applyPublishedRates(actor)).toBe(1);
+    await documents.bookDocument(actor, id);
+    expect((await documents.getDocument(id))!.document).toMatchObject({ exchangeRate: "1.081200", exchangeRateSource: "ust", gross: 11_006 });
+    expect((await documents.getDocument(own))!.document).toMatchObject({ exchangeRate: "1.050000", exchangeRateSource: "manuell" });
+  });
+
   it("liest eine ZUGFeRD-Rechnung beim Hochladen aus", async () => {
     const lines = [{ description: "Server CX22", quantity: 1000, unit: "Monat" as const, unitPrice: 3240, taxRate: 1900 as const }];
     const sample: import("@haben/einvoice").InvoiceDocument = {

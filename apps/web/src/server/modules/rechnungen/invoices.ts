@@ -297,9 +297,12 @@ async function allLines(tx: Tx, invoiceId: string | null, input: DraftInput): Pr
  * gespeicherten Originalbeträge in Euro umrechnen. true, wenn sich etwas geändert hat.
  */
 async function applyRateToDraft(tx: Tx, invoice: Invoice): Promise<boolean> {
-  if (invoice.status !== "draft" || invoice.currency === "EUR" || invoice.exchangeRate || invoice.correctsId) return false;
+  // Ohne Kurs oder mit übernommenem USt-Kurs: Ein eigener Kurs bleibt, ein geänderter Tabellenkurs (etwa der amtliche statt
+  // eines vorab von Hand eingetragenen) gilt auch für den Entwurf
+  if (invoice.status !== "draft" || invoice.currency === "EUR" || invoice.correctsId) return false;
+  if (invoice.exchangeRate && invoice.exchangeRateSource !== "ust") return false;
   const rate = await resolveExchangeRate(tx, { currency: invoice.currency, date: serviceDate(invoice), exchangeRate: null, exchangeRateDate: null }, null, false);
-  if (!rate.exchangeRate) return false;
+  if (!rate.exchangeRate || (invoice.exchangeRate && parseExchangeRate(invoice.exchangeRate) === rate.exchangeRate)) return false;
   const rows = await tx.select().from(schema.invoiceTaxes).where(eq(schema.invoiceTaxes.invoiceId, invoice.id));
   const taxes = euroTaxes(
     rows.map((r) => ({ rate: r.rate, base: r.originalBase ?? 0, tax: r.originalTax ?? 0 })),
@@ -316,12 +319,18 @@ async function applyRateToDraft(tx: Tx, invoice: Invoice): Promise<boolean> {
   return true;
 }
 
-/** Entwürfe in Fremdwährung, die auf den Kurs warten, umrechnen (nach dem Abruf der Kurse); Zahl der Entwürfe */
+/** Entwürfe in Fremdwährung ohne Kurs oder mit geändertem USt-Kurs umrechnen (nach dem Abruf der Kurse); Zahl der Entwürfe */
 export async function applyPublishedRatesToDrafts(actor: string): Promise<number> {
   const drafts = await db
     .select({ id: schema.invoices.id })
     .from(schema.invoices)
-    .where(and(eq(schema.invoices.status, "draft"), ne(schema.invoices.currency, "EUR"), sql`${schema.invoices.exchangeRate} is null`));
+    .where(
+      and(
+        eq(schema.invoices.status, "draft"),
+        ne(schema.invoices.currency, "EUR"),
+        sql`(${schema.invoices.exchangeRate} is null or ${schema.invoices.exchangeRateSource} = 'ust')`,
+      ),
+    );
   let count = 0;
   for (const { id } of drafts) {
     const changed = await withActor(actor, async (tx) => {
@@ -666,6 +675,18 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
   if (invoice.currency !== "EUR") {
     if (invoice.variant) issues.push("Abschlags- und Schlussrechnungen gibt es nur in Euro");
+    // Bei Ist-Versteuerung ist das Entgelt mit dem Kurs des Monats umzurechnen, in dem es vereinnahmt wird (Abschn. 16.4
+    // UStAE); Haben rechnet mit dem Kurs der Rechnung. Ohne deutsche Umsatzsteuer (Leistung an ein Unternehmen im Ausland,
+    // § 13b, steuerfrei) spielt das keine Rolle, mit deutscher Steuer wäre die Voranmeldung um die Kursänderung falsch.
+    if (
+      invoice.kind === "rechnung" &&
+      !company.kleinunternehmer &&
+      company.versteuerung === "ist" &&
+      invoice.taxTreatment === "regulaer" &&
+      lines.some((line) => line.taxRate > 0)
+    ) {
+      issues.push("Rechnungen in Fremdwährung mit deutscher Umsatzsteuer gehen nur bei Soll-Versteuerung; bei Ist-Versteuerung in Euro abrechnen");
+    }
     if (!invoice.exchangeRate) {
       const month = rateMonth(serviceDate(invoice));
       issues.push(
