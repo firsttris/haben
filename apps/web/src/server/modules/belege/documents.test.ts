@@ -245,7 +245,7 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     await sql`update documents set currency = 'USD', net = 10000, tax = 0, gross = 10000 where id = ${id}`;
     await sql`delete from document_amounts where document_id = ${id}`;
     await sql`insert into document_amounts (document_id, tax_rate, net, tax) values (${id}, 0, 10000, 0)`;
-    const migration = readFileSync(new URL("../../../../drizzle/0069_fremdwaehrung_bestand.sql", import.meta.url), "utf8");
+    const migration = readFileSync(new URL("../../../../drizzle/0075_fremdwaehrung_bestand.sql", import.meta.url), "utf8");
     for (const statement of migration.split("--> statement-breakpoint")) await sql.unsafe(statement);
     const after = (await documents.getDocument(id))!;
     expect(after.document).toMatchObject({ currency: "USD", net: 0, tax: 0, gross: 0 });
