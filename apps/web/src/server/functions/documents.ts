@@ -8,6 +8,7 @@ import {
   deleteDocument,
   DocumentError,
   documentInputSchema,
+  documentNavigation,
   getDocument,
   listDocuments,
   MAX_DOCUMENT_SIZE,
@@ -49,6 +50,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
     const [asset] = await db.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.documentId, data));
     return {
       document,
+      // Vor und zurück in der Reihenfolge der Belegliste
+      navigation: documentNavigation(await listDocuments(), data),
       assetId: asset?.id ?? null,
       privateShares: (await loadCompany()).privateShares,
       amounts: result.amounts,

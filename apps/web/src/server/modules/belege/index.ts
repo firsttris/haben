@@ -19,6 +19,7 @@ export {
   uploadDocument,
 } from "./documents.ts";
 export { extractionAvailable } from "./extraction.ts";
+export { documentNavigation, type DocumentNavigation } from "./navigation.ts";
 export {
   deleteInboxSettings,
   fetchInbox,

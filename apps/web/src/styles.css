@@ -429,6 +429,8 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .amount-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: end; }
 .amount-row input, .amount-row select { width: 100%; min-width: 0; }
 .page-head .actions { align-items: center; }
+.doc-nav { display: flex; align-items: center; gap: 8px; }
+.doc-nav .small { min-width: 4.5em; text-align: center; white-space: nowrap; }
 
 /* Bank */
 .account-tabs { display: flex; gap: 12px; flex-wrap: wrap; }

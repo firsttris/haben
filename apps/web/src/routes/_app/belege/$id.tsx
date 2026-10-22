@@ -52,14 +52,48 @@ const EU_VAT_PREFIX = /^(AT|BE|BG|CY|CZ|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|M
 function DocumentPage() {
   const data = Route.useLoaderData();
   const router = useRouter();
-  const { document: doc } = data;
+  const navigate = useNavigate();
+  const { document: doc, navigation } = data;
   const running = doc.extractionStatus === "laeuft";
+  // Das Formular meldet ungespeicherte Änderungen; beim Wechsel des Belegs setzt es sich mit false neu auf
+  const [dirty, setDirty] = useState(false);
+  // Ungespeicherte Änderungen: erst nachfragen, der zweite Klick wechselt und verwirft sie
+  const [pending, setPending] = useState<{ from: string; to: string } | null>(null);
+  const pendingId = pending?.from === doc.id ? pending.to : null;
 
   useEffect(() => {
     if (!running) return;
     const timer = setInterval(() => void router.invalidate(), 2500);
     return () => clearInterval(timer);
   }, [running, router]);
+
+  function go(id: string | null) {
+    if (!id) return;
+    if (dirty && pendingId !== id) {
+      setPending({ from: doc.id, to: id });
+      return;
+    }
+    void navigate({ to: "/belege/$id", params: { id } });
+  }
+
+  // J/K bzw. Pfeiltasten springen zum nächsten bzw. vorigen Beleg, wie im Bankabgleich
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement;
+      if (target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
+      const id =
+        event.key === "j" || event.key === "ArrowRight"
+          ? navigation.nextId
+          : event.key === "k" || event.key === "ArrowLeft"
+            ? navigation.previousId
+            : null;
+      if (!id) return;
+      event.preventDefault();
+      go(id);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   return (
     <>
@@ -72,6 +106,19 @@ function DocumentPage() {
         </div>
         <div className="actions">
           <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} />
+          {navigation.position > 0 && (
+            <div className="doc-nav" role="group" aria-label="Zwischen Belegen wechseln">
+              <button type="button" className="btn" onClick={() => go(navigation.previousId)} disabled={!navigation.previousId} title="Vorheriger Beleg (K)">
+                ‹ Vorheriger
+              </button>
+              <span className="small muted">
+                {navigation.position} von {navigation.total}
+              </span>
+              <button type="button" className="btn" onClick={() => go(navigation.nextId)} disabled={!navigation.nextId} title="Nächster Beleg (J)">
+                Nächster ›
+              </button>
+            </div>
+          )}
           {data.assetId && (
             <Link to="/anlagen/$id" params={{ id: data.assetId }} className="btn">
               Zur Anlage
@@ -82,10 +129,16 @@ function DocumentPage() {
           </a>
         </div>
       </div>
+      {pendingId && (
+        <div className="banner" role="alert">
+          <Icon name="alert" />
+          <span>Der Beleg hat ungespeicherte Änderungen. Noch einmal klicken, um ohne Speichern zu wechseln.</span>
+        </div>
+      )}
       <div className="editor-grid">
         <Preview doc={doc} />
         {/* key: nach dem Auslesen oder Speichern mit den neuen Werten aufsetzen */}
-        <DocumentForm key={`${doc.id}-${String(doc.updatedAt)}`} data={data} />
+        <DocumentForm key={`${doc.id}-${String(doc.updatedAt)}`} data={data} onDirtyChange={setDirty} />
       </div>
     </>
   );
@@ -118,8 +171,8 @@ function Preview({ doc }: { doc: Detail["document"] }) {
   );
 }
 
-function DocumentForm({ data }: { data: Detail }) {
-  const { document: doc, amounts, categories, issues, aiAvailable } = data;
+function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (dirty: boolean) => void }) {
+  const { document: doc, amounts, categories, issues, aiAvailable, navigation } = data;
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveDocument);
@@ -157,6 +210,8 @@ function DocumentForm({ data }: { data: Detail }) {
   const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
 
   const parsed = rows.map((r) => ({ taxRate: r.taxRate, net: parseEuro(r.net || "0"), tax: parseEuro(r.tax || "0") }));
   const privateShareValue = category === "anlage" ? 0 : Number(privateShare || 0);
@@ -258,7 +313,9 @@ function DocumentForm({ data }: { data: Detail }) {
       if (dirty) await persist();
       await book({ data: doc.id });
       setConfirming(false);
-      await router.invalidate();
+      // Weiter zum nächsten Beleg „Zu prüfen“; der gebuchte bleibt über „Vorheriger“ erreichbar
+      if (navigation.nextOpenId) await navigate({ to: "/belege/$id", params: { id: navigation.nextOpenId } });
+      else await router.invalidate();
     });
   };
 
@@ -271,7 +328,8 @@ function DocumentForm({ data }: { data: Detail }) {
     }
     void run(async () => {
       await remove({ data: doc.id });
-      await navigate({ to: "/belege" });
+      const next = navigation.nextOpenId ?? navigation.nextId ?? navigation.previousId;
+      await navigate(next ? { to: "/belege/$id", params: { id: next } } : { to: "/belege" });
     });
   };
 
