@@ -345,14 +345,29 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     // Ein Teil allein über dem Umsatz scheitert beim Abschluss der Transaktion
     const split = "00000000-0000-4000-8000-000000000001";
     await expect(sql`insert into allocations (transaction_id, kind, amount, split_id) values (${tx!.id}, 'privat', 10000, ${split})`).rejects.toThrow(
-      /übersteigt den Umsatz/,
+      /mindestens zwei Teile/,
     );
+    // Zwei Teile, aber keiner mit dem Vorzeichen des Umsatzes
+    await expect(
+      sql.begin(async (q) => {
+        await q`insert into allocations (transaction_id, kind, amount, split_id) values (${tx!.id}, 'privat', -500, ${split})`;
+        await q`insert into allocations (transaction_id, kind, amount, split_id) values (${tx!.id}, 'gebuehren', -500, ${split})`;
+      }),
+    ).rejects.toThrow(/mindestens zwei Teile/);
     // Beide Teile in einer Transaktion: +100 und −10 ergeben 90
     await sql.begin(async (q) => {
       await q`insert into allocations (transaction_id, kind, amount, split_id) values (${tx!.id}, 'privat', 10000, ${split})`;
       await q`insert into allocations (transaction_id, kind, amount, split_id) values (${tx!.id}, 'gebuehren', -1000, ${split})`;
     });
     expect(Number((await sql`select sum(amount) as s from allocations`)[0]?.s)).toBe(9000);
+    // Voll zugeordnet: ein einzelner Gegenteil mit neuer Aufteilungs-ID bleibt abgelehnt
+    await expect(
+      sql`insert into allocations (transaction_id, kind, amount, split_id) values (${tx!.id}, 'gebuehren', -1000, ${"00000000-0000-4000-8000-000000000002"})`,
+    ).rejects.toThrow(/mindestens zwei Teile/);
+    // Und über die App: Aufteilung auf einen schon ganz zugeordneten Umsatz
+    await expect(
+      bank.allocateSplit(actor, { transactionId: tx!.id, parts: [{ kind: "privat", amount: 1000 }, { kind: "gebuehren", amount: -1000 }] }),
+    ).rejects.toThrow(/schon ganz zugeordnet/);
   });
 
   it("Belegzahlung und Privatentnahme", async () => {

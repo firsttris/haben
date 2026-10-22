@@ -767,7 +767,10 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   const selectedCandidate = candidates.find((c) => `${c.type}:${c.id}` === candidate);
   // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
   const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
-  const feeRest = target && Math.sign(target.open) === Math.sign(tx.open) && Math.abs(target.open) > Math.abs(tx.open) ? tx.open - target.open : 0;
+  // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
+  const feeRest = target && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
+  // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
+  const [splitInitial, setSplitInitial] = useState<typeof target>(undefined);
 
   function bookRestAsFee() {
     if (!target || feeRest === 0) return;
@@ -833,7 +836,7 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
         <SplitForm
           key={tx.id}
           tx={tx}
-          initial={target}
+          initial={splitInitial}
           splitCandidates={splitCandidates}
           directKinds={directKinds}
           busy={busy}
@@ -999,7 +1002,15 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
               Ohne Rechnung buchen
             </button>
           )}
-          <button type="button" className="btn" onClick={() => setMode("split")} disabled={busy}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setSplitInitial(target);
+              setMode("split");
+            }}
+            disabled={busy}
+          >
             Aufteilen
           </button>
           <div className="small muted pointer-fine">Tastatur: Enter ordnet zu, J und K springen zum nächsten Umsatz.</div>

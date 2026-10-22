@@ -664,6 +664,8 @@ export async function allocateSplit(actor: string, input: SplitInput): Promise<v
   await withActor(actor, async (tx) => {
     const company = await openBooks(tx);
     const bank = await lockTransaction(tx, input.transactionId);
+    // Ohne offenen Betrag ergäben beliebige Teile mit Summe 0 eine erfundene Zahlung (Rechnung +x, Privat −x)
+    if (bank.open === 0) throw new BankError("Der Umsatz ist schon ganz zugeordnet.");
     if (input.parts.some((p) => p.amount === 0)) throw new BankError("Jeder Teil braucht einen Betrag.");
     const sum = input.parts.reduce((s, p) => s + p.amount, 0);
     if (sum !== bank.open) {
