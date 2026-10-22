@@ -416,9 +416,15 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(abgleich.zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
 
     const [first] = await sql`select id from write_offs order by created_at limit 1`;
-    await bank.reverseWriteOff(actor, first!.id);
-    expect((await invoices.listInvoices("2026-10-20")).find((i) => i.id === invoice.id)).toMatchObject({ open: 200_000 });
-    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).tax81).toBe(-76_000 + Math.round(76_000 * 200_000 / 476_000));
+    // Storno einer ausgebuchten Rechnung: Umsatzsteuer würde doppelt gemindert, Erstattung ohne Zahlung offen
+    await expect(invoices.cancelInvoice(actor, invoice.id, "2026-10-20")).rejects.toThrow(/teilweise ausgebucht/);
+    // Zahlt der Kunde im Dezember doch: Aufhebung im Dezember, die gesendete Oktober-Anmeldung bleibt richtig
+    await bank.reverseWriteOff(actor, first!.id, "2026-12-03");
+    expect((await invoices.listInvoices("2026-12-03")).find((i) => i.id === invoice.id)).toMatchObject({ open: 200_000 });
+    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).tax81).toBe(-76_000);
+    expect((await vat.computeVatFigures({ year: 2026, month: 12 })).tax81).toBe(Math.round((76_000 * 200_000) / 476_000));
+    const [reversal] = await sql`select date::text from write_offs where reverses_id = ${first!.id}`;
+    expect(reversal!.date).toBe("2026-12-03");
   }, 30_000);
 
   it("Skonto erhalten: Beleg erledigt, Vorsteuer anteilig gemindert", async () => {
@@ -497,6 +503,38 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     // Erlös voll (4.760), Gebühr Aufwand, Verrechnungskonto 1361 ausgeglichen, auf der Bank die Auszahlung
     expect(balances).toEqual({ "1200": 466_450, "1776": -76_000, "4970": 9_550, "8400": -400_000 });
     expect((await bank.listAccounts()).find((a) => a.id === paypal.id)).toMatchObject({ providerBalance: 0, openCount: 0 });
+  }, 30_000);
+
+  it("Shopify: Auszahlung aus Teilen zweier Monatsexporte als ein Geldtransit zur Bank", async () => {
+    const shopify = await bank.createProviderAccount(actor, { name: "Shopify", provider: "shopify" });
+    const header = `Transaction Date,Type,Order,Card Brand,Card Source,Payout Status,Payout Date,Payout ID,Available On,Amount,Fee,Net,Checkout,Payment Method Name,Presentment Amount,Presentment Currency,Currency`;
+    const file = (rows: string[]) => ({ bytes: new TextEncoder().encode([header, ...rows].join("\n")), filename: "shopify.csv" });
+    const sep = `2026-09-30 12:00:00 +0200,charge,#1001,visa,online,paid,2026-10-02,98765,2026-10-02,49.90,1.27,48.63,c1,card,49.90,EUR,EUR`;
+    const oct = `2026-10-01 09:00:00 +0200,charge,#1002,visa,online,paid,2026-10-02,98765,2026-10-02,29.90,0.82,29.08,c2,card,29.90,EUR,EUR`;
+    expect(await bank.importStatement(actor, file([sep]), shopify.id)).toMatchObject({ added: 3 });
+    expect(await bank.importStatement(actor, file([oct]), shopify.id)).toMatchObject({ added: 3 });
+    // Überlappender Export: nichts doppelt
+    expect(await bank.importStatement(actor, file([sep, oct]), shopify.id)).toMatchObject({ added: 0 });
+    await bank.importStatement(actor, { bytes: dkbCsv([incoming("03.10.26", "Shopify International Ltd", "IE12BOFI90001710000000", "Shopify Payout 98765", "77,71")]), filename: "dkb.csv" }, null);
+
+    const [bankSide] = await sql`select id from bank_transactions where amount = 7771`;
+    const parts = await sql`select id from bank_transactions where bank_reference like 'payout-98765|%' order by amount`;
+    expect(parts).toHaveLength(2);
+    const detail = (await bank.transactionDetail(bankSide!.id))?.direct;
+    expect(detail).toMatchObject({ kind: "geldtransit", counterpart: { amount: -7_771 } });
+    expect([detail!.counterpart!.id, ...detail!.counterpart!.payoutIds!].sort()).toEqual(parts.map((p) => p.id).sort());
+    // Von der Seite eines Teils: dieselbe Bankbuchung, die anderen Teile kommen mit
+    expect((await bank.transactionDetail(parts[0]!.id))?.direct).toMatchObject({ counterpart: { id: bankSide!.id, payoutIds: [parts[1]!.id] } });
+
+    // Nur ein Teil reicht nicht, und fremde Umsätze lassen sich nicht als Teile anhängen
+    await expect(bank.allocateTransfer(actor, { transactionId: bankSide!.id, counterpartId: parts[0]!.id })).rejects.toThrow(/denselben Betrag/);
+    const [charge] = await sql`select id from bank_transactions where amount = 4990`;
+    await expect(bank.allocateTransfer(actor, { transactionId: bankSide!.id, counterpartId: parts[0]!.id, payoutIds: [parts[1]!.id, charge!.id] })).rejects.toThrow(
+      /denselben Betrag|derselben Auszahlung/,
+    );
+    await bank.allocateTransfer(actor, { transactionId: bankSide!.id, counterpartId: detail!.counterpart!.id, payoutIds: detail!.counterpart!.payoutIds });
+    const transit = await sql`select account, sum(debit - credit)::int as saldo from journal_lines where account in ('1360', '1361') group by account`;
+    expect(Object.fromEntries(transit.map((r) => [r.account, r.saldo]))).toEqual({ "1360": 0, "1361": -7_771 });
   }, 30_000);
 
   it("Gebühren eines Monats der Sammelrechnung des Dienstleisters zuordnen", async () => {

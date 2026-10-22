@@ -976,13 +976,15 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                     type="button"
                     className="btn"
                     disabled={busy}
-                    onClick={() => void run(() => transferFn({ data: { transactionId: tx.id, counterpartId: direct.counterpart!.id } }))}
+                    onClick={() => void run(() => transferFn({ data: { transactionId: tx.id, counterpartId: direct.counterpart!.id, payoutIds: direct.counterpart!.payoutIds } }))}
                   >
                     Beide Seiten als Geldtransit buchen
                   </button>
                   <span className="small muted">
                     Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über {formatEuro(Math.abs(direct.counterpart.amount))} auf dem
-                    anderen Konto; beide werden in einem Schritt zugeordnet.
+                    anderen Konto
+                    {direct.counterpart.payoutIds?.length ? ` (Auszahlung aus ${direct.counterpart.payoutIds.length + 1} Teilen)` : ""}; alles wird in einem Schritt
+                    zugeordnet.
                   </span>
                 </>
               )}

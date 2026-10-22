@@ -27,6 +27,7 @@ export {
   providerAccountSchema,
   importStatement,
   invoiceLosses,
+  invoiceWrittenOff,
   invoicePayments,
   listAccounts,
   listTransactions,

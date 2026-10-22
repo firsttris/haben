@@ -199,6 +199,31 @@ export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, 
   return null;
 }
 
+/** Auszahlungs-ID aus der Referenz einer Teilauszahlung („payout-98765|…“, Shopify Payments) */
+export function payoutKey(bankReference: string | null | undefined): string | null {
+  return /^payout-([^|]+)\|/.exec(bankReference ?? "")?.[1] ?? null;
+}
+
+/**
+ * Teile einer Auszahlung im Konto des Dienstleisters, die zusammen einem Eingang auf der Bank entsprechen: alle mit
+ * derselben Auszahlungs-ID, noch ganz offen, höchstens fünf Tage vom Eingang entfernt, Summe gleich dem Eingang.
+ */
+export function findPayoutGroup<T extends { id: string; bookingDate: string; amount: Cents; open: Cents; bankReference?: string | null }>(
+  tx: { bookingDate: string; amount: Cents },
+  candidates: T[],
+): T[] | null {
+  const groups = new Map<string, T[]>();
+  for (const c of candidates) {
+    const key = payoutKey(c.bankReference);
+    if (key) groups.set(key, [...(groups.get(key) ?? []), c]);
+  }
+  const fitting = [...groups.values()].filter(
+    (rows) =>
+      rows.every((r) => r.open === r.amount && daysBetween(r.bookingDate, tx.bookingDate) <= 5) && rows.reduce((s, r) => s + r.amount, 0) === -tx.amount,
+  );
+  return fitting.length === 1 ? fitting[0]! : null;
+}
+
 const normalizeIban = (iban: string | null | undefined) => iban?.replace(/\s/g, "").toUpperCase() ?? null;
 
 /**

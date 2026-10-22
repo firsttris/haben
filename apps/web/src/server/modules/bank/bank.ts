@@ -10,7 +10,9 @@ import {
   documentWriteOffPosting,
   invoiceWriteOffPosting,
   WRITE_OFF_KINDS,
+  findPayoutGroup,
   findTransferCounterpart,
+  payoutKey,
   suggestDirectBooking,
   documentPaymentPosting,
   invoiceOpen,
@@ -343,6 +345,17 @@ export async function invoicePayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("invoice_id", ids, q);
 }
 
+/** Ausgebuchte Beträge je Rechnung (Skonto und Forderungsausfall, Gegenzeilen abgezogen) */
+export async function invoiceWrittenOff(ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
+  if (ids.length === 0) return new Map();
+  const rows = await q
+    .select({ id: schema.writeOffs.invoiceId, sum: sql<string>`sum(${schema.writeOffs.amount})` })
+    .from(schema.writeOffs)
+    .where(inArray(schema.writeOffs.invoiceId, ids))
+    .groupBy(schema.writeOffs.invoiceId);
+  return new Map(rows.filter((r) => Number(r.sum) !== 0).map((r) => [r.id!, Number(r.sum)]));
+}
+
 /** Als Forderungsausfall ausgebuchte Beträge je Rechnung (Gegenzeilen abgezogen) */
 export async function invoiceLosses(ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
   if (ids.length === 0) return new Map();
@@ -466,6 +479,7 @@ export async function transactionDetail(id: string) {
       counterpartyIban: schema.bankTransactions.counterpartyIban,
       purpose: schema.bankTransactions.purpose,
       type: schema.bankTransactions.type,
+      bankReference: schema.bankTransactions.bankReference,
       open: openAmountSql.mapWith(Number),
     })
     .from(schema.bankTransactions)
@@ -504,11 +518,28 @@ export async function transactionDetail(id: string) {
   const accounts = await ownAccounts();
   const account = accounts.find((a) => a.id === tx.bankAccountId);
   let direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
-  let counterpart = null;
+  let counterpart: TransferCounterpart | null = null;
   if (direct?.kind === "geldtransit" && account) {
     // Auszahlung vom Dienstleister: Gegenbuchung auf einem Bankkonto, dort mit dem Namen des Dienstleisters
     const targets = direct.counterAccountId ? [direct.counterAccountId] : accounts.filter((a) => a.purpose !== "zahlungsdienstleister").map((a) => a.id);
-    counterpart = await transferCounterpart(tx, account.iban, targets, providerPattern(account));
+    const key = account.purpose === "zahlungsdienstleister" ? payoutKey(tx.bankReference) : null;
+    if (key) {
+      // Teil einer Auszahlung (Shopify): die Bank zeigt die Summe aller Teile mit derselben Auszahlungs-ID
+      const parts = (await payoutCandidates([account.id], tx.bookingDate)).filter((p) => payoutKey(p.bankReference) === key);
+      const total = parts.reduce((s, p) => s + p.amount, 0);
+      const bank = parts.every((p) => p.open === p.amount) ? await transferCounterpart({ ...tx, amount: total }, null, targets, providerPattern(account)) : null;
+      counterpart = bank ? { ...bank, payoutIds: parts.filter((p) => p.id !== tx.id).map((p) => p.id) } : null;
+    } else {
+      counterpart = await transferCounterpart(tx, account.iban, targets, providerPattern(account));
+      if (!counterpart && direct.counterAccountId && account.purpose !== "zahlungsdienstleister") {
+        // Eingang auf der Bank aus mehreren Teilen einer Auszahlung im Konto des Dienstleisters
+        const group = findPayoutGroup(tx, await payoutCandidates([direct.counterAccountId], tx.bookingDate));
+        if (group) {
+          const [first, ...rest] = group;
+          counterpart = { id: first!.id, bookingDate: first!.bookingDate, amount: -tx.amount, counterpartyName: first!.counterpartyName, payoutIds: rest.map((r) => r.id) };
+        }
+      }
+    }
   }
   if (direct?.requiresCounterpart && !counterpart) direct = null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
@@ -570,7 +601,35 @@ async function transferCounterpart(
   return match ? { id: match.id, bookingDate: match.bookingDate, amount: match.amount, counterpartyName: match.counterpartyName } : null;
 }
 
-export const transferSchema = z.object({ transactionId: z.uuid(), counterpartId: z.uuid() });
+type TransferCounterpart = { id: string; bookingDate: string; amount: number; counterpartyName: string; payoutIds?: string[] };
+
+/** Teile von Auszahlungen (Referenz „payout-…|“) in den Konten der Dienstleister, ± 10 Tage um den Eingang */
+async function payoutCandidates(accountIds: string[], bookingDate: string) {
+  return db
+    .select({
+      id: schema.bankTransactions.id,
+      bookingDate: schema.bankTransactions.bookingDate,
+      amount: schema.bankTransactions.amount,
+      counterpartyName: schema.bankTransactions.counterpartyName,
+      bankReference: schema.bankTransactions.bankReference,
+      open: openAmountSql.mapWith(Number),
+    })
+    .from(schema.bankTransactions)
+    .where(
+      and(
+        inArray(schema.bankTransactions.bankAccountId, accountIds),
+        sql`${schema.bankTransactions.bankReference} like 'payout-%|%'`,
+        sql`${schema.bankTransactions.bookingDate} between ${bookingDate}::date - 10 and ${bookingDate}::date + 10`,
+      ),
+    );
+}
+
+export const transferSchema = z.object({
+  transactionId: z.uuid(),
+  counterpartId: z.uuid(),
+  /** Weitere Teile derselben Auszahlung im Konto des Dienstleisters (Shopify Payments: ein Teil je Transaktion) */
+  payoutIds: z.array(z.uuid()).max(1000).optional(),
+});
 
 /**
  * Geldtransit zwischen zwei eigenen Konten: beide Umsätze (gleicher Betrag, umgekehrtes Vorzeichen) in einem
@@ -580,7 +639,7 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
   await withActor(actor, async (tx) => {
     const company = await openBooks(tx);
     // Feste Reihenfolge beim Sperren, damit zwei gleichzeitige Aufrufe sich nicht gegenseitig blockieren
-    const ids = [input.transactionId, input.counterpartId].sort();
+    const ids = [...new Set([input.transactionId, input.counterpartId, ...(input.payoutIds ?? [])])].sort();
     const rows = await tx
       .select({
         id: schema.bankTransactions.id,
@@ -589,6 +648,7 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
         bookingDate: schema.bankTransactions.bookingDate,
         counterpartyName: schema.bankTransactions.counterpartyName,
         counterpartyIban: schema.bankTransactions.counterpartyIban,
+        bankReference: schema.bankTransactions.bankReference,
         accountIban: schema.bankAccounts.iban,
         provider: schema.bankAccounts.provider,
         ledgerIndex: schema.bankAccounts.ledgerIndex,
@@ -599,11 +659,21 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
       .where(inArray(schema.bankTransactions.id, ids))
       .orderBy(asc(schema.bankTransactions.id))
       .for("update");
-    const [first, second] = rows;
+    if (rows.length !== ids.length) throw new BankError("Umsatz nicht gefunden.");
+    if (rows.some((r) => r.open !== r.amount)) throw new BankError("Beide Umsätze müssen noch ganz offen sein.");
+    // Zwei Seiten: der gewählte Umsatz und die Gegenbuchung; mehrere Umsätze nur als Teile einer Auszahlung
+    const sides = [...new Set(rows.map((r) => r.bankAccountId))].map((account) => rows.filter((r) => r.bankAccountId === account));
+    if (sides.length !== 2) throw new BankError("Ein Geldtransit verbindet zwei verschiedene Konten.");
+    if (rows.reduce((s, r) => s + r.amount, 0) !== 0) throw new BankError("Die beiden Umsätze haben nicht denselben Betrag mit umgekehrtem Vorzeichen.");
+    const parts = sides.find((side) => side.length > 1);
+    if (parts) {
+      const key = payoutKey(parts[0]!.bankReference);
+      if (!parts[0]!.provider || !key || parts.some((p) => payoutKey(p.bankReference) !== key) || sides.some((side) => side !== parts && side.length > 1)) {
+        throw new BankError("Mehrere Umsätze lassen sich nur als Teile derselben Auszahlung eines Zahlungsdienstleisters verbinden.");
+      }
+    }
+    const [first, second] = sides.map((side) => side[0]!);
     if (!first || !second) throw new BankError("Umsatz nicht gefunden.");
-    if (first.bankAccountId === second.bankAccountId) throw new BankError("Ein Geldtransit verbindet zwei verschiedene Konten.");
-    if (first.amount !== -second.amount) throw new BankError("Die beiden Umsätze haben nicht denselben Betrag mit umgekehrtem Vorzeichen.");
-    if (first.open !== first.amount || second.open !== second.amount) throw new BankError("Beide Umsätze müssen noch ganz offen sein.");
     const provider = [first, second].find((r) => r.provider);
     if (provider) {
       // Zahlungsdienstleister ohne IBAN: die Bankseite muss ihn als Gegenpartei nennen (Auszahlung von PayPal)
@@ -1041,19 +1111,24 @@ export async function listWriteOffs(target: { invoiceId: string } | { documentId
   return rows.filter((r) => !r.reversesId).map((r) => ({ ...r, reversed: reversed.has(r.id) }));
 }
 
-/** Hebt eine Ausbuchung auf; gehört sie zu einer Zahlung, nur zusammen mit deren Zuordnung (im Bankabgleich) */
-export async function reverseWriteOff(actor: string, id: string): Promise<void> {
+/**
+ * Hebt eine Ausbuchung auf; gehört sie zu einer Zahlung, nur zusammen mit deren Zuordnung (im Bankabgleich). Gebucht
+ * wird am Tag der Aufhebung (`date`): Zahlt der Kunde einen ausgebuchten Betrag doch, ist die Umsatzsteuer nach § 17
+ * Abs. 2 Nr. 1 Satz 2 UStG im Monat des Zahlungseingangs erneut zu berichtigen, nicht rückwirkend im Monat der Ausbuchung.
+ */
+export async function reverseWriteOff(actor: string, id: string, date: string): Promise<void> {
   await withActor(actor, async (tx) => {
     const [row] = await tx.select().from(schema.writeOffs).where(eq(schema.writeOffs.id, id)).for("update");
     if (!row || row.reversesId) throw new BankError("Ausbuchung nicht gefunden.");
     if (row.transactionId) throw new BankError("Die Ausbuchung gehört zu einer Zahlung; hebe dort im Bankabgleich die Zuordnung auf.");
     const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, id));
     if (already) throw new BankError("Die Ausbuchung ist bereits aufgehoben.");
-    await reverseWriteOffRow(tx, row);
+    await reverseWriteOffRow(tx, row, date < row.date ? row.date : date);
   });
 }
 
-async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect) {
+/** Gegenzeile einer Ausbuchung; mit einer Zuordnung zusammen am Datum der Ausbuchung (= Buchungsdatum des Umsatzes) */
+async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect, date = row.date) {
   const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, row.id));
   if (already) return;
   const [entry] = await tx
@@ -1063,11 +1138,11 @@ async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSel
   const lines = entry ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id)) : [];
   const [reversal] = await tx
     .insert(schema.writeOffs)
-    .values({ kind: row.kind, invoiceId: row.invoiceId, documentId: row.documentId, date: row.date, amount: -row.amount, transactionId: row.transactionId, reversesId: row.id })
+    .values({ kind: row.kind, invoiceId: row.invoiceId, documentId: row.documentId, date, amount: -row.amount, transactionId: row.transactionId, reversesId: row.id })
     .returning();
   if (entry) {
     await post(tx, await openBooks(tx), {
-      date: row.date,
+      date,
       description: `Storno: ${entry.description}`,
       sourceType: "ausbuchung",
       sourceId: reversal!.id,

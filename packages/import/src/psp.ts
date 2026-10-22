@@ -105,7 +105,8 @@ export function parseStripe(rows: string[][], headerRow: number): ParsedStatemen
   const fee = c.getter("fee");
   const currency = c.getter("currency");
   const description = c.getter("description");
-  const customer = c.getter("customeremail", "customername", "customerfacingamount");
+  // Der alte Saldenverlauf hat keine Kundenspalte; dann steht der Kunde meist in der Beschreibung
+  const customer = c.getter("customeremail", "customername");
 
   const list: Tx[] = [];
   let foreign = 0;
@@ -149,7 +150,9 @@ export function isShopifyHeader(c: Columns): boolean {
 
 /**
  * Transaktionsexport von Shopify Payments. Auszahlungen stehen dort nicht als eigene Zeile, nur als Auszahlungs-ID an den
- * Transaktionen; Haben bildet je ausgezahlter ID einen Umsatz über die Summe der Nettobeträge am Auszahlungstag.
+ * Transaktionen. Haben bildet je ausgezahlter Transaktion einen Auszahlungsumsatz über deren Nettobetrag am Auszahlungstag
+ * (Referenz „payout-ID|…“). So bleibt die Auszahlung richtig, auch wenn sie über zwei Exporte (Monatsgrenze) verteilt ist
+ * oder sich Exporte überschneiden; im Bankabgleich gehören alle Teile mit derselben ID zu einem Eingang auf der Bank.
  */
 export function parseShopify(rows: string[][], headerRow: number): ParsedStatement {
   const c = new Columns(rows[headerRow]!);
@@ -165,7 +168,6 @@ export function parseShopify(rows: string[][], headerRow: number): ParsedStateme
   const currency = c.getter("currency");
 
   const list: Tx[] = [];
-  const payouts = new Map<string, { date: string; net: number }>();
   let foreign = 0;
   rows.slice(headerRow + 1).forEach((row, i) => {
     if (isBlankRow(row)) return;
@@ -187,7 +189,8 @@ export function parseShopify(rows: string[][], headerRow: number): ParsedStateme
         amount: grossAmount,
         currency: "EUR",
         counterpartyName: orderName ? `Bestellung ${orderName}` : "Shopify Payments",
-        purpose: [kind, orderName ? `Bestellung ${orderName}` : "", payoutId(row) ? `Auszahlung ${payoutId(row)}` : ""].filter(Boolean).join(" · "),
+        // Ohne Auszahlungs-ID: die gibt es erst nach der Auszahlung, sonst ergäbe derselbe Umsatz vorher und nachher zwei Hashes
+        purpose: [kind, orderName ? `Bestellung ${orderName}` : ""].filter(Boolean).join(" · "),
         type: kind || undefined,
         bankReference: ref,
       });
@@ -204,16 +207,18 @@ export function parseShopify(rows: string[][], headerRow: number): ParsedStateme
       });
     }
     const id = payoutId(row);
-    if (id && /^paid$|^bezahlt$|^ausgezahlt$/i.test(payoutStatus(row))) {
-      const entry = payouts.get(id) ?? { date: pspDate(payoutDate(row), where), net: 0 };
-      entry.net += netAmount;
-      payouts.set(id, entry);
+    if (id && netAmount !== 0 && /^paid$|^bezahlt$|^ausgezahlt$/i.test(payoutStatus(row))) {
+      list.push({
+        bookingDate: pspDate(payoutDate(row), where),
+        amount: -netAmount,
+        currency: "EUR",
+        counterpartyName: "Shopify Payments",
+        purpose: [`Auszahlung ${id}`, kind, orderName ? `Bestellung ${orderName}` : "", bookingDate].filter(Boolean).join(" · "),
+        type: "Auszahlung",
+        bankReference: `payout-${id}|${ref}`,
+      });
     }
   });
-  for (const [id, payout] of payouts) {
-    if (payout.net === 0) continue;
-    list.push({ bookingDate: payout.date, amount: -payout.net, currency: "EUR", counterpartyName: "Shopify Payments", purpose: `Auszahlung ${id}`, type: "Auszahlung", bankReference: `payout-${id}` });
-  }
   list.sort((a, b) => a.bookingDate.localeCompare(b.bookingDate));
   return finish({ format: "shopify-payments-csv", currency: "EUR", transactions: indexed(list), warnings: skippedWarning(foreign, "nicht in Euro") });
 }

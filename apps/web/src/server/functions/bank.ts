@@ -34,6 +34,7 @@ import {
 } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
+import { today } from "../today.ts";
 import { UserError } from "../errors.ts";
 
 /** In der Liste nur sichere Vorschläge; „PayPal“ als Gegenpartei braucht die Gegenbuchung, die erst die Detailansicht sucht */
@@ -185,7 +186,7 @@ export const reverseWriteOffFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
-    await reverseWriteOff(context.user.id, data);
+    await reverseWriteOff(context.user.id, data, today());
     return { ok: true };
   });
 
