@@ -117,7 +117,7 @@ function DocumentPage() {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
       if (target.closest("input, select, textarea, [contenteditable]") || event.metaKey || event.ctrlKey || event.altKey) return;
-      // Esc bricht zuerst eine Rückfrage im Formular ab (siehe DocumentForm), erst dann geht es zur Liste
+      // Esc bricht zuerst eine Rückfrage im Formular ab (DocumentForm hört in der Capture-Phase und ruft preventDefault)
       if (event.key === "Escape" && event.defaultPrevented) return;
       const id =
         event.key === "j" || event.key === "ArrowRight"
@@ -429,8 +429,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         setConfirmingDelete(false);
       }
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // capture: läuft immer vor dem Esc-Handler der Seite, egal in welcher Reihenfolge die Listener neu angemeldet werden
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   });
 
   const onReextract = () =>
