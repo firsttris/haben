@@ -60,6 +60,20 @@ export async function createAccount(actor: string, input: z.infer<typeof account
   });
 }
 
+export const renameAccountSchema = z.object({ id: z.uuid(), name: accountSchema.shape.name });
+
+/** Der Name ist nur Anzeige; Umsätze hängen an der ID, der Import findet das Konto über die IBAN */
+export async function renameAccount(actor: string, input: z.infer<typeof renameAccountSchema>) {
+  await withActor(actor, async (tx) => {
+    const [updated] = await tx
+      .update(schema.bankAccounts)
+      .set({ name: input.name })
+      .where(eq(schema.bankAccounts.id, input.id))
+      .returning({ id: schema.bankAccounts.id });
+    if (!updated) throw new BankError("Konto nicht gefunden.");
+  });
+}
+
 export interface ImportResult {
   accountId: string;
   accountName: string;

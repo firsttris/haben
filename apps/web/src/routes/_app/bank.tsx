@@ -16,6 +16,7 @@ import {
   getBankOverview,
   getEnableBanks,
   importStatements,
+  renameBankAccount,
   reverseTransactionAllocation,
   syncBankConnection,
 } from "../../server/functions/bank.ts";
@@ -68,7 +69,8 @@ function BankPage() {
   const filter = search.filter ?? "offen";
   const selectedId = data.detail?.transaction.id;
   const index = data.transactions.findIndex((t) => t.id === selectedId);
-  const openCount = data.accounts.find((a) => a.id === data.accountId)?.openCount ?? 0;
+  const selectedAccount = data.accounts.find((a) => a.id === data.accountId);
+  const openCount = selectedAccount?.openCount ?? 0;
 
   // J/K springen zum nächsten bzw. vorigen Umsatz
   useEffect(() => {
@@ -133,6 +135,8 @@ function BankPage() {
               );
             })}
           </nav>
+          {/* key: beim Kontowechsel mit dem Namen des neuen Kontos aufsetzen */}
+          {selectedAccount && <RenameAccount key={selectedAccount.id} account={selectedAccount} />}
 
           <div className="grid-main">
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">
@@ -200,6 +204,64 @@ function BankPage() {
         </>
       )}
     </>
+  );
+}
+
+/** Name des gewählten Kontos ändern, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
+function RenameAccount({ account }: { account: Data["accounts"][number] }) {
+  const router = useRouter();
+  const renameFn = useServerFn(renameBankAccount);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(account.name);
+  const { busy, notice, run } = useAction();
+
+  if (!editing) {
+    return (
+      <div className="small muted" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "8px 0 16px" }}>
+        <span>
+          {account.name} · {account.iban.replace(/(.{4})/g, "$1 ").trim()}
+        </span>
+        <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
+          Umbenennen
+        </button>
+      </div>
+    );
+  }
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void run(async () => {
+      await renameFn({ data: { id: account.id, name } });
+      await router.invalidate();
+      setEditing(false);
+    });
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="stack" style={{ gap: 8, margin: "8px 0 16px", maxWidth: 480 }} aria-label="Konto umbenennen">
+      <label className="field">
+        Name des Kontos
+        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} autoFocus />
+      </label>
+      <span className="small muted">Nur die Anzeige ändert sich; Umsätze und Import über die IBAN bleiben, wie sie sind.</span>
+      <NoticeBanner notice={notice} />
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" disabled={busy || !name.trim()}>
+          Speichern
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            setName(account.name);
+            setEditing(false);
+          }}
+          disabled={busy}
+        >
+          Abbrechen
+        </button>
+      </div>
+    </form>
   );
 }
 

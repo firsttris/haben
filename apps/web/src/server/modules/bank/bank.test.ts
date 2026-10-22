@@ -100,6 +100,28 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await expect(sql`update bank_transactions set amount = 1`).rejects.toThrow(/nur ergänzt/);
   });
 
+  it("benennt ein Konto um; spätere Importe landen über die IBAN weiter im selben Konto", async () => {
+    const first = await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("01.10.26", "Nordwerk Software GmbH", "DE89370400440532013000", "RE 2026-001", "4.760,00")], "4.760,00 €"), filename: "a.csv" },
+      null,
+    );
+    expect(first.accountName).toBe("Girokonto");
+    await bank.renameAccount(actor, { id: first.accountId, name: "Steuerkonto" });
+
+    const again = await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("02.10.26", "Kunde B", "DE02100100100006820101", "Abschlag", "100,00")], "4.860,00 €", "02.10.2026"), filename: "b.csv" },
+      null,
+    );
+    expect(again).toMatchObject({ accountId: first.accountId, accountName: "Steuerkonto", added: 1 });
+    expect((await bank.listAccounts()).map((a) => a.name)).toEqual(["Steuerkonto"]);
+    const [audit] = await sql`select actor from audit_log where table_name = 'bank_accounts' and action = 'UPDATE'`;
+    expect(audit?.actor).toBe(actor);
+
+    await expect(bank.renameAccount(actor, { id: "00000000-0000-4000-8000-000000000000", name: "X" })).rejects.toThrow(/nicht gefunden/);
+  });
+
   it("Zahlungseingang: Vorschlag, Zuordnung, Ist-Buchung, bezahlt", async () => {
     const { invoice, contact } = await finalInvoice(400_000);
     await bank.importStatement(

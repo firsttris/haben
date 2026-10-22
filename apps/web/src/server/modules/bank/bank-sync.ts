@@ -349,10 +349,13 @@ export async function listConnections() {
     })
     .from(schema.bankConnections)
     .orderBy(desc(schema.bankConnections.createdAt));
+  // Namen wie unter Bank: umbenannte Konten nicht mit dem Namen vom Verbinden zeigen
+  const names = new Map((await db.select({ id: schema.bankAccounts.id, name: schema.bankAccounts.name }).from(schema.bankAccounts)).map((a) => [a.id, a.name]));
   return rows
     .filter((r) => r.status !== "wartet")
     .map((r) => ({
       ...r,
+      accounts: r.accounts.map((a) => ({ ...a, name: names.get(a.bankAccountId) ?? a.name })),
       validUntil: r.validUntil?.toISOString() ?? null,
       lastSyncAt: r.lastSyncAt?.toISOString() ?? null,
       createdAt: r.createdAt.toISOString(),

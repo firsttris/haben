@@ -26,6 +26,8 @@ export {
   listAccounts,
   listTransactions,
   openItems,
+  renameAccount,
+  renameAccountSchema,
   reverseAllocation,
   transactionDetail,
 } from "./bank.ts";

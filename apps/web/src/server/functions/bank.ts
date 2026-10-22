@@ -12,6 +12,8 @@ import {
   listAccounts,
   listTransactions,
   openItems,
+  renameAccount,
+  renameAccountSchema,
   reverseAllocation,
   transactionDetail,
 } from "../modules/bank/index.ts";
@@ -86,6 +88,14 @@ export const addBankAccount = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const account = await createAccount(context.user.id, data);
     return { id: account.id };
+  });
+
+export const renameBankAccount = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(renameAccountSchema)
+  .handler(async ({ data, context }) => {
+    await renameAccount(context.user.id, data);
+    return { ok: true };
   });
 
 export const allocateTransaction = createServerFn({ method: "POST" })

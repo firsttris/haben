@@ -259,7 +259,7 @@ Bankkonten musst du meist nicht von Hand anlegen. Mit dem automatischen Abruf ü
 2. Name (z. B. „N26 Business“) und IBAN eintragen und „Konto anlegen“.
 3. Beim Import das Konto in der Auswahl „Konto“ wählen und die Datei hochladen.
 
-Jede IBAN gibt es nur einmal. Alle Bankkonten buchen auf dasselbe Finanzkonto (1200 bei SKR03, 1800 bei SKR04). Import, Abgleich und Buchungen sind in [Bank](bank.md) beschrieben.
+Den Namen eines Kontos änderst du später auf der Seite **Bank** mit **Umbenennen**, auch für automatisch angelegte Konten. Jede IBAN gibt es nur einmal. Alle Bankkonten buchen auf dasselbe Finanzkonto (1200 bei SKR03, 1800 bei SKR04). Import, Abgleich und Buchungen sind in [Bank](bank.md) beschrieben.
 
 ## Wie es weitergeht
 

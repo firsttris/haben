@@ -62,6 +62,8 @@ Beim Lesen gilt außerdem:
 
 Nennt die Datei eine IBAN (DKB, CAMT), legt Haben das Konto beim ersten Import automatisch an und ordnet spätere Importe darüber zu. Als Name dient der Kontoname aus der Datei oder „Konto …“ mit den letzten vier Ziffern der IBAN.
 
+Den Namen kannst du jederzeit ändern: Konto oben auswählen, unter den Reitern **Umbenennen** wählen, Namen eintragen und speichern. Das geht auch für Konten aus dem automatischen Abruf oder dem Dateiimport. Hast du bei derselben Bank etwa ein Geschäftskonto und ein Steuerkonto, unterscheidest du sie so in Reitern, Auswahllisten und Abruf. Der Name ist nur Anzeige: Umsätze bleiben am Konto, und spätere Importe findet Haben weiter über die IBAN. Die Änderung steht im Änderungsprotokoll.
+
 N26-Exporte enthalten keine eigene IBAN. Dafür legst du das Konto vorher mit **Konto hinzufügen** an (Name und IBAN) und wählst es vor dem Import in der Auswahl **Konto** aus. Steht die Auswahl auf „aus der Datei“, lehnt Haben eine Datei ohne IBAN ab.
 
 Wählst du ein Konto aus und die Datei nennt eine andere IBAN, bricht der Import mit einer Meldung ab.
