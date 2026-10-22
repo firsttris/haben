@@ -147,6 +147,20 @@
       ..included.rows.map(r => (text(fill: muted, r.label), text(fill: muted, r.value))).flatten()
     )
   }
+  // Fremdwährung: Umsatzsteuer in Euro mit dem Kurs
+  let euro-tax = d.totals.at("euroTax", default: none)
+  if euro-tax != none and euro-tax.rows.len() > 0 {
+    v(2.2mm)
+    set text(size: 8.5pt)
+    grid(
+      columns: (1fr, auto),
+      align: (left, right),
+      row-gutter: 1.8mm,
+      inset: (x: 1.6mm),
+      grid.cell(colspan: 2, text(fill: muted, euro-tax.label + ":")),
+      ..euro-tax.rows.map(r => (text(fill: muted, r.label), text(fill: muted, r.value))).flatten()
+    )
+  }
 })) }
 
 #v(8mm)

@@ -117,6 +117,8 @@ export async function createDunning(actor: string, input: DunningInput, today: s
     // Rechnung sperren und letzte Mahnung erst danach lesen: Zwei gleichzeitige Mahnungen derselben Stufe sind so ausgeschlossen.
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
     if (!invoice?.seller || !invoice.buyer || !invoice.number) throw new DunningError("Rechnung nicht gefunden.");
+    // Offen ist der Euro-Betrag aus dem Kurs der Rechnung; der Kunde schuldet aber die Fremdwährung
+    if (invoice.currency !== "EUR") throw new DunningError(`Mahnungen für Rechnungen in ${invoice.currency} erstellt Haben nicht; bitte selbst mahnen.`);
     const [last] = await tx
       .select({ level: schema.dunnings.level })
       .from(schema.dunnings)

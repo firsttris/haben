@@ -197,7 +197,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
     const invoiceLines = invoicesCsv.trim().split("\r\n");
     expect(invoiceLines).toHaveLength(2);
     expect(invoiceLines[1]).toContain(`${invoice.number};Rechnung;2026-09-05;`);
-    expect(invoiceLines[1]).toContain(";4000,00;760,00;4760,00;ZUGFeRD;");
+    expect(invoiceLines[1]).toContain(";4000,00;760,00;4760,00;EUR;;ZUGFeRD;");
 
     const belege = text(files["belege/belege.csv"]);
     expect(belege).toContain('2026-09-29;"Müller; ""Büro"" GmbH/Filiale";DE123475223;MF-2026-09;telefon;38,57;7,33;;;;38,57;7,33;45,90;0;EUR;;;Bank;gebucht;');

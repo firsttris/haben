@@ -51,6 +51,7 @@ export function InvoicePreview({
   taxNote,
   corrects,
   title,
+  currency = "EUR",
 }: {
   kind: keyof typeof KIND_TITLE;
   number: string;
@@ -71,7 +72,10 @@ export function InvoicePreview({
   corrects?: { number: string | null; issueDate: string } | null;
   /** Abweichender Titel, z. B. Abschlagsrechnung */
   title?: string;
+  /** Währung der Rechnung; Beträge in dieser Währung wie auf dem PDF */
+  currency?: string;
 }) {
+  const money = currency === "EUR" ? formatEuro : (cents: number) => new Intl.NumberFormat("de-DE", { style: "currency", currency, currencyDisplay: "code" }).format(cents / 100);
   const valid = lines.filter((l) => l.valid);
   const gross = priceMode === "brutto";
   const totals = computeInvoiceTotals(valid, priceMode);
@@ -161,9 +165,9 @@ export function InvoicePreview({
                   <td className="num">
                     {formatQuantity(line.quantity)} {line.unit}
                   </td>
-                  <td className="num">{formatEuro(line.unitPrice)}</td>
+                  <td className="num">{money(line.unitPrice)}</td>
                   <td className="num">{taxNote ? "–" : formatRate(line.taxRate)}</td>
-                  <td className="num">{formatEuro(lineAmount(line.quantity, line.unitPrice))}</td>
+                  <td className="num">{money(lineAmount(line.quantity, line.unitPrice))}</td>
                 </tr>
               ))}
               {valid.length === 0 && (
@@ -180,14 +184,14 @@ export function InvoicePreview({
             {!gross && (
               <>
                 <dt>Summe netto</dt>
-                <dd>{formatEuro(totals.net)}</dd>
+                <dd>{money(totals.net)}</dd>
                 {taxes.map((t) => (
                   <div key={t.rate} style={{ display: "contents" }}>
                     <dt>
                       Umsatzsteuer {formatRate(t.rate)}
-                      {taxes.length > 1 && ` auf ${formatEuro(t.base)}`}
+                      {taxes.length > 1 && ` auf ${money(t.base)}`}
                     </dt>
-                    <dd>{formatEuro(t.tax)}</dd>
+                    <dd>{money(t.tax)}</dd>
                   </div>
                 ))}
               </>
@@ -196,7 +200,7 @@ export function InvoicePreview({
               {quote ? "Angebotssumme" : "Gesamtbetrag"}
               {gross && " (inkl. USt)"}
             </dt>
-            <dd className="gross">{formatEuro(totals.gross)}</dd>
+            <dd className="gross">{money(totals.gross)}</dd>
             {gross && taxes.length > 0 && (
               <>
                 <dt className="sheet-included">darin enthalten:</dt>
@@ -204,9 +208,9 @@ export function InvoicePreview({
                 {taxes.map((t) => (
                   <div key={t.rate} style={{ display: "contents" }}>
                     <dt className="sheet-included">Netto{taxes.length > 1 && ` ${formatRate(t.rate)}`}</dt>
-                    <dd className="sheet-included">{formatEuro(t.base)}</dd>
+                    <dd className="sheet-included">{money(t.base)}</dd>
                     <dt className="sheet-included">Umsatzsteuer {formatRate(t.rate)}</dt>
-                    <dd className="sheet-included">{formatEuro(t.tax)}</dd>
+                    <dd className="sheet-included">{money(t.tax)}</dd>
                   </div>
                 ))}
               </>

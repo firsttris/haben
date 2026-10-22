@@ -4,6 +4,7 @@ import { and, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "../stammdaten/index.ts";
 import { db, schema } from "../../db/index.ts";
+import { invoiceDocumentTotals } from "./invoice-taxes.ts";
 import { invoiceTitle } from "./invoices.ts";
 import { escapeHtml, loadMailSettings, MailError, send } from "../mail/index.ts";
 
@@ -123,14 +124,20 @@ async function customerEmail(invoice: { buyer: unknown; contactId: string | null
   return contact?.email ?? "";
 }
 
-function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: string) {
+/** Betrag für die E-Mail in der Währung der Rechnung, wie auf dem PDF */
+async function displayGross(invoice: typeof schema.invoices.$inferSelect): Promise<string> {
+  const gross = invoice.currency === "EUR" ? invoice.gross : (await invoiceDocumentTotals(invoice.id)).gross;
+  return texts(invoice.language, invoice.currency).money(gross);
+}
+
+function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: string, betrag: string) {
   if (invoice.language === "en") {
     const t = texts("en");
     return {
       art: invoice.kind === "rechnung" && invoice.variant ? t.variants[invoice.variant] : t.titles[invoice.kind],
       nummer: invoice.number ?? "",
       datum: t.date(invoice.issueDate),
-      betrag: t.money(invoice.gross),
+      betrag,
       faellig: t.date(invoice.dueDate),
       zahlbar: invoice.kind === "rechnung" && invoice.gross > 0 ? `, payable by ${t.date(invoice.dueDate)}` : "",
       kunde: (invoice.buyer as { name?: string } | null)?.name ?? "",
@@ -141,7 +148,7 @@ function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: stri
     art: invoiceTitle(invoice),
     nummer: invoice.number ?? "",
     datum: germanDate(invoice.issueDate),
-    betrag: formatEuro(invoice.gross),
+    betrag,
     faellig: germanDate(invoice.dueDate),
     zahlbar: invoice.kind === "rechnung" && invoice.gross > 0 ? `, zahlbar bis zum ${germanDate(invoice.dueDate)}` : "",
     kunde: (invoice.buyer as { name?: string } | null)?.name ?? "",
@@ -163,7 +170,7 @@ function invoiceAttachments(invoice: typeof schema.invoices.$inferSelect) {
 /** Vorschlag für das Formular: Empfänger, Betreff und Text aus der Vorlage */
 export async function invoiceMailDraft(invoiceId: string) {
   const [invoice, company, settings] = await Promise.all([loadInvoice(invoiceId), loadCompany(), loadMailSettings()]);
-  const values = invoiceValues(invoice, company.name);
+  const values = invoiceValues(invoice, company.name, await displayGross(invoice));
   return {
     to: await customerEmail(invoice),
     subject: fillTemplate(invoice.language === "en" ? DEFAULT_INVOICE_SUBJECT_EN : settings?.invoiceSubject || DEFAULT_INVOICE_SUBJECT, values),
@@ -205,7 +212,7 @@ async function loadDunning(id: string) {
 
 function dunningValues(dunning: typeof schema.dunnings.$inferSelect, invoice: typeof schema.invoices.$inferSelect, firma: string) {
   return {
-    ...invoiceValues(invoice, firma),
+    ...invoiceValues(invoice, firma, formatEuro(dunning.total)),
     stufe: DUNNING_LEVELS[dunning.level as DunningLevel].label,
     betrag: formatEuro(dunning.total),
     frist: germanDate(dunning.dueDate),

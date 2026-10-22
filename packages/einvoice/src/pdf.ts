@@ -88,7 +88,7 @@ export function documentPdfData(
 /** Druckfertige Texte für das Typst-Template; formatiert wird ausschließlich hier. */
 export function pdfData(doc: InvoiceDocument) {
   const { seller, buyer } = doc;
-  const t = texts(doc.language);
+  const t = texts(doc.language, doc.currency);
   const title = doc.kind === "rechnung" && doc.variant ? t.variants[doc.variant] : t.titles[doc.kind];
 
   const meta: { label: string; value: string }[] = [
@@ -107,17 +107,27 @@ export function pdfData(doc: InvoiceDocument) {
   if (buyer.ustId) meta.push({ label: t.buyerVatId, value: buyer.ustId });
 
   const { totalRows, included, grossLabel, ...body } = documentPdfData(doc, t);
+  // Fremdwährung: die Umsatzsteuer zusätzlich in Euro (§ 14 Abs. 4 Nr. 8 UStG, Abschn. 14.5 UStAE)
+  const euroTax = doc.euroTax
+    ? {
+        label: t.inEuro(doc.euroTax.rate),
+        rows: [
+          ...doc.euroTax.taxes.map((tax) => ({ label: t.vatInEuro(t.rate(tax.rate)), value: t.euro(tax.tax) })),
+          ...(doc.euroTax.taxes.length > 1 ? [{ label: t.vatTotal, value: t.euro(doc.euroTax.tax) }] : []),
+        ],
+      }
+    : null;
   return {
     ...body,
     docTitle: `${title} ${doc.number}`,
     title,
     reference: doc.corrects ? t.reference(doc.corrects.number, t.date(doc.corrects.issueDate)) : null,
     meta,
-    totals: { rows: totalRows, gross: { label: grossLabel(t.totalGross), value: t.money(doc.totals.gross) }, included },
+    totals: { rows: totalRows, gross: { label: grossLabel(t.totalGross), value: t.money(doc.totals.gross) }, included, euroTax },
     payment: paymentSentence(doc, t),
-    // GiroCode nur für Rechnungen mit Zahlbetrag und Konto des Verkäufers
+    // GiroCode nur für Rechnungen mit Zahlbetrag in Euro und Konto des Verkäufers (SEPA kennt nur Euro)
     qr:
-      doc.kind === "rechnung" && doc.totals.gross > 0 && seller.iban
+      doc.kind === "rechnung" && doc.currency === "EUR" && doc.totals.gross > 0 && seller.iban
         ? girocodeSvg({ name: seller.name, iban: seller.iban, ...(seller.bic ? { bic: seller.bic } : {}), amount: doc.totals.gross, text: t.girocodeText(doc.number) })
         : null,
   };

@@ -1,4 +1,4 @@
-import { bmfRatesUrl, CURRENCY_CODE, parseBmfRates, parseExchangeRate, type PublishedRate } from "@haben/core";
+import { bmfRatesUrl, CURRENCY_CODE, parseBmfRates, parseExchangeRate, rateMonth, type ExchangeRateSource, type PublishedRate } from "@haben/core";
 import { and, desc, eq, max, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -21,6 +21,42 @@ export async function rateForMonth(currency: string, month: string, q: Db | Tx =
     .from(schema.exchangeRates)
     .where(and(eq(schema.exchangeRates.currency, currency), eq(schema.exchangeRates.month, month)));
   return row ?? null;
+}
+
+/** Kurs an einem Beleg oder einer Rechnung mit Herkunft */
+export interface RateFields {
+  exchangeRate: string | null;
+  exchangeRateSource: ExchangeRateSource | null;
+  exchangeRateDate: string | null;
+}
+
+export const NO_RATE: RateFields = { exchangeRate: null, exchangeRateSource: null, exchangeRateDate: null };
+
+/**
+ * Kurs für einen Beleg oder eine Rechnung in Fremdwährung (§ 16 Abs. 6 UStG): ohne eigenen Kurs der USt-Umrechnungskurs
+ * des Monats von `date` (Leistungs- bzw. Belegdatum), sobald er veröffentlicht ist. Ein von Hand eingetragener Kurs bleibt,
+ * als Tageskurs (wenn in den Firmendaten gestattet) oder als eigener Kurs. Ein unverändert übernommener USt-Kurs folgt
+ * dem Datum, wenn es sich ändert. exchangeRate in der Form von parseExchangeRate.
+ */
+export async function resolveExchangeRate(
+  q: Db | Tx,
+  input: { currency: string; date: string | null; exchangeRate: string | null; exchangeRateDate: string | null },
+  previous: { exchangeRate: string | null; exchangeRateSource: ExchangeRateSource | null } | null,
+  tageskurs: boolean,
+): Promise<RateFields> {
+  if (input.currency === "EUR") return NO_RATE;
+  const month = input.date ? rateMonth(input.date) : null;
+  const published = month ? await rateForMonth(input.currency, month, q) : null;
+  const ust: RateFields | null = published ? { exchangeRate: parseExchangeRate(published.rate), exchangeRateSource: "ust", exchangeRateDate: `${month}-01` } : null;
+  const unchangedUst =
+    previous?.exchangeRateSource === "ust" && previous.exchangeRate !== null && parseExchangeRate(previous.exchangeRate) === input.exchangeRate;
+  if (!input.exchangeRate || unchangedUst) return ust ?? NO_RATE;
+  if (ust && ust.exchangeRate === input.exchangeRate) return ust;
+  return {
+    exchangeRate: input.exchangeRate,
+    exchangeRateSource: tageskurs ? "tageskurs" : "manuell",
+    exchangeRateDate: input.exchangeRateDate ?? (tageskurs ? input.date : null),
+  };
 }
 
 /** Gespeicherte Kurse, neueste Monate zuerst */

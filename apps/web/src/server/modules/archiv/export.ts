@@ -269,6 +269,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       net: schema.invoices.net,
       tax: schema.invoices.tax,
       gross: schema.invoices.gross,
+      currency: schema.invoices.currency,
+      exchangeRate: schema.invoices.exchangeRate,
       format: schema.invoices.format,
       lockedAt: schema.invoices.lockedAt,
       pdfSha256: schema.invoices.pdfSha256,
@@ -326,6 +328,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       money(invoice.net),
       money(invoice.tax),
       money(invoice.gross),
+      invoice.currency,
+      invoice.exchangeRate ? formatExchangeRate(invoice.exchangeRate) : null,
       FORMAT_LABELS[invoice.format] ?? invoice.format,
       iso(invoice.lockedAt),
       invoice.pdfSha256,
@@ -340,7 +344,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     path: "rechnungen/rechnungen.csv",
     content: csv(
       [
-        "Nummer", "Art", "Datum", "Fällig", "Leistung von", "Leistung bis", "Kunde", "Netto", "USt", "Brutto", "Format",
+        "Nummer", "Art", "Datum", "Fällig", "Leistung von", "Leistung bis", "Kunde", "Netto", "USt", "Brutto", "Währung", "Kurs (1 EUR =)", "Format",
         "Festgeschrieben", "SHA-256 PDF", "SHA-256 XML", "Storno/Korrektur von", "Datei PDF", "Datei XML", "ID",
       ],
       invoiceRows,

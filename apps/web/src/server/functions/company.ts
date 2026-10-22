@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { UserError } from "../errors.ts";
 import { applyPublishedRates } from "../modules/belege/index.ts";
+import { applyPublishedRatesToDrafts } from "../modules/rechnungen/index.ts";
 import {
   companyIssues,
   companySchema,
@@ -42,6 +43,11 @@ export const saveTaxpayerData = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Belege und Rechnungsentwürfe, die auf einen Kurs warten, nach neuen Kursen umrechnen */
+async function applyRates(actor: string): Promise<number> {
+  return (await applyPublishedRates(actor)) + (await applyPublishedRatesToDrafts(actor));
+}
+
 export const getExchangeRates = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => ({ rates: await listExchangeRates() }));
@@ -51,7 +57,7 @@ export const saveExchangeRateFn = createServerFn({ method: "POST" })
   .validator(exchangeRateSchema)
   .handler(async ({ data, context }) => {
     await storeExchangeRates(context.user.id, [data], "manuell");
-    return { applied: await applyPublishedRates(context.user.id) };
+    return { applied: await applyRates(context.user.id) };
   });
 
 export const deleteExchangeRateFn = createServerFn({ method: "POST" })
@@ -68,7 +74,7 @@ export const refreshExchangeRatesFn = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     try {
       const result = await refreshExchangeRates(context.user.id, today());
-      return { ...result, applied: await applyPublishedRates(context.user.id) };
+      return { ...result, applied: await applyRates(context.user.id) };
     } catch (error) {
       if (error instanceof ExchangeRateFetchError) throw new UserError(error.message);
       throw error;
@@ -83,5 +89,5 @@ export const importExchangeRatesFn = createServerFn({ method: "POST" })
     const rates = parseBmfRates(data.text, data.year);
     if (rates.length === 0) throw new UserError(`In der Datei stehen keine Kurse für ${data.year}. Erwartet wird die CSV-Datei des BMF mit einer Spalte je Monat.`);
     const result = await storeExchangeRates(context.user.id, rates, "bmf");
-    return { ...result, fetched: rates.length, applied: await applyPublishedRates(context.user.id) };
+    return { ...result, fetched: rates.length, applied: await applyRates(context.user.id) };
   });

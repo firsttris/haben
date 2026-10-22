@@ -38,7 +38,7 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
   const [year, setYear] = useState(String(new Date().getFullYear()));
 
   const summary = (r: { added: number; changed: number; applied: number }) =>
-    `${plural(r.added, "Kurs", "Kurse")} neu, ${r.changed} geändert. ${r.applied > 0 ? `${plural(r.applied, "Beleg", "Belege")} in Euro umgerechnet.` : ""}`;
+    `${plural(r.added, "Kurs", "Kurse")} neu, ${r.changed} geändert. ${r.applied > 0 ? `${plural(r.applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}`;
 
   function onSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,7 +50,7 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
       });
       form.reset();
       await router.invalidate();
-      setNotice({ tone: "ok", text: `Kurs gespeichert.${applied > 0 ? ` ${plural(applied, "Beleg", "Belege")} in Euro umgerechnet.` : ""}` });
+      setNotice({ tone: "ok", text: `Kurs gespeichert.${applied > 0 ? ` ${plural(applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}` });
     });
   }
 

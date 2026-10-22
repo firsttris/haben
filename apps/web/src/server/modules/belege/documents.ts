@@ -12,14 +12,13 @@ import {
   formatRateMonth,
   parseExchangeRate,
   rateMonth,
-  type ExchangeRateSource,
   type ExpenseCategory,
   type VatPeriod,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany, rateForMonth } from "../stammdaten/index.ts";
+import { loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
@@ -116,38 +115,14 @@ export function euroAmounts(input: {
 
 export type DocumentInput = z.input<typeof documentInputSchema>;
 
-interface RateFields {
-  exchangeRate: string | null;
-  exchangeRateSource: ExchangeRateSource | null;
-  exchangeRateDate: string | null;
-}
-
-const NO_RATE: RateFields = { exchangeRate: null, exchangeRateSource: null, exchangeRateDate: null };
-
-/**
- * Kurs eines Fremdwährungsbelegs (§ 16 Abs. 6 UStG): ohne eigenen Kurs der USt-Umrechnungskurs des Monats laut Belegdatum,
- * sobald er veröffentlicht ist. Ein von Hand eingetragener Kurs bleibt, als Tageskurs (wenn in den Firmendaten gestattet)
- * oder als eigener Kurs. Ein unverändert übernommener USt-Kurs folgt dem Belegdatum, wenn es sich ändert.
- */
-async function resolveRate(
+/** Kurs eines Fremdwährungsbelegs: Monat laut Belegdatum (siehe resolveExchangeRate) */
+function resolveRate(
   q: Db | Tx,
   input: { currency: string; documentDate: string | null; exchangeRate: string | null; exchangeRateDate: string | null },
   previous: Pick<Document, "exchangeRate" | "exchangeRateSource"> | null,
   tageskurs: boolean,
-): Promise<RateFields> {
-  if (input.currency === "EUR") return NO_RATE;
-  const month = input.documentDate ? rateMonth(input.documentDate) : null;
-  const published = month ? await rateForMonth(input.currency, month, q) : null;
-  const ust: RateFields | null = published ? { exchangeRate: parseExchangeRate(published.rate), exchangeRateSource: "ust", exchangeRateDate: `${month}-01` } : null;
-  const unchangedUst =
-    previous?.exchangeRateSource === "ust" && previous.exchangeRate !== null && parseExchangeRate(previous.exchangeRate) === input.exchangeRate;
-  if (!input.exchangeRate || unchangedUst) return ust ?? NO_RATE;
-  if (ust && ust.exchangeRate === input.exchangeRate) return ust;
-  return {
-    exchangeRate: input.exchangeRate,
-    exchangeRateSource: tageskurs ? "tageskurs" : "manuell",
-    exchangeRateDate: input.exchangeRateDate ?? (tageskurs ? input.documentDate : null),
-  };
+) {
+  return resolveExchangeRate(q, { ...input, date: input.documentDate }, previous, tageskurs);
 }
 
 /** Bei § 13b zahlst du nur netto; die Steuer geht ans Finanzamt, nicht an den Lieferanten */

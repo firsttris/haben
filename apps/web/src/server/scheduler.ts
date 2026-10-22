@@ -5,7 +5,7 @@ import { applyPublishedRates, runDueInboxFetch } from "./modules/belege/index.ts
 import { runDueExchangeRates } from "./modules/stammdaten/index.ts";
 import { runDueFristenMails, runDuePruefwertMail } from "./modules/mail/index.ts";
 import { runDuePostfachFetch } from "./modules/finanzamt/index.ts";
-import { runDueRecurring } from "./modules/rechnungen/index.ts";
+import { applyPublishedRatesToDrafts, runDueRecurring } from "./modules/rechnungen/index.ts";
 import { today } from "./today.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -44,7 +44,10 @@ export async function runScheduledJobs(): Promise<void> {
     const result = await runDueExchangeRates(today());
     if (result) {
       const applied = await applyPublishedRates("system:kurse");
-      console.log(`Umrechnungskurse: ${result.added} neu, ${result.changed} geändert (bis ${result.latest ?? "–"}), ${applied} Belege umgerechnet`);
+      const drafts = await applyPublishedRatesToDrafts("system:kurse");
+      console.log(
+        `Umrechnungskurse: ${result.added} neu, ${result.changed} geändert (bis ${result.latest ?? "–"}), ${applied} Belege und ${drafts} Rechnungsentwürfe umgerechnet`,
+      );
     }
   } catch (error) {
     console.error("Umrechnungskurse", error);

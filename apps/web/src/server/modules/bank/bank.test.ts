@@ -456,6 +456,46 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect((await auswertungen.vatAbgleich({ year: 2026, month: 10 })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
   }, 30_000);
 
+  it("Kursdifferenz bei einer Rechnung in USD (Ist): Rest als Aufwand, die Umsatzsteuer wird voll fällig, Abgleich ohne Abweichung", async () => {
+    // Kunde aus der Hilfsfunktion; ihre Rechnung in Euro bleibt bei den Salden außen vor
+    const { invoice: euro, contact } = await finalInvoice(10_000);
+    const draft = await invoices.createDraft(actor, {
+      contactId: contact.id,
+      issueDate: "2026-09-05",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      currency: "USD",
+      exchangeRate: "1,0812",
+      lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
+    });
+    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    // 1.190,00 USD / 1,0812 = 1.100,63 €
+    expect(invoice.gross).toBe(110_063);
+    await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("01.10.26", "Nordwerk Software GmbH", "DE02100100100006820101", `RE ${invoice.number}`, "1.095,00")]), filename: "a.csv" },
+      null,
+    );
+    const [tx] = await sql`select id from bank_transactions`;
+    await bank.allocateWithRest(actor, { transactionId: tx!.id, target: { kind: "invoice", invoiceId: invoice.id }, rest: "kursdifferenz" });
+    expect((await invoices.listInvoices("2026-10-02")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+    const balances = Object.fromEntries(
+      (await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l join journal_entries e on e.id = l.entry_id
+                 where e.source_id <> ${euro.id} group by l.account having sum(l.debit - l.credit) <> 0 order by 1`).map((r) => [r.account, r.saldo]),
+    );
+    expect(balances).toEqual({ "1200": 109_500, "1776": -(110_063 - 92_490), "2150": 563, "8400": -92_490 });
+    const vat = await import("../umsatzsteuer/index.ts");
+    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).tax81).toBe(110_063 - 92_490);
+    const auswertungen = await import("../auswertungen/index.ts");
+    expect((await auswertungen.vatAbgleich({ year: 2026, month: 10 })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+    expect((await auswertungen.euerAbgleich(2026)).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+    const euer = await auswertungen.euerForYear(2026);
+    expect(euer.ausgaben.find((l) => l.key === "kursverluste")?.amount).toBe(563);
+  }, 30_000);
+
   it("Kursdifferenz bei einem Beleg in Fremdwährung: mehr gezahlt als Aufteilung, weniger gezahlt als Ausbuchung; USt unverändert", async () => {
     const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 11]);
     const usdDocument = async (number: string, byte: number) => {

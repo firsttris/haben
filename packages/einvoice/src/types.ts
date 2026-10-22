@@ -69,11 +69,18 @@ export interface InvoiceDocument {
   paymentTermDays: number;
   serviceFrom?: string;
   serviceTo?: string;
-  currency: "EUR";
+  /** ISO-4217-Code; Beträge in lines und totals sind in dieser Währung */
+  currency: string;
   seller: Seller;
   buyer: Buyer;
   lines: InvoiceDocumentLine[];
   totals: InvoiceTotals;
+  /**
+   * Nur bei Fremdwährung: Umsatzsteuer in Euro (§ 14 Abs. 4 Nr. 8 UStG, Abschn. 14.5 UStAE), je Satz und gesamt,
+   * mit dem Kurs als Text für das PDF, z. B. „1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)“. Im XML als
+   * Steuerwährung EUR (BT-6) mit der Steuer in Euro (BT-111).
+   */
+  euroTax?: { tax: Cents; taxes: { rate: number; tax: Cents }[]; rate: string };
   /** Bei Storno und Korrektur: die ursprüngliche Rechnung */
   corrects?: { number: string; issueDate: string };
   note?: string;

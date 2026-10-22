@@ -147,6 +147,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     sellerIssues: sellerIssues(company),
     bundesland: company.bundesland,
     kleinunternehmer: company.kleinunternehmer,
+    tageskurs: company.tageskurs,
     numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
   };
 }

@@ -1,4 +1,4 @@
-import { DUNNING_LEVELS, formatEuro, parseEuro, formatDecimal, TAX_TREATMENTS, WRITE_OFF_KINDS, type DunningLevel, type UnitLabel } from "@haben/core";
+import { describeExchangeRate, DUNNING_LEVELS, formatEuro, formatExchangeRate, parseEuro, formatDecimal, TAX_TREATMENTS, WRITE_OFF_KINDS, type DunningLevel, type UnitLabel } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -52,6 +52,10 @@ function InvoicePage() {
           priceMode: invoice.priceMode,
           language: invoice.language,
           variant: invoice.variant,
+          currency: invoice.currency,
+          // Ein übernommener USt-Kurs bleibt im Feld leer: er folgt dem Leistungsmonat
+          exchangeRate: invoice.exchangeRate && invoice.exchangeRateSource !== "ust" ? formatExchangeRate(invoice.exchangeRate) : null,
+          exchangeRateDate: invoice.exchangeRateSource === "ust" ? null : invoice.exchangeRateDate,
           deducts: [...new Set(data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])))],
           // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
           lines: data.lines.filter((line) => !line.deductionOf).map((line) => ({
@@ -72,6 +76,8 @@ function InvoicePage() {
         kleinunternehmer={data.kleinunternehmer}
         articles={data.articles}
         abschlaege={data.abschlaege}
+        tageskurs={data.tageskurs}
+        rateInfo={invoice.exchangeRate ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate) : null}
       />
     );
   }
@@ -188,6 +194,15 @@ function FinalInvoice({ data }: { data: Detail }) {
               <dd className="mono" style={{ fontWeight: 600 }}>
                 {formatEuro(invoice.gross)}
               </dd>
+              {invoice.currency !== "EUR" && (
+                <>
+                  <dt>Währung</dt>
+                  <dd>
+                    Rechnung in {invoice.currency}; Beträge oben in Euro, gebucht mit{" "}
+                    {invoice.exchangeRate ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate) : "–"}
+                  </dd>
+                </>
+              )}
               {invoice.priceMode === "brutto" && (
                 <>
                   <dt>Preise</dt>
