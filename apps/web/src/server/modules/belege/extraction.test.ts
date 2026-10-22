@@ -58,7 +58,7 @@ describe("KI-Auslesung umwandeln", () => {
     expect(fields.documentDate).toBeNull();
     expect(fields.warnings).toEqual([
       "Summe aus Netto und Steuer weicht vom Gesamtbetrag ab",
-      "Währung USD: bitte in Euro umrechnen",
+      "Währung USD: bitte den Umrechnungskurs eintragen",
       "Beleg unscharf",
     ]);
   });

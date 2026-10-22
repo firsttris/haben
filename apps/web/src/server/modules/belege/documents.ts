@@ -5,8 +5,11 @@ import {
   ASSET_METHOD_KEYS,
   assetAccount,
   assetIssues,
+  convertForeignAmounts,
+  CURRENCY_CODE,
   documentPosting,
   EXPENSE_CATEGORY_KEYS,
+  parseExchangeRate,
   type ExpenseCategory,
   type VatPeriod,
 } from "@haben/core";
@@ -54,11 +57,56 @@ export const documentInputSchema = z.object({
     })
     .nullable()
     .default(null),
+  /** Währung des Belegs; bei Fremdwährung tragen die Zeilen die Originalbeträge, Euro rechnet Haben mit dem Kurs aus */
+  currency: z.string().trim().toUpperCase().regex(CURRENCY_CODE, "Währung als dreistelliger Code, z. B. USD").default("EUR"),
+  /** 1 EUR = Kurs Fremdwährung, z. B. "1,0812"; leer, solange der Kurs noch fehlt */
+  exchangeRate: z
+    .string()
+    .nullable()
+    .default(null)
+    .transform((value, ctx) => {
+      if (value === null || value.trim() === "") return null;
+      const rate = parseExchangeRate(value);
+      if (!rate) ctx.addIssue({ code: "custom", message: "Umrechnungskurs ungültig, z. B. 1,0812" });
+      return rate;
+    }),
   amounts: z
-    .array(z.object({ taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]), net: cents, tax: cents }))
+    .array(
+      z.object({
+        taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),
+        net: cents,
+        tax: cents,
+        /** Nur bei Fremdwährung: Beträge laut Beleg in der Fremdwährung */
+        originalNet: cents.nullable().default(null),
+        originalTax: cents.nullable().default(null),
+      }),
+    )
     .max(3)
     .refine((rows) => new Set(rows.map((r) => r.taxRate)).size === rows.length, "Jeder Steuersatz nur einmal"),
 });
+
+/** Höchstwert der int4-Spalten: umgerechnete Beträge (kleiner Kurs) dürfen ihn nicht sprengen */
+const MAX_EURO_CENTS = 2_147_483_647;
+
+/**
+ * Euro-Beträge je Zeile: in Euro wie eingegeben, bei Fremdwährung mit dem Kurs umgerechnet.
+ * Ohne Kurs bleiben die Euro-Beträge 0; der Beleg ist dann noch nicht buchbar.
+ */
+export function euroAmounts(input: {
+  currency: string;
+  exchangeRate: string | null;
+  reverseCharge: string | null;
+  amounts: { taxRate: number; net: number; tax: number; originalNet: number | null; originalTax: number | null }[];
+}): { taxRate: number; net: number; tax: number; originalNet: number | null; originalTax: number | null }[] {
+  if (input.currency === "EUR") return input.amounts.map((a) => ({ taxRate: a.taxRate, net: a.net, tax: a.tax, originalNet: null, originalTax: null }));
+  const originals = input.amounts.map((a) => ({ taxRate: a.taxRate, originalNet: a.originalNet ?? 0, originalTax: a.originalTax ?? 0 }));
+  if (!input.exchangeRate) return originals.map((o) => ({ ...o, net: 0, tax: 0 }));
+  const euro = convertForeignAmounts(originals, input.exchangeRate, Boolean(input.reverseCharge));
+  if (euro.some((e) => Math.abs(e.net) > MAX_EURO_CENTS || Math.abs(e.tax) > MAX_EURO_CENTS)) {
+    throw new DocumentError("Der umgerechnete Betrag ist zu groß. Stimmt der Kurs (1 EUR = … Fremdwährung)?");
+  }
+  return originals.map((o, i) => ({ ...o, net: euro[i]!.net, tax: euro[i]!.tax }));
+}
 
 export type DocumentInput = z.input<typeof documentInputSchema>;
 
@@ -98,7 +146,7 @@ function fieldsFromEInvoice(invoice: IncomingInvoice): ExtractedFields {
     }
     return [{ taxRate: t.rate as 1900 | 700 | 0, net: t.base, tax: t.tax }];
   });
-  if (invoice.currency !== "EUR") warnings.push(`Währung ${invoice.currency}: bitte in Euro umrechnen`);
+  if (invoice.currency !== "EUR") warnings.push(`Währung ${invoice.currency}: bitte den Umrechnungskurs eintragen`);
   return {
     supplierName: invoice.seller.name,
     supplierUstId: invoice.seller.ustId ?? "",
@@ -122,7 +170,14 @@ async function applyFields(
   categoryKnown: boolean,
 ) {
   const category = (await guessCategory(fields.supplierName, fields.supplierUstId)) ?? (categoryKnown ? fields.category : null);
-  const totals = totalsOf(fields.amounts);
+  // Fremdwährung: die ausgelesenen Beträge sind die Originalbeträge; Euro gibt es erst mit dem Kurs
+  const amounts = euroAmounts({
+    currency: fields.currency,
+    exchangeRate: null,
+    reverseCharge: null,
+    amounts: fields.amounts.map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax })),
+  });
+  const totals = totalsOf(amounts);
   // Privatanteil aus den Vorgaben der Firmendaten, z. B. Telefon 20 %
   const { privateShares } = await loadCompany();
   const privateShare = category ? (privateShares[category] ?? 0) : 0;
@@ -130,8 +185,8 @@ async function applyFields(
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, id)).for("update");
     if (!doc || doc.lockedAt) return;
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
-    if (fields.amounts.length > 0) {
-      await tx.insert(schema.documentAmounts).values(fields.amounts.map((a) => ({ documentId: id, ...a })));
+    if (amounts.length > 0) {
+      await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
     }
     await tx
       .update(schema.documents)
@@ -142,6 +197,7 @@ async function applyFields(
         documentDate: fields.documentDate,
         dueDate: fields.dueDate,
         currency: fields.currency,
+        exchangeRate: null,
         category,
         privateShare,
         ...totals,
@@ -265,18 +321,21 @@ async function lockOpen(tx: Tx, id: string): Promise<Document> {
 export async function updateDocument(actor: string, id: string, input: DocumentInput): Promise<void> {
   await withActor(actor, async (tx) => {
     await lockOpen(tx, id);
+    const parsed = documentInputSchema.parse(input);
+    const amounts = euroAmounts(parsed);
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
-    if (input.amounts.length > 0) {
-      await tx.insert(schema.documentAmounts).values(input.amounts.map((a) => ({ documentId: id, ...a })));
+    if (amounts.length > 0) {
+      await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
     }
-    const { amounts, asset, ...fields } = input;
+    const { amounts: _amounts, asset, ...fields } = parsed;
     await tx
       .update(schema.documents)
       .set({
         ...fields,
+        exchangeRate: fields.currency === "EUR" ? null : fields.exchangeRate,
         asset: fields.category === "anlage" ? (asset ?? null) : null,
         supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
-        ...totalsOf(amounts, fields.reverseCharge ?? null),
+        ...totalsOf(amounts, fields.reverseCharge),
         updatedAt: new Date(),
       })
       .where(eq(schema.documents.id, id));
@@ -312,8 +371,12 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[]): string[
   if (!doc.supplierName) issues.push("Lieferant fehlt");
   if (!doc.documentDate) issues.push("Belegdatum fehlt");
   if (!doc.category) issues.push("Kategorie fehlt");
-  if (doc.currency !== "EUR") issues.push("Nur Belege in Euro können gebucht werden");
-  if (amounts.length === 0 || amounts.every((a) => a.net === 0 && a.tax === 0)) issues.push("Beträge fehlen");
+  const foreign = doc.currency !== "EUR";
+  if (foreign && !doc.exchangeRate) issues.push(`Umrechnungskurs für ${doc.currency} fehlt`);
+  if (foreign && amounts.some((a) => a.originalNet === null || a.originalTax === null)) issues.push(`Beträge in ${doc.currency} fehlen`);
+  // Bei Fremdwährung zählen die Beträge laut Beleg; ohne Kurs stehen die Euro-Beträge noch auf 0
+  const values = foreign ? amounts.map((a) => ({ net: a.originalNet ?? 0, tax: a.originalTax ?? 0 })) : amounts;
+  if (values.length === 0 || values.every((a) => a.net === 0 && a.tax === 0)) issues.push("Beträge fehlen");
   if (doc.reverseCharge) {
     if (amounts.some((a) => a.taxRate === 0)) issues.push("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
     if (doc.category === "anlage") issues.push("§ 13b bei Anlagegütern wird nicht unterstützt");

@@ -100,7 +100,10 @@ export function toFields(extraction: Extraction): ExtractedFields {
   if (gross !== null && Math.abs(sum) !== Math.abs(gross)) {
     warnings.push("Summe aus Netto und Steuer weicht vom Gesamtbetrag ab");
   }
-  if (extraction.waehrung.trim().toUpperCase() !== "EUR") warnings.push(`Währung ${extraction.waehrung.slice(0, 10)}: bitte in Euro umrechnen`);
+  // „€“ oder „Euro“ statt des Codes ist trotzdem Euro
+  const code = extraction.waehrung.trim().toUpperCase();
+  const currency = code === "€" || code === "EURO" ? "EUR" : code.slice(0, 10);
+  if (currency !== "EUR") warnings.push(`Währung ${currency}: bitte den Umrechnungskurs eintragen`);
   if (extraction.hinweis) warnings.push(extraction.hinweis.slice(0, 500));
   // Längen wie im Beleg-Formular (documentInputSchema)
   return {
@@ -109,7 +112,7 @@ export function toFields(extraction: Extraction): ExtractedFields {
     invoiceNumber: extraction.rechnungsnummer?.trim().slice(0, 100) ?? "",
     documentDate: isoDate(extraction.belegdatum),
     dueDate: isoDate(extraction.faelligAm),
-    currency: extraction.waehrung.trim().toUpperCase().slice(0, 10),
+    currency,
     category: extraction.kategorie,
     amounts,
     warnings,

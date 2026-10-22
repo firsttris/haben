@@ -1,9 +1,13 @@
 import {
   ASSET_KINDS,
   ASSET_METHODS,
+  convertForeignAmounts,
+  CURRENCY_CODE,
   formatDecimal,
   formatEuro,
+  formatExchangeRate,
   parseEuro,
+  parseExchangeRate,
   taxOf,
   type AssetKind,
   type AssetMethod,
@@ -270,14 +274,21 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [assetYears, setAssetYears] = useState(doc.asset?.usefulLifeMonths ? String(doc.asset.usefulLifeMonths / 12) : "");
   const [note, setNote] = useState(doc.note);
   const [reverseCharge, setReverseCharge] = useState<"eu" | "drittland" | null>(doc.reverseCharge ?? null);
+  const [currency, setCurrency] = useState(doc.currency);
+  const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
+  // Bei Fremdwährung stehen in den Zeilen die Beträge laut Beleg; Euro rechnet Haben mit dem Kurs aus
   const [rows, setRows] = useState<AmountState[]>(() =>
-    (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0 }]).map((a) => ({
-      key: nextKey++,
-      taxRate: a.taxRate as Rate,
-      net: a.net === 0 && amounts.length === 0 ? "" : formatDecimal(a.net),
-      tax: a.tax === 0 && amounts.length === 0 ? "" : formatDecimal(a.tax),
-      taxTouched: amounts.length > 0,
-    })),
+    (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null }]).map((a) => {
+      const net = doc.currency === "EUR" ? a.net : (a.originalNet ?? 0);
+      const tax = doc.currency === "EUR" ? a.tax : (a.originalTax ?? 0);
+      return {
+        key: nextKey++,
+        taxRate: a.taxRate as Rate,
+        net: net === 0 && amounts.length === 0 ? "" : formatDecimal(net),
+        tax: tax === 0 && amounts.length === 0 ? "" : formatDecimal(tax),
+        taxTouched: amounts.length > 0,
+      };
+    }),
   );
   const [dirty, setDirty] = useState(false);
   const { busy, notice, run } = useAction();
@@ -292,10 +303,23 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const parsed = rows.map((r) => ({ taxRate: r.taxRate, net: parseEuro(r.net || "0"), tax: parseEuro(r.tax || "0") }));
   const privateShareValue = category === "anlage" ? 0 : Number(privateShare || 0);
   const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
+  const currencyCode = currency.trim().toUpperCase();
+  const foreign = currencyCode !== "EUR";
+  const rate = exchangeRate.trim() ? parseExchangeRate(exchangeRate) : null;
+  const currencyValid = CURRENCY_CODE.test(currencyCode) && (!foreign || !exchangeRate.trim() || rate !== null);
   const valid =
-    parsed.every((p) => p.net !== null && p.tax !== null) && new Set(rows.map((r) => r.taxRate)).size === rows.length && privateShareValid;
+    parsed.every((p) => p.net !== null && p.tax !== null) &&
+    new Set(rows.map((r) => r.taxRate)).size === rows.length &&
+    privateShareValid &&
+    currencyValid;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
   const gross = valid ? parsed.reduce((s, p) => s + p.net! + (reverseCharge ? 0 : p.tax!), 0) : null;
+  // Fremdwährung: dieselbe Umrechnung wie beim Speichern, damit die Vorschau mit dem Gebuchten übereinstimmt
+  const euroRows =
+    valid && foreign && rate
+      ? convertForeignAmounts(parsed.map((p) => ({ taxRate: p.taxRate, originalNet: p.net!, originalTax: p.tax! })), rate, Boolean(reverseCharge))
+      : null;
+  const euroGross = euroRows ? euroRows.reduce((s, e) => s + e.net + (reverseCharge ? 0 : e.tax), 0) : null;
   // Lieferant mit USt-IdNr. aus einem anderen EU-Land und keine Steuer auf dem Beleg: vermutlich § 13b
   const looksLikeReverseCharge =
     !reverseCharge && EU_VAT_PREFIX.test(supplierUstId.replace(/\s/g, "").toUpperCase()) && parsed.every((p) => p.tax === 0) && parsed.some((p) => p.net);
@@ -356,6 +380,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           note,
           privateShare: privateShareValue,
           reverseCharge,
+          currency: currencyCode,
+          exchangeRate: foreign ? exchangeRate : null,
           asset:
             category === "anlage"
               ? {
@@ -365,7 +391,13 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   usefulLifeMonths: assetMethod === "linear" ? parseUsefulLifeMonths(assetYears) : null,
                 }
               : null,
-          amounts: parsed.filter((p) => p.net !== 0 || p.tax !== 0).map((p) => ({ taxRate: p.taxRate, net: p.net!, tax: p.tax! })),
+          amounts: parsed
+            .filter((p) => p.net !== 0 || p.tax !== 0)
+            .map((p) =>
+              foreign
+                ? { taxRate: p.taxRate, net: 0, tax: 0, originalNet: p.net!, originalTax: p.tax! }
+                : { taxRate: p.taxRate, net: p.net!, tax: p.tax! },
+            ),
         },
       },
     });
@@ -584,6 +616,45 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             )
           )}
         </label>
+        <div className="form-grid">
+          <label className="field">
+            Währung
+            <input
+              value={currency}
+              onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
+              list="currency-codes"
+              maxLength={3}
+              aria-invalid={!CURRENCY_CODE.test(currencyCode)}
+              aria-describedby={foreign ? "currency-hint" : undefined}
+            />
+            <datalist id="currency-codes">
+              {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </label>
+          {foreign && (
+            <label className="field">
+              Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}
+              <input
+                className="mono"
+                inputMode="decimal"
+                value={exchangeRate}
+                placeholder="z. B. 1,0812"
+                onChange={(e) => touch(setExchangeRate)(e.target.value)}
+                aria-invalid={exchangeRate.trim() !== "" && rate === null}
+                aria-describedby="currency-hint"
+              />
+            </label>
+          )}
+          {foreign && (
+            <span id="currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
+              Beträge unten in {currencyCode || "der Fremdwährung"}, wie auf dem Beleg. Haben rechnet sie mit dem Kurs in Euro um und bucht nur
+              Euro. Für die Umsatzsteuer gilt der Umsatzsteuer-Umrechnungskurs des BMF für den Monat der Leistung (§ 16 Abs. 6 UStG); bei § 13b
+              wird die Steuer aus dem umgerechneten Netto berechnet.
+            </span>
+          )}
+        </div>
         {rows.map((row, index) => (
           <div className="amount-row" key={row.key}>
             <label className="field">
@@ -595,7 +666,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               </select>
             </label>
             <label className="field">
-              Netto
+              {foreign ? `Netto ${currencyCode}` : "Netto"}
               <input
                 className="mono"
                 inputMode="decimal"
@@ -607,6 +678,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             </label>
             <label className="field">
               {reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
+              {foreign ? ` ${currencyCode}` : ""}
               <input
                 className="mono"
                 inputMode="decimal"
@@ -645,11 +717,31 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           >
             + Steuersatz
           </button>
-          <div>
+          <div style={{ textAlign: "right" }}>
             <span className="muted small">{reverseCharge ? "Zu zahlen (netto) " : "Gesamt "}</span>
             <span className="mono" style={{ fontWeight: 600 }}>
-              {gross === null ? "–" : formatEuro(gross)}
+              {gross === null ? "–" : foreign ? `${formatDecimal(gross)} ${currencyCode}` : formatEuro(gross)}
             </span>
+            {foreign && (
+              <div className="small" aria-live="polite">
+                {euroRows ? (
+                  <>
+                    in Euro{" "}
+                    <span className="mono" style={{ fontWeight: 600 }}>
+                      {formatEuro(euroGross!)}
+                    </span>
+                    {euroRows.length > 0 && (
+                      <span className="muted">
+                        {" "}
+                        ({euroRows.map((e) => `${e.taxRate / 100} %: ${formatDecimal(e.net)} + ${formatDecimal(e.tax)}`).join(" · ")})
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="muted">in Euro erst mit Kurs</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <p className="small muted" style={{ margin: 0 }}>Gutschriften mit Minus eingeben.</p>

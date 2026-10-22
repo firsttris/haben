@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
-import { ASSET_KINDS, ASSET_METHODS, csvDecimal, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, csvDecimal, formatExchangeRate, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { accountName } from "../buchhaltung/index.ts";
@@ -423,6 +423,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       payment: schema.documents.payment,
       note: schema.documents.note,
       currency: schema.documents.currency,
+      exchangeRate: schema.documents.exchangeRate,
+      reverseCharge: schema.documents.reverseCharge,
       net: schema.documents.net,
       tax: schema.documents.tax,
       gross: schema.documents.gross,
@@ -472,6 +474,9 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       money(doc.gross),
       doc.privateShare,
       doc.currency,
+      // Fremdwährung: Kurs (1 EUR = …) und Bruttobetrag laut Beleg; die Beträge davor sind in Euro umgerechnet
+      doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : null,
+      doc.currency === "EUR" ? null : money(docAmounts.reduce((s, a) => s + (a.originalNet ?? 0) + (doc.reverseCharge ? 0 : (a.originalTax ?? 0)), 0)),
       doc.payment === "privat" ? "privat" : doc.payment === "kasse" ? "Kasse" : "Bank",
       doc.status,
       iso(doc.lockedAt),
@@ -490,7 +495,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     content: csv(
       [
         "Datum", "Lieferant", "USt-IdNr.", "Rechnungsnummer", "Kategorie", "Netto 19 %", "Vorsteuer 19 %", "Netto 7 %",
-        "Vorsteuer 7 %", "Netto 0 %", "Netto", "Vorsteuer", "Brutto", "Privatanteil %", "Währung", "Zahlung", "Status", "Gebucht am", "Quelle",
+        "Vorsteuer 7 %", "Netto 0 %", "Netto", "Vorsteuer", "Brutto", "Privatanteil %", "Währung", "Kurs (1 EUR =)", "Brutto in Währung", "Zahlung", "Status", "Gebucht am", "Quelle",
         "Fällig", "Notiz", "SHA-256", "Originaldateiname", "Datei im Archiv", "Hochgeladen", "ID",
       ],
       documentRows,

@@ -9,6 +9,7 @@ import {
   foreignKey,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -913,6 +914,8 @@ export const documents = pgTable(
     payment: text("payment", { enum: ["bank", "privat", "kasse"] }).notNull().default("bank"),
     note: text("note").notNull().default(""),
     currency: text("currency").notNull().default("EUR"),
+    /** Bei Fremdwährung: 1 EUR = Kurs Fremdwährung (wie die Umsatzsteuer-Umrechnungskurse des BMF); net/tax/gross sind in Euro umgerechnet */
+    exchangeRate: numeric("exchange_rate", { precision: 12, scale: 6 }),
     net: integer("net").notNull().default(0),
     tax: integer("tax").notNull().default(0),
     gross: integer("gross").notNull().default(0),
@@ -949,8 +952,12 @@ export const documentAmounts = pgTable(
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
     taxRate: smallint("tax_rate").notNull(),
+    /** In Euro; bei Fremdwährung aus den Originalbeträgen umgerechnet */
     net: integer("net").notNull(),
     tax: integer("tax").notNull(),
+    /** Nur bei Fremdwährung: Beträge in der Währung des Belegs */
+    originalNet: integer("original_net"),
+    originalTax: integer("original_tax"),
   },
   (t) => [uniqueIndex("document_amounts_rate").on(t.documentId, t.taxRate)],
 );

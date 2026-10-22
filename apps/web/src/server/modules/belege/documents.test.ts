@@ -140,6 +140,96 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect((await documents.getDocument(second.id))?.document.category).toBe("internet");
   });
 
+  it("Fremdwährung: KI-Beträge sind Originalbeträge, gebucht wird erst mit Kurs und dann in Euro", async () => {
+    const extraction = await import("./extraction.ts");
+    vi.mocked(extraction.extractDocument).mockResolvedValueOnce({
+      extraction: { quelle: "test" } as unknown as import("./extraction.ts").Extraction,
+      fields: {
+        supplierName: "Figma Inc.",
+        supplierUstId: "",
+        invoiceNumber: "F-1001",
+        documentDate: "2026-09-15",
+        dueDate: null,
+        currency: "USD",
+        category: "software",
+        amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+        warnings: ["Währung USD: bitte den Umrechnungskurs eintragen"],
+      },
+    });
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 7]), filename: "figma.jpg" });
+    const extracted = (await documents.getDocument(id))!;
+    expect(extracted.document).toMatchObject({ currency: "USD", exchangeRate: null, net: 0, tax: 0, gross: 0 });
+    expect(extracted.amounts.map((a) => [a.net, a.tax, a.originalNet, a.originalTax])).toEqual([[0, 0, 10_000, 1_900]]);
+    expect(documents.bookingIssues(extracted.document, extracted.amounts)).toEqual(["Umrechnungskurs für USD fehlt"]);
+    await expect(documents.bookDocument(actor, id)).rejects.toThrow(/Umrechnungskurs für USD fehlt/);
+
+    const input = {
+      supplierName: "Figma Inc.",
+      supplierUstId: "",
+      invoiceNumber: "F-1001",
+      documentDate: "2026-09-15",
+      dueDate: null,
+      category: "software" as const,
+      payment: "bank" as const,
+      note: "",
+      currency: "usd",
+      exchangeRate: "1,0812",
+      amounts: [{ taxRate: 1900 as const, net: 0, tax: 0, originalNet: 10_000, originalTax: 1_900 }],
+    };
+    await documents.updateDocument(actor, id, input);
+    const converted = (await documents.getDocument(id))!;
+    // 100,00 USD / 1,0812 = 92,49 €; 19,00 USD / 1,0812 = 17,57 €
+    expect(converted.document).toMatchObject({ currency: "USD", exchangeRate: "1.081200", net: 9249, tax: 1757, gross: 11_006 });
+    expect(converted.amounts.map((a) => [a.net, a.tax, a.originalNet, a.originalTax])).toEqual([[9249, 1757, 10_000, 1_900]]);
+    expect(documents.bookingIssues(converted.document, converted.amounts)).toEqual([]);
+
+    await documents.bookDocument(actor, id);
+    const lines = await sql`select l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${id}`;
+    expect(lines.reduce((s, l) => s + l.debit, 0)).toBe(11_006);
+    expect(lines.reduce((s, l) => s + l.credit, 0)).toBe(11_006);
+  });
+
+  it("Fremdwährung mit § 13b: Steuer aus dem umgerechneten Netto; zurück auf Euro löscht Kurs und Originalbeträge", async () => {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 8]), filename: "aws.jpg" });
+    const base = {
+      supplierName: "Amazon Web Services EMEA SARL",
+      supplierUstId: "LU26888617",
+      invoiceNumber: "EUINDE26-1",
+      documentDate: "2026-09-30",
+      dueDate: null,
+      category: "software" as const,
+      payment: "bank" as const,
+      note: "",
+      reverseCharge: "eu" as const,
+    };
+    await documents.updateDocument(actor, id, {
+      ...base,
+      currency: "USD",
+      exchangeRate: "1.0812",
+      amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 10_000, originalTax: 0 }],
+    });
+    const rc = (await documents.getDocument(id))!;
+    // Bezahlt wird netto; die Steuer nach § 13b ist 19 % von 92,49 €
+    expect(rc.document).toMatchObject({ net: 9249, tax: 1757, gross: 9249 });
+
+    await expect(
+      documents.updateDocument(actor, id, { ...base, currency: "USD", exchangeRate: "0", amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 1, originalTax: 0 }] }),
+    ).rejects.toThrow(/Umrechnungskurs ungültig/);
+    await expect(
+      documents.updateDocument(actor, id, { ...base, currency: "USD", exchangeRate: "0,000001", amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 10_000_000, originalTax: 0 }] }),
+    ).rejects.toThrow(/zu groß/);
+
+    await documents.updateDocument(actor, id, {
+      ...base,
+      currency: "EUR",
+      exchangeRate: "1.0812",
+      amounts: [{ taxRate: 1900, net: 5000, tax: 950, originalNet: 10_000, originalTax: 0 }],
+    });
+    const euro = (await documents.getDocument(id))!;
+    expect(euro.document).toMatchObject({ currency: "EUR", exchangeRate: null, net: 5000, gross: 5000 });
+    expect(euro.amounts.map((a) => [a.originalNet, a.originalTax])).toEqual([[null, null]]);
+  });
+
   it("verlangt Pflichtangaben und erlaubt Löschen ungebuchter Belege", async () => {
     const { id } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "c.jpg" });
     await documents.updateDocument(actor, id, {

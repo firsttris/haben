@@ -113,7 +113,7 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `LIESMICH.txt` | Firma, Steuernummer, Zeitraum, Erstellungszeitpunkt, Haben-Version, Erklärung aller Ordner, Prüfanleitung und Hinweise zur Aufbewahrung |
 | `angebote/` | Nur wenn vorhanden: festgeschriebene Angebote als PDF, `angebote.csv` mit Antwort des Kunden, Rechnung und SHA-256 |
 | `rechnungen/` | Festgeschriebene Rechnungen, Stornos und Korrekturen als PDF und E-Rechnungs-XML (bei ZUGFeRD steckt das XML zusätzlich im PDF); `rechnungen.csv` mit Beträgen, Format, Zeitpunkt der Festschreibung und SHA-256. Entwürfe fehlen. |
-| `belege/` | Alle Belege des Jahres als Originaldatei, Name `Datum_Lieferant_Kurz-ID`; `belege.csv` mit Beträgen je Steuersatz, Kategorie, Zahlung, Status, Quelle der Auslesung, SHA-256 und ursprünglichem Dateinamen |
+| `belege/` | Alle Belege des Jahres als Originaldatei, Name `Datum_Lieferant_Kurz-ID`; `belege.csv` mit Beträgen je Steuersatz (in Euro; bei Fremdwährung mit Kurs und Bruttobetrag laut Beleg), Kategorie, Zahlung, Status, Quelle der Auslesung, SHA-256 und ursprünglichem Dateinamen |
 | `anlagen/anlagenverzeichnis.csv` | Anlagenverzeichnis des Jahres je Anlage: Anschaffung, Buchwert am Jahresanfang, Zugang, AfA, Abgang, Buchwert am Jahresende, ob die AfA gebucht ist |
 | `buchungen/journal.csv` | Journal, eine Zeile je Buchungszeile mit Konto, Kontoname, Soll, Haben und Steuerschlüssel; Gegenbuchungen verweisen auf die Ursprungsbuchung |
 | `bank/<IBAN>/umsaetze.csv` | Importierte Umsätze je Konto mit zugeordnetem und offenem Betrag |
