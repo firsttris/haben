@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { computeInvoiceTotals } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -218,6 +219,14 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     await expect(
       documents.updateDocument(actor, id, { ...base, currency: "USD", exchangeRate: "0,000001", amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 10_000_000, originalTax: 0 }] }),
     ).rejects.toThrow(/zu groß/);
+    // 50 Mio. Yen passen nicht in int4-Cent, als Originalbetrag aber schon; umgerechnet (1 EUR = 160 JPY) sind es 312.500 €
+    await documents.updateDocument(actor, id, { ...base, currency: "JPY", exchangeRate: "160", amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 5_000_000_000, originalTax: 0 }] });
+    const yen = (await documents.getDocument(id))!;
+    expect(yen.amounts.map((a) => [a.originalNet, a.net])).toEqual([[5_000_000_000, 31_250_000]]);
+    // Winziger Betrag mit großem Kurs: umgerechnet 0,00 €, also nicht buchbar
+    await documents.updateDocument(actor, id, { ...base, currency: "USD", exchangeRate: "1000", amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 4, originalTax: 0 }] });
+    const zero = (await documents.getDocument(id))!;
+    expect(documents.bookingIssues(zero.document, zero.amounts)).toEqual(["Umgerechnet 0,00 €, bitte den Kurs prüfen"]);
 
     await documents.updateDocument(actor, id, {
       ...base,
@@ -228,6 +237,20 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     const euro = (await documents.getDocument(id))!;
     expect(euro.document).toMatchObject({ currency: "EUR", exchangeRate: null, net: 5000, gross: 5000 });
     expect(euro.amounts.map((a) => [a.originalNet, a.originalTax])).toEqual([[null, null]]);
+  });
+
+  it("Bestand: alte Fremdwährungsbelege bekommen ihre Beträge als Originalbeträge, gesperrte bleiben", async () => {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 9]), filename: "alt.jpg" });
+    // So hat die Auslesung vor den Kursen gespeichert: Dollarbeträge in den Euro-Spalten
+    await sql`update documents set currency = 'USD', net = 10000, tax = 0, gross = 10000 where id = ${id}`;
+    await sql`delete from document_amounts where document_id = ${id}`;
+    await sql`insert into document_amounts (document_id, tax_rate, net, tax) values (${id}, 0, 10000, 0)`;
+    const migration = readFileSync(new URL("../../../../drizzle/0069_fremdwaehrung_bestand.sql", import.meta.url), "utf8");
+    for (const statement of migration.split("--> statement-breakpoint")) await sql.unsafe(statement);
+    const after = (await documents.getDocument(id))!;
+    expect(after.document).toMatchObject({ currency: "USD", net: 0, tax: 0, gross: 0 });
+    expect(after.amounts.map((a) => [a.net, a.originalNet])).toEqual([[0, 10000]]);
+    expect(documents.bookingIssues(after.document, after.amounts)).toEqual(["Umrechnungskurs für USD fehlt"]);
   });
 
   it("verlangt Pflichtangaben und erlaubt Löschen ungebuchter Belege", async () => {

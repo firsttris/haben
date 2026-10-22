@@ -956,8 +956,9 @@ export const documentAmounts = pgTable(
     net: integer("net").notNull(),
     tax: integer("tax").notNull(),
     /** Nur bei Fremdwährung: Beträge in der Währung des Belegs */
-    originalNet: integer("original_net"),
-    originalTax: integer("original_tax"),
+    /** bigint: in Währungen wie HUF oder JPY übersteigen schon übliche Beträge den Bereich von integer */
+    originalNet: bigint("original_net", { mode: "number" }),
+    originalTax: bigint("original_tax", { mode: "number" }),
   },
   (t) => [uniqueIndex("document_amounts_rate").on(t.documentId, t.taxRate)],
 );
