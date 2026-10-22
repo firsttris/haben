@@ -31,6 +31,8 @@ export const companySchema = z.object({
   einkunftsart: z.enum(["gewerbe", "selbstaendig"]).nullable().default(null),
   taetigkeit: z.string().trim().max(100).default(""),
   /** Vorgabe für den Privatanteil je Belegkategorie in Prozent */
+  /** Tageskurs statt der monatlichen USt-Umrechnungskurse, wenn das Finanzamt es gestattet hat */
+  tageskurs: z.boolean().default(false),
   privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), z.number().int().min(0).max(100)).default({}),
   dunning: z
     .object({

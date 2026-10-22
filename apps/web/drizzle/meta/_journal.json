@@ -533,6 +533,20 @@
       "when": 1792648548829,
       "tag": "0075_fremdwaehrung_bestand",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1792648898677,
+      "tag": "0076_umrechnungskurse",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1792648920674,
+      "tag": "0077_umrechnungskurse_trigger",
+      "breakpoints": true
     }
   ]
 }

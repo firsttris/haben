@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convertForeignAmounts, foreignToEuro, formatExchangeRate, parseExchangeRate } from "./currency.ts";
+import { convertForeignAmounts, foreignToEuro, formatExchangeRate, parseBmfRates, parseExchangeRate } from "./currency.ts";
 
 describe("parseExchangeRate", () => {
   it.each([
@@ -58,5 +58,40 @@ describe("convertForeignAmounts", () => {
     expect(convertForeignAmounts([{ taxRate: 1900, originalNet: 10_000, originalTax: 0 }], "1.0812", true)).toEqual([
       { taxRate: 1900, net: 9249, tax: 1757 },
     ]);
+  });
+});
+
+describe("parseBmfRates", () => {
+  it("liest die CSV des BMF: Kurs und Code in der Zelle, Tausenderpunkte, leere Monate", () => {
+    const csv = [
+      "﻿Land;Währung;Januar;Februar;März;April",
+      "Australien;1 Euro;1,5523 AUD;1,5612 AUD;;",
+      "Indonesien;1 Euro;15.172,93 IDR;15.201,5 IDR;;",
+      '"USA";"1 Euro";"1,0812 USD";"1,0790 USD";"";""',
+      "Ecuador;1 Euro;1,0812 USD;1,0790 USD;;",
+      "Japan;1 Euro;161,79 JPY;-;;",
+    ].join("\r\n");
+    expect(parseBmfRates(csv, 2026)).toEqual([
+      { currency: "AUD", month: "2026-01", rate: "1.5523" },
+      { currency: "AUD", month: "2026-02", rate: "1.5612" },
+      { currency: "IDR", month: "2026-01", rate: "15172.93" },
+      { currency: "IDR", month: "2026-02", rate: "15201.5" },
+      { currency: "JPY", month: "2026-01", rate: "161.79" },
+      { currency: "USD", month: "2026-01", rate: "1.0812" },
+      { currency: "USD", month: "2026-02", rate: "1.079" },
+    ]);
+  });
+
+  it("nimmt den Code aus einer eigenen Spalte und Monate als 01/2026", () => {
+    const csv = ["Umsatzsteuer-Umrechnungskurse 2026", "", "Land\tISO\t01/2026\t02/2026", "Vereinigtes Königreich\tGBP\t0,8412\t0,8399"].join("\n");
+    expect(parseBmfRates(csv, 2026)).toEqual([
+      { currency: "GBP", month: "2026-01", rate: "0.8412" },
+      { currency: "GBP", month: "2026-02", rate: "0.8399" },
+    ]);
+  });
+
+  it("ohne Kopfzeile mit Monaten oder für ein anderes Jahr: nichts", () => {
+    expect(parseBmfRates("<html>Fehler</html>", 2026)).toEqual([]);
+    expect(parseBmfRates("Land;01/2025\nUSA;1,05 USD", 2026)).toEqual([]);
   });
 });

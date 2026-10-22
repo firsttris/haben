@@ -103,6 +103,28 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
           ne(schema.invoices.taxTreatment, "reverse_charge"),
         ),
       );
+    // Mit der Zahlung als Kursdifferenz ausgebuchter Rest: die Steuer darauf wird mit der Zahlung fällig, in voller Höhe
+    // der Rechnung (umgerechnet mit deren Kurs), wie im Journal (exchangeDifferencePosting)
+    const differences = await db
+      .select({
+        date: schema.writeOffs.date,
+        amount: schema.writeOffs.amount,
+        invoiceId: schema.invoices.id,
+        number: schema.invoices.number,
+        buyer: schema.invoices.buyer,
+        treatment: schema.invoices.taxTreatment,
+      })
+      .from(schema.writeOffs)
+      .innerJoin(schema.invoices, eq(schema.invoices.id, schema.writeOffs.invoiceId))
+      .where(
+        and(
+          eq(schema.writeOffs.kind, "kursdifferenz"),
+          gte(schema.writeOffs.date, start),
+          lt(schema.writeOffs.date, end),
+          ne(schema.invoices.taxTreatment, "reverse_charge"),
+        ),
+      );
+    payments.push(...differences);
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))]);
     for (const p of payments) {
       for (const share of paidTaxShares(totals.get(p.invoiceId)!, p.amount)) {
@@ -173,6 +195,8 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
         and(
           gte(schema.writeOffs.date, start),
           lt(schema.writeOffs.date, end),
+          // Kursdifferenzen ändern die Bemessungsgrundlage nicht, sie bleibt beim Kurs der Rechnung
+          ne(schema.writeOffs.kind, "kursdifferenz"),
           ...(versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
         ),
       );
@@ -258,7 +282,14 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     })
     .from(schema.writeOffs)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
-    .where(and(gte(schema.writeOffs.date, start), lt(schema.writeOffs.date, end), eq(schema.documents.vorsteuerAbzug, true)));
+    .where(
+      and(
+        gte(schema.writeOffs.date, start),
+        lt(schema.writeOffs.date, end),
+        eq(schema.writeOffs.kind, "skontoErhalten"),
+        eq(schema.documents.vorsteuerAbzug, true),
+      ),
+    );
   if (discounts.length > 0) {
     const docAmounts = await db
       .select()

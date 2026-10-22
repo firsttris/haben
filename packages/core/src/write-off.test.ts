@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { computeInvoiceTotals } from "./invoice.ts";
-import { documentWriteOffPosting, invoicePaymentPosting, invoicePosting, invoiceWriteOffPosting, type PostingLine } from "./posting.ts";
+import {
+  documentPaymentPosting,
+  documentWriteOffPosting,
+  exchangeDifferenceBankPosting,
+  exchangeDifferencePosting,
+  invoicePaymentPosting,
+  invoicePosting,
+  invoiceWriteOffPosting,
+  type PostingLine,
+} from "./posting.ts";
 
 /** Saldo je Konto (Soll − Haben) über mehrere Buchungen */
 function balances(...postings: PostingLine[][]): Record<string, number> {
@@ -63,5 +72,28 @@ describe("documentWriteOffPosting", () => {
       { account: "3300", debit: 238, credit: 0, taxCode: null },
       { account: "5730", debit: 0, credit: 238, taxCode: "keineVSt" },
     ]);
+  });
+});
+
+describe("exchangeDifferencePosting", () => {
+  it("Rechnung bei Ist: Kursverlust als Aufwand, Forderung ausgeglichen, die Umsatzsteuer wird voll fällig", () => {
+    const sale = invoicePosting(totals, "SKR03", "ist");
+    // Der Kunde zahlt umgerechnet 115,00 € statt 119,00 €
+    const payment = invoicePaymentPosting(totals, 11_500, "SKR03", "ist");
+    const difference = exchangeDifferencePosting({ kind: "invoice", totals, versteuerung: "ist" }, 400, "SKR03");
+    expect(balances(sale, payment, difference)).toEqual({ "1200": 11_500, "2150": 400, "8400": -10_000, "1776": -1900 });
+  });
+
+  it("Rechnung, mehr erhalten: der Überschuss ist Ertrag aus Kursdifferenzen, die Umsatzsteuer bleibt", () => {
+    const sale = invoicePosting(totals, "SKR04", "soll");
+    const payment = invoicePaymentPosting(totals, 11_900, "SKR04", "soll");
+    const extra = exchangeDifferenceBankPosting(150, "SKR04");
+    expect(balances(sale, payment, extra)).toEqual({ "1800": 12_050, "4840": -150, "4400": -10_000, "3806": -1900 });
+  });
+
+  it("Beleg: weniger gezahlt ist Ertrag, mehr gezahlt Aufwand", () => {
+    const less = exchangeDifferencePosting({ kind: "document" }, -300, "SKR03");
+    expect(balances(documentPaymentPosting(-11_600, "SKR03"), less)).toEqual({ "1600": 11_900, "1200": -11_600, "2660": -300 });
+    expect(balances(exchangeDifferenceBankPosting(-200, "SKR03"))).toEqual({ "1200": -200, "2150": 200 });
   });
 });

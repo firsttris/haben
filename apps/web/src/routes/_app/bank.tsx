@@ -63,6 +63,7 @@ const KIND_LABEL = {
   geldtransit: "Geldtransit",
   ustVorauszahlung: "Umsatzsteuer",
   gebuehren: "Bankgebühren", mahnerloes: "Mahngebühren und Zinsen",
+  kursdifferenz: "Kursdifferenz",
 } as const;
 
 const FORMAT_LABEL = (format: string) =>
@@ -820,8 +821,11 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   const restKinds: ("skonto" | "forderungsausfall" | "skontoErhalten")[] =
     rest === 0 ? [] : target?.type === "invoice" && tx.amount > 0 ? ["skonto", "forderungsausfall"] : target?.type === "document" && tx.amount < 0 ? ["skontoErhalten"] : [];
   const REST_LABEL = { skonto: "als Skonto", forderungsausfall: "als Forderungsausfall", skontoErhalten: "als erhaltenes Skonto" } as const;
+  // Rechnung oder Beleg in Fremdwährung: Abweichung der Zahlung vom umgerechneten Betrag als Kursdifferenz (Zahlung − offen)
+  const exchangeDifference =
+    target?.currency && target.currency !== "EUR" && Math.sign(target.open) === Math.sign(tx.open) && target.open !== tx.open ? tx.open - target.open : 0;
 
-  function bookRest(kind: (typeof restKinds)[number]) {
+  function bookRest(kind: (typeof restKinds)[number] | "kursdifferenz") {
     if (!target) return;
     const t = target.type === "invoice" ? { kind: "invoice" as const, invoiceId: target.id } : { kind: "document" as const, documentId: target.id };
     return run(() => restFn({ data: { transactionId: tx.id, target: t, rest: kind } }));
@@ -1065,6 +1069,18 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                 Alle offenen Gebühren aus {formatDate(tx.bookingDate).slice(3)} diesem Beleg zuordnen
               </button>
               <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
+            </div>
+          )}
+          {exchangeDifference !== 0 && target && (
+            <div className="stack" style={{ gap: 6 }}>
+              <button type="button" className="btn" onClick={() => void bookRest("kursdifferenz")} disabled={busy}>
+                Ausgleichen, {formatEuro(Math.abs(exchangeDifference))} als Kursdifferenz
+              </button>
+              <span className="small muted">
+                {target.type === "invoice" ? "Rechnung" : "Beleg"} in {target.currency}: Die Zahlung weicht vom umgerechneten Betrag ab. Die
+                Abweichung wird {exchangeDifference > 0 ? "Ertrag" : "Aufwand"} aus Kursdifferenzen, die Umsatzsteuer bleibt beim Kurs{" "}
+                {target.type === "invoice" ? "der Rechnung" : "des Belegs"}.
+              </span>
             </div>
           )}
           {restKinds.length > 0 && (

@@ -69,7 +69,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
       and(
         gte(schema.bankTransactions.bookingDate, start),
         lt(schema.bankTransactions.bookingDate, end),
-        inArray(schema.allocations.kind, ["invoice", "document", "ustVorauszahlung", "gebuehren", "mahnerloes"]),
+        inArray(schema.allocations.kind, ["invoice", "document", "ustVorauszahlung", "gebuehren", "mahnerloes", "kursdifferenz"]),
       ),
     );
 
@@ -94,9 +94,30 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
       ),
     );
 
-  const invoiceTotals = await invoiceTotalsById([...new Set(allocations.flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))]);
+  // Kursdifferenz beim Ausgleich einer Fremdwährungsrechnung: in der EÜR zählt der gezahlte Euro-Betrag. Der ausgebuchte
+  // Rest wird als Teil der Rechnung bzw. des Belegs gezählt und als eigener Posten Kursgewinn bzw. -verlust wieder abgezogen.
+  const exchangeDifferences = await db
+    .select({
+      amount: schema.writeOffs.amount,
+      date: schema.writeOffs.date,
+      invoiceId: schema.writeOffs.invoiceId,
+      documentId: schema.writeOffs.documentId,
+      transactionId: schema.writeOffs.transactionId,
+      category: schema.documents.category,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+      privateShare: schema.documents.privateShare,
+      treatment: schema.invoices.taxTreatment,
+    })
+    .from(schema.writeOffs)
+    .leftJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
+    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.writeOffs.invoiceId))
+    .where(and(eq(schema.writeOffs.kind, "kursdifferenz"), gte(schema.writeOffs.date, start), lt(schema.writeOffs.date, end)));
+
+  const invoiceTotals = await invoiceTotalsById([
+    ...new Set([...allocations, ...exchangeDifferences].flatMap((a) => (a.invoiceId ? [a.invoiceId] : []))),
+  ]);
   const docTotals = await documentTotalsById([
-    ...new Set([...allocations.flatMap((a) => (a.documentId ? [a.documentId] : [])), ...privateDocs.map((d) => d.id)]),
+    ...new Set([...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])), ...privateDocs.map((d) => d.id)]),
   ]);
 
   const payments: EuerPayment[] = [];
@@ -123,9 +144,28 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
         privateShare: a.privateShare ?? 0,
         group,
       });
-    } else if (a.kind === "ustVorauszahlung" || a.kind === "gebuehren" || a.kind === "mahnerloes") {
+    } else if (a.kind === "ustVorauszahlung" || a.kind === "gebuehren" || a.kind === "mahnerloes" || a.kind === "kursdifferenz") {
       payments.push({ kind: a.kind, date: a.date, amount: a.amount, group });
     }
+  }
+  for (const w of exchangeDifferences) {
+    const group = `kurs|${w.transactionId}|${w.invoiceId ?? w.documentId}`;
+    if (w.invoiceId) {
+      payments.push({ kind: "invoice", date: w.date, paid: w.amount, totals: invoiceTotals.get(w.invoiceId)!, treatment: w.treatment ?? "regulaer", group });
+    } else if (w.documentId) {
+      payments.push({
+        kind: "document",
+        date: w.date,
+        paid: -w.amount,
+        totals: docTotals.get(w.documentId)!,
+        category: isCategory(w.category) ? w.category : "sonstiges",
+        vorsteuerAbzug: w.vorsteuerAbzug ?? true,
+        privateShare: w.privateShare ?? 0,
+        group,
+      });
+    }
+    // Rechnung: weniger erhalten (Rest positiv) ist Verlust; Beleg: weniger gezahlt (Rest negativ) ist Gewinn
+    payments.push({ kind: "kursdifferenz", date: w.date, amount: -w.amount, group });
   }
   for (const d of privateDocs) {
     payments.push({

@@ -20,7 +20,12 @@ export interface OpenItem {
   open: Cents;
   partyName: string;
   partyIbans: string[];
+  /** Währung der Rechnung bzw. des Belegs; open ist immer in Euro umgerechnet */
+  currency?: string;
 }
+
+/** Bis zu dieser Abweichung (in Prozent des offenen Betrags) gilt eine Zahlung auf Fremdwährung als passend */
+const EXCHANGE_TOLERANCE = 0.05;
 
 export interface Suggestion {
   item: OpenItem;
@@ -28,6 +33,11 @@ export interface Suggestion {
   reasons: string[];
   /** Betrag, der zugeordnet würde */
   amount: Cents;
+  /**
+   * Nur bei Fremdwährung: Zahlung minus offener Betrag, wenn die Zahlung um höchstens 5 % abweicht. Dann lässt sich
+   * die Abweichung als Kursdifferenz buchen.
+   */
+  exchangeDifference?: Cents;
 }
 
 const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -68,9 +78,14 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
     let score = 0;
 
     const exact = item.open === tx.amount;
+    const foreign = item.currency !== undefined && item.currency !== "EUR";
+    const nearRate = foreign && !exact && Math.abs(tx.amount - item.open) <= Math.abs(item.open) * EXCHANGE_TOLERANCE;
     if (exact) {
       score += 50;
       reasons.push("Betrag stimmt exakt");
+    } else if (nearRate) {
+      score += 30;
+      reasons.push(`Betrag passt bis auf eine Kursdifferenz (${item.currency})`);
     } else if (Math.abs(tx.amount) < Math.abs(item.open)) {
       score += 5;
       reasons.push("Teilbetrag des offenen Betrags");
@@ -98,7 +113,7 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
     // Ohne passenden Betrag nur mit starkem weiteren Hinweis vorschlagen
     if (score < 40) continue;
     const amount = Math.abs(tx.amount) <= Math.abs(item.open) ? tx.amount : item.open;
-    suggestions.push({ item, score, reasons, amount });
+    suggestions.push({ item, score, reasons, amount, ...(nearRate ? { exchangeDifference: tx.amount - item.open } : {}) });
   }
 
   return suggestions.sort((a, b) => b.score - a.score || a.item.date.localeCompare(b.item.date)).slice(0, limit);

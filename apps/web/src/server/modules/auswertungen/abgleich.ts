@@ -135,6 +135,11 @@ export async function euerAbgleich(year: number): Promise<Abgleich> {
     ),
   );
 
+  // Kursdifferenzen bei Fremdwährung: Aufwand und Ertrag aus Kursdifferenzen gegen die Posten der EÜR
+  const kurs = saldo(sums, (kr) => [ACCOUNTS[kr].kursAufwand, ACCOUNTS[kr].kursErtrag]);
+  const kursQuelle = line("kursverluste") - line("kursgewinne");
+  if (kurs !== 0 || kursQuelle !== 0) zeilen.push(row("Kursdifferenzen (Aufwand abzüglich Ertrag)", kurs, kursQuelle));
+
   // AfA und Privatnutzung stehen erst im Journal, wenn das Jahr gebucht ist
   const pending = (await listAssets(year)).filter((a) => a.pending).length;
   if (pending > 0) {

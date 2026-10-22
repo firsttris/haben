@@ -220,6 +220,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   ustVorauszahlung: "USt-Vorauszahlung",
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
+  kursdifferenz: "Kursdifferenz",
 };
 const SUBMISSION_LABELS: Record<string, string> = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" };
 

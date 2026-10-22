@@ -46,8 +46,11 @@ export type EuerPayment =
       group?: string;
     }
   | {
-      /** Umsatzsteuer an das Finanzamt bzw. Erstattung; Vorzeichen wie auf dem Konto */
-      kind: "ustVorauszahlung" | "gebuehren" | "mahnerloes";
+      /**
+       * Umsatzsteuer an das Finanzamt bzw. Erstattung, Gebühren, Mahnerlöse, Kursdifferenz bei Fremdwährung (Gewinn
+       * positiv); Vorzeichen wie auf dem Konto
+       */
+      kind: "ustVorauszahlung" | "gebuehren" | "mahnerloes" | "kursdifferenz";
       date: string;
       amount: Cents;
       group?: string;
@@ -61,6 +64,8 @@ export type EuerLineKey =
   | "ustEntnahmen"
   | "vereinnahmteUst"
   | "erstatteteUst"
+  | "kursgewinne"
+  | "kursverluste"
   | `ausgabe:${ExpenseCategory}`
   | `pauschale:${PauschaleArt}`
   | "afa"
@@ -98,6 +103,8 @@ export const EUER_LABELS = {
   vereinnahmteUst: "Vereinnahmte Umsatzsteuer",
   ustEntnahmen: "Umsatzsteuer auf unentgeltliche Wertabgaben",
   erstatteteUst: "Vom Finanzamt erstattete Umsatzsteuer",
+  kursgewinne: "Erträge aus Kursdifferenzen",
+  kursverluste: "Aufwendungen aus Kursdifferenzen",
   afa: "AfA auf bewegliche Wirtschaftsgüter",
   gwg: "Sofortabschreibung geringwertiger Wirtschaftsgüter",
   sammelposten: "Auflösung Sammelposten",
@@ -198,6 +205,16 @@ export function computeEuer(
         add("einnahmenSteuerfrei", p.sum);
         monthlyIn[month]! += p.sum;
         break;
+      case "kursdifferenz":
+        // Fremdwährung: Unterschied zwischen umgerechnetem Rechnungsbetrag und Zahlung, ohne Umsatzsteuer
+        if (p.sum > 0) {
+          add("kursgewinne", p.sum);
+          monthlyIn[month]! += p.sum;
+        } else {
+          add("kursverluste", -p.sum);
+          monthlyOut[month]! -= p.sum;
+        }
+        break;
       case "gebuehren":
         add("ausgabe:geldverkehr", -p.sum);
         monthlyOut[month]! -= p.sum;
@@ -219,12 +236,13 @@ export function computeEuer(
     add("privateKfz", withdrawals.privateKfz);
     add("ustEntnahmen", withdrawals.ustEntnahmen);
   }
-  const optional = (key: "privateKfz" | "ustEntnahmen") => ((sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : []);
+  const optional = (key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste") => ((sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : []);
   const einnahmen = [
     ...(sums.has("einnahmenKleinunternehmer") ? [line("einnahmenKleinunternehmer", EUER_LABELS.einnahmenKleinunternehmer)] : []),
     line("einnahmenSteuerpflichtig", EUER_LABELS.einnahmenSteuerpflichtig),
     line("einnahmenSteuerfrei", EUER_LABELS.einnahmenSteuerfrei),
     ...optional("privateKfz"),
+    ...optional("kursgewinne"),
     line("vereinnahmteUst", EUER_LABELS.vereinnahmteUst),
     ...optional("ustEntnahmen"),
     line("erstatteteUst", EUER_LABELS.erstatteteUst),
@@ -253,6 +271,7 @@ export function computeEuer(
     ...categories,
     ...pauschalen,
     ...depreciationLines,
+    ...optional("kursverluste"),
     line("vorsteuer", EUER_LABELS.vorsteuer),
     line("gezahlteUst", EUER_LABELS.gezahlteUst),
   ];

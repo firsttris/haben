@@ -8,6 +8,8 @@ import {
   directPosting,
   documentOpen,
   documentWriteOffPosting,
+  exchangeDifferenceBankPosting,
+  exchangeDifferencePosting,
   invoiceWriteOffPosting,
   WRITE_OFF_KINDS,
   findPayoutGroup,
@@ -377,6 +379,7 @@ export async function openItems(): Promise<OpenItem[]> {
       issueDate: schema.invoices.issueDate,
       dueDate: schema.invoices.dueDate,
       gross: schema.invoices.gross,
+      currency: schema.invoices.currency,
       buyer: schema.invoices.buyer,
       contactIban: schema.contacts.iban,
     })
@@ -406,6 +409,7 @@ export async function openItems(): Promise<OpenItem[]> {
       uploadedAt: schema.documents.uploadedAt,
       dueDate: schema.documents.dueDate,
       gross: schema.documents.gross,
+      currency: schema.documents.currency,
       supplierName: schema.documents.supplierName,
     })
     .from(schema.documents)
@@ -425,6 +429,7 @@ export async function openItems(): Promise<OpenItem[]> {
       open,
       partyName: inv.buyer?.name ?? "",
       partyIbans: inv.contactIban ? [inv.contactIban] : [],
+      currency: inv.currency,
     });
   }
   // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet
@@ -461,6 +466,7 @@ export async function openItems(): Promise<OpenItem[]> {
       open,
       partyName: doc.supplierName,
       partyIbans: [],
+      currency: doc.currency,
     });
   }
   return items;
@@ -743,7 +749,8 @@ const splitPartSchema = z.discriminatedUnion("kind", [
 export const splitSchema = z.object({ transactionId: z.uuid(), parts: z.array(splitPartSchema).min(2).max(20) });
 
 export type SplitInput = z.infer<typeof splitSchema>;
-type Part = z.infer<typeof splitPartSchema>;
+/** Dazu intern: der Teil einer Zahlung über dem offenen Betrag einer Fremdwährungsrechnung (allocateWithRest) */
+type Part = z.infer<typeof splitPartSchema> | { kind: "kursdifferenz"; amount: number };
 
 /** Sperrt den Umsatz für die Dauer der Zuordnung: Zwei gleichzeitige Zuordnungen sähen sonst denselben offenen Teil */
 async function lockTransaction(tx: Tx, id: string) {
@@ -818,6 +825,9 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     lines = documentPaymentPosting(part.amount, company.kontenrahmen);
     description = `Zahlung Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { documentId: doc.id };
+  } else if (part.kind === "kursdifferenz") {
+    lines = exchangeDifferenceBankPosting(part.amount, company.kontenrahmen);
+    description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;
   } else {
     lines = directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen);
     description = `${bank.counterpartyName || "Bankumsatz"} · ${part.kind}`;
@@ -1001,15 +1011,39 @@ export type WriteOffInput = z.infer<typeof writeOffSchema>;
  * Betrag wie eine Zuordnung, bucht Erlösschmälerung bzw. Forderungsverlust oder erhaltenes Skonto samt Korrektur der
  * Umsatzsteuer bzw. Vorsteuer (§ 17 UStG) und gibt den ausgebuchten Betrag zurück.
  */
+/** Kursdifferenz: nur zusammen mit einer Zahlung (allocateWithRest), auf eine Rechnung oder einen Beleg in Fremdwährung */
+type ExchangeDifferenceInput = { kind: "kursdifferenz"; date: string; transactionId: string } & ({ invoiceId: string } | { documentId: string });
+
 async function bookWriteOff(
   tx: Tx,
   company: Awaited<ReturnType<typeof openBooks>>,
-  input: WriteOffInput & { transactionId?: string },
+  input: (WriteOffInput & { transactionId?: string }) | ExchangeDifferenceInput,
 ): Promise<number> {
   let amount: number;
   let lines: PostingLine[];
   let description: string;
-  if (input.kind === "skontoErhalten") {
+  let target: { invoiceId: string | null; documentId: string | null };
+  if (input.kind === "kursdifferenz") {
+    if ("invoiceId" in input) {
+      const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
+      if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht gefunden.");
+      if (invoice.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Rechnungen in Fremdwährung.");
+      amount = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
+      const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
+      lines = exchangeDifferencePosting({ kind: "invoice", totals, versteuerung: company.versteuerung }, amount, company.kontenrahmen);
+      description = `Kursdifferenz · Rechnung ${invoice.number}`;
+      target = { invoiceId: invoice.id, documentId: null };
+    } else {
+      const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
+      if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
+      if (doc.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Belegen in Fremdwährung.");
+      amount = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
+      lines = exchangeDifferencePosting({ kind: "document" }, amount, company.kontenrahmen);
+      description = `Kursdifferenz · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
+      target = { invoiceId: null, documentId: doc.id };
+    }
+    if (amount === 0) return 0;
+  } else if (input.kind === "skontoErhalten") {
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
     if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
     if (doc.payment !== "bank") throw new BankError("Der Beleg ist privat oder bar bezahlt; dort gibt es nichts auszubuchen.");
@@ -1026,6 +1060,7 @@ async function bookWriteOff(
     const totals = { net: doc.net, tax: doc.tax, gross: doc.gross, taxes };
     lines = documentWriteOffPosting(totals, amount, company.kontenrahmen, doc.vorsteuerAbzug);
     description = `Skonto erhalten · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
+    target = { invoiceId: null, documentId: doc.id };
   } else {
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
     if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht gefunden.");
@@ -1043,13 +1078,13 @@ async function bookWriteOff(
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
     lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, company.versteuerung, invoice.taxTreatment);
     description = `${WRITE_OFF_KINDS[input.kind]} · Rechnung ${invoice.number}`;
+    target = { invoiceId: invoice.id, documentId: null };
   }
   const [row] = await tx
     .insert(schema.writeOffs)
     .values({
       kind: input.kind,
-      invoiceId: input.kind === "skontoErhalten" ? null : input.invoiceId,
-      documentId: input.kind === "skontoErhalten" ? input.documentId : null,
+      ...target,
       date: input.date,
       amount,
       transactionId: input.transactionId ?? null,
@@ -1072,7 +1107,7 @@ export const restSchema = z.object({
     z.object({ kind: z.literal("invoice"), invoiceId: z.uuid() }),
     z.object({ kind: z.literal("document"), documentId: z.uuid() }),
   ]),
-  rest: z.enum(["skonto", "forderungsausfall", "skontoErhalten"]),
+  rest: z.enum(["skonto", "forderungsausfall", "skontoErhalten", "kursdifferenz"]),
 });
 
 /**
@@ -1085,6 +1120,10 @@ export async function allocateWithRest(actor: string, input: z.infer<typeof rest
     const company = await openBooks(tx);
     const bank = await lockTransaction(tx, input.transactionId);
     if (bank.open === 0) throw new BankError("Der Umsatz ist schon ganz zugeordnet.");
+    if (input.rest === "kursdifferenz") {
+      await allocateWithExchangeDifference(tx, company, bank, input.target);
+      return;
+    }
     const isInvoice = input.target.kind === "invoice";
     if (isInvoice !== (input.rest !== "skontoErhalten")) throw new BankError("Skonto erhalten gilt für Belege, Skonto und Forderungsausfall für Rechnungen.");
     const part: Part = input.target.kind === "invoice" ? { kind: "invoice", invoiceId: input.target.invoiceId, amount: bank.open } : { kind: "document", documentId: input.target.documentId, amount: bank.open };
@@ -1098,6 +1137,45 @@ export async function allocateWithRest(actor: string, input: z.infer<typeof rest
         : { ...base, kind: "skontoErhalten", documentId: input.target.documentId },
     );
   });
+}
+
+/**
+ * Zahlung auf eine Rechnung bzw. einen Beleg in Fremdwährung, deren Euro-Betrag vom umgerechneten offenen Betrag abweicht.
+ * Weniger als offen: Zahlung zuordnen, Rest als Kursdifferenz ausbuchen. Mehr als offen: als Aufteilung den offenen
+ * Betrag auf die Rechnung bzw. den Beleg und den Überschuss als Kursdifferenz. Die Umsatzsteuer bleibt unverändert.
+ */
+async function allocateWithExchangeDifference(
+  tx: Tx,
+  company: Awaited<ReturnType<typeof openBooks>>,
+  bank: LockedTransaction,
+  target: z.infer<typeof restSchema>["target"],
+) {
+  let open: number;
+  if (target.kind === "invoice") {
+    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, target.invoiceId));
+    if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+    if (invoice.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Rechnungen in Fremdwährung.");
+    open = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
+  } else {
+    const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, target.documentId));
+    if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
+    if (doc.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Belegen in Fremdwährung.");
+    open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
+  }
+  if (open === 0 || Math.sign(open) !== Math.sign(bank.open)) throw new BankError("Die Zahlung passt nicht zum offenen Betrag.");
+  const toTarget = (amount: number): Part =>
+    target.kind === "invoice" ? { kind: "invoice", invoiceId: target.invoiceId, amount } : { kind: "document", documentId: target.documentId, amount };
+  if (Math.abs(bank.open) <= Math.abs(open)) {
+    await bookPart(tx, company, bank, toTarget(bank.open), null);
+    if (bank.open !== open) {
+      await bookWriteOff(tx, company, { kind: "kursdifferenz", date: bank.bookingDate, transactionId: bank.id, ...(target.kind === "invoice" ? { invoiceId: target.invoiceId } : { documentId: target.documentId }) });
+    }
+  } else {
+    // Wird die Aufteilung aufgehoben, dann ganz (reverseAllocation)
+    const splitId = randomUUID();
+    await bookPart(tx, company, bank, toTarget(open), splitId);
+    await bookPart(tx, company, bank, { kind: "kursdifferenz", amount: bank.open - open }, splitId);
+  }
 }
 
 /** Ausbuchungen einer Rechnung bzw. eines Belegs, ohne Gegenzeilen, mit Merker „aufgehoben“ */

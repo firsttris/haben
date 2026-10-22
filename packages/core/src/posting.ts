@@ -32,6 +32,9 @@ export const ACCOUNTS = {
     skontiGewaehrt: "8730",
     skontiErhalten: "3730",
     forderungsverluste: "2400",
+    /** Kursdifferenzen bei Fremdwährung: ohne Umsatzsteuer, die bleibt beim Kurs der Rechnung (§ 16 Abs. 6 UStG) */
+    kursAufwand: "2150",
+    kursErtrag: "2660",
   },
   SKR04: {
     forderungen: "1200",
@@ -55,6 +58,8 @@ export const ACCOUNTS = {
     skontiGewaehrt: "4730",
     skontiErhalten: "5730",
     forderungsverluste: "6930",
+    kursAufwand: "6880",
+    kursErtrag: "4840",
   },
 } as const;
 
@@ -109,8 +114,10 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1771": "Umsatzsteuer 7 %",
     "1776": "Umsatzsteuer 19 %",
     "1787": "Umsatzsteuer nach § 13b UStG",
+    "2150": "Aufwendungen aus Kursdifferenzen",
     "2400": "Forderungsverluste (übliche Höhe)",
     "2650": "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)",
+    "2660": "Erträge aus Kursdifferenzen",
     "3730": "Erhaltene Skonti",
     "8730": "Gewährte Skonti",
     "8100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
@@ -140,7 +147,9 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "4338": "Erlöse aus im Drittland steuerbaren Leistungen",
     "4400": "Erlöse 19 % USt",
     "4730": "Gewährte Skonti",
+    "4840": "Erträge aus Kursdifferenzen",
     "5730": "Erhaltene Skonti",
+    "6880": "Aufwendungen aus Kursdifferenzen",
     "6930": "Forderungsverluste (übliche Höhe)",
     "7100": "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)",
     "9000": "Saldenvorträge Sachkonten",
@@ -344,11 +353,15 @@ export function paymentProviderAccount(kontenrahmen: Kontenrahmen, index: number
   return `${kontenrahmen === "SKR03" ? "136" : "146"}${index}`;
 }
 
-/** Ausbuchung des Rests einer Rechnung oder eines Belegs (§ 17 UStG: Entgelt hat sich geändert bzw. ist uneinbringlich) */
+/**
+ * Ausbuchung des Rests einer Rechnung oder eines Belegs: § 17 UStG (Entgelt hat sich geändert bzw. ist uneinbringlich)
+ * oder die Kursdifferenz einer Zahlung auf eine Rechnung bzw. einen Beleg in Fremdwährung (ohne Umsatzsteuer)
+ */
 export const WRITE_OFF_KINDS = {
   skonto: "Skonto gewährt",
   forderungsausfall: "Forderungsausfall",
   skontoErhalten: "Skonto erhalten",
+  kursdifferenz: "Kursdifferenz",
 } as const;
 
 export type WriteOffKind = keyof typeof WRITE_OFF_KINDS;
@@ -396,6 +409,44 @@ export function documentWriteOffPosting(totals: InvoiceTotals, amount: Cents, ko
     if (tax !== 0) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
   }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Kursdifferenz beim Ausgleich einer Rechnung bzw. eines Belegs in Fremdwährung: Der Rest (amount mit dem Vorzeichen einer
+ * Zahlung, Rechnung positiv, Beleg negativ) wird gegen Aufwand oder Ertrag aus Kursdifferenzen ausgebucht. Die Umsatzsteuer
+ * ändert sich nicht, sie bleibt beim Kurs der Rechnung. Bei Ist-Versteuerung wird die Steuer auf den ausgebuchten Teil
+ * einer Rechnung trotzdem fällig, sonst bliebe sie auf „nicht fällig“ stehen.
+ */
+export function exchangeDifferencePosting(
+  target: { kind: "invoice"; totals: InvoiceTotals; versteuerung: Versteuerung } | { kind: "document" },
+  amount: Cents,
+  kontenrahmen: Kontenrahmen,
+): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const lines: PostingLine[] = [];
+  if (target.kind === "invoice") {
+    // Weniger erhalten als die Forderung in Euro: Aufwand; mehr (negativer Rest): Ertrag
+    lines.push(side(accounts.forderungen, amount, false, null), side(amount > 0 ? accounts.kursAufwand : accounts.kursErtrag, amount, true, null));
+    if (target.versteuerung === "ist") {
+      for (const { rate, tax } of paidTaxShares(target.totals, amount)) {
+        if (tax === 0 || rate === 0) continue;
+        const code = revenueTaxCode(rate);
+        lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code), side(accounts.ust[vatRate(rate)], tax, false, code));
+      }
+    }
+  } else {
+    // Rest einer Verbindlichkeit (Ausgang negativ): weniger gezahlt ist Ertrag, mehr gezahlt Aufwand
+    lines.push(side(accounts.verbindlichkeiten, -amount, true, null), side(amount < 0 ? accounts.kursErtrag : accounts.kursAufwand, -amount, false, null));
+  }
+  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/** Kursdifferenz als Teil eines Bankumsatzes (Zahlung über dem offenen Betrag): Bank an Ertrag bzw. Aufwand an Bank */
+export function exchangeDifferenceBankPosting(amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  return [side(accounts.bank, amount, true, null), side(amount > 0 ? accounts.kursErtrag : accounts.kursAufwand, amount, false, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
 }
 
 /** Zahlung eines gebuchten Belegs: Verbindlichkeiten an Bank (amount wie auf dem Konto, Ausgang negativ). */
