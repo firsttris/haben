@@ -59,7 +59,9 @@ function OverviewPage() {
   // Steuerkonto: reicht der Stand für die Zahllast, die das Finanzamt per Lastschrift einzieht?
   const zahllast = data.current?.status === "sent" ? data.current.kz83 : data.computedKz83;
   const taxAccount = data.invoices.bank.find((a) => a.purpose === "steuer");
-  const taxShortfall = taxAccount && taxAccount.balance !== null && zahllast > 0 ? zahllast - taxAccount.balance : 0;
+  // Ist die Lastschrift schon eingezogen und zugeordnet, ist der Kontostand bereits um sie gesunken
+  const zahllastOffen = Math.max(0, zahllast - data.vatPaid);
+  const taxShortfall = taxAccount && taxAccount.balance !== null && zahllastOffen > 0 ? zahllastOffen - taxAccount.balance : 0;
   if (taxAccount && taxShortfall > 0 && !data.kleinunternehmer) {
     todos.push({
       title: `Steuerkonto ${taxAccount.name} deckt die Zahllast nicht`,
@@ -230,9 +232,11 @@ function OverviewPage() {
               Steuerkonto ·{" "}
               {zahllast <= 0
                 ? "keine Zahllast offen"
-                : taxShortfall > 0
-                  ? `Zahllast ${formatEuro(zahllast)} – es fehlen ${formatEuro(taxShortfall)}`
-                  : `Zahllast ${formatEuro(zahllast)} – gedeckt`}
+                : zahllastOffen === 0
+                  ? `Zahllast ${formatEuro(zahllast)} bezahlt`
+                  : taxShortfall > 0
+                    ? `Zahllast ${formatEuro(zahllastOffen)} – es fehlen ${formatEuro(taxShortfall)}`
+                    : `Zahllast ${formatEuro(zahllastOffen)} – gedeckt`}
             </div>
           </div>
         )}

@@ -422,8 +422,18 @@ export async function transactionDetail(id: string) {
   const accounts = await ownAccounts();
   const account = accounts.find((a) => a.id === tx.bankAccountId);
   const direct = account && tx.open === tx.amount ? suggestDirectBooking(tx, account, accounts) : null;
-  const counterpart = direct?.counterAccountId ? await transferCounterpart(tx, direct.counterAccountId) : null;
+  const counterpart = direct?.counterAccountId && account ? await transferCounterpart(tx, account.iban, direct.counterAccountId) : null;
   return { transaction: tx, allocations, suggestions, candidates, direct: direct ? { ...direct, counterpart } : null };
+}
+
+/** Schon gezahlte Umsatzsteuer (Zuordnungen „Umsatzsteuer an das Finanzamt“, positiv) mit Buchungsdatum nach `after` */
+export async function vatPaidAfter(after: string): Promise<number> {
+  const [row] = await db
+    .select({ paid: sql<string>`coalesce(-sum(${schema.allocations.amount}), 0)` })
+    .from(schema.allocations)
+    .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
+    .where(and(eq(schema.allocations.kind, "ustVorauszahlung"), sql`${schema.bankTransactions.bookingDate} > ${after}`));
+  return Number(row?.paid ?? 0);
 }
 
 /** Alle eigenen Konten mit Zweck, für Vorschläge ohne Rechnung */
@@ -433,14 +443,15 @@ export async function ownAccounts(): Promise<OwnAccount[]> {
     .from(schema.bankAccounts);
 }
 
-/** Ganz offene Gegenbuchung eines Geldtransits auf dem anderen Konto (± 5 Tage, gleicher Betrag) */
-async function transferCounterpart(tx: { id: string; bookingDate: string; amount: number }, accountId: string) {
+/** Ganz offene Gegenbuchung eines Geldtransits auf dem anderen Konto (± 5 Tage, gleicher Betrag, Gegenkonto = sourceIban) */
+async function transferCounterpart(tx: { id: string; bookingDate: string; amount: number }, sourceIban: string, accountId: string) {
   const rows = await db
     .select({
       id: schema.bankTransactions.id,
       bookingDate: schema.bankTransactions.bookingDate,
       amount: schema.bankTransactions.amount,
       counterpartyName: schema.bankTransactions.counterpartyName,
+      counterpartyIban: schema.bankTransactions.counterpartyIban,
       open: openAmountSql.mapWith(Number),
     })
     .from(schema.bankTransactions)
@@ -451,7 +462,7 @@ async function transferCounterpart(tx: { id: string; bookingDate: string; amount
         sql`${schema.bankTransactions.bookingDate} between ${tx.bookingDate}::date - 5 and ${tx.bookingDate}::date + 5`,
       ),
     );
-  const match = findTransferCounterpart(tx, rows);
+  const match = findTransferCounterpart(tx, sourceIban, rows);
   return match ? { id: match.id, bookingDate: match.bookingDate, amount: match.amount, counterpartyName: match.counterpartyName } : null;
 }
 
@@ -473,9 +484,12 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
         amount: schema.bankTransactions.amount,
         bookingDate: schema.bankTransactions.bookingDate,
         counterpartyName: schema.bankTransactions.counterpartyName,
+        counterpartyIban: schema.bankTransactions.counterpartyIban,
+        accountIban: schema.bankAccounts.iban,
         open: openAmountSql.mapWith(Number),
       })
       .from(schema.bankTransactions)
+      .innerJoin(schema.bankAccounts, eq(schema.bankAccounts.id, schema.bankTransactions.bankAccountId))
       .where(inArray(schema.bankTransactions.id, ids))
       .orderBy(asc(schema.bankTransactions.id))
       .for("update");
@@ -484,6 +498,13 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
     if (first.bankAccountId === second.bankAccountId) throw new BankError("Ein Geldtransit verbindet zwei verschiedene Konten.");
     if (first.amount !== -second.amount) throw new BankError("Die beiden Umsätze haben nicht denselben Betrag mit umgekehrtem Vorzeichen.");
     if (first.open !== first.amount || second.open !== second.amount) throw new BankError("Beide Umsätze müssen noch ganz offen sein.");
+    // Nennt eine Seite ein Gegenkonto, muss es das andere eigene Konto sein, und mindestens eine muss es nennen;
+    // sonst ist es eine fremde Zahlung über denselben Betrag (Erstattung, Kunde)
+    const pointsTo = (a: typeof first, b: typeof first) => a.counterpartyIban === b.accountIban;
+    const named = [first, second].filter((r) => r.counterpartyIban);
+    if (named.length === 0 || (first.counterpartyIban && !pointsTo(first, second)) || (second.counterpartyIban && !pointsTo(second, first))) {
+      throw new BankError("Die beiden Umsätze nennen nicht das jeweils andere Konto als Gegenkonto.");
+    }
     for (const bank of rows) {
       const [allocation] = await tx.insert(schema.allocations).values({ transactionId: bank.id, kind: "geldtransit", amount: bank.amount }).returning();
       await post(tx, company, {

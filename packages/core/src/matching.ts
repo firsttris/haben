@@ -130,6 +130,10 @@ export interface DirectSuggestion {
 
 /** Finanzkassen und Steuerverwaltung, wie sie im Namen der Gegenpartei stehen */
 const TAX_OFFICE = /finanzamt|finanzkasse|steuerverwaltung|landeshauptkasse|landesfinanzkasse|bundeskasse|staatsoberkasse|finanzbehörde/i;
+/** Umsatzsteuer im Verwendungszweck: „USt 09/2026“, „Umsatzsteuer“, „UStVA“ */
+const VAT_PURPOSE = /umsatzsteuer|\bust\b|\bust[- ]?va\b|\bust\d|voranmeldung/i;
+/** Andere Steuern, die dasselbe Finanzamt einzieht oder erstattet (oft privat) */
+const OTHER_TAX_PURPOSE = /einkommen|\best\b|\best[- ]?v|kirchen|\bkist\b|soli|gewerbe|\bgewst\b|kfz|grundsteuer|lohnsteuer|\blst\b/i;
 
 /**
  * Vorschlag für einen Umsatz ohne Rechnung aus dem Zweck der Konten:
@@ -145,7 +149,8 @@ export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, 
     }
     return { kind: "geldtransit", reasons: [`Gegenkonto ist dein Konto ${own.name}`], counterAccountId: own.id };
   }
-  if (account.purpose === "steuer" && TAX_OFFICE.test(tx.counterpartyName)) {
+  // Nur bei erkennbarer Umsatzsteuer: auf dem Steuerkonto liegt oft auch die Rücklage für die Einkommensteuer
+  if (account.purpose === "steuer" && TAX_OFFICE.test(tx.counterpartyName) && VAT_PURPOSE.test(tx.purpose) && !OTHER_TAX_PURPOSE.test(tx.purpose)) {
     return {
       kind: "ustVorauszahlung",
       reasons: [tx.amount < 0 ? "Lastschrift des Finanzamts auf dem Steuerkonto" : "Erstattung des Finanzamts auf das Steuerkonto"],
@@ -154,16 +159,23 @@ export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, 
   return null;
 }
 
+const normalizeIban = (iban: string | null | undefined) => iban?.replace(/\s/g, "").toUpperCase() ?? null;
+
 /**
  * Gegenbuchung eines Geldtransits auf dem anderen eigenen Konto: gleicher Betrag mit umgekehrtem Vorzeichen,
- * noch ganz offen, höchstens fünf Tage auseinander; bei mehreren die zeitlich nächste.
+ * noch ganz offen, höchstens fünf Tage auseinander, und als Gegenkonto das Ausgangskonto. Ohne Gegen-IBAN (manche
+ * Banken liefern sie bei eigenen Überträgen nicht) nur, wenn es keinen Treffer mit IBAN gibt; sonst die zeitlich nächste.
+ * Eine fremde Zahlung über denselben Betrag (Erstattung, Kunde) zählt nicht.
  */
-export function findTransferCounterpart<T extends { id: string; bookingDate: string; amount: Cents; open: Cents }>(
+export function findTransferCounterpart<T extends { id: string; bookingDate: string; amount: Cents; open: Cents; counterpartyIban?: string | null }>(
   tx: { bookingDate: string; amount: Cents },
+  sourceIban: string,
   candidates: T[],
 ): T | null {
-  const matches = candidates
-    .filter((c) => c.amount === -tx.amount && c.open === c.amount && daysBetween(c.bookingDate, tx.bookingDate) <= 5)
-    .sort((a, b) => daysBetween(a.bookingDate, tx.bookingDate) - daysBetween(b.bookingDate, tx.bookingDate));
-  return matches[0] ?? null;
+  const source = normalizeIban(sourceIban);
+  const fitting = candidates.filter((c) => c.amount === -tx.amount && c.open === c.amount && daysBetween(c.bookingDate, tx.bookingDate) <= 5);
+  const byDate = (a: T, b: T) => daysBetween(a.bookingDate, tx.bookingDate) - daysBetween(b.bookingDate, tx.bookingDate);
+  const withIban = fitting.filter((c) => normalizeIban(c.counterpartyIban) === source).sort(byDate);
+  const withoutIban = fitting.filter((c) => !c.counterpartyIban).sort(byDate);
+  return withIban[0] ?? withoutIban[0] ?? null;
 }

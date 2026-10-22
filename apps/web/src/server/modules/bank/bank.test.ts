@@ -178,6 +178,49 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(business.accountId).not.toBe(tax.accountId);
   }, 30_000);
 
+  it("Geldtransit: eine fremde Zahlung über denselben Betrag ist nie die Gegenbuchung; gezahlte Umsatzsteuer wird gezählt", async () => {
+    const TAX_IBAN = "DE02120300000000202051";
+    await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([outgoing("03.10.26", "Steuerkonto", TAX_IBAN, "Rücklage", "-600,00")], "1.000,00 €", "03.10.2026"), filename: "a.csv" },
+      null,
+    );
+    const tax = await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv(
+          [
+            incoming("03.10.26", "Finanzamt Regensburg", "DE76750000000075001007", "Erstattung USt 08/2026", "600,00"),
+            incoming("04.10.26", "Tristan Teufel", IBAN, "Rücklage", "600,00"),
+            outgoing("12.10.26", "Finanzamt Regensburg", "DE76750000000075001007", "USt 09/2026", "-412,30"),
+          ],
+          "787,70 €",
+          "12.10.2026",
+          "DE02 1203 0000 0000 2020 51",
+        ),
+        filename: "b.csv",
+      },
+      null,
+    );
+    await bank.updateAccount(actor, { id: tax.accountId, name: "Steuerkonto", purpose: "steuer" });
+    const [out] = await sql`select id from bank_transactions where amount = -60000`;
+    const [refund] = await sql`select id from bank_transactions where purpose like 'Erstattung%'`;
+    const [transfer] = await sql`select id from bank_transactions where purpose = 'Rücklage' and amount = 60000`;
+    // Die Erstattung liegt zeitlich näher, nennt aber nicht das Geschäftskonto
+    expect((await bank.transactionDetail(out!.id))?.direct?.counterpart?.id).toBe(transfer!.id);
+    await expect(bank.allocateTransfer(actor, { transactionId: out!.id, counterpartId: refund!.id })).rejects.toThrow(/Gegenkonto/);
+    // Die Erstattung selbst ist Umsatzsteuer
+    expect((await bank.transactionDetail(refund!.id))?.direct?.kind).toBe("ustVorauszahlung");
+
+    const [debit] = await sql`select id from bank_transactions where amount = -41230`;
+    expect(await bank.vatPaidAfter("2026-09-30")).toBe(0);
+    await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: debit!.id, amount: -41_230 });
+    await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: refund!.id, amount: 60_000 });
+    // Gezahlt 412,30, erstattet 600,00: netto −187,70; für die Deckung zählt der Saldo
+    expect(await bank.vatPaidAfter("2026-09-30")).toBe(-18_770);
+    expect(await bank.vatPaidAfter("2026-10-12")).toBe(0);
+  }, 30_000);
+
   it("Zahlungseingang: Vorschlag, Zuordnung, Ist-Buchung, bezahlt", async () => {
     const { invoice, contact } = await finalInvoice(400_000);
     await bank.importStatement(

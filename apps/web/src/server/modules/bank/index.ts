@@ -33,5 +33,6 @@ export {
   reverseAllocation,
   transactionDetail,
   transferSchema,
+  vatPaidAfter,
 } from "./bank.ts";
 export { addDocumentCashEntry, cashBook, cashBookCsv, cashInputSchema, createCashEntry, lockCash, reverseCashEntry } from "./cash.ts";
