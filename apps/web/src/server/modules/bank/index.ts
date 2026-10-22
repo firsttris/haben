@@ -24,6 +24,7 @@ export {
   BankError,
   createAccount,
   importStatement,
+  invoiceLosses,
   invoicePayments,
   listAccounts,
   listTransactions,
@@ -36,5 +37,11 @@ export {
   transactionDetail,
   transferSchema,
   vatPaidAfter,
+  allocateWithRest,
+  listWriteOffs,
+  restSchema,
+  reverseWriteOff,
+  writeOff,
+  writeOffSchema,
 } from "./bank.ts";
 export { addDocumentCashEntry, cashBook, cashBookCsv, cashInputSchema, createCashEntry, lockCash, reverseCashEntry } from "./cash.ts";

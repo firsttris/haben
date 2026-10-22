@@ -11,7 +11,7 @@ import type { Cents } from "./money.ts";
 export type InvoiceStatus = "draft" | "final";
 export type InvoiceKind = "rechnung" | "storno" | "korrektur";
 
-export type InvoiceListStatus = "entwurf" | "offen" | "teilbezahlt" | "bezahlt" | "ueberfaellig" | "storniert" | "storno" | "korrektur";
+export type InvoiceListStatus = "entwurf" | "offen" | "teilbezahlt" | "bezahlt" | "ausgebucht" | "ueberfaellig" | "storniert" | "storno" | "korrektur";
 
 export interface InvoiceFacts {
   status: InvoiceStatus;
@@ -24,6 +24,8 @@ export interface InvoiceFacts {
   cancelled: boolean;
   /** Nur beim Storno: was auf die stornierte Rechnung gezahlt wurde */
   paidOnOriginal?: Cents;
+  /** Davon als Forderungsausfall ausgebucht (in paid enthalten) */
+  writtenOffLoss?: Cents;
 }
 
 /**
@@ -51,7 +53,7 @@ export function invoiceListStatus(i: InvoiceFacts & { dueDate: string }, today: 
   if (i.cancelled) return "storniert";
   if (i.kind === "korrektur") return "korrektur";
   const open = invoiceOpen(i);
-  if (open === 0) return "bezahlt";
+  if (open === 0) return (i.writtenOffLoss ?? 0) !== 0 ? "ausgebucht" : "bezahlt";
   if (i.dueDate < today) return "ueberfaellig";
   if (i.paid !== 0) return "teilbezahlt";
   return "offen";

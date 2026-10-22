@@ -849,7 +849,7 @@ export const journalEntries = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
-    sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse"] }).notNull(),
+    sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung"] }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
     reversesId: uuid("reverses_id"),
@@ -1084,6 +1084,37 @@ export const allocations = pgTable(
     index("allocations_document").on(t.documentId),
     index("allocations_split").on(t.splitId),
     foreignKey({ name: "allocations_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
+
+/**
+ * Ausbuchung des Rests einer Rechnung oder eines Belegs (§ 17 UStG): gewährtes Skonto, Forderungsausfall,
+ * erhaltenes Skonto. Zählt wie eine Zahlung zum Erledigten (Vorzeichen wie eine Zahlung: Rechnung positiv,
+ * Beleg negativ), bewegt aber kein Geld. Nur anhängen; aufgehoben wird per Gegenzeile (reversesId).
+ */
+export const writeOffs = pgTable(
+  "write_offs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind", { enum: ["skonto", "forderungsausfall", "skontoErhalten"] }).notNull(),
+    invoiceId: uuid("invoice_id").references(() => invoices.id),
+    documentId: uuid("document_id").references(() => documents.id),
+    date: date("date", { mode: "string" }).notNull(),
+    amount: integer("amount").notNull(),
+    /** Zahlung, mit der zusammen ausgebucht wurde (Rest als Skonto); wird mit deren Zuordnung aufgehoben */
+    transactionId: uuid("transaction_id").references(() => bankTransactions.id),
+    reversesId: uuid("reverses_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "write_offs_target",
+      sql`(${t.kind} = 'skontoErhalten' and ${t.documentId} is not null and ${t.invoiceId} is null) or (${t.kind} <> 'skontoErhalten' and ${t.invoiceId} is not null and ${t.documentId} is null)`,
+    ),
+    index("write_offs_invoice").on(t.invoiceId),
+    index("write_offs_document").on(t.documentId),
+    index("write_offs_transaction").on(t.transactionId),
+    foreignKey({ name: "write_offs_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
   ],
 );
 

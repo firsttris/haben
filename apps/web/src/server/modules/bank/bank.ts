@@ -3,6 +3,9 @@ import { UserError } from "../../errors.ts";
 import {
   directPosting,
   documentOpen,
+  documentWriteOffPosting,
+  invoiceWriteOffPosting,
+  WRITE_OFF_KINDS,
   findTransferCounterpart,
   suggestDirectBooking,
   documentPaymentPosting,
@@ -262,17 +265,40 @@ export async function listTransactions(accountId: string, filter: TransactionFil
     .limit(500);
 }
 
-/** Bezahlter Betrag je Rechnung bzw. Beleg (Summe der Zuordnungen, Vorzeichen wie auf dem Konto) */
+/**
+ * Erledigter Betrag je Rechnung bzw. Beleg: Zuordnungen und Ausbuchungen (Skonto, Forderungsausfall), Vorzeichen
+ * wie auf dem Konto. Ausbuchungen bewegen kein Geld, zählen für „offen“ aber wie eine Zahlung.
+ */
 async function paidByTarget(column: "invoice_id" | "document_id", ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
   if (ids.length === 0) return new Map();
+  const col = sql.raw(column);
   const rows = await q.execute<{ id: string; paid: string }>(
-    sql`select ${sql.raw(column)} as id, sum(amount) as paid from allocations where ${sql.raw(column)} in ${ids} group by 1`,
+    sql`select id, sum(amount) as paid from (
+          select ${col} as id, amount from allocations where ${col} in ${ids}
+          union all select ${col} as id, amount from write_offs where ${col} in ${ids}
+        ) settled group by 1`,
   );
   return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
 }
 
+/** Erledigter Betrag einer Rechnung bzw. eines Belegs innerhalb einer Transaktion (nach dem Sperren) */
+async function settledOn(tx: Tx, column: "invoice_id" | "document_id", id: string): Promise<number> {
+  return (await paidByTarget(column, [id], tx)).get(id) ?? 0;
+}
+
 export async function invoicePayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("invoice_id", ids, q);
+}
+
+/** Als Forderungsausfall ausgebuchte Beträge je Rechnung (Gegenzeilen abgezogen) */
+export async function invoiceLosses(ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
+  if (ids.length === 0) return new Map();
+  const rows = await q
+    .select({ id: schema.writeOffs.invoiceId, sum: sql<string>`sum(${schema.writeOffs.amount})` })
+    .from(schema.writeOffs)
+    .where(and(inArray(schema.writeOffs.invoiceId, ids), eq(schema.writeOffs.kind, "forderungsausfall")))
+    .groupBy(schema.writeOffs.invoiceId);
+  return new Map(rows.map((r) => [r.id!, Number(r.sum)]));
 }
 
 /** Offene Rechnungen und Belege für den Abgleich */
@@ -577,13 +603,7 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
   if (part.kind === "invoice") {
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
     if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
-    const paidOn = async (invoiceId: string) => {
-      const [paid] = await tx
-        .select({ sum: sql<string>`coalesce(sum(amount), 0)` })
-        .from(schema.allocations)
-        .where(eq(schema.allocations.invoiceId, invoiceId));
-      return Number(paid?.sum ?? 0);
-    };
+    const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);
     let open: number;
     if (invoice.kind === "storno") {
       if (!invoice.correctsId) throw new BankError("Rechnung nicht zuordenbar.");
@@ -615,11 +635,7 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, part.documentId)).for("update");
     if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
     if (doc.payment !== "bank") throw new BankError("Der Beleg ist als privat bezahlt gebucht.");
-    const [paid] = await tx
-      .select({ sum: sql<string>`coalesce(sum(amount), 0)` })
-      .from(schema.allocations)
-      .where(eq(schema.allocations.documentId, doc.id));
-    const open = documentOpen(doc.gross, Number(paid?.sum ?? 0));
+    const open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
     if (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open)) {
       throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
     }
@@ -693,6 +709,22 @@ export async function reverseAllocation(actor: string, allocationId: string): Pr
           .for("update")
       : [allocation];
     for (const part of parts) await reverseOne(tx, part);
+    // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
+    const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);
+    if (targets.length > 0) {
+      const linked = await tx
+        .select()
+        .from(schema.writeOffs)
+        .where(
+          and(
+            eq(schema.writeOffs.transactionId, allocation.transactionId),
+            isNull(schema.writeOffs.reversesId),
+            or(inArray(schema.writeOffs.invoiceId, targets), inArray(schema.writeOffs.documentId, targets)),
+          ),
+        )
+        .for("update");
+      for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff);
+    }
   });
 }
 
@@ -725,6 +757,166 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       date: bank!.bookingDate,
       description: `Storno: ${entry.description}`,
       sourceType: "allocation",
+      sourceId: reversal!.id,
+      lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+      reversesId: entry.id,
+    });
+  }
+}
+
+// Ausbuchungen ----------------------------------------------------------------------------------------------
+
+export const writeOffSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.enum(["skonto", "forderungsausfall"]), invoiceId: z.uuid(), date: z.iso.date(), amount: z.number().int().optional() }),
+  z.object({ kind: z.literal("skontoErhalten"), documentId: z.uuid(), date: z.iso.date(), amount: z.number().int().optional() }),
+]);
+
+export type WriteOffInput = z.infer<typeof writeOffSchema>;
+
+/**
+ * Bucht den Rest einer Rechnung bzw. eines Belegs aus (ohne amount: den ganzen offenen Betrag). Prüft den offenen
+ * Betrag wie eine Zuordnung, bucht Erlösschmälerung bzw. Forderungsverlust oder erhaltenes Skonto samt Korrektur der
+ * Umsatzsteuer bzw. Vorsteuer (§ 17 UStG) und gibt den ausgebuchten Betrag zurück.
+ */
+async function bookWriteOff(
+  tx: Tx,
+  company: Awaited<ReturnType<typeof openBooks>>,
+  input: WriteOffInput & { transactionId?: string },
+): Promise<number> {
+  let amount: number;
+  let lines: PostingLine[];
+  let description: string;
+  if (input.kind === "skontoErhalten") {
+    const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
+    if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
+    if (doc.payment !== "bank") throw new BankError("Der Beleg ist privat oder bar bezahlt; dort gibt es nichts auszubuchen.");
+    if (doc.reverseCharge) throw new BankError("Skonto auf Belege mit § 13b wird nicht unterstützt.");
+    if (doc.privateShare > 0) throw new BankError("Skonto auf Belege mit Privatanteil wird nicht unterstützt.");
+    if (doc.category === "anlage") throw new BankError("Skonto auf Anlagegüter mindert die Anschaffungskosten und wird nicht unterstützt.");
+    const open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
+    amount = input.amount ?? open;
+    if (open === 0 || Math.sign(open) !== Math.sign(amount) || Math.abs(amount) > Math.abs(open)) {
+      throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
+    }
+    const rows = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, doc.id));
+    const taxes = rows.map((r) => ({ rate: r.taxRate, base: r.net, tax: r.tax })).sort((a, b) => b.rate - a.rate);
+    const totals = { net: doc.net, tax: doc.tax, gross: doc.gross, taxes };
+    lines = documentWriteOffPosting(totals, amount, company.kontenrahmen, doc.vorsteuerAbzug);
+    description = `Skonto erhalten · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
+  } else {
+    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
+    if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht gefunden.");
+    if (invoice.kind === "storno") throw new BankError("Eine Stornorechnung lässt sich nicht ausbuchen.");
+    const [storno] = await tx
+      .select({ id: schema.invoices.id })
+      .from(schema.invoices)
+      .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
+    if (storno) throw new BankError(`Rechnung ${invoice.number} ist storniert.`);
+    const open = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
+    amount = input.amount ?? open;
+    if (open === 0 || Math.sign(open) !== Math.sign(amount) || Math.abs(amount) > Math.abs(open)) {
+      throw new BankError(`Rechnung ${invoice.number} ist nur noch über ${open / 100} € offen.`);
+    }
+    const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
+    lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, company.versteuerung, invoice.taxTreatment);
+    description = `${WRITE_OFF_KINDS[input.kind]} · Rechnung ${invoice.number}`;
+  }
+  const [row] = await tx
+    .insert(schema.writeOffs)
+    .values({
+      kind: input.kind,
+      invoiceId: input.kind === "skontoErhalten" ? null : input.invoiceId,
+      documentId: input.kind === "skontoErhalten" ? input.documentId : null,
+      date: input.date,
+      amount,
+      transactionId: input.transactionId ?? null,
+    })
+    .returning();
+  await post(tx, company, { date: input.date, description, sourceType: "ausbuchung", sourceId: row!.id, lines });
+  return amount;
+}
+
+/** Rest einer Rechnung oder eines Belegs ausbuchen, z. B. einen Forderungsausfall ohne Zahlung */
+export async function writeOff(actor: string, input: WriteOffInput): Promise<void> {
+  await withActor(actor, async (tx) => {
+    await bookWriteOff(tx, await openBooks(tx), input);
+  });
+}
+
+export const restSchema = z.object({
+  transactionId: z.uuid(),
+  target: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("invoice"), invoiceId: z.uuid() }),
+    z.object({ kind: z.literal("document"), documentId: z.uuid() }),
+  ]),
+  rest: z.enum(["skonto", "forderungsausfall", "skontoErhalten"]),
+});
+
+/**
+ * Zahlung unter dem offenen Betrag: den offenen Teil des Umsatzes zuordnen und den Rest der Rechnung bzw. des
+ * Belegs mit Datum des Umsatzes ausbuchen (Skonto gewährt, Forderungsausfall, Skonto erhalten). Wird die Zuordnung
+ * aufgehoben, wird die Ausbuchung mit aufgehoben.
+ */
+export async function allocateWithRest(actor: string, input: z.infer<typeof restSchema>): Promise<void> {
+  await withActor(actor, async (tx) => {
+    const company = await openBooks(tx);
+    const bank = await lockTransaction(tx, input.transactionId);
+    if (bank.open === 0) throw new BankError("Der Umsatz ist schon ganz zugeordnet.");
+    const isInvoice = input.target.kind === "invoice";
+    if (isInvoice !== (input.rest !== "skontoErhalten")) throw new BankError("Skonto erhalten gilt für Belege, Skonto und Forderungsausfall für Rechnungen.");
+    const part: Part = input.target.kind === "invoice" ? { kind: "invoice", invoiceId: input.target.invoiceId, amount: bank.open } : { kind: "document", documentId: input.target.documentId, amount: bank.open };
+    await bookPart(tx, company, bank, part, null);
+    const base = { date: bank.bookingDate, transactionId: bank.id };
+    await bookWriteOff(
+      tx,
+      company,
+      input.target.kind === "invoice"
+        ? { ...base, kind: input.rest as "skonto" | "forderungsausfall", invoiceId: input.target.invoiceId }
+        : { ...base, kind: "skontoErhalten", documentId: input.target.documentId },
+    );
+  });
+}
+
+/** Ausbuchungen einer Rechnung bzw. eines Belegs, ohne Gegenzeilen, mit Merker „aufgehoben“ */
+export async function listWriteOffs(target: { invoiceId: string } | { documentId: string }) {
+  const rows = await db
+    .select()
+    .from(schema.writeOffs)
+    .where("invoiceId" in target ? eq(schema.writeOffs.invoiceId, target.invoiceId) : eq(schema.writeOffs.documentId, target.documentId))
+    .orderBy(asc(schema.writeOffs.createdAt));
+  const reversed = new Set(rows.flatMap((r) => (r.reversesId ? [r.reversesId] : [])));
+  return rows.filter((r) => !r.reversesId).map((r) => ({ ...r, reversed: reversed.has(r.id) }));
+}
+
+/** Hebt eine Ausbuchung auf; gehört sie zu einer Zahlung, nur zusammen mit deren Zuordnung (im Bankabgleich) */
+export async function reverseWriteOff(actor: string, id: string): Promise<void> {
+  await withActor(actor, async (tx) => {
+    const [row] = await tx.select().from(schema.writeOffs).where(eq(schema.writeOffs.id, id)).for("update");
+    if (!row || row.reversesId) throw new BankError("Ausbuchung nicht gefunden.");
+    if (row.transactionId) throw new BankError("Die Ausbuchung gehört zu einer Zahlung; hebe dort im Bankabgleich die Zuordnung auf.");
+    const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, id));
+    if (already) throw new BankError("Die Ausbuchung ist bereits aufgehoben.");
+    await reverseWriteOffRow(tx, row);
+  });
+}
+
+async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect) {
+  const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, row.id));
+  if (already) return;
+  const [entry] = await tx
+    .select()
+    .from(schema.journalEntries)
+    .where(and(eq(schema.journalEntries.sourceType, "ausbuchung"), eq(schema.journalEntries.sourceId, row.id), isNull(schema.journalEntries.reversesId)));
+  const lines = entry ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id)) : [];
+  const [reversal] = await tx
+    .insert(schema.writeOffs)
+    .values({ kind: row.kind, invoiceId: row.invoiceId, documentId: row.documentId, date: row.date, amount: -row.amount, transactionId: row.transactionId, reversesId: row.id })
+    .returning();
+  if (entry) {
+    await post(tx, await openBooks(tx), {
+      date: row.date,
+      description: `Storno: ${entry.description}`,
+      sourceType: "ausbuchung",
       sourceId: reversal!.id,
       lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
       reversesId: entry.id,

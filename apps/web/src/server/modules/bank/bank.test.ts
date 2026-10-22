@@ -37,7 +37,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
+    await sql`truncate write_offs, allocations, bank_transactions, bank_imports, bank_accounts, journal_lines, journal_entries,
       document_amounts, documents, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 1', '198/113/10010',
@@ -369,6 +369,86 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       bank.allocateSplit(actor, { transactionId: tx!.id, parts: [{ kind: "privat", amount: 1000 }, { kind: "gebuehren", amount: -1000 }] }),
     ).rejects.toThrow(/schon ganz zugeordnet/);
   });
+
+  it("Skonto gewährt (Ist): Rest mit der Zahlung ausbuchen, nicht fällige Umsatzsteuer auf 0; Aufheben nimmt beides zurück", async () => {
+    const { invoice } = await finalInvoice(400_000);
+    // 2 % Skonto: 4.760,00 − 95,20 = 4.664,80
+    await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("01.10.26", "Nordwerk Software GmbH", "DE02100100100006820101", `RE ${invoice.number} abzgl. 2 % Skonto`, "4.664,80")]), filename: "a.csv" },
+      null,
+    );
+    const [tx] = await sql`select id from bank_transactions`;
+    await expect(
+      bank.allocateWithRest(actor, { transactionId: tx!.id, target: { kind: "invoice", invoiceId: invoice.id }, rest: "skontoErhalten" }),
+    ).rejects.toThrow(/Skonto erhalten gilt für Belege/);
+    await bank.allocateWithRest(actor, { transactionId: tx!.id, target: { kind: "invoice", invoiceId: invoice.id }, rest: "skonto" });
+    expect((await invoices.listInvoices("2026-10-02")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+    const balances = async () =>
+      Object.fromEntries(
+        (await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l group by l.account having sum(l.debit - l.credit) <> 0 order by 1`).map((r) => [r.account, r.saldo]),
+      );
+    // Forderung 0, nicht fällige USt 0, fällig 744,80 = 19 % von 3.920,00
+    expect(await balances()).toEqual({ "1200": 466_480, "1776": -74_480, "8400": -400_000, "8730": 8_000 });
+
+    const [allocation] = await sql`select id from allocations`;
+    await bank.reverseAllocation(actor, allocation!.id);
+    expect((await invoices.listInvoices("2026-10-02")).find((i) => i.id === invoice.id)).toMatchObject({ open: 476_000 });
+    expect(await balances()).toEqual({ "1400": 476_000, "1766": -76_000, "8400": -400_000 });
+    expect((await bank.listWriteOffs({ invoiceId: invoice.id })).map((w) => [w.kind, w.amount, w.reversed])).toEqual([["skonto", 9_520, true]]);
+  }, 30_000);
+
+  it("Forderungsausfall (Soll): mindert die Umsatzsteuer im Monat der Ausbuchung, Abgleich ohne Abweichung", async () => {
+    await sql`update company set versteuerung = 'soll'`;
+    const { invoice } = await finalInvoice(400_000);
+    await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: invoice.id, date: "2026-10-15", amount: 200_000 });
+    await expect(bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: invoice.id, date: "2026-10-15", amount: 300_000 })).rejects.toThrow(/nur noch über 2760 €/);
+    expect((await invoices.listInvoices("2026-10-20")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "ueberfaellig", open: 276_000 });
+    await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: invoice.id, date: "2026-10-15" });
+    expect((await invoices.listInvoices("2026-10-20")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "ausgebucht", open: 0 });
+
+    const vat = await import("../umsatzsteuer/index.ts");
+    const auswertungen = await import("../auswertungen/index.ts");
+    const october = await vat.computeVatFigures({ year: 2026, month: 10 });
+    expect(october).toMatchObject({ kz81: -400_000, tax81: -76_000 });
+    expect((await vat.computeVatFigures({ year: 2026, month: 9 })).kz81).toBe(400_000);
+    const abgleich = await auswertungen.vatAbgleich({ year: 2026, month: 10 });
+    expect(abgleich.zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+
+    const [first] = await sql`select id from write_offs order by created_at limit 1`;
+    await bank.reverseWriteOff(actor, first!.id);
+    expect((await invoices.listInvoices("2026-10-20")).find((i) => i.id === invoice.id)).toMatchObject({ open: 200_000 });
+    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).tax81).toBe(-76_000 + Math.round(76_000 * 200_000 / 476_000));
+  }, 30_000);
+
+  it("Skonto erhalten: Beleg erledigt, Vorsteuer anteilig gemindert", async () => {
+    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9]);
+    const { id: docId } = await documents.uploadDocument(actor, { bytes: JPEG, filename: "material.jpg" });
+    await documents.updateDocument(actor, docId, {
+      supplierName: "Bürowelt Nord GmbH",
+      supplierUstId: "",
+      invoiceNumber: "BW-1",
+      documentDate: "2026-09-27",
+      dueDate: null,
+      category: "buero",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+    });
+    await documents.bookDocument(actor, docId);
+    await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([outgoing("02.10.26", "Bürowelt Nord GmbH", "DE11100100100000000001", "BW-1 abzgl. 2 % Skonto", "-116,62")]), filename: "a.csv" },
+      null,
+    );
+    const [tx] = await sql`select id from bank_transactions`;
+    await bank.allocateWithRest(actor, { transactionId: tx!.id, target: { kind: "document", documentId: docId }, rest: "skontoErhalten" });
+    const auswertungen = await import("../auswertungen/index.ts");
+    expect((await auswertungen.openPositions("2026-10-05")).payables).toEqual([]);
+    const vat = await import("../umsatzsteuer/index.ts");
+    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(-38);
+    expect((await auswertungen.vatAbgleich({ year: 2026, month: 10 })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+  }, 30_000);
 
   it("Belegzahlung und Privatentnahme", async () => {
     const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7]);

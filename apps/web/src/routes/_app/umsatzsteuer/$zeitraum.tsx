@@ -549,6 +549,7 @@ function SourcesToggle({
           ...plural(count("payment"), "Zahlungseingang", "Zahlungseingänge"),
           ...plural(count("invoice"), "Rechnung", "Rechnungen"),
           ...plural(count("entnahme"), "Privatnutzung", "Privatnutzungen"),
+          ...plural(count("ausbuchung"), "Ausbuchung", "Ausbuchungen"),
         ].join(", ");
   return (
     <button type="button" className="kz-sources-toggle" aria-expanded={open} aria-controls={controls} onClick={onToggle}>

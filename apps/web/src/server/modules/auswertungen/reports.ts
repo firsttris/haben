@@ -166,14 +166,16 @@ function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 
-async function paidSums(column: typeof schema.allocations.invoiceId | typeof schema.allocations.documentId, ids: string[]) {
+/** Erledigt je Beleg: Zuordnungen und Ausbuchungen (erhaltenes Skonto), wie im Bankabgleich */
+async function paidSums(ids: string[]) {
   if (ids.length === 0) return new Map<string, number>();
-  const rows = await db
-    .select({ id: column, paid: sql<string>`sum(${schema.allocations.amount})` })
-    .from(schema.allocations)
-    .where(inArray(column, ids))
-    .groupBy(column);
-  return new Map(rows.map((r) => [r.id!, Number(r.paid)]));
+  const rows = await db.execute<{ id: string; paid: string }>(
+    sql`select id, sum(amount) as paid from (
+          select document_id as id, amount from allocations where document_id in ${ids}
+          union all select document_id as id, amount from write_offs where document_id in ${ids}
+        ) settled group by 1`,
+  );
+  return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
 }
 
 /**
@@ -208,7 +210,7 @@ export async function openPositions(today: string) {
     })
     .from(schema.documents)
     .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank")));
-  const documentPaid = await paidSums(schema.allocations.documentId, documents.map((d) => d.id));
+  const documentPaid = await paidSums(documents.map((d) => d.id));
   const payables: OpenPosition[] = documents
     .map((d) => {
       const date = d.documentDate ?? todayInGermany(d.uploadedAt);

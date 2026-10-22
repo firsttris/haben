@@ -35,7 +35,7 @@ import { z } from "zod";
 import { loadCompany, sellerIssues, versteuerungForYear, type Company } from "../stammdaten/index.ts";
 import type { Contact } from "../stammdaten/index.ts";
 import { loadLogo } from "../stammdaten/index.ts";
-import { invoicePayments } from "../bank/index.ts";
+import { invoiceLosses, invoicePayments } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
@@ -399,10 +399,12 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
   );
+  const losses = await invoiceLosses(rows.filter((r) => r.status === "final").map((r) => r.id), q);
   return rows.map(({ cancelled, ...row }) => {
     const facts = {
       ...row,
       paid: paid.get(row.id) ?? 0,
+      writtenOffLoss: losses.get(row.id) ?? 0,
       cancelled,
       // Bei einem Storno bleibt offen, was auf die Rechnung gezahlt und noch nicht erstattet wurde
       paidOnOriginal: row.correctsId ? (paid.get(row.correctsId) ?? 0) : 0,

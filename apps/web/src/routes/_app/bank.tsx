@@ -11,6 +11,7 @@ import { useAction } from "../../lib/use-action.ts";
 import {
   addBankAccount,
   allocateTransaction,
+  allocateTransactionWithRest,
   connectBank,
   disconnectBank,
   getBankOverview,
@@ -700,6 +701,7 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   const navigate = useNavigate({ from: "/bank" });
   const allocateFn = useServerFn(allocateTransaction);
   const splitFn = useServerFn(splitTransaction);
+  const restFn = useServerFn(allocateTransactionWithRest);
   const reverseFn = useServerFn(reverseTransactionAllocation);
   const transferFn = useServerFn(transferBetweenAccounts);
   const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct } = detail;
@@ -771,6 +773,18 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   const feeRest = target && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
   const [splitInitial, setSplitInitial] = useState<typeof target>(undefined);
+
+  // Zahlung unter dem offenen Betrag: Rest ausbuchen (Skonto, Forderungsausfall) statt als Teilzahlung stehen lassen
+  const rest = target && Math.sign(target.open) === Math.sign(tx.open) && Math.abs(target.open) > Math.abs(tx.open) ? target.open - tx.open : 0;
+  const restKinds: ("skonto" | "forderungsausfall" | "skontoErhalten")[] =
+    rest === 0 ? [] : target?.type === "invoice" && tx.amount > 0 ? ["skonto", "forderungsausfall"] : target?.type === "document" && tx.amount < 0 ? ["skontoErhalten"] : [];
+  const REST_LABEL = { skonto: "als Skonto", forderungsausfall: "als Forderungsausfall", skontoErhalten: "als erhaltenes Skonto" } as const;
+
+  function bookRest(kind: (typeof restKinds)[number]) {
+    if (!target) return;
+    const t = target.type === "invoice" ? { kind: "invoice" as const, invoiceId: target.id } : { kind: "document" as const, documentId: target.id };
+    return run(() => restFn({ data: { transactionId: tx.id, target: t, rest: kind } }));
+  }
 
   function bookRestAsFee() {
     if (!target || feeRest === 0) return;
@@ -994,6 +1008,22 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
               <span className="small muted">
                 Für Auszahlungen von PayPal, Stripe oder Shopify: Die Rechnung gilt als voll bezahlt, die einbehaltene Gebühr wird
                 Aufwand (Nebenkosten des Geldverkehrs).
+              </span>
+            </div>
+          )}
+          {restKinds.length > 0 && (
+            <div className="stack" style={{ gap: 6 }}>
+              <div className="actions">
+                {restKinds.map((k) => (
+                  <button key={k} type="button" className="btn" onClick={() => void bookRest(k)} disabled={busy}>
+                    Rest {formatEuro(Math.abs(rest))} {REST_LABEL[k]}
+                  </button>
+                ))}
+              </div>
+              <span className="small muted">
+                {restKinds.includes("skontoErhalten")
+                  ? "Du hast Skonto abgezogen: Der Beleg ist erledigt, die Vorsteuer wird anteilig gemindert."
+                  : "Der Kunde hat weniger gezahlt: Skonto oder Forderungsausfall mindern Erlöse und Umsatzsteuer anteilig (§ 17 UStG); die Rechnung ist erledigt."}
               </span>
             </div>
           )}

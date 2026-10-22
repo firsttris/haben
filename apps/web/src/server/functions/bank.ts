@@ -21,6 +21,11 @@ import {
   splitSchema,
   transactionDetail,
   transferSchema,
+  allocateWithRest,
+  restSchema,
+  reverseWriteOff,
+  writeOff,
+  writeOffSchema,
 } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -129,6 +134,30 @@ export const splitTransaction = createServerFn({ method: "POST" })
   .validator(splitSchema)
   .handler(async ({ data, context }) => {
     await allocateSplit(context.user.id, data);
+    return { ok: true };
+  });
+
+export const allocateTransactionWithRest = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(restSchema)
+  .handler(async ({ data, context }) => {
+    await allocateWithRest(context.user.id, data);
+    return { ok: true };
+  });
+
+export const writeOffRest = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(writeOffSchema)
+  .handler(async ({ data, context }) => {
+    await writeOff(context.user.id, data);
+    return { ok: true };
+  });
+
+export const reverseWriteOffFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => {
+    await reverseWriteOff(context.user.id, data);
     return { ok: true };
   });
 
