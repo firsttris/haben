@@ -483,7 +483,20 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await expect(page.getByText("2.094,40\u00a0€").first()).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/desktop/03b-angebot.png`, fullPage: true });
 
-  await antwort.getByRole("button", { name: "Rechnung erstellen" }).click();
+  // Abschlag aus dem Angebot: Rechnungsart und Angebot vorbelegt, den Betrag trägt man selbst ein; danach wieder verwerfen
+  const angebotUrl = page.url();
+  await antwort.getByRole("button", { name: "Abschlagsrechnung erstellen" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await expect(page.getByLabel("Rechnungsart")).toHaveValue("abschlag");
+  await expect(page.getByRole("combobox", { name: /^Angebot\b/ }).locator("option:checked")).toHaveText(/^Angebot AN-\d{4}-001 vom/);
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue(/^Abschlag gemäß Angebot AN-\d{4}-001 vom/);
+  await page.getByRole("button", { name: "Entwurf löschen" }).click();
+  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await page.waitForURL(/\/rechnungen$/);
+  await page.goto(angebotUrl);
+  await page.waitForLoadState("networkidle");
+
+  await antwort.getByRole("button", { name: "Rechnung erstellen", exact: true }).click();
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Softwarearchitektur");
   await expect(page.getByLabel(/Hinweis auf der Rechnung/)).toHaveValue(/^Gemäß unserem Angebot AN-\d{4}-001 vom/);

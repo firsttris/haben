@@ -524,7 +524,7 @@ export function InvoiceEditor({
                   <span id="quote-hint" className="small">
                     {contactId
                       ? "Die Schlussrechnung zu einem Angebot zieht nur dessen Abschläge ab; auf der Seite des Angebots stehen alle Rechnungen dazu."
-                      : "Erst den Kunden wählen."}
+                      : "Zur Auswahl stehen die festgeschriebenen Angebote des gewählten Empfängers."}
                   </span>
                 </label>
               )}
