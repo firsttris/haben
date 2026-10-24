@@ -65,12 +65,22 @@ interface ArticleOption {
 export interface AbschlagOption {
   id: string;
   contactId: string | null;
+  /** Angebot, zu dem der Abschlag gehört */
+  quoteId: string | null;
   number: string;
   issueDate: string;
   gross: number;
   rates: { rate: number; base: number; tax: number }[];
   taxTreatment: TaxTreatment;
   priceMode: PriceMode;
+}
+
+/** Festgeschriebenes Angebot, zu dem eine Abschlags- oder Schlussrechnung gehören kann */
+export interface QuoteOption {
+  id: string;
+  contactId: string | null;
+  number: string;
+  issueDate: string;
 }
 
 interface LineState {
@@ -125,6 +135,7 @@ export function InvoiceEditor({
   kleinunternehmer,
   articles = [],
   abschlaege = [],
+  quotes = [],
   tageskurs = false,
   rateInfo = null,
 }: {
@@ -146,6 +157,8 @@ export function InvoiceEditor({
   articles?: ArticleOption[];
   /** Offene Abschlagsrechnungen für die Schlussrechnung */
   abschlaege?: AbschlagOption[];
+  /** Festgeschriebene Angebote, für den Bezug von Abschlags- und Schlussrechnungen */
+  quotes?: QuoteOption[];
   /** Tageskurs vom Finanzamt gestattet: dann mit Kursdatum */
   tageskurs?: boolean;
   /** Gespeicherter Kurs mit Herkunft, z. B. „1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)“ */
@@ -181,6 +194,7 @@ export function InvoiceEditor({
   const [exchangeRateDate, setExchangeRateDate] = useState(initial.exchangeRateDate ?? "");
   const [variant, setVariant] = useState<"abschlag" | "schluss" | null>(initial.variant ?? null);
   const [deducts, setDeducts] = useState<string[]>(initial.deducts ?? []);
+  const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [dirty, setDirty] = useState(id === null);
   /** Fehler einer Position erst zeigen, wenn sie verlassen oder gespeichert wurde, nicht schon beim Öffnen */
@@ -197,6 +211,10 @@ export function InvoiceEditor({
   const schluss = kind === "rechnung" && variant === "schluss";
   /** Abschlagsrechnungen des gewählten Kunden; schon gewählte bleiben sichtbar */
   const customerAbschlaege = abschlaege.filter((a) => a.contactId === contactId);
+  const customerQuotes = quotes.filter((q) => q.contactId === contactId);
+  /** Schlussrechnung zu einem Angebot: dessen Abschläge vorschlagen, sonst alle offenen des Kunden */
+  const suggestedDeducts = (forQuote: string, forContact = contactId) =>
+    abschlaege.filter((a) => a.contactId === forContact && (!forQuote || a.quoteId === forQuote)).map((a) => a.id);
   const deducted = schluss ? customerAbschlaege.filter((a) => deducts.includes(a.id)) : [];
   const special = taxTreatment !== "regulaer";
   /** Bruttopreise nur mit Steuerausweis; ohne sind netto und brutto gleich */
@@ -307,13 +325,21 @@ export function InvoiceEditor({
     if (chosen?.defaultFormat) setFormat(chosen.defaultFormat);
     else if (chosen?.leitwegId) setFormat("xrechnung-cii");
     if (chosen) setLanguage(chosen.language);
-    // Schlussrechnung: alle offenen Abschläge des neuen Kunden vorschlagen
-    setDeducts(abschlaege.filter((a) => a.contactId === value).map((a) => a.id));
+    // Ein Angebot gehört zu genau einem Kunden
+    const keptQuote = quotes.some((q) => q.id === quoteId && q.contactId === value) ? quoteId : "";
+    setQuoteId(keptQuote);
+    // Schlussrechnung: alle offenen Abschläge des neuen Kunden (bzw. des Angebots) vorschlagen
+    setDeducts(suggestedDeducts(keptQuote, value));
   }
 
   function chooseVariant(value: "abschlag" | "schluss" | null) {
     touch(setVariant)(value);
-    if (value === "schluss" && deducts.length === 0) setDeducts(customerAbschlaege.map((a) => a.id));
+    if (value === "schluss" && deducts.length === 0) setDeducts(suggestedDeducts(quoteId));
+  }
+
+  function chooseQuote(value: string) {
+    touch(setQuoteId)(value);
+    if (schluss) setDeducts(suggestedDeducts(value));
   }
 
   function toggleDeduct(abschlagId: string, on: boolean) {
@@ -335,6 +361,7 @@ export function InvoiceEditor({
       language,
       variant: kind === "rechnung" ? variant : null,
       deducts: schluss ? deducted.map((a) => a.id) : [],
+      quoteId: kind === "rechnung" && quoteId ? quoteId : null,
       currency: currencyCode,
       exchangeRate: foreign && exchangeRate.trim() ? exchangeRate : null,
       exchangeRateDate: foreign && exchangeRate.trim() && exchangeRateDate ? exchangeRateDate : null,
@@ -343,7 +370,15 @@ export function InvoiceEditor({
   }
 
   async function persist(): Promise<string> {
-    const { paymentTermDays: _term, format: _format, currency: _currency, exchangeRate: _rate, exchangeRateDate: _rateDate, ...common } = draft();
+    const {
+      paymentTermDays: _term,
+      format: _format,
+      currency: _currency,
+      exchangeRate: _rate,
+      exchangeRateDate: _rateDate,
+      quoteId: _quote,
+      ...common
+    } = draft();
     const result = quote ? await saveQuote({ data: { id, draft: { ...common, validUntil } } }) : await save({ data: { id, draft: draft() } });
     setDirty(false);
     return result.id;
@@ -475,6 +510,24 @@ export function InvoiceEditor({
                   ))}
                 </select>
               </label>
+              {kind === "rechnung" && (variant || quoteId) && (
+                <label className="field" style={{ gridColumn: "1 / -1" }}>
+                  Angebot
+                  <select value={quoteId} onChange={(e) => chooseQuote(e.target.value)} disabled={!editable} aria-describedby="quote-hint">
+                    <option value="">Ohne Angebot</option>
+                    {customerQuotes.map((q) => (
+                      <option key={q.id} value={q.id}>
+                        Angebot {q.number} vom {formatDate(q.issueDate)}
+                      </option>
+                    ))}
+                  </select>
+                  <span id="quote-hint" className="small">
+                    {contactId
+                      ? "Die Schlussrechnung zu einem Angebot zieht nur dessen Abschläge ab; auf der Seite des Angebots stehen alle Rechnungen dazu."
+                      : "Erst den Kunden wählen."}
+                  </span>
+                </label>
+              )}
               <label className="field">
                 {quote ? "Angebotsdatum" : "Rechnungsdatum"}
                 <input type="date" value={issueDate} onChange={(e) => touch(setIssueDate)(e.target.value)} required />

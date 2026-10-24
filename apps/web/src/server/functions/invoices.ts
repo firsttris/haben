@@ -1,6 +1,6 @@
 import { invoicesSentByMail, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
+import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { listAccounts, listWriteOffs } from "../modules/bank/index.ts";
 import { editorContext } from "../modules/stammdaten/index.ts";
@@ -62,9 +62,10 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 async function invoiceEditorContext() {
   return {
     ...(await editorContext("rechnung")),
-    abschlaege: (await openAbschlaege()).map(({ id, contactId, number, issueDate, gross, rates, taxTreatment, priceMode }) => ({
+    abschlaege: (await openAbschlaege()).map(({ id, contactId, quoteId, number, issueDate, gross, rates, taxTreatment, priceMode }) => ({
       id,
       contactId,
+      quoteId,
       number,
       issueDate,
       gross,
@@ -72,6 +73,14 @@ async function invoiceEditorContext() {
       taxTreatment,
       priceMode,
     })),
+    /** Festgeschriebene Angebote für den Bezug von Abschlags- und Schlussrechnungen */
+    quotes: (
+      await db
+        .select({ id: schema.quotes.id, contactId: schema.quotes.contactId, number: schema.quotes.number, issueDate: schema.quotes.issueDate })
+        .from(schema.quotes)
+        .where(eq(schema.quotes.status, "final"))
+        .orderBy(asc(schema.quotes.issueDate))
+    ).map((q) => ({ ...q, number: q.number ?? "" })),
   };
 }
 
@@ -95,9 +104,14 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
       dunnings: await dunningsFor([data]),
       mails: result.invoice.status === "final" ? await mailsForInvoice(data) : [],
       overdue: listed?.listStatus === "ueberfaellig",
-      fromQuote: (
-        await db.select({ id: schema.quotes.id, number: schema.quotes.number }).from(schema.quotes).where(eq(schema.quotes.invoiceId, data))
-      )[0] ?? null,
+      // Angebot der Rechnung: über invoices.quote_id oder (ältere Rechnungen aus dem Angebot) über quotes.invoice_id
+      fromQuote:
+        (
+          await db
+            .select({ id: schema.quotes.id, number: schema.quotes.number })
+            .from(schema.quotes)
+            .where(result.invoice.quoteId ? or(eq(schema.quotes.id, result.invoice.quoteId), eq(schema.quotes.invoiceId, data)) : eq(schema.quotes.invoiceId, data))
+        )[0] ?? null,
       open: listed?.open ?? 0,
       listStatus: listed?.listStatus ?? null,
       writeOffs: result.invoice.status === "final" ? await listWriteOffs({ invoiceId: data }) : [],

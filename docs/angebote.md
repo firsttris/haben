@@ -62,6 +62,14 @@ Vor dem Festschreiben passt du den Entwurf an, etwa die tatsächlich geleisteten
 
 Jedes Angebot lässt sich nur einmal abrechnen. Löschst du den Rechnungsentwurf, kannst du das Angebot wieder abrechnen. Ein abgelehntes Angebot rechnet Haben nicht ab; mit **Antwort zurücknehmen** setzt du es wieder auf offen.
 
+### In Abschlägen abrechnen
+
+Bei größeren Aufträgen rechnest du das Angebot in Teilen ab (siehe [Abschlags- und Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung)):
+
+- **Abschlagsrechnung erstellen** legt einen Entwurf mit Rechnungsart „Abschlagsrechnung“ an, mit Kunde, Umsatzsteuer und Preismodus aus dem Angebot und einer Position „Abschlag gemäß Angebot AN-2026-004 vom …“. Den Betrag trägst du selbst ein, z. B. 30 % der Angebotssumme. Das Angebot gilt als angenommen, bleibt aber offen für weitere Abschläge.
+- **Schlussrechnung erstellen** erscheint, sobald ein Abschlag festgeschrieben ist. Der Entwurf übernimmt alle Positionen des Angebots und zieht die festgeschriebenen Abschläge **dieses** Angebots ab, nicht die anderer Aufträge desselben Kunden. Erst die Schlussrechnung rechnet das Angebot ab.
+- Unter **Rechnungen zu diesem Angebot** stehen alle Abschläge, die Schlussrechnung bzw. die Rechnung aus dem Angebot mit Datum, Betrag und Status, darunter wie viel schon in Abschlägen abgerechnet ist.
+
 ## Auftragsbestätigung und Lieferschein
 
 Bei einem angenommenen Angebot stehen unter **Antwort des Kunden** zwei weitere PDFs:

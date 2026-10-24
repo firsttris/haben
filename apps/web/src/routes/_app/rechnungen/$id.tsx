@@ -57,6 +57,7 @@ function InvoicePage() {
           exchangeRate: invoice.exchangeRate && invoice.exchangeRateSource !== "ust" ? formatExchangeRate(invoice.exchangeRate) : null,
           exchangeRateDate: invoice.exchangeRateSource === "ust" ? null : invoice.exchangeRateDate,
           deducts: [...new Set(data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])))],
+          quoteId: invoice.quoteId,
           // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
           lines: data.lines.filter((line) => !line.deductionOf).map((line) => ({
             description: line.description,
@@ -76,6 +77,7 @@ function InvoicePage() {
         kleinunternehmer={data.kleinunternehmer}
         articles={data.articles}
         abschlaege={data.abschlaege}
+        quotes={data.quotes}
         tageskurs={data.tageskurs}
         rateInfo={invoice.exchangeRate ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate) : null}
       />
@@ -256,7 +258,7 @@ function FinalInvoice({ data }: { data: Detail }) {
               )}
               {data.fromQuote && (
                 <>
-                  <dt>Aus Angebot</dt>
+                  <dt>{invoice.variant ? "Zum Angebot" : "Aus Angebot"}</dt>
                   <dd>
                     <Link to="/angebote/$id" params={{ id: data.fromQuote.id }}>
                       {data.fromQuote.number}

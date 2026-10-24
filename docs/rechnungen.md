@@ -209,14 +209,15 @@ In Fremdwährung gibt es keinen GiroCode (SEPA kennt nur Euro), keine Abschlags-
 
 Bei größeren Aufträgen rechnest du in Teilen ab: zuerst Abschlagsrechnungen, am Ende eine Schlussrechnung über alles.
 
-1. **Abschlagsrechnung:** Neue Rechnung, unter **Rechnungsart** „Abschlagsrechnung“ wählen und den Teilbetrag als Position eintragen, z. B. „1. Abschlag 30 % gemäß Angebot AN-2026-004“. Sie wird wie jede Rechnung festgeschrieben, gebucht, bezahlt und gemahnt. Im XML trägt sie den Typ 326 (Teilrechnung).
-2. **Schlussrechnung:** In der festgeschriebenen Abschlagsrechnung auf **Schlussrechnung erstellen** klicken oder bei einer neuen Rechnung „Schlussrechnung“ wählen. Haben schlägt alle offenen Abschlagsrechnungen des Kunden zum Abzug vor; per Häkchen wählst du sie ab oder wieder an. Unter **Positionen** steht die gesamte Leistung.
+1. **Abschlagsrechnung:** Neue Rechnung, unter **Rechnungsart** „Abschlagsrechnung“ wählen und den Teilbetrag als Position eintragen, z. B. „1. Abschlag 30 % gemäß Angebot AN-2026-004“. Sie wird wie jede Rechnung festgeschrieben, gebucht, bezahlt und gemahnt. Im XML trägt sie den Typ 326 (Teilrechnung). Gibt es ein Angebot zum Auftrag, wählst du es unter **Angebot** aus, oder du legst den Abschlag gleich im Angebot mit **Abschlagsrechnung erstellen** an (siehe [angebote.md](angebote.md#in-abschlägen-abrechnen)).
+2. **Schlussrechnung:** In der festgeschriebenen Abschlagsrechnung bzw. im Angebot auf **Schlussrechnung erstellen** klicken oder bei einer neuen Rechnung „Schlussrechnung“ wählen. Gehört die Schlussrechnung zu einem Angebot, schlägt Haben dessen offene Abschlagsrechnungen zum Abzug vor, sonst alle offenen Abschlagsrechnungen des Kunden. Per Häkchen wählst du sie ab oder wieder an, auch die anderer Aufträge. Unter **Positionen** steht die gesamte Leistung.
 
 Die Abzüge setzt Haben selbst als eigene Positionen darunter, je Abschlagsrechnung und Steuersatz eine, mit Netto und Umsatzsteuer der Abschlagsrechnung, z. B. „Abzüglich Abschlagsrechnung 2026-031 vom 15.09.2026 (netto 3.000,00 €, USt 570,00 €)“. So weist die Schlussrechnung nur noch die Umsatzsteuer auf den Rest aus (§ 14 Abs. 5 UStG), und gebucht wird nur der Restbetrag; die Abschläge sind schon als Erlös gebucht. Im XML verweist die Schlussrechnung auf jede abgezogene Abschlagsrechnung.
 
 Regeln:
 
 - Abziehen lassen sich nur festgeschriebene, nicht stornierte Abschlagsrechnungen desselben Kunden mit derselben Umsatzsteuer-Behandlung, jede nur in einer Schlussrechnung.
+- Das Angebot einer Rechnung muss festgeschrieben sein, zum selben Kunden gehören und darf nicht abgelehnt sein; sonst lässt sich die Rechnung nicht festschreiben. Der Bezug wird mit der Rechnung festgeschrieben.
 - Die Abschläge dürfen die Gesamtleistung nicht übersteigen; ein Restbetrag von 0 € ist erlaubt.
 - Eine abgezogene Abschlagsrechnung lässt sich erst stornieren, wenn die Schlussrechnung storniert ist. Danach ist sie wieder frei.
 

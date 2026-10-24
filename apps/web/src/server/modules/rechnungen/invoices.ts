@@ -75,6 +75,8 @@ export const draftSchema = z
     variant: z.enum(["abschlag", "schluss"]).nullable().default(null),
     /** Schlussrechnung: abzuziehende Abschlagsrechnungen */
     deducts: z.array(z.uuid()).max(50).default([]),
+    /** Angebot, zu dem die Rechnung gehört (Abschlags- und Schlussrechnung, Rechnung aus dem Angebot) */
+    quoteId: z.uuid().nullable().default(null),
     /** Währung der Rechnung; Preise und Summen in dieser Währung, gebucht wird in Euro mit dem Kurs */
     currency: z.string().trim().toUpperCase().regex(CURRENCY_CODE, "Währung als dreistelliger Code, z. B. USD").default("EUR"),
     /** 1 EUR = Kurs; leer = USt-Umrechnungskurs des Leistungsmonats, sobald veröffentlicht */
@@ -212,6 +214,7 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null, q: D
   return open.map((r) => ({
     id: r.id,
     contactId: r.contactId,
+    quoteId: r.quoteId,
     number: r.number!,
     issueDate: r.issueDate,
     taxTreatment: r.taxTreatment,
@@ -369,6 +372,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     priceMode,
     language: input.language ?? "de",
     variant: input.variant ?? null,
+    quoteId: input.quoteId ?? null,
     ...rate,
     net: totals.net,
     tax: totals.tax,
@@ -413,7 +417,12 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     if (input.variant && draft.kind !== "rechnung") throw new InvoiceError("Storno und Korrektur sind keine Abschlags- oder Schlussrechnung.");
     // Eine Korrektur rechnet wie die ursprüngliche Rechnung, netto oder brutto
     const rate = await draftRate(tx, input, draft.correctsId, draft);
-    const { values, calculation, taxes } = draftValues(draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode }, bundesland, lines, rate);
+    const { values, calculation, taxes } = draftValues(
+      draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode, quoteId: null },
+      bundesland,
+      lines,
+      rate,
+    );
     const [updated] = await tx.update(schema.invoices).set(values).where(eq(schema.invoices.id, id)).returning();
     await storeLines(tx, id, lines, calculation, taxes);
     return updated!;
@@ -673,6 +682,15 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
     if (invoice.gross < 0) issues.push("Die Abschläge übersteigen die Gesamtleistung");
   } else if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
+  if (invoice.quoteId) {
+    const [quote] = await q
+      .select({ number: schema.quotes.number, status: schema.quotes.status, contactId: schema.quotes.contactId, decision: schema.quotes.decision })
+      .from(schema.quotes)
+      .where(eq(schema.quotes.id, invoice.quoteId));
+    if (!quote || quote.status !== "final") issues.push("Das gewählte Angebot ist nicht festgeschrieben");
+    else if (quote.contactId !== invoice.contactId) issues.push(`Angebot ${quote.number} gehört zu einem anderen Kunden`);
+    else if (quote.decision === "abgelehnt") issues.push(`Angebot ${quote.number} ist als abgelehnt markiert`);
+  }
   if (invoice.currency !== "EUR") {
     if (invoice.variant) issues.push("Abschlags- und Schlussrechnungen gibt es nur in Euro");
     // Bei Ist-Versteuerung ist das Entgelt mit dem Kurs des Monats umzurechnen, in dem es vereinnahmt wird (Abschn. 16.4

@@ -124,6 +124,93 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     expect(again.issueDate).toBe("2026-10-21");
   });
 
+  it("Abschläge mit Bezug zum Angebot; die Schlussrechnung zieht nur die Abschläge dieses Angebots ab", async () => {
+    // Der Kunde bekommt XRechnung, die verlangt eine Telefonnummer des Verkäufers
+    await sql`update company set telefon = '+49 941 123456'`;
+    // Angebot über 3.800,00 € netto (40 Std. × 95,00 €) und ein zweites Angebot desselben Kunden
+    const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
+    const other = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft({ lines: [line(50_000)] }))).id);
+
+    /** Abschlag aus dem Angebot anlegen, Betrag eintragen und festschreiben */
+    const abschlag = async (quoteId: string, net: number, day: string) => {
+      const created = await quotes.quoteToInvoice(actor, quoteId, day, "abschlag");
+      const { invoice, lines } = (await invoices.getInvoice(created.id))!;
+      await invoices.updateDraft(actor, invoice.id, {
+        contactId: invoice.contactId,
+        issueDate: invoice.issueDate,
+        serviceFrom: invoice.serviceFrom,
+        serviceTo: invoice.serviceTo,
+        paymentTermDays: invoice.paymentTermDays,
+        format: invoice.format,
+        note: invoice.note,
+        variant: "abschlag",
+        quoteId: invoice.quoteId,
+        lines: lines.map((l) => ({ description: l.description, quantity: l.quantity, unit: l.unit as "Psch.", unitPrice: net, taxRate: l.taxRate as 1900 })),
+      });
+      return invoices.finalizeInvoice(actor, invoice.id);
+    };
+
+    const draftAbschlag = await quotes.quoteToInvoice(actor, quote.id, "2026-10-05", "abschlag");
+    expect(draftAbschlag).toMatchObject({ variant: "abschlag", quoteId: quote.id, contactId, status: "draft" });
+    const { lines: abschlagLines } = (await invoices.getInvoice(draftAbschlag.id))!;
+    expect(abschlagLines.map((l) => [l.description, l.unitPrice, l.taxRate])).toEqual([["Abschlag gemäß Angebot AN-2026-001 vom 01.10.2026", 0, 1900]]);
+    expect(await invoices.finalizeIssues(draftAbschlag.id)).toContain("Position ohne Betrag");
+    // Ein Abschlag rechnet das Angebot noch nicht ab: weitere Abschläge und die Schlussrechnung bleiben möglich
+    expect((await quotes.getQuote(quote.id))!.quote).toMatchObject({ decision: "angenommen", invoiceId: null });
+    await invoices.deleteDraft(actor, draftAbschlag.id);
+
+    const first = await abschlag(quote.id, 114_000, "2026-10-05");
+    const second = await abschlag(quote.id, 152_000, "2026-11-05");
+    const foreign = await abschlag(other.id, 10_000, "2026-11-06");
+
+    const schluss = await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss");
+    const { invoice, lines } = (await invoices.getInvoice(schluss.id))!;
+    expect(invoice).toMatchObject({ variant: "schluss", quoteId: quote.id });
+    expect(new Set(lines.flatMap((l) => (l.deductionOf ? [l.deductionOf] : [])))).toEqual(new Set([first.id, second.id]));
+    // Rest: 3.800,00 − 1.140,00 − 1.520,00 = 1.140,00 € netto
+    expect(invoice.net).toBe(114_000);
+    expect(await invoices.finalizeIssues(schluss.id)).toEqual([]);
+
+    const detail = (await quotes.getQuote(quote.id))!;
+    expect(detail.quote.invoiceId).toBe(schluss.id);
+    expect(detail.billing.map((b) => [b.id, b.variant, b.status])).toEqual([
+      [first.id, "abschlag", "final"],
+      [second.id, "abschlag", "final"],
+      [schluss.id, "schluss", "draft"],
+    ]);
+    expect((await quotes.getQuote(other.id))!.billing.map((b) => b.id)).toEqual([foreign.id]);
+  });
+
+  it("Bezug zu einem Angebot eines anderen Kunden verhindert das Festschreiben", async () => {
+    const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
+    const stranger = await contacts.createContact(actor, {
+      kundennummer: "10002",
+      name: "Alpenblick GmbH",
+      strasse: "Bergweg 1",
+      plz: "83471",
+      ort: "Berchtesgaden",
+      land: "DE",
+      email: "info@alpenblick.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    const invoice = await invoices.createDraft(actor, {
+      contactId: stranger.id,
+      issueDate: "2026-10-05",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      variant: "abschlag",
+      quoteId: quote.id,
+      lines: [line(10_000)],
+    });
+    expect(await invoices.finalizeIssues(invoice.id)).toContain("Angebot AN-2026-001 gehört zu einem anderen Kunden");
+  });
+
   it("kopiert ein Angebot als neuen Entwurf mit gleicher Gültigkeitsdauer", async () => {
     const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
     const copy = await quotes.copyQuote(actor, quote.id, "2026-12-01");
