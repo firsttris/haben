@@ -218,6 +218,8 @@ Regeln:
 
 - Abziehen lassen sich nur festgeschriebene, nicht stornierte Abschlagsrechnungen desselben Kunden mit derselben Umsatzsteuer-Behandlung, jede nur in einer Schlussrechnung.
 - Das Angebot einer Rechnung muss festgeschrieben sein, zum selben Kunden gehören und darf nicht abgelehnt sein; sonst lässt sich die Rechnung nicht festschreiben. Der Bezug wird mit der Rechnung festgeschrieben.
+- Eine Schlussrechnung zu einem Angebot muss alle festgeschriebenen Abschläge dieses Angebots abziehen, auch solche, die erst nach dem Anlegen des Entwurfs festgeschrieben wurden; beim Öffnen des Entwurfs schlägt Haben sie mit vor.
+- Ist ein Angebot mit einer Schlussrechnung oder einer Rechnung über alles abgerechnet, lässt sich keine weitere Rechnung und kein weiterer Abschlag dazu festschreiben. Wird diese Rechnung storniert, ist das Angebot wieder offen.
 - Die Abschläge dürfen die Gesamtleistung nicht übersteigen; ein Restbetrag von 0 € ist erlaubt.
 - Eine abgezogene Abschlagsrechnung lässt sich erst stornieren, wenn die Schlussrechnung storniert ist. Danach ist sie wieder frei.
 

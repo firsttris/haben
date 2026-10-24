@@ -29,6 +29,38 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     ...overrides,
   });
 
+  /** Abschlag aus dem Angebot anlegen, Betrag eintragen und (wenn gewünscht) festschreiben */
+  const abschlag = async (quoteId: string, net: number, day: string, finalize = true) => {
+    const created = await quotes.quoteToInvoice(actor, quoteId, day, "abschlag");
+    const { invoice, lines } = (await invoices.getInvoice(created.id))!;
+    await invoices.updateDraft(actor, invoice.id, {
+      contactId: invoice.contactId,
+      issueDate: invoice.issueDate,
+      serviceFrom: invoice.serviceFrom,
+      serviceTo: invoice.serviceTo,
+      paymentTermDays: invoice.paymentTermDays,
+      format: invoice.format,
+      note: invoice.note,
+      variant: "abschlag",
+      quoteId: invoice.quoteId,
+      lines: lines.map((l) => ({ description: l.description, quantity: l.quantity, unit: l.unit as "Psch.", unitPrice: net, taxRate: l.taxRate as 1900 })),
+    });
+    return finalize ? invoices.finalizeInvoice(actor, invoice.id) : (await invoices.getInvoice(invoice.id))!.invoice;
+  };
+
+  /** Rechnung wie aus dem Editor: Rechnungsart und Angebot gewählt */
+  const editorInvoice = (overrides = {}) => ({
+    contactId,
+    issueDate: "2026-12-01",
+    serviceFrom: null,
+    serviceTo: null,
+    paymentTermDays: 14,
+    format: "zugferd" as const,
+    note: "",
+    lines: [line(9500, 1900, 40_000)],
+    ...overrides,
+  });
+
   beforeAll(async () => {
     sql = await setupTestDb();
     quotes = await import("./quotes.ts");
@@ -131,25 +163,6 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
     const other = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft({ lines: [line(50_000)] }))).id);
 
-    /** Abschlag aus dem Angebot anlegen, Betrag eintragen und festschreiben */
-    const abschlag = async (quoteId: string, net: number, day: string) => {
-      const created = await quotes.quoteToInvoice(actor, quoteId, day, "abschlag");
-      const { invoice, lines } = (await invoices.getInvoice(created.id))!;
-      await invoices.updateDraft(actor, invoice.id, {
-        contactId: invoice.contactId,
-        issueDate: invoice.issueDate,
-        serviceFrom: invoice.serviceFrom,
-        serviceTo: invoice.serviceTo,
-        paymentTermDays: invoice.paymentTermDays,
-        format: invoice.format,
-        note: invoice.note,
-        variant: "abschlag",
-        quoteId: invoice.quoteId,
-        lines: lines.map((l) => ({ description: l.description, quantity: l.quantity, unit: l.unit as "Psch.", unitPrice: net, taxRate: l.taxRate as 1900 })),
-      });
-      return invoices.finalizeInvoice(actor, invoice.id);
-    };
-
     const draftAbschlag = await quotes.quoteToInvoice(actor, quote.id, "2026-10-05", "abschlag");
     expect(draftAbschlag).toMatchObject({ variant: "abschlag", quoteId: quote.id, contactId, status: "draft" });
     const { lines: abschlagLines } = (await invoices.getInvoice(draftAbschlag.id))!;
@@ -209,6 +222,86 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
       lines: [line(10_000)],
     });
     expect(await invoices.finalizeIssues(invoice.id)).toContain("Angebot AN-2026-001 gehört zu einem anderen Kunden");
+  });
+
+  it("Schlussrechnung aus dem Editor rechnet das Angebot ab; danach keine zweite Rechnung und kein Abschlag mehr", async () => {
+    await sql`update company set telefon = '+49 941 123456'`;
+    const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
+    const first = await abschlag(quote.id, 114_000, "2026-10-05");
+    // wie /rechnungen/neu?schluss=<Abschlag> bzw. im Editor: Rechnungsart Schlussrechnung, Angebot gewählt
+    const schluss = await invoices.createDraft(actor, editorInvoice({ variant: "schluss", quoteId: quote.id, deducts: [first.id] }));
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(schluss.id);
+    await invoices.finalizeInvoice(actor, schluss.id);
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(schluss.id);
+
+    for (const variant of [null, "abschlag", "schluss"] as const) {
+      await expect(quotes.quoteToInvoice(actor, quote.id, "2026-12-02", variant)).rejects.toThrow(/bereits eine Rechnung/);
+    }
+    // Von Hand im Editor: weder eine Rechnung über alles noch ein weiterer Abschlag lässt sich festschreiben
+    const full = await invoices.createDraft(actor, editorInvoice({ quoteId: quote.id }));
+    const extra = await invoices.createDraft(actor, editorInvoice({ variant: "abschlag", quoteId: quote.id, lines: [line(100_000)] }));
+    for (const id of [full.id, extra.id]) {
+      expect(await invoices.finalizeIssues(id)).toContain(`Angebot ${quote.number} ist schon mit Rechnung ${(await invoices.getInvoice(schluss.id))!.invoice.number} abgerechnet`);
+    }
+    // Der zusätzliche Entwurf über alles verdrängt die festgeschriebene Schlussrechnung nicht
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(schluss.id);
+
+    // Storno der Schlussrechnung: das Angebot ist wieder offen, der Abschlag wieder abziehbar
+    await invoices.deleteDraft(actor, full.id);
+    await invoices.deleteDraft(actor, extra.id);
+    await invoices.cancelInvoice(actor, schluss.id, "2026-12-05");
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBeNull();
+    const again = await quotes.quoteToInvoice(actor, quote.id, "2026-12-06", "schluss");
+    expect((await invoices.getInvoice(again.id))!.lines.some((l) => l.deductionOf === first.id)).toBe(true);
+  });
+
+  it("Rechnung aus dem Angebot zur Abschlagsrechnung gemacht oder umgehängt: das Angebot bleibt bzw. wird wieder offen", async () => {
+    const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
+    const other = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
+    const created = await quotes.quoteToInvoice(actor, quote.id, "2026-10-05");
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(created.id);
+
+    await invoices.updateDraft(actor, created.id, editorInvoice({ variant: "abschlag", quoteId: quote.id, lines: [line(114_000)] }));
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBeNull();
+    await invoices.finalizeInvoice(actor, created.id);
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBeNull();
+    // Die Schlussrechnung bleibt möglich
+    const schluss = await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss");
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(schluss.id);
+
+    // Entwurf auf ein anderes Angebot umgehängt bzw. ohne Angebot: das alte wird wieder offen
+    await invoices.updateDraft(actor, schluss.id, editorInvoice({ variant: "schluss", quoteId: other.id }));
+    expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBeNull();
+    expect((await quotes.getQuote(other.id))!.quote.invoiceId).toBe(schluss.id);
+    await invoices.updateDraft(actor, schluss.id, editorInvoice({ quoteId: null }));
+    expect((await quotes.getQuote(other.id))!.quote.invoiceId).toBeNull();
+  });
+
+  it("Schlussrechnung verlangt alle festgeschriebenen Abschläge ihres Angebots, auch später festgeschriebene", async () => {
+    await sql`update company set telefon = '+49 941 123456'`;
+    const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
+    await abschlag(quote.id, 114_000, "2026-10-05");
+    const pending = await abschlag(quote.id, 152_000, "2026-11-05", false);
+    const schluss = await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss");
+    const late = await invoices.finalizeInvoice(actor, pending.id);
+    expect(await invoices.finalizeIssues(schluss.id)).toContain(`Abschlagsrechnung ${late.number} zum Angebot ist noch nicht abgezogen`);
+    await expect(invoices.finalizeInvoice(actor, schluss.id)).rejects.toThrow(/noch nicht abgezogen/);
+
+    // Mit beiden Abzügen: Summe der Rechnungen gleich dem Angebot
+    const { lines } = (await invoices.getInvoice(schluss.id))!;
+    const deducts = [...new Set([...lines.flatMap((l) => (l.deductionOf ? [l.deductionOf] : [])), late.id])];
+    await invoices.updateDraft(actor, schluss.id, { ...editorInvoice({ variant: "schluss", quoteId: quote.id, deducts }), format: "xrechnung-cii" });
+    expect(await invoices.finalizeIssues(schluss.id)).toEqual([]);
+    await invoices.finalizeInvoice(actor, schluss.id);
+    const billed = (await quotes.getQuote(quote.id))!.billing.filter((b) => b.status === "final").reduce((s, b) => s + b.gross, 0);
+    expect(billed).toBe(quote.gross);
+  });
+
+  it("Bezug nur zu einem festgeschriebenen Angebot; ein Angebotsentwurf bleibt löschbar", async () => {
+    const quoteDraft = await quotes.createQuoteDraft(actor, draft());
+    await expect(invoices.createDraft(actor, editorInvoice({ variant: "abschlag", quoteId: quoteDraft.id }))).rejects.toThrow(/nicht festgeschrieben/);
+    await expect(invoices.createDraft(actor, editorInvoice({ quoteId: "00000000-0000-4000-8000-000000000000" }))).rejects.toThrow(/nicht festgeschrieben/);
+    await quotes.deleteQuoteDraft(actor, quoteDraft.id);
   });
 
   it("kopiert ein Angebot als neuen Entwurf mit gleicher Gültigkeitsdauer", async () => {

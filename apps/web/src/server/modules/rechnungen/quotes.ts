@@ -396,10 +396,11 @@ export async function quoteToInvoice(actor: string, id: string, today: string, v
               taxRate: line.taxRate as 1900 | 700 | 0,
             })),
     });
+    // invoice_id setzt insertDraft (syncQuoteBilling): ein Abschlag rechnet das Angebot noch nicht ab, erst die Schlussrechnung
+    // bzw. die Rechnung über alles
     await tx
       .update(schema.quotes)
-      // Ein Abschlag rechnet das Angebot noch nicht ab; erst die Schlussrechnung bzw. die Rechnung über alles
-      .set({ ...(variant === "abschlag" ? {} : { invoiceId: invoice.id }), decision: "angenommen", decidedAt: locked.decidedAt ?? new Date(), updatedAt: new Date() })
+      .set({ decision: "angenommen", decidedAt: locked.decidedAt ?? new Date(), updatedAt: new Date() })
       .where(eq(schema.quotes.id, id));
     return invoice;
   });

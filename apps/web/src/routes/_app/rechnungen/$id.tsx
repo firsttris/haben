@@ -56,7 +56,13 @@ function InvoicePage() {
           // Ein übernommener USt-Kurs bleibt im Feld leer: er folgt dem Leistungsmonat
           exchangeRate: invoice.exchangeRate && invoice.exchangeRateSource !== "ust" ? formatExchangeRate(invoice.exchangeRate) : null,
           exchangeRateDate: invoice.exchangeRateSource === "ust" ? null : invoice.exchangeRateDate,
-          deducts: [...new Set(data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])))],
+          // Schlussrechnung zu einem Angebot: inzwischen festgeschriebene Abschläge dieses Angebots gleich mit vorschlagen
+          deducts: [
+            ...new Set([
+              ...data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])),
+              ...(invoice.variant === "schluss" && invoice.quoteId ? data.abschlaege.filter((a) => a.quoteId === invoice.quoteId).map((a) => a.id) : []),
+            ]),
+          ],
           quoteId: invoice.quoteId,
           // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
           lines: data.lines.filter((line) => !line.deductionOf).map((line) => ({
