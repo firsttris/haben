@@ -56,7 +56,14 @@ function InvoicePage() {
           // Ein übernommener USt-Kurs bleibt im Feld leer: er folgt dem Leistungsmonat
           exchangeRate: invoice.exchangeRate && invoice.exchangeRateSource !== "ust" ? formatExchangeRate(invoice.exchangeRate) : null,
           exchangeRateDate: invoice.exchangeRateSource === "ust" ? null : invoice.exchangeRateDate,
-          deducts: [...new Set(data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])))],
+          // Schlussrechnung zu einem Angebot: inzwischen festgeschriebene Abschläge dieses Angebots gleich mit vorschlagen
+          deducts: [
+            ...new Set([
+              ...data.lines.flatMap((line) => (line.deductionOf ? [line.deductionOf] : [])),
+              ...(invoice.variant === "schluss" && invoice.quoteId ? data.abschlaege.filter((a) => a.quoteId === invoice.quoteId).map((a) => a.id) : []),
+            ]),
+          ],
+          quoteId: invoice.quoteId,
           // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
           lines: data.lines.filter((line) => !line.deductionOf).map((line) => ({
             description: line.description,
@@ -76,6 +83,7 @@ function InvoicePage() {
         kleinunternehmer={data.kleinunternehmer}
         articles={data.articles}
         abschlaege={data.abschlaege}
+        quotes={data.quotes}
         tageskurs={data.tageskurs}
         rateInfo={invoice.exchangeRate ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate) : null}
       />
@@ -256,7 +264,7 @@ function FinalInvoice({ data }: { data: Detail }) {
               )}
               {data.fromQuote && (
                 <>
-                  <dt>Aus Angebot</dt>
+                  <dt>{invoice.variant ? "Zum Angebot" : "Aus Angebot"}</dt>
                   <dd>
                     <Link to="/angebote/$id" params={{ id: data.fromQuote.id }}>
                       {data.fromQuote.number}

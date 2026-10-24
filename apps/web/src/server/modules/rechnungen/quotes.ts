@@ -19,7 +19,7 @@ import {
   type QuoteListStatus,
 } from "@haben/core";
 import { buildQuotePdf, texts, type QuoteDocument } from "@haben/einvoice";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, sellerIssues } from "../stammdaten/index.ts";
@@ -27,7 +27,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLogo } from "../stammdaten/index.ts";
 import { peekNumber, takeNumber } from "./number-counter.ts";
-import { buyerFrom, effectivePriceMode, insertDraft, sellerFrom, type Invoice } from "./invoices.ts";
+import { buyerFrom, effectivePriceMode, insertDraft, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
 
 /**
  * Angebote: eigener Nummernkreis (AN-2026-001), PDF mit der Rechnungsvorlage, keine Buchung.
@@ -170,7 +170,33 @@ export async function getQuote(id: string, q: Db | Tx = db) {
         .from(schema.invoices)
         .where(eq(schema.invoices.id, quote.invoiceId))
     : [];
-  return { quote, lines, contact: contact ?? null, invoice: invoice ?? null };
+  return { quote, lines, contact: contact ?? null, invoice: invoice ?? null, billing: await quoteBilling(id, quote.invoiceId, q) };
+}
+
+/**
+ * Rechnungen zu einem Angebot: Abschläge, Schlussrechnung und die Rechnung aus dem Angebot (auch ältere, die nur über
+ * quotes.invoice_id verknüpft sind), mit Stornostatus
+ */
+async function quoteBilling(quoteId: string, invoiceId: string | null, q: Db | Tx = db) {
+  const rows = await q
+    .select({
+      id: schema.invoices.id,
+      number: schema.invoices.number,
+      status: schema.invoices.status,
+      variant: schema.invoices.variant,
+      issueDate: schema.invoices.issueDate,
+      gross: schema.invoices.gross,
+      cancelled: sql<boolean>`exists (select 1 from invoices s where s.corrects_id = ${schema.invoices.id} and s.kind = 'storno' and s.status = 'final')`,
+    })
+    .from(schema.invoices)
+    .where(
+      and(
+        eq(schema.invoices.kind, "rechnung"),
+        invoiceId ? or(eq(schema.invoices.quoteId, quoteId), eq(schema.invoices.id, invoiceId)) : eq(schema.invoices.quoteId, quoteId),
+      ),
+    )
+    .orderBy(asc(schema.invoices.issueDate), asc(schema.invoices.createdAt));
+  return rows;
 }
 
 /** Status für die Liste; Regeln in @haben/core (lebenszyklus.ts) */
@@ -315,14 +341,35 @@ export async function setQuoteDecision(actor: string, id: string, decision: "ang
  * Rechnungsentwurf aus dem Angebot: Kunde, Positionen, Leistungszeitraum und Umsatzsteuer übernommen,
  * Datum heute, Zahlungsziel und Format wie bei neuen Rechnungen. Das Angebot gilt damit als angenommen.
  * Entwurf und Verknüpfung entstehen in einer Transaktion mit gesperrtem Angebot.
+ *
+ * - `abschlag`: Abschlagsrechnung mit einer Position „Abschlag gemäß Angebot …“, den Betrag trägst du ein. Das Angebot
+ *   bleibt offen für weitere Abschläge und die Schlussrechnung.
+ * - `schluss`: Schlussrechnung mit allen Positionen; abgezogen werden die festgeschriebenen Abschläge dieses Angebots.
  */
-export async function quoteToInvoice(actor: string, id: string, today: string): Promise<Invoice> {
+export async function quoteToInvoice(actor: string, id: string, today: string, variant: "abschlag" | "schluss" | null = null): Promise<Invoice> {
   return withActor(actor, async (tx) => {
     const locked = await lockQuote(tx, id);
     const problem = quoteInvoiceProblem(locked);
     if (problem) throw new QuoteError(problem);
     const { lines, contact } = (await getQuote(id, tx))!;
     const company = await loadCompany(tx);
+    const t = texts(locked.language);
+    // Abschlag: eine Position zum Steuersatz mit dem größten Anteil am Angebot, Betrag offen
+    const mainRate = lines.reduce<{ rate: number; amount: number } | null>((best, line) => {
+      const amount = Math.abs(line.quantity * line.unitPrice);
+      return !best || amount > best.amount ? { rate: line.taxRate, amount } : best;
+    }, null)?.rate;
+    const abschlagLine = {
+      description: t.abschlagFromQuote(locked.number ?? "", t.date(locked.issueDate)),
+      quantity: 1000,
+      unit: "Psch." as UnitLabel,
+      unitPrice: 0,
+      taxRate: (mainRate ?? 0) as 1900 | 700 | 0,
+    };
+    const deducts =
+      variant === "schluss"
+        ? (await openAbschlaege(null, tx)).filter((a) => a.quoteId === id && a.contactId === locked.contactId && a.taxTreatment === locked.taxTreatment).map((a) => a.id)
+        : [];
     const invoice = await insertDraft(tx, {
       contactId: locked.contactId,
       issueDate: today,
@@ -335,17 +382,25 @@ export async function quoteToInvoice(actor: string, id: string, today: string): 
       exemptionReason: locked.exemptionReason,
       priceMode: locked.priceMode,
       language: locked.language,
-      lines: lines.map((line) => ({
-        description: line.description,
-        quantity: line.quantity,
-        unit: line.unit as UnitLabel,
-        unitPrice: line.unitPrice,
-        taxRate: line.taxRate as 1900 | 700 | 0,
-      })),
+      variant,
+      deducts,
+      quoteId: id,
+      lines:
+        variant === "abschlag"
+          ? [abschlagLine]
+          : lines.map((line) => ({
+              description: line.description,
+              quantity: line.quantity,
+              unit: line.unit as UnitLabel,
+              unitPrice: line.unitPrice,
+              taxRate: line.taxRate as 1900 | 700 | 0,
+            })),
     });
+    // invoice_id setzt insertDraft (syncQuoteBilling): ein Abschlag rechnet das Angebot noch nicht ab, erst die Schlussrechnung
+    // bzw. die Rechnung über alles
     await tx
       .update(schema.quotes)
-      .set({ invoiceId: invoice.id, decision: "angenommen", decidedAt: locked.decidedAt ?? new Date(), updatedAt: new Date() })
+      .set({ decision: "angenommen", decidedAt: locked.decidedAt ?? new Date(), updatedAt: new Date() })
       .where(eq(schema.quotes.id, id));
     return invoice;
   });

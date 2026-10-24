@@ -35,7 +35,7 @@ import {
   type InvoiceFormat,
   type Seller,
 } from "@haben/einvoice";
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
@@ -75,6 +75,8 @@ export const draftSchema = z
     variant: z.enum(["abschlag", "schluss"]).nullable().default(null),
     /** Schlussrechnung: abzuziehende Abschlagsrechnungen */
     deducts: z.array(z.uuid()).max(50).default([]),
+    /** Angebot, zu dem die Rechnung gehört (Abschlags- und Schlussrechnung, Rechnung aus dem Angebot) */
+    quoteId: z.uuid().nullable().default(null),
     /** Währung der Rechnung; Preise und Summen in dieser Währung, gebucht wird in Euro mit dem Kurs */
     currency: z.string().trim().toUpperCase().regex(CURRENCY_CODE, "Währung als dreistelliger Code, z. B. USD").default("EUR"),
     /** 1 EUR = Kurs; leer = USt-Umrechnungskurs des Leistungsmonats, sobald veröffentlicht */
@@ -212,6 +214,7 @@ export async function openAbschlaege(exceptInvoiceId: string | null = null, q: D
   return open.map((r) => ({
     id: r.id,
     contactId: r.contactId,
+    quoteId: r.quoteId,
     number: r.number!,
     issueDate: r.issueDate,
     taxTreatment: r.taxTreatment,
@@ -282,6 +285,90 @@ async function deductionProblems(invoiceId: string | null, input: Pick<DraftInpu
     else chosen.push(abschlag);
   }
   return { problems, chosen };
+}
+
+/** Bezug nur zu einem festgeschriebenen Angebot; ein Entwurf ließe sich sonst nicht mehr löschen */
+async function checkQuote(tx: Tx, quoteId: string | null | undefined) {
+  if (!quoteId) return;
+  const [quote] = await tx.select({ status: schema.quotes.status }).from(schema.quotes).where(eq(schema.quotes.id, quoteId));
+  if (quote?.status !== "final") throw new InvoiceError("Das Angebot ist nicht festgeschrieben.");
+}
+
+/**
+ * Angebote, deren Abrechnungsstand eine Rechnung berühren kann: ihr Bezug (quote_id) und Angebote, die über
+ * quotes.invoice_id auf sie zeigen (auch ältere Rechnungen ohne quote_id), dazu `extra` (neuer Bezug beim Speichern)
+ */
+async function quotesTouching(tx: Tx, invoiceIds: (string | null | undefined)[], extra: (string | null | undefined)[] = []): Promise<string[]> {
+  const ids = invoiceIds.filter((i): i is string => Boolean(i));
+  const linked =
+    ids.length === 0
+      ? []
+      : [
+          ...(await tx.select({ id: schema.invoices.quoteId }).from(schema.invoices).where(inArray(schema.invoices.id, ids))).map((r) => r.id),
+          ...(await tx.select({ id: schema.quotes.id }).from(schema.quotes).where(inArray(schema.quotes.invoiceId, ids))).map((r) => r.id),
+        ];
+  return [...new Set([...linked, ...extra].filter((q): q is string => Boolean(q)))].sort();
+}
+
+/**
+ * Sperrt die Angebote nach id. Feste Reihenfolge überall, wo sich der Abrechnungsstand eines Angebots ändern kann:
+ * Angebot, dann Rechnung, dann Nummernkreis, dann (mit dem ersten Audit-Eintrag) die Hash-Kette. quoteToInvoice sperrt das
+ * Angebot ebenfalls zuerst. Zwei gleichzeitige Rechnungen zu einem Angebot warten so aufeinander, und die Prüfungen beim
+ * Festschreiben sehen die jeweils andere.
+ */
+async function lockQuotes(tx: Tx, quoteIds: string[]): Promise<string[]> {
+  if (quoteIds.length > 0) {
+    await tx.select({ id: schema.quotes.id }).from(schema.quotes).where(inArray(schema.quotes.id, quoteIds)).orderBy(asc(schema.quotes.id)).for("update");
+  }
+  return quoteIds;
+}
+
+/** Nach dem Sperren der Rechnung: Hat sich ihr Bezug seit dem Lesen geändert, wären die falschen Angebote gesperrt */
+async function assertQuotesLocked(tx: Tx, locked: string[], invoiceIds: (string | null | undefined)[], extra: (string | null | undefined)[] = []) {
+  if ((await quotesTouching(tx, invoiceIds, extra)).some((q) => !locked.includes(q))) {
+    throw new InvoiceError("Die Rechnung wurde gerade an anderer Stelle geändert. Bitte die Seite neu laden.");
+  }
+}
+
+/** Rechnung über das ganze Angebot: normale Rechnung oder Schlussrechnung, nicht der Abschlag */
+const billsWholeQuote = or(isNull(schema.invoices.variant), eq(schema.invoices.variant, "schluss"));
+
+/**
+ * quotes.invoice_id (Angebot abgerechnet) aus den Rechnungen mit Bezug zum Angebot: die nicht stornierte Rechnung über das
+ * ganze Angebot, festgeschriebene vor Entwürfen; nach einem Storno ist das Angebot wieder offen. Aufgerufen, wann immer sich Bezug, Rechnungsart oder
+ * Status einer solchen Rechnung ändern kann. Ältere festgeschriebene Rechnungen ohne quote_id, die nur über
+ * quotes.invoice_id verknüpft sind, bleiben stehen.
+ */
+async function syncQuoteBilling(tx: Tx, quoteIds: (string | null | undefined)[]) {
+  for (const quoteId of new Set(quoteIds.filter((q): q is string => Boolean(q)))) {
+    // Gesperrt ist das Angebot schon (lockQuotes bzw. lockQuote am Anfang der Transaktion)
+    const [quote] = await tx.select({ invoiceId: schema.quotes.invoiceId }).from(schema.quotes).where(eq(schema.quotes.id, quoteId));
+    if (!quote) continue;
+    if (quote.invoiceId) {
+      const [current] = await tx
+        .select({
+          quoteId: schema.invoices.quoteId,
+          lockedAt: schema.invoices.lockedAt,
+          cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,
+        })
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, quote.invoiceId));
+      // Ältere Rechnung ohne quote_id rechnet das Angebot ab, solange sie nicht storniert ist
+      if (current && current.quoteId === null && current.lockedAt && !current.cancelled) continue;
+    }
+    const [billing] = await tx
+      .select({ id: schema.invoices.id })
+      .from(schema.invoices)
+      .where(
+        and(eq(schema.invoices.quoteId, quoteId), eq(schema.invoices.kind, "rechnung"), billsWholeQuote, sql`${schema.invoices.id} not in (${cancelledIds})`),
+      )
+      .orderBy(sql`${schema.invoices.status} <> 'final'`, desc(schema.invoices.createdAt))
+      .limit(1);
+    const invoiceId = billing?.id ?? null;
+    if (invoiceId !== quote.invoiceId) {
+      await tx.update(schema.quotes).set({ invoiceId, updatedAt: new Date() }).where(eq(schema.quotes.id, quoteId));
+    }
+  }
 }
 
 /** Positionen einer Rechnung samt Abzügen bei der Schlussrechnung; die Abschläge geprüft in der Transaktion, die speichert */
@@ -369,6 +456,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     priceMode,
     language: input.language ?? "de",
     variant: input.variant ?? null,
+    quoteId: input.quoteId ?? null,
     ...rate,
     net: totals.net,
     tax: totals.tax,
@@ -386,7 +474,9 @@ export async function createDraft(actor: string, input: DraftInput, extra: Draft
 
 /** Legt einen Entwurf in einer laufenden Transaktion an, z. B. zusammen mit dem Festschreiben (Storno) */
 export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra = {}): Promise<Invoice> {
+  await lockQuotes(tx, input.quoteId ? [input.quoteId] : []);
   const { bundesland } = await loadCompany(tx);
+  await checkQuote(tx, input.quoteId);
   const lines = await allLines(tx, null, input);
   const { values, calculation, taxes } = draftValues(input, bundesland, lines, await draftRate(tx, input, extra.correctsId ?? null, null));
   const [invoice] = await tx
@@ -394,6 +484,7 @@ export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra =
     .values({ ...values, ...extra })
     .returning();
   await storeLines(tx, invoice!.id, lines, calculation, taxes);
+  await syncQuoteBilling(tx, [invoice!.quoteId]);
   return invoice!;
 }
 
@@ -407,25 +498,38 @@ async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
 
 export async function updateDraft(actor: string, id: string, input: DraftInput) {
   return withActor(actor, async (tx) => {
+    const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id], [input.quoteId]));
     const draft = await lockDraft(tx, id);
+    await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
     const { bundesland } = await loadCompany(tx);
+    if (draft.kind === "rechnung") await checkQuote(tx, input.quoteId);
     const lines = await allLines(tx, id, input);
     if (input.variant && draft.kind !== "rechnung") throw new InvoiceError("Storno und Korrektur sind keine Abschlags- oder Schlussrechnung.");
     // Eine Korrektur rechnet wie die ursprüngliche Rechnung, netto oder brutto
     const rate = await draftRate(tx, input, draft.correctsId, draft);
-    const { values, calculation, taxes } = draftValues(draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode }, bundesland, lines, rate);
+    const { values, calculation, taxes } = draftValues(
+      draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode, quoteId: null },
+      bundesland,
+      lines,
+      rate,
+    );
     const [updated] = await tx.update(schema.invoices).set(values).where(eq(schema.invoices.id, id)).returning();
     await storeLines(tx, id, lines, calculation, taxes);
+    // Bezug oder Rechnungsart geändert: das bisherige und das neue Angebot neu bewerten
+    await syncQuoteBilling(tx, quoteIds);
     return updated!;
   });
 }
 
 export async function deleteDraft(actor: string, id: string) {
   await withActor(actor, async (tx) => {
+    const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id]));
     await lockDraft(tx, id);
+    await assertQuotesLocked(tx, quoteIds, [id]);
     // Aus einem Angebot entstanden: das Angebot lässt sich danach wieder abrechnen
     await tx.update(schema.quotes).set({ invoiceId: null, updatedAt: new Date() }).where(eq(schema.quotes.invoiceId, id));
     await tx.delete(schema.invoices).where(eq(schema.invoices.id, id));
+    await syncQuoteBilling(tx, quoteIds);
   });
 }
 
@@ -673,6 +777,42 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
     if (invoice.gross < 0) issues.push("Die Abschläge übersteigen die Gesamtleistung");
   } else if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
+  if (invoice.quoteId) {
+    const [quote] = await q
+      .select({ number: schema.quotes.number, status: schema.quotes.status, contactId: schema.quotes.contactId, decision: schema.quotes.decision })
+      .from(schema.quotes)
+      .where(eq(schema.quotes.id, invoice.quoteId));
+    if (!quote || quote.status !== "final") issues.push("Das gewählte Angebot ist nicht festgeschrieben");
+    else if (quote.contactId !== invoice.contactId) issues.push(`Angebot ${quote.number} gehört zu einem anderen Kunden`);
+    else if (quote.decision === "abgelehnt") issues.push(`Angebot ${quote.number} ist als abgelehnt markiert`);
+    else {
+      // Schon über das Ganze abgerechnet (auch ältere Rechnungen, die nur über quotes.invoice_id verknüpft sind):
+      // keine zweite Rechnung, keine weiteren Abschläge
+      const [billed] = await q
+        .select({ number: schema.invoices.number })
+        .from(schema.invoices)
+        .where(
+          and(
+            ne(schema.invoices.id, invoice.id),
+            eq(schema.invoices.kind, "rechnung"),
+            eq(schema.invoices.status, "final"),
+            billsWholeQuote,
+            sql`${schema.invoices.id} not in (${cancelledIds})`,
+            or(eq(schema.invoices.quoteId, invoice.quoteId), sql`${schema.invoices.id} = (select invoice_id from quotes where id = ${invoice.quoteId})`),
+          ),
+        )
+        .limit(1);
+      if (billed) issues.push(`Angebot ${quote.number} ist schon mit Rechnung ${billed.number} abgerechnet`);
+      if (invoice.variant === "schluss") {
+        // Festgeschriebene Abschläge dieses Angebots, die keine Schlussrechnung abzieht, müssen hier abgezogen werden;
+        // sonst wäre der Auftrag doppelt abgerechnet
+        const deducted = new Set(deductionIds(lines));
+        for (const a of (await openAbschlaege(id, q)).filter((a) => a.quoteId === invoice.quoteId && !deducted.has(a.id))) {
+          issues.push(`Abschlagsrechnung ${a.number} zum Angebot ist noch nicht abgezogen`);
+        }
+      }
+    }
+  }
   if (invoice.currency !== "EUR") {
     if (invoice.variant) issues.push("Abschlags- und Schlussrechnungen gibt es nur in Euro");
     // Bei Ist-Versteuerung ist das Entgelt mit dem Kurs des Monats umzurechnen, in dem es vereinnahmt wird (Abschn. 16.4
@@ -723,7 +863,11 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
 
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
 async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
+  // Angebote zuerst (lockQuotes): Die Prüfungen gegen andere Rechnungen desselben Angebots laufen erst unter der Sperre
+  const [peek] = await tx.select({ correctsId: schema.invoices.correctsId }).from(schema.invoices).where(eq(schema.invoices.id, id));
+  const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id, peek?.correctsId]));
   let invoice = await lockDraft(tx, id);
+  await assertQuotesLocked(tx, quoteIds, [id, invoice.correctsId]);
   // Inzwischen veröffentlichten Kurs übernehmen, bevor geprüft wird
   if (await applyRateToDraft(tx, invoice)) invoice = await lockDraft(tx, id);
   const issues = await finalizeIssues(id, tx);
@@ -803,6 +947,8 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
       ? legacyCorrectionPosting(totals, company.kontenrahmen, company.versteuerung)
       : invoicePosting(totals, company.kontenrahmen, company.versteuerung, invoice.taxTreatment),
   });
+  // Festgeschrieben bzw. storniert: welche Rechnung das Angebot abrechnet, kann sich damit ändern
+  await syncQuoteBilling(tx, quoteIds);
 
   return finalized!;
 }
@@ -842,9 +988,10 @@ function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
  */
 export async function cancelInvoice(actor: string, id: string, today: string): Promise<Invoice> {
   return withActor(actor, async (tx) => {
-    // Sperren in derselben Reihenfolge wie beim Festschreiben: Rechnungszeilen, dann Nummernkreis, dann (mit dem ersten
-    // Audit-Eintrag) die Hash-Kette. Sonst verklemmen sich ein Storno und eine gleichzeitig festgeschriebene Korrektur
-    // derselben Rechnung (die erst das Original, dann den Kreis sperrt).
+    // Sperren in derselben Reihenfolge wie beim Festschreiben: Angebote der Rechnung (lockQuotes), Rechnungszeilen, dann
+    // Nummernkreis, dann (mit dem ersten Audit-Eintrag) die Hash-Kette. Sonst verklemmen sich ein Storno und eine
+    // gleichzeitig festgeschriebene Korrektur derselben Rechnung (die erst das Original, dann den Kreis sperrt).
+    await lockQuotes(tx, await quotesTouching(tx, [id]));
     // Original zuerst: Ein zweites Storno wartet hier und sieht danach das erste. Erst mit dem Entwurf (Fremdschlüssel
     // auf das Original) und dann sperren hieße, dass sich zwei gleichzeitige Stornos verklemmen.
     await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");

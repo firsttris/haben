@@ -67,7 +67,9 @@ function QuotePage() {
 }
 
 function FinalQuote({ data }: { data: Detail }) {
-  const { quote, invoice, listStatus } = data;
+  const { quote, invoice, listStatus, billing } = data;
+  /** Festgeschriebene, nicht stornierte Abschläge: erst dann ergibt eine Schlussrechnung Sinn */
+  const finalAbschlaege = billing.filter((b) => b.variant === "abschlag" && b.status === "final" && !b.cancelled);
   const router = useRouter();
   const navigate = useNavigate();
   const decide = useServerFn(decideQuote);
@@ -84,9 +86,9 @@ function FinalQuote({ data }: { data: Detail }) {
       await router.invalidate();
     });
 
-  const onInvoice = () =>
+  const onInvoice = (variant: "abschlag" | "schluss" | null = null) =>
     run(async () => {
-      const created = await toInvoice({ data: quote.id });
+      const created = await toInvoice({ data: { id: quote.id, variant } });
       await navigate({ to: "/rechnungen/$id", params: { id: created.id } });
     });
 
@@ -148,9 +150,20 @@ function FinalQuote({ data }: { data: Detail }) {
                 </p>
                 <div className="actions" style={{ flexWrap: "wrap" }}>
                   {quote.decision !== "abgelehnt" && (
-                    <button type="button" className="btn btn-primary" onClick={() => void onInvoice()} disabled={busy}>
-                      Rechnung erstellen
-                    </button>
+                    <>
+                      {finalAbschlaege.length > 0 ? (
+                        <button type="button" className="btn btn-primary" onClick={() => void onInvoice("schluss")} disabled={busy}>
+                          Schlussrechnung erstellen
+                        </button>
+                      ) : (
+                        <button type="button" className="btn btn-primary" onClick={() => void onInvoice()} disabled={busy}>
+                          Rechnung erstellen
+                        </button>
+                      )}
+                      <button type="button" className="btn" onClick={() => void onInvoice("abschlag")} disabled={busy}>
+                        Abschlagsrechnung erstellen
+                      </button>
+                    </>
                   )}
                   {quote.decision === null && (
                     <div className="actions" style={{ flexBasis: "100%", alignItems: "center", gap: 8 }}>
@@ -182,6 +195,32 @@ function FinalQuote({ data }: { data: Detail }) {
               </div>
             )}
           </section>
+
+          {billing.length > 0 && (
+            <section className="card" aria-labelledby="billing-heading">
+              <h2 id="billing-heading">Rechnungen zu diesem Angebot</h2>
+              {billing.map((b) => (
+                <div key={b.id} className="history-row">
+                  <span style={{ minWidth: 0 }}>
+                    <Link to="/rechnungen/$id" params={{ id: b.id }}>
+                      {b.variant === "abschlag" ? "Abschlagsrechnung" : b.variant === "schluss" ? "Schlussrechnung" : "Rechnung"} {b.number ?? "(Entwurf)"}
+                    </Link>
+                    <span className="small muted" style={{ display: "block" }}>
+                      {formatDate(b.issueDate)} · <span className="mono">{formatEuro(b.gross)}</span>
+                    </span>
+                  </span>
+                  <span className={`pill ${b.cancelled ? "pill-danger" : b.status === "final" ? "pill-ok" : ""}`}>
+                    {b.cancelled ? "Storniert" : b.status === "final" ? "Festgeschrieben" : "Entwurf"}
+                  </span>
+                </div>
+              ))}
+              {finalAbschlaege.length > 0 && (
+                <p className="small muted" style={{ margin: 0 }}>
+                  Abgerechnet in Abschlägen: {formatEuro(finalAbschlaege.reduce((s, b) => s + b.gross, 0))} von {formatEuro(quote.gross)}
+                </p>
+              )}
+            </section>
+          )}
 
           <section className="card" aria-labelledby="facts-heading">
             <h2 id="facts-heading">Angaben</h2>

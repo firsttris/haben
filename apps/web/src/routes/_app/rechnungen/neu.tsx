@@ -16,7 +16,8 @@ function NewInvoicePage() {
   const { schluss } = Route.useSearch();
   const abschlag = schluss ? data.abschlaege.find((a) => a.id === schluss) : undefined;
   const contact = abschlag ? data.contacts.find((c) => c.id === abschlag.contactId) : undefined;
-  // Von einer Abschlagsrechnung aus: Kunde, Steuer, Preismodus und alle offenen Abschläge des Kunden übernehmen
+  // Von einer Abschlagsrechnung aus: Kunde, Steuer, Preismodus und Angebot übernehmen; abgezogen werden die offenen
+  // Abschläge dieses Angebots, ohne Angebot alle offenen Abschläge des Kunden
   const initial =
     abschlag && contact
       ? {
@@ -27,7 +28,8 @@ function NewInvoicePage() {
           taxTreatment: abschlag.taxTreatment,
           priceMode: abschlag.priceMode,
           variant: "schluss" as const,
-          deducts: data.abschlaege.filter((a) => a.contactId === contact.id).map((a) => a.id),
+          quoteId: abschlag.quoteId,
+          deducts: data.abschlaege.filter((a) => a.contactId === contact.id && (!abschlag.quoteId || a.quoteId === abschlag.quoteId)).map((a) => a.id),
         }
       : data.draft;
   return (
@@ -46,6 +48,7 @@ function NewInvoicePage() {
       kleinunternehmer={data.kleinunternehmer}
       articles={data.articles}
       abschlaege={data.abschlaege}
+      quotes={data.quotes}
     />
   );
 }

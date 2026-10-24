@@ -19,6 +19,7 @@ import {
   index,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 import type { Buyer, Seller } from "@haben/einvoice";
@@ -667,6 +668,8 @@ export const invoices = pgTable(
     correctsId: uuid("corrects_id"),
     /** Abschlags- oder Schlussrechnung; nur bei kind „rechnung“ */
     variant: text("variant", { enum: ["abschlag", "schluss"] }),
+    /** Angebot, aus dem bzw. zu dem die Rechnung entstanden ist; die Schlussrechnung zieht dessen Abschläge ab */
+    quoteId: uuid("quote_id").references((): AnyPgColumn => quotes.id),
     net: integer("net").notNull().default(0),
     tax: integer("tax").notNull().default(0),
     gross: integer("gross").notNull().default(0),
@@ -689,11 +692,13 @@ export const invoices = pgTable(
   (t) => [
     check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
+    check("invoices_quote_kind", sql`${t.quoteId} is null or ${t.kind} = 'rechnung'`),
     // Storno und Korrektur verweisen immer auf das Original
     check("invoices_corrects_original", sql`${t.kind} = 'rechnung' or ${t.correctsId} is not null`),
     uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
     uniqueIndex("invoices_recurring_date").on(t.recurringId, t.recurringDate),
     index("invoices_corrects").on(t.correctsId),
+    index("invoices_quote").on(t.quoteId),
     // höchstens ein festgeschriebenes Storno je Rechnung
     uniqueIndex("invoices_one_storno").on(t.correctsId).where(sql`${t.kind} = 'storno' and ${t.status} = 'final'`),
     foreignKey({ name: "invoices_corrects_fk", columns: [t.correctsId], foreignColumns: [t.id] }),

@@ -86,9 +86,9 @@ export const decideQuote = createServerFn({ method: "POST" })
 
 export const invoiceFromQuote = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(z.object({ id: z.uuid(), variant: z.enum(["abschlag", "schluss"]).nullable().default(null) }))
   .handler(async ({ data, context }) => {
-    const invoice = await quoteToInvoice(context.user.id, data, today());
+    const invoice = await quoteToInvoice(context.user.id, data.id, today(), data.variant);
     return { id: invoice.id };
   });
 
