@@ -139,7 +139,7 @@ Vorgeschlagen wird ein Posten erst ab 40 Punkten. Ein exakter Betrag reicht alle
 1. Umsatz links anklicken. Ohne Auswahl ist der erste offene Umsatz gewählt.
 2. Rechts den **besten Treffer** prüfen, oder mit **Andere Rechnung** einen anderen offenen Posten aus der Auswahl **Rechnung oder Beleg** nehmen.
 3. **Betrag** prüfen. Vorbelegt ist der kleinere Wert aus offenem Umsatz und offenem Posten.
-4. **Zuordnen** klicken.
+4. **Zuordnen** klicken. Ist der Umsatz damit ganz zugeordnet, springt die Auswahl zum nächsten offenen Umsatz, am Ende der Liste wieder von vorn.
 
 Tastatur: **Enter** ordnet zu, solange der Fokus nicht in einem Eingabefeld, auf einem Knopf oder Link liegt. **J** springt zum nächsten, **K** zum vorigen Umsatz.
 
