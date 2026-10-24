@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
-import { ASSET_KINDS, ASSET_METHODS, csvDecimal, PAUSCHALE_LABEL } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, csvDecimal, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { accountName } from "../buchhaltung/index.ts";
@@ -210,6 +210,7 @@ const SOURCE_LABELS: Record<string, string> = {
   asset: "Anlage",
   pauschale: "Pauschale",
   kasse: "Kasse",
+  ausbuchung: "Ausbuchung",
 };
 const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[number], string> = {
   invoice: "Rechnung",
@@ -649,7 +650,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   for (const [accountId, rows] of groupBy(transactions, (t) => t.bankAccountId)) {
     const account = accountById.get(accountId);
     yield {
-      path: uniquePath(usedBankPaths, `bank/${safeName(account?.iban ?? accountId, 40)}/umsaetze.csv`),
+      path: uniquePath(usedBankPaths, `bank/${safeName(account?.iban ?? account?.name ?? accountId, 40)}/umsaetze.csv`),
       content: csv(
         [
           "Buchungsdatum", "Wertstellung", "Betrag", "Währung", "Gegenpartei", "Gegen-IBAN", "Verwendungszweck", "Umsatztyp",
@@ -695,7 +696,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         const t = transactionById.get(a.transactionId);
         return [
           t?.bookingDate,
-          t ? accountById.get(t.bankAccountId)?.iban : "",
+          t ? (accountById.get(t.bankAccountId)?.iban ?? accountById.get(t.bankAccountId)?.name) : "",
           ALLOCATION_LABELS[a.kind],
           a.invoiceId ? (invoiceNumbers.get(a.invoiceId) ?? "") : "",
           a.documentId ? (documentPaths.get(a.documentId)?.replace(/^belege\//, "") ?? "") : "",
@@ -711,12 +712,46 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
+  // Ausbuchungen des Jahres (Skonto, Forderungsausfall, erhaltenes Skonto) nach Datum der Ausbuchung
+  const writeOffs = await db
+    .select()
+    .from(schema.writeOffs)
+    .where(and(gte(schema.writeOffs.date, yearStart(year)), lte(schema.writeOffs.date, yearEnd(year))))
+    .orderBy(asc(schema.writeOffs.date), asc(schema.writeOffs.createdAt), asc(schema.writeOffs.id));
+  if (writeOffs.length > 0) {
+    const missing = [...new Set(writeOffs.map((w) => w.invoiceId).filter((id): id is string => id !== null && !invoiceNumbers.has(id)))];
+    if (missing.length > 0) {
+      for (const row of await db.select({ id: schema.invoices.id, number: schema.invoices.number }).from(schema.invoices).where(inArray(schema.invoices.id, missing))) {
+        invoiceNumbers.set(row.id, row.number);
+      }
+    }
+    yield {
+      path: "bank/ausbuchungen.csv",
+      content: csv(
+        ["Datum", "Art", "Rechnung", "Beleg", "Betrag", "Hebt auf", "Angelegt", "Umsatz-ID", "Rechnungs-ID", "Beleg-ID", "Ausbuchungs-ID"],
+        writeOffs.map((w) => [
+          w.date,
+          WRITE_OFF_KINDS[w.kind],
+          w.invoiceId ? (invoiceNumbers.get(w.invoiceId) ?? "") : "",
+          w.documentId ? (documentPaths.get(w.documentId)?.replace(/^belege\//, "") ?? "") : "",
+          money(w.amount),
+          w.reversesId,
+          iso(w.createdAt),
+          w.transactionId,
+          w.invoiceId,
+          w.documentId,
+          w.id,
+        ]),
+      ),
+      compress: true,
+    };
+  }
   yield {
     path: "bank/importe.csv",
     content: csv(
       ["Konto", "Datei", "SHA-256", "Format", "Zeitraum von", "Zeitraum bis", "Anfangssaldo", "Endsaldo", "Neu", "Übersprungen", "Hinweise", "Importiert", "Import-ID"],
       imports.map((i) => [
-        accountById.get(i.bankAccountId)?.iban,
+        accountById.get(i.bankAccountId)?.iban ?? accountById.get(i.bankAccountId)?.name,
         i.filename,
         i.sha256,
         i.format,
@@ -1085,9 +1120,11 @@ pauschalen/pauschalen.csv
                          Eigenbeleg; Stornos als Gegenzeile.
 kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufender
                          Nummer, Anfangsbestand und Bestand nach jeder Zeile.
-bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto.
+bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto (Zahlungsdienstleister unter ihrem Namen).
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.
+bank/ausbuchungen.csv    Nur wenn vorhanden: ausgebuchte Reste von Rechnungen und Belegen
+                         (Skonto, Forderungsausfall); aufgehobene als Gegenzeile.
 bank/importe.csv         Importierte Kontoauszugsdateien mit SHA-256, Zeitraum und Salden.
                          Die Auszugsdateien selbst speichert Haben nicht.
 umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldung.json),

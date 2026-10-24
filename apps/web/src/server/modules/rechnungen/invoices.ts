@@ -35,7 +35,7 @@ import { z } from "zod";
 import { loadCompany, sellerIssues, versteuerungForYear, type Company } from "../stammdaten/index.ts";
 import type { Contact } from "../stammdaten/index.ts";
 import { loadLogo } from "../stammdaten/index.ts";
-import { invoicePayments } from "../bank/index.ts";
+import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
@@ -399,10 +399,12 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
   );
+  const losses = await invoiceLosses(rows.filter((r) => r.status === "final").map((r) => r.id), q);
   return rows.map(({ cancelled, ...row }) => {
     const facts = {
       ...row,
       paid: paid.get(row.id) ?? 0,
+      writtenOffLoss: losses.get(row.id) ?? 0,
       cancelled,
       // Bei einem Storno bleibt offen, was auf die Rechnung gezahlt und noch nicht erstattet wurde
       paidOnOriginal: row.correctsId ? (paid.get(row.correctsId) ?? 0) : 0,
@@ -702,6 +704,11 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
     await lockNumbering(tx, "rechnung", Number(today.slice(0, 4)));
     const { invoice, lines } = await finalOriginal(id, tx);
+    // Ein Storno nimmt die ganze Rechnung samt Umsatzsteuer zurück; eine Ausbuchung hat einen Teil davon schon gemindert
+    // (doppelt bei Soll) und wäre im Storno als Erstattung offen, obwohl kein Geld geflossen ist
+    if ((await invoiceWrittenOff([id], tx)).has(id)) {
+      throw new InvoiceError("Die Rechnung ist teilweise ausgebucht (Skonto oder Forderungsausfall). Hebe die Ausbuchung zuerst auf, dann lässt sie sich stornieren.");
+    }
     const draft = await insertDraft(
       tx,
       {

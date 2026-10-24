@@ -27,12 +27,22 @@ async function vouchers(entries: (typeof schema.journalEntries.$inferSelect)[]):
   const invoiceIds = ids("invoice");
   const documentIds = ids("document");
   const allocationIds = ids("allocation");
-  const allocations = allocationIds.length
-    ? await db
-        .select({ id: schema.allocations.id, invoiceId: schema.allocations.invoiceId, documentId: schema.allocations.documentId })
-        .from(schema.allocations)
-        .where(inArray(schema.allocations.id, allocationIds))
-    : [];
+  const writeOffIds = ids("ausbuchung");
+  const allocations = [
+    ...(allocationIds.length
+      ? await db
+          .select({ id: schema.allocations.id, invoiceId: schema.allocations.invoiceId, documentId: schema.allocations.documentId })
+          .from(schema.allocations)
+          .where(inArray(schema.allocations.id, allocationIds))
+      : []),
+    // Ausbuchungen (Skonto, Forderungsausfall) tragen wie Zahlungen die Nummer der Rechnung bzw. des Belegs
+    ...(writeOffIds.length
+      ? await db
+          .select({ id: schema.writeOffs.id, invoiceId: schema.writeOffs.invoiceId, documentId: schema.writeOffs.documentId })
+          .from(schema.writeOffs)
+          .where(inArray(schema.writeOffs.id, writeOffIds))
+      : []),
+  ];
   const allInvoiceIds = [...new Set([...invoiceIds, ...allocations.flatMap((a) => (a.invoiceId ? [a.invoiceId] : []))])];
   const allDocumentIds = [...new Set([...documentIds, ...allocations.flatMap((a) => (a.documentId ? [a.documentId] : []))])];
   const invoices = allInvoiceIds.length

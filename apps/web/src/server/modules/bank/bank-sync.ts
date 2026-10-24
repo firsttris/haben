@@ -200,7 +200,7 @@ export async function completeConnection(
       const bankAccount = await accountForIban(tx, iban, name);
       if (!known) created.push(bankAccount.name);
       const previous = others.flatMap((o) => o.accounts).find((a) => a.bankAccountId === bankAccount.id);
-      accounts.push({ uid: account.uid, iban: bankAccount.iban, name: bankAccount.name, bankAccountId: bankAccount.id, syncedTo: previous?.syncedTo ?? null });
+      accounts.push({ uid: account.uid, iban, name: bankAccount.name, bankAccountId: bankAccount.id, syncedTo: previous?.syncedTo ?? null });
     }
     const ids = new Set(accounts.map((a) => a.bankAccountId));
     for (const other of others) {

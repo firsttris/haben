@@ -7,7 +7,7 @@ import {
   PRIVATE_USE_ACCOUNT_NAMES,
   type Kontenrahmen,
 } from "@haben/core";
-import { and, asc, desc, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 
 const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
@@ -72,4 +72,20 @@ export async function loadJournal(year: number, month: number) {
       .filter((l) => l.entryId === entry.id)
       .map((l) => ({ ...l, name: accountName(entry.kontenrahmen, l.account) })),
   }));
+}
+
+/**
+ * Saldo des Geldtransitkontos (1360 bzw. 1460) über alle Jahre, Soll − Haben. Ungleich 0 heißt: zu einem Übertrag
+ * zwischen eigenen Konten (oder zur Auszahlung eines Zahlungsdienstleisters) fehlt die Gegenseite.
+ */
+export async function transitBalance(): Promise<number> {
+  const [row] = await db
+    .select({ saldo: sql<string>`coalesce(sum(${schema.journalLines.debit} - ${schema.journalLines.credit}), 0)` })
+    .from(schema.journalLines)
+    .innerJoin(schema.journalEntries, eq(schema.journalEntries.id, schema.journalLines.entryId))
+    .where(
+      sql`(${schema.journalEntries.kontenrahmen} = 'SKR03' and ${schema.journalLines.account} = ${ACCOUNTS.SKR03.geldtransit})
+        or (${schema.journalEntries.kontenrahmen} = 'SKR04' and ${schema.journalLines.account} = ${ACCOUNTS.SKR04.geldtransit})`,
+    );
+  return Number(row?.saldo ?? 0);
 }

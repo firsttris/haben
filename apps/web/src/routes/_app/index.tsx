@@ -71,6 +71,25 @@ function OverviewPage() {
       to: "/bank",
     });
   }
+  if (data.transit !== 0) {
+    todos.push({
+      title: "Geldtransit nicht ausgeglichen",
+      detail: `${formatEuro(Math.abs(data.transit))} ${data.transit > 0 ? "abgegangen, aber auf keinem eigenen Konto angekommen" : "angekommen ohne Abgang"}: zu einem Übertrag fehlt die Gegenseite`,
+      action: "Zur Bank",
+      tone: "warn",
+      to: "/bank",
+    });
+  }
+  for (const provider of data.invoices.bank.filter((a) => a.staleOpenCount > 0)) {
+    todos.push({
+      id: provider.id,
+      title: `${provider.name}: ${provider.staleOpenCount} ${provider.staleOpenCount === 1 ? "Umsatz" : "Umsätze"} seit über zwei Wochen offen`,
+      detail: "Zahlungen, Gebühren oder Auszahlungen beim Zahlungsdienstleister noch nicht zugeordnet",
+      action: "Zuordnen",
+      tone: "info",
+      to: "/bank",
+    });
+  }
   const openBank = data.invoices.bank.reduce((sum, a) => sum + a.openCount, 0);
   if (openBank > 0) {
     todos.push({

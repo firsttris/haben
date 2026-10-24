@@ -1,13 +1,13 @@
 import { paidTaxShares, splitPrivateShare, type Cents, type TaxTreatment, type VatPeriod } from "@haben/core";
-import { and, eq, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
-  /** payment = Zahlungseingang (Ist), invoice = Rechnung (Soll), entnahme = private Kfz-Nutzung */
-  type: "payment" | "invoice" | "entnahme";
+  /** payment = Zahlungseingang (Ist), invoice = Rechnung (Soll), entnahme = private Kfz-Nutzung, ausbuchung = Skonto oder Forderungsausfall (§ 17) */
+  type: "payment" | "invoice" | "entnahme" | "ausbuchung";
   /** Bei Entnahmen: das Fahrzeug */
   assetId?: string;
   date: string;
@@ -155,6 +155,45 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     }
   }
 
+  // Ausbuchungen (§ 17 UStG): Skonto und Forderungsausfall mindern die Bemessungsgrundlage im Monat der Ausbuchung.
+  // Bei Ist zählt ohnehin nur, was bezahlt wird; ausgenommen Reverse Charge, das auch bei Ist nach Rechnung zählt.
+  {
+    const rows = await db
+      .select({
+        date: schema.writeOffs.date,
+        amount: schema.writeOffs.amount,
+        invoiceId: schema.invoices.id,
+        number: schema.invoices.number,
+        buyer: schema.invoices.buyer,
+        treatment: schema.invoices.taxTreatment,
+      })
+      .from(schema.writeOffs)
+      .innerJoin(schema.invoices, eq(schema.invoices.id, schema.writeOffs.invoiceId))
+      .where(
+        and(
+          gte(schema.writeOffs.date, start),
+          lt(schema.writeOffs.date, end),
+          ...(versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
+        ),
+      );
+    const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))]);
+    for (const r of rows) {
+      for (const share of paidTaxShares(totals.get(r.invoiceId)!, -r.amount)) {
+        revenue.push({
+          type: "ausbuchung",
+          date: r.date,
+          invoiceId: r.invoiceId,
+          number: r.number ?? "",
+          customer: r.buyer?.name ?? "",
+          treatment: r.treatment,
+          rate: share.rate,
+          base: share.base,
+          tax: share.tax,
+        });
+      }
+    }
+  }
+
   // Private Kfz-Nutzung: unentgeltliche Wertabgabe im Monat der Nutzung, auch bei Ist-Versteuerung
   const lastDay = new Date(Date.UTC(period.year, period.month, 0)).toISOString().slice(0, 10);
   for (const use of await privateUseForMonth(period.year, period.month)) {
@@ -205,6 +244,37 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       tax: splitPrivateShare(a.tax, privateShare).business,
     }))
     .filter((a) => a.tax !== 0);
+  // Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz
+  const discounts = await db
+    .select({
+      documentId: schema.documents.id,
+      date: schema.writeOffs.date,
+      amount: schema.writeOffs.amount,
+      supplier: schema.documents.supplierName,
+      number: schema.documents.invoiceNumber,
+      net: schema.documents.net,
+      tax: schema.documents.tax,
+      gross: schema.documents.gross,
+    })
+    .from(schema.writeOffs)
+    .innerJoin(schema.documents, eq(schema.documents.id, schema.writeOffs.documentId))
+    .where(and(gte(schema.writeOffs.date, start), lt(schema.writeOffs.date, end), eq(schema.documents.vorsteuerAbzug, true)));
+  if (discounts.length > 0) {
+    const docAmounts = await db
+      .select()
+      .from(schema.documentAmounts)
+      .where(inArray(schema.documentAmounts.documentId, [...new Set(discounts.map((d) => d.documentId))]));
+    for (const d of discounts) {
+      const taxes = docAmounts
+        .filter((a) => a.documentId === d.documentId)
+        .map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }))
+        .sort((a, b) => b.rate - a.rate);
+      for (const share of paidTaxShares({ net: d.net, tax: d.tax, gross: d.gross, taxes }, -d.amount)) {
+        if (share.tax === 0) continue;
+        inputTax.push({ documentId: d.documentId, date: d.date, supplier: d.supplier, number: d.number, rate: share.rate, base: -share.base, tax: -share.tax });
+      }
+    }
+  }
   // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
   const reverseCharge: ReverseChargeSource[] = amounts
     .filter((a) => a.reverseCharge)

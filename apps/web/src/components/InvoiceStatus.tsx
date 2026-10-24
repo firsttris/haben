@@ -5,6 +5,7 @@ const LABELS: Record<InvoiceListStatus, { text: string; tone: string }> = {
   offen: { text: "Offen", tone: "" },
   teilbezahlt: { text: "Teilbezahlt", tone: "pill-info" },
   bezahlt: { text: "Bezahlt", tone: "pill-ok" },
+  ausgebucht: { text: "Ausgebucht", tone: "" },
   ueberfaellig: { text: "Überfällig", tone: "pill-warn" },
   storniert: { text: "Storniert", tone: "pill-danger" },
   storno: { text: "Storno", tone: "" },

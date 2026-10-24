@@ -2,7 +2,7 @@ import { invoicesSentByMail, mailsForInvoice } from "../modules/rechnungen/index
 import { createServerFn } from "@tanstack/react-start";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { listAccounts } from "../modules/bank/index.ts";
+import { listAccounts, listWriteOffs } from "../modules/bank/index.ts";
 import { editorContext } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import {
@@ -51,6 +51,7 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
         name: a.name,
         purpose: a.purpose,
         openCount: a.openCount,
+        staleOpenCount: a.staleOpenCount,
         balance: a.lastImport?.closingBalance ?? null,
         balanceDate: a.lastImport?.periodTo ?? null,
       })),
@@ -99,6 +100,9 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
       )[0] ?? null,
       open: listed?.open ?? 0,
       listStatus: listed?.listStatus ?? null,
+      writeOffs: result.invoice.status === "final" ? await listWriteOffs({ invoiceId: data }) : [],
+      /** Vorschlag für das Datum einer Ausbuchung, nach deutscher Zeit */
+      today: today(),
       ...(await abschlagLinks(data)),
       ...(await invoiceEditorContext()),
     };

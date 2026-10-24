@@ -28,7 +28,7 @@ export function SaldoBetrag({ kontenrahmen, account, saldo }: { kontenrahmen: Ko
 }
 
 /** Herkunft einer Journalbuchung */
-export const JOURNAL_SOURCE = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage", pauschale: "Pauschale", kasse: "Kasse" } as const;
+export const JOURNAL_SOURCE = { invoice: "Rechnung", document: "Beleg", allocation: "Bank", asset: "Anlage", pauschale: "Pauschale", kasse: "Kasse", ausbuchung: "Ausbuchung" } as const;
 export type JournalSource = keyof typeof JOURNAL_SOURCE;
 
 /** Letzter Tag vor einem ausschließlichen Enddatum (YYYY-MM-DD) */

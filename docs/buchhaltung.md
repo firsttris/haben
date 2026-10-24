@@ -118,7 +118,11 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Privatentnahmen | 1800 | 2100 |
 | Privateinlagen | 1890 | 2180 |
 | Geldtransit | 1360 | 1460 |
+| Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe …) | 1361–1369 | 1461–1469 |
 | Nebenkosten des Geldverkehrs | 4970 | 6855 |
+| Gewährte Skonti | 8730 | 4730 |
+| Erhaltene Skonti | 3730 | 5730 |
+| Forderungsverluste | 2400 | 6930 |
 | Saldenvorträge Sachkonten | 9000 | 9000 |
 
 Achtung bei der Nummer 1200: In SKR03 ist das die Bank, in SKR04 die Forderungen; in SKR03 ist 1800 die Privatentnahme, in SKR04 die Bank.

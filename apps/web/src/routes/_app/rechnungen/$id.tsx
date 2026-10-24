@@ -1,7 +1,8 @@
-import { DUNNING_LEVELS, formatEuro, TAX_TREATMENTS, type DunningLevel, type UnitLabel } from "@haben/core";
+import { DUNNING_LEVELS, formatEuro, parseEuro, formatDecimal, TAX_TREATMENTS, WRITE_OFF_KINDS, type DunningLevel, type UnitLabel } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { reverseWriteOffFn, writeOffRest } from "../../../server/functions/bank.ts";
 import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
@@ -341,6 +342,10 @@ function FinalInvoice({ data }: { data: Detail }) {
             </section>
           )}
 
+          {invoice.kind !== "storno" && (data.open > 0 || data.writeOffs.length > 0) && (
+            <WriteOffs invoiceId={invoice.id} open={data.open} writeOffs={data.writeOffs} today={data.today} />
+          )}
+
           {correctedBy.length > 0 && (
             <section className="card" aria-labelledby="related-heading">
               <h2 id="related-heading">Korrekturen</h2>
@@ -380,5 +385,87 @@ function FinalInvoice({ data }: { data: Detail }) {
         </div>
       </div>
     </>
+  );
+}
+
+type WriteOffRow = Awaited<ReturnType<typeof getInvoiceDetail>>["writeOffs"][number];
+
+/**
+ * Rest ausbuchen (§ 17 UStG): Skonto, das der Kunde abgezogen hat, oder ein Forderungsausfall, etwa bei Insolvenz.
+ * Mindert Erlöse und Umsatzsteuer; mit einer Zahlung zusammen geht es im Bankabgleich („Rest als Skonto“).
+ */
+function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; open: number; writeOffs: WriteOffRow[]; today: string }) {
+  const router = useRouter();
+  const writeOffFn = useServerFn(writeOffRest);
+  const reverseFn = useServerFn(reverseWriteOffFn);
+  const { busy, notice, run } = useAction();
+  const [kind, setKind] = useState<"skonto" | "forderungsausfall">("forderungsausfall");
+  const [amount, setAmount] = useState(formatDecimal(open));
+  const [date, setDate] = useState(today);
+  const parsed = parseEuro(amount);
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    if (parsed === null || parsed <= 0) return;
+    void run(async () => {
+      await writeOffFn({ data: { kind, invoiceId, date, amount: parsed } });
+      await router.invalidate();
+    }, "Ausgebucht.");
+  }
+
+  return (
+    <section className="card" aria-labelledby="writeoff-heading">
+      <h2 id="writeoff-heading">Ausbuchen</h2>
+      {writeOffs.map((w) => (
+        <div key={w.id} className="history-row">
+          <span style={{ textDecoration: w.reversed ? "line-through" : undefined }}>
+            {WRITE_OFF_KINDS[w.kind]} vom {formatDate(w.date)}
+          </span>
+          <span className="small muted">
+            {w.reversed ? "aufgehoben" : formatEuro(w.amount)}{" "}
+            {!w.reversed &&
+              (w.transactionId ? (
+                "· mit der Zahlung im Bankabgleich aufheben"
+              ) : (
+                <button type="button" className="link-button" disabled={busy} onClick={() => void run(async () => { await reverseFn({ data: w.id }); await router.invalidate(); })}>
+                  Aufheben
+                </button>
+              ))}
+          </span>
+        </div>
+      ))}
+      {open > 0 && (
+        <form className="stack" style={{ gap: 10 }} onSubmit={onSubmit}>
+          <p className="small muted" style={{ margin: 0 }}>
+            Offen sind noch {formatEuro(open)}. Ausbuchen mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§ 17 UStG), bei Soll-Versteuerung
+            in der Voranmeldung des Monats der Ausbuchung. Hat der Kunde Skonto abgezogen, geht es mit der Zahlung zusammen im Bankabgleich.
+          </p>
+          <div className="form-grid">
+            <label className="field">
+              Art
+              <select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+                <option value="forderungsausfall">{WRITE_OFF_KINDS.forderungsausfall} (uneinbringlich)</option>
+                <option value="skonto">{WRITE_OFF_KINDS.skonto}</option>
+              </select>
+            </label>
+            <label className="field">
+              Datum
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+            </label>
+            <label className="field">
+              Betrag
+              <input className="mono" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={parsed === null || parsed <= 0 || parsed > open} />
+            </label>
+          </div>
+          <NoticeBanner notice={notice} />
+          <div className="actions">
+            <button type="submit" className="btn" disabled={busy || parsed === null || parsed <= 0 || parsed > open}>
+              Ausbuchen
+            </button>
+          </div>
+        </form>
+      )}
+      {open <= 0 && <NoticeBanner notice={notice} />}
+    </section>
   );
 }

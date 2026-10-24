@@ -28,6 +28,10 @@ export const ACCOUNTS = {
     saldenvortrag: "9000",
     /** Bezahlte Mahngebühren, Pauschalen und Verzugszinsen: kein Entgelt für eine Leistung, deshalb ohne Umsatzsteuer */
     mahnerloes: "2650",
+    /** Ausbuchungen (§ 17 UStG): gewährte und erhaltene Skonti, Forderungsverluste */
+    skontiGewaehrt: "8730",
+    skontiErhalten: "3730",
+    forderungsverluste: "2400",
   },
   SKR04: {
     forderungen: "1200",
@@ -48,6 +52,9 @@ export const ACCOUNTS = {
     nebenkostenGeldverkehr: "6855",
     saldenvortrag: "9000",
     mahnerloes: "7100",
+    skontiGewaehrt: "4730",
+    skontiErhalten: "5730",
+    forderungsverluste: "6930",
   },
 } as const;
 
@@ -95,13 +102,17 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
     "1000": "Kasse",
     "1200": "Bank",
+    ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`136${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
     "1400": "Forderungen aus Lieferungen und Leistungen",
     "1761": "Umsatzsteuer nicht fällig 7 %",
     "1766": "Umsatzsteuer nicht fällig 19 %",
     "1771": "Umsatzsteuer 7 %",
     "1776": "Umsatzsteuer 19 %",
     "1787": "Umsatzsteuer nach § 13b UStG",
+    "2400": "Forderungsverluste (übliche Höhe)",
     "2650": "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)",
+    "3730": "Erhaltene Skonti",
+    "8730": "Gewährte Skonti",
     "8100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
     "8195": "Erlöse als Kleinunternehmer § 19 UStG",
     "8200": "Erlöse",
@@ -115,6 +126,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1200": "Forderungen aus Lieferungen und Leistungen",
     "1600": "Kasse",
     "1800": "Bank",
+    ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`146${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
     "3801": "Umsatzsteuer 7 %",
     "3806": "Umsatzsteuer 19 %",
     "3837": "Umsatzsteuer nach § 13b UStG",
@@ -127,6 +139,9 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "4336": "Erlöse aus im anderen EU-Land steuerpflichtigen sonstigen Leistungen (Reverse Charge)",
     "4338": "Erlöse aus im Drittland steuerbaren Leistungen",
     "4400": "Erlöse 19 % USt",
+    "4730": "Gewährte Skonti",
+    "5730": "Erhaltene Skonti",
+    "6930": "Forderungsverluste (übliche Höhe)",
     "7100": "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)",
     "9000": "Saldenvorträge Sachkonten",
   },
@@ -316,6 +331,69 @@ export function invoicePaymentPosting(
       lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code));
       lines.push(side(accounts.ust[vatRate(rate)], tax, false, code));
     }
+  }
+  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Verrechnungskonto eines Zahlungsdienstleisters (Guthaben bei PayPal, Stripe …): SKR03 1361–1369, SKR04 1461–1469,
+ * neben dem Geldtransitkonto. Nummer 1 bis 9 je Dienstleister.
+ */
+export function paymentProviderAccount(kontenrahmen: Kontenrahmen, index: number): string {
+  if (!Number.isInteger(index) || index < 1 || index > 9) throw new RangeError(`Verrechnungskonto ${index} gibt es nicht`);
+  return `${kontenrahmen === "SKR03" ? "136" : "146"}${index}`;
+}
+
+/** Ausbuchung des Rests einer Rechnung oder eines Belegs (§ 17 UStG: Entgelt hat sich geändert bzw. ist uneinbringlich) */
+export const WRITE_OFF_KINDS = {
+  skonto: "Skonto gewährt",
+  forderungsausfall: "Forderungsausfall",
+  skontoErhalten: "Skonto erhalten",
+} as const;
+
+export type WriteOffKind = keyof typeof WRITE_OFF_KINDS;
+
+/**
+ * Rest einer Rechnung ausbuchen, amount mit dem Vorzeichen einer Zahlung (Rechnung positiv): Erlösschmälerung
+ * bzw. Forderungsverlust und Umsatzsteuer an Forderungen, je Steuersatz anteilig wie bei einer Teilzahlung.
+ * Die Umsatzsteuer mindert sich bei Soll-Versteuerung auf dem Umsatzsteuerkonto, bei Ist auf „nicht fällig“,
+ * denn fällig wird dort nur, was bezahlt wird.
+ */
+export function invoiceWriteOffPosting(
+  kind: "skonto" | "forderungsausfall",
+  totals: InvoiceTotals,
+  amount: Cents,
+  kontenrahmen: Kontenrahmen,
+  versteuerung: Versteuerung,
+  treatment: TaxTreatment = "regulaer",
+): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const expense = kind === "skonto" ? accounts.skontiGewaehrt : accounts.forderungsverluste;
+  const lines: PostingLine[] = [side(accounts.forderungen, amount, false, null)];
+  for (const { rate, base, tax } of paidTaxShares(totals, amount)) {
+    const code = revenueTaxCode(rate, treatment);
+    if (base !== 0) lines.push(side(expense, base, true, code));
+    if (tax !== 0) lines.push(side((versteuerung === "ist" ? accounts.ustNichtFaellig : accounts.ust)[vatRate(rate)], tax, true, code));
+  }
+  return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Erhaltenes Skonto auf einen Beleg, amount mit dem Vorzeichen einer Zahlung (Ausgang negativ):
+ * Verbindlichkeiten an erhaltene Skonti und Vorsteuer, anteilig je Steuersatz. Ohne Vorsteuerabzug
+ * (Kleinunternehmer) mindert das Skonto den Aufwand in voller Höhe.
+ */
+export function documentWriteOffPosting(totals: InvoiceTotals, amount: Cents, kontenrahmen: Kontenrahmen, vorsteuerAbzug: boolean): PostingLine[] {
+  const accounts = ACCOUNTS[kontenrahmen];
+  const lines: PostingLine[] = [side(accounts.verbindlichkeiten, -amount, true, null)];
+  for (const { rate, base, tax } of paidTaxShares(totals, -amount)) {
+    if (!vorsteuerAbzug || rate === 0) {
+      if (base + tax !== 0) lines.push(side(accounts.skontiErhalten, base + tax, false, vorsteuerAbzug ? inputTaxCode(rate) : "keineVSt"));
+      continue;
+    }
+    const code = inputTaxCode(rate);
+    if (base !== 0) lines.push(side(accounts.skontiErhalten, base, false, code));
+    if (tax !== 0) lines.push(side(accounts.vorsteuer[vatRate(rate)], tax, false, code));
   }
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
 }

@@ -10,7 +10,10 @@ import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/f
 import { useAction } from "../../lib/use-action.ts";
 import {
   addBankAccount,
+  addProviderAccount,
   allocateTransaction,
+  allocateTransactionWithRest,
+  allocateProviderFees,
   connectBank,
   disconnectBank,
   getBankOverview,
@@ -19,6 +22,7 @@ import {
   transferBetweenAccounts,
   updateBankAccount,
   reverseTransactionAllocation,
+  splitTransaction,
   syncBankConnection,
 } from "../../server/functions/bank.ts";
 
@@ -61,7 +65,8 @@ const KIND_LABEL = {
   gebuehren: "Bankgebühren", mahnerloes: "Mahngebühren und Zinsen",
 } as const;
 
-const FORMAT_LABEL = (format: string) => (format === "enablebanking" ? "Abruf" : format.startsWith("camt") ? "CAMT.053" : "CSV");
+const FORMAT_LABEL = (format: string) =>
+  format === "enablebanking" ? "Abruf" : format.startsWith("camt") ? "CAMT.053" : format === "paypal-csv" ? "PayPal" : format === "stripe-csv" ? "Stripe" : format === "shopify-payments-csv" ? "Shopify" : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();
@@ -131,13 +136,16 @@ function BankPage() {
                       ? `${FORMAT_LABEL(account.lastImport.format)} · zuletzt ${formatDate(account.lastImport.createdAt)}`
                       : "noch kein Import"}
                     {account.lastImport?.closingBalance != null ? ` · ${formatEuro(account.lastImport.closingBalance)}` : ""}
+                    {account.providerBalance !== null ? ` · Guthaben ${formatEuro(account.providerBalance)}` : ""}
                   </span>
                 </Link>
               );
             })}
           </nav>
           {/* key: beim Kontowechsel mit dem Namen des neuen Kontos aufsetzen */}
-          {selectedAccount && <AccountSettings key={selectedAccount.id} account={selectedAccount} purposes={data.purposes} />}
+          {selectedAccount && (
+            <AccountSettings key={selectedAccount.id} account={selectedAccount} purposes={data.purposes} ledger={data.ledgers[selectedAccount.id]} />
+          )}
 
           <div className="grid-main">
             <section className="card" style={{ padding: "8px 0 12px" }} aria-label="Umsätze">
@@ -213,10 +221,10 @@ function BankPage() {
   );
 }
 
-const PURPOSE_SHORT = { geschaeft: "Geschäftskonto", steuer: "Steuerkonto", ruecklage: "Rücklagen", privat: "Privatkonto" } as const;
+const PURPOSE_SHORT = { geschaeft: "Geschäftskonto", steuer: "Steuerkonto", ruecklage: "Rücklagen", privat: "Privatkonto", zahlungsdienstleister: "Zahlungsdienstleister" } as const;
 
 /** Name und Zweck des gewählten Kontos, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
-function AccountSettings({ account, purposes }: { account: Data["accounts"][number]; purposes: Data["purposes"] }) {
+function AccountSettings({ account, purposes, ledger }: { account: Data["accounts"][number]; purposes: Data["purposes"]; ledger: string | undefined }) {
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const updateFn = useServerFn(updateBankAccount);
@@ -229,7 +237,8 @@ function AccountSettings({ account, purposes }: { account: Data["accounts"][numb
     return (
       <div className="small muted" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "8px 0 16px" }}>
         <span>
-          {account.name} · {PURPOSE_SHORT[account.purpose]} · {account.iban.replace(/(.{4})/g, "$1 ").trim()}
+          {account.name} · {PURPOSE_SHORT[account.purpose]} ·{" "}
+          {account.iban ? account.iban.replace(/(.{4})/g, "$1 ").trim() : `Verrechnungskonto ${ledger ?? ""}`}
         </span>
         <button type="button" className="btn btn-sm" onClick={() => setEditing(true)}>
           Name und Zweck
@@ -241,7 +250,7 @@ function AccountSettings({ account, purposes }: { account: Data["accounts"][numb
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void run(async () => {
-      await updateFn({ data: { id: account.id, name, purpose } });
+      await updateFn({ data: { id: account.id, name, purpose: purpose === "zahlungsdienstleister" ? undefined : purpose } });
       // Konto fest in die Adresse: ohne „konto“ zeigt die Seite das alphabetisch erste, nach dem Umbenennen ein anderes
       await navigate({ search: (prev) => ({ ...prev, konto: account.id }), replace: true });
       await router.invalidate();
@@ -255,16 +264,18 @@ function AccountSettings({ account, purposes }: { account: Data["accounts"][numb
         Name des Kontos
         <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} autoFocus />
       </label>
-      <label className="field">
-        Zweck
-        <select value={purpose} onChange={(e) => setPurpose(e.target.value as typeof purpose)}>
-          {purposes.map((p) => (
-            <option key={p.value} value={p.value}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {account.purpose !== "zahlungsdienstleister" && (
+        <label className="field">
+          Zweck
+          <select value={purpose} onChange={(e) => setPurpose(e.target.value as typeof purpose)}>
+            {purposes.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <span className="small muted">
         Der Name ist nur Anzeige; Umsätze und Import über die IBAN bleiben, wie sie sind. Der Zweck steuert Vorschläge im Bankabgleich
         (Geldtransit zwischen eigenen Konten, Umsatzsteuer auf dem Steuerkonto, Privat beim Privatkonto), die IBAN für „Bankverbindung
@@ -572,6 +583,8 @@ function ImportControls({ data }: { data: Data }) {
   const router = useRouter();
   const importFiles = useServerFn(importStatements);
   const addAccount = useServerFn(addBankAccount);
+  const addProvider = useServerFn(addProviderAccount);
+  const [accountType, setAccountType] = useState<"bank" | "provider">("bank");
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
@@ -614,7 +627,10 @@ function ImportControls({ data }: { data: Data }) {
     const form = new FormData(event.currentTarget);
     setBusy(true);
     try {
-      const { id } = await addAccount({ data: { name: String(form.get("name")), iban: String(form.get("iban")) } });
+      const { id } =
+        accountType === "provider"
+          ? await addProvider({ data: { name: String(form.get("name")), provider: String(form.get("provider")) as "paypal" } })
+          : await addAccount({ data: { name: String(form.get("name")), iban: String(form.get("iban")) } });
       setShowAccount(false);
       setTargetAccount(id);
       await router.invalidate();
@@ -662,13 +678,39 @@ function ImportControls({ data }: { data: Data }) {
       {showAccount && (
         <form className="card" onSubmit={onAddAccount} style={{ minWidth: 320 }}>
           <label className="field">
-            Name
-            <input name="name" required placeholder="N26 Business" />
+            Art
+            <select value={accountType} onChange={(e) => setAccountType(e.target.value as "bank" | "provider")}>
+              <option value="bank">Bankkonto (mit IBAN)</option>
+              <option value="provider">Zahlungsdienstleister (PayPal, Stripe, Shopify …)</option>
+            </select>
           </label>
+          {accountType === "provider" && (
+            <label className="field">
+              Dienstleister
+              <select name="provider" defaultValue="paypal">
+                {data.providers.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="field">
-            IBAN
-            <input name="iban" required />
+            Name
+            <input name="name" required placeholder={accountType === "provider" ? "PayPal Geschäftskonto" : "N26 Business"} />
           </label>
+          {accountType === "bank" ? (
+            <label className="field">
+              IBAN
+              <input name="iban" required />
+            </label>
+          ) : (
+            <span className="small muted">
+              Bekommt ein eigenes Verrechnungskonto (SKR03 1361 …, SKR04 1461 …). Importiere den CSV-Export des Dienstleisters und wähle dabei
+              dieses Konto unter „Konto“.
+            </span>
+          )}
           <button type="submit" className="btn btn-primary" disabled={busy}>
             Konto anlegen
           </button>
@@ -698,12 +740,15 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   const router = useRouter();
   const navigate = useNavigate({ from: "/bank" });
   const allocateFn = useServerFn(allocateTransaction);
+  const splitFn = useServerFn(splitTransaction);
+  const restFn = useServerFn(allocateTransactionWithRest);
+  const feesFn = useServerFn(allocateProviderFees);
   const reverseFn = useServerFn(reverseTransactionAllocation);
   const transferFn = useServerFn(transferBetweenAccounts);
-  const { transaction: tx, suggestions, candidates, allocations, direct } = detail;
+  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct } = detail;
   const best = suggestions[0];
   // Ein Treffer mit Rechnung geht vor; sonst der Vorschlag aus dem Zweck der Konten (Geldtransit, Umsatzsteuer, Privat)
-  const [mode, setMode] = useState<"best" | "other" | "direct">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
+  const [mode, setMode] = useState<"best" | "other" | "direct" | "split">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
   const [candidate, setCandidate] = useState(best ? `${best.item.type}:${best.item.id}` : "");
   const [directKind, setDirectKind] = useState<DirectBooking>(direct?.kind ?? "privat");
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
@@ -763,6 +808,40 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   }, [tx.open]);
 
   const selectedCandidate = candidates.find((c) => `${c.type}:${c.id}` === candidate);
+  // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
+  const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
+  // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
+  const feeRest = target && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
+  // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
+  const [splitInitial, setSplitInitial] = useState<typeof target>(undefined);
+
+  // Zahlung unter dem offenen Betrag: Rest ausbuchen (Skonto, Forderungsausfall) statt als Teilzahlung stehen lassen
+  const rest = target && Math.sign(target.open) === Math.sign(tx.open) && Math.abs(target.open) > Math.abs(tx.open) ? target.open - tx.open : 0;
+  const restKinds: ("skonto" | "forderungsausfall" | "skontoErhalten")[] =
+    rest === 0 ? [] : target?.type === "invoice" && tx.amount > 0 ? ["skonto", "forderungsausfall"] : target?.type === "document" && tx.amount < 0 ? ["skontoErhalten"] : [];
+  const REST_LABEL = { skonto: "als Skonto", forderungsausfall: "als Forderungsausfall", skontoErhalten: "als erhaltenes Skonto" } as const;
+
+  function bookRest(kind: (typeof restKinds)[number]) {
+    if (!target) return;
+    const t = target.type === "invoice" ? { kind: "invoice" as const, invoiceId: target.id } : { kind: "document" as const, documentId: target.id };
+    return run(() => restFn({ data: { transactionId: tx.id, target: t, rest: kind } }));
+  }
+
+  function bookRestAsFee() {
+    if (!target || feeRest === 0) return;
+    const first = target.type === "invoice" ? { kind: "invoice" as const, invoiceId: target.id, amount: target.open } : { kind: "document" as const, documentId: target.id, amount: target.open };
+    return run(() => splitFn({ data: { transactionId: tx.id, parts: [first, { kind: "gebuehren", amount: feeRest }] } }));
+  }
+
+  // Teile einer Aufteilung werden nur zusammen aufgehoben: Knopf nur am ersten Teil
+  const firstOfSplit = new Set<string>();
+  const seenSplits = new Set<string>();
+  for (const a of allocations) {
+    if (a.splitId && !seenSplits.has(a.splitId)) {
+      seenSplits.add(a.splitId);
+      firstOfSplit.add(a.id);
+    }
+  }
 
   return (
     <aside className="card" aria-label="Zuordnung" style={{ gap: 16 }}>
@@ -791,11 +870,14 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                   {a.invoiceNumber ? ` ${a.invoiceNumber}` : ""}
                   {a.documentSupplier ? ` ${a.documentSupplier}${a.documentNumber ? ` (${a.documentNumber})` : ""}` : ""}
                 </span>
-                <span className="small muted">{a.reversed ? "aufgehoben" : formatEuro(Math.abs(a.amount))}</span>
+                <span className="small muted">
+                  {a.reversed ? "aufgehoben" : a.splitId ? `${a.amount < 0 ? "−" : "+"}${formatEuro(Math.abs(a.amount))}` : formatEuro(Math.abs(a.amount))}
+                  {a.splitId ? " · Teil einer Aufteilung" : ""}
+                </span>
               </div>
-              {!a.reversed && (
+              {!a.reversed && (!a.splitId || firstOfSplit.has(a.id)) && (
                 <button type="button" className="btn btn-sm btn-danger" onClick={() => run(() => reverseFn({ data: a.id }))} disabled={busy}>
-                  Aufheben
+                  {a.splitId ? "Aufteilung aufheben" : "Aufheben"}
                 </button>
               )}
             </div>
@@ -805,7 +887,20 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
 
       <NoticeBanner notice={notice} />
 
-      {tx.open !== 0 && (
+      {tx.open !== 0 && mode === "split" && (
+        <SplitForm
+          key={tx.id}
+          tx={tx}
+          initial={splitInitial}
+          splitCandidates={splitCandidates}
+          directKinds={directKinds}
+          busy={busy}
+          onCancel={() => setMode(best ? "best" : candidates.length ? "other" : "direct")}
+          onSubmit={(parts) => run(() => splitFn({ data: { transactionId: tx.id, parts } }))}
+        />
+      )}
+
+      {tx.open !== 0 && mode !== "split" && (
         <>
           {mode === "best" && best && (
             <div className="stack" style={{ gap: 10 }}>
@@ -881,13 +976,15 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                     type="button"
                     className="btn"
                     disabled={busy}
-                    onClick={() => void run(() => transferFn({ data: { transactionId: tx.id, counterpartId: direct.counterpart!.id } }))}
+                    onClick={() => void run(() => transferFn({ data: { transactionId: tx.id, counterpartId: direct.counterpart!.id, payoutIds: direct.counterpart!.payoutIds } }))}
                   >
                     Beide Seiten als Geldtransit buchen
                   </button>
                   <span className="small muted">
                     Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über {formatEuro(Math.abs(direct.counterpart.amount))} auf dem
-                    anderen Konto; beide werden in einem Schritt zugeordnet.
+                    anderen Konto
+                    {direct.counterpart.payoutIds?.length ? ` (Auszahlung aus ${direct.counterpart.payoutIds.length + 1} Teilen)` : ""}; alles wird in einem Schritt
+                    zugeordnet.
                   </span>
                 </>
               )}
@@ -946,14 +1043,220 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
               </button>
             )}
           </div>
+          {feeRest !== 0 && (
+            <div className="stack" style={{ gap: 6 }}>
+              <button type="button" className="btn" onClick={() => void bookRestAsFee()} disabled={busy}>
+                Voll zuordnen, Rest {formatEuro(Math.abs(feeRest))} als Gebühr
+              </button>
+              <span className="small muted">
+                Für Auszahlungen von PayPal, Stripe oder Shopify: Die Rechnung gilt als voll bezahlt, die einbehaltene Gebühr wird
+                Aufwand (Nebenkosten des Geldverkehrs).
+              </span>
+            </div>
+          )}
+          {mode === "other" && selectedCandidate?.type === "document" && tx.amount < 0 && tx.purpose.startsWith("Gebühr") && (
+            <div className="stack" style={{ gap: 6 }}>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => void run(() => feesFn({ data: { transactionId: tx.id, documentId: selectedCandidate.id } }))}
+              >
+                Alle offenen Gebühren aus {formatDate(tx.bookingDate).slice(3)} diesem Beleg zuordnen
+              </button>
+              <span className="small muted">Für die monatliche Sammelrechnung des Dienstleisters: Vorsteuer bzw. § 13b laufen einmal über den Beleg.</span>
+            </div>
+          )}
+          {restKinds.length > 0 && (
+            <div className="stack" style={{ gap: 6 }}>
+              <div className="actions">
+                {restKinds.map((k) => (
+                  <button key={k} type="button" className="btn" onClick={() => void bookRest(k)} disabled={busy}>
+                    Rest {formatEuro(Math.abs(rest))} {REST_LABEL[k]}
+                  </button>
+                ))}
+              </div>
+              <span className="small muted">
+                {restKinds.includes("skontoErhalten")
+                  ? "Du hast Skonto abgezogen: Der Beleg ist erledigt, die Vorsteuer wird anteilig gemindert."
+                  : "Der Kunde hat weniger gezahlt: Skonto oder Forderungsausfall mindern Erlöse und Umsatzsteuer anteilig (§ 17 UStG); die Rechnung ist erledigt."}
+              </span>
+            </div>
+          )}
           {mode !== "direct" && (
             <button type="button" className="btn" onClick={() => setMode("direct")} disabled={busy}>
               Ohne Rechnung buchen
             </button>
           )}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setSplitInitial(target);
+              setMode("split");
+            }}
+            disabled={busy}
+          >
+            Aufteilen
+          </button>
           <div className="small muted pointer-fine">Tastatur: Enter ordnet zu, J und K springen zum nächsten Umsatz.</div>
         </>
       )}
     </aside>
+  );
+}
+
+type SplitTarget = Detail["splitCandidates"][number];
+type SplitPart =
+  | { kind: "invoice"; invoiceId: string; amount: number }
+  | { kind: "document"; documentId: string; amount: number }
+  | { kind: DirectBooking; amount: number };
+
+interface SplitRow {
+  key: number;
+  /** "invoice:<id>", "document:<id>" oder eine Buchungsart ohne Beleg */
+  target: string;
+  amount: string;
+}
+
+let nextSplitKey = 1;
+
+const signed = (cents: number) => `${cents < 0 ? "-" : ""}${formatDecimal(Math.abs(cents))}`;
+
+/** Splitbuchung: den offenen Teil eines Umsatzes auf mehrere Ziele verteilen, Vorzeichen wie auf dem Konto */
+function SplitForm({
+  tx,
+  initial,
+  splitCandidates,
+  directKinds,
+  busy,
+  onCancel,
+  onSubmit,
+}: {
+  tx: Detail["transaction"];
+  initial: SplitTarget | undefined;
+  splitCandidates: SplitTarget[];
+  directKinds: Data["directKinds"];
+  busy: boolean;
+  onCancel: () => void;
+  onSubmit: (parts: SplitPart[]) => void;
+}) {
+  const [rows, setRows] = useState<SplitRow[]>(() =>
+    initial
+      ? [
+          { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open) },
+          { key: nextSplitKey++, target: "gebuehren", amount: signed(tx.open - initial.open) },
+        ]
+      : [
+          { key: nextSplitKey++, target: "", amount: signed(tx.open) },
+          { key: nextSplitKey++, target: "gebuehren", amount: "" },
+        ],
+  );
+
+  const parsed = rows.map((r) => parseEuro(r.amount));
+  const sum = parsed.reduce<number>((s, p) => s + (p ?? 0), 0);
+  const rest = tx.open - sum;
+  const complete = rows.every((r, i) => r.target && parsed[i] !== null && parsed[i] !== 0) && rest === 0;
+
+  function update(key: number, patch: Partial<SplitRow>) {
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+
+  function toPart(row: SplitRow, amount: number): SplitPart {
+    const [type, id] = row.target.split(":");
+    if (type === "invoice") return { kind: "invoice", invoiceId: id!, amount };
+    if (type === "document") return { kind: "document", documentId: id!, amount };
+    return { kind: row.target as DirectBooking, amount };
+  }
+
+  return (
+    <form
+      className="stack"
+      style={{ gap: 10 }}
+      aria-label="Umsatz aufteilen"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!complete) return;
+        onSubmit(rows.map((r, i) => toPart(r, parsed[i]!)));
+      }}
+    >
+      <div className="section-label">Aufteilen</div>
+      <p className="small muted" style={{ margin: 0 }}>
+        Beträge mit Vorzeichen wie auf dem Konto: Zahlungseingänge positiv, Gebühren und Ausgänge negativ. Zusammen ergeben die Teile den
+        offenen Betrag von {signed(tx.open)} €; jeder Teil wird einzeln gebucht.
+      </p>
+      {rows.map((row, index) => (
+        <div key={row.key} className="split-row">
+          <label className="field">
+            Teil {index + 1}
+            <select value={row.target} onChange={(e) => {
+              const value = e.target.value;
+              const item = splitCandidates.find((c) => `${c.type}:${c.id}` === value);
+              update(row.key, item ? { target: value, amount: signed(item.open) } : { target: value });
+            }}>
+              <option value="">Bitte wählen</option>
+              <optgroup label="Rechnungen und Belege">
+                {splitCandidates.map((c) => (
+                  <option key={`${c.type}:${c.id}`} value={`${c.type}:${c.id}`}>
+                    {c.type === "invoice" ? `Rechnung ${c.number}` : `Beleg ${c.partyName} ${c.number}`} · {c.partyName} · offen {signed(c.open)} €
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Ohne Rechnung">
+                {directKinds.map((k) => (
+                  <option key={k.value} value={k.value}>
+                    {k.label}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
+          <label className="field">
+            Betrag
+            <input
+              className="mono"
+              inputMode="decimal"
+              value={row.amount}
+              placeholder="-0,00"
+              onChange={(e) => update(row.key, { amount: e.target.value })}
+              aria-invalid={parsed[index] === null}
+              style={{ textAlign: "right" }}
+            />
+          </label>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label={`Teil ${index + 1} entfernen`}
+            disabled={rows.length <= 2}
+            onClick={() => setRows((prev) => prev.filter((r) => r.key !== row.key))}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+      ))}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="btn btn-dashed"
+          disabled={rows.length >= 20}
+          onClick={() => setRows((prev) => [...prev, { key: nextSplitKey++, target: "", amount: rest !== 0 ? signed(rest) : "" }])}
+        >
+          + Teil
+        </button>
+        <span className="small" aria-live="polite">
+          {rest === 0 ? "Teile ergeben den Umsatz." : `Noch zu verteilen: ${signed(rest)} €`}
+        </span>
+      </div>
+      <div className="actions">
+        <button type="submit" className="btn btn-primary" style={{ flexGrow: 1 }} disabled={busy || !complete}>
+          Aufteilen und buchen
+        </button>
+        <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+          Abbrechen
+        </button>
+      </div>
+    </form>
   );
 }
