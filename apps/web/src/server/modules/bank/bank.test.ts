@@ -228,6 +228,43 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect((await bank.transactionDetail(await id(-520)))?.direct?.reasons).toEqual(["3 von 3 Umsätzen mit dieser Gegen-IBAN so gebucht"]);
   }, 30_000);
 
+  it("Gelernte Buchungsart: die von einer Auszahlung abgezogene Gebühr macht die nächste Auszahlung nicht zur Gebühr", async () => {
+    const id = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
+    const STRIPE = "IE29AIBK93115212345678";
+    const { invoice: a } = await finalInvoice(10_000); // 119,00
+    const { invoice: b } = await finalInvoice(20_000); // 238,00
+    await bank.importStatement(actor, { bytes: dkbCsv([
+      incoming("10.07.26", "Stripe Technology Europe", STRIPE, "Payout po_1", "116,00"),
+      incoming("10.08.26", "Stripe Technology Europe", STRIPE, "Payout po_2", "234,00"),
+      incoming("10.09.26", "Stripe Technology Europe", STRIPE, "Payout po_3", "4,00"),
+      incoming("10.10.26", "Stripe Technology Europe", STRIPE, "Payout po_4", "873,45"),
+    ]), filename: "a.csv" }, null);
+    await bank.allocateSplit(actor, { transactionId: await id(11_600), parts: [{ kind: "invoice", invoiceId: a.id, amount: 11_900 }, { kind: "gebuehren", amount: -300 }] });
+    await bank.allocateSplit(actor, { transactionId: await id(23_400), parts: [{ kind: "invoice", invoiceId: b.id, amount: 23_800 }, { kind: "gebuehren", amount: -400 }] });
+    // Mahngebühr eines Kunden über Stripe, ebenfalls abzüglich Gebühr
+    await bank.allocateSplit(actor, { transactionId: await id(400), parts: [{ kind: "mahnerloes", amount: 500 }, { kind: "gebuehren", amount: -100 }] });
+    // Ein Eingang von 873,45 € darf nicht als „Kontoführung und Bankgebühren“ angeboten werden
+    expect((await bank.transactionDetail(await id(87_345)))?.direct).toBeNull();
+  }, 30_000);
+
+  it("Gelernte Buchungsart: IBAN nur in Gegenrichtung bekannt, dann zählt der Name in derselben Richtung", async () => {
+    const id = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
+    const MAX = "DE02100100100006820199";
+    await bank.importStatement(actor, { bytes: dkbCsv([
+      outgoing("01.07.26", "Max Mustermann", MAX, "Entnahme", "-100,00"),
+      outgoing("01.08.26", "Max Mustermann", MAX, "Entnahme", "-200,00"),
+      incoming("02.07.26", "Max Mustermann", "", "Einlage bar", "300,00"),
+      incoming("02.08.26", "max mustermann", "", "Einlage bar", "400,00"),
+      incoming("05.09.26", "Max Mustermann", MAX, "Einlage", "500,00"),
+      outgoing("05.09.26", "Max Mustermann", MAX, "Entnahme", "-600,00"),
+    ]), filename: "a.csv" }, null);
+    for (const amount of [-10_000, -20_000, 30_000, 40_000]) await bank.allocate(actor, { kind: "privat", transactionId: await id(amount), amount });
+    expect((await bank.transactionDetail(await id(50_000)))?.direct).toMatchObject({ kind: "privat", reasons: ["2 von 2 Umsätzen von dieser Gegenpartei so gebucht"] });
+    expect((await bank.transactionDetail(await id(-60_000)))?.direct).toMatchObject({ kind: "privat", reasons: ["2 von 2 Umsätzen mit dieser Gegen-IBAN so gebucht"] });
+    const list = await bank.learnedDirectSuggestions([{ id: "x", amount: 0, counterpartyIban: MAX, counterpartyName: "Max Mustermann" }]);
+    expect(list.size).toBe(0);
+  }, 30_000);
+
   it("Zweck der Konten: Geldtransit aufs Steuerkonto mit Gegenbuchung, Finanzamt-Lastschrift als Umsatzsteuer", async () => {
     const TAX_IBAN = "DE02120300000000202051";
     const business = await bank.importStatement(

@@ -576,17 +576,21 @@ async function allocationHistory(by: "iban" | "name", keys: string[]): Promise<H
   const result: History = new Map();
   if (keys.length === 0) return result;
   const key = by === "iban" ? sql`upper(replace(t.counterparty_iban, ' ', ''))` : sql`lower(btrim(t.counterparty_name))`;
+  // Eine Art zählt nur mit dem Vorzeichen des Umsatzes: Die von einer Auszahlung abgezogene Gebühr (Teil mit umgekehrtem
+  // Vorzeichen) macht aus der Auszahlung keinen Eingang „Gebühren“. total zählt alle Umsätze der Gegenpartei in der Richtung.
   const rows = await db.execute<{ key: string; kind: string; count: string; last: string; total: string }>(sql`
     with h as (
-      select ${key} || '|' || sign(t.amount)::int as key, a.kind, t.id, t.booking_date
+      select ${key} || '|' || sign(t.amount)::int as key, a.kind, t.id, t.booking_date, sign(a.amount) = sign(t.amount) as same
         from allocations a join bank_transactions t on t.id = a.transaction_id
        where a.reverses_id is null
          and not exists (select 1 from allocations r where r.reverses_id = a.id)
          and ${key} in ${keys}
-    )
-    select key, kind, count(distinct id) as count, max(booking_date)::text as last,
-           (select count(distinct h2.id) from h h2 where h2.key = h.key) as total
-      from h group by key, kind`);
+    ),
+    totals as (select key, count(distinct id) as total from h group by key)
+    select h.key, h.kind, count(distinct h.id) as count, max(h.booking_date)::text as last, totals.total
+      from h join totals on totals.key = h.key
+     where h.same
+     group by h.key, h.kind, totals.total`);
   for (const r of rows) {
     const entry = result.get(r.key) ?? { kinds: [], total: Number(r.total) };
     entry.kinds.push({ value: r.kind, count: Number(r.count), last: r.last });
