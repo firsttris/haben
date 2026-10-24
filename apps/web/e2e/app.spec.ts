@@ -195,9 +195,10 @@ test("Kontoauszug importieren und zuordnen", async () => {
     await expect(page.getByRole("heading", { name: party })).toBeVisible();
     await expect(page.getByText("Bester Treffer")).toBeVisible();
     await page.getByRole("button", { name: "Zuordnen" }).click();
-    // Erst weiter, wenn die Zuordnung dieses Umsatzes gespeichert ist; „Zugeordnet“ steht schon bei früheren Umsätzen
-    // in der Liste, und ein vorzeitiges Weiterklicken bricht die laufende Anfrage ab.
-    await expect(page.getByRole("complementary", { name: "Zuordnung" }).getByRole("button", { name: "Aufheben" })).toBeVisible();
+    // Erst weiter, wenn die Zuordnung dieses Umsatzes gespeichert ist: danach springt die Auswahl zum nächsten offenen
+    // Umsatz. Ein vorzeitiges Weiterklicken bricht die laufende Anfrage ab.
+    await expect(page.getByRole("complementary", { name: "Zuordnung" }).getByRole("heading", { name: party })).toBeHidden();
+    await page.waitForLoadState("networkidle");
   }
 });
 
@@ -618,6 +619,12 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern
   await page.getByRole("button", { name: "Löschen" }).click();
+  // Esc bricht nur die Rückfrage ab und bleibt beim Beleg
+  const url = page.url();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Löschen", exact: true })).toBeVisible();
+  expect(page.url()).toBe(url);
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
   await page.getByRole("button", { name: "Endgültig löschen" }).click();
   await page.waitForURL(/\/belege$/);
 });

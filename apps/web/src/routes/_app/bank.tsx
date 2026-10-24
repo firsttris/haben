@@ -190,7 +190,12 @@ function BankPage() {
               ))}
             </section>
             {data.detail ? (
-              <AllocationPanel key={`${data.detail.transaction.id}-${data.detail.transaction.open}`} detail={data.detail} directKinds={data.directKinds} />
+              <AllocationPanel
+                key={`${data.detail.transaction.id}-${data.detail.transaction.open}`}
+                detail={data.detail}
+                directKinds={data.directKinds}
+                nextOpenId={nextOpenAfter(data.transactions, data.detail.transaction.id)}
+              />
             ) : (
               <aside className="card" aria-label="Zuordnung">
                 <p className="muted" style={{ margin: 0 }}>Umsatz links auswählen.</p>
@@ -598,8 +603,16 @@ function ImportControls({ data }: { data: Data }) {
   );
 }
 
-function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds: Data["directKinds"] }) {
+/** Nächster offener Umsatz nach dem gewählten, am Ende der Liste wieder von vorn */
+function nextOpenAfter(transactions: Data["transactions"], id: string): string | undefined {
+  const index = transactions.findIndex((t) => t.id === id);
+  const after = [...transactions.slice(index + 1), ...transactions.slice(0, Math.max(index, 0))];
+  return after.find((t) => t.open !== 0 && t.id !== id)?.id;
+}
+
+function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; directKinds: Data["directKinds"]; nextOpenId: string | undefined }) {
   const router = useRouter();
+  const navigate = useNavigate({ from: "/bank" });
   const allocateFn = useServerFn(allocateTransaction);
   const reverseFn = useServerFn(reverseTransactionAllocation);
   const { transaction: tx, suggestions, candidates, allocations } = detail;
@@ -621,21 +634,32 @@ function AllocationPanel({ detail, directKinds }: { detail: Detail; directKinds:
       await router.invalidate();
     });
 
+  // Ist der Umsatz danach ganz zugeordnet, weiter zum nächsten offenen, wie bei den Belegen
+  const runAndAdvance = (work: () => Promise<unknown>, completes: boolean) =>
+    action.run(async () => {
+      await work();
+      if (completes && nextOpenId) await navigate({ search: (prev) => ({ ...prev, umsatz: nextOpenId }), replace: true });
+      else await router.invalidate();
+    });
+
   function submitAllocation() {
     if (signedAmount === null || signedAmount === 0) return;
+    const completes = signedAmount === tx.open;
     if (mode === "direct") {
-      return run(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }));
+      return runAndAdvance(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }), completes);
     }
     const choice = mode === "best" && best ? `${best.item.type}:${best.item.id}` : candidate;
     const [type, id] = choice.split(":");
     if (!id) return;
-    return run(() =>
-      allocateFn({
-        data:
-          type === "invoice"
-            ? { kind: "invoice", transactionId: tx.id, invoiceId: id, amount: signedAmount }
-            : { kind: "document", transactionId: tx.id, documentId: id, amount: signedAmount },
-      }),
+    return runAndAdvance(
+      () =>
+        allocateFn({
+          data:
+            type === "invoice"
+              ? { kind: "invoice", transactionId: tx.id, invoiceId: id, amount: signedAmount }
+              : { kind: "document", transactionId: tx.id, documentId: id, amount: signedAmount },
+        }),
+      completes,
     );
   }
 
