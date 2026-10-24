@@ -4,4 +4,8 @@ CREATE INDEX "invoices_quote" ON "invoices" USING btree ("quote_id");--> stateme
 ALTER TABLE "invoices" ADD CONSTRAINT "invoices_quote_kind" CHECK ("invoices"."quote_id" is null or "invoices"."kind" = 'rechnung');--> statement-breakpoint
 -- Entwürfe, die schon aus einem Angebot entstanden sind, bekommen den Bezug; festgeschriebene Rechnungen sind unveränderlich
 -- und bleiben über quotes.invoice_id verknüpft
+SELECT set_config('haben.actor', 'system:migration', true);
+--> statement-breakpoint
 UPDATE "invoices" SET "quote_id" = q."id" FROM "quotes" q WHERE q."invoice_id" = "invoices"."id" AND "invoices"."locked_at" IS NULL AND "invoices"."kind" = 'rechnung';
+--> statement-breakpoint
+SELECT set_config('haben.actor', '', true);
