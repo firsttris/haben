@@ -542,6 +542,29 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 </option>
               ))}
             </select>
+            {data.categoryHint && (
+              <span className="small">
+                Bisher {data.categoryHint.count === data.categoryHint.total ? `${data.categoryHint.count}×` : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
+                als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht
+                {category !== data.categoryHint.category && (
+                  <>
+                    {" · "}
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => {
+                        const hint = data.categoryHint!.category;
+                        touch(setCategory)(hint);
+                        const preset = data.privateShares[hint];
+                        setPrivateShare(preset ? String(preset) : "");
+                      }}
+                    >
+                      übernehmen
+                    </button>
+                  </>
+                )}
+              </span>
+            )}
           </label>
           {category === "anlage" && (
             <>

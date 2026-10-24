@@ -10,6 +10,7 @@ import {
   documentInputSchema,
   documentNavigation,
   getDocument,
+  supplierCategory,
   listDocuments,
   MAX_DOCUMENT_SIZE,
   runExtraction,
@@ -58,6 +59,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       tageskurs: company.tageskurs,
       amounts: result.amounts,
       issues: result.document.lockedAt ? [] : bookingIssues(result.document, result.amounts),
+      // Bisherige Kategorie des Lieferanten als Hinweis am Feld, nur solange der Beleg offen ist
+      categoryHint: result.document.lockedAt ? null : await supplierCategory(result.document.supplierName, result.document.supplierUstId),
       aiAvailable: extractionAvailable(),
       categories: categoryOptions,
     };
