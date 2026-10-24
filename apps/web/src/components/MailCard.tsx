@@ -1,3 +1,12 @@
+import {
+  MAIL_LANGUAGES,
+  MAIL_TEMPLATE_KINDS,
+  mailTemplateFallback,
+  mailTemplateKey,
+  type MailLanguage,
+  type MailTemplateKind,
+  type MailTemplates,
+} from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -22,6 +31,7 @@ export function MailCard({ data }: { data: Data }) {
   const [port, setPort] = useState(String(s?.port ?? 465));
   const [secure, setSecure] = useState(s?.secure ?? true);
   const [days, setDays] = useState<number[]>(s?.reminderDays ?? [7, 1]);
+  const [templates, setTemplates] = useState<MailTemplates>(s?.templates ?? {});
   const action = useAction();
   const { busy, notice } = action;
 
@@ -55,10 +65,7 @@ export function MailCard({ data }: { data: Data }) {
           reminderTo: text("reminderTo"),
           remindersEnabled: form.get("remindersEnabled") === "on",
           reminderDays: days,
-          invoiceSubject: text("invoiceSubject"),
-          invoiceBody: text("invoiceBody"),
-          dunningSubject: text("dunningSubject"),
-          dunningBody: text("dunningBody"),
+          templates,
           pruefwertMail: form.get("pruefwertMail") === "on",
         },
       });
@@ -153,32 +160,7 @@ export function MailCard({ data }: { data: Data }) {
           nachträglich verändert wurde (Einstellungen → Export).
         </p>
       </div>
-      <details>
-        <summary style={{ cursor: "pointer", fontWeight: 500 }}>Vorlagen für Rechnungen und Mahnungen</summary>
-        <div className="stack" style={{ gap: 10, marginTop: 10 }}>
-          <p className="small muted" style={{ margin: 0 }}>
-            Leer lassen für den Standardtext. Platzhalter: {"{art}"} (Rechnung, Stornorechnung …), {"{nummer}"}, {"{datum}"}, {"{betrag}"},{" "}
-            {"{faellig}"}, {"{zahlbar}"} („, zahlbar bis zum …“, nur bei Rechnungen), {"{kunde}"}, {"{firma}"}; für Mahnungen zusätzlich{" "}
-            {"{stufe}"} und {"{frist}"}, {"{betrag}"} ist dort der offene Gesamtbetrag.
-          </p>
-          <label className="field">
-            Betreff Rechnung
-            <input name="invoiceSubject" defaultValue={s?.invoiceSubject ?? ""} placeholder={data.defaults.invoiceSubject} />
-          </label>
-          <label className="field">
-            Text Rechnung
-            <textarea name="invoiceBody" rows={6} defaultValue={s?.invoiceBody ?? ""} placeholder={data.defaults.invoiceBody} />
-          </label>
-          <label className="field">
-            Betreff Mahnung
-            <input name="dunningSubject" defaultValue={s?.dunningSubject ?? ""} placeholder={data.defaults.dunningSubject} />
-          </label>
-          <label className="field">
-            Text Mahnung
-            <textarea name="dunningBody" rows={6} defaultValue={s?.dunningBody ?? ""} placeholder={data.defaults.dunningBody} />
-          </label>
-        </div>
-      </details>
+      <TemplateEditor templates={templates} onChange={setTemplates} />
       <div className="actions" style={{ flexWrap: "wrap" }}>
         <button type="submit" className="btn btn-primary" disabled={busy}>
           Speichern
@@ -234,5 +216,69 @@ export function MailCard({ data }: { data: Data }) {
         </ul>
       )}
     </form>
+  );
+}
+
+/** Betreff und Text je Art und Sprache; leer heißt: die allgemeine Vorlage bzw. der Standardtext gilt */
+function TemplateEditor({ templates, onChange }: { templates: MailTemplates; onChange: (templates: MailTemplates) => void }) {
+  const [language, setLanguage] = useState<MailLanguage>("de");
+  const [kind, setKind] = useState<MailTemplateKind>("rechnung");
+  const kinds = (Object.keys(MAIL_TEMPLATE_KINDS) as MailTemplateKind[]).filter((k) =>
+    (MAIL_TEMPLATE_KINDS[k].languages as readonly MailLanguage[]).includes(language),
+  );
+  const current = kinds.includes(kind) ? kind : "rechnung";
+  const key = mailTemplateKey(current, language);
+  const value = templates[key] ?? { subject: "", body: "" };
+  const set = (field: "subject" | "body", text: string) => onChange({ ...templates, [key]: { ...value, [field]: text } });
+  const fallback = (field: "subject" | "body") => mailTemplateFallback(templates, current, language, field);
+  const hint = (field: "subject" | "body") => {
+    const source = fallback(field).source;
+    return source === "standard" ? "Leer: Standardtext" : `Leer: Vorlage ${MAIL_TEMPLATE_KINDS[source.kind].label.replace(" (allgemein)", "")}`;
+  };
+  const custom = (k: MailTemplateKind) => Boolean(templates[mailTemplateKey(k, language)]?.subject || templates[mailTemplateKey(k, language)]?.body);
+  return (
+    <details>
+      <summary style={{ cursor: "pointer", fontWeight: 500 }}>Vorlagen für Rechnungen, Angebote und Mahnungen</summary>
+      <div className="stack" style={{ gap: 10, marginTop: 10 }}>
+        <p className="small muted" style={{ margin: 0 }}>
+          Je Art und Sprache; es gilt die Sprache des Belegs. Leer lassen: Dann gilt die allgemeine Vorlage (etwa Rechnung für eine Abschlagsrechnung),
+          sonst der Standardtext. Platzhalter: {"{art}"} (Rechnung, Abschlagsrechnung, Stornorechnung …), {"{nummer}"}, {"{datum}"}, {"{betrag}"},{" "}
+          {"{faellig}"}, {"{zahlbar}"} („, zahlbar bis zum …“, nur bei Rechnungen), {"{kunde}"}, {"{firma}"}; bei Angeboten {"{gueltig}"}; bei
+          Mahnungen {"{stufe}"} und {"{frist}"}, {"{betrag}"} ist dort der offene Gesamtbetrag. Mahnungen gibt es nur auf Deutsch.
+        </p>
+        <div className="chip-row" role="group" aria-label="Sprache der Vorlage">
+          {(Object.keys(MAIL_LANGUAGES) as MailLanguage[]).map((l) => (
+            <button key={l} type="button" className={`chip${language === l ? " active" : ""}`} aria-pressed={language === l} onClick={() => setLanguage(l)}>
+              {MAIL_LANGUAGES[l]}
+            </button>
+          ))}
+        </div>
+        <label className="field">
+          Vorlage für
+          <select value={current} onChange={(e) => setKind(e.target.value as MailTemplateKind)}>
+            {kinds.map((k) => (
+              <option key={k} value={k}>
+                {MAIL_TEMPLATE_KINDS[k].label}
+                {custom(k) ? " · eigene Vorlage" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          Betreff
+          <input value={value.subject} onChange={(e) => set("subject", e.target.value)} placeholder={fallback("subject").text} aria-describedby="template-subject-hint" />
+          <span id="template-subject-hint" className="small muted">
+            {hint("subject")}
+          </span>
+        </label>
+        <label className="field">
+          Text
+          <textarea value={value.body} onChange={(e) => set("body", e.target.value)} rows={6} placeholder={fallback("body").text} aria-describedby="template-body-hint" />
+          <span id="template-body-hint" className="small muted">
+            {hint("body")}
+          </span>
+        </label>
+      </div>
+    </details>
   );
 }

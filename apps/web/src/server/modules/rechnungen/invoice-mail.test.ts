@@ -108,7 +108,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
   });
 
   it("hängt bei XRechnung das XML an, nutzt eigene Vorlagen und lehnt Entwürfe und falsche Adressen ab", async () => {
-    await mail.saveMailSettings(actor, { ...settings, invoiceSubject: "{art} {nummer} für {kunde}", invoiceBody: "Hallo,\n\nanbei {nummer}{zahlbar}.\n\n{firma}" });
+    await mail.saveMailSettings(actor, { ...settings, templates: { "rechnung:de": { subject: "{art} {nummer} für {kunde}", body: "Hallo,\n\nanbei {nummer}{zahlbar}.\n\n{firma}" } } });
     const xr = await finalInvoice("xrechnung-cii");
     const draft = await invoiceMail.invoiceMailDraft(xr);
     expect(draft.subject).toBe("Rechnung 2026-002 für Nordwerk Software GmbH");
@@ -160,7 +160,14 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
       email: "accounts@harbour.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null, language: "en",
     });
     expect(english.language).toBe("en");
-    await mail.saveMailSettings(actor, { ...settings, invoiceSubject: "{art} {nummer} für {kunde}", invoiceBody: "Hallo {kunde}" });
+    await mail.saveMailSettings(actor, {
+      ...settings,
+      templates: {
+        "rechnung:de": { subject: "{art} {nummer} für {kunde}", body: "Hallo {kunde}" },
+        "angebot:en": { subject: "Our quote {nummer}", body: "" },
+        "storno:en": { subject: "Cancelled: {nummer}", body: "Dear {kunde}, please disregard invoice {nummer}." },
+      },
+    });
     const quote = await quotes.finalizeQuote(
       actor,
       (
@@ -173,22 +180,67 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     );
     expect(quote.pdf?.subarray(0, 5).toString()).toBe("%PDF-");
     const quoteMail = await invoiceMail.quoteMailDraft(quote.id);
-    expect(quoteMail.subject).toBe("Quote AN-2026-001 from Testfirma");
+    // Eigener Betreff auf Englisch, der Text bleibt beim Standard
+    expect(quoteMail.subject).toBe("Our quote AN-2026-001");
     expect(quoteMail.body).toContain("our quote AN-2026-001 dated 1 Sept 2026 for €1,000.00. It is valid until 30 Sept 2026.");
 
     const draft = await quotes.quoteToInvoice(actor, quote.id, "2026-09-10");
     expect(draft).toMatchObject({ language: "en", note: "As per our quote AN-2026-001 of 1 Sept 2026." });
     const invoice = await invoices.finalizeInvoice(actor, draft.id);
     const invoiceDraft = await invoiceMail.invoiceMailDraft(invoice.id);
-    // Die eigene Vorlage ist deutsch und gilt nur für deutsche Rechnungen
+    // Die deutsche Vorlage gilt nicht für englische Rechnungen; ohne englische Rechnungsvorlage der Standardtext
     expect(invoiceDraft.subject).toBe("Invoice 2026-002 from Testfirma");
     expect(invoiceDraft.body).toContain("please find attached Invoice 2026-002 dated 10 Sept 2026 for €1,000.00, payable by 24 Sept 2026.");
 
     const storno = await invoices.cancelInvoice(actor, invoice.id, "2026-09-11");
     expect(storno.language).toBe("en");
-    expect((await invoiceMail.invoiceMailDraft(storno.id)).subject).toBe("Cancellation invoice 2026-003 from Testfirma");
+    // Eigene englische Vorlage für Stornos
+    expect(await invoiceMail.invoiceMailDraft(storno.id)).toMatchObject({
+      subject: "Cancelled: 2026-003",
+      body: "Dear Harbour Labs Ltd, please disregard invoice 2026-003.",
+    });
     // Deutsche Rechnungen nutzen weiter die eigene Vorlage
     expect((await invoiceMail.invoiceMailDraft(invoiceId)).subject).toBe("Rechnung 2026-001 für Nordwerk Software GmbH");
+  });
+
+  it("Vorlagen je Art: Abschlagsrechnung fällt auf die Rechnung zurück, Mahnstufen auf die allgemeine Mahnung, unbekannte Arten abgelehnt", async () => {
+    await mail.saveMailSettings(actor, {
+      ...settings,
+      templates: {
+        "rechnung:de": { subject: "Rechnung {nummer}", body: "Allgemein {art}" },
+        "abschlag:de": { subject: "Abschlag {nummer}", body: "" },
+        "mahnung:de": { subject: "{stufe}: {nummer}", body: "Bitte zahlen bis {frist}." },
+        "mahnung-3:de": { subject: "Letzte Mahnung {nummer}", body: "" },
+        "korrektur:de": { subject: "", body: "" },
+      },
+    });
+    const [row] = await sql`select templates from mail_settings`;
+    // Leere Vorlagen werden nicht gespeichert
+    expect(Object.keys(row!.templates).sort()).toEqual(["abschlag:de", "mahnung-3:de", "mahnung:de", "rechnung:de"]);
+
+    const abschlag = await invoices.createDraft(actor, {
+      contactId, issueDate: "2026-09-02", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "", variant: "abschlag",
+      lines: [{ description: "1. Abschlag", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
+    });
+    const final = await invoices.finalizeInvoice(actor, abschlag.id);
+    // Betreff aus der Abschlagsvorlage, Text aus der allgemeinen Rechnungsvorlage
+    expect(await invoiceMail.invoiceMailDraft(final.id)).toMatchObject({ subject: `Abschlag ${final.number}`, body: "Allgemein Abschlagsrechnung" });
+    expect((await invoiceMail.invoiceMailDraft(invoiceId)).subject).toBe("Rechnung 2026-001");
+
+    const erinnerung = await dunning.createDunning(
+      actor,
+      { invoiceId, level: 1, dueDate: "2026-10-25", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" },
+      "2026-10-15",
+    );
+    expect(await invoiceMail.dunningMailDraft(erinnerung.id)).toMatchObject({ subject: "Zahlungserinnerung: 2026-001", body: "Bitte zahlen bis 25.10.2026." });
+    const letzte = await dunning.createDunning(
+      actor,
+      { invoiceId, level: 3, dueDate: "2026-11-10", fee: 0, flatFee: false, interest: null, intro: "Bitte zahlen.", closing: "" },
+      "2026-11-01",
+    );
+    expect(await invoiceMail.dunningMailDraft(letzte.id)).toMatchObject({ subject: "Letzte Mahnung 2026-001", body: "Bitte zahlen bis 10.11.2026." });
+
+    await expect(mail.saveMailSettings(actor, { ...settings, templates: { "mahnung:en": { subject: "x", body: "" } } })).rejects.toThrow(/Unbekannte Vorlage/);
   });
 
   it("schickt Mahnungen mit eigenem PDF", async () => {

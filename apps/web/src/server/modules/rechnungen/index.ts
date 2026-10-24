@@ -7,10 +7,6 @@
  */
 export { createDunning, dunningDraft, dunningInputSchema, dunningsFor, loadDunningPdf, overdueInvoices } from "./dunning.ts";
 export {
-  DEFAULT_DUNNING_BODY,
-  DEFAULT_DUNNING_SUBJECT,
-  DEFAULT_INVOICE_BODY,
-  DEFAULT_INVOICE_SUBJECT,
   dunningMailDraft,
   invoiceMailDraft,
   invoicesSentByMail,

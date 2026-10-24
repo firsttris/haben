@@ -230,7 +230,7 @@ Für Kunden im Ausland stellst du im Kontakt **Sprache von Rechnungen und Angebo
 Auf Englisch erscheinen:
 
 - im PDF Titel („Invoice“, „Cancellation invoice“, „Corrective invoice“, „Quote“), Beschriftungen, Einheiten, Datumsangaben („10 Sept 2026“), Beträge („€1,190.00“), Zahlungsaufforderung, Hinweise zur Umsatzsteuer und Fußzeile,
-- Betreff und Text der E-Mail; die eigene Vorlage aus den Einstellungen gilt nur für deutsche Rechnungen,
+- Betreff und Text der E-Mail, aus der englischen Vorlage (siehe [Vorlagen](#per-e-mail-versenden)),
 - der Hinweis „As per our quote …“, wenn aus einem englischen Angebot eine Rechnung wird.
 
 Stornorechnung und Rechnungskorrektur übernehmen die Sprache der ursprünglichen Rechnung, wiederkehrende Rechnungen die Sprache des Kontakts. Das XML der E-Rechnung ist sprachunabhängig und bleibt gleich. Mahnungen bleiben deutsch. Ein selbst eingetragener Hinweis zur Steuerbefreiung erscheint so, wie du ihn schreibst.
@@ -356,17 +356,28 @@ Mit einem E-Mail-Zugang ([Einstellungen › E-Mail › E-Mail-Versand](einrichtu
 
 Jeder Versand steht mit Zeitpunkt und Empfänger unter **Per E-Mail**, auch fehlgeschlagene mit der Meldung des Servers. In der Rechnungsliste markiert ✉ per E-Mail versendete Rechnungen. Das Protokoll ist unveränderlich (`mail_log`).
 
-**Vorlagen:** Betreff und Text für Rechnungen und Mahnungen stellst du unter Einstellungen › E-Mail › E-Mail-Versand › Vorlagen ein; leer heißt Standardtext. Platzhalter:
+**Vorlagen:** Betreff und Text stellst du unter Einstellungen › E-Mail › E-Mail-Versand › Vorlagen ein, je Sprache (Deutsch, Englisch) und Art:
+
+| Vorlage | gilt für | leer |
+| --- | --- | --- |
+| Rechnung (allgemein) | alle Rechnungen ohne eigene Vorlage ihrer Art | Standardtext |
+| Abschlagsrechnung, Schlussrechnung, Stornorechnung, Rechnungskorrektur | diese Art | Vorlage Rechnung, sonst Standardtext |
+| Angebot | Angebote | Standardtext |
+| Mahnung (allgemein) | alle Mahnstufen ohne eigene Vorlage | Standardtext |
+| Zahlungserinnerung, 1. Mahnung, Letzte Mahnung | diese Stufe | Vorlage Mahnung, sonst Standardtext |
+
+Es gilt die Sprache der Rechnung bzw. des Angebots. Mahnungen sind immer deutsch, auch zu einer englischen Rechnung, weil das PDF der Mahnung deutsch ist. Betreff und Text fallen einzeln zurück: Trägst du nur einen Betreff ein, bleibt der Text der allgemeinen Vorlage bzw. der Standardtext. Unter dem Feld steht, was gilt, wenn es leer bleibt. Platzhalter:
 
 | Platzhalter | Inhalt |
 | --- | --- |
-| `{art}` | Rechnung, Stornorechnung oder Rechnungskorrektur |
+| `{art}` | Rechnung, Abschlagsrechnung, Schlussrechnung, Stornorechnung oder Rechnungskorrektur (auf Englisch „Invoice“ …) |
 | `{nummer}`, `{datum}` | Rechnungsnummer und -datum |
 | `{betrag}` | Bruttobetrag, bei Mahnungen der offene Gesamtbetrag mit Gebühren und Zinsen |
 | `{faellig}` | Fälligkeit der Rechnung |
 | `{zahlbar}` | „, zahlbar bis zum …“ bei Rechnungen mit Betrag, sonst leer |
 | `{kunde}`, `{firma}` | Name des Kunden und deiner Firma |
 | `{stufe}`, `{frist}` | nur Mahnungen: Zahlungserinnerung, 1. Mahnung oder Letzte Mahnung und die neue Zahlungsfrist |
+| `{gueltig}` | nur Angebote: gültig bis |
 
 Öffentliche Auftraggeber verlangen XRechnungen oft über ihr eigenes Portal (ZRE, OZG-RE oder Peppol) statt per E-Mail; das kann Haben nicht.
 

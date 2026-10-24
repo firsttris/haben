@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { tageBis } from "@haben/core";
+import { MAIL_TEMPLATE_KEYS, tageBis, type MailTemplates } from "@haben/core";
 import { and, desc, eq, sql } from "drizzle-orm";
 import nodemailer, { type Transporter } from "nodemailer";
 import { z } from "zod";
@@ -46,10 +46,14 @@ export const mailSettingsSchema = z.object({
   reminderTo: email,
   remindersEnabled: z.boolean(),
   reminderDays: z.array(z.number().int().min(0).max(60)).max(5),
-  invoiceSubject: z.string().trim().max(300).default(""),
-  invoiceBody: z.string().trim().max(5000).default(""),
-  dunningSubject: z.string().trim().max(300).default(""),
-  dunningBody: z.string().trim().max(5000).default(""),
+  /** Vorlagen je Art und Sprache („abschlag:en“); leere werden nicht gespeichert, dann gilt die allgemeine bzw. der Standardtext */
+  templates: z
+    .record(
+      z.string().refine((key) => MAIL_TEMPLATE_KEYS.includes(key), "Unbekannte Vorlage"),
+      z.object({ subject: z.string().trim().max(300).default(""), body: z.string().trim().max(5000).default("") }),
+    )
+    .default({})
+    .transform((templates): MailTemplates => Object.fromEntries(Object.entries(templates).filter(([, t]) => t.subject || t.body))),
   pruefwertMail: z.boolean().default(true),
 });
 

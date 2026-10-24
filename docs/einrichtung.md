@@ -252,10 +252,12 @@ Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatz
 
 ## E-Mail
 
-Für [Rechnungen und Mahnungen per E-Mail](rechnungen.md#per-e-mail-versenden) und [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail) braucht Haben einen E-Mail-Zugang über SMTP. Unter **Einstellungen › E-Mail › E-Mail-Versand** den Anbieter wählen (Gmail, GMX, web.de, Posteo, mailbox.org belegen Server, Port und Verschlüsselung vor) oder einen eigenen Server eintragen, dazu Benutzername, Passwort, Absender und den Empfänger der Erinnerungen. **Test-Mail senden** prüft den Zugang. Solange „Prüfwert des Änderungsprotokolls wöchentlich mailen“ eingeschaltet ist, kommt an dieselbe Adresse einmal pro Woche der aktuelle Prüfwert, wenn sich etwas geändert hat. Bewahre diese Mails auf: Mit ihnen lässt sich später zeigen, dass das Protokoll bis dahin nicht nachträglich verändert wurde (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)).
+Für [Rechnungen, Angebote und Mahnungen per E-Mail](rechnungen.md#per-e-mail-versenden) und [Erinnerungen an Fristen](fristen.md#erinnerungen-per-e-mail) braucht Haben einen E-Mail-Zugang über SMTP. Unter **Einstellungen › E-Mail › E-Mail-Versand** den Anbieter wählen (Gmail, GMX, web.de, Posteo, mailbox.org belegen Server, Port und Verschlüsselung vor) oder einen eigenen Server eintragen, dazu Benutzername, Passwort, Absender und den Empfänger der Erinnerungen. **Test-Mail senden** prüft den Zugang. Solange „Prüfwert des Änderungsprotokolls wöchentlich mailen“ eingeschaltet ist, kommt an dieselbe Adresse einmal pro Woche der aktuelle Prüfwert, wenn sich etwas geändert hat. Bewahre diese Mails auf: Mit ihnen lässt sich später zeigen, dass das Protokoll bis dahin nicht nachträglich verändert wurde (siehe [Buchhaltung in Haben](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel)).
 
 - **Gmail:** Zwei-Faktor-Anmeldung einschalten und unter myaccount.google.com › Sicherheit › App-Passwörter ein App-Passwort erzeugen; das ist das Passwort für Haben, Benutzername ist die Gmail-Adresse. Eine eigene Gmail-Anbindung über die Google-API braucht es nicht.
 - **GMX und web.de:** im Postfach unter Einstellungen › POP3/IMAP den Zugriff per externem Programm erlauben.
+
+Unter **Vorlagen** legst du Betreff und Text der E-Mails je Art und Sprache fest (siehe [Per E-Mail versenden](rechnungen.md#per-e-mail-versenden)).
 
 Das Passwort speichert Haben AES-256-GCM-verschlüsselt wie das ELSTER-Zertifikat; es steht nicht im Audit-Log und wird nie angezeigt. Zum Ändern anderer Angaben das Passwortfeld leer lassen.
 

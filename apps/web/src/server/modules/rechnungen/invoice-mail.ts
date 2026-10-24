@@ -1,4 +1,4 @@
-import { DUNNING_LEVELS, formatEuro, type DunningLevel } from "@haben/core";
+import { DUNNING_LEVELS, formatEuro, invoiceTemplateKind, resolveMailTemplate, type DunningLevel, type MailTemplateKind } from "@haben/core";
 import { texts } from "@haben/einvoice";
 import { and, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
@@ -9,54 +9,10 @@ import { invoiceTitle } from "./invoices.ts";
 import { escapeHtml, loadMailSettings, MailError, send } from "../mail/index.ts";
 
 /**
- * Rechnungen und Mahnungen per E-Mail: Empfänger aus der Rechnung bzw. dem Kontakt, Betreff und Text aus
- * Vorlagen mit Platzhaltern, PDF und bei XRechnung das XML im Anhang. Jeder Versand steht im Mail-Protokoll.
+ * Rechnungen, Angebote und Mahnungen per E-Mail: Empfänger aus der Rechnung bzw. dem Kontakt, Betreff und Text aus
+ * der Vorlage der Art in der Sprache des Belegs (resolveMailTemplate in @haben/core), PDF und bei XRechnung das XML im
+ * Anhang. Jeder Versand steht im Mail-Protokoll.
  */
-
-export const DEFAULT_INVOICE_SUBJECT = "{art} {nummer} von {firma}";
-export const DEFAULT_INVOICE_BODY = `Guten Tag,
-
-anbei erhalten Sie unsere {art} {nummer} vom {datum} über {betrag}{zahlbar}.
-
-Mit freundlichen Grüßen
-{firma}`;
-export const DEFAULT_DUNNING_SUBJECT = "{stufe} zur Rechnung {nummer}";
-export const DEFAULT_DUNNING_BODY = `Guten Tag,
-
-anbei erhalten Sie unsere {stufe} zur Rechnung {nummer} vom {datum}. Bitte überweisen Sie den offenen Betrag von {betrag} bis zum {frist}.
-
-Sollten Sie inzwischen bezahlt haben, betrachten Sie dieses Schreiben bitte als gegenstandslos.
-
-Mit freundlichen Grüßen
-{firma}`;
-
-export const DEFAULT_QUOTE_SUBJECT = "Angebot {nummer} von {firma}";
-export const DEFAULT_QUOTE_BODY = `Guten Tag,
-
-anbei erhalten Sie unser Angebot {nummer} vom {datum} über {betrag}. Es gilt bis zum {gueltig}.
-
-Für Rückfragen sind wir gern für Sie da.
-
-Mit freundlichen Grüßen
-{firma}`;
-
-/** Englische Vorlagen für Kunden mit Sprache Englisch; die eigenen Vorlagen in den Einstellungen sind deutsch */
-export const DEFAULT_INVOICE_SUBJECT_EN = "{art} {nummer} from {firma}";
-export const DEFAULT_INVOICE_BODY_EN = `Dear Sir or Madam,
-
-please find attached {art} {nummer} dated {datum} for {betrag}{zahlbar}.
-
-Kind regards
-{firma}`;
-export const DEFAULT_QUOTE_SUBJECT_EN = "Quote {nummer} from {firma}";
-export const DEFAULT_QUOTE_BODY_EN = `Dear Sir or Madam,
-
-please find attached our quote {nummer} dated {datum} for {betrag}. It is valid until {gueltig}.
-
-Please do not hesitate to contact us if you have any questions.
-
-Kind regards
-{firma}`;
 
 /** Ersetzt {name} durch den Wert; unbekannte Platzhalter bleiben stehen */
 export function fillTemplate(template: string, values: Record<string, string>): string {
@@ -130,8 +86,8 @@ async function displayGross(invoice: typeof schema.invoices.$inferSelect): Promi
   return texts(invoice.language, invoice.currency).money(gross);
 }
 
-function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: string, betrag: string) {
-  if (invoice.language === "en") {
+function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: string, betrag: string, language = invoice.language) {
+  if (language === "en") {
     const t = texts("en");
     return {
       art: invoice.kind === "rechnung" && invoice.variant ? t.variants[invoice.variant] : t.titles[invoice.kind],
@@ -171,10 +127,11 @@ function invoiceAttachments(invoice: typeof schema.invoices.$inferSelect) {
 export async function invoiceMailDraft(invoiceId: string) {
   const [invoice, company, settings] = await Promise.all([loadInvoice(invoiceId), loadCompany(), loadMailSettings()]);
   const values = invoiceValues(invoice, company.name, await displayGross(invoice));
+  const template = resolveMailTemplate(settings?.templates, invoiceTemplateKind(invoice), invoice.language);
   return {
     to: await customerEmail(invoice),
-    subject: fillTemplate(invoice.language === "en" ? DEFAULT_INVOICE_SUBJECT_EN : settings?.invoiceSubject || DEFAULT_INVOICE_SUBJECT, values),
-    body: fillTemplate(invoice.language === "en" ? DEFAULT_INVOICE_BODY_EN : settings?.invoiceBody || DEFAULT_INVOICE_BODY, values),
+    subject: fillTemplate(template.subject, values),
+    body: fillTemplate(template.body, values),
     attachments: invoiceAttachments(invoice).map((a) => a.filename),
     configured: Boolean(settings),
   };
@@ -210,9 +167,10 @@ async function loadDunning(id: string) {
   return { dunning, invoice: await loadInvoice(dunning.invoiceId) };
 }
 
+/** Mahnungen sind deutsch (auch das PDF), also auch Datum und Art in der Mail, selbst bei einer englischen Rechnung */
 function dunningValues(dunning: typeof schema.dunnings.$inferSelect, invoice: typeof schema.invoices.$inferSelect, firma: string) {
   return {
-    ...invoiceValues(invoice, firma, formatEuro(dunning.total)),
+    ...invoiceValues(invoice, firma, formatEuro(dunning.total), "de"),
     stufe: DUNNING_LEVELS[dunning.level as DunningLevel].label,
     betrag: formatEuro(dunning.total),
     frist: germanDate(dunning.dueDate),
@@ -226,10 +184,11 @@ const dunningFilename = (dunning: typeof schema.dunnings.$inferSelect, number: s
 export async function dunningMailDraft(dunningId: string) {
   const [{ dunning, invoice }, company, settings] = await Promise.all([loadDunning(dunningId), loadCompany(), loadMailSettings()]);
   const values = dunningValues(dunning, invoice, company.name);
+  const template = resolveMailTemplate(settings?.templates, `mahnung-${dunning.level as DunningLevel}` satisfies MailTemplateKind, "de");
   return {
     to: await customerEmail(invoice),
-    subject: fillTemplate(settings?.dunningSubject || DEFAULT_DUNNING_SUBJECT, values),
-    body: fillTemplate(settings?.dunningBody || DEFAULT_DUNNING_BODY, values),
+    subject: fillTemplate(template.subject, values),
+    body: fillTemplate(template.body, values),
     attachments: [dunningFilename(dunning, invoice.number!)],
     configured: Boolean(settings),
   };
@@ -312,10 +271,11 @@ function quoteValues(quote: typeof schema.quotes.$inferSelect, firma: string) {
 export async function quoteMailDraft(quoteId: string) {
   const [quote, company, settings] = await Promise.all([loadQuote(quoteId), loadCompany(), loadMailSettings()]);
   const values = quoteValues(quote, company.name);
+  const template = resolveMailTemplate(settings?.templates, "angebot", quote.language);
   return {
     to: await customerEmail(quote),
-    subject: fillTemplate(quote.language === "en" ? DEFAULT_QUOTE_SUBJECT_EN : DEFAULT_QUOTE_SUBJECT, values),
-    body: fillTemplate(quote.language === "en" ? DEFAULT_QUOTE_BODY_EN : DEFAULT_QUOTE_BODY, values),
+    subject: fillTemplate(template.subject, values),
+    body: fillTemplate(template.body, values),
     attachments: [`Angebot-${quote.number}.pdf`],
     configured: Boolean(settings),
   };
