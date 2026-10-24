@@ -16,6 +16,7 @@ import {
   providerAccountSchema,
   importStatement,
   listAccounts,
+  learnedDirectSuggestions,
   listTransactions,
   openItems,
   ownAccounts,
@@ -58,11 +59,14 @@ export const getBankOverview = createServerFn({ method: "GET" })
     const items = rows.some((r) => r.open !== 0) ? await openItems() : [];
     const own = await ownAccounts();
     const current = own.find((a) => a.id === account?.id);
+    // Aus früheren Buchungen derselben Gegenpartei, für alle ganz offenen Umsätze in einer Abfrage
+    const learned = await learnedDirectSuggestions(rows.filter((r) => r.open !== 0 && r.open === r.amount));
     const transactions = rows.map((row) => {
       if (row.open === 0) return { ...row, hint: "zugeordnet" as const };
       const hasSuggestion =
         suggestMatches({ ...row, amount: row.open }, items, 1).length > 0 ||
-        (row.open === row.amount && current !== undefined && isCertainDirect(suggestDirectBooking(row, current, own)));
+        (row.open === row.amount && current !== undefined && isCertainDirect(suggestDirectBooking(row, current, own))) ||
+        learned.has(row.id);
       return {
         ...row,
         hint: hasSuggestion ? ("vorschlag" as const) : row.open !== row.amount ? ("teilweise" as const) : row.amount < 0 ? ("belegFehlt" as const) : ("offen" as const),

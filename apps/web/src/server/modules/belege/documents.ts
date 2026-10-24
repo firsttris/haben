@@ -10,6 +10,7 @@ import {
   documentPosting,
   EXPENSE_CATEGORY_KEYS,
   formatRateMonth,
+  mostFrequent,
   parseExchangeRate,
   rateMonth,
   type ExpenseCategory,
@@ -132,24 +133,39 @@ function totalsOf(amounts: { taxRate: number; net: number; tax: number }[], reve
   return { net, tax, gross: reverseCharge ? net : net + tax };
 }
 
-/** Kategorie wie beim letzten gebuchten Beleg desselben Lieferanten */
-async function guessCategory(supplierName: string, supplierUstId: string): Promise<ExpenseCategory | null> {
-  if (!supplierName && !supplierUstId) return null;
-  const [previous] = await db
-    .select({ category: schema.documents.category })
+/**
+ * Kategorie aus den gebuchten Belegen desselben Lieferanten (USt-IdNr. oder Name): die häufigste, bei Gleichstand die
+ * zuletzt gebuchte, mit Anzahl für die Begründung („7 von 9 Belegen als Software gebucht“).
+ */
+export async function supplierCategory(
+  supplierName: string,
+  supplierUstId: string,
+): Promise<{ category: ExpenseCategory; count: number; total: number } | null> {
+  if (!supplierName.trim() && !supplierUstId.trim()) return null;
+  const rows = await db
+    .select({
+      category: schema.documents.category,
+      count: sql<number>`count(*)::int`,
+      last: sql<string>`max(${schema.documents.lockedAt})::text`,
+    })
     .from(schema.documents)
     .where(
       and(
         eq(schema.documents.status, "gebucht"),
+        sql`${schema.documents.category} is not null`,
         or(
-          supplierUstId ? eq(schema.documents.supplierUstId, supplierUstId) : sql`false`,
-          supplierName ? sql`lower(${schema.documents.supplierName}) = lower(${supplierName})` : sql`false`,
+          supplierUstId.trim() ? eq(schema.documents.supplierUstId, supplierUstId.trim()) : sql`false`,
+          supplierName.trim() ? sql`lower(${schema.documents.supplierName}) = lower(${supplierName.trim()})` : sql`false`,
         ),
       ),
     )
-    .orderBy(desc(schema.documents.lockedAt))
-    .limit(1);
-  return (previous?.category as ExpenseCategory | undefined) ?? null;
+    .groupBy(schema.documents.category);
+  const top = mostFrequent(rows.map((r) => ({ value: r.category as ExpenseCategory, count: r.count, last: r.last ?? "" })));
+  return top ? { category: top.value, count: top.count, total: top.total } : null;
+}
+
+async function guessCategory(supplierName: string, supplierUstId: string): Promise<ExpenseCategory | null> {
+  return (await supplierCategory(supplierName, supplierUstId))?.category ?? null;
 }
 
 function fieldsFromEInvoice(invoice: IncomingInvoice): ExtractedFields {

@@ -12,6 +12,7 @@ export {
   DocumentError,
   documentInputSchema,
   getDocument,
+  supplierCategory,
   inputTaxForPeriod,
   listDocuments,
   MAX_DOCUMENT_SIZE,

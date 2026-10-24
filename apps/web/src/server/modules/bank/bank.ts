@@ -15,6 +15,8 @@ import {
   findPayoutGroup,
   findTransferCounterpart,
   payoutKey,
+  learnedDirectBooking,
+  type DirectSuggestion,
   suggestDirectBooking,
   documentPaymentPosting,
   invoiceOpen,
@@ -548,6 +550,8 @@ export async function transactionDetail(id: string) {
     }
   }
   if (direct?.requiresCounterpart && !counterpart) direct = null;
+  // Sonst aus früheren Buchungen derselben Gegenpartei (Gebühren, Privat …), schwächer als die Regeln der Kontozwecke
+  if (!direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
   return { transaction: tx, allocations, suggestions, candidates, splitCandidates: items, direct: direct ? { ...direct, counterpart } : null };
 }
@@ -560,6 +564,49 @@ export async function vatPaidAfter(after: string): Promise<number> {
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
     .where(and(eq(schema.allocations.kind, "ustVorauszahlung"), sql`${schema.bankTransactions.bookingDate} > ${after}`));
   return Number(row?.paid ?? 0);
+}
+
+type History = Map<string, { value: string; count: number; last: string }[]>;
+
+/** Frühere Zuordnungen je Gegenpartei und Art, ohne aufgehobene; key ist die normalisierte IBAN bzw. der Name */
+async function allocationHistory(by: "iban" | "name", keys: string[]): Promise<History> {
+  const result: History = new Map();
+  if (keys.length === 0) return result;
+  const key = by === "iban" ? sql`upper(replace(t.counterparty_iban, ' ', ''))` : sql`lower(btrim(t.counterparty_name))`;
+  const rows = await db.execute<{ key: string; kind: string; count: string; last: string }>(sql`
+    select ${key} as key, a.kind, count(distinct t.id) as count, max(t.booking_date)::text as last
+      from allocations a join bank_transactions t on t.id = a.transaction_id
+     where a.reverses_id is null
+       and not exists (select 1 from allocations r where r.reverses_id = a.id)
+       and ${key} in ${keys}
+     group by 1, 2`);
+  for (const r of rows) result.set(r.key, [...(result.get(r.key) ?? []), { value: r.kind, count: Number(r.count), last: r.last }]);
+  return result;
+}
+
+const ibanKey = (iban: string | null) => iban?.replace(/\s/g, "").toUpperCase() || null;
+const nameKey = (name: string) => name.trim().toLowerCase() || null;
+
+/**
+ * Vorschläge ohne Rechnung aus früheren Zuordnungen derselben Gegenpartei, je Umsatz (siehe learnedDirectBooking):
+ * zuerst über die Gegen-IBAN, ohne Treffer dort über den Namen. Zwei Abfragen für alle Umsätze zusammen, damit die
+ * Umsatzliste nicht je Zeile fragt.
+ */
+export async function learnedDirectSuggestions(
+  txs: { id: string; counterpartyIban: string | null; counterpartyName: string }[],
+): Promise<Map<string, DirectSuggestion>> {
+  const result = new Map<string, DirectSuggestion>();
+  const byIban = await allocationHistory("iban", [...new Set(txs.flatMap((t) => ibanKey(t.counterpartyIban) ?? []))]);
+  const rest = txs.filter((t) => !byIban.has(ibanKey(t.counterpartyIban) ?? ""));
+  const byName = await allocationHistory("name", [...new Set(rest.flatMap((t) => nameKey(t.counterpartyName) ?? []))]);
+  for (const t of txs) {
+    const iban = byIban.get(ibanKey(t.counterpartyIban) ?? "");
+    const suggestion = iban
+      ? learnedDirectBooking(t, iban, "iban")
+      : learnedDirectBooking(t, byName.get(nameKey(t.counterpartyName) ?? "") ?? [], "name");
+    if (suggestion) result.set(t.id, suggestion);
+  }
+  return result;
 }
 
 /** Alle eigenen Konten mit Zweck, für Vorschläge ohne Rechnung */

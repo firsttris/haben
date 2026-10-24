@@ -30,6 +30,7 @@ export {
   invoiceWrittenOff,
   invoicePayments,
   listAccounts,
+  learnedDirectSuggestions,
   listTransactions,
   openItems,
   ownAccounts,

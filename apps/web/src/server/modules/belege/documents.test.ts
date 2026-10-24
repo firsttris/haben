@@ -171,6 +171,39 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect((await documents.getDocument(second.id))?.document.category).toBe("internet");
   });
 
+  it("Kategorie je Lieferant: die häufigste, bei Gleichstand die zuletzt gebuchte, mit Anzahl", async () => {
+    const book = async (n: number, category: "internet" | "telefon") => {
+      const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 40 + n]), filename: `t${n}.jpg` });
+      await documents.updateDocument(actor, id, {
+        supplierName: "Telekom Deutschland GmbH",
+        supplierUstId: "DE123475223",
+        invoiceNumber: `MF-${n}`,
+        documentDate: "2026-09-29",
+        dueDate: null,
+        category,
+        payment: "bank",
+        note: "",
+        amounts: [{ taxRate: 1900, net: 3857, tax: 733 }],
+      });
+      await documents.bookDocument(actor, id);
+    };
+    await book(1, "internet");
+    await book(2, "telefon");
+    // Gleichstand: der zuletzt gebuchte
+    expect(await documents.supplierCategory("Telekom Deutschland GmbH", "")).toEqual({ category: "telefon", count: 1, total: 2 });
+    await book(3, "internet");
+    await book(4, "internet");
+    // Zuletzt „telefon“, häufiger bleibt „internet“
+    await book(5, "telefon");
+    // Erkannt an der USt-IdNr. oder am Namen ohne Groß- und Kleinschreibung
+    expect(await documents.supplierCategory("", "DE123475223")).toEqual({ category: "internet", count: 3, total: 5 });
+    expect(await documents.supplierCategory("telekom deutschland gmbh ", "")).toEqual({ category: "internet", count: 3, total: 5 });
+    expect(await documents.supplierCategory("Andere GmbH", "")).toBeNull();
+    // Auch die Auslesung (KI: „telefon“) überstimmt die häufigste Kategorie
+    const next = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 99]), filename: "neu.jpg" });
+    expect((await documents.getDocument(next.id))?.document.category).toBe("internet");
+  });
+
   it("Fremdwährung: KI-Beträge sind Originalbeträge, gebucht wird erst mit Kurs und dann in Euro", async () => {
     const extraction = await import("./extraction.ts");
     vi.mocked(extraction.extractDocument).mockResolvedValueOnce({
