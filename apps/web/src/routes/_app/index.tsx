@@ -56,6 +56,21 @@ function OverviewPage() {
       to: "/umsatzsteuer/$zeitraum",
     });
   }
+  // Steuerkonto: reicht der Stand für die Zahllast, die das Finanzamt per Lastschrift einzieht?
+  const zahllast = data.current?.status === "sent" ? data.current.kz83 : data.computedKz83;
+  const taxAccount = data.invoices.bank.find((a) => a.purpose === "steuer");
+  // Ist die Lastschrift schon eingezogen und zugeordnet, ist der Kontostand bereits um sie gesunken
+  const zahllastOffen = Math.max(0, zahllast - data.vatPaid);
+  const taxShortfall = taxAccount && taxAccount.balance !== null && zahllastOffen > 0 ? zahllastOffen - taxAccount.balance : 0;
+  if (taxAccount && taxShortfall > 0 && !data.kleinunternehmer) {
+    todos.push({
+      title: `Steuerkonto ${taxAccount.name} deckt die Zahllast nicht`,
+      detail: `Es fehlen ${formatEuro(taxShortfall)} für ${periodLabel(data.period)}, fällig ${formatLongDate(data.dueDate)}`,
+      action: "Zur Bank",
+      tone: "warn",
+      to: "/bank",
+    });
+  }
   const openBank = data.invoices.bank.reduce((sum, a) => sum + a.openCount, 0);
   if (openBank > 0) {
     todos.push({
@@ -209,7 +224,23 @@ function OverviewPage() {
             {sent ? `gesendet ${formatDate(data.current!.sentAt!)}` : `Voranmeldung fällig ${formatDate(data.dueDate)}`}
           </div>
         </div>
-        {data.invoices.bank.filter((a) => a.balance !== null).slice(0, 1).map((a) => (
+        {taxAccount && taxAccount.balance !== null && !data.kleinunternehmer && (
+          <div className="card">
+            <div className="kpi-label">{taxAccount.name}</div>
+            <div className="kpi-value">{formatEuro(taxAccount.balance)}</div>
+            <div className="small" style={{ color: taxShortfall > 0 ? "var(--warn-ink)" : "var(--muted)" }}>
+              Steuerkonto ·{" "}
+              {zahllast <= 0
+                ? "keine Zahllast offen"
+                : zahllastOffen === 0
+                  ? `Zahllast ${formatEuro(zahllast)} bezahlt`
+                  : taxShortfall > 0
+                    ? `Zahllast ${formatEuro(zahllastOffen)} – es fehlen ${formatEuro(taxShortfall)}`
+                    : `Zahllast ${formatEuro(zahllastOffen)} – gedeckt`}
+            </div>
+          </div>
+        )}
+        {[...data.invoices.bank.filter((a) => a.balance !== null && a.purpose === "geschaeft"), ...data.invoices.bank.filter((a) => a.balance !== null && a.purpose !== "geschaeft" && a.purpose !== "steuer")].slice(0, 1).map((a) => (
           <div className="card" key={a.id}>
             <div className="kpi-label">Kontostand {a.name}</div>
             <div className="kpi-value">{formatEuro(a.balance!)}</div>

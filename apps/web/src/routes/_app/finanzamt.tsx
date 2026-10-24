@@ -305,7 +305,7 @@ function MessageForm({
 
 function BankChangeForm({ data }: { data: Data }) {
   const send = useServerFn(sendFinanzamtBankChange);
-  const [iban, setIban] = useState(data.company.iban);
+  const [iban, setIban] = useState(data.taxAccount?.iban ?? data.company.iban);
   const compact = iban.replace(/\s+/g, "").toUpperCase();
   const plausible = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(compact);
   const ready = data.bankIssues.length === 0 && plausible;
@@ -340,7 +340,12 @@ function BankChangeForm({ data }: { data: Data }) {
             placeholder="DE.."
             aria-invalid={iban.trim() !== "" && !plausible}
           />
-          <span className="small muted">Vorbelegt mit der IBAN aus den Firmendaten. Die Prüfziffer prüft der Server.</span>
+          <span className="small muted">
+            {data.taxAccount
+              ? `Vorbelegt mit deinem Steuerkonto ${data.taxAccount.name} (Zweck unter Bank). `
+              : "Vorbelegt mit der IBAN aus den Firmendaten; ein Konto mit dem Zweck „Steuerkonto“ unter Bank würde stattdessen vorgeschlagen. "}
+            Die Prüfziffer prüft der Server.
+          </span>
         </label>
       </section>
     </SendPanel>

@@ -183,6 +183,7 @@ export async function completeConnection(
   const withIban = session.accounts.filter((a) => a.account_id?.iban);
   const skipped = session.accounts.length - withIban.length;
   const replaced: { id: string; sessionId: string | null }[] = [];
+  const created: string[] = [];
 
   await withActor(actor, async (tx) => {
     // Auch abgelaufene Zustimmungen ablösen, sonst stünde das Konto doppelt in der Liste
@@ -192,7 +193,12 @@ export async function completeConnection(
       .where(and(inArray(schema.bankConnections.status, ["aktiv", "abgelaufen", "fehler"]), ne(schema.bankConnections.id, connection.id)));
     const accounts: BankConnectionAccount[] = [];
     for (const account of withIban) {
-      const bankAccount = await accountForIban(tx, account.account_id!.iban!, account.name ?? undefined);
+      const iban = account.account_id!.iban!.replace(/\s/g, "").toUpperCase();
+      const [known] = await tx.select({ id: schema.bankAccounts.id }).from(schema.bankAccounts).where(eq(schema.bankAccounts.iban, iban));
+      // Bankname vorweg und die letzten vier IBAN-Ziffern dahinter: zwei Konten derselben Bank bleiben unterscheidbar
+      const name = `${connection.aspspName}${account.name ? ` ${account.name}` : ""} …${iban.slice(-4)}`.slice(0, 100);
+      const bankAccount = await accountForIban(tx, iban, name);
+      if (!known) created.push(bankAccount.name);
       const previous = others.flatMap((o) => o.accounts).find((a) => a.bankAccountId === bankAccount.id);
       accounts.push({ uid: account.uid, iban: bankAccount.iban, name: bankAccount.name, bankAccountId: bankAccount.id, syncedTo: previous?.syncedTo ?? null });
     }
@@ -226,7 +232,9 @@ export async function completeConnection(
 
   if (withIban.length === 0) return { connectionId: connection.id, ok: false, message: "Die Bank hat kein Konto mit IBAN freigegeben." };
   const sync = await syncConnection(actor, connection.id);
-  const note = skipped > 0 ? ` ${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : "";
+  const note =
+    (created.length > 0 ? ` Neu angelegt: ${created.join(", ")}. Name und Zweck (z. B. Steuerkonto) legst du unter Bank mit „Name und Zweck“ fest.` : "") +
+    (skipped > 0 ? ` ${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : "");
   return { connectionId: connection.id, ok: sync.error === null, message: (sync.error ?? `${connection.aspspName} verbunden, ${sync.added} neue Umsätze.`) + note };
 }
 
@@ -349,10 +357,13 @@ export async function listConnections() {
     })
     .from(schema.bankConnections)
     .orderBy(desc(schema.bankConnections.createdAt));
+  // Namen wie unter Bank: umbenannte Konten nicht mit dem Namen vom Verbinden zeigen
+  const names = new Map((await db.select({ id: schema.bankAccounts.id, name: schema.bankAccounts.name }).from(schema.bankAccounts)).map((a) => [a.id, a.name]));
   return rows
     .filter((r) => r.status !== "wartet")
     .map((r) => ({
       ...r,
+      accounts: r.accounts.map((a) => ({ ...a, name: names.get(a.bankAccountId) ?? a.name })),
       validUntil: r.validUntil?.toISOString() ?? null,
       lastSyncAt: r.lastSyncAt?.toISOString() ?? null,
       createdAt: r.createdAt.toISOString(),

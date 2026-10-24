@@ -960,8 +960,10 @@ export const bankAccounts = pgTable("bank_accounts", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   iban: text("iban").notNull().unique(),
+  /** Wofür das Konto dient (ACCOUNT_PURPOSES); steuert Vorschläge im Bankabgleich und die Vorbelegung beim Finanzamt */
+  purpose: text("purpose", { enum: ["geschaeft", "steuer", "ruecklage", "privat"] }).notNull().default("geschaeft"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [check("bank_accounts_purpose", sql`${t.purpose} in ('geschaeft', 'steuer', 'ruecklage', 'privat')`)]);
 
 /** Jede importierte Datei, nur anhängen */
 export const bankImports = pgTable("bank_imports", {
