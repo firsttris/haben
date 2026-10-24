@@ -30,6 +30,7 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | Bankumsatz „Umsatzsteuer an das Finanzamt“, Eingang | Buchungstag | Vom Finanzamt erstattete Umsatzsteuer |
 | Bankumsatz „Kontoführung und Bankgebühren“ | Buchungstag | Ausgabe „Kontoführung und Gebühren“ |
 | Bankumsatz „Mahngebühren und Verzugszinsen“ | Buchungstag | Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen |
+| Kursdifferenz beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung | Buchungstag | Erträge bzw. Aufwendungen aus Kursdifferenzen; die Rechnung bzw. der Beleg zählt dafür in voller Höhe ([Bankabgleich](bank.md#kursdifferenz-bei-fremdwährung)). In der Anlage EÜR: nicht steuerbare Einnahmen bzw. übrige Ausgaben |
 | Beleg mit Kategorie „Anlagegut“, bezahlt | Buchungstag bzw. Belegdatum | nur die Vorsteuer; der Kaufpreis wirkt über die AfA |
 | Anlagenverzeichnis | Jahr laut Abschreibungsplan | AfA, Sofortabschreibung GWG, Auflösung Sammelposten, Restbuchwert bei Abgang ([Anlagen und AfA](anlagen.md)) |
 
@@ -112,8 +113,8 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | --- | --- |
 | `LIESMICH.txt` | Firma, Steuernummer, Zeitraum, Erstellungszeitpunkt, Haben-Version, Erklärung aller Ordner, Prüfanleitung und Hinweise zur Aufbewahrung |
 | `angebote/` | Nur wenn vorhanden: festgeschriebene Angebote als PDF, `angebote.csv` mit Antwort des Kunden, Rechnung und SHA-256 |
-| `rechnungen/` | Festgeschriebene Rechnungen, Stornos und Korrekturen als PDF und E-Rechnungs-XML (bei ZUGFeRD steckt das XML zusätzlich im PDF); `rechnungen.csv` mit Beträgen, Format, Zeitpunkt der Festschreibung und SHA-256. Entwürfe fehlen. |
-| `belege/` | Alle Belege des Jahres als Originaldatei, Name `Datum_Lieferant_Kurz-ID`; `belege.csv` mit Beträgen je Steuersatz, Kategorie, Zahlung, Status, Quelle der Auslesung, SHA-256 und ursprünglichem Dateinamen |
+| `rechnungen/` | Festgeschriebene Rechnungen, Stornos und Korrekturen als PDF und E-Rechnungs-XML (bei ZUGFeRD steckt das XML zusätzlich im PDF); `rechnungen.csv` mit Beträgen (in Euro; bei Fremdwährung mit Währung und Kurs), Format, Zeitpunkt der Festschreibung und SHA-256. Entwürfe fehlen. |
+| `belege/` | Alle Belege des Jahres als Originaldatei, Name `Datum_Lieferant_Kurz-ID`; `belege.csv` mit Beträgen je Steuersatz (in Euro; bei Fremdwährung mit Kurs und Bruttobetrag laut Beleg), Kategorie, Zahlung, Status, Quelle der Auslesung, SHA-256 und ursprünglichem Dateinamen |
 | `anlagen/anlagenverzeichnis.csv` | Anlagenverzeichnis des Jahres je Anlage: Anschaffung, Buchwert am Jahresanfang, Zugang, AfA, Abgang, Buchwert am Jahresende, ob die AfA gebucht ist |
 | `buchungen/journal.csv` | Journal, eine Zeile je Buchungszeile mit Konto, Kontoname, Soll, Haben und Steuerschlüssel; Gegenbuchungen verweisen auf die Ursprungsbuchung |
 | `bank/<IBAN>/umsaetze.csv` | Importierte Umsätze je Konto mit zugeordnetem und offenem Betrag |

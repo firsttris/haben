@@ -1,5 +1,6 @@
 import {
   convertPrice,
+  CURRENCY_CODE,
   formatDecimal,
   formatEuro,
   formatInvoiceNumber,
@@ -8,6 +9,7 @@ import {
   invoiceDueDate,
   lineAmount,
   parseEuro,
+  parseExchangeRate,
   parseQuantity,
   TAX_TREATMENTS,
   treatmentNote,
@@ -123,6 +125,8 @@ export function InvoiceEditor({
   kleinunternehmer,
   articles = [],
   abschlaege = [],
+  tageskurs = false,
+  rateInfo = null,
 }: {
   id: string | null;
   kind: keyof typeof KIND_TITLE;
@@ -142,6 +146,10 @@ export function InvoiceEditor({
   articles?: ArticleOption[];
   /** Offene Abschlagsrechnungen für die Schlussrechnung */
   abschlaege?: AbschlagOption[];
+  /** Tageskurs vom Finanzamt gestattet: dann mit Kursdatum */
+  tageskurs?: boolean;
+  /** Gespeicherter Kurs mit Herkunft, z. B. „1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)“ */
+  rateInfo?: string | null;
 }) {
   const router = useRouter();
   const navigate = useNavigate();
@@ -168,6 +176,9 @@ export function InvoiceEditor({
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode ?? "netto");
   const [exemptionReason, setExemptionReason] = useState(initial.exemptionReason ?? "");
   const [language, setLanguage] = useState<"de" | "en">(initial.language ?? "de");
+  const [currency, setCurrency] = useState(initial.currency ?? "EUR");
+  const [exchangeRate, setExchangeRate] = useState(initial.exchangeRate ?? "");
+  const [exchangeRateDate, setExchangeRateDate] = useState(initial.exchangeRateDate ?? "");
   const [variant, setVariant] = useState<"abschlag" | "schluss" | null>(initial.variant ?? null);
   const [deducts, setDeducts] = useState<string[]>(initial.deducts ?? []);
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
@@ -190,6 +201,8 @@ export function InvoiceEditor({
   const special = taxTreatment !== "regulaer";
   /** Bruttopreise nur mit Steuerausweis; ohne sind netto und brutto gleich */
   const grossPrices = !special && priceMode === "brutto";
+  const currencyCode = currency.trim().toUpperCase();
+  const foreign = kind === "rechnung" && currencyCode !== "EUR";
   const amountLabel = grossPrices ? "Brutto" : "Netto";
   // Vorschau: je Abschlagsrechnung und Steuersatz eine negative Position, wie beim Speichern
   const deductionPreview = deducted.flatMap((a) =>
@@ -322,12 +335,15 @@ export function InvoiceEditor({
       language,
       variant: kind === "rechnung" ? variant : null,
       deducts: schluss ? deducted.map((a) => a.id) : [],
+      currency: currencyCode,
+      exchangeRate: foreign && exchangeRate.trim() ? exchangeRate : null,
+      exchangeRateDate: foreign && exchangeRate.trim() && exchangeRateDate ? exchangeRateDate : null,
       lines: parsed.filter((l) => l.valid).map(({ valid: _valid, ...line }) => line),
     };
   }
 
   async function persist(): Promise<string> {
-    const { paymentTermDays: _term, format: _format, ...common } = draft();
+    const { paymentTermDays: _term, format: _format, currency: _currency, exchangeRate: _rate, exchangeRateDate: _rateDate, ...common } = draft();
     const result = quote ? await saveQuote({ data: { id, draft: { ...common, validUntil } } }) : await save({ data: { id, draft: draft() } });
     setDirty(false);
     return result.id;
@@ -508,6 +524,55 @@ export function InvoiceEditor({
                   Texte im PDF und in der E-Mail; die E-Rechnung selbst bleibt maschinenlesbar wie gehabt.
                 </span>
               </label>
+              {kind === "rechnung" && (
+                <>
+                  <label className="field">
+                    Währung
+                    <input
+                      value={currency}
+                      onChange={(e) => touch(setCurrency)(e.target.value.toUpperCase().slice(0, 3))}
+                      list="invoice-currency-codes"
+                      maxLength={3}
+                      className="mono"
+                      aria-invalid={!CURRENCY_CODE.test(currencyCode)}
+                      aria-describedby={foreign ? "invoice-currency-hint" : undefined}
+                    />
+                    <datalist id="invoice-currency-codes">
+                      {["EUR", "USD", "GBP", "CHF", "PLN", "SEK", "DKK", "JPY"].map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                  </label>
+                  {foreign && (
+                    <label className="field">
+                      Kurs: 1 EUR = … {CURRENCY_CODE.test(currencyCode) ? currencyCode : ""}
+                      <input
+                        className="mono"
+                        inputMode="decimal"
+                        value={exchangeRate}
+                        placeholder="leer = USt-Umrechnungskurs"
+                        onChange={(e) => touch(setExchangeRate)(e.target.value)}
+                        aria-invalid={exchangeRate.trim() !== "" && parseExchangeRate(exchangeRate) === null}
+                        aria-describedby="invoice-currency-hint"
+                      />
+                    </label>
+                  )}
+                  {foreign && tageskurs && (
+                    <label className="field">
+                      Kursdatum
+                      <input type="date" value={exchangeRateDate} onChange={(e) => touch(setExchangeRateDate)(e.target.value)} />
+                    </label>
+                  )}
+                  {foreign && (
+                    <span id="invoice-currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
+                      {rateInfo && <strong>{rateInfo}. </strong>}
+                      Preise und Summen in {currencyCode || "der Fremdwährung"}; die Umsatzsteuer steht zusätzlich in Euro auf der Rechnung (§ 14 Abs.
+                      4 Nr. 8 UStG). Gebucht wird in Euro. Ohne eigenen Kurs nimmt Haben den Umsatzsteuer-Umrechnungskurs des Leistungsmonats, sobald
+                      das BMF ihn veröffentlicht hat. Kein GiroCode, keine Abschlags- oder Schlussrechnung, keine Mahnung aus Haben.
+                    </span>
+                  )}
+                </>
+              )}
               {!quote && (
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 E-Rechnungsformat
@@ -805,6 +870,8 @@ export function InvoiceEditor({
             taxNote={treatmentNote(taxTreatment, exemptionReason)}
             corrects={corrects}
             title={title}
+            // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
+            currency={currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
           />
         </section>
       </div>

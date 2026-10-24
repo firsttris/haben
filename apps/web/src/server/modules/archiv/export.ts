@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
-import { ASSET_KINDS, ASSET_METHODS, csvDecimal, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, csvDecimal, formatExchangeRate, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { accountName } from "../buchhaltung/index.ts";
@@ -220,6 +220,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   ustVorauszahlung: "USt-Vorauszahlung",
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
+  kursdifferenz: "Kursdifferenz",
 };
 const SUBMISSION_LABELS: Record<string, string> = { validate: "Prüfung", test: "Testübermittlung", send: "Übermittlung" };
 
@@ -268,6 +269,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       net: schema.invoices.net,
       tax: schema.invoices.tax,
       gross: schema.invoices.gross,
+      currency: schema.invoices.currency,
+      exchangeRate: schema.invoices.exchangeRate,
       format: schema.invoices.format,
       lockedAt: schema.invoices.lockedAt,
       pdfSha256: schema.invoices.pdfSha256,
@@ -325,6 +328,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       money(invoice.net),
       money(invoice.tax),
       money(invoice.gross),
+      invoice.currency,
+      invoice.exchangeRate ? formatExchangeRate(invoice.exchangeRate) : null,
       FORMAT_LABELS[invoice.format] ?? invoice.format,
       iso(invoice.lockedAt),
       invoice.pdfSha256,
@@ -339,7 +344,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     path: "rechnungen/rechnungen.csv",
     content: csv(
       [
-        "Nummer", "Art", "Datum", "Fällig", "Leistung von", "Leistung bis", "Kunde", "Netto", "USt", "Brutto", "Format",
+        "Nummer", "Art", "Datum", "Fällig", "Leistung von", "Leistung bis", "Kunde", "Netto", "USt", "Brutto", "Währung", "Kurs (1 EUR =)", "Format",
         "Festgeschrieben", "SHA-256 PDF", "SHA-256 XML", "Storno/Korrektur von", "Datei PDF", "Datei XML", "ID",
       ],
       invoiceRows,
@@ -423,6 +428,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       payment: schema.documents.payment,
       note: schema.documents.note,
       currency: schema.documents.currency,
+      exchangeRate: schema.documents.exchangeRate,
+      reverseCharge: schema.documents.reverseCharge,
       net: schema.documents.net,
       tax: schema.documents.tax,
       gross: schema.documents.gross,
@@ -472,6 +479,9 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       money(doc.gross),
       doc.privateShare,
       doc.currency,
+      // Fremdwährung: Kurs (1 EUR = …) und Bruttobetrag laut Beleg; die Beträge davor sind in Euro umgerechnet
+      doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : null,
+      doc.currency === "EUR" ? null : money(docAmounts.reduce((s, a) => s + (a.originalNet ?? 0) + (doc.reverseCharge ? 0 : (a.originalTax ?? 0)), 0)),
       doc.payment === "privat" ? "privat" : doc.payment === "kasse" ? "Kasse" : "Bank",
       doc.status,
       iso(doc.lockedAt),
@@ -490,7 +500,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     content: csv(
       [
         "Datum", "Lieferant", "USt-IdNr.", "Rechnungsnummer", "Kategorie", "Netto 19 %", "Vorsteuer 19 %", "Netto 7 %",
-        "Vorsteuer 7 %", "Netto 0 %", "Netto", "Vorsteuer", "Brutto", "Privatanteil %", "Währung", "Zahlung", "Status", "Gebucht am", "Quelle",
+        "Vorsteuer 7 %", "Netto 0 %", "Netto", "Vorsteuer", "Brutto", "Privatanteil %", "Währung", "Kurs (1 EUR =)", "Brutto in Währung", "Zahlung", "Status", "Gebucht am", "Quelle",
         "Fällig", "Notiz", "SHA-256", "Originaldateiname", "Datei im Archiv", "Hochgeladen", "ID",
       ],
       documentRows,

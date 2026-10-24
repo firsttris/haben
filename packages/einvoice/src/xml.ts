@@ -78,7 +78,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const { seller, buyer } = doc;
   const credit = isCreditNote(doc);
   const sign = credit ? -1 : 1;
-  const currency = doc.currency;
+  // Code laut ISO 4217; geprüft beim Speichern (CURRENCY_CODE), hier nur für die Typen des Formats
+  const currency = doc.currency as UblInvoice["cbc:DocumentCurrencyCode"];
   const period = servicePeriod(doc);
   const treatment = doc.taxTreatment ?? "regulaer";
   // BR-O-02: bei nicht steuerbaren Umsätzen keine USt-IdNr. von Verkäufer und Käufer
@@ -203,6 +204,12 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     },
     "cac:InvoiceLine": [firstLine, ...otherLines],
   };
+
+  // Fremdwährung: Steuerwährung Euro (BT-6) und die Umsatzsteuer in Euro als zweite Steuersumme ohne Aufschlüsselung (BT-111)
+  if (doc.euroTax && currency !== "EUR") {
+    invoice["cbc:TaxCurrencyCode"] = "EUR";
+    invoice["cac:TaxTotal"].push({ "cbc:TaxAmount": amount(sign * doc.euroTax.tax), "cbc:TaxAmount@currencyID": "EUR" });
+  }
 
   if (doc.note?.trim()) invoice["cbc:Note"] = [doc.note.trim()];
 

@@ -116,3 +116,27 @@ describe("buildEInvoice", () => {
     await expect(buildEInvoice(doc)).rejects.toThrow("USt-IdNr. des Kunden");
   });
 });
+
+describe("Rechnung in Fremdwährung", () => {
+  // 100,00 USD netto + 19,00 USD; 1 EUR = 1,0812 USD: Umsatzsteuer 17,57 €
+  const usd = () => ({
+    ...sampleDocument({ lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 as const }] }),
+    currency: "USD",
+    euroTax: { tax: 1757, taxes: [{ rate: 1900, tax: 1757 }], rate: "1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)" },
+  });
+
+  it.each(["zugferd", "xrechnung-cii"] as const)("%s: Rechnungswährung USD, Steuerwährung EUR mit der Steuer in Euro", async (format) => {
+    const { xml } = await buildEInvoice({ ...usd(), format });
+    expect(xml).toContain("<ram:InvoiceCurrencyCode>USD</ram:InvoiceCurrencyCode>");
+    expect(xml).toContain("<ram:TaxCurrencyCode>EUR</ram:TaxCurrencyCode>");
+    expect(xml).toContain('<ram:TaxTotalAmount currencyID="USD">19.00</ram:TaxTotalAmount>');
+    expect(xml).toContain('<ram:TaxTotalAmount currencyID="EUR">17.57</ram:TaxTotalAmount>');
+  });
+
+  it("xrechnung-ubl: zweite Steuersumme in EUR ohne Aufschlüsselung", async () => {
+    const { xml } = await buildEInvoice({ ...usd(), format: "xrechnung-ubl" });
+    expect(xml).toContain("<cbc:DocumentCurrencyCode>USD</cbc:DocumentCurrencyCode>");
+    expect(xml).toContain("<cbc:TaxCurrencyCode>EUR</cbc:TaxCurrencyCode>");
+    expect(xml).toContain('<cbc:TaxAmount currencyID="EUR">17.57</cbc:TaxAmount>');
+  });
+});

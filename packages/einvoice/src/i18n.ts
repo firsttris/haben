@@ -60,6 +60,9 @@ export const TEXTS = {
     includedNet: (rate?: string) => (rate ? `Netto ${rate}` : "Netto"),
     vat: (rate: string, base?: string) => (base ? `Umsatzsteuer ${rate} auf ${base}` : `Umsatzsteuer ${rate}`),
     totalGross: "Gesamtbetrag",
+    inEuro: (rate: string) => `Umsatzsteuer in Euro, ${rate}`,
+    vatInEuro: (rate: string) => `Umsatzsteuer ${rate}`,
+    vatTotal: "Umsatzsteuer gesamt",
     quoteTotal: "Angebotssumme",
     reference: (number: string, date: string) => `zur Rechnung ${number} vom ${date}`,
     fromQuote: (number: string, date: string) => `Gemäß unserem Angebot ${number} vom ${date}.`,
@@ -113,6 +116,9 @@ export const TEXTS = {
     includedNet: (rate?: string) => (rate ? `Net ${rate}` : "Net"),
     vat: (rate: string, base?: string) => (base ? `VAT ${rate} on ${base}` : `VAT ${rate}`),
     totalGross: "Total amount",
+    inEuro: (rate: string) => `VAT in euros, ${rate}`,
+    vatInEuro: (rate: string) => `VAT ${rate}`,
+    vatTotal: "Total VAT",
     quoteTotal: "Quote total",
     reference: (number: string, date: string) => `relating to invoice ${number} of ${date}`,
     fromQuote: (number: string, date: string) => `As per our quote ${number} of ${date}.`,
@@ -143,6 +149,14 @@ export const TEXTS = {
 
 export type Texts = (typeof TEXTS)[Language];
 
-export function texts(language: Language | undefined): Texts {
-  return TEXTS[language ?? "de"];
+/**
+ * Texte einer Sprache; mit einer Fremdwährung formatiert money Beträge in dieser Währung („1.234,56 USD“),
+ * euro bleibt immer Euro (Umsatzsteuer in Euro auf Fremdwährungsrechnungen).
+ */
+export function texts(language: Language | undefined, currency = "EUR"): Texts & { euro: (cents: Cents) => string } {
+  const base = TEXTS[language ?? "de"];
+  if (currency === "EUR") return { ...base, euro: base.money };
+  const format = new Intl.NumberFormat(language === "en" ? "en-GB" : "de-DE", { style: "currency", currency, currencyDisplay: "code" });
+  // Geschütztes Leerzeichen wie bei formatEuro, damit der Code nicht allein in die nächste Zeile rutscht
+  return { ...base, euro: base.money, money: (cents: Cents) => format.format(cents / 100).replace(/\s/g, "\u00a0") };
 }

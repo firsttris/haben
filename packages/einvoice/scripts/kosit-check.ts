@@ -56,6 +56,35 @@ const samples: Record<string, InvoiceDocument> = {
     lines: zeroRateLines,
     taxTreatment: "reverse_charge",
   }),
+  // Fremdwährung: Rechnungswährung USD bzw. CHF, Steuerwährung EUR mit der Steuer in Euro (BT-6, BT-111)
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
+      [
+        `usd-19-${format}`,
+        {
+          ...sampleDocument({ format, lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 as const }] }),
+          currency: "USD",
+          euroTax: { tax: 1757, taxes: [{ rate: 1900, tax: 1757 }], rate: "1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)" },
+        },
+      ],
+      [
+        `usd-storno-${format}`,
+        {
+          ...sampleDocument({ kind: "storno", format, lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 as const }] }),
+          currency: "USD",
+          euroTax: { tax: -1757, taxes: [{ rate: 1900, tax: -1757 }], rate: "1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)" },
+        },
+      ],
+      [
+        `chf-drittland-${format}`,
+        {
+          ...sampleDocument({ format, buyer: thirdCountryBuyer, lines: zeroRateLines, taxTreatment: "drittland" }),
+          currency: "CHF",
+          euroTax: { tax: 0, taxes: [{ rate: 0, tax: 0 }], rate: "1 EUR = 0,9400 CHF (USt-Umrechnungskurs 09/2026)" },
+        },
+      ],
+    ]),
+  ),
   "korrektur-gemischt-xr-cii": korrekturMitZuschlag("xrechnung-cii"),
   "korrektur-gemischt-xr-ubl": korrekturMitZuschlag("xrechnung-ubl"),
   ...Object.fromEntries(

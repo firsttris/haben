@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
+import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
@@ -21,7 +22,8 @@ import { removeCertificate, uploadCertificate } from "../../server/functions/cer
 import { RELIGIONEN } from "../../lib/religion.ts";
 import { SETTINGS_AREAS, type SettingsArea } from "../../lib/settings-areas.ts";
 import type { TaxpayerPerson } from "../../server/db/schema.ts";
-import { getCompany, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
+import { getCompany, getExchangeRates, saveCompany, saveTaxpayerData } from "../../server/functions/company.ts";
+import reportStyles from "../../styles/auswertungen.css?url";
 import { getDatevNumbers } from "../../server/functions/datev-export.ts";
 import { checkElsterFormats, confirmElsterPrivacy, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getExportYears } from "../../server/functions/export.ts";
@@ -35,7 +37,7 @@ import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp] = await Promise.all([
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
       getNumbering(),
@@ -48,17 +50,18 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getChainHead(),
       getBackupStatus(),
       getMcpSettings(),
+      getExchangeRates(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp };
+    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates };
   },
-  head: () => ({ meta: [{ title: "Einstellungen · Haben" }] }),
+  head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
   validateSearch: (search: Record<string, unknown>): { bereich?: SettingsArea } =>
     SETTINGS_AREAS.some((a) => a.id === search.bereich) ? { bereich: search.bereich as SettingsArea } : {},
   component: SettingsPage,
 });
 
 function SettingsPage() {
-  const { logo, mail, inbox, exportYears, datev, chainHead, backup, mcp } = Route.useLoaderData();
+  const { logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
@@ -101,6 +104,7 @@ function SettingsPage() {
           )}
           {bereich === "sicherheit" && <Passkeys />}
           {bereich === "ki" && <McpCard data={mcp} />}
+          {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}
           {bereich === "export" && (
             <>
               <ExportCard years={exportYears} />
@@ -146,6 +150,7 @@ function CompanyForm() {
           paymentTermDays: Number(text("paymentTermDays") || 14),
           defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
           kleinunternehmer: form.get("kleinunternehmer") === "on",
+          tageskurs: form.get("tageskurs") === "on",
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
           taetigkeit: text("taetigkeit"),
           dunning: {
@@ -314,6 +319,20 @@ function CompanyForm() {
                 : company.kleinunternehmer
                   ? "Ausschalten, sobald die Umsatzgrenze überschritten ist; ab dann gilt die Regelbesteuerung."
                   : ""}
+            </span>
+          </span>
+        </label>
+      </section>
+
+      <section className="form-section" aria-labelledby="company-currency">
+        <h3 id="company-currency">Fremdwährung</h3>
+        <label className="checkbox" style={{ alignItems: "flex-start" }}>
+          <input type="checkbox" name="tageskurs" defaultChecked={company.tageskurs} aria-describedby="tageskurs-hint" />
+          <span>
+            Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)
+            <span id="tageskurs-hint" className="field-hint" style={{ display: "block" }}>
+              Ohne Gestattung rechnet Haben Fremdwährung mit den monatlichen Umsatzsteuer-Umrechnungskursen des BMF um (§ 16 Abs. 6 UStG). Hat das
+              Finanzamt den Tageskurs gestattet, trägst du an Beleg und Rechnung den Kurs mit Kursdatum ein, etwa aus der Bankabrechnung.
             </span>
           </span>
         </label>

@@ -1,6 +1,6 @@
 /*
  * Stammdaten: Firmendaten (mit Versteuerung und Kleinunternehmer je Jahr), Kunden, Artikel, Logo, persönliche
- * Angaben und die Sperre von Kontenrahmen, Versteuerung und Kleinunternehmer (settings-guard).
+ * Angaben, Umsatzsteuer-Umrechnungskurse und die Sperre von Kontenrahmen, Versteuerung und Kleinunternehmer (settings-guard).
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Lint-Regel haben/modulgrenzen, eslint/modulgrenzen.js).
@@ -29,6 +29,20 @@ export {
   type Contact,
   type ContactInput,
 } from "./contacts.ts";
+export {
+  deleteExchangeRate,
+  ExchangeRateFetchError,
+  exchangeRateSchema,
+  listExchangeRates,
+  rateForMonth,
+  NO_RATE,
+  refreshExchangeRates,
+  resolveExchangeRate,
+  type RateFields,
+  runDueExchangeRates,
+  storeExchangeRates,
+  type ExchangeRate,
+} from "./exchange-rates.ts";
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
 export { saveCompany, settingsLocks } from "./settings-guard.ts";
 export { saveTaxpayer, taxpayerSchema } from "./taxpayer.ts";

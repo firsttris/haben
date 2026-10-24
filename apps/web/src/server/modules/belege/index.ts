@@ -5,6 +5,7 @@
  * (Lint-Regel haben/modulgrenzen, eslint/modulgrenzen.js).
  */
 export {
+  applyPublishedRates,
   bookDocument,
   bookingIssues,
   deleteDocument,

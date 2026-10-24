@@ -32,6 +32,7 @@ export {
   createDraft,
   deleteDraft,
   draftSchema,
+  applyPublishedRatesToDrafts,
   finalizeInvoice,
   finalizeIssues,
   getInvoice,

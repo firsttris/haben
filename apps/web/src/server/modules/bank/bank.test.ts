@@ -456,6 +456,123 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect((await auswertungen.vatAbgleich({ year: 2026, month: 10 })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
   }, 30_000);
 
+  it("Kursdifferenz bei einer Rechnung in USD an eine Firma im Ausland (Ist): Rest als Aufwand, Abgleich ohne Abweichung", async () => {
+    const contact = await contacts.createContact(actor, {
+      kundennummer: "",
+      name: "Matterhorn Data AG",
+      strasse: "Bahnhofstrasse 1",
+      plz: "8001",
+      ort: "Zürich",
+      land: "CH",
+      email: "invoices@matterhorn.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+    });
+    const draft = await invoices.createDraft(actor, {
+      contactId: contact.id,
+      issueDate: "2026-09-05",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      currency: "USD",
+      exchangeRate: "1,0812",
+      // Bei Ist-Versteuerung nur ohne deutsche Umsatzsteuer (Leistung an ein Unternehmen im Drittland)
+      taxTreatment: "drittland",
+      exemptionReason: "Nicht im Inland steuerbare Leistung",
+      lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 119_000, taxRate: 0 }],
+    });
+    const invoice = await invoices.finalizeInvoice(actor, draft.id);
+    // 1.190,00 USD / 1,0812 = 1.100,63 €
+    expect(invoice.gross).toBe(110_063);
+    await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("01.10.26", "Matterhorn Data AG", "CH9300762011623852957", `RE ${invoice.number}`, "1.095,00")]), filename: "a.csv" },
+      null,
+    );
+    const [tx] = await sql`select id from bank_transactions`;
+    await bank.allocateWithRest(actor, { transactionId: tx!.id, target: { kind: "invoice", invoiceId: invoice.id }, rest: "kursdifferenz" });
+    expect((await invoices.listInvoices("2026-10-02")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
+    const balances = Object.fromEntries(
+      (await sql`select account, sum(debit - credit)::int as saldo from journal_lines group by account having sum(debit - credit) <> 0 order by 1`).map((r) => [
+        r.account,
+        r.saldo,
+      ]),
+    );
+    expect(balances).toEqual({ "1200": 109_500, "2150": 563, "8338": -110_063 });
+    const auswertungen = await import("../auswertungen/index.ts");
+    expect((await auswertungen.vatAbgleich({ year: 2026, month: 10 })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+    expect((await auswertungen.euerAbgleich(2026)).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+    const euer = await auswertungen.euerForYear(2026);
+    expect(euer.ausgaben.find((l) => l.key === "kursverluste")?.amount).toBe(563);
+  }, 30_000);
+
+  it("Kursdifferenz bei einem Beleg in Fremdwährung: mehr gezahlt als Aufteilung, weniger gezahlt als Ausbuchung; USt unverändert", async () => {
+    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 11]);
+    const usdDocument = async (number: string, byte: number) => {
+      const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, byte]), filename: `${number}.jpg` });
+      await documents.updateDocument(actor, id, {
+        supplierName: "Acme Tools Inc.",
+        supplierUstId: "",
+        invoiceNumber: number,
+        documentDate: "2026-09-10",
+        dueDate: null,
+        category: "software",
+        payment: "bank",
+        note: "",
+        currency: "USD",
+        exchangeRate: "1,0812",
+        // 100,00 USD + 19,00 USD: 92,49 € + 17,57 € = 110,06 €
+        amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 10_000, originalTax: 1_900 }],
+      });
+      await documents.bookDocument(actor, id);
+      return id;
+    };
+    const more = await usdDocument("AC-1", 1);
+    const less = await usdDocument("AC-2", 2);
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          outgoing("02.10.26", "Acme Tools Inc.", "DE11100100100000000001", "AC-1", "-110,50"),
+          outgoing("03.10.26", "Acme Tools Inc.", "DE11100100100000000001", "AC-2", "-109,00"),
+        ]),
+        filename: "a.csv",
+      },
+      null,
+    );
+    const [first, second] = await sql`select id from bank_transactions order by booking_date`;
+    const detail = await bank.transactionDetail(first!.id);
+    expect(detail!.suggestions[0]).toMatchObject({ item: { id: more, currency: "USD" }, exchangeDifference: -44 });
+
+    await bank.allocateWithRest(actor, { transactionId: first!.id, target: { kind: "document", documentId: more }, rest: "kursdifferenz" });
+    await bank.allocateWithRest(actor, { transactionId: second!.id, target: { kind: "document", documentId: less }, rest: "kursdifferenz" });
+    const balances = Object.fromEntries(
+      (await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l group by l.account having sum(l.debit - l.credit) <> 0 order by 1`).map((r) => [r.account, r.saldo]),
+    );
+    // Verbindlichkeiten erledigt; Vorsteuer 2 × 17,57 € wie gebucht; 0,44 € Aufwand, 1,06 € Ertrag
+    expect(balances).toEqual({ "1200": -21_950, "1576": 3_514, "2150": 44, "2660": -106, "4964": 18_498 });
+    const auswertungen = await import("../auswertungen/index.ts");
+    expect((await auswertungen.openPositions("2026-10-05")).payables).toEqual([]);
+    const euer = await auswertungen.euerForYear(2026);
+    const line = (key: string) => [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
+    expect([line("kursgewinne"), line("kursverluste"), line("vorsteuer")]).toEqual([106, 44, 3_514]);
+    // Bruttomethode: Gewinn = gezahlte Euro, die Vorsteuer ist Ausgabe
+    expect(euer.gewinn).toBe(-21_950);
+    expect((await auswertungen.euerAbgleich(2026)).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+    expect((await auswertungen.vatAbgleich({ year: 2026, month: 10 })).zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+
+    // Aufheben nimmt Zahlung und Kursdifferenz zurück, auch die Aufteilung als Ganzes
+    for (const tx of [first, second]) {
+      const [allocation] = await sql`select id from allocations where transaction_id = ${tx!.id} order by created_at limit 1`;
+      await bank.reverseAllocation(actor, allocation!.id);
+    }
+    expect((await auswertungen.openPositions("2026-10-05")).payables.map((p) => p.open)).toEqual([11_006, 11_006]);
+  }, 30_000);
+
   it("Zahlungsdienstleister: PayPal-Export ins eigene Verrechnungskonto, Auszahlung als Geldtransit zur Bank", async () => {
     const { invoice } = await finalInvoice(400_000);
     const paypal = await bank.createProviderAccount(actor, { name: "PayPal", provider: "paypal" });

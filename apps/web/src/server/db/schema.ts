@@ -9,6 +9,7 @@ import {
   foreignKey,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -26,6 +27,7 @@ import {
   ASSET_METHOD_KEYS,
   PRICE_MODES,
   TAX_TREATMENT_KEYS,
+  EXCHANGE_RATE_SOURCE_KEYS,
   type AssetKind,
   type AssetMethod,
   type CarPrivateUse,
@@ -114,6 +116,8 @@ export const company = pgTable(
     calendarTokenHash: text("calendar_token_hash"),
     /** Zugang für KI-Assistenten über MCP (/api/mcp); ausdrücklich einzuschalten, standardmäßig aus */
     mcpEnabled: boolean("mcp_enabled").notNull().default(false),
+    /** Das Finanzamt hat den Tageskurs statt der monatlichen USt-Umrechnungskurse gestattet (§ 16 Abs. 6 Satz 3 UStG) */
+    tageskurs: boolean("tageskurs").notNull().default(false),
     /** Datenschutzhinweise der Finanzverwaltung vor der ersten Nutzung von ERiC bestätigt (ERiC-Lizenz § 5) */
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -649,6 +653,11 @@ export const invoices = pgTable(
     note: text("note").notNull().default(""),
     /** Sprache des PDFs */
     language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
+    /** Währung der Rechnung; bei Fremdwährung sind net/tax/gross und invoice_taxes in Euro umgerechnet */
+    currency: text("currency").notNull().default("EUR"),
+    exchangeRate: numeric("exchange_rate", { precision: 12, scale: 6 }),
+    exchangeRateSource: text("exchange_rate_source", { enum: EXCHANGE_RATE_SOURCE_KEYS }),
+    exchangeRateDate: date("exchange_rate_date", { mode: "string" }),
     /** Umsatzsteuerliche Behandlung; außer „regulaer“ stehen alle Positionen auf 0 % */
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     /** Eigener Befreiungsgrund auf der Rechnung, sonst der Standardtext der Behandlung */
@@ -731,6 +740,9 @@ export const invoiceTaxes = pgTable(
     rate: smallint("rate").notNull(),
     base: integer("base").notNull(),
     tax: integer("tax").notNull(),
+    /** Nur bei Fremdwährung: Bemessungsgrundlage und Steuer in der Währung der Rechnung, wie auf PDF und XML */
+    originalBase: bigint("original_base", { mode: "number" }),
+    originalTax: bigint("original_tax", { mode: "number" }),
   },
   (t) => [primaryKey({ columns: [t.invoiceId, t.rate] })],
 );
@@ -913,6 +925,11 @@ export const documents = pgTable(
     payment: text("payment", { enum: ["bank", "privat", "kasse"] }).notNull().default("bank"),
     note: text("note").notNull().default(""),
     currency: text("currency").notNull().default("EUR"),
+    /** Bei Fremdwährung: 1 EUR = Kurs Fremdwährung (wie die Umsatzsteuer-Umrechnungskurse des BMF); net/tax/gross sind in Euro umgerechnet */
+    exchangeRate: numeric("exchange_rate", { precision: 12, scale: 6 }),
+    /** Herkunft des Kurses: USt-Umrechnungskurs des Monats, gestatteter Tageskurs oder von Hand; mit Monat bzw. Kursdatum */
+    exchangeRateSource: text("exchange_rate_source", { enum: EXCHANGE_RATE_SOURCE_KEYS }),
+    exchangeRateDate: date("exchange_rate_date", { mode: "string" }),
     net: integer("net").notNull().default(0),
     tax: integer("tax").notNull().default(0),
     gross: integer("gross").notNull().default(0),
@@ -949,8 +966,13 @@ export const documentAmounts = pgTable(
       .notNull()
       .references(() => documents.id, { onDelete: "cascade" }),
     taxRate: smallint("tax_rate").notNull(),
+    /** In Euro; bei Fremdwährung aus den Originalbeträgen umgerechnet */
     net: integer("net").notNull(),
     tax: integer("tax").notNull(),
+    /** Nur bei Fremdwährung: Beträge in der Währung des Belegs */
+    /** bigint: in Währungen wie HUF oder JPY übersteigen schon übliche Beträge den Bereich von integer */
+    originalNet: bigint("original_net", { mode: "number" }),
+    originalTax: bigint("original_tax", { mode: "number" }),
   },
   (t) => [uniqueIndex("document_amounts_rate").on(t.documentId, t.taxRate)],
 );
@@ -1063,6 +1085,7 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "ustVorauszahlung",
   "gebuehren",
   "mahnerloes",
+  "kursdifferenz",
 ]);
 
 /**
@@ -1108,7 +1131,7 @@ export const writeOffs = pgTable(
   "write_offs",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    kind: text("kind", { enum: ["skonto", "forderungsausfall", "skontoErhalten"] }).notNull(),
+    kind: text("kind", { enum: ["skonto", "forderungsausfall", "skontoErhalten", "kursdifferenz"] }).notNull(),
     invoiceId: uuid("invoice_id").references(() => invoices.id),
     documentId: uuid("document_id").references(() => documents.id),
     date: date("date", { mode: "string" }).notNull(),
@@ -1121,12 +1144,34 @@ export const writeOffs = pgTable(
   (t) => [
     check(
       "write_offs_target",
-      sql`(${t.kind} = 'skontoErhalten' and ${t.documentId} is not null and ${t.invoiceId} is null) or (${t.kind} <> 'skontoErhalten' and ${t.invoiceId} is not null and ${t.documentId} is null)`,
+      sql`(${t.kind} = 'skontoErhalten' and ${t.documentId} is not null and ${t.invoiceId} is null) or (${t.kind} in ('skonto', 'forderungsausfall') and ${t.invoiceId} is not null and ${t.documentId} is null) or (${t.kind} = 'kursdifferenz' and (${t.invoiceId} is null) <> (${t.documentId} is null) and ${t.transactionId} is not null)`,
     ),
     index("write_offs_invoice").on(t.invoiceId),
     index("write_offs_document").on(t.documentId),
     index("write_offs_transaction").on(t.transactionId),
     foreignKey({ name: "write_offs_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
+  ],
+);
+
+/**
+ * Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG) je Währung und Monat: 1 EUR = rate. Abgerufen vom BMF oder von Hand
+ * eingetragen. Belege und Rechnungen speichern den verwendeten Kurs selbst; ein später geänderter Kurs ändert sie nicht.
+ */
+export const exchangeRates = pgTable(
+  "exchange_rates",
+  {
+    currency: text("currency").notNull(),
+    /** JJJJ-MM */
+    month: text("month").notNull(),
+    rate: numeric("rate", { precision: 12, scale: 6 }).notNull(),
+    source: text("source", { enum: ["bmf", "manuell"] }).notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.currency, t.month] }),
+    check("exchange_rates_currency", sql`${t.currency} ~ '^[A-Z]{3}$' and ${t.currency} <> 'EUR'`),
+    check("exchange_rates_month", sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
+    check("exchange_rates_rate", sql`${t.rate} > 0`),
   ],
 );
 

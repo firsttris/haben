@@ -39,7 +39,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, company cascade`;
+    await sql`truncate journal_lines, journal_entries, invoice_lines, invoices, invoice_number_counters, contact_versions, contacts, exchange_rates, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, telefon, steuernummer, ust_id, bundesland, iban, bic, bank)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
               '198/113/10010', 'DE123456789', 'BY', 'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;
@@ -57,6 +57,55 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
       defaultFormat: null,
     });
     contactId = contact.id;
+  });
+
+  it("Fremdwährung: USt-Kurs des Leistungsmonats, Steuer in Euro in PDF und XML, gebucht in Euro; Storno mit demselben Kurs", async () => {
+    // Mit deutscher Umsatzsteuer nur bei Soll-Versteuerung (siehe nächster Test)
+    await sql`update company set versteuerung = 'soll'`;
+    // 10 Std. × 95,00 USD = 950,00 USD + 180,50 USD
+    const usd = { ...draft(), currency: "USD" };
+    const waiting = await invoices.createDraft(actor, usd);
+    expect(waiting).toMatchObject({ currency: "USD", exchangeRate: null, net: 0, gross: 0 });
+    expect((await invoices.finalizeIssues(waiting.id)).some((i) => /Umrechnungskurs für USD 09\/2026 fehlt|09\/2026 noch nicht veröffentlicht/.test(i))).toBe(true);
+
+    const stammdaten = await import("../stammdaten/index.ts");
+    await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-09", rate: "1.0812" }], "bmf");
+    expect(await invoices.applyPublishedRatesToDrafts(actor)).toBe(1);
+    const final = await invoices.finalizeInvoice(actor, waiting.id);
+    // 950,00 / 1,0812 = 878,65 €; 180,50 / 1,0812 = 166,94 €
+    expect(final).toMatchObject({ currency: "USD", exchangeRate: "1.081200", exchangeRateSource: "ust", net: 87_865, tax: 16_694, gross: 104_559 });
+    expect(final.xml).toContain("<ram:InvoiceCurrencyCode>USD</ram:InvoiceCurrencyCode>");
+    expect(final.xml).toContain('<ram:TaxTotalAmount currencyID="EUR">166.94</ram:TaxTotalAmount>');
+    expect(final.xml).toContain("<ram:GrandTotalAmount>1130.50</ram:GrandTotalAmount>");
+    const booked = await sql`select l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${final.id} order by l.account`;
+    expect(booked.map((l) => [l.account, l.debit - l.credit])).toEqual([["1400", 104_559], ["1776", -16_694], ["8400", -87_865]]);
+
+    // Storno: Kurs der Rechnung, nicht der des Stornomonats
+    await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-10", rate: "1.2" }], "bmf");
+    const storno = await invoices.cancelInvoice(actor, final.id, "2026-10-20");
+    expect(storno).toMatchObject({ currency: "USD", exchangeRate: "1.081200", net: -87_865, tax: -16_694 });
+  });
+
+  it("Fremdwährung bei Ist-Versteuerung: mit deutscher Umsatzsteuer gesperrt, ohne (Ausland, § 13b) erlaubt", async () => {
+    const withVat = await invoices.createDraft(actor, { ...draft(), currency: "CHF", exchangeRate: "0,94" });
+    expect(await invoices.finalizeIssues(withVat.id)).toContain(
+      "Rechnungen in Fremdwährung mit deutscher Umsatzsteuer gehen nur bei Soll-Versteuerung; bei Ist-Versteuerung in Euro abrechnen",
+    );
+    const abroad = await invoices.createDraft(actor, {
+      ...draft([line(9500, 0, 10_000)]),
+      currency: "CHF",
+      exchangeRate: "0,94",
+      taxTreatment: "drittland" as const,
+      exemptionReason: "Nicht im Inland steuerbare Leistung",
+    });
+    expect((await invoices.finalizeIssues(abroad.id)).filter((i) => /Fremdwährung/.test(i))).toEqual([]);
+  });
+
+  it("Fremdwährung: eigener Kurs bleibt, Abschlagsrechnungen nur in Euro", async () => {
+    const own = await invoices.createDraft(actor, { ...draft(), currency: "GBP", exchangeRate: "0,85" });
+    expect(own).toMatchObject({ exchangeRate: "0.850000", exchangeRateSource: "manuell", net: 111_765 });
+    const abschlag = await invoices.createDraft(actor, { ...draft(), currency: "GBP", exchangeRate: "0,85", variant: "abschlag" });
+    expect(await invoices.finalizeIssues(abschlag.id)).toContain("Abschlags- und Schlussrechnungen gibt es nur in Euro");
   });
 
   it("Entwurf rechnet Summen und Fälligkeit", async () => {

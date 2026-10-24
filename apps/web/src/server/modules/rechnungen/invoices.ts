@@ -1,6 +1,12 @@
 import { UserError } from "../../errors.ts";
 import {
   computeInvoice,
+  CURRENCY_CODE,
+  describeExchangeRate,
+  formatRateMonth,
+  parseExchangeRate,
+  rateMonth,
+  totalsFromTaxes,
   formatInvoiceNumber,
   invoiceLineInputSchema,
   invoiceDueDate,
@@ -32,14 +38,15 @@ import {
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { loadCompany, sellerIssues, versteuerungForYear, type Company } from "../stammdaten/index.ts";
+import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
 import type { Contact } from "../stammdaten/index.ts";
 import { loadLogo } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
+import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
+import { today } from "../../today.ts";
 import { lockNumbering, peekNumber, setNextNumber as setNextCounter, takeNumber } from "./number-counter.ts";
 
 export type Invoice = typeof schema.invoices.$inferSelect;
@@ -68,6 +75,20 @@ export const draftSchema = z
     variant: z.enum(["abschlag", "schluss"]).nullable().default(null),
     /** Schlussrechnung: abzuziehende Abschlagsrechnungen */
     deducts: z.array(z.uuid()).max(50).default([]),
+    /** Währung der Rechnung; Preise und Summen in dieser Währung, gebucht wird in Euro mit dem Kurs */
+    currency: z.string().trim().toUpperCase().regex(CURRENCY_CODE, "Währung als dreistelliger Code, z. B. USD").default("EUR"),
+    /** 1 EUR = Kurs; leer = USt-Umrechnungskurs des Leistungsmonats, sobald veröffentlicht */
+    exchangeRate: z
+      .string()
+      .nullable()
+      .default(null)
+      .transform((value, ctx) => {
+        if (value === null || value.trim() === "") return null;
+        const rate = parseExchangeRate(value);
+        if (!rate) ctx.addIssue({ code: "custom", message: "Umrechnungskurs ungültig, z. B. 1,0812" });
+        return rate;
+      }),
+    exchangeRateDate: isoDate.nullable().default(null),
     lines: z.array(invoiceLineInputSchema).max(200),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
@@ -98,10 +119,43 @@ function lineRows(invoiceId: string, lines: LineInput[], lineNets: number[]) {
 }
 
 /** Positionen und Steuerzeilen eines Entwurfs speichern, wie sie draftValues berechnet hat */
-async function storeLines(tx: Tx, invoiceId: string, lines: LineInput[], { totals, lineNets }: InvoiceCalculation) {
+async function storeLines(tx: Tx, invoiceId: string, lines: LineInput[], { lineNets }: InvoiceCalculation, taxes: ReturnType<typeof euroTaxes>) {
   await tx.delete(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, invoiceId));
   if (lines.length > 0) await tx.insert(schema.invoiceLines).values(lineRows(invoiceId, lines, lineNets));
-  await storeInvoiceTaxes(tx, invoiceId, totals.taxes);
+  await storeInvoiceTaxes(tx, invoiceId, taxes);
+}
+
+/** Höchstwert der int4-Spalten für Euro-Beträge: ein sehr kleiner Kurs darf sie nicht sprengen */
+const MAX_EURO_CENTS = 2_147_483_647;
+
+/** Monat der Leistung für den Umrechnungskurs: Ende des Leistungszeitraums, sonst das Rechnungsdatum */
+const serviceDate = (input: { issueDate: string; serviceFrom?: string | null; serviceTo?: string | null }) => input.serviceTo ?? input.serviceFrom ?? input.issueDate;
+
+/**
+ * Kurs eines Entwurfs: Storno und Korrektur übernehmen Währung und Kurs der ursprünglichen Rechnung (dieselben Euro-Beträge
+ * mit umgekehrtem Vorzeichen), sonst wie bei Belegen (resolveExchangeRate) für den Monat der Leistung.
+ */
+async function draftRate(tx: Tx, input: DraftInput, correctsId: string | null, previous: Invoice | null): Promise<{ currency: string } & RateFields> {
+  if (correctsId) {
+    const [original] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, correctsId));
+    if (original) {
+      return { currency: original.currency, exchangeRate: original.exchangeRate ? parseExchangeRate(original.exchangeRate) : null, exchangeRateSource: original.exchangeRateSource, exchangeRateDate: original.exchangeRateDate };
+    }
+  }
+  // Die Server Functions prüfen das Eingabeschema schon; hier nur die Felder der Währung, in der Form des Schemas
+  const currency = (input.currency ?? "EUR").trim().toUpperCase();
+  if (currency === "EUR") return { currency, ...NO_RATE };
+  if (!CURRENCY_CODE.test(currency)) throw new InvoiceError("Währung als dreistelliger Code, z. B. USD.");
+  const exchangeRate = input.exchangeRate?.trim() ? parseExchangeRate(input.exchangeRate) : null;
+  if (input.exchangeRate?.trim() && !exchangeRate) throw new InvoiceError("Umrechnungskurs ungültig, z. B. 1,0812.");
+  const { tageskurs } = await loadCompany(tx);
+  const rate = await resolveExchangeRate(
+    tx,
+    { currency, date: serviceDate(input), exchangeRate, exchangeRateDate: input.exchangeRateDate ?? null },
+    previous && previous.currency === currency ? previous : null,
+    tageskurs,
+  );
+  return { currency, ...rate };
 }
 
 /** Titel je Rechnung, auch für Buchungstext und E-Mail */
@@ -239,13 +293,68 @@ async function allLines(tx: Tx, invoiceId: string | null, input: DraftInput): Pr
 }
 
 /**
+ * Entwurf in Fremdwährung ohne Kurs, dessen USt-Umrechnungskurs inzwischen veröffentlicht ist: Kurs übernehmen und die
+ * gespeicherten Originalbeträge in Euro umrechnen. true, wenn sich etwas geändert hat.
+ */
+async function applyRateToDraft(tx: Tx, invoice: Invoice): Promise<boolean> {
+  // Ohne Kurs oder mit übernommenem USt-Kurs: Ein eigener Kurs bleibt, ein geänderter Tabellenkurs (etwa der amtliche statt
+  // eines vorab von Hand eingetragenen) gilt auch für den Entwurf
+  if (invoice.status !== "draft" || invoice.currency === "EUR" || invoice.correctsId) return false;
+  if (invoice.exchangeRate && invoice.exchangeRateSource !== "ust") return false;
+  const rate = await resolveExchangeRate(tx, { currency: invoice.currency, date: serviceDate(invoice), exchangeRate: null, exchangeRateDate: null }, null, false);
+  if (!rate.exchangeRate || (invoice.exchangeRate && parseExchangeRate(invoice.exchangeRate) === rate.exchangeRate)) return false;
+  const rows = await tx.select().from(schema.invoiceTaxes).where(eq(schema.invoiceTaxes.invoiceId, invoice.id));
+  const taxes = euroTaxes(
+    rows.map((r) => ({ rate: r.rate, base: r.originalBase ?? 0, tax: r.originalTax ?? 0 })),
+    invoice.currency,
+    rate.exchangeRate,
+  );
+  if (taxes.some((t) => Math.abs(t.base) > MAX_EURO_CENTS || Math.abs(t.tax) > MAX_EURO_CENTS)) return false;
+  await storeInvoiceTaxes(tx, invoice.id, taxes);
+  const totals = totalsFromTaxes(taxes);
+  await tx
+    .update(schema.invoices)
+    .set({ ...rate, net: totals.net, tax: totals.tax, gross: totals.gross, updatedAt: new Date() })
+    .where(eq(schema.invoices.id, invoice.id));
+  return true;
+}
+
+/** Entwürfe in Fremdwährung ohne Kurs oder mit geändertem USt-Kurs umrechnen (nach dem Abruf der Kurse); Zahl der Entwürfe */
+export async function applyPublishedRatesToDrafts(actor: string): Promise<number> {
+  const drafts = await db
+    .select({ id: schema.invoices.id })
+    .from(schema.invoices)
+    .where(
+      and(
+        eq(schema.invoices.status, "draft"),
+        ne(schema.invoices.currency, "EUR"),
+        sql`(${schema.invoices.exchangeRate} is null or ${schema.invoices.exchangeRateSource} = 'ust')`,
+      ),
+    );
+  let count = 0;
+  for (const { id } of drafts) {
+    const changed = await withActor(actor, async (tx) => {
+      const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
+      return invoice ? applyRateToDraft(tx, invoice) : false;
+    });
+    if (changed) count++;
+  }
+  return count;
+}
+
+/**
  * Felder eines Entwurfs samt Summen. Netto und Umsatzsteuer je Satz werden nur hier berechnet; danach
  * lesen alle anderen Stellen die gespeicherten Werte (invoice_taxes).
  */
-function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines: LineInput[]) {
+function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines: LineInput[], rate: { currency: string } & RateFields) {
   const priceMode = effectivePriceMode(input);
   const calculation = computeInvoice(lines, priceMode);
-  const { totals } = calculation;
+  // Gebucht wird in Euro: bei Fremdwährung je Satz mit dem Kurs umgerechnet
+  const taxes = euroTaxes(calculation.totals.taxes, rate.currency, rate.exchangeRate);
+  if (rate.currency !== "EUR" && taxes.some((t) => Math.abs(t.base) > MAX_EURO_CENTS || Math.abs(t.tax) > MAX_EURO_CENTS)) {
+    throw new InvoiceError("Der umgerechnete Betrag ist zu groß. Stimmt der Kurs (1 EUR = … Fremdwährung)?");
+  }
+  const totals = totalsFromTaxes(taxes);
   const values = {
     contactId: input.contactId,
     issueDate: input.issueDate,
@@ -260,12 +369,13 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     priceMode,
     language: input.language ?? "de",
     variant: input.variant ?? null,
+    ...rate,
     net: totals.net,
     tax: totals.tax,
     gross: totals.gross,
     updatedAt: new Date(),
   };
-  return { values, calculation };
+  return { values, calculation, taxes };
 }
 
 type DraftExtra = Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate">>;
@@ -278,12 +388,12 @@ export async function createDraft(actor: string, input: DraftInput, extra: Draft
 export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra = {}): Promise<Invoice> {
   const { bundesland } = await loadCompany(tx);
   const lines = await allLines(tx, null, input);
-  const { values, calculation } = draftValues(input, bundesland, lines);
+  const { values, calculation, taxes } = draftValues(input, bundesland, lines, await draftRate(tx, input, extra.correctsId ?? null, null));
   const [invoice] = await tx
     .insert(schema.invoices)
     .values({ ...values, ...extra })
     .returning();
-  await storeLines(tx, invoice!.id, lines, calculation);
+  await storeLines(tx, invoice!.id, lines, calculation, taxes);
   return invoice!;
 }
 
@@ -302,9 +412,10 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     const lines = await allLines(tx, id, input);
     if (input.variant && draft.kind !== "rechnung") throw new InvoiceError("Storno und Korrektur sind keine Abschlags- oder Schlussrechnung.");
     // Eine Korrektur rechnet wie die ursprüngliche Rechnung, netto oder brutto
-    const { values, calculation } = draftValues(draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode }, bundesland, lines);
+    const rate = await draftRate(tx, input, draft.correctsId, draft);
+    const { values, calculation, taxes } = draftValues(draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode }, bundesland, lines, rate);
     const [updated] = await tx.update(schema.invoices).set(values).where(eq(schema.invoices.id, id)).returning();
-    await storeLines(tx, id, lines, calculation);
+    await storeLines(tx, id, lines, calculation, taxes);
     return updated!;
   });
 }
@@ -454,6 +565,7 @@ function documentFor(
   invoice: Invoice,
   lines: InvoiceLine[],
   totals: InvoiceTotals,
+  euroTotals: InvoiceTotals,
   seller: Seller,
   buyer: Buyer,
   number: string,
@@ -469,7 +581,17 @@ function documentFor(
     paymentTermDays: invoice.paymentTermDays,
     ...(invoice.serviceFrom ? { serviceFrom: invoice.serviceFrom } : {}),
     ...(invoice.serviceTo ? { serviceTo: invoice.serviceTo } : {}),
-    currency: "EUR",
+    currency: invoice.currency,
+    // Fremdwährung: die Umsatzsteuer zusätzlich in Euro (§ 14 Abs. 4 Nr. 8 UStG), mit Kurs und Herkunft
+    ...(invoice.currency !== "EUR" && invoice.exchangeRate
+      ? {
+          euroTax: {
+            tax: euroTotals.tax,
+            taxes: euroTotals.taxes.map((t) => ({ rate: t.rate, tax: t.tax })),
+            rate: describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate),
+          },
+        }
+      : {}),
     seller,
     buyer,
     lines: lines.map((line) => ({
@@ -551,10 +673,34 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
     if (invoice.gross < 0) issues.push("Die Abschläge übersteigen die Gesamtleistung");
   } else if (invoice.kind === "rechnung" && invoice.gross <= 0) issues.push("Gesamtbetrag muss positiv sein");
   if (invoice.kind === "korrektur" && invoice.gross >= 0) issues.push("Eine Rechnungskorrektur muss den Betrag mindern");
+  if (invoice.currency !== "EUR") {
+    if (invoice.variant) issues.push("Abschlags- und Schlussrechnungen gibt es nur in Euro");
+    // Bei Ist-Versteuerung ist das Entgelt mit dem Kurs des Monats umzurechnen, in dem es vereinnahmt wird (Abschn. 16.4
+    // UStAE); Haben rechnet mit dem Kurs der Rechnung. Ohne deutsche Umsatzsteuer (Leistung an ein Unternehmen im Ausland,
+    // § 13b, steuerfrei) spielt das keine Rolle, mit deutscher Steuer wäre die Voranmeldung um die Kursänderung falsch.
+    if (
+      invoice.kind === "rechnung" &&
+      !company.kleinunternehmer &&
+      company.versteuerung === "ist" &&
+      invoice.taxTreatment === "regulaer" &&
+      lines.some((line) => line.taxRate > 0)
+    ) {
+      issues.push("Rechnungen in Fremdwährung mit deutscher Umsatzsteuer gehen nur bei Soll-Versteuerung; bei Ist-Versteuerung in Euro abrechnen");
+    }
+    if (!invoice.exchangeRate) {
+      const month = rateMonth(serviceDate(invoice));
+      issues.push(
+        month >= rateMonth(today())
+          ? `Umrechnungskurs für ${formatRateMonth(month)} noch nicht veröffentlicht; trag einen Kurs von Hand ein oder warte bis nach Monatsende`
+          : `Umrechnungskurs für ${invoice.currency} ${formatRateMonth(month)} fehlt`,
+      );
+    }
+  }
   if (contact && issues.length === 0) {
     const preview = documentFor(
       invoice,
       lines,
+      await invoiceDocumentTotals(id, q),
       (await invoiceTotalsById([id], q)).get(id)!,
       sellerFrom(company),
       buyerFrom(contact),
@@ -577,7 +723,9 @@ export async function finalizeInvoice(actor: string, id: string): Promise<Invoic
 
 /** Festschreiben in einer laufenden Transaktion; prüft dort, was finalizeIssues meldet */
 async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
-  const invoice = await lockDraft(tx, id);
+  let invoice = await lockDraft(tx, id);
+  // Inzwischen veröffentlichten Kurs übernehmen, bevor geprüft wird
+  if (await applyRateToDraft(tx, invoice)) invoice = await lockDraft(tx, id);
   const issues = await finalizeIssues(id, tx);
   if (issues.length > 0) throw new InvoiceError(`Noch nicht bereit: ${issues.join(", ")}.`);
   const company = await openBooks(tx);
@@ -616,7 +764,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   const seller = sellerFrom(company);
   const buyer = corrects?.buyer ?? buyerFrom(contact!);
   const totals = (await invoiceTotalsById([id], tx)).get(id)!;
-  const doc = documentFor(invoice, lines, totals, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null, await deductedRefs(lines, tx));
+  const doc = documentFor(invoice, lines, await invoiceDocumentTotals(id, tx), totals, seller, buyer, number, corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null, await deductedRefs(lines, tx));
   const logo = await loadLogo();
   const rendered = await buildEInvoice(logo ? { ...doc, logo } : doc);
   const now = new Date();

@@ -116,3 +116,19 @@ describe("pdfData", () => {
     expect(pdfData(doc).meta).toContainEqual({ label: "Leistungsdatum", value: "entspricht Rechnungsdatum" });
   });
 });
+
+describe("pdfData in Fremdwährung", () => {
+  it("Beträge in der Währung der Rechnung, Umsatzsteuer zusätzlich in Euro, kein GiroCode", () => {
+    const data = pdfData({
+      ...sampleDocument({ lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }] }),
+      currency: "USD",
+      euroTax: { tax: 1757, taxes: [{ rate: 1900, tax: 1757 }], rate: "1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)" },
+    });
+    expect(data.totals.gross.value).toBe("119,00 USD");
+    expect(data.totals.euroTax).toEqual({
+      label: "Umsatzsteuer in Euro, 1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)",
+      rows: [{ label: "Umsatzsteuer 19 %", value: "17,57 €" }],
+    });
+    expect(data.qr).toBeNull();
+  });
+});

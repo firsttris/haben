@@ -139,6 +139,20 @@ Mehr unter [Rechnungen › Mahnwesen](rechnungen.md#mahnwesen).
 
 Unter **Privatanteil Telefon in %** und **Privatanteil Internet in %** legst du fest, welcher Anteil dieser Rechnungen privat ist, z. B. 20 %. Neue Belege der Kategorien übernehmen den Wert; am einzelnen Beleg lässt er sich ändern. Mehr unter [Belege](belege.md#privatanteil).
 
+## Fremdwährung
+
+Rechnest du Belege oder Rechnungen in US-Dollar, Pfund oder einer anderen Währung ab, braucht Haben die Umsatzsteuer-Umrechnungskurse (§ 16 Abs. 6 UStG). Das Bundesministerium der Finanzen veröffentlicht sie monatlich im Datenportal als CSV (Datenlizenz Deutschland – Namensnennung 2.0). Haben ruft sie von selbst ab, sobald du Fremdwährung nutzt: höchstens einmal am Tag und nur, solange die Kurse des Vormonats fehlen. Belege und Rechnungsentwürfe, die auf einen Kurs warten, rechnet es danach um.
+
+Unter **Einstellungen → Fremdwährung** siehst du die gespeicherten Kurse und kannst
+
+- die Kurse sofort abrufen (**Kurse jetzt abrufen**),
+- die CSV-Datei des BMF selbst hochladen, wenn der Server das Internet nicht erreicht,
+- einen Kurs von Hand eintragen, etwa vorläufig für einen Monat, den das BMF noch nicht veröffentlicht hat. Veröffentlicht das BMF den Monat, ersetzt der amtliche Kurs deinen.
+
+Jede Änderung eines Kurses steht im Audit-Log. Gebuchte Belege und festgeschriebene Rechnungen speichern ihren Kurs selbst und ändern sich nicht mehr.
+
+Hat dir das Finanzamt erlaubt, mit dem Tageskurs umzurechnen (§ 16 Abs. 6 Satz 3 UStG), schaltest du in den Firmendaten unter **Fremdwährung** den **Tageskurs** ein. An Beleg und Rechnung trägst du dann Kurs und Kursdatum ein.
+
 ## Wann sich die Einstellungen ändern lassen
 
 Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Geschäftsjahr. Haben sperrt deshalb die Umstellung, sobald es im laufenden Kalenderjahr eine Buchung gibt. Das Auswahlfeld ist dann ausgegraut, und darunter steht der Grund. Auch der Server lehnt eine solche Änderung ab, für jeden Zugang, und die Datenbank prüft den Kern der Regel (im laufenden Jahr gebucht) noch einmal selbst.

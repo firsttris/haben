@@ -197,6 +197,9 @@ function euerFigures(euer: EuerResult): EuerFigures {
         restbuchwert: "restbuchwert",
         vorsteuer: "vorsteuer",
         gezahlteUst: "gezahlteUst",
+        // Kursgewinne sind nicht steuerbare Einnahmen, Kursverluste übrige Ausgaben
+        kursgewinne: "steuerfrei",
+        kursverluste: "uebrige",
       } as const
     )[line.key as Exclude<EuerResult["einnahmen"][number]["key"], `ausgabe:${string}` | `pauschale:${string}`>];
     add(key, line.amount);
