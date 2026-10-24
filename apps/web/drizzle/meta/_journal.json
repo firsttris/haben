@@ -554,6 +554,13 @@
       "when": 1792855969847,
       "tag": "0078_angebot_abschlag",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1792860271955,
+      "tag": "0079_mailvorlagen",
+      "breakpoints": true
     }
   ]
 }

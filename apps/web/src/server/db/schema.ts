@@ -32,6 +32,7 @@ import {
   type AssetKind,
   type AssetMethod,
   type CarPrivateUse,
+  type MailTemplates,
 } from "@haben/core";
 
 export * from "./auth-schema.ts";
@@ -402,11 +403,11 @@ export const mailSettings = pgTable(
     remindersEnabled: boolean("reminders_enabled").notNull().default(true),
     /** Erinnern so viele Tage vor einer Frist, 0 = am Tag selbst */
     reminderDays: smallint("reminder_days").array().notNull().default(sql`'{7,1}'::smallint[]`),
-    /** Vorlagen für Rechnungen und Mahnungen; leer = Standardtext. Platzhalter wie {nummer}, {betrag} */
-    invoiceSubject: text("invoice_subject").notNull().default(""),
-    invoiceBody: text("invoice_body").notNull().default(""),
-    dunningSubject: text("dunning_subject").notNull().default(""),
-    dunningBody: text("dunning_body").notNull().default(""),
+    /**
+     * Vorlagen für Rechnungen, Angebote und Mahnungen je Art und Sprache („abschlag:en“ → Betreff und Text); fehlt eine,
+     * gilt die allgemeine der Gruppe, sonst der Standardtext (MAIL_TEMPLATE_KINDS in @haben/core)
+     */
+    templates: jsonb("templates").$type<MailTemplates>().notNull().default({}),
     /** Kopf der Kette im Audit-Log wöchentlich an reminder_to, damit er außerhalb des Servers liegt */
     pruefwertMail: boolean("pruefwert_mail").notNull().default(true),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

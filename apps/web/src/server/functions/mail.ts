@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { deleteMailSettings, lastMails, mailSettingsSchema, mailSettingsSummary, saveMailSettings, sendTestMail, SMTP_PRESETS } from "../modules/mail/index.ts";
-import { DEFAULT_DUNNING_BODY, DEFAULT_DUNNING_SUBJECT, DEFAULT_INVOICE_BODY, DEFAULT_INVOICE_SUBJECT } from "../modules/rechnungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getMailSettings = createServerFn({ method: "GET" })
@@ -9,7 +8,6 @@ export const getMailSettings = createServerFn({ method: "GET" })
     settings: await mailSettingsSummary(),
     presets: SMTP_PRESETS,
     last: await lastMails(),
-    defaults: { invoiceSubject: DEFAULT_INVOICE_SUBJECT, invoiceBody: DEFAULT_INVOICE_BODY, dunningSubject: DEFAULT_DUNNING_SUBJECT, dunningBody: DEFAULT_DUNNING_BODY },
   }));
 
 export const saveMail = createServerFn({ method: "POST" })

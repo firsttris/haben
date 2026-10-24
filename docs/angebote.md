@@ -31,7 +31,7 @@ Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Fü
 
 **Angebot senden** schickt das PDF über deinen [E-Mail-Zugang](einrichtung.md):
 
-- Empfänger, Betreff und Text sind vorbelegt und lassen sich ändern.
+- Empfänger, Betreff und Text sind vorbelegt und lassen sich ändern. Betreff und Text kommen aus der Vorlage Angebot (siehe [Vorlagen](rechnungen.md#per-e-mail-versenden)).
 - Auf Wunsch geht eine Blindkopie an dich.
 - Jeder Versand steht beim Angebot und in der Liste (✉).
 
