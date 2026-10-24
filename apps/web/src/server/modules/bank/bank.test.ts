@@ -175,14 +175,57 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await bank.allocate(actor, { kind: "privat", transactionId: await id(-30_000), amount: -30_000 });
     await bank.allocate(actor, { kind: "privat", transactionId: await id(-31_000), amount: -31_000 });
     const learned = await bank.learnedDirectSuggestions(
-      (await sql`select id, counterparty_iban, counterparty_name from bank_transactions where amount in (-6000, -32000)`).map((r) => ({
+      (await sql`select id, amount, counterparty_iban, counterparty_name from bank_transactions where amount in (-6000, -32000)`).map((r) => ({
         id: r.id as string,
+        amount: r.amount as number,
         counterpartyIban: r.counterparty_iban as string | null,
         counterpartyName: r.counterparty_name as string,
       })),
     );
     expect([...learned.entries()]).toEqual([[await id(-6_000), { kind: "privat", reasons: ["2 von 2 Umsätzen von dieser Gegenpartei so gebucht"] }]]);
     expect((await bank.transactionDetail(await id(-32_000)))?.direct).toBeNull();
+  }, 30_000);
+
+  it("Gelernte Buchungsart nur in derselben Richtung: Gebühren von Stripe sind keine Vorlage für dessen Auszahlung", async () => {
+    const id = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
+    const STRIPE = "IE29AIBK93115212345678";
+    await bank.importStatement(actor, { bytes: dkbCsv([
+      outgoing("01.08.26", "Stripe Technology Europe", STRIPE, "Stripe fees 07/2026", "-19,00"),
+      outgoing("01.09.26", "Stripe Technology Europe", STRIPE, "Stripe fees 08/2026", "-21,00"),
+      incoming("05.09.26", "Stripe Technology Europe", STRIPE, "Payout po_123", "500,00"),
+    ]), filename: "a.csv" }, null);
+    await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-1900), amount: -1900 });
+    await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-2100), amount: -2100 });
+    expect((await bank.transactionDetail(await id(50_000)))?.direct).toBeNull();
+  }, 30_000);
+
+  it("Gelernte Buchungsart nur in derselben Richtung: Mahnerlöse sind keine Vorlage für eine Erstattung an den Kunden", async () => {
+    const id = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
+    const KUNDE = "DE02100100100006820101";
+    await bank.importStatement(actor, { bytes: dkbCsv([
+      incoming("01.08.26", "Kunde B GmbH", KUNDE, "Mahngebuehr RE 2026-001", "5,00"),
+      incoming("01.09.26", "Kunde B GmbH", KUNDE, "Mahngebuehr RE 2026-002", "7,50"),
+      outgoing("05.09.26", "Kunde B GmbH", KUNDE, "Erstattung Gutschrift GS-1", "-119,00"),
+    ]), filename: "a.csv" }, null);
+    await bank.allocate(actor, { kind: "mahnerloes", transactionId: await id(500), amount: 500 });
+    await bank.allocate(actor, { kind: "mahnerloes", transactionId: await id(750), amount: 750 });
+    expect((await bank.transactionDetail(await id(-11_900)))?.direct).toBeNull();
+  }, 30_000);
+
+  it("Gelernte Buchungsart: ein aufgeteilter Umsatz zählt einmal", async () => {
+    const id = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
+    const DKB = "DE88120300000000000001";
+    await bank.importStatement(actor, { bytes: dkbCsv([
+      outgoing("01.07.26", "DKB AG", DKB, "Kontoführung 06/2026", "-10,00"),
+      outgoing("01.08.26", "DKB AG", DKB, "Kontoführung 07/2026", "-5,00"),
+      outgoing("01.09.26", "DKB AG", DKB, "Kontoführung 08/2026", "-5,10"),
+      outgoing("01.10.26", "DKB AG", DKB, "Kontoführung 09/2026", "-5,20"),
+    ]), filename: "a.csv" }, null);
+    await bank.allocateSplit(actor, { transactionId: await id(-1000), parts: [{ kind: "gebuehren", amount: -500 }, { kind: "privat", amount: -500 }] });
+    await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-500), amount: -500 });
+    await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-510), amount: -510 });
+    // Drei frühere Umsätze mit dieser IBAN, alle (teils) Gebühren
+    expect((await bank.transactionDetail(await id(-520)))?.direct?.reasons).toEqual(["3 von 3 Umsätzen mit dieser Gegen-IBAN so gebucht"]);
   }, 30_000);
 
   it("Zweck der Konten: Geldtransit aufs Steuerkonto mit Gegenbuchung, Finanzamt-Lastschrift als Umsatzsteuer", async () => {

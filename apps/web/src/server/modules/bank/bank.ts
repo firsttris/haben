@@ -566,23 +566,37 @@ export async function vatPaidAfter(after: string): Promise<number> {
   return Number(row?.paid ?? 0);
 }
 
-type History = Map<string, { value: string; count: number; last: string }[]>;
+type History = Map<string, { kinds: { value: string; count: number; last: string }[]; total: number }>;
 
-/** Frühere Zuordnungen je Gegenpartei und Art, ohne aufgehobene; key ist die normalisierte IBAN bzw. der Name */
+/**
+ * Frühere Zuordnungen je Gegenpartei, Richtung und Art, ohne aufgehobene. Schlüssel ist „IBAN bzw. Name|Vorzeichen“
+ * (siehe historyKey); total zählt die Umsätze, nicht die Zuordnungen, damit ein aufgeteilter Umsatz einmal zählt.
+ */
 async function allocationHistory(by: "iban" | "name", keys: string[]): Promise<History> {
   const result: History = new Map();
   if (keys.length === 0) return result;
   const key = by === "iban" ? sql`upper(replace(t.counterparty_iban, ' ', ''))` : sql`lower(btrim(t.counterparty_name))`;
-  const rows = await db.execute<{ key: string; kind: string; count: string; last: string }>(sql`
-    select ${key} as key, a.kind, count(distinct t.id) as count, max(t.booking_date)::text as last
-      from allocations a join bank_transactions t on t.id = a.transaction_id
-     where a.reverses_id is null
-       and not exists (select 1 from allocations r where r.reverses_id = a.id)
-       and ${key} in ${keys}
-     group by 1, 2`);
-  for (const r of rows) result.set(r.key, [...(result.get(r.key) ?? []), { value: r.kind, count: Number(r.count), last: r.last }]);
+  const rows = await db.execute<{ key: string; kind: string; count: string; last: string; total: string }>(sql`
+    with h as (
+      select ${key} || '|' || sign(t.amount)::int as key, a.kind, t.id, t.booking_date
+        from allocations a join bank_transactions t on t.id = a.transaction_id
+       where a.reverses_id is null
+         and not exists (select 1 from allocations r where r.reverses_id = a.id)
+         and ${key} in ${keys}
+    )
+    select key, kind, count(distinct id) as count, max(booking_date)::text as last,
+           (select count(distinct h2.id) from h h2 where h2.key = h.key) as total
+      from h group by key, kind`);
+  for (const r of rows) {
+    const entry = result.get(r.key) ?? { kinds: [], total: Number(r.total) };
+    entry.kinds.push({ value: r.kind, count: Number(r.count), last: r.last });
+    result.set(r.key, entry);
+  }
   return result;
 }
+
+/** Schlüssel der Historie: Gegenpartei und Richtung (1 Eingang, -1 Abbuchung) */
+const historyKey = (key: string | null, amount: number) => (key ? `${key}|${Math.sign(amount)}` : "");
 
 const ibanKey = (iban: string | null) => iban?.replace(/\s/g, "").toUpperCase() || null;
 const nameKey = (name: string) => name.trim().toLowerCase() || null;
@@ -593,17 +607,20 @@ const nameKey = (name: string) => name.trim().toLowerCase() || null;
  * Umsatzliste nicht je Zeile fragt.
  */
 export async function learnedDirectSuggestions(
-  txs: { id: string; counterpartyIban: string | null; counterpartyName: string }[],
+  txs: { id: string; amount: number; counterpartyIban: string | null; counterpartyName: string }[],
 ): Promise<Map<string, DirectSuggestion>> {
   const result = new Map<string, DirectSuggestion>();
   const byIban = await allocationHistory("iban", [...new Set(txs.flatMap((t) => ibanKey(t.counterpartyIban) ?? []))]);
-  const rest = txs.filter((t) => !byIban.has(ibanKey(t.counterpartyIban) ?? ""));
+  const rest = txs.filter((t) => !byIban.has(historyKey(ibanKey(t.counterpartyIban), t.amount)));
   const byName = await allocationHistory("name", [...new Set(rest.flatMap((t) => nameKey(t.counterpartyName) ?? []))]);
   for (const t of txs) {
-    const iban = byIban.get(ibanKey(t.counterpartyIban) ?? "");
+    const iban = byIban.get(historyKey(ibanKey(t.counterpartyIban), t.amount));
+    const name = byName.get(historyKey(nameKey(t.counterpartyName), t.amount));
     const suggestion = iban
-      ? learnedDirectBooking(t, iban, "iban")
-      : learnedDirectBooking(t, byName.get(nameKey(t.counterpartyName) ?? "") ?? [], "name");
+      ? learnedDirectBooking(t, iban.kinds, iban.total, "iban")
+      : name
+        ? learnedDirectBooking(t, name.kinds, name.total, "name")
+        : null;
     if (suggestion) result.set(t.id, suggestion);
   }
   return result;

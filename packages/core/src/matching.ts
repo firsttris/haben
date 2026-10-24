@@ -270,28 +270,36 @@ export function findTransferCounterpart<
  * Häufigster Wert mit Anzahl, bei Gleichstand der zuletzt verwendete. Für Vorschläge aus früheren Buchungen: die Kategorie
  * eines Lieferanten, die Buchungsart einer Gegenpartei. `last` ist ein sortierbarer Zeitstempel (ISO).
  */
-export function mostFrequent<T>(rows: { value: T; count: number; last: string }[]): { value: T; count: number; total: number } | null {
+export function mostFrequent<T>(
+  rows: { value: T; count: number; last: string }[],
+  /** Zahl der Fälle, wenn ein Fall mehrere Werte haben kann (aufgeteilter Umsatz); sonst die Summe der Anzahlen */
+  total = rows.reduce((s, r) => s + r.count, 0),
+): { value: T; count: number; total: number } | null {
   const best = [...rows].sort((a, b) => b.count - a.count || b.last.localeCompare(a.last))[0];
-  return best ? { value: best.value, count: best.count, total: rows.reduce((s, r) => s + r.count, 0) } : null;
+  return best ? { value: best.value, count: best.count, total } : null;
 }
 
 /** Arten ohne Rechnung, die Haben aus früheren Buchungen vorschlägt */
 const LEARNED_KINDS = new Set(["privat", "gebuehren", "mahnerloes"]);
 
 /**
- * Buchungsart ohne Rechnung aus früheren Zuordnungen derselben Gegenpartei (gleiche Gegen-IBAN, sonst gleicher Name).
- * `history` zählt je Art (invoice, document, privat, gebuehren …) die früheren Umsätze. Vorgeschlagen wird nur, wenn die
- * häufigste Art mindestens zweimal vorkam und mehr als die Hälfte ausmacht. Nicht gelernt werden:
+ * Buchungsart ohne Rechnung aus früheren Zuordnungen derselben Gegenpartei (gleiche Gegen-IBAN, sonst gleicher Name) in
+ * derselben Richtung: Abbuchungen lernen nur aus Abbuchungen, Eingänge nur aus Eingängen (die Gebühr von Stripe ist keine
+ * Vorlage für dessen Auszahlung). `history` zählt je Art (invoice, document, privat, gebuehren …) die früheren Umsätze,
+ * `total` die Umsätze insgesamt (ein aufgeteilter Umsatz zählt bei jeder seiner Arten, aber nur einmal insgesamt).
+ * Vorgeschlagen wird nur, wenn die häufigste Art mindestens zweimal vorkam und mehr als die Hälfte der Umsätze ausmacht.
+ * Nicht gelernt werden:
  * - Geldtransit: braucht die Gegenbuchung, die die Regeln zu eigenen Konten finden
  * - Umsatzsteuer und alles mit dem Finanzamt: über dieselbe IBAN laufen Umsatzsteuer und private Steuern
  */
 export function learnedDirectBooking(
   tx: Pick<MatchTransaction, "counterpartyName">,
   history: { value: string; count: number; last: string }[],
+  total: number,
   basis: "iban" | "name",
 ): DirectSuggestion | null {
   if (TAX_OFFICE.test(tx.counterpartyName)) return null;
-  const top = mostFrequent(history);
+  const top = mostFrequent(history, total);
   if (!top || !LEARNED_KINDS.has(top.value) || top.count < 2 || top.count * 2 <= top.total) return null;
   const from = basis === "iban" ? "mit dieser Gegen-IBAN" : "von dieser Gegenpartei";
   return { kind: top.value as DirectSuggestion["kind"], reasons: [`${top.count} von ${top.total} Umsätzen ${from} so gebucht`] };
