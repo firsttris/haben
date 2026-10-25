@@ -50,7 +50,7 @@ Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der j
 Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder Podman
 auf deinem eigenen Server betreibst.
 
-Made in Germany
+**🇩🇪 Made in Germany**
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
 - **GoBD-konform von Anfang an**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
@@ -93,7 +93,8 @@ Made in Germany
 
 ## 🚀 Schnellstart
 
-Haben läuft als drei Container: die App (`tristanteu/haben`, amd64 und arm64), PostgreSQL und Caddy für HTTPS.
+Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), PostgreSQL, Caddy für HTTPS und ein
+tägliches Backup mit restic.
 Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
 denn Passkeys funktionieren nur über HTTPS.
 
@@ -151,8 +152,8 @@ pnpm db:migrate
 pnpm dev                                  # http://localhost:3000
 ```
 
-Ohne ERiC (unter Einstellungen per Knopf von der Finanzverwaltung geladen) simuliert Haben die ELSTER-Übermittlung und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` bleibt
-die KI-Auslesung aus.
+Ohne ERiC (unter Einstellungen per Knopf von der Finanzverwaltung geladen) simuliert Haben die ELSTER-Übermittlung
+und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` bleibt die KI-Auslesung aus.
 
 **Stack**: TanStack Start (React, Server Functions), PostgreSQL mit Drizzle, Better Auth mit Passkeys, Zod, Typst für
 die Rechnungs-PDFs, `@e-invoice-eu/core` für ZUGFeRD und XRechnung, ERiC über `koffi` in einem eigenen Prozess,
