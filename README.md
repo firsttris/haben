@@ -174,9 +174,7 @@ Fehler und Ideen gern als Issue. Besonders hilfreich sind anonymisierte Kontoaus
 kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte `pnpm lint`, `pnpm typecheck` und
 `pnpm test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](https://firsttris.github.io/haben/entwicklung.html)).
 
-Danke an [@ngres](https://github.com/ngres) für durchdachte Prompt Requests, aus denen der Artikelkatalog
-([#65](https://github.com/firsttris/haben/issues/65)), die Bruttopreise ([#76](https://github.com/firsttris/haben/issues/76))
-und die Manipulationserkennung im Audit-Log ([#78](https://github.com/firsttris/haben/issues/78)) entstanden sind.
+Danke an [@ngres](https://github.com/ngres) für durchdachte Prompt Requests.
 
 ---
 
