@@ -435,7 +435,7 @@ test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async
 test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation", async () => {
   await go("/");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
-  await expect(nav.getByRole("link", { name: /^Haben \d+\.\d+\.\d+$/ })).toBeVisible();
+  await expect(nav.getByRole("link", { name: /^Haben \d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/ })).toBeVisible();
   await nav.getByLabel("Theme").selectOption("tiefsee");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "tiefsee");
   await page.reload();
