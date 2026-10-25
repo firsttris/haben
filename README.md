@@ -43,13 +43,14 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Abo, ohne Datenabfluss.
 
 ## 💡 Warum Haben?
 
-In der Buchhaltung gibt es Soll und Haben. Ein Abo ist Soll: jeden Monat wieder fällig. **Haben ist, was dir gehört.**
+In der Buchhaltung gibt es Soll und Haben. Haben ist, was dir gehört.
 
-Rechnungen schreiben, Belege sammeln, Konto abgleichen, Voranmeldung schicken: Dafür musst du nicht jeden Monat
-an Lexware Office (früher lexoffice) oder sevDesk überweisen, und kein fremder Dienst muss jede Rechnung mitlesen.
-Haben ist die Open-Source-Alternative: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder
-Podman auf deinem eigenen Server betreibst. Einmal aufgesetzt, gehört sie dir, wie die Bohrmaschine im Keller.
-Made in Germany und so gründlich wie das Steuerrecht, für das sie gebaut ist.
+Rechnungen schreiben, Belege sammeln, Konto abgleichen, Voranmeldung schicken: Dafür braucht es kein Abo bei
+Lexware Office (früher lexoffice) oder sevDesk und keinen fremden Dienst, der jede Rechnung sieht. Haben ist die
+Open-Source-Alternative dazu: eine Web-App für Buchhaltung, Steuern und Rechnungen, die du mit Docker oder Podman
+auf deinem eigenen Server betreibst.
+
+Made in Germany
 
 - **Ein Weg vom Beleg bis zum Finanzamt**: festschreiben, Zahlung zuordnen, Voranmeldung prüfen und senden
 - **GoBD-konform von Anfang an**: Festschreibung per Postgres-Trigger, Audit-Log, Korrekturen nur über Storno
