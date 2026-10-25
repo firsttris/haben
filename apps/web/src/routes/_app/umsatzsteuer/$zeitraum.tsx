@@ -37,6 +37,8 @@ export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
   component: VatPeriodPage,
 });
 
+const ELSTER_ASSISTENT_DOCS = "https://firsttris.github.io/haben/elster-mit-assistent.html";
+
 type PageData = Awaited<ReturnType<typeof getVatPeriod>>;
 type FieldKey = "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67";
 const FIELDS: FieldKey[] = ["kz81", "kz86", "kz21", "kz45", "kz46", "kz47", "kz48", "kz66", "kz67", "kz84", "kz85"];
@@ -107,6 +109,18 @@ function VatPeriodPage() {
         <div className="banner banner-info" role="status">
           <Icon name="info" />
           <span>ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.</span>
+        </div>
+      )}
+      {!data.herstellerIdConfigured && data.current?.status !== "sent" && (
+        <div className="banner banner-info" role="status">
+          <Icon name="info" />
+          <span>
+            Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab. Das Eintragen der Kennzahlen kann ein KI-Assistent übernehmen, absenden
+            machst du selbst.{" "}
+            <a href={ELSTER_ASSISTENT_DOCS} target="_blank" rel="noreferrer">
+              In Mein ELSTER mit einem KI-Assistenten abgeben
+            </a>
+          </span>
         </div>
       )}
       {data.companyIssues.length > 0 && (
