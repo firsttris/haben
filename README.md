@@ -6,9 +6,9 @@
 
 **Die Buchhaltungssoftware für Freiberufler, Selbstständige und Kleinunternehmer, die du selbst betreibst.**<br>
 Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR und die Umsatzsteuer-Voranmeldung
-direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Abo, ohne Datenabfluss.
+direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
 
-[![Status: Beta](https://img.shields.io/badge/Status-Beta-orange)](#-warum-haben)
+![Status: Beta](https://img.shields.io/badge/Status-Beta-orange)
 [![CI](https://github.com/firsttris/haben/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/haben/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/firsttris/haben?logo=github&label=release)](https://github.com/firsttris/haben/releases/latest)
 [![Lizenz: AGPL-3.0](https://img.shields.io/badge/Lizenz-AGPL--3.0-blue)](LICENSE)
@@ -70,7 +70,7 @@ auf deinem eigenen Server betreibst.
 | 📤 [Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Kennzahlen aus den Buchungen (Ist oder Soll), Herkunft jeder Zahl, Vorprüfung, Übermittlung per ERiC, Berichtigung |
 | 📑 [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung; vorausgefüllte Belege von ELSTER abrufen |
 | 🏛️ [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen mit Steuerprognose |
-| ⏰ [Fristen](https://firsttris.github.io/haben/fristen.html) | Alle Steuertermine auf einer Seite, als Kalender-Abo und per E-Mail |
+| ⏰ [Fristen](https://firsttris.github.io/haben/fristen.html) | Alle Steuertermine auf einer Seite, als Kalender-Feed (iCal) und per E-Mail |
 | 🚗 [Pauschalen](https://firsttris.github.io/haben/pauschalen.html) · [Kasse](https://firsttris.github.io/haben/kasse.html) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Kassenbuch für Barzahlungen |
 | 🖥️ [Anlagen und AfA](https://firsttris.github.io/haben/anlagen.html) | Anlagenverzeichnis, lineare AfA, GWG und Sammelposten, AfA-Buchung zum Jahresende |
 | 📊 [Auswertungen](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
@@ -133,7 +133,7 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 | [Bankimport und Abgleich](https://firsttris.github.io/haben/bank.html) | PSD2, DKB, N26, CAMT.053, Vorschläge, Teilzahlungen |
 | [Umsatzsteuer-Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Kennzahlen, Vorprüfung, Übermittlung an ELSTER, Berichtigung |
 | [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung |
-| [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) · [Fristen](https://firsttris.github.io/haben/fristen.html) | ELSTER-Postfach, Vorauszahlungen, alle Steuertermine als Kalender-Abo |
+| [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) · [Fristen](https://firsttris.github.io/haben/fristen.html) | ELSTER-Postfach, Vorauszahlungen, alle Steuertermine als Kalender-Feed (iCal) |
 | [Auswertungen und Jahresexport](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
 | [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | API-Abruf, DATEV-Buchungsstapel, offene Posten, Abgleich vor der Kündigung |
 | [KI-Assistenten (MCP)](https://firsttris.github.io/haben/ki-assistenten.html) | Im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen |
