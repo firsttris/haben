@@ -38,7 +38,10 @@
   --danger-soft: #fbe4e4;
   --sans: "IBM Plex Sans", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
+  /* Einheitliche Höhe für Eingabefelder, Auswahllisten und Buttons; auf Touch-Geräten 44px als Tippfläche */
+  --control-h: 40px;
 }
+@media (pointer: coarse) { :root { --control-h: 44px; } }
 
 /* Themes: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald. */
 :root { color-scheme: light; }
@@ -114,7 +117,7 @@ h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .nav-foot-link { min-height: 36px; font-size: 13px; }
 button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .nav-theme { display: flex; flex-direction: column; gap: 4px; margin: 10px 12px 0; font-size: 12px; }
-.nav-theme select { min-height: 32px; padding: 0 8px; border: 1px solid var(--nav-active); border-radius: 6px; background: var(--nav-active); color: #fff; font: inherit; font-size: 13px; color-scheme: dark; }
+.nav-theme select { min-height: 32px; padding: 0 8px; border: 1px solid var(--nav-active); border-radius: 6px; background-color: var(--nav-active); color: #fff; font: inherit; font-size: 13px; color-scheme: dark; }
 .nav-theme select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .nav-version { margin: 8px 12px 0; color: inherit; font-size: 12px; opacity: 0.7; text-decoration: none; font-variant-numeric: tabular-nums; }
 .nav-version:hover { opacity: 1; color: #fff; }
@@ -160,13 +163,13 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .kpi-label { font-size: 13px; color: var(--muted); min-height: 2.6em; }
 .kpi-value { font-family: var(--mono); font-size: 24px; font-weight: 500; }
 
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: var(--control-h); padding: 0 18px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; }
 .btn:hover { color: var(--ink); border-color: var(--muted); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
 /* Nur für „+ Zeile hinzufügen“ */
 .btn-dashed { border-style: dashed; background: transparent; }
-.catalog-select { min-height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); max-width: 100%; min-width: 0; }
+.catalog-select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); max-width: 100%; min-width: 0; }
 /* Löschen, Entfernen, Stornieren, Widerrufen */
 .btn-danger { color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger-ink) 45%, var(--line-strong)); }
 .btn-danger:hover { color: var(--danger-ink); border-color: var(--danger-ink); background: var(--danger-soft); }
@@ -175,7 +178,7 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
-.field input, .field select { min-height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); }
+.field input, .field select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
 /* Lange Texte wachsen mit dem Inhalt, wo der Browser das kann */
 textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .field input:focus-visible, .field select:focus-visible, .btn:focus-visible, .nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -344,17 +347,15 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
   .doc-editor .card { padding: 14px 16px; gap: 8px; }
   .doc-editor .form-grid { gap: 10px 12px; }
   .doc-editor .field { gap: 4px; }
-  .doc-editor .field input, .doc-editor .field select { min-height: 36px; }
   .doc-editor .checkbox { min-height: 28px; }
   .doc-editor .icon-btn { width: 36px; height: 36px; }
-  .doc-editor .btn { min-height: 38px; }
   .doc-editor textarea { min-height: 56px; }
   .doc-editor .doc-actions { position: sticky; bottom: 0; z-index: 1; margin-top: auto; padding: 12px 0 2px; background: var(--ground); border-top: 1px solid var(--line); }
 }
 /* Position: Beschreibung über die volle Breite, darunter die Zahlen */
 .line-row { display: grid; grid-template-columns: minmax(52px, 0.7fr) minmax(72px, 0.9fr) minmax(0, 1.3fr) minmax(64px, 0.8fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line-soft); }
 .line-row > .line-desc { grid-column: 1 / -1; }
-.line-row input, .line-row select { min-height: 40px; padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background: var(--surface); width: 100%; min-width: 0; }
+.line-row input, .line-row select { min-height: var(--control-h); padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; }
 .line-row input.num { font-family: var(--mono); }
 .line-row input[aria-invalid="true"] { border-color: var(--danger-ink); }
 .line-net-label { display: none; }
@@ -394,7 +395,8 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .sheet-table { width: 100%; border-collapse: collapse; margin-top: calc(5 * var(--mm)); }
 .sheet-table th { text-align: left; font-weight: 500; font-size: calc(8 * 0.3528 * var(--mm)); color: var(--brand); border-bottom: 0.6pt solid var(--brand); padding: calc(2.2 * var(--mm)) calc(1.6 * var(--mm)); white-space: nowrap; }
 .sheet-table td { padding: calc(2.2 * var(--mm)) calc(1.6 * var(--mm)); border-bottom: 0.4pt solid var(--rule); vertical-align: top; }
-.sheet-table .num { text-align: right; white-space: nowrap; }
+.sheet-table .num { text-align: right; white-space: nowrap; font-family: inherit; }
+.sheet-table td.num { font-size: inherit; }
 .sheet-table .desc { width: 100%; overflow-wrap: anywhere; }
 .sheet-totals { align-self: flex-end; width: calc(80 * var(--mm)); margin: calc(3 * var(--mm)) 0 calc(8 * var(--mm)); display: grid; grid-template-columns: 1fr auto; gap: calc(2.2 * var(--mm)) 0; }
 .sheet-totals dt, .sheet-totals dd { margin: 0; padding: 0 calc(1.6 * var(--mm)); }
@@ -562,11 +564,11 @@ fieldset.card > legend + * { clear: both; }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
 
 /* Dateiauswahl: der Knopf sieht aus wie .btn, Text daneben senkrecht mittig */
-.file-picker { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 4px 6px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.file-picker { display: flex; align-items: center; gap: 12px; min-height: var(--control-h); padding: 4px 6px; border: 1px dashed var(--line-strong); border-radius: 8px; background: var(--surface); cursor: pointer; }
 .file-picker:hover .btn { border-color: var(--muted); }
 .file-picker input:focus-visible + .btn { outline: 2px solid var(--accent); outline-offset: 2px; }
 .file-picker-name { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.field input[type="file"] { display: flex; align-items: center; padding: 6px; min-height: 44px; font-size: 13px; color: var(--muted); }
+.field input[type="file"] { display: flex; align-items: center; padding: 6px; min-height: var(--control-h); font-size: 13px; color: var(--muted); }
 .field input[type="file"]::file-selector-button { min-height: 32px; margin-right: 12px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
 .field input[type="file"]::file-selector-button:hover { border-color: var(--muted); }
 
@@ -576,3 +578,9 @@ fieldset.card > legend + * { clear: both; }
   .grid-4 > .card { padding: 14px 16px; gap: 4px; }
   .grid-4 .kpi-value { font-size: 20px; }
 }
+
+/* Am Dateiende, damit Padding und Hintergrund der Feld-Regeln oben den Pfeil nicht überschreiben. Eigener Pfeil statt des nativen: sitzt mit Abstand zum Rand und folgt der Textfarbe des Themes */
+select:not([multiple], [size]) { appearance: none; padding-right: 36px; background-image: var(--select-arrow); background-position: right 14px center; background-size: 12px 8px; background-repeat: no-repeat; text-overflow: ellipsis; }
+.nav-theme select:not([multiple], [size]) { padding-right: 30px; background-image: var(--select-arrow-dark); background-position: right 10px center; }
+:root { --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2356625c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); --select-arrow-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23b9c4be' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+[data-theme="nacht"], [data-theme="tiefsee"] { --select-arrow: var(--select-arrow-dark); }
