@@ -127,7 +127,7 @@ export async function startSevdeskImport(actor: string, options: { wait?: boolea
   const controller = new AbortController();
   running.set(id, controller);
   const client = clientFactory({ apiKey: key, signal: controller.signal });
-  const job = runImport(actor, id, client, progress)
+  const job = runImport(actor, id, client, progress, controller.signal)
     .then(() => finish(id, progress, "fertig", null))
     .catch((error: unknown) =>
       finish(id, progress, controller.signal.aborted ? "abgebrochen" : "fehler", controller.signal.aborted ? "Abgebrochen." : progressMessage(error)),
@@ -151,7 +151,7 @@ type Listed =
   | { kind: "creditnote"; id: string; number: string; raw: SevCreditNote }
   | { kind: "voucher"; id: string; number: string; raw: SevVoucher };
 
-async function runImport(actor: string, importId: string, client: SevdeskClient, progress: LexofficeImportProgress) {
+async function runImport(actor: string, importId: string, client: SevdeskClient, progress: LexofficeImportProgress, signal: AbortSignal) {
   let lastSave = 0;
   const save = async (force = false) => {
     if (!force && Date.now() - lastSave < 1000) return;
@@ -238,7 +238,8 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     } catch (error) {
       // Token ungültig oder abgebrochen: weitermachen ist sinnlos
       if (error instanceof SevdeskApiError && (error.status === 401 || error.status === 403)) throw error;
-      if (error instanceof Error && error.name === "AbortError") throw error;
+      // Abgebrochen: der Client meldet das als eigenen Fehler, nicht als AbortError
+      if (signal.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
       progress.failed.push({ lexofficeId: externalId, number: item.number, message: progressMessage(error) });
     }
     await save();

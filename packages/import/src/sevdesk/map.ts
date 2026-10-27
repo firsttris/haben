@@ -107,7 +107,7 @@ type Bucket = { rate: number; net: number; tax: number };
 
 /**
  * Netto und Steuer je Steuersatz aus den Positionen. Maßgeblich sind die Summen des Belegs:
- * Rundungsdifferenzen zwischen Positionen und Kopf landen beim größten Satz.
+ * Rundungsdifferenzen zwischen Positionen und Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer.
  */
 function taxesFromPositions(
   positions: { taxRate?: string | number | null; net: number; tax: number }[],
@@ -127,9 +127,11 @@ function taxesFromPositions(
     if (net === 0 && tax === 0 && buckets.length === 0) return [];
     return [{ rate: buckets[0]?.rate ?? 0, net, tax }];
   }
-  const largest = buckets.reduce((a, b) => (Math.abs(b.net) > Math.abs(a.net) ? b : a));
-  largest.net += net - buckets.reduce((s, b) => s + b.net, 0);
-  largest.tax += tax - buckets.reduce((s, b) => s + b.tax, 0);
+  const largestOf = (list: Bucket[]) => list.reduce((a, b) => (Math.abs(b.net) > Math.abs(a.net) ? b : a));
+  largestOf(buckets).net += net - buckets.reduce((s, b) => s + b.net, 0);
+  // Steuerdifferenzen nur auf einen Satz mit Steuer, sonst stünde beim 0-%-Satz Steuer
+  const taxed = buckets.filter((b) => b.rate !== 0);
+  largestOf(taxed.length > 0 ? taxed : buckets).tax += tax - buckets.reduce((s, b) => s + b.tax, 0);
   return buckets;
 }
 

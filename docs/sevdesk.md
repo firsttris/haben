@@ -38,7 +38,7 @@ Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine R
 | Beleg „Einnahme“ (C) | Einnahmebeleg, bei negativer Summe Einnahme-Gutschrift |
 | Beleg „Ausgabe“ (D) | Ausgabebeleg, bei negativer Summe Ausgabe-Gutschrift |
 
-Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
+Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
 
 ### Zahlungen
 
