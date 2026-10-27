@@ -17,7 +17,7 @@ import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
-import type { LexofficeImportProgress } from "../../db/schema.ts";
+import type { LegacyPayment, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, sniff, storeFile } from "../../storage.ts";
 
 export class LexofficeError extends UserError {}
@@ -426,6 +426,32 @@ export async function legacyVoucherFile(fileId: string) {
 /** Zahlungsarten, die Geld bewegen; Skonto, Mahnkosten, Kursdifferenz und Forderungsausfall zählen nicht als Entgelt */
 const PAYMENT_ITEM_TYPES = new Set(["partPaymentFinancialTransaction", "partPaymentCashBox", "manualPayment", "partPaymentCreditNote"]);
 
+/** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze) */
+function legacyPayments(v: { gross: number; payment: LegacyPayment | null }) {
+  return (v.payment?.items ?? [])
+    .filter((p) => PAYMENT_ITEM_TYPES.has(p.type) && p.date)
+    .map((p) => ({ date: p.date, amount: Math.sign(v.gross) * Math.abs(p.amount) }));
+}
+
+/**
+ * Steuerart aus der gespeicherten API-Antwort, in den Werten von Lexoffice. Lexoffice: Rechnungsmodul unter taxConditions,
+ * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
+ * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt.
+ */
+function taxTypeOf(t: string) {
+  return sql.raw(`case when ${t}.source = 'sevdesk' then
+      case coalesce(${t}.raw->'taxRule'->>'id', '')
+        when '1' then 'net' when '2' then 'thirdPartyCountryDelivery' when '3' then 'intraCommunitySupply'
+        when '4' then 'vatfree' when '11' then 'vatfree'
+        when '' then case coalesce(${t}.raw->>'taxType', 'default')
+          when 'default' then 'net' when 'eu' then 'intraCommunitySupply' when 'ss' then 'vatfree'
+          else 'sevdesk:' || (${t}.raw->>'taxType') end
+        else 'sevdesk:taxRule' || (${t}.raw->'taxRule'->>'id') end
+    else coalesce(${t}.raw->'taxConditions'->>'taxType', ${t}.raw->>'taxType') end`);
+}
+const TAX_TYPE = sql<string | null>`${taxTypeOf("lexoffice_vouchers")}`;
+const TAX_SUB_TYPE = sql<string | null>`lexoffice_vouchers.raw->'taxConditions'->>'taxSubType'`;
+
 export type ReconciliationCheck = { ok: boolean; label: string; detail: string };
 
 /** Abgleich je Geschäftsjahr: Was liegt vor, was fehlt noch vor der Kündigung? */
@@ -445,6 +471,8 @@ export async function reconciliation() {
       gross: schema.lexofficeVouchers.gross,
       taxes: schema.lexofficeVouchers.taxes,
       payment: schema.lexofficeVouchers.payment,
+      taxType: TAX_TYPE,
+      taxSubType: TAX_SUB_TYPE,
       // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
       files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
     })
@@ -495,13 +523,19 @@ export async function reconciliation() {
             tax: v.tax,
             gross: v.gross,
             taxes: v.taxes,
-            payments: (v.payment?.items ?? [])
-              .filter((p) => PAYMENT_ITEM_TYPES.has(p.type) && p.date)
-              // Vorzeichen wie der Beleg, damit Gutschriften die Umsätze mindern
-              .map((p) => ({ date: p.date, amount: Math.sign(v.gross) * Math.abs(p.amount) })),
+            payments: legacyPayments(v),
+            taxType: v.taxType,
+            taxSubType: v.taxSubType,
           })),
         versteuerung,
       ).filter((m) => m.month.startsWith(`${year}-`));
+      // Einnahmen je Steuerart, damit Sonderfälle (EU, Drittland, § 13b) beim Vergleich auffallen
+      const taxTypes = new Map<string, number>();
+      for (const v of vouchers) {
+        if (v.direction !== "einnahme") continue;
+        const key = [v.taxType ?? "net", v.taxSubType].filter(Boolean).join("/");
+        taxTypes.set(key, (taxTypes.get(key) ?? 0) + 1);
+      }
       const invoices = vouchers
         .filter((v) => v.type === "invoice" && v.number)
         .sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number, "de", { numeric: true }));
@@ -555,10 +589,131 @@ export async function reconciliation() {
         unchecked,
         bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.without_number } : null,
         vat,
+        taxTypes: [...taxTypes].map(([taxType, count]) => ({ taxType, count })).sort((a, b) => b.count - a.count),
         lastInvoiceNumber: invoices.at(-1)?.number ?? null,
         checks,
         ready: checks.every((c) => c.ok),
       };
     });
   return { versteuerung, years: result, lastImport };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Für KI-Assistenten: Belege eines Zeitraums mit allem, was in die Nachrechnung der Umsatzsteuer eingeht
+
+export interface LegacyVoucherForVat {
+  id: string;
+  type: string;
+  direction: "einnahme" | "ausgabe";
+  number: string;
+  date: string;
+  status: string;
+  contactName: string;
+  currency: string;
+  net: number;
+  tax: number;
+  gross: number;
+  taxes: LegacyTaxRow[];
+  taxType: string | null;
+  taxSubType: string | null;
+  /** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen */
+  payments: { date: string; amount: number }[];
+  files: number;
+}
+
+/**
+ * Belege mit Belegdatum im Zeitraum (JJJJ oder JJJJ-MM). Mit `withPayments` auch Einnahmen, die in diesem
+ * Zeitraum bezahlt wurden: Das sind bei Ist-Versteuerung die Belege, aus denen die Monatswerte stammen.
+ */
+export async function legacyVouchersForPeriod(filter: {
+  period: string;
+  direction: "alle" | "einnahme" | "ausgabe";
+  search: string;
+  withPayments: boolean;
+  limit: number;
+}): Promise<{ total: number; vouchers: LegacyVoucherForVat[] }> {
+  const like = `${filter.period}%`;
+  const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
+  const rows = await db.execute<{
+    id: string;
+    type: string;
+    direction: "einnahme" | "ausgabe";
+    number: string;
+    date: string;
+    status: string;
+    contact_name: string;
+    currency: string;
+    net: number;
+    tax: number;
+    gross: number;
+    taxes: LegacyTaxRow[];
+    payment: LegacyPayment | null;
+    tax_type: string | null;
+    tax_sub_type: string | null;
+    files: number;
+  }>(sql`
+    select v.id, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.currency, v.net, v.tax, v.gross,
+      v.taxes, v.payment,
+      ${taxTypeOf("v")} as tax_type,
+      v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
+      (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
+    from lexoffice_vouchers v
+    where (v.date::text like ${like}
+      ${
+        filter.withPayments
+          ? sql`or (v.direction = 'einnahme' and exists (
+              select 1 from jsonb_array_elements(coalesce(v.payment->'items', '[]'::jsonb)) i
+              where i->>'date' like ${like} and i->>'type' in (${sql.join([...PAYMENT_ITEM_TYPES].map((t) => sql`${t}`), sql`, `)})))`
+          : sql``
+      })
+      ${filter.direction === "alle" ? sql`` : sql`and v.direction = ${filter.direction}`}
+      ${term ? sql`and (v.number ilike ${term} or v.contact_name ilike ${term} or v.remark ilike ${term})` : sql``}
+    order by v.date, v.number`);
+  const all = [...rows].map((r) => ({
+    id: r.id,
+    type: r.type,
+    direction: r.direction,
+    number: r.number,
+    date: r.date,
+    status: r.status,
+    contactName: r.contact_name,
+    currency: r.currency,
+    net: Number(r.net),
+    tax: Number(r.tax),
+    gross: Number(r.gross),
+    taxes: r.taxes,
+    taxType: r.tax_type,
+    taxSubType: r.tax_sub_type,
+    payments: legacyPayments({ gross: Number(r.gross), payment: r.payment }),
+    files: Number(r.files),
+  }));
+  return { total: all.length, vouchers: all.slice(0, filter.limit) };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Ein Beleg mit der gespeicherten API-Antwort, gesucht nach ID in Haben, ID in Lexoffice bzw. sevDesk oder Belegnummer
+ * (Leerzeichen und Groß-/Kleinschreibung egal). Bei einer Nummer können es mehrere sein.
+ */
+export async function findLegacyVouchers(ref: string) {
+  const value = ref.trim();
+  if (!value) return [];
+  const rows = await db
+    .select({ id: schema.lexofficeVouchers.id, raw: schema.lexofficeVouchers.raw })
+    .from(schema.lexofficeVouchers)
+    .where(
+      UUID.test(value)
+        ? sql`${schema.lexofficeVouchers.id} = ${value}::uuid or ${schema.lexofficeVouchers.lexofficeId} = ${value}`
+        : // sevDesk-Kennungen wie "invoice/101" sind keine UUID
+          sql`${schema.lexofficeVouchers.lexofficeId} = ${value}
+            or lower(regexp_replace(${schema.lexofficeVouchers.number}, '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g'))`,
+    )
+    .limit(10);
+  const result = [];
+  for (const row of rows) {
+    const detail = await legacyVoucherDetail(row.id);
+    if (detail) result.push({ ...detail, raw: row.raw });
+  }
+  return result;
 }

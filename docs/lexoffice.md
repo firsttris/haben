@@ -122,6 +122,8 @@ Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewä
 - **Fehler:** Negative Umsätze, ein Soll/Haben-Kennzeichen außer S oder H, fehlende Konten oder ein unmögliches Datum führen zur Ablehnung der ganzen Datei mit Zeilennummer. Hinweise wie „Umsatz ist 0,00“ werden angezeigt, die Datei wird trotzdem übernommen.
 - **Überschneidung:** Ein Zeitraum darf nur einmal übernommen werden. Liegt eine schon eingelesene Buchung zwischen dem ersten und dem letzten Datum des neuen Stapels, lehnt Haben die Datei ab und nennt die vorhandene.
 
+Ein [KI-Assistent](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleichen) liest die Salden je Konto und Monat und die einzelnen Buchungen über die Werkzeuge `lexoffice_konten` und `lexoffice_buchungen`.
+
 Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, und darunter die Umsätze je Konto. Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
 
 ## Schritt 5: Abgleich je Jahr
@@ -149,11 +151,30 @@ Aufgeklappt zeigt jede Karte eine Tabelle je Monat, berechnet aus den abgerufene
 | Kz 81 | Bemessungsgrundlage (netto) der Umsätze zu 19 % |
 | Kz 86 | Bemessungsgrundlage (netto) der Umsätze zu 7 % |
 | Kz 66 | Vorsteuer aus Ausgabebelegen nach Belegdatum |
-| Andere Sätze | Umsätze zu 0 % und Altsätzen (16 %, 5 %), nur zur Information |
+| Kz 21, 41, 43, 45, 60, 87 | Sonderfälle nach der Steuerart der Rechnung in Lexware Office (siehe unten); die Spalte erscheint nur, wenn im Jahr etwas drinsteht |
+| Steuerfrei | Rechnungen mit Steuerart „steuerfrei“: Kz 48, wenn sie nach § 4 Nr. 8–28 UStG steuerfrei sind, bei Kleinunternehmern gar nicht gemeldet |
+| OSS | Fernverkäufe und elektronische Dienstleistungen ins EU-Ausland über das OSS-Verfahren; gehören nicht in die Voranmeldung |
+| Andere Sätze | Umsätze zu 0 % und Altsätzen (16 %, 5 %) sowie unbekannte Steuerarten, nur zur Information |
+
+Die Steuerart liest Haben aus der gespeicherten Antwort der API (`taxConditions.taxType`), auch für schon abgerufene Belege:
+
+| Steuerart in Lexware Office | Kennzahl |
+| --- | --- |
+| Netto, Brutto | Kz 81 (19 %), Kz 86 (7 %), sonst „Andere Sätze“ |
+| Innergemeinschaftliche Lieferung (`intraCommunitySupply`) | Kz 41 |
+| Fremdleistung § 13b EU (`externalService13b`) | Kz 21 |
+| Bauleistung § 13b (`constructionService13b`) | Kz 60 |
+| Dienstleistung Drittland (`thirdPartyCountryService`) | Kz 45 |
+| Ausfuhrlieferung Drittland (`thirdPartyCountryDelivery`) | Kz 43 |
+| Photovoltaik 0 % (`photovoltaicEquipment`) | Kz 87 |
+| Steuerfrei (`vatfree`) | Steuerfrei |
+| mit Unterart Fernverkauf oder elektronische Dienstleistung | OSS |
+
+Kz 21, 41 und 60 zählen auch bei Ist-Versteuerung im Monat des Belegdatums, die übrigen wie die regulären Umsätze. Die Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67) rechnet Haben nicht nach: Buchhaltungsbelege tragen in der API keine eigene Steuerart dafür.
 
 Bei Soll-Versteuerung zählen Einnahmen nach Belegdatum. Bei Ist-Versteuerung zählen sie anteilig nach Datum der einzelnen Zahlungen aus dem Zahlungsstatus; Skonto, Mahnkosten, Kursdifferenzen und Forderungsausfälle zählen dabei nicht. Gutschriften mindern die Umsätze.
 
-Lege die übermittelten Voranmeldungen (ELSTER-Protokolle) daneben und vergleiche Monat für Monat. Bemessungsgrundlagen meldet ELSTER in vollen Euro, kleine Abweichungen im Centbereich sind also normal. Größere Abweichungen entstehen, wenn in Lexware Office nachträglich etwas korrigiert, eine Voranmeldung von Hand angepasst oder eine Rechnung storniert wurde. Kläre sie vor der Kündigung.
+Lege die übermittelten Voranmeldungen (ELSTER-Protokolle) daneben und vergleiche Monat für Monat. Mit einem [KI-Assistenten](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleichen) geht das auch im Gespräch, bis auf den einzelnen Beleg. Bemessungsgrundlagen meldet ELSTER in vollen Euro, kleine Abweichungen im Centbereich sind also normal. Größere Abweichungen entstehen, wenn in Lexware Office nachträglich etwas korrigiert, eine Voranmeldung von Hand angepasst oder eine Rechnung storniert wurde. Kläre sie vor der Kündigung.
 
 ### Rechnungsnummern weiterzählen
 
@@ -176,6 +197,7 @@ Haben spricht standardmäßig mit `https://api.lexware.io/v1`. Mit der Umgebungs
 - Der Client ist noch nicht gegen ein echtes Lexware-Konto gelaufen (siehe Hinweis oben).
 - Buchungen kommen nur aus dem DATEV-Stapel und werden archiviert, nicht in das Journal von Haben übernommen. Kontensalden und Saldenvorträge musst du für den Jahreswechsel selbst bzw. mit deiner Steuerberatung festhalten.
 - Der Abgleich prüft Vollständigkeit und Nummern, keine Kontierung. Summen und Umsatzsteuer vergleichst du selbst mit Lexware Office.
+- Die Umsatzsteuer je Monat kennt keine Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67), keine Berichtigungen nach § 17 und keine von Hand geänderten Voranmeldungen.
 - Teilweise bezahlte Posten, Gutschriften, Fremdwährung und andere Steuersätze als 19, 7 und 0 % werden nicht als offene Posten übernommen.
 - Bei ungeprüften Belegen ohne Belegdatum nimmt Haben das Anlagedatum; solche Belege haben oft keine Beträge.
 

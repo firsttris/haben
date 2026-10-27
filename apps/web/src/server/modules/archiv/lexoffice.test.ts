@@ -194,6 +194,19 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
     expect(unmatched.rows.map((r) => r.voucherField1)).toEqual(["", "X-404"]);
     const totals = await archive.accountTotals(2023);
     expect(totals.find((t) => t.account === "1200")).toEqual({ account: "1200", debit: 117_250, credit: 12_970 + 5_000 + 8_000 });
+    // Je Monat: im Juli nur der Bürobedarf
+    expect(await archive.accountTotals(2023, 7)).toEqual([
+      { account: "1200", debit: 0, credit: 12_970 },
+      { account: "4930", debit: 12_970, credit: 0 },
+    ]);
+    expect(await archive.accountTotals(2023, 2)).toHaveLength(2);
+
+    const forAccount = await archive.datevBookingsForPeriod({ year: 2023, account: "1200", unmatched: false, limit: 2 });
+    expect(forAccount.total).toBe(4);
+    expect(forAccount.rows.map((r) => r.voucherField1)).toEqual(["RE1019", "2023-4711"]);
+    const withoutVoucher = await archive.datevBookingsForPeriod({ year: 2023, account: "", unmatched: true, limit: 50 });
+    expect(withoutVoucher.rows.map((r) => [r.voucherField1, r.matched])).toEqual([["X-404", false]]);
+    expect((await archive.datevBookingsForPeriod({ year: 2023, month: 8, account: "4900", unmatched: false, limit: 50 })).total).toBe(1);
   });
 
   it("zeigt den Abgleich je Jahr mit offenen Punkten", async () => {
@@ -209,6 +222,28 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
     expect(year.lastInvoiceNumber).toBe("RE1019");
     // Ist: Zahlungen der Rechnung im Februar und März 2023
     expect(year.vat.map((m) => m.month)).toEqual(["2023-02", "2023-03", "2023-07"]);
+    expect(year.taxTypes).toEqual([{ taxType: "net", count: 2 }]);
+  });
+
+  it("liefert die Belege eines Monats mit Steuerart und Zahlungen, bei Ist auch nach Zahlungsdatum", async () => {
+    const march = await lexoffice.legacyVouchersForPeriod({ period: "2023-03", direction: "alle", search: "", withPayments: true, limit: 50 });
+    expect(march.vouchers.map((v) => v.number)).toEqual(["RE1019"]);
+    expect(march.vouchers[0]).toMatchObject({ taxType: "net", taxSubType: null, payments: [{ date: "2023-02-28", amount: 100_000 }, { date: "2023-03-01", amount: 17_250 }] });
+    expect((await lexoffice.legacyVouchersForPeriod({ period: "2023-03", direction: "alle", search: "", withPayments: false, limit: 50 })).total).toBe(0);
+
+    const year = await lexoffice.legacyVouchersForPeriod({ period: "2023", direction: "ausgabe", search: "", withPayments: false, limit: 50 });
+    expect(year.vouchers.map((v) => [v.number, v.taxType])).toEqual([["2023-4711", "gross"]]);
+    const limited = await lexoffice.legacyVouchersForPeriod({ period: "2023", direction: "alle", search: "", withPayments: false, limit: 1 });
+    expect(limited).toMatchObject({ total: 3, vouchers: [{ number: "RE1019" }] });
+  });
+
+  it("findet einen Beleg nach Nummer oder ID, mit der gespeicherten API-Antwort", async () => {
+    const [byNumber] = await lexoffice.findLegacyVouchers(" re 1019 ");
+    expect(byNumber!.voucher.number).toBe("RE1019");
+    expect(byNumber!.raw).toMatchObject({ voucherNumber: "RE1019" });
+    expect((await lexoffice.findLegacyVouchers(byNumber!.voucher.id))[0]!.voucher.number).toBe("RE1019");
+    expect((await lexoffice.findLegacyVouchers(String(INVOICE.id)))[0]!.voucher.number).toBe("RE1019");
+    expect(await lexoffice.findLegacyVouchers("gibt-es-nicht")).toEqual([]);
   });
 
   it("legt den Altbestand ins Jahresarchiv", async () => {

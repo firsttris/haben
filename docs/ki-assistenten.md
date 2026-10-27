@@ -70,6 +70,21 @@ Caddy signiert Zertifikate für lokale Namen wie `haben.lan` mit seiner eigenen 
 | `euer` | Einnahmen-Überschuss-Rechnung eines Jahres mit Monatswerten |
 | `jahreserklaerung` | Stand von Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer mit Hinweisen und Steuerprognose |
 | `vorausgefuellte_belege` | abgerufene Belege der vorausgefüllten Steuererklärung (VaSt) ohne persönliche Stammdaten |
+| `lexoffice_abgleich` | Umzug aus Lexware Office: Verbindung, letzter Abruf mit fehlgeschlagenen Belegen, je Jahr die Prüfungen, Summen, Steuerarten und die nachgerechnete Umsatzsteuer je Monat |
+| `lexoffice_belege` | abgerufene Lexoffice-Belege eines Jahres oder Monats mit Beträgen je Steuersatz, Steuerart und Zahlungen |
+| `lexoffice_beleg` | ein Lexoffice-Beleg mit allen Feldern, Dateien und der gespeicherten Antwort der API (ohne Steuernummern) |
+| `lexoffice_konten` | Soll, Haben und Saldo je Konto aus dem archivierten DATEV-Buchungsstapel für ein Jahr oder einen Monat, mit Summen der Erträge und Aufwendungen |
+| `lexoffice_buchungen` | einzelne DATEV-Buchungen eines Jahres oder Monats, filterbar nach Konto oder nach Buchungen ohne passenden Beleg |
+
+### Voranmeldungen aus Lexware Office vergleichen
+
+Die `lexoffice_`-Werkzeuge helfen beim [Umzug aus Lexoffice](lexoffice.md). Was der Assistent damit prüfen kann:
+
+- **Vollständigkeit:** `lexoffice_abgleich` zeigt je Jahr, welche Prüfungen offen sind (fehlender DATEV-Stapel, ELSTER-Protokolle, Kontoauszüge, Belege ohne Datei), welche Dateien abgelegt sind und welche Belege der Abruf nicht lesen konnte.
+- **Voranmeldungen:** Gib dem Assistenten die Zahlen einer in Lexware Office abgegebenen Voranmeldung (aus dem ELSTER-Protokoll) und frag etwa „Vergleich die Voranmeldung März 2025 aus Lexoffice mit dem Altbestand in Haben: Kz 81 12.345, Kz 66 1.234“. Er nimmt die nachgerechneten Monatswerte aus `lexoffice_abgleich` und geht bei einer Abweichung mit `lexoffice_belege` und `lexoffice_beleg` bis auf den einzelnen Beleg zurück.
+- **Konten und EÜR:** Die Lexware-API liefert keine Buchungen. Die stehen im DATEV-Buchungsstapel, den du im Archiv ablegst. `lexoffice_konten` rechnet daraus Salden je Konto und Monat oder Jahr, `lexoffice_buchungen` zeigt die einzelnen Buchungen eines Kontos. Leg Saldenliste oder EÜR aus Lexware Office daneben (Zahlen ins Gespräch kopieren), dann vergleicht der Assistent Konto für Konto.
+
+Den Abruf selbst und das Hochladen der Exporte machst du in Haben. PDFs im Archiv kann der Assistent nicht lesen.
 
 Beträge kommen in Euro, Datumsangaben als JJJJ-MM-TT. Die Listen sind auf 50 Einträge begrenzt (bis 200 auf Wunsch), damit der Assistent nicht mit Tausenden Zeilen arbeiten muss.
 

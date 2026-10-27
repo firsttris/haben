@@ -27,6 +27,8 @@ const INVOICES = [
     sumGross: "119.00",
     paidAmount: 119,
     payDate: "2024-03-20T00:00:00+01:00",
+    taxType: "default",
+    taxRule: { id: "1", objectName: "TaxRule" },
   },
   {
     id: "102",
@@ -196,6 +198,14 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
     expect(voucher!.categories[0]).toMatchObject({ categoryId: "4930", rate: 1900 });
     const [attachment] = await sql`select filename, mime_type, lexoffice_file_id from lexoffice_voucher_files where role = 'anhang'`;
     expect(attachment).toMatchObject({ filename: "B-2024-17.jpg", mime_type: "image/jpeg", lexoffice_file_id: "880" });
+  });
+
+  it("zählt reguläre sevDesk-Rechnungen im Abgleich unter Kz 81 und Kz 86", async () => {
+    const { years } = await lexoffice.reconciliation();
+    const year = years.find((y) => y.year === 2024)!;
+    // Ist: RE-1001 bezahlt im März; RE-1002 (7 %) ist noch offen
+    expect(year.vat.find((m) => m.month === "2024-03")).toMatchObject({ kz81: 10_000, tax81: 1_900, otherBase: 0 });
+    expect(year.taxTypes).toEqual([{ taxType: "net", count: 2 }]);
   });
 
   it("bietet offene Rechnungen und Belege zur Übernahme an", async () => {

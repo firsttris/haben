@@ -1,11 +1,21 @@
-import { dueDate, parsePeriodKey, previousPeriod, periodKey, periodLabel, type VatPeriod } from "@haben/core";
+import { dueDate, kontenklasse, kontoart, parsePeriodKey, previousPeriod, periodKey, periodLabel, type LegacyVatMonth, type VatPeriod } from "@haben/core";
 import { z } from "zod";
 import { env } from "../../env.ts";
 import { today as todayInGermany } from "../../today.ts";
+import {
+  accountTotals,
+  connectionStatus,
+  datevBookingsForPeriod,
+  findLegacyVouchers,
+  listArchiveFiles,   latestImport,
+  legacyVouchersForPeriod,
+  reconciliation,
+  type LegacyVoucherForVat,
+} from "../archiv/index.ts";
 import { abgleichIssues, euerForYear, openPositions, vatAbgleich } from "../auswertungen/index.ts";
 import { listAccounts, listTransactions } from "../bank/index.ts";
 import { listDocuments } from "../belege/index.ts";
-import { pendingDepreciation } from "../buchhaltung/index.ts";
+import { accountName, pendingDepreciation } from "../buchhaltung/index.ts";
 import { loadActiveCertificate } from "../elster/index.ts";
 import { listFristen, listVastBelege, openAppealDeadlines } from "../finanzamt/index.ts";
 import { annualOverview } from "../jahreserklaerung/index.ts";
@@ -41,6 +51,8 @@ const link = (path: string) => `${env().BETTER_AUTH_URL.replace(/\/$/, "")}${pat
 
 /** Felder mit Steuer-ID oder anderen Kennungen der Person bleiben draußen */
 const KENNUNG = /idnr|identifikationsnummer|etin|steuernummer/i;
+/** Kennungen in den (englischen) Feldnamen der Lexware-API; ohne „etin“, das in Wörtern wie „greeting“ steckt */
+const KENNUNG_API = /taxnumber|taxid|idnr|steuernummer/i;
 
 const limitSchema = z.number().int().min(1).max(200).default(50).describe("Höchstens so viele Einträge (Standard 50)");
 const yearSchema = z.number().int().min(2000).max(2100);
@@ -59,6 +71,50 @@ function periodFrom(key: string | undefined, today: string): VatPeriod {
 
 function tool<Shape extends z.ZodRawShape>(definition: McpTool<Shape>): McpTool {
   return definition as unknown as McpTool;
+}
+
+/** Entfernt Felder mit Steuer-ID oder Steuernummer aus beliebig geschachtelten Daten (gespeicherte API-Antworten) */
+function withoutKennungen(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutKennungen);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).filter(([key]) => !KENNUNG_API.test(key)).map(([key, v]) => [key, withoutKennungen(v)]));
+  }
+  return value;
+}
+
+/** Kennzahlen eines Monats aus dem Lexoffice-Altbestand; Sonderfälle nur, wenn etwas drinsteht */
+function legacyVatMonth(m: LegacyVatMonth) {
+  const special = { kz41: m.kz41, kz43: m.kz43, kz21: m.kz21, kz45: m.kz45, kz60: m.kz60, kz87: m.kz87, steuerfrei: m.steuerfrei, oss: m.oss, andereSaetze: m.otherBase };
+  return {
+    monat: m.month,
+    kz81Bemessungsgrundlage19: euro(m.kz81),
+    steuer19: euro(m.tax81),
+    kz86Bemessungsgrundlage7: euro(m.kz86),
+    steuer7: euro(m.tax86),
+    kz66Vorsteuer: euro(m.kz66),
+    ...Object.fromEntries(Object.entries(special).filter(([, cents]) => cents !== 0).map(([key, cents]) => [key, euro(cents)])),
+  };
+}
+
+function legacyVoucher(v: LegacyVoucherForVat) {
+  return {
+    id: v.id,
+    nummer: v.number,
+    typ: v.type,
+    richtung: v.direction,
+    datum: v.date,
+    status: v.status,
+    kontakt: v.contactName,
+    waehrung: v.currency,
+    netto: euro(v.net),
+    steuer: euro(v.tax),
+    brutto: euro(v.gross),
+    steuerart: [v.taxType ?? "net", v.taxSubType].filter(Boolean).join("/"),
+    steuersaetze: v.taxes.map((t) => ({ satz: t.rate / 100, netto: euro(t.net), steuer: euro(t.tax) })),
+    zahlungen: v.payments.map((p) => ({ datum: p.date, betrag: euro(p.amount) })),
+    dateien: v.files,
+    link: link(`/archiv/beleg/${v.id}`),
+  };
 }
 
 export const MCP_TOOLS: McpTool[] = [
@@ -416,6 +472,221 @@ export const MCP_TOOLS: McpTool[] = [
         jahr: year,
         belege: belege.map((b) => ({ person: b.person, art: b.label, abgerufen: b.fetchedAt, test: b.test, lesbar: b.lesbar, werte: b.werte.filter((w) => !w.pfad.some((teil) => KENNUNG.test(teil))).map((w) => ({ feld: w.pfad.join(" › "), wert: w.wert })) })),
         link: link(`/jahreserklaerung/${year}`),
+      };
+    },
+  }),
+
+  tool({
+    name: "lexoffice_abgleich",
+    title: "Umzug aus Lexoffice: Abgleich",
+    description:
+      "Stand des Umzugs aus Lexware Office (Lexoffice): Verbindung, letzter Abruf mit fehlgeschlagenen Belegen, und je Geschäftsjahr " +
+      "die Prüfungen vor der Kündigung, Summen der Einnahmen und Ausgaben, Steuerarten und die Umsatzsteuer je Monat, nachgerechnet " +
+      "aus den abgerufenen Belegen (Kz 81, 86, 66 und Sonderfälle wie Kz 21, 41, 43, 45, 60, 87). Zum Vergleich mit den in Lexware " +
+      "Office abgegebenen Voranmeldungen; ELSTER meldet Bemessungsgrundlagen in vollen Euro. Der Altbestand zählt nicht in Habens eigene " +
+      "Voranmeldung. Ohne Jahr alle Jahre. Abgerufen wird in Haben selbst.",
+    scope: "haben:lesen",
+    input: { jahr: yearSchema.optional() },
+    run: async ({ jahr }) => {
+      const [connection, lastImport, { versteuerung, years }, files] = await Promise.all([connectionStatus(), latestImport(), reconciliation(), listArchiveFiles()]);
+      return {
+        verbindung: connection ? { verbunden: true, firmaInLexoffice: connection.organizationName, seit: connection.createdAt } : { verbunden: false },
+        letzterAbruf: lastImport
+          ? {
+              status: lastImport.status,
+              phase: lastImport.progress.phase,
+              gestartet: lastImport.startedAt,
+              beendet: lastImport.finishedAt,
+              fehler: lastImport.error,
+              kontakte: lastImport.progress.contacts,
+              kontakteVerknuepft: lastImport.progress.contactsLinked,
+              belegeGelistet: lastImport.progress.listed,
+              belegeUebernommen: lastImport.progress.imported,
+              belegeUebersprungen: lastImport.progress.skipped,
+              dateien: lastImport.progress.files,
+              fehlgeschlagen: lastImport.progress.failed.map((f) => ({ lexofficeId: f.lexofficeId, nummer: f.number, fehler: f.message })),
+            }
+          : null,
+        versteuerung,
+        hinweis:
+          versteuerung === "ist"
+            ? "Ist-Versteuerung: Einnahmen nach Datum der Zahlungen (Skonto, Mahnkosten, Kursdifferenzen und Forderungsausfälle zählen nicht), " +
+              "Kz 21, 41 und 60 nach Belegdatum, Vorsteuer nach Belegdatum."
+            : "Soll-Versteuerung: Einnahmen und Vorsteuer nach Belegdatum.",
+        jahre: years
+          .filter((y) => jahr === undefined || y.year === jahr)
+          .map((y) => ({
+            jahr: y.year,
+            vollstaendig: y.ready,
+            pruefungen: y.checks.map((c) => ({ erfuellt: c.ok, pruefung: c.label, detail: c.detail })),
+            einnahmen: { anzahl: y.einnahmen.count, netto: euro(y.einnahmen.net), steuer: euro(y.einnahmen.tax), brutto: euro(y.einnahmen.gross) },
+            ausgaben: { anzahl: y.ausgaben.count, netto: euro(y.ausgaben.net), steuer: euro(y.ausgaben.tax), brutto: euro(y.ausgaben.gross) },
+            ungepruefteBelege: y.unchecked,
+            steuerartenDerEinnahmen: y.taxTypes.map((t) => ({ steuerart: t.taxType, anzahl: t.count })),
+            letzteRechnungsnummer: y.lastInvoiceNumber,
+            datevBuchungen: y.bookings && { anzahl: y.bookings.total, ohnePassendenBeleg: y.bookings.unmatched, ohneBelegnummer: y.bookings.withoutNumber },
+            abgelegteDateien: files.filter((f) => f.year === y.year).map((f) => ({ art: f.kind, name: f.filename, notiz: f.note })),
+            umsatzsteuerJeMonat: y.vat.map(legacyVatMonth),
+          })),
+        link: link("/archiv"),
+      };
+    },
+  }),
+
+  tool({
+    name: "lexoffice_belege",
+    title: "Umzug aus Lexoffice: Belege",
+    description:
+      "Aus Lexware Office abgerufene Rechnungen, Gutschriften und Belege eines Jahres oder Monats mit Beträgen je Steuersatz, Steuerart " +
+      "und Zahlungen. Damit lässt sich eine Abweichung in der Umsatzsteuer je Monat bis auf den Beleg zurückverfolgen. Bei " +
+      "Ist-Versteuerung kommen standardmäßig auch Einnahmen dazu, die im Zeitraum bezahlt wurden (nachZahlung).",
+    scope: "haben:lesen",
+    input: {
+      zeitraum: z.string().regex(/^\d{4}(-\d{2})?$/).describe("Jahr als JJJJ oder Monat als JJJJ-MM, nach Belegdatum"),
+      richtung: z.enum(["alle", "einnahme", "ausgabe"]).default("alle"),
+      suche: z.string().max(100).default("").describe("Teil von Belegnummer, Kontakt oder Notiz"),
+      nachZahlung: z.boolean().optional().describe("Auch Einnahmen mit Zahlung im Zeitraum; Standard: bei Ist-Versteuerung ja"),
+      limit: limitSchema,
+    },
+    run: async ({ zeitraum, richtung, suche, nachZahlung, limit }) => {
+      const company = await loadCompany();
+      const withPayments = nachZahlung ?? company.versteuerung === "ist";
+      const { total, vouchers } = await legacyVouchersForPeriod({ period: zeitraum, direction: richtung, search: suche, withPayments, limit });
+      return {
+        zeitraum,
+        versteuerung: company.versteuerung,
+        nachZahlung: withPayments,
+        anzahl: total,
+        gekuerzt: total > vouchers.length,
+        belege: vouchers.map(legacyVoucher),
+      };
+    },
+  }),
+
+  tool({
+    name: "lexoffice_beleg",
+    title: "Umzug aus Lexoffice: ein Beleg",
+    description:
+      "Ein aus Lexware Office abgerufener Beleg mit allen Feldern, Zahlungsstatus, Kategorien, Dateien und der gespeicherten Antwort " +
+      "der Lexware-API. Gesucht nach ID (aus lexoffice_belege), Lexoffice-ID oder Belegnummer. Hilft, wenn der Abruf einen Beleg falsch " +
+      "gelesen hat oder ein Betrag nicht zu Lexware Office passt.",
+    scope: "haben:lesen",
+    input: { beleg: z.string().min(1).max(100).describe("ID, Lexoffice-ID oder Belegnummer") },
+    run: async ({ beleg }) => {
+      const found = await findLegacyVouchers(beleg);
+      if (found.length === 0) throw new McpError(`Kein Lexoffice-Beleg „${beleg}“ gefunden.`);
+      return {
+        belege: found.map(({ voucher, files, raw }) => ({
+          id: voucher.id,
+          lexofficeId: voucher.lexofficeId,
+          typ: voucher.type,
+          richtung: voucher.direction,
+          nummer: voucher.number,
+          datum: voucher.date,
+          faellig: voucher.dueDate,
+          leistungVon: voucher.serviceFrom,
+          leistungBis: voucher.serviceTo,
+          status: voucher.status,
+          kontakt: voucher.contactName,
+          waehrung: voucher.currency,
+          notiz: voucher.remark,
+          netto: euro(voucher.net),
+          steuer: euro(voucher.tax),
+          brutto: euro(voucher.gross),
+          abgerufen: voucher.createdAt,
+          steuersaetze: voucher.taxes.map((t) => ({ satz: t.rate / 100, netto: euro(t.net), steuer: euro(t.tax) })),
+          kategorien: voucher.categories.map((c) => ({ kategorie: c.name, satz: c.rate / 100, netto: euro(c.net), steuer: euro(c.tax) })),
+          zahlungsstatus: voucher.payment && {
+            status: voucher.payment.status,
+            offen: euro(voucher.payment.openAmount),
+            bezahltAm: voucher.payment.paidDate,
+            zahlungen: voucher.payment.items.map((i) => ({ art: i.type, datum: i.date, betrag: euro(i.amount) })),
+          },
+          dateien: files.map((f) => ({ art: f.role, name: f.filename, typ: f.mimeType, groesse: f.size })),
+          apiAntwort: withoutKennungen(raw),
+          link: link(`/archiv/beleg/${voucher.id}`),
+        })),
+      };
+    },
+  }),
+
+  tool({
+    name: "lexoffice_konten",
+    title: "Umzug aus Lexoffice: Konten aus dem DATEV-Stapel",
+    description:
+      "Summen je Konto (Soll, Haben, Saldo) aus dem archivierten DATEV-Buchungsstapel von Lexware Office für ein Jahr oder einen " +
+      "Monat, mit Kontenklasse und Art (Ertrag, Aufwand, Bestand) und den Summen der Ertrags- und Aufwandskonten als grobe EÜR. Zum " +
+      "Vergleich mit Saldenliste, EÜR und Umsatzsteuerkonten in Lexware Office. Wo Steuerautomatik greift, sind die Beträge brutto. " +
+      "Kontonamen nur, soweit Haben das Konto kennt.",
+    scope: "haben:lesen",
+    input: { zeitraum: z.string().regex(/^\d{4}(-\d{2})?$/).describe("Jahr als JJJJ oder Monat als JJJJ-MM") },
+    run: async ({ zeitraum }) => {
+      const year = Number(zeitraum.slice(0, 4));
+      const month = zeitraum.length > 4 ? Number(zeitraum.slice(5, 7)) : undefined;
+      if (month !== undefined && (month < 1 || month > 12)) throw new McpError(`Zeitraum „${zeitraum}“ ungültig.`);
+      const [company, totals] = await Promise.all([loadCompany(), accountTotals(year, month)]);
+      const rahmen = company.kontenrahmen;
+      const konten = totals.map((t) => {
+        const saldo = t.debit - t.credit;
+        return {
+          konto: t.account,
+          name: accountName(rahmen, t.account),
+          klasse: kontenklasse(rahmen, t.account),
+          art: kontoart(rahmen, t.account, saldo),
+          soll: euro(t.debit),
+          haben: euro(t.credit),
+          saldo: euro(saldo),
+        };
+      });
+      const sum = (art: string) => konten.filter((k) => k.art === art).reduce((s, k) => s + Math.round(k.saldo * 100), 0);
+      return {
+        zeitraum,
+        kontenrahmen: rahmen,
+        hinweis:
+          konten.length === 0
+            ? "Für diesen Zeitraum ist kein DATEV-Buchungsstapel eingelesen. Er wird im Archiv unter „Exporte ablegen“ hochgeladen."
+            : "Saldo = Soll − Haben. Kontenrahmen aus den Einstellungen von Haben; er sollte zu dem in Lexware Office passen.",
+        summen: { ertraege: euro(-sum("ertrag")), aufwendungen: euro(sum("aufwand")), ergebnis: euro(-sum("ertrag") - sum("aufwand")) },
+        konten,
+        link: link(`/archiv?ansicht=buchungen&jahr=${year}`),
+      };
+    },
+  }),
+
+  tool({
+    name: "lexoffice_buchungen",
+    title: "Umzug aus Lexoffice: Buchungen aus dem DATEV-Stapel",
+    description:
+      "Einzelne Buchungen aus dem archivierten DATEV-Buchungsstapel von Lexware Office für ein Jahr oder einen Monat, auf Wunsch nur " +
+      "für ein Konto (als Konto oder Gegenkonto) oder nur Buchungen, deren Belegnummer keinen abgerufenen Beleg findet.",
+    scope: "haben:lesen",
+    input: {
+      zeitraum: z.string().regex(/^\d{4}(-\d{2})?$/).describe("Jahr als JJJJ oder Monat als JJJJ-MM"),
+      konto: z.string().max(10).default("").describe("Kontonummer, z. B. 8400"),
+      ohneBeleg: z.boolean().default(false).describe("Nur Buchungen mit Belegnummer, zu der kein Lexoffice-Beleg existiert"),
+      limit: limitSchema,
+    },
+    run: async ({ zeitraum, konto, ohneBeleg, limit }) => {
+      const year = Number(zeitraum.slice(0, 4));
+      const month = zeitraum.length > 4 ? Number(zeitraum.slice(5, 7)) : undefined;
+      if (month !== undefined && (month < 1 || month > 12)) throw new McpError(`Zeitraum „${zeitraum}“ ungültig.`);
+      const { total, rows } = await datevBookingsForPeriod({ year, month, account: konto, unmatched: ohneBeleg, limit });
+      return {
+        zeitraum,
+        anzahl: total,
+        gekuerzt: total > rows.length,
+        buchungen: rows.map((b) => ({
+          datum: b.date,
+          betrag: euro(b.amount),
+          sollHaben: b.side,
+          konto: b.account,
+          gegenkonto: b.contraAccount,
+          buSchluessel: b.buKey,
+          belegnummer: b.voucherField1,
+          text: b.text,
+          belegGefunden: b.voucherField1 ? b.matched : null,
+        })),
+        link: link(`/archiv?ansicht=buchungen&jahr=${year}`),
       };
     },
   }),

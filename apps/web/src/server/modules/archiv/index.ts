@@ -9,6 +9,7 @@ export {
   addArchiveFile,
   ARCHIVE_KINDS,
   ArchiveError,
+  datevBookingsForPeriod,
   listArchiveFiles,
   listDatevBookings,
   loadArchiveFile,
@@ -21,7 +22,9 @@ export { openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.
 export {
   cancelImport,
   connectionStatus,
+  findLegacyVouchers,
   latestImport,
+  legacyVouchersForPeriod,
   legacyVoucherDetail,
   legacyVoucherFile,
   listLegacyVouchers,
@@ -29,6 +32,7 @@ export {
   removeApiKey,
   saveApiKey,
   startImport,
+  type LegacyVoucherForVat,
 } from "./lexoffice.ts";
 export {
   cancelSevdeskImport,

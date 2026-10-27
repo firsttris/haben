@@ -324,6 +324,24 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
   );
 }
 
+type VatMonth = MigrationData["years"][number]["vat"][number];
+
+const SPECIAL_COLUMNS = [
+  { key: "kz21", label: "Kz 21", title: "Sonstige Leistungen ins EU-Ausland (Reverse Charge)" },
+  { key: "kz41", label: "Kz 41", title: "Innergemeinschaftliche Lieferungen" },
+  { key: "kz43", label: "Kz 43", title: "Steuerfreie Ausfuhrlieferungen" },
+  { key: "kz45", label: "Kz 45", title: "Nicht steuerbare Leistungen ins Drittland" },
+  { key: "kz60", label: "Kz 60", title: "Umsätze, für die der Empfänger die Steuer nach § 13b UStG schuldet" },
+  { key: "kz87", label: "Kz 87", title: "Umsätze zu 0 % nach § 12 Abs. 3 UStG (Photovoltaik)" },
+  { key: "steuerfrei", label: "Steuerfrei", title: "In der bisherigen Buchhaltung als steuerfrei markiert: Kz 48 oder Kleinunternehmer" },
+  { key: "oss", label: "OSS", title: "Fernverkäufe und elektronische Dienstleistungen über das OSS-Verfahren" },
+] as const;
+
+/** Spalten für Sonderfälle nur, wenn im Jahr etwas drinsteht */
+function specialColumns(months: VatMonth[]) {
+  return SPECIAL_COLUMNS.filter((c) => months.some((m) => m[c.key] !== 0));
+}
+
 function YearCheck({ year, versteuerung, product }: { year: MigrationData["years"][number]; versteuerung: "ist" | "soll"; product: string }) {
   return (
     <section className="card stack" aria-labelledby={`year-${year.year}`}>
@@ -385,6 +403,11 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
                   <th className="num">Kz 81</th>
                   <th className="num">Kz 86</th>
                   <th className="num">Kz 66</th>
+                  {specialColumns(year.vat).map((c) => (
+                    <th key={c.key} className="num" title={c.title}>
+                      {c.label}
+                    </th>
+                  ))}
                   <th className="num">Andere Sätze</th>
                 </tr>
               </thead>
@@ -395,6 +418,11 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
                     <td className="num mono">{formatEuro(m.kz81)}</td>
                     <td className="num mono">{formatEuro(m.kz86)}</td>
                     <td className="num mono">{formatEuro(m.kz66)}</td>
+                    {specialColumns(year.vat).map((c) => (
+                      <td key={c.key} className="num mono">
+                        {formatEuro(m[c.key])}
+                      </td>
+                    ))}
                     <td className="num mono">{formatEuro(m.otherBase)}</td>
                   </tr>
                 ))}
@@ -404,7 +432,9 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
           <p className="small muted">
             Aus den übernommenen Belegen berechnet:{" "}
             {versteuerung === "ist" ? "Einnahmen nach Zahlungsdatum (Ist-Versteuerung)" : "Einnahmen nach Rechnungsdatum (Soll-Versteuerung)"},
-            Vorsteuer nach Belegdatum. Kleine Abweichungen entstehen, wenn in {product} nachträglich korrigiert wurde.
+            Vorsteuer nach Belegdatum. Kz 21, 41 und 60 zählen immer nach Belegdatum. „Steuerfrei“ gehört in Kz 48, wenn die Umsätze nach
+            § 4 Nr. 8–28 UStG steuerfrei sind, und fehlt bei Kleinunternehmern ganz; „OSS“ meldest du nicht in der Voranmeldung. Kleine
+            Abweichungen entstehen, wenn in {product} nachträglich korrigiert wurde.
           </p>
         </details>
       )}
