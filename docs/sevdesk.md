@@ -40,6 +40,20 @@ Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine R
 
 Maßgeblich sind Brutto und Steuer aus dem Kopf des Belegs; Netto ergibt sich daraus. Die Aufteilung nach Steuersatz kommt aus den Positionen, Rundungsdifferenzen zum Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer. Die Kennung eines Belegs ist Art und ID in sevDesk, etwa `invoice/123` oder `voucher/678`.
 
+### Steuerarten im Abgleich
+
+Für die Umsatzsteuer je Monat übersetzt Haben die Steuerregel von sevDesk in die Kennzahlen, wie bei Lexoffice:
+
+| sevDesk | Abgleich |
+| --- | --- |
+| Regel 1 „Umsatzsteuerpflichtige Umsätze“ bzw. taxType `default` | Kz 81, Kz 86 |
+| Regel 2 „Ausfuhren“ | Kz 43 |
+| Regel 3 „Innergemeinschaftliche Lieferungen“ bzw. taxType `eu` | Kz 41 |
+| Regel 4 „Steuerfreie Umsätze § 4 UStG“, Regel 11 „§ 19 UStG“ bzw. taxType `ss` | Steuerfrei |
+| Regel 5 „Reverse Charge § 13b“ und alles andere | Andere Sätze |
+
+Reverse Charge lässt sich ohne weitere Angaben nicht eindeutig Kz 21 oder Kz 60 zuordnen; vergleiche diese Umsätze von Hand.
+
 ### Zahlungen
 
 sevDesk liefert über diese Schnittstelle keine einzelnen Zahlungen, nur den bezahlten Betrag (`paidAmount`) und das letzte Zahldatum (`payDate`). Haben führt den bezahlten Betrag als eine Zahlung an diesem Datum. Bei Ist-Versteuerung rechnet die Umsatzsteuer je Monat im Abgleich damit; wurde eine Rechnung in mehreren Raten bezahlt, landet alles im Monat der letzten Zahlung. Vergleiche diese Monate mit den übermittelten Voranmeldungen.

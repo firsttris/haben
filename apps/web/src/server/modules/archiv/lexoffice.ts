@@ -433,8 +433,23 @@ function legacyPayments(v: { gross: number; payment: LegacyPayment | null }) {
     .map((p) => ({ date: p.date, amount: Math.sign(v.gross) * Math.abs(p.amount) }));
 }
 
-/** Steuerart aus der gespeicherten API-Antwort: Rechnungsmodul unter taxConditions, Buchhaltungsbelege direkt */
-const TAX_TYPE = sql<string | null>`coalesce(lexoffice_vouchers.raw->'taxConditions'->>'taxType', lexoffice_vouchers.raw->>'taxType')`;
+/**
+ * Steuerart aus der gespeicherten API-Antwort, in den Werten von Lexoffice. Lexoffice: Rechnungsmodul unter taxConditions,
+ * Buchhaltungsbelege direkt. sevDesk: Steuerregel (Update 2.0), sonst die ältere taxType; Reverse Charge (Regel 5)
+ * lässt sich nicht eindeutig einer Kennzahl zuordnen und bleibt unbekannt.
+ */
+function taxTypeOf(t: string) {
+  return sql.raw(`case when ${t}.source = 'sevdesk' then
+      case coalesce(${t}.raw->'taxRule'->>'id', '')
+        when '1' then 'net' when '2' then 'thirdPartyCountryDelivery' when '3' then 'intraCommunitySupply'
+        when '4' then 'vatfree' when '11' then 'vatfree'
+        when '' then case coalesce(${t}.raw->>'taxType', 'default')
+          when 'default' then 'net' when 'eu' then 'intraCommunitySupply' when 'ss' then 'vatfree'
+          else 'sevdesk:' || (${t}.raw->>'taxType') end
+        else 'sevdesk:taxRule' || (${t}.raw->'taxRule'->>'id') end
+    else coalesce(${t}.raw->'taxConditions'->>'taxType', ${t}.raw->>'taxType') end`);
+}
+const TAX_TYPE = sql<string | null>`${taxTypeOf("lexoffice_vouchers")}`;
 const TAX_SUB_TYPE = sql<string | null>`lexoffice_vouchers.raw->'taxConditions'->>'taxSubType'`;
 
 export type ReconciliationCheck = { ok: boolean; label: string; detail: string };
@@ -639,7 +654,7 @@ export async function legacyVouchersForPeriod(filter: {
   }>(sql`
     select v.id, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.currency, v.net, v.tax, v.gross,
       v.taxes, v.payment,
-      coalesce(v.raw->'taxConditions'->>'taxType', v.raw->>'taxType') as tax_type,
+      ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
     from lexoffice_vouchers v
