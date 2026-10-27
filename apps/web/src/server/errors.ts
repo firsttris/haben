@@ -1,7 +1,7 @@
 import { AssetError, SteuernummerError } from "@haben/core";
 import { EInvoiceParseError } from "@haben/einvoice";
 import { ElsterEingabeError, EricInstallError } from "@haben/elster";
-import { DatevParseError, EnableBankingApiError, LexofficeApiError, StatementParseError } from "@haben/import";
+import { DatevParseError, EnableBankingApiError, LexofficeApiError, SevdeskApiError, StatementParseError } from "@haben/import";
 import { ZodError } from "zod";
 
 /** Fachfehler, deren Meldung der Nutzer sehen soll. Alles andere wird zentral als „Interner Fehler“ ausgegeben. */
@@ -17,6 +17,7 @@ const PACKAGE_USER_ERRORS = [
   DatevParseError,
   EnableBankingApiError,
   LexofficeApiError,
+  SevdeskApiError,
   StatementParseError,
 ];
 

@@ -9,4 +9,5 @@ export { parseDatevBuchungsstapel, isDatevFile, datevAccountTotals, DatevParseEr
 export { buildDatevBuchungsstapel, DATEV_AUTOMATIC_ACCOUNTS, type DatevExportEntry } from "./datev-export.ts";
 export type { DatevHeader, DatevBooking, DatevStack } from "./datev.ts";
 export * from "./lexoffice/index.ts";
+export * from "./sevdesk/index.ts";
 export * from "./enablebanking/index.ts";

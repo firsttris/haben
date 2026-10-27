@@ -76,6 +76,7 @@ auf deinem eigenen Server betreibst.
 | 📊 [Auswertungen](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
 | 📚 [Buchhaltung](https://firsttris.github.io/haben/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export |
 | 📦 [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | Abruf über die Public API, DATEV-Buchungsstapel, offene Posten und Anlagen übernehmen |
+| 📦 [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html) | Abruf über die sevDesk-API, gleiches Archiv, gleicher Abgleich |
 | 🔐 Anmeldung und App | Passkey (Passwort als Ersatz), installierbar als PWA auf Handy und Desktop, helle und dunkle Themes |
 
 ## 📸 Screenshots
@@ -115,7 +116,7 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 
 > [!IMPORTANT]
 > Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) zusätzlich an
-> einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und Lexoffice-Schlüssel nach einer Wiederherstellung nicht mehr lesbar.
+> einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar.
 
 ## 📚 Dokumentation
 
@@ -136,6 +137,7 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 | [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) · [Fristen](https://firsttris.github.io/haben/fristen.html) | ELSTER-Postfach, Vorauszahlungen, alle Steuertermine als Kalender-Feed (iCal) |
 | [Auswertungen und Jahresexport](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
 | [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | API-Abruf, DATEV-Buchungsstapel, offene Posten, Abgleich vor der Kündigung |
+| [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html) | API-Abruf aus sevDesk ins selbe Archiv, Unterschiede zu Lexoffice |
 | [KI-Assistenten (MCP)](https://firsttris.github.io/haben/ki-assistenten.html) | Im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen |
 | [Buchhaltung in Haben](https://firsttris.github.io/haben/buchhaltung.html) | GoBD, Festschreibung, Kontenrahmen, alle Buchungssätze, Steuerschlüssel |
 | [Architektur](https://firsttris.github.io/haben/architektur.html) · [Entwicklung](https://firsttris.github.io/haben/entwicklung.html) | Aufbau, Datenmodell, ERiC-Worker; lokale Umgebung, Tests, Mitwirken |

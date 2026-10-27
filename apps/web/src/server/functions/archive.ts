@@ -22,17 +22,34 @@ import {
   startImport,
 } from "../modules/archiv/index.ts";
 import { openLegacyItems, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
+import {
+  cancelSevdeskImport as cancelSevdesk,
+  latestSevdeskImport,
+  removeSevdeskKey,
+  saveSevdeskKey,
+  sevdeskConnectionStatus,
+  startSevdeskImport as startSevdesk,
+} from "../modules/archiv/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 import { yearSchema } from "./schemas.ts";
 
-/** Umzug: Verbindung, letzter Abruf, Abgleich je Jahr und archivierte Dateien */
+/** Umzug: Verbindungen, letzte Abrufe, Abgleich je Jahr und archivierte Dateien */
 export const getMigration = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
-    const [connection, check, files, openItems] = await Promise.all([connectionStatus(), reconciliation(), listArchiveFiles(), openLegacyItems()]);
+    const [connection, check, files, openItems, sevdeskConnection, sevdeskImport] = await Promise.all([
+      connectionStatus(),
+      reconciliation(),
+      listArchiveFiles(),
+      openLegacyItems(),
+      sevdeskConnectionStatus(),
+      latestSevdeskImport(),
+    ]);
     return {
       connection,
+      sevdeskConnection,
+      sevdeskImport,
       openItems,
       ...check,
       files: files.map(({ meta, ...file }) => ({
@@ -47,7 +64,8 @@ export const getMigration = createServerFn({ method: "GET" })
 
 export const getImportStatus = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => latestImport());
+  .validator(z.object({ source: z.enum(["lexoffice", "sevdesk"]) }))
+  .handler(async ({ data }) => (data.source === "sevdesk" ? latestSevdeskImport() : latestImport()));
 
 export const saveLexofficeKey = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
@@ -69,6 +87,27 @@ export const cancelLexofficeImport = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => ({ cancelled: cancelImport(data.id) }));
+
+export const saveSevdeskToken = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ apiKey: z.string().trim().min(1, "Token fehlt").max(200) }))
+  .handler(async ({ data, context }) => saveSevdeskKey(context.user.id, data.apiKey));
+
+export const removeSevdeskToken = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await removeSevdeskKey(context.user.id);
+    return { ok: true };
+  });
+
+export const startSevdeskImport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => ({ id: await startSevdesk(context.user.id) }));
+
+export const cancelSevdeskImport = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => ({ cancelled: cancelSevdesk(data.id) }));
 
 const kindSchema = z.enum(Object.keys(ARCHIVE_KINDS) as [ArchiveKind, ...ArchiveKind[]]);
 

@@ -1,6 +1,6 @@
 # Umzug aus Lexoffice / Lexware Office
 
-Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug aus Lexoffice“ in fünf Schritten.
+Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“ in fünf Schritten. Kommst du von sevDesk, lies [Umzug aus sevDesk](sevdesk.md).
 
 <img src="screenshot-archiv.png" alt="Seite Archiv mit den Schritten des Umzugs und dem Abgleich je Geschäftsjahr" width="900">
 

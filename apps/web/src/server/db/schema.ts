@@ -609,6 +609,8 @@ export const contacts = pgTable("contacts", {
   language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
   /** Herkunft aus dem Lexoffice-Import, damit alte Rechnungen und Belege ihm zugeordnet bleiben */
   lexofficeId: text("lexoffice_id").unique(),
+  /** Herkunft aus dem sevDesk-Import */
+  sevdeskId: text("sevdesk_id").unique(),
   version: integer("version").notNull().default(1),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1243,6 +1245,23 @@ export const lexofficeConnection = pgTable(
   (t) => [check("lexoffice_connection_single_row", sql`${t.id} = 1`)],
 );
 
+/** API-Token für sevDesk, AES-256-GCM-verschlüsselt; eine Zeile */
+export const sevdeskConnection = pgTable(
+  "sevdesk_connection",
+  {
+    id: smallint("id").primaryKey().default(1),
+    ciphertext: bytea("ciphertext").notNull(),
+    /** "1.0" oder "2.0" (sevDesk-Update 2.0) */
+    bookkeepingVersion: text("bookkeeping_version").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("sevdesk_connection_single_row", sql`${t.id} = 1`)],
+);
+
+/** Woher ein Altbestand stammt */
+export const LEGACY_SOURCES = ["lexoffice", "sevdesk"] as const;
+export type LegacySource = (typeof LEGACY_SOURCES)[number];
+
 export type LexofficeImportProgress = {
   phase: "kontakte" | "liste" | "belege" | "fertig";
   contacts: number;
@@ -1259,6 +1278,7 @@ export const lexofficeImports = pgTable(
   "lexoffice_imports",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    source: text("source", { enum: LEGACY_SOURCES }).notNull().default("lexoffice"),
     status: text("status", { enum: ["laeuft", "fertig", "fehler", "abgebrochen"] }).notNull().default("laeuft"),
     progress: jsonb("progress").$type<LexofficeImportProgress>().notNull(),
     error: text("error"),
@@ -1266,7 +1286,7 @@ export const lexofficeImports = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
   },
-  // höchstens ein laufender Abruf
+  // höchstens ein laufender Abruf, gleich aus welcher Quelle
   (t) => [uniqueIndex("lexoffice_imports_one_running").on(t.status).where(sql`${t.status} = 'laeuft'`)],
 );
 
@@ -1275,14 +1295,15 @@ export type LegacyCategoryRow = { categoryId: string; name: string; rate: number
 export type LegacyPayment = { status: string; openAmount: number; paidDate: string | null; items: { type: string; date: string; amount: number }[] };
 
 /**
- * Rechnungen, Gutschriften und Belege aus Lexoffice, so wie die API sie geliefert hat. Nur anhängen.
- * Beträge in Cent, Gutschriften negativ.
+ * Rechnungen, Gutschriften und Belege aus Lexoffice oder sevDesk, so wie die API sie geliefert hat. Nur anhängen.
+ * Beträge in Cent, Gutschriften negativ. Bei sevDesk steht in lexoffice_id "<art>/<id>", z. B. "invoice/123".
  */
 export const lexofficeVouchers = pgTable(
   "lexoffice_vouchers",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     lexofficeId: text("lexoffice_id").notNull().unique(),
+    source: text("source", { enum: LEGACY_SOURCES }).notNull().default("lexoffice"),
     importId: uuid("import_id")
       .notNull()
       .references(() => lexofficeImports.id),

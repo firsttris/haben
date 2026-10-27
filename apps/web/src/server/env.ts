@@ -5,7 +5,7 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   /** Öffentliche Adresse, z. B. https://haben.example.de */
   BETTER_AUTH_URL: z.string().url(),
-  /** 32 Byte, base64 – verschlüsselt die ELSTER-Zertifikatsdatei und den Lexoffice-API-Schlüssel */
+  /** 32 Byte, base64 – verschlüsselt die ELSTER-Zertifikatsdatei und die API-Schlüssel für Lexoffice und sevDesk */
   HABEN_ENCRYPTION_KEY: z
     .string()
     .refine((value) => Buffer.from(value, "base64").length === 32, "muss 32 Byte (base64) sein"),
@@ -25,6 +25,8 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   /** Basis-URL der Lexware-Office-API, nur zum Testen oder falls Lexware die Adresse ändert */
   LEXOFFICE_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
+  /** Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert */
+  SEVDESK_API_URL: z.union([z.literal(""), z.string().url()]).optional(),
   /** Automatischer Kontoabruf: Application ID und privater Schlüssel (PEM oder Pfad zur PEM-Datei) der Enable-Banking-Anwendung */
   ENABLE_BANKING_APP_ID: z.string().optional(),
   ENABLE_BANKING_KEY: z.string().optional(),
