@@ -38,9 +38,9 @@ function isSalesType(type: string): type is SalesType {
 }
 
 /** Läuft ein Abruf länger als so lange ohne Fortschritt, gilt er als abgebrochen (Neustart des Servers). */
-const STALE_MS = 3 * 60 * 1000;
+export const STALE_MS = 3 * 60 * 1000;
 
-function progressMessage(error: unknown): string {
+export function progressMessage(error: unknown): string {
   const message = userMessage(error);
   if (message === undefined) console.error("Lexoffice-Abruf", error);
   return message ?? INTERNAL_ERROR;
@@ -83,7 +83,12 @@ export async function removeApiKey(actor: string) {
 
 /** Letzter Abruf; ein hängengebliebener Lauf (Server neu gestartet) wird als abgebrochen markiert. */
 export async function latestImport() {
-  const [row] = await db.select().from(schema.lexofficeImports).orderBy(desc(schema.lexofficeImports.startedAt)).limit(1);
+  const [row] = await db
+    .select()
+    .from(schema.lexofficeImports)
+    .where(eq(schema.lexofficeImports.source, "lexoffice"))
+    .orderBy(desc(schema.lexofficeImports.startedAt))
+    .limit(1);
   if (!row) return null;
   if (row.status === "laeuft" && !running.has(row.id) && Date.now() - row.updatedAt.getTime() > STALE_MS) {
     const [updated] = await db
@@ -128,7 +133,7 @@ export async function startImport(actor: string, options: { wait?: boolean } = {
   const controller = new AbortController();
   running.set(id, controller);
   const client = clientFactory({ apiKey: key, signal: controller.signal });
-  const job = runImport(actor, id, client, progress)
+  const job = runImport(actor, id, client, progress, controller.signal)
     .then(() => finish(id, progress, "fertig", null))
     .catch((error: unknown) =>
       finish(id, progress, controller.signal.aborted ? "abgebrochen" : "fehler", controller.signal.aborted ? "Abgebrochen." : progressMessage(error)),
@@ -147,7 +152,7 @@ export function cancelImport(id: string): boolean {
   return true;
 }
 
-async function finish(id: string, progress: LexofficeImportProgress, status: "fertig" | "fehler" | "abgebrochen", error: string | null) {
+export async function finish(id: string, progress: LexofficeImportProgress, status: "fertig" | "fehler" | "abgebrochen", error: string | null) {
   progress.phase = "fertig";
   await db
     .update(schema.lexofficeImports)
@@ -155,7 +160,7 @@ async function finish(id: string, progress: LexofficeImportProgress, status: "fe
     .where(eq(schema.lexofficeImports.id, id));
 }
 
-async function runImport(actor: string, importId: string, client: LexofficeClient, progress: LexofficeImportProgress) {
+async function runImport(actor: string, importId: string, client: LexofficeClient, progress: LexofficeImportProgress, signal: AbortSignal) {
   let lastSave = 0;
   const save = async (force = false) => {
     if (!force && Date.now() - lastSave < 1000) return;
@@ -229,7 +234,8 @@ async function runImport(actor: string, importId: string, client: LexofficeClien
     } catch (error) {
       // Schlüssel ungültig, Tarif gewechselt oder abgebrochen: weitermachen ist sinnlos
       if (error instanceof LexofficeApiError && (error.status === 401 || error.status === 403)) throw error;
-      if (error instanceof Error && error.name === "AbortError") throw error;
+      // Abgebrochen: der Client meldet das als eigenen Fehler, nicht als AbortError
+      if (signal.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
       progress.failed.push({ lexofficeId: item.id, number: item.number, message: progressMessage(error) });
     }
     await save();
@@ -318,7 +324,7 @@ async function importVoucher(
   });
 }
 
-function fallbackName(voucher: LegacyVoucher, role: "pdf" | "xml" | "anhang", bytes: Uint8Array): string {
+export function fallbackName(voucher: LegacyVoucher, role: "pdf" | "xml" | "anhang", bytes: Uint8Array): string {
   const base = (voucher.number || voucher.lexofficeId).replace(/[^\w.-]+/g, "_");
   const kind = sniff(bytes)?.kind;
   const extension = role === "xml" ? "xml" : kind === "jpeg" ? "jpg" : (kind ?? "pdf");
@@ -332,6 +338,7 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
   const rows = await db.execute<{
     id: string;
+    source: "lexoffice" | "sevdesk";
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;
@@ -343,7 +350,7 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
     gross: number;
     files: number;
   }>(sql`
-    select v.id, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.net, v.tax, v.gross,
+    select v.id, v.source, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.net, v.tax, v.gross,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
     from lexoffice_vouchers v
     where v.date between ${`${filter.year}-01-01`} and ${`${filter.year}-12-31`}
@@ -354,6 +361,7 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
     limit 1000`);
   return [...rows].map((r) => ({
     id: r.id,
+    source: r.source,
     type: r.type,
     direction: r.direction,
     number: r.number,
@@ -372,6 +380,7 @@ export async function legacyVoucherDetail(id: string) {
     .select({
       id: schema.lexofficeVouchers.id,
       lexofficeId: schema.lexofficeVouchers.lexofficeId,
+      source: schema.lexofficeVouchers.source,
       type: schema.lexofficeVouchers.type,
       direction: schema.lexofficeVouchers.direction,
       number: schema.lexofficeVouchers.number,

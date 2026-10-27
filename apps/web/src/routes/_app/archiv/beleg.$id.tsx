@@ -19,13 +19,19 @@ const PAYMENT_STATUS: Record<string, string> = {
   balanced: "ausgeglichen",
   openRevenue: "offene Forderung",
   openExpense: "offene Verbindlichkeit",
+  // aus sevDesk
+  open: "offen",
+  partlyPaid: "teilweise bezahlt",
 };
+
+const SOURCE = { lexoffice: { name: "Lexoffice", product: "Lexware Office" }, sevdesk: { name: "sevDesk", product: "sevDesk" } } as const;
 
 function LegacyVoucherPage() {
   const { voucher, files } = Route.useLoaderData();
   const [selected, setSelected] = useState(files.find((f) => f.role === "pdf")?.id ?? files[0]?.id ?? null);
   const file = files.find((f) => f.id === selected) ?? null;
   const src = file ? `/api/altbeleg/${file.id}` : null;
+  const source = SOURCE[voucher.source];
   return (
     <>
       <div className="page-head">
@@ -34,7 +40,7 @@ function LegacyVoucherPage() {
             <Link to="/archiv" search={{ ansicht: "belege", jahr: Number(voucher.date.slice(0, 4)) }}>
               Archiv
             </Link>{" "}
-            › {LEGACY_TYPES[voucher.type] ?? voucher.type} aus Lexoffice
+            › {LEGACY_TYPES[voucher.type] ?? voucher.type} aus {source.name}
           </div>
           <h1>{voucher.number || voucher.contactName || "Beleg"}</h1>
         </div>
@@ -57,7 +63,7 @@ function LegacyVoucherPage() {
             </div>
           )}
           {!file || !src ? (
-            <div className="banner banner-info">Zu diesem Beleg hat Lexware Office keine Datei geliefert.</div>
+            <div className="banner banner-info">Zu diesem Beleg hat {source.product} keine Datei geliefert.</div>
           ) : file.mimeType === "application/pdf" ? (
             <iframe className="doc-preview" src={`${src}#view=Fit`} title={`Datei ${file.filename}`} />
           ) : file.mimeType.startsWith("image/") ? (
@@ -102,7 +108,7 @@ function LegacyVoucherPage() {
                   <dd>{formatDate(voucher.dueDate)}</dd>
                 </>
               )}
-              <dt>Status in Lexoffice</dt>
+              <dt>Status in {source.name}</dt>
               <dd>{voucher.status}</dd>
               {voucher.taxes.map((t) => (
                 <TaxRow key={t.rate} rate={t.rate} net={t.net} tax={t.tax} />
@@ -135,7 +141,7 @@ function LegacyVoucherPage() {
             </section>
           )}
           <p className="small muted" style={{ margin: 0 }}>
-            Übernommen am {formatDateTime(voucher.createdAt)} · Lexoffice-ID {voucher.lexofficeId}
+            Übernommen am {formatDateTime(voucher.createdAt)} · {source.name}-ID {voucher.lexofficeId}
           </p>
         </div>
       </div>

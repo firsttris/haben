@@ -561,6 +561,20 @@
       "when": 1792860271955,
       "tag": "0079_mailvorlagen",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1793095633952,
+      "tag": "0080_sevdesk",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1793095638634,
+      "tag": "0081_sevdesk_trigger",
+      "breakpoints": true
     }
   ]
 }

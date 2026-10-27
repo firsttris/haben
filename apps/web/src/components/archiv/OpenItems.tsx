@@ -45,13 +45,13 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
       </div>
       <p className="small muted" style={{ margin: 0 }}>
         Rechnungen, die deine Kunden noch nicht bezahlt haben, und Eingangsrechnungen, die du noch bezahlen musst, holt Haben als offene Posten
-        herüber: mit Original-PDF und Nummer aus Lexoffice, gebucht gegen den Saldenvortrag. Kommt das Geld, ordnest du es wie gewohnt im
-        Bankabgleich zu. Die Umsatz- und Vorsteuer aus Lexoffice zählt Haben dabei nicht doppelt.
+        herüber: mit Original-PDF und bisheriger Nummer, gebucht gegen den Saldenvortrag. Kommt das Geld, ordnest du es wie gewohnt im
+        Bankabgleich zu. Die schon angemeldete Umsatz- und Vorsteuer zählt Haben dabei nicht doppelt.
       </p>
       {!imported ? (
         <p className="small muted" style={{ margin: 0 }}>Erst nach dem Abruf.</p>
       ) : items.length === 0 ? (
-        <p className="small" style={{ margin: 0 }}>Keine offenen Rechnungen oder Belege in Lexoffice.</p>
+        <p className="small" style={{ margin: 0 }}>Keine offenen Rechnungen oder Belege in der bisherigen Buchhaltung.</p>
       ) : (
         <div className="table-scroll">
           <table className="data-table">

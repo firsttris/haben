@@ -1,5 +1,5 @@
 /*
- * Archiv und Umzug: Jahresarchiv (GoBD-Export), Import aus Lexoffice, übernommene offene Posten und Altbelege.
+ * Archiv und Umzug: Jahresarchiv (GoBD-Export), Import aus Lexoffice und sevDesk, übernommene offene Posten und Altbelege.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Lint-Regel haben/modulgrenzen, eslint/modulgrenzen.js).
@@ -30,3 +30,11 @@ export {
   saveApiKey,
   startImport,
 } from "./lexoffice.ts";
+export {
+  cancelSevdeskImport,
+  latestSevdeskImport,
+  removeSevdeskKey,
+  saveSevdeskKey,
+  sevdeskConnectionStatus,
+  startSevdeskImport,
+} from "./sevdesk.ts";

@@ -27,8 +27,11 @@ const SALES = new Set(["invoice"]);
 const PURCHASES = new Set(["purchaseinvoice"]);
 const OPEN_STATUS = new Set(["open", "overdue", "sepadebit"]);
 
+const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk" } as const;
+
 export interface OpenLegacyItem {
   id: string;
+  source: LegacyVoucher["source"];
   type: string;
   direction: "einnahme" | "ausgabe";
   number: string;
@@ -43,7 +46,7 @@ export interface OpenLegacyItem {
   blocker: string | null;
 }
 
-/** Offener Betrag laut Lexoffice; ohne Zahlungsdaten zählt der Status. */
+/** Offener Betrag laut Lexoffice bzw. sevDesk; ohne Zahlungsdaten zählt der Status. */
 function openAmount(voucher: Pick<LegacyVoucher, "payment" | "status" | "gross">): number {
   if (voucher.payment) return Math.abs(voucher.payment.openAmount);
   return OPEN_STATUS.has(voucher.status) ? Math.abs(voucher.gross) : 0;
@@ -51,14 +54,14 @@ function openAmount(voucher: Pick<LegacyVoucher, "payment" | "status" | "gross">
 
 function blockerFor(voucher: LegacyVoucher, hasPdf: boolean): string | null {
   if (voucher.currency !== "EUR") return "Fremdwährung";
-  if (openAmount(voucher) !== Math.abs(voucher.gross)) return "teilweise bezahlt – Restbetrag erst in Lexoffice ausgleichen oder ohne Rechnung buchen";
+  if (openAmount(voucher) !== Math.abs(voucher.gross)) return `teilweise bezahlt – Restbetrag erst in ${SOURCE_LABEL[voucher.source]} ausgleichen oder ohne Rechnung buchen`;
   if (voucher.taxes.some((t) => ![1900, 700, 0].includes(t.rate))) return "Steuersatz, den Haben nicht kennt";
   if (voucher.gross <= 0) return "Betrag nicht positiv";
-  if (!hasPdf) return "keine Datei aus Lexoffice";
+  if (!hasPdf) return `keine Datei aus ${SOURCE_LABEL[voucher.source]}`;
   return null;
 }
 
-/** Offene Rechnungen und Eingangsbelege aus Lexoffice, die in Haben noch bezahlt werden */
+/** Offene Rechnungen und Eingangsbelege aus Lexoffice oder sevDesk, die in Haben noch bezahlt werden */
 export async function openLegacyItems(): Promise<OpenLegacyItem[]> {
   const vouchers = await db
     .select()
@@ -90,6 +93,7 @@ export async function openLegacyItems(): Promise<OpenLegacyItem[]> {
     const documentId = documentBy.get(v.id);
     return {
       id: v.id,
+      source: v.source,
       type: v.type,
       direction: v.direction,
       number: v.number,
@@ -104,7 +108,7 @@ export async function openLegacyItems(): Promise<OpenLegacyItem[]> {
   });
 }
 
-/** Lexoffice-Kategorie grob auf die Ausgabenkategorie von Haben abbilden; sie zählt nur für die EÜR-Aufteilung */
+/** Kategorie aus Lexoffice grob auf die Ausgabenkategorie von Haben abbilden; sie zählt nur für die EÜR-Aufteilung */
 const CATEGORY_HINTS: [RegExp, ExpenseCategory][] = [
   [/bewirtung/i, "bewirtung"],
   // Nur abziehbare Geschenke; „Geschenke über 50 €“ bzw. „nicht abzugsfähig“ fallen nicht darunter
@@ -135,14 +139,14 @@ function categoryFor(categories: LegacyCategoryRow[]): ExpenseCategory {
 }
 
 /**
- * Übernimmt einen offenen Posten aus Lexoffice, damit der Zahlungseingang bzw. die Zahlung im Bankabgleich
- * zugeordnet werden kann: Rechnungen mit Original-PDF und Lexoffice-Nummer, Belege gebucht und gesperrt.
+ * Übernimmt einen offenen Posten aus Lexoffice oder sevDesk, damit der Zahlungseingang bzw. die Zahlung im Bankabgleich
+ * zugeordnet werden kann: Rechnungen mit Original-PDF und bisheriger Nummer, Belege gebucht und gesperrt.
  * Gebucht wird gegen den Saldenvortrag, nicht als Erlös oder Aufwand; die stehen schon in den alten Büchern.
  */
 export async function takeOverLegacyItem(actor: string, voucherId: string): Promise<{ kind: "invoice" | "document"; id: string }> {
   const items = await openLegacyItems();
   const item = items.find((i) => i.id === voucherId);
-  if (!item) throw new TakeoverError("Dieser Beleg ist in Lexoffice nicht offen.");
+  if (!item) throw new TakeoverError("Dieser Beleg ist in der bisherigen Buchhaltung nicht offen.");
   if (item.takenOver) throw new TakeoverError("Schon übernommen.");
   if (item.blocker) throw new TakeoverError(`Nicht übernehmbar: ${item.blocker}.`);
   return takeOver(actor, item);
@@ -171,7 +175,7 @@ async function takeOverInvoice(
   const rebuild = (priceMode: PriceMode) => {
     const lines = taxes.map((t, i) => ({
       position: i + 1,
-      description: `Rechnung ${voucher.number} aus Lexoffice${taxes.length > 1 ? ` (${t.rate / 100} %)` : ""}`,
+      description: `Rechnung ${voucher.number} aus ${SOURCE_LABEL[voucher.source]}${taxes.length > 1 ? ` (${t.rate / 100} %)` : ""}`,
       quantity: 1000,
       unit: "Psch.",
       unitPrice: priceMode === "brutto" ? t.net + t.tax : t.net,
@@ -185,7 +189,7 @@ async function takeOverInvoice(
   const { priceMode, totals, lines } = matches(netto) ? netto : rebuild("brutto");
   if (totals.gross !== voucher.gross || totals.tax !== voucher.tax) {
     throw new TakeoverError(
-      `Die Steuer lässt sich nicht centgenau nachbilden (Lexoffice ${voucher.tax / 100} €, Haben ${netto.totals.tax / 100} €).`,
+      `Die Steuer lässt sich nicht centgenau nachbilden (${SOURCE_LABEL[voucher.source]} ${voucher.tax / 100} €, Haben ${netto.totals.tax / 100} €).`,
     );
   }
 
@@ -221,7 +225,7 @@ async function takeOverInvoice(
         serviceTo: voucher.serviceTo,
         paymentTermDays: term,
         dueDate,
-        note: "Aus Lexoffice übernommen; das PDF ist das Original.",
+        note: `Aus ${SOURCE_LABEL[voucher.source]} übernommen; das PDF ist das Original.`,
         priceMode,
         net: totals.net,
         tax: totals.tax,
@@ -236,7 +240,7 @@ async function takeOverInvoice(
       .update(schema.invoices)
       .set({
         status: "final",
-        number: voucher.number || `LX-${voucher.lexofficeId.slice(0, 8)}`,
+        number: voucher.number || (voucher.source === "sevdesk" ? `SD-${voucher.lexofficeId.split("/").pop()}` : `LX-${voucher.lexofficeId.slice(0, 8)}`),
         contactVersion: contact!.version,
         seller: sellerFrom(company),
         buyer: buyerFrom(contact!),
@@ -251,7 +255,7 @@ async function takeOverInvoice(
       .where(eq(schema.invoices.id, id));
     await post(tx, company, {
       date: today(),
-      description: `Offene Rechnung ${voucher.number} aus Lexoffice · ${contact!.name}`,
+      description: `Offene Rechnung ${voucher.number} aus ${SOURCE_LABEL[voucher.source]} · ${contact!.name}`,
       sourceType: "invoice",
       sourceId: id,
       lines: openingInvoicePosting(totals, company.kontenrahmen, company.versteuerung),
@@ -286,7 +290,7 @@ async function takeOverDocument(
         dueDate: voucher.dueDate,
         category: categoryFor(voucher.categories),
         payment: "bank",
-        note: "Aus Lexoffice übernommen; die Vorsteuer ist dort schon angemeldet.",
+        note: `Aus ${SOURCE_LABEL[voucher.source]} übernommen; die Vorsteuer ist dort schon angemeldet.`,
         net: voucher.net,
         tax: voucher.tax,
         gross: voucher.gross,
@@ -297,7 +301,7 @@ async function takeOverDocument(
     await tx.insert(schema.documentAmounts).values(voucher.taxes.map((t) => ({ documentId: id, taxRate: t.rate, net: t.net, tax: t.tax })));
     await post(tx, company, {
       date: today(),
-      description: `Offener Beleg ${voucher.number || file.filename} aus Lexoffice · ${voucher.contactName}`,
+      description: `Offener Beleg ${voucher.number || file.filename} aus ${SOURCE_LABEL[voucher.source]} · ${voucher.contactName}`,
       sourceType: "document",
       sourceId: id,
       lines: openingDocumentPosting(voucher.gross, company.kontenrahmen),

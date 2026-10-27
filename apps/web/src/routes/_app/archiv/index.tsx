@@ -46,7 +46,7 @@ export const Route = createFileRoute("/_app/archiv/")({
 });
 
 const VIEWS = [
-  { value: "umzug", label: "Umzug aus Lexoffice" },
+  { value: "umzug", label: "Umzug" },
   { value: "belege", label: "Belege" },
   { value: "buchungen", label: "DATEV-Buchungen" },
   { value: "dateien", label: "Originaldateien" },

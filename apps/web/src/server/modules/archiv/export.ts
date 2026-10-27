@@ -854,7 +854,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     };
   }
 
-  // Altbestand aus Lexoffice ---------------------------------------------------
+  // Altbestand aus Lexoffice und sevDesk ----------------------------------------
   yield* legacyFiles(year, problems);
 
   // Stammdaten ------------------------------------------------------------
@@ -900,6 +900,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   }
 }
 
+const LEGACY_SOURCE_LABELS = { lexoffice: "Lexoffice", sevdesk: "sevDesk" } as const;
+
 const LEGACY_TYPE_LABELS: Record<string, string> = {
   invoice: "Rechnung",
   creditnote: "Gutschrift",
@@ -910,7 +912,7 @@ const LEGACY_TYPE_LABELS: Record<string, string> = {
   purchasecreditnote: "Ausgabe-Gutschrift",
 };
 
-/** Aus Lexoffice übernommene Belege, DATEV-Buchungen und Originalexporte des Jahres */
+/** Aus Lexoffice oder sevDesk übernommene Belege, DATEV-Buchungen und Originalexporte des Jahres; der Ordner heißt für beide lexoffice/ */
 async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<ArchiveFile> {
   const vouchers = await db
     .select()
@@ -939,7 +941,7 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
         yield { path, content: new Uint8Array(await loadFile(file.sha256)), compress: ext === "xml" };
         paths.push(path.slice("lexoffice/".length));
       } catch (error) {
-        problems.push(`Lexoffice-Beleg ${voucher.number || voucher.id}: Datei ${file.filename} nicht lesbar – ${error instanceof Error ? error.message : String(error)}`);
+        problems.push(`${LEGACY_SOURCE_LABELS[voucher.source]}-Beleg ${voucher.number || voucher.id}: Datei ${file.filename} nicht lesbar – ${error instanceof Error ? error.message : String(error)}`);
       }
     }
     rows.push([
@@ -961,13 +963,14 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
       paths.join(" | "),
       (filesByVoucher.get(voucher.id) ?? []).map((f) => f.sha256).join(" | "),
       voucher.lexofficeId,
+      LEGACY_SOURCE_LABELS[voucher.source],
     ]);
   }
   if (vouchers.length > 0) {
     yield {
       path: "lexoffice/belege.csv",
       content: csv(
-        ["Datum", "Art", "Richtung", "Nummer", "Kontakt", "Netto", "Steuer", "Brutto", "Währung", "Status in Lexoffice", "Fällig", "Bezahlt am", "Steuersätze (JSON)", "Kategorien (JSON)", "Notiz", "Dateien", "SHA-256", "Lexoffice-ID"],
+        ["Datum", "Art", "Richtung", "Nummer", "Kontakt", "Netto", "Steuer", "Brutto", "Währung", "Status in der Quelle", "Fällig", "Bezahlt am", "Steuersätze (JSON)", "Kategorien (JSON)", "Notiz", "Dateien", "SHA-256", "Lexoffice-ID", "Quelle"],
         rows,
       ),
       compress: true,
@@ -1143,7 +1146,9 @@ umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldun
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
-                         Lexware Office mit Originaldateien (belege.csv), die Zeilen des
+                         Lexware Office oder sevDesk (Spalte Quelle; bei sevDesk steht in
+                         Lexoffice-ID die sevDesk-Art und -ID, z. B. invoice/123) mit
+                         Originaldateien (belege.csv), die Zeilen des
                          DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten
                          Originalexporte des Jahres (originale/: DATEV, IDEA,
                          ELSTER-Protokolle, Kontoauszüge).

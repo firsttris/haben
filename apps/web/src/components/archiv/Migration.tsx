@@ -7,10 +7,14 @@ import { useAction } from "../../lib/use-action.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import {
   cancelLexofficeImport,
+  cancelSevdeskImport,
   getImportStatus,
   removeLexofficeKey,
+  removeSevdeskToken,
   saveLexofficeKey,
+  saveSevdeskToken,
   startLexofficeImport,
+  startSevdeskImport,
   type getMigration,
 } from "../../server/functions/archive.ts";
 import { Icon } from "../Icon.tsx";
@@ -19,27 +23,90 @@ import { OpenItems } from "./OpenItems.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
+type Source = "lexoffice" | "sevdesk";
+
+/** Was sich je Quelle unterscheidet: Name, Schlüssel und die Server-Funktionen für Verbindung und Abruf */
+const SOURCES = {
+  lexoffice: {
+    product: "Lexware Office",
+    keyLabel: "API-Schlüssel",
+    keyHelp:
+      "Die Public API gibt es im Tarif XL. Den Schlüssel erzeugst du in Lexware Office unter Erweiterungen → Public API (app.lexware.de/addons/public-api). Haben liest nur, es ändert nichts in Lexware Office.",
+    removeLabel: "Schlüssel entfernen",
+    importHelp:
+      "Holt alle Kontakte, Ausgangsrechnungen, Gutschriften und Belege mit ihren Original-PDFs. Die API erlaubt etwa zwei Anfragen pro Sekunde; bei einigen hundert Belegen dauert das eine Weile, du kannst die Seite währenddessen verlassen. Ein neuer Abruf überspringt alles, was schon da ist.",
+    exportsHelp:
+      "Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) und den IDEA-Export aus Lexware Office hoch, dazu die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF.",
+    save: saveLexofficeKey,
+    remove: removeLexofficeKey,
+    start: startLexofficeImport,
+    cancel: cancelLexofficeImport,
+  },
+  sevdesk: {
+    product: "sevDesk",
+    keyLabel: "API-Token",
+    keyHelp:
+      "Den API-Token findest du in sevDesk unter Einstellungen → Benutzer, beim jeweiligen Benutzer. Haben liest nur, es ändert nichts in sevDesk.",
+    removeLabel: "Token entfernen",
+    importHelp:
+      "Holt alle Kontakte, Rechnungen, Gutschriften und Belege mit ihren PDFs bzw. Belegdateien. Je Beleg sind mehrere Anfragen nötig; bei einigen hundert Belegen dauert das eine Weile, du kannst die Seite währenddessen verlassen. Ein neuer Abruf überspringt alles, was schon da ist.",
+    exportsHelp:
+      "Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) aus sevDesk hoch, dazu den Datenexport für die Betriebsprüfung (GoBD, als „IDEA-Export“ ablegen), die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF.",
+    save: saveSevdeskToken,
+    remove: removeSevdeskToken,
+    start: startSevdeskImport,
+    cancel: cancelSevdeskImport,
+  },
+} as const;
 
 export function Migration({ data }: { data: MigrationData }) {
   const ready = data.years.length > 0 && data.years.every((y) => y.ready);
+  const [source, setSource] = useState<Source>(
+    (data.sevdeskConnection || data.sevdeskImport) && !(data.connection || data.lastImport) ? "sevdesk" : "lexoffice",
+  );
+  const config = SOURCES[source];
+  const lastImport = source === "sevdesk" ? data.sevdeskImport : data.lastImport;
   return (
     <div className="stack">
       <div className="banner banner-info" role="note">
-        Haben übernimmt alle Jahre aus Lexware Office, damit du nach der Kündigung jede Frage des Finanzamts aus Haben beantworten kannst.
+        Haben übernimmt alle Jahre aus {config.product}, damit du nach der Kündigung jede Frage des Finanzamts aus Haben beantworten kannst.
         Kündige erst, wenn der Abgleich unten für jedes Jahr aufgeht. Alles, was hier landet, ist danach unveränderlich.
       </div>
-      <Connection connection={data.connection} />
-      <ImportCard key={data.lastImport?.id ?? "neu"} connected={Boolean(data.connection)} initial={data.lastImport} />
-      <OpenItems items={data.openItems} imported={Boolean(data.lastImport)} />
+      <div className="chip-row" role="group" aria-label="Bisherige Buchhaltung">
+        {(Object.keys(SOURCES) as Source[]).map((s) => (
+          <button key={s} type="button" className={`chip${source === s ? " active" : ""}`} aria-pressed={source === s} onClick={() => setSource(s)}>
+            Umzug aus {SOURCES[s].product}
+          </button>
+        ))}
+      </div>
+      {source === "sevdesk" ? (
+        <Connection
+          key="sevdesk"
+          source="sevdesk"
+          connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null}
+        />
+      ) : (
+        <Connection
+          key="lexoffice"
+          source="lexoffice"
+          connected={data.connection ? { name: data.connection.organizationName || "Lexware Office", since: data.connection.createdAt } : null}
+        />
+      )}
+      <ImportCard
+        key={`${source}-${lastImport?.id ?? "neu"}`}
+        source={source}
+        connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : data.connection)}
+        initial={lastImport}
+      />
+      <OpenItems items={data.openItems} imported={Boolean(data.lastImport || data.sevdeskImport)} />
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
           <span className="step-num">4</span>
           <h2 id="upload-heading" style={{ margin: 0 }}>Exporte ablegen</h2>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
-          Die API liefert keine Buchungen und keine Bankumsätze. Lade deshalb je Geschäftsjahr den DATEV-Export (Buchungsstapel, CSV) und den
-          IDEA-Export aus Lexware Office hoch, dazu die ELSTER-Übertragungsprotokolle und die Kontoauszüge der Bank als PDF. Die Dateien
-          bleiben unverändert und mit Prüfsumme im Archiv; den Buchungsstapel liest Haben zusätzlich zeilenweise ein.
+          {config.exportsHelp} Die Dateien bleiben unverändert und mit Prüfsumme im Archiv; den Buchungsstapel liest Haben zusätzlich
+          zeilenweise ein.
         </p>
         <ArchiveUpload kinds={data.kinds} />
       </section>
@@ -54,23 +121,24 @@ export function Migration({ data }: { data: MigrationData }) {
           ) : (
             <div className={ready ? "banner banner-ok" : "banner banner-info"} role="status">
               {ready
-                ? "Alle Prüfungen sind erfüllt. Vergleiche noch die Summen und die Umsatzsteuer je Monat mit Lexware Office, dann kannst du kündigen."
+                ? `Alle Prüfungen sind erfüllt. Vergleiche noch die Summen und die Umsatzsteuer je Monat mit ${config.product}, dann kannst du kündigen.`
                 : "Noch nicht alles beisammen. Offene Punkte stehen bei den Jahren unten."}
             </div>
           )}
         </div>
         {data.years.map((year) => (
-          <YearCheck key={year.year} year={year} versteuerung={data.versteuerung} />
+          <YearCheck key={year.year} year={year} versteuerung={data.versteuerung} product={config.product} />
         ))}
       </section>
     </div>
   );
 }
 
-function Connection({ connection }: { connection: MigrationData["connection"] }) {
+function Connection({ source, connected }: { source: Source; connected: { name: string; since: Date } | null }) {
   const router = useRouter();
-  const save = useServerFn(saveLexofficeKey);
-  const remove = useServerFn(removeLexofficeKey);
+  const config = SOURCES[source];
+  const save = useServerFn(config.save);
+  const remove = useServerFn(config.remove);
   const [key, setKey] = useState("");
   const { busy, notice, run } = useAction();
   const error = notice?.text ?? null;
@@ -92,30 +160,31 @@ function Connection({ connection }: { connection: MigrationData["connection"] })
     });
 
   return (
-    <section className={`card stack${connection ? " step-done" : ""}`} aria-labelledby="connection-heading">
+    <section className={`card stack${connected ? " step-done" : ""}`} aria-labelledby="connection-heading">
       <div className="step-head">
-        <span className="step-num">{connection ? <Icon name="check" /> : "1"}</span>
-        <h2 id="connection-heading" style={{ margin: 0 }}>Verbindung zu Lexware Office</h2>
+        <span className="step-num">{connected ? <Icon name="check" /> : "1"}</span>
+        <h2 id="connection-heading" style={{ margin: 0 }}>Verbindung zu {config.product}</h2>
       </div>
-      {connection ? (
+      {connected ? (
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <div>
-            Verbunden mit <strong>{connection.organizationName || "Lexware Office"}</strong>
-            <div className="small muted">Schlüssel hinterlegt am {formatDateTime(connection.createdAt)}, verschlüsselt gespeichert.</div>
+            Verbunden mit <strong>{connected.name}</strong>
+            <div className="small muted">
+              {config.keyLabel} hinterlegt am {formatDateTime(connected.since)}, verschlüsselt gespeichert.
+            </div>
           </div>
           <button type="button" className="btn btn-danger" onClick={onRemove} disabled={busy}>
-            Schlüssel entfernen
+            {config.removeLabel}
           </button>
           <NoticeBanner notice={notice} />
         </div>
       ) : (
         <form className="stack" onSubmit={onSubmit}>
           <p className="small muted" style={{ margin: 0 }}>
-            Die Public API gibt es im Tarif XL. Den Schlüssel erzeugst du in Lexware Office unter Erweiterungen → Public API
-            (app.lexware.de/addons/public-api). Haben liest nur, es ändert nichts in Lexware Office.
+            {config.keyHelp}
           </p>
           <label className="field" htmlFor={keyId}>
-            API-Schlüssel
+            {config.keyLabel}
             <input
               id={keyId}
               type="password"
@@ -145,10 +214,11 @@ function Connection({ connection }: { connection: MigrationData["connection"] })
 
 const PHASES = { kontakte: "Kontakte", liste: "Belegliste", belege: "Belege und Dateien", fertig: "Fertig" } as const;
 
-function ImportCard({ connected, initial }: { connected: boolean; initial: ImportRow | null }) {
+function ImportCard({ source, connected, initial }: { source: Source; connected: boolean; initial: ImportRow | null }) {
   const router = useRouter();
-  const start = useServerFn(startLexofficeImport);
-  const cancel = useServerFn(cancelLexofficeImport);
+  const config = SOURCES[source];
+  const start = useServerFn(config.start);
+  const cancel = useServerFn(config.cancel);
   const poll = useServerFn(getImportStatus);
   const [run, setRun] = useState<ImportRow | null>(initial);
   const action = useAction();
@@ -158,7 +228,7 @@ function ImportCard({ connected, initial }: { connected: boolean; initial: Impor
     if (!running) return;
     let stopped = false;
     const timer = setInterval(async () => {
-      const next = await poll().catch(() => null);
+      const next = await poll({ data: { source } }).catch(() => null);
       if (stopped || !next) return;
       setRun(next);
       if (next.status !== "laeuft") void router.invalidate();
@@ -167,12 +237,12 @@ function ImportCard({ connected, initial }: { connected: boolean; initial: Impor
       stopped = true;
       clearInterval(timer);
     };
-  }, [running, poll, router]);
+  }, [running, poll, router, source]);
 
   const onStart = () =>
     action.run(async () => {
       await start();
-      setRun(await poll());
+      setRun(await poll({ data: { source } }));
     });
 
   const progress = run?.progress;
@@ -184,9 +254,7 @@ function ImportCard({ connected, initial }: { connected: boolean; initial: Impor
         <h2 id="import-heading" style={{ margin: 0 }}>Kontakte, Rechnungen und Belege abrufen</h2>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
-        Holt alle Kontakte, Ausgangsrechnungen, Gutschriften und Belege mit ihren Original-PDFs. Die API erlaubt etwa zwei Anfragen pro
-        Sekunde; bei einigen hundert Belegen dauert das eine Weile, du kannst die Seite währenddessen verlassen. Ein neuer Abruf überspringt
-        alles, was schon da ist.
+        {config.importHelp}
       </p>
       {progress && run && (
         <div className="stack" style={{ gap: 12 }} aria-live="polite">
@@ -256,7 +324,7 @@ function ImportCard({ connected, initial }: { connected: boolean; initial: Impor
   );
 }
 
-function YearCheck({ year, versteuerung }: { year: MigrationData["years"][number]; versteuerung: "ist" | "soll" }) {
+function YearCheck({ year, versteuerung, product }: { year: MigrationData["years"][number]; versteuerung: "ist" | "soll"; product: string }) {
   return (
     <section className="card stack" aria-labelledby={`year-${year.year}`}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -294,7 +362,7 @@ function YearCheck({ year, versteuerung }: { year: MigrationData["years"][number
         </dl>
       </div>
       <div className="small muted">
-        Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in Lexware Office.{" "}
+        Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in {product}.{" "}
         {year.bookings && year.bookings.unmatched > 0 && (
           <Link to="/archiv" activeProps={{}} search={{ ansicht: "buchungen", jahr: year.year, ohneBeleg: true }}>
             Buchungen ohne passenden Beleg ansehen
@@ -336,7 +404,7 @@ function YearCheck({ year, versteuerung }: { year: MigrationData["years"][number
           <p className="small muted">
             Aus den übernommenen Belegen berechnet:{" "}
             {versteuerung === "ist" ? "Einnahmen nach Zahlungsdatum (Ist-Versteuerung)" : "Einnahmen nach Rechnungsdatum (Soll-Versteuerung)"},
-            Vorsteuer nach Belegdatum. Kleine Abweichungen entstehen, wenn in Lexware Office nachträglich korrigiert wurde.
+            Vorsteuer nach Belegdatum. Kleine Abweichungen entstehen, wenn in {product} nachträglich korrigiert wurde.
           </p>
         </details>
       )}
