@@ -213,17 +213,59 @@ export async function listDatevBookings(filter: { year: number; search: string; 
   return { rows, total: total?.n ?? 0, pageSize };
 }
 
-/** Umsätze je Konto (beide Seiten jeder Buchung), wie im DATEV-Stapel; Beträge brutto, wo Steuerautomatik greift */
-export async function accountTotals(year: number) {
+/**
+ * Umsätze je Konto (beide Seiten jeder Buchung), wie im DATEV-Stapel, für ein Jahr oder mit `month` einen Monat.
+ * Beträge brutto, wo Steuerautomatik greift.
+ */
+export async function accountTotals(year: number, month?: number) {
+  const { from, to } = periodBounds(year, month);
   const rows = await db.execute<{ account: string; debit: string; credit: string }>(sql`
     with sides as (
       select account, case when side = 'S' then amount else 0 end as debit, case when side = 'H' then amount else 0 end as credit
-        from datev_bookings where date between ${`${year}-01-01`} and ${`${year}-12-31`}
+        from datev_bookings where date between ${from} and ${to}
       union all
       select contra_account, case when side = 'H' then amount else 0 end, case when side = 'S' then amount else 0 end
-        from datev_bookings where date between ${`${year}-01-01`} and ${`${year}-12-31`}
+        from datev_bookings where date between ${from} and ${to}
     )
     select account, sum(debit) as debit, sum(credit) as credit from sides group by account
     order by length(account), account`);
   return [...rows].map((r) => ({ account: r.account, debit: Number(r.debit), credit: Number(r.credit) }));
+}
+
+/** Erster und letzter Tag eines Jahres oder Monats, JJJJ-MM-TT */
+function periodBounds(year: number, month?: number) {
+  if (month === undefined) return { from: `${year}-01-01`, to: `${year}-12-31` };
+  const mm = String(month).padStart(2, "0");
+  const last = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return { from: `${year}-${mm}-01`, to: `${year}-${mm}-${last}` };
+}
+
+/** DATEV-Buchungen eines Jahres oder Monats, auf Wunsch nur die eines Kontos (als Konto oder Gegenkonto) */
+export async function datevBookingsForPeriod(filter: { year: number; month?: number; account: string; unmatched: boolean; limit: number }) {
+  const { from, to } = periodBounds(filter.year, filter.month);
+  const conditions: SQL[] = [gte(schema.datevBookings.date, from), lte(schema.datevBookings.date, to)];
+  const account = filter.account.trim();
+  if (account) conditions.push(or(eq(schema.datevBookings.account, account), eq(schema.datevBookings.contraAccount, account))!);
+  if (filter.unmatched) conditions.push(sql`${schema.datevBookings.voucherField1} <> '' and not ${matchedSql}`);
+  const where = and(...conditions);
+  const [rows, [total]] = await Promise.all([
+    db
+      .select({
+        date: schema.datevBookings.date,
+        amount: schema.datevBookings.amount,
+        side: schema.datevBookings.side,
+        account: schema.datevBookings.account,
+        contraAccount: schema.datevBookings.contraAccount,
+        buKey: schema.datevBookings.buKey,
+        voucherField1: schema.datevBookings.voucherField1,
+        text: schema.datevBookings.text,
+        matched: matchedSql,
+      })
+      .from(schema.datevBookings)
+      .where(where)
+      .orderBy(asc(schema.datevBookings.date), asc(schema.datevBookings.row))
+      .limit(filter.limit),
+    db.select({ n: count() }).from(schema.datevBookings).where(where),
+  ]);
+  return { total: total?.n ?? 0, rows };
 }
