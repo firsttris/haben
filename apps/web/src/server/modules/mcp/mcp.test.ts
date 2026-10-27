@@ -128,6 +128,16 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     expect(wrong.isError).toBe(true);
     expect(wrong.content[0]!.text).toMatch(/Zeitraum „2026-13“ ungültig/);
 
+    const liste = JSON.parse((await call("ustva_ausfuellliste", { zeitraum: "2026-09" })).content[0]!.text) as {
+      formular: string;
+      anmeldungszeitraum: string;
+      grundlage: string;
+      felder: unknown[];
+      zumVergleich: { bezeichnung: string; wert: string }[];
+    };
+    expect(liste).toMatchObject({ formular: "Umsatzsteuer-Voranmeldung 2026", anmeldungszeitraum: "September 2026", grundlage: "aus den Buchungen berechnet", felder: [] });
+    expect(liste.zumVergleich).toEqual([{ bezeichnung: "Kz 83 Verbleibende Umsatzsteuer-Vorauszahlung", wert: "0,00" }]);
+
     const legacy = JSON.parse((await call("lexoffice_belege", { zeitraum: "2023-03" })).content[0]!.text) as { anzahl: number; nachZahlung: boolean };
     expect(legacy).toMatchObject({ anzahl: 0, nachZahlung: true });
     const konten = JSON.parse((await call("lexoffice_konten", { zeitraum: "2023" })).content[0]!.text) as { konten: unknown[]; hinweis: string };

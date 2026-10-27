@@ -195,7 +195,7 @@ Haben übermittelt die Umsatzsteuer-Voranmeldung über ERiC, die offizielle Bibl
 | **Hersteller-ID** (fünf Ziffern) | Kennung der Software in jeder Übermittlung; ERiC 43 verlangt sie schon fürs Prüfen | ELSTER-Entwicklerbereich: auf elster.de als Entwickler registrieren, das Bayerische Landesamt für Steuern prüft den Antrag | Tage bis Wochen |
 | **Zertifikatsdatei** (.pfx) und PIN | unterschreibt jede Übermittlung | ELSTER-Benutzerkonto mit der Anmeldeart „Zertifikatsdatei“, siehe [unten](#zertifikatsdatei-statt-elster-secure) | ein bis zwei Wochen (Brief) |
 
-Bis Hersteller-ID und Zertifikat da sind, arbeitest du ganz normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER; Haben zeigt jede Kennzahl und Zeile zum Übertragen.
+Bis Hersteller-ID und Zertifikat da sind, arbeitest du ganz normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER; Haben zeigt jede Kennzahl und Zeile zum Übertragen. Das Eintragen der Voranmeldung kann ein KI-Assistent übernehmen, siehe [Mein ELSTER mit KI-Assistent](elster-mit-assistent.md).
 
 ### Zertifikatsdatei statt ELSTER Secure
 

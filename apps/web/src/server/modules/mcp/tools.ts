@@ -1,4 +1,4 @@
-import { dueDate, kontenklasse, kontoart, parsePeriodKey, previousPeriod, periodKey, periodLabel, type LegacyVatMonth, type VatPeriod } from "@haben/core";
+import { computeUstva, dueDate, kontenklasse, kontoart, parsePeriodKey, previousPeriod, periodKey, periodLabel, type LegacyVatMonth, type VatPeriod } from "@haben/core";
 import { z } from "zod";
 import { env } from "../../env.ts";
 import { today as todayInGermany } from "../../today.ts";
@@ -22,6 +22,7 @@ import { annualOverview } from "../jahreserklaerung/index.ts";
 import { invoiceSummary, listInvoices, overdueInvoices } from "../rechnungen/index.ts";
 import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../stammdaten/index.ts";
 import { computeVatFigures, computedValues, preflight, returnsForPeriod } from "../umsatzsteuer/index.ts";
+import { ustvaAusfuellliste } from "./ausfuellliste.ts";
 import { McpError, type McpScope } from "./tokens.ts";
 
 /*
@@ -374,6 +375,53 @@ export const MCP_TOOLS: McpTool[] = [
             }
           : null,
         vorpruefung: issues.map((i) => ({ hinweis: i.text, art: i.tone, link: link(i.link) })),
+        link: link(`/umsatzsteuer/${periodKey(period)}`),
+      };
+    },
+  }),
+
+  tool({
+    name: "ustva_ausfuellliste",
+    title: "Ausfüllliste Voranmeldung für Mein ELSTER",
+    description:
+      "Die Werte der Umsatzsteuer-Voranmeldung eines Monats zum Eintragen in Mein ELSTER: Kennzahl, Abschnitt und Bezeichnung in der " +
+      "Reihenfolge des Formulars und der Wert so, wie er eingetippt wird. Nur Felder mit Wert; alle anderen bleiben leer. Dazu die Werte, " +
+      "die Mein ELSTER selbst rechnet (Steuer zu Kz 81 und 86, Kz 83), zum Vergleich nach „Prüfen“. Ohne Zeitraum der Monat, der als " +
+      "Nächstes abzugeben ist. Absenden darf nur der Nutzer selbst.",
+    scope: "haben:lesen",
+    input: { zeitraum: z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Monat als JJJJ-MM") },
+    run: async ({ zeitraum }, { today }) => {
+      const period = periodFrom(zeitraum, today);
+      const [company, returns, figures, abgleich, kleinunternehmer] = await Promise.all([
+        loadCompany(),
+        returnsForPeriod(period),
+        computeVatFigures(period),
+        vatAbgleich(period),
+        kleinunternehmerForMonth(period.year, period.month),
+      ]);
+      const draft = returns.find((r) => r.status === "draft") ?? null;
+      const sent = draft ? null : (returns.find((r) => r.status === "sent") ?? null);
+      // Was Haben senden würde: ein von Hand überschriebener Entwurf bleibt, ein berechneter folgt den Buchungen
+      const values = draft?.source === "manuell" ? draft : (sent ?? figures);
+      const issues = sent ? [] : [...(await preflight(period, figures)), ...abgleichIssues(abgleich)];
+      return {
+        formular: `Umsatzsteuer-Voranmeldung ${period.year}`,
+        zeitraum: periodKey(period),
+        anmeldungszeitraum: periodLabel(period),
+        faellig: dueDate(period, company.bundesland),
+        grundlage: sent ? "in Haben als gesendet festgeschrieben" : draft?.source === "manuell" ? "Entwurf, von Hand überschrieben" : "aus den Buchungen berechnet",
+        ...(sent
+          ? { hinweis: "Diese Anmeldung ist schon gesendet. Für eine Korrektur in Haben eine berichtigte Anmeldung anlegen." }
+          : kleinunternehmer
+            ? { hinweis: "Kleinunternehmer: eine Voranmeldung ist nur nötig, wenn selbst Steuer geschuldet wird (z. B. § 13b)." }
+            : {}),
+        ...ustvaAusfuellliste(computeUstva(values), (draft ?? sent)?.berichtigt ?? false),
+        vorpruefung: issues.map((i) => ({ hinweis: i.text, art: i.tone, link: link(i.link) })),
+        regeln: [
+          "Felder über die Kennzahl finden, nicht über die Position; bei Unklarheit den Nutzer fragen statt raten.",
+          "Nach „Prüfen“ in Mein ELSTER die Werte unter zumVergleich abgleichen und jede Fehlermeldung oder Abweichung dem Nutzer nennen.",
+          "Nie selbst absenden. Vor dem Absenden anhalten; das macht der Nutzer.",
+        ],
         link: link(`/umsatzsteuer/${periodKey(period)}`),
       };
     },
