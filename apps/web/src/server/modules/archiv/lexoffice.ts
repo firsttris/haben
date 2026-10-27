@@ -662,7 +662,8 @@ export async function legacyVouchersForPeriod(filter: {
       ${
         filter.withPayments
           ? sql`or (v.direction = 'einnahme' and exists (
-              select 1 from jsonb_array_elements(coalesce(v.payment->'items', '[]'::jsonb)) i where i->>'date' like ${like}))`
+              select 1 from jsonb_array_elements(coalesce(v.payment->'items', '[]'::jsonb)) i
+              where i->>'date' like ${like} and i->>'type' in (${sql.join([...PAYMENT_ITEM_TYPES].map((t) => sql`${t}`), sql`, `)})))`
           : sql``
       })
       ${filter.direction === "alle" ? sql`` : sql`and v.direction = ${filter.direction}`}
@@ -692,7 +693,7 @@ export async function legacyVouchersForPeriod(filter: {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Ein Beleg mit der gespeicherten API-Antwort, gesucht nach ID in Haben, ID in Lexoffice oder Belegnummer
+ * Ein Beleg mit der gespeicherten API-Antwort, gesucht nach ID in Haben, ID in Lexoffice bzw. sevDesk oder Belegnummer
  * (Leerzeichen und Groß-/Kleinschreibung egal). Bei einer Nummer können es mehrere sein.
  */
 export async function findLegacyVouchers(ref: string) {
@@ -704,7 +705,9 @@ export async function findLegacyVouchers(ref: string) {
     .where(
       UUID.test(value)
         ? sql`${schema.lexofficeVouchers.id} = ${value}::uuid or ${schema.lexofficeVouchers.lexofficeId} = ${value}`
-        : sql`lower(regexp_replace(${schema.lexofficeVouchers.number}, '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g'))`,
+        : // sevDesk-Kennungen wie "invoice/101" sind keine UUID
+          sql`${schema.lexofficeVouchers.lexofficeId} = ${value}
+            or lower(regexp_replace(${schema.lexofficeVouchers.number}, '\\s+', '', 'g')) = lower(regexp_replace(${value}, '\\s+', '', 'g'))`,
     )
     .limit(10);
   const result = [];
