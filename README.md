@@ -129,6 +129,59 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 ## ❓ FAQ
 
 <details>
+<summary><b>Was kostet Haben?</b></summary>
+
+Die Software ist kostenlos (AGPL). Du brauchst nur einen Server, etwa einen VPS ab rund 5 € im Monat.
+</details>
+
+<details>
+<summary><b>Ist Haben eine Alternative zu Lexware Office (lexoffice) und sevDesk?</b></summary>
+
+Ja, ohne Abo und auf deinem eigenen Server. Rechnungen, Belege und Kontakte übernimmst du per API, siehe
+[Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) und [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html).
+</details>
+
+<details>
+<summary><b>Für wen ist Haben gedacht?</b></summary>
+
+Für Freiberufler, Selbstständige und Kleinunternehmer mit Einnahmen-Überschuss-Rechnung (EÜR), auch mit
+Kleinunternehmerregelung nach § 19 UStG. Eine Bilanz, wie sie eine GmbH oder UG braucht, erstellt Haben nicht.
+</details>
+
+<details>
+<summary><b>Ist Haben GoBD-konform?</b></summary>
+
+Ja. Gebuchtes wird festgeschrieben und lässt sich nur per Storno korrigieren, jede Änderung steht im
+Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Siehe [Buchhaltung in Haben](https://firsttris.github.io/haben/buchhaltung.html).
+</details>
+
+<details>
+<summary><b>Kann ich direkt an ELSTER übermitteln?</b></summary>
+
+Ja, Voranmeldung, Umsatzsteuer- und Einkommensteuererklärung und Anlage EÜR gehen per ERiC ans Finanzamt.
+Hersteller-ID und ELSTER-Zertifikat dauern ein bis zwei Wochen, also früh beantragen, siehe [Erste Schritte](https://firsttris.github.io/haben/einrichtung.html).
+</details>
+
+<details>
+<summary><b>Kann meine Steuerberatung damit arbeiten?</b></summary>
+
+Ja, über den [DATEV-Export](https://firsttris.github.io/haben/auswertungen.html#datev-export-für-die-steuerberatung) im Kontenrahmen SKR03 oder SKR04.
+</details>
+
+<details>
+<summary><b>Können mehrere Personen Haben nutzen?</b></summary>
+
+Nein, Haben kennt genau ein Konto, gedacht für dich und deine eigene Firma.
+</details>
+
+<details>
+<summary><b>Kann ich Claude oder andere Agenten mit meiner Buchhaltung nutzen?</b></summary>
+
+Ja, über MCP, und nur lesend: „Welche Rechnungen sind überfällig?“ Buchen und Senden an ELSTER
+machst du weiter selbst. Siehe [Agenten (MCP)](https://firsttris.github.io/haben/ki-assistenten.html).
+</details>
+
+<details>
 <summary><b>Ist das sicher?</b></summary>
 
 Prüf es selbst, der Code ist offen: Lass deinen Agenten Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) oder
