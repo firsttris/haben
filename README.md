@@ -100,7 +100,7 @@ tägliches Backup mit restic.
 Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
 denn Passkeys funktionieren nur über HTTPS.
 
-### 1. Von einer KI aufsetzen lassen
+### 1. Von einem Agenten aufsetzen lassen
 
 Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zugang zu deinem Server und sag:
 „Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://firsttris.github.io/haben/installation.html).“
@@ -131,7 +131,7 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 <details>
 <summary><b>Ist das sicher?</b></summary>
 
-Prüf es selbst, der Code ist offen: Lass deinen KI-Agenten Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) oder
+Prüf es selbst, der Code ist offen: Lass deinen Agenten Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) oder
 `/security-review` von Claude Code über dieses Repository laufen.
 </details>
 
