@@ -42,6 +42,10 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
 > (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://firsttris.github.io/haben/installation.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
+> [!TIP]
+> **Lass es dir von einer KI aufsetzen.** Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und
+> SSH-Zugang zu deinem Server und sag: „Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://firsttris.github.io/haben/installation.html).“
+
 ## 💡 Warum Haben?
 
 In der Buchhaltung gibt es Soll und Haben. Haben ist, was dir gehört.
@@ -120,13 +124,6 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 > einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar.
 
 ## ❓ FAQ
-
-<details>
-<summary><b>Kann eine KI das für mich aufsetzen?</b></summary>
-
-Ja. Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zugang zu deinem
-Server und sag: „Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://firsttris.github.io/haben/installation.html).“
-</details>
 
 <details>
 <summary><b>Ist das sicher?</b></summary>
