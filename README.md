@@ -156,10 +156,14 @@ Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Siehe [Buchhaltung in H
 </details>
 
 <details>
-<summary><b>Kann ich direkt an ELSTER übermitteln?</b></summary>
+<summary><b>Wie kommen Voranmeldung und Erklärungen zu ELSTER?</b></summary>
 
-Ja, Voranmeldung, Umsatzsteuer- und Einkommensteuererklärung und Anlage EÜR gehen per ERiC ans Finanzamt.
-Hersteller-ID und ELSTER-Zertifikat dauern ein bis zwei Wochen, also früh beantragen, siehe [Erste Schritte](https://firsttris.github.io/haben/einrichtung.html).
+Auf zwei Wegen:
+- **Direkt aus Haben** per ERiC. Dafür brauchst du eine eigene Hersteller-ID, die Beantragung dauert oft Wochen
+  ([Erste Schritte](https://firsttris.github.io/haben/einrichtung.html)).
+- **Über Mein ELSTER**, ohne ERiC und Hersteller-ID: Haben liefert die Kennzahlen, du oder dein Agent
+  (z. B. Claude in Chrome) trägt sie ins Formular ein, und du sendest selbst ab
+  ([Mein ELSTER mit Agent](https://firsttris.github.io/haben/elster-mit-assistent.html)).
 </details>
 
 <details>
