@@ -42,10 +42,6 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
 > (`docker compose exec backup backup.sh`, siehe [Backup und Wiederherstellen](https://firsttris.github.io/haben/installation.html#backup-und-wiederherstellen))
 > und Auswertungen und Meldungen ans Finanzamt vor dem Absenden prüfen.
 
-> [!TIP]
-> **Lass es dir von einer KI aufsetzen.** Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und
-> SSH-Zugang zu deinem Server und sag: „Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://firsttris.github.io/haben/installation.html).“
-
 ## 💡 Warum Haben?
 
 In der Buchhaltung gibt es Soll und Haben. Haben ist, was dir gehört.
@@ -103,6 +99,13 @@ Haben läuft als vier Container: die App (`tristanteu/haben`, amd64 und arm64), 
 tägliches Backup mit restic.
 Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
 denn Passkeys funktionieren nur über HTTPS.
+
+### 1. Von einer KI aufsetzen lassen
+
+Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zugang zu deinem Server und sag:
+„Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://firsttris.github.io/haben/installation.html).“
+
+### 2. Manuell
 
 ```bash
 mkdir haben && cd haben
