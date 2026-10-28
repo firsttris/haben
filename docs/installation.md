@@ -544,6 +544,7 @@ Optional. Haben holt die Umsätze einmal täglich selbst über [Enable Banking](
 2. Als **Redirect URL** die Adresse `https://<deine Domain>/api/bank/callback` eintragen. Haben zeigt sie beim Verbinden auch an.
 3. Den Schlüssel im Browser erzeugen lassen. Enable Banking lädt dann `<Application ID>.pem` herunter; die Application ID steht auch in der Übersicht.
 4. Für eigene Konten genügt in der Regel der kostenlose eingeschränkte Produktionszugang: Die Anwendung wird aktiviert, indem du im Kontrollzentrum deine eigenen Konten verknüpfst, und darf danach nur diese abrufen. Die aktuellen Bedingungen stehen bei Enable Banking. Zum Ausprobieren gibt es eine Sandbox mit Testbanken.
+5. Für die Produktionsumgebung verlangt Enable Banking außerdem eine **Privacy Policy URL** und eine **Terms of Service URL**. Haben bringt keine eigenen Seiten dafür mit: Die Instanz betreibst du selbst, also gehören dorthin deine Angaben, nicht die des Projekts. Trage die Datenschutzerklärung und das Impressum bzw. die AGB deiner eigenen Website ein, z. B. `https://<deine Domain>/datenschutz` und `https://<deine Domain>/impressum`. Die Adressen sollten erreichbar sein; im eingeschränkten Zugang bist du selbst der einzige Nutzer, der sie beim Zustimmen sieht.
 
 Schlüssel und ID an Haben übergeben:
 
