@@ -26,6 +26,7 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
 [Warum?](#-warum-haben) •
 [Funktionen](#-funktionen) •
 [Schnellstart](#-schnellstart) •
+[FAQ](#-faq) •
 [Dokumentation](https://firsttris.github.io/haben/) •
 [Entwicklung](#-entwicklung)
 
@@ -117,6 +118,22 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 > [!IMPORTANT]
 > Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) zusätzlich an
 > einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar.
+
+## ❓ FAQ
+
+<details>
+<summary><b>Kann eine KI das für mich aufsetzen?</b></summary>
+
+Ja. Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zugang zu deinem
+Server und sag: „Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://firsttris.github.io/haben/installation.html).“
+</details>
+
+<details>
+<summary><b>Ist das sicher?</b></summary>
+
+Prüf es selbst, der Code ist offen: Lass deinen KI-Agenten Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) oder
+`/security-review` von Claude Code über dieses Repository laufen.
+</details>
 
 ## 📚 Dokumentation
 
