@@ -26,6 +26,7 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
 [Warum?](#-warum-haben) •
 [Funktionen](#-funktionen) •
 [Schnellstart](#-schnellstart) •
+[FAQ](#-faq) •
 [Dokumentation](https://firsttris.github.io/haben/) •
 [Entwicklung](#-entwicklung)
 
@@ -99,6 +100,13 @@ tägliches Backup mit restic.
 Du brauchst einen Linux-Server mit Docker oder Podman und eine Domain, die auf ihn zeigt (Ports 80 und 443),
 denn Passkeys funktionieren nur über HTTPS.
 
+### 1. Von einem Agenten aufsetzen lassen
+
+Gib Claude Code oder einem anderen Coding-Agenten dieses Repository und SSH-Zugang zu deinem Server und sag:
+„Setz Haben auf meinem Server auf, nach der [Installationsanleitung](https://firsttris.github.io/haben/installation.html).“
+
+### 2. Manuell
+
 ```bash
 mkdir haben && cd haben
 curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
@@ -117,6 +125,15 @@ Podman Quadlets, ERiC für die ELSTER-Übermittlung, Backup, Updates und alle Um
 > [!IMPORTANT]
 > Sichere den Verschlüsselungsschlüssel (`ENCRYPTION_KEY` bzw. das Secret `haben-encryption-key`) zusätzlich an
 > einem zweiten Ort. Ohne ihn sind ELSTER-Zertifikat und die Schlüssel für Lexoffice und sevDesk nach einer Wiederherstellung nicht mehr lesbar.
+
+## ❓ FAQ
+
+<details>
+<summary><b>Ist das sicher?</b></summary>
+
+Prüf es selbst, der Code ist offen: Lass deinen Agenten Cloudflares [Security Audit Skill](https://github.com/cloudflare/security-audit-skill) oder
+`/security-review` von Claude Code über dieses Repository laufen.
+</details>
 
 ## 📚 Dokumentation
 
@@ -170,6 +187,11 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 | `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
 | `packages/elster` | ERiC-Anbindung, UStVA-XML, Worker-Prozess |
 | `packages/import` | Kontoauszüge (DKB, N26, CAMT.053), DATEV-Buchungsstapel, Lexware-Office-API |
+
+## 🧩 Mehr von uns
+
+- Suchst du einen Ersatz für Gmail oder Google Workspace? **[Kontext](https://github.com/firsttris/kontext)**: Mail, Kalender, Kontakte, Chat und Telefonie für dein Team, auf deinem eigenen Server.
+- Word, Excel und PowerPoint ohne Microsoft 365? **[Schreibzeug](https://github.com/firsttris/schreibzeug)** bearbeitet sie im Browser und speichert sie als .docx, .xlsx und .pptx.
 
 ## 🤝 Mitwirken
 
