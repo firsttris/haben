@@ -50,10 +50,12 @@ export function publicHolidays(year: number, bundesland: Bundesland | null): Map
     if (states.includes(bundesland)) days.set(date, name);
   };
   add(["BW", "BY", "ST"], fixed("01-06"), "Heilige Drei Könige");
-  add(["BE", "MV"], fixed("03-08"), "Internationaler Frauentag");
+  // Berlin seit 2019, Mecklenburg-Vorpommern seit 2023
+  if (year >= 2019) add(["BE"], fixed("03-08"), "Internationaler Frauentag");
+  if (year >= 2023) add(["MV"], fixed("03-08"), "Internationaler Frauentag");
   add(["BW", "BY", "HE", "NW", "RP", "SL"], addDays(easter, 60), "Fronleichnam");
   add(["SL"], fixed("08-15"), "Mariä Himmelfahrt");
-  add(["TH"], fixed("09-20"), "Weltkindertag");
+  if (year >= 2019) add(["TH"], fixed("09-20"), "Weltkindertag");
   add(["BB", "HB", "HH", "MV", "NI", "SN", "ST", "SH", "TH"], fixed("10-31"), "Reformationstag");
   add(["BW", "BY", "NW", "RP", "SL"], fixed("11-01"), "Allerheiligen");
   // Buß- und Bettag: Mittwoch vor dem 23. November
