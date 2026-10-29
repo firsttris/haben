@@ -181,7 +181,7 @@ export async function checkCalendarToken(token: string): Promise<boolean> {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-const icsText = (value: string) => value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+const icsText = (value: string) => value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n?|\n/g, "\\n");
 
 /** Zeilen nach RFC 5545 höchstens 75 Oktette lang, Fortsetzung mit Leerzeichen */
 function fold(line: string): string {
