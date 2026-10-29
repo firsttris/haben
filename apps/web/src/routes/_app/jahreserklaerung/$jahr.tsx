@@ -12,6 +12,7 @@ import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { getAnnualReturns, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
+import { ScrollTable } from "../../../components/ScrollTable.tsx";
 
 export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
   loader: ({ params }) => {
@@ -194,7 +195,7 @@ function EuerSection({ data }: { data: Data }) {
           <SentPill sent={euer.sent} />
         </div>
         <Issues issues={euer.issues} />
-        <table className="report-table">
+        <ScrollTable className="report-table">
           <thead>
             <tr>
               <th scope="col">Zeile und Feldkennung</th>
@@ -215,12 +216,12 @@ function EuerSection({ data }: { data: Data }) {
               <Row key={r.key} label={r.label} kz={r.kz} value={formatEuro(r.amount)} />
             ))}
           </tbody>
-        </table>
+        </ScrollTable>
         {euer.anlagen.length > 0 && (
           <div className="stack" style={{ gap: 6 }}>
             <div className="section-label">Anlagenverzeichnis (Anlage AVEÜR)</div>
             <div style={{ overflowX: "auto" }}>
-              <table className="report-table">
+              <ScrollTable className="report-table">
                 <thead>
                   <tr>
                     <th>Anlage</th>
@@ -248,7 +249,7 @@ function EuerSection({ data }: { data: Data }) {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </ScrollTable>
             </div>
             <p className="small muted" style={{ margin: 0 }}>
               Anlagen, die im Jahr angeschafft wurden, stehen mit den Anschaffungskosten im Buchwert zu Beginn. Geringwertige
@@ -406,7 +407,7 @@ function EstSection({ data }: { data: Data }) {
           <SentPill sent={est.sent} />
         </div>
         <Issues issues={est.issues} />
-        <table className="report-table">
+        <ScrollTable className="report-table">
           <tbody>
             <Row label="Steuerpflichtige Person" value={est.person.a ?? "–"} text />
             <Row label="Veranlagung" value={est.zusammen ? `Zusammen mit ${est.person.b ?? "–"}` : "Einzeln"} text />
@@ -436,7 +437,7 @@ function EstSection({ data }: { data: Data }) {
               </>
             )}
           </tbody>
-        </table>
+        </ScrollTable>
 
         <AnlageNFields wer={nameA} draft={anA} onChange={setAnA} />
         {est.zusammen && <AnlageNFields wer={nameB} draft={anB} onChange={setAnB} />}

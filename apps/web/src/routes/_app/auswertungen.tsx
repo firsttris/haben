@@ -7,6 +7,7 @@ import { formatDate } from "../../lib/format.ts";
 import type { OpenPosition } from "../../server/modules/auswertungen/index.ts";
 import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { ScrollTable } from "../../components/ScrollTable.tsx";
 
 export const Route = createFileRoute("/_app/auswertungen")({
   validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
@@ -107,7 +108,7 @@ function ReportsPage() {
         <MonthlyChart year={year} einnahmen={euer.monthly.einnahmen} ausgaben={euer.monthly.ausgaben} />
         <details className="chart-table">
           <summary>Als Tabelle anzeigen</summary>
-          <table className="report-table">
+          <ScrollTable className="report-table">
             <caption className="visually-hidden">Einnahmen und Ausgaben je Monat {year}, netto</caption>
             <thead>
               <tr>
@@ -135,7 +136,7 @@ function ReportsPage() {
                 <td className="num">{formatEuro(netIn - netOut)}</td>
               </tr>
             </tfoot>
-          </table>
+          </ScrollTable>
         </details>
       </section>
 
@@ -147,7 +148,7 @@ function ReportsPage() {
             Umsatzsteuer an das Finanzamt sind Ausgaben ({versteuerung === "ist" ? "Ist" : "Soll"}-Versteuerung ändert daran nichts).
           </p>
         </div>
-        <table className="report-table euer-table">
+        <ScrollTable className="report-table euer-table">
           <caption className="visually-hidden">Einnahmen-Überschuss-Rechnung {year}</caption>
           <thead>
             <tr>
@@ -163,7 +164,7 @@ function ReportsPage() {
               <td className="num">{formatEuro(euer.gewinn)}</td>
             </tr>
           </tbody>
-        </table>
+        </ScrollTable>
       </section>
 
       <OpenTable
@@ -243,7 +244,7 @@ function OpenTable(props: {
         <p className="muted" style={{ margin: 0 }}>{props.empty}</p>
       ) : (
         <div className="table-scroll">
-          <table className="report-table open-table">
+          <ScrollTable className="report-table open-table">
             <caption className="visually-hidden">{title}, nach Fälligkeit sortiert</caption>
             <thead>
               <tr>
@@ -281,7 +282,7 @@ function OpenTable(props: {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </ScrollTable>
         </div>
       )}
     </section>

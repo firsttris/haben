@@ -13,6 +13,7 @@ import {
   requestVastBerechtigung,
   revokeVastBerechtigung,
 } from "../server/functions/annual.ts";
+import { ScrollTable } from "./ScrollTable.tsx";
 
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 type Beleg = Data["vast"]["belege"][number];
@@ -31,7 +32,7 @@ function BelegDetails({ beleg }: { beleg: Beleg }) {
         <span className="small muted">abgeholt {formatDateTime(beleg.fetchedAt)}</span>
       </summary>
       {beleg.lesbar ? (
-        <table className="report-table" style={{ marginTop: 8 }}>
+        <ScrollTable className="report-table" style={{ marginTop: 8 }}>
           <tbody>
             {beleg.werte.map((w, i) => (
               <tr key={i}>
@@ -45,7 +46,7 @@ function BelegDetails({ beleg }: { beleg: Beleg }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </ScrollTable>
       ) : (
         <p className="small" style={{ margin: "8px 0 0" }}>
           Der Beleg ließ sich nicht lesen.
