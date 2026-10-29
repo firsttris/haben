@@ -54,6 +54,8 @@ export function invoiceListStatus(i: InvoiceFacts & { dueDate: string }, today: 
   if (i.kind === "korrektur") return "korrektur";
   const open = invoiceOpen(i);
   if (open === 0) return (i.writtenOffLoss ?? 0) !== 0 ? "ausgebucht" : "bezahlt";
+  // Überzahlt: nichts mehr offen, also weder überfällig noch zu mahnen
+  if (open < 0) return "bezahlt";
   if (i.dueDate < today) return "ueberfaellig";
   if (i.paid !== 0) return "teilbezahlt";
   return "offen";
