@@ -2,7 +2,7 @@ import { UserError } from "../../errors.ts";
 import { DatevParseError, isDatevFile, parseDatevBuchungsstapel } from "@haben/import";
 import { and, asc, count, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadFile, sha256Of, sniff, storeFile } from "../../storage.ts";
 
 export const MAX_ARCHIVE_SIZE = 100 * 1024 * 1024;
@@ -75,23 +75,7 @@ export async function addArchiveFile(
     const from = dates[0]!;
     const to = dates[dates.length - 1]!;
     year ??= Number(stack.header.fiscalYearStart.slice(0, 4));
-    // Zeiträume der schon übernommenen Stapel vergleichen, nicht nur einzelne Buchungstage
-    const [overlap] = await db
-      .select({ filename: schema.archiveFiles.filename, from: sql<string>`${schema.archiveFiles.meta} ->> 'dateFrom'`, to: sql<string>`${schema.archiveFiles.meta} ->> 'dateTo'` })
-      .from(schema.archiveFiles)
-      .where(
-        and(
-          eq(schema.archiveFiles.kind, "datev"),
-          sql`${schema.archiveFiles.meta} ->> 'dateFrom' <= ${to}`,
-          sql`${schema.archiveFiles.meta} ->> 'dateTo' >= ${from}`,
-        ),
-      )
-      .limit(1);
-    if (overlap) {
-      throw new ArchiveError(
-        `${file.filename}: Der Zeitraum ${from} bis ${to} überschneidet sich mit ${overlap.filename} (${overlap.from} bis ${overlap.to}). Jeder Zeitraum darf nur einmal übernommen werden.`,
-      );
-    }
+    await assertNoDatevOverlap(db, file.filename, from, to);
     meta = { header: stack.header, dateFrom: from, dateTo: to, bookings: bookings.length, warnings };
   }
 
@@ -100,6 +84,11 @@ export async function addArchiveFile(
 
   await storeFile(file.bytes);
   const id = await withActor(actor, async (tx) => {
+    if (kind === "datev" && meta) {
+      // Zwei gleichzeitige Uploads sähen sonst beide noch keinen Stapel und würden beide übernommen
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext('haben.archive.datev'))`);
+      await assertNoDatevOverlap(tx, file.filename, meta.dateFrom as string, meta.dateTo as string);
+    }
     const [row] = await tx
       .insert(schema.archiveFiles)
       .values({
@@ -268,4 +257,24 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
     db.select({ n: count() }).from(schema.datevBookings).where(where),
   ]);
   return { total: total?.n ?? 0, rows };
+}
+
+/** Zeiträume der schon übernommenen Stapel vergleichen, nicht nur einzelne Buchungstage */
+async function assertNoDatevOverlap(q: Db | Tx, filename: string, from: string, to: string): Promise<void> {
+  const [overlap] = await q
+    .select({ filename: schema.archiveFiles.filename, from: sql<string>`${schema.archiveFiles.meta} ->> 'dateFrom'`, to: sql<string>`${schema.archiveFiles.meta} ->> 'dateTo'` })
+    .from(schema.archiveFiles)
+    .where(
+      and(
+        eq(schema.archiveFiles.kind, "datev"),
+        sql`${schema.archiveFiles.meta} ->> 'dateFrom' <= ${to}`,
+        sql`${schema.archiveFiles.meta} ->> 'dateTo' >= ${from}`,
+      ),
+    )
+    .limit(1);
+  if (overlap) {
+    throw new ArchiveError(
+      `${filename}: Der Zeitraum ${from} bis ${to} überschneidet sich mit ${overlap.filename} (${overlap.from} bis ${overlap.to}). Jeder Zeitraum darf nur einmal übernommen werden.`,
+    );
+  }
 }
