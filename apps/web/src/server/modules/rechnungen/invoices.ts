@@ -744,10 +744,11 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   const { invoice, lines, contact } = data;
   const company = await loadCompany(q);
   const issues = sellerIssues(company).map((issue) => `Firmendaten: ${issue}`);
-  if (company.kleinunternehmer && invoice.taxTreatment !== "kleinunternehmer") {
+  // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
+  if (invoice.kind === "rechnung" && company.kleinunternehmer && invoice.taxTreatment !== "kleinunternehmer") {
     issues.push("Als Kleinunternehmer stellst du Rechnungen ohne Umsatzsteuer (§ 19 UStG)");
   }
-  if (!company.kleinunternehmer && invoice.taxTreatment === "kleinunternehmer") {
+  if (invoice.kind === "rechnung" && !company.kleinunternehmer && invoice.taxTreatment === "kleinunternehmer") {
     issues.push("Kleinunternehmer ist in den Einstellungen nicht eingeschaltet");
   }
   // Gebucht wird nach der aktuellen Versteuerung, die Voranmeldung rechnet das Jahr aber nach der, die dort galt
@@ -767,7 +768,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (invoice.correctsId) {
     const [original] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-    const problem = original ? await originalProblem(original, q) : "Die korrigierte Rechnung fehlt";
+    const problem = original ? ((await originalProblem(original, q)) ?? (await reductionProblem(invoice, original, q))) : "Die korrigierte Rechnung fehlt";
     if (problem) issues.push(problem);
   }
   if (invoice.variant === "schluss") {
@@ -890,7 +891,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   let corrects: Invoice | undefined;
   if (invoice.correctsId) {
     [corrects] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-    const problem = corrects ? await originalProblem(corrects, tx) : "Die korrigierte Rechnung fehlt";
+    const problem = corrects ? ((await originalProblem(corrects, tx)) ?? (await reductionProblem(invoice, corrects, tx))) : "Die korrigierte Rechnung fehlt";
     if (problem) throw new InvoiceError(`${problem}.`);
   }
   if (deducts.length > 0) {
@@ -962,6 +963,23 @@ async function originalProblem(original: Invoice, q: Db | Tx = db): Promise<stri
     .limit(1);
   const deductedIn = (await deductedElsewhere([original.id], null, q)).get(original.id) ?? null;
   return cancellationProblem(original, { cancelled: Boolean(storno), deductedIn });
+}
+
+/** Mehrere Korrekturen zusammen mindern eine Rechnung höchstens bis auf 0 */
+async function reductionProblem(invoice: Invoice, original: Invoice, q: Db | Tx = db): Promise<string | null> {
+  if (invoice.kind !== "korrektur") return null;
+  const [corrections] = await q
+    .select({ gross: sql<number>`coalesce(sum(${schema.invoices.gross}), 0)::int` })
+    .from(schema.invoices)
+    .where(
+      and(
+        eq(schema.invoices.correctsId, original.id),
+        eq(schema.invoices.kind, "korrektur"),
+        eq(schema.invoices.status, "final"),
+        ne(schema.invoices.id, invoice.id),
+      ),
+    );
+  return original.gross + corrections!.gross + invoice.gross < 0 ? "Die Korrekturen mindern die Rechnung unter 0" : null;
 }
 
 async function finalOriginal(id: string, q: Db | Tx = db) {
