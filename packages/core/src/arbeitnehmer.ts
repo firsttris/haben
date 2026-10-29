@@ -87,7 +87,7 @@ export function arbeitslohnErgebnis(year: number, an: Arbeitslohn): ArbeitslohnE
   const neben = year >= 2026 ? (w.gewerkschaft ?? 0) : 0;
   const uebrige = werbungskosten - neben;
   // Der Pauschbetrag mindert nur bis auf 0; höhere Werbungskosten können einen Verlust ergeben
-  const abzug = (uebrige > pausch ? uebrige : Math.min(pausch, brutto)) + neben;
+  const abzug = Math.max(uebrige, Math.min(pausch, brutto)) + neben;
   return {
     brutto,
     werbungskosten,
