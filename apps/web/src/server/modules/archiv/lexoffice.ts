@@ -19,6 +19,7 @@ import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LegacyPayment, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, sniff, storeFile } from "../../storage.ts";
+import { latestSevdeskImport } from "./sevdesk.ts";
 
 export class LexofficeError extends UserError {}
 
@@ -112,6 +113,8 @@ export async function startImport(actor: string, options: { wait?: boolean } = {
   if (!key) throw new LexofficeError("Zuerst den API-Schlüssel hinterlegen.");
   const current = await latestImport();
   if (current?.status === "laeuft") throw new LexofficeError("Ein Abruf läuft bereits.");
+  // Der eindeutige Index gilt für beide Quellen: auch einen verwaisten sevDesk-Lauf als abgebrochen markieren
+  if ((await latestSevdeskImport())?.status === "laeuft") throw new LexofficeError("Ein Abruf aus sevDesk läuft bereits.");
   const progress: LexofficeImportProgress = {
     phase: "kontakte",
     contacts: 0,

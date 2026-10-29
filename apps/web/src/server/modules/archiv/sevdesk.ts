@@ -27,7 +27,7 @@ import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
 import type { LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, storeFile } from "../../storage.ts";
-import { fallbackName, finish, progressMessage, STALE_MS } from "./lexoffice.ts";
+import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
 
 /*
  * Umzug aus sevDesk. Gleicher Ablauf und dieselben Archivtabellen wie beim Lexoffice-Import (Spalte source = "sevdesk"),
@@ -106,6 +106,8 @@ export async function latestSevdeskImport() {
 export async function startSevdeskImport(actor: string, options: { wait?: boolean } = {}): Promise<string> {
   const key = await apiKey();
   if (!key) throw new SevdeskError("Zuerst den API-Token hinterlegen.");
+  // Der eindeutige Index gilt für beide Quellen: auch einen verwaisten Lexoffice-Lauf als abgebrochen markieren
+  await latestImport();
   const progress: LexofficeImportProgress = {
     phase: "kontakte",
     contacts: 0,
