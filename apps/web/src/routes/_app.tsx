@@ -1,4 +1,4 @@
-import { Link, Outlet, createFileRoute, redirect, useLocation, useRouter } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
@@ -64,7 +64,8 @@ function AppLayout() {
   const { user } = Route.useRouteContext();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
-  const pathname = useLocation({ select: (location) => location.pathname });
+  // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
+  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
   const main = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const firstPath = useRef(pathname);
