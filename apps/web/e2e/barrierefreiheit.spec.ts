@@ -148,7 +148,7 @@ test("Farbkontraste in allen Themes", async () => {
 
 async function mobile(browser: Browser) {
   const storageState = await context.storageState();
-  return browser.newContext({ viewport: { width: 390, height: 844 }, storageState, locale: "de-DE", timezoneId: "Europe/Berlin" });
+  return browser.newContext({ viewport: { width: 320, height: 720 }, storageState, locale: "de-DE", timezoneId: "Europe/Berlin" });
 }
 
 test("Handy: Seiten und offenes Menü ohne Verstöße, Escape schließt das Menü", async ({ browser }) => {
