@@ -158,7 +158,7 @@ function BankPage() {
                       to="/bank"
                       search={{ konto: data.accountId ?? undefined, filter: f, suche: search.suche }}
                       className={`chip${filter === f ? " active" : ""}`}
-                      aria-pressed={filter === f}
+                      aria-current={filter === f ? "page" : undefined}
                     >
                       {f === "alle" ? "Alle" : f === "offen" ? `Offen · ${openCount}` : "Zugeordnet"}
                     </Link>

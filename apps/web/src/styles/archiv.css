@@ -6,7 +6,7 @@
 .checks li { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, max-content); gap: 4px 10px; align-items: center; min-height: 40px; padding: 6px 0; border-top: 1px solid var(--line-soft); font-size: 14px; }
 .checks li > :last-child { text-align: right; }
 .checks li:first-child { border-top: 0; }
-.checks .ok { color: var(--accent); }
+.checks .ok { color: var(--link); }
 .checks .open { color: var(--warn-ink, #8a5a12); }
 .progress-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
 .progress-facts div { display: flex; flex-direction: column; gap: 2px; }

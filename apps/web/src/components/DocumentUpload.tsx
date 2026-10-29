@@ -90,6 +90,7 @@ export function DocumentUpload({ aiAvailable }: { aiAvailable: boolean }) {
           multiple
           accept={ACCEPT}
           className="visually-hidden"
+          aria-label="Dateien auswählen"
           aria-describedby={hintId}
           tabIndex={-1}
           onChange={(event) => void send([...(event.target.files ?? [])])}
@@ -100,6 +101,7 @@ export function DocumentUpload({ aiAvailable }: { aiAvailable: boolean }) {
           accept="image/*"
           capture="environment"
           className="visually-hidden"
+          aria-label="Foto aufnehmen"
           tabIndex={-1}
           onChange={(event) => void send([...(event.target.files ?? [])])}
         />
