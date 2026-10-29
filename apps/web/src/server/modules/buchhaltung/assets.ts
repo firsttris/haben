@@ -21,7 +21,7 @@ import {
 } from "@haben/core";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/index.ts";
+import { kleinunternehmerForMonth, kleinunternehmerForYear, loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -83,11 +83,12 @@ function scheduleOf(asset: Asset): ScheduleYear[] {
   }
 }
 
-/** Privatnutzung eines Jahres: Monate, Entnahme und Umsatzsteuer */
-function privateUseForYear(asset: Asset, year: number) {
+/** Privatnutzung eines Jahres: Monate, Entnahme und Umsatzsteuer; als Kleinunternehmer ohne Umsatzsteuer (§ 19 UStG) */
+function privateUseForYear(asset: Asset, year: number, kleinunternehmer = false) {
   if (!asset.privateUse) return null;
   const months = privateUseMonths(asset, year);
-  const month = privateUseMonth(asset.privateUse);
+  // privateUse.vat steht seit dem Anlegen fest; ein späterer Wechsel zum Kleinunternehmer gilt trotzdem
+  const month = privateUseMonth(kleinunternehmer ? { ...asset.privateUse, vat: false } : asset.privateUse);
   return {
     months,
     month,
@@ -98,9 +99,9 @@ function privateUseForYear(asset: Asset, year: number) {
 }
 
 /** Was im Jahr zu buchen ist: AfA laut Plan und Privatnutzung */
-function yearPlan(asset: Asset, year: number) {
+function yearPlan(asset: Asset, year: number, kleinunternehmer = false) {
   const row = scheduleOf(asset).find((r) => r.year === year) ?? null;
-  const privateUse = privateUseForYear(asset, year);
+  const privateUse = privateUseForYear(asset, year, kleinunternehmer);
   const hasWork = Boolean((row && (row.depreciation !== 0 || row.disposal !== 0)) || (privateUse && privateUse.withdrawal !== 0));
   return { row, privateUse, hasWork };
 }
@@ -123,6 +124,7 @@ async function bookedYears(ids: string[], q: Db | Tx = db): Promise<Map<string, 
 export async function listAssets(year: number, q: Db | Tx = db) {
   const assets = await q.select().from(schema.assets).orderBy(asc(schema.assets.acquisitionDate), asc(schema.assets.name));
   const booked = await bookedYears(assets.map((a) => a.id), q);
+  const kleinunternehmer = await kleinunternehmerForYear(year);
   return assets.map((asset) => {
     const schedule = scheduleOf(asset);
     const row = schedule.find((r) => r.year === year) ?? null;
@@ -130,7 +132,7 @@ export async function listAssets(year: number, q: Db | Tx = db) {
     // Nach dem Plan: Buchwert 0 bzw. vor Beginn kein Eintrag; zur Anzeige den Stand am Jahresende
     const closing = row?.closing ?? (year < first ? null : 0);
     const years = booked.get(asset.id) ?? [];
-    const plan = yearPlan(asset, year);
+    const plan = yearPlan(asset, year, kleinunternehmer);
     return {
       ...asset,
       schedule,
@@ -292,6 +294,7 @@ export async function bookDepreciation(actor: string, year: number, today: strin
           )
       : [];
     const done = new Set(rows.map((r) => `${r.assetId}|${r.year}`));
+    const kleinunternehmer = await kleinunternehmerForYear(year);
 
     const missing: string[] = [];
     const todo: { asset: Asset; plan: ReturnType<typeof yearPlan> }[] = [];
@@ -300,7 +303,7 @@ export async function bookDepreciation(actor: string, year: number, today: strin
       const earlier: number[] = [];
       for (let y = start; y < year; y++) if (yearPlan(asset, y).hasWork && !done.has(`${asset.id}|${y}`)) earlier.push(y);
       if (earlier.length > 0) missing.push(`${asset.name} (${earlier.join(", ")})`);
-      const plan = yearPlan(asset, year);
+      const plan = yearPlan(asset, year, kleinunternehmer);
       if (plan.hasWork && !done.has(`${asset.id}|${year}`)) todo.push({ asset, plan });
     }
     if (missing.length > 0) throw new AssetUserError(`Zuerst die AfA früherer Jahre buchen: ${missing.join("; ")}.`);
@@ -418,8 +421,9 @@ export async function pendingDepreciation(today: string): Promise<{ year: number
 export async function withdrawalsForEuer(year: number): Promise<EuerWithdrawals> {
   const assets = await db.select().from(schema.assets);
   const result: EuerWithdrawals = { privateKfz: 0, ustEntnahmen: 0 };
+  const kleinunternehmer = await kleinunternehmerForYear(year);
   for (const asset of assets) {
-    const use = privateUseForYear(asset, year);
+    const use = privateUseForYear(asset, year, kleinunternehmer);
     if (!use) continue;
     result.privateKfz += use.withdrawal;
     result.ustEntnahmen += use.vat;
@@ -430,8 +434,9 @@ export async function withdrawalsForEuer(year: number): Promise<EuerWithdrawals>
 /** Private Kfz-Nutzung eines Monats für die Voranmeldung (Kz 81), je Fahrzeug */
 export async function privateUseForMonth(year: number, month: number) {
   const assets = await db.select().from(schema.assets);
+  const kleinunternehmer = await kleinunternehmerForMonth(year, month);
   return assets.flatMap((asset) => {
-    const use = privateUseForYear(asset, year);
+    const use = privateUseForYear(asset, year, kleinunternehmer);
     if (!use || !use.months.includes(month) || use.month.vatBase === 0) return [];
     return [
       {
