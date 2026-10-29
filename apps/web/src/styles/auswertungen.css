@@ -33,7 +33,7 @@
 .tt-in { background: var(--series-in); }
 .tt-out { background: var(--series-out); }
 
-.chart-table summary { cursor: pointer; font-size: 13px; color: var(--accent); min-height: 32px; display: flex; align-items: center; }
+.chart-table summary { cursor: pointer; font-size: 13px; color: var(--link); min-height: 32px; display: flex; align-items: center; }
 
 .report-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .report-table th, .report-table td { text-align: left; font-weight: 400; padding: 10px 8px; border-top: 1px solid var(--line-soft); vertical-align: baseline; }

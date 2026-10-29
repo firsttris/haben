@@ -27,7 +27,8 @@ function NewAssetPage() {
         </div>
       </div>
       <div className="grid-main">
-        <section className="card" aria-label="Anlage">
+        <section className="card stack" aria-labelledby="edit-heading">
+          <h2 id="edit-heading">Angaben</h2>
           <AssetForm
             initial={{
               name: "",

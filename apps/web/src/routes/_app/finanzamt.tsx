@@ -18,6 +18,7 @@ import {
 } from "../../server/functions/finanzamt.ts";
 import { today } from "../../server/today.ts";
 import styles from "../../styles/auswertungen.css?url";
+import { ScrollTable } from "../../components/ScrollTable.tsx";
 
 export const Route = createFileRoute("/_app/finanzamt")({
   // Datum in Deutschland, nicht UTC; kommt beim ersten Aufruf mit den Loader-Daten vom Server
@@ -152,7 +153,7 @@ function PrepaymentForm({ data }: { data: Data }) {
           weniger, kannst du formlos eine Herabsetzung beantragen. Haben schreibt den Antrag mit den Zahlen aus deiner EÜR; du prüfst
           den Text und schickst ihn als Nachricht an dein Finanzamt.
         </p>
-        <table className="report-table">
+        <ScrollTable className="report-table">
           <tbody>
             <tr>
               <th scope="row">Gewinn 1. Januar bis {formatDate(b.until)}</th>
@@ -167,9 +168,9 @@ function PrepaymentForm({ data }: { data: Data }) {
               <td className="num">{formatEuro(b.profitLastYear)}</td>
             </tr>
           </tbody>
-        </table>
+        </ScrollTable>
         <h3 style={{ margin: "8px 0 0", fontSize: "1rem" }}>Voraussichtliche Steuer {b.year}</h3>
-        <table className="report-table">
+        <ScrollTable className="report-table">
           <tbody>
             <tr>
               <th scope="row">Hochgerechneter Gewinn</th>
@@ -218,7 +219,7 @@ function PrepaymentForm({ data }: { data: Data }) {
               <td className="num">{formatEuro(p.jeQuartal)}</td>
             </tr>
           </tbody>
-        </table>
+        </ScrollTable>
         <p className="small muted" style={{ margin: 0 }}>
           {b.angabenAus === null
             ? "Ohne gespeicherte Angaben zur Einkommensteuer (Vorsorge, Kinder …) rechnet Haben nur mit dem Sonderausgaben-Pauschbetrag. "
@@ -436,7 +437,7 @@ function Postfach({ data }: { data: Data }) {
             zugestimmt hast) und Mitteilungen des Finanzamts hierher.
           </p>
         ) : (
-          <table className="report-table">
+          <ScrollTable className="report-table">
             <thead>
               <tr>
                 <th scope="col">Dokument</th>
@@ -470,7 +471,7 @@ function Postfach({ data }: { data: Data }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </ScrollTable>
         )}
       </section>
       <form className="card" onSubmit={onSubmit} aria-label="Postfach abrufen">

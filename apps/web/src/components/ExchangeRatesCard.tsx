@@ -12,6 +12,7 @@ import {
   saveExchangeRateFn,
   type getExchangeRates,
 } from "../server/functions/company.ts";
+import { ScrollTable } from "./ScrollTable.tsx";
 
 type Data = Awaited<ReturnType<typeof getExchangeRates>>;
 
@@ -147,7 +148,7 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
           Noch keine Kurse.
         </p>
       ) : (
-        <table className="report-table">
+        <ScrollTable className="report-table">
           <thead>
             <tr>
               <th>Monat</th>
@@ -186,7 +187,7 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </ScrollTable>
       )}
       <p className="small muted" style={{ margin: 0 }}>
         Quelle der Kurse: Bundesministerium der Finanzen, Datenlizenz Deutschland – Namensnennung – Version 2.0.

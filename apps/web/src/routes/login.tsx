@@ -75,7 +75,7 @@ function LoginPage() {
           <form className="stack" onSubmit={withPassword}>
             <label className="field">
               E-Mail
-              <input name="email" type="email" required autoComplete="username webauthn" />
+              <input name="email" type="email" required autoComplete="username webauthn" autoFocus />
             </label>
             <label className="field">
               Passwort

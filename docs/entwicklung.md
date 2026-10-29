@@ -128,6 +128,8 @@ Zum Schluss lädt der Test jede Seite am Desktop (1440 px) und am Handy (390 px)
 
 Von jeder Seite legt der Test einen Screenshot unter `apps/web/test-results/screenshots/{desktop,mobil}/` ab.
 
+Danach prüft `apps/web/e2e/barrierefreiheit.spec.ts` mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Allein laufen kann die Datei nicht: Sie braucht die Daten aus `app.spec.ts`, und jeder Lauf leert die Datenbank. Starte deshalb immer `pnpm e2e`.
+
 ```sh
 createdb haben_e2e            # einmalig; der Name muss auf „e2e“ enden, die Datenbank wird bei jedem Lauf geleert
 E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e pnpm e2e
@@ -175,6 +177,7 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 - **Mengen in Tausendsteln**: 152 Stunden = 152000, 0,5 Tage = 500.
 - **Imports mit `.ts`-Endung** (`allowImportingTsExtensions`). Der ERiC-Worker und das Migrationsskript laufen per Type Stripping direkt aus den Quellen.
 - **Oberfläche auf Deutsch**, auch Fehlermeldungen, die beim Nutzer ankommen.
+- **Barrierefrei und per Tastatur bedienbar:** echte Knöpfe und Links, ein Label für jedes Feld, sichtbarer Fokus, Text in Akzentfarbe mit `var(--link)`. `barrierefreiheit.spec.ts` prüft das in der CI ([Barrierefreiheit und Tastatur](barrierefreiheit.md)).
 - **Unveränderlichkeit (GoBD) in der Datenbank:** Festgeschriebene Rechnungen, Buchungen, gesendete Voranmeldungen, Bankumsätze und übernommene Lexoffice-Daten sperren Postgres-Trigger gegen `UPDATE` und `DELETE`. Korrekturen sind neue Datensätze (Storno, Gegenbuchung, berichtigte Anmeldung). Beim Festschreiben einer Buchung prüft ein Trigger Soll = Haben.
 - **Audit-Log:** Änderungen laufen über `withActor` (`apps/web/src/server/db/actor.ts`), damit der Trigger sie dem Nutzer zuschreibt.
 - **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.

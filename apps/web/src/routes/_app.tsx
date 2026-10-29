@@ -1,5 +1,5 @@
-import { Link, Outlet, createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link, Outlet, createFileRoute, redirect, useRouter, useRouterState } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
@@ -64,6 +64,33 @@ function AppLayout() {
   const { user } = Route.useRouteContext();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
+  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname });
+  const main = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const firstPath = useRef(pathname);
+
+  // Nach dem Seitenwechsel steht der Fokus am Anfang des Inhalts, nicht mehr auf dem geklickten Link;
+  // Filter und Suche (nur Suchparameter) lassen ihn, wo er ist
+  useEffect(() => {
+    if (pathname === firstPath.current) return;
+    firstPath.current = pathname;
+    if (!main.current?.contains(document.activeElement)) main.current?.focus({ preventScroll: true });
+  }, [pathname]);
+
+  // Escape schließt das Menü auf dem Handy und gibt den Fokus an den Menüknopf zurück
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      // Vor den Tasten der Seite (Esc in der Belegansicht geht sonst zurück zur Liste)
+      event.preventDefault();
+      setMenuOpen(false);
+      toggle.current?.focus();
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [menuOpen]);
 
   async function signOut() {
     // Erst beim Abmelden laden: der Auth-Client bringt den Passkey-Code mit, den nur Anmeldung und Einstellungen brauchen
@@ -74,11 +101,14 @@ function AppLayout() {
 
   return (
     <div className="shell">
+      <a href="#inhalt" className="skip-link">
+        Zum Inhalt springen
+      </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
         <Link to="/" className="brand">
           <span className="brand-mark">H</span>Haben
         </Link>
-        <button type="button" className="nav-toggle" aria-expanded={menuOpen} aria-controls="hauptmenue" onClick={() => setMenuOpen((open) => !open)}>
+        <button ref={toggle} type="button" className="nav-toggle" aria-expanded={menuOpen} aria-controls="hauptmenue" onClick={() => setMenuOpen((open) => !open)}>
           <span aria-hidden="true">{menuOpen ? "✕" : "☰"}</span> Menü
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
@@ -135,7 +165,7 @@ function AppLayout() {
         </div>
         </div>
       </nav>
-      <main className="main">
+      <main className="main" id="inhalt" ref={main} tabIndex={-1}>
         <Outlet />
       </main>
     </div>
