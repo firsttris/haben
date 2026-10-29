@@ -3,6 +3,7 @@ import { sampleDocument } from "./samples.ts";
 import { buildEInvoice } from "./xml.ts";
 
 // In XML 1.0 unzulässige Zeichen (Char-Produktion): C0-Steuerzeichen außer Tab/LF/CR, U+FFFE, U+FFFF
+// eslint-disable-next-line no-control-regex
 const FORBIDDEN_XML_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/;
 
 describe("buildEInvoice (Review)", () => {
