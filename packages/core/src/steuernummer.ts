@@ -44,14 +44,25 @@ const RULES: Record<Bundesland, { prefix: string; length: 10 | 11 }> = {
   TH: { prefix: "4", length: 11 },
 };
 
+/** Länderpräfix im 13-stelligen ELSTER-Format, wo er länger ist als im Bescheid-Format */
+const ELSTER_PREFIX: Partial<Record<Bundesland, string>> = {
+  BB: "30",
+  HE: "26",
+  MV: "40",
+  SL: "10",
+  SN: "32",
+  ST: "31",
+  TH: "41",
+};
+
 export class SteuernummerError extends Error {}
 
 export function toElsterSteuernummer(steuernummer: string, land: Bundesland): string {
   const digits = steuernummer.replace(/\D/g, "");
   const rule = RULES[land];
-  // Bereits im ELSTER-Format: Länderpräfix (Hessen 26), Finanzamt, an fünfter Stelle eine 0
+  // Bereits im ELSTER-Format: Länderpräfix, Finanzamt, an fünfter Stelle eine 0
   if (digits.length === 13) {
-    if (!digits.startsWith(land === "HE" ? "26" : rule.prefix) || digits[4] !== "0") {
+    if (!digits.startsWith(ELSTER_PREFIX[land] ?? rule.prefix) || digits[4] !== "0") {
       throw new SteuernummerError(`Die 13-stellige Steuernummer passt nicht zum ELSTER-Format für ${BUNDESLAENDER[land]}.`);
     }
     return digits;
