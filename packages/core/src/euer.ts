@@ -189,7 +189,7 @@ export function computeEuer(
           const ausgabe = p.vorsteuerAbzug === false ? base + tax : base;
           if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
           // Bewirtung: 30 % sind nicht abziehbar (§ 4 Abs. 5 Nr. 2 EStG), die Vorsteuer bleibt voll abziehbar
-          const nichtAbziehbar = p.category === "bewirtung" ? ausgabe - roundHalfAwayFromZero(ausgabe * 0.7) : 0;
+          const nichtAbziehbar = p.category === "bewirtung" ? ausgabe - roundHalfAwayFromZero((ausgabe * 7) / 10) : 0;
           bewirtungNichtAbziehbar += nichtAbziehbar;
           add(`ausgabe:${p.category}`, ausgabe - nichtAbziehbar);
           monthlyOut[month]! += ausgabe - nichtAbziehbar;
