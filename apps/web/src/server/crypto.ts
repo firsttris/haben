@@ -18,9 +18,11 @@ export function encrypt(plain: Uint8Array): Buffer {
 
 export function decrypt(sealed: Uint8Array): Buffer {
   const buffer = Buffer.from(sealed);
+  // Ein gekürzter Tag ließe sich mit wenigen Versuchen fälschen
+  if (buffer.length < IV_LENGTH + TAG_LENGTH) throw new Error("Verschlüsselter Wert ist unvollständig.");
   const iv = buffer.subarray(0, IV_LENGTH);
   const tag = buffer.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
-  const decipher = createDecipheriv("aes-256-gcm", key(), iv);
+  const decipher = createDecipheriv("aes-256-gcm", key(), iv, { authTagLength: TAG_LENGTH });
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(buffer.subarray(IV_LENGTH + TAG_LENGTH)), decipher.final()]);
 }
