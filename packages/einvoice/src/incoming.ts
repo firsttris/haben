@@ -149,7 +149,9 @@ function isoDate(value: string | undefined): string | undefined {
   const match = /^(\d{4})-?(\d{2})-?(\d{2})/.exec(value.trim());
   if (!match) return undefined;
   const [, year, month, day] = match;
-  if (Number(month) < 1 || Number(month) > 12 || Number(day) < 1 || Number(day) > 31) return undefined;
+  // Auch Tage, die es im Monat nicht gibt (30.02.), sind ungültig
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (date.getUTCMonth() !== Number(month) - 1 || date.getUTCDate() !== Number(day)) return undefined;
   return `${year}-${month}-${day}`;
 }
 
@@ -404,7 +406,8 @@ export async function readEInvoice(file: {
   filename: string;
 }): Promise<{ invoice: IncomingInvoice; xml: string; source: "zugferd" | "xrechnung" } | null> {
   const mime = file.mimeType.toLowerCase();
-  if (mime === "application/pdf" || looksLikePdf(file.bytes)) {
+  // Als XML angegeben: der Inhalt entscheidet nicht, sonst wäre „%PDF-“ im Text ein PDF
+  if (mime === "application/pdf" || (!mime.includes("xml") && looksLikePdf(file.bytes))) {
     const embedded = await extractEmbeddedXml(file.bytes);
     if (!embedded) return null;
     return { invoice: parseEInvoiceXml(embedded.xml), xml: embedded.xml, source: "zugferd" };
