@@ -57,10 +57,15 @@ function daysBetween(a: string, b: string): number {
   return Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000;
 }
 
-/** Rechnungsnummer im Verwendungszweck, unabhängig von Leerzeichen und Trennzeichen */
+/**
+ * Rechnungsnummer im Verwendungszweck, unabhängig von Leerzeichen und Trennzeichen.
+ * Direkt davor und danach darf keine Ziffer stehen, sonst steckte 2026-100 in 2026-1000.
+ */
 export function purposeContainsNumber(purpose: string, number: string): boolean {
   const needle = compact(number);
-  return needle.length >= 3 && compact(purpose).includes(needle);
+  if (needle.length < 3) return false;
+  const pattern = new RegExp(`(?<![0-9])${[...needle].join("[^a-z0-9]*")}(?![0-9])`);
+  return pattern.test(purpose.toLowerCase());
 }
 
 /**
