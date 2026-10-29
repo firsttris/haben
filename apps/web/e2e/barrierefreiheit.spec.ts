@@ -223,3 +223,13 @@ test("Jedes Element mit Tastaturfokus hat einen sichtbaren Rahmen", async () => 
     expect(seen.size, `${path}: mit Tab erreichbare Elemente`).toBeGreaterThan(5);
   }
 });
+
+test("Seitenwechsel über einen Link im Inhalt setzt den Fokus auf den Inhalt", async () => {
+  // Von der Übersicht auf eine andere Seite: der Link verschwindet mit der Übersicht, der Fokus darf nicht verloren gehen
+  await open(page, "/");
+  await page.getByRole("main").getByRole("link", { name: "Neue Rechnung" }).focus();
+  await page.keyboard.press("Enter");
+  await page.waitForURL(/\/rechnungen\/neu$/);
+  await expect(page.getByRole("button", { name: "Entwurf speichern" })).toBeVisible();
+  await expect(page.getByRole("main")).toBeFocused();
+});
