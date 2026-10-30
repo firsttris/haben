@@ -575,6 +575,13 @@
       "when": 1793095638634,
       "tag": "0081_sevdesk_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1793339676532,
+      "tag": "0082_steueranteil_je_zahlung",
+      "breakpoints": true
     }
   ]
 }

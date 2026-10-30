@@ -21,11 +21,15 @@ import {
   documentPaymentPosting,
   invoiceOpen,
   invoicePaymentPosting,
+  paidTaxShares,
+  settlementTaxShares,
   suggestMatches,
   type DirectBooking,
+  type InvoiceTotals,
   type OpenItem,
   type OwnAccount,
   type PostingLine,
+  type TaxShare,
 } from "@haben/core";
 import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
 import { and, asc, desc, eq, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
@@ -344,6 +348,24 @@ async function paidByTarget(column: "invoice_id" | "document_id", ids: string[],
 async function settledOn(tx: Tx, column: "invoice_id" | "document_id", id: string): Promise<number> {
   return (await paidByTarget(column, [id], tx)).get(id) ?? 0;
 }
+
+/**
+ * Steueranteil einer weiteren Zahlung bzw. Ausbuchung auf eine Rechnung, gegen das schon Erfasste (settlementTaxShares):
+ * Alle zusammen ergeben so genau die Steuer der Rechnung. Ältere Zeilen ohne gespeicherten Anteil zählen, wie gebucht,
+ * mit dem aus ihrem Betrag gerechneten. Erst nach dem Sperren der Rechnung aufrufen.
+ */
+async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: InvoiceTotals, amount: number): Promise<TaxShare[]> {
+  const rows = await tx.execute<{ amount: number; tax_shares: TaxShare[] | null }>(
+    sql`select amount, tax_shares from allocations where invoice_id = ${invoiceId}
+        union all select amount, tax_shares from write_offs where invoice_id = ${invoiceId}`,
+  );
+  const settled = [...rows].reduce((sum, r) => sum + Number(r.amount), 0);
+  const recorded = [...rows].flatMap((r) => r.tax_shares ?? paidTaxShares(totals, Number(r.amount)));
+  return settlementTaxShares(totals, settled, recorded, amount);
+}
+
+/** Gespeicherter Steueranteil einer Gegenzeile: genau umgekehrt */
+const negatedShares = (shares: TaxShare[] | null) => shares?.map((s) => ({ rate: s.rate, base: -s.base, tax: -s.tax })) ?? null;
 
 export async function invoicePayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("invoice_id", ids, q);
@@ -849,7 +871,7 @@ type LockedTransaction = Awaited<ReturnType<typeof lockTransaction>>;
 async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, bank: LockedTransaction, part: Part, splitId: string | null) {
   let lines: PostingLine[];
   let description: string;
-  let target: { invoiceId?: string; documentId?: string } = {};
+  let target: { invoiceId?: string; documentId?: string; taxShares?: TaxShare[] } = {};
 
   if (part.kind === "invoice") {
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
@@ -871,9 +893,10 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
       throw new BankError(`Rechnung ${invoice.number} ist nur noch über ${open / 100} € offen.`);
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
-    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung);
+    const taxShares = await invoiceTaxShares(tx, invoice.id, totals, part.amount);
+    lines = invoicePaymentPosting(totals, part.amount, company.kontenrahmen, company.versteuerung, taxShares);
     description = `Zahlung ${invoice.number} · ${bank.counterpartyName}`;
-    target = { invoiceId: invoice.id };
+    target = { invoiceId: invoice.id, taxShares };
     // IBAN des Kunden für künftige Vorschläge merken
     if (invoice.contactId && bank.counterpartyIban) {
       await tx
@@ -1002,6 +1025,7 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       amount: -allocation.amount,
       splitId: allocation.splitId,
       reversesId: allocation.id,
+      taxShares: negatedShares(allocation.taxShares),
     })
     .returning();
   if (entry) {
@@ -1090,7 +1114,7 @@ async function bookWriteOff(
   let amount: number;
   let lines: PostingLine[];
   let description: string;
-  let target: { invoiceId: string | null; documentId: string | null };
+  let target: { invoiceId: string | null; documentId: string | null; taxShares?: TaxShare[] };
   if (input.kind === "kursdifferenz") {
     if ("invoiceId" in input) {
       const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
@@ -1098,9 +1122,10 @@ async function bookWriteOff(
       if (invoice.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Rechnungen in Fremdwährung.");
       amount = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
       const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
-      lines = exchangeDifferencePosting({ kind: "invoice", totals, versteuerung: company.versteuerung }, amount, company.kontenrahmen);
+      const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
+      lines = exchangeDifferencePosting({ kind: "invoice", totals, versteuerung: company.versteuerung, shares: taxShares }, amount, company.kontenrahmen);
       description = `Kursdifferenz · Rechnung ${invoice.number}`;
-      target = { invoiceId: invoice.id, documentId: null };
+      target = { invoiceId: invoice.id, documentId: null, taxShares };
     } else {
       const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
       if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
@@ -1144,9 +1169,10 @@ async function bookWriteOff(
       throw new BankError(`Rechnung ${invoice.number} ist nur noch über ${open / 100} € offen.`);
     }
     const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
-    lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, company.versteuerung, invoice.taxTreatment);
+    const taxShares = await invoiceTaxShares(tx, invoice.id, totals, amount);
+    lines = invoiceWriteOffPosting(input.kind, totals, amount, company.kontenrahmen, company.versteuerung, invoice.taxTreatment, taxShares);
     description = `${WRITE_OFF_KINDS[input.kind]} · Rechnung ${invoice.number}`;
-    target = { invoiceId: invoice.id, documentId: null };
+    target = { invoiceId: invoice.id, documentId: null, taxShares };
   }
   const [row] = await tx
     .insert(schema.writeOffs)
@@ -1284,7 +1310,16 @@ async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSel
   const lines = entry ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id)) : [];
   const [reversal] = await tx
     .insert(schema.writeOffs)
-    .values({ kind: row.kind, invoiceId: row.invoiceId, documentId: row.documentId, date, amount: -row.amount, transactionId: row.transactionId, reversesId: row.id })
+    .values({
+      kind: row.kind,
+      invoiceId: row.invoiceId,
+      documentId: row.documentId,
+      date,
+      amount: -row.amount,
+      transactionId: row.transactionId,
+      reversesId: row.id,
+      taxShares: negatedShares(row.taxShares),
+    })
     .returning();
   if (entry) {
     await post(tx, await openBooks(tx), {

@@ -1,6 +1,6 @@
 import type { InvoiceTotals } from "./invoice.ts";
 import { roundHalfAwayFromZero, splitPrivateShare, toCsv, type Cents } from "./money.ts";
-import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory } from "./posting.ts";
+import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory, type TaxShare } from "./posting.ts";
 import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
@@ -20,6 +20,8 @@ export type EuerPayment =
       /** Gezahlter Teil der Rechnung, Vorzeichen wie die Rechnung (Eingang positiv) */
       paid: Cents;
       totals: InvoiceTotals;
+      /** Gespeicherter Steueranteil der Zahlung (wie gebucht); ohne wird er aus `paid` gerechnet */
+      shares?: TaxShare[];
       treatment?: TaxTreatment;
       group?: string;
     }
@@ -128,6 +130,8 @@ function netGroups(payments: EuerPayment[]): Netted[] {
     const existing = groups.get(key);
     if (existing) {
       existing.sum += amount;
+      // Gespeicherte Anteile nur, wenn alle Zahlungen der Gruppe welche haben; sonst aus der Summe gerechnet
+      if (existing.kind === "invoice" && p.kind === "invoice") existing.shares = existing.shares && p.shares ? [...existing.shares, ...p.shares] : undefined;
     } else {
       const entry = { ...p, sum: amount };
       groups.set(key, entry);
@@ -167,7 +171,7 @@ export function computeEuer(
     const month = monthIndex(p.date);
     switch (p.kind) {
       case "invoice":
-        for (const { rate, base, tax } of paidTaxShares(p.totals, p.sum)) {
+        for (const { rate, base, tax } of p.shares ?? paidTaxShares(p.totals, p.sum)) {
           add(
             p.treatment === "kleinunternehmer" ? "einnahmenKleinunternehmer" : rate === 0 ? "einnahmenSteuerfrei" : "einnahmenSteuerpflichtig",
             base,

@@ -11,6 +11,7 @@ import {
   openingDocumentPosting,
   openingInvoicePosting,
   paidTaxShares,
+  recordedTaxShares,
   settlementTaxShares,
   type TaxShare,
 } from "./posting.ts";
@@ -321,5 +322,20 @@ describe("settlementTaxShares", () => {
   it("ohne Vorgänger wie paidTaxShares", () => {
     const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 101, taxRate: 1900 }, { quantity: 1000, unitPrice: 1_000, taxRate: 700 }]);
     expect(settlementTaxShares(totals, 0, [], 595)).toEqual(paidTaxShares(totals, 595));
+  });
+});
+
+describe("recordedTaxShares", () => {
+  const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
+  const mixed = computeInvoiceTotals([{ quantity: 1000, unitPrice: 5_000, taxRate: 1900 }, { quantity: 1000, unitPrice: 5_000, taxRate: 700 }]);
+
+  it("übernimmt einen gespeicherten Anteil, der um einen Rundungscent abweicht", () => {
+    expect(recordedTaxShares(totals, 3_966, [{ rate: 1900, base: 3_332, tax: 634 }])).toEqual([{ rate: 1900, base: 3_332, tax: 634 }]);
+  });
+
+  it("rechnet neu, wenn der Anteil nicht zur Rechnung passt (andere Sätze oder anderer Betrag)", () => {
+    expect(recordedTaxShares(mixed, 10_000, [{ rate: 1900, base: 8_403, tax: 1_597 }])).toEqual(paidTaxShares(mixed, 10_000));
+    expect(recordedTaxShares(totals, 3_966, [{ rate: 1900, base: 3_333, tax: 634 }])).toEqual(paidTaxShares(totals, 3_966));
+    expect(recordedTaxShares(totals, 3_966, null)).toEqual(paidTaxShares(totals, 3_966));
   });
 });
