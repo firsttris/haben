@@ -114,6 +114,64 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     expect(await sql`select 1 from documents`).toHaveLength(0);
   });
 
+  it("entfernt Steuerzeichen aus Absender, Betreff und Dateinamen", async () => {
+    await inbox.saveInboxSettings(actor, settings);
+    // Postgres-Text kann kein NUL speichern; vorher brach daran jeder Abruf ab
+    await deliver({
+      from: "Fun\u0000knetz <rechnung@funknetz.example>",
+      subject: "Rechnung\u0000 MF-1\u0007",
+      messageId: "<nul@funknetz.example>",
+      attachments: [{ filename: "Rech\u0000nung.pdf", content: pdf("MF-1") }],
+    });
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0 });
+    const [doc] = await sql`select filename, note from documents`;
+    expect(doc).toEqual({ filename: "Rechnung.pdf", note: "Per E-Mail von Funknetz <rechnung@funknetz.example>, Betreff „Rechnung MF-1“" });
+  });
+
+  it("überspringt eine Mail, an der die Verarbeitung scheitert, statt den Eingang zu blockieren", async () => {
+    await inbox.saveInboxSettings(actor, settings);
+    await deliver(
+      { subject: "Kaputt", messageId: "<kaputt@funknetz.example>", attachments: [{ filename: "kaputt.pdf", content: pdf("kaputt") }] },
+      { subject: "Gut", messageId: "<gut@funknetz.example>", attachments: [{ filename: "gut.pdf", content: pdf("gut") }] },
+    );
+    await sql`alter table documents add constraint test_kaputt check (filename <> 'kaputt.pdf')`;
+    try {
+      expect(await inbox.fetchInbox(actor)).toEqual({ messages: 2, documents: 1, duplicates: 0, skipped: 1 });
+    } finally {
+      await sql`alter table documents drop constraint test_kaputt`;
+    }
+    expect([...box.values()].every((m) => m.seen)).toBe(true);
+    expect((await sql`select filename from documents`).map((d) => d.filename)).toEqual(["gut.pdf"]);
+    const [log] = await sql`select subject, skipped from inbox_messages where message_id = '<kaputt@funknetz.example>'`;
+    expect(log!.subject).toBe("Kaputt");
+    expect(log!.skipped).toEqual([expect.stringMatching(/^Verarbeitung fehlgeschlagen: .*test_kaputt/)]);
+    expect((await inbox.inboxSummary()).settings?.lastError).toBeNull();
+  });
+
+  it("holt eine fehlgeschlagene Mail nach, wenn sie im Postfach wieder als ungelesen markiert ist", async () => {
+    await inbox.saveInboxSettings(actor, settings);
+    await deliver({ subject: "Kaputt", messageId: "<nochmal@funknetz.example>", attachments: [{ filename: "kaputt.pdf", content: pdf("nochmal") }] });
+    await sql`alter table documents add constraint test_kaputt check (filename <> 'kaputt.pdf')`;
+    try {
+      expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 0, duplicates: 0, skipped: 1 });
+    } finally {
+      await sql`alter table documents drop constraint test_kaputt`;
+    }
+    // Ursache behoben (z. B. Speicher wieder da), Mail im Postfach wieder auf ungelesen gesetzt
+    box.get(1)!.seen = false;
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0 });
+    expect((await sql`select filename from documents`).map((d) => d.filename)).toEqual(["kaputt.pdf"]);
+    // inbox_messages ist nur zu ergänzen: der Fehlschlag bleibt protokolliert, das Nachholen kommt dazu
+    const logs = await sql`select cardinality(document_ids) as documents, skipped from inbox_messages where message_id like '<nochmal@funknetz.example>%' order by created_at`;
+    expect(logs).toEqual([
+      { documents: 0, skipped: [expect.stringMatching(/^Verarbeitung fehlgeschlagen: /)] },
+      { documents: 1, skipped: [] },
+    ]);
+    // Danach gilt sie als abgerufen
+    box.get(1)!.seen = false;
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0 });
+  });
+
   it("merkt sich Fehler beim Verbinden und hält das Passwort aus dem Protokoll", async () => {
     const max = Number((await sql`select coalesce(max(id), 0) as max from audit_log`)[0]!.max);
     await inbox.saveInboxSettings(actor, settings);

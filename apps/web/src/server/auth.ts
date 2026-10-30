@@ -1,10 +1,12 @@
 import { passkey } from "@better-auth/passkey";
 import { APIError, betterAuth } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { count } from "drizzle-orm";
 import { db, schema } from "./db/index.ts";
 import { env } from "./env.ts";
+import { checkSetupCode } from "./setup-code.ts";
 
 function createAuth() {
   const baseUrl = new URL(env().BETTER_AUTH_URL);
@@ -21,6 +23,14 @@ function createAuth() {
       passkey({ rpID: baseUrl.hostname, rpName: "Haben", origin: baseUrl.origin }),
       tanstackStartCookies(),
     ],
+    hooks: {
+      // Das erste Konto legt nur an, wer den Einrichtungscode aus dem Server-Log kennt
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/sign-up/email" && !checkSetupCode(ctx.headers?.get("x-haben-setup-code"))) {
+          throw new APIError("FORBIDDEN", { message: "Der Einrichtungscode stimmt nicht." });
+        }
+      }),
+    },
     databaseHooks: {
       user: {
         create: {

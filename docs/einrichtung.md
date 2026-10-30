@@ -21,7 +21,9 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 
 ## Konto anlegen
 
-Beim ersten Aufruf leitet Haben auf `/setup` weiter. Haben kennt genau ein Konto: Du gibst Name, E-Mail und ein Passwort mit mindestens 12 Zeichen ein und klickst „Konto anlegen“. Sobald es ein Konto gibt, lehnt Haben jede weitere Registrierung ab („Haben ist bereits eingerichtet.“), und `/setup` leitet auf die Anmeldung um.
+Beim ersten Aufruf leitet Haben auf `/setup` weiter. Haben kennt genau ein Konto: Du gibst den Einrichtungscode, Name, E-Mail und ein Passwort mit mindestens 12 Zeichen ein und klickst „Konto anlegen“.
+
+Den Einrichtungscode schreibt Haben beim Start ins Log, solange es noch kein Konto gibt, etwa `Einrichtungscode für https://haben.example.de/setup: K7QM-3XRP-W9TD`. Du findest ihn mit `docker compose logs app` bzw. `journalctl --user -u haben-app`. Er sorgt dafür, dass niemand anderes eine frisch gestartete Instanz zuerst erreicht und das Konto anlegt. Nach jedem Neustart gibt es einen neuen Code; einen festen setzt du mit `HABEN_SETUP_CODE`. Sobald es ein Konto gibt, lehnt Haben jede weitere Registrierung ab („Haben ist bereits eingerichtet.“), und `/setup` leitet auf die Anmeldung um.
 
 Direkt danach bietet Haben an, einen Passkey hinzuzufügen. Damit meldest du dich künftig ohne Passwort an, etwa mit Fingerabdruck, Gesichtserkennung oder einem Sicherheitsschlüssel. Das Passwort bleibt als Rückfallebene. Du kannst den Schritt mit „Später“ überspringen.
 

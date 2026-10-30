@@ -149,12 +149,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write # Build-Cache des Images, geteilt mit dem Release
+      # Den Build-Cache schreibt nur das Release: sonst könnte ein Pull Request Schichten
+      # hineinlegen, die das nächste Release-Image übernimmt
+      packages: read
     steps:
       - uses: actions/checkout@v4
-      # Mit dem Build-Cache des Releases: nur geänderte Schichten werden neu gebaut
+      # Liest den Build-Cache des Releases: nur geänderte Schichten werden neu gebaut
       - name: Image bauen
-        uses: firsttris/workflows/actions/docker-build@ccr-161f105b-9ns022
+        uses: firsttris/workflows/actions/docker-build@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
         with:
           dockerfile: Containerfile
           tags: haben:ci

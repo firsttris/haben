@@ -167,13 +167,15 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 
 ## Anmeldung
 
-Haben hat genau einen Nutzer. Die Ersteinrichtung (`/setup`) legt ihn mit E-Mail und Passwort an (mindestens 12 Zeichen); ein Hook in Better Auth lehnt jedes weitere Konto ab, und ein eindeutiger Index auf `user` (`user_single`) verhindert ein zweites Konto auch bei zwei gleichzeitigen Einrichtungen. Danach meldet man sich per Passkey an, das Passwort bleibt Rückfallebene. Better Auth begrenzt Anmeldeversuche (20 je Minute) und liest die Client-Adresse hinter Caddy aus `X-Forwarded-For`.
+Haben hat genau einen Nutzer. Die Ersteinrichtung (`/setup`) legt ihn mit E-Mail und Passwort an (mindestens 12 Zeichen). Dafür braucht es den Einrichtungscode, den der Server beim Start ins Log schreibt (`server/setup-code.ts`, oder fest aus `HABEN_SETUP_CODE`); ein Hook vor `/sign-up/email` prüft ihn. So kann niemand, der eine neue Instanz zuerst erreicht, das Konto an sich reißen. Ein Hook in Better Auth lehnt jedes weitere Konto ab, und ein eindeutiger Index auf `user` (`user_single`) verhindert ein zweites Konto auch bei zwei gleichzeitigen Einrichtungen. Danach meldet man sich per Passkey an, das Passwort bleibt Rückfallebene. Better Auth begrenzt Anmeldeversuche (20 je Minute) und liest die Client-Adresse hinter Caddy aus `X-Forwarded-For`.
 
 Geschützt wird an drei Stellen:
 
 - Die Layout-Route `_app` leitet ohne Sitzung auf `/login` bzw. vor der Einrichtung auf `/setup` um.
 - Jede Server Function mit Daten hängt `authMiddleware` an (`apps/web/src/server/middleware.ts`), die die Sitzung prüft und den Nutzer in den Kontext legt. Die Umleitung im Browser allein schützt also nichts.
 - Jede API-Route prüft die Sitzung selbst und antwortet sonst mit 401. Ausnahmen mit eigenem Token statt Sitzung sind das Kalender-Abo und `/api/mcp`.
+
+Dazu kommt ein Schutz vor Anfragen fremder Seiten (CSRF): Das Sitzungscookie ist `SameSite=Lax`, und `createCsrfMiddleware` in `start.ts` lehnt jede schreibende Anfrage (alles außer GET, HEAD, OPTIONS) ab, deren `Sec-Fetch-Site` nicht `same-origin` ist oder deren `Origin` bzw. `Referer` nicht zu `BETTER_AUTH_URL` passt (`server/csrf.ts`). Das hält auch Seiten auf Nachbar-Subdomains derselben Domain ab. `/api/mcp` und das Teilen-Ziel `/api/belege/teilen` prüfen selbst.
 
 KI-Assistenten melden sich an `/api/mcp` nicht mit der Sitzung an, sondern mit einem API-Token als Bearer-Header (siehe [KI-Assistenten](ki-assistenten.md)). `routes/api/mcp.ts` reicht jede Anfrage an `handleMcpRequest` (`server/modules/mcp/`) weiter. Der Endpunkt ist zustandslos (Streamable HTTP mit JSON-Antworten, nur POST): `authenticateMcp` prüft das Token gegen den SHA-256 in `mcp_tokens` und ob der Zugang eingeschaltet ist, dann beantwortet ein frischer `McpServer` die Anfrage mit den Werkzeugen, die die Rechte des Tokens erlauben. Die Werkzeuge (`tools.ts`) rufen nur die `index.ts` der Module auf und lesen nur. Jeder Aufruf landet ohne Inhalte in `mcp_calls`. Alles hinter `authenticateMcp` kennt nur den Zugang mit seinen Rechten; OAuth für die Connectors aus claude.ai kommt dort später dazu.
 

@@ -22,7 +22,7 @@ describe("ERiC installieren (Review)", () => {
       },
       { level: 0 },
     );
-    await expect(installEric({ version: "43.4.6.0", dir, fetch: fakeFetch(stored), checkPlatform: false })).resolves.toEqual({ version: "43.4.6.0", files: 3 });
+    await expect(installEric({ version: "43.4.6.0", dir, fetch: fakeFetch(stored), checkPlatform: false })).resolves.toMatchObject({ version: "43.4.6.0", files: 3 });
     const home = ericHomeIn(dir)!;
     expect(existsSync(join(home, "lib/plugins/leer.txt"))).toBe(true);
     expect(readFileSync(join(home, "lib/plugins/leer.txt")).length).toBe(0);

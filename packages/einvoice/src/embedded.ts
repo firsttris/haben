@@ -33,12 +33,19 @@ export async function extractEmbeddedXml(pdf: Uint8Array): Promise<{ filename: s
     return null;
   }
   const attachments = collectAttachments(doc);
-  const ranked = [
+  const ranked = new Set([
     ...KNOWN_NAMES.flatMap((name) => attachments.filter((a) => a.filename.toLowerCase() === name)),
     ...attachments.filter((a) => a.filename.toLowerCase().endsWith(".xml") || isXmlSubtype(a.spec, doc.context)),
-  ];
+  ]);
+  // Jeder Datenstrom wird höchstens einmal entpackt und insgesamt nur wenige: sonst lassen viele
+  // Dateispezifikationen, die auf dieselbe Deflate-Bombe zeigen, den Prozess stundenlang rechnen
+  const tried = new Set<PDFRawStream>();
   for (const attachment of ranked) {
-    const bytes = embeddedBytes(attachment.spec, doc.context);
+    const stream = embeddedFile(attachment.spec, doc.context);
+    if (!stream || tried.has(stream)) continue;
+    if (tried.size >= MAX_EMBEDDED_ATTEMPTS) break;
+    tried.add(stream);
+    const bytes = embeddedBytes(stream, doc.context);
     if (!bytes) continue;
     const xml = decodeXmlBytes(bytes);
     if (xml.trimStart().startsWith("<")) return { filename: attachment.filename, xml };
@@ -48,10 +55,10 @@ export async function extractEmbeddedXml(pdf: Uint8Array): Promise<{ filename: s
 
 function collectAttachments(doc: PDFDocument): Attachment[] {
   const { context, catalog } = doc;
-  const specs: PDFDict[] = [];
+  const specs = new Set<PDFDict>();
   const add = (obj: PDFObject | undefined) => {
     const spec = obj && context.lookup(obj);
-    if (spec instanceof PDFDict && !specs.includes(spec)) specs.push(spec);
+    if (spec instanceof PDFDict) specs.add(spec);
   };
 
   // 1. Namensbaum /Names /EmbeddedFiles (mit /Kids)
@@ -73,13 +80,13 @@ function collectAttachments(doc: PDFDocument): Attachment[] {
   if (af) for (let i = 0; i < af.size(); i++) add(af.get(i));
 
   // 3. Notfalls jede Dateispezifikation mit eingebetteter Datei
-  if (specs.length === 0) {
+  if (specs.size === 0) {
     for (const [, obj] of context.enumerateIndirectObjects()) {
       if (obj instanceof PDFDict && obj.has(PDFName.of("EF"))) add(obj);
     }
   }
 
-  return specs.map((spec) => ({ spec, filename: specName(spec) }));
+  return [...specs].map((spec) => ({ spec, filename: specName(spec) }));
 }
 
 function specName(spec: PDFDict): string {
@@ -107,10 +114,10 @@ function isXmlSubtype(spec: PDFDict, context: PDFContext): boolean {
 
 /** Obergrenze für eine entpackte Anlage: ein kleiner Upload darf nicht Gigabytes entpacken (Deflate-Bombe) */
 export const MAX_EMBEDDED_BYTES = 32 * 1024 * 1024;
+/** Höchstens so viele verschiedene Anlagen werden entpackt, bevor die Suche aufgibt */
+export const MAX_EMBEDDED_ATTEMPTS = 8;
 
-function embeddedBytes(spec: PDFDict, context: PDFContext): Uint8Array | null {
-  const stream = embeddedFile(spec, context);
-  if (!stream) return null;
+function embeddedBytes(stream: PDFRawStream, context: PDFContext): Uint8Array | null {
   const filter = stream.dict.lookup(PDFName.of("Filter"));
   const filters = filter instanceof PDFArray ? filter.asArray().map((f) => context.lookup(f)) : filter ? [filter] : [];
   if (filters.length === 0) return stream.contents;

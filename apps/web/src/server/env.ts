@@ -5,6 +5,8 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   /** Öffentliche Adresse, z. B. https://haben.example.de */
   BETTER_AUTH_URL: z.string().url(),
+  /** Code für die Ersteinrichtung unter /setup; ohne ihn erzeugt Haben beim Start einen und schreibt ihn ins Log */
+  HABEN_SETUP_CODE: z.union([z.literal(""), z.string().min(8)]).optional(),
   /** 32 Byte, base64 – verschlüsselt die ELSTER-Zertifikatsdatei und die API-Schlüssel für Lexoffice und sevDesk */
   HABEN_ENCRYPTION_KEY: z
     .string()
@@ -17,6 +19,8 @@ const envSchema = z.object({
   ERIC_DIR: z.string().default("data/eric"),
   /** Andere Download-Adresse für ERiC, nur zum Testen */
   ERIC_DOWNLOAD_URL: z.string().url().optional(),
+  /** Erwartete SHA-256 des ERiC-Pakets; stimmt sie nicht, installiert Haben es nicht */
+  ERIC_SHA256: z.union([z.literal(""), z.string().regex(/^[0-9a-fA-F]{64}$/)]).optional(),
   /** Hersteller-ID für den Echtbetrieb; ohne sie geht nur die Testübermittlung */
   ELSTER_HERSTELLER_ID: z.string().regex(/^\d{5}$/).optional(),
   /** Ablage der Belegdateien; im Container ein Volume */

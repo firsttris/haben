@@ -28,7 +28,7 @@ export default defineConfig({
     tanstackStart(),
     // die native Bindung löst der Server zur Laufzeit aus apps/web/node_modules auf
     // compressPublicAssets: .br/.gz neben den Assets, auch ohne komprimierenden Proxy davor
-    nitro({ plugins: ["./src/server/plugins/scheduler.ts"], compressPublicAssets: { gzip: true, brotli: true } }),
+    nitro({ plugins: ["./src/server/plugins/scheduler.ts", "./src/server/plugins/setup-code.ts"], compressPublicAssets: { gzip: true, brotli: true } }),
     viteReact(),
   ],
 });

@@ -80,8 +80,10 @@ In `.env` trägst du ein:
 
 ```sh
 docker compose up -d
-docker compose logs -f app   # „Migrationen angewendet“, dann „Listening on …“
+docker compose logs -f app   # „Migrationen angewendet“, „Einrichtungscode …“, dann „Listening on …“
 ```
+
+Den Einrichtungscode aus dem Log brauchst du beim ersten Aufruf, um das Konto anzulegen (siehe [Konto anlegen](einrichtung.md#konto-anlegen)).
 
 Die Caddy-Konfiguration steckt in `compose.yml` selbst (mit Sicherheits-Headern und Upload-Grenze wie im `Caddyfile`). Caddy nimmt Anfragen bis 250 MB an; das reicht für eine Archivdatei bis 100 MB oder ein gutes Dutzend Belege auf einmal. Größere Mengen lädst du in mehreren Schritten hoch oder erhöhst `max_size`. ERiC lädst du unter **Einstellungen › ELSTER › ERiC** herunter oder mit `ERIC_AUTO_INSTALL=ja` in `.env` beim Start, siehe [ERiC einbinden](#eric-einbinden).
 
@@ -158,7 +160,7 @@ systemctl --user enable --now haben-backup.timer
 
 Die Container-Units starten über `[Install] WantedBy=default.target` beim nächsten Boot von selbst, sobald `daemon-reload` gelaufen ist. Logs liest du mit `journalctl --user -u haben-app` (bzw. `haben-db`, `haben-caddy`).
 
-Danach rufst du die Domain im Browser auf und legst das Konto an, siehe [Erste Schritte](einrichtung.md).
+Danach rufst du die Domain im Browser auf und legst das Konto an, siehe [Erste Schritte](einrichtung.md). Den Einrichtungscode dafür zeigt `journalctl --user -u haben-app`.
 
 ## Eigener Reverse Proxy
 
@@ -234,12 +236,15 @@ server {
     location / {
         proxy_pass http://haben-app:3000;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # Nur die echte Client-Adresse: $proxy_add_x_forwarded_for hängt an, was der Client mitschickt
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 300s;
     }
 }
 ```
+
+Haben begrenzt Anmeldeversuche je Client-Adresse und liest sie aus dem ersten Wert von `X-Forwarded-For`. Der Proxy muss den Header deshalb selbst setzen und darf keinen Wert vom Client übernehmen, sonst umgeht ein Angreifer die Begrenzung mit wechselnden Adressen. Caddy und Traefik tun das von sich aus.
 
 **Nginx Proxy Manager:** Neuer Proxy Host mit deiner Domain, Scheme `http`, Forward Hostname `haben-app`, Forward Port `3000`. Unter SSL ein Let's-Encrypt-Zertifikat anfordern und „Force SSL“ einschalten, unter Advanced `client_max_body_size 250M;` eintragen.
 
@@ -303,10 +308,12 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `BETTER_AUTH_SECRET` | ja | Geheimnis für Sitzungen, mindestens 32 Zeichen | Ausgabe von `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | ja | Öffentliche Adresse, unter der Haben im Browser läuft. Bestimmt die Domain der Passkeys | `https://haben.example.de` |
 | `HABEN_ENCRYPTION_KEY` | ja | Genau 32 Byte, base64-kodiert. Verschlüsselt ELSTER-Zertifikat und Lexoffice-Schlüssel | Ausgabe von `openssl rand -base64 32` |
+| `HABEN_SETUP_CODE` | nein | Fester Einrichtungscode für das Anlegen des Kontos (mindestens 8 Zeichen). Ohne ihn erzeugt Haben bei jedem Start einen neuen und schreibt ihn ins Log, solange es kein Konto gibt | `mein-einrichtungscode` |
 | `ERIC_HOME` | nein | Verzeichnis eines von Hand entpackten ERiC-Pakets; hat Vorrang vor dem heruntergeladenen. Ohne beides werden Prüfen und Senden simuliert | `/opt/eric` |
 | `ERIC_DIR` | nein | Ziel für das von Haben heruntergeladene ERiC. Standard `data/eric`; im Image `/var/lib/haben/eric` (Volume) | `/var/lib/haben/eric` |
 | `ERIC_AUTO_INSTALL` | nein | `ja`: fehlt ERiC, lädt der Container es beim Start (Zustimmung zu den Nutzungsbedingungen) | `ja` |
 | `ERIC_DOWNLOAD_URL` | nein | Andere Download-Adresse für ERiC, nur zum Testen. Standard `https://download.elster.de/download/eric` | `http://localhost:4556/eric` |
+| `ERIC_SHA256` | nein | Erwartete SHA-256 des ERiC-Pakets (64 Hex-Zeichen). Stimmt sie nicht, bricht die Installation ab. Die Prüfsumme eines Downloads steht danach im Log und in `HABEN_ERIC_SHA256` im ERiC-Verzeichnis | `3f5a…` |
 | `ERIC_LOG_DIR` | nein | Logverzeichnis für ERiC. Ohne Angabe das temporäre Verzeichnis; im Image `/var/lib/haben/eric-log` | `/var/lib/haben/eric-log` |
 | `ERIC_WORKER_PATH` | nein | Pfad zum ERiC-Worker (`packages/elster/src/worker.ts`). Im Image gesetzt, sonst nicht nötig | `/app/packages/elster/src/worker.ts` |
 | `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Mit ERiC 43 nötig für Prüfen, Test- und Echtübermittlung; ohne ERiC läuft alles simuliert | `12345` |
@@ -500,6 +507,8 @@ ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, dar
 | Per Knopf | **Einstellungen › ELSTER › ERiC**: Version prüfen, den Nutzungsbedingungen zustimmen, **Herunterladen und einrichten**. Der Download läuft im Hintergrund; danach prüft und sendet Haben ohne Neustart über ERiC |
 | Beim Start | `ERIC_AUTO_INSTALL=ja` in `.env` bzw. `haben.env`. Fehlt ERiC, lädt der Container es vor dem Start der App; schlägt das fehl, startet die App trotzdem (simuliert) |
 | Auf der Kommandozeile | `docker compose exec app node --experimental-strip-types /app/packages/elster/src/install-cli.ts --lizenz-akzeptiert [Version]` bzw. `podman exec haben-app …` |
+
+Weil ERiC als native Bibliothek geladen wird, prüft Haben den Download: Er darf nur auf demselben Server weitergeleitet werden, ist auf 1 GB begrenzt, und seine SHA-256 steht danach im Log und in `HABEN_ERIC_SHA256` im Versionsordner. Mit `ERIC_SHA256` legst du die erwartete Prüfsumme fest, etwa die einer Installation, der du schon vertraust; weicht der Download ab, installiert Haben ihn nicht.
 
 ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
 

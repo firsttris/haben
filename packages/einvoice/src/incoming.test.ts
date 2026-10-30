@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { UNITS } from "@haben/core";
-import { PDFDocument } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFString } from "pdf-lib";
 import { describe, expect, it } from "vitest";
-import { extractEmbeddedXml, MAX_EMBEDDED_BYTES } from "./embedded.ts";
+import { extractEmbeddedXml, MAX_EMBEDDED_ATTEMPTS, MAX_EMBEDDED_BYTES } from "./embedded.ts";
 import { EInvoiceParseError, parseDecimal, parseEInvoiceXml, readEInvoice } from "./incoming.ts";
 import { mixedRateLines, sampleDocument } from "./samples.ts";
 import type { InvoiceFormat, InvoiceKind } from "./types.ts";
@@ -279,6 +279,31 @@ describe("eingebettete XML in PDFs", () => {
     const pdf = await pdfWith([{ name: "factur-x.xml", content: bomb }]);
     expect(pdf.length).toBeLessThan(1024 * 1024);
     expect(await extractEmbeddedXml(pdf)).toBeNull();
+  });
+
+  it("entpackt einen Anhang nur einmal, auch wenn viele Dateispezifikationen darauf zeigen", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage();
+    await doc.attach(Buffer.from(`<a>${" ".repeat(MAX_EMBEDDED_BYTES)}</a>`, "utf8"), "x.xml", { mimeType: "text/xml" });
+    await doc.save(); // bettet die Anlage ein und legt /AF an
+    const stream = (doc.catalog.lookup(PDFName.of("AF"), PDFArray).lookup(0, PDFDict).lookup(PDFName.of("EF"), PDFDict)).get(PDFName.of("F"));
+    // ohne Namensbaum und /AF durchsucht die Erkennung alle Objekte; 500 Dateispezifikationen teilen sich eine Deflate-Bombe
+    doc.catalog.delete(PDFName.of("Names"));
+    doc.catalog.delete(PDFName.of("AF"));
+    for (let i = 0; i < 500; i++) {
+      doc.context.register(doc.context.obj({ Type: "Filespec", F: PDFString.of(`x${i}.xml`), EF: { F: stream } }));
+    }
+    const pdf = await doc.save({ useObjectStreams: false });
+    const start = performance.now();
+    expect(await extractEmbeddedXml(pdf)).toBeNull();
+    expect(performance.now() - start).toBeLessThan(2000);
+  });
+
+  it("gibt nach MAX_EMBEDDED_ATTEMPTS verschiedenen Anlagen auf", async () => {
+    const xml = fixture("ubl-default-ns.xml");
+    const junk = Array.from({ length: MAX_EMBEDDED_ATTEMPTS }, (_, i) => ({ name: `anlage-${i}.xml`, content: "keine xml" }));
+    expect(await extractEmbeddedXml(await pdfWith([...junk.slice(1), { name: "rechnung.xml", content: xml }]))).toEqual({ filename: "rechnung.xml", xml });
+    expect(await extractEmbeddedXml(await pdfWith([...junk, { name: "rechnung.xml", content: xml }]))).toBeNull();
   });
 
   it("wirft bei XML-Dateien, die keine E-Rechnung sind", async () => {
