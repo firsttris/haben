@@ -161,9 +161,15 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     box.get(1)!.seen = false;
     expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0 });
     expect((await sql`select filename from documents`).map((d) => d.filename)).toEqual(["kaputt.pdf"]);
-    const logs = await sql`select document_ids, skipped from inbox_messages where message_id = '<nochmal@funknetz.example>'`;
-    expect(logs).toHaveLength(1);
-    expect(logs[0]!.skipped).toEqual([]);
+    // inbox_messages ist nur zu ergänzen: der Fehlschlag bleibt protokolliert, das Nachholen kommt dazu
+    const logs = await sql`select cardinality(document_ids) as documents, skipped from inbox_messages where message_id like '<nochmal@funknetz.example>%' order by created_at`;
+    expect(logs).toEqual([
+      { documents: 0, skipped: [expect.stringMatching(/^Verarbeitung fehlgeschlagen: /)] },
+      { documents: 1, skipped: [] },
+    ]);
+    // Danach gilt sie als abgerufen
+    box.get(1)!.seen = false;
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 0, documents: 0, duplicates: 0, skipped: 0 });
   });
 
   it("merkt sich Fehler beim Verbinden und hält das Passwort aus dem Protokoll", async () => {
