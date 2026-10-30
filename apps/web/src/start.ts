@@ -1,4 +1,5 @@
-import { createMiddleware, createStart } from "@tanstack/react-start";
+import { createCsrfMiddleware, createMiddleware, createStart } from "@tanstack/react-start";
+import { csrfOptions } from "./server/csrf.ts";
 import { withFrameAncestors } from "./server/security-headers.ts";
 
 /** Läuft für jede Anfrage, Seiten wie API */
@@ -7,4 +8,4 @@ const securityHeaders = createMiddleware().server(async ({ next }) => {
   return { ...result, response: withFrameAncestors(result.response) };
 });
 
-export const startInstance = createStart(() => ({ requestMiddleware: [securityHeaders] }));
+export const startInstance = createStart(() => ({ requestMiddleware: [createCsrfMiddleware(csrfOptions), securityHeaders] }));
