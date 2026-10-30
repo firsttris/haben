@@ -54,6 +54,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
       kind: schema.allocations.kind,
       amount: schema.allocations.amount,
       taxShares: schema.allocations.taxShares,
+      taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
       invoiceId: schema.allocations.invoiceId,
       documentId: schema.allocations.documentId,
       transactionId: schema.allocations.transactionId,
@@ -102,6 +103,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
     .select({
       amount: schema.writeOffs.amount,
       taxShares: schema.writeOffs.taxShares,
+      taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
       date: schema.writeOffs.date,
       invoiceId: schema.writeOffs.invoiceId,
       documentId: schema.writeOffs.documentId,
@@ -134,7 +136,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
         paid: a.amount,
         totals: invoiceTotals.get(a.invoiceId)!,
         // Wie gebucht; ältere Zahlungen ohne gespeicherten Anteil rechnet die EÜR weiter aus der Summe je Umsatz
-        ...(a.taxShares ? { shares: recordedTaxShares(invoiceTotals.get(a.invoiceId)!, a.amount, a.taxShares) } : {}),
+        ...(a.taxShares ? { shares: recordedTaxShares(invoiceTotals.get(a.invoiceId)!, a.amount, a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null) } : {}),
         treatment: a.treatment ?? "regulaer",
         group,
       });
@@ -161,7 +163,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
         date: w.date,
         paid: w.amount,
         totals: invoiceTotals.get(w.invoiceId)!,
-        ...(w.taxShares ? { shares: recordedTaxShares(invoiceTotals.get(w.invoiceId)!, w.amount, w.taxShares) } : {}),
+        ...(w.taxShares ? { shares: recordedTaxShares(invoiceTotals.get(w.invoiceId)!, w.amount, w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null) } : {}),
         treatment: w.treatment ?? "regulaer",
         group,
       });

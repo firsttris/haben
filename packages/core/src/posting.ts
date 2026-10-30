@@ -345,21 +345,17 @@ export function settlementTaxShares(totals: InvoiceTotals, settledBefore: Cents,
 }
 
 /**
- * Gespeicherter Anteil einer Zahlung bzw. Ausbuchung, wenn er zur Rechnung passt; sonst aus dem Betrag gerechnet.
- * Passt heißt: dieselben Steuersätze, zusammen der Betrag und je Satz höchstens 2 Cent neben dem einzeln gerundeten
- * Anteil (mehr gleicht settlementTaxShares nicht aus). So meldet der Abgleich eine auf eine andere Rechnung umgehängte
- * Zahlung weiter als Abweichung, statt den mitgewanderten Anteil zu übernehmen.
+ * Gespeicherter Anteil einer Zahlung bzw. Ausbuchung, wenn er zur Rechnung passt: dieselben Steuersätze und zusammen der
+ * Betrag; sonst aus dem Betrag gerechnet (ältere Zeilen ohne Anteil, wie gebucht). Für welche Rechnung er gerechnet ist,
+ * prüft der Aufrufer (tax_shares_invoice_id), damit der Abgleich eine umgehängte Zahlung weiter als Abweichung meldet.
  */
 export function recordedTaxShares(totals: InvoiceTotals, amount: Cents, stored: TaxShare[] | null | undefined): TaxShare[] {
   const computed = paidTaxShares(totals, amount);
   if (!stored) return computed;
   const fits =
     stored.length === computed.length &&
-    stored.reduce((sum, s) => sum + s.base + s.tax, 0) === amount &&
-    computed.every((c) => {
-      const s = stored.find((r) => r.rate === c.rate);
-      return s !== undefined && Math.abs(s.base - c.base) <= 2 && Math.abs(s.tax - c.tax) <= 2;
-    });
+    computed.every((c) => stored.some((s) => s.rate === c.rate)) &&
+    stored.reduce((sum, s) => sum + s.base + s.tax, 0) === amount;
   return fits ? stored : computed;
 }
 

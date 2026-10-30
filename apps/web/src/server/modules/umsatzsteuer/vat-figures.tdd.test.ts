@@ -37,14 +37,14 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03')`;
   });
 
-  async function invoice(lines: { unitPrice: number; taxRate: number }[]) {
+  async function invoice(lines: { unitPrice: number; taxRate: 1900 | 700 | 0 }[]) {
     const contact = await contacts.createContact(actor, {
       kundennummer: "", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
       email: "a@b.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
     });
     const draft = await invoices.createDraft(actor, {
       contactId: contact.id, issueDate: "2026-09-20", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
-      lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch.", unitPrice: l.unitPrice, taxRate: l.taxRate })),
+      lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch." as const, unitPrice: l.unitPrice, taxRate: l.taxRate })),
     });
     return invoices.finalizeInvoice(actor, draft.id);
   }

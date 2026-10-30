@@ -1,5 +1,5 @@
 {
-  "id": "840e4118-9e1e-41dc-8a40-36eee7aebb1e",
+  "id": "37c8e00d-f4f0-4a98-b96a-8efe5d17fab8",
   "prevId": "6b8edb2c-60e4-4cec-ad17-167cd2b6a08b",
   "version": "7",
   "dialect": "postgresql",
@@ -61,6 +61,12 @@
         "tax_shares": {
           "name": "tax_shares",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tax_shares_invoice_id": {
+          "name": "tax_shares_invoice_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -6765,6 +6771,12 @@
         "tax_shares": {
           "name": "tax_shares",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tax_shares_invoice_id": {
+          "name": "tax_shares_invoice_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },

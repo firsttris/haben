@@ -87,6 +87,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
         date: schema.bankTransactions.bookingDate,
         amount: schema.allocations.amount,
         taxShares: schema.allocations.taxShares,
+        taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
@@ -111,6 +112,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
         date: schema.writeOffs.date,
         amount: schema.writeOffs.amount,
         taxShares: schema.writeOffs.taxShares,
+        taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
@@ -130,7 +132,8 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))]);
     for (const p of payments) {
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
-      for (const share of recordedTaxShares(totals.get(p.invoiceId)!, p.amount, p.taxShares)) {
+      const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
+      for (const share of recordedTaxShares(totals.get(p.invoiceId)!, p.amount, stored)) {
         revenue.push({
           type: "payment",
           date: p.date,
@@ -188,6 +191,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
         date: schema.writeOffs.date,
         amount: schema.writeOffs.amount,
         taxShares: schema.writeOffs.taxShares,
+        taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
@@ -206,7 +210,8 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       );
     const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))]);
     for (const r of rows) {
-      const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })));
+      const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
+      const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, stored);
       for (const share of shares) {
         revenue.push({
           type: "ausbuchung",
