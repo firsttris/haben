@@ -11,6 +11,8 @@ import {
   openingDocumentPosting,
   openingInvoicePosting,
   paidTaxShares,
+  settlementTaxShares,
+  type TaxShare,
 } from "./posting.ts";
 
 const balanced = (lines: { debit: number; credit: number }[]) =>
@@ -297,5 +299,27 @@ describe("Rundung bei Storno", () => {
       const zurueck = paidTaxShares(negated, -paid);
       expect(zurueck.map((r) => [r.base, r.tax])).toEqual(hin.map((r) => [-r.base, -r.tax]));
     }
+  });
+});
+
+describe("settlementTaxShares", () => {
+  it("Raten zusammen ergeben genau die Steuer der Rechnung, auch wenn jede einzeln anders rundet", () => {
+    const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
+    // Einzeln gerundet: 3 × 6,33 € = 18,99 €
+    expect([3_967, 3_967, 3_966].reduce((s, p) => s + paidTaxShares(totals, p)[0]!.tax, 0)).toBe(1_899);
+    const recorded: TaxShare[] = [];
+    let settled = 0;
+    for (const amount of [3_967, 3_967, 3_966]) {
+      const shares = settlementTaxShares(totals, settled, recorded, amount);
+      recorded.push(...shares);
+      settled += amount;
+    }
+    expect(recorded.reduce((s, r) => s + r.tax, 0)).toBe(1_900);
+    expect(recorded.reduce((s, r) => s + r.base, 0)).toBe(10_000);
+  });
+
+  it("ohne Vorgänger wie paidTaxShares", () => {
+    const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 101, taxRate: 1900 }, { quantity: 1000, unitPrice: 1_000, taxRate: 700 }]);
+    expect(settlementTaxShares(totals, 0, [], 595)).toEqual(paidTaxShares(totals, 595));
   });
 });
