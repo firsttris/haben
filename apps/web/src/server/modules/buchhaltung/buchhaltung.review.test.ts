@@ -19,7 +19,8 @@ describe.skipIf(!testDatabaseUrl)("Review: Anlagen und Kleinunternehmer (Postgre
   beforeEach(async () => {
     await sql`truncate asset_depreciations, assets, allocations, bank_transactions, bank_imports, bank_accounts,
       journal_lines, journal_entries, document_amounts, documents, company cascade`;
-    await sql`insert into company (id, name, versteuerung, kontenrahmen, bundesland) values (1, 'Testfirma', 'ist', 'SKR03', 'BY')`;
+    // Kleinunternehmer vom ersten Protokolleintrag an: gilt für alle Monate, unabhängig vom heutigen Datum
+    await sql`insert into company (id, name, versteuerung, kontenrahmen, bundesland, kleinunternehmer) values (1, 'Testfirma', 'ist', 'SKR03', 'BY', true)`;
   });
 
   it("Privatnutzung eines Fahrzeugs: nach dem Wechsel zum Kleinunternehmer keine Umsatzsteuer mehr darauf", async () => {
@@ -36,9 +37,9 @@ describe.skipIf(!testDatabaseUrl)("Review: Anlagen und Kleinunternehmer (Postgre
       note: "",
       privateUse: { listPrice: 4_000_000, drive: "verbrenner", rate: 100, vat: true },
     });
+    // Das Fahrzeug steht noch mit Umsatzsteuer auf der Privatnutzung drin, wie vor einem Wechsel zu § 19 UStG angelegt
+    await sql`update assets set private_use = jsonb_set(private_use, '{vat}', 'true') where id = ${car.id}`;
     await assets.bookDepreciation(actor, 2025, "2025-12-05");
-    // Zum Jahreswechsel auf § 19 UStG umgestellt (im laufenden Jahr ist noch nichts gebucht)
-    await sql`update company set kleinunternehmer = true`;
 
     // Als Kleinunternehmer schuldet man keine Umsatzsteuer auf die unentgeltliche Wertabgabe
     expect.soft((await assets.withdrawalsForEuer(2026)).ustEntnahmen).toBe(0);
