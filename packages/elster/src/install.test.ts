@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,11 +21,14 @@ const goodJar = jar({
   "ERiC-43.4.6.0/Dokumentation/Liesmich.txt": new TextEncoder().encode("doku"),
 });
 
-function fakeFetch(body: Uint8Array | null, status = 200) {
+function fakeFetch(body: Uint8Array | null, status = 200, finalUrl?: string) {
   const urls: string[] = [];
   const fn = (async (input: RequestInfo | URL) => {
     urls.push(String(input));
-    return new Response(body as BodyInit | null, { status, headers: body ? { "content-length": String(body.length) } : {} });
+    const response = new Response(body as BodyInit | null, { status, headers: body ? { "content-length": String(body.length) } : {} });
+    // Nach einer Weiterleitung steht die tatsächliche Adresse in response.url
+    if (finalUrl) Object.defineProperty(response, "url", { value: finalUrl });
+    return response;
   }) as typeof fetch;
   return { fn, urls };
 }
@@ -46,7 +49,7 @@ describe("ERiC installieren", () => {
     const progress: InstallProgress[] = [];
     const result = await installEric({ version: "43.4.6.0", dir, fetch: fn, baseUrl: "http://elster.test/eric", checkPlatform: false, onProgress: (p) => progress.push(p) });
     expect(urls).toEqual(["http://elster.test/eric/eric_43/ERiC-43.4.6.0-Linux-x86_64.jar"]);
-    expect(result).toEqual({ version: "43.4.6.0", files: 3 });
+    expect(result).toMatchObject({ version: "43.4.6.0", files: 3 });
     const home = ericHomeIn(dir)!;
     expect(home).toBe(join(dir, "ERiC-43.4.6.0"));
     expect(readFileSync(join(home, "lib/libericxerces.so")).equals(big)).toBe(true);
@@ -91,6 +94,26 @@ describe("ERiC installieren", () => {
     const evil = jar({ "ERiC/Linux-x86_64/../../../boese.so": new TextEncoder().encode("x") });
     await expect(installEric({ version: "43.4.6.0", dir, fetch: fakeFetch(evil).fn, checkPlatform: false })).rejects.toThrow(/Unzulässiger Pfad|keine Dateien/);
     expect(existsSync(join(dir, "..", "boese.so"))).toBe(false);
+  });
+
+  it("prüft die Prüfsumme, sofern angegeben, und meldet sie zurück", async () => {
+    const dir = await tempDir();
+    const sha256 = createHash("sha256").update(goodJar).digest("hex");
+    const options = { version: "43.4.6.0", dir, checkPlatform: false };
+    await expect(installEric({ ...options, fetch: fakeFetch(goodJar).fn, sha256: "0".repeat(64) })).rejects.toThrow(/Prüfsumme/);
+    expect(ericHomeIn(dir)).toBeNull();
+    expect(await installEric({ ...options, fetch: fakeFetch(goodJar).fn, sha256: sha256.toUpperCase() })).toMatchObject({ sha256 });
+    expect(await installEric({ ...options, fetch: fakeFetch(goodJar).fn })).toMatchObject({ sha256 });
+  });
+
+  it("folgt keiner Weiterleitung auf einen anderen Server und bricht zu große Downloads ab", async () => {
+    const dir = await tempDir();
+    const options = { version: "43.4.6.0", dir, checkPlatform: false };
+    const elsewhere = fakeFetch(goodJar, 200, "https://example.com/eric.jar").fn;
+    await expect(installEric({ ...options, fetch: elsewhere })).rejects.toThrow(/example\.com/);
+    const sameHost = fakeFetch(goodJar, 200, "https://download.elster.de/download/eric/anders/eric.jar").fn;
+    await installEric({ ...options, fetch: sameHost });
+    await expect(installEric({ ...options, fetch: fakeFetch(goodJar).fn, maxBytes: 1024 })).rejects.toThrow(/größer als/);
   });
 
   it("meldet ein defektes Archiv als Fehler, ohne unhandled rejection und ohne Reste", async () => {

@@ -310,6 +310,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ERIC_DIR` | nein | Ziel für das von Haben heruntergeladene ERiC. Standard `data/eric`; im Image `/var/lib/haben/eric` (Volume) | `/var/lib/haben/eric` |
 | `ERIC_AUTO_INSTALL` | nein | `ja`: fehlt ERiC, lädt der Container es beim Start (Zustimmung zu den Nutzungsbedingungen) | `ja` |
 | `ERIC_DOWNLOAD_URL` | nein | Andere Download-Adresse für ERiC, nur zum Testen. Standard `https://download.elster.de/download/eric` | `http://localhost:4556/eric` |
+| `ERIC_SHA256` | nein | Erwartete SHA-256 des ERiC-Pakets (64 Hex-Zeichen). Stimmt sie nicht, bricht die Installation ab. Die Prüfsumme eines Downloads steht danach im Log und in `HABEN_ERIC_SHA256` im ERiC-Verzeichnis | `3f5a…` |
 | `ERIC_LOG_DIR` | nein | Logverzeichnis für ERiC. Ohne Angabe das temporäre Verzeichnis; im Image `/var/lib/haben/eric-log` | `/var/lib/haben/eric-log` |
 | `ERIC_WORKER_PATH` | nein | Pfad zum ERiC-Worker (`packages/elster/src/worker.ts`). Im Image gesetzt, sonst nicht nötig | `/app/packages/elster/src/worker.ts` |
 | `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Mit ERiC 43 nötig für Prüfen, Test- und Echtübermittlung; ohne ERiC läuft alles simuliert | `12345` |
@@ -503,6 +504,8 @@ ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, dar
 | Per Knopf | **Einstellungen › ELSTER › ERiC**: Version prüfen, den Nutzungsbedingungen zustimmen, **Herunterladen und einrichten**. Der Download läuft im Hintergrund; danach prüft und sendet Haben ohne Neustart über ERiC |
 | Beim Start | `ERIC_AUTO_INSTALL=ja` in `.env` bzw. `haben.env`. Fehlt ERiC, lädt der Container es vor dem Start der App; schlägt das fehl, startet die App trotzdem (simuliert) |
 | Auf der Kommandozeile | `docker compose exec app node --experimental-strip-types /app/packages/elster/src/install-cli.ts --lizenz-akzeptiert [Version]` bzw. `podman exec haben-app …` |
+
+Weil ERiC als native Bibliothek geladen wird, prüft Haben den Download: Er darf nur auf demselben Server weitergeleitet werden, ist auf 1 GB begrenzt, und seine SHA-256 steht danach im Log und in `HABEN_ERIC_SHA256` im Versionsordner. Mit `ERIC_SHA256` legst du die erwartete Prüfsumme fest, etwa die einer Installation, der du schon vertraust; weicht der Download ab, installiert Haben ihn nicht.
 
 ERiC landet im Volume `eric` bzw. `haben-eric` (`ERIC_DIR=/var/lib/haben/eric`), je Version in einem Unterordner; die Datei `AKTUELL` zeigt auf die aktive. Eine neue Version ersetzt die alte erst, wenn sie vollständig entpackt ist. Die Version, die Haben vorschlägt, ist die zuletzt bekannte; die aktuelle steht auf der Infoseite. Die Finanzverwaltung stellt alte Versionen nach einiger Zeit ab, und Vordrucke eines neuen Jahres (etwa die Jahreserklärungen) brauchen meist eine neue Version. Dann einfach die neue Versionsnummer eintragen und erneut laden.
 

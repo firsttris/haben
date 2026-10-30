@@ -113,13 +113,14 @@ export function startEricInstall(version: string): void {
     version,
     dir: resolve(env().ERIC_DIR),
     baseUrl: env().ERIC_DOWNLOAD_URL,
+    sha256: env().ERIC_SHA256 || undefined,
     onProgress: (progress) => {
       state.progress = progress;
     },
   }).then(
-    () => {
+    (result) => {
       installState = { status: "fertig", version, finishedAt: new Date().toISOString() };
-      console.log(`ERiC ${version} installiert unter ${resolve(env().ERIC_DIR)}`);
+      console.log(`ERiC ${version} installiert unter ${resolve(env().ERIC_DIR)} (SHA-256 des Pakets ${result.sha256})`);
     },
     (error: unknown) => {
       const message = error instanceof EricInstallError || error instanceof Error ? error.message : String(error);

@@ -3,6 +3,7 @@
  * Finanzverwaltung), lädt sie aber auf Wunsch direkt von download.elster.de herunter und entpackt
  * nur den Teil für Linux x86_64.
  */
+import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream, existsSync, readFileSync } from "node:fs";
 import { type FileHandle, mkdir, mkdtemp, open, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -20,7 +21,12 @@ export const ERIC_DOWNLOAD_BASE = "https://download.elster.de/download/eric";
 export const ERIC_INFO_URL = "https://www.elster.de/elsterweb/entwickler/infoseite/eric";
 export const ERIC_PLATFORM = "Linux-x86_64";
 
+/** Das Paket hat rund 300 MB; mehr nimmt der Download nicht an */
+export const MAX_ERIC_DOWNLOAD_BYTES = 1024 * 1024 * 1024;
+
 const VERSION_FILE = "HABEN_ERIC_VERSION";
+/** SHA-256 des Pakets, aus dem die Installation stammt */
+const SHA256_FILE = "HABEN_ERIC_SHA256";
 /** Im Zielverzeichnis: Name des Unterordners mit der aktiven Version */
 const CURRENT_FILE = "AKTUELL";
 
@@ -77,6 +83,9 @@ export interface InstallOptions {
   baseUrl?: string;
   fetch?: typeof fetch;
   onProgress?: (progress: InstallProgress) => void;
+  /** Erwartete SHA-256 des Pakets (hex); stimmt sie nicht, bricht die Installation ab */
+  sha256?: string;
+  maxBytes?: number;
   /** Nur Linux x86_64; in Tests abschaltbar */
   checkPlatform?: boolean;
 }
@@ -85,7 +94,7 @@ export interface InstallOptions {
  * Lädt das ERiC-Paket, entpackt alle Dateien unter `…/Linux-x86_64/` nach dir und ersetzt eine
  * vorhandene Installation erst, wenn die neue vollständig ist.
  */
-export async function installEric(options: InstallOptions): Promise<{ version: string; files: number }> {
+export async function installEric(options: InstallOptions): Promise<{ version: string; files: number; sha256: string }> {
   if ((options.checkPlatform ?? true) && (process.platform !== "linux" || process.arch !== "x64")) {
     throw new EricInstallError(`ERiC gibt es für Server nur für Linux x86_64, nicht für ${process.platform}/${process.arch}.`);
   }
@@ -93,7 +102,11 @@ export async function installEric(options: InstallOptions): Promise<{ version: s
   const work = await mkdtemp(join(tmpdir(), "haben-ericdl-"));
   try {
     const jar = join(work, "eric.jar");
-    await download(url, jar, options);
+    // ERiC wird als native Bibliothek in den Prozess geladen: Herkunft, Größe und Prüfsumme prüfen
+    const sha256 = await download(url, jar, options);
+    if (options.sha256 && options.sha256.trim().toLowerCase() !== sha256) {
+      throw new EricInstallError(`Die Prüfsumme des ERiC-Pakets stimmt nicht: erwartet ${options.sha256.trim()}, erhalten ${sha256}.`);
+    }
 
     // Das Ziel ist im Container ein Volume und lässt sich nicht umbenennen: Versionen liegen in
     // Unterordnern, AKTUELL zeigt auf die aktive; umgeschaltet wird erst nach vollständigem Entpacken.
@@ -107,6 +120,7 @@ export async function installEric(options: InstallOptions): Promise<{ version: s
       files = await extractPlatform(jar, fresh, options.onProgress);
       if (!isEricInstalled(fresh)) throw new EricInstallError(`Im Paket fehlt lib/libericapi.so oder lib/plugins für ${ERIC_PLATFORM}.`);
       await writeFile(join(fresh, VERSION_FILE), `${options.version}\n`);
+      await writeFile(join(fresh, SHA256_FILE), `${sha256}\n`);
     } catch (error) {
       await rm(fresh, { recursive: true, force: true });
       throw error;
@@ -125,13 +139,14 @@ export async function installEric(options: InstallOptions): Promise<{ version: s
       if (entry.startsWith("ERiC-") && entry !== basename(target)) await rm(join(root, entry), { recursive: true, force: true });
     }
     options.onProgress?.({ phase: "fertig", bytes: 0, total: null });
-    return { version: options.version, files };
+    return { version: options.version, files, sha256 };
   } finally {
     await rm(work, { recursive: true, force: true });
   }
 }
 
-async function download(url: string, path: string, options: InstallOptions) {
+/** Lädt nach path und gibt die SHA-256 der geladenen Bytes zurück */
+async function download(url: string, path: string, options: InstallOptions): Promise<string> {
   let response: Response;
   try {
     response = await (options.fetch ?? fetch)(url);
@@ -142,12 +157,22 @@ async function download(url: string, path: string, options: InstallOptions) {
     throw new EricInstallError(`ERiC ${options.version} gibt es nicht (mehr) zum Download. Die aktuelle Version steht auf ${ERIC_INFO_URL}.`);
   }
   if (!response.ok || !response.body) throw new EricInstallError(`Download fehlgeschlagen: HTTP ${response.status}`);
+  // Weiterleitungen nur auf demselben Server: sonst bestimmt ein fremder Host, welcher Code geladen wird
+  if (response.url && new URL(response.url).origin !== new URL(url).origin) {
+    throw new EricInstallError(`Der Download wurde auf ${new URL(response.url).host} umgeleitet; erlaubt ist nur ${new URL(url).host}.`);
+  }
+  const max = options.maxBytes ?? MAX_ERIC_DOWNLOAD_BYTES;
+  const tooLarge = () => new EricInstallError(`Das ERiC-Paket ist größer als ${Math.round(max / 1048576)} MB.`);
   const total = Number(response.headers.get("content-length")) || null;
+  if (total && total > max) throw tooLarge();
   let bytes = 0;
   let last = 0;
+  const hash = createHash("sha256");
   const body = Readable.fromWeb(response.body as import("node:stream/web").ReadableStream<Uint8Array>);
   body.on("data", (chunk: Buffer) => {
     bytes += chunk.length;
+    hash.update(chunk);
+    if (bytes > max) body.destroy(tooLarge());
     // Fortschritt höchstens je Megabyte melden
     if (bytes - last >= 1 << 20) {
       last = bytes;
@@ -155,6 +180,7 @@ async function download(url: string, path: string, options: InstallOptions) {
     }
   });
   await pipeline(body, createWriteStream(path));
+  return hash.digest("hex");
 }
 
 interface ZipEntry {

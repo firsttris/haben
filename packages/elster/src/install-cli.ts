@@ -28,6 +28,7 @@ try {
     version,
     dir,
     baseUrl: process.env.ERIC_DOWNLOAD_URL || undefined,
+    sha256: process.env.ERIC_SHA256 || undefined,
     onProgress: (p) => {
       if (p.phase === "download" && p.bytes - lastShown >= 25 << 20) {
         lastShown = p.bytes;
@@ -35,7 +36,7 @@ try {
       }
     },
   });
-  console.log(`ERiC ${result.version} eingerichtet unter ${dir} (${result.files} Dateien).`);
+  console.log(`ERiC ${result.version} eingerichtet unter ${dir} (${result.files} Dateien, SHA-256 des Pakets ${result.sha256}).`);
 } catch (error) {
   console.error(`ERiC konnte nicht eingerichtet werden: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
