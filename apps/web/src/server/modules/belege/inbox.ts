@@ -174,15 +174,22 @@ export interface InboxRunResult {
   skipped: number;
 }
 
+/** Steuerzeichen aus Mail-Kopfzeilen entfernen: Postgres-Text nimmt kein NUL an, und im Beleg stört der Rest */
+// eslint-disable-next-line no-control-regex
+const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, "");
+
+/** Die Ursache statt der Drizzle-Hülle mit der ganzen Abfrage */
+const errorText = (e: unknown) => clean(e instanceof Error ? (e.cause instanceof Error ? e.cause.message : e.message) : String(e));
+
 async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: boolean }, background: (work: Promise<void>) => void) {
   const mail = await simpleParser(source.bytes);
-  const messageId = mail.messageId?.trim() || `sha256:${createHash("sha256").update(source.bytes).digest("hex")}`;
+  const messageId = messageIdOf(mail, source.bytes);
   const [seen] = await db.select({ id: schema.inboxMessages.id }).from(schema.inboxMessages).where(eq(schema.inboxMessages.messageId, messageId));
   if (seen) return null;
 
   const from = mail.from?.value[0];
-  const sender = from ? (from.name ? `${from.name} <${from.address ?? ""}>` : (from.address ?? "")) : "";
-  const subject = mail.subject ?? "";
+  const sender = clean(from ? (from.name ? `${from.name} <${from.address ?? ""}>` : (from.address ?? "")) : "");
+  const subject = clean(mail.subject ?? "");
   const documentIds: string[] = [];
   const skipped: string[] = [];
   let duplicates = 0;
@@ -190,7 +197,7 @@ async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: 
   if (source.tooLarge) skipped.push(`Mail größer als ${MAX_MAIL_SIZE / 1024 / 1024} MB, Anhänge bitte einzeln hochladen`);
   else if (attachments.length === 0) skipped.push("keine Anhänge");
   for (const [index, attachment] of attachments.entries()) {
-    const filename = attachment.filename?.trim() || `Anhang-${index + 1}`;
+    const filename = clean(attachment.filename ?? "").trim() || `Anhang-${index + 1}`;
     try {
       const result = await uploadDocument(actor, { bytes: new Uint8Array(attachment.content), filename }, { background });
       if (result.duplicate) duplicates++;
@@ -216,6 +223,33 @@ async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: 
   return { documents: documentIds.length, duplicates, skipped: skipped.length };
 }
 
+function messageIdOf(mail: { messageId?: string }, bytes: Buffer) {
+  return clean(mail.messageId ?? "").trim() || `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+}
+
+/**
+ * Eine Mail, an der die Verarbeitung scheitert, wird mit dem Fehler protokolliert und danach
+ * als gelesen markiert. Sonst stünde sie bei jedem Abruf wieder vorn und hielte alle späteren auf.
+ */
+async function recordFailure(actor: string, bytes: Buffer, error: unknown) {
+  const mail = await simpleParser(bytes).catch(() => null);
+  const from = mail?.from?.value[0];
+  await withActor(actor, (tx) =>
+    tx
+      .insert(schema.inboxMessages)
+      .values({
+        messageId: (mail ? messageIdOf(mail, bytes) : messageIdOf({}, bytes)).slice(0, 998),
+        sender: clean(from?.address ?? "").slice(0, 500),
+        subject: clean(mail?.subject ?? "").slice(0, 500),
+        receivedAt: mail?.date ?? null,
+        documentIds: [],
+        duplicates: 0,
+        skipped: [`Verarbeitung fehlgeschlagen: ${errorText(error)}`.slice(0, 1000)],
+      })
+      .onConflictDoNothing({ target: schema.inboxMessages.messageId }),
+  );
+}
+
 /** Ruft das Postfach einmal ab */
 export async function fetchInbox(actor: string, background: (work: Promise<void>) => void = () => {}): Promise<InboxRunResult> {
   const settings = await loadInboxSettings();
@@ -226,8 +260,16 @@ export async function fetchInbox(actor: string, background: (work: Promise<void>
     const connection = await connector(settings, new TextDecoder().decode(decrypt(settings.ciphertext)));
     try {
       for (const uid of (await connection.unseen()).slice(0, MAX_MESSAGES)) {
-        const done = await processMessage(actor, await connection.source(uid), background);
-        // Erst nach dem Ablegen als gelesen markieren; schlägt etwas fehl, kommt die Mail beim nächsten Lauf wieder
+        const source = await connection.source(uid);
+        let done: Awaited<ReturnType<typeof processMessage>>;
+        try {
+          done = await processMessage(actor, source, background);
+        } catch (failure) {
+          // Lässt sich nicht einmal der Fehler speichern (Datenbank weg), bricht der Lauf ab und die Mail bleibt ungelesen
+          await recordFailure(actor, source.bytes, failure);
+          done = { documents: 0, duplicates: 0, skipped: 1 };
+        }
+        // Erst nach dem Ablegen oder Protokollieren als gelesen markieren
         await connection.markSeen(uid);
         if (!done) continue;
         result.messages++;
@@ -239,7 +281,7 @@ export async function fetchInbox(actor: string, background: (work: Promise<void>
       await connection.close();
     }
   } catch (e) {
-    error = e instanceof Error ? e.message : String(e);
+    error = errorText(e);
   }
   await db.update(schema.inboxSettings).set({ lastRunAt: new Date(), lastError: error }).where(eq(schema.inboxSettings.id, 1));
   if (error) throw new InboxError(`Abruf fehlgeschlagen: ${error}`);
