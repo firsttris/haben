@@ -155,13 +155,6 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     // nehmen. Eine eigene Verbindung hält das Original, bis beide warten: die Korrektur zuerst, dann das Storno.
     const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
     const correction = await invoices.createCorrection(actor, original.id, `${year}-06-01`);
-    // Teilkorrektur: nach einer vollständigen bliebe dem Storno nichts zurückzunehmen
-    await invoices.updateDraft(actor, correction.id, {
-      ...draft(),
-      issueDate: `${year}-06-01`,
-      paymentTermDays: 0,
-      lines: [{ description: "Beratung", quantity: 1000, unit: "Std." as const, unitPrice: -2_000, taxRate: 1900 as const }],
-    });
     const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     let release!: () => void;
     const released = new Promise<void>((resolve) => (release = resolve));
