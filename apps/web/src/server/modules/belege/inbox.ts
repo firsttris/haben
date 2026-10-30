@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { ImapFlow } from "imapflow";
 import { simpleParser, type Attachment } from "mailparser";
 import { createHash } from "node:crypto";
@@ -174,6 +174,12 @@ export interface InboxRunResult {
   skipped: number;
 }
 
+const FAILED = "Verarbeitung fehlgeschlagen: ";
+/** Eintrag von recordFailure: keine Belege, nur der Fehler */
+const isFailure = (row: { skipped: string[]; documentIds: string[] }) => row.documentIds.length === 0 && !!row.skipped[0]?.startsWith(FAILED);
+/** Schlüssel für das Nachholen einer Mail, deren erster Versuch fehlschlug */
+const retryKey = (messageId: string) => `${messageId.slice(0, 980)} (nachgeholt)`;
+
 /** Steuerzeichen aus Mail-Kopfzeilen entfernen: Postgres-Text nimmt kein NUL an, und im Beleg stört der Rest */
 // eslint-disable-next-line no-control-regex
 const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, "");
@@ -184,8 +190,14 @@ const errorText = (e: unknown) => clean(e instanceof Error ? (e.cause instanceof
 async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: boolean }, background: (work: Promise<void>) => void) {
   const mail = await simpleParser(source.bytes);
   const messageId = messageIdOf(mail, source.bytes);
-  const [seen] = await db.select({ id: schema.inboxMessages.id }).from(schema.inboxMessages).where(eq(schema.inboxMessages.messageId, messageId));
-  if (seen) return null;
+  // inbox_messages ist nur zu ergänzen: der Eintrag eines früheren Fehlschlags bleibt stehen, und wer die
+  // Mail wieder auf ungelesen setzt, holt sie unter einem eigenen Schlüssel nach
+  const earlier = await db
+    .select({ messageId: schema.inboxMessages.messageId, skipped: schema.inboxMessages.skipped, documentIds: schema.inboxMessages.documentIds })
+    .from(schema.inboxMessages)
+    .where(inArray(schema.inboxMessages.messageId, [messageId.slice(0, 998), retryKey(messageId)]));
+  if (earlier.some((row) => !isFailure(row))) return null;
+  const key = earlier.length > 0 ? retryKey(messageId) : messageId.slice(0, 998);
 
   const from = mail.from?.value[0];
   const sender = clean(from ? (from.name ? `${from.name} <${from.address ?? ""}>` : (from.address ?? "")) : "");
@@ -217,7 +229,7 @@ async function processMessage(actor: string, source: { bytes: Buffer; tooLarge: 
     }
     await tx
       .insert(schema.inboxMessages)
-      .values({ messageId: messageId.slice(0, 998), sender: sender.slice(0, 500), subject: subject.slice(0, 500), receivedAt: mail.date ?? null, documentIds, duplicates, skipped })
+      .values({ messageId: key, sender: sender.slice(0, 500), subject: subject.slice(0, 500), receivedAt: mail.date ?? null, documentIds, duplicates, skipped })
       .onConflictDoNothing({ target: schema.inboxMessages.messageId });
   });
   return { documents: documentIds.length, duplicates, skipped: skipped.length };
@@ -244,7 +256,7 @@ async function recordFailure(actor: string, bytes: Buffer, error: unknown) {
         receivedAt: mail?.date ?? null,
         documentIds: [],
         duplicates: 0,
-        skipped: [`Verarbeitung fehlgeschlagen: ${errorText(error)}`.slice(0, 1000)],
+        skipped: [`${FAILED}${errorText(error)}`.slice(0, 1000)],
       })
       .onConflictDoNothing({ target: schema.inboxMessages.messageId }),
   );
