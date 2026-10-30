@@ -107,7 +107,7 @@ describe("Struktur der Module", () => {
   it("keine Dienste mehr direkt unter server/, nur Infrastruktur", () => {
     const top = readdirSync(server).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
     expect(top.sort()).toEqual(
-      ["auth.ts", "crypto.ts", "env.ts", "errors.ts", "file-response.ts", "middleware.ts", "scheduler.ts", "security-headers.ts", "storage.ts", "test-db.ts", "test-eric.ts", "today.ts"].sort(),
+      ["auth.ts", "crypto.ts", "csrf.ts", "env.ts", "errors.ts", "file-response.ts", "middleware.ts", "scheduler.ts", "security-headers.ts", "setup-code.ts", "storage.ts", "test-db.ts", "test-eric.ts", "today.ts"].sort(),
     );
   });
 });
