@@ -148,6 +148,24 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
     expect((await inbox.inboxSummary()).settings?.lastError).toBeNull();
   });
 
+  it("holt eine fehlgeschlagene Mail nach, wenn sie im Postfach wieder als ungelesen markiert ist", async () => {
+    await inbox.saveInboxSettings(actor, settings);
+    await deliver({ subject: "Kaputt", messageId: "<nochmal@funknetz.example>", attachments: [{ filename: "kaputt.pdf", content: pdf("nochmal") }] });
+    await sql`alter table documents add constraint test_kaputt check (filename <> 'kaputt.pdf')`;
+    try {
+      expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 0, duplicates: 0, skipped: 1 });
+    } finally {
+      await sql`alter table documents drop constraint test_kaputt`;
+    }
+    // Ursache behoben (z. B. Speicher wieder da), Mail im Postfach wieder auf ungelesen gesetzt
+    box.get(1)!.seen = false;
+    expect(await inbox.fetchInbox(actor)).toEqual({ messages: 1, documents: 1, duplicates: 0, skipped: 0 });
+    expect((await sql`select filename from documents`).map((d) => d.filename)).toEqual(["kaputt.pdf"]);
+    const logs = await sql`select document_ids, skipped from inbox_messages where message_id = '<nochmal@funknetz.example>'`;
+    expect(logs).toHaveLength(1);
+    expect(logs[0]!.skipped).toEqual([]);
+  });
+
   it("merkt sich Fehler beim Verbinden und hält das Passwort aus dem Protokoll", async () => {
     const max = Number((await sql`select coalesce(max(id), 0) as max from audit_log`)[0]!.max);
     await inbox.saveInboxSettings(actor, settings);
