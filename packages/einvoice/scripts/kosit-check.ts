@@ -23,6 +23,13 @@ const samples: Record<string, InvoiceDocument> = {
   "storno-xr-cii": sampleDocument({ kind: "storno", format: "xrechnung-cii" }),
   "storno-xr-ubl": sampleDocument({ kind: "storno", format: "xrechnung-ubl" }),
   "korrektur-xr-ubl": sampleDocument({ kind: "korrektur", format: "xrechnung-ubl", lines: mixedRateLines }),
+  // Storno einer Korrektur (mit dem Storno ihrer Rechnung): Positionen positiv, als Gutschrift mit negativen Beträgen
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).map((format) => [
+      `storno-korrektur-${format}`,
+      sampleDocument({ kind: "storno", format, lines: mixedRateLines.map((line) => ({ ...line, unitPrice: -line.unitPrice })) }),
+    ]),
+  ),
   "leitweg-xr-cii": sampleDocument({ format: "xrechnung-cii", buyer: publicBuyer }),
   "leitweg-xr-ubl": sampleDocument({ format: "xrechnung-ubl", buyer: publicBuyer }),
   "leistungsdatum-xr-ubl": { ...sampleDocument({ format: "xrechnung-ubl" }), serviceFrom: "2026-09-30", serviceTo: undefined },

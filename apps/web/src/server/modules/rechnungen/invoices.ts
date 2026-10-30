@@ -167,10 +167,7 @@ export function invoiceTitle(invoice: Pick<Invoice, "kind" | "variant">): string
 }
 
 /** Festgeschriebene Rechnungen, die eine Stornorechnung aufhebt */
-/** Stornierte Rechnungen samt ihren Korrekturen: ein Storno nimmt den Rest von beiden zurück (cancelInvoice) */
-const cancelledIds = sql`select corrects_id from invoices where kind = 'storno' and status = 'final' and corrects_id is not null
-  union select k.id from invoices k join invoices s on s.corrects_id = k.corrects_id and s.kind = 'storno' and s.status = 'final'
-  where k.kind = 'korrektur' and k.status = 'final'`;
+const cancelledIds = sql`select corrects_id from invoices where kind = 'storno' and status = 'final' and corrects_id is not null`;
 
 /**
  * Schlussrechnungen, die eine Abschlagsrechnung schon abziehen (festgeschrieben, nicht storniert),
@@ -613,20 +610,10 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
     .where(id ? eq(schema.invoices.id, id) : undefined)
     .orderBy(sql`${schema.invoices.number} desc nulls first`, desc(schema.invoices.createdAt));
 
-  // Ein Storno erstattet, was auf die Rechnung und ihre Korrekturen gezahlt wurde
-  const stornoOriginals = rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!);
-  const corrections = stornoOriginals.length
-    ? await q
-        .select({ id: schema.invoices.id, correctsId: schema.invoices.correctsId })
-        .from(schema.invoices)
-        .where(and(inArray(schema.invoices.correctsId, stornoOriginals), eq(schema.invoices.kind, "korrektur"), eq(schema.invoices.status, "final")))
-    : [];
   const paid = await invoicePayments(
-    [...rows.filter((r) => r.status === "final").map((r) => r.id), ...stornoOriginals, ...corrections.map((c) => c.id)],
+    [...rows.filter((r) => r.status === "final").map((r) => r.id), ...rows.filter((r) => r.kind === "storno" && r.correctsId).map((r) => r.correctsId!)],
     q,
   );
-  const paidOnOriginal = (originalId: string) =>
-    (paid.get(originalId) ?? 0) + corrections.filter((c) => c.correctsId === originalId).reduce((sum, c) => sum + (paid.get(c.id) ?? 0), 0);
   const losses = await invoiceLosses(rows.filter((r) => r.status === "final").map((r) => r.id), q);
   return rows.map(({ cancelled, ...row }) => {
     const facts = {
@@ -635,7 +622,7 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       writtenOffLoss: losses.get(row.id) ?? 0,
       cancelled,
       // Bei einem Storno bleibt offen, was auf die Rechnung gezahlt und noch nicht erstattet wurde
-      paidOnOriginal: row.kind === "storno" && row.correctsId ? paidOnOriginal(row.correctsId) : 0,
+      paidOnOriginal: row.correctsId ? (paid.get(row.correctsId) ?? 0) : 0,
     };
     return {
       ...row,
@@ -781,7 +768,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (invoice.correctsId) {
     const [original] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-    const problem = original ? ((await originalProblem(original, q)) ?? (await reductionProblem(invoice, original, q))) : "Die korrigierte Rechnung fehlt";
+    const problem = original ? ((await originalProblem(original, q, invoice)) ?? (await reductionProblem(invoice, original, q))) : "Die korrigierte Rechnung fehlt";
     if (problem) issues.push(problem);
   }
   if (invoice.variant === "schluss") {
@@ -904,7 +891,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   let corrects: Invoice | undefined;
   if (invoice.correctsId) {
     [corrects] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-    const problem = corrects ? ((await originalProblem(corrects, tx)) ?? (await reductionProblem(invoice, corrects, tx))) : "Die korrigierte Rechnung fehlt";
+    const problem = corrects ? ((await originalProblem(corrects, tx, invoice)) ?? (await reductionProblem(invoice, corrects, tx))) : "Die korrigierte Rechnung fehlt";
     if (problem) throw new InvoiceError(`${problem}.`);
   }
   if (deducts.length > 0) {
@@ -968,21 +955,23 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
 }
 
 /** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */
-async function originalProblem(original: Invoice, q: Db | Tx = db): Promise<string | null> {
+async function originalProblem(original: Invoice, q: Db | Tx = db, of?: Invoice): Promise<string | null> {
   const [storno] = await q
     .select({ id: schema.invoices.id })
     .from(schema.invoices)
     .where(and(eq(schema.invoices.correctsId, original.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")))
     .limit(1);
   const deductedIn = (await deductedElsewhere([original.id], null, q)).get(original.id) ?? null;
-  return cancellationProblem(original, { cancelled: Boolean(storno), deductedIn });
+  // Das Storno einer Korrektur entsteht nur zusammen mit dem Storno ihrer Rechnung (cancelInvoice)
+  const kinds = of?.kind === "storno" ? (["rechnung", "korrektur"] as const) : (["rechnung"] as const);
+  return cancellationProblem(original, { cancelled: Boolean(storno), deductedIn }, kinds);
 }
 
-/** Mehrere Korrekturen zusammen mindern eine Rechnung höchstens bis auf 0 */
+/** Mehrere Korrekturen zusammen mindern eine Rechnung höchstens bis auf 0, netto (die Steuer rundet jeder Beleg für sich) */
 async function reductionProblem(invoice: Invoice, original: Invoice, q: Db | Tx = db): Promise<string | null> {
   if (invoice.kind !== "korrektur") return null;
   const [corrections] = await q
-    .select({ gross: sql<number>`coalesce(sum(${schema.invoices.gross}), 0)::int` })
+    .select({ net: sql<number>`coalesce(sum(${schema.invoices.net}), 0)::int` })
     .from(schema.invoices)
     .where(
       and(
@@ -992,7 +981,7 @@ async function reductionProblem(invoice: Invoice, original: Invoice, q: Db | Tx 
         ne(schema.invoices.id, invoice.id),
       ),
     );
-  return original.gross + corrections!.gross + invoice.gross < 0 ? "Die Korrekturen mindern die Rechnung unter 0" : null;
+  return original.net + corrections!.net + invoice.net < 0 ? "Die Korrekturen mindern die Rechnung unter 0" : null;
 }
 
 async function finalOriginal(id: string, q: Db | Tx = db) {
@@ -1014,7 +1003,8 @@ function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
 }
 
 /**
- * Stornorechnung mit allen Positionen negativ, sofort festgeschrieben. Entwurf und Festschreiben in einer Transaktion:
+ * Stornorechnung mit allen Positionen negativ, sofort festgeschrieben; festgeschriebene Korrekturen der Rechnung
+ * bekommen je ein eigenes Storno. Entwurf und Festschreiben in einer Transaktion:
  * Schlägt das Festschreiben fehl oder bricht der Server ab, bleibt kein Storno-Entwurf zurück.
  */
 export async function cancelInvoice(actor: string, id: string, today: string): Promise<Invoice> {
@@ -1030,48 +1020,50 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
     await lockNumbering(tx, "rechnung", Number(today.slice(0, 4)));
     const { invoice, lines } = await finalOriginal(id, tx);
-    // Festgeschriebene Korrekturen haben die Rechnung schon gemindert: das Storno nimmt nur den Rest zurück, also auch
-    // deren Positionen (negiert). Neue Korrekturen warten auf die Sperre des Originals oben.
+    // Festgeschriebene Korrekturen haben die Rechnung schon gemindert: jede bekommt ihr eigenes Storno. Je Beleg genau
+    // negiert hebt sich auch die Steuer auf den Cent auf, die jeder Beleg für sich rundet. Neue Korrekturen warten auf die
+    // Sperre des Originals oben.
     const corrections = await tx
-      .select({ id: schema.invoices.id })
+      .select()
       .from(schema.invoices)
       .where(and(eq(schema.invoices.correctsId, id), eq(schema.invoices.kind, "korrektur"), eq(schema.invoices.status, "final")))
       .orderBy(asc(schema.invoices.issueDate), asc(schema.invoices.number));
-    const correctionLines = (
-      await Promise.all(
-        corrections.map((c) =>
-          tx.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, c.id)).orderBy(asc(schema.invoiceLines.position)),
-        ),
-      )
-    ).flat();
     // Ein Storno nimmt die ganze Rechnung samt Umsatzsteuer zurück; eine Ausbuchung hat einen Teil davon schon gemindert
     // (doppelt bei Soll) und wäre im Storno als Erstattung offen, obwohl kein Geld geflossen ist
     if ((await invoiceWrittenOff([id, ...corrections.map((c) => c.id)], tx)).size > 0) {
       throw new InvoiceError("Die Rechnung ist teilweise ausgebucht (Skonto oder Forderungsausfall). Hebe die Ausbuchung zuerst auf, dann lässt sie sich stornieren.");
     }
-    const remaining = negatedLines([...lines, ...correctionLines]).reduce((sum, line) => sum + lineAmount(line.quantity, line.unitPrice), 0);
-    if (corrections.length > 0 && remaining === 0) {
-      throw new InvoiceError("Die Rechnung ist durch Korrekturen schon vollständig gemindert; ein Storno ist nicht nötig.");
+    const stornoOf = async (target: Invoice, targetLines: InvoiceLine[]) => {
+      const draft = await insertDraft(
+        tx,
+        {
+          contactId: target.contactId,
+          issueDate: today,
+          serviceFrom: target.serviceFrom,
+          serviceTo: target.serviceTo,
+          paymentTermDays: 0,
+          format: target.format,
+          note: "",
+          taxTreatment: target.taxTreatment,
+          exemptionReason: target.exemptionReason,
+          priceMode: target.priceMode,
+          language: target.language,
+          lines: negatedLines(targetLines),
+        },
+        { kind: "storno", correctsId: target.id },
+      );
+      return finalizeDraft(tx, draft.id);
+    };
+    const storno = await stornoOf(invoice, lines);
+    for (const correction of corrections) {
+      const correctionLines = await tx
+        .select()
+        .from(schema.invoiceLines)
+        .where(eq(schema.invoiceLines.invoiceId, correction.id))
+        .orderBy(asc(schema.invoiceLines.position));
+      await stornoOf(correction, correctionLines);
     }
-    const draft = await insertDraft(
-      tx,
-      {
-        contactId: invoice.contactId,
-        issueDate: today,
-        serviceFrom: invoice.serviceFrom,
-        serviceTo: invoice.serviceTo,
-        paymentTermDays: 0,
-        format: invoice.format,
-        note: "",
-        taxTreatment: invoice.taxTreatment,
-        exemptionReason: invoice.exemptionReason,
-        priceMode: invoice.priceMode,
-        language: invoice.language,
-        lines: negatedLines([...lines, ...correctionLines]),
-      },
-      { kind: "storno", correctsId: invoice.id },
-    );
-    return finalizeDraft(tx, draft.id);
+    return storno;
   });
 }
 

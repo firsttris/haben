@@ -75,25 +75,26 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
     await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId, amount });
   }
 
-  it("Storno einer korrigierten Rechnung nimmt den Rest zurück: Umsatz, Steuer und offene Beträge gehen auf 0", async () => {
+  it("Storno einer korrigierten Rechnung storniert auch die Korrektur: Umsatz, Steuer und offene Beträge gehen auf 0", async () => {
     const { original, correction } = await corrected();
     const storno = await invoices.cancelInvoice(actor, original.id, "2026-10-06");
-    // Rechnung + Korrektur + Storno: weder Umsatz noch Steuer bleiben übrig
+    // Rechnung + Korrektur + je ein Storno: weder Umsatz noch Steuer bleiben übrig
     const [sum] = await sql`select sum(net)::int as net, sum(tax)::int as tax from invoices where status = 'final'`;
     expect(sum).toEqual({ net: 0, tax: 0 });
-    expect(storno.gross).toBe(-95_200);
-    // Die Korrektur ist mit storniert, nichts mehr offen
+    expect(storno.gross).toBe(-119_000);
+    const [correctionStorno] = await sql`select gross, number from invoices where kind = 'storno' and corrects_id = ${correction.id}`;
+    expect(correctionStorno).toMatchObject({ gross: 23_800 });
+    expect(correctionStorno!.number).toBeTruthy();
     const list = await invoices.listInvoices("2026-10-29");
     const byId = new Map(list.map((i) => [i.id, i]));
     expect(byId.get(correction.id)).toMatchObject({ listStatus: "storniert", open: 0 });
     expect(byId.get(original.id)).toMatchObject({ listStatus: "storniert", open: 0 });
-    expect(byId.get(storno.id)!.open).toBe(0);
+    expect(list.filter((i) => i.open !== 0)).toEqual([]);
   }, 60_000);
 
-  it("nach einer vollständigen Korrektur bleibt dem Storno nichts zurückzunehmen", async () => {
-    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
-    await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, original.id, "2026-10-05")).id);
-    await expect(invoices.cancelInvoice(actor, original.id, "2026-10-06")).rejects.toThrow(/vollständig gemindert/);
+  it("eine Korrektur allein lässt sich nicht stornieren, nur mit ihrer Rechnung", async () => {
+    const { correction } = await corrected();
+    await expect(invoices.cancelInvoice(actor, correction.id, "2026-10-06")).rejects.toThrow(/Nur festgeschriebene Rechnungen/);
   }, 60_000);
 
   it("Storno einer bezahlten, korrigierten Rechnung: zu erstatten ist, was gezahlt wurde, einmal", async () => {
