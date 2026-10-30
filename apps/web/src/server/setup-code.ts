@@ -6,7 +6,9 @@ import { env } from "./env.ts";
 /** Ohne Doppeldeutiges wie 0/O und 1/I */
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-let generated: string | undefined;
+/** Prozessweit statt je Modul: im Build bringen Nitro-Plugin und SSR-Bundle je eine eigene Kopie dieser Datei mit */
+const GENERATED = Symbol.for("haben.setupCode");
+const store = globalThis as { [GENERATED]?: string };
 
 /**
  * Code für die Ersteinrichtung. Ohne ihn könnte jeder, der eine frisch gestartete Instanz zuerst
@@ -16,8 +18,8 @@ let generated: string | undefined;
 export function setupCode(): string {
   const configured = env().HABEN_SETUP_CODE;
   if (configured) return configured;
-  generated ??= Array.from({ length: 3 }, () => Array.from({ length: 4 }, () => ALPHABET[randomInt(ALPHABET.length)]).join("")).join("-");
-  return generated;
+  store[GENERATED] ??= Array.from({ length: 3 }, () => Array.from({ length: 4 }, () => ALPHABET[randomInt(ALPHABET.length)]).join("")).join("-");
+  return store[GENERATED];
 }
 
 const normalize = (code: string) => code.replace(/[\s-]/g, "").toUpperCase();
