@@ -302,11 +302,18 @@ export function documentPosting(
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 
+/** Netto und Steuer je Satz, die auf eine Zahlung oder Ausbuchung entfallen */
+export interface TaxShare {
+  rate: BasisPoints;
+  base: Cents;
+  tax: Cents;
+}
+
 /**
  * Anteil der Steuer je Satz, der auf eine (Teil-)Zahlung entfällt. Rundung so verteilt,
  * dass die Summe dem gerundeten Gesamtanteil entspricht.
  */
-export function paidTaxShares(totals: InvoiceTotals, paid: Cents): { rate: BasisPoints; base: Cents; tax: Cents }[] {
+export function paidTaxShares(totals: InvoiceTotals, paid: Cents): TaxShare[] {
   if (totals.gross === 0) return [];
   const share = (value: Cents) => roundHalfAwayFromZero((value * paid) / totals.gross);
   const totalTax = share(totals.tax);
@@ -322,6 +329,37 @@ export function paidTaxShares(totals: InvoiceTotals, paid: Cents): { rate: Basis
 }
 
 /**
+ * Anteil einer weiteren Zahlung bzw. Ausbuchung auf eine Rechnung: der Anteil am dann Erledigten abzüglich dessen, was
+ * die bisherigen schon erfasst haben. Einzeln gerundet ergäben 3 × 39,67 € auf 119 € nur 18,99 € Steuer; so ergeben alle
+ * zusammen genau die Steuer der Rechnung, auch nach einer aufgehobenen Zahlung dazwischen.
+ */
+export function settlementTaxShares(totals: InvoiceTotals, settledBefore: Cents, recordedBefore: TaxShare[], amount: Cents): TaxShare[] {
+  return paidTaxShares(totals, settledBefore + amount).map((target) => {
+    const recorded = recordedBefore.filter((r) => r.rate === target.rate);
+    return {
+      rate: target.rate,
+      base: target.base - recorded.reduce((sum, r) => sum + r.base, 0),
+      tax: target.tax - recorded.reduce((sum, r) => sum + r.tax, 0),
+    };
+  });
+}
+
+/**
+ * Gespeicherter Anteil einer Zahlung bzw. Ausbuchung, wenn er zur Rechnung passt: dieselben Steuersätze und zusammen der
+ * Betrag; sonst aus dem Betrag gerechnet (ältere Zeilen ohne Anteil, wie gebucht). Für welche Rechnung er gerechnet ist,
+ * prüft der Aufrufer (tax_shares_invoice_id), damit der Abgleich eine umgehängte Zahlung weiter als Abweichung meldet.
+ */
+export function recordedTaxShares(totals: InvoiceTotals, amount: Cents, stored: TaxShare[] | null | undefined): TaxShare[] {
+  const computed = paidTaxShares(totals, amount);
+  if (!stored) return computed;
+  const fits =
+    stored.length === computed.length &&
+    computed.every((c) => stored.some((s) => s.rate === c.rate)) &&
+    stored.reduce((sum, s) => sum + s.base + s.tax, 0) === amount;
+  return fits ? stored : computed;
+}
+
+/**
  * Zahlungseingang auf eine Rechnung: Bank an Forderungen. Bei Ist-Versteuerung wird der
  * Steueranteil der Zahlung von „Umsatzsteuer nicht fällig“ auf „Umsatzsteuer“ umgebucht.
  */
@@ -330,11 +368,12 @@ export function invoicePaymentPosting(
   paid: Cents,
   kontenrahmen: Kontenrahmen,
   versteuerung: Versteuerung,
+  shares: TaxShare[] = paidTaxShares(totals, paid),
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const lines: PostingLine[] = [side(accounts.bank, paid, true, null), side(accounts.forderungen, paid, false, null)];
   if (versteuerung === "ist") {
-    for (const { rate, tax } of paidTaxShares(totals, paid)) {
+    for (const { rate, tax } of shares) {
       if (tax === 0 || rate === 0) continue;
       const code = revenueTaxCode(rate);
       lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code));
@@ -379,11 +418,12 @@ export function invoiceWriteOffPosting(
   kontenrahmen: Kontenrahmen,
   versteuerung: Versteuerung,
   treatment: TaxTreatment = "regulaer",
+  shares: TaxShare[] = paidTaxShares(totals, amount),
 ): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const expense = kind === "skonto" ? accounts.skontiGewaehrt : accounts.forderungsverluste;
   const lines: PostingLine[] = [side(accounts.forderungen, amount, false, null)];
-  for (const { rate, base, tax } of paidTaxShares(totals, amount)) {
+  for (const { rate, base, tax } of shares) {
     const code = revenueTaxCode(rate, treatment);
     if (base !== 0) lines.push(side(expense, base, true, code));
     if (tax !== 0) lines.push(side((versteuerung === "ist" ? accounts.ustNichtFaellig : accounts.ust)[vatRate(rate)], tax, true, code));
@@ -418,7 +458,7 @@ export function documentWriteOffPosting(totals: InvoiceTotals, amount: Cents, ko
  * einer Rechnung trotzdem fällig, sonst bliebe sie auf „nicht fällig“ stehen.
  */
 export function exchangeDifferencePosting(
-  target: { kind: "invoice"; totals: InvoiceTotals; versteuerung: Versteuerung } | { kind: "document" },
+  target: { kind: "invoice"; totals: InvoiceTotals; versteuerung: Versteuerung; shares?: TaxShare[] } | { kind: "document" },
   amount: Cents,
   kontenrahmen: Kontenrahmen,
 ): PostingLine[] {
@@ -428,7 +468,7 @@ export function exchangeDifferencePosting(
     // Weniger erhalten als die Forderung in Euro: Aufwand; mehr (negativer Rest): Ertrag
     lines.push(side(accounts.forderungen, amount, false, null), side(amount > 0 ? accounts.kursAufwand : accounts.kursErtrag, amount, true, null));
     if (target.versteuerung === "ist") {
-      for (const { rate, tax } of paidTaxShares(target.totals, amount)) {
+      for (const { rate, tax } of target.shares ?? paidTaxShares(target.totals, amount)) {
         if (tax === 0 || rate === 0) continue;
         const code = revenueTaxCode(rate);
         lines.push(side(accounts.ustNichtFaellig[vatRate(rate)], tax, true, code), side(accounts.ust[vatRate(rate)], tax, false, code));

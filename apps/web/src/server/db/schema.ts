@@ -33,6 +33,7 @@ import {
   type AssetMethod,
   type CarPrivateUse,
   type MailTemplates,
+  type TaxShare,
 } from "@haben/core";
 
 export * from "./auth-schema.ts";
@@ -1115,6 +1116,13 @@ export const allocations = pgTable(
     /** Teile einer Aufteilung (Splitbuchung) tragen dieselbe ID und werden nur zusammen aufgehoben */
     splitId: uuid("split_id"),
     reversesId: uuid("reverses_id"),
+    /**
+     * Rechnung: Netto und Steuer je Satz, wie gebucht (settlementTaxShares). Voranmeldung und EÜR lesen diese Werte, damit
+     * alle Zahlungen zusammen genau die Steuer der Rechnung ergeben. Ältere Zuordnungen ohne: aus dem Betrag gerechnet.
+     */
+    taxShares: jsonb("tax_shares").$type<TaxShare[]>(),
+    /** Rechnung, für die taxShares gerechnet sind; hängt die Zuordnung woanders, gilt der Anteil nicht (recordedTaxShares) */
+    taxSharesInvoiceId: uuid("tax_shares_invoice_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1147,6 +1155,9 @@ export const writeOffs = pgTable(
     /** Zahlung, mit der zusammen ausgebucht wurde (Rest als Skonto); wird mit deren Zuordnung aufgehoben */
     transactionId: uuid("transaction_id").references(() => bankTransactions.id),
     reversesId: uuid("reverses_id"),
+    /** Rechnung: Netto und Steuer je Satz, wie gebucht, und für welche Rechnung (wie bei allocations) */
+    taxShares: jsonb("tax_shares").$type<TaxShare[]>(),
+    taxSharesInvoiceId: uuid("tax_shares_invoice_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

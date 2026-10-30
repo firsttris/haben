@@ -1,4 +1,4 @@
-import { paidTaxShares, splitPrivateShare, type Cents, type TaxTreatment, type VatPeriod } from "@haben/core";
+import { paidTaxShares, recordedTaxShares, splitPrivateShare, type Cents, type TaxTreatment, type VatPeriod } from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
@@ -86,6 +86,8 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       .select({
         date: schema.bankTransactions.bookingDate,
         amount: schema.allocations.amount,
+        taxShares: schema.allocations.taxShares,
+        taxSharesInvoiceId: schema.allocations.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
@@ -109,6 +111,8 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       .select({
         date: schema.writeOffs.date,
         amount: schema.writeOffs.amount,
+        taxShares: schema.writeOffs.taxShares,
+        taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
@@ -127,7 +131,9 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     payments.push(...differences);
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))]);
     for (const p of payments) {
-      for (const share of paidTaxShares(totals.get(p.invoiceId)!, p.amount)) {
+      // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
+      const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
+      for (const share of recordedTaxShares(totals.get(p.invoiceId)!, p.amount, stored)) {
         revenue.push({
           type: "payment",
           date: p.date,
@@ -184,6 +190,8 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       .select({
         date: schema.writeOffs.date,
         amount: schema.writeOffs.amount,
+        taxShares: schema.writeOffs.taxShares,
+        taxSharesInvoiceId: schema.writeOffs.taxSharesInvoiceId,
         invoiceId: schema.invoices.id,
         number: schema.invoices.number,
         buyer: schema.invoices.buyer,
@@ -202,7 +210,9 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       );
     const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))]);
     for (const r of rows) {
-      for (const share of paidTaxShares(totals.get(r.invoiceId)!, -r.amount)) {
+      const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
+      const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, stored);
+      for (const share of shares) {
         revenue.push({
           type: "ausbuchung",
           date: r.date,
