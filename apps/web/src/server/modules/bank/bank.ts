@@ -377,6 +377,7 @@ export async function openItems(): Promise<OpenItem[]> {
     .select({
       id: schema.invoices.id,
       kind: schema.invoices.kind,
+      correctsId: schema.invoices.correctsId,
       number: schema.invoices.number,
       issueDate: schema.invoices.issueDate,
       dueDate: schema.invoices.dueDate,
@@ -400,8 +401,15 @@ export async function openItems(): Promise<OpenItem[]> {
     .from(schema.invoices)
     .leftJoin(schema.contacts, eq(schema.contacts.id, schema.invoices.contactId))
     .where(and(eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
-  const cancelled = new Set(stornos.map((r) => r.correctsId));
+  // Ein Storno nimmt die Rechnung samt ihren Korrekturen zurück (cancelInvoice)
+  const cancelledOriginals = new Set(stornos.map((r) => r.correctsId));
+  const isCancelled = (inv: { id: string; kind: string; correctsId: string | null }) =>
+    cancelledOriginals.has(inv.id) || (inv.kind === "korrektur" && cancelledOriginals.has(inv.correctsId));
   const invoicePaid = await paidByTarget("invoice_id", [...invoices.map((i) => i.id), ...stornos.map((st) => st.id)]);
+  const paidOnOriginal = (originalId: string) =>
+    invoices
+      .filter((i) => i.id === originalId || (i.kind === "korrektur" && i.correctsId === originalId))
+      .reduce((sum, i) => sum + (invoicePaid.get(i.id) ?? 0), 0);
 
   const documents = await db
     .select({
@@ -420,7 +428,7 @@ export async function openItems(): Promise<OpenItem[]> {
 
   const items: OpenItem[] = [];
   for (const inv of invoices) {
-    const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid: invoicePaid.get(inv.id) ?? 0, cancelled: cancelled.has(inv.id) });
+    const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid: invoicePaid.get(inv.id) ?? 0, cancelled: isCancelled(inv) });
     if (open === 0) continue;
     items.push({
       type: "invoice",
@@ -441,7 +449,7 @@ export async function openItems(): Promise<OpenItem[]> {
       kind: "storno",
       gross: 0,
       paid: invoicePaid.get(storno.id) ?? 0,
-      paidOnOriginal: invoicePaid.get(storno.correctsId!) ?? 0,
+      paidOnOriginal: paidOnOriginal(storno.correctsId!),
       cancelled: false,
     });
     if (open === 0) continue;
@@ -842,6 +850,27 @@ async function lockTransaction(tx: Tx, id: string) {
 
 type LockedTransaction = Awaited<ReturnType<typeof lockTransaction>>;
 
+/** Storno, das die Rechnung zurücknimmt; bei einer Korrektur das ihres Originals (cancelInvoice nimmt beide zurück) */
+async function stornoFor(tx: Tx, invoice: { id: string; kind: string; correctsId: string | null }) {
+  const originalId = invoice.kind === "korrektur" ? invoice.correctsId : invoice.id;
+  if (!originalId) return undefined;
+  const [storno] = await tx
+    .select({ id: schema.invoices.id })
+    .from(schema.invoices)
+    .where(and(eq(schema.invoices.correctsId, originalId), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
+  return storno;
+}
+
+/** Gezahlt auf eine stornierte Rechnung und ihre Korrekturen: das erstattet das Storno */
+async function paidOnCancelled(tx: Tx, originalId: string): Promise<number> {
+  const corrections = await tx
+    .select({ id: schema.invoices.id })
+    .from(schema.invoices)
+    .where(and(eq(schema.invoices.correctsId, originalId), eq(schema.invoices.kind, "korrektur"), eq(schema.invoices.status, "final")));
+  const paid = await paidByTarget("invoice_id", [originalId, ...corrections.map((c) => c.id)], tx);
+  return [...paid.values()].reduce((sum, value) => sum + value, 0);
+}
+
 /**
  * Bucht einen Teil eines Umsatzes auf Rechnung, Beleg oder eine Buchung ohne Beleg. Der Betrag trägt das Vorzeichen,
  * mit dem er das Konto bewegt; geprüft wird hier nur gegen das Ziel (offener Betrag der Rechnung bzw. des Belegs).
@@ -858,13 +887,9 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     let open: number;
     if (invoice.kind === "storno") {
       if (!invoice.correctsId) throw new BankError("Rechnung nicht zuordenbar.");
-      open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), paidOnOriginal: await paidOn(invoice.correctsId), cancelled: false });
+      open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), paidOnOriginal: await paidOnCancelled(tx, invoice.correctsId), cancelled: false });
     } else {
-      const [storno] = await tx
-        .select({ id: schema.invoices.id })
-        .from(schema.invoices)
-        .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
-      if (storno) throw new BankError(`Rechnung ${invoice.number} ist storniert; eine Erstattung gehört zur Stornorechnung.`);
+      if (await stornoFor(tx, invoice)) throw new BankError(`Rechnung ${invoice.number} ist storniert; eine Erstattung gehört zur Stornorechnung.`);
       open = invoiceOpen({ ...invoice, paid: await paidOn(invoice.id), cancelled: false });
     }
     if (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open)) {
@@ -1133,11 +1158,7 @@ async function bookWriteOff(
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
     if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht gefunden.");
     if (invoice.kind === "storno") throw new BankError("Eine Stornorechnung lässt sich nicht ausbuchen.");
-    const [storno] = await tx
-      .select({ id: schema.invoices.id })
-      .from(schema.invoices)
-      .where(and(eq(schema.invoices.correctsId, invoice.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")));
-    if (storno) throw new BankError(`Rechnung ${invoice.number} ist storniert.`);
+    if (await stornoFor(tx, invoice)) throw new BankError(`Rechnung ${invoice.number} ist storniert.`);
     const open = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
     amount = input.amount ?? open;
     if (open === 0 || Math.sign(open) !== Math.sign(amount) || Math.abs(amount) > Math.abs(open)) {

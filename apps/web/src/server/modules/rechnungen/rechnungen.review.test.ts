@@ -90,6 +90,12 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
     expect(byId.get(storno.id)!.open).toBe(0);
   }, 60_000);
 
+  it("nach einer vollständigen Korrektur bleibt dem Storno nichts zurückzunehmen", async () => {
+    const original = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
+    await invoices.finalizeInvoice(actor, (await invoices.createCorrection(actor, original.id, "2026-10-05")).id);
+    await expect(invoices.cancelInvoice(actor, original.id, "2026-10-06")).rejects.toThrow(/vollständig gemindert/);
+  }, 60_000);
+
   it("Storno einer bezahlten, korrigierten Rechnung: zu erstatten ist, was gezahlt wurde, einmal", async () => {
     const bank = await import("../bank/bank.ts");
     const { original, correction } = await corrected();
