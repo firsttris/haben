@@ -110,8 +110,9 @@ function grundtarifEuro(zvE: number, t: Tarif): number {
     const z = (x - t.zone2Bis) / 10_000;
     return Math.floor((t.zone3[0] * z + t.zone3[1]) * z + t.zone3[2]);
   }
-  if (x < ZONE5_AB) return Math.floor(0.42 * x - t.zone4Abzug);
-  return Math.floor(0.45 * x - t.zone5Abzug);
+  // In ganzen Cent, sonst ergibt etwa 0,42 · 78.069 − 9.972,98 = 22.815,999… statt 22.816
+  if (x < ZONE5_AB) return Math.floor((42 * x - Math.round(t.zone4Abzug * 100)) / 100);
+  return Math.floor((45 * x - Math.round(t.zone5Abzug * 100)) / 100);
 }
 
 /** Tarifliche Einkommensteuer; Splitting verdoppelt die Steuer auf das halbe zvE (§ 32a Abs. 5 EStG) */

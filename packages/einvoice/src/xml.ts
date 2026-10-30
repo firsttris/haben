@@ -240,6 +240,9 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
           },
         },
       ];
+    } else {
+      // Nichts zu zahlen und keine IBAN: BG-16 ist trotzdem Pflicht (BR-DE-1), Zahlungsweg nicht festgelegt
+      invoice["cac:PaymentMeans"] = [{ "cbc:PaymentMeansCode": "1", "cbc:PaymentID": doc.number }];
     }
     invoice["cac:PaymentTerms"] = {
       "cbc:Note": `Zahlbar ohne Abzug bis zum ${formatDate(doc.dueDate)} (${doc.paymentTermDays} Tage).`,
@@ -250,7 +253,20 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     invoice["cac:PaymentTerms"] = { "cbc:Note": paymentSentence(doc) };
   }
 
-  return { "ubl:Invoice": invoice };
+  return withoutInvalidXmlChars({ "ubl:Invoice": invoice });
+}
+
+/** Entfernt in XML 1.0 unzulässige Zeichen aus allen Texten (etwa ein aus Word kopierter vertikaler Tab), sonst lehnt der Empfänger das XML ab */
+function withoutInvalidXmlChars<T>(value: T): T {
+  if (typeof value === "string") {
+    // eslint-disable-next-line no-control-regex
+    return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "") as T;
+  }
+  if (Array.isArray(value)) return value.map(withoutInvalidXmlChars) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, v]) => [key, withoutInvalidXmlChars(v)])) as T;
+  }
+  return value;
 }
 
 const quietLogger: Logger = {

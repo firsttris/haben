@@ -52,7 +52,7 @@ const nextLevel = (last: Pick<Dunning, "level"> | undefined): DunningLevel => (M
  * Mahnung noch nicht abgelaufen ist.
  */
 export async function overdueInvoices(today: string) {
-  const overdue = (await listInvoices(today)).filter((i) => i.listStatus === "ueberfaellig");
+  const overdue = owed(await listInvoices(today)).filter((i) => i.listStatus === "ueberfaellig" && i.open > 0);
   const dunnings = await dunningsFor(overdue.map((i) => i.id));
   return overdue.map((invoice) => {
     const last = dunnings.find((d) => d.invoiceId === invoice.id);
@@ -65,8 +65,20 @@ export async function overdueInvoices(today: string) {
   });
 }
 
+/**
+ * Was der Kunde je Rechnung schuldet: deren offener Betrag abzüglich der noch offenen Korrekturen (Gutschriften).
+ * In der Rechnungsliste stehen beide getrennt, gemahnt wird nur der Rest.
+ */
+function owed(list: Awaited<ReturnType<typeof listInvoices>>) {
+  return list.map((invoice) => {
+    if (invoice.kind !== "rechnung") return invoice;
+    const corrections = list.filter((c) => c.kind === "korrektur" && c.correctsId === invoice.id);
+    return { ...invoice, open: invoice.open + corrections.reduce((sum, c) => sum + c.open, 0) };
+  });
+}
+
 async function openInvoice(invoiceId: string, today: string) {
-  const [invoice] = await listInvoices(today, invoiceId);
+  const invoice = owed(await listInvoices(today)).find((i) => i.id === invoiceId);
   if (!invoice || invoice.status !== "final") throw new DunningError("Rechnung nicht gefunden.");
   if (invoice.kind !== "rechnung" || invoice.open <= 0) throw new DunningError("Für diese Rechnung ist nichts offen.");
   return invoice;

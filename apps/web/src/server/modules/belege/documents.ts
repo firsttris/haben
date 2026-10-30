@@ -1,4 +1,4 @@
-import { UserError } from "../../errors.ts";
+import { UserError, userMessage } from "../../errors.ts";
 import {
   ACCOUNTS,
   ASSET_KIND_KEYS,
@@ -191,6 +191,16 @@ function fieldsFromEInvoice(invoice: IncomingInvoice): ExtractedFields {
   };
 }
 
+/** Ein Betrag je Steuersatz (eindeutiger Index): z. B. 0 % „Z“ und „E“ einer E-Rechnung zusammen */
+function amountsByRate(amounts: ExtractedFields["amounts"]): ExtractedFields["amounts"] {
+  const byRate = new Map<number, ExtractedFields["amounts"][number]>();
+  for (const a of amounts) {
+    const seen = byRate.get(a.taxRate);
+    byRate.set(a.taxRate, seen ? { ...seen, net: seen.net + a.net, tax: seen.tax + a.tax } : { ...a });
+  }
+  return [...byRate.values()];
+}
+
 /** Übernimmt ausgelesene Felder, solange der Beleg noch nicht gebucht ist. */
 async function applyFields(
   actor: string,
@@ -208,7 +218,7 @@ async function applyFields(
     currency: fields.currency,
     exchangeRate: rate.exchangeRate,
     reverseCharge: null,
-    amounts: fields.amounts.map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax })),
+    amounts: amountsByRate(fields.amounts).map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax })),
   });
   const totals = totalsOf(amounts);
   // Mit dem Kurs des Monats ist der Hinweis auf den fehlenden Kurs erledigt
@@ -330,7 +340,8 @@ export async function uploadDocument(
       }
     } catch (error) {
       if (type.kind === "xml") {
-        await setExtractionState(actor, id, "fehler", error instanceof Error ? error.message : "XML nicht lesbar");
+        // Meldungen für den Nutzer übernehmen; Interna wie Datenbankfehler gehören ins Server-Log
+        await setExtractionState(actor, id, "fehler", userMessage(error) ?? describeExtractionError(error));
         return { id, duplicate: false };
       }
     }

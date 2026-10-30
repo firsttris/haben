@@ -222,8 +222,8 @@ async function extractEntry(jar: string, file: FileHandle, entry: ZipEntry, path
       yield chunk;
     }
   }
-  // createReadStream mit end < start liefert nichts; leere Dateien brauchen das
-  const source = createReadStream(jar, { start, end: start + entry.compressedSize - 1 });
+  // createReadStream wirft bei end < start; leere Dateien bekommen eine leere Quelle
+  const source = entry.compressedSize === 0 ? Readable.from([]) : createReadStream(jar, { start, end: start + entry.compressedSize - 1 });
   if (entry.method === 8) await pipeline(source, createInflateRaw(), check, createWriteStream(path));
   else await pipeline(source, check, createWriteStream(path));
   if (size !== entry.size || crc >>> 0 !== entry.crc) throw new EricInstallError(`Beschädigter Eintrag im ERiC-Paket: ${entry.name}`);

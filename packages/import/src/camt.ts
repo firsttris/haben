@@ -117,6 +117,8 @@ function parseXml(xml: string): Node {
     parseTagValue: false,
     parseAttributeValue: false,
     trimValues: true,
+    // dekodiert auch numerische Zeichenreferenzen (&#252;)
+    htmlEntities: true,
   });
   return parser.parse(xml) as Node;
 }

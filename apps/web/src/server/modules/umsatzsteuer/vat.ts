@@ -160,6 +160,13 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
     // Ohne gesendete Anmeldung meldet vatReturnCorrectionProblem immer etwas
     const correctionProblem = vatReturnCorrectionProblem(latest);
     if (correctionProblem || !latest) throw new VatError(correctionProblem!);
+    // Höchstens ein Entwurf je Zeitraum (eindeutiger Index): sonst nur ein interner Datenbankfehler
+    const [openDraft] = await tx
+      .select({ id: schema.vatReturns.id })
+      .from(schema.vatReturns)
+      .where(and(eq(schema.vatReturns.year, period.year), eq(schema.vatReturns.month, period.month), eq(schema.vatReturns.status, "draft")))
+      .limit(1);
+    if (openDraft) throw new VatError("Für diesen Zeitraum gibt es schon eine Voranmeldung als Entwurf. Sende oder lösche sie zuerst.");
     const [created] = await tx
       .insert(schema.vatReturns)
       .values({

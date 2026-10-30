@@ -54,6 +54,8 @@ export function invoiceListStatus(i: InvoiceFacts & { dueDate: string }, today: 
   if (i.kind === "korrektur") return "korrektur";
   const open = invoiceOpen(i);
   if (open === 0) return (i.writtenOffLoss ?? 0) !== 0 ? "ausgebucht" : "bezahlt";
+  // Überzahlt: nichts mehr offen, also weder überfällig noch zu mahnen
+  if (open < 0) return "bezahlt";
   if (i.dueDate < today) return "ueberfaellig";
   if (i.paid !== 0) return "teilbezahlt";
   return "offen";
@@ -68,8 +70,9 @@ export function invoiceEditProblem(i: Pick<InvoiceFacts, "status">): string | nu
 export function cancellationProblem(
   original: Pick<InvoiceFacts, "status" | "kind"> & { number: string | null },
   facts: { cancelled: boolean; deductedIn: string | null },
+  kinds: readonly InvoiceFacts["kind"][] = ["rechnung"],
 ): string | null {
-  if (original.status !== "final" || original.kind !== "rechnung") return "Nur festgeschriebene Rechnungen können storniert oder korrigiert werden";
+  if (original.status !== "final" || !kinds.includes(original.kind)) return "Nur festgeschriebene Rechnungen können storniert oder korrigiert werden";
   if (facts.cancelled) return `Die Rechnung ${original.number} ist bereits storniert`;
   if (facts.deductedIn) return `Die Abschlagsrechnung ist in Schlussrechnung ${facts.deductedIn} abgezogen. Storniere zuerst die Schlussrechnung`;
   return null;

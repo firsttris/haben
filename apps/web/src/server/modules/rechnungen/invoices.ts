@@ -744,10 +744,11 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   const { invoice, lines, contact } = data;
   const company = await loadCompany(q);
   const issues = sellerIssues(company).map((issue) => `Firmendaten: ${issue}`);
-  if (company.kleinunternehmer && invoice.taxTreatment !== "kleinunternehmer") {
+  // Storno und Korrektur übernehmen die Behandlung des Originals, auch nach einem Wechsel der Einstellung
+  if (invoice.kind === "rechnung" && company.kleinunternehmer && invoice.taxTreatment !== "kleinunternehmer") {
     issues.push("Als Kleinunternehmer stellst du Rechnungen ohne Umsatzsteuer (§ 19 UStG)");
   }
-  if (!company.kleinunternehmer && invoice.taxTreatment === "kleinunternehmer") {
+  if (invoice.kind === "rechnung" && !company.kleinunternehmer && invoice.taxTreatment === "kleinunternehmer") {
     issues.push("Kleinunternehmer ist in den Einstellungen nicht eingeschaltet");
   }
   // Gebucht wird nach der aktuellen Versteuerung, die Voranmeldung rechnet das Jahr aber nach der, die dort galt
@@ -767,7 +768,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
   if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (invoice.correctsId) {
     const [original] = await q.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-    const problem = original ? await originalProblem(original, q) : "Die korrigierte Rechnung fehlt";
+    const problem = original ? ((await originalProblem(original, q, invoice)) ?? (await reductionProblem(invoice, original, q))) : "Die korrigierte Rechnung fehlt";
     if (problem) issues.push(problem);
   }
   if (invoice.variant === "schluss") {
@@ -890,7 +891,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   let corrects: Invoice | undefined;
   if (invoice.correctsId) {
     [corrects] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, invoice.correctsId));
-    const problem = corrects ? await originalProblem(corrects, tx) : "Die korrigierte Rechnung fehlt";
+    const problem = corrects ? ((await originalProblem(corrects, tx, invoice)) ?? (await reductionProblem(invoice, corrects, tx))) : "Die korrigierte Rechnung fehlt";
     if (problem) throw new InvoiceError(`${problem}.`);
   }
   if (deducts.length > 0) {
@@ -954,14 +955,33 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
 }
 
 /** Was gegen Storno oder Korrektur einer Rechnung spricht; null = in Ordnung */
-async function originalProblem(original: Invoice, q: Db | Tx = db): Promise<string | null> {
+async function originalProblem(original: Invoice, q: Db | Tx = db, of?: Invoice): Promise<string | null> {
   const [storno] = await q
     .select({ id: schema.invoices.id })
     .from(schema.invoices)
     .where(and(eq(schema.invoices.correctsId, original.id), eq(schema.invoices.kind, "storno"), eq(schema.invoices.status, "final")))
     .limit(1);
   const deductedIn = (await deductedElsewhere([original.id], null, q)).get(original.id) ?? null;
-  return cancellationProblem(original, { cancelled: Boolean(storno), deductedIn });
+  // Das Storno einer Korrektur entsteht nur zusammen mit dem Storno ihrer Rechnung (cancelInvoice)
+  const kinds = of?.kind === "storno" ? (["rechnung", "korrektur"] as const) : (["rechnung"] as const);
+  return cancellationProblem(original, { cancelled: Boolean(storno), deductedIn }, kinds);
+}
+
+/** Mehrere Korrekturen zusammen mindern eine Rechnung höchstens bis auf 0, netto (die Steuer rundet jeder Beleg für sich) */
+async function reductionProblem(invoice: Invoice, original: Invoice, q: Db | Tx = db): Promise<string | null> {
+  if (invoice.kind !== "korrektur") return null;
+  const [corrections] = await q
+    .select({ net: sql<number>`coalesce(sum(${schema.invoices.net}), 0)::int` })
+    .from(schema.invoices)
+    .where(
+      and(
+        eq(schema.invoices.correctsId, original.id),
+        eq(schema.invoices.kind, "korrektur"),
+        eq(schema.invoices.status, "final"),
+        ne(schema.invoices.id, invoice.id),
+      ),
+    );
+  return original.net + corrections!.net + invoice.net < 0 ? "Die Korrekturen mindern die Rechnung unter 0" : null;
 }
 
 async function finalOriginal(id: string, q: Db | Tx = db) {
@@ -983,7 +1003,8 @@ function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
 }
 
 /**
- * Stornorechnung mit allen Positionen negativ, sofort festgeschrieben. Entwurf und Festschreiben in einer Transaktion:
+ * Stornorechnung mit allen Positionen negativ, sofort festgeschrieben; festgeschriebene Korrekturen der Rechnung
+ * bekommen je ein eigenes Storno. Entwurf und Festschreiben in einer Transaktion:
  * Schlägt das Festschreiben fehl oder bricht der Server ab, bleibt kein Storno-Entwurf zurück.
  */
 export async function cancelInvoice(actor: string, id: string, today: string): Promise<Invoice> {
@@ -999,30 +1020,50 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
     await lockNumbering(tx, "rechnung", Number(today.slice(0, 4)));
     const { invoice, lines } = await finalOriginal(id, tx);
+    // Festgeschriebene Korrekturen haben die Rechnung schon gemindert: jede bekommt ihr eigenes Storno. Je Beleg genau
+    // negiert hebt sich auch die Steuer auf den Cent auf, die jeder Beleg für sich rundet. Neue Korrekturen warten auf die
+    // Sperre des Originals oben.
+    const corrections = await tx
+      .select()
+      .from(schema.invoices)
+      .where(and(eq(schema.invoices.correctsId, id), eq(schema.invoices.kind, "korrektur"), eq(schema.invoices.status, "final")))
+      .orderBy(asc(schema.invoices.issueDate), asc(schema.invoices.number));
     // Ein Storno nimmt die ganze Rechnung samt Umsatzsteuer zurück; eine Ausbuchung hat einen Teil davon schon gemindert
     // (doppelt bei Soll) und wäre im Storno als Erstattung offen, obwohl kein Geld geflossen ist
-    if ((await invoiceWrittenOff([id], tx)).has(id)) {
+    if ((await invoiceWrittenOff([id, ...corrections.map((c) => c.id)], tx)).size > 0) {
       throw new InvoiceError("Die Rechnung ist teilweise ausgebucht (Skonto oder Forderungsausfall). Hebe die Ausbuchung zuerst auf, dann lässt sie sich stornieren.");
     }
-    const draft = await insertDraft(
-      tx,
-      {
-        contactId: invoice.contactId,
-        issueDate: today,
-        serviceFrom: invoice.serviceFrom,
-        serviceTo: invoice.serviceTo,
-        paymentTermDays: 0,
-        format: invoice.format,
-        note: "",
-        taxTreatment: invoice.taxTreatment,
-        exemptionReason: invoice.exemptionReason,
-        priceMode: invoice.priceMode,
-        language: invoice.language,
-        lines: negatedLines(lines),
-      },
-      { kind: "storno", correctsId: invoice.id },
-    );
-    return finalizeDraft(tx, draft.id);
+    const stornoOf = async (target: Invoice, targetLines: InvoiceLine[]) => {
+      const draft = await insertDraft(
+        tx,
+        {
+          contactId: target.contactId,
+          issueDate: today,
+          serviceFrom: target.serviceFrom,
+          serviceTo: target.serviceTo,
+          paymentTermDays: 0,
+          format: target.format,
+          note: "",
+          taxTreatment: target.taxTreatment,
+          exemptionReason: target.exemptionReason,
+          priceMode: target.priceMode,
+          language: target.language,
+          lines: negatedLines(targetLines),
+        },
+        { kind: "storno", correctsId: target.id },
+      );
+      return finalizeDraft(tx, draft.id);
+    };
+    const storno = await stornoOf(invoice, lines);
+    for (const correction of corrections) {
+      const correctionLines = await tx
+        .select()
+        .from(schema.invoiceLines)
+        .where(eq(schema.invoiceLines.invoiceId, correction.id))
+        .orderBy(asc(schema.invoiceLines.position));
+      await stornoOf(correction, correctionLines);
+    }
+    return storno;
   });
 }
 

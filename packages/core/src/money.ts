@@ -26,12 +26,13 @@ const formatter =new Intl.NumberFormat("de-DE", {
 
 /** 123456 → "1.234,56 €", mit geschütztem Leerzeichen, damit das € nie allein in die nächste Zeile rutscht */
 export function formatEuro(cents: Cents): string {
-  return `${formatter.format(cents / 100)}\u00a0€`;
+  return `${formatDecimal(cents)}\u00a0€`;
 }
 
 /** 123456 → "1.234,56" */
 export function formatDecimal(cents: Cents): string {
-  return formatter.format(cents / 100);
+  // + 0 macht aus −0 (etwa Steuer einer Storno-Zeile zu 0 %) eine 0, sonst steht dort „-0,00“
+  return formatter.format(cents / 100 + 0);
 }
 
 /** Für CSV-Dateien: Dezimalkomma ohne Tausenderpunkt, 123456 → "1234,56", -5 → "-0,05" */
