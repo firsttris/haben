@@ -1,5 +1,5 @@
 import type postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "./test-db.ts";
 
 describe.skipIf(!testDatabaseUrl)("Einrichtungscode (Postgres)", () => {
@@ -29,5 +29,28 @@ describe.skipIf(!testDatabaseUrl)("Einrichtungscode (Postgres)", () => {
     // Klein geschrieben und ohne Bindestriche gilt er auch
     await signUp(setupCode().replaceAll("-", "").toLowerCase());
     expect(await sql`select email from "user"`).toEqual([{ email: "max@example.com" }]);
+  });
+});
+
+describe("Einrichtungscode in getrennten Bundles", () => {
+  // Im Build lädt das Nitro-Plugin (index.mjs) setup-code.ts getrennt vom SSR-Bundle mit auth.ts:
+  // der Code im Log muss trotzdem der sein, den die Anmeldung prüft
+  it("ist in jeder Modulinstanz derselbe", async () => {
+    process.env.DATABASE_URL ??= "postgres://localhost/haben";
+    process.env.BETTER_AUTH_SECRET ??= "x".repeat(32);
+    process.env.BETTER_AUTH_URL ??= "https://haben.example.de";
+    process.env.HABEN_ENCRYPTION_KEY ??= Buffer.alloc(32).toString("base64");
+    const configured = process.env.HABEN_SETUP_CODE;
+    delete process.env.HABEN_SETUP_CODE;
+    try {
+      vi.resetModules();
+      const plugin = await import("./setup-code.ts");
+      vi.resetModules();
+      const ssr = await import("./setup-code.ts");
+      expect(ssr).not.toBe(plugin);
+      expect(ssr.checkSetupCode(plugin.setupCode())).toBe(true);
+    } finally {
+      if (configured !== undefined) process.env.HABEN_SETUP_CODE = configured;
+    }
   });
 });
