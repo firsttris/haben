@@ -9,10 +9,10 @@ on:
 
 jobs:
   screenshots:
-    uses: firsttris/workflows/.github/workflows/screenshots.yml@v1
+    uses: firsttris/workflows/.github/workflows/screenshots.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # v1
     with:
       lockfile: pnpm-lock.yaml
-      install: npm install --global corepack@latest && corepack enable && pnpm install --frozen-lockfile
+      install: npm install --global corepack@0.36.0 && corepack enable && pnpm install --frozen-lockfile
       postgres: postgres:16
       # Die Tests leeren nur eine Datenbank, deren Name auf „e2e“ endet
       postgres-db: haben_e2e

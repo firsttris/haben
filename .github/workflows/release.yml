@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   tested:
-    uses: firsttris/workflows/.github/workflows/tested-on-main.yml@main
+    uses: firsttris/workflows/.github/workflows/tested-on-main.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
     permissions:
       actions: read
       contents: read
@@ -32,13 +32,13 @@ jobs:
     uses: ./.github/workflows/ci.yml
     permissions:
       contents: read
-      packages: write # der Image-Test der CI hält seinen Build-Cache
+      packages: read # der Image-Test der CI liest den Build-Cache, schreibt ihn aber nicht
 
   docker:
     needs: [tested, checks]
     # Die Prüfungen liefen durch oder waren nicht nötig
     if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
-    uses: firsttris/workflows/.github/workflows/docker-release.yml@main
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
     with:
       image: tristanteu/haben
       description: "Selbst gehostete Buchhaltung für Freiberufler: E-Rechnung, Bankabgleich, EÜR, ELSTER-Voranmeldung"
@@ -52,7 +52,7 @@ jobs:
   docker-backup:
     needs: [tested, checks]
     if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
-    uses: firsttris/workflows/.github/workflows/docker-release.yml@main
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
     with:
       image: tristanteu/haben-backup
       description: "Backup für Haben: pg_dump und Belegdateien, verschlüsselt mit restic"
