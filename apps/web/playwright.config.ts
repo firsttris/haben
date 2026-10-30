@@ -46,6 +46,8 @@ export default defineConfig({
       DOCUMENTS_DIR: process.env.E2E_DOCUMENTS_DIR ?? "test-results/e2e-belege",
       ERIC_DIR: "test-results/e2e-eric",
       HABEN_SCHEDULER: "off",
+      // muss zu SETUP_CODE in e2e/app.spec.ts passen
+      HABEN_SETUP_CODE: "e2e-einrichtungscode",
       // Vorlage und Schriften für das Rechnungs-PDF; der gebaute Server findet sie sonst nicht
       HABEN_EINVOICE_DIR: fileURLToPath(new URL("../../packages/einvoice", import.meta.url)),
       ERIC_HOME: "",

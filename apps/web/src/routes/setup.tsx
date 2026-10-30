@@ -30,6 +30,7 @@ function SetupPage() {
         name: String(form.get("name")),
         email: String(form.get("email")),
         password: String(form.get("password")),
+        fetchOptions: { headers: { "x-haben-setup-code": String(form.get("setupCode")) } },
       });
       if (error) setError(error.message ?? "Konto konnte nicht angelegt werden.");
       else await router.invalidate();
@@ -78,6 +79,13 @@ function SetupPage() {
             <h1 style={{ fontSize: 22 }}>Haben einrichten</h1>
             <p className="muted" style={{ margin: 0 }}>
               Haben hat genau ein Konto. Nach dem Anlegen fügst du einen Passkey hinzu.
+            </p>
+            <label className="field">
+              Einrichtungscode
+              <input name="setupCode" required autoComplete="off" spellCheck={false} aria-describedby="setup-code-hint" />
+            </label>
+            <p id="setup-code-hint" className="field-hint">
+              Steht beim Start im Log des Servers, z. B. mit <code>docker compose logs app</code>.
             </p>
             <label className="field">
               Name

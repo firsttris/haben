@@ -32,6 +32,8 @@ pnpm db:migrate
 pnpm dev            # http://localhost:3000
 ```
 
+Den Einrichtungscode für das erste Konto schreibt der Server ins Terminal; mit `HABEN_SETUP_CODE` in `apps/web/.env` bleibt er fest.
+
 Belegdateien landen ohne weitere Angabe in `apps/web/data/belege` (`DOCUMENTS_DIR`, von Git ignoriert).
 
 ## Befehle

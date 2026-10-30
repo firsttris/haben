@@ -10,6 +10,8 @@ import { mkdirSync } from "node:fs";
 
 test.describe.configure({ mode: "serial" });
 
+/** Wie HABEN_SETUP_CODE in playwright.config.ts */
+const SETUP_CODE = "e2e-einrichtungscode";
 const USER = { name: "Max Mustermann", email: "max@example.com", password: "ein-sehr-langes-e2e-passwort" };
 const SHOTS = "test-results/screenshots";
 
@@ -68,6 +70,7 @@ async function receiptJpeg(browser: Browser, title = "Funknetz Mobil GmbH"): Pro
 test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await go("/");
   await expect(page).toHaveURL(/\/setup/);
+  await page.getByLabel("Einrichtungscode").fill(SETUP_CODE);
   await page.getByLabel("Name").fill(USER.name);
   await page.getByLabel("E-Mail").fill(USER.email);
   await page.getByLabel(/Passwort/).fill(USER.password);

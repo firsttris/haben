@@ -167,7 +167,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 
 ## Anmeldung
 
-Haben hat genau einen Nutzer. Die Ersteinrichtung (`/setup`) legt ihn mit E-Mail und Passwort an (mindestens 12 Zeichen); ein Hook in Better Auth lehnt jedes weitere Konto ab, und ein eindeutiger Index auf `user` (`user_single`) verhindert ein zweites Konto auch bei zwei gleichzeitigen Einrichtungen. Danach meldet man sich per Passkey an, das Passwort bleibt Rückfallebene. Better Auth begrenzt Anmeldeversuche (20 je Minute) und liest die Client-Adresse hinter Caddy aus `X-Forwarded-For`.
+Haben hat genau einen Nutzer. Die Ersteinrichtung (`/setup`) legt ihn mit E-Mail und Passwort an (mindestens 12 Zeichen). Dafür braucht es den Einrichtungscode, den der Server beim Start ins Log schreibt (`server/setup-code.ts`, oder fest aus `HABEN_SETUP_CODE`); ein Hook vor `/sign-up/email` prüft ihn. So kann niemand, der eine neue Instanz zuerst erreicht, das Konto an sich reißen. Ein Hook in Better Auth lehnt jedes weitere Konto ab, und ein eindeutiger Index auf `user` (`user_single`) verhindert ein zweites Konto auch bei zwei gleichzeitigen Einrichtungen. Danach meldet man sich per Passkey an, das Passwort bleibt Rückfallebene. Better Auth begrenzt Anmeldeversuche (20 je Minute) und liest die Client-Adresse hinter Caddy aus `X-Forwarded-For`.
 
 Geschützt wird an drei Stellen:
 

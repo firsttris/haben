@@ -5,6 +5,8 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   /** Öffentliche Adresse, z. B. https://haben.example.de */
   BETTER_AUTH_URL: z.string().url(),
+  /** Code für die Ersteinrichtung unter /setup; ohne ihn erzeugt Haben beim Start einen und schreibt ihn ins Log */
+  HABEN_SETUP_CODE: z.string().min(8).optional(),
   /** 32 Byte, base64 – verschlüsselt die ELSTER-Zertifikatsdatei und die API-Schlüssel für Lexoffice und sevDesk */
   HABEN_ENCRYPTION_KEY: z
     .string()
