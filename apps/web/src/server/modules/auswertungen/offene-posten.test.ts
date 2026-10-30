@@ -116,9 +116,10 @@ describe.skipIf(!testDatabaseUrl)("offener Betrag überall gleich (Postgres)", (
     // 4. Sperre der Firmendaten: so viele offene Rechnungen wie in der Liste
     expect((await guard.settingsLocks("2027-01-04")).versteuerung).toContain(`${expected.size} Rechnungen sind noch offen`);
 
-    // 5. Mahnwesen: nur Rechnungen mit offenem Betrag zugunsten der Firma
+    // 5. Mahnwesen: nur Rechnungen mit offenem Betrag zugunsten der Firma; gemahnt wird abzüglich offener Korrekturen,
+    // die vollständig korrigierte Rechnung also nicht
     const dunnable = (await dunning.overdueInvoices("2026-07-30")).map((i) => i.id).sort();
-    expect(dunnable).toEqual([unbezahlt.id, teilweise.id, korrigiert.id].sort());
+    expect(dunnable).toEqual([unbezahlt.id, teilweise.id].sort());
   }, 120_000);
 
   it("offene Posten: die Erstattung aus einem Storno steht auch dann drin, wenn sonst nichts offen ist", async () => {
