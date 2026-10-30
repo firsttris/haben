@@ -236,12 +236,15 @@ server {
     location / {
         proxy_pass http://haben-app:3000;
         proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # Nur die echte Client-Adresse: $proxy_add_x_forwarded_for hängt an, was der Client mitschickt
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 300s;
     }
 }
 ```
+
+Haben begrenzt Anmeldeversuche je Client-Adresse und liest sie aus dem ersten Wert von `X-Forwarded-For`. Der Proxy muss den Header deshalb selbst setzen und darf keinen Wert vom Client übernehmen, sonst umgeht ein Angreifer die Begrenzung mit wechselnden Adressen. Caddy und Traefik tun das von sich aus.
 
 **Nginx Proxy Manager:** Neuer Proxy Host mit deiner Domain, Scheme `http`, Forward Hostname `haben-app`, Forward Port `3000`. Unter SSL ein Let's-Encrypt-Zertifikat anfordern und „Force SSL“ einschalten, unter Advanced `client_max_body_size 250M;` eintragen.
 
