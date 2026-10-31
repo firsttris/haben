@@ -8,7 +8,18 @@ import { buildEInvoice } from "../src/xml.ts";
 import { euBuyer, grossPriceLines, mixedRateLines, publicBuyer, sampleDocument, sampleSeller, thirdCountryBuyer, zeroRateLines } from "../src/samples.ts";
 import type { InvoiceDocument } from "../src/types.ts";
 
-const jar = process.env.KOSIT_JAR ?? "/var/tmp/kosit/validator/validationtool-1.5.0-standalone.jar";
+/** Das Standalone-JAR des Validators in dir, gleich welcher Version (validationtool-… bis 1.5, validator-… ab 1.6) */
+function standaloneJar(dir: string): string {
+  let files: string[] = [];
+  try {
+    files = readdirSync(dir);
+  } catch {
+    // Kein Verzeichnis: der Pfad unten nennt im Fehler, wo das JAR erwartet wird
+  }
+  return join(dir, files.find((f) => f.endsWith("-standalone.jar") && !f.includes("java8")) ?? "validator-standalone.jar");
+}
+
+const jar = process.env.KOSIT_JAR ?? standaloneJar("/var/tmp/kosit/validator");
 const config = process.env.KOSIT_CONFIG ?? "/var/tmp/kosit/xr/scenarios.xml";
 const outDir = process.argv[2] ?? join(tmpdir(), "haben-kosit");
 

@@ -128,13 +128,32 @@ jobs:
           java-version: 21
       - run: pnpm install --frozen-lockfile
       - name: KoSIT-Validator und XRechnung-Konfiguration laden
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Die Releases, gegen die die E-Rechnungen geprüft werden; Renovate hebt sie
+          # (.github/renovate.json5)
+          KOSIT_VALIDATOR: v1.5.0
+          KOSIT_XRECHNUNG: release-2025-07-10
         run: |
-          mkdir -p "$RUNNER_TEMP/kosit/validator" "$RUNNER_TEMP/kosit/xr"
-          curl -sSfL -o "$RUNNER_TEMP/validator.zip" https://github.com/itplr-kosit/validator/releases/download/v1.5.0/validator-1.5.0-distribution.zip
-          curl -sSfL -o "$RUNNER_TEMP/xr.zip" https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/release-2025-07-10/validator-configuration-xrechnung_3.0.2_2025-07-10.zip
-          unzip -q "$RUNNER_TEMP/validator.zip" -d "$RUNNER_TEMP/kosit/validator"
-          unzip -q "$RUNNER_TEMP/xr.zip" -d "$RUNNER_TEMP/kosit/xr"
-          echo "KOSIT_JAR=$(find "$RUNNER_TEMP/kosit/validator" -name 'validationtool-*-standalone.jar' ! -name '*java8*' | head -n1)" >> "$GITHUB_ENV"
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/kosit/dl" "$RUNNER_TEMP/kosit/validator" "$RUNNER_TEMP/kosit/xr"
+          # Die Dateinamen wechseln zwischen den Releases: bis 1.5 validator-x-distribution.zip mit
+          # validationtool-x-standalone.jar darin, ab 1.6.1 validator-x-standalone.jar als eigene Datei
+          gh release download "$KOSIT_VALIDATOR" --repo itplr-kosit/validator \
+            --pattern 'validator-*.zip' --pattern '*-standalone.jar' --dir "$RUNNER_TEMP/kosit/dl"
+          for zip in "$RUNNER_TEMP"/kosit/dl/*.zip; do unzip -q "$zip" -d "$RUNNER_TEMP/kosit/validator"; done
+          find "$RUNNER_TEMP/kosit/dl" -maxdepth 1 -name '*-standalone.jar' -exec cp {} "$RUNNER_TEMP/kosit/validator/" \;
+          # Die Konfiguration: das ZIP mit scenarios.xml (xrechnung-x-validator-configuration-datum.zip,
+          # bis 2025 validator-configuration-xrechnung_x_datum.zip)
+          gh release download "$KOSIT_XRECHNUNG" --repo itplr-kosit/validator-configuration-xrechnung \
+            --pattern '*.zip' --dir "$RUNNER_TEMP/kosit/dl-xr"
+          for zip in "$RUNNER_TEMP"/kosit/dl-xr/*.zip; do
+            if unzip -Z1 "$zip" | grep -qx 'scenarios.xml'; then unzip -q "$zip" -d "$RUNNER_TEMP/kosit/xr"; break; fi
+          done
+          [ -f "$RUNNER_TEMP/kosit/xr/scenarios.xml" ] || { echo "::error::$KOSIT_XRECHNUNG: kein ZIP mit scenarios.xml"; exit 1; }
+          jar="$(find "$RUNNER_TEMP/kosit/validator" -name '*-standalone.jar' ! -name '*java8*' | head -n1)"
+          [ -n "$jar" ] || { echo "::error::$KOSIT_VALIDATOR: kein *-standalone.jar"; exit 1; }
+          echo "KOSIT_JAR=$jar" >> "$GITHUB_ENV"
           echo "KOSIT_CONFIG=$RUNNER_TEMP/kosit/xr/scenarios.xml" >> "$GITHUB_ENV"
       - run: pnpm --filter @haben/einvoice kosit "$RUNNER_TEMP/kosit/out"
       - if: always()
