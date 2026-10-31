@@ -1,8 +1,9 @@
 # Haben – App-Container. ERiC wird nicht mitgeliefert (Lizenz); Haben lädt es auf Wunsch nach /var/lib/haben/eric
 # (Volume) oder es wird nach /opt/eric gemountet.
-FROM docker.io/library/node:22-bookworm-slim AS build
+FROM docker.io/library/node:26-bookworm-slim AS build
 WORKDIR /app
-RUN corepack enable
+# Node bringt corepack ab Version 25 nicht mehr mit; es holt das pnpm aus packageManager in package.json
+RUN npm install --global corepack@0.36.0 && corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/
 # Alle Workspace-Pakete, sonst fehlen deren Abhängigkeiten (z. B. pdf-lib in einvoice, zod in import)
@@ -15,7 +16,7 @@ COPY . .
 RUN pnpm --filter @haben/web build \
  && CI=true pnpm install --frozen-lockfile --prod --offline
 
-FROM docker.io/library/node:22-bookworm-slim
+FROM docker.io/library/node:26-bookworm-slim
 ENV NODE_ENV=production \
     PORT=3000 \
     ERIC_WORKER_PATH=/app/packages/elster/src/worker.ts \
