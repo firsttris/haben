@@ -133,7 +133,7 @@ jobs:
           # Die Releases, gegen die die E-Rechnungen geprüft werden; Renovate hebt sie
           # (.github/renovate.json5)
           KOSIT_VALIDATOR: v1.6.3
-          KOSIT_XRECHNUNG: release-2025-07-10
+          KOSIT_XRECHNUNG: v2026-08-31
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/kosit/dl" "$RUNNER_TEMP/kosit/validator" "$RUNNER_TEMP/kosit/xr"
