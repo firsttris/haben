@@ -45,7 +45,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -76,7 +76,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -116,7 +116,7 @@ jobs:
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -172,7 +172,7 @@ jobs:
       # hineinlegen, die das nächste Release-Image übernimmt
       packages: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Liest den Build-Cache des Releases: nur geänderte Schichten werden neu gebaut
       - name: Image bauen
         uses: firsttris/workflows/actions/docker-build@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
@@ -214,7 +214,7 @@ jobs:
       ENCRYPTION_KEY: ci
       RESTIC_PASSWORD: ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Image bauen
         run: docker build -t tristanteu/haben-backup:latest -f backup/Containerfile backup
       # Mit der compose.yml der Nutzer: Backup, Daten ändern, Wiederherstellen, alter Stand ist zurück
