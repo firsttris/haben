@@ -2,7 +2,8 @@
 # (Volume) oder es wird nach /opt/eric gemountet.
 FROM docker.io/library/node:26-bookworm-slim AS build
 WORKDIR /app
-RUN corepack enable
+# Node bringt corepack ab Version 25 nicht mehr mit; es holt das pnpm aus packageManager in package.json
+RUN npm install --global corepack@0.36.0 && corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/
 # Alle Workspace-Pakete, sonst fehlen deren Abhängigkeiten (z. B. pdf-lib in einvoice, zod in import)
