@@ -132,7 +132,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           # Die Releases, gegen die die E-Rechnungen geprüft werden; Renovate hebt sie
           # (.github/renovate.json5)
-          KOSIT_VALIDATOR: v1.5.0
+          KOSIT_VALIDATOR: v1.6.3
           KOSIT_XRECHNUNG: release-2025-07-10
         run: |
           set -euo pipefail
