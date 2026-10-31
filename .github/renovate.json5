@@ -1,0 +1,133 @@
+// Renovate (GitHub-App, https://github.com/apps/renovate): ein Pull Request je neuem Release dessen,
+// worauf Haben aufbaut, dazu das Issue „Dependency Dashboard“ mit allem, was offen ist.
+// Nur diese: KoSIT-Validator und XRechnung-Konfiguration (CI-Job kosit), Node (Image, CI,
+// README), PostgreSQL (Datenbank, Backup-Image, CI, Doku), Caddy und restic. Nicht hier: ERiC
+// (download.elster.de hat keine Liste, die Renovate lesen könnte; DEFAULT_ERIC_VERSION in
+// packages/elster/src/install.ts hebt man von Hand nach einer Testübermittlung), die npm-Pakete,
+// die Actions und Habens eigene Images. Prüfen mit
+// `npx --package renovate renovate-config-validator .github/renovate.json5`.
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: ["config:recommended"],
+  enabledManagers: ["dockerfile", "docker-compose", "quadlet", "custom.regex"],
+  timezone: "Europe/Berlin",
+  labels: ["dependencies"],
+  // Nichts merged sich selbst: jeder dieser Pull Requests braucht die Prüfungen darin, von einem Menschen gelesen
+  automerge: false,
+  customManagers: [
+    {
+      // Der Validator, gegen den der kosit-Job die E-Rechnungen prüft (v1.5.0, v1.6.3); Alphas und
+      // Technical Previews (v2.0.0-alpha1, -tp2) passen nicht zur Versionierung unten
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/ci\\.yml$/"],
+      matchStrings: ["KOSIT_VALIDATOR: (?<currentValue>v\\d+\\.\\d+\\.\\d+\\S*)\\n"],
+      depNameTemplate: "itplr-kosit/validator",
+      datasourceTemplate: "github-releases",
+      versioningTemplate: "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
+    },
+    {
+      // Die XRechnung-Konfiguration des Validators; die Tags heißen release-2025-07-10, ab 2026
+      // v2026-08-31
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/ci\\.yml$/"],
+      matchStrings: ["KOSIT_XRECHNUNG: (?<currentValue>(?:release-|v)\\d{4}-\\d{2}-\\d{2})\\n"],
+      depNameTemplate: "itplr-kosit/validator-configuration-xrechnung",
+      datasourceTemplate: "github-releases",
+      versioningTemplate: "regex:^(?:release-|v)(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
+    },
+    {
+      // Die Node von CI und die, die das README voraussetzt (das Image: dockerfile-Manager)
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/[^/]+\\.ya?ml$/", "/^README\\.md$/"],
+      matchStrings: ["node-version: (?<currentValue>\\d+)\\n", "Voraussetzungen: Node (?<currentValue>\\d+),"],
+      depNameTemplate: "node",
+      datasourceTemplate: "node-version",
+      versioningTemplate: "node",
+    },
+    {
+      // PostgreSQL überall, wo es nicht Compose, Quadlet oder FROM nennt: CI (services, docker run,
+      // Screenshots), README, Doku und die Kommentare des Backup-Containers
+      customType: "regex",
+      managerFilePatterns: [
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/",
+        "/^README\\.md$/",
+        "/^docs/installation\\.md$/",
+        "/^deploy/backup/(README\\.md|Containerfile)$/",
+      ],
+      matchStrings: [
+        "(?:image|postgres): postgres:(?<currentValue>\\d+)\\n",
+        "-e POSTGRES_DB=haben postgres:(?<currentValue>\\d+)\\n",
+        "und PostgreSQL (?<currentValue>\\d+)\\.",
+        "`postgres:(?<currentValue>\\d+)`",
+        "\\(postgres:(?<currentValue>\\d+)\\)",
+        "# postgres:(?<currentValue>\\d+) hält",
+        "Basis ist `postgres:(?<currentValue>\\d+)`",
+      ],
+      depNameTemplate: "docker.io/library/postgres",
+      datasourceTemplate: "docker",
+    },
+    {
+      // Der Caddy der Doku (Compose und Quadlet: eigene Manager)
+      customType: "regex",
+      managerFilePatterns: ["/^docs/installation\\.md$/"],
+      matchStrings: ["`caddy:(?<currentValue>\\d+)`"],
+      depNameTemplate: "docker.io/library/caddy",
+      datasourceTemplate: "docker",
+    },
+  ],
+  packageRules: [
+    {
+      // Habens eigene Images ziehen mit den Releases nach (release.yml)
+      matchPackageNames: ["docker.io/tristanteu/**", "tristanteu/**", "ghcr.io/firsttris/**"],
+      enabled: false,
+    },
+    {
+      // Validator und Konfiguration in einem PR: die Konfiguration nennt den Validator, mit dem sie
+      // gebaut ist (CHANGELOG „Using KoSIT Validator v…“)
+      matchPackageNames: ["itplr-kosit/validator", "itplr-kosit/validator-configuration-xrechnung"],
+      groupName: "KoSIT-Validator und XRechnung-Konfiguration",
+      commitMessageTopic: "KoSIT validator and XRechnung configuration",
+      prBodyNotes: [
+        "Der CI-Job `kosit` dieses Pull Requests prüft alle Beispielrechnungen von `packages/einvoice/scripts/kosit-check.ts` mit der neuen Version. Vor dem Mergen: CHANGELOG von [Validator](https://github.com/itplr-kosit/validator/blob/main/CHANGELOG.md) und [Konfiguration](https://github.com/itplr-kosit/validator-configuration-xrechnung/blob/master/CHANGELOG.md) lesen (neue CEN-/XRechnung-Schematron-Regeln, geänderte Fehlerstufen) und die Berichte im Artefakt `kosit-reports` ansehen, auch die Warnungen. Wird der Job rot, ist die Rechnung aus `packages/einvoice` zu korrigieren, nicht der Validator. Eine neue XRechnung-Hauptversion (die Konfiguration nennt sie im Dateinamen, derzeit 3.0.2) betrifft auch die Spezifikationskennung der erzeugten Rechnungen (`urn:xeinkauf.de:kosit:xrechnung_3.0`, geprüft in `packages/einvoice/src/xml.test.ts`).",
+      ],
+    },
+    {
+      // Node: Image, CI und README in einem PR; nur LTS-Versionen (gerade Hauptversionen)
+      matchPackageNames: ["docker.io/library/node", "node"],
+      allowedVersions: "/^\\d*[02468](\\D|$)/",
+      groupName: "Node",
+      sourceUrl: "https://github.com/nodejs/node",
+      prBodyNotes: [
+        "Das Image (`Containerfile`, beide Stufen), CI (`node-version`) und das README ziehen zusammen. Der ERiC-Worker läuft per Type Stripping aus den Quellen (`packages/elster/src/process-client.ts` setzt dafür unter Node 22 ein Flag) und lädt ERiC über `koffi`: prüfen, ob das Flag noch nötig ist und `koffi` für die neue Node-ABI vorgebaut ist; der Container-Job dieses PRs startet das Image. `engines.node` ist das Minimum und bleibt, solange der Code nichts Neueres braucht.",
+      ],
+    },
+    {
+      // PostgreSQL: eine neue Hauptversion braucht auf jedem Server eine Migration der Daten. Der PR
+      // entsteht erst, wenn er im Dependency Dashboard angehakt wird.
+      matchPackageNames: ["docker.io/library/postgres", "postgres"],
+      dependencyDashboardApproval: true,
+      groupName: "PostgreSQL",
+      sourceUrl: "https://github.com/postgres/postgres",
+      prBodyNotes: [
+        "**Eine neue Hauptversion startet nicht auf dem Datenverzeichnis der alten.** Wer nach dem Merge `compose.yml` bzw. die Quadlets neu holt, braucht vorher einen Dump und danach eine Wiederherstellung (`deploy/backup`, `restore.sh`); das gehört als Anleitung in docs/installation.md (Updates), bevor dieser PR gemergt wird. Das Backup-Image (`deploy/backup/Containerfile`) muss dieselbe Hauptversion haben wie die Datenbank, damit `pg_dump` passt: beide ziehen hier zusammen, das neue `haben-backup` erscheint erst mit dem nächsten Release. Die Trigger der Migrationen (`apps/web/drizzle/*_trigger.sql`, Festschreibung und Hash-Kette) laufen in CI gegen die neue Version.",
+      ],
+    },
+    {
+      // Der Reverse Proxy der mitgelieferten Einrichtung (deploy/compose.yml, Quadlet, Doku)
+      matchPackageNames: ["docker.io/library/caddy", "caddy"],
+      groupName: "Caddy",
+      sourceUrl: "https://github.com/caddyserver/caddy",
+      prBodyNotes: [
+        "Vor dem Mergen: Release Notes gegen `deploy/Caddyfile` und den Caddy-Block in `deploy/compose.yml` prüfen (Sicherheits-Header, `max_size`).",
+      ],
+    },
+    {
+      // restic im Backup-Image (deploy/backup/Containerfile)
+      matchPackageNames: ["ghcr.io/restic/restic"],
+      sourceUrl: "https://github.com/restic/restic",
+      prBodyNotes: [
+        "Vor dem Mergen: CHANGELOG lesen (Repository-Format, `--json`-Ausgabe von `backup`, `snapshots` und Fehlermeldungen, die `deploy/backup/backup.sh` und `backup-status.sh` auswerten). Das neue `haben-backup` erscheint mit dem nächsten Release; `restore-check.sh` gegen ein vorhandenes Repository laufen lassen.",
+      ],
+    },
+  ],
+}

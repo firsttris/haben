@@ -102,15 +102,17 @@ node --experimental-strip-types packages/elster/src/check-formats-cli.ts   # ERi
 
 ### KoSIT-Validator
 
-Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` Beispielrechnungen in allen Formaten (19 %, gemischte Sätze, Storno, Korrektur, Leitweg-ID, nur Steuernummer, Nullsatz, Reverse Charge, Drittland, steuerfrei, Kleinunternehmer, Bruttopreise) und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal brauchst du Java 21 sowie den Validator und die Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`; welche Versionen CI nutzt, steht in `.github/workflows/ci.yml`):
+Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` Beispielrechnungen in allen Formaten (19 %, gemischte Sätze, Storno, Korrektur, Leitweg-ID, nur Steuernummer, Nullsatz, Reverse Charge, Drittland, steuerfrei, Kleinunternehmer, Bruttopreise) und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal brauchst du Java 21 sowie den Validator und die Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`; welche Versionen CI nutzt, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG`):
 
 ```sh
-KOSIT_JAR=/pfad/validationtool-1.5.0-standalone.jar \
+KOSIT_JAR=/pfad/validator-<version>-standalone.jar \
 KOSIT_CONFIG=/pfad/scenarios.xml \
 pnpm --filter @haben/einvoice kosit /tmp/haben-kosit
 ```
 
-Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/`.
+Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/` (das `*-standalone.jar` in `validator/`, `xr/scenarios.xml`).
+
+Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Node, PostgreSQL, Caddy und restic; der `kosit`-Job des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
 
 ### Ende-zu-Ende-Tests mit Playwright
 
