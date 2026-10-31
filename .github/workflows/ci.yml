@@ -45,11 +45,11 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
@@ -76,11 +76,11 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # Chromium aus dem Cache, je Playwright-Version; die Systembibliotheken kommen bei jedem Lauf.
@@ -88,7 +88,7 @@ jobs:
       - id: playwright
         run: echo "version=$(pnpm --filter @haben/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
       - id: browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.playwright.outputs.version }}-chromium
@@ -104,7 +104,7 @@ jobs:
           # Der gebaute Server statt des Entwicklungsservers
           E2E_SERVER_COMMAND: node .output/server/index.mjs
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-screenshots
           path: |
@@ -116,16 +116,16 @@ jobs:
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           cache: pnpm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 25
       - run: pnpm install --frozen-lockfile
       - name: KoSIT-Validator und XRechnung-Konfiguration laden
         env:
@@ -157,7 +157,7 @@ jobs:
           echo "KOSIT_CONFIG=$RUNNER_TEMP/kosit/xr/scenarios.xml" >> "$GITHUB_ENV"
       - run: pnpm --filter @haben/einvoice kosit "$RUNNER_TEMP/kosit/out"
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kosit-reports
           path: ${{ runner.temp }}/kosit/out
@@ -172,7 +172,7 @@ jobs:
       # hineinlegen, die das nächste Release-Image übernimmt
       packages: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Liest den Build-Cache des Releases: nur geänderte Schichten werden neu gebaut
       - name: Image bauen
         uses: firsttris/workflows/actions/docker-build@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
@@ -214,7 +214,7 @@ jobs:
       ENCRYPTION_KEY: ci
       RESTIC_PASSWORD: ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Image bauen
         run: docker build -t tristanteu/haben-backup:latest -f backup/Containerfile backup
       # Mit der compose.yml der Nutzer: Backup, Daten ändern, Wiederherstellen, alter Stand ist zurück
