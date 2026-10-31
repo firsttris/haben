@@ -1,7 +1,7 @@
 # Haben – Backup-Container: pg_dump in derselben Major-Version wie die Datenbank (postgres:16) und restic.
 # Compose betreibt ihn als Dienst mit täglichem Zeitplan, die Quadlets starten ihn über haben-backup.timer
 # einmal am Tag. Gebaut wird aus deploy/backup:  podman build -t haben-backup -f Containerfile deploy/backup
-FROM ghcr.io/restic/restic:0.18.1 AS restic
+FROM ghcr.io/restic/restic:0.19.1 AS restic
 
 FROM docker.io/library/postgres:16
 # ca-certificates für Repositories über HTTPS (s3:, rest:), openssh-client für sftp:
