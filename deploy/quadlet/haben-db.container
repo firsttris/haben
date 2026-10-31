@@ -3,18 +3,25 @@ Description=Haben – PostgreSQL
 
 [Container]
 ContainerName=haben-db
-Image=docker.io/library/postgres:18
+# postgres mit automatischem Upgrade: Liegt im Volume noch eine ältere Version (etwa von postgres:16),
+# hebt der Container sie beim Start mit pg_upgrade an (deploy/db)
+Image=docker.io/tristanteu/haben-db:latest
+AutoUpdate=registry
 Network=haben.network
 Volume=haben-db.volume:/var/lib/postgresql/data
 Environment=POSTGRES_USER=haben POSTGRES_DB=haben
 Secret=haben-db-password,type=env,target=POSTGRES_PASSWORD
 HealthCmd=pg_isready -U haben
 HealthInterval=10s
+# Ein Upgrade auf eine neue Major-Version läuft vor dem Start und braucht je nach Größe ein paar Minuten
+HealthStartPeriod=10m
 # Gilt erst als gestartet, wenn pg_isready durchgeht; haben-app (After=haben-db.service) wartet darauf. Ab Podman 5.0.
 Notify=healthy
 
 [Service]
 Restart=always
+# Bis pg_isready durchgeht, auch während eines Upgrades (Notify=healthy)
+TimeoutStartSec=15min
 
 [Install]
 WantedBy=default.target

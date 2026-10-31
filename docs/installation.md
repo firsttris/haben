@@ -8,7 +8,7 @@ Haben läuft als vier Container in einem eigenen Netz:
 
 | Container (Compose / Quadlet) | Image | Aufgabe |
 | --- | --- | --- |
-| `db` / `haben-db` | `postgres:18` | Datenbank, Volume `db` bzw. `haben-db` |
+| `db` / `haben-db` | `tristanteu/haben-db:latest` | Datenbank (`postgres:18`, hebt ältere Bestände beim Start selbst an, siehe [PostgreSQL-Update](#postgresql-update)), Volume `db` bzw. `haben-db` |
 | `app` / `haben-app` | `tristanteu/haben:latest` | Die App auf Port 3000, Belegdateien im Volume `belege` bzw. `haben-belege`, ERiC im Volume `eric` bzw. `haben-eric`, ERiC-Logs im Volume `eric-log` bzw. `haben-eric-log` |
 | `backup` / `haben-backup` | `tristanteu/haben-backup:latest` | Tägliches Backup von Datenbank und Belegen mit restic, Repository im Volume `backups` bzw. `haben-backups` oder auf einem zweiten System, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
 | `caddy` / `haben-caddy` | `caddy:2` | TLS und Reverse Proxy auf Port 80/443, Zertifikate im Volume `caddy` bzw. `haben-caddy`. Läuft bei dir schon ein Reverse Proxy, entfällt er, siehe [Eigener Reverse Proxy](#eigener-reverse-proxy) |
@@ -44,6 +44,7 @@ Das fertige Image gibt es für amd64 und arm64 auf Docker Hub und in der GitHub 
 | `docker.io/tristanteu/haben:edge` | Stand von `main`, nur zum Ausprobieren |
 | `ghcr.io/firsttris/haben:…` | Dieselben Tags bei GitHub |
 | `docker.io/tristanteu/haben-backup:…` / `ghcr.io/firsttris/haben-backup:…` | Backup-Container (`postgres:18` mit restic, `deploy/backup`), dieselben Tags wie die App |
+| `docker.io/tristanteu/haben-db:…` / `ghcr.io/firsttris/haben-db:…` | Datenbank-Container (`postgres:18` mit `pg_upgrade` für ältere Bestände, `deploy/db`), dieselben Tags wie die App |
 
 ERiC ist nicht enthalten, weil es nicht weitergegeben werden darf. Haben lädt es auf deinen Wunsch direkt von der Finanzverwaltung in das Volume `eric` (siehe [ERiC einbinden](#eric-einbinden)), oder du mountest es selbst. ERiC gibt es nur für Linux x86_64: Auf arm64 (z. B. Raspberry Pi) läuft alles außer der ELSTER-Übermittlung.
 
@@ -486,15 +487,53 @@ Mit den Quadlets:
 
 ```sh
 systemctl --user start haben-backup    # Stand vor dem Update sichern
-podman auto-update                     # neues Image ziehen und haben-app neu starten
+podman auto-update                     # neue Images ziehen, haben-app und haben-db neu starten
 podman pull docker.io/tristanteu/haben-backup:latest
 ```
 
 `podman auto-update` erfasst nur laufende Container. Das Backup läuft bloß kurz, sein Image holst du deshalb mit `podman pull`.
 
-`haben-app.container` trägt `AutoUpdate=registry`; mit `systemctl --user enable --now podman-auto-update.timer` prüft Podman täglich selbst auf neue Images. Willst du Updates von Hand steuern, setze im Quadlet eine feste Version (`Image=docker.io/tristanteu/haben:0.1`) und ändere sie bewusst. Bei einem selbst gebauten Image: `git pull`, `podman build -t haben -f Containerfile .` und `systemctl --user restart haben-app`.
+`haben-app.container` und `haben-db.container` tragen `AutoUpdate=registry`; mit `systemctl --user enable --now podman-auto-update.timer` prüft Podman täglich selbst auf neue Images. Willst du Updates von Hand steuern, setze im Quadlet eine feste Version (`Image=docker.io/tristanteu/haben:0.1`) und ändere sie bewusst. Bei einem selbst gebauten Image: `git pull`, `podman build -t haben -f Containerfile .` und `systemctl --user restart haben-app`.
 
 `podman auto-update` tauscht nur das Image. Lädst du neue Quadlet-Dateien wie `haben-app.container`, hole auch die `.volume`-Dateien, auf die sie verweisen (etwa `haben-eric-log.volume`), und führe danach `systemctl --user daemon-reload` aus.
+
+### PostgreSQL-Update
+
+Die Datenbank läuft im Image `tristanteu/haben-db` (aus `deploy/db`): das offizielle `postgres:18` plus die Programme der älteren Versionen ab 16. Findet der Container beim Start im Volume noch einen Datenbestand einer älteren Version, hebt er ihn mit `pg_upgrade` an und startet danach normal. Ein Update auf ein neues Postgres ist damit ein ganz normales Update wie oben, mit Backup vorher. Das Upgrade dauert bei einer Buchhaltung meist unter einer Minute; im Log steht es so:
+
+```text
+haben-db: Aktualisiere die Datenbank von PostgreSQL 16 (/var/lib/postgresql/data) auf 18 (/var/lib/postgresql/data/18/docker) …
+haben-db: Upgrade auf PostgreSQL 18 fertig. Der alte Bestand liegt unverändert in /var/lib/postgresql/data/16/docker;
+```
+
+Im Volume liegt danach je Version ein Verzeichnis, `16/docker` mit dem alten und `18/docker` mit dem neuen Bestand. `pg_upgrade` kopiert, der alte Bestand bleibt also unverändert erhalten und braucht noch einmal so viel Platz wie die Datenbank. Läuft Haben einwandfrei, kann er weg:
+
+```sh
+docker compose exec db rm -rf /var/lib/postgresql/data/16   # Compose
+podman exec haben-db rm -rf /var/lib/postgresql/data/16     # Quadlets
+```
+
+Schlägt das Upgrade fehl, bricht der Container mit der Meldung von `pg_upgrade` ab und lässt alles, wie es war: Mit dem bisherigen Image (`image: postgres:16` in `compose.yml`, `Image=docker.io/library/postgres:16` im Quadlet) startet die alte Datenbank wieder.
+
+**Einmalig für Installationen mit Postgres 16.** Bis Haben 0.2 lief die Datenbank im offiziellen Image `docker.io/library/postgres:16`. Das steht in deiner `compose.yml` bzw. in `haben-db.container` und ändert sich durch ein Update der Images nicht: Die Datenbank bleibt auf 16, bis du die Datei einmal neu holst. Das muss nicht sofort sein, das Backup-Image kommt mit beiden Versionen zurecht. Für den Umstieg:
+
+```sh
+docker compose exec backup backup.sh   # Stand vor dem Update sichern
+curl -O https://raw.githubusercontent.com/firsttris/haben/main/deploy/compose.yml
+docker compose pull && docker compose up -d
+docker compose logs db                 # „Upgrade auf PostgreSQL 18 fertig“
+```
+
+Hast du `compose.yml` angepasst statt eine `compose.override.yml` zu nutzen, ändere nur die Zeile `image: postgres:16` des Dienstes `db` in `image: tristanteu/haben-db:latest`. Mit den Quadlets:
+
+```sh
+systemctl --user start haben-backup    # Stand vor dem Update sichern
+curl -o ~/.config/containers/systemd/haben-db.container \
+  https://raw.githubusercontent.com/firsttris/haben/main/deploy/quadlet/haben-db.container
+systemctl --user daemon-reload
+systemctl --user restart haben-db haben-app
+journalctl --user -u haben-db -n 20    # „Upgrade auf PostgreSQL 18 fertig“
+```
 
 Beim Start führt `deploy/entrypoint.sh` zuerst `src/server/db/migrate.ts` aus und wendet alle ausstehenden Migrationen an; erst danach startet der Server. Schlägt eine Migration fehl, startet die App nicht, und der Fehler steht im Log.
 

@@ -1,13 +1,21 @@
-# Haben – Backup-Container: pg_dump in derselben Major-Version wie die Datenbank (postgres:18) und restic.
+# Haben – Backup-Container: pg_dump und restic. backup.sh nimmt das pg_dump der Major-Version, in der die
+# Datenbank läuft: Ein Dump eines neueren pg_dump lässt sich in eine ältere Datenbank nicht einspielen.
+# Eingebaut sind die Versionen von UPGRADE_FROM an, wie im Datenbank-Image (deploy/db).
 # Compose betreibt ihn als Dienst mit täglichem Zeitplan, die Quadlets starten ihn über haben-backup.timer
 # einmal am Tag. Gebaut wird aus deploy/backup:  podman build -t haben-backup -f Containerfile deploy/backup
 FROM ghcr.io/restic/restic:0.19.1 AS restic
 
 FROM docker.io/library/postgres:18
+ARG UPGRADE_FROM=16
 # ca-certificates für Repositories über HTTPS (s3:, rest:), openssh-client für sftp:
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates openssh-client \
- && rm -rf /var/lib/apt/lists/*
+RUN set -eux; \
+    old="$(seq "$UPGRADE_FROM" "$((PG_MAJOR - 1))" | tr '\n' ' ')"; \
+    sed -i "s/\$/ $old/" /etc/apt/sources.list.d/pgdg.list; \
+    apt-get update; \
+    for v in $old; do pkgs="${pkgs:-} postgresql-client-$v"; done; \
+    apt-get install -y --no-install-recommends ca-certificates openssh-client $pkgs; \
+    rm -rf /var/lib/apt/lists/*; \
+    for v in $old; do test -x "/usr/lib/postgresql/$v/bin/pg_dump"; done
 COPY --from=restic /usr/bin/restic /usr/local/bin/restic
 COPY entrypoint.sh backup.sh backup-status.sh restore.sh restore-check.sh /usr/local/bin/
 # Datenbank wie in compose.yml (Dienst db); die Quadlets setzen PGHOST=haben-db. Das Passwort kommt als
@@ -20,7 +28,7 @@ ENV PGHOST=db \
     BACKUP_TIME=03:15 \
     RESTORE_CHECK_DAYS=7 \
     TZ=Europe/Berlin
-# postgres:18 hält mit SIGINT an; der Zeitplan endet mit SIGTERM
+# Das postgres-Image hält mit SIGINT an; der Zeitplan endet mit SIGTERM
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["zeitplan"]
