@@ -1,6 +1,6 @@
 # haben-backup
 
-Backup für [Haben](https://github.com/firsttris/haben), die selbst gehostete Buchhaltung: ein SQL-Dump der Datenbank und die Belegdateien, verschlüsselt mit [restic](https://restic.net). Basis ist `postgres:16`, `pg_dump` hat also dieselbe Major-Version wie die Datenbank von Haben.
+Backup für [Haben](https://github.com/firsttris/haben), die selbst gehostete Buchhaltung: ein SQL-Dump der Datenbank und die Belegdateien, verschlüsselt mit [restic](https://restic.net). Basis ist `postgres:18`, `pg_dump` hat also dieselbe Major-Version wie die Datenbank von Haben.
 
 - Compose: Dienst `backup` in [`deploy/compose.yml`](https://github.com/firsttris/haben/blob/main/deploy/compose.yml), sichert täglich um `BACKUP_TIME` (Standard 03:15).
 - Podman Quadlets: [`haben-backup.container`](https://github.com/firsttris/haben/blob/main/deploy/quadlet/haben-backup.container), gestartet von `haben-backup.timer`.

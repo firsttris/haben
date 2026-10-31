@@ -3,7 +3,7 @@ Description=Haben – PostgreSQL
 
 [Container]
 ContainerName=haben-db
-Image=docker.io/library/postgres:16
+Image=docker.io/library/postgres:18
 Network=haben.network
 Volume=haben-db.volume:/var/lib/postgresql/data
 Environment=POSTGRES_USER=haben POSTGRES_DB=haben

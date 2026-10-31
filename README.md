@@ -222,7 +222,7 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 
 ## 🔧 Entwicklung
 
-Voraussetzungen: Node 22, pnpm 10 und PostgreSQL 16.
+Voraussetzungen: Node 22, pnpm 10 und PostgreSQL 18.
 
 ```sh
 pnpm install
