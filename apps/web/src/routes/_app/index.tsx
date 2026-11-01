@@ -231,6 +231,18 @@ function OverviewPage() {
             {data.invoices.overdueCount ? ` · ${data.invoices.overdueCount} überfällig` : ""}
           </div>
         </div>
+        <Link to="/auswertungen" hash="payables" className="card" style={{ color: "inherit", textDecoration: "none" }}>
+          <div className="kpi-label">Offene Verbindlichkeiten</div>
+          <div className="kpi-value">{formatEuro(data.invoices.payables.total)}</div>
+          <div className="small" style={{ color: data.invoices.payables.overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
+            {data.invoices.payables.count} {data.invoices.payables.count === 1 ? "Beleg" : "Belege"}
+            {data.invoices.payables.overdueCount
+              ? ` · ${data.invoices.payables.overdueCount} überfällig`
+              : data.invoices.payables.nextDue
+                ? ` · nächste fällig ${formatDate(data.invoices.payables.nextDue)}`
+                : ""}
+          </div>
+        </Link>
         <div className="card">
           <div className="kpi-label">Umsatz {periodLabel(data.period).split(" ")[0]} (netto)</div>
           <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonth.net)}</div>
