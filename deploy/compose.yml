@@ -33,7 +33,9 @@ x-backup: &backup
 
 services:
   db:
-    image: postgres:16
+    # postgres mit automatischem Upgrade: Liegt im Volume noch eine ältere Version (etwa von postgres:16),
+    # hebt der Container sie beim Start mit pg_upgrade an (deploy/db)
+    image: tristanteu/haben-db:latest
     restart: unless-stopped
     environment:
       POSTGRES_USER: haben
@@ -45,6 +47,8 @@ services:
       test: ["CMD", "pg_isready", "-U", "haben"]
       interval: 5s
       retries: 20
+      # Ein Upgrade auf eine neue Major-Version läuft vor dem Start und braucht je nach Größe ein paar Minuten
+      start_period: 10m
 
   app:
     image: tristanteu/haben:latest

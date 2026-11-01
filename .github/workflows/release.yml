@@ -8,8 +8,9 @@ name: Release
 # danach das GitHub-Release an. Ein Release Candidate vX.Y.Z-rc.N pusht stattdessen :x.y.z-rc.N und
 # :next, wird ein Pre-release auf GitHub und lässt :latest und die Beschreibung auf Docker Hub stehen.
 # Von Hand auf main gestartet: dieselben Prüfungen, dann das Image als :edge; kein Release.
-# Das Backup-Image tristanteu/haben-backup (deploy/backup) erscheint mit denselben Tags, damit App und
-# Backup zur selben Postgres-Version passen; das GitHub-Release legt nur der Lauf der App an.
+# Das Backup-Image tristanteu/haben-backup (deploy/backup) und das Datenbank-Image tristanteu/haben-db
+# (deploy/db) erscheinen mit denselben Tags, damit App, Backup und Datenbank zur selben Postgres-Version
+# passen; das GitHub-Release legt nur der Lauf der App an.
 on:
   push:
     tags: ["v*"]
@@ -61,6 +62,24 @@ jobs:
       ghcr: true
       ghcr-image: firsttris/haben-backup
       readme: deploy/backup/README.md
+      github-release: false
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+
+  docker-db:
+    needs: [tested, checks]
+    if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
+    uses: firsttris/workflows/.github/workflows/docker-release.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
+    with:
+      image: tristanteu/haben-db
+      description: "Datenbank für Haben: PostgreSQL, das ältere Datenbestände beim Start selbst mit pg_upgrade anhebt"
+      dockerfile: deploy/db/Containerfile
+      context: deploy/db
+      ghcr: true
+      ghcr-image: firsttris/haben-db
+      readme: deploy/db/README.md
       github-release: false
     secrets: inherit
     permissions:

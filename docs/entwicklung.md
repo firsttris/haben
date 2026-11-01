@@ -6,7 +6,7 @@ Diese Seite richtet sich an alle, die an Haben mitarbeiten wollen: lokale Umgebu
 
 - Node.js 22 (`engines.node` verlangt mindestens 22)
 - pnpm 10 (das Repository legt `pnpm@10.28.0` über `packageManager` fest; mit `corepack enable` bekommst du die passende Version)
-- PostgreSQL 16, lokal oder als Container
+- PostgreSQL 18, lokal oder als Container
 - Optional: ein C-Compiler (`cc`) für die ERiC-Tests mit nachgebauter Bibliothek, Java 21 für den KoSIT-Validator
 
 ## Lokale Umgebung

@@ -1,0 +1,19 @@
+# Haben – Datenbank-Container: das offizielle postgres-Image plus die Programme der älteren Major-Versionen.
+# Findet entrypoint.sh beim Start einen Datenbestand einer älteren Version, hebt es ihn mit pg_upgrade
+# auf die neue; ein Update auf ein neues Postgres ist damit nur noch ein neues Image.
+# Gebaut wird aus deploy/db:  podman build -t haben-db -f Containerfile deploy/db
+FROM docker.io/library/postgres:18
+# Älteste Version, von der aus das Image noch selbst aktualisiert (Haben lief bis 0.2 mit postgres:16).
+# Eingebaut werden alle Versionen von UPGRADE_FROM bis zur vorletzten.
+ARG UPGRADE_FROM=16
+RUN set -eux; \
+    old="$(seq "$UPGRADE_FROM" "$((PG_MAJOR - 1))" | tr '\n' ' ')"; \
+    sed -i "s/\$/ $old/" /etc/apt/sources.list.d/pgdg.list; \
+    apt-get update; \
+    for v in $old; do pkgs="${pkgs:-} postgresql-$v"; done; \
+    apt-get install -y --no-install-recommends $pkgs; \
+    rm -rf /var/lib/apt/lists/*; \
+    for v in $old; do test -x "/usr/lib/postgresql/$v/bin/pg_ctl"; done
+COPY entrypoint.sh /usr/local/bin/haben-db-entrypoint
+ENTRYPOINT ["haben-db-entrypoint"]
+CMD ["postgres"]

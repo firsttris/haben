@@ -44,13 +44,13 @@
     },
     {
       // PostgreSQL überall, wo es nicht Compose, Quadlet oder FROM nennt: CI (services, docker run,
-      // Screenshots), README, Doku und die Kommentare des Backup-Containers
+      // Screenshots), README samt Badge, Doku und die Beschreibungen der Images
       customType: "regex",
       managerFilePatterns: [
         "/^\\.github/workflows/[^/]+\\.ya?ml$/",
         "/^README\\.md$/",
         "/^docs/installation\\.md$/",
-        "/^deploy/backup/(README\\.md|Containerfile)$/",
+        "/^deploy/(backup|db)/(README\\.md|Containerfile)$/",
       ],
       matchStrings: [
         "(?:image|postgres): postgres:(?<currentValue>\\d+)\\n",
@@ -60,6 +60,7 @@
         "\\(postgres:(?<currentValue>\\d+)\\)",
         "# postgres:(?<currentValue>\\d+) hält",
         "Basis ist `postgres:(?<currentValue>\\d+)`",
+        "PostgreSQL-(?<currentValue>\\d+)-4169e1",
       ],
       depNameTemplate: "docker.io/library/postgres",
       datasourceTemplate: "docker",
@@ -106,14 +107,14 @@
       dependencyDashboardApproval: false,
     },
     {
-      // PostgreSQL: eine neue Hauptversion braucht auf jedem Server eine Migration der Daten. Der PR
-      // entsteht erst, wenn er im Dependency Dashboard angehakt wird.
+      // PostgreSQL: Das Datenbank-Image (deploy/db) hebt ältere Bestände beim Start mit pg_upgrade an.
+      // Der PR entsteht erst, wenn er im Dependency Dashboard angehakt wird.
       matchPackageNames: ["docker.io/library/postgres", "postgres"],
       dependencyDashboardApproval: true,
       groupName: "PostgreSQL",
       sourceUrl: "https://github.com/postgres/postgres",
       prBodyNotes: [
-        "**Eine neue Hauptversion startet nicht auf dem Datenverzeichnis der alten.** Wer nach dem Merge `compose.yml` bzw. die Quadlets neu holt, braucht vorher einen Dump und danach eine Wiederherstellung (`deploy/backup`, `restore.sh`); das gehört als Anleitung in docs/installation.md (Updates), bevor dieser PR gemergt wird. Das Backup-Image (`deploy/backup/Containerfile`) muss dieselbe Hauptversion haben wie die Datenbank, damit `pg_dump` passt: beide ziehen hier zusammen, das neue `haben-backup` erscheint erst mit dem nächsten Release. Die Trigger der Migrationen (`apps/web/drizzle/*_trigger.sql`, Festschreibung und Hash-Kette) laufen in CI gegen die neue Version.",
+        "Eine neue Hauptversion zieht in `deploy/db/Containerfile` (Datenbank), `deploy/backup/Containerfile` (pg_dump), CI und Doku zusammen. Beide Images bauen die Programme aller Versionen von `UPGRADE_FROM` bis zur vorletzten mit ein: `haben-db` hebt damit vorhandene Bestände beim Start mit `pg_upgrade` an, `backup.sh` nimmt das `pg_dump` der Version, in der die Datenbank läuft. Der CI-Job `db-upgrade` prüft das Upgrade von 16 mit Backup und Test-Restore davor und danach; bei einer weiteren Hauptversion dort einen Schritt von der bisherigen ergänzen. Fällt eine alte Version aus dem PGDG-Repository, `UPGRADE_FROM` in beiden Containerfiles anheben und das in docs/installation.md (PostgreSQL-Update) vermerken. Die Trigger der Migrationen (`apps/web/drizzle/*_trigger.sql`, Festschreibung und Hash-Kette) laufen in CI gegen die neue Version.",
       ],
       schedule: ["at any time"],
       automerge: false,

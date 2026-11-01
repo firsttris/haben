@@ -55,7 +55,12 @@ elif [ "$rc" != 0 ]; then
   exit 1
 fi
 
-pg_dump --format=plain | gzip > "$dump"
+# pg_dump in der Major-Version des Servers, sonst das neueste: Ein neueres pg_dump schreibt Befehle, die
+# eine ältere Datenbank beim Einspielen nicht kennt (etwa SET transaction_timeout ab 17)
+server="$(psql -X -At -d postgres -c "SELECT current_setting('server_version_num')::int / 10000")"
+pg_dump=pg_dump
+[ ! -x "/usr/lib/postgresql/$server/bin/pg_dump" ] || pg_dump="/usr/lib/postgresql/$server/bin/pg_dump"
+"$pg_dump" --format=plain | gzip > "$dump"
 # Ein abgebrochener Dump darf nicht als Backup durchgehen: gunzip prüft das Archiv (Prüfsumme), die
 # Abschlusszeile von pg_dump zeigt, dass der Dump vollständig ist.
 gunzip -c "$dump" | tail -n 20 | grep "PostgreSQL database dump complete" > /dev/null \
