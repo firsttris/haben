@@ -321,7 +321,7 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `DOCUMENTS_DIR` | nein | Ablage der Belegdateien. Standard `data/belege` (relativ zum Arbeitsverzeichnis); im Image `/var/lib/haben/belege` | `/var/lib/haben/belege` |
 | `ANTHROPIC_API_KEY` | nein | Schaltet die KI-Auslesung von Belegen ein | `sk-ant-…` |
 | `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (wiederkehrende Rechnungen, Kontoabruf), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
-| `ENABLE_BANKING_APP_ID` | nein | Application ID der Enable-Banking-Anwendung. Schaltet zusammen mit dem Schlüssel den automatischen Kontoabruf ein | `0b7c3f1e-…` |
+| `ENABLE_BANKING_APP_ID` | nein | Application ID der Enable-Banking-Anwendung. Schaltet zusammen mit dem Schlüssel den automatischen Kontoabruf ein. Einfacher: unter Einstellungen › Bank hochladen; das geht dann vor | `0b7c3f1e-…` |
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
 | `ENABLE_BANKING_KEY` | nein | Alternativ der Schlüssel selbst; Zeilenumbrüche als `\n` erlaubt | `-----BEGIN PRIVATE KEY-----\n…` |
 | `ENABLE_BANKING_API_URL` | nein | Andere Basis-URL der API, nur zum Testen. Standard `https://api.enablebanking.com` | `http://localhost:4555` |
@@ -594,7 +594,9 @@ Optional. Haben holt die Umsätze einmal täglich selbst über [Enable Banking](
 4. Für eigene Konten genügt in der Regel der kostenlose eingeschränkte Produktionszugang: Die Anwendung wird aktiviert, indem du im Kontrollzentrum deine eigenen Konten verknüpfst, und darf danach nur diese abrufen. Die aktuellen Bedingungen stehen bei Enable Banking. Zum Ausprobieren gibt es eine Sandbox mit Testbanken.
 5. Für die Produktionsumgebung verlangt Enable Banking außerdem eine **Privacy Policy URL** und eine **Terms of Service URL**. Haben bringt keine eigenen Seiten dafür mit: Die Instanz betreibst du selbst, also gehören dorthin deine Angaben, nicht die des Projekts. Trage die Datenschutzerklärung und das Impressum bzw. die AGB deiner eigenen Website ein, z. B. `https://<deine Domain>/datenschutz` und `https://<deine Domain>/impressum`. Die Adressen sollten erreichbar sein; im eingeschränkten Zugang bist du selbst der einzige Nutzer, der sie beim Zustimmen sieht.
 
-Schlüssel und ID an Haben übergeben:
+Schlüssel und ID an Haben übergeben, am einfachsten in der Oberfläche: Unter **Einstellungen › Bank** die heruntergeladene `.pem`-Datei wählen; die Application ID übernimmt Haben aus dem Dateinamen. **Prüfen und speichern** fragt bei Enable Banking die Bankliste ab und speichert Schlüssel und ID nur, wenn das klappt. Der Schlüssel liegt danach verschlüsselt in der Datenbank wie das SMTP-Passwort; im Audit-Log steht nur die Application ID.
+
+Alternativ über die Umgebung, etwa wenn du die Einrichtung automatisierst. Was in den Einstellungen gespeichert ist, geht vor:
 
 ```sh
 # Compose: Datei neben compose.yml legen, Volume-Zeile in compose.yml einkommentieren, ID in .env

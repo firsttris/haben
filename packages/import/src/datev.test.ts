@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { datevAccountTotals, DatevParseError, isDatevFile, parseDatevBuchungsstapel } from "./index.ts";
+import { datevAccountTotals, DatevParseError, datevYearSums, isDatevFile, parseDatevBuchungsstapel } from "./index.ts";
 
 const fixture = (name: string) =>
   new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
@@ -159,6 +159,29 @@ describe("parseDatevBuchungsstapel", () => {
     expect(stack.bookings[0]).toMatchObject({ amount: 1050, side: "H", account: "1200", contraAccount: "8400", date: "2025-02-01" });
   });
 
+  it("liest die vereinfachten Spaltennamen von Lexware Office", () => {
+    const columns = `"Umsatz";"Soll/Haben-Kennzeichen";"WKZ Umsatz";"Kurs";"Basisumsatz";"WKZ Basisumsatz";"Konto";"Gegenkonto";"BU-Schluessel";"Belegdatum";"Belegfeld 1";"Buchungstext";"Faelligkeit"`;
+    const stack = parseDatevBuchungsstapel(
+      file(HEADER, columns, `119,00;"S";"EUR";;;;1200;8400;"";0302;"RE-1";"Verkauf";""`),
+    );
+    expect(stack.bookings[0]).toMatchObject({
+      amount: 11900,
+      side: "S",
+      account: "1200",
+      contraAccount: "8400",
+      date: "2025-02-03",
+      voucherField1: "RE-1",
+      text: "Verkauf",
+    });
+    expect(stack.bookings[0]!.raw).toMatchObject({ Umsatz: "119,00", Gegenkonto: "8400" });
+  });
+
+  it("bevorzugt die DATEV-Spalte, wenn es auch eine ohne Klammerzusatz gibt", () => {
+    const columns = `"Umsatz";"Umsatz (ohne Soll/Haben-Kz)";"Soll/Haben-Kennzeichen";"Konto";"Gegenkonto (ohne BU-Schlüssel)";"Belegdatum"`;
+    const stack = parseDatevBuchungsstapel(file(HEADER, columns, `1,00;2,00;"S";1200;8400;0101`));
+    expect(stack.bookings[0]!.amount).toBe(200);
+  });
+
   it("meldet ein ungültiges Soll/Haben-Kennzeichen mit Zeilennummer", () => {
     const bytes = file(HEADER, COLUMNS, `10,00;"S";1200;8400;;0101;"ok"`, "", `10,00;"X";1200;8400;;0101;"falsch"`);
     expect(message(() => parseDatevBuchungsstapel(bytes))).toBe(
@@ -232,5 +255,55 @@ describe("datevAccountTotals", () => {
       { account: "10001", debit: 123456, credit: 0 },
       { account: "70001", debit: 0, credit: 8925 },
     ]);
+  });
+});
+
+describe("Jahressummen aus dem Buchungsstapel", () => {
+  const b = (amount: number, side: "S" | "H", account: string, contraAccount: string, buKey = "") => ({ amount, side, account, contraAccount, buKey });
+
+  it("rechnet Automatikkonten und BU-Schlüssel brutto in netto und Steuer um (SKR03)", () => {
+    const sums = datevYearSums(
+      [
+        b(11900, "S", "1200", "8400"), // Erlös 19 % über Automatik
+        b(10700, "H", "8300", "1200"), // Erlös 7 %, Konto und Gegenkonto vertauscht
+        b(5000, "S", "1200", "8120"), // steuerfrei
+        b(1190, "S", "4930", "1200", "9"), // Bürobedarf mit 19 % Vorsteuer
+        b(2140, "S", "4940", "1200", "08"), // Fachliteratur mit 7 % Vorsteuer, BU zweistellig
+        b(1190, "H", "1200", "8400"), // Gutschrift an Kunden
+      ],
+      "SKR03",
+    );
+    expect(sums).toEqual({ einnahmen: { net: 10000 + 10000 + 5000 - 1000, tax: 1900 + 700 - 190 }, ausgaben: { net: 1000 + 2000, tax: 190 + 140 } });
+  });
+
+  it("nimmt bei BU 40 den Betrag netto und die Steuer von den Steuerkonten (SKR04)", () => {
+    const sums = datevYearSums(
+      [
+        b(10000, "S", "1800", "4400", "40"),
+        b(1900, "S", "1800", "3806"),
+        b(5000, "S", "6815", "1800"),
+        b(950, "S", "1406", "1800"),
+        b(300, "S", "1800", "1406"), // Vorsteuerkorrektur
+        b(99999, "S", "1800", "2000"), // Privat: zählt nicht
+      ],
+      "SKR04",
+    );
+    expect(sums).toEqual({ einnahmen: { net: 10000, tax: 1900 }, ausgaben: { net: 5000, tax: 650 } });
+  });
+});
+
+describe("Jahressummen aus dem Buchungsstapel: Review", () => {
+  const b = (amount: number, side: "S" | "H", account: string, contraAccount: string, buKey = "") => ({ amount, side, account, contraAccount, buKey });
+
+  it("rechnet fünfstellige Automatikkonten (84000, Sachkontenlänge 5) wie 8400 brutto in netto und Steuer um", () => {
+    expect(datevYearSums([{ ...b(11900, "S", "12000", "84000"), accountLength: 5 }], "SKR03")).toEqual({
+      einnahmen: { net: 10000, tax: 1900 },
+      ausgaben: { net: 0, tax: 0 },
+    });
+  });
+
+  it("zählt Debitoren (fünfstellig bei vierstelligen Sachkonten) nicht als Aufwand", () => {
+    // Ausgangsrechnung: Debitor 40000 an Erlöse 8400 (19 %), im Jahr noch nicht bezahlt
+    expect(datevYearSums([b(11900, "S", "40000", "8400")], "SKR03")).toEqual({ einnahmen: { net: 10000, tax: 1900 }, ausgaben: { net: 0, tax: 0 } });
   });
 });

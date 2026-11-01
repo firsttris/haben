@@ -1,5 +1,6 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
 import {
+  datevYearSums,
   LexofficeApiError,
   LexofficeClient,
   mapContact,
@@ -492,6 +493,19 @@ export async function reconciliation() {
     .select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year })
     .from(schema.archiveFiles);
   const lastImport = await latestImport();
+  // Für Jahre ohne Belege per API (Umzug nur über DATEV): Summen aus dem Buchungsstapel
+  const datevRows = await db
+    .select({
+      date: schema.datevBookings.date,
+      amount: schema.datevBookings.amount,
+      side: schema.datevBookings.side,
+      account: schema.datevBookings.account,
+      contraAccount: schema.datevBookings.contraAccount,
+      buKey: schema.datevBookings.buKey,
+      accountLength: sql<number | null>`(${schema.archiveFiles.meta} -> 'header' ->> 'accountLength')::int`,
+    })
+    .from(schema.datevBookings)
+    .leftJoin(schema.archiveFiles, eq(schema.archiveFiles.id, schema.datevBookings.fileId));
 
   const years = new Set<number>();
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
@@ -502,7 +516,13 @@ export async function reconciliation() {
     .sort((a, b) => b - a)
     .map((year) => {
       const vouchers = voucherRows.filter((v) => v.date.startsWith(`${year}-`));
+      const yearBookings = vouchers.length === 0 ? datevRows.filter((b) => b.date.startsWith(`${year}-`)) : [];
+      const fromDatev = yearBookings.length > 0 ? datevYearSums(yearBookings, company.kontenrahmen) : null;
       const sum = (direction: "einnahme" | "ausgabe") => {
+        if (fromDatev) {
+          const { net, tax } = direction === "einnahme" ? fromDatev.einnahmen : fromDatev.ausgaben;
+          return { count: 0, net, tax, gross: net + tax };
+        }
         const rows = vouchers.filter((v) => v.direction === direction);
         return {
           count: rows.length,
@@ -588,6 +608,8 @@ export async function reconciliation() {
         year,
         einnahmen: sum("einnahme"),
         ausgaben: sum("ausgabe"),
+        /** "datev": keine Belege per API, die Summen stammen aus dem Buchungsstapel */
+        sumsFrom: fromDatev ? ("datev" as const) : ("belege" as const),
         withoutFile,
         unchecked,
         bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.without_number } : null,

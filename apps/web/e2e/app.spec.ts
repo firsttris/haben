@@ -435,6 +435,19 @@ test("Belege per E-Mail: Postfach einrichten, Fehler beim Abruf sichtbar", async
   await expect(page.getByText("Belege per E-Mail: Server nicht erreichbar.")).toBeVisible();
 });
 
+test("Kontoabruf: Enable Banking in den Einstellungen, ein falscher Schlüssel wird abgelehnt", async () => {
+  await go("/bank");
+  await page.getByRole("link", { name: "Einstellungen › Bank" }).click();
+  await page.waitForURL("**/einstellungen?bereich=bank");
+  const card = page.getByRole("form", { name: "Automatischer Kontoabruf" });
+  await expect(card.getByText("/api/bank/callback")).toBeVisible();
+  // Die Application ID kommt aus dem Dateinamen der .pem
+  await card.getByLabel("Privater Schlüssel (.pem)").setInputFiles({ name: "0b7c3f1e-1234-4abc-9def-0123456789ab.pem", mimeType: "application/x-pem-file", buffer: Buffer.from("kein Schlüssel") });
+  await expect(card.getByLabel("Application ID")).toHaveValue("0b7c3f1e-1234-4abc-9def-0123456789ab");
+  await card.getByRole("button", { name: "Prüfen und speichern" }).click();
+  await expect(card.getByRole("alert")).toContainText("keine gültige .pem-Datei");
+});
+
 test("Theme wechseln, bleibt nach dem Neuladen, Version unten in der Navigation", async () => {
   await go("/");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
@@ -724,6 +737,7 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
     ["einstellungen", "/einstellungen"],
     ["einstellungen-elster", "/einstellungen?bereich=elster"],
     ["einstellungen-email", "/einstellungen?bereich=email"],
+    ["einstellungen-bank", "/einstellungen?bereich=bank"],
     ["einstellungen-export", "/einstellungen?bereich=export"],
   ];
   const storage = await page.context().storageState();

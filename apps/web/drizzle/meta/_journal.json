@@ -582,6 +582,20 @@
       "when": 1793341797322,
       "tag": "0082_steueranteil_je_zahlung",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1793555867344,
+      "tag": "0083_enable_banking",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1793555869147,
+      "tag": "0084_enable_banking_trigger",
+      "breakpoints": true
     }
   ]
 }

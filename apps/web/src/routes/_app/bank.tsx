@@ -1,7 +1,7 @@
 import { formatDecimal, formatEuro, parseEuro, type DirectBooking } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { z } from "zod/mini";
 import { Icon } from "../../components/Icon.tsx";
 import { shortDate } from "../../components/Ledger.tsx";
@@ -328,10 +328,10 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
   if (!sync.configured && sync.connections.length === 0) {
     return (
       <p className="small muted" style={{ margin: "0 0 16px" }}>
-        Automatischer Abruf: mit einer Enable-Banking-Anwendung holt Haben die Umsätze täglich selbst. Einrichtung siehe{" "}
-        <a href="https://github.com/firsttris/haben/blob/main/docs/bank.md#automatischer-abruf" target="_blank" rel="noreferrer">
-          Dokumentation
-        </a>
+        Automatischer Abruf: mit einer Enable-Banking-Anwendung holt Haben die Umsätze täglich selbst. Einrichten unter{" "}
+        <Link to="/einstellungen" search={{ bereich: "bank" }}>
+          Einstellungen › Bank
+        </Link>
         .
       </p>
     );
@@ -489,13 +489,30 @@ function ConnectForm({
       .catch((e: unknown) => setError(errorMessage(e)));
   }, [loadBanks]);
 
+  // Safari legt die Seite beim Zurückgehen aus dem Cache wieder auf, samt „Weiterleiten …“
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setBusy(false);
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   const term = query.trim().toLowerCase();
   const visible = (banks ?? []).filter((b) => !term || b.name.toLowerCase().includes(term));
   const bank = banks?.find((b) => b.name === selected);
 
+  // Enter im Suchfeld wählt den ersten Treffer, statt das Formular abzuschicken
+  function onSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    const first = visible[0];
+    if (first && !visible.some((b) => b.name === selected)) setSelected(first.name);
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!bank) return;
+    if (!bank || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -511,7 +528,14 @@ function ConnectForm({
     <form onSubmit={onSubmit} className="stack" style={{ gap: 12, maxWidth: 560 }}>
       <label className="field">
         Bank suchen
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="z. B. DKB, Sparkasse, N26" autoFocus />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onSearchKeyDown}
+          placeholder="z. B. DKB, Sparkasse, N26"
+          autoFocus
+        />
       </label>
       <label className="field">
         Bank

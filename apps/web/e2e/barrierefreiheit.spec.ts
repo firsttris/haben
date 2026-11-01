@@ -48,6 +48,7 @@ const PAGES = [
   "/einstellungen?bereich=rechnungen",
   "/einstellungen?bereich=elster",
   "/einstellungen?bereich=email",
+  "/einstellungen?bereich=bank",
   "/einstellungen?bereich=export",
 ];
 
