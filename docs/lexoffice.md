@@ -15,10 +15,28 @@ Der Altbestand bleibt von deiner laufenden Buchhaltung getrennt: Er fließt nich
 
 ## Voraussetzungen
 
-- Die Public API von Lexware Office gibt es nur im **Tarif XL**. Hast du einen kleineren Tarif, reicht es in der Regel, für einen Monat auf XL zu wechseln, den Abruf zu machen und danach zu kündigen.
+- Für den Abruf in Schritt 1 bis 3 brauchst du die Public API von Lexware Office, und die gibt es nur im **Tarif XL**. Hast du einen kleineren Tarif, hast du zwei Wege: für einen Monat auf XL wechseln, den Abruf machen und danach kündigen, oder nur über die Exporte umziehen (siehe [Umzug ohne Public API](#umzug-ohne-public-api-tarife-s-m-und-l)).
 - Den API-Schlüssel erzeugst du in Lexware Office unter **Erweiterungen → Public API** (`app.lexware.de/addons/public-api`).
 - In Haben sollten Firmendaten, Kontenrahmen und Versteuerungsart (Ist oder Soll) eingerichtet sein ([Einrichtung](einrichtung.md)). Die Versteuerungsart bestimmt, wie offene Posten gebucht und wie die Umsatzsteuer im Abgleich gerechnet wird. Sie sollte dieselbe sein wie in Lexware Office.
 - Der Server braucht Zugriff auf `https://api.lexware.io`.
+
+### Umzug ohne Public API (Tarife S, M und L)
+
+Ohne Tarif XL fallen die Schritte 1 bis 3 weg. Den Umzug kannst du trotzdem machen, nur über die Exporte aus Schritt 4:
+
+1. In Lexware Office unter **Einstellungen › Export** je Geschäftsjahr die DATEV-konformen Dateien exportieren und den Buchungsstapel (`EXTF_Buchungsstapel_….csv`) als **DATEV-Buchungsstapel** hochladen.
+2. Den IDEA-Export, die ELSTER-Protokolle und die Kontoauszüge wie in Schritt 4 ablegen.
+3. Die Belegdateien selbst sichern: Der DATEV-Export „ohne Belegbilder“ enthält keine PDFs. Laut Lexware-Hilfe gibt es unter **Einstellungen › Export** auch einen Belegexport als ZIP mit je einem PDF und XML pro Beleg; ob er in deinem Tarif angeboten wird, siehst du dort. Lege die ZIP-Datei je Jahr als **Sonstiges** ab. Gibt es ihn nicht, lade die Belege vor der Kündigung anders herunter.
+
+Was dabei fehlt:
+
+- **Rechnungen und Belege als Datensätze.** Haben kennt nur die Buchungen aus dem DATEV-Stapel, nicht die einzelnen Belege mit Positionen, Zahlungsstatus und Steuerart. Die Belegdateien liegen nur als ZIP im Archiv, ohne Suche nach Nummer.
+- **Kontakte.** Kunden und Lieferanten legst du in Haben neu an.
+- **Offene Posten (Schritt 3).** Unbezahlte Rechnungen und Eingangsrechnungen trägst du in Haben selbst ein.
+- **Umsatzsteuer je Monat** im Abgleich. Einnahmen, Ausgaben und die Steuer je Jahr rechnet Haben näherungsweise aus dem Buchungsstapel (siehe [Schritt 5](#schritt-5-abgleich-je-jahr)).
+- **Der Status „vollständig“.** Die Prüfungen „Belege und Rechnungen per API abgerufen“ und „Jeder Beleg hat eine Datei“ bleiben offen, das Jahr wird im Abgleich nie als vollständig angezeigt. Ob alles da ist, entscheidest du selbst.
+
+Lohnt sich das? Brauchst du offene Posten, Kontakte oder die Belege einzeln durchsuchbar, ist ein Monat XL meist die bessere Wahl. Für abgeschlossene Jahre ohne offene Posten reichen die Exporte.
 
 ## Schritt 1: Verbindung zu Lexware Office
 
@@ -142,7 +160,7 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 
 Daneben stehen Einnahmen netto, Umsatzsteuer, Ausgaben netto und Vorsteuer, jeweils nach Belegdatum, und die letzte Rechnungsnummer des Jahres. Vergleiche die Summen mit den Auswertungen in Lexware Office.
 
-Gibt es für ein Jahr keine Belege per API (etwa im Tarif ohne Public API), rechnet Haben die Summen aus dem DATEV-Buchungsstapel: Erlöse und Aufwand nach den Kontenklassen des Kontenrahmens (SKR03: 8 sowie 3 und 4; SKR04: 4 sowie 5 und 6), die Steuer aus Automatikkonten und den BU-Schlüsseln 2, 3, 8 und 9 oder aus Buchungen auf den Umsatz- und Vorsteuerkonten. Das ist eine Näherung; Sonderfälle wie § 13b stehen nur über die Steuerkonten drin.
+Gibt es für ein Jahr keine Belege per API (etwa im Tarif ohne Public API), rechnet Haben die Summen aus dem DATEV-Buchungsstapel: Erlöse und Aufwand nach den Kontenklassen des Kontenrahmens (SKR03: 8 sowie 3 und 4; SKR04: 4 sowie 5 und 6), die Steuer aus Automatikkonten und den BU-Schlüsseln 2, 3, 8 und 9 oder aus Buchungen auf den Umsatz- und Vorsteuerkonten. Personenkonten (Debitoren und Kreditoren, länger als die Sachkontenlänge aus der Kopfzeile) zählen nicht mit; fünfstellige Sachkonten wie 84000 liest Haben wie 8400. Das ist eine Näherung; Sonderfälle wie § 13b stehen nur über die Steuerkonten drin.
 
 ### Umsatzsteuer je Monat
 
