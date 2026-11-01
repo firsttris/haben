@@ -132,4 +132,15 @@ describe.skipIf(!testDatabaseUrl)("offener Betrag überall gleich (Postgres)", (
     await pay(storno.id, -11_90, "15.06.26");
     expect((await reports.openPositions(today)).receivables).toEqual([]);
   }, 60_000);
+
+  it("Übersicht-Kachel „Offene Forderungen“ zeigt dieselbe Summe wie die Tabelle in den Auswertungen, auf die sie verlinkt", async () => {
+    await invoice(100_00); // 119 € offen
+    // Bezahlt, dann storniert: 11,90 € sind zu erstatten
+    const paid = await invoice(10_00);
+    await pay(paid.id, 11_90, "03.06.26");
+    await invoices.cancelInvoice(actor, paid.id, "2026-06-10");
+    const { receivablesTotal } = await reports.openPositions(today);
+    expect(receivablesTotal).toBe(119_00 - 11_90);
+    expect((await invoices.invoiceSummary(today)).openTotal).toBe(receivablesTotal);
+  }, 60_000);
 });
