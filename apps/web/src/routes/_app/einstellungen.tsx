@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
+import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
 import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
@@ -18,6 +19,7 @@ import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
 import { getBackupStatus } from "../../server/functions/backup.ts";
+import { getEnableBankingSettings } from "../../server/functions/bank.ts";
 import { removeCertificate, uploadCertificate } from "../../server/functions/certificate.ts";
 import { RELIGIONEN } from "../../lib/religion.ts";
 import { SETTINGS_AREAS, type SettingsArea } from "../../lib/settings-areas.ts";
@@ -37,7 +39,7 @@ import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates] = await Promise.all([
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking] = await Promise.all([
       getCompany(),
       getVatPeriod({ data: currentFilingPeriod(new Date()) }),
       getNumbering(),
@@ -51,8 +53,25 @@ export const Route = createFileRoute("/_app/einstellungen")({
       getBackupStatus(),
       getMcpSettings(),
       getExchangeRates(),
+      getEnableBankingSettings(),
     ]);
-    return { ...company, certificate: vat.certificate, mode: vat.mode, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates };
+    return {
+      ...company,
+      certificate: vat.certificate,
+      mode: vat.mode,
+      numbering,
+      eric,
+      mail,
+      logo,
+      inbox,
+      exportYears,
+      datev,
+      chainHead,
+      backup,
+      mcp,
+      rates,
+      enableBanking,
+    };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
   validateSearch: (search: Record<string, unknown>): { bereich?: SettingsArea } =>
@@ -61,7 +80,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates } = Route.useLoaderData();
+  const { logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
@@ -102,6 +121,7 @@ function SettingsPage() {
               <InboxCard data={inbox} />
             </>
           )}
+          {bereich === "bank" && <EnableBankingCard data={enableBanking} />}
           {bereich === "sicherheit" && <Passkeys />}
           {bereich === "ki" && <McpCard data={mcp} />}
           {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}

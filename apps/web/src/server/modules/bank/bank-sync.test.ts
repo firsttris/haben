@@ -218,4 +218,49 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     const audit = await sql`select action, new_value from audit_log where table_name = 'bank_connections' and action = 'INSERT' limit 1`;
     expect(audit[0]!.new_value).not.toHaveProperty("ciphertext");
   });
+
+  it("nimmt den Zugang aus den Einstellungen vor der Umgebung und prüft ihn beim Speichern", async () => {
+    const used: string[] = [];
+    const { EnableBankingClient } = await import("@haben/import");
+    sync.setEnableBankingClientFactory((o) => {
+      used.push(o.applicationId);
+      return new EnableBankingClient({ ...o, fetch: api.fetchFn });
+    });
+    expect(await sync.enableBankingSettingsSummary()).toMatchObject({ source: "umgebung", applicationId: "app-1" });
+
+    await expect(sync.saveEnableBankingSettings(actor, { applicationId: "app-2", privateKey: "kein Schlüssel" })).rejects.toThrow(
+      /keine gültige \.pem-Datei/,
+    );
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
+    await expect(sync.saveEnableBankingSettings(actor, { applicationId: "app-2" })).rejects.toThrow(/Schlüssel \(\.pem\) fehlt/);
+    await sync.saveEnableBankingSettings(actor, { applicationId: "app-2", privateKey });
+    expect(used).toEqual(["app-2"]);
+    expect(await sync.enableBankingSettingsSummary()).toMatchObject({ source: "einstellungen", applicationId: "app-2" });
+
+    // Ohne neuen Schlüssel bleibt der gespeicherte; die neue ID wird wieder geprüft
+    await sync.saveEnableBankingSettings(actor, { applicationId: "app-3" });
+    used.length = 0;
+    await sync.listBanks("DE");
+    expect(used).toEqual(["app-3"]);
+
+    const [row] = await sql`select ciphertext from enable_banking_settings`;
+    expect(Buffer.from(row!.ciphertext).toString("utf8")).not.toContain("PRIVATE KEY");
+    const audit = await sql`select new_value from audit_log where table_name = 'enable_banking_settings'`;
+    expect(audit.length).toBeGreaterThan(0);
+    for (const a of audit) expect(a.new_value).not.toHaveProperty("ciphertext");
+
+    await sync.deleteEnableBankingSettings(actor);
+    expect(await sync.enableBankingSettingsSummary()).toMatchObject({ source: "umgebung", applicationId: "app-1" });
+  });
+
+  it("speichert keinen Zugang, den Enable Banking ablehnt", async () => {
+    const { EnableBankingClient } = await import("@haben/import");
+    const reject = (async () => new Response(JSON.stringify({ message: "Invalid JWT" }), { status: 401, headers: { "content-type": "application/json" } })) as typeof fetch;
+    sync.setEnableBankingClientFactory((o) => new EnableBankingClient({ ...o, fetch: reject }));
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
+    await expect(sync.saveEnableBankingSettings(actor, { applicationId: "falsch", privateKey })).rejects.toThrow(/lehnt den Zugang ab/);
+    const [count] = await sql`select count(*)::int as n from enable_banking_settings`;
+    expect(count!.n).toBe(0);
+    sync.setEnableBankingClientFactory((o) => new EnableBankingClient({ ...o, fetch: api.fetchFn }));
+  });
 });

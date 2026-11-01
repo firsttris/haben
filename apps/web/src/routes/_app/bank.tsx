@@ -328,10 +328,10 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
   if (!sync.configured && sync.connections.length === 0) {
     return (
       <p className="small muted" style={{ margin: "0 0 16px" }}>
-        Automatischer Abruf: mit einer Enable-Banking-Anwendung holt Haben die Umsätze täglich selbst. Einrichtung siehe{" "}
-        <a href="https://github.com/firsttris/haben/blob/main/docs/bank.md#automatischer-abruf" target="_blank" rel="noreferrer">
-          Dokumentation
-        </a>
+        Automatischer Abruf: mit einer Enable-Banking-Anwendung holt Haben die Umsätze täglich selbst. Einrichten unter{" "}
+        <Link to="/einstellungen" search={{ bereich: "bank" }}>
+          Einstellungen › Bank
+        </Link>
         .
       </p>
     );

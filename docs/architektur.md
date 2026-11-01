@@ -133,6 +133,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `postfach_requests` | Abrufe des ELSTER-Postfachs und Bestätigungen der Abholung mit XML | nur anhängen, Audit ohne XML |
 | `postfach_documents` | Abgeholte Bescheide und Mitteilungen, Datei im Dokumentenspeicher | nur anhängen, Audit |
 | `vast_requests` | Belegabrufe (Liste und Abholung) mit XML, je Person und Jahr | nur anhängen, Audit ohne XML |
+| `enable_banking_settings` | Zugang zu Enable Banking (eine Zeile): Application ID, privater Schlüssel verschlüsselt; geht vor den Umgebungsvariablen | Audit ohne Schlüssel |
 | `mail_settings` | SMTP-Zugang (eine Zeile), Passwort verschlüsselt, Einstellungen der Erinnerungen und der wöchentlichen Mail mit dem Prüfwert des Audit-Logs | Audit ohne Passwort |
 | `inbox_settings` | IMAP-Zugang für Belege per E-Mail (Passwort verschlüsselt), Ordner, letzter Abruf und Fehler | Audit nur bei Änderungen am Zugang, ohne Passwort |
 | `inbox_messages` | Abgerufene Mails je Message-ID mit angelegten Belegen, Dubletten und übersprungenen Anhängen | nur anhängen, Audit |

@@ -416,6 +416,22 @@ export const mailSettings = pgTable(
   (t) => [check("mail_settings_single_row", sql`${t.id} = 1`)],
 );
 
+/**
+ * Zugang zu Enable Banking für den Kontoabruf, eingetragen in den Einstellungen; genau eine Zeile (id = 1).
+ * Geht vor ENABLE_BANKING_APP_ID/ENABLE_BANKING_KEY aus der Umgebung.
+ */
+export const enableBankingSettings = pgTable(
+  "enable_banking_settings",
+  {
+    id: smallint("id").primaryKey().default(1),
+    applicationId: text("application_id").notNull(),
+    /** Privater Schlüssel (PEM), AES-256-GCM-verschlüsselt; bleibt aus dem Audit-Log */
+    ciphertext: bytea("ciphertext").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("enable_banking_settings_single_row", sql`${t.id} = 1`)],
+);
+
 /** Postfach für eingehende Belege (IMAP); Passwort verschlüsselt wie beim SMTP-Zugang */
 export const inboxSettings = pgTable(
   "inbox_settings",

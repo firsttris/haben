@@ -5,6 +5,7 @@ export const SETTINGS_AREAS = [
   { id: "rechnungen", label: "Rechnungen", hint: "Nummernkreis und Logo" },
   { id: "elster", label: "ELSTER", hint: "Zertifikat und ERiC" },
   { id: "email", label: "E-Mail", hint: "Versand und Belege-Postfach" },
+  { id: "bank", label: "Bank", hint: "Automatischer Kontoabruf" },
   { id: "sicherheit", label: "Sicherheit", hint: "Passkeys" },
   { id: "waehrung", label: "Fremdwährung", hint: "Umrechnungskurse des BMF" },
   { id: "ki", label: "KI-Assistenten", hint: "Zugang über MCP" },

@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createPrivateKey, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
   EnableBankingApiError,
@@ -8,6 +8,7 @@ import {
   type EnableBankingClientOptions,
 } from "@haben/import";
 import { and, desc, eq, gt, inArray, max, ne } from "drizzle-orm";
+import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
@@ -39,8 +40,11 @@ export function addDays(date: string, days: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY).toISOString().slice(0, 10);
 }
 
-/** Zugangsdaten der Enable-Banking-Anwendung; null, wenn nicht eingerichtet */
-function credentials(): { applicationId: string; privateKey: string } | null {
+/** Bankliste je Land, zwischengespeichert; ein neuer Zugang leert sie */
+let bankCache: { country: string; at: number; banks: Aspsp[] } | null = null;
+
+/** Zugang aus der Umgebung (ENABLE_BANKING_APP_ID mit ENABLE_BANKING_KEY oder ENABLE_BANKING_KEY_FILE) */
+function envCredentials(): { applicationId: string; privateKey: string } | null {
   const e = env();
   if (!e.ENABLE_BANKING_APP_ID) return null;
   let privateKey = e.ENABLE_BANKING_KEY?.replace(/\\n/g, "\n");
@@ -48,12 +52,78 @@ function credentials(): { applicationId: string; privateKey: string } | null {
   return privateKey ? { applicationId: e.ENABLE_BANKING_APP_ID, privateKey } : null;
 }
 
-export function enableBankingConfigured(): boolean {
+async function loadSettingsRow() {
+  const [row] = await db.select().from(schema.enableBankingSettings).where(eq(schema.enableBankingSettings.id, 1));
+  return row ?? null;
+}
+
+/** Zugangsdaten der Enable-Banking-Anwendung: zuerst aus den Einstellungen, sonst aus der Umgebung; null, wenn nicht eingerichtet */
+async function credentials(): Promise<{ applicationId: string; privateKey: string } | null> {
+  const row = await loadSettingsRow();
+  if (row) return { applicationId: row.applicationId, privateKey: decrypt(row.ciphertext).toString("utf8") };
+  return envCredentials();
+}
+
+export async function enableBankingConfigured(): Promise<boolean> {
   try {
-    return credentials() !== null;
+    return (await credentials()) !== null;
   } catch {
     return false;
   }
+}
+
+/** Für die Einstellungen: woher der Zugang kommt, ohne den Schlüssel */
+export async function enableBankingSettingsSummary() {
+  const row = await loadSettingsRow();
+  let fromEnv: string | null;
+  try {
+    fromEnv = envCredentials()?.applicationId ?? null;
+  } catch {
+    // Schlüsseldatei nicht lesbar: gilt als nicht eingerichtet
+    fromEnv = null;
+  }
+  return {
+    source: row ? ("einstellungen" as const) : fromEnv ? ("umgebung" as const) : null,
+    applicationId: row?.applicationId ?? fromEnv,
+    updatedAt: row?.updatedAt ?? null,
+    callbackUrl: callbackUrl(),
+  };
+}
+
+export const enableBankingSettingsSchema = z.object({
+  applicationId: z.string().trim().min(1, "Application ID fehlt").max(100).regex(/^[A-Za-z0-9-]+$/, "Nur die Application ID, z. B. aus dem Dateinamen der .pem"),
+  /** leer: den gespeicherten Schlüssel behalten */
+  privateKey: z.string().max(20_000).optional(),
+});
+
+/** Prüft den Schlüssel und den Zugang bei Enable Banking und speichert beides verschlüsselt. */
+export async function saveEnableBankingSettings(actor: string, input: z.input<typeof enableBankingSettingsSchema>): Promise<void> {
+  const data = enableBankingSettingsSchema.parse(input);
+  const existing = await loadSettingsRow();
+  const pem = data.privateKey?.trim() ? data.privateKey.trim() + "\n" : existing ? decrypt(existing.ciphertext).toString("utf8") : null;
+  if (!pem) throw new BankError("Der private Schlüssel (.pem) fehlt.");
+  try {
+    const key = createPrivateKey(pem);
+    if (key.asymmetricKeyType !== "rsa") throw new Error(`erwartet RSA, nicht ${key.asymmetricKeyType}`);
+  } catch (error) {
+    throw new BankError(`Der Schlüssel ist keine gültige .pem-Datei von Enable Banking: ${apiMessage(error)}`);
+  }
+  try {
+    await clientFactory({ applicationId: data.applicationId, privateKey: pem, baseUrl: env().ENABLE_BANKING_API_URL }).aspsps("DE");
+  } catch (error) {
+    throw new BankError(`Enable Banking lehnt den Zugang ab: ${apiMessage(error)}. Passen Application ID und Schlüssel zusammen?`);
+  }
+  const values = { applicationId: data.applicationId, ciphertext: encrypt(new TextEncoder().encode(pem)), updatedAt: new Date() };
+  await withActor(actor, (tx) =>
+    tx.insert(schema.enableBankingSettings).values({ id: 1, ...values }).onConflictDoUpdate({ target: schema.enableBankingSettings.id, set: values }),
+  );
+  bankCache = null;
+}
+
+/** Entfernt den Zugang aus den Einstellungen; ein Zugang aus der Umgebung gilt danach wieder. */
+export async function deleteEnableBankingSettings(actor: string): Promise<void> {
+  await withActor(actor, (tx) => tx.delete(schema.enableBankingSettings).where(eq(schema.enableBankingSettings.id, 1)));
+  bankCache = null;
 }
 
 /** Rückleitung nach der Freigabe bei der Bank; muss in der Enable-Banking-Anwendung eingetragen sein */
@@ -68,14 +138,14 @@ export function setEnableBankingClientFactory(factory: (options: EnableBankingCl
   clientFactory = factory;
 }
 
-function client(): EnableBankingClient {
+async function client(): Promise<EnableBankingClient> {
   let creds;
   try {
-    creds = credentials();
+    creds = await credentials();
   } catch (error) {
     throw new BankError(`Der Schlüssel für Enable Banking ist nicht lesbar: ${error instanceof Error ? error.message : String(error)}`);
   }
-  if (!creds) throw new BankError("Der automatische Abruf ist nicht eingerichtet (ENABLE_BANKING_APP_ID und ENABLE_BANKING_KEY fehlen).");
+  if (!creds) throw new BankError("Der automatische Abruf ist nicht eingerichtet (Einstellungen › Bank).");
   return clientFactory({ ...creds, baseUrl: env().ENABLE_BANKING_API_URL });
 }
 
@@ -84,13 +154,11 @@ function apiMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-let bankCache: { country: string; at: number; banks: Aspsp[] } | null = null;
-
 /** Banken eines Landes, eine Stunde zwischengespeichert */
 export async function listBanks(country = "DE") {
   if (!bankCache || bankCache.country !== country || Date.now() - bankCache.at > 60 * 60 * 1000) {
     try {
-      bankCache = { country, at: Date.now(), banks: await client().aspsps(country) };
+      bankCache = { country, at: Date.now(), banks: await (await client()).aspsps(country) };
     } catch (error) {
       throw new BankError(`Bankliste nicht abrufbar: ${apiMessage(error)}`);
     }
@@ -118,7 +186,7 @@ export async function startConnection(actor: string, input: { aspspName: string;
   const state = randomBytes(24).toString("base64url");
   let url: string;
   try {
-    ({ url } = await client().startAuthorization({
+    ({ url } = await (await client()).startAuthorization({
       aspsp: { name: bank.name, country: bank.country },
       validUntil,
       redirectUrl: callbackUrl(),
@@ -171,7 +239,7 @@ export async function completeConnection(
 
   let session;
   try {
-    session = await client().createSession(input.code);
+    session = await (await client()).createSession(input.code);
   } catch (error) {
     const message = `Die Bank hat die Freigabe nicht bestätigt: ${apiMessage(error)}`;
     await withActor(actor, (tx) =>
@@ -227,7 +295,7 @@ export async function completeConnection(
 
   // Abgelöste Zustimmungen auch bei Enable Banking beenden; schlägt das fehl, laufen sie einfach aus
   for (const old of replaced) {
-    if (old.sessionId) await client().deleteSession(old.sessionId).catch(() => undefined);
+    if (old.sessionId) await (await client()).deleteSession(old.sessionId).catch(() => undefined);
   }
 
   if (withIban.length === 0) return { connectionId: connection.id, ok: false, message: "Die Bank hat kein Konto mit IBAN freigegeben." };
@@ -272,7 +340,7 @@ export async function syncConnection(actor: string, connectionId: string, today 
     return { added: 0, accounts: [], error: message };
   }
 
-  const api = client();
+  const api = await client();
   const result: SyncResult = { added: 0, accounts: [], error: null };
   const accounts = [...connection.accounts];
   try {
@@ -321,7 +389,7 @@ export async function syncConnection(actor: string, connectionId: string, today 
 /** Nächtlicher Abruf: alle aktiven Verbindungen, deren letzter Abruf lange genug her ist */
 export async function runDueBankSyncs(now = new Date()): Promise<{ synced: number; added: number; errors: string[] }> {
   const summary = { synced: 0, added: 0, errors: [] as string[] };
-  if (!enableBankingConfigured()) return summary;
+  if (!(await enableBankingConfigured())) return summary;
   const connections = await db.select().from(schema.bankConnections).where(eq(schema.bankConnections.status, "aktiv"));
   for (const connection of connections) {
     if (connection.lastSyncAt && now.getTime() - connection.lastSyncAt.getTime() < AUTO_SYNC_INTERVAL_MS) continue;
@@ -375,8 +443,8 @@ export async function listConnections() {
 export async function removeConnection(actor: string, id: string): Promise<void> {
   const [connection] = await db.select().from(schema.bankConnections).where(eq(schema.bankConnections.id, id));
   if (!connection) throw new BankError("Verbindung nicht gefunden.");
-  if (connection.ciphertext && enableBankingConfigured()) {
-    await client()
+  if (connection.ciphertext && (await enableBankingConfigured())) {
+    await (await client())
       .deleteSession(decrypt(connection.ciphertext).toString("utf8"))
       .catch(() => undefined);
   }

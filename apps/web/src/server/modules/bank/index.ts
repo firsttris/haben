@@ -7,11 +7,15 @@
 export {
   callbackUrl,
   completeConnection,
+  deleteEnableBankingSettings,
   enableBankingConfigured,
+  enableBankingSettingsSchema,
+  enableBankingSettingsSummary,
   listBanks,
   listConnections,
   removeConnection,
   runDueBankSyncs,
+  saveEnableBankingSettings,
   startConnection,
   syncConnection,
 } from "./bank-sync.ts";

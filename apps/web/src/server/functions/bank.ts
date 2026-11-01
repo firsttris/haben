@@ -33,6 +33,12 @@ import {
   writeOff,
   writeOffSchema,
 } from "../modules/bank/index.ts";
+import {
+  deleteEnableBankingSettings,
+  enableBankingSettingsSchema,
+  enableBankingSettingsSummary,
+  saveEnableBankingSettings,
+} from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
@@ -88,7 +94,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
           accounts.filter((a) => a.ledgerIndex !== null).map(async (a) => [a.id, paymentProviderAccount((await loadCompany()).kontenrahmen, a.ledgerIndex!)] as const),
         ),
       ),
-      sync: { configured: enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
+      sync: { configured: await enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
     };
   });
 
@@ -224,5 +230,25 @@ export const disconnectBank = createServerFn({ method: "POST" })
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
     await removeConnection(context.user.id, data);
+    return { ok: true };
+  });
+
+/** Zugang zu Enable Banking (Einstellungen › Bank) */
+export const getEnableBankingSettings = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async () => enableBankingSettingsSummary());
+
+export const saveEnableBanking = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(enableBankingSettingsSchema)
+  .handler(async ({ data, context }) => {
+    await saveEnableBankingSettings(context.user.id, data);
+    return { ok: true };
+  });
+
+export const removeEnableBanking = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await deleteEnableBankingSettings(context.user.id);
     return { ok: true };
   });
