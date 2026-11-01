@@ -122,9 +122,19 @@ function splitLines(text: string): Line[] {
   return lines;
 }
 
-/** Spaltenname für den Vergleich: getrimmt, Leerraum zusammengefasst, Kleinschreibung */
+/**
+ * Spaltenname für den Vergleich: Kleinschreibung, Umlaute als ae/oe/ue/ss, ohne Leerraum und
+ * Bindestriche. Lexware Office schreibt etwa „BU-Schluessel“ statt „BU-Schlüssel“ und
+ * „Basisumsatz“ statt „Basis-Umsatz“.
+ */
 function normalizeName(value: string): string {
-  return value.replace(/\s+/g, " ").trim().toLowerCase();
+  return value
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/[\s-]+/g, "");
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -245,13 +255,12 @@ function columnIndex(names: string[], ...candidates: string[]): number {
   return -1;
 }
 
-const REQUIRED = [
-  "Umsatz (ohne Soll/Haben-Kz)",
-  "Soll/Haben-Kennzeichen",
-  "Konto",
-  "Gegenkonto (ohne BU-Schlüssel)",
-  "Belegdatum",
-] as const;
+/** Lexware Office lässt die Klammerzusätze weg: „Umsatz“, „Gegenkonto“. */
+const AMOUNT_COLUMN = ["Umsatz (ohne Soll/Haben-Kz)", "Umsatz"];
+const CONTRA_COLUMN = ["Gegenkonto (ohne BU-Schlüssel)", "Gegenkonto"];
+
+/** Pflichtspalten, je mit alternativen Namen; die erste steht in der Fehlermeldung. */
+const REQUIRED = [AMOUNT_COLUMN, ["Soll/Haben-Kennzeichen"], ["Konto"], CONTRA_COLUMN, ["Belegdatum"]];
 
 /** Liest einen DATEV-Buchungsstapel (EXTF, Formatkategorie 21, Version 7xx), etwa aus Lexoffice. */
 export function parseDatevBuchungsstapel(bytes: Uint8Array): DatevStack {
@@ -271,19 +280,19 @@ export function parseDatevBuchungsstapel(bytes: Uint8Array): DatevStack {
   const titles = columnRow.fields.map((t) => t.replace(/\s+/g, " ").trim());
   const names = titles.map(normalizeName);
   for (const required of REQUIRED) {
-    if (columnIndex(names, required) < 0) {
-      throw new DatevParseError(`Zeile 2: Spalte „${required}“ fehlt.`);
+    if (columnIndex(names, ...required) < 0) {
+      throw new DatevParseError(`Zeile 2: Spalte „${required[0]}“ fehlt.`);
     }
   }
   const col = (...candidates: string[]) => {
     const i = columnIndex(names, ...candidates);
     return (fields: string[]) => (i < 0 ? "" : (fields[i] ?? "").trim());
   };
-  const amountOf = col("Umsatz (ohne Soll/Haben-Kz)");
+  const amountOf = col(...AMOUNT_COLUMN);
   const sideOf = col("Soll/Haben-Kennzeichen");
   const currencyOf = col("WKZ Umsatz");
   const accountOf = col("Konto");
-  const contraOf = col("Gegenkonto (ohne BU-Schlüssel)");
+  const contraOf = col(...CONTRA_COLUMN);
   const buKeyOf = col("BU-Schlüssel");
   const dateOf = col("Belegdatum");
   const voucher1Of = col("Belegfeld 1");

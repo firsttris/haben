@@ -159,6 +159,29 @@ describe("parseDatevBuchungsstapel", () => {
     expect(stack.bookings[0]).toMatchObject({ amount: 1050, side: "H", account: "1200", contraAccount: "8400", date: "2025-02-01" });
   });
 
+  it("liest die vereinfachten Spaltennamen von Lexware Office", () => {
+    const columns = `"Umsatz";"Soll/Haben-Kennzeichen";"WKZ Umsatz";"Kurs";"Basisumsatz";"WKZ Basisumsatz";"Konto";"Gegenkonto";"BU-Schluessel";"Belegdatum";"Belegfeld 1";"Buchungstext";"Faelligkeit"`;
+    const stack = parseDatevBuchungsstapel(
+      file(HEADER, columns, `119,00;"S";"EUR";;;;1200;8400;"";0302;"RE-1";"Verkauf";""`),
+    );
+    expect(stack.bookings[0]).toMatchObject({
+      amount: 11900,
+      side: "S",
+      account: "1200",
+      contraAccount: "8400",
+      date: "2025-02-03",
+      voucherField1: "RE-1",
+      text: "Verkauf",
+    });
+    expect(stack.bookings[0]!.raw).toMatchObject({ Umsatz: "119,00", Gegenkonto: "8400" });
+  });
+
+  it("bevorzugt die DATEV-Spalte, wenn es auch eine ohne Klammerzusatz gibt", () => {
+    const columns = `"Umsatz";"Umsatz (ohne Soll/Haben-Kz)";"Soll/Haben-Kennzeichen";"Konto";"Gegenkonto (ohne BU-Schlüssel)";"Belegdatum"`;
+    const stack = parseDatevBuchungsstapel(file(HEADER, columns, `1,00;2,00;"S";1200;8400;0101`));
+    expect(stack.bookings[0]!.amount).toBe(200);
+  });
+
   it("meldet ein ungültiges Soll/Haben-Kennzeichen mit Zeilennummer", () => {
     const bytes = file(HEADER, COLUMNS, `10,00;"S";1200;8400;;0101;"ok"`, "", `10,00;"X";1200;8400;;0101;"falsch"`);
     expect(message(() => parseDatevBuchungsstapel(bytes))).toBe(
