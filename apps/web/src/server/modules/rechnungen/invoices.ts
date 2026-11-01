@@ -1106,9 +1106,6 @@ export async function setNextNumber(actor: string, year: number, next: number) {
 export async function invoiceSummary(today: string) {
   const list = await listInvoices(today);
   const open = list.filter((i) => i.kind === "rechnung" && i.open !== 0);
-  const openIds = new Set(open.map((i) => i.id));
-  // Offene Korrekturen mindern die Forderung ihrer Rechnung
-  const corrections = list.filter((i) => i.kind === "korrektur" && i.open !== 0 && i.correctsId && openIds.has(i.correctsId));
   const month = today.slice(0, 7);
   const previousMonth = (() => {
     const [y, m] = month.split("-").map(Number) as [number, number];
@@ -1118,7 +1115,9 @@ export async function invoiceSummary(today: string) {
   const revenue = (prefix: string) =>
     finals.filter((i) => i.issueDate.startsWith(prefix)).reduce((sum, i) => sum + i.net, 0);
   return {
-    openTotal: [...open, ...corrections].reduce((sum, i) => sum + i.open, 0),
+    // Wie die offenen Forderungen in den Auswertungen (openPositions): alles Festgeschriebene mit offenem Betrag,
+    // also auch Korrekturen und Erstattungen aus Stornos bezahlter Rechnungen
+    openTotal: list.filter((i) => i.status === "final" && i.open !== 0).reduce((sum, i) => sum + i.open, 0),
     openCount: open.length,
     overdueCount: open.filter((i) => i.listStatus === "ueberfaellig").length,
     revenueMonth: { key: month, net: revenue(month) },
