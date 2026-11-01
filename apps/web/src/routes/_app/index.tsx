@@ -223,15 +223,15 @@ function OverviewPage() {
       )}
 
       <div className="grid-4">
-        <div className="card">
+        <Link to="/auswertungen" hash="receivables" className="card card-link">
           <div className="kpi-label">Offene Forderungen</div>
           <div className="kpi-value">{formatEuro(data.invoices.openTotal)}</div>
           <div className="small" style={{ color: data.invoices.overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
             {data.invoices.openCount} {data.invoices.openCount === 1 ? "Rechnung" : "Rechnungen"}
             {data.invoices.overdueCount ? ` · ${data.invoices.overdueCount} überfällig` : ""}
           </div>
-        </div>
-        <Link to="/auswertungen" hash="payables" className="card" style={{ color: "inherit", textDecoration: "none" }}>
+        </Link>
+        <Link to="/auswertungen" hash="payables" className="card card-link">
           <div className="kpi-label">Offene Verbindlichkeiten</div>
           <div className="kpi-value">{formatEuro(data.invoices.payables.total)}</div>
           <div className="small" style={{ color: data.invoices.payables.overdueCount ? "var(--warn-ink)" : "var(--muted)" }}>
