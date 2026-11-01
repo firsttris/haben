@@ -389,3 +389,74 @@ export function datevAccountTotals(bookings: DatevBooking[]): { account: string;
   }
   return [...totals.values()].sort((a, b) => a.account.localeCompare(b.account, "de", { numeric: true }));
 }
+
+type Kontenrahmen = "SKR03" | "SKR04";
+
+/** Kontenbereiche der DATEV-Standardkontenrahmen für die Jahressummen; Grenzen jeweils einschließlich */
+const RANGES: Record<Kontenrahmen, { erloese: [number, number][]; aufwand: [number, number][]; ust: [number, number][]; vst: [number, number][] }> = {
+  // SKR03: Klasse 8 Erlöse, Klassen 3 und 4 Wareneingang und betriebliche Aufwendungen
+  SKR03: { erloese: [[8000, 8999]], aufwand: [[3000, 4999]], ust: [[1770, 1779]], vst: [[1570, 1579]] },
+  // SKR04: Klasse 4 Erlöse, Klassen 5 und 6 Material und betriebliche Aufwendungen
+  SKR04: { erloese: [[4000, 4999]], aufwand: [[5000, 6999]], ust: [[3800, 3809]], vst: [[1400, 1409]] },
+};
+
+/** Konten mit Steuerautomatik (Beträge brutto), Steuersatz in Prozent */
+const AUTOMATIC: Record<Kontenrahmen, Record<string, number>> = {
+  SKR03: { "8400": 19, "8300": 7, "3400": 19, "3300": 7 },
+  SKR04: { "4400": 19, "4300": 7, "5400": 19, "5300": 7 },
+};
+
+/** BU-Schlüssel mit Steuersatz in Prozent (2/3 Umsatzsteuer, 8/9 Vorsteuer) */
+const BU_RATES: Record<string, number> = { "2": 7, "3": 19, "8": 7, "9": 19 };
+
+export interface DatevYearSums {
+  einnahmen: { net: number; tax: number };
+  ausgaben: { net: number; tax: number };
+}
+
+/**
+ * Einnahmen, Ausgaben, Umsatz- und Vorsteuer aus einem Buchungsstapel, zum Abgleich, wenn keine Belege per API
+ * vorliegen. Erlöse und Aufwand nach Kontenklasse; Steuer aus Automatikkonten und BU-Schlüssel 2, 3, 8, 9
+ * (brutto gebucht) oder aus Buchungen auf den Steuerkonten. BU-Schlüssel 40 hebt die Automatik auf.
+ * Eine Näherung: Sonderfälle wie § 13b oder innergemeinschaftliche Erwerbe stehen nur über die Steuerkonten drin.
+ */
+export function datevYearSums(
+  bookings: Pick<DatevBooking, "amount" | "side" | "account" | "contraAccount" | "buKey">[],
+  kontenrahmen: Kontenrahmen,
+): DatevYearSums {
+  const ranges = RANGES[kontenrahmen];
+  const automatic = AUTOMATIC[kontenrahmen];
+  const kind = (account: string) => {
+    if (!/^\d+$/.test(account)) return null;
+    // Sachkonten mit mehr als vier Stellen (z. B. 84000) auf die Kontonummer kürzen
+    const n = Number(account.length > 4 ? account.slice(0, 4) : account);
+    for (const k of ["erloese", "aufwand", "ust", "vst"] as const) {
+      if (ranges[k].some(([from, to]) => n >= from && n <= to)) return k;
+    }
+    return null;
+  };
+  const sums: DatevYearSums = { einnahmen: { net: 0, tax: 0 }, ausgaben: { net: 0, tax: 0 } };
+  for (const b of bookings) {
+    const [debit, credit] = b.side === "S" ? [b.account, b.contraAccount] : [b.contraAccount, b.account];
+    const buKey = b.buKey.trim().replace(/^0+/, "");
+    for (const [account, onDebit] of [
+      [debit, true],
+      [credit, false],
+    ] as const) {
+      const k = kind(account);
+      if (!k) continue;
+      if (k === "ust" || k === "vst") {
+        const sign = (k === "vst") === onDebit ? 1 : -1;
+        (k === "ust" ? sums.einnahmen : sums.ausgaben).tax += sign * b.amount;
+        continue;
+      }
+      const target = k === "erloese" ? sums.einnahmen : sums.ausgaben;
+      const sign = (k === "aufwand") === onDebit ? 1 : -1;
+      const rate = buKey === "40" ? 0 : (BU_RATES[buKey] ?? automatic[account] ?? 0);
+      const tax = rate === 0 ? 0 : Math.round((b.amount * rate) / (100 + rate));
+      target.net += sign * (b.amount - tax);
+      target.tax += sign * tax;
+    }
+  }
+  return sums;
+}

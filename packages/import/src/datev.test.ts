@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { datevAccountTotals, DatevParseError, isDatevFile, parseDatevBuchungsstapel } from "./index.ts";
+import { datevAccountTotals, DatevParseError, datevYearSums, isDatevFile, parseDatevBuchungsstapel } from "./index.ts";
 
 const fixture = (name: string) =>
   new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
@@ -255,5 +255,39 @@ describe("datevAccountTotals", () => {
       { account: "10001", debit: 123456, credit: 0 },
       { account: "70001", debit: 0, credit: 8925 },
     ]);
+  });
+});
+
+describe("Jahressummen aus dem Buchungsstapel", () => {
+  const b = (amount: number, side: "S" | "H", account: string, contraAccount: string, buKey = "") => ({ amount, side, account, contraAccount, buKey });
+
+  it("rechnet Automatikkonten und BU-Schlüssel brutto in netto und Steuer um (SKR03)", () => {
+    const sums = datevYearSums(
+      [
+        b(11900, "S", "1200", "8400"), // Erlös 19 % über Automatik
+        b(10700, "H", "8300", "1200"), // Erlös 7 %, Konto und Gegenkonto vertauscht
+        b(5000, "S", "1200", "8120"), // steuerfrei
+        b(1190, "S", "4930", "1200", "9"), // Bürobedarf mit 19 % Vorsteuer
+        b(2140, "S", "4940", "1200", "08"), // Fachliteratur mit 7 % Vorsteuer, BU zweistellig
+        b(1190, "H", "1200", "8400"), // Gutschrift an Kunden
+      ],
+      "SKR03",
+    );
+    expect(sums).toEqual({ einnahmen: { net: 10000 + 10000 + 5000 - 1000, tax: 1900 + 700 - 190 }, ausgaben: { net: 1000 + 2000, tax: 190 + 140 } });
+  });
+
+  it("nimmt bei BU 40 den Betrag netto und die Steuer von den Steuerkonten (SKR04)", () => {
+    const sums = datevYearSums(
+      [
+        b(10000, "S", "1800", "4400", "40"),
+        b(1900, "S", "1800", "3806"),
+        b(5000, "S", "6815", "1800"),
+        b(950, "S", "1406", "1800"),
+        b(300, "S", "1800", "1406"), // Vorsteuerkorrektur
+        b(99999, "S", "1800", "2000"), // Privat: zählt nicht
+      ],
+      "SKR04",
+    );
+    expect(sums).toEqual({ einnahmen: { net: 10000, tax: 1900 }, ausgaben: { net: 5000, tax: 650 } });
   });
 });

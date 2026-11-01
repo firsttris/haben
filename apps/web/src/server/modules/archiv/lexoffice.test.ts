@@ -225,6 +225,20 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
     expect(year.taxTypes).toEqual([{ taxType: "net", count: 2 }]);
   });
 
+  it("nimmt für ein Jahr nur mit DATEV-Stapel die Summen aus den Buchungen, auch mit den Spaltennamen von Lexware Office", async () => {
+    const header = `"EXTF";700;21;"Buchungsstapel";13;20230102120000000;;"LO";"";"";1001;12345;20220101;4;20220101;20221231;"Lexware Office";"";1;0;0;"EUR";;"";;;"03";;;"";""`;
+    const columns = `Umsatz;Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basisumsatz;WKZ Basisumsatz;Konto;Gegenkonto;BU-Schluessel;Belegdatum;Belegfeld 1;Buchungstext;Faelligkeit`;
+    const rows = [`1190,00;"S";"EUR";;;;1200;8400;"";1503;"RE-2022-1";"Erlös";""`, `119,00;"H";"EUR";;;;1200;4930;"9";2004;"B-1";"Bürobedarf";""`];
+    const bytes = new TextEncoder().encode([header, columns, ...rows].join("\r\n"));
+    await archive.addArchiveFile(actor, { bytes, filename: "EXTF_Buchungsstapel_2022.csv", kind: "datev", year: null });
+    const { years } = await lexoffice.reconciliation();
+    const year = years.find((y) => y.year === 2022)!;
+    expect(year.sumsFrom).toBe("datev");
+    expect(year.einnahmen).toMatchObject({ net: 100_000, tax: 19_000 });
+    expect(year.ausgaben).toMatchObject({ net: 10_000, tax: 1_900 });
+    expect(years.find((y) => y.year === 2023)!.sumsFrom).toBe("belege");
+  });
+
   it("liefert die Belege eines Monats mit Steuerart und Zahlungen, bei Ist auch nach Zahlungsdatum", async () => {
     const march = await lexoffice.legacyVouchersForPeriod({ period: "2023-03", direction: "alle", search: "", withPayments: true, limit: 50 });
     expect(march.vouchers.map((v) => v.number)).toEqual(["RE1019"]);

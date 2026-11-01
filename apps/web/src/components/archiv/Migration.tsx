@@ -380,7 +380,9 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
         </dl>
       </div>
       <div className="small muted">
-        Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in {product}.{" "}
+        {year.sumsFrom === "datev"
+          ? `Keine Belege per API: Summen aus dem DATEV-Buchungsstapel, nach Erlös-, Aufwands- und Steuerkonten des Kontenrahmens geschätzt. Vergleiche sie mit den Auswertungen in ${product}.`
+          : `Summen nach Belegdatum. Vergleiche sie mit den Auswertungen in ${product}.`}{" "}
         {year.bookings && year.bookings.unmatched > 0 && (
           <Link to="/archiv" activeProps={{}} search={{ ansicht: "buchungen", jahr: year.year, ohneBeleg: true }}>
             Buchungen ohne passenden Beleg ansehen
