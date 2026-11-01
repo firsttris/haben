@@ -291,3 +291,19 @@ describe("Jahressummen aus dem Buchungsstapel", () => {
     expect(sums).toEqual({ einnahmen: { net: 10000, tax: 1900 }, ausgaben: { net: 5000, tax: 650 } });
   });
 });
+
+describe("Jahressummen aus dem Buchungsstapel: Review", () => {
+  const b = (amount: number, side: "S" | "H", account: string, contraAccount: string, buKey = "") => ({ amount, side, account, contraAccount, buKey });
+
+  it("rechnet fünfstellige Automatikkonten (84000, Sachkontenlänge 5) wie 8400 brutto in netto und Steuer um", () => {
+    expect(datevYearSums([{ ...b(11900, "S", "12000", "84000"), accountLength: 5 }], "SKR03")).toEqual({
+      einnahmen: { net: 10000, tax: 1900 },
+      ausgaben: { net: 0, tax: 0 },
+    });
+  });
+
+  it("zählt Debitoren (fünfstellig bei vierstelligen Sachkonten) nicht als Aufwand", () => {
+    // Ausgangsrechnung: Debitor 40000 an Erlöse 8400 (19 %), im Jahr noch nicht bezahlt
+    expect(datevYearSums([b(11900, "S", "40000", "8400")], "SKR03")).toEqual({ einnahmen: { net: 10000, tax: 1900 }, ausgaben: { net: 0, tax: 0 } });
+  });
+});

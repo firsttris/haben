@@ -239,6 +239,18 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
     expect(years.find((y) => y.year === 2023)!.sumsFrom).toBe("belege");
   });
 
+  it("rechnet bei Sachkontenlänge 5 die Automatikkonten (84000) in netto und Steuer um", async () => {
+    const header = `"EXTF";700;21;"Buchungsstapel";13;20220102120000000;;"LO";"";"";1001;12345;20210101;5;20210101;20211231;"Lexware Office";"";1;0;0;"EUR";;"";;;"03";;;"";""`;
+    const columns = `Umsatz;Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basisumsatz;WKZ Basisumsatz;Konto;Gegenkonto;BU-Schluessel;Belegdatum;Belegfeld 1;Buchungstext;Faelligkeit`;
+    const rows = [`1190,00;"S";"EUR";;;;12000;84000;"";1503;"RE-2021-1";"Erlös";""`];
+    const bytes = new TextEncoder().encode([header, columns, ...rows].join("\r\n"));
+    await archive.addArchiveFile(actor, { bytes, filename: "EXTF_Buchungsstapel_2021.csv", kind: "datev", year: null });
+    const { years } = await lexoffice.reconciliation();
+    const year = years.find((y) => y.year === 2021)!;
+    expect(year.sumsFrom).toBe("datev");
+    expect(year.einnahmen).toMatchObject({ net: 100_000, tax: 19_000 });
+  });
+
   it("liefert die Belege eines Monats mit Steuerart und Zahlungen, bei Ist auch nach Zahlungsdatum", async () => {
     const march = await lexoffice.legacyVouchersForPeriod({ period: "2023-03", direction: "alle", search: "", withPayments: true, limit: 50 });
     expect(march.vouchers.map((v) => v.number)).toEqual(["RE1019"]);
