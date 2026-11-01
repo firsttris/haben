@@ -21,9 +21,10 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 5. **E-Rechnungsformat** prüfen.
 6. Unter **Umsatzsteuer** die steuerliche Behandlung wählen, im Normalfall „Regulär besteuert“ (siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung)).
 7. Unter **Preise** wählen, ob die Einzelpreise netto oder brutto inklusive Umsatzsteuer gelten (siehe [Netto- oder Bruttopreise](#nettopreise-oder-bruttopreise)). Vorgabe ist netto.
-8. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
-9. Optional einen **Hinweis auf der Rechnung** eintragen (bis 2000 Zeichen).
-10. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt einmal nach: erst der zweite Klick auf **Jetzt festschreiben** führt es aus.
+8. Optional eine **Einleitung über den Positionen** eintragen (Kopftext, bis 2000 Zeichen), etwa Bestellnummer, Rahmenvertrag oder Anrede. **Textbaustein einfügen** übernimmt einen gespeicherten Kopftext (siehe [Textbausteine](#textbausteine)).
+9. **Positionen** erfassen: Beschreibung, Menge, Einheit, Einzelpreis und Steuersatz. Mit **+ Position hinzufügen** kommt eine weitere Zeile dazu; sie übernimmt Einheit und Steuersatz der letzten Zeile.
+10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein.
+11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt einmal nach: erst der zweite Klick auf **Jetzt festschreiben** führt es aus.
 
 Rechts zeigt die Vorschau die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
 
@@ -78,6 +79,19 @@ Unter **Artikel** (Seitenleiste, Bereich Verkauf) legst du Positionen an, die du
 - Nicht mehr gebrauchte Artikel archivierst du; sie lassen sich wiederherstellen. Jede Änderung steht im Änderungsprotokoll.
 
 Wiederkehrende Rechnungen haben ihre Positionen in der Vorlage und nutzen den Katalog nicht.
+
+### Textbausteine
+
+Unter **Textbausteine** (Seitenleiste, Bereich Verkauf) legst du Kopf- und Fußtexte an, die du immer wieder brauchst: Pflichtangaben eines Kunden wie Bestellnummer oder Rahmenvertrag, eine Einleitung je Projekt, einen Dank zum Schluss.
+
+- Jeder Baustein hat eine **Bezeichnung** (nur für die Auswahl), eine **Art** und den **Text**. Ein **Kopftext** steht als Einleitung über den Positionen, ein **Fußtext** als Hinweis unter den Summen.
+- Optional ordnest du einen Baustein einem **Kunden** zu. Bei Belegen an diesen Kunden steht er in der Auswahl oben unter „Für diesen Kunden“, danach folgen die Bausteine für alle Kunden und die anderer Kunden. So lassen sich auch mehrere Bausteine je Kunde für verschiedene Projekte anlegen.
+- In Rechnung, Angebot und wiederkehrender Rechnung fügt **Textbaustein einfügen** den Text in die Einleitung bzw. den Hinweis ein. Ist das Feld leer, steht danach genau der Baustein darin, sonst kommt er als neuer Absatz dazu.
+- Eingefügt wird eine **Kopie**: Du kannst sie im Beleg noch anpassen, und spätere Änderungen am Baustein ändern keine geschriebene Rechnung. Einleitung und Hinweis gehören zur festgeschriebenen Rechnung und stehen mit im Siegel.
+- Im XML stehen Einleitung und Hinweis als Freitext zur Rechnung (BT-22), die Einleitung zuerst.
+- In wiederkehrenden Rechnungen gelten in der Einleitung dieselben Platzhalter wie in Beschreibung und Hinweis.
+- Aus einem Angebot übernimmt die Rechnung die Einleitung des Angebots.
+- Nicht mehr gebrauchte Bausteine archivierst du; sie lassen sich wiederherstellen. Jede Änderung steht im Änderungsprotokoll.
 
 ### Umsatzsteuer auf der Rechnung
 
@@ -246,9 +260,9 @@ Für Monatspauschalen, Wartungsverträge oder Hosting legst du unter **Rechnunge
 | Endet nach dem | optional. Danach wird die Vorlage inaktiv. |
 | Leistungszeitraum | **Laufend:** die Monate ab dem Rechnungsmonat (Vorauszahlung). **Vergangen:** die Monate davor (Abrechnung). **Keiner:** ohne Leistungszeitraum, dann gilt das Rechnungsdatum. |
 | Was am Termin passiert | **Entwurf anlegen:** du prüfst und schreibst selbst fest. **Direkt festschreiben:** Nummer, PDF, XML und Buchung wie beim Festschreiben von Hand; auf Wunsch **und per E-Mail an den Kunden schicken** (Vorlage und Adresse wie beim [Versand von Hand](#per-e-mail-versenden)). |
-| Kunde, Positionen, Zahlungsziel, Format, Umsatzsteuer, Preise (netto oder brutto), Hinweis | wie im Rechnungseditor |
+| Kunde, Einleitung, Positionen, Zahlungsziel, Format, Umsatzsteuer, Preise (netto oder brutto), Hinweis | wie im Rechnungseditor |
 
-In Beschreibungen und im Hinweis ersetzt Haben Platzhalter:
+In Einleitung, Beschreibungen und Hinweis ersetzt Haben Platzhalter:
 
 | Platzhalter | Beispiel |
 |---|---|
@@ -344,7 +358,7 @@ Eine ausgebuchte Rechnung lässt sich erst stornieren, wenn die Ausbuchung aufge
 
 Mit einem E-Mail-Zugang ([Einstellungen › E-Mail › E-Mail-Versand](einrichtung.md#e-mail)) verschickt Haben festgeschriebene Rechnungen, Stornos, Korrekturen und Mahnungen. Auf der Seite der Rechnung unter **Per E-Mail**:
 
-1. **Rechnung senden** öffnet das Formular. Vorbelegt sind die E-Mail-Adresse des Kunden (aus der Rechnung, sonst aus dem Kontakt), Betreff und Text aus der Vorlage. Alles lässt sich vor dem Senden ändern; mehrere Empfänger trennst du mit Komma (höchstens fünf).
+1. **Rechnung senden** öffnet das Formular. Vorbelegt sind alle E-Mail-Adressen aus dem Kontakt (etwa Rechnungseingang und Freigeber), sonst die Adresse auf der Rechnung, dazu Betreff und Text aus der Vorlage. Alles lässt sich vor dem Senden ändern; mehrere Empfänger trennst du mit Komma (höchstens fünf).
 2. **Blindkopie an mich** schickt eine Kopie an den Absender aus den Einstellungen.
 3. **Jetzt senden** verschickt die Mail sofort.
 
@@ -414,7 +428,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Das Such
 | --- | --- |
 | Name oder Firma | Pflicht |
 | Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. |
-| E-Mail | Für XRechnung: elektronische Adresse des Käufers (BT-49). |
+| E-Mail | Eine oder mehrere Adressen, mit Komma getrennt (höchstens fünf), etwa zentraler Rechnungseingang und Freigeber. Der Versand per E-Mail schreibt an alle. Für XRechnung gilt die erste als elektronische Adresse des Käufers (BT-49). |
 | Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |
 | Land (ISO-Code) | Zwei Buchstaben, Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
 | USt-IdNr. | Form `DE123456789`, steht dann auf der Rechnung. |

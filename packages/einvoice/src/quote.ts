@@ -15,6 +15,8 @@ export interface QuoteDocument {
   buyer: Buyer;
   lines: InvoiceDocumentLine[];
   totals: InvoiceTotals;
+  /** Einleitung über den Positionen (Kopftext) */
+  intro?: string;
   note?: string;
   taxTreatment?: TaxTreatment;
   exemptionReason?: string;

@@ -37,6 +37,7 @@ import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
+import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 
 interface ContactOption {
   id: string;
@@ -134,6 +135,7 @@ export function InvoiceEditor({
   bundesland,
   kleinunternehmer,
   articles = [],
+  textBlocks = [],
   abschlaege = [],
   quotes = [],
   tageskurs = false,
@@ -155,6 +157,8 @@ export function InvoiceEditor({
   kleinunternehmer: boolean;
   /** Artikelkatalog zum Einfügen von Positionen */
   articles?: ArticleOption[];
+  /** Kopf- und Fußtexte zum Einfügen */
+  textBlocks?: TextBlockOption[];
   /** Offene Abschlagsrechnungen für die Schlussrechnung */
   abschlaege?: AbschlagOption[];
   /** Festgeschriebene Angebote, für den Bezug von Abschlags- und Schlussrechnungen */
@@ -184,6 +188,7 @@ export function InvoiceEditor({
   const [paymentTermDays, setPaymentTermDays] = useState(String(initial.paymentTermDays));
   const [validUntil, setValidUntil] = useState(initial.validUntil ?? "");
   const [format, setFormat] = useState(initial.format);
+  const [intro, setIntro] = useState(initial.intro ?? "");
   const [note, setNote] = useState(initial.note);
   const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(initial.taxTreatment ?? "regulaer");
   const [priceMode, setPriceMode] = useState<PriceMode>(initial.priceMode ?? "netto");
@@ -354,6 +359,7 @@ export function InvoiceEditor({
       serviceTo: serviceTo || null,
       paymentTermDays: term,
       format,
+      intro,
       note,
       taxTreatment,
       exemptionReason: special ? exemptionReason : "",
@@ -736,6 +742,14 @@ export function InvoiceEditor({
 
           <section className="card" aria-labelledby="lines-heading">
             <h2 id="lines-heading">Positionen</h2>
+            <TextBlockField
+              label="Einleitung über den Positionen (optional)"
+              kind="kopf"
+              value={intro}
+              onChange={touch(setIntro)}
+              blocks={textBlocks}
+              contactId={contactId || null}
+            />
             <div className="line-row head" aria-hidden="true">
               <div>Menge</div>
               <div>Einheit</div>
@@ -879,10 +893,14 @@ export function InvoiceEditor({
                 </select>
               )}
             </div>
-            <label className="field">
-              {quote ? "Hinweis auf dem Angebot (optional)" : "Hinweis auf der Rechnung (optional)"}
-              <textarea value={note} onChange={(e) => touch(setNote)(e.target.value)} maxLength={2000} />
-            </label>
+            <TextBlockField
+              label={quote ? "Hinweis auf dem Angebot (optional)" : "Hinweis auf der Rechnung (optional)"}
+              kind="fuss"
+              value={note}
+              onChange={touch(setNote)}
+              blocks={textBlocks}
+              contactId={contactId || null}
+            />
           </section>
 
           <div className="banner banner-info">
@@ -918,6 +936,7 @@ export function InvoiceEditor({
             seller={seller}
             buyer={contact}
             lines={[...parsed, ...deductionPreview]}
+            intro={intro}
             note={note}
             priceMode={grossPrices ? "brutto" : "netto"}
             taxNote={treatmentNote(taxTreatment, exemptionReason)}

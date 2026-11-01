@@ -31,6 +31,7 @@ import { Route as AppAnlagenIdRouteImport } from './routes/_app/anlagen/$id'
 import { Route as AppAnlagenNeuRouteImport } from './routes/_app/anlagen/neu'
 import { Route as AppArchivIndexRouteImport } from './routes/_app/archiv/index'
 import { Route as AppArtikelIndexRouteImport } from './routes/_app/artikel/index'
+import { Route as AppTextbausteineIndexRouteImport } from './routes/_app/textbausteine/index'
 import { Route as AppBelegeIndexRouteImport } from './routes/_app/belege/index'
 import { Route as AppBelegeIdRouteImport } from './routes/_app/belege/$id'
 import { Route as AppJahreserklaerungIndexRouteImport } from './routes/_app/jahreserklaerung/index'
@@ -178,6 +179,11 @@ const AppArchivIndexRoute = AppArchivIndexRouteImport.update({
 const AppArtikelIndexRoute = AppArtikelIndexRouteImport.update({
   id: '/artikel/',
   path: '/artikel/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTextbausteineIndexRoute = AppTextbausteineIndexRouteImport.update({
+  id: '/textbausteine/',
+  path: '/textbausteine/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppBelegeIndexRoute = AppBelegeIndexRouteImport.update({
@@ -429,6 +435,7 @@ export interface FileRoutesByFullPath {
   '/anlagen/': typeof AppAnlagenIndexRoute
   '/archiv/': typeof AppArchivIndexRoute
   '/artikel/': typeof AppArtikelIndexRoute
+  '/textbausteine/': typeof AppTextbausteineIndexRoute
   '/belege/': typeof AppBelegeIndexRoute
   '/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/kontakte/': typeof AppKontakteIndexRoute
@@ -491,6 +498,7 @@ export interface FileRoutesByTo {
   '/anlagen': typeof AppAnlagenIndexRoute
   '/archiv': typeof AppArchivIndexRoute
   '/artikel': typeof AppArtikelIndexRoute
+  '/textbausteine': typeof AppTextbausteineIndexRoute
   '/belege': typeof AppBelegeIndexRoute
   '/jahreserklaerung': typeof AppJahreserklaerungIndexRoute
   '/kontakte': typeof AppKontakteIndexRoute
@@ -555,6 +563,7 @@ export interface FileRoutesById {
   '/_app/anlagen/': typeof AppAnlagenIndexRoute
   '/_app/archiv/': typeof AppArchivIndexRoute
   '/_app/artikel/': typeof AppArtikelIndexRoute
+  '/_app/textbausteine/': typeof AppTextbausteineIndexRoute
   '/_app/belege/': typeof AppBelegeIndexRoute
   '/_app/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/_app/kontakte/': typeof AppKontakteIndexRoute
@@ -619,6 +628,7 @@ export interface FileRouteTypes {
     | '/anlagen/'
     | '/archiv/'
     | '/artikel/'
+    | '/textbausteine/'
     | '/belege/'
     | '/jahreserklaerung/'
     | '/kontakte/'
@@ -681,6 +691,7 @@ export interface FileRouteTypes {
     | '/anlagen'
     | '/archiv'
     | '/artikel'
+    | '/textbausteine'
     | '/belege'
     | '/jahreserklaerung'
     | '/kontakte'
@@ -744,6 +755,7 @@ export interface FileRouteTypes {
     | '/_app/anlagen/'
     | '/_app/archiv/'
     | '/_app/artikel/'
+    | '/_app/textbausteine/'
     | '/_app/belege/'
     | '/_app/jahreserklaerung/'
     | '/_app/kontakte/'
@@ -941,6 +953,13 @@ declare module '@tanstack/react-router' {
       path: '/artikel'
       fullPath: '/artikel/'
       preLoaderRoute: typeof AppArtikelIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/textbausteine/': {
+      id: '/_app/textbausteine/'
+      path: '/textbausteine'
+      fullPath: '/textbausteine/'
+      preLoaderRoute: typeof AppTextbausteineIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/belege/': {
@@ -1245,6 +1264,7 @@ interface AppRouteChildren {
   AppAnlagenIndexRoute: typeof AppAnlagenIndexRoute
   AppArchivIndexRoute: typeof AppArchivIndexRoute
   AppArtikelIndexRoute: typeof AppArtikelIndexRoute
+  AppTextbausteineIndexRoute: typeof AppTextbausteineIndexRoute
   AppBelegeIndexRoute: typeof AppBelegeIndexRoute
   AppJahreserklaerungIndexRoute: typeof AppJahreserklaerungIndexRoute
   AppKontakteIndexRoute: typeof AppKontakteIndexRoute
@@ -1285,6 +1305,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAnlagenIndexRoute: AppAnlagenIndexRoute,
   AppArchivIndexRoute: AppArchivIndexRoute,
   AppArtikelIndexRoute: AppArtikelIndexRoute,
+  AppTextbausteineIndexRoute: AppTextbausteineIndexRoute,
   AppBelegeIndexRoute: AppBelegeIndexRoute,
   AppJahreserklaerungIndexRoute: AppJahreserklaerungIndexRoute,
   AppKontakteIndexRoute: AppKontakteIndexRoute,

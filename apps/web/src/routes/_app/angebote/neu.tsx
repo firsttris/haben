@@ -24,6 +24,7 @@ function NewQuotePage() {
       bundesland={data.bundesland}
       kleinunternehmer={data.kleinunternehmer}
       articles={data.articles}
+      textBlocks={data.textBlocks}
     />
   );
 }

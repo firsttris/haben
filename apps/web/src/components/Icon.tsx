@@ -43,6 +43,7 @@ const PATHS = {
       <circle cx="7.5" cy="7.5" r="1.5" />
     </>
   ),
+  textblock: <path d="M4 5h16M4 9h16M4 13h10M4 17h7M15 15l2 2 4-4" />,
   contacts: (
     <>
       <circle cx="9" cy="8" r="3.5" />

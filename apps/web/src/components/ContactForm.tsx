@@ -76,7 +76,8 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
         <div className="form-row cols-2">
           <label className="field">
             E-Mail
-            <input name="email" type="email" defaultValue={initial.email} autoComplete="email" placeholder="rechnung@kunde.de" />
+            <input name="email" type="email" multiple defaultValue={initial.email} autoComplete="email" placeholder="rechnung@kunde.de, freigabe@kunde.de" />
+            <span className="small muted">Mehrere Adressen mit Komma trennen, bis zu fünf. Der Versand schreibt an alle.</span>
           </label>
           <label className="field">
             Kundennummer

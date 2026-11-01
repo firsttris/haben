@@ -59,6 +59,19 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     contactId = contact.id;
   });
 
+  it("Einleitung und Hinweis stehen festgeschrieben in XML und Siegel; die Rechnung lässt sich danach nicht mehr ändern", async () => {
+    const created = await invoices.createDraft(actor, { ...draft(), intro: "Bestellnummer 4500123456\nProjekt Phoenix", note: "Vielen Dank." });
+    expect(created.intro).toBe("Bestellnummer 4500123456\nProjekt Phoenix");
+    const final = await invoices.finalizeInvoice(actor, created.id);
+    expect(final.xml).toContain("Bestellnummer 4500123456");
+    expect(final.xml!.indexOf("Bestellnummer 4500123456")).toBeLessThan(final.xml!.indexOf("Vielen Dank."));
+    const [seal] = await sql`select columns from seals where table_name = 'invoices' and row_id = ${final.id}`;
+    expect(seal!.columns.invoices).toContain("intro");
+    await expect(sql`update invoices set intro = 'geändert' where id = ${final.id}`).rejects.toThrow(/festgeschrieben/);
+    // Ohne Einleitung bleibt das Feld leer
+    expect((await invoices.createDraft(actor, draft())).intro).toBe("");
+  });
+
   it("Fremdwährung: USt-Kurs des Leistungsmonats, Steuer in Euro in PDF und XML, gebucht in Euro; Storno mit demselben Kurs", async () => {
     // Mit deutscher Umsatzsteuer nur bei Soll-Versteuerung (siehe nächster Test)
     await sql`update company set versteuerung = 'soll'`;

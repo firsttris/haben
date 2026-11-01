@@ -12,7 +12,7 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - optional der geplante Leistungszeitraum
 - Umsatzsteuer: regulär, Kleinunternehmer, Reverse Charge, steuerfrei
 - Preise netto oder brutto inklusive Umsatzsteuer, wie bei der [Rechnung](rechnungen.md#nettopreise-oder-bruttopreise)
-- Positionen und ein Hinweis
+- Einleitung über den Positionen, Positionen und ein Hinweis, beide auch aus [Textbausteinen](rechnungen.md#textbausteine)
 
 Rechts siehst du die Vorschau. Der Entwurf lässt sich beliebig speichern, ändern und löschen.
 
@@ -25,7 +25,7 @@ Rechts siehst du die Vorschau. Der Entwurf lässt sich beliebig speichern, ände
 
 Gebucht wird nichts: Ein Angebot ist kein Geschäftsvorfall.
 
-Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Für eine geänderte Fassung legt **Kopieren** einen neuen Entwurf an, mit Kunde, Positionen und Hinweis. Datum und Gültigkeit sind dabei neu, die Dauer der Gültigkeit bleibt gleich.
+Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Für eine geänderte Fassung legt **Kopieren** einen neuen Entwurf an, mit Kunde, Einleitung, Positionen und Hinweis. Datum und Gültigkeit sind dabei neu, die Dauer der Gültigkeit bleibt gleich.
 
 ## Per E-Mail senden
 
@@ -52,7 +52,7 @@ Auf der Seite des Angebots hältst du die Antwort des Kunden fest:
 
 **Rechnung erstellen** legt einen Rechnungsentwurf an und markiert das Angebot als angenommen. Der Entwurf übernimmt:
 
-- Kunde, Positionen, Leistungszeitraum und Umsatzsteuer aus dem Angebot,
+- Kunde, Einleitung, Positionen, Leistungszeitraum und Umsatzsteuer aus dem Angebot,
 - Datum heute,
 - Zahlungsziel aus den Firmendaten,
 - E-Rechnungsformat des Kunden bzw. das Standardformat,

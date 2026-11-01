@@ -47,6 +47,7 @@ function NewInvoicePage() {
       bundesland={data.bundesland}
       kleinunternehmer={data.kleinunternehmer}
       articles={data.articles}
+      textBlocks={data.textBlocks}
       abschlaege={data.abschlaege}
       quotes={data.quotes}
     />
