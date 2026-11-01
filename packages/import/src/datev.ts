@@ -429,8 +429,10 @@ export function datevYearSums(
   const automatic = AUTOMATIC[kontenrahmen];
   // Sachkonten mit mehr als vier Stellen (z. B. 84000) auf die Kontonummer kürzen
   const short = (account: string) => (account.length > 4 ? account.slice(0, 4) : account);
-  const kind = (account: string) => {
+  const kind = (account: string, accountLength: number) => {
     if (!/^\d+$/.test(account)) return null;
+    // Länger als die Sachkontenlänge: Personenkonto (Debitor/Kreditor), weder Erlös noch Aufwand
+    if (account.length > accountLength) return null;
     const n = Number(short(account));
     for (const k of ["erloese", "aufwand", "ust", "vst"] as const) {
       if (ranges[k].some(([from, to]) => n >= from && n <= to)) return k;
@@ -441,11 +443,12 @@ export function datevYearSums(
   for (const b of bookings) {
     const [debit, credit] = b.side === "S" ? [b.account, b.contraAccount] : [b.contraAccount, b.account];
     const buKey = b.buKey.trim().replace(/^0+/, "");
+    const accountLength = b.accountLength || 4;
     for (const [account, onDebit] of [
       [debit, true],
       [credit, false],
     ] as const) {
-      const k = kind(account);
+      const k = kind(account, accountLength);
       if (!k) continue;
       if (k === "ust" || k === "vst") {
         const sign = (k === "vst") === onDebit ? 1 : -1;
