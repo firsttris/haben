@@ -421,15 +421,17 @@ export interface DatevYearSums {
  * Eine Näherung: Sonderfälle wie § 13b oder innergemeinschaftliche Erwerbe stehen nur über die Steuerkonten drin.
  */
 export function datevYearSums(
-  bookings: Pick<DatevBooking, "amount" | "side" | "account" | "contraAccount" | "buKey">[],
+  /** accountLength: Sachkontenlänge aus der Kopfzeile des Stapels; fehlt sie oder ist 0, gilt 4 */
+  bookings: (Pick<DatevBooking, "amount" | "side" | "account" | "contraAccount" | "buKey"> & { accountLength?: number | null })[],
   kontenrahmen: Kontenrahmen,
 ): DatevYearSums {
   const ranges = RANGES[kontenrahmen];
   const automatic = AUTOMATIC[kontenrahmen];
+  // Sachkonten mit mehr als vier Stellen (z. B. 84000) auf die Kontonummer kürzen
+  const short = (account: string) => (account.length > 4 ? account.slice(0, 4) : account);
   const kind = (account: string) => {
     if (!/^\d+$/.test(account)) return null;
-    // Sachkonten mit mehr als vier Stellen (z. B. 84000) auf die Kontonummer kürzen
-    const n = Number(account.length > 4 ? account.slice(0, 4) : account);
+    const n = Number(short(account));
     for (const k of ["erloese", "aufwand", "ust", "vst"] as const) {
       if (ranges[k].some(([from, to]) => n >= from && n <= to)) return k;
     }
@@ -452,7 +454,7 @@ export function datevYearSums(
       }
       const target = k === "erloese" ? sums.einnahmen : sums.ausgaben;
       const sign = (k === "aufwand") === onDebit ? 1 : -1;
-      const rate = buKey === "40" ? 0 : (BU_RATES[buKey] ?? automatic[account] ?? 0);
+      const rate = buKey === "40" ? 0 : (BU_RATES[buKey] ?? automatic[short(account)] ?? 0);
       const tax = rate === 0 ? 0 : Math.round((b.amount * rate) / (100 + rate));
       target.net += sign * (b.amount - tax);
       target.tax += sign * tax;

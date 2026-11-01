@@ -502,8 +502,10 @@ export async function reconciliation() {
       account: schema.datevBookings.account,
       contraAccount: schema.datevBookings.contraAccount,
       buKey: schema.datevBookings.buKey,
+      accountLength: sql<number | null>`(${schema.archiveFiles.meta} -> 'header' ->> 'accountLength')::int`,
     })
-    .from(schema.datevBookings);
+    .from(schema.datevBookings)
+    .leftJoin(schema.archiveFiles, eq(schema.archiveFiles.id, schema.datevBookings.fileId));
 
   const years = new Set<number>();
   for (const v of voucherRows) years.add(Number(v.date.slice(0, 4)));
