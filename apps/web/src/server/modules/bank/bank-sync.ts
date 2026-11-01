@@ -314,13 +314,13 @@ export async function completeConnection(
 /**
  * Beginn eines Folgeabrufs: sieben Tage vor dem letzten Abruf, aber nicht in Tage, die schon eine Datei abdeckt.
  * Sonst kämen deren Umsätze mit dem anders formatierten Verwendungszweck der API ein zweites Mal (wie beim
- * ersten Abruf, siehe syncStart). Nie nach heute.
+ * ersten Abruf, siehe syncStart). Reicht die Datei über heute hinaus, ab heute.
  */
 export function followUpStart(syncedTo: string, lastFileBooking: string | null, today: string): string {
   const overlap = addDays(syncedTo, -OVERLAP_DAYS);
-  const afterFile = lastFileBooking ? addDays(lastFileBooking, 1) : overlap;
-  const from = afterFile > overlap ? afterFile : overlap;
-  return from > today ? today : from;
+  const afterFile = lastFileBooking ? addDays(lastFileBooking, 1) : null;
+  if (!afterFile || afterFile <= overlap) return overlap;
+  return afterFile > today ? today : afterFile;
 }
 
 /** Letzter Buchungstag aus einem Dateiimport (nicht aus dem Abruf) */

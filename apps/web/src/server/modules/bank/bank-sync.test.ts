@@ -162,7 +162,7 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(after!.accounts.map((a) => a.syncedTo)).toEqual(["2026-10-09", "2026-10-09"]);
   });
 
-  it("followUpStart: überlappt sieben Tage, aber nicht in die Tage einer Datei und nie über heute hinaus", () => {
+  it("followUpStart: überlappt sieben Tage, aber nicht in die Tage einer Datei", () => {
     expect(sync.followUpStart("2026-11-01", null, "2026-11-02")).toBe("2026-10-25");
     // Finom: camt-Datei bis 31.10., erster Abruf am 01.11.
     expect(sync.followUpStart("2026-11-01", "2026-10-31", "2026-11-02")).toBe("2026-11-01");
@@ -250,7 +250,8 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     for (const c of await sync.listConnections()) await sync.removeConnection(actor, c.id);
     expect(await sync.listConnections()).toEqual([]);
     const [count] = await sql`select count(*)::int as n from bank_transactions`;
-    expect(count!.n).toBe(4);
+    // vier abgerufene bzw. per CSV importierte, dazu der Umsatz aus der Datei für Konto B
+    expect(count!.n).toBe(5);
     const audit = await sql`select action, new_value from audit_log where table_name = 'bank_connections' and action = 'INSERT' limit 1`;
     expect(audit[0]!.new_value).not.toHaveProperty("ciphertext");
   });
