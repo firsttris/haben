@@ -158,6 +158,9 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+/* Kachel als Link (Übersicht): sieht aus wie eine Karte, der Rahmen zeigt beim Überfahren, dass sie klickbar ist */
+.card-link { color: inherit; text-decoration: none; }
+.card-link:hover { border-color: var(--line-strong); }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 /* Kennzahlen auf dem Handy zu zweit nebeneinander statt einzeln untereinander */

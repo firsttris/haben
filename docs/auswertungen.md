@@ -70,6 +70,8 @@ Die beiden Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählt
 
 Der Status zeigt, wie viele Tage ein Posten überfällig ist oder in wie vielen Tagen er fällig wird. Nummer bzw. Rechnungsnummer führen zur Rechnung oder zum Beleg.
 
+Beide Summen stehen auch als Kacheln in der **Übersicht**, mit Anzahl und überfälligen Posten; bei den Verbindlichkeiten ohne Überfälliges das nächste Fälligkeitsdatum. Ein Klick auf die Kachel führt zur jeweiligen Tabelle hier.
+
 ## EÜR als CSV
 
 „EÜR als CSV“ lädt `euer-<Jahr>.csv` über `/api/auswertungen/<Jahr>`. Die Datei hat drei Spalten (`Bereich;Position;Betrag (EUR)`) mit allen Zeilen der Tabelle, den beiden Summen und dem Ergebnis. Format: UTF-8 mit BOM, Semikolon als Trennzeichen, Zeilenende CRLF, Beträge wie in den Exporten mit Dezimalkomma und ohne Tausenderpunkt (`1234,56`). Excel und LibreOffice öffnen sie mit Doppelklick richtig.

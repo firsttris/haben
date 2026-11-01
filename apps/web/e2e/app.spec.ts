@@ -171,6 +171,15 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
   await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
   await page.getByRole("button", { name: "Jetzt buchen" }).click();
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
+
+  // Bis zur Zahlung steht der Beleg in der Übersicht unter den offenen Verbindlichkeiten
+  await go("/");
+  const payables = page.getByRole("link", { name: /Offene Verbindlichkeiten/ });
+  await expect(payables).toContainText("45,90");
+  await expect(payables).toContainText("1 Beleg");
+  await payables.click();
+  await page.waitForURL(/\/auswertungen#payables$/);
+  await expect(page.locator("#payables")).toBeInViewport();
 });
 
 test("Kontoauszug importieren und zuordnen", async () => {

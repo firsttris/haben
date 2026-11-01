@@ -228,7 +228,7 @@ function OpenTable(props: {
 }) {
   const { id, title, items, kind } = props;
   return (
-    <section className="card" aria-labelledby={`${id}-heading`}>
+    <section id={id} className="card" aria-labelledby={`${id}-heading`}>
       <div className="chart-head">
         <h2 id={`${id}-heading`}>{title}</h2>
         <div className="small muted">
