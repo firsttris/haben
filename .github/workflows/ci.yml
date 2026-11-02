@@ -207,6 +207,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Wie unter Linux üblich: erst `docker compose up` mit der Vorgabe-ID 1000, dann nach docs/entwicklung.md
+      # mit der eigenen ID neu bauen. Die Volumes gehören danach noch der alten ID; der Start muss trotzdem gehen.
+      - name: Erster Start mit der Vorgabe-ID
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 90); do docker compose logs app | grep -q "Migrationen angewendet" && break; sleep 2; done
+          docker compose logs app | grep -q "Migrationen angewendet"
+          docker compose down
       - name: Starten
         run: |
           # Der Runner-Benutzer hat nicht die ID 1000; der Container muss in den Projektordner schreiben dürfen
