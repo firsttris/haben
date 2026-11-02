@@ -62,6 +62,7 @@ import { Route as ApiKontenJahrRouteImport } from './routes/api/konten/$jahr'
 import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
+import { Route as ApiUstvaIdRouteImport } from './routes/api/ustva/$id'
 import { Route as ApiVastIdRouteImport } from './routes/api/vast/$id'
 import { Route as AppArchivBelegIdRouteImport } from './routes/_app/archiv/beleg.$id'
 import { Route as AppRechnungenMahnwesenIndexRouteImport } from './routes/_app/rechnungen/mahnwesen/index'
@@ -337,6 +338,11 @@ const ApiProtokollIdRoute = ApiProtokollIdRouteImport.update({
   path: '/api/protokoll/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUstvaIdRoute = ApiUstvaIdRouteImport.update({
+  id: '/api/ustva/$id',
+  path: '/api/ustva/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVastIdRoute = ApiVastIdRouteImport.update({
   id: '/api/vast/$id',
   path: '/api/vast/$id',
@@ -430,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/vast/$id': typeof ApiVastIdRoute
   '/angebote/': typeof AppAngeboteIndexRoute
   '/anlagen/': typeof AppAnlagenIndexRoute
@@ -493,6 +500,7 @@ export interface FileRoutesByTo {
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/vast/$id': typeof ApiVastIdRoute
   '/angebote': typeof AppAngeboteIndexRoute
   '/anlagen': typeof AppAnlagenIndexRoute
@@ -558,6 +566,7 @@ export interface FileRoutesById {
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/vast/$id': typeof ApiVastIdRoute
   '/_app/angebote/': typeof AppAngeboteIndexRoute
   '/_app/anlagen/': typeof AppAnlagenIndexRoute
@@ -623,6 +632,7 @@ export interface FileRouteTypes {
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
+    | '/api/ustva/$id'
     | '/api/vast/$id'
     | '/angebote/'
     | '/anlagen/'
@@ -686,6 +696,7 @@ export interface FileRouteTypes {
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
+    | '/api/ustva/$id'
     | '/api/vast/$id'
     | '/angebote'
     | '/anlagen'
@@ -750,6 +761,7 @@ export interface FileRouteTypes {
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
+    | '/api/ustva/$id'
     | '/api/vast/$id'
     | '/_app/angebote/'
     | '/_app/anlagen/'
@@ -794,6 +806,7 @@ export interface RootRouteChildren {
   ApiMahnungIdRoute: typeof ApiMahnungIdRoute
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
+  ApiUstvaIdRoute: typeof ApiUstvaIdRoute
   ApiVastIdRoute: typeof ApiVastIdRoute
   ApiDokumentArtIdRoute: typeof ApiDokumentArtIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
@@ -1172,6 +1185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProtokollIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ustva/$id': {
+      id: '/api/ustva/$id'
+      path: '/api/ustva/$id'
+      fullPath: '/api/ustva/$id'
+      preLoaderRoute: typeof ApiUstvaIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/vast/$id': {
       id: '/api/vast/$id'
       path: '/api/vast/$id'
@@ -1344,6 +1364,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMahnungIdRoute: ApiMahnungIdRoute,
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
+  ApiUstvaIdRoute: ApiUstvaIdRoute,
   ApiVastIdRoute: ApiVastIdRoute,
   ApiDokumentArtIdRoute: ApiDokumentArtIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,

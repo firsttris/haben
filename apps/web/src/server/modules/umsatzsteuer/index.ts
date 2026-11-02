@@ -6,3 +6,5 @@
  */
 export { computeVatFigures, preflight, type PreflightIssue } from "./vat-figures.ts";
 export { computedValues, createCorrection, recentSentReturns, returnsForPeriod, saveDraft, submissionsFor, submitReturn } from "./vat.ts";
+export { meinElsterUpload } from "./mein-elster.ts";
+export { VatError } from "./vat.ts";

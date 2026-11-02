@@ -2,6 +2,9 @@
 
 Direkt aus Haben senden geht nur mit ERiC und einer eigenen **Hersteller-ID** ([einrichtung.md › Hersteller-ID](einrichtung.md#hersteller-id-wer-ist-hersteller)). Die Beantragung dauert oft Wochen. Bis dahin gibst du im Portal **Mein ELSTER** ab und überträgst die Kennzahlen aus Haben von Hand.
 
+> [!TIP]
+> Für die **Voranmeldung** geht es ohne Abtippen und ohne Assistent: Haben schreibt eine Datei für den XML-Import von Mein ELSTER ([Umsatzsteuer › XML-Import in Mein ELSTER](umsatzsteuer.md#ohne-hersteller-id-xml-import-in-mein-elster)). Der Assistent bleibt für die Jahreserklärungen.
+
 Das Abtippen kann ein KI-Assistent übernehmen, etwa Claude Code. Er braucht dafür zwei Dinge:
 
 1. **Haben-MCP** ([KI-Assistenten](ki-assistenten.md)): liefert die Werte der Voranmeldung, mit dem Werkzeug `ustva_ausfuellliste` in der Reihenfolge des Formulars.

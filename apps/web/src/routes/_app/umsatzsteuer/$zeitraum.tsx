@@ -115,10 +115,11 @@ function VatPeriodPage() {
         <div className="banner banner-info" role="status">
           <Icon name="info" />
           <span>
-            Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab. Das Eintragen der Kennzahlen kann ein KI-Assistent übernehmen, absenden
-            machst du selbst.{" "}
+            Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab: Entwurf speichern, „XML für Mein ELSTER“ herunterladen und dort im
+            Formular Umsatzsteuer-Voranmeldung unter Datenübernahme › XML-Import hochladen. Prüfen und absenden machst du in Mein
+            ELSTER.{" "}
             <a href={ELSTER_ASSISTENT_DOCS} target="_blank" rel="noreferrer">
-              In Mein ELSTER mit einem KI-Assistenten abgeben
+              Abgabe in Mein ELSTER
             </a>
           </span>
         </div>
@@ -507,6 +508,11 @@ function VatReturnEditor({
             <button type="submit" className="btn" disabled={busy || !valid || (!dirty && Boolean(current) && !stale)}>
               Entwurf speichern
             </button>
+            {current && !dirty && !stale && data.companyIssues.length === 0 && (
+              <a className="btn" href={`/api/ustva/${current.id}`} download>
+                XML für Mein ELSTER
+              </a>
+            )}
           </div>
         )}
         {locked && (
