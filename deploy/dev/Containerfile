@@ -16,7 +16,7 @@ RUN groupmod -o -g "$GID" node && usermod -o -u "$UID" -g "$GID" node \
       /var/lib/haben /home/node/.cache \
  && chown -R node:node /app /var/lib/haben /home/node
 COPY --chmod=755 start.sh /usr/local/bin/haben-dev
-USER node
+# Kein USER node: start.sh beginnt als root, richtet die Besitzer der Volumes und wechselt dann zu node
 ENV COREPACK_HOME=/home/node/.cache/corepack \
     COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
     npm_config_store_dir=/home/node/.cache/pnpm-store
