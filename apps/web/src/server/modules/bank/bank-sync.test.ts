@@ -181,6 +181,9 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(sync.followUpStart("2026-11-01", "2026-10-31", "2026-11-02")).toBe("2026-11-01");
     expect(sync.followUpStart("2026-11-01", "2026-09-30", "2026-11-02")).toBe("2026-10-25");
     expect(sync.followUpStart("2026-11-01", "2026-11-05", "2026-11-02")).toBe("2026-11-02");
+    // Umzug unter dem Jahr: erster Abruf ab 01.11., der zweite am 02.11. geht nicht bis 26.10. zurück
+    expect(sync.followUpStart("2026-11-02", null, "2026-11-03", "2026-11-01")).toBe("2026-11-01");
+    expect(sync.followUpStart("2026-11-20", null, "2026-11-21", "2026-11-01")).toBe("2026-11-13");
   });
 
   it("überlappt nicht in Tage, die schon eine Datei abdeckt", async () => {
@@ -312,6 +315,19 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
       [IBAN_B, undefined],
       [IBAN_C, "2026-10-15"],
     ]);
+  });
+
+  it("geht auch bei Folgeabrufen nicht vor den gewählten Tag zurück", async () => {
+    // Erster Abruf des neuen Kontos C ab 15.10. am 16.10.; der Folgeabruf am 17.10. überlappt sonst bis 09.10.
+    const [connection] = await sync.listConnections();
+    const accounts = connection!.accounts.map((a) => (a.fetchFrom ? { ...a, syncedTo: "2026-10-16" } : a));
+    await sql`update bank_connections set accounts = ${JSON.stringify(accounts)}::jsonb where id = ${connection!.id}`;
+    api.calls.length = 0;
+    await sync.syncConnection(actor, connection!.id, "2026-10-17");
+    const fromC = api.calls.find((c) => c.path.startsWith("/accounts/uid-c") && c.path.endsWith("/transactions"))!.query.get("date_from");
+    expect(fromC).toBe("2026-10-15");
+    const [after] = await sync.listConnections();
+    expect(after!.accounts.find((a) => a.fetchFrom)).toMatchObject({ fetchFrom: "2026-10-15", syncedTo: "2026-10-17" });
   });
 
   it("trennt eine Verbindung, die Umsätze bleiben", async () => {

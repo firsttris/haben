@@ -327,13 +327,15 @@ export async function completeConnection(
 /**
  * Beginn eines Folgeabrufs: sieben Tage vor dem letzten Abruf, aber nicht in Tage, die schon eine Datei abdeckt.
  * Sonst kämen deren Umsätze mit dem anders formatierten Verwendungszweck der API ein zweites Mal (wie beim
- * ersten Abruf, siehe syncStart). Reicht die Datei über heute hinaus, ab heute.
+ * ersten Abruf, siehe syncStart). Reicht die Datei über heute hinaus, ab heute. Nie vor „Umsätze abrufen ab“:
+ * Beim Umzug unter dem Jahr stehen die Tage davor in der alten Buchhaltung, und die Überlappung holte sie sonst
+ * mit dem zweiten Abruf doch noch (z. B. erster Abruf ab 01.11., zweiter am 02.11. ab 26.10.).
  */
-export function followUpStart(syncedTo: string, lastFileBooking: string | null, today: string): string {
+export function followUpStart(syncedTo: string, lastFileBooking: string | null, today: string, fetchFrom?: string): string {
   const overlap = addDays(syncedTo, -OVERLAP_DAYS);
   const afterFile = lastFileBooking ? addDays(lastFileBooking, 1) : null;
-  if (!afterFile || afterFile <= overlap) return overlap;
-  return afterFile > today ? today : afterFile;
+  const from = !afterFile || afterFile <= overlap ? overlap : afterFile > today ? today : afterFile;
+  return fetchFrom && fetchFrom > from ? fetchFrom : from;
 }
 
 /** Letzter Buchungstag aus einem Dateiimport (nicht aus dem Abruf) */
@@ -366,7 +368,9 @@ export function firstSyncStart(latestBooking: string | null, fetchFrom: string |
 
 /** Erster Tag des Abrufs für ein Konto */
 async function syncStart(account: BankConnectionAccount, today: string): Promise<{ from: string; fallback: string | null }> {
-  if (account.syncedTo) return { from: followUpStart(account.syncedTo, await lastFileBooking(account.bankAccountId), today), fallback: null };
+  if (account.syncedTo) {
+    return { from: followUpStart(account.syncedTo, await lastFileBooking(account.bankAccountId), today, account.fetchFrom), fallback: null };
+  }
   const [latest] = await db
     .select({ date: max(schema.bankTransactions.bookingDate) })
     .from(schema.bankTransactions)
