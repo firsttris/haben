@@ -6,6 +6,7 @@ import { z } from "zod/mini";
 import { Icon } from "../../components/Icon.tsx";
 import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
@@ -25,6 +26,7 @@ import {
   splitTransaction,
   syncBankConnection,
 } from "../../server/functions/bank.ts";
+import { today as todayInGermany } from "../../server/today.ts";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -473,13 +475,15 @@ function ConnectForm({
 }: {
   onCancel: () => void;
   callbackUrl: string;
-  connect: (args: { data: { aspspName: string; psuType: "personal" | "business" } }) => Promise<{ url: string }>;
+  connect: (args: { data: { aspspName: string; psuType: "personal" | "business"; fetchFrom?: string | null } }) => Promise<{ url: string }>;
 }) {
   const loadBanks = useServerFn(getEnableBanks);
   const [banks, setBanks] = useState<Awaited<ReturnType<typeof getEnableBanks>> | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState("");
   const [psuType, setPsuType] = useState<"business" | "personal">("business");
+  const today = todayInGermany();
+  const [fetchFrom, setFetchFrom] = useState(defaultFetchFrom(today));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -516,7 +520,7 @@ function ConnectForm({
     setBusy(true);
     setError(null);
     try {
-      const { url } = await connect({ data: { aspspName: bank.name, psuType } });
+      const { url } = await connect({ data: { aspspName: bank.name, psuType, fetchFrom: fetchFromForConnect(fetchFrom, today) } });
       window.location.assign(url);
     } catch (e) {
       setError(errorMessage(e));
@@ -561,6 +565,14 @@ function ConnectForm({
           </label>
         </fieldset>
       )}
+      <label className="field">
+        Umsätze abrufen ab
+        <input type="date" value={fetchFrom} max={today} onChange={(e) => setFetchFrom(e.target.value)} aria-describedby="fetch-from-hint" />
+        <span id="fetch-from-hint" className="small muted">
+          Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon
+          da sind (etwa aus einer Datei). Beginnt die Buchhaltung in Haben später im Jahr, etwa nach einem Umzug, trage diesen Tag ein.
+        </span>
+      </label>
       {bank && (
         <p className="small muted" style={{ margin: 0 }}>
           Du wirst zu {bank.name} weitergeleitet und gibst dort den Lesezugriff für {bank.maxConsentDays} Tage frei. Danach geht es

@@ -25,7 +25,7 @@ export const BANK_SYNC_ACTOR = "system:bankabruf";
 const MAX_CONSENT_DAYS = 180;
 /** Folgeabrufe überlappen, damit spät gebuchte Umsätze nicht verloren gehen; Doppelte erkennt der Hash */
 const OVERLAP_DAYS = 7;
-/** Ohne vorhandene Umsätze: ab Jahresbeginn, und wenn die Bank das ablehnt, die letzten 89 Tage */
+/** Ohne vorhandene Umsätze: ab dem gewählten Tag (Vorgabe Jahresbeginn), und wenn die Bank das ablehnt, die letzten 89 Tage */
 const FALLBACK_HISTORY_DAYS = 89;
 /** Der automatische Abruf läuft höchstens so oft (PSD2 erlaubt ohne Nutzer etwa vier Abrufe am Tag) */
 const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 60 * 1000;
@@ -178,7 +178,11 @@ export async function listBanks(country = "DE") {
  * Startet die Verbindung: Enable Banking liefert die Adresse der Bank, dort meldet sich der Nutzer an
  * und gibt die Konten frei. Danach leitet die Bank auf /api/bank/callback zurück.
  */
-export async function startConnection(actor: string, input: { aspspName: string; country: string; psuType: "personal" | "business" }): Promise<{ url: string }> {
+export async function startConnection(
+  actor: string,
+  input: { aspspName: string; country: string; psuType: "personal" | "business"; fetchFrom?: string | null },
+): Promise<{ url: string }> {
+  if (input.fetchFrom && input.fetchFrom > todayInGermany()) throw new BankError("Der Abruf kann nicht in der Zukunft beginnen.");
   const bank = (await listBanks(input.country)).find((b) => b.name === input.aspspName);
   if (!bank) throw new BankError("Diese Bank bietet Enable Banking nicht an.");
   const psuType = bank.psuTypes.includes(input.psuType) ? input.psuType : (bank.psuTypes[0] as "personal" | "business");
@@ -199,7 +203,7 @@ export async function startConnection(actor: string, input: { aspspName: string;
   await withActor(actor, async (tx) => {
     // Abgebrochene Versuche aufräumen
     await tx.delete(schema.bankConnections).where(eq(schema.bankConnections.status, "wartet"));
-    await tx.insert(schema.bankConnections).values({ aspspName: bank.name, aspspCountry: bank.country, psuType, state, validUntil });
+    await tx.insert(schema.bankConnections).values({ aspspName: bank.name, aspspCountry: bank.country, psuType, state, validUntil, fetchFrom: input.fetchFrom ?? null });
   });
   return { url };
 }
@@ -274,7 +278,14 @@ export async function completeConnection(
       const bankAccount = await accountForIban(tx, iban, name);
       if (!known) created.push(bankAccount.name);
       const previous = others.flatMap((o) => o.accounts).find((a) => a.bankAccountId === bankAccount.id);
-      accounts.push({ uid: account.uid, iban, name: bankAccount.name, bankAccountId: bankAccount.id, syncedTo: previous?.syncedTo ?? null });
+      accounts.push({
+        uid: account.uid,
+        iban,
+        name: bankAccount.name,
+        bankAccountId: bankAccount.id,
+        syncedTo: previous?.syncedTo ?? null,
+        ...(connection.fetchFrom && !previous?.syncedTo ? { fetchFrom: connection.fetchFrom } : {}),
+      });
     }
     const ids = new Set(accounts.map((a) => a.bankAccountId));
     for (const other of others) {
@@ -335,17 +346,32 @@ async function lastFileBooking(bankAccountId: string): Promise<string | null> {
   return row?.date ?? null;
 }
 
+/**
+ * Erster Abruf eines Kontos: ab dem beim Verbinden selbst gewählten Tag (Umzug unter dem Jahr), aber nie in Tage, die
+ * schon Umsätze haben: Die Bank formatiert den Verwendungszweck in der API oft anders als in der Datei, dann passten
+ * die Hashes nicht. Ohne gewählten Tag (Vorgabe im Formular, Verbindungen von vor Migration 0087) am Tag nach dem
+ * letzten vorhandenen Umsatz, sonst ab Jahresbeginn.
+ * fallback: die letzten 89 Tage, wenn die Bank einen weiter zurückliegenden Beginn ablehnt, nie vor dem gewählten Tag;
+ * nicht im Anschluss an vorhandene Umsätze, dort ließe er still eine Lücke.
+ */
+export function firstSyncStart(latestBooking: string | null, fetchFrom: string | undefined, today: string): { from: string; fallback: string | null } {
+  const afterLatest = latestBooking ? addDays(latestBooking, 1) : null;
+  // Nahtlos an vorhandene Umsätze (auch wenn sie genau bis vor den gewählten Tag reichen);
+  // ohne Rückfall, der ließe still eine Lücke dazwischen
+  if (afterLatest && (!fetchFrom || afterLatest >= fetchFrom)) return { from: afterLatest, fallback: null };
+  const from = fetchFrom ?? `${today.slice(0, 4)}-01-01`;
+  const recent = addDays(today, -FALLBACK_HISTORY_DAYS);
+  return { from, fallback: recent > from ? recent : null };
+}
+
 /** Erster Tag des Abrufs für ein Konto */
 async function syncStart(account: BankConnectionAccount, today: string): Promise<{ from: string; fallback: string | null }> {
   if (account.syncedTo) return { from: followUpStart(account.syncedTo, await lastFileBooking(account.bankAccountId), today), fallback: null };
-  // Schon per Datei importierte Umsätze nicht noch einmal holen: die Bank formatiert den Verwendungszweck
-  // in der API oft anders als in der CSV, dann würden die Hashes nicht passen.
   const [latest] = await db
     .select({ date: max(schema.bankTransactions.bookingDate) })
     .from(schema.bankTransactions)
     .where(eq(schema.bankTransactions.bankAccountId, account.bankAccountId));
-  if (latest?.date) return { from: addDays(latest.date, 1), fallback: null };
-  return { from: `${today.slice(0, 4)}-01-01`, fallback: addDays(today, -FALLBACK_HISTORY_DAYS) };
+  return firstSyncStart(latest?.date ?? null, account.fetchFrom, today);
 }
 
 export interface SyncResult {

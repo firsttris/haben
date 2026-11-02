@@ -125,7 +125,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `cash_entries` | Kassenbuch: jede Bewegung der Barkasse mit lückenloser Nummer, Beleg oder Art (Einlage, Entnahme, Geldtransit), Buchung; Storno als Gegenzeile | nur anhängen, Audit |
 | `bank_imports` | Jede importierte Auszugsdatei mit SHA-256, Zeitraum, Salden | nur anhängen, Audit |
 | `bank_transactions` | Importierte Umsätze mit Hash zur Deduplizierung | nur anhängen |
-| `bank_connections` | Zustimmungen für den Kontoabruf über Enable Banking: Bank, Status, Ablauf, freigegebene Konten mit Abrufstand; Sitzungskennung verschlüsselt | Audit ohne Chiffrat |
+| `bank_connections` | Zustimmungen für den Kontoabruf über Enable Banking: Bank, Status, Ablauf, beim Verbinden gewählter Abrufbeginn, freigegebene Konten mit Abrufstand; Sitzungskennung verschlüsselt | Audit ohne Chiffrat |
 | `allocations` | Zuordnung eines Umsatzes (ganz oder teilweise); aufgehoben per Gegenzeile | nur anhängen, Betragsprüfung, Audit |
 | `vat_returns` | Voranmeldungen je Monat mit Kennzahlen, berechnet oder überschrieben | gesperrt nach Echtübermittlung, Audit |
 | `vat_return_submissions` | Jede Prüfung und Übermittlung mit XML und Protokoll-PDF | nur anhängen, Audit ohne PDF und XML |
