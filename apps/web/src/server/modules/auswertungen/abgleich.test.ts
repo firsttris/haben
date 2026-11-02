@@ -246,6 +246,23 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     }
   }, 60_000);
 
+  it("meldet keine Abweichung, nur weil während der Prüfung eine Rechnung festgeschrieben wird", async () => {
+    // Soll: Rechnung und Buchung entstehen in einer Transaktion. Der Abgleich darf sie nicht nur halb sehen.
+    await reset("soll");
+    const { today } = await import("../../today.ts");
+    const date = today();
+    await invoice(date, [{ net: 10_000, rate: 1900 }]);
+    // Je Runde eine Prüfung neben einigen Festschreibungen, wie wenn die wöchentliche Mail während der Arbeit läuft
+    for (let round = 0; round < 5; round++) {
+      const writes = (async () => {
+        for (let i = 0; i < 5; i++) await invoice(date, [{ net: 10_000, rate: 1900 }]);
+      })();
+      const report = await integrity.checkIntegrity(date);
+      await writes;
+      expect(report.abgleich.abweichungen).toEqual([]);
+    }
+  }, 120_000);
+
   it("Vorprüfung der Voranmeldung meldet Abweichungen mit Beträgen", () => {
     expect(
       abgleich.abgleichIssues({
