@@ -51,7 +51,7 @@ Compose startet PostgreSQL 18 (dasselbe Image `tristanteu/haben-db` wie im Betri
 
 - **Schlüssel:** `BETTER_AUTH_SECRET` und `HABEN_ENCRYPTION_KEY` erzeugt der Container beim ersten Start zufällig und legt sie im Volume `daten` ab, zusammen mit den Belegen und einem heruntergeladenen ERiC. Feste Schlüssel stehen nicht im Repository.
 - **`apps/web/.env`** ist nicht nötig. Liegt sie vor, gelten ihre übrigen Werte auch im Container (etwa `ANTHROPIC_API_KEY` oder `HABEN_SETUP_CODE`); Datenbank, Adresse, Schlüssel, Belegordner und ERiC setzt `compose.yml`.
-- **`node_modules`** liegen in eigenen Volumes, damit der Container seine nativen Pakete für Linux hat, auch wenn der Rechner macOS ist.
+- **`node_modules`** liegen in eigenen Volumes, damit der Container seine nativen Pakete für Linux hat, auch wenn der Rechner macOS ist. Fehlen die Ordner auf dem Rechner, legt Docker sie unter Linux leer und mit Besitzer root an; ein späteres `pnpm install` ohne Container scheitert dann an den Rechten. Wer beides nutzen will, führt `pnpm install` deshalb zuerst auf dem Rechner aus.
 - **Ports:** Die App lauscht auf `127.0.0.1:3000`, die Datenbank auf `127.0.0.1:5432` (Benutzer und Passwort `haben`). Läuft dort schon etwas, wählen `HABEN_DEV_PORT` und `HABEN_DEV_DB_PORT` andere Ports, etwa `HABEN_DEV_DB_PORT=5433 docker compose up`.
 - **Linux:** Der Benutzer im Container hat die ID 1000. Ist die eigene eine andere (`id -u`), baut `HABEN_DEV_UID=$(id -u) HABEN_DEV_GID=$(id -g) docker compose up --build` den Container passend, sonst kann der Dev-Server Dateien wie `src/routeTree.gen.ts` nicht schreiben.
 
