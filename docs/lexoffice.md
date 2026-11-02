@@ -15,7 +15,7 @@ Der Altbestand bleibt von deiner laufenden Buchhaltung getrennt: Er fließt nich
 
 ## Voraussetzungen
 
-- Für den Abruf in Schritt 1 bis 3 brauchst du die Public API von Lexware Office, und die gibt es nur im **Tarif XL**. Hast du einen kleineren Tarif, hast du zwei Wege: für einen Monat auf XL wechseln, den Abruf machen und danach kündigen, oder nur über die Exporte umziehen (siehe [Umzug ohne Public API](#umzug-ohne-public-api-tarife-s-m-und-l)).
+- Für den Abruf über die API in Schritt 1 und 2 brauchst du die Public API von Lexware Office, und die gibt es nur im **Tarif XL**. Hast du einen kleineren Tarif, holst du dieselben Daten mit einem Skript über die Web-Oberfläche (siehe [Umzug ohne Public API](#umzug-ohne-public-api-tarife-s-m-und-l)).
 - Den API-Schlüssel erzeugst du in Lexware Office unter **Erweiterungen → Public API** (`app.lexware.de/addons/public-api`).
 - In Haben sollten Firmendaten, Kontenrahmen und Versteuerungsart (Ist oder Soll) eingerichtet sein ([Einrichtung](einrichtung.md)). Die Versteuerungsart bestimmt, wie offene Posten gebucht und wie die Umsatzsteuer im Abgleich gerechnet wird. Sie sollte dieselbe sein wie in Lexware Office.
 - Der Server braucht Zugriff auf `https://api.lexware.io`.
@@ -32,11 +32,53 @@ Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufend
 
 ## Umzug ohne Public API (Tarife S, M und L)
 
-Ohne Tarif XL fallen die Schritte 1 bis 3 weg. Den Umzug kannst du trotzdem machen, nur über die Exporte aus Schritt 4:
+Ohne Tarif XL gibt es keinen API-Schlüssel. Dieselben Daten holst du dann über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
+
+### Sicherung aus der Web-Oberfläche
+
+1. In Haben unter **Archiv › Umzug** im Kasten „Ohne Public API: Sicherung aus der Web-Oberfläche“ auf **Skript kopieren** klicken. Das Skript liegt auch unter `/lexware-sicherung.js` deiner Haben-Instanz; „Skript ansehen“ zeigt es vorher.
+2. In `app.lexware.de` anmelden, die Entwicklerwerkzeuge öffnen (F12) und dort die **Konsole**. Skript einfügen und mit Enter starten. Chrome, Edge und Brave verlangen beim ersten Einfügen, dass du „allow pasting“ eintippst.
+3. Warten, bis die Konsole „Fertig“ meldet. Das Skript holt etwa einen Beleg pro Sekunde; bei tausend Belegen dauert es eine Viertelstunde bis zwanzig Minuten. Den Tab offen lassen und darin nicht weiterklicken.
+4. Die heruntergeladenen Dateien `lexware-sicherung-<Datum>-teil-01.zip`, `…-teil-02.zip` usw. (je bis etwa 50 MB) in Haben im selben Kasten auswählen und **Hochladen und übernehmen**. Haben übernimmt einen Teil nach dem anderen; den Fortschritt zeigt Schritt 2.
+
+Das Skript ändert nichts in Lexware Office. Es ruft nur die Adressen auf, die die Web-Oberfläche beim Anzeigen selbst abfragt, mit kurzen Pausen dazwischen, und schickt nichts an Haben oder sonst wohin: Die Daten landen nur als Download in deinem Browser.
+
+Belege, die das Skript nicht laden konnte, stehen in der ZIP-Datei und nach dem Hochladen in Schritt 2 unter „nicht übernommen“. Lässt du das Skript später noch einmal laufen und lädst die neue Sicherung hoch, überspringt Haben alles, was schon da ist, und holt die fehlenden nach.
+
+Buchungen, Bankumsätze, Voranmeldungen und Anlagen holst du wie beim Abruf über die API aus den Exporten (Schritt 4).
+
+### Was die Web-Oberfläche anders liefert
+
+Die Endpunkte der Web-Oberfläche sind nicht dokumentiert. Haben liest sie so, wie Lexware Office sie im November 2026 lieferte, und rechnet sie in die Form der Public API um:
+
+| Daten | Adresse in `app.lexware.de` |
+| --- | --- |
+| Kontakte | `POST /desmos-rest/contacts/v1/search` (archiviert und nicht archiviert) |
+| Belegliste | `GET /grld-rest/voucherservice/1/v200/vouchers` (mit und ohne `archived=true`) |
+| Zahlungen, Positionen von Belegen | `GET /grld-rest/voucherservice/1/v100/voucherDetails/{Art}/{id}` |
+| Rechnungen, Gutschriften, Abschläge | `GET /papyrus-rest/vouchers/sales-voucher/{id}` (abgeschlossene mit Status 423) |
+| PDF des Rechnungsmoduls | `GET /salesdocgen/salesdocgen-rest/document/v100/salesVoucherPdf/{id}` |
+| Belege der Buchhaltung | `GET /capsa/capsa-rest/vouchers/v1/vouchers/{id}` |
+| Originaldatei eines Belegs | `GET /grld-rest/printservice/1/v100/printSimpleVoucherPdf/{id}/` |
+| E-Rechnungs-XML eines Belegs | `GET /capsa/capsa-rest/v1/vouchers/{id}/einvoice` |
+
+Unterschiede zur Public API:
+
+- **Steuer je Position:** Die Belegansicht nennt je Position nur Betrag und Steuersatz. Haben rechnet die Steuer daraus (aus dem Bruttobetrag herausgerechnet bzw. auf den Nettobetrag aufgeschlagen, kaufmännisch gerundet). Bei mehreren Positionen kann das im Cent von Lexware Office abweichen; maßgeblich bleibt der Bruttobetrag des Belegs.
+- **Schlussrechnungen:** Haben nimmt den geforderten Betrag (`claimed…`), in dem die Abschläge schon abgezogen sind.
+- **Zahlungsarten:** „Sonstige Zahlung“ (`partPaymentOther`) zählt wie `manualPayment` der Public API als Entgelt.
+- **Angebote, Aufträge, Lieferscheine und Entwürfe** lädt das Skript nicht.
+- Die Originalantworten liegen im übernommenen Beleg unter `web`, zum Nachweis.
+
+Ändert Lexware die Web-Oberfläche, kann das Skript scheitern oder Felder nicht mehr finden. Prüfe deshalb nach dem Hochladen den Abgleich je Jahr (Schritt 5) besonders gründlich.
+
+### Nur über die Exporte
+
+Ohne Skript und ohne API bleibt der Umzug über die Exporte aus Schritt 4:
 
 1. In Lexware Office unter **Einstellungen › Export** je Geschäftsjahr die DATEV-konformen Dateien exportieren und den Buchungsstapel (`EXTF_Buchungsstapel_….csv`) als **DATEV-Buchungsstapel** hochladen.
 2. Den IDEA-Export, die ELSTER-Protokolle und die Kontoauszüge wie in Schritt 4 ablegen.
-3. Die Belegdateien selbst sichern: Der DATEV-Export „ohne Belegbilder“ enthält keine PDFs. Laut Lexware-Hilfe gibt es unter **Einstellungen › Export** auch einen Belegexport als ZIP mit je einem PDF und XML pro Beleg; ob er in deinem Tarif angeboten wird, siehst du dort. Lege die ZIP-Datei je Jahr als **Sonstiges** ab. Gibt es ihn nicht, lade die Belege vor der Kündigung anders herunter.
+3. Die Belegdateien selbst sichern: Der DATEV-Export „ohne Belegbilder“ enthält keine PDFs. Laut Lexware-Hilfe gibt es unter **Einstellungen › Export** auch einen Belegexport als ZIP mit je einem PDF und XML pro Beleg; ob er in deinem Tarif angeboten wird, siehst du dort. Lege die ZIP-Datei je Jahr als **Sonstiges** ab.
 
 Was dabei fehlt:
 
@@ -45,8 +87,6 @@ Was dabei fehlt:
 - **Offene Posten (Schritt 3).** Unbezahlte Rechnungen und Eingangsrechnungen trägst du in Haben selbst ein.
 - **Umsatzsteuer je Monat** im Abgleich. Einnahmen, Ausgaben und die Steuer je Jahr rechnet Haben näherungsweise aus dem Buchungsstapel (siehe [Schritt 5](#schritt-5-abgleich-je-jahr)).
 - **Der Status „vollständig“.** Die Prüfungen „Belege und Rechnungen per API abgerufen“ und „Jeder Beleg hat eine Datei“ bleiben offen, das Jahr wird im Abgleich nie als vollständig angezeigt. Ob alles da ist, entscheidest du selbst.
-
-Lohnt sich das? Brauchst du offene Posten, Kontakte oder die Belege einzeln durchsuchbar, ist ein Monat XL meist die bessere Wahl. Für abgeschlossene Jahre ohne offene Posten reichen die Exporte.
 
 ## Schritt 1: Verbindung zu Lexware Office
 

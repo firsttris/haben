@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { mkdirSync } from "node:fs";
+import { zipSync } from "fflate";
+import { mkdirSync, readFileSync } from "node:fs";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,
@@ -706,6 +707,39 @@ test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () =
   await stornieren.click();
   await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr. 2" })).toBeVisible();
   await expect(liste).toContainText("Storno Nr. 1: Wechselgeld");
+});
+
+/** Kleine Sicherung, wie sie lexware-sicherung.js herunterlädt: eine Rechnung mit PDF und eine offene Ausgabe */
+function webBackupZip(): Uint8Array {
+  const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../../../packages/import/test-fixtures/lexoffice-web/${name}`, import.meta.url), "utf8"));
+  const json = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
+  const sales = fixture("sales-invoice.json");
+  const purchase = fixture("purchase-gross.json");
+  const pdfPath = `dateien/${sales.list.entityId}/1-Rechnung_RE0042.pdf`;
+  return zipSync({
+    "manifest.json": json({ format: "haben-lexware-web", version: 1, part: 1, createdAt: new Date().toISOString(), failed: [] }),
+    "kontakte.json": json(fixture("contacts.json")),
+    [`belege/${sales.list.entityId}.json`]: json({ ...sales, files: [{ path: pdfPath, role: "pdf", mimeType: "application/pdf", filename: "Rechnung_RE0042.pdf" }] }),
+    [`belege/${purchase.list.entityId}.json`]: json({ ...purchase, files: [] }),
+    [pdfPath]: new TextEncoder().encode("%PDF-1.4\n%%EOF\n"),
+  });
+}
+
+test("Umzug ohne Public API: Skript abrufen, Sicherung hochladen und übernehmen", async () => {
+  await go("/archiv");
+  const card = page.getByRole("region", { name: "Ohne Public API: Sicherung aus der Web-Oberfläche" });
+  await expect(card.getByRole("button", { name: "Skript kopieren" })).toBeVisible();
+  const script = await page.request.get((await card.getByRole("link", { name: "Skript ansehen" }).getAttribute("href"))!);
+  expect(script.status()).toBe(200);
+  expect(await script.text()).toContain('const FORMAT = "haben-lexware-web"');
+
+  await card.getByLabel("Teile der Sicherung").setInputFiles({ name: "lexware-sicherung-teil-01.zip", mimeType: "application/zip", buffer: Buffer.from(webBackupZip()) });
+  await card.getByRole("button", { name: "Hochladen und übernehmen" }).click();
+  await expect(card.getByRole("status")).toContainText("Der Teil ist übernommen", { timeout: 60_000 });
+  const step2 = page.getByRole("region", { name: "Kontakte, Rechnungen und Belege abrufen" });
+  await expect(step2).toContainText("Fertig am");
+  // Die überfällige Ausgabe steht als offener Posten bereit
+  await expect(page.getByRole("region", { name: "Offene Posten übernehmen" })).toContainText("2025-4711");
 });
 
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {

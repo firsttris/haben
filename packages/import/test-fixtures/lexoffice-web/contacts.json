@@ -1,0 +1,88 @@
+[
+  {
+    "organizationId": "aaaaaaaa-0000-4000-8000-000000000000",
+    "id": "c0000000-0000-4000-8000-000000000001",
+    "name": "Musterbau GmbH",
+    "customerNumber": 10001,
+    "vendorNumber": null,
+    "archived": false,
+    "salutation": "",
+    "firstName": "",
+    "lastName": "",
+    "contactType": "COMPANY",
+    "customer": true,
+    "vendor": false,
+    "vatRegistrationId": "DE123456789",
+    "taxNumber": "",
+    "note": "",
+    "version": 2,
+    "addresses": [
+      {
+        "id": "a1",
+        "addressType": "BILLING",
+        "street": "Hauptstr. 1",
+        "supplement": "Hinterhaus",
+        "city": "Berlin",
+        "zip": "10115",
+        "countryCode": "DE",
+        "gln": ""
+      }
+    ],
+    "emailAddresses": [
+      {
+        "id": "e1",
+        "emailAddressType": "BUSINESS",
+        "emailAddress": "rechnung@musterbau.example"
+      }
+    ],
+    "phoneNumbers": [
+      {
+        "id": "p1",
+        "phoneNumberType": "BUSINESS",
+        "number": "030 123456"
+      }
+    ],
+    "bankAccounts": [],
+    "contactPersons": []
+  },
+  {
+    "organizationId": "aaaaaaaa-0000-4000-8000-000000000000",
+    "id": "c0000000-0000-4000-8000-000000000002",
+    "name": "Erika Beispiel",
+    "customerNumber": null,
+    "vendorNumber": 70001,
+    "archived": true,
+    "salutation": "Frau",
+    "firstName": "Erika",
+    "lastName": "Beispiel",
+    "contactType": "INDIVIDUAL_PERSON",
+    "customer": false,
+    "vendor": true,
+    "vatRegistrationId": null,
+    "taxNumber": "",
+    "note": "",
+    "version": 1,
+    "addresses": [
+      {
+        "id": "a2",
+        "addressType": "BILLING",
+        "street": "Nebenweg 2",
+        "supplement": "",
+        "city": "Köln",
+        "zip": "50667",
+        "countryCode": "DE",
+        "gln": ""
+      }
+    ],
+    "emailAddresses": [
+      {
+        "id": "e2",
+        "emailAddressType": "PRIVATE",
+        "emailAddress": "erika@beispiel.example"
+      }
+    ],
+    "phoneNumbers": [],
+    "bankAccounts": [],
+    "contactPersons": []
+  }
+]

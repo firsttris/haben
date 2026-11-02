@@ -1,0 +1,153 @@
+{
+  "list": {
+    "entityId": "20000000-0000-4000-8000-000000000001",
+    "entityType": "bookkeepingvoucher",
+    "entitySubType": "PurchaseInvoice",
+    "identificationNumber": "2025-4711",
+    "amount": "130.90",
+    "openAmount": -130.9,
+    "totalGrossAmount": 130.9,
+    "billingStatus": "overdue",
+    "archived": false,
+    "voucherDate": "2025-10-11T00:00:00.000+02:00",
+    "createdDate": "2025-10-12T01:48:10.000+02:00",
+    "dueDate": "2025-10-25T00:00:00.000+02:00",
+    "contactId": "c0000000-0000-4000-8000-000000000002",
+    "contactName": "Erika Beispiel",
+    "title": "Ausgabe"
+  },
+  "details": {
+    "identificationNumber": "2025-4711",
+    "voucherId": "20000000-0000-4000-8000-000000000001",
+    "voucherType": "PurchaseInvoice",
+    "billingStatus": "overdue",
+    "createdDate": "2025-10-12T01:48:10.201+02:00",
+    "dueDate": "2025-10-25T00:00:00.000+02:00",
+    "contactId": "c0000000-0000-4000-8000-000000000002",
+    "contactName": "Erika Beispiel",
+    "voucherDate": "2025-10-11T00:00:00.000+02:00",
+    "totalGrossAmount": 130.9,
+    "archived": false,
+    "paymentListItems": [
+      {
+        "paymentItemType": "openExpense",
+        "i18nKey": "VOUCHER_LIST_TXT_PAYMENT_GROUP_OPEN_EXPENSE",
+        "amount": 130.9,
+        "deletable": false
+      }
+    ],
+    "consideredEInvoice": true,
+    "voucherImages": [
+      {
+        "voucherImageId": "i1",
+        "pageNumber": 1,
+        "numberOfPages": 1
+      }
+    ],
+    "bookkeepingVoucherItems": [
+      {
+        "bookkeepingVoucherItemId": "b1",
+        "taxRate": {
+          "taxRateId": "v19",
+          "i18nKey": "VSt19",
+          "percent": 19,
+          "calcPercent": 19,
+          "taxRateLevel": "regular",
+          "countryCode": "DE"
+        },
+        "amount": 119,
+        "postingCategory": {
+          "postingCategoryId": "cat-buero",
+          "name": "Bürobedarf",
+          "visibleForIrrecoverableReceivables": false,
+          "type": "outgo",
+          "sequenceNo": 29000,
+          "children": [],
+          "reverseCharge": false
+        },
+        "correctedPostingCategory": {
+          "postingCategoryId": "cat-buero",
+          "name": "Bürobedarf",
+          "visibleForIrrecoverableReceivables": false,
+          "type": "outgo",
+          "sequenceNo": 29000,
+          "children": [],
+          "reverseCharge": false
+        },
+        "sequenceNo": 1
+      },
+      {
+        "bookkeepingVoucherItemId": "b2",
+        "taxRate": {
+          "taxRateId": "v7",
+          "i18nKey": "VSt7",
+          "percent": 7,
+          "calcPercent": 7,
+          "taxRateLevel": "reduced",
+          "countryCode": "DE"
+        },
+        "amount": 11.9,
+        "postingCategory": {
+          "postingCategoryId": "cat-lit",
+          "name": "Fachliteratur",
+          "visibleForIrrecoverableReceivables": false,
+          "type": "outgo",
+          "sequenceNo": 29100,
+          "children": [],
+          "reverseCharge": false
+        },
+        "correctedPostingCategory": {
+          "postingCategoryId": "cat-lit",
+          "name": "Fachliteratur",
+          "visibleForIrrecoverableReceivables": false,
+          "type": "outgo",
+          "sequenceNo": 29100,
+          "children": [],
+          "reverseCharge": false
+        },
+        "sequenceNo": 2
+      }
+    ],
+    "postingType": "expense",
+    "einvoiceType": "ZUGFERD_V2_COMFORT"
+  },
+  "capsa": {
+    "voucherId": "20000000-0000-4000-8000-000000000001",
+    "organizationId": "aaaaaaaa-0000-4000-8000-000000000000",
+    "createdDate": "2025-10-12T01:48:10.201+02:00",
+    "consideredEInvoice": true,
+    "voucherType": "PurchaseInvoice",
+    "voucherImages": [
+      {
+        "id": "i1",
+        "voucherImageId": "i1",
+        "pageNumber": 1,
+        "numberOfPages": 1
+      }
+    ],
+    "contact": {
+      "contactId": "c0000000-0000-4000-8000-000000000002",
+      "name": "Erika Beispiel"
+    },
+    "identificationNumber": "2025-4711",
+    "dueDate": "2025-10-25",
+    "voucherDate": "2025-10-11",
+    "shippingDate": null,
+    "note": "Bürobedarf und Buch",
+    "items": [
+      {
+        "taxRate": "PERCENT_19",
+        "postingCategory": "OfficeSupplies",
+        "amount": 119
+      },
+      {
+        "taxRate": "PERCENT_7",
+        "postingCategory": "Literature",
+        "amount": 11.9
+      }
+    ],
+    "billingState": "open",
+    "taxType": "gross",
+    "totalGrossAmount": 130.9
+  }
+}

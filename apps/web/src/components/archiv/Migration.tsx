@@ -20,6 +20,7 @@ import {
 import { Icon } from "../Icon.tsx";
 import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
+import { WebBackup } from "./WebBackup.tsx";
 
 type MigrationData = Awaited<ReturnType<typeof getMigration>>;
 type ImportRow = NonNullable<MigrationData["lastImport"]>;
@@ -92,6 +93,7 @@ export function Migration({ data }: { data: MigrationData }) {
           connected={data.connection ? { name: data.connection.organizationName || "Lexware Office", since: data.connection.createdAt } : null}
         />
       )}
+      {source === "lexoffice" && !data.connection && <WebBackup />}
       <ImportCard
         key={`${source}-${lastImport?.id ?? "neu"}`}
         source={source}

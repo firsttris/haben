@@ -76,7 +76,7 @@ auf deinem eigenen Server betreibst.
 | 🖥️ [Anlagen und AfA](https://firsttris.github.io/haben/anlagen.html) | Anlagenverzeichnis, lineare AfA, GWG und Sammelposten, AfA-Buchung zum Jahresende |
 | 📊 [Auswertungen](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
 | 📚 [Buchhaltung](https://firsttris.github.io/haben/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export |
-| 📦 [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | Abruf über die Public API oder Umzug nur über die Exporte, DATEV-Buchungsstapel, offene Posten und Anlagen übernehmen |
+| 📦 [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | Abruf über die Public API oder, ohne Tarif XL, als Sicherung über die Web-Oberfläche; DATEV-Buchungsstapel, offene Posten und Anlagen übernehmen |
 | 📦 [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html) | Abruf über die sevDesk-API, gleiches Archiv, gleicher Abgleich |
 | 🔐 Anmeldung und App | Passkey (Passwort als Ersatz), installierbar als PWA auf Handy und Desktop, helle und dunkle Themes |
 | ♿ [Barrierefreiheit](https://firsttris.github.io/haben/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, sichtbarer Fokus, Kontraste in allen Themes; jede Seite in der CI mit axe-core gegen WCAG 2.2 AA geprüft |
@@ -211,7 +211,7 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 | [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung |
 | [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) · [Fristen](https://firsttris.github.io/haben/fristen.html) | ELSTER-Postfach, Vorauszahlungen, alle Steuertermine als Kalender-Feed (iCal) |
 | [Auswertungen und Jahresexport](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
-| [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | API-Abruf, DATEV-Buchungsstapel, offene Posten, Abgleich vor der Kündigung |
+| [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | API-Abruf oder Sicherung über die Web-Oberfläche, DATEV-Buchungsstapel, offene Posten, Abgleich vor der Kündigung |
 | [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html) | API-Abruf aus sevDesk ins selbe Archiv, Unterschiede zu Lexoffice |
 | [KI-Assistenten (MCP)](https://firsttris.github.io/haben/ki-assistenten.html) | Im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen |
 | [Mein ELSTER mit KI-Assistent](https://firsttris.github.io/haben/elster-mit-assistent.html) | Ohne Hersteller-ID abgeben: der Assistent trägt die Voranmeldung ein, du sendest ab |

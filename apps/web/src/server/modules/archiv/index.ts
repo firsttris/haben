@@ -32,6 +32,7 @@ export {
   removeApiKey,
   saveApiKey,
   startImport,
+  startWebImport,
   type LegacyVoucherForVat,
 } from "./lexoffice.ts";
 export {

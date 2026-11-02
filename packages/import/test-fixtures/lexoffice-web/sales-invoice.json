@@ -1,0 +1,158 @@
+{
+  "list": {
+    "entityId": "10000000-0000-4000-8000-000000000001",
+    "entityType": "salesvoucher",
+    "entitySubType": "Invoice",
+    "identificationNumber": "RE0042",
+    "amount": "624.75",
+    "openAmount": 0,
+    "totalGrossAmount": 624.75,
+    "billingStatus": "paid",
+    "archived": false,
+    "voucherDate": "2025-11-03T00:00:00.000+01:00",
+    "createdDate": "2025-11-03T10:17:11.000+01:00",
+    "lastModifiedDate": "2025-11-03T10:17:16.000+01:00",
+    "dueDate": "2025-12-03T00:00:00.000+01:00",
+    "shippingDate": "2025-10-01T00:00:00.000+02:00",
+    "contactId": "c0000000-0000-4000-8000-000000000001",
+    "contactName": "Musterbau GmbH",
+    "note": "Softwareentwicklung",
+    "title": "Rechnung",
+    "bankTransfers": {
+      "hasPending": false,
+      "hasTransferred": false
+    }
+  },
+  "details": {
+    "identificationNumber": "RE0042",
+    "voucherId": "10000000-0000-4000-8000-000000000001",
+    "voucherType": "Invoice",
+    "billingStatus": "paid",
+    "createdDate": "2025-11-03T10:17:11.318+01:00",
+    "dueDate": "2025-12-03T00:00:00.000+01:00",
+    "shippingDate": "2025-10-01T00:00:00.000+02:00",
+    "shippingEndDate": "2025-10-31T00:00:00.000+01:00",
+    "shippingType": "ServicePeriod",
+    "contactId": "c0000000-0000-4000-8000-000000000001",
+    "contactName": "Musterbau GmbH",
+    "voucherDate": "2025-11-03T00:00:00.000+01:00",
+    "totalGrossAmount": 624.75,
+    "claimedGrossAmount": 624.75,
+    "archived": false,
+    "relatedSalesVouchers": [],
+    "downPaymentDeductions": [],
+    "paymentListItems": [
+      {
+        "paymentItemType": "partPaymentFinancialTransaction",
+        "i18nKey": "VOUCHER_LIST_TXT_PAYMENT_FINANCIAL_TRANSACTION_ACCOUNT",
+        "amount": 600,
+        "note": "RE0042",
+        "balanceReferenceType": "PartPayment",
+        "referenceType": "FinancialTransaction",
+        "referenceId": "f1",
+        "postingDate": "2025-11-20T02:00:00.000+01:00",
+        "deletable": true
+      },
+      {
+        "paymentItemType": "partPaymentOther",
+        "i18nKey": "VOUCHER_LIST_TXT_PAYMENT_OTHER",
+        "amount": 24.75,
+        "balanceReferenceType": "PartPayment",
+        "postingDate": "2025-12-01T00:00:00.000+01:00",
+        "deletable": true
+      },
+      {
+        "paymentItemType": "balanced",
+        "i18nKey": "VOUCHER_LIST_TXT_PAYMENT_GROUP_BALANCED",
+        "amount": 0,
+        "deletable": false
+      }
+    ],
+    "source": "LEXWARE",
+    "consideredEInvoice": false,
+    "salesVoucherDocumentCreated": true
+  },
+  "document": {
+    "id": "d1",
+    "salesVoucherId": "10000000-0000-4000-8000-000000000001",
+    "organizationId": "aaaaaaaa-0000-4000-8000-000000000000",
+    "created": "2025-11-03T09:17:11.391Z",
+    "lastModified": "2025-11-03T09:17:16.660Z",
+    "version": 3,
+    "voucher": {
+      "voucherType": "Invoice",
+      "electronicDocumentProfile": "NONE",
+      "relatedVouchers": [],
+      "billingStatus": "paid",
+      "identificationNumber": "RE0042",
+      "number": 42,
+      "language": "de",
+      "contactId": "c0000000-0000-4000-8000-000000000001",
+      "customerNo": 10001,
+      "oneTimeContact": false,
+      "address": {
+        "name": "Musterbau GmbH",
+        "street": "Hauptstr. 1",
+        "zip": "10115",
+        "city": "Berlin",
+        "countryAlpha2Code": "DE"
+      },
+      "items": [
+        {
+          "quantity": 7,
+          "name": "Softwareentwicklung",
+          "itemType": "material",
+          "description": "Lagersoftware",
+          "netPrice": 75,
+          "grossPrice": 89.25,
+          "rowDiscountAmount": 0,
+          "rowAmount": 525,
+          "unitName": "Stunde",
+          "taxRateLabel": "USt 19 %",
+          "taxRatePercentage": 19,
+          "discountPercentage": 0,
+          "positionNumber": "1"
+        }
+      ],
+      "taxAmounts": [
+        {
+          "taxRateId": "t19",
+          "label": "USt 19 %",
+          "labelKey": "USt19",
+          "percent": 19,
+          "taxAmount": 99.75,
+          "amount": 624.75
+        }
+      ],
+      "taxType": "net",
+      "voucherDate": "2025-11-03T10:16:35.640+01:00",
+      "dueDate": "2025-12-03T10:16:35.640+01:00",
+      "shippingDate": "2025-10-01T00:00:00.000+02:00",
+      "shippingEndDate": "2025-10-31T00:00:00.000+01:00",
+      "shippingType": "ServicePeriod",
+      "subTotalAmount": 525,
+      "totalGrossAmount": 624.75,
+      "totalNetAmount": 525,
+      "totalPrepaidGrossAmount": 0,
+      "totalPrepaidNetAmount": 0,
+      "claimedGrossAmount": 624.75,
+      "claimedNetAmount": 525,
+      "claimedTaxAmounts": [
+        {
+          "taxRateId": "t19",
+          "label": "USt 19 %",
+          "labelKey": "USt19",
+          "percent": 19,
+          "taxAmount": 99.75,
+          "amount": 624.75
+        }
+      ],
+      "downPaymentDeductions": [],
+      "paymentTerms": "Zahlungsziel: {paymentRange} Tage ohne Abzug",
+      "paymentRange": 30,
+      "title": "Rechnung",
+      "introduction": "Unsere Leistungen stellen wir Ihnen wie folgt in Rechnung.",
+      "remark": "Vielen Dank für die gute Zusammenarbeit."
+    }
+  }
+}

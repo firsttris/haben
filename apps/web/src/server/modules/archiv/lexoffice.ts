@@ -9,7 +9,10 @@ import {
   mapVoucher,
   type LegacyVoucher,
   type LexFile,
+  readWebExport,
   type LexofficeClientOptions,
+  type LexofficeSource,
+  webExportSource,
 } from "@haben/import";
 import { legacyVatByMonth, type Versteuerung } from "@haben/core";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
@@ -106,12 +109,26 @@ export async function latestImport() {
 const running = new Map<string, AbortController>();
 
 /**
- * Startet den Abruf im Hintergrund. Schon übernommene Belege werden übersprungen, ein neuer Lauf setzt
- * also nach einem Abbruch fort. Gibt die ID des Laufs zurück; den Fortschritt liefert latestImport().
+ * Startet den Abruf über die Public API im Hintergrund. Schon übernommene Belege werden übersprungen, ein neuer Lauf
+ * setzt also nach einem Abbruch fort. Gibt die ID des Laufs zurück; den Fortschritt liefert latestImport().
  */
 export async function startImport(actor: string, options: { wait?: boolean } = {}): Promise<string> {
   const key = await apiKey();
   if (!key) throw new LexofficeError("Zuerst den API-Schlüssel hinterlegen.");
+  return launchImport(actor, (signal) => clientFactory({ apiKey: key, signal }), options);
+}
+
+/**
+ * Übernimmt eine Sicherung aus der Web-Oberfläche (Skript lexware-sicherung.js, für Tarife ohne Public API).
+ * Derselbe Ablauf wie beim Abruf über die API: Kontakte, Belege mit Zahlungen und Dateien; Vorhandenes wird
+ * übersprungen, Teile dürfen nacheinander kommen.
+ */
+export async function startWebImport(actor: string, parts: { name: string; bytes: Uint8Array }[], options: { wait?: boolean } = {}): Promise<string> {
+  const source = webExportSource(readWebExport(parts));
+  return launchImport(actor, () => source, options);
+}
+
+async function launchImport(actor: string, sourceFor: (signal: AbortSignal) => LexofficeSource, options: { wait?: boolean }): Promise<string> {
   const current = await latestImport();
   if (current?.status === "laeuft") throw new LexofficeError("Ein Abruf läuft bereits.");
   // Der eindeutige Index gilt für beide Quellen: auch einen verwaisten sevDesk-Lauf als abgebrochen markieren
@@ -136,8 +153,8 @@ export async function startImport(actor: string, options: { wait?: boolean } = {
   const id = row!.id;
   const controller = new AbortController();
   running.set(id, controller);
-  const client = clientFactory({ apiKey: key, signal: controller.signal });
-  const job = runImport(actor, id, client, progress, controller.signal)
+  const source = sourceFor(controller.signal);
+  const job = runImport(actor, id, source, progress, controller.signal)
     .then(() => finish(id, progress, "fertig", null))
     .catch((error: unknown) =>
       finish(id, progress, controller.signal.aborted ? "abgebrochen" : "fehler", controller.signal.aborted ? "Abgebrochen." : progressMessage(error)),
@@ -164,7 +181,7 @@ export async function finish(id: string, progress: LexofficeImportProgress, stat
     .where(eq(schema.lexofficeImports.id, id));
 }
 
-async function runImport(actor: string, importId: string, client: LexofficeClient, progress: LexofficeImportProgress, signal: AbortSignal) {
+async function runImport(actor: string, importId: string, client: LexofficeSource, progress: LexofficeImportProgress, signal: AbortSignal) {
   let lastSave = 0;
   const save = async (force = false) => {
     if (!force && Date.now() - lastSave < 1000) return;
@@ -250,7 +267,7 @@ async function runImport(actor: string, importId: string, client: LexofficeClien
 async function importVoucher(
   actor: string,
   importId: string,
-  client: LexofficeClient,
+  client: LexofficeSource,
   item: { id: string; type: string },
   categories: Map<string, string>,
   progress: LexofficeImportProgress,
