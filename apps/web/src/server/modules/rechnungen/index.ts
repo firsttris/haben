@@ -3,7 +3,7 @@
  * Auftragsbestätigung und Lieferschein, Versand per E-Mail und Serienrechnungen.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
- * (Lint-Regel haben/modulgrenzen, eslint/modulgrenzen.js).
+ * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { createDunning, dunningDraft, dunningInputSchema, dunningsFor, loadDunningPdf, overdueInvoices } from "./dunning.ts";
 export {

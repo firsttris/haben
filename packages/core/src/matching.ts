@@ -265,7 +265,7 @@ export function findTransferCounterpart<
   const fitting = candidates.filter((c) => c.amount === -tx.amount && c.open === c.amount && daysBetween(c.bookingDate, tx.bookingDate) <= 5);
   const byDate = (a: T, b: T) => daysBetween(a.bookingDate, tx.bookingDate) - daysBetween(b.bookingDate, tx.bookingDate);
   const withIban = fitting
-    .filter((c) => (source !== null && normalizeIban(c.counterpartyIban) === source) || (pattern !== null && pattern.test(c.counterpartyName ?? "")))
+    .filter((c) => (source !== null && normalizeIban(c.counterpartyIban) === source) || (pattern?.test(c.counterpartyName ?? "")))
     .sort(byDate);
   const withoutIban = fitting.filter((c) => !c.counterpartyIban).sort(byDate);
   return withIban[0] ?? withoutIban[0] ?? null;

@@ -89,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
   const actor = "test-user";
   const key = "schluessel-1234567890-abcdefghij";
 
-  function useApi(options: { failVoucher?: boolean } = {}) {
+  function installFakeApi(options: { failVoucher?: boolean } = {}) {
     const api = fakeApi(options);
     lexoffice.setLexofficeClientFactory(
       (o) => new importPkg.LexofficeClient({ ...o, fetch: api.fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }),
@@ -109,7 +109,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
   });
 
   it("lehnt einen falschen Schlüssel ab und speichert den richtigen verschlüsselt", async () => {
-    useApi();
+    installFakeApi();
     await expect(lexoffice.saveApiKey(actor, "falsch-falsch-falsch-falsch")).rejects.toThrow(/lehnt den Schlüssel ab: API-Schlüssel ungültig/);
     expect(await lexoffice.saveApiKey(actor, key)).toEqual({ organizationName: "Testfirma Teufel" });
     const [row] = await sql`select ciphertext from lexoffice_connection`;
@@ -119,7 +119,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
 
   it("übernimmt Kontakte, Rechnungen, Gutschriften und Belege mit Dateien; ein Fehler hält den Lauf nicht auf", async () => {
     await sql`insert into contacts (name) values ('Berliner Kindl GmbH')`;
-    useApi({ failVoucher: true });
+    installFakeApi({ failVoucher: true });
     const id = await lexoffice.startImport(actor, { wait: true });
     const run = await lexoffice.latestImport();
     expect(run).toMatchObject({ id, status: "fertig" });
@@ -141,7 +141,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
   });
 
   it("setzt beim nächsten Abruf fort und überspringt Übernommenes", async () => {
-    const api = useApi();
+    const api = installFakeApi();
     await lexoffice.startImport(actor, { wait: true });
     const run = await lexoffice.latestImport();
     expect(run!.progress).toMatchObject({ imported: 1, skipped: 2, contacts: 0, failed: [] });
@@ -153,7 +153,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
   });
 
   it("startet nie zwei Abrufe gleichzeitig", async () => {
-    useApi();
+    installFakeApi();
     const results = await Promise.allSettled([lexoffice.startImport(actor, { wait: true }), lexoffice.startImport(actor, { wait: true })]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     expect(results.find((r) => r.status === "rejected")).toMatchObject({ reason: expect.objectContaining({ message: "Ein Abruf läuft bereits." }) });

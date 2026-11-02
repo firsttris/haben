@@ -78,7 +78,9 @@ type CalculationLine = Pick<InvoiceLineInput, "quantity" | "unitPrice" | "taxRat
 export function computeInvoice(lines: CalculationLine[], priceMode: PriceMode = "netto"): InvoiceCalculation {
   const amounts = lines.map((line) => lineAmount(line.quantity, line.unitPrice));
   const sums = new Map<BasisPoints, Cents>();
-  lines.forEach((line, i) => sums.set(line.taxRate, (sums.get(line.taxRate) ?? 0) + amounts[i]!));
+  lines.forEach((line, i) => {
+    sums.set(line.taxRate, (sums.get(line.taxRate) ?? 0) + amounts[i]!);
+  });
   const taxes = [...sums.entries()]
     .sort(([a], [b]) => b - a)
     .map(([rate, sum]) => {

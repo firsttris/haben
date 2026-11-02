@@ -81,6 +81,7 @@ async function tabTo(p: Page, name: string, max = 80) {
     await p.keyboard.press("Tab");
     const label = await p.evaluate(() => {
       const el = document.activeElement as HTMLElement | null;
+      // biome-ignore lint/performance/useDomNodeTextContent: gemeint ist der sichtbare Text
       return (el?.getAttribute("aria-label") ?? el?.innerText ?? "").trim();
     });
     if (label === name || label.endsWith(`\n${name}`)) return;

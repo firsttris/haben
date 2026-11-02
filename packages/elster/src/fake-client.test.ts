@@ -65,7 +65,9 @@ describe("fakeProtokollPdf", () => {
     const startxref = Number(/startxref\n(\d+)/.exec(pdf)?.[1]);
     expect(pdf.slice(startxref).startsWith("xref")).toBe(true);
     const offsets = [...pdf.matchAll(/^(\d{10}) 00000 n $/gm)].map((m) => Number(m[1]));
-    offsets.forEach((offset, i) => expect(pdf.slice(offset).startsWith(`${i + 1} 0 obj`)).toBe(true));
+    offsets.forEach((offset, i) => {
+      expect(pdf.slice(offset).startsWith(`${i + 1} 0 obj`)).toBe(true);
+    });
   });
 });
 

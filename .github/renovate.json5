@@ -123,9 +123,8 @@
       automerge: false,
     },
     {
-      // TypeScript 7 (der Compiler in Go) hat keine JavaScript-API mehr; typescript-eslint verlangt
-      // `typescript` >=4.8.4 <6.1.0 und bricht unter 7 mit „typescript-eslint does not support TS 7.0“ ab.
-      // Aufheben, sobald typescript-eslint TypeScript 7 unterstützt.
+      // TypeScript 7 (der Compiler in Go) hat keine JavaScript-API mehr. typescript-eslint ist mit dem
+      // Wechsel zu Biome weg; die Sperre fällt mit dem eigenen Pull Request für TypeScript 7.
       matchPackageNames: ["typescript"],
       allowedVersions: "<7",
     },

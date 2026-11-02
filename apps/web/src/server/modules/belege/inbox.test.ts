@@ -35,7 +35,9 @@ describe.skipIf(!testDatabaseUrl)("Belege per E-Mail (Postgres)", () => {
           // Zu groß: der echte Abruf liefert dann nur die Kopfzeilen
           return { bytes: tooLarge ? source.subarray(0, source.indexOf("\r\n\r\n") + 4) : source, tooLarge };
         },
-        markSeen: async (uid) => void (box.get(uid)!.seen = true),
+        markSeen: async (uid) => {
+          box.get(uid)!.seen = true;
+        },
         close: async () => {},
       };
     });

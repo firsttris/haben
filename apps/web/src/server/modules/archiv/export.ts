@@ -36,7 +36,7 @@ export function csvField(value: CsvValue): string {
 }
 
 export function csvLine(values: CsvValue[]): string {
-  return values.map(csvField).join(";") + "\r\n";
+  return `${values.map(csvField).join(";")}\r\n`;
 }
 
 const encoder = new TextEncoder();
@@ -160,7 +160,7 @@ export async function* zipArchive(files: AsyncIterable<ArchiveFile>, mtime: Date
   };
 
   for await (const file of files) yield* add(file);
-  yield* add({ path: CHECKSUM_FILE, content: encoder.encode(checksums.join("\n") + "\n"), compress: true });
+  yield* add({ path: CHECKSUM_FILE, content: encoder.encode(`${checksums.join("\n")}\n`), compress: true });
   if (written >= 0xffffffff) throw new Error("Das Jahresarchiv überschreitet 4 GB; das kann das ZIP-Format ohne ZIP64 nicht.");
   zip.end();
   yield* drain();
@@ -807,7 +807,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     const submissionRows: CsvValue[][] = [];
     for (const [index, vatReturn] of returns.entries()) {
       const suffix = returns.length > 1 ? `-${index + 1}` : "";
-      yield { path: `${dir}/anmeldung${suffix}.json`, content: encoder.encode(JSON.stringify(vatReturn, null, 2) + "\n"), compress: true };
+      yield { path: `${dir}/anmeldung${suffix}.json`, content: encoder.encode(`${JSON.stringify(vatReturn, null, 2)}\n`), compress: true };
       for (const submission of submissions.filter((s) => s.vatReturnId === vatReturn.id)) {
         const stem = `${today(submission.createdAt)}_${submission.kind}_${submission.id.slice(0, 8)}`;
         const [files] = await db
@@ -889,7 +889,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   };
   // Ohne den Hash des Kalender-Tokens: der gehört zum Zugang, nicht zu den Stammdaten
   const firma = company && { ...company, calendarTokenHash: undefined };
-  yield { path: "stammdaten/firma.json", content: encoder.encode(JSON.stringify(firma, null, 2) + "\n"), compress: true };
+  yield { path: "stammdaten/firma.json", content: encoder.encode(`${JSON.stringify(firma, null, 2)}\n`), compress: true };
 
   // Änderungsprotokoll, seitenweise gelesen ----------------------------------
   yield { path: "protokoll/audit.csv", content: auditCsv(year), compress: true };

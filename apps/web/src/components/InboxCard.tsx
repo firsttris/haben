@@ -135,7 +135,10 @@ export function InboxCard({ data }: { data: Data }) {
             >
               Jetzt abrufen
             </button>
-            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void run(async () => (await remove(), { tone: "ok", text: "Postfach entfernt." }))}>
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void run(async () => {
+                  await remove();
+                  return { tone: "ok", text: "Postfach entfernt." };
+                })}>
               Entfernen
             </button>
           </>

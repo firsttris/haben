@@ -18,7 +18,7 @@ function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom 01.10.2026:";"1.000,00 €"\n""\n`;
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
   const body = rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n");
-  return new TextEncoder().encode("﻿" + header + columns + body + "\n");
+  return new TextEncoder().encode(`﻿${header}${columns}${body}\n`);
 }
 
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -245,7 +245,7 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
   });
 
   it("lässt andere Jahre weg und gibt kein Zertifikat heraus", () => {
-    const all = Object.entries(files).map(([name, bytes]) => name + "\n" + Buffer.from(bytes).toString("latin1"));
+    const all = Object.entries(files).map(([name, bytes]) => `${name}\n${Buffer.from(bytes).toString("latin1")}`);
     for (const content of all) {
       // Das Protokoll ordnet nach Zeitpunkt der Änderung; im Test liegen alle Änderungen in 2026
       if (!content.startsWith("protokoll/")) {

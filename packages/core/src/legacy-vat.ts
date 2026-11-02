@@ -104,7 +104,10 @@ export function legacyVatByMonth(vouchers: LegacyVatVoucher[], versteuerung: Ver
   const at = (date: string) => {
     const key = date.slice(0, 7);
     let month = months.get(key);
-    if (!month) months.set(key, (month = emptyMonth(key)));
+    if (!month) {
+      month = emptyMonth(key);
+      months.set(key, month);
+    }
     return month;
   };
   const addRevenue = (date: string, bucket: Bucket, rows: { rate: BasisPoints; base: Cents; tax: Cents }[]) => {

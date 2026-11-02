@@ -790,7 +790,7 @@ export async function finalizeIssues(id: string, q: Db | Tx = db): Promise<strin
       .select({ number: schema.quotes.number, status: schema.quotes.status, contactId: schema.quotes.contactId, decision: schema.quotes.decision })
       .from(schema.quotes)
       .where(eq(schema.quotes.id, invoice.quoteId));
-    if (!quote || quote.status !== "final") issues.push("Das gewählte Angebot ist nicht festgeschrieben");
+    if (quote?.status !== "final") issues.push("Das gewählte Angebot ist nicht festgeschrieben");
     else if (quote.contactId !== invoice.contactId) issues.push(`Angebot ${quote.number} gehört zu einem anderen Kunden`);
     else if (quote.decision === "abgelehnt") issues.push(`Angebot ${quote.number} ist als abgelehnt markiert`);
     else {

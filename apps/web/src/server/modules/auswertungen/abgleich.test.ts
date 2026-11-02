@@ -5,7 +5,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
-  return new TextEncoder().encode(header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n") + "\n");
+  return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
 }
 
 const eingang = (date: string, purpose: string, amount: string) =>
@@ -237,7 +237,7 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     expect(after.hinweise).toEqual([]);
     expect(abgleich.abweichungen(after.zeilen)).toEqual([]);
     const values = Object.fromEntries(after.zeilen.map((z) => [z.posten, z.journal]));
-    expect(values["AfA"]).toBe(600_000);
+    expect(values.AfA).toBe(600_000);
     expect(values["Sofortabschreibung GWG"]).toBe(70_000);
     expect(values["Private Kfz-Nutzung"]).toBeGreaterThan(0);
     expect(values["Umsatzsteuer auf die private Kfz-Nutzung"]).toBeGreaterThan(0);

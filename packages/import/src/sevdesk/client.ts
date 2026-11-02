@@ -9,7 +9,7 @@ import {
   sevContactSchema,
   sevCreditNoteSchema,
   sevDocumentPosSchema,
-  sevFileBodySchema,
+  type sevFileBodySchema,
   sevFileResponseSchema,
   sevInvoiceSchema,
   sevVoucherPosSchema,

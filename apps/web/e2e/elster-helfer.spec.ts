@@ -96,7 +96,9 @@ test("gesperrte Summe: füllt die freie Einzelposten-Zeile und markiert „Eintr
   await seite(page);
   let geklickt = 0;
   await page.exposeFunction("klick", () => (geklickt += 1));
-  await page.evaluate(() => document.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => (window as unknown as { klick: () => void }).klick())));
+  await page.evaluate(() => {
+    for (const b of document.querySelectorAll("button")) b.addEventListener("click", () => (window as unknown as { klick: () => void }).klick());
+  });
   const ergebnis = await page.evaluate(
     (werte) => (globalThis as unknown as { HabenElster: { ausfuellen: (d: Document, w: unknown) => Record<string, unknown[]> } }).HabenElster.ausfuellen(document, werte),
     {

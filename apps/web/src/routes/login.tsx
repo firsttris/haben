@@ -20,6 +20,7 @@ function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Autofill nur einmal beim Öffnen der Seite anbieten
   useEffect(() => {
     // Passkey-Autofill im Browser anbieten
     if (typeof PublicKeyCredential !== "undefined" && PublicKeyCredential.isConditionalMediationAvailable) {
@@ -27,7 +28,6 @@ function LoginPage() {
         if (available) void authClient.signIn.passkey({ autoFill: true }).then(onResult);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onResult(result: { error?: { message?: string } | null } | undefined) {

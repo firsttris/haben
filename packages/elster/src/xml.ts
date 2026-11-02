@@ -74,7 +74,7 @@ export function testmerkerMismatch(xml: string, test: boolean): string | undefin
 /** Maskiert für Text und Attribute; in XML 1.0 unzulässige Steuerzeichen fallen weg (sonst Parserfehler in ERiC) */
 export function escapeXml(value: string): string {
   return value
-    // eslint-disable-next-line no-control-regex
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

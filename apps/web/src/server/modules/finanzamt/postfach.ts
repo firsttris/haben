@@ -74,7 +74,11 @@ export async function openAppealDeadlines(today: string) {
   const seen = new Set<string>();
   return (await listPostfachDocuments())
     .filter((d) => !d.test && d.frist && d.frist.fristende >= today)
-    .filter((d) => (seen.has(d.bereitstellungId) ? false : (seen.add(d.bereitstellungId), true)))
+    .filter((d) => {
+      if (seen.has(d.bereitstellungId)) return false;
+      seen.add(d.bereitstellungId);
+      return true;
+    })
     .sort((a, b) => a.frist!.fristende.localeCompare(b.frist!.fristende));
 }
 

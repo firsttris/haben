@@ -73,7 +73,10 @@ export function LogoCard({ info }: { info: Info }) {
           <input type="file" accept="image/png,image/jpeg" onChange={onFile} disabled={busy} className="visually-hidden" aria-label="Logodatei" />
         </label>
         {info && (
-          <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void run(async () => (await remove(), "Logo entfernt."))}>
+          <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void run(async () => {
+                await remove();
+                return "Logo entfernt.";
+              })}>
             Entfernen
           </button>
         )}

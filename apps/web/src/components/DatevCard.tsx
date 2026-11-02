@@ -32,11 +32,17 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
       <div className="form-grid">
         <label className="field">
           Beraternummer
-          <input value={beraterNr} onChange={(e) => (setBeraterNr(e.target.value.replace(/\D/g, "")), setSaved(false))} inputMode="numeric" maxLength={7} required />
+          <input value={beraterNr} onChange={(e) => {
+              setBeraterNr(e.target.value.replace(/\D/g, ""));
+              setSaved(false);
+            }} inputMode="numeric" maxLength={7} required />
         </label>
         <label className="field">
           Mandantennummer
-          <input value={mandantNr} onChange={(e) => (setMandantNr(e.target.value.replace(/\D/g, "")), setSaved(false))} inputMode="numeric" maxLength={5} required />
+          <input value={mandantNr} onChange={(e) => {
+              setMandantNr(e.target.value.replace(/\D/g, ""));
+              setSaved(false);
+            }} inputMode="numeric" maxLength={5} required />
         </label>
       </div>
       <p className="small muted" style={{ margin: 0 }}>Beide Nummern bekommst du von deiner Steuerberatung.</p>

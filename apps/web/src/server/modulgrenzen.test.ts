@@ -1,13 +1,11 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Linter } from "eslint";
-import tseslint from "typescript-eslint";
 import { describe, expect, it } from "vitest";
-import haben from "../../../../eslint/modulgrenzen.js";
+import { checkFile } from "../../../../scripts/modulgrenzen/regel.ts";
 
 /*
- * Modulgrenzen (#81, Schritt 6): die Lint-Regel selbst und die Struktur der Module.
+ * Modulgrenzen (#81, Schritt 6): die Prüfung selbst (scripts/modulgrenzen/) und die Struktur der Module.
  * Ob der echte Code die Grenzen einhält, prüft `pnpm lint` in der CI; hier geht es darum, dass die Regel greift.
  */
 
@@ -16,16 +14,10 @@ const modules = join(server, "modules");
 
 /** Meldungen der Regel für eine Datei mit diesem Inhalt an diesem Ort (Pfad relativ zu server/) */
 function lint(path: string, code: string): string[] {
-  const linter = new Linter();
-  const messages = linter.verify(
-    code,
-    [{ files: ["**/*.ts"], languageOptions: { parser: tseslint.parser }, plugins: { haben }, rules: { "haben/modulgrenzen": "error" } }],
-    join(server, path),
-  );
-  return messages.map((m) => m.message);
+  return checkFile(join(server, path), code).map((v) => v.message);
 }
 
-describe("Lint-Regel haben/modulgrenzen", () => {
+describe("Modulgrenzen", () => {
   it("aus einem anderen Modul nur über index.ts", () => {
     expect(lint("modules/umsatzsteuer/vat.ts", `import { loadCompany } from "../stammdaten/index.ts";`)).toEqual([]);
     expect(lint("modules/umsatzsteuer/vat.ts", `import { loadCompany } from "../stammdaten/company.ts";`)).toEqual([

@@ -149,7 +149,7 @@ export async function activateBerechtigung(actor: string, client: ElsterClient, 
   const { b, datenlieferant } = await ehegatte();
   const test = options.kind !== "send";
   const aktuell = await berechtigungEhegatte(test);
-  if (!aktuell || aktuell.status !== "offen") throw new FinanzamtError("Es gibt keinen offenen Antrag zum Freischalten.");
+  if (aktuell?.status !== "offen") throw new FinanzamtError("Es gibt keinen offenen Antrag zum Freischalten.");
   const { ok, message } = await sendBrm(
     actor,
     client,

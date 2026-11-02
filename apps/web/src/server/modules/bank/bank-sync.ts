@@ -100,7 +100,7 @@ export const enableBankingSettingsSchema = z.object({
 export async function saveEnableBankingSettings(actor: string, input: z.input<typeof enableBankingSettingsSchema>): Promise<void> {
   const data = enableBankingSettingsSchema.parse(input);
   const existing = await loadSettingsRow();
-  const pem = data.privateKey?.trim() ? data.privateKey.trim() + "\n" : existing ? decrypt(existing.ciphertext).toString("utf8") : null;
+  const pem = data.privateKey?.trim() ? `${data.privateKey.trim()}\n` : existing ? decrypt(existing.ciphertext).toString("utf8") : null;
   if (!pem) throw new BankError("Der private Schlüssel (.pem) fehlt.");
   try {
     const key = createPrivateKey(pem);

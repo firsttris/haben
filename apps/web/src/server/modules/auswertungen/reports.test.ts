@@ -6,7 +6,7 @@ function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom 01.10.2026:";"10.000,00 €"\n""\n`;
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
   const body = rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n");
-  return new TextEncoder().encode("﻿" + header + columns + body + "\n");
+  return new TextEncoder().encode(`﻿${header}${columns}${body}\n`);
 }
 
 const row = (date: string, party: string, purpose: string, amount: string) =>

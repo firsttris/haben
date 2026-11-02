@@ -35,6 +35,7 @@ function Document({ children }: { children: ReactNode }) {
     <html lang="de" suppressHydrationWarning>
       <head>
         {/* Theme vor dem ersten Zeichnen setzen, sonst blitzt das Standardschema auf */}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: festes Skript aus dem Quelltext, keine Eingaben */}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <HeadContent />
       </head>

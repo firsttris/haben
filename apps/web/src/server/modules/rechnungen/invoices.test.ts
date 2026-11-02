@@ -239,7 +239,7 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     const detail = await contacts.getContact(contactId);
     expect(detail?.versions.map((v) => v.version)).toEqual([2, 1]);
     const again = await invoices.getInvoice(final.id);
-    expect((again?.invoice.buyer as { strasse: string }).strasse).toBe("Hafenstraße 5");
+    expect((again!.invoice.buyer as { strasse: string }).strasse).toBe("Hafenstraße 5");
     await expect(sql`delete from contacts`).rejects.toThrow(/nur ergänzt/);
   }, 30_000);
 

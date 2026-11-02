@@ -149,7 +149,11 @@ describe.skipIf(!testDatabaseUrl)("ELSTER-Postfach (Postgres)", () => {
     expect(await postfach.runDuePostfachFetch(client, "12345")).toBeNull();
     const later = new Date(Date.now() + 21 * 60 * 60 * 1000);
     const pins: string[] = [];
-    const spy = { ...client, fetchPostfach: (xml: string, cert: Uint8Array, pin: string, opts: Parameters<typeof client.fetchPostfach>[3]) => (pins.push(pin), client.fetchPostfach(xml, cert, pin, opts)) };
+    const spy = { ...client, fetchPostfach: (xml: string, cert: Uint8Array, pin: string, opts: Parameters<typeof client.fetchPostfach>[3]) => {
+        pins.push(pin);
+        return client.fetchPostfach(xml, cert, pin, opts);
+      },
+    };
     expect(await postfach.runDuePostfachFetch(spy, "12345", later)).toMatchObject({ ok: true });
     expect(pins).toEqual(["geheim"]);
     expect(await postfach.runDuePostfachFetch(spy, undefined, later)).toBeNull();

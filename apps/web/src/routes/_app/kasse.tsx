@@ -89,6 +89,7 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
   const create = useServerFn(createCashEntryFn);
   const [kind, setKind] = useState<CashBooking>("einlage");
   const [busy, setBusy] = useState(false);
+  // biome-ignore lint/complexity/useMathMinMax: Datumstexte (JJJJ-MM-TT), Math.min ergäbe NaN
   const defaultDate = `${data.year}-12-31` < data.today ? `${data.year}-12-31` : data.today;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {

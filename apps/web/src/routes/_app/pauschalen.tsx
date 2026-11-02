@@ -168,6 +168,7 @@ function useSubmit(onNotice: (n: Notice) => void) {
 }
 
 /** Heute im laufenden Jahr, sonst der letzte Tag des gewählten Jahres */
+// biome-ignore lint/complexity/useMathMinMax: Datumstexte (JJJJ-MM-TT), Math.min ergäbe NaN
 const defaultDate = (data: Data) => (`${data.year}-12-31` < data.today ? `${data.year}-12-31` : data.today);
 
 function HomeofficeForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => void }) {
@@ -207,7 +208,7 @@ function HomeofficeForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) 
             type="month"
             value={month}
             min={`${data.year}-01`}
-            max={`${data.year}-12` < data.today.slice(0, 7) ? `${data.year}-12` : data.today.slice(0, 7)}
+            max={defaultDate(data).slice(0, 7)}
             onChange={(e) => setMonth(e.target.value)}
             required
           />

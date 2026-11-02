@@ -2,7 +2,7 @@
  * Auswertungen: EÜR und offene Posten, Abgleich Journal ↔ Umsatzsteuer und EÜR, Integritätsprüfung und DATEV-Export.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
- * (Lint-Regel haben/modulgrenzen, eslint/modulgrenzen.js).
+ * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { abgleichIssues, euerAbgleich, vatAbgleich } from "./abgleich.ts";
 export { datevExport, DatevExportError, datevNumbersSchema, saveDatevNumbers } from "./datev-export.ts";

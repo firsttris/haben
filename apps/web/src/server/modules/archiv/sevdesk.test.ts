@@ -127,7 +127,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
   let sql: postgres.Sql;
   const actor = "test-user";
 
-  function useApi(options: { failVoucher?: boolean } = {}) {
+  function installFakeApi(options: { failVoucher?: boolean } = {}) {
     const api = fakeApi(options);
     sevdesk.setSevdeskClientFactory(
       (o) => new importPkg.SevdeskClient({ ...o, fetch: api.fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }),
@@ -148,7 +148,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
   });
 
   it("lehnt einen falschen Token ab und speichert den richtigen verschlüsselt", async () => {
-    useApi();
+    installFakeApi();
     await expect(sevdesk.saveSevdeskKey(actor, "falsch-falsch-falsch-falsch")).rejects.toThrow(/lehnt den Token ab: API-Token ungültig/);
     expect(await sevdesk.saveSevdeskKey(actor, TOKEN)).toEqual({ bookkeepingVersion: "2.0" });
     const [row] = await sql`select ciphertext from sevdesk_connection`;
@@ -158,7 +158,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
 
   it("übernimmt Kontakte, Rechnungen und Belege mit Dateien; ein Fehler hält den Lauf nicht auf", async () => {
     await sql`insert into contacts (name) values ('Berliner Kindl GmbH')`;
-    useApi({ failVoucher: true });
+    installFakeApi({ failVoucher: true });
     const id = await sevdesk.startSevdeskImport(actor, { wait: true });
     const run = await sevdesk.latestSevdeskImport();
     expect(run).toMatchObject({ id, status: "fertig", source: "sevdesk" });
@@ -188,7 +188,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
   });
 
   it("setzt beim nächsten Abruf fort und holt die Datei des Belegs", async () => {
-    const api = useApi();
+    const api = installFakeApi();
     await sevdesk.startSevdeskImport(actor, { wait: true });
     const run = await sevdesk.latestSevdeskImport();
     expect(run!.progress).toMatchObject({ imported: 1, skipped: 2, contacts: 0, failed: [] });

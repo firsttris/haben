@@ -56,7 +56,9 @@ function groupBy<K extends string>(entries: { type: string | null | undefined; v
   const groups: Partial<Record<K, string[]>> = {};
   for (const { type, value } of entries) {
     const key = keys[type ?? "OTHER"] ?? keys.OTHER!;
-    if (value?.trim()) (groups[key] ??= []).push(value.trim());
+    if (!value?.trim()) continue;
+    groups[key] ??= [];
+    groups[key].push(value.trim());
   }
   return groups;
 }
