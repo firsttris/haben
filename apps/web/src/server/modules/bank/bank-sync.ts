@@ -25,7 +25,7 @@ export const BANK_SYNC_ACTOR = "system:bankabruf";
 const MAX_CONSENT_DAYS = 180;
 /** Folgeabrufe überlappen, damit spät gebuchte Umsätze nicht verloren gehen; Doppelte erkennt der Hash */
 const OVERLAP_DAYS = 7;
-/** Ohne vorhandene Umsätze: ab Jahresbeginn, und wenn die Bank das ablehnt, die letzten 89 Tage */
+/** Ohne vorhandene Umsätze: ab dem gewählten Tag (Vorgabe Jahresbeginn), und wenn die Bank das ablehnt, die letzten 89 Tage */
 const FALLBACK_HISTORY_DAYS = 89;
 /** Der automatische Abruf läuft höchstens so oft (PSD2 erlaubt ohne Nutzer etwa vier Abrufe am Tag) */
 const AUTO_SYNC_INTERVAL_MS = 20 * 60 * 60 * 1000;
@@ -347,16 +347,20 @@ async function lastFileBooking(bankAccountId: string): Promise<string | null> {
 }
 
 /**
- * Erster Abruf eines Kontos: am Tag nach dem letzten vorhandenen Umsatz, sonst ab dem beim Verbinden gewählten Tag
- * (Umzug unter dem Jahr), sonst ab Jahresbeginn. Der gewählte Tag geht nie in Tage zurück, die schon Umsätze haben:
- * Die Bank formatiert den Verwendungszweck in der API oft anders als in der Datei, dann passten die Hashes nicht.
- * fallback: die letzten 89 Tage, wenn die Bank den Zeitraum ablehnt; nur ohne gewählten Tag.
+ * Erster Abruf eines Kontos: ab dem beim Verbinden gewählten Tag (Vorgabe Jahresbeginn, beim Umzug unter dem Jahr
+ * später), aber nie in Tage, die schon Umsätze haben: Die Bank formatiert den Verwendungszweck in der API oft anders
+ * als in der Datei, dann passten die Hashes nicht. Ohne gewählten Tag (Verbindung von vor Migration 0087) am Tag nach
+ * dem letzten vorhandenen Umsatz, sonst ab Jahresbeginn.
+ * fallback: die letzten 89 Tage, wenn die Bank einen weiter zurückliegenden Beginn ablehnt, nie vor dem gewählten Tag.
+ * Auch für einen gewählten Tag, denn das Formular schickt die Vorgabe Jahresbeginn immer mit.
  */
 export function firstSyncStart(latestBooking: string | null, fetchFrom: string | undefined, today: string): { from: string; fallback: string | null } {
   const afterLatest = latestBooking ? addDays(latestBooking, 1) : null;
-  if (fetchFrom) return { from: afterLatest && afterLatest > fetchFrom ? afterLatest : fetchFrom, fallback: null };
-  if (afterLatest) return { from: afterLatest, fallback: null };
-  return { from: `${today.slice(0, 4)}-01-01`, fallback: addDays(today, -FALLBACK_HISTORY_DAYS) };
+  // Nahtlos an vorhandene Umsätze; ohne Rückfall, der ließe still eine Lücke dazwischen
+  if (afterLatest && (!fetchFrom || afterLatest > fetchFrom)) return { from: afterLatest, fallback: null };
+  const from = fetchFrom ?? `${today.slice(0, 4)}-01-01`;
+  const recent = addDays(today, -FALLBACK_HISTORY_DAYS);
+  return { from, fallback: recent > from ? recent : null };
 }
 
 /** Erster Tag des Abrufs für ein Konto */

@@ -2,9 +2,11 @@ import { generateKeyPairSync } from "node:crypto";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { today } from "../../today.ts";
 
 const IBAN_A = "DE12500105170648489890";
 const IBAN_B = "DE02120300000000202051";
+const IBAN_C = "DE75512108001245126199";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -25,10 +27,10 @@ function tx(ref: string, date: string, amount: string, indicator: "CRDT" | "DBIT
   };
 }
 
-/** Nachgebaute Enable-Banking-API mit zwei Konten und einer Kreditkarte ohne IBAN */
+/** Nachgebaute Enable-Banking-API mit zwei Konten und einer Kreditkarte ohne IBAN; mit newAccount ein drittes Konto ohne Umsätze */
 function fakeApi() {
   const calls: { method: string; path: string; query: URLSearchParams; body: unknown }[] = [];
-  const state = { failUntilFallback: false, expired: false, sessions: 0, onlyForeign: false };
+  const state = { failUntilFallback: false, expired: false, sessions: 0, onlyForeign: false, newAccount: false };
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
@@ -54,6 +56,7 @@ function fakeApi() {
           { uid: "card", account_id: {}, name: "Kreditkarte", currency: "EUR" },
           // Unterkonto in Fremdwährung unter derselben IBAN (z. B. Finom)
           { uid: `uid-usd-${state.sessions}`, account_id: { iban: IBAN_A }, name: "USD", currency: "USD" },
+          ...(state.newAccount ? [{ uid: `uid-c-${state.sessions}`, account_id: { iban: IBAN_C }, name: "Rücklagen", currency: "EUR" }] : []),
         ],
       });
     }
@@ -63,7 +66,9 @@ function fakeApi() {
     if (match?.[2] === "transactions") {
       const from = url.searchParams.get("date_from")!;
       if (match[1]!.startsWith("uid-b") && state.failUntilFallback && from.endsWith("-01-01")) return json({ message: "Wrong transactions period requested" }, 422);
-      const all = match[1]!.startsWith("uid-a")
+      const all = match[1]!.startsWith("uid-c")
+        ? []
+        : match[1]!.startsWith("uid-a")
         ? [tx("a1", "2026-09-05", "100.00", "CRDT", "Altbestand"), tx("a2", "2026-09-20", "49.99", "DBIT", "Telefon 9/2026"), tx("a3", "2026-09-28", "200.00", "CRDT", "RE-1")]
         : [tx("b1", "2026-09-30", "10.00", "CRDT", "Zinsen")];
       return json({ transactions: all.filter((t) => t.booking_date >= from), continuation_key: null });
@@ -124,7 +129,8 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
 
   it("verbindet die Bank, legt fehlende Konten an und holt nur Umsätze nach dem letzten CSV-Import", async () => {
     api.state.failUntilFallback = true;
-    const result = await connect();
+    // Wie das Formular: „Umsätze abrufen ab“ steht auf dem Jahresbeginn
+    const result = await connect("code-1", `${today().slice(0, 4)}-01-01`);
     expect(result.ok).toBe(true);
     expect(result.message).toContain("Testbank verbunden, 3 neue Umsätze.");
     expect(result.message).toContain("1 Konten ohne IBAN");
@@ -254,12 +260,22 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
   });
 
   it("firstSyncStart: gewählter Tag statt Jahresbeginn, aber nie in Tage mit vorhandenen Umsätzen", () => {
-    expect(sync.firstSyncStart(null, undefined, "2026-11-02")).toEqual({ from: "2026-01-01", fallback: expect.any(String) });
+    // Heute 02.11.2026, die letzten 89 Tage beginnen am 05.08.
+    expect(sync.firstSyncStart(null, undefined, "2026-11-02")).toEqual({ from: "2026-01-01", fallback: "2026-08-05" });
+    // Vorgabe im Formular: Jahresbeginn; lehnt die Bank ab, die letzten 89 Tage wie ohne gewählten Tag
+    expect(sync.firstSyncStart(null, "2026-01-01", "2026-11-02")).toEqual({ from: "2026-01-01", fallback: "2026-08-05" });
     // Umzug unter dem Jahr: Buchhaltung in Haben ab 01.11.
     expect(sync.firstSyncStart(null, "2026-11-01", "2026-11-02")).toEqual({ from: "2026-11-01", fallback: null });
+    expect(sync.firstSyncStart(null, "2026-07-01", "2026-11-02")).toEqual({ from: "2026-07-01", fallback: "2026-08-05" });
+    expect(sync.firstSyncStart(null, "2026-08-05", "2026-11-02")).toEqual({ from: "2026-08-05", fallback: null });
+    // Vorhandene Umsätze: weiter am Tag danach, ohne Rückfall
     expect(sync.firstSyncStart("2026-10-31", "2026-10-01", "2026-11-02")).toEqual({ from: "2026-11-01", fallback: null });
-    expect(sync.firstSyncStart("2026-09-30", "2026-11-01", "2026-11-02")).toEqual({ from: "2026-11-01", fallback: null });
     expect(sync.firstSyncStart("2026-10-31", undefined, "2026-11-02")).toEqual({ from: "2026-11-01", fallback: null });
+    // Umsätze vor dem gewählten Tag: der gewählte Tag gilt
+    expect(sync.firstSyncStart("2026-09-30", "2026-11-01", "2026-11-02")).toEqual({ from: "2026-11-01", fallback: null });
+    expect(sync.firstSyncStart("2025-06-30", "2026-01-01", "2026-11-02")).toEqual({ from: "2026-01-01", fallback: "2026-08-05" });
+    // Verbindung ohne gewählten Tag (vor Migration 0087): nahtlos an die Datei, auch aus dem Vorjahr
+    expect(sync.firstSyncStart("2025-06-30", undefined, "2026-11-02")).toEqual({ from: "2025-07-01", fallback: null });
   });
 
   it("merkt sich den gewählten Abrufbeginn, gibt ihn aber nicht an schon abgerufene Konten weiter", async () => {
@@ -272,6 +288,23 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(connection!.fetch_from).toBe("2026-10-01");
     // Beide Konten haben einen Abrufstand: der Abruf macht dort weiter, der gewählte Tag gilt nur für neue Konten
     expect(connection!.accounts.map((a: { fetchFrom?: string }) => a.fetchFrom)).toEqual([undefined, undefined]);
+  });
+
+  it("ruft ein neues Konto ab dem gewählten Tag ab, die anderen beim Abrufstand", async () => {
+    api.state.newAccount = true;
+    api.calls.length = 0;
+    const result = await connect("code-4", "2026-10-15");
+    api.state.newAccount = false;
+    expect(result.ok).toBe(true);
+    const from = (prefix: string) => api.calls.find((c) => c.path.startsWith(`/accounts/${prefix}`) && c.path.endsWith("/transactions"))!.query.get("date_from");
+    expect(from("uid-c")).toBe("2026-10-15");
+    expect(from("uid-a")).not.toBe("2026-10-15");
+    const [connection] = await sync.listConnections();
+    expect(connection!.accounts.map((a) => [a.iban, a.fetchFrom])).toEqual([
+      [IBAN_A, undefined],
+      [IBAN_B, undefined],
+      [IBAN_C, "2026-10-15"],
+    ]);
   });
 
   it("trennt eine Verbindung, die Umsätze bleiben", async () => {
