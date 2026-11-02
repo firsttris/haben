@@ -16,7 +16,7 @@
     "release:minor": "npm version minor",
     "release:major": "npm version major",
     "postversion": "git push --follow-tags",
-    "lint": "eslint .",
+    "lint": "biome lint --error-on-warnings && node scripts/modulgrenzen/pruefen.ts",
     "test": "vitest run",
     "db:generate": "pnpm --filter @haben/web db:generate",
     "db:migrate": "pnpm --filter @haben/web db:migrate",
@@ -25,12 +25,9 @@
     "docs:social-preview": "node scripts/social-preview/render.mjs"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "eslint": "^10.11.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.13.0",
+    "@biomejs/biome": "2.6.4",
+    "oxc-parser": "^0.156.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.71.0",
     "vitest": "^5.0.3"
   }
 }

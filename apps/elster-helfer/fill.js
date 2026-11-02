@@ -23,7 +23,7 @@
  *
  * Die Erweiterung klickt nie: Seiten wechseln, prüfen und absenden macht der Nutzer.
  */
-(function (root) {
+((root) => {
   const FORMAT = "haben-mein-elster";
 
   const KENNUNG = /^(E\d{7}|Kz\d{2}|Zeitraum)$/;
@@ -34,7 +34,7 @@
    * Mein ELSTER gerechnete Steuer zu Kz 81, nicht Kz 81 selbst.
    */
   function kennungOf(el) {
-    const pfad = el.getAttribute && el.getAttribute("data-eru-name");
+    const pfad = el.getAttribute?.("data-eru-name");
     if (pfad) {
       const letzter = pfad.split("/").pop();
       return KENNUNG.test(letzter) ? letzter : null;
@@ -68,7 +68,7 @@
 
   function beschriftung(doc, el) {
     const label = el.id ? doc.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
-    return ((label && label.textContent) || el.getAttribute("aria-label") || el.name).trim().replace(/\s+/g, " ");
+    return ((label?.textContent) || el.getAttribute("aria-label") || el.name).trim().replace(/\s+/g, " ");
   }
 
   function feuern(el, ...typen) {
@@ -163,6 +163,7 @@
    */
   function personAufSeite(doc, personen) {
     if (!personen) return null;
+    // biome-ignore lint/performance/useDomNodeTextContent: gemeint ist der sichtbare Text
     const kopf = ((doc.querySelector("main") || doc.body).innerText || "").slice(0, 600);
     for (const key of ["A", "B"]) {
       if (personen[key] && kopf.includes(`(${personen[key]})`)) return key;

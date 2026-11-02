@@ -153,7 +153,11 @@ function ArticlesPage() {
 
   const formOpen = creating || editing !== null;
   const newButton = (
-    <button type="button" className="btn btn-primary" onClick={() => (setEditing(null), setCreating(true), setNotice(null))}>
+    <button type="button" className="btn btn-primary" onClick={() => {
+        setEditing(null);
+        setCreating(true);
+        setNotice(null);
+      }}>
       Neuer Artikel
     </button>
   );
@@ -224,7 +228,10 @@ function ArticlesPage() {
                   <div className="small muted">{a.taxRate / 100} %</div>
                   <div className="actions" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
                     {!a.archivedAt && (
-                      <button type="button" className="btn btn-sm" onClick={() => (setCreating(false), setEditing(a))} aria-label={`${a.description} bearbeiten`}>
+                      <button type="button" className="btn btn-sm" onClick={() => {
+                        setCreating(false);
+                        setEditing(a);
+                      }} aria-label={`${a.description} bearbeiten`}>
                         Bearbeiten
                       </button>
                     )}

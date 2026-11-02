@@ -261,7 +261,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
 /** Entfernt in XML 1.0 unzulässige Zeichen aus allen Texten (etwa ein aus Word kopierter vertikaler Tab), sonst lehnt der Empfänger das XML ab */
 function withoutInvalidXmlChars<T>(value: T): T {
   if (typeof value === "string") {
-    // eslint-disable-next-line no-control-regex
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
     return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "") as T;
   }
   if (Array.isArray(value)) return value.map(withoutInvalidXmlChars) as T;

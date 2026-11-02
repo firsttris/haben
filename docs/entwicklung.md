@@ -71,7 +71,7 @@ docker compose exec db createdb -U haben haben_e2e
 | `pnpm dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `pnpm build` | Baut alle Pakete, die ein `build`-Skript haben (praktisch `apps/web`) |
 | `pnpm typecheck` | `tsc -p .` in jedem Paket |
-| `pnpm lint` | ESLint über das ganze Repository |
+| `pnpm lint` | Biome über das ganze Repository, danach die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) |
 | `pnpm test` | Alle Tests mit Vitest |
 | `pnpm db:generate` | Migration aus Schemaänderungen erzeugen (drizzle-kit) |
 | `pnpm db:migrate` | Ausstehende Migrationen anwenden |
@@ -207,13 +207,14 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 - **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
 - **Steuersätze in Basispunkten** (`BasisPoints`): 1900 = 19 %, 700 = 7 %.
 - **Mengen in Tausendsteln**: 152 Stunden = 152000, 0,5 Tage = 500.
+- **Lint mit Biome:** Abgeschaltete Regeln stehen mit Grund in `biome.jsonc`. Eine Ausnahme an einer Stelle steht direkt davor als `// biome-ignore lint/<gruppe>/<regel>: <Grund>`.
 - **Imports mit `.ts`-Endung** (`allowImportingTsExtensions`). Der ERiC-Worker und das Migrationsskript laufen per Type Stripping direkt aus den Quellen.
 - **Oberfläche auf Deutsch**, auch Fehlermeldungen, die beim Nutzer ankommen.
 - **Barrierefrei und per Tastatur bedienbar:** echte Knöpfe und Links, ein Label für jedes Feld, sichtbarer Fokus, Text in Akzentfarbe mit `var(--link)`. `barrierefreiheit.spec.ts` prüft das in der CI ([Barrierefreiheit und Tastatur](barrierefreiheit.md)).
 - **Unveränderlichkeit (GoBD) in der Datenbank:** Festgeschriebene Rechnungen, Buchungen, gesendete Voranmeldungen, Bankumsätze und übernommene Lexoffice-Daten sperren Postgres-Trigger gegen `UPDATE` und `DELETE`. Korrekturen sind neue Datensätze (Storno, Gegenbuchung, berichtigte Anmeldung). Beim Festschreiben einer Buchung prüft ein Trigger Soll = Haben.
 - **Audit-Log:** Änderungen laufen über `withActor` (`apps/web/src/server/db/actor.ts`), damit der Trigger sie dem Nutzer zuschreibt.
 - **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.
-- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Lint-Regel `haben/modulgrenzen` bricht die CI sonst ab. Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
+- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `pnpm lint` und damit die CI sonst ab. Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
 
 ## Projektstruktur
@@ -222,7 +223,7 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 | --- | --- |
 | `apps/web/src/routes` | Seiten (TanStack Router) und API-Routen unter `api/` |
 | `apps/web/src/server` | `modules/` mit der Serverlogik je Fachbereich (öffentlich über `index.ts`), `db/` mit Schema und Migrationsskript, `functions/` mit den Server-Funktionen, daneben gemeinsame Infrastruktur |
-| `eslint/` | Eigene Lint-Regel für die Modulgrenzen |
+| `scripts/modulgrenzen/` | Prüfung der Modulgrenzen, läuft mit `pnpm lint` |
 | `apps/web/src/components`, `lib` | React-Komponenten, Auth-Client, Formatierung |
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |

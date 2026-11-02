@@ -93,6 +93,7 @@ async function imapConnect(settings: InboxSettings, password: string): Promise<I
         return { bytes: Buffer.concat([head.headers, Buffer.from("\r\n")]), tooLarge: true };
       }
       const message = await client.fetchOne(String(uid), { source: true }, { uid: true });
+      // biome-ignore lint/complexity/useOptionalChain: fetchOne liefert auch false, ?. prüft nur auf null und undefined
       if (!message || !message.source) throw new InboxError(`Mail ${uid} ließ sich nicht laden.`);
       return { bytes: message.source, tooLarge: false };
     },
@@ -181,7 +182,7 @@ const isFailure = (row: { skipped: string[]; documentIds: string[] }) => row.doc
 const retryKey = (messageId: string) => `${messageId.slice(0, 980)} (nachgeholt)`;
 
 /** Steuerzeichen aus Mail-Kopfzeilen entfernen: Postgres-Text nimmt kein NUL an, und im Beleg stört der Rest */
-// eslint-disable-next-line no-control-regex
+// biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
 const clean = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, "");
 
 /** Die Ursache statt der Drizzle-Hülle mit der ganzen Abfrage */

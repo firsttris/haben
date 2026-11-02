@@ -79,7 +79,7 @@ function owed(list: Awaited<ReturnType<typeof listInvoices>>) {
 
 async function openInvoice(invoiceId: string, today: string) {
   const invoice = owed(await listInvoices(today)).find((i) => i.id === invoiceId);
-  if (!invoice || invoice.status !== "final") throw new DunningError("Rechnung nicht gefunden.");
+  if (invoice?.status !== "final") throw new DunningError("Rechnung nicht gefunden.");
   if (invoice.kind !== "rechnung" || invoice.open <= 0) throw new DunningError("Für diese Rechnung ist nichts offen.");
   return invoice;
 }

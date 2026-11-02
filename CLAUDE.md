@@ -95,8 +95,8 @@ split them only in a pull request of their own, not on the side. A refactor chan
 
 - **Money in whole cents** (`Cents`), tax rates in basis points (1900 = 19 %), quantities in
   thousandths. Never floats.
-- **Module boundaries:** import another server module only through its `index.ts`; the lint rule
-  `haben/modulgrenzen` fails CI otherwise. Server functions in `server/functions/` stay thin:
+- **Module boundaries:** import another server module only through its `index.ts`; the
+  check in `scripts/modulgrenzen/` (part of `pnpm lint`) fails CI otherwise. Server functions in `server/functions/` stay thin:
   `authMiddleware`, Zod validation, then a call into `server/modules/`.
 - **GoBD:** finalised invoices, bookings, sent VAT returns, bank transactions and imported Lexoffice
   data are locked by Postgres triggers; corrections are new records (Storno, counter-booking).

@@ -6,7 +6,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
-  return new TextEncoder().encode(header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n") + "\n");
+  return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
 }
 
 const row = (date: string, name: string, purpose: string, amount: string, type = "Eingang") =>
@@ -138,7 +138,10 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
 
     await bookedDocument("2026-10-06", 1_000, 190);
     let xml = "";
-    const spy = { validate: async (body: string) => ((xml = body), new EricGeprueftClient().validate(body)), send: new EricGeprueftClient().send, fetchPostfach: new EricGeprueftClient().fetchPostfach, fetchBelege: new EricGeprueftClient().fetchBelege };
+    const spy = { validate: async (body: string) => {
+        xml = body;
+        return new EricGeprueftClient().validate(body);
+      }, send: new EricGeprueftClient().send, fetchPostfach: new EricGeprueftClient().fetchPostfach, fetchBelege: new EricGeprueftClient().fetchBelege };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
     expect(xml).toContain("<Kz66>8.06</Kz66>");
     const [stored] = await sql`select kz66 from vat_returns where id = ${draft.id}`;
@@ -180,7 +183,10 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     const draft = await vat.saveDraft(actor, october, { mode: "berechnet" });
     expect(draft).toMatchObject({ kz21: 500_000, kz45: 500_000, kz83: 0 });
     let xml = "";
-    const spy = { validate: async (body: string) => ((xml = body), new EricGeprueftClient().validate(body)), send: new EricGeprueftClient().send, fetchPostfach: new EricGeprueftClient().fetchPostfach, fetchBelege: new EricGeprueftClient().fetchBelege };
+    const spy = { validate: async (body: string) => {
+        xml = body;
+        return new EricGeprueftClient().validate(body);
+      }, send: new EricGeprueftClient().send, fetchPostfach: new EricGeprueftClient().fetchPostfach, fetchBelege: new EricGeprueftClient().fetchBelege };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
     expect(xml).toContain("<Kz21>5000</Kz21>");
     expect(xml).toContain("<Kz45>5000</Kz45>");
@@ -236,7 +242,10 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     // Steuer und Vorsteuer aus § 13b heben sich auf
     expect(draft).toMatchObject({ kz46: 10_000, kz47: 1_900, kz84: 5_000, kz85: 950, kz67: 2_850, kz83: -616 });
     let xml = "";
-    const spy = { validate: async (body: string) => ((xml = body), new EricGeprueftClient().validate(body)), send: new EricGeprueftClient().send, fetchPostfach: new EricGeprueftClient().fetchPostfach, fetchBelege: new EricGeprueftClient().fetchBelege };
+    const spy = { validate: async (body: string) => {
+        xml = body;
+        return new EricGeprueftClient().validate(body);
+      }, send: new EricGeprueftClient().send, fetchPostfach: new EricGeprueftClient().fetchPostfach, fetchBelege: new EricGeprueftClient().fetchBelege };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
     expect(xml).toMatch(/<Kz46>100<\/Kz46>\s*<Kz47>19.00<\/Kz47>/);
     expect(xml).toContain("<Kz67>28.50</Kz67>");

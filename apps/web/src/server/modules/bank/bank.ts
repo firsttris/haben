@@ -878,7 +878,7 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
 
   if (part.kind === "invoice") {
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
-    if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+    if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
     const paidOn = (invoiceId: string) => settledOn(tx, "invoice_id", invoiceId);
     let open: number;
     if (invoice.kind === "storno") {
@@ -910,7 +910,7 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
   } else if (part.kind === "document") {
     // Sperre wie bei der Rechnung: Zwei gleichzeitige Zuordnungen könnten den Beleg sonst überzahlen
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, part.documentId)).for("update");
-    if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
+    if (doc?.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
     if (doc.payment !== "bank") throw new BankError("Der Beleg ist als privat bezahlt gebucht.");
     const open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
     if (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open)) {
@@ -1122,7 +1122,7 @@ async function bookWriteOff(
   if (input.kind === "kursdifferenz") {
     if ("invoiceId" in input) {
       const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
-      if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht gefunden.");
+      if (invoice?.status !== "final") throw new BankError("Rechnung nicht gefunden.");
       if (invoice.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Rechnungen in Fremdwährung.");
       amount = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
       const totals = (await invoiceTotalsById([invoice.id], tx)).get(invoice.id)!;
@@ -1132,7 +1132,7 @@ async function bookWriteOff(
       target = { invoiceId: invoice.id, documentId: null, taxShares, taxSharesInvoiceId: invoice.id };
     } else {
       const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
-      if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
+      if (doc?.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
       if (doc.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Belegen in Fremdwährung.");
       amount = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
       lines = exchangeDifferencePosting({ kind: "document" }, amount, company.kontenrahmen);
@@ -1142,7 +1142,7 @@ async function bookWriteOff(
     if (amount === 0) return 0;
   } else if (input.kind === "skontoErhalten") {
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
-    if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
+    if (doc?.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
     if (doc.payment !== "bank") throw new BankError("Der Beleg ist privat oder bar bezahlt; dort gibt es nichts auszubuchen.");
     if (doc.reverseCharge) throw new BankError("Skonto auf Belege mit § 13b wird nicht unterstützt.");
     if (doc.privateShare > 0) throw new BankError("Skonto auf Belege mit Privatanteil wird nicht unterstützt.");
@@ -1160,7 +1160,7 @@ async function bookWriteOff(
     target = { invoiceId: null, documentId: doc.id };
   } else {
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
-    if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht gefunden.");
+    if (invoice?.status !== "final") throw new BankError("Rechnung nicht gefunden.");
     if (invoice.kind === "storno") throw new BankError("Eine Stornorechnung lässt sich nicht ausbuchen.");
     const [storno] = await tx
       .select({ id: schema.invoices.id })
@@ -1251,12 +1251,12 @@ async function allocateWithExchangeDifference(
   let open: number;
   if (target.kind === "invoice") {
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, target.invoiceId));
-    if (!invoice || invoice.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
+    if (invoice?.status !== "final") throw new BankError("Rechnung nicht zuordenbar.");
     if (invoice.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Rechnungen in Fremdwährung.");
     open = invoiceOpen({ ...invoice, paid: await settledOn(tx, "invoice_id", invoice.id), cancelled: false });
   } else {
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, target.documentId));
-    if (!doc || doc.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
+    if (doc?.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
     if (doc.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Belegen in Fremdwährung.");
     open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
   }

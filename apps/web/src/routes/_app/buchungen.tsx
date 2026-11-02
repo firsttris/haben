@@ -73,7 +73,8 @@ function JournalPage() {
 
   const amount = (e: Entry) => e.lines.reduce((s, l) => s + l.debit, 0);
   const total = filtered.reduce((s, e) => s + amount(e), 0);
-  const counts = entries.reduce<Record<string, number>>((acc, e) => ({ ...acc, [e.sourceType]: (acc[e.sourceType] ?? 0) + 1 }), {});
+  const counts: Record<string, number> = {};
+  for (const e of entries) counts[e.sourceType] = (counts[e.sourceType] ?? 0) + 1;
   const toggle = (id: string) =>
     setOpen((prevOpen) => {
       const nextOpen = new Set(prevOpen);

@@ -49,7 +49,7 @@ function csvText(value: string): string {
 
 /** CSV für Excel/LibreOffice: Semikolon, CRLF, UTF-8 mit BOM. Zahlen sind Centbeträge und werden mit Dezimalkomma geschrieben. */
 export function toCsv(rows: (string | Cents)[][]): string {
-  return "\ufeff" + rows.map((r) => r.map((v) => (typeof v === "number" ? csvDecimal(v) : csvText(v))).join(";")).join("\r\n") + "\r\n";
+  return `\ufeff${rows.map((r) => r.map((v) => (typeof v === "number" ? csvDecimal(v) : csvText(v))).join(";")).join("\r\n")}\r\n`;
 }
 
 /**

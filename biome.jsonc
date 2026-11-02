@@ -1,0 +1,57 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": ["**", "!**/routeTree.gen.ts", "!**/test-fixtures"]
+  },
+  // Formatierung folgt in einem eigenen Pull Request, sonst ändert dieser fast jede Datei
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    // Wie bisher mit ESLint: nur JavaScript und TypeScript; CSS und SVG bleiben außen vor
+    "includes": ["**/*.{js,mjs,cjs,ts,tsx}"],
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        // Nach Prüfungen wie `.find()` ist der Wert bekannt; `!` war auch unter ESLint erlaubt
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        // TypeScript leitet den Typ aus den Zuweisungen ab (strict meldet echtes any)
+        "noImplicitAnyLet": "off",
+        // Die Listen werden aus festen Daten gezeichnet und nicht umsortiert
+        "noArrayIndexKey": "off"
+      },
+      "a11y": {
+        // role="group" und role="search" sind gültiges ARIA; <fieldset> und <search> änderten das Aussehen
+        "useSemanticElements": "off",
+        // Gewollt: der Fokus springt in Dialoge und auf das Anmeldefeld
+        "noAutofocus": "off",
+        // Fehlalarm: <g aria-hidden> im SVG ist nicht fokussierbar
+        "noAriaHiddenOnFocusable": "off",
+        // Fehlalarm: FilePicker enthält das <input> des Labels
+        "noLabelWithoutControl": "off",
+        // Klicks werden am Container abgefangen (Menü schließen, Ablegen von Dateien); bedient wird über Links und Buttons darin
+        "noStaticElementInteractions": "off",
+        "useKeyWithClickEvents": "off",
+        // Die Monatssäulen im Diagramm sind fokussierbare Bilder mit Beschriftung (role="img")
+        "noInteractiveElementToNoninteractiveRole": "off",
+        // aria-label an Bereichen ohne Rolle; axe in e2e/barrierefreiheit.spec.ts beanstandet das nicht
+        "useAriaPropsSupportedByRole": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      // Die Regel kennt nur Playwright; im App-Code heißen auch eigene Funktionen describe
+      "includes": ["**", "!apps/web/e2e/**"],
+      "linter": { "rules": { "correctness": { "usePlaywrightValidDescribeCallback": "off" } } }
+    },
+    {
+      // Zeichentabelle nach ISO 8859-15: Codepunkte als Hexzahlen wie in der Norm
+      "includes": ["packages/elster/src/iso8859-15.ts"],
+      "linter": { "rules": { "complexity": { "useSimpleNumberKeys": "off" } } }
+    }
+  ]
+}

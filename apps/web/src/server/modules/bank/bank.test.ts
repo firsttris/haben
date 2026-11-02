@@ -8,7 +8,7 @@ function dkbCsv(rows: string[][], balance = "23.418,72 €", date = "01.10.2026"
   const header = `"Girokonto";"${iban}"\n""\n"Kontostand vom ${date}:";"${balance}"\n""\n`;
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
   const body = rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n");
-  return new TextEncoder().encode("﻿" + header + columns + body + "\n");
+  return new TextEncoder().encode(`﻿${header}${columns}${body}\n`);
 }
 
 const incoming = (date: string, from: string, iban: string, purpose: string, amount: string) =>

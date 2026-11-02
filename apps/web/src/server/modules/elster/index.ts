@@ -3,7 +3,7 @@
  * das Zertifikat und die Datenschutzhinweise der Finanzverwaltung.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
- * (Lint-Regel haben/modulgrenzen, eslint/modulgrenzen.js).
+ * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
 export { deactivateCertificate, saveCertificate } from "./certificate.ts";
 export {

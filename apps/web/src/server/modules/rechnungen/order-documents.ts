@@ -16,7 +16,7 @@ export class OrderDocumentError extends UserError {}
 
 async function acceptedQuote(id: string) {
   const [quote] = await db.select().from(schema.quotes).where(eq(schema.quotes.id, id));
-  if (!quote || quote.status !== "final" || !quote.number || !quote.seller || !quote.buyer) {
+  if (quote?.status !== "final" || !quote.number || !quote.seller || !quote.buyer) {
     throw new OrderDocumentError("Nur festgeschriebene Angebote haben Auftragsbestätigung und Lieferschein.");
   }
   if (quote.decision !== "angenommen" || !quote.decidedAt) throw new OrderDocumentError("Das Angebot ist nicht als angenommen markiert.");
@@ -60,7 +60,7 @@ async function deliverySource(source: "angebot" | "rechnung", id: string): Promi
     };
   }
   const [invoice] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, id));
-  if (!invoice || invoice.status !== "final" || invoice.kind !== "rechnung" || !invoice.number || !invoice.seller || !invoice.buyer) {
+  if (invoice?.status !== "final" || invoice.kind !== "rechnung" || !invoice.number || !invoice.seller || !invoice.buyer) {
     throw new OrderDocumentError("Lieferscheine gibt es nur zu festgeschriebenen Rechnungen.");
   }
   const lines = await db.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, id)).orderBy(asc(schema.invoiceLines.position));

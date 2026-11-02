@@ -138,7 +138,11 @@ function TextBlocksPage() {
         </div>
         {!formOpen && (
           <div className="actions">
-            <button type="button" className="btn btn-primary" onClick={() => (setEditing(null), setCreating(true), setNotice(null))}>
+            <button type="button" className="btn btn-primary" onClick={() => {
+              setEditing(null);
+              setCreating(true);
+              setNotice(null);
+            }}>
               Neuer Textbaustein
             </button>
           </div>
@@ -191,7 +195,10 @@ function TextBlocksPage() {
                   </div>
                   <div className="actions" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
                     {!b.archivedAt && (
-                      <button type="button" className="btn btn-sm" onClick={() => (setCreating(false), setEditing(b))} aria-label={`${b.name} bearbeiten`}>
+                      <button type="button" className="btn btn-sm" onClick={() => {
+                        setCreating(false);
+                        setEditing(b);
+                      }} aria-label={`${b.name} bearbeiten`}>
                         Bearbeiten
                       </button>
                     )}
