@@ -85,6 +85,17 @@
     return el.value.trim();
   }
 
+  /** Ob ein Wert aus Haben ein Häkchen bedeutet */
+  function angekreuzt(wert) {
+    return wert === "1" || wert === "true" || wert === "X";
+  }
+
+  /** Steht im Feld schon der Wert aus Haben? Ein Häkchen zählt nach seiner Bedeutung, nicht nach dem Text */
+  function stimmt(el, jetzt, wert) {
+    if (el.type === "checkbox") return el.checked === angekreuzt(wert);
+    return normal(jetzt) === normal(wert);
+  }
+
   /** Setzt den Wert; false, wenn das Feld ihn nicht annehmen kann (z. B. Auswahl ohne passende Option) */
   function setzen(doc, el, wert) {
     if (el.type === "radio") {
@@ -95,7 +106,7 @@
       return true;
     }
     if (el.type === "checkbox") {
-      el.checked = wert === "1" || wert === "true" || wert === "X";
+      el.checked = angekreuzt(wert);
       feuern(el, "click", "change");
       return true;
     }
@@ -197,7 +208,7 @@
       }
       ergebnis.kennungen.push(kennung);
       const jetzt = vorhanden(doc, el);
-      if (normal(jetzt) === normal(feld.wert)) ergebnis.gleich.push({ kennung, wert: feld.wert, label });
+      if (stimmt(el, jetzt, feld.wert)) ergebnis.gleich.push({ kennung, wert: feld.wert, label });
       else if (jetzt !== "" && !(ueberschreiben && !el.disabled)) ergebnis.abweichend.push({ kennung, wert: feld.wert, vorhanden: jetzt, label });
       else if (el.disabled) {
         // Gesperrte Summe der EÜR: die Einzelposten-Zeile daneben füllen, übernehmen klickt der Nutzer.
