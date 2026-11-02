@@ -76,9 +76,24 @@ function readChain() {
   );
 }
 
+const ABGLEICH_ATTEMPTS = 10;
+
+/**
+ * Abgleich ohne halben Stand. Er liest Journal und Nebenbücher in vielen Abfragen nacheinander; wird dazwischen
+ * gebucht, sieht er eine Buchung womöglich nur auf einer Seite. Jede Änderung schreibt ins Audit-Log: Steht der Kopf
+ * der Kette danach woanders als davor und weicht etwas ab, wird neu abgeglichen.
+ */
+async function abgleichStable(now: string, attempts = ABGLEICH_ATTEMPTS): Promise<Awaited<ReturnType<typeof abgleichAll>>> {
+  const before = await chainHead();
+  const result = await abgleichAll(now);
+  if (attempts <= 1 || abweichungen(result.zeilen).length === 0) return result;
+  const after = await chainHead();
+  return after?.seq === before?.seq ? result : abgleichStable(now, attempts - 1);
+}
+
 /** Prüft die ganze Kette, alle Siegel und gleicht Journal und Steuerwerte ab. Dauert bei großen Datenbanken einige Sekunden. */
 export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
-  const [{ rows, head, entries, seals }, abgleich] = await Promise.all([readChain(), abgleichAll(now)]);
+  const [{ rows, head, entries, seals }, abgleich] = await Promise.all([readChain(), abgleichStable(now)]);
   const problems = [...rows].map((r) => ({ ...r, seq: r.seq === null ? null : Number(r.seq) }));
   const perKind = new Map<string, number>();
   for (const p of problems) perKind.set(`${p.art}:${p.tabelle}`, (perKind.get(`${p.art}:${p.tabelle}`) ?? 0) + 1);
