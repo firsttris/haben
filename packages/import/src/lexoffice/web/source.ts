@@ -85,6 +85,8 @@ export function readWebExport(parts: { name: string; bytes: Uint8Array }[]): Web
     result.createdAt = manifest.createdAt;
     for (const c of readJson(files, "kontakte.json", webContactSchema.array(), part.name)) contacts.set(c.id, c);
     for (const failure of manifest.failed ?? []) {
+      // Ein früherer Teil enthält den Beleg schon: der Fehler aus einem anderen Lauf zählt dann nicht
+      if (result.entries.has(failure.id)) continue;
       result.failures.set(failure.id, { id: failure.id, type: failure.type ?? null, number: failure.number ?? "", message: `In Lexware Office nicht geladen: ${failure.message}` });
     }
     for (const [name, bytes] of Object.entries(files)) {
