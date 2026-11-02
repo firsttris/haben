@@ -356,8 +356,9 @@ async function lastFileBooking(bankAccountId: string): Promise<string | null> {
  */
 export function firstSyncStart(latestBooking: string | null, fetchFrom: string | undefined, today: string): { from: string; fallback: string | null } {
   const afterLatest = latestBooking ? addDays(latestBooking, 1) : null;
-  // Nahtlos an vorhandene Umsätze; ohne Rückfall, der ließe still eine Lücke dazwischen
-  if (afterLatest && (!fetchFrom || afterLatest > fetchFrom)) return { from: afterLatest, fallback: null };
+  // Nahtlos an vorhandene Umsätze (auch wenn sie genau bis vor den gewählten Tag reichen);
+  // ohne Rückfall, der ließe still eine Lücke dazwischen
+  if (afterLatest && (!fetchFrom || afterLatest >= fetchFrom)) return { from: afterLatest, fallback: null };
   const from = fetchFrom ?? `${today.slice(0, 4)}-01-01`;
   const recent = addDays(today, -FALLBACK_HISTORY_DAYS);
   return { from, fallback: recent > from ? recent : null };

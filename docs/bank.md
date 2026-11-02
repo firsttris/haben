@@ -23,7 +23,7 @@ Die Freigabe gilt nach PSD2 höchstens 180 Tage, bei manchen Banken weniger; das
 ### Welche Umsätze abgerufen werden
 
 - **Neues Konto:** ab dem Tag unter **Umsätze abrufen ab**, Vorgabe ist der 1. Januar des laufenden Jahres. Manche Banken geben nur etwa 90 Tage zurück; lehnt die Bank den Zeitraum ab, holt Haben die letzten 89 Tage, nie aber Tage vor dem gewählten. Ältere Umsätze dann per Datei importieren.
-- **Konto schon per Datei importiert:** Reichen die vorhandenen Umsätze über den gewählten Tag hinaus, beginnt der erste Abruf am Tag nach dem letzten davon. Banken schreiben den Verwendungszweck in der Schnittstelle oft anders als in der CSV; ein überlappender Zeitraum ergäbe sonst doppelte Umsätze.
+- **Konto schon per Datei importiert:** Reichen die vorhandenen Umsätze bis zum Vortag des gewählten Tags oder darüber hinaus, beginnt der erste Abruf am Tag nach dem letzten davon, ohne Rückfall auf die letzten 89 Tage: Lehnt die Bank den Zeitraum ab, meldet Haben einen Fehler, statt still eine Lücke zu lassen. Banken schreiben den Verwendungszweck in der Schnittstelle oft anders als in der CSV; ein überlappender Zeitraum ergäbe sonst doppelte Umsätze.
 - **Zustimmung erneuert:** Bei Konten, die schon abgerufen wurden, macht der Abruf dort weiter, wo er aufgehört hat. **Umsätze abrufen ab** gilt nur für Konten, die noch nie abgerufen wurden.
 - **Folgeabrufe** beginnen sieben Tage vor dem letzten Abruf. So kommen auch spät gebuchte Umsätze an; Doppelte erkennt Haben am Hash wie beim Dateiimport. Tage, die schon ein Dateiimport abdeckt, ruft Haben auch dabei nicht noch einmal ab: Der Folgeabruf beginnt frühestens am Tag nach dem letzten Umsatz aus einer Datei.
 - **Vorgemerkte Umsätze** übernimmt Haben erst, wenn die Bank sie gebucht hat.
