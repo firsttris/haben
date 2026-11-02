@@ -1,14 +1,14 @@
 // Renovate (GitHub-App, https://github.com/apps/renovate): ein Pull Request je neuem Release
 // dessen, worauf Haben aufbaut, dazu das Issue „Dependency Dashboard“ mit allem, was offen ist.
-// Eigene Pull Requests: KoSIT-Validator und XRechnung-Konfiguration (CI-Job kosit), Node (Image,
-// CI, README), PostgreSQL (Datenbank, Backup-Image, CI, Doku), Caddy und restic.
+// Eigene Pull Requests: KoSIT-Validator und XRechnung-Konfiguration (CI-Job kosit), Bun (Images,
+// package.json, Screenshots, README), PostgreSQL (Datenbank, Backup-Image, CI, Doku), Caddy und restic.
 // Nicht über Renovate: ERiC (download.elster.de hat keine Liste, die Renovate lesen könnte;
 // DEFAULT_ERIC_VERSION in packages/elster/src/install.ts hebt man von Hand nach einer
 // Testübermittlung) und Habens eigene Images.
 // Alle übrigen Pakete, die Actions und die Images kommen mit den gemeinsamen Einstellungen aus
 // firsttris/workflows (renovate/default.json5): Minor- und Patch-Updates einmal im Monat in einem
 // Pull Request, der sich bei grüner CI selbst merged; Majors auf Anfrage im Dashboard.
-// Prüfen mit `npx --package renovate renovate-config-validator .github/renovate.json5`.
+// Prüfen mit `bunx --package renovate renovate-config-validator .github/renovate.json5`.
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["github>firsttris/workflows//renovate/default.json5"],
@@ -34,13 +34,17 @@
       versioningTemplate: "regex:^(?:release-|v)(?<major>\\d{4})-(?<minor>\\d{2})-(?<patch>\\d{2})$",
     },
     {
-      // Die Node von CI und die, die das README voraussetzt (das Image: dockerfile-Manager)
+      // Das Bun von package.json (packageManager; daraus nimmt die CI ihre Version), vom Screenshot-Workflow
+      // und das, was das README voraussetzt (die Images: dockerfile-Manager)
       customType: "regex",
-      managerFilePatterns: ["/^\\.github/workflows/[^/]+\\.ya?ml$/", "/^README\\.md$/"],
-      matchStrings: ["node-version: (?<currentValue>\\d+)\\n", "Voraussetzungen: Node (?<currentValue>\\d+),"],
-      depNameTemplate: "node",
-      datasourceTemplate: "node-version",
-      versioningTemplate: "node",
+      managerFilePatterns: ["/^package\\.json$/", "/^\\.github/workflows/screenshots\\.yml$/", "/^README\\.md$/"],
+      matchStrings: [
+        "\"packageManager\": \"bun@(?<currentValue>\\d+\\.\\d+\\.\\d+)\"",
+        "bun-version: (?<currentValue>\\d+\\.\\d+\\.\\d+)\\n",
+        "Voraussetzungen: Bun (?<currentValue>\\d+\\.\\d+\\.\\d+),",
+      ],
+      depNameTemplate: "bun",
+      datasourceTemplate: "npm",
     },
     {
       // PostgreSQL überall, wo es nicht Compose, Quadlet oder FROM nennt: CI (services, docker run,
@@ -94,13 +98,12 @@
       dependencyDashboardApproval: false,
     },
     {
-      // Node: Image, CI und README in einem PR; nur LTS-Versionen (gerade Hauptversionen)
-      matchPackageNames: ["docker.io/library/node", "node"],
-      allowedVersions: "/^\\d*[02468](\\D|$)/",
-      groupName: "Node",
-      sourceUrl: "https://github.com/nodejs/node",
+      // Bun: Images, package.json, Screenshots und README in einem PR, auch Majors
+      matchPackageNames: ["docker.io/oven/bun", "oven/bun", "bun"],
+      groupName: "Bun",
+      sourceUrl: "https://github.com/oven-sh/bun",
       prBodyNotes: [
-        "Das Image (`Containerfile`, beide Stufen), CI (`node-version`) und das README ziehen zusammen. Der ERiC-Worker läuft per Type Stripping aus den Quellen (`packages/elster/src/process-client.ts` setzt dafür unter Node 22 ein Flag) und lädt ERiC über `koffi`: prüfen, ob das Flag noch nötig ist und `koffi` für die neue Node-ABI vorgebaut ist; der Container-Job dieses PRs startet das Image. `engines.node` ist das Minimum und bleibt, solange der Code nichts Neueres braucht.",
+        "Die Images (`Containerfile` beide Stufen, `deploy/dev/Containerfile`), `packageManager` in `package.json` (daraus nimmt die CI ihre Version), der Screenshot-Workflow und das README ziehen zusammen. Bun ist Laufzeit und Paketmanager: Nach dem Update `bun install` ausführen, falls sich `bun.lock` ändert. Der ERiC-Worker läuft unter Bun aus den Quellen und lädt ERiC über `koffi` (Node-API in Bun): Vor dem Mergen `ERIC_DIR=… bun --bun vitest run packages/elster/src/eric-echt.test.ts` mit installiertem ERiC laufen lassen (in der CI wird ERiC nicht geladen); der Container-Job dieses PRs startet das Image.",
       ],
       schedule: ["at any time"],
       automerge: false,

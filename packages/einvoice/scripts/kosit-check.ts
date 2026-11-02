@@ -1,5 +1,5 @@
 // Erzeugt Beispielrechnungen in allen Formaten und prüft sie mit dem KoSIT-Validator.
-// Aufruf: KOSIT_JAR=… KOSIT_CONFIG=… node --experimental-strip-types scripts/kosit-check.ts [ausgabeverzeichnis]
+// Aufruf: KOSIT_JAR=… KOSIT_CONFIG=… bun scripts/kosit-check.ts [ausgabeverzeichnis]
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

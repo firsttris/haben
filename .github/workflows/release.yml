@@ -1,6 +1,6 @@
 name: Release
 
-# Ein Tag vX.Y.Z (Button in bump.yml oder pnpm release:patch|minor|major) veröffentlicht diese
+# Ein Tag vX.Y.Z (Button in bump.yml oder bun run release:patch|minor|major) veröffentlicht diese
 # Version: erst die komplette CI (übersprungen, wenn die CI auf main denselben Code schon geprüft hat,
 # siehe https://github.com/firsttris/workflows#tested-on-main), dann der gemeinsame Docker-Release
 # aus firsttris/workflows. Der prüft den Tag gegen package.json, pusht :x.y.z, :x.y und :latest auf

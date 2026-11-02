@@ -57,8 +57,8 @@ services:
       - node_modules_einvoice:/app/packages/einvoice/node_modules
       - node_modules_elster:/app/packages/elster/node_modules
       - node_modules_import:/app/packages/import/node_modules
-      # pnpm-Store und corepack, damit ein neuer Container nicht alles neu lädt
-      - cache:/home/node/.cache
+      # Cache von bun install, damit ein neuer Container nicht alles neu lädt
+      - cache:/home/bun/.cache
       # Belege, ERiC und die beim ersten Start erzeugten Schlüssel
       - daten:/var/lib/haben
 

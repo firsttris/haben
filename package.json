@@ -4,30 +4,35 @@
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
-  "packageManager": "pnpm@12.16.1",
-  "engines": {
-    "node": ">=22"
-  },
+  "packageManager": "bun@1.4.4",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "pnpm --filter @haben/web dev",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "release:patch": "npm version patch",
-    "release:minor": "npm version minor",
-    "release:major": "npm version major",
+    "dev": "bun run --cwd apps/web dev",
+    "build": "bun run --cwd apps/web build",
+    "typecheck": "bun run --workspaces typecheck",
+    "release:patch": "bun pm version patch",
+    "release:minor": "bun pm version minor",
+    "release:major": "bun pm version major",
     "postversion": "git push --follow-tags",
-    "lint": "biome lint --error-on-warnings && node scripts/modulgrenzen/pruefen.ts",
-    "test": "vitest run",
-    "db:generate": "pnpm --filter @haben/web db:generate",
-    "db:migrate": "pnpm --filter @haben/web db:migrate",
-    "e2e": "pnpm --filter @haben/web e2e",
-    "docs:screenshots": "DOKU_SCREENSHOTS=1 LANG=de_DE.UTF-8 LANGUAGE=de pnpm e2e && pnpm docs:social-preview",
-    "docs:social-preview": "node scripts/social-preview/render.mjs"
+    "lint": "bun --bun biome lint --error-on-warnings && bun scripts/modulgrenzen/pruefen.ts",
+    "test": "bun --bun vitest run",
+    "db:generate": "bun run --cwd apps/web db:generate",
+    "db:migrate": "bun run --cwd apps/web db:migrate",
+    "e2e": "bun run --cwd apps/web e2e",
+    "docs:screenshots": "DOKU_SCREENSHOTS=1 LANG=de_DE.UTF-8 LANGUAGE=de bun run e2e && bun run docs:social-preview",
+    "docs:social-preview": "bun scripts/social-preview/render.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "oxc-parser": "^0.156.0",
     "typescript": "^6.0.0",
     "vitest": "^5.0.3"
-  }
+  },
+  "trustedDependencies": [
+    "esbuild",
+    "koffi"
+  ]
 }

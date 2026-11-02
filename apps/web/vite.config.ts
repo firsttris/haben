@@ -27,8 +27,9 @@ export default defineConfig({
     keepNativeExternal(),
     tanstackStart(),
     // die native Bindung löst der Server zur Laufzeit aus apps/web/node_modules auf
-    // compressPublicAssets: .br/.gz neben den Assets, auch ohne komprimierenden Proxy davor
-    nitro({ plugins: ["./src/server/plugins/scheduler.ts", "./src/server/plugins/setup-code.ts"], compressPublicAssets: { gzip: true, brotli: true } }),
+    // compressPublicAssets: .br/.gz neben den Assets, auch ohne komprimierenden Proxy davor;
+    // preset bun: Der Server läuft unter Bun (Bun.serve), auch wenn der Build woanders angestoßen wird
+    nitro({ preset: "bun", plugins: ["./src/server/plugins/scheduler.ts", "./src/server/plugins/setup-code.ts"], compressPublicAssets: { gzip: true, brotli: true } }),
     viteReact(),
   ],
 });

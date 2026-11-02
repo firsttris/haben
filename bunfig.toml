@@ -1,0 +1,4 @@
+[install]
+# Wie bisher mit pnpm: Jedes Paket sieht nur seine eigenen Abhängigkeiten (node_modules/.bun),
+# nicht alles, was zufällig im Hauptordner liegt
+linker = "isolated"

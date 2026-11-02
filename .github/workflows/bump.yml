@@ -1,6 +1,6 @@
 name: Bump version
 
-# Erhöht die Version in package.json, taggt vX.Y.Z und startet release.yml auf dem Tag, ohne Checkout; dasselbe wie pnpm release:patch|minor|major.
+# Erhöht die Version in package.json, taggt vX.Y.Z und startet release.yml auf dem Tag, ohne Checkout; dasselbe wie bun run release:patch|minor|major.
 # Release Candidates: preminor (oder prepatch, premajor) taggt vX.Y.Z-rc.1, prerelease den nächsten RC, patch danach die Version.
 # Same scheme as in every project, see https://github.com/firsttris/workflows#bump-version
 on:

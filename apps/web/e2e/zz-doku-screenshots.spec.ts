@@ -4,12 +4,12 @@ import { expect, test, type Page } from "@playwright/test";
  * Die Bilder in README und Doku (docs/screenshot-*.png), aufgenommen mit den Daten, die app.spec.ts
  * davor angelegt hat: Kunden, festgeschriebene Rechnungen, ein gebuchter Beleg, der Kontoauszug mit
  * dem noch offenen Zahlungseingang von Rheinpixel. Läuft nur mit DOKU_SCREENSHOTS=1
- * (pnpm docs:screenshots, Workflow „Update screenshots“); der Dateiname sorgt dafür, dass es nach
+ * (bun run docs:screenshots, Workflow „Update screenshots“); der Dateiname sorgt dafür, dass es nach
  * app.spec.ts drankommt.
  */
 
 test.describe.configure({ mode: "serial" });
-test.skip(!process.env.DOKU_SCREENSHOTS, "nur für pnpm docs:screenshots");
+test.skip(!process.env.DOKU_SCREENSHOTS, "nur für bun run docs:screenshots");
 
 const USER = { email: "max@example.com", password: "ein-sehr-langes-e2e-passwort" };
 const DOCS = "../../docs";

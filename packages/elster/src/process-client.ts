@@ -11,14 +11,11 @@ import { datenartVersionFromXml, testmerkerMismatch } from "./xml.ts";
 
 export const DEFAULT_TIMEOUT_MS = 120_000;
 export const DEFAULT_WORKER_PATH = fileURLToPath(new URL("./worker.ts", import.meta.url));
-/** Node 22 braucht für .ts-Dateien (je nach Minor-Version) noch das Flag. */
-export const DEFAULT_WORKER_EXEC_ARGV = ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"];
 
 export interface EricProcessClientOptions extends EricConfig {
   timeoutMs?: number;
   /** Austauschbar für Tests */
   workerPath?: string;
-  execArgv?: string[];
 }
 
 /** Führt jeden ERiC-Aufruf in einem eigenen, kurzlebigen Kindprozess aus. */
@@ -117,7 +114,7 @@ export class EricProcessClient implements ElsterClient {
 
   /** tempDir: Logs von ERiC und Otto landen dort, wenn kein ERIC_LOG_DIR gesetzt ist */
   async #run(request: EricRequest, tempDir: string): Promise<{ result: ElsterResult; raw?: EricRawResult }> {
-    const { timeoutMs = DEFAULT_TIMEOUT_MS, workerPath = DEFAULT_WORKER_PATH, execArgv } = this.#options;
+    const { timeoutMs = DEFAULT_TIMEOUT_MS, workerPath = DEFAULT_WORKER_PATH } = this.#options;
     const config: EricConfig = { ericHome: this.#options.ericHome, logDir: this.#options.logDir ?? tempDir };
 
     return new Promise<{ result: ElsterResult; raw?: EricRawResult }>((resolve) => {
@@ -133,7 +130,8 @@ export class EricProcessClient implements ElsterClient {
       };
 
       const child = fork(workerPath, [], {
-        execArgv: execArgv ?? DEFAULT_WORKER_EXEC_ARGV,
+        // Bun führt worker.ts direkt aus; keine Flags des Elternprozesses übernehmen
+        execArgv: [],
         stdio: ["ignore", "ignore", "pipe", "ipc"],
         serialization: "json",
       });

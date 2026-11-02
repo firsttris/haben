@@ -1,7 +1,7 @@
 /**
  * Prüft die Nachrichten von Belegabruf, Berechtigungsmanagement und Postfach mit dem installierten ERiC,
  * ohne etwas zu senden:
- *   node --experimental-strip-types packages/elster/src/check-formats-cli.ts
+ *   bun packages/elster/src/check-formats-cli.ts
  * ERiC kommt aus ERIC_HOME oder aus ERIC_DIR (Standard data/eric). Exit-Code 1, wenn ERiC etwas bemängelt.
  */
 import { resolve } from "node:path";

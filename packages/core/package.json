@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "bun --bun tsc -p ."
   },
   "dependencies": {
     "zod": "^4.6.5"

@@ -14,7 +14,7 @@ import { buildUstvaXml, type UstvaXmlInput } from "./xml.ts";
  * Prüft alle Nachrichten von Haben mit dem echten ERiC: Schema und Plausibilität, lokal (ERIC_VALIDIERE),
  * es wird nichts gesendet. Jedes Eingabefeld kommt in mindestens einem Fall vor. Läuft nur mit ERiC
  * (ERIC_HOME oder ERIC_DIR), sonst übersprungen:
- *   ERIC_DIR=data/eric pnpm vitest run packages/elster/src/eric-echt.test.ts
+ *   ERIC_DIR=data/eric bun --bun vitest run packages/elster/src/eric-echt.test.ts
  * ERiC lehnt die frühere Test-Hersteller-ID 74931 ab; ohne ELSTER_HERSTELLER_ID prüft der Test lokal mit
  * einer Platzhalter-ID.
  */
