@@ -1,6 +1,9 @@
 packages:
   - apps/*
   - packages/*
-onlyBuiltDependencies:
-  - esbuild
-  - koffi
+# Pakete, deren Install-Skripte laufen dürfen (esbuild lädt sein Binary, koffi sein natives Modul für ERiC).
+# `allowBuilds` statt `onlyBuiltDependencies`: pnpm 10 kennt beides, pnpm 12 nur noch `allowBuilds`,
+# sonst bricht `pnpm install` mit ERR_PNPM_IGNORED_BUILDS ab.
+allowBuilds:
+  esbuild: true
+  koffi: true

@@ -109,6 +109,9 @@
     {
       // PostgreSQL: Das Datenbank-Image (deploy/db) hebt ältere Bestände beim Start mit pg_upgrade an.
       // Der PR entsteht erst, wenn er im Dependency Dashboard angehakt wird.
+      // Nur das Image: Das npm-Paket `postgres` (postgres.js, der Treiber in apps/web) heißt genauso und läuft
+      // mit den übrigen Paketen.
+      matchDatasources: ["docker"],
       matchPackageNames: ["docker.io/library/postgres", "postgres"],
       dependencyDashboardApproval: true,
       groupName: "PostgreSQL",
@@ -118,6 +121,13 @@
       ],
       schedule: ["at any time"],
       automerge: false,
+    },
+    {
+      // TypeScript 7 (der Compiler in Go) hat keine JavaScript-API mehr; typescript-eslint verlangt
+      // `typescript` >=4.8.4 <6.1.0 und bricht unter 7 mit „typescript-eslint does not support TS 7.0“ ab.
+      // Aufheben, sobald typescript-eslint TypeScript 7 unterstützt.
+      matchPackageNames: ["typescript"],
+      allowedVersions: "<7",
     },
     {
       // Der Reverse Proxy der mitgelieferten Einrichtung (deploy/compose.yml, Quadlet, Doku)

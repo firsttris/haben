@@ -19,6 +19,6 @@ process.once("message", async (message: WorkerRequest) => {
     response = { type: "error", message: error instanceof Error ? error.message : String(error) };
   }
   await reply(response);
-  process.disconnect();
+  process.disconnect?.();
   process.exit(0);
 });
