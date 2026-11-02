@@ -230,6 +230,17 @@ describe("Sicherung lesen", () => {
     expect(data.entries.has(SALES.list.entityId)).toBe(true);
   });
 
+  it("ein späterer Teil, der einen schon gelesenen Beleg als fehlgeschlagen meldet, listet ihn nicht doppelt", async () => {
+    const data = readWebExport([
+      { name: "a.zip", bytes: part({ entries: { [SALES.list.entityId]: { ...(raw("sales-invoice.json") as object), files: [] } } }) },
+      { name: "b.zip", bytes: part({ manifest: { failed: [{ id: SALES.list.entityId, type: "Invoice", number: "RE0042", message: "Zeitüberschreitung" }] } }) },
+    ]);
+    const list = [];
+    for await (const item of webExportSource(data).voucherList(["invoice"])) list.push(item.id);
+    expect(list).toEqual([SALES.list.entityId]);
+    expect(data.failures.size).toBe(0);
+  });
+
   it("lehnt fremde Dateien mit verständlicher Meldung ab", () => {
     const read = (bytes: Uint8Array) => () => readWebExport([{ name: "x.zip", bytes }]);
     expect(read(new TextEncoder().encode("kein zip"))).toThrow(new LexwareWebExportError("x.zip: keine gültige ZIP-Datei."));
