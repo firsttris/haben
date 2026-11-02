@@ -89,6 +89,13 @@
 
 #v(5mm)
 
+// Einleitung (Kopftext) über den Positionen
+#let intro = d.at("intro", default: none)
+#if intro != none {
+  intro
+  v(4mm)
+}
+
 #let head(body) = medium(text(size: 8pt, fill: accent, body))
 // Lieferschein: nur Position, Beschreibung und Menge
 #let noPrices = d.at("noPrices", default: false)

@@ -38,6 +38,7 @@ function QuotePage() {
           serviceTo: quote.serviceTo,
           paymentTermDays: 0,
           format: "zugferd",
+          intro: quote.intro,
           note: quote.note,
           taxTreatment: quote.taxTreatment,
           exemptionReason: quote.exemptionReason,
@@ -60,6 +61,7 @@ function QuotePage() {
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}
         articles={data.articles}
+        textBlocks={data.textBlocks}
       />
     );
   }

@@ -1,4 +1,5 @@
 import { UserError } from "../../errors.ts";
+import { joinEmails, MAX_EMAIL_RECIPIENTS, splitEmails } from "@haben/core";
 import { asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -11,7 +12,14 @@ export const contactSchema = z.object({
   plz: z.string().trim().max(10),
   ort: z.string().trim().max(100),
   land: z.string().trim().regex(/^[A-Z]{2}$/, "Ländercode wie DE"),
-  email: z.union([z.literal(""), z.email("Keine gültige E-Mail-Adresse")]),
+  /** Eine oder mehrere Adressen, durch Komma getrennt (z. B. Rechnungseingang und Freigeber); gespeichert mit „, “ */
+  email: z
+    .string()
+    .trim()
+    .max(1000)
+    .refine((value) => splitEmails(value).length <= MAX_EMAIL_RECIPIENTS, `Höchstens ${MAX_EMAIL_RECIPIENTS} E-Mail-Adressen`)
+    .refine((value) => splitEmails(value).every((v) => z.email().safeParse(v).success), "Keine gültige E-Mail-Adresse")
+    .transform((value) => joinEmails(splitEmails(value))),
   ustId: z.union([z.literal(""), z.string().trim().regex(/^[A-Z]{2}[0-9A-Z+*.]{2,12}$/, "USt-IdNr. hat die Form DE123456789")]),
   iban: z.union([z.literal(""), z.string().trim().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen")]),
   leitwegId: z.string().trim().max(46),
@@ -48,6 +56,7 @@ function clean(input: ContactInput) {
   return {
     ...input,
     kundennummer: input.kundennummer || null,
+    email: joinEmails(splitEmails(input.email)),
     ustId: input.ustId.replace(/\s/g, "").toUpperCase(),
     iban: input.iban.replace(/\s/g, "").toUpperCase(),
   };

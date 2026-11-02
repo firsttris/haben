@@ -45,7 +45,7 @@ export function showsGrossPrices(doc: Pick<InvoiceDocument, "taxTreatment" | "pr
 
 /** Gemeinsamer Teil von Rechnung und Angebot: Adressen, Positionen, Summenzeilen, Hinweise, Fußzeile */
 export function documentPdfData(
-  doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "note" | "priceMode">,
+  doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "intro" | "note" | "priceMode">,
   t: Texts,
 ) {
   const { seller, buyer } = doc;
@@ -80,6 +80,7 @@ export function documentPdfData(
     included: gross ? { label: t.included, rows: includedRows } : null,
     grossLabel: (label: string) => (gross ? t.inclVat(label) : label),
     taxNote: t.note(treatment, doc.exemptionReason),
+    intro: doc.intro?.trim() ? doc.intro.trim() : null,
     note: doc.note?.trim() ? doc.note.trim() : null,
     footer: footerColumns(seller, t),
   };

@@ -107,6 +107,32 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     expect(log!.attachments).toEqual(["Rechnung-2026-001.pdf"]);
   });
 
+  it("schlägt alle Adressen des Kontakts vor, auf der Rechnung steht nur die erste", async () => {
+    await mail.saveMailSettings(actor, settings);
+    await contacts.updateContact(actor, contactId, {
+      kundennummer: "10001", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
+      email: "rechnungseingang@nordwerk.example;freigabe@nordwerk.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+    });
+    const [stored] = await sql`select email from contacts where id = ${contactId}`;
+    expect(stored!.email).toBe("rechnungseingang@nordwerk.example, freigabe@nordwerk.example");
+    const xr = await finalInvoice("xrechnung-cii");
+    const [row] = await sql`select buyer from invoices where id = ${xr}`;
+    expect(row!.buyer.email).toBe("rechnungseingang@nordwerk.example");
+    expect((await invoiceMail.invoiceMailDraft(xr)).to).toBe("rechnungseingang@nordwerk.example, freigabe@nordwerk.example");
+    // Ältere Rechnung mit der früheren Adresse: die bleibt vorn, die aktuellen kommen dazu
+    expect((await invoiceMail.invoiceMailDraft(invoiceId)).to).toBe(
+      "buchhaltung@nordwerk.example, rechnungseingang@nordwerk.example, freigabe@nordwerk.example",
+    );
+  });
+
+  it("lehnt im Kontakt mehr als fünf oder ungültige Adressen ab", () => {
+    const base = { kundennummer: "", name: "Viele GmbH", strasse: "", plz: "", ort: "", land: "DE", ustId: "", iban: "", leitwegId: "", defaultFormat: null };
+    const issue = (email: string) => contacts.contactSchema.safeParse({ ...base, email }).error?.issues[0]?.message;
+    expect(issue("a@x.de, b@x.de, c@x.de, d@x.de, e@x.de, f@x.de")).toMatch(/Höchstens 5/);
+    expect(issue("a@x.de, kein-at")).toMatch(/gültige E-Mail/);
+    expect(contacts.contactSchema.parse({ ...base, email: " a@x.de ;b@x.de " }).email).toBe("a@x.de, b@x.de");
+  });
+
   it("hängt bei XRechnung das XML an, nutzt eigene Vorlagen und lehnt Entwürfe und falsche Adressen ab", async () => {
     await mail.saveMailSettings(actor, { ...settings, templates: { "rechnung:de": { subject: "{art} {nummer} für {kunde}", body: "Hallo,\n\nanbei {nummer}{zahlbar}.\n\n{firma}" } } });
     const xr = await finalInvoice("xrechnung-cii");

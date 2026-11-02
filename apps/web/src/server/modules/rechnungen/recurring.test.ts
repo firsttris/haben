@@ -51,6 +51,13 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
     ...overrides,
   });
 
+  it("übernimmt die Einleitung mit Platzhaltern in die Rechnung", async () => {
+    await recurring.createRecurring(actor, template({ intro: "Leistungen {zeitraum} gemäß Wartungsvertrag", nextDate: "2026-09-30", endDate: "2026-09-30" }));
+    await recurring.runDueRecurring("2026-10-02");
+    const rows = await sql`select intro, note from invoices`;
+    expect(rows.map((r) => ({ ...r }))).toEqual([{ intro: "Leistungen September 2026 gemäß Wartungsvertrag", note: "Abrechnung September 2026" }]);
+  });
+
   it("holt verpasste Termine als Entwürfe nach, mit Platzhaltern und Leistungszeitraum", async () => {
     const created = await recurring.createRecurring(actor, template());
     expect(await recurring.runDueRecurring("2026-10-02")).toEqual({ created: 2, finalized: 0, mailed: 0, errors: [] });

@@ -13,7 +13,7 @@ describe("renderInvoicePdf", () => {
   });
 
   it("übernimmt Nutzertext unverändert, ohne Typst-Markup auszuwerten", () => {
-    const doc = sampleDocument({ note: '#panic("x") *fett* $x$ ]' });
+    const doc = sampleDocument({ intro: '#panic("y") = Überschrift', note: '#panic("x") *fett* $x$ ]' });
     doc.lines[0]!.description = "Beratung #read(\"/etc/passwd\") _kursiv_ \\";
     expect(() => renderInvoicePdf(doc)).not.toThrow();
   });
@@ -35,6 +35,17 @@ describe("logoFormat", () => {
 });
 
 describe("pdfData", () => {
+  it("übernimmt Einleitung und Hinweis getrimmt, leer als null", () => {
+    const data = pdfData(sampleDocument({ intro: "  Sehr geehrte Damen und Herren,\nwir berechnen:  ", note: "Vielen Dank." }));
+    expect(data.intro).toBe("Sehr geehrte Damen und Herren,\nwir berechnen:");
+    expect(data.note).toBe("Vielen Dank.");
+    expect(pdfData(sampleDocument({ intro: "   " })).intro).toBeNull();
+  });
+
+  it("rendert ein PDF mit mehrzeiliger Einleitung", () => {
+    expect(() => renderInvoicePdf(sampleDocument({ intro: "Bestellnummer 4500123456\nProjekt Phoenix" }))).not.toThrow();
+  });
+
   it("formatiert Rechnungsangaben deutsch", () => {
     const data = pdfData(sampleDocument());
     expect(data.title).toBe("Rechnung");

@@ -1,5 +1,5 @@
 /*
- * Stammdaten: Firmendaten (mit Versteuerung und Kleinunternehmer je Jahr), Kunden, Artikel, Logo, persönliche
+ * Stammdaten: Firmendaten (mit Versteuerung und Kleinunternehmer je Jahr), Kunden, Artikel, Textbausteine, Logo, persönliche
  * Angaben, Umsatzsteuer-Umrechnungskurse und die Sperre von Kontenrahmen, Versteuerung und Kleinunternehmer (settings-guard).
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
@@ -46,3 +46,12 @@ export {
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
 export { saveCompany, settingsLocks } from "./settings-guard.ts";
 export { saveTaxpayer, taxpayerSchema } from "./taxpayer.ts";
+export {
+  createTextBlock,
+  listTextBlocks,
+  setTextBlockArchived,
+  textBlockInputSchema,
+  updateTextBlock,
+  type TextBlock,
+  type TextBlockInput,
+} from "./text-blocks.ts";
