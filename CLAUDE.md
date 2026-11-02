@@ -1,0 +1,113 @@
+# Notes for Claude
+
+Haben: self-hosted bookkeeping for freelancers (invoices with ZUGFeRD/XRechnung, receipts, bank
+reconciliation, EÜR, VAT returns to ELSTER). TanStack Start app in `apps/web`, logic without a
+database in `packages/core`, ELSTER in `packages/elster`, bank and DATEV import in `packages/import`,
+invoice PDF and XML in `packages/einvoice`.
+
+## Documentation
+
+The documentation is in `docs/` (<https://firsttris.github.io/haben/>). Read the pages that touch the
+change before starting: `docs/entwicklung.md` for setup, commands, migrations and conventions,
+`docs/architektur.md` for modules, tables, the audit hash chain and seals, and the user page of the
+area (`rechnungen.md`, `bank.md`, `umsatzsteuer.md`, `lexoffice.md`, …). Links in the README point
+to the GitHub Pages site, not to `docs/*.md`.
+
+## Reference implementations
+
+Base details on the sources, not on memory, and name the source in comments and commit messages
+where it settles a detail:
+
+- E-invoice: EN 16931 / XRechnung (business terms like BT-22), checked by the KoSIT validator with
+  `itplr-kosit/validator-configuration-xrechnung` (versions in `.github/workflows/ci.yml`).
+- ELSTER: the ERiC developer documentation (<https://www.elster.de/elsterweb/entwickler/infoseite/eric>).
+- DATEV: the DATEV format description for EXTF/Buchungsstapel; Lexware Office exports deviate
+  from it (column names, see `docs/lexoffice.md`).
+- Enable Banking: <https://enablebanking.com/docs/api/reference/>; Lexware Office:
+  <https://developers.lexware.io/docs/>.
+
+Clone GitHub sources shallowly (`git clone --depth 1`) into the scratchpad.
+
+## With every change
+
+Update what the change affects, in the same pull request, and only that:
+
+- the tests for what changed: Vitest unit tests, Postgres integration tests next to the module,
+  Playwright in `apps/web/e2e/` for what a user clicks; a bug fix starts with a test that fails;
+- bookings and tax: test cases for SKR03 and SKR04 and for Ist and Soll;
+- the docs in `docs/` that describe it, in German;
+- the README when a feature a user sees is added, changed or removed;
+- a new page: add it to `e2e/barrierefreiheit.spec.ts` and the screenshot list in `e2e/app.spec.ts`;
+- the screenshots after a change to the look: **Actions → Update screenshots → Run workflow**, then
+  look at the new pictures.
+
+## Checks
+
+Green before every push, then check CI:
+
+```sh
+pnpm lint
+pnpm typecheck
+TEST_DATABASE_URL=postgres://…/haben_test pnpm test     # without it the Postgres tests are skipped
+pnpm build
+E2E_DATABASE_URL=postgres://…/haben_e2e pnpm e2e         # name must end in "e2e"; it is emptied
+mkdocs build --strict                                   # when docs/ or mkdocs.yml changed
+```
+
+Both databases are wiped by the tests; never point them at real data. In a container without
+PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl … -o '-p 5433'`).
+
+## Pull requests
+
+- One feature per pull request; it carries only its own commits.
+- Before every push check whether the branch's pull request is still open. If it is merged, start
+  again from the current `origin/main` and open a **new** pull request.
+- Merge method: squash for own pull requests. A contributor's pull request is taken over unchanged
+  with a merge commit, with our changes as further commits on top, so GitHub shows it as merged.
+  Never rewrite a contributor's commits.
+- Force-push: allowed with `--force-with-lease` on the own branch after a merge.
+
+## Working rules
+
+- Commands as root (`sudo`, `pkexec`) are run by the user; don't work around that.
+- The user's running processes are not stopped; use other ports for tests (the E2E server uses 3100).
+- Language: German for code comments, docs, commit messages, pull requests and everything the user
+  sees, including error messages. Identifiers stay English.
+
+## Code style
+
+Technology choices follow `tech-stack.md` in firsttris/workflows. Deviations here: Node instead of
+Bun (ERiC runs in a Node child process), plain CSS with variables in `apps/web/src/styles.css` and
+an own `Icon` component instead of Tailwind and lucide, Typst for the invoice PDF.
+
+Clean Code, written functionally: clear names, small functions that do one thing, dependencies
+passed in, no duplication or dead code, comments that say why; the ideas behind SOLID and the
+design patterns are welcome as functions, data and closures, but not as classes, inheritance or
+class hierarchies.
+
+Functional, not object-oriented: pure functions that take data and return data, side effects at
+the edges; function components and hooks, no classes (except the `UserError` subclasses); errors as
+values where the code already does so. A file does one thing: split it past ~400 lines, a function
+past ~80. Some older files are larger (`routes/_app/bank.tsx`, `modules/rechnungen/invoices.ts`);
+split them only in a pull request of their own, not on the side. A refactor changes no behaviour.
+
+## Haben specifics
+
+- **Money in whole cents** (`Cents`), tax rates in basis points (1900 = 19 %), quantities in
+  thousandths. Never floats.
+- **Module boundaries:** import another server module only through its `index.ts`; the lint rule
+  `haben/modulgrenzen` fails CI otherwise. Server functions in `server/functions/` stay thin:
+  `authMiddleware`, Zod validation, then a call into `server/modules/`.
+- **GoBD:** finalised invoices, bookings, sent VAT returns, bank transactions and imported Lexoffice
+  data are locked by Postgres triggers; corrections are new records (Storno, counter-booking).
+  Sealed tables (`invoices`, `journal_entries`, …): never rename, drop or recompute a column; new
+  columns are fine. Never weaken a lock or seal to make something work.
+- **Audit log:** writes go through `withActor`; new tables get an audit trigger. Secrets (keys,
+  passwords, tokens) are stored AES-256-GCM-encrypted in a column named `ciphertext`, which
+  `haben_audit` leaves out.
+- **Migrations:** change `apps/web/src/server/db/schema.ts`, then `pnpm db:generate`; never write
+  snapshots in `drizzle/meta/` by hand. Triggers and functions go into a separate migration from
+  `drizzle-kit generate --custom`. Never change an existing migration.
+- **ERiC** never runs in the app process, only in the worker (`packages/elster/src/worker.ts`).
+- **Accessibility:** real buttons and links, a label for every field, visible focus;
+  `barrierefreiheit.spec.ts` checks every page in CI.
