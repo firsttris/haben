@@ -28,7 +28,7 @@ function tx(ref: string, date: string, amount: string, indicator: "CRDT" | "DBIT
 /** Nachgebaute Enable-Banking-API mit zwei Konten und einer Kreditkarte ohne IBAN */
 function fakeApi() {
   const calls: { method: string; path: string; query: URLSearchParams; body: unknown }[] = [];
-  const state = { failUntilFallback: false, expired: false, sessions: 0 };
+  const state = { failUntilFallback: false, expired: false, sessions: 0, onlyForeign: false };
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
@@ -38,6 +38,13 @@ function fakeApi() {
     if (url.pathname === "/auth") return json({ url: "https://bank.example/login", authorization_id: "a1" });
     if (url.pathname === "/sessions" && method === "POST") {
       state.sessions++;
+      if (state.onlyForeign) {
+        return json({
+          session_id: `sess-${state.sessions}`,
+          access: { valid_until: "2026-12-31T00:00:00Z" },
+          accounts: [{ uid: `uid-usd-${state.sessions}`, account_id: { iban: IBAN_A }, name: "USD", currency: "USD" }],
+        });
+      }
       return json({
         session_id: `sess-${state.sessions}`,
         access: { valid_until: "2026-12-31T00:00:00Z" },
@@ -254,6 +261,19 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(count!.n).toBe(5);
     const audit = await sql`select action, new_value from audit_log where table_name = 'bank_connections' and action = 'INSERT' limit 1`;
     expect(audit[0]!.new_value).not.toHaveProperty("ciphertext");
+  });
+
+  it("gibt die Bank nur Fremdwährungskonten frei, sagt die Meldung das statt „kein Konto mit IBAN“", async () => {
+    api.state.onlyForeign = true;
+    const result = await connect("code-usd");
+    api.state.onlyForeign = false;
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("1 Konten in Fremdwährung (USD) werden nicht abgerufen");
+    expect(result.message).not.toContain("kein Konto mit IBAN");
+    const [connection] = await sync.listConnections();
+    expect(connection!.status).toBe("fehler");
+    expect(connection!.lastError).not.toContain("kein Konto mit IBAN");
+    for (const c of await sync.listConnections()) await sync.removeConnection(actor, c.id);
   });
 
   it("nimmt den Zugang aus den Einstellungen vor der Umgebung und prüft ihn beim Speichern", async () => {
