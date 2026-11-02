@@ -181,6 +181,9 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(sync.followUpStart("2026-11-01", "2026-10-31", "2026-11-02")).toBe("2026-11-01");
     expect(sync.followUpStart("2026-11-01", "2026-09-30", "2026-11-02")).toBe("2026-10-25");
     expect(sync.followUpStart("2026-11-01", "2026-11-05", "2026-11-02")).toBe("2026-11-02");
+    // Umzug unter dem Jahr: erster Abruf ab 01.11., der zweite am 02.11. geht nicht bis 26.10. zurück
+    expect(sync.followUpStart("2026-11-02", null, "2026-11-03", "2026-11-01")).toBe("2026-11-01");
+    expect(sync.followUpStart("2026-11-20", null, "2026-11-21", "2026-11-01")).toBe("2026-11-13");
   });
 
   it("überlappt nicht in Tage, die schon eine Datei abdeckt", async () => {
@@ -293,8 +296,10 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(result.ok).toBe(true);
     const [connection] = await sql`select fetch_from::text as fetch_from, accounts from bank_connections where status = 'aktiv'`;
     expect(connection!.fetch_from).toBe("2026-10-01");
-    // Beide Konten haben einen Abrufstand: der Abruf macht dort weiter, der gewählte Tag gilt nur für neue Konten
-    expect(connection!.accounts.map((a: { fetchFrom?: string }) => a.fetchFrom)).toEqual([undefined, undefined]);
+    // Beide Konten haben einen Abrufstand: der Abruf macht dort weiter, der gewählte Tag gilt nur für neue Konten;
+    // die Konten behalten den Tag vom ersten Verbinden
+    const yearStart = `${today().slice(0, 4)}-01-01`;
+    expect(connection!.accounts.map((a: { fetchFrom?: string }) => a.fetchFrom)).toEqual([yearStart, yearStart]);
   });
 
   it("ruft ein neues Konto ab dem gewählten Tag ab, die anderen beim Abrufstand", async () => {
@@ -307,11 +312,42 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(from("uid-c")).toBe("2026-10-15");
     expect(from("uid-a")).not.toBe("2026-10-15");
     const [connection] = await sync.listConnections();
+    const yearStart = `${today().slice(0, 4)}-01-01`;
     expect(connection!.accounts.map((a) => [a.iban, a.fetchFrom])).toEqual([
-      [IBAN_A, undefined],
-      [IBAN_B, undefined],
+      [IBAN_A, yearStart],
+      [IBAN_B, yearStart],
       [IBAN_C, "2026-10-15"],
     ]);
+  });
+
+  it("geht auch bei Folgeabrufen nicht vor den gewählten Tag zurück", async () => {
+    // Erster Abruf des neuen Kontos C ab 15.10. am 16.10.; der Folgeabruf am 17.10. überlappt sonst bis 09.10.
+    const [connection] = await sync.listConnections();
+    const accounts = connection!.accounts.map((a) => (a.iban === IBAN_C ? { ...a, syncedTo: "2026-10-16" } : a));
+    await sql`update bank_connections set accounts = ${JSON.stringify(accounts)}::jsonb where id = ${connection!.id}`;
+    api.calls.length = 0;
+    await sync.syncConnection(actor, connection!.id, "2026-10-17");
+    const fromC = api.calls.find((c) => c.path.startsWith("/accounts/uid-c") && c.path.endsWith("/transactions"))!.query.get("date_from");
+    expect(fromC).toBe("2026-10-15");
+    const [after] = await sync.listConnections();
+    expect(after!.accounts.find((a) => a.iban === IBAN_C)).toMatchObject({ fetchFrom: "2026-10-15", syncedTo: "2026-10-17" });
+  });
+
+  it("behält den gewählten Tag beim Erneuern der Zustimmung", async () => {
+    // Konto C zuletzt am 17.10. abgerufen, gewählter Tag 15.10. Wird die Zustimmung kurz darauf erneuert, ginge der
+    // Folgeabruf sonst sieben Tage vor den letzten Abruf zurück, also wieder vor den 15.10.
+    const [connection] = await sync.listConnections();
+    const accounts = connection!.accounts.map((a) => (a.iban === IBAN_C ? { ...a, syncedTo: "2026-10-17" } : a));
+    await sql`update bank_connections set accounts = ${JSON.stringify(accounts)}::jsonb where id = ${connection!.id}`;
+    api.state.newAccount = true;
+    api.calls.length = 0;
+    const result = await connect("code-5");
+    api.state.newAccount = false;
+    expect(result.ok).toBe(true);
+    const [after] = await sync.listConnections();
+    expect(after!.accounts.find((a) => a.iban === IBAN_C)).toMatchObject({ fetchFrom: "2026-10-15" });
+    const fromC = api.calls.find((c) => c.path.startsWith("/accounts/uid-c") && c.path.endsWith("/transactions"))!.query.get("date_from");
+    expect(fromC! >= "2026-10-15").toBe(true);
   });
 
   it("trennt eine Verbindung, die Umsätze bleiben", async () => {
