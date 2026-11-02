@@ -191,6 +191,8 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
 
   // 1. Kontakte: vorhandene über die Lexoffice-ID überspringen, gleichnamige ohne ID verknüpfen
   for await (const raw of client.contacts()) {
+    // Die Sicherung aus der Web-Oberfläche liest ohne Netz und kennt das Signal nicht: selbst prüfen
+    signal.throwIfAborted();
     const contact = mapContact(raw);
     await withActor(actor, async (tx) => {
       const [known] = await tx
@@ -244,6 +246,7 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
   progress.phase = "belege";
   await save(true);
   for (const item of listed) {
+    signal.throwIfAborted();
     if (done.has(item.id)) {
       progress.skipped += 1;
       continue;
