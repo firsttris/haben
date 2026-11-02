@@ -16,6 +16,10 @@ Jede Prüfung und Übermittlung speichert Haben mit XML, Antwort, Protokoll und 
 
 Fristen: ohne Steuerberatung bis 31. Juli des Folgejahres, mit Steuerberatung später.
 
+## Ohne Hersteller-ID: in Mein ELSTER eintragen
+
+Ohne eigene Hersteller-ID steht neben dem Senden-Kasten **In Mein ELSTER eintragen**. „Werte für Mein ELSTER kopieren“ legt die Feldkennungen und Werte der Erklärung in die Zwischenablage, genau die aus dem XML, das Haben senden würde. Die Erweiterung **Haben für Mein ELSTER** trägt sie dann Seite für Seite in das Formular ein; prüfen und absenden machst du dort. Einrichten und Ablauf: [Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md).
+
 ## Umsatzsteuererklärung
 
 | Zeile | Woher |

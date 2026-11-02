@@ -63,4 +63,17 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung als XML für Mein ELSTER (Postgr
   it("meldet eine ID, die keine UUID ist, als unbekannte Anmeldung statt mit einem Datenbankfehler", async () => {
     await expect(meinElster.meinElsterUpload("------------------------------------")).rejects.toThrow("Anmeldung nicht gefunden.");
   });
+
+  it("liefert dieselbe Voranmeldung als Werte für die Erweiterung: Komma, ohne Kz 09, mit Zeitraum", async () => {
+    const draft = await vat.saveDraft(actor, period, { kz81: 290_040, kz86: 0, kz66: 17_355 });
+    const werte = await meinElster.meinElsterUstvaWerte(draft.id, new Date("2026-11-02T10:00:00Z"));
+    expect(werte).toMatchObject({ format: "haben-mein-elster", version: 1, formular: "ustvaeru", jahr: 2026, zeitraum: "10", personen: null });
+    expect(werte.felder.map((f) => [f.kennung, f.wert])).toEqual([
+      ["Zeitraum", "10"],
+      ["Kz66", "173,55"],
+      ["Kz81", "2900"],
+      ["Kz83", "377,45"],
+    ]);
+    await expect(meinElster.meinElsterUstvaWerte("keine-uuid")).rejects.toThrow("Anmeldung nicht gefunden.");
+  });
 });

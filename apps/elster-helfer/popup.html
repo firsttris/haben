@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>Haben für Mein ELSTER</title>
+    <style>
+      body { width: 360px; margin: 0; padding: 12px; font: 14px/1.4 system-ui, sans-serif; color: #1b1b1b; }
+      h1 { font-size: 16px; margin: 0 0 8px; }
+      p { margin: 0 0 8px; }
+      label { display: block; font-weight: 600; margin-bottom: 4px; }
+      textarea { width: 100%; box-sizing: border-box; height: 90px; font: 12px ui-monospace, monospace; }
+      .actions { display: flex; gap: 8px; margin-top: 8px; }
+      button { font: inherit; padding: 4px 10px; border: 1px solid #1f6f5c; border-radius: 6px; background: #fff; cursor: pointer; }
+      button.primary { background: #1f6f5c; color: #fff; }
+      button:focus-visible, textarea:focus-visible { outline: 2px solid #1f6f5c; outline-offset: 2px; }
+      #status { margin-top: 10px; padding: 8px; border-radius: 6px; background: #eef6f3; }
+      #status.fehler { background: #fbeaea; }
+    </style>
+  </head>
+  <body>
+    <h1>Haben für Mein ELSTER</h1>
+    <p>In Haben bei der Voranmeldung oder Jahreserklärung „Werte für Mein ELSTER kopieren“ klicken und hier einfügen. Danach in Mein ELSTER das Formular öffnen und Seite für Seite durchgehen.</p>
+    <label for="werte">Werte aus Haben</label>
+    <textarea id="werte" spellcheck="false" placeholder='{"format":"haben-mein-elster", …}'></textarea>
+    <div class="actions">
+      <button type="button" id="speichern" class="primary">Werte übernehmen</button>
+      <button type="button" id="loeschen">Werte löschen</button>
+    </div>
+    <p id="status" role="status" aria-live="polite"></p>
+    <script src="fill.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

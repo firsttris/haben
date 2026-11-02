@@ -157,6 +157,8 @@ Die Datei enthält nur die Nutzdaten (`<Anmeldungssteuern>`), im Zeichensatz ISO
 
 In Haben bleibt die Anmeldung danach ein Entwurf: Haben erfährt nicht, dass du sie in Mein ELSTER gesendet hast.
 
+Schlägt der Import fehl oder willst du lieber Seite für Seite sehen, was eingetragen wird: Neben dem Senden-Kasten kopiert **Werte für Mein ELSTER kopieren** dieselben Werte für die Erweiterung [Haben für Mein ELSTER](elster-mit-erweiterung.md#umsatzsteuer-voranmeldung).
+
 ### Was im Hintergrund passiert
 
 1. Haben erzeugt das ElsterXML der Datenart `UStVA_<Jahr>` mit 13-stelliger Steuernummer, Empfänger-Finanzamt aus der Steuernummer, Datenlieferant aus den Firmendaten und den Kennzahlen. Die Kennzahlen stehen in aufsteigender Reihenfolge (10, 21, 45, 48, 66, 81, 83, 86). Kz 21, 45, 48, 66, 81 und 86 erscheinen nur, wenn sie nicht null sind; Kz 83 steht immer drin.

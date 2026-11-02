@@ -8,7 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../modules/stammdaten/index.ts";
 import { inputTaxForPeriod } from "../modules/belege/index.ts";
-import { computeVatFigures, preflight } from "../modules/umsatzsteuer/index.ts";
+import { computeVatFigures, meinElsterUstvaWerte, preflight } from "../modules/umsatzsteuer/index.ts";
 import { abgleichIssues, vatAbgleich } from "../modules/auswertungen/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
@@ -170,3 +170,9 @@ export const submitVatReturn = createServerFn({ method: "POST" })
       transferTicket: result.transferTicket ?? null,
     };
   });
+
+/** Werte der gespeicherten Voranmeldung für die Erweiterung, die Mein ELSTER ausfüllt */
+export const getMeinElsterUstvaWerte = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => meinElsterUstvaWerte(data.id));

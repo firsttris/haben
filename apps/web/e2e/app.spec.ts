@@ -749,6 +749,8 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await go(`/jahreserklaerung/${YEAR - 1}`);
   await expect(page.getByRole("heading", { name: /Steuerjahr/ })).toBeVisible();
+  // Ohne eigene Hersteller-ID: Werte für die Erweiterung, die Mein ELSTER ausfüllt
+  await expect(page.getByRole("region", { name: /^Anlage EÜR \d{4} in Mein ELSTER$/ }).getByRole("button", { name: "Werte für Mein ELSTER kopieren" })).toBeVisible();
   await go("/finanzamt");
   await expect(page.getByRole("heading", { name: "Finanzamt", level: 1 })).toBeVisible();
 });
@@ -762,6 +764,8 @@ test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async 
   }
   const link = page.getByRole("link", { name: "XML für Mein ELSTER" });
   await expect(link).toBeVisible();
+  // Zweiter Weg ohne Hersteller-ID: Werte für die Erweiterung
+  await expect(page.getByRole("button", { name: "Werte für Mein ELSTER kopieren" })).toBeEnabled();
   const response = await page.request.get((await link.getAttribute("href"))!);
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toBe("application/xml; charset=ISO-8859-15");
