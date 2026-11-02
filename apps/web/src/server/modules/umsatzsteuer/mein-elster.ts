@@ -1,6 +1,7 @@
 import { computeUstva, periodKey, toElsterSteuernummer } from "@haben/core";
 import { buildUstvaUpload } from "@haben/elster";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { db, schema } from "../../db/index.ts";
 import { companyIssues, loadCompany } from "../stammdaten/index.ts";
 import { VatError } from "./vat.ts";
@@ -11,7 +12,9 @@ import { VatError } from "./vat.ts";
  * Entwurfs; Haben ändert dabei nichts.
  */
 export async function meinElsterUpload(returnId: string): Promise<{ bytes: Uint8Array; filename: string }> {
-  const [vatReturn] = await db.select().from(schema.vatReturns).where(eq(schema.vatReturns.id, returnId));
+  // Postgres lehnt eine ID ab, die keine UUID ist; für den Nutzer ist das dieselbe unbekannte Anmeldung
+  const id = z.uuid().safeParse(returnId);
+  const [vatReturn] = id.success ? await db.select().from(schema.vatReturns).where(eq(schema.vatReturns.id, id.data)) : [];
   if (!vatReturn) throw new VatError("Anmeldung nicht gefunden.");
   const company = await loadCompany();
   const issues = companyIssues(company);
