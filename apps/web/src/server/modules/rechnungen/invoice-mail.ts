@@ -46,18 +46,12 @@ const recipientsSchema = z
   .max(1000)
   .refine(
     (value) => {
-      const list = value.split(/[,;]/).map((v) => v.trim()).filter(Boolean);
-      return list.length > 0 && list.length <= MAX_EMAIL_RECIPIENTS && list.every((v) => z.string().email().safeParse(v).success);
+      const list = splitEmails(value);
+      return list.length > 0 && list.length <= MAX_EMAIL_RECIPIENTS && list.every((v) => z.email().safeParse(v).success);
     },
     { message: "Bis zu fünf gültige E-Mail-Adressen, durch Komma getrennt" },
   )
-  .transform((value) =>
-    value
-      .split(/[,;]/)
-      .map((v) => v.trim())
-      .filter(Boolean)
-      .join(", "),
-  );
+  .transform((value) => joinEmails(splitEmails(value)));
 
 export const outgoingMailSchema = z.object({
   to: recipientsSchema,

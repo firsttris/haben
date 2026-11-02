@@ -364,6 +364,26 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(page.getByLabel("Aus dem Artikelkatalog einfügen").locator("option", { hasText: "Wartungspauschale · 250,00" })).toHaveCount(1);
 });
 
+test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor einfügen", async () => {
+  await go("/textbausteine");
+  await page.getByRole("button", { name: "Neuer Textbaustein" }).click();
+  const form = page.getByRole("form", { name: "Neuer Textbaustein" });
+  await form.getByLabel("Bezeichnung").fill("Bestellnummer Nordwerk");
+  await form.getByRole("textbox", { name: /^Text / }).fill("Bestellnummer 4500012345 laut Rahmenvertrag 2026.");
+  await form.getByLabel("Kunde (optional)").selectOption({ label: "Nordwerk Software GmbH · Hamburg" });
+  await form.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByRole("region", { name: "Textbausteine" })).toContainText("Bestellnummer Nordwerk");
+
+  // Für diesen Kunden steht der Baustein oben; eingefügt wird eine Kopie in die Einleitung, gespeichert wird nichts
+  await go("/rechnungen/neu");
+  await page.getByLabel("Kunde").selectOption({ label: "Nordwerk Software GmbH · Hamburg" });
+  const insert = page.getByLabel("Kopftext aus den Textbausteinen einfügen");
+  await expect(insert.locator('optgroup[label="Für diesen Kunden"] option')).toHaveText(["Bestellnummer Nordwerk"]);
+  await insert.selectOption({ label: "Bestellnummer Nordwerk" });
+  await expect(page.getByLabel("Einleitung über den Positionen (optional)")).toHaveValue("Bestellnummer 4500012345 laut Rahmenvertrag 2026.");
+  await expect(insert).toHaveValue("");
+});
+
 test("Bruttopreise: Artikel mit Endpreis, Umrechnung beim Einfügen, Vorschau mit „darin enthalten“", async () => {
   await go("/artikel");
   await page.getByRole("button", { name: "Neuer Artikel" }).click();
@@ -725,6 +745,7 @@ test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
     ["mahnwesen", "/rechnungen/mahnwesen"],
     ["wiederkehrend", "/rechnungen/wiederkehrend"],
     ["artikel", "/artikel"],
+    ["textbausteine", "/textbausteine"],
     ["belege", "/belege"],
     ["beleg", details.beleg],
     ["pauschalen", "/pauschalen"],

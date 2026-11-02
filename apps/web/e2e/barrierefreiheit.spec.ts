@@ -44,6 +44,7 @@ const PAGES = [
   `/konten?jahr=${YEAR}`,
   `/konten/1200?jahr=${YEAR}`,
   "/archiv",
+  "/textbausteine",
   "/einstellungen",
   "/einstellungen?bereich=rechnungen",
   "/einstellungen?bereich=elster",

@@ -30,7 +30,7 @@ Am einfachsten ist der Wechsel zum **1. Januar**. Das Jahr davor schließt du in
 
 Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufende Jahr stehen die Monate vor dem Wechsel in Lexware Office, die danach in Haben, und für die EÜR muss beides zusammengeführt werden. Umsätze vor dem ersten Abruf kommen dann per Kontoauszug als Datei; Haben ruft danach keine Tage mehr ab, die eine Datei schon abdeckt. Willst du Haben vorher ausprobieren, nimm dafür eine eigene Instanz und starte die echte Buchhaltung zum Jahreswechsel neu: Importierte Bankumsätze und Buchungen lassen sich nicht löschen.
 
-### Umzug ohne Public API (Tarife S, M und L)
+## Umzug ohne Public API (Tarife S, M und L)
 
 Ohne Tarif XL fallen die Schritte 1 bis 3 weg. Den Umzug kannst du trotzdem machen, nur über die Exporte aus Schritt 4:
 
