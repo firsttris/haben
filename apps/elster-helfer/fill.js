@@ -126,9 +126,12 @@
     const felder = [...doc.querySelectorAll("input[data-eru-name]")].filter(
       (i) => !i.disabled && i.type !== "hidden" && i.getAttribute("data-eru-name").startsWith(`${match[1]}/Einz/`) && istMehrfachzeile(i.name),
     );
-    if (felder.length !== 2 || felder.some((f) => f.value.trim() !== "")) return null;
+    if (felder.length !== 2) return null;
     const betrag = felder.find((f) => /betrag/i.test(beschriftung(doc, f))) || felder[1];
     const bezeichnung = felder.find((f) => f !== betrag);
+    // Frei ist die Zeile, wenn sie leer ist oder ein früherer Lauf sie vorbereitet hat und noch niemand übernommen hat
+    const leer = felder.every((f) => f.value.trim() === "");
+    if (!leer && bezeichnung.value.trim() !== BEZEICHNUNG) return null;
     const knopf = gruppenKnopf(betrag);
     return { bezeichnung, betrag, knopf };
   }
