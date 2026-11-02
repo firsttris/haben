@@ -25,6 +25,7 @@ import {
   splitTransaction,
   syncBankConnection,
 } from "../../server/functions/bank.ts";
+import { today as todayInGermany } from "../../server/today.ts";
 
 const searchSchema = z.object({
   konto: z.optional(z.uuid()),
@@ -480,7 +481,7 @@ function ConnectForm({
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState("");
   const [psuType, setPsuType] = useState<"business" | "personal">("business");
-  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+  const today = todayInGermany();
   const [fetchFrom, setFetchFrom] = useState(`${today.slice(0, 4)}-01-01`);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -567,8 +568,9 @@ function ConnectForm({
         Umsätze abrufen ab
         <input type="date" value={fetchFrom} max={today} onChange={(e) => setFetchFrom(e.target.value)} aria-describedby="fetch-from-hint" />
         <span id="fetch-from-hint" className="small muted">
-          Gilt für Konten, die in Haben noch keine Umsätze haben. Vorgabe ist der Jahresbeginn; beim Umzug unter dem Jahr der Tag, an dem
-          die Buchhaltung in Haben beginnt. Sind schon Umsätze da, etwa aus einer Datei, beginnt der Abruf am Tag danach.
+          Gilt für Konten, die noch nie abgerufen wurden. Vorgabe ist der Jahresbeginn; beginnt die Buchhaltung in Haben später im Jahr,
+          etwa nach einem Umzug, trage diesen Tag ein. Tage, für die schon Umsätze da sind (etwa aus einer Datei), ruft Haben nicht noch
+          einmal ab.
         </span>
       </label>
       {bank && (
