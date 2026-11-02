@@ -59,4 +59,8 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung als XML für Mein ELSTER (Postgr
     await expect(meinElster.meinElsterUpload(draft.id)).rejects.toThrow(/Firmendaten unvollständig/);
     await expect(meinElster.meinElsterUpload("00000000-0000-4000-8000-000000000000")).rejects.toThrow("Anmeldung nicht gefunden.");
   });
+
+  it("meldet eine ID, die keine UUID ist, als unbekannte Anmeldung statt mit einem Datenbankfehler", async () => {
+    await expect(meinElster.meinElsterUpload("------------------------------------")).rejects.toThrow("Anmeldung nicht gefunden.");
+  });
 });
