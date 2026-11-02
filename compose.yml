@@ -1,0 +1,74 @@
+# Haben für die Entwicklung: PostgreSQL, Migrationen und Dev-Server mit Neuladen beim Speichern.
+#
+#   docker compose up        # http://localhost:3000, den Einrichtungscode schreibt der Server ins Log
+#
+# Nur für die Entwicklung. Für den Betrieb gibt es deploy/compose.yml (docs/installation.md).
+# Mehr dazu in docs/entwicklung.md, Abschnitt „Mit Docker Compose“.
+name: haben-dev
+
+services:
+  db:
+    # Dasselbe Image wie im Betrieb (deploy/db)
+    image: tristanteu/haben-db:latest
+    environment:
+      POSTGRES_USER: haben
+      POSTGRES_DB: haben
+      # Wie in apps/web/.env.example; die Datenbank ist nur über 127.0.0.1 erreichbar
+      POSTGRES_PASSWORD: haben
+    ports:
+      # Für psql und die Datenbanktests vom Rechner aus; anderer Port, wenn dort schon PostgreSQL läuft
+      - "127.0.0.1:${HABEN_DEV_DB_PORT:-5432}:5432"
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "haben"]
+      interval: 2s
+      retries: 30
+
+  app:
+    build:
+      context: deploy/dev
+      dockerfile: Containerfile
+      args:
+        # Unter Linux die eigene Benutzer-ID, falls sie nicht 1000 ist (id -u, id -g)
+        UID: ${HABEN_DEV_UID:-1000}
+        GID: ${HABEN_DEV_GID:-1000}
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://haben:haben@db:5432/haben
+      # Passkeys hängen an dieser Adresse; sie muss zur Adresse im Browser passen
+      BETTER_AUTH_URL: http://localhost:${HABEN_DEV_PORT:-3000}
+      HABEN_DEV_PORT: ${HABEN_DEV_PORT:-3000}
+      # Belege und ERiC gehören zur Datenbank im Container, nicht in den Projektordner
+      DOCUMENTS_DIR: /var/lib/haben/belege
+      ERIC_DIR: /var/lib/haben/eric
+      # Ein ERIC_HOME aus apps/web/.env zeigt auf den Rechner, nicht in den Container; leer gilt als nicht gesetzt
+      ERIC_HOME: ""
+    ports:
+      # Innen und außen derselbe Port, damit Neuladen und Anmeldung dieselbe Adresse sehen
+      - "127.0.0.1:${HABEN_DEV_PORT:-3000}:${HABEN_DEV_PORT:-3000}"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - node_modules_web:/app/apps/web/node_modules
+      - node_modules_core:/app/packages/core/node_modules
+      - node_modules_einvoice:/app/packages/einvoice/node_modules
+      - node_modules_elster:/app/packages/elster/node_modules
+      - node_modules_import:/app/packages/import/node_modules
+      # pnpm-Store und corepack, damit ein neuer Container nicht alles neu lädt
+      - cache:/home/node/.cache
+      # Belege, ERiC und die beim ersten Start erzeugten Schlüssel
+      - daten:/var/lib/haben
+
+volumes:
+  db:
+  node_modules:
+  node_modules_web:
+  node_modules_core:
+  node_modules_einvoice:
+  node_modules_elster:
+  node_modules_import:
+  cache:
+  daten:

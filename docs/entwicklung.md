@@ -7,6 +7,7 @@ Diese Seite richtet sich an alle, die an Haben mitarbeiten wollen: lokale Umgebu
 - Node.js 22 (`engines.node` verlangt mindestens 22)
 - pnpm 10 (das Repository legt `pnpm@10.28.0` über `packageManager` fest; mit `corepack enable` bekommst du die passende Version)
 - PostgreSQL 18, lokal oder als Container
+- Alternativ zu allen dreien: Docker oder Podman mit Compose, siehe [Mit Docker Compose](#mit-docker-compose)
 - Optional: ein C-Compiler (`cc`) für die ERiC-Tests mit nachgebauter Bibliothek, Java 21 für den KoSIT-Validator
 
 ## Lokale Umgebung
@@ -35,6 +36,33 @@ pnpm dev            # http://localhost:3000
 Den Einrichtungscode für das erste Konto schreibt der Server ins Terminal; mit `HABEN_SETUP_CODE` in `apps/web/.env` bleibt er fest.
 
 Belegdateien landen ohne weitere Angabe in `apps/web/data/belege` (`DOCUMENTS_DIR`, von Git ignoriert).
+
+## Mit Docker Compose
+
+Ohne Node, pnpm und PostgreSQL auf dem eigenen Rechner startet `compose.yml` im Hauptordner die ganze Entwicklungsumgebung:
+
+```sh
+git clone https://github.com/firsttris/haben.git
+cd haben
+docker compose up   # http://localhost:3000
+```
+
+Compose startet PostgreSQL 18 (dasselbe Image `tristanteu/haben-db` wie im Betrieb), installiert die Abhängigkeiten, wendet die Migrationen an und startet den Dev-Server. Der Projektordner ist in den Container eingehängt; Änderungen am Code lädt der Dev-Server beim Speichern neu. Nach einer Änderung an `pnpm-lock.yaml` reicht ein Neustart (`docker compose restart app`). Den Einrichtungscode für das erste Konto zeigt das Log (`docker compose logs app`).
+
+- **Schlüssel:** `BETTER_AUTH_SECRET` und `HABEN_ENCRYPTION_KEY` erzeugt der Container beim ersten Start zufällig und legt sie im Volume `daten` ab, zusammen mit den Belegen und einem heruntergeladenen ERiC. Feste Schlüssel stehen nicht im Repository.
+- **`apps/web/.env`** ist nicht nötig. Liegt sie vor, gelten ihre übrigen Werte auch im Container (etwa `ANTHROPIC_API_KEY` oder `HABEN_SETUP_CODE`); Datenbank, Adresse, Schlüssel, Belegordner und ERiC setzt `compose.yml`.
+- **`node_modules`** liegen in eigenen Volumes, damit der Container seine nativen Pakete für Linux hat, auch wenn der Rechner macOS ist. Fehlen die Ordner auf dem Rechner, legt Docker sie unter Linux leer und mit Besitzer root an; ein späteres `pnpm install` ohne Container scheitert dann an den Rechten. Wer beides nutzen will, führt `pnpm install` deshalb zuerst auf dem Rechner aus.
+- **Ports:** Die App lauscht auf `127.0.0.1:3000`, die Datenbank auf `127.0.0.1:5432` (Benutzer und Passwort `haben`). Läuft dort schon etwas, wählen `HABEN_DEV_PORT` und `HABEN_DEV_DB_PORT` andere Ports, etwa `HABEN_DEV_DB_PORT=5433 docker compose up`.
+- **Linux:** Der Benutzer im Container hat die ID 1000. Ist die eigene eine andere (`id -u`), baut `HABEN_DEV_UID=$(id -u) HABEN_DEV_GID=$(id -g) docker compose up --build` den Container passend, sonst kann der Dev-Server Dateien wie `src/routeTree.gen.ts` nicht schreiben. Die Volumes übernimmt der Container beim nächsten Start für die neue ID. Befehle im Container startest du als dieser Benutzer, damit neue Dateien dir gehören: `docker compose exec -u node app pnpm …`.
+
+Die Datenbank im Container eignet sich auch für die Tests vom Rechner aus. Die Testdatenbanken legst du einmal an:
+
+```sh
+docker compose exec db createdb -U haben haben_test
+docker compose exec db createdb -U haben haben_e2e
+```
+
+`docker compose down` hält die Umgebung an, die Daten bleiben erhalten. `docker compose down -v` löscht Datenbank, Belege und Schlüssel.
 
 ## Befehle
 
