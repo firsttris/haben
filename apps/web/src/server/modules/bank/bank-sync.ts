@@ -284,7 +284,7 @@ export async function completeConnection(
         name: bankAccount.name,
         bankAccountId: bankAccount.id,
         syncedTo: previous?.syncedTo ?? null,
-        ...(connection.fetchFrom && !previous?.syncedTo ? { fetchFrom: connection.fetchFrom } : {}),
+        ...accountFetchFrom(previous, connection.fetchFrom),
       });
     }
     const ids = new Set(accounts.map((a) => a.bankAccountId));
@@ -322,6 +322,16 @@ export async function completeConnection(
     (skipped > 0 ? ` ${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : "") +
     (foreignNote ? ` ${foreignNote}` : "");
   return { connectionId: connection.id, ok: sync.error === null, message: (sync.error ?? `${connection.aspspName} verbunden, ${sync.added} neue Umsätze.`) + note };
+}
+
+/**
+ * „Umsätze abrufen ab“ eines Kontos nach dem Verbinden: Ein schon abgerufenes Konto behält seinen bisherigen Tag, sonst
+ * ginge der Folgeabruf nach dem Erneuern der Zustimmung wieder davor zurück (siehe followUpStart). Der neu gewählte Tag
+ * gilt nur für Konten, die noch nie abgerufen wurden.
+ */
+function accountFetchFrom(previous: BankConnectionAccount | undefined, chosen: string | null): { fetchFrom?: string } {
+  if (previous?.syncedTo) return previous.fetchFrom ? { fetchFrom: previous.fetchFrom } : {};
+  return chosen ? { fetchFrom: chosen } : {};
 }
 
 /**
