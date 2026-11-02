@@ -347,12 +347,12 @@ async function lastFileBooking(bankAccountId: string): Promise<string | null> {
 }
 
 /**
- * Erster Abruf eines Kontos: ab dem beim Verbinden gewählten Tag (Vorgabe Jahresbeginn, beim Umzug unter dem Jahr
- * später), aber nie in Tage, die schon Umsätze haben: Die Bank formatiert den Verwendungszweck in der API oft anders
- * als in der Datei, dann passten die Hashes nicht. Ohne gewählten Tag (Verbindung von vor Migration 0087) am Tag nach
- * dem letzten vorhandenen Umsatz, sonst ab Jahresbeginn.
- * fallback: die letzten 89 Tage, wenn die Bank einen weiter zurückliegenden Beginn ablehnt, nie vor dem gewählten Tag.
- * Auch für einen gewählten Tag, denn das Formular schickt die Vorgabe Jahresbeginn immer mit.
+ * Erster Abruf eines Kontos: ab dem beim Verbinden selbst gewählten Tag (Umzug unter dem Jahr), aber nie in Tage, die
+ * schon Umsätze haben: Die Bank formatiert den Verwendungszweck in der API oft anders als in der Datei, dann passten
+ * die Hashes nicht. Ohne gewählten Tag (Vorgabe im Formular, Verbindungen von vor Migration 0087) am Tag nach dem
+ * letzten vorhandenen Umsatz, sonst ab Jahresbeginn.
+ * fallback: die letzten 89 Tage, wenn die Bank einen weiter zurückliegenden Beginn ablehnt, nie vor dem gewählten Tag;
+ * nicht im Anschluss an vorhandene Umsätze, dort ließe er still eine Lücke.
  */
 export function firstSyncStart(latestBooking: string | null, fetchFrom: string | undefined, today: string): { from: string; fallback: string | null } {
   const afterLatest = latestBooking ? addDays(latestBooking, 1) : null;

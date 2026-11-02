@@ -6,6 +6,7 @@ import { z } from "zod/mini";
 import { Icon } from "../../components/Icon.tsx";
 import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
 import {
@@ -482,7 +483,7 @@ function ConnectForm({
   const [selected, setSelected] = useState("");
   const [psuType, setPsuType] = useState<"business" | "personal">("business");
   const today = todayInGermany();
-  const [fetchFrom, setFetchFrom] = useState(`${today.slice(0, 4)}-01-01`);
+  const [fetchFrom, setFetchFrom] = useState(defaultFetchFrom(today));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -519,7 +520,7 @@ function ConnectForm({
     setBusy(true);
     setError(null);
     try {
-      const { url } = await connect({ data: { aspspName: bank.name, psuType, fetchFrom: fetchFrom || null } });
+      const { url } = await connect({ data: { aspspName: bank.name, psuType, fetchFrom: fetchFromForConnect(fetchFrom, today) } });
       window.location.assign(url);
     } catch (e) {
       setError(errorMessage(e));
@@ -568,9 +569,8 @@ function ConnectForm({
         Umsätze abrufen ab
         <input type="date" value={fetchFrom} max={today} onChange={(e) => setFetchFrom(e.target.value)} aria-describedby="fetch-from-hint" />
         <span id="fetch-from-hint" className="small muted">
-          Gilt für Konten, die noch nie abgerufen wurden. Vorgabe ist der Jahresbeginn; beginnt die Buchhaltung in Haben später im Jahr,
-          etwa nach einem Umzug, trage diesen Tag ein. Tage, für die schon Umsätze da sind (etwa aus einer Datei), ruft Haben nicht noch
-          einmal ab.
+          Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon
+          da sind (etwa aus einer Datei). Beginnt die Buchhaltung in Haben später im Jahr, etwa nach einem Umzug, trage diesen Tag ein.
         </span>
       </label>
       {bank && (
