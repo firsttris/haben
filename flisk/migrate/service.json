@@ -1,0 +1,9 @@
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "migrate",
+  "appType": "migrator",
+  "command": "pnpm --dir ../.. db:migrate",
+  "dependsOn": ["postgres"],
+  "env": { "DATABASE_URL": "postgres://haben:haben@localhost:5432/haben" }
+}

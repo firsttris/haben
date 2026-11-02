@@ -15,3 +15,6 @@ playwright-report/
 
 # MkDocs build (mkdocs build)
 site/
+
+# Flisk (lokale Entwicklungsumgebung)
+.flisk/

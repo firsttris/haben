@@ -1,0 +1,16 @@
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "web",
+  "appType": "frontend",
+  "command": "pnpm dev",
+  "port": 3000,
+  "healthCheckPath": "/",
+  "dependsOn": ["migrate"],
+  "env": {
+    "DATABASE_URL": "postgres://haben:haben@localhost:5432/haben",
+    "BETTER_AUTH_URL": "http://localhost:3000",
+    "BETTER_AUTH_SECRET": "${BETTER_AUTH_SECRET:-haben-local-dev-secret-not-for-production}",
+    "HABEN_ENCRYPTION_KEY": "${HABEN_ENCRYPTION_KEY:-aGFiZW4tbG9jYWwtZGV2LWtleS0wMTIzNDU2Nzg5YWI=}"
+  }
+}

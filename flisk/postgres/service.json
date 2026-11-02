@@ -1,0 +1,11 @@
+{
+  "$schema": "https://flisk.sh/schema.service.json",
+  "schemaVersion": 1,
+  "appName": "postgres",
+  "appType": "bring-your-own",
+  "image": "postgres:18-alpine",
+  "port": 5432,
+  "env": { "POSTGRES_USER": "haben", "POSTGRES_PASSWORD": "haben", "POSTGRES_DB": "haben" },
+  "healthCheck": { "command": ["pg_isready", "-U", "haben"] },
+  "volumes": [{ "source": "postgres", "target": "/var/lib/postgresql", "name": "haben_dev_postgres" }]
+}

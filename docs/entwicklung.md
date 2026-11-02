@@ -36,6 +36,17 @@ Den Einrichtungscode für das erste Konto schreibt der Server ins Terminal; mit 
 
 Belegdateien landen ohne weitere Angabe in `apps/web/data/belege` (`DOCUMENTS_DIR`, von Git ignoriert).
 
+## Mit Flisk starten (optional)
+
+Statt PostgreSQL selbst anzulegen, Migrationen auszuführen und den Dev-Server zu starten, erledigt [Flisk](https://flisk.sh) die drei Schritte mit einem Befehl: PostgreSQL 18 läuft in Docker, die Migrationen als eigener Dienst, die Web-App als lokaler Prozess mit Neuladen beim Speichern.
+
+```sh
+pnpm install
+npx @flisk-sh/flisk up    # http://localhost:3000
+```
+
+Docker muss laufen, Port 3000 und 5432 müssen frei sein. Die Dienste stehen in `flisk/postgres`, `flisk/migrate` und `apps/web` (je eine `service.json`). Die Daten liegen im Docker-Volume `haben_dev_postgres` und bleiben nach `npx @flisk-sh/flisk down` erhalten. Die Zugangsdaten in der `service.json` sind feste Werte nur für die lokale Entwicklung; eigene Werte (`BETTER_AUTH_SECRET`, `HABEN_ENCRYPTION_KEY`) setzt eine `.env` im Projektordner. Der Weg über `createdb` und `pnpm dev` oben bleibt unverändert.
+
 ## Befehle
 
 | Befehl | Was er tut |
