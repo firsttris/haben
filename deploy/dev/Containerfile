@@ -1,0 +1,24 @@
+# Haben – Container für die Entwicklung, gestartet über compose.yml im Hauptordner.
+# Die Quellen kommen per Bind-Mount aus dem Projektordner, node_modules liegt in Volumes: So hat der Container
+# seine eigenen nativen Pakete (Typst, esbuild) für Linux, auch wenn der Rechner macOS ist.
+FROM docker.io/library/node:26-bookworm-slim
+# Der Benutzer im Container bekommt die IDs des Entwicklers, damit ihm die Dateien gehören,
+# die der Dev-Server im Projektordner anlegt (.tanstack, .nitro)
+ARG UID=1000
+ARG GID=1000
+# Node bringt corepack ab Version 25 nicht mehr mit; es holt das pnpm aus packageManager in package.json
+RUN npm install --global corepack@0.36.0 && corepack enable
+# Die Ziele der Volumes vorher anlegen: Ein neues Volume übernimmt Besitzer und Rechte des Ordners im Image
+RUN groupmod -o -g "$GID" node && usermod -o -u "$UID" -g "$GID" node \
+ && mkdir -p /app/node_modules /app/apps/web/node_modules \
+      /app/packages/core/node_modules /app/packages/einvoice/node_modules \
+      /app/packages/elster/node_modules /app/packages/import/node_modules \
+      /var/lib/haben /home/node/.cache \
+ && chown -R node:node /app /var/lib/haben /home/node
+COPY --chmod=755 start.sh /usr/local/bin/haben-dev
+USER node
+ENV COREPACK_HOME=/home/node/.cache/corepack \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    npm_config_store_dir=/home/node/.cache/pnpm-store
+WORKDIR /app
+CMD ["haben-dev"]

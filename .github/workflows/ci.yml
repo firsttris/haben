@@ -201,6 +201,25 @@ jobs:
       - if: failure()
         run: docker logs haben-app || true
 
+  # Die Entwicklungsumgebung aus compose.yml im Hauptordner: startet sie, läuft der Dev-Server mit Datenbank
+  dev-compose:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Starten
+        run: |
+          # Der Runner-Benutzer hat nicht die ID 1000; der Container muss in den Projektordner schreiben dürfen
+          HABEN_DEV_UID="$(id -u)" HABEN_DEV_GID="$(id -g)" docker compose up -d --build
+      - name: Prüfen
+        run: |
+          for i in $(seq 1 90); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 2; done
+          curl -sf -o /dev/null http://localhost:3000/login
+          docker compose logs app | grep -q "Migrationen angewendet"
+          docker compose logs app | grep -q "Einrichtungscode"
+      - if: failure()
+        run: docker compose logs
+
   backup:
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest

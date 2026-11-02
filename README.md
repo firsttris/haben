@@ -231,6 +231,10 @@ pnpm db:migrate
 pnpm dev                                  # http://localhost:3000
 ```
 
+Oder ohne Node und PostgreSQL auf dem Rechner, mit Docker: `docker compose up` im Hauptordner startet Datenbank,
+Migrationen und Dev-Server mit Neuladen beim Speichern
+([Mit Docker Compose](https://firsttris.github.io/haben/entwicklung.html#mit-docker-compose)).
+
 Ohne ERiC (unter Einstellungen per Knopf von der Finanzverwaltung geladen) simuliert Haben die ELSTER-Übermittlung
 und zeigt das deutlich an. Ohne `ANTHROPIC_API_KEY` bleibt die KI-Auslesung aus.
 
