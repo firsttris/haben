@@ -1,4 +1,5 @@
 import { finanzamtsnummer, type Cents, type UstvaFigures, type VatPeriod } from "@haben/core";
+import { encodeIso885915 } from "./iso8859-15.ts";
 
 /** Fehlende oder ungültige Angaben für eine ELSTER-Nachricht; die Meldung ist für den Nutzer bestimmt */
 export class ElsterEingabeError extends Error {}
@@ -169,7 +170,11 @@ export function elsterXml(kopf: TransferKopf, bloecke: Nutzdatenblock[]): string
   ].join("\n");
 }
 
-export function buildUstvaXml(input: UstvaXmlInput): string {
+/** Was in den Nutzdaten der Voranmeldung steht; Transferkopf und Testmerker gehören nicht dazu */
+export type UstvaNutzdatenInput = Omit<UstvaXmlInput, "produktVersion" | "test">;
+
+/** Der Inhalt von /Elster/DatenTeil/Nutzdatenblock/Nutzdaten: das Element <Anmeldungssteuern>, zeilenweise */
+export function ustvaNutzdaten(input: UstvaNutzdatenInput): string[] {
   const { period, figures, datenlieferant: dl } = input;
   checkSteuernummer13(input.steuernummer13);
   if (!Number.isInteger(period.month) || period.month < 1 || period.month > 12) {
@@ -199,38 +204,47 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
   tax("85", figures.kz85);
   base("86", figures.kz86);
 
-  const lieferantKurz = `${dl.name}, ${dl.strasse}, ${dl.plz} ${dl.ort}`;
+  return [
+    `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${period.year}" version="${period.year}">`,
+    element("Erstellungsdatum", yyyymmdd(input.erstellungsdatum ?? new Date())),
+    // Längen laut Schema; der Datenlieferant ist nur Absenderangabe
+    `<DatenLieferant>`,
+    element("Name", dl.name.slice(0, 45)),
+    element("Strasse", dl.strasse.slice(0, 30)),
+    element("PLZ", dl.plz),
+    element("Ort", dl.ort.slice(0, 30)),
+    `</DatenLieferant>`,
+    `<Steuerfall>`,
+    `<Umsatzsteuervoranmeldung>`,
+    element("Jahr", String(period.year)),
+    element("Zeitraum", String(period.month).padStart(2, "0")),
+    element("Steuernummer", input.steuernummer13),
+    // Pflichtfeld: Hersteller-ID der Software
+    element("Kz09", input.herstellerId),
+    ...kennzahlen,
+    `</Umsatzsteuervoranmeldung>`,
+    `</Steuerfall>`,
+    `</Anmeldungssteuern>`,
+  ];
+}
 
+export function buildUstvaXml(input: UstvaXmlInput): string {
+  const dl = input.datenlieferant;
+  const nutzdaten = ustvaNutzdaten(input);
+  const lieferantKurz = `${dl.name}, ${dl.strasse}, ${dl.plz} ${dl.ort}`;
   return elsterXml(
     { verfahren: "ElsterAnmeldung", datenArt: "UStVA", testmerker: input.test ? TESTMERKER : undefined, herstellerId: input.herstellerId, datenlieferant: lieferantKurz },
-    [
-      {
-        ticket: "1",
-        empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) },
-        produktVersion: input.produktVersion,
-        nutzdaten: [
-          `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${period.year}" version="${period.year}">`,
-          element("Erstellungsdatum", yyyymmdd(input.erstellungsdatum ?? new Date())),
-          // Längen laut Schema; der Datenlieferant ist nur Absenderangabe
-          `<DatenLieferant>`,
-          element("Name", dl.name.slice(0, 45)),
-          element("Strasse", dl.strasse.slice(0, 30)),
-          element("PLZ", dl.plz),
-          element("Ort", dl.ort.slice(0, 30)),
-          `</DatenLieferant>`,
-          `<Steuerfall>`,
-          `<Umsatzsteuervoranmeldung>`,
-          element("Jahr", String(period.year)),
-          element("Zeitraum", String(period.month).padStart(2, "0")),
-          element("Steuernummer", input.steuernummer13),
-          // Pflichtfeld: Hersteller-ID der Software
-          element("Kz09", input.herstellerId),
-          ...kennzahlen,
-          `</Umsatzsteuervoranmeldung>`,
-          `</Steuerfall>`,
-          `</Anmeldungssteuern>`,
-        ],
-      },
-    ],
+    [{ ticket: "1", empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) }, produktVersion: input.produktVersion, nutzdaten }],
   );
+}
+
+/**
+ * Datei für den XML-Import der Voranmeldung in Mein ELSTER (Formular „Umsatzsteuer-Voranmeldung“ › Datenübernahme ›
+ * XML-Import). Laut Benutzeranleitung zum Hochladen von Formulardaten (Mein ELSTER, Hilfe „ustva_upload“) wird nur der
+ * Inhalt der Nutzdaten hochgeladen, im Zeichensatz ISO-8859-15; Kz09 übernimmt Mein ELSTER nicht. Das Schema verlangt
+ * Kz09 trotzdem, deshalb steht dort die Test-Hersteller-ID: Eine eigene Hersteller-ID ist für diesen Weg nicht nötig.
+ */
+export function buildUstvaUpload(input: Omit<UstvaNutzdatenInput, "herstellerId">): Uint8Array {
+  const xml = [`<?xml version="1.0" encoding="ISO-8859-15" standalone="no"?>`, ...ustvaNutzdaten({ ...input, herstellerId: TEST_HERSTELLER_ID })].join("\n");
+  return encodeIso885915(xml);
 }

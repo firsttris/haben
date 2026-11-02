@@ -141,7 +141,21 @@ Rechts steht der Bereich **An ELSTER übermitteln** mit dem hinterlegten Zertifi
 | **Prüfen und testweise senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Prüfung und Übermittlung mit Testmerker `700000004` und deiner Hersteller-ID (ERiC 43 sperrt die frühere Test-ID `74931`). Der Server nimmt die Daten an, leitet sie aber nicht ans Finanzamt weiter. |
 | **Prüfen und senden** | Zertifikat, PIN, `ELSTER_HERSTELLER_ID` | Echte Übermittlung nach einer zweiten Bestätigung („Jetzt verbindlich senden“). |
 
-Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt. Mit echtem ERiC scheitern dann auch Prüfen und Test mit der Meldung, die eigene Hersteller-ID auch für Testfälle zu verwenden. Bis die Hersteller-ID da ist, gibst du in Mein ELSTER ab; die Seite verlinkt dafür oben auf [Mein ELSTER mit KI-Assistent](elster-mit-assistent.md).
+Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt. Mit echtem ERiC scheitern dann auch Prüfen und Test mit der Meldung, die eigene Hersteller-ID auch für Testfälle zu verwenden. Bis die Hersteller-ID da ist, gibst du in Mein ELSTER ab, am einfachsten über den XML-Import (siehe unten).
+
+### Ohne Hersteller-ID: XML-Import in Mein ELSTER
+
+Mein ELSTER kann eine Voranmeldung aus einer XML-Datei übernehmen. Haben schreibt diese Datei, eine eigene Hersteller-ID braucht es dafür nicht:
+
+1. Entwurf speichern und **XML für Mein ELSTER** klicken. Die Datei heißt `UStVA_<Jahr>-<Monat>.xml`.
+2. In Mein ELSTER **Formulare und Leistungen › Umsatzsteuer-Voranmeldung** öffnen, das Jahr wählen, **Weiter**.
+3. Auf der Seite **Datenübernahme** den Reiter **XML-Import** wählen, die Datei auswählen und **XML-Daten hochladen**.
+4. Mein ELSTER füllt das Formular. Zeitraum, Steuernummer und Kennzahlen gegen Haben prüfen, in Mein ELSTER **Prüfen** und selbst **Absenden**.
+5. Das Übermittlungsprotokoll aus Mein ELSTER herunterladen und aufheben.
+
+Die Datei enthält nur die Nutzdaten (`<Anmeldungssteuern>`), im Zeichensatz ISO-8859-15, wie es die Benutzeranleitung zum Hochladen von Formulardaten in Mein ELSTER verlangt. Sie entsprechen Zeichen für Zeichen dem, was Haben über ERiC senden würde. Kz 09 (Hersteller-ID) übernimmt Mein ELSTER laut Anleitung nicht; im Feld steht deshalb die Test-ID `74931`. Der Import gibt es für die Jahre, die Mein ELSTER anbietet (laufendes und die drei vorherigen), und nur für die Voranmeldung, nicht für die Jahreserklärungen.
+
+In Haben bleibt die Anmeldung danach ein Entwurf: Haben erfährt nicht, dass du sie in Mein ELSTER gesendet hast.
 
 ### Was im Hintergrund passiert
 

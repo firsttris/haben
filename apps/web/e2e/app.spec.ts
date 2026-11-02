@@ -753,6 +753,24 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await expect(page.getByRole("heading", { name: "Finanzamt", level: 1 })).toBeVisible();
 });
 
+test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async () => {
+  await go("/umsatzsteuer");
+  const save = page.getByRole("button", { name: "Entwurf speichern" });
+  if (await save.isEnabled()) {
+    await save.click();
+    await expect(save).toBeDisabled();
+  }
+  const link = page.getByRole("link", { name: "XML für Mein ELSTER" });
+  await expect(link).toBeVisible();
+  const response = await page.request.get((await link.getAttribute("href"))!);
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toBe("application/xml; charset=ISO-8859-15");
+  expect(response.headers()["content-disposition"]).toMatch(/filename="UStVA_\d{4}-\d{2}\.xml"/);
+  const xml = new TextDecoder("iso-8859-15").decode(await response.body());
+  expect(xml).toMatch(/^<\?xml version="1.0" encoding="ISO-8859-15" standalone="no"\?>\n<Anmeldungssteuern xmlns="http:\/\/finkonsens.de\/elster\/elsteranmeldung\/ustva\/v\d{4}"/);
+  expect(xml).not.toContain("<TransferHeader");
+});
+
 /** Erste verlinkte Detailseite einer Liste, z. B. /rechnungen/<id> */
 async function firstLink(list: string, pattern: RegExp): Promise<string | null> {
   await go(list);

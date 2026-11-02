@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildUstvaUpload,
   buildUstvaXml,
   datenartVersionFromXml,
   elsterDecimal,
@@ -158,5 +159,41 @@ describe("elsterDecimal", () => {
     expect(elsterDecimal(123_456_789)).toBe("1234567,89");
     expect(elsterDecimal(5)).toBe("0,05");
     expect(elsterDecimal(-5)).toBe("-0,05");
+  });
+});
+
+describe("buildUstvaUpload (XML-Import in Mein ELSTER)", () => {
+  const latin9 = (bytes: Uint8Array) => new TextDecoder("iso-8859-15").decode(bytes);
+  const upload = (input: Partial<UstvaXmlInput> = {}) => {
+    const { herstellerId: _h, produktVersion: _p, test: _t, ...rest } = { ...base, ...input };
+    return buildUstvaUpload(rest);
+  };
+
+  it("enthält nur die Nutzdaten, dieselben wie beim Versand über ERiC", () => {
+    const xml = latin9(upload());
+    expect(xml.startsWith('<?xml version="1.0" encoding="ISO-8859-15" standalone="no"?>\n<Anmeldungssteuern ')).toBe(true);
+    expect(xml).toContain('xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v2026" version="2026"');
+    expect(xml).not.toMatch(/<Elster|TransferHeader|Testmerker|Nutzdatenblock/);
+    const sent = buildUstvaXml(base);
+    const nutzdaten = sent.slice(sent.indexOf("<Anmeldungssteuern"), sent.indexOf("</Anmeldungssteuern>") + "</Anmeldungssteuern>".length);
+    expect(xml.slice(xml.indexOf("<Anmeldungssteuern"))).toBe(nutzdaten);
+  });
+
+  it("Kz09 trägt die Test-Hersteller-ID, die Mein ELSTER beim Import ohnehin nicht übernimmt", () => {
+    expect(tag(latin9(upload()), "Kz09")).toBe(TEST_HERSTELLER_ID);
+  });
+
+  it("schreibt Umlaute und das Euro-Zeichen in ISO-8859-15, Zeichen außerhalb als Zeichenreferenz", () => {
+    const bytes = upload({ datenlieferant: { name: "Müller € GmbH „Nord“", strasse: "Straße 1", plz: "10115", ort: "Köln" } });
+    expect([...bytes].some((b) => b > 0x7f && b !== 0xfc && b !== 0xa4 && b !== 0xdf && b !== 0xf6)).toBe(false);
+    expect(bytes).toContain(0xa4);
+    const xml = latin9(bytes);
+    expect(tag(xml, "Name")).toBe("Müller € GmbH &#8222;Nord&#8220;");
+    expect(tag(xml, "Strasse")).toBe("Straße 1");
+    expect(tag(xml, "Ort")).toBe("Köln");
+  });
+
+  it("lehnt einen ungültigen Monat ab wie der Versand", () => {
+    expect(() => upload({ period: { year: 2026, month: 13 } })).toThrow("Ungültiger Monat: 13");
   });
 });
