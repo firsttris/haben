@@ -28,7 +28,7 @@ function tx(ref: string, date: string, amount: string, indicator: "CRDT" | "DBIT
 /** Nachgebaute Enable-Banking-API mit zwei Konten und einer Kreditkarte ohne IBAN */
 function fakeApi() {
   const calls: { method: string; path: string; query: URLSearchParams; body: unknown }[] = [];
-  const state = { failUntilFallback: false, expired: false, sessions: 0 };
+  const state = { failUntilFallback: false, expired: false, sessions: 0, onlyForeign: false };
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const method = init?.method ?? "GET";
@@ -38,6 +38,13 @@ function fakeApi() {
     if (url.pathname === "/auth") return json({ url: "https://bank.example/login", authorization_id: "a1" });
     if (url.pathname === "/sessions" && method === "POST") {
       state.sessions++;
+      if (state.onlyForeign) {
+        return json({
+          session_id: `sess-${state.sessions}`,
+          access: { valid_until: "2026-12-31T00:00:00Z" },
+          accounts: [{ uid: `uid-usd-${state.sessions}`, account_id: { iban: IBAN_A }, name: "USD", currency: "USD" }],
+        });
+      }
       return json({
         session_id: `sess-${state.sessions}`,
         access: { valid_until: "2026-12-31T00:00:00Z" },
@@ -45,6 +52,8 @@ function fakeApi() {
           { uid: `uid-a-${state.sessions}`, account_id: { iban: IBAN_A }, name: "Geschäftskonto", currency: "EUR" },
           { uid: `uid-b-${state.sessions}`, account_id: { iban: IBAN_B }, name: "Tagesgeld", currency: "EUR" },
           { uid: "card", account_id: {}, name: "Kreditkarte", currency: "EUR" },
+          // Unterkonto in Fremdwährung unter derselben IBAN (z. B. Finom)
+          { uid: `uid-usd-${state.sessions}`, account_id: { iban: IBAN_A }, name: "USD", currency: "USD" },
         ],
       });
     }
@@ -119,6 +128,8 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(result.ok).toBe(true);
     expect(result.message).toContain("Testbank verbunden, 3 neue Umsätze.");
     expect(result.message).toContain("1 Konten ohne IBAN");
+    expect(result.message).toContain("1 Konten in Fremdwährung (USD) werden nicht abgerufen");
+    expect(api.calls.some((c) => c.path.includes("uid-usd"))).toBe(false);
     // Nur das neue Konto wird genannt; das schon per CSV angelegte behält seinen Namen
     expect(result.message).toContain("Neu angelegt: Testbank Tagesgeld …2051.");
 
@@ -156,6 +167,38 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(api.calls.find((c) => c.path.endsWith("/transactions"))!.query.get("date_from")).toBe(expected);
     const [after] = await sync.listConnections();
     expect(after!.accounts.map((a) => a.syncedTo)).toEqual(["2026-10-09", "2026-10-09"]);
+  });
+
+  it("followUpStart: überlappt sieben Tage, aber nicht in die Tage einer Datei", () => {
+    expect(sync.followUpStart("2026-11-01", null, "2026-11-02")).toBe("2026-10-25");
+    // Finom: camt-Datei bis 31.10., erster Abruf am 01.11.
+    expect(sync.followUpStart("2026-11-01", "2026-10-31", "2026-11-02")).toBe("2026-11-01");
+    expect(sync.followUpStart("2026-11-01", "2026-09-30", "2026-11-02")).toBe("2026-10-25");
+    expect(sync.followUpStart("2026-11-01", "2026-11-05", "2026-11-02")).toBe("2026-11-02");
+  });
+
+  it("überlappt nicht in Tage, die schon eine Datei abdeckt", async () => {
+    // Für Konto B nachträglich eine Datei bis zum 03.10. importiert, mitten in die sieben Tage vor dem letzten Abruf (09.10.)
+    await db.db.transaction((t) =>
+      bank.storeStatement(
+        t,
+        {
+          format: "camt053",
+          accountIban: IBAN_B,
+          currency: "EUR",
+          transactions: [{ bookingDate: "2026-10-03", amount: -350, currency: "EUR", counterpartyName: "IONOS", purpose: "", index: 0 }],
+          warnings: [],
+        },
+        { filename: "auszug.xml", sha256: "y" },
+        null,
+      ),
+    );
+    const [connection] = await sync.listConnections();
+    api.calls.length = 0;
+    await sync.syncConnection(actor, connection!.id, "2026-10-12");
+    const from = (uid: string) => api.calls.find((c) => c.path === `/accounts/${uid}/transactions`)!.query.get("date_from");
+    expect(from(connection!.accounts[0]!.uid)).toBe("2026-10-02");
+    expect(from(connection!.accounts[1]!.uid)).toBe("2026-10-04");
   });
 
   it("ruft im Hintergrund höchstens einmal am Tag ab", async () => {
@@ -214,9 +257,23 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     for (const c of await sync.listConnections()) await sync.removeConnection(actor, c.id);
     expect(await sync.listConnections()).toEqual([]);
     const [count] = await sql`select count(*)::int as n from bank_transactions`;
-    expect(count!.n).toBe(4);
+    // vier abgerufene bzw. per CSV importierte, dazu der Umsatz aus der Datei für Konto B
+    expect(count!.n).toBe(5);
     const audit = await sql`select action, new_value from audit_log where table_name = 'bank_connections' and action = 'INSERT' limit 1`;
     expect(audit[0]!.new_value).not.toHaveProperty("ciphertext");
+  });
+
+  it("gibt die Bank nur Fremdwährungskonten frei, sagt die Meldung das statt „kein Konto mit IBAN“", async () => {
+    api.state.onlyForeign = true;
+    const result = await connect("code-usd");
+    api.state.onlyForeign = false;
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("1 Konten in Fremdwährung (USD) werden nicht abgerufen");
+    expect(result.message).not.toContain("kein Konto mit IBAN");
+    const [connection] = await sync.listConnections();
+    expect(connection!.status).toBe("fehler");
+    expect(connection!.lastError).not.toContain("kein Konto mit IBAN");
+    for (const c of await sync.listConnections()) await sync.removeConnection(actor, c.id);
   });
 
   it("nimmt den Zugang aus den Einstellungen vor der Umgebung und prüft ihn beim Speichern", async () => {

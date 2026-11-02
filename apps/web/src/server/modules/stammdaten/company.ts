@@ -2,6 +2,7 @@ import { BUNDESLAENDER, EXPENSE_CATEGORY_KEYS, toElsterSteuernummer, Steuernumme
 import { and, desc, eq, gte, lt, lte, min } from "drizzle-orm";
 import { z } from "zod";
 import { listArticles } from "./articles.ts";
+import { listTextBlocks } from "./text-blocks.ts";
 import { listContacts } from "./contacts.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -124,11 +125,12 @@ export async function kleinunternehmerForYear(year: number): Promise<boolean> {
 
 /** Gemeinsame Daten für den Rechnungs- und den Angebotseditor, mit der letzten vergebenen Nummer je Jahr */
 export async function editorContext(kind: "rechnung" | "angebot") {
-  const [company, counters, contacts, articles, logo] = await Promise.all([
+  const [company, counters, contacts, articles, textBlocks, logo] = await Promise.all([
     loadCompany(),
     kind === "rechnung" ? db.select().from(schema.invoiceNumberCounters) : db.select().from(schema.quoteNumberCounters),
     listContacts(),
     listArticles(),
+    listTextBlocks(),
     logoInfo(),
   ]);
   const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank } = company;
@@ -143,6 +145,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       taxRate,
       priceIncludesTax,
     })),
+    textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
     company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, logo: logo?.sha256 ?? null },
     sellerIssues: sellerIssues(company),
     bundesland: company.bundesland,

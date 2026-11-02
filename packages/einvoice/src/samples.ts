@@ -43,6 +43,7 @@ interface SampleOptions {
   number?: string;
   buyer?: Buyer;
   lines?: InvoiceLineInput[];
+  intro?: string;
   note?: string;
   taxTreatment?: TaxTreatment;
   exemptionReason?: string;
@@ -83,6 +84,7 @@ export function sampleDocument(options: SampleOptions = {}): InvoiceDocument {
     })),
     totals,
     corrects: kind === "rechnung" ? undefined : { number: "2026-034", issueDate: "2026-09-30" },
+    ...(options.intro ? { intro: options.intro } : {}),
     note: options.note,
     ...(options.taxTreatment ? { taxTreatment: options.taxTreatment } : {}),
     ...(options.exemptionReason ? { exemptionReason: options.exemptionReason } : {}),

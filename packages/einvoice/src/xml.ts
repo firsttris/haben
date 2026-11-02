@@ -211,7 +211,9 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     invoice["cac:TaxTotal"].push({ "cbc:TaxAmount": amount(sign * doc.euroTax.tax), "cbc:TaxAmount@currencyID": "EUR" });
   }
 
-  if (doc.note?.trim()) invoice["cbc:Note"] = [doc.note.trim()];
+  // Einleitung und Hinweis als Freitext zur Rechnung (BT-22), in der Reihenfolge wie auf dem PDF
+  const notes = [doc.intro, doc.note].map((n) => n?.trim() ?? "").filter(Boolean);
+  if (notes.length > 0) invoice["cbc:Note"] = notes;
 
   if (period.from === period.to) {
     invoice["cac:Delivery"] = { "cbc:ActualDeliveryDate": period.from };

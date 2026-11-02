@@ -248,10 +248,16 @@ export async function completeConnection(
     return { connectionId: connection.id, ok: false, message };
   }
 
-  const withIban = session.accounts.filter((a) => a.account_id?.iban);
-  const skipped = session.accounts.length - withIban.length;
+  // Haben bucht nur in Euro: Fremdwährungskonten nicht abrufen. Manche Banken (z. B. Finom) führen ein USD-Unterkonto
+  // unter derselben IBAN wie ein Euro-Konto; über die IBAN landete es sonst im selben Konto.
+  const euro = (a: (typeof session.accounts)[number]) => !a.currency || a.currency.toUpperCase() === "EUR";
+  const withIban = session.accounts.filter((a) => a.account_id?.iban && euro(a));
+  const foreign = session.accounts.filter((a) => a.account_id?.iban && !euro(a)).map((a) => a.currency!.toUpperCase());
+  const skipped = session.accounts.length - withIban.length - foreign.length;
   const replaced: { id: string; sessionId: string | null }[] = [];
   const created: string[] = [];
+  const foreignNote = foreign.length > 0 ? `${foreign.length} Konten in Fremdwährung (${[...new Set(foreign)].join(", ")}) werden nicht abgerufen, Haben bucht nur in Euro.` : "";
+  const noAccount = foreignNote ? `Die Bank hat kein Euro-Konto freigegeben. ${foreignNote}` : "Die Bank hat kein Konto mit IBAN freigegeben.";
 
   await withActor(actor, async (tx) => {
     // Auch abgelaufene Zustimmungen ablösen, sonst stünde das Konto doppelt in der Liste
@@ -288,7 +294,7 @@ export async function completeConnection(
         ciphertext: encrypt(Buffer.from(session.session_id, "utf8")),
         validUntil: session.access?.valid_until ? new Date(session.access.valid_until) : connection.validUntil,
         accounts,
-        lastError: accounts.length > 0 ? null : "Die Bank hat kein Konto mit IBAN freigegeben.",
+        lastError: accounts.length > 0 ? null : noAccount,
       })
       .where(eq(schema.bankConnections.id, connection.id));
   });
@@ -298,17 +304,40 @@ export async function completeConnection(
     if (old.sessionId) await (await client()).deleteSession(old.sessionId).catch(() => undefined);
   }
 
-  if (withIban.length === 0) return { connectionId: connection.id, ok: false, message: "Die Bank hat kein Konto mit IBAN freigegeben." };
+  if (withIban.length === 0) return { connectionId: connection.id, ok: false, message: noAccount };
   const sync = await syncConnection(actor, connection.id);
   const note =
     (created.length > 0 ? ` Neu angelegt: ${created.join(", ")}. Name und Zweck (z. B. Steuerkonto) legst du unter Bank mit „Name und Zweck“ fest.` : "") +
-    (skipped > 0 ? ` ${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : "");
+    (skipped > 0 ? ` ${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : "") +
+    (foreignNote ? ` ${foreignNote}` : "");
   return { connectionId: connection.id, ok: sync.error === null, message: (sync.error ?? `${connection.aspspName} verbunden, ${sync.added} neue Umsätze.`) + note };
+}
+
+/**
+ * Beginn eines Folgeabrufs: sieben Tage vor dem letzten Abruf, aber nicht in Tage, die schon eine Datei abdeckt.
+ * Sonst kämen deren Umsätze mit dem anders formatierten Verwendungszweck der API ein zweites Mal (wie beim
+ * ersten Abruf, siehe syncStart). Reicht die Datei über heute hinaus, ab heute.
+ */
+export function followUpStart(syncedTo: string, lastFileBooking: string | null, today: string): string {
+  const overlap = addDays(syncedTo, -OVERLAP_DAYS);
+  const afterFile = lastFileBooking ? addDays(lastFileBooking, 1) : null;
+  if (!afterFile || afterFile <= overlap) return overlap;
+  return afterFile > today ? today : afterFile;
+}
+
+/** Letzter Buchungstag aus einem Dateiimport (nicht aus dem Abruf) */
+async function lastFileBooking(bankAccountId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ date: max(schema.bankTransactions.bookingDate) })
+    .from(schema.bankTransactions)
+    .innerJoin(schema.bankImports, eq(schema.bankImports.id, schema.bankTransactions.importId))
+    .where(and(eq(schema.bankTransactions.bankAccountId, bankAccountId), ne(schema.bankImports.format, "enablebanking")));
+  return row?.date ?? null;
 }
 
 /** Erster Tag des Abrufs für ein Konto */
 async function syncStart(account: BankConnectionAccount, today: string): Promise<{ from: string; fallback: string | null }> {
-  if (account.syncedTo) return { from: addDays(account.syncedTo, -OVERLAP_DAYS), fallback: null };
+  if (account.syncedTo) return { from: followUpStart(account.syncedTo, await lastFileBooking(account.bankAccountId), today), fallback: null };
   // Schon per Datei importierte Umsätze nicht noch einmal holen: die Bank formatiert den Verwendungszweck
   // in der API oft anders als in der CSV, dann würden die Hashes nicht passen.
   const [latest] = await db

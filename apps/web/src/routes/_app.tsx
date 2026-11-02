@@ -23,6 +23,7 @@ const NAV_GROUPS = [
       { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
       { to: "/kontakte", icon: "contacts", label: "Kontakte" },
       { to: "/artikel", icon: "article", label: "Artikel" },
+      { to: "/textbausteine", icon: "textblock", label: "Textbausteine" },
     ],
   },
   {

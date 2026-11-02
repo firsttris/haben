@@ -1,4 +1,14 @@
-import { DUNNING_LEVELS, formatEuro, invoiceTemplateKind, resolveMailTemplate, type DunningLevel, type MailTemplateKind } from "@haben/core";
+import {
+  DUNNING_LEVELS,
+  formatEuro,
+  invoiceTemplateKind,
+  joinEmails,
+  MAX_EMAIL_RECIPIENTS,
+  resolveMailTemplate,
+  splitEmails,
+  type DunningLevel,
+  type MailTemplateKind,
+} from "@haben/core";
 import { texts } from "@haben/einvoice";
 import { and, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
@@ -36,18 +46,12 @@ const recipientsSchema = z
   .max(1000)
   .refine(
     (value) => {
-      const list = value.split(/[,;]/).map((v) => v.trim()).filter(Boolean);
-      return list.length > 0 && list.length <= 5 && list.every((v) => z.string().email().safeParse(v).success);
+      const list = splitEmails(value);
+      return list.length > 0 && list.length <= MAX_EMAIL_RECIPIENTS && list.every((v) => z.email().safeParse(v).success);
     },
     { message: "Bis zu fünf gültige E-Mail-Adressen, durch Komma getrennt" },
   )
-  .transform((value) =>
-    value
-      .split(/[,;]/)
-      .map((v) => v.trim())
-      .filter(Boolean)
-      .join(", "),
-  );
+  .transform((value) => joinEmails(splitEmails(value)));
 
 export const outgoingMailSchema = z.object({
   to: recipientsSchema,
@@ -71,13 +75,19 @@ async function loadInvoice(id: string) {
   return invoice;
 }
 
-/** E-Mail des Kunden: auf der Rechnung, sonst aktuell im Kontakt */
+/**
+ * Empfänger beim Kunden: alle Adressen aus dem Kontakt (etwa Rechnungseingang und Freigeber), sonst die Adresse
+ * auf der Rechnung. Auf der festgeschriebenen Rechnung steht nur die erste, weil die E-Rechnung nur eine kennt.
+ */
 async function customerEmail(invoice: { buyer: unknown; contactId: string | null }): Promise<string> {
-  const fromInvoice = (invoice.buyer as { email?: string } | null)?.email?.trim();
-  if (fromInvoice) return fromInvoice;
-  if (!invoice.contactId) return "";
+  const fromInvoice = (invoice.buyer as { email?: string } | null)?.email?.trim() ?? "";
+  if (!invoice.contactId) return fromInvoice;
   const [contact] = await db.select({ email: schema.contacts.email }).from(schema.contacts).where(eq(schema.contacts.id, invoice.contactId));
-  return contact?.email ?? "";
+  const fromContact = splitEmails(contact?.email);
+  if (fromContact.length === 0) return fromInvoice;
+  // Steht auf der Rechnung eine Adresse, die der Kontakt inzwischen nicht mehr hat, bleibt sie vorn
+  const list = fromInvoice && !fromContact.includes(fromInvoice) ? [fromInvoice, ...fromContact] : fromContact;
+  return joinEmails(list.slice(0, MAX_EMAIL_RECIPIENTS));
 }
 
 /** Betrag für die E-Mail in der Währung der Rechnung, wie auf dem PDF */

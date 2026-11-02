@@ -116,6 +116,37 @@ describe("enableBankingStatement", () => {
 });
 
 describe("bookedBalance", () => {
+  // So liefert Finom die Salden: Tagesendsaldo von gestern, gebuchter und verfügbarer Saldo von heute
+  const finom = [
+    { balance_amount: { currency: "EUR", amount: "1500.00" }, balance_type: "ITAV", reference_date: "2026-11-01" },
+    { balance_amount: { currency: "EUR", amount: "1500.00" }, balance_type: "ITBD", reference_date: "2026-11-01" },
+    { balance_amount: { currency: "EUR", amount: "20342.08" }, balance_type: "CLBD", reference_date: "2026-10-31" },
+  ];
+  const finomAccount = { uid: "u1", account_id: { iban: "DE12500105170648489890" }, name: "Finom", currency: "EUR" };
+
+  it("nimmt den gebuchten Saldo von heute, wenn heute gebucht wurde und der Tagesendsaldo von gestern ist", () => {
+    const statement = enableBankingStatement({
+      account: finomAccount,
+      transactions: [{ ...outgoing, transaction_amount: { currency: "EUR", amount: "18842.08" }, booking_date: "2026-11-01", value_date: "2026-11-01" }],
+      balances: finom,
+      dateFrom: "2026-11-01",
+      dateTo: "2026-11-01",
+    });
+    expect(statement.statedBalance).toEqual({ date: "2026-11-01", amount: 150000 });
+    expect(statement.closingBalance).toBe(150000);
+    expect(statement.openingBalance).toBe(2034208);
+    expect(statement.warnings).toEqual([]);
+  });
+
+  it("bleibt beim Tagesendsaldo, wenn er passt, und nimmt nie den verfügbaren Saldo", () => {
+    expect(bookedBalance(finom, (date) => date === "2026-10-31")).toEqual({ amount: 2034208, date: "2026-10-31" });
+    expect(bookedBalance(finom)).toEqual({ amount: 2034208, date: "2026-10-31" });
+    // Passt keiner, bleibt es beim ersten; den Hinweis gibt dann applyStatedBalance
+    expect(bookedBalance(finom, () => false)).toEqual({ amount: 2034208, date: "2026-10-31" });
+    expect(bookedBalance([finom[0]!], () => true)).toBeNull();
+  });
+
+
   it("ist null ohne Salden", () => {
     expect(bookedBalance([])).toBeNull();
     expect(bookedBalance([{ balance_amount: { currency: "EUR", amount: "9.00" }, balance_type: "ITAV" }, { balance_amount: { currency: "EUR", amount: "8.00" }, balance_type: "XPCD" }])).toBeNull();

@@ -671,6 +671,9 @@ export const invoices = pgTable(
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     dueDate: date("due_date", { mode: "string" }).notNull(),
     format: invoiceFormatEnum("format").notNull().default("zugferd"),
+    /** Einleitung über den Positionen (Kopftext) */
+    intro: text("intro").notNull().default(""),
+    /** Hinweis unter den Summen (Fußtext) */
     note: text("note").notNull().default(""),
     /** Sprache des PDFs */
     language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
@@ -796,6 +799,8 @@ export const quotes = pgTable(
     validUntil: date("valid_until", { mode: "string" }).notNull(),
     serviceFrom: date("service_from", { mode: "string" }),
     serviceTo: date("service_to", { mode: "string" }),
+    /** Einleitung über den Positionen (Kopftext) */
+    intro: text("intro").notNull().default(""),
     note: text("note").notNull().default(""),
     language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
@@ -872,6 +877,31 @@ export const articles = pgTable("articles", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const textBlockKinds = ["kopf", "fuss"] as const;
+export type TextBlockKind = (typeof textBlockKinds)[number];
+
+/**
+ * Textbausteine zum Einfügen in Rechnungen, Angebote und wiederkehrende Rechnungen: Kopftext (Einleitung über den
+ * Positionen) oder Fußtext (Hinweis unter den Summen). Eingefügt wird eine Kopie; eine festgeschriebene Rechnung
+ * behält ihren Text, auch wenn sich der Baustein später ändert.
+ */
+export const textBlocks = pgTable(
+  "text_blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Bezeichnung in der Auswahl, erscheint nicht auf Belegen */
+    name: text("name").notNull(),
+    kind: text("kind", { enum: textBlockKinds }).notNull(),
+    text: text("text").notNull(),
+    /** Optional einem Kunden zugeordnet: steht bei dessen Belegen oben in der Auswahl */
+    contactId: uuid("contact_id").references(() => contacts.id),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("text_blocks_contact").on(t.contactId), check("text_blocks_kind", sql`${t.kind} in ('kopf', 'fuss')`)],
+);
 
 /** Letzte Angebotsnummer je Jahr */
 export const quoteNumberCounters = pgTable("quote_number_counters", {
@@ -1456,6 +1486,8 @@ export const recurringInvoices = pgTable(
       .references(() => contacts.id),
     format: invoiceFormatEnum("format").notNull().default("zugferd"),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
+    /** Einleitung über den Positionen; Platzhalter wie bei den Positionen */
+    intro: text("intro").notNull().default(""),
     note: text("note").notNull().default(""),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),

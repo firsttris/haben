@@ -20,7 +20,17 @@ Der Altbestand bleibt von deiner laufenden Buchhaltung getrennt: Er fließt nich
 - In Haben sollten Firmendaten, Kontenrahmen und Versteuerungsart (Ist oder Soll) eingerichtet sein ([Einrichtung](einrichtung.md)). Die Versteuerungsart bestimmt, wie offene Posten gebucht und wie die Umsatzsteuer im Abgleich gerechnet wird. Sie sollte dieselbe sein wie in Lexware Office.
 - Der Server braucht Zugriff auf `https://api.lexware.io`.
 
-### Umzug ohne Public API (Tarife S, M und L)
+## Wann umziehen: am besten zum Jahreswechsel
+
+Am einfachsten ist der Wechsel zum **1. Januar**. Das Jahr davor schließt du in Lexware Office ab (EÜR und Voranmeldungen kommen dann vollständig aus einem System), und in Haben beginnt das neue Jahr ohne Altlasten:
+
+- **Bank:** Ein neu verbundenes Konto ruft Haben ab dem 1. Januar des laufenden Jahres ab (siehe [Bank](bank.md#welche-umsätze-abgerufen-werden)). Verbindest du im Januar, beginnen die Umsätze genau am Jahresanfang, ohne Kontoauszug als Datei und ohne Überschneidung mit Lexware Office.
+- **Offene Posten** übernimmst du zum 31. Dezember (Schritt 3), **Anlagen** mit dem Restbuchwert zum 1. Januar ([Anlagen](anlagen.md#übernahme-aus-lexoffice)).
+- **Lexware Office** brauchst du danach nur noch für den Jahresabschluss des alten Jahres; kündigen kannst du, sobald der Abgleich aufgeht.
+
+Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufende Jahr stehen die Monate vor dem Wechsel in Lexware Office, die danach in Haben, und für die EÜR muss beides zusammengeführt werden. Umsätze vor dem ersten Abruf kommen dann per Kontoauszug als Datei; Haben ruft danach keine Tage mehr ab, die eine Datei schon abdeckt. Willst du Haben vorher ausprobieren, nimm dafür eine eigene Instanz und starte die echte Buchhaltung zum Jahreswechsel neu: Importierte Bankumsätze und Buchungen lassen sich nicht löschen.
+
+## Umzug ohne Public API (Tarife S, M und L)
 
 Ohne Tarif XL fallen die Schritte 1 bis 3 weg. Den Umzug kannst du trotzdem machen, nur über die Exporte aus Schritt 4:
 

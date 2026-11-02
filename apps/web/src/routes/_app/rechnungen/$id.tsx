@@ -46,6 +46,7 @@ function InvoicePage() {
           serviceTo: invoice.serviceTo,
           paymentTermDays: invoice.paymentTermDays,
           format: invoice.format,
+          intro: invoice.intro,
           note: invoice.note,
           taxTreatment: invoice.taxTreatment,
           exemptionReason: invoice.exemptionReason,
@@ -82,6 +83,7 @@ function InvoicePage() {
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}
         articles={data.articles}
+        textBlocks={data.textBlocks}
         abschlaege={data.abschlaege}
         quotes={data.quotes}
         tageskurs={data.tageskurs}

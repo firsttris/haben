@@ -23,6 +23,15 @@ describe("netUnitPrice", () => {
 });
 
 describe("buildEInvoice", () => {
+  it("schreibt Einleitung und Hinweis als zwei Freitexte (BT-22), Einleitung zuerst", async () => {
+    const doc = sampleDocument({ format: "xrechnung-ubl", intro: "Bestellnummer 4500123456", note: "Vielen Dank." });
+    const { xml } = await buildEInvoice(doc);
+    expect(xml).toMatch(/<cbc:Note>Bestellnummer 4500123456<\/cbc:Note>\s*<cbc:Note>Vielen Dank.<\/cbc:Note>/);
+    const cii = await buildEInvoice({ ...doc, format: "xrechnung-cii" });
+    expect(cii.xml.indexOf("Bestellnummer 4500123456")).toBeGreaterThan(0);
+    expect(cii.xml.indexOf("Bestellnummer 4500123456")).toBeLessThan(cii.xml.indexOf("Vielen Dank."));
+  });
+
   it("bettet bei ZUGFeRD factur-x.xml in das PDF ein", async () => {
     const { xml, pdf } = await buildEInvoice(sampleDocument());
     expect(ascii(pdf.subarray(0, 5))).toBe("%PDF-");

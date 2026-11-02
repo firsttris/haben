@@ -46,6 +46,7 @@ export function InvoicePreview({
   seller,
   buyer,
   lines,
+  intro = "",
   note,
   priceMode = "netto",
   taxNote,
@@ -64,6 +65,8 @@ export function InvoicePreview({
   seller: PreviewSeller;
   buyer: PreviewBuyer | null;
   lines: (InvoiceLineInput & { valid: boolean })[];
+  /** Einleitung über den Positionen */
+  intro?: string;
   note: string;
   /** Bruttopreise: letzte Spalte brutto, unter dem Gesamtbetrag „darin enthalten“ */
   priceMode?: PriceMode;
@@ -146,6 +149,7 @@ export function InvoicePreview({
               zur Rechnung {corrects.number} vom {formatDate(corrects.issueDate)}
             </div>
           )}
+          {intro.trim() && <p style={{ whiteSpace: "pre-wrap" }}>{intro.trim()}</p>}
           <table className="sheet-table">
             <thead>
               <tr>

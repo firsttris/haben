@@ -42,15 +42,23 @@ export function mapEnableBankingTransaction(t: EbTransaction, index: number): Pa
  */
 const BALANCE_PREFERENCE = ["CLBD", "ITBD"];
 
-export function bookedBalance(balances: EbBalance[]): { amount: Cents; date?: string } | null {
+/**
+ * Bevorzugt der Tagesendsaldo; passt sein Stichtag nicht (fits), der nächste gebuchte Saldo. Manche Banken
+ * (z. B. Finom) liefern CLBD nur bis gestern und ITBD für heute: Mit einem Umsatz von heute passt nur ITBD.
+ * Passt keiner, bleibt es beim ersten, damit der Abruf den unpassenden Stichtag meldet.
+ */
+export function bookedBalance(
+  balances: EbBalance[],
+  fits: (date: string | undefined) => boolean = () => true,
+): { amount: Cents; date?: string } | null {
   const ranked = balances
     .filter((b) => BALANCE_PREFERENCE.includes(b.balance_type ?? "") && (b.balance_amount.currency === "EUR" || !b.balance_amount.currency))
-    .sort((a, b) => BALANCE_PREFERENCE.indexOf(a.balance_type!) - BALANCE_PREFERENCE.indexOf(b.balance_type!));
-  for (const balance of ranked) {
-    const amount = cents(balance.balance_amount.amount);
-    if (amount !== null) return { amount, date: day(balance.reference_date) };
-  }
-  return null;
+    .sort((a, b) => BALANCE_PREFERENCE.indexOf(a.balance_type!) - BALANCE_PREFERENCE.indexOf(b.balance_type!))
+    .flatMap((balance) => {
+      const amount = cents(balance.balance_amount.amount);
+      return amount === null ? [] : [{ amount, date: day(balance.reference_date) }];
+    });
+  return ranked.find((b) => fits(b.date)) ?? ranked[0] ?? null;
 }
 
 /**
@@ -84,7 +92,9 @@ export function enableBankingStatement(input: {
     .map((t, order) => ({ t, order }))
     .sort((a, b) => a.t.bookingDate.localeCompare(b.t.bookingDate) || a.order - b.order)
     .map(({ t }, index) => ({ ...t, index }));
-  const balance = bookedBalance(input.balances);
+  // Wie applyStatedBalance: nicht vor dem letzten Buchungstag, nicht nach dem Ende des Abrufs
+  const lastBooking = transactions.reduce<string | undefined>((latest, t) => (!latest || t.bookingDate > latest ? t.bookingDate : latest), undefined);
+  const balance = bookedBalance(input.balances, (date = input.dateTo) => (!lastBooking || date >= lastBooking) && date <= input.dateTo);
   const statement: ParsedStatement = {
     format: "enablebanking",
     accountIban: normalizeIban(input.account.account_id?.iban ?? undefined),
