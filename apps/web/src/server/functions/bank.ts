@@ -214,7 +214,14 @@ export const getEnableBanks = createServerFn({ method: "GET" })
 
 export const connectBank = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ aspspName: z.string().min(1).max(200), psuType: z.enum(["personal", "business"]) }))
+  .validator(
+    z.object({
+      aspspName: z.string().min(1).max(200),
+      psuType: z.enum(["personal", "business"]),
+      /** Erster Abruf neuer Konten ab diesem Tag; fehlt = ab Jahresbeginn */
+      fetchFrom: z.iso.date().nullish(),
+    }),
+  )
   .handler(async ({ data, context }) => startConnection(context.user.id, { ...data, country: "DE" }));
 
 export const syncBankConnection = createServerFn({ method: "POST" })

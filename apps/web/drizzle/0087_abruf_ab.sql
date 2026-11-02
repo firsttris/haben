@@ -1,0 +1,1 @@
+ALTER TABLE "bank_connections" ADD COLUMN "fetch_from" date;

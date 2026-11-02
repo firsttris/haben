@@ -473,13 +473,15 @@ function ConnectForm({
 }: {
   onCancel: () => void;
   callbackUrl: string;
-  connect: (args: { data: { aspspName: string; psuType: "personal" | "business" } }) => Promise<{ url: string }>;
+  connect: (args: { data: { aspspName: string; psuType: "personal" | "business"; fetchFrom?: string | null } }) => Promise<{ url: string }>;
 }) {
   const loadBanks = useServerFn(getEnableBanks);
   const [banks, setBanks] = useState<Awaited<ReturnType<typeof getEnableBanks>> | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState("");
   const [psuType, setPsuType] = useState<"business" | "personal">("business");
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+  const [fetchFrom, setFetchFrom] = useState(`${today.slice(0, 4)}-01-01`);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -516,7 +518,7 @@ function ConnectForm({
     setBusy(true);
     setError(null);
     try {
-      const { url } = await connect({ data: { aspspName: bank.name, psuType } });
+      const { url } = await connect({ data: { aspspName: bank.name, psuType, fetchFrom: fetchFrom || null } });
       window.location.assign(url);
     } catch (e) {
       setError(errorMessage(e));
@@ -561,6 +563,14 @@ function ConnectForm({
           </label>
         </fieldset>
       )}
+      <label className="field">
+        Umsätze abrufen ab
+        <input type="date" value={fetchFrom} max={today} onChange={(e) => setFetchFrom(e.target.value)} aria-describedby="fetch-from-hint" />
+        <span id="fetch-from-hint" className="small muted">
+          Gilt für Konten, die in Haben noch keine Umsätze haben. Vorgabe ist der Jahresbeginn; beim Umzug unter dem Jahr der Tag, an dem
+          die Buchhaltung in Haben beginnt. Sind schon Umsätze da, etwa aus einer Datei, beginnt der Abruf am Tag danach.
+        </span>
+      </label>
       {bank && (
         <p className="small muted" style={{ margin: 0 }}>
           Du wirst zu {bank.name} weitergeleitet und gibst dort den Lesezugriff für {bank.maxConsentDays} Tage frei. Danach geht es

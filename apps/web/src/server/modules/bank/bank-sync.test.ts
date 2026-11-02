@@ -113,8 +113,8 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     await sql?.end();
   });
 
-  async function connect(code = "code-1") {
-    const { url } = await sync.startConnection(actor, { aspspName: "Testbank", country: "DE", psuType: "business" });
+  async function connect(code = "code-1", fetchFrom?: string) {
+    const { url } = await sync.startConnection(actor, { aspspName: "Testbank", country: "DE", psuType: "business", fetchFrom });
     expect(url).toBe("https://bank.example/login");
     const auth = api.calls.findLast((c) => c.path === "/auth")!.body as { state: string; redirect_url: string; psu_type: string };
     expect(auth.redirect_url).toBe("http://localhost:3000/api/bank/callback");
@@ -251,6 +251,27 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     await sql`update bank_connections set created_at = now() - interval '2 hours' where state = ${auth.state}`;
     await expect(sync.completeConnection(actor, { state: auth.state, code: "x" })).rejects.toThrow(/abgelaufene/);
     await sql`delete from bank_connections where status = 'wartet'`;
+  });
+
+  it("firstSyncStart: gewählter Tag statt Jahresbeginn, aber nie in Tage mit vorhandenen Umsätzen", () => {
+    expect(sync.firstSyncStart(null, undefined, "2026-11-02")).toEqual({ from: "2026-01-01", fallback: expect.any(String) });
+    // Umzug unter dem Jahr: Buchhaltung in Haben ab 01.11.
+    expect(sync.firstSyncStart(null, "2026-11-01", "2026-11-02")).toEqual({ from: "2026-11-01", fallback: null });
+    expect(sync.firstSyncStart("2026-10-31", "2026-10-01", "2026-11-02")).toEqual({ from: "2026-11-01", fallback: null });
+    expect(sync.firstSyncStart("2026-09-30", "2026-11-01", "2026-11-02")).toEqual({ from: "2026-11-01", fallback: null });
+    expect(sync.firstSyncStart("2026-10-31", undefined, "2026-11-02")).toEqual({ from: "2026-11-01", fallback: null });
+  });
+
+  it("merkt sich den gewählten Abrufbeginn, gibt ihn aber nicht an schon abgerufene Konten weiter", async () => {
+    await expect(sync.startConnection(actor, { aspspName: "Testbank", country: "DE", psuType: "business", fetchFrom: "2999-01-01" })).rejects.toThrow(
+      /Zukunft/,
+    );
+    const result = await connect("code-3", "2026-10-01");
+    expect(result.ok).toBe(true);
+    const [connection] = await sql`select fetch_from::text as fetch_from, accounts from bank_connections where status = 'aktiv'`;
+    expect(connection!.fetch_from).toBe("2026-10-01");
+    // Beide Konten haben einen Abrufstand: der Abruf macht dort weiter, der gewählte Tag gilt nur für neue Konten
+    expect(connection!.accounts.map((a: { fetchFrom?: string }) => a.fetchFrom)).toEqual([undefined, undefined]);
   });
 
   it("trennt eine Verbindung, die Umsätze bleiben", async () => {

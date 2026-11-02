@@ -1082,6 +1082,8 @@ export type BankConnectionAccount = {
   bankAccountId: string;
   /** Abgerufen bis einschließlich dieses Tages */
   syncedTo: string | null;
+  /** Erster Abruf eines Kontos ohne Umsätze in Haben ab diesem Tag statt ab Jahresbeginn (Umzug unter dem Jahr) */
+  fetchFrom?: string;
 };
 
 /**
@@ -1097,6 +1099,8 @@ export const bankConnections = pgTable("bank_connections", {
   state: text("state").unique(),
   ciphertext: bytea("ciphertext"),
   validUntil: timestamp("valid_until", { withTimezone: true }),
+  /** Beim Verbinden gewählt: erster Abruf neuer Konten ab diesem Tag; geht beim Abschluss an die Konten */
+  fetchFrom: date("fetch_from", { mode: "string" }),
   accounts: jsonb("accounts").$type<BankConnectionAccount[]>().notNull().default([]),
   lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
   lastError: text("last_error"),
