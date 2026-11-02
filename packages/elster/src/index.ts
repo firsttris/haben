@@ -8,6 +8,7 @@ export * from "./postfach.ts";
 export * from "./vast.ts";
 export * from "./berechtigung.ts";
 export * from "./formatprobe.ts";
+export * from "./felder.ts";
 export * from "./process-client.ts";
 export * from "./fake-client.ts";
 export * from "./factory.ts";

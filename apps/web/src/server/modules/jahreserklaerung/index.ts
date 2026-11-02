@@ -6,3 +6,4 @@
  */
 export { annualOverview, loadAnnualProtocol, submitAnnual } from "./annual.ts";
 export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./income-tax.ts";
+export { meinElsterWerte, MEIN_ELSTER_FORMAT, type MeinElsterWerte } from "./mein-elster.ts";

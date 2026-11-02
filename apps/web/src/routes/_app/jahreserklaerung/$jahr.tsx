@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
+import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VastBelege } from "../../../components/VastBelege.tsx";
@@ -581,24 +582,27 @@ function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; bl
   const { busy, notice, setNotice, run } = useAction();
 
   return (
-    <ElsterSubmit
-      setup={data}
-      title={`${FORM_LABEL[form]} übermitteln`}
-      className="card sticky-panel"
-      ready={!blocked}
-      busy={busy}
-      notice={notice}
-      lockedHint={sent ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
-      confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt. Noch einmal klicken zum Senden.`}
-      footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."
-      onSubmit={(kind, pin) =>
-        run(async () => {
-          const result = await submit({ data: { form, year: data.year, kind, pin } });
-          setNotice(elsterNotice(kind, result, "Übermittelt."));
-          await router.invalidate();
-        })
-      }
-    />
+    <div className="stack sticky-panel">
+      <ElsterSubmit
+        setup={data}
+        title={`${FORM_LABEL[form]} übermitteln`}
+        className="card"
+        ready={!blocked}
+        busy={busy}
+        notice={notice}
+        lockedHint={sent ? "Schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal." : undefined}
+        confirmText={`Die ${FORM_LABEL[form]} ${data.year} geht verbindlich an das Finanzamt. Noch einmal klicken zum Senden.`}
+        footer="Erst mit „Nur prüfen“ oder einer Testübermittlung prüft ERiC die Daten gegen die Vorgaben des Jahres. Die PIN wird nicht gespeichert."
+        onSubmit={(kind, pin) =>
+          run(async () => {
+            const result = await submit({ data: { form, year: data.year, kind, pin } });
+            setNotice(elsterNotice(kind, result, "Übermittelt."));
+            await router.invalidate();
+          })
+        }
+      />
+      {!data.herstellerIdConfigured && !sent && <MeinElsterWerte form={form} year={data.year} label={FORM_LABEL[form]} blocked={blocked} />}
+    </div>
   );
 }
 

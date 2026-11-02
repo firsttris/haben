@@ -449,17 +449,7 @@ export function submitAnnual(actor: string, form: AnnualForm, year: number, clie
 
 /** Unter der Sendesperre: Prüfungen, schon übermittelt?, XML und die gespeicherten Werte */
 async function prepare(form: AnnualForm, year: number, options: AnnualSubmitOptions, test: boolean, herstellerId: string) {
-  const company = await loadCompany();
-  const data = form === "ust" ? await ustYear(year) : await euerYear(year);
-  const formIssues =
-    form === "ust" ? ustIssues(await kleinunternehmerForYear(year), data as UstYear, year) : form === "euer" ? euerIssues(company, data as EuerYear) : estIssues(company, data as EuerYear);
-  const issues = [
-    ...yearIssues(year, options.today),
-    ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text })),
-    ...formIssues,
-  ].filter((i) => i.tone === "fehler");
-  if (issues.length > 0) throw new AnnualError(issues.map((i) => i.text).join(" "));
-
+  const checked = await checkAnnual(form, year, options.today);
   const [already] = await db
     .select({ id: schema.annualSubmissions.id })
     .from(schema.annualSubmissions)
@@ -467,6 +457,28 @@ async function prepare(form: AnnualForm, year: number, options: AnnualSubmitOpti
   if (already && options.kind === "send") {
     throw new AnnualError("Diese Erklärung ist schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal.");
   }
+  return annualXml(form, year, checked, test, herstellerId);
+}
+
+type Checked = { company: Awaited<ReturnType<typeof loadCompany>>; data: UstYear | EuerYear };
+
+/** Firmendaten und Werte des Jahres; Fehler aus den Prüfungen brechen ab */
+export async function checkAnnual(form: AnnualForm, year: number, today: string): Promise<Checked> {
+  const company = await loadCompany();
+  const data = form === "ust" ? await ustYear(year) : await euerYear(year);
+  const formIssues =
+    form === "ust" ? ustIssues(await kleinunternehmerForYear(year), data as UstYear, year) : form === "euer" ? euerIssues(company, data as EuerYear) : estIssues(company, data as EuerYear);
+  const issues = [
+    ...yearIssues(year, today),
+    ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text })),
+    ...formIssues,
+  ].filter((i) => i.tone === "fehler");
+  if (issues.length > 0) throw new AnnualError(issues.map((i) => i.text).join(" "));
+  return { company, data };
+}
+
+/** Das XML der Erklärung und die Werte, die mit einem Versuch gespeichert werden */
+export async function annualXml(form: AnnualForm, year: number, { company, data }: Checked, test: boolean, herstellerId: string) {
   const common = {
     year,
     steuernummer13: toElsterSteuernummer(company.steuernummer, company.bundesland!),

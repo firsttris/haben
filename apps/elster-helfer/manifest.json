@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Haben für Mein ELSTER",
+  "version": "0.1.0",
+  "description": "Trägt Werte aus Haben in die Formulare von Mein ELSTER ein. Prüfen und absenden machst du selbst.",
+  "permissions": ["storage"],
+  "action": {
+    "default_title": "Haben für Mein ELSTER",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.elster.de/eportal/interpreter/eingabe/*"],
+      "js": ["fill.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

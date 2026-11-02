@@ -359,4 +359,19 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(xml).toContain("<E0203501>77815 Bühl, Industriestraße 4</E0203501>");
     expect(xml).toMatch(/<AVor>\s*<Person>PersonB<\/Person>\s*<E2000401>3906<\/E2000401>\s*<E2000801>3906<\/E2000801>/);
   });
+
+  it("Werte für Mein ELSTER: dieselben Felder wie im XML, das beim Prüfen über ERiC rausgeht", async () => {
+    await year2025();
+    await assets.bookDepreciation(actor, 2025, TODAY);
+    const mein = await import("./mein-elster.ts");
+    const werte = await mein.meinElsterWerte("euer", 2025, TODAY, new Date("2026-10-02T08:00:00Z"));
+    await annual.submitAnnual(actor, "euer", 2025, new EricGeprueftClient(), { kind: "validate", today: TODAY });
+    const [sent] = await sql`select request_xml from annual_submissions where form = 'euer' order by created_at desc limit 1`;
+    expect(werte).toMatchObject({ format: "haben-mein-elster", version: 1, formular: "euer", jahr: 2025, erstellt: "2026-10-02T08:00:00.000Z" });
+    expect(werte.felder).toEqual(elster.elsterFelder(sent!.request_xml as string));
+    expect(werte.felder.find((f) => f.kennung === "E6000401")?.wert).toMatch(/^\d+,\d{2}$/);
+    // Die Hersteller-ID steht nur im Transferkopf und landet nie in Mein ELSTER
+    expect(werte.felder.some((f) => f.wert === elster.NUR_AUSLESEN)).toBe(false);
+    await expect(mein.meinElsterWerte("euer", 2026, TODAY)).rejects.toThrow(/nach Ablauf/);
+  });
 });

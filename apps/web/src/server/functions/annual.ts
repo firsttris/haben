@@ -1,7 +1,7 @@
 import { EUER_AUSGABEN, EUER_EINNAHMEN, EUER_FIELDS, type EuerFigures } from "@haben/elster";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { annualOverview, submitAnnual } from "../modules/jahreserklaerung/index.ts";
+import { annualOverview, meinElsterWerte, submitAnnual } from "../modules/jahreserklaerung/index.ts";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
@@ -88,6 +88,12 @@ export const submitAnnualReturn = createServerFn({ method: "POST" })
     });
     return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
   });
+
+/** Werte einer Jahreserklärung für die Erweiterung, die Mein ELSTER ausfüllt */
+export const getMeinElsterWerte = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .validator(z.object({ form: z.enum(["ust", "euer", "est"]), year: yearSchema }))
+  .handler(async ({ data }) => meinElsterWerte(data.form, data.year, today()));
 
 export const saveIncomeTaxInputs = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
