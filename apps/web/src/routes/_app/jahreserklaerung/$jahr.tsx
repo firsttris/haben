@@ -11,7 +11,7 @@ import { VastBelege } from "../../../components/VastBelege.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
-import { getAnnualReturns, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
+import { getAnnualReturns, getMeinElsterWerte, saveIncomeTaxInputs, submitAnnualReturn } from "../../../server/functions/annual.ts";
 import styles from "../../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../../components/ScrollTable.tsx";
 
@@ -579,6 +579,7 @@ function EstSection({ data }: { data: Data }) {
 function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; blocked: boolean; sent: boolean }) {
   const router = useRouter();
   const submit = useServerFn(submitAnnualReturn);
+  const loadWerte = useServerFn(getMeinElsterWerte);
   const { busy, notice, setNotice, run } = useAction();
 
   return (
@@ -601,7 +602,9 @@ function SubmitPanel({ form, data, blocked, sent }: { form: Form; data: Data; bl
           })
         }
       />
-      {!data.herstellerIdConfigured && !sent && <MeinElsterWerte form={form} year={data.year} label={FORM_LABEL[form]} blocked={blocked} />}
+      {!data.herstellerIdConfigured && !sent && (
+        <MeinElsterWerte load={() => loadWerte({ data: { form, year: data.year } })} label={`${FORM_LABEL[form]} ${data.year}`} blocked={blocked} />
+      )}
     </div>
   );
 }

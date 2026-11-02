@@ -13,12 +13,14 @@ import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
+import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import {
   createVatCorrection,
+  getMeinElsterUstvaWerte,
   getVatPeriod,
   saveVatDraft,
   submitVatReturn,
@@ -175,6 +177,7 @@ function VatReturnEditor({
   const save = useServerFn(saveVatDraft);
   const submit = useServerFn(submitVatReturn);
   const correct = useServerFn(createVatCorrection);
+  const loadWerte = useServerFn(getMeinElsterUstvaWerte);
 
   const current = data.current;
   const locked = current?.status === "sent";
@@ -535,6 +538,13 @@ function VatReturnEditor({
             confirmText="Die Voranmeldung geht an das Finanzamt und wird danach festgeschrieben. Noch einmal klicken zum Senden."
             footer="ERiC prüft die Daten vor dem Versand. Das Übertragungsprotokoll wird als PDF abgelegt. Die PIN wird nicht gespeichert."
             onSubmit={onSubmit}
+          />
+        )}
+        {!data.herstellerIdConfigured && !locked && current && (
+          <MeinElsterWerte
+            load={() => loadWerte({ data: { id: current.id } })}
+            label={`Umsatzsteuer-Voranmeldung ${periodLabel(data.period)}`}
+            blocked={dirty || stale || data.companyIssues.length > 0}
           />
         )}
         <History data={data} />

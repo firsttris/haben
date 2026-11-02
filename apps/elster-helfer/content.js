@@ -2,6 +2,7 @@
 /*
  * Läuft auf jeder Formularseite von Mein ELSTER. Trägt die Werte aus Haben ein und zeigt eine Leiste: was auf dieser
  * Seite eingetragen wurde, was abweicht, was von Hand einzutragen ist und was auf keiner bisher besuchten Seite stand.
+ * Abweichende Werte überschreibt sie erst, wenn der Nutzer in der Leiste darauf klickt.
  * Die Werte liegen in chrome.storage.session und sind weg, sobald der Browser geschlossen wird.
  */
 (async () => {
@@ -9,20 +10,20 @@
   if (!werte) return;
   const hier = HabenElster.formularAusPfad(location.pathname);
   if (!hier) return;
-  const schluessel = `${werte.formular}-${werte.jahr}`;
+  const schluessel = `${werte.formular}-${werte.jahr}${werte.zeitraum ? `-${werte.zeitraum}` : ""}`;
 
   if (hier.formular !== werte.formular || hier.jahr !== werte.jahr) {
-    leiste(`Geladen sind Werte für ${werte.formular.toUpperCase()} ${werte.jahr}, dies ist ${hier.formular.toUpperCase()} ${hier.jahr}. Nichts eingetragen.`, []);
+    leiste(`Geladen sind Werte für ${werte.formular.toUpperCase()} ${werte.jahr}, dies ist ${hier.formular.toUpperCase()} ${hier.jahr}. Nichts eingetragen.`, [], false);
     return;
   }
 
-  async function eintragen() {
-    const ergebnis = HabenElster.ausfuellen(document, werte);
+  async function eintragen(optionen = {}) {
+    const ergebnis = HabenElster.ausfuellen(document, werte, optionen);
     const bisher = new Set([...(gefunden[schluessel] || []), ...ergebnis.kennungen]);
     gefunden[schluessel] = [...bisher];
     await chrome.storage.session.set({ gefunden });
     const offen = werte.felder.filter((f) => !bisher.has(f.kennung));
-    leiste(zusammenfassung(ergebnis, offen.length), abschnitte(ergebnis, offen));
+    leiste(zusammenfassung(ergebnis, offen.length), abschnitte(ergebnis, offen), ergebnis.abweichend.length > 0);
   }
 
   function zusammenfassung(e, offen) {
@@ -30,24 +31,29 @@
     if (e.uebernehmen.length) teile.push(`${e.uebernehmen.length} zum Übernehmen`);
     if (e.gleich.length) teile.push(`${e.gleich.length} schon gleich`);
     if (e.abweichend.length) teile.push(`${e.abweichend.length} abweichend`);
+    if (e.berechnet.length) teile.push(`${e.berechnet.length} rechnet Mein ELSTER`);
     if (e.vonHand.length) teile.push(`${e.vonHand.length} von Hand`);
     teile.push(`${offen} noch auf anderen Seiten`);
-    return `${werte.formular.toUpperCase()} ${werte.jahr}: ${teile.join(", ")}.`;
+    const zeitraum = werte.zeitraum ? ` (Zeitraum ${werte.zeitraum})` : "";
+    const person = e.person && werte.personen ? `, Anlage von ${werte.personen[e.person]}` : "";
+    return `${werte.formular.toUpperCase()} ${werte.jahr}${zeitraum}${person}: ${teile.join(", ")}.`;
   }
 
   function abschnitte(e, offen) {
     const zeile = (f) => `${f.label || f.pfad?.join(" › ") || ""} (${f.kennung}${f.zeile ? `, Zeile ${f.zeile}` : ""}): ${f.wert}`;
     return [
-      { titel: "Eingetragen (grün umrandet)", eintraege: e.eingetragen.map(zeile) },
+      { titel: "Eingetragen (grün umrandet)", eintraege: e.eingetragen.map((f) => (f.vorher ? `${zeile(f)} – vorher ${f.vorher}` : zeile(f))) },
       { titel: "Vorbereitet: bei der grün umrandeten Zeile auf „Eintrag übernehmen“ klicken", eintraege: e.uebernehmen.map(zeile) },
-      { titel: "Abweichend, nicht überschrieben", eintraege: e.abweichend.map((f) => `${zeile(f)} – im Formular steht ${f.vorhanden}`) },
+      { titel: "Abweichend, nicht überschrieben (z. B. Vorjahreswert)", eintraege: e.abweichend.map((f) => `${zeile(f)} – im Formular steht ${f.vorhanden}`) },
+      { titel: "Gehört zur Anlage einer anderen Person", eintraege: e.andererPerson.map((f) => `${zeile(f)} – ${werte.personen?.[f.person] ?? `Person ${f.person}`}`) },
+      { titel: "Rechnet Mein ELSTER selbst (noch leer; nach dem Blättern mit Haben vergleichen)", eintraege: e.berechnet.map(zeile) },
       { titel: "Von Hand eintragen (erst Zeile anlegen)", eintraege: e.vonHand.map(zeile) },
       { titel: "Ließ sich nicht setzen", eintraege: e.nichtMoeglich.map(zeile) },
       { titel: "Noch auf keiner besuchten Seite gefunden", eintraege: offen.map(zeile) },
     ].filter((a) => a.eintraege.length > 0);
   }
 
-  function leiste(text, teile) {
+  function leiste(text, teile, abweichend = false) {
     document.getElementById("haben-elster-leiste")?.remove();
     const host = document.createElement("div");
     host.id = "haben-elster-leiste";
@@ -72,7 +78,7 @@
         <p></p>
         <div class="teile"></div>
         <p><small>Prüfen und absenden machst du in Mein ELSTER. Die Erweiterung klickt nie.</small></p>
-        <div class="actions"><button type="button" class="neu">Erneut eintragen</button><button type="button" class="zu">Schließen</button></div>
+        <div class="actions"><button type="button" class="neu">Erneut eintragen</button><button type="button" class="ueber" hidden>Abweichende mit Haben überschreiben</button><button type="button" class="zu">Schließen</button></div>
       </aside>`;
     shadow.querySelector("p").textContent = text;
     const container = shadow.querySelector(".teile");
@@ -90,6 +96,9 @@
       container.append(details);
     }
     shadow.querySelector(".neu").addEventListener("click", () => void eintragen());
+    const ueber = shadow.querySelector(".ueber");
+    ueber.hidden = !abweichend;
+    ueber.addEventListener("click", () => void eintragen({ ueberschreiben: true }));
     shadow.querySelector(".zu").addEventListener("click", () => host.remove());
     document.body.append(host);
   }

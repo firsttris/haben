@@ -150,3 +150,101 @@ test("Auswahl ohne passende Option wird gemeldet statt geraten", async ({ page }
   expect(ergebnis.nichtMoeglich).toEqual([expect.objectContaining({ kennung: "E6000602", wert: "999" })]);
   await expect(page.locator("#e")).toHaveValue("");
 });
+
+type Helfer = { HabenElster: { ausfuellen: (d: Document, w: unknown, o?: unknown) => Record<string, unknown> } };
+const ausfuellen = (page: Page, werte: unknown, optionen?: unknown) =>
+  page.evaluate(([w, o]) => (globalThis as unknown as Helfer).HabenElster.ausfuellen(document, w, o), [werte, optionen] as const);
+
+/** Voranmeldung 2026, Seiten Startseite, Lieferungen und Berechnung, wie Mein ELSTER sie im November 2026 benennt */
+const USTVA = `<!doctype html><html lang="de"><body><main>
+  <label for="z">Voranmeldungszeitraum</label>
+  <select id="z" name="fields[eruAnmeldungssteuernSteuerfallUmsatzsteuervoranmeldungZeitraum]"><option value=""></option><option value="09">September</option><option value="10">Oktober</option></select>
+  <label for="k81">Bemessungsgrundlage (Euro)</label>
+  <input id="k81" name="fields[eruAnmeldungssteuernSteuerfallUmsatzsteuervoranmeldungKz81]" data-eru-name="/Anmeldungssteuern/Steuerfall/Umsatzsteuervoranmeldung/Kz81">
+  <label for="s81">Steuer (Euro, Cent)</label>
+  <input id="s81" name="fields[eruAnmeldungssteuernSteuerfallUmsatzsteuervoranmeldungEOL_SteuerZuKz81]" data-eru-name="/Anmeldungssteuern/Steuerfall/Umsatzsteuervoranmeldung/EOL_SteuerZuKz81" disabled>
+  <label for="k66">Steuer (Euro, Cent)</label>
+  <input id="k66" name="fields[eruAnmeldungssteuernSteuerfallUmsatzsteuervoranmeldungKz66]" data-eru-name="/Anmeldungssteuern/Steuerfall/Umsatzsteuervoranmeldung/Kz66">
+  <label for="k83">Steuer (Euro, Cent)</label>
+  <input id="k83" name="fields[eruAnmeldungssteuernSteuerfallUmsatzsteuervoranmeldungKz83]" data-eru-name="/Anmeldungssteuern/Steuerfall/Umsatzsteuervoranmeldung/Kz83" disabled>
+</main></body></html>`;
+
+const USTVA_WERTE = {
+  format: "haben-mein-elster",
+  version: 1,
+  formular: "ustvaeru",
+  jahr: 2026,
+  zeitraum: "10",
+  personen: null,
+  erstellt: "2026-11-02T10:00:00.000Z",
+  felder: [
+    { kennung: "Zeitraum", wert: "10", pfad: [], zeile: null, person: null },
+    { kennung: "Kz66", wert: "173,55", pfad: [], zeile: null, person: null },
+    { kennung: "Kz81", wert: "2900", pfad: [], zeile: null, person: null },
+    { kennung: "Kz83", wert: "377,45", pfad: [], zeile: null, person: null },
+  ],
+};
+
+test("Voranmeldung: Kennzahlen über den ERiC-Pfad, gerechnete Steuer nur vergleichen, Zeitraum wählen", async ({ page }) => {
+  await page.setContent(USTVA);
+  await page.addScriptTag({ path: FILL });
+  const ergebnis = await ausfuellen(page, USTVA_WERTE);
+  await expect(page.locator("#z")).toHaveValue("10");
+  await expect(page.locator("#k81")).toHaveValue("2900");
+  await expect(page.locator("#k66")).toHaveValue("173,55");
+  // „…/EOL_SteuerZuKz81“ ist nicht Kz 81: bleibt leer, obwohl der Name auf Kz81] endet
+  await expect(page.locator("#s81")).toHaveValue("");
+  expect(ergebnis).toMatchObject({
+    eingetragen: [{ kennung: "Zeitraum" }, { kennung: "Kz81" }, { kennung: "Kz66" }],
+    berechnet: [{ kennung: "Kz83", wert: "377,45" }],
+    nichtMoeglich: [],
+  });
+
+  // Hat Mein ELSTER Kz 83 gerechnet, vergleicht die Erweiterung, auch mit Tausenderpunkt
+  await page.locator("#k83").evaluate((el) => ((el as HTMLInputElement).value = "377,45"));
+  expect(await ausfuellen(page, { ...USTVA_WERTE, felder: [{ kennung: "Kz83", wert: "377,45", pfad: [], zeile: null, person: null }] })).toMatchObject({ gleich: [{ kennung: "Kz83" }] });
+  await page.locator("#k81").evaluate((el) => ((el as HTMLInputElement).value = "2.900"));
+  expect(await ausfuellen(page, { ...USTVA_WERTE, felder: [{ kennung: "Kz81", wert: "2900", pfad: [], zeile: null, person: null }] })).toMatchObject({ gleich: [{ kennung: "Kz81" }] });
+});
+
+/** Einkommensteuer 2025: Editor einer Zeile „Gewinn aus freiberuflicher Tätigkeit“ in der Anlage S einer Person */
+const anlageS = (person: string, betrag: string) => `<!doctype html><html lang="de"><body><main>
+  <p>Startseite des Formulars › Anlagen S</p><h1>Anlage S</h1><p>(${person})</p>
+  <label for="t">genaue Berufsbezeichnung oder Tätigkeit</label>
+  <input id="t" name="fields[eruSGewinnFreiber_TE0803101]" data-eru-name="/S/Gewinn/Freiber_T/E0803101" value="IT Dienstleistungen">
+  <label for="b">Betrag (Euro)</label>
+  <input id="b" name="fields[eruSGewinnFreiber_TE0803202]" data-eru-name="/S/Gewinn/Freiber_T/E0803202" value="${betrag}">
+</main></body></html>`;
+
+const EST_WERTE = {
+  format: "haben-mein-elster",
+  version: 1,
+  formular: "est",
+  jahr: 2025,
+  zeitraum: null,
+  personen: { A: "Max Muster", B: "Erika Muster" },
+  erstellt: "2026-03-01T00:00:00.000Z",
+  felder: [
+    { kennung: "E0803101", wert: "IT Dienstleistungen", pfad: ["E10", "S", "Gewinn", "Freiber_T"], zeile: null, person: "A" },
+    { kennung: "E0803202", wert: "85433", pfad: ["E10", "S", "Gewinn", "Freiber_T"], zeile: null, person: "A" },
+  ],
+};
+
+test("Einkommensteuer: Werte einer Person nur auf deren Anlage, Vorjahreswerte erst auf ausdrücklichen Wunsch überschreiben", async ({ page }) => {
+  // Anlage S von Person B: die Werte von Person A gehören nicht hierher
+  await page.setContent(anlageS("Erika Muster", ""));
+  await page.addScriptTag({ path: FILL });
+  const fremd = await ausfuellen(page, EST_WERTE);
+  await expect(page.locator("#b")).toHaveValue("");
+  expect(fremd).toMatchObject({ person: "B", eingetragen: [], andererPerson: [{ kennung: "E0803101", person: "A" }, { kennung: "E0803202", person: "A" }] });
+
+  // Anlage S von Person A mit dem Vorjahreswert: erst abweichend, dann auf Wunsch überschrieben
+  await page.setContent(anlageS("Max Muster", "101.059"));
+  await page.addScriptTag({ path: FILL });
+  const erst = await ausfuellen(page, EST_WERTE);
+  expect(erst).toMatchObject({ person: "A", gleich: [{ kennung: "E0803101" }], abweichend: [{ kennung: "E0803202", wert: "85433", vorhanden: "101.059" }] });
+  await expect(page.locator("#b")).toHaveValue("101.059");
+  const dann = await ausfuellen(page, EST_WERTE, { ueberschreiben: true });
+  await expect(page.locator("#b")).toHaveValue("85433");
+  expect(dann).toMatchObject({ eingetragen: [{ kennung: "E0803202", wert: "85433", vorher: "101.059" }], abweichend: [] });
+});

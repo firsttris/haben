@@ -1,23 +1,20 @@
-import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { useAction } from "../lib/use-action.ts";
-import { getMeinElsterWerte } from "../server/functions/annual.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
 const DOCS = "https://firsttris.github.io/haben/elster-mit-erweiterung.html";
 
 /**
- * Ohne eigene Hersteller-ID: die Werte der Erklärung in die Zwischenablage, für die Erweiterung, die sie in
- * Mein ELSTER einträgt. Abgeschickt wird dort, von Hand.
+ * Ohne eigene Hersteller-ID: die Werte einer Erklärung oder Voranmeldung in die Zwischenablage, für die Erweiterung,
+ * die sie in Mein ELSTER einträgt. Abgeschickt wird dort, von Hand. `load` holt die Werte vom Server.
  */
-export function MeinElsterWerte({ form, year, label, blocked }: { form: "ust" | "euer" | "est"; year: number; label: string; blocked: boolean }) {
-  const load = useServerFn(getMeinElsterWerte);
+export function MeinElsterWerte({ load, label, blocked }: { load: () => Promise<{ felder: unknown[] }>; label: string; blocked: boolean }) {
   const { busy, notice, run } = useAction();
   const [copied, setCopied] = useState<number | null>(null);
 
   const copy = () =>
     run(async () => {
-      const werte = await load({ data: { form, year } });
+      const werte = await load();
       await navigator.clipboard.writeText(JSON.stringify(werte));
       setCopied(werte.felder.length);
     });
@@ -27,7 +24,7 @@ export function MeinElsterWerte({ form, year, label, blocked }: { form: "ust" | 
       <h3 style={{ margin: 0 }}>In Mein ELSTER eintragen</h3>
       <p className="small muted" style={{ margin: 0 }}>
         Ohne eigene Hersteller-ID: Werte kopieren und in der Erweiterung „Haben für Mein ELSTER“ einfügen. Sie trägt jede Seite des
-        Formulars {label} {year} aus, prüfen und absenden machst du in Mein ELSTER.{" "}
+        Formulars {label} aus, prüfen und absenden machst du in Mein ELSTER.{" "}
         <a href={DOCS} target="_blank" rel="noreferrer">
           Anleitung
         </a>

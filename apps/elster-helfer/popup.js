@@ -3,7 +3,7 @@
  * Nimmt die Werte aus Haben entgegen und legt sie in chrome.storage.session ab: nur im Speicher, weg nach dem
  * Schließen des Browsers. Die Inhaltsskripte dürfen den Sitzungsspeicher erst lesen, wenn er dafür freigegeben ist.
  */
-const NAMEN = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" };
+const NAMEN = { ustvaeru: "Umsatzsteuer-Voranmeldung", ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" };
 const status = document.getElementById("status");
 
 function zeige(text, fehler = false) {
@@ -14,7 +14,8 @@ function zeige(text, fehler = false) {
 async function zeigeGeladen() {
   const { werte } = await chrome.storage.session.get("werte");
   if (!werte) return zeige("Keine Werte geladen.");
-  zeige(`Geladen: ${NAMEN[werte.formular] ?? werte.formular} ${werte.jahr}, ${werte.felder.length} Werte. In Mein ELSTER das Formular öffnen.`);
+  const zeitraum = werte.zeitraum ? `, Zeitraum ${werte.zeitraum}` : "";
+  zeige(`Geladen: ${NAMEN[werte.formular] ?? werte.formular} ${werte.jahr}${zeitraum}, ${werte.felder.length} Werte. In Mein ELSTER das Formular öffnen.`);
 }
 
 document.getElementById("speichern").addEventListener("click", async () => {

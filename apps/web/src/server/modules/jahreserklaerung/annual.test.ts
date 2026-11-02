@@ -303,6 +303,11 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     expect(xml).toContain("<E0506105>1500</E0506105>");
     expect(xml).toContain("<StNr>9198011310010</StNr>");
 
+    // Werte für Mein ELSTER: Personen mit Namen, wie Mein ELSTER die Anlagen je Person überschreibt
+    const werte = await (await import("./mein-elster.ts")).meinElsterWerte("est", 2025, TODAY);
+    expect(werte.personen).toEqual({ A: "Max Muster", B: "Erika Muster" });
+    expect(werte.felder.find((f) => f.kennung === "E0803202")).toMatchObject({ wert: String(Math.round(euer.gewinn / 100)), person: "A" });
+
     await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1]))})`;
     const tested = await annual.submitAnnual(actor, "est", 2025, client, { kind: "test", pin: "1234", today: TODAY });
     expect(tested.ok).toBe(true);
