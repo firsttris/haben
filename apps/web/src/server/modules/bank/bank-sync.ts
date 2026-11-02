@@ -256,6 +256,8 @@ export async function completeConnection(
   const skipped = session.accounts.length - withIban.length - foreign.length;
   const replaced: { id: string; sessionId: string | null }[] = [];
   const created: string[] = [];
+  const foreignNote = foreign.length > 0 ? `${foreign.length} Konten in Fremdwährung (${[...new Set(foreign)].join(", ")}) werden nicht abgerufen, Haben bucht nur in Euro.` : "";
+  const noAccount = foreignNote ? `Die Bank hat kein Euro-Konto freigegeben. ${foreignNote}` : "Die Bank hat kein Konto mit IBAN freigegeben.";
 
   await withActor(actor, async (tx) => {
     // Auch abgelaufene Zustimmungen ablösen, sonst stünde das Konto doppelt in der Liste
@@ -292,7 +294,7 @@ export async function completeConnection(
         ciphertext: encrypt(Buffer.from(session.session_id, "utf8")),
         validUntil: session.access?.valid_until ? new Date(session.access.valid_until) : connection.validUntil,
         accounts,
-        lastError: accounts.length > 0 ? null : "Die Bank hat kein Konto mit IBAN freigegeben.",
+        lastError: accounts.length > 0 ? null : noAccount,
       })
       .where(eq(schema.bankConnections.id, connection.id));
   });
@@ -302,12 +304,12 @@ export async function completeConnection(
     if (old.sessionId) await (await client()).deleteSession(old.sessionId).catch(() => undefined);
   }
 
-  if (withIban.length === 0) return { connectionId: connection.id, ok: false, message: "Die Bank hat kein Konto mit IBAN freigegeben." };
+  if (withIban.length === 0) return { connectionId: connection.id, ok: false, message: noAccount };
   const sync = await syncConnection(actor, connection.id);
   const note =
     (created.length > 0 ? ` Neu angelegt: ${created.join(", ")}. Name und Zweck (z. B. Steuerkonto) legst du unter Bank mit „Name und Zweck“ fest.` : "") +
     (skipped > 0 ? ` ${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : "") +
-    (foreign.length > 0 ? ` ${foreign.length} Konten in Fremdwährung (${[...new Set(foreign)].join(", ")}) werden nicht abgerufen, Haben bucht nur in Euro.` : "");
+    (foreignNote ? ` ${foreignNote}` : "");
   return { connectionId: connection.id, ok: sync.error === null, message: (sync.error ?? `${connection.aspspName} verbunden, ${sync.added} neue Umsätze.`) + note };
 }
 
