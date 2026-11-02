@@ -278,6 +278,13 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(sync.firstSyncStart("2025-06-30", undefined, "2026-11-02")).toEqual({ from: "2025-07-01", fallback: null });
   });
 
+  it("firstSyncStart: kein Rückfall, wenn die Datei lückenlos bis vor den gewählten Tag reicht", () => {
+    // Umzug zum Jahreswechsel: Kontoauszug als Datei bis 31.12., Formular-Vorgabe 01.01. Lehnt die Bank den Zeitraum ab,
+    // ließe der Rückfall auf die letzten 89 Tage still eine Lücke vom 01.01. bis 04.08.; auf main kam dann eine Fehlermeldung.
+    expect(sync.firstSyncStart("2025-12-31", "2026-01-01", "2026-11-02")).toEqual({ from: "2026-01-01", fallback: null });
+    expect(sync.firstSyncStart("2026-06-30", "2026-07-01", "2026-11-02")).toEqual({ from: "2026-07-01", fallback: null });
+  });
+
   it("merkt sich den gewählten Abrufbeginn, gibt ihn aber nicht an schon abgerufene Konten weiter", async () => {
     await expect(sync.startConnection(actor, { aspspName: "Testbank", country: "DE", psuType: "business", fetchFrom: "2999-01-01" })).rejects.toThrow(
       /Zukunft/,
