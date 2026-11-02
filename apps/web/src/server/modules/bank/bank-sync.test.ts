@@ -330,6 +330,23 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(after!.accounts.find((a) => a.fetchFrom)).toMatchObject({ fetchFrom: "2026-10-15", syncedTo: "2026-10-17" });
   });
 
+  it("behält den gewählten Tag beim Erneuern der Zustimmung", async () => {
+    // Konto C zuletzt am 17.10. abgerufen, gewählter Tag 15.10. Wird die Zustimmung kurz darauf erneuert, ginge der
+    // Folgeabruf sonst sieben Tage vor den letzten Abruf zurück, also wieder vor den 15.10.
+    const [connection] = await sync.listConnections();
+    const accounts = connection!.accounts.map((a) => (a.fetchFrom ? { ...a, syncedTo: "2026-10-17" } : a));
+    await sql`update bank_connections set accounts = ${JSON.stringify(accounts)}::jsonb where id = ${connection!.id}`;
+    api.state.newAccount = true;
+    api.calls.length = 0;
+    const result = await connect("code-5");
+    api.state.newAccount = false;
+    expect(result.ok).toBe(true);
+    const [after] = await sync.listConnections();
+    expect(after!.accounts.find((a) => a.iban === IBAN_C)).toMatchObject({ fetchFrom: "2026-10-15" });
+    const fromC = api.calls.find((c) => c.path.startsWith("/accounts/uid-c") && c.path.endsWith("/transactions"))!.query.get("date_from");
+    expect(fromC! >= "2026-10-15").toBe(true);
+  });
+
   it("trennt eine Verbindung, die Umsätze bleiben", async () => {
     for (const c of await sync.listConnections()) await sync.removeConnection(actor, c.id);
     expect(await sync.listConnections()).toEqual([]);
