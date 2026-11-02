@@ -248,3 +248,14 @@ test("Einkommensteuer: Werte einer Person nur auf deren Anlage, Vorjahreswerte e
   await expect(page.locator("#b")).toHaveValue("85433");
   expect(dann).toMatchObject({ eingetragen: [{ kennung: "E0803202", wert: "85433", vorher: "101.059" }], abweichend: [] });
 });
+
+test("gesperrte Summe: „Erneut eintragen“ vor dem Übernehmen lässt die vorbereitete Zeile vorbereitet", async ({ page }) => {
+  await seite(page);
+  const werte = { ...WERTE, felder: [{ kennung: "E6000601", wert: "15770,00", pfad: [], zeile: null }] };
+  expect(await ausfuellen(page, werte)).toMatchObject({ uebernehmen: [{ kennung: "E6000601" }], nichtMoeglich: [] });
+  // Der Nutzer hat noch nicht auf „Eintrag übernehmen“ geklickt und lässt die Erweiterung erneut eintragen
+  const erneut = await ausfuellen(page, werte, { ueberschreiben: true });
+  await expect(page.locator("#g1")).toHaveValue("Laut Haben");
+  await expect(page.locator("#g2")).toHaveValue("15770,00");
+  expect(erneut).toMatchObject({ uebernehmen: [{ kennung: "E6000601", wert: "15770,00" }], nichtMoeglich: [] });
+});
