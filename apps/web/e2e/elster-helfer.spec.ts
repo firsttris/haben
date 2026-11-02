@@ -259,3 +259,16 @@ test("gesperrte Summe: „Erneut eintragen“ vor dem Übernehmen lässt die vor
   await expect(page.locator("#g2")).toHaveValue("15770,00");
   expect(erneut).toMatchObject({ uebernehmen: [{ kennung: "E6000601", wert: "15770,00" }], nichtMoeglich: [] });
 });
+
+test("Kontrollkästchen: ein gesetztes Häkchen gilt beim erneuten Eintragen als gleich, auch bei „X“ oder „true“", async ({ page }) => {
+  await page.setContent(`<!doctype html><html lang="de"><body><main>
+    <label for="x">Angabe</label><input type="checkbox" id="x" name="fields[eruEUERAllgE6000019]">
+    <label for="y">Andere Angabe</label><input type="checkbox" id="y" name="fields[eruEUERAllgE6000020]">
+  </main></body></html>`);
+  await page.addScriptTag({ path: FILL });
+  const werte = { ...WERTE, felder: [{ kennung: "E6000019", wert: "X", pfad: [], zeile: null }, { kennung: "E6000020", wert: "true", pfad: [], zeile: null }] };
+  expect(await ausfuellen(page, werte)).toMatchObject({ eingetragen: [{ kennung: "E6000019" }, { kennung: "E6000020" }] });
+  await expect(page.locator("#x")).toBeChecked();
+  await expect(page.locator("#y")).toBeChecked();
+  expect(await ausfuellen(page, werte)).toMatchObject({ gleich: [{ kennung: "E6000019" }, { kennung: "E6000020" }], abweichend: [] });
+});
