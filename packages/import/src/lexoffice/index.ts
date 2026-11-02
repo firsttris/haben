@@ -24,6 +24,8 @@ export {
   type LexPayments,
   type LexFile,
 } from "./types.ts";
+export type { LexofficeSource } from "./source.ts";
+export { LexwareWebExportError, readWebExport, webExportSource, type WebExport, type WebExportFailure } from "./web/source.ts";
 export {
   mapContact,
   mapSalesDocument,

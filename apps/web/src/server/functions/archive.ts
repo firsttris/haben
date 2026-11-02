@@ -20,6 +20,7 @@ import {
   removeApiKey,
   saveApiKey,
   startImport,
+  startWebImport,
 } from "../modules/archiv/index.ts";
 import { openLegacyItems, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
 import {
@@ -82,6 +83,22 @@ export const removeLexofficeKey = createServerFn({ method: "POST" })
 export const startLexofficeImport = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => ({ id: await startImport(context.user.id) }));
+
+/** Sicherung aus der Web-Oberfläche von Lexware Office (ZIP-Teile aus lexware-sicherung.js) übernehmen */
+export const uploadLexwareBackup = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: unknown) => {
+    if (!(data instanceof FormData)) throw new UserError("FormData erwartet");
+    const files = data.getAll("files").filter((f): f is File => f instanceof File);
+    if (files.length === 0) throw new UserError("Keine Datei ausgewählt.");
+    if (files.length > 20) throw new UserError("Höchstens 20 Teile auf einmal.");
+    if (files.some((f) => f.size > MAX_ARCHIVE_SIZE)) throw new UserError("Ein Teil ist größer als 100 MB.");
+    return { files };
+  })
+  .handler(async ({ data, context }) => {
+    const parts = await Promise.all(data.files.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) })));
+    return { id: await startWebImport(context.user.id, parts) };
+  });
 
 export const cancelLexofficeImport = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

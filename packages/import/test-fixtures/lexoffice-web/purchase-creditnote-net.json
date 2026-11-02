@@ -1,0 +1,76 @@
+{
+  "list": {
+    "entityId": "20000000-0000-4000-8000-000000000002",
+    "entityType": "bookkeepingvoucher",
+    "entitySubType": "PurchaseCreditNote",
+    "identificationNumber": "GS-17",
+    "amount": "59.50",
+    "openAmount": 0,
+    "totalGrossAmount": 59.5,
+    "billingStatus": "paidoff",
+    "archived": true,
+    "voucherDate": "2024-06-10T00:00:00.000+02:00",
+    "createdDate": "2024-06-10T13:28:09.000+02:00",
+    "dueDate": "2024-06-10T00:00:00.000+02:00",
+    "contactId": null,
+    "contactName": "Bürohandel Nord",
+    "title": "Ausgabenminderung"
+  },
+  "details": {
+    "identificationNumber": "GS-17",
+    "voucherId": "20000000-0000-4000-8000-000000000002",
+    "voucherType": "PurchaseCreditNote",
+    "billingStatus": "paidoff",
+    "contactName": "Bürohandel Nord",
+    "voucherDate": "2024-06-10T00:00:00.000+02:00",
+    "totalGrossAmount": 59.5,
+    "paymentListItems": [
+      {
+        "paymentItemType": "partPaymentFinancialTransaction",
+        "amount": 59.5,
+        "postingDate": "2024-06-15T02:00:00.000+02:00",
+        "deletable": true
+      },
+      {
+        "paymentItemType": "balanced",
+        "amount": 0,
+        "deletable": false
+      }
+    ],
+    "consideredEInvoice": false,
+    "voucherImages": [],
+    "bookkeepingVoucherItems": [
+      {
+        "taxRate": {
+          "percent": 19,
+          "calcPercent": 19
+        },
+        "amount": 50,
+        "postingCategory": {
+          "postingCategoryId": "cat-buero",
+          "name": "Bürobedarf",
+          "visibleForIrrecoverableReceivables": false,
+          "type": "outgo",
+          "sequenceNo": 29000,
+          "children": [],
+          "reverseCharge": false
+        },
+        "correctedPostingCategory": null
+      }
+    ]
+  },
+  "capsa": {
+    "voucherId": "20000000-0000-4000-8000-000000000002",
+    "organizationId": "aaaaaaaa-0000-4000-8000-000000000000",
+    "createdDate": "2024-06-10T13:28:09.503+02:00",
+    "voucherType": "PurchaseCreditNote",
+    "voucherImages": [],
+    "contact": null,
+    "identificationNumber": "GS-17",
+    "voucherDate": "2024-06-10",
+    "note": null,
+    "taxType": "net",
+    "totalGrossAmount": 59.5,
+    "billingState": "paidoff"
+  }
+}

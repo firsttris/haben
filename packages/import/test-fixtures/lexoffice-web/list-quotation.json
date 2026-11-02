@@ -1,0 +1,10 @@
+{
+  "entityId": "30000000-0000-4000-8000-000000000001",
+  "entityType": "salesvoucher",
+  "entitySubType": "Quotation",
+  "identificationNumber": "AG0001",
+  "billingStatus": "accepted",
+  "archived": false,
+  "voucherDate": "2025-09-01T00:00:00.000+02:00",
+  "contactName": "Musterbau GmbH"
+}

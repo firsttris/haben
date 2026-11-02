@@ -5,6 +5,7 @@ import { useState } from "react";
 import { errorMessage, formatDate } from "../../lib/format.ts";
 import { takeOverAllOpenItems, takeOverOpenItem, type getMigration } from "../../server/functions/archive.ts";
 import { Icon } from "../Icon.tsx";
+import { ScrollBox } from "../ScrollTable.tsx";
 
 type Item = Awaited<ReturnType<typeof getMigration>>["openItems"][number];
 
@@ -53,7 +54,7 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
       ) : items.length === 0 ? (
         <p className="small" style={{ margin: 0 }}>Keine offenen Rechnungen oder Belege in der bisherigen Buchhaltung.</p>
       ) : (
-        <div className="table-scroll">
+        <ScrollBox label="Offene Posten">
           <table className="data-table">
             <thead>
               <tr>
@@ -102,7 +103,7 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollBox>
       )}
       {messages.length > 0 && (
         <ul className="upload-messages" aria-live="polite">
