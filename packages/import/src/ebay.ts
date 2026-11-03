@@ -1,8 +1,9 @@
 import { finish, indexed, requireAmount, type Tx } from "./common.ts";
 import { isBlankRow } from "./csv.ts";
+import { StatementParseError } from "./errors.ts";
 import { pspDate, skippedWarning } from "./psp.ts";
 import { Columns } from "./table.ts";
-import { normalizeText, parseDotAmount, parseGermanAmount } from "./text.ts";
+import { normalizeText, parseDate, parseDotAmount, parseGermanAmount } from "./text.ts";
 import type { ParsedStatement } from "./types.ts";
 
 /*
@@ -32,6 +33,19 @@ const value = (get: (row: string[]) => string) => (row: string[]) => {
   const raw = get(row);
   return raw === "--" ? "" : raw;
 };
+
+/** Monate, wie eBay sie im deutschen Bericht abkürzt („Jan.“, „März“, „Sept.“ …), nach den ersten drei Buchstaben */
+const MONTHS = ["jan", "feb", "mär", "apr", "mai", "jun", "jul", "aug", "sep", "okt", "nov", "dez"];
+
+/** Datum aus „23. Sept. 2026“ (deutscher Bericht von eBay) oder den Formaten der übrigen Dienstleister */
+function ebayDate(raw: string, where: string): string {
+  const named = /^(\d{1,2})\.\s*([a-zäöü]+)\.?\s+(\d{4})$/i.exec(raw.trim());
+  const month = named ? MONTHS.indexOf(named[2]!.toLowerCase().slice(0, 3)) + 1 : 0;
+  if (month === 0) return pspDate(raw, where);
+  const parsed = parseDate(`${named![1]}.${month}.${named![3]}`);
+  if (!parsed) throw new StatementParseError(`Ungültiges Datum „${raw}“ (${where}).`);
+  return parsed;
+}
 
 const isPayout = (type: string) => /^(auszahlung|payout)$/i.test(type);
 
@@ -94,7 +108,7 @@ export function parseEbay(rows: string[][], headerRow: number): ParsedStatement 
     const kind = normalizeText(type(row));
     const orderNumber = normalizeText(order(row));
     const ref = normalizeText(referenceId(row) || transactionId(row));
-    const bookingDate = pspDate(date(row), where);
+    const bookingDate = ebayDate(date(row), where);
     const netAmount = requireAmount(amount(net(row)), net(row), where);
     payoutRows.push({ payoutId: payoutId(row), type: kind, amount: netAmount });
     // Ohne Auszahlungsnummer und -status: die stehen erst nach der Auszahlung im Bericht und änderten sonst den Hash
