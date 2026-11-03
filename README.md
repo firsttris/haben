@@ -252,6 +252,15 @@ kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte
 
 Danke an [@ngres](https://github.com/ngres) für durchdachte Prompt Requests.
 
+## ⭐ Sterne im Verlauf
+
+<a href="https://www.star-history.com/#firsttris/haben&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=firsttris/haben&type=Date&theme=dark">
+    <img alt="Verlauf der GitHub-Sterne von Haben" src="https://api.star-history.com/svg?repos=firsttris/haben&type=Date">
+  </picture>
+</a>
+
 ---
 
 <div align="center">
