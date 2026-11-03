@@ -79,7 +79,9 @@ const FORMAT_LABEL = (format: string) =>
           ? "Stripe"
           : format === "shopify-payments-csv"
             ? "Shopify"
-            : "CSV";
+            : format === "ebay-csv"
+              ? "eBay"
+              : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();
