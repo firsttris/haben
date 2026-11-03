@@ -27,8 +27,21 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Lint und Typecheck brauchen keine Datenbank; gebaut wird im Job e2e
   check:
     # Draft-Pull-Requests bauen nicht; "Ready for review" startet den Lauf
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+
+  test:
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     services:
@@ -40,7 +53,7 @@ jobs:
           POSTGRES_DB: haben_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U haben"
+          --health-cmd "pg_isready -U haben -d haben_test"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -50,12 +63,13 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bun run lint
-      - run: bun run typecheck
+      # Die Datenbank ist nach dem Job weg: ohne Schreiben auf die Platte bei jedem Commit
+      - name: PostgreSQL ohne fsync
+        run: docker exec ${{ job.services.postgres.id }} psql -U haben -d haben_test -qc "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off" -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
+      # Jeder Worker von Vitest klont seine Datenbank aus einer Vorlage (apps/web/src/server/test-db.ts)
       - run: bun run test
         env:
           TEST_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_test
-      - run: bun run build
 
   e2e:
     if: ${{ !github.event.pull_request.draft }}
@@ -69,7 +83,7 @@ jobs:
           POSTGRES_DB: haben_e2e
         ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U haben"
+          --health-cmd "pg_isready -U haben -d haben_e2e"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -95,7 +109,10 @@ jobs:
       - if: steps.browsers.outputs.cache-hit == 'true'
         working-directory: apps/web
         run: bun --bun playwright install-deps chromium
+      - name: PostgreSQL ohne fsync
+        run: docker exec ${{ job.services.postgres.id }} psql -U haben -d haben_e2e -qc "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off" -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
       - run: bun run build
+      # Vier Worker (playwright.config.ts), so viele Kerne hat der Runner
       - name: Ende-zu-Ende-Tests mit Screenshots aller Seiten
         run: bun run e2e
         env:

@@ -1,17 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
+import { USER } from "./daten.ts";
 
 /**
  * Die Bilder in README und Doku (docs/screenshot-*.png), aufgenommen mit den Daten, die app.spec.ts
  * davor angelegt hat: Kunden, festgeschriebene Rechnungen, ein gebuchter Beleg, der Kontoauszug mit
  * dem noch offenen Zahlungseingang von Rheinpixel. Läuft nur mit DOKU_SCREENSHOTS=1
- * (bun run docs:screenshots, Workflow „Update screenshots“); der Dateiname sorgt dafür, dass es nach
- * app.spec.ts drankommt.
+ * (bun run docs:screenshots, Workflow „Update screenshots“), im Projekt „mit-daten“ nach app.spec.ts
+ * (playwright.config.ts).
  */
 
 test.describe.configure({ mode: "serial" });
 test.skip(!process.env.DOKU_SCREENSHOTS, "nur für bun run docs:screenshots");
 
-const USER = { email: "max@example.com", password: "ein-sehr-langes-e2e-passwort" };
 const DOCS = "../../docs";
 const DESKTOP = { width: 1440, height: 900 };
 const MOBIL = { width: 390, height: 844 };

@@ -1,27 +1,19 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { zipSync } from "fflate";
 import { mkdirSync, readFileSync } from "node:fs";
+import { day, firstLink, SESSION, SHOTS, USER, YEAR } from "./daten.ts";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,
  * Rechnungen schreiben, einen Beleg buchen, den Kontoauszug importieren und zuordnen. Danach müssen
- * Buchungen und Konten stimmen; zum Schluss gibt es von jeder Seite einen Screenshot (Desktop und Handy)
- * unter test-results/screenshots.
+ * Buchungen und Konten stimmen. Zum Schluss speichert der Test die Sitzung (SESSION); mit ihr und diesen
+ * Daten laufen danach die Tests im Projekt „mit-daten“ parallel (playwright.config.ts).
  */
 
 test.describe.configure({ mode: "serial" });
 
 /** Wie HABEN_SETUP_CODE in playwright.config.ts */
 const SETUP_CODE = "e2e-einrichtungscode";
-const USER = { name: "Max Mustermann", email: "max@example.com", password: "ein-sehr-langes-e2e-passwort" };
-const SHOTS = "test-results/screenshots";
-
-// Alle Daten im selben Jahr: Anfang Januar rechnet der Test im Dezember des Vorjahres
-const today = new Date();
-const startOfYear = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
-const base = today.getTime() - startOfYear.getTime() < 50 * 86_400_000 ? new Date(Date.UTC(today.getUTCFullYear() - 1, 11, 20)) : today;
-const YEAR = base.getUTCFullYear();
-const day = (offset: number) => new Date(base.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
 /** Datum im DKB-Format: 14.09.26 */
 const dkb = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(2, 4)}`;
 
@@ -632,7 +624,7 @@ test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", asy
   await zugang.getByRole("button", { name: "Speichern" }).click();
   await expect(zugang.getByRole("status")).toHaveText("E-Mail-Zugang gespeichert.");
 
-  const rechnung = await firstLink("/rechnungen", /^\/rechnungen\/[0-9a-f-]{36}$/);
+  const rechnung = await firstLink(page, "/rechnungen", /^\/rechnungen\/[0-9a-f-]{36}$/);
   await go(rechnung!);
   const bereich = page.getByRole("region", { name: "Per E-Mail" });
   await bereich.getByRole("button", { name: "Rechnung senden" }).click();
@@ -811,99 +803,7 @@ test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async 
   expect(xml).not.toContain("<TransferHeader");
 });
 
-/** Erste verlinkte Detailseite einer Liste, z. B. /rechnungen/<id> */
-async function firstLink(list: string, pattern: RegExp): Promise<string | null> {
-  await go(list);
-  const href = await page.locator("a[href]").evaluateAll((links, source) => {
-    const re = new RegExp(source);
-    return links.map((a) => a.getAttribute("href") ?? "").find((h) => re.test(h)) ?? null;
-  }, pattern.source);
-  return href;
-}
-
-test("Screenshots aller Seiten (Desktop und Handy)", async ({ browser }) => {
-  const details = {
-    rechnung: await firstLink("/rechnungen", /^\/rechnungen\/[0-9a-f-]{36}$/),
-    beleg: await firstLink("/belege", /^\/belege\/[0-9a-f-]{36}$/),
-    kontakt: await firstLink("/kontakte", /^\/kontakte\/[0-9a-f-]{36}$/),
-  };
-  const month = Number(day(-12).slice(5, 7));
-  const routes: [string, string | null][] = [
-    ["uebersicht", "/"],
-    ["rechnungen", "/rechnungen"],
-    ["rechnung-neu", "/rechnungen/neu"],
-    ["angebote", "/angebote"],
-    ["rechnung", details.rechnung],
-    ["mahnwesen", "/rechnungen/mahnwesen"],
-    ["wiederkehrend", "/rechnungen/wiederkehrend"],
-    ["artikel", "/artikel"],
-    ["textbausteine", "/textbausteine"],
-    ["belege", "/belege"],
-    ["beleg", details.beleg],
-    ["pauschalen", "/pauschalen"],
-    ["kasse", "/kasse"],
-    ["bank", "/bank"],
-    ["anlagen", "/anlagen"],
-    ["anlage-neu", "/anlagen/neu"],
-    ["buchungen", `/buchungen?jahr=${YEAR}&monat=${month}`],
-    ["konten", `/konten?jahr=${YEAR}`],
-    ["kontenblatt", `/konten/1200?jahr=${YEAR}`],
-    ["umsatzsteuer", "/umsatzsteuer"],
-    ["jahreserklaerung", `/jahreserklaerung/${YEAR - 1}`],
-    ["finanzamt", "/finanzamt"],
-    ["fristen", "/fristen"],
-    ["auswertungen", "/auswertungen"],
-    ["kontakte", "/kontakte"],
-    ["kontakt", details.kontakt],
-    ["archiv", "/archiv"],
-    ["einstellungen", "/einstellungen"],
-    ["einstellungen-elster", "/einstellungen?bereich=elster"],
-    ["einstellungen-email", "/einstellungen?bereich=email"],
-    ["einstellungen-bank", "/einstellungen?bereich=bank"],
-    ["einstellungen-export", "/einstellungen?bereich=export"],
-  ];
-  const storage = await page.context().storageState();
-  for (const [device, viewport] of [
-    ["desktop", { width: 1440, height: 900 }],
-    ["mobil", { width: 390, height: 844 }],
-  ] as const) {
-    mkdirSync(`${SHOTS}/${device}`, { recursive: true });
-    const context = await browser.newContext({ viewport, storageState: storage, locale: "de-DE", timezoneId: "Europe/Berlin" });
-    const p = await context.newPage();
-    const errors: string[] = [];
-    p.on("pageerror", (error) => errors.push(error.message));
-    for (const [index, [name, path]] of routes.entries()) {
-      if (!path) continue;
-      const response = await p.goto(path);
-      expect(response?.status(), `${path} lädt`).toBeLessThan(400);
-      await p.waitForLoadState("networkidle");
-      await expect(p.getByRole("heading", { level: 1 }).first(), `${path} hat eine Überschrift`).toBeVisible();
-      // Kein waagrechtes Scrollen der ganzen Seite auf dem Handy
-      if (device === "mobil") {
-        const overflow = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-        expect.soft(overflow, `${path} ist nicht breiter als das Handy`).toBeLessThanOrEqual(1);
-      }
-      await p.screenshot({ path: `${SHOTS}/${device}/${String(index + 1).padStart(2, "0")}-${name}.png`, fullPage: true });
-    }
-    if (device === "mobil") {
-      // Menü auf dem Handy: aufklappen, Seite wählen, schließt wieder
-      await p.goto("/");
-      await p.waitForLoadState("networkidle");
-      await p.getByRole("button", { name: "Menü" }).click();
-      await expect(p.getByRole("link", { name: "Konten" })).toBeVisible();
-      await p.screenshot({ path: `${SHOTS}/mobil/00-menue.png` });
-      await p.getByRole("link", { name: "Konten" }).click();
-      await p.waitForURL(/\/konten/);
-      await expect(p.getByRole("link", { name: "Einstellungen" })).toBeHidden();
-    }
-    await context.close();
-    expect(errors, `Fehler im Browser (${device})`).toEqual([]);
-  }
-
-  // Anmeldeseite ohne Sitzung
-  const anonymous = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  await anonymous.goto("/login");
-  await anonymous.screenshot({ path: `${SHOTS}/desktop/00-login.png` });
-  await anonymous.close();
+test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {
   expect(pageErrors).toEqual([]);
+  await page.context().storageState({ path: SESSION });
 });
