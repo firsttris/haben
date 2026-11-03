@@ -27,8 +27,11 @@ export default defineConfig({
     keepNativeExternal(),
     tanstackStart(),
     // die native Bindung löst der Server zur Laufzeit aus apps/web/node_modules auf
-    // compressPublicAssets: .br/.gz neben den Assets, auch ohne komprimierenden Proxy davor
-    nitro({ plugins: ["./src/server/plugins/scheduler.ts", "./src/server/plugins/setup-code.ts"], compressPublicAssets: { gzip: true, brotli: true } }),
+    // compressPublicAssets: .br/.gz neben den Assets, auch ohne komprimierenden Proxy davor;
+    // preset node-server: Der Server läuft unter Bun über node:http. Nicht das Preset bun (Bun.serve), das Nitro
+    // unter Bun sonst selbst wählt: Bun.serve trennt jede Antwort, die länger als idleTimeout (10 s) braucht,
+    // und Nitro reicht dafür keine Einstellung durch (e2e/langsame-anfrage.spec.ts)
+    nitro({ preset: "node-server", plugins: ["./src/server/plugins/scheduler.ts", "./src/server/plugins/setup-code.ts"], compressPublicAssets: { gzip: true, brotli: true } }),
     viteReact(),
   ],
 });

@@ -1,6 +1,6 @@
 # Architektur
 
-Haben ist eine einzelne Node-Anwendung auf Basis von TanStack Start mit PostgreSQL als einziger Datenbank und einem Verzeichnis für Belegdateien. Diese Seite beschreibt Aufbau, Datenmodell, Abläufe und die wichtigsten Entwurfsentscheidungen. Für die Entwicklungsumgebung siehe [Entwicklung](entwicklung.md), für den Betrieb [Installation](installation.md).
+Haben ist eine einzelne Anwendung auf Basis von TanStack Start, die unter Bun läuft, mit PostgreSQL als einziger Datenbank und einem Verzeichnis für Belegdateien. Diese Seite beschreibt Aufbau, Datenmodell, Abläufe und die wichtigsten Entwurfsentscheidungen. Für die Entwicklungsumgebung siehe [Entwicklung](entwicklung.md), für den Betrieb [Installation](installation.md).
 
 ## Überblick
 
@@ -9,7 +9,7 @@ flowchart LR
   Browser["Browser<br/>React, PWA"] -->|HTTPS| Caddy["Caddy<br/>Reverse Proxy"]
   Caddy --> Web
 
-  subgraph Web["apps/web · TanStack Start auf Node 22"]
+  subgraph Web["apps/web · TanStack Start auf Bun"]
     Routes["routes/<br/>Seiten und Loader"] --> Functions["server/functions/<br/>Server Functions + authMiddleware"]
     Api["routes/api/<br/>Downloads, Export, Auth"]
     Functions --> Services["server/modules/<br/>Dienste je Fachbereich"]
@@ -74,7 +74,7 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `mail` | `mail` (SMTP, Erinnerungen, wöchentliche Integritätsmail) |
 | `mcp` | `server` (Endpunkt für KI-Assistenten), `tokens` (API-Tokens, Schalter, Protokoll der Aufrufe), `tools` (Werkzeuge, nur lesen) |
 
-Die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) läuft mit `pnpm lint` in der CI und prüft jeden relativen Import, auch `export … from`, `import()` und Typen wie `import("…").T`. Sie löst den Pfad auf, statt nur den Text des Imports zu vergleichen; das kann Biome nicht, deshalb ist es ein eigenes Skript:
+Die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) läuft mit `bun run lint` in der CI und prüft jeden relativen Import, auch `export … from`, `import()` und Typen wie `import("…").T`. Sie löst den Pfad auf, statt nur den Text des Imports zu vergleichen; das kann Biome nicht, deshalb ist es ein eigenes Skript:
 
 - **Aus einem anderen Modul nur über dessen `index.ts`.** Braucht ein Modul, eine Server Function oder eine Route etwas, das dort fehlt, wird es in der `index.ts` ergänzt. Die Datei enthält nur `export { … } from "./…"`, keine Logik.
 - **Infrastruktur importiert keine Module.** `server/*.ts` und `server/db/` bleiben unabhängig von der Fachlogik. Ausgenommen sind die Stellen, die Module zusammensetzen: `server/functions/`, `server/plugins/` und `scheduler.ts`.
@@ -231,7 +231,7 @@ Rechnungs-PDFs und -XML sowie ERiC-Protokolle liegen dagegen direkt in der Daten
 
 ## ERiC-Worker
 
-ERiC, die native Bibliothek der Finanzverwaltung, läuft nie im Anwendungsprozess. `EricProcessClient` in `packages/elster` startet für jeden Aufruf einen kurzlebigen Kindprozess (`worker.ts`), der ERiC per `koffi` lädt, genau eine Anfrage über IPC ausführt und sich beendet. Stürzt ERiC ab oder hängt, bekommt die Anwendung nur eine Fehlermeldung; nach 120 Sekunden wird der Kindprozess beendet. Beim Postfachabruf sendet derselbe Kindprozess die PostfachAnfrage und lädt danach die Anhänge über Otto (`libotto.so` aus dem ERiC-Paket); die Dateien reisen base64-kodiert über IPC zurück, bestätigt wird erst, wenn die Anwendung sie gespeichert hat.
+ERiC, die native Bibliothek der Finanzverwaltung, läuft nie im Anwendungsprozess. `EricProcessClient` in `packages/elster` startet für jeden Aufruf einen kurzlebigen Kindprozess (`worker.ts`), der ERiC per `koffi` lädt (über die Node-API, die Bun nachbildet), genau eine Anfrage über IPC ausführt und sich beendet. Stürzt ERiC ab oder hängt, bekommt die Anwendung nur eine Fehlermeldung; nach 120 Sekunden wird der Kindprozess beendet. Der Kindprozess startet ohne Core-Dump (`ulimit -c 0`): Unter Bun wäre der Dump eines Absturzes mehrere GB groß, und wo ihn ein Dienst wie systemd-coredump annimmt, käme die Fehlermeldung erst nach Sekunden bis Minuten. Beim Postfachabruf sendet derselbe Kindprozess die PostfachAnfrage und lädt danach die Anhänge über Otto (`libotto.so` aus dem ERiC-Paket); die Dateien reisen base64-kodiert über IPC zurück, bestätigt wird erst, wenn die Anwendung sie gespeichert hat.
 
 Für eine Übermittlung entschlüsselt Haben das Zertifikat und schreibt es in ein temporäres Verzeichnis (Rechte 0700, Datei 0600), das nach dem Aufruf gelöscht wird. Die PIN wird je Übermittlung abgefragt; gespeichert wird sie nur, wenn du den automatischen Postfachabruf einschaltest (verschlüsselt, für Postfach, Belegabruf und Berechtigungen). Vor dem Senden prüft der Client, dass der Testmerker im XML zur gewünschten Art passt (Test- oder Echtübermittlung). Ohne ERiC verwendet Haben einen simulierten Client und zeigt das in der Oberfläche an.
 
@@ -301,6 +301,7 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 | Umsatzsteuer und EÜR aus den Nebenbüchern, Journal zum Abgleich | Die Formulare brauchen Kennzahlen je Satz, § 13b und Zahlungsdaten, die im Journal nur indirekt stehen; der Abgleich deckt Widersprüche trotzdem auf |
 | Dateien unter SHA-256 | Keine Dubletten, Integrität bei jedem Lesen prüfbar, Hash im Export als Nachweis |
 | ERiC im Kindprozess | Eine abstürzende native Bibliothek reißt die Anwendung nicht mit |
+| Bun als Laufzeit und Paketmanager | Ein Programm statt Node, npm, pnpm und tsx; TypeScript läuft ohne Build (ERiC-Worker, Migrationen, Skripte). Ausgeliefert wird ohnehin als Container. Die Prüfung aller Nachrichten mit dem echten ERiC (`eric-echt.test.ts`) läuft unter Bun wie zuvor unter Node |
 | Jahresexport als Stream | Ein Jahr mit vielen Belegen braucht kaum Arbeitsspeicher; die Prüfsummen entstehen beim Packen |
 | Keine Job-Queue | Ein Prozess, eine Datenbank, einfacher Betrieb. Die einzigen langen Aufgaben sind wiederholbar bzw. fortsetzbar |
 | KI-Auslesung optional | Ohne Schlüssel bleiben alle Daten auf dem eigenen Server; E-Rechnungen werden ohnehin direkt gelesen |

@@ -46,11 +46,11 @@ Update what the change affects, in the same pull request, and only that:
 Green before every push, then check CI:
 
 ```sh
-pnpm lint
-pnpm typecheck
-TEST_DATABASE_URL=postgres://…/haben_test pnpm test     # without it the Postgres tests are skipped
-pnpm build
-E2E_DATABASE_URL=postgres://…/haben_e2e pnpm e2e         # name must end in "e2e"; it is emptied
+bun run lint
+bun run typecheck
+TEST_DATABASE_URL=postgres://…/haben_test bun run test     # without it the Postgres tests are skipped
+bun run build
+E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e         # name must end in "e2e"; it is emptied
 mkdocs build --strict                                   # when docs/ or mkdocs.yml changed
 ```
 
@@ -76,9 +76,10 @@ PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl �
 
 ## Code style
 
-Technology choices follow `tech-stack.md` in firsttris/workflows. Deviations here: Node instead of
-Bun (ERiC runs in a Node child process), plain CSS with variables in `apps/web/src/styles.css` and
-an own `Icon` component instead of Tailwind and lucide, Typst for the invoice PDF.
+Technology choices follow `tech-stack.md` in firsttris/workflows: Bun is runtime and package manager,
+no Node, npm or pnpm (`bun run test` runs Vitest; `bun test` would be Bun's own runner). Deviations
+here: plain CSS with variables in `apps/web/src/styles.css` and an own `Icon` component instead of
+Tailwind and lucide, Typst for the invoice PDF.
 
 Clean Code, written functionally: clear names, small functions that do one thing, dependencies
 passed in, no duplication or dead code, comments that say why; the ideas behind SOLID and the
@@ -96,7 +97,7 @@ split them only in a pull request of their own, not on the side. A refactor chan
 - **Money in whole cents** (`Cents`), tax rates in basis points (1900 = 19 %), quantities in
   thousandths. Never floats.
 - **Module boundaries:** import another server module only through its `index.ts`; the
-  check in `scripts/modulgrenzen/` (part of `pnpm lint`) fails CI otherwise. Server functions in `server/functions/` stay thin:
+  check in `scripts/modulgrenzen/` (part of `bun run lint`) fails CI otherwise. Server functions in `server/functions/` stay thin:
   `authMiddleware`, Zod validation, then a call into `server/modules/`.
 - **GoBD:** finalised invoices, bookings, sent VAT returns, bank transactions and imported Lexoffice
   data are locked by Postgres triggers; corrections are new records (Storno, counter-booking).
@@ -105,7 +106,7 @@ split them only in a pull request of their own, not on the side. A refactor chan
 - **Audit log:** writes go through `withActor`; new tables get an audit trigger. Secrets (keys,
   passwords, tokens) are stored AES-256-GCM-encrypted in a column named `ciphertext`, which
   `haben_audit` leaves out.
-- **Migrations:** change `apps/web/src/server/db/schema.ts`, then `pnpm db:generate`; never write
+- **Migrations:** change `apps/web/src/server/db/schema.ts`, then `bun run db:generate`; never write
   snapshots in `drizzle/meta/` by hand. Triggers and functions go into a separate migration from
   `drizzle-kit generate --custom`. Never change an existing migration.
 - **ERiC** never runs in the app process, only in the worker (`packages/elster/src/worker.ts`).

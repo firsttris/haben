@@ -2,7 +2,7 @@ name: Update screenshots
 
 # Nimmt die Bilder in README und Doku (docs/screenshot-*.png) und das Vorschaubild neu auf und
 # committet, was sich geändert hat: die Ende-zu-Ende-Tests legen die Daten an,
-# e2e/zz-doku-screenshots.spec.ts fotografiert (pnpm docs:screenshots). Nach einer Änderung am
+# e2e/zz-doku-screenshots.spec.ts fotografiert (bun run docs:screenshots). Nach einer Änderung am
 # Aussehen von Hand starten.
 on:
   workflow_dispatch:
@@ -11,14 +11,17 @@ jobs:
   screenshots:
     uses: firsttris/workflows/.github/workflows/screenshots.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # v1
     with:
-      lockfile: pnpm-lock.yaml
-      install: npm install --global corepack@0.36.0 && corepack enable && pnpm install --frozen-lockfile
+      lockfile: bun.lock
+      bun: true
+      # Dieselbe Version wie packageManager in package.json; Renovate hebt beide zusammen
+      bun-version: 1.4.4
+      install: bun install --frozen-lockfile
       postgres: postgres:18
       # Die Tests leeren nur eine Datenbank, deren Name auf „e2e“ endet
       postgres-db: haben_e2e
       command: >-
-        pnpm build &&
-        E2E_DATABASE_URL="$POSTGRES_URL" E2E_SERVER_COMMAND="node .output/server/index.mjs" pnpm docs:screenshots
+        bun run build &&
+        E2E_DATABASE_URL="$POSTGRES_URL" E2E_SERVER_COMMAND="bun .output/server/index.mjs" bun run docs:screenshots
       paths: |
         docs/screenshot-*.png
         docs/social-preview.png

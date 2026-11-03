@@ -31,7 +31,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
   webServer: {
     // Datenbank leeren, migrieren, Server starten
-    command: `tsx e2e/reset-db.ts && pnpm db:migrate && ${process.env.E2E_SERVER_COMMAND ?? `pnpm exec vite dev --port ${port}`}`,
+    command: `bun e2e/reset-db.ts && bun run db:migrate && ${process.env.E2E_SERVER_COMMAND ?? `bun --bun vite dev --port ${port}`}`,
     url: `${baseURL}/login`,
     timeout: 180_000,
     reuseExistingServer: false,

@@ -1,5 +1,5 @@
 // Rendert social-preview.html nach docs/social-preview.png (1280 × 640).
-// Aufruf: pnpm docs:social-preview (braucht pnpm install und den Chromium von Playwright)
+// Aufruf: bun run docs:social-preview (braucht bun install und den Chromium von Playwright)
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';

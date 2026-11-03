@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { checkFile } from "./regel.ts";
 
 /*
- * Prüft die Modulgrenzen (regel.ts) für alle Quelldateien in apps/web/src, außer Tests. Läuft mit `pnpm lint`.
+ * Prüft die Modulgrenzen (regel.ts) für alle Quelldateien in apps/web/src, außer Tests. Läuft mit `bun run lint`.
  */
 
 const root = fileURLToPath(new URL("../..", import.meta.url));

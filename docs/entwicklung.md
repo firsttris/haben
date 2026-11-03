@@ -4,10 +4,9 @@ Diese Seite richtet sich an alle, die an Haben mitarbeiten wollen: lokale Umgebu
 
 ## Voraussetzungen
 
-- Node.js 22 (`engines.node` verlangt mindestens 22)
-- pnpm (die Version legt `packageManager` in `package.json` fest; mit `corepack enable` bekommst du die passende)
+- [Bun](https://bun.com) in der Version aus `packageManager` in `package.json` (Laufzeit und Paketmanager zugleich; Node, npm und pnpm braucht Haben nicht)
 - PostgreSQL 18, lokal oder als Container
-- Alternativ zu allen dreien: Docker oder Podman mit Compose, siehe [Mit Docker Compose](#mit-docker-compose)
+- Alternativ zu beiden: Docker oder Podman mit Compose, siehe [Mit Docker Compose](#mit-docker-compose)
 - Optional: ein C-Compiler (`cc`) für die ERiC-Tests mit nachgebauter Bibliothek, Java 21 für den KoSIT-Validator
 
 ## Lokale Umgebung
@@ -15,7 +14,7 @@ Diese Seite richtet sich an alle, die an Haben mitarbeiten wollen: lokale Umgebu
 ```sh
 git clone https://github.com/firsttris/haben.git
 cd haben
-pnpm install
+bun install
 cp apps/web/.env.example apps/web/.env
 ```
 
@@ -29,8 +28,8 @@ Datenbank anlegen und Migrationen anwenden. Das Migrationsskript liest `DATABASE
 ```sh
 createdb haben
 export DATABASE_URL=postgres://haben:haben@localhost:5432/haben
-pnpm db:migrate
-pnpm dev            # http://localhost:3000
+bun run db:migrate
+bun run dev        # http://localhost:3000
 ```
 
 Den Einrichtungscode für das erste Konto schreibt der Server ins Terminal; mit `HABEN_SETUP_CODE` in `apps/web/.env` bleibt er fest.
@@ -39,7 +38,7 @@ Belegdateien landen ohne weitere Angabe in `apps/web/data/belege` (`DOCUMENTS_DI
 
 ## Mit Docker Compose
 
-Ohne Node, pnpm und PostgreSQL auf dem eigenen Rechner startet `compose.yml` im Hauptordner die ganze Entwicklungsumgebung:
+Ohne Bun und PostgreSQL auf dem eigenen Rechner startet `compose.yml` im Hauptordner die ganze Entwicklungsumgebung:
 
 ```sh
 git clone https://github.com/firsttris/haben.git
@@ -47,13 +46,13 @@ cd haben
 docker compose up   # http://localhost:3000
 ```
 
-Compose startet PostgreSQL 18 (dasselbe Image `tristanteu/haben-db` wie im Betrieb), installiert die Abhängigkeiten, wendet die Migrationen an und startet den Dev-Server. Der Projektordner ist in den Container eingehängt; Änderungen am Code lädt der Dev-Server beim Speichern neu. Nach einer Änderung an `pnpm-lock.yaml` reicht ein Neustart (`docker compose restart app`). Den Einrichtungscode für das erste Konto zeigt das Log (`docker compose logs app`).
+Compose startet PostgreSQL 18 (dasselbe Image `tristanteu/haben-db` wie im Betrieb), installiert die Abhängigkeiten, wendet die Migrationen an und startet den Dev-Server. Der Projektordner ist in den Container eingehängt; Änderungen am Code lädt der Dev-Server beim Speichern neu. Nach einer Änderung an `bun.lock` reicht ein Neustart (`docker compose restart app`); nach einer Änderung an `deploy/dev/` oder einer neuen Bun-Version baut `docker compose up --build` den Container neu. Volumes aus der Zeit mit pnpm (Haben bis 0.2) leert der Container beim ersten Start selbst. Den Einrichtungscode für das erste Konto zeigt das Log (`docker compose logs app`).
 
 - **Schlüssel:** `BETTER_AUTH_SECRET` und `HABEN_ENCRYPTION_KEY` erzeugt der Container beim ersten Start zufällig und legt sie im Volume `daten` ab, zusammen mit den Belegen und einem heruntergeladenen ERiC. Feste Schlüssel stehen nicht im Repository.
 - **`apps/web/.env`** ist nicht nötig. Liegt sie vor, gelten ihre übrigen Werte auch im Container (etwa `ANTHROPIC_API_KEY` oder `HABEN_SETUP_CODE`); Datenbank, Adresse, Schlüssel, Belegordner und ERiC setzt `compose.yml`.
-- **`node_modules`** liegen in eigenen Volumes, damit der Container seine nativen Pakete für Linux hat, auch wenn der Rechner macOS ist. Fehlen die Ordner auf dem Rechner, legt Docker sie unter Linux leer und mit Besitzer root an; ein späteres `pnpm install` ohne Container scheitert dann an den Rechten. Wer beides nutzen will, führt `pnpm install` deshalb zuerst auf dem Rechner aus.
+- **`node_modules`** liegen in eigenen Volumes, damit der Container seine nativen Pakete für Linux hat, auch wenn der Rechner macOS ist. Fehlen die Ordner auf dem Rechner, legt Docker sie unter Linux leer und mit Besitzer root an; ein späteres `bun install` ohne Container scheitert dann an den Rechten. Wer beides nutzen will, führt `bun install` deshalb zuerst auf dem Rechner aus.
 - **Ports:** Die App lauscht auf `127.0.0.1:3000`, die Datenbank auf `127.0.0.1:5432` (Benutzer und Passwort `haben`). Läuft dort schon etwas, wählen `HABEN_DEV_PORT` und `HABEN_DEV_DB_PORT` andere Ports, etwa `HABEN_DEV_DB_PORT=5433 docker compose up`.
-- **Linux:** Der Benutzer im Container hat die ID 1000. Ist die eigene eine andere (`id -u`), baut `HABEN_DEV_UID=$(id -u) HABEN_DEV_GID=$(id -g) docker compose up --build` den Container passend, sonst kann der Dev-Server Dateien wie `src/routeTree.gen.ts` nicht schreiben. Die Volumes übernimmt der Container beim nächsten Start für die neue ID. Befehle im Container startest du als dieser Benutzer, damit neue Dateien dir gehören: `docker compose exec -u node app pnpm …`.
+- **Linux:** Der Benutzer im Container hat die ID 1000. Ist die eigene eine andere (`id -u`), baut `HABEN_DEV_UID=$(id -u) HABEN_DEV_GID=$(id -g) docker compose up --build` den Container passend, sonst kann der Dev-Server Dateien wie `src/routeTree.gen.ts` nicht schreiben. Die Volumes übernimmt der Container beim nächsten Start für die neue ID. Befehle im Container startest du als dieser Benutzer, damit neue Dateien dir gehören: `docker compose exec -u bun app bun …`.
 
 Die Datenbank im Container eignet sich auch für die Tests vom Rechner aus. Die Testdatenbanken legst du einmal an:
 
@@ -68,27 +67,27 @@ docker compose exec db createdb -U haben haben_e2e
 
 | Befehl | Was er tut |
 | --- | --- |
-| `pnpm dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
-| `pnpm build` | Baut alle Pakete, die ein `build`-Skript haben (praktisch `apps/web`) |
-| `pnpm typecheck` | `tsc -p .` in jedem Paket |
-| `pnpm lint` | Biome über das ganze Repository, danach die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) |
-| `pnpm test` | Alle Tests mit Vitest |
-| `pnpm db:generate` | Migration aus Schemaänderungen erzeugen (drizzle-kit) |
-| `pnpm db:migrate` | Ausstehende Migrationen anwenden |
-| `pnpm --filter @haben/web start` | Gebaute App starten (`.output/server/index.mjs`) |
-| `pnpm --filter @haben/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
+| `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
+| `bun run build` | Baut die Web-App (`apps/web/.output`) |
+| `bun run typecheck` | `tsc -p .` in jedem Paket |
+| `bun run lint` | Biome über das ganze Repository, danach die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) |
+| `bun run test` | Alle Tests mit Vitest (nicht `bun test`: das wäre der Test-Runner von Bun) |
+| `bun run db:generate` | Migration aus Schemaänderungen erzeugen (drizzle-kit) |
+| `bun run db:migrate` | Ausstehende Migrationen anwenden |
+| `bun run --cwd apps/web start` | Gebaute App starten (`.output/server/index.mjs`) |
+| `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
 | `pip install -r requirements-docs.txt && mkdocs serve` | Diese Dokumentation als Website lokal auf Port 8000 (MkDocs Material); `mkdocs build --strict` wie in der CI |
-| `pnpm docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
-| `pnpm docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
+| `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
+| `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
 
 ## Tests
 
 Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src` und `packages/*/src` ein und führt die Dateien nacheinander aus, weil sich die Integrationstests eine Datenbank teilen.
 
 ```sh
-pnpm test
-TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test pnpm test
-pnpm vitest run packages/core          # nur ein Bereich
+bun run test
+TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
+bun --bun vitest run packages/core     # nur ein Bereich
 ```
 
 Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`. Ohne die Variable werden sie übersprungen. Mit ihr löscht `apps/web/src/server/test-db.ts` die Schemas `public` und `drizzle` und wendet alle Migrationen neu an.
@@ -106,9 +105,9 @@ ERiC darf nicht im Repository oder in der CI liegen. Ist es lokal da (`ERIC_HOME
 - Die Integrationstests in `apps/web/src/server` nutzen `EricGeprueftClient` (`test-eric.ts`). Mit ERiC lässt er jedes XML, das aus den Szenarien der Datenbank entsteht, zusätzlich von ERiC prüfen.
 
 ```sh
-node --experimental-strip-types packages/elster/src/install-cli.ts --lizenz-akzeptiert   # einmalig, lädt nach ERIC_DIR (Standard data/eric)
-ERIC_DIR=data/eric pnpm vitest run packages/elster
-ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test pnpm test
+bun packages/elster/src/install-cli.ts --lizenz-akzeptiert   # einmalig, lädt nach ERIC_DIR (Standard data/eric)
+ERIC_DIR=data/eric bun --bun vitest run packages/elster
+ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 ```
 
 Seit ERiC 39.4 ist die frühere Test-Hersteller-ID `74931` gesperrt, auch für die lokale Prüfung. Die Tests nehmen `ELSTER_HERSTELLER_ID`, sonst eine Platzhalter-ID; für die reine Prüfung reicht das. Die Schemas der Formulare stecken komprimiert in den Plugins unter `lib/plugins`; meldet ERiC ein unerwartetes Feld, lohnt der Blick dort hinein.
@@ -116,7 +115,7 @@ Seit ERiC 39.4 ist die frühere Test-Hersteller-ID `74931` gesperrt, auch für d
 Für Belegabruf, Berechtigung und Postfach gibt es zusätzlich ein Kommando, das auch unter Einstellungen › ELSTER › ERiC als Knopf steckt (Exit-Code 1 bei Fehlern):
 
 ```sh
-node --experimental-strip-types packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DIR
+bun packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DIR
 ```
 
 | Bereich | Was getestet wird |
@@ -135,12 +134,12 @@ Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` Beispi
 ```sh
 KOSIT_JAR=/pfad/validator-<version>-standalone.jar \
 KOSIT_CONFIG=/pfad/scenarios.xml \
-pnpm --filter @haben/einvoice kosit /tmp/haben-kosit
+bun run --cwd packages/einvoice kosit /tmp/haben-kosit
 ```
 
 Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/` (das `*-standalone.jar` in `validator/`, `xr/scenarios.xml`).
 
-Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Node, PostgreSQL, Caddy und restic; der `kosit`-Job des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
+Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Bun, PostgreSQL, Caddy und restic; der `kosit`-Job des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
 
 ### Ende-zu-Ende-Tests mit Playwright
 
@@ -160,14 +159,14 @@ Zum Schluss lädt der Test jede Seite am Desktop (1440 px) und am Handy (390 px)
 
 Von jeder Seite legt der Test einen Screenshot unter `apps/web/test-results/screenshots/{desktop,mobil}/` ab.
 
-Danach prüft `apps/web/e2e/barrierefreiheit.spec.ts` mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Allein laufen kann die Datei nicht: Sie braucht die Daten aus `app.spec.ts`, und jeder Lauf leert die Datenbank. Starte deshalb immer `pnpm e2e`.
+Danach prüft `apps/web/e2e/barrierefreiheit.spec.ts` mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Allein laufen kann die Datei nicht: Sie braucht die Daten aus `app.spec.ts`, und jeder Lauf leert die Datenbank. Starte deshalb immer `bun run e2e`.
 
 ```sh
 createdb haben_e2e            # einmalig; der Name muss auf „e2e“ enden, die Datenbank wird bei jedem Lauf geleert
-E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e pnpm e2e
+E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run e2e
 ```
 
-Playwright startet selbst einen Server auf Port 3100 (`E2E_PORT`). Vorher leert es die Datenbank und spielt die Migrationen ein. Lokal ist das der Entwicklungsserver, in der CI der gebaute Server (`E2E_SERVER_COMMAND="node .output/server/index.mjs"` nach `pnpm build`). Chromium kommt einmalig mit `pnpm --filter @haben/web exec playwright install chromium`. Wer schon ein passendes Chromium hat, setzt stattdessen `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
+Playwright startet selbst einen Server auf Port 3100 (`E2E_PORT`). Vorher leert es die Datenbank und spielt die Migrationen ein. Lokal ist das der Entwicklungsserver, in der CI der gebaute Server (`E2E_SERVER_COMMAND="bun .output/server/index.mjs"` nach `bun run build`). Chromium kommt einmalig mit `bun --bun playwright install chromium` in `apps/web`. Wer schon ein passendes Chromium hat, setzt stattdessen `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
 In der CI läuft der Job `e2e` bei jedem Pull Request. Screenshots, Playwright-Bericht und bei Fehlern Traces hängen als Artefakt `e2e-screenshots` am Lauf. So sieht man zu jeder Änderung, wie alle Seiten aussehen.
 
@@ -179,7 +178,7 @@ Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Ha
 `DOKU_SCREENSHOTS=1` überspringt es sich selbst, die normalen Tests bleiben unverändert.
 
 ```sh
-E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e pnpm docs:screenshots
+E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run docs:screenshots
 ```
 
 Nach einer Änderung am Aussehen den Workflow **Update screenshots** (Actions → Run workflow) auf dem
@@ -191,13 +190,13 @@ committet, was sich geändert hat.
 Das Schema steht in `apps/web/src/server/db/schema.ts`, die Migrationen in `apps/web/drizzle/`.
 
 1. Schema anpassen.
-2. `pnpm db:generate` erzeugt die SQL-Migration und den Snapshot in `drizzle/meta/`.
-3. `pnpm db:migrate` wendet sie lokal an. Im Container passiert das beim Start automatisch.
+2. `bun run db:generate` erzeugt die SQL-Migration und den Snapshot in `drizzle/meta/`.
+3. `bun run db:migrate` wendet sie lokal an. Im Container passiert das beim Start automatisch.
 
 Trigger und Funktionen (Festschreibung, Versionierung, Audit-Log) kann drizzle-kit nicht aus dem Schema ableiten. Sie stehen in eigenen SQL-Migrationen, z. B. `0001_festschreibung.sql`, `0003_rechnungen_trigger.sql` oder `0010_lexoffice_trigger.sql`. Eine leere Migration dafür legst du so an und schreibst das SQL von Hand hinein:
 
 ```sh
-pnpm --filter @haben/web exec drizzle-kit generate --custom --name=mein_trigger
+cd apps/web && bun --bun drizzle-kit generate --custom --name=mein_trigger
 ```
 
 Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen schon angewendet.
@@ -208,13 +207,14 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 - **Steuersätze in Basispunkten** (`BasisPoints`): 1900 = 19 %, 700 = 7 %.
 - **Mengen in Tausendsteln**: 152 Stunden = 152000, 0,5 Tage = 500.
 - **Lint mit Biome:** Abgeschaltete Regeln stehen mit Grund in `biome.jsonc`. Eine Ausnahme an einer Stelle steht direkt davor als `// biome-ignore lint/<gruppe>/<regel>: <Grund>`.
-- **Imports mit `.ts`-Endung** (`allowImportingTsExtensions`). Der ERiC-Worker und das Migrationsskript laufen per Type Stripping direkt aus den Quellen.
+- **Imports mit `.ts`-Endung** (`allowImportingTsExtensions`). Der ERiC-Worker und das Migrationsskript laufen unter Bun direkt aus den Quellen, ohne Build.
+- **Bun statt Node:** Die Skripte starten Vite, Vitest, Playwright, Biome, tsc und drizzle-kit mit `bun --bun`; ohne den Schalter nähme Bun das `node` aus deren Startzeile, falls eines installiert ist. Install-Skripte führt `bun install` nur für die Pakete in `trustedDependencies` aus (esbuild lädt sein Binary, koffi sein natives Modul für ERiC). `bunfig.toml` legt die Abhängigkeiten wie früher pnpm isoliert ab: Jedes Paket sieht nur, was es selbst einträgt.
 - **Oberfläche auf Deutsch**, auch Fehlermeldungen, die beim Nutzer ankommen.
 - **Barrierefrei und per Tastatur bedienbar:** echte Knöpfe und Links, ein Label für jedes Feld, sichtbarer Fokus, Text in Akzentfarbe mit `var(--link)`. `barrierefreiheit.spec.ts` prüft das in der CI ([Barrierefreiheit und Tastatur](barrierefreiheit.md)).
 - **Unveränderlichkeit (GoBD) in der Datenbank:** Festgeschriebene Rechnungen, Buchungen, gesendete Voranmeldungen, Bankumsätze und übernommene Lexoffice-Daten sperren Postgres-Trigger gegen `UPDATE` und `DELETE`. Korrekturen sind neue Datensätze (Storno, Gegenbuchung, berichtigte Anmeldung). Beim Festschreiben einer Buchung prüft ein Trigger Soll = Haben.
 - **Audit-Log:** Änderungen laufen über `withActor` (`apps/web/src/server/db/actor.ts`), damit der Trigger sie dem Nutzer zuschreibt.
 - **Server-Funktionen bleiben dünn:** In `apps/web/src/server/functions/` hängt jede Funktion mit Daten `authMiddleware` an, validiert die Eingabe mit Zod und ruft die Logik im passenden Modul unter `apps/web/src/server/modules/` auf. Fachlogik ohne Datenbank gehört nach `packages/core`.
-- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `pnpm lint` und damit die CI sonst ab. Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
+- **Modulgrenzen:** Aus einem anderen Modul nur über dessen `index.ts` importieren; die Prüfung in `scripts/modulgrenzen/` bricht `bun run lint` und damit die CI sonst ab. Fehlt dort ein Name, ergänze ihn in der `index.ts`. Neuer Code gehört in das Modul, dessen Tabellen er schreibt ([Module im Server](architektur.md#module-im-server)).
 - **ERiC nie im App-Prozess:** Jeder Aufruf geht über einen kurzlebigen Kindprozess (`packages/elster/src/worker.ts`).
 
 ## Projektstruktur
@@ -223,7 +223,7 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 | --- | --- |
 | `apps/web/src/routes` | Seiten (TanStack Router) und API-Routen unter `api/` |
 | `apps/web/src/server` | `modules/` mit der Serverlogik je Fachbereich (öffentlich über `index.ts`), `db/` mit Schema und Migrationsskript, `functions/` mit den Server-Funktionen, daneben gemeinsame Infrastruktur |
-| `scripts/modulgrenzen/` | Prüfung der Modulgrenzen, läuft mit `pnpm lint` |
+| `scripts/modulgrenzen/` | Prüfung der Modulgrenzen, läuft mit `bun run lint` |
 | `apps/web/src/components`, `lib` | React-Komponenten, Auth-Client, Formatierung |
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
@@ -263,7 +263,7 @@ Den Tag legt einer von zwei Wegen an, nach demselben Schema wie in den anderen P
 - lokal:
 
 ```sh
-pnpm release:patch   # oder :minor, :major: erhöht die Version, legt Commit und Tag an und pusht beides
+bun run release:patch   # oder :minor, :major: erhöht die Version, legt Commit und Tag an und pusht beides
 ```
 
 Von Hand gestartet (Actions → Release → Run workflow) laufen auf `main` dieselben Prüfungen, danach wird nur `:edge` veröffentlicht, ohne Release.
@@ -285,10 +285,10 @@ Der Workflow braucht das Repository-Secret `DOCKER_PAT`, ein Docker-Hub-Zugriffs
 Vor einem Pull Request bitte dieselben Prüfungen wie in CI laufen lassen:
 
 ```sh
-pnpm lint
-pnpm typecheck
-TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test pnpm test
-pnpm build
+bun run lint
+bun run typecheck
+TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
+bun run build
 ```
 
 - Neue Fachlogik mit Tests, Änderungen an Buchungen oder Steuerberechnung mit Testfällen für SKR03 und SKR04 sowie Ist und Soll.

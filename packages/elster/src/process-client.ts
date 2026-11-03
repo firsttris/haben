@@ -1,4 +1,4 @@
-import { fork } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,14 +11,24 @@ import { datenartVersionFromXml, testmerkerMismatch } from "./xml.ts";
 
 export const DEFAULT_TIMEOUT_MS = 120_000;
 export const DEFAULT_WORKER_PATH = fileURLToPath(new URL("./worker.ts", import.meta.url));
-/** Node 22 braucht für .ts-Dateien (je nach Minor-Version) noch das Flag. */
-export const DEFAULT_WORKER_EXEC_ARGV = ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"];
 
 export interface EricProcessClientOptions extends EricConfig {
   timeoutMs?: number;
   /** Austauschbar für Tests */
   workerPath?: string;
-  execArgv?: string[];
+}
+
+/**
+ * Startet den Worker mit derselben Laufzeit wie die App (Bun führt worker.ts direkt aus), über sh ohne
+ * Core-Dump: Der Dump eines abgestürzten Bun-Prozesses ist mehrere GB groß (reservierter Speicher). Wo ein
+ * Dienst ihn annimmt (apport, systemd-coredump), käme die Meldung des Absturzes erst nach Sekunden bis
+ * Minuten, und auf dem Host landeten GB pro Absturz von ERiC. exec behält den IPC-Kanal (NODE_CHANNEL_FD).
+ */
+function spawnWorker(workerPath: string) {
+  return spawn("/bin/sh", ["-c", 'ulimit -c 0 && exec "$0" "$1"', process.execPath, workerPath], {
+    stdio: ["ignore", "ignore", "pipe", "ipc"],
+    serialization: "json",
+  });
 }
 
 /** Führt jeden ERiC-Aufruf in einem eigenen, kurzlebigen Kindprozess aus. */
@@ -117,7 +127,7 @@ export class EricProcessClient implements ElsterClient {
 
   /** tempDir: Logs von ERiC und Otto landen dort, wenn kein ERIC_LOG_DIR gesetzt ist */
   async #run(request: EricRequest, tempDir: string): Promise<{ result: ElsterResult; raw?: EricRawResult }> {
-    const { timeoutMs = DEFAULT_TIMEOUT_MS, workerPath = DEFAULT_WORKER_PATH, execArgv } = this.#options;
+    const { timeoutMs = DEFAULT_TIMEOUT_MS, workerPath = DEFAULT_WORKER_PATH } = this.#options;
     const config: EricConfig = { ericHome: this.#options.ericHome, logDir: this.#options.logDir ?? tempDir };
 
     return new Promise<{ result: ElsterResult; raw?: EricRawResult }>((resolve) => {
@@ -132,11 +142,7 @@ export class EricProcessClient implements ElsterClient {
         resolve(raw ? { result, raw } : { result });
       };
 
-      const child = fork(workerPath, [], {
-        execArgv: execArgv ?? DEFAULT_WORKER_EXEC_ARGV,
-        stdio: ["ignore", "ignore", "pipe", "ipc"],
-        serialization: "json",
-      });
+      const child = spawnWorker(workerPath);
 
       /** Beendet mit der Antwort des Workers, falls schon eine da ist */
       const finishWithResponse = (): boolean => {

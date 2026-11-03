@@ -1,6 +1,6 @@
 /**
  * ERiC von der Kommandozeile installieren, z. B. im Container:
- *   node --experimental-strip-types packages/elster/src/install-cli.ts --lizenz-akzeptiert [Version]
+ *   bun packages/elster/src/install-cli.ts --lizenz-akzeptiert [Version]
  * Ziel ist ERIC_DIR (im Image /var/lib/haben/eric). Mit --nur-wenn-fehlt passiert nichts, wenn ERiC schon da ist.
  */
 import { resolve } from "node:path";

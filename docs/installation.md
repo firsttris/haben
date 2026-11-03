@@ -55,9 +55,9 @@ git clone https://github.com/firsttris/haben.git && cd haben
 podman build -t haben -f Containerfile .   # oder docker build
 ```
 
-Das `Containerfile` baut die App in zwei Stufen auf Basis von `node:22-bookworm-slim`.
+Das `Containerfile` baut die App in zwei Stufen auf Basis von `oven/bun` (Debian, slim); Laufzeit ist Bun, Node ist nicht im Image.
 
-Das Image läuft als Nutzer `node` und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_WORKER_PATH` und `HABEN_EINVOICE_DIR`.
+Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_WORKER_PATH` und `HABEN_EINVOICE_DIR`.
 
 ## Docker Compose
 
@@ -545,7 +545,7 @@ ERiC ist die Bibliothek der Finanzverwaltung für ELSTER. Sie ist kostenlos, dar
 | --- | --- |
 | Per Knopf | **Einstellungen › ELSTER › ERiC**: Version prüfen, den Nutzungsbedingungen zustimmen, **Herunterladen und einrichten**. Der Download läuft im Hintergrund; danach prüft und sendet Haben ohne Neustart über ERiC |
 | Beim Start | `ERIC_AUTO_INSTALL=ja` in `.env` bzw. `haben.env`. Fehlt ERiC, lädt der Container es vor dem Start der App; schlägt das fehl, startet die App trotzdem (simuliert) |
-| Auf der Kommandozeile | `docker compose exec app node --experimental-strip-types /app/packages/elster/src/install-cli.ts --lizenz-akzeptiert [Version]` bzw. `podman exec haben-app …` |
+| Auf der Kommandozeile | `docker compose exec app bun /app/packages/elster/src/install-cli.ts --lizenz-akzeptiert [Version]` bzw. `podman exec haben-app …` |
 
 Weil ERiC als native Bibliothek geladen wird, prüft Haben den Download: Er darf nur auf demselben Server weitergeleitet werden, ist auf 1 GB begrenzt, und seine SHA-256 steht danach im Log und in `HABEN_ERIC_SHA256` im Versionsordner. Mit `ERIC_SHA256` legst du die erwartete Prüfsumme fest, etwa die einer Installation, der du schon vertraust; weicht der Download ab, installiert Haben ihn nicht.
 
@@ -648,7 +648,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **Die Vorschau von Belegen, Rechnungen oder Angeboten bleibt leer oder zeigt „Verbindung abgelehnt“.** Die Vorschau ist ein eingebettetes Fenster (iframe) auf derselben Adresse. Setzt der Reverse Proxy `X-Frame-Options DENY`, verbietet das auch diese Einbettung. Stell den Header auf `SAMEORIGIN` um (so steht es im mitgelieferten `Caddyfile` und in `compose.yml`); vor Clickjacking durch fremde Seiten schützt die App selbst mit `Content-Security-Policy: frame-ancestors 'self'`. Bei Caddy mit einzeln gemounteter `Caddyfile` (Quadlet) reicht nach dem Bearbeiten `caddy reload` nicht: Editoren und `sed -i` legen eine neue Datei an, der Bind-Mount zeigt weiter auf die alte. Starte den Container neu (`systemctl --user restart haben-caddy` bzw. ohne `--user` bei rootful Podman).
 
-**„download.elster.de nicht erreichbar: …“, obwohl der Server ins Internet kommt.** In Klammern steht der Grund. `EAI_AGAIN` oder `ENOTFOUND` heißt: Der Container löst keine Namen auf. Prüfen mit `podman exec haben-app node -e 'require("dns").promises.lookup("download.elster.de").then(console.log,console.error)'` (Compose: `docker compose exec app node -e …`). Kommt `EAI_AGAIN`, beantwortet der DNS-Dienst des Podman-Netzes (aardvark-dns) zwar `haben-db`, leitet externe Namen aber nicht weiter. Das passiert, wenn sich nach dem Start die DNS-Server des Hosts ändern (`/etc/resolv.conf`, z. B. nach einem Netzwerk-Neustart). Sofort hilft `podman network reload --all` (rootful) bzw. ein Neustart der Container. Dauerhaft trägst du in `haben.network` einen festen DNS-Server ein, etwa deinen Router: `DNS=192.168.178.1`. Danach Container stoppen, `podman network rm haben` und neu starten. `ECONNREFUSED` oder `ETIMEDOUT` deuten auf eine Firewall oder einen Proxy, ein Zertifikatsfehler auf einen TLS-Proxy mit eigener CA. Dieselben Gründe nennt Haben auch, wenn Enable Banking nicht erreichbar ist.
+**„download.elster.de nicht erreichbar: …“, obwohl der Server ins Internet kommt.** In Klammern steht der Grund. `EAI_AGAIN` oder `ENOTFOUND` heißt: Der Container löst keine Namen auf. Prüfen mit `podman exec haben-app bun -e 'require("dns").promises.lookup("download.elster.de").then(console.log,console.error)'` (Compose: `docker compose exec app bun -e …`). Kommt `EAI_AGAIN`, beantwortet der DNS-Dienst des Podman-Netzes (aardvark-dns) zwar `haben-db`, leitet externe Namen aber nicht weiter. Das passiert, wenn sich nach dem Start die DNS-Server des Hosts ändern (`/etc/resolv.conf`, z. B. nach einem Netzwerk-Neustart). Sofort hilft `podman network reload --all` (rootful) bzw. ein Neustart der Container. Dauerhaft trägst du in `haben.network` einen festen DNS-Server ein, etwa deinen Router: `DNS=192.168.178.1`. Danach Container stoppen, `podman network rm haben` und neu starten. `ECONNREFUSED` oder `ETIMEDOUT` deuten auf eine Firewall oder einen Proxy, ein Zertifikatsfehler auf einen TLS-Proxy mit eigener CA. Dieselben Gründe nennt Haben auch, wenn Enable Banking nicht erreichbar ist.
 
 **ERiC ist eingerichtet, aber Prüfen oder Senden scheitert sofort.** Bei einem von Hand eingebundenen ERiC prüfe, ob unter `ERIC_HOME` die Dateien `lib/libericapi.so` und `lib/plugins/` (ältere Versionen: `lib/plugins2/`) liegen und ob das Paket für Linux x86_64 ist. Ein Absturz der Bibliothek beendet nur den Kindprozess; die App zeigt die Meldung an. Details stehen in den ERiC-Logs unter `ERIC_LOG_DIR`.
 

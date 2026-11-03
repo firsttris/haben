@@ -222,16 +222,17 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 
 ## 🔧 Entwicklung
 
-Voraussetzungen: Node 22, pnpm 10 und PostgreSQL 18.
+Voraussetzungen: Bun 1.4.4, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich; Node, npm und pnpm
+braucht Haben nicht.
 
 ```sh
-pnpm install
+bun install
 cp apps/web/.env.example apps/web/.env   # DATABASE_URL, BETTER_AUTH_SECRET, HABEN_ENCRYPTION_KEY eintragen
-pnpm db:migrate
-pnpm dev                                  # http://localhost:3000
+bun run db:migrate
+bun run dev                               # http://localhost:3000
 ```
 
-Oder ohne Node und PostgreSQL auf dem Rechner, mit Docker: `docker compose up` im Hauptordner startet Datenbank,
+Oder ohne Bun und PostgreSQL auf dem Rechner, mit Docker: `docker compose up` im Hauptordner startet Datenbank,
 Migrationen und Dev-Server mit Neuladen beim Speichern
 ([Mit Docker Compose](https://firsttris.github.io/haben/entwicklung.html#mit-docker-compose)).
 
@@ -259,8 +260,8 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 ## 🤝 Mitwirken
 
 Fehler und Ideen gern als Issue. Besonders hilfreich sind anonymisierte Kontoauszüge von Banken, die Haben noch nicht
-kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte `pnpm lint`, `pnpm typecheck` und
-`pnpm test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](https://firsttris.github.io/haben/entwicklung.html)).
+kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte `bun run lint`, `bun run typecheck` und
+`bun run test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](https://firsttris.github.io/haben/entwicklung.html)).
 
 Danke an [@ngres](https://github.com/ngres) für durchdachte Prompt Requests.
 

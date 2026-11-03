@@ -5,13 +5,13 @@
   "type": "module",
   "license": "AGPL-3.0-only",
   "scripts": {
-    "dev": "vite dev --port 3000",
-    "build": "vite build",
-    "start": "node .output/server/index.mjs",
-    "typecheck": "tsc -p .",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/server/db/migrate.ts",
-    "e2e": "playwright test"
+    "dev": "bun --bun vite dev --port 3000",
+    "build": "bun --bun vite build",
+    "start": "bun .output/server/index.mjs",
+    "typecheck": "bun --bun tsc -p .",
+    "db:generate": "bun --bun drizzle-kit generate",
+    "db:migrate": "bun src/server/db/migrate.ts",
+    "e2e": "bun --bun playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.0.0",
@@ -47,7 +47,6 @@
     "@vitejs/plugin-react": "^6.1.1",
     "drizzle-kit": "^0.31.11",
     "nitro": "3.0.260903-beta",
-    "tsx": "^4.23.15",
     "vite": "^8.3.2",
     "vite-tsconfig-paths": "^6.1.1"
   }

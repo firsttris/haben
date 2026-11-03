@@ -6,7 +6,7 @@ import { checkFile } from "../../../../scripts/modulgrenzen/regel.ts";
 
 /*
  * Modulgrenzen (#81, Schritt 6): die Prüfung selbst (scripts/modulgrenzen/) und die Struktur der Module.
- * Ob der echte Code die Grenzen einhält, prüft `pnpm lint` in der CI; hier geht es darum, dass die Regel greift.
+ * Ob der echte Code die Grenzen einhält, prüft `bun run lint` in der CI; hier geht es darum, dass die Regel greift.
  */
 
 const server = fileURLToPath(new URL(".", import.meta.url));
