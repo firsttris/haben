@@ -66,6 +66,15 @@ describe("EricProcessClient mit Stub-Worker", () => {
     expect(ericTempDirs()).toEqual(before);
   });
 
+  // Ein abgestürzter Bun-Prozess hinterlässt einen Core-Dump von mehreren GB (reservierter Speicher). Wo ein
+  // Dienst ihn über eine Pipe annimmt (apport, systemd-coredump auf Ubuntu), dauert das Sekunden bis Minuten,
+  // bis der Absturz gemeldet wird; ERiC kann bei jeder Übermittlung abstürzen.
+  it("startet den Worker ohne Core-Dump, auch wenn der Elternprozess welche erlaubt", () => {
+    const script = join(fixtures, "client-core-limit.ts");
+    const out = execFileSync("/bin/sh", ["-c", 'ulimit -c unlimited && exec "$0" "$1"', process.execPath, script], { encoding: "utf8" });
+    expect(out).toBe("0");
+  });
+
   it("meldet ein Ende ohne Antwort mit Exit-Code und stderr", async () => {
     const result = await stub("exit").validate(xml());
     expect(result.ok).toBe(false);
