@@ -6,13 +6,7 @@ import { useAction, type Notice } from "../lib/use-action.ts";
 import { feldname, formatWert } from "../lib/vast.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import type { getAnnualReturns } from "../server/functions/annual.ts";
-import {
-  activateVastBerechtigung,
-  fetchVast,
-  refreshVastBerechtigung,
-  requestVastBerechtigung,
-  revokeVastBerechtigung,
-} from "../server/functions/annual.ts";
+import { activateVastBerechtigung, fetchVast, refreshVastBerechtigung, requestVastBerechtigung, revokeVastBerechtigung } from "../server/functions/annual.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
@@ -98,8 +92,8 @@ export function VastBelege({ data }: { data: Data }) {
     <section className="card" aria-labelledby="vast-heading">
       <h2 id="vast-heading">Belege von ELSTER {data.year}</h2>
       <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
-        Was Arbeitgeber, Rentenversicherung, Krankenkasse und andere Stellen dem Finanzamt für {data.year} gemeldet haben
-        (vorausgefüllte Steuererklärung). Zum Abgleich mit deinen Angaben oben; Haben übernimmt die Werte nicht von selbst in die Erklärung.
+        Was Arbeitgeber, Rentenversicherung, Krankenkasse und andere Stellen dem Finanzamt für {data.year} gemeldet haben (vorausgefüllte Steuererklärung). Zum
+        Abgleich mit deinen Angaben oben; Haben übernimmt die Werte nicht von selbst in die Erklärung.
       </p>
       <div className="grid-main">
         <div className="stack" style={{ gap: 12 }}>
@@ -151,7 +145,12 @@ export function VastBelege({ data }: { data: Data }) {
               />
             </label>
             <label className="checkbox">
-              <input type="checkbox" checked={testOnly || !data.herstellerIdConfigured} disabled={!data.herstellerIdConfigured} onChange={(e) => setTestOnly(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={testOnly || !data.herstellerIdConfigured}
+                disabled={!data.herstellerIdConfigured}
+                onChange={(e) => setTestOnly(e.target.checked)}
+              />
               Nur testweise abrufen
             </label>
             {!data.herstellerIdConfigured && (
@@ -228,7 +227,12 @@ function BerechtigungPanel({
   const tone = (ok: boolean) => (ok ? "ok" : "danger") as "ok" | "danger";
 
   return (
-    <div className="banner banner-info stack" role="group" aria-label={`Berechtigung für ${name}`} style={{ gap: 8, display: "flex", flexDirection: "column", alignItems: "stretch" }}>
+    <div
+      className="banner banner-info stack"
+      role="group"
+      aria-label={`Berechtigung für ${name}`}
+      style={{ gap: 8, display: "flex", flexDirection: "column", alignItems: "stretch" }}
+    >
       <div>
         <strong>Berechtigung für {name}</strong>
         {current ? (
@@ -254,8 +258,8 @@ function BerechtigungPanel({
       {(!status || !["offen", "genehmigt"].includes(status)) && (
         <>
           <p className="small" style={{ margin: 0 }}>
-            Für die Belege von {name} braucht dein Zertifikat ihre Zustimmung: Haben beantragt das Recht bei ELSTER, {name} bekommt einen
-            Brief mit Freischaltcode, den du hier eingibst.
+            Für die Belege von {name} braucht dein Zertifikat ihre Zustimmung: Haben beantragt das Recht bei ELSTER, {name} bekommt einen Brief mit
+            Freischaltcode, den du hier eingibst.
           </p>
           <label className="field">
             Gültig bis

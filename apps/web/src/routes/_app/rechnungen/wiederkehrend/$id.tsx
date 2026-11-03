@@ -93,7 +93,11 @@ function RecurringDetailPage() {
         />
         <section className="card stack" aria-labelledby="history-heading">
           <h2 id="history-heading">Erzeugte Rechnungen</h2>
-          {recurring.lastRunAt && <p className="small muted" style={{ margin: 0 }}>Zuletzt geprüft {formatDateTime(recurring.lastRunAt)}</p>}
+          {recurring.lastRunAt && (
+            <p className="small muted" style={{ margin: 0 }}>
+              Zuletzt geprüft {formatDateTime(recurring.lastRunAt)}
+            </p>
+          )}
           {invoices.length === 0 ? (
             <p className="muted" style={{ margin: 0 }}>
               Noch keine. Die erste entsteht am {formatDate(recurring.nextDate)}.

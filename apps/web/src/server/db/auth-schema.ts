@@ -83,8 +83,5 @@ export const passkey = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }),
     aaguid: text("aaguid"),
   },
-  (t) => [
-    index("passkey_user_id_idx").on(t.userId),
-    index("passkey_credential_id_idx").on(t.credentialID),
-  ],
+  (t) => [index("passkey_user_id_idx").on(t.userId), index("passkey_credential_id_idx").on(t.credentialID)],
 );

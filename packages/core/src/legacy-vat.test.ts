@@ -77,9 +77,7 @@ describe("legacyVatByMonth", () => {
       taxes: [{ rate: 0, net: 50_000, tax: 0 }],
       payments: [{ date: "2025-06-03", amount: 50_000 }],
     };
-    expect(legacyVatByMonth([unpaid, exempt], "ist")).toEqual([
-      { ...EMPTY, month: "2025-06", otherBase: 50_000 },
-    ]);
+    expect(legacyVatByMonth([unpaid, exempt], "ist")).toEqual([{ ...EMPTY, month: "2025-06", otherBase: 50_000 }]);
   });
 
   it("ordnet die Steuerarten aus Lexoffice ihren Kennzahlen zu", () => {
@@ -96,7 +94,19 @@ describe("legacyVatByMonth", () => {
       { ...invoice, date: "2025-07-18", payments: [], taxType: "net", taxSubType: "distanceSales" },
     ];
     expect(legacyVatByMonth(vouchers, "soll")).toEqual([
-      { ...EMPTY, month: "2025-07", kz41: 1_000, kz21: 2_000, kz60: 3_000, kz45: 4_000, kz43: 5_000, kz87: 6_000, steuerfrei: 7_000, otherBase: 8_000, oss: 110_000 },
+      {
+        ...EMPTY,
+        month: "2025-07",
+        kz41: 1_000,
+        kz21: 2_000,
+        kz60: 3_000,
+        kz45: 4_000,
+        kz43: 5_000,
+        kz87: 6_000,
+        steuerfrei: 7_000,
+        otherBase: 8_000,
+        oss: 110_000,
+      },
     ]);
   });
 

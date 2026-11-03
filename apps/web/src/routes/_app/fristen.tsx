@@ -120,9 +120,8 @@ function FristenPage() {
         </div>
       </div>
       <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Voranmeldungen, Jahreserklärungen, Vorauszahlungen, Einspruchsfristen aus dem <Link to="/finanzamt">ELSTER-Postfach</Link> und der
-        Ablauf des Zertifikats. Fällt eine Frist auf ein Wochenende oder einen Feiertag, gilt der nächste Werktag. Erledigt ist, was echt
-        übermittelt ist.
+        Voranmeldungen, Jahreserklärungen, Vorauszahlungen, Einspruchsfristen aus dem <Link to="/finanzamt">ELSTER-Postfach</Link> und der Ablauf des
+        Zertifikats. Fällt eine Frist auf ein Wochenende oder einen Feiertag, gilt der nächste Werktag. Erledigt ist, was echt übermittelt ist.
       </p>
       <div className="stack" style={{ gap: 16 }}>
         {ueberfaellig.length > 0 && <Gruppe titel="Überfällig" fristen={ueberfaellig} today={today} />}
@@ -156,7 +155,6 @@ function KalenderAbo() {
   const { busy, notice, run } = useAction();
   const [copied, setCopied] = useState(false);
 
-
   const neu = () =>
     run(async () => {
       const { token } = await create();
@@ -171,9 +169,9 @@ function KalenderAbo() {
         Erinnerungen im Kalender
       </h2>
       <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
-        Abonniere die offenen Fristen in deinem Kalender (iPhone, Android, Thunderbird, Outlook). Jede Frist ist ein ganztägiger Termin mit
-        Erinnerung drei Tage vorher und am Morgen des Tages; Erledigtes verschwindet beim nächsten Abgleich. Manche Kalender, etwa Google,
-        übernehmen die Erinnerungen aus Abos nicht; dort stellst du sie für den abonnierten Kalender selbst ein.
+        Abonniere die offenen Fristen in deinem Kalender (iPhone, Android, Thunderbird, Outlook). Jede Frist ist ein ganztägiger Termin mit Erinnerung drei Tage
+        vorher und am Morgen des Tages; Erledigtes verschwindet beim nächsten Abgleich. Manche Kalender, etwa Google, übernehmen die Erinnerungen aus Abos
+        nicht; dort stellst du sie für den abonnierten Kalender selbst ein.
       </p>
       {url ? (
         <>
@@ -182,11 +180,7 @@ function KalenderAbo() {
             <input readOnly value={url} onFocus={(e) => e.currentTarget.select()} />
           </label>
           <div className="actions" style={{ flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void navigator.clipboard?.writeText(url).then(() => setCopied(true))}
-            >
+            <button type="button" className="btn btn-primary" onClick={() => void navigator.clipboard?.writeText(url).then(() => setCopied(true))}>
               {copied ? "Kopiert" : "Link kopieren"}
             </button>
             <a className="btn" href={url.replace(/^https?:/, "webcal:")}>
@@ -206,12 +200,17 @@ function KalenderAbo() {
             <button type="button" className="btn" disabled={busy} onClick={() => void neu()}>
               Neuen Link erzeugen
             </button>
-            <button type="button" className="btn btn-danger" disabled={busy} onClick={() =>
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={busy}
+              onClick={() =>
                 void run(async () => {
                   await revoke();
                   await router.invalidate();
                 })
-              }>
+              }
+            >
               Abo beenden
             </button>
           </div>

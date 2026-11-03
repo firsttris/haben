@@ -154,11 +154,7 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
       });
       return problems(tx);
     });
-    expect(found.map((p) => p.befund).sort()).toEqual([
-      "Festgeschrieben, aber ohne Siegel",
-      "Festschreibung aufgehoben",
-      "Versiegelter Datensatz fehlt",
-    ]);
+    expect(found.map((p) => p.befund).sort()).toEqual(["Festgeschrieben, aber ohne Siegel", "Festschreibung aufgehoben", "Versiegelter Datensatz fehlt"]);
   });
 
   it("versiegelt jede Kassenbuchzeile beim Anlegen und erkennt stille Änderungen", async () => {
@@ -190,7 +186,8 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
 
   it("versiegelt Zuordnungen, Pauschalen und AfA beim Anlegen und erkennt stille Änderungen", async () => {
     const entry = await lockedEntry();
-    const [account] = await sql`insert into bank_accounts (name, iban) values ('Giro', ${`DE${entry.replace(/\D/g, "").padEnd(20, "0").slice(0, 20)}`}) returning id`;
+    const [account] =
+      await sql`insert into bank_accounts (name, iban) values ('Giro', ${`DE${entry.replace(/\D/g, "").padEnd(20, "0").slice(0, 20)}`}) returning id`;
     const [imported] = await sql`insert into bank_imports (bank_account_id, filename, sha256, format, added, skipped)
       values (${account!.id}, 'auszug.csv', ${entry}, 'csv', 1, 0) returning id`;
     const [transaction] = await sql`insert into bank_transactions (bank_account_id, import_id, booking_date, amount, dedup_hash)
@@ -228,7 +225,10 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     expect(deleted).toEqual([{ art: "siegel", tabelle: "pauschalen", zeile: rows.pauschalen, befund: "Versiegelter Datensatz fehlt" }]);
 
     const unsealed = await rolledBack(async (tx) => {
-      await tamper(tx, () => tx`insert into allocations (transaction_id, kind, amount, reverses_id) values (${transaction!.id}, 'privat', -11900, ${rows.allocations!})`);
+      await tamper(
+        tx,
+        () => tx`insert into allocations (transaction_id, kind, amount, reverses_id) values (${transaction!.id}, 'privat', -11900, ${rows.allocations!})`,
+      );
       return problems(tx);
     });
     expect(unsealed).toEqual([expect.objectContaining({ tabelle: "allocations", befund: "Festgeschrieben, aber ohne Siegel" })]);
@@ -339,9 +339,9 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
   });
 
   it("lehnt REPEATABLE READ ab, Savepoints lassen Kette und Kopf stimmig", async () => {
-    await expect(
-      sql.begin("isolation level repeatable read", (tx) => tx`insert into bank_accounts (name, iban) values ('RR', 'DE00RR')`),
-    ).rejects.toThrow(/nur unter READ COMMITTED/);
+    await expect(sql.begin("isolation level repeatable read", (tx) => tx`insert into bank_accounts (name, iban) values ('RR', 'DE00RR')`)).rejects.toThrow(
+      /nur unter READ COMMITTED/,
+    );
     await sql.begin(async (tx) => {
       await tx`insert into bank_accounts (name, iban) values ('S1', 'DE00SAVE1')`;
       await tx.savepoint((sp) => sp`insert into bank_accounts (name, iban) values ('S2', 'DE00SAVE2')`).catch(() => {});

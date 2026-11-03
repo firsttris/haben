@@ -36,7 +36,10 @@ describe("Belege auf Englisch", () => {
   it("übersetzt Angebote und behält Deutsch als Vorgabe", () => {
     const { seller, buyer, lines, totals } = sampleDocument();
     const quote = { number: "AN-2026-007", issueDate: "2026-10-01", validUntil: "2026-10-31", seller, buyer, lines, totals };
-    expect(quotePdfData({ ...quote, language: "en" })).toMatchObject({ title: "Quote", payment: "This quote is valid until 31 Oct 2026. We look forward to your order." });
+    expect(quotePdfData({ ...quote, language: "en" })).toMatchObject({
+      title: "Quote",
+      payment: "This quote is valid until 31 Oct 2026. We look forward to your order.",
+    });
     expect(quotePdfData(quote).labels.columns.pos).toBe("Pos.");
     expect(pdfData(sampleDocument()).labels.page).toEqual(["Seite", "von", ""]);
   });

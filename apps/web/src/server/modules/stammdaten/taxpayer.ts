@@ -40,8 +40,6 @@ export async function loadTaxpayer(): Promise<TaxpayerData> {
 export async function saveTaxpayer(actor: string, input: TaxpayerInput): Promise<TaxpayerData> {
   const data = taxpayerSchema.parse(input);
   await loadCompany();
-  await withActor(actor, (tx) =>
-    tx.update(schema.company).set({ taxpayer: data, updatedAt: new Date() }).where(eq(schema.company.id, 1)),
-  );
+  await withActor(actor, (tx) => tx.update(schema.company).set({ taxpayer: data, updatedAt: new Date() }).where(eq(schema.company.id, 1)));
   return data;
 }

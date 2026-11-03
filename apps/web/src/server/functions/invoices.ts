@@ -119,7 +119,9 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
           await db
             .select({ id: schema.quotes.id, number: schema.quotes.number })
             .from(schema.quotes)
-            .where(result.invoice.quoteId ? or(eq(schema.quotes.id, result.invoice.quoteId), eq(schema.quotes.invoiceId, data)) : eq(schema.quotes.invoiceId, data))
+            .where(
+              result.invoice.quoteId ? or(eq(schema.quotes.id, result.invoice.quoteId), eq(schema.quotes.invoiceId, data)) : eq(schema.quotes.invoiceId, data),
+            )
         )[0] ?? null,
       open: listed?.open ?? 0,
       listStatus: listed?.listStatus ?? null,
@@ -135,9 +137,7 @@ export const saveInvoiceDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid().nullable(), draft: draftSchema }))
   .handler(async ({ data, context }) => {
-    const saved = data.id
-      ? await updateDraft(context.user.id, data.id, data.draft)
-      : await createDraft(context.user.id, data.draft);
+    const saved = data.id ? await updateDraft(context.user.id, data.id, data.draft) : await createDraft(context.user.id, data.draft);
     return { id: saved.id };
   });
 

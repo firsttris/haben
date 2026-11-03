@@ -324,7 +324,11 @@ export function RecurringForm({
                 onChange={(e) => updateLine(line.key, { quantity: e.target.value })}
                 aria-invalid={parseQuantity(line.quantity) === null}
               />
-              <select aria-label={`Einheit Position ${index + 1}`} value={line.unit} onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}>
+              <select
+                aria-label={`Einheit Position ${index + 1}`}
+                value={line.unit}
+                onChange={(e) => updateLine(line.key, { unit: e.target.value as UnitLabel })}
+              >
                 {Object.keys(UNITS).map((unit) => (
                   <option key={unit}>{unit}</option>
                 ))}
@@ -397,8 +401,7 @@ export function RecurringForm({
           <h2>Nächste Rechnung</h2>
           <p className="small" style={{ margin: 0 }}>
             Am {formatDate(nextDate)}
-            {period ? `, Leistungszeitraum ${formatDate(period.from)} – ${formatDate(period.to)}` : ""}, {amountLabel.toLowerCase()}{" "}
-            {formatEuro(sum)}
+            {period ? `, Leistungszeitraum ${formatDate(period.from)} – ${formatDate(period.to)}` : ""}, {amountLabel.toLowerCase()} {formatEuro(sum)}
           </p>
           <ul className="small" style={{ margin: 0 }}>
             {parsed

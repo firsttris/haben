@@ -78,8 +78,8 @@ export function MailCard({ data }: { data: Data }) {
     <form className="card" onSubmit={onSubmit} aria-labelledby="mail-heading">
       <h2 id="mail-heading">E-Mail-Versand</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Haben schickt Rechnungen, Mahnungen und Erinnerungen an Fristen über deinen eigenen E-Mail-Zugang (SMTP). Bei Gmail, GMX und web.de brauchst du dafür ein
-        App-Passwort bzw. musst SMTP im Postfach freischalten. Das Passwort liegt verschlüsselt in der Datenbank.
+        Haben schickt Rechnungen, Mahnungen und Erinnerungen an Fristen über deinen eigenen E-Mail-Zugang (SMTP). Bei Gmail, GMX und web.de brauchst du dafür
+        ein App-Passwort bzw. musst SMTP im Postfach freischalten. Das Passwort liegt verschlüsselt in der Datenbank.
       </p>
       <label className="field">
         Anbieter
@@ -241,10 +241,10 @@ function TemplateEditor({ templates, onChange }: { templates: MailTemplates; onC
       <summary style={{ cursor: "pointer", fontWeight: 500 }}>Vorlagen für Rechnungen, Angebote und Mahnungen</summary>
       <div className="stack" style={{ gap: 10, marginTop: 10 }}>
         <p className="small muted" style={{ margin: 0 }}>
-          Je Art und Sprache; es gilt die Sprache des Belegs. Leer lassen: Dann gilt die allgemeine Vorlage (etwa Rechnung für eine Abschlagsrechnung),
-          sonst der Standardtext. Platzhalter: {"{art}"} (Rechnung, Abschlagsrechnung, Stornorechnung …), {"{nummer}"}, {"{datum}"}, {"{betrag}"},{" "}
-          {"{faellig}"}, {"{zahlbar}"} („, zahlbar bis zum …“, nur bei Rechnungen), {"{kunde}"}, {"{firma}"}; bei Angeboten {"{gueltig}"}; bei
-          Mahnungen {"{stufe}"} und {"{frist}"}, {"{betrag}"} ist dort der offene Gesamtbetrag. Mahnungen gibt es nur auf Deutsch.
+          Je Art und Sprache; es gilt die Sprache des Belegs. Leer lassen: Dann gilt die allgemeine Vorlage (etwa Rechnung für eine Abschlagsrechnung), sonst
+          der Standardtext. Platzhalter: {"{art}"} (Rechnung, Abschlagsrechnung, Stornorechnung …), {"{nummer}"}, {"{datum}"}, {"{betrag}"}, {"{faellig}"},{" "}
+          {"{zahlbar}"} („, zahlbar bis zum …“, nur bei Rechnungen), {"{kunde}"}, {"{firma}"}; bei Angeboten {"{gueltig}"}; bei Mahnungen {"{stufe}"} und{" "}
+          {"{frist}"}, {"{betrag}"} ist dort der offene Gesamtbetrag. Mahnungen gibt es nur auf Deutsch.
         </p>
         <div className="chip-row" role="group" aria-label="Sprache der Vorlage">
           {(Object.keys(MAIL_LANGUAGES) as MailLanguage[]).map((l) => (
@@ -266,14 +266,25 @@ function TemplateEditor({ templates, onChange }: { templates: MailTemplates; onC
         </label>
         <label className="field">
           Betreff
-          <input value={value.subject} onChange={(e) => set("subject", e.target.value)} placeholder={fallback("subject").text} aria-describedby="template-subject-hint" />
+          <input
+            value={value.subject}
+            onChange={(e) => set("subject", e.target.value)}
+            placeholder={fallback("subject").text}
+            aria-describedby="template-subject-hint"
+          />
           <span id="template-subject-hint" className="small muted">
             {hint("subject")}
           </span>
         </label>
         <label className="field">
           Text
-          <textarea value={value.body} onChange={(e) => set("body", e.target.value)} rows={6} placeholder={fallback("body").text} aria-describedby="template-body-hint" />
+          <textarea
+            value={value.body}
+            onChange={(e) => set("body", e.target.value)}
+            rows={6}
+            placeholder={fallback("body").text}
+            aria-describedby="template-body-hint"
+          />
           <span id="template-body-hint" className="small muted">
             {hint("body")}
           </span>

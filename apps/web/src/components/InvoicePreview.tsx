@@ -1,12 +1,4 @@
-import {
-  computeInvoiceTotals,
-  formatEuro,
-  formatQuantity,
-  formatRate,
-  lineAmount,
-  type InvoiceLineInput,
-  type PriceMode,
-} from "@haben/core";
+import { computeInvoiceTotals, formatEuro, formatQuantity, formatRate, lineAmount, type InvoiceLineInput, type PriceMode } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { KIND_TITLE } from "../lib/invoice.ts";
 
@@ -32,7 +24,6 @@ export interface PreviewBuyer {
   ort: string;
   kundennummer?: string | null;
 }
-
 
 /** HTML-Abbild des PDFs für den Editor; das verbindliche Dokument rendert Typst. */
 export function InvoicePreview({
@@ -78,7 +69,10 @@ export function InvoicePreview({
   /** Währung der Rechnung; Beträge in dieser Währung wie auf dem PDF */
   currency?: string;
 }) {
-  const money = currency === "EUR" ? formatEuro : (cents: number) => new Intl.NumberFormat("de-DE", { style: "currency", currency, currencyDisplay: "code" }).format(cents / 100);
+  const money =
+    currency === "EUR"
+      ? formatEuro
+      : (cents: number) => new Intl.NumberFormat("de-DE", { style: "currency", currency, currencyDisplay: "code" }).format(cents / 100);
   const valid = lines.filter((l) => l.valid);
   const gross = priceMode === "brutto";
   const totals = computeInvoiceTotals(valid, priceMode);

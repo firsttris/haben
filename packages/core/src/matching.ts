@@ -199,7 +199,12 @@ export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, 
   // Auf der Bank: Gegenpartei ist ein eigener Zahlungsdienstleister (Auszahlung von PayPal, Aufladung)
   const provider = ownAccounts.find((a) => a.purpose === "zahlungsdienstleister" && providerPattern(a)?.test(tx.counterpartyName));
   if (provider) {
-    return { kind: "geldtransit", reasons: [`Gegenpartei ist dein Zahlungsdienstleister ${provider.name}`], counterAccountId: provider.id, requiresCounterpart: true };
+    return {
+      kind: "geldtransit",
+      reasons: [`Gegenpartei ist dein Zahlungsdienstleister ${provider.name}`],
+      counterAccountId: provider.id,
+      requiresCounterpart: true,
+    };
   }
   const iban = tx.counterpartyIban?.replace(/\s/g, "").toUpperCase();
   const own = iban ? ownAccounts.find((a) => a.id !== account.id && a.iban === iban) : undefined;
@@ -265,7 +270,7 @@ export function findTransferCounterpart<
   const fitting = candidates.filter((c) => c.amount === -tx.amount && c.open === c.amount && daysBetween(c.bookingDate, tx.bookingDate) <= 5);
   const byDate = (a: T, b: T) => daysBetween(a.bookingDate, tx.bookingDate) - daysBetween(b.bookingDate, tx.bookingDate);
   const withIban = fitting
-    .filter((c) => (source !== null && normalizeIban(c.counterpartyIban) === source) || (pattern?.test(c.counterpartyName ?? "")))
+    .filter((c) => (source !== null && normalizeIban(c.counterpartyIban) === source) || pattern?.test(c.counterpartyName ?? ""))
     .sort(byDate);
   const withoutIban = fitting.filter((c) => !c.counterpartyIban).sort(byDate);
   return withIban[0] ?? withoutIban[0] ?? null;

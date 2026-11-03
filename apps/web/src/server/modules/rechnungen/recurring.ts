@@ -165,7 +165,6 @@ function describe(error: unknown): string {
   return message ?? INTERNAL_ERROR;
 }
 
-
 async function runOne(recurring: RecurringInvoice, today: string, result: RunResult): Promise<void> {
   const interval = recurring.intervalMonths as RecurringInterval;
   const dates = dueDates(recurring.nextDate, interval, recurring.anchorDay, today, recurring.endDate);

@@ -197,7 +197,10 @@ export async function kontenblatt(account: string, { from, to }: LedgerRange): P
 }
 
 /** Zeitraum als Text: das ganze Jahr, ein Quartal (q1–q4) oder ein Monat (m1–m12) */
-export const ledgerPeriodSchema = z.string().regex(/^(jahr|q[1-4]|m([1-9]|1[0-2]))$/).default("jahr");
+export const ledgerPeriodSchema = z
+  .string()
+  .regex(/^(jahr|q[1-4]|m([1-9]|1[0-2]))$/)
+  .default("jahr");
 
 /** Zeitraum aus Jahr und optional Monat oder Quartal */
 export function ledgerRange(year: number, period?: string): LedgerRange {

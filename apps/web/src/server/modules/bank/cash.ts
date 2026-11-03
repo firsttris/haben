@@ -68,10 +68,7 @@ async function nextNumber(tx: Tx): Promise<number> {
 }
 
 /** Zeile für einen bar bezahlten Beleg; die Buchung „an Kasse“ macht der Beleg selbst */
-export async function addDocumentCashEntry(
-  tx: Tx,
-  doc: { id: string; date: string; gross: Cents; text: string; journalEntryId: string },
-): Promise<void> {
+export async function addDocumentCashEntry(tx: Tx, doc: { id: string; date: string; gross: Cents; text: string; journalEntryId: string }): Promise<void> {
   await tx.execute(lock);
   await assertNeverNegative(tx, doc.date, -doc.gross);
   await tx.insert(schema.cashEntries).values({
@@ -140,7 +137,16 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
     });
     const [row] = await tx
       .insert(schema.cashEntries)
-      .values({ id: reversalId, number: await nextNumber(tx), date, amount: -original.amount, kind: original.kind, text, reversesId: original.id, journalEntryId })
+      .values({
+        id: reversalId,
+        number: await nextNumber(tx),
+        date,
+        amount: -original.amount,
+        kind: original.kind,
+        text,
+        reversesId: original.id,
+        journalEntryId,
+      })
       .returning();
     return row!;
   });

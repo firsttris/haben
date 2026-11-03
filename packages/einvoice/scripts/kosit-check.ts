@@ -80,7 +80,10 @@ const samples: Record<string, InvoiceDocument> = {
       [
         `usd-19-${format}`,
         {
-          ...sampleDocument({ format, lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 as const }] }),
+          ...sampleDocument({
+            format,
+            lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 as const }],
+          }),
           currency: "USD",
           euroTax: { tax: 1757, taxes: [{ rate: 1900, tax: 1757 }], rate: "1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)" },
         },
@@ -88,7 +91,11 @@ const samples: Record<string, InvoiceDocument> = {
       [
         `usd-storno-${format}`,
         {
-          ...sampleDocument({ kind: "storno", format, lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 as const }] }),
+          ...sampleDocument({
+            kind: "storno",
+            format,
+            lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 as const }],
+          }),
           currency: "USD",
           euroTax: { tax: -1757, taxes: [{ rate: 1900, tax: -1757 }], rate: "1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)" },
         },
@@ -149,11 +156,27 @@ const samples: Record<string, InvoiceDocument> = {
 function schlussrechnung(format: InvoiceDocument["format"], priceMode: "netto" | "brutto" = "netto"): InvoiceDocument {
   const gross = priceMode === "brutto";
   const deductions = [
-    { description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 1.000,00 €, USt 190,00 €)", quantity: 1000, unit: "Psch." as const, unitPrice: gross ? -119000 : -100000, taxRate: 1900 as const },
-    { description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 50,00 €, USt 3,50 €)", quantity: 1000, unit: "Psch." as const, unitPrice: gross ? -5350 : -5000, taxRate: 700 as const },
+    {
+      description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 1.000,00 €, USt 190,00 €)",
+      quantity: 1000,
+      unit: "Psch." as const,
+      unitPrice: gross ? -119000 : -100000,
+      taxRate: 1900 as const,
+    },
+    {
+      description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 50,00 €, USt 3,50 €)",
+      quantity: 1000,
+      unit: "Psch." as const,
+      unitPrice: gross ? -5350 : -5000,
+      taxRate: 700 as const,
+    },
   ];
   return {
-    ...sampleDocument({ format, lines: [...(gross ? grossPriceLines.map((l) => ({ ...l, quantity: l.quantity * 10 })) : mixedRateLines), ...deductions], priceMode }),
+    ...sampleDocument({
+      format,
+      lines: [...(gross ? grossPriceLines.map((l) => ({ ...l, quantity: l.quantity * 10 })) : mixedRateLines), ...deductions],
+      priceMode,
+    }),
     variant: "schluss",
     deducted: [{ number: "2026-030", issueDate: "2026-09-15" }],
   };

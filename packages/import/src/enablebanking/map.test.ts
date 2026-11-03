@@ -53,8 +53,7 @@ describe("mapEnableBankingTransaction", () => {
     expect(out.bankReference).toBe("t-2");
   });
 
-  it("lässt vorgemerkte Umsätze weg", () => {
-  });
+  it("lässt vorgemerkte Umsätze weg", () => {});
 
   it("nimmt das Valutadatum, wenn das Buchungsdatum fehlt", () => {
     expect(mapEnableBankingTransaction({ ...incoming, booking_date: null, value_date: "2026-09-16" }, 0)!.bookingDate).toBe("2026-09-16");
@@ -146,10 +145,19 @@ describe("bookedBalance", () => {
     expect(bookedBalance([finom[0]!], () => true)).toBeNull();
   });
 
-
   it("ist null ohne Salden", () => {
     expect(bookedBalance([])).toBeNull();
-    expect(bookedBalance([{ balance_amount: { currency: "EUR", amount: "9.00" }, balance_type: "ITAV" }, { balance_amount: { currency: "EUR", amount: "8.00" }, balance_type: "XPCD" }])).toBeNull();
-    expect(bookedBalance([{ balance_amount: { currency: "EUR", amount: "9.00" }, balance_type: "ITBD" }, { balance_amount: { currency: "EUR", amount: "8.00" }, balance_type: "CLBD" }])).toEqual({ amount: 800, date: undefined });
+    expect(
+      bookedBalance([
+        { balance_amount: { currency: "EUR", amount: "9.00" }, balance_type: "ITAV" },
+        { balance_amount: { currency: "EUR", amount: "8.00" }, balance_type: "XPCD" },
+      ]),
+    ).toBeNull();
+    expect(
+      bookedBalance([
+        { balance_amount: { currency: "EUR", amount: "9.00" }, balance_type: "ITBD" },
+        { balance_amount: { currency: "EUR", amount: "8.00" }, balance_type: "CLBD" },
+      ]),
+    ).toEqual({ amount: 800, date: undefined });
   });
 });

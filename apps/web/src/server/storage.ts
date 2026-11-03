@@ -20,7 +20,10 @@ export function sha256Of(bytes: Uint8Array): string {
 export async function storeFile(bytes: Uint8Array): Promise<string> {
   const sha256 = sha256Of(bytes);
   const target = pathFor(sha256);
-  const intact = await readFile(target).then((existing) => sha256Of(existing) === sha256, () => false);
+  const intact = await readFile(target).then(
+    (existing) => sha256Of(existing) === sha256,
+    () => false,
+  );
   if (!intact) {
     const dir = dirname(target);
     await mkdir(dir, { recursive: true });

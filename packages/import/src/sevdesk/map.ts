@@ -1,14 +1,5 @@
 import { lexDate, lexToBasisPoints, lexToCents, type ImportedPayments, type LegacyVoucher, type LegacyVoucherType } from "../lexoffice/map.ts";
-import type {
-  SevCommunicationWay,
-  SevContact,
-  SevContactAddress,
-  SevCreditNote,
-  SevDocumentPos,
-  SevInvoice,
-  SevVoucher,
-  SevVoucherPos,
-} from "./types.ts";
+import type { SevCommunicationWay, SevContact, SevContactAddress, SevCreditNote, SevDocumentPos, SevInvoice, SevVoucher, SevVoucherPos } from "./types.ts";
 
 /*
  * Reine Abbildungen der sevDesk-Antworten auf dieselben Strukturen wie beim Lexoffice-Import,
@@ -109,11 +100,7 @@ type Bucket = { rate: number; net: number; tax: number };
  * Netto und Steuer je Steuersatz aus den Positionen. Maßgeblich sind die Summen des Belegs:
  * Rundungsdifferenzen zwischen Positionen und Kopf landen beim größten Satz, die der Steuer beim größten Satz mit Steuer.
  */
-function taxesFromPositions(
-  positions: { taxRate?: string | number | null; net: number; tax: number }[],
-  net: number,
-  tax: number,
-): Bucket[] {
+function taxesFromPositions(positions: { taxRate?: string | number | null; net: number; tax: number }[], net: number, tax: number): Bucket[] {
   const byRate = new Map<number, Bucket>();
   for (const p of positions) {
     const rate = lexToBasisPoints(sevNumber(p.taxRate));
@@ -151,7 +138,13 @@ const PAID = 1000;
  * Zahlungsstand aus paidAmount und payDate. sevDesk liefert keine einzelnen Zahlungen über diese
  * Endpunkte; die bezahlte Summe zählt deshalb als eine Zahlung am letzten Zahldatum.
  */
-function payments(statusCode: number, gross: number, paidAmount: string | number | null | undefined, payDate: string | null | undefined, date: string): ImportedPayments {
+function payments(
+  statusCode: number,
+  gross: number,
+  paidAmount: string | number | null | undefined,
+  payDate: string | null | undefined,
+  date: string,
+): ImportedPayments {
   const absGross = Math.abs(gross);
   let paid = Math.min(Math.abs(cents(paidAmount)), absGross);
   if (statusCode === PAID) paid = absGross;

@@ -49,8 +49,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   }) {
     const rate = values.rate ?? 1900;
     const gross = values.net + values.tax;
-    const payment =
-      values.openAmount === null ? null : { status: "openRevenue", openAmount: values.openAmount ?? gross, paidDate: null, items: [] };
+    const payment = values.openAmount === null ? null : { status: "openRevenue", openAmount: values.openAmount ?? gross, paidDate: null, items: [] };
     const [contact] = values.contact ? await sql`select id from contacts where name = ${values.contact}` : [];
     const [row] = await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, number, date, due_date, status, contact_id,
         contact_name, net, tax, gross, taxes, categories, payment, raw)
@@ -80,9 +79,37 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   });
 
   it("listet offene Posten mit Gründen, wenn etwas nicht geht", async () => {
-    await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF, contact: "Nordwerk Software GmbH" });
-    await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1020", date: "2026-09-21", net: 100_000, tax: 19_000, openAmount: 50_000, file: PDF });
-    await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1018", date: "2026-08-01", net: 100_000, tax: 19_000, status: "paid", openAmount: 0, file: PDF });
+    await legacyVoucher({
+      type: "invoice",
+      direction: "einnahme",
+      number: "RE1019",
+      date: "2026-09-20",
+      net: 400_000,
+      tax: 76_000,
+      file: PDF,
+      contact: "Nordwerk Software GmbH",
+    });
+    await legacyVoucher({
+      type: "invoice",
+      direction: "einnahme",
+      number: "RE1020",
+      date: "2026-09-21",
+      net: 100_000,
+      tax: 19_000,
+      openAmount: 50_000,
+      file: PDF,
+    });
+    await legacyVoucher({
+      type: "invoice",
+      direction: "einnahme",
+      number: "RE1018",
+      date: "2026-08-01",
+      net: 100_000,
+      tax: 19_000,
+      status: "paid",
+      openAmount: 0,
+      file: PDF,
+    });
     await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1021", date: "2026-09-22", net: 100_000, tax: 16_000, rate: 1600, file: PDF });
     await legacyVoucher({ type: "purchaseinvoice", direction: "ausgabe", number: "B-77", date: "2026-09-25", net: 10_000, tax: 1_900, openAmount: null });
     const items = await legacy.openLegacyItems();
@@ -96,7 +123,14 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
 
   it("übernimmt eine offene Rechnung; Zahlung im Bankabgleich macht die Umsatzsteuer fällig (Ist)", async () => {
     const id = await legacyVoucher({
-      type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF, contact: "Nordwerk Software GmbH",
+      type: "invoice",
+      direction: "einnahme",
+      number: "RE1019",
+      date: "2026-09-20",
+      net: 400_000,
+      tax: 76_000,
+      file: PDF,
+      contact: "Nordwerk Software GmbH",
     });
     const result = await legacy.takeOverLegacyItem(actor, id);
     expect(result.kind).toBe("invoice");
@@ -105,7 +139,8 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     const [invoice] = await sql`select number, status, gross, pdf, locked_at, lexoffice_voucher_id from invoices where id = ${result.id}`;
     expect(invoice).toMatchObject({ number: "RE1019", status: "final", gross: 476_000, lexoffice_voucher_id: id });
     expect(Buffer.from(invoice!.pdf as Uint8Array).toString()).toContain("RE1019 aus Lexoffice");
-    const lines = await sql`select account, debit, credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${result.id} order by account`;
+    const lines =
+      await sql`select account, debit, credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${result.id} order by account`;
     expect(lines.map((l) => [l.account, l.debit, l.credit])).toEqual([
       ["1400", 476_000, 0],
       ["1766", 0, 76_000],
@@ -116,7 +151,12 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     // Die Zahlung im Oktober wird vorgeschlagen und macht die Steuer im Oktober fällig
     await bank.importStatement(
       actor,
-      { bytes: dkbCsv([["05.10.26", "05.10.26", "Gebucht", "Nordwerk Software GmbH", "Testfirma", "RE1019", "Eingang", "DE02100100100006820101", "4.760,00", "", "", ""]]), filename: "a.csv" },
+      {
+        bytes: dkbCsv([
+          ["05.10.26", "05.10.26", "Gebucht", "Nordwerk Software GmbH", "Testfirma", "RE1019", "Eingang", "DE02100100100006820101", "4.760,00", "", "", ""],
+        ]),
+        filename: "a.csv",
+      },
       null,
     );
     const [tx] = await sql`select id from bank_transactions`;
@@ -130,7 +170,16 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   });
 
   it("Storno einer übernommenen Rechnung hebt die Eröffnungsbuchung auf, ohne Erlöse zu buchen", async () => {
-    const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF, contact: "Nordwerk Software GmbH" });
+    const id = await legacyVoucher({
+      type: "invoice",
+      direction: "einnahme",
+      number: "RE1019",
+      date: "2026-09-20",
+      net: 400_000,
+      tax: 76_000,
+      file: PDF,
+      contact: "Nordwerk Software GmbH",
+    });
     const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
     await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
     const balances = await sql`select account, sum(debit) - sum(credit) as saldo from journal_lines group by account order by account`;
@@ -144,7 +193,16 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
 
   it("übernimmt eine in Lexoffice brutto gerechnete Rechnung centgenau, das Storno hebt sie exakt auf", async () => {
     // 9,80 € brutto: 8,24 € netto, 1,56 € Steuer; netto nachgerechnet wären es 1,57 €
-    const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1022", date: "2026-09-20", net: 824, tax: 156, file: PDF, contact: "Nordwerk Software GmbH" });
+    const id = await legacyVoucher({
+      type: "invoice",
+      direction: "einnahme",
+      number: "RE1022",
+      date: "2026-09-20",
+      net: 824,
+      tax: 156,
+      file: PDF,
+      contact: "Nordwerk Software GmbH",
+    });
     const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
     const [invoice] = await sql`select price_mode, net, tax, gross from invoices where id = ${invoiceId}`;
     expect({ ...invoice }).toEqual({ price_mode: "brutto", net: 824, tax: 156, gross: 980 });
@@ -156,7 +214,16 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
 
   it("Soll: Storno einer übernommenen Rechnung mindert die in Lexoffice angemeldete Umsatzsteuer", async () => {
     await sql`update company set versteuerung = 'soll'`;
-    const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF, contact: "Nordwerk Software GmbH" });
+    const id = await legacyVoucher({
+      type: "invoice",
+      direction: "einnahme",
+      number: "RE1019",
+      date: "2026-09-20",
+      net: 400_000,
+      tax: 76_000,
+      file: PDF,
+      contact: "Nordwerk Software GmbH",
+    });
     const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
     await invoices.cancelInvoice(actor, invoiceId, "2026-10-10");
     const balances = await sql`select account, sum(debit) - sum(credit) as saldo from journal_lines group by account order by account`;
@@ -172,7 +239,8 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     await sql`update company set versteuerung = 'soll'`;
     const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE1019", date: "2026-09-20", net: 400_000, tax: 76_000, file: PDF });
     const result = await legacy.takeOverLegacyItem(actor, id);
-    const lines = await sql`select account, debit, credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${result.id} order by account`;
+    const lines =
+      await sql`select account, debit, credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${result.id} order by account`;
     expect(lines.map((l) => [l.account, l.debit, l.credit])).toEqual([
       ["1400", 476_000, 0],
       ["9000", 0, 476_000],
@@ -183,7 +251,16 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   });
 
   it("übernimmt einen offenen Eingangsbeleg; die Vorsteuer zählt nicht doppelt", async () => {
-    const id = await legacyVoucher({ type: "purchaseinvoice", direction: "ausgabe", number: "B-77", date: "2026-09-25", net: 10_000, tax: 1_900, file: JPEG, mime: "image/jpeg" });
+    const id = await legacyVoucher({
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      number: "B-77",
+      date: "2026-09-25",
+      net: 10_000,
+      tax: 1_900,
+      file: JPEG,
+      mime: "image/jpeg",
+    });
     const results = await legacy.takeOverAll(actor);
     expect(results).toEqual([{ number: "B-77" }]);
     const [doc] = await sql`select id, status, category, gross, locked_at from documents where lexoffice_voucher_id = ${id}`;
@@ -194,7 +271,12 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
 
     await bank.importStatement(
       actor,
-      { bytes: dkbCsv([["30.09.26", "30.09.26", "Gebucht", "Testfirma", "Bürobedarf Schmidt KG", "B-77", "Ausgang", "DE02100100100006820101", "-119,00", "", "", ""]]), filename: "b.csv" },
+      {
+        bytes: dkbCsv([
+          ["30.09.26", "30.09.26", "Gebucht", "Testfirma", "Bürobedarf Schmidt KG", "B-77", "Ausgang", "DE02100100100006820101", "-119,00", "", "", ""],
+        ]),
+        filename: "b.csv",
+      },
       null,
     );
     const [tx] = await sql`select id from bank_transactions`;

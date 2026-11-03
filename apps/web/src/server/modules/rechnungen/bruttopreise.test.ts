@@ -68,8 +68,17 @@ describe.skipIf(!testDatabaseUrl)("Bruttopreise und gespeicherte Steuerzeilen (P
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
               '198/113/10010', 'DE123456789', 'BY', 'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank', 'soll', 'SKR03')`;
     const contact = await contacts.createContact(actor, {
-      kundennummer: "", name: "Familie Berger", strasse: "Gartenweg 2", plz: "93049", ort: "Regensburg", land: "DE",
-      email: "berger@example.com", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "",
+      name: "Familie Berger",
+      strasse: "Gartenweg 2",
+      plz: "93049",
+      ort: "Regensburg",
+      land: "DE",
+      email: "berger@example.com",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     contactId = contact.id;
   });
@@ -123,7 +132,20 @@ describe.skipIf(!testDatabaseUrl)("Bruttopreise und gespeicherte Steuerzeilen (P
   it("Zahlung bei Ist-Versteuerung teilt nach den gespeicherten Steuerzeilen auf", async () => {
     await sql`update company set versteuerung = 'ist'`;
     const invoice = await final(draft());
-    const row = ["01.10.26", "01.10.26", "Gebucht", "Familie Berger", "Testfirma", `RE ${invoice.number}`, "Eingang", "DE02100100100006820101", "9,80", "", "", ""];
+    const row = [
+      "01.10.26",
+      "01.10.26",
+      "Gebucht",
+      "Familie Berger",
+      "Testfirma",
+      `RE ${invoice.number}`,
+      "Eingang",
+      "DE02100100100006820101",
+      "9,80",
+      "",
+      "",
+      "",
+    ];
     await bank.importStatement(actor, { bytes: dkbCsv([row]), filename: "a.csv" }, null);
     const [transaction] = await sql`select id from bank_transactions`;
     await bank.allocate(actor, { kind: "invoice", transactionId: transaction!.id, invoiceId: invoice.id, amount: 980 });
@@ -167,8 +189,14 @@ describe.skipIf(!testDatabaseUrl)("Bruttopreise und gespeicherte Steuerzeilen (P
 
   it("Angebot mit Bruttopreisen wird zur Rechnung mit Bruttopreisen", async () => {
     const quote = await quotes.createQuoteDraft(actor, {
-      contactId, issueDate: "2026-10-01", validUntil: "2026-10-31", serviceFrom: null, serviceTo: null, note: "",
-      priceMode: "brutto", lines: [line(980, 1900, 2000)],
+      contactId,
+      issueDate: "2026-10-01",
+      validUntil: "2026-10-31",
+      serviceFrom: null,
+      serviceTo: null,
+      note: "",
+      priceMode: "brutto",
+      lines: [line(980, 1900, 2000)],
     });
     expect(quote).toMatchObject({ priceMode: "brutto", net: 1_647, tax: 313, gross: 1_960 });
     await quotes.finalizeQuote(actor, quote.id);
@@ -179,9 +207,21 @@ describe.skipIf(!testDatabaseUrl)("Bruttopreise und gespeicherte Steuerzeilen (P
 
   it("wiederkehrende Rechnung behält ihren Preismodus", async () => {
     await recurring.createRecurring(actor, {
-      name: "Fotoabo", active: true, contactId, format: "zugferd", paymentTermDays: 14, note: "", taxTreatment: "regulaer",
-      exemptionReason: "", priceMode: "brutto", lines: [{ description: "Abo {monat}", quantity: 1000, unit: "Monat", unitPrice: 2_990, taxRate: 1900 }],
-      intervalMonths: 1, nextDate: "2026-10-01", endDate: null, servicePeriod: "laufend", mode: "entwurf",
+      name: "Fotoabo",
+      active: true,
+      contactId,
+      format: "zugferd",
+      paymentTermDays: 14,
+      note: "",
+      taxTreatment: "regulaer",
+      exemptionReason: "",
+      priceMode: "brutto",
+      lines: [{ description: "Abo {monat}", quantity: 1000, unit: "Monat", unitPrice: 2_990, taxRate: 1900 }],
+      intervalMonths: 1,
+      nextDate: "2026-10-01",
+      endDate: null,
+      servicePeriod: "laufend",
+      mode: "entwurf",
     });
     await recurring.runDueRecurring("2026-10-02");
     const [created] = await sql`select price_mode, gross, net, tax from invoices`;
@@ -189,7 +229,13 @@ describe.skipIf(!testDatabaseUrl)("Bruttopreise und gespeicherte Steuerzeilen (P
   });
 
   it("Artikel merken sich, ob der Preis die Umsatzsteuer enthält", async () => {
-    const article = await articles.createArticle(actor, { description: "Abzug 13 × 18 cm", unit: "Stk.", unitPrice: 980, taxRate: 1900, priceIncludesTax: true });
+    const article = await articles.createArticle(actor, {
+      description: "Abzug 13 × 18 cm",
+      unit: "Stk.",
+      unitPrice: 980,
+      taxRate: 1900,
+      priceIncludesTax: true,
+    });
     expect(article.priceIncludesTax).toBe(true);
     const plain = await articles.createArticle(actor, { description: "Beratung", unit: "Std.", unitPrice: 9_500, taxRate: 1900 });
     expect(plain.priceIncludesTax).toBe(false);

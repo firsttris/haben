@@ -106,9 +106,7 @@ export const grossPriceLines: InvoiceLineInput[] = [
   { description: "Anfahrt", quantity: 23500, unit: "km", unitPrice: 42, taxRate: 1900 },
 ];
 
-export const zeroRateLines: InvoiceLineInput[] = [
-  { description: "Beratung Oktober", quantity: 10000, unit: "Std.", unitPrice: 12000, taxRate: 0 },
-];
+export const zeroRateLines: InvoiceLineInput[] = [{ description: "Beratung Oktober", quantity: 10000, unit: "Std.", unitPrice: 12000, taxRate: 0 }];
 
 /** Unternehmen in Österreich (Reverse Charge) */
 export const euBuyer: Buyer = {

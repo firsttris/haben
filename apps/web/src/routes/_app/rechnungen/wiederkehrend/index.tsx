@@ -51,8 +51,8 @@ function RecurringPage() {
       <section className="card" aria-label="Vorlagen">
         {items.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Noch keine Vorlage. Für Monatspauschalen, Wartungsverträge oder Hosting legt Haben die Rechnung zu jedem Termin
-            automatisch an, als Entwurf oder gleich festgeschrieben.
+            Noch keine Vorlage. Für Monatspauschalen, Wartungsverträge oder Hosting legt Haben die Rechnung zu jedem Termin automatisch an, als Entwurf oder
+            gleich festgeschrieben.
           </p>
         ) : (
           <div className="table">
@@ -68,7 +68,9 @@ function RecurringPage() {
                 <div>
                   {recurring.name} {!recurring.active && <span className="pill">inaktiv</span>}
                   {recurring.lastError && <span className="pill pill-warn">Fehler</span>}
-                  <div className="small muted">{recurring.mode === "festschreiben" ? (recurring.sendByMail ? "wird festgeschrieben und gemailt" : "wird festgeschrieben") : "als Entwurf"}</div>
+                  <div className="small muted">
+                    {recurring.mode === "festschreiben" ? (recurring.sendByMail ? "wird festgeschrieben und gemailt" : "wird festgeschrieben") : "als Entwurf"}
+                  </div>
                 </div>
                 <div>{contactName}</div>
                 <div className="small">{RECURRING_INTERVALS[recurring.intervalMonths as RecurringInterval]}</div>
@@ -86,9 +88,7 @@ function RecurringPage() {
           </div>
         )}
       </section>
-      <p className="small muted">
-        Haben prüft stündlich, ob ein Termin fällig ist, und holt verpasste Termine mit ihrem Datum nach.
-      </p>
+      <p className="small muted">Haben prüft stündlich, ob ein Termin fällig ist, und holt verpasste Termine mit ihrem Datum nach.</p>
     </>
   );
 }

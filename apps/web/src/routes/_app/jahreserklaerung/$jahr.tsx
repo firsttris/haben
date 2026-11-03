@@ -69,8 +69,8 @@ function AnnualPage() {
       )}
 
       <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Umsatzsteuererklärung und Anlage EÜR rechnet Haben aus den Buchungen. Für die Einkommensteuer kommt der Gewinn aus der EÜR;
-        Arbeitslohn, Vorsorge, Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
+        Umsatzsteuererklärung und Anlage EÜR rechnet Haben aus den Buchungen. Für die Einkommensteuer kommt der Gewinn aus der EÜR; Arbeitslohn, Vorsorge,
+        Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
       </p>
 
       <nav className="jump-nav" aria-label="Abschnitte der Jahreserklärung">
@@ -125,7 +125,11 @@ function Row({ label, kz, value, extra, total, text }: { label: string; kz?: str
           {extra}
         </td>
       )}
-      <td className={text ? undefined : "num"} style={text ? { textAlign: "right" } : undefined} data-label={extra !== undefined ? "Steuer" : text ? undefined : "Betrag"}>
+      <td
+        className={text ? undefined : "num"}
+        style={text ? { textAlign: "right" } : undefined}
+        data-label={extra !== undefined ? "Steuer" : text ? undefined : "Betrag"}
+      >
         {value}
       </td>
     </tr>
@@ -133,11 +137,7 @@ function Row({ label, kz, value, extra, total, text }: { label: string; kz?: str
 }
 
 function SentPill({ sent }: { sent: Data["ust"]["sent"] }) {
-  return sent ? (
-    <span className="pill pill-ok">Übermittelt {formatDate(sent.createdAt)}</span>
-  ) : (
-    <span className="pill">Noch nicht übermittelt</span>
-  );
+  return sent ? <span className="pill pill-ok">Übermittelt {formatDate(sent.createdAt)}</span> : <span className="pill">Noch nicht übermittelt</span>;
 }
 
 function UstSection({ data }: { data: Data }) {
@@ -157,8 +157,12 @@ function UstSection({ data }: { data: Data }) {
           <thead>
             <tr>
               <th scope="col">Zeile</th>
-              <th scope="col" className="num">Bemessungsgrundlage</th>
-              <th scope="col" className="num">Steuer</th>
+              <th scope="col" className="num">
+                Bemessungsgrundlage
+              </th>
+              <th scope="col" className="num">
+                Steuer
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -175,8 +179,8 @@ function UstSection({ data }: { data: Data }) {
           </tbody>
         </table>
         <p className="small muted" style={{ margin: 0 }}>
-          Bemessungsgrundlagen in vollen Euro, die Steuer daraus wie in der Voranmeldung. {data.versteuerung === "ist" ? "Ist-Versteuerung" : "Soll-Versteuerung"}.
-          Die private Kfz-Nutzung ist in den Umsätzen zu 19 % enthalten.
+          Bemessungsgrundlagen in vollen Euro, die Steuer daraus wie in der Voranmeldung.{" "}
+          {data.versteuerung === "ist" ? "Ist-Versteuerung" : "Soll-Versteuerung"}. Die private Kfz-Nutzung ist in den Umsätzen zu 19 % enthalten.
         </p>
       </div>
       <SubmitPanel form="ust" data={data} blocked={ust.issues.some((i) => i.tone === "fehler")} sent={Boolean(ust.sent)} />
@@ -200,7 +204,9 @@ function EuerSection({ data }: { data: Data }) {
           <thead>
             <tr>
               <th scope="col">Zeile und Feldkennung</th>
-              <th scope="col" className="num">Betrag</th>
+              <th scope="col" className="num">
+                Betrag
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -242,7 +248,9 @@ function EuerSection({ data }: { data: Data }) {
                           {formatDate(a.anschaffung)} · {formatEuro(a.anschaffungskosten)}
                         </div>
                       </td>
-                      <td className="num small muted">{a.gruppe === "kfz" ? "Kfz" : a.gruppe === "buero" ? "Büro" : a.gruppe === "sammelposten" ? "Sammelposten" : "Andere"}</td>
+                      <td className="num small muted">
+                        {a.gruppe === "kfz" ? "Kfz" : a.gruppe === "buero" ? "Büro" : a.gruppe === "sammelposten" ? "Sammelposten" : "Andere"}
+                      </td>
                       <td className="num mono">{formatEuro(a.buchwertBeginn)}</td>
                       <td className="num mono">{formatEuro(a.afa)}</td>
                       <td className="num mono">{a.abgang ? formatEuro(a.abgang) : "–"}</td>
@@ -253,8 +261,8 @@ function EuerSection({ data }: { data: Data }) {
               </ScrollTable>
             </div>
             <p className="small muted" style={{ margin: 0 }}>
-              Anlagen, die im Jahr angeschafft wurden, stehen mit den Anschaffungskosten im Buchwert zu Beginn. Geringwertige
-              Wirtschaftsgüter gehören nicht ins Verzeichnis.
+              Anlagen, die im Jahr angeschafft wurden, stehen mit den Anschaffungskosten im Buchwert zu Beginn. Geringwertige Wirtschaftsgüter gehören nicht ins
+              Verzeichnis.
             </p>
           </div>
         )}
@@ -451,7 +459,7 @@ function EstSection({ data }: { data: Data }) {
           const total = v("a") + (est.zusammen ? v("b") : 0) + (a.vorsorge.sonstige ?? 0);
           return (
             <Block title="Vorsorgeaufwand" summary={sumText(total)} open={total > 0}>
-              <h4 className="est-sub">{est.zusammen ? est.person.a ?? "Person A" : "Beiträge"}</h4>
+              <h4 className="est-sub">{est.zusammen ? (est.person.a ?? "Person A") : "Beiträge"}</h4>
               {vorsorgeFields("a", a.vorsorge.a)}
               {est.zusammen && (
                 <>
@@ -471,12 +479,17 @@ function EstSection({ data }: { data: Data }) {
           summary={sumText(sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.spenden, a.krankheitskosten))}
           open={sumOf(a.sonderausgaben.kirchensteuerGezahlt, a.sonderausgaben.kirchensteuerErstattet, a.sonderausgaben.spenden, a.krankheitskosten) > 0}
         >
-        <div className="form-grid">
-          <Amount name="kistGezahlt" label="Gezahlte Kirchensteuer" value={a.sonderausgaben.kirchensteuerGezahlt} hint="ohne Kirchensteuer auf Kapitalerträge" />
-          <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
-          <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
-          <Amount name="krankheitskosten" label="Krankheitskosten" value={a.krankheitskosten} hint="selbst getragen, nach Erstattungen" />
-        </div>
+          <div className="form-grid">
+            <Amount
+              name="kistGezahlt"
+              label="Gezahlte Kirchensteuer"
+              value={a.sonderausgaben.kirchensteuerGezahlt}
+              hint="ohne Kirchensteuer auf Kapitalerträge"
+            />
+            <Amount name="kistErstattet" label="Erstattete Kirchensteuer" value={a.sonderausgaben.kirchensteuerErstattet} />
+            <Amount name="spenden" label="Spenden und Mitgliedsbeiträge" value={a.sonderausgaben.spenden} hint="an steuerbegünstigte Empfänger im Inland" />
+            <Amount name="krankheitskosten" label="Krankheitskosten" value={a.krankheitskosten} hint="selbst getragen, nach Erstattungen" />
+          </div>
         </Block>
 
         <Block
@@ -484,14 +497,23 @@ function EstSection({ data }: { data: Data }) {
           summary={sumText(sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker))}
           open={sumOf(a.haushaltsnah.minijobs, a.haushaltsnah.dienstleistungen, a.haushaltsnah.handwerker) > 0}
         >
-        <div className="form-grid">
-          <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
-          <Amount name="dienstleistungen" label="Haushaltsnahe Dienstleistungen" value={a.haushaltsnah.dienstleistungen} hint="z. B. Reinigung, Gartenpflege" />
-          <Amount name="handwerker" label="Handwerkerleistungen" value={a.haushaltsnah.handwerker} hint="nur Arbeits-, Maschinen- und Fahrtkosten" />
-        </div>
+          <div className="form-grid">
+            <Amount name="minijobs" label="Minijobs im Haushalt" value={a.haushaltsnah.minijobs} />
+            <Amount
+              name="dienstleistungen"
+              label="Haushaltsnahe Dienstleistungen"
+              value={a.haushaltsnah.dienstleistungen}
+              hint="z. B. Reinigung, Gartenpflege"
+            />
+            <Amount name="handwerker" label="Handwerkerleistungen" value={a.haushaltsnah.handwerker} hint="nur Arbeits-, Maschinen- und Fahrtkosten" />
+          </div>
         </Block>
 
-        <Block title="Kinder" summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`} open={a.kinder.length > 0}>
+        <Block
+          title="Kinder"
+          summary={kinder.length === 0 ? "keine" : `${kinder.length} ${kinder.length === 1 ? "Kind" : "Kinder"}`}
+          open={a.kinder.length > 0}
+        >
           {kinder.map((k, index) => (
             <div key={k.key} className="form-grid" role="group" aria-label={`Kind ${index + 1}`}>
               <label className="field">
@@ -516,7 +538,12 @@ function EstSection({ data }: { data: Data }) {
               </label>
               <label className="field">
                 Kinderbetreuungskosten (€)
-                <input inputMode="decimal" value={k.kinderbetreuung} onChange={(e) => updateKind(k.key, { kinderbetreuung: e.target.value })} placeholder="0,00" />
+                <input
+                  inputMode="decimal"
+                  value={k.kinderbetreuung}
+                  onChange={(e) => updateKind(k.key, { kinderbetreuung: e.target.value })}
+                  placeholder="0,00"
+                />
               </label>
               <div className="actions" style={{ gridColumn: "1 / -1" }}>
                 <button type="button" className="btn btn-danger" onClick={() => setKinder((list) => list.filter((x) => x.key !== k.key))}>
@@ -529,7 +556,9 @@ function EstSection({ data }: { data: Data }) {
             <button
               type="button"
               className="btn"
-              onClick={() => setKinder((list) => [...list, { key: Math.max(-1, ...list.map((x) => x.key)) + 1, vorname: "", geburtsdatum: "", kinderbetreuung: "" }])}
+              onClick={() =>
+                setKinder((list) => [...list, { key: Math.max(-1, ...list.map((x) => x.key)) + 1, vorname: "", geburtsdatum: "", kinderbetreuung: "" }])
+              }
             >
               + Kind hinzufügen
             </button>
@@ -539,21 +568,24 @@ function EstSection({ data }: { data: Data }) {
         <Block
           title="Kapitalerträge (Anlage KAP)"
           summary={sumText(sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland))}
-          open={sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland, a.kap?.kapitalertragsteuer) > 0 || Boolean(a.kap?.guenstigerpruefung)}
+          open={
+            sumOf(a.kap?.ertraegeMitSteuerabzug, a.kap?.ertraegeOhneSteuerabzugInland, a.kap?.ertraegeAusland, a.kap?.kapitalertragsteuer) > 0 ||
+            Boolean(a.kap?.guenstigerpruefung)
+          }
         >
-        <div className="form-grid">
-          <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />
-          <Amount name="kapSpb" label="Davon genutzter Sparer-Pauschbetrag" value={a.kap?.sparerPauschbetrag} />
-          <Amount name="kapOhneInl" label="Inländische Erträge ohne Steuerabzug" value={a.kap?.ertraegeOhneSteuerabzugInland} />
-          <Amount name="kapAusl" label="Ausländische Erträge" value={a.kap?.ertraegeAusland} />
-          <Amount name="kapESt" label="Einbehaltene Kapitalertragsteuer" value={a.kap?.kapitalertragsteuer} />
-          <Amount name="kapSoli" label="Solidaritätszuschlag" value={a.kap?.soli} />
-          <Amount name="kapKiSt" label="Kirchensteuer zur Kapitalertragsteuer" value={a.kap?.kirchensteuer} />
-          <label className="checkbox" style={{ alignSelf: "end" }}>
-            <input type="checkbox" name="guenstigerpruefung" defaultChecked={a.kap?.guenstigerpruefung ?? false} />
-            Günstigerprüfung beantragen
-          </label>
-        </div>
+          <div className="form-grid">
+            <Amount name="kapMit" label="Erträge mit Steuerabzug" value={a.kap?.ertraegeMitSteuerabzug} hint="laut Steuerbescheinigung der Bank" />
+            <Amount name="kapSpb" label="Davon genutzter Sparer-Pauschbetrag" value={a.kap?.sparerPauschbetrag} />
+            <Amount name="kapOhneInl" label="Inländische Erträge ohne Steuerabzug" value={a.kap?.ertraegeOhneSteuerabzugInland} />
+            <Amount name="kapAusl" label="Ausländische Erträge" value={a.kap?.ertraegeAusland} />
+            <Amount name="kapESt" label="Einbehaltene Kapitalertragsteuer" value={a.kap?.kapitalertragsteuer} />
+            <Amount name="kapSoli" label="Solidaritätszuschlag" value={a.kap?.soli} />
+            <Amount name="kapKiSt" label="Kirchensteuer zur Kapitalertragsteuer" value={a.kap?.kirchensteuer} />
+            <label className="checkbox" style={{ alignSelf: "end" }}>
+              <input type="checkbox" name="guenstigerpruefung" defaultChecked={a.kap?.guenstigerpruefung ?? false} />
+              Günstigerprüfung beantragen
+            </label>
+          </div>
         </Block>
 
         {/* Speichern bleibt am unteren Rand sichtbar, solange das Formular im Bild ist */}
@@ -567,8 +599,7 @@ function EstSection({ data }: { data: Data }) {
           </div>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
-          Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten
-          Angaben.
+          Beträge in Euro; ELSTER bekommt volle Euro, nur die Steuern auf Kapitalerträge mit Cent. Übermittelt werden die gespeicherten Angaben.
         </p>
       </form>
       <SubmitPanel form="est" data={data} blocked={blocked} sent={Boolean(est.sent)} />

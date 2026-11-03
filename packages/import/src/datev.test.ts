@@ -2,8 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { datevAccountTotals, DatevParseError, datevYearSums, isDatevFile, parseDatevBuchungsstapel } from "./index.ts";
 
-const fixture = (name: string) =>
-  new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
+const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
 
 const HEADER = `"EXTF";700;21;"Buchungsstapel";13;20260102120000000;;"LO";"";"";1001;12345;20250101;4;20250101;20251231;"Test";"";1;0;0;"EUR";;"";;;"03";;;"";""`;
 const COLUMNS = `"Umsatz (ohne Soll/Haben-Kz)";"Soll/Haben-Kennzeichen";"Konto";"Gegenkonto (ohne BU-Schlüssel)";"BU-Schlüssel";"Belegdatum";"Buchungstext"`;
@@ -135,22 +134,16 @@ describe("DATEV-Buchungsstapel (UTF-8 mit BOM, abweichendes Wirtschaftsjahr)", (
 describe("parseDatevBuchungsstapel", () => {
   it("lehnt andere DATEV-Formate mit Namen ab", () => {
     const header = HEADER.replace(`700;21;"Buchungsstapel"`, `700;16;"Debitoren/Kreditoren"`);
-    expect(message(() => parseDatevBuchungsstapel(file(header, COLUMNS)))).toBe(
-      "Das ist ein DATEV-Export „Debitoren/Kreditoren“, kein Buchungsstapel.",
-    );
+    expect(message(() => parseDatevBuchungsstapel(file(header, COLUMNS)))).toBe("Das ist ein DATEV-Export „Debitoren/Kreditoren“, kein Buchungsstapel.");
   });
 
   it("lehnt Dateien ohne EXTF ab", () => {
-    expect(message(() => parseDatevBuchungsstapel(file("Datum;Betrag", "01.01.2025;1,00")))).toBe(
-      "Keine DATEV-Datei: Kopfzeile beginnt nicht mit EXTF",
-    );
+    expect(message(() => parseDatevBuchungsstapel(file("Datum;Betrag", "01.01.2025;1,00")))).toBe("Keine DATEV-Datei: Kopfzeile beginnt nicht mit EXTF");
   });
 
   it("nennt eine fehlende Pflichtspalte", () => {
     const columns = COLUMNS.replace(`"Belegdatum";`, "");
-    expect(message(() => parseDatevBuchungsstapel(file(HEADER, columns)))).toBe(
-      "Zeile 2: Spalte „Belegdatum“ fehlt.",
-    );
+    expect(message(() => parseDatevBuchungsstapel(file(HEADER, columns)))).toBe("Zeile 2: Spalte „Belegdatum“ fehlt.");
   });
 
   it("erkennt Spalten unabhängig von Reihenfolge, Groß-/Kleinschreibung und Leerraum", () => {
@@ -161,9 +154,7 @@ describe("parseDatevBuchungsstapel", () => {
 
   it("liest die vereinfachten Spaltennamen von Lexware Office", () => {
     const columns = `"Umsatz";"Soll/Haben-Kennzeichen";"WKZ Umsatz";"Kurs";"Basisumsatz";"WKZ Basisumsatz";"Konto";"Gegenkonto";"BU-Schluessel";"Belegdatum";"Belegfeld 1";"Buchungstext";"Faelligkeit"`;
-    const stack = parseDatevBuchungsstapel(
-      file(HEADER, columns, `119,00;"S";"EUR";;;;1200;8400;"";0302;"RE-1";"Verkauf";""`),
-    );
+    const stack = parseDatevBuchungsstapel(file(HEADER, columns, `119,00;"S";"EUR";;;;1200;8400;"";0302;"RE-1";"Verkauf";""`));
     expect(stack.bookings[0]).toMatchObject({
       amount: 11900,
       side: "S",
@@ -184,24 +175,18 @@ describe("parseDatevBuchungsstapel", () => {
 
   it("meldet ein ungültiges Soll/Haben-Kennzeichen mit Zeilennummer", () => {
     const bytes = file(HEADER, COLUMNS, `10,00;"S";1200;8400;;0101;"ok"`, "", `10,00;"X";1200;8400;;0101;"falsch"`);
-    expect(message(() => parseDatevBuchungsstapel(bytes))).toBe(
-      "Zeile 5: Soll/Haben-Kennzeichen „X“ ist weder S noch H.",
-    );
+    expect(message(() => parseDatevBuchungsstapel(bytes))).toBe("Zeile 5: Soll/Haben-Kennzeichen „X“ ist weder S noch H.");
   });
 
   it("lehnt negative Umsätze ab und warnt bei 0,00", () => {
-    expect(message(() => parseDatevBuchungsstapel(file(HEADER, COLUMNS, `-10,00;"S";1200;8400;;0101;""`)))).toMatch(
-      /^Zeile 3: negativer Umsatz/,
-    );
+    expect(message(() => parseDatevBuchungsstapel(file(HEADER, COLUMNS, `-10,00;"S";1200;8400;;0101;""`)))).toMatch(/^Zeile 3: negativer Umsatz/);
     const stack = parseDatevBuchungsstapel(file(HEADER, COLUMNS, `0,00;"S";1200;8400;;0101;""`, ""));
     expect(stack.bookings).toHaveLength(1);
     expect(stack.warnings).toEqual(["Zeile 3: Umsatz ist 0,00."]);
   });
 
   it("meldet ein unmögliches Belegdatum", () => {
-    expect(message(() => parseDatevBuchungsstapel(file(HEADER, COLUMNS, `1,00;"S";1200;8400;;3102;""`)))).toBe(
-      "Zeile 3: ungültiges Belegdatum „3102“.",
-    );
+    expect(message(() => parseDatevBuchungsstapel(file(HEADER, COLUMNS, `1,00;"S";1200;8400;;3102;""`)))).toBe("Zeile 3: ungültiges Belegdatum „3102“.");
   });
 
   it("weicht auf das andere Jahr des Zeitraums aus oder warnt", () => {
@@ -213,9 +198,7 @@ describe("parseDatevBuchungsstapel", () => {
   });
 
   it("akzeptiert Belegdatum mit Jahr und Zeilenumbrüche im Text", () => {
-    const stack = parseDatevBuchungsstapel(
-      file(HEADER, COLUMNS, `1,00;"S";1200;8400;;31122025;"zwei\nZeilen"`, `2,00;"S";1200;8400;;0101;""`),
-    );
+    const stack = parseDatevBuchungsstapel(file(HEADER, COLUMNS, `1,00;"S";1200;8400;;31122025;"zwei\nZeilen"`, `2,00;"S";1200;8400;;0101;""`));
     expect(stack.bookings.map((b) => [b.row, b.date, b.text])).toEqual([
       [3, "2025-12-31", "zwei\nZeilen"],
       [5, "2025-01-01", ""],

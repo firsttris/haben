@@ -66,7 +66,13 @@ export function dunningPdfData(doc: DunningDocument) {
     total: { label: "Zu zahlen", value: formatEuro(amounts.total) },
     payment: `Bitte überweisen Sie ${formatEuro(amounts.total)} bis zum ${formatDate(doc.dueDate)}${account} unter Angabe der Rechnungsnummer ${doc.invoice.number}.`,
     qr: seller.iban
-      ? girocodeSvg({ name: seller.name, iban: seller.iban, ...(seller.bic ? { bic: seller.bic } : {}), amount: amounts.total, text: `Rechnung ${doc.invoice.number}` })
+      ? girocodeSvg({
+          name: seller.name,
+          iban: seller.iban,
+          ...(seller.bic ? { bic: seller.bic } : {}),
+          amount: amounts.total,
+          text: `Rechnung ${doc.invoice.number}`,
+        })
       : null,
     closing: doc.closing.trim(),
     greeting: `Mit freundlichen Grüßen\n${seller.name}`,

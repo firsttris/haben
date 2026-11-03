@@ -1,12 +1,5 @@
 import { UserError } from "../../errors.ts";
-import {
-  addDays,
-  computeInvoice,
-  openingDocumentPosting,
-  openingInvoicePosting,
-  type ExpenseCategory,
-  type PriceMode,
-} from "@haben/core";
+import { addDays, computeInvoice, openingDocumentPosting, openingInvoicePosting, type ExpenseCategory, type PriceMode } from "@haben/core";
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
@@ -54,7 +47,8 @@ function openAmount(voucher: Pick<LegacyVoucher, "payment" | "status" | "gross">
 
 function blockerFor(voucher: LegacyVoucher, hasPdf: boolean): string | null {
   if (voucher.currency !== "EUR") return "Fremdwährung";
-  if (openAmount(voucher) !== Math.abs(voucher.gross)) return `teilweise bezahlt – Restbetrag erst in ${SOURCE_LABEL[voucher.source]} ausgleichen oder ohne Rechnung buchen`;
+  if (openAmount(voucher) !== Math.abs(voucher.gross))
+    return `teilweise bezahlt – Restbetrag erst in ${SOURCE_LABEL[voucher.source]} ausgleichen oder ohne Rechnung buchen`;
   if (voucher.taxes.some((t) => ![1900, 700, 0].includes(t.rate))) return "Steuersatz, den Haben nicht kennt";
   if (voucher.gross <= 0) return "Betrag nicht positiv";
   if (!hasPdf) return `keine Datei aus ${SOURCE_LABEL[voucher.source]}`;

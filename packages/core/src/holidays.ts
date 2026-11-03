@@ -60,7 +60,7 @@ export function publicHolidays(year: number, bundesland: Bundesland | null): Map
   add(["BW", "BY", "NW", "RP", "SL"], fixed("11-01"), "Allerheiligen");
   // Buß- und Bettag: Mittwoch vor dem 23. November
   const nov23 = new Date(Date.UTC(year, 10, 23));
-  const back = ((nov23.getUTCDay() - 3 + 7) % 7) || 7;
+  const back = (nov23.getUTCDay() - 3 + 7) % 7 || 7;
   add(["SN"], addDays(fixed("11-23"), -back), "Buß- und Bettag");
   return days;
 }

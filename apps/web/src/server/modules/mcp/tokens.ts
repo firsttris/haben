@@ -70,7 +70,10 @@ export async function createMcpToken(input: z.infer<typeof mcpTokenInputSchema>,
 }
 
 export async function revokeMcpToken(id: string, now = new Date()): Promise<void> {
-  await db.update(schema.mcpTokens).set({ revokedAt: now }).where(and(eq(schema.mcpTokens.id, id), isNull(schema.mcpTokens.revokedAt)));
+  await db
+    .update(schema.mcpTokens)
+    .set({ revokedAt: now })
+    .where(and(eq(schema.mcpTokens.id, id), isNull(schema.mcpTokens.revokedAt)));
 }
 
 /** Alle Zugänge, gültige zuerst; widerrufene und abgelaufene bleiben zur Nachvollziehbarkeit sichtbar */
@@ -134,4 +137,3 @@ export async function recentMcpCalls(limit = 20) {
     .orderBy(desc(schema.mcpCalls.at), desc(schema.mcpCalls.id))
     .limit(limit);
 }
-

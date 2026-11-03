@@ -48,9 +48,7 @@ export const saveRecurring = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid().nullable(), recurring: recurringInputSchema }))
   .handler(async ({ data, context }) => {
-    const saved = data.id
-      ? await updateRecurring(context.user.id, data.id, data.recurring)
-      : await createRecurring(context.user.id, data.recurring);
+    const saved = data.id ? await updateRecurring(context.user.id, data.id, data.recurring) : await createRecurring(context.user.id, data.recurring);
     return { id: saved.id };
   });
 

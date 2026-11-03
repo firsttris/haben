@@ -47,7 +47,9 @@ export async function resolveExchangeRate(
   if (input.currency === "EUR") return NO_RATE;
   const month = input.date ? rateMonth(input.date) : null;
   const published = month ? await rateForMonth(input.currency, month, q) : null;
-  const ust: RateFields | null = published ? { exchangeRate: parseExchangeRate(published.rate), exchangeRateSource: "ust", exchangeRateDate: `${month}-01` } : null;
+  const ust: RateFields | null = published
+    ? { exchangeRate: parseExchangeRate(published.rate), exchangeRateSource: "ust", exchangeRateDate: `${month}-01` }
+    : null;
   const unchangedUst =
     previous?.exchangeRateSource === "ust" && previous.exchangeRate !== null && parseExchangeRate(previous.exchangeRate) === input.exchangeRate;
   if (!input.exchangeRate || unchangedUst) return ust ?? NO_RATE;
@@ -65,7 +67,12 @@ export async function listExchangeRates(limit = 200): Promise<ExchangeRate[]> {
 }
 
 export const exchangeRateSchema = z.object({
-  currency: z.string().trim().toUpperCase().regex(CURRENCY_CODE, "Währung als dreistelliger Code, z. B. USD").refine((c) => c !== "EUR", "Für Euro gibt es keinen Kurs"),
+  currency: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(CURRENCY_CODE, "Währung als dreistelliger Code, z. B. USD")
+    .refine((c) => c !== "EUR", "Für Euro gibt es keinen Kurs"),
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Monat als JJJJ-MM"),
   rate: z.string().transform((value, ctx) => {
     const rate = parseExchangeRate(value);
@@ -137,7 +144,11 @@ export async function refreshExchangeRates(actor: string, todayDate: string, fet
   const rates: PublishedRate[] = [];
   for (const y of years) rates.push(...(await fetchBmfRates(y, fetchImpl)));
   const result = await storeExchangeRates(actor, rates, "bmf");
-  const latest = rates.map((r) => r.month).sort().at(-1) ?? null;
+  const latest =
+    rates
+      .map((r) => r.month)
+      .sort()
+      .at(-1) ?? null;
   return { ...result, fetched: rates.length, latest };
 }
 

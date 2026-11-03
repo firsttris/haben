@@ -7,7 +7,20 @@ function dkbCsv(rows: string[][]) {
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
   return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
 }
-const row = (date: string, purpose: string, amount: string) => [date, date, "Gebucht", "Nordwerk", "Testfirma", purpose, amount.startsWith("-") ? "Ausgang" : "Eingang", "DE02100100100006820101", amount, "", "", ""];
+const row = (date: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  "Nordwerk",
+  "Testfirma",
+  purpose,
+  amount.startsWith("-") ? "Ausgang" : "Eingang",
+  "DE02100100100006820101",
+  amount,
+  "",
+  "",
+  "",
+];
 
 /**
  * „Offen“ ist eine Regel (@haben/core, lebenszyklus.ts), genutzt von Rechnungsliste, Bankabgleich, offenen Posten,
@@ -47,15 +60,30 @@ describe.skipIf(!testDatabaseUrl)("offener Betrag überall gleich (Postgres)", (
               'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;
     contactId = (
       await contacts.createContact(actor, {
-        kundennummer: "10001", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-        email: "", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+        kundennummer: "10001",
+        name: "Nordwerk Software GmbH",
+        strasse: "Hafenstraße 5",
+        plz: "20457",
+        ort: "Hamburg",
+        land: "DE",
+        email: "",
+        ustId: "",
+        iban: "",
+        leitwegId: "",
+        defaultFormat: null,
       })
     ).id;
   });
 
   async function invoice(net: number, issueDate = "2026-05-02") {
     const draft = await invoices.createDraft(actor, {
-      contactId, issueDate, serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
+      contactId,
+      issueDate,
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Std." as const, unitPrice: net, taxRate: 1900 as const }],
     });
     return invoices.finalizeInvoice(actor, draft.id);

@@ -1,5 +1,15 @@
 import { resolve } from "node:path";
-import { datenartVersionFromXml, EricProcessClient, ericHomeIn, ericMeldungen, FakeElsterClient, type ElsterResult, type PostfachOptions, type PostfachResult, type SendOptions } from "@haben/elster";
+import {
+  datenartVersionFromXml,
+  EricProcessClient,
+  ericHomeIn,
+  ericMeldungen,
+  FakeElsterClient,
+  type ElsterResult,
+  type PostfachOptions,
+  type PostfachResult,
+  type SendOptions,
+} from "@haben/elster";
 
 /**
  * Fake-Client für Integrationstests, der jedes erzeugte XML zusätzlich vom echten ERiC prüfen lässt, sobald
@@ -10,13 +20,16 @@ const ericHome = process.env.ERIC_HOME?.trim() || ericHomeIn(resolve(process.env
 const echt = ericHome ? new EricProcessClient({ ericHome }) : null;
 
 /** ERiC sperrt die Test-Hersteller-ID 74931 auch für die lokale Prüfung */
-const mitPruefId = (xml: string) => xml.replace(/<HerstellerID>74931<\/HerstellerID>/, "<HerstellerID>12345</HerstellerID>").replace(/<Kz09>74931<\/Kz09>/, "<Kz09>12345</Kz09>");
+const mitPruefId = (xml: string) =>
+  xml.replace(/<HerstellerID>74931<\/HerstellerID>/, "<HerstellerID>12345</HerstellerID>").replace(/<Kz09>74931<\/Kz09>/, "<Kz09>12345</Kz09>");
 
 export async function ericPruefen(xml: string): Promise<void> {
   if (!echt) return;
   const result = await echt.validate(mitPruefId(xml));
   if (!result.ok) {
-    throw new Error(`ERiC lehnt ${datenartVersionFromXml(xml) ?? "die Nachricht"} ab: ${result.code} ${result.message}\n${ericMeldungen(result.responseXml).join("\n")}`);
+    throw new Error(
+      `ERiC lehnt ${datenartVersionFromXml(xml) ?? "die Nachricht"} ab: ${result.code} ${result.message}\n${ericMeldungen(result.responseXml).join("\n")}`,
+    );
   }
 }
 

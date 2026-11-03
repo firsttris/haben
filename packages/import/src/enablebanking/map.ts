@@ -47,10 +47,7 @@ const BALANCE_PREFERENCE = ["CLBD", "ITBD"];
  * (z. B. Finom) liefern CLBD nur bis gestern und ITBD für heute: Mit einem Umsatz von heute passt nur ITBD.
  * Passt keiner, bleibt es beim ersten, damit der Abruf den unpassenden Stichtag meldet.
  */
-export function bookedBalance(
-  balances: EbBalance[],
-  fits: (date: string | undefined) => boolean = () => true,
-): { amount: Cents; date?: string } | null {
+export function bookedBalance(balances: EbBalance[], fits: (date: string | undefined) => boolean = () => true): { amount: Cents; date?: string } | null {
   const ranked = balances
     .filter((b) => BALANCE_PREFERENCE.includes(b.balance_type ?? "") && (b.balance_amount.currency === "EUR" || !b.balance_amount.currency))
     .sort((a, b) => BALANCE_PREFERENCE.indexOf(a.balance_type!) - BALANCE_PREFERENCE.indexOf(b.balance_type!))

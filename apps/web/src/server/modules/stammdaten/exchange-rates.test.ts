@@ -2,7 +2,8 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
-const CSV_2026 = "Land;Währung;Januar;Februar;März;April;Mai;Juni;Juli;August;September;Oktober;November;Dezember\nUSA;1 Euro;;;;;;;;1,0950 USD;1,0812 USD;;;\n";
+const CSV_2026 =
+  "Land;Währung;Januar;Februar;März;April;Mai;Juni;Juli;August;September;Oktober;November;Dezember\nUSA;1 Euro;;;;;;;;1,0950 USD;1,0812 USD;;;\n";
 
 describe.skipIf(!testDatabaseUrl)("Umrechnungskurse (Postgres)", () => {
   let rates: typeof import("./exchange-rates.ts");

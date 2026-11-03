@@ -44,5 +44,11 @@ export function feldname(name: string): string {
   for (const [pattern, replacement] of UMLAUTE) text = text.replace(pattern, replacement);
   const parts = text.split(/(?<=[a-zäöüß])(?=[A-ZÄÖÜ])/);
   if (parts.length < 2 || parts.some((p) => p.length <= 2)) return text;
-  return parts[0] + parts.slice(1).map((p) => p.toLowerCase()).join("");
+  return (
+    parts[0] +
+    parts
+      .slice(1)
+      .map((p) => p.toLowerCase())
+      .join("")
+  );
 }

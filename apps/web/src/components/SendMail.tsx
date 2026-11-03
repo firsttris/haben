@@ -66,13 +66,22 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
   if (!draft.configured) {
     return (
       <p className="small" style={{ margin: 0 }}>
-        Für den Versand fehlt noch der E-Mail-Zugang: <Link to="/einstellungen" search={{ bereich: "email" }}>Einstellungen › E-Mail</Link>.
+        Für den Versand fehlt noch der E-Mail-Zugang:{" "}
+        <Link to="/einstellungen" search={{ bereich: "email" }}>
+          Einstellungen › E-Mail
+        </Link>
+        .
       </p>
     );
   }
 
   return (
-    <form className="stack" style={{ gap: 10 }} onSubmit={onSubmit} aria-label={`${{ rechnung: "Rechnung", mahnung: "Mahnung", angebot: "Angebot" }[kind]} per E-Mail senden`}>
+    <form
+      className="stack"
+      style={{ gap: 10 }}
+      onSubmit={onSubmit}
+      aria-label={`${{ rechnung: "Rechnung", mahnung: "Mahnung", angebot: "Angebot" }[kind]} per E-Mail senden`}
+    >
       <label className="field">
         An
         <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="kunde@example.com" required />

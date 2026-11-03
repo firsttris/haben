@@ -225,12 +225,7 @@ export class LexofficeClient {
 
   // ------------------------------------------------------------ Interna
 
-  async *#pages<S extends z.ZodType>(
-    path: string,
-    query: Record<string, string>,
-    item: S,
-    size: number,
-  ): AsyncGenerator<z.infer<S>> {
+  async *#pages<S extends z.ZodType>(path: string, query: Record<string, string>, item: S, size: number): AsyncGenerator<z.infer<S>> {
     const schema = pageSchema(item);
     for (let page = 0; page < MAX_PAGES; page++) {
       const params = new URLSearchParams({ ...query, page: String(page), size: String(size) });
@@ -261,12 +256,7 @@ export class LexofficeClient {
       const issues = parsed.error.issues;
       const shown = issues.slice(0, 3).map(describeIssue).join("; ");
       const more = issues.length > 3 ? ` (und ${issues.length - 3} weitere)` : "";
-      throw new LexofficeSchemaError(
-        `Unerwartete Antwort von GET ${path}: ${shown}${more}`,
-        res.status,
-        path,
-        issues,
-      );
+      throw new LexofficeSchemaError(`Unerwartete Antwort von GET ${path}: ${shown}${more}`, res.status, path, issues);
     }
     return parsed.data;
   }

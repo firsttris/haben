@@ -206,9 +206,7 @@ export function parseEInvoiceXml(xml: string): IncomingInvoice {
     case "CreditNote":
       return finish(parseUbl(root, rootName === "CreditNote"));
     default:
-      throw new EInvoiceParseError(
-        rootName ? `Unbekanntes XML-Format <${rootName}>: keine E-Rechnung (CII oder UBL)` : "Leeres XML-Dokument",
-      );
+      throw new EInvoiceParseError(rootName ? `Unbekanntes XML-Format <${rootName}>: keine E-Rechnung (CII oder UBL)` : "Leeres XML-Dokument");
   }
 }
 
@@ -360,7 +358,10 @@ function parseUbl(root: unknown, creditNote: boolean): IncomingInvoice {
 
   const totals = one(root, "LegalMonetaryTotal");
   const gross = cents(required(textAt(totals, "TaxInclusiveAmount"), "Gesamtbetrag"));
-  const taxText = amountIn(taxTotals.map((t) => one(t, "TaxAmount")), currency);
+  const taxText = amountIn(
+    taxTotals.map((t) => one(t, "TaxAmount")),
+    currency,
+  );
   const payable = textAt(totals, "PayableAmount");
   const deliveryDate = isoDate(textAt(root, "Delivery", "ActualDeliveryDate"));
   const period = one(root, "InvoicePeriod");

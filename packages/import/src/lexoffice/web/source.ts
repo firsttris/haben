@@ -3,25 +3,8 @@ import type { z } from "zod";
 import { LexwareWebExportError } from "./errors.ts";
 import type { LexofficeSource } from "../source.ts";
 import type { LexFile, LexVoucherListType } from "../types.ts";
-import {
-  SALES_TYPES,
-  webBookkeepingVoucher,
-  webContact,
-  webListItem,
-  webPayments,
-  webPostingCategories,
-  webSalesDocument,
-  webVoucherType,
-} from "./convert.ts";
-import {
-  WEB_EXPORT_FORMAT,
-  WEB_EXPORT_VERSION,
-  webContactSchema,
-  webEntrySchema,
-  webManifestSchema,
-  type WebContact,
-  type WebEntry,
-} from "./schema.ts";
+import { SALES_TYPES, webBookkeepingVoucher, webContact, webListItem, webPayments, webPostingCategories, webSalesDocument, webVoucherType } from "./convert.ts";
+import { WEB_EXPORT_FORMAT, WEB_EXPORT_VERSION, webContactSchema, webEntrySchema, webManifestSchema, type WebContact, type WebEntry } from "./schema.ts";
 
 export { LexwareWebExportError };
 
@@ -80,14 +63,21 @@ export function readWebExport(parts: { name: string; bytes: Uint8Array }[]): Web
       throw new LexwareWebExportError(`${part.name}: keine Sicherung aus dem Skript für Lexware Office.`);
     }
     if (manifest.version > WEB_EXPORT_VERSION) {
-      throw new LexwareWebExportError(`${part.name}: Die Sicherung hat Version ${manifest.version}; diese Version von Haben liest bis Version ${WEB_EXPORT_VERSION}.`);
+      throw new LexwareWebExportError(
+        `${part.name}: Die Sicherung hat Version ${manifest.version}; diese Version von Haben liest bis Version ${WEB_EXPORT_VERSION}.`,
+      );
     }
     result.createdAt = manifest.createdAt;
     for (const c of readJson(files, "kontakte.json", webContactSchema.array(), part.name)) contacts.set(c.id, c);
     for (const failure of manifest.failed ?? []) {
       // Ein früherer Teil enthält den Beleg schon: der Fehler aus einem anderen Lauf zählt dann nicht
       if (result.entries.has(failure.id)) continue;
-      result.failures.set(failure.id, { id: failure.id, type: failure.type ?? null, number: failure.number ?? "", message: `In Lexware Office nicht geladen: ${failure.message}` });
+      result.failures.set(failure.id, {
+        id: failure.id,
+        type: failure.type ?? null,
+        number: failure.number ?? "",
+        message: `In Lexware Office nicht geladen: ${failure.message}`,
+      });
     }
     for (const [name, bytes] of Object.entries(files)) {
       if (name.startsWith("dateien/")) result.files.set(name, bytes);

@@ -1,17 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import {
-  checkBalanceContinuity,
-  detectStatementFormat,
-  parseDotAmount,
-  parseGermanAmount,
-  parseStatement,
-  StatementParseError,
-} from "./index.ts";
+import { checkBalanceContinuity, detectStatementFormat, parseDotAmount, parseGermanAmount, parseStatement, StatementParseError } from "./index.ts";
 import { parseCsv } from "./csv.ts";
 
-const fixture = (name: string) =>
-  new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
+const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
 
 describe("parseCsv", () => {
   it("öffnet Anführungszeichen nur am Feldanfang", () => {

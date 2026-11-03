@@ -136,7 +136,8 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
     ]);
     expect(vouchers.every((v) => v.contact_id)).toBe(true);
     expect(vouchers[1]!.payment).toMatchObject({ status: "balanced", items: [{ amount: 100000 }, { amount: 17250 }] });
-    const [file] = await sql`select filename, mime_type, role from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id where v.number = 'RE1019'`;
+    const [file] =
+      await sql`select filename, mime_type, role from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id where v.number = 'RE1019'`;
     expect(file).toMatchObject({ filename: "RE1019.pdf", mime_type: "application/pdf", role: "pdf" });
   });
 
@@ -254,7 +255,14 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
   it("liefert die Belege eines Monats mit Steuerart und Zahlungen, bei Ist auch nach Zahlungsdatum", async () => {
     const march = await lexoffice.legacyVouchersForPeriod({ period: "2023-03", direction: "alle", search: "", withPayments: true, limit: 50 });
     expect(march.vouchers.map((v) => v.number)).toEqual(["RE1019"]);
-    expect(march.vouchers[0]).toMatchObject({ taxType: "net", taxSubType: null, payments: [{ date: "2023-02-28", amount: 100_000 }, { date: "2023-03-01", amount: 17_250 }] });
+    expect(march.vouchers[0]).toMatchObject({
+      taxType: "net",
+      taxSubType: null,
+      payments: [
+        { date: "2023-02-28", amount: 100_000 },
+        { date: "2023-03-01", amount: 17_250 },
+      ],
+    });
     expect((await lexoffice.legacyVouchersForPeriod({ period: "2023-03", direction: "alle", search: "", withPayments: false, limit: 50 })).total).toBe(0);
 
     const year = await lexoffice.legacyVouchersForPeriod({ period: "2023", direction: "ausgabe", search: "", withPayments: false, limit: 50 });
@@ -278,7 +286,9 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
     const chunks: Uint8Array[] = [];
     for await (const chunk of exportYear(2023, new Date("2026-10-02T10:00:00Z"))) chunks.push(chunk);
     const files = unzipSync(Buffer.concat(chunks));
-    const names = Object.keys(files).filter((n) => n.startsWith("lexoffice/")).sort();
+    const names = Object.keys(files)
+      .filter((n) => n.startsWith("lexoffice/"))
+      .sort();
     expect(names).toEqual([
       "lexoffice/belege.csv",
       expect.stringMatching(/^lexoffice\/belege\/2023-02-21_RE1019_[0-9a-f]{8}\.pdf$/),

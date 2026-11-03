@@ -11,7 +11,15 @@ describe.skipIf(!testDatabaseUrl)("Belegabruf VaSt (Postgres)", () => {
   let taxpayer: typeof import("../stammdaten/taxpayer.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
-  const person = (idnr: string, vorname: string) => ({ idnr, anrede: "Frau" as const, vorname, name: "Muster", geburtsdatum: "1980-01-01", religion: "11", beruf: "" });
+  const person = (idnr: string, vorname: string) => ({
+    idnr,
+    anrede: "Frau" as const,
+    vorname,
+    name: "Muster",
+    geburtsdatum: "1980-01-01",
+    religion: "11",
+    beruf: "",
+  });
 
   beforeAll(async () => {
     sql = await setupTestDb();
@@ -126,7 +134,12 @@ describe.skipIf(!testDatabaseUrl)("Belegabruf VaSt (Postgres)", () => {
     const client = scriptedClient();
     const failing: ElsterClient = {
       ...client,
-      fetchBelege: async (input) => ({ ...elster.failure("Keine Berechtigung", 610301200), requestXml: elster.buildVastAnfrageXml(input), liste: [], belege: [] }),
+      fetchBelege: async (input) => ({
+        ...elster.failure("Keine Berechtigung", 610301200),
+        requestXml: elster.buildVastAnfrageXml(input),
+        liste: [],
+        belege: [],
+      }),
     };
     const summary = await vast.fetchVastBelege(actor, failing, { kind: "test", year: 2025, person: "a", pin: "1" });
     expect(summary).toMatchObject({ ok: false, message: "Keine Berechtigung", neu: 0 });

@@ -155,12 +155,7 @@ export interface EuerWithdrawals {
   ustEntnahmen: Cents;
 }
 
-export function computeEuer(
-  year: number,
-  payments: EuerPayment[],
-  depreciation?: EuerDepreciation,
-  withdrawals?: EuerWithdrawals,
-): EuerResult {
+export function computeEuer(year: number, payments: EuerPayment[], depreciation?: EuerDepreciation, withdrawals?: EuerWithdrawals): EuerResult {
   const sums = new Map<EuerLineKey, Cents>();
   const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
   const monthlyIn: Cents[] = Array.from({ length: 12 }, () => 0);
@@ -172,10 +167,7 @@ export function computeEuer(
     switch (p.kind) {
       case "invoice":
         for (const { rate, base, tax } of p.shares ?? paidTaxShares(p.totals, p.sum)) {
-          add(
-            p.treatment === "kleinunternehmer" ? "einnahmenKleinunternehmer" : rate === 0 ? "einnahmenSteuerfrei" : "einnahmenSteuerpflichtig",
-            base,
-          );
+          add(p.treatment === "kleinunternehmer" ? "einnahmenKleinunternehmer" : rate === 0 ? "einnahmenSteuerfrei" : "einnahmenSteuerpflichtig", base);
           add("vereinnahmteUst", tax);
           monthlyIn[month]! += base;
         }
@@ -257,11 +249,7 @@ export function computeEuer(
       line(
         `ausgabe:${c}`,
         EXPENSE_CATEGORIES[c].label,
-        c === "hardware"
-          ? "Als geringwertige Wirtschaftsgüter sofort abgezogen"
-          : c === "bewirtung"
-            ? "Abziehbarer Teil (70 %)"
-            : undefined,
+        c === "hardware" ? "Als geringwertige Wirtschaftsgüter sofort abgezogen" : c === "bewirtung" ? "Abziehbarer Teil (70 %)" : undefined,
       ),
     );
   if (depreciation) for (const key of ["afa", "gwg", "sammelposten", "restbuchwert"] as const) add(key, depreciation[key]);

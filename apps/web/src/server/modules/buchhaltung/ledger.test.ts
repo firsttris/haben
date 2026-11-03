@@ -29,10 +29,24 @@ describe.skipIf(!testDatabaseUrl)("Saldenliste und Kontenblatt (Postgres)", () =
 
   beforeEach(async () => {
     await sql`truncate journal_lines, journal_entries cascade`;
-    await entry("2025-12-30", "Vorjahr", [["1200", 99_900, 0], ["8400", 0, 99_900]]);
-    await entry("2026-01-10", "Rechnung RE-1", [["1400", 119_000, 0], ["8400", 0, 100_000], ["1776", 0, 19_000]]);
-    await entry("2026-02-03", "Zahlung RE-1", [["1200", 119_000, 0], ["1400", 0, 119_000]]);
-    await entry("2026-02-20", "Bürobedarf", [["4930", 5_000, 0], ["1576", 950, 0], ["1200", 0, 5_950]]);
+    await entry("2025-12-30", "Vorjahr", [
+      ["1200", 99_900, 0],
+      ["8400", 0, 99_900],
+    ]);
+    await entry("2026-01-10", "Rechnung RE-1", [
+      ["1400", 119_000, 0],
+      ["8400", 0, 100_000],
+      ["1776", 0, 19_000],
+    ]);
+    await entry("2026-02-03", "Zahlung RE-1", [
+      ["1200", 119_000, 0],
+      ["1400", 0, 119_000],
+    ]);
+    await entry("2026-02-20", "Bürobedarf", [
+      ["4930", 5_000, 0],
+      ["1576", 950, 0],
+      ["1200", 0, 5_950],
+    ]);
   });
 
   it("rechnet Saldenliste mit Eröffnung ab Jahresbeginn, ohne Vorjahr", async () => {

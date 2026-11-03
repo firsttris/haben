@@ -35,7 +35,10 @@ function skippedWarning(count: number, what: string): string[] {
 // PayPal ---------------------------------------------------------------------------------------------------------
 
 export function isPayPalHeader(c: Columns): boolean {
-  return (c.has("brutto") && c.has("gebühr") && c.has("netto") && c.has("transaktionscode")) || (c.has("gross") && c.has("fee") && c.has("net") && c.has("transactionid"));
+  return (
+    (c.has("brutto") && c.has("gebühr") && c.has("netto") && c.has("transaktionscode")) ||
+    (c.has("gross") && c.has("fee") && c.has("net") && c.has("transactionid"))
+  );
 }
 
 /** Aktivitätenexport von PayPal (Spalten deutsch oder englisch), nur abgeschlossene Zeilen in Euro */
@@ -74,11 +77,27 @@ export function parsePayPal(rows: string[][], headerRow: number): ParsedStatemen
     const grossAmount = requireAmount(amount(gross(row)), gross(row), where);
     const feeAmount = fee(row) ? requireAmount(amount(fee(row)), fee(row), where) : 0;
     if (grossAmount !== 0) {
-      list.push({ bookingDate, amount: grossAmount, currency: "EUR", counterpartyName: normalizeText(name(row)), purpose, type: normalizeText(type(row)) || undefined, bankReference: code || undefined });
+      list.push({
+        bookingDate,
+        amount: grossAmount,
+        currency: "EUR",
+        counterpartyName: normalizeText(name(row)),
+        purpose,
+        type: normalizeText(type(row)) || undefined,
+        bankReference: code || undefined,
+      });
     }
     // PayPal schreibt die Gebühr mit Vorzeichen („-1,20“), bei Erstattungen kann sie positiv sein
     if (feeAmount !== 0) {
-      list.push({ bookingDate, amount: feeAmount, currency: "EUR", counterpartyName: "PayPal", purpose: `Gebühr · ${code}`, type: "Gebühr", bankReference: code ? `${code}-gebuehr` : undefined });
+      list.push({
+        bookingDate,
+        amount: feeAmount,
+        currency: "EUR",
+        counterpartyName: "PayPal",
+        purpose: `Gebühr · ${code}`,
+        type: "Gebühr",
+        bankReference: code ? `${code}-gebuehr` : undefined,
+      });
     }
   });
   return finish({
@@ -92,7 +111,13 @@ export function parsePayPal(rows: string[][], headerRow: number): ParsedStatemen
 // Stripe ---------------------------------------------------------------------------------------------------------
 
 export function isStripeHeader(c: Columns): boolean {
-  return !c.has("payoutid") && (c.has("amount") || c.has("gross")) && c.has("fee") && c.has("net") && (c.has("availableon") || c.has("reportingcategory") || c.has("balancetransactionid"));
+  return (
+    !c.has("payoutid") &&
+    (c.has("amount") || c.has("gross")) &&
+    c.has("fee") &&
+    c.has("net") &&
+    (c.has("availableon") || c.has("reportingcategory") || c.has("balancetransactionid"))
+  );
 }
 
 /** Saldenverlauf von Stripe („Balance history“, alter und neuer Export), nur Euro */
@@ -136,7 +161,15 @@ export function parseStripe(rows: string[][], headerRow: number): ParsedStatemen
     }
     // Stripe weist die Gebühr positiv aus und zieht sie vom Betrag ab
     if (feeAmount !== 0) {
-      list.push({ bookingDate, amount: -feeAmount, currency: "EUR", counterpartyName: "Stripe", purpose: `Gebühr · ${code}`, type: "Gebühr", bankReference: code ? `${code}-gebuehr` : undefined });
+      list.push({
+        bookingDate,
+        amount: -feeAmount,
+        currency: "EUR",
+        counterpartyName: "Stripe",
+        purpose: `Gebühr · ${code}`,
+        type: "Gebühr",
+        bankReference: code ? `${code}-gebuehr` : undefined,
+      });
     }
   });
   return finish({ format: "stripe-csv", currency: "EUR", transactions: indexed(list), warnings: skippedWarning(foreign, "nicht in Euro") });

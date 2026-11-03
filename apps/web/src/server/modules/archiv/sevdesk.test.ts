@@ -106,12 +106,16 @@ function fakeApi(options: { failVoucher?: boolean } = {}) {
       case "/Invoice/102/getPositions":
         return list([{ id: 2, taxRate: "7", sumNet: "200", sumTax: "14" }]);
       case "/VoucherPos":
-        return options.failVoucher ? json({ error: { message: "kaputt" } }, 500) : list([{ id: 3, accountDatev: { id: 4930 }, taxRate: "19", sumNet: "100", sumTax: "19" }]);
+        return options.failVoucher
+          ? json({ error: { message: "kaputt" } }, 500)
+          : list([{ id: 3, accountDatev: { id: 4930 }, taxRate: "19", sumNet: "100", sumTax: "19" }]);
       case "/Document/880/download":
         return new Response(JPEG, { headers: { "content-type": "image/jpeg" } });
     }
     if (/^\/Invoice\/\d+\/getPdf$/.test(path)) {
-      return json({ objects: { filename: `${path.split("/")[2]}.pdf`, mimeType: "application/pdf", base64encoded: true, content: Buffer.from(PDF).toString("base64") } });
+      return json({
+        objects: { filename: `${path.split("/")[2]}.pdf`, mimeType: "application/pdf", base64encoded: true, content: Buffer.from(PDF).toString("base64") },
+      });
     }
     if (/^\/Invoice\/\d+\/getXml$/.test(path)) return json({ error: { message: "keine E-Rechnung" } }, 400);
     return json({ error: { message: `unbekannt ${path}` } }, 404);
@@ -129,9 +133,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
 
   function installFakeApi(options: { failVoucher?: boolean } = {}) {
     const api = fakeApi(options);
-    sevdesk.setSevdeskClientFactory(
-      (o) => new importPkg.SevdeskClient({ ...o, fetch: api.fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }),
-    );
+    sevdesk.setSevdeskClientFactory((o) => new importPkg.SevdeskClient({ ...o, fetch: api.fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }));
     return api;
   }
 
@@ -163,7 +165,9 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
     const run = await sevdesk.latestSevdeskImport();
     expect(run).toMatchObject({ id, status: "fertig", source: "sevdesk" });
     expect(run!.progress).toMatchObject({ contacts: 2, contactsLinked: 1, listed: 3, imported: 2, files: 2 });
-    expect(run!.progress.failed).toEqual([expect.objectContaining({ lexofficeId: "voucher/301", number: "B-2024-17", message: expect.stringContaining("500") })]);
+    expect(run!.progress.failed).toEqual([
+      expect.objectContaining({ lexofficeId: "voucher/301", number: "B-2024-17", message: expect.stringContaining("500") }),
+    ]);
     // Der Lexoffice-Abruf sieht den sevDesk-Lauf nicht
     expect(await lexoffice.latestImport()).toBeNull();
 
@@ -183,7 +187,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
     expect(vouchers.every((v) => v.contact_id)).toBe(true);
     expect(vouchers[1]!.taxes).toEqual([{ rate: 700, net: 20000, tax: 1400 }]);
     expect(vouchers[0]!.payment).toMatchObject({ openAmount: 0, items: [{ date: "2024-03-20", amount: 11900 }] });
-    const [file] = await sql`select filename, mime_type, role from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id where v.number = 'RE-1001'`;
+    const [file] =
+      await sql`select filename, mime_type, role from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id where v.number = 'RE-1001'`;
     expect(file).toMatchObject({ filename: "101.pdf", mime_type: "application/pdf", role: "pdf" });
   });
 

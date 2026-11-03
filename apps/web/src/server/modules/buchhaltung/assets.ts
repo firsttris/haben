@@ -135,7 +135,10 @@ async function bookedYears(ids: string[], q: Db | Tx = db): Promise<Map<string, 
 /** Anlagenverzeichnis zum Jahr: Plan des Jahres und ob die AfA schon gebucht ist */
 export async function listAssets(year: number, q: Db | Tx = db) {
   const assets = await q.select().from(schema.assets).orderBy(asc(schema.assets.acquisitionDate), asc(schema.assets.name));
-  const booked = await bookedYears(assets.map((a) => a.id), q);
+  const booked = await bookedYears(
+    assets.map((a) => a.id),
+    q,
+  );
   const kleinunternehmer = await kleinunternehmerInYear(year, q);
   return assets.map((asset) => {
     const schedule = scheduleOf(asset);

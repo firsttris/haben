@@ -10,7 +10,9 @@ export function ArchiveFiles({ files, kinds }: { files: MigrationData["files"]; 
     <div className="stack">
       <section className="card stack" aria-label="Originaldateien">
         {files.length === 0 ? (
-          <p className="muted" style={{ margin: 0 }}>Noch keine Dateien im Archiv.</p>
+          <p className="muted" style={{ margin: 0 }}>
+            Noch keine Dateien im Archiv.
+          </p>
         ) : (
           <div className="table">
             <div className="table-row head archive-file-cols">
@@ -42,7 +44,9 @@ export function ArchiveFiles({ files, kinds }: { files: MigrationData["files"]; 
         )}
       </section>
       <section className="card stack" aria-labelledby="archive-upload-heading">
-        <h2 id="archive-upload-heading" style={{ margin: 0 }}>Datei ablegen</h2>
+        <h2 id="archive-upload-heading" style={{ margin: 0 }}>
+          Datei ablegen
+        </h2>
         <ArchiveUpload kinds={kinds} />
       </section>
     </div>

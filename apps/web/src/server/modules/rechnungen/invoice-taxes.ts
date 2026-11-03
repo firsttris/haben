@@ -15,7 +15,11 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
  * Steuerzeilen in Euro: bei Fremdwährung je Satz umgerechnet (Bemessungsgrundlage und Steuer einzeln, wie die Steuer
  * in Euro auf der Rechnung steht); ohne Kurs 0, die Rechnung lässt sich dann noch nicht festschreiben.
  */
-export function euroTaxes(taxes: TaxBreakdown[], currency: string, rate: string | null): (TaxBreakdown & { originalBase: number | null; originalTax: number | null })[] {
+export function euroTaxes(
+  taxes: TaxBreakdown[],
+  currency: string,
+  rate: string | null,
+): (TaxBreakdown & { originalBase: number | null; originalTax: number | null })[] {
   if (currency === "EUR") return taxes.map((t) => ({ ...t, originalBase: null, originalTax: null }));
   return taxes.map((t) => ({
     rate: t.rate,
@@ -34,9 +38,11 @@ export async function storeInvoiceTaxes(
 ): Promise<void> {
   await tx.delete(schema.invoiceTaxes).where(eq(schema.invoiceTaxes.invoiceId, invoiceId));
   if (taxes.length > 0) {
-    await tx.insert(schema.invoiceTaxes).values(
-      taxes.map((t) => ({ invoiceId, rate: t.rate, base: t.base, tax: t.tax, originalBase: t.originalBase ?? null, originalTax: t.originalTax ?? null })),
-    );
+    await tx
+      .insert(schema.invoiceTaxes)
+      .values(
+        taxes.map((t) => ({ invoiceId, rate: t.rate, base: t.base, tax: t.tax, originalBase: t.originalBase ?? null, originalTax: t.originalTax ?? null })),
+      );
   }
 }
 

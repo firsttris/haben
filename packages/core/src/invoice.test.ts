@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "./holidays.ts";
-import { computeInvoice, computeInvoiceTotals, convertPrice, formatInvoiceNumber, formatQuoteNumber, lineAmount, parseQuantity, totalsFromTaxes } from "./invoice.ts";
+import {
+  computeInvoice,
+  computeInvoiceTotals,
+  convertPrice,
+  formatInvoiceNumber,
+  formatQuoteNumber,
+  lineAmount,
+  parseQuantity,
+  totalsFromTaxes,
+} from "./invoice.ts";
 import { taxIncluded } from "./money.ts";
 
 describe("Rechnungssummen", () => {
@@ -104,7 +113,15 @@ describe("Bruttopreise", () => {
         { rate: 700, base: 1_000, tax: 70 },
         { rate: 1900, base: 824, tax: 156 },
       ]),
-    ).toEqual({ net: 1_824, tax: 226, gross: 2_050, taxes: [{ rate: 1900, base: 824, tax: 156 }, { rate: 700, base: 1_000, tax: 70 }] });
+    ).toEqual({
+      net: 1_824,
+      tax: 226,
+      gross: 2_050,
+      taxes: [
+        { rate: 1900, base: 824, tax: 156 },
+        { rate: 700, base: 1_000, tax: 70 },
+      ],
+    });
   });
 });
 

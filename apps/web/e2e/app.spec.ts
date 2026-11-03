@@ -33,7 +33,15 @@ const CUSTOMERS = [
 
 const INVOICES = [
   { customer: "Nordwerk Software GmbH · Hamburg", date: day(-40), lines: [["Softwareentwicklung", "96", "95,00"]], gross: "10.852,80" },
-  { customer: "Alpenblick Media AG · München", date: day(-30), lines: [["Beratung Architektur", "3", "960,00"], ["Workshop-Unterlagen", "1", "250,00"]], gross: "3.724,70" },
+  {
+    customer: "Alpenblick Media AG · München",
+    date: day(-30),
+    lines: [
+      ["Beratung Architektur", "3", "960,00"],
+      ["Workshop-Unterlagen", "1", "250,00"],
+    ],
+    gross: "3.724,70",
+  },
   { customer: "Rheinpixel GmbH · Köln", date: day(-12), lines: [["Wartung und Support", "1", "1.450,00"]], gross: "1.725,50" },
 ];
 
@@ -161,7 +169,10 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
   await go("/belege");
   await page.locator("input[type=file][multiple]").setInputFiles([{ name: "mobilfunk.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser) }]);
   await expect(page.getByText("mobilfunk.jpg: abgelegt.")).toBeVisible();
-  await page.getByRole("link", { name: /mobilfunk\.jpg/ }).first().click();
+  await page
+    .getByRole("link", { name: /mobilfunk\.jpg/ })
+    .first()
+    .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByLabel("Lieferant", { exact: true }).fill("Funknetz Mobil GmbH");
@@ -194,7 +205,11 @@ test("Kontoauszug importieren und zuordnen", async () => {
     "﻿" +
     `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom ${dkb(day(0))}:";"16.257,10 €"\n""\n` +
     `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
-    rows.map(([date, from, to, purpose, type, amount]) => [dkb(date!), dkb(date!), "Gebucht", from, to, purpose, type, "DE02100100100006820101", amount, "", "", ""].map((v) => `"${v}"`).join(";")).join("\n") +
+    rows
+      .map(([date, from, to, purpose, type, amount]) =>
+        [dkb(date!), dkb(date!), "Gebucht", from, to, purpose, type, "DE02100100100006820101", amount, "", "", ""].map((v) => `"${v}"`).join(";"),
+      )
+      .join("\n") +
     "\n";
   await go("/bank");
   await page.locator('input[type=file][aria-label="Kontoauszugsdateien"]').setInputFiles([{ name: "dkb.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
@@ -202,7 +217,10 @@ test("Kontoauszug importieren und zuordnen", async () => {
 
   for (const party of ["Nordwerk Software GmbH", "Alpenblick Media AG", "Funknetz Mobil GmbH"]) {
     await go("/bank");
-    await page.getByRole("link", { name: new RegExp(party) }).first().click();
+    await page
+      .getByRole("link", { name: new RegExp(party) })
+      .first()
+      .click();
     await page.waitForLoadState("networkidle");
     // Erst zuordnen, wenn rechts der angeklickte Umsatz steht
     await expect(page.getByRole("heading", { name: party })).toBeVisible();
@@ -263,7 +281,9 @@ test("Steuerdaten hinterlegen und Belege von ELSTER testweise abrufen", async ()
   await expect(taxpayer.getByRole("status")).toBeVisible();
   await go("/einstellungen?bereich=elster");
   const cert = page.getByRole("form", { name: "ELSTER-Zertifikat" });
-  await cert.getByLabel("Zertifikatsdatei").setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from("kein echtes Zertifikat") });
+  await cert
+    .getByLabel("Zertifikatsdatei")
+    .setInputFiles({ name: "test.pfx", mimeType: "application/x-pkcs12", buffer: Buffer.from("kein echtes Zertifikat") });
   await cert.getByRole("button", { name: "Hochladen" }).click();
   // Den Dateinamen zeigt schon die Dateiauswahl; „Entfernen“ gibt es erst, wenn das Zertifikat gespeichert ist
   await expect(cert.getByRole("button", { name: "Entfernen" })).toBeVisible();
@@ -472,7 +492,9 @@ test("Kontoabruf: Enable Banking in den Einstellungen, ein falscher Schlüssel w
   const card = page.getByRole("form", { name: "Automatischer Kontoabruf" });
   await expect(card.getByText("/api/bank/callback")).toBeVisible();
   // Die Application ID kommt aus dem Dateinamen der .pem
-  await card.getByLabel("Privater Schlüssel (.pem)").setInputFiles({ name: "0b7c3f1e-1234-4abc-9def-0123456789ab.pem", mimeType: "application/x-pem-file", buffer: Buffer.from("kein Schlüssel") });
+  await card
+    .getByLabel("Privater Schlüssel (.pem)")
+    .setInputFiles({ name: "0b7c3f1e-1234-4abc-9def-0123456789ab.pem", mimeType: "application/x-pem-file", buffer: Buffer.from("kein Schlüssel") });
   await expect(card.getByLabel("Application ID")).toHaveValue("0b7c3f1e-1234-4abc-9def-0123456789ab");
   await card.getByRole("button", { name: "Prüfen und speichern" }).click();
   await expect(card.getByRole("alert")).toContainText("keine gültige .pem-Datei");
@@ -663,9 +685,14 @@ test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async ()
 
 test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ browser }) => {
   await go("/belege");
-  await page.locator("input[type=file][multiple]").setInputFiles([{ name: "cloud.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Cloud EMEA Ltd") }]);
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "cloud.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Cloud EMEA Ltd") }]);
   await expect(page.getByText("cloud.jpg: abgelegt.")).toBeVisible();
-  await page.getByRole("link", { name: /cloud\.jpg/ }).first().click();
+  await page
+    .getByRole("link", { name: /cloud\.jpg/ })
+    .first()
+    .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("IE6388047V");
@@ -719,7 +746,10 @@ function webBackupZip(): Uint8Array {
   return zipSync({
     "manifest.json": json({ format: "haben-lexware-web", version: 1, part: 1, createdAt: new Date().toISOString(), failed: [] }),
     "kontakte.json": json(fixture("contacts.json")),
-    [`belege/${sales.list.entityId}.json`]: json({ ...sales, files: [{ path: pdfPath, role: "pdf", mimeType: "application/pdf", filename: "Rechnung_RE0042.pdf" }] }),
+    [`belege/${sales.list.entityId}.json`]: json({
+      ...sales,
+      files: [{ path: pdfPath, role: "pdf", mimeType: "application/pdf", filename: "Rechnung_RE0042.pdf" }],
+    }),
     [`belege/${purchase.list.entityId}.json`]: json({ ...purchase, files: [] }),
     [pdfPath]: new TextEncoder().encode("%PDF-1.4\n%%EOF\n"),
   });
@@ -733,7 +763,9 @@ test("Umzug ohne Public API: Skript abrufen, Sicherung hochladen und übernehmen
   expect(script.status()).toBe(200);
   expect(await script.text()).toContain('const FORMAT = "haben-lexware-web"');
 
-  await card.getByLabel("Teile der Sicherung").setInputFiles({ name: "lexware-sicherung-teil-01.zip", mimeType: "application/zip", buffer: Buffer.from(webBackupZip()) });
+  await card
+    .getByLabel("Teile der Sicherung")
+    .setInputFiles({ name: "lexware-sicherung-teil-01.zip", mimeType: "application/zip", buffer: Buffer.from(webBackupZip()) });
   await card.getByRole("button", { name: "Hochladen und übernehmen" }).click();
   await expect(card.getByRole("status")).toContainText("Der Teil ist übernommen", { timeout: 60_000 });
   const step2 = page.getByRole("region", { name: "Kontakte, Rechnungen und Belege abrufen" });
@@ -750,7 +782,9 @@ test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go(`/jahreserklaerung/${YEAR - 1}`);
   await expect(page.getByRole("heading", { name: /Steuerjahr/ })).toBeVisible();
   // Ohne eigene Hersteller-ID: Werte für die Erweiterung, die Mein ELSTER ausfüllt
-  await expect(page.getByRole("region", { name: /^Anlage EÜR \d{4} in Mein ELSTER$/ }).getByRole("button", { name: "Werte für Mein ELSTER kopieren" })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: /^Anlage EÜR \d{4} in Mein ELSTER$/ }).getByRole("button", { name: "Werte für Mein ELSTER kopieren" }),
+  ).toBeVisible();
   await go("/finanzamt");
   await expect(page.getByRole("heading", { name: "Finanzamt", level: 1 })).toBeVisible();
 });
@@ -771,7 +805,9 @@ test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async 
   expect(response.headers()["content-type"]).toBe("application/xml; charset=ISO-8859-15");
   expect(response.headers()["content-disposition"]).toMatch(/filename="UStVA_\d{4}-\d{2}\.xml"/);
   const xml = new TextDecoder("iso-8859-15").decode(await response.body());
-  expect(xml).toMatch(/^<\?xml version="1.0" encoding="ISO-8859-15" standalone="no"\?>\n<Anmeldungssteuern xmlns="http:\/\/finkonsens.de\/elster\/elsteranmeldung\/ustva\/v\d{4}"/);
+  expect(xml).toMatch(
+    /^<\?xml version="1.0" encoding="ISO-8859-15" standalone="no"\?>\n<Anmeldungssteuern xmlns="http:\/\/finkonsens.de\/elster\/elsteranmeldung\/ustva\/v\d{4}"/,
+  );
   expect(xml).not.toContain("<TransferHeader");
 });
 

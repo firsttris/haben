@@ -22,12 +22,26 @@ export const Route = createFileRoute("/_app/konten/$konto")({
   component: KontenblattPage,
 });
 
-
 function SourceLink({ type, id, reversal }: { type: string; id: string; reversal: boolean }) {
   const label = reversal ? "Gegenbuchung" : (JOURNAL_SOURCE[type as keyof typeof JOURNAL_SOURCE] ?? type);
-  if (type === "invoice") return <Link to="/rechnungen/$id" params={{ id }}>{label}</Link>;
-  if (type === "document") return <Link to="/belege/$id" params={{ id }}>{label}</Link>;
-  if (type === "asset") return <Link to="/anlagen/$id" params={{ id }}>{label}</Link>;
+  if (type === "invoice")
+    return (
+      <Link to="/rechnungen/$id" params={{ id }}>
+        {label}
+      </Link>
+    );
+  if (type === "document")
+    return (
+      <Link to="/belege/$id" params={{ id }}>
+        {label}
+      </Link>
+    );
+  if (type === "asset")
+    return (
+      <Link to="/anlagen/$id" params={{ id }}>
+        {label}
+      </Link>
+    );
   if (type === "allocation") return <Link to="/bank">{label}</Link>;
   if (type === "pauschale") return <Link to="/pauschalen">{label}</Link>;
   if (type === "kasse") return <Link to="/kasse">{label}</Link>;
@@ -67,10 +81,7 @@ function KontenblattPage() {
         <div className="actions" style={{ alignItems: "end" }}>
           <label className="field">
             Zeitraum
-            <select
-              value={zeitraum}
-              onChange={(e) => navigate({ to: "/konten/$konto", params: { konto }, search: { jahr: year, zeitraum: e.target.value } })}
-            >
+            <select value={zeitraum} onChange={(e) => navigate({ to: "/konten/$konto", params: { konto }, search: { jahr: year, zeitraum: e.target.value } })}>
               {ZEITRAEUME.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}

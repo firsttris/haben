@@ -241,7 +241,9 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     const full = await invoices.createDraft(actor, editorInvoice({ quoteId: quote.id }));
     const extra = await invoices.createDraft(actor, editorInvoice({ variant: "abschlag", quoteId: quote.id, lines: [line(100_000)] }));
     for (const id of [full.id, extra.id]) {
-      expect(await invoices.finalizeIssues(id)).toContain(`Angebot ${quote.number} ist schon mit Rechnung ${(await invoices.getInvoice(schluss.id))!.invoice.number} abgerechnet`);
+      expect(await invoices.finalizeIssues(id)).toContain(
+        `Angebot ${quote.number} ist schon mit Rechnung ${(await invoices.getInvoice(schluss.id))!.invoice.number} abgerechnet`,
+      );
     }
     // Der zusätzliche Entwurf über alles verdrängt die festgeschriebene Schlussrechnung nicht
     expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(schluss.id);

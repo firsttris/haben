@@ -4,8 +4,18 @@
   "files": {
     "includes": ["**", "!**/routeTree.gen.ts", "!**/test-fixtures"]
   },
-  // Formatierung folgt in einem eigenen Pull Request, sonst ändert dieser fast jede Datei
-  "formatter": { "enabled": false },
+  "formatter": {
+    "enabled": true,
+    // Breite wie bisher im Code; so ändert die Umstellung auf Biome möglichst wenige Zeilen
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 160,
+    // CSS und Markdown bleiben wie geschrieben (kompakte Regeln, Tabellen der Doku); drizzle/meta erzeugt drizzle-kit
+    "includes": ["**/*.{js,mjs,cjs,ts,tsx,json,jsonc}", "!apps/web/drizzle/meta/**"]
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all", "arrowParentheses": "always" }
+  },
   "assist": { "enabled": false },
   "linter": {
     "enabled": true,

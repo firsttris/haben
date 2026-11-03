@@ -141,7 +141,10 @@ export const uploadArchiveFiles = createServerFn({ method: "POST" })
       files,
       kind: kindSchema.parse(data.get("kind")),
       year: year ? yearSchema.parse(Number(year)) : null,
-      note: z.string().max(500).parse(data.get("note") ?? ""),
+      note: z
+        .string()
+        .max(500)
+        .parse(data.get("note") ?? ""),
     };
   })
   .handler(async ({ data, context }) => {

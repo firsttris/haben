@@ -53,17 +53,16 @@ export function EnableBankingCard({ data }: { data: Data }) {
         <a href="https://enablebanking.com" target="_blank" rel="noreferrer">
           Enable Banking
         </a>{" "}
-        holt Haben die Umsätze täglich selbst. Lege dort im Kontrollzentrum unter „API applications“ eine Anwendung an, trage als
-        Redirect URL <code>{data.callbackUrl}</code> ein und lass den Schlüssel im Browser erzeugen. Die heruntergeladene .pem-Datei lädst
-        du hier hoch; sie liegt verschlüsselt in der Datenbank.{" "}
+        holt Haben die Umsätze täglich selbst. Lege dort im Kontrollzentrum unter „API applications“ eine Anwendung an, trage als Redirect URL{" "}
+        <code>{data.callbackUrl}</code> ein und lass den Schlüssel im Browser erzeugen. Die heruntergeladene .pem-Datei lädst du hier hoch; sie liegt
+        verschlüsselt in der Datenbank.{" "}
         <a href="https://github.com/firsttris/haben/blob/main/docs/installation.md#kontoabruf-enable-banking" target="_blank" rel="noreferrer">
           Anleitung
         </a>
       </p>
       {data.source === "umgebung" && (
         <div className="banner banner-info" role="status">
-          Eingerichtet über die Umgebung (ENABLE_BANKING_APP_ID, Application ID {data.applicationId}). Was du hier speicherst, gilt
-          stattdessen.
+          Eingerichtet über die Umgebung (ENABLE_BANKING_APP_ID, Application ID {data.applicationId}). Was du hier speicherst, gilt stattdessen.
         </div>
       )}
       {stored && (

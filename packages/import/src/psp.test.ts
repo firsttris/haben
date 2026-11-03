@@ -65,7 +65,10 @@ describe("Stripe", () => {
   });
 
   it("neuer Export mit reporting_category", () => {
-    const csv = [`balance_transaction_id,created_utc,available_on_utc,currency,gross,fee,net,reporting_category,description`, `txn_9,2026-10-03 08:00:00,2026-10-10 00:00:00,eur,59.50,1.08,58.42,charge,Abo`].join("\n");
+    const csv = [
+      `balance_transaction_id,created_utc,available_on_utc,currency,gross,fee,net,reporting_category,description`,
+      `txn_9,2026-10-03 08:00:00,2026-10-10 00:00:00,eur,59.50,1.08,58.42,charge,Abo`,
+    ].join("\n");
     expect(brief(parseStatement(bytes(csv)))).toEqual([
       ["2026-10-03", 5_950, "Abo", "charge · Abo · txn_9"],
       ["2026-10-03", -108, "Stripe", "Gebühr · txn_9"],
@@ -99,14 +102,21 @@ describe("Shopify Payments", () => {
 
   it("dieselbe Zahlung vor und nach der Auszahlung exportiert: gleicher Hash, der Auszahlungsteil kommt dazu", () => {
     const early = hashes([header, `2026-10-01 12:00:00 +0200,charge,#1001,visa,online,pending,,,2026-10-04,49.90,1.27,48.63,c1,card,49.90,EUR,EUR`].join("\n"));
-    const late = hashes([header, `2026-10-01 12:00:00 +0200,charge,#1001,visa,online,paid,2026-10-04,98765,2026-10-04,49.90,1.27,48.63,c1,card,49.90,EUR,EUR`].join("\n"));
+    const late = hashes(
+      [header, `2026-10-01 12:00:00 +0200,charge,#1001,visa,online,paid,2026-10-04,98765,2026-10-04,49.90,1.27,48.63,c1,card,49.90,EUR,EUR`].join("\n"),
+    );
     expect(late.get("charge · Bestellung #1001")).toBe(early.get("charge · Bestellung #1001"));
     expect([...late.keys()].filter((p) => !early.has(p))).toEqual(["Auszahlung 98765 · charge · Bestellung #1001 · 2026-10-01"]);
   });
 
   it("Auszahlung über die Monatsgrenze: die Teile aus beiden Exporten ergeben zusammen den Eingang auf der Bank", () => {
-    const september = [header, `2026-09-30 12:00:00 +0200,charge,#1001,visa,online,paid,2026-10-02,98765,2026-10-02,49.90,1.27,48.63,c1,card,49.90,EUR,EUR`].join("\n");
-    const october = [header, `2026-10-01 09:00:00 +0200,charge,#1002,visa,online,paid,2026-10-02,98765,2026-10-02,29.90,0.82,29.08,c2,card,29.90,EUR,EUR`].join("\n");
+    const september = [
+      header,
+      `2026-09-30 12:00:00 +0200,charge,#1001,visa,online,paid,2026-10-02,98765,2026-10-02,49.90,1.27,48.63,c1,card,49.90,EUR,EUR`,
+    ].join("\n");
+    const october = [header, `2026-10-01 09:00:00 +0200,charge,#1002,visa,online,paid,2026-10-02,98765,2026-10-02,29.90,0.82,29.08,c2,card,29.90,EUR,EUR`].join(
+      "\n",
+    );
     const both = [header, september.split("\n")[1], october.split("\n")[1]].join("\n");
     const parts = (text: string) => parseStatement(bytes(text)).transactions.filter((t) => t.type === "Auszahlung");
     expect([...parts(september), ...parts(october)].reduce((s, t) => s + t.amount, 0)).toBe(-7_771);

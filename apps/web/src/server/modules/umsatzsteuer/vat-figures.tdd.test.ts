@@ -7,8 +7,20 @@ function dkbCsv(rows: string[][]) {
   const columns = `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n`;
   return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
 }
-const incoming = (date: string, purpose: string, amount: string) =>
-  [date, date, "Gebucht", "Nordwerk", "Testfirma", purpose, "Eingang", "DE02100100100006820101", amount, "", "", ""];
+const incoming = (date: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  "Nordwerk",
+  "Testfirma",
+  purpose,
+  "Eingang",
+  "DE02100100100006820101",
+  amount,
+  "",
+  "",
+  "",
+];
 
 describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Voranmeldung (Postgres)", () => {
   let figures: typeof import("./vat-figures.ts");
@@ -27,7 +39,9 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
     contacts = await import("../stammdaten/contacts.ts");
     abgleich = await import("../auswertungen/abgleich.ts");
   }, 30_000);
-  afterAll(async () => { await sql?.end(); });
+  afterAll(async () => {
+    await sql?.end();
+  });
 
   beforeEach(async () => {
     await sql`truncate vat_return_submissions, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts,
@@ -39,11 +53,26 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
 
   async function invoice(lines: { unitPrice: number; taxRate: 1900 | 700 | 0 }[]) {
     const contact = await contacts.createContact(actor, {
-      kundennummer: "", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-      email: "a@b.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "",
+      name: "Nordwerk Software GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "a@b.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     const draft = await invoices.createDraft(actor, {
-      contactId: contact.id, issueDate: "2026-09-20", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
+      contactId: contact.id,
+      issueDate: "2026-09-20",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
       lines: lines.map((l, i) => ({ description: `Leistung ${i}`, quantity: 1000, unit: "Psch." as const, unitPrice: l.unitPrice, taxRate: l.taxRate })),
     });
     return invoices.finalizeInvoice(actor, draft.id);
@@ -64,8 +93,16 @@ describe.skipIf(!testDatabaseUrl)("TDD: gespeicherte Steueranteile, Journal = Vo
 
   it("gemischte Sätze 19/7/0 %, drei gleiche Raten: Kz 86 der Voranmeldung = Journal (SKR03 1771)", async () => {
     // 150 € zu 19 %, 40 € zu 7 %, 130 € zu 0 % = 351,30 €; drei Raten zu 117,10 €
-    const inv = await invoice([{ unitPrice: 15_000, taxRate: 1900 }, { unitPrice: 4_000, taxRate: 700 }, { unitPrice: 13_000, taxRate: 0 }]);
-    await pay(inv.id, [["01.10.26", "Rate 1", "117,10"], ["02.10.26", "Rate 2", "117,10"], ["03.10.26", "Rate 3", "117,10"]]);
+    const inv = await invoice([
+      { unitPrice: 15_000, taxRate: 1900 },
+      { unitPrice: 4_000, taxRate: 700 },
+      { unitPrice: 13_000, taxRate: 0 },
+    ]);
+    await pay(inv.id, [
+      ["01.10.26", "Rate 1", "117,10"],
+      ["02.10.26", "Rate 2", "117,10"],
+      ["03.10.26", "Rate 3", "117,10"],
+    ]);
     const oct = await figures.computeVatFigures({ year: 2026, month: 10 });
     expect({ journal86: await journalTax("1771"), journal81: await journalTax("1776") }).toEqual({ journal86: 280, journal81: 2_850 });
     expect({ tax81: oct.tax81, tax86: oct.tax86 }).toEqual({ tax81: 2_850, tax86: 280 });

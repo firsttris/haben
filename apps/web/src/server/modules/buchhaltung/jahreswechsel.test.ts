@@ -15,7 +15,18 @@ function dkbCsv(rows: string[][]) {
 }
 
 const row = (date: string, purpose: string, amount: string) => [
-  date, date, "Gebucht", "Nordwerk", "Tristan Teufel", purpose, "Eingang", "DE02100100100006820101", amount, "", "", "",
+  date,
+  date,
+  "Gebucht",
+  "Nordwerk",
+  "Tristan Teufel",
+  purpose,
+  "Eingang",
+  "DE02100100100006820101",
+  amount,
+  "",
+  "",
+  "",
 ];
 
 /** Fehlermeldung samt Ursache: Drizzle verpackt den Fehler der Datenbank in „Failed query“ */
@@ -59,11 +70,26 @@ describe.skipIf(!testDatabaseUrl)("Buchen ins Vorjahr nach einem Wechsel zum Jah
 
   async function draft(issueDate: string) {
     const contact = await contacts.createContact(actor, {
-      kundennummer: "", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-      email: "a@b.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "",
+      name: "Nordwerk Software GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "a@b.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     return invoices.createDraft(actor, {
-      contactId: contact.id, issueDate, serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
+      contactId: contact.id,
+      issueDate,
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: 100_000, taxRate: 1900 }],
     });
   }

@@ -3,9 +3,9 @@ import { girocodePayload } from "./girocode.ts";
 
 describe("girocodePayload", () => {
   it("baut den EPC-QR-Text nach Version 002", () => {
-    expect(girocodePayload({ name: "Max  Mustermann", iban: "DE89 3704 0044 0532 0130 00", bic: "cobadeffxxx", amount: 123_456, text: "Rechnung 2026-001" })).toBe(
-      "BCD\n002\n1\nSCT\nCOBADEFFXXX\nMax Mustermann\nDE89370400440532013000\nEUR1234.56\n\n\nRechnung 2026-001",
-    );
+    expect(
+      girocodePayload({ name: "Max  Mustermann", iban: "DE89 3704 0044 0532 0130 00", bic: "cobadeffxxx", amount: 123_456, text: "Rechnung 2026-001" }),
+    ).toBe("BCD\n002\n1\nSCT\nCOBADEFFXXX\nMax Mustermann\nDE89370400440532013000\nEUR1234.56\n\n\nRechnung 2026-001");
     expect(girocodePayload({ name: "Max", iban: "DE89370400440532013000", amount: 5, text: "" })).toContain("\n\nMax\nDE89370400440532013000\nEUR0.05\n");
   });
 

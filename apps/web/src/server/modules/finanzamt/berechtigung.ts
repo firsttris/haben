@@ -74,7 +74,9 @@ function sendBrm(
   idnr: string | null,
   datenlieferant: string,
 ) {
-  return underSendLock(`haben.berechtigung.${art}.${idnr ?? ""}`, options.kind, () => sendBrmLocked(actor, client, options, art, build, extract, idnr, datenlieferant));
+  return underSendLock(`haben.berechtigung.${art}.${idnr ?? ""}`, options.kind, () =>
+    sendBrmLocked(actor, client, options, art, build, extract, idnr, datenlieferant),
+  );
 }
 
 async function sendBrmLocked(
@@ -127,11 +129,15 @@ export async function requestBerechtigung(actor: string, client: ElsterClient, o
     client,
     options,
     "antrag",
-    (input) =>
-      buildSpezRechtAntragXml({ ...input, dateninhaberIdnr: b.idnr, dateninhaberGeburtsdatum: b.geburtsdatum, gueltigBis: options.gueltigBis, mail }),
+    (input) => buildSpezRechtAntragXml({ ...input, dateninhaberIdnr: b.idnr, dateninhaberGeburtsdatum: b.geburtsdatum, gueltigBis: options.gueltigBis, mail }),
     (result) => {
       const antwort = parseSpezRechtAntragAntwort(result.serverResponseXml);
-      return { antragsId: antwort?.antragsId, status: antwort?.status, genehmigenBis: antwort?.genehmigenBis.slice(0, 10) || null, gueltigBis: options.gueltigBis };
+      return {
+        antragsId: antwort?.antragsId,
+        status: antwort?.status,
+        genehmigenBis: antwort?.genehmigenBis.slice(0, 10) || null,
+        gueltigBis: options.gueltigBis,
+      };
     },
     b.idnr,
     datenlieferant,
@@ -160,7 +166,11 @@ export async function activateBerechtigung(actor: string, client: ElsterClient, 
     b.idnr,
     datenlieferant,
   );
-  return { ok, message: ok ? `Freigeschaltet. Haben kann jetzt die Belege von ${b.vorname} abrufen.` : message, berechtigung: await berechtigungEhegatte(test) };
+  return {
+    ok,
+    message: ok ? `Freigeschaltet. Haben kann jetzt die Belege von ${b.vorname} abrufen.` : message,
+    berechtigung: await berechtigungEhegatte(test),
+  };
 }
 
 /** Widerruft Antrag oder Berechtigung */
@@ -204,7 +214,11 @@ export async function refreshBerechtigungen(actor: string, client: ElsterClient,
     datenlieferant,
   );
   const berechtigung = await berechtigungEhegatte(test);
-  return { ok, message: ok ? (berechtigung ? `Stand bei ELSTER: ${berechtigung.status}.` : `Bei ELSTER liegt kein Antrag für ${b.vorname} vor.`) : message, berechtigung };
+  return {
+    ok,
+    message: ok ? (berechtigung ? `Stand bei ELSTER: ${berechtigung.status}.` : `Bei ELSTER liegt kein Antrag für ${b.vorname} vor.`) : message,
+    berechtigung,
+  };
 }
 
 /**

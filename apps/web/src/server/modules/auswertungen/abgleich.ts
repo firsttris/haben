@@ -95,8 +95,16 @@ function vatRows(period: VatPeriod, sums: Summe[], figures: Awaited<ReturnType<t
     row("Umsatzsteuer 19 % (Kz 81)", -saldo(monat, ust(1900), keinAnlagenbuch), figures.tax81 - entnahme),
     row("Umsatzsteuer 7 % (Kz 86)", -saldo(monat, ust(700), keinAnlagenbuch), figures.tax86),
     row("Umsatzsteuer § 13b (Kz 47, 85)", -saldo(monat, (kr) => [ACCOUNTS[kr].ustRc]), figures.kz47 + figures.kz85),
-    row("Vorsteuer (Kz 66)", saldo(monat, (kr) => Object.values(ACCOUNTS[kr].vorsteuer)), figures.kz66),
-    row("Vorsteuer § 13b (Kz 67)", saldo(monat, (kr) => [ACCOUNTS[kr].vorsteuerRc]), figures.kz67),
+    row(
+      "Vorsteuer (Kz 66)",
+      saldo(monat, (kr) => Object.values(ACCOUNTS[kr].vorsteuer)),
+      figures.kz66,
+    ),
+    row(
+      "Vorsteuer § 13b (Kz 67)",
+      saldo(monat, (kr) => [ACCOUNTS[kr].vorsteuerRc]),
+      figures.kz67,
+    ),
   ];
 }
 
@@ -122,7 +130,11 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
 
   // Pauschalen je Art, jede hat ihr eigenes Aufwandskonto
   for (const art of Object.keys(PAUSCHALE_KONTEN) as PauschaleArt[]) {
-    const journal = saldo(sums, (kr) => [PAUSCHALE_KONTEN[art][kr].konto], (s) => s.sourceType === "pauschale");
+    const journal = saldo(
+      sums,
+      (kr) => [PAUSCHALE_KONTEN[art][kr].konto],
+      (s) => s.sourceType === "pauschale",
+    );
     const quelle = line(`pauschale:${art}`);
     if (journal !== 0 || quelle !== 0) zeilen.push(row(`Pauschale: ${PAUSCHALE_LABEL[art]}`, journal, quelle));
   }
@@ -130,7 +142,11 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   zeilen.push(
     row(
       "Umsatzsteuer an das Finanzamt, abzüglich Erstattungen",
-      saldo(sums, (kr) => [ACCOUNTS[kr].ustVorauszahlung], (s) => s.sourceType === "allocation"),
+      saldo(
+        sums,
+        (kr) => [ACCOUNTS[kr].ustVorauszahlung],
+        (s) => s.sourceType === "allocation",
+      ),
       line("gezahlteUst") - line("erstatteteUst"),
     ),
   );
@@ -143,16 +159,34 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   // AfA und Privatnutzung stehen erst im Journal, wenn das Jahr gebucht ist
   const pending = (await listAssets(year, q)).filter((a) => a.pending).length;
   if (pending > 0) {
-    hinweise.push(`AfA ${year} ist für ${pending === 1 ? "eine Anlage" : `${pending} Anlagen`} noch nicht gebucht; AfA und Privatnutzung werden danach abgeglichen.`);
+    hinweise.push(
+      `AfA ${year} ist für ${pending === 1 ? "eine Anlage" : `${pending} Anlagen`} noch nicht gebucht; AfA und Privatnutzung werden danach abgeglichen.`,
+    );
   } else {
     const afa = await depreciationForEuer(year, q);
     const privat = await withdrawalsForEuer(year, q);
     const anlage = (s: Summe) => s.sourceType === "asset";
     zeilen.push(
-      row("AfA", saldo(sums, (kr) => [ASSET_ACCOUNTS[kr].afa, ASSET_ACCOUNTS[kr].afaKfz], anlage), afa.afa),
-      row("Sofortabschreibung GWG", saldo(sums, (kr) => [ASSET_ACCOUNTS[kr].afaGwg], anlage), afa.gwg),
-      row("Auflösung Sammelposten", saldo(sums, (kr) => [ASSET_ACCOUNTS[kr].afaSammelposten], anlage), afa.sammelposten),
-      row("Restbuchwert ausgeschiedener Anlagen", saldo(sums, (kr) => [ASSET_ACCOUNTS[kr].restbuchwert], anlage), afa.restbuchwert),
+      row(
+        "AfA",
+        saldo(sums, (kr) => [ASSET_ACCOUNTS[kr].afa, ASSET_ACCOUNTS[kr].afaKfz], anlage),
+        afa.afa,
+      ),
+      row(
+        "Sofortabschreibung GWG",
+        saldo(sums, (kr) => [ASSET_ACCOUNTS[kr].afaGwg], anlage),
+        afa.gwg,
+      ),
+      row(
+        "Auflösung Sammelposten",
+        saldo(sums, (kr) => [ASSET_ACCOUNTS[kr].afaSammelposten], anlage),
+        afa.sammelposten,
+      ),
+      row(
+        "Restbuchwert ausgeschiedener Anlagen",
+        saldo(sums, (kr) => [ASSET_ACCOUNTS[kr].restbuchwert], anlage),
+        afa.restbuchwert,
+      ),
       row("Private Kfz-Nutzung", -saldo(sums, (kr) => Object.values(PRIVATE_USE_ACCOUNTS[kr]), anlage), privat.privateKfz),
       row("Umsatzsteuer auf die private Kfz-Nutzung", -saldo(sums, ust(1900), anlage), privat.ustEntnahmen),
     );
@@ -196,11 +230,13 @@ export async function abgleichAll(today: string, q: Db | Tx = db): Promise<Abgle
 /** Abweichungen und Hinweise des Abgleichs als Meldungen für die Vorprüfung der Voranmeldung */
 export function abgleichIssues({ zeilen, hinweise }: Abgleich): PreflightIssue[] {
   return [
-    ...abweichungen(zeilen).map((z): PreflightIssue => ({
-      tone: "warn",
-      text: `Buchungen und Voranmeldung weichen ab: ${z.posten} laut Journal ${formatEuro(z.journal)}, laut Rechnungen, Belegen und Zahlungen ${formatEuro(z.quelle)}. Bitte vor dem Senden klären.`,
-      link: "/konten",
-    })),
+    ...abweichungen(zeilen).map(
+      (z): PreflightIssue => ({
+        tone: "warn",
+        text: `Buchungen und Voranmeldung weichen ab: ${z.posten} laut Journal ${formatEuro(z.journal)}, laut Rechnungen, Belegen und Zahlungen ${formatEuro(z.quelle)}. Bitte vor dem Senden klären.`,
+        link: "/konten",
+      }),
+    ),
     ...hinweise.map((text): PreflightIssue => ({ tone: "info", text, link: "/konten" })),
   ];
 }

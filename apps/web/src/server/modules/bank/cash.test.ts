@@ -29,8 +29,15 @@ describe.skipIf(!testDatabaseUrl)("Kassenbuch (Postgres)", () => {
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, net % 256, tax % 256, 7]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: "kassenbon.jpg" });
     await documents.updateDocument(actor, id, {
-      supplierName: "Schreibwaren Huber", supplierUstId: "", invoiceNumber: "B-17", documentDate: date, dueDate: null,
-      category: "buero", payment: "kasse", note: "", amounts: [{ taxRate: 1900, net, tax }],
+      supplierName: "Schreibwaren Huber",
+      supplierUstId: "",
+      invoiceNumber: "B-17",
+      documentDate: date,
+      dueDate: null,
+      category: "buero",
+      payment: "kasse",
+      note: "",
+      amounts: [{ taxRate: 1900, net, tax }],
     });
     return id;
   }
@@ -58,7 +65,9 @@ describe.skipIf(!testDatabaseUrl)("Kassenbuch (Postgres)", () => {
     expect(book).toMatchObject({ opening: 0, closing: 620, current: 620 });
 
     const accounts = async (sourceId: string) =>
-      (await sql`select l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${sourceId} order by l.debit desc`).map((l) => ({ ...l }));
+      (
+        await sql`select l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${sourceId} order by l.debit desc`
+      ).map((l) => ({ ...l }));
     expect((await accounts(bon)).at(-1)).toEqual({ account: "1000", debit: 0, credit: 2_380 });
     const transit = book.entries[2]!;
     expect(await accounts(transit.id)).toEqual([

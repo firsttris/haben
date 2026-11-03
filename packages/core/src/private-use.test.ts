@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { splitPrivateShare } from "./money.ts";
 import { privateUseMonth, privateUseMonths, privateUsePosting, suggestedPrivateUseRate } from "./private-use.ts";
 
-const balanced = (lines: { debit: number; credit: number }[]) =>
-  lines.reduce((s, l) => s + l.debit, 0) === lines.reduce((s, l) => s + l.credit, 0);
+const balanced = (lines: { debit: number; credit: number }[]) => lines.reduce((s, l) => s + l.debit, 0) === lines.reduce((s, l) => s + l.credit, 0);
 
 describe("Kfz-Privatnutzung", () => {
   it("Verbrenner: 1 % vom abgerundeten Listenpreis, USt auf 80 %", () => {
@@ -23,7 +22,11 @@ describe("Kfz-Privatnutzung", () => {
     const month = privateUseMonth({ listPrice: 5_890_000, drive: "elektro", rate: 25, vat: true });
     expect(month).toEqual({ withdrawal: 14_725, vatBase: 47_120, vat: 8_953 });
     const lines = privateUsePosting(month, "SKR04");
-    expect(lines.map((l) => [l.account, l.taxCode])).toEqual([["2100", null], ["4645", null], ["3806", "USt19"]]);
+    expect(lines.map((l) => [l.account, l.taxCode])).toEqual([
+      ["2100", null],
+      ["4645", null],
+      ["3806", "USt19"],
+    ]);
     expect(balanced(lines)).toBe(true);
   });
 

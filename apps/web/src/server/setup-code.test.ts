@@ -7,8 +7,7 @@ describe.skipIf(!testDatabaseUrl)("Einrichtungscode (Postgres)", () => {
   let auth: typeof import("./auth.ts").auth;
   let setupCode: typeof import("./setup-code.ts").setupCode;
   const body = { name: "Max Mustermann", email: "max@example.com", password: "ein-sehr-langes-passwort" };
-  const signUp = (code?: string) =>
-    auth().api.signUpEmail({ body, headers: new Headers(code === undefined ? {} : { "x-haben-setup-code": code }) });
+  const signUp = (code?: string) => auth().api.signUpEmail({ body, headers: new Headers(code === undefined ? {} : { "x-haben-setup-code": code }) });
 
   beforeAll(async () => {
     sql = await setupTestDb();

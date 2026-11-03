@@ -27,9 +27,7 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
   const { busy, notice, setNotice, run } = useAction();
-  const initial: ContactInput = contact
-    ? { ...EMPTY, ...contact, kundennummer: contact.kundennummer ?? "", defaultFormat: contact.defaultFormat }
-    : EMPTY;
+  const initial: ContactInput = contact ? { ...EMPTY, ...contact, kundennummer: contact.kundennummer ?? "", defaultFormat: contact.defaultFormat } : EMPTY;
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

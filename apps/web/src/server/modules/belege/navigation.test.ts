@@ -24,7 +24,15 @@ describe("documentNavigation", () => {
   });
 
   it("schlägt den Beleg selbst nie als nächsten offenen vor", () => {
-    expect(documentNavigation([{ id: "a", status: "neu" }, { id: "d", status: "gebucht" }], "a").nextOpenId).toBeNull();
+    expect(
+      documentNavigation(
+        [
+          { id: "a", status: "neu" },
+          { id: "d", status: "gebucht" },
+        ],
+        "a",
+      ).nextOpenId,
+    ).toBeNull();
   });
 
   it("kommt mit einem Beleg zurecht, der nicht in der Liste steht", () => {

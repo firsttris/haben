@@ -74,7 +74,12 @@ describe("steuerPrognose", () => {
     zusammen: true,
     kirche: { a: false, b: false },
     bundesland: "BW",
-    angaben: { vorsorge: { a: { pkv: 6_000_00, ppv: 400_00 }, b: { gkv: 3_000_00, gpv: 600_00 }, sonstige: 500_00 }, sonderausgaben: {}, haushaltsnah: {}, kinder: [] },
+    angaben: {
+      vorsorge: { a: { pkv: 6_000_00, ppv: 400_00 }, b: { gkv: 3_000_00, gpv: 600_00 }, sonstige: 500_00 },
+      sonderausgaben: {},
+      haushaltsnah: {},
+      kinder: [],
+    },
   };
 
   it("zieht Vorsorge und Sonderausgaben-Pauschbetrag ab und rechnet mit Splitting", () => {
@@ -94,7 +99,9 @@ describe("steuerPrognose", () => {
     expect(steuerPrognose(einzeln).vorsorge).toBe(29_344_00);
     // Zusammenveranlagung: doppelter Höchstbetrag, auch wenn nur einer einzahlt
     expect(steuerPrognose({ ...einzeln, zusammen: true }).vorsorge).toBe(35_000_00);
-    expect(steuerPrognose({ ...einzeln, zusammen: true, angaben: { ...einzeln.angaben, vorsorge: { a: { rentenversicherung: 70_000_00 } } } }).vorsorge).toBe(58_688_00);
+    expect(steuerPrognose({ ...einzeln, zusammen: true, angaben: { ...einzeln.angaben, vorsorge: { a: { rentenversicherung: 70_000_00 } } } }).vorsorge).toBe(
+      58_688_00,
+    );
   });
 
   it("rechnet Arbeitslohn des Ehegatten ein und die Lohnsteuer an", () => {
@@ -130,7 +137,13 @@ describe("steuerPrognose", () => {
     expect(p.verbleibend).toBe(p.gesamt - 6_123_40);
     expect(p.jeQuartal).toBe(Math.round(p.verbleibend / 4 / 100) * 100);
     // Ohne Zusammenveranlagung zählt der Arbeitslohn des Ehegatten nicht
-    expect(steuerPrognose({ ...base, zusammen: false, angaben: { ...base.angaben, arbeitnehmer: { b: { bescheinigungen: [{ brutto: 1_00 }], werbungskosten: {} } } } }).einkuenfteArbeit).toBe(0);
+    expect(
+      steuerPrognose({
+        ...base,
+        zusammen: false,
+        angaben: { ...base.angaben, arbeitnehmer: { b: { bescheinigungen: [{ brutto: 1_00 }], werbungskosten: {} } } },
+      }).einkuenfteArbeit,
+    ).toBe(0);
   });
 
   it("rechnet Kirchensteuer mit 8 % in BW, bei einem Ehegatten zur Hälfte", () => {
@@ -153,7 +166,12 @@ describe("steuerPrognose", () => {
   it("berücksichtigt Kinderbetreuung, § 35a und Krankheitskosten über der zumutbaren Belastung", () => {
     const p = steuerPrognose({
       ...base,
-      angaben: { ...base.angaben, kinder: [{ kinderbetreuung: 3_000_00 }], krankheitskosten: 5_000_00, haushaltsnah: { handwerker: 10_000_00, dienstleistungen: 1_000_00 } },
+      angaben: {
+        ...base.angaben,
+        kinder: [{ kinderbetreuung: 3_000_00 }],
+        krankheitskosten: 5_000_00,
+        haushaltsnah: { handwerker: 10_000_00, dienstleistungen: 1_000_00 },
+      },
     });
     expect(p.kinderbetreuung).toBe(2_400_00);
     // zumutbar mit einem Kind bei 85.000 €: 2 % von 15.340 + 3 % von 35.790 + 4 % von 33.870
@@ -163,7 +181,12 @@ describe("steuerPrognose", () => {
   });
 
   it("bis 2024 zwei Drittel der Kinderbetreuung, Spenden höchstens 20 %", () => {
-    const p = steuerPrognose({ ...base, year: 2024, gewinn: 10_000_00, angaben: { ...base.angaben, kinder: [{ kinderbetreuung: 9_000_00 }], sonderausgaben: { spenden: 5_000_00 } } });
+    const p = steuerPrognose({
+      ...base,
+      year: 2024,
+      gewinn: 10_000_00,
+      angaben: { ...base.angaben, kinder: [{ kinderbetreuung: 9_000_00 }], sonderausgaben: { spenden: 5_000_00 } },
+    });
     expect(p.kinderbetreuung).toBe(4_000_00);
     expect(p.sonderausgaben).toBe(2_000_00);
     expect(p.einkommensteuer).toBe(0);

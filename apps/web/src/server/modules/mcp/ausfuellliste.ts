@@ -9,17 +9,57 @@ import { csvDecimal, type UstvaFigures } from "@haben/core";
 type Feld = keyof Omit<UstvaFigures, "tax81" | "tax86" | "kz83">;
 
 const FELDER: { kz: Feld; abschnitt: string; bezeichnung: string; volleEuro: boolean }[] = [
-  { kz: "kz81", abschnitt: "Lieferungen und sonstige Leistungen", bezeichnung: "Steuerpflichtige Umsätze zum Steuersatz von 19 Prozent, Bemessungsgrundlage", volleEuro: true },
-  { kz: "kz86", abschnitt: "Lieferungen und sonstige Leistungen", bezeichnung: "Steuerpflichtige Umsätze zum Steuersatz von 7 Prozent, Bemessungsgrundlage", volleEuro: true },
-  { kz: "kz48", abschnitt: "Steuerfreie Lieferungen und sonstige Leistungen", bezeichnung: "Steuerfreie Umsätze ohne Vorsteuerabzug (§ 4 UStG)", volleEuro: true },
-  { kz: "kz46", abschnitt: "Leistungsempfänger als Steuerschuldner (§ 13b UStG)", bezeichnung: "Sonstige Leistungen eines im übrigen Gemeinschaftsgebiet ansässigen Unternehmers (§ 13b Abs. 1 UStG), Bemessungsgrundlage", volleEuro: true },
+  {
+    kz: "kz81",
+    abschnitt: "Lieferungen und sonstige Leistungen",
+    bezeichnung: "Steuerpflichtige Umsätze zum Steuersatz von 19 Prozent, Bemessungsgrundlage",
+    volleEuro: true,
+  },
+  {
+    kz: "kz86",
+    abschnitt: "Lieferungen und sonstige Leistungen",
+    bezeichnung: "Steuerpflichtige Umsätze zum Steuersatz von 7 Prozent, Bemessungsgrundlage",
+    volleEuro: true,
+  },
+  {
+    kz: "kz48",
+    abschnitt: "Steuerfreie Lieferungen und sonstige Leistungen",
+    bezeichnung: "Steuerfreie Umsätze ohne Vorsteuerabzug (§ 4 UStG)",
+    volleEuro: true,
+  },
+  {
+    kz: "kz46",
+    abschnitt: "Leistungsempfänger als Steuerschuldner (§ 13b UStG)",
+    bezeichnung: "Sonstige Leistungen eines im übrigen Gemeinschaftsgebiet ansässigen Unternehmers (§ 13b Abs. 1 UStG), Bemessungsgrundlage",
+    volleEuro: true,
+  },
   { kz: "kz47", abschnitt: "Leistungsempfänger als Steuerschuldner (§ 13b UStG)", bezeichnung: "Steuer zu Kz 46", volleEuro: false },
-  { kz: "kz84", abschnitt: "Leistungsempfänger als Steuerschuldner (§ 13b UStG)", bezeichnung: "Andere Leistungen (§ 13b Abs. 2 UStG), Bemessungsgrundlage", volleEuro: true },
+  {
+    kz: "kz84",
+    abschnitt: "Leistungsempfänger als Steuerschuldner (§ 13b UStG)",
+    bezeichnung: "Andere Leistungen (§ 13b Abs. 2 UStG), Bemessungsgrundlage",
+    volleEuro: true,
+  },
   { kz: "kz85", abschnitt: "Leistungsempfänger als Steuerschuldner (§ 13b UStG)", bezeichnung: "Steuer zu Kz 84", volleEuro: false },
-  { kz: "kz21", abschnitt: "Ergänzende Angaben zu Umsätzen", bezeichnung: "Nicht steuerbare sonstige Leistungen an Unternehmer im übrigen Gemeinschaftsgebiet (§ 18b Satz 1 Nr. 2 UStG)", volleEuro: true },
+  {
+    kz: "kz21",
+    abschnitt: "Ergänzende Angaben zu Umsätzen",
+    bezeichnung: "Nicht steuerbare sonstige Leistungen an Unternehmer im übrigen Gemeinschaftsgebiet (§ 18b Satz 1 Nr. 2 UStG)",
+    volleEuro: true,
+  },
   { kz: "kz45", abschnitt: "Ergänzende Angaben zu Umsätzen", bezeichnung: "Übrige nicht steuerbare Umsätze (Leistungsort nicht im Inland)", volleEuro: true },
-  { kz: "kz66", abschnitt: "Abziehbare Vorsteuerbeträge", bezeichnung: "Vorsteuerbeträge aus Rechnungen von anderen Unternehmern (§ 15 Abs. 1 Satz 1 Nr. 1 UStG)", volleEuro: false },
-  { kz: "kz67", abschnitt: "Abziehbare Vorsteuerbeträge", bezeichnung: "Vorsteuerbeträge aus Leistungen im Sinne des § 13b UStG (§ 15 Abs. 1 Satz 1 Nr. 4 UStG)", volleEuro: false },
+  {
+    kz: "kz66",
+    abschnitt: "Abziehbare Vorsteuerbeträge",
+    bezeichnung: "Vorsteuerbeträge aus Rechnungen von anderen Unternehmern (§ 15 Abs. 1 Satz 1 Nr. 1 UStG)",
+    volleEuro: false,
+  },
+  {
+    kz: "kz67",
+    abschnitt: "Abziehbare Vorsteuerbeträge",
+    bezeichnung: "Vorsteuerbeträge aus Leistungen im Sinne des § 13b UStG (§ 15 Abs. 1 Satz 1 Nr. 4 UStG)",
+    volleEuro: false,
+  },
 ];
 
 /** Eingabe wie in Mein ELSTER: Dezimalkomma, ohne Tausenderpunkt; Bemessungsgrundlagen in vollen Euro */

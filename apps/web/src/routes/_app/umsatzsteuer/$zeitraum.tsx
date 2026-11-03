@@ -1,14 +1,4 @@
-import {
-  computeUstva,
-  formatDecimal,
-  formatEuro,
-  parseEuro,
-  parsePeriodKey,
-  periodKey,
-  periodLabel,
-  previousPeriod,
-  type VatPeriod,
-} from "@haben/core";
+import { computeUstva, formatDecimal, formatEuro, parseEuro, parsePeriodKey, periodKey, periodLabel, previousPeriod, type VatPeriod } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
@@ -18,13 +8,7 @@ import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
-import {
-  createVatCorrection,
-  getMeinElsterUstvaWerte,
-  getVatPeriod,
-  saveVatDraft,
-  submitVatReturn,
-} from "../../../server/functions/vat.ts";
+import { createVatCorrection, getMeinElsterUstvaWerte, getVatPeriod, saveVatDraft, submitVatReturn } from "../../../server/functions/vat.ts";
 import type { Notice } from "../../../lib/use-action.ts";
 
 export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
@@ -65,9 +49,7 @@ function periodOptions(today = new Date()): VatPeriod[] {
 
 /** „Kz 81 1.000,00 €, Kz 86 0,00 € und Kz 66 12,00 €“; Kz 21/45/48 nur, wenn belegt */
 function describe(figures: Record<FieldKey, number>): string {
-  const parts = FIELDS.filter((f) => ["kz81", "kz86", "kz66"].includes(f) || figures[f] !== 0).map(
-    (f) => `Kz ${f.slice(2)} ${formatEuro(figures[f])}`,
-  );
+  const parts = FIELDS.filter((f) => ["kz81", "kz86", "kz66"].includes(f) || figures[f] !== 0).map((f) => `Kz ${f.slice(2)} ${formatEuro(figures[f])}`);
   return `${parts.slice(0, -1).join(", ")} und ${parts.at(-1)}`;
 }
 
@@ -93,11 +75,7 @@ function VatPeriodPage() {
         </div>
         <label className="field" htmlFor={selectId}>
           Zeitraum
-          <select
-            id={selectId}
-            value={key}
-            onChange={(event) => navigate({ to: "/umsatzsteuer/$zeitraum", params: { zeitraum: event.target.value } })}
-          >
+          <select id={selectId} value={key} onChange={(event) => navigate({ to: "/umsatzsteuer/$zeitraum", params: { zeitraum: event.target.value } })}>
             {options.map((option) => (
               <option key={periodKey(option)} value={periodKey(option)}>
                 {periodLabel(option)}
@@ -117,9 +95,8 @@ function VatPeriodPage() {
         <div className="banner banner-info" role="status">
           <Icon name="info" />
           <span>
-            Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab: Entwurf speichern, „XML für Mein ELSTER“ herunterladen und dort im
-            Formular Umsatzsteuer-Voranmeldung unter Datenübernahme › XML-Import hochladen. Prüfen und absenden machst du in Mein
-            ELSTER.{" "}
+            Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab: Entwurf speichern, „XML für Mein ELSTER“ herunterladen und dort im Formular
+            Umsatzsteuer-Voranmeldung unter Datenübernahme › XML-Import hochladen. Prüfen und absenden machst du in Mein ELSTER.{" "}
             <a href={ELSTER_ASSISTENT_DOCS} target="_blank" rel="noreferrer">
               Abgabe in Mein ELSTER
             </a>
@@ -130,8 +107,7 @@ function VatPeriodPage() {
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Firmendaten unvollständig: {data.companyIssues.join(", ")}.{" "}
-            <Link to="/einstellungen">In den Einstellungen ergänzen</Link>
+            Firmendaten unvollständig: {data.companyIssues.join(", ")}. <Link to="/einstellungen">In den Einstellungen ergänzen</Link>
           </span>
         </div>
       )}
@@ -141,38 +117,28 @@ function VatPeriodPage() {
           <div key={issue.text} className={`banner ${issue.tone === "info" ? "banner-info" : ""}`} role="status">
             <Icon name={issue.tone === "info" ? "info" : "alert"} />
             <span>
-              {issue.text} <Link to={issue.link}>{
+              {issue.text}{" "}
+              <Link to={issue.link}>
                 {
-                  "/bank": "Zur Bank",
-                  "/belege": "Zu den Belegen",
-                  "/rechnungen": "Zu den Rechnungen",
-                  "/konten": "Zu den Konten",
-                }[issue.link]
-              }</Link>
+                  {
+                    "/bank": "Zur Bank",
+                    "/belege": "Zu den Belegen",
+                    "/rechnungen": "Zu den Rechnungen",
+                    "/konten": "Zu den Konten",
+                  }[issue.link]
+                }
+              </Link>
             </span>
           </div>
         ))}
 
       {/* key: Formular bei Zeitraum- oder Anmeldungswechsel neu aufsetzen */}
-      <VatReturnEditor
-        key={`${key}-${data.current?.id ?? "neu"}-${data.current?.updatedAt ?? ""}`}
-        data={data}
-        notice={notice}
-        setNotice={setNotice}
-      />
+      <VatReturnEditor key={`${key}-${data.current?.id ?? "neu"}-${data.current?.updatedAt ?? ""}`} data={data} notice={notice} setNotice={setNotice} />
     </>
   );
 }
 
-function VatReturnEditor({
-  data,
-  notice,
-  setNotice,
-}: {
-  data: PageData;
-  notice: Notice;
-  setNotice: (notice: Notice) => void;
-}) {
+function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: Notice; setNotice: (notice: Notice) => void }) {
   const router = useRouter();
   const save = useServerFn(saveVatDraft);
   const submit = useServerFn(submitVatReturn);
@@ -197,14 +163,9 @@ function VatReturnEditor({
   const manualValid = Object.values(parsed).every((v) => v !== null) && reason.trim().length >= 10;
   const manualFigures = Object.fromEntries(FIELDS.map((f) => [f, parsed[f] ?? 0])) as Record<FieldKey, number>;
   const valid = mode === "berechnet" || manualValid;
-  const shown = locked
-    ? computeUstva(current!)
-    : mode === "manuell"
-      ? computeUstva(manualFigures)
-      : computed;
+  const shown = locked ? computeUstva(current!) : mode === "manuell" ? computeUstva(manualFigures) : computed;
   // Gespeicherter berechneter Entwurf, dessen Werte sich inzwischen geändert haben
-  const stale =
-    !locked && current?.source === "berechnet" && !sameFigures(current, computed);
+  const stale = !locked && current?.source === "berechnet" && !sameFigures(current, computed);
 
   // Gesendete Anmeldung, deren Buchungen sich danach geändert haben (z. B. Zuordnung aufgehoben)
   const sentBasis = locked ? (current!.source === "berechnet" ? current! : current!.computed) : null;
@@ -222,10 +183,7 @@ function VatReturnEditor({
 
   async function persist(): Promise<string> {
     const result = await save({
-      data:
-        mode === "berechnet"
-          ? { mode: "berechnet", period: data.period }
-          : { mode: "manuell", period: data.period, ...manualFigures, reason },
+      data: mode === "berechnet" ? { mode: "berechnet", period: data.period } : { mode: "manuell", period: data.period, ...manualFigures, reason },
     });
     setDirty(false);
     return result.id;
@@ -281,7 +239,14 @@ function VatReturnEditor({
       tax: null,
       sources: treated("reverse_charge"),
     },
-    { kz: "45", field: "kz45" as const, label: "Übrige nicht steuerbare Umsätze (Leistungsort nicht im Inland)", base: shown.kz45, tax: null, sources: treated("drittland") },
+    {
+      kz: "45",
+      field: "kz45" as const,
+      label: "Übrige nicht steuerbare Umsätze (Leistungsort nicht im Inland)",
+      base: shown.kz45,
+      tax: null,
+      sources: treated("drittland"),
+    },
     { kz: "48", field: "kz48" as const, label: "Steuerfreie Umsätze ohne Vorsteuerabzug", base: shown.kz48, tax: null, sources: treated("steuerfrei") },
     // Kz 21, 45 und 48 nur zeigen, wenn es dort etwas gibt oder von Hand eingetragen wird
   ].filter((row) => ["81", "86"].includes(row.kz) || editable || row.base !== 0 || computed[row.field] !== 0);
@@ -317,25 +282,35 @@ function VatReturnEditor({
           <div className="banner banner-info" role="status">
             <Icon name="info" />
             <span>
-              Du bist als Kleinunternehmer (§ 19 UStG) eingetragen und gibst in der Regel keine Voranmeldung ab. Nötig ist sie nur,
-              wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge).
+              Du bist als Kleinunternehmer (§ 19 UStG) eingetragen und gibst in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer
+              schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge).
             </span>
           </div>
         )}
         {!locked && (
           <div className="mode-switch" role="group" aria-label="Herkunft der Kennzahlen">
-            <button type="button" className={`chip${mode === "berechnet" ? " active" : ""}`} aria-pressed={mode === "berechnet"} onClick={() => switchMode("berechnet")}>
+            <button
+              type="button"
+              className={`chip${mode === "berechnet" ? " active" : ""}`}
+              aria-pressed={mode === "berechnet"}
+              onClick={() => switchMode("berechnet")}
+            >
               Aus Buchungen berechnet
             </button>
-            <button type="button" className={`chip${mode === "manuell" ? " active" : ""}`} aria-pressed={mode === "manuell"} onClick={() => switchMode("manuell")}>
+            <button
+              type="button"
+              className={`chip${mode === "manuell" ? " active" : ""}`}
+              aria-pressed={mode === "manuell"}
+              onClick={() => switchMode("manuell")}
+            >
               Manuell überschreiben
             </button>
           </div>
         )}
         {drift && (
           <div className="banner" role="alert">
-            Seit der Übermittlung haben sich die Buchungen dieses Monats geändert. Aus den Buchungen ergäben sich jetzt{" "}
-            {describe(computed)}. Prüfe die Änderung und lege bei Bedarf eine berichtigte Anmeldung an.
+            Seit der Übermittlung haben sich die Buchungen dieses Monats geändert. Aus den Buchungen ergäben sich jetzt {describe(computed)}. Prüfe die Änderung
+            und lege bei Bedarf eine berichtigte Anmeldung an.
           </div>
         )}
         {stale && mode === "berechnet" && (
@@ -401,7 +376,13 @@ function VatReturnEditor({
             </div>
             <div />
             {editable ? (
-              <input id="kz-66" inputMode="decimal" value={values.kz66} onChange={(event) => update("kz66", event.target.value)} aria-invalid={parsed.kz66 === null} />
+              <input
+                id="kz-66"
+                inputMode="decimal"
+                value={values.kz66}
+                onChange={(event) => update("kz66", event.target.value)}
+                aria-invalid={parsed.kz66 === null}
+              />
             ) : (
               <output id="kz-66" className="kz-amount">
                 {formatEuro(shown.kz66)}
@@ -464,7 +445,13 @@ function VatReturnEditor({
               </div>
               <div />
               {editable ? (
-                <input id="kz-67" inputMode="decimal" value={values.kz67} onChange={(event) => update("kz67", event.target.value)} aria-invalid={parsed.kz67 === null} />
+                <input
+                  id="kz-67"
+                  inputMode="decimal"
+                  value={values.kz67}
+                  onChange={(event) => update("kz67", event.target.value)}
+                  aria-invalid={parsed.kz67 === null}
+                />
               ) : (
                 <output id="kz-67" className="kz-amount">
                   {formatEuro(shown.kz67)}
@@ -491,13 +478,13 @@ function VatReturnEditor({
               aria-invalid={reason.trim().length < 10}
               placeholder="z. B. Zahlung vom 30.09. erst im Oktober zugeordnet"
             />
-            <span className="small">
-              Berechnet wären {describe(computed)}.
-            </span>
+            <span className="small">Berechnet wären {describe(computed)}.</span>
           </label>
         )}
         {locked && current?.source === "manuell" && current.overrideReason && (
-          <p className="small muted" style={{ margin: 0 }}>Manuell überschrieben: {current.overrideReason}</p>
+          <p className="small muted" style={{ margin: 0 }}>
+            Manuell überschrieben: {current.overrideReason}
+          </p>
         )}
         <p id="kz-hint" className="small muted" style={{ margin: 0 }}>
           Bemessungsgrundlagen meldet ELSTER in vollen Euro; Cent werden abgeschnitten.{" "}
@@ -633,7 +620,12 @@ function SourcesTable({ id, kind, rows }: { id: string; kind: "revenue" | "input
 function StatusPill({ current }: { current: PageData["current"] }) {
   if (!current) return <span className="pill">Noch nicht angelegt</span>;
   if (current.status === "sent") {
-    return <span className="pill pill-ok">Gesendet {formatDate(current.sentAt!)}{current.berichtigt ? " · berichtigt" : ""}</span>;
+    return (
+      <span className="pill pill-ok">
+        Gesendet {formatDate(current.sentAt!)}
+        {current.berichtigt ? " · berichtigt" : ""}
+      </span>
+    );
   }
   return <span className="pill pill-info">Entwurf{current.berichtigt ? " · berichtigte Anmeldung" : ""}</span>;
 }
@@ -643,7 +635,9 @@ function History({ data }: { data: PageData }) {
     <section className="card" aria-labelledby="history-heading">
       <h2 id="history-heading">Verlauf {periodLabel(data.period)}</h2>
       {data.submissions.length === 0 ? (
-        <p className="muted" style={{ margin: 0 }}>Noch nichts geprüft oder gesendet.</p>
+        <p className="muted" style={{ margin: 0 }}>
+          Noch nichts geprüft oder gesendet.
+        </p>
       ) : (
         data.submissions.map((entry) => (
           <div key={entry.id} className="history-row">

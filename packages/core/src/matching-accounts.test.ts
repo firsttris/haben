@@ -44,7 +44,9 @@ describe("suggestDirectBooking", () => {
   });
 
   it("Einkommensteuer oder unklarer Zweck auf dem Steuerkonto: kein Umsatzsteuer-Vorschlag", () => {
-    expect(suggestDirectBooking(tx({ counterpartyName: "Finanzamt Regensburg", purpose: "ESt-Vorauszahlung III/2026 StNr 244/123/45678" }), tax, all)).toBeNull();
+    expect(
+      suggestDirectBooking(tx({ counterpartyName: "Finanzamt Regensburg", purpose: "ESt-Vorauszahlung III/2026 StNr 244/123/45678" }), tax, all),
+    ).toBeNull();
     expect(suggestDirectBooking(tx({ counterpartyName: "Finanzamt Regensburg", purpose: "USt und ESt 2025" }), tax, all)).toBeNull();
     expect(suggestDirectBooking(tx({ counterpartyName: "Finanzamt Regensburg", purpose: "StNr 244/123/45678" }), tax, all)).toBeNull();
   });
@@ -75,8 +77,20 @@ describe("findTransferCounterpart", () => {
   });
 
   it("ohne Treffer mit IBAN eine Gegenbuchung ohne Gegen-IBAN, nie eine fremde Zahlung", () => {
-    expect(findTransferCounterpart({ bookingDate: "2026-10-01", amount: -60_000 }, source, candidates.filter((c) => c.id === "e" || c.id === "f"))?.id).toBe("f");
-    expect(findTransferCounterpart({ bookingDate: "2026-10-01", amount: -60_000 }, source, candidates.filter((c) => c.id === "e"))).toBeNull();
+    expect(
+      findTransferCounterpart(
+        { bookingDate: "2026-10-01", amount: -60_000 },
+        source,
+        candidates.filter((c) => c.id === "e" || c.id === "f"),
+      )?.id,
+    ).toBe("f");
+    expect(
+      findTransferCounterpart(
+        { bookingDate: "2026-10-01", amount: -60_000 },
+        source,
+        candidates.filter((c) => c.id === "e"),
+      ),
+    ).toBeNull();
   });
 
   it("nichts innerhalb von fünf Tagen: kein Treffer", () => {

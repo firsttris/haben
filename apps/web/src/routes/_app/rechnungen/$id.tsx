@@ -1,4 +1,15 @@
-import { describeExchangeRate, DUNNING_LEVELS, formatEuro, formatExchangeRate, parseEuro, formatDecimal, TAX_TREATMENTS, WRITE_OFF_KINDS, type DunningLevel, type UnitLabel } from "@haben/core";
+import {
+  describeExchangeRate,
+  DUNNING_LEVELS,
+  formatEuro,
+  formatExchangeRate,
+  parseEuro,
+  formatDecimal,
+  TAX_TREATMENTS,
+  WRITE_OFF_KINDS,
+  type DunningLevel,
+  type UnitLabel,
+} from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -11,11 +22,7 @@ import { formatDate, formatDateTime } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { FORMAT_LABEL, KIND_TITLE, invoiceTitle } from "../../../lib/invoice.ts";
-import {
-  cancelFinalInvoice,
-  correctFinalInvoice,
-  getInvoiceDetail,
-} from "../../../server/functions/invoices.ts";
+import { cancelFinalInvoice, correctFinalInvoice, getInvoiceDetail } from "../../../server/functions/invoices.ts";
 
 export const Route = createFileRoute("/_app/rechnungen/$id")({
   loader: ({ params }) => getInvoiceDetail({ data: params.id }),
@@ -66,13 +73,15 @@ function InvoicePage() {
           ],
           quoteId: invoice.quoteId,
           // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
-          lines: data.lines.filter((line) => !line.deductionOf).map((line) => ({
-            description: line.description,
-            quantity: line.quantity,
-            unit: line.unit as UnitLabel,
-            unitPrice: line.unitPrice,
-            taxRate: line.taxRate as 1900 | 700 | 0,
-          })),
+          lines: data.lines
+            .filter((line) => !line.deductionOf)
+            .map((line) => ({
+              description: line.description,
+              quantity: line.quantity,
+              unit: line.unit as UnitLabel,
+              unitPrice: line.unitPrice,
+              taxRate: line.taxRate as 1900 | 700 | 0,
+            })),
         }}
         contacts={data.contacts}
         seller={data.company}
@@ -87,7 +96,9 @@ function InvoicePage() {
         abschlaege={data.abschlaege}
         quotes={data.quotes}
         tageskurs={data.tageskurs}
-        rateInfo={invoice.exchangeRate ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate) : null}
+        rateInfo={
+          invoice.exchangeRate ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate) : null
+        }
       />
     );
   }
@@ -169,7 +180,11 @@ function FinalInvoice({ data }: { data: Detail }) {
         <div className="banner banner-danger" role="status">
           <Icon name="alert" />
           <span>
-            Storniert durch <Link to="/rechnungen/$id" params={{ id: cancelled.id }}>Stornorechnung {cancelled.number}</Link>.
+            Storniert durch{" "}
+            <Link to="/rechnungen/$id" params={{ id: cancelled.id }}>
+              Stornorechnung {cancelled.number}
+            </Link>
+            .
           </span>
         </div>
       )}
@@ -209,7 +224,9 @@ function FinalInvoice({ data }: { data: Detail }) {
                   <dt>Währung</dt>
                   <dd>
                     Rechnung in {invoice.currency}; Beträge oben in Euro, gebucht mit{" "}
-                    {invoice.exchangeRate ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate) : "–"}
+                    {invoice.exchangeRate
+                      ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate)
+                      : "–"}
                   </dd>
                 </>
               )}
@@ -389,8 +406,8 @@ function FinalInvoice({ data }: { data: Detail }) {
             <section className="card" aria-labelledby="amend-heading">
               <h2 id="amend-heading">Korrigieren</h2>
               <p className="small muted" style={{ margin: 0 }}>
-                Festgeschriebene Rechnungen bleiben unverändert. Eine Stornorechnung hebt sie vollständig auf, eine
-                Rechnungskorrektur mindert den Betrag teilweise.
+                Festgeschriebene Rechnungen bleiben unverändert. Eine Stornorechnung hebt sie vollständig auf, eine Rechnungskorrektur mindert den Betrag
+                teilweise.
               </p>
               {confirming && (
                 <div className="banner" role="alert">
@@ -452,7 +469,17 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
               (w.transactionId ? (
                 "· mit der Zahlung im Bankabgleich aufheben"
               ) : (
-                <button type="button" className="link-button" disabled={busy} onClick={() => void run(async () => { await reverseFn({ data: w.id }); await router.invalidate(); })}>
+                <button
+                  type="button"
+                  className="link-button"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await reverseFn({ data: w.id });
+                      await router.invalidate();
+                    })
+                  }
+                >
                   Aufheben
                 </button>
               ))}
@@ -462,8 +489,8 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
       {open > 0 && (
         <form className="stack" style={{ gap: 10 }} onSubmit={onSubmit}>
           <p className="small muted" style={{ margin: 0 }}>
-            Offen sind noch {formatEuro(open)}. Ausbuchen mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§ 17 UStG), bei Soll-Versteuerung
-            in der Voranmeldung des Monats der Ausbuchung. Hat der Kunde Skonto abgezogen, geht es mit der Zahlung zusammen im Bankabgleich.
+            Offen sind noch {formatEuro(open)}. Ausbuchen mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§ 17 UStG), bei Soll-Versteuerung in der
+            Voranmeldung des Monats der Ausbuchung. Hat der Kunde Skonto abgezogen, geht es mit der Zahlung zusammen im Bankabgleich.
           </p>
           <div className="form-grid">
             <label className="field">
@@ -479,7 +506,13 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
             </label>
             <label className="field">
               Betrag
-              <input className="mono" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} aria-invalid={parsed === null || parsed <= 0 || parsed > open} />
+              <input
+                className="mono"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                aria-invalid={parsed === null || parsed <= 0 || parsed > open}
+              />
             </label>
           </div>
           <NoticeBanner notice={notice} />

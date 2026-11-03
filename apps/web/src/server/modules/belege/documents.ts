@@ -213,7 +213,12 @@ async function applyFields(
   const category = (await guessCategory(fields.supplierName, fields.supplierUstId)) ?? (categoryKnown ? fields.category : null);
   // Fremdwährung: die ausgelesenen Beträge sind die Originalbeträge; Euro mit dem USt-Kurs des Monats, sobald es ihn gibt
   const company = await loadCompany();
-  const rate = await resolveRate(db, { currency: fields.currency, documentDate: fields.documentDate, exchangeRate: null, exchangeRateDate: null }, null, company.tageskurs);
+  const rate = await resolveRate(
+    db,
+    { currency: fields.currency, documentDate: fields.documentDate, exchangeRate: null, exchangeRateDate: null },
+    null,
+    company.tageskurs,
+  );
   const amounts = euroAmounts({
     currency: fields.currency,
     exchangeRate: rate.exchangeRate,
@@ -404,11 +409,7 @@ export async function getDocument(id: string) {
     [doc] = doc ? [doc] : await db.select().from(schema.documents).where(eq(schema.documents.id, id));
     if (!doc) return null;
   }
-  const amounts = await db
-    .select()
-    .from(schema.documentAmounts)
-    .where(eq(schema.documentAmounts.documentId, id))
-    .orderBy(desc(schema.documentAmounts.taxRate));
+  const amounts = await db.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)).orderBy(desc(schema.documentAmounts.taxRate));
   return { document: doc, amounts };
 }
 
@@ -491,9 +492,7 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDat
     else if (doc.privateShare > 0) issues.push("Ein Privatanteil bei Anlagegütern wird nicht unterstützt");
     else if (net <= 0) issues.push("Gutschriften zu Anlagen werden nicht unterstützt");
     else if (doc.documentDate) {
-      issues.push(
-        ...assetIssues({ acquisitionDate: doc.documentDate, cost: net, method: doc.asset.method, usefulLifeMonths: doc.asset.usefulLifeMonths }),
-      );
+      issues.push(...assetIssues({ acquisitionDate: doc.documentDate, cost: net, method: doc.asset.method, usefulLifeMonths: doc.asset.usefulLifeMonths }));
     }
   }
   return issues;
@@ -548,10 +547,7 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
         journalEntryId: entryId,
       });
     }
-    await tx
-      .update(schema.documents)
-      .set({ status: "gebucht", vorsteuerAbzug, lockedAt: now, updatedAt: now })
-      .where(eq(schema.documents.id, id));
+    await tx.update(schema.documents).set({ status: "gebucht", vorsteuerAbzug, lockedAt: now, updatedAt: now }).where(eq(schema.documents.id, id));
     if (asset) {
       await tx.insert(schema.assets).values({
         name: asset.name,
@@ -617,12 +613,6 @@ export async function inputTaxForPeriod({ year, month }: VatPeriod): Promise<num
     .select({ total: sql<string>`coalesce(sum(${schema.journalLines.debit} - ${schema.journalLines.credit}), 0)` })
     .from(schema.journalLines)
     .innerJoin(schema.journalEntries, eq(schema.journalEntries.id, schema.journalLines.entryId))
-    .where(
-      and(
-        gte(schema.journalEntries.date, start),
-        lt(schema.journalEntries.date, end),
-        inArray(schema.journalLines.account, vorsteuer),
-      ),
-    );
+    .where(and(gte(schema.journalEntries.date, start), lt(schema.journalEntries.date, end), inArray(schema.journalLines.account, vorsteuer)));
   return Number(row?.total ?? 0);
 }

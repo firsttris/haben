@@ -24,7 +24,10 @@ describe("resolveMailTemplate", () => {
   });
 
   it("Hinweis zum Rückfall und Art einer Rechnung", () => {
-    expect(mailTemplateFallback({ "rechnung:en": { subject: "Inv", body: "" } }, "abschlag", "en", "subject")).toEqual({ text: "Inv", source: { kind: "rechnung" } });
+    expect(mailTemplateFallback({ "rechnung:en": { subject: "Inv", body: "" } }, "abschlag", "en", "subject")).toEqual({
+      text: "Inv",
+      source: { kind: "rechnung" },
+    });
     expect(mailTemplateFallback({ "rechnung:en": { subject: "Inv", body: "" } }, "abschlag", "en", "body").source).toBe("standard");
     expect(mailTemplateFallback({}, "rechnung", "de", "subject")).toEqual({ text: DEFAULT_MAIL_TEMPLATES.rechnung.de!.subject, source: "standard" });
     expect(invoiceTemplateKind({ kind: "rechnung", variant: null })).toBe("rechnung");

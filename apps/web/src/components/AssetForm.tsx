@@ -187,7 +187,14 @@ export function AssetForm({
             <div className="form-row cols-2">
               <label className="field">
                 Übernahmestichtag
-                <input type="date" value={openingDate} onChange={(e) => setOpeningDate(e.target.value)} disabled={locked} required aria-describedby="opening-hint" />
+                <input
+                  type="date"
+                  value={openingDate}
+                  onChange={(e) => setOpeningDate(e.target.value)}
+                  disabled={locked}
+                  required
+                  aria-describedby="opening-hint"
+                />
               </label>
               <label className="field">
                 Restbuchwert zum Stichtag (€)
@@ -202,8 +209,8 @@ export function AssetForm({
               </label>
             </div>
             <p id="opening-hint" className="field-hint">
-              Aus dem Anlagenverzeichnis der bisherigen Buchhaltung, z. B. Buchwert zum 31.12. des Vorjahres und Stichtag 01.01. Haben
-              schreibt ab dem Stichtag über die restliche Nutzungsdauer ab.
+              Aus dem Anlagenverzeichnis der bisherigen Buchhaltung, z. B. Buchwert zum 31.12. des Vorjahres und Stichtag 01.01. Haben schreibt ab dem Stichtag
+              über die restliche Nutzungsdauer ab.
             </p>
           </>
         )}
@@ -279,8 +286,8 @@ export function AssetForm({
                   <p className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
                     Je Monat {formatEuro(monthly.withdrawal)} Entnahme
                     {monthly.vat ? `, Umsatzsteuer ${formatEuro(monthly.vat)} auf ${formatEuro(monthly.vatBase)} (1 % des Listenpreises abzüglich 20 %)` : ""}.
-                    Die Umsatzsteuer kommt in die Voranmeldung, gebucht wird mit der AfA zum Jahresende. Ohne Vorsteuerabzug beim Kauf oder als
-                    Kleinunternehmer fällt keine Umsatzsteuer an.
+                    Die Umsatzsteuer kommt in die Voranmeldung, gebucht wird mit der AfA zum Jahresende. Ohne Vorsteuerabzug beim Kauf oder als Kleinunternehmer
+                    fällt keine Umsatzsteuer an.
                   </p>
                 )}
               </div>

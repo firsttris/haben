@@ -139,7 +139,8 @@ export async function* zipArchive(files: AsyncIterable<ArchiveFile>, mtime: Date
   const checksums: string[] = [];
   const add = async function* (file: ArchiveFile): AsyncGenerator<Uint8Array> {
     // fflate kennt kein ZIP64: lieber abbrechen als ein still kaputtes Archiv ausliefern
-    if (++entries > 0xffff || written >= 0xffffffff) throw new Error("Das Jahresarchiv überschreitet 4 GB oder 65.535 Dateien; das kann das ZIP-Format ohne ZIP64 nicht.");
+    if (++entries > 0xffff || written >= 0xffffffff)
+      throw new Error("Das Jahresarchiv überschreitet 4 GB oder 65.535 Dateien; das kann das ZIP-Format ohne ZIP64 nicht.");
     const entry = file.compress ? new ZipDeflate(file.path, { level: 6 }) : new ZipPassThrough(file.path);
     entry.mtime = mtime;
     zip.add(entry);
@@ -279,13 +280,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       variant: schema.invoices.variant,
     })
     .from(schema.invoices)
-    .where(
-      and(
-        eq(schema.invoices.status, "final"),
-        gte(schema.invoices.issueDate, yearStart(year)),
-        lte(schema.invoices.issueDate, yearEnd(year)),
-      ),
-    )
+    .where(and(eq(schema.invoices.status, "final"), gte(schema.invoices.issueDate, yearStart(year)), lte(schema.invoices.issueDate, yearEnd(year))))
     .orderBy(asc(schema.invoices.issueDate), asc(schema.invoices.number));
 
   const referenced = [...new Set(invoices.map((i) => i.correctsId).filter((id): id is string => id !== null))];
@@ -302,10 +297,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   const usedInvoicePaths = new Set<string>();
   const invoiceRows: CsvValue[][] = [];
   for (const invoice of invoices) {
-    const [files] = await db
-      .select({ pdf: schema.invoices.pdf, xml: schema.invoices.xml })
-      .from(schema.invoices)
-      .where(eq(schema.invoices.id, invoice.id));
+    const [files] = await db.select({ pdf: schema.invoices.pdf, xml: schema.invoices.xml }).from(schema.invoices).where(eq(schema.invoices.id, invoice.id));
     const stem = `rechnungen/${safeName(invoice.number ?? invoice.id, 60)}`;
     let pdfPath = "";
     let xmlPath = "";
@@ -344,8 +336,26 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     path: "rechnungen/rechnungen.csv",
     content: csv(
       [
-        "Nummer", "Art", "Datum", "Fällig", "Leistung von", "Leistung bis", "Kunde", "Netto", "USt", "Brutto", "Währung", "Kurs (1 EUR =)", "Format",
-        "Festgeschrieben", "SHA-256 PDF", "SHA-256 XML", "Storno/Korrektur von", "Datei PDF", "Datei XML", "ID",
+        "Nummer",
+        "Art",
+        "Datum",
+        "Fällig",
+        "Leistung von",
+        "Leistung bis",
+        "Kunde",
+        "Netto",
+        "USt",
+        "Brutto",
+        "Währung",
+        "Kurs (1 EUR =)",
+        "Format",
+        "Festgeschrieben",
+        "SHA-256 PDF",
+        "SHA-256 XML",
+        "Storno/Korrektur von",
+        "Datei PDF",
+        "Datei XML",
+        "ID",
       ],
       invoiceRows,
     ),
@@ -442,7 +452,15 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     .orderBy(asc(documentDay), asc(schema.documents.uploadedAt), asc(schema.documents.id));
 
   const amounts = documents.length
-    ? await db.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, documents.map((d) => d.id)))
+    ? await db
+        .select()
+        .from(schema.documentAmounts)
+        .where(
+          inArray(
+            schema.documentAmounts.documentId,
+            documents.map((d) => d.id),
+          ),
+        )
     : [];
   const amountsByDocument = groupBy(amounts, (a) => a.documentId);
   const usedDocumentPaths = new Set<string>();
@@ -499,9 +517,34 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     path: "belege/belege.csv",
     content: csv(
       [
-        "Datum", "Lieferant", "USt-IdNr.", "Rechnungsnummer", "Kategorie", "Netto 19 %", "Vorsteuer 19 %", "Netto 7 %",
-        "Vorsteuer 7 %", "Netto 0 %", "Netto", "Vorsteuer", "Brutto", "Privatanteil %", "Währung", "Kurs (1 EUR =)", "Brutto in Währung", "Zahlung", "Status", "Gebucht am", "Quelle",
-        "Fällig", "Notiz", "SHA-256", "Originaldateiname", "Datei im Archiv", "Hochgeladen", "ID",
+        "Datum",
+        "Lieferant",
+        "USt-IdNr.",
+        "Rechnungsnummer",
+        "Kategorie",
+        "Netto 19 %",
+        "Vorsteuer 19 %",
+        "Netto 7 %",
+        "Vorsteuer 7 %",
+        "Netto 0 %",
+        "Netto",
+        "Vorsteuer",
+        "Brutto",
+        "Privatanteil %",
+        "Währung",
+        "Kurs (1 EUR =)",
+        "Brutto in Währung",
+        "Zahlung",
+        "Status",
+        "Gebucht am",
+        "Quelle",
+        "Fällig",
+        "Notiz",
+        "SHA-256",
+        "Originaldateiname",
+        "Datei im Archiv",
+        "Hochgeladen",
+        "ID",
       ],
       documentRows,
     ),
@@ -518,7 +561,12 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ? await db
         .select()
         .from(schema.journalLines)
-        .where(inArray(schema.journalLines.entryId, entries.map((e) => e.id)))
+        .where(
+          inArray(
+            schema.journalLines.entryId,
+            entries.map((e) => e.id),
+          ),
+        )
         .orderBy(asc(schema.journalLines.credit), asc(schema.journalLines.account))
     : [];
   const linesByEntry = groupBy(journalLines, (l) => l.entryId);
@@ -544,8 +592,20 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     path: "buchungen/journal.csv",
     content: csv(
       [
-        "Datum", "Buchungs-ID", "Beschreibung", "Quelle", "Quell-ID", "Kontenrahmen", "Konto", "Kontoname", "Soll", "Haben",
-        "Steuerschlüssel", "Gegenbuchung zu", "Festgeschrieben", "Erfasst",
+        "Datum",
+        "Buchungs-ID",
+        "Beschreibung",
+        "Quelle",
+        "Quell-ID",
+        "Kontenrahmen",
+        "Konto",
+        "Kontoname",
+        "Soll",
+        "Haben",
+        "Steuerschlüssel",
+        "Gegenbuchung zu",
+        "Festgeschrieben",
+        "Erfasst",
       ],
       journalRows,
     ),
@@ -584,10 +644,28 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     path: "anlagen/anlagenverzeichnis.csv",
     content: csv(
       [
-        "Bezeichnung", "Art", "Abschreibung", "Anlagekonto", "Anschaffung", "Anschaffungskosten", "Nutzungsdauer (Monate)",
-        "Übernommen zum", "Buchwert bei Übernahme", "Buchwert Jahresanfang", "Zugang", "AfA", "Abgang (Restbuchwert)",
-        "Buchwert Jahresende", "Abgangsdatum", "Privatnutzung Satz", "Bruttolistenpreis", "Privatnutzung Entnahme",
-        "Privatnutzung Umsatzsteuer", "AfA gebucht", "Beleg-ID", "ID",
+        "Bezeichnung",
+        "Art",
+        "Abschreibung",
+        "Anlagekonto",
+        "Anschaffung",
+        "Anschaffungskosten",
+        "Nutzungsdauer (Monate)",
+        "Übernommen zum",
+        "Buchwert bei Übernahme",
+        "Buchwert Jahresanfang",
+        "Zugang",
+        "AfA",
+        "Abgang (Restbuchwert)",
+        "Buchwert Jahresende",
+        "Abgangsdatum",
+        "Privatnutzung Satz",
+        "Bruttolistenpreis",
+        "Privatnutzung Entnahme",
+        "Privatnutzung Umsatzsteuer",
+        "AfA gebucht",
+        "Beleg-ID",
+        "ID",
       ],
       assetRows,
     ),
@@ -639,7 +717,12 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ? await db
         .select()
         .from(schema.allocations)
-        .where(inArray(schema.allocations.transactionId, transactions.map((t) => t.id)))
+        .where(
+          inArray(
+            schema.allocations.transactionId,
+            transactions.map((t) => t.id),
+          ),
+        )
         .orderBy(asc(schema.allocations.createdAt), asc(schema.allocations.id))
     : [];
   const imports = await db
@@ -663,8 +746,19 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       path: uniquePath(usedBankPaths, `bank/${safeName(account?.iban ?? account?.name ?? accountId, 40)}/umsaetze.csv`),
       content: csv(
         [
-          "Buchungsdatum", "Wertstellung", "Betrag", "Währung", "Gegenpartei", "Gegen-IBAN", "Verwendungszweck", "Umsatztyp",
-          "Bankreferenz", "Zugeordnet", "Offen", "Importdatei", "Umsatz-ID",
+          "Buchungsdatum",
+          "Wertstellung",
+          "Betrag",
+          "Währung",
+          "Gegenpartei",
+          "Gegen-IBAN",
+          "Verwendungszweck",
+          "Umsatztyp",
+          "Bankreferenz",
+          "Zugeordnet",
+          "Offen",
+          "Importdatei",
+          "Umsatz-ID",
         ],
         rows.map((t) => {
           const allocated = allocatedByTransaction.get(t.id) ?? 0;
@@ -731,7 +825,10 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   if (writeOffs.length > 0) {
     const missing = [...new Set(writeOffs.map((w) => w.invoiceId).filter((id): id is string => id !== null && !invoiceNumbers.has(id)))];
     if (missing.length > 0) {
-      for (const row of await db.select({ id: schema.invoices.id, number: schema.invoices.number }).from(schema.invoices).where(inArray(schema.invoices.id, missing))) {
+      for (const row of await db
+        .select({ id: schema.invoices.id, number: schema.invoices.number })
+        .from(schema.invoices)
+        .where(inArray(schema.invoices.id, missing))) {
         invoiceNumbers.set(row.id, row.number);
       }
     }
@@ -759,7 +856,21 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   yield {
     path: "bank/importe.csv",
     content: csv(
-      ["Konto", "Datei", "SHA-256", "Format", "Zeitraum von", "Zeitraum bis", "Anfangssaldo", "Endsaldo", "Neu", "Übersprungen", "Hinweise", "Importiert", "Import-ID"],
+      [
+        "Konto",
+        "Datei",
+        "SHA-256",
+        "Format",
+        "Zeitraum von",
+        "Zeitraum bis",
+        "Anfangssaldo",
+        "Endsaldo",
+        "Neu",
+        "Übersprungen",
+        "Hinweise",
+        "Importiert",
+        "Import-ID",
+      ],
       imports.map((i) => [
         accountById.get(i.bankAccountId)?.iban ?? accountById.get(i.bankAccountId)?.name,
         i.filename,
@@ -799,7 +910,12 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
           hasPdf: sql<boolean>`${schema.vatReturnSubmissions.protocolPdf} is not null`,
         })
         .from(schema.vatReturnSubmissions)
-        .where(inArray(schema.vatReturnSubmissions.vatReturnId, vatReturns.map((r) => r.id)))
+        .where(
+          inArray(
+            schema.vatReturnSubmissions.vatReturnId,
+            vatReturns.map((r) => r.id),
+          ),
+        )
         .orderBy(asc(schema.vatReturnSubmissions.createdAt))
     : [];
   for (const [month, returns] of groupBy(vatReturns, (r) => r.month)) {
@@ -824,7 +940,11 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
           names.push(`${stem}_protokoll.pdf`);
           yield { path: `${dir}/${stem}_protokoll.pdf`, content: new Uint8Array(files.protocolPdf), compress: false };
         } else names.push("");
-        for (const [key, label] of [["requestXml", "anfrage"], ["responseXml", "antwort"], ["serverResponseXml", "server-antwort"]] as const) {
+        for (const [key, label] of [
+          ["requestXml", "anfrage"],
+          ["responseXml", "antwort"],
+          ["serverResponseXml", "server-antwort"],
+        ] as const) {
           const text = files?.[key] ?? "";
           if (text) {
             names.push(`${stem}_${label}.xml`);
@@ -862,18 +982,46 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   yield {
     path: "stammdaten/kontakte.csv",
     content: csv(
-      ["Kundennummer", "Name", "Straße", "PLZ", "Ort", "Land", "E-Mail", "USt-IdNr.", "IBAN", "Leitweg-ID", "Rechnungsformat", "Version", "Archiviert", "Angelegt", "Geändert", "ID"],
+      [
+        "Kundennummer",
+        "Name",
+        "Straße",
+        "PLZ",
+        "Ort",
+        "Land",
+        "E-Mail",
+        "USt-IdNr.",
+        "IBAN",
+        "Leitweg-ID",
+        "Rechnungsformat",
+        "Version",
+        "Archiviert",
+        "Angelegt",
+        "Geändert",
+        "ID",
+      ],
       contacts.map((c) => [
-        c.kundennummer, c.name, c.strasse, c.plz, c.ort, c.land, c.email, c.ustId, c.iban, c.leitwegId, c.defaultFormat,
-        c.version, iso(c.archivedAt), iso(c.createdAt), iso(c.updatedAt), c.id,
+        c.kundennummer,
+        c.name,
+        c.strasse,
+        c.plz,
+        c.ort,
+        c.land,
+        c.email,
+        c.ustId,
+        c.iban,
+        c.leitwegId,
+        c.defaultFormat,
+        c.version,
+        iso(c.archivedAt),
+        iso(c.createdAt),
+        iso(c.updatedAt),
+        c.id,
       ]),
     ),
     compress: true,
   };
-  const versions = await db
-    .select()
-    .from(schema.contactVersions)
-    .orderBy(asc(schema.contactVersions.contactId), asc(schema.contactVersions.version));
+  const versions = await db.select().from(schema.contactVersions).orderBy(asc(schema.contactVersions.contactId), asc(schema.contactVersions.version));
   yield {
     path: "stammdaten/kontakt-versionen.csv",
     content: csv(
@@ -884,7 +1032,10 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   };
   yield {
     path: "stammdaten/bankkonten.csv",
-    content: csv(["Name", "IBAN", "Angelegt", "ID"], accounts.map((a) => [a.name, a.iban, iso(a.createdAt), a.id])),
+    content: csv(
+      ["Name", "IBAN", "Angelegt", "ID"],
+      accounts.map((a) => [a.name, a.iban, iso(a.createdAt), a.id]),
+    ),
     compress: true,
   };
   // Ohne den Hash des Kalender-Tokens: der gehört zum Zugang, nicht zu den Stammdaten
@@ -923,7 +1074,12 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
     ? await db
         .select()
         .from(schema.lexofficeVoucherFiles)
-        .where(inArray(schema.lexofficeVoucherFiles.voucherId, vouchers.map((v) => v.id)))
+        .where(
+          inArray(
+            schema.lexofficeVoucherFiles.voucherId,
+            vouchers.map((v) => v.id),
+          ),
+        )
         .orderBy(asc(schema.lexofficeVoucherFiles.createdAt), asc(schema.lexofficeVoucherFiles.id))
     : [];
   const filesByVoucher = groupBy(files, (f) => f.voucherId);
@@ -941,7 +1097,9 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
         yield { path, content: new Uint8Array(await loadFile(file.sha256)), compress: ext === "xml" };
         paths.push(path.slice("lexoffice/".length));
       } catch (error) {
-        problems.push(`${LEGACY_SOURCE_LABELS[voucher.source]}-Beleg ${voucher.number || voucher.id}: Datei ${file.filename} nicht lesbar – ${error instanceof Error ? error.message : String(error)}`);
+        problems.push(
+          `${LEGACY_SOURCE_LABELS[voucher.source]}-Beleg ${voucher.number || voucher.id}: Datei ${file.filename} nicht lesbar – ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
     rows.push([
@@ -970,7 +1128,27 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
     yield {
       path: "lexoffice/belege.csv",
       content: csv(
-        ["Datum", "Art", "Richtung", "Nummer", "Kontakt", "Netto", "Steuer", "Brutto", "Währung", "Status in der Quelle", "Fällig", "Bezahlt am", "Steuersätze (JSON)", "Kategorien (JSON)", "Notiz", "Dateien", "SHA-256", "Lexoffice-ID", "Quelle"],
+        [
+          "Datum",
+          "Art",
+          "Richtung",
+          "Nummer",
+          "Kontakt",
+          "Netto",
+          "Steuer",
+          "Brutto",
+          "Währung",
+          "Status in der Quelle",
+          "Fällig",
+          "Bezahlt am",
+          "Steuersätze (JSON)",
+          "Kategorien (JSON)",
+          "Notiz",
+          "Dateien",
+          "SHA-256",
+          "Lexoffice-ID",
+          "Quelle",
+        ],
         rows,
       ),
       compress: true,
@@ -987,10 +1165,35 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
     yield {
       path: "lexoffice/datev-buchungen.csv",
       content: csv(
-        ["Datum", "Umsatz", "Soll/Haben", "Währung", "Konto", "Gegenkonto", "BU-Schlüssel", "Belegfeld 1", "Belegfeld 2", "Buchungstext", "Beleglink", "Datei", "Zeile"],
+        [
+          "Datum",
+          "Umsatz",
+          "Soll/Haben",
+          "Währung",
+          "Konto",
+          "Gegenkonto",
+          "BU-Schlüssel",
+          "Belegfeld 1",
+          "Belegfeld 2",
+          "Buchungstext",
+          "Beleglink",
+          "Datei",
+          "Zeile",
+        ],
         bookings.map(({ booking: b, filename }) => [
-          b.date, money(b.amount), b.side, b.currency, b.account, b.contraAccount, b.buKey, b.voucherField1, b.voucherField2, b.text,
-          b.documentLink, filename, b.row,
+          b.date,
+          money(b.amount),
+          b.side,
+          b.currency,
+          b.account,
+          b.contraAccount,
+          b.buKey,
+          b.voucherField1,
+          b.voucherField2,
+          b.text,
+          b.documentLink,
+          filename,
+          b.row,
         ]),
       ),
       compress: true,
@@ -1026,14 +1229,25 @@ function withoutSecrets(table: string, value: unknown): unknown {
   return Object.fromEntries(entries);
 }
 
-const yearOfAudit = (year: number) =>
-  sql`${schema.auditLog.at} >= ${berlinStart(year)} and ${schema.auditLog.at} < ${berlinStart(year + 1)}`;
+const yearOfAudit = (year: number) => sql`${schema.auditLog.at} >= ${berlinStart(year)} and ${schema.auditLog.at} < ${berlinStart(year + 1)}`;
 
 /** In der Reihenfolge der Hash-Kette; Nr. ist die laufende ID, Ketten-Nr. die Position in der Kette */
 async function* auditCsv(year: number): AsyncGenerator<Uint8Array> {
   yield encoder.encode(
     BOM +
-      csvLine(["Zeitpunkt", "Benutzer", "Tabelle", "Zeilen-ID", "Aktion", "Alter Wert (JSON)", "Neuer Wert (JSON)", "Nr.", "Ketten-Nr.", "Vorgänger-Hash", "Hash"]),
+      csvLine([
+        "Zeitpunkt",
+        "Benutzer",
+        "Tabelle",
+        "Zeilen-ID",
+        "Aktion",
+        "Alter Wert (JSON)",
+        "Neuer Wert (JSON)",
+        "Nr.",
+        "Ketten-Nr.",
+        "Vorgänger-Hash",
+        "Hash",
+      ]),
   );
   let after = 0;
   for (;;) {

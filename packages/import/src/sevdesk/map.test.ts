@@ -47,7 +47,14 @@ describe("mapSevContact", () => {
     const org = sevContactSchema.parse({ id: 7, name: "Berliner Kindl GmbH", customerNumber: "1001", vatNumber: "DE123456789" });
     const person = sevContactSchema.parse({ id: "8", surename: "Erika", familyname: "Mustermann" });
     const addresses = firstByContact([
-      { id: 1, contact: { id: "7", objectName: "Contact" }, street: "Hauptstr. 1", zip: "10115", city: "Berlin", country: { id: 1, objectName: "StaticCountry", code: "de" } },
+      {
+        id: 1,
+        contact: { id: "7", objectName: "Contact" },
+        street: "Hauptstr. 1",
+        zip: "10115",
+        city: "Berlin",
+        country: { id: 1, objectName: "StaticCountry", code: "de" },
+      },
     ]);
     const mails = firstByContact([
       { id: 1, contact: { id: 7 }, type: "EMAIL", value: "info@example.com", main: false },
@@ -109,9 +116,7 @@ describe("mapSevInvoice", () => {
   });
 
   it("nimmt bei einem Satz die Summen des Belegs", () => {
-    const { voucher } = mapSevInvoice(invoice({ sumNet: "100", sumTax: "19", sumGross: "119" }), [
-      { id: 1, taxRate: 19, sumNet: "99.99", sumTax: "19.00" },
-    ]);
+    const { voucher } = mapSevInvoice(invoice({ sumNet: "100", sumTax: "19", sumGross: "119" }), [{ id: 1, taxRate: 19, sumNet: "99.99", sumTax: "19.00" }]);
     expect(voucher.taxes).toEqual([{ rate: 1900, net: 10000, tax: 1900 }]);
   });
 

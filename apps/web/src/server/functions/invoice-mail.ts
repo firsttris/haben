@@ -18,17 +18,16 @@ export const getMailDraft = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(target)
   .handler(({ data }) =>
-    (data.kind === "rechnung" ? invoiceMailDraft(data.id) : data.kind === "angebot" ? quoteMailDraft(data.id) : dunningMailDraft(data.id)),
+    data.kind === "rechnung" ? invoiceMailDraft(data.id) : data.kind === "angebot" ? quoteMailDraft(data.id) : dunningMailDraft(data.id),
   );
 
 export const sendDocumentMail = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(target.extend({ mail: outgoingMailSchema }))
   .handler(({ data, context }) =>
-    (data.kind === "rechnung"
+    data.kind === "rechnung"
       ? sendInvoiceMail(context.user.id, data.id, data.mail)
       : data.kind === "angebot"
         ? sendQuoteMail(context.user.id, data.id, data.mail)
-        : sendDunningMail(context.user.id, data.id, data.mail)
-    ),
+        : sendDunningMail(context.user.id, data.id, data.mail),
   );

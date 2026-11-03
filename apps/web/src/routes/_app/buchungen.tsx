@@ -28,12 +28,41 @@ function nextPeriod({ year, month }: VatPeriod): VatPeriod {
 function SourcePill({ entry }: { entry: Entry }) {
   const label = entry.reversal ? "Gegenbuchung" : JOURNAL_SOURCE[entry.sourceType];
   const id = entry.sourceId;
-  if (entry.sourceType === "invoice") return <Link to="/rechnungen/$id" params={{ id }} className="pill">{label}</Link>;
-  if (entry.sourceType === "document") return <Link to="/belege/$id" params={{ id }} className="pill">{label}</Link>;
-  if (entry.sourceType === "asset") return <Link to="/anlagen/$id" params={{ id }} className="pill">{label}</Link>;
-  if (entry.sourceType === "pauschale") return <Link to="/pauschalen" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">{label}</Link>;
-  if (entry.sourceType === "kasse") return <Link to="/kasse" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">{label}</Link>;
-  return <Link to="/bank" className="pill">{label}</Link>;
+  if (entry.sourceType === "invoice")
+    return (
+      <Link to="/rechnungen/$id" params={{ id }} className="pill">
+        {label}
+      </Link>
+    );
+  if (entry.sourceType === "document")
+    return (
+      <Link to="/belege/$id" params={{ id }} className="pill">
+        {label}
+      </Link>
+    );
+  if (entry.sourceType === "asset")
+    return (
+      <Link to="/anlagen/$id" params={{ id }} className="pill">
+        {label}
+      </Link>
+    );
+  if (entry.sourceType === "pauschale")
+    return (
+      <Link to="/pauschalen" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">
+        {label}
+      </Link>
+    );
+  if (entry.sourceType === "kasse")
+    return (
+      <Link to="/kasse" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">
+        {label}
+      </Link>
+    );
+  return (
+    <Link to="/bank" className="pill">
+      {label}
+    </Link>
+  );
 }
 
 /** Konten einer Seite: das größte zuerst, weitere als „+n“ */
@@ -42,7 +71,13 @@ function Accounts({ lines, period }: { lines: Entry["lines"]; period: VatPeriod 
   const [main, ...rest] = [...lines].sort((a, b) => b.debit + b.credit - (a.debit + a.credit));
   return (
     <>
-      <Link to="/konten/$konto" params={{ konto: main!.account }} search={{ jahr: period.year, zeitraum: `m${period.month}` }} className="mono" title={main!.name}>
+      <Link
+        to="/konten/$konto"
+        params={{ konto: main!.account }}
+        search={{ jahr: period.year, zeitraum: `m${period.month}` }}
+        className="mono"
+        title={main!.name}
+      >
         {main!.account}
       </Link>
       {rest.length > 0 && <span className="more">+{rest.length}</span>}
@@ -151,7 +186,13 @@ function JournalPage() {
                   <Fragment key={e.id}>
                     <tr>
                       <td>
-                        <button type="button" className="expand-btn" aria-expanded={isOpen} aria-label={`Buchungszeilen ${isOpen ? "ausblenden" : "anzeigen"}`} onClick={() => toggle(e.id)}>
+                        <button
+                          type="button"
+                          className="expand-btn"
+                          aria-expanded={isOpen}
+                          aria-label={`Buchungszeilen ${isOpen ? "ausblenden" : "anzeigen"}`}
+                          onClick={() => toggle(e.id)}
+                        >
                           <span className={`chevron${isOpen ? " open" : ""}`} aria-hidden="true">
                             ›
                           </span>
@@ -182,7 +223,12 @@ function JournalPage() {
                           <td />
                           <td />
                           <td data-label="Konto">
-                            <Link to="/konten/$konto" params={{ konto: l.account }} search={{ jahr: period.year, zeitraum: `m${period.month}` }} className="mono">
+                            <Link
+                              to="/konten/$konto"
+                              params={{ konto: l.account }}
+                              search={{ jahr: period.year, zeitraum: `m${period.month}` }}
+                              className="mono"
+                            >
                               {l.account}
                             </Link>{" "}
                             {l.name}

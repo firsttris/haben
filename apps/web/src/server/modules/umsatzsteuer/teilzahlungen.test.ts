@@ -8,8 +8,20 @@ function dkbCsv(rows: string[][]) {
   return new TextEncoder().encode(`${header + columns + rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n")}\n`);
 }
 
-const incoming = (date: string, purpose: string, amount: string) =>
-  [date, date, "Gebucht", "Nordwerk", "Testfirma", purpose, "Eingang", "DE02100100100006820101", amount, "", "", ""];
+const incoming = (date: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  "Nordwerk",
+  "Testfirma",
+  purpose,
+  "Eingang",
+  "DE02100100100006820101",
+  amount,
+  "",
+  "",
+  "",
+];
 
 /**
  * Ist-Versteuerung: Die Umsatzsteuer einer Rechnung wird mit den Zahlungen fällig. Jede Rate rundet ihren Steueranteil;
@@ -48,11 +60,26 @@ describe.skipIf(!testDatabaseUrl)("Teilzahlungen bei Ist-Versteuerung (Postgres)
   /** 100,00 € + 19,00 € = 119,00 € */
   async function invoice() {
     const contact = await contacts.createContact(actor, {
-      kundennummer: "", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-      email: "a@b.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "",
+      name: "Nordwerk Software GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "a@b.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     const draft = await invoices.createDraft(actor, {
-      contactId: contact.id, issueDate: "2026-09-20", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
+      contactId: contact.id,
+      issueDate: "2026-09-20",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
       lines: [{ description: "Leistung", quantity: 1000, unit: "Psch.", unitPrice: 10_000, taxRate: 1900 }],
     });
     return invoices.finalizeInvoice(actor, draft.id);
@@ -79,7 +106,11 @@ describe.skipIf(!testDatabaseUrl)("Teilzahlungen bei Ist-Versteuerung (Postgres)
   it("voll bezahlt in drei Raten: angemeldet, gebucht und vereinnahmt wird genau die Steuer der Rechnung", async () => {
     const inv = await invoice();
     // 39,67 + 39,67 + 39,66 = 119,00; einzeln gerundet ergäben die Raten 6,33 + 6,33 + 6,33 = 18,99 €
-    await pay(inv.id, [["01.10.26", "Rate 1", "39,67"], ["02.10.26", "Rate 2", "39,67"], ["03.10.26", "Rate 3", "39,66"]]);
+    await pay(inv.id, [
+      ["01.10.26", "Rate 1", "39,67"],
+      ["02.10.26", "Rate 2", "39,67"],
+      ["03.10.26", "Rate 3", "39,66"],
+    ]);
     const oct = await figures.computeVatFigures({ year: 2026, month: 10 });
     expect({ kz81: oct.kz81, tax81: oct.tax81 }).toEqual({ kz81: 10_000, tax81: 1_900 });
     expect(await notYetDue()).toBe(0);
@@ -89,9 +120,15 @@ describe.skipIf(!testDatabaseUrl)("Teilzahlungen bei Ist-Versteuerung (Postgres)
 
   it("eine Rate aufgehoben und neu zugeordnet: weiter genau die Steuer der Rechnung", async () => {
     const inv = await invoice();
-    const [, second] = await pay(inv.id, [["01.10.26", "Rate A", "39,67"], ["02.10.26", "Rate B", "39,67"]]);
+    const [, second] = await pay(inv.id, [
+      ["01.10.26", "Rate A", "39,67"],
+      ["02.10.26", "Rate B", "39,67"],
+    ]);
     await bank.reverseAllocation(actor, second!);
-    await pay(inv.id, [["03.10.26", "Rate C", "39,66"], ["04.10.26", "Rate D", "39,67"]]);
+    await pay(inv.id, [
+      ["03.10.26", "Rate C", "39,66"],
+      ["04.10.26", "Rate D", "39,67"],
+    ]);
     const oct = await figures.computeVatFigures({ year: 2026, month: 10 });
     expect({ kz81: oct.kz81, tax81: oct.tax81 }).toEqual({ kz81: 10_000, tax81: 1_900 });
     expect(await notYetDue()).toBe(0);
@@ -99,7 +136,10 @@ describe.skipIf(!testDatabaseUrl)("Teilzahlungen bei Ist-Versteuerung (Postgres)
 
   it("zwei Raten und Skonto als Rest: auf „nicht fällig“ bleibt nichts stehen", async () => {
     const inv = await invoice();
-    await pay(inv.id, [["01.10.26", "Rate X", "39,67"], ["02.10.26", "Rate Y", "39,67"]]);
+    await pay(inv.id, [
+      ["01.10.26", "Rate X", "39,67"],
+      ["02.10.26", "Rate Y", "39,67"],
+    ]);
     await bank.writeOff(actor, { kind: "skonto", invoiceId: inv.id, date: "2026-10-05" });
     expect(await notYetDue()).toBe(0);
   }, 60_000);

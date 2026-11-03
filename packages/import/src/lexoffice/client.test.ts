@@ -2,8 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LexofficeApiError, LexofficeClient, LexofficeSchemaError, parseContentDispositionFilename } from "./client.ts";
 
-const fixture = (name: string): unknown =>
-  JSON.parse(readFileSync(new URL(`../../test-fixtures/lexoffice/${name}`, import.meta.url), "utf8"));
+const fixture = (name: string): unknown => JSON.parse(readFileSync(new URL(`../../test-fixtures/lexoffice/${name}`, import.meta.url), "utf8"));
 
 interface Call {
   url: URL;
@@ -205,9 +204,7 @@ describe("Fehlerbehandlung", () => {
   });
 
   it("andere Fehler enthalten Status, Pfad und Fehlertext der API", async () => {
-    const { client } = setup(() =>
-      json({ IssueList: [{ i18nKey: "missing_entity", source: "id", type: "validation_failure" }] }, 400),
-    );
+    const { client } = setup(() => json({ IssueList: [{ i18nKey: "missing_entity", source: "id", type: "validation_failure" }] }, 400));
     await expect(client.voucher("v1")).rejects.toThrow("Lexware-API-Fehler 400 bei GET /vouchers/v1 – id: missing_entity");
   });
 
@@ -275,11 +272,7 @@ describe("Dateien", () => {
     });
     const f = await client.salesDocumentPdf("invoice", "inv1");
     expect(f).toEqual({ bytes: pdf, mimeType: "application/pdf", filename: null });
-    expect(calls.map((c) => c.url.pathname)).toEqual([
-      "/v1/invoices/inv1/file",
-      "/v1/invoices/inv1/document",
-      "/v1/files/doc-1",
-    ]);
+    expect(calls.map((c) => c.url.pathname)).toEqual(["/v1/invoices/inv1/file", "/v1/invoices/inv1/document", "/v1/files/doc-1"]);
   });
 
   it("kein PDF vorhanden → null", async () => {

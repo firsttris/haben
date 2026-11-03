@@ -89,7 +89,9 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
 
   it("nimmt nur POST an, der Server hält keine Sitzungen", async () => {
     const token = await enabledToken();
-    const response = await server.handleMcpRequest(new Request("http://localhost:3000/api/mcp", { method: "GET", headers: { Authorization: `Bearer ${token}` } }));
+    const response = await server.handleMcpRequest(
+      new Request("http://localhost:3000/api/mcp", { method: "GET", headers: { Authorization: `Bearer ${token}` } }),
+    );
     expect(response.status).toBe(405);
   });
 
@@ -135,7 +137,12 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
       felder: unknown[];
       zumVergleich: { bezeichnung: string; wert: string }[];
     };
-    expect(liste).toMatchObject({ formular: "Umsatzsteuer-Voranmeldung 2026", anmeldungszeitraum: "September 2026", grundlage: "aus den Buchungen berechnet", felder: [] });
+    expect(liste).toMatchObject({
+      formular: "Umsatzsteuer-Voranmeldung 2026",
+      anmeldungszeitraum: "September 2026",
+      grundlage: "aus den Buchungen berechnet",
+      felder: [],
+    });
     expect(liste.zumVergleich).toEqual([{ bezeichnung: "Kz 83 Verbleibende Umsatzsteuer-Vorauszahlung", wert: "0,00" }]);
 
     const legacy = JSON.parse((await call("lexoffice_belege", { zeitraum: "2023-03" })).content[0]!.text) as { anzahl: number; nachZahlung: boolean };
@@ -148,7 +155,18 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     const missing = await call("lexoffice_beleg", { beleg: "RE1019" });
     expect(missing.isError).toBe(true);
     expect(missing.content[0]!.text).toMatch(/Kein Lexoffice-Beleg „RE1019“/);
-    for (const name of ["fristen", "offene_posten", "ueberfaellige_rechnungen", "rechnungen", "belege", "bankumsaetze_ohne_zuordnung", "euer", "jahreserklaerung", "vorausgefuellte_belege", "lexoffice_abgleich"]) {
+    for (const name of [
+      "fristen",
+      "offene_posten",
+      "ueberfaellige_rechnungen",
+      "rechnungen",
+      "belege",
+      "bankumsaetze_ohne_zuordnung",
+      "euer",
+      "jahreserklaerung",
+      "vorausgefuellte_belege",
+      "lexoffice_abgleich",
+    ]) {
       expect((await call(name)).isError, name).toBeFalsy();
     }
 
@@ -192,9 +210,15 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     ]);
 
     const belege = (await run_("lexoffice_belege", { zeitraum: "2025-05", richtung: "alle", suche: "", limit: 50 })) as { belege: Record<string, unknown>[] };
-    expect(belege.belege[0]).toMatchObject({ nummer: "RE1", steuerart: "intraCommunitySupply", brutto: 1000, zahlungen: [{ datum: "2025-05-02", betrag: 1000 }] });
+    expect(belege.belege[0]).toMatchObject({
+      nummer: "RE1",
+      steuerart: "intraCommunitySupply",
+      brutto: 1000,
+      zahlungen: [{ datum: "2025-05-02", betrag: 1000 }],
+    });
 
-    const [file] = await sql`insert into archive_files (kind, year, filename, sha256, mime_type, size) values ('datev', 2025, 'DATEV_2025.csv', 'abc', 'text/csv', 1) returning id`;
+    const [file] =
+      await sql`insert into archive_files (kind, year, filename, sha256, mime_type, size) values ('datev', 2025, 'DATEV_2025.csv', 'abc', 'text/csv', 1) returning id`;
     await sql`insert into datev_bookings (file_id, row, date, amount, side, account, contra_account, voucher_field1, raw) values
       (${file!.id}, 3, '2025-04-10', 119000, 'S', '1200', '8400', 'RE1', '{}'::jsonb),
       (${file!.id}, 4, '2025-04-12', 11900, 'H', '1200', '4930', '', '{}'::jsonb)`;
@@ -207,7 +231,17 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     ]);
     const buchungen = (await run_("lexoffice_buchungen", { zeitraum: "2025", konto: "8400", ohneBeleg: false, limit: 50 })) as { buchungen: unknown[] };
     expect(buchungen.buchungen).toEqual([
-      { datum: "2025-04-10", betrag: 1190, sollHaben: "S", konto: "1200", gegenkonto: "8400", buSchluessel: "", belegnummer: "RE1", text: "", belegGefunden: true },
+      {
+        datum: "2025-04-10",
+        betrag: 1190,
+        sollHaben: "S",
+        konto: "1200",
+        gegenkonto: "8400",
+        buSchluessel: "",
+        belegnummer: "RE1",
+        text: "",
+        belegGefunden: true,
+      },
     ]);
     const abgleich2025 = (await run_("lexoffice_abgleich", { jahr: 2025 })) as { jahre: { abgelegteDateien: unknown[] }[] };
     expect(abgleich2025.jahre[0]!.abgelegteDateien).toEqual([{ art: "datev", name: "DATEV_2025.csv", notiz: "" }]);

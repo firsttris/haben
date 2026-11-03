@@ -1,4 +1,15 @@
-import { computeUstva, dueDate, kontenklasse, kontoart, parsePeriodKey, previousPeriod, periodKey, periodLabel, type LegacyVatMonth, type VatPeriod } from "@haben/core";
+import {
+  computeUstva,
+  dueDate,
+  kontenklasse,
+  kontoart,
+  parsePeriodKey,
+  previousPeriod,
+  periodKey,
+  periodLabel,
+  type LegacyVatMonth,
+  type VatPeriod,
+} from "@haben/core";
 import { z } from "zod";
 import { env } from "../../env.ts";
 import { today as todayInGermany } from "../../today.ts";
@@ -7,7 +18,8 @@ import {
   connectionStatus,
   datevBookingsForPeriod,
   findLegacyVouchers,
-  listArchiveFiles,   latestImport,
+  listArchiveFiles,
+  latestImport,
   legacyVouchersForPeriod,
   reconciliation,
   type LegacyVoucherForVat,
@@ -78,14 +90,28 @@ function tool<Shape extends z.ZodRawShape>(definition: McpTool<Shape>): McpTool 
 function withoutKennungen(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutKennungen);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).filter(([key]) => !KENNUNG_API.test(key)).map(([key, v]) => [key, withoutKennungen(v)]));
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key]) => !KENNUNG_API.test(key))
+        .map(([key, v]) => [key, withoutKennungen(v)]),
+    );
   }
   return value;
 }
 
 /** Kennzahlen eines Monats aus dem Lexoffice-Altbestand; Sonderfälle nur, wenn etwas drinsteht */
 function legacyVatMonth(m: LegacyVatMonth) {
-  const special = { kz41: m.kz41, kz43: m.kz43, kz21: m.kz21, kz45: m.kz45, kz60: m.kz60, kz87: m.kz87, steuerfrei: m.steuerfrei, oss: m.oss, andereSaetze: m.otherBase };
+  const special = {
+    kz41: m.kz41,
+    kz43: m.kz43,
+    kz21: m.kz21,
+    kz45: m.kz45,
+    kz60: m.kz60,
+    kz87: m.kz87,
+    steuerfrei: m.steuerfrei,
+    oss: m.oss,
+    andereSaetze: m.otherBase,
+  };
   return {
     monat: m.month,
     kz81Bemessungsgrundlage19: euro(m.kz81),
@@ -93,7 +119,11 @@ function legacyVatMonth(m: LegacyVatMonth) {
     kz86Bemessungsgrundlage7: euro(m.kz86),
     steuer7: euro(m.tax86),
     kz66Vorsteuer: euro(m.kz66),
-    ...Object.fromEntries(Object.entries(special).filter(([, cents]) => cents !== 0).map(([key, cents]) => [key, euro(cents)])),
+    ...Object.fromEntries(
+      Object.entries(special)
+        .filter(([, cents]) => cents !== 0)
+        .map(([key, cents]) => [key, euro(cents)]),
+    ),
   };
 }
 
@@ -169,7 +199,11 @@ export const MCP_TOOLS: McpTool[] = [
         belegeZuPruefen: documents.filter((d) => d.status === "neu").length,
         bankumsaetzeOhneZuordnung: accounts.map((a) => ({ konto: a.name, anzahl: a.openCount })),
         afaNochNichtGebucht: afa.map((a) => ({ jahr: a.year, anlagen: a.count })),
-        einspruchsfristen: appeals.map((a) => ({ bescheid: a.dateibezeichnung || a.datenart, zeitraum: a.veranlagungszeitraum, fristende: a.frist!.fristende })),
+        einspruchsfristen: appeals.map((a) => ({
+          bescheid: a.dateibezeichnung || a.datenart,
+          zeitraum: a.veranlagungszeitraum,
+          fristende: a.frist!.fristende,
+        })),
         elsterZertifikatGueltigBis: certificate?.validUntil ?? null,
         naechsteFristen: fristen
           .filter((f) => f.status === "offen")
@@ -190,7 +224,15 @@ export const MCP_TOOLS: McpTool[] = [
     run: async ({ alle }, { today }) =>
       (await listFristen(today))
         .filter((f) => alle || f.status !== "erledigt")
-        .map((f) => ({ datum: f.datum, art: f.art, titel: f.titel, detail: f.detail, status: f.status, ueberfaellig: f.status === "offen" && f.datum < today, link: link(f.link) })),
+        .map((f) => ({
+          datum: f.datum,
+          art: f.art,
+          titel: f.titel,
+          detail: f.detail,
+          status: f.status,
+          ueberfaellig: f.status === "offen" && f.datum < today,
+          link: link(f.link),
+        })),
   }),
 
   tool({
@@ -204,10 +246,28 @@ export const MCP_TOOLS: McpTool[] = [
     run: async ({ limit }, { today }) => {
       const open = await openPositions(today);
       const map = (items: typeof open.receivables) =>
-        items.slice(0, limit).map((i) => ({ nummer: i.number, partner: i.party, datum: i.date, faellig: i.dueDate, brutto: euro(i.gross), offen: euro(i.open), tageUeberfaellig: Math.max(0, i.daysOverdue) }));
+        items.slice(0, limit).map((i) => ({
+          nummer: i.number,
+          partner: i.party,
+          datum: i.date,
+          faellig: i.dueDate,
+          brutto: euro(i.gross),
+          offen: euro(i.open),
+          tageUeberfaellig: Math.max(0, i.daysOverdue),
+        }));
       return {
-        forderungen: { summe: euro(open.receivablesTotal), davonUeberfaellig: euro(open.receivablesOverdue), anzahl: open.receivables.length, posten: map(open.receivables) },
-        verbindlichkeiten: { summe: euro(open.payablesTotal), davonUeberfaellig: euro(open.payablesOverdue), anzahl: open.payables.length, posten: map(open.payables) },
+        forderungen: {
+          summe: euro(open.receivablesTotal),
+          davonUeberfaellig: euro(open.receivablesOverdue),
+          anzahl: open.receivables.length,
+          posten: map(open.receivables),
+        },
+        verbindlichkeiten: {
+          summe: euro(open.payablesTotal),
+          davonUeberfaellig: euro(open.payablesOverdue),
+          anzahl: open.payables.length,
+          posten: map(open.payables),
+        },
         link: link("/auswertungen"),
       };
     },
@@ -333,7 +393,13 @@ export const MCP_TOOLS: McpTool[] = [
       "und die Vorprüfung: was im Monat noch offen ist und die Zahlen verfälschen könnte, dazu der Abgleich mit dem Journal. " +
       "Ohne Zeitraum der Monat, der als Nächstes abzugeben ist. Gesendet wird nur in Haben selbst.",
     scope: "haben:lesen",
-    input: { zeitraum: z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Monat als JJJJ-MM") },
+    input: {
+      zeitraum: z
+        .string()
+        .regex(/^\d{4}-\d{2}$/)
+        .optional()
+        .describe("Monat als JJJJ-MM"),
+    },
     run: async ({ zeitraum }, { today }) => {
       const period = periodFrom(zeitraum, today);
       const [company, returns, figures, abgleich, kleinunternehmer] = await Promise.all([
@@ -389,7 +455,13 @@ export const MCP_TOOLS: McpTool[] = [
       "die Mein ELSTER selbst rechnet (Steuer zu Kz 81 und 86, Kz 83), zum Vergleich nach „Prüfen“. Ohne Zeitraum der Monat, der als " +
       "Nächstes abzugeben ist. Absenden darf nur der Nutzer selbst.",
     scope: "haben:lesen",
-    input: { zeitraum: z.string().regex(/^\d{4}-\d{2}$/).optional().describe("Monat als JJJJ-MM") },
+    input: {
+      zeitraum: z
+        .string()
+        .regex(/^\d{4}-\d{2}$/)
+        .optional()
+        .describe("Monat als JJJJ-MM"),
+    },
     run: async ({ zeitraum }, { today }) => {
       const period = periodFrom(zeitraum, today);
       const [company, returns, figures, abgleich, kleinunternehmer] = await Promise.all([
@@ -409,7 +481,11 @@ export const MCP_TOOLS: McpTool[] = [
         zeitraum: periodKey(period),
         anmeldungszeitraum: periodLabel(period),
         faellig: dueDate(period, company.bundesland),
-        grundlage: sent ? "in Haben als gesendet festgeschrieben" : draft?.source === "manuell" ? "Entwurf, von Hand überschrieben" : "aus den Buchungen berechnet",
+        grundlage: sent
+          ? "in Haben als gesendet festgeschrieben"
+          : draft?.source === "manuell"
+            ? "Entwurf, von Hand überschrieben"
+            : "aus den Buchungen berechnet",
         ...(sent
           ? { hinweis: "Diese Anmeldung ist schon gesendet. Für eine Korrektur in Haben eine berichtigte Anmeldung anlegen." }
           : kleinunternehmer
@@ -462,7 +538,8 @@ export const MCP_TOOLS: McpTool[] = [
     run: async ({ jahr }, { today }) => {
       const year = jahr ?? Number(today.slice(0, 4)) - 1;
       const overview = await annualOverview(year, today);
-      const issues = (list: { tone: string; text: string; link?: string }[]) => list.map((i) => ({ art: i.tone, hinweis: i.text, ...(i.link ? { link: link(i.link) } : {}) }));
+      const issues = (list: { tone: string; text: string; link?: string }[]) =>
+        list.map((i) => ({ art: i.tone, hinweis: i.text, ...(i.link ? { link: link(i.link) } : {}) }));
       const sent = (s: { createdAt: Date } | null) => (s ? { gesendetAm: s.createdAt } : null);
       const p = overview.est.prognose;
       return {
@@ -518,7 +595,14 @@ export const MCP_TOOLS: McpTool[] = [
       const belege = (await listVastBelege(year)).filter((b) => !b.belegart.startsWith("VaSt_Pers"));
       return {
         jahr: year,
-        belege: belege.map((b) => ({ person: b.person, art: b.label, abgerufen: b.fetchedAt, test: b.test, lesbar: b.lesbar, werte: b.werte.filter((w) => !w.pfad.some((teil) => KENNUNG.test(teil))).map((w) => ({ feld: w.pfad.join(" › "), wert: w.wert })) })),
+        belege: belege.map((b) => ({
+          person: b.person,
+          art: b.label,
+          abgerufen: b.fetchedAt,
+          test: b.test,
+          lesbar: b.lesbar,
+          werte: b.werte.filter((w) => !w.pfad.some((teil) => KENNUNG.test(teil))).map((w) => ({ feld: w.pfad.join(" › "), wert: w.wert })),
+        })),
         link: link(`/jahreserklaerung/${year}`),
       };
     },
@@ -536,7 +620,12 @@ export const MCP_TOOLS: McpTool[] = [
     scope: "haben:lesen",
     input: { jahr: yearSchema.optional() },
     run: async ({ jahr }) => {
-      const [connection, lastImport, { versteuerung, years }, files] = await Promise.all([connectionStatus(), latestImport(), reconciliation(), listArchiveFiles()]);
+      const [connection, lastImport, { versteuerung, years }, files] = await Promise.all([
+        connectionStatus(),
+        latestImport(),
+        reconciliation(),
+        listArchiveFiles(),
+      ]);
       return {
         verbindung: connection ? { verbunden: true, firmaInLexoffice: connection.organizationName, seit: connection.createdAt } : { verbunden: false },
         letzterAbruf: lastImport
@@ -590,7 +679,10 @@ export const MCP_TOOLS: McpTool[] = [
       "Ist-Versteuerung kommen standardmäßig auch Einnahmen dazu, die im Zeitraum bezahlt wurden (nachZahlung).",
     scope: "haben:lesen",
     input: {
-      zeitraum: z.string().regex(/^\d{4}(-\d{2})?$/).describe("Jahr als JJJJ oder Monat als JJJJ-MM, nach Belegdatum"),
+      zeitraum: z
+        .string()
+        .regex(/^\d{4}(-\d{2})?$/)
+        .describe("Jahr als JJJJ oder Monat als JJJJ-MM, nach Belegdatum"),
       richtung: z.enum(["alle", "einnahme", "ausgabe"]).default("alle"),
       suche: z.string().max(100).default("").describe("Teil von Belegnummer, Kontakt oder Notiz"),
       nachZahlung: z.boolean().optional().describe("Auch Einnahmen mit Zahlung im Zeitraum; Standard: bei Ist-Versteuerung ja"),
@@ -667,7 +759,12 @@ export const MCP_TOOLS: McpTool[] = [
       "Vergleich mit Saldenliste, EÜR und Umsatzsteuerkonten in Lexware Office. Wo Steuerautomatik greift, sind die Beträge brutto. " +
       "Kontonamen nur, soweit Haben das Konto kennt.",
     scope: "haben:lesen",
-    input: { zeitraum: z.string().regex(/^\d{4}(-\d{2})?$/).describe("Jahr als JJJJ oder Monat als JJJJ-MM") },
+    input: {
+      zeitraum: z
+        .string()
+        .regex(/^\d{4}(-\d{2})?$/)
+        .describe("Jahr als JJJJ oder Monat als JJJJ-MM"),
+    },
     run: async ({ zeitraum }) => {
       const year = Number(zeitraum.slice(0, 4));
       const month = zeitraum.length > 4 ? Number(zeitraum.slice(5, 7)) : undefined;
@@ -709,7 +806,10 @@ export const MCP_TOOLS: McpTool[] = [
       "für ein Konto (als Konto oder Gegenkonto) oder nur Buchungen, deren Belegnummer keinen abgerufenen Beleg findet.",
     scope: "haben:lesen",
     input: {
-      zeitraum: z.string().regex(/^\d{4}(-\d{2})?$/).describe("Jahr als JJJJ oder Monat als JJJJ-MM"),
+      zeitraum: z
+        .string()
+        .regex(/^\d{4}(-\d{2})?$/)
+        .describe("Jahr als JJJJ oder Monat als JJJJ-MM"),
       konto: z.string().max(10).default("").describe("Kontonummer, z. B. 8400"),
       ohneBeleg: z.boolean().default(false).describe("Nur Buchungen mit Belegnummer, zu der kein Lexoffice-Beleg existiert"),
       limit: limitSchema,

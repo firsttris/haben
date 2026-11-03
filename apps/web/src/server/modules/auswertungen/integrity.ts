@@ -114,10 +114,7 @@ export type PruefwertResult =
  * bis dorthin nach. Erst beides zusammen zeigt, dass kein Eintrag bis zu dieser Nummer verändert wurde.
  */
 export async function checkPruefwert(seq: number, hash: string): Promise<PruefwertResult> {
-  const [row] = await db
-    .select({ hash: schema.auditLog.rowHash })
-    .from(schema.auditLog)
-    .where(eq(schema.auditLog.seq, seq));
+  const [row] = await db.select({ hash: schema.auditLog.rowHash }).from(schema.auditLog).where(eq(schema.auditLog.seq, seq));
   if (!row) return { status: "fehlt", seq, head: (await chainHead())?.seq ?? null };
   const actual = row.hash.toString("hex");
   if (actual !== hash.toLowerCase()) return { status: "abweichend", seq, expected: hash.toLowerCase(), actual };

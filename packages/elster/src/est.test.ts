@@ -3,7 +3,6 @@ import { buildEstXml, kindZeitraum, type EstXmlInput } from "./est.ts";
 import { datenartVersionFromXml, ElsterEingabeError, hasTestmerker } from "./xml.ts";
 import { checkXml } from "./fake-client.ts";
 
-
 const estInput = (overrides: Partial<EstXmlInput> = {}): EstXmlInput => ({
   year: 2025,
   steuernummer13: "2836216146249",
@@ -122,28 +121,41 @@ describe("buildEstXml", () => {
     });
     expect(checkXml(xml)).toBeUndefined();
     const n = /<N>[\s\S]*?<\/N>/.exec(xml)![0];
-    expect(n).toMatch(/^<N>\s*<Person>PersonB<\/Person>\s*<ArbL>\s*<LStB_1_5_Einz>\s*<E0200204>42000,50<\/E0200204>\s*<E0200304>6123,40<\/E0200304>\s*<E0200504>489,87<\/E0200504>\s*<\/LStB_1_5_Einz>/);
-    expect(n).toMatch(/<LStB_1_5_Sum>\s*<E0200002>4<\/E0200002>\s*<E0200201>42001<\/E0200201>\s*<E0200301>6123,40<\/E0200301>\s*<E0200501>489,87<\/E0200501>\s*<\/LStB_1_5_Sum>/);
-    expect(n).toMatch(/<LStB_6_Einz>\s*<E0200202>6000,00<\/E0200202>\s*<E0200302>800,00<\/E0200302>\s*<E0200502>0,00<\/E0200502>\s*<\/LStB_6_Einz>\s*<LStB_6_Sum>\s*<E0200203>6000<\/E0200203>\s*<E0200303>800,00<\/E0200303>\s*<E0200503>0,00<\/E0200503>/);
+    expect(n).toMatch(
+      /^<N>\s*<Person>PersonB<\/Person>\s*<ArbL>\s*<LStB_1_5_Einz>\s*<E0200204>42000,50<\/E0200204>\s*<E0200304>6123,40<\/E0200304>\s*<E0200504>489,87<\/E0200504>\s*<\/LStB_1_5_Einz>/,
+    );
+    expect(n).toMatch(
+      /<LStB_1_5_Sum>\s*<E0200002>4<\/E0200002>\s*<E0200201>42001<\/E0200201>\s*<E0200301>6123,40<\/E0200301>\s*<E0200501>489,87<\/E0200501>\s*<\/LStB_1_5_Sum>/,
+    );
+    expect(n).toMatch(
+      /<LStB_6_Einz>\s*<E0200202>6000,00<\/E0200202>\s*<E0200302>800,00<\/E0200302>\s*<E0200502>0,00<\/E0200502>\s*<\/LStB_6_Einz>\s*<LStB_6_Sum>\s*<E0200203>6000<\/E0200203>\s*<E0200303>800,00<\/E0200303>\s*<E0200503>0,00<\/E0200503>/,
+    );
     expect(n).toMatch(
       /<Wk>\s*<EP>\s*<Erste_Taetig>\s*<E0203003>1<\/E0203003>\s*<E0203501>77815 Bühl, Industriestraße 4<\/E0203501>\s*<E0203101>01\.01-31\.12<\/E0203101>\s*<E0203508>5<\/E0203508>\s*<E0203509>30<\/E0203509>\s*<E0203503>180<\/E0203503>\s*<E0203504>23<\/E0203504>\s*<E0203505>23<\/E0203505>/,
     );
-    expect(n).toMatch(/<\/EP>\s*<Berufsverb>[\s\S]*<E0204002>120<\/E0204002>[\s\S]*<Arbeitsmittel>[\s\S]*<E0204403>349<\/E0204403>[\s\S]*<Homeoffice>\s*<E0204507>40<\/E0204507>\s*<\/Homeoffice>\s*<Weitere_Wk>/);
+    expect(n).toMatch(
+      /<\/EP>\s*<Berufsverb>[\s\S]*<E0204002>120<\/E0204002>[\s\S]*<Arbeitsmittel>[\s\S]*<E0204403>349<\/E0204403>[\s\S]*<Homeoffice>\s*<E0204507>40<\/E0204507>\s*<\/Homeoffice>\s*<Weitere_Wk>/,
+    );
     expect(n).not.toContain("<Fortb>");
     // N steht nach S und vor KAP
     expect(xml.indexOf("<S>")).toBeLessThan(xml.indexOf("<N>"));
     expect(xml.indexOf("<N>")).toBeLessThan(xml.indexOf("<KAP>"));
     // Vorsorge: Arbeitnehmeranteile laut Bescheinigung bei Person B
     expect(xml).toMatch(/<AVor>\s*<Person>PersonB<\/Person>\s*<E2000401>3906<\/E2000401>\s*<E2000801>3906<\/E2000801>\s*<\/AVor>/);
-    expect(xml).toMatch(/<Beitr_g_KV_PV_Inl>\s*<Person>PersonB<\/Person>\s*<AN>\s*<E2001203>3412<\/E2001203>\s*<E2001505>756<\/E2001505>\s*<\/AN>\s*<And_Pers>/);
+    expect(xml).toMatch(
+      /<Beitr_g_KV_PV_Inl>\s*<Person>PersonB<\/Person>\s*<AN>\s*<E2001203>3412<\/E2001203>\s*<E2001505>756<\/E2001505>\s*<\/AN>\s*<And_Pers>/,
+    );
     expect(xml).toMatch(/<Weit_Sons_VorAW>\s*<Pers>\s*<Person>PersonB<\/Person>\s*<E2004403>546<\/E2004403>\s*<\/Pers>\s*<A_B_LP>/);
   });
 
   it("prüft die Angaben der Anlage N", () => {
     const base = estInput();
-    const mit = (an: NonNullable<EstXmlInput["angaben"]["arbeitnehmer"]>["a"]) => () => buildEstXml({ ...base, angaben: { ...base.angaben, arbeitnehmer: { a: an } } });
+    const mit = (an: NonNullable<EstXmlInput["angaben"]["arbeitnehmer"]>["a"]) => () =>
+      buildEstXml({ ...base, angaben: { ...base.angaben, arbeitnehmer: { a: an } } });
     expect(mit({ bescheinigungen: [{ steuerklasse: 1, brutto: 0 }], werbungskosten: {} })).toThrow(/Bruttoarbeitslohn/);
-    expect(mit({ bescheinigungen: [{ steuerklasse: 1, brutto: 100_000 }], werbungskosten: { wege: { tage: 10, km: 5, adresse: " " } } })).toThrow(/Tätigkeitsstätte/);
+    expect(mit({ bescheinigungen: [{ steuerklasse: 1, brutto: 100_000 }], werbungskosten: { wege: { tage: 10, km: 5, adresse: " " } } })).toThrow(
+      /Tätigkeitsstätte/,
+    );
     // Ohne Bescheinigung keine Anlage N; dauerhaft kein anderer Arbeitsplatz in Zeile 62
     expect(mit({ bescheinigungen: [], werbungskosten: { arbeitsmittel: 10_000 } })()).not.toContain("<N>");
     expect(mit({ bescheinigungen: [{ steuerklasse: 1, brutto: 100_000 }], werbungskosten: { homeofficeTage: 12, keinAndererArbeitsplatz: true } })()).toMatch(
@@ -171,9 +183,7 @@ describe("buildEstXml", () => {
   });
 
   it("lässt leere Anlagen ganz weg", () => {
-    const xml = buildEstXml(
-      estInput({ angaben: { vorsorge: { a: {} }, sonderausgaben: {}, haushaltsnah: {}, kinder: [] }, telefon: undefined }),
-    );
+    const xml = buildEstXml(estInput({ angaben: { vorsorge: { a: {} }, sonderausgaben: {}, haushaltsnah: {}, kinder: [] }, telefon: undefined }));
     for (const tag of ["<SA>", "<AgB>", "<HA_35a>", "<Kind>", "<KAP>", "<VOR>", "<E0100008>"]) expect(xml).not.toContain(tag);
     expect(checkXml(xml)).toBeUndefined();
   });
@@ -186,12 +196,17 @@ describe("buildEstXml", () => {
     expect(() => buildEstXml(estInput({ iban: undefined }))).toThrow(/Bankverbindung/);
     expect(() => buildEstXml(estInput({ personB: { ...estInput().personB!, idnr: estInput().personA.idnr } }))).toThrow(/dieselbe Identifikationsnummer/);
     const ohneKasse = estInput();
-    expect(() => buildEstXml({ ...ohneKasse, angaben: { ...ohneKasse.angaben, kinder: [{ vorname: "Lena", geburtsdatum: "2020-01-15" }] } })).toThrow(/Familienkasse/);
+    expect(() => buildEstXml({ ...ohneKasse, angaben: { ...ohneKasse.angaben, kinder: [{ vorname: "Lena", geburtsdatum: "2020-01-15" }] } })).toThrow(
+      /Familienkasse/,
+    );
   });
 
   it("schreibt Lohn- und Kirchensteuer der Lohnsteuerbescheinigung ausdrücklich, auch mit 0", () => {
     const base = estInput();
-    const xml = buildEstXml({ ...base, angaben: { ...base.angaben, arbeitnehmer: { a: { bescheinigungen: [{ steuerklasse: 1, brutto: 600_000 }], werbungskosten: {} } } } });
+    const xml = buildEstXml({
+      ...base,
+      angaben: { ...base.angaben, arbeitnehmer: { a: { bescheinigungen: [{ steuerklasse: 1, brutto: 600_000 }], werbungskosten: {} } } },
+    });
     expect(xml).toMatch(/<LStB_1_5_Einz>\s*<E0200204>6000,00<\/E0200204>\s*<E0200304>0,00<\/E0200304>\s*<E0200504>0,00<\/E0200504>\s*<\/LStB_1_5_Einz>/);
   });
 

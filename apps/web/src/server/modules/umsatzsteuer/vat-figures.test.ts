@@ -50,11 +50,26 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
 
   async function invoice(lines: { net: number; rate: 1900 | 700 }[], issueDate = "2026-09-20") {
     const contact = await contacts.createContact(actor, {
-      kundennummer: "", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-      email: "a@b.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "",
+      name: "Nordwerk Software GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "a@b.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     const draft = await invoices.createDraft(actor, {
-      contactId: contact.id, issueDate, serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
+      contactId: contact.id,
+      issueDate,
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
       lines: lines.map((l) => ({ description: "Leistung", quantity: 1000, unit: "Psch." as const, unitPrice: l.net, taxRate: l.rate })),
     });
     return invoices.finalizeInvoice(actor, draft.id);
@@ -64,20 +79,33 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, net % 256, tax % 256, 1]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: "b.jpg" });
     await documents.updateDocument(actor, id, {
-      supplierName: "Hetzner Online GmbH", supplierUstId: "", invoiceNumber: "R1", documentDate: date, dueDate: null,
-      category: "edv", payment: "bank", note: "", amounts: [{ taxRate: 1900, net, tax }],
+      supplierName: "Hetzner Online GmbH",
+      supplierUstId: "",
+      invoiceNumber: "R1",
+      documentDate: date,
+      dueDate: null,
+      category: "edv",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net, tax }],
     });
     await documents.bookDocument(actor, id);
     return id;
   }
 
   it("Ist: Umsatzsteuer nach Zahlungseingang, anteilig, Vorsteuer nach Belegdatum", async () => {
-    const inv = await invoice([{ net: 400_000, rate: 1900 }, { net: 100_000, rate: 700 }]);
+    const inv = await invoice([
+      { net: 400_000, rate: 1900 },
+      { net: 100_000, rate: 700 },
+    ]);
     await bookedDocument("2026-10-05", 3_240, 616);
     await bookedDocument("2026-09-28", 1_000, 190);
     await bank.importStatement(
       actor,
-      { bytes: dkbCsv([row("01.10.26", "Nordwerk", `RE ${inv.number} Teil 1`, "3.000,00"), row("28.09.26", "Nordwerk", "Abschlag", "500,00")]), filename: "a.csv" },
+      {
+        bytes: dkbCsv([row("01.10.26", "Nordwerk", `RE ${inv.number} Teil 1`, "3.000,00"), row("28.09.26", "Nordwerk", "Abschlag", "500,00")]),
+        filename: "a.csv",
+      },
       null,
     );
     const txs = await sql`select id, booking_date from bank_transactions order by booking_date desc`;
@@ -120,7 +148,14 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     );
     await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9]), filename: "neu.jpg" });
     await invoices.createDraft(actor, {
-      contactId: null, issueDate: "2026-10-10", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "", lines: [],
+      contactId: null,
+      issueDate: "2026-10-10",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      lines: [],
     });
     const issues = await figures.preflight(october, await figures.computeVatFigures(october));
     expect(issues.map((i) => i.text)).toEqual([
@@ -138,10 +173,15 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
 
     await bookedDocument("2026-10-06", 1_000, 190);
     let xml = "";
-    const spy = { validate: async (body: string) => {
+    const spy = {
+      validate: async (body: string) => {
         xml = body;
         return new EricGeprueftClient().validate(body);
-      }, send: new EricGeprueftClient().send, fetchPostfach: new EricGeprueftClient().fetchPostfach, fetchBelege: new EricGeprueftClient().fetchBelege };
+      },
+      send: new EricGeprueftClient().send,
+      fetchPostfach: new EricGeprueftClient().fetchPostfach,
+      fetchBelege: new EricGeprueftClient().fetchBelege,
+    };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
     expect(xml).toContain("<Kz66>8.06</Kz66>");
     const [stored] = await sql`select kz66 from vat_returns where id = ${draft.id}`;
@@ -155,12 +195,28 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
 
   async function specialInvoice(taxTreatment: "reverse_charge" | "drittland" | "steuerfrei", land: string, ustId: string, issueDate: string) {
     const contact = await contacts.createContact(actor, {
-      kundennummer: "", name: "Alpenblick GmbH", strasse: "Ring 1", plz: "1010", ort: "Wien", land,
-      email: "a@b.example", ustId, iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "",
+      name: "Alpenblick GmbH",
+      strasse: "Ring 1",
+      plz: "1010",
+      ort: "Wien",
+      land,
+      email: "a@b.example",
+      ustId,
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     const draft = await invoices.createDraft(actor, {
-      contactId: contact.id, issueDate, serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
-      taxTreatment, exemptionReason: taxTreatment === "steuerfrei" ? "Steuerfrei nach § 4 Nr. 21 UStG" : "",
+      contactId: contact.id,
+      issueDate,
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      taxTreatment,
+      exemptionReason: taxTreatment === "steuerfrei" ? "Steuerfrei nach § 4 Nr. 21 UStG" : "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch." as const, unitPrice: 500_000, taxRate: 0 }],
     });
     return invoices.finalizeInvoice(actor, draft.id);
@@ -183,10 +239,15 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     const draft = await vat.saveDraft(actor, october, { mode: "berechnet" });
     expect(draft).toMatchObject({ kz21: 500_000, kz45: 500_000, kz83: 0 });
     let xml = "";
-    const spy = { validate: async (body: string) => {
+    const spy = {
+      validate: async (body: string) => {
         xml = body;
         return new EricGeprueftClient().validate(body);
-      }, send: new EricGeprueftClient().send, fetchPostfach: new EricGeprueftClient().fetchPostfach, fetchBelege: new EricGeprueftClient().fetchBelege };
+      },
+      send: new EricGeprueftClient().send,
+      fetchPostfach: new EricGeprueftClient().fetchPostfach,
+      fetchBelege: new EricGeprueftClient().fetchBelege,
+    };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
     expect(xml).toContain("<Kz21>5000</Kz21>");
     expect(xml).toContain("<Kz45>5000</Kz45>");
@@ -212,9 +273,16 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, net % 256, kind.length, 2]);
     const { id } = await documents.uploadDocument(actor, { bytes, filename: "rc.jpg" });
     await documents.updateDocument(actor, id, {
-      supplierName: kind === "eu" ? "Google Cloud EMEA Ltd" : "Example Software Inc.", supplierUstId: kind === "eu" ? "IE6388047V" : "",
-      invoiceNumber: "RC1", documentDate: date, dueDate: null, category: "software", payment, note: "",
-      reverseCharge: kind, amounts: [{ taxRate: 1900, net, tax: Math.round(net * 0.19) }],
+      supplierName: kind === "eu" ? "Google Cloud EMEA Ltd" : "Example Software Inc.",
+      supplierUstId: kind === "eu" ? "IE6388047V" : "",
+      invoiceNumber: "RC1",
+      documentDate: date,
+      dueDate: null,
+      category: "software",
+      payment,
+      note: "",
+      reverseCharge: kind,
+      amounts: [{ taxRate: 1900, net, tax: Math.round(net * 0.19) }],
     });
     await documents.bookDocument(actor, id);
     return id;
@@ -242,10 +310,15 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
     // Steuer und Vorsteuer aus § 13b heben sich auf
     expect(draft).toMatchObject({ kz46: 10_000, kz47: 1_900, kz84: 5_000, kz85: 950, kz67: 2_850, kz83: -616 });
     let xml = "";
-    const spy = { validate: async (body: string) => {
+    const spy = {
+      validate: async (body: string) => {
         xml = body;
         return new EricGeprueftClient().validate(body);
-      }, send: new EricGeprueftClient().send, fetchPostfach: new EricGeprueftClient().fetchPostfach, fetchBelege: new EricGeprueftClient().fetchBelege };
+      },
+      send: new EricGeprueftClient().send,
+      fetchPostfach: new EricGeprueftClient().fetchPostfach,
+      fetchBelege: new EricGeprueftClient().fetchBelege,
+    };
     await vat.submitReturn(actor, draft.id, spy, { kind: "validate" });
     expect(xml).toMatch(/<Kz46>100<\/Kz46>\s*<Kz47>19.00<\/Kz47>/);
     expect(xml).toContain("<Kz67>28.50</Kz67>");

@@ -41,8 +41,7 @@ const searchSchema = z.object({
 export const Route = createFileRoute("/_app/bank")({
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => ({ konto: search.konto, filter: search.filter, suche: search.suche, umsatz: search.umsatz }),
-  loader: ({ deps }) =>
-    getBankOverview({ data: { konto: deps.konto, filter: deps.filter ?? "offen", suche: deps.suche ?? "", umsatz: deps.umsatz } }),
+  loader: ({ deps }) => getBankOverview({ data: { konto: deps.konto, filter: deps.filter ?? "offen", suche: deps.suche ?? "", umsatz: deps.umsatz } }),
   head: () => ({ meta: [{ title: "Bank · Haben" }] }),
   component: BankPage,
 });
@@ -64,12 +63,23 @@ const KIND_LABEL = {
   privat: "Privat",
   geldtransit: "Geldtransit",
   ustVorauszahlung: "Umsatzsteuer",
-  gebuehren: "Bankgebühren", mahnerloes: "Mahngebühren und Zinsen",
+  gebuehren: "Bankgebühren",
+  mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",
 } as const;
 
 const FORMAT_LABEL = (format: string) =>
-  format === "enablebanking" ? "Abruf" : format.startsWith("camt") ? "CAMT.053" : format === "paypal-csv" ? "PayPal" : format === "stripe-csv" ? "Stripe" : format === "shopify-payments-csv" ? "Shopify" : "CSV";
+  format === "enablebanking"
+    ? "Abruf"
+    : format.startsWith("camt")
+      ? "CAMT.053"
+      : format === "paypal-csv"
+        ? "PayPal"
+        : format === "stripe-csv"
+          ? "Stripe"
+          : format === "shopify-payments-csv"
+            ? "Shopify"
+            : "CSV";
 
 function BankPage() {
   const data = Route.useLoaderData();
@@ -115,9 +125,8 @@ function BankPage() {
         <section className="card">
           <h2>Noch kein Konto</h2>
           <p className="muted" style={{ margin: 0 }}>
-            Verbinde dein Konto für den automatischen Abruf oder exportiere bei deiner Bank die Umsätze als CSV oder CAMT.053
-            und importiere die Datei. DKB-Dateien und CAMT nennen die IBAN, das Konto wird dann automatisch angelegt; für N26
-            lege das Konto vorher an.
+            Verbinde dein Konto für den automatischen Abruf oder exportiere bei deiner Bank die Umsätze als CSV oder CAMT.053 und importiere die Datei.
+            DKB-Dateien und CAMT nennen die IBAN, das Konto wird dann automatisch angelegt; für N26 lege das Konto vorher an.
           </p>
         </section>
       ) : (
@@ -192,7 +201,9 @@ function BankPage() {
                 >
                   <div className="muted small">{shortDate(tx.bookingDate)}</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                    <span className="ellipsis" style={{ fontWeight: 500 }}>{tx.counterpartyName || "–"}</span>
+                    <span className="ellipsis" style={{ fontWeight: 500 }}>
+                      {tx.counterpartyName || "–"}
+                    </span>
                     <span className="small muted ellipsis">{tx.purpose}</span>
                   </div>
                   <div className="num" style={{ color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
@@ -214,7 +225,9 @@ function BankPage() {
               />
             ) : (
               <aside className="card" aria-label="Zuordnung">
-                <p className="muted" style={{ margin: 0 }}>Umsatz links auswählen.</p>
+                <p className="muted" style={{ margin: 0 }}>
+                  Umsatz links auswählen.
+                </p>
               </aside>
             )}
           </div>
@@ -224,7 +237,13 @@ function BankPage() {
   );
 }
 
-const PURPOSE_SHORT = { geschaeft: "Geschäftskonto", steuer: "Steuerkonto", ruecklage: "Rücklagen", privat: "Privatkonto", zahlungsdienstleister: "Zahlungsdienstleister" } as const;
+const PURPOSE_SHORT = {
+  geschaeft: "Geschäftskonto",
+  steuer: "Steuerkonto",
+  ruecklage: "Rücklagen",
+  privat: "Privatkonto",
+  zahlungsdienstleister: "Zahlungsdienstleister",
+} as const;
 
 /** Name und Zweck des gewählten Kontos, etwa „Geschäftskonto“ und „Steuerkonto“ bei derselben Bank */
 function AccountSettings({ account, purposes, ledger }: { account: Data["accounts"][number]; purposes: Data["purposes"]; ledger: string | undefined }) {
@@ -280,9 +299,9 @@ function AccountSettings({ account, purposes, ledger }: { account: Data["account
         </label>
       )}
       <span className="small muted">
-        Der Name ist nur Anzeige; Umsätze und Import über die IBAN bleiben, wie sie sind. Der Zweck steuert Vorschläge im Bankabgleich
-        (Geldtransit zwischen eigenen Konten, Umsatzsteuer auf dem Steuerkonto, Privat beim Privatkonto), die IBAN für „Bankverbindung
-        ändern“ beim Finanzamt und die Deckung der Zahllast in der Übersicht. Gebucht wird weiter auf das eine Bankkonto.
+        Der Name ist nur Anzeige; Umsätze und Import über die IBAN bleiben, wie sie sind. Der Zweck steuert Vorschläge im Bankabgleich (Geldtransit zwischen
+        eigenen Konten, Umsatzsteuer auf dem Steuerkonto, Privat beim Privatkonto), die IBAN für „Bankverbindung ändern“ beim Finanzamt und die Deckung der
+        Zahllast in der Übersicht. Gebucht wird weiter auf das eine Bankkonto.
       </span>
       <NoticeBanner notice={notice} />
       <div className="actions">
@@ -387,8 +406,8 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
 
       {sync.connections.length === 0 && !connecting && (
         <p className="small muted" style={{ margin: 0 }}>
-          Noch keine Bank verbunden. Nach der Freigabe bei deiner Bank holt Haben die Umsätze einmal täglich; der Import per CSV oder
-          CAMT bleibt daneben möglich.
+          Noch keine Bank verbunden. Nach der Freigabe bei deiner Bank holt Haben die Umsätze einmal täglich; der Import per CSV oder CAMT bleibt daneben
+          möglich.
         </p>
       )}
 
@@ -403,9 +422,7 @@ function BankSync({ sync, result }: { sync: Sync; result: { ok: boolean; message
                 <span className={`pill ${status.tone}`}>{status.text}</span>
                 {c.renewSoon && <span className="pill pill-warn">Läuft bald ab</span>}
               </div>
-              <span className="small muted">
-                {c.accounts.map((a) => `${a.name} …${a.iban.slice(-4)}`).join(" · ") || "Keine Konten"}
-              </span>
+              <span className="small muted">{c.accounts.map((a) => `${a.name} …${a.iban.slice(-4)}`).join(" · ") || "Keine Konten"}</span>
               <span className="small muted">
                 {c.lastSyncAt ? `Zuletzt abgerufen ${formatDateTime(c.lastSyncAt)}` : "Noch nicht abgerufen"}
                 {c.validUntil ? ` · Zustimmung bis ${formatDate(c.validUntil)}` : ""}
@@ -569,14 +586,14 @@ function ConnectForm({
         Umsätze abrufen ab
         <input type="date" value={fetchFrom} max={today} onChange={(e) => setFetchFrom(e.target.value)} aria-describedby="fetch-from-hint" />
         <span id="fetch-from-hint" className="small muted">
-          Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon
-          da sind (etwa aus einer Datei). Beginnt die Buchhaltung in Haben später im Jahr, etwa nach einem Umzug, trage diesen Tag ein.
+          Gilt für Konten, die noch nie abgerufen wurden. Mit der Vorgabe holt Haben ab Jahresbeginn oder schließt an Umsätze an, die schon da sind (etwa aus
+          einer Datei). Beginnt die Buchhaltung in Haben später im Jahr, etwa nach einem Umzug, trage diesen Tag ein.
         </span>
       </label>
       {bank && (
         <p className="small muted" style={{ margin: 0 }}>
-          Du wirst zu {bank.name} weitergeleitet und gibst dort den Lesezugriff für {bank.maxConsentDays} Tage frei. Danach geht es
-          zurück zu Haben ({callbackUrl}).
+          Du wirst zu {bank.name} weitergeleitet und gibst dort den Lesezugriff für {bank.maxConsentDays} Tage frei. Danach geht es zurück zu Haben (
+          {callbackUrl}).
         </p>
       )}
       {error && (
@@ -643,7 +660,10 @@ function ImportControls({ data }: { data: Data }) {
             ? [{ tone: "danger" as const, text: r.error }]
             : "added" in r
               ? [
-                  { tone: "ok" as const, text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.` },
+                  {
+                    tone: "ok" as const,
+                    text: `${r.filename}: ${r.added} neue Umsätze für ${r.accountName}${r.skipped ? `, ${r.skipped} schon vorhanden` : ""}.`,
+                  },
                   ...(r.gap ? [{ tone: "danger" as const, text: r.gap }] : []),
                   ...r.warnings.map((w) => ({ tone: "info" as const, text: `${r.filename}: ${w}` })),
                 ]
@@ -744,8 +764,8 @@ function ImportControls({ data }: { data: Data }) {
             </label>
           ) : (
             <span className="small muted">
-              Bekommt ein eigenes Verrechnungskonto (SKR03 1361 …, SKR04 1461 …). Importiere den CSV-Export des Dienstleisters und wähle dabei
-              dieses Konto unter „Konto“.
+              Bekommt ein eigenes Verrechnungskonto (SKR03 1361 …, SKR04 1461 …). Importiere den CSV-Export des Dienstleisters und wähle dabei dieses Konto
+              unter „Konto“.
             </span>
           )}
           <button type="submit" className="btn btn-primary" disabled={busy}>
@@ -855,7 +875,13 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   // Zahlung unter dem offenen Betrag: Rest ausbuchen (Skonto, Forderungsausfall) statt als Teilzahlung stehen lassen
   const rest = target && Math.sign(target.open) === Math.sign(tx.open) && Math.abs(target.open) > Math.abs(tx.open) ? target.open - tx.open : 0;
   const restKinds: ("skonto" | "forderungsausfall" | "skontoErhalten")[] =
-    rest === 0 ? [] : target?.type === "invoice" && tx.amount > 0 ? ["skonto", "forderungsausfall"] : target?.type === "document" && tx.amount < 0 ? ["skontoErhalten"] : [];
+    rest === 0
+      ? []
+      : target?.type === "invoice" && tx.amount > 0
+        ? ["skonto", "forderungsausfall"]
+        : target?.type === "document" && tx.amount < 0
+          ? ["skontoErhalten"]
+          : [];
   const REST_LABEL = { skonto: "als Skonto", forderungsausfall: "als Forderungsausfall", skontoErhalten: "als erhaltenes Skonto" } as const;
   // Rechnung oder Beleg in Fremdwährung: Abweichung der Zahlung vom umgerechneten Betrag als Kursdifferenz (Zahlung − offen)
   const exchangeDifference =
@@ -869,7 +895,10 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
 
   function bookRestAsFee() {
     if (!target || feeRest === 0) return;
-    const first = target.type === "invoice" ? { kind: "invoice" as const, invoiceId: target.id, amount: target.open } : { kind: "document" as const, documentId: target.id, amount: target.open };
+    const first =
+      target.type === "invoice"
+        ? { kind: "invoice" as const, invoiceId: target.id, amount: target.open }
+        : { kind: "document" as const, documentId: target.id, amount: target.open };
     return run(() => splitFn({ data: { transactionId: tx.id, parts: [first, { kind: "gebuehren", amount: feeRest }] } }));
   }
 
@@ -948,9 +977,7 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
               <div className="match-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ fontWeight: 600 }}>
-                      {best.item.type === "invoice" ? `Rechnung ${best.item.number}` : `Beleg ${best.item.partyName}`}
-                    </span>
+                    <span style={{ fontWeight: 600 }}>{best.item.type === "invoice" ? `Rechnung ${best.item.number}` : `Beleg ${best.item.partyName}`}</span>
                     <span className="small muted">
                       vom {formatDate(best.item.date)}
                       {best.item.dueDate ? ` · fällig ${formatDate(best.item.dueDate)}` : ""}
@@ -979,16 +1006,18 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
           {mode === "other" && (
             <label className="field">
               Rechnung oder Beleg
-              <select value={candidate} onChange={(e) => {
-                setCandidate(e.target.value);
-                const c = candidates.find((x) => `${x.type}:${x.id}` === e.target.value);
-                if (c) setAmount(formatDecimal(Math.min(Math.abs(c.open), Math.abs(tx.open))));
-              }}>
+              <select
+                value={candidate}
+                onChange={(e) => {
+                  setCandidate(e.target.value);
+                  const c = candidates.find((x) => `${x.type}:${x.id}` === e.target.value);
+                  if (c) setAmount(formatDecimal(Math.min(Math.abs(c.open), Math.abs(tx.open))));
+                }}
+              >
                 <option value="">Bitte wählen</option>
                 {candidates.map((c) => (
                   <option key={`${c.type}:${c.id}`} value={`${c.type}:${c.id}`}>
-                    {c.type === "invoice" ? `Rechnung ${c.number}` : `Beleg ${c.partyName} ${c.number}`} · {c.partyName} · offen{" "}
-                    {formatEuro(Math.abs(c.open))}
+                    {c.type === "invoice" ? `Rechnung ${c.number}` : `Beleg ${c.partyName} ${c.number}`} · {c.partyName} · offen {formatEuro(Math.abs(c.open))}
                   </option>
                 ))}
               </select>
@@ -1016,15 +1045,18 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                     type="button"
                     className="btn"
                     disabled={busy}
-                    onClick={() => void run(() => transferFn({ data: { transactionId: tx.id, counterpartId: direct.counterpart!.id, payoutIds: direct.counterpart!.payoutIds } }))}
+                    onClick={() =>
+                      void run(() =>
+                        transferFn({ data: { transactionId: tx.id, counterpartId: direct.counterpart!.id, payoutIds: direct.counterpart!.payoutIds } }),
+                      )
+                    }
                   >
                     Beide Seiten als Geldtransit buchen
                   </button>
                   <span className="small muted">
-                    Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über {formatEuro(Math.abs(direct.counterpart.amount))} auf dem
-                    anderen Konto
-                    {direct.counterpart.payoutIds?.length ? ` (Auszahlung aus ${direct.counterpart.payoutIds.length + 1} Teilen)` : ""}; alles wird in einem Schritt
-                    zugeordnet.
+                    Gegenbuchung vom {formatDate(direct.counterpart.bookingDate)} über {formatEuro(Math.abs(direct.counterpart.amount))} auf dem anderen Konto
+                    {direct.counterpart.payoutIds?.length ? ` (Auszahlung aus ${direct.counterpart.payoutIds.length + 1} Teilen)` : ""}; alles wird in einem
+                    Schritt zugeordnet.
                   </span>
                 </>
               )}
@@ -1089,8 +1121,8 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                 Voll zuordnen, Rest {formatEuro(Math.abs(feeRest))} als Gebühr
               </button>
               <span className="small muted">
-                Für Auszahlungen von PayPal, Stripe oder Shopify: Die Rechnung gilt als voll bezahlt, die einbehaltene Gebühr wird
-                Aufwand (Nebenkosten des Geldverkehrs).
+                Für Auszahlungen von PayPal, Stripe oder Shopify: Die Rechnung gilt als voll bezahlt, die einbehaltene Gebühr wird Aufwand (Nebenkosten des
+                Geldverkehrs).
               </span>
             </div>
           )}
@@ -1113,8 +1145,8 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                 Ausgleichen, {formatEuro(Math.abs(exchangeDifference))} als Kursdifferenz
               </button>
               <span className="small muted">
-                {target.type === "invoice" ? "Rechnung" : "Beleg"} in {target.currency}: Die Zahlung weicht vom umgerechneten Betrag ab. Die
-                Abweichung wird {exchangeDifference > 0 ? "Ertrag" : "Aufwand"} aus Kursdifferenzen, die Umsatzsteuer bleibt beim Kurs{" "}
+                {target.type === "invoice" ? "Rechnung" : "Beleg"} in {target.currency}: Die Zahlung weicht vom umgerechneten Betrag ab. Die Abweichung wird{" "}
+                {exchangeDifference > 0 ? "Ertrag" : "Aufwand"} aus Kursdifferenzen, die Umsatzsteuer bleibt beim Kurs{" "}
                 {target.type === "invoice" ? "der Rechnung" : "des Belegs"}.
               </span>
             </div>
@@ -1234,18 +1266,21 @@ function SplitForm({
     >
       <div className="section-label">Aufteilen</div>
       <p className="small muted" style={{ margin: 0 }}>
-        Beträge mit Vorzeichen wie auf dem Konto: Zahlungseingänge positiv, Gebühren und Ausgänge negativ. Zusammen ergeben die Teile den
-        offenen Betrag von {signed(tx.open)} €; jeder Teil wird einzeln gebucht.
+        Beträge mit Vorzeichen wie auf dem Konto: Zahlungseingänge positiv, Gebühren und Ausgänge negativ. Zusammen ergeben die Teile den offenen Betrag von{" "}
+        {signed(tx.open)} €; jeder Teil wird einzeln gebucht.
       </p>
       {rows.map((row, index) => (
         <div key={row.key} className="split-row">
           <label className="field">
             Teil {index + 1}
-            <select value={row.target} onChange={(e) => {
-              const value = e.target.value;
-              const item = splitCandidates.find((c) => `${c.type}:${c.id}` === value);
-              update(row.key, item ? { target: value, amount: signed(item.open) } : { target: value });
-            }}>
+            <select
+              value={row.target}
+              onChange={(e) => {
+                const value = e.target.value;
+                const item = splitCandidates.find((c) => `${c.type}:${c.id}` === value);
+                update(row.key, item ? { target: value, amount: signed(item.open) } : { target: value });
+              }}
+            >
               <option value="">Bitte wählen</option>
               <optgroup label="Rechnungen und Belege">
                 {splitCandidates.map((c) => (

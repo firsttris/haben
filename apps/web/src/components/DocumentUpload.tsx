@@ -61,11 +61,23 @@ export function DocumentUpload({ aiAvailable }: { aiAvailable: boolean }) {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
           <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
         </svg>
         <div style={{ fontWeight: 500 }}>
-          {busy ? "Wird abgelegt …" : (
+          {busy ? (
+            "Wird abgelegt …"
+          ) : (
             <>
               <span className="pointer-fine">Belege hierher ziehen</span>
               <span className="camera-only-text">Beleg fotografieren oder Datei wählen</span>

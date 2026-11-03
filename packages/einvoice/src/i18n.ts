@@ -84,7 +84,10 @@ export const TEXTS = {
     countryLocale: "de",
   },
   en: {
-    titles: { rechnung: "Invoice", storno: "Cancellation invoice", korrektur: "Corrective invoice", angebot: "Quote" } as Record<InvoiceKind | "angebot", string>,
+    titles: { rechnung: "Invoice", storno: "Cancellation invoice", korrektur: "Corrective invoice", angebot: "Quote" } as Record<
+      InvoiceKind | "angebot",
+      string
+    >,
     variants: { abschlag: "Partial invoice", schluss: "Final invoice" },
     confirmation: "Order confirmation",
     deliveryNote: "Delivery note",

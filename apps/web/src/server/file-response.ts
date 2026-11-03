@@ -16,8 +16,7 @@ export function fileResponse(bytes: Uint8Array, file: { mimeType: string; filena
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
       // Der PDF-Viewer des Browsers verträgt kein sandbox
-      "Content-Security-Policy":
-        file.mimeType === "application/pdf" ? "default-src 'none'; object-src 'self'" : "sandbox; default-src 'none'; img-src 'self'",
+      "Content-Security-Policy": file.mimeType === "application/pdf" ? "default-src 'none'; object-src 'self'" : "sandbox; default-src 'none'; img-src 'self'",
     },
   });
 }

@@ -35,11 +35,26 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
     await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003" });
 
     const contact = await contacts.createContact(actor, {
-      kundennummer: "", name: "Nordwerk GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-      email: "", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "",
+      name: "Nordwerk GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     const input = {
-      contactId: contact.id, issueDate: "2026-09-01", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd" as const, note: "",
+      contactId: contact.id,
+      issueDate: "2026-09-01",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd" as const,
+      note: "",
       lines: [
         { description: "Beratung", quantity: 10_000, unit: "Std." as const, unitPrice: 10_000, taxRate: 1900 as const },
         { description: "Fachbuch", quantity: 1000, unit: "Stk." as const, unitPrice: 5_000, taxRate: 700 as const },
@@ -76,7 +91,9 @@ describe.skipIf(!testDatabaseUrl)("DATEV-Export (Postgres)", () => {
     });
     expect(parseDatevBuchungsstapel((await datev.datevExport(2026)).bytes).header.kontenrahmen).toBe("SKR03");
     // Haben bucht in das Jahr nichts mehr im neuen Rahmen (ledger.post)
-    await expect(invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id)).rejects.toThrow(/Das Jahr 2026 ist im Kontenrahmen SKR03 gebucht/);
+    await expect(invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, input)).id)).rejects.toThrow(
+      /Das Jahr 2026 ist im Kontenrahmen SKR03 gebucht/,
+    );
     // Gemischte Rahmen in einem Jahr aus Daten von vorher: klare Meldung statt eines falschen Stapels
     await sql.begin(async (tx) => {
       await tx`set local session_replication_role = replica`;

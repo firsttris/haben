@@ -112,12 +112,8 @@ export const lexContactSchema = z.looseObject({
     })
     .nullish(),
   person: z.looseObject({ salutation: str, firstName: str, lastName: str }).nullish(),
-  addresses: z
-    .looseObject({ billing: z.array(contactAddressSchema).nullish(), shipping: z.array(contactAddressSchema).nullish() })
-    .nullish(),
-  emailAddresses: z
-    .looseObject({ business: stringList, office: stringList, private: stringList, other: stringList })
-    .nullish(),
+  addresses: z.looseObject({ billing: z.array(contactAddressSchema).nullish(), shipping: z.array(contactAddressSchema).nullish() }).nullish(),
+  emailAddresses: z.looseObject({ business: stringList, office: stringList, private: stringList, other: stringList }).nullish(),
   phoneNumbers: z
     .looseObject({
       business: stringList,
@@ -154,12 +150,7 @@ export const LEX_SALES_DOCUMENT_TYPES = ["invoice", "creditnote", "downpaymentin
 export type LexSalesDocumentType = (typeof LEX_SALES_DOCUMENT_TYPES)[number];
 
 /** Buchhaltungsbelege: Detail per /vouchers/{id}. */
-export const LEX_BOOKKEEPING_VOUCHER_TYPES = [
-  "salesinvoice",
-  "salescreditnote",
-  "purchaseinvoice",
-  "purchasecreditnote",
-] as const;
+export const LEX_BOOKKEEPING_VOUCHER_TYPES = ["salesinvoice", "salescreditnote", "purchaseinvoice", "purchasecreditnote"] as const;
 export type LexBookkeepingVoucherType = (typeof LEX_BOOKKEEPING_VOUCHER_TYPES)[number];
 
 export const lexVoucherListItemSchema = z.looseObject({
@@ -227,9 +218,7 @@ export const lexSalesDocumentSchema = z.looseObject({
         description: str,
         quantity: num,
         unitName: str,
-        unitPrice: z
-          .looseObject({ currency: str, netAmount: num, grossAmount: num, taxRatePercentage: num })
-          .nullish(),
+        unitPrice: z.looseObject({ currency: str, netAmount: num, grossAmount: num, taxRatePercentage: num }).nullish(),
         discountPercentage: num,
         lineItemAmount: num,
       }),
@@ -247,9 +236,7 @@ export const lexSalesDocumentSchema = z.looseObject({
     .nullish(),
   taxAmounts: z.array(taxAmountSchema).nullish(),
   taxConditions: z.looseObject({ taxType: str, taxSubType: str, taxTypeNote: str }).nullish(),
-  paymentConditions: z
-    .looseObject({ paymentTermLabel: str, paymentTermLabelTemplate: str, paymentTermDuration: num })
-    .nullish(),
+  paymentConditions: z.looseObject({ paymentTermLabel: str, paymentTermLabelTemplate: str, paymentTermDuration: num }).nullish(),
   shippingConditions: z.looseObject({ shippingDate: str, shippingEndDate: str, shippingType: str }).nullish(),
   closingInvoice: bool,
   claimedGrossAmount: num,
@@ -323,9 +310,7 @@ export const lexPaymentsSchema = z.looseObject({
   voucherType: str,
   voucherStatus: str,
   paidDate: str,
-  paymentItems: z
-    .array(z.looseObject({ paymentItemType: str, postingDate: str, amount: z.number(), currency: str }))
-    .nullish(),
+  paymentItems: z.array(z.looseObject({ paymentItemType: str, postingDate: str, amount: z.number(), currency: str })).nullish(),
 });
 export type LexPayments = z.infer<typeof lexPaymentsSchema>;
 

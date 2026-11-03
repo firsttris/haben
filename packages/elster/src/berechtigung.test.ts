@@ -67,19 +67,36 @@ describe("Berechtigungsmanagement-Antworten", () => {
     const antwort = `<Elster><DatenTeil><Nutzdatenblock><NutzdatenHeader><RC><Rueckgabe><Code>0</Code><Text>OK</Text></Rueckgabe></RC></NutzdatenHeader>
       <Nutzdaten><SpezRechtAntrag version="3"><AntragAntwort><AntragsID>br127</AntragsID><AntragsDatum>2026-10-03T12:00:00</AntragsDatum>
       <GenehmigenBis>2027-01-01</GenehmigenBis><AntragsStatus>offen</AntragsStatus></AntragAntwort></SpezRechtAntrag></Nutzdaten></Nutzdatenblock></DatenTeil></Elster>`;
-    expect(parseSpezRechtAntragAntwort(antwort)).toEqual({ antragsId: "br127", antragsDatum: "2026-10-03T12:00:00", genehmigenBis: "2027-01-01", status: "offen" });
+    expect(parseSpezRechtAntragAntwort(antwort)).toEqual({
+      antragsId: "br127",
+      antragsDatum: "2026-10-03T12:00:00",
+      genehmigenBis: "2027-01-01",
+      status: "offen",
+    });
     expect(parseBrmRueckgabe(antwort)).toEqual({ code: 0, text: "OK" });
     expect(parseSpezRechtAntragAntwort("")).toBeUndefined();
     expect(parseSpezRechtStatus("<X><StornoAntwort><AntragsStatus>widerrufen</AntragsStatus></StornoAntwort></X>")).toBe("widerrufen");
   });
 
   it.skipIf(!sample("sample_vast_list.xml"))("versteht die Beispielantworten aus erica", () => {
-    expect(parseSpezRechtAntragAntwort(sample("sample_vast_request_response.xml")!)).toMatchObject({ antragsId: "br12701v299sh650fgwcn0c31z2k0xrb", status: "offen" });
+    expect(parseSpezRechtAntragAntwort(sample("sample_vast_request_response.xml")!)).toMatchObject({
+      antragsId: "br12701v299sh650fgwcn0c31z2k0xrb",
+      status: "offen",
+    });
     expect(parseSpezRechtStatus(sample("sample_vast_activation_response.xml")!)).toBe("genehmigt");
     expect(parseSpezRechtStatus(sample("sample_vast_revocation_response.xml")!)).toBe("widerrufen");
-    expect(parseBrmRueckgabe(sample("sample_vast_revocation_response_failure.xml")!)).toMatchObject({ code: 371015211, text: expect.stringMatching(/^Es ist kein Antrag/) });
+    expect(parseBrmRueckgabe(sample("sample_vast_revocation_response_failure.xml")!)).toMatchObject({
+      code: 371015211,
+      text: expect.stringMatching(/^Es ist kein Antrag/),
+    });
     expect(parseSpezRechtListe(sample("sample_vast_list.xml")!)).toEqual([
-      expect.objectContaining({ antragsId: "br1652dntwz6wg1md87hc6055aij0nev", status: "genehmigt", dateninhaberIdnr: "02293417683", jahre: [], gueltigBis: "2224-12-31" }),
+      expect.objectContaining({
+        antragsId: "br1652dntwz6wg1md87hc6055aij0nev",
+        status: "genehmigt",
+        dateninhaberIdnr: "02293417683",
+        jahre: [],
+        gueltigBis: "2224-12-31",
+      }),
       expect.objectContaining({ antragsId: "br1226cnpymxm35hf0ptmsmc2nqpv9y9", jahre: [2021] }),
     ]);
   });

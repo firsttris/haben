@@ -42,10 +42,7 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType: () => "bytea",
 });
 
-export const bundeslandEnum = pgEnum("bundesland", [
-  "BW", "BY", "BE", "BB", "HB", "HH", "HE", "MV",
-  "NI", "NW", "RP", "SL", "SN", "ST", "SH", "TH",
-]);
+export const bundeslandEnum = pgEnum("bundesland", ["BW", "BY", "BE", "BB", "HB", "HH", "HE", "MV", "NI", "NW", "RP", "SL", "SN", "ST", "SH", "TH"]);
 
 export const versteuerungEnum = pgEnum("versteuerung", ["ist", "soll"]);
 
@@ -171,7 +168,9 @@ export const vatReturns = pgTable(
     /** Berichtigte Anmeldung (Kz 10) */
     berichtigt: boolean("berichtigt").notNull().default(false),
     /** Kennzahlen aus den Buchungen berechnet oder von Hand überschrieben */
-    source: text("source", { enum: ["berechnet", "manuell"] }).notNull().default("manuell"),
+    source: text("source", { enum: ["berechnet", "manuell"] })
+      .notNull()
+      .default("manuell"),
     overrideReason: text("override_reason"),
     /** Berechnete Werte zum Zeitpunkt des Speicherns, zum Nachvollziehen einer Überschreibung */
     computed: jsonb("computed").$type<{
@@ -199,9 +198,7 @@ export const vatReturns = pgTable(
     check("vat_returns_month", sql`${t.month} between 1 and 12`),
     foreignKey({ name: "vat_returns_corrects_fk", columns: [t.correctsId], foreignColumns: [t.id] }),
     // höchstens ein Entwurf je Zeitraum
-    uniqueIndex("vat_returns_one_draft_per_period")
-      .on(t.year, t.month)
-      .where(sql`${t.status} = 'draft'`),
+    uniqueIndex("vat_returns_one_draft_per_period").on(t.year, t.month).where(sql`${t.status} = 'draft'`),
   ],
 );
 
@@ -566,11 +563,7 @@ export const auditLog = pgTable(
     prevHash: bytea("prev_hash").notNull(),
     rowHash: bytea("row_hash").notNull(),
   },
-  (t) => [
-    index("audit_log_at").on(t.at),
-    index("audit_log_row").on(t.tableName, t.rowId),
-    uniqueIndex("audit_log_seq").on(t.seq),
-  ],
+  (t) => [index("audit_log_at").on(t.at), index("audit_log_row").on(t.tableName, t.rowId), uniqueIndex("audit_log_seq").on(t.seq)],
 );
 
 /** Kopf der Kette im Audit-Log, genau eine Zeile; nur der Trigger auf audit_log schreibt sie fort. */
@@ -623,7 +616,9 @@ export const contacts = pgTable("contacts", {
   leitwegId: text("leitweg_id").notNull().default(""),
   defaultFormat: invoiceFormatEnum("default_format"),
   /** Sprache von Rechnungen und Angeboten an diesen Kontakt */
-  language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
+  language: text("language", { enum: ["de", "en"] })
+    .notNull()
+    .default("de"),
   /** Herkunft aus dem Lexoffice-Import, damit alte Rechnungen und Belege ihm zugeordnet bleiben */
   lexofficeId: text("lexoffice_id").unique(),
   /** Herkunft aus dem sevDesk-Import */
@@ -676,7 +671,9 @@ export const invoices = pgTable(
     /** Hinweis unter den Summen (Fußtext) */
     note: text("note").notNull().default(""),
     /** Sprache des PDFs */
-    language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
+    language: text("language", { enum: ["de", "en"] })
+      .notNull()
+      .default("de"),
     /** Währung der Rechnung; bei Fremdwährung sind net/tax/gross und invoice_taxes in Euro umgerechnet */
     currency: text("currency").notNull().default("EUR"),
     exchangeRate: numeric("exchange_rate", { precision: 12, scale: 6 }),
@@ -802,7 +799,9 @@ export const quotes = pgTable(
     /** Einleitung über den Positionen (Kopftext) */
     intro: text("intro").notNull().default(""),
     note: text("note").notNull().default(""),
-    language: text("language", { enum: ["de", "en"] }).notNull().default("de"),
+    language: text("language", { enum: ["de", "en"] })
+      .notNull()
+      .default("de"),
     taxTreatment: text("tax_treatment", { enum: TAX_TREATMENT_KEYS }).notNull().default("regulaer"),
     exemptionReason: text("exemption_reason").notNull().default(""),
     /** Preise netto oder brutto inkl. USt, wie bei der Rechnung */
@@ -977,7 +976,9 @@ export const documents = pgTable(
     documentDate: date("document_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),
     category: text("category"),
-    payment: text("payment", { enum: ["bank", "privat", "kasse"] }).notNull().default("bank"),
+    payment: text("payment", { enum: ["bank", "privat", "kasse"] })
+      .notNull()
+      .default("bank"),
     note: text("note").notNull().default(""),
     currency: text("currency").notNull().default("EUR"),
     /** Bei Fremdwährung: 1 EUR = Kurs Fremdwährung (wie die Umsatzsteuer-Umrechnungskurse des BMF); net/tax/gross sind in Euro umgerechnet */
@@ -1033,26 +1034,32 @@ export const documentAmounts = pgTable(
 );
 
 /** Bankkonten; der Import ordnet Umsätze über die IBAN zu. */
-export const bankAccounts = pgTable("bank_accounts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  /** Bei Zahlungsdienstleistern leer: deren Guthaben hat keine IBAN, importiert wird in das gewählte Konto */
-  iban: text("iban").unique(),
-  /** Wofür das Konto dient (ACCOUNT_PURPOSES); steuert Vorschläge im Bankabgleich und die Vorbelegung beim Finanzamt */
-  purpose: text("purpose", { enum: ["geschaeft", "steuer", "ruecklage", "privat", "zahlungsdienstleister"] }).notNull().default("geschaeft"),
-  /** Nur Zahlungsdienstleister: Anbieter (PAYMENT_PROVIDERS) und Nummer des Verrechnungskontos (1361 … bzw. 1461 …) */
-  provider: text("provider", { enum: ["paypal", "stripe", "shopify", "etsy", "sumup", "sonstige"] }),
-  ledgerIndex: smallint("ledger_index").unique(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [
-  check("bank_accounts_purpose", sql`${t.purpose} in ('geschaeft', 'steuer', 'ruecklage', 'privat', 'zahlungsdienstleister')`),
-  // Zahlungsdienstleister: Anbieter und Verrechnungskonto, keine IBAN; alle anderen: IBAN, kein Anbieter
-  check(
-    "bank_accounts_provider",
-    sql`(${t.purpose} = 'zahlungsdienstleister' and ${t.provider} is not null and ${t.ledgerIndex} between 1 and 9 and ${t.iban} is null)
+export const bankAccounts = pgTable(
+  "bank_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    /** Bei Zahlungsdienstleistern leer: deren Guthaben hat keine IBAN, importiert wird in das gewählte Konto */
+    iban: text("iban").unique(),
+    /** Wofür das Konto dient (ACCOUNT_PURPOSES); steuert Vorschläge im Bankabgleich und die Vorbelegung beim Finanzamt */
+    purpose: text("purpose", { enum: ["geschaeft", "steuer", "ruecklage", "privat", "zahlungsdienstleister"] })
+      .notNull()
+      .default("geschaeft"),
+    /** Nur Zahlungsdienstleister: Anbieter (PAYMENT_PROVIDERS) und Nummer des Verrechnungskontos (1361 … bzw. 1461 …) */
+    provider: text("provider", { enum: ["paypal", "stripe", "shopify", "etsy", "sumup", "sonstige"] }),
+    ledgerIndex: smallint("ledger_index").unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("bank_accounts_purpose", sql`${t.purpose} in ('geschaeft', 'steuer', 'ruecklage', 'privat', 'zahlungsdienstleister')`),
+    // Zahlungsdienstleister: Anbieter und Verrechnungskonto, keine IBAN; alle anderen: IBAN, kein Anbieter
+    check(
+      "bank_accounts_provider",
+      sql`(${t.purpose} = 'zahlungsdienstleister' and ${t.provider} is not null and ${t.ledgerIndex} between 1 and 9 and ${t.iban} is null)
       or (${t.purpose} <> 'zahlungsdienstleister' and ${t.provider} is null and ${t.ledgerIndex} is null and ${t.iban} is not null)`,
-  ),
-]);
+    ),
+  ],
+);
 
 /** Jede importierte Datei, nur anhängen */
 export const bankImports = pgTable("bank_imports", {
@@ -1095,7 +1102,9 @@ export const bankConnections = pgTable("bank_connections", {
   aspspName: text("aspsp_name").notNull(),
   aspspCountry: text("aspsp_country").notNull(),
   psuType: text("psu_type", { enum: ["personal", "business"] }).notNull(),
-  status: text("status", { enum: ["wartet", "aktiv", "abgelaufen", "widerrufen", "fehler"] }).notNull().default("wartet"),
+  status: text("status", { enum: ["wartet", "aktiv", "abgelaufen", "widerrufen", "fehler"] })
+    .notNull()
+    .default("wartet"),
   state: text("state").unique(),
   ciphertext: bytea("ciphertext"),
   validUntil: timestamp("valid_until", { withTimezone: true }),
@@ -1130,10 +1139,7 @@ export const bankTransactions = pgTable(
     dedupHash: text("dedup_hash").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    uniqueIndex("bank_transactions_dedup").on(t.bankAccountId, t.dedupHash),
-    index("bank_transactions_account_date").on(t.bankAccountId, t.bookingDate),
-  ],
+  (t) => [uniqueIndex("bank_transactions_dedup").on(t.bankAccountId, t.dedupHash), index("bank_transactions_account_date").on(t.bankAccountId, t.bookingDate)],
 );
 
 export const allocationKindEnum = pgEnum("allocation_kind", [
@@ -1176,10 +1182,7 @@ export const allocations = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check(
-      "allocations_target",
-      sql`(${t.kind} <> 'invoice' or ${t.invoiceId} is not null) and (${t.kind} <> 'document' or ${t.documentId} is not null)`,
-    ),
+    check("allocations_target", sql`(${t.kind} <> 'invoice' or ${t.invoiceId} is not null) and (${t.kind} <> 'document' or ${t.documentId} is not null)`),
     index("allocations_transaction").on(t.transactionId),
     index("allocations_invoice").on(t.invoiceId),
     index("allocations_document").on(t.documentId),
@@ -1340,7 +1343,9 @@ export const lexofficeImports = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     source: text("source", { enum: LEGACY_SOURCES }).notNull().default("lexoffice"),
-    status: text("status", { enum: ["laeuft", "fertig", "fehler", "abgebrochen"] }).notNull().default("laeuft"),
+    status: text("status", { enum: ["laeuft", "fertig", "fehler", "abgebrochen"] })
+      .notNull()
+      .default("laeuft"),
     progress: jsonb("progress").$type<LexofficeImportProgress>().notNull(),
     error: text("error"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1497,18 +1502,20 @@ export const recurringInvoices = pgTable(
     exemptionReason: text("exemption_reason").notNull().default(""),
     /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
-    lines: jsonb("lines")
-      .$type<{ description: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>()
-      .notNull(),
+    lines: jsonb("lines").$type<{ description: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>().notNull(),
     /** Monate zwischen zwei Rechnungen: 1, 3, 6 oder 12 */
     intervalMonths: smallint("interval_months").notNull(),
     /** Tag im Monat, auf den die Termine fallen (31 = Monatsende) */
     anchorDay: smallint("anchor_day").notNull(),
     nextDate: date("next_date", { mode: "string" }).notNull(),
     endDate: date("end_date", { mode: "string" }),
-    servicePeriod: text("service_period", { enum: ["laufend", "vorher", "keiner"] }).notNull().default("laufend"),
+    servicePeriod: text("service_period", { enum: ["laufend", "vorher", "keiner"] })
+      .notNull()
+      .default("laufend"),
     /** entwurf = nur anlegen, festschreiben = Nummer ziehen und buchen */
-    mode: text("mode", { enum: ["entwurf", "festschreiben"] }).notNull().default("entwurf"),
+    mode: text("mode", { enum: ["entwurf", "festschreiben"] })
+      .notNull()
+      .default("entwurf"),
     /** Nur mit festschreiben: die Rechnung gleich per E-Mail an den Kunden schicken */
     sendByMail: boolean("send_by_mail").notNull().default(false),
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
@@ -1516,10 +1523,7 @@ export const recurringInvoices = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [
-    check("recurring_interval", sql`${t.intervalMonths} in (1, 3, 6, 12)`),
-    check("recurring_anchor_day", sql`${t.anchorDay} between 1 and 31`),
-  ],
+  (t) => [check("recurring_interval", sql`${t.intervalMonths} in (1, 3, 6, 12)`), check("recurring_anchor_day", sql`${t.anchorDay} between 1 and 31`)],
 );
 
 /** Mahnungen und Zahlungserinnerungen mit PDF; wie ein verschicktes Schreiben unveränderlich */
@@ -1575,10 +1579,7 @@ export const backupStatus = pgTable(
     /** Zusammenfassung oder Fehlermeldung */
     message: text("message").notNull().default(""),
   },
-  (t) => [
-    check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`),
-    index("backup_status_kind_at").on(t.kind, t.at),
-  ],
+  (t) => [check("backup_status_kind", sql`${t.kind} in ('backup', 'restore_check')`), index("backup_status_kind_at").on(t.kind, t.at)],
 );
 
 /**

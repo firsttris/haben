@@ -1,5 +1,16 @@
 import { UserError } from "../../errors.ts";
-import { ACCOUNTS, taxOf, toElsterSteuernummer, toWholeEuros, type Cents, type Prognose, type EuerResult, type ExpenseCategory, type PauschaleArt, homeofficeSatz } from "@haben/core";
+import {
+  ACCOUNTS,
+  taxOf,
+  toElsterSteuernummer,
+  toWholeEuros,
+  type Cents,
+  type Prognose,
+  type EuerResult,
+  type ExpenseCategory,
+  type PauschaleArt,
+  homeofficeSatz,
+} from "@haben/core";
 import {
   buildEstXml,
   buildEuerXml,
@@ -314,10 +325,12 @@ async function estYear(year: number, euer?: EuerYear): Promise<EstYear> {
     has(angaben.haushaltsnah.minijobs, angaben.haushaltsnah.dienstleistungen, angaben.haushaltsnah.handwerker) && "Haushaltsnahe Aufwendungen",
     angaben.kinder.length > 0 && `Kind (${angaben.kinder.length})`,
     company.einkunftsart === "gewerbe" ? "G" : company.einkunftsart === "selbstaendig" ? "S" : false,
-    ...([
-      ["a", t.a?.vorname],
-      ["b", zusammen ? t.b?.vorname : undefined],
-    ] as const).map(([p, vorname]) =>
+    ...(
+      [
+        ["a", t.a?.vorname],
+        ["b", zusammen ? t.b?.vorname : undefined],
+      ] as const
+    ).map(([p, vorname]) =>
       (p === "a" || zusammen) && (angaben.arbeitnehmer?.[p]?.bescheinigungen.length ?? 0) > 0 ? `N${vorname ? ` (${vorname})` : ""}` : false,
     ),
     k && (k.guenstigerpruefung || has(k.ertraegeMitSteuerabzug, k.ertraegeOhneSteuerabzugInland, k.ertraegeAusland, k.kapitalertragsteuer)) && "KAP",
@@ -340,7 +353,8 @@ function estIssues(company: Company, euer: EuerYear): Issue[] {
   if (t.veranlagung === "zusammen" && (!t.b || !t.verheiratetSeit)) {
     issues.push({ tone: "fehler", text: "Für die Zusammenveranlagung fehlen Angaben zum Ehegatten oder das Heiratsdatum.", link: "/einstellungen" });
   }
-  if (company.strasse && !splitStrasse(company.strasse)) issues.push({ tone: "fehler", text: "In der Anschrift fehlt die Hausnummer.", link: "/einstellungen" });
+  if (company.strasse && !splitStrasse(company.strasse))
+    issues.push({ tone: "fehler", text: "In der Anschrift fehlt die Hausnummer.", link: "/einstellungen" });
   if (!company.einkunftsart) {
     issues.push({ tone: "fehler", text: "Einkunftsart fehlt; ohne sie weiß Haben nicht, ob der Gewinn in Anlage G oder S gehört.", link: "/einstellungen" });
   }
@@ -400,7 +414,10 @@ export async function annualOverview(year: number, today: string) {
   const company = await loadCompany();
   const [ust, euer, history] = await Promise.all([ustYear(year), euerYear(year), submissions(year)]);
   const est = await estYear(year, euer);
-  const base = [...yearIssues(year, today), ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen" }))];
+  const base = [
+    ...yearIssues(year, today),
+    ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text: `Firmendaten: ${text}`, link: "/einstellungen" })),
+  ];
   const sent = (form: AnnualForm) => history.find((h) => h.form === form && h.kind === "send" && h.ok) ?? null;
   return {
     year,
@@ -453,7 +470,14 @@ async function prepare(form: AnnualForm, year: number, options: AnnualSubmitOpti
   const [already] = await db
     .select({ id: schema.annualSubmissions.id })
     .from(schema.annualSubmissions)
-    .where(and(eq(schema.annualSubmissions.form, form), eq(schema.annualSubmissions.year, year), eq(schema.annualSubmissions.kind, "send"), eq(schema.annualSubmissions.ok, true)));
+    .where(
+      and(
+        eq(schema.annualSubmissions.form, form),
+        eq(schema.annualSubmissions.year, year),
+        eq(schema.annualSubmissions.kind, "send"),
+        eq(schema.annualSubmissions.ok, true),
+      ),
+    );
   if (already && options.kind === "send") {
     throw new AnnualError("Diese Erklärung ist schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal.");
   }
@@ -467,12 +491,14 @@ export async function checkAnnual(form: AnnualForm, year: number, today: string)
   const company = await loadCompany();
   const data = form === "ust" ? await ustYear(year) : await euerYear(year);
   const formIssues =
-    form === "ust" ? ustIssues(await kleinunternehmerForYear(year), data as UstYear, year) : form === "euer" ? euerIssues(company, data as EuerYear) : estIssues(company, data as EuerYear);
-  const issues = [
-    ...yearIssues(year, today),
-    ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text })),
-    ...formIssues,
-  ].filter((i) => i.tone === "fehler");
+    form === "ust"
+      ? ustIssues(await kleinunternehmerForYear(year), data as UstYear, year)
+      : form === "euer"
+        ? euerIssues(company, data as EuerYear)
+        : estIssues(company, data as EuerYear);
+  const issues = [...yearIssues(year, today), ...companyIssues(company).map((text): Issue => ({ tone: "fehler", text })), ...formIssues].filter(
+    (i) => i.tone === "fehler",
+  );
   if (issues.length > 0) throw new AnnualError(issues.map((i) => i.text).join(" "));
   return { company, data };
 }
@@ -533,4 +559,3 @@ export async function loadAnnualProtocol(id: string) {
   const name = { ust: "Umsatzsteuererklaerung", euer: "EUER", est: "Einkommensteuererklaerung" }[row.form];
   return { pdf: row.pdf, filename: `${name}-${row.year}-Protokoll.pdf` };
 }
-

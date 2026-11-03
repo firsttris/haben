@@ -24,8 +24,6 @@ describe("validateForFormat", () => {
     const doc = sampleDocument();
     doc.seller = { ...sampleSeller, steuernummer: undefined, ustId: " ", iban: undefined };
     expect(validateForFormat(doc)).toEqual(["Steuernummer oder USt-IdNr. fehlt", "IBAN fehlt"]);
-    expect(validateForFormat({ ...sampleDocument({ kind: "storno" }), corrects: undefined })).toEqual([
-      "Bezug zur ursprünglichen Rechnung fehlt",
-    ]);
+    expect(validateForFormat({ ...sampleDocument({ kind: "storno" }), corrects: undefined })).toEqual(["Bezug zur ursprünglichen Rechnung fehlt"]);
   });
 });

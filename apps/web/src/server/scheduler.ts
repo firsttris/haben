@@ -35,7 +35,8 @@ export async function runScheduledJobs(): Promise<void> {
   try {
     if (elsterMode() === "eric") {
       const result = await runDuePostfachFetch(elsterClient(), env().ELSTER_HERSTELLER_ID);
-      if (result) console.log(`ELSTER-Postfach: ${result.message}${result.bestaetigungFehler ? ` Bestätigung fehlgeschlagen: ${result.bestaetigungFehler}` : ""}`);
+      if (result)
+        console.log(`ELSTER-Postfach: ${result.message}${result.bestaetigungFehler ? ` Bestätigung fehlgeschlagen: ${result.bestaetigungFehler}` : ""}`);
     }
   } catch (error) {
     console.error("ELSTER-Postfach", error);
@@ -66,7 +67,10 @@ export async function runScheduledJobs(): Promise<void> {
   }
   try {
     const result = await runDuePruefwertMail();
-    if (result) console.log(`Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde${result.rewritten ? ", Prüfwert der letzten Mail passt nicht mehr" : ""}`);
+    if (result)
+      console.log(
+        `Prüfwert des Audit-Logs (Nr. ${result.seq}) per E-Mail gesendet, ${result.problems} Befunde${result.rewritten ? ", Prüfwert der letzten Mail passt nicht mehr" : ""}`,
+      );
   } catch (error) {
     console.error("Prüfwert-Mail", error);
   } finally {

@@ -101,7 +101,20 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
       {
         bytes: dkbCsv([
           ["30.12.25", "30.12.25", "Gebucht", "Tristan Teufel", "Altjahr AG", "Rechnung Dezember", "Ausgang", "DE02100100100006820101", "-45,90", "", "", ""],
-          ["01.10.26", "01.10.26", "Gebucht", "Nordwerk Software GmbH", "Tristan Teufel", `RE ${invoice.number}`, "Eingang", "DE02100100100006820101", "4.760,00", "", "", ""],
+          [
+            "01.10.26",
+            "01.10.26",
+            "Gebucht",
+            "Nordwerk Software GmbH",
+            "Tristan Teufel",
+            `RE ${invoice.number}`,
+            "Eingang",
+            "DE02100100100006820101",
+            "4.760,00",
+            "",
+            "",
+            "",
+          ],
           ["02.10.26", "02.10.26", "Gebucht", "Tristan Teufel", "Müller Büro", "MF-2026-09", "Ausgang", "DE02100100100006820102", "-45,90", "", "", ""],
         ]),
         filename: "dkb.csv",
@@ -230,7 +243,9 @@ describe.skipIf(!testDatabaseUrl)("Jahresarchiv (Postgres)", () => {
 
     expect(JSON.parse(text(files["umsatzsteuer/2026-09/anmeldung.json"]))).toMatchObject({ year: 2026, month: 9, kz81: 400000, kz66: 733 });
     const uebermittlungen = text(files["umsatzsteuer/2026-09/übermittlungen.csv"]);
-    expect(uebermittlungen).toContain(`2026-10-02T08:00:00.000Z;Prüfung;ja;0;"Plausibel; ohne Fehler";;2026-10-02_validate_${vatSubmissionPrefix}_protokoll.pdf;`);
+    expect(uebermittlungen).toContain(
+      `2026-10-02T08:00:00.000Z;Prüfung;ja;0;"Plausibel; ohne Fehler";;2026-10-02_validate_${vatSubmissionPrefix}_protokoll.pdf;`,
+    );
     expect(text(files[`umsatzsteuer/2026-09/2026-10-02_validate_${vatSubmissionPrefix}_anfrage.xml`])).toBe("<Elster>anfrage</Elster>");
   });
 

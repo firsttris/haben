@@ -1,16 +1,5 @@
 import { inflateSync } from "node:zlib";
-import {
-  decodePDFRawStream,
-  PDFArray,
-  PDFDict,
-  PDFDocument,
-  PDFHexString,
-  PDFName,
-  PDFRawStream,
-  PDFString,
-  type PDFContext,
-  type PDFObject,
-} from "pdf-lib";
+import { decodePDFRawStream, PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFRawStream, PDFString, type PDFContext, type PDFObject } from "pdf-lib";
 
 // Bekannte Dateinamen der Rechnungs-XML in hybriden PDFs, in dieser Reihenfolge bevorzugt
 const KNOWN_NAMES = ["factur-x.xml", "zugferd-invoice.xml", "xrechnung.xml"];

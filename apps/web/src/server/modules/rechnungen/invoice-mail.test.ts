@@ -57,7 +57,13 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
 
   async function finalInvoice(format: "zugferd" | "xrechnung-cii" = "zugferd") {
     const draft = await invoices.createDraft(actor, {
-      contactId, issueDate: "2026-09-01", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format, note: "",
+      contactId,
+      issueDate: "2026-09-01",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format,
+      note: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
     return (await invoices.finalizeInvoice(actor, draft.id)).id;
@@ -72,8 +78,17 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
               '198/113/10010', 'DE123456789', 'BY', 'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;
     const contact = await contacts.createContact(actor, {
-      kundennummer: "10001", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-      email: "buchhaltung@nordwerk.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "10001",
+      name: "Nordwerk Software GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "buchhaltung@nordwerk.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     contactId = contact.id;
     invoiceId = await finalInvoice();
@@ -94,9 +109,18 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     });
     expect(draft.body).toMatch(/unsere Rechnung 2026-001 vom 01\.09\.2026 über 1\.190,00\s€, zahlbar bis zum 15\.09\.2026\./);
 
-    const result = await invoiceMail.sendInvoiceMail(actor, invoiceId, { to: "buchhaltung@nordwerk.example; chef@nordwerk.example", subject: draft.subject, body: draft.body, copyToMe: true });
+    const result = await invoiceMail.sendInvoiceMail(actor, invoiceId, {
+      to: "buchhaltung@nordwerk.example; chef@nordwerk.example",
+      subject: draft.subject,
+      body: draft.body,
+      copyToMe: true,
+    });
     expect(result).toEqual({ ok: true, error: null });
-    expect(sent[0]).toMatchObject({ to: "buchhaltung@nordwerk.example, chef@nordwerk.example", bcc: "rechnung@testfirma.example", subject: "Rechnung 2026-001 von Testfirma" });
+    expect(sent[0]).toMatchObject({
+      to: "buchhaltung@nordwerk.example, chef@nordwerk.example",
+      bcc: "rechnung@testfirma.example",
+      subject: "Rechnung 2026-001 von Testfirma",
+    });
     expect(sent[0]!.attachments!.map((a) => [a.filename, a.contentType])).toEqual([["Rechnung-2026-001.pdf", "application/pdf"]]);
     expect(sent[0]!.html).toContain("<p>Guten Tag,</p>");
 
@@ -110,8 +134,17 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
   it("schlägt alle Adressen des Kontakts vor, auf der Rechnung steht nur die erste", async () => {
     await mail.saveMailSettings(actor, settings);
     await contacts.updateContact(actor, contactId, {
-      kundennummer: "10001", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-      email: "rechnungseingang@nordwerk.example;freigabe@nordwerk.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "10001",
+      name: "Nordwerk Software GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "rechnungseingang@nordwerk.example;freigabe@nordwerk.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     const [stored] = await sql`select email from contacts where id = ${contactId}`;
     expect(stored!.email).toBe("rechnungseingang@nordwerk.example, freigabe@nordwerk.example");
@@ -134,7 +167,10 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
   });
 
   it("hängt bei XRechnung das XML an, nutzt eigene Vorlagen und lehnt Entwürfe und falsche Adressen ab", async () => {
-    await mail.saveMailSettings(actor, { ...settings, templates: { "rechnung:de": { subject: "{art} {nummer} für {kunde}", body: "Hallo,\n\nanbei {nummer}{zahlbar}.\n\n{firma}" } } });
+    await mail.saveMailSettings(actor, {
+      ...settings,
+      templates: { "rechnung:de": { subject: "{art} {nummer} für {kunde}", body: "Hallo,\n\nanbei {nummer}{zahlbar}.\n\n{firma}" } },
+    });
     const xr = await finalInvoice("xrechnung-cii");
     const draft = await invoiceMail.invoiceMailDraft(xr);
     expect(draft.subject).toBe("Rechnung 2026-002 für Nordwerk Software GmbH");
@@ -143,7 +179,13 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
 
     await expect(invoiceMail.sendInvoiceMail(actor, xr, { to: "keine-adresse", subject: "s", body: "b" })).rejects.toThrow(/gültige E-Mail/);
     const entwurf = await invoices.createDraft(actor, {
-      contactId, issueDate: "2026-09-02", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "",
+      contactId,
+      issueDate: "2026-09-02",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
       lines: [{ description: "X", quantity: 1000, unit: "Psch.", unitPrice: 100, taxRate: 1900 }],
     });
     await expect(invoiceMail.invoiceMailDraft(entwurf.id)).rejects.toThrow(/festgeschriebene/);
@@ -163,16 +205,28 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
   it("schickt Angebote mit PDF und eigenem Protokoll", async () => {
     const quotes = await import("./quotes.ts");
     const draft = await quotes.createQuoteDraft(actor, {
-      contactId, issueDate: "2026-09-01", validUntil: "2026-09-30", serviceFrom: null, serviceTo: null, note: "",
+      contactId,
+      issueDate: "2026-09-01",
+      validUntil: "2026-09-30",
+      serviceFrom: null,
+      serviceTo: null,
+      note: "",
       lines: [{ description: "Beratung", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 1900 }],
     });
     await expect(invoiceMail.quoteMailDraft(draft.id)).rejects.toThrow(/Nur festgeschriebene Angebote/);
     const quote = await quotes.finalizeQuote(actor, draft.id);
     await mail.saveMailSettings(actor, settings);
     const prepared = await invoiceMail.quoteMailDraft(quote.id);
-    expect(prepared).toMatchObject({ to: "buchhaltung@nordwerk.example", subject: "Angebot AN-2026-001 von Testfirma", attachments: ["Angebot-AN-2026-001.pdf"] });
+    expect(prepared).toMatchObject({
+      to: "buchhaltung@nordwerk.example",
+      subject: "Angebot AN-2026-001 von Testfirma",
+      attachments: ["Angebot-AN-2026-001.pdf"],
+    });
     expect(prepared.body).toMatch(/unser Angebot AN-2026-001 vom 01\.09\.2026 über 1\.190,00\s€\. Es gilt bis zum 30\.09\.2026\./);
-    expect(await invoiceMail.sendQuoteMail(actor, quote.id, { to: prepared.to, subject: prepared.subject, body: prepared.body })).toEqual({ ok: true, error: null });
+    expect(await invoiceMail.sendQuoteMail(actor, quote.id, { to: prepared.to, subject: prepared.subject, body: prepared.body })).toEqual({
+      ok: true,
+      error: null,
+    });
     expect(sent[0]!.attachments!.map((a) => a.filename)).toEqual(["Angebot-AN-2026-001.pdf"]);
     expect(await invoiceMail.mailsForQuote(quote.id)).toEqual([expect.objectContaining({ recipient: "buchhaltung@nordwerk.example", ok: true })]);
     expect(await invoiceMail.quotesSentByMail()).toEqual(new Set([quote.id]));
@@ -182,8 +236,18 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
   it("schreibt Kunden mit Sprache Englisch auf Englisch an, vom Angebot bis zur Stornorechnung", async () => {
     const quotes = await import("./quotes.ts");
     const english = await contacts.createContact(actor, {
-      kundennummer: "10002", name: "Harbour Labs Ltd", strasse: "1 Dock Road", plz: "E14 5AB", ort: "London", land: "GB",
-      email: "accounts@harbour.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null, language: "en",
+      kundennummer: "10002",
+      name: "Harbour Labs Ltd",
+      strasse: "1 Dock Road",
+      plz: "E14 5AB",
+      ort: "London",
+      land: "GB",
+      email: "accounts@harbour.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+      language: "en",
     });
     expect(english.language).toBe("en");
     await mail.saveMailSettings(actor, {
@@ -198,8 +262,14 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
       actor,
       (
         await quotes.createQuoteDraft(actor, {
-          contactId: english.id, issueDate: "2026-09-01", validUntil: "2026-09-30", serviceFrom: null, serviceTo: null, note: "",
-          taxTreatment: "drittland", language: "en",
+          contactId: english.id,
+          issueDate: "2026-09-01",
+          validUntil: "2026-09-30",
+          serviceFrom: null,
+          serviceTo: null,
+          note: "",
+          taxTreatment: "drittland",
+          language: "en",
           lines: [{ description: "Consulting", quantity: 1000, unit: "Psch.", unitPrice: 100_000, taxRate: 0 }],
         })
       ).id,
@@ -245,7 +315,14 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
     expect(Object.keys(row!.templates).sort()).toEqual(["abschlag:de", "mahnung-3:de", "mahnung:de", "rechnung:de"]);
 
     const abschlag = await invoices.createDraft(actor, {
-      contactId, issueDate: "2026-09-02", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "", variant: "abschlag",
+      contactId,
+      issueDate: "2026-09-02",
+      serviceFrom: null,
+      serviceTo: null,
+      paymentTermDays: 14,
+      format: "zugferd",
+      note: "",
+      variant: "abschlag",
       lines: [{ description: "1. Abschlag", quantity: 1000, unit: "Psch.", unitPrice: 30_000, taxRate: 1900 }],
     });
     const final = await invoices.finalizeInvoice(actor, abschlag.id);
@@ -288,9 +365,21 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen und Mahnungen per E-Mail (Postgres
 
   it("verschickt wiederkehrende Rechnungen nach dem Festschreiben und meldet fehlenden Versand", async () => {
     const base = {
-      name: "Wartung", active: true, contactId, format: "zugferd" as const, paymentTermDays: 14, note: "", taxTreatment: "regulaer" as const,
-      exemptionReason: "", lines: [{ description: "Wartung", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 as const }],
-      intervalMonths: 1 as const, nextDate: "2026-10-01", endDate: null, servicePeriod: "laufend" as const, mode: "festschreiben" as const, sendByMail: true,
+      name: "Wartung",
+      active: true,
+      contactId,
+      format: "zugferd" as const,
+      paymentTermDays: 14,
+      note: "",
+      taxTreatment: "regulaer" as const,
+      exemptionReason: "",
+      lines: [{ description: "Wartung", quantity: 1000, unit: "Psch." as const, unitPrice: 10_000, taxRate: 1900 as const }],
+      intervalMonths: 1 as const,
+      nextDate: "2026-10-01",
+      endDate: null,
+      servicePeriod: "laufend" as const,
+      mode: "festschreiben" as const,
+      sendByMail: true,
     };
     const vorlage = await recurring.createRecurring(actor, base);
     // Ohne E-Mail-Zugang: festgeschrieben, aber Fehler vermerkt

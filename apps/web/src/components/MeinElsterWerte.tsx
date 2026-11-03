@@ -23,8 +23,8 @@ export function MeinElsterWerte({ load, label, blocked }: { load: () => Promise<
     <section className="card stack" aria-label={`${label} in Mein ELSTER`} style={{ gap: 8 }}>
       <h3 style={{ margin: 0 }}>In Mein ELSTER eintragen</h3>
       <p className="small muted" style={{ margin: 0 }}>
-        Ohne eigene Hersteller-ID: Werte kopieren und in der Erweiterung „Haben für Mein ELSTER“ einfügen. Sie trägt jede Seite des
-        Formulars {label} aus, prüfen und absenden machst du in Mein ELSTER.{" "}
+        Ohne eigene Hersteller-ID: Werte kopieren und in der Erweiterung „Haben für Mein ELSTER“ einfügen. Sie trägt jede Seite des Formulars {label} aus,
+        prüfen und absenden machst du in Mein ELSTER.{" "}
         <a href={DOCS} target="_blank" rel="noreferrer">
           Anleitung
         </a>

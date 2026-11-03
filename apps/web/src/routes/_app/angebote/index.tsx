@@ -28,8 +28,8 @@ function QuotesPage() {
       </div>
       {offen.length > 0 && (
         <p className="muted" style={{ marginTop: 0 }}>
-          {offen.length} {offen.length === 1 ? "Angebot wartet" : "Angebote warten"} auf Antwort, zusammen{" "}
-          {formatEuro(offen.reduce((s, q) => s + q.net, 0))} netto.
+          {offen.length} {offen.length === 1 ? "Angebot wartet" : "Angebote warten"} auf Antwort, zusammen {formatEuro(offen.reduce((s, q) => s + q.net, 0))}{" "}
+          netto.
         </p>
       )}
       <section className="card" aria-label="Angebotsliste">

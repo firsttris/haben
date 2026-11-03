@@ -153,11 +153,15 @@ function ArticlesPage() {
 
   const formOpen = creating || editing !== null;
   const newButton = (
-    <button type="button" className="btn btn-primary" onClick={() => {
+    <button
+      type="button"
+      className="btn btn-primary"
+      onClick={() => {
         setEditing(null);
         setCreating(true);
         setNotice(null);
-      }}>
+      }}
+    >
       Neuer Artikel
     </button>
   );
@@ -172,8 +176,8 @@ function ArticlesPage() {
         {!formOpen && <div className="actions">{newButton}</div>}
       </div>
       <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Stundensätze, Tagessätze oder Pauschalen legst du einmal an und fügst sie im Editor mit „Aus dem Katalog einfügen“ ein.
-        Änderungen wirken nur auf neue Positionen.
+        Stundensätze, Tagessätze oder Pauschalen legst du einmal an und fügst sie im Editor mit „Aus dem Katalog einfügen“ ein. Änderungen wirken nur auf neue
+        Positionen.
       </p>
       <div className="stack" style={{ gap: 16 }}>
         {formOpen && (
@@ -199,7 +203,9 @@ function ArticlesPage() {
           </div>
           {shown.length === 0 ? (
             <p className="muted" style={{ margin: 0 }}>
-              {showArchived ? "Keine archivierten Artikel." : "Noch keine Artikel. Lege den ersten mit „Neuer Artikel“ an oder speichere eine Position im Rechnungseditor."}
+              {showArchived
+                ? "Keine archivierten Artikel."
+                : "Noch keine Artikel. Lege den ersten mit „Neuer Artikel“ an oder speichere eine Position im Rechnungseditor."}
             </p>
           ) : (
             <div className="table">
@@ -228,10 +234,15 @@ function ArticlesPage() {
                   <div className="small muted">{a.taxRate / 100} %</div>
                   <div className="actions" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
                     {!a.archivedAt && (
-                      <button type="button" className="btn btn-sm" onClick={() => {
-                        setCreating(false);
-                        setEditing(a);
-                      }} aria-label={`${a.description} bearbeiten`}>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => {
+                          setCreating(false);
+                          setEditing(a);
+                        }}
+                        aria-label={`${a.description} bearbeiten`}
+                      >
                         Bearbeiten
                       </button>
                     )}

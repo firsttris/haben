@@ -11,11 +11,11 @@ export type TaxRate = (typeof TAX_RATES)[number];
 
 export const UNITS = {
   "Std.": "HUR",
-  "Tag": "DAY",
-  "Monat": "MON",
+  Tag: "DAY",
+  Monat: "MON",
   "Stk.": "H87",
   "Psch.": "LS",
-  "km": "KMT",
+  km: "KMT",
 } as const;
 
 export type UnitLabel = keyof typeof UNITS;

@@ -69,9 +69,14 @@ test("trägt die Werte nach Feldkennung ein, überschreibt nichts und nennt Mehr
   await seite(page);
   const events: string[] = [];
   await page.exposeFunction("melde", (e: string) => events.push(e));
-  await page.evaluate(() => document.getElementById("a")!.addEventListener("change", () => (window as unknown as { melde: (e: string) => void }).melde("change")));
+  await page.evaluate(() =>
+    document.getElementById("a")!.addEventListener("change", () => (window as unknown as { melde: (e: string) => void }).melde("change")),
+  );
 
-  const ergebnis = await page.evaluate((werte) => (globalThis as unknown as { HabenElster: { ausfuellen: (d: Document, w: unknown) => unknown } }).HabenElster.ausfuellen(document, werte), WERTE);
+  const ergebnis = await page.evaluate(
+    (werte) => (globalThis as unknown as { HabenElster: { ausfuellen: (d: Document, w: unknown) => unknown } }).HabenElster.ausfuellen(document, werte),
+    WERTE,
+  );
 
   await expect(page.locator("#a")).toHaveValue("80000,00");
   await expect(page.locator("#b")).toHaveValue("1,00");
@@ -100,7 +105,11 @@ test("gesperrte Summe: füllt die freie Einzelposten-Zeile und markiert „Eintr
     for (const b of document.querySelectorAll("button")) b.addEventListener("click", () => (window as unknown as { klick: () => void }).klick());
   });
   const ergebnis = await page.evaluate(
-    (werte) => (globalThis as unknown as { HabenElster: { ausfuellen: (d: Document, w: unknown) => Record<string, unknown[]> } }).HabenElster.ausfuellen(document, werte),
+    (werte) =>
+      (globalThis as unknown as { HabenElster: { ausfuellen: (d: Document, w: unknown) => Record<string, unknown[]> } }).HabenElster.ausfuellen(
+        document,
+        werte,
+      ),
     {
       ...WERTE,
       felder: [
@@ -146,7 +155,11 @@ test("Formular und Jahr aus dem Pfad, Prüfung der eingefügten Werte", async ({
 test("Auswahl ohne passende Option wird gemeldet statt geraten", async ({ page }) => {
   await seite(page);
   const ergebnis = await page.evaluate(
-    (werte) => (globalThis as unknown as { HabenElster: { ausfuellen: (d: Document, w: unknown) => { nichtMoeglich: unknown[] } } }).HabenElster.ausfuellen(document, werte),
+    (werte) =>
+      (globalThis as unknown as { HabenElster: { ausfuellen: (d: Document, w: unknown) => { nichtMoeglich: unknown[] } } }).HabenElster.ausfuellen(
+        document,
+        werte,
+      ),
     { ...WERTE, felder: [{ kennung: "E6000602", wert: "999", pfad: [], zeile: null }] },
   );
   expect(ergebnis.nichtMoeglich).toEqual([expect.objectContaining({ kennung: "E6000602", wert: "999" })]);
@@ -204,9 +217,13 @@ test("Voranmeldung: Kennzahlen über den ERiC-Pfad, gerechnete Steuer nur vergle
 
   // Hat Mein ELSTER Kz 83 gerechnet, vergleicht die Erweiterung, auch mit Tausenderpunkt
   await page.locator("#k83").evaluate((el) => ((el as HTMLInputElement).value = "377,45"));
-  expect(await ausfuellen(page, { ...USTVA_WERTE, felder: [{ kennung: "Kz83", wert: "377,45", pfad: [], zeile: null, person: null }] })).toMatchObject({ gleich: [{ kennung: "Kz83" }] });
+  expect(await ausfuellen(page, { ...USTVA_WERTE, felder: [{ kennung: "Kz83", wert: "377,45", pfad: [], zeile: null, person: null }] })).toMatchObject({
+    gleich: [{ kennung: "Kz83" }],
+  });
   await page.locator("#k81").evaluate((el) => ((el as HTMLInputElement).value = "2.900"));
-  expect(await ausfuellen(page, { ...USTVA_WERTE, felder: [{ kennung: "Kz81", wert: "2900", pfad: [], zeile: null, person: null }] })).toMatchObject({ gleich: [{ kennung: "Kz81" }] });
+  expect(await ausfuellen(page, { ...USTVA_WERTE, felder: [{ kennung: "Kz81", wert: "2900", pfad: [], zeile: null, person: null }] })).toMatchObject({
+    gleich: [{ kennung: "Kz81" }],
+  });
 });
 
 /** Einkommensteuer 2025: Editor einer Zeile „Gewinn aus freiberuflicher Tätigkeit“ in der Anlage S einer Person */
@@ -238,7 +255,14 @@ test("Einkommensteuer: Werte einer Person nur auf deren Anlage, Vorjahreswerte e
   await page.addScriptTag({ path: FILL });
   const fremd = await ausfuellen(page, EST_WERTE);
   await expect(page.locator("#b")).toHaveValue("");
-  expect(fremd).toMatchObject({ person: "B", eingetragen: [], andererPerson: [{ kennung: "E0803101", person: "A" }, { kennung: "E0803202", person: "A" }] });
+  expect(fremd).toMatchObject({
+    person: "B",
+    eingetragen: [],
+    andererPerson: [
+      { kennung: "E0803101", person: "A" },
+      { kennung: "E0803202", person: "A" },
+    ],
+  });
 
   // Anlage S von Person A mit dem Vorjahreswert: erst abweichend, dann auf Wunsch überschrieben
   await page.setContent(anlageS("Max Muster", "101.059"));
@@ -268,7 +292,13 @@ test("Kontrollkästchen: ein gesetztes Häkchen gilt beim erneuten Eintragen als
     <label for="y">Andere Angabe</label><input type="checkbox" id="y" name="fields[eruEUERAllgE6000020]">
   </main></body></html>`);
   await page.addScriptTag({ path: FILL });
-  const werte = { ...WERTE, felder: [{ kennung: "E6000019", wert: "X", pfad: [], zeile: null }, { kennung: "E6000020", wert: "true", pfad: [], zeile: null }] };
+  const werte = {
+    ...WERTE,
+    felder: [
+      { kennung: "E6000019", wert: "X", pfad: [], zeile: null },
+      { kennung: "E6000020", wert: "true", pfad: [], zeile: null },
+    ],
+  };
   expect(await ausfuellen(page, werte)).toMatchObject({ eingetragen: [{ kennung: "E6000019" }, { kennung: "E6000020" }] });
   await expect(page.locator("#x")).toBeChecked();
   await expect(page.locator("#y")).toBeChecked();

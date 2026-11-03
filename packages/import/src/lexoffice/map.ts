@@ -32,14 +32,7 @@ export interface ImportedContact {
   archived: boolean;
 }
 
-export type LegacyVoucherType =
-  | "invoice"
-  | "creditnote"
-  | "downpaymentinvoice"
-  | "salesinvoice"
-  | "salescreditnote"
-  | "purchaseinvoice"
-  | "purchasecreditnote";
+export type LegacyVoucherType = "invoice" | "creditnote" | "downpaymentinvoice" | "salesinvoice" | "salescreditnote" | "purchaseinvoice" | "purchasecreditnote";
 
 export interface LegacyVoucher {
   lexofficeId: string;
@@ -177,8 +170,7 @@ export function mapContact(c: LexContact): ImportedContact {
 export function mapSalesDocument(type: LexSalesDocumentType, d: LexSalesDocument, id: string): LegacyVoucher {
   const negative = CREDIT_NOTE_TYPES.has(type);
   const tp = d.totalPrice;
-  const rateOf = (t: { taxRatePercentage?: number | null; taxRatePercent?: number | null }) =>
-    lexToBasisPoints(t.taxRatePercentage ?? t.taxRatePercent ?? 0);
+  const rateOf = (t: { taxRatePercentage?: number | null; taxRatePercent?: number | null }) => lexToBasisPoints(t.taxRatePercentage ?? t.taxRatePercent ?? 0);
 
   const perRate = (d.taxAmounts ?? []).map((t) => ({
     rate: rateOf(t),
@@ -201,8 +193,7 @@ export function mapSalesDocument(type: LexSalesDocumentType, d: LexSalesDocument
     for (const dp of d.downPaymentDeductions ?? []) {
       const rate = lexToBasisPoints(dp.taxRatePercentage ?? 0);
       const dpTax = lexToCents(dp.receivedTaxAmount ?? 0);
-      const dpGross =
-        dp.receivedGrossAmount != null ? lexToCents(dp.receivedGrossAmount) : lexToCents(dp.receivedNetAmount ?? 0) + dpTax;
+      const dpGross = dp.receivedGrossAmount != null ? lexToCents(dp.receivedGrossAmount) : lexToCents(dp.receivedNetAmount ?? 0) + dpTax;
       gross -= dpGross;
       tax -= dpTax;
       if (taxes.some((t) => t.rate === rate)) {
@@ -220,11 +211,7 @@ export function mapSalesDocument(type: LexSalesDocumentType, d: LexSalesDocument
     // Falls doch Steuer ausgewiesen ist, den Satz aus den Positionen ableiten, wenn eindeutig.
     let rate = 0;
     if (tax !== 0) {
-      const rates = new Set(
-        (d.lineItems ?? [])
-          .map((li) => li.unitPrice?.taxRatePercentage)
-          .filter((r): r is number => typeof r === "number"),
-      );
+      const rates = new Set((d.lineItems ?? []).map((li) => li.unitPrice?.taxRatePercentage).filter((r): r is number => typeof r === "number"));
       if (rates.size === 1) rate = lexToBasisPoints([...rates][0]!);
     }
     taxes = [{ rate, net, tax }];

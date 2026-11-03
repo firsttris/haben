@@ -21,7 +21,8 @@ export interface UstvaXmlInput {
   period: VatPeriod;
   /** 13-stellige Steuernummer im ELSTER-Format */
   steuernummer13: string;
-  figures: Pick<UstvaFigures, "kz81" | "kz86" | "kz66" | "kz83"> & Partial<Pick<UstvaFigures, "kz21" | "kz45" | "kz48" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67">>;
+  figures: Pick<UstvaFigures, "kz81" | "kz86" | "kz66" | "kz83"> &
+    Partial<Pick<UstvaFigures, "kz21" | "kz45" | "kz48" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67">>;
   datenlieferant: Datenlieferant;
   herstellerId: string;
   produktVersion: string;
@@ -66,21 +67,21 @@ export function hasTestmerker(xml: string): boolean {
 /** Fehlermeldung, wenn Testmerker im XML und angeforderte Übermittlungsart nicht zusammenpassen */
 export function testmerkerMismatch(xml: string, test: boolean): string | undefined {
   if (hasTestmerker(xml) === test) return undefined;
-  return test
-    ? "Testübermittlung angefordert, aber das XML trägt keinen Testmerker."
-    : "Echte Übermittlung angefordert, aber das XML trägt einen Testmerker.";
+  return test ? "Testübermittlung angefordert, aber das XML trägt keinen Testmerker." : "Echte Übermittlung angefordert, aber das XML trägt einen Testmerker.";
 }
 
 /** Maskiert für Text und Attribute; in XML 1.0 unzulässige Steuerzeichen fallen weg (sonst Parserfehler in ERiC) */
 export function escapeXml(value: string): string {
-  return value
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+  return (
+    value
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: Steuerzeichen sind hier gesucht
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;")
+  );
 }
 
 export function checkSteuernummer13(steuernummer13: string): void {
@@ -233,7 +234,13 @@ export function buildUstvaXml(input: UstvaXmlInput): string {
   const nutzdaten = ustvaNutzdaten(input);
   const lieferantKurz = `${dl.name}, ${dl.strasse}, ${dl.plz} ${dl.ort}`;
   return elsterXml(
-    { verfahren: "ElsterAnmeldung", datenArt: "UStVA", testmerker: input.test ? TESTMERKER : undefined, herstellerId: input.herstellerId, datenlieferant: lieferantKurz },
+    {
+      verfahren: "ElsterAnmeldung",
+      datenArt: "UStVA",
+      testmerker: input.test ? TESTMERKER : undefined,
+      herstellerId: input.herstellerId,
+      datenlieferant: lieferantKurz,
+    },
     [{ ticket: "1", empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) }, produktVersion: input.produktVersion, nutzdaten }],
   );
 }

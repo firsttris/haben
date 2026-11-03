@@ -66,7 +66,8 @@ function ArchivePage() {
           {VIEWS.map((view) => (
             <Link
               key={view.value}
-              to="/archiv" activeProps={{}}
+              to="/archiv"
+              activeProps={{}}
               search={{ ansicht: view.value === "umzug" ? undefined : view.value, jahr: search.jahr }}
               className={data.view === view.value ? "chip active" : "chip"}
               aria-current={data.view === view.value ? "page" : undefined}

@@ -40,14 +40,23 @@ describe.skipIf(!testDatabaseUrl)("Anlagenverzeichnis (Postgres)", () => {
   };
 
   const linesOf = async (sourceId: string) =>
-    (await sql`select e.date::text as date, l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
-      where e.source_id = ${sourceId} order by e.date, e.created_at, l.debit desc, l.credit desc`).map((r) => ({ ...r }));
+    (
+      await sql`select e.date::text as date, l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
+      where e.source_id = ${sourceId} order by e.date, e.created_at, l.debit desc, l.credit desc`
+    ).map((r) => ({ ...r }));
 
   it("Beleg mit Kategorie Anlagegut: Anlagekonto statt Aufwand, AfA in der EÜR", async () => {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7]), filename: "auto.jpg" });
     await documents.updateDocument(actor, id, {
-      supplierName: "Autohaus", supplierUstId: "", invoiceNumber: "A-1", documentDate: "2026-03-15", dueDate: null,
-      category: "anlage", payment: "privat", note: "", amounts: [{ taxRate: 1900, net: 3_600_000, tax: 684_000 }],
+      supplierName: "Autohaus",
+      supplierUstId: "",
+      invoiceNumber: "A-1",
+      documentDate: "2026-03-15",
+      dueDate: null,
+      category: "anlage",
+      payment: "privat",
+      note: "",
+      amounts: [{ taxRate: 1900, net: 3_600_000, tax: 684_000 }],
       asset: { name: "Tesla Model 3", kind: "kfz", method: "linear", usefulLifeMonths: 72 },
     });
     await documents.bookDocument(actor, id);
@@ -69,8 +78,15 @@ describe.skipIf(!testDatabaseUrl)("Anlagenverzeichnis (Postgres)", () => {
   it("Beleg als Anlage braucht die Angaben zur Anlage", async () => {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 8]), filename: "x.jpg" });
     await documents.updateDocument(actor, id, {
-      supplierName: "Händler", supplierUstId: "", invoiceNumber: "", documentDate: "2026-03-15", dueDate: null,
-      category: "anlage", payment: "bank", note: "", amounts: [{ taxRate: 1900, net: 90_000, tax: 17_100 }],
+      supplierName: "Händler",
+      supplierUstId: "",
+      invoiceNumber: "",
+      documentDate: "2026-03-15",
+      dueDate: null,
+      category: "anlage",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: 90_000, tax: 17_100 }],
       asset: { name: "Monitor", kind: "edv", method: "gwg", usefulLifeMonths: null },
     });
     await expect(documents.bookDocument(actor, id)).rejects.toThrow("bis 800 €");
@@ -126,9 +142,7 @@ describe.skipIf(!testDatabaseUrl)("Anlagenverzeichnis (Postgres)", () => {
       privateUse: { listPrice: 5_890_000, drive: "elektro", rate: 25, vat: true },
     });
     const october = await figures.computeVatFigures({ year: 2026, month: 10 });
-    expect(october.revenue.filter((r) => r.type === "entnahme")).toEqual([
-      expect.objectContaining({ assetId: car.id, base: 47_120, tax: 8_953, rate: 1900 }),
-    ]);
+    expect(october.revenue.filter((r) => r.type === "entnahme")).toEqual([expect.objectContaining({ assetId: car.id, base: 47_120, tax: 8_953, rate: 1900 })]);
     expect(october).toMatchObject({ kz81: 47_120, tax81: 8_953 });
 
     const euer = await reports.euerForYear(2026);
@@ -161,8 +175,16 @@ describe.skipIf(!testDatabaseUrl)("Anlagenverzeichnis (Postgres)", () => {
     await sql`update company set private_shares = '{"telefon": 20}'::jsonb`;
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9]), filename: "telekom.jpg" });
     await documents.updateDocument(actor, id, {
-      supplierName: "Telekom", supplierUstId: "", invoiceNumber: "T-1", documentDate: "2026-10-05", dueDate: null,
-      category: "telefon", payment: "privat", note: "", privateShare: 20, amounts: [{ taxRate: 1900, net: 4_000, tax: 760 }],
+      supplierName: "Telekom",
+      supplierUstId: "",
+      invoiceNumber: "T-1",
+      documentDate: "2026-10-05",
+      dueDate: null,
+      category: "telefon",
+      payment: "privat",
+      note: "",
+      privateShare: 20,
+      amounts: [{ taxRate: 1900, net: 4_000, tax: 760 }],
     });
     await documents.bookDocument(actor, id);
     expect(await linesOf(id)).toEqual([

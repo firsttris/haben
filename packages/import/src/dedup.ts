@@ -14,7 +14,9 @@ function key(t: HashInput): string {
  * (Datum, Betrag, Gegen-IBAN, Verwendungszweck) innerhalb einer Datei: 0, 1, …
  */
 export function transactionHash(t: HashInput, occurrence: number): string {
-  return createHash("sha256").update(`${key(t)}|${occurrence}`, "utf8").digest("hex");
+  return createHash("sha256")
+    .update(`${key(t)}|${occurrence}`, "utf8")
+    .digest("hex");
 }
 
 /** Hashes in Dateireihenfolge; echte Doppelbuchungen am selben Tag erhalten verschiedene Hashes. */

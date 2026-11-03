@@ -162,8 +162,19 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
  * RC13bEU (46/47), RC13bDrittland (84/85), VSt13b (67)
  */
 export type TaxCode =
-  | "USt19" | "USt7" | "frei" | "RC" | "Drittland" | "Steuerfrei" | "KU"
-  | "VSt19" | "VSt7" | "keineVSt" | "RC13bEU" | "RC13bDrittland" | "VSt13b";
+  | "USt19"
+  | "USt7"
+  | "frei"
+  | "RC"
+  | "Drittland"
+  | "Steuerfrei"
+  | "KU"
+  | "VSt19"
+  | "VSt7"
+  | "keineVSt"
+  | "RC13bEU"
+  | "RC13bDrittland"
+  | "VSt13b";
 
 /**
  * Steuerschuld als Leistungsempfänger (§ 13b UStG) für Belege: sonstige Leistungen eines Unternehmers
@@ -522,9 +533,7 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
           : kind === "mahnerloes"
             ? accounts.mahnerloes
             : accounts.nebenkostenGeldverkehr;
-  return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter(
-    (line) => line.debit !== 0 || line.credit !== 0,
-  );
+  return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 
 /** Kassenbuchungen ohne Beleg: Einlage und Entnahme, Geld von der Bank in die Kasse und zurück */

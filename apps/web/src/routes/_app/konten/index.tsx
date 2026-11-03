@@ -112,15 +112,19 @@ function KontenPage() {
         <Kpi label="Bank" value={k.bank} hint={`laut Buchungen am ${formatDate(until)}`} />
         <Kpi label="Offene Forderungen" value={k.forderungen} hint="Rechnungen noch nicht bezahlt" />
         <Kpi label="Offene Verbindlichkeiten" value={k.verbindlichkeiten} hint="Belege noch nicht bezahlt" />
-        <Kpi label={k.umsatzsteuer >= 0 ? "Umsatzsteuer-Zahllast" : "Umsatzsteuer-Erstattung"} value={Math.abs(k.umsatzsteuer)} hint="fällig, nach Vorsteuer und Vorauszahlungen" />
+        <Kpi
+          label={k.umsatzsteuer >= 0 ? "Umsatzsteuer-Zahllast" : "Umsatzsteuer-Erstattung"}
+          value={Math.abs(k.umsatzsteuer)}
+          hint="fällig, nach Vorsteuer und Vorauszahlungen"
+        />
         <Kpi label="Erlöse − Aufwand" value={k.ertraege - k.aufwand} hint={`${formatEuro(k.ertraege)} − ${formatEuro(k.aufwand)} im Zeitraum`} />
       </div>
 
       <section className="card" aria-label="Saldenliste">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
           <p className="small muted" style={{ margin: 0, maxWidth: 640 }}>
-            {formatDate(data.from)} bis {formatDate(until)}. Erlöse und Aufwand als Betrag, Bestandskonten mit Guthaben oder Schuld; S und H
-            zeigen die Buchhaltungsseite. Eröffnung = Saldo ab Jahresbeginn bis zum Beginn des Zeitraums, ohne Vortrag aus dem Vorjahr.
+            {formatDate(data.from)} bis {formatDate(until)}. Erlöse und Aufwand als Betrag, Bestandskonten mit Guthaben oder Schuld; S und H zeigen die
+            Buchhaltungsseite. Eröffnung = Saldo ab Jahresbeginn bis zum Beginn des Zeitraums, ohne Vortrag aus dem Vorjahr.
           </p>
           <label className="field" style={{ minWidth: 240 }}>
             Konto suchen

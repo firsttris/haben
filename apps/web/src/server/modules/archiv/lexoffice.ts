@@ -143,13 +143,13 @@ async function launchImport(actor: string, sourceFor: (signal: AbortSignal) => L
     files: 0,
     failed: [],
   };
-  const [row] = await withActor(actor, (tx) =>
-    tx.insert(schema.lexofficeImports).values({ progress }).returning({ id: schema.lexofficeImports.id }),
-  ).catch((error: unknown) => {
-    // Gleichzeitig gestartet: der eindeutige Index lässt nur einen laufenden Abruf zu
-    if (isUniqueViolation(error, "lexoffice_imports_one_running")) throw new LexofficeError("Ein Abruf läuft bereits.");
-    throw error;
-  });
+  const [row] = await withActor(actor, (tx) => tx.insert(schema.lexofficeImports).values({ progress }).returning({ id: schema.lexofficeImports.id })).catch(
+    (error: unknown) => {
+      // Gleichzeitig gestartet: der eindeutige Index lässt nur einen laufenden Abruf zu
+      if (isUniqueViolation(error, "lexoffice_imports_one_running")) throw new LexofficeError("Ein Abruf läuft bereits.");
+      throw error;
+    },
+  );
   const id = row!.id;
   const controller = new AbortController();
   running.set(id, controller);
@@ -195,10 +195,7 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
     signal.throwIfAborted();
     const contact = mapContact(raw);
     await withActor(actor, async (tx) => {
-      const [known] = await tx
-        .select({ id: schema.contacts.id })
-        .from(schema.contacts)
-        .where(eq(schema.contacts.lexofficeId, contact.lexofficeId));
+      const [known] = await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.lexofficeId, contact.lexofficeId));
       if (known) return;
       const [sameName] = await tx
         .select({ id: schema.contacts.id })
@@ -238,9 +235,7 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
     progress.listed = listed.length;
     await save();
   }
-  const done = new Set(
-    (await db.select({ id: schema.lexofficeVouchers.lexofficeId }).from(schema.lexofficeVouchers)).map((r) => r.id),
-  );
+  const done = new Set((await db.select({ id: schema.lexofficeVouchers.lexofficeId }).from(schema.lexofficeVouchers)).map((r) => r.id));
 
   // 3. Je Beleg Details, Zahlungen und Dateien; Fehler einzelner Belege halten den Lauf nicht auf
   progress.phase = "belege";
@@ -509,9 +504,7 @@ export async function reconciliation() {
           and lower(regexp_replace(v.number, '\\s+', '', 'g')) = lower(regexp_replace(b.voucher_field1, '\\s+', '', 'g'))))::int as unmatched,
       count(*) filter (where b.voucher_field1 = '')::int as without_number
     from datev_bookings b group by 1`);
-  const files = await db
-    .select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year })
-    .from(schema.archiveFiles);
+  const files = await db.select({ kind: schema.archiveFiles.kind, year: schema.archiveFiles.year }).from(schema.archiveFiles);
   const lastImport = await latestImport();
   // Für Jahre ohne Belege per API (Umzug nur über DATEV): Summen aus dem Buchungsstapel
   const datevRows = await db
@@ -708,7 +701,10 @@ export async function legacyVouchersForPeriod(filter: {
         filter.withPayments
           ? sql`or (v.direction = 'einnahme' and exists (
               select 1 from jsonb_array_elements(coalesce(v.payment->'items', '[]'::jsonb)) i
-              where i->>'date' like ${like} and i->>'type' in (${sql.join([...PAYMENT_ITEM_TYPES].map((t) => sql`${t}`), sql`, `)})))`
+              where i->>'date' like ${like} and i->>'type' in (${sql.join(
+                [...PAYMENT_ITEM_TYPES].map((t) => sql`${t}`),
+                sql`, `,
+              )})))`
           : sql``
       })
       ${filter.direction === "alle" ? sql`` : sql`and v.direction = ${filter.direction}`}

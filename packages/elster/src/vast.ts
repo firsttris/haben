@@ -70,7 +70,11 @@ function vastXml(nutzdaten: { ticket: string; body: string }[], input: VastXmlIn
       herstellerId: input.herstellerId,
       datenlieferant: input.datenlieferant,
     },
-    nutzdaten.map(({ ticket, body }) => ({ ticket, empfaenger: { id: "L", wert: "CS" }, nutzdaten: [`<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="31">`, body, `</Datenabholung>`] })),
+    nutzdaten.map(({ ticket, body }) => ({
+      ticket,
+      empfaenger: { id: "L", wert: "CS" },
+      nutzdaten: [`<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="31">`, body, `</Datenabholung>`],
+    })),
   );
 }
 

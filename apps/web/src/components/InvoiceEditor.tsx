@@ -27,11 +27,7 @@ import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { useAction } from "../lib/use-action.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
-import {
-  finalizeInvoiceDraft,
-  removeInvoiceDraft,
-  saveInvoiceDraft,
-} from "../server/functions/invoices.ts";
+import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
 import { finalizeQuoteDraft, removeQuoteDraft, saveQuoteDraft } from "../server/functions/quotes.ts";
 import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
@@ -293,12 +289,15 @@ export function InvoiceEditor({
 
   /** Position als Artikel in den Katalog übernehmen; die Position selbst bleibt unverändert */
   function storeAsArticle(p: ReturnType<typeof parseLine>) {
-    void run(async () => {
-      await storeArticle({
-        data: { id: null, article: { description: p.description, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
-      });
-      await router.invalidate();
-    }, `„${p.description.split("\n")[0]}“ ist jetzt im Artikelkatalog.`);
+    void run(
+      async () => {
+        await storeArticle({
+          data: { id: null, article: { description: p.description, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
+        });
+        await router.invalidate();
+      },
+      `„${p.description.split("\n")[0]}“ ist jetzt im Artikelkatalog.`,
+    );
   }
 
   /** Position aus dem Katalog; ersetzt eine noch leere einzige Zeile, sonst wird angehängt */
@@ -440,9 +439,7 @@ export function InvoiceEditor({
     <>
       <div className="page-head">
         <div>
-          <div className="eyebrow">
-            {quote ? <Link to="/angebote">Angebote</Link> : <Link to="/rechnungen">Rechnungen</Link>} › Entwurf
-          </div>
+          <div className="eyebrow">{quote ? <Link to="/angebote">Angebote</Link> : <Link to="/rechnungen">Rechnungen</Link>} › Entwurf</div>
           <h1>
             {title} {nextNumber}
           </h1>
@@ -461,8 +458,7 @@ export function InvoiceEditor({
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>
-            Vor dem Festschreiben: {blocking.join(", ")}.{" "}
-            {sellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
+            Vor dem Festschreiben: {blocking.join(", ")}. {sellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
           </span>
         </div>
       )}
@@ -551,19 +547,19 @@ export function InvoiceEditor({
                   />
                 </label>
               ) : (
-              <label className="field">
-                Zahlungsziel in Tagen
-                <input
-                  inputMode="numeric"
-                  value={paymentTermDays}
-                  onChange={(e) => touch(setPaymentTermDays)(e.target.value)}
-                  aria-invalid={!termValid}
-                  aria-describedby="due-hint"
-                />
-                <span id="due-hint" className="small">
-                  fällig {formatDate(dueDate)}
-                </span>
-              </label>
+                <label className="field">
+                  Zahlungsziel in Tagen
+                  <input
+                    inputMode="numeric"
+                    value={paymentTermDays}
+                    onChange={(e) => touch(setPaymentTermDays)(e.target.value)}
+                    aria-invalid={!termValid}
+                    aria-describedby="due-hint"
+                  />
+                  <span id="due-hint" className="small">
+                    fällig {formatDate(dueDate)}
+                  </span>
+                </label>
               )}
               <label className="field">
                 Leistung von
@@ -575,7 +571,12 @@ export function InvoiceEditor({
               </label>
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 Sprache
-                <select value={language} onChange={(e) => touch(setLanguage)(e.target.value as "de" | "en")} disabled={!editable} aria-describedby="language-hint">
+                <select
+                  value={language}
+                  onChange={(e) => touch(setLanguage)(e.target.value as "de" | "en")}
+                  disabled={!editable}
+                  aria-describedby="language-hint"
+                >
                   <option value="de">Deutsch</option>
                   <option value="en">Englisch</option>
                 </select>
@@ -625,24 +626,24 @@ export function InvoiceEditor({
                   {foreign && (
                     <span id="invoice-currency-hint" className="small" style={{ gridColumn: "1 / -1" }}>
                       {rateInfo && <strong>{rateInfo}. </strong>}
-                      Preise und Summen in {currencyCode || "der Fremdwährung"}; die Umsatzsteuer steht zusätzlich in Euro auf der Rechnung (§ 14 Abs.
-                      4 Nr. 8 UStG). Gebucht wird in Euro. Ohne eigenen Kurs nimmt Haben den Umsatzsteuer-Umrechnungskurs des Leistungsmonats, sobald
-                      das BMF ihn veröffentlicht hat. Kein GiroCode, keine Abschlags- oder Schlussrechnung, keine Mahnung aus Haben.
+                      Preise und Summen in {currencyCode || "der Fremdwährung"}; die Umsatzsteuer steht zusätzlich in Euro auf der Rechnung (§ 14 Abs. 4 Nr. 8
+                      UStG). Gebucht wird in Euro. Ohne eigenen Kurs nimmt Haben den Umsatzsteuer-Umrechnungskurs des Leistungsmonats, sobald das BMF ihn
+                      veröffentlicht hat. Kein GiroCode, keine Abschlags- oder Schlussrechnung, keine Mahnung aus Haben.
                     </span>
                   )}
                 </>
               )}
               {!quote && (
-              <label className="field" style={{ gridColumn: "1 / -1" }}>
-                E-Rechnungsformat
-                <select value={format} onChange={(e) => touch(setFormat)(e.target.value as DraftInput["format"])}>
-                  {FORMATS.map((f) => (
-                    <option key={f} value={f}>
-                      {FORMAT_LABEL[f]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                <label className="field" style={{ gridColumn: "1 / -1" }}>
+                  E-Rechnungsformat
+                  <select value={format} onChange={(e) => touch(setFormat)(e.target.value as DraftInput["format"])}>
+                    {FORMATS.map((f) => (
+                      <option key={f} value={f}>
+                        {FORMAT_LABEL[f]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               )}
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 Umsatzsteuer
@@ -734,8 +735,8 @@ export function InvoiceEditor({
                 ))
               )}
               <p className="small muted" style={{ margin: 0 }}>
-                Unter Positionen steht die gesamte Leistung. Die Abzüge erscheinen auf der Rechnung als eigene Positionen mit Netto und
-                Umsatzsteuer der Abschlagsrechnung (§ 14 Abs. 5 UStG).
+                Unter Positionen steht die gesamte Leistung. Die Abzüge erscheinen auf der Rechnung als eigene Positionen mit Netto und Umsatzsteuer der
+                Abschlagsrechnung (§ 14 Abs. 5 UStG).
               </p>
             </section>
           )}
@@ -761,7 +762,11 @@ export function InvoiceEditor({
             {articles.length > 0 && (
               <datalist id="artikel-vorschlaege">
                 {articles.map((a) => (
-                  <option key={a.id} value={a.description} label={`${a.number ? `${a.number} · ` : ""}${formatEuro(a.unitPrice)}${a.priceIncludesTax ? " brutto" : ""}/${a.unit}`} />
+                  <option
+                    key={a.id}
+                    value={a.description}
+                    label={`${a.number ? `${a.number} · ` : ""}${formatEuro(a.unitPrice)}${a.priceIncludesTax ? " brutto" : ""}/${a.unit}`}
+                  />
                 ))}
               </datalist>
             )}
@@ -827,32 +832,51 @@ export function InvoiceEditor({
                     {p.valid ? formatEuro(lineAmount(p.quantity, p.unitPrice)) : "–"}
                   </div>
                   <div className="line-actions">
-                  <button
-                    type="button"
-                    className="icon-btn icon-btn-plain"
-                    aria-label={`Position ${index + 1} als Artikel speichern`}
-                    title={inCatalog ? "Steht schon im Artikelkatalog" : "Als Artikel speichern"}
-                    disabled={busy || !p.valid || inCatalog}
-                    onClick={() => storeAsArticle(p)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={`Position ${index + 1} entfernen`}
-                    disabled={lines.length === 1}
-                    onClick={() => {
-                      setLines((prev) => prev.filter((l) => l.key !== line.key));
-                      setDirty(true);
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                      <path d="M6 6l12 12M18 6L6 18" />
-                    </svg>
-                  </button>
+                    <button
+                      type="button"
+                      className="icon-btn icon-btn-plain"
+                      aria-label={`Position ${index + 1} als Artikel speichern`}
+                      title={inCatalog ? "Steht schon im Artikelkatalog" : "Als Artikel speichern"}
+                      disabled={busy || !p.valid || inCatalog}
+                      onClick={() => storeAsArticle(p)}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={`Position ${index + 1} entfernen`}
+                      disabled={lines.length === 1}
+                      onClick={() => {
+                        setLines((prev) => prev.filter((l) => l.key !== line.key));
+                        setDirty(true);
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M6 6l12 12M18 6L6 18" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               );
@@ -865,7 +889,14 @@ export function InvoiceEditor({
                   const last = lines[lines.length - 1];
                   setLines((prev) => [
                     ...prev,
-                    { key: nextKey++, description: "", quantity: "1", unit: last?.unit ?? "Std.", unitPrice: "", taxRate: special ? 0 : (last?.taxRate ?? 1900) },
+                    {
+                      key: nextKey++,
+                      description: "",
+                      quantity: "1",
+                      unit: last?.unit ?? "Std.",
+                      unitPrice: "",
+                      taxRate: special ? 0 : (last?.taxRate ?? 1900),
+                    },
                   ]);
                   setDirty(true);
                 }}

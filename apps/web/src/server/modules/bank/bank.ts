@@ -61,7 +61,12 @@ export async function listAccounts() {
   return Promise.all(
     accounts.map(async (account) => {
       const [last] = await db
-        .select({ periodTo: schema.bankImports.periodTo, closingBalance: schema.bankImports.closingBalance, createdAt: schema.bankImports.createdAt, format: schema.bankImports.format })
+        .select({
+          periodTo: schema.bankImports.periodTo,
+          closingBalance: schema.bankImports.closingBalance,
+          createdAt: schema.bankImports.createdAt,
+          format: schema.bankImports.format,
+        })
         .from(schema.bankImports)
         .where(eq(schema.bankImports.bankAccountId, account.id))
         .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
@@ -73,7 +78,10 @@ export async function listAccounts() {
       // Zahlungsdienstleister nennen keinen Kontostand: Guthaben als Summe der importierten Umsätze
       const [sum] =
         account.purpose === "zahlungsdienstleister"
-          ? await db.select({ total: sql<string>`coalesce(sum(${schema.bankTransactions.amount}), 0)` }).from(schema.bankTransactions).where(eq(schema.bankTransactions.bankAccountId, account.id))
+          ? await db
+              .select({ total: sql<string>`coalesce(sum(${schema.bankTransactions.amount}), 0)` })
+              .from(schema.bankTransactions)
+              .where(eq(schema.bankTransactions.bankAccountId, account.id))
           : [];
       // Beim Dienstleister bleibt nach zwei Wochen nichts offen, was zugeordnet werden kann; sonst fehlt eine Zuordnung
       const [stale] =
@@ -81,7 +89,13 @@ export async function listAccounts() {
           ? await db
               .select({ n: sql<number>`count(*)::int` })
               .from(schema.bankTransactions)
-              .where(and(eq(schema.bankTransactions.bankAccountId, account.id), sql`${openAmountSql} <> 0`, sql`${schema.bankTransactions.bookingDate} < ${today()}::date - 14`))
+              .where(
+                and(
+                  eq(schema.bankTransactions.bankAccountId, account.id),
+                  sql`${openAmountSql} <> 0`,
+                  sql`${schema.bankTransactions.bookingDate} < ${today()}::date - 14`,
+                ),
+              )
           : [];
       return { ...account, lastImport: last ?? null, openCount: open?.n ?? 0, providerBalance: sum ? Number(sum.total) : null, staleOpenCount: stale?.n ?? 0 };
     }),
@@ -202,12 +216,7 @@ export async function storeStatement(
   const [previous] = await tx
     .select({ closingBalance: schema.bankImports.closingBalance, periodTo: schema.bankImports.periodTo })
     .from(schema.bankImports)
-    .where(
-      and(
-        eq(schema.bankImports.bankAccountId, account.id),
-        statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`,
-      ),
-    )
+    .where(and(eq(schema.bankImports.bankAccountId, account.id), statement.periodFrom ? lte(schema.bankImports.periodTo, statement.periodFrom) : sql`true`))
     .orderBy(desc(schema.bankImports.periodTo), desc(schema.bankImports.createdAt))
     .limit(1);
   const continuity = checkBalanceContinuity(
@@ -228,7 +237,10 @@ export async function storeStatement(
             .where(
               and(
                 eq(schema.bankTransactions.bankAccountId, account.id),
-                inArray(schema.bankTransactions.dedupHash, transactions.map((t) => t.dedupHash)),
+                inArray(
+                  schema.bankTransactions.dedupHash,
+                  transactions.map((t) => t.dedupHash),
+                ),
               ),
             )
         ).map((r) => r.hash),
@@ -361,9 +373,7 @@ async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: InvoiceTotals
   );
   const settled = [...rows].reduce((sum, r) => sum + Number(r.amount), 0);
   // Wie Voranmeldung und EÜR (recordedTaxShares): ein Anteil zählt nur für die Rechnung, für die er gerechnet ist
-  const recorded = [...rows].flatMap((r) =>
-    recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === invoiceId ? r.tax_shares : null),
-  );
+  const recorded = [...rows].flatMap((r) => recordedTaxShares(totals, Number(r.amount), r.tax_shares_invoice_id === invoiceId ? r.tax_shares : null));
   return settlementTaxShares(totals, settled, recorded, amount);
 }
 
@@ -441,7 +451,10 @@ export async function openItems(): Promise<OpenItem[]> {
     })
     .from(schema.documents)
     .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank")));
-  const documentPaid = await paidByTarget("document_id", documents.map((d) => d.id));
+  const documentPaid = await paidByTarget(
+    "document_id",
+    documents.map((d) => d.id),
+  );
 
   const items: OpenItem[] = [];
   for (const inv of invoices) {
@@ -539,9 +552,7 @@ export async function transactionDetail(id: string) {
     // Teile einer Aufteilung haben denselben Zeitstempel (eine Transaktion): Erlös vor Gebühr, damit die Reihenfolge feststeht
     .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
   const reversed = new Set(allocationRows.filter((a) => a.reversesId).map((a) => a.reversesId));
-  const allocations = allocationRows
-    .filter((a) => !a.reversesId)
-    .map((a) => ({ ...a, reversed: reversed.has(a.id) }));
+  const allocations = allocationRows.filter((a) => !a.reversesId).map((a) => ({ ...a, reversed: reversed.has(a.id) }));
 
   const items = tx.open === 0 ? [] : await openItems();
   // Vorschläge für den noch offenen Teil des Umsatzes
@@ -560,7 +571,9 @@ export async function transactionDetail(id: string) {
       // Teil einer Auszahlung (Shopify): die Bank zeigt die Summe aller Teile mit derselben Auszahlungs-ID
       const parts = (await payoutCandidates([account.id], tx.bookingDate)).filter((p) => payoutKey(p.bankReference) === key);
       const total = parts.reduce((s, p) => s + p.amount, 0);
-      const bank = parts.every((p) => p.open === p.amount) ? await transferCounterpart({ ...tx, amount: total }, null, targets, providerPattern(account)) : null;
+      const bank = parts.every((p) => p.open === p.amount)
+        ? await transferCounterpart({ ...tx, amount: total }, null, targets, providerPattern(account))
+        : null;
       counterpart = bank ? { ...bank, payoutIds: parts.filter((p) => p.id !== tx.id).map((p) => p.id) } : null;
     } else {
       counterpart = await transferCounterpart(tx, account.iban, targets, providerPattern(account));
@@ -569,7 +582,13 @@ export async function transactionDetail(id: string) {
         const group = findPayoutGroup(tx, await payoutCandidates([direct.counterAccountId], tx.bookingDate));
         if (group) {
           const [first, ...rest] = group;
-          counterpart = { id: first!.id, bookingDate: first!.bookingDate, amount: -tx.amount, counterpartyName: first!.counterpartyName, payoutIds: rest.map((r) => r.id) };
+          counterpart = {
+            id: first!.id,
+            bookingDate: first!.bookingDate,
+            amount: -tx.amount,
+            counterpartyName: first!.counterpartyName,
+            payoutIds: rest.map((r) => r.id),
+          };
         }
       }
     }
@@ -645,11 +664,7 @@ export async function learnedDirectSuggestions(
   for (const t of txs) {
     const iban = byIban.get(historyKey(ibanKey(t.counterpartyIban), t.amount));
     const name = byName.get(historyKey(nameKey(t.counterpartyName), t.amount));
-    const suggestion = iban
-      ? learnedDirectBooking(t, iban.kinds, iban.total, "iban")
-      : name
-        ? learnedDirectBooking(t, name.kinds, name.total, "name")
-        : null;
+    const suggestion = iban ? learnedDirectBooking(t, iban.kinds, iban.total, "iban") : name ? learnedDirectBooking(t, name.kinds, name.total, "name") : null;
     if (suggestion) result.set(t.id, suggestion);
   }
   return result;
@@ -931,7 +946,13 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     .insert(schema.allocations)
     .values({ transactionId: bank.id, kind: part.kind, amount: part.amount, splitId, ...target })
     .returning();
-  await post(tx, company, { date: bank.bookingDate, description, sourceType: "allocation", sourceId: allocation!.id, lines: onLedger(lines, company.kontenrahmen, bank.ledgerIndex) });
+  await post(tx, company, {
+    date: bank.bookingDate,
+    description,
+    sourceType: "allocation",
+    sourceId: allocation!.id,
+    lines: onLedger(lines, company.kontenrahmen, bank.ledgerIndex),
+  });
 }
 
 /** Ordnet (einen Teil) eines Umsatzes zu und bucht die Zahlung. */
@@ -1014,10 +1035,10 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
   const [entry] = await tx
     .select()
     .from(schema.journalEntries)
-    .where(and(eq(schema.journalEntries.sourceType, "allocation"), eq(schema.journalEntries.sourceId, allocation.id), isNull(schema.journalEntries.reversesId)));
-  const lines = entry
-    ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id))
-    : [];
+    .where(
+      and(eq(schema.journalEntries.sourceType, "allocation"), eq(schema.journalEntries.sourceId, allocation.id), isNull(schema.journalEntries.reversesId)),
+    );
+  const lines = entry ? await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, entry.id)) : [];
   const [reversal] = await tx
     .insert(schema.allocations)
     .values({
@@ -1033,7 +1054,10 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
     })
     .returning();
   if (entry) {
-    const [bank] = await tx.select({ bookingDate: schema.bankTransactions.bookingDate }).from(schema.bankTransactions).where(eq(schema.bankTransactions.id, allocation.transactionId));
+    const [bank] = await tx
+      .select({ bookingDate: schema.bankTransactions.bookingDate })
+      .from(schema.bankTransactions)
+      .where(eq(schema.bankTransactions.id, allocation.transactionId));
     // Gegenbuchung im Kontenrahmen der Firmendaten; wechseln kann er nur, solange im Jahr nichts gebucht ist
     await post(tx, await openBooks(tx), {
       date: bank!.bookingDate,
@@ -1224,7 +1248,10 @@ export async function allocateWithRest(actor: string, input: z.infer<typeof rest
     }
     const isInvoice = input.target.kind === "invoice";
     if (isInvoice !== (input.rest !== "skontoErhalten")) throw new BankError("Skonto erhalten gilt für Belege, Skonto und Forderungsausfall für Rechnungen.");
-    const part: Part = input.target.kind === "invoice" ? { kind: "invoice", invoiceId: input.target.invoiceId, amount: bank.open } : { kind: "document", documentId: input.target.documentId, amount: bank.open };
+    const part: Part =
+      input.target.kind === "invoice"
+        ? { kind: "invoice", invoiceId: input.target.invoiceId, amount: bank.open }
+        : { kind: "document", documentId: input.target.documentId, amount: bank.open };
     await bookPart(tx, company, bank, part, null);
     const base = { date: bank.bookingDate, transactionId: bank.id };
     await bookWriteOff(
@@ -1266,7 +1293,12 @@ async function allocateWithExchangeDifference(
   if (Math.abs(bank.open) <= Math.abs(open)) {
     await bookPart(tx, company, bank, toTarget(bank.open), null);
     if (bank.open !== open) {
-      await bookWriteOff(tx, company, { kind: "kursdifferenz", date: bank.bookingDate, transactionId: bank.id, ...(target.kind === "invoice" ? { invoiceId: target.invoiceId } : { documentId: target.documentId }) });
+      await bookWriteOff(tx, company, {
+        kind: "kursdifferenz",
+        date: bank.bookingDate,
+        transactionId: bank.id,
+        ...(target.kind === "invoice" ? { invoiceId: target.invoiceId } : { documentId: target.documentId }),
+      });
     }
   } else {
     // Wird die Aufteilung aufgehoben, dann ganz (reverseAllocation)

@@ -13,7 +13,11 @@
   const schluessel = `${werte.formular}-${werte.jahr}${werte.zeitraum ? `-${werte.zeitraum}` : ""}`;
 
   if (hier.formular !== werte.formular || hier.jahr !== werte.jahr) {
-    leiste(`Geladen sind Werte für ${werte.formular.toUpperCase()} ${werte.jahr}, dies ist ${hier.formular.toUpperCase()} ${hier.jahr}. Nichts eingetragen.`, [], false);
+    leiste(
+      `Geladen sind Werte für ${werte.formular.toUpperCase()} ${werte.jahr}, dies ist ${hier.formular.toUpperCase()} ${hier.jahr}. Nichts eingetragen.`,
+      [],
+      false,
+    );
     return;
   }
 
@@ -45,7 +49,10 @@
       { titel: "Eingetragen (grün umrandet)", eintraege: e.eingetragen.map((f) => (f.vorher ? `${zeile(f)} – vorher ${f.vorher}` : zeile(f))) },
       { titel: "Vorbereitet: bei der grün umrandeten Zeile auf „Eintrag übernehmen“ klicken", eintraege: e.uebernehmen.map(zeile) },
       { titel: "Abweichend, nicht überschrieben (z. B. Vorjahreswert)", eintraege: e.abweichend.map((f) => `${zeile(f)} – im Formular steht ${f.vorhanden}`) },
-      { titel: "Gehört zur Anlage einer anderen Person", eintraege: e.andererPerson.map((f) => `${zeile(f)} – ${werte.personen?.[f.person] ?? `Person ${f.person}`}`) },
+      {
+        titel: "Gehört zur Anlage einer anderen Person",
+        eintraege: e.andererPerson.map((f) => `${zeile(f)} – ${werte.personen?.[f.person] ?? `Person ${f.person}`}`),
+      },
       { titel: "Rechnet Mein ELSTER selbst (noch leer; nach dem Blättern mit Haben vergleichen)", eintraege: e.berechnet.map(zeile) },
       { titel: "Von Hand eintragen (erst Zeile anlegen)", eintraege: e.vonHand.map(zeile) },
       { titel: "Ließ sich nicht setzen", eintraege: e.nichtMoeglich.map(zeile) },

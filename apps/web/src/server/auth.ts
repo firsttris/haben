@@ -19,10 +19,7 @@ function createAuth() {
     rateLimit: { enabled: true, window: 60, max: 20 },
     // Haben läuft hinter Caddy; die Client-Adresse kommt aus X-Forwarded-For.
     advanced: { ipAddress: { ipAddressHeaders: ["x-forwarded-for"] } },
-    plugins: [
-      passkey({ rpID: baseUrl.hostname, rpName: "Haben", origin: baseUrl.origin }),
-      tanstackStartCookies(),
-    ],
+    plugins: [passkey({ rpID: baseUrl.hostname, rpName: "Haben", origin: baseUrl.origin }), tanstackStartCookies()],
     hooks: {
       // Das erste Konto legt nur an, wer den Einrichtungscode aus dem Server-Log kennt
       before: createAuthMiddleware(async (ctx) => {
