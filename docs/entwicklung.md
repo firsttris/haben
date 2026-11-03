@@ -83,7 +83,7 @@ docker compose exec db createdb -U haben haben_e2e
 
 ## Tests
 
-Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src` und `packages/*/src` ein und führt die Dateien nacheinander aus, weil sich die Integrationstests eine Datenbank teilen.
+Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src` und `packages/*/src` ein und führt die Dateien parallel aus, eine Datei je Worker.
 
 ```sh
 bun run test
@@ -91,10 +91,10 @@ TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 bun --bun vitest run packages/core     # nur ein Bereich
 ```
 
-Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`. Ohne die Variable werden sie übersprungen. Mit ihr löscht `apps/web/src/server/test-db.ts` die Schemas `public` und `drizzle` und wendet alle Migrationen neu an.
+Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`. Ohne die Variable werden sie übersprungen. Mit ihr legt `apps/web/src/server/test-db.ts` zu Beginn des Laufs neben der Datenbank (`haben_test`) eine Vorlage `haben_test_vorlage` an und wendet dort einmal alle Migrationen an. Jeder Worker von Vitest hat eine eigene Datenbank (`haben_test_1`, `haben_test_2`, …); jede Testdatei legt sie als Kopie der Vorlage neu an (`CREATE DATABASE … TEMPLATE`, rund 0,1 s statt 0,6 s für die Migrationen). Der Benutzer braucht dafür das Recht, Datenbanken anzulegen (`CREATEDB`); der aus `compose.yml` hat es.
 
 > [!IMPORTANT]
-> `TEST_DATABASE_URL` niemals auf eine Datenbank mit echten Daten zeigen lassen. Die Tests leeren sie vollständig.
+> `TEST_DATABASE_URL` niemals auf einen Server mit echten Daten zeigen lassen. Die Tests löschen und überschreiben die Datenbanken `<name>_vorlage` und `<name>_<Nummer>` daneben.
 
 Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kompilieren eine kleine C-Bibliothek mit `cc`. Gibt es keinen Compiler, werden sie übersprungen.
 
@@ -152,15 +152,17 @@ Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.githu
 5. Einen Kontoauszug importieren und die Umsätze zuordnen.
 6. Prüfen, dass Kennzahlen und Salden unter **Konten** dazu passen, und den Filter im Journal testen.
 
-Zum Schluss lädt der Test jede Seite am Desktop (1440 px) und am Handy (390 px) und prüft dabei:
+Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen mit diesen Daten und dieser Sitzung die Dateien im Projekt `mit-daten` (`playwright.config.ts`), verteilt auf vier Worker; sie lesen nur. `elster-helfer.spec.ts` und `langsame-anfrage.spec.ts` brauchen keine Daten und laufen im Projekt `ohne-daten` von Anfang an daneben.
+
+`apps/web/e2e/seiten.spec.ts` lädt jede Seite am Desktop (1440 px) und am Handy (390 px) und prüft dabei:
 - Die Seite antwortet ohne Fehler und hat eine Überschrift.
 - Im Browser tritt kein Fehler auf, auch kein Hydration-Fehler.
 - Am Handy ist die Seite nicht breiter als der Bildschirm.
 - Das Handy-Menü lässt sich öffnen und bedienen.
 
-Von jeder Seite legt der Test einen Screenshot unter `apps/web/test-results/screenshots/{desktop,mobil}/` ab.
+Von jeder Seite legt der Test einen Screenshot unter `apps/web/test-results/screenshots/{desktop,mobil}/` ab. Eine neue Seite gehört in die Liste in `seiten.spec.ts` und in `barrierefreiheit.spec.ts`.
 
-Danach prüft `apps/web/e2e/barrierefreiheit.spec.ts` mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Allein laufen kann die Datei nicht: Sie braucht die Daten aus `app.spec.ts`, und jeder Lauf leert die Datenbank. Starte deshalb immer `bun run e2e`.
+`apps/web/e2e/barrierefreiheit.spec.ts` prüft mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Eine einzelne Datei startest du mit `bun run e2e barrierefreiheit`; Playwright lässt `app.spec.ts` dann davor laufen, weil das Projekt `mit-daten` davon abhängt.
 
 ```sh
 createdb haben_e2e            # einmalig; der Name muss auf „e2e“ enden, die Datenbank wird bei jedem Lauf geleert
@@ -174,7 +176,7 @@ In der CI läuft der Job `e2e` bei jedem Pull Request. Screenshots, Playwright-B
 ### Bilder für README und Doku
 
 Die Bilder in README und Doku (`docs/screenshot-*.png`) entstehen aus denselben Daten: nach `app.spec.ts`
-läuft `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und fotografiert Übersicht, Rechnungseditor,
+läuft im Projekt `mit-daten` `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und fotografiert Übersicht, Rechnungseditor,
 Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy. Ohne
 `DOKU_SCREENSHOTS=1` überspringt es sich selbst, die normalen Tests bleiben unverändert.
 

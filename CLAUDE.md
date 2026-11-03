@@ -37,7 +37,7 @@ Update what the change affects, in the same pull request, and only that:
 - bookings and tax: test cases for SKR03 and SKR04 and for Ist and Soll;
 - the docs in `docs/` that describe it, in German;
 - the README when a feature a user sees is added, changed or removed;
-- a new page: add it to `e2e/barrierefreiheit.spec.ts` and the screenshot list in `e2e/app.spec.ts`;
+- a new page: add it to `e2e/barrierefreiheit.spec.ts` and the screenshot list in `e2e/seiten.spec.ts`;
 - the screenshots after a change to the look: **Actions → Update screenshots → Run workflow**, then
   look at the new pictures.
 
@@ -54,7 +54,8 @@ E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e         # name must end in
 mkdocs build --strict                                   # when docs/ or mkdocs.yml changed
 ```
 
-Both databases are wiped by the tests; never point them at real data. In a container without
+Both databases are wiped by the tests, and `bun run test` also creates and drops `<name>_vorlage` and
+`<name>_<n>` next to the test database; never point them at a server with real data. In a container without
 PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl … -o '-p 5433'`).
 
 ## Pull requests

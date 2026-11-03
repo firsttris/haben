@@ -11,11 +11,15 @@ const port = Number(process.env.E2E_PORT ?? 3100);
 const baseURL = `http://localhost:${port}`;
 const databaseUrl = process.env.E2E_DATABASE_URL ?? "";
 
+const chromium = { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } };
+
 export default defineConfig({
   testDir: "e2e",
   testMatch: "**/*.spec.ts",
-  fullyParallel: false,
-  workers: 1,
+  // Mehrere Browser gegen denselben Server: „ablauf“ läuft für sich nacheinander, „mit-daten“ danach
+  // verteilt auf die Worker, „ohne-daten“ von Anfang an daneben
+  fullyParallel: true,
+  workers: 4,
   retries: 0,
   timeout: 120_000,
   expect: { timeout: 15_000 },
@@ -28,7 +32,15 @@ export default defineConfig({
     screenshot: "only-on-failure",
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {},
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
+  projects: [
+    // Der Betrieb in der leeren Datenbank, Schritt für Schritt (test.describe.configure serial in der Datei)
+    { name: "ablauf", testMatch: "app.spec.ts", use: chromium },
+    // Liest nur, was „ablauf“ angelegt hat, mit dessen Sitzung (e2e/daten.ts). Playwright startet „ablauf“ auch
+    // mit, wenn nur eine dieser Dateien laufen soll
+    { name: "mit-daten", testMatch: ["barrierefreiheit.spec.ts", "seiten.spec.ts", "zz-doku-screenshots.spec.ts"], dependencies: ["ablauf"], use: chromium },
+    // Braucht keine Daten aus der App
+    { name: "ohne-daten", testMatch: ["elster-helfer.spec.ts", "langsame-anfrage.spec.ts"], use: chromium },
+  ],
   webServer: {
     // Datenbank leeren, migrieren, Server starten
     command: `bun e2e/reset-db.ts && bun run db:migrate && ${process.env.E2E_SERVER_COMMAND ?? `bun --bun vite dev --port ${port}`}`,

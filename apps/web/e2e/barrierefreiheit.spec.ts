@@ -1,16 +1,16 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+import { ANONYMOUS, chunks, SESSION, USER } from "./daten.ts";
 
 /**
- * Barrierefreiheit und Tastaturbedienung, mit den Daten, die app.spec.ts davor angelegt hat (der Dateiname
- * sorgt für die Reihenfolge). axe-core prüft jede Seite gegen WCAG 2.2 AA und die Best Practices von axe,
- * die Farbkontraste zusätzlich in allen übrigen Themes. Die Tastaturtests melden sich ohne Maus an, springen mit dem
+ * Barrierefreiheit und Tastaturbedienung, mit den Daten und der Sitzung aus app.spec.ts (Projekt „mit-daten“ in
+ * playwright.config.ts). axe-core prüft jede Seite gegen WCAG 2.2 AA und die Best Practices von axe, die
+ * Farbkontraste zusätzlich in allen übrigen Themes. Die Tastaturtests melden sich ohne Maus an, springen mit dem
  * Sprunglink zum Inhalt und tabben durch die Seiten: Jedes Element mit Fokus muss einen sichtbaren Rahmen haben.
+ * Jede Seite ist ein eigener Test, damit sie sich auf die Worker verteilen; geschrieben wird nichts.
  */
 
-test.describe.configure({ mode: "serial" });
-
-const USER = { email: "max@example.com", password: "ein-sehr-langes-e2e-passwort" };
+test.use({ storageState: SESSION });
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
 const THEMES = ["wald", "ozean", "pflaume", "graphit", "nacht", "tiefsee"];
 
@@ -69,9 +69,6 @@ const THEME_PAGES = [
   "/einstellungen?bereich=export",
 ];
 
-let context: BrowserContext;
-let page: Page;
-
 /** Anmelden nur mit der Tastatur: Tab, Enter und Tippen */
 async function signInByKeyboard(p: Page) {
   await p.goto("/login");
@@ -119,22 +116,13 @@ async function axe(p: Page, rules?: string[]) {
   );
 }
 
-async function setTheme(p: Page, theme: string) {
-  await p.evaluate((t) => localStorage.setItem("haben-theme", t), theme);
+/** Theme vor dem ersten Laden setzen; das Skript im Kopf der Seite liest es aus localStorage */
+async function withTheme(p: Page, theme: string) {
+  await p.addInitScript((t) => localStorage.setItem("haben-theme", t), theme);
 }
 
-test.beforeAll(async ({ browser }) => {
-  context = await browser.newContext();
-  page = await context.newPage();
-  await signInByKeyboard(page);
-});
-
-test.afterAll(async () => {
-  await context.close();
-});
-
 test("Anmeldeseite ohne Verstöße", async ({ browser }) => {
-  const anonymous = await browser.newContext();
+  const anonymous = await browser.newContext(ANONYMOUS);
   const p = await anonymous.newPage();
   await open(p, "/login");
   expect(await axe(p), "/login").toEqual([]);
@@ -143,56 +131,67 @@ test("Anmeldeseite ohne Verstöße", async ({ browser }) => {
   await anonymous.close();
 });
 
-test("Alle Seiten ohne axe-Verstöße (WCAG 2.2 AA)", async () => {
-  test.setTimeout(300_000);
-  await setTheme(page, "wald");
-  for (const path of PAGES) {
-    await open(page, path);
-    expect.soft(await axe(page), path).toEqual([]);
-  }
+test("Anmelden nur mit der Tastatur", async ({ browser }) => {
+  const anonymous = await browser.newContext(ANONYMOUS);
+  await signInByKeyboard(await anonymous.newPage());
+  await anonymous.close();
 });
 
-test("Farbkontraste in allen Themes", async () => {
-  test.setTimeout(300_000);
-  for (const theme of THEMES.filter((t) => t !== "wald")) {
-    await setTheme(page, theme);
+/** Seiten je Test: mehrere Seiten in einem Browser-Kontext laden die Skripte nur einmal */
+const GROUP = 6;
+
+for (const group of chunks(PAGES, GROUP)) {
+  test(`Ohne axe-Verstöße (WCAG 2.2 AA): ${group.join(", ")}`, async ({ page }) => {
+    await withTheme(page, "wald");
+    for (const path of group) {
+      await open(page, path);
+      expect.soft(await axe(page), path).toEqual([]);
+    }
+  });
+}
+
+for (const theme of THEMES.filter((t) => t !== "wald")) {
+  test(`Farbkontraste im Theme ${theme}`, async ({ page }) => {
+    test.setTimeout(300_000);
+    await withTheme(page, theme);
     for (const path of THEME_PAGES) {
       await open(page, path);
       expect.soft(await axe(page, ["color-contrast", "link-in-text-block"]), `${theme} ${path}`).toEqual([]);
     }
-  }
-  await setTheme(page, "wald");
-});
-
-async function mobile(browser: Browser) {
-  const storageState = await context.storageState();
-  return browser.newContext({ viewport: { width: 320, height: 720 }, storageState, locale: "de-DE", timezoneId: "Europe/Berlin" });
+  });
 }
 
-test("Handy: Seiten und offenes Menü ohne Verstöße, Escape schließt das Menü", async ({ browser }) => {
-  test.setTimeout(300_000);
-  const phone = await mobile(browser);
-  const p = await phone.newPage();
-  for (const path of PAGES) {
-    await open(p, path);
-    expect.soft(await axe(p), `Handy ${path}`).toEqual([]);
+test.describe("Handy", () => {
+  test.use({ viewport: { width: 320, height: 720 } });
+
+  for (const group of chunks(PAGES, GROUP)) {
+    test(`Ohne axe-Verstöße: ${group.join(", ")}`, async ({ page }) => {
+      await withTheme(page, "wald");
+      for (const path of group) {
+        await open(page, path);
+        expect.soft(await axe(page), `Handy ${path}`).toEqual([]);
+      }
+    });
   }
-  await open(p, "/");
-  const menu = p.getByRole("button", { name: "Menü" });
-  await tabTo(p, "Menü");
-  await p.keyboard.press("Enter");
-  await expect(menu).toHaveAttribute("aria-expanded", "true");
-  expect(await axe(p), "Handy, Menü offen").toEqual([]);
-  // Mit Tab ins Menü, Escape schließt es und der Fokus steht wieder auf dem Menüknopf
-  await p.keyboard.press("Tab");
-  await expect(p.getByRole("link", { name: "Übersicht" })).toBeFocused();
-  await p.keyboard.press("Escape");
-  await expect(menu).toHaveAttribute("aria-expanded", "false");
-  await expect(menu).toBeFocused();
-  await phone.close();
+
+  test("Offenes Menü ohne Verstöße, Escape schließt das Menü", async ({ page }) => {
+    await withTheme(page, "wald");
+    await open(page, "/");
+    const menu = page.getByRole("button", { name: "Menü" });
+    await tabTo(page, "Menü");
+    await page.keyboard.press("Enter");
+    await expect(menu).toHaveAttribute("aria-expanded", "true");
+    expect(await axe(page), "Handy, Menü offen").toEqual([]);
+    // Mit Tab ins Menü, Escape schließt es und der Fokus steht wieder auf dem Menüknopf
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("link", { name: "Übersicht" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveAttribute("aria-expanded", "false");
+    await expect(menu).toBeFocused();
+  });
 });
 
-test("Sprunglink führt zum Inhalt, Seitenwechsel per Tastatur setzt den Fokus auf den Inhalt", async () => {
+test("Sprunglink führt zum Inhalt, Seitenwechsel per Tastatur setzt den Fokus auf den Inhalt", async ({ page }) => {
   await open(page, "/");
   await page.keyboard.press("Tab");
   const skip = page.getByRole("link", { name: "Zum Inhalt springen" });
@@ -212,49 +211,54 @@ test("Sprunglink führt zum Inhalt, Seitenwechsel per Tastatur setzt den Fokus a
   await expect(page.getByRole("heading", { name: "Rechnungen", level: 1 })).toBeVisible();
 });
 
-test("Jedes Element mit Tastaturfokus hat einen sichtbaren Rahmen", async () => {
-  test.setTimeout(300_000);
-  for (const path of [
-    "/",
-    "/rechnungen",
-    "/rechnungen/neu",
-    "/belege",
-    "/bank",
-    "/kasse",
-    "/kontakte",
-    "/auswertungen",
-    "/fristen",
-    "/einstellungen",
-    "/einstellungen?bereich=export",
-  ]) {
-    await open(page, path);
-    const seen = new Set<string>();
-    for (let i = 0; i < 120; i++) {
-      await page.keyboard.press("Tab");
-      const focus = await page.evaluate(() => {
-        const el = document.activeElement as HTMLElement | null;
-        if (!el || el === document.body) return null;
-        const id = el.outerHTML.slice(0, 120);
-        // Versteckte Dateiauswahl: den Rahmen trägt der sichtbare Knopf daneben
-        const shown = el.classList.contains("visually-hidden") && el.nextElementSibling ? (el.nextElementSibling as HTMLElement) : el;
-        const style = getComputedStyle(shown);
-        const ring = style.outlineStyle !== "none" && parseFloat(style.outlineWidth) >= 2;
-        // Das Suchfeld zeigt den Fokus am umgebenden Kasten
-        const box = el.closest(".search-box");
-        const boxRing = box ? getComputedStyle(box).outlineStyle !== "none" : false;
-        // SVG-Elemente (Monate im Diagramm) markieren den Fokus selbst
-        const svg = el instanceof SVGElement && getComputedStyle(el.querySelector(".hit") ?? el).strokeWidth !== "0px";
-        return { id, visible: ring || boxRing || svg };
-      });
-      if (!focus || seen.has(focus.id)) break;
-      seen.add(focus.id);
-      expect.soft(focus.visible, `${path}: sichtbarer Fokus auf ${focus.id}`).toBe(true);
-    }
-    expect(seen.size, `${path}: mit Tab erreichbare Elemente`).toBeGreaterThan(5);
-  }
-});
+const FOCUS_PAGES = [
+  "/",
+  "/rechnungen",
+  "/rechnungen/neu",
+  "/belege",
+  "/bank",
+  "/kasse",
+  "/kontakte",
+  "/auswertungen",
+  "/fristen",
+  "/einstellungen",
+  "/einstellungen?bereich=export",
+];
 
-test("Seitenwechsel über einen Link im Inhalt setzt den Fokus auf den Inhalt", async () => {
+for (const group of chunks(FOCUS_PAGES, GROUP)) {
+  test(`Jedes Element mit Tastaturfokus hat einen sichtbaren Rahmen: ${group.join(", ")}`, async ({ page }) => {
+    for (const path of group) await visibleFocus(page, path);
+  });
+}
+
+async function visibleFocus(page: Page, path: string) {
+  await open(page, path);
+  const seen = new Set<string>();
+  for (let i = 0; i < 120; i++) {
+    await page.keyboard.press("Tab");
+    const focus = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el || el === document.body) return null;
+      const id = el.outerHTML.slice(0, 120);
+      // Versteckte Dateiauswahl: den Rahmen trägt der sichtbare Knopf daneben
+      const shown = el.classList.contains("visually-hidden") && el.nextElementSibling ? (el.nextElementSibling as HTMLElement) : el;
+      const style = getComputedStyle(shown);
+      const ring = style.outlineStyle !== "none" && parseFloat(style.outlineWidth) >= 2;
+      // Das Suchfeld zeigt den Fokus am umgebenden Kasten
+      const box = el.closest(".search-box");
+      const boxRing = box ? getComputedStyle(box).outlineStyle !== "none" : false;
+      // SVG-Elemente (Monate im Diagramm) markieren den Fokus selbst
+      const svg = el instanceof SVGElement && getComputedStyle(el.querySelector(".hit") ?? el).strokeWidth !== "0px";
+      return { id, visible: ring || boxRing || svg };
+    });
+    if (!focus || seen.has(focus.id)) break;
+    seen.add(focus.id);
+    expect.soft(focus.visible, `${path}: sichtbarer Fokus auf ${focus.id}`).toBe(true);
+  }
+  expect(seen.size, `${path}: mit Tab erreichbare Elemente`).toBeGreaterThan(5);
+}
+
+test("Seitenwechsel über einen Link im Inhalt setzt den Fokus auf den Inhalt", async ({ page }) => {
   // Von der Übersicht auf eine andere Seite: der Link verschwindet mit der Übersicht, der Fokus darf nicht verloren gehen
   await open(page, "/");
   await page.getByRole("main").getByRole("link", { name: "Neue Rechnung" }).focus();
