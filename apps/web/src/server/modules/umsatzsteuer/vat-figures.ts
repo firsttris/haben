@@ -2,7 +2,7 @@ import { paidTaxShares, recordedTaxShares, splitPrivateShare, type Cents, type T
 import { and, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 
 export interface RevenueSource {
@@ -75,14 +75,14 @@ function monthRange({ year, month }: VatPeriod) {
  * zugeordneten Zahlungseingangs, bei Teilzahlungen anteilig. Soll: nach Rechnungsdatum.
  * Vorsteuer in beiden Fällen nach Belegdatum.
  */
-export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> {
+export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Promise<VatFigures> {
   const { start, end } = monthRange(period);
   // Die Versteuerung des Jahres, nicht die aktuelle: nach einem Wechsel zum Jahreswechsel rechnet das Vorjahr weiter wie gebucht
-  const versteuerung = await versteuerungForYear(period.year);
+  const versteuerung = await versteuerungForYear(period.year, q);
   const revenue: RevenueSource[] = [];
 
   if (versteuerung === "ist") {
-    const payments = await db
+    const payments = await q
       .select({
         date: schema.bankTransactions.bookingDate,
         amount: schema.allocations.amount,
@@ -107,7 +107,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       );
     // Mit der Zahlung als Kursdifferenz ausgebuchter Rest: die Steuer darauf wird mit der Zahlung fällig, in voller Höhe
     // der Rechnung (umgerechnet mit deren Kurs), wie im Journal (exchangeDifferencePosting)
-    const differences = await db
+    const differences = await q
       .select({
         date: schema.writeOffs.date,
         amount: schema.writeOffs.amount,
@@ -129,7 +129,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
         ),
       );
     payments.push(...differences);
-    const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))]);
+    const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))], q);
     for (const p of payments) {
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag
       const stored = p.taxSharesInvoiceId === p.invoiceId ? p.taxShares : null;
@@ -152,7 +152,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
   // Soll: alle Rechnungen nach Rechnungsdatum. Ist: nur Reverse Charge, die Meldung in Kz 21
   // richtet sich nach der Leistung, nicht nach der Zahlung (Rechnungsdatum als Näherung).
   {
-    const issued = await db
+    const issued = await q
       .select()
       .from(schema.invoices)
       .where(
@@ -165,7 +165,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
           ...(versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
         ),
       );
-    const totals = await invoiceTotalsById(issued.map((i) => i.id));
+    const totals = await invoiceTotalsById(issued.map((i) => i.id), q);
     for (const inv of issued) {
       for (const t of totals.get(inv.id)?.taxes ?? []) {
         revenue.push({
@@ -186,7 +186,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
   // Ausbuchungen (§ 17 UStG): Skonto und Forderungsausfall mindern die Bemessungsgrundlage im Monat der Ausbuchung.
   // Bei Ist zählt ohnehin nur, was bezahlt wird; ausgenommen Reverse Charge, das auch bei Ist nach Rechnung zählt.
   {
-    const rows = await db
+    const rows = await q
       .select({
         date: schema.writeOffs.date,
         amount: schema.writeOffs.amount,
@@ -208,7 +208,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
           ...(versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
         ),
       );
-    const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))]);
+    const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))], q);
     for (const r of rows) {
       const stored = r.taxSharesInvoiceId === r.invoiceId ? r.taxShares?.map((t) => ({ rate: t.rate, base: -t.base, tax: -t.tax })) : null;
       const shares = recordedTaxShares(totals.get(r.invoiceId)!, -r.amount, stored);
@@ -230,7 +230,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
 
   // Private Kfz-Nutzung: unentgeltliche Wertabgabe im Monat der Nutzung, auch bei Ist-Versteuerung
   const lastDay = new Date(Date.UTC(period.year, period.month, 0)).toISOString().slice(0, 10);
-  for (const use of await privateUseForMonth(period.year, period.month)) {
+  for (const use of await privateUseForMonth(period.year, period.month, q)) {
     revenue.push({
       type: "entnahme",
       date: lastDay,
@@ -245,7 +245,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     });
   }
 
-  const amounts = await db
+  const amounts = await q
     .select({
       documentId: schema.documents.id,
       date: schema.documents.documentDate,
@@ -279,7 +279,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
     }))
     .filter((a) => a.tax !== 0);
   // Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz
-  const discounts = await db
+  const discounts = await q
     .select({
       documentId: schema.documents.id,
       date: schema.writeOffs.date,
@@ -301,7 +301,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
       ),
     );
   if (discounts.length > 0) {
-    const docAmounts = await db
+    const docAmounts = await q
       .select()
       .from(schema.documentAmounts)
       .where(inArray(schema.documentAmounts.documentId, [...new Set(discounts.map((d) => d.documentId))]));
@@ -336,7 +336,7 @@ export async function computeVatFigures(period: VatPeriod): Promise<VatFigures> 
   return {
     versteuerung,
     // Stand im Monat der Voranmeldung, nicht der heutige
-    kleinunternehmer: await kleinunternehmerForMonth(period.year, period.month),
+    kleinunternehmer: await kleinunternehmerForMonth(period.year, period.month, q),
     kz81: sum(regular, 1900, "base"),
     tax81: sum(regular, 1900, "tax"),
     kz86: sum(regular, 700, "base"),

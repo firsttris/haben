@@ -1,6 +1,7 @@
 import { count, eq, sql } from "drizzle-orm";
 import { abgleichAll, abweichungen, type AbgleichZeile } from "./abgleich.ts";
 import { db, schema } from "../../db/index.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { today } from "../../today.ts";
 
 export { formatPruefwert, parsePruefwert } from "../../../lib/pruefwert.ts";
@@ -58,10 +59,11 @@ export async function chainHead(reader: Reader = db): Promise<ChainHead | null> 
 const MAX_ROWS = 100;
 
 /**
- * Befunde, Kopf und Anzahlen aus einem Stand der Datenbank. Einzeln gelesen verschob ein Eintrag, der dazwischen
- * hinzukam, Anzahl und Kopf gegeneinander. REPEATABLE READ hält den Stand über alle Abfragen der Transaktion fest.
+ * Befunde, Kopf, Anzahlen und Abgleich aus einem Stand der Datenbank. Einzeln gelesen verschob ein Eintrag, der
+ * dazwischen hinzukam, Anzahl und Kopf gegeneinander, und der Abgleich sah eine Buchung nebenher nur auf einer Seite.
+ * REPEATABLE READ hält den Stand über alle Abfragen der Transaktion fest.
  */
-function readChain() {
+function readSnapshot(now: string) {
   return db.transaction(
     async (tx) => {
       const rows = await tx.execute<{ art: IntegrityProblem["art"]; tabelle: string; zeile: string | null; seq: string | null; befund: string }>(
@@ -70,7 +72,8 @@ function readChain() {
       const head = await chainHead(tx);
       const [entries] = await tx.select({ n: count() }).from(schema.auditLog);
       const [seals] = await tx.select({ n: count() }).from(schema.seals);
-      return { rows, head, entries: entries!.n, seals: seals!.n };
+      const abgleich = await abgleichAll(now, tx);
+      return { rows, head, entries: entries!.n, seals: seals!.n, abgleich };
     },
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
@@ -78,7 +81,11 @@ function readChain() {
 
 /** Prüft die ganze Kette, alle Siegel und gleicht Journal und Steuerwerte ab. Dauert bei großen Datenbanken einige Sekunden. */
 export async function checkIntegrity(now = today()): Promise<IntegrityReport> {
-  const [{ rows, head, entries, seals }, abgleich] = await Promise.all([readChain(), abgleichAll(now)]);
+  // Mit Buchungen liest der Abgleich die Firmendaten. Fehlen sie, legt loadCompany sie an; das ist ein Schreibzugriff
+  // und geht in der Transaktion mit festem Stand nicht. Ohne Buchungen bleibt die Prüfung ohne jeden Schreibzugriff.
+  const [booking] = await db.select({ id: schema.journalEntries.id }).from(schema.journalEntries).limit(1);
+  if (booking) await loadCompany();
+  const { rows, head, entries, seals, abgleich } = await readSnapshot(now);
   const problems = [...rows].map((r) => ({ ...r, seq: r.seq === null ? null : Number(r.seq) }));
   const perKind = new Map<string, number>();
   for (const p of problems) perKind.set(`${p.art}:${p.tabelle}`, (perKind.get(`${p.art}:${p.tabelle}`) ?? 0) + 1);

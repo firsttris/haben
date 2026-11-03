@@ -12,7 +12,7 @@ import {
 } from "@haben/core";
 import { and, gte, lt, sql } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { euerForYear } from "./reports.ts";
 import { computeVatFigures, type PreflightIssue } from "../umsatzsteuer/index.ts";
 
@@ -57,10 +57,10 @@ interface Summe {
 }
 
 /** Soll und Haben je Kontenrahmen, Herkunft, Konto und Monat im Zeitraum */
-async function journalSums(from: string, to: string): Promise<Summe[]> {
+async function journalSums(from: string, to: string, q: Db | Tx = db): Promise<Summe[]> {
   const e = schema.journalEntries;
   const l = schema.journalLines;
-  const rows = await db
+  const rows = await q
     .select({
       kontenrahmen: e.kontenrahmen,
       sourceType: e.sourceType,
@@ -110,10 +110,10 @@ export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
 }
 
 /** Abgleich für die EÜR eines Jahres */
-export async function euerAbgleich(year: number): Promise<Abgleich> {
+export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgleich> {
   const { from, to } = yearRange(year);
-  const sums = await journalSums(from, to);
-  const euer = await euerForYear(year);
+  const sums = await journalSums(from, to, q);
+  const euer = await euerForYear(year, q);
   const line = (key: string) => [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
   const zeitraum = String(year);
   const row = (posten: string, journal: Cents, quelle: Cents): AbgleichZeile => ({ bereich: "euer", zeitraum, posten, journal, quelle });
@@ -141,12 +141,12 @@ export async function euerAbgleich(year: number): Promise<Abgleich> {
   if (kurs !== 0 || kursQuelle !== 0) zeilen.push(row("Kursdifferenzen (Aufwand abzüglich Ertrag)", kurs, kursQuelle));
 
   // AfA und Privatnutzung stehen erst im Journal, wenn das Jahr gebucht ist
-  const pending = (await listAssets(year)).filter((a) => a.pending).length;
+  const pending = (await listAssets(year, q)).filter((a) => a.pending).length;
   if (pending > 0) {
     hinweise.push(`AfA ${year} ist für ${pending === 1 ? "eine Anlage" : `${pending} Anlagen`} noch nicht gebucht; AfA und Privatnutzung werden danach abgeglichen.`);
   } else {
-    const afa = await depreciationForEuer(year);
-    const privat = await withdrawalsForEuer(year);
+    const afa = await depreciationForEuer(year, q);
+    const privat = await withdrawalsForEuer(year, q);
     const anlage = (s: Summe) => s.sourceType === "asset";
     zeilen.push(
       row("AfA", saldo(sums, (kr) => [ASSET_ACCOUNTS[kr].afa, ASSET_ACCOUNTS[kr].afaKfz], anlage), afa.afa),
@@ -161,28 +161,32 @@ export async function euerAbgleich(year: number): Promise<Abgleich> {
 }
 
 /** Jahre mit Buchungen, älteste zuerst */
-async function journalYears(): Promise<number[]> {
-  const rows = await db
+async function journalYears(q: Db | Tx): Promise<number[]> {
+  const rows = await q
     .selectDistinct({ year: sql<number>`extract(year from ${schema.journalEntries.date})::int` })
     .from(schema.journalEntries)
     .orderBy(sql`1`);
   return rows.map((r) => Number(r.year));
 }
 
-/** Alle Jahre mit Buchungen: Umsatzsteuer je Monat (bis zum laufenden) und EÜR je Jahr. Für die Integritätsprüfung. */
-export async function abgleichAll(today: string): Promise<Abgleich> {
+/**
+ * Alle Jahre mit Buchungen: Umsatzsteuer je Monat (bis zum laufenden) und EÜR je Jahr. Für die Integritätsprüfung.
+ * Liest in vielen Abfragen nacheinander; damit eine Buchung nebenher nicht nur auf einer Seite erscheint, läuft das
+ * in einer Transaktion mit festem Stand (REPEATABLE READ, siehe checkIntegrity).
+ */
+export async function abgleichAll(today: string, q: Db | Tx = db): Promise<Abgleich> {
   const zeilen: AbgleichZeile[] = [];
   const hinweise: string[] = [];
-  const years = await journalYears();
+  const years = await journalYears(q);
   for (const year of years) {
     const { from, to } = yearRange(year);
-    const sums = await journalSums(from, to);
+    const sums = await journalSums(from, to, q);
     const lastMonth = year < Number(today.slice(0, 4)) ? 12 : Number(today.slice(5, 7));
     for (let month = 1; month <= lastMonth; month++) {
       // Auch Monate ohne Journal: die Nebenbücher dürfen dann keine Steuer haben
-      zeilen.push(...vatRows({ year, month }, sums, await computeVatFigures({ year, month })));
+      zeilen.push(...vatRows({ year, month }, sums, await computeVatFigures({ year, month }, q)));
     }
-    const euer = await euerAbgleich(year);
+    const euer = await euerAbgleich(year, q);
     zeilen.push(...euer.zeilen);
     hinweise.push(...euer.hinweise);
   }

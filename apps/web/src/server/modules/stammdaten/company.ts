@@ -90,8 +90,8 @@ export async function versteuerungForYear(year: number, q: Db | Tx = db): Promis
  * Für alles, was frühere Zeiträume betrifft: Wer zum Jahreswechsel auf Kleinunternehmer umstellt, schuldet die
  * Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres trotzdem.
  */
-export async function kleinunternehmerHistory(): Promise<(date: string) => boolean> {
-  const rows = await db
+export async function kleinunternehmerHistory(q: Db | Tx = db): Promise<(date: string) => boolean> {
+  const rows = await q
     .select({ at: schema.auditLog.at, newValue: schema.auditLog.newValue })
     .from(schema.auditLog)
     .where(eq(schema.auditLog.tableName, "company"))
@@ -100,7 +100,7 @@ export async function kleinunternehmerHistory(): Promise<(date: string) => boole
     const value = (r.newValue as { kleinunternehmer?: unknown } | null)?.kleinunternehmer;
     return typeof value === "boolean" ? [{ date: today(r.at), value }] : [];
   });
-  const current = (await loadCompany()).kleinunternehmer;
+  const current = (await loadCompany(q)).kleinunternehmer;
   return (date) => {
     const last = changes.filter((c) => c.date <= date).at(-1);
     // Vor dem ersten Eintrag gilt der erste bekannte Stand (Anlegen der Firmendaten), ohne Protokoll der aktuelle
@@ -114,8 +114,8 @@ export function lastDayOfMonth(year: number, month: number): string {
 }
 
 /** Kleinunternehmer in einem Voranmeldungszeitraum: Stand am Monatsende */
-export async function kleinunternehmerForMonth(year: number, month: number): Promise<boolean> {
-  return (await kleinunternehmerHistory())(lastDayOfMonth(year, month));
+export async function kleinunternehmerForMonth(year: number, month: number, q: Db | Tx = db): Promise<boolean> {
+  return (await kleinunternehmerHistory(q))(lastDayOfMonth(year, month));
 }
 
 /** Kleinunternehmer am Ende eines Jahres: dann für das ganze Jahr (einschalten geht nur vor der ersten Buchung) */
