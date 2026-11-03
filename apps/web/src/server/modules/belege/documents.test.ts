@@ -89,6 +89,43 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect((await documents.getDocument(id))!.document.supplierContactId).toBeNull();
   });
 
+  it("erneutes Auslesen mit anderem Lieferanten löst die Verknüpfung zum Kontakt", async () => {
+    const stammdaten = await import("../stammdaten/index.ts");
+    const hetzner = await stammdaten.createContact(actor, {
+      kundennummer: "",
+      name: "Hetzner Online GmbH",
+      strasse: "",
+      plz: "",
+      ort: "",
+      land: "DE",
+      email: "",
+      ustId: "DE812871812",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+      isCustomer: false,
+      isSupplier: true,
+    });
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 92]), filename: "hetzner-2.jpg" });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Hetzner Online GmbH",
+      supplierUstId: "DE812871812",
+      supplierContactId: hetzner.id,
+      invoiceNumber: "R2",
+      documentDate: "2026-09-15",
+      dueDate: null,
+      category: "software",
+      payment: "bank",
+      note: "",
+      amounts: [{ taxRate: 1900, net: 1_000, tax: 190 }],
+    });
+    // Die Auslesung (Mock) liefert „Telekom Deutschland GmbH“: der Beleg zeigt nicht mehr auf Hetzner
+    await documents.runExtraction(actor, id);
+    const { document } = (await documents.getDocument(id))!;
+    expect(document.supplierName).toBe("Telekom Deutschland GmbH");
+    expect(document.supplierContactId).toBeNull();
+  });
+
   it("von Hand eingetragener Tabellenkurs: der später veröffentlichte amtliche Kurs gilt auch für ungebuchte Belege", async () => {
     const stammdaten = await import("../stammdaten/index.ts");
     await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-09", rate: "1.08" }], "manuell");
