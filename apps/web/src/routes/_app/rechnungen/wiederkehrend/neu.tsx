@@ -46,7 +46,7 @@ function NewRecurringPage() {
           taxTreatment: defaults.kleinunternehmer ? "kleinunternehmer" : "regulaer",
           exemptionReason: "",
           priceMode: "netto",
-          lines: [{ description: "", quantity: 1000, unit: "Psch.", unitPrice: 0, taxRate: defaults.kleinunternehmer ? 0 : 1900 }],
+          lines: [{ description: "", detail: "", quantity: 1000, unit: "Psch.", unitPrice: 0, taxRate: defaults.kleinunternehmer ? 0 : 1900 }],
           intervalMonths: 1,
           nextDate: nextMonthStart(today),
           endDate: null,

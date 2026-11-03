@@ -1,5 +1,5 @@
 {
-  "id": "94f640a8-c602-4927-b556-fe657396d1a6",
+  "id": "6c3aba4c-d9b5-4abd-a708-0c9025de4c7a",
   "prevId": "d1568119-4edf-4577-8e88-c25186465b60",
   "version": "7",
   "dialect": "postgresql",
@@ -600,6 +600,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
         },
         "unit": {
           "name": "unit",
@@ -2086,13 +2093,6 @@
           "notNull": true,
           "default": "''"
         },
-        "accent_color": {
-          "name": "accent_color",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'#1F6F5C'"
-        },
         "datev_berater_nr": {
           "name": "datev_berater_nr",
           "type": "text",
@@ -2171,10 +2171,6 @@
         "company_single_row": {
           "name": "company_single_row",
           "value": "\"company\".\"id\" = 1"
-        },
-        "company_accent_color": {
-          "name": "company_accent_color",
-          "value": "\"company\".\"accent_color\" ~ '^#[0-9A-Fa-f]{6}$'"
         }
       },
       "isRLSEnabled": false
@@ -5846,6 +5842,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
         },
         "quantity": {
           "name": "quantity",

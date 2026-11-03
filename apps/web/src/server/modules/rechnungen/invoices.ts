@@ -9,7 +9,6 @@ import {
   totalsFromTaxes,
   firstEmail,
   formatInvoiceNumber,
-  invoiceLineInputSchema,
   invoiceDueDate,
   invoicePosting,
   legacyCorrectionPosting,
@@ -37,6 +36,7 @@ import { loadLetterhead } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { draftLineSchema } from "./draft-line.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
@@ -48,9 +48,6 @@ export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
 export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
-
-/** Position einer Rechnung: dazu die mehrzeilige Beschreibung unter der Bezeichnung; Angebote haben sie (noch) nicht */
-const invoiceDraftLineSchema = z.object({ ...invoiceLineInputSchema.shape, detail: z.string().trim().max(2000).default("") });
 
 export const draftSchema = z
   .object({
@@ -89,7 +86,7 @@ export const draftSchema = z
         return rate;
       }),
     exchangeRateDate: isoDate.nullable().default(null),
-    lines: z.array(invoiceDraftLineSchema).max(200),
+    lines: z.array(draftLineSchema).max(200),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",

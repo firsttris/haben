@@ -45,4 +45,20 @@ describe("Auftragsbestätigung und Lieferschein", () => {
     expect(JSON.stringify(data)).not.toContain("€");
     expect(Buffer.from(buildDeliveryNotePdf(doc).subarray(0, 5)).toString()).toBe("%PDF-");
   });
+
+  it("Lieferschein: Text zur Position unter der Bezeichnung, wie auf Rechnung und Angebot", () => {
+    const [first, ...rest] = sample.lines;
+    const doc = {
+      reference: { kind: "angebot" as const, number: "AN-2026-004", issueDate: "2026-09-20" },
+      deliveryDate: "2026-09-30",
+      date: "2026-09-25",
+      seller: sample.seller,
+      buyer: sample.buyer,
+      lines: [{ ...first!, detail: "  Agenda nach Abstimmung\nzwei Tage vor Ort " }, ...rest],
+    };
+    const data = deliveryNotePdfData(doc);
+    expect(data.lines[0]?.detail).toBe("Agenda nach Abstimmung\nzwei Tage vor Ort");
+    expect(data.lines[1]?.detail).toBeNull();
+    expect(Buffer.from(buildDeliveryNotePdf(doc).subarray(0, 5)).toString()).toBe("%PDF-");
+  });
 });
