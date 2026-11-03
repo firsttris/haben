@@ -406,6 +406,15 @@ test("Positionstext: mehrzeiliger Artikel wird Bezeichnung und Text, die Vorscha
   await expect(page.getByRole("button", { name: "Position 2 als Artikel speichern" })).toBeEnabled();
 });
 
+test("Positionstext: über 500 Zeichen mit Bezeichnung lässt sich die Position nicht als Artikel speichern", async () => {
+  // Artikel fassen 500 Zeichen (articleInputSchema), der Text einer Position 2000
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Wartungsvertrag");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("90,00");
+  await page.getByLabel("Text zu Position 1 (optional)").fill("Leistungsumfang ".repeat(40));
+  await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
+});
+
 test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor einfügen", async () => {
   await go("/textbausteine");
   await page.getByRole("button", { name: "Neuer Textbaustein" }).click();
