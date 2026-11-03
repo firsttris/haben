@@ -263,6 +263,22 @@ describe.skipIf(!testDatabaseUrl)("Abgleich Journal ↔ Umsatzsteuer und EÜR (P
     }
   }, 120_000);
 
+  it("meldet keine Abweichung, nur weil während der Prüfung ein Beleg gebucht wird (Ist)", async () => {
+    // Ist: Vorsteuer nach Belegdatum, Beleg und Buchung entstehen in einer Transaktion
+    await reset("ist");
+    const { today } = await import("../../today.ts");
+    const date = today();
+    await bookedDocument(date, [{ taxRate: 1900, net: 10_000, tax: 1_900 }]);
+    for (let round = 0; round < 5; round++) {
+      const writes = (async () => {
+        for (let i = 0; i < 5; i++) await bookedDocument(date, [{ taxRate: 1900, net: 10_000, tax: 1_900 }]);
+      })();
+      const report = await integrity.checkIntegrity(date);
+      await writes;
+      expect(report.abgleich.abweichungen).toEqual([]);
+    }
+  }, 120_000);
+
   it("Vorprüfung der Voranmeldung meldet Abweichungen mit Beträgen", () => {
     expect(
       abgleich.abgleichIssues({
