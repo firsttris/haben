@@ -126,12 +126,6 @@
       automerge: false,
     },
     {
-      // TypeScript 7 (der Compiler in Go) hat keine JavaScript-API mehr. typescript-eslint ist mit dem
-      // Wechsel zu Biome weg; die Sperre fällt mit dem eigenen Pull Request für TypeScript 7.
-      matchPackageNames: ["typescript"],
-      allowedVersions: "<7",
-    },
-    {
       // Der Reverse Proxy der mitgelieferten Einrichtung (deploy/compose.yml, Quadlet, Doku)
       matchPackageNames: ["docker.io/library/caddy", "caddy"],
       groupName: "Caddy",

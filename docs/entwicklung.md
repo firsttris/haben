@@ -69,7 +69,7 @@ docker compose exec db createdb -U haben haben_e2e
 | --- | --- |
 | `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `bun run build` | Baut die Web-App (`apps/web/.output`) |
-| `bun run typecheck` | `tsc -p .` in jedem Paket |
+| `bun run typecheck` | `tsc -p .` in jedem Paket (TypeScript 7, der Compiler in Go) |
 | `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) |
 | `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
 | `bun run test` | Alle Tests mit Vitest (nicht `bun test`: das wäre der Test-Runner von Bun) |
