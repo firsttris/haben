@@ -30,10 +30,29 @@ export function contactOut(contact: Contact, baseUrl: string): ContactOut {
   };
 }
 
-/** Eingabe der Oberfläche aus einem gespeicherten Kontakt, für Änderungen einzelner Felder */
+/**
+ * Eingabe der Oberfläche aus einem gespeicherten Kontakt, für Änderungen einzelner Felder. Mit allen Feldern des
+ * Schemas: Was hier fehlt, setzte contactSchema auf seine Vorgabe zurück (etwa einen Lieferanten wieder auf Kunde).
+ */
 function inputOf(contact: Contact) {
-  const { kundennummer, name, strasse, plz, ort, land, email, ustId, iban, leitwegId, defaultFormat, language } = contact;
-  return { kundennummer: kundennummer ?? "", name, strasse, plz, ort, land, email, ustId, iban, leitwegId, defaultFormat, language };
+  const { kundennummer, name, strasse, plz, ort, land, email, ustId, iban, leitwegId, defaultFormat, language, isCustomer, isSupplier } = contact;
+  return {
+    kundennummer: kundennummer ?? "",
+    name,
+    strasse,
+    plz,
+    ort,
+    land,
+    email,
+    ustId,
+    iban,
+    leitwegId,
+    defaultFormat,
+    language,
+    isCustomer,
+    isSupplier,
+    lieferantennummer: contact.lieferantennummer ?? "",
+  };
 }
 
 const matches = (contact: Contact, needle: string) =>
