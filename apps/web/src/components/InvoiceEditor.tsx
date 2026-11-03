@@ -99,6 +99,19 @@ const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLower
 /** Artikel kennen nur einen Text: Bezeichnung und Beschreibung untereinander, beim Einfügen wieder getrennt */
 const articleText = (line: { description: string; detail: string }) => [line.description, line.detail].filter(Boolean).join("\n");
 
+/** Erste Zeile eines Artikels: so steht er in den Vorschlägen beim Tippen und im Feld der Bezeichnung */
+const articleTitle = (article: ArticleOption) => article.description.split("\n")[0]!.trim();
+
+/**
+ * Text einer Position aus einem Artikel: bei Rechnungen die erste Zeile als Bezeichnung und der Rest als Text der
+ * Position; Angebote haben keinen Positionstext und übernehmen den ganzen Artikeltext
+ */
+function articleLineText(article: ArticleOption, withDetail: boolean): Pick<LineState, "description" | "detail"> {
+  if (!withDetail) return { description: article.description, detail: "" };
+  const [, ...rest] = article.description.split("\n");
+  return { description: articleTitle(article), detail: rest.join("\n").trim() };
+}
+
 function toLineState(line: DraftInput["lines"][number]): LineState {
   return {
     key: nextKey++,
@@ -280,12 +293,12 @@ export function InvoiceEditor({
 
   /** Tippt man die Bezeichnung eines Artikels (Vorschlag aus dem Katalog), übernimmt die Position dessen Einheit, Preis und Steuersatz */
   function changeDescription(line: LineState, description: string) {
-    const article = !sameText(line.description, description) ? articles.find((a) => sameText(a.description, description)) : undefined;
+    const article = !sameText(line.description, description) ? articles.find((a) => sameText(articleTitle(a), description)) : undefined;
     updateLine(
       line.key,
       article
         ? {
-            description: article.description,
+            ...articleLineText(article, !quote),
             unit: article.unit as UnitLabel,
             unitPrice: articlePrice(article),
             taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
@@ -311,12 +324,9 @@ export function InvoiceEditor({
   function insertArticle(articleId: string) {
     const article = articles.find((a) => a.id === articleId);
     if (!article) return;
-    // Mehrzeiliger Artikel: erste Zeile als Bezeichnung, der Rest als Beschreibung der Position
-    const [first = "", ...rest] = quote ? [article.description] : article.description.split("\n");
     const line: LineState = {
       key: nextKey++,
-      description: first.trim(),
-      detail: rest.join("\n").trim(),
+      ...articleLineText(article, !quote),
       quantity: "1",
       unit: article.unit as UnitLabel,
       unitPrice: articlePrice(article),
@@ -774,7 +784,7 @@ export function InvoiceEditor({
                 {articles.map((a) => (
                   <option
                     key={a.id}
-                    value={a.description}
+                    value={articleTitle(a)}
                     label={`${a.number ? `${a.number} · ` : ""}${formatEuro(a.unitPrice)}${a.priceIncludesTax ? " brutto" : ""}/${a.unit}`}
                   />
                 ))}
@@ -802,7 +812,7 @@ export function InvoiceEditor({
                     <textarea
                       className="line-detail"
                       rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
-                      placeholder="Beschreibung (optional, mehrzeilig)"
+                      placeholder="Text zur Position (optional, mehrzeilig)"
                       aria-label={`Text zu Position ${index + 1} (optional)`}
                       value={line.detail}
                       maxLength={2000}
@@ -939,7 +949,7 @@ export function InvoiceEditor({
                   {articles.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.number ? `${a.number} · ` : ""}
-                      {a.description.split("\n")[0]} · {formatEuro(a.unitPrice)}
+                      {articleTitle(a)} · {formatEuro(a.unitPrice)}
                       {a.priceIncludesTax ? " brutto" : ""}/{a.unit}
                     </option>
                   ))}

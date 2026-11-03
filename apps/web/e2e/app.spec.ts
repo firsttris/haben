@@ -377,6 +377,35 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(page.getByLabel("Aus dem Artikelkatalog einfügen").locator("option", { hasText: "Wartungspauschale · 250,00" })).toHaveCount(1);
 });
 
+test("Positionstext: mehrzeiliger Artikel wird Bezeichnung und Text, die Vorschau zeigt beides", async () => {
+  await go("/artikel");
+  await page.getByRole("button", { name: "Neuer Artikel" }).click();
+  const form = page.getByRole("form", { name: "Neuer Artikel" });
+  await form.getByLabel("Bezeichnung").fill("Website-Relaunch\nKonzeption, Design und Umsetzung");
+  await form.getByLabel("Artikelnummer (optional)").fill("W-01");
+  await form.getByLabel("Preis (€)").fill("4.800,00");
+  await form.getByRole("button", { name: "Anlegen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Artikel angelegt." })).toBeVisible();
+
+  // Aus dem Katalog: erste Zeile als Bezeichnung, der Rest als Text der Position
+  await go("/rechnungen/neu");
+  await page.getByLabel("Aus dem Artikelkatalog einfügen").selectOption({ label: "W-01 · Website-Relaunch · 4.800,00\u00a0€/Std." });
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Website-Relaunch");
+  await expect(page.getByLabel("Text zu Position 1 (optional)")).toHaveValue("Konzeption, Design und Umsetzung");
+  await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
+
+  // Vorschlag beim Tippen der Bezeichnung: dieselbe Aufteilung, dazu Preis und Einheit
+  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByLabel("Beschreibung Position 2").fill("Website-Relaunch");
+  await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("4.800,00");
+  await expect(page.getByLabel("Text zu Position 2 (optional)")).toHaveValue("Konzeption, Design und Umsetzung");
+
+  // Eigener Text: in der Vorschau unter der Bezeichnung, die Position ist dann nicht mehr die aus dem Katalog
+  await page.getByLabel("Text zu Position 2 (optional)").fill("Nachtrag laut Bestellung 4500123456\nAbnahme am 30.09.");
+  await expect(page.locator(".sheet").getByText("Nachtrag laut Bestellung 4500123456")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Position 2 als Artikel speichern" })).toBeEnabled();
+});
+
 test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor einfügen", async () => {
   await go("/textbausteine");
   await page.getByRole("button", { name: "Neuer Textbaustein" }).click();
