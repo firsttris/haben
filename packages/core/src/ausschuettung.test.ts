@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ausEinlagekonto, ausschuettungAnteil, ausschuettungPosting, steuerabzug } from "./ausschuettung.ts";
+import { directBookingsFor, directPosting } from "./posting.ts";
 
 describe("Steuerabzug auf Gewinnausschüttungen", () => {
   it.each([
@@ -61,5 +62,20 @@ describe.each([
   it("ganz aus dem Einlagekonto: keine Einbehaltung", () => {
     const lines = ausschuettungPosting(kontenrahmen, [ausschuettungAnteil({ brutto: 100_000, ausEinlagekonto: 100_000, kirchensteuer: 9 })]);
     expect(lines.map((l) => l.account)).toEqual([k.vortrag, k.gesellschafter]);
+  });
+});
+
+describe("Zahlung der einbehaltenen Steuern an das Finanzamt (Bankabgleich)", () => {
+  it.each([
+    ["SKR03", "1200", "1746"],
+    ["SKR04", "1800", "3760"],
+  ] as const)("%s: Einbehaltungen an Bank, nur in GmbH und UG", (kontenrahmen, bank, einbehalt) => {
+    expect(directBookingsFor("gmbh")).toContain("kapest");
+    expect(directBookingsFor("einzelunternehmen")).not.toContain("kapest");
+    expect(directPosting("kapest", -137_500, kontenrahmen, "ug")).toEqual([
+      { account: bank, debit: 0, credit: 137_500, taxCode: null },
+      { account: einbehalt, debit: 137_500, credit: 0, taxCode: null },
+    ]);
+    expect(() => directPosting("kapest", -100, kontenrahmen, "einzelunternehmen")).toThrow("nur in GmbH und UG");
   });
 });

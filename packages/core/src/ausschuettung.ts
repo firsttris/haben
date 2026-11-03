@@ -11,9 +11,6 @@ import { VORTRAG_ACCOUNTS } from "./vortrag.ts";
  * einbehaltenen Steuern gehen mit der Kapitalertragsteuer-Anmeldung an das Finanzamt.
  */
 
-/** Verbindlichkeiten aus Einbehaltungen (KapESt und SolZ, KiSt auf KapESt) für offene Ausschüttungen */
-export const KAPEST_VERBINDLICHKEIT: Record<Kontenrahmen, string> = { SKR03: "1746", SKR04: "3760" };
-
 /** Kirchensteuersatz in Prozent: 8 in Bayern und Baden-Württemberg, 9 sonst; 0 ohne Kirchensteuerabzug */
 export type KirchensteuerSatz = 0 | 8 | 9;
 
@@ -84,6 +81,7 @@ export function ausschuettungPosting(kontenrahmen: Kontenrahmen, anteile: readon
   return [
     { account: VORTRAG_ACCOUNTS[kontenrahmen].gewinn, debit: brutto, credit: 0 },
     { account: ACCOUNTS[kontenrahmen].gesellschafter, debit: 0, credit: netto },
-    ...(steuern > 0 ? [{ account: KAPEST_VERBINDLICHKEIT[kontenrahmen], debit: 0, credit: steuern }] : []),
+    // Verbindlichkeiten aus Einbehaltungen (KapESt und SolZ, KiSt auf KapESt) für offene Ausschüttungen
+    ...(steuern > 0 ? [{ account: ACCOUNTS[kontenrahmen].kapestEinbehalt, debit: 0, credit: steuern }] : []),
   ];
 }

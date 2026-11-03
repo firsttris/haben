@@ -10,6 +10,7 @@ export { ebilanzOverview, submitEbilanz } from "./ebilanz.ts";
 export { kapgErklaerungen, submitKapg, type KapgForm } from "./kapg-erklaerung.ts";
 export {
   bookSteuerrueckstellungen,
+  kapgErklaerungAngaben,
   kapgAngabenSchema,
   kapgErklaerungSchema,
   kapgSteuernJahr,

@@ -66,6 +66,7 @@ const KIND_LABEL = {
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",
+  kapest: "Kapitalertragsteuer",
 } as const;
 
 const FORMAT_LABEL = (format: string) =>

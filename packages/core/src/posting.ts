@@ -25,6 +25,8 @@ export const ACCOUNTS = {
     privatentnahmen: "1800",
     /** GmbH, UG: Gesellschafter-Verrechnungskonto statt Privat (DATEV SKR03: Verbindlichkeiten gegenüber Gesellschaftern) */
     gesellschafter: "0730",
+    /** GmbH, UG: einbehaltene KapESt, Soli und KiSt auf offene Ausschüttungen (DATEV SKR03 1746) */
+    kapestEinbehalt: "1746",
     geldtransit: "1360",
     ustVorauszahlung: "1780",
     nebenkostenGeldverkehr: "4970",
@@ -55,6 +57,7 @@ export const ACCOUNTS = {
     privatentnahmen: "2100",
     /** GmbH, UG: Gesellschafter-Verrechnungskonto statt Privat (DATEV SKR04: Verbindlichkeiten gegenüber Gesellschaftern) */
     gesellschafter: "3510",
+    kapestEinbehalt: "3760",
     geldtransit: "1460",
     ustVorauszahlung: "3820",
     nebenkostenGeldverkehr: "6855",
@@ -562,6 +565,7 @@ export const DIRECT_BOOKINGS = {
   ustVorauszahlung: "Umsatzsteuer an das Finanzamt",
   gebuehren: "Kontoführung und Bankgebühren",
   mahnerloes: "Mahngebühren und Verzugszinsen (vom Kunden)",
+  kapest: "Kapitalertragsteuer an das Finanzamt (Ausschüttung)",
 } as const;
 
 export type DirectBooking = keyof typeof DIRECT_BOOKINGS;
@@ -571,18 +575,26 @@ export function directBookingLabel(kind: DirectBooking, rechtsform: Rechtsform):
   return kind === "privat" ? ownerLabels(rechtsform).bank : DIRECT_BOOKINGS[kind];
 }
 
+/** Buchungen ohne Beleg, die es in der Rechtsform gibt: Ausschüttungen und ihre Kapitalertragsteuer nur in GmbH und UG */
+export function directBookingsFor(rechtsform: Rechtsform): DirectBooking[] {
+  return (Object.keys(DIRECT_BOOKINGS) as DirectBooking[]).filter((kind) => kind !== "kapest" || isKapitalgesellschaft(rechtsform));
+}
+
 export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
+  if (!directBookingsFor(rechtsform).includes(kind)) throw new Error(`${DIRECT_BOOKINGS[kind]} gibt es nur in GmbH und UG`);
   const counter =
-    kind === "privat"
-      ? ownerAccount(kontenrahmen, rechtsform, amount < 0 ? "entnahme" : "einlage")
-      : kind === "geldtransit"
-        ? accounts.geldtransit
-        : kind === "ustVorauszahlung"
-          ? accounts.ustVorauszahlung
-          : kind === "mahnerloes"
-            ? accounts.mahnerloes
-            : accounts.nebenkostenGeldverkehr;
+    kind === "kapest"
+      ? accounts.kapestEinbehalt
+      : kind === "privat"
+        ? ownerAccount(kontenrahmen, rechtsform, amount < 0 ? "entnahme" : "einlage")
+        : kind === "geldtransit"
+          ? accounts.geldtransit
+          : kind === "ustVorauszahlung"
+            ? accounts.ustVorauszahlung
+            : kind === "mahnerloes"
+              ? accounts.mahnerloes
+              : accounts.nebenkostenGeldverkehr;
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 

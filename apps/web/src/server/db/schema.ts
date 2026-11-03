@@ -304,6 +304,67 @@ export const corporateTaxInputs = pgTable("corporate_tax_inputs", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Ein Gesellschafter in einer Ausschüttung: Anteil, Beträge und Kirchensteuerabzugsmerkmal zum Zeitpunkt des Beschlusses */
+export interface AusschuettungEmpfaenger {
+  name: string;
+  /** Hundertstel Prozent */
+  anteil: number;
+  brutto: number;
+  ausEinlagekonto: number;
+  ertrag: number;
+  kapest: number;
+  soli: number;
+  kist: number;
+  netto: number;
+  kirchensteuer: 0 | 8 | 9;
+  religionsschluessel: string | null;
+}
+
+/**
+ * Gewinnausschüttungen einer GmbH oder UG (Gewinnverwendungsbeschluss) mit Steuerabzug je Gesellschafter. Gebucht als
+ * Gewinnvortrag an Gesellschafter-Verrechnungskonto und Einbehaltungen; ein Storno ist eine Gegenbuchung (reverses_id).
+ * Nur anhängen, mit Audit.
+ */
+export const dividends = pgTable("dividends", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  beschlussDate: date("beschluss_date", { mode: "string" }).notNull(),
+  /** Im Beschluss bestimmter Tag der Auszahlung; ohne: Zufluss am Tag nach dem Beschluss (§ 44 Abs. 2 Satz 2 EStG) */
+  auszahlungstag: date("auszahlungstag", { mode: "string" }),
+  zufluss: date("zufluss", { mode: "string" }).notNull(),
+  brutto: integer("brutto").notNull(),
+  empfaenger: jsonb("empfaenger").$type<AusschuettungEmpfaenger[]>().notNull(),
+  entryId: uuid("entry_id")
+    .notNull()
+    .unique()
+    .references(() => journalEntries.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Prüfungen und Übermittlungen der Kapitalertragsteuer-Anmeldung je Ausschüttung; höchstens eine erfolgreiche Echtübermittlung */
+export const kapestSubmissions = pgTable(
+  "kapest_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    dividendId: uuid("dividend_id")
+      .notNull()
+      .references(() => dividends.id),
+    kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
+    ok: boolean("ok").notNull(),
+    code: integer("code").notNull(),
+    message: text("message").notNull(),
+    transferTicket: text("transfer_ticket"),
+    requestXml: text("request_xml").notNull(),
+    responseXml: text("response_xml").notNull(),
+    serverResponseXml: text("server_response_xml").notNull(),
+    protocolPdf: bytea("protocol_pdf"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("kapest_submissions_dividend").on(t.dividendId),
+    uniqueIndex("kapest_submissions_sent").on(t.dividendId).where(sql`${t.kind} = 'send' and ${t.ok}`),
+  ],
+);
+
 /** Abrufe des ELSTER-Postfachs (PostfachAnfrage) und Bestätigungen der Abholung (PostfachBestaetigung) */
 export const postfachRequests = pgTable("postfach_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -965,7 +1026,7 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung"],
+      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung"],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
@@ -1215,6 +1276,7 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "gebuehren",
   "mahnerloes",
   "kursdifferenz",
+  "kapest",
 ]);
 
 /**

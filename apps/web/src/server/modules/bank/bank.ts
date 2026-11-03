@@ -834,7 +834,7 @@ function reverseLines(lines: PostingLine[]): PostingLine[] {
   return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
 }
 
-const DIRECT_KINDS = ["privat", "geldtransit", "ustVorauszahlung", "gebuehren", "mahnerloes"] as const;
+const DIRECT_KINDS = ["privat", "geldtransit", "ustVorauszahlung", "gebuehren", "mahnerloes", "kapest"] as const;
 
 export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invoice"), transactionId: z.uuid(), invoiceId: z.uuid(), amount: z.number().int() }),

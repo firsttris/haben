@@ -722,6 +722,20 @@
       "when": 1793988650647,
       "tag": "0102_externe_referenz",
       "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1793988710647,
+      "tag": "0103_ausschuettung",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1793988770647,
+      "tag": "0104_ausschuettung_trigger",
+      "breakpoints": true
     }
   ]
 }
