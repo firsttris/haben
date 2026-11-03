@@ -34,6 +34,8 @@ Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**
 
 | Feld | Werte |
 | --- | --- |
+| Beschreibung | Bezeichnung der Position, eine Zeile, z. B. `Beratung Softwarearchitektur`. Pflicht. Steht im XML als Artikelname (BT-153). |
+| Text zu Position (nur Rechnungen) | Optional, mehrzeilig, bis 2000 Zeichen, z. B. Leistungsumfang oder Bestellbezug. Steht im PDF in kleinerer Schrift unter der Bezeichnung, die dann halbfett ist, und im XML als Artikelbeschreibung (BT-154). Storno und Rechnungskorrektur übernehmen ihn. |
 | Menge | Bis zu drei Nachkommastellen, z. B. `0,5` oder `152`. Muss größer als null sein. |
 | Einheit | `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.`, `km` |
 | Einzelpreis | In Euro, z. B. `95,00`. Negative Preise sind möglich, etwa für einen Rabatt. |
@@ -70,7 +72,7 @@ Unter **Artikel** (Seitenleiste, Bereich Verkauf) legst du Positionen an, die du
 
 - Jeder Artikel hat Bezeichnung, optional eine Artikelnummer, Einheit, Preis und Steuersatz, dazu eine interne Notiz. Unter **Preis ist** legst du fest, ob der Preis netto oder brutto inklusive Umsatzsteuer gilt; in der Liste steht bei Bruttopreisen „brutto“.
 - Passt der Preis nicht zum Preismodus der Rechnung, rechnet Haben ihn beim Einfügen um, kaufmännisch auf Cent gerundet: Ein Artikel zu 9,80 € brutto steht in einer Netto-Rechnung mit 8,24 €, ein Artikel zu 100,00 € netto in einer Brutto-Rechnung mit 119,00 €. Ohne Steuerausweis übernimmt Haben den Preis unverändert.
-- Im Editor für Rechnungen und Angebote fügt **Aus dem Katalog einfügen** den Artikel als Position mit Menge 1 ein. Ist die einzige Zeile noch leer, ersetzt er sie.
+- Im Editor für Rechnungen und Angebote fügt **Aus dem Katalog einfügen** den Artikel als Position mit Menge 1 ein. Bei Rechnungen wird die erste Zeile eines mehrzeiligen Artikels zur Bezeichnung, der Rest zum Text der Position; „Als Artikel speichern“ setzt beides wieder zu einem Artikeltext zusammen. Ist die einzige Zeile noch leer, ersetzt er sie.
 - Beim Tippen der Beschreibung einer Position schlägt der Browser passende Artikel vor (per Tastatur oder Maus auswählbar). Stimmt die Beschreibung mit einem Artikel überein, übernimmt die Position dessen Einheit, Preis und Steuersatz; die Menge bleibt.
 - Das Lesezeichen-Symbol neben einer Position speichert sie als Artikel: Beschreibung, Einheit, Preis und Steuersatz der Position, bei einer Brutto-Rechnung als Bruttopreis. Steht genau diese Position schon im Katalog, ist der Knopf ausgegraut.
 - Text, Menge und Preis passt du danach in der Position an.

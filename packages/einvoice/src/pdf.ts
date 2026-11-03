@@ -74,6 +74,7 @@ export function documentPdfData(
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
       description: line.description,
+      detail: line.detail?.trim() ? line.detail.trim() : null,
       quantity: t.quantity(line.quantity, line.unit),
       unitPrice: t.money(line.unitPrice),
       rate: treatment === "regulaer" ? t.rate(line.taxRate) : "–",

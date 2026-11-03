@@ -55,7 +55,7 @@ export function InvoicePreview({
   serviceTo: string | null;
   seller: PreviewSeller;
   buyer: PreviewBuyer | null;
-  lines: (InvoiceLineInput & { valid: boolean })[];
+  lines: (InvoiceLineInput & { detail?: string; valid: boolean })[];
   /** Einleitung über den Positionen */
   intro?: string;
   note: string;
@@ -159,7 +159,10 @@ export function InvoicePreview({
               {valid.map((line, index) => (
                 <tr key={index}>
                   <td>{index + 1}</td>
-                  <td className="desc">{line.description}</td>
+                  <td className="desc">
+                    {line.detail ? <strong>{line.description}</strong> : line.description}
+                    {line.detail && <div className="sheet-muted" style={{ whiteSpace: "pre-wrap" }}>{line.detail}</div>}
+                  </td>
                   <td className="num">
                     {formatQuantity(line.quantity)} {line.unit}
                   </td>

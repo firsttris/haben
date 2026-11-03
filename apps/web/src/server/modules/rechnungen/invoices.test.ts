@@ -59,6 +59,21 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     contactId = contact.id;
   });
 
+  it("speichert die Beschreibung einer Position, schreibt sie ins XML und übernimmt sie ins Storno", async () => {
+    const created = await invoices.createDraft(actor, {
+      ...draft(),
+      lines: [{ ...line(9500, 1900, 10_000), detail: "  Konzeption und Umsetzung\nlaut Rahmenvertrag RV-2026-17  " }, line(5000)],
+    });
+    const stored = await sql`select position, description, detail from invoice_lines where invoice_id = ${created.id} order by position`;
+    expect(stored.map((r) => r.detail)).toEqual(["Konzeption und Umsetzung\nlaut Rahmenvertrag RV-2026-17", ""]);
+    const final = await invoices.finalizeInvoice(actor, created.id);
+    expect(final.xml).toContain("Konzeption und Umsetzung");
+    const storno = await invoices.cancelInvoice(actor, final.id, "2026-10-05");
+    const [first] = await sql`select detail from invoice_lines where invoice_id = ${storno.id} and position = 1`;
+    expect(first!.detail).toBe("Konzeption und Umsetzung\nlaut Rahmenvertrag RV-2026-17");
+    await expect(sql`update invoice_lines set detail = 'x' where invoice_id = ${final.id}`).rejects.toThrow(/festgeschrieben/);
+  });
+
   it("Einleitung und Hinweis stehen festgeschrieben in XML und Siegel; die Rechnung lässt sich danach nicht mehr ändern", async () => {
     const created = await invoices.createDraft(actor, { ...draft(), intro: "Bestellnummer 4500123456\nProjekt Phoenix", note: "Vielen Dank." });
     expect(created.intro).toBe("Bestellnummer 4500123456\nProjekt Phoenix");

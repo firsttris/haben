@@ -83,6 +83,8 @@ export interface QuoteOption {
 interface LineState {
   key: number;
   description: string;
+  /** Mehrzeilige Beschreibung unter der Bezeichnung; nur bei Rechnungen */
+  detail: string;
   quantity: string;
   unit: UnitLabel;
   unitPrice: string;
@@ -98,6 +100,7 @@ function toLineState(line: DraftInput["lines"][number]): LineState {
   return {
     key: nextKey++,
     description: line.description,
+    detail: line.detail ?? "",
     quantity: formatQuantity(line.quantity),
     unit: line.unit,
     unitPrice: line.unitPrice === 0 ? "" : formatDecimal(line.unitPrice),
@@ -105,11 +108,12 @@ function toLineState(line: DraftInput["lines"][number]): LineState {
   };
 }
 
-function parseLine(line: LineState): InvoiceLineInput & { valid: boolean } {
+function parseLine(line: LineState): InvoiceLineInput & { detail: string; valid: boolean } {
   const quantity = parseQuantity(line.quantity);
   const unitPrice = parseEuro(line.unitPrice);
   return {
     description: line.description.trim(),
+    detail: line.detail.trim(),
     quantity: quantity ?? 0,
     unit: line.unit,
     unitPrice: unitPrice ?? 0,
@@ -292,7 +296,8 @@ export function InvoiceEditor({
     void run(
       async () => {
         await storeArticle({
-          data: { id: null, article: { description: p.description, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
+          // Bezeichnung und Beschreibung als mehrzeiliger Artikeltext; beim Einfügen wieder getrennt
+          data: { id: null, article: { description: [p.description, p.detail].filter(Boolean).join("\n"), unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
         });
         await router.invalidate();
       },
@@ -304,9 +309,12 @@ export function InvoiceEditor({
   function insertArticle(articleId: string) {
     const article = articles.find((a) => a.id === articleId);
     if (!article) return;
+    // Mehrzeiliger Artikel: erste Zeile als Bezeichnung, der Rest als Beschreibung der Position
+    const [first = "", ...rest] = quote ? [article.description] : article.description.split("\n");
     const line: LineState = {
       key: nextKey++,
-      description: article.description,
+      description: first.trim(),
+      detail: rest.join("\n").trim(),
       quantity: "1",
       unit: article.unit as UnitLabel,
       unitPrice: articlePrice(article),
@@ -773,7 +781,7 @@ export function InvoiceEditor({
             {lines.map((line, index) => {
               const p = parsed[index]!;
               const inCatalog = articles.some(
-                (a) => sameText(a.description, p.description) && a.unitPrice === p.unitPrice && a.unit === p.unit && a.priceIncludesTax === grossPrices,
+                (a) => sameText(a.description, [p.description, p.detail].filter(Boolean).join("\n")) && a.unitPrice === p.unitPrice && a.unit === p.unit && a.priceIncludesTax === grossPrices,
               );
               return (
                 <div className="line-row" key={line.key}>
@@ -788,6 +796,17 @@ export function InvoiceEditor({
                     onBlur={() => markTouched(line.key)}
                     aria-invalid={showError(line.key) && line.description.trim() === ""}
                   />
+                  {!quote && (
+                    <textarea
+                      className="line-detail"
+                      rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
+                      placeholder="Beschreibung (optional, mehrzeilig)"
+                      aria-label={`Text zu Position ${index + 1} (optional)`}
+                      value={line.detail}
+                      maxLength={2000}
+                      onChange={(e) => updateLine(line.key, { detail: e.target.value })}
+                    />
+                  )}
                   <input
                     className="num"
                     inputMode="decimal"
@@ -892,6 +911,7 @@ export function InvoiceEditor({
                     {
                       key: nextKey++,
                       description: "",
+                      detail: "",
                       quantity: "1",
                       unit: last?.unit ?? "Std.",
                       unitPrice: "",

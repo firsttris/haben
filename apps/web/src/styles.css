@@ -369,6 +369,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 /* Position: Beschreibung über die volle Breite, darunter die Zahlen */
 .line-row { display: grid; grid-template-columns: minmax(52px, 0.7fr) minmax(72px, 0.9fr) minmax(0, 1.3fr) minmax(64px, 0.8fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line-soft); }
 .line-row > .line-desc { grid-column: 1 / -1; }
+.line-row > .line-detail { grid-column: 1 / -1; padding: 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 13px; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; resize: vertical; }
 .line-row input, .line-row select { min-height: var(--control-h); padding: 0 8px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); width: 100%; min-width: 0; }
 .line-row input.num { font-family: var(--mono); }
 .line-row input[aria-invalid="true"] { border-color: var(--danger-ink); }

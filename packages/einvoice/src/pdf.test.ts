@@ -35,6 +35,16 @@ describe("logoFormat", () => {
 });
 
 describe("pdfData", () => {
+  it("gibt die Beschreibung einer Position getrimmt mit, leer als null", () => {
+    const doc = sampleDocument();
+    doc.lines[0]!.detail = "  Konzeption und Umsetzung\nlaut Rahmenvertrag  ";
+    doc.lines[1]!.detail = "   ";
+    const data = pdfData(doc);
+    expect(data.lines[0]).toMatchObject({ description: "Softwareentwicklung September", detail: "Konzeption und Umsetzung\nlaut Rahmenvertrag" });
+    expect(data.lines[1]!.detail).toBeNull();
+    expect(() => renderInvoicePdf(doc)).not.toThrow();
+  });
+
   it("übernimmt Einleitung und Hinweis getrimmt, leer als null", () => {
     const data = pdfData(sampleDocument({ intro: "  Sehr geehrte Damen und Herren,\nwir berechnen:  ", note: "Vielen Dank." }));
     expect(data.intro).toBe("Sehr geehrte Damen und Herren,\nwir berechnen:");
