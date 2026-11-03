@@ -42,6 +42,8 @@ function packen(quelle: string, tag: string, ausgabe: string): string {
     const manifest = JSON.parse(readFileSync(manifestPfad, "utf8")) as Record<string, unknown>;
     writeFileSync(manifestPfad, `${JSON.stringify(releaseManifest(manifest, tag), null, 2)}\n`);
     const zip = resolve(ausgabe, paketName(tag));
+    // zip -r ergänzt ein vorhandenes Archiv nur; ein ZIP aus einem früheren Lauf brächte alte Dateien mit
+    rmSync(zip, { force: true });
     // -X ohne Zusatzattribute, -D ohne Einträge für Ordner: nur die Dateien, wie der Store sie erwartet
     execFileSync("zip", ["-q", "-r", "-X", "-D", zip, "."], { cwd: arbeit });
     return zip;
