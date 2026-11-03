@@ -1,3 +1,4 @@
+import { isKapitalgesellschaft } from "@haben/core";
 import { and, count, eq, gte, lt } from "drizzle-orm";
 import { listAssets } from "../buchhaltung/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
@@ -52,6 +53,7 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
     .where(gte(schema.journalEntries.date, `${year}-01-01`));
   const booked = (entries?.n ?? 0) > 0;
   const [anyEntry] = await q.select({ id: schema.journalEntries.id }).from(schema.journalEntries).limit(1);
+  const [firma] = await q.select({ rechtsform: schema.company.rechtsform }).from(schema.company).where(eq(schema.company.id, 1));
   const previousOpen = booked ? [] : await previousYearOpen(year, q);
   const openInvoices = await openInvoiceCount(today, q);
   const yearLock = booked
@@ -59,8 +61,13 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
     : previousOpen.length > 0
       ? `Im Jahr ${year - 1} ist noch nicht alles gebucht (${previousOpen.join(", ")}). Erst das alte Jahr abschließen, dann umstellen.`
       : null;
+  // GmbH und UG tragen Bestandskonten vor; im neuen Kontenrahmen kämen die Vorträge nicht an (drizzle/0101)
+  const kapgLock =
+    anyEntry && firma && isKapitalgesellschaft(firma.rechtsform)
+      ? "Bei GmbH und UG ist der Kontenrahmen ab der ersten Buchung fest: Die Vorträge der Bestandskonten stehen im bisherigen Kontenrahmen. Einen Wechsel stellt die Steuerberatung mit neuer Eröffnungsbilanz um."
+      : null;
   return {
-    kontenrahmen: yearLock,
+    kontenrahmen: kapgLock ?? yearLock,
     versteuerung:
       yearLock ??
       (openInvoices > 0

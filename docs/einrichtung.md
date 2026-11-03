@@ -17,7 +17,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 9. Optional: KI-Auslesung für Belege einschalten
 
 > [!IMPORTANT]
-> Rechtsform, Versteuerung, Kontenrahmen und Kleinunternehmerstatus legst du fest, bevor du die erste Rechnung festschreibst oder den ersten Beleg buchst. Die Rechtsform ist ab der ersten Buchung fest. Sobald es im laufenden Jahr Buchungen gibt, sperrt Haben die Umstellung bis zum nächsten Jahreswechsel (siehe [Sperren](#wann-sich-die-einstellungen-ändern-lassen)).
+> Rechtsform, Versteuerung, Kontenrahmen und Kleinunternehmerstatus legst du fest, bevor du die erste Rechnung festschreibst oder den ersten Beleg buchst. Die Rechtsform ist ab der ersten Buchung fest, bei GmbH und UG auch der Kontenrahmen. Sobald es im laufenden Jahr Buchungen gibt, sperrt Haben die Umstellung bis zum nächsten Jahreswechsel (siehe [Sperren](#wann-sich-die-einstellungen-ändern-lassen)).
 
 ## Konto anlegen
 
@@ -150,7 +150,7 @@ Die Einstellung wirkt auf alles, was danach gebucht wird. Bereits festgeschriebe
 
 ## Kontenrahmen: SKR03 oder SKR04
 
-Der Kontenrahmen legt fest, auf welche Kontonummern Haben bucht. Wähle denselben wie in Lexoffice oder bei deiner Steuerberatung. Er wirkt auf alle Buchungen (Rechnungen, Belege, Zahlungen) und auf die Kontonamen im Journal. Jede Buchung speichert den Kontenrahmen, mit dem sie erstellt wurde; ein späterer Wechsel ändert bestehende Buchungen nicht. Wechseln kannst du nur zum Jahresbeginn, bevor im neuen Jahr gebucht wird.
+Der Kontenrahmen legt fest, auf welche Kontonummern Haben bucht. Wähle denselben wie in Lexoffice oder bei deiner Steuerberatung. Er wirkt auf alle Buchungen (Rechnungen, Belege, Zahlungen) und auf die Kontonamen im Journal. Jede Buchung speichert den Kontenrahmen, mit dem sie erstellt wurde; ein späterer Wechsel ändert bestehende Buchungen nicht. Wechseln kannst du nur zum Jahresbeginn, bevor im neuen Jahr gebucht wird. Bei GmbH und UG ist der Kontenrahmen ab der ersten Buchung fest, in App und Datenbank (`0101_kontenrahmen_kapg.sql`): Die Bestandskonten tragen ihre Salden vor, und im neuen Kontenrahmen kämen die Vorträge nicht an. Einen Wechsel stellt die Steuerberatung mit einer neuen Eröffnungsbilanz um.
 
 Einige Beispiele:
 
