@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ASSET_ACCOUNTS } from "./afa.ts";
-import { abschluss, postenForSaldo, postenOf } from "./hgb.ts";
+import { abschluss, type Posten, postenForSaldo, postenOf } from "./hgb.ts";
 import { PAUSCHALE_KONTEN } from "./pauschalen.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, paymentProviderAccount, type Kontenrahmen } from "./posting.ts";
 import { PRIVATE_USE_ACCOUNTS } from "./private-use.ts";
@@ -210,5 +210,51 @@ describe("Kontenbereiche „von -bis“ aus dem DATEV-Kontenrahmen", () => {
       const account = String(n).padStart(4, "0");
       expect(postenOf(kontenrahmen, account), account).toBe(posten);
     }
+  });
+});
+
+/*
+ * Abgleich mit dem DATEV-Kontenrahmen 2026 (SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175), Konto für Konto: der Posten der
+ * linken Spalte, verdichtet auf § 266 und § 275 Abs. 5 HGB. Soll und Haben sind die Posten bei Soll- bzw. Haben-Saldo
+ * („A oder B“); null = ohne Posten (Ergebnisverwendung nach dem Jahresergebnis, § 158 AktG).
+ */
+describe("Posten aus dem DATEV-Kontenrahmen 2026", () => {
+  it.each([
+    // „Geleistete Anzahlungen“ unter „Immaterielle Vermögensgegenstände“ (§ 266 Abs. 2 A.I.4): Anlagevermögen
+    ["SKR03", "0038", "aktiva.A", "aktiva.A", "SKR03 S. 1: Anzahlungen auf Geschäfts- oder Firmenwert"],
+    ["SKR03", "0039", "aktiva.A", "aktiva.A", "SKR03 S. 1: Geleistete Anzahlungen auf immaterielle Vermögensgegenstände"],
+    ["SKR04", "0170", "aktiva.A", "aktiva.A", "SKR04 S. 1: Geleistete Anzahlungen auf immaterielle Vermögensgegenstände"],
+    ["SKR04", "0179", "aktiva.A", "aktiva.A", "SKR04 S. 1: Anzahlungen auf Geschäfts- oder Firmenwert"],
+    // Ergebnisverwendung: steht nach dem Jahresergebnis, wie SKR03 2795 ff. und SKR04 7700 ff.
+    ["SKR03", "2480", null, null, "SKR03 S. 15: Einstellungen in die Rücklage für Anteile an einem herrschenden … Unternehmen"],
+    ["SKR03", "2481", null, null, "SKR03 S. 15: Einstellungen in andere Rücklagen"],
+    ["SKR03", "2485", null, null, "SKR03 S. 15: Einstellungen in andere Ergebnisrücklagen"],
+    ["SKR03", "2488", null, null, "SKR03 S. 15: Steuerliches Mehr-/Minderergebnis lfd. Jahr"],
+    ["SKR03", "2489", null, null, "SKR03 S. 15: Steuerliches Mehr-/Minderergebnis lfd. Jahr"],
+    ["SKR03", "2495", null, null, "SKR03 S. 16: Einstellungen in die Kapitalrücklage (vereinfachte Kapitalherabsetzung)"],
+    ["SKR03", "2496", null, null, "SKR03 S. 16: Einstellungen in die gesetzliche Rücklage"],
+    ["SKR03", "2497", null, null, "SKR03 S. 16: Einstellungen in satzungsmäßige Rücklagen"],
+    ["SKR03", "2498", null, null, "SKR03 S. 16: Einstellungen in die Rücklage für Anteile an einem herrschenden … Unternehmen"],
+    ["SKR03", "2499", null, null, "SKR03 S. 16: Einstellungen in andere Gewinnrücklagen"],
+    ["SKR03", "2745", null, null, "SKR03 S. 17: Ertrag aus Kapitalherabsetzung (wie SKR04 7755)"],
+    // „Auf Grund einer Gewinngemeinschaft … abgeführte Gewinne [oder Erträge aus Verlustübernahme]“: Aufwand
+    ["SKR03", "2491", "sonstigeAufwendungen", "sonstigeErtraege", "SKR03 S. 15: … abgeführte Gewinne oder Erträge aus Verlustübernahme"],
+    ["SKR03", "2492", "sonstigeAufwendungen", "sonstigeAufwendungen", "SKR03 S. 16: … abgeführte Gewinne"],
+    ["SKR03", "2493", "sonstigeAufwendungen", "sonstigeErtraege", "SKR03 S. 16: … abgeführte Gewinne oder Erträge aus Verlustübernahme"],
+    ["SKR03", "2494", "sonstigeAufwendungen", "sonstigeAufwendungen", "SKR03 S. 16: … abgeführte Gewinne"],
+    ["SKR04", "7392", "sonstigeAufwendungen", "sonstigeAufwendungen", "SKR04 S. 28: … abgeführte Gewinne"],
+    ["SKR04", "7394", "sonstigeAufwendungen", "sonstigeAufwendungen", "SKR04 S. 28: … abgeführte Gewinne"],
+    ["SKR04", "7398", "sonstigeAufwendungen", "sonstigeErtraege", "SKR04 S. 28: … abgeführte Gewinne oder Erträge aus Verlustübernahme"],
+    ["SKR04", "7399", "sonstigeAufwendungen", "sonstigeErtraege", "SKR04 S. 28: … abgeführte Gewinne oder Erträge aus Verlustübernahme"],
+    // „Sonstige Vermögensgegenstände oder sonstige Verbindlichkeiten“ (wie SKR03 1500/1501)
+    ["SKR04", "1310", "aktiva.B", "passiva.C", "SKR04 S. 4: Forderungen gegen Vorstandsmitglieder und Geschäftsführer"],
+    ["SKR04", "1311", "aktiva.B", "passiva.C", "SKR04 S. 4: – Restlaufzeit bis 1 Jahr"],
+    ["SKR04", "1315", "aktiva.B", "aktiva.B", "SKR04 S. 4: – Restlaufzeit größer 1 Jahr: Sonstige Vermögensgegenstände"],
+    // „Erhaltene Anzahlungen auf Bestellungen (von Vorräten offen abgesetzt)“ (§ 268 Abs. 5 Satz 2 HGB): bei den Vorräten
+    ["SKR03", "1722", "aktiva.B", "aktiva.B", "SKR03 S. 10: Erhaltene Anzahlungen auf Bestellungen (von Vorräten offen abgesetzt)"],
+    ["SKR04", "1190", "aktiva.B", "aktiva.B", "SKR04 S. 3: Erhaltene Anzahlungen auf Bestellungen (von Vorräten offen abgesetzt)"],
+  ] as [Kontenrahmen, string, Posten | null, Posten | null, string][])("%s %s: Soll → %s, Haben → %s (%s)", (kr, account, soll, haben) => {
+    expect(postenForSaldo(kr, account, 100)).toBe(soll);
+    expect(postenForSaldo(kr, account, -100)).toBe(haben);
   });
 });
