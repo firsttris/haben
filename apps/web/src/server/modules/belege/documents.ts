@@ -245,6 +245,8 @@ async function applyFields(
       .set({
         supplierName: fields.supplierName,
         supplierUstId: fields.supplierUstId,
+        // Anderer Lieferant ausgelesen: die Verknüpfung zum Kontakt passt nicht mehr (wie beim Ändern von Hand)
+        supplierContactId: fields.supplierName === doc.supplierName ? doc.supplierContactId : null,
         invoiceNumber: fields.invoiceNumber,
         documentDate: fields.documentDate,
         dueDate: fields.dueDate,
