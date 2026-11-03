@@ -616,6 +616,11 @@ export const seals = pgTable(
 export const contacts = pgTable("contacts", {
   id: uuid("id").primaryKey().defaultRandom(),
   kundennummer: text("kundennummer"),
+  /** Rollen: ein Kontakt kann Kunde, Lieferant oder beides sein; bestehende Kontakte sind Kunden */
+  isCustomer: boolean("is_customer").notNull().default(true),
+  isSupplier: boolean("is_supplier").notNull().default(false),
+  /** Nummer beim Lieferanten bzw. eigene Lieferantennummer, frei */
+  lieferantennummer: text("lieferantennummer"),
   name: text("name").notNull(),
   strasse: text("strasse").notNull().default(""),
   plz: text("plz").notNull().default(""),
@@ -991,6 +996,8 @@ export const documents = pgTable(
     extraction: jsonb("extraction").$type<Record<string, unknown>>(),
     supplierName: text("supplier_name").notNull().default(""),
     supplierUstId: text("supplier_ust_id").notNull().default(""),
+    /** Aus den Kontakten gewählter Lieferant; Name und USt-IdNr. stehen trotzdem am Beleg, wie sie gebucht wurden */
+    supplierContactId: uuid("supplier_contact_id").references(() => contacts.id),
     invoiceNumber: text("invoice_number").notNull().default(""),
     documentDate: date("document_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),

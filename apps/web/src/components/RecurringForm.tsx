@@ -70,7 +70,8 @@ export function RecurringForm({
   onSubmit,
 }: {
   initial: RecurringValues;
-  contacts: { id: string; name: string; ort: string }[];
+  /** Nur Kunden stehen zur Auswahl; der gewählte bleibt sichtbar */
+  contacts: { id: string; name: string; ort: string; isCustomer: boolean }[];
   /** Kopf- und Fußtexte zum Einfügen */
   textBlocks?: TextBlockOption[];
   kleinunternehmer: boolean;
@@ -180,12 +181,14 @@ export function RecurringForm({
             Kunde
             <select value={contactId} onChange={(e) => setContactId(e.target.value)} required>
               <option value="">Bitte wählen</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                  {c.ort ? ` · ${c.ort}` : ""}
-                </option>
-              ))}
+              {contacts
+                .filter((c) => c.isCustomer || c.id === contactId)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.ort ? ` · ${c.ort}` : ""}
+                  </option>
+                ))}
             </select>
           </label>
           <label className="field">

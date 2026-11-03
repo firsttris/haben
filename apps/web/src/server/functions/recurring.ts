@@ -20,7 +20,14 @@ async function formContext() {
   const [company, textBlocks] = await Promise.all([loadCompany(), listTextBlocks()]);
   return {
     textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
-    contacts: (await listContacts()).map((c) => ({ id: c.id, name: c.name, ort: c.ort, defaultFormat: c.defaultFormat, leitwegId: c.leitwegId })),
+    contacts: (await listContacts()).map((c) => ({
+      id: c.id,
+      name: c.name,
+      ort: c.ort,
+      defaultFormat: c.defaultFormat,
+      leitwegId: c.leitwegId,
+      isCustomer: c.isCustomer,
+    })),
     defaults: { paymentTermDays: company.paymentTermDays, format: company.defaultFormat, kleinunternehmer: company.kleinunternehmer },
     today: today(),
   };
