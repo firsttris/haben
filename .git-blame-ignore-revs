@@ -1,0 +1,5 @@
+# Commits, die git blame überspringt: nur Formatierung, keine Änderung am Code.
+# Lokal einmal einschalten: git config blame.ignoreRevsFile .git-blame-ignore-revs (GitHub liest die Datei von selbst)
+
+# Formatierung mit Biome (#201)
+8fb0add584d59a15bb694d725d077e099e30ce61
