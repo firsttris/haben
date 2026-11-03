@@ -86,3 +86,17 @@ test("auf einem anderen Formular trägt sie nichts ein", async () => {
   );
   await expect(seite.getByLabel("Umsatzsteuerpflichtige Betriebseinnahmen (Euro, Cent)")).toHaveValue("");
 });
+
+// Die Kennungen gleichen sich zwischen den Formularen teils; Werte der EÜR gehören nicht in die Umsatzsteuererklärung
+test("auch „Erneut eintragen“ trägt auf einem anderen Formular nichts ein", async () => {
+  const seite = await context.newPage();
+  await seite.route("https://www.elster.de/**", (route) => route.fulfill({ contentType: "text/html", body: SEITE }));
+  await seite.goto("https://www.elster.de/eportal/interpreter/eingabe/ust-2025/seite1");
+  const leiste = seite.getByRole("complementary", { name: "Haben für Mein ELSTER" });
+  await expect(leiste).toContainText("Nichts eingetragen.");
+
+  await leiste.getByRole("button", { name: "Erneut eintragen" }).click();
+
+  await expect(leiste).toContainText("Geladen sind Werte für EUER 2025, dies ist UST 2025. Nichts eingetragen.");
+  await expect(seite.getByLabel("Umsatzsteuerpflichtige Betriebseinnahmen (Euro, Cent)")).toHaveValue("");
+});

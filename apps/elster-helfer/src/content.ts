@@ -131,7 +131,8 @@ async function start(): Promise<void> {
     leiste(
       `Geladen sind Werte für ${werte.formular.toUpperCase()} ${werte.jahr}, dies ist ${hier.formular.toUpperCase()} ${hier.jahr}. Nichts eingetragen.`,
       [],
-      { neu: () => void eintragen(), ueberschreiben: null },
+      // Erneut prüfen statt eintragen: Werte eines anderen Formulars gehören nicht auf diese Seite
+      { neu: () => void start(), ueberschreiben: null },
     );
     return;
   }
