@@ -8,7 +8,7 @@ export const SETTINGS_AREAS = [
   { id: "bank", label: "Bank", hint: "Automatischer Kontoabruf" },
   { id: "sicherheit", label: "Sicherheit", hint: "Passkeys" },
   { id: "waehrung", label: "Fremdwährung", hint: "Umrechnungskurse des BMF" },
-  { id: "ki", label: "KI-Assistenten", hint: "Zugang über MCP" },
+  { id: "ki", label: "KI-Assistenten und API", hint: "MCP und REST-API mit Tokens" },
   { id: "export", label: "Export", hint: "Archiv, DATEV, Prüfung, Backup" },
 ] as const;
 

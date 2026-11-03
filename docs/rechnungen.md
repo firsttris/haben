@@ -447,6 +447,10 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Das Such
 
 **Archivieren.** Kontakte lassen sich nicht löschen, nur mit **Archivieren** ausblenden und mit **Wiederherstellen** zurückholen. Archivierte Kontakte stehen nicht in der Kundenauswahl des Editors; in der Liste zeigst du sie mit **Archivierte zeigen**.
 
+## Entwürfe aus der REST-API
+
+Eigene Werkzeuge wie ein n8n-Workflow für Bestellungen aus Etsy oder eBay legen über die [REST-API](api.md) Kontakte und Rechnungsentwürfe an. Diese Entwürfe stehen in der Rechnungsliste wie jeder andere; du prüfst sie im Editor und schreibst sie fest, die API selbst schreibt nichts fest und bucht nichts. Ein Entwurf kann die Plattform und die Bestellnummer tragen (externe Referenz): Kommt dieselbe Bestellung noch einmal, entsteht kein zweiter Entwurf. Die Referenz wird mit der Rechnung festgeschrieben.
+
 ## Rechnungen aus Lexoffice
 
 Offene Rechnungen, die du bei der Migration aus Lexoffice übernimmst (siehe [lexoffice.md](lexoffice.md)), erscheinen als festgeschriebene Rechnungen mit ihrer Lexoffice-Nummer. Als Format steht dort **Original aus Lexoffice**: Das PDF ist das Original aus Lexoffice, ein XML gibt es nur, wenn Lexoffice eines geliefert hat. Haben bildet je Steuersatz eine Pauschalposition nach, damit Zahlungen im Bankabgleich zugeordnet werden können.

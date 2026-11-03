@@ -87,6 +87,32 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
     expect((await mcp.listMcpTokens()).find((t) => t.name === "Alt")!.status).toBe("abgelaufen");
   });
 
+  it("speichert die gewählten Rechte geordnet und ohne Doppelte; ohne Recht kein Token", async () => {
+    await mcp.setMcpEnabled(actor, true);
+    await mcp.createMcpToken({ name: "n8n", days: 90, scopes: ["rechnungen:entwuerfe", "kontakte:lesen", "rechnungen:entwuerfe"] });
+    const [row] = await sql`select scopes from mcp_tokens`;
+    expect(row!.scopes).toEqual(["kontakte:lesen", "rechnungen:entwuerfe"]);
+    expect((await mcp.listMcpTokens())[0]!.scopes).toEqual(["kontakte:lesen", "rechnungen:entwuerfe"]);
+    await expect(mcp.createMcpToken({ name: "leer", days: 30, scopes: [] })).rejects.toThrow(/mindestens ein Recht/);
+    await expect(mcp.createMcpToken({ name: "falsch", days: 30, scopes: ["haben:alles" as never] })).rejects.toThrow();
+  });
+
+  it("ein Token nur für die REST-API wird über MCP mit 403 abgelehnt", async () => {
+    await mcp.setMcpEnabled(actor, true);
+    const { token } = await mcp.createMcpToken({ name: "n8n", days: 30, scopes: ["rechnungen:lesen"] });
+    const response = await rpc(token, "tools/list");
+    expect(response.status).toBe(403);
+    expect(((await response.json()) as { error: { message: string } }).error.message).toContain("haben:lesen");
+  });
+
+  it("schreiben schließt lesen ein, nicht umgekehrt und nicht über Bereiche hinweg", () => {
+    expect(mcp.hasScope(["kontakte:schreiben"], "kontakte:lesen")).toBe(true);
+    expect(mcp.hasScope(["rechnungen:entwuerfe"], "rechnungen:lesen")).toBe(true);
+    expect(mcp.hasScope(["kontakte:lesen"], "kontakte:schreiben")).toBe(false);
+    expect(mcp.hasScope(["kontakte:schreiben"], "rechnungen:lesen")).toBe(false);
+    expect(mcp.hasScope(["haben:lesen"], "kontakte:lesen")).toBe(false);
+  });
+
   it("nimmt nur POST an, der Server hält keine Sitzungen", async () => {
     const token = await enabledToken();
     const response = await server.handleMcpRequest(

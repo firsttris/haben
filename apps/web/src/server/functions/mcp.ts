@@ -9,15 +9,23 @@ import {
   recentMcpCalls,
   revokeMcpToken,
   setMcpEnabled,
+  TOKEN_SCOPE_LABELS,
+  TOKEN_SCOPES,
 } from "../modules/mcp/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
-/** Einstellungen → KI-Assistenten: Schalter, Zugänge, letzte Aufrufe und die angebotenen Werkzeuge */
+/** Einstellungen → KI-Assistenten und API: Schalter, Zugänge, letzte Aufrufe, die angebotenen Werkzeuge und die Rechte */
 export const getMcpSettings = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const [enabled, tokens, calls] = await Promise.all([mcpEnabled(), listMcpTokens(), recentMcpCalls()]);
-    return { enabled, tokens, calls, tools: MCP_TOOLS.map((t) => ({ name: t.name, title: t.title })) };
+    return {
+      enabled,
+      tokens,
+      calls,
+      tools: MCP_TOOLS.map((t) => ({ name: t.name, title: t.title })),
+      scopes: TOKEN_SCOPES.map((id) => ({ id, label: TOKEN_SCOPE_LABELS[id] })),
+    };
   });
 
 export const setMcpEnabledFn = createServerFn({ method: "POST" })

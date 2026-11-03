@@ -45,6 +45,7 @@ nav:
       - Umzug aus Lexoffice: lexoffice.md
       - Umzug aus sevDesk: sevdesk.md
       - KI-Assistenten (MCP): ki-assistenten.md
+      - REST-API: api.md
       - Barrierefreiheit und Tastatur: barrierefreiheit.md
   - Hintergrund:
       - Buchhaltung in Haben: buchhaltung.md
