@@ -8,7 +8,7 @@ import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { listInvoices } from "./invoices.ts";
-import { loadLogo } from "../stammdaten/index.ts";
+import { loadLetterhead } from "../stammdaten/index.ts";
 
 export class DunningError extends UserError {}
 
@@ -128,7 +128,7 @@ export async function createDunning(actor: string, input: DunningInput, today: s
   if (input.interest && company.dunning.baseRate === null) {
     throw new DunningError("Für Verzugszinsen bitte zuerst den Basiszinssatz in den Einstellungen eintragen.");
   }
-  const logo = await loadLogo();
+  const letterhead = await loadLetterhead();
   return withActor(actor, async (tx) => {
     // Rechnung sperren und letzte Mahnung erst danach lesen: Zwei gleichzeitige Mahnungen derselben Stufe sind so ausgeschlossen.
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
@@ -157,7 +157,7 @@ export async function createDunning(actor: string, input: DunningInput, today: s
       interestRate: input.interest ? company.dunning.baseRate! + DEFAULT_INTEREST_MARKUP[input.interest] : null,
     });
     const pdf = buildDunningPdf({
-      ...(logo ? { logo } : {}),
+      ...letterhead,
       level: input.level,
       date: today,
       dueDate: input.dueDate,

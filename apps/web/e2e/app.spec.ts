@@ -97,6 +97,16 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
   await expect(logo.getByRole("status")).toContainText("Logo gespeichert.");
   await expect(logo.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
+
+  const akzent = page.getByRole("form", { name: "Akzentfarbe" });
+  await akzent.getByLabel("Hex-Wert").fill("#F5D90A");
+  await expect(akzent.getByRole("status")).toContainText("schwer zu lesen");
+  await akzent.getByLabel("Hex-Wert").fill("#1d4ed8");
+  await akzent.getByRole("button", { name: "Übernehmen" }).click();
+  await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
+  await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1D4ED8");
+  await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
+  await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
 });
 
 test("Kunden anlegen", async () => {

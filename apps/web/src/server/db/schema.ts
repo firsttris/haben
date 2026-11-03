@@ -97,6 +97,8 @@ export const company = pgTable(
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
+    /** Akzentfarbe von Rechnungen, Angeboten und Mahnungen (Überschriften, Linien), #RRGGBB */
+    accentColor: text("accent_color").notNull().default("#1F6F5C"),
     /** Für den DATEV-Export: Nummern bei der Steuerberatung */
     datevBeraterNr: text("datev_berater_nr").notNull().default(""),
     datevMandantNr: text("datev_mandant_nr").notNull().default(""),
@@ -122,7 +124,8 @@ export const company = pgTable(
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("company_single_row", sql`${t.id} = 1`)],
+  // Die Typst-Vorlagen lesen die Farbe mit rgb(); anderes als #RRGGBB bräche jedes PDF
+  (t) => [check("company_single_row", sql`${t.id} = 1`), check("company_accent_color", sql`${t.accentColor} ~ '^#[0-9A-Fa-f]{6}$'`)],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */

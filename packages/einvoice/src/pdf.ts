@@ -5,8 +5,8 @@ import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { countryName, formatIban, paymentSentence } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
-import { lineAmount } from "@haben/core";
-import type { Address, InvoiceDocument, Logo } from "./types.ts";
+import { DEFAULT_ACCENT, lineAmount } from "@haben/core";
+import type { Address, InvoiceDocument, Letterhead, Logo } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
 const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL("..", import.meta.url));
@@ -146,17 +146,17 @@ export function pdfData(doc: InvoiceDocument) {
 
 /** Sichtbare Rechnung als PDF/A-3b (Grundlage für ZUGFeRD). */
 export function renderInvoicePdf(doc: InvoiceDocument): Uint8Array {
-  return compilePdf(TEMPLATE, pdfData(doc), doc.issueDate, "Rechnungs-PDF", doc.logo);
+  return compilePdf(TEMPLATE, pdfData(doc), doc.issueDate, "Rechnungs-PDF", doc);
 }
 
 /** Angebot als PDF/A-3b; die Daten kommen fertig formatiert aus quotePdfData */
-export function renderQuotePdfData(data: unknown, date: string, logo?: Logo): Uint8Array {
-  return compilePdf(TEMPLATE, data, date, "Angebots-PDF", logo);
+export function renderQuotePdfData(data: object, date: string, letterhead: Letterhead): Uint8Array {
+  return compilePdf(TEMPLATE, data, date, "Angebots-PDF", letterhead);
 }
 
 /** Mahnung als PDF/A-3b; die Daten kommen fertig formatiert aus dunningPdfData */
-export function renderDunningPdf(data: unknown, date: string, logo?: Logo): Uint8Array {
-  return compilePdf(DUNNING_TEMPLATE, data, date, "Mahnungs-PDF", logo);
+export function renderDunningPdf(data: object, date: string, letterhead: Letterhead): Uint8Array {
+  return compilePdf(DUNNING_TEMPLATE, data, date, "Mahnungs-PDF", letterhead);
 }
 
 /** Fußzeile wie auf der Rechnung: Kontakt, Bank, Steuernummern */
@@ -180,13 +180,19 @@ export function logoFormat(data: Uint8Array): Logo["format"] | null {
   return null;
 }
 
-function compilePdf(template: string, data: unknown, date: string, label: string, logo?: Logo): Uint8Array {
+/** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe immer, das Logo als Dateiname neben der Vorlage */
+export function templateInputs(data: object, { logo, accent }: Letterhead): object {
+  return { ...data, accent: accent ?? DEFAULT_ACCENT, ...(logo ? { logo: `logo.${logo.format}` } : {}) };
+}
+
+function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
   const typst = getCompiler();
+  const { logo } = letterhead;
   // Das Logo liegt nur für diesen Lauf als Datei neben der Vorlage
   const logoPath = logo ? join(PACKAGE_DIR, "templates", `logo.${logo.format}`) : null;
   if (logo && logoPath) typst.mapShadow(logoPath, Buffer.from(logo.data));
   try {
-    return compileWith(typst, template, logo ? { ...(data as object), logo: `logo.${logo.format}` } : data, date, label);
+    return compileWith(typst, template, templateInputs(data, letterhead), date, label);
   } finally {
     if (logoPath) typst.unmapShadow(logoPath);
   }

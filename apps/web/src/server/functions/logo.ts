@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "../modules/stammdaten/index.ts";
+import { logoInfo, MAX_LOGO_BYTES, removeLogo, saveAccentColor, saveLogo } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getLogo = createServerFn({ method: "GET" })
@@ -20,5 +20,14 @@ export const deleteLogo = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await removeLogo(context.user.id);
+    return { ok: true };
+  });
+
+/** Akzentfarbe des Briefkopfs; das Format prüft saveAccentColor */
+export const saveAccent = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ color: z.string().max(7) }))
+  .handler(async ({ data, context }) => {
+    await saveAccentColor(context.user.id, data.color);
     return { ok: true };
   });
