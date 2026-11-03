@@ -250,7 +250,14 @@ Fehler und Ideen gern als Issue. Besonders hilfreich sind anonymisierte Kontoaus
 kennt, und Rückmeldungen zur ELSTER-Übermittlung. Vor einem Pull Request bitte `bun run lint`, `bun run typecheck` und
 `bun run test` laufen lassen (die Datenbanktests brauchen `TEST_DATABASE_URL`, siehe [Entwicklung](https://firsttris.github.io/haben/entwicklung.html)).
 
-Danke an [@ngres](https://github.com/ngres) für durchdachte Prompt Requests.
+## ⭐ Sterne im Verlauf
+
+<a href="https://www.star-history.com/#firsttris/haben&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=firsttris/haben&type=Date&theme=dark">
+    <img alt="Verlauf der GitHub-Sterne von Haben" src="https://api.star-history.com/svg?repos=firsttris/haben&type=Date">
+  </picture>
+</a>
 
 ---
 
