@@ -971,18 +971,18 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer ü
   await zugang.click();
   await expect(zugang).toBeChecked();
   const form = page.getByRole("form", { name: "Neues Token" });
-  await form.getByLabel("Name").fill("n8n Etsy");
+  await form.getByLabel("Name").fill("Shop-Automation");
   const rechte = form.getByRole("group", { name: "Rechte" });
   await expect(rechte.getByRole("checkbox", { name: /haben:lesen/ })).toBeChecked();
   await rechte.getByRole("checkbox", { name: /haben:lesen/ }).uncheck();
   await rechte.getByRole("checkbox", { name: /kontakte:lesen/ }).check();
   await rechte.getByRole("checkbox", { name: /rechnungen:entwuerfe/ }).check();
   await form.getByRole("button", { name: "Token anlegen" }).click();
-  const token = await page.getByLabel(/Token für „n8n Etsy“/).inputValue();
+  const token = await page.getByLabel(/Token für „Shop-Automation“/).inputValue();
   expect(token).toMatch(/^hb_/);
   // Ohne MCP-Recht kein Befehl für Claude Code, dafür der Hinweis auf die REST-API
   await expect(page.getByLabel("In Claude Code eintragen")).toHaveCount(0);
-  await expect(page.getByText(/HTTP-Request-Node von n8n/)).toBeVisible();
+  await expect(page.getByText(/Für die REST-API: Adresse/)).toBeVisible();
   await expect(page.getByText(/Rechte: API: Kontakte lesen · API: Rechnungen lesen, Entwürfe/)).toBeVisible();
 
   // Die Sitzung im Browser reicht der API nicht, nur das Token

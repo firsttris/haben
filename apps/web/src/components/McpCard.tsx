@@ -56,8 +56,8 @@ export function McpCard({ data }: { data: Data }) {
           an ELSTER machst du weiter selbst in Haben.
         </p>
         <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
-          Über die REST-API legen eigene Werkzeuge und Automationen wie n8n Kontakte und Rechnungsentwürfe an, etwa aus Bestellungen bei Etsy oder eBay. Auch
-          sie bucht nichts und schreibt nichts fest.{" "}
+          Über die REST-API legen eigene Werkzeuge und Automationen Kontakte und Rechnungsentwürfe an, etwa aus Bestellungen bei Etsy oder eBay. Auch sie bucht
+          nichts und schreibt nichts fest.{" "}
           <a href={API_DOCS} target="_blank" rel="noreferrer">
             Anleitung zur API
           </a>
@@ -125,7 +125,7 @@ export function McpCard({ data }: { data: Data }) {
               )}
               {created.scopes.some((scope) => scope !== "haben:lesen") && (
                 <p className="small muted" style={{ margin: 0 }}>
-                  Für die REST-API, etwa im HTTP-Request-Node von n8n: Adresse <span className="mono">{apiBase}</span>, Header{" "}
+                  Für die REST-API: Adresse <span className="mono">{apiBase}</span>, Header{" "}
                   <span className="mono">Authorization: Bearer {created.token.slice(0, 7)}…</span>.
                 </p>
               )}

@@ -8,7 +8,7 @@ import { insertDraft, type DraftInput, type Invoice, type InvoiceLine } from "./
 
 /*
  * Externe Referenz eines Rechnungsentwurfs (#199): Plattform und Bestellnummer eines Vorgangs außerhalb von Haben, etwa
- * einer Etsy-Bestellung, aus der ein Client wie n8n über die REST-API einen Entwurf anlegt. Dieselbe Referenz legt
+ * einer Etsy-Bestellung, aus der ein eigenes Werkzeug über die REST-API einen Entwurf anlegt. Dieselbe Referenz legt
  * keinen zweiten Entwurf an, sondern liefert den vorhandenen; so darf ein Workflow eine Bestellung gefahrlos erneut
  * schicken. Der eindeutige Index invoices_external_ref sichert das auch bei gleichzeitigen Anfragen.
  */

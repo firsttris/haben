@@ -39,7 +39,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
 
   async function token(scopes: Scope[]) {
     await mcp.setMcpEnabled(actor, true);
-    return (await mcp.createMcpToken({ name: "n8n Etsy", days: 30, scopes })).token;
+    return (await mcp.createMcpToken({ name: "Shop-Automation", days: 30, scopes })).token;
   }
 
   async function call(tokenValue: string | null, method: string, path: string, body?: unknown, headers: Record<string, string> = {}) {
@@ -113,7 +113,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
         ["POST /kontakte", true],
       ]);
       const [audit] = await sql`select actor from audit_log where table_name = 'contacts' and action = 'INSERT'`;
-      expect(audit!.actor).toBe("api:n8n Etsy");
+      expect(audit!.actor).toBe("api:Shop-Automation");
     });
 
     it("begrenzt die Anfragen je Token", async () => {

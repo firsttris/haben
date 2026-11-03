@@ -15,7 +15,7 @@ const DOCS = "https://firsttris.github.io/haben/api.html";
 const REF = (id: string) => `#/components/schemas/${id}`;
 
 const DESCRIPTION = [
-  "Allgemeine Schnittstelle von Haben für eigene Werkzeuge und Automationen wie n8n. Sie liest und schreibt Kontakte und",
+  "Allgemeine Schnittstelle von Haben für eigene Werkzeuge und Automationen. Sie liest und schreibt Kontakte und",
   "Rechnungsentwürfe. Sie bucht nichts, schreibt nichts fest und versendet nichts: Das bleibt wegen GoBD ein Klick in Haben.",
   "",
   "Anmeldung mit einem API-Token aus Einstellungen → KI-Assistenten und API als `Authorization: Bearer hb_…`. Jeder",

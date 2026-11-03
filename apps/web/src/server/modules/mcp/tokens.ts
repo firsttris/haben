@@ -8,7 +8,7 @@ import { loadCompany } from "../stammdaten/index.ts";
 
 /*
  * API-Tokens für KI-Assistenten über MCP (/api/mcp) und für die REST-API (/api/v1, #199). Lokale Clients (Claude Code,
- * Claude Desktop mit eigener Konfiguration, lokale Modelle, n8n) schicken ein API-Token als Bearer-Header. Gespeichert
+ * Claude Desktop mit eigener Konfiguration, lokale Modelle, eigene Werkzeuge) schicken ein API-Token als Bearer-Header. Gespeichert
  * ist nur der Hash; das Token gibt es nur beim Anlegen. Eine Token-Verwaltung für beide Wege: was ein Token darf, sagen
  * allein seine Rechte (scopes), ein Schalter in den Firmendaten sperrt alle auf einmal.
  *

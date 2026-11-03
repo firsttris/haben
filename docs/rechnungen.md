@@ -451,7 +451,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 
 ## Entwürfe aus der REST-API
 
-Eigene Werkzeuge wie ein n8n-Workflow für Bestellungen aus Etsy oder eBay legen über die [REST-API](api.md) Kontakte und Rechnungsentwürfe an. Diese Entwürfe stehen in der Rechnungsliste wie jeder andere; du prüfst sie im Editor und schreibst sie fest, die API selbst schreibt nichts fest und bucht nichts. Ein Entwurf kann die Plattform und die Bestellnummer tragen (externe Referenz): Kommt dieselbe Bestellung noch einmal, entsteht kein zweiter Entwurf. Die Referenz wird mit der Rechnung festgeschrieben.
+Eigene Werkzeuge, etwa für Bestellungen aus Etsy oder eBay, legen über die [REST-API](api.md) Kontakte und Rechnungsentwürfe an. Diese Entwürfe stehen in der Rechnungsliste wie jeder andere; du prüfst sie im Editor und schreibst sie fest, die API selbst schreibt nichts fest und bucht nichts. Ein Entwurf kann die Plattform und die Bestellnummer tragen (externe Referenz): Kommt dieselbe Bestellung noch einmal, entsteht kein zweiter Entwurf. Die Referenz wird mit der Rechnung festgeschrieben.
 
 ## Rechnungen aus Lexoffice
 

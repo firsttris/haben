@@ -89,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
 
   it("speichert die gewählten Rechte geordnet und ohne Doppelte; ohne Recht kein Token", async () => {
     await mcp.setMcpEnabled(actor, true);
-    await mcp.createMcpToken({ name: "n8n", days: 90, scopes: ["rechnungen:entwuerfe", "kontakte:lesen", "rechnungen:entwuerfe"] });
+    await mcp.createMcpToken({ name: "Automation", days: 90, scopes: ["rechnungen:entwuerfe", "kontakte:lesen", "rechnungen:entwuerfe"] });
     const [row] = await sql`select scopes from mcp_tokens`;
     expect(row!.scopes).toEqual(["kontakte:lesen", "rechnungen:entwuerfe"]);
     expect((await mcp.listMcpTokens())[0]!.scopes).toEqual(["kontakte:lesen", "rechnungen:entwuerfe"]);
@@ -99,7 +99,7 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
 
   it("ein Token nur für die REST-API wird über MCP mit 403 abgelehnt", async () => {
     await mcp.setMcpEnabled(actor, true);
-    const { token } = await mcp.createMcpToken({ name: "n8n", days: 30, scopes: ["rechnungen:lesen"] });
+    const { token } = await mcp.createMcpToken({ name: "Automation", days: 30, scopes: ["rechnungen:lesen"] });
     const response = await rpc(token, "tools/list");
     expect(response.status).toBe(403);
     expect(((await response.json()) as { error: { message: string } }).error.message).toContain("haben:lesen");

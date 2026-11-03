@@ -37,7 +37,7 @@ describe("Schutz vor Anfragen fremder Seiten", () => {
     expect(await allowed("POST", "/api/mcp", { "sec-fetch-site": "cross-site" })).toBe(true);
     expect(await allowed("POST", "/api/belege/teilen", { "sec-fetch-site": "none" })).toBe(true);
     // REST-API: nur Bearer-Token, kein Cookie; ein Werkzeug im Browser einer anderen Seite darf sie aufrufen
-    expect(await allowed("POST", "/api/v1/rechnungen", { origin: "https://n8n.example.de" })).toBe(true);
+    expect(await allowed("POST", "/api/v1/rechnungen", { origin: "https://automation.example.de" })).toBe(true);
     expect(await allowed("PATCH", "/api/v1/kontakte/00000000-0000-4000-8000-000000000000", { "sec-fetch-site": "cross-site" })).toBe(true);
     // Nur genau dieser Präfix, nicht etwas, das ähnlich anfängt
     expect(await allowed("POST", "/api/v10", { origin: "https://boese.example" })).toBe(false);

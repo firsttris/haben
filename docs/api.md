@@ -1,6 +1,6 @@
 # REST-API
 
-Über die REST-API legen eigene Werkzeuge und Automationen Kontakte und Rechnungsentwürfe in Haben an, etwa ein [n8n](https://n8n.io)-Workflow, der Bestellungen aus Etsy oder eBay holt. Haben bekommt dafür keine eigene Bestellverwaltung: Die Bestellung bleibt auf der Plattform, Haben schreibt die Rechnung dazu.
+Über die REST-API legen eigene Werkzeuge und Automationen Kontakte und Rechnungsentwürfe in Haben an, etwa eine Automation, die Bestellungen aus Etsy oder eBay holt. Haben bekommt dafür keine eigene Bestellverwaltung: Die Bestellung bleibt auf der Plattform, Haben schreibt die Rechnung dazu.
 
 Die API **bucht nichts, schreibt nichts fest und versendet nichts**. Ein Entwurf aus der API ist ein Entwurf wie jeder andere: Du prüfst ihn in Haben und schreibst ihn dort mit einem Klick fest. Das bleibt wegen GoBD so, denn erst mit dem Festschreiben bekommt die Rechnung ihre Nummer, ihr PDF und ihre Buchung.
 
@@ -14,7 +14,7 @@ Die vollständige Beschreibung als OpenAPI 3.1 liefert Haben selbst unter `https
 ## Einrichten
 
 1. **Einstellungen → KI-Assistenten und API** öffnen und **Zugang für KI-Assistenten und API einschalten**.
-2. Unter **API-Tokens** einen Namen vergeben (z. B. „n8n Etsy“), die Gültigkeit wählen und unter **Rechte** nur ankreuzen, was das Werkzeug braucht. Für Bestellungen sind das meist „Kontakte lesen, anlegen und ändern“ und „Rechnungen lesen, Entwürfe anlegen, ändern und löschen“; den Haken bei „KI-Assistent (MCP)“ nimmst du dann heraus.
+2. Unter **API-Tokens** einen Namen vergeben (z. B. „Shop-Automation“), die Gültigkeit wählen und unter **Rechte** nur ankreuzen, was das Werkzeug braucht. Für Bestellungen sind das meist „Kontakte lesen, anlegen und ändern“ und „Rechnungen lesen, Entwürfe anlegen, ändern und löschen“; den Haken bei „KI-Assistent (MCP)“ nimmst du dann heraus.
 3. **Token anlegen** und das Token sofort kopieren: Haben speichert nur seinen SHA-256-Hash und zeigt es nie wieder an.
 
 Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was ein Token darf, sagen allein seine Rechte. Jedes Werkzeug sollte sein eigenes Token bekommen. **Widerrufen** sperrt es sofort, den Zugang ausschalten sperrt alle auf einmal.
@@ -37,7 +37,7 @@ Schreiben schließt lesen ein. Ein Token ohne das nötige Recht bekommt `403`.
 - **Einheiten wie überall in Haben:** Beträge in ganzen Cent (`5712` = 57,12 €), Steuersätze in Basispunkten (`1900` = 19 %, `700` = 7 %, `0`), Mengen in Tausendsteln (`1000` = 1 Stück, `1500` = 1,5 Stunden), Datum als `JJJJ-MM-TT`. Bei Fremdwährung sind `net`, `tax` und `gross` in Euro umgerechnet, die Einzelpreise stehen in der Währung der Rechnung.
 - **Listen** haben `limit` (1 bis 500, Vorgabe 100) und `offset` und antworten mit `{ "data": […], "total": …, "limit": …, "offset": … }`.
 - **Grenze:** 120 Anfragen je Minute und Token, darüber `429` mit `Retry-After: 60`. Werkzeuge über MCP und die API zählen zusammen.
-- **Protokoll:** Jeder Aufruf steht ohne Inhalte unter **Letzte Aufrufe** (z. B. `POST /rechnungen`), 90 Tage lang. Was die API anlegt oder ändert, steht im Änderungsprotokoll mit dem Namen des Tokens als Akteur (`api:n8n Etsy`).
+- **Protokoll:** Jeder Aufruf steht ohne Inhalte unter **Letzte Aufrufe** (z. B. `POST /rechnungen`), 90 Tage lang. Was die API anlegt oder ändert, steht im Änderungsprotokoll mit dem Namen des Tokens als Akteur (`api:Shop-Automation`).
 
 ### Fehler
 
@@ -145,21 +145,13 @@ curl -s -X DELETE "$HABEN/rechnungen/5f3e…" -H "Authorization: Bearer $TOKEN"
 
 Ist die Rechnung schon festgeschrieben, antworten Ändern und Löschen mit `409`. Korrigiert wird dann in Haben per Storno ([Rechnungen](rechnungen.md)). Ob eine Rechnung bezahlt ist, zeigen `listStatus`, `paid` und `open` aus dem Bankabgleich.
 
-## n8n
-
-Im Node **HTTP Request** von n8n:
-
-1. **Authentication:** „Generic Credential Type“ → „Header Auth“ mit Name `Authorization` und Wert `Bearer hb_…`. So steht das Token in den Zugangsdaten von n8n und nicht im Workflow.
-2. **Method** und **URL** wie oben, etwa `POST` und `https://haben.example.de/api/v1/rechnungen`.
-3. **Send Body** einschalten, **Body Content Type** „JSON“ und die Felder aus der Bestellung eintragen, z. B. `"externalId": "{{ $json.receipt_id }}"`. Beträge rechnest du dort in Cent um, etwa `{{ Math.round($json.price * 100) }}`.
-
-Die curl-Beispiele dieser Seite lassen sich auch mit **Import cURL** im Node übernehmen.
+## Ablauf für Bestellungen
 
 Ein Ablauf für Bestellungen sieht typischerweise so aus:
 
 1. Neue Bestellungen von der Plattform holen (Trigger oder Zeitplan).
 2. `GET /kontakte?q=<E-Mail>`; ist `total` 0, den Kontakt mit `POST /kontakte` anlegen.
-3. `POST /rechnungen` mit `contactId`, `externalSource`, `externalId` und den Positionen. Läuft der Workflow doppelt, kommt `200` mit der vorhandenen Rechnung statt eines Duplikats.
+3. `POST /rechnungen` mit `contactId`, `externalSource`, `externalId` und den Positionen. Läuft der Abruf doppelt, kommt `200` mit der vorhandenen Rechnung statt eines Duplikats.
 4. In Haben die Entwürfe prüfen und festschreiben, dann wie gewohnt versenden.
 
 ## Sicherheit
@@ -167,6 +159,6 @@ Ein Ablauf für Bestellungen sieht typischerweise so aus:
 - Der Zugang ist standardmäßig aus. Tokens laufen nach 30, 90 oder 365 Tagen ab und lassen sich einzeln widerrufen. Gespeichert ist nur ihr SHA-256-Hash.
 - Jedes Token hat nur die Rechte, die du ihm gibst. Keines kann buchen, festschreiben, stornieren, versenden oder etwas an ELSTER schicken, und keines sieht Zertifikat, Passwörter, API-Schlüssel oder Steuer-ID.
 - Die API meldet sich nur mit dem Token an, nie mit dem Sitzungscookie. Eine fremde Webseite, die du im selben Browser öffnest, kann sie deshalb nicht in deinem Namen aufrufen.
-- Ein Token im Workflow ist so viel wert wie seine Rechte. Halte es in den Zugangsdaten von n8n, nicht im Klartext im Workflow, und erreichst du Haben aus dem Internet, dann nur über HTTPS.
+- Ein Token ist so viel wert wie seine Rechte. Halte es in den Zugangsdaten deines Werkzeugs, nicht im Klartext in Skripten oder Workflows, und erreichst du Haben aus dem Internet, dann nur über HTTPS.
 
 [Zurück zur Übersicht](README.md)

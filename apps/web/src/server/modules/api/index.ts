@@ -1,5 +1,5 @@
 /*
- * REST-API unter /api/v1 (#199): Kontakte und Rechnungsentwürfe für eigene Werkzeuge und Automationen wie n8n, mit den
+ * REST-API unter /api/v1 (#199): Kontakte und Rechnungsentwürfe für eigene Werkzeuge und Automationen, mit den
  * API-Tokens aus dem Modul mcp und einer OpenAPI-Beschreibung unter /api/v1/openapi.json. Bucht nichts, schreibt nichts
  * fest und versendet nichts.
  *
