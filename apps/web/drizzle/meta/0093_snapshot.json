@@ -1,5 +1,5 @@
 {
-  "id": "a594a164-0c53-4c57-9cb9-a051f8074219",
+  "id": "e4c6f41e-d7c2-4ff1-a902-564ee0395487",
   "prevId": "f0682af8-12db-48bb-ab51-08102908be71",
   "version": "7",
   "dialect": "postgresql",
@@ -2121,6 +2121,20 @@
           "notNull": true,
           "default": "'AN-{JJJJ}-{NNN}'"
         },
+        "customer_number_format": {
+          "name": "customer_number_format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "customer_number_next": {
+          "name": "customer_number_next",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
         "datev_berater_nr": {
           "name": "datev_berater_nr",
           "type": "text",
@@ -2350,26 +2364,6 @@
         },
         "kundennummer": {
           "name": "kundennummer",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_customer": {
-          "name": "is_customer",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "is_supplier": {
-          "name": "is_supplier",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "lieferantennummer": {
-          "name": "lieferantennummer",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2849,12 +2843,6 @@
           "notNull": true,
           "default": "''"
         },
-        "supplier_contact_id": {
-          "name": "supplier_contact_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "invoice_number": {
           "name": "invoice_number",
           "type": "text",
@@ -2995,19 +2983,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "documents_supplier_contact_id_contacts_id_fk": {
-          "name": "documents_supplier_contact_id_contacts_id_fk",
-          "tableFrom": "documents",
-          "tableTo": "contacts",
-          "columnsFrom": [
-            "supplier_contact_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "documents_lexoffice_voucher_fk": {
           "name": "documents_lexoffice_voucher_fk",
           "tableFrom": "documents",

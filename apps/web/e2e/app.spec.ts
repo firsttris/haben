@@ -161,6 +161,31 @@ test("Kunden anlegen", async () => {
   await expect(liste).toContainText("Kein Kontakt passt");
 });
 
+test("Kundennummer automatisch vergeben", async () => {
+  await go("/einstellungen?bereich=rechnungen");
+  const karte = page.getByRole("form", { name: "Kundennummern" });
+  await karte.getByLabel("Format").fill("K {NNNN}");
+  await expect(karte.getByText(/Buchstaben, Ziffern/)).toBeVisible();
+  await karte.getByLabel("Format").fill("K-{NNNN}");
+  await expect(karte).toContainText("Nächste: K-0001");
+  await karte.getByRole("button", { name: "Kundennummern speichern" }).click();
+  await expect(karte.getByRole("status")).toContainText("automatisch vergeben");
+
+  await go("/kontakte/neu");
+  await expect(page.getByText("voraussichtlich K-0001")).toBeVisible();
+  await page.getByLabel("Name oder Firma").fill("Nummernkreis Testkunde");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await expect(page.getByLabel("Kundennummer")).toHaveValue("K-0001");
+  // Archivieren und abschalten: Die folgenden Tests rechnen mit den Kontakten und Nummern von Hand
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  await go("/einstellungen?bereich=rechnungen");
+  await karte.getByLabel("Format").fill("");
+  await karte.getByRole("button", { name: "Kundennummern speichern" }).click();
+  await expect(karte.getByRole("status")).toContainText("von Hand");
+});
+
 test("Kunde mit Rechnungen auf Englisch", async () => {
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Harbour Labs Ltd");

@@ -4,6 +4,7 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
+import { takeCustomerNumber } from "./customer-numbers.ts";
 
 export const contactSchema = z.object({
   kundennummer: z.string().trim().max(40),
@@ -93,7 +94,13 @@ function clean(input: ContactInput) {
 
 export async function createContact(actor: string, input: ContactInput): Promise<Contact> {
   return withActor(actor, async (tx) => {
-    const [created] = await tx.insert(schema.contacts).values(clean(input)).returning();
+    const values = clean(input);
+    // Ohne eigene Nummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht
+    const kundennummer = await takeCustomerNumber(tx, values.kundennummer);
+    const [created] = await tx
+      .insert(schema.contacts)
+      .values({ ...values, kundennummer })
+      .returning();
     return created!;
   });
 }

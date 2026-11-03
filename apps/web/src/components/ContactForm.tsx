@@ -25,7 +25,8 @@ const EMPTY: ContactInput = {
   lieferantennummer: "",
 };
 
-export function ContactForm({ contact }: { contact: Contact | null }) {
+/** nextNumber: Kundennummer, die Haben beim Anlegen ohne eigene Nummer vergibt; null = keine automatische Vergabe */
+export function ContactForm({ contact, nextNumber = null }: { contact: Contact | null; nextNumber?: string | null }) {
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
@@ -110,7 +111,17 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
           </label>
           <label className="field">
             Kundennummer
-            <input name="kundennummer" defaultValue={initial.kundennummer} placeholder="optional" />
+            <input
+              name="kundennummer"
+              defaultValue={initial.kundennummer}
+              placeholder={!contact && nextNumber ? nextNumber : "optional"}
+              aria-describedby={!contact && nextNumber ? "kundennummer-hint" : undefined}
+            />
+            {!contact && nextNumber && (
+              <span id="kundennummer-hint" className="small muted">
+                Leer lassen: Haben vergibt die nächste Nummer, voraussichtlich {nextNumber}.
+              </span>
+            )}
           </label>
         </div>
         <label className="field">
