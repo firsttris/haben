@@ -11,7 +11,7 @@ import type {
   LexVoucherListItem,
 } from "../types.ts";
 import { LexwareWebExportError } from "./errors.ts";
-import type { WebContact, WebEntry, WebListItem } from "./schema.ts";
+import type { WebContact, WebEntry, WebFinancial, WebListItem } from "./schema.ts";
 
 /*
  * Reine Umrechnung der Antworten der Web-Oberfläche in die Form der Public API. Danach läuft der Umzug
@@ -33,10 +33,23 @@ export const BOOKKEEPING_TYPES: Record<string, LexBookkeepingVoucherType> = {
   PurchaseCreditNote: "purchasecreditnote",
 };
 
+/**
+ * Buchungen ohne Beleg (financialVoucher.type). Die Public API kennt sie nicht; in Haben zählen sie wie
+ * Einnahme- und Ausgabebelege. Die Gutschriften sind nach dem Muster der übrigen Arten benannt, an einem
+ * echten Konto beobachtet sind nur FinancialPurchaseInvoice und FinancialSalesInvoice.
+ */
+export const FINANCIAL_TYPES: Record<string, LexBookkeepingVoucherType> = {
+  FinancialSalesInvoice: "salesinvoice",
+  FinancialSalesCreditNote: "salescreditnote",
+  FinancialPurchaseInvoice: "purchaseinvoice",
+  FinancialPurchaseCreditNote: "purchasecreditnote",
+};
+
 /** Belegart in den Werten der Public API; null für Angebote, Aufträge, Lieferscheine */
 export function webVoucherType(item: Pick<WebListItem, "entityType" | "entitySubType">): LexSalesDocumentType | LexBookkeepingVoucherType | null {
   if (item.entityType === "salesvoucher") return SALES_TYPES[item.entitySubType] ?? null;
   if (item.entityType === "bookkeepingvoucher") return BOOKKEEPING_TYPES[item.entitySubType] ?? null;
+  if (item.entityType === "financialvoucher") return FINANCIAL_TYPES[item.entitySubType] ?? null;
   return null;
 }
 
@@ -212,15 +225,17 @@ export function itemTax(cents: number, percent: number, gross: boolean): number 
 
 /**
  * Einnahme, Ausgabe oder Minderung aus der Buchhaltung. Brutto oder netto steht nur in der Antwort von
- * capsa (taxType); die Positionen mit Satz und Kategorie kommen aus voucherDetails. Als Satz zählt
- * calcPercent (der Satz, mit dem Lexware rechnet), sonst percent.
+ * capsa (taxType), bei Buchungen ohne Beleg in financialVoucher selbst; die Positionen mit Satz und
+ * Kategorie kommen aus voucherDetails bzw. financialVoucher. Als Satz zählt calcPercent (der Satz, mit dem
+ * Lexware rechnet), sonst percent.
  */
 export function webBookkeepingVoucher(entry: WebEntry): LexVoucher {
-  const type = BOOKKEEPING_TYPES[entry.list.entitySubType];
+  const types = entry.list.entityType === "financialvoucher" ? FINANCIAL_TYPES : BOOKKEEPING_TYPES;
+  const type = types[entry.list.entitySubType];
   if (!type) throw new LexwareWebExportError(`Unbekannte Belegart „${entry.list.entitySubType}“`);
   const capsa = entry.capsa;
   const details = entry.details;
-  const gross = (capsa?.taxType ?? "gross") !== "net";
+  const gross = (capsa?.taxType ?? details.taxType ?? "gross") !== "net";
   const items = (details.bookkeepingVoucherItems ?? []).map((item) => {
     const percent = item.taxRate?.calcPercent ?? item.taxRate?.percent ?? 0;
     const amount = lexToCents(item.amount);
@@ -230,12 +245,14 @@ export function webBookkeepingVoucher(entry: WebEntry): LexVoucher {
       taxAmount: euro(itemTax(amount, percent, gross)),
       taxRatePercent: percent,
       categoryId: category?.postingCategoryId,
+      categoryName: category?.name ?? "",
       cents: amount,
     };
   });
   const tax = items.reduce((sum, i) => sum + lexToCents(i.taxAmount), 0);
   const itemGross = items.reduce((sum, i) => sum + (gross ? i.cents : i.cents + lexToCents(i.taxAmount)), 0);
   const total = capsa?.totalGrossAmount ?? details.totalGrossAmount;
+  const financial = entry.financial ? withoutReceipt(entry.financial, items) : {};
   return {
     id: entry.list.entityId,
     organizationId: capsa?.organizationId,
@@ -252,9 +269,33 @@ export function webBookkeepingVoucher(entry: WebEntry): LexVoucher {
     contactName: details.contactName ?? capsa?.contact?.name ?? entry.list.contactName,
     remark: capsa?.note ?? entry.list.note,
     currency: "EUR",
-    voucherItems: items.map(({ cents: _cents, ...item }) => item),
+    voucherItems: items.map(({ cents: _cents, categoryName: _name, ...item }) => item),
     files: entry.files.filter((f) => f.role !== "pdf").map((f) => f.path),
     createdDate: capsa?.createdDate ?? entry.list.createdDate,
+    ...financial,
+  };
+}
+
+/**
+ * Kategorien, die keine Betriebseinnahme oder -ausgabe sind: Privatentnahmen und -einlagen, private
+ * Versicherungen und Steuern, Geldtransit zwischen eigenen Konten. Lexware Office liefert dafür kein
+ * Merkmal, nur den Namen; die Liste folgt den Standardkategorien und eigenen Namen wie „Privat“.
+ */
+const PRIVATE_CATEGORY = /privat|geldtransit|einkommensteuer|kirchensteuer|solidarit/i;
+
+/**
+ * Was eine Buchung ohne Beleg zusätzlich trägt: Gegenüber und Verwendungszweck aus dem Bankumsatz (sie
+ * hat weder Kontakt noch Notiz), die Kennzeichen `ohneBeleg` und `privat` für den Abgleich.
+ */
+function withoutReceipt(financial: WebFinancial, items: { categoryName: string }[]) {
+  const transactions = financial.transactions;
+  const names = [...new Set(transactions.map((t) => t.recipientOrSenderName?.trim()).filter(Boolean))];
+  const purposes = [...new Set(transactions.map((t) => t.purpose?.trim()).filter(Boolean))];
+  return {
+    contactName: names.join(", "),
+    remark: ["Buchung ohne Beleg", ...purposes].join(": "),
+    ohneBeleg: true,
+    privat: items.length > 0 && items.every((i) => PRIVATE_CATEGORY.test(i.categoryName)),
   };
 }
 
@@ -282,7 +323,44 @@ const STATUS_ITEMS = new Set(["balanced", "openRevenue", "openExpense"]);
  */
 const PAYMENT_TYPES: Record<string, string> = { partPaymentOther: "manualPayment" };
 
+/** Kalendertag in Berlin; voucherPayments schreibt den Zahlungstag als UTC (27.06. 22:00 Uhr für den 28.06.) */
+function berlinDate(value: string): string {
+  return new Date(value).toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+}
+
+/**
+ * Zahlungen einer Buchung ohne Beleg: je Bankumsatz eine Zahlung am Buchungstag des Umsatzes, als
+ * partPaymentFinancialTransaction wie bei Belegen, die per Bank bezahlt sind.
+ */
+function financialPayments(entry: WebEntry, financial: WebFinancial): LexPayments {
+  const byId = new Map(financial.transactions.map((t) => [t.financialTransactionId, t]));
+  const items = financial.payments
+    .filter((p) => p.paymentAmount)
+    .map((p) => {
+      const transactionDate = byId.get(p.paymentId ?? "")?.transactionDate;
+      return {
+        paymentItemType: "partPaymentFinancialTransaction",
+        postingDate: transactionDate ?? (p.paymentDate ? berlinDate(p.paymentDate) : null),
+        amount: Math.abs(p.paymentAmount!),
+        currency: "EUR",
+      };
+    })
+    .filter((i) => i.postingDate);
+  const dates = items.map((i) => i.postingDate!.slice(0, 10)).sort();
+  const balanced = webStatus(entry.list.billingStatus ?? entry.details.billingStatus) === "paid";
+  return {
+    openAmount: 0,
+    currency: "EUR",
+    paymentStatus: balanced ? "balanced" : null,
+    voucherType: webVoucherType(entry.list),
+    voucherStatus: webStatus(entry.list.billingStatus ?? entry.details.billingStatus),
+    paidDate: balanced ? (dates.at(-1) ?? null) : null,
+    paymentItems: items,
+  };
+}
+
 export function webPayments(entry: WebEntry): LexPayments {
+  if (entry.financial) return financialPayments(entry, entry.financial);
   const lines = entry.details.paymentListItems ?? [];
   const status = lines.find((l) => STATUS_ITEMS.has(l.paymentItemType ?? ""))?.paymentItemType ?? null;
   const items = lines

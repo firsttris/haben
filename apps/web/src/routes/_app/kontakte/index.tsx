@@ -5,16 +5,22 @@ import { FORMAT_LABEL } from "../../../lib/invoice.ts";
 import { getContacts } from "../../../server/functions/contacts.ts";
 
 export const Route = createFileRoute("/_app/kontakte/")({
-  validateSearch: z.object({ archiv: z.optional(z.boolean()) }),
-  loaderDeps: ({ search }) => ({ archived: search.archiv ?? false }),
-  loader: ({ deps }) => getContacts({ data: { archived: deps.archived } }),
+  validateSearch: z.object({ archiv: z.optional(z.boolean()), rolle: z.optional(z.enum(["kunde", "lieferant"])) }),
+  loaderDeps: ({ search }) => ({ archived: search.archiv ?? false, role: search.rolle }),
+  loader: ({ deps }) => getContacts({ data: { archived: deps.archived, ...(deps.role ? { role: deps.role } : {}) } }),
   head: () => ({ meta: [{ title: "Kontakte · Haben" }] }),
   component: ContactsPage,
 });
 
+const ROLE_FILTERS = [
+  { label: "Alle", role: undefined },
+  { label: "Kunden", role: "kunde" },
+  { label: "Lieferanten", role: "lieferant" },
+] as const;
+
 function ContactsPage() {
   const contacts = Route.useLoaderData();
-  const { archiv } = Route.useSearch();
+  const { archiv, rolle } = Route.useSearch();
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
   const shown = needle ? contacts.filter((c) => [c.name, c.kundennummer, c.email, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle))) : contacts;
@@ -36,14 +42,27 @@ function ContactsPage() {
           <span className="visually-hidden">Kontakte durchsuchen</span>
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen: Name, Kundennummer, E-Mail, Ort" />
         </label>
-        <Link to="/kontakte" search={{ archiv: !archiv }} className="chip">
+        <nav aria-label="Rolle" className="chip-row">
+          {ROLE_FILTERS.map((f) => (
+            <Link
+              key={f.label}
+              to="/kontakte"
+              search={{ archiv, rolle: f.role }}
+              className={rolle === f.role ? "chip active" : "chip"}
+              aria-current={rolle === f.role ? "page" : undefined}
+            >
+              {f.label}
+            </Link>
+          ))}
+        </nav>
+        <Link to="/kontakte" search={{ archiv: !archiv, rolle }} className="chip">
           {archiv ? "Archivierte ausblenden" : "Archivierte zeigen"}
         </Link>
       </div>
       <section className="card" aria-label="Kontaktliste">
         {contacts.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Noch keine Kontakte. Lege den ersten mit „Neuer Kontakt“ an.
+            {rolle ? `Keine ${rolle === "kunde" ? "Kunden" : "Lieferanten"}.` : "Noch keine Kontakte. Lege den ersten mit „Neuer Kontakt“ an."}
           </p>
         ) : shown.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
@@ -60,7 +79,9 @@ function ContactsPage() {
             {shown.map((contact) => (
               <Link key={contact.id} to="/kontakte/$id" params={{ id: contact.id }} className="table-row contact-cols">
                 <div style={{ minWidth: 0 }}>
-                  <span className="row-title">{contact.name}</span> {contact.archivedAt && <span className="pill">archiviert</span>}
+                  <span className="row-title">{contact.name}</span>{" "}
+                  {contact.isSupplier && <span className="pill">{contact.isCustomer ? "Kunde und Lieferant" : "Lieferant"}</span>}{" "}
+                  {contact.archivedAt && <span className="pill">archiviert</span>}
                   {contact.kundennummer && (
                     <span className="small muted mono" style={{ display: "block" }}>
                       {contact.kundennummer}

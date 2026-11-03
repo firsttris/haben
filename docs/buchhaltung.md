@@ -118,7 +118,7 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Privatentnahmen | 1800 | 2100 |
 | Privateinlagen | 1890 | 2180 |
 | Geldtransit | 1360 | 1460 |
-| Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe …) | 1361–1369 | 1461–1469 |
+| Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe, eBay …) | 1361–1369 | 1461–1469 |
 | Nebenkosten des Geldverkehrs | 4970 | 6855 |
 | Gewährte Skonti | 8730 | 4730 |
 | Erhaltene Skonti | 3730 | 5730 |

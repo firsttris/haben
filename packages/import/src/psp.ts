@@ -14,7 +14,7 @@ import type { ParsedStatement } from "./types.ts";
  */
 
 /** Datum aus „30.09.2026“, „2026-09-30 12:00:00“ oder „30/09/2026“ (PayPal mit englischen Spalten aus Europa) */
-function pspDate(value: string, where: string): string {
+export function pspDate(value: string, where: string): string {
   const parsed = parseDate(value);
   if (parsed) return parsed;
   const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim());
@@ -28,7 +28,7 @@ function pspDate(value: string, where: string): string {
   throw new StatementParseError(`Ungültiges Datum „${value}“ (${where}).`);
 }
 
-function skippedWarning(count: number, what: string): string[] {
+export function skippedWarning(count: number, what: string): string[] {
   return count === 0 ? [] : [`${count} ${count === 1 ? "Zeile" : "Zeilen"} übersprungen: ${what}.`];
 }
 

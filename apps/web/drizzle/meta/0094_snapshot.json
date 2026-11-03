@@ -1,5 +1,5 @@
 {
-  "id": "7abb4fbc-d0dc-4c2d-a3ef-94582d612154",
+  "id": "a710c9c1-29b2-48ca-8c19-5249d33caae6",
   "prevId": "e4c6f41e-d7c2-4ff1-a902-564ee0395487",
   "version": "7",
   "dialect": "postgresql",
@@ -2368,6 +2368,26 @@
           "primaryKey": false,
           "notNull": false
         },
+        "is_customer": {
+          "name": "is_customer",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "is_supplier": {
+          "name": "is_supplier",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "lieferantennummer": {
+          "name": "lieferantennummer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "name": {
           "name": "name",
           "type": "text",
@@ -2843,6 +2863,12 @@
           "notNull": true,
           "default": "''"
         },
+        "supplier_contact_id": {
+          "name": "supplier_contact_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "invoice_number": {
           "name": "invoice_number",
           "type": "text",
@@ -2983,6 +3009,19 @@
       },
       "indexes": {},
       "foreignKeys": {
+        "documents_supplier_contact_id_contacts_id_fk": {
+          "name": "documents_supplier_contact_id_contacts_id_fk",
+          "tableFrom": "documents",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "supplier_contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "documents_lexoffice_voucher_fk": {
           "name": "documents_lexoffice_voucher_fk",
           "tableFrom": "documents",
@@ -4128,18 +4167,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "external_source": {
-          "name": "external_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "external_id": {
-          "name": "external_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "locked_at": {
           "name": "locked_at",
           "type": "timestamp with time zone",
@@ -4162,27 +4189,6 @@
         }
       },
       "indexes": {
-        "invoices_external_ref": {
-          "name": "invoices_external_ref",
-          "columns": [
-            {
-              "expression": "external_source",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "external_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "invoices_number_counter": {
           "name": "invoices_number_counter",
           "columns": [
@@ -4358,10 +4364,6 @@
       },
       "policies": {},
       "checkConstraints": {
-        "invoices_external_ref_pair": {
-          "name": "invoices_external_ref_pair",
-          "value": "(\"invoices\".\"external_source\" is null) = (\"invoices\".\"external_id\" is null)"
-        },
         "invoices_final_has_number": {
           "name": "invoices_final_has_number",
           "value": "\"invoices\".\"status\" = 'draft' or (\"invoices\".\"number\" is not null and \"invoices\".\"locked_at\" is not null)"

@@ -138,6 +138,7 @@ export const PAYMENT_PROVIDERS = {
   stripe: { label: "Stripe", pattern: /stripe/i },
   shopify: { label: "Shopify Payments", pattern: /shopify/i },
   etsy: { label: "Etsy Payments", pattern: /etsy/i },
+  ebay: { label: "eBay", pattern: /ebay/i },
   sumup: { label: "SumUp", pattern: /sum ?up/i },
   sonstige: { label: "Anderer Zahlungsdienstleister", pattern: null },
 } as const;
