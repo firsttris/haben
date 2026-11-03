@@ -104,11 +104,11 @@ describe("eBay-Transaktionsbericht", () => {
       sale.replace('"03.10.2026"', '"03. Mai 2025"').replace("12-11111-11111", "12-22222-22222"),
       sale.replace('"03.10.2026"', '"1. März 2026"').replace("12-11111-11111", "12-44444-44444"),
     ];
-    expect(parseStatement(german(rows)).transactions.filter((t) => t.type === "Bestellung").map((t) => t.bookingDate)).toEqual([
-      "2025-05-03",
-      "2026-03-01",
-      "2026-09-23",
-    ]);
+    expect(
+      parseStatement(german(rows))
+        .transactions.filter((t) => t.type === "Bestellung")
+        .map((t) => t.bookingDate),
+    ).toEqual(["2025-05-03", "2026-03-01", "2026-09-23"]);
   });
 
   it("von eBay eingezogene Steuer (Käufer im Vereinigten Königreich) zählt weder als Erlös noch als Gebühr", () => {
