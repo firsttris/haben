@@ -111,6 +111,18 @@ describe("eBay-Transaktionsbericht", () => {
     ]);
   });
 
+  it("von eBay eingezogene Steuer (Käufer im Vereinigten Königreich) zählt weder als Erlös noch als Gebühr", () => {
+    // Im Bruttobetrag steckt die Steuer, die eBay für den Käufer abführt (Spalte „Von eBay eingezogene Steuer“);
+    // sie gehört nie dem Verkäufer, der Nettobetrag enthält sie nicht
+    const header = `"Datum der Transaktionserstellung";"Typ";"Bestellnummer";"Name des Käufers";"Betrag abzügl. Kosten";"Auszahlungswährung";"Auszahlung Nr.";"Von eBay eingezogene Steuer";"Fixer Anteil der Verkaufsprovision";"Variabler Anteil der Verkaufsprovision";"Transaktionsbetrag (inkl. Kosten)";"Transaktionswährung";"Referenznummer";"Beschreibung"`;
+    const order = `"03.10.2026";"Bestellung";"12-6";"J. Smith";"52,66";"EUR";"";"12,00";"-0,35";"-6,99";"72,00";"EUR";"--";"--"`;
+    const s = parseStatement(bytes([header, order].join("\n")));
+    expect(s.transactions.map((t) => [t.type, t.amount])).toEqual([
+      ["Bestellung", 6000],
+      ["Gebühr", -734],
+    ]);
+  });
+
   it("ungültiger Betrag nennt die Zeile", () => {
     expect(() => parseStatement(german([sale.replace('"52,56"', '"abc"')]))).toThrow("Ungültiger Betrag „abc“ (Zeile 2).");
   });
