@@ -208,7 +208,9 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
           .update(schema.contacts)
           .set({
             lexofficeId: contact.lexofficeId,
-            ...(contact.isVendor ? { isSupplier: true, lieferantennummer: sql`coalesce(${schema.contacts.lieferantennummer}, ${contact.lieferantennummer})` } : {}),
+            ...(contact.isVendor
+              ? { isSupplier: true, lieferantennummer: sql`coalesce(${schema.contacts.lieferantennummer}, ${contact.lieferantennummer})` }
+              : {}),
           })
           .where(eq(schema.contacts.id, sameName.id));
         progress.contactsLinked += 1;

@@ -52,7 +52,8 @@ function fakeApi(options: { failVoucher?: boolean; contacts?: Record<string, unk
         { id: "16d04a28-b1d0-11e6-b4e8-8f6d5b2f9e0a", name: "Bürobedarf", type: "outgo", contactRequired: false, splitAllowed: true, groupName: "Büro" },
       ]);
     }
-    if (path === "/contacts") return json(page(url.searchParams.get("page") === "0" ? (options.contacts ?? [fixture("contact-company.json"), fixture("contact-person.json")]) : []));
+    if (path === "/contacts")
+      return json(page(url.searchParams.get("page") === "0" ? (options.contacts ?? [fixture("contact-company.json"), fixture("contact-person.json")]) : []));
     if (path === "/voucherlist") {
       if (url.searchParams.get("archived") === "true") return json(page([]));
       return json(
