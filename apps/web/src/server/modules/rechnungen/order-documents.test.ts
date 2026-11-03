@@ -32,8 +32,17 @@ describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgr
               'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;
     contactId = (
       await contacts.createContact(actor, {
-        kundennummer: "", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-        email: "", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+        kundennummer: "",
+        name: "Nordwerk Software GmbH",
+        strasse: "Hafenstraße 5",
+        plz: "20457",
+        ort: "Hamburg",
+        land: "DE",
+        email: "",
+        ustId: "",
+        iban: "",
+        leitwegId: "",
+        defaultFormat: null,
       })
     ).id;
   });
@@ -41,7 +50,17 @@ describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgr
   it("Auftragsbestätigung und Lieferschein erst zum angenommenen Angebot", async () => {
     const quote = await quotes.finalizeQuote(
       actor,
-      (await quotes.createQuoteDraft(actor, { contactId, issueDate: "2026-10-01", validUntil: "2026-10-31", serviceFrom: null, serviceTo: null, note: "", lines })).id,
+      (
+        await quotes.createQuoteDraft(actor, {
+          contactId,
+          issueDate: "2026-10-01",
+          validUntil: "2026-10-31",
+          serviceFrom: null,
+          serviceTo: null,
+          note: "",
+          lines,
+        })
+      ).id,
     );
     await expect(docs.confirmationPdf(quote.id)).rejects.toThrow(/nicht als angenommen/);
     await quotes.setQuoteDecision(actor, quote.id, "angenommen");
@@ -56,7 +75,18 @@ describe.skipIf(!testDatabaseUrl)("Auftragsbestätigung und Lieferschein (Postgr
   it("Lieferschein zur Rechnung, nicht zur Stornorechnung", async () => {
     const invoice = await invoices.finalizeInvoice(
       actor,
-      (await invoices.createDraft(actor, { contactId, issueDate: "2026-10-02", serviceFrom: null, serviceTo: null, paymentTermDays: 14, format: "zugferd", note: "", lines })).id,
+      (
+        await invoices.createDraft(actor, {
+          contactId,
+          issueDate: "2026-10-02",
+          serviceFrom: null,
+          serviceTo: null,
+          paymentTermDays: 14,
+          format: "zugferd",
+          note: "",
+          lines,
+        })
+      ).id,
     );
     const note = await docs.deliveryNotePdf("rechnung", invoice.id);
     expect(note.filename).toBe("Lieferschein-2026-001.pdf");

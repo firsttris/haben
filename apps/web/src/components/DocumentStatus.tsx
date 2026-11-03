@@ -1,10 +1,4 @@
-export function DocumentStatus({
-  status,
-  extractionStatus,
-}: {
-  status: "neu" | "gebucht";
-  extractionStatus: "keine" | "laeuft" | "fertig" | "fehler";
-}) {
+export function DocumentStatus({ status, extractionStatus }: { status: "neu" | "gebucht"; extractionStatus: "keine" | "laeuft" | "fertig" | "fehler" }) {
   if (status === "gebucht") return <span className="pill pill-ok">Gebucht</span>;
   if (extractionStatus === "laeuft") return <span className="pill pill-info">Wird ausgelesen</span>;
   if (extractionStatus === "fehler") return <span className="pill pill-warn">Prüfen</span>;

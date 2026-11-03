@@ -53,8 +53,7 @@ export function servicePeriodFor(issueDate: string, interval: RecurringInterval,
   return { from: iso(startYear, start, 1), to: iso(endYear, end, daysInMonth(endYear, end)) };
 }
 
-const monthName = (date: string) =>
-  new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
+const monthName = (date: string) => new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
 
 /** Platzhalter für Beschreibungen und Hinweis */
 export const RECURRING_PLACEHOLDERS = {

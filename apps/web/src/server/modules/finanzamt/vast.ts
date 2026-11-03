@@ -26,7 +26,6 @@ export interface VastFetchSummary {
   fehler: { id: string; fehler: string }[];
 }
 
-
 /**
  * Holt die Belege der vorausgefüllten Steuererklärung (Lohnsteuerbescheinigung, Rentenbezüge, Beiträge …)
  * für eine Person und ein Jahr von ELSTER, entschlüsselt und speichert sie. Bereits gespeicherte Belege
@@ -43,11 +42,7 @@ export async function fetchVastBelege(actor: string, client: ElsterClient, optio
   }
   const datenlieferant = `${company.taxpayer.a?.vorname ?? ""} ${company.taxpayer.a?.name ?? ""}`.trim() || company.name || "Haben";
 
-  const result = await client.fetchBelege(
-    { idnr: person.idnr, veranlagungsjahr: options.year, datenlieferant, herstellerId, test },
-    pfx,
-    pin,
-  );
+  const result = await client.fetchBelege({ idnr: person.idnr, veranlagungsjahr: options.year, datenlieferant, herstellerId, test }, pfx, pin);
   const refs = new Map(result.liste.map((ref) => [ref.id, ref]));
   const fehler = result.belege.flatMap((b) => (b.fehler ? [{ id: b.id, fehler: b.fehler }] : []));
 

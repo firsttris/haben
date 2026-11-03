@@ -68,7 +68,14 @@ function AssetsPage() {
       {years.length > 1 && (
         <nav className="filter-row" aria-label="Jahr wählen">
           {years.map((y) => (
-            <Link key={y} to="/anlagen" activeProps={{}} search={{ jahr: y }} className={y === year ? "chip active" : "chip"} aria-current={y === year ? "page" : undefined}>
+            <Link
+              key={y}
+              to="/anlagen"
+              activeProps={{}}
+              search={{ jahr: y }}
+              className={y === year ? "chip active" : "chip"}
+              aria-current={y === year ? "page" : undefined}
+            >
               {y}
             </Link>
           ))}
@@ -79,8 +86,8 @@ function AssetsPage() {
         <div className="banner" role="alert">
           <Icon name="alert" />
           <span>
-            Die Abschreibungen und die private Kfz-Nutzung für {year} werden für {data.pending} {data.pending === 1 ? "Anlage" : "Anlagen"} gebucht und festgeschrieben;
-            danach lassen sich Anschaffungskosten, Nutzungsdauer und Abgang in {year} nicht mehr ändern. Noch einmal klicken zum Buchen.
+            Die Abschreibungen und die private Kfz-Nutzung für {year} werden für {data.pending} {data.pending === 1 ? "Anlage" : "Anlagen"} gebucht und
+            festgeschrieben; danach lassen sich Anschaffungskosten, Nutzungsdauer und Abgang in {year} nicht mehr ändern. Noch einmal klicken zum Buchen.
           </span>
         </div>
       )}
@@ -95,8 +102,8 @@ function AssetsPage() {
       <section className="card" aria-label="Anlagen">
         {shown.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Keine Anlagen in {year}. Neue Anschaffungen entstehen beim Buchen eines Belegs mit der Kategorie „Anlagegut“; Anlagen aus der
-            bisherigen Buchhaltung übernimmst du mit <Link to="/anlagen/neu">Anlage übernehmen</Link>.
+            Keine Anlagen in {year}. Neue Anschaffungen entstehen beim Buchen eines Belegs mit der Kategorie „Anlagegut“; Anlagen aus der bisherigen Buchhaltung
+            übernimmst du mit <Link to="/anlagen/neu">Anlage übernehmen</Link>.
           </p>
         ) : (
           <div className="table">
@@ -120,9 +127,7 @@ function AssetsPage() {
                   ) : null}
                   <div className="small muted">
                     {ASSET_KINDS[asset.kind].label} · {ASSET_METHODS[asset.method]}
-                    {asset.privateUseYear && asset.privateUseYear.months.length > 0
-                      ? ` · Privatnutzung ${formatEuro(asset.privateUseYear.withdrawal)}`
-                      : ""}
+                    {asset.privateUseYear && asset.privateUseYear.months.length > 0 ? ` · Privatnutzung ${formatEuro(asset.privateUseYear.withdrawal)}` : ""}
                   </div>
                 </div>
                 <div className="small">

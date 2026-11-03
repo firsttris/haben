@@ -69,9 +69,7 @@ export function toElsterSteuernummer(steuernummer: string, land: Bundesland): st
   }
 
   if (digits.length !== rule.length) {
-    throw new SteuernummerError(
-      `Steuernummer für ${BUNDESLAENDER[land]} muss ${rule.length} Ziffern haben, hat ${digits.length}.`,
-    );
+    throw new SteuernummerError(`Steuernummer für ${BUNDESLAENDER[land]} muss ${rule.length} Ziffern haben, hat ${digits.length}.`);
   }
 
   const office = digits.slice(0, rule.length - 8);

@@ -20,7 +20,10 @@ export const Route = createFileRoute("/api/belege/teilen")({
         const session = await auth().api.getSession({ headers: request.headers });
         if (!session) return Response.redirect(new URL("/login", request.url), 303);
         const form = await request.formData();
-        const files = form.getAll("files").filter((f): f is File => f instanceof File).slice(0, 20);
+        const files = form
+          .getAll("files")
+          .filter((f): f is File => f instanceof File)
+          .slice(0, 20);
         let last: string | undefined;
         for (const file of files) {
           // Zu große Dateien gar nicht erst einlesen

@@ -23,7 +23,8 @@ describe("userMessage", () => {
   it("gibt Meldungen unserer Trigger weiter, aber keine verletzten Constraints", () => {
     const pg = (fields: Record<string, unknown>) => Object.assign(new Error(String(fields.message)), { severity: "ERROR", ...fields });
     const wrapped = (cause: Error) => Object.assign(new Error('Failed query: update "company" set "kontenrahmen" = $1\nparams: SKR04'), { cause });
-    const jahr = "Im Jahr 2026 gibt es schon Buchungen. Kontenrahmen, Versteuerung und Kleinunternehmer lassen sich nur zum Jahreswechsel umstellen, bevor im neuen Jahr gebucht wird.";
+    const jahr =
+      "Im Jahr 2026 gibt es schon Buchungen. Kontenrahmen, Versteuerung und Kleinunternehmer lassen sich nur zum Jahreswechsel umstellen, bevor im neuen Jahr gebucht wird.";
     // RAISE EXCEPTION … USING ERRCODE = 'check_violation', von Drizzle verpackt
     expect(userMessage(wrapped(pg({ message: jahr, code: "23514" })))).toBe(jahr);
     // RAISE EXCEPTION ohne ERRCODE, direkt vom Treiber
@@ -31,7 +32,17 @@ describe("userMessage", () => {
       "Rechnung 1 ist festgeschrieben, Positionen sind unveränderlich",
     );
     // Verletzte CHECK-Constraint: technischer Text, bleibt intern
-    expect(userMessage(wrapped(pg({ message: 'new row for relation "allocations" violates check constraint "allocations_target"', code: "23514", constraint_name: "allocations_target" })))).toBeUndefined();
+    expect(
+      userMessage(
+        wrapped(
+          pg({
+            message: 'new row for relation "allocations" violates check constraint "allocations_target"',
+            code: "23514",
+            constraint_name: "allocations_target",
+          }),
+        ),
+      ),
+    ).toBeUndefined();
     // Andere Datenbankfehler ebenso
     expect(userMessage(wrapped(pg({ message: 'duplicate key value violates unique constraint "documents_sha256_unique"', code: "23505" })))).toBeUndefined();
     // Nur Fehler des Treibers (mit severity), kein beliebiger Fehler mit passendem Code

@@ -1,14 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import {
-  abgabefrist,
-  dueDate,
-  periodKey,
-  periodLabel,
-  previousPeriod,
-  vorauszahlungstermine,
-  type Bundesland,
-  type VatPeriod,
-} from "@haben/core";
+import { abgabefrist, dueDate, periodKey, periodLabel, previousPeriod, vorauszahlungstermine, type Bundesland, type VatPeriod } from "@haben/core";
 import { and, eq, min } from "drizzle-orm";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
@@ -161,7 +152,12 @@ const hashToken = (token: string) => createHash("sha256").update(token).digest("
 export async function createCalendarToken(actor: string): Promise<string> {
   const token = randomBytes(24).toString("base64url");
   await loadCompany();
-  await withActor(actor, (tx) => tx.update(schema.company).set({ calendarTokenHash: hashToken(token), updatedAt: new Date() }).where(eq(schema.company.id, 1)));
+  await withActor(actor, (tx) =>
+    tx
+      .update(schema.company)
+      .set({ calendarTokenHash: hashToken(token), updatedAt: new Date() })
+      .where(eq(schema.company.id, 1)),
+  );
   return token;
 }
 
@@ -181,7 +177,12 @@ export async function checkCalendarToken(token: string): Promise<boolean> {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-const icsText = (value: string) => value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r\n?|\n/g, "\\n");
+const icsText = (value: string) =>
+  value
+    .replace(/\\/g, "\\\\")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,")
+    .replace(/\r\n?|\n/g, "\\n");
 
 /** Zeilen nach RFC 5545 höchstens 75 Oktette lang, Fortsetzung mit Leerzeichen */
 function fold(line: string): string {
@@ -205,8 +206,18 @@ function fold(line: string): string {
  * Erledigtes fehlt, damit der Kalender nur zeigt, was noch zu tun ist.
  */
 export function fristenToIcs(fristen: Frist[], baseUrl: string, now = new Date()): string {
-  const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Haben//Fristen//DE", "CALSCALE:GREGORIAN", "X-WR-CALNAME:Haben Steuerfristen", "X-PUBLISHED-TTL:PT6H"];
+  const stamp = now
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Haben//Fristen//DE",
+    "CALSCALE:GREGORIAN",
+    "X-WR-CALNAME:Haben Steuerfristen",
+    "X-PUBLISHED-TTL:PT6H",
+  ];
   for (const frist of fristen.filter((f) => f.status !== "erledigt")) {
     const day = frist.datum.replace(/-/g, "");
     const next = shift(frist.datum, 1).replace(/-/g, "");

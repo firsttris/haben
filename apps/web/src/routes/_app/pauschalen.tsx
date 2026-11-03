@@ -69,10 +69,9 @@ function PauschalenPage() {
         </div>
       </div>
       <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
-        Homeoffice-Tage, Fahrten mit dem eigenen Auto und Verpflegung auf Geschäftsreisen mindern den Gewinn, ohne dass du etwas bezahlt hast,
-        das einen Beleg hätte. Haben bucht sie als Ausgabe an Privateinlage und trägt sie in die richtigen Zeilen der{" "}
-        <Link to="/jahreserklaerung">Anlage EÜR</Link> ein. Halte fest, wann du wo warst (Kalender, Fahrtenliste); das Finanzamt kann
-        danach fragen.
+        Homeoffice-Tage, Fahrten mit dem eigenen Auto und Verpflegung auf Geschäftsreisen mindern den Gewinn, ohne dass du etwas bezahlt hast, das einen Beleg
+        hätte. Haben bucht sie als Ausgabe an Privateinlage und trägt sie in die richtigen Zeilen der <Link to="/jahreserklaerung">Anlage EÜR</Link> ein. Halte
+        fest, wann du wo warst (Kalender, Fahrtenliste); das Finanzamt kann danach fragen.
       </p>
 
       <nav className="filter-row" aria-label="Jahr wählen">
@@ -89,9 +88,7 @@ function PauschalenPage() {
         <div className="card">
           <div className="kpi-label">Homeoffice</div>
           <div className="kpi-value">{formatEuro(totals.homeoffice)}</div>
-          <div className="small muted">
-            {homeoffice.maxTage ? `${homeoffice.tage} von ${homeoffice.maxTage} Tagen` : "erst ab 2020"}
-          </div>
+          <div className="small muted">{homeoffice.maxTage ? `${homeoffice.tage} von ${homeoffice.maxTage} Tagen` : "erst ab 2020"}</div>
         </div>
         <div className="card">
           <div className="kpi-label">Fahrten</div>
@@ -197,21 +194,14 @@ function HomeofficeForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) 
   return (
     <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Homeoffice-Pauschale">
       <p className="small muted" style={{ margin: 0 }}>
-        {formatEuro(satz.proTag)} für jeden Tag, an dem du überwiegend zu Hause gearbeitet hast, höchstens {satz.maxTage} Tage im Jahr ({rest} übrig). Hast
-        du ein häusliches Arbeitszimmer, das den Mittelpunkt deiner Arbeit bildet, setzt du stattdessen die Kosten oder die Jahrespauschale von 1.260 € an,
-        nicht beides. Trag die Tage am besten jeden Monat ein.
+        {formatEuro(satz.proTag)} für jeden Tag, an dem du überwiegend zu Hause gearbeitet hast, höchstens {satz.maxTage} Tage im Jahr ({rest} übrig). Hast du
+        ein häusliches Arbeitszimmer, das den Mittelpunkt deiner Arbeit bildet, setzt du stattdessen die Kosten oder die Jahrespauschale von 1.260 € an, nicht
+        beides. Trag die Tage am besten jeden Monat ein.
       </p>
       <div className="form-grid">
         <label className="field">
           Monat
-          <input
-            type="month"
-            value={month}
-            min={`${data.year}-01`}
-            max={defaultDate(data).slice(0, 7)}
-            onChange={(e) => setMonth(e.target.value)}
-            required
-          />
+          <input type="month" value={month} min={`${data.year}-01`} max={defaultDate(data).slice(0, 7)} onChange={(e) => setMonth(e.target.value)} required />
         </label>
         <label className="field">
           Tage im Homeoffice
@@ -254,8 +244,8 @@ function FahrtForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => vo
     <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Fahrt mit dem Privatfahrzeug">
       <p className="small muted" style={{ margin: 0 }}>
         Fahrten zu Kunden, Terminen und auf Geschäftsreisen mit deinem privaten Fahrzeug: {formatEuro(KM_SATZ.pkw)} je gefahrenem Kilometer mit dem Auto,{" "}
-        {formatEuro(KM_SATZ.andere)} mit Motorrad oder Roller. Arbeitest du dauerhaft beim selben Kunden, kann dort eine
-        Betriebsstätte entstehen; dann zählt die Entfernungspauschale, die Haben noch nicht abbildet.
+        {formatEuro(KM_SATZ.andere)} mit Motorrad oder Roller. Arbeitest du dauerhaft beim selben Kunden, kann dort eine Betriebsstätte entstehen; dann zählt
+        die Entfernungspauschale, die Haben noch nicht abbildet.
       </p>
       <div className="form-grid">
         <label className="field">
@@ -315,9 +305,9 @@ function VerpflegungForm({ data, onNotice }: { data: Data; onNotice: (n: Notice)
   return (
     <form className="stack" style={{ gap: 12 }} onSubmit={onSubmit} aria-label="Verpflegungsmehraufwand">
       <p className="small muted" style={{ margin: 0 }}>
-        Je Reisetag im Inland {formatEuro(saetze.klein)} (mehr als 8 Stunden unterwegs, An- und Abreisetag) oder {formatEuro(saetze.gross)} (voller Tag).
-        Hat der Kunde oder das Hotel eine Mahlzeit gestellt, zieht Haben 20 % (Frühstück) bzw. 40 % (Mittag, Abend) des vollen Satzes ab. Am selben Ort
-        gibt es die Pauschale nur in den ersten drei Monaten. Eine Zeile je Reisetag.
+        Je Reisetag im Inland {formatEuro(saetze.klein)} (mehr als 8 Stunden unterwegs, An- und Abreisetag) oder {formatEuro(saetze.gross)} (voller Tag). Hat
+        der Kunde oder das Hotel eine Mahlzeit gestellt, zieht Haben 20 % (Frühstück) bzw. 40 % (Mittag, Abend) des vollen Satzes ab. Am selben Ort gibt es die
+        Pauschale nur in den ersten drei Monaten. Eine Zeile je Reisetag.
       </p>
       <div className="form-grid">
         <label className="field">
@@ -408,7 +398,11 @@ function Liste({ data }: { data: Data }) {
           <tbody>
             {data.entries.map((e) => (
               <tr key={e.id} style={e.storniert ? { color: "var(--muted)" } : undefined}>
-                <td data-label="Datum">{e.art === "homeoffice" ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`)) : formatDate(e.date)}</td>
+                <td data-label="Datum">
+                  {e.art === "homeoffice"
+                    ? new Intl.DateTimeFormat("de-DE", { month: "long", timeZone: "UTC" }).format(new Date(`${e.date}T00:00:00Z`))
+                    : formatDate(e.date)}
+                </td>
                 <td data-label="Pauschale">
                   <span style={{ fontWeight: 500, textDecoration: e.storniert ? "line-through" : undefined }}>
                     {PAUSCHALE_LABEL[e.art]}

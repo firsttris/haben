@@ -165,7 +165,10 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           ...(versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
         ),
       );
-    const totals = await invoiceTotalsById(issued.map((i) => i.id), q);
+    const totals = await invoiceTotalsById(
+      issued.map((i) => i.id),
+      q,
+    );
     for (const inv of issued) {
       for (const t of totals.get(inv.id)?.taxes ?? []) {
         revenue.push({
@@ -325,8 +328,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
       reverseCharge: rc!,
       deductible: vorsteuerAbzug ? splitPrivateShare(a.tax, privateShare).business : 0,
     }));
-  const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") =>
-    reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
+  const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") => reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
 
   const regular = revenue.filter((r) => r.treatment === "regulaer");
   const sum = (rows: { base: Cents; tax: Cents; rate: number }[], rate: number, key: "base" | "tax") =>

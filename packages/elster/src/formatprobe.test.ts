@@ -3,7 +3,14 @@ import { FakeElsterClient } from "./fake-client.ts";
 import { checkFormats, ericMeldungen, formatProben } from "./formatprobe.ts";
 import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
 
-const input = { idnr: "65929970489", geburtsdatum: "1985-04-12", datenlieferant: "Test", herstellerId: "74931", veranlagungsjahr: 2025, produktVersion: "0.1.0" };
+const input = {
+  idnr: "65929970489",
+  geburtsdatum: "1985-04-12",
+  datenlieferant: "Test",
+  herstellerId: "74931",
+  veranlagungsjahr: 2025,
+  produktVersion: "0.1.0",
+};
 
 describe("Formatprüfung", () => {
   it("baut je Nachricht eine Probe wie beim echten Senden", () => {

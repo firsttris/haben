@@ -9,8 +9,20 @@ function dkbCsv(rows: string[][]) {
   return new TextEncoder().encode(`﻿${header}${columns}${body}\n`);
 }
 
-const row = (date: string, party: string, purpose: string, amount: string) =>
-  [date, date, "Gebucht", party, party, purpose, amount.startsWith("-") ? "Ausgang" : "Eingang", "DE02100100100006820101", amount, "", "", ""];
+const row = (date: string, party: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  party,
+  party,
+  purpose,
+  amount.startsWith("-") ? "Ausgang" : "Eingang",
+  "DE02100100100006820101",
+  amount,
+  "",
+  "",
+  "",
+];
 
 describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
   let bank: typeof import("../bank/bank.ts");
@@ -44,7 +56,15 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
 
   async function bookedDocument(
     marker: number,
-    fields: { supplierName: string; documentDate: string; dueDate: string | null; category: "telefon" | "buero" | "software"; payment: "bank" | "privat"; net: number; tax: number },
+    fields: {
+      supplierName: string;
+      documentDate: string;
+      dueDate: string | null;
+      category: "telefon" | "buero" | "software";
+      payment: "bank" | "privat";
+      net: number;
+      tax: number;
+    },
   ) {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, marker]), filename: `beleg-${marker}.jpg` });
     await documents.updateDocument(actor, id, {
@@ -88,11 +108,43 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
     });
     const invoice = await invoices.finalizeInvoice(actor, draft.id);
 
-    const telekom = await bookedDocument(1, { supplierName: "Telekom", documentDate: "2026-09-27", dueDate: null, category: "telefon", payment: "bank", net: 3857, tax: 733 });
-    const software = await bookedDocument(2, { supplierName: "JetBrains", documentDate: "2026-09-28", dueDate: "2026-10-10", category: "software", payment: "bank", net: 10_000, tax: 1_900 });
-    await bookedDocument(3, { supplierName: "Bürohaus", documentDate: "2026-08-15", dueDate: null, category: "buero", payment: "privat", net: 1_000, tax: 190 });
+    const telekom = await bookedDocument(1, {
+      supplierName: "Telekom",
+      documentDate: "2026-09-27",
+      dueDate: null,
+      category: "telefon",
+      payment: "bank",
+      net: 3857,
+      tax: 733,
+    });
+    const software = await bookedDocument(2, {
+      supplierName: "JetBrains",
+      documentDate: "2026-09-28",
+      dueDate: "2026-10-10",
+      category: "software",
+      payment: "bank",
+      net: 10_000,
+      tax: 1_900,
+    });
+    await bookedDocument(3, {
+      supplierName: "Bürohaus",
+      documentDate: "2026-08-15",
+      dueDate: null,
+      category: "buero",
+      payment: "privat",
+      net: 1_000,
+      tax: 190,
+    });
     // Privat bezahlter Beleg im Vorjahr zählt nicht
-    await bookedDocument(4, { supplierName: "Bürohaus", documentDate: "2025-12-30", dueDate: null, category: "buero", payment: "privat", net: 5_000, tax: 950 });
+    await bookedDocument(4, {
+      supplierName: "Bürohaus",
+      documentDate: "2025-12-30",
+      dueDate: null,
+      category: "buero",
+      payment: "privat",
+      net: 5_000,
+      tax: 950,
+    });
 
     await bank.importStatement(
       actor,
@@ -142,7 +194,15 @@ describe.skipIf(!testDatabaseUrl)("Auswertungen (Postgres)", () => {
     const open = await reports.openPositions("2026-10-02");
     expect(open.receivables).toEqual([
       // 05.09. + 14 Tage = Samstag 19.09., fällig am Montag
-      expect.objectContaining({ id: invoice.id, number: invoice.number, party: "Nordwerk Software GmbH", gross: 476_000, open: 276_000, dueDate: "2026-09-21", daysOverdue: 11 }),
+      expect.objectContaining({
+        id: invoice.id,
+        number: invoice.number,
+        party: "Nordwerk Software GmbH",
+        gross: 476_000,
+        open: 276_000,
+        dueDate: "2026-09-21",
+        daysOverdue: 11,
+      }),
     ]);
     expect(open.payables).toEqual([
       expect.objectContaining({ id: software, party: "JetBrains", gross: 11_900, open: 11_900, dueDate: "2026-10-10", daysOverdue: -8 }),

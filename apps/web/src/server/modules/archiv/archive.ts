@@ -47,10 +47,7 @@ export async function addArchiveFile(
   if (file.bytes.byteLength === 0) throw new ArchiveError(`${file.filename}: Datei ist leer.`);
   if (file.bytes.byteLength > MAX_ARCHIVE_SIZE) throw new ArchiveError(`${file.filename}: größer als 100 MB.`);
   const sha256 = sha256Of(file.bytes);
-  const [existing] = await db
-    .select({ filename: schema.archiveFiles.filename })
-    .from(schema.archiveFiles)
-    .where(eq(schema.archiveFiles.sha256, sha256));
+  const [existing] = await db.select({ filename: schema.archiveFiles.filename }).from(schema.archiveFiles).where(eq(schema.archiveFiles.sha256, sha256));
   if (existing) throw new ArchiveError(`${file.filename}: liegt schon im Archiv (als ${existing.filename}).`);
 
   let kind = file.kind;
@@ -157,10 +154,7 @@ export async function loadArchiveFile(id: string) {
 const matchedSql = sql<boolean>`exists (select 1 from lexoffice_vouchers v where v.number <> '' and lower(regexp_replace(v.number, '\\s+', '', 'g')) = lower(regexp_replace(datev_bookings.voucher_field1, '\\s+', '', 'g')))`;
 
 export async function listDatevBookings(filter: { year: number; search: string; unmatched: boolean; page: number }) {
-  const conditions: SQL[] = [
-    gte(schema.datevBookings.date, `${filter.year}-01-01`),
-    lte(schema.datevBookings.date, `${filter.year}-12-31`),
-  ];
+  const conditions: SQL[] = [gte(schema.datevBookings.date, `${filter.year}-01-01`), lte(schema.datevBookings.date, `${filter.year}-12-31`)];
   if (filter.search.trim()) {
     const term = `%${filter.search.trim()}%`;
     conditions.push(
@@ -262,7 +256,11 @@ export async function datevBookingsForPeriod(filter: { year: number; month?: num
 /** Zeiträume der schon übernommenen Stapel vergleichen, nicht nur einzelne Buchungstage */
 async function assertNoDatevOverlap(q: Db | Tx, filename: string, from: string, to: string): Promise<void> {
   const [overlap] = await q
-    .select({ filename: schema.archiveFiles.filename, from: sql<string>`${schema.archiveFiles.meta} ->> 'dateFrom'`, to: sql<string>`${schema.archiveFiles.meta} ->> 'dateTo'` })
+    .select({
+      filename: schema.archiveFiles.filename,
+      from: sql<string>`${schema.archiveFiles.meta} ->> 'dateFrom'`,
+      to: sql<string>`${schema.archiveFiles.meta} ->> 'dateTo'`,
+    })
     .from(schema.archiveFiles)
     .where(
       and(

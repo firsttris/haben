@@ -157,10 +157,12 @@ export function meinElsterWerte(
   const zeitraum = extra.zeitraum ?? null;
   let felder = elsterFelder(xml);
   if (formular === "ustvaeru") {
-    felder = felder
-      .filter((f) => f.kennung !== "Kz09")
-      .map((f) => ({ ...f, wert: f.wert.replace(/^(-?\d+)\.(\d{2})$/, "$1,$2") }));
-    if (zeitraum) felder = [{ kennung: "Zeitraum", wert: zeitraum, pfad: ["Anmeldungssteuern", "Steuerfall", "Umsatzsteuervoranmeldung"], zeile: null, person: null }, ...felder];
+    felder = felder.filter((f) => f.kennung !== "Kz09").map((f) => ({ ...f, wert: f.wert.replace(/^(-?\d+)\.(\d{2})$/, "$1,$2") }));
+    if (zeitraum)
+      felder = [
+        { kennung: "Zeitraum", wert: zeitraum, pfad: ["Anmeldungssteuern", "Steuerfall", "Umsatzsteuervoranmeldung"], zeile: null, person: null },
+        ...felder,
+      ];
   }
   return { format: MEIN_ELSTER_FORMAT, version: 1, formular, jahr, zeitraum, personen: extra.personen ?? null, erstellt: now.toISOString(), felder };
 }

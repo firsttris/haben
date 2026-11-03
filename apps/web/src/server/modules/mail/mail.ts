@@ -186,8 +186,7 @@ function wann(tage: number): string {
 
 /** Inhalt einer Erinnerung; neu: was heute erinnert wird, offen: alles Überfällige als Hinweis dazu */
 function fristenMail(neu: { frist: Frist; tage: number }[], today: string) {
-  const subject =
-    neu.length === 1 ? `Frist ${wann(neu[0]!.tage)}: ${neu[0]!.frist.titel}` : `${neu.length} Steuerfristen stehen an`;
+  const subject = neu.length === 1 ? `Frist ${wann(neu[0]!.tage)}: ${neu[0]!.frist.titel}` : `${neu.length} Steuerfristen stehen an`;
   const zeilen = neu.map(({ frist, tage }) => ({ frist, text: `${datum(frist.datum)} (${wann(tage)}): ${frist.titel}` }));
   const text = [
     `Erinnerung von Haben, Stand ${datum(today)}:`,
@@ -200,8 +199,7 @@ function fristenMail(neu: { frist: Frist; tage: number }[], today: string) {
     `<p>Erinnerung von Haben, Stand ${datum(today)}:</p>`,
     "<ul>",
     ...zeilen.map(
-      ({ frist, text }) =>
-        `<li><a href="${escapeHtml(baseUrl() + frist.link)}">${escapeHtml(text)}</a><br><small>${escapeHtml(frist.detail)}</small></li>`,
+      ({ frist, text }) => `<li><a href="${escapeHtml(baseUrl() + frist.link)}">${escapeHtml(text)}</a><br><small>${escapeHtml(frist.detail)}</small></li>`,
     ),
     "</ul>",
     `<p><a href="${escapeHtml(`${baseUrl()}/fristen`)}">Alle Fristen in Haben</a></p>`,
@@ -221,9 +219,7 @@ async function sentReminderKeys(): Promise<Set<string>> {
 /** Stunde in Berlin, damit Erinnerungen nicht nachts kommen */
 const berlinHour = (now: Date) =>
   Number(
-    new Intl.DateTimeFormat("de-DE", { hour: "numeric", hourCycle: "h23", timeZone: "Europe/Berlin" })
-      .formatToParts(now)
-      .find((p) => p.type === "hour")!.value,
+    new Intl.DateTimeFormat("de-DE", { hour: "numeric", hourCycle: "h23", timeZone: "Europe/Berlin" }).formatToParts(now).find((p) => p.type === "hour")!.value,
   );
 
 /**
@@ -267,9 +263,7 @@ async function changedSince(seq: number): Promise<boolean> {
   const [row] = await db
     .select({ seq: schema.auditLog.seq })
     .from(schema.auditLog)
-    .where(
-      sql`${schema.auditLog.seq} > ${seq} and not (${schema.auditLog.tableName} = 'mail_log' and ${schema.auditLog.newValue} ->> 'kind' = 'pruefwert')`,
-    )
+    .where(sql`${schema.auditLog.seq} > ${seq} and not (${schema.auditLog.tableName} = 'mail_log' and ${schema.auditLog.newValue} ->> 'kind' = 'pruefwert')`)
     .limit(1);
   return row !== undefined;
 }
@@ -335,7 +329,9 @@ export async function runDuePruefwertMail(now = new Date()) {
         ]
       : []),
     ...(report.problems.length > 0
-      ? [`Prüfung von Kette und Siegel: ${report.problems.length}${report.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`]
+      ? [
+          `Prüfung von Kette und Siegel: ${report.problems.length}${report.truncated ? " oder mehr" : ""} Befunde. Die Datenbank wurde außerhalb von Haben verändert.`,
+        ]
       : []),
     ...(report.abgleich.abweichungen.length > 0
       ? [
@@ -353,7 +349,8 @@ export async function runDuePruefwertMail(now = new Date()) {
   const intro = `Prüfwert des Änderungsprotokolls von Haben (${baseUrl()}), Stand ${stand}:`;
   const aufbewahren =
     "Bitte diese Mail aufbewahren, nicht nur auf dem Server von Haben. Mit dem Prüfwert lässt sich später zeigen, dass das Änderungsprotokoll und die festgeschriebenen Daten bis zu diesem Stand nicht nachträglich verändert wurden: in Haben unter Einstellungen → Export → Änderungsprotokoll prüfen einfügen und vergleichen.";
-  const hinweis = "Diese Mail kommt höchstens einmal pro Woche, wenn sich etwas geändert hat oder die Prüfung etwas findet. Abschalten in den E-Mail-Einstellungen.";
+  const hinweis =
+    "Diese Mail kommt höchstens einmal pro Woche, wenn sich etwas geändert hat oder die Prüfung etwas findet. Abschalten in den E-Mail-Einstellungen.";
   const text = [intro, "", pruefwert, "", befund, "", aufbewahren, "", hinweis].join("\n");
   const html = [
     `<p>${escapeHtml(intro)}</p>`,
@@ -371,7 +368,13 @@ export async function runDuePruefwertMail(now = new Date()) {
 
 export async function lastMails(limit = 5) {
   return db
-    .select({ kind: schema.mailLog.kind, subject: schema.mailLog.subject, ok: schema.mailLog.ok, error: schema.mailLog.error, createdAt: schema.mailLog.createdAt })
+    .select({
+      kind: schema.mailLog.kind,
+      subject: schema.mailLog.subject,
+      ok: schema.mailLog.ok,
+      error: schema.mailLog.error,
+      createdAt: schema.mailLog.createdAt,
+    })
     .from(schema.mailLog)
     .orderBy(desc(schema.mailLog.createdAt))
     .limit(limit);

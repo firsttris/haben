@@ -119,9 +119,7 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
       gross: sample.totals.gross,
       category: null,
     });
-    expect(result?.amounts.map((a) => [a.taxRate, a.net, a.tax])).toEqual(
-      sample.totals.taxes.map((t) => [t.rate, t.base, t.tax]),
-    );
+    expect(result?.amounts.map((a) => [a.taxRate, a.net, a.tax])).toEqual(sample.totals.taxes.map((t) => [t.rate, t.base, t.tax]));
 
     const again = await documents.uploadDocument(actor, { bytes: pdf, filename: "nochmal.pdf" });
     expect(again).toEqual({ id, duplicate: true });
@@ -274,7 +272,14 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect((await documents.getDocument(id))!.document).toMatchObject({ exchangeRate: null, exchangeRateSource: null, gross: 0 });
 
     // Das BMF veröffentlicht September: der wartende Beleg wird umgerechnet
-    await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-09", rate: "1.0812" }, { currency: "USD", month: "2026-10", rate: "1.1" }], "bmf");
+    await stammdaten.storeExchangeRates(
+      actor,
+      [
+        { currency: "USD", month: "2026-09", rate: "1.0812" },
+        { currency: "USD", month: "2026-10", rate: "1.1" },
+      ],
+      "bmf",
+    );
     expect(await documents.applyPublishedRates(actor)).toBe(1);
     const applied = (await documents.getDocument(id))!.document;
     expect(applied).toMatchObject({ exchangeRate: "1.081200", exchangeRateSource: "ust", exchangeRateDate: "2026-09-01", gross: 11_006 });
@@ -321,17 +326,37 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect(rc.document).toMatchObject({ net: 9249, tax: 1757, gross: 9249 });
 
     await expect(
-      documents.updateDocument(actor, id, { ...base, currency: "USD", exchangeRate: "0", amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 1, originalTax: 0 }] }),
+      documents.updateDocument(actor, id, {
+        ...base,
+        currency: "USD",
+        exchangeRate: "0",
+        amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 1, originalTax: 0 }],
+      }),
     ).rejects.toThrow(/Umrechnungskurs ungültig/);
     await expect(
-      documents.updateDocument(actor, id, { ...base, currency: "USD", exchangeRate: "0,000001", amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 10_000_000, originalTax: 0 }] }),
+      documents.updateDocument(actor, id, {
+        ...base,
+        currency: "USD",
+        exchangeRate: "0,000001",
+        amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 10_000_000, originalTax: 0 }],
+      }),
     ).rejects.toThrow(/zu groß/);
     // 50 Mio. Yen passen nicht in int4-Cent, als Originalbetrag aber schon; umgerechnet (1 EUR = 160 JPY) sind es 312.500 €
-    await documents.updateDocument(actor, id, { ...base, currency: "JPY", exchangeRate: "160", amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 5_000_000_000, originalTax: 0 }] });
+    await documents.updateDocument(actor, id, {
+      ...base,
+      currency: "JPY",
+      exchangeRate: "160",
+      amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 5_000_000_000, originalTax: 0 }],
+    });
     const yen = (await documents.getDocument(id))!;
     expect(yen.amounts.map((a) => [a.originalNet, a.net])).toEqual([[5_000_000_000, 31_250_000]]);
     // Winziger Betrag mit großem Kurs: umgerechnet 0,00 €, also nicht buchbar
-    await documents.updateDocument(actor, id, { ...base, currency: "USD", exchangeRate: "1000", amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 4, originalTax: 0 }] });
+    await documents.updateDocument(actor, id, {
+      ...base,
+      currency: "USD",
+      exchangeRate: "1000",
+      amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 4, originalTax: 0 }],
+    });
     const zero = (await documents.getDocument(id))!;
     expect(documents.bookingIssues(zero.document, zero.amounts)).toEqual(["Umgerechnet 0,00 €, bitte den Kurs prüfen"]);
 
@@ -432,8 +457,6 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
   });
 
   it("lehnt unbekannte Dateitypen ab", async () => {
-    await expect(
-      documents.uploadDocument(actor, { bytes: new TextEncoder().encode("hallo"), filename: "x.txt" }),
-    ).rejects.toThrow(/Erlaubt sind/);
+    await expect(documents.uploadDocument(actor, { bytes: new TextEncoder().encode("hallo"), filename: "x.txt" })).rejects.toThrow(/Erlaubt sind/);
   });
 });

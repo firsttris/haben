@@ -1,12 +1,5 @@
 import { UserError } from "../../errors.ts";
-import {
-  computeUstva,
-  toElsterSteuernummer,
-  type Cents,
-  type VatPeriod,
-  vatReturnCorrectionProblem,
-  vatReturnSendProblem,
-} from "@haben/core";
+import { computeUstva, toElsterSteuernummer, type Cents, type VatPeriod, vatReturnCorrectionProblem, vatReturnSendProblem } from "@haben/core";
 import { buildUstvaXml, type ElsterClient, type ElsterResult } from "@haben/elster";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { companyIssues, loadCompany } from "../stammdaten/index.ts";
@@ -97,20 +90,14 @@ export async function saveDraft(actor: string, period: VatPeriod, input: DraftIn
   const values = {
     ...(manual ? stored(manual) : computed),
     source: draftInput.mode,
-    overrideReason: draftInput.mode === "manuell" ? (draftInput.reason?.trim() || null) : null,
+    overrideReason: draftInput.mode === "manuell" ? draftInput.reason?.trim() || null : null,
     computed,
   };
   return withActor(actor, async (tx) => {
     const [draft] = await tx
       .select()
       .from(schema.vatReturns)
-      .where(
-        and(
-          eq(schema.vatReturns.year, period.year),
-          eq(schema.vatReturns.month, period.month),
-          eq(schema.vatReturns.status, "draft"),
-        ),
-      )
+      .where(and(eq(schema.vatReturns.year, period.year), eq(schema.vatReturns.month, period.month), eq(schema.vatReturns.status, "draft")))
       .for("update");
     if (draft) {
       const [updated] = await tx
@@ -123,13 +110,7 @@ export async function saveDraft(actor: string, period: VatPeriod, input: DraftIn
     const [sent] = await tx
       .select({ id: schema.vatReturns.id })
       .from(schema.vatReturns)
-      .where(
-        and(
-          eq(schema.vatReturns.year, period.year),
-          eq(schema.vatReturns.month, period.month),
-          eq(schema.vatReturns.status, "sent"),
-        ),
-      )
+      .where(and(eq(schema.vatReturns.year, period.year), eq(schema.vatReturns.month, period.month), eq(schema.vatReturns.status, "sent")))
       .limit(1);
     if (sent) {
       throw new VatError("Für diesen Zeitraum ist schon eine Anmeldung gesendet. Lege eine berichtigte Anmeldung an.");
@@ -148,13 +129,7 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
     const [latest] = await tx
       .select()
       .from(schema.vatReturns)
-      .where(
-        and(
-          eq(schema.vatReturns.year, period.year),
-          eq(schema.vatReturns.month, period.month),
-          eq(schema.vatReturns.status, "sent"),
-        ),
-      )
+      .where(and(eq(schema.vatReturns.year, period.year), eq(schema.vatReturns.month, period.month), eq(schema.vatReturns.status, "sent")))
       .orderBy(desc(schema.vatReturns.sentAt))
       .limit(1);
     // Ohne gesendete Anmeldung meldet vatReturnCorrectionProblem immer etwas

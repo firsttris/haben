@@ -238,9 +238,7 @@ describe("parseEInvoiceXml mit Fremdrechnungen", () => {
     expect(() => parseEInvoiceXml("<rsm:CrossIndustryInvoice><ram:ID>1</rsm:CrossIndustryInvoice>")).toThrow(EInvoiceParseError);
     expect(() => parseEInvoiceXml("kein xml")).toThrow(EInvoiceParseError);
     expect(() => parseEInvoiceXml("<Order><ID>1</ID></Order>")).toThrow(/Unbekanntes XML-Format <Order>/);
-    expect(() => parseEInvoiceXml(fixture("ubl-default-ns.xml").replace("<cbc:ID>INV-77</cbc:ID>", ""))).toThrow(
-      "Rechnungsnummer fehlt in der E-Rechnung",
-    );
+    expect(() => parseEInvoiceXml(fixture("ubl-default-ns.xml").replace("<cbc:ID>INV-77</cbc:ID>", ""))).toThrow("Rechnungsnummer fehlt in der E-Rechnung");
     expect(() => parseEInvoiceXml(fixture("ubl-default-ns.xml").replace(">49.00</cbc:TaxInclusiveAmount", ">49.001</cbc:TaxInclusiveAmount"))).toThrow(
       "mehr als 2 Nachkommastellen",
     );
@@ -286,7 +284,7 @@ describe("eingebettete XML in PDFs", () => {
     doc.addPage();
     await doc.attach(Buffer.from(`<a>${" ".repeat(MAX_EMBEDDED_BYTES)}</a>`, "utf8"), "x.xml", { mimeType: "text/xml" });
     await doc.save(); // bettet die Anlage ein und legt /AF an
-    const stream = (doc.catalog.lookup(PDFName.of("AF"), PDFArray).lookup(0, PDFDict).lookup(PDFName.of("EF"), PDFDict)).get(PDFName.of("F"));
+    const stream = doc.catalog.lookup(PDFName.of("AF"), PDFArray).lookup(0, PDFDict).lookup(PDFName.of("EF"), PDFDict).get(PDFName.of("F"));
     // ohne Namensbaum und /AF durchsucht die Erkennung alle Objekte; 500 Dateispezifikationen teilen sich eine Deflate-Bombe
     doc.catalog.delete(PDFName.of("Names"));
     doc.catalog.delete(PDFName.of("AF"));

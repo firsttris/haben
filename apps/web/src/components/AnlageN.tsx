@@ -97,7 +97,9 @@ export function parseArbeitnehmer(d: ArbeitnehmerDraft, wer: string, bad: string
     return n || undefined;
   };
   const bescheinigungen = d.bescheinigungen.map((b, i): EstLohnsteuerbescheinigung => {
-    const values = Object.fromEntries(BETRAEGE.map(([k, label]) => [k, amount(b[k], `Bescheinigung ${i + 1}: ${label}`)])) as Partial<Record<BetragKey, number>>;
+    const values = Object.fromEntries(BETRAEGE.map(([k, label]) => [k, amount(b[k], `Bescheinigung ${i + 1}: ${label}`)])) as Partial<
+      Record<BetragKey, number>
+    >;
     if (!values.brutto) bad.push(`Bescheinigung ${i + 1}: Bruttoarbeitslohn (${wer})`);
     return { ...values, steuerklasse: Number(b.steuerklasse) as EstLohnsteuerbescheinigung["steuerklasse"], brutto: values.brutto ?? 0 };
   });
@@ -142,8 +144,8 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
       {draft.aktiv && (
         <>
           <p className="small muted" style={{ margin: 0 }}>
-            Die Beträge stehen auf der Lohnsteuerbescheinigung, die der Arbeitgeber schickt; Haben übernimmt die Sozialversicherung in die
-            Anlage Vorsorgeaufwand. Bei mehreren Arbeitgebern je Bescheinigung eine Zeile.
+            Die Beträge stehen auf der Lohnsteuerbescheinigung, die der Arbeitgeber schickt; Haben übernimmt die Sozialversicherung in die Anlage
+            Vorsorgeaufwand. Bei mehreren Arbeitgebern je Bescheinigung eine Zeile.
           </p>
           {draft.bescheinigungen.map((b, index) => (
             <div key={b.key} className="form-grid" role="group" aria-label={`Lohnsteuerbescheinigung ${index + 1} · ${wer}`}>

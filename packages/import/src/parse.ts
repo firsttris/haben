@@ -8,18 +8,14 @@ import { isPayPalHeader, isShopifyHeader, isStripeHeader, parsePayPal, parseShop
 import { findHeaderRow } from "./table.ts";
 import type { ParsedStatement, StatementFormat } from "./types.ts";
 
-type Detected =
-  | { format: "camt053"; text: string }
-  | { format: Exclude<StatementFormat, "camt053" | "enablebanking">; rows: string[][]; headerRow: number };
+type Detected = { format: "camt053"; text: string } | { format: Exclude<StatementFormat, "camt053" | "enablebanking">; rows: string[][]; headerRow: number };
 
 function detect(text: string, label: string): Detected {
   const trimmed = text.trimStart();
   if (trimmed.startsWith("<")) {
     if (isCamt053(trimmed)) return { format: "camt053", text: trimmed };
     if (/BkToCstmrAcctRpt|BkToCstmrDbtCdtNtfctn/.test(trimmed)) {
-      throw new StatementParseError(
-        `${label} ist ein CAMT.052- oder CAMT.054-Bericht. Unterstützt wird nur der Tagesauszug CAMT.053.`,
-      );
+      throw new StatementParseError(`${label} ist ein CAMT.052- oder CAMT.054-Bericht. Unterstützt wird nur der Tagesauszug CAMT.053.`);
     }
     throw new StatementParseError(`${label} ist eine XML-Datei, aber kein CAMT.053-Kontoauszug.`);
   }

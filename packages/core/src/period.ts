@@ -10,10 +10,7 @@ export const vatPeriodSchema = z.object({
 
 export type VatPeriod = z.infer<typeof vatPeriodSchema>;
 
-export const MONTHS = [
-  "Januar", "Februar", "März", "April", "Mai", "Juni",
-  "Juli", "August", "September", "Oktober", "November", "Dezember",
-] as const;
+export const MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"] as const;
 
 export function periodLabel({ year, month }: VatPeriod): string {
   return `${MONTHS[month - 1]} ${year}`;

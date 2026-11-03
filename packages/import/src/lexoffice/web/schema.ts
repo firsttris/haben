@@ -133,9 +133,7 @@ export const webSalesDocumentSchema = z.looseObject({
     identificationNumber: str,
     language: str,
     contactId: str,
-    address: z
-      .looseObject({ name: str, supplement: str, street: str, zip: str, city: str, countryAlpha2Code: str, contactPerson: str })
-      .nullish(),
+    address: z.looseObject({ name: str, supplement: str, street: str, zip: str, city: str, countryAlpha2Code: str, contactPerson: str }).nullish(),
     items: z
       .array(
         z.looseObject({

@@ -27,9 +27,12 @@ async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<Map<s
   if (ids.length === 0) return new Map();
   const amounts = await q.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, ids));
   const reverseCharge = new Set(
-    (await q.select({ id: schema.documents.id }).from(schema.documents).where(and(inArray(schema.documents.id, ids), isNotNull(schema.documents.reverseCharge)))).map(
-      (d) => d.id,
-    ),
+    (
+      await q
+        .select({ id: schema.documents.id })
+        .from(schema.documents)
+        .where(and(inArray(schema.documents.id, ids), isNotNull(schema.documents.reverseCharge)))
+    ).map((d) => d.id),
   );
   // § 13b: Gezahlt ist nur netto. Die selbst geschuldete Steuer und die Vorsteuer daraus heben sich auf;
   // ohne Vorsteuerabzug zählt die Steuer, wenn sie mit der Voranmeldung ans Finanzamt geht.
@@ -118,12 +121,11 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     .leftJoin(schema.invoices, eq(schema.invoices.id, schema.writeOffs.invoiceId))
     .where(and(eq(schema.writeOffs.kind, "kursdifferenz"), gte(schema.writeOffs.date, start), lt(schema.writeOffs.date, end)));
 
-  const invoiceTotals = await invoiceTotalsById([
-    ...new Set([...allocations, ...exchangeDifferences].flatMap((a) => (a.invoiceId ? [a.invoiceId] : []))),
-  ], q);
-  const docTotals = await documentTotalsById([
-    ...new Set([...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])), ...privateDocs.map((d) => d.id)]),
-  ], q);
+  const invoiceTotals = await invoiceTotalsById([...new Set([...allocations, ...exchangeDifferences].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))], q);
+  const docTotals = await documentTotalsById(
+    [...new Set([...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])), ...privateDocs.map((d) => d.id)])],
+    q,
+  );
 
   const payments: EuerPayment[] = [];
   for (const a of allocations) {
@@ -136,7 +138,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         paid: a.amount,
         totals: invoiceTotals.get(a.invoiceId)!,
         // Wie gebucht; ältere Zahlungen ohne gespeicherten Anteil rechnet die EÜR weiter aus der Summe je Umsatz
-        ...(a.taxShares ? { shares: recordedTaxShares(invoiceTotals.get(a.invoiceId)!, a.amount, a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null) } : {}),
+        ...(a.taxShares
+          ? { shares: recordedTaxShares(invoiceTotals.get(a.invoiceId)!, a.amount, a.taxSharesInvoiceId === a.invoiceId ? a.taxShares : null) }
+          : {}),
         treatment: a.treatment ?? "regulaer",
         group,
       });
@@ -163,7 +167,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         date: w.date,
         paid: w.amount,
         totals: invoiceTotals.get(w.invoiceId)!,
-        ...(w.taxShares ? { shares: recordedTaxShares(invoiceTotals.get(w.invoiceId)!, w.amount, w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null) } : {}),
+        ...(w.taxShares
+          ? { shares: recordedTaxShares(invoiceTotals.get(w.invoiceId)!, w.amount, w.taxSharesInvoiceId === w.invoiceId ? w.taxShares : null) }
+          : {}),
         treatment: w.treatment ?? "regulaer",
         group,
       });
@@ -194,7 +200,13 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     });
   }
   const pauschalen = await q
-    .select({ date: schema.pauschalen.date, amount: schema.pauschalen.amount, art: schema.pauschalen.art, id: schema.pauschalen.id, reversesId: schema.pauschalen.reversesId })
+    .select({
+      date: schema.pauschalen.date,
+      amount: schema.pauschalen.amount,
+      art: schema.pauschalen.art,
+      id: schema.pauschalen.id,
+      reversesId: schema.pauschalen.reversesId,
+    })
     .from(schema.pauschalen)
     .where(and(gte(schema.pauschalen.date, `${year}-01-01`), lt(schema.pauschalen.date, `${year + 1}-01-01`)));
   for (const p of pauschalen) payments.push({ kind: "pauschale", date: p.date, amount: p.amount, art: p.art, group: p.reversesId ?? p.id });

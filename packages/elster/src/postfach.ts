@@ -50,7 +50,13 @@ export interface PostfachXmlInput {
 
 function datenabholungXml(datenArt: "PostfachAnfrage" | "PostfachBestaetigung", body: string[], input: PostfachXmlInput): string {
   return elsterXml(
-    { verfahren: "ElsterDatenabholung", datenArt, testmerker: input.test ? TESTMERKER : undefined, herstellerId: input.herstellerId, datenlieferant: input.datenlieferant },
+    {
+      verfahren: "ElsterDatenabholung",
+      datenArt,
+      testmerker: input.test ? TESTMERKER : undefined,
+      herstellerId: input.herstellerId,
+      datenlieferant: input.datenlieferant,
+    },
     [
       {
         ticket: "1",

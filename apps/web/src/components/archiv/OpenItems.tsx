@@ -26,9 +26,7 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
         await takeOver({ data: { id } });
       } else {
         const results = await takeOverAll();
-        setMessages(
-          results.map((r) => (r.error ? { tone: "danger", text: `${r.number}: ${r.error}` } : { tone: "ok", text: `${r.number}: übernommen.` })),
-        );
+        setMessages(results.map((r) => (r.error ? { tone: "danger", text: `${r.number}: ${r.error}` } : { tone: "ok", text: `${r.number}: übernommen.` })));
       }
       await router.invalidate();
     } catch (e) {
@@ -42,17 +40,23 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
     <section className={`card stack${done ? " step-done" : ""}`} aria-labelledby="open-heading">
       <div className="step-head">
         <span className="step-num">{done ? <Icon name="check" /> : "3"}</span>
-        <h2 id="open-heading" style={{ margin: 0 }}>Offene Posten übernehmen</h2>
+        <h2 id="open-heading" style={{ margin: 0 }}>
+          Offene Posten übernehmen
+        </h2>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
-        Rechnungen, die deine Kunden noch nicht bezahlt haben, und Eingangsrechnungen, die du noch bezahlen musst, holt Haben als offene Posten
-        herüber: mit Original-PDF und bisheriger Nummer, gebucht gegen den Saldenvortrag. Kommt das Geld, ordnest du es wie gewohnt im
-        Bankabgleich zu. Die schon angemeldete Umsatz- und Vorsteuer zählt Haben dabei nicht doppelt.
+        Rechnungen, die deine Kunden noch nicht bezahlt haben, und Eingangsrechnungen, die du noch bezahlen musst, holt Haben als offene Posten herüber: mit
+        Original-PDF und bisheriger Nummer, gebucht gegen den Saldenvortrag. Kommt das Geld, ordnest du es wie gewohnt im Bankabgleich zu. Die schon angemeldete
+        Umsatz- und Vorsteuer zählt Haben dabei nicht doppelt.
       </p>
       {!imported ? (
-        <p className="small muted" style={{ margin: 0 }}>Erst nach dem Abruf.</p>
+        <p className="small muted" style={{ margin: 0 }}>
+          Erst nach dem Abruf.
+        </p>
       ) : items.length === 0 ? (
-        <p className="small" style={{ margin: 0 }}>Keine offenen Rechnungen oder Belege in der bisherigen Buchhaltung.</p>
+        <p className="small" style={{ margin: 0 }}>
+          Keine offenen Rechnungen oder Belege in der bisherigen Buchhaltung.
+        </p>
       ) : (
         <ScrollBox label="Offene Posten">
           <table className="data-table">

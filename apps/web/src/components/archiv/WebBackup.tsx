@@ -62,7 +62,10 @@ export function WebBackup() {
           return;
         }
       }
-      setMessage({ tone: "ok", text: `${files.length === 1 ? "Der Teil ist" : `Alle ${files.length} Teile sind`} übernommen. Prüfe in Schritt 2, ob Belege fehlgeschlagen sind.` });
+      setMessage({
+        tone: "ok",
+        text: `${files.length === 1 ? "Der Teil ist" : `Alle ${files.length} Teile sind`} übernommen. Prüfe in Schritt 2, ob Belege fehlgeschlagen sind.`,
+      });
       if (fileInput.current) fileInput.current.value = "";
     } catch (e) {
       setMessage({ tone: "danger", text: errorMessage(e) });
@@ -77,15 +80,15 @@ export function WebBackup() {
         Ohne Public API: Sicherung aus der Web-Oberfläche
       </h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Kein Tarif XL? Ein Skript holt dieselben Daten über die Web-Oberfläche, mit deiner Anmeldung in Lexware Office: Kontakte,
-        Rechnungen, Gutschriften und Belege mit Original-PDF, E-Rechnungs-XML und Zahlungen. Es liest nur und lädt ZIP-Dateien herunter
-        (je bis etwa 50 MB). Bei tausend Belegen dauert das rund eine Viertelstunde.
+        Kein Tarif XL? Ein Skript holt dieselben Daten über die Web-Oberfläche, mit deiner Anmeldung in Lexware Office: Kontakte, Rechnungen, Gutschriften und
+        Belege mit Original-PDF, E-Rechnungs-XML und Zahlungen. Es liest nur und lädt ZIP-Dateien herunter (je bis etwa 50 MB). Bei tausend Belegen dauert das
+        rund eine Viertelstunde.
       </p>
       <ol className="small" style={{ margin: 0, paddingLeft: 18 }}>
         <li>In app.lexware.de anmelden und die Entwicklerwerkzeuge öffnen (F12), dort die Konsole.</li>
         <li>
-          Skript einfügen und mit Enter starten. Fragt der Browser beim ersten Einfügen nach einer Bestätigung, tippe ein, was er
-          verlangt (in Chrome, Edge und Brave „allow pasting“).
+          Skript einfügen und mit Enter starten. Fragt der Browser beim ersten Einfügen nach einer Bestätigung, tippe ein, was er verlangt (in Chrome, Edge und
+          Brave „allow pasting“).
         </li>
         <li>Wenn die Konsole „Fertig“ meldet, alle heruntergeladenen Teile hier hochladen.</li>
       </ol>

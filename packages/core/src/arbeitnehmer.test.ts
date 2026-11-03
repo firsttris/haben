@@ -23,7 +23,10 @@ describe("Arbeitslohn", () => {
   });
 
   it("zieht Werbungskosten oder den Pauschbetrag ab und summiert den Steuerabzug", () => {
-    const bescheinigungen = [{ brutto: 42_000_00, lohnsteuer: 6_123_40, kirchensteuer: 489_87 }, { brutto: 6_000_00, lohnsteuer: 800_00 }];
+    const bescheinigungen = [
+      { brutto: 42_000_00, lohnsteuer: 6_123_40, kirchensteuer: 489_87 },
+      { brutto: 6_000_00, lohnsteuer: 800_00 },
+    ];
     const pauschal = arbeitslohnErgebnis(2025, { bescheinigungen, werbungskosten: { arbeitsmittel: 300_00 } });
     expect(pauschal).toEqual({ brutto: 48_000_00, werbungskosten: 300_00, abzug: 1_230_00, einkuenfte: 46_770_00, steuerabzug: 7_413_27 });
     const echt = arbeitslohnErgebnis(2025, { bescheinigungen, werbungskosten: { wege: { tage: 180, km: 23 }, homeofficeTage: 40, sonstige: 16_00 } });

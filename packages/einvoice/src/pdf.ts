@@ -34,7 +34,10 @@ export function addressLines(address: Address, t: Texts = TEXTS.de): string[] {
 export function templateLabels(t: Texts, gross = false) {
   return {
     columns: gross ? { ...t.columns, net: t.grossColumn } : t.columns,
-    page: t.page("#", "#").split("#").map((part) => part.trim()),
+    page: t
+      .page("#", "#")
+      .split("#")
+      .map((part) => part.trim()),
   };
 }
 
@@ -129,7 +132,13 @@ export function pdfData(doc: InvoiceDocument) {
     // GiroCode nur für Rechnungen mit Zahlbetrag in Euro und Konto des Verkäufers (SEPA kennt nur Euro)
     qr:
       doc.kind === "rechnung" && doc.currency === "EUR" && doc.totals.gross > 0 && seller.iban
-        ? girocodeSvg({ name: seller.name, iban: seller.iban, ...(seller.bic ? { bic: seller.bic } : {}), amount: doc.totals.gross, text: t.girocodeText(doc.number) })
+        ? girocodeSvg({
+            name: seller.name,
+            iban: seller.iban,
+            ...(seller.bic ? { bic: seller.bic } : {}),
+            amount: doc.totals.gross,
+            text: t.girocodeText(doc.number),
+          })
         : null,
   };
 }

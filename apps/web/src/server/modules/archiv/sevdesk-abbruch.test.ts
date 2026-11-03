@@ -56,9 +56,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf abbrechen (Postgres)", () => {
       }
       return json({ error: { message: "nicht da" } }, 404);
     }) as typeof fetch;
-    sevdesk.setSevdeskClientFactory(
-      (o) => new importPkg.SevdeskClient({ ...o, fetch: fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }),
-    );
+    sevdesk.setSevdeskClientFactory((o) => new importPkg.SevdeskClient({ ...o, fetch: fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }));
     await sevdesk.saveSevdeskKey(actor, TOKEN);
     await sevdesk.startSevdeskImport(actor, { wait: true });
     const run = await sevdesk.latestSevdeskImport();

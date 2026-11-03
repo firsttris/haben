@@ -31,9 +31,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Abruf (Review)", () => {
       if (path === "/Tools/bookkeepingSystemVersion") return json({ objects: { version: "2.0" } });
       return json({ objects: [] });
     }) as typeof fetch;
-    sevdesk.setSevdeskClientFactory(
-      (o) => new importPkg.SevdeskClient({ ...o, fetch: fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }),
-    );
+    sevdesk.setSevdeskClientFactory((o) => new importPkg.SevdeskClient({ ...o, fetch: fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }));
     await sevdesk.saveSevdeskKey(actor, TOKEN);
     // Lexoffice-Abruf, dessen Prozess beim Neustart verschwand: steht noch auf „läuft“
     await sql`insert into lexoffice_imports (source, status, progress, started_at, updated_at)

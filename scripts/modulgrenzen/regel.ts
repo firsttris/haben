@@ -33,7 +33,10 @@ const OUTSIDE = [`${SERVER}functions${sep}`, `${SERVER}plugins${sep}`, `${sep}sr
 function moduleOf(file: string): { name: string; inner: string } | null {
   const at = file.lastIndexOf(MODULES);
   if (at < 0) return null;
-  const [name, ...rest] = file.slice(at + MODULES.length).split(sep).filter(Boolean);
+  const [name, ...rest] = file
+    .slice(at + MODULES.length)
+    .split(sep)
+    .filter(Boolean);
   if (!name) return null;
   const inner = rest.join("/");
   return { name, inner: inner === "" || inner === "index" ? "index.ts" : inner };

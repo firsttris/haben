@@ -45,12 +45,20 @@ function DocumentsPage() {
       ) : null}
       {inbox?.lastError && (
         <ErrorBanner title="Belege per E-Mail" detail={inbox.lastError}>
-          Prüfe das Postfach in den <Link to="/einstellungen" search={{ bereich: "email" }}>Einstellungen</Link>.
+          Prüfe das Postfach in den{" "}
+          <Link to="/einstellungen" search={{ bereich: "email" }}>
+            Einstellungen
+          </Link>
+          .
         </ErrorBanner>
       )}
       {inbox ? null : (
         <p className="small muted" style={{ margin: 0 }}>
-          Rechnungen per E-Mail? Mit einem <Link to="/einstellungen" search={{ bereich: "email" }}>Postfach für Belege</Link> holt Haben die Anhänge selbst ab.
+          Rechnungen per E-Mail? Mit einem{" "}
+          <Link to="/einstellungen" search={{ bereich: "email" }}>
+            Postfach für Belege
+          </Link>{" "}
+          holt Haben die Anhänge selbst ab.
         </p>
       )}
       <section className="card" aria-label="Belegliste">

@@ -6,8 +6,7 @@ import { itemTax, webBookkeepingVoucher, webContact, webPayments, webSalesDocume
 import { webEntrySchema, type WebEntry } from "./schema.ts";
 import { LexwareWebExportError, readWebExport, webExportSource } from "./source.ts";
 
-const raw = (name: string): unknown =>
-  JSON.parse(readFileSync(new URL(`../../../test-fixtures/lexoffice-web/${name}`, import.meta.url), "utf8"));
+const raw = (name: string): unknown => JSON.parse(readFileSync(new URL(`../../../test-fixtures/lexoffice-web/${name}`, import.meta.url), "utf8"));
 const entry = (name: string): WebEntry => webEntrySchema.parse({ files: [], ...(raw(name) as object) });
 
 const SALES = entry("sales-invoice.json");
@@ -153,7 +152,10 @@ function part(options: { manifest?: object; entries?: Record<string, unknown>; f
 }
 
 describe("Sicherung lesen", () => {
-  const salesWithPdf = { ...(raw("sales-invoice.json") as object), files: [{ path: `dateien/${SALES.list.entityId}/1-RE0042.pdf`, role: "pdf", mimeType: "application/pdf", filename: "Rechnung_RE0042.pdf" }] };
+  const salesWithPdf = {
+    ...(raw("sales-invoice.json") as object),
+    files: [{ path: `dateien/${SALES.list.entityId}/1-RE0042.pdf`, role: "pdf", mimeType: "application/pdf", filename: "Rechnung_RE0042.pdf" }],
+  };
   const purchaseWithFiles = {
     ...(raw("purchase-gross.json") as object),
     files: [

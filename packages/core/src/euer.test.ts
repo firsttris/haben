@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeEuer, euerToCsv, type EuerPayment } from "./euer.ts";
 import { computeInvoiceTotals } from "./invoice.ts";
 
-const amount = (euer: ReturnType<typeof computeEuer>, key: string) =>
-  [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
+const amount = (euer: ReturnType<typeof computeEuer>, key: string) => [...euer.einnahmen, ...euer.ausgaben].find((l) => l.key === key)?.amount ?? 0;
 
 const invoice19 = computeInvoiceTotals([{ quantity: 1000, unitPrice: 400_000, taxRate: 1900 }]);
 const mixed = computeInvoiceTotals([
@@ -65,11 +64,12 @@ describe("computeEuer", () => {
 
   it("Anlagekauf: nur die Vorsteuer ist Ausgabe, abgeschrieben wird über die AfA", () => {
     const auto = computeInvoiceTotals([{ quantity: 1000, unitPrice: 3_000_000, taxRate: 1900 }]);
-    const euer = computeEuer(
-      2026,
-      [{ kind: "document", date: "2026-03-10", paid: auto.gross, totals: auto, category: "anlage" }],
-      { afa: 416_667, gwg: 0, sammelposten: 0, restbuchwert: 0 },
-    );
+    const euer = computeEuer(2026, [{ kind: "document", date: "2026-03-10", paid: auto.gross, totals: auto, category: "anlage" }], {
+      afa: 416_667,
+      gwg: 0,
+      sammelposten: 0,
+      restbuchwert: 0,
+    });
     expect(amount(euer, "vorsteuer")).toBe(570_000);
     expect(amount(euer, "ausgabe:anlage")).toBe(0);
     expect(amount(euer, "afa")).toBe(416_667);

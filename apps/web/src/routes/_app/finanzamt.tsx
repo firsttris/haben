@@ -100,7 +100,9 @@ function FinanzamtPage() {
           <Icon name="info" />
           <span>
             ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.{" "}
-            <Link to="/einstellungen" search={{ bereich: "elster" }}>ERiC einrichten</Link>
+            <Link to="/einstellungen" search={{ bereich: "elster" }}>
+              ERiC einrichten
+            </Link>
           </span>
         </div>
       )}
@@ -149,9 +151,9 @@ function PrepaymentForm({ data }: { data: Data }) {
       <section className="card" aria-labelledby="basis-heading">
         <h2 id="basis-heading">Einkommensteuer-Vorauszahlungen {b.year}</h2>
         <p className="small muted" style={{ margin: 0 }}>
-          Das Finanzamt setzt die Vorauszahlungen (fällig 10.3., 10.6., 10.9. und 10.12.) nach dem letzten Bescheid fest. Verdienst du
-          weniger, kannst du formlos eine Herabsetzung beantragen. Haben schreibt den Antrag mit den Zahlen aus deiner EÜR; du prüfst
-          den Text und schickst ihn als Nachricht an dein Finanzamt.
+          Das Finanzamt setzt die Vorauszahlungen (fällig 10.3., 10.6., 10.9. und 10.12.) nach dem letzten Bescheid fest. Verdienst du weniger, kannst du
+          formlos eine Herabsetzung beantragen. Haben schreibt den Antrag mit den Zahlen aus deiner EÜR; du prüfst den Text und schickst ihn als Nachricht an
+          dein Finanzamt.
         </p>
         <ScrollTable className="report-table">
           <tbody>
@@ -226,8 +228,11 @@ function PrepaymentForm({ data }: { data: Data }) {
             : b.angabenAus < b.year
               ? `Abzüge aus deinen Angaben zur Einkommensteuer ${b.angabenAus}. `
               : ""}
-          Grundlage sind der Gewinn aus der Buchhaltung und der Arbeitslohn aus deinen Angaben; Vermietung und Kapitalerträge fehlen. Eine
-          Schätzung, keine Steuerberechnung. <Link to="/jahreserklaerung/$jahr" params={{ jahr: String(b.year) }}>Angaben bearbeiten</Link>
+          Grundlage sind der Gewinn aus der Buchhaltung und der Arbeitslohn aus deinen Angaben; Vermietung und Kapitalerträge fehlen. Eine Schätzung, keine
+          Steuerberechnung.{" "}
+          <Link to="/jahreserklaerung/$jahr" params={{ jahr: String(b.year) }}>
+            Angaben bearbeiten
+          </Link>
         </p>
         <label className="checkbox">
           <input type="checkbox" checked={usePrognose} onChange={(e) => setUsePrognose(e.target.checked)} />
@@ -236,11 +241,23 @@ function PrepaymentForm({ data }: { data: Data }) {
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <label className="field" style={{ flex: "1 1 200px" }}>
             Bisherige Vorauszahlung je Quartal (€)
-            <input inputMode="decimal" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="laut letztem Bescheid" aria-invalid={current.trim() !== "" && currentCents === null} />
+            <input
+              inputMode="decimal"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              placeholder="laut letztem Bescheid"
+              aria-invalid={current.trim() !== "" && currentCents === null}
+            />
           </label>
           <label className="field" style={{ flex: "1 1 200px" }}>
             Gewünschte Vorauszahlung je Quartal (€)
-            <input inputMode="decimal" value={wanted} onChange={(e) => setWanted(e.target.value)} placeholder="z. B. 1.000,00" aria-invalid={wanted.trim() !== "" && wantedCents === null} />
+            <input
+              inputMode="decimal"
+              value={wanted}
+              onChange={(e) => setWanted(e.target.value)}
+              placeholder="z. B. 1.000,00"
+              aria-invalid={wanted.trim() !== "" && wantedCents === null}
+            />
           </label>
         </div>
         <label className="field">
@@ -248,8 +265,8 @@ function PrepaymentForm({ data }: { data: Data }) {
           <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="z. B. ein großer Auftrag ist weggefallen" />
         </label>
         <p className="small muted" style={{ margin: 0 }}>
-          Die Hochrechnung nimmt den bisherigen Gewinn taggenau aufs Jahr. Die gewünschte Vorauszahlung ist mit einem Viertel der
-          voraussichtlichen Steuer vorbelegt, du kannst sie ändern.
+          Die Hochrechnung nimmt den bisherigen Gewinn taggenau aufs Jahr. Die gewünschte Vorauszahlung ist mit einem Viertel der voraussichtlichen Steuer
+          vorbelegt, du kannst sie ändern.
         </p>
       </section>
       <MessageForm data={data} topic="vorauszahlung" initial={letter} figures={{ ...b, current: currentCents, wanted: wantedCents }} />
@@ -287,8 +304,8 @@ function MessageForm({
       <section className="card" aria-label={TOPIC_LABEL[topic]}>
         <h2>{topic === "vorauszahlung" ? "Antrag" : "Nachricht an das Finanzamt"}</h2>
         <p className="small muted" style={{ margin: 0 }}>
-          An {data.company.finanzamt || "das Finanzamt"} zur Steuernummer {data.company.steuernummer || "–"}. Für Einzelunternehmer ist das
-          meist auch die Steuernummer der Einkommensteuer.
+          An {data.company.finanzamt || "das Finanzamt"} zur Steuernummer {data.company.steuernummer || "–"}. Für Einzelunternehmer ist das meist auch die
+          Steuernummer der Einkommensteuer.
         </p>
         <label className="field">
           Betreff
@@ -296,7 +313,14 @@ function MessageForm({
         </label>
         <label className="field">
           Text
-          <textarea className="autogrow" rows={topic === "vorauszahlung" ? 14 : 10} value={text} onChange={(e) => setText(e.target.value)} maxLength={15_000} required />
+          <textarea
+            className="autogrow"
+            rows={topic === "vorauszahlung" ? 14 : 10}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={15_000}
+            required
+          />
           <span className="small muted">{text.length} von 15.000 Zeichen</span>
         </label>
       </section>
@@ -322,8 +346,7 @@ function BankChangeForm({ data }: { data: Data }) {
       <section className="card" aria-label={TOPIC_LABEL.bankverbindung}>
         <h2>Bankverbindung beim Finanzamt ändern</h2>
         <p className="small muted" style={{ margin: 0 }}>
-          Teilt {data.company.finanzamt || "dem Finanzamt"} zur Steuernummer {data.company.steuernummer || "–"} ein neues Konto für alle
-          Steuerarten mit
+          Teilt {data.company.finanzamt || "dem Finanzamt"} zur Steuernummer {data.company.steuernummer || "–"} ein neues Konto für alle Steuerarten mit
           {data.person ? `, Kontoinhaber ${data.person.vorname} ${data.person.name}` : ""}.
         </p>
         {data.bankIssues.length > 0 && (
@@ -433,8 +456,8 @@ function Postfach({ data }: { data: Data }) {
         <h2 id="postfach-heading">Bescheide aus dem ELSTER-Postfach</h2>
         {data.documents.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
-            Noch nichts abgeholt. Mit „Postfach abrufen“ holst du Bescheide (wenn du in Mein ELSTER der elektronischen Bekanntgabe
-            zugestimmt hast) und Mitteilungen des Finanzamts hierher.
+            Noch nichts abgeholt. Mit „Postfach abrufen“ holst du Bescheide (wenn du in Mein ELSTER der elektronischen Bekanntgabe zugestimmt hast) und
+            Mitteilungen des Finanzamts hierher.
           </p>
         ) : (
           <ScrollTable className="report-table">
@@ -482,8 +505,8 @@ function Postfach({ data }: { data: Data }) {
         </p>
         {pending > 0 && (
           <div className="banner" role="alert">
-            {pending} Abholung{pending === 1 ? "" : "en"} noch nicht bestätigt. Rufe das Postfach erneut ab; ELSTER erwartet die Bestätigung
-            innerhalb von 24 Stunden.
+            {pending} Abholung{pending === 1 ? "" : "en"} noch nicht bestätigt. Rufe das Postfach erneut ab; ELSTER erwartet die Bestätigung innerhalb von 24
+            Stunden.
           </div>
         )}
         <CertificateStatus certificate={data.certificate} />
@@ -505,10 +528,16 @@ function Postfach({ data }: { data: Data }) {
           </button>
         </div>
         {auto.enabled ? (
-          <div className="banner banner-info" role="status" style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <div
+            className="banner banner-info"
+            role="status"
+            style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}
+          >
             <span>
               Automatischer Abruf ist an{auto.since ? ` seit ${formatDate(auto.since)}` : ""}.
-              {auto.lastLive ? ` Letzter Abruf ${formatDateTime(auto.lastLive.createdAt)}${auto.lastLive.ok ? "" : ` (Fehler: ${auto.lastLive.message})`}.` : ""}
+              {auto.lastLive
+                ? ` Letzter Abruf ${formatDateTime(auto.lastLive.createdAt)}${auto.lastLive.ok ? "" : ` (Fehler: ${auto.lastLive.message})`}.`
+                : ""}
             </span>
             <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void turnOff()}>
               Ausschalten
@@ -517,8 +546,8 @@ function Postfach({ data }: { data: Data }) {
         ) : (
           live && (
             <p className="small muted" style={{ margin: 0 }}>
-              Mit gespeicherter PIN ruft Haben das Postfach einmal am Tag selbst ab und bestätigt die Abholung. Die PIN liegt dann
-              verschlüsselt wie das Zertifikat in der Datenbank.
+              Mit gespeicherter PIN ruft Haben das Postfach einmal am Tag selbst ab und bestätigt die Abholung. Die PIN liegt dann verschlüsselt wie das
+              Zertifikat in der Datenbank.
             </p>
           )
         )}
@@ -549,8 +578,14 @@ function History({ data }: { data: Data }) {
                 {m.transferTicket ? ` · Ticket ${m.transferTicket}` : ""}
               </span>
             </summary>
-            {!m.ok && <p className="small" style={{ overflowWrap: "anywhere" }}>{m.message}</p>}
-            <pre className="small" style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: "8px 0 0" }}>{m.text}</pre>
+            {!m.ok && (
+              <p className="small" style={{ overflowWrap: "anywhere" }}>
+                {m.message}
+              </p>
+            )}
+            <pre className="small" style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: "8px 0 0" }}>
+              {m.text}
+            </pre>
           </details>
         ))
       )}

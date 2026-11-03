@@ -10,7 +10,15 @@ describe.skipIf(!testDatabaseUrl)("Berechtigung zum Belegabruf (Postgres)", () =
   let taxpayer: typeof import("../stammdaten/taxpayer.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
-  const person = (idnr: string, vorname: string) => ({ idnr, anrede: "Frau" as const, vorname, name: "Muster", geburtsdatum: "1987-03-01", religion: "11", beruf: "" });
+  const person = (idnr: string, vorname: string) => ({
+    idnr,
+    anrede: "Frau" as const,
+    vorname,
+    name: "Muster",
+    geburtsdatum: "1987-03-01",
+    religion: "11",
+    beruf: "",
+  });
 
   beforeAll(async () => {
     sql = await setupTestDb();
@@ -99,7 +107,9 @@ describe.skipIf(!testDatabaseUrl)("Berechtigung zum Belegabruf (Postgres)", () =
   });
 
   it("braucht Angaben zum Ehegatten und für den Echtabruf ERiC", async () => {
-    await expect(brm.requestBerechtigung(actor, new EricGeprueftClient(), { kind: "send", pin: "1", herstellerId: "12345", gueltigBis: "2028-12-31" })).rejects.toThrow(/Ohne ERiC/);
+    await expect(
+      brm.requestBerechtigung(actor, new EricGeprueftClient(), { kind: "send", pin: "1", herstellerId: "12345", gueltigBis: "2028-12-31" }),
+    ).rejects.toThrow(/Ohne ERiC/);
     await taxpayer.saveTaxpayer(actor, { a: person("65929970489", "Max") });
     await expect(brm.requestBerechtigung(actor, recordingClient(), { kind: "test", pin: "1", gueltigBis: "2028-12-31" })).rejects.toThrow(/Ehegatten/);
     expect(brm.defaultGueltigBis("2026-10-03")).toBe("2028-12-31");

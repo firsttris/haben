@@ -220,7 +220,16 @@ function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbei
     sum(
       ...personen.map(({ v, an }) => {
         const kvAn = lstb(an, (b) => b.kvArbeitnehmer);
-        return sum(v.gkv, v.gpv, v.pkv, v.ppv, Math.floor(kvAn * 0.96), lstb(an, (b) => b.pvArbeitnehmer)) - (v.pkvErstattung ?? 0);
+        return (
+          sum(
+            v.gkv,
+            v.gpv,
+            v.pkv,
+            v.ppv,
+            Math.floor(kvAn * 0.96),
+            lstb(an, (b) => b.pvArbeitnehmer),
+          ) - (v.pkvErstattung ?? 0)
+        );
       }),
     ),
   );
@@ -228,7 +237,11 @@ function vorsorgeAbzug(year: number, personen: { v: PrognoseVorsorge; an?: Arbei
     sonstige,
     ...personen.map(({ v, an }) => {
       const kvAn = lstb(an, (b) => b.kvArbeitnehmer);
-      return sum(v.gkvZusatz, kvAn - Math.floor(kvAn * 0.96), lstb(an, (b) => b.avArbeitnehmer));
+      return sum(
+        v.gkvZusatz,
+        kvAn - Math.floor(kvAn * 0.96),
+        lstb(an, (b) => b.avArbeitnehmer),
+      );
     }),
   );
   const hoechst = sum(...personen.map(({ an }) => (an && an.bescheinigungen.length > 0 ? 1_900_00 : 2_800_00)));

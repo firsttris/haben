@@ -1,13 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import {
-  contactSchema,
-  createContact,
-  getContact,
-  listContacts,
-  setContactArchived,
-  updateContact,
-} from "../modules/stammdaten/index.ts";
+import { contactSchema, createContact, getContact, listContacts, setContactArchived, updateContact } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 
@@ -29,9 +22,7 @@ export const saveContact = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid().nullable(), contact: contactSchema }))
   .handler(async ({ data, context }) => {
-    const saved = data.id
-      ? await updateContact(context.user.id, data.id, data.contact)
-      : await createContact(context.user.id, data.contact);
+    const saved = data.id ? await updateContact(context.user.id, data.id, data.contact) : await createContact(context.user.id, data.contact);
     return { id: saved.id };
   });
 

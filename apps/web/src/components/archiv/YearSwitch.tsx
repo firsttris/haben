@@ -9,7 +9,8 @@ export function YearSwitch({ year, years, search }: { year: number; years: numbe
       {options.map((y) => (
         <Link
           key={y}
-          to="/archiv" activeProps={{}}
+          to="/archiv"
+          activeProps={{}}
           search={{ ...search, jahr: y, seite: undefined }}
           className={y === year ? "chip active" : "chip"}
           aria-current={y === year ? "page" : undefined}

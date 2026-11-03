@@ -151,9 +151,7 @@ async function loadEric(libraryPath: string): Promise<EricApi> {
     EricRueckgabepufferInhalt: lib.func("const char *EricRueckgabepufferInhalt(EricRueckgabepufferHandle puffer)"),
     EricRueckgabepufferFreigeben: lib.func("int EricRueckgabepufferFreigeben(EricRueckgabepufferHandle puffer)"),
     EricHoleFehlerText: lib.func("int EricHoleFehlerText(int fehlerkode, EricRueckgabepufferHandle puffer)"),
-    EricGetHandleToCertificate: lib.func(
-      "int EricGetHandleToCertificate(_Out_ uint32_t *hToken, _Out_ uint32_t *iInfoPinSupport, const char *pathToKeystore)",
-    ),
+    EricGetHandleToCertificate: lib.func("int EricGetHandleToCertificate(_Out_ uint32_t *hToken, _Out_ uint32_t *iInfoPinSupport, const char *pathToKeystore)"),
     EricCloseHandleToCertificate: lib.func("int EricCloseHandleToCertificate(uint32_t hToken)"),
     EricBearbeiteVorgang: lib.func(
       "int EricBearbeiteVorgang(const char *datenpuffer, const char *datenartVersion, uint32_t bearbeitungsFlags, " +
@@ -221,16 +219,7 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
       const rueckgabe = eric.EricRueckgabepufferErzeugen();
       const serverantwort = eric.EricRueckgabepufferErzeugen();
       try {
-        const code = eric.EricBearbeiteVorgang(
-          xml,
-          request.datenartVersion,
-          flags,
-          druck,
-          crypto,
-          datenabholung ? [0] : null,
-          rueckgabe,
-          serverantwort,
-        );
+        const code = eric.EricBearbeiteVorgang(xml, request.datenartVersion, flags, druck, crypto, datenabholung ? [0] : null, rueckgabe, serverantwort);
         return {
           code,
           message: fehlerText(eric, code),
@@ -250,9 +239,7 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
       const bereitstellungen = parsePostfachAntwort(serverResponseXml);
       const anhaenge = bereitstellungen.flatMap((b) => b.anhaenge);
       const dateien =
-        anhaenge.length === 0
-          ? []
-          : await downloadOtto(config, logDir, anhaenge, request.certificatePath!, request.pin!, request.herstellerId ?? "");
+        anhaenge.length === 0 ? [] : await downloadOtto(config, logDir, anhaenge, request.certificatePath!, request.pin!, request.herstellerId ?? "");
       result.postfach = { bereitstellungen, dateien };
     }
     if (request.op === "vast" && code === ERIC_OK) {

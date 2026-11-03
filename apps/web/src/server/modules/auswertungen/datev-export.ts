@@ -11,8 +11,14 @@ import { db, schema } from "../../db/index.ts";
 export class DatevExportError extends UserError {}
 
 export const datevNumbersSchema = z.object({
-  beraterNr: z.string().trim().regex(/^\d{4,7}$/, "Die Beraternummer hat 4 bis 7 Ziffern."),
-  mandantNr: z.string().trim().regex(/^\d{1,5}$/, "Die Mandantennummer hat 1 bis 5 Ziffern."),
+  beraterNr: z
+    .string()
+    .trim()
+    .regex(/^\d{4,7}$/, "Die Beraternummer hat 4 bis 7 Ziffern."),
+  mandantNr: z
+    .string()
+    .trim()
+    .regex(/^\d{1,5}$/, "Die Mandantennummer hat 1 bis 5 Ziffern."),
 });
 
 export async function saveDatevNumbers(actor: string, input: z.input<typeof datevNumbersSchema>): Promise<void> {

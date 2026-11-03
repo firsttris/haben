@@ -115,11 +115,11 @@ export interface EstArbeitnehmer {
 }
 
 export interface EstAngaben {
-  vorsorge: { a: EstVorsorgePerson; b?: EstVorsorgePerson; /** Weitere sonstige Vorsorgeaufwendungen (Haftpflicht, Unfall, Risikoleben) */ sonstige?: Cents };
+  vorsorge: { a: EstVorsorgePerson; b?: EstVorsorgePerson /** Weitere sonstige Vorsorgeaufwendungen (Haftpflicht, Unfall, Risikoleben) */; sonstige?: Cents };
   sonderausgaben: { kirchensteuerGezahlt?: Cents; kirchensteuerErstattet?: Cents; spenden?: Cents };
   /** Krankheitskosten (außergewöhnliche Belastung) */
   krankheitskosten?: Cents;
-  haushaltsnah: { minijobs?: Cents; dienstleistungen?: Cents; /** nur Lohn-, Maschinen- und Fahrtkosten */ handwerker?: Cents };
+  haushaltsnah: { minijobs?: Cents; dienstleistungen?: Cents /** nur Lohn-, Maschinen- und Fahrtkosten */; handwerker?: Cents };
   kinder: EstKind[];
   kap?: EstKap;
   /** Anlage N je Person */
@@ -201,7 +201,9 @@ export function buildEstXml(input: EstXmlInput): string {
   if (!input.iban?.trim()) throw new ElsterEingabeError("Für die Einkommensteuererklärung fehlt die Bankverbindung (IBAN in den Firmendaten).");
   // Ohne Zusammenveranlagung verlangt die Anlage Kind Angaben zum anderen Elternteil, die Haben nicht erfasst
   if (!zusammen && input.angaben.kinder.length > 0) {
-    throw new ElsterEingabeError("Kinder bei Einzelveranlagung: ELSTER verlangt Angaben zum anderen Elternteil, die Haben noch nicht erfasst. Bitte über Mein ELSTER abgeben.");
+    throw new ElsterEingabeError(
+      "Kinder bei Einzelveranlagung: ELSTER verlangt Angaben zum anderen Elternteil, die Haben noch nicht erfasst. Bitte über Mein ELSTER abgeben.",
+    );
   }
 
   const est1a: XmlNode = [
@@ -474,7 +476,16 @@ export function buildEstXml(input: EstXmlInput): string {
         ]
       : null;
   // Die Günstigerprüfung gilt bei Zusammenveranlagung nur, wenn beide sie beantragen
-  const kapB: XmlNode | null = zusammen && k?.guenstigerpruefung ? ["KAP", [["Person", "PersonB"], ["Ant", [["E1900401", "1"]]]]] : null;
+  const kapB: XmlNode | null =
+    zusammen && k?.guenstigerpruefung
+      ? [
+          "KAP",
+          [
+            ["Person", "PersonB"],
+            ["Ant", [["E1900401", "1"]]],
+          ],
+        ]
+      : null;
 
   const vorsorgePersonen: [string, EstVorsorgePerson | undefined][] = [
     ["PersonA", x.vorsorge.a],
@@ -607,7 +618,9 @@ export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
         summe,
         [
           mitKlasse ? ["E0200002", String(list[0]!.steuerklasse)] : null,
-          ...keys.map((key, i): XmlNode => [ids.sum[i]!, i === 0 ? euro(sum(list, key)) : ausdruecklich(key) ? elsterDecimal(sum(list, key)) : mitCent(sum(list, key))]),
+          ...keys.map(
+            (key, i): XmlNode => [ids.sum[i]!, i === 0 ? euro(sum(list, key)) : ausdruecklich(key) ? elsterDecimal(sum(list, key)) : mitCent(sum(list, key))],
+          ),
         ],
       ],
     ];
@@ -643,9 +656,7 @@ export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
         : null,
       posten("Berufsverb", ["E0204001", "E0204003", "E0204002"], "Berufsverbände und Gewerkschaft", (w.berufsverbaende ?? 0) + (w.gewerkschaft ?? 0)),
       posten("Arbeitsmittel", ["E0204401", "E0204402", "E0204403"], "Arbeitsmittel", w.arbeitsmittel),
-      ganz(w.homeofficeTage)
-        ? ["Homeoffice", [[w.keinAndererArbeitsplatz ? "E0206206" : "E0204507", ganz(w.homeofficeTage)]]]
-        : null,
+      ganz(w.homeofficeTage) ? ["Homeoffice", [[w.keinAndererArbeitsplatz ? "E0206206" : "E0204507", ganz(w.homeofficeTage)]]] : null,
       posten("Fortb", ["E0204804", "E0204808", "E0204812"], "Fortbildung", w.fortbildung),
       euro(w.sonstige)
         ? [
@@ -672,8 +683,20 @@ export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
       [
         "ArbL",
         [
-          ...gruppe(klasse1bis5, "LStB_1_5_Einz", "LStB_1_5_Sum", { einz: ["E0200204", "E0200304", "E0200404", "E0200504", "E0200604"], sum: ["E0200201", "E0200301", "E0200401", "E0200501", "E0200601"] }, true),
-          ...gruppe(klasse6, "LStB_6_Einz", "LStB_6_Sum", { einz: ["E0200202", "E0200302", "E0200402", "E0200502", "E0200602"], sum: ["E0200203", "E0200303", "E0200403", "E0200503", "E0200603"] }, false),
+          ...gruppe(
+            klasse1bis5,
+            "LStB_1_5_Einz",
+            "LStB_1_5_Sum",
+            { einz: ["E0200204", "E0200304", "E0200404", "E0200504", "E0200604"], sum: ["E0200201", "E0200301", "E0200401", "E0200501", "E0200601"] },
+            true,
+          ),
+          ...gruppe(
+            klasse6,
+            "LStB_6_Einz",
+            "LStB_6_Sum",
+            { einz: ["E0200202", "E0200302", "E0200402", "E0200502", "E0200602"], sum: ["E0200203", "E0200303", "E0200403", "E0200503", "E0200603"] },
+            false,
+          ),
         ],
       ],
       wk,

@@ -79,7 +79,9 @@ function LegacyVoucherPage() {
         </section>
         <div className="stack">
           <section className="card stack" aria-labelledby="facts-heading">
-            <h2 id="facts-heading" style={{ margin: 0 }}>Angaben</h2>
+            <h2 id="facts-heading" style={{ margin: 0 }}>
+              Angaben
+            </h2>
             <dl className="facts">
               <dt>Kontakt</dt>
               <dd>
@@ -119,14 +121,18 @@ function LegacyVoucherPage() {
                 {voucher.currency !== "EUR" ? ` (${voucher.currency})` : ""}
               </dd>
             </dl>
-            {voucher.categories.length > 0 && (
-              <div className="small muted">Kategorie: {voucher.categories.map((c) => c.name || c.categoryId).join(", ")}</div>
+            {voucher.categories.length > 0 && <div className="small muted">Kategorie: {voucher.categories.map((c) => c.name || c.categoryId).join(", ")}</div>}
+            {voucher.remark && (
+              <p className="small" style={{ margin: 0 }}>
+                {voucher.remark}
+              </p>
             )}
-            {voucher.remark && <p className="small" style={{ margin: 0 }}>{voucher.remark}</p>}
           </section>
           {voucher.payment && (
             <section className="card stack" aria-labelledby="payment-heading">
-              <h2 id="payment-heading" style={{ margin: 0 }}>Zahlungen</h2>
+              <h2 id="payment-heading" style={{ margin: 0 }}>
+                Zahlungen
+              </h2>
               <div className="small">
                 {PAYMENT_STATUS[voucher.payment.status] ?? voucher.payment.status}
                 {voucher.payment.openAmount ? `, offen ${formatEuro(voucher.payment.openAmount)}` : ""}

@@ -36,7 +36,8 @@ function fakeApi() {
     const method = init?.method ?? "GET";
     calls.push({ method, path: url.pathname, query: url.searchParams, body: init?.body ? JSON.parse(String(init.body)) : undefined });
     if (state.expired && url.pathname.startsWith("/accounts/")) return json({ message: "Session expired" }, 401);
-    if (url.pathname === "/aspsps") return json({ aspsps: [{ name: "Testbank", country: "DE", maximum_consent_validity: 90 * 86400, psu_types: ["business", "personal"] }] });
+    if (url.pathname === "/aspsps")
+      return json({ aspsps: [{ name: "Testbank", country: "DE", maximum_consent_validity: 90 * 86400, psu_types: ["business", "personal"] }] });
     if (url.pathname === "/auth") return json({ url: "https://bank.example/login", authorization_id: "a1" });
     if (url.pathname === "/sessions" && method === "POST") {
       state.sessions++;
@@ -62,15 +63,21 @@ function fakeApi() {
     }
     if (url.pathname.startsWith("/sessions/") && method === "DELETE") return new Response(null, { status: 204 });
     const match = /^\/accounts\/([^/]+)\/(transactions|balances)$/.exec(url.pathname);
-    if (match?.[2] === "balances") return json({ balances: [{ balance_amount: { currency: "EUR", amount: "1500.00" }, balance_type: "CLBD", reference_date: "2026-10-01" }] });
+    if (match?.[2] === "balances")
+      return json({ balances: [{ balance_amount: { currency: "EUR", amount: "1500.00" }, balance_type: "CLBD", reference_date: "2026-10-01" }] });
     if (match?.[2] === "transactions") {
       const from = url.searchParams.get("date_from")!;
-      if (match[1]!.startsWith("uid-b") && state.failUntilFallback && from.endsWith("-01-01")) return json({ message: "Wrong transactions period requested" }, 422);
+      if (match[1]!.startsWith("uid-b") && state.failUntilFallback && from.endsWith("-01-01"))
+        return json({ message: "Wrong transactions period requested" }, 422);
       const all = match[1]!.startsWith("uid-c")
         ? []
         : match[1]!.startsWith("uid-a")
-        ? [tx("a1", "2026-09-05", "100.00", "CRDT", "Altbestand"), tx("a2", "2026-09-20", "49.99", "DBIT", "Telefon 9/2026"), tx("a3", "2026-09-28", "200.00", "CRDT", "RE-1")]
-        : [tx("b1", "2026-09-30", "10.00", "CRDT", "Zinsen")];
+          ? [
+              tx("a1", "2026-09-05", "100.00", "CRDT", "Altbestand"),
+              tx("a2", "2026-09-20", "49.99", "DBIT", "Telefon 9/2026"),
+              tx("a3", "2026-09-28", "200.00", "CRDT", "RE-1"),
+            ]
+          : [tx("b1", "2026-09-30", "10.00", "CRDT", "Zinsen")];
       return json({ transactions: all.filter((t) => t.booking_date >= from), continuation_key: null });
     }
     return json({ message: "unbekannt" }, 404);
@@ -88,7 +95,11 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
 
   beforeAll(async () => {
     sql = await setupTestDb();
-    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
     Object.assign(process.env, { ENABLE_BANKING_APP_ID: "app-1", ENABLE_BANKING_KEY: privateKey.replace(/\n/g, "\\n") });
     sync = await import("./bank-sync.ts");
     bank = await import("./bank.ts");
@@ -146,10 +157,12 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     expect(txCalls[2]!.query.get("date_from")).not.toMatch(/-01-01$/);
 
     const accounts = await db.db.select().from(db.schema.bankAccounts);
-    expect(accounts.map((a) => [a.iban, a.name]).sort()).toEqual([
-      [IBAN_B, "Testbank Tagesgeld …2051"],
-      [IBAN_A, "DKB Business"],
-    ].sort());
+    expect(accounts.map((a) => [a.iban, a.name]).sort()).toEqual(
+      [
+        [IBAN_B, "Testbank Tagesgeld …2051"],
+        [IBAN_A, "DKB Business"],
+      ].sort(),
+    );
     const rows = await sql`select purpose, amount from bank_transactions order by booking_date`;
     expect(rows.map((r) => r.purpose)).toEqual(["ALTBESTAND (CSV)", "Telefon 9/2026", "RE-1", "Zinsen"]);
     const imports = await sql`select format, closing_balance from bank_imports where format = 'enablebanking'`;
@@ -308,7 +321,8 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     const result = await connect("code-4", "2026-10-15");
     api.state.newAccount = false;
     expect(result.ok).toBe(true);
-    const from = (prefix: string) => api.calls.find((c) => c.path.startsWith(`/accounts/${prefix}`) && c.path.endsWith("/transactions"))!.query.get("date_from");
+    const from = (prefix: string) =>
+      api.calls.find((c) => c.path.startsWith(`/accounts/${prefix}`) && c.path.endsWith("/transactions"))!.query.get("date_from");
     expect(from("uid-c")).toBe("2026-10-15");
     expect(from("uid-a")).not.toBe("2026-10-15");
     const [connection] = await sync.listConnections();
@@ -382,10 +396,12 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
     });
     expect(await sync.enableBankingSettingsSummary()).toMatchObject({ source: "umgebung", applicationId: "app-1" });
 
-    await expect(sync.saveEnableBankingSettings(actor, { applicationId: "app-2", privateKey: "kein Schlüssel" })).rejects.toThrow(
-      /keine gültige \.pem-Datei/,
-    );
-    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
+    await expect(sync.saveEnableBankingSettings(actor, { applicationId: "app-2", privateKey: "kein Schlüssel" })).rejects.toThrow(/keine gültige \.pem-Datei/);
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
     await expect(sync.saveEnableBankingSettings(actor, { applicationId: "app-2" })).rejects.toThrow(/Schlüssel \(\.pem\) fehlt/);
     await sync.saveEnableBankingSettings(actor, { applicationId: "app-2", privateKey });
     expect(used).toEqual(["app-2"]);
@@ -409,9 +425,14 @@ describe.skipIf(!testDatabaseUrl)("Automatischer Kontoabruf (Postgres)", () => {
 
   it("speichert keinen Zugang, den Enable Banking ablehnt", async () => {
     const { EnableBankingClient } = await import("@haben/import");
-    const reject = (async () => new Response(JSON.stringify({ message: "Invalid JWT" }), { status: 401, headers: { "content-type": "application/json" } })) as typeof fetch;
+    const reject = (async () =>
+      new Response(JSON.stringify({ message: "Invalid JWT" }), { status: 401, headers: { "content-type": "application/json" } })) as typeof fetch;
     sync.setEnableBankingClientFactory((o) => new EnableBankingClient({ ...o, fetch: reject }));
-    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048, privateKeyEncoding: { type: "pkcs8", format: "pem" }, publicKeyEncoding: { type: "spki", format: "pem" } });
+    const { privateKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: "pkcs8", format: "pem" },
+      publicKeyEncoding: { type: "spki", format: "pem" },
+    });
     await expect(sync.saveEnableBankingSettings(actor, { applicationId: "falsch", privateKey })).rejects.toThrow(/lehnt den Zugang ab/);
     const [count] = await sql`select count(*)::int as n from enable_banking_settings`;
     expect(count!.n).toBe(0);

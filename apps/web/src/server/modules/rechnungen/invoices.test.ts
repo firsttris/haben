@@ -79,7 +79,9 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     const usd = { ...draft(), currency: "USD" };
     const waiting = await invoices.createDraft(actor, usd);
     expect(waiting).toMatchObject({ currency: "USD", exchangeRate: null, net: 0, gross: 0 });
-    expect((await invoices.finalizeIssues(waiting.id)).some((i) => /Umrechnungskurs für USD 09\/2026 fehlt|09\/2026 noch nicht veröffentlicht/.test(i))).toBe(true);
+    expect((await invoices.finalizeIssues(waiting.id)).some((i) => /Umrechnungskurs für USD 09\/2026 fehlt|09\/2026 noch nicht veröffentlicht/.test(i))).toBe(
+      true,
+    );
 
     const stammdaten = await import("../stammdaten/index.ts");
     await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-09", rate: "1.0812" }], "bmf");
@@ -90,8 +92,13 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     expect(final.xml).toContain("<ram:InvoiceCurrencyCode>USD</ram:InvoiceCurrencyCode>");
     expect(final.xml).toContain('<ram:TaxTotalAmount currencyID="EUR">166.94</ram:TaxTotalAmount>');
     expect(final.xml).toContain("<ram:GrandTotalAmount>1130.50</ram:GrandTotalAmount>");
-    const booked = await sql`select l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${final.id} order by l.account`;
-    expect(booked.map((l) => [l.account, l.debit - l.credit])).toEqual([["1400", 104_559], ["1776", -16_694], ["8400", -87_865]]);
+    const booked =
+      await sql`select l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id where e.source_id = ${final.id} order by l.account`;
+    expect(booked.map((l) => [l.account, l.debit - l.credit])).toEqual([
+      ["1400", 104_559],
+      ["1776", -16_694],
+      ["8400", -87_865],
+    ]);
 
     // Storno: Kurs der Rechnung, nicht der des Stornomonats
     await stammdaten.storeExchangeRates(actor, [{ currency: "USD", month: "2026-10", rate: "1.2" }], "bmf");
@@ -255,8 +262,17 @@ describe.skipIf(!testDatabaseUrl)("Rechnungen (Postgres)", () => {
     expect(a1).toMatchObject({ number: "2026-001", variant: "abschlag", gross: 357_000 });
     expect(a1.xml).toContain("<ram:TypeCode>326</ram:TypeCode>");
     const other = await contacts.createContact(actor, {
-      kundennummer: "", name: "Alpenblick Media AG", strasse: "Isartorplatz 1", plz: "80331", ort: "München", land: "DE",
-      email: "", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "",
+      name: "Alpenblick Media AG",
+      strasse: "Isartorplatz 1",
+      plz: "80331",
+      ort: "München",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     const b1 = await final({ ...draft([line(50_000)]), contactId: other.id, variant: "abschlag" });
 

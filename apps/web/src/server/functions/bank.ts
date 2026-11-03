@@ -33,12 +33,7 @@ import {
   writeOff,
   writeOffSchema,
 } from "../modules/bank/index.ts";
-import {
-  deleteEnableBankingSettings,
-  enableBankingSettingsSchema,
-  enableBankingSettingsSummary,
-  saveEnableBankingSettings,
-} from "../modules/bank/index.ts";
+import { deleteEnableBankingSettings, enableBankingSettingsSchema, enableBankingSettingsSummary, saveEnableBankingSettings } from "../modules/bank/index.ts";
 import { callbackUrl, enableBankingConfigured, listBanks, listConnections, removeConnection, startConnection, syncConnection } from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
@@ -75,7 +70,13 @@ export const getBankOverview = createServerFn({ method: "GET" })
         learned.has(row.id);
       return {
         ...row,
-        hint: hasSuggestion ? ("vorschlag" as const) : row.open !== row.amount ? ("teilweise" as const) : row.amount < 0 ? ("belegFehlt" as const) : ("offen" as const),
+        hint: hasSuggestion
+          ? ("vorschlag" as const)
+          : row.open !== row.amount
+            ? ("teilweise" as const)
+            : row.amount < 0
+              ? ("belegFehlt" as const)
+              : ("offen" as const),
       };
     });
     const selectedId = data.umsatz ?? transactions.find((t) => t.open !== 0)?.id ?? transactions[0]?.id;
@@ -91,7 +92,9 @@ export const getBankOverview = createServerFn({ method: "GET" })
       /** Sachkonto je Zahlungsdienstleister, zur Anzeige */
       ledgers: Object.fromEntries(
         await Promise.all(
-          accounts.filter((a) => a.ledgerIndex !== null).map(async (a) => [a.id, paymentProviderAccount((await loadCompany()).kontenrahmen, a.ledgerIndex!)] as const),
+          accounts
+            .filter((a) => a.ledgerIndex !== null)
+            .map(async (a) => [a.id, paymentProviderAccount((await loadCompany()).kontenrahmen, a.ledgerIndex!)] as const),
         ),
       ),
       sync: { configured: await enableBankingConfigured(), callbackUrl: callbackUrl(), connections: await listConnections() },
@@ -106,7 +109,10 @@ export const importStatements = createServerFn({ method: "POST" })
     if (files.length === 0) throw new UserError("Keine Datei ausgewählt.");
     if (files.length > 50) throw new UserError("Höchstens 50 Dateien auf einmal.");
     if (files.some((f) => f.size > 20 * 1024 * 1024)) throw new UserError("Eine Datei ist größer als 20 MB.");
-    const accountId = z.uuid().nullable().parse(data.get("accountId") || null);
+    const accountId = z
+      .uuid()
+      .nullable()
+      .parse(data.get("accountId") || null);
     return { files, accountId };
   })
   .handler(async ({ data, context }) => {

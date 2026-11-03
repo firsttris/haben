@@ -49,7 +49,12 @@ describe("Umsatzsteuererklärung (E50)", () => {
   });
 
   it("lässt leere Abschnitte weg und schreibt Überschüsse mit Minus", () => {
-    const xml = buildUstErklaerungXml({ ...base, test: false, versteuerung: "soll", figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 50_000, vorauszahlungen: -40_000 } });
+    const xml = buildUstErklaerungXml({
+      ...base,
+      test: false,
+      versteuerung: "soll",
+      figures: { base19: 0, tax19: 0, base7: 0, tax7: 0, vorsteuer: 50_000, vorauszahlungen: -40_000 },
+    });
     expect(hasTestmerker(xml)).toBe(false);
     expect(tag(xml, "E3002203")).toBe("1");
     expect(xml).not.toContain("<Umsaetze>");
@@ -83,10 +88,46 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     einlagen: 10_000,
   };
   const anlagen: AveuerAnlage[] = [
-    { gruppe: "kfz", bezeichnung: "Tesla Model 3", anschaffung: "2024-03-15", anschaffungskosten: 4_000_000, buchwertBeginn: 3_444_444, afa: 666_667, abgang: 0, buchwertEnde: 2_777_777 },
-    { gruppe: "andere", bezeichnung: "MacBook Pro", anschaffung: "2025-02-01", anschaffungskosten: 233_333, buchwertBeginn: 233_333, afa: 233_333, abgang: 0, buchwertEnde: 0 },
-    { gruppe: "sammelposten", bezeichnung: "Sammelposten 2025", anschaffung: "2025-06-01", anschaffungskosten: 90_000, buchwertBeginn: 90_000, afa: 18_000, abgang: 0, buchwertEnde: 72_000 },
-    { gruppe: "sammelposten", bezeichnung: "Sammelposten 2023", anschaffung: "2023-06-01", anschaffungskosten: 50_000, buchwertBeginn: 30_000, afa: 10_000, abgang: 0, buchwertEnde: 20_000 },
+    {
+      gruppe: "kfz",
+      bezeichnung: "Tesla Model 3",
+      anschaffung: "2024-03-15",
+      anschaffungskosten: 4_000_000,
+      buchwertBeginn: 3_444_444,
+      afa: 666_667,
+      abgang: 0,
+      buchwertEnde: 2_777_777,
+    },
+    {
+      gruppe: "andere",
+      bezeichnung: "MacBook Pro",
+      anschaffung: "2025-02-01",
+      anschaffungskosten: 233_333,
+      buchwertBeginn: 233_333,
+      afa: 233_333,
+      abgang: 0,
+      buchwertEnde: 0,
+    },
+    {
+      gruppe: "sammelposten",
+      bezeichnung: "Sammelposten 2025",
+      anschaffung: "2025-06-01",
+      anschaffungskosten: 90_000,
+      buchwertBeginn: 90_000,
+      afa: 18_000,
+      abgang: 0,
+      buchwertEnde: 72_000,
+    },
+    {
+      gruppe: "sammelposten",
+      bezeichnung: "Sammelposten 2023",
+      anschaffung: "2023-06-01",
+      anschaffungskosten: 50_000,
+      buchwertBeginn: 30_000,
+      afa: 10_000,
+      abgang: 0,
+      buchwertEnde: 20_000,
+    },
   ];
   const allgemein = { artDesBetriebs: "Softwareentwicklung", einkunftsart: "selbstaendig" as const };
 
@@ -113,7 +154,15 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(tag(xml, "E6006701")).toBe("100,00");
     expect(xml).not.toContain("<Kleinunternehmer>");
     expect(xml).not.toContain("<Fremdleistung>");
-    const [allg, bein, baus, gewinnNode, zus, av, vorsatz] = order(xml, ["Allg", "BEin", "BAus", "Ermittlung_Gewinn", "Zus_Angabe_EinzelUntern", "AVEUER", "Vorsatz"]);
+    const [allg, bein, baus, gewinnNode, zus, av, vorsatz] = order(xml, [
+      "Allg",
+      "BEin",
+      "BAus",
+      "Ermittlung_Gewinn",
+      "Zus_Angabe_EinzelUntern",
+      "AVEUER",
+      "Vorsatz",
+    ]);
     expect([allg, bein, baus, gewinnNode, zus, av, vorsatz]).toEqual([...[allg, bein, baus, gewinnNode, zus, av, vorsatz]].sort((a, b) => a! - b!));
     const [stfrei, vereinnahmt, kfz] = order(xml, ["USt_StFrei", "USt_Vereinnahmt_Unentgeltl", "Nutzung_Priv_Kfz"]);
     expect(stfrei! < vereinnahmt! && vereinnahmt! < kfz!).toBe(true);

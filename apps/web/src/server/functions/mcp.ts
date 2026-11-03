@@ -1,6 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createMcpToken, listMcpTokens, MCP_TOOLS, mcpEnabled, mcpTokenInputSchema, recentMcpCalls, revokeMcpToken, setMcpEnabled } from "../modules/mcp/index.ts";
+import {
+  createMcpToken,
+  listMcpTokens,
+  MCP_TOOLS,
+  mcpEnabled,
+  mcpTokenInputSchema,
+  recentMcpCalls,
+  revokeMcpToken,
+  setMcpEnabled,
+} from "../modules/mcp/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 /** Einstellungen → KI-Assistenten: Schalter, Zugänge, letzte Aufrufe und die angebotenen Werkzeuge */

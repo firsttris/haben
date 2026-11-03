@@ -54,9 +54,7 @@ export const saveQuoteDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid().nullable(), draft: quoteDraftSchema }))
   .handler(async ({ data, context }) => {
-    const saved = data.id
-      ? await updateQuoteDraft(context.user.id, data.id, data.draft)
-      : await createQuoteDraft(context.user.id, data.draft);
+    const saved = data.id ? await updateQuoteDraft(context.user.id, data.id, data.draft) : await createQuoteDraft(context.user.id, data.draft);
     return { id: saved.id };
   });
 

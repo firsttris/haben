@@ -71,7 +71,10 @@ test("Rechnung schreiben mit Vorschau", async () => {
 
 test("Bankabgleich mit Vorschlag", async () => {
   await go("/bank");
-  await page.getByRole("link", { name: /Rheinpixel GmbH/ }).first().click();
+  await page
+    .getByRole("link", { name: /Rheinpixel GmbH/ })
+    .first()
+    .click();
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("heading", { name: "Rheinpixel GmbH" })).toBeVisible();
   await expect(page.getByText("Bester Treffer")).toBeVisible();
@@ -81,9 +84,9 @@ test("Bankabgleich mit Vorschlag", async () => {
 test("Beleg mit ausgelesenen Feldern", async () => {
   // Der einzige gebuchte Beleg ist die Mobilfunkrechnung; in der Liste steht der Lieferant, nicht die Datei
   await go("/belege");
-  const href = await page.locator("a[href]").evaluateAll((links) =>
-    links.map((a) => a.getAttribute("href") ?? "").find((h) => /^\/belege\/[0-9a-f-]{36}$/.test(h)),
-  );
+  const href = await page
+    .locator("a[href]")
+    .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? "").find((h) => /^\/belege\/[0-9a-f-]{36}$/.test(h)));
   expect(href, "ein Beleg in der Liste").toBeTruthy();
   await go(href!);
   await shot("belege");

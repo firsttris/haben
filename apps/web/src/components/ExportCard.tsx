@@ -8,8 +8,8 @@ export function ExportCard({ years }: { years: number[] }) {
     <section className="card" aria-labelledby="export-heading">
       <h2 id="export-heading">Jahresarchiv</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Alle Rechnungen, Belege, Buchungen, Bankumsätze und Voranmeldungen eines Jahres als ZIP, mit den unveränderten
-        Originaldateien, CSV-Tabellen und Prüfsummen. Für die Aufbewahrung (10 Jahre) zusätzlich zum Backup ablegen.
+        Alle Rechnungen, Belege, Buchungen, Bankumsätze und Voranmeldungen eines Jahres als ZIP, mit den unveränderten Originaldateien, CSV-Tabellen und
+        Prüfsummen. Für die Aufbewahrung (10 Jahre) zusätzlich zum Backup ablegen.
       </p>
       <label className="field">
         Jahr

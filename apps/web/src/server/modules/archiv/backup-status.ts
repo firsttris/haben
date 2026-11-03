@@ -44,11 +44,7 @@ async function latest(kind: BackupKind, ok?: boolean): Promise<BackupRun | null>
 }
 
 export async function backupOverview(now = new Date()): Promise<BackupOverview> {
-  const [lastBackup, lastCheck, ...lastRuns] = await Promise.all([
-    latest("backup", true),
-    latest("restore_check", true),
-    ...KINDS.map((kind) => latest(kind)),
-  ]);
+  const [lastBackup, lastCheck, ...lastRuns] = await Promise.all([latest("backup", true), latest("restore_check", true), ...KINDS.map((kind) => latest(kind))]);
   const failed = KINDS.flatMap((kind, i) => {
     const run = lastRuns[i];
     return run && !run.ok ? [{ kind, run }] : [];

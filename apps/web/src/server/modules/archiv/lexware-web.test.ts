@@ -129,10 +129,15 @@ describe.skipIf(!testDatabaseUrl)("Umzug über die Web-Oberfläche (Postgres)", 
     expect(run).toMatchObject({ id, status: "fertig" });
     expect(run!.progress).toMatchObject({ contacts: 2, listed: 3, imported: 2, files: 2 });
     expect(run!.progress.failed).toEqual([
-      { lexofficeId: SALES.list.entityId, number: "RE0042", message: "In Lexware Office nicht geladen: HTTP 500 bei /papyrus-rest/vouchers/sales-voucher/10000000-0000-4000-8000-000000000001" },
+      {
+        lexofficeId: SALES.list.entityId,
+        number: "RE0042",
+        message: "In Lexware Office nicht geladen: HTTP 500 bei /papyrus-rest/vouchers/sales-voucher/10000000-0000-4000-8000-000000000001",
+      },
     ]);
 
-    const vouchers = await sql`select number, type, direction, status, net, tax, gross, contact_id, categories, raw->>'taxType' as tax_type from lexoffice_vouchers order by number`;
+    const vouchers =
+      await sql`select number, type, direction, status, net, tax, gross, contact_id, categories, raw->>'taxType' as tax_type from lexoffice_vouchers order by number`;
     expect(vouchers.map((v) => [v.number, v.type, v.status, v.gross, v.tax, v.tax_type])).toEqual([
       ["2025-4711", "purchaseinvoice", "overdue", 13090, 1978, "gross"],
       ["GS-17", "purchasecreditnote", "paidoff", -5950, -950, "net"],
@@ -155,7 +160,8 @@ describe.skipIf(!testDatabaseUrl)("Umzug über die Web-Oberfläche (Postgres)", 
     await lexoffice.startWebImport(actor, parts, { wait: true });
     const run = await lexoffice.latestImport();
     expect(run!.progress).toMatchObject({ contacts: 0, imported: 1, skipped: 2, failed: [] });
-    const [invoice] = await sql`select gross, tax, status, payment, raw->'taxConditions'->>'taxType' as tax_type, raw->'address'->>'city' as city from lexoffice_vouchers where number = 'RE0042'`;
+    const [invoice] =
+      await sql`select gross, tax, status, payment, raw->'taxConditions'->>'taxType' as tax_type, raw->'address'->>'city' as city from lexoffice_vouchers where number = 'RE0042'`;
     expect(invoice).toMatchObject({ gross: 62475, tax: 9975, status: "paid", tax_type: "net", city: "Berlin" });
     expect(invoice!.payment).toMatchObject({
       status: "balanced",
@@ -165,7 +171,8 @@ describe.skipIf(!testDatabaseUrl)("Umzug über die Web-Oberfläche (Postgres)", 
         { type: "manualPayment", amount: 2475 },
       ],
     });
-    const [pdf] = await sql`select f.filename, f.role from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id where v.number = 'RE0042'`;
+    const [pdf] =
+      await sql`select f.filename, f.role from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id where v.number = 'RE0042'`;
     expect(pdf).toMatchObject({ filename: "Rechnung_RE0042.pdf", role: "pdf" });
   });
 

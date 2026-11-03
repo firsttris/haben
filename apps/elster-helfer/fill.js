@@ -45,7 +45,9 @@
 
   /** Vergleichbarer Wert: ohne Leerzeichen und ohne Tausenderpunkte („2.900“ = „2900“, „1.234,56“ = „1234,56“) */
   function normal(wert) {
-    return String(wert).replace(/\s/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "");
+    return String(wert)
+      .replace(/\s/g, "")
+      .replace(/\.(?=\d{3}(?:\D|$))/g, "");
   }
 
   function istMehrfachzeile(name) {
@@ -68,7 +70,7 @@
 
   function beschriftung(doc, el) {
     const label = el.id ? doc.querySelector(`label[for="${CSS.escape(el.id)}"]`) : null;
-    return ((label?.textContent) || el.getAttribute("aria-label") || el.name).trim().replace(/\s+/g, " ");
+    return (label?.textContent || el.getAttribute("aria-label") || el.name).trim().replace(/\s+/g, " ");
   }
 
   function feuern(el, ...typen) {
@@ -185,7 +187,18 @@
       if (!ziel.has(feld.kennung)) ziel.set(feld.kennung, []);
       ziel.get(feld.kennung).push(feld);
     }
-    const ergebnis = { eingetragen: [], uebernehmen: [], gleich: [], abweichend: [], berechnet: [], vonHand: [], andererPerson: [], nichtMoeglich: [], kennungen: [], person: seitenPerson };
+    const ergebnis = {
+      eingetragen: [],
+      uebernehmen: [],
+      gleich: [],
+      abweichend: [],
+      berechnet: [],
+      vonHand: [],
+      andererPerson: [],
+      nichtMoeglich: [],
+      kennungen: [],
+      person: seitenPerson,
+    };
     const gesehen = new Set();
     for (const el of doc.querySelectorAll("input[name], select[name], textarea[name]")) {
       if (el.type === "hidden") continue;

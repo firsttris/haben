@@ -47,7 +47,14 @@ describe("ERiC installieren", () => {
     const dir = join(await tempDir(), "eric");
     const { fn, urls } = fakeFetch(goodJar);
     const progress: InstallProgress[] = [];
-    const result = await installEric({ version: "43.4.6.0", dir, fetch: fn, baseUrl: "http://elster.test/eric", checkPlatform: false, onProgress: (p) => progress.push(p) });
+    const result = await installEric({
+      version: "43.4.6.0",
+      dir,
+      fetch: fn,
+      baseUrl: "http://elster.test/eric",
+      checkPlatform: false,
+      onProgress: (p) => progress.push(p),
+    });
     expect(urls).toEqual(["http://elster.test/eric/eric_43/ERiC-43.4.6.0-Linux-x86_64.jar"]);
     expect(result).toMatchObject({ version: "43.4.6.0", files: 3 });
     const home = ericHomeIn(dir)!;

@@ -24,8 +24,17 @@ describe.skipIf(!testDatabaseUrl)("Textbausteine (Postgres)", () => {
 
   it("legt Kopf- und Fußtexte an, ordnet sie Kunden zu, archiviert und protokolliert", async () => {
     const kunde = await contacts.createContact(actor, {
-      kundennummer: "10001", name: "Nordwerk Software GmbH", strasse: "", plz: "", ort: "Hamburg", land: "DE",
-      email: "", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "10001",
+      name: "Nordwerk Software GmbH",
+      strasse: "",
+      plz: "",
+      ort: "Hamburg",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     const kopf = await blocks.createTextBlock(actor, {
       name: "Rahmenvertrag Phoenix",

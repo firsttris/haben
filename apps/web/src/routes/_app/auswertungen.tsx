@@ -72,7 +72,9 @@ function ReportsPage() {
           <div className="small muted">brutto mit Vorsteuer und USt {formatEuro(euer.totalAusgaben)}</div>
         </div>
         <div className="card">
-          <div className="kpi-label">{euer.gewinn >= 0 ? "Gewinn" : "Verlust"} {year}</div>
+          <div className="kpi-label">
+            {euer.gewinn >= 0 ? "Gewinn" : "Verlust"} {year}
+          </div>
           <div className="kpi-value">{formatEuro(euer.gewinn)}</div>
           <div className="small muted">Einnahmen minus Ausgaben laut EÜR</div>
         </div>
@@ -113,9 +115,15 @@ function ReportsPage() {
             <thead>
               <tr>
                 <th scope="col">Monat</th>
-                <th scope="col" className="num">Einnahmen</th>
-                <th scope="col" className="num">Ausgaben</th>
-                <th scope="col" className="num">Überschuss</th>
+                <th scope="col" className="num">
+                  Einnahmen
+                </th>
+                <th scope="col" className="num">
+                  Ausgaben
+                </th>
+                <th scope="col" className="num">
+                  Überschuss
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -144,8 +152,8 @@ function ReportsPage() {
         <div>
           <h2 id="euer-heading">Einnahmen-Überschuss-Rechnung {year}</h2>
           <p className="small muted" style={{ margin: "4px 0 0" }}>
-            Bruttomethode wie in der Anlage EÜR: vereinnahmte Umsatzsteuer ist Einnahme, gezahlte Vorsteuer und die
-            Umsatzsteuer an das Finanzamt sind Ausgaben ({versteuerung === "ist" ? "Ist" : "Soll"}-Versteuerung ändert daran nichts).
+            Bruttomethode wie in der Anlage EÜR: vereinnahmte Umsatzsteuer ist Einnahme, gezahlte Vorsteuer und die Umsatzsteuer an das Finanzamt sind Ausgaben
+            ({versteuerung === "ist" ? "Ist" : "Soll"}-Versteuerung ändert daran nichts).
           </p>
         </div>
         <ScrollTable className="report-table euer-table">
@@ -153,7 +161,9 @@ function ReportsPage() {
           <thead>
             <tr>
               <th scope="col">Position</th>
-              <th scope="col" className="num">Betrag</th>
+              <th scope="col" className="num">
+                Betrag
+              </th>
             </tr>
           </thead>
           <EuerSection title="Betriebseinnahmen" lines={euer.einnahmen} total={euer.totalEinnahmen} />
@@ -235,13 +245,16 @@ function OpenTable(props: {
           Summe <span className="mono">{formatEuro(props.total)}</span>
           {props.overdue !== 0 && (
             <>
-              {" "}· davon überfällig <span className="mono">{formatEuro(props.overdue)}</span>
+              {" "}
+              · davon überfällig <span className="mono">{formatEuro(props.overdue)}</span>
             </>
           )}
         </div>
       </div>
       {items.length === 0 ? (
-        <p className="muted" style={{ margin: 0 }}>{props.empty}</p>
+        <p className="muted" style={{ margin: 0 }}>
+          {props.empty}
+        </p>
       ) : (
         <div className="table-scroll">
           <ScrollTable className="report-table open-table">
@@ -252,8 +265,12 @@ function OpenTable(props: {
                 <th scope="col">{props.partyLabel}</th>
                 <th scope="col">Datum</th>
                 <th scope="col">Fällig</th>
-                <th scope="col" className="num">Betrag</th>
-                <th scope="col" className="num">Offen</th>
+                <th scope="col" className="num">
+                  Betrag
+                </th>
+                <th scope="col" className="num">
+                  Offen
+                </th>
                 <th scope="col">Status</th>
               </tr>
             </thead>
@@ -271,7 +288,9 @@ function OpenTable(props: {
                       </Link>
                     )}
                   </th>
-                  <td className="ellipsis" title={item.party}>{item.party}</td>
+                  <td className="ellipsis" title={item.party}>
+                    {item.party}
+                  </td>
                   <td>{formatDate(item.date)}</td>
                   <td>{formatDate(item.dueDate)}</td>
                   <td className="num">{formatEuro(item.gross)}</td>
@@ -332,11 +351,7 @@ function MonthlyChart({ year, einnahmen, ausgaben }: { year: number; einnahmen: 
 
   return (
     <div className="chart" ref={chartRef} onPointerLeave={() => setActive(null)}>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        role="group"
-        aria-label={`Säulendiagramm: Einnahmen und Ausgaben je Monat ${year}, netto in Euro`}
-      >
+      <svg viewBox={`0 0 ${W} ${H}`} role="group" aria-label={`Säulendiagramm: Einnahmen und Ausgaben je Monat ${year}, netto in Euro`}>
         <g aria-hidden="true">
           {ticks.map((t) => (
             <g key={t}>

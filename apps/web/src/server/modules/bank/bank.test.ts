@@ -11,10 +11,34 @@ function dkbCsv(rows: string[][], balance = "23.418,72 €", date = "01.10.2026"
   return new TextEncoder().encode(`﻿${header}${columns}${body}\n`);
 }
 
-const incoming = (date: string, from: string, iban: string, purpose: string, amount: string) =>
-  [date, date, "Gebucht", from, "Tristan Teufel", purpose, "Eingang", iban, amount, "", "", ""];
-const outgoing = (date: string, to: string, iban: string, purpose: string, amount: string) =>
-  [date, date, "Gebucht", "Tristan Teufel", to, purpose, "Ausgang", iban, amount, "", "", ""];
+const incoming = (date: string, from: string, iban: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  from,
+  "Tristan Teufel",
+  purpose,
+  "Eingang",
+  iban,
+  amount,
+  "",
+  "",
+  "",
+];
+const outgoing = (date: string, to: string, iban: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  "Tristan Teufel",
+  to,
+  purpose,
+  "Ausgang",
+  iban,
+  amount,
+  "",
+  "",
+  "",
+];
 
 describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   let bank: typeof import("./bank.ts");
@@ -162,10 +186,14 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     });
     // Eine abweichende Buchung ändert die Mehrheit nicht (2 von 3), eine aufgehobene zählt nicht
     await bank.allocate(actor, { kind: "privat", transactionId: third, amount: -510 });
-    expect((await bank.transactionDetail(await id(-520)))?.direct).toMatchObject({ kind: "gebuehren", reasons: ["2 von 3 Umsätzen mit dieser Gegen-IBAN so gebucht"] });
+    expect((await bank.transactionDetail(await id(-520)))?.direct).toMatchObject({
+      kind: "gebuehren",
+      reasons: ["2 von 3 Umsätzen mit dieser Gegen-IBAN so gebucht"],
+    });
     const [privat] = await sql`select id from allocations where transaction_id = ${third}`;
     await bank.reverseAllocation(actor, privat!.id);
-    const [firstFee] = await sql`select a.id from allocations a join bank_transactions t on t.id = a.transaction_id where t.amount = -500 order by t.booking_date limit 1`;
+    const [firstFee] =
+      await sql`select a.id from allocations a join bank_transactions t on t.id = a.transaction_id where t.amount = -500 order by t.booking_date limit 1`;
     await bank.reverseAllocation(actor, firstFee!.id);
     expect((await bank.transactionDetail(await id(-520)))?.direct).toBeNull();
 
@@ -189,11 +217,18 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   it("Gelernte Buchungsart nur in derselben Richtung: Gebühren von Stripe sind keine Vorlage für dessen Auszahlung", async () => {
     const id = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
     const STRIPE = "IE29AIBK93115212345678";
-    await bank.importStatement(actor, { bytes: dkbCsv([
-      outgoing("01.08.26", "Stripe Technology Europe", STRIPE, "Stripe fees 07/2026", "-19,00"),
-      outgoing("01.09.26", "Stripe Technology Europe", STRIPE, "Stripe fees 08/2026", "-21,00"),
-      incoming("05.09.26", "Stripe Technology Europe", STRIPE, "Payout po_123", "500,00"),
-    ]), filename: "a.csv" }, null);
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          outgoing("01.08.26", "Stripe Technology Europe", STRIPE, "Stripe fees 07/2026", "-19,00"),
+          outgoing("01.09.26", "Stripe Technology Europe", STRIPE, "Stripe fees 08/2026", "-21,00"),
+          incoming("05.09.26", "Stripe Technology Europe", STRIPE, "Payout po_123", "500,00"),
+        ]),
+        filename: "a.csv",
+      },
+      null,
+    );
     await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-1900), amount: -1900 });
     await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-2100), amount: -2100 });
     expect((await bank.transactionDetail(await id(50_000)))?.direct).toBeNull();
@@ -202,11 +237,18 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   it("Gelernte Buchungsart nur in derselben Richtung: Mahnerlöse sind keine Vorlage für eine Erstattung an den Kunden", async () => {
     const id = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
     const KUNDE = "DE02100100100006820101";
-    await bank.importStatement(actor, { bytes: dkbCsv([
-      incoming("01.08.26", "Kunde B GmbH", KUNDE, "Mahngebuehr RE 2026-001", "5,00"),
-      incoming("01.09.26", "Kunde B GmbH", KUNDE, "Mahngebuehr RE 2026-002", "7,50"),
-      outgoing("05.09.26", "Kunde B GmbH", KUNDE, "Erstattung Gutschrift GS-1", "-119,00"),
-    ]), filename: "a.csv" }, null);
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          incoming("01.08.26", "Kunde B GmbH", KUNDE, "Mahngebuehr RE 2026-001", "5,00"),
+          incoming("01.09.26", "Kunde B GmbH", KUNDE, "Mahngebuehr RE 2026-002", "7,50"),
+          outgoing("05.09.26", "Kunde B GmbH", KUNDE, "Erstattung Gutschrift GS-1", "-119,00"),
+        ]),
+        filename: "a.csv",
+      },
+      null,
+    );
     await bank.allocate(actor, { kind: "mahnerloes", transactionId: await id(500), amount: 500 });
     await bank.allocate(actor, { kind: "mahnerloes", transactionId: await id(750), amount: 750 });
     expect((await bank.transactionDetail(await id(-11_900)))?.direct).toBeNull();
@@ -215,13 +257,26 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   it("Gelernte Buchungsart: ein aufgeteilter Umsatz zählt einmal", async () => {
     const id = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
     const DKB = "DE88120300000000000001";
-    await bank.importStatement(actor, { bytes: dkbCsv([
-      outgoing("01.07.26", "DKB AG", DKB, "Kontoführung 06/2026", "-10,00"),
-      outgoing("01.08.26", "DKB AG", DKB, "Kontoführung 07/2026", "-5,00"),
-      outgoing("01.09.26", "DKB AG", DKB, "Kontoführung 08/2026", "-5,10"),
-      outgoing("01.10.26", "DKB AG", DKB, "Kontoführung 09/2026", "-5,20"),
-    ]), filename: "a.csv" }, null);
-    await bank.allocateSplit(actor, { transactionId: await id(-1000), parts: [{ kind: "gebuehren", amount: -500 }, { kind: "privat", amount: -500 }] });
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          outgoing("01.07.26", "DKB AG", DKB, "Kontoführung 06/2026", "-10,00"),
+          outgoing("01.08.26", "DKB AG", DKB, "Kontoführung 07/2026", "-5,00"),
+          outgoing("01.09.26", "DKB AG", DKB, "Kontoführung 08/2026", "-5,10"),
+          outgoing("01.10.26", "DKB AG", DKB, "Kontoführung 09/2026", "-5,20"),
+        ]),
+        filename: "a.csv",
+      },
+      null,
+    );
+    await bank.allocateSplit(actor, {
+      transactionId: await id(-1000),
+      parts: [
+        { kind: "gebuehren", amount: -500 },
+        { kind: "privat", amount: -500 },
+      ],
+    });
     await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-500), amount: -500 });
     await bank.allocate(actor, { kind: "gebuehren", transactionId: await id(-510), amount: -510 });
     // Drei frühere Umsätze mit dieser IBAN, alle (teils) Gebühren
@@ -233,16 +288,41 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     const STRIPE = "IE29AIBK93115212345678";
     const { invoice: a } = await finalInvoice(10_000); // 119,00
     const { invoice: b } = await finalInvoice(20_000); // 238,00
-    await bank.importStatement(actor, { bytes: dkbCsv([
-      incoming("10.07.26", "Stripe Technology Europe", STRIPE, "Payout po_1", "116,00"),
-      incoming("10.08.26", "Stripe Technology Europe", STRIPE, "Payout po_2", "234,00"),
-      incoming("10.09.26", "Stripe Technology Europe", STRIPE, "Payout po_3", "4,00"),
-      incoming("10.10.26", "Stripe Technology Europe", STRIPE, "Payout po_4", "873,45"),
-    ]), filename: "a.csv" }, null);
-    await bank.allocateSplit(actor, { transactionId: await id(11_600), parts: [{ kind: "invoice", invoiceId: a.id, amount: 11_900 }, { kind: "gebuehren", amount: -300 }] });
-    await bank.allocateSplit(actor, { transactionId: await id(23_400), parts: [{ kind: "invoice", invoiceId: b.id, amount: 23_800 }, { kind: "gebuehren", amount: -400 }] });
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          incoming("10.07.26", "Stripe Technology Europe", STRIPE, "Payout po_1", "116,00"),
+          incoming("10.08.26", "Stripe Technology Europe", STRIPE, "Payout po_2", "234,00"),
+          incoming("10.09.26", "Stripe Technology Europe", STRIPE, "Payout po_3", "4,00"),
+          incoming("10.10.26", "Stripe Technology Europe", STRIPE, "Payout po_4", "873,45"),
+        ]),
+        filename: "a.csv",
+      },
+      null,
+    );
+    await bank.allocateSplit(actor, {
+      transactionId: await id(11_600),
+      parts: [
+        { kind: "invoice", invoiceId: a.id, amount: 11_900 },
+        { kind: "gebuehren", amount: -300 },
+      ],
+    });
+    await bank.allocateSplit(actor, {
+      transactionId: await id(23_400),
+      parts: [
+        { kind: "invoice", invoiceId: b.id, amount: 23_800 },
+        { kind: "gebuehren", amount: -400 },
+      ],
+    });
     // Mahngebühr eines Kunden über Stripe, ebenfalls abzüglich Gebühr
-    await bank.allocateSplit(actor, { transactionId: await id(400), parts: [{ kind: "mahnerloes", amount: 500 }, { kind: "gebuehren", amount: -100 }] });
+    await bank.allocateSplit(actor, {
+      transactionId: await id(400),
+      parts: [
+        { kind: "mahnerloes", amount: 500 },
+        { kind: "gebuehren", amount: -100 },
+      ],
+    });
     // Ein Eingang von 873,45 € darf nicht als „Kontoführung und Bankgebühren“ angeboten werden
     expect((await bank.transactionDetail(await id(87_345)))?.direct).toBeNull();
   }, 30_000);
@@ -250,17 +330,30 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
   it("Gelernte Buchungsart: IBAN nur in Gegenrichtung bekannt, dann zählt der Name in derselben Richtung", async () => {
     const id = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
     const MAX = "DE02100100100006820199";
-    await bank.importStatement(actor, { bytes: dkbCsv([
-      outgoing("01.07.26", "Max Mustermann", MAX, "Entnahme", "-100,00"),
-      outgoing("01.08.26", "Max Mustermann", MAX, "Entnahme", "-200,00"),
-      incoming("02.07.26", "Max Mustermann", "", "Einlage bar", "300,00"),
-      incoming("02.08.26", "max mustermann", "", "Einlage bar", "400,00"),
-      incoming("05.09.26", "Max Mustermann", MAX, "Einlage", "500,00"),
-      outgoing("05.09.26", "Max Mustermann", MAX, "Entnahme", "-600,00"),
-    ]), filename: "a.csv" }, null);
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([
+          outgoing("01.07.26", "Max Mustermann", MAX, "Entnahme", "-100,00"),
+          outgoing("01.08.26", "Max Mustermann", MAX, "Entnahme", "-200,00"),
+          incoming("02.07.26", "Max Mustermann", "", "Einlage bar", "300,00"),
+          incoming("02.08.26", "max mustermann", "", "Einlage bar", "400,00"),
+          incoming("05.09.26", "Max Mustermann", MAX, "Einlage", "500,00"),
+          outgoing("05.09.26", "Max Mustermann", MAX, "Entnahme", "-600,00"),
+        ]),
+        filename: "a.csv",
+      },
+      null,
+    );
     for (const amount of [-10_000, -20_000, 30_000, 40_000]) await bank.allocate(actor, { kind: "privat", transactionId: await id(amount), amount });
-    expect((await bank.transactionDetail(await id(50_000)))?.direct).toMatchObject({ kind: "privat", reasons: ["2 von 2 Umsätzen von dieser Gegenpartei so gebucht"] });
-    expect((await bank.transactionDetail(await id(-60_000)))?.direct).toMatchObject({ kind: "privat", reasons: ["2 von 2 Umsätzen mit dieser Gegen-IBAN so gebucht"] });
+    expect((await bank.transactionDetail(await id(50_000)))?.direct).toMatchObject({
+      kind: "privat",
+      reasons: ["2 von 2 Umsätzen von dieser Gegenpartei so gebucht"],
+    });
+    expect((await bank.transactionDetail(await id(-60_000)))?.direct).toMatchObject({
+      kind: "privat",
+      reasons: ["2 von 2 Umsätzen mit dieser Gegen-IBAN so gebucht"],
+    });
     const list = await bank.learnedDirectSuggestions([{ id: "x", amount: 0, counterpartyIban: MAX, counterpartyName: "Max Mustermann" }]);
     expect(list.size).toBe(0);
   }, 30_000);
@@ -368,7 +461,10 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     const { invoice, contact } = await finalInvoice(400_000);
     await bank.importStatement(
       actor,
-      { bytes: dkbCsv([incoming("01.10.26", "Nordwerk Software GmbH", "DE02100100100006820101", `RE ${invoice.number} Leistungen August`, "4.760,00")]), filename: "a.csv" },
+      {
+        bytes: dkbCsv([incoming("01.10.26", "Nordwerk Software GmbH", "DE02100100100006820101", `RE ${invoice.number} Leistungen August`, "4.760,00")]),
+        filename: "a.csv",
+      },
       null,
     );
     const [tx] = await sql`select id from bank_transactions`;
@@ -399,9 +495,9 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
       null,
     );
     const [tx] = await sql`select id from bank_transactions`;
-    await expect(
-      bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: invoice.id, amount: 300_000 }),
-    ).rejects.toThrow(/größer als der noch offene Teil/);
+    await expect(bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: invoice.id, amount: 300_000 })).rejects.toThrow(
+      /größer als der noch offene Teil/,
+    );
     await bank.allocate(actor, { kind: "invoice", transactionId: tx!.id, invoiceId: invoice.id, amount: 200_000 });
     // Liste und Filter rechnen den offenen Betrag gleich
     const [txRow] = await sql<{ bank_account_id: string }[]>`select bank_account_id from bank_transactions`;
@@ -442,9 +538,15 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await expect(bank.allocateSplit(actor, { transactionId: tx!.id, parts: [parts[0]!, { kind: "gebuehren", amount: -5_000 }] })).rejects.toThrow(
       /ergeben 4710 €, offen sind 4700 €/,
     );
-    await expect(bank.allocateSplit(actor, { transactionId: tx!.id, parts: [{ ...parts[0]!, amount: 486_000 }, { kind: "gebuehren", amount: -16_000 }] })).rejects.toThrow(
-      /nur noch über 4760 € offen/,
-    );
+    await expect(
+      bank.allocateSplit(actor, {
+        transactionId: tx!.id,
+        parts: [
+          { ...parts[0]!, amount: 486_000 },
+          { kind: "gebuehren", amount: -16_000 },
+        ],
+      }),
+    ).rejects.toThrow(/nur noch über 4760 € offen/);
     expect(Number((await sql`select count(*) as n from allocations`)[0]?.n)).toBe(0);
 
     await bank.allocateSplit(actor, { transactionId: tx!.id, parts });
@@ -509,7 +611,13 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     ).rejects.toThrow(/mindestens zwei Teile/);
     // Und über die App: Aufteilung auf einen schon ganz zugeordneten Umsatz
     await expect(
-      bank.allocateSplit(actor, { transactionId: tx!.id, parts: [{ kind: "privat", amount: 1000 }, { kind: "gebuehren", amount: -1000 }] }),
+      bank.allocateSplit(actor, {
+        transactionId: tx!.id,
+        parts: [
+          { kind: "privat", amount: 1000 },
+          { kind: "gebuehren", amount: -1000 },
+        ],
+      }),
     ).rejects.toThrow(/schon ganz zugeordnet/);
   });
 
@@ -518,7 +626,10 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     // 2 % Skonto: 4.760,00 − 95,20 = 4.664,80
     await bank.importStatement(
       actor,
-      { bytes: dkbCsv([incoming("01.10.26", "Nordwerk Software GmbH", "DE02100100100006820101", `RE ${invoice.number} abzgl. 2 % Skonto`, "4.664,80")]), filename: "a.csv" },
+      {
+        bytes: dkbCsv([incoming("01.10.26", "Nordwerk Software GmbH", "DE02100100100006820101", `RE ${invoice.number} abzgl. 2 % Skonto`, "4.664,80")]),
+        filename: "a.csv",
+      },
       null,
     );
     const [tx] = await sql`select id from bank_transactions`;
@@ -529,7 +640,9 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect((await invoices.listInvoices("2026-10-02")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "bezahlt", open: 0 });
     const balances = async () =>
       Object.fromEntries(
-        (await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l group by l.account having sum(l.debit - l.credit) <> 0 order by 1`).map((r) => [r.account, r.saldo]),
+        (
+          await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l group by l.account having sum(l.debit - l.credit) <> 0 order by 1`
+        ).map((r) => [r.account, r.saldo]),
       );
     // Forderung 0, nicht fällige USt 0, fällig 744,80 = 19 % von 3.920,00
     expect(await balances()).toEqual({ "1200": 466_480, "1776": -74_480, "8400": -400_000, "8730": 8_000 });
@@ -545,7 +658,9 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await sql`update company set versteuerung = 'soll'`;
     const { invoice } = await finalInvoice(400_000);
     await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: invoice.id, date: "2026-10-15", amount: 200_000 });
-    await expect(bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: invoice.id, date: "2026-10-15", amount: 300_000 })).rejects.toThrow(/nur noch über 2760 €/);
+    await expect(bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: invoice.id, date: "2026-10-15", amount: 300_000 })).rejects.toThrow(
+      /nur noch über 2760 €/,
+    );
     expect((await invoices.listInvoices("2026-10-20")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "ueberfaellig", open: 276_000 });
     await bank.writeOff(actor, { kind: "forderungsausfall", invoiceId: invoice.id, date: "2026-10-15" });
     expect((await invoices.listInvoices("2026-10-20")).find((i) => i.id === invoice.id)).toMatchObject({ listStatus: "ausgebucht", open: 0 });
@@ -694,7 +809,9 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await bank.allocateWithRest(actor, { transactionId: first!.id, target: { kind: "document", documentId: more }, rest: "kursdifferenz" });
     await bank.allocateWithRest(actor, { transactionId: second!.id, target: { kind: "document", documentId: less }, rest: "kursdifferenz" });
     const balances = Object.fromEntries(
-      (await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l group by l.account having sum(l.debit - l.credit) <> 0 order by 1`).map((r) => [r.account, r.saldo]),
+      (
+        await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l group by l.account having sum(l.debit - l.credit) <> 0 order by 1`
+      ).map((r) => [r.account, r.saldo]),
     );
     // Verbindlichkeiten erledigt; Vorsteuer 2 × 17,57 € wie gebucht; 0,44 € Aufwand, 1,06 € Ertrag
     expect(balances).toEqual({ "1200": -21_950, "1576": 3_514, "2150": 44, "2660": -106, "4964": 18_498 });
@@ -758,7 +875,10 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     await bank.allocateTransfer(actor, { transactionId: incomingPayout!.id, counterpartId: payout!.id });
 
     const balances = Object.fromEntries(
-      (await sql`select account, sum(debit - credit)::int as saldo from journal_lines group by account having sum(debit - credit) <> 0 order by 1`).map((r) => [r.account, r.saldo]),
+      (await sql`select account, sum(debit - credit)::int as saldo from journal_lines group by account having sum(debit - credit) <> 0 order by 1`).map((r) => [
+        r.account,
+        r.saldo,
+      ]),
     );
     // Erlös voll (4.760), Gebühr Aufwand, Verrechnungskonto 1361 ausgeglichen, auf der Bank die Auszahlung
     expect(balances).toEqual({ "1200": 466_450, "1776": -76_000, "4970": 9_550, "8400": -400_000 });
@@ -775,7 +895,11 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(await bank.importStatement(actor, file([oct]), shopify.id)).toMatchObject({ added: 3 });
     // Überlappender Export: nichts doppelt
     expect(await bank.importStatement(actor, file([sep, oct]), shopify.id)).toMatchObject({ added: 0 });
-    await bank.importStatement(actor, { bytes: dkbCsv([incoming("03.10.26", "Shopify International Ltd", "IE12BOFI90001710000000", "Shopify Payout 98765", "77,71")]), filename: "dkb.csv" }, null);
+    await bank.importStatement(
+      actor,
+      { bytes: dkbCsv([incoming("03.10.26", "Shopify International Ltd", "IE12BOFI90001710000000", "Shopify Payout 98765", "77,71")]), filename: "dkb.csv" },
+      null,
+    );
 
     const [bankSide] = await sql`select id from bank_transactions where amount = 7771`;
     const parts = await sql`select id from bank_transactions where bank_reference like 'payout-98765|%' order by amount`;
@@ -789,9 +913,9 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     // Nur ein Teil reicht nicht, und fremde Umsätze lassen sich nicht als Teile anhängen
     await expect(bank.allocateTransfer(actor, { transactionId: bankSide!.id, counterpartId: parts[0]!.id })).rejects.toThrow(/denselben Betrag/);
     const [charge] = await sql`select id from bank_transactions where amount = 4990`;
-    await expect(bank.allocateTransfer(actor, { transactionId: bankSide!.id, counterpartId: parts[0]!.id, payoutIds: [parts[1]!.id, charge!.id] })).rejects.toThrow(
-      /denselben Betrag|derselben Auszahlung/,
-    );
+    await expect(
+      bank.allocateTransfer(actor, { transactionId: bankSide!.id, counterpartId: parts[0]!.id, payoutIds: [parts[1]!.id, charge!.id] }),
+    ).rejects.toThrow(/denselben Betrag|derselben Auszahlung/);
     await bank.allocateTransfer(actor, { transactionId: bankSide!.id, counterpartId: detail!.counterpart!.id, payoutIds: detail!.counterpart!.payoutIds });
     const transit = await sql`select account, sum(debit - credit)::int as saldo from journal_lines where account in ('1360', '1361') group by account`;
     expect(Object.fromEntries(transit.map((r) => [r.account, r.saldo]))).toEqual({ "1360": 0, "1361": -7_771 });
@@ -899,9 +1023,7 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(items.map((i) => [i.id, i.open])).toEqual([[storno.id, -476_000]]);
     expect((await invoices.listInvoices("2026-10-12")).find((i) => i.id === storno.id)).toMatchObject({ listStatus: "storno", open: -476_000 });
     // Die stornierte Rechnung selbst nimmt keine Erstattung an
-    await expect(
-      bank.allocate(actor, { kind: "invoice", transactionId: refundTx!.id, invoiceId: invoice.id, amount: -476_000 }),
-    ).rejects.toThrow(/storniert/);
+    await expect(bank.allocate(actor, { kind: "invoice", transactionId: refundTx!.id, invoiceId: invoice.id, amount: -476_000 })).rejects.toThrow(/storniert/);
 
     await bank.allocate(actor, { kind: "invoice", transactionId: refundTx!.id, invoiceId: storno.id, amount: -476_000 });
     expect(await bank.openItems()).toEqual([]);

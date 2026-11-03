@@ -10,8 +10,20 @@ function dkbCsv(rows: string[][]) {
   return new TextEncoder().encode(`﻿${header}${columns}${body}\n`);
 }
 
-const row = (date: string, party: string, purpose: string, amount: string) =>
-  [date, date, "Gebucht", party, party, purpose, amount.startsWith("-") ? "Ausgang" : "Eingang", "DE02100100100006820101", amount, "", "", ""];
+const row = (date: string, party: string, purpose: string, amount: string) => [
+  date,
+  date,
+  "Gebucht",
+  party,
+  party,
+  purpose,
+  amount.startsWith("-") ? "Ausgang" : "Eingang",
+  "DE02100100100006820101",
+  amount,
+  "",
+  "",
+  "",
+];
 
 const TODAY = "2026-10-02";
 
@@ -55,7 +67,10 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
               'DE123456789', 'BY', 'DE89370400440532013000', 'ist', 'SKR03', 'selbstaendig', 'Softwareentwicklung')`;
   });
 
-  async function bookedDocument(marker: number, fields: { supplierName: string; documentDate: string; category: "telefon" | "buero" | "software"; payment: "bank" | "privat"; net: number; tax: number }) {
+  async function bookedDocument(
+    marker: number,
+    fields: { supplierName: string; documentDate: string; category: "telefon" | "buero" | "software"; payment: "bank" | "privat"; net: number; tax: number },
+  ) {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, marker]), filename: `beleg-${marker}.jpg` });
     await documents.updateDocument(actor, id, {
       supplierName: fields.supplierName,
@@ -163,10 +178,16 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Heute auf Kleinunternehmer umgestellt: gilt für dieses Jahr, nicht rückwirkend für 2025 (vorjahr.test.ts)
     await sql`update company set kleinunternehmer = true`;
     const thisYear = Number(new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date()).slice(0, 4));
-    expect((await annual.annualOverview(thisYear, `${thisYear + 1}-03-01`)).ust.issues.some((i) => i.tone === "fehler" && /ab 2024 keine/.test(i.text))).toBe(true);
+    expect((await annual.annualOverview(thisYear, `${thisYear + 1}-03-01`)).ust.issues.some((i) => i.tone === "fehler" && /ab 2024 keine/.test(i.text))).toBe(
+      true,
+    );
     expect((await annual.annualOverview(2025, TODAY)).ust.issues.some((i) => /Kleinunternehmer/.test(i.text))).toBe(false);
     // Die Texte je nach Jahr: ab 2024 keine Erklärung, für 2023 noch eine (übers ELSTER-Portal)
-    const issue = (ku: boolean, year: number) => annual.ustIssues(ku, ust, year).map((i) => i.text).join(" ");
+    const issue = (ku: boolean, year: number) =>
+      annual
+        .ustIssues(ku, ust, year)
+        .map((i) => i.text)
+        .join(" ");
     expect(issue(true, 2025)).toMatch(/ab 2024 keine Umsatzsteuererklärung/);
     expect(issue(true, 2023)).toMatch(/Für 2023 gibst du auch als Kleinunternehmer noch eine Umsatzsteuererklärung ab/);
     expect(issue(false, 2025)).not.toMatch(/Kleinunternehmer/);
@@ -202,7 +223,17 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       einlagen: 1_190,
     });
     expect(euer.anlagen).toEqual([
-      { gruppe: "kfz", bezeichnung: "Tesla Model Y", anschaffung: "2024-01-10", anschaffungskosten: 3_600_000, buchwertBeginn: 3_000_000, afa: 600_000, abgang: 0, buchwertEnde: 2_400_000, elektro: true },
+      {
+        gruppe: "kfz",
+        bezeichnung: "Tesla Model Y",
+        anschaffung: "2024-01-10",
+        anschaffungskosten: 3_600_000,
+        buchwertBeginn: 3_000_000,
+        afa: 600_000,
+        abgang: 0,
+        buchwertEnde: 2_400_000,
+        elektro: true,
+      },
     ]);
     expect((await annual.annualOverview(2025, TODAY)).euer.issues).toEqual([]);
     expect(car.id).toBeTruthy();
@@ -229,7 +260,9 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     const tested = await annual.submitAnnual(actor, "euer", 2025, client, { kind: "test", pin: "1234", today: TODAY });
     expect(tested.ok).toBe(true);
     expect(tested.transferTicket).toMatch(/^fake-/);
-    await expect(annual.submitAnnual(actor, "euer", 2025, client, { kind: "send", pin: "1234", herstellerId: "12345", today: TODAY })).rejects.toThrow(/Ohne ERiC/);
+    await expect(annual.submitAnnual(actor, "euer", 2025, client, { kind: "send", pin: "1234", herstellerId: "12345", today: TODAY })).rejects.toThrow(
+      /Ohne ERiC/,
+    );
     await expect(annual.submitAnnual(actor, "euer", 2026, client, { kind: "validate", today: TODAY })).rejects.toThrow(/nach Ablauf/);
 
     const ust = await annual.submitAnnual(actor, "ust", 2025, client, { kind: "validate", today: TODAY });
@@ -251,8 +284,15 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // Eine erfolgreiche Echtübermittlung (hier direkt eingetragen) sperrt weitere
     await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
       values ('ust', 2025, 'send', true, 0, 'ok', '{}', '', '', '')`;
-    const realClient = { validate: client.validate.bind(client), send: client.send.bind(client), fetchPostfach: client.fetchPostfach.bind(client), fetchBelege: client.fetchBelege.bind(client) };
-    await expect(annual.submitAnnual(actor, "ust", 2025, realClient, { kind: "send", pin: "1234", herstellerId: "12345", today: TODAY })).rejects.toThrow(/schon übermittelt/);
+    const realClient = {
+      validate: client.validate.bind(client),
+      send: client.send.bind(client),
+      fetchPostfach: client.fetchPostfach.bind(client),
+      fetchBelege: client.fetchBelege.bind(client),
+    };
+    await expect(annual.submitAnnual(actor, "ust", 2025, realClient, { kind: "send", pin: "1234", herstellerId: "12345", today: TODAY })).rejects.toThrow(
+      /schon übermittelt/,
+    );
     expect((await annual.annualOverview(2025, TODAY)).ust.sent).not.toBeNull();
     await expect(sql`update annual_submissions set ok = false`).rejects.toThrow();
   });
@@ -329,10 +369,18 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
       veranlagung: "zusammen",
       verheiratetSeit: "2015-06-20",
     });
-    const lohn = { steuerklasse: 4 as const, brutto: 4_200_000, lohnsteuer: 612_340, kirchensteuer: 48_987, rvArbeitnehmer: 390_600, rvArbeitgeber: 390_600, kvArbeitnehmer: 341_200 };
-    await expect(
-      incomeTax.saveEstAngaben(actor, 2025, { arbeitnehmer: { b: { bescheinigungen: [{ ...lohn, brutto: 0 }] } } }),
-    ).rejects.toThrow(/Bruttoarbeitslohn/);
+    const lohn = {
+      steuerklasse: 4 as const,
+      brutto: 4_200_000,
+      lohnsteuer: 612_340,
+      kirchensteuer: 48_987,
+      rvArbeitnehmer: 390_600,
+      rvArbeitgeber: 390_600,
+      kvArbeitnehmer: 341_200,
+    };
+    await expect(incomeTax.saveEstAngaben(actor, 2025, { arbeitnehmer: { b: { bescheinigungen: [{ ...lohn, brutto: 0 }] } } })).rejects.toThrow(
+      /Bruttoarbeitslohn/,
+    );
     await incomeTax.saveEstAngaben(actor, 2025, {
       arbeitnehmer: {
         a: { bescheinigungen: [{ steuerklasse: 1, brutto: 200_000 }], werbungskosten: { homeofficeTage: 30 } },
@@ -353,7 +401,10 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
     // 180 Tage in der EÜR plus 30 in Anlage N sind genau 210; ein Tag mehr gibt einen Hinweis
     expect(overview.est.issues.some((i) => /Homeoffice/.test(i.text))).toBe(false);
     await pauschalen.createPauschale(actor, { art: "homeoffice", month: "2025-10", tage: 1 }, TODAY);
-    expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Homeoffice/.test(i.text))).toMatchObject({ tone: "hinweis", link: "/pauschalen" });
+    expect((await annual.annualOverview(2025, TODAY)).est.issues.find((i) => /Homeoffice/.test(i.text))).toMatchObject({
+      tone: "hinweis",
+      link: "/pauschalen",
+    });
 
     const client = new EricGeprueftClient();
     expect((await annual.submitAnnual(actor, "est", 2025, client, { kind: "validate", today: TODAY })).ok).toBe(true);

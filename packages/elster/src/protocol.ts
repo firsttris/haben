@@ -8,6 +8,4 @@ export interface WorkerRequest {
 }
 
 /** Worker → Eltern */
-export type WorkerResponse =
-  | { type: "result"; result: EricRawResult }
-  | { type: "error"; message: string };
+export type WorkerResponse = { type: "result"; result: EricRawResult } | { type: "error"; message: string };

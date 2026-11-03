@@ -27,7 +27,13 @@ function setup(handler: (call: Call) => Response, sleeps: number[] = []) {
     calls.push(call);
     return handler(call);
   }) as typeof fetch;
-  const client = new EnableBankingClient({ applicationId: "app-123", privateKey, fetch: fetchFn, now: () => Date.UTC(2026, 9, 2, 12), sleep: async (ms) => void sleeps.push(ms) });
+  const client = new EnableBankingClient({
+    applicationId: "app-123",
+    privateKey,
+    fetch: fetchFn,
+    now: () => Date.UTC(2026, 9, 2, 12),
+    sleep: async (ms) => void sleeps.push(ms),
+  });
   return { client, calls };
 }
 
@@ -78,7 +84,13 @@ describe("EnableBankingClient", () => {
   it("holt alle Seiten der Umsätze über den continuation_key", async () => {
     const { client, calls } = setup((call) => {
       const key = call.url.searchParams.get("continuation_key");
-      const tx = (id: string) => ({ entry_reference: id, transaction_amount: { currency: "EUR", amount: "1.00" }, credit_debit_indicator: "CRDT", status: "BOOK", booking_date: "2026-10-01" });
+      const tx = (id: string) => ({
+        entry_reference: id,
+        transaction_amount: { currency: "EUR", amount: "1.00" },
+        credit_debit_indicator: "CRDT",
+        status: "BOOK",
+        booking_date: "2026-10-01",
+      });
       return key ? json({ transactions: [tx("b")], continuation_key: null }) : json({ transactions: [tx("a")], continuation_key: "k2" });
     });
     const result = await client.transactions("uid-1", "2026-09-01", "2026-10-02");
@@ -100,11 +112,7 @@ describe("EnableBankingClient", () => {
 
   it("wiederholt lesende Abrufe bei 429/5xx mit Retry-After oder Backoff", async () => {
     const sleeps: number[] = [];
-    const answers = [
-      new Response("", { status: 429, headers: { "retry-after": "7" } }),
-      new Response("", { status: 503 }),
-      json({ balances: [] }),
-    ];
+    const answers = [new Response("", { status: 429, headers: { "retry-after": "7" } }), new Response("", { status: 503 }), json({ balances: [] })];
     const { client, calls } = setup(() => answers.shift()!, sleeps);
     await expect(client.balances("uid-1")).resolves.toEqual([]);
     expect(calls).toHaveLength(3);

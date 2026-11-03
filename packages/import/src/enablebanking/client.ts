@@ -203,7 +203,11 @@ export class EnableBankingClient {
   }
 
   async balances(accountUid: string): Promise<EbBalance[]> {
-    const result = await this.#json("GET", `/accounts/${encodeURIComponent(accountUid)}/balances`, z.looseObject({ balances: z.array(balanceSchema).default([]) }));
+    const result = await this.#json(
+      "GET",
+      `/accounts/${encodeURIComponent(accountUid)}/balances`,
+      z.looseObject({ balances: z.array(balanceSchema).default([]) }),
+    );
     return result.balances;
   }
 

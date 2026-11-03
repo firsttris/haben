@@ -25,7 +25,9 @@ async function previousYearOpen(year: number, q: Db | Tx): Promise<string[]> {
   const [documents] = await q
     .select({ n: count() })
     .from(schema.documents)
-    .where(and(eq(schema.documents.status, "neu"), gte(schema.documents.documentDate, `${year - 1}-01-01`), lt(schema.documents.documentDate, `${year}-01-01`)));
+    .where(
+      and(eq(schema.documents.status, "neu"), gte(schema.documents.documentDate, `${year - 1}-01-01`), lt(schema.documents.documentDate, `${year}-01-01`)),
+    );
   const unbooked = documents?.n ?? 0;
   return [
     pendingAssets > 0 && `AfA für ${pendingAssets === 1 ? "eine Anlage" : `${pendingAssets} Anlagen`}`,
@@ -84,6 +86,9 @@ export async function saveCompany(actor: string, input: CompanyInput, today: str
     const [current] = await tx.select().from(schema.company).where(eq(schema.company.id, 1)).for("update");
     const locked = lockedChange(current!, input, await settingsLocks(today, tx));
     if (locked) throw new UserError(locked);
-    await tx.update(schema.company).set({ ...input, updatedAt: new Date() }).where(eq(schema.company.id, 1));
+    await tx
+      .update(schema.company)
+      .set({ ...input, updatedAt: new Date() })
+      .where(eq(schema.company.id, 1));
   });
 }

@@ -1,12 +1,6 @@
 import { createPrivateKey, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
-import {
-  EnableBankingApiError,
-  EnableBankingClient,
-  enableBankingStatement,
-  type Aspsp,
-  type EnableBankingClientOptions,
-} from "@haben/import";
+import { EnableBankingApiError, EnableBankingClient, enableBankingStatement, type Aspsp, type EnableBankingClientOptions } from "@haben/import";
 import { and, desc, eq, gt, inArray, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { accountForIban, BankError, storeStatement, type ImportResult } from "./bank.ts";
@@ -91,7 +85,12 @@ export async function enableBankingSettingsSummary() {
 }
 
 export const enableBankingSettingsSchema = z.object({
-  applicationId: z.string().trim().min(1, "Application ID fehlt").max(100).regex(/^[A-Za-z0-9-]+$/, "Nur die Application ID, z. B. aus dem Dateinamen der .pem"),
+  applicationId: z
+    .string()
+    .trim()
+    .min(1, "Application ID fehlt")
+    .max(100)
+    .regex(/^[A-Za-z0-9-]+$/, "Nur die Application ID, z. B. aus dem Dateinamen der .pem"),
   /** leer: den gespeicherten Schlüssel behalten */
   privateKey: z.string().max(20_000).optional(),
 });
@@ -115,7 +114,10 @@ export async function saveEnableBankingSettings(actor: string, input: z.input<ty
   }
   const values = { applicationId: data.applicationId, ciphertext: encrypt(new TextEncoder().encode(pem)), updatedAt: new Date() };
   await withActor(actor, (tx) =>
-    tx.insert(schema.enableBankingSettings).values({ id: 1, ...values }).onConflictDoUpdate({ target: schema.enableBankingSettings.id, set: values }),
+    tx
+      .insert(schema.enableBankingSettings)
+      .values({ id: 1, ...values })
+      .onConflictDoUpdate({ target: schema.enableBankingSettings.id, set: values }),
   );
   bankCache = null;
 }
@@ -203,7 +205,9 @@ export async function startConnection(
   await withActor(actor, async (tx) => {
     // Abgebrochene Versuche aufräumen
     await tx.delete(schema.bankConnections).where(eq(schema.bankConnections.status, "wartet"));
-    await tx.insert(schema.bankConnections).values({ aspspName: bank.name, aspspCountry: bank.country, psuType, state, validUntil, fetchFrom: input.fetchFrom ?? null });
+    await tx
+      .insert(schema.bankConnections)
+      .values({ aspspName: bank.name, aspspCountry: bank.country, psuType, state, validUntil, fetchFrom: input.fetchFrom ?? null });
   });
   return { url };
 }
@@ -260,7 +264,8 @@ export async function completeConnection(
   const skipped = session.accounts.length - withIban.length - foreign.length;
   const replaced: { id: string; sessionId: string | null }[] = [];
   const created: string[] = [];
-  const foreignNote = foreign.length > 0 ? `${foreign.length} Konten in Fremdwährung (${[...new Set(foreign)].join(", ")}) werden nicht abgerufen, Haben bucht nur in Euro.` : "";
+  const foreignNote =
+    foreign.length > 0 ? `${foreign.length} Konten in Fremdwährung (${[...new Set(foreign)].join(", ")}) werden nicht abgerufen, Haben bucht nur in Euro.` : "";
   const noAccount = foreignNote ? `Die Bank hat kein Euro-Konto freigegeben. ${foreignNote}` : "Die Bank hat kein Konto mit IBAN freigegeben.";
 
   await withActor(actor, async (tx) => {
@@ -321,7 +326,11 @@ export async function completeConnection(
     (created.length > 0 ? ` Neu angelegt: ${created.join(", ")}. Name und Zweck (z. B. Steuerkonto) legst du unter Bank mit „Name und Zweck“ fest.` : "") +
     (skipped > 0 ? ` ${skipped} Konten ohne IBAN (z. B. Kreditkarten) werden nicht abgerufen.` : "") +
     (foreignNote ? ` ${foreignNote}` : "");
-  return { connectionId: connection.id, ok: sync.error === null, message: (sync.error ?? `${connection.aspspName} verbunden, ${sync.added} neue Umsätze.`) + note };
+  return {
+    connectionId: connection.id,
+    ok: sync.error === null,
+    message: (sync.error ?? `${connection.aspspName} verbunden, ${sync.added} neue Umsätze.`) + note,
+  };
 }
 
 /**
@@ -421,7 +430,8 @@ export async function syncConnection(actor: string, connectionId: string, today 
         transactions = await api.transactions(account.uid, dateFrom, today);
       } catch (error) {
         // Manche Banken geben ohne frische Anmeldung nur 90 Tage heraus
-        if (!fallback || !(error instanceof EnableBankingApiError) || error.status < 400 || error.status >= 500 || error.status === 401 || error.status === 403) throw error;
+        if (!fallback || !(error instanceof EnableBankingApiError) || error.status < 400 || error.status >= 500 || error.status === 401 || error.status === 403)
+          throw error;
         dateFrom = fallback;
         transactions = await api.transactions(account.uid, dateFrom, today);
       }
@@ -469,7 +479,9 @@ export async function runDueBankSyncs(now = new Date()): Promise<{ synced: numbe
       if (result.error) {
         summary.errors.push(`${connection.aspspName}: ${result.error}`);
         // Fehlschlag zählt als Abruf, damit der nächste Versuch erst am nächsten Tag kommt
-        await withActor(BANK_SYNC_ACTOR, (tx) => tx.update(schema.bankConnections).set({ lastSyncAt: now }).where(eq(schema.bankConnections.id, connection.id)));
+        await withActor(BANK_SYNC_ACTOR, (tx) =>
+          tx.update(schema.bankConnections).set({ lastSyncAt: now }).where(eq(schema.bankConnections.id, connection.id)),
+        );
       }
     } catch (error) {
       summary.errors.push(`${connection.aspspName}: ${apiMessage(error)}`);
@@ -513,9 +525,7 @@ export async function removeConnection(actor: string, id: string): Promise<void>
   const [connection] = await db.select().from(schema.bankConnections).where(eq(schema.bankConnections.id, id));
   if (!connection) throw new BankError("Verbindung nicht gefunden.");
   if (connection.ciphertext && (await enableBankingConfigured())) {
-    await (await client())
-      .deleteSession(decrypt(connection.ciphertext).toString("utf8"))
-      .catch(() => undefined);
+    await (await client()).deleteSession(decrypt(connection.ciphertext).toString("utf8")).catch(() => undefined);
   }
   await withActor(actor, (tx) => tx.delete(schema.bankConnections).where(eq(schema.bankConnections.id, id)));
 }

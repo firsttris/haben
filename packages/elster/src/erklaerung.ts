@@ -414,8 +414,7 @@ const SAMMELPOSTEN_VORJAHRE = [
   { kontext: "Sammelposten_VZm4", ak: "E6017404", bwBeginn: "E6017405", afa: "E6017406", bwEnde: undefined },
 ] as const;
 
-const sum = (list: AveuerAnlage[], key: "anschaffungskosten" | "buchwertBeginn" | "afa" | "abgang" | "buchwertEnde") =>
-  list.reduce((s, a) => s + a[key], 0);
+const sum = (list: AveuerAnlage[], key: "anschaffungskosten" | "buchwertBeginn" | "afa" | "abgang" | "buchwertEnde") => list.reduce((s, a) => s + a[key], 0);
 
 function aveuer(year: number, anlagen: AveuerAnlage[]): XmlNode | null {
   const beweglich = (["kfz", "buero", "andere"] as const).map((gruppe) => {
@@ -532,8 +531,7 @@ const RECHTSFORM = { gewerbe: "120", selbstaendig: "140" } as const;
 /** Einkunftsart: 2 = Gewerbebetrieb, 3 = selbständige Arbeit */
 const EINKUNFTSART = { gewerbe: "2", selbstaendig: "3" } as const;
 
-const sumNode = (kontext: string, kz: string, cents: Cents | undefined): XmlNode | null =>
-  cents ? [kontext, [["Sum", [[kz, elsterDecimal(cents)]]]]] : null;
+const sumNode = (kontext: string, kz: string, cents: Cents | undefined): XmlNode | null => (cents ? [kontext, [["Sum", [[kz, elsterDecimal(cents)]]]]] : null);
 
 export function buildEuerXml(input: EuerXmlInput): string {
   const envelopeInput: Envelope = { ...input, datenArt: "EUER" };
@@ -610,7 +608,10 @@ export function buildEuerXml(input: EuerXmlInput): string {
             "Beschr_abziehbar",
             [
               // Der nicht abziehbare Teil steht nur nachrichtlich in der Anlage und muss positiv sein
-              (f.bewirtungNichtAbziehbar ?? 0) > 0 && ["Nicht_abziehbar", [sumNode("Bewirtung", EUER_FIELDS.bewirtungNichtAbziehbar.kz, f.bewirtungNichtAbziehbar)]],
+              (f.bewirtungNichtAbziehbar ?? 0) > 0 && [
+                "Nicht_abziehbar",
+                [sumNode("Bewirtung", EUER_FIELDS.bewirtungNichtAbziehbar.kz, f.bewirtungNichtAbziehbar)],
+              ],
               [
                 "Abziehbar",
                 [
@@ -619,7 +620,9 @@ export function buildEuerXml(input: EuerXmlInput): string {
                   sumNode("Verpflegung", kz("verpflegung"), f.verpflegung),
                   // Ab 2024 eigene Tagespauschale ohne Sum-Ebene, 2023 noch unter „Tätigkeit in der häuslichen Wohnung“
                   input.year >= 2024
-                    ? f.tagespauschale ? ["Tagespauschale_1", [[kz("tagespauschale"), elsterDecimal(f.tagespauschale)]]] : null
+                    ? f.tagespauschale
+                      ? ["Tagespauschale_1", [[kz("tagespauschale"), elsterDecimal(f.tagespauschale)]]]
+                      : null
                     : sumNode("Arbeitszimmer", "E6003101", f.tagespauschale),
                 ],
               ],

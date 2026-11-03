@@ -33,8 +33,26 @@ describe("elsterFelder", () => {
 
   it("nummeriert Mehrfachzeilen wie die Anlagegüter einer Gruppe, einfache Felder bleiben ohne Zeile", () => {
     const anlagen: AveuerAnlage[] = [
-      { gruppe: "andere", bezeichnung: "MacBook Pro", anschaffung: "2025-02-01", anschaffungskosten: 233_333, buchwertBeginn: 233_333, afa: 233_333, abgang: 0, buchwertEnde: 0 },
-      { gruppe: "andere", bezeichnung: "Monitor & Dock", anschaffung: "2025-03-01", anschaffungskosten: 90_000, buchwertBeginn: 90_000, afa: 90_000, abgang: 0, buchwertEnde: 0 },
+      {
+        gruppe: "andere",
+        bezeichnung: "MacBook Pro",
+        anschaffung: "2025-02-01",
+        anschaffungskosten: 233_333,
+        buchwertBeginn: 233_333,
+        afa: 233_333,
+        abgang: 0,
+        buchwertEnde: 0,
+      },
+      {
+        gruppe: "andere",
+        bezeichnung: "Monitor & Dock",
+        anschaffung: "2025-03-01",
+        anschaffungskosten: 90_000,
+        buchwertBeginn: 90_000,
+        afa: 90_000,
+        abgang: 0,
+        buchwertEnde: 0,
+      },
     ];
     const xml = buildEuerXml({
       ...base,

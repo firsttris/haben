@@ -60,7 +60,9 @@ function NewDunningPage() {
     event.preventDefault();
     if (!valid) return;
     void run(async () => {
-      const result = await create({ data: { invoiceId: draft.invoice.id, level, dueDate, fee: parsedFee ?? 0, flatFee, interest: interest || null, intro, closing } });
+      const result = await create({
+        data: { invoiceId: draft.invoice.id, level, dueDate, fee: parsedFee ?? 0, flatFee, interest: interest || null, intro, closing },
+      });
       window.open(`/api/mahnung/${result.id}`, "_blank", "noopener");
       await navigate({ to: "/rechnungen/$id", params: { id: draft.invoice.id } });
     });
@@ -87,11 +89,13 @@ function NewDunningPage() {
             <label className="field">
               Stufe
               <select value={level} onChange={(e) => chooseLevel(Number(e.target.value) as DunningLevel)}>
-                {([1, 2, 3] as const).filter((l) => l >= draft.level).map((l) => (
-                  <option key={l} value={l}>
-                    {DUNNING_LEVELS[l].label}
-                  </option>
-                ))}
+                {([1, 2, 3] as const)
+                  .filter((l) => l >= draft.level)
+                  .map((l) => (
+                    <option key={l} value={l}>
+                      {DUNNING_LEVELS[l].label}
+                    </option>
+                  ))}
               </select>
             </label>
             <label className="field">
@@ -104,7 +108,12 @@ function NewDunningPage() {
             </label>
             <label className="field">
               Verzugszinsen
-              <select value={interest} onChange={(e) => setInterest(e.target.value as CustomerType | "")} disabled={draft.baseRate === null} aria-describedby="interest-hint">
+              <select
+                value={interest}
+                onChange={(e) => setInterest(e.target.value as CustomerType | "")}
+                disabled={draft.baseRate === null}
+                aria-describedby="interest-hint"
+              >
                 <option value="">keine</option>
                 <option value="geschaeftskunde">Geschäftskunde (Basiszins + 9 Prozentpunkte)</option>
                 <option value="verbraucher">Verbraucher (Basiszins + 5 Prozentpunkte)</option>
@@ -162,8 +171,8 @@ function NewDunningPage() {
             <dd className="strong">{formatEuro(amounts.total)}</dd>
           </dl>
           <p className="small muted" style={{ margin: 0 }}>
-            Die Mahnung wird als PDF gespeichert und lässt sich danach nicht mehr ändern. Gebühren und Zinsen sind keine Rechnung: Zahlt der
-            Kunde sie, ordnest du den Mehrbetrag im Bankabgleich „Mahngebühren und Verzugszinsen“ zu.
+            Die Mahnung wird als PDF gespeichert und lässt sich danach nicht mehr ändern. Gebühren und Zinsen sind keine Rechnung: Zahlt der Kunde sie, ordnest
+            du den Mehrbetrag im Bankabgleich „Mahngebühren und Verzugszinsen“ zu.
           </p>
           <div className="actions">
             <button type="submit" className="btn btn-primary" disabled={busy || !valid}>

@@ -27,8 +27,17 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '+49 941 123456',
               '198/113/10010', 'DE123456789', 'BY', 'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;
     const contact = await contacts.createContact(actor, {
-      kundennummer: "10001", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-      email: "rechnung@nordwerk.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "10001",
+      name: "Nordwerk Software GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "rechnung@nordwerk.example",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     contactId = contact.id;
   });
@@ -64,8 +73,22 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
     const rows = await sql`select i.issue_date::text, i.service_from::text, i.service_to::text, i.status, i.note, l.description
       from invoices i join invoice_lines l on l.invoice_id = i.id order by i.issue_date`;
     expect(rows.map((r) => ({ ...r }))).toEqual([
-      { issue_date: "2026-08-31", service_from: "2026-08-01", service_to: "2026-08-31", status: "draft", note: "Abrechnung August 2026", description: "Wartung August 2026" },
-      { issue_date: "2026-09-30", service_from: "2026-09-01", service_to: "2026-09-30", status: "draft", note: "Abrechnung September 2026", description: "Wartung September 2026" },
+      {
+        issue_date: "2026-08-31",
+        service_from: "2026-08-01",
+        service_to: "2026-08-31",
+        status: "draft",
+        note: "Abrechnung August 2026",
+        description: "Wartung August 2026",
+      },
+      {
+        issue_date: "2026-09-30",
+        service_from: "2026-09-01",
+        service_to: "2026-09-30",
+        status: "draft",
+        note: "Abrechnung September 2026",
+        description: "Wartung September 2026",
+      },
     ]);
     const [after] = await sql`select next_date::text, active from recurring_invoices where id = ${created.id}`;
     expect(after).toEqual({ next_date: "2026-10-31", active: true });

@@ -1,15 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import {
-  lexContactSchema,
-  lexPaymentsSchema,
-  lexSalesDocumentSchema,
-  lexVoucherSchema,
-} from "./types.ts";
+import { lexContactSchema, lexPaymentsSchema, lexSalesDocumentSchema, lexVoucherSchema } from "./types.ts";
 import { lexDate, lexToCents, mapContact, mapPayments, mapSalesDocument, mapVoucher } from "./map.ts";
 
-const fixture = (name: string): unknown =>
-  JSON.parse(readFileSync(new URL(`../../test-fixtures/lexoffice/${name}`, import.meta.url), "utf8"));
+const fixture = (name: string): unknown => JSON.parse(readFileSync(new URL(`../../test-fixtures/lexoffice/${name}`, import.meta.url), "utf8"));
 
 const sales = (name: string) => lexSalesDocumentSchema.parse(fixture(name));
 const voucher = (name: string) => lexVoucherSchema.parse(fixture(name));
@@ -44,7 +38,14 @@ describe("mapSalesDocument", () => {
       totalPrice: { currency: "EUR", totalNetAmount: 10000, totalGrossAmount: 11900, totalTaxAmount: 1900 },
       taxAmounts: [{ taxRatePercentage: 19, taxAmount: 1900, netAmount: 10000 }],
       downPaymentDeductions: [
-        { voucherType: "downpaymentinvoice", voucherNumber: "AR0001", receivedNetAmount: 4000, receivedTaxAmount: 760, receivedGrossAmount: 4760, taxRatePercentage: 19 },
+        {
+          voucherType: "downpaymentinvoice",
+          voucherNumber: "AR0001",
+          receivedNetAmount: 4000,
+          receivedTaxAmount: 760,
+          receivedGrossAmount: 4760,
+          taxRatePercentage: 19,
+        },
       ],
     });
     const v = mapSalesDocument("invoice", closing, "f1");
@@ -58,7 +59,14 @@ describe("mapSalesDocument", () => {
       totalPrice: { currency: "EUR", totalNetAmount: 10000, totalGrossAmount: 11900, totalTaxAmount: 1900 },
       taxAmounts: [{ taxRatePercentage: 19, taxAmount: 1900, netAmount: 10000 }],
       downPaymentDeductions: [
-        { voucherType: "downpaymentinvoice", voucherNumber: "AR0002", receivedNetAmount: 1000, receivedTaxAmount: 160, receivedGrossAmount: 1160, taxRatePercentage: 16 },
+        {
+          voucherType: "downpaymentinvoice",
+          voucherNumber: "AR0002",
+          receivedNetAmount: 1000,
+          receivedTaxAmount: 160,
+          receivedGrossAmount: 1160,
+          taxRatePercentage: 16,
+        },
       ],
     });
     const v = mapSalesDocument("invoice", closing, "f2");

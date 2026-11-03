@@ -19,7 +19,7 @@ export function taxIncluded(gross: Cents, rate: BasisPoints): Cents {
   return roundHalfAwayFromZero((gross * rate) / (10_000 + rate));
 }
 
-const formatter =new Intl.NumberFormat("de-DE", {
+const formatter = new Intl.NumberFormat("de-DE", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });

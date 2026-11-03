@@ -65,8 +65,17 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
               'DE89370400440532013000', 'COBADEFFXXX', 'Commerzbank')`;
     contactId = (
       await contacts.createContact(actor, {
-        kundennummer: "10001", name: "Nordwerk Software GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-        email: "buchhaltung@nordwerk.example", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+        kundennummer: "10001",
+        name: "Nordwerk Software GmbH",
+        strasse: "Hafenstraße 5",
+        plz: "20457",
+        ort: "Hamburg",
+        land: "DE",
+        email: "buchhaltung@nordwerk.example",
+        ustId: "",
+        iban: "",
+        leitwegId: "",
+        defaultFormat: null,
       })
     ).id;
   });
@@ -94,8 +103,17 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     rendering.hook = async () => {
       // Ein Kontakt anlegen schreibt einen Audit-Eintrag; mit gesperrter Kette würde das bis zum Commit warten
       await contacts.createContact(actor, {
-        kundennummer: "10002", name: "Südwerk AG", strasse: "Weg 1", plz: "80331", ort: "München", land: "DE",
-        email: "", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+        kundennummer: "10002",
+        name: "Südwerk AG",
+        strasse: "Weg 1",
+        plz: "80331",
+        ort: "München",
+        land: "DE",
+        email: "",
+        ustId: "",
+        iban: "",
+        leitwegId: "",
+        defaultFormat: null,
       });
       writtenMeanwhile = true;
     };
@@ -163,7 +181,11 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
       await released;
     });
     await wait(100);
-    const outcome = (p: Promise<unknown>, ok: string) => p.then(() => ok, (e: Error) => `${e.message} ${(e as { cause?: Error }).cause?.message ?? ""}`);
+    const outcome = (p: Promise<unknown>, ok: string) =>
+      p.then(
+        () => ok,
+        (e: Error) => `${e.message} ${(e as { cause?: Error }).cause?.message ?? ""}`,
+      );
     const finalizing = outcome(invoices.finalizeInvoice(actor, correction.id), "korrigiert");
     await wait(300);
     const cancelling = outcome(invoices.cancelInvoice(actor, original.id, `${year}-06-02`), "storniert");

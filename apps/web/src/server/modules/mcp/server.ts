@@ -85,8 +85,10 @@ function createServer(access: McpAccess): McpServer {
 export async function handleMcpRequest(request: Request): Promise<Response> {
   if (request.method !== "POST") return jsonError(405, "Nur POST; dieser Server hält keine Sitzungen.", { Allow: "POST" });
   const access = await authenticateMcp(request);
-  if (!access) return jsonError(401, "Kein gültiges API-Token. In Haben unter Einstellungen → KI-Assistenten anlegen.", { "WWW-Authenticate": 'Bearer realm="haben"' });
-  if (rateLimited(access.tokenId, Date.now(), await messageCount(request))) return jsonError(429, "Zu viele Anfragen, bitte kurz warten.", { "Retry-After": "60" });
+  if (!access)
+    return jsonError(401, "Kein gültiges API-Token. In Haben unter Einstellungen → KI-Assistenten anlegen.", { "WWW-Authenticate": 'Bearer realm="haben"' });
+  if (rateLimited(access.tokenId, Date.now(), await messageCount(request)))
+    return jsonError(429, "Zu viele Anfragen, bitte kurz warten.", { "Retry-After": "60" });
 
   const server = createServer(access);
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });

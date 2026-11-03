@@ -26,8 +26,10 @@ describe.skipIf(!testDatabaseUrl)("Pauschalen (Postgres)", () => {
   });
 
   const linesOf = async (journalEntryId: string) =>
-    (await sql`select e.date::text as date, e.locked_at is not null as locked, l.account, l.debit, l.credit from journal_lines l
-      join journal_entries e on e.id = l.entry_id where e.id = ${journalEntryId} order by l.debit desc`).map((r) => ({ ...r }));
+    (
+      await sql`select e.date::text as date, e.locked_at is not null as locked, l.account, l.debit, l.credit from journal_lines l
+      join journal_entries e on e.id = l.entry_id where e.id = ${journalEntryId} order by l.debit desc`
+    ).map((r) => ({ ...r }));
 
   it("bucht Homeoffice-Tage zum Monatsende an Privateinlage", async () => {
     const row = await pauschalen.createPauschale(actor, { art: "homeoffice", month: "2026-03", tage: 12 }, today);
@@ -104,11 +106,7 @@ describe.skipIf(!testDatabaseUrl)("Pauschalen (Postgres)", () => {
 
   it("landet in den Zeilen der Anlage EÜR und als Einlage", async () => {
     await pauschalen.createPauschale(actor, { art: "homeoffice", month: "2026-03", tage: 10 }, today);
-    await pauschalen.createPauschale(
-      actor,
-      { art: "fahrt", date: "2026-03-10", description: "Kunde", km: 100, fahrzeug: "pkw", hinUndZurueck: false },
-      today,
-    );
+    await pauschalen.createPauschale(actor, { art: "fahrt", date: "2026-03-10", description: "Kunde", km: 100, fahrzeug: "pkw", hinUndZurueck: false }, today);
     await pauschalen.createPauschale(actor, { art: "verpflegung", date: "2026-03-10", description: "Kunde", tag: "eintaegig" }, today);
     const storno = await pauschalen.createPauschale(actor, { art: "verpflegung", date: "2026-03-11", description: "Kunde", tag: "eintaegig" }, today);
     await pauschalen.reversePauschale(actor, storno.id);

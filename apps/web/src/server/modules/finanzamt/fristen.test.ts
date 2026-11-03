@@ -144,7 +144,16 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
 
   it("schickt eine Test-Mail und behält das Passwort beim Speichern ohne neues", async () => {
     await expect(mail.sendTestMail(actor)).rejects.toThrow(/kein E-Mail-Zugang/);
-    const base = { host: "smtp.example.com", port: 587, secure: false, username: "max", fromAddress: "a@example.com", reminderTo: "b@example.com", remindersEnabled: false, reminderDays: [] };
+    const base = {
+      host: "smtp.example.com",
+      port: 587,
+      secure: false,
+      username: "max",
+      fromAddress: "a@example.com",
+      reminderTo: "b@example.com",
+      remindersEnabled: false,
+      reminderDays: [],
+    };
     await expect(mail.saveMailSettings(actor, base)).rejects.toThrow(/Passwort fehlt/);
     await mail.saveMailSettings(actor, { ...base, password: "geheim" });
     await mail.saveMailSettings(actor, { ...base, port: 2525 });

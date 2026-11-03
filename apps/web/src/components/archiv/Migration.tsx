@@ -46,8 +46,7 @@ const SOURCES = {
   sevdesk: {
     product: "sevDesk",
     keyLabel: "API-Token",
-    keyHelp:
-      "Den API-Token findest du in sevDesk unter Einstellungen → Benutzer, beim jeweiligen Benutzer. Haben liest nur, es ändert nichts in sevDesk.",
+    keyHelp: "Den API-Token findest du in sevDesk unter Einstellungen → Benutzer, beim jeweiligen Benutzer. Haben liest nur, es ändert nichts in sevDesk.",
     removeLabel: "Token entfernen",
     importHelp:
       "Holt alle Kontakte, Rechnungen, Gutschriften und Belege mit ihren PDFs bzw. Belegdateien. Je Beleg sind mehrere Anfragen nötig; bei einigen hundert Belegen dauert das eine Weile, du kannst die Seite währenddessen verlassen. Ein neuer Abruf überspringt alles, was schon da ist.",
@@ -70,8 +69,8 @@ export function Migration({ data }: { data: MigrationData }) {
   return (
     <div className="stack">
       <div className="banner banner-info" role="note">
-        Haben übernimmt alle Jahre aus {config.product}, damit du nach der Kündigung jede Frage des Finanzamts aus Haben beantworten kannst.
-        Kündige erst, wenn der Abgleich unten für jedes Jahr aufgeht. Alles, was hier landet, ist danach unveränderlich.
+        Haben übernimmt alle Jahre aus {config.product}, damit du nach der Kündigung jede Frage des Finanzamts aus Haben beantworten kannst. Kündige erst, wenn
+        der Abgleich unten für jedes Jahr aufgeht. Alles, was hier landet, ist danach unveränderlich.
       </div>
       <div className="chip-row" role="group" aria-label="Bisherige Buchhaltung">
         {(Object.keys(SOURCES) as Source[]).map((s) => (
@@ -81,11 +80,7 @@ export function Migration({ data }: { data: MigrationData }) {
         ))}
       </div>
       {source === "sevdesk" ? (
-        <Connection
-          key="sevdesk"
-          source="sevdesk"
-          connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null}
-        />
+        <Connection key="sevdesk" source="sevdesk" connected={data.sevdeskConnection ? { name: "sevDesk", since: data.sevdeskConnection.createdAt } : null} />
       ) : (
         <Connection
           key="lexoffice"
@@ -104,11 +99,12 @@ export function Migration({ data }: { data: MigrationData }) {
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
           <span className="step-num">4</span>
-          <h2 id="upload-heading" style={{ margin: 0 }}>Exporte ablegen</h2>
+          <h2 id="upload-heading" style={{ margin: 0 }}>
+            Exporte ablegen
+          </h2>
         </div>
         <p className="small muted" style={{ margin: 0 }}>
-          {config.exportsHelp} Die Dateien bleiben unverändert und mit Prüfsumme im Archiv; den Buchungsstapel liest Haben zusätzlich
-          zeilenweise ein.
+          {config.exportsHelp} Die Dateien bleiben unverändert und mit Prüfsumme im Archiv; den Buchungsstapel liest Haben zusätzlich zeilenweise ein.
         </p>
         <ArchiveUpload kinds={data.kinds} />
       </section>
@@ -116,10 +112,14 @@ export function Migration({ data }: { data: MigrationData }) {
         <div className="card stack">
           <div className="step-head">
             <span className="step-num">5</span>
-            <h2 id="check-heading" style={{ margin: 0 }}>Abgleich je Jahr</h2>
+            <h2 id="check-heading" style={{ margin: 0 }}>
+              Abgleich je Jahr
+            </h2>
           </div>
           {data.years.length === 0 ? (
-            <p className="small muted" style={{ margin: 0 }}>Noch nichts übernommen. Der Abgleich erscheint, sobald die ersten Daten aus Schritt 2 oder 4 da sind.</p>
+            <p className="small muted" style={{ margin: 0 }}>
+              Noch nichts übernommen. Der Abgleich erscheint, sobald die ersten Daten aus Schritt 2 oder 4 da sind.
+            </p>
           ) : (
             <div className={ready ? "banner banner-ok" : "banner banner-info"} role="status">
               {ready
@@ -165,7 +165,9 @@ function Connection({ source, connected }: { source: Source; connected: { name: 
     <section className={`card stack${connected ? " step-done" : ""}`} aria-labelledby="connection-heading">
       <div className="step-head">
         <span className="step-num">{connected ? <Icon name="check" /> : "1"}</span>
-        <h2 id="connection-heading" style={{ margin: 0 }}>Verbindung zu {config.product}</h2>
+        <h2 id="connection-heading" style={{ margin: 0 }}>
+          Verbindung zu {config.product}
+        </h2>
       </div>
       {connected ? (
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
@@ -253,7 +255,9 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
     <section className={`card stack${done ? " step-done" : ""}`} aria-labelledby="import-heading">
       <div className="step-head">
         <span className="step-num">{done ? <Icon name="check" /> : "2"}</span>
-        <h2 id="import-heading" style={{ margin: 0 }}>Kontakte, Rechnungen und Belege abrufen</h2>
+        <h2 id="import-heading" style={{ margin: 0 }}>
+          Kontakte, Rechnungen und Belege abrufen
+        </h2>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
         {config.importHelp}
@@ -435,17 +439,20 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
           </div>
           <p className="small muted">
             Aus den übernommenen Belegen berechnet:{" "}
-            {versteuerung === "ist" ? "Einnahmen nach Zahlungsdatum (Ist-Versteuerung)" : "Einnahmen nach Rechnungsdatum (Soll-Versteuerung)"},
-            Vorsteuer nach Belegdatum. Kz 21, 41 und 60 zählen immer nach Belegdatum. „Steuerfrei“ gehört in Kz 48, wenn die Umsätze nach
-            § 4 Nr. 8–28 UStG steuerfrei sind, und fehlt bei Kleinunternehmern ganz; „OSS“ meldest du nicht in der Voranmeldung. Kleine
-            Abweichungen entstehen, wenn in {product} nachträglich korrigiert wurde.
+            {versteuerung === "ist" ? "Einnahmen nach Zahlungsdatum (Ist-Versteuerung)" : "Einnahmen nach Rechnungsdatum (Soll-Versteuerung)"}, Vorsteuer nach
+            Belegdatum. Kz 21, 41 und 60 zählen immer nach Belegdatum. „Steuerfrei“ gehört in Kz 48, wenn die Umsätze nach § 4 Nr. 8–28 UStG steuerfrei sind,
+            und fehlt bei Kleinunternehmern ganz; „OSS“ meldest du nicht in der Voranmeldung. Kleine Abweichungen entstehen, wenn in {product} nachträglich
+            korrigiert wurde.
           </p>
         </details>
       )}
       {year.year === new Date().getFullYear() && year.lastInvoiceNumber && (
         <p className="small" style={{ margin: 0 }}>
           Deine Rechnungsnummern sollen lückenlos weiterlaufen: Stelle die nächste Nummer in den{" "}
-          <Link to="/einstellungen" search={{ bereich: "rechnungen" }}>Einstellungen</Link> auf die Nummer nach {year.lastInvoiceNumber}.
+          <Link to="/einstellungen" search={{ bereich: "rechnungen" }}>
+            Einstellungen
+          </Link>{" "}
+          auf die Nummer nach {year.lastInvoiceNumber}.
         </p>
       )}
     </section>

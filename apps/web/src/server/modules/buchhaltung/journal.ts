@@ -1,12 +1,4 @@
-import {
-  ACCOUNT_NAMES,
-  ACCOUNTS,
-  ASSET_ACCOUNT_NAMES,
-  EXPENSE_CATEGORIES,
-  PAUSCHALE_KONTEN,
-  PRIVATE_USE_ACCOUNT_NAMES,
-  type Kontenrahmen,
-} from "@haben/core";
+import { ACCOUNT_NAMES, ACCOUNTS, ASSET_ACCOUNT_NAMES, EXPENSE_CATEGORIES, PAUSCHALE_KONTEN, PRIVATE_USE_ACCOUNT_NAMES, type Kontenrahmen } from "@haben/core";
 import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 
@@ -58,7 +50,12 @@ export async function loadJournal(year: number, month: number) {
     ? await db
         .select()
         .from(schema.journalLines)
-        .where(inArray(schema.journalLines.entryId, entries.map((e) => e.id)))
+        .where(
+          inArray(
+            schema.journalLines.entryId,
+            entries.map((e) => e.id),
+          ),
+        )
         .orderBy(asc(schema.journalLines.credit), asc(schema.journalLines.account))
     : [];
   return entries.map((entry) => ({
@@ -68,9 +65,7 @@ export async function loadJournal(year: number, month: number) {
     sourceType: entry.sourceType,
     sourceId: entry.sourceId,
     reversal: entry.reversesId !== null,
-    lines: lines
-      .filter((l) => l.entryId === entry.id)
-      .map((l) => ({ ...l, name: accountName(entry.kontenrahmen, l.account) })),
+    lines: lines.filter((l) => l.entryId === entry.id).map((l) => ({ ...l, name: accountName(entry.kontenrahmen, l.account) })),
   }));
 }
 

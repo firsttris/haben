@@ -48,8 +48,8 @@ export function LogoCard({ info }: { info: Info }) {
     <section className="card" aria-labelledby="logo-heading">
       <h2 id="logo-heading">Logo</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Erscheint oben rechts im Briefkopf, höchstens 18 mm hoch und 60 mm breit. PNG (gern mit transparentem Hintergrund) oder JPEG, bis 1 MB.
-        Schon festgeschriebene Belege behalten ihr PDF.
+        Erscheint oben rechts im Briefkopf, höchstens 18 mm hoch und 60 mm breit. PNG (gern mit transparentem Hintergrund) oder JPEG, bis 1 MB. Schon
+        festgeschriebene Belege behalten ihr PDF.
       </p>
       {info ? (
         <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
@@ -73,10 +73,17 @@ export function LogoCard({ info }: { info: Info }) {
           <input type="file" accept="image/png,image/jpeg" onChange={onFile} disabled={busy} className="visually-hidden" aria-label="Logodatei" />
         </label>
         {info && (
-          <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void run(async () => {
+          <button
+            type="button"
+            className="btn btn-danger"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
                 await remove();
                 return "Logo entfernt.";
-              })}>
+              })
+            }
+          >
             Entfernen
           </button>
         )}

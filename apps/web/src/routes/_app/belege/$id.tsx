@@ -23,13 +23,7 @@ import { Icon } from "../../../components/Icon.tsx";
 import { formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
-import {
-  bookDocumentFn,
-  deleteDocumentFn,
-  getDocumentDetail,
-  reextractDocument,
-  saveDocument,
-} from "../../../server/functions/documents.ts";
+import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
 
 export const Route = createFileRoute("/_app/belege/$id")({
   /** geprueft: nach dem Buchen war kein Beleg mehr „Zu prüfen“ */
@@ -146,7 +140,8 @@ function DocumentPage() {
     function onStart(event: TouchEvent) {
       const target = event.target as HTMLElement;
       const touch = event.touches[0];
-      start = event.touches.length === 1 && touch && !target.closest("input, select, textarea, [contenteditable]") ? { x: touch.clientX, y: touch.clientY } : null;
+      start =
+        event.touches.length === 1 && touch && !target.closest("input, select, textarea, [contenteditable]") ? { x: touch.clientX, y: touch.clientY } : null;
     }
     function onEnd(event: TouchEvent) {
       const touch = event.changedTouches[0];
@@ -310,16 +305,17 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const rate = exchangeRate.trim() ? parseExchangeRate(exchangeRate) : null;
   const currencyValid = CURRENCY_CODE.test(currencyCode) && (!foreign || !exchangeRate.trim() || rate !== null);
   const valid =
-    parsed.every((p) => p.net !== null && p.tax !== null) &&
-    new Set(rows.map((r) => r.taxRate)).size === rows.length &&
-    privateShareValid &&
-    currencyValid;
+    parsed.every((p) => p.net !== null && p.tax !== null) && new Set(rows.map((r) => r.taxRate)).size === rows.length && privateShareValid && currencyValid;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
   const gross = valid ? parsed.reduce((s, p) => s + p.net! + (reverseCharge ? 0 : p.tax!), 0) : null;
   // Fremdwährung: dieselbe Umrechnung wie beim Speichern, damit die Vorschau mit dem Gebuchten übereinstimmt
   const euroRows =
     valid && foreign && rate
-      ? convertForeignAmounts(parsed.map((p) => ({ taxRate: p.taxRate, originalNet: p.net!, originalTax: p.tax! })), rate, Boolean(reverseCharge))
+      ? convertForeignAmounts(
+          parsed.map((p) => ({ taxRate: p.taxRate, originalNet: p.net!, originalTax: p.tax! })),
+          rate,
+          Boolean(reverseCharge),
+        )
       : null;
   const euroGross = euroRows ? euroRows.reduce((s, e) => s + e.net + (reverseCharge ? 0 : e.tax), 0) : null;
   // Lieferant mit USt-IdNr. aus einem anderen EU-Land und keine Steuer auf dem Beleg: vermutlich § 13b
@@ -397,9 +393,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           amounts: parsed
             .filter((p) => p.net !== 0 || p.tax !== 0)
             .map((p) =>
-              foreign
-                ? { taxRate: p.taxRate, net: 0, tax: 0, originalNet: p.net!, originalTax: p.tax! }
-                : { taxRate: p.taxRate, net: p.net!, tax: p.tax! },
+              foreign ? { taxRate: p.taxRate, net: 0, tax: 0, originalNet: p.net!, originalTax: p.tax! } : { taxRate: p.taxRate, net: p.net!, tax: p.tax! },
             ),
         },
       },
@@ -544,7 +538,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             </select>
             {data.categoryHint && (
               <span className="small">
-                Bisher {data.categoryHint.count === data.categoryHint.total ? `${data.categoryHint.count}×` : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
+                Bisher{" "}
+                {data.categoryHint.count === data.categoryHint.total
+                  ? `${data.categoryHint.count}×`
+                  : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
                 als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht
                 {category !== data.categoryHint.category && (
                   <>
@@ -630,9 +627,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           </select>
           {reverseCharge ? (
             <span id="rc-hint" className="small">
-              Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem
-              Netto, meldet sie in Kz {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht sie zugleich als Vorsteuer ab (Kz 67).
-              Bezahlt wird nur der Nettobetrag.
+              Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz{" "}
+              {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht sie zugleich als Vorsteuer ab (Kz 67). Bezahlt wird nur der Nettobetrag.
             </span>
           ) : (
             looksLikeReverseCharge && (
@@ -686,10 +682,10 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   <strong>{describeExchangeRate(doc.currency, doc.exchangeRate, doc.exchangeRateSource, doc.exchangeRateDate)}</strong>.{" "}
                 </>
               )}
-              Beträge unten in {currencyCode || "der Fremdwährung"}, wie auf dem Beleg. Haben rechnet sie mit dem Kurs in Euro um und bucht nur
-              Euro. Lässt du den Kurs leer, nimmt Haben den Umsatzsteuer-Umrechnungskurs des BMF für den Monat des Belegdatums (§ 16 Abs. 6 UStG),
-              sobald er veröffentlicht ist{data.tageskurs ? "; mit gestattetem Tageskurs trägst du Kurs und Kursdatum ein" : ""}. Bei § 13b wird die
-              Steuer aus dem umgerechneten Netto berechnet.
+              Beträge unten in {currencyCode || "der Fremdwährung"}, wie auf dem Beleg. Haben rechnet sie mit dem Kurs in Euro um und bucht nur Euro. Lässt du
+              den Kurs leer, nimmt Haben den Umsatzsteuer-Umrechnungskurs des BMF für den Monat des Belegdatums (§ 16 Abs. 6 UStG), sobald er veröffentlicht ist
+              {data.tageskurs ? "; mit gestattetem Tageskurs trägst du Kurs und Kursdatum ein" : ""}. Bei § 13b wird die Steuer aus dem umgerechneten Netto
+              berechnet.
             </span>
           )}
         </div>
@@ -782,7 +778,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             )}
           </div>
         </div>
-        <p className="small muted" style={{ margin: 0 }}>Gutschriften mit Minus eingeben.</p>
+        <p className="small muted" style={{ margin: 0 }}>
+          Gutschriften mit Minus eingeben.
+        </p>
         {category !== "anlage" && (
           <label className="field" style={{ maxWidth: 220 }}>
             Privatanteil in %
@@ -857,11 +855,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             {confirmingDelete ? "Endgültig löschen" : "Löschen"}
           </button>
           <label className="checkbox small" style={{ flexBasis: "100%" }}>
-            <input
-              type="checkbox"
-              checked={continueAfterBooking}
-              onChange={(e) => writeContinuePreference(e.target.checked)}
-            />
+            <input type="checkbox" checked={continueAfterBooking} onChange={(e) => writeContinuePreference(e.target.checked)} />
             Nach dem Buchen zum nächsten offenen Beleg
           </label>
           <span className="small muted pointer-fine" style={{ flexBasis: "100%" }}>

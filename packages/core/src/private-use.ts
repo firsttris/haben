@@ -71,10 +71,7 @@ export function privateUseMonth(use: CarPrivateUse): PrivateUseMonth {
  * Monate eines Jahres (1–12), in denen die Pauschale anfällt: ab dem Monat der Anschaffung bzw. der
  * Übernahme bis einschließlich des Abgangsmonats. Angefangene Monate zählen voll.
  */
-export function privateUseMonths(
-  car: { acquisitionDate: string; openingDate?: string | null; disposalDate?: string | null },
-  year: number,
-): number[] {
+export function privateUseMonths(car: { acquisitionDate: string; openingDate?: string | null; disposalDate?: string | null }, year: number): number[] {
   const startDate = car.openingDate && car.openingDate > car.acquisitionDate ? car.openingDate : car.acquisitionDate;
   const start = Number(startDate.slice(0, 4)) * 12 + Number(startDate.slice(5, 7)) - 1;
   const end = car.disposalDate ? Number(car.disposalDate.slice(0, 4)) * 12 + Number(car.disposalDate.slice(5, 7)) - 1 : Infinity;
@@ -102,7 +99,6 @@ export const PRIVATE_USE_ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, stri
     "4639": "Verwendung von Gegenständen außerhalb des Unternehmens ohne USt (Kfz-Nutzung)",
   },
 };
-
 
 /**
  * Buchung eines Monats: Privatentnahmen an Erlöse aus Kfz-Nutzung (mit USt bis zur Höhe der

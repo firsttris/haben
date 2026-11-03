@@ -2,16 +2,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { checkBalanceContinuity, parseStatement, transactionHash, withDedupHashes } from "./index.ts";
 
-const fixture = (name: string) =>
-  new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
+const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`../test-fixtures/${name}`, import.meta.url)));
 
 describe("transactionHash", () => {
   const t = { bookingDate: "2026-09-29", amount: -1190, counterpartyIban: "DE44 5001 0517 5407 3249 31", purpose: "Rechnung  99812" };
 
   it("normalisiert IBAN und Verwendungszweck", () => {
-    expect(transactionHash(t, 0)).toBe(
-      transactionHash({ ...t, counterpartyIban: "de44500105175407324931", purpose: " rechnung 99812 " }, 0),
-    );
+    expect(transactionHash(t, 0)).toBe(transactionHash({ ...t, counterpartyIban: "de44500105175407324931", purpose: " rechnung 99812 " }, 0));
     expect(transactionHash(t, 0)).toMatch(/^[0-9a-f]{64}$/);
   });
 
@@ -60,10 +57,7 @@ describe("checkBalanceContinuity", () => {
   });
 
   it("meldet eine Lücke", () => {
-    const r = checkBalanceContinuity(
-      { closingBalance: 1865872, periodTo: "2026-09-30" },
-      { openingBalance: 1900000, periodFrom: "2026-10-15" },
-    );
+    const r = checkBalanceContinuity({ closingBalance: 1865872, periodTo: "2026-09-30" }, { openingBalance: 1900000, periodFrom: "2026-10-15" });
     expect(r.ok).toBe(false);
     expect(r.message).toMatch(/^Lücke: Anfangssaldo 19\.000,00\s€ passt nicht zum Endsaldo 18\.658,72\s€/);
     expect(r.message).toMatch(/des vorigen Imports/);

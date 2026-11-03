@@ -47,12 +47,26 @@ describe.skipIf(!testDatabaseUrl)("Firmenlogo (Postgres)", () => {
 
   it("druckt das Logo in neu festgeschriebene Angebote", async () => {
     const contact = await contacts.createContact(actor, {
-      kundennummer: "", name: "Nordwerk GmbH", strasse: "Hafenstraße 5", plz: "20457", ort: "Hamburg", land: "DE",
-      email: "", ustId: "", iban: "", leitwegId: "", defaultFormat: null,
+      kundennummer: "",
+      name: "Nordwerk GmbH",
+      strasse: "Hafenstraße 5",
+      plz: "20457",
+      ort: "Hamburg",
+      land: "DE",
+      email: "",
+      ustId: "",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
     });
     const draft = () =>
       quotes.createQuoteDraft(actor, {
-        contactId: contact.id, issueDate: "2026-10-01", validUntil: "2026-10-31", serviceFrom: null, serviceTo: null, note: "",
+        contactId: contact.id,
+        issueDate: "2026-10-01",
+        validUntil: "2026-10-31",
+        serviceFrom: null,
+        serviceTo: null,
+        note: "",
         lines: [{ description: "Beratung", quantity: 1000, unit: "Std.", unitPrice: 10_000, taxRate: 1900 }],
       });
     const ohne = await quotes.finalizeQuote(actor, (await draft()).id);

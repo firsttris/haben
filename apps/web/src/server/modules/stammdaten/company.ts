@@ -12,18 +12,39 @@ import { today } from "../../today.ts";
 export const companySchema = z.object({
   name: z.string().trim().max(200),
   strasse: z.string().trim().max(200),
-  plz: z.string().trim().regex(/^(\d{5})?$/, "PLZ hat fünf Ziffern"),
+  plz: z
+    .string()
+    .trim()
+    .regex(/^(\d{5})?$/, "PLZ hat fünf Ziffern"),
   ort: z.string().trim().max(100),
   email: z.union([z.literal(""), z.string().trim().pipe(z.email("Keine gültige E-Mail-Adresse").max(320))]),
   steuernummer: z.string().trim().max(20),
-  ustId: z.union([z.literal(""), z.string().trim().regex(/^DE\d{9}$/, "USt-IdNr. hat die Form DE123456789")]),
+  ustId: z.union([
+    z.literal(""),
+    z
+      .string()
+      .trim()
+      .regex(/^DE\d{9}$/, "USt-IdNr. hat die Form DE123456789"),
+  ]),
   finanzamt: z.string().trim().max(200),
   bundesland: z.enum(Object.keys(BUNDESLAENDER) as [keyof typeof BUNDESLAENDER, ...(keyof typeof BUNDESLAENDER)[]]).nullable(),
   versteuerung: z.enum(["ist", "soll"]),
   telefon: z.string().trim().max(40),
   bank: z.string().trim().max(100),
-  iban: z.union([z.literal(""), z.string().trim().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen")]),
-  bic: z.union([z.literal(""), z.string().trim().regex(/^[A-Z0-9]{8}([A-Z0-9]{3})?$/, "BIC hat 8 oder 11 Zeichen")]),
+  iban: z.union([
+    z.literal(""),
+    z
+      .string()
+      .trim()
+      .regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen"),
+  ]),
+  bic: z.union([
+    z.literal(""),
+    z
+      .string()
+      .trim()
+      .regex(/^[A-Z0-9]{8}([A-Z0-9]{3})?$/, "BIC hat 8 oder 11 Zeichen"),
+  ]),
   kontenrahmen: z.enum(["SKR03", "SKR04"]),
   paymentTermDays: z.number().int().min(0).max(120),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),

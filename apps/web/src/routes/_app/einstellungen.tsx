@@ -351,8 +351,8 @@ function CompanyForm() {
           <span>
             Tageskurs statt USt-Umrechnungskurs (vom Finanzamt gestattet)
             <span id="tageskurs-hint" className="field-hint" style={{ display: "block" }}>
-              Ohne Gestattung rechnet Haben Fremdwährung mit den monatlichen Umsatzsteuer-Umrechnungskursen des BMF um (§ 16 Abs. 6 UStG). Hat das
-              Finanzamt den Tageskurs gestattet, trägst du an Beleg und Rechnung den Kurs mit Kursdatum ein, etwa aus der Bankabrechnung.
+              Ohne Gestattung rechnet Haben Fremdwährung mit den monatlichen Umsatzsteuer-Umrechnungskursen des BMF um (§ 16 Abs. 6 UStG). Hat das Finanzamt den
+              Tageskurs gestattet, trägst du an Beleg und Rechnung den Kurs mit Kursdatum ein, etwa aus der Bankabrechnung.
             </span>
           </span>
         </label>
@@ -411,12 +411,18 @@ function CompanyForm() {
           </label>
           <label className="field">
             Privatanteil Internet in %
-            <input name="privateShare-internet" inputMode="numeric" defaultValue={company.privateShares.internet ?? ""} placeholder="0" aria-describedby="private-share-hint" />
+            <input
+              name="privateShare-internet"
+              inputMode="numeric"
+              defaultValue={company.privateShares.internet ?? ""}
+              placeholder="0"
+              aria-describedby="private-share-hint"
+            />
           </label>
         </div>
         <p id="private-share-hint" className="field-hint">
-          Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine
-          Entnahme. Am einzelnen Beleg lässt sich der Anteil ändern.
+          Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme. Am einzelnen
+          Beleg lässt sich der Anteil ändern.
         </p>
       </section>
 
@@ -624,17 +630,15 @@ function CertificateForm() {
     <form className="card" onSubmit={onSubmit} aria-labelledby="cert-heading">
       <h2 id="cert-heading">ELSTER-Zertifikat</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Die Zertifikatsdatei (.pfx) aus deinem ELSTER-Konto mit der Anmeldeart Zertifikatsdatei; ELSTER Secure geht nicht. Sie wird
-        verschlüsselt abgelegt. Die PIN fragt Haben beim Senden ab; speichern kannst du sie nur für den automatischen Postfach-Abruf.
-        ERiC: {mode === "eric" ? "eingerichtet" : "nicht eingerichtet, Senden simuliert"}.
+        Die Zertifikatsdatei (.pfx) aus deinem ELSTER-Konto mit der Anmeldeart Zertifikatsdatei; ELSTER Secure geht nicht. Sie wird verschlüsselt abgelegt. Die
+        PIN fragt Haben beim Senden ab; speichern kannst du sie nur für den automatischen Postfach-Abruf. ERiC:{" "}
+        {mode === "eric" ? "eingerichtet" : "nicht eingerichtet, Senden simuliert"}.
       </p>
       {certificate && (
         <div className="history-row">
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span style={{ fontWeight: 500 }}>{certificate.filename}</span>
-            <span className="small muted">
-              {certificate.validUntil ? `gültig bis ${formatDate(certificate.validUntil)}` : "Ablaufdatum nicht angegeben"}
-            </span>
+            <span className="small muted">{certificate.validUntil ? `gültig bis ${formatDate(certificate.validUntil)}` : "Ablaufdatum nicht angegeben"}</span>
           </div>
           <button
             type="button"
@@ -717,15 +721,20 @@ function EricCard() {
     <form className="card" onSubmit={onSubmit} aria-labelledby="eric-heading">
       <h2 id="eric-heading">ERiC</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Die Bibliothek der Finanzverwaltung für die Übermittlung an ELSTER. Haben darf sie nicht mitliefern, lädt sie aber hier direkt
-        von download.elster.de auf deinen Server (rund 300 MB, nur Linux x86_64).
+        Die Bibliothek der Finanzverwaltung für die Übermittlung an ELSTER. Haben darf sie nicht mitliefern, lädt sie aber hier direkt von download.elster.de
+        auf deinen Server (rund 300 MB, nur Linux x86_64).
       </p>
       <div className="history-row">
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <span style={{ fontWeight: 500 }}>
             {eric.mode === "eric" ? `Eingerichtet${eric.version ? `: Version ${eric.version}` : ""}` : "Nicht eingerichtet, Senden wird simuliert"}
           </span>
-          {eric.home && <span className="small muted mono">{eric.home}{eric.source === "env" ? " (ERIC_HOME)" : ""}</span>}
+          {eric.home && (
+            <span className="small muted mono">
+              {eric.home}
+              {eric.source === "env" ? " (ERIC_HOME)" : ""}
+            </span>
+          )}
         </div>
         <span className={`pill ${eric.mode === "eric" ? "pill-ok" : ""}`}>{eric.mode === "eric" ? "ERiC" : "Simuliert"}</span>
       </div>
@@ -843,8 +852,8 @@ function FormatCheck({ simuliert }: { simuliert: boolean }) {
   return (
     <div className="stack" style={{ gap: 8, borderTop: "1px solid var(--line)", paddingTop: 12 }} aria-label="Formate prüfen" role="group">
       <p className="small muted" style={{ margin: 0 }}>
-        Belegabruf, Berechtigung und Postfach baut Haben nach freien Vorlagen, nicht nach der amtlichen Jahresdokumentation. Hier prüft
-        ERiC diese Nachrichten gegen seine Schemas; gesendet wird nichts.
+        Belegabruf, Berechtigung und Postfach baut Haben nach freien Vorlagen, nicht nach der amtlichen Jahresdokumentation. Hier prüft ERiC diese Nachrichten
+        gegen seine Schemas; gesendet wird nichts.
         {simuliert ? " Ohne ERiC ist die Prüfung nur simuliert." : ""}
       </p>
       <div className="actions">
@@ -955,8 +964,8 @@ function NumberingForm() {
     <form className="card" onSubmit={onSubmit} aria-labelledby="numbering-heading">
       <h2 id="numbering-heading">Rechnungsnummern {numbering.year}</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Nächste Nummer: <span className="mono">{numbering.next}</span>. Nummern werden erst beim Festschreiben vergeben und
-        laufen lückenlos. Um nach Lexoffice weiterzuzählen, die nächste laufende Nummer eintragen; zurücksetzen geht nicht.
+        Nächste Nummer: <span className="mono">{numbering.next}</span>. Nummern werden erst beim Festschreiben vergeben und laufen lückenlos. Um nach Lexoffice
+        weiterzuzählen, die nächste laufende Nummer eintragen; zurücksetzen geht nicht.
       </p>
       <label className="field">
         Nächste laufende Nummer

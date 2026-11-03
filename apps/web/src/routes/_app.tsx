@@ -109,61 +109,64 @@ function AppLayout() {
         <Link to="/" className="brand">
           <span className="brand-mark">H</span>Haben
         </Link>
-        <button ref={toggle} type="button" className="nav-toggle" aria-expanded={menuOpen} aria-controls="hauptmenue" onClick={() => setMenuOpen((open) => !open)}>
+        <button
+          ref={toggle}
+          type="button"
+          className="nav-toggle"
+          aria-expanded={menuOpen}
+          aria-controls="hauptmenue"
+          onClick={() => setMenuOpen((open) => !open)}
+        >
           <span aria-hidden="true">{menuOpen ? "✕" : "☰"}</span> Menü
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-        <Link to="/" className="nav-link" activeOptions={{ exact: true }}>
-          <Icon name="overview" />
-          Übersicht
-        </Link>
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
-            <div className="nav-group-label" aria-hidden="true">
-              {group.label}
-            </div>
-            {group.links.map((link) => (
-              <Link key={link.to} to={link.to} className="nav-link">
-                <Icon name={link.icon} />
-                {link.label}
-              </Link>
-            ))}
-          </div>
-        ))}
-        <div className="nav-spacer" />
-        <div className="nav-foot">
-          <div className="nav-user">
-            <span className="nav-avatar" aria-hidden="true">
-              {user.name.trim().charAt(0).toUpperCase() || "?"}
-            </span>
-            <span className="nav-user-text">
-              <span className="nav-user-name">{user.name}</span>
-              <span className="nav-user-meta">Geschäftsjahr {new Date().getFullYear()}</span>
-            </span>
-          </div>
-          <Link to="/einstellungen" className="nav-link nav-foot-link">
-            <Icon name="settings" />
-            Einstellungen
+          <Link to="/" className="nav-link" activeOptions={{ exact: true }}>
+            <Icon name="overview" />
+            Übersicht
           </Link>
-          {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
-          <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
-            <Icon name="code" />
-            Quellcode (AGPL)
-          </a>
-          <button type="button" className="nav-link nav-foot-link" onClick={signOut}>
-            <Icon name="logout" />
-            Abmelden
-          </button>
-          <ThemePicker />
-          <a
-            className="nav-version"
-            href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`}
-            title="Versionshinweise auf GitHub"
-          >
-            Haben {__HABEN_VERSION__}
-          </a>
-        </div>
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
+              <div className="nav-group-label" aria-hidden="true">
+                {group.label}
+              </div>
+              {group.links.map((link) => (
+                <Link key={link.to} to={link.to} className="nav-link">
+                  <Icon name={link.icon} />
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          ))}
+          <div className="nav-spacer" />
+          <div className="nav-foot">
+            <div className="nav-user">
+              <span className="nav-avatar" aria-hidden="true">
+                {user.name.trim().charAt(0).toUpperCase() || "?"}
+              </span>
+              <span className="nav-user-text">
+                <span className="nav-user-name">{user.name}</span>
+                <span className="nav-user-meta">Geschäftsjahr {new Date().getFullYear()}</span>
+              </span>
+            </div>
+            <Link to="/einstellungen" className="nav-link nav-foot-link">
+              <Icon name="settings" />
+              Einstellungen
+            </Link>
+            {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
+            <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
+              <Icon name="code" />
+              Quellcode (AGPL)
+            </a>
+            <button type="button" className="nav-link nav-foot-link" onClick={signOut}>
+              <Icon name="logout" />
+              Abmelden
+            </button>
+            <ThemePicker />
+            <a className="nav-version" href={`https://github.com/firsttris/haben/releases/tag/v${__HABEN_VERSION__}`} title="Versionshinweise auf GitHub">
+              Haben {__HABEN_VERSION__}
+            </a>
+          </div>
         </div>
       </nav>
       <main className="main" id="inhalt" ref={main} tabIndex={-1}>

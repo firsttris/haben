@@ -71,7 +71,9 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           Text
           <textarea name="text" rows={5} defaultValue={block?.text ?? ""} maxLength={2000} required />
-          <span className="small muted">In wiederkehrenden Rechnungen gelten auch hier Platzhalter wie {"{monat}"} oder {"{zeitraum}"}.</span>
+          <span className="small muted">
+            In wiederkehrenden Rechnungen gelten auch hier Platzhalter wie {"{monat}"} oder {"{zeitraum}"}.
+          </span>
         </label>
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           Kunde (optional)
@@ -138,20 +140,23 @@ function TextBlocksPage() {
         </div>
         {!formOpen && (
           <div className="actions">
-            <button type="button" className="btn btn-primary" onClick={() => {
-              setEditing(null);
-              setCreating(true);
-              setNotice(null);
-            }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setEditing(null);
+                setCreating(true);
+                setNotice(null);
+              }}
+            >
               Neuer Textbaustein
             </button>
           </div>
         )}
       </div>
       <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Kopf- und Fußtexte legst du einmal an und fügst sie in Rechnung, Angebot oder wiederkehrender Rechnung mit „Textbaustein
-        einfügen“ ein. Eingefügt wird eine Kopie: Sie lässt sich im Beleg noch anpassen, und spätere Änderungen am Baustein ändern keine
-        geschriebene Rechnung.
+        Kopf- und Fußtexte legst du einmal an und fügst sie in Rechnung, Angebot oder wiederkehrender Rechnung mit „Textbaustein einfügen“ ein. Eingefügt wird
+        eine Kopie: Sie lässt sich im Beleg noch anpassen, und spätere Änderungen am Baustein ändern keine geschriebene Rechnung.
       </p>
       <div className="stack" style={{ gap: 16 }}>
         {formOpen && (
@@ -195,10 +200,15 @@ function TextBlocksPage() {
                   </div>
                   <div className="actions" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
                     {!b.archivedAt && (
-                      <button type="button" className="btn btn-sm" onClick={() => {
-                        setCreating(false);
-                        setEditing(b);
-                      }} aria-label={`${b.name} bearbeiten`}>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => {
+                          setCreating(false);
+                          setEditing(b);
+                        }}
+                        aria-label={`${b.name} bearbeiten`}
+                      >
                         Bearbeiten
                       </button>
                     )}

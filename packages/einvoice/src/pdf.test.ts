@@ -14,7 +14,7 @@ describe("renderInvoicePdf", () => {
 
   it("übernimmt Nutzertext unverändert, ohne Typst-Markup auszuwerten", () => {
     const doc = sampleDocument({ intro: '#panic("y") = Überschrift', note: '#panic("x") *fett* $x$ ]' });
-    doc.lines[0]!.description = "Beratung #read(\"/etc/passwd\") _kursiv_ \\";
+    doc.lines[0]!.description = 'Beratung #read("/etc/passwd") _kursiv_ \\';
     expect(() => renderInvoicePdf(doc)).not.toThrow();
   });
 });
@@ -66,11 +66,7 @@ describe("pdfData", () => {
     expect(data.payment).toBe("Der Betrag wird Ihnen erstattet.");
     // Kein GiroCode für Erstattungen
     expect(data.qr).toBeNull();
-    expect(data.totals.rows.map((r) => r.label)).toEqual([
-      "Summe netto",
-      "Umsatzsteuer 19 % auf -2.486,25\u00a0€",
-      "Umsatzsteuer 7 % auf -149,70\u00a0€",
-    ]);
+    expect(data.totals.rows.map((r) => r.label)).toEqual(["Summe netto", "Umsatzsteuer 19 % auf -2.486,25\u00a0€", "Umsatzsteuer 7 % auf -149,70\u00a0€"]);
   });
 
   it("druckt einen GiroCode über den Rechnungsbetrag, nur mit IBAN", () => {

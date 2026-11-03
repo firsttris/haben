@@ -17,11 +17,7 @@ export function confirmationPdfData(doc: QuoteDocument, date: string) {
     docTitle: `${t.confirmation} ${doc.number}`,
     title: t.confirmation,
     // Angebotsnummer, -datum und Gültigkeit ersetzt der Bezug aufs Angebot
-    meta: [
-      { label: t.date_, value: t.date(date) },
-      { label: t.quoteRef, value: `${doc.number} (${t.date(doc.issueDate)})` },
-      ...quoteDetails(doc, t),
-    ],
+    meta: [{ label: t.date_, value: t.date(date) }, { label: t.quoteRef, value: `${doc.number} (${t.date(doc.issueDate)})` }, ...quoteDetails(doc, t)],
     totals: { ...base.totals, gross: { ...base.totals.gross, label: showsGrossPrices(doc) ? t.inclVat(t.orderTotal) : t.orderTotal } },
     payment: t.confirmationText,
   };

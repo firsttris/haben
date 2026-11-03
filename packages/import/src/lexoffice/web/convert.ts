@@ -63,7 +63,13 @@ function groupBy<K extends string>(entries: { type: string | null | undefined; v
   return groups;
 }
 
-function address(a: { street?: string | null; supplement?: string | null; zip?: string | null; city?: string | null; countryCode?: string | null }): LexContactAddress {
+function address(a: {
+  street?: string | null;
+  supplement?: string | null;
+  zip?: string | null;
+  city?: string | null;
+  countryCode?: string | null;
+}): LexContactAddress {
   return { street: a.street, supplement: a.supplement, zip: a.zip, city: a.city, countryCode: a.countryCode };
 }
 
@@ -219,7 +225,13 @@ export function webBookkeepingVoucher(entry: WebEntry): LexVoucher {
     const percent = item.taxRate?.calcPercent ?? item.taxRate?.percent ?? 0;
     const amount = lexToCents(item.amount);
     const category = item.correctedPostingCategory ?? item.postingCategory;
-    return { amount: item.amount, taxAmount: euro(itemTax(amount, percent, gross)), taxRatePercent: percent, categoryId: category?.postingCategoryId, cents: amount };
+    return {
+      amount: item.amount,
+      taxAmount: euro(itemTax(amount, percent, gross)),
+      taxRatePercent: percent,
+      categoryId: category?.postingCategoryId,
+      cents: amount,
+    };
   });
   const tax = items.reduce((sum, i) => sum + lexToCents(i.taxAmount), 0);
   const itemGross = items.reduce((sum, i) => sum + (gross ? i.cents : i.cents + lexToCents(i.taxAmount)), 0);

@@ -9,7 +9,9 @@ export function formatDate(isoDate: string): string {
 
 /** IBAN in Vierergruppen: "DE89 3704 0044 0532 0130 00" */
 export function formatIban(iban: string): string {
-  return compactIban(iban).replace(/(.{4})/g, "$1 ").trim();
+  return compactIban(iban)
+    .replace(/(.{4})/g, "$1 ")
+    .trim();
 }
 
 export function compactIban(iban: string): string {

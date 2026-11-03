@@ -36,8 +36,7 @@ export const messageSchema = z.object({
 
 export type MessageInput = z.input<typeof messageSchema>;
 
-const dayOfYear = (date: string) =>
-  Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${date.slice(0, 4)}-01-01T00:00:00Z`)) / 86_400_000) + 1;
+const dayOfYear = (date: string) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${date.slice(0, 4)}-01-01T00:00:00Z`)) / 86_400_000) + 1;
 
 export interface PrepaymentBasis {
   year: number;
@@ -185,7 +184,9 @@ function submit(
   options: SendMessageOptions,
   buildXml: (herstellerId: string, test: boolean) => string,
 ): Promise<ElsterResult> {
-  const key = createHash("sha256").update(JSON.stringify([record.topic, record.betreff, record.text, record.figures ?? null])).digest("hex");
+  const key = createHash("sha256")
+    .update(JSON.stringify([record.topic, record.betreff, record.text, record.figures ?? null]))
+    .digest("hex");
   return uebermitteln(client, {
     sperre: `haben.nachricht.${key}`,
     vorgang: options.kind,

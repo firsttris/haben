@@ -26,26 +26,40 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
     <form className="card" onSubmit={onSubmit} aria-labelledby="datev-heading">
       <h2 id="datev-heading">DATEV-Export</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Alle Buchungen eines Jahres als DATEV-Buchungsstapel ({kontenrahmen || "SKR03/SKR04"}) für die Steuerberatung. Die Kontensalden
-        stimmen mit der Saldenliste in Haben überein; die Umsatzsteuer steht wie im Journal auf eigenen Steuerkonten.
+        Alle Buchungen eines Jahres als DATEV-Buchungsstapel ({kontenrahmen || "SKR03/SKR04"}) für die Steuerberatung. Die Kontensalden stimmen mit der
+        Saldenliste in Haben überein; die Umsatzsteuer steht wie im Journal auf eigenen Steuerkonten.
       </p>
       <div className="form-grid">
         <label className="field">
           Beraternummer
-          <input value={beraterNr} onChange={(e) => {
+          <input
+            value={beraterNr}
+            onChange={(e) => {
               setBeraterNr(e.target.value.replace(/\D/g, ""));
               setSaved(false);
-            }} inputMode="numeric" maxLength={7} required />
+            }}
+            inputMode="numeric"
+            maxLength={7}
+            required
+          />
         </label>
         <label className="field">
           Mandantennummer
-          <input value={mandantNr} onChange={(e) => {
+          <input
+            value={mandantNr}
+            onChange={(e) => {
               setMandantNr(e.target.value.replace(/\D/g, ""));
               setSaved(false);
-            }} inputMode="numeric" maxLength={5} required />
+            }}
+            inputMode="numeric"
+            maxLength={5}
+            required
+          />
         </label>
       </div>
-      <p className="small muted" style={{ margin: 0 }}>Beide Nummern bekommst du von deiner Steuerberatung.</p>
+      <p className="small muted" style={{ margin: 0 }}>
+        Beide Nummern bekommst du von deiner Steuerberatung.
+      </p>
       <div className="actions">
         <button type="submit" className="btn" disabled={busy || saved}>
           Nummern speichern
@@ -67,7 +81,9 @@ export function DatevCard({ years, numbers }: { years: number[]; numbers: Awaite
             Buchungsstapel herunterladen
           </a>
         ) : (
-          <span className="small muted" style={{ alignSelf: "center" }}>Zum Herunterladen erst die Nummern speichern.</span>
+          <span className="small muted" style={{ alignSelf: "center" }}>
+            Zum Herunterladen erst die Nummern speichern.
+          </span>
         )}
       </div>
       <NoticeBanner notice={notice} />

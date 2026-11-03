@@ -5,13 +5,7 @@ import { useState, type FormEvent } from "react";
 import { formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
-import {
-  deleteExchangeRateFn,
-  importExchangeRatesFn,
-  refreshExchangeRatesFn,
-  saveExchangeRateFn,
-  type getExchangeRates,
-} from "../server/functions/company.ts";
+import { deleteExchangeRateFn, importExchangeRatesFn, refreshExchangeRatesFn, saveExchangeRateFn, type getExchangeRates } from "../server/functions/company.ts";
 import { ScrollTable } from "./ScrollTable.tsx";
 
 type Data = Awaited<ReturnType<typeof getExchangeRates>>;
@@ -51,7 +45,10 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
       });
       form.reset();
       await router.invalidate();
-      setNotice({ tone: "ok", text: `Kurs gespeichert.${applied > 0 ? ` ${plural(applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}` });
+      setNotice({
+        tone: "ok",
+        text: `Kurs gespeichert.${applied > 0 ? ` ${plural(applied, "Beleg oder Entwurf", "Belege und Entwürfe")} in Euro umgerechnet.` : ""}`,
+      });
     });
   }
 
@@ -59,9 +56,9 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
     <section className="card" aria-labelledby="rates-heading">
       <h2 id="rates-heading">Umsatzsteuer-Umrechnungskurse</h2>
       <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
-        Beträge in Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs des Monats in Euro um (§ 16 Abs. 6 UStG). Das BMF veröffentlicht die
-        Kurse am ersten Arbeitstag des Folgemonats; Haben ruft sie dann von selbst ab, sobald du Fremdwährung nutzt. Belege, die noch auf den Kurs warten,
-        werden danach umgerechnet. Gebuchte Belege und festgeschriebene Rechnungen behalten ihren Kurs.
+        Beträge in Fremdwährung rechnet Haben mit dem Umsatzsteuer-Umrechnungskurs des Monats in Euro um (§ 16 Abs. 6 UStG). Das BMF veröffentlicht die Kurse am
+        ersten Arbeitstag des Folgemonats; Haben ruft sie dann von selbst ab, sobald du Fremdwährung nutzt. Belege, die noch auf den Kurs warten, werden danach
+        umgerechnet. Gebuchte Belege und festgeschriebene Rechnungen behalten ihren Kurs.
       </p>
       <div className="actions">
         <button
@@ -86,8 +83,8 @@ export function ExchangeRatesCard({ data }: { data: Data }) {
           Kurs von Hand
         </h3>
         <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
-          Für einen Monat, den das BMF noch nicht veröffentlicht hat (vorläufig), oder eine Währung, die dort fehlt. Veröffentlicht das BMF den Monat
-          später, ersetzt der amtliche Kurs deinen.
+          Für einen Monat, den das BMF noch nicht veröffentlicht hat (vorläufig), oder eine Währung, die dort fehlt. Veröffentlicht das BMF den Monat später,
+          ersetzt der amtliche Kurs deinen.
         </p>
         <div className="form-row cols-3">
           <label className="field">

@@ -157,9 +157,7 @@ export async function newQuoteDefaults(today: string) {
     exemptionReason: "",
     priceMode: "netto" as PriceMode,
     language: "de" as const,
-    lines: [
-      { description: "", quantity: 1000, unit: "Std." as UnitLabel, unitPrice: 0, taxRate: (company.kleinunternehmer ? 0 : 1900) as 1900 | 0 },
-    ],
+    lines: [{ description: "", quantity: 1000, unit: "Std." as UnitLabel, unitPrice: 0, taxRate: (company.kleinunternehmer ? 0 : 1900) as 1900 | 0 }],
   } satisfies QuoteDraftInput;
 }
 
@@ -229,7 +227,13 @@ export async function listQuotes(today: string) {
   return rows.map((row) => ({ ...row, customer: row.buyerName ?? row.contactName ?? "–", listStatus: quoteStatus(row, today) }));
 }
 
-export function quoteDocumentFor(quote: Quote, lines: QuoteLine[], seller: QuoteDocument["seller"], buyer: QuoteDocument["buyer"], number: string): QuoteDocument {
+export function quoteDocumentFor(
+  quote: Quote,
+  lines: QuoteLine[],
+  seller: QuoteDocument["seller"],
+  buyer: QuoteDocument["buyer"],
+  number: string,
+): QuoteDocument {
   return {
     number,
     issueDate: quote.issueDate,
@@ -373,7 +377,9 @@ export async function quoteToInvoice(actor: string, id: string, today: string, v
     };
     const deducts =
       variant === "schluss"
-        ? (await openAbschlaege(null, tx)).filter((a) => a.quoteId === id && a.contactId === locked.contactId && a.taxTreatment === locked.taxTreatment).map((a) => a.id)
+        ? (await openAbschlaege(null, tx))
+            .filter((a) => a.quoteId === id && a.contactId === locked.contactId && a.taxTreatment === locked.taxTreatment)
+            .map((a) => a.id)
         : [];
     const invoice = await insertDraft(tx, {
       contactId: locked.contactId,

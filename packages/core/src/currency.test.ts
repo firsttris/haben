@@ -55,9 +55,7 @@ describe("convertForeignAmounts", () => {
 
   it("§ 13b: Steuer aus dem umgerechneten Netto, nicht aus der Fremdwährungssteuer", () => {
     // 9.249 × 19 % = 1.757,31 → 1.757; aus 0 USD Steuer käme 0 heraus
-    expect(convertForeignAmounts([{ taxRate: 1900, originalNet: 10_000, originalTax: 0 }], "1.0812", true)).toEqual([
-      { taxRate: 1900, net: 9249, tax: 1757 },
-    ]);
+    expect(convertForeignAmounts([{ taxRate: 1900, originalNet: 10_000, originalTax: 0 }], "1.0812", true)).toEqual([{ taxRate: 1900, net: 9249, tax: 1757 }]);
   });
 });
 

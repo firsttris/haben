@@ -62,9 +62,9 @@ export function InboxCard({ data }: { data: Data }) {
     <form className="card" onSubmit={onSubmit} aria-labelledby="inbox-heading">
       <h2 id="inbox-heading">Belege per E-Mail</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Haben ruft stündlich ein Postfach über IMAP ab und legt die Anhänge ungelesener Mails als Belege ab (PDF, Fotos, E-Rechnungen).
-        Danach ist die Mail gelesen. Am besten ein eigener Ordner oder eine eigene Adresse, an die du Rechnungen weiterleitest. Bei Gmail,
-        GMX und web.de brauchst du ein App-Passwort bzw. freigeschaltetes IMAP.
+        Haben ruft stündlich ein Postfach über IMAP ab und legt die Anhänge ungelesener Mails als Belege ab (PDF, Fotos, E-Rechnungen). Danach ist die Mail
+        gelesen. Am besten ein eigener Ordner oder eine eigene Adresse, an die du Rechnungen weiterleitest. Bei Gmail, GMX und web.de brauchst du ein
+        App-Passwort bzw. freigeschaltetes IMAP.
       </p>
       <label className="field">
         Anbieter
@@ -135,10 +135,17 @@ export function InboxCard({ data }: { data: Data }) {
             >
               Jetzt abrufen
             </button>
-            <button type="button" className="btn btn-danger" disabled={busy} onClick={() => void run(async () => {
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
                   await remove();
                   return { tone: "ok", text: "Postfach entfernt." };
-                })}>
+                })
+              }
+            >
               Entfernen
             </button>
           </>
@@ -155,7 +162,8 @@ export function InboxCard({ data }: { data: Data }) {
         <ul className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
           {data.last.map((m) => (
             <li key={m.id} style={{ overflowWrap: "anywhere" }}>
-              {formatDateTime(m.createdAt)}: {m.subject || "(ohne Betreff)"} von {m.sender} · {m.documentIds.length} Beleg{m.documentIds.length === 1 ? "" : "e"}
+              {formatDateTime(m.createdAt)}: {m.subject || "(ohne Betreff)"} von {m.sender} · {m.documentIds.length} Beleg
+              {m.documentIds.length === 1 ? "" : "e"}
               {m.skipped.length ? ` · übersprungen: ${m.skipped.join("; ")}` : ""}
             </li>
           ))}

@@ -14,10 +14,7 @@ export function checkBalanceContinuity(
     return { ok: true, message: "Erster Import für dieses Konto; es gibt keinen Endsaldo zum Vergleich." };
   }
   if (previous.closingBalance === undefined || next.openingBalance === undefined) {
-    const missing =
-      previous.closingBalance === undefined
-        ? "Der vorige Import nennt keinen Endsaldo"
-        : "Dieser Import nennt keinen Anfangssaldo";
+    const missing = previous.closingBalance === undefined ? "Der vorige Import nennt keinen Endsaldo" : "Dieser Import nennt keinen Anfangssaldo";
     return { ok: true, message: `${missing}; die Salden können nicht geprüft werden.` };
   }
   if (previous.closingBalance === next.openingBalance) return { ok: true };

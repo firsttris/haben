@@ -39,7 +39,13 @@ const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 
 function brmXml(datenart: SpezRechtDatenart, body: string[], input: BrmXmlInput): string {
   return elsterXml(
-    { verfahren: "ElsterBRM", datenArt: datenart, testmerker: input.test ? VAST_TESTMERKER : undefined, herstellerId: input.herstellerId, datenlieferant: input.datenlieferant },
+    {
+      verfahren: "ElsterBRM",
+      datenArt: datenart,
+      testmerker: input.test ? VAST_TESTMERKER : undefined,
+      herstellerId: input.herstellerId,
+      datenlieferant: input.datenlieferant,
+    },
     [{ ticket: "1", empfaenger: { id: "L", wert: "CS" }, nutzdaten: body }],
   );
 }

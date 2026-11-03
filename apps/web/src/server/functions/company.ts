@@ -87,7 +87,8 @@ export const importExchangeRatesFn = createServerFn({ method: "POST" })
   .validator(z.object({ year: z.number().int().min(2010).max(2100), text: z.string().max(2_000_000) }))
   .handler(async ({ data, context }) => {
     const rates = parseBmfRates(data.text, data.year);
-    if (rates.length === 0) throw new UserError(`In der Datei stehen keine Kurse für ${data.year}. Erwartet wird die CSV-Datei des BMF mit einer Spalte je Monat.`);
+    if (rates.length === 0)
+      throw new UserError(`In der Datei stehen keine Kurse für ${data.year}. Erwartet wird die CSV-Datei des BMF mit einer Spalte je Monat.`);
     const result = await storeExchangeRates(context.user.id, rates, "bmf");
     return { ...result, fetched: rates.length, applied: await applyRates(context.user.id) };
   });

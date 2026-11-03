@@ -147,9 +147,7 @@ export function parseCamt053(xml: string): ParsedStatement {
       result.accountIban = iban;
       result.accountName = optional(normalizeText(text(stmt, "Acct", "Nm")));
     } else if (iban !== result.accountIban) {
-      throw new StatementParseError(
-        "Die CAMT-Datei enthält Auszüge mehrerer Konten. Bitte je Konto eine Datei hochladen.",
-      );
+      throw new StatementParseError("Die CAMT-Datei enthält Auszüge mehrerer Konten. Bitte je Konto eine Datei hochladen.");
     }
     currency ??= text(stmt, "Acct", "Ccy");
 
@@ -210,9 +208,7 @@ export function parseCamt053(xml: string): ParsedStatement {
           purpose: purpose !== "" ? purpose : purposeFallback,
           type: transactionType(d) ?? transactionType(entry) ?? optional(additional) ?? familyCode(entry),
           // In Sammelbuchungen teilen sich alle Posten die Referenz des Eintrags
-          bankReference:
-            optionalReference(text(d, "Refs", "AcctSvcrRef")) ??
-            (inBatch ? (endToEnd ?? entryRef) : (entryRef ?? endToEnd)),
+          bankReference: optionalReference(text(d, "Refs", "AcctSvcrRef")) ?? (inBatch ? (endToEnd ?? entryRef) : (entryRef ?? endToEnd)),
           mandateReference: optional(normalizeText(text(d, "Refs", "MndtId"))),
           // bis .001.02 direkt unter Cdtr, ab .001.08 unter Cdtr/Pty
           creditorId: optional(

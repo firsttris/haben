@@ -16,8 +16,7 @@ import {
   type TaxShare,
 } from "./posting.ts";
 
-const balanced = (lines: { debit: number; credit: number }[]) =>
-  lines.reduce((s, l) => s + l.debit, 0) === lines.reduce((s, l) => s + l.credit, 0);
+const balanced = (lines: { debit: number; credit: number }[]) => lines.reduce((s, l) => s + l.debit, 0) === lines.reduce((s, l) => s + l.credit, 0);
 
 describe("invoicePosting", () => {
   const totals = computeInvoiceTotals([
@@ -240,8 +239,7 @@ describe("legacyCorrectionPosting", () => {
       { account: "1766", debit: 19_000, credit: 0, taxCode: null },
       { account: "9000", debit: 100_000, credit: 0, taxCode: null },
     ]);
-    const saldo = (account: string) =>
-      [...opening, ...lines].filter((l) => l.account === account).reduce((s, l) => s + l.debit - l.credit, 0);
+    const saldo = (account: string) => [...opening, ...lines].filter((l) => l.account === account).reduce((s, l) => s + l.debit - l.credit, 0);
     expect(["1400", "1766", "9000"].map(saldo)).toEqual([0, 0, 0]);
   });
 
@@ -288,13 +286,21 @@ describe("Rundung bei Storno", () => {
     // 12,34 € netto, 25 % privat: 308,5 Cent und 58,5 Cent liegen genau auf der Hälfte
     const beleg = computeInvoiceTotals([{ quantity: 1000, unitPrice: 1_234, taxRate: 1900 }]);
     const storno = computeInvoiceTotals([{ quantity: 1000, unitPrice: -1_234, taxRate: 1900 }]);
-    expect(saldo(documentPosting(beleg, "telefon", "SKR03", "bank", true, undefined, 25), documentPosting(storno, "telefon", "SKR03", "bank", true, undefined, 25))).toEqual([]);
+    expect(
+      saldo(documentPosting(beleg, "telefon", "SKR03", "bank", true, undefined, 25), documentPosting(storno, "telefon", "SKR03", "bank", true, undefined, 25)),
+    ).toEqual([]);
   });
 
   it("Steueranteile einer Zahlung und ihrer Rückzahlung sind spiegelbildlich", () => {
     // Hälfte von 11,90 €: Anteile 50,5 / 9,5 / 35 Cent liegen auf der Hälfte
-    const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 101, taxRate: 1900 }, { quantity: 1000, unitPrice: 1_000, taxRate: 700 }]);
-    const negated = computeInvoiceTotals([{ quantity: 1000, unitPrice: -101, taxRate: 1900 }, { quantity: 1000, unitPrice: -1_000, taxRate: 700 }]);
+    const totals = computeInvoiceTotals([
+      { quantity: 1000, unitPrice: 101, taxRate: 1900 },
+      { quantity: 1000, unitPrice: 1_000, taxRate: 700 },
+    ]);
+    const negated = computeInvoiceTotals([
+      { quantity: 1000, unitPrice: -101, taxRate: 1900 },
+      { quantity: 1000, unitPrice: -1_000, taxRate: 700 },
+    ]);
     for (const paid of [1, 113, 595]) {
       const hin = paidTaxShares(totals, paid);
       const zurueck = paidTaxShares(negated, -paid);
@@ -320,14 +326,20 @@ describe("settlementTaxShares", () => {
   });
 
   it("ohne Vorgänger wie paidTaxShares", () => {
-    const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 101, taxRate: 1900 }, { quantity: 1000, unitPrice: 1_000, taxRate: 700 }]);
+    const totals = computeInvoiceTotals([
+      { quantity: 1000, unitPrice: 101, taxRate: 1900 },
+      { quantity: 1000, unitPrice: 1_000, taxRate: 700 },
+    ]);
     expect(settlementTaxShares(totals, 0, [], 595)).toEqual(paidTaxShares(totals, 595));
   });
 });
 
 describe("recordedTaxShares", () => {
   const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
-  const mixed = computeInvoiceTotals([{ quantity: 1000, unitPrice: 5_000, taxRate: 1900 }, { quantity: 1000, unitPrice: 5_000, taxRate: 700 }]);
+  const mixed = computeInvoiceTotals([
+    { quantity: 1000, unitPrice: 5_000, taxRate: 1900 },
+    { quantity: 1000, unitPrice: 5_000, taxRate: 700 },
+  ]);
 
   it("übernimmt einen gespeicherten Anteil, der um einen Rundungscent abweicht", () => {
     expect(recordedTaxShares(totals, 3_966, [{ rate: 1900, base: 3_332, tax: 634 }])).toEqual([{ rate: 1900, base: 3_332, tax: 634 }]);

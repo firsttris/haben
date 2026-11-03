@@ -54,7 +54,20 @@ const PAGES = [
 ];
 
 /** Für die übrigen Themes: Seiten, auf denen zusammen jede Art von Link, Knopf, Hinweis und Tabelle vorkommt */
-const THEME_PAGES = ["/", "/rechnungen", "/rechnungen/neu", "/bank", "/buchungen", `/konten/1200?jahr=${YEAR}`, "/fristen", "/auswertungen", `/jahreserklaerung/${YEAR}`, "/archiv", "/einstellungen?bereich=elster", "/einstellungen?bereich=export"];
+const THEME_PAGES = [
+  "/",
+  "/rechnungen",
+  "/rechnungen/neu",
+  "/bank",
+  "/buchungen",
+  `/konten/1200?jahr=${YEAR}`,
+  "/fristen",
+  "/auswertungen",
+  `/jahreserklaerung/${YEAR}`,
+  "/archiv",
+  "/einstellungen?bereich=elster",
+  "/einstellungen?bereich=export",
+];
 
 let context: BrowserContext;
 let page: Page;
@@ -101,7 +114,9 @@ async function axe(p: Page, rules?: string[]) {
   const builder = new AxeBuilder({ page: p }).withTags(WCAG);
   if (rules) builder.withRules(rules);
   const { violations } = await builder.analyze();
-  return violations.flatMap((v) => v.nodes.map((n) => `${v.id} (${v.impact}): ${v.help} → ${n.target.join(" ")} ${n.failureSummary?.split("\n").slice(1).join(" ") ?? ""}`.trim()));
+  return violations.flatMap((v) =>
+    v.nodes.map((n) => `${v.id} (${v.impact}): ${v.help} → ${n.target.join(" ")} ${n.failureSummary?.split("\n").slice(1).join(" ") ?? ""}`.trim()),
+  );
 }
 
 async function setTheme(p: Page, theme: string) {
@@ -199,7 +214,19 @@ test("Sprunglink führt zum Inhalt, Seitenwechsel per Tastatur setzt den Fokus a
 
 test("Jedes Element mit Tastaturfokus hat einen sichtbaren Rahmen", async () => {
   test.setTimeout(300_000);
-  for (const path of ["/", "/rechnungen", "/rechnungen/neu", "/belege", "/bank", "/kasse", "/kontakte", "/auswertungen", "/fristen", "/einstellungen", "/einstellungen?bereich=export"]) {
+  for (const path of [
+    "/",
+    "/rechnungen",
+    "/rechnungen/neu",
+    "/belege",
+    "/bank",
+    "/kasse",
+    "/kontakte",
+    "/auswertungen",
+    "/fristen",
+    "/einstellungen",
+    "/einstellungen?bereich=export",
+  ]) {
     await open(page, path);
     const seen = new Set<string>();
     for (let i = 0; i < 120; i++) {

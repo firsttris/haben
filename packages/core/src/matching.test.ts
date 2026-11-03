@@ -25,12 +25,7 @@ describe("suggestMatches", () => {
   it("bester Treffer mit allen Begründungen", () => {
     const [best] = suggestMatches(tx, [invoice(), invoice({ id: "r32", number: "2026-032", open: 595_000, partyIbans: [] })]);
     expect(best?.item.id).toBe("r31");
-    expect(best?.reasons).toEqual([
-      "Betrag stimmt exakt",
-      "Rechnungsnummer im Verwendungszweck",
-      "IBAN bekannt vom Kontakt",
-      "Name passt",
-    ]);
+    expect(best?.reasons).toEqual(["Betrag stimmt exakt", "Rechnungsnummer im Verwendungszweck", "IBAN bekannt vom Kontakt", "Name passt"]);
     expect(best?.amount).toBe(476_000);
   });
 
@@ -73,12 +68,25 @@ describe("suggestMatches", () => {
 
 describe("suggestMatches mit Fremdwährung", () => {
   it("schlägt eine Fremdwährungsrechnung vor, wenn die Zahlung nur um die Kursdifferenz abweicht", () => {
-    const item = { type: "invoice" as const, id: "r1", number: "RE-2026-0042", date: "2026-09-01", open: 9249, partyName: "Acme Inc.", partyIbans: [], currency: "USD" };
-    const [match] = suggestMatches({ amount: 9180, bookingDate: "2026-09-20", counterpartyName: "ACME INC", counterpartyIban: null, purpose: "RE-2026-0042" }, [item]);
+    const item = {
+      type: "invoice" as const,
+      id: "r1",
+      number: "RE-2026-0042",
+      date: "2026-09-01",
+      open: 9249,
+      partyName: "Acme Inc.",
+      partyIbans: [],
+      currency: "USD",
+    };
+    const [match] = suggestMatches({ amount: 9180, bookingDate: "2026-09-20", counterpartyName: "ACME INC", counterpartyIban: null, purpose: "RE-2026-0042" }, [
+      item,
+    ]);
     expect(match).toMatchObject({ amount: 9180, exchangeDifference: -69 });
     expect(match!.reasons).toContain("Betrag passt bis auf eine Kursdifferenz (USD)");
     // In Euro gibt es keine Kursdifferenz
-    const [euro] = suggestMatches({ amount: 9180, bookingDate: "2026-09-20", counterpartyName: "ACME INC", counterpartyIban: null, purpose: "RE-2026-0042" }, [{ ...item, currency: "EUR" }]);
+    const [euro] = suggestMatches({ amount: 9180, bookingDate: "2026-09-20", counterpartyName: "ACME INC", counterpartyIban: null, purpose: "RE-2026-0042" }, [
+      { ...item, currency: "EUR" },
+    ]);
     expect(euro!.exchangeDifference).toBeUndefined();
   });
 });
