@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { ericMeldungen } from "../formatprobe.ts";
 import { ericHomeIn } from "../install.ts";
 import { EricProcessClient } from "../process-client.ts";
-import { buildEbilanzXml, type EbilanzInput } from "./xbrl.ts";
+import { EBILANZ_KONTEN, ebilanzZuordnung, postenOf, type Kontenrahmen } from "@haben/core";
+import { buildEbilanzXml, ebilanzWerte, type AnlagenspiegelZeile, type EbilanzInput } from "./xbrl.ts";
 
 /**
  * E-Bilanz einer Kleinst-GmbH mit dem echten ERiC prüfen (lokal, ERIC_VALIDIERE; es wird nichts gesendet). Läuft nur mit
@@ -78,4 +79,27 @@ describe.skipIf(!ericHome)("E-Bilanz mit ERiC (Taxonomie 6.9)", () => {
       ],
     });
   }, 60_000);
+
+  // Jedes Konto, das Haben bucht, mit einem Saldo auf seiner üblichen Seite; die Bank gleicht aus
+  it.each(["SKR03", "SKR04"] as const)(
+    "%s: alle Konten der Zuordnung zusammen",
+    async (kontenrahmen: Kontenrahmen) => {
+      const salden = Object.keys(EBILANZ_KONTEN[kontenrahmen]).map((account, i) => {
+        const posten = postenOf(kontenrahmen, account)!;
+        const soll = posten.startsWith("aktiva.") || !["passiva.", "umsatzerloese", "sonstigeErtraege"].some((p) => posten.startsWith(p));
+        return { account, saldo: (soll ? 1 : -1) * (10_000 + i * 100) };
+      });
+      const bank = kontenrahmen === "SKR03" ? "1200" : "1800";
+      const ohneBank = salden.filter((s) => s.account !== bank);
+      const { zuordnung, fehlend } = ebilanzZuordnung(kontenrahmen, [...ohneBank, { account: bank, saldo: -ohneBank.reduce((sum, s) => sum + s.saldo, 0) }]);
+      expect(fehlend).toEqual([]);
+      const werte = ebilanzWerte(zuordnung);
+      const anlagen: AnlagenspiegelZeile[] = Object.entries(werte)
+        .filter(([position]) => position.startsWith("bs.ass.fixAss."))
+        .map(([position, wert]) => ({ position, akAnfang: wert, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 }));
+      const eigenkapital = ["bs.eqLiab.equity.subscribed.corp", "bs.eqLiab.equity.retainedEarnings"].reduce((sum, p) => sum + (werte[p] ?? 0), 0);
+      await pruefe({ ...basis, werte, bvv: { eigenkapitalVorjahr: eigenkapital, ausschuettungen: 0, einlagen: 0 }, anlagen });
+    },
+    60_000,
+  );
 });

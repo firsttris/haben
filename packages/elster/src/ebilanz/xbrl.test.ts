@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEbilanzXml, EbilanzError, ebilanzSummen, splitStrasse } from "./xbrl.ts";
+import { buildEbilanzXml, EbilanzError, ebilanzSummen } from "./xbrl.ts";
 
 describe("E-Bilanz: Summen nach den Rechenregeln der Taxonomie 6.9", () => {
   it("gibt Werte mit Gewicht an die Summen weiter, bis Bilanzsumme und Jahresergebnis", () => {
@@ -74,14 +74,5 @@ describe("E-Bilanz: Summen nach den Rechenregeln der Taxonomie 6.9", () => {
         ],
       }),
     ).toThrow("Anlagenspiegel");
-  });
-
-  it.each([
-    ["Musterstraße 12", "Musterstraße", "12"],
-    ["Hafenallee 3a", "Hafenallee", "3a"],
-    ["Am Markt 5 - 7", "Am Markt", "5-7"],
-    ["Postfach", "Postfach", ""],
-  ])("trennt %s in Straße und Hausnummer", (strasse, street, houseNo) => {
-    expect(splitStrasse(strasse)).toEqual({ street, houseNo });
   });
 });

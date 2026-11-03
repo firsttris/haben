@@ -1,4 +1,5 @@
-import type { Cents } from "@haben/core";
+import type { Cents, EbilanzZuordnung } from "@haben/core";
+import { splitStrasse } from "../nachricht.ts";
 import { elsterXml, escapeXml } from "../xml.ts";
 import taxonomie from "./taxonomie-6-9.json" with { type: "json" };
 
@@ -73,6 +74,44 @@ export function ebilanzSummen(werte: Readonly<Record<string, Cents>>): Map<strin
   return result;
 }
 
+/**
+ * Werte je Position aus den zugeordneten Salden (Soll − Haben): Soll-Positionen mit dem Saldo, Haben-Positionen mit
+ * seinem Gegenwert. Das Jahresergebnis der GuV steht als Jahresüberschuss/-fehlbetrag im Eigenkapital, weil Haben es
+ * nicht auf ein Konto abschließt.
+ */
+export function ebilanzWerte(zuordnung: readonly EbilanzZuordnung[]): Record<string, Cents> {
+  const werte: Record<string, Cents> = {};
+  for (const { position, saldo } of zuordnung) {
+    const p = POSITIONEN[position];
+    if (!p) throw new EbilanzError(`Position ${position} gibt es in der Taxonomie ${EBILANZ_TAXONOMIE} nicht`);
+    werte[position] = (werte[position] ?? 0) + (p[3] === "credit" ? -saldo : saldo);
+  }
+  const guv = Object.fromEntries(Object.entries(werte).filter(([name]) => name.startsWith("is.")));
+  const ergebnis = ebilanzSummen(guv).get("is.netIncome") ?? 0;
+  if (ergebnis !== 0) werte["bs.eqLiab.equity.netIncome"] = (werte["bs.eqLiab.equity.netIncome"] ?? 0) + ergebnis;
+  return werte;
+}
+
+/**
+ * Positionen, die einen Wert tragen dürfen: ohne Unterpositionen mit Pflichtgrad (Muss, Summenmuss, rechnerisch
+ * notwendig). Freiwillige Unterpositionen, etwa die Entwicklung des gezeichneten Kapitals, dürfen leer bleiben.
+ */
+export function istEbilanzBlatt(position: string): boolean {
+  return Boolean(POSITIONEN[position]) && !SUMMENPOSITIONEN.has(position);
+}
+const SUMMENPOSITIONEN = new Set(
+  Object.values(POSITIONEN)
+    .filter(([req, parent]) => req !== "" && parent !== null)
+    .map(([, parent]) => parent!),
+);
+
+/** Kette der Summen bis zur Wurzel (bs.ass, bs.eqLiab, is.netIncome) */
+export function ebilanzSummenkette(position: string): string[] {
+  const chain: string[] = [];
+  for (let p: string | null = position; p; p = POSITIONEN[p]?.[1] ?? null) chain.push(p);
+  return chain;
+}
+
 const decimal = (cents: Cents) => `${cents < 0 ? "-" : ""}${Math.trunc(Math.abs(cents) / 100)}.${String(Math.abs(cents) % 100).padStart(2, "0")}`;
 
 /** Fakten von Bilanz und GuV: alle Positionen mit Wert, dazu Muss- und Summenmussfelder leer */
@@ -89,12 +128,6 @@ function gaapFacts(summen: Map<string, Cents>): string[] {
     });
 }
 
-/** Straße und Hausnummer getrennt, wie die Stammdaten sie verlangen: „Musterstraße 12a“ → Musterstraße, 12a */
-export function splitStrasse(strasse: string): { street: string; houseNo: string } {
-  const m = /^(.*?)\s+(\d+\s*[a-zA-Z]?(?:\s*[-/]\s*\d+\s*[a-zA-Z]?)?)$/.exec(strasse.trim());
-  return m ? { street: m[1]!, houseNo: m[2]!.replace(/\s+/g, "") } : { street: strasse.trim(), houseNo: "" };
-}
-
 /** Stammdaten (GCD-Modul): Bericht, Zeitraum, Unternehmen; Aufbau wie in den Beispielen der ERiC-Dokumentation */
 function gcdFacts(input: EbilanzInput): string[] {
   const d = 'contextRef="D-AKTJAHR"';
@@ -106,7 +139,10 @@ function gcdFacts(input: EbilanzInput): string[] {
         : `<de-gcd:genInfo.${name} ${d}>${escapeXml(value)}</de-gcd:genInfo.${name}>`;
   const group = (name: string, inner: string[]) => [`<de-gcd:genInfo.${name}>`, ...inner, `</de-gcd:genInfo.${name}>`];
   const y = input.year;
-  const { street, houseNo } = splitStrasse(input.firma.strasse);
+  // Straße und Hausnummer getrennt, wie die Stammdaten sie verlangen; ohne Hausnummer bleibt die Angabe weg
+  const anschrift = splitStrasse(input.firma.strasse);
+  const street = anschrift?.strasse ?? input.firma.strasse.trim();
+  const houseNo = anschrift ? `${anschrift.hausnummer}${anschrift.zusatz ?? ""}` : "";
   const elements = ["B", "BAL", "BVV", "EB", "EV", "GuV", "KKE", "KS", "SGE", "SGEP", "STU"] as const;
   // Bilanz, Anlagenspiegel, GuV mit Betriebsvermögensvergleich
   const BERICHTSTEILE = new Set<string>(["B", "BAL", "BVV", "GuV"]);
