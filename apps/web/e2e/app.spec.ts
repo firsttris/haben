@@ -415,6 +415,14 @@ test("Positionstext: über 500 Zeichen mit Bezeichnung lässt sich die Position 
   await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
 });
 
+test("Positionstext: ein einzeiliger Artikel beim Tippen lässt den eigenen Text der Position stehen", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Text zu Position 1 (optional)").fill("laut Bestellung 4500123456");
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung Softwarearchitektur");
+  await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("110,00");
+  await expect(page.getByLabel("Text zu Position 1 (optional)")).toHaveValue("laut Bestellung 4500123456");
+});
+
 test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor einfügen", async () => {
   await go("/textbausteine");
   await page.getByRole("button", { name: "Neuer Textbaustein" }).click();
