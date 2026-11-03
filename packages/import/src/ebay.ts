@@ -87,6 +87,14 @@ export function parseEbay(rows: string[][], headerRow: number): ParsedStatement 
   const description = value(c.getter("beschreibung", "description"));
   const referenceId = value(c.getter("referenznr", "referenznummer", "referenceid"));
   const transactionId = value(c.getter("transaktionsnr", "transactionid"));
+  // Steuer, die eBay als Plattform selbst abführt (etwa VAT für Käufer im Vereinigten Königreich): steckt im
+  // Bruttobetrag, nicht im Nettobetrag, und gehört nie dem Verkäufer
+  const ebayTax = value(c.getter("vonebayeingezogenesteuer", "ebaycollectedtax"));
+
+  const withoutEbayTax = (grossAmount: number, row: string[], where: string) => {
+    const tax = ebayTax(row) ? Math.abs(requireAmount(amount(ebayTax(row)), ebayTax(row), where)) : 0;
+    return grossAmount - Math.sign(grossAmount) * tax;
+  };
 
   const list: Tx[] = [];
   const payoutRows: { payoutId: string; type: string; amount: number }[] = [];
@@ -119,7 +127,7 @@ export function parseEbay(rows: string[][], headerRow: number): ParsedStatement 
     const counterpartyName = isPayout(kind) ? "eBay" : normalizeText(buyer(row)) || "eBay";
 
     const buyerCurrency = transactionCurrency(row).toUpperCase();
-    const grossAmount = gross(row) && !isPayout(kind) ? requireAmount(amount(gross(row)), gross(row), where) : null;
+    const grossAmount = gross(row) && !isPayout(kind) ? withoutEbayTax(requireAmount(amount(gross(row)), gross(row), where), row, where) : null;
     if (grossAmount === null || (buyerCurrency && buyerCurrency !== "EUR")) {
       // Käufer in anderer Währung: der Bruttobetrag ist nicht in Euro, nur der Nettobetrag stimmt
       if (grossAmount !== null) foreignBuyer++;
