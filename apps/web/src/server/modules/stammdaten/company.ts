@@ -167,7 +167,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       priceIncludesTax,
     })),
     textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
-    company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, logo: logo?.sha256 ?? null },
+    company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, logo: logo?.sha256 ?? null, accent: company.accentColor },
     sellerIssues: sellerIssues(company),
     bundesland: company.bundesland,
     kleinunternehmer: company.kleinunternehmer,

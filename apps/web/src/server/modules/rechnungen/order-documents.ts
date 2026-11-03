@@ -3,7 +3,7 @@ import { buildConfirmationPdf, buildDeliveryNotePdf, type Buyer, type Seller } f
 import type { UnitLabel } from "@haben/core";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { loadLogo } from "../stammdaten/index.ts";
+import { loadLetterhead } from "../stammdaten/index.ts";
 import { quoteDocumentFor } from "./quotes.ts";
 import { today } from "../../today.ts";
 
@@ -28,8 +28,7 @@ async function acceptedQuote(id: string) {
 export async function confirmationPdf(quoteId: string) {
   const { quote, lines } = await acceptedQuote(quoteId);
   const doc = quoteDocumentFor(quote, lines, quote.seller, quote.buyer, quote.number);
-  const logo = await loadLogo();
-  const pdf = buildConfirmationPdf(logo ? { ...doc, logo } : doc, today(quote.decidedAt));
+  const pdf = buildConfirmationPdf({ ...doc, ...(await loadLetterhead()) }, today(quote.decidedAt));
   return { pdf, filename: `${quote.language === "en" ? "Order-confirmation" : "Auftragsbestaetigung"}-${quote.number}.pdf` };
 }
 
@@ -80,7 +79,7 @@ async function deliverySource(source: "angebot" | "rechnung", id: string): Promi
 /** Lieferschein zu einem angenommenen Angebot oder einer festgeschriebenen Rechnung */
 export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string) {
   const base = await deliverySource(source, id);
-  const logo = await loadLogo();
+  const letterhead = await loadLetterhead();
   const pdf = buildDeliveryNotePdf({
     reference: { kind: source, number: base.number, issueDate: base.issueDate },
     deliveryDate: base.deliveryDate,
@@ -89,7 +88,7 @@ export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string
     buyer: base.buyer,
     language: base.language,
     lines: base.lines.map((l, i) => ({ position: i + 1, description: l.description, quantity: l.quantity, unit: l.unit as UnitLabel })),
-    ...(logo ? { logo } : {}),
+    ...letterhead,
   });
   return { pdf, filename: `${base.language === "en" ? "Delivery-note" : "Lieferschein"}-${base.number}.pdf` };
 }

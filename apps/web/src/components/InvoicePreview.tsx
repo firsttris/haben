@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { computeInvoiceTotals, formatEuro, formatQuantity, formatRate, lineAmount, type InvoiceLineInput, type PriceMode } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { KIND_TITLE } from "../lib/invoice.ts";
@@ -15,6 +16,8 @@ export interface PreviewSeller {
   bank: string;
   /** SHA-256 des Logos, wenn eines hinterlegt ist */
   logo?: string | null;
+  /** Akzentfarbe #RRGGBB aus den Einstellungen; fehlt = Standardgrün aus styles.css */
+  accent?: string;
 }
 
 export interface PreviewBuyer {
@@ -109,7 +112,11 @@ export function InvoicePreview({
   // Maße in mm wie in templates/rechnung.typ (DIN 5008 Form B), über --mm auf die Breite skaliert
   return (
     <div className="sheet-frame">
-      <div className="sheet" aria-label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}>
+      <div
+        className="sheet"
+        aria-label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
+        style={seller.accent ? ({ "--brand": seller.accent } as CSSProperties) : undefined}
+      >
         <span className="sheet-fold" style={{ top: "calc(105 * var(--mm))" }} />
         <span className="sheet-fold long" style={{ top: "calc(148.5 * var(--mm))" }} />
         <span className="sheet-fold" style={{ top: "calc(210 * var(--mm))" }} />

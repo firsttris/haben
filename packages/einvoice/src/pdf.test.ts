@@ -1,8 +1,25 @@
+import { inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { logoFormat, pdfData, renderInvoicePdf } from "./pdf.ts";
+import { logoFormat, pdfData, renderInvoicePdf, templateInputs } from "./pdf.ts";
 import { grossPriceLines, mixedRateLines, sampleDocument, zeroRateLines } from "./samples.ts";
+import { DEFAULT_ACCENT } from "@haben/core";
 
 const ascii = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
+
+/** Entpackte Inhaltsströme eines PDFs, um Zeichenbefehle wie Farben zu finden */
+function contentStreams(pdf: Uint8Array): string {
+  const text = ascii(pdf);
+  return [...text.matchAll(/stream\r?\n/g)]
+    .map((match) => {
+      const start = match.index + match[0].length;
+      try {
+        return inflateSync(pdf.subarray(start, text.indexOf("endstream", start))).toString("latin1");
+      } catch {
+        return "";
+      }
+    })
+    .join("\n");
+}
 
 describe("renderInvoicePdf", () => {
   it("erzeugt ein PDF/A-3b", () => {
@@ -31,6 +48,20 @@ describe("logoFormat", () => {
     const png = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64"));
     const pdf = renderInvoicePdf({ ...sampleDocument(), logo: { data: png, format: "png" } });
     expect(Buffer.from(pdf).toString("latin1")).toContain("/Subtype /Image");
+  });
+});
+
+describe("Akzentfarbe", () => {
+  it("setzt ohne Einstellung die Standardfarbe und das Logo als Dateinamen", () => {
+    expect(templateInputs({ title: "Rechnung" }, {})).toEqual({ title: "Rechnung", accent: DEFAULT_ACCENT });
+    expect(templateInputs({}, { accent: "#0055AA", logo: { data: new Uint8Array(), format: "png" } })).toEqual({ accent: "#0055AA", logo: "logo.png" });
+  });
+
+  it("zeichnet Überschriften und Linien in der eingestellten Farbe", () => {
+    // #0055AA = RGB 0, 85, 170 → 0 0,333 0,667
+    const blau = /0 0\.3333\d* 0\.6666\d* (scn|SCN)/;
+    expect(contentStreams(renderInvoicePdf({ ...sampleDocument(), accent: "#0055AA" }))).toMatch(blau);
+    expect(contentStreams(renderInvoicePdf(sampleDocument()))).not.toMatch(blau);
   });
 });
 

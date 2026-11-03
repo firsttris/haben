@@ -624,6 +624,13 @@
       "when": 1793901470647,
       "tag": "0088_positionsbeschreibung",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1793708445652,
+      "tag": "0089_akzentfarbe",
+      "breakpoints": true
     }
   ]
 }

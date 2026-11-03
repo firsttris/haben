@@ -6,7 +6,8 @@
 #let ink = rgb("#16211C")
 #let muted = rgb("#5B6B63")
 #let rule = rgb("#D5DDD8")
-#let accent = rgb("#1F6F5C")
+// Akzentfarbe aus den Einstellungen (Überschriften, Linien), immer gesetzt
+#let accent = rgb(d.accent)
 
 // Die Plex-TTFs tragen Medium und SemiBold als eigene Familien
 #let medium(body) = text(font: "IBM Plex Sans Medm", body)
