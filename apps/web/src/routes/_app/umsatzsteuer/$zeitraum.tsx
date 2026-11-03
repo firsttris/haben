@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
   component: VatPeriodPage,
 });
 
-const ELSTER_ASSISTENT_DOCS = "https://firsttris.github.io/haben/elster-mit-assistent.html";
+const ELSTER_ABGABE_DOCS = "https://firsttris.github.io/haben/elster-abgabe.html";
 
 type PageData = Awaited<ReturnType<typeof getVatPeriod>>;
 type FieldKey = "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67";
@@ -97,7 +97,7 @@ function VatPeriodPage() {
           <span>
             Ohne eigene Hersteller-ID gibst du in Mein ELSTER ab: Entwurf speichern, „XML für Mein ELSTER“ herunterladen und dort im Formular
             Umsatzsteuer-Voranmeldung unter Datenübernahme › XML-Import hochladen. Prüfen und absenden machst du in Mein ELSTER.{" "}
-            <a href={ELSTER_ASSISTENT_DOCS} target="_blank" rel="noreferrer">
+            <a href={ELSTER_ABGABE_DOCS} target="_blank" rel="noreferrer">
               Abgabe in Mein ELSTER
             </a>
           </span>

@@ -18,13 +18,13 @@ Fristen: ohne Steuerberatung bis 31. Juli des Folgejahres, mit Steuerberatung sp
 
 ## Ohne Hersteller-ID: in Mein ELSTER eintragen
 
-Ohne eigene Hersteller-ID steht neben dem Senden-Kasten **In Mein ELSTER eintragen**. „Werte für Mein ELSTER kopieren“ legt die Feldkennungen und Werte der Erklärung in die Zwischenablage, genau die aus dem XML, das Haben senden würde. Die Erweiterung **Haben für Mein ELSTER** trägt sie dann Seite für Seite in das Formular ein; prüfen und absenden machst du dort. Einrichten und Ablauf: [Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md).
+Ohne eigene Hersteller-ID steht neben dem Senden-Kasten **In Mein ELSTER eintragen**. „Werte für Mein ELSTER kopieren“ legt die Feldkennungen und Werte der Erklärung in die Zwischenablage, genau die aus dem XML, das Haben senden würde. Die Erweiterung **Haben für Mein ELSTER** trägt sie dann Seite für Seite in das Formular ein; prüfen und absenden machst du dort. Einrichten und Ablauf: [Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md). Einen XML-Import wie bei der Voranmeldung bietet Mein ELSTER für die Jahreserklärungen nicht; alle Wege: [Abgabe an ELSTER](elster-abgabe.md).
 
 ## Umsatzsteuererklärung
 
 | Zeile | Woher |
 | --- | --- |
-| Umsätze zu 19 % und 7 % | Summe der zwölf Monate aus den Buchungen, wie in der Voranmeldung: Ist-Versteuerung nach Zahlungseingang, Soll nach Rechnungsdatum. Es zählt die Versteuerung des Jahres, auch wenn du sie zum Jahreswechsel umgestellt hast ([Ist- und Soll-Versteuerung](buchhaltung.md#ist-und-soll-versteuerung)). Bemessungsgrundlage in vollen Euro, die Steuer daraus. Die private Kfz-Nutzung ist in den 19 % enthalten |
+| Umsätze zu 19 % und 7 % | Summe der zwölf Monate aus den Buchungen, wie in der Voranmeldung: Ist-Versteuerung nach Zahlungseingang, Soll nach Rechnungsdatum. Es zählt die Versteuerung des Jahres, auch wenn du sie zum Jahreswechsel umgestellt hast ([Ist- und Soll-Versteuerung](buchhaltung.md#ist--und-soll-versteuerung)). Bemessungsgrundlage in vollen Euro, die Steuer daraus. Die private Kfz-Nutzung ist in den 19 % enthalten |
 | Abziehbare Vorsteuer | Summe der Vorsteuer aus gebuchten Belegen |
 | Vorauszahlungssoll | Summe der gesendeten Voranmeldungen des Jahres; je Monat zählt die zuletzt gesendete (bei Berichtigungen die berichtigte) |
 | Abschlusszahlung bzw. Erstattung | Umsatzsteuer minus Vorsteuer minus Vorauszahlungssoll |
