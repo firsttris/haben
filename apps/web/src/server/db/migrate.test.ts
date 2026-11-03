@@ -51,8 +51,8 @@ describe.skipIf(!testDatabaseUrl)("Update einer bestehenden Installation (Postgr
       const { migrate } = await import("drizzle-orm/postgres-js/migrator");
       await migrate(drizzle(sql), { migrationsFolder: previous });
       await migrate(drizzle(sql), { migrationsFolder: MIGRATIONS });
-      const [{ count }] = await sql<{ count: number }[]>`select count(*)::int as count from drizzle.__drizzle_migrations`;
-      expect(count).toBe(full.entries.length);
+      const [row] = await sql<{ count: number }[]>`select count(*)::int as count from drizzle.__drizzle_migrations`;
+      expect(row?.count).toBe(full.entries.length);
     } finally {
       await sql.end();
     }
