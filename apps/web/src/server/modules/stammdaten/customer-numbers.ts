@@ -31,13 +31,18 @@ export async function saveCustomerNumbering(actor: string, input: { format: stri
   );
 }
 
-/** Nächste freie Kundennummer in der laufenden Transaktion, null = keine automatische Vergabe */
-export async function takeCustomerNumber(tx: Tx): Promise<string | null> {
+/**
+ * Kundennummer für einen neuen Kontakt in der laufenden Transaktion: die eigene, sonst die nächste freie; null = keine
+ * automatische Vergabe. Sperrt die Firmenzeile auch bei eigener Nummer, sonst sähe eine gleichzeitige Vergabe die noch
+ * nicht festgeschriebene Nummer nicht und vergäbe sie ein zweites Mal.
+ */
+export async function takeCustomerNumber(tx: Tx, own: string | null): Promise<string | null> {
   const [company] = await tx
     .select({ format: schema.company.customerNumberFormat, next: schema.company.customerNumberNext })
     .from(schema.company)
     .where(eq(schema.company.id, 1))
     .for("update");
+  if (own) return own;
   if (!company?.format) return null;
   const counter = await firstFree(tx, company.format, company.next);
   await tx

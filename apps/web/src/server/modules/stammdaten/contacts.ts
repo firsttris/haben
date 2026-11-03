@@ -82,7 +82,7 @@ export async function createContact(actor: string, input: ContactInput): Promise
   return withActor(actor, async (tx) => {
     const values = clean(input);
     // Ohne eigene Nummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht
-    const kundennummer = values.kundennummer ?? (await takeCustomerNumber(tx));
+    const kundennummer = await takeCustomerNumber(tx, values.kundennummer);
     const [created] = await tx
       .insert(schema.contacts)
       .values({ ...values, kundennummer })
