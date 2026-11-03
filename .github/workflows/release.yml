@@ -5,7 +5,7 @@ name: Release
 # siehe https://github.com/firsttris/workflows#tested-on-main), dann der gemeinsame Docker-Release
 # aus firsttris/workflows. Der prüft den Tag gegen package.json, pusht :x.y.z, :x.y und :latest auf
 # Docker Hub und GHCR (amd64 und arm64), aktualisiert die Beschreibung auf Docker Hub und legt
-# danach das GitHub-Release an. Ein Release Candidate vX.Y.Z-rc.N pusht stattdessen :x.y.z-rc.N und
+# danach das GitHub-Release an, mit der Erweiterung „Haben für Mein ELSTER“ als ZIP. Ein Release Candidate vX.Y.Z-rc.N pusht stattdessen :x.y.z-rc.N und
 # :next, wird ein Pre-release auf GitHub und lässt :latest und die Beschreibung auf Docker Hub stehen.
 # Von Hand auf main gestartet: dieselben Prüfungen, dann das Image als :edge; kein Release.
 # Das Backup-Image tristanteu/haben-backup (deploy/backup) und das Datenbank-Image tristanteu/haben-db
@@ -35,16 +35,39 @@ jobs:
       contents: read
       packages: read # der Image-Test der CI liest den Build-Cache, schreibt ihn aber nicht
 
-  docker:
+  # Die Erweiterung „Haben für Mein ELSTER“ als ZIP fürs GitHub-Release, im Format der anderen Erweiterungen
+  # (Artefakt extension mit <name>-chrome-<version>.zip): so kann browser-extension-stores.yml aus firsttris/workflows
+  # sie später auch in den Chrome Web Store bringen
+  erweiterung:
     needs: [tested, checks]
-    # Die Prüfungen liefen durch oder waren nicht nötig
-    if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
+    if: ${{ !cancelled() && startsWith(github.ref, 'refs/tags/v') && needs.tested.result == 'success' && needs.checks.result != 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      # Baut die Erweiterung (TypeScript mit Vite) und packt dist/ mit der Version aus dem Tag
+      - run: bun scripts/elster-helfer/paket.ts "$GITHUB_REF_NAME" "$RUNNER_TEMP"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: extension
+          path: ${{ runner.temp }}/haben-fuer-mein-elster-chrome-*.zip
+          if-no-files-found: error
+
+  docker:
+    needs: [tested, checks, erweiterung]
+    # Die Prüfungen liefen durch oder waren nicht nötig; ohne Tag (Start von Hand, :edge) fehlt die Erweiterung
+    if: ${{ !cancelled() && needs.tested.result == 'success' && needs.checks.result != 'failure' && needs.erweiterung.result != 'failure' }}
     uses: firsttris/workflows/.github/workflows/docker-release.yml@5011fb6bf2b7423d211ecffa82218ba067fb5fed # main
     with:
       image: tristanteu/haben
       description: "Selbst gehostete Buchhaltung für Freiberufler: E-Rechnung, Bankabgleich, EÜR, ELSTER-Voranmeldung"
       dockerfile: Containerfile
       ghcr: true
+      # Nur das GitHub-Release eines Tags lädt es; :edge legt kein Release an
+      release-artifact: extension
     secrets: inherit
     permissions:
       contents: write

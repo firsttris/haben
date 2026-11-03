@@ -8,7 +8,7 @@ ARG UID=1000
 ARG GID=1000
 # Die Ziele der Volumes vorher anlegen: Ein neues Volume übernimmt Besitzer und Rechte des Ordners im Image
 RUN groupmod -o -g "$GID" bun && usermod -o -u "$UID" -g "$GID" bun \
- && mkdir -p /app/node_modules /app/apps/web/node_modules \
+ && mkdir -p /app/node_modules /app/apps/web/node_modules /app/apps/elster-helfer/node_modules \
       /app/packages/core/node_modules /app/packages/einvoice/node_modules \
       /app/packages/elster/node_modules /app/packages/import/node_modules \
       /var/lib/haben /home/bun/.cache \

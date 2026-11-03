@@ -39,7 +39,7 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 
 ### apps/elster-helfer
 
-Die Browser-Erweiterung „Haben für Mein ELSTER“ (Manifest V3, ohne Build): `fill.js` findet die Felder von Mein ELSTER über ihre amtliche Kennung (reine Logik ohne Chrome-APIs, getestet in `apps/web/e2e/elster-helfer.spec.ts`), `content.js` trägt auf jeder Formularseite ein und zeigt die Leiste, das Popup nimmt die Werte aus Haben entgegen und legt sie im Sitzungsspeicher des Browsers ab. Sie läuft nur auf `www.elster.de/eportal/interpreter/eingabe/…` und verbindet sich nicht mit Haben ([Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md)).
+Die Browser-Erweiterung „Haben für Mein ELSTER“ (Manifest V3, TypeScript, gebaut mit Vite und `@crxjs/vite-plugin` nach `dist/`): `src/fill.ts` findet die Felder von Mein ELSTER über ihre amtliche Kennung (reine Logik ohne Chrome-APIs, getestet in `apps/web/e2e/elster-helfer.spec.ts`), `src/content.ts` trägt auf jeder Formularseite ein und zeigt die Leiste, `src/popup.ts` nimmt die Werte aus Haben entgegen und legt sie im Sitzungsspeicher des Browsers ab. Das Format der Werte ist der Typ `MeinElsterWerte` aus `packages/elster/src/felder.ts`, denselben, mit dem Haben sie erzeugt. Das Inhaltsskript ist ein Bündel ohne Nachladen, die Erweiterung gibt Mein ELSTER also keine Dateien frei (`web_accessible_resources`), an denen die Seite sie erkennen könnte. Für jedes Release baut und packt `scripts/elster-helfer/paket.ts` sie mit der Version aus dem Tag als `haben-fuer-mein-elster-chrome-<Version>.zip` (Format des Chrome Web Store). Sie läuft nur auf `www.elster.de/eportal/interpreter/eingabe/…` und verbindet sich nicht mit Haben ([Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md)).
 
 ### apps/web
 

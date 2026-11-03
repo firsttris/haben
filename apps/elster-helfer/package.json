@@ -1,0 +1,17 @@
+{
+  "name": "@haben/elster-helfer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "build": "bun --bun vite build",
+    "typecheck": "bun --bun tsc -p ."
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^3.0.0",
+    "@haben/elster": "workspace:*",
+    "@types/chrome": "^0.3.7",
+    "vite": "^8.3.2"
+  }
+}

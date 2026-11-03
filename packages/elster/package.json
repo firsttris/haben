@@ -5,7 +5,8 @@
   "type": "module",
   "license": "AGPL-3.0-only",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./felder": "./src/felder.ts"
   },
   "scripts": {
     "typecheck": "bun --bun tsc -p ."

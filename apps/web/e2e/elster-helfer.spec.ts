@@ -1,12 +1,34 @@
 import { expect, test, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
+import { build } from "vite";
 
 /**
- * Die Logik der Erweiterung apps/elster-helfer in einem echten Browser, gegen eine nachgebaute Formularseite von
+ * Die Logik der Erweiterung apps/elster-helfer (src/fill.ts) in einem echten Browser, gegen eine nachgebaute Formularseite von
  * Mein ELSTER. Die Feldnamen sind die, die Mein ELSTER im November 2026 für die Anlage EÜR 2025 verwendet.
  */
 
-const FILL = fileURLToPath(new URL("../../elster-helfer/fill.js", import.meta.url));
+const FILL = fileURLToPath(new URL("../../elster-helfer/src/fill.ts", import.meta.url));
+
+let helfer: Promise<string> | undefined;
+
+/**
+ * fill.ts mit Vite als klassisches Skript, das die Exporte als `HabenElster` global ablegt: So läuft die Logik der
+ * Erweiterung in der nachgebauten Seite ohne Chrome-APIs, gebaut wie die Erweiterung selbst. Einmal je Lauf.
+ */
+function helferSkript(): Promise<string> {
+  helfer ??= build({
+    configFile: false,
+    logLevel: "silent",
+    build: { write: false, minify: false, lib: { entry: FILL, formats: ["iife"], name: "HabenElster", fileName: "helfer" } },
+  }).then((out) => {
+    // write: false liefert die gebauten Dateien statt sie zu schreiben; gebraucht wird der eine Chunk
+    const ausgaben = (Array.isArray(out) ? out : [out]) as { output: { type: string; code?: string }[] }[];
+    const code = ausgaben.flatMap((o) => o.output).find((d) => d.type === "chunk")?.code;
+    if (!code) throw new Error("Vite hat aus fill.ts kein Skript gebaut");
+    return code;
+  });
+  return helfer;
+}
 
 const SEITE = `<!doctype html><html lang="de"><body><main>
   <label for="a">Umsatzsteuerpflichtige Betriebseinnahmen (Euro, Cent)</label>
@@ -62,7 +84,7 @@ const WERTE = {
 
 async function seite(page: Page) {
   await page.setContent(SEITE);
-  await page.addScriptTag({ path: FILL });
+  await page.addScriptTag({ content: await helferSkript() });
 }
 
 test("trägt die Werte nach Feldkennung ein, überschreibt nichts und nennt Mehrfachzeilen", async ({ page }) => {
@@ -202,7 +224,7 @@ const USTVA_WERTE = {
 
 test("Voranmeldung: Kennzahlen über den ERiC-Pfad, gerechnete Steuer nur vergleichen, Zeitraum wählen", async ({ page }) => {
   await page.setContent(USTVA);
-  await page.addScriptTag({ path: FILL });
+  await page.addScriptTag({ content: await helferSkript() });
   const ergebnis = await ausfuellen(page, USTVA_WERTE);
   await expect(page.locator("#z")).toHaveValue("10");
   await expect(page.locator("#k81")).toHaveValue("2900");
@@ -252,7 +274,7 @@ const EST_WERTE = {
 test("Einkommensteuer: Werte einer Person nur auf deren Anlage, Vorjahreswerte erst auf ausdrücklichen Wunsch überschreiben", async ({ page }) => {
   // Anlage S von Person B: die Werte von Person A gehören nicht hierher
   await page.setContent(anlageS("Erika Muster", ""));
-  await page.addScriptTag({ path: FILL });
+  await page.addScriptTag({ content: await helferSkript() });
   const fremd = await ausfuellen(page, EST_WERTE);
   await expect(page.locator("#b")).toHaveValue("");
   expect(fremd).toMatchObject({
@@ -266,7 +288,7 @@ test("Einkommensteuer: Werte einer Person nur auf deren Anlage, Vorjahreswerte e
 
   // Anlage S von Person A mit dem Vorjahreswert: erst abweichend, dann auf Wunsch überschrieben
   await page.setContent(anlageS("Max Muster", "101.059"));
-  await page.addScriptTag({ path: FILL });
+  await page.addScriptTag({ content: await helferSkript() });
   const erst = await ausfuellen(page, EST_WERTE);
   expect(erst).toMatchObject({ person: "A", gleich: [{ kennung: "E0803101" }], abweichend: [{ kennung: "E0803202", wert: "85433", vorhanden: "101.059" }] });
   await expect(page.locator("#b")).toHaveValue("101.059");
@@ -291,7 +313,7 @@ test("Kontrollkästchen: ein gesetztes Häkchen gilt beim erneuten Eintragen als
     <label for="x">Angabe</label><input type="checkbox" id="x" name="fields[eruEUERAllgE6000019]">
     <label for="y">Andere Angabe</label><input type="checkbox" id="y" name="fields[eruEUERAllgE6000020]">
   </main></body></html>`);
-  await page.addScriptTag({ path: FILL });
+  await page.addScriptTag({ content: await helferSkript() });
   const werte = {
     ...WERTE,
     felder: [

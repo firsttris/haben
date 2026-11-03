@@ -29,17 +29,19 @@ Die Werte liegen nur im Sitzungsspeicher der Erweiterung und sind weg, sobald du
 
 ## Einrichten
 
-Die Erweiterung liegt im Quelltext von Haben unter `apps/elster-helfer`. Sie läuft in Chrome, Edge, Brave und anderen Chromium-Browsern.
+Die Erweiterung liegt jedem [Release von Haben](https://github.com/firsttris/haben/releases/latest) als ZIP bei, mit derselben Version wie Haben. Sie läuft in Chrome, Edge, Brave und anderen Chromium-Browsern. In den Chrome Web Store kommt sie später; bis dahin lädst du sie selbst:
 
-1. Den Ordner `apps/elster-helfer` aus dem [Repository](https://github.com/firsttris/haben/tree/main/apps/elster-helfer) herunterladen (oder das Repository klonen).
+1. Beim Release deiner Haben-Version unter **Assets** `haben-fuer-mein-elster-chrome-<Version>.zip` herunterladen und in einen eigenen Ordner entpacken, etwa `haben-fuer-mein-elster`.
 2. Im Browser `chrome://extensions` öffnen (Brave: `brave://extensions`), oben rechts den **Entwicklermodus** einschalten.
-3. **Entpackte Erweiterung laden** und den Ordner `elster-helfer` wählen.
-4. Die Erweiterung über das Puzzle-Symbol an die Symbolleiste anheften.
+3. **Entpackte Erweiterung laden** und den entpackten Ordner wählen (den, in dem `manifest.json` liegt).
+4. Die Erweiterung über das Puzzle-Symbol an die Symbolleiste anheften. Sie hat dasselbe Symbol wie Haben, ein dunkles „H“ auf Grün.
+
+Nach einem Update von Haben lädst du das neue ZIP, entpackst es in denselben Ordner und klickst bei der Erweiterung auf **Neu laden**. Wer das Repository klont, baut sie selbst mit `bun run --cwd apps/elster-helfer build` und lädt den Ordner `apps/elster-helfer/dist`.
 
 ## Abgeben
 
 1. In Haben bei der Voranmeldung bzw. Jahreserklärung auf **Werte für Mein ELSTER kopieren** klicken. Der Knopf erscheint, solange keine eigene Hersteller-ID eingerichtet ist; er ist gesperrt, solange Prüfungen Fehler zeigen oder ein Entwurf der Voranmeldung nicht gespeichert ist.
-2. Auf das Symbol der Erweiterung klicken, die Werte einfügen und **Werte übernehmen**.
+2. Auf das Symbol der Erweiterung (das grüne „H“) klicken, die Werte einfügen und **Werte übernehmen**.
 3. In Mein ELSTER das Formular für denselben Zeitraum öffnen (Formulare und Leistungen › Formular › Jahr), „Ohne Datenübernahme fortfahren“, bei Jahreserklärungen die Anlagen wählen.
 4. Seite für Seite durchgehen. Auf jeder Seite trägt die Erweiterung ein, was dorthin gehört, und rahmt die Felder grün. Unten rechts steht eine Leiste mit:
    - **eingetragen**: was die Erweiterung gerade gesetzt hat;
