@@ -98,6 +98,19 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(logo.getByRole("status")).toContainText("Logo gespeichert.");
   await expect(logo.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
 
+  const format = page.getByRole("form", { name: "Nummernformat" });
+  await format.getByLabel("Rechnungen").fill("RE-{NNN}");
+  await expect(format.getByText(/braucht das Jahr/)).toBeVisible();
+  await expect(format.getByRole("button", { name: "Format speichern" })).toBeDisabled();
+  await format.getByLabel("Rechnungen").fill("RE-{JJJJ}-{NNNN}");
+  await expect(format).toContainText(/Beispiel: RE-\d{4}-0001, RE-\d{4}-0002/);
+  await format.getByRole("button", { name: "Format speichern" }).click();
+  await expect(format.getByRole("status")).toContainText("Nummernformat gespeichert.");
+  await expect(page.getByRole("form", { name: /^Rechnungsnummern/ })).toContainText(/Nächste Nummer: RE-\d{4}-0001/);
+  // Die folgenden Tests rechnen mit den Nummern ab Werk
+  await format.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
+  await expect(format.getByLabel("Rechnungen")).toHaveValue("{JJJJ}-{NNN}");
+
   const akzent = page.getByRole("form", { name: "Akzentfarbe" });
   await akzent.getByLabel("Hex-Wert").fill("#F5D90A");
   await expect(akzent.getByRole("status")).toContainText("schwer zu lesen");

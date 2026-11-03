@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { formatInvoiceNumber } from "./invoice.ts";
 import { purposeContainsNumber, suggestMatches } from "./matching.ts";
+import { DEFAULT_INVOICE_NUMBER_FORMAT, formatDocumentNumber } from "./number-format.ts";
+
+const formatInvoiceNumber = (year: number, counter: number) => formatDocumentNumber(DEFAULT_INVOICE_NUMBER_FORMAT, year, counter);
 
 describe("Review Rechnungsnummer im Verwendungszweck", () => {
   it("Rechnung 2026-100 steckt nicht in „Rechnung 2026-1000“", () => {

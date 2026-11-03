@@ -64,8 +64,8 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 
 | Modul | Inhalt |
 | --- | --- |
-| `stammdaten` | `company` (Firmendaten, Versteuerung und Kleinunternehmer je Jahr), `contacts`, `articles`, `logo`, `letterhead` (Briefkopf: Logo und Akzentfarbe für die PDFs), `taxpayer` (persönliche Angaben), `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer, Speichern der Firmendaten) |
-| `rechnungen` | `invoices`, `invoice-taxes` (Steuerzeilen), `number-counter` (Nummernkreise), `quotes` (Angebote), `order-documents` (Auftragsbestätigung, Lieferschein), `dunning` (Mahnungen), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `recurring` (Serienrechnungen) |
+| `stammdaten` | `company` (Firmendaten, Versteuerung und Kleinunternehmer je Jahr), `contacts`, `articles`, `logo`, `letterhead` (Briefkopf: Logo und Akzentfarbe für die PDFs), `number-formats` (Nummernformate für Rechnungen und Angebote), `taxpayer` (persönliche Angaben), `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer, Speichern der Firmendaten) |
+| `rechnungen` | `invoices`, `invoice-taxes` (Steuerzeilen), `number-counter` (Nummernkreise, Nummer im eingestellten Format), `quotes` (Angebote), `order-documents` (Auftragsbestätigung, Lieferschein), `dunning` (Mahnungen), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `recurring` (Serienrechnungen) |
 | `belege` | `documents`, `extraction` (Auslesen), `inbox` (Belege per E-Mail über IMAP) |
 | `bank` | `bank` (Kontoauszüge, Zuordnung), `bank-sync` (Kontoabruf), `cash` (Kassenbuch) |
 | `buchhaltung` | `ledger` (Hauptbuch: einziger Schreiber des Journals, Saldenliste, Kontenblatt), `journal` (Kontennamen), `assets` (Anlagenverzeichnis, AfA), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg) |

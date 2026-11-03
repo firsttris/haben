@@ -33,7 +33,7 @@ Passkeys verwaltest du unter **Einstellungen › Sicherheit › Passkeys**: weit
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Logo, Akzentfarbe), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Logo, Akzentfarbe), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`.
 
 Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
 
@@ -202,11 +202,31 @@ Lehnt die Datenbank eine Umstellung ab, weil gleichzeitig gebucht wurde, siehst 
 
 ## Rechnungsnummern
 
-Rechnungsnummern haben die Form `JAHR-NNN`, zum Beispiel `2026-034`. Der Zähler läuft je Jahr; das Jahr kommt aus dem Rechnungsdatum. Eine Nummer vergibt Haben erst beim Festschreiben, in derselben Transaktion wie PDF, XML und Buchung. Schlägt dabei etwas fehl, wird keine Nummer verbraucht. Entwürfe haben noch keine Nummer, deshalb entstehen keine Lücken.
+Rechnungsnummern haben ab Werk die Form `JAHR-NNN`, zum Beispiel `2026-034`; das Format lässt sich ändern (siehe unten). Der Zähler läuft je Jahr; das Jahr kommt aus dem Rechnungsdatum. Eine Nummer vergibt Haben erst beim Festschreiben, in derselben Transaktion wie PDF, XML und Buchung. Schlägt dabei etwas fehl, wird keine Nummer verbraucht. Entwürfe haben noch keine Nummer, deshalb entstehen keine Lücken.
 
 Lückenlos und fortlaufend sollen die Nummern sein, damit das Finanzamt bei einer Prüfung sieht, dass keine Rechnung fehlt.
 
 Unter **Einstellungen › Rechnungen › Rechnungsnummern** siehst du die nächste Nummer des laufenden Jahres. Kommst du aus Lexoffice, trägst du dort die nächste laufende Nummer ein (z. B. `35`, wenn die letzte Lexoffice-Rechnung `2026-034` war). Der Wert muss größer sein als die zuletzt vergebene Nummer; zurücksetzen geht nicht. Die letzte Lexoffice-Nummer zeigt dir auch der Abgleich in [Umzug aus Lexoffice](lexoffice.md).
+
+### Nummernformat
+
+Unter **Einstellungen › Rechnungen › Nummernformat** legst du fest, wie Rechnungs- und Angebotsnummern aufgebaut sind, etwa mit eigenem Präfix. Ab Werk sind es `{JJJJ}-{NNN}` (`2026-034`) und `AN-{JJJJ}-{NNN}` (`AN-2026-007`).
+
+| Platzhalter | Wird zu |
+| --- | --- |
+| `{JJJJ}` | Jahr des Rechnungs- bzw. Angebotsdatums, z. B. `2026` |
+| `{JJ}` | dasselbe zweistellig, z. B. `26` |
+| `{N}` bis `{NNNNNN}` | laufende Nummer mit mindestens so vielen Stellen, vorne mit Nullen aufgefüllt; mehr Stellen werden nie abgeschnitten |
+
+Beispiele: `RE-{JJJJ}-{NNNN}` ergibt `RE-2026-0034`, `R{JJ}{NNN}` ergibt `R26034`.
+
+- Die laufende Nummer muss genau einmal vorkommen, das Jahr mindestens einmal: Der Zähler beginnt jedes Jahr bei 1, erst mit dem Jahr bleibt jede Nummer eindeutig (§ 14 Abs. 4 Nr. 4 UStG).
+- Außerhalb der Platzhalter gehen Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt, insgesamt höchstens 30 Zeichen. Leerzeichen und Schrägstrich gehen nicht, weil die Nummer auch im Dateinamen und im Verwendungszweck steht.
+- Unter dem Feld steht ein Beispiel oder, was am Format nicht passt.
+- Das Format gilt für alles, was ab dann festgeschrieben wird; schon vergebene Nummern bleiben, wie sie sind. Der Zähler läuft beim Wechsel einfach weiter.
+- Ergibt das neue Format eine Nummer, die es schon gibt, schreibt Haben nicht fest, sondern meldet „Die Nummer … ist schon vergeben“; der Zähler bleibt stehen. Das passiert nur bei sehr ähnlichen Formaten.
+- Der Bankabgleich findet die Nummer im Verwendungszweck in jedem Format.
+- Die Änderung steht wie die übrigen Firmendaten im Änderungsprotokoll.
 
 ## ELSTER einrichten
 

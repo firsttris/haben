@@ -26,3 +26,4 @@ export * from "./network.ts";
 export * from "./lebenszyklus.ts";
 export * from "./email-list.ts";
 export * from "./accent.ts";
+export * from "./number-format.ts";
