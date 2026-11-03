@@ -95,8 +95,10 @@ function clean(input: ContactInput) {
 export async function createContact(actor: string, input: ContactInput): Promise<Contact> {
   return withActor(actor, async (tx) => {
     const values = clean(input);
-    // Ohne eigene Nummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht
-    const kundennummer = await takeCustomerNumber(tx, values.kundennummer);
+    // Ohne eigene Nummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht; nur an Kunden,
+    // ein reiner Lieferant hat keine Kundennummer (#224)
+    // Eine eigene Nummer geht immer über die Sperre der Firmenzeile, damit keine gleichzeitige Vergabe sie doppelt nimmt
+    const kundennummer = values.isCustomer || values.kundennummer ? await takeCustomerNumber(tx, values.kundennummer) : null;
     const [created] = await tx
       .insert(schema.contacts)
       .values({ ...values, kundennummer })
