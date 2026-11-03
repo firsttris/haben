@@ -7,7 +7,7 @@ import { createConnection, createServer, type Server, type Socket } from "node:n
  * (ERiC-Übermittlung, Belegerkennung, eine langsame Datenbank). Bun.serve trennt die Verbindung nach
  * `idleTimeout` (Standard 10 s), wenn niemand ihn setzt. Läuft nur gegen den gebauten Server
  * (E2E_SERVER_COMMAND, wie in der CI): Dafür startet der Test ihn ein zweites Mal, mit einer Datenbank-
- * Verbindung, die jede Antwort von PostgreSQL um zwölf Sekunden verzögert.
+ * Verbindung, die jede Antwort von PostgreSQL auf eine Abfrage um zwölf Sekunden verzögert.
  */
 
 const command = process.env.E2E_SERVER_COMMAND;
@@ -18,13 +18,29 @@ const DELAY_MS = 12_000;
 test.skip(!command, "nur gegen den gebauten Server (E2E_SERVER_COMMAND)");
 test.setTimeout(90_000);
 
-/** TCP-Weiterleitung zu PostgreSQL; solange `slow()` true ist, kommt jede Antwort erst nach DELAY_MS an. */
+/** Erstes Byte der Nachrichten Query und Parse im Protokoll von PostgreSQL (einfache und erweiterte Abfrage) */
+const QUERY_MESSAGES = new Set(["Q".charCodeAt(0), "P".charCodeAt(0)]);
+
+/**
+ * TCP-Weiterleitung zu PostgreSQL; solange `slow()` true ist, kommt die Antwort auf eine Abfrage erst nach
+ * DELAY_MS an. Die Anmeldung bleibt schnell: Mit Passwort (SCRAM, wie in der CI) braucht sie mehrere
+ * Rundwege, und verzögert liefe schon der Verbindungsaufbau in den Timeout des Treibers.
+ */
 function delayingProxy(slow: () => boolean): Promise<Server> {
   const server = createServer((client) => {
     const db = createConnection({ host: databaseUrl.hostname, port: Number(databaseUrl.port || 5432) });
     sockets.push(client, db);
-    client.on("data", (chunk) => db.write(chunk));
-    db.on("data", (chunk) => (slow() ? setTimeout(() => client.write(chunk), DELAY_MS) : client.write(chunk)));
+    // Bis wann Daten von der Datenbank zurückgehalten werden; spätere Teile warten mindestens so lange, die Reihenfolge bleibt
+    let holdUntil = 0;
+    client.on("data", (chunk) => {
+      if (slow() && QUERY_MESSAGES.has(chunk[0])) holdUntil = Date.now() + DELAY_MS;
+      db.write(chunk);
+    });
+    db.on("data", (chunk) => {
+      const wait = holdUntil - Date.now();
+      if (wait > 0) setTimeout(() => client.write(chunk), wait);
+      else client.write(chunk);
+    });
     client.on("error", () => db.destroy());
     db.on("error", () => client.destroy());
     client.on("close", () => db.end());
