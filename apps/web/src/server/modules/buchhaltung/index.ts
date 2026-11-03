@@ -1,10 +1,11 @@
 /*
  * Buchhaltung: Hauptbuch (ledger.post ist der einzige Schreiber des Journals), Kontennamen, Anlagenverzeichnis mit AfA
- * Pauschalen ohne Beleg und manuelle Buchungen (GmbH, UG).
+ * Pauschalen ohne Beleg, manuelle Buchungen und Jahresabschluss (GmbH, UG).
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
+export { AbschlussError, closeYear, jahresabschluss } from "./abschluss.ts";
 export {
   assetInputSchema,
   assetUpdateSchema,

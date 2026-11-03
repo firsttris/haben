@@ -58,6 +58,8 @@ const NAV_GROUPS = [
       { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
       { to: "/buchungen", icon: "journal", label: "Buchungen" },
       { to: "/konten", icon: "ledger", label: "Konten" },
+      // Bilanz und Abschluss gibt es nur für GmbH und UG
+      { to: "/abschluss", icon: "annual", label: "Jahresabschluss", nurKapitalgesellschaft: true },
       { to: "/archiv", icon: "archive", label: "Archiv" },
     ],
   },
@@ -134,7 +136,7 @@ function AppLayout() {
                 {group.label}
               </div>
               {group.links
-                .filter((link) => !(gesellschaft && "nurEinzelunternehmen" in link))
+                .filter((link) => !(gesellschaft && "nurEinzelunternehmen" in link) && !(!gesellschaft && "nurKapitalgesellschaft" in link))
                 .map((link) => (
                   <Link key={link.to} to={link.to} className="nav-link">
                     <Icon name={link.icon} />

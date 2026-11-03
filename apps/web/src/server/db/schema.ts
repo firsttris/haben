@@ -937,6 +937,17 @@ export const journalEntries = pgTable(
   ],
 );
 
+/**
+ * Abgeschlossene Geschäftsjahre (GmbH, UG). Nur anhängen; ein Trigger lehnt danach jede Buchung mit Datum im Jahr ab und
+ * hält beim Abschluss Zahl und Prüfwert der Buchungen fest (SHA-256 über ihre Siegel, drizzle/0092).
+ */
+export const yearClosings = pgTable("year_closings", {
+  year: integer("year").primaryKey(),
+  entries: integer("entries").notNull().default(0),
+  digest: text("digest").notNull().default(""),
+  closedAt: timestamp("closed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const journalLines = pgTable(
   "journal_lines",
   {

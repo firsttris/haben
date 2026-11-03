@@ -404,6 +404,27 @@ Offene Rechnungen und Belege übernimmst du einzeln über den [Umzug](lexoffice.
 
 Gibt es vor dem 1. Januar schon Buchungen in Haben, lehnt Haben eine Eröffnung ab; die Salden trägt es dann selbst vor. Umgekehrt lässt sich nach einer Eröffnung nichts mehr davor buchen, auch kein rückdatierter Beleg, sonst zählten die übernommenen Salden doppelt.
 
+## Jahresabschluss (GmbH und UG)
+
+Unter **Buchhaltung › Jahresabschluss** zeigt Haben für eine GmbH oder UG Bilanz und Gewinn- und Verlustrechnung eines Jahres in der Form einer Kleinstkapitalgesellschaft (§ 267a HGB):
+
+- **Bilanz** nur mit den Posten, die in § 266 Abs. 2 und 3 HGB Buchstaben tragen (§ 266 Abs. 1 Satz 4): Anlagevermögen, Umlaufvermögen, Rechnungsabgrenzung; Eigenkapital, Rückstellungen, Verbindlichkeiten, Rechnungsabgrenzung. Jeder Posten klappt die Konten auf, die in ihm stehen.
+- **GuV** nach § 275 Abs. 5 HGB: Umsatzerlöse, sonstige Erträge, Materialaufwand, Personalaufwand, Abschreibungen, sonstige Aufwendungen, Steuern und als Ergebnis Jahresüberschuss oder Jahresfehlbetrag. Zinserträge zählen zu den sonstigen Erträgen, Zinsaufwand zu den sonstigen Aufwendungen.
+
+Die Salden sind die der [Saldenliste](#die-seite-konten) zum 31.12., mit Vortrag. Das Jahresergebnis steht im Eigenkapital. Ein Konto des Umlaufvermögens mit Haben-Saldo (überzogene Bank, Umsatzsteuer-Zahllast) steht unter den Verbindlichkeiten, eine Verbindlichkeit mit Soll-Saldo (der Gesellschafter schuldet der GmbH) im Umlaufvermögen.
+
+**Zuordnung der Konten:** Jedes Konto gehört nach seinem Kontenbereich zu einem Posten (`packages/core/src/hgb.ts`). Die Bereiche folgen den Bilanz- und GuV-Posten, die odoo `l10n_de` für jedes Konto der DATEV-Kontenrahmen führt, verdichtet auf die Ebene der Kleinstkapitalgesellschaft; ergänzt sind SKR03 1360 bis 1369 (Geldtransit, Zahlungsdienstleister). Alle 2450 dort zugeordneten Konten ergeben denselben Posten; jedes Konto, das Haben selbst bebucht, hat einen. Konten ohne Posten und nicht ausgeglichene Vortragskonten (9000) nennt die Seite unter **Offene Punkte**, statt sie still wegzulassen.
+
+> [!WARNING]
+> Bilanz und GuV sind ein **Entwurf für die Steuerberatung**. Die Zuordnung ist noch nicht gegen den DATEV-Kontenrahmen selbst geprüft, und einzelne Konten sind strittig: odoo führt etwa „Umsatzsteuer nicht fällig“ (SKR03 1761/1766, SKR04 3811/3816) unter den Steuerrückstellungen. Abschlussbuchungen wie Rückstellungen für Körperschaft- und Gewerbesteuer, Abschlusskosten, Rechnungsabgrenzung und Wertberichtigungen erfasst ihr vorher als [manuelle Buchung](#manuelle-buchungen-gmbh-und-ug). Eine Datei für die Hinterlegung beim Unternehmensregister erstellt Haben noch nicht.
+
+**Jahr abschließen:** Wenn die Steuerberatung den Abschluss freigegeben hat, schließt **Jahr abschließen** das Jahr ab, nach einer Rückfrage. Vorher muss das Jahr vorbei sein, die AfA aller Anlagen gebucht und jeder Beleg mit Datum im Jahr gebucht. Danach:
+
+- nimmt das Jahr keine Buchung mehr an, auch keine Gegenbuchung. Das prüft das Hauptbuch und, auch für Schreiber an Haben vorbei, ein Trigger der Datenbank (`0092_jahresabschluss_trigger.sql`). Rückgängig machen lässt sich der Abschluss nicht; `year_closings` ist nur anhängbar.
+- hält Haben Zahl und Prüfwert der Buchungen des Jahres fest: SHA-256 über ID und Inhalt jeder Buchung samt Zeilen, gerechnet wie ihr Siegel. Die Seite rechnet ihn bei jedem Aufruf aus den aktuellen Daten nach und zeigt, ob die Buchungen seitdem unverändert sind. Der Abschluss selbst steht mit Prüfwert im Änderungsprotokoll und damit in der Hash-Kette.
+
+Fehler im abgeschlossenen Jahr korrigiert ihr im laufenden Jahr, wie es das Handelsrecht vorsieht.
+
 Im Einzelunternehmen gibt es keine manuellen Buchungen. Die Anlage EÜR rechnet dort aus Rechnungen, Belegen und Zahlungen; eine Umbuchung im Journal käme in ihr nicht an.
 
 ## Die Seite „Konten“

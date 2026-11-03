@@ -143,6 +143,35 @@ test("Eröffnungsbuchung: Bestände zum 1. Januar, in der Saldenliste als Eröff
   expect(await axe(), "/konten").toEqual([]);
 });
 
+test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", async () => {
+  const year = new Date().getFullYear();
+  const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
+  await go("/");
+  await nav.getByRole("link", { name: "Jahresabschluss" }).click();
+  await page.waitForURL(`**/abschluss/${year - 1}`);
+  await page.waitForLoadState("networkidle");
+
+  await go(`/abschluss/${year}`);
+  await expect(page.getByRole("note")).toContainText("Entwurf für die Steuerberatung");
+  await expect(page.getByRole("region", { name: "Offene Punkte" })).toContainText(`Das Jahr ${year} ist noch nicht vorbei.`);
+  const aktiva = page.getByRole("region", { name: `Aktiva zum 31.12.${year}` });
+  await expect(aktiva.getByRole("row", { name: /B\. Umlaufvermögen/ })).toContainText("40.000,00");
+  await aktiva.getByRole("button", { name: /B\. Umlaufvermögen/ }).click();
+  await expect(aktiva.getByRole("link", { name: "1800" })).toBeVisible();
+  await expect(page.getByRole("region", { name: `Passiva zum 31.12.${year}` })).toContainText("Summe Passiva");
+  await expect(page.getByRole("region", { name: /Gewinn- und Verlustrechnung/ })).toContainText("1. Umsatzerlöse");
+  await expect(page.getByRole("button", { name: `${year} abschließen` })).toBeDisabled();
+  expect(await axe(), `/abschluss/${year}`).toEqual([]);
+
+  // Das Vorjahr ist leer und vorbei: abschließen mit Rückfrage
+  await go(`/abschluss/${year - 1}`);
+  const close = page.getByRole("button", { name: `${year - 1} abschließen` });
+  await close.click();
+  await page.getByRole("button", { name: `Jetzt ${year - 1} endgültig abschließen` }).click();
+  await expect(page.getByText(`Das Jahr ${year - 1} ist abgeschlossen.`)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Jahr abschließen" })).toContainText("Die Buchungen sind seitdem unverändert.");
+});
+
 test("Die Rechtsform ist nach der ersten Buchung fest", async () => {
   await go("/einstellungen");
   await expect(page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform")).toBeDisabled();

@@ -40,6 +40,10 @@ export interface Posting {
  * dazwischen geändert, und die Buchung wird abgelehnt statt mit veralteten Einstellungen festgeschrieben.
  */
 export async function post(tx: Tx, books: Books, posting: Posting): Promise<string> {
+  // Abgeschlossene Jahre nehmen nichts mehr an; die Datenbank prüft dasselbe noch einmal (drizzle/0092)
+  const closedYear = Number(posting.date.slice(0, 4));
+  const [closed] = await tx.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, closedYear));
+  if (closed) throw new LedgerError(`Das Jahr ${closedYear} ist abgeschlossen; Buchungen mit Datum darin sind nicht mehr möglich.`);
   const [entry] = await tx
     .insert(schema.journalEntries)
     .values({

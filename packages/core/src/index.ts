@@ -8,6 +8,7 @@ export * from "./posting.ts";
 export * from "./rechtsform.ts";
 export * from "./manual.ts";
 export * from "./vortrag.ts";
+export * from "./hgb.ts";
 export * from "./matching.ts";
 export * from "./euer.ts";
 export * from "./legacy-vat.ts";

@@ -22,6 +22,8 @@ import { Route as AppKasseRouteImport } from './routes/_app/kasse'
 import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
+import { Route as AppAbschlussIndexRouteImport } from './routes/_app/abschluss/index'
+import { Route as AppAbschlussJahrRouteImport } from './routes/_app/abschluss/$jahr'
 import { Route as AppAngeboteIndexRouteImport } from './routes/_app/angebote/index'
 import { Route as AppAngeboteIdRouteImport } from './routes/_app/angebote/$id'
 import { Route as AppAngeboteNeuRouteImport } from './routes/_app/angebote/neu'
@@ -137,6 +139,16 @@ const ApiMcpRoute = ApiMcpRouteImport.update({
   id: '/api/mcp',
   path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppAbschlussIndexRoute = AppAbschlussIndexRouteImport.update({
+  id: '/abschluss/',
+  path: '/abschluss/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAbschlussJahrRoute = AppAbschlussJahrRouteImport.update({
+  id: '/abschluss/$jahr',
+  path: '/abschluss/$jahr',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppAngeboteIndexRoute = AppAngeboteIndexRouteImport.update({
   id: '/angebote/',
@@ -413,6 +425,7 @@ export interface FileRoutesByFullPath {
   '/pauschalen': typeof AppPauschalenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
+  '/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
@@ -444,6 +457,7 @@ export interface FileRoutesByFullPath {
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/vast/$id': typeof ApiVastIdRoute
+  '/abschluss/': typeof AppAbschlussIndexRoute
   '/angebote/': typeof AppAngeboteIndexRoute
   '/anlagen/': typeof AppAnlagenIndexRoute
   '/archiv/': typeof AppArchivIndexRoute
@@ -478,6 +492,7 @@ export interface FileRoutesByTo {
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/': typeof AppIndexRoute
+  '/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
@@ -509,6 +524,7 @@ export interface FileRoutesByTo {
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/vast/$id': typeof ApiVastIdRoute
+  '/abschluss': typeof AppAbschlussIndexRoute
   '/angebote': typeof AppAngeboteIndexRoute
   '/anlagen': typeof AppAnlagenIndexRoute
   '/archiv': typeof AppArchivIndexRoute
@@ -545,6 +561,7 @@ export interface FileRoutesById {
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/_app/angebote/$id': typeof AppAngeboteIdRoute
   '/_app/angebote/neu': typeof AppAngeboteNeuRoute
   '/_app/anlagen/$id': typeof AppAnlagenIdRoute
@@ -576,6 +593,7 @@ export interface FileRoutesById {
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/vast/$id': typeof ApiVastIdRoute
+  '/_app/abschluss/': typeof AppAbschlussIndexRoute
   '/_app/angebote/': typeof AppAngeboteIndexRoute
   '/_app/anlagen/': typeof AppAnlagenIndexRoute
   '/_app/archiv/': typeof AppArchivIndexRoute
@@ -612,6 +630,7 @@ export interface FileRouteTypes {
     | '/pauschalen'
     | '/api/logo'
     | '/api/mcp'
+    | '/abschluss/$jahr'
     | '/angebote/$id'
     | '/angebote/neu'
     | '/anlagen/$id'
@@ -643,6 +662,7 @@ export interface FileRouteTypes {
     | '/api/protokoll/$id'
     | '/api/ustva/$id'
     | '/api/vast/$id'
+    | '/abschluss/'
     | '/angebote/'
     | '/anlagen/'
     | '/archiv/'
@@ -677,6 +697,7 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/mcp'
     | '/'
+    | '/abschluss/$jahr'
     | '/angebote/$id'
     | '/angebote/neu'
     | '/anlagen/$id'
@@ -708,6 +729,7 @@ export interface FileRouteTypes {
     | '/api/protokoll/$id'
     | '/api/ustva/$id'
     | '/api/vast/$id'
+    | '/abschluss'
     | '/angebote'
     | '/anlagen'
     | '/archiv'
@@ -743,6 +765,7 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/mcp'
     | '/_app/'
+    | '/_app/abschluss/$jahr'
     | '/_app/angebote/$id'
     | '/_app/angebote/neu'
     | '/_app/anlagen/$id'
@@ -774,6 +797,7 @@ export interface FileRouteTypes {
     | '/api/protokoll/$id'
     | '/api/ustva/$id'
     | '/api/vast/$id'
+    | '/_app/abschluss/'
     | '/_app/angebote/'
     | '/_app/anlagen/'
     | '/_app/archiv/'
@@ -916,6 +940,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/mcp'
       preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/abschluss/': {
+      id: '/_app/abschluss/'
+      path: '/abschluss'
+      fullPath: '/abschluss/'
+      preLoaderRoute: typeof AppAbschlussIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/abschluss/$jahr': {
+      id: '/_app/abschluss/$jahr'
+      path: '/abschluss/$jahr'
+      fullPath: '/abschluss/$jahr'
+      preLoaderRoute: typeof AppAbschlussJahrRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/angebote/': {
       id: '/_app/angebote/'
@@ -1286,6 +1324,7 @@ interface AppRouteChildren {
   AppKasseRoute: typeof AppKasseRoute
   AppPauschalenRoute: typeof AppPauschalenRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAbschlussJahrRoute: typeof AppAbschlussJahrRoute
   AppAngeboteIdRoute: typeof AppAngeboteIdRoute
   AppAngeboteNeuRoute: typeof AppAngeboteNeuRoute
   AppAnlagenIdRoute: typeof AppAnlagenIdRoute
@@ -1299,6 +1338,7 @@ interface AppRouteChildren {
   AppRechnungenIdRoute: typeof AppRechnungenIdRoute
   AppRechnungenNeuRoute: typeof AppRechnungenNeuRoute
   AppUmsatzsteuerZeitraumRoute: typeof AppUmsatzsteuerZeitraumRoute
+  AppAbschlussIndexRoute: typeof AppAbschlussIndexRoute
   AppAngeboteIndexRoute: typeof AppAngeboteIndexRoute
   AppAnlagenIndexRoute: typeof AppAnlagenIndexRoute
   AppArchivIndexRoute: typeof AppArchivIndexRoute
@@ -1328,6 +1368,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppKasseRoute: AppKasseRoute,
   AppPauschalenRoute: AppPauschalenRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAbschlussJahrRoute: AppAbschlussJahrRoute,
   AppAngeboteIdRoute: AppAngeboteIdRoute,
   AppAngeboteNeuRoute: AppAngeboteNeuRoute,
   AppAnlagenIdRoute: AppAnlagenIdRoute,
@@ -1341,6 +1382,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRechnungenIdRoute: AppRechnungenIdRoute,
   AppRechnungenNeuRoute: AppRechnungenNeuRoute,
   AppUmsatzsteuerZeitraumRoute: AppUmsatzsteuerZeitraumRoute,
+  AppAbschlussIndexRoute: AppAbschlussIndexRoute,
   AppAngeboteIndexRoute: AppAngeboteIndexRoute,
   AppAnlagenIndexRoute: AppAnlagenIndexRoute,
   AppArchivIndexRoute: AppArchivIndexRoute,

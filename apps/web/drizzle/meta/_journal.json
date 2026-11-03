@@ -638,6 +638,20 @@
       "when": 1793709206719,
       "tag": "0090_rechtsform_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1793713874298,
+      "tag": "0091_jahresabschluss",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1793713875260,
+      "tag": "0092_jahresabschluss_trigger",
+      "breakpoints": true
     }
   ]
 }
