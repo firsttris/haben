@@ -385,6 +385,25 @@ describe.skipIf(!testDatabaseUrl)("Hash-Kette und Siegel (Postgres)", () => {
     expect(report.seals).toBeGreaterThan(0);
     expect(report.truncated).toBe(false);
   });
+
+  it("zählt Einträge und Kopf aus demselben Stand, auch wenn nebenher gebucht wird", async () => {
+    // Ein Eintrag zwischen Zählen und Lesen des Kopfs verschob beides um eins (CI-Lauf von #196)
+    const writer = postgres(testDatabaseUrl!, { max: 1, onnotice: () => {} });
+    let writing = true;
+    const writes = (async () => {
+      for (let i = 0; writing; i++) await writer`insert into bank_accounts (name, iban) values (${`N${i}`}, ${`DE00NEBENHER${i}`})`;
+    })();
+    try {
+      for (let round = 0; round < 20; round++) {
+        const report = await integrity.checkIntegrity();
+        expect(report.entries).toBe(report.head!.seq);
+      }
+    } finally {
+      writing = false;
+      await writes;
+      await writer.end();
+    }
+  }, 60_000);
 });
 
 describe.skipIf(!testDatabaseUrl)("Prüfwert per E-Mail (Postgres)", () => {
