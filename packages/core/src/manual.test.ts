@@ -87,3 +87,24 @@ describe("manuelle Buchung", () => {
     ]);
   });
 });
+
+describe("Eröffnungsbuchung", () => {
+  it.each([
+    ["SKR03", "1200", "0800", "0730", "4900", "1400", "1776"],
+    ["SKR04", "1800", "2900", "3510", "6300", "1200", "3806"],
+  ] as const)(
+    "%s: Bestände gegen 9000, auch die Bank; keine Erfolgskonten, offenen Posten oder Steuern",
+    (kr, bank, kapital, gesellschafter, aufwand, forderungen, ust) => {
+      const ok = [line(bank, 3_000_000, 0), line(gesellschafter, 0, 500_000), line(kapital, 0, 2_500_000)];
+      expect(manualPostingIssues(ok, kr, "gmbh", "eroeffnung")).toEqual([]);
+      expect(manualPostingIssues([line(bank, 100, 0), line("9000", 0, 100)], kr, "gmbh", "eroeffnung")).toEqual([]);
+      // Dieselbe Buchung als Umbuchung: Bank und 9000 sind gesperrt
+      expect(manualPostingIssues([line(bank, 100, 0), line("9000", 0, 100)], kr, "gmbh")).toHaveLength(2);
+      expect(manualPostingIssues([line(aufwand, 100, 0), line("9000", 0, 100)], kr, "gmbh", "eroeffnung")).toEqual([
+        `Zeile 1: Konto ${aufwand} ist ein Erfolgskonto; die Eröffnung übernimmt nur Bestände`,
+      ]);
+      expect(manualPostingIssues([line(forderungen, 100, 0), line("9000", 0, 100)], kr, "gmbh", "eroeffnung")[0]).toContain("Nebenbuch Rechnungen");
+      expect(manualPostingIssues([line("9000", 100, 0), line(ust, 0, 100)], kr, "gmbh", "eroeffnung")[0]).toContain("Nebenbuch Umsatzsteuer");
+    },
+  );
+});

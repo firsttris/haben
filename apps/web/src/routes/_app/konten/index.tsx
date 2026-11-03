@@ -124,7 +124,10 @@ function KontenPage() {
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "end" }}>
           <p className="small muted" style={{ margin: 0, maxWidth: 640 }}>
             {formatDate(data.from)} bis {formatDate(until)}. Erlöse und Aufwand als Betrag, Bestandskonten mit Guthaben oder Schuld; S und H zeigen die
-            Buchhaltungsseite. Eröffnung = Saldo ab Jahresbeginn bis zum Beginn des Zeitraums, ohne Vortrag aus dem Vorjahr.
+            Buchhaltungsseite.{" "}
+            {data.vortrag
+              ? "Eröffnung = Saldenvortrag aus den Vorjahren und Eröffnungsbuchungen, dazu der Saldo ab Jahresbeginn bis zum Beginn des Zeitraums."
+              : "Eröffnung = Saldo ab Jahresbeginn bis zum Beginn des Zeitraums, ohne Vortrag aus dem Vorjahr."}
           </p>
           <label className="field" style={{ minWidth: 240 }}>
             Konto suchen

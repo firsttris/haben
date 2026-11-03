@@ -34,13 +34,17 @@ export type Kontoart = "ertrag" | "aufwand" | "bestand";
 
 /**
  * Art eines Kontos nach Kontenklasse: Erlöse, Aufwand oder Bestand (Bank, Forderungen, Steuern,
- * Privat). Klassen mit gemischtem Inhalt (SKR03 2, SKR04 7) ordnet die Seite des Saldos zu.
+ * Privat). Klassen mit gemischtem Inhalt (SKR03 2, SKR04 7) ordnet die Seite des Saldos zu. In SKR03 sind
+ * 3970–3999 Bestände an Roh-, Hilfs- und Betriebsstoffen und Waren, also Bestandskonten. Die Regel stimmt mit den
+ * Kontenarten der DATEV-Kontenpläne in odoo l10n_de für alle vierstelligen Konten außerhalb der Klasse 9 überein
+ * (einzige Ausnahme: das Überleitungskonto Kostenstellen SKR04 1498).
  */
 export function kontoart(kontenrahmen: Kontenrahmen, account: string, saldo = 0): Kontoart {
   const klasse = account.charAt(0);
   const gemischt = saldo < 0 ? "ertrag" : "aufwand";
   if (kontenrahmen === "SKR03") {
     if (klasse === "8") return "ertrag";
+    if (klasse === "3" && Number(account) >= 3970) return "bestand";
     if (klasse === "3" || klasse === "4") return "aufwand";
     if (klasse === "2") return gemischt;
     return "bestand";
@@ -67,7 +71,7 @@ export function saldoAnzeige(kontenrahmen: Kontenrahmen, account: string, saldo:
 }
 
 export interface Kontenkennzahlen {
-  /** Bankkonto laut Buchungen ab Jahresbeginn (ohne Vortrag aus dem Vorjahr) */
+  /** Bankkonto laut Buchungen ab Jahresbeginn; in GmbH und UG mit Vortrag aus den Vorjahren */
   bank: Cents;
   forderungen: Cents;
   verbindlichkeiten: Cents;
@@ -104,10 +108,16 @@ export interface SaldenZeile {
   kontenrahmen: Kontenrahmen;
   account: string;
   name: string;
-  /** Saldo vor dem Zeitraum, ab Jahresbeginn; positiv = Soll */
+  /** Saldo vor dem Zeitraum: Vortrag und Bewegungen ab Jahresbeginn; positiv = Soll */
   eroeffnung: Cents;
+  /** EB-Wert: Saldenvortrag aus den Vorjahren und Eröffnungsbuchungen (GmbH, UG), sonst 0 */
+  vortrag: Cents;
+  /** Bewegungen im Zeitraum */
   soll: Cents;
   haben: Cents;
+  /** Bewegungen ab Jahresbeginn bis zum Ende des Zeitraums, ohne EB-Wert (Verkehrszahlen kumuliert) */
+  sollJahr: Cents;
+  habenJahr: Cents;
   /** eroeffnung + soll − haben */
   saldo: Cents;
 }
@@ -123,9 +133,26 @@ export interface KontenblattZeile {
   saldo: Cents;
 }
 
+/**
+ * Saldenliste als CSV, zugleich Summen- und Saldenliste: Die ersten Spalten wie bisher, dahinter EB-Wert und die
+ * Verkehrszahlen ab Jahresbeginn wie in der Summen- und Saldenliste der Steuerberatung.
+ */
 export function saldenlisteToCsv(rows: SaldenZeile[]): string {
+  const mitSeite = (cents: Cents) => csvDecimal(Math.abs(cents)) + (cents ? ` ${saldoSeite(cents)}` : "");
   return toCsv([
-    ["Konto", "Bezeichnung", "Kontenklasse", "Eröffnung (EUR)", "Soll (EUR)", "Haben (EUR)", "Saldo (EUR)", "S/H"],
+    [
+      "Konto",
+      "Bezeichnung",
+      "Kontenklasse",
+      "Eröffnung (EUR)",
+      "Soll (EUR)",
+      "Haben (EUR)",
+      "Saldo (EUR)",
+      "S/H",
+      "EB-Wert (EUR)",
+      "Soll kumuliert (EUR)",
+      "Haben kumuliert (EUR)",
+    ],
     ...rows.map((r) => [
       r.account,
       r.name,
@@ -135,6 +162,9 @@ export function saldenlisteToCsv(rows: SaldenZeile[]): string {
       r.haben,
       Math.abs(r.saldo),
       saldoSeite(r.saldo),
+      mitSeite(r.vortrag),
+      r.sollJahr,
+      r.habenJahr,
     ]),
   ]);
 }

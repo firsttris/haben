@@ -1,4 +1,4 @@
-import { formatEuro, isKapitalgesellschaft, MANUAL_MAX_LINES, manualPostingIssues, parseEuro, type ManualLine } from "@haben/core";
+import { formatEuro, isKapitalgesellschaft, MANUAL_MAX_LINES, manualPostingIssues, parseEuro, type ManualKind, type ManualLine } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -53,13 +53,17 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
   const navigate = useNavigate();
   const create = useServerFn(createManualEntryFn);
   const { busy, notice, run } = useAction();
+  const [kind, setKind] = useState<ManualKind>("umbuchung");
   const [date, setDate] = useState(data.today);
   const [description, setDescription] = useState("");
   const [rows, setRows] = useState<Row[]>([emptyRow(1), emptyRow(2)]);
   const [nextKey, setNextKey] = useState(3);
 
   const lines: ManualLine[] = rows.map((r) => ({ account: r.account.trim(), debit: amountOf(r.debit), credit: amountOf(r.credit) }));
-  const issues = manualPostingIssues(lines, data.kontenrahmen, data.rechtsform);
+  const issues = [
+    ...manualPostingIssues(lines, data.kontenrahmen, data.rechtsform, kind),
+    ...(kind === "eroeffnung" && !date.endsWith("-01-01") ? ["Eine Eröffnungsbuchung steht am 1. Januar"] : []),
+  ];
   const sum = (side: "debit" | "credit") => lines.reduce((s, l) => s + (Number.isFinite(l[side]) ? l[side] : 0), 0);
   const difference = sum("debit") - sum("credit");
   const touched = rows.some((r) => r.account || r.debit || r.credit);
@@ -73,7 +77,7 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     void run(async () => {
-      await create({ data: { date, description, lines } });
+      await create({ data: { kind, date, description, lines } });
       await navigate({ to: "/buchungen", search: { jahr: Number(date.slice(0, 4)), monat: Number(date.slice(5, 7)) } });
     });
   }
@@ -85,6 +89,30 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
         Kontierung. Bank, Kasse, offene Posten, Umsatzsteuer, Erlöse aus Rechnungen und Anlagen führen ihre eigenen Seiten und lassen sich hier nicht bebuchen.
         Die Buchung ist sofort festgeschrieben; korrigiert wird per Storno.
       </p>
+      <fieldset className="mode-switch" style={{ border: 0, padding: 0, margin: 0 }}>
+        <legend className="visually-hidden">Art der Buchung</legend>
+        <label className="checkbox">
+          <input type="radio" name="kind" checked={kind === "umbuchung"} onChange={() => setKind("umbuchung")} />
+          Umbuchung
+        </label>
+        <label className="checkbox">
+          <input
+            type="radio"
+            name="kind"
+            checked={kind === "eroeffnung"}
+            onChange={() => {
+              setKind("eroeffnung");
+              setDate(`${date.slice(0, 4)}-01-01`);
+            }}
+            aria-describedby="kind-eroeffnung-hint"
+          />
+          Eröffnungsbuchung
+        </label>
+        <span id="kind-eroeffnung-hint" className="small muted" style={{ display: "block" }}>
+          Salden aus der bisherigen Buchhaltung zum 1. Januar des ersten Jahres in Haben: Bestandskonten und der Kontostand der Bank gegen 9000 Saldenvorträge.
+          Offene Rechnungen und Belege kommen einzeln über den Umzug, Anlagen über das Anlagenverzeichnis.
+        </span>
+      </fieldset>
       <div className="form-row cols-2">
         <label className="field">
           Datum

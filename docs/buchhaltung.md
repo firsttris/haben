@@ -374,6 +374,36 @@ Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung dar
 
 Das Formular zeigt beim Tippen, was fehlt; der Server prüft beim Buchen dasselbe noch einmal. Das Datum darf nicht in der Zukunft liegen. Die Buchung ist sofort festgeschrieben und versiegelt wie jede andere (Herkunft „Manuell“); sie steht im Journal, in der Saldenliste, im Jahresexport und im DATEV-Export. Korrigiert wird mit **Stornieren** in den aufgeklappten Buchungszeilen: Die Gegenbuchung steht am selben Tag, damit sich beide im selben Zeitraum aufheben.
 
+## Saldenvortrag und Eröffnung (GmbH und UG)
+
+Eine GmbH oder UG bilanziert: Ihre Bestandskonten laufen über den Jahreswechsel weiter. Haben trägt deshalb in der Saldenliste, im Kontenblatt und in den Kacheln der Seite **Konten** zum 1. Januar vor:
+
+- **Bestandskonten** (Anlagen, Bank, Kasse, Forderungen, Verbindlichkeiten, Steuern, Eigenkapital, Gesellschafter) mit ihrem Saldo aus allen Vorjahren.
+- **Erfolgskonten** (Erlöse und Aufwand) beginnen bei null. Ihr Ergebnis aus den Vorjahren steht als Gewinnvortrag (Saldo im Haben) bzw. Verlustvortrag vor Verwendung (im Soll) im Eigenkapital, bis eine Buchung es verwendet, etwa für eine Ausschüttung.
+
+| Konto | SKR03 | SKR04 |
+| --- | --- | --- |
+| Gewinnvortrag vor Verwendung | 0860 | 2970 |
+| Verlustvortrag vor Verwendung | 0868 | 2978 |
+
+Die Summe aller Vorträge ist null wie im Journal. Bestandskonten sind nach DATEV im SKR04 die Klassen 0 bis 3, im SKR03 die Klassen 0, 1 und 7 sowie 3970 bis 3999 (Bestände); die Klasse 9 trägt ebenfalls vor. Diese Einteilung stimmt mit den Kontenarten der DATEV-Kontenpläne in odoo `l10n_de` für alle vierstelligen Konten überein (ausgenommen das Überleitungskonto Kostenstellen SKR04 1498).
+
+> [!IMPORTANT]
+> Die SKR03-Konten 0860 und 0868 sind noch nicht gegen den DATEV-Kontenrahmen geprüft; in den Kontenplänen von odoo stehen nur die Konten der Personengesellschaften (0865, 0867). Die SKR04-Konten 2970 und 2978 sind dort belegt.
+
+Der Vortrag ist berechnet, nicht gebucht: Bucht jemand nachträglich ins Vorjahr (eine Rechnung vom 31.12., eine Abschlussbuchung), stimmt der Vortrag sofort wieder. Vorgetragen wird im Kontenrahmen der Firmendaten; Jahre in einem anderen Kontenrahmen bleiben außen vor. Im Einzelunternehmen mit EÜR beginnt jedes Jahr bei null wie bisher. Den DATEV-Export betrifft der Vortrag nicht; den Saldenvortrag in DATEV übernimmt die Steuerberatung aus dem Vorjahr.
+
+**Eröffnungsbuchung:** Beginnt die Buchhaltung der GmbH nicht in Haben, übernimmst du die Bestände der bisherigen Buchhaltung mit **Buchung erfassen › Eröffnungsbuchung**. Sie steht am 1. Januar des ersten Jahres in Haben und bucht nur Bestandskonten, dazu den Kontostand der Bank und 9000 Saldenvorträge, zum Beispiel:
+
+| | SKR03 | SKR04 |
+| --- | --- | --- |
+| Bank an Saldenvorträge | 1200 an 9000 | 1800 an 9000 |
+| Saldenvorträge an Gezeichnetes Kapital, Gewinnvortrag, Gesellschafter | 9000 an 0800, 0860, 0730 | 9000 an 2900, 2970, 3510 |
+
+Offene Rechnungen und Belege übernimmst du einzeln über den [Umzug](lexoffice.md) (Forderung bzw. Verbindlichkeit an 9000), Anlagen über das [Anlagenverzeichnis](anlagen.md), die Kasse über das Kassenbuch. Sind alle Bestände übernommen, ist 9000 ausgeglichen. In der Saldenliste stehen Eröffnungsbuchungen in der Spalte Eröffnung, im Journal mit der Herkunft „Eröffnung“.
+
+Gibt es vor dem 1. Januar schon Buchungen in Haben, lehnt Haben eine Eröffnung ab; die Salden trägt es dann selbst vor. Umgekehrt lässt sich nach einer Eröffnung nichts mehr davor buchen, auch kein rückdatierter Beleg, sonst zählten die übernommenen Salden doppelt.
+
 Im Einzelunternehmen gibt es keine manuellen Buchungen. Die Anlage EÜR rechnet dort aus Rechnungen, Belegen und Zahlungen; eine Umbuchung im Journal käme in ihr nicht an.
 
 ## Die Seite „Konten“
@@ -384,11 +414,11 @@ Unter **Konten** stehen oben Kacheln:
 - Fällige Umsatzsteuer nach Vorsteuer und Vorauszahlungen.
 - Erlöse minus Aufwand im Zeitraum.
 
-Bank und Umsatzsteuer rechnen ab Jahresbeginn, ein Vortrag aus dem Vorjahr fehlt.
+Im Einzelunternehmen rechnen Bank und Umsatzsteuer ab Jahresbeginn, ein Vortrag aus dem Vorjahr fehlt. In einer GmbH oder UG enthalten sie den [Saldenvortrag](#saldenvortrag-und-eröffnung-gmbh-und-ug).
 
 Darunter steht die **Saldenliste**: jedes bebuchte Konto des Jahres, Quartals oder Monats mit Soll, Haben und Saldo.
 - **Gruppierung:** Die Konten stehen nach Kontenklasse, also nach der ersten Ziffer der Kontonummer. Im SKR03 sind das etwa 1 Finanz- und Privatkonten, 4 Betriebliche Aufwendungen und 8 Erlöskonten. Jede Klasse hat eine Zwischensumme und lässt sich einklappen.
-- **Eröffnung:** Sie ist der Saldo ab Jahresbeginn bis zum Beginn des gewählten Zeitraums. Die Spalte erscheint nur, wenn es vorher schon Buchungen gab.
+- **Eröffnung:** Sie ist der Saldo ab Jahresbeginn bis zum Beginn des gewählten Zeitraums, in einer GmbH oder UG dazu der Saldenvortrag aus den Vorjahren und die Eröffnungsbuchungen. Die Spalte erscheint nur, wenn es einen solchen Betrag gibt.
 - **Salden in Alltagssprache:** Erlöse und Aufwand stehen als positiver Betrag. Bei Bestandskonten wie Bank, Forderungen oder Steuern steht dazu „Guthaben“ oder „Schuld“. Die Buchhaltungsseite, S für Soll und H für Haben, steht klein daneben.
 - **Summe:** Soll und Haben sind in der Summe immer gleich, sonst wäre eine Buchung nicht ausgeglichen.
 - **Suche:** „Konto suchen“ filtert nach Nummer oder Name.
@@ -404,6 +434,8 @@ Am Handy werden die Tabellen zu Karten. Das Diagramm lässt sich dort waagrecht 
 
 Beides gibt es über „CSV“ als Datei, im selben Format wie die übrigen Exporte (Semikolon, Dezimalkomma, UTF-8 mit BOM), etwa für die Steuerberatung oder zum Abgleich mit Lexoffice.
 
+Die CSV der Saldenliste ist zugleich die **Summen- und Saldenliste**: Nach Konto, Bezeichnung, Kontenklasse, Eröffnung, Soll und Haben im Zeitraum, Saldo und S/H folgen der EB-Wert (Saldenvortrag und Eröffnungsbuchungen, nur in GmbH und UG) und die Verkehrszahlen ab Jahresbeginn bis zum Ende des Zeitraums (Soll kumuliert, Haben kumuliert), ohne den EB-Wert.
+
 Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buchungen/journal.csv`, eine Zeile je Buchungszeile, mit Buchungs-ID, Quelle, Kontenrahmen und Verweis auf die Ursprungsbuchung bei Gegenbuchungen.
 
 ## Was Haben nicht bucht
@@ -412,7 +444,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 - Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
 - Innergemeinschaftliche Lieferungen und Erwerbe von Waren; § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn; Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
-- Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG lassen sich einzelne Abschlussbuchungen [manuell](#manuelle-buchungen-gmbh-und-ug) erfassen
+- Im Einzelunternehmen Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG trägt Haben die Salden [vor](#saldenvortrag-und-eröffnung-gmbh-und-ug), einzelne Abschlussbuchungen lassen sich [manuell](#manuelle-buchungen-gmbh-und-ug) erfassen
 
 > [!NOTE]
 > Haben ersetzt keine Steuerberatung. Arbeitet die Steuerberatung mit den Daten weiter, bekommt sie das Journal aus dem Jahresexport; die Kontenzuordnung sollte einmal mit ihr abgestimmt werden.

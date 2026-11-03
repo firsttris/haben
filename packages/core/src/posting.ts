@@ -127,6 +127,9 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "0740": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit 1 bis 5 Jahre",
     "0750": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit größer 5 Jahre",
     "0800": "Gezeichnetes Kapital",
+    // 0860/0868 nicht in odoo l10n_de; gegen den DATEV-Kontenrahmen noch zu prüfen
+    "0860": "Gewinnvortrag vor Verwendung",
+    "0868": "Verlustvortrag vor Verwendung",
     "1000": "Kasse",
     "1200": "Bank",
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`136${i}`, "Verrechnungskonto Zahlungsdienstleister"])),

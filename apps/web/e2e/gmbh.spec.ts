@@ -116,6 +116,33 @@ test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () =>
   await expect(row).toContainText("storniert");
 });
 
+test("Eröffnungsbuchung: Bestände zum 1. Januar, in der Saldenliste als Eröffnung", async () => {
+  const year = new Date().getFullYear();
+  await go("/buchungen/neu");
+  const form = page.getByRole("form", { name: "Manuelle Buchung" });
+  await form.getByLabel("Eröffnungsbuchung").check();
+  await expect(form.getByLabel("Datum")).toHaveValue(`${year}-01-01`);
+  await form.getByLabel("Buchungstext").fill("Eröffnungsbilanz");
+  // In der Eröffnung sind Bank und 9000 erlaubt, Erfolgskonten nicht
+  await form.getByLabel("Konto Zeile 1").fill("6300");
+  await form.getByLabel("Soll Zeile 1").fill("100,00");
+  await expect(form.getByRole("status", { name: "Noch nicht buchbar" })).toContainText("Erfolgskonto");
+  await form.getByLabel("Konto Zeile 1").fill("1800");
+  await form.getByLabel("Soll Zeile 1").fill("40.000,00");
+  await form.getByLabel("Konto Zeile 2").fill("9000");
+  await form.getByLabel("Haben Zeile 2").fill("40.000,00");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await page.waitForURL(/\/buchungen\?/);
+  await expect(page.getByRole("region", { name: "Buchungen" }).getByRole("row").filter({ hasText: "Eröffnungsbilanz" })).toContainText("Eröffnung");
+
+  await go(`/konten?jahr=${year}`);
+  const liste = page.getByRole("region", { name: "Saldenliste" });
+  await expect(liste.getByRole("columnheader", { name: "Eröffnung" })).toBeVisible();
+  await expect(liste.getByRole("row").filter({ hasText: "1800" }).first()).toContainText("40.000,00");
+  await expect(page.getByText("Eröffnung = Saldenvortrag aus den Vorjahren")).toBeVisible();
+  expect(await axe(), "/konten").toEqual([]);
+});
+
 test("Die Rechtsform ist nach der ersten Buchung fest", async () => {
   await go("/einstellungen");
   await expect(page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform")).toBeDisabled();

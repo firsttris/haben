@@ -2,6 +2,7 @@ import { ASSET_ACCOUNTS } from "./afa.ts";
 import type { Cents } from "./money.ts";
 import { ACCOUNTS, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
+import { carriesForward } from "./vortrag.ts";
 
 /**
  * Manuelle Buchungen (Umbuchungen): Soll an Haben auf frei gewählten Konten, ohne Steuer. Gedacht für die Bücher einer
@@ -58,16 +59,40 @@ export function isPrivateAccount(kontenrahmen: Kontenrahmen, account: string): b
 
 const isCents = (value: number) => Number.isInteger(value) && value >= 0 && value <= 100_000_000_00;
 
+/**
+ * Art der manuellen Buchung: eine Umbuchung im laufenden Jahr oder eine Eröffnungsbuchung, die Salden aus der bisherigen
+ * Buchhaltung zum Start in Haben übernimmt. Die Eröffnung bucht nur Bestandskonten und darf dabei auch die Bank (den
+ * Kontostand zum Start) und 9000 Saldenvorträge bebuchen; offene Posten kommen einzeln über den Umzug, Anlagen über das
+ * Anlagenverzeichnis, die Kasse über das Kassenbuch.
+ */
+export type ManualKind = "umbuchung" | "eroeffnung";
+
+/** In der Eröffnung zusätzlich bebuchbar: der Kontostand der Bank zum Start und das Gegenkonto der Vorträge */
+function openingAccounts(kontenrahmen: Kontenrahmen): Set<string> {
+  const a = ACCOUNTS[kontenrahmen];
+  return new Set([a.bank, ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => paymentProviderAccount(kontenrahmen, i)), a.saldenvortrag]);
+}
+
 /** Was einer manuellen Buchung fehlt; leer = buchbar */
-export function manualPostingIssues(lines: readonly ManualLine[], kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): string[] {
+export function manualPostingIssues(
+  lines: readonly ManualLine[],
+  kontenrahmen: Kontenrahmen,
+  rechtsform: Rechtsform,
+  kind: ManualKind = "umbuchung",
+): string[] {
   const issues: string[] = [];
   if (lines.length < 2) issues.push("Mindestens zwei Zeilen, eine im Soll und eine im Haben");
   if (lines.length > MANUAL_MAX_LINES) issues.push(`Höchstens ${MANUAL_MAX_LINES} Zeilen`);
   const managed = ledgerManagedAccounts(kontenrahmen);
+  const opening = kind === "eroeffnung" ? openingAccounts(kontenrahmen) : new Set<string>();
   for (const [index, line] of lines.entries()) {
     const row = `Zeile ${index + 1}`;
     if (!/^\d{4}$/.test(line.account)) issues.push(`${row}: Konto hat vier Ziffern`);
-    else if (line.account.startsWith("9")) issues.push(`${row}: Konto ${line.account} ist ein Vortrags- oder statistisches Konto`);
+    else if (opening.has(line.account)) {
+      // In der Eröffnung erlaubt, siehe openingAccounts
+    } else if (kind === "eroeffnung" && !carriesForward(kontenrahmen, line.account)) {
+      issues.push(`${row}: Konto ${line.account} ist ein Erfolgskonto; die Eröffnung übernimmt nur Bestände`);
+    } else if (line.account.startsWith("9")) issues.push(`${row}: Konto ${line.account} ist ein Vortrags- oder statistisches Konto`);
     else if (managed.has(line.account)) issues.push(`${row}: Konto ${line.account} führt das Nebenbuch ${managed.get(line.account)}`);
     else if (isKapitalgesellschaft(rechtsform) && isPrivateAccount(kontenrahmen, line.account)) {
       issues.push(`${row}: Konto ${line.account} ist ein Privatkonto; eine GmbH oder UG bucht auf das Gesellschafter-Verrechnungskonto`);

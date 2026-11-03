@@ -56,7 +56,7 @@ function SourcePill({ entry }: { entry: Entry }) {
       </Link>
     );
   // Manuelle Buchungen haben keinen Vorgang außerhalb des Journals
-  if (entry.sourceType === "manuell") return <span className="pill">{label}</span>;
+  if (entry.sourceType === "manuell" || entry.sourceType === "eroeffnung") return <span className="pill">{label}</span>;
   if (entry.sourceType === "kasse")
     return (
       <Link to="/kasse" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">
@@ -277,7 +277,7 @@ function JournalPage() {
                           </td>
                         </tr>
                       ))}
-                    {isOpen && e.sourceType === "manuell" && !e.reversal && !e.reversed && (
+                    {isOpen && (e.sourceType === "manuell" || e.sourceType === "eroeffnung") && !e.reversal && !e.reversed && (
                       <tr className="lines-row">
                         <td colSpan={8} style={{ textAlign: "right" }}>
                           <ReverseButton
