@@ -172,3 +172,43 @@ describe("Abschluss einer Kleinst-GmbH", () => {
     expect(a.nichtZugeordnet).toEqual([{ account: "7700", saldo: 1_000 }]);
   });
 });
+
+/*
+ * Kontenbereiche, die der DATEV-Kontenrahmen 2026 als „von -bis“ angibt (z. B. „3980 -89 Waren (Bestand)“): Jedes
+ * Konto darin hat denselben Posten wie das erste. Die Liste sind die Bereiche, deren Ende die erzeugte Tabelle verfehlte.
+ */
+describe("Kontenbereiche „von -bis“ aus dem DATEV-Kontenrahmen", () => {
+  it.each([
+    ["SKR03", "0820", "0829"],
+    ["SKR03", "0890", "0899"],
+    ["SKR03", "0910", "0919"],
+    ["SKR03", "0920", "0929"],
+    ["SKR03", "1300", "1328"],
+    ["SKR03", "1373", "1375"],
+    ["SKR03", "1660", "1664"],
+    ["SKR03", "1991", "1999"],
+    ["SKR03", "2753", "2754"],
+    ["SKR03", "3960", "3969"],
+    ["SKR03", "3980", "3989"],
+    ["SKR03", "4000", "4099"],
+    ["SKR03", "8792", "8799"],
+    ["SKR04", "0051", "0059"],
+    ["SKR04", "0061", "0069"],
+    ["SKR04", "0071", "0079"],
+    ["SKR04", "0150", "0169"],
+    ["SKR04", "1496", "1497"],
+    ["SKR04", "2030", "2049"],
+    ["SKR04", "2060", "2069"],
+    ["SKR04", "2080", "2099"],
+    ["SKR04", "2791", "2799"],
+    ["SKR04", "3350", "3399"],
+    ["SKR04", "4792", "4799"],
+  ] as const)("%s %s bis %s: alle Konten im selben Posten", (kontenrahmen, von, bis) => {
+    const posten = postenOf(kontenrahmen, von);
+    expect(posten).not.toBeNull();
+    for (let n = Number(von); n <= Number(bis); n++) {
+      const account = String(n).padStart(4, "0");
+      expect(postenOf(kontenrahmen, account), account).toBe(posten);
+    }
+  });
+});
