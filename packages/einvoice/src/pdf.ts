@@ -5,7 +5,7 @@ import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { accountHolder, countryName, formatIban, paymentSentence } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
-import { DEFAULT_ACCENT, lineAmount } from "@haben/core";
+import { accentPalette, DEFAULT_ACCENT, lineAmount } from "@haben/core";
 import type { Address, InvoiceDocument, Letterhead, Logo } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
@@ -181,9 +181,9 @@ export function logoFormat(data: Uint8Array): Logo["format"] | null {
   return null;
 }
 
-/** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe immer, das Logo als Dateiname neben der Vorlage */
-export function templateInputs(data: object, { logo, accent }: Letterhead): object {
-  return { ...data, accent: accent ?? DEFAULT_ACCENT, ...(logo ? { logo: `logo.${logo.format}` } : {}) };
+/** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe und passende Grautöne immer, das Logo als Dateiname neben der Vorlage */
+export function templateInputs(data: object, { logo, accent = DEFAULT_ACCENT }: Letterhead): object {
+  return { ...data, accent, palette: accentPalette(accent), ...(logo ? { logo: `logo.${logo.format}` } : {}) };
 }
 
 function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {

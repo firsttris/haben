@@ -131,6 +131,11 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await akzent.getByRole("button", { name: "Übernehmen" }).click();
   await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1D4ED8");
+  // Die Vorschau im Editor übernimmt Akzentfarbe und Grautöne (#222): Text #191F27 statt des grünlichen #16211C
+  await go("/rechnungen/neu");
+  const vorschau = page.getByLabel("Vorschau der Rechnung");
+  await expect(vorschau).toHaveCSS("color", "rgb(25, 31, 39)");
+  await go("/einstellungen?bereich=rechnungen");
   await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
 });

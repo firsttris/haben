@@ -92,6 +92,7 @@ Unter **Einstellungen › Rechnungen › Logo** lädst du dein Logo hoch, als PN
 
 Unter **Einstellungen › Rechnungen › Akzentfarbe** stellst du die Farbe der Spaltenköpfe und Linien ein, etwa passend zu deinem Logo. Ab Werk ist es das Grün `#1F6F5C`.
 
+- Text, Adressen, Beschriftungen, Positionen, dünne Linien und Fußzeile stehen in Grautönen, die Haben aus der Akzentfarbe ableitet: gleiche Helligkeit wie ab Werk, aber mit ihrem Farbton. Bei Blau sind sie leicht bläulich, bei einer grauen Akzentfarbe neutral grau; mit dem Standardgrün bleibt alles wie bisher.
 - Du wählst sie mit dem Farbfeld oder trägst sie als Hex-Wert in der Form `#RRGGBB` ein; **Auf Standard zurücksetzen** stellt das Grün wieder her.
 - Sie gilt für Rechnungen, Angebote, Auftragsbestätigungen, Lieferscheine und Mahnungen, die ab dann entstehen, und für die Vorschau im Editor; schon festgeschriebene PDFs bleiben unverändert.
 - Ist die Farbe auf weißem Papier schwer zu lesen (Kontrast unter 4,5 : 1 nach WCAG), weist Haben darauf hin. Speichern geht trotzdem; eine dunklere Variante des Logo-Farbtons liest sich besser.
