@@ -9,7 +9,7 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 | | |
 |---|---|
 | [Betrieb und Installation](installation.md) | Podman Quadlets, Caddy, Secrets, Umgebungsvariablen, ERiC einbinden, Backup und Wiederherstellung, Updates, häufige Probleme |
-| [Erste Schritte](einrichtung.md) | Konto und Passkey, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, ELSTER und Hersteller-ID, E-Mail, KI-Auslesung, Bankkonten |
+| [Erste Schritte](einrichtung.md) | Konto und Passkey, als App installieren, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, ELSTER und Hersteller-ID, E-Mail, KI-Auslesung, Bankkonten |
 
 ## Im Alltag
 
