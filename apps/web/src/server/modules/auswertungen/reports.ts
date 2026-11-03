@@ -11,7 +11,7 @@ import {
 } from "@haben/core";
 import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
@@ -23,11 +23,11 @@ function documentTotals(amounts: { taxRate: number; net: number; tax: number }[]
   return totalsFromTaxes(amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })));
 }
 
-async function documentTotalsById(ids: string[]): Promise<Map<string, InvoiceTotals>> {
+async function documentTotalsById(ids: string[], q: Db | Tx = db): Promise<Map<string, InvoiceTotals>> {
   if (ids.length === 0) return new Map();
-  const amounts = await db.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, ids));
+  const amounts = await q.select().from(schema.documentAmounts).where(inArray(schema.documentAmounts.documentId, ids));
   const reverseCharge = new Set(
-    (await db.select({ id: schema.documents.id }).from(schema.documents).where(and(inArray(schema.documents.id, ids), isNotNull(schema.documents.reverseCharge)))).map(
+    (await q.select({ id: schema.documents.id }).from(schema.documents).where(and(inArray(schema.documents.id, ids), isNotNull(schema.documents.reverseCharge)))).map(
       (d) => d.id,
     ),
   );
@@ -46,10 +46,10 @@ async function documentTotalsById(ids: string[]): Promise<Map<string, InvoiceTot
  * des Umsatzes, privat bezahlte Belege nach Belegdatum. Privat und Geldtransit sind nicht
  * betrieblich und fehlen deshalb.
  */
-export async function euerPayments(year: number): Promise<EuerPayment[]> {
+export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerPayment[]> {
   const start = `${year}-01-01`;
   const end = `${year + 1}-01-01`;
-  const allocations = await db
+  const allocations = await q
     .select({
       kind: schema.allocations.kind,
       amount: schema.allocations.amount,
@@ -76,7 +76,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
       ),
     );
 
-  const privateDocs = await db
+  const privateDocs = await q
     .select({
       id: schema.documents.id,
       date: schema.documents.documentDate,
@@ -99,7 +99,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
 
   // Kursdifferenz beim Ausgleich einer Fremdwährungsrechnung: in der EÜR zählt der gezahlte Euro-Betrag. Der ausgebuchte
   // Rest wird als Teil der Rechnung bzw. des Belegs gezählt und als eigener Posten Kursgewinn bzw. -verlust wieder abgezogen.
-  const exchangeDifferences = await db
+  const exchangeDifferences = await q
     .select({
       amount: schema.writeOffs.amount,
       taxShares: schema.writeOffs.taxShares,
@@ -120,10 +120,10 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
 
   const invoiceTotals = await invoiceTotalsById([
     ...new Set([...allocations, ...exchangeDifferences].flatMap((a) => (a.invoiceId ? [a.invoiceId] : []))),
-  ]);
+  ], q);
   const docTotals = await documentTotalsById([
     ...new Set([...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])), ...privateDocs.map((d) => d.id)]),
-  ]);
+  ], q);
 
   const payments: EuerPayment[] = [];
   for (const a of allocations) {
@@ -193,7 +193,7 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
       privateShare: d.privateShare,
     });
   }
-  const pauschalen = await db
+  const pauschalen = await q
     .select({ date: schema.pauschalen.date, amount: schema.pauschalen.amount, art: schema.pauschalen.art, id: schema.pauschalen.id, reversesId: schema.pauschalen.reversesId })
     .from(schema.pauschalen)
     .where(and(gte(schema.pauschalen.date, `${year}-01-01`), lt(schema.pauschalen.date, `${year + 1}-01-01`)));
@@ -201,8 +201,8 @@ export async function euerPayments(year: number): Promise<EuerPayment[]> {
   return payments;
 }
 
-export async function euerForYear(year: number): Promise<EuerResult> {
-  return computeEuer(year, await euerPayments(year), await depreciationForEuer(year), await withdrawalsForEuer(year));
+export async function euerForYear(year: number, q: Db | Tx = db): Promise<EuerResult> {
+  return computeEuer(year, await euerPayments(year, q), await depreciationForEuer(year, q), await withdrawalsForEuer(year, q));
 }
 
 export interface OpenPosition {

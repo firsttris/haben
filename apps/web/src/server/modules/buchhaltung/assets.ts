@@ -86,8 +86,8 @@ function scheduleOf(asset: Asset): ScheduleYear[] {
 /** Kleinunternehmer je Monat (Stand am Monatsende, wie die Voranmeldung) */
 type KleinunternehmerInMonth = (month: number) => boolean;
 
-async function kleinunternehmerInYear(year: number): Promise<KleinunternehmerInMonth> {
-  const history = await kleinunternehmerHistory();
+async function kleinunternehmerInYear(year: number, q: Db | Tx = db): Promise<KleinunternehmerInMonth> {
+  const history = await kleinunternehmerHistory(q);
   return (month) => history(lastDayOfMonth(year, month));
 }
 
@@ -136,7 +136,7 @@ async function bookedYears(ids: string[], q: Db | Tx = db): Promise<Map<string, 
 export async function listAssets(year: number, q: Db | Tx = db) {
   const assets = await q.select().from(schema.assets).orderBy(asc(schema.assets.acquisitionDate), asc(schema.assets.name));
   const booked = await bookedYears(assets.map((a) => a.id), q);
-  const kleinunternehmer = await kleinunternehmerInYear(year);
+  const kleinunternehmer = await kleinunternehmerInYear(year, q);
   return assets.map((asset) => {
     const schedule = scheduleOf(asset);
     const row = schedule.find((r) => r.year === year) ?? null;
@@ -398,8 +398,8 @@ export async function bookDepreciation(actor: string, year: number, today: strin
 }
 
 /** Abschreibungen eines Jahres für die EÜR, aus dem Plan (gebucht oder nicht) */
-export async function depreciationForEuer(year: number): Promise<EuerDepreciation> {
-  const assets = await db.select().from(schema.assets);
+export async function depreciationForEuer(year: number, q: Db | Tx = db): Promise<EuerDepreciation> {
+  const assets = await q.select().from(schema.assets);
   const result: EuerDepreciation = {
     afa: 0,
     gwg: 0,
@@ -430,10 +430,10 @@ export async function pendingDepreciation(today: string): Promise<{ year: number
 }
 
 /** Private Kfz-Nutzung eines Jahres für die EÜR */
-export async function withdrawalsForEuer(year: number): Promise<EuerWithdrawals> {
-  const assets = await db.select().from(schema.assets);
+export async function withdrawalsForEuer(year: number, q: Db | Tx = db): Promise<EuerWithdrawals> {
+  const assets = await q.select().from(schema.assets);
   const result: EuerWithdrawals = { privateKfz: 0, ustEntnahmen: 0 };
-  const kleinunternehmer = await kleinunternehmerInYear(year);
+  const kleinunternehmer = await kleinunternehmerInYear(year, q);
   for (const asset of assets) {
     const use = privateUseForYear(asset, year, kleinunternehmer);
     if (!use) continue;
@@ -444,9 +444,9 @@ export async function withdrawalsForEuer(year: number): Promise<EuerWithdrawals>
 }
 
 /** Private Kfz-Nutzung eines Monats für die Voranmeldung (Kz 81), je Fahrzeug */
-export async function privateUseForMonth(year: number, month: number) {
-  const assets = await db.select().from(schema.assets);
-  const kleinunternehmer = await kleinunternehmerInYear(year);
+export async function privateUseForMonth(year: number, month: number, q: Db | Tx = db) {
+  const assets = await q.select().from(schema.assets);
+  const kleinunternehmer = await kleinunternehmerInYear(year, q);
   return assets.flatMap((asset) => {
     const use = privateUseForYear(asset, year, kleinunternehmer);
     const index = use?.months.indexOf(month) ?? -1;
