@@ -19,7 +19,7 @@ import {
 } from "../modules/belege/index.ts";
 import { extractionAvailable } from "../modules/belege/index.ts";
 import { authMiddleware } from "../middleware.ts";
-import { loadCompany } from "../modules/stammdaten/index.ts";
+import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
 import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 import { UserError } from "../errors.ts";
@@ -63,6 +63,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       categoryHint: result.document.lockedAt ? null : await supplierCategory(result.document.supplierName, result.document.supplierUstId),
       aiAvailable: extractionAvailable(),
       categories: categoryOptions,
+      // Lieferanten aus den Kontakten zur Auswahl im Beleg
+      suppliers: (await listContacts(false, "lieferant")).map(({ id, name, ustId }) => ({ id, name, ustId })),
     };
   });
 

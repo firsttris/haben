@@ -6,8 +6,8 @@ import { UserError } from "../errors.ts";
 
 export const getContacts = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.object({ archived: z.boolean().default(false) }))
-  .handler(({ data }) => listContacts(data.archived));
+  .validator(z.object({ archived: z.boolean().default(false), role: z.enum(["kunde", "lieferant"]).optional() }))
+  .handler(({ data }) => listContacts(data.archived, data.role));
 
 export const getContactDetail = createServerFn({ method: "GET" })
   .middleware([authMiddleware])

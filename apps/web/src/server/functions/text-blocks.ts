@@ -8,7 +8,7 @@ export const getTextBlocks = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const [blocks, contacts] = await Promise.all([listTextBlocks({ archived: true }), listContacts()]);
-    return { blocks, contacts: contacts.map(({ id, name, ort }) => ({ id, name, ort })) };
+    return { blocks, contacts: contacts.map(({ id, name, ort, isCustomer }) => ({ id, name, ort, isCustomer })) };
   });
 
 export const saveTextBlock = createServerFn({ method: "POST" })
