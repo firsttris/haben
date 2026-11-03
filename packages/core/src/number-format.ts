@@ -9,6 +9,8 @@
 
 export const DEFAULT_INVOICE_NUMBER_FORMAT = "{JJJJ}-{NNN}";
 export const DEFAULT_QUOTE_NUMBER_FORMAT = "AN-{JJJJ}-{NNN}";
+/** Vorschlag für Kundennummern; deren Zähler läuft durch, ohne Jahr */
+export const DEFAULT_CUSTOMER_NUMBER_FORMAT = "K-{NNNN}";
 
 export const MAX_NUMBER_FORMAT_LENGTH = 30;
 
@@ -27,8 +29,11 @@ export function formatDocumentNumber(format: string, year: number, counter: numb
   });
 }
 
-/** Warum ein Format nicht taugt, als Satz für die Oberfläche; null = in Ordnung */
-export function numberFormatError(format: string): string | null {
+/**
+ * Warum ein Format nicht taugt, als Satz für die Oberfläche; null = in Ordnung. requireYear: false für Nummern, deren
+ * Zähler nicht jährlich neu beginnt (Kundennummern); dort ist das Jahr erlaubt, aber nicht nötig.
+ */
+export function numberFormatError(format: string, { requireYear = true }: { requireYear?: boolean } = {}): string | null {
   if (format.length > MAX_NUMBER_FORMAT_LENGTH) return `Das Format darf höchstens ${MAX_NUMBER_FORMAT_LENGTH} Zeichen lang sein.`;
   const names = [...format.matchAll(PLACEHOLDER)].map((m) => m[1]!);
   const unknown = names.find((name) => !COUNTER.test(name) && !YEAR.test(name));
@@ -39,6 +44,7 @@ export function numberFormatError(format: string): string | null {
   const counters = names.filter((name) => COUNTER.test(name)).length;
   if (counters === 0) return "Das Format braucht die laufende Nummer, z. B. {NNN}.";
   if (counters > 1) return "Die laufende Nummer darf nur genau einmal vorkommen.";
-  if (!names.some((name) => YEAR.test(name))) return "Das Format braucht das Jahr ({JJJJ} oder {JJ}), weil die laufende Nummer jedes Jahr neu beginnt.";
+  if (requireYear && !names.some((name) => YEAR.test(name)))
+    return "Das Format braucht das Jahr ({JJJJ} oder {JJ}), weil die laufende Nummer jedes Jahr neu beginnt.";
   return null;
 }

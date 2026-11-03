@@ -104,6 +104,9 @@ export const company = pgTable(
     /** Nummernformate mit Platzhaltern {JJJJ}, {JJ}, {N…} (packages/core/src/number-format.ts) */
     invoiceNumberFormat: text("invoice_number_format").notNull().default("{JJJJ}-{NNN}"),
     quoteNumberFormat: text("quote_number_format").notNull().default("AN-{JJJJ}-{NNN}"),
+    /** Kundennummern automatisch, z. B. "K-{NNNN}"; leer = von Hand. Der Zähler läuft durch, ohne Jahr */
+    customerNumberFormat: text("customer_number_format").notNull().default(""),
+    customerNumberNext: integer("customer_number_next").notNull().default(1),
     /** Für den DATEV-Export: Nummern bei der Steuerberatung */
     datevBeraterNr: text("datev_berater_nr").notNull().default(""),
     datevMandantNr: text("datev_mandant_nr").notNull().default(""),

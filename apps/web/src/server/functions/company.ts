@@ -17,7 +17,7 @@ import {
 } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { saveCompany as saveCompanySettings, settingsLocks } from "../modules/stammdaten/index.ts";
-import { saveNumberFormats, saveTaxpayer, taxpayerSchema } from "../modules/stammdaten/index.ts";
+import { customerNumbering, saveCustomerNumbering, saveNumberFormats, saveTaxpayer, taxpayerSchema } from "../modules/stammdaten/index.ts";
 import { today } from "../today.ts";
 
 export const getCompany = createServerFn({ method: "GET" })
@@ -41,6 +41,19 @@ export const saveNumberFormatSettings = createServerFn({ method: "POST" })
   .validator(z.object({ invoice: z.string().max(100), quote: z.string().max(100) }))
   .handler(async ({ data, context }) => {
     await saveNumberFormats(context.user.id, data);
+    return { ok: true };
+  });
+
+export const getCustomerNumbering = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(() => customerNumbering());
+
+/** Format und nächste Kundennummer; leeres Format = Nummern von Hand */
+export const saveCustomerNumberingSettings = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ format: z.string().max(100), next: z.number().int().min(1).max(99_999_999) }))
+  .handler(async ({ data, context }) => {
+    await saveCustomerNumbering(context.user.id, data);
     return { ok: true };
   });
 
