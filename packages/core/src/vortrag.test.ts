@@ -11,10 +11,11 @@ describe("Saldenvortrag", () => {
     for (const account of erfolg) expect(carriesForward(kr, account), account).toBe(false);
   });
 
-  it("SKR03 3970–3999 sind Bestände, der Rest der Klasse 3 Wareneingang", () => {
+  it("SKR03 3970–3989 sind Bestände, der Rest der Klasse 3 Wareneingang und Stoffkosten", () => {
+    expect(kontoart("SKR03", "3989")).toBe("bestand");
+    expect(kontoart("SKR03", "3990")).toBe("aufwand");
     expect(kontoart("SKR03", "3969")).toBe("aufwand");
     expect(kontoart("SKR03", "3970")).toBe("bestand");
-    expect(kontoart("SKR03", "3999")).toBe("bestand");
   });
 
   it.each([

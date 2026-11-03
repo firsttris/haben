@@ -8,9 +8,8 @@ import type { Kontenrahmen } from "./posting.ts";
  * bis es mit einer Buchung verwendet wird (Ausschüttung, Rücklage). So bleibt die Summe aller Vorträge null wie im Journal.
  */
 export const VORTRAG_ACCOUNTS: Record<Kontenrahmen, { gewinn: string; verlust: string }> = {
-  // SKR03 0860/0868: nicht in odoo l10n_de (dort nur 0865/0867 der Personengesellschaften); gegen DATEV noch zu prüfen
+  // „Gewinnvortrag/Verlustvortrag vor Verwendung“, Konten für Kapitalgesellschaften (DATEV-Kontenrahmen 2026, Art.-Nr. 11174/11175)
   SKR03: { gewinn: "0860", verlust: "0868" },
-  // SKR04 2970/2978 „Gewinnvortrag/Verlustvortrag vor Verwendung“ (DATEV, gegengelesen mit odoo l10n_de)
   SKR04: { gewinn: "2970", verlust: "2978" },
 };
 

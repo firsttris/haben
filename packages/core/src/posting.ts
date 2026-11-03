@@ -121,13 +121,12 @@ export const EXPENSE_CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORIES) as [Expense
 
 export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
-    // Kapitalgesellschaft: Gesellschafter und Eigenkapital (DATEV SKR03, gegengelesen mit odoo l10n_de)
+    // Kapitalgesellschaft: Gesellschafter und Eigenkapital (DATEV-Kontenrahmen SKR03 2026, Art.-Nr. 11174)
     "0730": "Verbindlichkeiten gegenüber Gesellschaftern",
     "0731": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit bis 1 Jahr",
     "0740": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit 1 bis 5 Jahre",
     "0750": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit größer 5 Jahre",
     "0800": "Gezeichnetes Kapital",
-    // 0860/0868 nicht in odoo l10n_de; gegen den DATEV-Kontenrahmen noch zu prüfen
     "0860": "Gewinnvortrag vor Verwendung",
     "0868": "Verlustvortrag vor Verwendung",
     "1000": "Kasse",
@@ -159,7 +158,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1600": "Kasse",
     "1800": "Bank",
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`146${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
-    // Kapitalgesellschaft: Gesellschafter und Eigenkapital (DATEV SKR04, gegengelesen mit odoo l10n_de)
+    // Kapitalgesellschaft: Gesellschafter und Eigenkapital (DATEV-Kontenrahmen SKR04 2026, Art.-Nr. 11175)
     "2900": "Gezeichnetes Kapital",
     "2970": "Gewinnvortrag vor Verwendung",
     "2978": "Verlustvortrag vor Verwendung",

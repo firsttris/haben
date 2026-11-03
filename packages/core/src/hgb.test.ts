@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ASSET_ACCOUNTS } from "./afa.ts";
-import { abschluss, postenOf } from "./hgb.ts";
+import { abschluss, postenForSaldo, postenOf } from "./hgb.ts";
 import { PAUSCHALE_KONTEN } from "./pauschalen.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, paymentProviderAccount, type Kontenrahmen } from "./posting.ts";
 import { PRIVATE_USE_ACCOUNTS } from "./private-use.ts";
@@ -45,8 +45,15 @@ describe("Zuordnung zu Bilanz und GuV (§ 266, § 275 Abs. 5 HGB)", () => {
     ["SKR04", "2900", "passiva.A"],
     ["SKR04", "2970", "passiva.A"],
     ["SKR04", "3510", "passiva.C"],
-    // Steuerkonten im Umlaufvermögen; mit Haben-Saldo stehen sie unter den Verbindlichkeiten (abschluss)
-    ["SKR04", "3806", "aktiva.B"],
+    // DATEV: „Sonstige Verbindlichkeiten oder Sonstige Vermögensgegenstände“
+    ["SKR04", "3806", "passiva.C"],
+    // Wo DATEV 2026 von anderen Zuordnungen abweicht: unentgeltliche Wertabgaben sind sonstige Erträge, 4570 Umsatzerlöse,
+    // bezogene Leistungen Materialaufwand, Anteile an verbundenen Unternehmen in Klasse 1 Umlaufvermögen
+    ["SKR03", "8900", "sonstigeErtraege"],
+    ["SKR04", "4570", "umsatzerloese"],
+    ["SKR04", "5950", "materialaufwand"],
+    ["SKR04", "1500", "aktiva.B"],
+    ["SKR03", "3990", "materialaufwand"],
     ["SKR03", "1360", "aktiva.B"],
     ["SKR03", "1361", "aktiva.B"],
     ["SKR04", "4400", "umsatzerloese"],
@@ -55,6 +62,23 @@ describe("Zuordnung zu Bilanz und GuV (§ 266, § 275 Abs. 5 HGB)", () => {
     ["SKR04", "7600", "steuern"],
   ] as const)("%s %s → %s", (kr, account, posten) => {
     expect(postenOf(kr, account)).toBe(posten);
+  });
+
+  it.each([
+    // [Kontenrahmen, Konto, Posten mit Soll-Saldo, Posten mit Haben-Saldo]
+    ["SKR03", "1200", "aktiva.B", "passiva.C"],
+    ["SKR03", "0730", "aktiva.B", "passiva.C"],
+    ["SKR03", "1766", "aktiva.B", "passiva.B"],
+    ["SKR03", "1776", "aktiva.B", "passiva.C"],
+    ["SKR04", "1800", "aktiva.B", "passiva.C"],
+    ["SKR04", "3510", "aktiva.B", "passiva.C"],
+    ["SKR04", "3816", "aktiva.B", "passiva.B"],
+    // Ohne zweiten Posten bleibt das Konto, wo es ist
+    ["SKR04", "2900", "passiva.A", "passiva.A"],
+    ["SKR04", "0520", "aktiva.A", "aktiva.A"],
+  ] as const)("%s %s: Soll-Saldo → %s, Haben-Saldo → %s (DATEV „A oder B“)", (kr, account, soll, haben) => {
+    expect(postenForSaldo(kr, account, 100)).toBe(soll);
+    expect(postenForSaldo(kr, account, -100)).toBe(haben);
   });
 
   it("Klasse 9 und Lücken haben keinen Posten", () => {
@@ -128,9 +152,10 @@ describe("Abschluss einer Kleinst-GmbH", () => {
   it("meldet offene Vorträge und Konten ohne Posten, statt sie still wegzulassen", () => {
     const a = abschluss("SKR04", [
       { account: "9000", saldo: -1_000 },
-      { account: "1498", saldo: 1_000 },
+      // Ergebnisverwendung nach dem Jahresergebnis (§ 158 AktG): kein Posten der GuV nach § 275 Abs. 5
+      { account: "7700", saldo: 1_000 },
     ]);
     expect(a.offeneVortraege).toEqual([{ account: "9000", saldo: -1_000 }]);
-    expect(a.nichtZugeordnet).toEqual([{ account: "1498", saldo: 1_000 }]);
+    expect(a.nichtZugeordnet).toEqual([{ account: "7700", saldo: 1_000 }]);
   });
 });

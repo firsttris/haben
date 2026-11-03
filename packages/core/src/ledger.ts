@@ -35,16 +35,17 @@ export type Kontoart = "ertrag" | "aufwand" | "bestand";
 /**
  * Art eines Kontos nach Kontenklasse: Erlöse, Aufwand oder Bestand (Bank, Forderungen, Steuern,
  * Privat). Klassen mit gemischtem Inhalt (SKR03 2, SKR04 7) ordnet die Seite des Saldos zu. In SKR03 sind
- * 3970–3999 Bestände an Roh-, Hilfs- und Betriebsstoffen und Waren, also Bestandskonten. Die Regel stimmt mit den
- * Kontenarten der DATEV-Kontenpläne in odoo l10n_de für alle vierstelligen Konten außerhalb der Klasse 9 überein
- * (einzige Ausnahme: das Überleitungskonto Kostenstellen SKR04 1498).
+ * 3970–3989 Bestände an Roh-, Hilfs- und Betriebsstoffen und Waren, also Bestandskonten; 3990 „Verrechnete Stoffkosten“
+ * ist wieder Materialaufwand. Geprüft gegen die Bilanz- und GuV-Posten im DATEV-Kontenrahmen 2026 (Art.-Nr. 11174 und
+ * 11175): Bilanzposten genau bei Bestandskonten, ausgenommen die Konten der Ergebnisverwendung (SKR03 2795–2868,
+ * SKR04 7700–7751), die nach dem Jahresergebnis stehen.
  */
 export function kontoart(kontenrahmen: Kontenrahmen, account: string, saldo = 0): Kontoart {
   const klasse = account.charAt(0);
   const gemischt = saldo < 0 ? "ertrag" : "aufwand";
   if (kontenrahmen === "SKR03") {
     if (klasse === "8") return "ertrag";
-    if (klasse === "3" && Number(account) >= 3970) return "bestand";
+    if (klasse === "3" && Number(account) >= 3970 && Number(account) <= 3989) return "bestand";
     if (klasse === "3" || klasse === "4") return "aufwand";
     if (klasse === "2") return gemischt;
     return "bestand";

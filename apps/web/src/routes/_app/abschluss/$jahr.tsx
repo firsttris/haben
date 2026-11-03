@@ -115,8 +115,8 @@ function Report({ data }: { data: Kapitalgesellschaft }) {
       <div className="banner banner-info" role="note">
         <Icon name="info" />
         <span>
-          Entwurf für die Steuerberatung: Bilanz und GuV einer Kleinstkapitalgesellschaft (§ 267a HGB) aus den Buchungen. Die Zuordnung der Konten zu den Posten
-          ist noch nicht gegen den DATEV-Kontenrahmen geprüft; Rückstellungen, Abgrenzungen und Steuern bucht ihr vorher als manuelle Buchung.
+          Entwurf für die Steuerberatung: Bilanz und GuV einer Kleinstkapitalgesellschaft (§ 267a HGB) aus den Buchungen, die Posten nach dem
+          DATEV-Kontenrahmen. Rückstellungen, Abgrenzungen und Steuern bucht ihr vorher als manuelle Buchung; die Bewertung bleibt Sache der Steuerberatung.
         </span>
       </div>
 
