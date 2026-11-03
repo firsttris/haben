@@ -96,6 +96,26 @@ describe.skipIf(!testDatabaseUrl)("Rechtsform: GmbH und UG (Postgres)", () => {
       expect(await company.loadCompany()).toMatchObject({ name: "Neue Firma GmbH", rechtsform: "gmbh" });
     }, 30_000);
 
+    it("GmbH: Kontenrahmen fest ab der ersten Buchung, auch zum Jahreswechsel; im Einzelunternehmen nicht", async () => {
+      // Gebucht ist nur im Vorjahr; die Jahressperre greift im neuen Jahr nicht mehr
+      const neujahr = "2026-01-05";
+      for (const rechtsform of ["gmbh", "einzelunternehmen"] as const) {
+        await setup(rechtsform);
+        await cash.createCashEntry(actor, { kind: "einlage", date: "2025-12-15", amount: 5_000 }, neujahr);
+        const current = company.companySchema.parse(await company.loadCompany());
+        if (rechtsform === "gmbh") {
+          // Die Vorträge der Bestandskonten stehen im alten Kontenrahmen und kämen im neuen nicht an
+          expect((await guard.settingsLocks(neujahr)).kontenrahmen).toMatch(/GmbH und UG/);
+          await expect(guard.saveCompany(actor, { ...current, kontenrahmen: "SKR04" }, neujahr)).rejects.toThrow(/^Kontenrahmen: /);
+          expect(await failure(sql`update company set kontenrahmen = 'SKR04'`)).toMatch(/Kontenrahmen einer GmbH oder UG/);
+          expect((await company.loadCompany()).kontenrahmen).toBe("SKR03");
+        } else {
+          await guard.saveCompany(actor, { ...current, kontenrahmen: "SKR04" }, neujahr);
+          expect((await company.loadCompany()).kontenrahmen).toBe("SKR04");
+        }
+      }
+    }, 30_000);
+
     it("lehnt unbekannte Rechtsformen und Privatanteile einer GmbH ab", async () => {
       expect(await failure(sql`update company set rechtsform = 'ag'`)).toMatch(/company_rechtsform/);
       const current = company.companySchema.parse(await company.loadCompany());
