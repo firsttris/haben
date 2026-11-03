@@ -1,5 +1,5 @@
 import { abschluss, isKapitalgesellschaft, kapgSteuern, MINDEST_HEBESATZ, steuerKonten, type KapgSteuerAngaben, type KapgSteuern } from "@haben/core";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -108,13 +108,19 @@ export async function kapgErklaerungAngaben(year: number): Promise<{ angaben: Ka
   return { angaben: kapgErklaerungSchema.parse({}), gespeichert: false };
 }
 
+/**
+ * Ergänzt die Angaben des Jahres um patch, in einem Schritt in der Datenbank (jsonb ||): Speichern beide Formulare
+ * gleichzeitig, bleibt der Teil des anderen erhalten.
+ */
 async function merge(actor: string, year: number, patch: Record<string, unknown>): Promise<void> {
-  const data = { ...((await storedRow(year)) ?? {}), ...patch };
   await withActor(actor, (tx) =>
     tx
       .insert(schema.corporateTaxInputs)
-      .values({ year, data })
-      .onConflictDoUpdate({ target: schema.corporateTaxInputs.year, set: { data, updatedAt: new Date() } }),
+      .values({ year, data: patch })
+      .onConflictDoUpdate({
+        target: schema.corporateTaxInputs.year,
+        set: { data: sql`${schema.corporateTaxInputs.data} || excluded.data`, updatedAt: new Date() },
+      }),
   );
 }
 
