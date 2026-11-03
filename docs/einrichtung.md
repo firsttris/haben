@@ -187,7 +187,7 @@ Unter **Einstellungen › Rechnungen › Rechnungsnummern** siehst du die nächs
 
 ## ELSTER einrichten
 
-Haben übermittelt die Umsatzsteuer-Voranmeldung über ERiC, die offizielle Bibliothek der Steuerverwaltung. Ohne ERiC laufen Prüfen und Senden simuliert, und die Oberfläche weist darauf hin.
+Haben übermittelt Voranmeldung, Jahreserklärungen und Nachrichten über ERiC, die offizielle Bibliothek der Steuerverwaltung, und holt darüber Bescheide aus dem ELSTER-Postfach. Ohne ERiC laufen Prüfen und Senden simuliert, und die Oberfläche weist darauf hin. Welcher Weg zum Finanzamt ohne Hersteller-ID bleibt, steht in [Abgabe an ELSTER](elster-abgabe.md).
 
 ### Was du brauchst
 
@@ -197,7 +197,7 @@ Haben übermittelt die Umsatzsteuer-Voranmeldung über ERiC, die offizielle Bibl
 | **Hersteller-ID** (fünf Ziffern) | Kennung der Software in jeder Übermittlung; ERiC 43 verlangt sie schon fürs Prüfen | ELSTER-Entwicklerbereich: auf elster.de als Entwickler registrieren, das Bayerische Landesamt für Steuern prüft den Antrag | Tage bis Wochen |
 | **Zertifikatsdatei** (.pfx) und PIN | unterschreibt jede Übermittlung | ELSTER-Benutzerkonto mit der Anmeldeart „Zertifikatsdatei“, siehe [unten](#zertifikatsdatei-statt-elster-secure) | ein bis zwei Wochen (Brief) |
 
-Bis Hersteller-ID und Zertifikat da sind, arbeitest du ganz normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER; Haben zeigt jede Kennzahl und Zeile zum Übertragen. Das Eintragen der Voranmeldung kann ein KI-Assistent übernehmen, siehe [Mein ELSTER mit KI-Assistent](elster-mit-assistent.md).
+Bis Hersteller-ID und Zertifikat da sind, arbeitest du ganz normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER: die Voranmeldung per XML-Import, alle Formulare mit der Erweiterung „Haben für Mein ELSTER“, mit einem KI-Assistenten oder von Hand. Die Wege im Vergleich: [Abgabe an ELSTER](elster-abgabe.md).
 
 ### Zertifikatsdatei statt ELSTER Secure
 

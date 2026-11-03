@@ -64,12 +64,12 @@ auf deinem eigenen Server betreibst.
 
 | Bereich | Was Haben kann |
 |---|---|
-| 🧾 [Rechnungen](https://firsttris.github.io/haben/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), Netto- oder Bruttopreise (Endpreise für Privatkunden), Storno, Reverse Charge, § 19 UStG, Abschlagsrechnungen, wiederkehrende Rechnungen, Mahnwesen, Versand per E-Mail |
+| 🧾 [Rechnungen](https://firsttris.github.io/haben/rechnungen.html) | Live-Vorschau, ZUGFeRD/XRechnung (KoSIT-geprüft), Netto- oder Bruttopreise (Endpreise für Privatkunden), Artikelkatalog und Textbausteine, Storno, Reverse Charge, § 19 UStG, Abschlagsrechnungen, wiederkehrende Rechnungen, Mahnwesen, Versand per E-Mail an mehrere Empfänger |
 | 📝 [Angebote](https://firsttris.github.io/haben/angebote.html) | Eigener Nummernkreis, PDF und Versand, mit einem Klick zur Rechnung |
 | 📎 [Belege](https://firsttris.github.io/haben/belege.html) | Drag-and-drop, Kamera, Teilen am Handy oder per E-Mail (IMAP); E-Rechnungen direkt gelesen, sonst optional per KI |
 | 🏦 [Bankabgleich](https://firsttris.github.io/haben/bank.html) | Automatischer Abruf per PSD2 oder Import (DKB, N26, CAMT.053), Vorschläge mit Begründung, Teil- und Sammelzahlungen |
-| 📤 [Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Kennzahlen aus den Buchungen (Ist oder Soll), Herkunft jeder Zahl, Vorprüfung, Übermittlung per ERiC oder ohne Hersteller-ID per XML-Import oder [Erweiterung](https://firsttris.github.io/haben/elster-mit-erweiterung.html) in Mein ELSTER, Berichtigung |
-| 📑 [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung; ohne Hersteller-ID per [Erweiterung in Mein ELSTER](https://firsttris.github.io/haben/elster-mit-erweiterung.html) eintragen; vorausgefüllte Belege von ELSTER abrufen |
+| 📤 [Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Kennzahlen aus den Buchungen (Ist oder Soll), Herkunft jeder Zahl, Vorprüfung, Übermittlung per ERiC oder ohne Hersteller-ID über Mein ELSTER (XML-Import, Erweiterung, KI-Assistent; siehe [Abgabe an ELSTER](https://firsttris.github.io/haben/elster-abgabe.html)), Berichtigung |
+| 📑 [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung; per ERiC senden oder ohne Hersteller-ID mit der [Erweiterung](https://firsttris.github.io/haben/elster-mit-erweiterung.html) in Mein ELSTER eintragen; vorausgefüllte Belege von ELSTER abrufen |
 | 🏛️ [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen mit Steuerprognose |
 | ⏰ [Fristen](https://firsttris.github.io/haben/fristen.html) | Alle Steuertermine auf einer Seite, als Kalender-Feed (iCal) und per E-Mail |
 | 🚗 [Pauschalen](https://firsttris.github.io/haben/pauschalen.html) · [Kasse](https://firsttris.github.io/haben/kasse.html) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Kassenbuch für Barzahlungen |
@@ -138,7 +138,8 @@ Die Software ist kostenlos (AGPL). Du brauchst nur einen Server, etwa einen VPS 
 <details>
 <summary><b>Ist Haben eine Alternative zu Lexware Office (lexoffice) und sevDesk?</b></summary>
 
-Ja, ohne Abo und auf deinem eigenen Server. Rechnungen, Belege und Kontakte übernimmst du per API, siehe
+Ja, ohne Abo und auf deinem eigenen Server. Rechnungen, Belege und Kontakte übernimmst du per API oder, bei
+Lexware Office ohne Tarif XL, über eine Sicherung aus der Web-Oberfläche, siehe
 [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) und [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html).
 </details>
 
@@ -159,12 +160,14 @@ Audit-Log, und das Jahresarchiv hat SHA-256-Prüfsummen. Siehe [Buchhaltung in H
 <details>
 <summary><b>Wie kommen Voranmeldung und Erklärungen zu ELSTER?</b></summary>
 
-Auf zwei Wegen:
-- **Direkt aus Haben** per ERiC. Dafür brauchst du eine eigene Hersteller-ID, die Beantragung dauert oft Wochen
-  ([Erste Schritte](https://firsttris.github.io/haben/einrichtung.html)).
-- **Über Mein ELSTER**, ohne ERiC und Hersteller-ID: Haben liefert die Kennzahlen, du oder dein Agent
-  (z. B. Claude in Chrome) trägt sie ins Formular ein, und du sendest selbst ab
-  ([Mein ELSTER mit Agent](https://firsttris.github.io/haben/elster-mit-assistent.html)).
+Direkt aus Haben oder über das Portal Mein ELSTER ([alle Wege im Vergleich](https://firsttris.github.io/haben/elster-abgabe.html)):
+- **Direkt aus Haben** per ERiC, für Voranmeldung, Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer, dazu Bescheide
+  aus dem ELSTER-Postfach. Dafür brauchst du eine eigene Hersteller-ID; die Beantragung dauert oft Wochen
+  ([Erste Schritte](https://firsttris.github.io/haben/einrichtung.html#elster-einrichten)).
+- **Über Mein ELSTER**, ohne Hersteller-ID: Die Voranmeldung lädst du als XML-Datei hoch. Alle vier Formulare trägt
+  die Browser-Erweiterung [Haben für Mein ELSTER](https://firsttris.github.io/haben/elster-mit-erweiterung.html)
+  ein, oder ein [KI-Assistent](https://firsttris.github.io/haben/elster-mit-assistent.html) wie Claude in Chrome.
+  Absenden machst du dort selbst.
 </details>
 
 <details>
@@ -201,14 +204,16 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 |---|---|
 | [Betrieb und Installation](https://firsttris.github.io/haben/installation.html) | Docker Compose, Podman Quadlets, Caddy, Secrets, ERiC einbinden, Backup, Updates, häufige Probleme |
 | [Erste Schritte](https://firsttris.github.io/haben/einrichtung.html) | Konto und Passkey, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, ELSTER-Zertifikat, Bankkonten |
-| [Rechnungen und E-Rechnung](https://firsttris.github.io/haben/rechnungen.html) | Editor, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Storno, Mahnwesen |
+| [Rechnungen und E-Rechnung](https://firsttris.github.io/haben/rechnungen.html) | Editor, Artikel, Textbausteine, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Storno, Mahnwesen, Kontakte |
 | [Angebote](https://firsttris.github.io/haben/angebote.html) | Nummernkreis, PDF, Versand, Rechnung aus dem Angebot |
 | [Belege](https://firsttris.github.io/haben/belege.html) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Reverse Charge |
 | [Pauschalen](https://firsttris.github.io/haben/pauschalen.html) · [Kassenbuch](https://firsttris.github.io/haben/kasse.html) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Barkasse |
 | [Anlagen und AfA](https://firsttris.github.io/haben/anlagen.html) | Anlagenverzeichnis, lineare AfA, GWG, Sammelposten, Abgang |
-| [Bankimport und Abgleich](https://firsttris.github.io/haben/bank.html) | PSD2, DKB, N26, CAMT.053, Vorschläge, Teilzahlungen |
-| [Umsatzsteuer-Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Kennzahlen, Vorprüfung, Übermittlung an ELSTER, Berichtigung |
-| [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung |
+| [Bankimport und Abgleich](https://firsttris.github.io/haben/bank.html) | Automatischer Abruf per PSD2, DKB, N26, CAMT.053, Vorschläge, Teilzahlungen |
+| [Umsatzsteuer-Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Kennzahlen, Vorprüfung, Übermittlung an ELSTER, XML-Import in Mein ELSTER, Berichtigung |
+| [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung, Belege von ELSTER |
+| [Abgabe an ELSTER](https://firsttris.github.io/haben/elster-abgabe.html) | Alle Wege im Vergleich: direkt per ERiC mit Hersteller-ID oder über Mein ELSTER mit XML-Import, Erweiterung, KI-Assistent oder von Hand |
+| [Mein ELSTER mit Erweiterung](https://firsttris.github.io/haben/elster-mit-erweiterung.html) | Ohne Hersteller-ID: die Erweiterung trägt Voranmeldung, USt-Erklärung, EÜR und Einkommensteuer ein, du sendest ab |
 | [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) · [Fristen](https://firsttris.github.io/haben/fristen.html) | ELSTER-Postfach, Vorauszahlungen, alle Steuertermine als Kalender-Feed (iCal) |
 | [Auswertungen und Jahresexport](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
 | [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | API-Abruf oder Sicherung über die Web-Oberfläche, DATEV-Buchungsstapel, offene Posten, Abgleich vor der Kündigung |
@@ -249,8 +254,9 @@ Vitest und Playwright. Aufbau und Abläufe beschreibt die [Architektur](https://
 | `apps/web` | Oberfläche, Server Functions, Datenbank, Anmeldung |
 | `packages/core` | Beträge, Zeiträume, Voranmeldung, EÜR, Buchungssätze, Zuordnungsvorschläge |
 | `packages/einvoice` | Rechnungs-PDF, ZUGFeRD und XRechnung erzeugen, eingehende E-Rechnungen lesen |
-| `packages/elster` | ERiC-Anbindung, UStVA-XML, Worker-Prozess |
-| `packages/import` | Kontoauszüge (DKB, N26, CAMT.053), DATEV-Buchungsstapel, Lexware-Office-API |
+| `packages/elster` | ERiC-Anbindung im Worker-Prozess, XML für Voranmeldung, Jahreserklärungen und Nachrichten, Postfach, Belege von ELSTER |
+| `packages/import` | Kontoauszüge (DKB, N26, CAMT.053), Kontoabruf über Enable Banking, DATEV-Buchungsstapel, Lexware Office (API und Web-Sicherung), sevDesk-API |
+| `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“: trägt die Werte aus Haben in die Formulare ein |
 
 ## 🧩 Mehr von uns
 

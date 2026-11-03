@@ -9,7 +9,7 @@ Ohne eigene **Hersteller-ID** sendet Haben nicht selbst an das Finanzamt ([einri
 | Anlage EÜR | **Jahreserklärung** › Jahr › Anlage EÜR | – |
 | Einkommensteuererklärung | **Jahreserklärung** › Jahr › Einkommensteuererklärung | – |
 
-Mit eigener Hersteller-ID sendet Haben alle vier direkt über ERiC; den [KI-Assistenten](elster-mit-assistent.md) gibt es für alles, was die Erweiterung nicht abdeckt.
+Mit eigener Hersteller-ID sendet Haben alle vier direkt über ERiC; den [KI-Assistenten](elster-mit-assistent.md) gibt es für alles, was die Erweiterung nicht abdeckt. Alle Wege im Vergleich: [Abgabe an ELSTER](elster-abgabe.md).
 
 ## Wie es funktioniert
 

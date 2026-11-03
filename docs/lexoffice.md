@@ -1,6 +1,6 @@
 # Umzug aus Lexoffice / Lexware Office
 
-Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“ in fünf Schritten. Kommst du von sevDesk, lies [Umzug aus sevDesk](sevdesk.md).
+Haben übernimmt deinen Bestand aus Lexware Office (früher Lexoffice), damit du das Abo kündigen kannst, ohne Daten zu verlieren. Der Umzug läuft auf der Seite **Archiv** unter „Umzug“, je nach Tarif auf einem von [drei Wegen](#drei-wege). Kommst du von sevDesk, lies [Umzug aus sevDesk](sevdesk.md).
 
 <img src="screenshot-archiv.png" alt="Seite Archiv mit den Schritten des Umzugs und dem Abgleich je Geschäftsjahr" width="900">
 
@@ -12,6 +12,27 @@ Der Altbestand bleibt von deiner laufenden Buchhaltung getrennt: Er fließt nich
 
 > [!NOTE]
 > Der Abruf über die API ist gegen die öffentliche Dokumentation von Lexware Office gebaut und mit nachgestellten Antworten getestet. Ein Lauf gegen ein echtes Konto steht noch aus. Rechne damit, dass beim ersten echten Abruf Fehler auftauchen können, und kündige erst, wenn der Abgleich für jedes Jahr aufgeht.
+
+## Drei Wege
+
+Wie die Belege zu Haben kommen, hängt von deinem Tarif ab. Buchungen, Bankumsätze und ELSTER-Protokolle liefert keiner der Wege; die legst du immer als Exporte ab ([Schritt 4](#schritt-4-exporte-ablegen)).
+
+| | [Public API](#schritt-1-verbindung-zu-lexware-office) | [Sicherung aus der Web-Oberfläche](#sicherung-aus-der-web-oberfläche) | [Nur über die Exporte](#nur-über-die-exporte) |
+| --- | --- | --- | --- |
+| Tarif | XL | jeder, auch S, M und L | jeder |
+| So geht es | API-Schlüssel in Haben eintragen, **Alles abrufen** | Skript aus Haben in der Browser-Konsole von `app.lexware.de` starten, die ZIP-Dateien in Haben hochladen | DATEV-Buchungsstapel und Belegexport aus Lexware Office hochladen |
+| Schritte | 1 bis 5 | 2 bis 5 | 4 und 5 |
+| Kontakte | ✓ | ✓ | – |
+| Rechnungen und Belege mit Positionen, Zahlungen und Steuerart | ✓ | ✓, Steuer je Position nachgerechnet | – |
+| Original-PDF und E-Rechnungs-XML je Beleg | ✓ | ✓ | nur als ZIP im Archiv, ohne Suche nach Nummer |
+| Offene Posten übernehmen ([Schritt 3](#schritt-3-offene-posten-übernehmen)) | ✓ | ✓ | von Hand anlegen |
+| Umsatzsteuer je Monat im Abgleich | ✓ | ✓ | – (Summen je Jahr näherungsweise aus dem DATEV-Stapel) |
+| Jahr im Abgleich „vollständig“ | ✓ | ✓ | nie |
+| Wie verlässlich | dokumentierte Schnittstelle; gegen ein echtes Konto noch nicht gelaufen | nicht dokumentierte Adressen der Web-Oberfläche, Stand November 2026; ändert Lexware sie, kann das Skript scheitern | Standardformat (DATEV EXTF) |
+
+Hast du Tarif XL, nimm die Public API. Sonst ist die Sicherung aus der Web-Oberfläche der Weg, der dieselben Daten bringt. Nur über die Exporte bleibt, wenn das Skript scheitert; dann fehlen Kontakte, Belege als Datensätze und offene Posten.
+
+Bei jedem Weg gilt: Anlagen trägst du mit dem Restbuchwert ein ([Anlagen](anlagen.md#übernahme-aus-lexoffice)), Angebote, Aufträge, Lieferscheine und Mahnungen übernimmt Haben nicht.
 
 ## Voraussetzungen
 
