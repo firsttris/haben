@@ -802,6 +802,47 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.waitForURL(/\/belege$/);
 });
 
+test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser }) => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Hetzner Online GmbH");
+  await page.getByLabel("Kunde", { exact: true }).uncheck();
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("USt-IdNr.").fill("DE812871812");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  // Filter in der Liste: Lieferanten zeigt ihn, Kunden nicht; im Rechnungseditor steht er nicht zur Auswahl
+  await go("/kontakte?rolle=lieferant");
+  await expect(page.getByRole("region", { name: "Kontaktliste" })).toContainText("Hetzner Online GmbH");
+  await go("/kontakte?rolle=kunde");
+  await expect(page.getByRole("region", { name: "Kontaktliste" })).not.toContainText("Hetzner Online GmbH");
+  await go("/rechnungen/neu");
+  await expect(page.getByRole("combobox", { name: "Kunde" }).locator("option", { hasText: "Hetzner" })).toHaveCount(0);
+
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "hetzner.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Hetzner Online GmbH") }]);
+  await expect(page.getByText("hetzner.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /hetzner\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hetzner Online GmbH · DE812871812" });
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
+  await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toHaveValue("DE812871812");
+  // Nicht buchen: Beleg löschen und den Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+  await go("/kontakte?rolle=lieferant");
+  await page.getByRole("link", { name: /Hetzner Online GmbH/ }).click();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
 test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () => {
   await go("/kasse");
   const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });

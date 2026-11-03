@@ -1,6 +1,6 @@
 import { UserError } from "../../errors.ts";
 import { joinEmails, MAX_EMAIL_RECIPIENTS, splitEmails } from "@haben/core";
-import { asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -41,18 +41,26 @@ export const contactSchema = z.object({
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
   /** Sprache von Rechnungen und Angeboten */
   language: z.enum(["de", "en"]).default("de"),
+  /** Rollen; mindestens eine (cleanRoles). Fehlt = Kunde wie bisher */
+  isCustomer: z.boolean().default(true),
+  isSupplier: z.boolean().default(false),
+  lieferantennummer: z.string().trim().max(40).default(""),
 });
+
+export type ContactRole = "kunde" | "lieferant";
 
 export type ContactInput = z.input<typeof contactSchema>;
 export type Contact = typeof schema.contacts.$inferSelect;
 
 export class ContactError extends UserError {}
 
-export async function listContacts(includeArchived = false): Promise<Contact[]> {
+/** Kontakte nach Name; mit role nur Kunden bzw. nur Lieferanten (wer beides ist, steht in beiden) */
+export async function listContacts(includeArchived = false, role?: ContactRole): Promise<Contact[]> {
+  const roleFilter = role === "kunde" ? eq(schema.contacts.isCustomer, true) : role === "lieferant" ? eq(schema.contacts.isSupplier, true) : undefined;
   return db
     .select()
     .from(schema.contacts)
-    .where(includeArchived ? undefined : isNull(schema.contacts.archivedAt))
+    .where(and(includeArchived ? undefined : isNull(schema.contacts.archivedAt), roleFilter))
     .orderBy(asc(schema.contacts.name));
 }
 
@@ -68,8 +76,14 @@ export async function getContact(id: string) {
 }
 
 function clean(input: ContactInput) {
+  const isCustomer = input.isCustomer ?? true;
+  const isSupplier = input.isSupplier ?? false;
+  if (!isCustomer && !isSupplier) throw new ContactError("Ein Kontakt ist Kunde oder Lieferant oder beides.");
   return {
     ...input,
+    isCustomer,
+    isSupplier,
+    lieferantennummer: input.lieferantennummer?.trim() || null,
     kundennummer: input.kundennummer || null,
     email: joinEmails(splitEmails(input.email)),
     ustId: input.ustId.replace(/\s/g, "").toUpperCase(),

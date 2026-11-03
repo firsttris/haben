@@ -41,6 +41,8 @@ const cents = z.number().int().min(-100_000_000_00).max(100_000_000_00);
 export const documentInputSchema = z.object({
   supplierName: z.string().trim().max(200),
   supplierUstId: z.string().trim().max(20),
+  /** Aus den Kontakten gewählter Lieferant; null = frei eingetragen */
+  supplierContactId: z.uuid().nullable().default(null),
   invoiceNumber: z.string().trim().max(100),
   documentDate: isoDate.nullable(),
   dueDate: isoDate.nullable(),
@@ -373,6 +375,10 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
   await withActor(actor, async (tx) => {
     const previous = await lockOpen(tx, id);
     const parsed = documentInputSchema.parse(input);
+    if (parsed.supplierContactId) {
+      const [contact] = await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.id, parsed.supplierContactId));
+      if (!contact) throw new DocumentError("Lieferant nicht gefunden.");
+    }
     const rate = await resolveRate(tx, parsed, previous, (await loadCompany(tx)).tageskurs);
     const amounts = euroAmounts({ ...parsed, exchangeRate: rate.exchangeRate });
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));

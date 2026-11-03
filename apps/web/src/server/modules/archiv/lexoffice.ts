@@ -210,6 +210,10 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
       await tx.insert(schema.contacts).values({
         lexofficeId: contact.lexofficeId,
         kundennummer: contact.kundennummer,
+        // Ohne Rolle in Lexoffice gilt der Kontakt wie bisher als Kunde
+        isCustomer: contact.isCustomer || !contact.isVendor,
+        isSupplier: contact.isVendor,
+        lieferantennummer: contact.lieferantennummer,
         name: contact.name,
         strasse: contact.strasse,
         plz: contact.plz,

@@ -652,6 +652,13 @@
       "when": 1793988050647,
       "tag": "0092_kontoinhaber",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1793988170647,
+      "tag": "0093_kontaktrollen",
+      "breakpoints": true
     }
   ]
 }

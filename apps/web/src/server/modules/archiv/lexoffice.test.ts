@@ -128,6 +128,9 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
 
     const contacts = await sql`select name, lexoffice_id from contacts order by name`;
     expect(contacts.every((c) => c.lexoffice_id)).toBe(true);
+    // Rollen aus Lexoffice: Die Person ist dort Kunde und Lieferant (#224)
+    const roles = await sql`select is_customer, is_supplier, lieferantennummer from contacts where lieferantennummer is not null`;
+    expect(roles).toEqual([{ is_customer: true, is_supplier: true, lieferantennummer: "70001" }]);
 
     const vouchers = await sql`select number, type, direction, net, tax, gross, contact_id, payment from lexoffice_vouchers order by number`;
     expect(vouchers.map((v) => [v.number, v.direction, v.gross])).toEqual([

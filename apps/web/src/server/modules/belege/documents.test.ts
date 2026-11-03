@@ -46,8 +46,47 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, exchange_rates, company cascade`;
+    await sql`truncate journal_lines, journal_entries, document_amounts, documents, exchange_rates, contact_versions, contacts, company cascade`;
     await sql`insert into company (id, name, kontenrahmen) values (1, 'Testfirma', 'SKR03')`;
+  });
+
+  it("merkt sich den aus den Kontakten gewählten Lieferanten; ein unbekannter Kontakt wird abgelehnt", async () => {
+    const stammdaten = await import("../stammdaten/index.ts");
+    const hetzner = await stammdaten.createContact(actor, {
+      kundennummer: "",
+      name: "Hetzner Online GmbH",
+      strasse: "",
+      plz: "",
+      ort: "",
+      land: "DE",
+      email: "",
+      ustId: "DE812871812",
+      iban: "",
+      leitwegId: "",
+      defaultFormat: null,
+      isCustomer: false,
+      isSupplier: true,
+    });
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 91]), filename: "hetzner.jpg" });
+    const input = {
+      supplierName: "Hetzner Online GmbH",
+      supplierUstId: "DE812871812",
+      supplierContactId: hetzner.id,
+      invoiceNumber: "R1",
+      documentDate: "2026-09-15",
+      dueDate: null,
+      category: "software" as const,
+      payment: "bank" as const,
+      note: "",
+      amounts: [{ taxRate: 1900 as const, net: 1_000, tax: 190 }],
+    };
+    await documents.updateDocument(actor, id, input);
+    expect((await documents.getDocument(id))!.document.supplierContactId).toBe(hetzner.id);
+    await expect(documents.updateDocument(actor, id, { ...input, supplierContactId: "00000000-0000-4000-8000-000000000000" })).rejects.toThrow(
+      /Lieferant nicht gefunden/,
+    );
+    await documents.updateDocument(actor, id, { ...input, supplierContactId: null });
+    expect((await documents.getDocument(id))!.document.supplierContactId).toBeNull();
   });
 
   it("von Hand eingetragener Tabellenkurs: der später veröffentlichte amtliche Kurs gilt auch für ungebuchte Belege", async () => {

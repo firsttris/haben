@@ -45,6 +45,8 @@ interface ContactOption {
   defaultFormat: DraftInput["format"] | null;
   leitwegId: string;
   language: "de" | "en";
+  /** Nur Kunden stehen zur Auswahl; ein schon gewählter Kontakt bleibt sichtbar */
+  isCustomer: boolean;
 }
 
 interface ArticleOption {
@@ -517,12 +519,14 @@ export function InvoiceEditor({
                 Kunde
                 <select value={contactId} onChange={(e) => chooseContact(e.target.value)} disabled={!editable}>
                   <option value="">Bitte wählen</option>
-                  {contacts.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                      {c.ort ? ` · ${c.ort}` : ""}
-                    </option>
-                  ))}
+                  {contacts
+                    .filter((c) => c.isCustomer || c.id === contactId)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                        {c.ort ? ` · ${c.ort}` : ""}
+                      </option>
+                    ))}
                 </select>
               </label>
               {kind === "rechnung" && (variant || quoteId) && (

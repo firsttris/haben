@@ -427,11 +427,13 @@ Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskor
 
 ## Kontakte
 
-Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Das Suchfeld über der Liste filtert nach Name, Kundennummer, E-Mail und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein.
+Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt ein gemeinsames Verzeichnis für Kunden und Lieferanten: Eine Firma, bei der du einkaufst und der du auch Rechnungen schreibst, steht nur einmal drin. **Alle**, **Kunden** und **Lieferanten** über der Liste filtern nach Rolle. Das Suchfeld filtert nach Name, Kundennummer, E-Mail und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein.
 
 | Feld | Hinweis |
 | --- | --- |
 | Name oder Firma | Pflicht |
+| Rolle | **Kunde**, **Lieferant** oder beides; mindestens eine. Kunden stehen bei Rechnungen, Angeboten, Serienrechnungen und Textbausteinen zur Auswahl, Lieferanten bei den [Belegen](belege.md). Kontakte von vor dieser Einstellung sind Kunden. |
+| Lieferantennummer | Frei, z. B. deine Kundennummer beim Lieferanten. |
 | Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. |
 | E-Mail | Eine oder mehrere Adressen, mit Komma getrennt (höchstens fünf), etwa zentraler Rechnungseingang und Freigeber. Der Versand per E-Mail schreibt an alle. Für XRechnung gilt die erste als elektronische Adresse des Käufers (BT-49). |
 | Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |

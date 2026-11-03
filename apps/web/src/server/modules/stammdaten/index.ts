@@ -28,6 +28,7 @@ export {
   updateContact,
   type Contact,
   type ContactInput,
+  type ContactRole,
 } from "./contacts.ts";
 export {
   deleteExchangeRate,

@@ -79,12 +79,14 @@ function TextBlockForm({ block, contacts, onDone }: { block: Block | null; conta
           Kunde (optional)
           <select name="contactId" defaultValue={block?.contactId ?? ""}>
             <option value="">Für alle Kunden</option>
-            {contacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {c.ort ? ` · ${c.ort}` : ""}
-              </option>
-            ))}
+            {contacts
+              .filter((c) => c.isCustomer || c.id === block?.contactId)
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.ort ? ` · ${c.ort}` : ""}
+                </option>
+              ))}
           </select>
           <span className="small muted">Bei Belegen an diesen Kunden steht der Baustein in der Auswahl oben.</span>
         </label>

@@ -20,6 +20,9 @@ const EMPTY: ContactInput = {
   leitwegId: "",
   defaultFormat: null,
   language: "de",
+  isCustomer: true,
+  isSupplier: false,
+  lieferantennummer: "",
 };
 
 export function ContactForm({ contact }: { contact: Contact | null }) {
@@ -27,14 +30,25 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
   const { busy, notice, setNotice, run } = useAction();
-  const initial: ContactInput = contact ? { ...EMPTY, ...contact, kundennummer: contact.kundennummer ?? "", defaultFormat: contact.defaultFormat } : EMPTY;
+  const initial: ContactInput = contact
+    ? {
+        ...EMPTY,
+        ...contact,
+        kundennummer: contact.kundennummer ?? "",
+        lieferantennummer: contact.lieferantennummer ?? "",
+        defaultFormat: contact.defaultFormat,
+      }
+    : EMPTY;
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (name: keyof ContactInput) => String(form.get(name) ?? "").trim();
     const format = text("defaultFormat");
+    const isCustomer = form.get("isCustomer") === "on";
+    const isSupplier = form.get("isSupplier") === "on";
     void run(async () => {
+      if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
       const result = await save({
         data: {
           id: contact?.id ?? null,
@@ -51,6 +65,9 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
             leitwegId: text("leitwegId"),
             defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
             language: text("language") === "en" ? "en" : "de",
+            isCustomer,
+            isSupplier,
+            lieferantennummer: text("lieferantennummer"),
           },
         },
       });
@@ -71,6 +88,20 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
           Name oder Firma
           <input name="name" defaultValue={initial.name} required autoComplete="organization" placeholder="z. B. Muster GmbH" />
         </label>
+        <fieldset className="field-group" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="small">Rolle</legend>
+          <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+            <label className="checkbox">
+              <input type="checkbox" name="isCustomer" defaultChecked={initial.isCustomer ?? true} />
+              Kunde
+            </label>
+            <label className="checkbox">
+              <input type="checkbox" name="isSupplier" defaultChecked={initial.isSupplier ?? false} />
+              Lieferant
+            </label>
+          </div>
+          <p className="field-hint">Kunden stehen bei Rechnungen und Angeboten zur Auswahl, Lieferanten bei den Belegen. Beides geht.</p>
+        </fieldset>
         <div className="form-row cols-2">
           <label className="field">
             E-Mail
@@ -82,6 +113,10 @@ export function ContactForm({ contact }: { contact: Contact | null }) {
             <input name="kundennummer" defaultValue={initial.kundennummer} placeholder="optional" />
           </label>
         </div>
+        <label className="field">
+          Lieferantennummer
+          <input name="lieferantennummer" defaultValue={initial.lieferantennummer} placeholder="optional, z. B. deine Kundennummer beim Lieferanten" />
+        </label>
       </section>
 
       <section className="form-section" aria-labelledby="contact-address">
