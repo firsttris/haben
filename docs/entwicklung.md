@@ -79,6 +79,7 @@ docker compose exec db createdb -U haben haben_e2e
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
 | `pip install -r requirements-docs.txt && mkdocs serve` | Diese Dokumentation als Website lokal auf Port 8000 (MkDocs Material); `mkdocs build --strict` wie in der CI |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
+| `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
 
 ## Tests
@@ -152,7 +153,7 @@ Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.githu
 5. Einen Kontoauszug importieren und die Umsätze zuordnen.
 6. Prüfen, dass Kennzahlen und Salden unter **Konten** dazu passen, und den Filter im Journal testen.
 
-Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen mit diesen Daten und dieser Sitzung die Dateien im Projekt `mit-daten` (`playwright.config.ts`), verteilt auf vier Worker; sie lesen nur. `elster-helfer.spec.ts` und `langsame-anfrage.spec.ts` brauchen keine Daten und laufen im Projekt `ohne-daten` von Anfang an daneben.
+Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen mit diesen Daten und dieser Sitzung die Dateien im Projekt `mit-daten` (`playwright.config.ts`), verteilt auf vier Worker; sie lesen nur. `elster-helfer.spec.ts`, `elster-helfer-erweiterung.spec.ts` und `langsame-anfrage.spec.ts` brauchen keine Daten und laufen im Projekt `ohne-daten` von Anfang an daneben. `elster-helfer.spec.ts` prüft die Logik der Erweiterung „Haben für Mein ELSTER“ (`src/fill.ts`, mit Vite gebaut) auf nachgebauten Formularseiten; `elster-helfer-erweiterung.spec.ts` baut die ganze Erweiterung, lädt sie in Chromium und prüft Popup und Inhaltsskript auf einer Seite unter der Adresse von Mein ELSTER.
 
 `apps/web/e2e/seiten.spec.ts` lädt jede Seite am Desktop (1440 px) und am Handy (390 px) und prüft dabei:
 - Die Seite antwortet ohne Fehler und hat eine Überschrift.
@@ -259,7 +260,7 @@ Images baut der Workflow `.github/workflows/release.yml`: die CI liegt hier, Ima
 1. Der Tag muss zu `version` in der `package.json` im Wurzelverzeichnis passen.
 2. Die komplette CI läuft (Lint, Typecheck, Tests, Build, KoSIT, Container-Test), außer die CI auf `main` hat denselben Code schon geprüft: ein Commit von *Bump version* ändert nur die Version, dann zählt der grüne Lauf des Commits davor.
 3. Das Image wird für `linux/amd64` und `linux/arm64` gebaut und als `:x.y.z`, `:x.y` und `:latest` nach Docker Hub (`tristanteu/haben`) und GHCR (`ghcr.io/firsttris/haben`) geschoben. Die README landet mit absoluten Links als Beschreibung auf Docker Hub.
-4. Erst danach entsteht das GitHub-Release mit erzeugten Notizen. Daran hängt die Erweiterung „Haben für Mein ELSTER“ als `haben-fuer-mein-elster-chrome-<Version>.zip`: Der Job `erweiterung` packt `apps/elster-helfer` mit `scripts/elster-helfer/paket.ts` und setzt die Version aus dem Tag ins Manifest (bei einem Release Candidate die Ziffern in `version`, die volle Bezeichnung in `version_name`). Das Artefakt heißt `extension`, wie bei den anderen Erweiterungen; den Chrome Web Store kann später `browser-extension-stores.yml` aus `firsttris/workflows` daraus bedienen.
+4. Erst danach entsteht das GitHub-Release mit erzeugten Notizen. Daran hängt die Erweiterung „Haben für Mein ELSTER“ als `haben-fuer-mein-elster-chrome-<Version>.zip`: Der Job `erweiterung` baut `apps/elster-helfer` (TypeScript mit Vite), packt `dist/` mit `scripts/elster-helfer/paket.ts` und setzt die Version aus dem Tag ins Manifest (bei einem Release Candidate die Ziffern in `version`, die volle Bezeichnung in `version_name`). Das Artefakt heißt `extension`, wie bei den anderen Erweiterungen; den Chrome Web Store kann später `browser-extension-stores.yml` aus `firsttris/workflows` daraus bedienen.
 
 Den Tag legt einer von zwei Wegen an, nach demselben Schema wie in den anderen Projekten:
 

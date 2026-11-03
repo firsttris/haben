@@ -1,5 +1,5 @@
 /*
- * Packt die Erweiterung „Haben für Mein ELSTER“ (apps/elster-helfer) für ein Release:
+ * Baut die Erweiterung „Haben für Mein ELSTER“ (apps/elster-helfer, TypeScript mit Vite) und packt sie für ein Release:
  *   bun scripts/elster-helfer/paket.ts <tag> <ausgabeordner>
  * Das ZIP heißt wie bei den anderen Erweiterungen <name>-chrome-<version>.zip und hat manifest.json im
  * Hauptverzeichnis; so nimmt es auch der Chrome Web Store (browser-extension-stores.yml in firsttris/workflows).
@@ -33,7 +33,13 @@ export function paketName(tag: string): string {
   return `${NAME}-chrome-${versionAus(tag).full}.zip`;
 }
 
-/** Kopiert die Erweiterung in einen leeren Ordner, setzt die Version und packt sie; gibt den Pfad des ZIPs zurück */
+/** Baut die Erweiterung mit Vite nach dist/ und gibt den Ordner zurück */
+function bauen(projekt: string): string {
+  execFileSync(process.execPath, ["run", "build"], { cwd: projekt, stdio: ["ignore", "ignore", "inherit"] });
+  return join(projekt, "dist");
+}
+
+/** Kopiert die gebaute Erweiterung in einen leeren Ordner, setzt die Version und packt sie; gibt den Pfad des ZIPs zurück */
 function packen(quelle: string, tag: string, ausgabe: string): string {
   const arbeit = mkdtempSync(join(tmpdir(), "haben-erweiterung-"));
   try {
@@ -58,6 +64,6 @@ if (import.meta.main) {
     console.error("Aufruf: bun scripts/elster-helfer/paket.ts <tag> <ausgabeordner>");
     process.exit(2);
   }
-  const quelle = fileURLToPath(new URL("../../apps/elster-helfer", import.meta.url));
-  console.log(packen(quelle, tag, ausgabe));
+  const projekt = fileURLToPath(new URL("../../apps/elster-helfer", import.meta.url));
+  console.log(packen(bauen(projekt), tag, ausgabe));
 }

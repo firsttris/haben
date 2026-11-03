@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.elster.de/eportal/interpreter/eingabe/*"],
-      "js": ["fill.js", "content.js"],
+      "js": ["src/content.ts"],
       "run_at": "document_idle"
     }
   ]

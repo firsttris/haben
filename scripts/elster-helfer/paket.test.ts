@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { paketName, releaseManifest } from "./paket.ts";
 
 const manifest = { manifest_version: 3, name: "Haben für Mein ELSTER", version: "0.1.0" };
@@ -56,27 +56,47 @@ describe("ZIP für das Release", () => {
   const out = mkdtempSync(join(tmpdir(), "haben-erweiterung-"));
   afterAll(() => rmSync(out, { recursive: true, force: true }));
 
-  // Der Chrome Web Store verlangt manifest.json im Hauptverzeichnis des ZIPs
-  it("enthält die Dateien der Erweiterung mit manifest.json im Hauptverzeichnis und der Version aus dem Tag", () => {
-    const script = fileURLToPath(new URL("./paket.ts", import.meta.url));
+  // Gebaut einmal für alle Tests dieses Blocks; das Skript baut die Erweiterung mit Vite und packt dist/
+  const script = fileURLToPath(new URL("./paket.ts", import.meta.url));
+  const zip = join(out, "haben-fuer-mein-elster-chrome-0.3.1.zip");
+  const dateien = () => execFileSync("unzip", ["-Z1", zip], { encoding: "utf8" }).trim().split("\n").sort();
+  const gepackt = () => JSON.parse(execFileSync("unzip", ["-p", zip, "manifest.json"], { encoding: "utf8" }));
+  beforeAll(() => {
     execFileSync(process.execPath, [script, "v0.3.1", out], { stdio: "pipe" });
-    const zip = join(out, "haben-fuer-mein-elster-chrome-0.3.1.zip");
+  }, 120_000);
 
-    const dateien = execFileSync("unzip", ["-Z1", zip], { encoding: "utf8" }).trim().split("\n").sort();
-    expect(dateien).toEqual([
-      "content.js",
-      "fill.js",
-      "icons/icon-128.png",
-      "icons/icon-16.png",
-      "icons/icon-32.png",
-      "icons/icon-48.png",
-      "manifest.json",
-      "popup.html",
-      "popup.js",
+  // Der Chrome Web Store verlangt manifest.json im Hauptverzeichnis des ZIPs
+  it("enthält die gebaute Erweiterung mit manifest.json im Hauptverzeichnis und der Version aus dem Tag", () => {
+    expect(dateien()).toEqual(
+      expect.arrayContaining([
+        "manifest.json",
+        "popup.html",
+        "src/content.js",
+        "icons/icon-16.png",
+        "icons/icon-32.png",
+        "icons/icon-48.png",
+        "icons/icon-128.png",
+      ]),
+    );
+    expect(gepackt().version).toBe("0.3.1");
+  });
+
+  it("enthält nur Gebautes, keine TypeScript-Quellen", () => {
+    expect(dateien().filter((d) => d.endsWith(".ts"))).toEqual([]);
+    expect(gepackt().content_scripts).toEqual([
+      { js: ["src/content.js"], matches: ["https://www.elster.de/eportal/interpreter/eingabe/*"], run_at: "document_idle" },
     ]);
-    const gepackt = JSON.parse(execFileSync("unzip", ["-p", zip, "manifest.json"], { encoding: "utf8" }));
+  });
+
+  // Was eine Erweiterung als web_accessible_resources freigibt, kann die Seite abrufen und daran die Erweiterung erkennen
+  it("gibt Mein ELSTER keine Dateien der Erweiterung frei", () => {
+    expect(gepackt().web_accessible_resources).toBeUndefined();
+  });
+
+  it("bringt die Icons aus dem Manifest der Quellen mit", () => {
     const quelle = JSON.parse(readFileSync(new URL("../../apps/elster-helfer/manifest.json", import.meta.url), "utf8"));
-    expect(gepackt).toEqual({ ...quelle, version: "0.3.1" });
+    expect(gepackt().icons).toEqual(quelle.icons);
+    expect(gepackt().action.default_icon).toEqual(quelle.action.default_icon);
   });
 });
 
@@ -96,5 +116,5 @@ describe("ZIP neu packen", () => {
 
     const dateien = execFileSync("unzip", ["-Z1", zip], { encoding: "utf8" }).trim().split("\n");
     expect(dateien).not.toContain("veraltet.js");
-  });
+  }, 120_000);
 });

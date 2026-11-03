@@ -53,6 +53,7 @@ services:
       - .:/app
       - node_modules:/app/node_modules
       - node_modules_web:/app/apps/web/node_modules
+      - node_modules_elster_helfer:/app/apps/elster-helfer/node_modules
       - node_modules_core:/app/packages/core/node_modules
       - node_modules_einvoice:/app/packages/einvoice/node_modules
       - node_modules_elster:/app/packages/elster/node_modules
@@ -66,6 +67,7 @@ volumes:
   db:
   node_modules:
   node_modules_web:
+  node_modules_elster_helfer:
   node_modules_core:
   node_modules_einvoice:
   node_modules_elster:

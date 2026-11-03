@@ -47,6 +47,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      # Baut die Erweiterung (TypeScript mit Vite) und packt dist/ mit der Version aus dem Tag
       - run: bun scripts/elster-helfer/paket.ts "$GITHUB_REF_NAME" "$RUNNER_TEMP"
       - uses: actions/upload-artifact@v7
         with:
