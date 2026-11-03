@@ -1,0 +1,62 @@
+{
+  "list": {
+    "entityId": "30000000-0000-4000-8000-000000000001",
+    "entityType": "financialvoucher",
+    "entitySubType": "FinancialPurchaseInvoice",
+    "identificationNumber": null,
+    "billingStatus": "paid",
+    "totalGrossAmount": 250,
+    "openAmount": 0,
+    "archived": false,
+    "voucherDate": "2026-06-28T00:00:00.000+02:00",
+    "createdDate": "2026-07-10T19:48:03.317+02:00"
+  },
+  "details": {
+    "organizationId": "o0000000-0000-4000-8000-000000000001",
+    "bookkeepingVoucherId": "30000000-0000-4000-8000-000000000001",
+    "totalGrossAmount": 250,
+    "taxType": "gross",
+    "createdDate": "2026-07-10T19:48:03.317+02:00",
+    "voucherDate": "2026-06-28T00:00:00.000+02:00",
+    "isEditable": false,
+    "archived": false,
+    "postingType": "expense",
+    "type": "FinancialPurchaseInvoice",
+    "bookkeepingVoucherItems": [
+      {
+        "bookkeepingVoucherItemId": "i0000000-0000-4000-8000-000000000001",
+        "taxRate": { "i18nKey": "VSt19", "percent": 19, "calcPercent": 19, "taxRateLevel": "regular", "countryCode": "DE" },
+        "amount": 250,
+        "postingCategory": { "postingCategoryId": "9eaf6ff8-fd89-11e1-a21f-0800200c9a66", "name": "Sonstige Fahrzeugkosten", "type": "outgo" },
+        "sequenceNo": 1
+      }
+    ],
+    "billingStatus": "paid"
+  },
+  "financial": {
+    "payments": [
+      {
+        "paymentAmount": -250,
+        "paymentDate": "2026-06-27T22:00:00.000+00:00",
+        "voucherId": "30000000-0000-4000-8000-000000000001",
+        "voucherType": "FINANCIAL_PURCHASE_INVOICE",
+        "voucherSource": "BOOKKEEPING_VOUCHER",
+        "paymentId": "t0000000-0000-4000-8000-000000000001",
+        "paymentSource": "FINANCIAL_TRANSACTION"
+      }
+    ],
+    "transactions": [
+      {
+        "financialTransactionId": "t0000000-0000-4000-8000-000000000001",
+        "financialAccount": { "name": "Girokonto" },
+        "bookingState": "COMPLETELY_ASSIGNED",
+        "amount": -250,
+        "openAmount": 0,
+        "purpose": "Ladekarte Juni",
+        "transactionDate": "2026-06-28T00:00:00.000+00:00",
+        "recipientOrSenderName": "Autohaus Beispiel",
+        "numberOfVouchers": 1
+      }
+    ]
+  }
+}

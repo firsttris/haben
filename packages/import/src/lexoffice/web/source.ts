@@ -3,7 +3,17 @@ import type { z } from "zod";
 import { LexwareWebExportError } from "./errors.ts";
 import type { LexofficeSource } from "../source.ts";
 import type { LexFile, LexVoucherListType } from "../types.ts";
-import { SALES_TYPES, webBookkeepingVoucher, webContact, webListItem, webPayments, webPostingCategories, webSalesDocument, webVoucherType } from "./convert.ts";
+import {
+  FINANCIAL_TYPES,
+  SALES_TYPES,
+  webBookkeepingVoucher,
+  webContact,
+  webListItem,
+  webPayments,
+  webPostingCategories,
+  webSalesDocument,
+  webVoucherType,
+} from "./convert.ts";
 import { WEB_EXPORT_FORMAT, WEB_EXPORT_VERSION, webContactSchema, webEntrySchema, webManifestSchema, type WebContact, type WebEntry } from "./schema.ts";
 
 export { LexwareWebExportError };
@@ -142,7 +152,7 @@ export function webExportSource(data: WebExport): LexofficeSource {
       }
       for (const failure of data.failures.values()) {
         const subType = failure.type ?? "";
-        const entityType = subType in SALES_TYPES ? "salesvoucher" : "bookkeepingvoucher";
+        const entityType = subType in SALES_TYPES ? "salesvoucher" : subType in FINANCIAL_TYPES ? "financialvoucher" : "bookkeepingvoucher";
         // Ohne erkennbare Art läuft der Beleg als Buchhaltungsbeleg; der Abruf meldet ohnehin den Fehler
         const voucherType = webVoucherType({ entityType, entitySubType: subType }) ?? "purchaseinvoice";
         if (wanted.has(voucherType)) yield { id: failure.id, voucherType, voucherStatus: "", voucherNumber: failure.number };
