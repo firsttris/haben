@@ -3,7 +3,6 @@ import {
   addDays,
   computeInvoice,
   computeInvoiceTotals,
-  formatQuoteNumber,
   lineAmount,
   PRICE_MODES,
   QUOTE_VALID_DAYS,
@@ -25,7 +24,7 @@ import { loadCompany, sellerIssues } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLogo } from "../stammdaten/index.ts";
-import { peekNumber, takeNumber } from "./number-counter.ts";
+import { documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { draftLineSchema } from "./draft-line.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
 
@@ -297,7 +296,7 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     // Wie bei Rechnungen: Nummer lesen, PDF erzeugen, erst dann schreiben (number-counter.ts)
     const year = Number(quote.issueDate.slice(0, 4));
     const counter = await peekNumber(tx, "angebot", year);
-    const number = formatQuoteNumber(year, counter);
+    const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, year, counter);
     const seller = sellerFrom(company);
     const buyer = buyerFrom(contact!);
     const doc = quoteDocumentFor(quote, lines, seller, buyer, number);

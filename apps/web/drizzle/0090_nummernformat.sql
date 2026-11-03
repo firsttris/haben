@@ -1,0 +1,2 @@
+ALTER TABLE "company" ADD COLUMN "invoice_number_format" text DEFAULT '{JJJJ}-{NNN}' NOT NULL;--> statement-breakpoint
+ALTER TABLE "company" ADD COLUMN "quote_number_format" text DEFAULT 'AN-{JJJJ}-{NNN}' NOT NULL;

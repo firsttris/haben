@@ -8,7 +8,7 @@ import {
   rateMonth,
   totalsFromTaxes,
   firstEmail,
-  formatInvoiceNumber,
+  formatDocumentNumber,
   invoiceDueDate,
   invoicePosting,
   legacyCorrectionPosting,
@@ -40,7 +40,7 @@ import { draftLineSchema } from "./draft-line.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
-import { lockNumbering, peekNumber, setNextNumber as setNextCounter, takeNumber } from "./number-counter.ts";
+import { documentNumber, lockNumbering, peekNumber, setNextNumber as setNextCounter, takeNumber } from "./number-counter.ts";
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
@@ -919,7 +919,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
   const year = Number(invoice.issueDate.slice(0, 4));
   const counter = await peekNumber(tx, "rechnung", year);
-  const number = formatInvoiceNumber(year, counter);
+  const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, year, counter);
 
   // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
   const seller = sellerFrom(company);
@@ -1121,14 +1121,20 @@ export async function createCorrection(actor: string, id: string, today: string)
 
 /** Nächste Rechnungsnummer des Jahres, z. B. um nach Lexoffice nahtlos weiterzuzählen. */
 export async function numbering(year: number) {
-  const [counter] = await db.select().from(schema.invoiceNumberCounters).where(eq(schema.invoiceNumberCounters.year, year));
+  const [[counter], company] = await Promise.all([
+    db.select().from(schema.invoiceNumberCounters).where(eq(schema.invoiceNumberCounters.year, year)),
+    loadCompany(),
+  ]);
   const last = counter?.last ?? 0;
-  return { year, last, next: formatInvoiceNumber(year, last + 1) };
+  return { year, last, next: formatDocumentNumber(company.invoiceNumberFormat, year, last + 1) };
 }
 
 export async function setNextNumber(actor: string, year: number, next: number) {
   const result = await withActor(actor, (tx) => setNextCounter(tx, "rechnung", year, next));
-  if (!result.ok) throw new InvoiceError(`Die nächste Nummer muss größer als ${formatInvoiceNumber(year, result.last)} sein.`);
+  if (!result.ok) {
+    const { invoiceNumberFormat } = await loadCompany();
+    throw new InvoiceError(`Die nächste Nummer muss größer als ${formatDocumentNumber(invoiceNumberFormat, year, result.last)} sein.`);
+  }
 }
 
 /** Kennzahlen für die Übersicht */

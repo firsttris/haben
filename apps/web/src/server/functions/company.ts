@@ -17,7 +17,7 @@ import {
 } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { saveCompany as saveCompanySettings, settingsLocks } from "../modules/stammdaten/index.ts";
-import { saveTaxpayer, taxpayerSchema } from "../modules/stammdaten/index.ts";
+import { saveNumberFormats, saveTaxpayer, taxpayerSchema } from "../modules/stammdaten/index.ts";
 import { today } from "../today.ts";
 
 export const getCompany = createServerFn({ method: "GET" })
@@ -32,6 +32,15 @@ export const saveCompany = createServerFn({ method: "POST" })
   .validator(companySchema)
   .handler(async ({ data, context }) => {
     await saveCompanySettings(context.user.id, data, today());
+    return { ok: true };
+  });
+
+/** Nummernformate für Rechnungen und Angebote; die Regeln prüft saveNumberFormats */
+export const saveNumberFormatSettings = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ invoice: z.string().max(100), quote: z.string().max(100) }))
+  .handler(async ({ data, context }) => {
+    await saveNumberFormats(context.user.id, data);
     return { ok: true };
   });
 

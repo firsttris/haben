@@ -173,6 +173,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     bundesland: company.bundesland,
     kleinunternehmer: company.kleinunternehmer,
     tageskurs: company.tageskurs,
+    numberFormat: kind === "rechnung" ? company.invoiceNumberFormat : company.quoteNumberFormat,
     numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
   };
 }

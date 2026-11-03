@@ -631,6 +631,13 @@
       "when": 1793987870647,
       "tag": "0089_artikeltext",
       "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1793709333488,
+      "tag": "0090_nummernformat",
+      "breakpoints": true
     }
   ]
 }

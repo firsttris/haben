@@ -3,8 +3,7 @@ import {
   CURRENCY_CODE,
   formatDecimal,
   formatEuro,
-  formatInvoiceNumber,
-  formatQuoteNumber,
+  formatDocumentNumber,
   formatQuantity,
   invoiceDueDate,
   lineAmount,
@@ -135,6 +134,7 @@ export function InvoiceEditor({
   sellerIssues,
   issues,
   numberCounters,
+  numberFormat,
   corrects,
   bundesland,
   kleinunternehmer,
@@ -155,6 +155,8 @@ export function InvoiceEditor({
   issues: string[];
   /** Letzte vergebene Nummer je Jahr */
   numberCounters: Record<number, number>;
+  /** Nummernformat aus den Einstellungen, z. B. "RE-{JJJJ}-{NNN}" */
+  numberFormat: string;
   corrects: { number: string | null; issueDate: string } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
@@ -249,7 +251,7 @@ export function InvoiceEditor({
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
   const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
   const numberYear = Number((issueDate || initial.issueDate).slice(0, 4));
-  const nextNumber = (quote ? formatQuoteNumber : formatInvoiceNumber)(numberYear, (numberCounters[numberYear] ?? 0) + 1);
+  const nextNumber = formatDocumentNumber(numberFormat, numberYear, (numberCounters[numberYear] ?? 0) + 1);
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   const allValid =
     parsed.every((l) => l.valid) &&

@@ -97,6 +97,9 @@ export const company = pgTable(
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
+    /** Nummernformate mit Platzhaltern {JJJJ}, {JJ}, {N…} (packages/core/src/number-format.ts) */
+    invoiceNumberFormat: text("invoice_number_format").notNull().default("{JJJJ}-{NNN}"),
+    quoteNumberFormat: text("quote_number_format").notNull().default("AN-{JJJJ}-{NNN}"),
     /** Für den DATEV-Export: Nummern bei der Steuerberatung */
     datevBeraterNr: text("datev_berater_nr").notNull().default(""),
     datevMandantNr: text("datev_mandant_nr").notNull().default(""),

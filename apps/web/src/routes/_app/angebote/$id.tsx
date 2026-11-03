@@ -58,6 +58,7 @@ function QuotePage() {
         sellerIssues={data.sellerIssues}
         issues={data.issues}
         numberCounters={data.numberCounters}
+        numberFormat={data.numberFormat}
         corrects={null}
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}
