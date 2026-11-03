@@ -657,6 +657,7 @@ export function sellerFrom(company: Company): Seller {
     ...(company.iban ? { iban: company.iban } : {}),
     ...(company.bic ? { bic: company.bic } : {}),
     ...(company.bank ? { bank: company.bank } : {}),
+    ...(company.kontoinhaber ? { kontoinhaber: company.kontoinhaber } : {}),
   };
 }
 

@@ -14,6 +14,8 @@ export interface PreviewSeller {
   iban: string;
   bic: string;
   bank: string;
+  /** Leer = Firmenname */
+  kontoinhaber?: string;
   /** SHA-256 des Logos, wenn eines hinterlegt ist */
   logo?: string | null;
   /** Akzentfarbe #RRGGBB aus den Einstellungen; fehlt = Standardgrün aus styles.css */
@@ -111,7 +113,12 @@ export function InvoicePreview({
         : `Bitte überweisen Sie den Betrag bis zum ${formatDate(dueDate)} unter Angabe der Rechnungsnummer.`;
   const footer = [
     [seller.name || "[Firmenname]", seller.strasse, `${seller.plz} ${seller.ort}`.trim(), seller.email],
-    [seller.bank, `IBAN ${seller.iban || "[IBAN]"}`, seller.bic && `BIC ${seller.bic}`],
+    [
+      seller.bank,
+      seller.kontoinhaber && seller.kontoinhaber !== seller.name && `Kontoinhaber ${seller.kontoinhaber}`,
+      `IBAN ${seller.iban || "[IBAN]"}`,
+      seller.bic && `BIC ${seller.bic}`,
+    ],
     [seller.steuernummer && `Steuernummer ${seller.steuernummer}`, seller.ustId && `USt-IdNr. ${seller.ustId}`],
   ].map((column) => column.filter(Boolean));
 
