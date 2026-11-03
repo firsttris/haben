@@ -38,6 +38,9 @@ export function ustvaDatenartVersion(year: number): string {
 }
 
 /** Liest die Datenart-Version aus dem XML (für validate/send ohne Zusatzangaben): UStVA_2026, USt_2025, EUER_2025 */
+/** Datum im Namensraum der Taxonomie → Version der Datenart Bilanz; Haben erzeugt nur aktuelle Taxonomien */
+export const EBILANZ_TAXONOMIEN: Record<string, string> = { "2024-04-01": "6.8", "2025-04-01": "6.9" };
+
 export function datenartVersionFromXml(xml: string): string | undefined {
   const ustva = /<Anmeldungssteuern\b[^>]*\bversion="(\d{4})"/.exec(xml);
   if (ustva?.[1]) return ustvaDatenartVersion(Number(ustva[1]));
@@ -50,6 +53,12 @@ export function datenartVersionFromXml(xml: string): string | undefined {
   const abholung = /<DatenArt>(PostfachAnfrage|PostfachBestaetigung)<\/DatenArt>[\s\S]*<Datenabholung\b[^>]*\bversion="(\d+)"/.exec(xml);
   if (abholung?.[1] && abholung[2]) return `${abholung[1]}_${abholung[2]}`;
   if (/<DatenArt>ElsterVaStDaten<\/DatenArt>/.test(xml)) return "ElsterVaStDaten_31";
+  // E-Bilanz: Version der Taxonomie nach dem Datum im Namensraum (Beispiele zur Datenart Bilanz in der ERiC-Dokumentation)
+  if (/<DatenArt>Bilanz<\/DatenArt>/.test(xml)) {
+    const taxonomie = /xmlns:de-gcd="http:\/\/www\.xbrl\.de\/taxonomies\/de-gcd-(\d{4}-\d{2}-\d{2})"/.exec(xml)?.[1];
+    const version = taxonomie ? EBILANZ_TAXONOMIEN[taxonomie] : undefined;
+    if (version) return `Bilanz_${version}`;
+  }
   // Berechtigungsmanagement: Datenart = Datenart-Version
   const brm = /<DatenArt>(SpezRecht(?:Antrag|Freischaltung|Storno|Liste))<\/DatenArt>/.exec(xml);
   if (brm?.[1]) return brm[1];
