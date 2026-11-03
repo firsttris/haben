@@ -96,6 +96,9 @@ let nextKey = 1;
 /** Bezeichnungen vergleichen, ohne dass Zeilenumbrüche und doppelte Leerzeichen zählen */
 const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
 
+/** Artikel kennen nur einen Text: Bezeichnung und Beschreibung untereinander, beim Einfügen wieder getrennt */
+const articleText = (line: { description: string; detail: string }) => [line.description, line.detail].filter(Boolean).join("\n");
+
 function toLineState(line: DraftInput["lines"][number]): LineState {
   return {
     key: nextKey++,
@@ -296,8 +299,7 @@ export function InvoiceEditor({
     void run(
       async () => {
         await storeArticle({
-          // Bezeichnung und Beschreibung als mehrzeiliger Artikeltext; beim Einfügen wieder getrennt
-          data: { id: null, article: { description: [p.description, p.detail].filter(Boolean).join("\n"), unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
+          data: { id: null, article: { description: articleText(p), unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
         });
         await router.invalidate();
       },
@@ -781,7 +783,7 @@ export function InvoiceEditor({
             {lines.map((line, index) => {
               const p = parsed[index]!;
               const inCatalog = articles.some(
-                (a) => sameText(a.description, [p.description, p.detail].filter(Boolean).join("\n")) && a.unitPrice === p.unitPrice && a.unit === p.unit && a.priceIncludesTax === grossPrices,
+                (a) => sameText(a.description, articleText(p)) && a.unitPrice === p.unitPrice && a.unit === p.unit && a.priceIncludesTax === grossPrices,
               );
               return (
                 <div className="line-row" key={line.key}>

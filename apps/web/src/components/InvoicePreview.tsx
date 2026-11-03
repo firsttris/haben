@@ -161,7 +161,11 @@ export function InvoicePreview({
                   <td>{index + 1}</td>
                   <td className="desc">
                     {line.detail ? <strong>{line.description}</strong> : line.description}
-                    {line.detail && <div className="sheet-muted" style={{ whiteSpace: "pre-wrap" }}>{line.detail}</div>}
+                    {line.detail && (
+                      <div className="sheet-muted" style={{ whiteSpace: "pre-wrap" }}>
+                        {line.detail}
+                      </div>
+                    )}
                   </td>
                   <td className="num">
                     {formatQuantity(line.quantity)} {line.unit}
