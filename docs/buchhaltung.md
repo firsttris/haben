@@ -468,6 +468,8 @@ Unter **Steuern › Ausschüttungen** bucht Haben den Gewinnverwendungsbeschluss
 - der Gewinnverteilungsbeschluss mit Datum, Betrag und Zufluss;
 - die Kirchensteuer je Religionsschlüssel aus dem Kirchensteuerabzugsmerkmal.
 
+In der **Körperschaftsteuererklärung** des Jahres stehen die Ausschüttungen in der Anlage KSt 1 F (`packages/elster/src/kst1f.ts`). Dort stehen auch der ausschüttbare Gewinn und der Abzug vom Einlagekonto. Das Einlagekonto mindert sich nur um den Betrag, den die Steuerbescheinigung an die Gesellschafter als Leistung aus dem Einlagekonto ausweist (§ 27 Abs. 3 und 5 KStG). Haben setzt den berechneten Teil als bescheinigt an.
+
 Ein **Storno** ist eine Gegenbuchung und geht nur, solange die Anmeldung nicht echt übermittelt ist. Danach korrigiert eine berichtigte Anmeldung über das ELSTER-Portal.
 
 > [!WARNING]

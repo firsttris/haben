@@ -65,14 +65,25 @@ interface Grundlagen {
   einlagekonto: Cents;
 }
 
+type Salden = Awaited<ReturnType<typeof saldenliste>>;
+
+/** Eigenkapital laut Steuerbilanz und Nennkapital zum Schluss des Vorjahres: die EB-Werte der Konten (Haben positiv) */
+function kapitalVorjahr(company: Company, rows: Salden) {
+  const pos = (account: string) => ebilanzPosition(company.kontenrahmen, account, -1) ?? "";
+  const eb = (prefix: string) => -rows.filter((r) => pos(r.account).startsWith(prefix)).reduce((sum, r) => sum + r.vortrag, 0);
+  return { eigenkapital: eb(EIGENKAPITAL), nennkapital: eb(GEZEICHNET) };
+}
+
+async function salden(company: Company, year: number, to?: string): Promise<Salden> {
+  return (await saldenliste({ ...ledgerRange(year), ...(to ? { to } : {}) })).filter((r) => r.kontenrahmen === company.kontenrahmen);
+}
+
 async function grundlagen(year: number, beschluss: string, q: Db | Tx): Promise<Grundlagen> {
   const company = await loadCompany(q);
   if (!isKapitalgesellschaft(company.rechtsform)) throw new AusschuettungError("Ausschüttungen gibt es nur in GmbH und UG.");
   // Stand am Ende des Beschlusstags (to ist ausschließlich)
-  const rows = (await saldenliste({ ...ledgerRange(year), to: tagDanach(beschluss) })).filter((r) => r.kontenrahmen === company.kontenrahmen);
-  const pos = (account: string) => ebilanzPosition(company.kontenrahmen, account, -1) ?? "";
-  // Eigenkapital laut Steuerbilanz zum Schluss des Vorjahres: der EB-Wert der Eigenkapitalkonten (Haben positiv)
-  const eb = (prefix: string) => -rows.filter((r) => pos(r.account).startsWith(prefix)).reduce((sum, r) => sum + r.vortrag, 0);
+  const rows = await salden(company, year, tagDanach(beschluss));
+  const { eigenkapital, nennkapital } = kapitalVorjahr(company, rows);
   const { angaben } = await kapgErklaerungAngaben(year);
   const vortrag = VORTRAG_ACCOUNTS[company.kontenrahmen];
   const gewinnvortrag = -rows.filter((r) => r.account === vortrag.gewinn || r.account === vortrag.verlust).reduce((sum, r) => sum + r.saldo, 0);
@@ -80,8 +91,27 @@ async function grundlagen(year: number, beschluss: string, q: Db | Tx): Promise<
   return {
     company,
     gewinnvortrag,
-    ausschuettbarerGewinn: eb(EIGENKAPITAL) - eb(GEZEICHNET) - angaben.einlagekonto - leistungenBisher,
+    ausschuettbarerGewinn: eigenkapital - nennkapital - angaben.einlagekonto - leistungenBisher,
     einlagekonto: angaben.einlagekonto,
+  };
+}
+
+/**
+ * Für die Anlage KSt 1 F: die nicht stornierten Ausschüttungen mit Abfluss im Jahr und der Teil aus dem Einlagekonto, der
+ * in den Steuerbescheinigungen steht, dazu Eigen- und Nennkapital zum Schluss des Vorjahres.
+ */
+export async function einlagekontoJahr(company: Company, year: number) {
+  const [rows, dividends] = await Promise.all([salden(company, year), dividendsOfYear(year)]);
+  return {
+    ...kapitalVorjahr(company, rows),
+    leistungen: dividends
+      .filter((d) => !d.storniert)
+      .map((d) => ({
+        beschluss: d.beschlussDate,
+        abfluss: d.zufluss,
+        brutto: d.brutto,
+        ausEinlagekonto: d.empfaenger.reduce((sum, e) => sum + e.ausEinlagekonto, 0),
+      })),
   };
 }
 

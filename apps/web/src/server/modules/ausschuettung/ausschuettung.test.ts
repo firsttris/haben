@@ -143,6 +143,15 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
       expect(v.ausEinlagekonto).toBe(200_000);
       expect(v.empfaenger[0]).toMatchObject({ ertrag: 2_000_000, kapest: 500_000 });
       expect(v.zufluss).toBe("2026-04-02");
+
+      // Für die Anlage KSt 1 F: nur die gültige Ausschüttung, mit dem Teil aus dem Einlagekonto
+      await a.createAusschuettung(actor, { beschluss: "2026-04-01", brutto: 2_200_000 }, today);
+      const { loadCompany } = await import("../stammdaten/index.ts");
+      expect(await a.einlagekontoJahr(await loadCompany(), 2026)).toEqual({
+        eigenkapital: 5_000_000,
+        nennkapital: 2_500_000,
+        leistungen: [{ beschluss: "2026-04-01", abfluss: "2026-04-02", brutto: 2_200_000, ausEinlagekonto: 200_000 }],
+      });
     }, 30_000);
   });
 

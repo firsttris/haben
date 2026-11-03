@@ -56,6 +56,9 @@ const kst = (year: number, over: Partial<KstXmlInput> = {}): KstXmlInput => ({
   verlustvortrag: 0,
   verlustruecktrag: 0,
   einlagekonto: 0,
+  leistungen: [],
+  eigenkapital: 0,
+  nennkapital: 0,
   vertraege: [{ art: "Anstellungsvertrag Geschäftsführung", datum: "2024-01-02", partner: "Erika Gesellschafter", verguetung: 6_000_000 }],
   ...over,
 });
@@ -109,5 +112,19 @@ describe.skipIf(!ericHome)("Erklärungen der GmbH mit ERiC", () => {
         }),
       ),
     );
+  }, 60_000);
+
+  it("Körperschaftsteuer 2025 mit Ausschüttungen: aus dem ausschüttbaren Gewinn, über ihn hinaus, mehrere bescheinigte", async () => {
+    const gewinn = { einlagekonto: 500_000, eigenkapital: 5_000_000, nennkapital: 2_500_000 };
+    const leistung = (beschluss: string, brutto: number, ausEinlagekonto: number) => ({
+      beschluss,
+      abfluss: `${beschluss.slice(0, 8)}${String(Number(beschluss.slice(8)) + 1).padStart(2, "0")}`,
+      brutto,
+      ausEinlagekonto,
+    });
+    await pruefe(buildKstXml(kst(2025, { ...gewinn, leistungen: [leistung("2025-06-15", 1_000_000, 0)] })));
+    await pruefe(buildKstXml(kst(2025, { ...gewinn, leistungen: [leistung("2025-04-01", 2_200_000, 200_000)] })));
+    await pruefe(buildKstXml(kst(2025, { ...gewinn, leistungen: [leistung("2025-03-01", 1_500_000, 0), leistung("2025-09-01", 1_000_000, 500_000)] })));
+    await pruefe(buildKstXml(kst(2025, { leistungen: [leistung("2025-06-15", 1_000_000, 0)], eigenkapital: 5_000_000, nennkapital: 2_500_000 })));
   }, 60_000);
 });

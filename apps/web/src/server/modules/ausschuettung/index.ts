@@ -11,6 +11,7 @@ export {
   ausschuettungVorschlag,
   createAusschuettung,
   dividendsOfYear,
+  einlagekontoJahr,
   kapestAnmeldungen,
   kapestSubmissions,
   loadKapEStProtocol,

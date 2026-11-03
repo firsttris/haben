@@ -13,6 +13,7 @@ import {
 import { desc, eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
+import { einlagekontoJahr } from "../ausschuettung/index.ts";
 import { jahresabschluss } from "../buchhaltung/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 import { companyIssues, loadCompany, type Company } from "../stammdaten/index.ts";
@@ -45,12 +46,19 @@ interface Grundlagen {
   closed: boolean;
   /** Fehler aus dem Jahresabschluss (Jahr nicht vorbei, offene Belege, AfA) */
   abschlussFehler: string[];
+  /** Ausschüttungen des Jahres, Eigen- und Nennkapital für die Anlage KSt 1 F */
+  einlagekonto: Awaited<ReturnType<typeof einlagekontoJahr>>;
 }
 
 async function grundlagen(year: number, today: string): Promise<Grundlagen | null> {
   const company = await loadCompany();
   if (!isKapitalgesellschaft(company.rechtsform)) return null;
-  const [jahr, { angaben }, abschluss] = await Promise.all([kapgSteuernJahr(year), kapgErklaerungAngaben(year), jahresabschluss(year, today)]);
+  const [jahr, { angaben }, abschluss, einlagekonto] = await Promise.all([
+    kapgSteuernJahr(year),
+    kapgErklaerungAngaben(year),
+    jahresabschluss(year, today),
+    einlagekontoJahr(company, year),
+  ]);
   return {
     company,
     steuern: jahr?.gespeichert ? jahr.steuern : null,
@@ -58,6 +66,7 @@ async function grundlagen(year: number, today: string): Promise<Grundlagen | nul
     erklaerung: angaben,
     closed: abschluss.kapitalgesellschaft ? Boolean(abschluss.status) : false,
     abschlussFehler: abschluss.kapitalgesellschaft ? abschluss.issues.filter((i) => i.tone === "fehler").map((i) => i.text) : [],
+    einlagekonto,
   };
 }
 
@@ -110,6 +119,7 @@ export function kstInput(year: number, g: Bereit, test: boolean, herstellerId: s
     verlustvortrag: g.steuerAngaben.verlustvortragKst,
     verlustruecktrag: g.steuerAngaben.verlustruecktrag ?? 0,
     einlagekonto: e.einlagekonto,
+    ...g.einlagekonto,
     vertraege: e.vertraege,
   };
 }
