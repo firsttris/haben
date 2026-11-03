@@ -1,3 +1,5 @@
+import { dueDate } from "./period.ts";
+import type { Bundesland } from "./steuernummer.ts";
 import type { Cents } from "./money.ts";
 import { ACCOUNTS, type Kontenrahmen } from "./posting.ts";
 import { VORTRAG_ACCOUNTS } from "./vortrag.ts";
@@ -84,4 +86,13 @@ export function ausschuettungPosting(kontenrahmen: Kontenrahmen, anteile: readon
     // Verbindlichkeiten aus Einbehaltungen (KapESt und SolZ, KiSt auf KapESt) für offene Ausschüttungen
     ...(steuern > 0 ? [{ account: ACCOUNTS[kontenrahmen].kapestEinbehalt, debit: 0, credit: steuern }] : []),
   ];
+}
+
+/**
+ * Frist der Kapitalertragsteuer-Anmeldung: Anmeldung und Abführung bis zum 10. des Monats nach dem Zufluss
+ * (§ 44 Abs. 1 Satz 5 EStG), an einem Wochenende oder Feiertag am nächsten Werktag (§ 108 Abs. 3 AO).
+ */
+export function kapestFrist(zufluss: string, bundesland: Bundesland | null): string {
+  // Wie die Voranmeldung ohne Dauerfristverlängerung: der 10. des Folgemonats, verschoben auf den nächsten Werktag
+  return dueDate({ year: Number(zufluss.slice(0, 4)), month: Number(zufluss.slice(5, 7)) }, bundesland);
 }

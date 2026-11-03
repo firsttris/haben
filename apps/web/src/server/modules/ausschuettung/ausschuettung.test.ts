@@ -99,6 +99,10 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
           ].sort(),
         );
         expect((await a.dividendsOfYear(2026)).map((d) => [d.id, d.storniert, d.angemeldet])).toEqual([[id, false, false]]);
+        // In der Fristenliste: bis 10. Juli (Freitag), offen bis zur Echtübermittlung
+        const { listFristen } = await import("../finanzamt/fristen.ts");
+        const frist = () => listFristen(today).then((l) => l.find((f) => f.id === `kapest-${id}`));
+        expect(await frist()).toMatchObject({ datum: "2026-07-10", status: "offen", link: "/ausschuettungen?jahr=2026" });
 
         // Anmeldung prüfen (ERiC, wenn vorhanden), testweise senden; danach kein Storno mehr
         const client = new EricGeprueftClient();
@@ -118,6 +122,7 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
         await expect(send()).rejects.toThrow("schon übermittelt");
         await expect(a.reverseAusschuettung(actor, id)).rejects.toThrow("schon angemeldet");
         expect((await a.dividendsOfYear(2026))[0]).toMatchObject({ angemeldet: true });
+        expect(await frist()).toMatchObject({ status: "erledigt" });
       },
       60_000,
     );

@@ -295,3 +295,29 @@ export function submitKapESt(actor: string, dividendId: string, client: ElsterCl
       ),
   });
 }
+
+export async function loadKapEStProtocol(id: string) {
+  const [row] = await db
+    .select({ pdf: schema.kapestSubmissions.protocolPdf, zufluss: schema.dividends.zufluss })
+    .from(schema.kapestSubmissions)
+    .innerJoin(schema.dividends, eq(schema.dividends.id, schema.kapestSubmissions.dividendId))
+    .where(eq(schema.kapestSubmissions.id, id));
+  if (!row?.pdf) return null;
+  return { pdf: row.pdf, filename: `KapESt-Anmeldung-${row.zufluss}-Protokoll.pdf` };
+}
+
+/** Alle nicht stornierten Ausschüttungen mit Zufluss und ob ihre Anmeldung echt übermittelt ist (Fristen) */
+export async function kapestAnmeldungen(q: Db | Tx = db) {
+  const rows = await q.select({ id: schema.dividends.id, zufluss: schema.dividends.zufluss, entryId: schema.dividends.entryId }).from(schema.dividends);
+  const [reversed, sent] = await Promise.all([
+    reversedEntries(
+      rows.map((r) => r.entryId),
+      q,
+    ),
+    sentIds(
+      rows.map((r) => r.id),
+      q,
+    ),
+  ]);
+  return rows.filter((r) => !reversed.has(r.entryId)).map((r) => ({ id: r.id, zufluss: r.zufluss, angemeldet: sent.has(r.id) }));
+}

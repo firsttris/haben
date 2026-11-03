@@ -124,6 +124,7 @@ Die Rechtsform bestimmt, wohin Geld zwischen dem Unternehmen und dir gebucht wir
 | [Körperschaft- und Gewerbesteuer](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug) rechnen, Rückstellungen buchen | nein | ja |
 | [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug) an das Finanzamt | nein | ja |
 | [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) an das Finanzamt | nein | ja |
+| [Gewinnausschüttung](buchhaltung.md#gewinnausschüttung-gmbh-und-ug) mit Kapitalertragsteuer-Anmeldung | nein | ja |
 
 Eine Kapitalgesellschaft hat kein Privat. Was der Gesellschafter für sie auslegt oder von ihr bekommt, ist eine Verbindlichkeit bzw. Forderung ihm gegenüber; das Verrechnungskonto zeigt den Stand. Ein Privatanteil wäre bei einer GmbH Arbeitslohn oder eine verdeckte Gewinnausschüttung, die Privatnutzung eines Firmenwagens ein Sachbezug in der Lohnabrechnung. Beides bucht Haben deshalb nicht; die Pauschalen ersetzen Ausgaben eines Einzelunternehmers. Erstattet die GmbH dir Reisekosten, lädst du die Abrechnung als Beleg hoch und wählst „Vom Gesellschafter ausgelegt“.
 

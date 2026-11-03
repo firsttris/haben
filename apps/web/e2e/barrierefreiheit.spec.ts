@@ -43,6 +43,7 @@ const PAGES = [
   "/buchungen",
   "/buchungen/neu",
   `/abschluss/${YEAR - 1}`,
+  "/ausschuettungen",
   `/konten?jahr=${YEAR}`,
   `/konten/1200?jahr=${YEAR}`,
   "/archiv",

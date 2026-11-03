@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ausEinlagekonto, ausschuettungAnteil, ausschuettungPosting, steuerabzug } from "./ausschuettung.ts";
+import { ausEinlagekonto, ausschuettungAnteil, ausschuettungPosting, kapestFrist, steuerabzug } from "./ausschuettung.ts";
 import { directBookingsFor, directPosting } from "./posting.ts";
 
 describe("Steuerabzug auf Gewinnausschüttungen", () => {
@@ -77,5 +77,18 @@ describe("Zahlung der einbehaltenen Steuern an das Finanzamt (Bankabgleich)", ()
       { account: einbehalt, debit: 137_500, credit: 0, taxCode: null },
     ]);
     expect(() => directPosting("kapest", -100, kontenrahmen, "einzelunternehmen")).toThrow("nur in GmbH und UG");
+  });
+});
+
+describe("Frist der Kapitalertragsteuer-Anmeldung", () => {
+  it.each([
+    // 10. Juli 2026 ist ein Freitag
+    ["2026-06-30", "2026-07-10"],
+    // 10. Januar 2027 ist ein Sonntag: Montag, 11.
+    ["2026-12-15", "2027-01-11"],
+    // 10. Oktober 2026 ist ein Samstag: Montag, 12.
+    ["2026-09-01", "2026-10-12"],
+  ])("Zufluss %s: bis %s", (zufluss, frist) => {
+    expect(kapestFrist(zufluss, "BY")).toBe(frist);
   });
 });

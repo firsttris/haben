@@ -447,6 +447,32 @@ Im Verlustjahr lässt sich ein **Verlustrücktrag** in die zwei Vorjahre eintrag
 
 Nicht gerechnet werden steuerfreie Erträge (§ 8b KStG), der Spendenabzug (§ 9 KStG), verdeckte Gewinnausschüttungen und Einlagen, Kürzungen nach § 9 GewStG und die Zerlegung auf mehrere Gemeinden. Hat die GmbH davon etwas, rechnet die Steuerberatung. Aus der Rechnung macht Haben auch die [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug).
 
+## Gewinnausschüttung (GmbH und UG)
+
+Unter **Steuern › Ausschüttungen** bucht Haben den Gewinnverwendungsbeschluss einer GmbH oder UG und meldet die Kapitalertragsteuer an. Du gibst Datum des Beschlusses, den Betrag und, wenn der Beschluss einen bestimmt, den Tag der Auszahlung ein. Ohne Auszahlungstag fließt die Ausschüttung am Tag nach dem Beschluss zu (§ 44 Abs. 2 Satz 2 EStG).
+
+**Steuerabzug je Gesellschafter** (`packages/core/src/ausschuettung.ts`). Gesellschafter, Anteile und Kirchensteuerabzugsmerkmal kommen aus den [Angaben zur Körperschaftsteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug) des Jahres.
+- **Ohne Kirchensteuer:** 25 % Kapitalertragsteuer.
+- **Mit Kirchensteuer:** Die Kapitalertragsteuer ist ermäßigt auf Ertrag / (4 + Kirchensteuersatz), bei 9 % also 24,45 % (§ 43a Abs. 1 Satz 2, § 32d Abs. 1 Satz 4 EStG). Die Kirchensteuer selbst beträgt 8 oder 9 % der Kapitalertragsteuer.
+- **Solidaritätszuschlag:** 5,5 % der Kapitalertragsteuer.
+- **Rundung:** Bruchteile eines Cents fallen weg.
+- **Einlagekonto:** Was über den ausschüttbaren Gewinn hinausgeht, kommt ohne Steuerabzug aus dem steuerlichen Einlagekonto, höchstens bis zu dessen Bestand (§ 27 Abs. 1 KStG). Der ausschüttbare Gewinn ist das Eigenkapital zum Schluss des Vorjahres, abzüglich Stammkapital und Einlagekonto und abzüglich der Ausschüttungen des Jahres davor.
+
+**Buchung** zum Datum des Beschlusses: Gewinnvortrag (SKR03 0860, SKR04 2970) an Gesellschafter-Verrechnungskonto (0730 bzw. 3510) mit der Nettodividende und an Verbindlichkeiten aus Einbehaltungen (1746 bzw. 3760) mit Kapitalertragsteuer, Soli und Kirchensteuer.
+- **Grenze:** Mehr als den Gewinnvortrag zum Beschluss schüttet Haben nicht aus.
+- **Auszahlung:** Die Auszahlung an die Gesellschafter ordnest du im Bankabgleich wie jede Zahlung an sie dem Gesellschafter-Verrechnungskonto zu.
+- **Steuern an das Finanzamt:** Die Überweisung der einbehaltenen Steuern ordnest du als **Kapitalertragsteuer an das Finanzamt** zu.
+
+**Kapitalertragsteuer-Anmeldung** (KapEStA, `packages/elster/src/kapesta.ts`). Sie geht über ERiC wie die Voranmeldung. Die Frist ist der 10. des Monats nach dem Zufluss, an einem Wochenende oder Feiertag der nächste Werktag; sie steht in der [Fristenliste](fristen.md). Gemeldet werden:
+- Kapitalerträge, Kapitalertragsteuer und Soli;
+- der Gewinnverteilungsbeschluss mit Datum, Betrag und Zufluss;
+- die Kirchensteuer je Religionsschlüssel aus dem Kirchensteuerabzugsmerkmal.
+
+Ein **Storno** ist eine Gegenbuchung und geht nur, solange die Anmeldung nicht echt übermittelt ist. Danach korrigiert eine berichtigte Anmeldung über das ELSTER-Portal.
+
+> [!WARNING]
+> Haben fragt die Kirchensteuerabzugsmerkmale nicht selbst beim Bundeszentralamt für Steuern ab (KiStAM-Abfrage, jährlich zwischen 1. September und 31. Oktober); trag sie aus der Antwort ein. Nicht abgedeckt sind Ausschüttungen aus der Kapitalrücklage, verdeckte Gewinnausschüttungen, Gesellschafter im Ausland, Freistellungsaufträge und Nichtveranlagungsbescheinigungen. Die Steuerbescheinigung für die Gesellschafter (§ 45a EStG) erstellt Haben noch nicht.
+
 ## E-Bilanz (GmbH und UG)
 
 Eine Kapitalgesellschaft übermittelt Bilanz und GuV elektronisch an das Finanzamt (§ 5b EStG), mit derselben Frist wie die Steuererklärungen. Auf der Seite **Jahresabschluss** steht dafür unten der Abschnitt **E-Bilanz**: Haben baut sie aus den Buchungen des Jahres, lässt sie von ERiC prüfen und sendet sie wie die [Jahreserklärungen](jahreserklaerung.md) mit Zertifikat und PIN.
