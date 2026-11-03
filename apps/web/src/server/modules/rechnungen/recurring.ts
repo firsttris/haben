@@ -14,7 +14,8 @@ import { and, asc, desc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
-import { createDraft, draftLineSchema, effectivePriceMode, finalizeInvoice } from "./invoices.ts";
+import { draftLineSchema } from "./draft-line.ts";
+import { createDraft, effectivePriceMode, finalizeInvoice } from "./invoices.ts";
 import { sendInvoiceMailWithTemplate } from "./invoice-mail.ts";
 import { MailError } from "../mail/index.ts";
 

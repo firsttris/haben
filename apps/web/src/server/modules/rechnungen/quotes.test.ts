@@ -369,6 +369,8 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
   });
 
   it("Text zur Position: gespeichert, gesperrt und an Rechnung, Schlussrechnung und Kopie weitergegeben", async () => {
+    // Der Kunde bekommt XRechnung, die verlangt eine Telefonnummer des Verkäufers
+    await sql`update company set telefon = '+49 941 123456'`;
     const detail = "Agenda nach Abstimmung\nzwei Tage vor Ort";
     const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft({ lines: [{ ...line(9500), detail: `  ${detail}  ` }] }))).id);
     const [stored] = await sql`select detail from quote_lines where quote_id = ${quote.id}`;

@@ -77,7 +77,7 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
 
   it("Vorlagen von vor dem Text zur Position erzeugen Positionen ohne Text", async () => {
     const created = await recurring.createRecurring(actor, template({ nextDate: "2026-09-30", endDate: "2026-09-30" }));
-    await sql`update recurring_invoices set lines = jsonb_build_array(lines -> 0 - 'detail') where id = ${created.id}`;
+    await sql`update recurring_invoices set lines = jsonb_build_array((lines -> 0) - 'detail') where id = ${created.id}`;
     await recurring.runDueRecurring("2026-10-02");
     const [line] = await sql`select detail from invoice_lines`;
     expect(line?.detail).toBe("");

@@ -9,9 +9,7 @@ import {
   totalsFromTaxes,
   firstEmail,
   formatInvoiceNumber,
-  invoiceLineInputSchema,
   invoiceDueDate,
-  LINE_DETAIL_MAX,
   invoicePosting,
   legacyCorrectionPosting,
   lineAmount,
@@ -38,6 +36,7 @@ import { loadLogo } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { draftLineSchema } from "./draft-line.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
@@ -49,9 +48,6 @@ export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
 export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
-
-/** Position mit der mehrzeiligen Beschreibung unter der Bezeichnung; gleich für Rechnung, Angebot und wiederkehrende Rechnung */
-export const draftLineSchema = z.object({ ...invoiceLineInputSchema.shape, detail: z.string().trim().max(LINE_DETAIL_MAX).default("") });
 
 export const draftSchema = z
   .object({

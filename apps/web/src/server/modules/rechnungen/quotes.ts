@@ -26,7 +26,8 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLogo } from "../stammdaten/index.ts";
 import { peekNumber, takeNumber } from "./number-counter.ts";
-import { buyerFrom, draftLineSchema, effectivePriceMode, insertDraft, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
+import { draftLineSchema } from "./draft-line.ts";
+import { buyerFrom, effectivePriceMode, insertDraft, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
 
 /**
  * Angebote: eigener Nummernkreis (AN-2026-001), PDF mit der Rechnungsvorlage, keine Buchung.
