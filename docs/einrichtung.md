@@ -1,6 +1,6 @@
 # Erste Schritte
 
-Diese Seite führt dich durch die Einrichtung nach der Installation: Konto und Passkey, Firmendaten, Versteuerung und Kontenrahmen, Rechnungsnummern, ELSTER, KI-Auslesung und Bankkonten. Wie du Haben auf dem Server installierst, steht in [Betrieb und Installation](installation.md).
+Diese Seite führt dich durch die Einrichtung nach der Installation: Konto und Passkey, App auf Handy und Rechner, Firmendaten, Versteuerung und Kontenrahmen, Rechnungsnummern, ELSTER, KI-Auslesung und Bankkonten. Wie du Haben auf dem Server installierst, steht in [Betrieb und Installation](installation.md).
 
 ## Checkliste
 
@@ -38,6 +38,20 @@ Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: 
 Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
 
 Darunter steht die **Version** von Haben, die auf dem Server läuft, verlinkt mit den Versionshinweisen auf GitHub. Nach einem Update siehst du dort, ob der neue Stand angekommen ist.
+
+## Als App installieren
+
+Haben lässt sich auf Handy und Rechner wie eine App installieren (Progressive Web App). Es öffnet sich dann in einem eigenen Fenster ohne Adressleiste und hat ein Symbol auf dem Startbildschirm bzw. im Startmenü.
+
+| Gerät | So geht es |
+| --- | --- |
+| Rechner mit Chrome, Edge oder Brave | Haben öffnen, in der Adressleiste auf das Symbol **Installieren** klicken oder im Menü „App installieren“ wählen |
+| Android | Haben in Chrome öffnen, im Menü **App installieren** bzw. „Zum Startbildschirm hinzufügen“ |
+| iPhone und iPad | Haben in Safari öffnen, **Teilen › Zum Home-Bildschirm** |
+
+Die installierte App bringt zwei Kurzbefehle mit, **Beleg hochladen** und **Neue Rechnung**: am Handy lange auf das Symbol drücken, am Rechner mit der rechten Maustaste. Unter Android steht Haben außerdem im **Teilen-Menü**: Ein PDF oder Foto aus einer anderen App teilst du direkt als Beleg ([Belege](belege.md)). Safari auf iPhone und iPad bietet das Teilen an Web-Apps nicht an; dort lädst du Belege in Haben hoch oder nimmst sie mit der Kamera auf.
+
+Die App ist dieselbe Seite wie im Browser und speichert nichts auf dem Gerät zwischen. Sie braucht also eine Verbindung zu deinem Server, und die Anmeldung mit Passkey gilt auch dort. Installieren lässt sich Haben nur über HTTPS, wie es die [Installation](installation.md) einrichtet.
 
 ## Firmendaten
 
