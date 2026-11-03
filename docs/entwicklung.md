@@ -70,7 +70,8 @@ docker compose exec db createdb -U haben haben_e2e
 | `bun run dev` | Dev-Server der Web-App auf Port 3000 (Vite) |
 | `bun run build` | Baut die Web-App (`apps/web/.output`) |
 | `bun run typecheck` | `tsc -p .` in jedem Paket |
-| `bun run lint` | Biome über das ganze Repository, danach die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) |
+| `bun run lint` | Biome über das ganze Repository (Lint und Formatierung), danach die Prüfung der Modulgrenzen (`scripts/modulgrenzen/`) |
+| `bun run format` | Formatiert JavaScript, TypeScript und JSON mit Biome |
 | `bun run test` | Alle Tests mit Vitest (nicht `bun test`: das wäre der Test-Runner von Bun) |
 | `bun run db:generate` | Migration aus Schemaänderungen erzeugen (drizzle-kit) |
 | `bun run db:migrate` | Ausstehende Migrationen anwenden |
@@ -206,6 +207,7 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 - **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
 - **Steuersätze in Basispunkten** (`BasisPoints`): 1900 = 19 %, 700 = 7 %.
 - **Mengen in Tausendsteln**: 152 Stunden = 152000, 0,5 Tage = 500.
+- **Formatierung mit Biome:** `bun run format` formatiert JavaScript, TypeScript und JSON (160 Zeichen breit, doppelte Anführungszeichen); `bun run lint` und die CI prüfen das. CSS und Markdown formatiert Biome nicht.
 - **Lint mit Biome:** Abgeschaltete Regeln stehen mit Grund in `biome.jsonc`. Eine Ausnahme an einer Stelle steht direkt davor als `// biome-ignore lint/<gruppe>/<regel>: <Grund>`.
 - **Imports mit `.ts`-Endung** (`allowImportingTsExtensions`). Der ERiC-Worker und das Migrationsskript laufen unter Bun direkt aus den Quellen, ohne Build.
 - **Bun statt Node:** Die Skripte starten Vite, Vitest, Playwright, Biome, tsc und drizzle-kit mit `bun --bun`; ohne den Schalter nähme Bun das `node` aus deren Startzeile, falls eines installiert ist. Install-Skripte führt `bun install` nur für die Pakete in `trustedDependencies` aus (esbuild lädt sein Binary, koffi sein natives Modul für ERiC). `bunfig.toml` legt die Abhängigkeiten wie früher pnpm isoliert ab: Jedes Paket sieht nur, was es selbst einträgt.
