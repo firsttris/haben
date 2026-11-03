@@ -1,7 +1,7 @@
 import { formatDocumentNumber, numberFormatError } from "@haben/core";
 import { eq } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
-import { db, schema, type Tx } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { today } from "../../today.ts";
 import { loadCompany } from "./company.ts";
@@ -16,7 +16,8 @@ export class CustomerNumberError extends UserError {}
 
 export async function customerNumbering(): Promise<{ format: string; next: number; preview: string | null }> {
   const { customerNumberFormat: format, customerNumberNext: next } = await loadCompany(db);
-  return { format, next, preview: format ? formatDocumentNumber(format, Number(today().slice(0, 4)), next) : null };
+  // Dieselbe Suche wie beim Anlegen, damit die Vorschau vergebene Nummern auch überspringt
+  return { format, next, preview: format ? formatDocumentNumber(format, currentYear(), await firstFree(db, format, next)) : null };
 }
 
 export async function saveCustomerNumbering(actor: string, input: { format: string; next: number }): Promise<void> {
@@ -38,17 +39,26 @@ export async function takeCustomerNumber(tx: Tx): Promise<string | null> {
     .where(eq(schema.company.id, 1))
     .for("update");
   if (!company?.format) return null;
-  const year = Number(today().slice(0, 4));
-  let counter = company.next;
-  while (await taken(tx, formatDocumentNumber(company.format, year, counter))) counter++;
+  const counter = await firstFree(tx, company.format, company.next);
   await tx
     .update(schema.company)
     .set({ customerNumberNext: counter + 1 })
     .where(eq(schema.company.id, 1));
-  return formatDocumentNumber(company.format, year, counter);
+  return formatDocumentNumber(company.format, currentYear(), counter);
 }
 
-async function taken(tx: Tx, number: string): Promise<boolean> {
-  const [row] = await tx.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.kundennummer, number)).limit(1);
+function currentYear(): number {
+  return Number(today().slice(0, 4));
+}
+
+/** Erster Zähler ab `start`, dessen Nummer noch kein Kontakt trägt */
+async function firstFree(q: Db | Tx, format: string, start: number): Promise<number> {
+  let counter = start;
+  while (await taken(q, formatDocumentNumber(format, currentYear(), counter))) counter++;
+  return counter;
+}
+
+async function taken(q: Db | Tx, number: string): Promise<boolean> {
+  const [row] = await q.select({ id: schema.contacts.id }).from(schema.contacts).where(eq(schema.contacts.kundennummer, number)).limit(1);
   return Boolean(row);
 }
