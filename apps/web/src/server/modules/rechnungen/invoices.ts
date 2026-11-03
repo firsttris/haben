@@ -8,6 +8,7 @@ import {
   rateMonth,
   totalsFromTaxes,
   firstEmail,
+  DEFAULT_INVOICE_NUMBER_FORMAT,
   formatDocumentNumber,
   invoiceDueDate,
   invoicePosting,
@@ -1130,11 +1131,14 @@ export async function numbering(year: number) {
 }
 
 export async function setNextNumber(actor: string, year: number, next: number) {
-  const result = await withActor(actor, (tx) => setNextCounter(tx, "rechnung", year, next));
-  if (!result.ok) {
-    const { invoiceNumberFormat } = await loadCompany();
-    throw new InvoiceError(`Die nächste Nummer muss größer als ${formatDocumentNumber(invoiceNumberFormat, year, result.last)} sein.`);
-  }
+  const result = await withActor(actor, async (tx) => {
+    const set = await setNextCounter(tx, "rechnung", year, next);
+    if (set.ok) return set;
+    // Nur lesen: loadCompany legte die Firmenzeile an, wenn sie fehlt, und das gehört nicht in eine Fehlermeldung
+    const [company] = await tx.select({ format: schema.company.invoiceNumberFormat }).from(schema.company);
+    return { ...set, format: company?.format ?? DEFAULT_INVOICE_NUMBER_FORMAT };
+  });
+  if (!result.ok) throw new InvoiceError(`Die nächste Nummer muss größer als ${formatDocumentNumber(result.format, year, result.last)} sein.`);
 }
 
 /** Kennzahlen für die Übersicht */
