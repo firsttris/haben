@@ -10,6 +10,7 @@ import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
+import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
@@ -109,6 +110,7 @@ function SettingsPage() {
               <NumberingForm />
               <NumberFormatCard invoice={company.invoiceNumberFormat} quote={company.quoteNumberFormat} year={numbering.year} />
               <LogoCard info={logo} />
+              <AccentColorCard color={company.accentColor} />
             </>
           )}
           {bereich === "elster" && (

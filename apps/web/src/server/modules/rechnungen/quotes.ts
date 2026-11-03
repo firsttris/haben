@@ -23,7 +23,7 @@ import { z } from "zod";
 import { loadCompany, sellerIssues } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { loadLogo } from "../stammdaten/index.ts";
+import { loadLetterhead } from "../stammdaten/index.ts";
 import { documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { draftLineSchema } from "./draft-line.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
@@ -300,8 +300,7 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     const seller = sellerFrom(company);
     const buyer = buyerFrom(contact!);
     const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
-    const logo = await loadLogo();
-    const pdf = buildQuotePdf(logo ? { ...doc, logo } : doc);
+    const pdf = buildQuotePdf({ ...doc, ...(await loadLetterhead()) });
     const now = new Date();
     await takeNumber(tx, "angebot", year, counter);
     const [finalized] = await tx

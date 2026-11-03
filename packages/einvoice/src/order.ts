@@ -1,7 +1,7 @@
 import { texts, type Language } from "./i18n.ts";
 import { addressLines, footerColumns, renderQuotePdfData, showsGrossPrices, templateLabels } from "./pdf.ts";
 import { quoteDetails, quotePdfData, type QuoteDocument } from "./quote.ts";
-import type { Buyer, InvoiceDocumentLine, Logo, Seller } from "./types.ts";
+import type { Buyer, InvoiceDocumentLine, Letterhead, Seller } from "./types.ts";
 
 /**
  * Auftragsbestätigung und Lieferschein: Begleitdokumente ohne Buchung und ohne E-Rechnung,
@@ -24,10 +24,10 @@ export function confirmationPdfData(doc: QuoteDocument, date: string) {
 }
 
 export function buildConfirmationPdf(doc: QuoteDocument, date: string): Uint8Array {
-  return renderQuotePdfData(confirmationPdfData(doc, date), date, doc.logo);
+  return renderQuotePdfData(confirmationPdfData(doc, date), date, doc);
 }
 
-export interface DeliveryNoteDocument {
+export interface DeliveryNoteDocument extends Letterhead {
   /** Angebot oder Rechnung, auf die sich der Lieferschein bezieht */
   reference: { kind: "angebot" | "rechnung"; number: string; issueDate: string };
   /** ISO-Datum der Lieferung bzw. Leistung */
@@ -38,7 +38,6 @@ export interface DeliveryNoteDocument {
   buyer: Buyer;
   lines: Pick<InvoiceDocumentLine, "position" | "description" | "detail" | "quantity" | "unit">[];
   note?: string;
-  logo?: Logo;
   language?: Language;
 }
 
@@ -83,5 +82,5 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
 }
 
 export function buildDeliveryNotePdf(doc: DeliveryNoteDocument): Uint8Array {
-  return renderQuotePdfData(deliveryNotePdfData(doc), doc.date, doc.logo);
+  return renderQuotePdfData(deliveryNotePdfData(doc), doc.date, doc);
 }

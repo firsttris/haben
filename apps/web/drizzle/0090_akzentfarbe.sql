@@ -1,0 +1,2 @@
+ALTER TABLE "company" ADD COLUMN "accent_color" text DEFAULT '#1F6F5C' NOT NULL;--> statement-breakpoint
+ALTER TABLE "company" ADD CONSTRAINT "company_accent_color" CHECK ("company"."accent_color" ~ '^#[0-9A-Fa-f]{6}$');

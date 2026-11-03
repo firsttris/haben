@@ -1,10 +1,10 @@
 import type { InvoiceTotals, PriceMode, TaxTreatment } from "@haben/core";
 import { texts, type Language, type Texts } from "./i18n.ts";
 import { documentPdfData, renderQuotePdfData } from "./pdf.ts";
-import type { Buyer, InvoiceDocumentLine, Logo, Seller } from "./types.ts";
+import type { Buyer, InvoiceDocumentLine, Letterhead, Seller } from "./types.ts";
 
 /** Angebot: wie eine Rechnung aufgebaut, aber ohne Zahlungsaufforderung und ohne E-Rechnungs-XML */
-export interface QuoteDocument {
+export interface QuoteDocument extends Letterhead {
   number: string;
   /** ISO-Datum */
   issueDate: string;
@@ -22,7 +22,6 @@ export interface QuoteDocument {
   exemptionReason?: string;
   /** Fehlt = Nettopreise */
   priceMode?: PriceMode;
-  logo?: Logo;
   language?: Language;
 }
 
@@ -60,5 +59,5 @@ export function quotePdfData(doc: QuoteDocument) {
 
 /** Angebot als PDF/A-3b mit derselben Vorlage wie die Rechnung */
 export function buildQuotePdf(doc: QuoteDocument): Uint8Array {
-  return renderQuotePdfData(quotePdfData(doc), doc.issueDate, doc.logo);
+  return renderQuotePdfData(quotePdfData(doc), doc.issueDate, doc);
 }

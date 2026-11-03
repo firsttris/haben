@@ -58,11 +58,18 @@ export interface Logo {
   format: "png" | "jpg";
 }
 
+/** Briefkopf aus den Einstellungen; nur für das PDF, nicht für das XML */
+export interface Letterhead {
+  logo?: Logo;
+  /** #RRGGBB; fehlt = DEFAULT_ACCENT */
+  accent?: string;
+}
+
 /**
  * Alles, was für PDF und XML einer festgeschriebenen Rechnung nötig ist.
  * Beträge sind wie gespeichert vorzeichenbehaftet (Storno negativ).
  */
-export interface InvoiceDocument {
+export interface InvoiceDocument extends Letterhead {
   kind: InvoiceKind;
   format: InvoiceFormat;
   number: string;
@@ -96,8 +103,6 @@ export interface InvoiceDocument {
   priceMode?: PriceMode;
   /** Befreiungsgrund auf der Rechnung, z. B. „Steuerfrei nach § 4 Nr. 14 UStG“; sonst der Standardtext */
   exemptionReason?: string;
-  /** Nur für das PDF, nicht für das XML */
-  logo?: Logo;
   /** Sprache des PDFs; fehlt = Deutsch */
   language?: "de" | "en";
   /** Nur bei kind „rechnung“; fehlt = normale Rechnung */

@@ -1,5 +1,5 @@
 {
-  "id": "3bcbb7a3-3dc3-4133-9c49-6a18f0f5e39a",
+  "id": "a1a92bb9-9b19-4624-8efa-bb05b172bd35",
   "prevId": "6c3aba4c-d9b5-4abd-a708-0c9025de4c7a",
   "version": "7",
   "dialect": "postgresql",
@@ -2093,19 +2093,12 @@
           "notNull": true,
           "default": "''"
         },
-        "invoice_number_format": {
-          "name": "invoice_number_format",
+        "accent_color": {
+          "name": "accent_color",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'{JJJJ}-{NNN}'"
-        },
-        "quote_number_format": {
-          "name": "quote_number_format",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'AN-{JJJJ}-{NNN}'"
+          "default": "'#1F6F5C'"
         },
         "datev_berater_nr": {
           "name": "datev_berater_nr",
@@ -2185,6 +2178,10 @@
         "company_single_row": {
           "name": "company_single_row",
           "value": "\"company\".\"id\" = 1"
+        },
+        "company_accent_color": {
+          "name": "company_accent_color",
+          "value": "\"company\".\"accent_color\" ~ '^#[0-9A-Fa-f]{6}$'"
         }
       },
       "isRLSEnabled": false

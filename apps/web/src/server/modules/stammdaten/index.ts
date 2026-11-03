@@ -1,5 +1,5 @@
 /*
- * Stammdaten: Firmendaten (mit Versteuerung und Kleinunternehmer je Jahr), Kunden, Artikel, Textbausteine, Logo, persönliche
+ * Stammdaten: Firmendaten (mit Versteuerung und Kleinunternehmer je Jahr), Kunden, Artikel, Textbausteine, Briefkopf (Logo, Akzentfarbe), persönliche
  * Angaben, Umsatzsteuer-Umrechnungskurse und die Sperre von Kontenrahmen, Versteuerung und Kleinunternehmer (settings-guard).
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
@@ -43,6 +43,7 @@ export {
   storeExchangeRates,
   type ExchangeRate,
 } from "./exchange-rates.ts";
+export { AccentColorError, loadLetterhead, saveAccentColor } from "./letterhead.ts";
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
 export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";
 export { saveCompany, settingsLocks } from "./settings-guard.ts";
