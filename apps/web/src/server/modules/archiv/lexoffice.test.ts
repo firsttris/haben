@@ -38,7 +38,7 @@ function listItem(id: string, voucherType: string, voucherStatus: string, vouche
 }
 
 /** Nachgebaute Lexware-API mit einer Rechnung, einer Gutschrift, einem Ausgabebeleg und einem Entwurf */
-function fakeApi(options: { failVoucher?: boolean } = {}) {
+function fakeApi(options: { failVoucher?: boolean; contacts?: Record<string, unknown>[] } = {}) {
   const calls: string[] = [];
   const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
@@ -52,7 +52,7 @@ function fakeApi(options: { failVoucher?: boolean } = {}) {
         { id: "16d04a28-b1d0-11e6-b4e8-8f6d5b2f9e0a", name: "Bürobedarf", type: "outgo", contactRequired: false, splitAllowed: true, groupName: "Büro" },
       ]);
     }
-    if (path === "/contacts") return json(page(url.searchParams.get("page") === "0" ? [fixture("contact-company.json"), fixture("contact-person.json")] : []));
+    if (path === "/contacts") return json(page(url.searchParams.get("page") === "0" ? (options.contacts ?? [fixture("contact-company.json"), fixture("contact-person.json")]) : []));
     if (path === "/voucherlist") {
       if (url.searchParams.get("archived") === "true") return json(page([]));
       return json(
@@ -89,7 +89,7 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
   const actor = "test-user";
   const key = "schluessel-1234567890-abcdefghij";
 
-  function installFakeApi(options: { failVoucher?: boolean } = {}) {
+  function installFakeApi(options: { failVoucher?: boolean; contacts?: Record<string, unknown>[] } = {}) {
     const api = fakeApi(options);
     lexoffice.setLexofficeClientFactory(
       (o) => new importPkg.LexofficeClient({ ...o, fetch: api.fetchFn, minIntervalMs: 0, maxRetries: 0, sleep: async () => {} }),
@@ -303,5 +303,20 @@ describe.skipIf(!testDatabaseUrl)("Lexoffice-Übernahme (Postgres)", () => {
     ]);
     expect(new TextDecoder().decode(files["lexoffice/belege.csv"]!)).toContain("RE1019");
     expect(new TextDecoder().decode(files["pruefsummen.sha256"]!)).toContain("lexoffice/datev-buchungen.csv");
+  });
+
+  it("ein gleichnamiger Kontakt, der in Lexoffice Lieferant ist, wird auch in Haben Lieferant", async () => {
+    await sql`insert into contacts (name) values ('Hetzner Online GmbH')`;
+    const vendor = {
+      ...fixture("contact-company.json"),
+      id: "5c5c5c5c-1234-4567-89ab-cdef01234567",
+      roles: { vendor: { number: 70002 } },
+      company: { name: "Hetzner Online GmbH" },
+    };
+    installFakeApi({ contacts: [vendor] });
+    await lexoffice.startImport(actor, { wait: true });
+    expect((await lexoffice.latestImport())!.progress).toMatchObject({ contactsLinked: 1 });
+    const [contact] = await sql`select is_customer, is_supplier, lieferantennummer, lexoffice_id from contacts where name = 'Hetzner Online GmbH'`;
+    expect(contact).toMatchObject({ is_customer: true, is_supplier: true, lieferantennummer: "70002", lexoffice_id: vendor.id });
   });
 });
