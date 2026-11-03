@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
+import { GewstSection, KapgAngaben, KstSection } from "../../../components/KapgErklaerungen.tsx";
 import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
@@ -28,7 +29,13 @@ export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 type Form = "ust" | "euer" | "est";
 type Issue = Data["ust"]["issues"][number];
-const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" } as const;
+const FORM_LABEL = {
+  ust: "Umsatzsteuererklärung",
+  euer: "Anlage EÜR",
+  est: "Einkommensteuererklärung",
+  kst: "Körperschaftsteuererklärung",
+  gewst: "Gewerbesteuererklärung",
+} as const;
 const LINK_LABEL = {
   "/einstellungen": "Zu den Einstellungen",
   "/anlagen": "Zu den Anlagen",
@@ -72,8 +79,8 @@ function AnnualPage() {
 
       {gesellschaft ? (
         <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-          Die Umsatzsteuererklärung rechnet Haben aus den Buchungen. Anlage EÜR und Einkommensteuer gibt es für {RECHTSFORMEN[data.rechtsform]} nicht;
-          Jahresabschluss, Körperschaft- und Gewerbesteuer macht vorerst die Steuerberatung, etwa mit dem DATEV-Export.
+          Umsatzsteuer-, Körperschaftsteuer- und Gewerbesteuererklärung rechnet Haben aus den Buchungen und dem <Link to="/abschluss">Jahresabschluss</Link>.
+          Anlage EÜR und Einkommensteuer gibt es für {RECHTSFORMEN[data.rechtsform]} nicht.
         </p>
       ) : (
         <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
@@ -86,6 +93,9 @@ function AnnualPage() {
         <a href="#ust">Umsatzsteuer</a>
         {!gesellschaft && <a href="#euer">Anlage EÜR</a>}
         {!gesellschaft && <a href="#est">Einkommensteuer</a>}
+        {gesellschaft && <a href="#kst">Körperschaftsteuer</a>}
+        {gesellschaft && <a href="#gewst">Gewerbesteuer</a>}
+        {gesellschaft && <a href="#kapg-angaben">Angaben</a>}
         <a href="#vast">Belege von ELSTER</a>
         <a href="#verlauf">Verlauf</a>
       </nav>
@@ -94,6 +104,9 @@ function AnnualPage() {
         <UstSection data={data} />
         {!gesellschaft && <EuerSection data={data} />}
         {!gesellschaft && <EstSection key={data.year} data={data} />}
+        {data.kapg && <KstSection data={data} />}
+        {data.kapg && <GewstSection data={data} />}
+        {data.kapg && <KapgAngaben key={`kapg-${data.year}`} data={data} />}
         <div id="vast" className="jump-target">
           <VastBelege key={`vast-${data.year}`} data={data} />
         </div>

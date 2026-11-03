@@ -83,6 +83,14 @@ describe("Körperschaft- und Gewerbesteuer", () => {
     expect(s.verlustvortragKst).toBe(2_500_000);
     expect(s.verlustvortragGewst).toBe(2_000_000);
     expect(s.rueckstellung.kst).toBe(-100_000);
+    // Rücktrag von 15.000 € in die Vorjahre mindert den Vortrag, nicht den Gewerbeverlust
+    const mitRuecktrag = kapgSteuern("SKR03", 2026, [], -2_000_000, {
+      hebesatz: 400,
+      verlustvortragKst: 0,
+      verlustvortragGewst: 0,
+      verlustruecktrag: 1_500_000,
+    });
+    expect([mitRuecktrag.verlustvortragKst, mitRuecktrag.verlustvortragGewst]).toEqual([500_000, 2_000_000]);
   });
 
   it("Hinzurechnung nach § 8 Nr. 1 GewStG erst über 200.000 €", () => {

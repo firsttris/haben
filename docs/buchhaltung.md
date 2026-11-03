@@ -443,7 +443,9 @@ Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritä
 
 Weil die gebuchten Steuern wieder hinzugerechnet werden, ändert eine gebuchte Rückstellung das Ergebnis nicht. **Rückstellungen buchen** bucht als Umbuchung zum 31.12., was zur Steuer noch fehlt: Körperschaftsteuer und Soli an Körperschaftsteuerrückstellung (SKR03 0963, SKR04 3040), Gewerbesteuer an Gewerbesteuerrückstellung (0956 bzw. 3035). Vorauszahlungen, auf die Steueraufwandskonten gebucht (SKR03 2200, 2208, 4320; SKR04 7600, 7608, 7610), sind abgezogen. Übersteigen sie die Steuer, bucht Haben keine Erstattung; die Forderung gegen das Finanzamt bucht ihr mit der Steuerberatung.
 
-Nicht gerechnet werden steuerfreie Erträge (§ 8b KStG), der Spendenabzug (§ 9 KStG), verdeckte Gewinnausschüttungen und Einlagen, Kürzungen nach § 9 GewStG, die Zerlegung auf mehrere Gemeinden und der Verlustrücktrag. Hat die GmbH davon etwas, rechnet die Steuerberatung.
+Im Verlustjahr lässt sich ein **Verlustrücktrag** in die zwei Vorjahre eintragen (höchstens 1 Mio. €, § 10d Abs. 1 EStG); leer bedeutet Verzicht, der ganze Verlust geht in den Vortrag. Die Gewerbesteuer kennt keinen Rücktrag.
+
+Nicht gerechnet werden steuerfreie Erträge (§ 8b KStG), der Spendenabzug (§ 9 KStG), verdeckte Gewinnausschüttungen und Einlagen, Kürzungen nach § 9 GewStG und die Zerlegung auf mehrere Gemeinden. Hat die GmbH davon etwas, rechnet die Steuerberatung. Aus der Rechnung macht Haben auch die [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug).
 
 ## E-Bilanz (GmbH und UG)
 

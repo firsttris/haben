@@ -112,7 +112,7 @@ ERIC_DIR=data/eric bun --bun vitest run packages/elster
 ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 ```
 
-Die E-Bilanz prüft `packages/elster/src/ebilanz/eric-ebilanz.test.ts` mit ERiC, darunter jedes Konto der Kontenzuordnung für SKR03 und SKR04 in einer Bilanz.
+Körperschaft- und Gewerbesteuererklärung prüft `packages/elster/src/eric-kapg.test.ts` mit ERiC (Gewinn, Verlustvortrag mit Mindestbesteuerung, Verlustjahr, Gründung, Hinzurechnungen). Die E-Bilanz prüft `packages/elster/src/ebilanz/eric-ebilanz.test.ts` mit ERiC, darunter jedes Konto der Kontenzuordnung für SKR03 und SKR04 in einer Bilanz.
 
 Seit ERiC 39.4 ist die frühere Test-Hersteller-ID `74931` gesperrt, auch für die lokale Prüfung. Die Tests nehmen `ELSTER_HERSTELLER_ID`, sonst eine Platzhalter-ID; für die reine Prüfung reicht das. Die Schemas der Formulare stecken komprimiert in den Plugins unter `lib/plugins`; meldet ERiC ein unerwartetes Feld, lohnt der Blick dort hinein.
 

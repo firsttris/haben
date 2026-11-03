@@ -149,7 +149,8 @@ Lexware Office ohne Tarif XL, über eine Sicherung aus der Web-Oberfläche, sieh
 Für Freiberufler, Selbstständige und Kleinunternehmer mit Einnahmen-Überschuss-Rechnung (EÜR), auch mit
 Kleinunternehmerregelung nach § 19 UStG. Eine GmbH oder UG macht ihre laufende Buchhaltung in Haben, mit
 Gesellschafter-Verrechnungskonto statt Privatkonten; Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung und
-sendet die E-Bilanz; Körperschaft- und Gewerbesteuer rechnet es samt Rückstellungen, die Erklärungen dazu noch nicht,
+sendet E-Bilanz, Körperschaft- und Gewerbesteuererklärung (für eine GmbH ohne Beteiligungen, Organschaft und
+Ausschüttungen),
 siehe [Rechtsform](https://firsttris.github.io/haben/einrichtung.html#rechtsform-einzelunternehmen-gmbh-oder-ug).
 </details>
 

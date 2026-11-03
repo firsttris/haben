@@ -1,7 +1,15 @@
 import { EUER_AUSGABEN, EUER_EINNAHMEN, EUER_FIELDS, type EuerFigures } from "@haben/elster";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { annualOverview, meinElsterWerte, submitAnnual } from "../modules/jahreserklaerung/index.ts";
+import {
+  annualOverview,
+  kapgErklaerungen,
+  kapgErklaerungSchema,
+  meinElsterWerte,
+  saveKapgErklaerungAngaben,
+  submitAnnual,
+  submitKapg,
+} from "../modules/jahreserklaerung/index.ts";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
@@ -31,7 +39,7 @@ export const getAnnualReturns = createServerFn({ method: "GET" })
   .validator(yearSchema)
   .handler(async ({ data: year }) => {
     const now = today();
-    const [overview, years, certificate, belege, lastVast, company, berechtigungLive, berechtigungTest] = await Promise.all([
+    const [overview, years, certificate, belege, lastVast, company, berechtigungLive, berechtigungTest, kapg] = await Promise.all([
       annualOverview(year, now),
       reportYears(),
       loadActiveCertificate(),
@@ -40,11 +48,13 @@ export const getAnnualReturns = createServerFn({ method: "GET" })
       loadCompany(),
       berechtigungEhegatte(false),
       berechtigungEhegatte(true),
+      kapgErklaerungen(year, now),
     ]);
     const t = company.taxpayer;
     const current = Number(now.slice(0, 4));
     return {
       ...overview,
+      kapg,
       euerRows: {
         einnahmen: euerRows(overview.euer.figures, EUER_EINNAHMEN),
         ausgaben: euerRows(overview.euer.figures, EUER_AUSGABEN),
@@ -129,3 +139,22 @@ export const refreshVastBerechtigung = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(brmBase)
   .handler(({ data, context }) => refreshBerechtigungen(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID }));
+
+/** GmbH und UG: Körperschaft- oder Gewerbesteuererklärung prüfen oder senden */
+export const submitKapgReturn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ form: z.enum(["kst", "gewst"]), year: yearSchema, kind: z.enum(["validate", "test", "send"]), pin: z.string().max(64).optional() }))
+  .handler(async ({ data, context }) => {
+    const result = await submitKapg(context.user.id, data.form, data.year, elsterClient(), {
+      kind: data.kind,
+      pin: data.pin,
+      herstellerId: env().ELSTER_HERSTELLER_ID,
+      today: today(),
+    });
+    return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
+  });
+
+export const saveKapgErklaerung = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ year: yearSchema, angaben: kapgErklaerungSchema }))
+  .handler(({ data, context }) => saveKapgErklaerungAngaben(context.user.id, data.year, data.angaben));

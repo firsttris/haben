@@ -229,7 +229,7 @@ function CompanyForm() {
             <input name="name" defaultValue={company.name} autoComplete="organization" />
           </label>
           <label className="field">
-            Art des Betriebs (für die Anlage EÜR)
+            Art des Betriebs (Anlage EÜR) bzw. Gegenstand des Unternehmens
             <input name="taetigkeit" defaultValue={company.taetigkeit} placeholder="z. B. Softwareentwicklung" maxLength={100} />
           </label>
         </div>

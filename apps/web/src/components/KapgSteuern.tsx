@@ -24,18 +24,20 @@ export function KapgSteuern({ year, data, closed }: { year: number; data: KapgSt
   const [hebesatz, setHebesatz] = useState(data.angaben ? String(data.angaben.hebesatz) : "");
   const [vortragKst, setVortragKst] = useState(euroInput(data.angaben?.verlustvortragKst));
   const [vortragGewst, setVortragGewst] = useState(euroInput(data.angaben?.verlustvortragGewst));
+  const [ruecktrag, setRuecktrag] = useState(euroInput(data.angaben?.verlustruecktrag || undefined));
   const s = data.steuern;
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const kst = vortragKst.trim() === "" ? 0 : parseEuro(vortragKst);
     const gewst = vortragGewst.trim() === "" ? 0 : parseEuro(vortragGewst);
-    if (kst === null || gewst === null || !/^\d+$/.test(hebesatz.trim())) {
+    const rueck = ruecktrag.trim() === "" ? 0 : parseEuro(ruecktrag);
+    if (kst === null || gewst === null || rueck === null || !/^\d+$/.test(hebesatz.trim())) {
       setNotice({ tone: "danger", text: "Hebesatz in ganzen Prozent und Verlustvorträge als Betrag eingeben." });
       return;
     }
     void run(async () => {
-      await save({ data: { year, angaben: { hebesatz: Number(hebesatz), verlustvortragKst: kst, verlustvortragGewst: gewst } } });
+      await save({ data: { year, angaben: { hebesatz: Number(hebesatz), verlustvortragKst: kst, verlustvortragGewst: gewst, verlustruecktrag: rueck } } });
       await router.invalidate();
     }, "Angaben gespeichert.");
   }
@@ -73,6 +75,10 @@ export function KapgSteuern({ year, data, closed }: { year: number; data: KapgSt
         <label className="field">
           Gewerbeverlust zum 31.12.{year - 1}
           <input inputMode="decimal" value={vortragGewst} onChange={(e) => setVortragGewst(e.target.value)} placeholder="0,00" />
+        </label>
+        <label className="field">
+          Verlustrücktrag in die Vorjahre (nur bei Verlust; leer = Verzicht)
+          <input inputMode="decimal" value={ruecktrag} onChange={(e) => setRuecktrag(e.target.value)} placeholder="0,00" />
         </label>
         {data.angaben && !data.gespeichert && (
           <p className="small muted" style={{ margin: 0 }}>

@@ -189,6 +189,27 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
   expect(await axe(), `/abschluss/${year - 1}`).toEqual([]);
 });
 
+test("Jahreserklärung der GmbH: Körperschaft- und Gewerbesteuer, Anteilseigner erfassen", async () => {
+  const year = new Date().getFullYear() - 1;
+  await go(`/jahreserklaerung/${year}`);
+  await expect(page.getByRole("heading", { name: "Körperschaftsteuererklärung", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Gewerbesteuererklärung", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Körperschaftsteuererklärung/ }).first()).toContainText("Die Anteilseigner fehlen.");
+
+  const form = page.getByRole("form", { name: "Angaben zur Körperschaft- und Gewerbesteuererklärung" });
+  await form.getByRole("button", { name: "Anteilseigner hinzufügen" }).click();
+  await form.getByLabel("Name Anteilseigner 1").fill(USER.name);
+  await form.getByLabel("Straße und Hausnummer Anteilseigner 1").fill("Hafenallee 3");
+  await form.getByLabel("PLZ und Ort Anteilseigner 1").fill("28217 Bremen");
+  await form.getByLabel("Identifikationsnummer oder Steuernummer (13 Ziffern) Anteilseigner 1").fill("86095742719");
+  await form.getByLabel("Beteiligung in Euro Anteilseigner 1").fill("25.000,00");
+  await form.getByLabel("Anteil in Prozent Anteilseigner 1").fill("100");
+  await form.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(page.getByText("Angaben gespeichert.")).toBeVisible();
+  await expect(page.getByRole("region", { name: /^Körperschaftsteuererklärung/ }).first()).not.toContainText("Die Anteilseigner fehlen.");
+  expect(await axe(), `/jahreserklaerung/${year}`).toEqual([]);
+});
+
 test("Die Rechtsform ist nach der ersten Buchung fest", async () => {
   await go("/einstellungen");
   await expect(page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform")).toBeDisabled();

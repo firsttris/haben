@@ -241,8 +241,8 @@ export const annualSubmissions = pgTable(
   "annual_submissions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    /** ebilanz: E-Bilanz einer GmbH oder UG (§ 5b EStG) */
-    form: text("form", { enum: ["ust", "euer", "est", "ebilanz"] }).notNull(),
+    /** GmbH und UG: kst Körperschaftsteuer, gewst Gewerbesteuer, ebilanz E-Bilanz (§ 5b EStG) */
+    form: text("form", { enum: ["ust", "euer", "est", "kst", "gewst", "ebilanz"] }).notNull(),
     year: smallint("year").notNull(),
     kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
     ok: boolean("ok").notNull(),

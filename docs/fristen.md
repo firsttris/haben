@@ -12,7 +12,7 @@ Unter **Fristen** sammelt Haben alle steuerlichen Termine an einem Ort und erinn
 | Einspruchsfrist | ein Monat nach Bekanntgabe eines Bescheids aus dem [ELSTER-Postfach](finanzamt.md#bescheide-aus-dem-elster-postfach) | – |
 | ELSTER-Zertifikat | „Gültig bis“ des hochgeladenen Zertifikats | ein neues Zertifikat hochgeladen ist |
 
-Bei einer GmbH oder UG fehlen Anlage EÜR, Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen; dafür steht die [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) mit der Frist der Erklärungen in der Liste, erledigt mit der echten Übermittlung. Fristen für Körperschaft- und Gewerbesteuer kennt Haben noch nicht; die stehen im Bescheid bzw. bei der Steuerberatung.
+Bei einer GmbH oder UG fehlen Anlage EÜR, Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen; dafür stehen Körperschaftsteuer- und Gewerbesteuererklärung und die [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) mit der Frist der Erklärungen in der Liste, erledigt mit der echten Übermittlung. Vorauszahlungen zur Körperschaft- und Gewerbesteuer stehen im Bescheid.
 
 Fällt eine Frist auf ein Wochenende oder einen Feiertag im Bundesland der Firma, gilt der nächste Werktag (§ 108 Abs. 3 AO). Die Liste reicht ein Jahr voraus; Offenes aus der Vergangenheit bleibt stehen, bis es erledigt ist, Erledigtes der letzten 60 Tage steht eingeklappt darunter. Ein Klick auf eine Frist führt zur Seite, auf der sie sich erledigen lässt.
 

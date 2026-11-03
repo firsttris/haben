@@ -120,11 +120,12 @@ Die Rechtsform bestimmt, wohin Geld zwischen dem Unternehmen und dir gebucht wir
 | [Saldenvortrag, Eröffnungsbuchung](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) | nein, jedes Jahr beginnt bei null | ja |
 | [Jahresabschluss](buchhaltung.md#jahresabschluss-gmbh-und-ug): Bilanz und GuV (Entwurf), Jahr abschließen | nein | ja |
 | [Körperschaft- und Gewerbesteuer](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug) rechnen, Rückstellungen buchen | nein | ja |
+| [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug) an das Finanzamt | nein | ja |
 | [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) an das Finanzamt | nein | ja |
 
 Eine Kapitalgesellschaft hat kein Privat. Was der Gesellschafter für sie auslegt oder von ihr bekommt, ist eine Verbindlichkeit bzw. Forderung ihm gegenüber; das Verrechnungskonto zeigt den Stand. Ein Privatanteil wäre bei einer GmbH Arbeitslohn oder eine verdeckte Gewinnausschüttung, die Privatnutzung eines Firmenwagens ein Sachbezug in der Lohnabrechnung. Beides bucht Haben deshalb nicht; die Pauschalen ersetzen Ausgaben eines Einzelunternehmers. Erstattet die GmbH dir Reisekosten, lädst du die Abrechnung als Beleg hoch und wählst „Vom Gesellschafter ausgelegt“.
 
-Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung rechnet Körperschaft- und Gewerbesteuer samt Rückstellungen und sendet die [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug); die Erklärungen zur Körperschaft- und Gewerbesteuer erstellt es noch nicht. Die laufende Buchhaltung mit Rechnungen, Belegen, Bank und Umsatzsteuer machst du in Haben und gibst den [DATEV-Export](auswertungen.md) an die Steuerberatung. Der Weg zum Abschluss steht in [Issue #213](https://github.com/firsttris/haben/issues/213).
+Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung rechnet Körperschaft- und Gewerbesteuer samt Rückstellungen und sendet die [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) und die [Erklärungen](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug) für eine GmbH ohne Beteiligungen, Organschaft und Ausschüttungen. Die laufende Buchhaltung mit Rechnungen, Belegen, Bank und Umsatzsteuer machst du in Haben und gibst den [DATEV-Export](auswertungen.md) an die Steuerberatung. Der Weg zum Abschluss steht in [Issue #213](https://github.com/firsttris/haben/issues/213).
 
 Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
 

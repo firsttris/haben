@@ -95,6 +95,8 @@ export interface KapgSteuerAngaben {
   verlustvortragKst: Cents;
   /** Vortragsfähiger Gewerbeverlust zum 31.12. des Vorjahres laut Bescheid */
   verlustvortragGewst: Cents;
+  /** Im Verlustjahr: Rücktrag in die zwei Vorjahre (höchstens 1 Mio. €, § 10d Abs. 1 EStG); 0 = Verzicht */
+  verlustruecktrag?: Cents;
 }
 
 export interface KapgSteuerZeile {
@@ -176,6 +178,8 @@ export function kapgSteuern(
   const einkommen = jahresergebnis + hinzurechnungen.reduce((sum, z) => sum + z.betrag, 0);
 
   const verlustabzugKst = verlustabzug(einkommen, angaben.verlustvortragKst, verlustQuoteKst(year));
+  // Den Rücktrag gibt es bei der Gewerbesteuer nicht (§ 10a GewStG)
+  const ruecktrag = Math.min(angaben.verlustruecktrag ?? 0, Math.max(0, -einkommen), VERLUST_SOCKEL);
   const zvE = abrunden(einkommen - verlustabzugKst, 100);
   const kst = anteil(zvE, KST_SATZ);
   const soli = anteil(kst, SOLI_SATZ);
@@ -203,7 +207,7 @@ export function kapgSteuern(
     zvE,
     kst,
     soli,
-    verlustvortragKst: angaben.verlustvortragKst - verlustabzugKst + Math.max(0, -einkommen),
+    verlustvortragKst: angaben.verlustvortragKst - verlustabzugKst + Math.max(0, -einkommen) - ruecktrag,
     gewstHinzurechnungen,
     hinzurechnungGewst,
     verlustabzugGewst,
