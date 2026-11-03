@@ -16,3 +16,4 @@ export * from "./install.ts";
 export * from "./ebilanz/xbrl.ts";
 export * from "./gewst.ts";
 export * from "./kst.ts";
+export * from "./kapesta.ts";
