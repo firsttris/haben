@@ -3,9 +3,10 @@
 
 #let d = json(bytes(sys.inputs.data))
 
-#let ink = rgb("#16211C")
-#let muted = rgb("#5B6B63")
-#let rule = rgb("#D5DDD8")
+// Grautöne für Text, Beschriftungen und Linien, aus der Akzentfarbe abgeleitet (accentPalette in packages/core)
+#let ink = rgb(d.palette.ink)
+#let muted = rgb(d.palette.muted)
+#let rule = rgb(d.palette.rule)
 // Akzentfarbe aus den Einstellungen (Überschriften, Linien), immer gesetzt
 #let accent = rgb(d.accent)
 
