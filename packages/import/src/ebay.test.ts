@@ -97,6 +97,20 @@ describe("eBay-Transaktionsbericht", () => {
     expect(hashes(before)).toEqual(hashes(sale));
   });
 
+  it("Datum mit abgekürztem Monatsnamen, wie eBay es im deutschen Bericht schreibt („23. Sept. 2026“, „03. Mai 2025“)", () => {
+    // Datumsformat aus einem echten Transaktionsbericht (eBay.de, Spalte „Datum der Transaktionserstellung“)
+    const rows = [
+      sale.replace('"03.10.2026"', '"23. Sept. 2026"'),
+      sale.replace('"03.10.2026"', '"03. Mai 2025"').replace("12-11111-11111", "12-22222-22222"),
+      sale.replace('"03.10.2026"', '"1. März 2026"').replace("12-11111-11111", "12-44444-44444"),
+    ];
+    expect(parseStatement(german(rows)).transactions.filter((t) => t.type === "Bestellung").map((t) => t.bookingDate)).toEqual([
+      "2025-05-03",
+      "2026-03-01",
+      "2026-09-23",
+    ]);
+  });
+
   it("ungültiger Betrag nennt die Zeile", () => {
     expect(() => parseStatement(german([sale.replace('"52,56"', '"abc"')]))).toThrow("Ungültiger Betrag „abc“ (Zeile 2).");
   });
