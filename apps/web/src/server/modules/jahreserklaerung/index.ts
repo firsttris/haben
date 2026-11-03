@@ -7,5 +7,6 @@
  */
 export { annualOverview, loadAnnualProtocol, submitAnnual } from "./annual.ts";
 export { ebilanzOverview, submitEbilanz } from "./ebilanz.ts";
+export { bookSteuerrueckstellungen, kapgAngabenSchema, kapgSteuernJahr, saveKapgAngaben } from "./koerperschaft.ts";
 export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./income-tax.ts";
 export { meinElsterWerte } from "./mein-elster.ts";

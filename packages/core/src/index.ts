@@ -10,6 +10,7 @@ export * from "./manual.ts";
 export * from "./vortrag.ts";
 export * from "./hgb.ts";
 export * from "./ebilanz.ts";
+export * from "./koerperschaft.ts";
 export * from "./matching.ts";
 export * from "./euer.ts";
 export * from "./legacy-vat.ts";

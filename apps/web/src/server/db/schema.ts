@@ -292,6 +292,13 @@ export const incomeTaxInputs = pgTable("income_tax_inputs", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Angaben einer GmbH oder UG zu Körperschaft- und Gewerbesteuer je Jahr (Hebesatz, Verlustvorträge); änderbar, mit Audit */
+export const corporateTaxInputs = pgTable("corporate_tax_inputs", {
+  year: smallint("year").primaryKey(),
+  data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Abrufe des ELSTER-Postfachs (PostfachAnfrage) und Bestätigungen der Abholung (PostfachBestaetigung) */
 export const postfachRequests = pgTable("postfach_requests", {
   id: uuid("id").primaryKey().defaultRandom(),

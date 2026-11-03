@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useId, useState } from "react";
 import { Ebilanz } from "../../../components/Ebilanz.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { KapgSteuern } from "../../../components/KapgSteuern.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
@@ -198,6 +199,8 @@ function Report({ data }: { data: Kapitalgesellschaft }) {
           </tfoot>
         </table>
       </section>
+
+      {data.steuern && <KapgSteuern year={data.year} data={data.steuern} closed={Boolean(data.status)} />}
 
       <section className="card" aria-labelledby="close-heading">
         <h2 id="close-heading" style={{ marginTop: 0 }}>

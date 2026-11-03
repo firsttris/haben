@@ -415,7 +415,7 @@ Die Salden sind die der [Saldenliste](#die-seite-konten) zum 31.12., mit Vortrag
 **Zuordnung der Konten:** Jedes Konto gehört nach seinem Kontenbereich zu einem Posten (`packages/core/src/hgb.ts`). Die Bereiche sind aus dem DATEV-Kontenrahmen 2026 erzeugt (SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175): je Konto der Bilanz- bzw. GuV-Posten, den DATEV in der linken Spalte nennt, verdichtet auf die Ebene der Kleinstkapitalgesellschaft. Nennt DATEV zwei Posten („Sonstige Verbindlichkeiten oder Sonstige Vermögensgegenstände“), gilt der zweite bei umgekehrtem Saldo: Die überzogene Bank steht unter den Verbindlichkeiten, „Umsatzsteuer nicht fällig“ mit Haben-Saldo unter den Steuerrückstellungen, mit Soll-Saldo unter den sonstigen Vermögensgegenständen, das Gesellschafter-Verrechnungskonto je nach Saldo unter den Verbindlichkeiten oder Forderungen. Anlagevermögen gibt es nur in Klasse 0; gleichnamige Posten in Klasse 1 sind Umlaufvermögen. Jedes Konto, das Haben selbst bebucht, hat einen Posten. Keinen Posten haben Sonderposten und die Konten der Ergebnisverwendung (Einstellungen in Rücklagen, Ausschüttung), die nach dem Jahresergebnis stehen; solche Konten und nicht ausgeglichene Vortragskonten (9000) nennt die Seite unter **Offene Punkte**, statt sie still wegzulassen.
 
 > [!WARNING]
-> Bilanz und GuV sind ein **Entwurf für die Steuerberatung**. Abschlussbuchungen wie Rückstellungen für Körperschaft- und Gewerbesteuer, Abschlusskosten, Rechnungsabgrenzung und Wertberichtigungen erfasst ihr vorher als [manuelle Buchung](#manuelle-buchungen-gmbh-und-ug). Eine Datei für die Hinterlegung beim Unternehmensregister erstellt Haben noch nicht.
+> Bilanz und GuV sind ein **Entwurf für die Steuerberatung**. Die Rückstellungen für Körperschaft- und Gewerbesteuer rechnet und bucht Haben ([unten](#körperschaft-und-gewerbesteuer-gmbh-und-ug)); andere Abschlussbuchungen wie Abschlusskosten, Rechnungsabgrenzung und Wertberichtigungen erfasst ihr vorher als [manuelle Buchung](#manuelle-buchungen-gmbh-und-ug). Eine Datei für die Hinterlegung beim Unternehmensregister erstellt Haben noch nicht.
 
 **Jahr abschließen:** Wenn die Steuerberatung den Abschluss freigegeben hat, schließt **Jahr abschließen** das Jahr ab, nach einer Rückfrage. Vorher muss das Jahr vorbei sein, die AfA aller Anlagen gebucht und jeder Beleg mit Datum im Jahr gebucht. Danach:
 
@@ -425,6 +425,25 @@ Die Salden sind die der [Saldenliste](#die-seite-konten) zum 31.12., mit Vortrag
 Fehler im abgeschlossenen Jahr korrigiert ihr im laufenden Jahr, wie es das Handelsrecht vorsieht.
 
 Im Einzelunternehmen gibt es keine manuellen Buchungen. Die Anlage EÜR rechnet dort aus Rechnungen, Belegen und Zahlungen; eine Umbuchung im Journal käme in ihr nicht an.
+
+## Körperschaft- und Gewerbesteuer (GmbH und UG)
+
+Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer des Jahres aus dem Jahresergebnis (`packages/core/src/koerperschaft.ts`) und bucht die Rückstellungen dafür. Dazu braucht es je Jahr drei Angaben: den **Hebesatz** der Gemeinde und die **Verlustvorträge** zum 31.12. des Vorjahres für Körperschaftsteuer und Gewerbesteuer, wie sie im Bescheid stehen. Ohne gespeicherte Angaben schlägt Haben die des Vorjahres vor, mit den Vorträgen nach seiner eigenen Rechnung; speichert sie erst, wenn sie zum Bescheid passen.
+
+| Schritt | Was Haben rechnet |
+| --- | --- |
+| Jahresergebnis | aus der GuV, wie im Jahresabschluss |
+| + nicht abziehbare Aufwendungen | gebuchte Körperschaftsteuer und Soli (§ 10 Nr. 2 KStG), Gewerbesteuer (§ 4 Abs. 5b EStG), Steuern für Vorjahre und Erstattungen, Kapitalertragsteuer, die Konten für nicht abziehbare Geschenke, Bewirtung und Betriebsausgaben, dazu 30 % der Bewirtungskosten (§ 4 Abs. 5 Nr. 2 EStG; Haben bucht die Bewirtung voll) |
+| = Einkommen | zugleich Gewinn aus Gewerbebetrieb (§ 7 GewStG) |
+| − Verlustabzug | bis 1 Mio. € voll, darüber 70 % (2024 bis 2027, § 10d Abs. 2 EStG), sonst 60 % |
+| Körperschaftsteuer | 15 % des zu versteuernden Einkommens in vollen Euro; Soli 5,5 % davon, Bruchteile eines Cents fallen weg |
+| + Hinzurechnung § 8 Nr. 1 GewStG | ein Viertel der Summe aus Zinsen (voll), Miete und Leasing beweglicher Wirtschaftsgüter (20 %), unbeweglicher (50 %) und Aufwand für Rechte (25 %), soweit sie 200.000 € übersteigt; gelesen aus den DATEV-Konten mit Kennzeichen G |
+| − Gewerbeverlust | bis 1 Mio. € voll, darüber 60 % (§ 10a GewStG) |
+| Gewerbesteuer | Gewerbeertrag auf volle 100 € abgerundet, ohne Freibetrag (Kapitalgesellschaft), Messzahl 3,5 %, mal Hebesatz |
+
+Weil die gebuchten Steuern wieder hinzugerechnet werden, ändert eine gebuchte Rückstellung das Ergebnis nicht. **Rückstellungen buchen** bucht als Umbuchung zum 31.12., was zur Steuer noch fehlt: Körperschaftsteuer und Soli an Körperschaftsteuerrückstellung (SKR03 0963, SKR04 3040), Gewerbesteuer an Gewerbesteuerrückstellung (0956 bzw. 3035). Vorauszahlungen, auf die Steueraufwandskonten gebucht (SKR03 2200, 2208, 4320; SKR04 7600, 7608, 7610), sind abgezogen. Übersteigen sie die Steuer, bucht Haben keine Erstattung; die Forderung gegen das Finanzamt bucht ihr mit der Steuerberatung.
+
+Nicht gerechnet werden steuerfreie Erträge (§ 8b KStG), der Spendenabzug (§ 9 KStG), verdeckte Gewinnausschüttungen und Einlagen, Kürzungen nach § 9 GewStG, die Zerlegung auf mehrere Gemeinden und der Verlustrücktrag. Hat die GmbH davon etwas, rechnet die Steuerberatung.
 
 ## E-Bilanz (GmbH und UG)
 

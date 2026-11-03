@@ -673,6 +673,20 @@
       "when": 1793988230647,
       "tag": "0095_jahresabschluss_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1793988290647,
+      "tag": "0096_koerperschaft",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1793988350647,
+      "tag": "0097_koerperschaft_trigger",
+      "breakpoints": true
     }
   ]
 }

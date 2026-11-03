@@ -145,6 +145,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `mail_log` | Gesendete E-Mails mit Empfänger, Blindkopie, Anhängen, Fehler, Bezug zu Rechnung bzw. Mahnung und den erinnerten Fristen (Schlüssel Frist:Stufe) | nur anhängen, Audit |
 | `brm_requests` | Anträge, Freischaltungen, Widerrufe und Listen der Abrufberechtigung mit XML (ohne Freischaltcode); der Stand ergibt sich aus dem Verlauf | nur anhängen, Audit ohne XML |
 | `vast_belege` | Abgeholte, entschlüsselte Belege (Lohnsteuerbescheinigung, Rentenbezüge, Beiträge …) als XML | nur anhängen, Audit ohne XML |
+| `corporate_tax_inputs` | Angaben einer GmbH oder UG zu Körperschaft- und Gewerbesteuer je Jahr (Hebesatz, Verlustvorträge) als JSON | änderbar, Audit |
 | `annual_submissions` | Prüfungen und Übermittlungen der Jahreserklärungen und der E-Bilanz (Formular `ebilanz`) mit Werten, XML und Protokoll-PDF; höchstens eine erfolgreiche Echtübermittlung je Erklärung und Jahr | nur anhängen, Audit ohne PDF und XML |
 | `income_tax_inputs` | Angaben zur Einkommensteuererklärung je Jahr (Vorsorge, Sonderausgaben, Kinder, KAP) | änderbar, Audit |
 | `pauschalen` | Pauschalen ohne Beleg (Homeoffice, Fahrt, Verpflegung) mit Angaben, Betrag und Buchung; Storno als Gegenzeile | nur anhängen, Audit |

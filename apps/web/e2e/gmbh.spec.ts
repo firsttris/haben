@@ -161,6 +161,15 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
   await expect(page.getByRole("region", { name: `Passiva zum 31.12.${year}` })).toContainText("Summe Passiva");
   await expect(page.getByRole("region", { name: /Gewinn- und Verlustrechnung/ })).toContainText("1. Umsatzerlöse");
   await expect(page.getByRole("button", { name: `${year} abschließen` })).toBeDisabled();
+
+  // Körperschaft- und Gewerbesteuer: Hebesatz speichern, dann rechnet die Seite
+  const steuern = page.getByRole("form", { name: "Angaben zur Körperschaft- und Gewerbesteuer" });
+  await steuern.getByLabel("Hebesatz der Gemeinde (%)").fill("400");
+  await steuern.getByRole("button", { name: "Angaben speichern" }).click();
+  await expect(page.getByText("Angaben gespeichert.")).toBeVisible();
+  const rechnung = page.getByRole("region", { name: `Körperschaft- und Gewerbesteuer ${year}` });
+  await expect(rechnung.getByRole("row", { name: /Zu versteuerndes Einkommen/ })).toContainText("0,00");
+  await expect(rechnung.getByRole("row", { name: /Gewerbesteuer \(Hebesatz 400 %\)/ })).toBeVisible();
   expect(await axe(), `/abschluss/${year}`).toEqual([]);
 
   // Das Vorjahr ist leer und vorbei: abschließen mit Rückfrage

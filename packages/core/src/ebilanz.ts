@@ -65,10 +65,59 @@ const KATEGORIEN: Record<Exclude<ExpenseCategory, "hardware" | "anlage">, string
   sonstiges: `${OC}.miscellaneous`,
 };
 
-/** Steuern vom Einkommen und Ertrag (DATEV-Kontenrahmen 2026): Körperschaftsteuer, Solidaritätszuschlag, Gewerbesteuer */
-const ERTRAGSTEUERN: Record<Kontenrahmen, Record<string, string>> = {
-  SKR03: { "2200": "is.netIncome.tax.kst", "2208": "is.netIncome.tax.soli.other", "4320": "is.netIncome.tax.gewst" },
-  SKR04: { "7600": "is.netIncome.tax.kst", "7608": "is.netIncome.tax.soli.other", "7610": "is.netIncome.tax.gewst" },
+/**
+ * Steuern vom Einkommen und Ertrag, ihre Rückstellungen und die nicht abziehbaren Betriebsausgaben (DATEV-Kontenrahmen
+ * 2026), wie sie die Steuerberechnung (koerperschaft.ts) liest
+ */
+const T = "is.netIncome.tax";
+const LIMITED = `${OC}.limitedDeductible`;
+const ERTRAGSTEUERN: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
+  SKR03: {
+    "2200": [`${T}.kst`],
+    "2203": [`${T}.prevPeriodPaid.kst`],
+    "2204": [`${T}.prevPeriodReceived.kst`],
+    "2208": [`${T}.soli.other`],
+    "2209": [`${T}.prevPeriodPaid.soli`],
+    "2210": [`${T}.prevPeriodReceived.soli`],
+    "2213": [`${T}.kest.creditable`],
+    "2216": [`${T}.soli.kestcreditable`],
+    // Nachzahlung im Soll, Erstattung im Haben
+    "2281": [`${T}.prevPeriodPaid.gewst`, `${T}.prevPeriodReceived.gewst`],
+    "2283": [`${T}.releaseTaxProv.Gew`],
+    "4320": [`${T}.gewst`],
+    "0955": ["bs.eqLiab.accruals.tax.misc"],
+    "0956": ["bs.eqLiab.accruals.tax.gewst"],
+    "0963": ["bs.eqLiab.accruals.tax.kst"],
+    // Nicht abziehbare Betriebsausgaben (§ 4 Abs. 5 EStG)
+    "4635": [`${LIMITED}.gifts.nondeductible`],
+    "4636": [`${LIMITED}.gifts.nondeductible`],
+    "4637": [`${LIMITED}.gifts.nondeductible`],
+    "4652": [`${LIMITED}.other`],
+    "4654": [`${LIMITED}.entertainment.nonDeductible`],
+    "4655": [`${LIMITED}.other`],
+  },
+  SKR04: {
+    "7600": [`${T}.kst`],
+    "7603": [`${T}.prevPeriodPaid.kst`],
+    "7604": [`${T}.prevPeriodReceived.kst`],
+    "7607": [`${T}.prevPeriodReceived.soli`],
+    "7608": [`${T}.soli.other`],
+    "7609": [`${T}.prevPeriodPaid.soli`],
+    "7610": [`${T}.gewst`],
+    "7630": [`${T}.kest.creditable`],
+    "7633": [`${T}.soli.kestcreditable`],
+    "7641": [`${T}.prevPeriodPaid.gewst`, `${T}.prevPeriodReceived.gewst`],
+    "7643": [`${T}.releaseTaxProv.Gew`],
+    "3020": ["bs.eqLiab.accruals.tax.misc"],
+    "3035": ["bs.eqLiab.accruals.tax.gewst"],
+    "3040": ["bs.eqLiab.accruals.tax.kst"],
+    "6620": [`${LIMITED}.gifts.nondeductible`],
+    "6621": [`${LIMITED}.gifts.nondeductible`],
+    "6622": [`${LIMITED}.gifts.nondeductible`],
+    "6642": [`${LIMITED}.other`],
+    "6644": [`${LIMITED}.entertainment.nonDeductible`],
+    "6645": [`${LIMITED}.other`],
+  },
 };
 
 /** Weitere Konten der Kapitalgesellschaft (DATEV-Kontenrahmen 2026, SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175) */
@@ -138,7 +187,7 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     [anlagen.afaGwg, [`${DEPR}.lowValueAs`]],
     [anlagen.afaSammelposten, [`${DEPR}.lowValueAsCollItem`]],
     [anlagen.restbuchwert, [`${OC}.disposFixAss.bookValue.tan.other`]],
-    ...Object.entries(ERTRAGSTEUERN[kontenrahmen]).map(([k, position]): [string, EbilanzZiel] => [k, [position]]),
+    ...Object.entries(ERTRAGSTEUERN[kontenrahmen]),
     ...Object.entries(KAPITAL[kontenrahmen]),
   ];
   return Object.fromEntries(entries);
