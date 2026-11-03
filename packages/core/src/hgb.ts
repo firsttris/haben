@@ -320,13 +320,17 @@ export function postenOf(kontenrahmen: Kontenrahmen, account: string): Posten | 
 /**
  * Posten für einen Saldo: Steht ein Aktivkonto im Haben oder ein Passivkonto im Soll, gilt der zweite Posten des
  * DATEV-Kontenrahmens, etwa die Bank im Haben unter den Verbindlichkeiten oder „Umsatzsteuer nicht fällig“ im Soll unter
- * den sonstigen Vermögensgegenständen. Ohne zweiten Posten bleibt das Konto, wo es ist, mit negativem Betrag.
+ * den sonstigen Vermögensgegenständen; ebenso Erfolgskonten wie „Sonstige Aufwendungen oder Sonstige Erträge“. Ohne zweiten Posten bleibt das Konto, wo es ist, mit negativem Betrag.
  */
 export function postenForSaldo(kontenrahmen: Kontenrahmen, account: string, saldo: Cents): Posten | null {
   const bereich = bereichOf(kontenrahmen, account);
   if (!bereich) return null;
   const [, , posten, umgekehrt] = bereich;
-  const reversed = (posten.startsWith("aktiva.") && saldo < 0) || (posten.startsWith("passiva.") && saldo > 0);
+  // Auch in der GuV: ein Ertragskonto im Soll bzw. ein Aufwandskonto im Haben steht im zweiten Posten
+  const reversed =
+    (posten.startsWith("aktiva.") && saldo < 0) ||
+    (posten.startsWith("passiva.") && saldo > 0) ||
+    (posten === "umsatzerloese" || posten === "sonstigeErtraege" ? saldo > 0 : !isBilanz(posten) && saldo < 0);
   return reversed && umgekehrt ? umgekehrt : posten;
 }
 
