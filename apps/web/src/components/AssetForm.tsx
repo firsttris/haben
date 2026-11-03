@@ -41,6 +41,7 @@ export function AssetForm({
   locked,
   lifeEditable,
   privateUseLocked,
+  privateUseAvailable,
   showOpening,
   submitLabel,
   busy,
@@ -51,6 +52,8 @@ export function AssetForm({
   lifeEditable: boolean;
   /** Privatnutzung gesperrt (schon gebucht) */
   privateUseLocked: boolean;
+  /** Privatnutzung als Entnahme gibt es nur im Einzelunternehmen; in GmbH und UG ist sie Arbeitslohn */
+  privateUseAvailable: boolean;
   showOpening: boolean;
   submitLabel: string;
   busy: boolean;
@@ -230,7 +233,7 @@ export function AssetForm({
       </section>
 
       <div className="form-grid">
-        {kind === "kfz" && (
+        {kind === "kfz" && privateUseAvailable && (
           <fieldset className="stack" style={{ gridColumn: "1 / -1", border: 0, padding: 0, margin: 0, gap: 12 }} disabled={privateUseLocked}>
             <label className="checkbox">
               <input type="checkbox" checked={privateUsed} onChange={(e) => setPrivateUsed(e.target.checked)} />

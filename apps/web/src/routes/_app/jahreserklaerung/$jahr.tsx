@@ -1,9 +1,10 @@
-import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
+import { RECHTSFORMEN, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
+import { GewstSection, KapgAngaben, KstSection } from "../../../components/KapgErklaerungen.tsx";
 import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
@@ -28,7 +29,13 @@ export const Route = createFileRoute("/_app/jahreserklaerung/$jahr")({
 type Data = Awaited<ReturnType<typeof getAnnualReturns>>;
 type Form = "ust" | "euer" | "est";
 type Issue = Data["ust"]["issues"][number];
-const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" } as const;
+const FORM_LABEL = {
+  ust: "Umsatzsteuererklärung",
+  euer: "Anlage EÜR",
+  est: "Einkommensteuererklärung",
+  kst: "Körperschaftsteuererklärung",
+  gewst: "Gewerbesteuererklärung",
+} as const;
 const LINK_LABEL = {
   "/einstellungen": "Zu den Einstellungen",
   "/anlagen": "Zu den Anlagen",
@@ -41,6 +48,8 @@ function AnnualPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
   const selectId = useId();
+  // GmbH und UG: Körperschaftsteuer statt Einkommensteuer, Bilanz statt EÜR; hier bleibt die Umsatzsteuer
+  const gesellschaft = isKapitalgesellschaft(data.rechtsform);
 
   return (
     <>
@@ -68,23 +77,36 @@ function AnnualPage() {
         </div>
       )}
 
-      <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Umsatzsteuererklärung und Anlage EÜR rechnet Haben aus den Buchungen. Für die Einkommensteuer kommt der Gewinn aus der EÜR; Arbeitslohn, Vorsorge,
-        Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
-      </p>
+      {gesellschaft ? (
+        <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+          Umsatzsteuer-, Körperschaftsteuer- und Gewerbesteuererklärung rechnet Haben aus den Buchungen und dem <Link to="/abschluss">Jahresabschluss</Link>.
+          Anlage EÜR und Einkommensteuer gibt es für {RECHTSFORMEN[data.rechtsform]} nicht.
+        </p>
+      ) : (
+        <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+          Umsatzsteuererklärung und Anlage EÜR rechnet Haben aus den Buchungen. Für die Einkommensteuer kommt der Gewinn aus der EÜR; Arbeitslohn, Vorsorge,
+          Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
+        </p>
+      )}
 
       <nav className="jump-nav" aria-label="Abschnitte der Jahreserklärung">
         <a href="#ust">Umsatzsteuer</a>
-        <a href="#euer">Anlage EÜR</a>
-        <a href="#est">Einkommensteuer</a>
+        {!gesellschaft && <a href="#euer">Anlage EÜR</a>}
+        {!gesellschaft && <a href="#est">Einkommensteuer</a>}
+        {gesellschaft && <a href="#kst">Körperschaftsteuer</a>}
+        {gesellschaft && <a href="#gewst">Gewerbesteuer</a>}
+        {gesellschaft && <a href="#kapg-angaben">Angaben</a>}
         <a href="#vast">Belege von ELSTER</a>
         <a href="#verlauf">Verlauf</a>
       </nav>
 
       <div className="stack" style={{ gap: 24 }}>
         <UstSection data={data} />
-        <EuerSection data={data} />
-        <EstSection key={data.year} data={data} />
+        {!gesellschaft && <EuerSection data={data} />}
+        {!gesellschaft && <EstSection key={data.year} data={data} />}
+        {data.kapg && <KstSection data={data} />}
+        {data.kapg && <GewstSection data={data} />}
+        {data.kapg && <KapgAngaben key={`kapg-${data.year}`} data={data} />}
         <div id="vast" className="jump-target">
           <VastBelege key={`vast-${data.year}`} data={data} />
         </div>

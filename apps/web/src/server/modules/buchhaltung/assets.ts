@@ -18,10 +18,11 @@ import {
   type EuerWithdrawals,
   type ScheduleAsset,
   type ScheduleYear,
+  isKapitalgesellschaft,
 } from "@haben/core";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
+import { kleinunternehmerHistory, lastDayOfMonth, loadCompany, type Company } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -179,7 +180,7 @@ export async function createAsset(actor: string, input: AssetInput): Promise<Ass
     const company = await loadCompany(tx);
     const values = {
       ...input,
-      privateUse: privateUseValue(input.kind, input.privateUse ?? null, company.kleinunternehmer),
+      privateUse: privateUseValue(input.kind, input.privateUse ?? null, company),
       usefulLifeMonths: input.method === "linear" ? input.usefulLifeMonths : null,
       account: assetAccount(input.kind, input.method, company.kontenrahmen),
     };
@@ -235,7 +236,7 @@ export async function updateAsset(actor: string, id: string, input: z.infer<type
         next.method = input.method;
       }
       if (next.method !== "linear") next.usefulLifeMonths = null;
-      if (input.privateUse !== undefined) next.privateUse = privateUseValue(next.kind, input.privateUse, company.kleinunternehmer);
+      if (input.privateUse !== undefined) next.privateUse = privateUseValue(next.kind, input.privateUse, company);
     } else if (input.privateUse !== undefined && !samePrivateUse(input.privateUse, asset.privateUse)) {
       throw new AssetUserError("Für die Anlage ist schon gebucht; die Privatnutzung lässt sich nicht mehr ändern.");
     }
@@ -257,11 +258,15 @@ function samePrivateUse(a: CarPrivateUse | null, b: CarPrivateUse | null): boole
   return a.listPrice === b.listPrice && a.drive === b.drive && a.rate === b.rate && a.vat === b.vat;
 }
 
-/** Privatnutzung nur bei Fahrzeugen; Kleinunternehmer zahlen keine Umsatzsteuer darauf */
-function privateUseValue(kind: Asset["kind"], value: CarPrivateUse | null, kleinunternehmer: boolean): CarPrivateUse | null {
+/**
+ * Privatnutzung nur bei Fahrzeugen und nur im Einzelunternehmen; Kleinunternehmer zahlen keine Umsatzsteuer darauf.
+ * Fährt der Gesellschafter einen Wagen der GmbH privat, ist das Arbeitslohn (Sachbezug), keine Entnahme.
+ */
+function privateUseValue(kind: Asset["kind"], value: CarPrivateUse | null, company: Pick<Company, "kleinunternehmer" | "rechtsform">): CarPrivateUse | null {
   if (!value) return null;
+  if (isKapitalgesellschaft(company.rechtsform)) throw new AssetUserError("Privatnutzung als Entnahme gibt es nur im Einzelunternehmen.");
   if (kind !== "kfz") throw new AssetUserError("Privatnutzung nach der Listenpreismethode gibt es nur für Fahrzeuge.");
-  return { ...value, vat: value.vat && !kleinunternehmer };
+  return { ...value, vat: value.vat && !company.kleinunternehmer };
 }
 
 /** Nur übernommene Anlagen ohne Buchung lassen sich löschen */

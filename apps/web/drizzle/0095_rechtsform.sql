@@ -1,0 +1,2 @@
+ALTER TABLE "company" ADD COLUMN "rechtsform" text DEFAULT 'einzelunternehmen' NOT NULL;--> statement-breakpoint
+ALTER TABLE "company" ADD CONSTRAINT "company_rechtsform" CHECK ("company"."rechtsform" in ('einzelunternehmen', 'gmbh', 'ug'));

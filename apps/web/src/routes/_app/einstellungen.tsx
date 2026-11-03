@@ -1,4 +1,14 @@
-import { BUNDESLAENDER, currentFilingPeriod, formatDecimal, parseEuro, type Bundesland } from "@haben/core";
+import {
+  BUNDESLAENDER,
+  RECHTSFORM_KEYS,
+  RECHTSFORMEN,
+  currentFilingPeriod,
+  formatDecimal,
+  isKapitalgesellschaft,
+  parseEuro,
+  type Bundesland,
+  type Rechtsform,
+} from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
@@ -150,6 +160,9 @@ function CompanyForm() {
   const router = useRouter();
   const save = useServerFn(saveCompany);
   const { busy, notice, run } = useAction();
+  // Steuert, was nur ein Einzelunternehmen hat: Einkunftsart der EÜR und Privatanteile
+  const [rechtsform, setRechtsform] = useState<Rechtsform>(company.rechtsform);
+  const gesellschaft = isKapitalgesellschaft(rechtsform);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -159,6 +172,7 @@ function CompanyForm() {
       await save({
         data: {
           name: text("name"),
+          rechtsform,
           strasse: text("strasse"),
           plz: text("plz"),
           ort: text("ort"),
@@ -218,7 +232,7 @@ function CompanyForm() {
             <input name="name" defaultValue={company.name} autoComplete="organization" />
           </label>
           <label className="field">
-            Art des Betriebs (für die Anlage EÜR)
+            Art des Betriebs (Anlage EÜR) bzw. Gegenstand des Unternehmens
             <input name="taetigkeit" defaultValue={company.taetigkeit} placeholder="z. B. Softwareentwicklung" maxLength={100} />
           </label>
         </div>
@@ -281,14 +295,39 @@ function CompanyForm() {
             <input name="ustId" defaultValue={company.ustId} placeholder="DE123456789" className="mono" />
           </label>
           <label className="field">
-            Einkunftsart (für die Anlage EÜR)
-            <select name="einkunftsart" defaultValue={company.einkunftsart ?? ""}>
-              <option value="">Bitte wählen</option>
-              <option value="selbstaendig">Selbständige Arbeit (freier Beruf, z. B. Entwickler, Berater)</option>
-              <option value="gewerbe">Gewerbebetrieb</option>
+            Rechtsform
+            <select
+              value={rechtsform}
+              onChange={(e) => setRechtsform(e.target.value as Rechtsform)}
+              disabled={Boolean(locks.rechtsform)}
+              aria-describedby="rechtsform-hint"
+            >
+              {RECHTSFORM_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {RECHTSFORMEN[key]}
+                </option>
+              ))}
             </select>
+            <span id="rechtsform-hint" className="small">
+              {locks.rechtsform ??
+                (gesellschaft
+                  ? "Ohne EÜR, Einkommensteuer, Pauschalen und Privatanteile; Geld vom und an den Gesellschafter geht auf das Verrechnungskonto."
+                  : "Mit Privatkonten, Anlage EÜR und Einkommensteuer.")}
+            </span>
           </label>
         </div>
+        {!gesellschaft && (
+          <div className="form-row cols-2">
+            <label className="field">
+              Einkunftsart (für die Anlage EÜR)
+              <select name="einkunftsart" defaultValue={company.einkunftsart ?? ""}>
+                <option value="">Bitte wählen</option>
+                <option value="selbstaendig">Selbständige Arbeit (freier Beruf, z. B. Entwickler, Berater)</option>
+                <option value="gewerbe">Gewerbebetrieb</option>
+              </select>
+            </label>
+          </div>
+        )}
         <div className="form-row cols-2">
           <label className="field">
             Versteuerung
@@ -411,35 +450,37 @@ function CompanyForm() {
         </div>
       </section>
 
-      <section className="form-section" aria-labelledby="company-private">
-        <h3 id="company-private">Privatanteile</h3>
-        <div className="form-row cols-2">
-          <label className="field">
-            Privatanteil Telefon in %
-            <input
-              name="privateShare-telefon"
-              inputMode="numeric"
-              defaultValue={company.privateShares.telefon ?? ""}
-              placeholder="0"
-              aria-describedby="private-share-hint"
-            />
-          </label>
-          <label className="field">
-            Privatanteil Internet in %
-            <input
-              name="privateShare-internet"
-              inputMode="numeric"
-              defaultValue={company.privateShares.internet ?? ""}
-              placeholder="0"
-              aria-describedby="private-share-hint"
-            />
-          </label>
-        </div>
-        <p id="private-share-hint" className="field-hint">
-          Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme. Am einzelnen
-          Beleg lässt sich der Anteil ändern.
-        </p>
-      </section>
+      {!gesellschaft && (
+        <section className="form-section" aria-labelledby="company-private">
+          <h3 id="company-private">Privatanteile</h3>
+          <div className="form-row cols-2">
+            <label className="field">
+              Privatanteil Telefon in %
+              <input
+                name="privateShare-telefon"
+                inputMode="numeric"
+                defaultValue={company.privateShares.telefon ?? ""}
+                placeholder="0"
+                aria-describedby="private-share-hint"
+              />
+            </label>
+            <label className="field">
+              Privatanteil Internet in %
+              <input
+                name="privateShare-internet"
+                inputMode="numeric"
+                defaultValue={company.privateShares.internet ?? ""}
+                placeholder="0"
+                aria-describedby="private-share-hint"
+              />
+            </label>
+          </div>
+          <p id="private-share-hint" className="field-hint">
+            Vorgabe für neue Belege dieser Kategorien: Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme. Am einzelnen
+            Beleg lässt sich der Anteil ändern.
+          </p>
+        </section>
+      )}
 
       <section className="form-section" aria-labelledby="company-dunning">
         <h3 id="company-dunning">Mahnwesen</h3>

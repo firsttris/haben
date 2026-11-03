@@ -112,6 +112,8 @@ ERIC_DIR=data/eric bun --bun vitest run packages/elster
 ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 ```
 
+Körperschaft- und Gewerbesteuererklärung prüft `packages/elster/src/eric-kapg.test.ts` mit ERiC (Gewinn, Verlustvortrag mit Mindestbesteuerung, Verlustjahr, Gründung, Hinzurechnungen). Die E-Bilanz prüft `packages/elster/src/ebilanz/eric-ebilanz.test.ts` mit ERiC, darunter jedes Konto der Kontenzuordnung für SKR03 und SKR04 in einer Bilanz.
+
 Seit ERiC 39.4 ist die frühere Test-Hersteller-ID `74931` gesperrt, auch für die lokale Prüfung. Die Tests nehmen `ELSTER_HERSTELLER_ID`, sonst eine Platzhalter-ID; für die reine Prüfung reicht das. Die Schemas der Formulare stecken komprimiert in den Plugins unter `lib/plugins`; meldet ERiC ein unerwartetes Feld, lohnt der Blick dort hinein.
 
 Für Belegabruf, Berechtigung und Postfach gibt es zusätzlich ein Kommando, das auch unter Einstellungen › ELSTER › ERiC als Knopf steckt (Exit-Code 1 bei Fehlern):
@@ -154,6 +156,8 @@ Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.githu
 6. Prüfen, dass Kennzahlen und Salden unter **Konten** dazu passen, und den Filter im Journal testen.
 
 Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen mit diesen Daten und dieser Sitzung die Dateien im Projekt `mit-daten` (`playwright.config.ts`), verteilt auf vier Worker; sie lesen nur. `elster-helfer.spec.ts`, `elster-helfer-erweiterung.spec.ts`, `langsame-anfrage.spec.ts` und `beenden.spec.ts` brauchen keine Daten und laufen im Projekt `ohne-daten` von Anfang an daneben. `beenden.spec.ts` startet den gebauten Server ein zweites Mal und prüft, dass er sich auf SIGTERM innerhalb von acht Sekunden beendet, bevor `podman stop` oder `docker stop` nach zehn Sekunden SIGKILL schickt. `elster-helfer.spec.ts` prüft die Logik der Erweiterung „Haben für Mein ELSTER“ (`src/fill.ts`, mit Vite gebaut) auf nachgebauten Formularseiten; `elster-helfer-erweiterung.spec.ts` baut die ganze Erweiterung, lädt sie in Chromium und prüft Popup und Inhaltsskript auf einer Seite unter der Adresse von Mein ELSTER.
+
+`apps/web/e2e/gmbh.spec.ts` spielt dasselbe für eine GmbH durch (Projekt `gmbh`): Einrichtung mit Rechtsform und SKR04, manuelle Buchung mit Storno. Weil die Rechtsform ab der ersten Buchung fest ist, läuft es gegen einen zweiten Server auf `E2E_PORT` + 1 mit eigener Datenbank, deren Name aus `E2E_DATABASE_URL` folgt (`haben_e2e` → `haben_gmbh_e2e`). `e2e/reset-db.ts` legt sie beim ersten Lauf an; dafür braucht der Datenbanknutzer das Recht `CREATEDB`.
 
 `apps/web/e2e/seiten.spec.ts` lädt jede Seite am Desktop (1440 px) und am Handy (390 px) und prüft dabei:
 - Die Seite antwortet ohne Fehler und hat eine Überschrift.
@@ -204,6 +208,16 @@ cd apps/web && bun --bun drizzle-kit generate --custom --name=mein_trigger
 ```
 
 Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen schon angewendet.
+
+## HGB-Taxonomie der E-Bilanz
+
+Die E-Bilanz braucht von der Taxonomie nur je Position Pflichtgrad, Summe mit Gewicht, Soll/Haben und Periodentyp. Das steht als Auszug in `packages/elster/src/ebilanz/taxonomie-6-9.json`, erzeugt aus der Taxonomie von [esteuer.de](https://www.esteuer.de):
+
+```sh
+bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2025-04-01 packages/elster/src/ebilanz/taxonomie-6-9.json
+```
+
+Für eine neue Taxonomie (jährlich zum 1. April) den Auszug neu erzeugen, `EBILANZ_TAXONOMIEN` in `packages/elster/src/xml.ts` ergänzen und die Tests mit ERiC laufen lassen; `zuordnung.test.ts` meldet Positionen der Kontenzuordnung, die es nicht mehr gibt oder die keine Blätter mehr sind.
 
 ## Konventionen
 

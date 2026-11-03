@@ -1,4 +1,4 @@
-import { ASSET_KINDS, ASSET_METHODS, formatDecimal } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, formatDecimal, isKapitalgesellschaft } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_app/anlagen/$id")({
 
 function AssetPage() {
   const { asset, schedule, bookedYears } = Route.useLoaderData();
+  const { rechtsform } = Route.useRouteContext();
   const router = useRouter();
   const navigate = useNavigate();
   const update = useServerFn(updateAssetFn);
@@ -120,6 +121,7 @@ function AssetPage() {
               note: asset.note,
             }}
             locked={booked || fromDocument}
+            privateUseAvailable={!isKapitalgesellschaft(rechtsform)}
             privateUseLocked={booked}
             lifeEditable={!booked}
             showOpening={!fromDocument}

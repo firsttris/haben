@@ -27,6 +27,7 @@ import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
   PRICE_MODES,
+  RECHTSFORM_KEYS,
   TAX_TREATMENT_KEYS,
   EXCHANGE_RATE_SOURCE_KEYS,
   type AssetKind,
@@ -92,6 +93,8 @@ export const company = pgTable(
     /** Inhaber des Kontos, wenn nicht der Firmenname; leer = Firmenname (GiroCode, BT-85) */
     kontoinhaber: text("kontoinhaber").notNull().default(""),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
+    /** Einzelunternehmen oder Kapitalgesellschaft (GmbH, UG); fest ab der ersten Buchung (drizzle/0096) */
+    rechtsform: text("rechtsform", { enum: RECHTSFORM_KEYS }).notNull().default("einzelunternehmen"),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
@@ -133,7 +136,11 @@ export const company = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   // Die Typst-Vorlagen lesen die Farbe mit rgb(); anderes als #RRGGBB bräche jedes PDF
-  (t) => [check("company_single_row", sql`${t.id} = 1`), check("company_accent_color", sql`${t.accentColor} ~ '^#[0-9A-Fa-f]{6}$'`)],
+  (t) => [
+    check("company_single_row", sql`${t.id} = 1`),
+    check("company_accent_color", sql`${t.accentColor} ~ '^#[0-9A-Fa-f]{6}$'`),
+    check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`),
+  ],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */
@@ -239,7 +246,8 @@ export const annualSubmissions = pgTable(
   "annual_submissions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    form: text("form", { enum: ["ust", "euer", "est"] }).notNull(),
+    /** GmbH und UG: kst Körperschaftsteuer, gewst Gewerbesteuer, ebilanz E-Bilanz (§ 5b EStG) */
+    form: text("form", { enum: ["ust", "euer", "est", "kst", "gewst", "ebilanz"] }).notNull(),
     year: smallint("year").notNull(),
     kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
     ok: boolean("ok").notNull(),
@@ -284,6 +292,13 @@ export const elsterMessages = pgTable("elster_messages", {
 
 /** Angaben zur Einkommensteuererklärung je Jahr, die nicht aus der Buchhaltung kommen (Vorsorge, Sonderausgaben, Kinder …) */
 export const incomeTaxInputs = pgTable("income_tax_inputs", {
+  year: smallint("year").primaryKey(),
+  data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Angaben einer GmbH oder UG zu Körperschaft- und Gewerbesteuer je Jahr (Hebesatz, Verlustvorträge); änderbar, mit Audit */
+export const corporateTaxInputs = pgTable("corporate_tax_inputs", {
   year: smallint("year").primaryKey(),
   data: jsonb("data").$type<Record<string, unknown>>().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -939,7 +954,9 @@ export const journalEntries = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
-    sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung"] }).notNull(),
+    sourceType: text("source_type", {
+      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung"],
+    }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
     reversesId: uuid("reverses_id"),
@@ -952,6 +969,17 @@ export const journalEntries = pgTable(
     foreignKey({ name: "journal_entries_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
   ],
 );
+
+/**
+ * Abgeschlossene Geschäftsjahre (GmbH, UG). Nur anhängen; ein Trigger lehnt danach jede Buchung mit Datum im Jahr ab und
+ * hält beim Abschluss Zahl und Prüfwert der Buchungen fest (SHA-256 über ihren Inhalt, gerechnet wie ihre Siegel, drizzle/0098).
+ */
+export const yearClosings = pgTable("year_closings", {
+  year: integer("year").primaryKey(),
+  entries: integer("entries").notNull().default(0),
+  digest: text("digest").notNull().default(""),
+  closedAt: timestamp("closed_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const journalLines = pgTable(
   "journal_lines",

@@ -91,6 +91,8 @@ Den Verkaufserlös stellst du als normale [Rechnung](rechnungen.md) mit Umsatzst
 
 ## Private Nutzung von Firmenwagen
 
+Nur im Einzelunternehmen. Fährt der Gesellschafter einen Wagen der GmbH oder UG privat, ist das Arbeitslohn (Sachbezug) in der Lohnabrechnung; das Feld fehlt dann.
+
 Für Fahrzeuge ohne Fahrtenbuch rechnet Haben die private Nutzung nach der Listenpreismethode (§ 6 Abs. 1 Nr. 4 EStG). Auf der Seite der Anlage hakst du **Auch privat genutzt** an und trägst ein:
 
 | Feld | Bedeutung |

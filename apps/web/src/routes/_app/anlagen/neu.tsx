@@ -1,3 +1,4 @@
+import { isKapitalgesellschaft } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { AssetForm } from "../../../components/AssetForm.tsx";
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/_app/anlagen/neu")({
 });
 
 function NewAssetPage() {
+  const { rechtsform } = Route.useRouteContext();
   const navigate = useNavigate();
   const create = useServerFn(createAssetFn);
   const { busy, notice, run } = useAction();
@@ -44,6 +46,7 @@ function NewAssetPage() {
               note: "",
             }}
             locked={false}
+            privateUseAvailable={!isKapitalgesellschaft(rechtsform)}
             privateUseLocked={false}
             lifeEditable
             showOpening

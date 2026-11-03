@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { loadJournal } from "../modules/buchhaltung/index.ts";
+import { createManualEntry, knownAccounts, loadJournal, manualEntrySchema, reverseManualEntry } from "../modules/buchhaltung/index.ts";
+import { loadCompany } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
+import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";
 
 /** Buchungen eines Monats mit ihren Zeilen, nur lesend */
@@ -9,3 +11,22 @@ export const getJournal = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(z.object({ year: yearSchema, month: z.number().int().min(1).max(12) }))
   .handler(({ data }) => loadJournal(data.year, data.month));
+
+/** Was das Formular für eine manuelle Buchung braucht: Rechtsform, Kontenrahmen und die bekannten Kontonamen */
+export const getManualEntryForm = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async () => {
+    const company = await loadCompany();
+    return { today: today(), kontenrahmen: company.kontenrahmen, rechtsform: company.rechtsform, accounts: knownAccounts(company.kontenrahmen) };
+  });
+
+/** Manuelle Buchung (GmbH, UG); die Prüfung macht das Modul */
+export const createManualEntryFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(manualEntrySchema)
+  .handler(async ({ data, context }) => ({ id: await createManualEntry(context.user.id, data, today()) }));
+
+export const reverseManualEntryFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => ({ id: await reverseManualEntry(context.user.id, data) }));

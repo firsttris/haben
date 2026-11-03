@@ -1,5 +1,5 @@
-import type { Cents, KontenblattZeile, Kontenrahmen, PostingLine, SaldenZeile } from "@haben/core";
-import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
+import { carryForward, isKapitalgesellschaft, type Cents, type KontenblattZeile, type Kontenrahmen, type PostingLine, type SaldenZeile } from "@haben/core";
+import { and, asc, eq, gt, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
@@ -13,8 +13,8 @@ import { UserError } from "../../errors.ts";
 
 export class LedgerError extends UserError {}
 
-/** Was eine Buchung von den Firmendaten braucht: Kontenrahmen, Versteuerung und Kleinunternehmer */
-export type Books = Pick<Company, "kontenrahmen" | "versteuerung" | "kleinunternehmer">;
+/** Was eine Buchung von den Firmendaten braucht: Kontenrahmen, Rechtsform, Versteuerung und Kleinunternehmer */
+export type Books = Pick<Company, "kontenrahmen" | "rechtsform" | "versteuerung" | "kleinunternehmer">;
 
 /** Firmendaten für Buchungen, gelesen in der buchenden Transaktion */
 export async function openBooks(tx: Tx): Promise<Company> {
@@ -40,6 +40,10 @@ export interface Posting {
  * dazwischen geändert, und die Buchung wird abgelehnt statt mit veralteten Einstellungen festgeschrieben.
  */
 export async function post(tx: Tx, books: Books, posting: Posting): Promise<string> {
+  // Abgeschlossene Jahre nehmen nichts mehr an; die Datenbank prüft dasselbe noch einmal (drizzle/0098)
+  const closedYear = Number(posting.date.slice(0, 4));
+  const [closed] = await tx.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, closedYear));
+  if (closed) throw new LedgerError(`Das Jahr ${closedYear} ist abgeschlossen; Buchungen mit Datum darin sind nicht mehr möglich.`);
   const [entry] = await tx
     .insert(schema.journalEntries)
     .values({
@@ -52,8 +56,13 @@ export async function post(tx: Tx, books: Books, posting: Posting): Promise<stri
     })
     .returning({ id: schema.journalEntries.id });
   const current = await loadCompany(tx);
-  if (current.kontenrahmen !== books.kontenrahmen || current.versteuerung !== books.versteuerung || current.kleinunternehmer !== books.kleinunternehmer) {
-    throw new LedgerError("Kontenrahmen, Versteuerung oder Kleinunternehmer wurden gerade geändert. Bitte noch einmal buchen.");
+  if (
+    current.kontenrahmen !== books.kontenrahmen ||
+    current.rechtsform !== books.rechtsform ||
+    current.versteuerung !== books.versteuerung ||
+    current.kleinunternehmer !== books.kleinunternehmer
+  ) {
+    throw new LedgerError("Kontenrahmen, Rechtsform, Versteuerung oder Kleinunternehmer wurden gerade geändert. Bitte noch einmal buchen.");
   }
   // Ein Jahr hat genau einen Kontenrahmen. Nach einem Wechsel zum Jahreswechsel stünde eine Buchung ins Vorjahr
   // (Storno einer Zuordnung, rückdatierte Rechnung) sonst mit Kontonummern des neuen Rahmens zwischen denen des alten.
@@ -74,6 +83,17 @@ export async function post(tx: Tx, books: Books, posting: Posting): Promise<stri
       `Das Jahr ${year} ist im Kontenrahmen ${other.kontenrahmen} gebucht, eingestellt ist jetzt ${books.kontenrahmen}. In dieses Jahr lässt sich nach dem Wechsel nichts mehr buchen.`,
     );
   }
+  // Mit einer Eröffnung beginnen die Bücher; davor gebucht, zählten die übernommenen Salden doppelt
+  const [opening] = await tx
+    .select({ date: schema.journalEntries.date })
+    .from(schema.journalEntries)
+    .where(and(eq(schema.journalEntries.sourceType, OPENING_SOURCE), gt(schema.journalEntries.date, posting.date)))
+    .limit(1);
+  if (opening) {
+    throw new LedgerError(
+      `Die Bücher beginnen am ${opening.date.slice(8, 10)}.${opening.date.slice(5, 7)}.${opening.date.slice(0, 4)} mit der Eröffnung; davor lässt sich nichts buchen.`,
+    );
+  }
   const lines = posting.lines.filter((line) => line.debit !== 0 || line.credit !== 0);
   if (lines.length > 0) await tx.insert(schema.journalLines).values(lines.map((line) => ({ entryId: entry!.id, ...line })));
   await tx.update(schema.journalEntries).set({ lockedAt: new Date() }).where(eq(schema.journalEntries.id, entry!.id));
@@ -88,6 +108,35 @@ export interface LedgerRange {
 
 const yearStart = (date: string) => `${date.slice(0, 4)}-01-01`;
 
+/** Eröffnungsbuchungen (Saldenvorträge aus der Vorbuchhaltung) zählen zur Eröffnung, nicht zu den Bewegungen */
+const OPENING_SOURCE = "eroeffnung" as const;
+
+/**
+ * Saldenvorträge aus allen Vorjahren zum Jahresbeginn, nur für GmbH und UG: Sie bilanzieren, Bestandskonten laufen weiter
+ * und das Ergebnis steht als Gewinn- oder Verlustvortrag im Eigenkapital (carryForward in @haben/core). Im
+ * Einzelunternehmen mit EÜR beginnt jedes Jahr bei null wie bisher. Vorgetragen wird im Kontenrahmen der Firmendaten;
+ * Vorjahre in einem anderen Kontenrahmen bleiben außen vor, ihre Kontonummern bedeuten etwas anderes.
+ */
+async function openingBalances(start: string): Promise<{ kontenrahmen: Kontenrahmen; balances: Map<string, Cents> }> {
+  const company = await loadCompany();
+  if (!isKapitalgesellschaft(company.rechtsform)) return { kontenrahmen: company.kontenrahmen, balances: new Map() };
+  const e = schema.journalEntries;
+  const l = schema.journalLines;
+  const rows = await db
+    .select({ account: l.account, saldo: sql<string>`sum(${l.debit} - ${l.credit})` })
+    .from(l)
+    .innerJoin(e, eq(l.entryId, e.id))
+    .where(and(lt(e.date, start), eq(e.kontenrahmen, company.kontenrahmen)))
+    .groupBy(l.account);
+  return {
+    kontenrahmen: company.kontenrahmen,
+    balances: carryForward(
+      company.kontenrahmen,
+      rows.map((r) => ({ account: r.account, saldo: Number(r.saldo) })),
+    ),
+  };
+}
+
 /** Saldenliste: jedes im Jahr bebuchte Konto mit Eröffnung ab Jahresbeginn, Soll, Haben und Saldo */
 export async function saldenliste({ from, to }: LedgerRange): Promise<SaldenZeile[]> {
   const e = schema.journalEntries;
@@ -96,18 +145,29 @@ export async function saldenliste({ from, to }: LedgerRange): Promise<SaldenZeil
     .select({
       kontenrahmen: e.kontenrahmen,
       account: l.account,
-      eroeffnung: sql<string>`coalesce(sum(${l.debit} - ${l.credit}) filter (where ${e.date} < ${from}), 0)`,
-      soll: sql<string>`coalesce(sum(${l.debit}) filter (where ${e.date} >= ${from}), 0)`,
-      haben: sql<string>`coalesce(sum(${l.credit}) filter (where ${e.date} >= ${from}), 0)`,
+      eroeffnung: sql<string>`coalesce(sum(${l.debit} - ${l.credit}) filter (where ${e.date} < ${from} or ${e.sourceType} = ${OPENING_SOURCE}), 0)`,
+      soll: sql<string>`coalesce(sum(${l.debit}) filter (where ${e.date} >= ${from} and ${e.sourceType} <> ${OPENING_SOURCE}), 0)`,
+      haben: sql<string>`coalesce(sum(${l.credit}) filter (where ${e.date} >= ${from} and ${e.sourceType} <> ${OPENING_SOURCE}), 0)`,
+      eb: sql<string>`coalesce(sum(${l.debit} - ${l.credit}) filter (where ${e.sourceType} = ${OPENING_SOURCE}), 0)`,
+      sollJahr: sql<string>`coalesce(sum(${l.debit}) filter (where ${e.sourceType} <> ${OPENING_SOURCE}), 0)`,
+      habenJahr: sql<string>`coalesce(sum(${l.credit}) filter (where ${e.sourceType} <> ${OPENING_SOURCE}), 0)`,
     })
     .from(l)
     .innerJoin(e, eq(l.entryId, e.id))
     .where(and(gte(e.date, yearStart(from)), lt(e.date, to)))
     .groupBy(e.kontenrahmen, l.account)
     .orderBy(asc(l.account));
-  return rows
+  const vortrag = await openingBalances(yearStart(from));
+  // Konten, die nur einen Vortrag haben und im Jahr nicht bebucht sind, stehen trotzdem in der Liste
+  const booked = new Set(rows.filter((r) => r.kontenrahmen === vortrag.kontenrahmen).map((r) => r.account));
+  const carriedOnly = [...vortrag.balances.keys()]
+    .filter((account) => !booked.has(account))
+    .map((account) => ({ kontenrahmen: vortrag.kontenrahmen, account, eroeffnung: "0", soll: "0", haben: "0", eb: "0", sollJahr: "0", habenJahr: "0" }));
+  return [...rows, ...carriedOnly]
+    .sort((a, b) => a.account.localeCompare(b.account))
     .map((r) => {
-      const eroeffnung = Number(r.eroeffnung);
+      const carried = r.kontenrahmen === vortrag.kontenrahmen ? (vortrag.balances.get(r.account) ?? 0) : 0;
+      const eroeffnung = Number(r.eroeffnung) + carried;
       const soll = Number(r.soll);
       const haben = Number(r.haben);
       return {
@@ -115,8 +175,11 @@ export async function saldenliste({ from, to }: LedgerRange): Promise<SaldenZeil
         account: r.account,
         name: accountName(r.kontenrahmen as Kontenrahmen, r.account),
         eroeffnung,
+        vortrag: carried + Number(r.eb),
         soll,
         haben,
+        sollJahr: Number(r.sollJahr),
+        habenJahr: Number(r.habenJahr),
         saldo: eroeffnung + soll - haben,
       };
     })
@@ -142,7 +205,7 @@ export async function kontenblatt(account: string, { from, to }: LedgerRange): P
     .select({ saldo: sql<string>`coalesce(sum(${l.debit} - ${l.credit}), 0)` })
     .from(l)
     .innerJoin(e, eq(l.entryId, e.id))
-    .where(and(eq(l.account, account), gte(e.date, yearStart(from)), lt(e.date, from)));
+    .where(and(eq(l.account, account), gte(e.date, yearStart(from)), sql`(${e.date} < ${from} or ${e.sourceType} = ${OPENING_SOURCE})`));
   const lines = await db
     .select({
       entryId: e.id,
@@ -157,7 +220,7 @@ export async function kontenblatt(account: string, { from, to }: LedgerRange): P
     })
     .from(l)
     .innerJoin(e, eq(l.entryId, e.id))
-    .where(and(eq(l.account, account), gte(e.date, from), lt(e.date, to)))
+    .where(and(eq(l.account, account), gte(e.date, from), lt(e.date, to), ne(e.sourceType, OPENING_SOURCE)))
     .orderBy(asc(e.date), asc(e.createdAt), asc(l.id));
   const others = lines.length
     ? await db
@@ -166,7 +229,8 @@ export async function kontenblatt(account: string, { from, to }: LedgerRange): P
         .where(inArray(l.entryId, [...new Set(lines.map((x) => x.entryId))]))
     : [];
 
-  const eroeffnung = Number(opening?.saldo ?? 0);
+  const vortrag = await openingBalances(yearStart(from));
+  const eroeffnung = Number(opening?.saldo ?? 0) + (vortrag.balances.get(account) ?? 0);
   let saldo = eroeffnung;
   const zeilen = lines.map((x) => {
     saldo += x.debit - x.credit;
@@ -183,7 +247,7 @@ export async function kontenblatt(account: string, { from, to }: LedgerRange): P
       saldo,
     };
   });
-  const kontenrahmen = (lines[0]?.kontenrahmen as Kontenrahmen | undefined) ?? null;
+  const kontenrahmen = (lines[0]?.kontenrahmen as Kontenrahmen | undefined) ?? (vortrag.balances.has(account) ? vortrag.kontenrahmen : null);
   return {
     account,
     name: kontenrahmen ? accountName(kontenrahmen, account) : "",

@@ -1,10 +1,11 @@
 import { UserError } from "../../errors.ts";
-import { CASH_BOOKINGS, cashPosting, formatEuro, type CashBooking, type Cents } from "@haben/core";
+import { CASH_BOOKINGS, cashBookingLabel, cashPosting, formatEuro, type CashBooking, type Cents } from "@haben/core";
 import { asc, eq, gte, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 
 /**
  * Kassenbuch: fortlaufend nummeriert, nur anhängen, Korrektur per Storno. Der Bestand darf an keinem
@@ -90,7 +91,7 @@ async function postCash(tx: Tx, input: { id: string; date: string; amount: Cents
     sourceType: "kasse",
     sourceId: input.id,
     reversesId: input.reversesId,
-    lines: cashPosting(CASH_BOOKINGS[input.kind].kind, input.amount, books.kontenrahmen),
+    lines: cashPosting(CASH_BOOKINGS[input.kind].kind, input.amount, books.kontenrahmen, books.rechtsform),
   });
 }
 
@@ -178,7 +179,8 @@ export async function cashBook(year: number) {
       balance += r.amount;
       return { ...r, balance, reversed: reversed.has(r.id) };
     });
-  return { year, opening, closing: balance, current: rows.reduce((s, r) => s + r.amount, 0), entries };
+  const { rechtsform } = await loadCompany();
+  return { year, rechtsform, opening, closing: balance, current: rows.reduce((s, r) => s + r.amount, 0), entries };
 }
 
 /** Gequotetes Textfeld; beginnt es mit = + - @, wird ein ' vorangestellt, damit Excel es nicht als Formel ausführt */
@@ -195,7 +197,7 @@ export async function cashBookCsv(year: number): Promise<string> {
       [
         String(e.number),
         csvText(e.date),
-        csvText(e.kind === "beleg" ? "Beleg" : CASH_BOOKINGS[e.kind].label),
+        csvText(e.kind === "beleg" ? "Beleg" : cashBookingLabel(e.kind, book.rechtsform)),
         csvText(e.text),
         e.amount > 0 ? csvAmount(e.amount) : "",
         e.amount < 0 ? csvAmount(-e.amount) : "",

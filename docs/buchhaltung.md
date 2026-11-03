@@ -8,7 +8,7 @@ Diese Seite beschreibt, wie Haben bucht: welche Konten es verwendet, welcher Vor
 - **Doppelte Buchführung im Hintergrund.** Jeder buchungsrelevante Vorgang erzeugt eine Buchung (`journal_entries`) mit mindestens zwei Zeilen (`journal_lines`), je Zeile Konto, Soll oder Haben und Steuerschlüssel. Die Auswertungen und die Voranmeldung rechnet Haben aus den zugrunde liegenden Rechnungen, Zahlungen und Belegen; das Journal dokumentiert dieselben Vorgänge in Kontenform. Ein [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) prüft, dass beides übereinstimmt.
 - **Festschreibung ab Entstehung.** Eine Buchung wird in derselben Datenbanktransaktion angelegt und festgeschrieben, in der der Vorgang passiert. Geschrieben wird das Journal nur an einer Stelle, dem Hauptbuch (`ledger.post` in `apps/web/src/server/modules/buchhaltung/ledger.ts`). Beim Festschreiben prüft ein Trigger, dass Soll gleich Haben ist und die Buchung mindestens eine Zeile hat; eine Buchung, die beim Commit nicht festgeschrieben ist, lehnt die Datenbank ab.
 - **Korrektur nur per Gegenbuchung.** Festgeschriebene Buchungen, Rechnungen, Belege und gesendete Voranmeldungen lassen sich nicht ändern oder löschen. Eine Rechnung wird storniert oder korrigiert, eine Zahlungszuordnung per Gegenzeile und Gegenbuchung aufgehoben, eine Voranmeldung berichtigt.
-- **Ein Kontenrahmen je Buchung.** Jede Buchung speichert den Kontenrahmen, mit dem sie entstanden ist, und das ist immer der aus den Firmendaten (die Datenbank prüft das beim Einfügen). Ein Wechsel des Kontenrahmens in den Einstellungen gilt nur für künftige Buchungen und ist nur möglich, solange es im laufenden Jahr noch keine Buchung gibt.
+- **Ein Kontenrahmen je Buchung.** Jede Buchung speichert den Kontenrahmen, mit dem sie entstanden ist, und das ist immer der aus den Firmendaten (die Datenbank prüft das beim Einfügen). Ein Wechsel des Kontenrahmens in den Einstellungen gilt nur für künftige Buchungen und ist nur möglich, solange es im laufenden Jahr noch keine Buchung gibt; bei GmbH und UG nur vor der ersten Buchung überhaupt.
 
 ## GoBD: Unveränderbarkeit in der Datenbank
 
@@ -25,7 +25,7 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 | Anlagen | `assets` | Sobald AfA oder Eröffnung gebucht ist, sind Art, Abschreibung, Konto, Datum, Kosten, Nutzungsdauer und Übernahmewerte fest; Löschen nur ohne Buchung und ohne Beleg |
 | Zuordnungen | `allocations` | Vorzeichen muss dem Bankumsatz entsprechen, die Summe darf den Umsatz nicht übersteigen |
 | Hauptbuch | `journal_entries` | Eine Buchung ist beim Commit festgeschrieben, sonst wird die Transaktion abgelehnt; ihr Kontenrahmen ist der aus den Firmendaten (`0065_hauptbuch_sperren.sql`) |
-| Firmendaten | `company` | Kontenrahmen, Versteuerung und das Einschalten von § 19 UStG werden abgelehnt, sobald im laufenden Jahr (deutsche Zeit) gebucht ist |
+| Firmendaten | `company` | Kontenrahmen, Versteuerung und das Einschalten von § 19 UStG werden abgelehnt, sobald im laufenden Jahr (deutsche Zeit) gebucht ist; die Rechtsform, sobald es überhaupt eine Buchung gibt (`0096_rechtsform_trigger.sql`), bei GmbH und UG ebenso der Kontenrahmen (`0101_kontenrahmen_kapg.sql`) |
 
 ### Änderungsprotokoll
 
@@ -117,6 +117,7 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Umsatzsteuer-Vorauszahlungen | 1780 | 3820 |
 | Privatentnahmen | 1800 | 2100 |
 | Privateinlagen | 1890 | 2180 |
+| Gesellschafter-Verrechnungskonto (nur GmbH, UG): Verbindlichkeiten gegenüber Gesellschaftern | 0730 | 3510 |
 | Geldtransit | 1360 | 1460 |
 | Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe, eBay …) | 1361–1369 | 1461–1469 |
 | Nebenkosten des Geldverkehrs | 4970 | 6855 |
@@ -126,6 +127,8 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Saldenvorträge Sachkonten | 9000 | 9000 |
 
 Achtung bei der Nummer 1200: In SKR03 ist das die Bank, in SKR04 die Forderungen; in SKR03 ist 1800 die Privatentnahme, in SKR04 die Bank.
+
+In einer GmbH oder UG (siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)) bucht Haben überall, wo im Einzelunternehmen Privateinlage oder Privatentnahme stünde, auf das Gesellschafter-Verrechnungskonto: beim vom Gesellschafter ausgelegten Beleg, bei Bankumsätzen „Gesellschafter (Verrechnungskonto)“ und bei Kassenbuchungen vom und an den Gesellschafter. Privatanteile, Kfz-Privatnutzung und Pauschalen gibt es dort nicht.
 
 ### Aufwandskonten der Belegkategorien
 
@@ -342,7 +345,132 @@ Der Pfeil links klappt alle Buchungszeilen mit Soll, Haben und Steuerschlüssel 
 
 Darüber lässt sich nach Herkunft, Kontonummer und Text filtern. Unten stehen die Zahl der Buchungen und ihre Summe.
 
-Die Seite ist nur lesend; gebucht wird ausschließlich über Rechnungen, Belege und den Bankabgleich. Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+Gebucht wird über Rechnungen, Belege, Bank, Kasse und Anlagen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-buchungen-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+
+## Manuelle Buchungen (GmbH und UG)
+
+In einer GmbH oder UG steht auf der Seite **Buchungen** der Knopf **Buchung erfassen**. Damit buchst du Soll an Haben auf frei gewählten Konten, etwa:
+
+| Vorgang | SKR03 | SKR04 |
+| --- | --- | --- |
+| Stammkapital, vom Gesellschafter noch nicht über die Bank eingezahlt | 0730 an 0800 Gezeichnetes Kapital | 3510 an 2900 |
+| Auslagen des Gesellschafters in ein längerfristiges Darlehen umwandeln | 0730 an 0740 Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit 1 bis 5 Jahre | 3510 an 3514 |
+| Falsche Kontierung umbuchen | neues an altes Aufwandskonto | ebenso |
+
+Eine Zeile hat ein Konto mit vier Ziffern und einen Betrag im Soll oder im Haben, bis zu 20 Zeilen je Buchung; Soll und Haben müssen gleich sein. Die Kontobezeichnung erscheint, wenn Haben das Konto kennt. Umsatzsteuer bucht eine manuelle Buchung nie: Sie hat keinen Steuerschlüssel und erscheint nicht in der Voranmeldung.
+
+Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung daran vorbei den Abgleich zwischen Nebenbuch und Journal bräche:
+
+| Konten | Nebenbuch |
+| --- | --- |
+| Bank, Zahlungsdienstleister, Geldtransit | Bankabgleich |
+| Kasse | Kassenbuch |
+| Forderungen, Verbindlichkeiten aus Lieferungen und Leistungen | Rechnungen und Belege (offene Posten) |
+| Umsatzsteuer, Vorsteuer, Umsatzsteuer-Vorauszahlungen | Voranmeldung |
+| Erlöskonten der Rechnungen | Rechnungen |
+| Anlagen, AfA, Restbuchwert | Anlagenverzeichnis |
+| Klasse 9 (Saldenvorträge, statistische Konten) | – |
+| Privatkonten (SKR03 1800–1899, SKR04 2100–2199) | gibt es in GmbH und UG nicht |
+
+Das Formular zeigt beim Tippen, was fehlt; der Server prüft beim Buchen dasselbe noch einmal. Das Datum darf nicht in der Zukunft liegen. Die Buchung ist sofort festgeschrieben und versiegelt wie jede andere (Herkunft „Manuell“); sie steht im Journal, in der Saldenliste, im Jahresexport und im DATEV-Export. Korrigiert wird mit **Stornieren** in den aufgeklappten Buchungszeilen: Die Gegenbuchung steht am selben Tag, damit sich beide im selben Zeitraum aufheben.
+
+## Saldenvortrag und Eröffnung (GmbH und UG)
+
+Eine GmbH oder UG bilanziert: Ihre Bestandskonten laufen über den Jahreswechsel weiter. Haben trägt deshalb in der Saldenliste, im Kontenblatt und in den Kacheln der Seite **Konten** zum 1. Januar vor:
+
+- **Bestandskonten** (Anlagen, Bank, Kasse, Forderungen, Verbindlichkeiten, Steuern, Eigenkapital, Gesellschafter) mit ihrem Saldo aus allen Vorjahren.
+- **Erfolgskonten** (Erlöse und Aufwand) beginnen bei null. Ihr Ergebnis aus den Vorjahren steht als Gewinnvortrag (Saldo im Haben) bzw. Verlustvortrag vor Verwendung (im Soll) im Eigenkapital, bis eine Buchung es verwendet, etwa für eine Ausschüttung.
+
+| Konto | SKR03 | SKR04 |
+| --- | --- | --- |
+| Gewinnvortrag vor Verwendung | 0860 | 2970 |
+| Verlustvortrag vor Verwendung | 0868 | 2978 |
+
+Die Summe aller Vorträge ist null wie im Journal. Bestandskonten sind nach DATEV im SKR04 die Klassen 0 bis 3, im SKR03 die Klassen 0, 1 und 7 sowie 3970 bis 3989 (Bestände; 3990 „Verrechnete Stoffkosten“ ist wieder Aufwand); die Klasse 9 trägt ebenfalls vor. Diese Einteilung ist gegen den DATEV-Kontenrahmen 2026 geprüft: Ein Konto hat dort genau dann einen Bilanzposten, wenn es ein Bestandskonto ist, ausgenommen die Konten der Ergebnisverwendung (SKR03 2795 bis 2868, SKR04 7700 bis 7751).
+
+Alle vier Konten stehen so im DATEV-Kontenrahmen 2026.
+
+Der Vortrag ist berechnet, nicht gebucht: Bucht jemand nachträglich ins Vorjahr (eine Rechnung vom 31.12., eine Abschlussbuchung), stimmt der Vortrag sofort wieder. Vorgetragen wird im Kontenrahmen der Firmendaten; bei GmbH und UG ist er deshalb ab der ersten Buchung fest (`0101_kontenrahmen_kapg.sql`). Im Einzelunternehmen mit EÜR beginnt jedes Jahr bei null wie bisher. Den DATEV-Export betrifft der Vortrag nicht; den Saldenvortrag in DATEV übernimmt die Steuerberatung aus dem Vorjahr.
+
+**Eröffnungsbuchung:** Beginnt die Buchhaltung der GmbH nicht in Haben, übernimmst du die Bestände der bisherigen Buchhaltung mit **Buchung erfassen › Eröffnungsbuchung**. Sie steht am 1. Januar des ersten Jahres in Haben und bucht nur Bestandskonten, dazu den Kontostand der Bank und 9000 Saldenvorträge, zum Beispiel:
+
+| | SKR03 | SKR04 |
+| --- | --- | --- |
+| Bank an Saldenvorträge | 1200 an 9000 | 1800 an 9000 |
+| Saldenvorträge an Gezeichnetes Kapital, Gewinnvortrag, Gesellschafter | 9000 an 0800, 0860, 0730 | 9000 an 2900, 2970, 3510 |
+
+Offene Rechnungen und Belege übernimmst du einzeln über den [Umzug](lexoffice.md) (Forderung bzw. Verbindlichkeit an 9000), Anlagen über das [Anlagenverzeichnis](anlagen.md), die Kasse über das Kassenbuch. Sind alle Bestände übernommen, ist 9000 ausgeglichen. In der Saldenliste stehen Eröffnungsbuchungen in der Spalte Eröffnung, im Journal mit der Herkunft „Eröffnung“.
+
+Gibt es vor dem 1. Januar schon Buchungen in Haben, lehnt Haben eine Eröffnung ab; die Salden trägt es dann selbst vor. Umgekehrt lässt sich nach einer Eröffnung nichts mehr davor buchen, auch kein rückdatierter Beleg, sonst zählten die übernommenen Salden doppelt.
+
+## Jahresabschluss (GmbH und UG)
+
+Unter **Buchhaltung › Jahresabschluss** zeigt Haben für eine GmbH oder UG Bilanz und Gewinn- und Verlustrechnung eines Jahres in der Form einer Kleinstkapitalgesellschaft (§ 267a HGB):
+
+- **Bilanz** nur mit den Posten, die in § 266 Abs. 2 und 3 HGB Buchstaben tragen (§ 266 Abs. 1 Satz 4): Anlagevermögen, Umlaufvermögen, Rechnungsabgrenzung; Eigenkapital, Rückstellungen, Verbindlichkeiten, Rechnungsabgrenzung. Jeder Posten klappt die Konten auf, die in ihm stehen.
+- **GuV** nach § 275 Abs. 5 HGB: Umsatzerlöse, sonstige Erträge, Materialaufwand, Personalaufwand, Abschreibungen, sonstige Aufwendungen, Steuern und als Ergebnis Jahresüberschuss oder Jahresfehlbetrag. Zinserträge zählen zu den sonstigen Erträgen, Zinsaufwand zu den sonstigen Aufwendungen.
+
+Die Salden sind die der [Saldenliste](#die-seite-konten) zum 31.12., mit Vortrag. Das Jahresergebnis steht im Eigenkapital. Ein Konto des Umlaufvermögens mit Haben-Saldo (überzogene Bank, Umsatzsteuer-Zahllast) steht unter den Verbindlichkeiten, eine Verbindlichkeit mit Soll-Saldo (der Gesellschafter schuldet der GmbH) im Umlaufvermögen.
+
+**Zuordnung der Konten:** Jedes Konto gehört nach seinem Kontenbereich zu einem Posten (`packages/core/src/hgb.ts`). Die Bereiche sind aus dem DATEV-Kontenrahmen 2026 erzeugt (SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175): je Konto der Bilanz- bzw. GuV-Posten, den DATEV in der linken Spalte nennt, verdichtet auf die Ebene der Kleinstkapitalgesellschaft. Nennt DATEV zwei Posten („Sonstige Verbindlichkeiten oder Sonstige Vermögensgegenstände“), gilt der zweite bei umgekehrtem Saldo: Die überzogene Bank steht unter den Verbindlichkeiten, „Umsatzsteuer nicht fällig“ mit Haben-Saldo unter den Steuerrückstellungen, mit Soll-Saldo unter den sonstigen Vermögensgegenständen, das Gesellschafter-Verrechnungskonto je nach Saldo unter den Verbindlichkeiten oder Forderungen. Anlagevermögen gibt es nur in Klasse 0; gleichnamige Posten in Klasse 1 sind Umlaufvermögen. Erhaltene Anzahlungen, die DATEV offen von den Vorräten absetzt (SKR03 1722, SKR04 1190), stehen mit negativem Betrag im Umlaufvermögen; abgeführte Gewinne (Gewinngemeinschaft, Gewinnabführungsvertrag, stille Beteiligung) sind sonstige Aufwendungen. Jedes Konto, das Haben selbst bebucht, hat einen Posten. Keinen Posten haben Sonderposten und die Konten der Ergebnisverwendung (Einstellungen in Rücklagen, Ertrag aus Kapitalherabsetzung, Ausschüttung), die nach dem Jahresergebnis stehen; solche Konten und nicht ausgeglichene Vortragskonten (9000) nennt die Seite unter **Offene Punkte**, statt sie still wegzulassen.
+
+> [!WARNING]
+> Bilanz und GuV sind ein **Entwurf für die Steuerberatung**. Die Rückstellungen für Körperschaft- und Gewerbesteuer rechnet und bucht Haben ([unten](#körperschaft-und-gewerbesteuer-gmbh-und-ug)); andere Abschlussbuchungen wie Abschlusskosten, Rechnungsabgrenzung und Wertberichtigungen erfasst ihr vorher als [manuelle Buchung](#manuelle-buchungen-gmbh-und-ug). Eine Datei für die Hinterlegung beim Unternehmensregister erstellt Haben noch nicht.
+
+**Jahr abschließen:** Wenn die Steuerberatung den Abschluss freigegeben hat, schließt **Jahr abschließen** das Jahr ab, nach einer Rückfrage. Vorher muss das Jahr vorbei sein, die AfA aller Anlagen gebucht und jeder Beleg mit Datum im Jahr gebucht. Danach:
+
+- nimmt das Jahr keine Buchung mehr an, auch keine Gegenbuchung. Das prüft das Hauptbuch und, auch für Schreiber an Haben vorbei, ein Trigger der Datenbank (`0098_jahresabschluss_trigger.sql`). Rückgängig machen lässt sich der Abschluss nicht; `year_closings` ist nur anhängbar.
+- hält Haben Zahl und Prüfwert der Buchungen des Jahres fest: SHA-256 über ID und Inhalt jeder Buchung samt Zeilen, gerechnet wie ihr Siegel. Die Seite rechnet ihn bei jedem Aufruf aus den aktuellen Daten nach und zeigt, ob die Buchungen seitdem unverändert sind. Der Abschluss selbst steht mit Prüfwert im Änderungsprotokoll und damit in der Hash-Kette.
+
+Fehler im abgeschlossenen Jahr korrigiert ihr im laufenden Jahr, wie es das Handelsrecht vorsieht.
+
+Im Einzelunternehmen gibt es keine manuellen Buchungen. Die Anlage EÜR rechnet dort aus Rechnungen, Belegen und Zahlungen; eine Umbuchung im Journal käme in ihr nicht an.
+
+## Körperschaft- und Gewerbesteuer (GmbH und UG)
+
+Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer des Jahres aus dem Jahresergebnis (`packages/core/src/koerperschaft.ts`) und bucht die Rückstellungen dafür. Dazu braucht es je Jahr drei Angaben: den **Hebesatz** der Gemeinde und die **Verlustvorträge** zum 31.12. des Vorjahres für Körperschaftsteuer und Gewerbesteuer, wie sie im Bescheid stehen. Ohne gespeicherte Angaben schlägt Haben die des Vorjahres vor, mit den Vorträgen nach seiner eigenen Rechnung; speichert sie erst, wenn sie zum Bescheid passen.
+
+| Schritt | Was Haben rechnet |
+| --- | --- |
+| Jahresergebnis | aus der GuV, wie im Jahresabschluss |
+| + nicht abziehbare Aufwendungen | gebuchte Körperschaftsteuer und Soli (§ 10 Nr. 2 KStG), Gewerbesteuer (§ 4 Abs. 5b EStG), Steuern für Vorjahre und Erstattungen, Kapitalertragsteuer, die Konten für nicht abziehbare Geschenke, Bewirtung und Betriebsausgaben, dazu 30 % der Bewirtungskosten (§ 4 Abs. 5 Nr. 2 EStG; Haben bucht die Bewirtung voll) |
+| = Einkommen | zugleich Gewinn aus Gewerbebetrieb (§ 7 GewStG) |
+| − Verlustabzug | bis 1 Mio. € voll, darüber 70 % (2024 bis 2027, § 10d Abs. 2 EStG), sonst 60 % |
+| Körperschaftsteuer | 15 % des zu versteuernden Einkommens in vollen Euro; Soli 5,5 % davon, Bruchteile eines Cents fallen weg |
+| + Hinzurechnung § 8 Nr. 1 GewStG | ein Viertel der Summe aus Zinsen (voll), Miete und Leasing beweglicher Wirtschaftsgüter (20 %), unbeweglicher (50 %) und Aufwand für Rechte (25 %), soweit sie 200.000 € übersteigt; gelesen aus den DATEV-Konten mit Kennzeichen G |
+| − Gewerbeverlust | bis 1 Mio. € voll, darüber 60 % (§ 10a GewStG) |
+| Gewerbesteuer | Gewerbeertrag auf volle 100 € abgerundet, ohne Freibetrag (Kapitalgesellschaft), Messzahl 3,5 %, mal Hebesatz |
+
+Weil die gebuchten Steuern wieder hinzugerechnet werden, ändert eine gebuchte Rückstellung das Ergebnis nicht. **Rückstellungen buchen** bucht als Umbuchung zum 31.12., was zur Steuer noch fehlt: Körperschaftsteuer und Soli an Körperschaftsteuerrückstellung (SKR03 0963, SKR04 3040), Gewerbesteuer an Gewerbesteuerrückstellung (0956 bzw. 3035). Vorauszahlungen, auf die Steueraufwandskonten gebucht (SKR03 2200, 2208, 4320; SKR04 7600, 7608, 7610), sind abgezogen. Übersteigen sie die Steuer, bucht Haben keine Erstattung; die Forderung gegen das Finanzamt bucht ihr mit der Steuerberatung.
+
+Im Verlustjahr lässt sich ein **Verlustrücktrag** in die zwei Vorjahre eintragen (höchstens 1 Mio. €, § 10d Abs. 1 EStG); leer bedeutet Verzicht, der ganze Verlust geht in den Vortrag. Die Gewerbesteuer kennt keinen Rücktrag.
+
+Nicht gerechnet werden steuerfreie Erträge (§ 8b KStG), der Spendenabzug (§ 9 KStG), verdeckte Gewinnausschüttungen und Einlagen, Kürzungen nach § 9 GewStG und die Zerlegung auf mehrere Gemeinden. Hat die GmbH davon etwas, rechnet die Steuerberatung. Aus der Rechnung macht Haben auch die [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug).
+
+## E-Bilanz (GmbH und UG)
+
+Eine Kapitalgesellschaft übermittelt Bilanz und GuV elektronisch an das Finanzamt (§ 5b EStG), mit derselben Frist wie die Steuererklärungen. Auf der Seite **Jahresabschluss** steht dafür unten der Abschnitt **E-Bilanz**: Haben baut sie aus den Buchungen des Jahres, lässt sie von ERiC prüfen und sendet sie wie die [Jahreserklärungen](jahreserklaerung.md) mit Zertifikat und PIN.
+
+**Was gesendet wird:** ein Jahresabschluss (Einzelabschluss) nach deutschem Steuerrecht in der HGB-Taxonomie 6.9, Kerntaxonomie, GuV nach dem Gesamtkostenverfahren, mit
+
+- **Bilanz und GuV** in der Gliederung der Taxonomie. Die ist feiner als der Kleinst-Abschluss: Umsatzerlöse nach Umsatzsteuer (Regelsatz, ermäßigt, nicht steuerbar, steuerfrei), sonstige Aufwendungen nach Art (Kommunikation, Beratung, Fuhrpark, Werbung …), Anlagen nach Bilanzposition.
+- **Anlagenspiegel** je Bilanzposition des Anlagevermögens aus dem [Anlagenverzeichnis](anlagen.md): Anschaffungskosten am Jahresanfang, Zugänge, Abgänge, kumulierte AfA und AfA des Jahres. Eine übernommene Anlage bringt ihre Anschaffungskosten mit, die AfA davor ist der Unterschied zum übernommenen Buchwert. GWG und Sammelposten gehen ab, sobald sie abgeschrieben sind.
+- **Betriebsvermögensvergleich:** Eigenkapital am Ende des Vorjahres (der EB-Wert der Eigenkapitalkonten aus Vortrag und Eröffnungsbuchung), Einlagen (Buchungen im Haben der Eigenkapitalkonten im Jahr) und Ausschüttungen (Buchungen im Soll). Er muss den Jahresüberschuss der GuV ergeben. Zahlt ihr das Stammkapital im Gründungsjahr ein, bucht das deshalb als normale Buchung, nicht als Eröffnung: Dann ist es eine Einlage und das Eigenkapital des Vorjahres null.
+
+Kontensalden je Position (Kontennachweis) sendet Haben nicht mit; die Taxonomie erlaubt das mit dem Vermerk, dass sie noch nicht übermittelt werden können.
+
+**Zuordnung der Konten** (`packages/core/src/ebilanz.ts`): Jedes Konto, das Haben selbst bucht, hat eine feste Position, abhängig vom Saldo wie im Kleinst-Abschluss (die überzogene Bank unter den Verbindlichkeiten gegenüber Kreditinstituten, das Gesellschafter-Verrechnungskonto im Soll unter den sonstigen Vermögensgegenständen gegen Gesellschafter). Andere Konten, etwa aus einer manuellen Buchung, kommen auf die Auffangposition ihres Postens im DATEV-Kontenrahmen („nicht zuordenbar“ bzw. „übrige“). Keine Auffangposition haben Anlagevermögen, Eigenkapital und Steuern: Ein solches Konto ohne feste Position nennt der Abschnitt als offenen Punkt, und die E-Bilanz geht nicht raus, bis es umgebucht ist. Ein Test prüft jede Position gegen die Taxonomie, ein zweiter alle Konten zusammen mit dem echten ERiC.
+
+**Ablauf:**
+
+1. **Nur prüfen** lässt ERiC die E-Bilanz gegen Taxonomie und Plausibilitätsregeln prüfen, ohne zu senden. Das geht schon vor dem Abschluss.
+2. **Testübermittlung** sendet mit Testmerker; das Finanzamt verarbeitet sie nicht.
+3. **Echt senden** geht erst, wenn das Jahr [abgeschlossen](#jahresabschluss-gmbh-und-ug) ist, und nur einmal. Eine berichtigte E-Bilanz geht über die Steuerberatung oder das ELSTER-Portal.
+
+Jeder Versuch steht mit Werten und XML im Verlauf (Tabelle `annual_submissions`, Formular `ebilanz`), das Übertragungsprotokoll als PDF daneben.
+
+> [!WARNING]
+> Gesendet wird, was gebucht ist. Eine Überleitung von der Handels- zur Steuerbilanz rechnet Haben nicht, und Rückstellungen für Körperschaft- und Gewerbesteuer bucht ihr vorher selbst. Lasst die E-Bilanz von der Steuerberatung ansehen, bevor ihr echt sendet.
 
 ## Die Seite „Konten“
 
@@ -352,11 +480,11 @@ Unter **Konten** stehen oben Kacheln:
 - Fällige Umsatzsteuer nach Vorsteuer und Vorauszahlungen.
 - Erlöse minus Aufwand im Zeitraum.
 
-Bank und Umsatzsteuer rechnen ab Jahresbeginn, ein Vortrag aus dem Vorjahr fehlt.
+Im Einzelunternehmen rechnen Bank und Umsatzsteuer ab Jahresbeginn, ein Vortrag aus dem Vorjahr fehlt. In einer GmbH oder UG enthalten sie den [Saldenvortrag](#saldenvortrag-und-eröffnung-gmbh-und-ug).
 
 Darunter steht die **Saldenliste**: jedes bebuchte Konto des Jahres, Quartals oder Monats mit Soll, Haben und Saldo.
 - **Gruppierung:** Die Konten stehen nach Kontenklasse, also nach der ersten Ziffer der Kontonummer. Im SKR03 sind das etwa 1 Finanz- und Privatkonten, 4 Betriebliche Aufwendungen und 8 Erlöskonten. Jede Klasse hat eine Zwischensumme und lässt sich einklappen.
-- **Eröffnung:** Sie ist der Saldo ab Jahresbeginn bis zum Beginn des gewählten Zeitraums. Die Spalte erscheint nur, wenn es vorher schon Buchungen gab.
+- **Eröffnung:** Sie ist der Saldo ab Jahresbeginn bis zum Beginn des gewählten Zeitraums, in einer GmbH oder UG dazu der Saldenvortrag aus den Vorjahren und die Eröffnungsbuchungen. Die Spalte erscheint nur, wenn es einen solchen Betrag gibt.
 - **Salden in Alltagssprache:** Erlöse und Aufwand stehen als positiver Betrag. Bei Bestandskonten wie Bank, Forderungen oder Steuern steht dazu „Guthaben“ oder „Schuld“. Die Buchhaltungsseite, S für Soll und H für Haben, steht klein daneben.
 - **Summe:** Soll und Haben sind in der Summe immer gleich, sonst wäre eine Buchung nicht ausgeglichen.
 - **Suche:** „Konto suchen“ filtert nach Nummer oder Name.
@@ -372,6 +500,8 @@ Am Handy werden die Tabellen zu Karten. Das Diagramm lässt sich dort waagrecht 
 
 Beides gibt es über „CSV“ als Datei, im selben Format wie die übrigen Exporte (Semikolon, Dezimalkomma, UTF-8 mit BOM), etwa für die Steuerberatung oder zum Abgleich mit Lexoffice.
 
+Die CSV der Saldenliste ist zugleich die **Summen- und Saldenliste**: Nach Konto, Bezeichnung, Kontenklasse, Eröffnung, Soll und Haben im Zeitraum, Saldo und S/H folgen der EB-Wert (Saldenvortrag und Eröffnungsbuchungen, nur in GmbH und UG) und die Verkehrszahlen ab Jahresbeginn bis zum Ende des Zeitraums (Soll kumuliert, Haben kumuliert), ohne den EB-Wert.
+
 Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buchungen/journal.csv`, eine Zeile je Buchungszeile, mit Buchungs-ID, Quelle, Kontenrahmen und Verweis auf die Ursprungsbuchung bei Gegenbuchungen.
 
 ## Was Haben nicht bucht
@@ -380,7 +510,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 - Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
 - Innergemeinschaftliche Lieferungen und Erwerbe von Waren; § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn; Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
-- Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten)
+- Im Einzelunternehmen Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG trägt Haben die Salden [vor](#saldenvortrag-und-eröffnung-gmbh-und-ug), einzelne Abschlussbuchungen lassen sich [manuell](#manuelle-buchungen-gmbh-und-ug) erfassen
 
 > [!NOTE]
 > Haben ersetzt keine Steuerberatung. Arbeitet die Steuerberatung mit den Daten weiter, bekommt sie das Journal aus dem Jahresexport; die Kontenzuordnung sollte einmal mit ihr abgestimmt werden.

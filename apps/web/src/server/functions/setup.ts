@@ -3,6 +3,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { count } from "drizzle-orm";
 import { auth } from "../auth.ts";
 import { db, schema } from "../db/index.ts";
+import { loadCompany } from "../modules/stammdaten/index.ts";
 
 /** Öffentlich: ob Haben schon eingerichtet ist und ob jemand angemeldet ist. */
 export const getAuthState = createServerFn({ method: "GET" }).handler(async () => {
@@ -11,5 +12,7 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
   return {
     initialized: (row?.n ?? 0) > 0,
     user: session ? { name: session.user.name, email: session.user.email } : null,
+    // Für die Navigation: eine GmbH oder UG hat keine Pauschalen; erst nach der Anmeldung
+    rechtsform: session ? (await loadCompany()).rechtsform : null,
   };
 });

@@ -18,10 +18,37 @@ describe("Konten", () => {
 
   it("schreibt Saldenliste und Kontenblatt als CSV", () => {
     const saldenliste = saldenlisteToCsv([
-      { kontenrahmen: "SKR03", account: "8400", name: "Erlöse 19 % USt", eroeffnung: -10_000, soll: 0, haben: 50_000, saldo: -60_000 },
+      {
+        kontenrahmen: "SKR03",
+        account: "8400",
+        name: "Erlöse 19 % USt",
+        eroeffnung: -10_000,
+        vortrag: 0,
+        soll: 0,
+        haben: 50_000,
+        sollJahr: 0,
+        habenJahr: 60_000,
+        saldo: -60_000,
+      },
+      {
+        kontenrahmen: "SKR03",
+        account: "0730",
+        name: "Verbindlichkeiten gegenüber Gesellschaftern",
+        eroeffnung: -30_000,
+        vortrag: -25_000,
+        soll: 1_000,
+        haben: 0,
+        sollJahr: 1_000,
+        habenJahr: 5_000,
+        saldo: -29_000,
+      },
     ]);
-    expect(saldenliste.startsWith("﻿Konto;Bezeichnung;Kontenklasse")).toBe(true);
-    expect(saldenliste).toContain("8400;Erlöse 19 % USt;Erlöskonten;100,00 H;0,00;500,00;600,00;H\r\n");
+    expect(saldenliste.startsWith("﻿Konto;Bezeichnung;Kontenklasse;Eröffnung (EUR);Soll (EUR);Haben (EUR);Saldo (EUR);S/H;EB-Wert (EUR);")).toBe(true);
+    // Die ersten Spalten wie bisher, dahinter EB-Wert und Verkehrszahlen ab Jahresbeginn
+    expect(saldenliste).toContain("8400;Erlöse 19 % USt;Erlöskonten;100,00 H;0,00;500,00;600,00;H;0,00;0,00;600,00\r\n");
+    expect(saldenliste).toContain(
+      "0730;Verbindlichkeiten gegenüber Gesellschaftern;Anlage- und Kapitalkonten;300,00 H;10,00;0,00;290,00;H;250,00 H;10,00;50,00\r\n",
+    );
     const blatt = kontenblattToCsv(0, [
       { date: "2026-01-05", description: "Rechnung; RE-1", gegenkonten: ["1200", "1776"], soll: 0, haben: 50_000, saldo: -50_000 },
     ]);
@@ -57,8 +84,11 @@ describe("Konten", () => {
       account,
       name: "",
       eroeffnung: 0,
+      vortrag: 0,
       soll,
       haben,
+      sollJahr: soll,
+      habenJahr: haben,
       saldo: soll - haben,
     });
     const k = kontenkennzahlen([

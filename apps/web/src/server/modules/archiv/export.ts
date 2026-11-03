@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
-import { ASSET_KINDS, ASSET_METHODS, csvDecimal, formatExchangeRate, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, csvDecimal, formatExchangeRate, isKapitalgesellschaft, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { accountName } from "../buchhaltung/index.ts";
@@ -500,7 +500,14 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       // Fremdwährung: Kurs (1 EUR = …) und Bruttobetrag laut Beleg; die Beträge davor sind in Euro umgerechnet
       doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : null,
       doc.currency === "EUR" ? null : money(docAmounts.reduce((s, a) => s + (a.originalNet ?? 0) + (doc.reverseCharge ? 0 : (a.originalTax ?? 0)), 0)),
-      doc.payment === "privat" ? "privat" : doc.payment === "kasse" ? "Kasse" : "Bank",
+      // In GmbH und UG hat der Gesellschafter ausgelegt (Verrechnungskonto), im Einzelunternehmen der Inhaber privat
+      doc.payment === "privat"
+        ? company && isKapitalgesellschaft(company.rechtsform)
+          ? "Gesellschafter"
+          : "privat"
+        : doc.payment === "kasse"
+          ? "Kasse"
+          : "Bank",
       doc.status,
       iso(doc.lockedAt),
       doc.extractedBy,

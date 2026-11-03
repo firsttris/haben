@@ -105,6 +105,22 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
   await page.waitForLoadState("networkidle");
 
+  // Rechtsform (#213): Eine GmbH hat keine EÜR, keine Privatanteile und keine Pauschalen; vor der ersten Buchung frei wählbar
+  const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
+  await expect(nav.getByRole("link", { name: "Pauschalen" })).toBeVisible();
+  await firma.getByLabel("Rechtsform").selectOption("gmbh");
+  await expect(firma.getByLabel("Einkunftsart (für die Anlage EÜR)")).toHaveCount(0);
+  await expect(firma.getByLabel("Privatanteil Telefon in %")).toHaveCount(0);
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(nav.getByRole("link", { name: "Pauschalen" })).toHaveCount(0);
+  await go("/kasse");
+  await expect(page.getByRole("button", { name: "Vom Gesellschafter" })).toBeVisible();
+  await go("/einstellungen");
+  await firma.getByLabel("Rechtsform").selectOption("einzelunternehmen");
+  await expect(firma.getByLabel("Einkunftsart (für die Anlage EÜR)")).toBeVisible();
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(nav.getByRole("link", { name: "Pauschalen" })).toBeVisible();
+
   await go("/einstellungen?bereich=rechnungen");
   const logo = page.getByRole("region", { name: "Logo" });
   await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
@@ -540,6 +556,13 @@ test("Bruttopreise: Artikel mit Endpreis, Umrechnung beim Einfügen, Vorschau mi
   await expect(preview).toContainText("Umsatzsteuer 19 %1,56\u00a0€");
   await catalog.selectOption({ label: "Fotoabzug 13 × 18 cm · 9,80\u00a0€ brutto/Stk." });
   await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("9,80");
+});
+
+test("Rechtsform ist nach der ersten Buchung fest", async () => {
+  await go("/einstellungen");
+  const rechtsform = page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform");
+  await expect(rechtsform).toBeDisabled();
+  await expect(rechtsform).toHaveAccessibleDescription(/nur vor der ersten Buchung festlegen/);
 });
 
 test("DATEV-Export: Nummern speichern, Buchungsstapel herunterladen", async () => {

@@ -1,5 +1,15 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { abgabefrist, dueDate, periodKey, periodLabel, previousPeriod, vorauszahlungstermine, type Bundesland, type VatPeriod } from "@haben/core";
+import {
+  abgabefrist,
+  dueDate,
+  isKapitalgesellschaft,
+  periodKey,
+  periodLabel,
+  previousPeriod,
+  vorauszahlungstermine,
+  type Bundesland,
+  type VatPeriod,
+} from "@haben/core";
 import { and, eq, min } from "drizzle-orm";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
@@ -23,7 +33,14 @@ export interface Frist {
   link: string;
 }
 
-const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" } as const;
+const FORM_LABEL = {
+  ust: "Umsatzsteuererklärung",
+  euer: "Anlage EÜR",
+  est: "Einkommensteuererklärung",
+  kst: "Körperschaftsteuererklärung",
+  gewst: "Gewerbesteuererklärung",
+  ebilanz: "E-Bilanz",
+} as const;
 const TAG = 86_400_000;
 const shift = (iso: string, days: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * TAG).toISOString().slice(0, 10);
 
@@ -83,7 +100,14 @@ export async function listFristen(today: string): Promise<Frist[]> {
     const datum = abgabefrist(year, bundesland);
     // Kleinunternehmer geben erst ab 2024 keine Umsatzsteuererklärung mehr ab (§ 18 Abs. 3 UStG); Stand im Jahr selbst
     const ust = !kleinunternehmerAm(`${year}-12-31`) || year < 2024;
-    const forms = [...(ust ? (["ust"] as const) : []), "euer" as const, ...(company.taxpayer.a ? (["est"] as const) : [])];
+    // GmbH und UG: keine EÜR und keine Einkommensteuer, dafür Körperschaft- und Gewerbesteuer und die E-Bilanz mit der
+    // Frist der Steuererklärung (§ 5b EStG, § 149 Abs. 2 AO)
+    const person = !isKapitalgesellschaft(company.rechtsform);
+    const forms = [
+      ...(ust ? (["ust"] as const) : []),
+      ...(person ? (["euer"] as const) : (["kst", "gewst", "ebilanz"] as const)),
+      ...(person && company.taxpayer.a ? (["est"] as const) : []),
+    ];
     for (const form of forms) {
       const erledigt = sentForms.has(`${form}-${year}`);
       if (!relevant(datum, !erledigt)) continue;
@@ -94,13 +118,13 @@ export async function listFristen(today: string): Promise<Frist[]> {
         titel: `${FORM_LABEL[form]} ${year}`,
         detail: "Abgabefrist ohne Steuerberater",
         status: erledigt ? "erledigt" : "offen",
-        link: `/jahreserklaerung/${year}`,
+        link: form === "ebilanz" ? `/abschluss/${year}` : `/jahreserklaerung/${year}`,
       });
     }
   }
 
   // Einkommensteuer-Vorauszahlungen; ob welche festgesetzt sind, steht im Bescheid
-  if (company.taxpayer.a) {
+  if (company.taxpayer.a && !isKapitalgesellschaft(company.rechtsform)) {
     for (const year of [Number(today.slice(0, 4)), Number(today.slice(0, 4)) + 1]) {
       for (const [index, datum] of vorauszahlungstermine(year, bundesland).entries()) {
         if (datum < today || datum > bis) continue;
