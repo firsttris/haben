@@ -27,6 +27,7 @@ import {
   ASSET_KIND_KEYS,
   ASSET_METHOD_KEYS,
   PRICE_MODES,
+  RECHTSFORM_KEYS,
   TAX_TREATMENT_KEYS,
   EXCHANGE_RATE_SOURCE_KEYS,
   type AssetKind,
@@ -90,6 +91,8 @@ export const company = pgTable(
     iban: text("iban").notNull().default(""),
     bic: text("bic").notNull().default(""),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
+    /** Einzelunternehmen oder Kapitalgesellschaft (GmbH, UG); fest ab der ersten Buchung (drizzle/0090) */
+    rechtsform: text("rechtsform", { enum: RECHTSFORM_KEYS }).notNull().default("einzelunternehmen"),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
@@ -122,7 +125,7 @@ export const company = pgTable(
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("company_single_row", sql`${t.id} = 1`)],
+  (t) => [check("company_single_row", sql`${t.id} = 1`), check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`)],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */

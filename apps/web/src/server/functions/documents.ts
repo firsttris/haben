@@ -56,6 +56,7 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       navigation: documentNavigation(await listDocuments(), data),
       assetId: asset?.id ?? null,
       privateShares: company.privateShares,
+      rechtsform: company.rechtsform,
       tageskurs: company.tageskurs,
       amounts: result.amounts,
       issues: result.document.lockedAt ? [] : bookingIssues(result.document, result.amounts),

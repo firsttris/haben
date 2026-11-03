@@ -1,6 +1,7 @@
 import { roundHalfAwayFromZero, splitPrivateShare, type BasisPoints, type Cents } from "./money.ts";
 import type { InvoiceTotals, TaxRate } from "./invoice.ts";
 import type { TaxTreatment } from "./treatment.ts";
+import { isKapitalgesellschaft, ownerLabels, type Rechtsform } from "./rechtsform.ts";
 
 export type Kontenrahmen = "SKR03" | "SKR04";
 export type Versteuerung = "ist" | "soll";
@@ -22,6 +23,8 @@ export const ACCOUNTS = {
     verbindlichkeiten: "1600",
     privateinlagen: "1890",
     privatentnahmen: "1800",
+    /** GmbH, UG: Gesellschafter-Verrechnungskonto statt Privat (DATEV SKR03: Verbindlichkeiten gegenüber Gesellschaftern) */
+    gesellschafter: "0730",
     geldtransit: "1360",
     ustVorauszahlung: "1780",
     nebenkostenGeldverkehr: "4970",
@@ -50,6 +53,8 @@ export const ACCOUNTS = {
     verbindlichkeiten: "3300",
     privateinlagen: "2180",
     privatentnahmen: "2100",
+    /** GmbH, UG: Gesellschafter-Verrechnungskonto statt Privat (DATEV SKR04: Verbindlichkeiten gegenüber Gesellschaftern) */
+    gesellschafter: "3510",
     geldtransit: "1460",
     ustVorauszahlung: "3820",
     nebenkostenGeldverkehr: "6855",
@@ -62,6 +67,17 @@ export const ACCOUNTS = {
     kursErtrag: "4840",
   },
 } as const;
+
+/**
+ * Gegenkonto für Geld zwischen Unternehmen und Inhaber: im Einzelunternehmen Privateinlage (Geld kommt ins Unternehmen)
+ * bzw. Privatentnahme, in GmbH und UG für beide Richtungen das Gesellschafter-Verrechnungskonto. Eine Kapitalgesellschaft
+ * hat kein Privat; was der Gesellschafter auslegt oder bekommt, ist eine Forderung bzw. Verbindlichkeit ihm gegenüber.
+ */
+export function ownerAccount(kontenrahmen: Kontenrahmen, rechtsform: Rechtsform, direction: "einlage" | "entnahme"): string {
+  const accounts = ACCOUNTS[kontenrahmen];
+  if (isKapitalgesellschaft(rechtsform)) return accounts.gesellschafter;
+  return direction === "einlage" ? accounts.privateinlagen : accounts.privatentnahmen;
+}
 
 /**
  * Ausgabenkategorien für Belege mit Aufwandskonto je Kontenrahmen.
@@ -105,6 +121,7 @@ export const EXPENSE_CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORIES) as [Expense
 
 export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
+    "0730": "Verbindlichkeiten gegenüber Gesellschaftern",
     "1000": "Kasse",
     "1200": "Bank",
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`136${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
@@ -134,6 +151,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1600": "Kasse",
     "1800": "Bank",
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`146${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
+    "3510": "Verbindlichkeiten gegenüber Gesellschaftern",
     "3801": "Umsatzsteuer 7 %",
     "3806": "Umsatzsteuer 19 %",
     "3837": "Umsatzsteuer nach § 13b UStG",
@@ -256,13 +274,14 @@ export type DocumentPayment = "bank" | "privat" | "kasse";
 
 /**
  * Buchung eines Belegs: Aufwand und Vorsteuer an Verbindlichkeiten
- * (oder Privateinlage, wenn privat bezahlt). Gutschriften (negativ) drehen die Seiten.
+ * (oder Privateinlage bzw. Gesellschafter-Verrechnungskonto, wenn privat bezahlt). Gutschriften (negativ) drehen die Seiten.
  * Ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Teil des Aufwands.
  */
 export function documentPosting(
   totals: InvoiceTotals,
   category: ExpenseCategory,
   kontenrahmen: Kontenrahmen,
+  rechtsform: Rechtsform,
   payment: DocumentPayment,
   vorsteuerAbzug = true,
   /** Abweichendes Konto statt des Kategoriekontos, z. B. das Anlagekonto einer Anlage */
@@ -275,6 +294,8 @@ export function documentPosting(
    */
   reverseCharge: ReverseChargeIn | null = null,
 ): PostingLine[] {
+  // Privat genutzt ist bei einer GmbH keine Entnahme, sondern Arbeitslohn oder verdeckte Gewinnausschüttung
+  if (privateShare !== 0 && isKapitalgesellschaft(rechtsform)) throw new RangeError("Privatanteil gibt es nur im Einzelunternehmen");
   const accounts = ACCOUNTS[kontenrahmen];
   const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
   const lines: PostingLine[] = [];
@@ -308,7 +329,7 @@ export function documentPosting(
   }
   // Der private Teil ist eine Entnahme; privat bezahlt heben sich Einlage und Entnahme insoweit auf
   if (privatePart !== 0) lines.push(side(accounts.privatentnahmen, privatePart, true, null));
-  const counter = payment === "privat" ? accounts.privateinlagen : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
+  const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
   lines.push(side(counter, totals.gross, false, null));
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
 }
@@ -519,13 +540,16 @@ export const DIRECT_BOOKINGS = {
 
 export type DirectBooking = keyof typeof DIRECT_BOOKINGS;
 
-export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+/** Bezeichnung einer Buchung ohne Beleg; „privat“ heißt in GmbH und UG Gesellschafter-Verrechnungskonto */
+export function directBookingLabel(kind: DirectBooking, rechtsform: Rechtsform): string {
+  return kind === "privat" ? ownerLabels(rechtsform).bank : DIRECT_BOOKINGS[kind];
+}
+
+export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   const counter =
     kind === "privat"
-      ? amount < 0
-        ? accounts.privatentnahmen
-        : accounts.privateinlagen
+      ? ownerAccount(kontenrahmen, rechtsform, amount < 0 ? "entnahme" : "einlage")
       : kind === "geldtransit"
         ? accounts.geldtransit
         : kind === "ustVorauszahlung"
@@ -546,10 +570,16 @@ export const CASH_BOOKINGS = {
 
 export type CashBooking = keyof typeof CASH_BOOKINGS;
 
-/** Kasse an Privateinlage bzw. Geldtransit; Ausgänge aus der Kasse (negativ) drehen die Seiten */
-export function cashPosting(kind: "privat" | "geldtransit", amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
+/** Bezeichnung einer Kassenbuchung; Einlage und Entnahme heißen in GmbH und UG „Vom“ bzw. „An den Gesellschafter“ */
+export function cashBookingLabel(kind: CashBooking, rechtsform: Rechtsform): string {
+  const owner = ownerLabels(rechtsform);
+  return kind === "einlage" ? owner.cashIn : kind === "entnahme" ? owner.cashOut : CASH_BOOKINGS[kind].label;
+}
+
+/** Kasse an Privateinlage (bzw. Gesellschafter) oder Geldtransit; Ausgänge aus der Kasse (negativ) drehen die Seiten */
+export function cashPosting(kind: "privat" | "geldtransit", amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
-  const counter = kind === "geldtransit" ? accounts.geldtransit : amount < 0 ? accounts.privatentnahmen : accounts.privateinlagen;
+  const counter = kind === "geldtransit" ? accounts.geldtransit : ownerAccount(kontenrahmen, rechtsform, amount < 0 ? "entnahme" : "einlage");
   return [side(accounts.kasse, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 

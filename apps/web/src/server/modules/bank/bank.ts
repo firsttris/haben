@@ -11,6 +11,7 @@ import {
   exchangeDifferenceBankPosting,
   exchangeDifferencePosting,
   invoiceWriteOffPosting,
+  isKapitalgesellschaft,
   WRITE_OFF_KINDS,
   findPayoutGroup,
   findTransferCounterpart,
@@ -812,7 +813,7 @@ export async function allocateTransfer(actor: string, input: z.infer<typeof tran
         description: `${bank.counterpartyName || "Bankumsatz"} · geldtransit`,
         sourceType: "allocation",
         sourceId: allocation!.id,
-        lines: onLedger(directPosting("geldtransit", bank.amount, company.kontenrahmen), company.kontenrahmen, bank.ledgerIndex),
+        lines: onLedger(directPosting("geldtransit", bank.amount, company.kontenrahmen, company.rechtsform), company.kontenrahmen, bank.ledgerIndex),
       });
     }
   });
@@ -938,8 +939,10 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     lines = exchangeDifferenceBankPosting(part.amount, company.kontenrahmen);
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;
   } else {
-    lines = directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen);
-    description = `${bank.counterpartyName || "Bankumsatz"} · ${part.kind}`;
+    lines = directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen, company.rechtsform);
+    // In GmbH und UG ist „privat“ das Gesellschafter-Verrechnungskonto; so steht es auch im Buchungstext
+    const label = part.kind === "privat" && isKapitalgesellschaft(company.rechtsform) ? "gesellschafter" : part.kind;
+    description = `${bank.counterpartyName || "Bankumsatz"} · ${label}`;
   }
 
   const [allocation] = await tx

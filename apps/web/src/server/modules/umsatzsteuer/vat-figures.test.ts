@@ -382,7 +382,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung aus Buchungen (Postgres)", () =>
   it("Kontenrahmen, Versteuerung und Kleinunternehmer sind nach Buchungen im Jahr gesperrt", async () => {
     const guard = await import("../stammdaten/settings-guard.ts");
     const { loadCompany } = await import("../stammdaten/company.ts");
-    expect(await guard.settingsLocks("2026-10-02")).toEqual({ kontenrahmen: null, versteuerung: null, kleinunternehmer: null });
+    expect(await guard.settingsLocks("2026-10-02")).toEqual({ kontenrahmen: null, versteuerung: null, kleinunternehmer: null, rechtsform: null });
 
     await invoice([{ net: 100_000, rate: 1900 }], "2025-12-20");
     const locks = await guard.settingsLocks("2026-01-05");

@@ -624,6 +624,20 @@
       "when": 1793901470647,
       "tag": "0088_positionsbeschreibung",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1793709205802,
+      "tag": "0089_rechtsform",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1793709206719,
+      "tag": "0090_rechtsform_trigger",
+      "breakpoints": true
     }
   ]
 }

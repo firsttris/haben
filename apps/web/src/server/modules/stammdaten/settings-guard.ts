@@ -6,12 +6,14 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 
-/** Warum sich Kontenrahmen, Versteuerung oder Kleinunternehmer gerade nicht ändern lassen; null = frei */
+/** Warum sich Kontenrahmen, Versteuerung, Kleinunternehmer oder Rechtsform gerade nicht ändern lassen; null = frei */
 export interface SettingsLocks {
   kontenrahmen: string | null;
   versteuerung: string | null;
   /** Nur das Einschalten; ausschalten geht immer, weil der Status mitten im Jahr enden kann */
   kleinunternehmer: string | null;
+  /** Fest ab der ersten Buchung überhaupt, nicht nur im laufenden Jahr */
+  rechtsform: string | null;
 }
 
 /** Offene Rechnungen wie in der Rechnungsliste und im Bankabgleich (listInvoices, @haben/core lebenszyklus.ts), nur gezählt */
@@ -49,6 +51,7 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
     .from(schema.journalEntries)
     .where(gte(schema.journalEntries.date, `${year}-01-01`));
   const booked = (entries?.n ?? 0) > 0;
+  const [anyEntry] = await q.select({ id: schema.journalEntries.id }).from(schema.journalEntries).limit(1);
   const previousOpen = booked ? [] : await previousYearOpen(year, q);
   const openInvoices = await openInvoiceCount(today, q);
   const yearLock = booked
@@ -64,6 +67,8 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
         ? `${openInvoices} ${openInvoices === 1 ? "Rechnung ist" : "Rechnungen sind"} noch offen. Nach einem Wechsel würde ihre Umsatzsteuer doppelt oder gar nicht angemeldet; erst ausgleichen, dann umstellen.`
         : null),
     kleinunternehmer: yearLock,
+    // Privat und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher (drizzle/0090)
+    rechtsform: anyEntry ? "Es gibt schon Buchungen. Die Rechtsform lässt sich nur vor der ersten Buchung festlegen." : null,
   };
 }
 
@@ -72,6 +77,7 @@ export function lockedChange(current: Company, next: CompanyInput, locks: Settin
   if (next.kontenrahmen !== current.kontenrahmen && locks.kontenrahmen) return `Kontenrahmen: ${locks.kontenrahmen}`;
   if (next.versteuerung !== current.versteuerung && locks.versteuerung) return `Versteuerung: ${locks.versteuerung}`;
   if (next.kleinunternehmer && !current.kleinunternehmer && locks.kleinunternehmer) return `Kleinunternehmer: ${locks.kleinunternehmer}`;
+  if (next.rechtsform !== current.rechtsform && locks.rechtsform) return `Rechtsform: ${locks.rechtsform}`;
   return null;
 }
 

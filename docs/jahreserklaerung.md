@@ -4,6 +4,8 @@ Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **U
 
 Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eigenen Bereich zum Übermitteln. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
+Bei einer GmbH oder UG zeigt die Seite nur die Umsatzsteuererklärung; Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Jahresabschluss, Körperschaft- und Gewerbesteuer erstellt Haben noch nicht (siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)).
+
 ## Ablauf
 
 1. **Jahr abschließen:** Bankumsätze bis 31.12. zuordnen, Belege buchen, unter [Anlagen](anlagen.md) die AfA des Jahres buchen. Solange AfA oder Privatnutzung fehlen, lässt sich die Anlage EÜR nicht senden.

@@ -7,7 +7,7 @@ Diese Seite führt dich durch die Einrichtung nach der Installation: Konto und P
 In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltung:
 
 1. Konto anlegen und einen Passkey hinzufügen
-2. Firmendaten ausfüllen, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten
+2. Firmendaten ausfüllen, Rechtsform, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
 5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert ein bis zwei Wochen, siehe [Was du brauchst](#was-du-brauchst)
@@ -17,7 +17,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 9. Optional: KI-Auslesung für Belege einschalten
 
 > [!IMPORTANT]
-> Versteuerung, Kontenrahmen und Kleinunternehmerstatus legst du fest, bevor du die erste Rechnung festschreibst oder den ersten Beleg buchst. Sobald es im laufenden Jahr Buchungen gibt, sperrt Haben die Umstellung bis zum nächsten Jahreswechsel (siehe [Sperren](#wann-sich-die-einstellungen-ändern-lassen)).
+> Rechtsform, Versteuerung, Kontenrahmen und Kleinunternehmerstatus legst du fest, bevor du die erste Rechnung festschreibst oder den ersten Beleg buchst. Die Rechtsform ist ab der ersten Buchung fest. Sobald es im laufenden Jahr Buchungen gibt, sperrt Haben die Umstellung bis zum nächsten Jahreswechsel (siehe [Sperren](#wann-sich-die-einstellungen-ändern-lassen)).
 
 ## Konto anlegen
 
@@ -68,6 +68,7 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Finanzamt | Nur zur Information. Das Empfänger-Finanzamt der Voranmeldung leitet Haben aus der Steuernummer ab |
 | Telefon | Auf der Rechnung; für XRechnung Pflicht |
 | Bank, IBAN, BIC | Zahlungsangaben auf der Rechnung. Die IBAN ist Pflicht zum Festschreiben; Eingabe ohne Leerzeichen, Haben entfernt sie aber auch selbst |
+| Rechtsform | Einzelunternehmen, GmbH oder UG (haftungsbeschränkt), siehe [unten](#rechtsform-einzelunternehmen-gmbh-oder-ug) |
 | Kontenrahmen | SKR03 oder SKR04, siehe unten |
 | Standard-Zahlungsziel in Tagen | Vorgabe für neue Rechnungen (0 bis 120 Tage) |
 | Standardformat für Rechnungen | ZUGFeRD (PDF mit eingebettetem XML), XRechnung (CII) oder XRechnung (UBL). Vorgabe für neue Rechnungen |
@@ -92,6 +93,29 @@ Unter **Einstellungen › Rechnungen › Logo** lädst du dein Logo hoch, als PN
 Unter **Einstellungen › Persönliche Angaben** stehen die Angaben zu dir als Person, die ELSTER für manche Vorgänge braucht: Anrede, steuerliche Identifikationsnummer (Steuer-ID), Vor- und Nachname, Geburtsdatum, Religion und ausgeübter Beruf. Bei der Zusammenveranlagung kommen das Heiratsdatum und dieselben Angaben zum Ehegatten dazu.
 
 Gebraucht werden sie für [Bankverbindung ändern](finanzamt.md#bankverbindung-ändern) und die Einkommensteuererklärung. Haben prüft die Prüfziffer der Steuer-ID. Die Religion bestimmt, ob Kirchensteuer anfällt; Haben nutzt die Religionsschlüssel von ELSTER. Änderungen landen wie die Firmendaten im Audit-Log.
+
+## Rechtsform: Einzelunternehmen, GmbH oder UG
+
+Die Rechtsform bestimmt, wohin Geld zwischen dem Unternehmen und dir gebucht wird und welche Erklärungen Haben anbietet.
+
+| | Einzelunternehmen | GmbH, UG (haftungsbeschränkt) |
+| --- | --- | --- |
+| Geld vom und an den Inhaber | Privateinlage und Privatentnahme | Gesellschafter-Verrechnungskonto: SKR03 0730, SKR04 3510 „Verbindlichkeiten gegenüber Gesellschaftern“, für beide Richtungen |
+| Beleg aus eigenem Geld bezahlt | „Privat bezahlt (Privateinlage)“ | „Vom Gesellschafter ausgelegt (Verrechnungskonto)“ |
+| Bank ohne Rechnung oder Beleg | „Privat (Entnahme oder Einlage)“ | „Gesellschafter (Verrechnungskonto)“ |
+| Kasse | „Einlage“ und „Entnahme“ | „Vom Gesellschafter“ und „An den Gesellschafter“ |
+| Privatanteile, Kfz-Privatnutzung, [Pauschalen](pauschalen.md) | ja | nein |
+| Anlage EÜR, Einkommensteuer | ja | nein |
+| Voranmeldung, Umsatzsteuererklärung, DATEV-Export | ja | ja |
+
+Eine Kapitalgesellschaft hat kein Privat. Was der Gesellschafter für sie auslegt oder von ihr bekommt, ist eine Verbindlichkeit bzw. Forderung ihm gegenüber; das Verrechnungskonto zeigt den Stand. Ein Privatanteil wäre bei einer GmbH Arbeitslohn oder eine verdeckte Gewinnausschüttung, die Privatnutzung eines Firmenwagens ein Sachbezug in der Lohnabrechnung. Beides bucht Haben deshalb nicht; die Pauschalen ersetzen Ausgaben eines Einzelunternehmers. Erstattet die GmbH dir Reisekosten, lädst du die Abrechnung als Beleg hoch und wählst „Vom Gesellschafter ausgelegt“.
+
+Jahresabschluss (Bilanz und GuV), Körperschaft- und Gewerbesteuer erstellt Haben noch nicht. Die laufende Buchhaltung mit Rechnungen, Belegen, Bank und Umsatzsteuer machst du in Haben und gibst den [DATEV-Export](auswertungen.md) an die Steuerberatung. Der Weg zum Abschluss steht in [Issue #213](https://github.com/firsttris/haben/issues/213).
+
+Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
+
+> [!IMPORTANT]
+> Das Gesellschafter-Verrechnungskonto ist das Sammelkonto „Verbindlichkeiten gegenüber Gesellschaftern“ aus dem DATEV-Kontenrahmen. Für den Abschluss ordnet die Steuerberatung seinen Saldo nach Restlaufzeit oder als Forderung zu; stimme die Konten vor dem Echtbetrieb mit ihr ab.
 
 ## Versteuerung: Ist oder Soll
 
@@ -153,7 +177,7 @@ Mehr unter [Rechnungen › Mahnwesen](rechnungen.md#mahnwesen).
 
 ## Privatanteile
 
-Unter **Privatanteil Telefon in %** und **Privatanteil Internet in %** legst du fest, welcher Anteil dieser Rechnungen privat ist, z. B. 20 %. Neue Belege der Kategorien übernehmen den Wert; am einzelnen Beleg lässt er sich ändern. Mehr unter [Belege](belege.md#privatanteil).
+Nur im Einzelunternehmen; bei GmbH und UG fehlt der Abschnitt. Unter **Privatanteil Telefon in %** und **Privatanteil Internet in %** legst du fest, welcher Anteil dieser Rechnungen privat ist, z. B. 20 %. Neue Belege der Kategorien übernehmen den Wert; am einzelnen Beleg lässt er sich ändern. Mehr unter [Belege](belege.md#privatanteil).
 
 ## Fremdwährung
 
@@ -179,6 +203,7 @@ Kontenrahmen, Versteuerung und Kleinunternehmerstatus gelten für ein ganzes Ges
 | Versteuerung (Ist oder Soll) | im laufenden Jahr gebucht wurde oder Rechnungen noch offen sind; ihre Umsatzsteuer würde sonst doppelt oder gar nicht angemeldet |
 | Kleinunternehmer einschalten | im laufenden Jahr gebucht wurde |
 | Kleinunternehmer ausschalten | nie |
+| Rechtsform | überhaupt schon gebucht wurde, in irgendeinem Jahr |
 
 Umstellen kannst du also nur zum Jahreswechsel, bevor im neuen Jahr die erste Buchung entsteht. Das Vorjahr rechnet danach weiter nach der alten Versteuerung, auch die Umsatzsteuererklärung dafür. Ebenso beim Kleinunternehmerstatus: Wer zum 1. Januar Kleinunternehmer wird, sieht die Voranmeldung für Dezember und die Umsatzsteuererklärung des Vorjahres weiter als Frist und kann sie abgeben; maßgeblich ist der Stand im jeweiligen Monat bzw. Jahr laut Änderungsprotokoll.
 

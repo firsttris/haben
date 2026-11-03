@@ -13,6 +13,8 @@ import {
   type AssetKind,
   type AssetMethod,
   type ExpenseCategory,
+  isKapitalgesellschaft,
+  ownerLabels,
 } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -781,7 +783,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         <p className="small muted" style={{ margin: 0 }}>
           Gutschriften mit Minus eingeben.
         </p>
-        {category !== "anlage" && (
+        {/* Privatanteil nur im Einzelunternehmen; in GmbH und UG wäre er Arbeitslohn oder verdeckte Gewinnausschüttung */}
+        {category !== "anlage" && !isKapitalgesellschaft(data.rechtsform) && (
           <label className="field" style={{ maxWidth: 220 }}>
             Privatanteil in %
             <input
@@ -807,7 +810,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </label>
         <label className="checkbox">
           <input type="radio" name="payment" checked={payment === "privat"} onChange={() => touch(setPayment)("privat")} />
-          Privat bezahlt (Privateinlage)
+          {ownerLabels(data.rechtsform).documentPaid}
         </label>
         <label className="checkbox">
           <input type="radio" name="payment" checked={payment === "kasse"} onChange={() => touch(setPayment)("kasse")} />

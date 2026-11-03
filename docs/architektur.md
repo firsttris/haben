@@ -64,7 +64,7 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 
 | Modul | Inhalt |
 | --- | --- |
-| `stammdaten` | `company` (Firmendaten, Versteuerung und Kleinunternehmer je Jahr), `contacts`, `articles`, `logo`, `taxpayer` (persönliche Angaben), `settings-guard` (Sperren für Kontenrahmen, Versteuerung und Kleinunternehmer, Speichern der Firmendaten) |
+| `stammdaten` | `company` (Firmendaten, Versteuerung und Kleinunternehmer je Jahr), `contacts`, `articles`, `logo`, `taxpayer` (persönliche Angaben), `settings-guard` (Sperren für Kontenrahmen, Versteuerung, Kleinunternehmer und Rechtsform, Speichern der Firmendaten) |
 | `rechnungen` | `invoices`, `invoice-taxes` (Steuerzeilen), `number-counter` (Nummernkreise), `quotes` (Angebote), `order-documents` (Auftragsbestätigung, Lieferschein), `dunning` (Mahnungen), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `recurring` (Serienrechnungen) |
 | `belege` | `documents`, `extraction` (Auslesen), `inbox` (Belege per E-Mail über IMAP) |
 | `bank` | `bank` (Kontoauszüge, Zuordnung), `bank-sync` (Kontoabruf), `cash` (Kassenbuch) |
@@ -96,7 +96,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
-| `company` | Firmendaten, Versteuerungsart, Kontenrahmen, Zahlungsziel, Rechnungsformat; genau eine Zeile | Kontenrahmen, Versteuerung und Einschalten von § 19 gesperrt, sobald im laufenden Jahr gebucht ist; Audit |
+| `company` | Firmendaten, Rechtsform, Versteuerungsart, Kontenrahmen, Zahlungsziel, Rechnungsformat; genau eine Zeile | Kontenrahmen, Versteuerung und Einschalten von § 19 gesperrt, sobald im laufenden Jahr gebucht ist; Rechtsform ab der ersten Buchung; Audit |
 | `elster_certificates` | ELSTER-Zertifikatsdatei, verschlüsselt; auf Wunsch die PIN für den automatischen Postfachabruf, ebenfalls verschlüsselt | Audit ohne Chiffrat und PIN |
 | `contacts` | Kunden und Lieferanten, mit Herkunft aus Lexoffice | nicht löschbar, versioniert, Audit |
 | `contact_versions` | Stand eines Kontakts je Version | nur anhängen |

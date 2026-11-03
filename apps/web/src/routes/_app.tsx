@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
+import { isKapitalgesellschaft } from "@haben/core";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async () => {
     const state = await getAuthState();
     if (!state.initialized) throw redirect({ to: "/setup" });
     if (!state.user) throw redirect({ to: "/login" });
-    return { user: state.user };
+    return { user: state.user, rechtsform: state.rechtsform ?? "einzelunternehmen" };
   },
   component: AppLayout,
 });
@@ -30,7 +31,8 @@ const NAV_GROUPS = [
     label: "Ausgaben",
     links: [
       { to: "/belege", icon: "receipt", label: "Belege" },
-      { to: "/pauschalen", icon: "pauschale", label: "Pauschalen" },
+      // Pauschalen ersetzen Ausgaben des Inhabers, eine GmbH oder UG hat sie nicht
+      { to: "/pauschalen", icon: "pauschale", label: "Pauschalen", nurEinzelunternehmen: true },
       { to: "/anlagen", icon: "assets", label: "Anlagen" },
     ],
   },
@@ -62,7 +64,8 @@ const NAV_GROUPS = [
 ] as const;
 
 function AppLayout() {
-  const { user } = Route.useRouteContext();
+  const { user, rechtsform } = Route.useRouteContext();
+  const gesellschaft = isKapitalgesellschaft(rechtsform);
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
@@ -130,12 +133,14 @@ function AppLayout() {
               <div className="nav-group-label" aria-hidden="true">
                 {group.label}
               </div>
-              {group.links.map((link) => (
-                <Link key={link.to} to={link.to} className="nav-link">
-                  <Icon name={link.icon} />
-                  {link.label}
-                </Link>
-              ))}
+              {group.links
+                .filter((link) => !(gesellschaft && "nurEinzelunternehmen" in link))
+                .map((link) => (
+                  <Link key={link.to} to={link.to} className="nav-link">
+                    <Icon name={link.icon} />
+                    {link.label}
+                  </Link>
+                ))}
             </div>
           ))}
           <div className="nav-spacer" />

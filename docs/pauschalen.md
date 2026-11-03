@@ -6,7 +6,7 @@ Unter **Pauschalen** trägst du Betriebsausgaben ein, für die es keine Rechnung
 - Fahrten mit dem eigenen Fahrzeug,
 - Verpflegungsmehraufwand auf Geschäftsreisen.
 
-Haben bucht jede Pauschale sofort als Ausgabe an Privateinlage, weil du sie privat getragen hast. In der [Anlage EÜR](jahreserklaerung.md) landet sie in der passenden Zeile.
+Pauschalen gibt es nur im Einzelunternehmen; bei einer GmbH oder UG fehlen sie im Menü (siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)). Haben bucht jede Pauschale sofort als Ausgabe an Privateinlage, weil du sie privat getragen hast. In der [Anlage EÜR](jahreserklaerung.md) landet sie in der passenden Zeile.
 
 Halte fest, wann du wo warst, zum Beispiel im Kalender oder in einer Fahrtenliste. Das Finanzamt kann danach fragen. Die Eingabe in Haben ist der Eigenbeleg.
 

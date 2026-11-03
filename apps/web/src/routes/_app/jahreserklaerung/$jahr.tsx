@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, parseEuro } from "@haben/core";
+import { RECHTSFORMEN, formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
@@ -41,6 +41,8 @@ function AnnualPage() {
   const data = Route.useLoaderData();
   const navigate = useNavigate();
   const selectId = useId();
+  // GmbH und UG: Körperschaftsteuer statt Einkommensteuer, Bilanz statt EÜR; hier bleibt die Umsatzsteuer
+  const gesellschaft = isKapitalgesellschaft(data.rechtsform);
 
   return (
     <>
@@ -68,23 +70,30 @@ function AnnualPage() {
         </div>
       )}
 
-      <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Umsatzsteuererklärung und Anlage EÜR rechnet Haben aus den Buchungen. Für die Einkommensteuer kommt der Gewinn aus der EÜR; Arbeitslohn, Vorsorge,
-        Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
-      </p>
+      {gesellschaft ? (
+        <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+          Die Umsatzsteuererklärung rechnet Haben aus den Buchungen. Anlage EÜR und Einkommensteuer gibt es für {RECHTSFORMEN[data.rechtsform]} nicht;
+          Jahresabschluss, Körperschaft- und Gewerbesteuer macht vorerst die Steuerberatung, etwa mit dem DATEV-Export.
+        </p>
+      ) : (
+        <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+          Umsatzsteuererklärung und Anlage EÜR rechnet Haben aus den Buchungen. Für die Einkommensteuer kommt der Gewinn aus der EÜR; Arbeitslohn, Vorsorge,
+          Sonderausgaben, Kinder und Kapitalerträge trägst du ein.
+        </p>
+      )}
 
       <nav className="jump-nav" aria-label="Abschnitte der Jahreserklärung">
         <a href="#ust">Umsatzsteuer</a>
-        <a href="#euer">Anlage EÜR</a>
-        <a href="#est">Einkommensteuer</a>
+        {!gesellschaft && <a href="#euer">Anlage EÜR</a>}
+        {!gesellschaft && <a href="#est">Einkommensteuer</a>}
         <a href="#vast">Belege von ELSTER</a>
         <a href="#verlauf">Verlauf</a>
       </nav>
 
       <div className="stack" style={{ gap: 24 }}>
         <UstSection data={data} />
-        <EuerSection data={data} />
-        <EstSection key={data.year} data={data} />
+        {!gesellschaft && <EuerSection data={data} />}
+        {!gesellschaft && <EstSection key={data.year} data={data} />}
         <div id="vast" className="jump-target">
           <VastBelege key={`vast-${data.year}`} data={data} />
         </div>

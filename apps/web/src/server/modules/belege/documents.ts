@@ -15,6 +15,7 @@ import {
   rateMonth,
   type ExpenseCategory,
   type VatPeriod,
+  isKapitalgesellschaft,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
@@ -507,6 +508,8 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
     const company = await openBooks(tx);
     const amounts = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
     const issues = bookingIssues(doc, amounts);
+    // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
+    if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
     if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
 
     // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
@@ -523,6 +526,7 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
       totals,
       doc.category as ExpenseCategory,
       company.kontenrahmen,
+      company.rechtsform,
       doc.payment,
       vorsteuerAbzug,
       assetAccountNo,

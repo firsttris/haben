@@ -10,6 +10,7 @@ import {
   type ExpenseCategory,
   type PauschaleArt,
   homeofficeSatz,
+  isKapitalgesellschaft,
 } from "@haben/core";
 import {
   buildEstXml,
@@ -426,6 +427,7 @@ export async function annualOverview(year: number, today: string) {
     est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est") },
     history,
     versteuerung: await versteuerungForYear(year),
+    rechtsform: company.rechtsform,
   };
 }
 
@@ -489,6 +491,10 @@ type Checked = { company: Awaited<ReturnType<typeof loadCompany>>; data: UstYear
 /** Firmendaten und Werte des Jahres; Fehler aus den Prüfungen brechen ab */
 export async function checkAnnual(form: AnnualForm, year: number, today: string): Promise<Checked> {
   const company = await loadCompany();
+  // Eine Kapitalgesellschaft bilanziert und zahlt Körperschaftsteuer: keine Anlage EÜR, keine Einkommensteuer
+  if (form !== "ust" && isKapitalgesellschaft(company.rechtsform)) {
+    throw new AnnualError(`${company.rechtsform === "ug" ? "Eine UG" : "Eine GmbH"} gibt keine Anlage EÜR und keine Einkommensteuererklärung ab.`);
+  }
   const data = form === "ust" ? await ustYear(year) : await euerYear(year);
   const formIssues =
     form === "ust"

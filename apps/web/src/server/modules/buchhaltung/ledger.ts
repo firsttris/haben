@@ -13,8 +13,8 @@ import { UserError } from "../../errors.ts";
 
 export class LedgerError extends UserError {}
 
-/** Was eine Buchung von den Firmendaten braucht: Kontenrahmen, Versteuerung und Kleinunternehmer */
-export type Books = Pick<Company, "kontenrahmen" | "versteuerung" | "kleinunternehmer">;
+/** Was eine Buchung von den Firmendaten braucht: Kontenrahmen, Rechtsform, Versteuerung und Kleinunternehmer */
+export type Books = Pick<Company, "kontenrahmen" | "rechtsform" | "versteuerung" | "kleinunternehmer">;
 
 /** Firmendaten für Buchungen, gelesen in der buchenden Transaktion */
 export async function openBooks(tx: Tx): Promise<Company> {
@@ -52,8 +52,13 @@ export async function post(tx: Tx, books: Books, posting: Posting): Promise<stri
     })
     .returning({ id: schema.journalEntries.id });
   const current = await loadCompany(tx);
-  if (current.kontenrahmen !== books.kontenrahmen || current.versteuerung !== books.versteuerung || current.kleinunternehmer !== books.kleinunternehmer) {
-    throw new LedgerError("Kontenrahmen, Versteuerung oder Kleinunternehmer wurden gerade geändert. Bitte noch einmal buchen.");
+  if (
+    current.kontenrahmen !== books.kontenrahmen ||
+    current.rechtsform !== books.rechtsform ||
+    current.versteuerung !== books.versteuerung ||
+    current.kleinunternehmer !== books.kleinunternehmer
+  ) {
+    throw new LedgerError("Kontenrahmen, Rechtsform, Versteuerung oder Kleinunternehmer wurden gerade geändert. Bitte noch einmal buchen.");
   }
   // Ein Jahr hat genau einen Kontenrahmen. Nach einem Wechsel zum Jahreswechsel stünde eine Buchung ins Vorjahr
   // (Storno einer Zuordnung, rückdatierte Rechnung) sonst mit Kontonummern des neuen Rahmens zwischen denen des alten.

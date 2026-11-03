@@ -1,4 +1,12 @@
-import { BUNDESLAENDER, EXPENSE_CATEGORY_KEYS, toElsterSteuernummer, SteuernummerError, type Versteuerung } from "@haben/core";
+import {
+  BUNDESLAENDER,
+  EXPENSE_CATEGORY_KEYS,
+  RECHTSFORM_KEYS,
+  isKapitalgesellschaft,
+  toElsterSteuernummer,
+  SteuernummerError,
+  type Versteuerung,
+} from "@haben/core";
 import { and, desc, eq, gte, lt, lte, min } from "drizzle-orm";
 import { z } from "zod";
 import { listArticles } from "./articles.ts";
@@ -9,61 +17,69 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { logoInfo } from "./logo.ts";
 import { today } from "../../today.ts";
 
-export const companySchema = z.object({
-  name: z.string().trim().max(200),
-  strasse: z.string().trim().max(200),
-  plz: z
-    .string()
-    .trim()
-    .regex(/^(\d{5})?$/, "PLZ hat fünf Ziffern"),
-  ort: z.string().trim().max(100),
-  email: z.union([z.literal(""), z.string().trim().pipe(z.email("Keine gültige E-Mail-Adresse").max(320))]),
-  steuernummer: z.string().trim().max(20),
-  ustId: z.union([
-    z.literal(""),
-    z
+export const companySchema = z
+  .object({
+    name: z.string().trim().max(200),
+    strasse: z.string().trim().max(200),
+    plz: z
       .string()
       .trim()
-      .regex(/^DE\d{9}$/, "USt-IdNr. hat die Form DE123456789"),
-  ]),
-  finanzamt: z.string().trim().max(200),
-  bundesland: z.enum(Object.keys(BUNDESLAENDER) as [keyof typeof BUNDESLAENDER, ...(keyof typeof BUNDESLAENDER)[]]).nullable(),
-  versteuerung: z.enum(["ist", "soll"]),
-  telefon: z.string().trim().max(40),
-  bank: z.string().trim().max(100),
-  iban: z.union([
-    z.literal(""),
-    z
-      .string()
-      .trim()
-      .regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen"),
-  ]),
-  bic: z.union([
-    z.literal(""),
-    z
-      .string()
-      .trim()
-      .regex(/^[A-Z0-9]{8}([A-Z0-9]{3})?$/, "BIC hat 8 oder 11 Zeichen"),
-  ]),
-  kontenrahmen: z.enum(["SKR03", "SKR04"]),
-  paymentTermDays: z.number().int().min(0).max(120),
-  defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
-  kleinunternehmer: z.boolean(),
-  /** Anlage EÜR: Gewerbebetrieb oder selbständige (freiberufliche) Arbeit und Art des Betriebs */
-  einkunftsart: z.enum(["gewerbe", "selbstaendig"]).nullable().default(null),
-  taetigkeit: z.string().trim().max(100).default(""),
-  /** Vorgabe für den Privatanteil je Belegkategorie in Prozent */
-  /** Tageskurs statt der monatlichen USt-Umrechnungskurse, wenn das Finanzamt es gestattet hat */
-  tageskurs: z.boolean().default(false),
-  privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), z.number().int().min(0).max(100)).default({}),
-  dunning: z
-    .object({
-      baseRate: z.number().int().min(-1_000).max(2_000).nullable(),
-      fees: z.object({ "1": z.number().int().min(0).max(100_000), "2": z.number().int().min(0).max(100_000), "3": z.number().int().min(0).max(100_000) }),
-      deadlineDays: z.number().int().min(1).max(60),
-    })
-    .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
-});
+      .regex(/^(\d{5})?$/, "PLZ hat fünf Ziffern"),
+    ort: z.string().trim().max(100),
+    email: z.union([z.literal(""), z.string().trim().pipe(z.email("Keine gültige E-Mail-Adresse").max(320))]),
+    steuernummer: z.string().trim().max(20),
+    ustId: z.union([
+      z.literal(""),
+      z
+        .string()
+        .trim()
+        .regex(/^DE\d{9}$/, "USt-IdNr. hat die Form DE123456789"),
+    ]),
+    finanzamt: z.string().trim().max(200),
+    bundesland: z.enum(Object.keys(BUNDESLAENDER) as [keyof typeof BUNDESLAENDER, ...(keyof typeof BUNDESLAENDER)[]]).nullable(),
+    versteuerung: z.enum(["ist", "soll"]),
+    telefon: z.string().trim().max(40),
+    bank: z.string().trim().max(100),
+    iban: z.union([
+      z.literal(""),
+      z
+        .string()
+        .trim()
+        .regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, "IBAN ohne Leerzeichen"),
+    ]),
+    bic: z.union([
+      z.literal(""),
+      z
+        .string()
+        .trim()
+        .regex(/^[A-Z0-9]{8}([A-Z0-9]{3})?$/, "BIC hat 8 oder 11 Zeichen"),
+    ]),
+    kontenrahmen: z.enum(["SKR03", "SKR04"]),
+    /** Ohne Vorgabe: Ein fehlendes Feld darf eine GmbH nicht still zum Einzelunternehmen machen */
+    rechtsform: z.enum(RECHTSFORM_KEYS),
+    paymentTermDays: z.number().int().min(0).max(120),
+    defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
+    kleinunternehmer: z.boolean(),
+    /** Anlage EÜR: Gewerbebetrieb oder selbständige (freiberufliche) Arbeit und Art des Betriebs */
+    einkunftsart: z.enum(["gewerbe", "selbstaendig"]).nullable().default(null),
+    taetigkeit: z.string().trim().max(100).default(""),
+    /** Vorgabe für den Privatanteil je Belegkategorie in Prozent */
+    /** Tageskurs statt der monatlichen USt-Umrechnungskurse, wenn das Finanzamt es gestattet hat */
+    tageskurs: z.boolean().default(false),
+    privateShares: z.partialRecord(z.enum(EXPENSE_CATEGORY_KEYS), z.number().int().min(0).max(100)).default({}),
+    dunning: z
+      .object({
+        baseRate: z.number().int().min(-1_000).max(2_000).nullable(),
+        fees: z.object({ "1": z.number().int().min(0).max(100_000), "2": z.number().int().min(0).max(100_000), "3": z.number().int().min(0).max(100_000) }),
+        deadlineDays: z.number().int().min(1).max(60),
+      })
+      .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
+  })
+  // Eine Kapitalgesellschaft hat kein Privat: privat Genutztes ist dort Arbeitslohn oder verdeckte Gewinnausschüttung
+  .refine((c) => !isKapitalgesellschaft(c.rechtsform) || Object.values(c.privateShares).every((share) => !share), {
+    message: "Privatanteile gibt es nur im Einzelunternehmen",
+    path: ["privateShares"],
+  });
 
 export type CompanyInput = z.infer<typeof companySchema>;
 export type Company = typeof schema.company.$inferSelect;

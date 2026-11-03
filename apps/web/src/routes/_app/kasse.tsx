@@ -1,4 +1,4 @@
-import { CASH_BOOKINGS, formatEuro, parseEuro, type CashBooking } from "@haben/core";
+import { CASH_BOOKINGS, cashBookingLabel, formatEuro, isKapitalgesellschaft, parseEuro, type CashBooking } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
@@ -109,7 +109,7 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
       });
       await router.invalidate();
       form.reset();
-      onNotice({ tone: "ok", text: `Nr. ${result.number} gebucht: ${CASH_BOOKINGS[kind].label} über ${formatEuro(amount)}.` });
+      onNotice({ tone: "ok", text: `Nr. ${result.number} gebucht: ${cashBookingLabel(kind, data.rechtsform)} über ${formatEuro(amount)}.` });
     } catch (error) {
       onNotice({ tone: "danger", text: errorMessage(error) });
     } finally {
@@ -123,7 +123,7 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
       <div className="mode-switch" role="group" aria-label="Art">
         {KINDS.map((k) => (
           <button key={k} type="button" className={`chip${kind === k ? " active" : ""}`} aria-pressed={kind === k} onClick={() => setKind(k)}>
-            {CASH_BOOKINGS[k].label}
+            {cashBookingLabel(k, data.rechtsform)}
           </button>
         ))}
       </div>
@@ -138,15 +138,17 @@ function CashForm({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
         </label>
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           Text (optional)
-          <input name="text" maxLength={300} placeholder={CASH_BOOKINGS[kind].label} />
+          <input name="text" maxLength={300} placeholder={cashBookingLabel(kind, data.rechtsform)} />
         </label>
       </div>
       <p className="small muted" style={{ margin: 0 }}>
         {kind === "abhebung" || kind === "einzahlung"
           ? "Gebucht über Geldtransit. Den Umsatz auf dem Bankkonto ordnest du im Bankabgleich als „Geldtransit“ zu."
-          : kind === "einlage"
-            ? "Privates Geld in die Kasse, z. B. als Wechselgeld oder um eine Barausgabe zu bezahlen."
-            : "Geld aus der Kasse für private Zwecke."}
+          : isKapitalgesellschaft(data.rechtsform)
+            ? "Gebucht über das Gesellschafter-Verrechnungskonto, z. B. Wechselgeld vom Gesellschafter oder eine Barauszahlung an ihn."
+            : kind === "einlage"
+              ? "Privates Geld in die Kasse, z. B. als Wechselgeld oder um eine Barausgabe zu bezahlen."
+              : "Geld aus der Kasse für private Zwecke."}
       </p>
       <div className="actions">
         <button type="submit" className="btn btn-primary" disabled={busy}>
@@ -206,7 +208,7 @@ function CashList({ data, onNotice }: { data: Data; onNotice: (n: Notice) => voi
                   e.text
                 )}
                 <span className="small muted" style={{ display: "block" }}>
-                  {e.kind === "beleg" ? "Beleg" : CASH_BOOKINGS[e.kind].label}
+                  {e.kind === "beleg" ? "Beleg" : cashBookingLabel(e.kind, data.rechtsform)}
                   {e.reversed && " · storniert"}
                 </span>
               </div>

@@ -25,7 +25,7 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 | Anlagen | `assets` | Sobald AfA oder Eröffnung gebucht ist, sind Art, Abschreibung, Konto, Datum, Kosten, Nutzungsdauer und Übernahmewerte fest; Löschen nur ohne Buchung und ohne Beleg |
 | Zuordnungen | `allocations` | Vorzeichen muss dem Bankumsatz entsprechen, die Summe darf den Umsatz nicht übersteigen |
 | Hauptbuch | `journal_entries` | Eine Buchung ist beim Commit festgeschrieben, sonst wird die Transaktion abgelehnt; ihr Kontenrahmen ist der aus den Firmendaten (`0065_hauptbuch_sperren.sql`) |
-| Firmendaten | `company` | Kontenrahmen, Versteuerung und das Einschalten von § 19 UStG werden abgelehnt, sobald im laufenden Jahr (deutsche Zeit) gebucht ist |
+| Firmendaten | `company` | Kontenrahmen, Versteuerung und das Einschalten von § 19 UStG werden abgelehnt, sobald im laufenden Jahr (deutsche Zeit) gebucht ist; die Rechtsform, sobald es überhaupt eine Buchung gibt (`0090_rechtsform_trigger.sql`) |
 
 ### Änderungsprotokoll
 
@@ -117,6 +117,7 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Umsatzsteuer-Vorauszahlungen | 1780 | 3820 |
 | Privatentnahmen | 1800 | 2100 |
 | Privateinlagen | 1890 | 2180 |
+| Gesellschafter-Verrechnungskonto (nur GmbH, UG): Verbindlichkeiten gegenüber Gesellschaftern | 0730 | 3510 |
 | Geldtransit | 1360 | 1460 |
 | Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe …) | 1361–1369 | 1461–1469 |
 | Nebenkosten des Geldverkehrs | 4970 | 6855 |
@@ -126,6 +127,8 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Saldenvorträge Sachkonten | 9000 | 9000 |
 
 Achtung bei der Nummer 1200: In SKR03 ist das die Bank, in SKR04 die Forderungen; in SKR03 ist 1800 die Privatentnahme, in SKR04 die Bank.
+
+In einer GmbH oder UG (siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)) bucht Haben überall, wo im Einzelunternehmen Privateinlage oder Privatentnahme stünde, auf das Gesellschafter-Verrechnungskonto: beim vom Gesellschafter ausgelegten Beleg, bei Bankumsätzen „Gesellschafter (Verrechnungskonto)“ und bei Kassenbuchungen vom und an den Gesellschafter. Privatanteile, Kfz-Privatnutzung und Pauschalen gibt es dort nicht.
 
 ### Aufwandskonten der Belegkategorien
 

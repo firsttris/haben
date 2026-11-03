@@ -147,7 +147,9 @@ Lexware Office ohne Tarif XL, über eine Sicherung aus der Web-Oberfläche, sieh
 <summary><b>Für wen ist Haben gedacht?</b></summary>
 
 Für Freiberufler, Selbstständige und Kleinunternehmer mit Einnahmen-Überschuss-Rechnung (EÜR), auch mit
-Kleinunternehmerregelung nach § 19 UStG. Eine Bilanz, wie sie eine GmbH oder UG braucht, erstellt Haben nicht.
+Kleinunternehmerregelung nach § 19 UStG. Eine GmbH oder UG macht ihre laufende Buchhaltung in Haben, mit
+Gesellschafter-Verrechnungskonto statt Privatkonten; Bilanz, Körperschaft- und Gewerbesteuer erstellt Haben noch nicht,
+siehe [Rechtsform](https://firsttris.github.io/haben/einrichtung.html#rechtsform-einzelunternehmen-gmbh-oder-ug).
 </details>
 
 <details>

@@ -71,6 +71,23 @@ describe.skipIf(!testDatabaseUrl)("Fristen, Kalender-Abo und Erinnerungen per E-
     // Kleinunternehmer: je Monat bzw. Jahr der Stand laut Änderungsprotokoll, siehe vorjahr.test.ts
   });
 
+  it("GmbH: nur Voranmeldungen und Umsatzsteuererklärung, keine EÜR, Einkommensteuer oder Vorauszahlungen dafür", async () => {
+    // Die Rechtsform ist ab der ersten Buchung fest; deshalb vor der Buchung umstellen
+    const [entry] = await sql`select date, description, source_type, source_id from journal_entries`;
+    await sql`truncate journal_lines, journal_entries cascade`;
+    await sql`update company set rechtsform = 'gmbh'`;
+    await sql.begin(async (tx) => {
+      const [e] = await tx`insert into journal_entries (date, description, source_type, source_id, kontenrahmen)
+        values (${entry!.date}, ${entry!.description}, ${entry!.source_type}, ${entry!.source_id}, 'SKR03') returning id`;
+      await tx`insert into journal_lines (entry_id, account, debit, credit) values (${e!.id}, '1400', 100, 0), (${e!.id}, '8400', 0, 100)`;
+      await tx`update journal_entries set locked_at = now() where id = ${e!.id}`;
+    });
+    const ids = (await fristen.listFristen("2026-10-03")).map((f) => f.id);
+    expect(ids).toContain("ustva-2026-08");
+    expect(ids).toContain("ust-2026");
+    expect(ids.filter((id) => /^(euer|est|vz)-/.test(id))).toEqual([]);
+  });
+
   it("liefert offene Fristen als Kalender-Abo nur mit gültigem Token", async () => {
     expect(await fristen.calendarTokenActive()).toBe(false);
     const token = await fristen.createCalendarToken(actor);

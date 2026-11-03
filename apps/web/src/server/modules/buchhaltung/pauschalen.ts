@@ -10,6 +10,7 @@ import {
   verpflegungBetrag,
   type Cents,
   type PauschaleArt,
+  isKapitalgesellschaft,
 } from "@haben/core";
 import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -157,6 +158,8 @@ async function postEntry(
   input: { id: string; art: PauschaleArt; date: string; text: string; amount: Cents; reversesId?: string | null },
 ): Promise<string> {
   const books = await openBooks(tx);
+  // Die Pauschalen ersetzen Ausgaben des Inhabers (Gegenkonto Privateinlage); eine GmbH erstattet sie dem Gesellschafter mit Beleg
+  if (isKapitalgesellschaft(books.rechtsform)) throw new PauschaleError("Pauschalen gibt es nur im Einzelunternehmen.");
   const aufwand = PAUSCHALE_KONTEN[input.art][books.kontenrahmen].konto;
   const einlage = ACCOUNTS[books.kontenrahmen].privateinlagen;
   const [soll, haben] = input.amount >= 0 ? [aufwand, einlage] : [einlage, aufwand];
