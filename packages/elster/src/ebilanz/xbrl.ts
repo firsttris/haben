@@ -1,4 +1,4 @@
-import type { Cents, EbilanzZuordnung } from "@haben/core";
+import type { AnlagenspiegelZeile, Cents, EbilanzZuordnung } from "@haben/core";
 import { splitStrasse } from "../nachricht.ts";
 import { elsterXml, escapeXml } from "../xml.ts";
 import taxonomie from "./taxonomie-6-9.json" with { type: "json" };
@@ -24,25 +24,11 @@ const POSITIONEN = taxonomie.positionen as unknown as Record<string, Position>;
 
 export class EbilanzError extends Error {}
 
-/** Eine Zeile des Anlagenspiegels: Anschaffungskosten und AfA je Bilanzposition, brutto */
-export interface AnlagenspiegelZeile {
-  /** Bilanzposition unter bs.ass.fixAss, z. B. bs.ass.fixAss.tan.otherEquipm.passengerCars */
-  position: string;
-  akAnfang: Cents;
-  zugaenge: Cents;
-  /** Anschaffungskosten der Abgänge */
-  abgaenge: Cents;
-  afaAnfang: Cents;
-  afaJahr: Cents;
-  /** Kumulierte AfA der Abgänge */
-  afaAbgaenge: Cents;
-}
-
 export interface EbilanzInput {
   /** Wirtschaftsjahr = Kalenderjahr */
   year: number;
   steuernummer13: string;
-  firma: { name: string; strasse: string; plz: string; ort: string };
+  firma: { name: string; strasse: string; plz: string; ort: string; telefon?: string; email?: string };
   /** Werte je Blattposition der Taxonomie (ohne Präfix), im Vorzeichen der Position: Soll-Position Soll positiv */
   werte: Readonly<Record<string, Cents>>;
   /** Betriebsvermögensvergleich: Eigenkapital am Ende des Vorjahres, Ausschüttungen und Einlagen im Jahr */
@@ -278,6 +264,30 @@ function anlagenspiegel(input: EbilanzInput, summen: Map<string, Cents>, entity:
   return lines;
 }
 
+/**
+ * Absender für das Übertragungsprotokoll: bei der Datenart Bilanz „Name; Straße; Hausnummer; Hausnummerzusatz;
+ * Adresszusatz; PLZ; Ort; Land; Telefon; E-Mail“, höchstens 256 Zeichen (ERiC-Entwicklerhandbuch 43, Kap. 9.7).
+ */
+export function datenlieferant(firma: EbilanzInput["firma"]): string {
+  const anschrift = splitStrasse(firma.strasse);
+  const teile = [
+    firma.name,
+    anschrift?.strasse ?? firma.strasse,
+    anschrift?.hausnummer ?? "",
+    anschrift?.zusatz ?? "",
+    "",
+    firma.plz,
+    firma.ort,
+    "Deutschland",
+    firma.telefon ?? "",
+    firma.email ?? "",
+  ];
+  return teile
+    .map((t) => t.replaceAll(";", ",").trim())
+    .join("; ")
+    .slice(0, 256);
+}
+
 /** E-Bilanz im ELSTER-Umschlag, Datenart Bilanz; Empfänger ist das Finanzamt nach der Bundesfinanzamtsnummer */
 export function buildEbilanzXml(input: EbilanzInput): string {
   if (!/^\d{13}$/.test(input.steuernummer13)) throw new EbilanzError("Steuernummer im ELSTER-Format (13 Ziffern) fehlt");
@@ -324,7 +334,7 @@ export function buildEbilanzXml(input: EbilanzInput): string {
       datenArt: "Bilanz",
       testmerker: input.test ? "700000004" : undefined,
       herstellerId: input.herstellerId,
-      datenlieferant: input.firma.name,
+      datenlieferant: datenlieferant(input.firma),
     },
     [{ ticket: "1", empfaenger: { id: "F", wert: input.steuernummer13.slice(0, 4) }, produktVersion: input.produktVersion, nutzdaten: instanz }],
   );

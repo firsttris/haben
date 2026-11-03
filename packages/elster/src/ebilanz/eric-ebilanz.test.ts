@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { ericMeldungen } from "../formatprobe.ts";
 import { ericHomeIn } from "../install.ts";
 import { EricProcessClient } from "../process-client.ts";
-import { EBILANZ_KONTEN, ebilanzZuordnung, postenOf, type Kontenrahmen } from "@haben/core";
-import { buildEbilanzXml, ebilanzWerte, type AnlagenspiegelZeile, type EbilanzInput } from "./xbrl.ts";
+import { type AnlagenspiegelZeile, EBILANZ_KONTEN, ebilanzZuordnung, postenOf, type Kontenrahmen } from "@haben/core";
+import { buildEbilanzXml, ebilanzWerte, type EbilanzInput } from "./xbrl.ts";
 
 /**
  * E-Bilanz einer Kleinst-GmbH mit dem echten ERiC prüfen (lokal, ERIC_VALIDIERE; es wird nichts gesendet). Läuft nur mit

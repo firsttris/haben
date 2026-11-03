@@ -112,6 +112,8 @@ ERIC_DIR=data/eric bun --bun vitest run packages/elster
 ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 ```
 
+Die E-Bilanz prüft `packages/elster/src/ebilanz/eric-ebilanz.test.ts` mit ERiC, darunter jedes Konto der Kontenzuordnung für SKR03 und SKR04 in einer Bilanz.
+
 Seit ERiC 39.4 ist die frühere Test-Hersteller-ID `74931` gesperrt, auch für die lokale Prüfung. Die Tests nehmen `ELSTER_HERSTELLER_ID`, sonst eine Platzhalter-ID; für die reine Prüfung reicht das. Die Schemas der Formulare stecken komprimiert in den Plugins unter `lib/plugins`; meldet ERiC ein unerwartetes Feld, lohnt der Blick dort hinein.
 
 Für Belegabruf, Berechtigung und Postfach gibt es zusätzlich ein Kommando, das auch unter Einstellungen › ELSTER › ERiC als Knopf steckt (Exit-Code 1 bei Fehlern):
@@ -206,6 +208,16 @@ cd apps/web && bun --bun drizzle-kit generate --custom --name=mein_trigger
 ```
 
 Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen schon angewendet.
+
+## HGB-Taxonomie der E-Bilanz
+
+Die E-Bilanz braucht von der Taxonomie nur je Position Pflichtgrad, Summe mit Gewicht, Soll/Haben und Periodentyp. Das steht als Auszug in `packages/elster/src/ebilanz/taxonomie-6-9.json`, erzeugt aus der Taxonomie von [esteuer.de](https://www.esteuer.de):
+
+```sh
+bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2025-04-01 packages/elster/src/ebilanz/taxonomie-6-9.json
+```
+
+Für eine neue Taxonomie (jährlich zum 1. April) den Auszug neu erzeugen, `EBILANZ_TAXONOMIEN` in `packages/elster/src/xml.ts` ergänzen und die Tests mit ERiC laufen lassen; `zuordnung.test.ts` meldet Positionen der Kontenzuordnung, die es nicht mehr gibt oder die keine Blätter mehr sind.
 
 ## Konventionen
 

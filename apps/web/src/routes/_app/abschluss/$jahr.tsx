@@ -2,6 +2,7 @@ import { BILANZ_POSTEN, formatEuro, GUV_POSTEN, type BilanzPosten, type GuvPoste
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState } from "react";
+import { Ebilanz } from "../../../components/Ebilanz.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { formatDateTime } from "../../../lib/format.ts";
@@ -236,6 +237,8 @@ function Report({ data }: { data: Kapitalgesellschaft }) {
         )}
         <NoticeBanner notice={notice} />
       </section>
+
+      {data.ebilanz && <Ebilanz year={data.year} ebilanz={data.ebilanz} setup={data.elster} closed={Boolean(data.status)} />}
     </div>
   );
 }

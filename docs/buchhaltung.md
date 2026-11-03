@@ -426,6 +426,31 @@ Fehler im abgeschlossenen Jahr korrigiert ihr im laufenden Jahr, wie es das Hand
 
 Im Einzelunternehmen gibt es keine manuellen Buchungen. Die Anlage EÜR rechnet dort aus Rechnungen, Belegen und Zahlungen; eine Umbuchung im Journal käme in ihr nicht an.
 
+## E-Bilanz (GmbH und UG)
+
+Eine Kapitalgesellschaft übermittelt Bilanz und GuV elektronisch an das Finanzamt (§ 5b EStG), mit derselben Frist wie die Steuererklärungen. Auf der Seite **Jahresabschluss** steht dafür unten der Abschnitt **E-Bilanz**: Haben baut sie aus den Buchungen des Jahres, lässt sie von ERiC prüfen und sendet sie wie die [Jahreserklärungen](jahreserklaerung.md) mit Zertifikat und PIN.
+
+**Was gesendet wird:** ein Jahresabschluss (Einzelabschluss) nach deutschem Steuerrecht in der HGB-Taxonomie 6.9, Kerntaxonomie, GuV nach dem Gesamtkostenverfahren, mit
+
+- **Bilanz und GuV** in der Gliederung der Taxonomie. Die ist feiner als der Kleinst-Abschluss: Umsatzerlöse nach Umsatzsteuer (Regelsatz, ermäßigt, nicht steuerbar, steuerfrei), sonstige Aufwendungen nach Art (Kommunikation, Beratung, Fuhrpark, Werbung …), Anlagen nach Bilanzposition.
+- **Anlagenspiegel** je Bilanzposition des Anlagevermögens aus dem [Anlagenverzeichnis](anlagen.md): Anschaffungskosten am Jahresanfang, Zugänge, Abgänge, kumulierte AfA und AfA des Jahres. Eine übernommene Anlage bringt ihre Anschaffungskosten mit, die AfA davor ist der Unterschied zum übernommenen Buchwert. GWG und Sammelposten gehen ab, sobald sie abgeschrieben sind.
+- **Betriebsvermögensvergleich:** Eigenkapital am Ende des Vorjahres (der EB-Wert der Eigenkapitalkonten aus Vortrag und Eröffnungsbuchung), Einlagen (Buchungen im Haben der Eigenkapitalkonten im Jahr) und Ausschüttungen (Buchungen im Soll). Er muss den Jahresüberschuss der GuV ergeben. Zahlt ihr das Stammkapital im Gründungsjahr ein, bucht das deshalb als normale Buchung, nicht als Eröffnung: Dann ist es eine Einlage und das Eigenkapital des Vorjahres null.
+
+Kontensalden je Position (Kontennachweis) sendet Haben nicht mit; die Taxonomie erlaubt das mit dem Vermerk, dass sie noch nicht übermittelt werden können.
+
+**Zuordnung der Konten** (`packages/core/src/ebilanz.ts`): Jedes Konto, das Haben selbst bucht, hat eine feste Position, abhängig vom Saldo wie im Kleinst-Abschluss (die überzogene Bank unter den Verbindlichkeiten gegenüber Kreditinstituten, das Gesellschafter-Verrechnungskonto im Soll unter den sonstigen Vermögensgegenständen gegen Gesellschafter). Andere Konten, etwa aus einer manuellen Buchung, kommen auf die Auffangposition ihres Postens im DATEV-Kontenrahmen („nicht zuordenbar“ bzw. „übrige“). Keine Auffangposition haben Anlagevermögen, Eigenkapital und Steuern: Ein solches Konto ohne feste Position nennt der Abschnitt als offenen Punkt, und die E-Bilanz geht nicht raus, bis es umgebucht ist. Ein Test prüft jede Position gegen die Taxonomie, ein zweiter alle Konten zusammen mit dem echten ERiC.
+
+**Ablauf:**
+
+1. **Nur prüfen** lässt ERiC die E-Bilanz gegen Taxonomie und Plausibilitätsregeln prüfen, ohne zu senden. Das geht schon vor dem Abschluss.
+2. **Testübermittlung** sendet mit Testmerker; das Finanzamt verarbeitet sie nicht.
+3. **Echt senden** geht erst, wenn das Jahr [abgeschlossen](#jahresabschluss-gmbh-und-ug) ist, und nur einmal. Eine berichtigte E-Bilanz geht über die Steuerberatung oder das ELSTER-Portal.
+
+Jeder Versuch steht mit Werten und XML im Verlauf (Tabelle `annual_submissions`, Formular `ebilanz`), das Übertragungsprotokoll als PDF daneben.
+
+> [!WARNING]
+> Gesendet wird, was gebucht ist. Eine Überleitung von der Handels- zur Steuerbilanz rechnet Haben nicht, und Rückstellungen für Körperschaft- und Gewerbesteuer bucht ihr vorher selbst. Lasst die E-Bilanz von der Steuerberatung ansehen, bevor ihr echt sendet.
+
 ## Die Seite „Konten“
 
 Unter **Konten** stehen oben Kacheln:

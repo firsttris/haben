@@ -394,21 +394,25 @@ function yearIssues(year: number, today: string): Issue[] {
 }
 
 export async function submissions(year: number) {
-  return db
-    .select({
-      id: schema.annualSubmissions.id,
-      form: schema.annualSubmissions.form,
-      kind: schema.annualSubmissions.kind,
-      ok: schema.annualSubmissions.ok,
-      code: schema.annualSubmissions.code,
-      message: schema.annualSubmissions.message,
-      transferTicket: schema.annualSubmissions.transferTicket,
-      hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
-      createdAt: schema.annualSubmissions.createdAt,
-    })
-    .from(schema.annualSubmissions)
-    .where(eq(schema.annualSubmissions.year, year))
-    .orderBy(desc(schema.annualSubmissions.createdAt));
+  return (
+    db
+      .select({
+        id: schema.annualSubmissions.id,
+        form: schema.annualSubmissions.form,
+        kind: schema.annualSubmissions.kind,
+        ok: schema.annualSubmissions.ok,
+        code: schema.annualSubmissions.code,
+        message: schema.annualSubmissions.message,
+        transferTicket: schema.annualSubmissions.transferTicket,
+        hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
+        createdAt: schema.annualSubmissions.createdAt,
+      })
+      .from(schema.annualSubmissions)
+      // Die E-Bilanz steht auf der Abschluss-Seite (ebilanz.ts)
+      .where(and(eq(schema.annualSubmissions.year, year), inArray(schema.annualSubmissions.form, ["ust", "euer", "est"])))
+      .orderBy(desc(schema.annualSubmissions.createdAt))
+      .then((rows) => rows as (Omit<(typeof rows)[number], "form"> & { form: AnnualForm })[])
+  );
 }
 
 export async function annualOverview(year: number, today: string) {
@@ -562,6 +566,6 @@ export async function loadAnnualProtocol(id: string) {
     .from(schema.annualSubmissions)
     .where(eq(schema.annualSubmissions.id, id));
   if (!row?.pdf) return null;
-  const name = { ust: "Umsatzsteuererklaerung", euer: "EUER", est: "Einkommensteuererklaerung" }[row.form];
+  const name = { ust: "Umsatzsteuererklaerung", euer: "EUER", est: "Einkommensteuererklaerung", ebilanz: "E-Bilanz" }[row.form];
   return { pdf: row.pdf, filename: `${name}-${row.year}-Protokoll.pdf` };
 }

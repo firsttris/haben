@@ -33,7 +33,7 @@ export interface Frist {
   link: string;
 }
 
-const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung" } as const;
+const FORM_LABEL = { ust: "Umsatzsteuererklärung", euer: "Anlage EÜR", est: "Einkommensteuererklärung", ebilanz: "E-Bilanz" } as const;
 const TAG = 86_400_000;
 const shift = (iso: string, days: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + days * TAG).toISOString().slice(0, 10);
 
@@ -93,9 +93,14 @@ export async function listFristen(today: string): Promise<Frist[]> {
     const datum = abgabefrist(year, bundesland);
     // Kleinunternehmer geben erst ab 2024 keine Umsatzsteuererklärung mehr ab (§ 18 Abs. 3 UStG); Stand im Jahr selbst
     const ust = !kleinunternehmerAm(`${year}-12-31`) || year < 2024;
-    // GmbH und UG: keine EÜR und keine Einkommensteuer; Körperschaft- und Gewerbesteuer kennt Haben noch nicht
+    // GmbH und UG: keine EÜR und keine Einkommensteuer, dafür die E-Bilanz mit der Frist der Steuererklärung (§ 5b EStG,
+    // § 149 Abs. 2 AO); Körperschaft- und Gewerbesteuer kennt Haben noch nicht
     const person = !isKapitalgesellschaft(company.rechtsform);
-    const forms = [...(ust ? (["ust"] as const) : []), ...(person ? (["euer"] as const) : []), ...(person && company.taxpayer.a ? (["est"] as const) : [])];
+    const forms = [
+      ...(ust ? (["ust"] as const) : []),
+      ...(person ? (["euer"] as const) : (["ebilanz"] as const)),
+      ...(person && company.taxpayer.a ? (["est"] as const) : []),
+    ];
     for (const form of forms) {
       const erledigt = sentForms.has(`${form}-${year}`);
       if (!relevant(datum, !erledigt)) continue;
@@ -106,7 +111,7 @@ export async function listFristen(today: string): Promise<Frist[]> {
         titel: `${FORM_LABEL[form]} ${year}`,
         detail: "Abgabefrist ohne Steuerberater",
         status: erledigt ? "erledigt" : "offen",
-        link: `/jahreserklaerung/${year}`,
+        link: form === "ebilanz" ? `/abschluss/${year}` : `/jahreserklaerung/${year}`,
       });
     }
   }

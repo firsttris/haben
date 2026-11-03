@@ -1,17 +1,45 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { closeYear, jahresabschluss } from "../modules/buchhaltung/index.ts";
+import { elsterClient, elsterMode, loadActiveCertificate } from "../modules/elster/index.ts";
+import { ebilanzOverview, submitEbilanz } from "../modules/jahreserklaerung/index.ts";
+import { env } from "../env.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";
 
-/** Bilanz und GuV der Kleinst-GmbH, offene Punkte und Stand des Abschlusses */
+/** Bilanz und GuV der Kleinst-GmbH, offene Punkte und Stand des Abschlusses, dazu die E-Bilanz */
 export const getJahresabschluss = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(yearSchema)
-  .handler(({ data }) => jahresabschluss(data, today()));
+  .handler(async ({ data }) => {
+    const now = today();
+    const [abschluss, ebilanz, certificate] = await Promise.all([jahresabschluss(data, now), ebilanzOverview(data, now), loadActiveCertificate()]);
+    return {
+      ...abschluss,
+      ebilanz,
+      elster: {
+        mode: elsterMode(),
+        certificate: certificate ? { filename: certificate.filename } : null,
+        herstellerIdConfigured: Boolean(env().ELSTER_HERSTELLER_ID) && elsterMode() === "eric",
+      },
+    };
+  });
 
 export const closeYearFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ year: yearSchema }))
   .handler(({ data, context }) => closeYear(context.user.id, data.year, today()));
+
+export const submitEbilanzFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ year: yearSchema, kind: z.enum(["validate", "test", "send"]), pin: z.string().max(64).optional() }))
+  .handler(async ({ data, context }) => {
+    const result = await submitEbilanz(context.user.id, data.year, elsterClient(), {
+      kind: data.kind,
+      pin: data.pin,
+      herstellerId: env().ELSTER_HERSTELLER_ID,
+      today: today(),
+    });
+    return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
+  });

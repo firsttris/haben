@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEbilanzXml, EbilanzError, ebilanzSummen } from "./xbrl.ts";
+import { buildEbilanzXml, datenlieferant, EbilanzError, ebilanzSummen } from "./xbrl.ts";
 
 describe("E-Bilanz: Summen nach den Rechenregeln der Taxonomie 6.9", () => {
   it("gibt Werte mit Gewicht an die Summen weiter, bis Bilanzsumme und Jahresergebnis", () => {
@@ -74,5 +74,11 @@ describe("E-Bilanz: Summen nach den Rechenregeln der Taxonomie 6.9", () => {
         ],
       }),
     ).toThrow("Anlagenspiegel");
+  });
+
+  it("Absender im Format des Übertragungsprotokolls", () => {
+    expect(datenlieferant({ name: "Nordlicht; GmbH", strasse: "Hafenallee 3a", plz: "28217", ort: "Bremen", email: "a@b.de" })).toBe(
+      "Nordlicht, GmbH; Hafenallee; 3; a; ; 28217; Bremen; Deutschland; ; a@b.de",
+    );
   });
 });

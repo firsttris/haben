@@ -170,6 +170,14 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
   await page.getByRole("button", { name: `Jetzt ${year - 1} endgültig abschließen` }).click();
   await expect(page.getByText(`Das Jahr ${year - 1} ist abgeschlossen.`)).toBeVisible();
   await expect(page.getByRole("region", { name: "Jahr abschließen" })).toContainText("Die Buchungen sind seitdem unverändert.");
+
+  // E-Bilanz des abgeschlossenen Jahres: prüfen (ERiC simuliert), im Verlauf
+  const ebilanz = page.getByRole("region", { name: `E-Bilanz ${year - 1}` });
+  await expect(ebilanz).toContainText("HGB-Taxonomie 6.9");
+  await page.getByRole("form", { name: "E-Bilanz übermitteln" }).getByRole("button", { name: "Nur prüfen" }).click();
+  await expect(page.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Verlauf der E-Bilanz" })).toContainText("Prüfung");
+  expect(await axe(), `/abschluss/${year - 1}`).toEqual([]);
 });
 
 test("Die Rechtsform ist nach der ersten Buchung fest", async () => {
