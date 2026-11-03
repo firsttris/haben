@@ -1,12 +1,15 @@
-import { formatEuro, periodLabel, previousPeriod, type VatPeriod } from "@haben/core";
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { formatEuro, isKapitalgesellschaft, periodLabel, previousPeriod, type VatPeriod } from "@haben/core";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
 import { z } from "zod/mini";
-import { JOURNAL_SOURCE, shortDate, type JournalSource } from "../../components/Ledger.tsx";
-import { getJournal } from "../../server/functions/journal.ts";
-import styles from "../../styles/auswertungen.css?url";
+import { JOURNAL_SOURCE, shortDate, type JournalSource } from "../../../components/Ledger.tsx";
+import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { useAction } from "../../../lib/use-action.ts";
+import { getJournal, reverseManualEntryFn } from "../../../server/functions/journal.ts";
+import styles from "../../../styles/auswertungen.css?url";
 
-export const Route = createFileRoute("/_app/buchungen")({
+export const Route = createFileRoute("/_app/buchungen/")({
   validateSearch: z.object({ jahr: z.optional(z.int()), monat: z.optional(z.int().check(z.minimum(1), z.maximum(12))) }),
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => {
@@ -52,6 +55,8 @@ function SourcePill({ entry }: { entry: Entry }) {
         {label}
       </Link>
     );
+  // Manuelle Buchungen haben keinen Vorgang außerhalb des Journals
+  if (entry.sourceType === "manuell") return <span className="pill">{label}</span>;
   if (entry.sourceType === "kasse")
     return (
       <Link to="/kasse" search={{ jahr: Number(entry.date.slice(0, 4)) }} className="pill">
@@ -86,8 +91,28 @@ function Accounts({ lines, period }: { lines: Entry["lines"]; period: VatPeriod 
   );
 }
 
+/** Storno einer manuellen Buchung, mit Rückfrage beim ersten Klick */
+function ReverseButton({ entry, busy, onConfirm }: { entry: Entry; busy: boolean; onConfirm: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <button
+      type="button"
+      className="btn btn-sm"
+      disabled={busy}
+      onClick={() => (confirming ? onConfirm() : setConfirming(true))}
+      aria-label={`${entry.description} stornieren`}
+    >
+      {confirming ? "Jetzt stornieren" : "Stornieren"}
+    </button>
+  );
+}
+
 function JournalPage() {
   const { period, entries } = Route.useLoaderData();
+  const { rechtsform } = Route.useRouteContext();
+  const router = useRouter();
+  const reverse = useServerFn(reverseManualEntryFn);
+  const { busy, notice, run } = useAction();
   const prev = previousPeriod(period);
   const next = nextPeriod(period);
   const [source, setSource] = useState<JournalSource | "alle">("alle");
@@ -132,8 +157,14 @@ function JournalPage() {
           <Link to="/buchungen" search={{ jahr: next.year, monat: next.month }} className="btn">
             {periodLabel(next)} ›
           </Link>
+          {isKapitalgesellschaft(rechtsform) && (
+            <Link to="/buchungen/neu" className="btn btn-primary">
+              Buchung erfassen
+            </Link>
+          )}
         </div>
       </div>
+      <NoticeBanner notice={notice} />
 
       <div className="filter-row">
         <div className="chip-row" role="group" aria-label="Herkunft">
@@ -214,6 +245,7 @@ function JournalPage() {
                       </td>
                       <td className="small muted" data-label="Steuer">
                         {taxes.join(", ")}
+                        {e.reversed && " storniert"}
                       </td>
                     </tr>
                     {isOpen &&
@@ -245,6 +277,22 @@ function JournalPage() {
                           </td>
                         </tr>
                       ))}
+                    {isOpen && e.sourceType === "manuell" && !e.reversal && !e.reversed && (
+                      <tr className="lines-row">
+                        <td colSpan={8} style={{ textAlign: "right" }}>
+                          <ReverseButton
+                            entry={e}
+                            busy={busy}
+                            onConfirm={() =>
+                              void run(async () => {
+                                await reverse({ data: e.id });
+                                await router.invalidate();
+                              }, `Storniert: ${e.description}`)
+                            }
+                          />
+                        </td>
+                      </tr>
+                    )}
                   </Fragment>
                 );
               })}

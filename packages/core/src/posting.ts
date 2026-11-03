@@ -121,7 +121,12 @@ export const EXPENSE_CATEGORY_KEYS = Object.keys(EXPENSE_CATEGORIES) as [Expense
 
 export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
   SKR03: {
+    // Kapitalgesellschaft: Gesellschafter und Eigenkapital (DATEV SKR03, gegengelesen mit odoo l10n_de)
     "0730": "Verbindlichkeiten gegenüber Gesellschaftern",
+    "0731": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit bis 1 Jahr",
+    "0740": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit 1 bis 5 Jahre",
+    "0750": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit größer 5 Jahre",
+    "0800": "Gezeichnetes Kapital",
     "1000": "Kasse",
     "1200": "Bank",
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`136${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
@@ -151,7 +156,13 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1600": "Kasse",
     "1800": "Bank",
     ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`146${i}`, "Verrechnungskonto Zahlungsdienstleister"])),
+    // Kapitalgesellschaft: Gesellschafter und Eigenkapital (DATEV SKR04, gegengelesen mit odoo l10n_de)
+    "2900": "Gezeichnetes Kapital",
+    "2970": "Gewinnvortrag vor Verwendung",
+    "2978": "Verlustvortrag vor Verwendung",
     "3510": "Verbindlichkeiten gegenüber Gesellschaftern",
+    "3511": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit bis 1 Jahr",
+    "3514": "Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit 1 bis 5 Jahre",
     "3801": "Umsatzsteuer 7 %",
     "3806": "Umsatzsteuer 19 %",
     "3837": "Umsatzsteuer nach § 13b UStG",

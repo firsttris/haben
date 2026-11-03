@@ -345,7 +345,36 @@ Der Pfeil links klappt alle Buchungszeilen mit Soll, Haben und Steuerschlüssel 
 
 Darüber lässt sich nach Herkunft, Kontonummer und Text filtern. Unten stehen die Zahl der Buchungen und ihre Summe.
 
-Die Seite ist nur lesend; gebucht wird ausschließlich über Rechnungen, Belege und den Bankabgleich. Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+Gebucht wird über Rechnungen, Belege, Bank, Kasse und Anlagen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-buchungen-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+
+## Manuelle Buchungen (GmbH und UG)
+
+In einer GmbH oder UG steht auf der Seite **Buchungen** der Knopf **Buchung erfassen**. Damit buchst du Soll an Haben auf frei gewählten Konten, etwa:
+
+| Vorgang | SKR03 | SKR04 |
+| --- | --- | --- |
+| Stammkapital, vom Gesellschafter noch nicht über die Bank eingezahlt | 0730 an 0800 Gezeichnetes Kapital | 3510 an 2900 |
+| Auslagen des Gesellschafters in ein längerfristiges Darlehen umwandeln | 0730 an 0740 Verbindlichkeiten gegenüber Gesellschaftern, Restlaufzeit 1 bis 5 Jahre | 3510 an 3514 |
+| Falsche Kontierung umbuchen | neues an altes Aufwandskonto | ebenso |
+
+Eine Zeile hat ein Konto mit vier Ziffern und einen Betrag im Soll oder im Haben, bis zu 20 Zeilen je Buchung; Soll und Haben müssen gleich sein. Die Kontobezeichnung erscheint, wenn Haben das Konto kennt. Umsatzsteuer bucht eine manuelle Buchung nie: Sie hat keinen Steuerschlüssel und erscheint nicht in der Voranmeldung.
+
+Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung daran vorbei den Abgleich zwischen Nebenbuch und Journal bräche:
+
+| Konten | Nebenbuch |
+| --- | --- |
+| Bank, Zahlungsdienstleister, Geldtransit | Bankabgleich |
+| Kasse | Kassenbuch |
+| Forderungen, Verbindlichkeiten aus Lieferungen und Leistungen | Rechnungen und Belege (offene Posten) |
+| Umsatzsteuer, Vorsteuer, Umsatzsteuer-Vorauszahlungen | Voranmeldung |
+| Erlöskonten der Rechnungen | Rechnungen |
+| Anlagen, AfA, Restbuchwert | Anlagenverzeichnis |
+| Klasse 9 (Saldenvorträge, statistische Konten) | – |
+| Privatkonten (SKR03 1800–1899, SKR04 2100–2199) | gibt es in GmbH und UG nicht |
+
+Das Formular zeigt beim Tippen, was fehlt; der Server prüft beim Buchen dasselbe noch einmal. Das Datum darf nicht in der Zukunft liegen. Die Buchung ist sofort festgeschrieben und versiegelt wie jede andere (Herkunft „Manuell“); sie steht im Journal, in der Saldenliste, im Jahresexport und im DATEV-Export. Korrigiert wird mit **Stornieren** in den aufgeklappten Buchungszeilen: Die Gegenbuchung steht am selben Tag, damit sich beide im selben Zeitraum aufheben.
+
+Im Einzelunternehmen gibt es keine manuellen Buchungen. Die Anlage EÜR rechnet dort aus Rechnungen, Belegen und Zahlungen; eine Umbuchung im Journal käme in ihr nicht an.
 
 ## Die Seite „Konten“
 
@@ -383,7 +412,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 - Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
 - Innergemeinschaftliche Lieferungen und Erwerbe von Waren; § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn; Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
-- Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten)
+- Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG lassen sich einzelne Abschlussbuchungen [manuell](#manuelle-buchungen-gmbh-und-ug) erfassen
 
 > [!NOTE]
 > Haben ersetzt keine Steuerberatung. Arbeitet die Steuerberatung mit den Daten weiter, bekommt sie das Journal aus dem Jahresexport; die Kontenzuordnung sollte einmal mit ihr abgestimmt werden.

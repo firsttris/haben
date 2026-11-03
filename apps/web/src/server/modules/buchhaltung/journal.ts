@@ -37,6 +37,11 @@ export function accountName(kontenrahmen: Kontenrahmen, account: string): string
   return ACCOUNT_NAMES[kontenrahmen][account] ?? EXTRA_NAMES[kontenrahmen][account] ?? "";
 }
 
+/** Alle Konten mit Namen, die Haben kennt, z. B. als Hilfe beim Erfassen einer manuellen Buchung */
+export function knownAccounts(kontenrahmen: Kontenrahmen): Record<string, string> {
+  return { ...EXTRA_NAMES[kontenrahmen], ...ACCOUNT_NAMES[kontenrahmen] };
+}
+
 /** Buchungen eines Monats mit ihren Zeilen, nur lesend */
 export async function loadJournal(year: number, month: number) {
   const start = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -58,6 +63,22 @@ export async function loadJournal(year: number, month: number) {
         )
         .orderBy(asc(schema.journalLines.credit), asc(schema.journalLines.account))
     : [];
+  // Stornierte Buchungen: Gegenbuchungen dürfen in einem anderen Monat stehen
+  const reversedIds = entries.length
+    ? new Set(
+        (
+          await db
+            .select({ id: schema.journalEntries.reversesId })
+            .from(schema.journalEntries)
+            .where(
+              inArray(
+                schema.journalEntries.reversesId,
+                entries.map((e) => e.id),
+              ),
+            )
+        ).map((r) => r.id),
+      )
+    : new Set<string | null>();
   return entries.map((entry) => ({
     id: entry.id,
     date: entry.date,
@@ -65,6 +86,7 @@ export async function loadJournal(year: number, month: number) {
     sourceType: entry.sourceType,
     sourceId: entry.sourceId,
     reversal: entry.reversesId !== null,
+    reversed: reversedIds.has(entry.id),
     lines: lines.filter((l) => l.entryId === entry.id).map((l) => ({ ...l, name: accountName(entry.kontenrahmen, l.account) })),
   }));
 }

@@ -921,7 +921,7 @@ export const journalEntries = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
-    sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung"] }).notNull(),
+    sourceType: text("source_type", { enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell"] }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
     reversesId: uuid("reverses_id"),

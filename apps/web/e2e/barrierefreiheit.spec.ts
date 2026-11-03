@@ -41,6 +41,7 @@ const PAGES = [
   "/fristen",
   "/auswertungen",
   "/buchungen",
+  "/buchungen/neu",
   `/konten?jahr=${YEAR}`,
   `/konten/1200?jahr=${YEAR}`,
   "/archiv",
