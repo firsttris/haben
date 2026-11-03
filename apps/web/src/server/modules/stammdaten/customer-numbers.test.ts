@@ -84,4 +84,23 @@ describe.skipIf(!testDatabaseUrl)("Kundennummern (Postgres)", () => {
     const { preview } = await numbers.customerNumbering();
     expect((await contacts.createContact(actor, input("Neu"))).kundennummer).toBe(preview);
   });
+
+  it("vergibt keine Nummer doppelt, die gleichzeitig jemand von Hand einträgt", async () => {
+    await numbers.saveCustomerNumbering(actor, { format: "K-{NNNN}", next: 1 });
+    // Hält die Transaktion des Kontakts mit eigener Nummer nach dem Einfügen offen, damit die Vergabe dazwischen läuft
+    await sql.unsafe(`
+      create function test_contact_delay() returns trigger language plpgsql as $$
+      begin if new.name = 'Von Hand' then perform pg_sleep(0.5); end if; return new; end $$;
+      create trigger test_contact_delay after insert on contacts for each row execute function test_contact_delay();`);
+    try {
+      const manual = contacts.createContact(actor, input("Von Hand", "K-0001"));
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const auto = contacts.createContact(actor, input("Automatisch"));
+      await Promise.all([manual, auto]);
+    } finally {
+      await sql.unsafe("drop trigger test_contact_delay on contacts; drop function test_contact_delay();");
+    }
+    const rows = await sql`select kundennummer from contacts order by kundennummer`;
+    expect(rows.map((r) => r.kundennummer)).toEqual(["K-0001", "K-0002"]);
+  });
 });
