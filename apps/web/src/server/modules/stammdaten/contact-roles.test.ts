@@ -48,6 +48,15 @@ describe.skipIf(!testDatabaseUrl)("Kontakte als Kunde und Lieferant (Postgres)",
     expect(version!.data).toMatchObject({ is_supplier: true, is_customer: false, lieferantennummer: "L-77" });
   });
 
+  it("vergibt einem reinen Lieferanten keine automatische Kundennummer", async () => {
+    const numbers = await import("./customer-numbers.ts");
+    await numbers.saveCustomerNumbering(actor, { format: "K-{NNNN}", next: 1 });
+    const lieferant = await contacts.createContact(actor, input("Hetzner", { isCustomer: false, isSupplier: true }));
+    expect(lieferant.kundennummer).toBeNull();
+    expect((await contacts.createContact(actor, input("Kunde A"))).kundennummer).toBe("K-0001");
+    expect((await contacts.createContact(actor, input("Beides B", { isSupplier: true }))).kundennummer).toBe("K-0002");
+  });
+
   it("verlangt mindestens eine Rolle", async () => {
     await expect(contacts.createContact(actor, input("Niemand", { isCustomer: false, isSupplier: false }))).rejects.toThrow(/Kunde oder Lieferant/);
   });
