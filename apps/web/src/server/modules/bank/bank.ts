@@ -131,7 +131,7 @@ export async function updateAccount(actor: string, input: z.infer<typeof account
 
 export const providerAccountSchema = z.object({
   name: z.string().trim().min(1, "Name fehlt").max(100),
-  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "sumup", "sonstige"]),
+  provider: z.enum(["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "sonstige"]),
 });
 
 /**
