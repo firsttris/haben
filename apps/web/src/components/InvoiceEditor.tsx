@@ -99,6 +99,9 @@ const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLower
 /** Artikel kennen nur einen Text: Bezeichnung und Beschreibung untereinander, beim Einfügen wieder getrennt */
 const articleText = (line: { description: string; detail: string }) => [line.description, line.detail].filter(Boolean).join("\n");
 
+/** Höchstlänge des Artikeltexts wie in articleInputSchema (stammdaten/articles.ts); der Text einer Position darf länger sein */
+const ARTICLE_TEXT_MAX = 500;
+
 /** Erste Zeile eines Artikels: so steht er in den Vorschlägen beim Tippen und im Feld der Bezeichnung */
 const articleTitle = (article: ArticleOption) => article.description.split("\n")[0]!.trim();
 
@@ -795,6 +798,7 @@ export function InvoiceEditor({
               const inCatalog = articles.some(
                 (a) => sameText(a.description, articleText(p)) && a.unitPrice === p.unitPrice && a.unit === p.unit && a.priceIncludesTax === grossPrices,
               );
+              const tooLongForCatalog = articleText(p).length > ARTICLE_TEXT_MAX;
               return (
                 <div className="line-row" key={line.key}>
                   <input
@@ -867,8 +871,14 @@ export function InvoiceEditor({
                       type="button"
                       className="icon-btn icon-btn-plain"
                       aria-label={`Position ${index + 1} als Artikel speichern`}
-                      title={inCatalog ? "Steht schon im Artikelkatalog" : "Als Artikel speichern"}
-                      disabled={busy || !p.valid || inCatalog}
+                      title={
+                        inCatalog
+                          ? "Steht schon im Artikelkatalog"
+                          : tooLongForCatalog
+                            ? `Bezeichnung und Text sind zusammen länger als ${ARTICLE_TEXT_MAX} Zeichen`
+                            : "Als Artikel speichern"
+                      }
+                      disabled={busy || !p.valid || inCatalog || tooLongForCatalog}
                       onClick={() => storeAsArticle(p)}
                     >
                       <svg
