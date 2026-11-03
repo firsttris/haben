@@ -297,11 +297,14 @@ export function InvoiceEditor({
   /** Tippt man die Bezeichnung eines Artikels (Vorschlag aus dem Katalog), übernimmt die Position dessen Einheit, Preis und Steuersatz */
   function changeDescription(line: LineState, description: string) {
     const article = !sameText(line.description, description) ? articles.find((a) => sameText(articleTitle(a), description)) : undefined;
+    const text = article ? articleLineText(article, !quote) : undefined;
     updateLine(
       line.key,
-      article
+      article && text
         ? {
-            ...articleLineText(article, !quote),
+            // Ein einzeiliger Artikel bringt keinen Text mit; ein schon eingegebener bleibt dann stehen
+            ...text,
+            detail: text.detail || line.detail,
             unit: article.unit as UnitLabel,
             unitPrice: articlePrice(article),
             taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
