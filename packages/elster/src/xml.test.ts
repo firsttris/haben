@@ -151,6 +151,11 @@ describe("buildUstvaXml", () => {
     expect(ustvaDatenartVersion(2026)).toBe("UStVA_2026");
     expect(datenartVersionFromXml(buildUstvaXml(base))).toBe("UStVA_2026");
     expect(datenartVersionFromXml("<Elster/>")).toBeUndefined();
+    // E-Bilanz: Taxonomie nach dem Datum im Namensraum
+    const bilanz = (datum: string) => `<DatenArt>Bilanz</DatenArt><xbrli:xbrl xmlns:de-gcd="http://www.xbrl.de/taxonomies/de-gcd-${datum}">`;
+    expect(datenartVersionFromXml(bilanz("2025-04-01"))).toBe("Bilanz_6.9");
+    expect(datenartVersionFromXml(bilanz("2024-04-01"))).toBe("Bilanz_6.8");
+    expect(datenartVersionFromXml(bilanz("2019-04-01"))).toBeUndefined();
   });
 });
 

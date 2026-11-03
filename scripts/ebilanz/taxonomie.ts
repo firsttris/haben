@@ -1,6 +1,6 @@
 /**
- * Auszug aus der HGB-Taxonomie (de-gaap-ci) für die E-Bilanz einer Kapitalgesellschaft: je Position von Bilanz und GuV
- * (Gesamtkostenverfahren) der steuerliche Pflichtgrad, die Summenbeziehung, Soll/Haben und der Periodentyp. Bezeichnungen
+ * Auszug aus der HGB-Taxonomie (de-gaap-ci) für die E-Bilanz einer Kapitalgesellschaft: je Position von Bilanz, GuV
+ * (Gesamtkostenverfahren) und steuerlichem Betriebsvermögensvergleich (BVV) der steuerliche Pflichtgrad, die Summenbeziehung, Soll/Haben und der Periodentyp. Bezeichnungen
  * übernimmt der Auszug nicht; er enthält nur, was die Übermittlung braucht.
  *
  * Quelle: www.esteuer.de, german-gaap-taxonomy-v6.9-2025-04-01-xbrl.zip. Aufruf mit dem entpackten Ordner:
@@ -46,7 +46,7 @@ for (const m of schema.matchAll(/<xs:element\b([^>]*)>/g)) {
 
 /** Summenbeziehungen (summation-item) aus der Rechenlogik von Bilanz und GuV */
 const parent = new Map<string, { parent: string; weight: number; order: number }>();
-for (const file of ["-calculation-balanceSheet.xml", "-calculation-incomeStatement.xml"]) {
+for (const file of ["-calculation-balanceSheet.xml", "-calculation-incomeStatement.xml", "-calculation-transfersTaxAssets.xml"]) {
   for (const m of read(file).matchAll(/<calculationArc\b([^>]*)\/?>/g)) {
     const a = m[1]!;
     const from = /xlink:from="de-gaap-ci_([^"]+)"/.exec(a)?.[1];
@@ -58,7 +58,7 @@ for (const file of ["-calculation-balanceSheet.xml", "-calculation-incomeStateme
 
 const positions: Record<string, [req: string, parent: string | null, weight: number, balance: string, period: string]> = {};
 for (const [name, f] of fiscal) {
-  if (!(name.startsWith("bs.") || name.startsWith("is.netIncome")) || !f.kst || f.forbidden || f.ukv) continue;
+  if (!(name.startsWith("bs.") || name.startsWith("is.netIncome") || name.startsWith("BVV.")) || !f.kst || f.forbidden || f.ukv) continue;
   const e = elements.get(name);
   if (!e?.monetary) continue;
   const p = parent.get(name);

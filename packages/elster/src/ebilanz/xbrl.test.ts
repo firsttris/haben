@@ -31,12 +31,49 @@ describe("E-Bilanz: Summen nach den Rechenregeln der Taxonomie 6.9", () => {
         steuernummer13: "5192050001265",
         firma: { name: "Test GmbH", strasse: "Hafenallee 3", plz: "28217", ort: "Bremen" },
         werte: { "bs.ass.currAss.cashEquiv.bank": 100 },
+        bvv: { eigenkapitalVorjahr: 0, ausschuettungen: 0, einlagen: 0 },
+        anlagen: [],
         herstellerId: "12345",
         produktVersion: "0.0.0",
         test: true,
         erstellt: "2026-03-01",
       }),
     ).toThrow("Aktiva");
+  });
+
+  const gmbh = {
+    year: 2025,
+    steuernummer13: "5192050001265",
+    firma: { name: "Test GmbH", strasse: "Hafenallee 3", plz: "28217", ort: "Bremen" },
+    herstellerId: "12345",
+    produktVersion: "0.0.0",
+    test: true,
+    erstellt: "2026-03-01",
+    werte: {
+      "bs.ass.currAss.cashEquiv.bank": 100_000,
+      "bs.eqLiab.equity.subscribed.corp": 100_000,
+    },
+  };
+
+  it("lehnt einen Betriebsvermögensvergleich ab, der nicht das Jahresergebnis ergibt", () => {
+    expect(() => buildEbilanzXml({ ...gmbh, bvv: { eigenkapitalVorjahr: 0, ausschuettungen: 0, einlagen: 0 }, anlagen: [] })).toThrow(
+      "Betriebsvermögensvergleich",
+    );
+    expect(buildEbilanzXml({ ...gmbh, bvv: { eigenkapitalVorjahr: 0, ausschuettungen: 0, einlagen: 100_000 }, anlagen: [] })).toContain(
+      "<DatenArt>Bilanz</DatenArt>",
+    );
+  });
+
+  it("lehnt einen Anlagenspiegel ab, dessen Buchwert nicht zur Bilanz passt", () => {
+    expect(() =>
+      buildEbilanzXml({
+        ...gmbh,
+        bvv: { eigenkapitalVorjahr: 0, ausschuettungen: 0, einlagen: 100_000 },
+        anlagen: [
+          { position: "bs.ass.fixAss.tan.otherEquipm.passengerCars", akAnfang: 1_000, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 },
+        ],
+      }),
+    ).toThrow("Anlagenspiegel");
   });
 
   it.each([

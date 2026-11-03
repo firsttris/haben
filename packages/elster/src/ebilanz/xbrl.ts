@@ -23,6 +23,20 @@ const POSITIONEN = taxonomie.positionen as unknown as Record<string, Position>;
 
 export class EbilanzError extends Error {}
 
+/** Eine Zeile des Anlagenspiegels: Anschaffungskosten und AfA je Bilanzposition, brutto */
+export interface AnlagenspiegelZeile {
+  /** Bilanzposition unter bs.ass.fixAss, z. B. bs.ass.fixAss.tan.otherEquipm.passengerCars */
+  position: string;
+  akAnfang: Cents;
+  zugaenge: Cents;
+  /** Anschaffungskosten der Abgänge */
+  abgaenge: Cents;
+  afaAnfang: Cents;
+  afaJahr: Cents;
+  /** Kumulierte AfA der Abgänge */
+  afaAbgaenge: Cents;
+}
+
 export interface EbilanzInput {
   /** Wirtschaftsjahr = Kalenderjahr */
   year: number;
@@ -30,6 +44,10 @@ export interface EbilanzInput {
   firma: { name: string; strasse: string; plz: string; ort: string };
   /** Werte je Blattposition der Taxonomie (ohne Präfix), im Vorzeichen der Position: Soll-Position Soll positiv */
   werte: Readonly<Record<string, Cents>>;
+  /** Betriebsvermögensvergleich: Eigenkapital am Ende des Vorjahres, Ausschüttungen und Einlagen im Jahr */
+  bvv: { eigenkapitalVorjahr: Cents; ausschuettungen: Cents; einlagen: Cents };
+  /** Anlagenspiegel je Bilanzposition des Anlagevermögens (Blatt), Beträge positiv */
+  anlagen: readonly AnlagenspiegelZeile[];
   herstellerId: string;
   produktVersion: string;
   test: boolean;
@@ -161,10 +179,88 @@ function gcdFacts(input: EbilanzInput): string[] {
   ];
 }
 
+/**
+ * Anlagenspiegel (brutto) je Position des Anlagevermögens mit Wert, als Dimension dim_changes.nt.ass.gross der Taxonomie
+ * (Rechenregel notesTableStmOfChgInFAssGross: Buchwert = Bruttowert − kumulierte AfA). Die Zeilen werden zu allen
+ * übergeordneten Positionen bis bs.ass.fixAss summiert; der Buchwert je Position muss dem Bilanzwert gleichen.
+ */
+function anlagenspiegel(input: EbilanzInput, summen: Map<string, Cents>, entity: string): string[] {
+  const groups = new Map<string, AnlagenspiegelZeile>();
+  const add = (position: string, z: AnlagenspiegelZeile) => {
+    const g = groups.get(position) ?? { position, akAnfang: 0, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 };
+    for (const key of ["akAnfang", "zugaenge", "abgaenge", "afaAnfang", "afaJahr", "afaAbgaenge"] as const) g[key] += z[key];
+    groups.set(position, g);
+  };
+  groups.set("bs.ass.fixAss", { position: "bs.ass.fixAss", akAnfang: 0, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 });
+  for (const zeile of input.anlagen) {
+    if (!zeile.position.startsWith("bs.ass.fixAss.") || !POSITIONEN[zeile.position])
+      throw new EbilanzError(`${zeile.position} ist keine Position des Anlagevermögens`);
+    for (let p: string | null = zeile.position; p?.startsWith("bs.ass.fixAss"); p = POSITIONEN[p]![1]) add(p, zeile);
+  }
+  const y = input.year;
+  const lines: string[] = [];
+  for (const g of [...groups.values()].sort((a, b) => a.position.localeCompare(b.position))) {
+    const id = `D-AS-${g.position}`;
+    const gross = g.akAnfang + g.zugaenge - g.abgaenge;
+    const accDepr = g.afaAnfang + g.afaJahr - g.afaAbgaenge;
+    const buchwert = gross - accDepr;
+    const bilanzwert = summen.get(g.position) ?? 0;
+    if (buchwert !== bilanzwert) {
+      throw new EbilanzError(`Anlagenspiegel ${g.position}: Buchwert ${decimal(buchwert)}, in der Bilanz ${decimal(bilanzwert)}`);
+    }
+    lines.push(
+      `<xbrli:context id="${id}">${entity}<xbrli:period><xbrli:startDate>${y}-01-01</xbrli:startDate><xbrli:endDate>${y}-12-31</xbrli:endDate></xbrli:period><xbrli:scenario><xbrldi:explicitMember dimension="de-gaap-ci:dim_changes.nt.ass.gross">de-gaap-ci:${g.position}</xbrldi:explicitMember><xbrldi:explicitMember dimension="de-gaap-ci:dim_taxTrans">de-gaap-ci:dim_taxBal</xbrldi:explicitMember></xbrli:scenario></xbrli:context>`,
+    );
+    const facts: [string, Cents][] = [
+      ["grossCost.beginning", g.akAnfang],
+      ["gross.addition", g.zugaenge],
+      ["gross.release", g.abgaenge],
+      ["gross.diff", 0],
+      ["gross.movements", 0],
+      ["gross.currChanges", 0],
+      ["gross", gross],
+      ["accDepr.beginning", g.afaAnfang],
+      ["accDepr.DeprPeriod", g.afaJahr],
+      // Haben bucht nur planmäßige AfA (linear, GWG, Sammelposten); keine außerplanmäßige, Teilwert- oder Sonder-AfA
+      ["accDepr.DeprPeriod.regular", g.afaJahr],
+      ["accDepr.DeprPeriod.extraordinary", 0],
+      ["accDepr.DeprPeriod.impairment", 0],
+      ["accDepr.DeprPeriod.EStG7g_2", 0],
+      ["accDepr.DeprPeriod.EStG6b_3", 0],
+      ["accDepr.addition", 0],
+      ["accDepr.release", g.afaAbgaenge],
+      ["accDepr.diff", 0],
+      ["accDepr.movements", 0],
+      ["accDepr.currChanges", 0],
+      ["accDepr", accDepr],
+      ["revaluation", 0],
+      ["all", buchwert],
+      ["all_Prev_period", g.akAnfang - g.afaAnfang],
+    ];
+    for (const [name, value] of facts) lines.push(`<de-gaap-ci:${name} contextRef="${id}" unitRef="EUR" decimals="2">${decimal(value)}</de-gaap-ci:${name}>`);
+  }
+  return lines;
+}
+
 /** E-Bilanz im ELSTER-Umschlag, Datenart Bilanz; Empfänger ist das Finanzamt nach der Bundesfinanzamtsnummer */
 export function buildEbilanzXml(input: EbilanzInput): string {
   if (!/^\d{13}$/.test(input.steuernummer13)) throw new EbilanzError("Steuernummer im ELSTER-Format (13 Ziffern) fehlt");
-  const summen = ebilanzSummen(input.werte);
+  const bilanz = ebilanzSummen(input.werte);
+  // Betriebsvermögensvergleich: Eigenkapital zu Beginn und Ende, Ausschüttungen, Einlagen; er muss das Jahresergebnis ergeben
+  const summen = ebilanzSummen({
+    ...input.werte,
+    "BVV.profitLoss.assetsCurrentYear": (bilanz.get("bs.eqLiab.equity") ?? 0) - (bilanz.get("bs.ass.deficitNotCoveredByCapital") ?? 0),
+    "BVV.profitLoss.assetsPreviousYear.assets": input.bvv.eigenkapitalVorjahr,
+    "BVV.profitLoss.withdrawalDistrib": input.bvv.ausschuettungen,
+    "BVV.profitLoss.contribution": input.bvv.einlagen,
+  });
+  const bvv = summen.get("BVV.profitLoss") ?? 0;
+  const ergebnis = summen.get("is.netIncome") ?? 0;
+  if (bvv !== ergebnis) {
+    throw new EbilanzError(
+      `Der Betriebsvermögensvergleich ergibt ${decimal(bvv)}, die GuV ${decimal(ergebnis)}; Eigenkapital, Ausschüttungen und Einlagen prüfen`,
+    );
+  }
   const aktiva = summen.get("bs.ass") ?? 0;
   const passiva = summen.get("bs.eqLiab") ?? 0;
   if (aktiva !== passiva) throw new EbilanzError(`Aktiva (${decimal(aktiva)}) und Passiva (${decimal(passiva)}) sind nicht gleich`);
@@ -173,13 +269,14 @@ export function buildEbilanzXml(input: EbilanzInput): string {
   const instanz = [
     `<ebilanz:EBilanz version="000002" xmlns:ebilanz="http://rzf.fin-nrw.de/RMS/EBilanz/2016/XMLSchema">`,
     `<ebilanz:stichtag>${y}1231</ebilanz:stichtag>`,
-    `<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:iso4217="http://www.xbrl.org/2003/iso4217" xmlns:de-gcd="${GCD}" xmlns:de-gaap-ci="${GAAP}">`,
+    `<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:iso4217="http://www.xbrl.org/2003/iso4217" xmlns:de-gcd="${GCD}" xmlns:de-gaap-ci="${GAAP}">`,
     `<link:schemaRef xlink:type="simple" xlink:href="${GCD}/de-gcd-2025-04-01-shell.xsd"/>`,
     `<link:schemaRef xlink:type="simple" xlink:href="${GAAP}/de-gaap-ci-2025-04-01-shell-fiscal.xsd"/>`,
     `<xbrli:context id="I-AKTJAHR">${entity}<xbrli:period><xbrli:instant>${y}-12-31</xbrli:instant></xbrli:period></xbrli:context>`,
     `<xbrli:context id="D-AKTJAHR">${entity}<xbrli:period><xbrli:startDate>${y}-01-01</xbrli:startDate><xbrli:endDate>${y}-12-31</xbrli:endDate></xbrli:period></xbrli:context>`,
     `<xbrli:unit id="EUR"><xbrli:measure>iso4217:EUR</xbrli:measure></xbrli:unit>`,
     `<xbrli:unit id="PURE"><xbrli:measure>xbrli:pure</xbrli:measure></xbrli:unit>`,
+    ...anlagenspiegel(input, summen, entity),
     ...gcdFacts(input),
     ...gaapFacts(summen),
     `</xbrli:xbrl>`,
