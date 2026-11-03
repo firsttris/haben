@@ -92,6 +92,19 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
 
+  // Kontoinhaber bleibt gespeichert und lässt sich wieder leeren (dann gilt der Firmenname)
+  await firma.getByLabel("Kontoinhaber").fill("Max Mustermann");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  // Die Meldung steht noch vom ersten Speichern da; erst wenn die Anfrage durch ist, neu laden
+  await page.waitForLoadState("networkidle");
+  await page.reload();
+  await expect(firma.getByLabel("Kontoinhaber")).toHaveValue("Max Mustermann");
+  await firma.getByLabel("Kontoinhaber").fill("");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  await page.waitForLoadState("networkidle");
+
   // Rechtsform (#213): Eine GmbH hat keine EÜR, keine Privatanteile und keine Pauschalen; vor der ersten Buchung frei wählbar
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await expect(nav.getByRole("link", { name: "Pauschalen" })).toBeVisible();
@@ -134,6 +147,11 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await akzent.getByRole("button", { name: "Übernehmen" }).click();
   await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1D4ED8");
+  // Die Vorschau im Editor übernimmt Akzentfarbe und Grautöne (#222): Text #191F27 statt des grünlichen #16211C
+  await go("/rechnungen/neu");
+  const vorschau = page.getByLabel("Vorschau der Rechnung");
+  await expect(vorschau).toHaveCSS("color", "rgb(25, 31, 39)");
+  await go("/einstellungen?bereich=rechnungen");
   await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
 });
@@ -157,6 +175,31 @@ test("Kunden anlegen", async () => {
   await expect(liste).toContainText("Nordwerk Software GmbH");
   await page.getByPlaceholder(/^Suchen:/).fill("gibt es nicht");
   await expect(liste).toContainText("Kein Kontakt passt");
+});
+
+test("Kundennummer automatisch vergeben", async () => {
+  await go("/einstellungen?bereich=rechnungen");
+  const karte = page.getByRole("form", { name: "Kundennummern" });
+  await karte.getByLabel("Format").fill("K {NNNN}");
+  await expect(karte.getByText(/Buchstaben, Ziffern/)).toBeVisible();
+  await karte.getByLabel("Format").fill("K-{NNNN}");
+  await expect(karte).toContainText("Nächste: K-0001");
+  await karte.getByRole("button", { name: "Kundennummern speichern" }).click();
+  await expect(karte.getByRole("status")).toContainText("automatisch vergeben");
+
+  await go("/kontakte/neu");
+  await expect(page.getByText("voraussichtlich K-0001")).toBeVisible();
+  await page.getByLabel("Name oder Firma").fill("Nummernkreis Testkunde");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+  await expect(page.getByLabel("Kundennummer")).toHaveValue("K-0001");
+  // Archivieren und abschalten: Die folgenden Tests rechnen mit den Kontakten und Nummern von Hand
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  await go("/einstellungen?bereich=rechnungen");
+  await karte.getByLabel("Format").fill("");
+  await karte.getByRole("button", { name: "Kundennummern speichern" }).click();
+  await expect(karte.getByRole("status")).toContainText("von Hand");
 });
 
 test("Kunde mit Rechnungen auf Englisch", async () => {
@@ -805,6 +848,47 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
   await page.getByRole("button", { name: "Endgültig löschen" }).click();
   await page.waitForURL(/\/belege$/);
+});
+
+test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser }) => {
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Hetzner Online GmbH");
+  await page.getByLabel("Kunde", { exact: true }).uncheck();
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("USt-IdNr.").fill("DE812871812");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  // Filter in der Liste: Lieferanten zeigt ihn, Kunden nicht; im Rechnungseditor steht er nicht zur Auswahl
+  await go("/kontakte?rolle=lieferant");
+  await expect(page.getByRole("region", { name: "Kontaktliste" })).toContainText("Hetzner Online GmbH");
+  await go("/kontakte?rolle=kunde");
+  await expect(page.getByRole("region", { name: "Kontaktliste" })).not.toContainText("Hetzner Online GmbH");
+  await go("/rechnungen/neu");
+  await expect(page.getByRole("combobox", { name: "Kunde" }).locator("option", { hasText: "Hetzner" })).toHaveCount(0);
+
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "hetzner.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Hetzner Online GmbH") }]);
+  await expect(page.getByText("hetzner.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /hetzner\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hetzner Online GmbH · DE812871812" });
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
+  await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toHaveValue("DE812871812");
+  // Nicht buchen: Beleg löschen und den Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+  await go("/kontakte?rolle=lieferant");
+  await page.getByRole("link", { name: /Hetzner Online GmbH/ }).click();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
 
 test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () => {

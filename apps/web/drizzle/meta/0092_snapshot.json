@@ -1,5 +1,5 @@
 {
-  "id": "f4363e75-2574-4193-b871-471a5b97d5d8",
+  "id": "f0682af8-12db-48bb-ab51-08102908be71",
   "prevId": "6c7e887f-f331-447e-bcc7-bc12bcd520e4",
   "version": "7",
   "dialect": "postgresql",
@@ -2050,6 +2050,13 @@
           "notNull": true,
           "default": "''"
         },
+        "kontoinhaber": {
+          "name": "kontoinhaber",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "kontenrahmen": {
           "name": "kontenrahmen",
           "type": "kontenrahmen",
@@ -2057,13 +2064,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'SKR03'"
-        },
-        "rechtsform": {
-          "name": "rechtsform",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'einzelunternehmen'"
         },
         "payment_term_days": {
           "name": "payment_term_days",
@@ -2203,10 +2203,6 @@
         "company_accent_color": {
           "name": "company_accent_color",
           "value": "\"company\".\"accent_color\" ~ '^#[0-9A-Fa-f]{6}$'"
-        },
-        "company_rechtsform": {
-          "name": "company_rechtsform",
-          "value": "\"company\".\"rechtsform\" in ('einzelunternehmen', 'gmbh', 'ug')"
         }
       },
       "isRLSEnabled": false

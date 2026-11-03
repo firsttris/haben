@@ -8,7 +8,8 @@ import { z } from "zod";
  */
 
 export const WEB_EXPORT_FORMAT = "haben-lexware-web";
-export const WEB_EXPORT_VERSION = 1;
+/** 2: mit Buchungen ohne Beleg (financialvoucher); ältere Versionen von Haben ließen sie stillschweigend weg */
+export const WEB_EXPORT_VERSION = 2;
 
 const str = z.string().nullish();
 const num = z.number().nullish();
@@ -57,7 +58,7 @@ export type WebContact = z.infer<typeof webContactSchema>;
 /** GET /grld-rest/voucherservice/1/v200/vouchers, ein Element von `content` */
 export const webListItemSchema = z.looseObject({
   entityId: z.string(),
-  /** "salesvoucher" | "bookkeepingvoucher" */
+  /** "salesvoucher" | "bookkeepingvoucher" | "financialvoucher" (Buchung ohne Beleg, vom Skript gebildet) */
   entityType: z.string(),
   /** z. B. "Invoice", "PurchaseInvoice" */
   entitySubType: z.string(),
@@ -104,6 +105,8 @@ export const webDetailsSchema = z.looseObject({
   totalGrossAmount: num,
   claimedGrossAmount: num,
   consideredEInvoice: bool,
+  /** Nur bei Buchungen ohne Beleg (financialVoucher): "gross" | "net" */
+  taxType: str,
   paymentListItems: z.array(paymentListItemSchema).nullish(),
   bookkeepingVoucherItems: z
     .array(
@@ -201,12 +204,26 @@ const fileSchema = z.looseObject({
   filename: str,
 });
 
+/**
+ * Buchung ohne Beleg: in Lexware Office direkt auf einen Bankumsatz gebucht, ohne Belegdatei. Sie steht
+ * nicht in der Belegliste; das Skript findet sie über die Bankumsätze. `details` ist dann die Antwort von
+ * GET /grld-rest/financialvoucherservice/v100/financialVoucher/{id}, hier stehen die Zahlungen dazu.
+ */
+const financialSchema = z.looseObject({
+  /** GET /fis/finance-rest/voucherpaymentintegrationservice/v100/voucherPayments/financialTransaction/{id}, die Zahlungen dieses Belegs */
+  payments: z.array(z.looseObject({ paymentAmount: num, paymentDate: str, paymentId: str, voucherId: str })),
+  /** GET /fis/finance-rest/financialtransactionservice/v3/financialTransactions, die Bankumsätze dieser Zahlungen */
+  transactions: z.array(z.looseObject({ financialTransactionId: z.string(), transactionDate: str, amount: num, recipientOrSenderName: str, purpose: str })),
+});
+export type WebFinancial = z.infer<typeof financialSchema>;
+
 /** belege/<id>.json */
 export const webEntrySchema = z.looseObject({
   list: webListItemSchema,
   details: webDetailsSchema,
   document: webSalesDocumentSchema.nullish(),
   capsa: webBookkeepingSchema.nullish(),
+  financial: financialSchema.nullish(),
   files: z.array(fileSchema),
 });
 export type WebEntry = z.infer<typeof webEntrySchema>;

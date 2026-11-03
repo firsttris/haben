@@ -203,13 +203,26 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
         .where(and(isNull(schema.contacts.lexofficeId), sql`lower(${schema.contacts.name}) = lower(${contact.name})`))
         .limit(1);
       if (sameName) {
-        await tx.update(schema.contacts).set({ lexofficeId: contact.lexofficeId }).where(eq(schema.contacts.id, sameName.id));
+        // Rollen nur ergänzen: Lieferant in Lexoffice wird auch hier Lieferant, die Kundenrolle bleibt
+        await tx
+          .update(schema.contacts)
+          .set({
+            lexofficeId: contact.lexofficeId,
+            ...(contact.isVendor
+              ? { isSupplier: true, lieferantennummer: sql`coalesce(${schema.contacts.lieferantennummer}, ${contact.lieferantennummer})` }
+              : {}),
+          })
+          .where(eq(schema.contacts.id, sameName.id));
         progress.contactsLinked += 1;
         return;
       }
       await tx.insert(schema.contacts).values({
         lexofficeId: contact.lexofficeId,
         kundennummer: contact.kundennummer,
+        // Ohne Rolle in Lexoffice gilt der Kontakt wie bisher als Kunde
+        isCustomer: contact.isCustomer || !contact.isVendor,
+        isSupplier: contact.isVendor,
+        lieferantennummer: contact.lieferantennummer,
         name: contact.name,
         strasse: contact.strasse,
         plz: contact.plz,
@@ -375,7 +388,7 @@ export async function listLegacyVouchers(filter: { year: number; direction: "all
     where v.date between ${`${filter.year}-01-01`} and ${`${filter.year}-12-31`}
       ${filter.direction === "alle" ? sql`` : sql`and v.direction = ${filter.direction}`}
       ${term ? sql`and (v.number ilike ${term} or v.contact_name ilike ${term} or v.remark ilike ${term})` : sql``}
-      ${filter.ohneDatei ? sql`and not exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id)` : sql``}
+      ${filter.ohneDatei ? sql`and not exists (select 1 from lexoffice_voucher_files f where f.voucher_id = v.id) and not coalesce((v.raw->>'ohneBeleg')::boolean, false)` : sql``}
     order by v.date, v.number
     limit 1000`);
   return [...rows].map((r) => ({
@@ -471,6 +484,9 @@ function taxTypeOf(t: string) {
 const TAX_TYPE = sql<string | null>`${taxTypeOf("lexoffice_vouchers")}`;
 const TAX_SUB_TYPE = sql<string | null>`lexoffice_vouchers.raw->'taxConditions'->>'taxSubType'`;
 
+/** Buchung ohne Beleg aus der Sicherung der Web-Oberfläche: hat keine Datei und braucht keine */
+const WITHOUT_RECEIPT = sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBeleg')::boolean, false)`;
+
 export type ReconciliationCheck = { ok: boolean; label: string; detail: string };
 
 /** Abgleich je Geschäftsjahr: Was liegt vor, was fehlt noch vor der Kündigung? */
@@ -492,10 +508,14 @@ export async function reconciliation() {
       payment: schema.lexofficeVouchers.payment,
       taxType: TAX_TYPE,
       taxSubType: TAX_SUB_TYPE,
+      ohneBeleg: WITHOUT_RECEIPT,
+      privat: sql<boolean>`coalesce((lexoffice_vouchers.raw->>'privat')::boolean, false)`,
       // Spalte ausdrücklich qualifizieren: drizzle schreibt sonst nur "id", und das träfe f.id
       files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
     })
     .from(schema.lexofficeVouchers);
+  // Privatentnahmen, Privateinlagen und Geldtransit ohne Beleg sind archiviert, aber weder Einnahme noch Ausgabe
+  const businessRows = voucherRows.filter((v) => !v.privat);
 
   const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,
@@ -528,7 +548,8 @@ export async function reconciliation() {
   const result = [...years]
     .sort((a, b) => b - a)
     .map((year) => {
-      const vouchers = voucherRows.filter((v) => v.date.startsWith(`${year}-`));
+      const vouchers = businessRows.filter((v) => v.date.startsWith(`${year}-`));
+      const withoutReceipt = voucherRows.filter((v) => v.ohneBeleg && v.date.startsWith(`${year}-`)).length;
       const yearBookings = vouchers.length === 0 ? datevRows.filter((b) => b.date.startsWith(`${year}-`)) : [];
       const fromDatev = yearBookings.length > 0 ? datevYearSums(yearBookings, company.kontenrahmen) : null;
       const sum = (direction: "einnahme" | "ausgabe") => {
@@ -544,13 +565,13 @@ export async function reconciliation() {
           gross: rows.reduce((s, r) => s + r.gross, 0),
         };
       };
-      const withoutFile = vouchers.filter((v) => Number(v.files) === 0).length;
+      const withoutFile = vouchers.filter((v) => !v.ohneBeleg && Number(v.files) === 0).length;
       const unchecked = vouchers.filter((v) => v.status === "unchecked").length;
       const bookings = bookingRows.find((b) => Number(b.year) === year);
       const kinds = (kind: string) => files.filter((f) => f.year === year && f.kind === kind).length;
       // Ist-Versteuerung: Zahlungen aus dem Zahlungsstatus; sonst Belegdatum
       const vat = legacyVatByMonth(
-        voucherRows
+        businessRows
           .filter((v) => (versteuerung === "ist" ? true : v.date.startsWith(`${year}-`)))
           .map((v) => ({
             direction: v.direction,
@@ -580,7 +601,12 @@ export async function reconciliation() {
         {
           ok: vouchers.length > 0,
           label: "Belege und Rechnungen per API abgerufen",
-          detail: `${vouchers.length} Belege`,
+          detail: [
+            `${vouchers.filter((v) => !v.ohneBeleg).length} Belege`,
+            withoutReceipt > 0 ? `${withoutReceipt} ${withoutReceipt === 1 ? "Buchung" : "Buchungen"} ohne Beleg` : "",
+          ]
+            .filter(Boolean)
+            .join(", "),
         },
         {
           ok: withoutFile === 0,
@@ -707,6 +733,8 @@ export async function legacyVouchersForPeriod(filter: {
               )})))`
           : sql``
       })
+      -- Privatentnahmen und -einlagen ohne Beleg gehen nicht in die Umsatzsteuer ein, wie im Abgleich
+      and not coalesce((v.raw->>'privat')::boolean, false)
       ${filter.direction === "alle" ? sql`` : sql`and v.direction = ${filter.direction}`}
       ${term ? sql`and (v.number ilike ${term} or v.contact_name ilike ${term} or v.remark ilike ${term})` : sql``}
     order by v.date, v.number`);

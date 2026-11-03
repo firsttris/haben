@@ -2,6 +2,7 @@ import { isCamt053, parseCamt053 } from "./camt.ts";
 import { parseCsv } from "./csv.ts";
 import { decodeText } from "./decode.ts";
 import { isDkbAltHeader, isDkbHeader, parseDkb, parseDkbAlt } from "./dkb.ts";
+import { isEbayHeader, parseEbay } from "./ebay.ts";
 import { StatementParseError } from "./errors.ts";
 import { isN26Header, parseN26 } from "./n26.ts";
 import { isPayPalHeader, isShopifyHeader, isStripeHeader, parsePayPal, parseShopify, parseStripe } from "./psp.ts";
@@ -27,10 +28,15 @@ function detect(text: string, label: string): Detected {
   if (dkb >= 0) return { format: "dkb-csv", rows: parseCsv(text, ";"), headerRow: dkb };
   const dkbAlt = findHeaderRow(semicolon, isDkbAltHeader);
   if (dkbAlt >= 0) return { format: "dkb-csv-alt", rows: parseCsv(text, ";"), headerRow: dkbAlt };
+  const ebaySemicolon = findHeaderRow(semicolon, isEbayHeader);
+  if (ebaySemicolon >= 0) return { format: "ebay-csv", rows: parseCsv(text, ";"), headerRow: ebaySemicolon };
 
   const comma = parseCsv(head, ",");
   const n26 = findHeaderRow(comma, isN26Header);
   if (n26 >= 0) return { format: "n26-csv", rows: parseCsv(text, ","), headerRow: n26 };
+  // Vor PayPal: dessen englische Kopfzeile (gross, fee, net, transactionid) passt dem Präfix nach auch auf eBay
+  const ebay = findHeaderRow(comma, isEbayHeader);
+  if (ebay >= 0) return { format: "ebay-csv", rows: parseCsv(text, ","), headerRow: ebay };
   const paypal = findHeaderRow(comma, isPayPalHeader);
   if (paypal >= 0) return { format: "paypal-csv", rows: parseCsv(text, ","), headerRow: paypal };
   const stripe = findHeaderRow(comma, isStripeHeader);
@@ -39,7 +45,7 @@ function detect(text: string, label: string): Detected {
   if (shopify >= 0) return { format: "shopify-payments-csv", rows: parseCsv(text, ","), headerRow: shopify };
 
   throw new StatementParseError(
-    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB und N26, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe und Shopify Payments.`,
+    `${label} wurde nicht erkannt. Unterstützt werden CSV-Exporte von DKB und N26, CAMT.053 (XML) sowie die Exporte von PayPal, Stripe, Shopify Payments und der Transaktionsbericht von eBay.`,
   );
 }
 
@@ -69,6 +75,8 @@ export function parseStatement(bytes: Uint8Array, filename?: string): ParsedStat
       return parseStripe(detected.rows, detected.headerRow);
     case "shopify-payments-csv":
       return parseShopify(detected.rows, detected.headerRow);
+    case "ebay-csv":
+      return parseEbay(detected.rows, detected.headerRow);
   }
 }
 

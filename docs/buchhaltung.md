@@ -25,7 +25,7 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 | Anlagen | `assets` | Sobald AfA oder Eröffnung gebucht ist, sind Art, Abschreibung, Konto, Datum, Kosten, Nutzungsdauer und Übernahmewerte fest; Löschen nur ohne Buchung und ohne Beleg |
 | Zuordnungen | `allocations` | Vorzeichen muss dem Bankumsatz entsprechen, die Summe darf den Umsatz nicht übersteigen |
 | Hauptbuch | `journal_entries` | Eine Buchung ist beim Commit festgeschrieben, sonst wird die Transaktion abgelehnt; ihr Kontenrahmen ist der aus den Firmendaten (`0065_hauptbuch_sperren.sql`) |
-| Firmendaten | `company` | Kontenrahmen, Versteuerung und das Einschalten von § 19 UStG werden abgelehnt, sobald im laufenden Jahr (deutsche Zeit) gebucht ist; die Rechtsform, sobald es überhaupt eine Buchung gibt (`0093_rechtsform_trigger.sql`) |
+| Firmendaten | `company` | Kontenrahmen, Versteuerung und das Einschalten von § 19 UStG werden abgelehnt, sobald im laufenden Jahr (deutsche Zeit) gebucht ist; die Rechtsform, sobald es überhaupt eine Buchung gibt (`0096_rechtsform_trigger.sql`) |
 
 ### Änderungsprotokoll
 
@@ -119,7 +119,7 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Privateinlagen | 1890 | 2180 |
 | Gesellschafter-Verrechnungskonto (nur GmbH, UG): Verbindlichkeiten gegenüber Gesellschaftern | 0730 | 3510 |
 | Geldtransit | 1360 | 1460 |
-| Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe …) | 1361–1369 | 1461–1469 |
+| Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe, eBay …) | 1361–1369 | 1461–1469 |
 | Nebenkosten des Geldverkehrs | 4970 | 6855 |
 | Gewährte Skonti | 8730 | 4730 |
 | Erhaltene Skonti | 3730 | 5730 |
@@ -419,7 +419,7 @@ Die Salden sind die der [Saldenliste](#die-seite-konten) zum 31.12., mit Vortrag
 
 **Jahr abschließen:** Wenn die Steuerberatung den Abschluss freigegeben hat, schließt **Jahr abschließen** das Jahr ab, nach einer Rückfrage. Vorher muss das Jahr vorbei sein, die AfA aller Anlagen gebucht und jeder Beleg mit Datum im Jahr gebucht. Danach:
 
-- nimmt das Jahr keine Buchung mehr an, auch keine Gegenbuchung. Das prüft das Hauptbuch und, auch für Schreiber an Haben vorbei, ein Trigger der Datenbank (`0095_jahresabschluss_trigger.sql`). Rückgängig machen lässt sich der Abschluss nicht; `year_closings` ist nur anhängbar.
+- nimmt das Jahr keine Buchung mehr an, auch keine Gegenbuchung. Das prüft das Hauptbuch und, auch für Schreiber an Haben vorbei, ein Trigger der Datenbank (`0098_jahresabschluss_trigger.sql`). Rückgängig machen lässt sich der Abschluss nicht; `year_closings` ist nur anhängbar.
 - hält Haben Zahl und Prüfwert der Buchungen des Jahres fest: SHA-256 über ID und Inhalt jeder Buchung samt Zeilen, gerechnet wie ihr Siegel. Die Seite rechnet ihn bei jedem Aufruf aus den aktuellen Daten nach und zeigt, ob die Buchungen seitdem unverändert sind. Der Abschluss selbst steht mit Prüfwert im Änderungsprotokoll und damit in der Hash-Kette.
 
 Fehler im abgeschlossenen Jahr korrigiert ihr im laufenden Jahr, wie es das Handelsrecht vorsieht.

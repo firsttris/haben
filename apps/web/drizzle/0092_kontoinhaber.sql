@@ -1,0 +1,1 @@
+ALTER TABLE "company" ADD COLUMN "kontoinhaber" text DEFAULT '' NOT NULL;

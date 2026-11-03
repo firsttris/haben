@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { computeInvoiceTotals, formatEuro, formatQuantity, formatRate, lineAmount, type InvoiceLineInput, type PriceMode } from "@haben/core";
+import { accentPalette, computeInvoiceTotals, formatEuro, formatQuantity, formatRate, lineAmount, type InvoiceLineInput, type PriceMode } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { KIND_TITLE } from "../lib/invoice.ts";
 
@@ -14,6 +14,8 @@ export interface PreviewSeller {
   iban: string;
   bic: string;
   bank: string;
+  /** Leer = Firmenname */
+  kontoinhaber?: string;
   /** SHA-256 des Logos, wenn eines hinterlegt ist */
   logo?: string | null;
   /** Akzentfarbe #RRGGBB aus den Einstellungen; fehlt = Standardgrün aus styles.css */
@@ -26,6 +28,12 @@ export interface PreviewBuyer {
   plz: string;
   ort: string;
   kundennummer?: string | null;
+}
+
+/** Akzentfarbe und die daraus abgeleiteten Grautöne wie im PDF (accentPalette) */
+function sheetColors(accent: string): CSSProperties {
+  const { ink, muted, rule } = accentPalette(accent);
+  return { "--brand": accent, "--ink": ink, "--ink-muted": muted, "--rule": rule } as CSSProperties;
 }
 
 /** HTML-Abbild des PDFs für den Editor; das verbindliche Dokument rendert Typst. */
@@ -105,7 +113,12 @@ export function InvoicePreview({
         : `Bitte überweisen Sie den Betrag bis zum ${formatDate(dueDate)} unter Angabe der Rechnungsnummer.`;
   const footer = [
     [seller.name || "[Firmenname]", seller.strasse, `${seller.plz} ${seller.ort}`.trim(), seller.email],
-    [seller.bank, `IBAN ${seller.iban || "[IBAN]"}`, seller.bic && `BIC ${seller.bic}`],
+    [
+      seller.bank,
+      seller.kontoinhaber && seller.kontoinhaber !== seller.name && `Kontoinhaber ${seller.kontoinhaber}`,
+      `IBAN ${seller.iban || "[IBAN]"}`,
+      seller.bic && `BIC ${seller.bic}`,
+    ],
     [seller.steuernummer && `Steuernummer ${seller.steuernummer}`, seller.ustId && `USt-IdNr. ${seller.ustId}`],
   ].map((column) => column.filter(Boolean));
 
@@ -115,7 +128,7 @@ export function InvoicePreview({
       <div
         className="sheet"
         aria-label={quote ? "Vorschau des Angebots" : "Vorschau der Rechnung"}
-        style={seller.accent ? ({ "--brand": seller.accent } as CSSProperties) : undefined}
+        style={seller.accent ? sheetColors(seller.accent) : undefined}
       >
         <span className="sheet-fold" style={{ top: "calc(105 * var(--mm))" }} />
         <span className="sheet-fold long" style={{ top: "calc(148.5 * var(--mm))" }} />

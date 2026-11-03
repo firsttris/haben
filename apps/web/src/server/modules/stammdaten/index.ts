@@ -28,6 +28,7 @@ export {
   updateContact,
   type Contact,
   type ContactInput,
+  type ContactRole,
 } from "./contacts.ts";
 export {
   deleteExchangeRate,
@@ -45,6 +46,7 @@ export {
 } from "./exchange-rates.ts";
 export { AccentColorError, loadLetterhead, saveAccentColor } from "./letterhead.ts";
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
+export { CustomerNumberError, customerNumbering, saveCustomerNumbering } from "./customer-numbers.ts";
 export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";
 export { saveCompany, settingsLocks } from "./settings-guard.ts";
 export { saveTaxpayer, taxpayerSchema } from "./taxpayer.ts";

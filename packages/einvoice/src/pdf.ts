@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
-import { countryName, formatIban, paymentSentence } from "./format.ts";
+import { accountHolder, countryName, formatIban, paymentSentence } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
-import { DEFAULT_ACCENT, lineAmount } from "@haben/core";
+import { accentPalette, DEFAULT_ACCENT, lineAmount } from "@haben/core";
 import type { Address, InvoiceDocument, Letterhead, Logo } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
@@ -134,7 +134,7 @@ export function pdfData(doc: InvoiceDocument) {
     qr:
       doc.kind === "rechnung" && doc.currency === "EUR" && doc.totals.gross > 0 && seller.iban
         ? girocodeSvg({
-            name: seller.name,
+            name: accountHolder(seller),
             iban: seller.iban,
             ...(seller.bic ? { bic: seller.bic } : {}),
             amount: doc.totals.gross,
@@ -165,6 +165,7 @@ export function footerColumns(seller: InvoiceDocument["seller"], t: Texts = TEXT
   if (seller.telefon) contact.push(`${t.phone} ${seller.telefon}`);
   const bank: string[] = [];
   if (seller.bank) bank.push(seller.bank);
+  if (accountHolder(seller) !== seller.name) bank.push(`${t.accountHolder} ${accountHolder(seller)}`);
   if (seller.iban) bank.push(`IBAN ${formatIban(seller.iban)}`);
   if (seller.bic) bank.push(`BIC ${seller.bic}`);
   const tax: string[] = [];
@@ -180,9 +181,9 @@ export function logoFormat(data: Uint8Array): Logo["format"] | null {
   return null;
 }
 
-/** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe immer, das Logo als Dateiname neben der Vorlage */
-export function templateInputs(data: object, { logo, accent }: Letterhead): object {
-  return { ...data, accent: accent ?? DEFAULT_ACCENT, ...(logo ? { logo: `logo.${logo.format}` } : {}) };
+/** Daten für die Vorlage mit dem Briefkopf: Akzentfarbe und passende Grautöne immer, das Logo als Dateiname neben der Vorlage */
+export function templateInputs(data: object, { logo, accent = DEFAULT_ACCENT }: Letterhead): object {
+  return { ...data, accent, palette: accentPalette(accent), ...(logo ? { logo: `logo.${logo.format}` } : {}) };
 }
 
 function compilePdf(template: string, data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {

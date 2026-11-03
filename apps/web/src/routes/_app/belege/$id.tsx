@@ -22,6 +22,7 @@ import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react
 import { z } from "zod/mini";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { SupplierPicker, type SupplierOption } from "../../../components/SupplierPicker.tsx";
 import { formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
@@ -259,6 +260,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
 
   const [supplierName, setSupplierName] = useState(doc.supplierName);
   const [supplierUstId, setSupplierUstId] = useState(doc.supplierUstId);
+  const [supplierContactId, setSupplierContactId] = useState<string | null>(doc.supplierContactId);
   const [invoiceNumber, setInvoiceNumber] = useState(doc.invoiceNumber);
   const [documentDate, setDocumentDate] = useState(doc.documentDate ?? "");
   const [dueDate, setDueDate] = useState(doc.dueDate ?? "");
@@ -365,6 +367,20 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     setConfirmingDelete(false);
   }
 
+  /** Gewählter Kontakt: Name und USt-IdNr. übernehmen; „frei eingetragen“ lässt die Felder stehen */
+  function pickSupplier(supplier: SupplierOption | null) {
+    setSupplierContactId(supplier?.id ?? null);
+    if (!supplier) return;
+    setSupplierName(supplier.name);
+    setSupplierUstId(supplier.ustId);
+  }
+
+  /** Wer den Namen von Hand ändert, meint einen anderen Lieferanten: die Verknüpfung fällt weg */
+  function typeSupplierName(name: string) {
+    setSupplierName(name);
+    if (supplierContactId && data.suppliers.find((s) => s.id === supplierContactId)?.name !== name) setSupplierContactId(null);
+  }
+
   async function persist() {
     await save({
       data: {
@@ -372,6 +388,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         document: {
           supplierName,
           supplierUstId,
+          supplierContactId,
           invoiceNumber,
           documentDate: documentDate || null,
           dueDate: dueDate || null,
@@ -500,10 +517,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       <fieldset className="card" disabled={locked || running} style={{ margin: 0 }}>
         <legend className="visually-hidden">Belegdaten</legend>
         <div className="form-grid">
-          <label className="field" style={{ gridColumn: "1 / -1" }}>
+          <label className="field">
             Lieferant
-            <input value={supplierName} onChange={(e) => touch(setSupplierName)(e.target.value)} />
+            <input value={supplierName} onChange={(e) => touch(typeSupplierName)(e.target.value)} />
           </label>
+          <SupplierPicker suppliers={data.suppliers} value={supplierContactId} onPick={touch(pickSupplier)} />
           <label className="field">
             Rechnungsnummer
             <input value={invoiceNumber} onChange={(e) => touch(setInvoiceNumber)(e.target.value)} />

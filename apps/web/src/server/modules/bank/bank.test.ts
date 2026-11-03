@@ -921,6 +921,55 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect(Object.fromEntries(transit.map((r) => [r.account, r.saldo]))).toEqual({ "1360": 0, "1361": -7_771 });
   }, 30_000);
 
+  const EBAY_CASES = [
+    { kontenrahmen: "SKR03", versteuerung: "ist", accounts: { bank: "1200", ust: "1776", fee: "4970", revenue: "8400" } },
+    { kontenrahmen: "SKR03", versteuerung: "soll", accounts: { bank: "1200", ust: "1776", fee: "4970", revenue: "8400" } },
+    { kontenrahmen: "SKR04", versteuerung: "ist", accounts: { bank: "1800", ust: "3806", fee: "6855", revenue: "4400" } },
+    { kontenrahmen: "SKR04", versteuerung: "soll", accounts: { bank: "1800", ust: "3806", fee: "6855", revenue: "4400" } },
+  ] as const;
+
+  it.each(EBAY_CASES)(
+    "eBay ($kontenrahmen, $versteuerung): Bestellung brutto zur Rechnung, Gebühren als Aufwand, Auszahlung als Geldtransit",
+    async ({ kontenrahmen, versteuerung, accounts }) => {
+      await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+      const { invoice } = await finalInvoice(10_000);
+      const ebay = await bank.createProviderAccount(actor, { name: "eBay", provider: "ebay" });
+      const report = [
+        `"Datum der Transaktionserstellung";"Typ";"Bestellnr.";"Name des Käufers";"Nettobetrag";"Auszahlungswährung";"Auszahlung Nr.";"Referenz Nr.";"Fixer Anteil der Verkaufsprovision";"Variabler Anteil der Verkaufsprovision";"Transaktionsbetrag (inkl. Kosten)";"Transaktionswährung";"Beschreibung"`,
+        `"03.10.2026";"Bestellung";"12-11111-11111";"Nordwerk Software GmbH";"104,73";"EUR";"6001234567";"";"-0,35";"-13,92";"119,00";"EUR";"${invoice.number}"`,
+        `"12.10.2026";"Auszahlung";"";"";"-104,73";"EUR";"6001234567";"";"";"";"";"";"Auszahlung an Bankkonto ****3000"`,
+      ].join("\n");
+      const file = { bytes: new TextEncoder().encode(report), filename: "ebay.csv" };
+      expect(await bank.importStatement(actor, file, ebay.id)).toMatchObject({ added: 3 });
+      expect(await bank.importStatement(actor, file, ebay.id)).toMatchObject({ added: 0 });
+      await bank.importStatement(
+        actor,
+        { bytes: dkbCsv([incoming("13.10.26", "eBay S.a.r.l.", "DE12500700100175526303", "eBay Auszahlung 6001234567", "104,73")]), filename: "dkb.csv" },
+        null,
+      );
+
+      const [payment] = await sql`select id from bank_transactions where amount = 11900`;
+      const [fee] = await sql`select id from bank_transactions where amount = -1427`;
+      const [payout] = await sql`select id from bank_transactions where amount = -10473`;
+      const [incomingPayout] = await sql`select id from bank_transactions where amount = 10473`;
+      await bank.allocate(actor, { kind: "invoice", transactionId: payment!.id, invoiceId: invoice.id, amount: 11_900 });
+      await bank.allocate(actor, { kind: "gebuehren", transactionId: fee!.id, amount: -1_427 });
+      expect((await bank.transactionDetail(payout!.id))?.direct).toMatchObject({ kind: "geldtransit", counterpart: { id: incomingPayout!.id } });
+      expect((await bank.transactionDetail(incomingPayout!.id))?.direct).toMatchObject({ kind: "geldtransit", counterpart: { id: payout!.id } });
+      await bank.allocateTransfer(actor, { transactionId: incomingPayout!.id, counterpartId: payout!.id });
+
+      const balances = Object.fromEntries(
+        (await sql`select account, sum(debit - credit)::int as saldo from journal_lines group by account having sum(debit - credit) <> 0 order by 1`).map(
+          (r) => [r.account, r.saldo],
+        ),
+      );
+      // Erlös und Umsatzsteuer aus dem vollen Betrag, die Provision Aufwand, das Verrechnungskonto des Dienstleisters ausgeglichen
+      expect(balances).toEqual({ [accounts.bank]: 10_473, [accounts.ust]: -1_900, [accounts.fee]: 1_427, [accounts.revenue]: -10_000 });
+      expect((await bank.listAccounts()).find((a) => a.id === ebay.id)).toMatchObject({ providerBalance: 0, openCount: 0 });
+    },
+    30_000,
+  );
+
   it("Gebühren eines Monats der Sammelrechnung des Dienstleisters zuordnen", async () => {
     const stripe = await bank.createProviderAccount(actor, { name: "Stripe", provider: "stripe" });
     const csv = [

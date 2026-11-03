@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { purposeContainsNumber } from "./matching.ts";
-import { DEFAULT_INVOICE_NUMBER_FORMAT, DEFAULT_QUOTE_NUMBER_FORMAT, formatDocumentNumber, numberFormatError } from "./number-format.ts";
+import {
+  DEFAULT_CUSTOMER_NUMBER_FORMAT,
+  DEFAULT_INVOICE_NUMBER_FORMAT,
+  DEFAULT_QUOTE_NUMBER_FORMAT,
+  formatDocumentNumber,
+  numberFormatError,
+} from "./number-format.ts";
 
 describe("formatDocumentNumber", () => {
   it("bleibt ab Werk bei 2026-034 und AN-2026-007", () => {
@@ -51,5 +57,13 @@ describe("numberFormatError", () => {
     expect(numberFormatError("RE {JJJJ}-{NNN}")).toMatch(/Buchstaben, Ziffern/);
     expect(numberFormatError("{JJJJ-{NNN}")).toMatch(/Buchstaben, Ziffern/);
     expect(numberFormatError(`${"X".repeat(30)}{JJJJ}{NNN}`)).toMatch(/30 Zeichen/);
+  });
+
+  it("verlangt bei Kundennummern kein Jahr, weil deren Zähler nicht jährlich neu beginnt", () => {
+    expect(numberFormatError("K-{NNNN}", { requireYear: false })).toBeNull();
+    expect(numberFormatError(DEFAULT_CUSTOMER_NUMBER_FORMAT, { requireYear: false })).toBeNull();
+    expect(formatDocumentNumber(DEFAULT_CUSTOMER_NUMBER_FORMAT, 2026, 7)).toBe("K-0007");
+    expect(numberFormatError("K-", { requireYear: false })).toMatch(/laufende Nummer/);
+    expect(numberFormatError("K {NNNN}", { requireYear: false })).toMatch(/Buchstaben, Ziffern/);
   });
 });

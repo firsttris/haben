@@ -650,42 +650,63 @@
       "idx": 92,
       "version": "7",
       "when": 1793988050647,
-      "tag": "0092_rechtsform",
+      "tag": "0092_kontoinhaber",
       "breakpoints": true
     },
     {
       "idx": 93,
       "version": "7",
       "when": 1793988110647,
-      "tag": "0093_rechtsform_trigger",
+      "tag": "0093_kundennummer",
       "breakpoints": true
     },
     {
       "idx": 94,
       "version": "7",
       "when": 1793988170647,
-      "tag": "0094_jahresabschluss",
+      "tag": "0094_kontaktrollen",
       "breakpoints": true
     },
     {
       "idx": 95,
       "version": "7",
       "when": 1793988230647,
-      "tag": "0095_jahresabschluss_trigger",
+      "tag": "0095_rechtsform",
       "breakpoints": true
     },
     {
       "idx": 96,
       "version": "7",
       "when": 1793988290647,
-      "tag": "0096_koerperschaft",
+      "tag": "0096_rechtsform_trigger",
       "breakpoints": true
     },
     {
       "idx": 97,
       "version": "7",
       "when": 1793988350647,
-      "tag": "0097_koerperschaft_trigger",
+      "tag": "0097_jahresabschluss",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1793988410647,
+      "tag": "0098_jahresabschluss_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1793988470647,
+      "tag": "0099_koerperschaft",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1793988530647,
+      "tag": "0100_koerperschaft_trigger",
       "breakpoints": true
     }
   ]

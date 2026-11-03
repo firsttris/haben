@@ -12,6 +12,8 @@ const entry = (name: string): WebEntry => webEntrySchema.parse({ files: [], ...(
 const SALES = entry("sales-invoice.json");
 const PURCHASE = entry("purchase-gross.json");
 const CREDIT_NOTE = entry("purchase-creditnote-net.json");
+const FINANCIAL = entry("financial-purchase.json");
+const FINANCIAL_PRIVATE = entry("financial-private.json");
 const CONTACTS = raw("contacts.json") as Parameters<typeof webContact>[0][];
 
 describe("Umrechnung der Web-Oberfläche in die Form der Public API", () => {
@@ -105,6 +107,45 @@ describe("Umrechnung der Web-Oberfläche in die Form der Public API", () => {
       ],
     });
     expect(mapPayments(webPayments(PURCHASE))).toEqual({ status: "openExpense", openAmount: -13090, paidDate: null, items: [] });
+  });
+
+  it("Buchung ohne Beleg: Vorsteuer aus dem Bruttobetrag, Gegenüber und Zweck aus dem Bankumsatz, gezahlt am Buchungstag", () => {
+    const converted = webBookkeepingVoucher(FINANCIAL);
+    expect(converted).toMatchObject({ ohneBeleg: true, privat: false });
+    expect(mapVoucher(converted, FINANCIAL.list.entityId)).toMatchObject({
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      number: "",
+      date: "2026-06-28",
+      status: "paid",
+      contactName: "Autohaus Beispiel",
+      gross: 25000,
+      // 250,00 brutto zu 19 %: 39,92 Vorsteuer, wie in der Voranmeldung von Lexware Office
+      tax: 3992,
+      net: 21008,
+      categories: [{ categoryId: "9eaf6ff8-fd89-11e1-a21f-0800200c9a66", net: 21008, tax: 3992, rate: 1900 }],
+      fileIds: [],
+      remark: "Buchung ohne Beleg: Ladekarte Juni",
+    });
+    // voucherPayments nennt 27.06. 22:00 UTC; maßgeblich ist der Buchungstag des Umsatzes
+    expect(mapPayments(webPayments(FINANCIAL))).toEqual({
+      status: "balanced",
+      openAmount: 0,
+      paidDate: "2026-06-28",
+      items: [{ type: "partPaymentFinancialTransaction", date: "2026-06-28", amount: 25000 }],
+    });
+  });
+
+  it("Buchung ohne Beleg: Privateinlage ist eine Einnahme ohne Steuer und als privat gekennzeichnet", () => {
+    const converted = webBookkeepingVoucher(FINANCIAL_PRIVATE);
+    expect(converted).toMatchObject({ ohneBeleg: true, privat: true, remark: "Buchung ohne Beleg" });
+    expect(mapVoucher(converted, FINANCIAL_PRIVATE.list.entityId)).toMatchObject({ type: "salesinvoice", direction: "einnahme", gross: 25000, tax: 0 });
+  });
+
+  it("Buchung ohne Beleg: ohne Bankumsatz zählt der Zahlungstag in Berliner Zeit", () => {
+    const withoutTransaction = structuredClone(FINANCIAL);
+    withoutTransaction.financial!.transactions = [];
+    expect(mapPayments(webPayments(withoutTransaction)).items).toEqual([{ type: "partPaymentFinancialTransaction", date: "2026-06-28", amount: 25000 }]);
   });
 
   it("Status: sepa_debit heißt in der Public API sepadebit", () => {
@@ -202,6 +243,29 @@ describe("Sicherung lesen", () => {
     expect((await source.postingCategories()).map((c) => c.name).sort()).toEqual(["Bürobedarf", "Fachliteratur"]);
   });
 
+  it("liefert Buchungen ohne Beleg als Einnahme- und Ausgabebelege", async () => {
+    const data = readWebExport([
+      {
+        name: "teil-01.zip",
+        bytes: part({
+          entries: {
+            [FINANCIAL.list.entityId]: { ...(raw("financial-purchase.json") as object), files: [] },
+            [FINANCIAL_PRIVATE.list.entityId]: { ...(raw("financial-private.json") as object), files: [] },
+          },
+        }),
+      },
+    ]);
+    const source = webExportSource(data);
+    const list = [];
+    for await (const item of source.voucherList(["purchaseinvoice", "salesinvoice"])) list.push([item.voucherType, item.id]);
+    expect(list).toEqual([
+      ["purchaseinvoice", FINANCIAL.list.entityId],
+      ["salesinvoice", FINANCIAL_PRIVATE.list.entityId],
+    ]);
+    expect(await source.voucher(FINANCIAL.list.entityId)).toMatchObject({ type: "purchaseinvoice", totalTaxAmount: 39.92, files: [] });
+    expect((await source.payments(FINANCIAL.list.entityId))?.paymentItems).toHaveLength(1);
+  });
+
   it("meldet Belege, die das Skript nicht laden konnte oder deren JSON nicht passt, als fehlgeschlagen", async () => {
     const data = readWebExport([
       {
@@ -248,6 +312,6 @@ describe("Sicherung lesen", () => {
     expect(read(new TextEncoder().encode("kein zip"))).toThrow(new LexwareWebExportError("x.zip: keine gültige ZIP-Datei."));
     expect(read(zipSync({ "a.txt": encode("x") }))).toThrow(/manifest.json fehlt/);
     expect(read(part({ manifest: { format: "etwas-anderes" } }))).toThrow(/keine Sicherung aus dem Skript/);
-    expect(read(part({ manifest: { version: 2 } }))).toThrow(/Version 2; diese Version von Haben liest bis Version 1/);
+    expect(read(part({ manifest: { version: 3 } }))).toThrow(/Version 3; diese Version von Haben liest bis Version 2/);
   });
 });

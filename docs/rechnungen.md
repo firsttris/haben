@@ -204,9 +204,11 @@ Fällig ist eine Rechnung am Rechnungsdatum plus Zahlungsziel. Fällt dieser Tag
 
 Neben der Zahlungsaufforderung druckt Haben einen GiroCode, also einen EPC-QR-Code nach dem Standard des European Payments Council. Der Kunde scannt ihn mit der Banking-App, und die Überweisung ist ausgefüllt:
 
-- Empfänger, IBAN und BIC aus den Firmendaten,
+- Empfänger, IBAN und BIC aus den Firmendaten; als Empfänger steht der **Kontoinhaber**, ohne Angabe der Firmenname,
 - der Rechnungsbetrag,
 - der Verwendungszweck „Rechnung 2026-001“.
+
+Läuft dein Konto nicht auf den Firmennamen, z. B. auf dich als Person, trag unter **Einstellungen › Firma** den **Kontoinhaber** ein. Die Bank deines Kunden vergleicht den Empfängernamen bei der Überweisung mit dem Inhaber des Kontos (Empfängerüberprüfung, seit Oktober 2025) und warnt sonst. Der Kontoinhaber steht auch in der Bankspalte der Fußzeile und in der E-Rechnung als Name des Zahlungskontos (BT-85).
 
 Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen.
 
@@ -425,12 +427,14 @@ Im Bankabgleich ist eine stornierte Rechnung nicht mehr offen. Eine Rechnungskor
 
 ## Kontakte
 
-Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Das Suchfeld über der Liste filtert nach Name, Kundennummer, E-Mail und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein.
+Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt ein gemeinsames Verzeichnis für Kunden und Lieferanten: Eine Firma, bei der du einkaufst und der du auch Rechnungen schreibst, steht nur einmal drin. **Alle**, **Kunden** und **Lieferanten** über der Liste filtern nach Rolle. Das Suchfeld filtert nach Name, Kundennummer, E-Mail und Ort; **Archivierte zeigen** blendet archivierte Kontakte ein.
 
 | Feld | Hinweis |
 | --- | --- |
 | Name oder Firma | Pflicht |
-| Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. |
+| Rolle | **Kunde**, **Lieferant** oder beides; mindestens eine. Kunden stehen bei Rechnungen, Angeboten, Serienrechnungen und Textbausteinen zur Auswahl, Lieferanten bei den [Belegen](belege.md). Kontakte von vor dieser Einstellung sind Kunden. |
+| Lieferantennummer | Frei, z. B. deine Kundennummer beim Lieferanten. |
+| Kundennummer | Erscheint auf der Rechnung und als Käuferkennung im XML. Mit einem Format unter **Einstellungen › Rechnungen › Kundennummern** vergibt Haben sie beim Anlegen selbst, wenn du das Feld leer lässt (siehe unten). |
 | E-Mail | Eine oder mehrere Adressen, mit Komma getrennt (höchstens fünf), etwa zentraler Rechnungseingang und Freigeber. Der Versand per E-Mail schreibt an alle. Für XRechnung gilt die erste als elektronische Adresse des Käufers (BT-49). |
 | Straße und Hausnummer, PLZ, Ort | Für das Festschreiben vollständig nötig. |
 | Land (ISO-Code) | Zwei Buchstaben, Vorgabe `DE`. Andere Länder erscheinen ausgeschrieben in der Anschrift. |
@@ -438,6 +442,8 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Das Such
 | IBAN | Hilft beim Bankabgleich. Wird beim ersten zugeordneten Zahlungseingang automatisch gemerkt, wenn das Feld leer ist. |
 | Leitweg-ID (öffentliche Auftraggeber) | Steht auf der Rechnung und wird im XML als Käuferreferenz verwendet. |
 | Standardformat für Rechnungen | ZUGFeRD, XRechnung (CII), XRechnung (UBL) oder „wie in den Einstellungen“. |
+
+**Kundennummern automatisch.** Unter **Einstellungen › Rechnungen › Kundennummern** trägst du ein Format wie `K-{NNNN}` und die nächste laufende Nummer ein. Legst du dann einen Kontakt ohne Kundennummer an, vergibt Haben die nächste (`K-0001`, `K-0002` …); das Formular zeigt sie vorab an. Platzhalter wie beim [Nummernformat](einrichtung.md#nummernformat), das Jahr ist hier aber nicht nötig, weil der Zähler nicht jährlich neu beginnt. Eine eingetragene Nummer bleibt, wie sie ist, und zählt nicht mit; Nummern, die ein Kontakt schon trägt, etwa aus einem Import, überspringt Haben. Beim Bearbeiten eines Kontakts vergibt Haben keine Nummer, und einem reinen Lieferanten (ohne Häkchen **Kunde**) auch nicht. Leeres Format schaltet die automatische Vergabe ab.
 
 **Versionen.** Jede Änderung erhöht die Versionsnummer, der vorige Stand bleibt als Version erhalten. Die Detailseite listet alle Versionen mit Zeitpunkt. Festgeschriebene Rechnungen behalten die Anschrift, die beim Festschreiben galt.
 

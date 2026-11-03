@@ -90,8 +90,10 @@ export const company = pgTable(
     bank: text("bank").notNull().default(""),
     iban: text("iban").notNull().default(""),
     bic: text("bic").notNull().default(""),
+    /** Inhaber des Kontos, wenn nicht der Firmenname; leer = Firmenname (GiroCode, BT-85) */
+    kontoinhaber: text("kontoinhaber").notNull().default(""),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
-    /** Einzelunternehmen oder Kapitalgesellschaft (GmbH, UG); fest ab der ersten Buchung (drizzle/0093) */
+    /** Einzelunternehmen oder Kapitalgesellschaft (GmbH, UG); fest ab der ersten Buchung (drizzle/0096) */
     rechtsform: text("rechtsform", { enum: RECHTSFORM_KEYS }).notNull().default("einzelunternehmen"),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
@@ -105,6 +107,9 @@ export const company = pgTable(
     /** Nummernformate mit Platzhaltern {JJJJ}, {JJ}, {N…} (packages/core/src/number-format.ts) */
     invoiceNumberFormat: text("invoice_number_format").notNull().default("{JJJJ}-{NNN}"),
     quoteNumberFormat: text("quote_number_format").notNull().default("AN-{JJJJ}-{NNN}"),
+    /** Kundennummern automatisch, z. B. "K-{NNNN}"; leer = von Hand. Der Zähler läuft durch, ohne Jahr */
+    customerNumberFormat: text("customer_number_format").notNull().default(""),
+    customerNumberNext: integer("customer_number_next").notNull().default(1),
     /** Für den DATEV-Export: Nummern bei der Steuerberatung */
     datevBeraterNr: text("datev_berater_nr").notNull().default(""),
     datevMandantNr: text("datev_mandant_nr").notNull().default(""),
@@ -626,6 +631,11 @@ export const seals = pgTable(
 export const contacts = pgTable("contacts", {
   id: uuid("id").primaryKey().defaultRandom(),
   kundennummer: text("kundennummer"),
+  /** Rollen: ein Kontakt kann Kunde, Lieferant oder beides sein; bestehende Kontakte sind Kunden */
+  isCustomer: boolean("is_customer").notNull().default(true),
+  isSupplier: boolean("is_supplier").notNull().default(false),
+  /** Nummer beim Lieferanten bzw. eigene Lieferantennummer, frei */
+  lieferantennummer: text("lieferantennummer"),
   name: text("name").notNull(),
   strasse: text("strasse").notNull().default(""),
   plz: text("plz").notNull().default(""),
@@ -962,7 +972,7 @@ export const journalEntries = pgTable(
 
 /**
  * Abgeschlossene Geschäftsjahre (GmbH, UG). Nur anhängen; ein Trigger lehnt danach jede Buchung mit Datum im Jahr ab und
- * hält beim Abschluss Zahl und Prüfwert der Buchungen fest (SHA-256 über ihren Inhalt, gerechnet wie ihre Siegel, drizzle/0095).
+ * hält beim Abschluss Zahl und Prüfwert der Buchungen fest (SHA-256 über ihren Inhalt, gerechnet wie ihre Siegel, drizzle/0098).
  */
 export const yearClosings = pgTable("year_closings", {
   year: integer("year").primaryKey(),
@@ -1014,6 +1024,8 @@ export const documents = pgTable(
     extraction: jsonb("extraction").$type<Record<string, unknown>>(),
     supplierName: text("supplier_name").notNull().default(""),
     supplierUstId: text("supplier_ust_id").notNull().default(""),
+    /** Aus den Kontakten gewählter Lieferant; Name und USt-IdNr. stehen trotzdem am Beleg, wie sie gebucht wurden */
+    supplierContactId: uuid("supplier_contact_id").references(() => contacts.id),
     invoiceNumber: text("invoice_number").notNull().default(""),
     documentDate: date("document_date", { mode: "string" }),
     dueDate: date("due_date", { mode: "string" }),
@@ -1088,7 +1100,7 @@ export const bankAccounts = pgTable(
       .notNull()
       .default("geschaeft"),
     /** Nur Zahlungsdienstleister: Anbieter (PAYMENT_PROVIDERS) und Nummer des Verrechnungskontos (1361 … bzw. 1461 …) */
-    provider: text("provider", { enum: ["paypal", "stripe", "shopify", "etsy", "sumup", "sonstige"] }),
+    provider: text("provider", { enum: ["paypal", "stripe", "shopify", "etsy", "ebay", "sumup", "sonstige"] }),
     ledgerIndex: smallint("ledger_index").unique(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

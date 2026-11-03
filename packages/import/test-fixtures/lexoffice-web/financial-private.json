@@ -1,0 +1,61 @@
+{
+  "list": {
+    "entityId": "30000000-0000-4000-8000-000000000002",
+    "entityType": "financialvoucher",
+    "entitySubType": "FinancialSalesInvoice",
+    "identificationNumber": null,
+    "billingStatus": "paid",
+    "totalGrossAmount": 250,
+    "openAmount": 0,
+    "archived": false,
+    "voucherDate": "2026-07-31T00:00:00.000+02:00",
+    "createdDate": "2026-08-10T09:12:44.120+02:00"
+  },
+  "details": {
+    "organizationId": "o0000000-0000-4000-8000-000000000001",
+    "bookkeepingVoucherId": "30000000-0000-4000-8000-000000000002",
+    "totalGrossAmount": 250,
+    "taxType": "gross",
+    "createdDate": "2026-08-10T09:12:44.120+02:00",
+    "voucherDate": "2026-07-31T00:00:00.000+02:00",
+    "archived": false,
+    "postingType": "revenue",
+    "type": "FinancialSalesInvoice",
+    "bookkeepingVoucherItems": [
+      {
+        "bookkeepingVoucherItemId": "i0000000-0000-4000-8000-000000000002",
+        "taxRate": { "i18nKey": "None", "percent": 0, "calcPercent": 0, "taxRateLevel": "none", "countryCode": "DE" },
+        "amount": 250,
+        "postingCategory": { "postingCategoryId": "cfddcc54-fd86-11e1-a21f-0800200c9a66", "name": "Privateinlagen", "type": "income" },
+        "sequenceNo": 1
+      }
+    ],
+    "billingStatus": "paid"
+  },
+  "financial": {
+    "payments": [
+      {
+        "paymentAmount": 250,
+        "paymentDate": "2026-07-30T22:00:00.000+00:00",
+        "voucherId": "30000000-0000-4000-8000-000000000002",
+        "voucherType": "FINANCIAL_SALES_INVOICE",
+        "voucherSource": "BOOKKEEPING_VOUCHER",
+        "paymentId": "t0000000-0000-4000-8000-000000000002",
+        "paymentSource": "FINANCIAL_TRANSACTION"
+      }
+    ],
+    "transactions": [
+      {
+        "financialTransactionId": "t0000000-0000-4000-8000-000000000002",
+        "financialAccount": { "name": "Girokonto" },
+        "bookingState": "COMPLETELY_ASSIGNED",
+        "amount": 250,
+        "openAmount": 0,
+        "purpose": "",
+        "transactionDate": "2026-07-31T00:00:00.000+00:00",
+        "recipientOrSenderName": "Autohaus Beispiel",
+        "numberOfVouchers": 1
+      }
+    ]
+  }
+}

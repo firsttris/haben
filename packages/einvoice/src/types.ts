@@ -26,6 +26,8 @@ export interface Seller extends Address {
   iban?: string;
   bic?: string;
   bank?: string;
+  /** Inhaber des Kontos, wenn nicht der Firmenname (GiroCode, BT-85); fehlt = name */
+  kontoinhaber?: string;
 }
 
 export interface Buyer extends Address {

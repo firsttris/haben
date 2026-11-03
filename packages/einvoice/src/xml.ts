@@ -1,6 +1,6 @@
 import { InvoiceService, type Invoice, type InvoiceServiceOptions, type Logger } from "@e-invoice-eu/core";
 import { TAX_TREATMENTS, treatmentNote, UNITS, type Cents, type Millis } from "@haben/core";
-import { compactIban, formatDate, isCreditNote, paymentSentence, servicePeriod } from "./format.ts";
+import { accountHolder, compactIban, formatDate, isCreditNote, paymentSentence, servicePeriod } from "./format.ts";
 import { renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
 import { validateForFormat } from "./validate.ts";
@@ -237,7 +237,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
           "cbc:PaymentID": doc.number,
           "cac:PayeeFinancialAccount": {
             "cbc:ID": compactIban(seller.iban),
-            "cbc:Name": seller.name,
+            // BT-85 Name des Zahlungskontos: der Kontoinhaber, sonst der Firmenname
+            "cbc:Name": accountHolder(seller),
             ...(seller.bic ? { "cac:FinancialInstitutionBranch": { "cbc:ID": seller.bic } } : {}),
           },
         },

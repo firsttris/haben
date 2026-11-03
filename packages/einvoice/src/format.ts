@@ -1,5 +1,5 @@
 import { TEXTS, type Texts } from "./i18n.ts";
-import type { InvoiceDocument } from "./types.ts";
+import type { InvoiceDocument, Seller } from "./types.ts";
 
 /** "2026-10-02" → "02.10.2026" */
 export function formatDate(isoDate: string): string {
@@ -39,4 +39,9 @@ export function paymentSentence(doc: Pick<InvoiceDocument, "totals" | "dueDate">
 
 export function countryName(code: string, locale = "de"): string {
   return new Intl.DisplayNames([locale], { type: "region" }).of(code.toUpperCase()) ?? code;
+}
+
+/** Name für GiroCode und Zahlungskonto (BT-85): der Kontoinhaber, sonst der Firmenname */
+export function accountHolder(seller: Pick<Seller, "name" | "kontoinhaber">): string {
+  return seller.kontoinhaber?.trim() || seller.name;
 }

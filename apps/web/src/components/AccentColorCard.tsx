@@ -31,8 +31,8 @@ export function AccentColorCard({ color }: { color: string }) {
     <form className="card" onSubmit={onSubmit} aria-labelledby="accent-heading">
       <h2 id="accent-heading">Akzentfarbe</h2>
       <p className="small muted" style={{ margin: 0 }}>
-        Färbt Spaltenköpfe und Linien auf Rechnungen, Angeboten, Auftragsbestätigungen, Lieferscheinen und Mahnungen, etwa passend zum Logo. Schon
-        festgeschriebene Belege behalten ihr PDF.
+        Färbt Spaltenköpfe und Linien auf Rechnungen, Angeboten, Auftragsbestätigungen, Lieferscheinen und Mahnungen, etwa passend zum Logo; Text,
+        Beschriftungen und Fußzeile bekommen dazu passende Grautöne. Schon festgeschriebene Belege behalten ihr PDF.
       </p>
       <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
         <label className="field">

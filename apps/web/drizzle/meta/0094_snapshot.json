@@ -1,6 +1,6 @@
 {
-  "id": "e2c3beed-3a33-4ef4-bce6-251783ad11a5",
-  "prevId": "f05cefce-78cd-49a3-bf25-1a73102504c6",
+  "id": "a710c9c1-29b2-48ca-8c19-5249d33caae6",
+  "prevId": "e4c6f41e-d7c2-4ff1-a902-564ee0395487",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2050,6 +2050,13 @@
           "notNull": true,
           "default": "''"
         },
+        "kontoinhaber": {
+          "name": "kontoinhaber",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "kontenrahmen": {
           "name": "kontenrahmen",
           "type": "kontenrahmen",
@@ -2057,13 +2064,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'SKR03'"
-        },
-        "rechtsform": {
-          "name": "rechtsform",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'einzelunternehmen'"
         },
         "payment_term_days": {
           "name": "payment_term_days",
@@ -2120,6 +2120,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'AN-{JJJJ}-{NNN}'"
+        },
+        "customer_number_format": {
+          "name": "customer_number_format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "customer_number_next": {
+          "name": "customer_number_next",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
         },
         "datev_berater_nr": {
           "name": "datev_berater_nr",
@@ -2203,10 +2217,6 @@
         "company_accent_color": {
           "name": "company_accent_color",
           "value": "\"company\".\"accent_color\" ~ '^#[0-9A-Fa-f]{6}$'"
-        },
-        "company_rechtsform": {
-          "name": "company_rechtsform",
-          "value": "\"company\".\"rechtsform\" in ('einzelunternehmen', 'gmbh', 'ug')"
         }
       },
       "isRLSEnabled": false
@@ -2354,6 +2364,26 @@
         },
         "kundennummer": {
           "name": "kundennummer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_customer": {
+          "name": "is_customer",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "is_supplier": {
+          "name": "is_supplier",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "lieferantennummer": {
+          "name": "lieferantennummer",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -2833,6 +2863,12 @@
           "notNull": true,
           "default": "''"
         },
+        "supplier_contact_id": {
+          "name": "supplier_contact_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "invoice_number": {
           "name": "invoice_number",
           "type": "text",
@@ -2973,6 +3009,19 @@
       },
       "indexes": {},
       "foreignKeys": {
+        "documents_supplier_contact_id_contacts_id_fk": {
+          "name": "documents_supplier_contact_id_contacts_id_fk",
+          "tableFrom": "documents",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "supplier_contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
         "documents_lexoffice_voucher_fk": {
           "name": "documents_lexoffice_voucher_fk",
           "tableFrom": "documents",
@@ -7606,46 +7655,6 @@
           "value": "(\"write_offs\".\"kind\" = 'skontoErhalten' and \"write_offs\".\"document_id\" is not null and \"write_offs\".\"invoice_id\" is null) or (\"write_offs\".\"kind\" in ('skonto', 'forderungsausfall') and \"write_offs\".\"invoice_id\" is not null and \"write_offs\".\"document_id\" is null) or (\"write_offs\".\"kind\" = 'kursdifferenz' and (\"write_offs\".\"invoice_id\" is null) <> (\"write_offs\".\"document_id\" is null) and \"write_offs\".\"transaction_id\" is not null)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.year_closings": {
-      "name": "year_closings",
-      "schema": "",
-      "columns": {
-        "year": {
-          "name": "year",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entries": {
-          "name": "entries",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "digest": {
-          "name": "digest",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

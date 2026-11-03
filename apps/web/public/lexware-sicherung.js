@@ -13,15 +13,18 @@
  * Inhalt jeder ZIP-Datei:
  *   manifest.json            Format, Version, Teil, Zeitpunkt
  *   kontakte.json            alle Kontakte (in jedem Teil, damit jeder Teil für sich übernommen werden kann)
- *   belege/<id>.json         je Beleg die Antworten der Web-Oberfläche und die Liste seiner Dateien
+ *   belege/<id>.json         je Beleg die Antworten der Web-Oberfläche und die Liste seiner Dateien; auch je
+ *                            Buchung ohne Beleg (direkt auf einen Bankumsatz gebucht) mit den Bankumsätzen dazu
  *   dateien/<id>/<name>      Original-PDF bzw. E-Rechnungs-XML
  */
 (async () => {
   const FORMAT = "haben-lexware-web";
-  const VERSION = 1;
+  const VERSION = 2;
   const PART_LIMIT = 50 * 1024 * 1024;
   const PAUSE_MS = 150;
   const MAX_RETRIES = 5;
+  /** Gleichzeitige Abfragen bei den Bankumsätzen: es sind oft Tausende, nacheinander dauerte das eine halbe Stunde */
+  const PARALLEL = 4;
   const SALES_TYPES = ["Invoice", "CreditNote", "DownPaymentInvoice"];
   const BOOKKEEPING_TYPES = ["SalesInvoice", "SalesCreditNote", "PurchaseInvoice", "PurchaseCreditNote"];
   const NO_FILE = [204, 400, 404, 406];
@@ -139,11 +142,17 @@
     );
   }
 
+  /** Bankumsätze, die einem Beleg aus der Belegliste zugeordnet sind, mit der Zahl der Zuordnungen */
+  const assigned = new Map();
+
   /** Antworten und Dateien eines Belegs */
   async function voucher(item) {
     const id = encodeURIComponent(item.entityId);
     const type = encodeURIComponent(item.entitySubType);
     const details = await json(`/grld-rest/voucherservice/1/v100/voucherDetails/${type}/${id}`);
+    for (const line of details.paymentListItems ?? []) {
+      if (line.referenceType === "FinancialTransaction" && line.referenceId) assigned.set(line.referenceId, (assigned.get(line.referenceId) ?? 0) + 1);
+    }
     const files = [];
     if (item.entityType === "salesvoucher") {
       const document = await json(`/papyrus-rest/vouchers/sales-voucher/${id}`, {}, [200, 423]);
@@ -162,6 +171,79 @@
       if (xml) files.push({ role: "xml", ...xml });
     }
     return { entry: { list: item, details, capsa }, files };
+  }
+
+  /** Alle Bankumsätze außer den ignorierten */
+  async function transactions() {
+    const all = [];
+    for (let page = 0; ; page++) {
+      const result = await json(`/fis/finance-rest/financialtransactionservice/v3/financialTransactions?pageNumber=${page}&pageSize=500&ignored=false`);
+      all.push(...(result.content ?? []));
+      if (page + 1 >= (result.totalPages ?? 0)) break;
+    }
+    return all;
+  }
+
+  /** Arbeitet `items` mit PARALLEL gleichzeitigen Abfragen ab */
+  async function parallel(items, worker) {
+    let next = 0;
+    const lane = async () => {
+      while (next < items.length) await worker(items[next++]);
+    };
+    await Promise.all(Array.from({ length: PARALLEL }, lane));
+  }
+
+  /**
+   * Buchungen ohne Beleg: In Lexware Office lässt sich ein Bankumsatz direkt einer Kategorie zuordnen, ohne
+   * Belegdatei (auch Privatentnahmen). Diese Buchungen stehen nicht in der Belegliste, zählen aber in der
+   * Voranmeldung. Gefunden werden sie über die Bankumsätze, die mehr Zuordnungen haben als Belege aus der
+   * Liste; je Umsatz nennt voucherPayments die Buchung. Liefert je Buchung den Eintrag wie bei einem Beleg.
+   */
+  async function financialVouchers(failed) {
+    const open = (await transactions()).filter((t) => (t.numberOfVouchers ?? 0) > (assigned.get(t.financialTransactionId) ?? 0));
+    log(`${open.length} Bankumsätze ohne Beleg aus der Liste, suche die Buchungen dazu …`);
+    const byVoucher = new Map();
+    await parallel(open, async (t) => {
+      try {
+        const result = await json(
+          `/fis/finance-rest/voucherpaymentintegrationservice/v100/voucherPayments/financialTransaction/${encodeURIComponent(t.financialTransactionId)}`,
+        );
+        for (const payment of result.voucherPayments ?? []) {
+          if (!String(payment.voucherType ?? "").startsWith("FINANCIAL_") || !payment.voucherId) continue;
+          const found = byVoucher.get(payment.voucherId) ?? { payments: [], transactions: [] };
+          found.payments.push(payment);
+          if (!found.transactions.some((x) => x.financialTransactionId === t.financialTransactionId)) found.transactions.push(t);
+          byVoucher.set(payment.voucherId, found);
+        }
+      } catch (error) {
+        const label = `Bankumsatz ${String(t.transactionDate ?? "").slice(0, 10)} ${t.recipientOrSenderName ?? ""} ${t.amount ?? ""}`.trim();
+        failed.push({ id: t.financialTransactionId, type: "FinancialTransaction", number: label, message: String(error?.message ?? error) });
+      }
+    });
+    log(`${byVoucher.size} Buchungen ohne Beleg. Lade sie …`);
+    const entries = [];
+    await parallel([...byVoucher], async ([id, financial]) => {
+      try {
+        const details = await json(`/grld-rest/financialvoucherservice/v100/financialVoucher/${encodeURIComponent(id)}`);
+        const list = {
+          entityId: id,
+          entityType: "financialvoucher",
+          entitySubType: details.type,
+          identificationNumber: null,
+          billingStatus: details.billingStatus,
+          totalGrossAmount: details.totalGrossAmount,
+          openAmount: 0,
+          archived: details.archived,
+          voucherDate: details.voucherDate,
+          createdDate: details.createdDate,
+        };
+        entries.push({ list, details, financial });
+      } catch (error) {
+        const type = financial.payments[0]?.voucherType === "FINANCIAL_SALES_INVOICE" ? "FinancialSalesInvoice" : "FinancialPurchaseInvoice";
+        failed.push({ id, type, number: "", message: String(error?.message ?? error) });
+      }
+    });
+    return entries;
   }
 
   // ------------------------------------------------------------------ ZIP (ohne Kompression)
@@ -305,6 +387,19 @@
     inPart += 1;
     if ((index + 1) % 25 === 0) log(`${index + 1} von ${items.length} Belegen`);
   }
+
+  let withoutReceipt = [];
+  try {
+    withoutReceipt = await financialVouchers(failed);
+  } catch (error) {
+    // Ohne Bankumsätze fehlen nur die Buchungen ohne Beleg; Haben zeigt das in der Liste der fehlgeschlagenen
+    failed.push({ id: "bankumsaetze", type: "FinancialTransaction", number: "Bankumsätze", message: String(error?.message ?? error) });
+    log("Fehler bei den Bankumsätzen:", error);
+  }
+  for (const entry of withoutReceipt) {
+    zip.add(`belege/${entry.list.entityId}.json`, encoder.encode(JSON.stringify({ ...entry, files: [] })));
+    inPart += 1;
+  }
   finishPart();
-  log(`Fertig: ${items.length} Belege in ${part} Datei(en). Jetzt in Haben unter Archiv → Umzug hochladen.`);
+  log(`Fertig: ${items.length} Belege und ${withoutReceipt.length} Buchungen ohne Beleg in ${part} Datei(en). Jetzt in Haben unter Archiv → Umzug hochladen.`);
 })();

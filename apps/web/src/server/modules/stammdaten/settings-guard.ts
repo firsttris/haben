@@ -67,7 +67,7 @@ export async function settingsLocks(today: string, q: Db | Tx = db): Promise<Set
         ? `${openInvoices} ${openInvoices === 1 ? "Rechnung ist" : "Rechnungen sind"} noch offen. Nach einem Wechsel würde ihre Umsatzsteuer doppelt oder gar nicht angemeldet; erst ausgleichen, dann umstellen.`
         : null),
     kleinunternehmer: yearLock,
-    // Privat und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher (drizzle/0093)
+    // Privat und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher (drizzle/0096)
     rechtsform: anyEntry ? "Es gibt schon Buchungen. Die Rechtsform lässt sich nur vor der ersten Buchung festlegen." : null,
   };
 }
