@@ -77,4 +77,11 @@ describe.skipIf(!testDatabaseUrl)("Kundennummern (Postgres)", () => {
     await numbers.saveCustomerNumbering(actor, { format: "  ", next: 51 });
     expect((await contacts.createContact(actor, input("B"))).kundennummer).toBeNull();
   });
+  it("zeigt vorab die Nummer, die Haben wirklich vergibt, auch wenn die nächste schon vergeben ist", async () => {
+    await contacts.createContact(actor, input("Alt", "K-0001"));
+    await contacts.createContact(actor, input("Alt 2", "K-0002"));
+    await numbers.saveCustomerNumbering(actor, { format: "K-{NNNN}", next: 1 });
+    const { preview } = await numbers.customerNumbering();
+    expect((await contacts.createContact(actor, input("Neu"))).kundennummer).toBe(preview);
+  });
 });
