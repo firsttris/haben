@@ -216,6 +216,16 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(created.headers.get("location")).toBe(`/api/v1/rechnungen/${invoice.id}`);
     });
 
+    it("nimmt Format und Sprache ohne Angabe vom Kontakt wie der Rechnungseditor", async () => {
+      const t = await token(["rechnungen:entwuerfe", "kontakte:schreiben"]);
+      const amt = (await call(t, "POST", "/kontakte", { name: "Stadt Regensburg", leitwegId: "09362000-12345-67", language: "en" })).json!;
+      const created = await call(t, "POST", "/rechnungen", draft({ contactId: amt.id }));
+      expect(created.status).toBe(201);
+      expect(created.json).toMatchObject({ format: "xrechnung-cii", language: "en" });
+      const explicit = await call(t, "POST", "/rechnungen", draft({ contactId: amt.id, format: "zugferd", language: "de" }));
+      expect(explicit.json).toMatchObject({ format: "zugferd", language: "de" });
+    });
+
     it("dieselbe externe Referenz liefert den vorhandenen Entwurf mit 200 statt eines Duplikats, auch gleichzeitig", async () => {
       const t = await token(["rechnungen:entwuerfe"]);
       const ref = { externalSource: "etsy", externalId: "3141592653" };
