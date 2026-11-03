@@ -203,7 +203,14 @@ async function runImport(actor: string, importId: string, client: LexofficeSourc
         .where(and(isNull(schema.contacts.lexofficeId), sql`lower(${schema.contacts.name}) = lower(${contact.name})`))
         .limit(1);
       if (sameName) {
-        await tx.update(schema.contacts).set({ lexofficeId: contact.lexofficeId }).where(eq(schema.contacts.id, sameName.id));
+        // Rollen nur ergänzen: Lieferant in Lexoffice wird auch hier Lieferant, die Kundenrolle bleibt
+        await tx
+          .update(schema.contacts)
+          .set({
+            lexofficeId: contact.lexofficeId,
+            ...(contact.isVendor ? { isSupplier: true, lieferantennummer: sql`coalesce(${schema.contacts.lieferantennummer}, ${contact.lieferantennummer})` } : {}),
+          })
+          .where(eq(schema.contacts.id, sameName.id));
         progress.contactsLinked += 1;
         return;
       }
