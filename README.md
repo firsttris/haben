@@ -198,32 +198,13 @@ Prüf es selbst, der Code ist offen: Lass deinen Agenten Cloudflares [Security A
 
 ## 📚 Dokumentation
 
-Auch als Website mit Suche: **https://firsttris.github.io/haben/**
+Alles im Detail, mit Suche: **https://firsttris.github.io/haben/**. Jede Funktion oben verlinkt ihre Seite; dazu kommen:
 
-| | |
-|---|---|
-| [Betrieb und Installation](https://firsttris.github.io/haben/installation.html) | Docker Compose, Podman Quadlets, Caddy, Secrets, ERiC einbinden, Backup, Updates, häufige Probleme |
-| [Erste Schritte](https://firsttris.github.io/haben/einrichtung.html) | Konto und Passkey, Firmendaten, Ist oder Soll, SKR03 oder SKR04, Nummernkreis, ELSTER-Zertifikat, Bankkonten |
-| [Rechnungen und E-Rechnung](https://firsttris.github.io/haben/rechnungen.html) | Editor, Artikel, Textbausteine, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Storno, Mahnwesen, Kontakte |
-| [Angebote](https://firsttris.github.io/haben/angebote.html) | Nummernkreis, PDF, Versand, Rechnung aus dem Angebot |
-| [Belege](https://firsttris.github.io/haben/belege.html) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Reverse Charge |
-| [Pauschalen](https://firsttris.github.io/haben/pauschalen.html) · [Kassenbuch](https://firsttris.github.io/haben/kasse.html) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Barkasse |
-| [Anlagen und AfA](https://firsttris.github.io/haben/anlagen.html) | Anlagenverzeichnis, lineare AfA, GWG, Sammelposten, Abgang |
-| [Bankimport und Abgleich](https://firsttris.github.io/haben/bank.html) | Automatischer Abruf per PSD2, DKB, N26, CAMT.053, Vorschläge, Teilzahlungen |
-| [Umsatzsteuer-Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Kennzahlen, Vorprüfung, Übermittlung an ELSTER, XML-Import in Mein ELSTER, Berichtigung |
-| [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung, Belege von ELSTER |
-| [Abgabe an ELSTER](https://firsttris.github.io/haben/elster-abgabe.html) | Alle Wege im Vergleich: direkt per ERiC mit Hersteller-ID oder über Mein ELSTER mit XML-Import, Erweiterung, KI-Assistent oder von Hand |
-| [Mein ELSTER mit Erweiterung](https://firsttris.github.io/haben/elster-mit-erweiterung.html) | Ohne Hersteller-ID: die Erweiterung trägt Voranmeldung, USt-Erklärung, EÜR und Einkommensteuer ein, du sendest ab |
-| [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) · [Fristen](https://firsttris.github.io/haben/fristen.html) | ELSTER-Postfach, Vorauszahlungen, alle Steuertermine als Kalender-Feed (iCal) |
-| [Auswertungen und Jahresexport](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
-| [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | API-Abruf oder Sicherung über die Web-Oberfläche, DATEV-Buchungsstapel, offene Posten, Abgleich vor der Kündigung |
-| [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html) | API-Abruf aus sevDesk ins selbe Archiv, Unterschiede zu Lexoffice |
-| [KI-Assistenten (MCP)](https://firsttris.github.io/haben/ki-assistenten.html) | Im Gespräch mit Claude Code, Claude Desktop oder einem lokalen Modell abfragen; nur lesen |
-| [Mein ELSTER mit KI-Assistent](https://firsttris.github.io/haben/elster-mit-assistent.html) | Ohne Hersteller-ID abgeben: der Assistent trägt die Voranmeldung ein, du sendest ab |
-| [Barrierefreiheit und Tastatur](https://firsttris.github.io/haben/barrierefreiheit.html) | Bedienung ohne Maus, Tastenkürzel, Kontraste, Prüfung mit axe-core |
-| [Buchhaltung in Haben](https://firsttris.github.io/haben/buchhaltung.html) | GoBD, Festschreibung, Kontenrahmen, alle Buchungssätze, Steuerschlüssel |
-| [Architektur](https://firsttris.github.io/haben/architektur.html) · [Entwicklung](https://firsttris.github.io/haben/entwicklung.html) | Aufbau, Datenmodell, ERiC-Worker; lokale Umgebung, Tests, Mitwirken |
-| [Roadmap](https://firsttris.github.io/haben/roadmap.html) | Was als Nächstes kommt |
+- **Einstieg:** [Betrieb und Installation](https://firsttris.github.io/haben/installation.html) (Docker Compose, Podman, Backup, Updates),
+  [Erste Schritte](https://firsttris.github.io/haben/einrichtung.html) (Konto, Firmendaten, ELSTER und Hersteller-ID) und
+  [Abgabe an ELSTER](https://firsttris.github.io/haben/elster-abgabe.html) (alle Wege zum Finanzamt im Vergleich)
+- **Hintergrund:** [Buchhaltung in Haben](https://firsttris.github.io/haben/buchhaltung.html) (GoBD, Kontenrahmen, alle Buchungssätze),
+  [Architektur](https://firsttris.github.io/haben/architektur.html) · [Entwicklung](https://firsttris.github.io/haben/entwicklung.html) und [Roadmap](https://firsttris.github.io/haben/roadmap.html)
 
 ## 🔧 Entwicklung
 
