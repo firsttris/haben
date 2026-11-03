@@ -1,6 +1,6 @@
 {
-  "id": "610d768f-09c8-4192-bd30-18a0bc2aa6e8",
-  "prevId": "7dcc946f-ead5-4081-9034-e810fee9a066",
+  "id": "6c7e887f-f331-447e-bcc7-bc12bcd520e4",
+  "prevId": "a1a92bb9-9b19-4624-8efa-bb05b172bd35",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -600,6 +600,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
         },
         "unit": {
           "name": "unit",
@@ -2051,13 +2058,6 @@
           "notNull": true,
           "default": "'SKR03'"
         },
-        "rechtsform": {
-          "name": "rechtsform",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'einzelunternehmen'"
-        },
         "payment_term_days": {
           "name": "payment_term_days",
           "type": "smallint",
@@ -2092,6 +2092,27 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "accent_color": {
+          "name": "accent_color",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'#1F6F5C'"
+        },
+        "invoice_number_format": {
+          "name": "invoice_number_format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{JJJJ}-{NNN}'"
+        },
+        "quote_number_format": {
+          "name": "quote_number_format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'AN-{JJJJ}-{NNN}'"
         },
         "datev_berater_nr": {
           "name": "datev_berater_nr",
@@ -2172,9 +2193,9 @@
           "name": "company_single_row",
           "value": "\"company\".\"id\" = 1"
         },
-        "company_rechtsform": {
-          "name": "company_rechtsform",
-          "value": "\"company\".\"rechtsform\" in ('einzelunternehmen', 'gmbh', 'ug')"
+        "company_accent_color": {
+          "name": "company_accent_color",
+          "value": "\"company\".\"accent_color\" ~ '^#[0-9A-Fa-f]{6}$'"
         }
       },
       "isRLSEnabled": false
@@ -5847,6 +5868,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "quantity": {
           "name": "quantity",
           "type": "integer",
@@ -7567,46 +7595,6 @@
           "value": "(\"write_offs\".\"kind\" = 'skontoErhalten' and \"write_offs\".\"document_id\" is not null and \"write_offs\".\"invoice_id\" is null) or (\"write_offs\".\"kind\" in ('skonto', 'forderungsausfall') and \"write_offs\".\"invoice_id\" is not null and \"write_offs\".\"document_id\" is null) or (\"write_offs\".\"kind\" = 'kursdifferenz' and (\"write_offs\".\"invoice_id\" is null) <> (\"write_offs\".\"document_id\" is null) and \"write_offs\".\"transaction_id\" is not null)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.year_closings": {
-      "name": "year_closings",
-      "schema": "",
-      "columns": {
-        "year": {
-          "name": "year",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "entries": {
-          "name": "entries",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "digest": {
-          "name": "digest",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

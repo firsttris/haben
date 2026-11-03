@@ -113,6 +113,29 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");
   await expect(logo.getByRole("status")).toContainText("Logo gespeichert.");
   await expect(logo.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
+
+  const format = page.getByRole("form", { name: "Nummernformat" });
+  await format.getByLabel("Rechnungen").fill("RE-{NNN}");
+  await expect(format.getByText(/braucht das Jahr/)).toBeVisible();
+  await expect(format.getByRole("button", { name: "Format speichern" })).toBeDisabled();
+  await format.getByLabel("Rechnungen").fill("RE-{JJJJ}-{NNNN}");
+  await expect(format).toContainText(/Beispiel: RE-\d{4}-0001, RE-\d{4}-0002/);
+  await format.getByRole("button", { name: "Format speichern" }).click();
+  await expect(format.getByRole("status")).toContainText("Nummernformat gespeichert.");
+  await expect(page.getByRole("form", { name: /^Rechnungsnummern/ })).toContainText(/Nächste Nummer: RE-\d{4}-0001/);
+  // Die folgenden Tests rechnen mit den Nummern ab Werk
+  await format.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
+  await expect(format.getByLabel("Rechnungen")).toHaveValue("{JJJJ}-{NNN}");
+
+  const akzent = page.getByRole("form", { name: "Akzentfarbe" });
+  await akzent.getByLabel("Hex-Wert").fill("#F5D90A");
+  await expect(akzent.getByRole("status")).toContainText("schwer zu lesen");
+  await akzent.getByLabel("Hex-Wert").fill("#1d4ed8");
+  await akzent.getByRole("button", { name: "Übernehmen" }).click();
+  await expect(akzent.getByRole("status")).toContainText("Akzentfarbe gespeichert.");
+  await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1D4ED8");
+  await akzent.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
+  await expect(akzent.getByLabel("Hex-Wert")).toHaveValue("#1F6F5C");
 });
 
 test("Kunden anlegen", async () => {
@@ -393,24 +416,25 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(page.getByLabel("Aus dem Artikelkatalog einfügen").locator("option", { hasText: "Wartungspauschale · 250,00" })).toHaveCount(1);
 });
 
-test("Positionstext: mehrzeiliger Artikel wird Bezeichnung und Text, die Vorschau zeigt beides", async () => {
+test("Positionstext: Artikel mit Bezeichnung und Text, die Vorschau zeigt beides", async () => {
   await go("/artikel");
   await page.getByRole("button", { name: "Neuer Artikel" }).click();
   const form = page.getByRole("form", { name: "Neuer Artikel" });
-  await form.getByLabel("Bezeichnung").fill("Website-Relaunch\nKonzeption, Design und Umsetzung");
+  await form.getByLabel("Bezeichnung").fill("Website-Relaunch");
+  await form.getByLabel("Text zur Position (optional)").fill("Konzeption, Design und Umsetzung");
   await form.getByLabel("Artikelnummer (optional)").fill("W-01");
   await form.getByLabel("Preis (€)").fill("4.800,00");
   await form.getByRole("button", { name: "Anlegen" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Artikel angelegt." })).toBeVisible();
 
-  // Aus dem Katalog: erste Zeile als Bezeichnung, der Rest als Text der Position
+  // Aus dem Katalog: Bezeichnung und Text des Artikels in die Position
   await go("/rechnungen/neu");
   await page.getByLabel("Aus dem Artikelkatalog einfügen").selectOption({ label: "W-01 · Website-Relaunch · 4.800,00\u00a0€/Std." });
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Website-Relaunch");
   await expect(page.getByLabel("Text zu Position 1 (optional)")).toHaveValue("Konzeption, Design und Umsetzung");
   await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
 
-  // Vorschlag beim Tippen der Bezeichnung: dieselbe Aufteilung, dazu Preis und Einheit
+  // Vorschlag beim Tippen der Bezeichnung: ebenso, dazu Preis und Einheit
   await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
   await page.getByLabel("Beschreibung Position 2").fill("Website-Relaunch");
   await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("4.800,00");
@@ -422,13 +446,17 @@ test("Positionstext: mehrzeiliger Artikel wird Bezeichnung und Text, die Vorscha
   await expect(page.getByRole("button", { name: "Position 2 als Artikel speichern" })).toBeEnabled();
 });
 
-test("Positionstext: über 500 Zeichen mit Bezeichnung lässt sich die Position nicht als Artikel speichern", async () => {
-  // Artikel fassen 500 Zeichen (articleInputSchema), der Text einer Position 2000
+test("Positionstext: über 500 Zeichen lässt sich die Position als Artikel speichern und kommt vollständig zurück", async () => {
+  // Artikel und Positionen fassen denselben Text (LINE_DETAIL_MAX), die Bezeichnung bleibt bei 500 Zeichen
+  const leistungsumfang = "Leistungsumfang ".repeat(40).trim();
   await go("/rechnungen/neu");
   await page.getByLabel("Beschreibung Position 1").fill("Wartungsvertrag");
   await page.getByLabel(/Einzelpreis Position 1/).fill("90,00");
-  await page.getByLabel("Text zu Position 1 (optional)").fill("Leistungsumfang ".repeat(40));
-  await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
+  await page.getByLabel("Text zu Position 1 (optional)").fill(leistungsumfang);
+  await page.getByRole("button", { name: "Position 1 als Artikel speichern" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "„Wartungsvertrag“ ist jetzt im Artikelkatalog." })).toBeVisible();
+  await page.getByLabel("Aus dem Artikelkatalog einfügen").selectOption({ label: "Wartungsvertrag · 90,00\u00a0€/Std." });
+  await expect(page.getByLabel("Text zu Position 2 (optional)")).toHaveValue(leistungsumfang);
 });
 
 test("Positionstext: ein einzeiliger Artikel beim Tippen lässt den eigenen Text der Position stehen", async () => {
@@ -599,6 +627,7 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await expect(page.getByRole("heading", { name: /^Angebot AN-\d{4}-001$/, level: 1 })).toBeVisible();
   await page.getByLabel("Kunde").selectOption({ index: 1 });
   await page.getByLabel("Beschreibung Position 1").fill("Workshop Softwarearchitektur");
+  await page.getByLabel("Text zu Position 1 (optional)").fill("Agenda nach Abstimmung\nzwei Tage vor Ort");
   await page.getByLabel("Menge Position 1").fill("16");
   await page.getByLabel(/Einzelpreis Position 1/).fill("110");
   await expect(page.getByLabel("Vorschau des Angebots")).toContainText("Dieses Angebot gilt bis zum");
@@ -628,6 +657,8 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   await antwort.getByRole("button", { name: "Rechnung erstellen", exact: true }).click();
   await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
   await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Softwarearchitektur");
+  // Der Text zur Position geht aus dem Angebot in die Rechnung über
+  await expect(page.getByLabel("Text zu Position 1 (optional)")).toHaveValue("Agenda nach Abstimmung\nzwei Tage vor Ort");
   await expect(page.getByLabel(/Hinweis auf der Rechnung/)).toHaveValue(/^Gemäß unserem Angebot AN-\d{4}-001 vom/);
   // Den Entwurf wieder verwerfen (zweiter Klick bestätigt); das Angebot lässt sich danach erneut abrechnen
   await page.getByRole("button", { name: "Entwurf löschen" }).click();

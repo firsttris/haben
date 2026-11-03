@@ -46,6 +46,7 @@ function QuotePage() {
           language: quote.language,
           lines: data.lines.map((line) => ({
             description: line.description,
+            detail: line.detail,
             quantity: line.quantity,
             unit: line.unit as UnitLabel,
             unitPrice: line.unitPrice,
@@ -57,6 +58,7 @@ function QuotePage() {
         sellerIssues={data.sellerIssues}
         issues={data.issues}
         numberCounters={data.numberCounters}
+        numberFormat={data.numberFormat}
         corrects={null}
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}

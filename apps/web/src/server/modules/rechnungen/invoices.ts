@@ -8,8 +8,8 @@ import {
   rateMonth,
   totalsFromTaxes,
   firstEmail,
-  formatInvoiceNumber,
-  invoiceLineInputSchema,
+  DEFAULT_INVOICE_NUMBER_FORMAT,
+  formatDocumentNumber,
   invoiceDueDate,
   invoicePosting,
   legacyCorrectionPosting,
@@ -33,14 +33,15 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany, NO_RATE, resolveExchangeRate, sellerIssues, versteuerungForYear, type Company, type RateFields } from "../stammdaten/index.ts";
 import type { Contact } from "../stammdaten/index.ts";
-import { loadLogo } from "../stammdaten/index.ts";
+import { loadLetterhead } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { draftLineSchema } from "./draft-line.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
-import { lockNumbering, peekNumber, setNextNumber as setNextCounter, takeNumber } from "./number-counter.ts";
+import { documentNumber, lockNumbering, peekNumber, setNextNumber as setNextCounter, takeNumber } from "./number-counter.ts";
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
@@ -48,9 +49,6 @@ export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
 export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
-
-/** Position einer Rechnung: dazu die mehrzeilige Beschreibung unter der Bezeichnung; Angebote haben sie (noch) nicht */
-const invoiceDraftLineSchema = z.object({ ...invoiceLineInputSchema.shape, detail: z.string().trim().max(2000).default("") });
 
 export const draftSchema = z
   .object({
@@ -89,7 +87,7 @@ export const draftSchema = z
         return rate;
       }),
     exchangeRateDate: isoDate.nullable().default(null),
-    lines: z.array(invoiceDraftLineSchema).max(200),
+    lines: z.array(draftLineSchema).max(200),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",
@@ -922,7 +920,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
   const year = Number(invoice.issueDate.slice(0, 4));
   const counter = await peekNumber(tx, "rechnung", year);
-  const number = formatInvoiceNumber(year, counter);
+  const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, year, counter);
 
   // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
   const seller = sellerFrom(company);
@@ -939,8 +937,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
     corrects ? { number: corrects.number!, issueDate: corrects.issueDate } : null,
     await deductedRefs(lines, tx),
   );
-  const logo = await loadLogo();
-  const rendered = await buildEInvoice(logo ? { ...doc, logo } : doc);
+  const rendered = await buildEInvoice({ ...doc, ...(await loadLetterhead()) });
   const now = new Date();
 
   await takeNumber(tx, "rechnung", year, counter);
@@ -1124,14 +1121,23 @@ export async function createCorrection(actor: string, id: string, today: string)
 
 /** Nächste Rechnungsnummer des Jahres, z. B. um nach Lexoffice nahtlos weiterzuzählen. */
 export async function numbering(year: number) {
-  const [counter] = await db.select().from(schema.invoiceNumberCounters).where(eq(schema.invoiceNumberCounters.year, year));
+  const [[counter], company] = await Promise.all([
+    db.select().from(schema.invoiceNumberCounters).where(eq(schema.invoiceNumberCounters.year, year)),
+    loadCompany(),
+  ]);
   const last = counter?.last ?? 0;
-  return { year, last, next: formatInvoiceNumber(year, last + 1) };
+  return { year, last, next: formatDocumentNumber(company.invoiceNumberFormat, year, last + 1) };
 }
 
 export async function setNextNumber(actor: string, year: number, next: number) {
-  const result = await withActor(actor, (tx) => setNextCounter(tx, "rechnung", year, next));
-  if (!result.ok) throw new InvoiceError(`Die nächste Nummer muss größer als ${formatInvoiceNumber(year, result.last)} sein.`);
+  const result = await withActor(actor, async (tx) => {
+    const set = await setNextCounter(tx, "rechnung", year, next);
+    if (set.ok) return set;
+    // Nur lesen: loadCompany legte die Firmenzeile an, wenn sie fehlt, und das gehört nicht in eine Fehlermeldung
+    const [company] = await tx.select({ format: schema.company.invoiceNumberFormat }).from(schema.company);
+    return { ...set, format: company?.format ?? DEFAULT_INVOICE_NUMBER_FORMAT };
+  });
+  if (!result.ok) throw new InvoiceError(`Die nächste Nummer muss größer als ${formatDocumentNumber(result.format, year, result.last)} sein.`);
 }
 
 /** Kennzahlen für die Übersicht */

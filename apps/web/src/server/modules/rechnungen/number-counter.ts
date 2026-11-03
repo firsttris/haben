@@ -1,5 +1,7 @@
+import { formatDocumentNumber } from "@haben/core";
 import { eq, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
+import { UserError } from "../../errors.ts";
 
 /*
  * Nummernkreise für Rechnungen und Angebote, lückenlos je Jahr.
@@ -20,6 +22,28 @@ const COUNTERS = {
   rechnung: schema.invoiceNumberCounters,
   angebot: schema.quoteNumberCounters,
 } as const;
+
+const NUMBERED = {
+  rechnung: schema.invoices,
+  angebot: schema.quotes,
+} as const;
+
+export class NumberTakenError extends UserError {}
+
+/**
+ * Nummer im Format aus den Einstellungen. Ein Format ergibt nie zweimal dieselbe Nummer (number-format.ts), nach einem
+ * Wechsel des Formats kann sie aber mit einer früher vergebenen übereinstimmen; dann lieber eine klare Meldung als die
+ * Verletzung des Unique-Index.
+ */
+export async function documentNumber(tx: Tx, kind: NumberKind, format: string, year: number, counter: number): Promise<string> {
+  const number = formatDocumentNumber(format, year, counter);
+  const table = NUMBERED[kind];
+  const [taken] = await tx.select({ id: table.id }).from(table).where(eq(table.number, number)).limit(1);
+  if (taken) {
+    throw new NumberTakenError(`Die Nummer ${number} ist schon vergeben. Bitte unter Einstellungen › Rechnungen das Nummernformat anpassen.`);
+  }
+  return number;
+}
 
 /** Sperrt den Nummernkreis eines Jahres bis zum Ende der Transaktion; mehrfach aufrufbar */
 export async function lockNumbering(tx: Tx, kind: NumberKind, year: number): Promise<void> {

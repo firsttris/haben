@@ -10,7 +10,7 @@ import { ledgerRange, saldenliste } from "./ledger.ts";
 
 /*
  * Jahresabschluss einer GmbH oder UG: Bilanz und GuV der Kleinstkapitalgesellschaft (abschluss in @haben/core) und das
- * Abschließen des Jahres. Abgeschlossen nimmt das Jahr keine Buchung mehr an (Trigger in drizzle/0092).
+ * Abschließen des Jahres. Abgeschlossen nimmt das Jahr keine Buchung mehr an (Trigger in drizzle/0095).
  */
 
 export class AbschlussError extends UserError {}

@@ -91,7 +91,7 @@ export const company = pgTable(
     iban: text("iban").notNull().default(""),
     bic: text("bic").notNull().default(""),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
-    /** Einzelunternehmen oder Kapitalgesellschaft (GmbH, UG); fest ab der ersten Buchung (drizzle/0090) */
+    /** Einzelunternehmen oder Kapitalgesellschaft (GmbH, UG); fest ab der ersten Buchung (drizzle/0093) */
     rechtsform: text("rechtsform", { enum: RECHTSFORM_KEYS }).notNull().default("einzelunternehmen"),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
@@ -100,6 +100,11 @@ export const company = pgTable(
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
     einkunftsart: text("einkunftsart", { enum: ["gewerbe", "selbstaendig"] }),
     taetigkeit: text("taetigkeit").notNull().default(""),
+    /** Akzentfarbe von Rechnungen, Angeboten und Mahnungen (Überschriften, Linien), #RRGGBB */
+    accentColor: text("accent_color").notNull().default("#1F6F5C"),
+    /** Nummernformate mit Platzhaltern {JJJJ}, {JJ}, {N…} (packages/core/src/number-format.ts) */
+    invoiceNumberFormat: text("invoice_number_format").notNull().default("{JJJJ}-{NNN}"),
+    quoteNumberFormat: text("quote_number_format").notNull().default("AN-{JJJJ}-{NNN}"),
     /** Für den DATEV-Export: Nummern bei der Steuerberatung */
     datevBeraterNr: text("datev_berater_nr").notNull().default(""),
     datevMandantNr: text("datev_mandant_nr").notNull().default(""),
@@ -125,7 +130,12 @@ export const company = pgTable(
     elsterDatenschutzAt: timestamp("elster_datenschutz_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [check("company_single_row", sql`${t.id} = 1`), check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`)],
+  // Die Typst-Vorlagen lesen die Farbe mit rgb(); anderes als #RRGGBB bräche jedes PDF
+  (t) => [
+    check("company_single_row", sql`${t.id} = 1`),
+    check("company_accent_color", sql`${t.accentColor} ~ '^#[0-9A-Fa-f]{6}$'`),
+    check("company_rechtsform", sql`${t.rechtsform} in ('einzelunternehmen', 'gmbh', 'ug')`),
+  ],
 );
 
 /** ELSTER-Zertifikatsdatei (.pfx), AES-256-GCM-verschlüsselt. */
@@ -841,7 +851,10 @@ export const quoteLines = pgTable("quote_lines", {
     .notNull()
     .references(() => quotes.id, { onDelete: "cascade" }),
   position: smallint("position").notNull(),
+  /** Bezeichnung der Position, eine Zeile */
   description: text("description").notNull(),
+  /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
+  detail: text("detail").notNull().default(""),
   /** Tausendstel */
   quantity: integer("quantity").notNull(),
   unit: text("unit").notNull(),
@@ -869,8 +882,10 @@ export const articles = pgTable("articles", {
   id: uuid("id").primaryKey().defaultRandom(),
   /** Eigene Artikelnummer, optional */
   number: text("number").notNull().default(""),
-  /** Text der Position auf Rechnung und Angebot */
+  /** Bezeichnung der Position auf Rechnung und Angebot, eine Zeile */
   description: text("description").notNull(),
+  /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
+  detail: text("detail").notNull().default(""),
   unit: text("unit").notNull(),
   unitPrice: integer("unit_price").notNull(),
   taxRate: smallint("tax_rate").notNull(),
@@ -939,7 +954,7 @@ export const journalEntries = pgTable(
 
 /**
  * Abgeschlossene Geschäftsjahre (GmbH, UG). Nur anhängen; ein Trigger lehnt danach jede Buchung mit Datum im Jahr ab und
- * hält beim Abschluss Zahl und Prüfwert der Buchungen fest (SHA-256 über ihre Siegel, drizzle/0092).
+ * hält beim Abschluss Zahl und Prüfwert der Buchungen fest (SHA-256 über ihren Inhalt, gerechnet wie ihre Siegel, drizzle/0095).
  */
 export const yearClosings = pgTable("year_closings", {
   year: integer("year").primaryKey(),
@@ -1521,7 +1536,8 @@ export const recurringInvoices = pgTable(
     exemptionReason: text("exemption_reason").notNull().default(""),
     /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
-    lines: jsonb("lines").$type<{ description: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>().notNull(),
+    /** detail: Beschreibung unter der Bezeichnung; fehlt bei Vorlagen von vor dem Feld */
+    lines: jsonb("lines").$type<{ description: string; detail?: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>().notNull(),
     /** Monate zwischen zwei Rechnungen: 1, 3, 6 oder 12 */
     intervalMonths: smallint("interval_months").notNull(),
     /** Tag im Monat, auf den die Termine fallen (31 = Monatsende) */

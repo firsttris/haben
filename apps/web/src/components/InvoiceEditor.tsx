@@ -3,11 +3,11 @@ import {
   CURRENCY_CODE,
   formatDecimal,
   formatEuro,
-  formatInvoiceNumber,
-  formatQuoteNumber,
+  formatDocumentNumber,
   formatQuantity,
   invoiceDueDate,
   lineAmount,
+  LINE_DETAIL_MAX,
   parseEuro,
   parseExchangeRate,
   parseQuantity,
@@ -50,7 +50,10 @@ interface ContactOption {
 interface ArticleOption {
   id: string;
   number: string;
+  /** Bezeichnung, eine Zeile */
   description: string;
+  /** Text unter der Bezeichnung, mehrzeilig */
+  detail: string;
   unit: string;
   unitPrice: number;
   taxRate: number;
@@ -83,7 +86,7 @@ export interface QuoteOption {
 interface LineState {
   key: number;
   description: string;
-  /** Mehrzeilige Beschreibung unter der Bezeichnung; nur bei Rechnungen */
+  /** Mehrzeilige Beschreibung unter der Bezeichnung */
   detail: string;
   quantity: string;
   unit: UnitLabel;
@@ -95,25 +98,6 @@ let nextKey = 1;
 
 /** Bezeichnungen vergleichen, ohne dass Zeilenumbrüche und doppelte Leerzeichen zählen */
 const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
-
-/** Artikel kennen nur einen Text: Bezeichnung und Beschreibung untereinander, beim Einfügen wieder getrennt */
-const articleText = (line: { description: string; detail: string }) => [line.description, line.detail].filter(Boolean).join("\n");
-
-/** Höchstlänge des Artikeltexts wie in articleInputSchema (stammdaten/articles.ts); der Text einer Position darf länger sein */
-const ARTICLE_TEXT_MAX = 500;
-
-/** Erste Zeile eines Artikels: so steht er in den Vorschlägen beim Tippen und im Feld der Bezeichnung */
-const articleTitle = (article: ArticleOption) => article.description.split("\n")[0]!.trim();
-
-/**
- * Text einer Position aus einem Artikel: bei Rechnungen die erste Zeile als Bezeichnung und der Rest als Text der
- * Position; Angebote haben keinen Positionstext und übernehmen den ganzen Artikeltext
- */
-function articleLineText(article: ArticleOption, withDetail: boolean): Pick<LineState, "description" | "detail"> {
-  if (!withDetail) return { description: article.description, detail: "" };
-  const [, ...rest] = article.description.split("\n");
-  return { description: articleTitle(article), detail: rest.join("\n").trim() };
-}
 
 function toLineState(line: DraftInput["lines"][number]): LineState {
   return {
@@ -150,6 +134,7 @@ export function InvoiceEditor({
   sellerIssues,
   issues,
   numberCounters,
+  numberFormat,
   corrects,
   bundesland,
   kleinunternehmer,
@@ -170,6 +155,8 @@ export function InvoiceEditor({
   issues: string[];
   /** Letzte vergebene Nummer je Jahr */
   numberCounters: Record<number, number>;
+  /** Nummernformat aus den Einstellungen, z. B. "RE-{JJJJ}-{NNN}" */
+  numberFormat: string;
   corrects: { number: string | null; issueDate: string } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
@@ -264,7 +251,7 @@ export function InvoiceEditor({
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
   const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
   const numberYear = Number((issueDate || initial.issueDate).slice(0, 4));
-  const nextNumber = (quote ? formatQuoteNumber : formatInvoiceNumber)(numberYear, (numberCounters[numberYear] ?? 0) + 1);
+  const nextNumber = formatDocumentNumber(numberFormat, numberYear, (numberCounters[numberYear] ?? 0) + 1);
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   const allValid =
     parsed.every((l) => l.valid) &&
@@ -294,17 +281,16 @@ export function InvoiceEditor({
     return formatDecimal(convertPrice(article.unitPrice, article.taxRate, article.priceIncludesTax ? "brutto" : "netto", grossPrices ? "brutto" : "netto"));
   }
 
-  /** Tippt man die Bezeichnung eines Artikels (Vorschlag aus dem Katalog), übernimmt die Position dessen Einheit, Preis und Steuersatz */
+  /** Tippt man die Bezeichnung eines Artikels (Vorschlag aus dem Katalog), übernimmt die Position dessen Text, Einheit, Preis und Steuersatz */
   function changeDescription(line: LineState, description: string) {
-    const article = !sameText(line.description, description) ? articles.find((a) => sameText(articleTitle(a), description)) : undefined;
-    const text = article ? articleLineText(article, !quote) : undefined;
+    const article = !sameText(line.description, description) ? articles.find((a) => sameText(a.description, description)) : undefined;
     updateLine(
       line.key,
-      article && text
+      article
         ? {
-            // Ein einzeiliger Artikel bringt keinen Text mit; ein schon eingegebener bleibt dann stehen
-            ...text,
-            detail: text.detail || line.detail,
+            description: article.description,
+            // Ein Artikel ohne Text lässt einen schon eingegebenen Text der Position stehen
+            detail: article.detail || line.detail,
             unit: article.unit as UnitLabel,
             unitPrice: articlePrice(article),
             taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
@@ -315,15 +301,15 @@ export function InvoiceEditor({
 
   /** Position als Artikel in den Katalog übernehmen; die Position selbst bleibt unverändert */
   function storeAsArticle(p: ReturnType<typeof parseLine>) {
-    void run(
-      async () => {
-        await storeArticle({
-          data: { id: null, article: { description: articleText(p), unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
-        });
-        await router.invalidate();
-      },
-      `„${p.description.split("\n")[0]}“ ist jetzt im Artikelkatalog.`,
-    );
+    void run(async () => {
+      await storeArticle({
+        data: {
+          id: null,
+          article: { description: p.description, detail: p.detail, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices },
+        },
+      });
+      await router.invalidate();
+    }, `„${p.description}“ ist jetzt im Artikelkatalog.`);
   }
 
   /** Position aus dem Katalog; ersetzt eine noch leere einzige Zeile, sonst wird angehängt */
@@ -332,7 +318,8 @@ export function InvoiceEditor({
     if (!article) return;
     const line: LineState = {
       key: nextKey++,
-      ...articleLineText(article, !quote),
+      description: article.description,
+      detail: article.detail,
       quantity: "1",
       unit: article.unit as UnitLabel,
       unitPrice: articlePrice(article),
@@ -790,7 +777,7 @@ export function InvoiceEditor({
                 {articles.map((a) => (
                   <option
                     key={a.id}
-                    value={articleTitle(a)}
+                    value={a.description}
                     label={`${a.number ? `${a.number} · ` : ""}${formatEuro(a.unitPrice)}${a.priceIncludesTax ? " brutto" : ""}/${a.unit}`}
                   />
                 ))}
@@ -799,9 +786,13 @@ export function InvoiceEditor({
             {lines.map((line, index) => {
               const p = parsed[index]!;
               const inCatalog = articles.some(
-                (a) => sameText(a.description, articleText(p)) && a.unitPrice === p.unitPrice && a.unit === p.unit && a.priceIncludesTax === grossPrices,
+                (a) =>
+                  sameText(a.description, p.description) &&
+                  sameText(a.detail, p.detail) &&
+                  a.unitPrice === p.unitPrice &&
+                  a.unit === p.unit &&
+                  a.priceIncludesTax === grossPrices,
               );
-              const tooLongForCatalog = articleText(p).length > ARTICLE_TEXT_MAX;
               return (
                 <div className="line-row" key={line.key}>
                   <input
@@ -815,17 +806,15 @@ export function InvoiceEditor({
                     onBlur={() => markTouched(line.key)}
                     aria-invalid={showError(line.key) && line.description.trim() === ""}
                   />
-                  {!quote && (
-                    <textarea
-                      className="line-detail"
-                      rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
-                      placeholder="Text zur Position (optional, mehrzeilig)"
-                      aria-label={`Text zu Position ${index + 1} (optional)`}
-                      value={line.detail}
-                      maxLength={2000}
-                      onChange={(e) => updateLine(line.key, { detail: e.target.value })}
-                    />
-                  )}
+                  <textarea
+                    className="line-detail"
+                    rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
+                    placeholder="Text zur Position (optional, mehrzeilig)"
+                    aria-label={`Text zu Position ${index + 1} (optional)`}
+                    value={line.detail}
+                    maxLength={LINE_DETAIL_MAX}
+                    onChange={(e) => updateLine(line.key, { detail: e.target.value })}
+                  />
                   <input
                     className="num"
                     inputMode="decimal"
@@ -874,14 +863,8 @@ export function InvoiceEditor({
                       type="button"
                       className="icon-btn icon-btn-plain"
                       aria-label={`Position ${index + 1} als Artikel speichern`}
-                      title={
-                        inCatalog
-                          ? "Steht schon im Artikelkatalog"
-                          : tooLongForCatalog
-                            ? `Bezeichnung und Text sind zusammen länger als ${ARTICLE_TEXT_MAX} Zeichen`
-                            : "Als Artikel speichern"
-                      }
-                      disabled={busy || !p.valid || inCatalog || tooLongForCatalog}
+                      title={inCatalog ? "Steht schon im Artikelkatalog" : "Als Artikel speichern"}
+                      disabled={busy || !p.valid || inCatalog}
                       onClick={() => storeAsArticle(p)}
                     >
                       <svg
@@ -962,7 +945,7 @@ export function InvoiceEditor({
                   {articles.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.number ? `${a.number} · ` : ""}
-                      {articleTitle(a)} · {formatEuro(a.unitPrice)}
+                      {a.description} · {formatEuro(a.unitPrice)}
                       {a.priceIncludesTax ? " brutto" : ""}/{a.unit}
                     </option>
                   ))}

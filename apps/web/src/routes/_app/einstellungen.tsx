@@ -20,7 +20,9 @@ import { FilePicker } from "../../components/FilePicker.tsx";
 import { ExportCard } from "../../components/ExportCard.tsx";
 import { InboxCard } from "../../components/InboxCard.tsx";
 import { IntegrityCard } from "../../components/IntegrityCard.tsx";
+import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
+import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
@@ -90,7 +92,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking } = Route.useLoaderData();
+  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
@@ -116,7 +118,9 @@ function SettingsPage() {
           {bereich === "rechnungen" && (
             <>
               <NumberingForm />
+              <NumberFormatCard invoice={company.invoiceNumberFormat} quote={company.quoteNumberFormat} year={numbering.year} />
               <LogoCard info={logo} />
+              <AccentColorCard color={company.accentColor} />
             </>
           )}
           {bereich === "elster" && (

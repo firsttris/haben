@@ -3,8 +3,6 @@ import {
   addDays,
   computeInvoice,
   computeInvoiceTotals,
-  formatQuoteNumber,
-  invoiceLineInputSchema,
   lineAmount,
   PRICE_MODES,
   QUOTE_VALID_DAYS,
@@ -25,8 +23,9 @@ import { z } from "zod";
 import { loadCompany, sellerIssues } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { loadLogo } from "../stammdaten/index.ts";
-import { peekNumber, takeNumber } from "./number-counter.ts";
+import { loadLetterhead } from "../stammdaten/index.ts";
+import { documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
+import { draftLineSchema } from "./draft-line.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
 
 /**
@@ -58,7 +57,7 @@ export const quoteDraftSchema = z
     priceMode: z.enum(PRICE_MODES).default("netto"),
     /** Sprache des PDFs für den Kunden */
     language: z.enum(["de", "en"]).default("de"),
-    lines: z.array(invoiceLineInputSchema).max(200),
+    lines: z.array(draftLineSchema).max(200),
   })
   .refine((d) => d.validUntil >= d.issueDate, { message: "Das Angebot muss mindestens bis zum Angebotsdatum gelten", path: ["validUntil"] })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
@@ -76,6 +75,7 @@ function lineRows(quoteId: string, input: QuoteDraftInput) {
     quoteId,
     position: index + 1,
     description: line.description,
+    detail: line.detail?.trim() ?? "",
     quantity: line.quantity,
     unit: line.unit,
     unitPrice: line.unitPrice,
@@ -245,6 +245,7 @@ export function quoteDocumentFor(
     lines: lines.map((line) => ({
       position: line.position,
       description: line.description,
+      ...(line.detail ? { detail: line.detail } : {}),
       quantity: line.quantity,
       unit: line.unit as UnitLabel,
       unitPrice: line.unitPrice,
@@ -295,12 +296,11 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     // Wie bei Rechnungen: Nummer lesen, PDF erzeugen, erst dann schreiben (number-counter.ts)
     const year = Number(quote.issueDate.slice(0, 4));
     const counter = await peekNumber(tx, "angebot", year);
-    const number = formatQuoteNumber(year, counter);
+    const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, year, counter);
     const seller = sellerFrom(company);
     const buyer = buyerFrom(contact!);
     const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
-    const logo = await loadLogo();
-    const pdf = buildQuotePdf(logo ? { ...doc, logo } : doc);
+    const pdf = buildQuotePdf({ ...doc, ...(await loadLetterhead()) });
     const now = new Date();
     await takeNumber(tx, "angebot", year, counter);
     const [finalized] = await tx
@@ -402,6 +402,7 @@ export async function quoteToInvoice(actor: string, id: string, today: string, v
           ? [abschlagLine]
           : lines.map((line) => ({
               description: line.description,
+              detail: line.detail,
               quantity: line.quantity,
               unit: line.unit as UnitLabel,
               unitPrice: line.unitPrice,
@@ -438,6 +439,7 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
     language: quote.language,
     lines: lines.map((line) => ({
       description: line.description,
+      detail: line.detail,
       quantity: line.quantity,
       unit: line.unit as UnitLabel,
       unitPrice: line.unitPrice,

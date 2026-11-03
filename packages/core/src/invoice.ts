@@ -30,6 +30,12 @@ export const invoiceLineInputSchema = z.object({
 
 export type InvoiceLineInput = z.infer<typeof invoiceLineInputSchema>;
 
+/**
+ * Höchstlänge der mehrzeiligen Beschreibung unter der Bezeichnung einer Position (BT-154), für Rechnung, Angebot,
+ * wiederkehrende Rechnung und Artikel gleich, damit der Text auf jedem Weg zwischen ihnen hindurchpasst
+ */
+export const LINE_DETAIL_MAX = 2000;
+
 export interface TaxBreakdown {
   rate: BasisPoints;
   base: Cents;
@@ -139,16 +145,6 @@ export function formatQuantity(quantity: Millis): string {
 
 export function formatRate(rate: BasisPoints): string {
   return `${rate / 100} %`;
-}
-
-/** Rechnungsnummer aus Jahr und laufender Nummer: 2026, 34 → "2026-034" */
-export function formatInvoiceNumber(year: number, counter: number): string {
-  return `${year}-${String(counter).padStart(3, "0")}`;
-}
-
-/** Angebotsnummer, eigener Nummernkreis: 2026, 7 → "AN-2026-007" */
-export function formatQuoteNumber(year: number, counter: number): string {
-  return `AN-${formatInvoiceNumber(year, counter)}`;
 }
 
 /** Standard-Gültigkeit eines Angebots in Tagen */

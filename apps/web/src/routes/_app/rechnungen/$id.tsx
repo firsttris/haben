@@ -89,6 +89,7 @@ function InvoicePage() {
         sellerIssues={data.sellerIssues}
         issues={data.issues}
         numberCounters={data.numberCounters}
+        numberFormat={data.numberFormat}
         corrects={data.corrects}
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}

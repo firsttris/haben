@@ -628,29 +628,50 @@
     {
       "idx": 89,
       "version": "7",
-      "when": 1793709205802,
-      "tag": "0089_rechtsform",
+      "when": 1793987870647,
+      "tag": "0089_artikeltext",
       "breakpoints": true
     },
     {
       "idx": 90,
       "version": "7",
-      "when": 1793709206719,
-      "tag": "0090_rechtsform_trigger",
+      "when": 1793987930647,
+      "tag": "0090_akzentfarbe",
       "breakpoints": true
     },
     {
       "idx": 91,
       "version": "7",
-      "when": 1793713874298,
-      "tag": "0091_jahresabschluss",
+      "when": 1793987990647,
+      "tag": "0091_nummernformat",
       "breakpoints": true
     },
     {
       "idx": 92,
       "version": "7",
-      "when": 1793713875260,
-      "tag": "0092_jahresabschluss_trigger",
+      "when": 1793988050647,
+      "tag": "0092_rechtsform",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1793988110647,
+      "tag": "0093_rechtsform_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1793988170647,
+      "tag": "0094_jahresabschluss",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1793988230647,
+      "tag": "0095_jahresabschluss_trigger",
       "breakpoints": true
     }
   ]

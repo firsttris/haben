@@ -64,8 +64,8 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 
 | Modul | Inhalt |
 | --- | --- |
-| `stammdaten` | `company` (Firmendaten, Versteuerung und Kleinunternehmer je Jahr), `contacts`, `articles`, `logo`, `taxpayer` (persönliche Angaben), `settings-guard` (Sperren für Kontenrahmen, Versteuerung, Kleinunternehmer und Rechtsform, Speichern der Firmendaten) |
-| `rechnungen` | `invoices`, `invoice-taxes` (Steuerzeilen), `number-counter` (Nummernkreise), `quotes` (Angebote), `order-documents` (Auftragsbestätigung, Lieferschein), `dunning` (Mahnungen), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `recurring` (Serienrechnungen) |
+| `stammdaten` | `company` (Firmendaten, Versteuerung und Kleinunternehmer je Jahr), `contacts`, `articles`, `logo`, `letterhead` (Briefkopf: Logo und Akzentfarbe für die PDFs), `number-formats` (Nummernformate für Rechnungen und Angebote), `taxpayer` (persönliche Angaben), `settings-guard` (Sperren für Kontenrahmen, Versteuerung, Kleinunternehmer und Rechtsform, Speichern der Firmendaten) |
+| `rechnungen` | `invoices`, `invoice-taxes` (Steuerzeilen), `number-counter` (Nummernkreise, Nummer im eingestellten Format), `quotes` (Angebote), `order-documents` (Auftragsbestätigung, Lieferschein), `dunning` (Mahnungen), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `recurring` (Serienrechnungen) |
 | `belege` | `documents`, `extraction` (Auslesen), `inbox` (Belege per E-Mail über IMAP) |
 | `bank` | `bank` (Kontoauszüge, Zuordnung), `bank-sync` (Kontoabruf), `cash` (Kassenbuch) |
 | `buchhaltung` | `ledger` (Hauptbuch: einziger Schreiber des Journals, Saldenliste, Kontenblatt), `journal` (Kontennamen), `assets` (Anlagenverzeichnis, AfA), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg) |
@@ -109,17 +109,17 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
 | `invoices` | Ausgangsrechnungen, Stornos und Korrekturen mit PDF, XML, SHA-256 und umsatzsteuerlicher Behandlung (`tax_treatment`, `exemption_reason`); aus Vorlagen mit `recurring_id` und Termin (`recurring_date`, eindeutig je Vorlage); höchstens ein festgeschriebenes Storno je Rechnung | gesperrt ab Festschreibung, Audit ohne PDF/XML |
-| `recurring_invoices` | Vorlagen für wiederkehrende Rechnungen: Positionen, Intervall, nächster Termin, Modus (Entwurf oder festschreiben) | Audit |
+| `recurring_invoices` | Vorlagen für wiederkehrende Rechnungen: Positionen (JSON, mit `detail` für den Text zur Position), Intervall, nächster Termin, Modus (Entwurf oder festschreiben) | Audit |
 | `dunnings` | Zahlungserinnerungen und Mahnungen mit Stufe, Frist, Gebühr, Pauschale, Zinsen und PDF | nur anhängen, Audit ohne PDF |
 | `invoice_lines` | Positionen einer Rechnung: Bezeichnung (`description`), optionaler mehrzeiliger Text (`detail`, BT-154), Einzelpreis wie eingegeben (netto oder brutto, `invoices.price_mode`), Zeilennetto | gesperrt mit der Rechnung |
 | `invoice_taxes` | Netto und Umsatzsteuer je Steuersatz, einmal beim Speichern des Entwurfs berechnet; Voranmeldung, Zahlungsbuchung, Auswertungen, Schlussrechnung, PDF und XML lesen nur diese Werte | gesperrt mit der Rechnung |
 | `invoice_number_counters` | Letzte vergebene Nummer je Jahr | darf nicht sinken, Audit |
 | `quotes` | Angebote mit Gültigkeit, PDF, SHA-256, Antwort des Kunden (`decision`) und daraus entstandener Rechnung (`invoice_id`) | gesperrt ab Festschreibung bis auf Antwort und Rechnung, Audit ohne PDF |
-| `quote_lines` | Positionen eines Angebots | gesperrt mit dem Angebot |
+| `quote_lines` | Positionen eines Angebots: Bezeichnung (`description`), optionaler mehrzeiliger Text (`detail`) | gesperrt mit dem Angebot |
 | `quote_number_counters` | Letzte Angebotsnummer je Jahr (`AN-2026-001`) | darf nicht sinken, Audit |
 | `documents` | Eingangsbelege; Datei im Dateisystem, Felder aus Auslesung oder Hand, beim Buchen festgehalten, ob mit Vorsteuerabzug (`vorsteuer_abzug`) | gesperrt ab Buchung, Audit |
 | `document_amounts` | Beträge eines Belegs je Steuersatz | gesperrt mit dem Beleg |
-| `articles` | Artikel und Leistungen zum Einfügen in Rechnungen und Angebote, Preis netto oder brutto (`price_includes_tax`), Steuersatz, archivierbar | änderbar, Audit |
+| `articles` | Artikel und Leistungen zum Einfügen in Rechnungen und Angebote: Bezeichnung (`description`), optionaler mehrzeiliger Text (`detail`), Preis netto oder brutto (`price_includes_tax`), Steuersatz, archivierbar | änderbar, Audit |
 
 ### Buchhaltung, Bank und Umsatzsteuer
 

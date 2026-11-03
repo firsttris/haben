@@ -4,6 +4,7 @@ import {
   formatEuro,
   formatQuantity,
   lineAmount,
+  LINE_DETAIL_MAX,
   parseEuro,
   parseQuantity,
   RECURRING_INTERVALS,
@@ -36,7 +37,7 @@ export interface RecurringValues {
   taxTreatment: TaxTreatment;
   exemptionReason: string;
   priceMode: PriceMode;
-  lines: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: Rate }[];
+  lines: { description: string; detail: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: Rate }[];
   intervalMonths: RecurringInterval;
   nextDate: string;
   endDate: string | null;
@@ -48,6 +49,8 @@ export interface RecurringValues {
 interface LineState {
   key: number;
   description: string;
+  /** Mehrzeilige Beschreibung unter der Bezeichnung */
+  detail: string;
   quantity: string;
   unit: UnitLabel;
   unitPrice: string;
@@ -95,6 +98,7 @@ export function RecurringForm({
     initial.lines.map((line) => ({
       key: nextKey++,
       description: line.description,
+      detail: line.detail,
       quantity: formatQuantity(line.quantity),
       unit: line.unit,
       unitPrice: line.unitPrice ? formatDecimal(line.unitPrice) : "",
@@ -111,6 +115,7 @@ export function RecurringForm({
     const unitPrice = parseEuro(line.unitPrice);
     return {
       description: line.description.trim(),
+      detail: line.detail.trim(),
       quantity: quantity ?? 0,
       unit: line.unit,
       unitPrice: unitPrice ?? 0,
@@ -316,6 +321,15 @@ export function RecurringForm({
                 onChange={(e) => updateLine(line.key, { description: e.target.value })}
                 aria-invalid={line.description.trim() === ""}
               />
+              <textarea
+                className="line-detail"
+                rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
+                placeholder="Text zur Position (optional, mehrzeilig)"
+                aria-label={`Text zu Position ${index + 1} (optional)`}
+                value={line.detail}
+                maxLength={LINE_DETAIL_MAX}
+                onChange={(e) => updateLine(line.key, { detail: e.target.value })}
+              />
               <input
                 className="num"
                 inputMode="decimal"
@@ -372,7 +386,15 @@ export function RecurringForm({
             onClick={() =>
               setLines((prev) => [
                 ...prev,
-                { key: nextKey++, description: "", quantity: "1", unit: prev.at(-1)?.unit ?? "Psch.", unitPrice: "", taxRate: prev.at(-1)?.taxRate ?? 1900 },
+                {
+                  key: nextKey++,
+                  description: "",
+                  detail: "",
+                  quantity: "1",
+                  unit: prev.at(-1)?.unit ?? "Psch.",
+                  unitPrice: "",
+                  taxRate: prev.at(-1)?.taxRate ?? 1900,
+                },
               ])
             }
           >
@@ -388,7 +410,7 @@ export function RecurringForm({
           contactId={contactId || null}
         />
         <p className="small muted" style={{ margin: 0 }}>
-          Platzhalter in Einleitung, Beschreibung und Hinweis:{" "}
+          Platzhalter in Einleitung, Beschreibung, Text zur Position und Hinweis:{" "}
           {Object.entries(RECURRING_PLACEHOLDERS)
             .map(([key, label]) => `${key} (${label})`)
             .join(", ")}
@@ -407,7 +429,10 @@ export function RecurringForm({
             {parsed
               .filter((l) => l.description)
               .map((l, i) => (
-                <li key={i}>{fillPlaceholders(l.description, reference)}</li>
+                <li key={i}>
+                  {fillPlaceholders(l.description, reference)}
+                  {l.detail && <div style={{ whiteSpace: "pre-wrap" }}>{fillPlaceholders(l.detail, reference)}</div>}
+                </li>
               ))}
           </ul>
         </section>

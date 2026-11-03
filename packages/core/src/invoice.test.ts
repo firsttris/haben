@@ -1,15 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDays } from "./holidays.ts";
-import {
-  computeInvoice,
-  computeInvoiceTotals,
-  convertPrice,
-  formatInvoiceNumber,
-  formatQuoteNumber,
-  lineAmount,
-  parseQuantity,
-  totalsFromTaxes,
-} from "./invoice.ts";
+import { computeInvoice, computeInvoiceTotals, convertPrice, lineAmount, parseQuantity, totalsFromTaxes } from "./invoice.ts";
 import { taxIncluded } from "./money.ts";
 
 describe("Rechnungssummen", () => {
@@ -137,9 +128,5 @@ describe("Hilfen", () => {
   it("Fälligkeit", () => {
     expect(addDays("2026-10-02", 14)).toBe("2026-10-16");
     expect(addDays("2026-12-20", 14)).toBe("2027-01-03");
-  });
-  it("Rechnungsnummer", () => {
-    expect(formatInvoiceNumber(2026, 34)).toBe("2026-034");
-    expect(formatQuoteNumber(2026, 7)).toBe("AN-2026-007");
   });
 });

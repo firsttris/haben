@@ -173,21 +173,23 @@ export async function editorContext(kind: "rechnung" | "angebot") {
   const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank } = company;
   return {
     contacts,
-    articles: articles.map(({ id, number, description, unit, unitPrice, taxRate, priceIncludesTax }) => ({
+    articles: articles.map(({ id, number, description, detail, unit, unitPrice, taxRate, priceIncludesTax }) => ({
       id,
       number,
       description,
+      detail,
       unit,
       unitPrice,
       taxRate,
       priceIncludesTax,
     })),
     textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
-    company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, logo: logo?.sha256 ?? null },
+    company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, logo: logo?.sha256 ?? null, accent: company.accentColor },
     sellerIssues: sellerIssues(company),
     bundesland: company.bundesland,
     kleinunternehmer: company.kleinunternehmer,
     tageskurs: company.tageskurs,
+    numberFormat: kind === "rechnung" ? company.invoiceNumberFormat : company.quoteNumberFormat,
     numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
   };
 }

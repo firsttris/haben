@@ -13,12 +13,13 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - Umsatzsteuer: regulär, Kleinunternehmer, Reverse Charge, steuerfrei
 - Preise netto oder brutto inklusive Umsatzsteuer, wie bei der [Rechnung](rechnungen.md#nettopreise-oder-bruttopreise)
 - Einleitung über den Positionen, Positionen und ein Hinweis, beide auch aus [Textbausteinen](rechnungen.md#textbausteine)
+- zu jeder Position optional ein mehrzeiliger **Text zur Position** wie bei der [Rechnung](rechnungen.md#positionen); er steht im PDF unter der Bezeichnung und geht in die Rechnung aus dem Angebot über
 
 Rechts siehst du die Vorschau. Der Entwurf lässt sich beliebig speichern, ändern und löschen.
 
 **Festschreiben** vergibt die Nummer und erzeugt das PDF:
 
-- Angebote haben einen eigenen Nummernkreis: `AN-2026-001`, `AN-2026-002` und so weiter, je Jahr neu.
+- Angebote haben einen eigenen Nummernkreis: ab Werk `AN-2026-001`, `AN-2026-002` und so weiter, je Jahr neu. Das Format lässt sich ändern, siehe [Nummernformat](einrichtung.md#nummernformat).
 - Die Rechnungsnummern bleiben davon unberührt.
 - Das PDF hat dasselbe Layout wie die Rechnung, mit Angebotsnummer, Gültigkeit und dem Satz „Dieses Angebot gilt bis zum …“.
 - Ein E-Rechnungs-XML gibt es für Angebote nicht.
@@ -52,7 +53,7 @@ Auf der Seite des Angebots hältst du die Antwort des Kunden fest:
 
 **Rechnung erstellen** legt einen Rechnungsentwurf an und markiert das Angebot als angenommen. Der Entwurf übernimmt:
 
-- Kunde, Einleitung, Positionen, Leistungszeitraum und Umsatzsteuer aus dem Angebot,
+- Kunde, Einleitung, Positionen mit ihrem Text, Leistungszeitraum und Umsatzsteuer aus dem Angebot,
 - Datum heute,
 - Zahlungsziel aus den Firmendaten,
 - E-Rechnungsformat des Kunden bzw. das Standardformat,
@@ -75,7 +76,7 @@ Bei größeren Aufträgen rechnest du das Angebot in Teilen ab (siehe [Abschlags
 Bei einem angenommenen Angebot stehen unter **Antwort des Kunden** zwei weitere PDFs:
 
 - **Auftragsbestätigung:** dieselben Positionen und Preise wie im Angebot, datiert auf den Tag der Annahme, mit Bezug auf das Angebot und der Auftragssumme.
-- **Lieferschein:** die Positionen mit Menge, ohne Preise, mit einem Feld für die Empfangsbestätigung des Kunden. Als Lieferdatum gilt das Ende des Leistungszeitraums, sonst der Tag der Annahme.
+- **Lieferschein:** die Positionen mit Menge und Text zur Position, ohne Preise, mit einem Feld für die Empfangsbestätigung des Kunden. Als Lieferdatum gilt das Ende des Leistungszeitraums, sonst der Tag der Annahme.
 
 Beide entstehen beim Abruf aus dem festgeschriebenen Angebot, buchen nichts und sehen jedes Mal gleich aus, solange die Antwort „angenommen“ bleibt. Sprache und Logo folgen dem Angebot bzw. den Einstellungen. Einen Lieferschein gibt es auch zu jeder festgeschriebenen Rechnung (Schaltfläche **Lieferschein** auf der Rechnung).
 
