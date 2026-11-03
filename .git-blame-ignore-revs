@@ -1,0 +1,9 @@
+# Commits, die git blame überspringt: Formatierung, keine Änderung am Verhalten.
+# Lokal einmal einschalten (GitHub liest die Datei von selbst):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+#   git config blame.markIgnoredLines true
+# Der zweite Schalter markiert mit "?" Zeilen, die ein übersprungener Commit inhaltlich geändert hat
+# und die git blame deshalb einem älteren Commit zuschreibt.
+
+# Formatierung mit Biome (#201); enthält auch die Biome-Einstellungen in biome.jsonc, package.json und docs/entwicklung.md
+8fb0add584d59a15bb694d725d077e099e30ce61
