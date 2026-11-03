@@ -39,7 +39,11 @@ export default defineConfig({
     // mit, wenn nur eine dieser Dateien laufen soll
     { name: "mit-daten", testMatch: ["barrierefreiheit.spec.ts", "seiten.spec.ts", "zz-doku-screenshots.spec.ts"], dependencies: ["ablauf"], use: chromium },
     // Braucht keine Daten aus der App
-    { name: "ohne-daten", testMatch: ["elster-helfer.spec.ts", "elster-helfer-erweiterung.spec.ts", "langsame-anfrage.spec.ts"], use: chromium },
+    {
+      name: "ohne-daten",
+      testMatch: ["elster-helfer.spec.ts", "elster-helfer-erweiterung.spec.ts", "langsame-anfrage.spec.ts", "beenden.spec.ts"],
+      use: chromium,
+    },
   ],
   webServer: {
     // Datenbank leeren, migrieren, Server starten

@@ -33,7 +33,7 @@ export default defineConfig({
     // und Nitro reicht dafür keine Einstellung durch (e2e/langsame-anfrage.spec.ts)
     nitro({
       preset: "node-server",
-      plugins: ["./src/server/plugins/scheduler.ts", "./src/server/plugins/setup-code.ts"],
+      plugins: ["./src/server/plugins/scheduler.ts", "./src/server/plugins/setup-code.ts", "./src/server/plugins/datenbank.ts"],
       compressPublicAssets: { gzip: true, brotli: true },
     }),
     viteReact(),
