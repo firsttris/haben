@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
-import { countryName, formatIban, paymentSentence } from "./format.ts";
+import { accountHolder, countryName, formatIban, paymentSentence } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
 import { DEFAULT_ACCENT, lineAmount } from "@haben/core";
@@ -134,7 +134,7 @@ export function pdfData(doc: InvoiceDocument) {
     qr:
       doc.kind === "rechnung" && doc.currency === "EUR" && doc.totals.gross > 0 && seller.iban
         ? girocodeSvg({
-            name: seller.name,
+            name: accountHolder(seller),
             iban: seller.iban,
             ...(seller.bic ? { bic: seller.bic } : {}),
             amount: doc.totals.gross,
@@ -165,6 +165,7 @@ export function footerColumns(seller: InvoiceDocument["seller"], t: Texts = TEXT
   if (seller.telefon) contact.push(`${t.phone} ${seller.telefon}`);
   const bank: string[] = [];
   if (seller.bank) bank.push(seller.bank);
+  if (accountHolder(seller) !== seller.name) bank.push(`${t.accountHolder} ${accountHolder(seller)}`);
   if (seller.iban) bank.push(`IBAN ${formatIban(seller.iban)}`);
   if (seller.bic) bank.push(`BIC ${seller.bic}`);
   const tax: string[] = [];

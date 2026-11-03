@@ -92,6 +92,19 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await firma.getByRole("button", { name: "Speichern" }).click();
   await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
 
+  // Kontoinhaber bleibt gespeichert und lässt sich wieder leeren (dann gilt der Firmenname)
+  await firma.getByLabel("Kontoinhaber").fill("Max Mustermann");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  // Die Meldung steht noch vom ersten Speichern da; erst wenn die Anfrage durch ist, neu laden
+  await page.waitForLoadState("networkidle");
+  await page.reload();
+  await expect(firma.getByLabel("Kontoinhaber")).toHaveValue("Max Mustermann");
+  await firma.getByLabel("Kontoinhaber").fill("");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  await page.waitForLoadState("networkidle");
+
   await go("/einstellungen?bereich=rechnungen");
   const logo = page.getByRole("region", { name: "Logo" });
   await logo.getByLabel("Logodatei").setInputFiles("public/icon-192.png");

@@ -45,6 +45,8 @@ export const companySchema = z.object({
       .trim()
       .regex(/^[A-Z0-9]{8}([A-Z0-9]{3})?$/, "BIC hat 8 oder 11 Zeichen"),
   ]),
+  /** GiroCode erlaubt 70 Zeichen für den Namen (EPC069-12) */
+  kontoinhaber: z.string().trim().max(70).default(""),
   kontenrahmen: z.enum(["SKR03", "SKR04"]),
   paymentTermDays: z.number().int().min(0).max(120),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
@@ -154,7 +156,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     listTextBlocks(),
     logoInfo(),
   ]);
-  const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank } = company;
+  const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber } = company;
   return {
     contacts,
     articles: articles.map(({ id, number, description, detail, unit, unitPrice, taxRate, priceIncludesTax }) => ({
@@ -168,7 +170,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       priceIncludesTax,
     })),
     textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
-    company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, logo: logo?.sha256 ?? null, accent: company.accentColor },
+    company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber, logo: logo?.sha256 ?? null, accent: company.accentColor },
     sellerIssues: sellerIssues(company),
     bundesland: company.bundesland,
     kleinunternehmer: company.kleinunternehmer,

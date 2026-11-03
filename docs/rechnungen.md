@@ -204,9 +204,11 @@ Fällig ist eine Rechnung am Rechnungsdatum plus Zahlungsziel. Fällt dieser Tag
 
 Neben der Zahlungsaufforderung druckt Haben einen GiroCode, also einen EPC-QR-Code nach dem Standard des European Payments Council. Der Kunde scannt ihn mit der Banking-App, und die Überweisung ist ausgefüllt:
 
-- Empfänger, IBAN und BIC aus den Firmendaten,
+- Empfänger, IBAN und BIC aus den Firmendaten; als Empfänger steht der **Kontoinhaber**, ohne Angabe der Firmenname,
 - der Rechnungsbetrag,
 - der Verwendungszweck „Rechnung 2026-001“.
+
+Läuft dein Konto nicht auf den Firmennamen, z. B. auf dich als Person, trag unter **Einstellungen › Firma** den **Kontoinhaber** ein. Die Bank deines Kunden vergleicht den Empfängernamen bei der Überweisung mit dem Inhaber des Kontos (Empfängerüberprüfung, seit Oktober 2025) und warnt sonst. Der Kontoinhaber steht auch in der Bankspalte der Fußzeile und in der E-Rechnung als Name des Zahlungskontos (BT-85).
 
 Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen.
 

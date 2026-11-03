@@ -170,6 +170,7 @@ function CompanyForm() {
           bank: text("bank"),
           iban: text("iban").toUpperCase().replace(/\s/g, ""),
           bic: text("bic").toUpperCase().replace(/\s/g, ""),
+          kontoinhaber: text("kontoinhaber"),
           kontenrahmen: text("kontenrahmen") === "SKR04" ? "SKR04" : "SKR03",
           paymentTermDays: Number(text("paymentTermDays") || 14),
           defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
@@ -367,6 +368,14 @@ function CompanyForm() {
         <label className="field">
           IBAN
           <input name="iban" defaultValue={company.iban} placeholder="DE00 0000 0000 0000 0000 00" className="mono" />
+        </label>
+        <label className="field">
+          Kontoinhaber
+          <input name="kontoinhaber" defaultValue={company.kontoinhaber} maxLength={70} placeholder={company.name} aria-describedby="kontoinhaber-hint" />
+          <span id="kontoinhaber-hint" className="small muted">
+            Nur nötig, wenn das Konto nicht auf den Firmennamen läuft, z. B. auf dich als Person. Steht im GiroCode und in der E-Rechnung; die Bank des Kunden
+            vergleicht ihn beim Überweisen mit dem Inhaber des Kontos.
+          </span>
         </label>
         <div className="form-row cols-2">
           <label className="field">

@@ -89,6 +89,8 @@ export const company = pgTable(
     bank: text("bank").notNull().default(""),
     iban: text("iban").notNull().default(""),
     bic: text("bic").notNull().default(""),
+    /** Inhaber des Kontos, wenn nicht der Firmenname; leer = Firmenname (GiroCode, BT-85) */
+    kontoinhaber: text("kontoinhaber").notNull().default(""),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
