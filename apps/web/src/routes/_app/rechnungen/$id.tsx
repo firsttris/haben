@@ -77,6 +77,7 @@ function InvoicePage() {
             .filter((line) => !line.deductionOf)
             .map((line) => ({
               description: line.description,
+              detail: line.detail,
               quantity: line.quantity,
               unit: line.unit as UnitLabel,
               unitPrice: line.unitPrice,

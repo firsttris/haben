@@ -736,7 +736,10 @@ export const invoiceLines = pgTable(
       .notNull()
       .references(() => invoices.id, { onDelete: "cascade" }),
     position: smallint("position").notNull(),
+    /** Bezeichnung der Position, eine Zeile (BT-153) */
     description: text("description").notNull(),
+    /** Beschreibung unter der Bezeichnung, mehrzeilig (BT-154); leer = keine */
+    detail: text("detail").notNull().default(""),
     /** Tausendstel */
     quantity: integer("quantity").notNull(),
     unit: text("unit").notNull(),

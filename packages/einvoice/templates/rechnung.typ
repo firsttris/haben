@@ -112,8 +112,13 @@
       (head(cols.pos), head(cols.description), head(cols.quantity), head(cols.unitPrice), head(cols.vat), head(cols.net))
     },
   ),
-  ..d.lines.map(l => if noPrices { (l.pos, l.description, l.quantity) } else {
-    (l.pos, l.description, l.quantity, l.unitPrice, l.rate, l.net)
+  ..d.lines.map(l => {
+    // Bezeichnung, darunter die mehrzeilige Beschreibung der Position
+    let detail = l.at("detail", default: none)
+    let desc = if detail == none { l.description } else {
+      stack(spacing: 1.4mm, medium(l.description), text(size: 8.5pt, fill: muted, detail))
+    }
+    if noPrices { (l.pos, desc, l.quantity) } else { (l.pos, desc, l.quantity, l.unitPrice, l.rate, l.net) }
   }).flatten()
 )
 

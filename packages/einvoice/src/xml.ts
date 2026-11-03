@@ -117,6 +117,8 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       "cbc:LineExtensionAmount": amount(net),
       "cbc:LineExtensionAmount@currencyID": currency,
       "cac:Item": {
+        // Beschreibung (BT-154) steht im UBL-Schema vor dem Namen (BT-153)
+        ...(line.detail?.trim() ? { "cbc:Description": line.detail.trim() } : {}),
         "cbc:Name": line.description,
         "cac:ClassifiedTaxCategory": categoryWithRate(doc, line.taxRate, "line") as InvoiceLine["cac:Item"]["cac:ClassifiedTaxCategory"],
       },

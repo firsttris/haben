@@ -1,0 +1,1 @@
+ALTER TABLE "invoice_lines" ADD COLUMN "detail" text DEFAULT '' NOT NULL;

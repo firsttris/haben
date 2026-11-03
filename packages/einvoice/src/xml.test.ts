@@ -23,6 +23,16 @@ describe("netUnitPrice", () => {
 });
 
 describe("buildEInvoice", () => {
+  it("schreibt die Beschreibung einer Position als Artikelbeschreibung (BT-154) neben den Namen (BT-153)", async () => {
+    const doc = sampleDocument({ format: "xrechnung-ubl" });
+    doc.lines[0]!.detail = "Konzeption und Umsetzung";
+    const { xml } = await buildEInvoice(doc);
+    expect(xml).toMatch(/<cac:Item>\s*<cbc:Description>Konzeption und Umsetzung<\/cbc:Description>\s*<cbc:Name>Softwareentwicklung September<\/cbc:Name>/);
+    expect(xml.match(/<cbc:Description>/g)).toHaveLength(1);
+    const cii = await buildEInvoice({ ...doc, format: "xrechnung-cii" });
+    expect(cii.xml).toContain("<ram:Description>Konzeption und Umsetzung</ram:Description>");
+  });
+
   it("schreibt Einleitung und Hinweis als zwei Freitexte (BT-22), Einleitung zuerst", async () => {
     const doc = sampleDocument({ format: "xrechnung-ubl", intro: "Bestellnummer 4500123456", note: "Vielen Dank." });
     const { xml } = await buildEInvoice(doc);

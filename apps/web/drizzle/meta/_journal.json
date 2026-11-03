@@ -617,6 +617,13 @@
       "when": 1793815070647,
       "tag": "0087_abruf_ab",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1793901470647,
+      "tag": "0088_positionsbeschreibung",
+      "breakpoints": true
     }
   ]
 }

@@ -83,6 +83,8 @@ export interface QuoteOption {
 interface LineState {
   key: number;
   description: string;
+  /** Mehrzeilige Beschreibung unter der Bezeichnung; nur bei Rechnungen */
+  detail: string;
   quantity: string;
   unit: UnitLabel;
   unitPrice: string;
@@ -94,10 +96,30 @@ let nextKey = 1;
 /** Bezeichnungen vergleichen, ohne dass Zeilenumbrüche und doppelte Leerzeichen zählen */
 const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
 
+/** Artikel kennen nur einen Text: Bezeichnung und Beschreibung untereinander, beim Einfügen wieder getrennt */
+const articleText = (line: { description: string; detail: string }) => [line.description, line.detail].filter(Boolean).join("\n");
+
+/** Höchstlänge des Artikeltexts wie in articleInputSchema (stammdaten/articles.ts); der Text einer Position darf länger sein */
+const ARTICLE_TEXT_MAX = 500;
+
+/** Erste Zeile eines Artikels: so steht er in den Vorschlägen beim Tippen und im Feld der Bezeichnung */
+const articleTitle = (article: ArticleOption) => article.description.split("\n")[0]!.trim();
+
+/**
+ * Text einer Position aus einem Artikel: bei Rechnungen die erste Zeile als Bezeichnung und der Rest als Text der
+ * Position; Angebote haben keinen Positionstext und übernehmen den ganzen Artikeltext
+ */
+function articleLineText(article: ArticleOption, withDetail: boolean): Pick<LineState, "description" | "detail"> {
+  if (!withDetail) return { description: article.description, detail: "" };
+  const [, ...rest] = article.description.split("\n");
+  return { description: articleTitle(article), detail: rest.join("\n").trim() };
+}
+
 function toLineState(line: DraftInput["lines"][number]): LineState {
   return {
     key: nextKey++,
     description: line.description,
+    detail: line.detail ?? "",
     quantity: formatQuantity(line.quantity),
     unit: line.unit,
     unitPrice: line.unitPrice === 0 ? "" : formatDecimal(line.unitPrice),
@@ -105,11 +127,12 @@ function toLineState(line: DraftInput["lines"][number]): LineState {
   };
 }
 
-function parseLine(line: LineState): InvoiceLineInput & { valid: boolean } {
+function parseLine(line: LineState): InvoiceLineInput & { detail: string; valid: boolean } {
   const quantity = parseQuantity(line.quantity);
   const unitPrice = parseEuro(line.unitPrice);
   return {
     description: line.description.trim(),
+    detail: line.detail.trim(),
     quantity: quantity ?? 0,
     unit: line.unit,
     unitPrice: unitPrice ?? 0,
@@ -273,12 +296,15 @@ export function InvoiceEditor({
 
   /** Tippt man die Bezeichnung eines Artikels (Vorschlag aus dem Katalog), übernimmt die Position dessen Einheit, Preis und Steuersatz */
   function changeDescription(line: LineState, description: string) {
-    const article = !sameText(line.description, description) ? articles.find((a) => sameText(a.description, description)) : undefined;
+    const article = !sameText(line.description, description) ? articles.find((a) => sameText(articleTitle(a), description)) : undefined;
+    const text = article ? articleLineText(article, !quote) : undefined;
     updateLine(
       line.key,
-      article
+      article && text
         ? {
-            description: article.description,
+            // Ein einzeiliger Artikel bringt keinen Text mit; ein schon eingegebener bleibt dann stehen
+            ...text,
+            detail: text.detail || line.detail,
             unit: article.unit as UnitLabel,
             unitPrice: articlePrice(article),
             taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
@@ -292,7 +318,7 @@ export function InvoiceEditor({
     void run(
       async () => {
         await storeArticle({
-          data: { id: null, article: { description: p.description, unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
+          data: { id: null, article: { description: articleText(p), unit: p.unit, unitPrice: p.unitPrice, taxRate: p.taxRate, priceIncludesTax: grossPrices } },
         });
         await router.invalidate();
       },
@@ -306,7 +332,7 @@ export function InvoiceEditor({
     if (!article) return;
     const line: LineState = {
       key: nextKey++,
-      description: article.description,
+      ...articleLineText(article, !quote),
       quantity: "1",
       unit: article.unit as UnitLabel,
       unitPrice: articlePrice(article),
@@ -764,7 +790,7 @@ export function InvoiceEditor({
                 {articles.map((a) => (
                   <option
                     key={a.id}
-                    value={a.description}
+                    value={articleTitle(a)}
                     label={`${a.number ? `${a.number} · ` : ""}${formatEuro(a.unitPrice)}${a.priceIncludesTax ? " brutto" : ""}/${a.unit}`}
                   />
                 ))}
@@ -773,8 +799,9 @@ export function InvoiceEditor({
             {lines.map((line, index) => {
               const p = parsed[index]!;
               const inCatalog = articles.some(
-                (a) => sameText(a.description, p.description) && a.unitPrice === p.unitPrice && a.unit === p.unit && a.priceIncludesTax === grossPrices,
+                (a) => sameText(a.description, articleText(p)) && a.unitPrice === p.unitPrice && a.unit === p.unit && a.priceIncludesTax === grossPrices,
               );
+              const tooLongForCatalog = articleText(p).length > ARTICLE_TEXT_MAX;
               return (
                 <div className="line-row" key={line.key}>
                   <input
@@ -788,6 +815,17 @@ export function InvoiceEditor({
                     onBlur={() => markTouched(line.key)}
                     aria-invalid={showError(line.key) && line.description.trim() === ""}
                   />
+                  {!quote && (
+                    <textarea
+                      className="line-detail"
+                      rows={line.detail ? Math.min(6, line.detail.split("\n").length) : 1}
+                      placeholder="Text zur Position (optional, mehrzeilig)"
+                      aria-label={`Text zu Position ${index + 1} (optional)`}
+                      value={line.detail}
+                      maxLength={2000}
+                      onChange={(e) => updateLine(line.key, { detail: e.target.value })}
+                    />
+                  )}
                   <input
                     className="num"
                     inputMode="decimal"
@@ -836,8 +874,14 @@ export function InvoiceEditor({
                       type="button"
                       className="icon-btn icon-btn-plain"
                       aria-label={`Position ${index + 1} als Artikel speichern`}
-                      title={inCatalog ? "Steht schon im Artikelkatalog" : "Als Artikel speichern"}
-                      disabled={busy || !p.valid || inCatalog}
+                      title={
+                        inCatalog
+                          ? "Steht schon im Artikelkatalog"
+                          : tooLongForCatalog
+                            ? `Bezeichnung und Text sind zusammen länger als ${ARTICLE_TEXT_MAX} Zeichen`
+                            : "Als Artikel speichern"
+                      }
+                      disabled={busy || !p.valid || inCatalog || tooLongForCatalog}
                       onClick={() => storeAsArticle(p)}
                     >
                       <svg
@@ -892,6 +936,7 @@ export function InvoiceEditor({
                     {
                       key: nextKey++,
                       description: "",
+                      detail: "",
                       quantity: "1",
                       unit: last?.unit ?? "Std.",
                       unitPrice: "",
@@ -917,7 +962,7 @@ export function InvoiceEditor({
                   {articles.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.number ? `${a.number} · ` : ""}
-                      {a.description.split("\n")[0]} · {formatEuro(a.unitPrice)}
+                      {articleTitle(a)} · {formatEuro(a.unitPrice)}
                       {a.priceIncludesTax ? " brutto" : ""}/{a.unit}
                     </option>
                   ))}

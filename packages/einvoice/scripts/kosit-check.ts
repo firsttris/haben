@@ -27,6 +27,14 @@ const samples: Record<string, InvoiceDocument> = {
   "rechnung-19-zugferd": sampleDocument({ note: "Vielen Dank für die gute Zusammenarbeit." }),
   "rechnung-19-xr-cii": sampleDocument({ format: "xrechnung-cii" }),
   "rechnung-19-xr-ubl": sampleDocument({ format: "xrechnung-ubl" }),
+  // Beschreibung der Position (BT-154) unter der Bezeichnung
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).map((format) => {
+      const doc = sampleDocument({ format });
+      doc.lines[0]!.detail = "Konzeption und Umsetzung\nlaut Rahmenvertrag RV-2026-17";
+      return [`positionstext-${format}`, doc];
+    }),
+  ),
   "gemischt-19-7-zugferd": sampleDocument({ lines: mixedRateLines }),
   "gemischt-19-7-xr-cii": sampleDocument({ format: "xrechnung-cii", lines: mixedRateLines }),
   "gemischt-19-7-xr-ubl": sampleDocument({ format: "xrechnung-ubl", lines: mixedRateLines }),

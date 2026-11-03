@@ -39,7 +39,10 @@ export interface Buyer extends Address {
 
 export interface InvoiceDocumentLine {
   position: number;
+  /** Bezeichnung (BT-153) */
   description: string;
+  /** Beschreibung unter der Bezeichnung, mehrzeilig (BT-154) */
+  detail?: string;
   quantity: Millis;
   unit: UnitLabel;
   /** Wie eingegeben: netto, bei Bruttopreisen brutto; bei Storno und Korrektur negativ */

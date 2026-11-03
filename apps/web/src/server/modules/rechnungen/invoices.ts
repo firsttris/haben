@@ -49,6 +49,9 @@ export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
 
+/** Position einer Rechnung: dazu die mehrzeilige Beschreibung unter der Bezeichnung; Angebote haben sie (noch) nicht */
+const invoiceDraftLineSchema = z.object({ ...invoiceLineInputSchema.shape, detail: z.string().trim().max(2000).default("") });
+
 export const draftSchema = z
   .object({
     contactId: z.uuid().nullable(),
@@ -86,7 +89,7 @@ export const draftSchema = z
         return rate;
       }),
     exchangeRateDate: isoDate.nullable().default(null),
-    lines: z.array(invoiceLineInputSchema).max(200),
+    lines: z.array(invoiceDraftLineSchema).max(200),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",
@@ -106,6 +109,7 @@ function lineRows(invoiceId: string, lines: LineInput[], lineNets: number[]) {
     invoiceId,
     position: index + 1,
     description: line.description,
+    detail: line.detail?.trim() ?? "",
     quantity: line.quantity,
     unit: line.unit,
     unitPrice: line.unitPrice,
@@ -709,6 +713,7 @@ function documentFor(
     lines: lines.map((line) => ({
       position: line.position,
       description: line.description,
+      ...(line.detail ? { detail: line.detail } : {}),
       quantity: line.quantity,
       unit: line.unit as UnitLabel,
       unitPrice: line.unitPrice,
@@ -1019,6 +1024,7 @@ async function finalOriginal(id: string, q: Db | Tx = db) {
 function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
   return lines.map((line) => ({
     description: line.description,
+    detail: line.detail,
     quantity: line.quantity,
     unit: line.unit as UnitLabel,
     unitPrice: -line.unitPrice,
