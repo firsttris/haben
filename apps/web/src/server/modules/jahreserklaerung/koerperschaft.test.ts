@@ -117,6 +117,19 @@ describe.skipIf(!testDatabaseUrl)("Körperschaft- und Gewerbesteuer (Postgres)",
     );
   });
 
+  it("gleichzeitiges Speichern von Steuerangaben und Angaben zur Erklärung verliert keine", async () => {
+    await setup("SKR04", "ist");
+    const anteilseigner = { name: "Erika", strasse: "Weg 1", plzOrt: "93047 Regensburg", idnr: "86095742719", beteiligung: 2_500_000, anteil: 10_000 };
+    for (const year of [2020, 2021, 2022, 2023, 2024]) {
+      await Promise.all([
+        kst.saveKapgAngaben(actor, year, { hebesatz: 400, verlustvortragKst: 0, verlustvortragGewst: 0 }),
+        kst.saveKapgErklaerungAngaben(actor, year, { anteilseigner: [anteilseigner] }),
+      ]);
+      const [row] = await sql`select data from corporate_tax_inputs where year = ${year}`;
+      expect(row!.data, String(year)).toMatchObject({ hebesatz: 400, erklaerung: { anteilseigner: [expect.objectContaining({ name: "Erika" })] } });
+    }
+  });
+
   it("Einzelunternehmen haben keine Körperschaftsteuer", async () => {
     await setup("SKR04", "ist");
     await sql`update company set rechtsform = 'einzelunternehmen'`;
