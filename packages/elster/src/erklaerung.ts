@@ -41,7 +41,7 @@ export interface ErklaerungAbsender {
 }
 
 export interface Envelope {
-  datenArt: "USt" | "EUER" | "ESt";
+  datenArt: "USt" | "EUER" | "ESt" | "GewSt" | "KSt";
   year: number;
   steuernummer13: string;
   /** Kürzel des Bundeslands, z. B. "BW"; Empfänger im TransferHeader */
@@ -61,7 +61,7 @@ export function checkEnvelope(input: Envelope) {
 }
 
 /** Identifikationsnummern stehen bei der Einkommensteuer im Vorsatz, nicht in den Personendaten */
-export function vorsatz(unterfallart: "10" | "50" | "77", input: Envelope, idnr?: { a: string; b?: string }): XmlNode {
+export function vorsatz(unterfallart: "10" | "20" | "30" | "50" | "77", input: Envelope, idnr?: { a: string; b?: string }): XmlNode {
   const a = input.absender;
   return [
     "Vorsatz",

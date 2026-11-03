@@ -151,6 +151,9 @@ describe("buildUstvaXml", () => {
     expect(ustvaDatenartVersion(2026)).toBe("UStVA_2026");
     expect(datenartVersionFromXml(buildUstvaXml(base))).toBe("UStVA_2026");
     expect(datenartVersionFromXml("<Elster/>")).toBeUndefined();
+    // Erklärungen der GmbH: Gewerbesteuer und Körperschaftsteuer (Unterfallart 30)
+    expect(datenartVersionFromXml('<E20 xmlns="x" version="2025">')).toBe("GewSt_2025");
+    expect(datenartVersionFromXml('<E30 xmlns="x" version="2025">')).toBe("KSt_30_2025");
     // E-Bilanz: Taxonomie nach dem Datum im Namensraum
     const bilanz = (datum: string) => `<DatenArt>Bilanz</DatenArt><xbrli:xbrl xmlns:de-gcd="http://www.xbrl.de/taxonomies/de-gcd-${datum}">`;
     expect(datenartVersionFromXml(bilanz("2025-04-01"))).toBe("Bilanz_6.9");

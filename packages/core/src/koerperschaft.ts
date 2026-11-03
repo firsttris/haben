@@ -34,8 +34,11 @@ const KONTEN = {
     kst: ["2200"],
     soli: ["2208"],
     gewst: ["4320"],
-    /** Steuern vom Einkommen und Ertrag für Vorjahre, Erstattungen, Kapitalertragsteuer; Gewerbesteuer nach § 4 Abs. 5b EStG */
-    weitereSteuern: ["2203", "2204", "2209", "2210", "2213", "2216", "2281", "2283"],
+    /** Für Vorjahre und Erstattungen; Soli auch auf Kapitalertragsteuer; Gewerbesteuer nach § 4 Abs. 5b EStG */
+    kstVorjahre: ["2203", "2204"],
+    soliWeitere: ["2209", "2210", "2216"],
+    kapest: ["2213"],
+    gewstVorjahre: ["2281", "2283"],
     /** Nicht abziehbare Geschenke, Bewirtung und eingeschränkt abziehbare Betriebsausgaben */
     nichtAbziehbar: ["4635", "4636", "4637", "4652", "4654", "4655"],
     rueckstellungKst: "0963",
@@ -45,7 +48,10 @@ const KONTEN = {
     kst: ["7600"],
     soli: ["7608"],
     gewst: ["7610"],
-    weitereSteuern: ["7603", "7604", "7607", "7609", "7630", "7633", "7641", "7643"],
+    kstVorjahre: ["7603", "7604"],
+    soliWeitere: ["7607", "7609", "7633"],
+    kapest: ["7630"],
+    gewstVorjahre: ["7641", "7643"],
     nichtAbziehbar: ["6620", "6621", "6622", "6642", "6644", "6645"],
     rueckstellungKst: "3040",
     rueckstellungGewst: "3035",
@@ -63,18 +69,19 @@ export function steuerKonten(kontenrahmen: Kontenrahmen) {
  * beweglicher Wirtschaftsgüter 20 % (d), unbeweglicher 50 % (e), zeitlich befristete Überlassung von Rechten 25 % (f).
  * Die Konten tragen im DATEV-Kontenrahmen das Kennzeichen G.
  */
-const HINZURECHNUNG: Record<Kontenrahmen, readonly [konten: readonly string[], anteil: number, text: string][]> = {
+export type HinzurechnungArt = "zinsen" | "beweglich" | "unbeweglich" | "rechte";
+const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konten: readonly string[], anteil: number, text: string][]> = {
   SKR03: [
-    [["2100", "2110", "2120"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
-    [["4570", "4575", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
-    [["4210", "4211", "4215", "4220"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
-    [["4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
+    ["zinsen", ["2100", "2110", "2120"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    ["beweglich", ["4570", "4575", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    ["unbeweglich", ["4210", "4211", "4215", "4220"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
+    ["rechte", ["4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
   SKR04: [
-    [["7300", "7310", "7320"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
-    [["6560", "6565", "6835", "6836", "6838"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
-    [["6310", "6315", "6316", "6317"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
-    [["6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
+    ["zinsen", ["7300", "7310", "7320"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    ["beweglich", ["6560", "6565", "6835", "6836", "6838"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
+    ["unbeweglich", ["6310", "6315", "6316", "6317"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
+    ["rechte", ["6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
 };
 
@@ -95,10 +102,13 @@ export interface KapgSteuerZeile {
   betrag: Cents;
 }
 
+/** Zeile der Anlage GK, in die eine Hinzurechnung gehört (Zeilen 81 bis 84 und 90) */
+export type HinzurechnungGk = "kst" | "soli" | "kapest" | "gewst" | "sonstige";
+
 export interface KapgSteuern {
   jahresergebnis: Cents;
   /** Nicht abziehbare Aufwendungen, die das Einkommen erhöhen (Erstattungen negativ) */
-  hinzurechnungen: KapgSteuerZeile[];
+  hinzurechnungen: (KapgSteuerZeile & { gk: HinzurechnungGk })[];
   /** Einkommen vor Verlustabzug; zugleich Gewinn aus Gewerbebetrieb (§ 7 GewStG) */
   einkommen: Cents;
   verlustabzugKst: Cents;
@@ -107,8 +117,8 @@ export interface KapgSteuern {
   kst: Cents;
   soli: Cents;
   verlustvortragKst: Cents;
-  /** Bemessung der Hinzurechnung je Gruppe, vor Anteil */
-  gewstHinzurechnungen: (KapgSteuerZeile & { anteil: number })[];
+  /** Hinzurechnung je Gruppe: Aufwand in voller Höhe (brutto) und der Anteil daraus (betrag) */
+  gewstHinzurechnungen: (KapgSteuerZeile & { art: HinzurechnungArt; brutto: Cents; anteil: number })[];
   /** Hinzurechnung nach § 8 Nr. 1 GewStG: ein Viertel der Summe über dem Freibetrag */
   hinzurechnungGewst: Cents;
   verlustabzugGewst: Cents;
@@ -151,12 +161,17 @@ export function kapgSteuern(
   const k = KONTEN[kontenrahmen];
 
   const bewirtung = Math.max(0, saldo.get(EXPENSE_CATEGORIES.bewirtung[kontenrahmen]) ?? 0);
-  const hinzurechnungen: KapgSteuerZeile[] = [
-    { text: "Körperschaftsteuer und Solidaritätszuschlag (§ 10 Nr. 2 KStG)", betrag: summe([...k.kst, ...k.soli]) },
-    { text: "Gewerbesteuer (§ 4 Abs. 5b EStG)", betrag: summe(k.gewst) },
-    { text: "Steuern vom Einkommen und Ertrag für Vorjahre, Erstattungen, Kapitalertragsteuer", betrag: summe(k.weitereSteuern) },
-    { text: "Nicht abziehbare Geschenke, Bewirtung und Betriebsausgaben (§ 4 Abs. 5 EStG)", betrag: summe(k.nichtAbziehbar) },
-    { text: "30 % der Bewirtungskosten (§ 4 Abs. 5 Nr. 2 EStG)", betrag: Math.round((bewirtung * BEWIRTUNG_NICHT_ABZIEHBAR) / 10_000) },
+  const hinzurechnungen: (KapgSteuerZeile & { gk: HinzurechnungGk })[] = [
+    { gk: "kst" as const, text: "Körperschaftsteuer (§ 10 Nr. 2 KStG)", betrag: summe([...k.kst, ...k.kstVorjahre]) },
+    { gk: "soli" as const, text: "Solidaritätszuschlag (§ 10 Nr. 2 KStG)", betrag: summe([...k.soli, ...k.soliWeitere]) },
+    { gk: "kapest" as const, text: "Kapitalertragsteuer (§ 10 Nr. 2 KStG)", betrag: summe(k.kapest) },
+    { gk: "gewst" as const, text: "Gewerbesteuer (§ 4 Abs. 5b EStG)", betrag: summe([...k.gewst, ...k.gewstVorjahre]) },
+    { gk: "sonstige" as const, text: "Nicht abziehbare Geschenke, Bewirtung und Betriebsausgaben (§ 4 Abs. 5 EStG)", betrag: summe(k.nichtAbziehbar) },
+    {
+      gk: "sonstige" as const,
+      text: "30 % der Bewirtungskosten (§ 4 Abs. 5 Nr. 2 EStG)",
+      betrag: Math.round((bewirtung * BEWIRTUNG_NICHT_ABZIEHBAR) / 10_000),
+    },
   ].filter((z) => z.betrag !== 0);
   const einkommen = jahresergebnis + hinzurechnungen.reduce((sum, z) => sum + z.betrag, 0);
 
@@ -166,7 +181,10 @@ export function kapgSteuern(
   const soli = anteil(kst, SOLI_SATZ);
 
   const gewstHinzurechnungen = HINZURECHNUNG[kontenrahmen]
-    .map(([konten, quote, text]) => ({ text, anteil: quote, betrag: anteil(Math.max(0, summe(konten)), quote) }))
+    .map(([art, konten, quote, text]) => {
+      const brutto = Math.max(0, summe(konten));
+      return { art, text, brutto, anteil: quote, betrag: anteil(brutto, quote) };
+    })
     .filter((z) => z.betrag !== 0);
   const gewichtet = gewstHinzurechnungen.reduce((sum, z) => sum + z.betrag, 0);
   const hinzurechnungGewst = anteil(Math.max(0, gewichtet - GEWST_HINZURECHNUNG_FREIBETRAG), 2500);

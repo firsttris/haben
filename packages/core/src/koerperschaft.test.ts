@@ -22,7 +22,12 @@ describe("Körperschaft- und Gewerbesteuer", () => {
       10_000_000,
       { hebesatz: 400, verlustvortragKst: 500_000, verlustvortragGewst: 0 },
     );
-    expect(s.hinzurechnungen.map((z) => z.betrag)).toEqual([211_000, 300_000, 30_000]);
+    expect(s.hinzurechnungen.map((z) => [z.gk, z.betrag])).toEqual([
+      ["kst", 200_000],
+      ["soli", 11_000],
+      ["gewst", 300_000],
+      ["sonstige", 30_000],
+    ]);
     expect(s.einkommen).toBe(10_541_000);
     expect(s.verlustabzugKst).toBe(500_000);
     expect(s.zvE).toBe(10_041_000);
@@ -100,7 +105,8 @@ describe("Körperschaft- und Gewerbesteuer", () => {
 
   it.each(["SKR03", "SKR04"] as const)("%s: die Konten stehen im DATEV-Kontenrahmen, wo die Berechnung sie erwartet", (kontenrahmen) => {
     const k = KAPG_STEUER_KONTEN[kontenrahmen];
-    for (const account of [...k.kst, ...k.soli, ...k.gewst, ...k.weitereSteuern]) expect(postenOf(kontenrahmen, account), account).toBe("steuern");
+    for (const account of [...k.kst, ...k.soli, ...k.gewst, ...k.kstVorjahre, ...k.soliWeitere, ...k.kapest, ...k.gewstVorjahre])
+      expect(postenOf(kontenrahmen, account), account).toBe("steuern");
     for (const account of k.nichtAbziehbar) expect(postenOf(kontenrahmen, account), account).toBe("sonstigeAufwendungen");
     for (const account of [k.rueckstellungKst, k.rueckstellungGewst]) expect(postenOf(kontenrahmen, account), account).toBe("passiva.B");
   });
