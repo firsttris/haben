@@ -149,6 +149,22 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
   });
 
   describe("Kontakte", () => {
+    it("PATCH behält die Rollen und die Lieferantennummer eines Kontakts", async () => {
+      const t = await token(["kontakte:schreiben"]);
+      const stammdaten = await import("../stammdaten/index.ts");
+      const lieferant = await stammdaten.createContact(actor, {
+        ...schemas.CONTACT_DEFAULTS,
+        name: "Großhandel Ton GmbH",
+        isCustomer: false,
+        isSupplier: true,
+        lieferantennummer: "L-7",
+      });
+      const patched = await call(t, "PATCH", `/kontakte/${lieferant.id}`, { email: "einkauf@example.com" });
+      expect(patched.status).toBe(200);
+      const [row] = await sql`select is_customer, is_supplier, lieferantennummer, kundennummer from contacts where id = ${lieferant.id}`;
+      expect(row).toMatchObject({ is_customer: false, is_supplier: true, lieferantennummer: "L-7", kundennummer: null });
+    });
+
     it("legt an, liest, sucht und ändert; die Antwort passt zum Schema der OpenAPI-Beschreibung", async () => {
       const t = await token(["kontakte:schreiben"]);
       const created = await call(t, "POST", "/kontakte", kunde);
