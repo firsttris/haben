@@ -368,6 +368,28 @@ describe.skipIf(!testDatabaseUrl)("Angebote (Postgres)", () => {
     expect((await quotes.getQuote(quote.id))!.quote.invoiceId).toBe(replacement.id);
   });
 
+  it("Text zur Position: gespeichert, gesperrt und an Rechnung, Schlussrechnung und Kopie weitergegeben", async () => {
+    // Der Kunde bekommt XRechnung, die verlangt eine Telefonnummer des Verkäufers
+    await sql`update company set telefon = '+49 941 123456'`;
+    const detail = "Agenda nach Abstimmung\nzwei Tage vor Ort";
+    const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft({ lines: [{ ...line(9500), detail: `  ${detail}  ` }] }))).id);
+    const [stored] = await sql`select detail from quote_lines where quote_id = ${quote.id}`;
+    expect(stored?.detail).toBe(detail);
+    await expect(sql`update quote_lines set detail = '' where quote_id = ${quote.id}`).rejects.toThrow(/festgeschrieben/);
+
+    const invoice = await quotes.quoteToInvoice(actor, quote.id, "2026-10-20");
+    expect((await invoices.getInvoice(invoice.id))!.lines.map((l) => l.detail)).toEqual([detail]);
+    await invoices.deleteDraft(actor, invoice.id);
+    // Abschlag: eine eigene Position ohne Text; die Schlussrechnung übernimmt die Positionen mit Text
+    await abschlag(quote.id, 50_000, "2026-10-21");
+    const schluss = await quotes.quoteToInvoice(actor, quote.id, "2026-12-01", "schluss");
+    const schlussLines = (await invoices.getInvoice(schluss.id))!.lines;
+    expect(schlussLines.filter((l) => !l.deductionOf).map((l) => l.detail)).toEqual([detail]);
+
+    const copy = await quotes.copyQuote(actor, quote.id, "2026-12-01");
+    expect((await quotes.getQuote(copy.id))!.lines.map((l) => l.detail)).toEqual([detail]);
+  });
+
   it("kopiert ein Angebot als neuen Entwurf mit gleicher Gültigkeitsdauer", async () => {
     const quote = await quotes.finalizeQuote(actor, (await quotes.createQuoteDraft(actor, draft())).id);
     const copy = await quotes.copyQuote(actor, quote.id, "2026-12-01");

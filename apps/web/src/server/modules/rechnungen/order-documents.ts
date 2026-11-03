@@ -41,7 +41,7 @@ interface DeliverySource {
   seller: Seller;
   buyer: Buyer;
   language: "de" | "en";
-  lines: { description: string; quantity: number; unit: string }[];
+  lines: { description: string; detail: string; quantity: number; unit: string }[];
 }
 
 async function deliverySource(source: "angebot" | "rechnung", id: string): Promise<DeliverySource> {
@@ -88,7 +88,13 @@ export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string
     seller: base.seller,
     buyer: base.buyer,
     language: base.language,
-    lines: base.lines.map((l, i) => ({ position: i + 1, description: l.description, quantity: l.quantity, unit: l.unit as UnitLabel })),
+    lines: base.lines.map((l, i) => ({
+      position: i + 1,
+      description: l.description,
+      ...(l.detail ? { detail: l.detail } : {}),
+      quantity: l.quantity,
+      unit: l.unit as UnitLabel,
+    })),
     ...(logo ? { logo } : {}),
   });
   return { pdf, filename: `${base.language === "en" ? "Delivery-note" : "Lieferschein"}-${base.number}.pdf` };

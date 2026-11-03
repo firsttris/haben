@@ -838,7 +838,10 @@ export const quoteLines = pgTable("quote_lines", {
     .notNull()
     .references(() => quotes.id, { onDelete: "cascade" }),
   position: smallint("position").notNull(),
+  /** Bezeichnung der Position, eine Zeile */
   description: text("description").notNull(),
+  /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
+  detail: text("detail").notNull().default(""),
   /** Tausendstel */
   quantity: integer("quantity").notNull(),
   unit: text("unit").notNull(),
@@ -866,8 +869,10 @@ export const articles = pgTable("articles", {
   id: uuid("id").primaryKey().defaultRandom(),
   /** Eigene Artikelnummer, optional */
   number: text("number").notNull().default(""),
-  /** Text der Position auf Rechnung und Angebot */
+  /** Bezeichnung der Position auf Rechnung und Angebot, eine Zeile */
   description: text("description").notNull(),
+  /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
+  detail: text("detail").notNull().default(""),
   unit: text("unit").notNull(),
   unitPrice: integer("unit_price").notNull(),
   taxRate: smallint("tax_rate").notNull(),
@@ -1505,7 +1510,8 @@ export const recurringInvoices = pgTable(
     exemptionReason: text("exemption_reason").notNull().default(""),
     /** Preise der Positionen netto oder brutto inkl. USt; geht an jede erzeugte Rechnung */
     priceMode: text("price_mode", { enum: PRICE_MODES }).notNull().default("netto"),
-    lines: jsonb("lines").$type<{ description: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>().notNull(),
+    /** detail: Beschreibung unter der Bezeichnung; fehlt bei Vorlagen von vor dem Feld */
+    lines: jsonb("lines").$type<{ description: string; detail?: string; quantity: number; unit: string; unitPrice: number; taxRate: number }[]>().notNull(),
     /** Monate zwischen zwei Rechnungen: 1, 3, 6 oder 12 */
     intervalMonths: smallint("interval_months").notNull(),
     /** Tag im Monat, auf den die Termine fallen (31 = Monatsende) */
