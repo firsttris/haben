@@ -2,7 +2,7 @@ import { inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { logoFormat, pdfData, renderInvoicePdf, templateInputs } from "./pdf.ts";
 import { grossPriceLines, mixedRateLines, sampleDocument, zeroRateLines } from "./samples.ts";
-import { DEFAULT_ACCENT } from "@haben/core";
+import { accentPalette, DEFAULT_ACCENT } from "@haben/core";
 
 const ascii = (bytes: Uint8Array) => Buffer.from(bytes).toString("latin1");
 
@@ -53,8 +53,12 @@ describe("logoFormat", () => {
 
 describe("Akzentfarbe", () => {
   it("setzt ohne Einstellung die Standardfarbe und das Logo als Dateinamen", () => {
-    expect(templateInputs({ title: "Rechnung" }, {})).toEqual({ title: "Rechnung", accent: DEFAULT_ACCENT });
-    expect(templateInputs({}, { accent: "#0055AA", logo: { data: new Uint8Array(), format: "png" } })).toEqual({ accent: "#0055AA", logo: "logo.png" });
+    expect(templateInputs({ title: "Rechnung" }, {})).toEqual({ title: "Rechnung", accent: DEFAULT_ACCENT, palette: accentPalette(DEFAULT_ACCENT) });
+    expect(templateInputs({}, { accent: "#0055AA", logo: { data: new Uint8Array(), format: "png" } })).toEqual({
+      accent: "#0055AA",
+      palette: accentPalette("#0055AA"),
+      logo: "logo.png",
+    });
   });
 
   it("zeichnet Überschriften und Linien in der eingestellten Farbe", () => {
@@ -62,6 +66,18 @@ describe("Akzentfarbe", () => {
     const blau = /0 0\.3333\d* 0\.6666\d* (scn|SCN)/;
     expect(contentStreams(renderInvoicePdf({ ...sampleDocument(), accent: "#0055AA" }))).toMatch(blau);
     expect(contentStreams(renderInvoicePdf(sampleDocument()))).not.toMatch(blau);
+  });
+
+  it("färbt auch Text, Adressen, Positionen und Fußzeile passend statt grün (#222)", () => {
+    // Fließtext #16211C ab Werk = 0,086 0,129 0,110; bei Blau der abgeleitete Grauton statt dieses Grüns
+    const gruenerText = /0\.08627\d* 0\.12941\d* 0\.10980\d* (scn|SCN)/;
+    const { ink } = accentPalette("#0055AA");
+    const [r, g, b] = [1, 3, 5].map((i) => (parseInt(ink.slice(i, i + 2), 16) / 255).toFixed(3).slice(0, 4));
+    const blauerText = new RegExp(`${r}\\d* ${g}\\d* ${b}\\d* (scn|SCN)`);
+    const blau = contentStreams(renderInvoicePdf({ ...sampleDocument(), accent: "#0055AA" }));
+    expect(contentStreams(renderInvoicePdf(sampleDocument()))).toMatch(gruenerText);
+    expect(blau).not.toMatch(gruenerText);
+    expect(blau).toMatch(blauerText);
   });
 });
 
