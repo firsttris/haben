@@ -149,6 +149,19 @@ describe("Abschluss einer Kleinst-GmbH", () => {
     expect(a.bilanz["passiva.C"]).toBe(14_000);
   });
 
+  it.each([
+    // DATEV „A oder B“ auch in der GuV: bei umgekehrtem Saldo gilt der zweite Posten
+    ["SKR03", "2146", -5_000, "sonstigeErtraege"],
+    ["SKR03", "2686", 5_000, "sonstigeAufwendungen"],
+    ["SKR04", "7144", 5_000, "sonstigeAufwendungen"],
+    ["SKR04", "7364", -5_000, "sonstigeErtraege"],
+  ] as const)("%s: Erfolgskonto %s mit umgekehrtem Saldo steht im zweiten GuV-Posten", (kr, account, saldo, posten) => {
+    expect(postenForSaldo(kr, account, saldo)).toBe(posten);
+    const a = abschluss(kr, [{ account, saldo }]);
+    expect(a.guv[posten]).toBe(5_000);
+    expect(a.konten[posten]).toEqual([{ account, saldo }]);
+  });
+
   it("meldet offene Vorträge und Konten ohne Posten, statt sie still wegzulassen", () => {
     const a = abschluss("SKR04", [
       { account: "9000", saldo: -1_000 },
