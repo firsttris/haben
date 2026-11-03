@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -77,5 +77,24 @@ describe("ZIP für das Release", () => {
     const gepackt = JSON.parse(execFileSync("unzip", ["-p", zip, "manifest.json"], { encoding: "utf8" }));
     const quelle = JSON.parse(readFileSync(new URL("../../apps/elster-helfer/manifest.json", import.meta.url), "utf8"));
     expect(gepackt).toEqual({ ...quelle, version: "0.3.1" });
+  });
+});
+
+describe("ZIP neu packen", () => {
+  const out = mkdtempSync(join(tmpdir(), "haben-erweiterung-"));
+  afterAll(() => rmSync(out, { recursive: true, force: true }));
+
+  // zip -r ergänzt ein vorhandenes Archiv nur; Dateien eines früheren Laufs blieben sonst im Paket
+  it("ersetzt ein ZIP gleichen Namens im Ausgabeordner, statt es zu ergänzen", () => {
+    const zip = join(out, "haben-fuer-mein-elster-chrome-0.3.1.zip");
+    const alt = join(out, "veraltet.js");
+    writeFileSync(alt, "// aus einem früheren Stand\n");
+    execFileSync("zip", ["-q", "-j", zip, alt]);
+
+    const script = fileURLToPath(new URL("./paket.ts", import.meta.url));
+    execFileSync(process.execPath, [script, "v0.3.1", out], { stdio: "pipe" });
+
+    const dateien = execFileSync("unzip", ["-Z1", zip], { encoding: "utf8" }).trim().split("\n");
+    expect(dateien).not.toContain("veraltet.js");
   });
 });
