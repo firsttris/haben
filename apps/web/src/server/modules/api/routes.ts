@@ -89,7 +89,7 @@ export const API_ROUTES: ApiRoute[] = [
     tag: "Rechnungen",
     summary: "Rechnungsentwurf anlegen",
     description:
-      "Legt einen Entwurf an; festgeschrieben wird in Haben. Nicht angegebene Felder nehmen die Vorgaben aus den Firmendaten. " +
+      "Legt einen Entwurf an; festgeschrieben wird in Haben. Nicht angegebene Felder nehmen die Vorgaben aus den Firmendaten, Format und Sprache die des Kontakts. " +
       "Mit externalSource und externalId idempotent: Gibt es die Referenz schon, kommt die vorhandene Rechnung unverändert mit 200 zurück.",
     requestBody: "InvoiceDraftCreate",
     responses: {

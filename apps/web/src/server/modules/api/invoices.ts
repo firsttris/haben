@@ -12,7 +12,7 @@ import {
   type Invoice,
   type InvoiceLine,
 } from "../rechnungen/index.ts";
-import { getContact } from "../stammdaten/index.ts";
+import { getContact, type Contact } from "../stammdaten/index.ts";
 import { fail, noContent, notFound, ok, validate, type ApiRequest, type ApiResult } from "./http.ts";
 import { draftCreateSchema, draftPatchSchema, invoiceQuerySchema, type invoiceSchema, type invoiceSummarySchema } from "./schemas.ts";
 
@@ -98,6 +98,13 @@ async function contactProblem(contactId: string | null | undefined): Promise<Api
   return fail("unprocessable", "Kontakt nicht gefunden. Erst über /kontakte anlegen.");
 }
 
+/** Vorgaben eines Kunden wie im Rechnungseditor (chooseContact): sein Format, mit Leitweg-ID XRechnung, und seine Sprache */
+function contactDefaults(contact: Contact | undefined): { format?: NonNullable<Contact["defaultFormat"]>; language?: Contact["language"] } {
+  if (!contact) return {};
+  const format = contact.defaultFormat ?? (contact.leitwegId ? "xrechnung-cii" : null);
+  return { ...(format ? { format } : {}), language: contact.language };
+}
+
 export async function listInvoicesHandler(request: ApiRequest): Promise<ApiResult> {
   const query = validate(invoiceQuerySchema, request.query);
   if ("failure" in query) return query.failure;
@@ -124,11 +131,12 @@ export async function getInvoiceHandler(request: ApiRequest): Promise<ApiResult>
 export async function createInvoiceHandler(request: ApiRequest): Promise<ApiResult> {
   const shape = validate(draftCreateSchema, request.body);
   if ("failure" in shape) return shape.failure;
-  const { externalSource, externalId, ...fields } = request.body as Record<string, unknown>;
-  const input = validate(draftSchema, { ...(await newDraftDefaults(request.today)), ...fields });
-  if ("failure" in input) return input.failure;
-  const problem = await contactProblem(input.data.contactId);
+  const problem = await contactProblem(shape.data.contactId);
   if (problem) return problem;
+  const contact = shape.data.contactId ? (await getContact(shape.data.contactId))?.contact : undefined;
+  const { externalSource, externalId, ...fields } = request.body as Record<string, unknown>;
+  const input = validate(draftSchema, { ...(await newDraftDefaults(request.today)), ...contactDefaults(contact), ...fields });
+  if ("failure" in input) return input.failure;
   const reference =
     shape.data.externalSource && shape.data.externalId ? { externalSource: shape.data.externalSource, externalId: shape.data.externalId } : null;
   const { invoice, created } = reference
