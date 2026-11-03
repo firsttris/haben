@@ -8,7 +8,7 @@ import {
   type Cents,
   type Kontenrahmen,
 } from "@haben/core";
-import { buildEbilanzXml, EbilanzError, ebilanzWerte, TEST_HERSTELLER_ID, type ElsterClient, type ElsterResult } from "@haben/elster";
+import { buildEbilanzXml, EbilanzError, ebilanzPruefen, ebilanzWerte, type ElsterClient, type ElsterResult } from "@haben/elster";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -145,7 +145,7 @@ async function ebilanzIssues(year: number, today: string, company: Company): Pro
   const { daten, issues } = await ebilanzDaten(year, company);
   if (issues.length > 0) return [...base, ...issues];
   try {
-    xmlFor(year, company, daten, true, TEST_HERSTELLER_ID, today);
+    ebilanzPruefen({ year, ...daten });
   } catch (error) {
     if (!(error instanceof EbilanzError)) throw error;
     return [...base, { tone: "fehler", text: error.message }];

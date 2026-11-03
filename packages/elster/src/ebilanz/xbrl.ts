@@ -206,7 +206,7 @@ function gcdFacts(input: EbilanzInput): string[] {
  * (Rechenregel notesTableStmOfChgInFAssGross: Buchwert = Bruttowert − kumulierte AfA). Die Zeilen werden zu allen
  * übergeordneten Positionen bis bs.ass.fixAss summiert; der Buchwert je Position muss dem Bilanzwert gleichen.
  */
-function anlagenspiegel(input: EbilanzInput, summen: Map<string, Cents>, entity: string): string[] {
+function anlagenspiegel(input: Pick<EbilanzInput, "year" | "anlagen">, summen: Map<string, Cents>, entity: string): string[] {
   const groups = new Map<string, AnlagenspiegelZeile>();
   const add = (position: string, z: AnlagenspiegelZeile) => {
     const g = groups.get(position) ?? { position, akAnfang: 0, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 };
@@ -288,9 +288,11 @@ export function datenlieferant(firma: EbilanzInput["firma"]): string {
     .slice(0, 256);
 }
 
-/** E-Bilanz im ELSTER-Umschlag, Datenart Bilanz; Empfänger ist das Finanzamt nach der Bundesfinanzamtsnummer */
-export function buildEbilanzXml(input: EbilanzInput): string {
-  if (!/^\d{13}$/.test(input.steuernummer13)) throw new EbilanzError("Steuernummer im ELSTER-Format (13 Ziffern) fehlt");
+/**
+ * Prüft, was ERiC sonst erst beim Senden fände, ohne XML zu bauen: Betriebsvermögensvergleich gegen GuV, Aktiva gegen
+ * Passiva, Anlagenspiegel gegen Bilanz. Gibt die Summen samt Betriebsvermögensvergleich zurück.
+ */
+export function ebilanzPruefen(input: Pick<EbilanzInput, "year" | "werte" | "bvv" | "anlagen">): Map<string, Cents> {
   const bilanz = ebilanzSummen(input.werte);
   // Betriebsvermögensvergleich: Eigenkapital zu Beginn und Ende, Ausschüttungen, Einlagen; er muss das Jahresergebnis ergeben
   const summen = ebilanzSummen({
@@ -310,6 +312,14 @@ export function buildEbilanzXml(input: EbilanzInput): string {
   const aktiva = summen.get("bs.ass") ?? 0;
   const passiva = summen.get("bs.eqLiab") ?? 0;
   if (aktiva !== passiva) throw new EbilanzError(`Aktiva (${decimal(aktiva)}) und Passiva (${decimal(passiva)}) sind nicht gleich`);
+  anlagenspiegel(input, summen, "");
+  return summen;
+}
+
+/** E-Bilanz im ELSTER-Umschlag, Datenart Bilanz; Empfänger ist das Finanzamt nach der Bundesfinanzamtsnummer */
+export function buildEbilanzXml(input: EbilanzInput): string {
+  if (!/^\d{13}$/.test(input.steuernummer13)) throw new EbilanzError("Steuernummer im ELSTER-Format (13 Ziffern) fehlt");
+  const summen = ebilanzPruefen(input);
   const entity = `<xbrli:entity><xbrli:identifier scheme="http://www.rzf-nrw.de/Steuernummer">${input.steuernummer13}</xbrli:identifier></xbrli:entity>`;
   const y = input.year;
   const instanz = [
