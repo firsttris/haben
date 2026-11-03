@@ -39,7 +39,7 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 
 ### apps/elster-helfer
 
-Die Browser-Erweiterung „Haben für Mein ELSTER“ (Manifest V3, ohne Build): `fill.js` findet die Felder von Mein ELSTER über ihre amtliche Kennung (reine Logik ohne Chrome-APIs, getestet in `apps/web/e2e/elster-helfer.spec.ts`), `content.js` trägt auf jeder Formularseite ein und zeigt die Leiste, das Popup nimmt die Werte aus Haben entgegen und legt sie im Sitzungsspeicher des Browsers ab. Sie läuft nur auf `www.elster.de/eportal/interpreter/eingabe/…` und verbindet sich nicht mit Haben ([Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md)).
+Die Browser-Erweiterung „Haben für Mein ELSTER“ (Manifest V3, ohne Build): `fill.js` findet die Felder von Mein ELSTER über ihre amtliche Kennung (reine Logik ohne Chrome-APIs, getestet in `apps/web/e2e/elster-helfer.spec.ts`), `content.js` trägt auf jeder Formularseite ein und zeigt die Leiste, das Popup nimmt die Werte aus Haben entgegen und legt sie im Sitzungsspeicher des Browsers ab. Für jedes Release packt `scripts/elster-helfer/paket.ts` sie mit der Version aus dem Tag als `haben-fuer-mein-elster-chrome-<Version>.zip` (Format des Chrome Web Store). Sie läuft nur auf `www.elster.de/eportal/interpreter/eingabe/…` und verbindet sich nicht mit Haben ([Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md)).
 
 ### apps/web
 

@@ -29,12 +29,14 @@ Die Werte liegen nur im Sitzungsspeicher der Erweiterung und sind weg, sobald du
 
 ## Einrichten
 
-Die Erweiterung liegt im Quelltext von Haben unter `apps/elster-helfer`. Sie läuft in Chrome, Edge, Brave und anderen Chromium-Browsern.
+Die Erweiterung liegt jedem [Release von Haben](https://github.com/firsttris/haben/releases/latest) als ZIP bei, mit derselben Version wie Haben. Sie läuft in Chrome, Edge, Brave und anderen Chromium-Browsern. In den Chrome Web Store kommt sie später; bis dahin lädst du sie selbst:
 
-1. Den Ordner `apps/elster-helfer` aus dem [Repository](https://github.com/firsttris/haben/tree/main/apps/elster-helfer) herunterladen (oder das Repository klonen).
+1. Beim Release deiner Haben-Version unter **Assets** `haben-fuer-mein-elster-chrome-<Version>.zip` herunterladen und in einen eigenen Ordner entpacken, etwa `haben-fuer-mein-elster`.
 2. Im Browser `chrome://extensions` öffnen (Brave: `brave://extensions`), oben rechts den **Entwicklermodus** einschalten.
-3. **Entpackte Erweiterung laden** und den Ordner `elster-helfer` wählen.
+3. **Entpackte Erweiterung laden** und den entpackten Ordner wählen (den, in dem `manifest.json` liegt).
 4. Die Erweiterung über das Puzzle-Symbol an die Symbolleiste anheften.
+
+Nach einem Update von Haben lädst du das neue ZIP, entpackst es in denselben Ordner und klickst bei der Erweiterung auf **Neu laden**. Wer das Repository klont, kann stattdessen den Ordner `apps/elster-helfer` laden.
 
 ## Abgeben
 

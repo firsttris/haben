@@ -259,7 +259,7 @@ Images baut der Workflow `.github/workflows/release.yml`: die CI liegt hier, Ima
 1. Der Tag muss zu `version` in der `package.json` im Wurzelverzeichnis passen.
 2. Die komplette CI läuft (Lint, Typecheck, Tests, Build, KoSIT, Container-Test), außer die CI auf `main` hat denselben Code schon geprüft: ein Commit von *Bump version* ändert nur die Version, dann zählt der grüne Lauf des Commits davor.
 3. Das Image wird für `linux/amd64` und `linux/arm64` gebaut und als `:x.y.z`, `:x.y` und `:latest` nach Docker Hub (`tristanteu/haben`) und GHCR (`ghcr.io/firsttris/haben`) geschoben. Die README landet mit absoluten Links als Beschreibung auf Docker Hub.
-4. Erst danach entsteht das GitHub-Release mit erzeugten Notizen.
+4. Erst danach entsteht das GitHub-Release mit erzeugten Notizen. Daran hängt die Erweiterung „Haben für Mein ELSTER“ als `haben-fuer-mein-elster-chrome-<Version>.zip`: Der Job `erweiterung` packt `apps/elster-helfer` mit `scripts/elster-helfer/paket.ts` und setzt die Version aus dem Tag ins Manifest (bei einem Release Candidate die Ziffern in `version`, die volle Bezeichnung in `version_name`). Das Artefakt heißt `extension`, wie bei den anderen Erweiterungen; den Chrome Web Store kann später `browser-extension-stores.yml` aus `firsttris/workflows` daraus bedienen.
 
 Den Tag legt einer von zwei Wegen an, nach demselben Schema wie in den anderen Projekten:
 
