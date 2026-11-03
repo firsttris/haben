@@ -53,13 +53,13 @@ Ein Wechsel **unter dem Jahr** geht auch, ist aber aufwendiger: Für das laufend
 
 ## Umzug ohne Public API (Tarife S, M und L)
 
-Ohne Tarif XL gibt es keinen API-Schlüssel. Dieselben Daten holst du dann über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
+Ohne Tarif XL gibt es keinen API-Schlüssel. Dieselben Daten holst du dann über die Web-Oberfläche, die du ohnehin bezahlst: Ein Skript läuft in deinem angemeldeten Lexware Office, liest Kontakte, Rechnungen, Gutschriften und Belege mit Zahlungen, Original-PDF und E-Rechnungs-XML sowie die [Buchungen ohne Beleg](#buchungen-ohne-beleg) und lädt sie als ZIP-Dateien herunter. Haben übernimmt diese Sicherung genauso wie einen Abruf über die API; Schritt 2 bis 5 laufen danach unverändert.
 
 ### Sicherung aus der Web-Oberfläche
 
 1. In Haben unter **Archiv › Umzug** im Kasten „Ohne Public API: Sicherung aus der Web-Oberfläche“ auf **Skript kopieren** klicken. Das Skript liegt auch unter `/lexware-sicherung.js` deiner Haben-Instanz; „Skript ansehen“ zeigt es vorher.
 2. In `app.lexware.de` anmelden, die Entwicklerwerkzeuge öffnen (F12) und dort die **Konsole**. Skript einfügen und mit Enter starten. Chrome, Edge und Brave verlangen beim ersten Einfügen, dass du „allow pasting“ eintippst.
-3. Warten, bis die Konsole „Fertig“ meldet. Das Skript holt etwa einen Beleg pro Sekunde; bei tausend Belegen dauert es eine Viertelstunde bis zwanzig Minuten. Den Tab offen lassen und darin nicht weiterklicken.
+3. Warten, bis die Konsole „Fertig“ meldet. Das Skript holt etwa einen Beleg pro Sekunde; bei tausend Belegen dauert es eine Viertelstunde bis zwanzig Minuten. Danach geht es die Bankumsätze durch, um die Buchungen ohne Beleg zu finden; das dauert bei tausend Umsätzen etwa eine halbe Minute. Den Tab offen lassen und darin nicht weiterklicken.
 4. Die heruntergeladenen Dateien `lexware-sicherung-<Datum>-teil-01.zip`, `…-teil-02.zip` usw. (je bis etwa 50 MB) in Haben im selben Kasten auswählen und **Hochladen und übernehmen**. Haben übernimmt einen Teil nach dem anderen; den Fortschritt zeigt Schritt 2.
 
 Das Skript ändert nichts in Lexware Office. Es ruft nur die Adressen auf, die die Web-Oberfläche beim Anzeigen selbst abfragt, mit kurzen Pausen dazwischen, und schickt nichts an Haben oder sonst wohin: Die Daten landen nur als Download in deinem Browser.
@@ -82,6 +82,9 @@ Die Endpunkte der Web-Oberfläche sind nicht dokumentiert. Haben liest sie so, w
 | Belege der Buchhaltung | `GET /capsa/capsa-rest/vouchers/v1/vouchers/{id}` |
 | Originaldatei eines Belegs | `GET /grld-rest/printservice/1/v100/printSimpleVoucherPdf/{id}/` |
 | E-Rechnungs-XML eines Belegs | `GET /capsa/capsa-rest/v1/vouchers/{id}/einvoice` |
+| Bankumsätze | `GET /fis/finance-rest/financialtransactionservice/v3/financialTransactions` (ohne ignorierte) |
+| Zuordnungen eines Bankumsatzes | `GET /fis/finance-rest/voucherpaymentintegrationservice/v100/voucherPayments/financialTransaction/{id}` |
+| Buchung ohne Beleg | `GET /grld-rest/financialvoucherservice/v100/financialVoucher/{id}` |
 
 Unterschiede zur Public API:
 
@@ -89,9 +92,26 @@ Unterschiede zur Public API:
 - **Schlussrechnungen:** Haben nimmt den geforderten Betrag (`claimed…`), in dem die Abschläge schon abgezogen sind.
 - **Zahlungsarten:** „Sonstige Zahlung“ (`partPaymentOther`) zählt wie `manualPayment` der Public API als Entgelt.
 - **Angebote, Aufträge, Lieferscheine und Entwürfe** lädt das Skript nicht.
+- **Buchungen ohne Beleg** kommen nur über das Skript, siehe unten.
 - Die Originalantworten liegen im übernommenen Beleg unter `web`, zum Nachweis.
 
 Ändert Lexware die Web-Oberfläche, kann das Skript scheitern oder Felder nicht mehr finden. Prüfe deshalb nach dem Hochladen den Abgleich je Jahr (Schritt 5) besonders gründlich.
+
+### Buchungen ohne Beleg
+
+In Lexware Office kannst du einen Bankumsatz direkt einer Kategorie zuordnen, ohne einen Beleg hochzuladen, etwa Kontoführungsgebühren, Privatentnahmen oder eine Zahlung, deren Rechnung fehlt. Solche Buchungen stehen nicht in der Belegliste, und die Public API liefert sie gar nicht. Sie gehen aber mit ihrer Vorsteuer in die Voranmeldung ein. Fehlen sie, weicht die Umsatzsteuer je Monat in Haben von der übermittelten Voranmeldung ab.
+
+Das Skript findet sie über die Bankumsätze: Hat ein Umsatz mehr Zuordnungen, als Belege aus der Belegliste auf ihn verweisen, fragt es die Zuordnungen ab und lädt jede Buchung ohne Beleg mit Kategorie, Steuersatz und Betrag. Haben übernimmt sie so:
+
+- Als Einnahme- bzw. Ausgabebeleg ohne Nummer und ohne Datei. Als Kontakt steht der Name aus dem Bankumsatz da, als Notiz „Buchung ohne Beleg“ und der Verwendungszweck.
+- Die Steuer rechnet Haben aus Betrag und Satz wie bei den übrigen Belegen; Lexware Office rechnet die Vorsteuer aus dem Bruttobetrag heraus (250,00 € zu 19 % → 39,92 €).
+- Bezahlt ist die Buchung am Buchungstag des Bankumsatzes; bei Ist-Versteuerung zählen Einnahmen in diesem Monat.
+- Im Abgleich je Jahr zählt die Prüfung „Jeder Beleg hat eine Datei“ sie nicht mit, die erste Prüfung nennt ihre Zahl.
+- **Privat und Geldtransit:** Buchungen, deren Kategorien alle „privat“, „Geldtransit“, „Einkommensteuer“, „Kirchensteuer“ oder „Solidaritätszuschlag“ im Namen tragen, sind archiviert, zählen aber weder in den Einnahmen und Ausgaben noch in der Umsatzsteuer je Monat. Lexware Office kennzeichnet private Kategorien nicht, Haben erkennt sie nur am Namen.
+
+Hast du per API umgezogen, fehlen diese Buchungen. Lass dann zusätzlich das Skript laufen und lade die Sicherung hoch: Haben überspringt die Belege, die schon da sind, und übernimmt nur die Buchungen ohne Beleg.
+
+Buchungen ohne Beleg im Kassenbuch sucht das Skript nicht; es geht nur die Bankumsätze durch.
 
 ### Nur über die Exporte
 
@@ -144,6 +164,7 @@ Der Schritt ist erledigt, wenn ein Lauf fertig ist und die Liste der fehlgeschla
 
 - **Keine Buchungen.** Kontierung, Umbuchungen und Kontensalden gibt es nur im DATEV-Export (Schritt 4).
 - **Keine Bankumsätze.** Die Kontoauszüge holst du bei deiner Bank.
+- **Keine Buchungen ohne Beleg**, also Bankumsätze, die du in Lexware Office direkt einer Kategorie zugeordnet hast. Die holt das [Skript über die Web-Oberfläche](#buchungen-ohne-beleg).
 - **Keine übermittelten Voranmeldungen** und keine ELSTER-Protokolle.
 - **Kein Anlagenverzeichnis.** Anlagen wie ein Firmenwagen trägst du unter **Anlagen › Anlage übernehmen** mit dem Restbuchwert zum Stichtag ein, siehe [Anlagen und AfA](anlagen.md#übernahme-aus-lexoffice).
 - Angebote, Auftragsbestätigungen, Lieferscheine und Mahnungen ruft Haben nicht ab.
@@ -221,8 +242,8 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 
 | Prüfung | Erfüllt, wenn |
 | --- | --- |
-| Belege und Rechnungen per API abgerufen | mindestens ein Beleg mit Datum in diesem Jahr vorliegt |
-| Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist; „Belege ohne Datei ansehen“ zeigt die Liste |
+| Belege und Rechnungen per API abgerufen | mindestens ein Beleg mit Datum in diesem Jahr vorliegt; Buchungen ohne Beleg werden extra gezählt |
+| Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist, Buchungen ohne Beleg ausgenommen; „Belege ohne Datei ansehen“ zeigt die Liste |
 | DATEV-Buchungsstapel übernommen | Buchungen mit Datum in diesem Jahr eingelesen sind |
 | Jede Buchung mit Belegnummer findet ihren Beleg | für jede Buchung mit Belegfeld 1 ein Lexoffice-Beleg mit derselben Nummer existiert (Leerzeichen und Groß-/Kleinschreibung egal); Buchungen ohne Belegnummer, etwa Umbuchungen, werden nur gezählt |
 | IDEA-Export archiviert | eine Datei der Art IDEA mit diesem Jahr vorliegt |
@@ -241,7 +262,7 @@ Aufgeklappt zeigt jede Karte eine Tabelle je Monat, berechnet aus den abgerufene
 | --- | --- |
 | Kz 81 | Bemessungsgrundlage (netto) der Umsätze zu 19 % |
 | Kz 86 | Bemessungsgrundlage (netto) der Umsätze zu 7 % |
-| Kz 66 | Vorsteuer aus Ausgabebelegen nach Belegdatum |
+| Kz 66 | Vorsteuer aus Ausgabebelegen und Buchungen ohne Beleg nach Belegdatum |
 | Kz 21, 41, 43, 45, 60, 87 | Sonderfälle nach der Steuerart der Rechnung in Lexware Office (siehe unten); die Spalte erscheint nur, wenn im Jahr etwas drinsteht |
 | Steuerfrei | Rechnungen mit Steuerart „steuerfrei“: Kz 48, wenn sie nach § 4 Nr. 8–28 UStG steuerfrei sind, bei Kleinunternehmern gar nicht gemeldet |
 | OSS | Fernverkäufe und elektronische Dienstleistungen ins EU-Ausland über das OSS-Verfahren; gehören nicht in die Voranmeldung |
@@ -265,7 +286,7 @@ Kz 21, 41 und 60 zählen auch bei Ist-Versteuerung im Monat des Belegdatums, die
 
 Bei Soll-Versteuerung zählen Einnahmen nach Belegdatum. Bei Ist-Versteuerung zählen sie anteilig nach Datum der einzelnen Zahlungen aus dem Zahlungsstatus; Skonto, Mahnkosten, Kursdifferenzen und Forderungsausfälle zählen dabei nicht. Gutschriften mindern die Umsätze.
 
-Lege die übermittelten Voranmeldungen (ELSTER-Protokolle) daneben und vergleiche Monat für Monat. Mit einem [KI-Assistenten](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleichen) geht das auch im Gespräch, bis auf den einzelnen Beleg. Bemessungsgrundlagen meldet ELSTER in vollen Euro, kleine Abweichungen im Centbereich sind also normal. Größere Abweichungen entstehen, wenn in Lexware Office nachträglich etwas korrigiert, eine Voranmeldung von Hand angepasst oder eine Rechnung storniert wurde. Kläre sie vor der Kündigung.
+Lege die übermittelten Voranmeldungen (ELSTER-Protokolle) daneben und vergleiche Monat für Monat. Mit einem [KI-Assistenten](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleichen) geht das auch im Gespräch, bis auf den einzelnen Beleg. Bemessungsgrundlagen meldet ELSTER in vollen Euro, kleine Abweichungen im Centbereich sind also normal. Größere Abweichungen entstehen, wenn in Lexware Office nachträglich etwas korrigiert, eine Voranmeldung von Hand angepasst oder eine Rechnung storniert wurde, oder wenn [Buchungen ohne Beleg](#buchungen-ohne-beleg) fehlen, weil der Umzug nur über die API lief. Kläre sie vor der Kündigung.
 
 ### Rechnungsnummern weiterzählen
 
