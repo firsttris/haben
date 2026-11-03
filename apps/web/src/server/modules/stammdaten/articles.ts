@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { UNITS, type UnitLabel } from "@haben/core";
+import { LINE_DETAIL_MAX, UNITS, type UnitLabel } from "@haben/core";
 import { asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -14,6 +14,8 @@ export class ArticleError extends UserError {}
 export const articleInputSchema = z.object({
   number: z.string().trim().max(50).default(""),
   description: z.string().trim().min(1, "Bezeichnung fehlt").max(500),
+  /** Text unter der Bezeichnung, mehrzeilig; geht beim Einfügen in den Text der Position */
+  detail: z.string().trim().max(LINE_DETAIL_MAX).default(""),
   unit: z.enum(Object.keys(UNITS) as [UnitLabel, ...UnitLabel[]]),
   unitPrice: z.number().int().min(-100_000_000_00).max(100_000_000_00),
   taxRate: z.union([z.literal(1900), z.literal(700), z.literal(0)]),

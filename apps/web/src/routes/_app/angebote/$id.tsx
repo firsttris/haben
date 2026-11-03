@@ -46,6 +46,7 @@ function QuotePage() {
           language: quote.language,
           lines: data.lines.map((line) => ({
             description: line.description,
+            detail: line.detail,
             quantity: line.quantity,
             unit: line.unit as UnitLabel,
             unitPrice: line.unitPrice,

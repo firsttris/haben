@@ -36,7 +36,7 @@ export interface DeliveryNoteDocument {
   date: string;
   seller: Seller;
   buyer: Buyer;
-  lines: Pick<InvoiceDocumentLine, "position" | "description" | "quantity" | "unit">[];
+  lines: Pick<InvoiceDocumentLine, "position" | "description" | "detail" | "quantity" | "unit">[];
   note?: string;
   logo?: Logo;
   language?: Language;
@@ -65,6 +65,8 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
     lines: doc.lines.map((line) => ({
       pos: String(line.position),
       description: line.description,
+      // Wie auf Rechnung und Angebot: der Text unter der Bezeichnung beschreibt, was geliefert wird
+      detail: line.detail?.trim() ? line.detail.trim() : null,
       quantity: t.quantity(line.quantity, line.unit),
       unitPrice: "",
       rate: "",

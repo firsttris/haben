@@ -37,6 +37,13 @@ describe("Angebot", () => {
     expect(data.taxNote).toMatch(/§ 19 UStG/);
   });
 
+  it("zeigt den Text zur Position unter der Bezeichnung", () => {
+    const { lines } = sampleDocument();
+    const data = quotePdfData(sampleQuote({ lines: [{ ...lines[0]!, detail: "Agenda nach Abstimmung\nzwei Tage vor Ort" }, ...lines.slice(1)] }));
+    expect(data.lines[0]?.detail).toBe("Agenda nach Abstimmung\nzwei Tage vor Ort");
+    expect(data.lines.slice(1).every((l) => l.detail === null)).toBe(true);
+  });
+
   it("erzeugt ein PDF", () => {
     const pdf = buildQuotePdf(sampleQuote());
     expect(Buffer.from(pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");

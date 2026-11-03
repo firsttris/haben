@@ -157,10 +157,11 @@ export async function editorContext(kind: "rechnung" | "angebot") {
   const { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank } = company;
   return {
     contacts,
-    articles: articles.map(({ id, number, description, unit, unitPrice, taxRate, priceIncludesTax }) => ({
+    articles: articles.map(({ id, number, description, detail, unit, unitPrice, taxRate, priceIncludesTax }) => ({
       id,
       number,
       description,
+      detail,
       unit,
       unitPrice,
       taxRate,

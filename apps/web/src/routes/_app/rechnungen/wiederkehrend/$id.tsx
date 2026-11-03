@@ -71,7 +71,7 @@ function RecurringDetailPage() {
             taxTreatment: recurring.taxTreatment as TaxTreatment,
             exemptionReason: recurring.exemptionReason,
             priceMode: recurring.priceMode,
-            lines: recurring.lines.map((l) => ({ ...l, unit: l.unit as UnitLabel, taxRate: l.taxRate as 1900 | 700 | 0 })),
+            lines: recurring.lines.map((l) => ({ ...l, detail: l.detail ?? "", unit: l.unit as UnitLabel, taxRate: l.taxRate as 1900 | 700 | 0 })),
             intervalMonths: recurring.intervalMonths as RecurringInterval,
             nextDate: recurring.nextDate,
             endDate: recurring.endDate,

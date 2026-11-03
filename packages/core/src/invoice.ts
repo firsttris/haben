@@ -30,6 +30,12 @@ export const invoiceLineInputSchema = z.object({
 
 export type InvoiceLineInput = z.infer<typeof invoiceLineInputSchema>;
 
+/**
+ * Höchstlänge der mehrzeiligen Beschreibung unter der Bezeichnung einer Position (BT-154), für Rechnung, Angebot,
+ * wiederkehrende Rechnung und Artikel gleich, damit der Text auf jedem Weg zwischen ihnen hindurchpasst
+ */
+export const LINE_DETAIL_MAX = 2000;
+
 export interface TaxBreakdown {
   rate: BasisPoints;
   base: Cents;

@@ -67,6 +67,22 @@ describe.skipIf(!testDatabaseUrl)("Wiederkehrende Rechnungen (Postgres)", () => 
     expect(rows.map((r) => ({ ...r }))).toEqual([{ intro: "Leistungen September 2026 gemäß Wartungsvertrag", note: "Abrechnung September 2026" }]);
   });
 
+  it("übernimmt den Text zur Position mit Platzhaltern in die Rechnung", async () => {
+    const lines = [{ ...template().lines[0]!, detail: "Leistungszeitraum {zeitraum}\nlaut Wartungsvertrag" }];
+    await recurring.createRecurring(actor, template({ lines, nextDate: "2026-09-30", endDate: "2026-09-30" }));
+    await recurring.runDueRecurring("2026-10-02");
+    const rows = await sql`select description, detail from invoice_lines`;
+    expect(rows.map((r) => ({ ...r }))).toEqual([{ description: "Wartung September 2026", detail: "Leistungszeitraum September 2026\nlaut Wartungsvertrag" }]);
+  });
+
+  it("Vorlagen von vor dem Text zur Position erzeugen Positionen ohne Text", async () => {
+    const created = await recurring.createRecurring(actor, template({ nextDate: "2026-09-30", endDate: "2026-09-30" }));
+    await sql`update recurring_invoices set lines = jsonb_build_array(lines -> 0 - 'detail') where id = ${created.id}`;
+    await recurring.runDueRecurring("2026-10-02");
+    const [line] = await sql`select detail from invoice_lines`;
+    expect(line?.detail).toBe("");
+  });
+
   it("holt verpasste Termine als Entwürfe nach, mit Platzhaltern und Leistungszeitraum", async () => {
     const created = await recurring.createRecurring(actor, template());
     expect(await recurring.runDueRecurring("2026-10-02")).toEqual({ created: 2, finalized: 0, mailed: 0, errors: [] });

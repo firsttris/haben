@@ -11,6 +11,7 @@ import {
   formatInvoiceNumber,
   invoiceLineInputSchema,
   invoiceDueDate,
+  LINE_DETAIL_MAX,
   invoicePosting,
   legacyCorrectionPosting,
   lineAmount,
@@ -49,8 +50,8 @@ export class InvoiceError extends UserError {}
 
 const isoDate = z.iso.date();
 
-/** Position einer Rechnung: dazu die mehrzeilige Beschreibung unter der Bezeichnung; Angebote haben sie (noch) nicht */
-const invoiceDraftLineSchema = z.object({ ...invoiceLineInputSchema.shape, detail: z.string().trim().max(2000).default("") });
+/** Position mit der mehrzeiligen Beschreibung unter der Bezeichnung; gleich für Rechnung, Angebot und wiederkehrende Rechnung */
+export const draftLineSchema = z.object({ ...invoiceLineInputSchema.shape, detail: z.string().trim().max(LINE_DETAIL_MAX).default("") });
 
 export const draftSchema = z
   .object({
@@ -89,7 +90,7 @@ export const draftSchema = z
         return rate;
       }),
     exchangeRateDate: isoDate.nullable().default(null),
-    lines: z.array(invoiceDraftLineSchema).max(200),
+    lines: z.array(draftLineSchema).max(200),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",
