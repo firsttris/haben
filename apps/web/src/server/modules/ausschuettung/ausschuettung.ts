@@ -247,6 +247,8 @@ export async function dividendsOfYear(year: number, q: Db | Tx = db) {
 /** Storno per Gegenbuchung; nicht mehr, wenn die Kapitalertragsteuer schon angemeldet ist */
 export async function reverseAusschuettung(actor: string, id: string): Promise<void> {
   await withActor(actor, async (tx) => {
+    // Dieselbe Sperre wie die Echtübermittlung (submitKapESt): kein doppeltes Storno, kein Storno während des Sendens
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`haben.kapest.${id}`}))`);
     const [d] = await tx.select().from(schema.dividends).where(eq(schema.dividends.id, id));
     if (!d) throw new AusschuettungError("Diese Ausschüttung gibt es nicht.");
     if ((await reversedEntries([d.entryId], tx)).size > 0) throw new AusschuettungError("Die Ausschüttung ist schon storniert.");
