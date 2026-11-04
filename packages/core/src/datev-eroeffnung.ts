@@ -79,7 +79,8 @@ export function datevOpeningIssues(lines: readonly ManualLine[], kontenrahmen: K
   }
   // Der Kassenbestand der Eröffnung ist der Anfangsbestand des Kassenbuchs, und der darf an keinem Tag negativ sein
   const kasse = lines.find((l) => l.account === ACCOUNTS[kontenrahmen].kasse);
-  if (kasse && kasse.credit > 0) issues.push(`Die Kasse ${kasse.account} hat in der Schlussbilanz einen negativen Bestand; ein Kassenbuch beginnt nicht im Minus`);
+  if (kasse && kasse.credit > 0)
+    issues.push(`Die Kasse ${kasse.account} hat in der Schlussbilanz einen negativen Bestand; ein Kassenbuch beginnt nicht im Minus`);
   const debit = lines.reduce((sum, l) => sum + l.debit, 0);
   const credit = lines.reduce((sum, l) => sum + l.credit, 0);
   if (debit !== credit) issues.push("Soll und Haben sind nicht gleich");

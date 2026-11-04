@@ -101,12 +101,7 @@ describe.each(["SKR03", "SKR04"] as const)("Eröffnung aus dem DATEV-Stapel, %s"
   it("Vorbedingung: Schlussbilanz geht auf, keine offenen Vortrags- oder unbekannten Konten", () => {
     expect(schlussbilanzIssues(abschluss(kr, schluss))).toEqual([]);
     // Offene Posten über 9008/9009 vorgetragen, Sachkonten über 9000: zusammen ausgeglichen, einzeln nicht
-    const opos = [
-      ...schluss,
-      { account: "9000", saldo: 107_100 },
-      { account: "9008", saldo: -119_000 },
-      { account: "9009", saldo: 11_900 },
-    ];
+    const opos = [...schluss, { account: "9000", saldo: 107_100 }, { account: "9008", saldo: -119_000 }, { account: "9009", saldo: 11_900 }];
     expect(abschlussIssuesFor(opos)).toEqual([]);
     expect(datevOpeningLines(kr, opos, [])).toEqual(datevOpeningLines(kr, schluss, []));
     const offen = abschlussIssuesFor([...schluss, { account: "9000", saldo: 500 }, { account: a.bank, saldo: -500 }]);
