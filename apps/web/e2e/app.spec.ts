@@ -1025,12 +1025,13 @@ test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () =
   await expect(liste).toContainText("Storno Nr. 1: Wechselgeld");
 });
 
-/** Kleine Sicherung, wie sie lexware-sicherung.js herunterlädt: eine Rechnung mit PDF und eine offene Ausgabe */
+/** Kleine Sicherung, wie sie lexware-sicherung.js herunterlädt: eine Rechnung mit PDF, eine offene Ausgabe und eine Privateinlage ohne Beleg */
 function webBackupZip(): Uint8Array {
   const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../../../packages/import/test-fixtures/lexoffice-web/${name}`, import.meta.url), "utf8"));
   const json = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
   const sales = fixture("sales-invoice.json");
   const purchase = fixture("purchase-gross.json");
+  const privat = fixture("financial-private.json");
   const pdfPath = `dateien/${sales.list.entityId}/1-Rechnung_RE0042.pdf`;
   return zipSync({
     "manifest.json": json({ format: "haben-lexware-web", version: 1, part: 1, createdAt: new Date().toISOString(), failed: [] }),
@@ -1040,6 +1041,7 @@ function webBackupZip(): Uint8Array {
       files: [{ path: pdfPath, role: "pdf", mimeType: "application/pdf", filename: "Rechnung_RE0042.pdf" }],
     }),
     [`belege/${purchase.list.entityId}.json`]: json({ ...purchase, files: [] }),
+    [`belege/${privat.list.entityId}.json`]: json({ ...privat, files: [] }),
     [pdfPath]: new TextEncoder().encode("%PDF-1.4\n%%EOF\n"),
   });
 }
@@ -1061,6 +1063,8 @@ test("Umzug ohne Public API: Skript abrufen, Sicherung hochladen und übernehmen
   await expect(step2).toContainText("Fertig am");
   // Die überfällige Ausgabe steht als offener Posten bereit
   await expect(page.getByRole("region", { name: "Offene Posten übernehmen" })).toContainText("2025-4711");
+  // Die Privateinlage ist weder Einnahme noch Ausgabe; der Abgleich weist sie getrennt aus statt sie wegzulassen
+  await expect(page.getByRole("table", { name: "Weder Einnahme noch Ausgabe 2026" })).toContainText("Privat und Geldtransit");
 });
 
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {

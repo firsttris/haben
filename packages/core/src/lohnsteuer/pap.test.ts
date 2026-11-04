@@ -9,10 +9,10 @@ import { PAP_2026 } from "./pap-2026.ts";
 /**
  * Ergebnisse der externen Schnittstelle des BMF-Steuerrechners für 2026
  * (https://www.bmf-steuerrechner.de/interface/2026Version1.xhtml?code=LSt2026ext), 207 Fälle: Steuerklassen I bis VI,
- * alle vier Lohnzahlungszeiträume, Arbeitslohn von 0 bis 100.000 €, dazu KVZ, PVZ, PVS, PVA, ZKF und PKV. Der BMF
- * war aus der Entwicklungsumgebung nicht erreichbar; die Antworten stammen aus `tests/fixtures/bmf-2026.json` in
- * canida-software/lohnsteuer (MIT, © 2026 Canida Software), dort gegen die Schnittstelle abgerufen. Übernommen
- * sind die Eingaben in den Einheiten des BMF und die Ausgaben LSTLZZ, SOLZLZZ und BK.
+ * alle vier Lohnzahlungszeiträume, Arbeitslohn von 0 bis 100.000 €, dazu KVZ, PVZ, PVS, PVA, ZKF und PKV. Die Fälle
+ * stammen aus `tests/fixtures/bmf-2026.json` in canida-software/lohnsteuer (MIT, © 2026 Canida Software); übernommen
+ * sind die Eingaben in den Einheiten des BMF und die Ausgaben LSTLZZ, SOLZLZZ und BK. Am 04.11.2026 alle 207 Fälle
+ * erneut bei der Schnittstelle abgerufen: Die Antworten stimmen mit der Datei überein.
  */
 interface BmfFall {
   eingabe: {
@@ -52,8 +52,26 @@ describe("lohnsteuer 2026 gegen den BMF-Steuerrechner", () => {
 });
 
 /**
- * Querprobe mit dem Paket lohnsteuer-bmf 2026.3 (PyPI, MIT, L1nch-lab/lohnsteuer-bmf), `berechne_lohnsteuer_pap`,
- * für Fälle, zu denen keine Antwort des BMF vorliegt: Gesellschafter-Geschäftsführer ohne Renten- und
+ * Eigener Abruf bei derselben Schnittstelle am 04.11.2026 für das, was die 207 Fälle nicht abdecken:
+ * Gesellschafter-Geschäftsführer ohne Renten- und Arbeitslosenversicherung (KRV = 1, ALV = 1), privat versichert mit
+ * Arbeitgeberzuschuss (PKPVAGZ, auch größer als der Beitrag), Kinder in den Klassen II bis IV, Kirchensteuer (R = 1),
+ * Wochen- und Tageslohn. Die Eingaben stehen hier in den Einheiten von Haben (KVZ in Basispunkten, ZKF in Tausendsteln);
+ * die Ausgaben sind die Antworten des BMF.
+ */
+const BMF_ABRUF: { eingabe: LohnsteuerEingabe; LSTLZZ: number; SOLZLZZ: number; BK: number }[] = JSON.parse(
+  readFileSync(new URL("../../test-fixtures/lohnsteuer/bmf-2026-abruf.json", import.meta.url), "utf8"),
+);
+
+describe("lohnsteuer 2026 gegen den BMF-Steuerrechner, Geschäftsführer, PKV mit Zuschuss und Kirchensteuer", () => {
+  it.each(BMF_ABRUF.map((fall) => [JSON.stringify(fall.eingabe), fall] as const))("%s", (_, { eingabe, LSTLZZ, SOLZLZZ, BK }) => {
+    expect(lohnsteuer(2026, eingabe)).toEqual({ ok: true, LSTLZZ, SOLZLZZ, BK });
+  });
+});
+
+/**
+ * Querprobe mit dem Paket lohnsteuer-bmf 2026.3 (PyPI, MIT, L1nch-lab/lohnsteuer-bmf), `berechne_lohnsteuer_pap`.
+ * Die Fälle stehen mit der Antwort des BMF auch in `bmf-2026-abruf.json` (die ersten neun); hier bleibt die
+ * Jahressteuer als zweite, unabhängige Rechnung: Gesellschafter-Geschäftsführer ohne Renten- und
  * Arbeitslosenversicherung (KRV = 1, ALV = 1), privat versichert mit Arbeitgeberzuschuss, Kinder in den Klassen
  * II bis IV, Soli mit Kindern, Kirchensteuer. Das Paket rechnet in Gleitkomma und rundet den Monatsbetrag
  * kaufmännisch; übernommen ist deshalb seine Jahressteuer in Euro (Lohnsteuer, Bemessungsgrundlage für Soli und
