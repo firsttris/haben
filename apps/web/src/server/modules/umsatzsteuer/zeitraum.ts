@@ -46,9 +46,10 @@ export function withFrequency(settings: readonly VatFrequencySetting[], input: F
 
 /**
  * Speichert den Zeitraum ab Jahr und Monat. Abgelehnt, wenn danach eine gesendete Voranmeldung nicht mehr zu ihrem
- * Zeitraum passt; Entwürfe für Zeiträume, die es danach nicht mehr gibt, löscht Haben (sie waren nie beim Finanzamt).
+ * Zeitraum passt. Entwürfe für Zeiträume, die es danach nicht mehr gibt, bleiben stehen (mit ihrem Prüfverlauf), lassen
+ * sich aber nicht mehr senden; `orphanedDrafts` nennt sie.
  */
-export async function saveFrequency(actor: string, input: FrequencyInput): Promise<{ removedDrafts: string[] }> {
+export async function saveFrequency(actor: string, input: FrequencyInput): Promise<{ orphanedDrafts: string[] }> {
   return withActor(actor, async (tx) => {
     const next = withFrequency(await loadFrequencies(tx), input);
     const returns = await tx
@@ -63,10 +64,9 @@ export async function saveFrequency(actor: string, input: FrequencyInput): Promi
         `Für ${labels} ist schon eine Voranmeldung gesendet, die zu diesem Zeitraum nicht passt. Gesendete Voranmeldungen bleiben, wie sie sind; wähle den Wechsel ab einem späteren Quartal.`,
       );
     }
-    for (const draft of conflicts) await tx.delete(schema.vatReturns).where(eq(schema.vatReturns.id, draft.id));
     await tx.delete(schema.vatFrequencies).where(and(eq(schema.vatFrequencies.year, input.year), gte(schema.vatFrequencies.fromMonth, input.fromMonth)));
     await tx.insert(schema.vatFrequencies).values({ ...input, updatedAt: new Date() });
-    return { removedDrafts: conflicts.map((r) => periodLabel(r)) };
+    return { orphanedDrafts: conflicts.map((r) => periodLabel(r)) };
   });
 }
 

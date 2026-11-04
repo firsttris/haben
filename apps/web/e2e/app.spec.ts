@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { zipSync } from "fflate";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -1019,6 +1020,46 @@ test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async 
     /^<\?xml version="1.0" encoding="ISO-8859-15" standalone="no"\?>\n<Anmeldungssteuern xmlns="http:\/\/finkonsens.de\/elster\/elsteranmeldung\/ustva\/v\d{4}"/,
   );
   expect(xml).not.toContain("<TransferHeader");
+});
+
+test("Voranmeldung vierteljährlich: Zeitraum einstellen, Quartal prüfen und testweise senden", async () => {
+  // Im Folgejahr, damit die übrigen Seiten und Bilder beim monatlichen Zeitraum bleiben
+  const next = YEAR + 1;
+  await go(`/umsatzsteuer/${next}-01`);
+  const card = page.getByRole("form", { name: `Voranmeldungszeitraum ${next}` });
+  await expect(card).toContainText("monatlich");
+  await card.getByLabel("Zeitraum", { exact: true }).selectOption("vierteljaehrlich");
+  await card.getByLabel("Gilt ab").selectOption("1");
+  await card.getByRole("button", { name: "Zeitraum speichern" }).click();
+  await expect(card.getByRole("status")).toContainText(`Voranmeldungszeitraum ${next} gespeichert.`);
+  // Der Januar passt nicht mehr dazu
+  await expect(page.getByText(`Für Januar ${next} passt die Voranmeldung nicht zum eingestellten Zeitraum (vierteljährlich).`)).toBeVisible();
+
+  await go(`/umsatzsteuer/${next}-Q1`);
+  await expect(page.getByRole("heading", { level: 1, name: `1. Quartal ${next}` })).toBeVisible();
+  // 10. April oder der nächste Werktag danach (§ 108 Abs. 3 AO)
+  await expect(page.getByText("Fällig am", { exact: false })).toContainText(`April ${next}`);
+  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+  expect(axe.violations.map((v) => v.id)).toEqual([]);
+
+  await page.getByRole("button", { name: "Nur prüfen" }).click();
+  await expect(page.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
+  await page.getByLabel("Zertifikats-PIN").fill("123456");
+  await page.getByRole("button", { name: "Prüfen und testweise senden" }).click();
+  await expect(page.getByText(/Testübermittlung erfolgreich/)).toBeVisible();
+  const history = page.getByRole("region", { name: `Verlauf 1. Quartal ${next}` });
+  await expect(history).toContainText("OK");
+
+  // Zurück auf monatlich: Der Entwurf des Quartals bleibt mit seinem Verlauf, lässt sich aber nicht mehr senden
+  await page
+    .getByRole("form", { name: `Voranmeldungszeitraum ${next}` })
+    .getByLabel("Zeitraum", { exact: true })
+    .selectOption("monatlich");
+  await page
+    .getByRole("form", { name: `Voranmeldungszeitraum ${next}` })
+    .getByRole("button", { name: "Zeitraum speichern" })
+    .click();
+  await expect(page.getByText(`Für 1. Quartal ${next} passt die Voranmeldung nicht zum eingestellten Zeitraum (monatlich).`)).toBeVisible();
 });
 
 test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {

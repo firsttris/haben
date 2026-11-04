@@ -32,8 +32,9 @@ export function VatFrequencyCard({ frequency: overview }: { frequency: Frequency
     void run(async () => {
       const result = await save({ data: { year, fromMonth, frequency } });
       await router.invalidate();
-      const removed = result.removedDrafts.length > 0 ? ` Entwürfe ohne Zeitraum gelöscht: ${result.removedDrafts.join(", ")}.` : "";
-      setNotice({ tone: "ok", text: `Voranmeldungszeitraum ${year} gespeichert.${removed}` });
+      const orphaned =
+        result.orphanedDrafts.length > 0 ? ` Entwürfe, die nicht mehr dazu passen und sich nicht senden lassen: ${result.orphanedDrafts.join(", ")}.` : "";
+      setNotice({ tone: "ok", text: `Voranmeldungszeitraum ${year} gespeichert.${orphaned}` });
     });
   }
 
