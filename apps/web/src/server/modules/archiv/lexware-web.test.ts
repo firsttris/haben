@@ -204,6 +204,19 @@ describe.skipIf(!testDatabaseUrl)("Umzug über die Web-Oberfläche (Postgres)", 
     expect(year.vat.map((m) => [m.month, m.kz66, m.otherBase])).toEqual([["2026-06", 3992, 0]]);
     const { vouchers } = await lexoffice.legacyVouchersForPeriod({ period: "2026", direction: "alle", search: "", withPayments: true, limit: 50 });
     expect(vouchers.map((v) => [v.date, v.tax, v.contactName])).toEqual([["2026-06-28", 3992, "Autohaus Beispiel"]]);
+    // Die Privateinlage fehlt nicht still, sie steht als nicht betrieblich daneben
+    expect(year.neutral).toEqual([{ kind: "privat", label: "Privat und Geldtransit", count: 1, zufluss: expect.any(Number), abfluss: 0 }]);
+  });
+
+  it("GmbH: dieselbe Privateinlage ist eine Einlage des Gesellschafters (Verrechnungskonto)", async () => {
+    await sql`update company set rechtsform = 'gmbh'`;
+    try {
+      const year = (await lexoffice.reconciliation()).years.find((y) => y.year === 2026)!;
+      expect(year.ausgaben).toMatchObject({ count: 1, net: 21008, tax: 3992 });
+      expect(year.neutral.map((n) => [n.kind, n.count])).toEqual([["gesellschafter", 1]]);
+    } finally {
+      await sql`update company set rechtsform = 'einzelunternehmen'`;
+    }
   });
 
   it("ein zweiter Lauf holt den fehlgeschlagenen Beleg nach und überspringt den Rest", async () => {
