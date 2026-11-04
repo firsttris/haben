@@ -1028,7 +1028,7 @@ test("Voranmeldung vierteljährlich: Zeitraum einstellen, Quartal prüfen und te
   await go(`/umsatzsteuer/${next}-01`);
   const card = page.getByRole("form", { name: `Voranmeldungszeitraum ${next}` });
   await expect(card).toContainText("monatlich");
-  await card.getByLabel("Zeitraum", { exact: true }).selectOption("vierteljaehrlich");
+  await card.getByRole("combobox", { name: "Zeitraum" }).selectOption("vierteljaehrlich");
   await card.getByLabel("Gilt ab").selectOption("1");
   await card.getByRole("button", { name: "Zeitraum speichern" }).click();
   await expect(card.getByRole("status")).toContainText(`Voranmeldungszeitraum ${next} gespeichert.`);
@@ -1053,7 +1053,7 @@ test("Voranmeldung vierteljährlich: Zeitraum einstellen, Quartal prüfen und te
   // Zurück auf monatlich: Der Entwurf des Quartals bleibt mit seinem Verlauf, lässt sich aber nicht mehr senden
   await page
     .getByRole("form", { name: `Voranmeldungszeitraum ${next}` })
-    .getByLabel("Zeitraum", { exact: true })
+    .getByRole("combobox", { name: "Zeitraum" })
     .selectOption("monatlich");
   await page
     .getByRole("form", { name: `Voranmeldungszeitraum ${next}` })
