@@ -84,6 +84,11 @@ function nichtUnterstuetzt(e: SvEingabe): string[] {
  * zusammen gerundet und aufgeteilt wird, belegt Haben noch mit keinem Rechenbeispiel.
  */
 function nichtUnterstuetztImUebergang(e: SvEingabe, w: SvJahreswerte): string[] {
+  // Ein Monat bis zur Geringfügigkeitsgrenze in einer versicherungspflichtigen Beschäftigung ist kein Minijob; er wird nach
+  // § 2 Abs. 2 Satz 2 und 5 BVV mit F × Entgelt bemessen und braucht das regelmäßige Entgelt aus der Lohnabrechnung
+  if (e.personengruppe === "beschaeftigt" && e.entgelt > 0 && e.entgelt <= w.geringfuegigkeitsgrenze) {
+    return [`einem Monatsentgelt bis ${formatEuro(w.geringfuegigkeitsgrenze)} in versicherungspflichtiger Beschäftigung`];
+  }
   if (e.personengruppe !== "beschaeftigt" || !imUebergangsbereich(e.entgelt, w) || e.kv.art === "privat") return [];
   return e.sachsen ? ["Pflegeversicherung in Sachsen im Übergangsbereich"] : [];
 }
@@ -92,9 +97,6 @@ function nichtUnterstuetztImUebergang(e: SvEingabe, w: SvJahreswerte): string[] 
 function grenzeVerletzt(e: SvEingabe, w: SvJahreswerte): string | null {
   const grenze = formatEuro(w.geringfuegigkeitsgrenze);
   if (e.personengruppe === "minijob" && e.entgelt > w.geringfuegigkeitsgrenze) return `Ein Minijob endet bei ${grenze} im Monat`;
-  if (e.personengruppe === "beschaeftigt" && e.entgelt > 0 && e.entgelt <= w.geringfuegigkeitsgrenze) {
-    return `Bis ${grenze} im Monat ist die Beschäftigung geringfügig; dafür gibt es die Personengruppe Minijob`;
-  }
   return null;
 }
 

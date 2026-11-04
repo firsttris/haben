@@ -42,6 +42,7 @@ Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich 
 - **Umfang:** Tabellen `mitarbeiter` (Steuer-ID, Steuerklasse, Kinderfreibeträge, Konfession, Krankenkasse mit Betriebsnummer, Personengruppe, Beitragsgruppe, Tätigkeitsschlüssel, SV-Nummer, Statusfeststellung) und `lohnabrechnungen` (je Monat, festgeschrieben und versiegelt wie `journal_entries`, Audit-Trigger, Korrektur nur als Storno plus neue Abrechnung).
 - **Modul:** `apps/web/src/server/modules/lohn/` mit `index.ts`; Server-Funktionen dünn. Seite **Personal › Lohn** mit Abrechnung als PDF (Typst, wie die Rechnung) nach § 108 GewO.
 - **Lohnkonto:** je Mitarbeiter und Jahr die Pflichtangaben aus § 41 EStG und § 4 LStDV; Export als PDF/CSV. Entgeltunterlagen nach § 28f SGB IV und Beitragsverfahrensverordnung.
+- **Regelmäßiges Entgelt:** Ein einzelner Monat bis 603 € oder über 2.000 € in einer Beschäftigung, deren regelmäßiges Entgelt woanders liegt, wird nach § 2 Abs. 2 BVV anders bemessen (TK-Beratungsblatt 03/2026, Beispiel 6). Die Beitragsrechnung lehnt Monate bis 603 € bei versicherungspflichtig Beschäftigten bis dahin als „nicht unterstützt“ ab; die Abrechnung muss das regelmäßige Entgelt mitgeben.
 - **Tests:** Postgres-Integration (Sperren, Storno), Playwright, Seite in `barrierefreiheit.spec.ts` und `seiten.spec.ts`.
 
 ### PR 4 – Buchungen aus dem Lohnjournal
