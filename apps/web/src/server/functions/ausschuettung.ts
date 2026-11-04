@@ -7,6 +7,7 @@ import {
   dividendsOfYear,
   kapestSubmissions,
   reverseAusschuettung,
+  steuerbescheinigungenDesJahres,
   submitKapESt,
 } from "../modules/ausschuettung/index.ts";
 import { elsterClient, elsterMode, loadActiveCertificate } from "../modules/elster/index.ts";
@@ -21,12 +22,17 @@ export const getAusschuettungen = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(yearSchema)
   .handler(async ({ data: year }) => {
-    const [company, list, certificate] = await Promise.all([loadCompany(), dividendsOfYear(year), loadActiveCertificate()]);
+    const [company, list, certificate, bescheinigungen] = await Promise.all([
+      loadCompany(),
+      dividendsOfYear(year),
+      loadActiveCertificate(),
+      steuerbescheinigungenDesJahres(year, today()),
+    ]);
     const history = Object.fromEntries(await Promise.all(list.map(async (d) => [d.id, await kapestSubmissions(d.id)] as const)));
     return {
       year,
       rechtsform: company.rechtsform,
-      ausschuettungen: list.map((d) => ({ ...d, history: history[d.id] ?? [] })),
+      ausschuettungen: list.map((d) => ({ ...d, history: history[d.id] ?? [], bescheinigungen: bescheinigungen[d.id] ?? [] })),
       today: today(),
       mode: elsterMode(),
       certificate: certificate ? { filename: certificate.filename, validUntil: certificate.validUntil } : null,

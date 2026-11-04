@@ -253,6 +253,38 @@ function NeueAusschuettung() {
   );
 }
 
+/** Je Gesellschafter die Steuerbescheinigung nach § 45a Abs. 2 EStG zum Herunterladen, oder was dafür fehlt */
+function Steuerbescheinigungen({ a }: { a: Ausschuettung }) {
+  const headingId = useId();
+  return (
+    <section className="stack" style={{ gap: 8, marginTop: 16 }} aria-labelledby={headingId}>
+      <h3 id={headingId} style={{ margin: 0 }}>
+        Steuerbescheinigungen
+      </h3>
+      <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
+        Nach § 45a Abs. 2 EStG (amtliches Muster II), ab dem Zahlungstag. Gib jedem Gesellschafter seine Bescheinigung für die Einkommensteuererklärung und
+        bewahre eine Kopie bei den Unterlagen der Ausschüttung auf. Anschrift und Identifikationsnummer kommen aus den{" "}
+        <Link to="/jahreserklaerung">Angaben zu den Erklärungen</Link>.
+      </p>
+      <ul className="stack" style={{ gap: 6, margin: 0, paddingLeft: 18 }}>
+        {a.bescheinigungen.map((b) => (
+          <li key={b.nr}>
+            {b.fehlend.length === 0 ? (
+              <a href={`/api/steuerbescheinigung/${a.id}/${b.nr}`} download>
+                Steuerbescheinigung {b.name} (PDF)
+              </a>
+            ) : (
+              <span>
+                Steuerbescheinigung {b.name}: <span className="muted">{b.fehlend.join(" ")}</span>
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
   const router = useRouter();
   const submit = useServerFn(submitKapEStFn);
@@ -273,6 +305,7 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
       </div>
       <p className="small muted">Zufluss am {formatDate(a.zufluss)}</p>
       <EmpfaengerTabelle empfaenger={a.empfaenger} />
+      {!a.storniert && <Steuerbescheinigungen a={a} />}
       {!a.storniert && (
         <div className="grid-main" style={{ marginTop: 16 }}>
           <ElsterSubmit

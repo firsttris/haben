@@ -223,6 +223,10 @@ async function reversedEntries(entryIds: string[], q: Db | Tx): Promise<Set<stri
   return new Set(rows.map((r) => r.reverses!));
 }
 
+export async function isReversed(entryId: string, q: Db | Tx = db): Promise<boolean> {
+  return (await reversedEntries([entryId], q)).size > 0;
+}
+
 /** Ausschüttungen mit Zufluss im Jahr, mit Stand von Storno und Anmeldung */
 export async function dividendsOfYear(year: number, q: Db | Tx = db) {
   const rows = await q

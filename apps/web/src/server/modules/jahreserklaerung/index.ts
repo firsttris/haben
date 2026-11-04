@@ -17,6 +17,7 @@ export {
   saveKapgAngaben,
   saveKapgErklaerungAngaben,
   storedAngaben as gespeicherteKapgAngaben,
+  type KapgErklaerungAngaben,
 } from "./koerperschaft.ts";
 export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./income-tax.ts";
 export { meinElsterWerte } from "./mein-elster.ts";

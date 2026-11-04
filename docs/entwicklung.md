@@ -219,6 +219,18 @@ bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2025-04-01 packages/elster/
 
 Für eine neue Taxonomie (jährlich zum 1. April) den Auszug neu erzeugen, `EBILANZ_TAXONOMIEN` in `packages/elster/src/xml.ts` ergänzen und die Tests mit ERiC laufen lassen; `zuordnung.test.ts` meldet Positionen der Kontenzuordnung, die es nicht mehr gibt oder die keine Blätter mehr sind.
 
+## Lohnsteuer: PAP jährlich aktualisieren
+
+Die Lohnsteuer in `packages/core/src/lohnsteuer/` folgt dem Programmablaufplan (PAP) des BMF für die maschinelle Berechnung der Lohnsteuer. Er gilt für ein Kalenderjahr; für ein Jahr ohne PAP gibt `lohnsteuer()` den Fehler „Lohnsteuer {Jahr} ist noch nicht hinterlegt“ zurück und rechnet nicht mit den Werten des Vorjahres. Ab Dezember schlägt der Test „Jahreswechsel (echtes Datum)“ in `lohnsteuer.test.ts` fehl, bis der PAP des nächsten Jahres hinterlegt ist. Der BMF veröffentlicht ihn meist im November, unter Umständen im Lauf des Jahres eine geänderte Fassung.
+
+1. Das PAP-XML vom [BMF-Steuerrechner](https://www.bmf-steuerrechner.de/) laden (`/javax.faces.resource/daten/xmls/Lohnsteuer<Jahr>.xml.xhtml`) und unverändert als `Lohnsteuer<Jahr>.xml` neben `pap.ts` legen.
+2. Mit dem XML des Vorjahres vergleichen (`diff`). Ändern sich nur Zahlen, reicht eine neue Datei `pap-<Jahr>.ts` nach dem Muster von `pap-2026.ts` mit Version, Stand und SHA-256 der Datei. Ändert sich der Ablauf einer Methode, die `pap.ts` überträgt (MPARA, MRE4JL, MRE4ABZ, MBERECH, MZTABFB, MLSTJAHR, UPEVP, MVSPKVPV, MVSPHB, UPMLST, MST5_6, UP5_6, UPTAB, MSOLZ, UPANTEIL), braucht das neue Jahr eine eigene Übertragung; die alte bleibt für Korrekturen früherer Jahre.
+3. Das Jahr in `PAP_JAHRE` in `index.ts` eintragen und einen Test nach dem Muster von `pap-2026.test.ts` anlegen, der jeden Wert mit dem XML abgleicht.
+4. Prüffälle gegen die externe Schnittstelle des BMF-Steuerrechners (`/interface/<Jahr>Version1.xhtml?code=LSt<Jahr>ext`) abrufen, mindestens Steuerklassen I bis VI in allen Lohnzahlungszeiträumen, mit Kindern, privat versichert und ohne Rentenversicherungspflicht, und als `packages/core/test-fixtures/lohnsteuer/bmf-<Jahr>.json` ablegen.
+5. Den Tarif in `TARIFE` in `packages/core/src/income-tax.ts` ergänzen; die Gegenprobe in `pap.test.ts` vergleicht ihn mit UPTAB des PAP.
+
+Die Rechnung läuft ohne Gleitkommazahlen über `dezimal.ts` (`bigint` mit Nachkommastellen) und rundet genau dort, wo der PAP `setScale` oder `divide` mit Rundung vorschreibt.
+
 ## Konventionen
 
 - **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
