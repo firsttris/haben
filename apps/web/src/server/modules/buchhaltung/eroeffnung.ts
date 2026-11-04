@@ -59,6 +59,22 @@ export async function lockOpenings(tx: Tx): Promise<void> {
   await tx.execute(sql`select haben_lock_audit_chain()`);
 }
 
+/**
+ * Was ohne eigene Buchung auf einer Eröffnung aufbaut: übernommene Rechnungen und Belege aus Lexoffice oder sevDesk, die
+ * nicht gegen 9000 gebucht wurden, weil die Eröffnung aus dem Stapel sie schon enthält, und Anlagen, die auf die Eröffnung
+ * verweisen. Ein Storno nähme ihre Bestände mit, ohne dass sie danach irgendwo stünden.
+ */
+export async function openingDependents(q: Q, entryId: string): Promise<{ uebernahmen: number; anlagen: number }> {
+  const [row] = await q.execute<{ uebernahmen: number; anlagen: number }>(sql`
+    select
+      (select count(*)::int from invoices i where i.lexoffice_voucher_id is not null
+         and not exists (select 1 from journal_entries j where j.source_type = 'invoice' and j.source_id = i.id))
+      + (select count(*)::int from documents d where d.lexoffice_voucher_id is not null
+         and not exists (select 1 from journal_entries j where j.source_type = 'document' and j.source_id = d.id)) as uebernahmen,
+      (select count(*)::int from assets a where a.opening_entry_id = ${entryId}) as anlagen`);
+  return { uebernahmen: row?.uebernahmen ?? 0, anlagen: row?.anlagen ?? 0 };
+}
+
 /** Erste Buchung vor einem Tag, oder null */
 export async function firstEntryBefore(q: Q, date: string): Promise<string | null> {
   const [row] = await q.select({ date: e.date }).from(e).where(lt(e.date, date)).orderBy(asc(e.date)).limit(1);

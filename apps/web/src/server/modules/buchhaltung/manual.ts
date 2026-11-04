@@ -4,7 +4,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
-import { activeOpenings } from "./eroeffnung.ts";
+import { activeOpenings, lockOpenings, openingDependents } from "./eroeffnung.ts";
 import { openBooks, post } from "./ledger.ts";
 
 /*
@@ -90,6 +90,22 @@ async function lockedManualEntry(tx: Tx, entryId: string) {
 export type CashReversalCheck = (tx: Tx, date: string, amount: number) => Promise<void>;
 
 /**
+ * Eine Eröffnung, auf die Übernahmen ohne eigene Buchung oder Anlagen bauen, bleibt stehen: Ihr Storno nähme deren
+ * Bestände mit, und eine neue Eröffnung brächte sie nicht zurück. Sperrt vorher wie Übernahme und Eröffnung (nach der Kasse).
+ */
+async function assertNoDependents(tx: Tx, entryId: string): Promise<void> {
+  await lockOpenings(tx);
+  const { uebernahmen, anlagen } = await openingDependents(tx, entryId);
+  const gruende = [
+    ...(uebernahmen > 0
+      ? [`${uebernahmen === 1 ? "ein übernommener offener Posten steht" : `${uebernahmen} übernommene offene Posten stehen`} nur in ihr`]
+      : []),
+    ...(anlagen > 0 ? [`${anlagen === 1 ? "eine Anlage verweist" : `${anlagen} Anlagen verweisen`} auf sie`] : []),
+  ];
+  if (gruende.length > 0) throw new ManualEntryError(`Die Eröffnung lässt sich nicht stornieren: ${gruende.join(", ")}.`);
+}
+
+/**
  * Storniert eine manuelle Buchung mit einer Gegenbuchung am selben Tag, damit sie im selben Zeitraum aufgeht.
  * Liegt der Tag in einem Jahr mit anderem Kontenrahmen, lehnt das Hauptbuch ab. Bebucht sie die Kasse, prüft
  * `checkCash`, dass der Kassenbestand ohne sie an keinem Tag negativ wird; ohne Prüfung wird sie nicht storniert.
@@ -113,6 +129,7 @@ export async function reverseManualEntry(actor: string, entryId: string, checkCa
       if (!checkCash) throw new ManualEntryError("Die Buchung bebucht die Kasse; der Storno braucht die Prüfung des Kassenbuchs.");
       await checkCash(tx, entry.date, -kasse);
     }
+    if (entry.sourceType === "eroeffnung") await assertNoDependents(tx, entry.id);
     return post(tx, books, {
       date: entry.date,
       description: `Storno: ${entry.description}`,
