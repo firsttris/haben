@@ -521,7 +521,15 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     it("legt eine Eröffnung den Stichtag nach der Anzeige fest, bricht die Übernahme mit dem angezeigten Stichtag ab", async () => {
       await sql`update company set rechtsform = 'gmbh'`;
       const vorjahr = alt - 1;
-      const id = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE-R", date: `${vorjahr}-12-10`, net: 100_000, tax: 19_000, file: PDF });
+      const id = await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: "RE-R",
+        date: `${vorjahr}-12-10`,
+        net: 100_000,
+        tax: 19_000,
+        file: PDF,
+      });
       // Angezeigt: Stichtag 31.12.alt, gebucht zum 1.1.
       expect((await legacy.openItemsOverview(`${alt}-12-31`)).cutoff).toEqual({ date: `${alt}-12-31`, bookingDate: `${year}-01-01`, fixed: null });
       // Inzwischen bucht jemand die Eröffnung zum 1.1.alt; der Stichtag ist jetzt der 31.12. davor
