@@ -137,6 +137,7 @@ Der Editor listet alles auf, was noch fehlt. Geprüft werden:
 - Umsatzsteuer: Außer bei „Regulär besteuert“ müssen alle Positionen 0 % haben. Reverse Charge braucht deine USt-IdNr. in den Firmendaten und die USt-IdNr. des Kunden, und der Kunde darf nicht in Deutschland sitzen. Bei „Leistung ins Nicht-EU-Ausland“ darf der Kunde nicht in Deutschland sitzen. „Steuerfrei nach § 4 UStG“ braucht die Befreiungsvorschrift.
 - Kleinunternehmer: Bist du in den Einstellungen als Kleinunternehmer eingetragen, lässt sich nur eine Kleinunternehmer-Rechnung festschreiben; bist du es nicht, keine.
 - Eine Rechnung muss einen positiven Gesamtbetrag haben, eine Rechnungskorrektur einen negativen.
+- GmbH und UG: Fehlen Pflichtangaben nach § 35a GmbHG (Registergericht, Registernummer, Geschäftsführer), zeigt der Editor einen Hinweis. Festschreiben geht trotzdem, siehe [Pflichtangaben einer GmbH oder UG](#pflichtangaben-einer-gmbh-oder-ug).
 - Formatabhängige Pflichtangaben (aus `validateForFormat` in `packages/einvoice`):
 
 | Angabe | ZUGFeRD | XRechnung |
@@ -161,6 +162,20 @@ Alles läuft in einer einzigen Datenbanktransaktion. Schlägt ein Schritt fehl, 
 5. **Prüfsummen.** Von PDF und XML wird je ein SHA-256 gespeichert. Die ersten Zeichen des PDF-Hashes stehen auf der Detailseite.
 6. **Buchen.** Haben legt den Buchungssatz an (siehe unten) und schreibt ihn fest.
 7. **Sperren.** Die Rechnung bekommt einen Festschreibungszeitpunkt. Ab dann lehnen Datenbank-Trigger jede Änderung oder Löschung der Rechnung und ihrer Positionen ab.
+
+## Pflichtangaben einer GmbH oder UG
+
+Auf allen Geschäftsbriefen einer GmbH oder UG an einen bestimmten Empfänger, gleich in welcher Form, müssen stehen (§ 35a Abs. 1 GmbHG): die Rechtsform und der Sitz der Gesellschaft, das Registergericht des Sitzes und die Nummer, unter der die Gesellschaft ins Handelsregister eingetragen ist, alle Geschäftsführer und, wenn die Gesellschaft einen Aufsichtsrat mit Vorsitzendem hat, dessen Vorsitzender, jeweils mit Familiennamen und mindestens einem ausgeschriebenen Vornamen. Angaben zum Kapital sind nicht Pflicht; wer welche macht, muss das Stammkapital und, wenn nicht alle Geldeinlagen eingezahlt sind, die ausstehenden Einlagen nennen (§ 35a Abs. 1 Satz 2 GmbHG). Haben macht keine Angaben zum Kapital.
+
+Haben nimmt die Angaben aus den [Firmendaten](einrichtung.md#firmendaten) und setzt sie
+
+- als eigene Zeile unter die drei Spalten des Fußes von Rechnung, Storno, Korrektur, Angebot, Auftragsbestätigung, Lieferschein, Mahnung und Steuerbescheinigung, auch in der Vorschau im Editor: „Sitz der Gesellschaft: Bremen · Registergericht: Amtsgericht Bremen, HRB 12345 HB · Geschäftsführung: Erika Mustermann“. Die Rechtsform steht davor („Rechtsform: GmbH“) nur, wenn der Firmenname sie nicht schon nennt, etwa „GmbH“ oder „UG (haftungsbeschränkt)“ (§ 4, § 5a Abs. 1 GmbHG). Auf englischen Belegen sind die Beschriftungen englisch („Registered office“, „Register court“, „Managing directors“).
+- in die E-Rechnung: die Registernummer als Kennung aus einem amtlichen Register (BT-30, in CII `SpecifiedLegalOrganization/ID`, in UBL `PartyLegalEntity/CompanyID`) und die ganze Zeile als „Seller additional legal information“ (BT-33, in CII `Description` des Verkäufers, in UBL `CompanyLegalForm`) nach dem semantischen Modell der EN 16931-1 (Gruppe BG-4).
+- als Signatur unter E-Mails mit Rechnung, Angebot oder Mahnung, siehe [Per E-Mail versenden](#per-e-mail-versenden).
+
+**Hinweis, keine Sperre:** Fehlt etwas, zeigen Firmendaten und Editor einen Hinweis, das Festschreiben bleibt möglich; der Fuß nennt dann nur, was eingetragen ist. Die Rechnung bleibt umsatzsteuerlich gültig, denn § 14 Abs. 4 UStG verlangt die Angaben nicht; fehlende Angaben kann das Registergericht mit Zwangsgeld durchsetzen (§ 79 Abs. 1 GmbHG). Eine Gesellschaft in Gründung hat vor der Eintragung noch keine Registernummer, schreibt aber schon Rechnungen, und Storno und Korrektur müssen immer möglich sein.
+
+**Festgeschriebene Rechnungen bleiben, wie sie sind:** Der Absender ist mit der Rechnung gespeichert, PDF und XML sind gesperrt. Ältere Rechnungen haben den neuen Fuß also nicht. Mahnung, Auftragsbestätigung und Lieferschein entstehen dagegen neu und tragen die Angaben aus den aktuellen Firmendaten, auch zu einer älteren Rechnung. Beim Einzelunternehmen ändert sich nichts.
 
 ## Buchungen
 
@@ -366,6 +381,8 @@ Mit einem E-Mail-Zugang ([Einstellungen › E-Mail › E-Mail-Versand](einrichtu
 1. **Rechnung senden** öffnet das Formular. Vorbelegt sind alle E-Mail-Adressen aus dem Kontakt (etwa Rechnungseingang und Freigeber), sonst die Adresse auf der Rechnung, dazu Betreff und Text aus der Vorlage. Alles lässt sich vor dem Senden ändern; mehrere Empfänger trennst du mit Komma (höchstens fünf).
 2. **Blindkopie an mich** schickt eine Kopie an den Absender aus den Einstellungen.
 3. **Jetzt senden** verschickt die Mail sofort.
+
+Bei GmbH und UG hängt Haben beim Senden die [Pflichtangaben](#pflichtangaben-einer-gmbh-oder-ug) als Signatur unter den Text (Firmenname, Sitz, Registergericht und -nummer, Geschäftsführung); das Formular zeigt sie unter dem Textfeld. Sie steht nicht im bearbeitbaren Text, damit sie beim Ändern nicht verloren geht.
 
 | Format | Anhang |
 | --- | --- |

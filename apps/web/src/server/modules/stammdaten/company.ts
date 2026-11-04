@@ -3,12 +3,14 @@ import {
   EXPENSE_CATEGORY_KEYS,
   RECHTSFORM_KEYS,
   isKapitalgesellschaft,
+  legalInfo,
   legalInfoGaps,
   toElsterSteuernummer,
   SteuernummerError,
   type Versteuerung,
 } from "@haben/core";
 import { and, desc, eq, gte, lt, lte, min } from "drizzle-orm";
+import { legalLine } from "@haben/einvoice";
 import { z } from "zod";
 import { listArticles } from "./articles.ts";
 import { listTextBlocks } from "./text-blocks.ts";
@@ -197,7 +199,22 @@ export async function editorContext(kind: "rechnung" | "angebot") {
       priceIncludesTax,
     })),
     textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
-    company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber, logo: logo?.sha256 ?? null, accent: company.accentColor },
+    company: {
+      name,
+      strasse,
+      plz,
+      ort,
+      email,
+      steuernummer,
+      ustId,
+      iban,
+      bic,
+      bank,
+      kontoinhaber,
+      logo: logo?.sha256 ?? null,
+      accent: company.accentColor,
+      legal: legalLine(legalInfo(company)),
+    },
     sellerIssues: sellerIssues(company),
     letterIssues: letterIssues(company),
     bundesland: company.bundesland,
