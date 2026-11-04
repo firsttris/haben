@@ -564,5 +564,39 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
         fixed: expect.stringMatching(/Eröffnung am 01\.01\./),
       });
     });
+
+    it("legt eine Eröffnung den Stichtag nach der Anzeige fest, bricht die Übernahme mit dem angezeigten Stichtag ab", async () => {
+      await sql`update company set rechtsform = 'gmbh'`;
+      const vorjahr = alt - 1;
+      const id = await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: "RE-R",
+        date: `${vorjahr}-12-10`,
+        net: 100_000,
+        tax: 19_000,
+        file: PDF,
+      });
+      // Angezeigt: Stichtag 31.12.alt, gebucht zum 1.1.
+      expect((await legacy.openItemsOverview(`${alt}-12-31`)).cutoff).toEqual({ date: `${alt}-12-31`, bookingDate: `${year}-01-01`, fixed: null });
+      // Inzwischen bucht jemand die Eröffnung zum 1.1.alt; der Stichtag ist jetzt der 31.12. davor
+      const manual = await import("../buchhaltung/manual.ts");
+      await manual.createManualEntry(
+        actor,
+        {
+          kind: "eroeffnung",
+          date: `${alt}-01-01`,
+          description: "Eröffnungsbilanz",
+          lines: [
+            { account: "1200", debit: 2_500_000, credit: 0 },
+            { account: "9000", debit: 0, credit: 2_500_000 },
+          ],
+        },
+        heute(),
+      );
+      await expect(legacy.takeOverLegacyItem(actor, id, `${alt}-12-31`)).rejects.toThrow(/Stichtag hat sich inzwischen geändert/);
+      await expect(legacy.takeOverAll(actor, `${alt}-12-31`)).rejects.toThrow(/Stichtag hat sich inzwischen geändert/);
+      expect(await sql`select 1 from invoices where lexoffice_voucher_id = ${id}`).toHaveLength(0);
+    });
   });
 });

@@ -126,6 +126,16 @@ function blockerFor(voucher: LegacyVoucher, state: LegacyOpenAt, cutoff: string,
   return null;
 }
 
+/**
+ * Stichtag beim Übernehmen: der angezeigte. Legt inzwischen eine Eröffnung einen anderen fest, bricht die Übernahme ab,
+ * statt an einem anderen Tag zu buchen als angezeigt.
+ */
+async function shownCutoff(requested?: string | null): Promise<TakeoverCutoff> {
+  const cutoff = await legacyTakeoverCutoff(requested);
+  if (requested && cutoff.date !== requested) throw new TakeoverError("Der Stichtag hat sich inzwischen geändert. Bitte die Seite neu laden.");
+  return cutoff;
+}
+
 /** Stichtag für den Stand heute: keine Zahlung liegt danach */
 const TODAY_STATE = "9999-12-31";
 
@@ -258,7 +268,7 @@ export async function takeOverLegacyItem(
   voucherId: string,
   requestedCutoff?: string | null,
 ): Promise<{ kind: "invoice" | "document"; id: string }> {
-  const cutoff = await legacyTakeoverCutoff(requestedCutoff);
+  const cutoff = await shownCutoff(requestedCutoff);
   const items = await itemsAt(cutoff.date);
   const item = items.find((i) => i.id === voucherId);
   if (!item) throw new TakeoverError("Dieser Beleg ist in der bisherigen Buchhaltung nicht offen.");
@@ -446,7 +456,7 @@ async function takeOverDocument(
 
 /** Alle übernehmbaren offenen Posten auf einmal; Fehler einzelner Posten kommen zurück */
 export async function takeOverAll(actor: string, requestedCutoff?: string | null) {
-  const cutoff = await legacyTakeoverCutoff(requestedCutoff);
+  const cutoff = await shownCutoff(requestedCutoff);
   const items = (await itemsAt(cutoff.date)).filter((i) => !i.takenOver && !i.blocker);
   const results: { number: string; error?: string }[] = [];
   for (const item of items) {
