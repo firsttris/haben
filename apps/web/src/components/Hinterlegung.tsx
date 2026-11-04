@@ -49,6 +49,12 @@ export function Hinterlegung({ year, stand, closed }: { year: number; stand: Hin
         als PDF mit Firma, Sitz und Registernummer, den Vorjahreszahlen und den Angaben unter der Bilanz, die den Anhang ersetzen. Das PDF lädst du auf der
         Publikations-Plattform des Bundesanzeiger Verlags (publikations-plattform.de) als Hinterlegungsauftrag hoch; der Verlag berechnet dafür eine Gebühr.
       </p>
+      <p className="small muted" style={{ maxWidth: 760 }}>
+        Ein PDF wandelt das Unternehmensregister gegen ein Entgelt von 1,75 Cent je sichtbarem Zeichen zuzüglich Umsatzsteuer um, zusätzlich zur Gebühr.
+        Kostenlos angenommen werden nur XML oder XBRL nach den Vorgaben des Bundesanzeiger Verlags und die Eingabe im Webformular der Plattform; wer die
+        Umwandlung sparen will, tippt die Bilanz dort ab. XML oder XBRL erzeugt Haben nicht, weil der Verlag Schema und Vorgaben nur nach einer Freischaltung
+        und ohne Recht zur Weitergabe herausgibt.
+      </p>
       <p style={{ maxWidth: 760 }}>
         {stand.fristAbgelaufen ? (
           <strong>Die Frist ist am {formatDate(stand.frist)} abgelaufen; hinterlege so bald wie möglich, sonst droht ein Ordnungsgeld (§ 335 HGB).</strong>
