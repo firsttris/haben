@@ -65,8 +65,8 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
   }
 
   describe.each([
-    ["SKR03", { bank: "1200", kapital: "0800", erloes: "8400", ust: "1776" }],
-    ["SKR04", { bank: "1800", kapital: "2900", erloes: "4400", ust: "3806" }],
+    ["SKR03", { bank: "1200", kapital: "0800", erloes: "8400", ust: "1776", forderung: "1400" }],
+    ["SKR04", { bank: "1800", kapital: "2900", erloes: "4400", ust: "3806", forderung: "1200" }],
   ] as const)("%s", (kontenrahmen, k) => {
     it.each(["ist", "soll"] as const)("%s: Vorjahr aus der Eröffnung, Sitz aus dem Ort, PDF", async (versteuerung) => {
       await setup("gmbh", kontenrahmen, versteuerung);
@@ -108,6 +108,35 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
       const bilanz = await hinterlegung.hinterlegungBilanzFuer(2026, KEINE, today);
       expect(bilanz.aktiva).toEqual([{ label: "B. Umlaufvermögen", betrag: 3_000_000, vorjahr: 3_000_000 }]);
       expect(bilanz.passiva).toEqual([{ label: "A. Eigenkapital", betrag: 3_000_000, vorjahr: 3_000_000 }]);
+    });
+
+    it("Vorjahr mit Beständen, die wie dokumentiert gegen 9000 übernommen sind (Eröffnung und Umzug)", async () => {
+      await setup("gmbh", kontenrahmen, "soll");
+      // Eröffnungsbuchung: Bank 20.000 an 9000, 9000 an Gezeichnetes Kapital 25.000 (docs/buchhaltung.md)
+      await manual.createManualEntry(
+        actor,
+        {
+          kind: "eroeffnung",
+          date: "2026-01-01",
+          description: "Eröffnungsbilanz",
+          lines: [
+            { account: k.bank, debit: 2_000_000, credit: 0 },
+            { account: "9000", debit: 500_000, credit: 0 },
+            { account: k.kapital, debit: 0, credit: 2_500_000 },
+          ],
+        },
+        today,
+      );
+      // Offene Rechnung aus dem Umzug: Forderung an 9000 auf das Datum der Übernahme; danach ist 9000 ausgeglichen
+      await book("2026-01-01", [
+        [k.forderung, 500_000, 0],
+        ["9000", 0, 500_000],
+      ]);
+      const stand = await hinterlegung.hinterlegungStand(2026, today);
+      expect(stand?.maengel).toEqual([]);
+      const bilanz = await hinterlegung.hinterlegungBilanzFuer(2026, KEINE, today);
+      expect(bilanz.aktiva).toEqual([{ label: "B. Umlaufvermögen", betrag: 2_500_000, vorjahr: 2_500_000 }]);
+      expect(bilanz.passiva).toEqual([{ label: "A. Eigenkapital", betrag: 2_500_000, vorjahr: 2_500_000 }]);
     });
 
     it("ohne Registerangaben keine Datei; im ersten Jahr ohne Vorjahresspalte", async () => {
