@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
-import { ANONYMOUS, day, fakeEigeneSeite, firstLink, SESSION, SHOTS, YEAR } from "./daten.ts";
+import { ANONYMOUS, day, fakeEigeneSeite, firstLink, fullPageScreenshot, SESSION, SHOTS, YEAR } from "./daten.ts";
 
 /**
  * Von jeder Seite ein Screenshot (Desktop und Handy) unter test-results/screenshots, mit den Daten aus
@@ -87,7 +87,7 @@ for (const [device, viewport] of [
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
           expect.soft(overflow, `${path} ist nicht breiter als das Handy`).toBeLessThanOrEqual(1);
         }
-        await page.screenshot({ path: `${SHOTS}/${device}/${String(index + 1).padStart(2, "0")}-${name}.png`, fullPage: true });
+        await fullPageScreenshot(page, { path: `${SHOTS}/${device}/${String(index + 1).padStart(2, "0")}-${name}.png` });
       }
       if (device === "mobil" && half === 1) {
         // Menü auf dem Handy: aufklappen, Seite wählen, schließt wieder

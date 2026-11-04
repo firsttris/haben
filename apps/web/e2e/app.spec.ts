@@ -1,7 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { zipSync } from "fflate";
 import { mkdirSync, readFileSync } from "node:fs";
-import { day, EIGENE_SEITE, fakeEigeneSeite, firstLink, SESSION, SHOTS, USER, YEAR } from "./daten.ts";
+import { day, EIGENE_SEITE, fakeEigeneSeite, firstLink, fullPageScreenshot, SESSION, SHOTS, USER, YEAR } from "./daten.ts";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,
@@ -682,7 +682,7 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   const antwort = page.getByRole("region", { name: /Antwort des Kunden/ });
   await expect(antwort).toContainText("Offen", { timeout: 30_000 });
   await expect(page.getByText("2.094,40\u00a0€").first()).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/desktop/03b-angebot.png`, fullPage: true });
+  await fullPageScreenshot(page, { path: `${SHOTS}/desktop/03b-angebot.png` });
 
   // Abschlag aus dem Angebot: Rechnungsart und Angebot vorbelegt, den Betrag trägt man selbst ein; danach wieder verwerfen
   const angebotUrl = page.url();
@@ -775,7 +775,7 @@ test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", asy
   await expect(formular.getByLabel("Betreff", { exact: true })).toHaveValue(/^Rechnung \d{4}-\d{3} von Mustermann IT/);
   await expect(formular.getByText(/Anhang: Rechnung-\d{4}-\d{3}\.pdf/)).toBeVisible();
   await formular.getByLabel("An", { exact: true }).fill("buchhaltung@nordwerk.example");
-  await page.screenshot({ path: `${SHOTS}/desktop/04b-rechnung-email.png`, fullPage: true });
+  await fullPageScreenshot(page, { path: `${SHOTS}/desktop/04b-rechnung-email.png` });
   await formular.getByRole("button", { name: "Jetzt senden" }).click();
   await expect(formular.getByRole("alert")).toContainText("Nicht gesendet");
   await page.reload();

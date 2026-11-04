@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { USER } from "./daten.ts";
+import { fullPageScreenshot, USER } from "./daten.ts";
 
 /**
  * Die Bilder in README und Doku (docs/screenshot-*.png), aufgenommen mit den Daten, die app.spec.ts
@@ -42,7 +42,8 @@ async function go(path: string) {
 
 async function shot(name: string, fullPage = false) {
   // Kein blinkender Cursor, keine halb abgelaufene Animation im Bild
-  await page.screenshot({ path: `${DOCS}/screenshot-${name}.png`, fullPage, animations: "disabled", caret: "hide" });
+  const options = { path: `${DOCS}/screenshot-${name}.png`, animations: "disabled", caret: "hide" } as const;
+  await (fullPage ? fullPageScreenshot(page, options) : page.screenshot(options));
 }
 
 test("Übersicht", async () => {
