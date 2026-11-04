@@ -3,6 +3,7 @@ import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { readFileSync } from "node:fs";
 import { defineConfig, type Plugin } from "vite";
+import { redact } from "@tanstack/redact/vite";
 
 // Version der ausgelieferten App, angezeigt unten in der Navigation
 const VERSION = (JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as { version: string }).version;
@@ -22,6 +23,8 @@ function keepNativeExternal(): Plugin {
 
 export default defineConfig({
   server: { port: 3000 },
+  // Abhängigkeiten des Servers mitbündeln, damit redact() auch deren React-Imports umleitet (README von TanStack Redact)
+  ssr: { noExternal: true },
   define: { __HABEN_VERSION__: JSON.stringify(VERSION) },
   plugins: [
     keepNativeExternal(),
@@ -37,5 +40,8 @@ export default defineConfig({
       compressPublicAssets: { gzip: true, brotli: true },
     }),
     viteReact(),
+    // TanStack Redact statt React im Browser und beim SSR: gleiche API, etwa halb so großes Start-Bundle.
+    // Rendert synchron, ohne Time-Slicing; Haben nutzt weder useTransition noch useDeferredValue
+    redact(),
   ],
 });
