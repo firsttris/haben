@@ -982,6 +982,11 @@ test("Umzug ohne Public API: Skript abrufen, Sicherung hochladen und übernehmen
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
   await go("/auswertungen");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // Beträge rechtsbündig, Monate mittig: TanStack Redact 0.3.1 setzt das SVG-Attribut textAnchor nicht um,
+  // deshalb steht es im Stil, und dieser Test prüft, was der Browser daraus macht
+  const anchors = await page.locator(".chart .tick").evaluateAll((ticks) => ticks.map((tick) => getComputedStyle(tick).textAnchor));
+  expect(anchors).toContain("end");
+  expect(anchors).toContain("middle");
   await go("/umsatzsteuer");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await go(`/jahreserklaerung/${YEAR - 1}`);

@@ -356,14 +356,14 @@ function MonthlyChart({ year, einnahmen, ausgaben }: { year: number; einnahmen: 
           {ticks.map((t) => (
             <g key={t}>
               <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} className={t === 0 ? "axis-base" : "grid"} />
-              <text x={M.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="tick">
+              <text x={M.left - 8} y={y(t)} dy="0.32em" style={{ textAnchor: "end" }} className="tick">
                 {euroAxis.format(t / 100)} €
               </text>
             </g>
           ))}
           {MONTHS_SHORT.map((m, i) =>
             i % labelEvery === 0 ? (
-              <text key={m} x={M.left + slot * i + slot / 2} y={H - 8} textAnchor="middle" className="tick">
+              <text key={m} x={M.left + slot * i + slot / 2} y={H - 8} style={{ textAnchor: "middle" }} className="tick">
                 {m}
               </text>
             ) : null,
