@@ -240,7 +240,7 @@ Die Beiträge zur Sozialversicherung in `packages/core/src/sozialversicherung/` 
 3. Beispielrechnungen des neuen Jahres als Tests aufnehmen (Beratungsblätter der Kassen zum Übergangsbereich, Minijob-Zentrale), mit Quelle am Erwartungswert.
 4. Ändert sich eine Regel (Formel des Übergangsbereichs, Rundung, Pauschalen), braucht das neue Jahr eine eigene Rechnung; die alte bleibt für Korrekturen früherer Jahre.
 
-Gerechnet wird ohne Gleitkommazahlen: Entgelt in Cent mal Satz in Basispunkten mit `bigint`, kaufmännisch auf Cent gerundet erst am Ende (§ 1 Abs. 2 BVV). Beiträge, die Arbeitgeber und Beschäftigter je zur Hälfte tragen, rechnet Haben mit dem halben Satz und verdoppelt das gerundete Ergebnis (§ 2 Abs. 1 BVV); sonst ist der Beitrag die Summe der getrennt gerundeten Anteile. Im Übergangsbereich trägt der Arbeitgeber den Gesamtbeitrag abzüglich des Anteils des Beschäftigten.
+Gerechnet wird ohne Gleitkommazahlen: Entgelt in Cent mal Satz in Basispunkten mit `bigint`, kaufmännisch auf Cent gerundet erst am Ende (§ 1 Abs. 2 BVV). Beiträge, die Arbeitgeber und Beschäftigter je zur Hälfte tragen, rechnet Haben mit dem halben Satz und verdoppelt das gerundete Ergebnis (§ 2 Abs. 1 BVV); sonst ist der Beitrag die Summe der getrennt gerundeten Anteile. Im Übergangsbereich trägt der Arbeitgeber den Gesamtbeitrag abzüglich des Anteils des Beschäftigten; Kinderlosenzuschlag und Kinderabschläge rechnet § 2 Abs. 2 BVV gesondert. Die Vorschriften stehen mit Link im Code; Gesetzestexte am besten bei gesetze-im-internet.de, Bekanntmachungen im Bundesanzeiger lesen, nicht in Ratgebern.
 
 ## Konventionen
 

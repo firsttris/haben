@@ -55,10 +55,10 @@ function umlagen(basis: Cents, e: Beschaeftigt, w: SvJahreswerte): SvBeitraege["
 }
 
 /**
- * Zweig im Übergangsbereich: Gesamtbeitrag aus der Einnahme nach § 20 Abs. 2a Satz 1 SGB IV (halber Satz, gerundet,
- * verdoppelt nach § 2 Abs. 1 BVV), Anteil des Beschäftigten aus der Einnahme nach der Formel für den AN-Anteil,
- * der Arbeitgeber trägt den Rest (§ 249 Abs. 3 SGB V, § 168 Abs. 1 Nr. 1d SGB VI, § 346 Abs. 1a SGB III,
- * § 58 Abs. 5 SGB XI).
+ * Zweig im Übergangsbereich nach § 2 Abs. 2 Satz 1, 3 und 4 BVV: Der Beitrag ist der halbe Satz auf die Einnahme
+ * nach § 20 Abs. 2a Satz 1 SGB IV, gerundet und verdoppelt; der Anteil des Beschäftigten der halbe Satz auf die
+ * Einnahme nach Satz 6, gerundet; der Arbeitgeber trägt die Differenz (ebenso § 249 Abs. 3 SGB V, § 168 Abs. 1
+ * Nr. 1d SGB VI, § 58 Abs. 5 SGB XI).
  */
 function uebergangZweig(gesamt: Cents, arbeitnehmer: Cents, satz: BasisPoints): Anteile {
   const an = beitrag(arbeitnehmer, satz, 2);
@@ -66,21 +66,23 @@ function uebergangZweig(gesamt: Cents, arbeitnehmer: Cents, satz: BasisPoints): 
 }
 
 /**
- * Beiträge im Übergangsbereich. Den Kinderlosenzuschlag trägt der Beschäftigte allein, berechnet aus seiner
- * beitragspflichtigen Einnahme und gesondert gerundet, wie im Beispiel des Gemeinsamen Rundschreibens zum
- * Übergangsbereich (856,39 € × 0,35 % = 3,00 €). Sachsen und Kinderabschläge lehnt `index.ts` vorher ab.
+ * Beiträge im Übergangsbereich. Pflege: Den Kinderlosenzuschlag trägt der Beschäftigte allein, berechnet aus der
+ * Einnahme nach § 20 Abs. 2a Satz 1 SGB IV (§ 2 Abs. 2 Satz 6 BVV); die Kinderabschläge mindern seinen Anteil und
+ * werden aus der Einnahme nach Satz 6 berechnet (§ 2 Abs. 2 Satz 7 BVV); beide gesondert gerundet. Sachsen lehnt
+ * `index.ts` vorher ab.
  */
 export function uebergang(e: Beschaeftigt, w: SvJahreswerte): SvBeitraege {
   const gesamt = uebergangGesamt(e.entgelt, w);
   const arbeitnehmer = uebergangArbeitnehmer(e.entgelt, w);
   const kv = kvSatz(e, w);
   const pvBasis = uebergangZweig(gesamt, arbeitnehmer, w.pv);
-  const zuschlag = e.pflege.kinderlosenzuschlag ? beitrag(arbeitnehmer, w.pvZuschlagKinderlos) : 0;
+  const zuschlag = e.pflege.kinderlosenzuschlag ? beitrag(gesamt, w.pvZuschlagKinderlos) : 0;
+  const abschlag = beitrag(arbeitnehmer, abschlaege(e.pflege.kinderUnter25, w) * w.pvAbschlagJeKind);
   return mitSummen({
     personengruppe: "beschaeftigt",
     bemessung: { kvPv: gesamt, rvAv: gesamt, arbeitnehmer },
     kv: kv === null ? KEINE : uebergangZweig(gesamt, arbeitnehmer, kv),
-    pv: kv === null ? KEINE : { an: pvBasis.an + zuschlag, ag: pvBasis.ag },
+    pv: kv === null ? KEINE : { an: pvBasis.an + zuschlag - abschlag, ag: pvBasis.ag },
     rv: uebergangZweig(gesamt, arbeitnehmer, w.rv),
     av: uebergangZweig(gesamt, arbeitnehmer, w.av),
     umlagen: umlagen(gesamt, e, w),

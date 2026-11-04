@@ -154,9 +154,15 @@ describe("Übergangsbereich (Midijob)", () => {
     });
   });
 
-  it("schlägt den Kinderlosenzuschlag gesondert auf den Arbeitnehmeranteil", () => {
-    // 854,69 € × 0,6 % = 5,13 €; der Arbeitgeber trägt davon nichts
-    expect(rechne({ ...ANGESTELLT, entgelt: 1200_00, pflege: { kinderlosenzuschlag: true, kinderUnter25: 0 } }).pv).toEqual({ an: 20_51, ag: 23_62 });
+  it("schlägt den Kinderlosenzuschlag aus der Gesamteinnahme auf den Arbeitnehmeranteil", () => {
+    // § 2 Abs. 2 Satz 6 BVV: Zuschlag auf die Einnahme nach § 20 Abs. 2a Satz 1 SGB IV, 1.083,25 € × 0,6 % = 6,4995 €
+    // → 6,50 €; AN 15,38 € + 6,50 € = 21,88 €
+    expect(rechne({ ...ANGESTELLT, entgelt: 1200_00, pflege: { kinderlosenzuschlag: true, kinderUnter25: 0 } }).pv).toEqual({ an: 21_88, ag: 23_62 });
+  });
+
+  it("zieht Kinderabschläge aus der Arbeitnehmereinnahme ab", () => {
+    // § 2 Abs. 2 Satz 7 BVV: drei Kinder = 0,5 Punkte auf 854,69 € = 4,27 €; AN 15,38 € − 4,27 €, AG unverändert
+    expect(rechne({ ...ANGESTELLT, entgelt: 1200_00, pflege: { kinderlosenzuschlag: false, kinderUnter25: 3 } }).pv).toEqual({ an: 11_11, ag: 23_62 });
   });
 
   it("beginnt einen Cent über der Geringfügigkeitsgrenze von 603 €", () => {
@@ -176,16 +182,14 @@ describe("Übergangsbereich (Midijob)", () => {
     expect(darueber.rv).toEqual({ an: 186_00, ag: 186_00 });
   });
 
-  it.each([
-    ["Sachsen", { sachsen: true }, "Pflegeversicherung in Sachsen im Übergangsbereich"],
-    ["Kinderabschläge", { pflege: { kinderlosenzuschlag: false, kinderUnter25: 2 } }, "Kinderabschläge in der Pflegeversicherung im Übergangsbereich"],
-  ])("lehnt %s ab, weil kein belegtes Rechenbeispiel vorliegt", (_, zusatz, text) => {
-    expect(sozialversicherung(2026, { ...ANGESTELLT, entgelt: 1200_00, ...zusatz })).toEqual({
+  it("lehnt Sachsen ab, weil die Aufteilung nicht mit einem Rechenbeispiel belegt ist", () => {
+    expect(sozialversicherung(2026, { ...ANGESTELLT, entgelt: 1200_00, sachsen: true })).toEqual({
       ok: false,
       grund: "nicht-unterstuetzt",
-      meldung: `Sozialversicherung mit ${text} ist nicht unterstützt.`,
+      meldung: "Sozialversicherung mit Pflegeversicherung in Sachsen im Übergangsbereich ist nicht unterstützt.",
     });
-    expect(sozialversicherung(2026, { ...ANGESTELLT, entgelt: 2500_00, ...zusatz }).ok).toBe(true);
+    expect(sozialversicherung(2026, { ...ANGESTELLT, entgelt: 2500_00, sachsen: true }).ok).toBe(true);
+    expect(sozialversicherung(2026, { ...ANGESTELLT, entgelt: 1200_00, sachsen: true, kv: { art: "privat" } }).ok).toBe(true);
   });
 });
 
@@ -210,7 +214,8 @@ describe("Minijob (gewerblich)", () => {
   });
 
   it("rechnet den RV-Anteil unter 175 € aus der Mindestbemessung", () => {
-    // Minijob-Zentrale, FAQ Mindestbeitrag: 100 € → AG 15,00 €, AN 17,55 € ((100 € × 3,6 %) + (75 € × 18,6 %))
+    // Minijob-Zentrale, FAQ Mindestbeitrag: 100 € → AG 15,00 €, AN 17,55 € ((100 € × 3,6 %) + (75 € × 18,6 %));
+    // § 2 Abs. 1 Satz 5 BVV: 175 € × 18,6 % = 32,55 € abzüglich 15,00 €
     const r = rechne({ ...MINIJOB, entgelt: 100_00 });
     expect(r.rv).toEqual({ an: 17_55, ag: 15_00 });
     expect(r.bemessung.rvAv).toBe(175_00);

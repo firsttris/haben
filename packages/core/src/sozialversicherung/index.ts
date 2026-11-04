@@ -78,13 +78,14 @@ function nichtUnterstuetzt(e: SvEingabe): string[] {
   return gesetzt.map((name) => NICHT_UNTERSTUETZT[name]);
 }
 
-/** Fälle, die gültig sind, aber im Übergangsbereich keine belegte Rechenregel in Haben haben */
+/**
+ * Sachsen im Übergangsbereich: § 2 Abs. 2 BVV nennt für den Anteil des Beschäftigten nur den halben Satz nach
+ * § 55 Abs. 1 SGB XI, § 58 Abs. 5 SGB XI für den Arbeitgeber einen um einen Punkt verminderten Satz; wie beides
+ * zusammen gerundet und aufgeteilt wird, belegt Haben noch mit keinem Rechenbeispiel.
+ */
 function nichtUnterstuetztImUebergang(e: SvEingabe, w: SvJahreswerte): string[] {
   if (e.personengruppe !== "beschaeftigt" || !imUebergangsbereich(e.entgelt, w) || e.kv.art === "privat") return [];
-  return [
-    ...(e.sachsen ? ["Pflegeversicherung in Sachsen im Übergangsbereich"] : []),
-    ...(e.pflege.kinderUnter25 > 1 ? ["Kinderabschläge in der Pflegeversicherung im Übergangsbereich"] : []),
-  ];
+  return e.sachsen ? ["Pflegeversicherung in Sachsen im Übergangsbereich"] : [];
 }
 
 /** Entgelt passt nicht zur Personengruppe */
