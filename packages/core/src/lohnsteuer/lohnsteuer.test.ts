@@ -68,6 +68,18 @@ describe("lohnsteuer, ungültige Eingaben", () => {
   ])("lehnt %s ab", (_, zusatz, meldung) => {
     expect(lohnsteuer(2026, { ...MONAT, ...(zusatz as Partial<LohnsteuerEingabe>) })).toEqual({ ok: false, grund: "ungueltig", meldung });
   });
+
+  it.each([
+    ["negative sonstige Bezüge", { SONSTB: -1 }],
+    ["Cent-Bruchteile bei Versorgungsbezügen", { VBEZ: 0.5 }],
+    ["ALTER1 = 2", { ALTER1: 2 }],
+    ["negativer Faktor", { f: -1000 }],
+    ["Freibetrag NaN", { LZZFREIB: Number.NaN }],
+    ["negativer Lohn neben sonstigen Bezügen", { RE4: -1, SONSTB: 1 }],
+  ])("meldet %s als ungültig, nicht als nicht unterstützt", (_, zusatz) => {
+    const r = lohnsteuer(2026, { ...MONAT, ...(zusatz as Partial<LohnsteuerEingabe>) });
+    expect(r.ok === false && r.grund).toBe("ungueltig");
+  });
 });
 
 describe("lohnkirchensteuer", () => {
