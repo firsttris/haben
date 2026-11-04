@@ -6,13 +6,14 @@ import {
   MAX_EMAIL_RECIPIENTS,
   resolveMailTemplate,
   splitEmails,
+  legalInfo,
   type DunningLevel,
   type MailTemplateKind,
 } from "@haben/core";
-import { texts } from "@haben/einvoice";
+import { legalLines, texts, type Language } from "@haben/einvoice";
 import { and, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
-import { loadCompany } from "../stammdaten/index.ts";
+import { loadCompany, type Company } from "../stammdaten/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { invoiceDocumentTotals } from "./invoice-taxes.ts";
 import { invoiceTitle } from "./invoices.ts";
@@ -37,6 +38,22 @@ export function textToHtml(text: string): string {
     .split(/\n{2,}/)
     .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`)
     .join("\n");
+}
+
+/**
+ * E-Mails mit Rechnung, Angebot oder Mahnung sind Geschäftsbriefe (§ 35a Abs. 1 GmbHG). Bei GmbH und UG hängt Haben
+ * die Pflichtangaben beim Senden als Signatur an, damit sie beim Bearbeiten des Textes nicht verloren gehen; leer beim
+ * Einzelunternehmen.
+ */
+export function legalSignature(company: Company, language: Language = "de"): string {
+  const lines = legalLines(legalInfo(company), texts(language));
+  return lines.length > 0 ? ["-- ", company.name, ...lines].join("\n") : "";
+}
+
+/** Text der E-Mail als Klartext und HTML, mit der Signatur darunter */
+function mailBody(body: string, signature: string) {
+  const text = signature ? `${body}\n\n${signature}` : body;
+  return { text, html: textToHtml(text) };
 }
 
 const recipientsSchema = z
@@ -142,6 +159,7 @@ export async function invoiceMailDraft(invoiceId: string) {
     to: await customerEmail(invoice),
     subject: fillTemplate(template.subject, values),
     body: fillTemplate(template.body, values),
+    signature: legalSignature(company, invoice.language),
     attachments: invoiceAttachments(invoice).map((a) => a.filename),
     configured: Boolean(settings),
   };
@@ -149,15 +167,14 @@ export async function invoiceMailDraft(invoiceId: string) {
 
 export async function sendInvoiceMail(actor: string, invoiceId: string, input: OutgoingMail) {
   const mail = outgoingMailSchema.parse(input);
-  const [invoice, settings] = await Promise.all([loadInvoice(invoiceId), loadMailSettings()]);
+  const [invoice, settings, company] = await Promise.all([loadInvoice(invoiceId), loadMailSettings(), loadCompany()]);
   if (!settings) throw new MailError("Es ist kein E-Mail-Zugang eingerichtet (Einstellungen › E-Mail-Versand).");
   return send(actor, {
     kind: "rechnung",
     to: mail.to,
     ...(mail.copyToMe ? { bcc: settings.fromAddress } : {}),
     subject: mail.subject,
-    text: mail.body,
-    html: textToHtml(mail.body),
+    ...mailBody(mail.body, legalSignature(company, invoice.language)),
     attachments: invoiceAttachments(invoice),
     invoiceId,
   });
@@ -199,6 +216,7 @@ export async function dunningMailDraft(dunningId: string) {
     to: await customerEmail(invoice),
     subject: fillTemplate(template.subject, values),
     body: fillTemplate(template.body, values),
+    signature: legalSignature(company),
     attachments: [dunningFilename(dunning, invoice.number!)],
     configured: Boolean(settings),
   };
@@ -206,15 +224,14 @@ export async function dunningMailDraft(dunningId: string) {
 
 export async function sendDunningMail(actor: string, dunningId: string, input: OutgoingMail) {
   const mail = outgoingMailSchema.parse(input);
-  const [{ dunning, invoice }, settings] = await Promise.all([loadDunning(dunningId), loadMailSettings()]);
+  const [{ dunning, invoice }, settings, company] = await Promise.all([loadDunning(dunningId), loadMailSettings(), loadCompany()]);
   if (!settings) throw new MailError("Es ist kein E-Mail-Zugang eingerichtet (Einstellungen › E-Mail-Versand).");
   return send(actor, {
     kind: "mahnung",
     to: mail.to,
     ...(mail.copyToMe ? { bcc: settings.fromAddress } : {}),
     subject: mail.subject,
-    text: mail.body,
-    html: textToHtml(mail.body),
+    ...mailBody(mail.body, legalSignature(company)),
     attachments: [{ filename: dunningFilename(dunning, invoice.number!), content: Buffer.from(dunning.pdf), contentType: "application/pdf" }],
     invoiceId: invoice.id,
     dunningId,
@@ -286,6 +303,7 @@ export async function quoteMailDraft(quoteId: string) {
     to: await customerEmail(quote),
     subject: fillTemplate(template.subject, values),
     body: fillTemplate(template.body, values),
+    signature: legalSignature(company, quote.language),
     attachments: [`Angebot-${quote.number}.pdf`],
     configured: Boolean(settings),
   };
@@ -293,15 +311,14 @@ export async function quoteMailDraft(quoteId: string) {
 
 export async function sendQuoteMail(actor: string, quoteId: string, input: OutgoingMail) {
   const mail = outgoingMailSchema.parse(input);
-  const [quote, settings] = await Promise.all([loadQuote(quoteId), loadMailSettings()]);
+  const [quote, settings, company] = await Promise.all([loadQuote(quoteId), loadMailSettings(), loadCompany()]);
   if (!settings) throw new MailError("Es ist kein E-Mail-Zugang eingerichtet (Einstellungen › E-Mail-Versand).");
   return send(actor, {
     kind: "angebot",
     to: mail.to,
     ...(mail.copyToMe ? { bcc: settings.fromAddress } : {}),
     subject: mail.subject,
-    text: mail.body,
-    html: textToHtml(mail.body),
+    ...mailBody(mail.body, legalSignature(company, quote.language)),
     attachments: [{ filename: `Angebot-${quote.number}.pdf`, content: Buffer.from(quote.pdf!), contentType: "application/pdf" }],
     quoteId,
   });

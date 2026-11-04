@@ -1,4 +1,4 @@
-import type { BasisPoints, Cents, InvoiceTotals, Millis, PriceMode, TaxTreatment, UnitLabel } from "@haben/core";
+import type { BasisPoints, Cents, InvoiceTotals, LegalInfo, Millis, PriceMode, TaxTreatment, UnitLabel } from "@haben/core";
 
 /** Rechnung, Stornorechnung oder Rechnungskorrektur (Gutschrift) */
 export type InvoiceKind = "rechnung" | "storno" | "korrektur";
@@ -28,6 +28,8 @@ export interface Seller extends Address {
   bank?: string;
   /** Inhaber des Kontos, wenn nicht der Firmenname (GiroCode, BT-85); fehlt = name */
   kontoinhaber?: string;
+  /** GmbH und UG: Pflichtangaben auf Geschäftsbriefen (§ 35a Abs. 1 GmbHG); fehlt beim Einzelunternehmen und auf älteren Rechnungen */
+  legalInfo?: LegalInfo;
 }
 
 export interface Buyer extends Address {

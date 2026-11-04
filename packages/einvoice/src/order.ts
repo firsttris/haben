@@ -1,5 +1,5 @@
 import { texts, type Language } from "./i18n.ts";
-import { addressLines, footerColumns, renderQuotePdfData, showsGrossPrices, templateLabels } from "./pdf.ts";
+import { addressLines, footerData, renderQuotePdfData, showsGrossPrices, templateLabels } from "./pdf.ts";
 import { quoteDetails, quotePdfData, type QuoteDocument } from "./quote.ts";
 import type { Buyer, InvoiceDocumentLine, Letterhead, Seller } from "./types.ts";
 
@@ -77,7 +77,7 @@ export function deliveryNotePdfData(doc: DeliveryNoteDocument) {
     qr: null,
     taxNote: null,
     note: doc.note?.trim() ? doc.note.trim() : null,
-    footer: footerColumns(seller, t),
+    ...footerData(seller, t),
   };
 }
 

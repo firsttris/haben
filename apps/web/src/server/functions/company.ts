@@ -8,6 +8,7 @@ import {
   companyIssues,
   companySchema,
   deleteExchangeRate,
+  letterIssues,
   ExchangeRateFetchError,
   exchangeRateSchema,
   listExchangeRates,
@@ -24,7 +25,7 @@ export const getCompany = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const company = await loadCompany();
-    return { company, issues: companyIssues(company), locks: await settingsLocks(today()) };
+    return { company, issues: companyIssues(company), letterIssues: letterIssues(company), locks: await settingsLocks(today()) };
   });
 
 export const saveCompany = createServerFn({ method: "POST" })

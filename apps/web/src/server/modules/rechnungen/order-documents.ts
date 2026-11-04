@@ -3,7 +3,8 @@ import { buildConfirmationPdf, buildDeliveryNotePdf, type Buyer, type Seller } f
 import type { UnitLabel } from "@haben/core";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { loadLetterhead } from "../stammdaten/index.ts";
+import { loadCompany, loadLetterhead } from "../stammdaten/index.ts";
+import { withCurrentLegalInfo } from "./invoices.ts";
 import { quoteDocumentFor } from "./quotes.ts";
 import { today } from "../../today.ts";
 
@@ -27,7 +28,7 @@ async function acceptedQuote(id: string) {
 /** Auftragsbestätigung zum angenommenen Angebot, datiert auf die Annahme */
 export async function confirmationPdf(quoteId: string) {
   const { quote, lines } = await acceptedQuote(quoteId);
-  const doc = quoteDocumentFor(quote, lines, quote.seller, quote.buyer, quote.number);
+  const doc = quoteDocumentFor(quote, lines, withCurrentLegalInfo(quote.seller, await loadCompany()), quote.buyer, quote.number);
   const pdf = buildConfirmationPdf({ ...doc, ...(await loadLetterhead()) }, today(quote.decidedAt));
   return { pdf, filename: `${quote.language === "en" ? "Order-confirmation" : "Auftragsbestaetigung"}-${quote.number}.pdf` };
 }
@@ -84,7 +85,7 @@ export async function deliveryNotePdf(source: "angebot" | "rechnung", id: string
     reference: { kind: source, number: base.number, issueDate: base.issueDate },
     deliveryDate: base.deliveryDate,
     date: base.date,
-    seller: base.seller,
+    seller: withCurrentLegalInfo(base.seller, await loadCompany()),
     buyer: base.buyer,
     language: base.language,
     lines: base.lines.map((l, i) => ({

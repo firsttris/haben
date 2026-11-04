@@ -1,6 +1,6 @@
 import { DUNNING_LEVELS, formatEuro, type DunningAmounts, type DunningLevel } from "@haben/core";
 import { accountHolder, formatDate, formatIban } from "./format.ts";
-import { addressLines, footerColumns, renderDunningPdf } from "./pdf.ts";
+import { addressLines, footerData, renderDunningPdf } from "./pdf.ts";
 import { girocodeSvg } from "./qr.ts";
 import type { Buyer, Letterhead, Seller } from "./types.ts";
 
@@ -75,7 +75,7 @@ export function dunningPdfData(doc: DunningDocument) {
       : null,
     closing: doc.closing.trim(),
     greeting: `Mit freundlichen Grüßen\n${seller.name}`,
-    footer: footerColumns(seller),
+    ...footerData(seller),
   };
 }
 

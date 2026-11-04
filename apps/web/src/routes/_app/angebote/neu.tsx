@@ -18,6 +18,7 @@ function NewQuotePage() {
       contacts={data.contacts}
       seller={data.company}
       sellerIssues={data.sellerIssues}
+      letterIssues={data.letterIssues}
       issues={[]}
       numberCounters={data.numberCounters}
       numberFormat={data.numberFormat}
