@@ -30,7 +30,7 @@ export function DatevBookings({ year, years, data, search }: { year: number; yea
             activeProps={{}}
             search={{ ...search, ohneBeleg: search.ohneBeleg ? undefined : true, seite: undefined }}
             className={search.ohneBeleg ? "chip active" : "chip"}
-            aria-pressed={Boolean(search.ohneBeleg)}
+            aria-current={search.ohneBeleg ? "page" : undefined}
           >
             Nur ohne passenden Beleg
           </Link>
