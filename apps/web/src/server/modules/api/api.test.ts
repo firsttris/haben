@@ -343,7 +343,7 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(response.status).toBe(200);
       const doc = response.json as { openapi: string; paths: Record<string, Record<string, { security: { token: string[] }[] }>> };
       expect(doc.openapi).toBe("3.1.0");
-      expect(Object.keys(doc.paths).sort()).toEqual(["/kontakte", "/kontakte/{id}", "/rechnungen", "/rechnungen/{id}"]);
+      expect(Object.keys(doc.paths).sort()).toEqual(["/belege", "/belege/{id}", "/kontakte", "/kontakte/{id}", "/rechnungen", "/rechnungen/{id}"]);
       expect(doc.paths["/rechnungen"]!.post!.security).toEqual([{ token: ["rechnungen:entwuerfe"] }]);
     });
   });

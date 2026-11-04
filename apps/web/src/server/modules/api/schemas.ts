@@ -1,5 +1,6 @@
 import { PRICE_MODES, TAX_TREATMENT_KEYS } from "@haben/core";
 import { z } from "zod";
+import { documentReferenceSchema, MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { draftSchema, externalReferenceSchema } from "../rechnungen/index.ts";
 import { contactSchema as contactInputSchema } from "../stammdaten/index.ts";
 
@@ -28,6 +29,7 @@ export const ERROR_CODES = [
   "not_found",
   "method_not_allowed",
   "invalid_json",
+  "invalid_multipart",
   "unsupported_media_type",
   "payload_too_large",
   "validation_failed",
@@ -47,6 +49,7 @@ export const errorSchema = z
         .array(z.object({ path: z.string().describe("Feld mit Punkten, z. B. lines.0.quantity"), message: z.string() }))
         .optional()
         .describe("Nur bei validation_failed: was an welchem Feld nicht stimmt"),
+      existingId: z.uuid().optional().describe("Nur bei conflict wegen einer Dublette: der vorhandene Datensatz"),
     }),
   })
   .register(responseSchemas, { id: "Error" });
@@ -258,6 +261,87 @@ export const invoiceQuerySchema = z
     contactId: z.uuid().optional(),
     externalSource: z.string().trim().min(1).max(40).optional().describe("Nur Rechnungen dieser Plattform"),
     externalId: z.string().trim().min(1).max(100).optional().describe("Mit externalSource: die Rechnung zu dieser Bestellung"),
+    ...pageQuery,
+  })
+  .strict();
+
+// ── Belege ────────────────────────────────────────────────────────────────────
+
+const MB = MAX_DOCUMENT_SIZE / 1024 / 1024;
+
+/** Formate wie beim Upload unter Belege; Haben erkennt sie am Inhalt, nicht am Namen oder am angegebenen Typ */
+export const DOCUMENT_MEDIA_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/heic", "application/xml", "text/xml"] as const;
+
+/**
+ * Neuer Beleg als multipart/form-data. Lieferant, Nummer, Datum und Beträge nimmt die API bewusst nicht an: Sie kommen
+ * wie beim Upload in Haben aus der E-Rechnung oder der KI-Auslesung, die sie sonst überschriebe, und geprüft wird in Haben.
+ */
+export const documentUploadSchema = z
+  .object({
+    datei: z.file().describe(`Der Beleg: PDF, JPEG, PNG, WebP, HEIC oder E-Rechnungs-XML (XRechnung, ZUGFeRD), höchstens ${MB} MB`),
+    note: z.string().max(2000).optional().describe("Notiz am Beleg, z. B. woher er kommt"),
+    externalSource: documentReferenceSchema.shape.externalSource
+      .optional()
+      .describe("Quelle des Belegs, z. B. archiv, scanner oder mail; nur zusammen mit externalId"),
+    externalId: documentReferenceSchema.shape.externalId.optional().describe("Kennung des Dokuments in der Quelle; mit externalSource eindeutig"),
+  })
+  .strict()
+  .refine((d) => (d.externalSource === undefined) === (d.externalId === undefined), {
+    message: "externalSource und externalId nur zusammen angeben",
+    path: ["externalId"],
+  })
+  .register(requestSchemas, { id: "DocumentUpload" });
+
+const documentSummaryShape = {
+  id: z.uuid(),
+  filename: z.string().describe("Dateiname beim Hochladen"),
+  mimeType: z.string().describe("Erkannter Dateityp"),
+  status: z.enum(["neu", "gebucht"]).describe("neu = „Zu prüfen“ in Haben; gebucht = geprüft, gebucht und unveränderlich"),
+  booked: z.boolean().describe("Ob der Beleg gebucht ist"),
+  extractionStatus: z
+    .enum(["keine", "laeuft", "fertig", "fehler"])
+    .describe("Auslesung der Felder: keine, läuft (KI im Hintergrund), fertig oder fehler (dann in Haben von Hand)"),
+  supplierName: z.string().describe("Lieferant, leer bis ausgelesen oder eingetragen"),
+  invoiceNumber: z.string(),
+  documentDate: isoDate.nullable().describe("Belegdatum"),
+  category: z.string().nullable().describe("Kategorie der Ausgabe, z. B. software"),
+  currency: z.string(),
+  gross: z.number().int().describe(`Brutto in Euro; ${CENTS}`),
+  externalSource: z.string().nullable(),
+  externalId: z.string().nullable(),
+  uploadedAt: timestamp,
+  bookedAt: timestamp.nullable().describe("Zeitpunkt des Buchens"),
+  url: z.url().describe("Seite des Belegs in Haben, dort wird geprüft und gebucht"),
+};
+
+export const documentSummarySchema = z.object(documentSummaryShape).register(responseSchemas, { id: "DocumentSummary" });
+export const documentListSchema = page(documentSummarySchema).register(responseSchemas, { id: "DocumentList" });
+
+export const documentSchema = z
+  .object({
+    ...documentSummaryShape,
+    size: z.number().int().describe("Größe in Bytes"),
+    extractedBy: z.enum(["zugferd", "xrechnung", "ki", "manuell"]).nullable().describe("Woher die Felder stammen"),
+    extractionError: z.string().nullable().describe("Hinweis oder Fehler der Auslesung"),
+    supplierUstId: z.string(),
+    dueDate: isoDate.nullable(),
+    payment: z.enum(["bank", "privat", "kasse"]),
+    note: z.string(),
+    net: z.number().int().describe(`Netto in Euro; ${CENTS}`),
+    tax: z.number().int().describe(`Steuer in Euro; ${CENTS}`),
+    amounts: z
+      .array(z.object({ taxRate: z.number().int().describe("Basispunkte"), net: z.number().int(), tax: z.number().int() }))
+      .describe("Beträge je Steuersatz in Euro-Cent"),
+    issues: z.array(z.string()).describe("Was vor dem Buchen noch fehlt; leer, wenn bereit oder gebucht"),
+    updatedAt: timestamp,
+  })
+  .register(responseSchemas, { id: "Document" });
+
+export const documentQuerySchema = z
+  .object({
+    status: z.enum(["neu", "gebucht"]).optional().describe("neu = „Zu prüfen“, gebucht"),
+    externalSource: z.string().trim().min(1).max(40).optional().describe("Nur Belege aus dieser Quelle"),
+    externalId: z.string().trim().min(1).max(100).optional().describe("Mit externalSource: der Beleg zu diesem Dokument"),
     ...pageQuery,
   })
   .strict();

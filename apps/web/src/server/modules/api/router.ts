@@ -7,8 +7,8 @@ import { openApiDocument } from "./openapi.ts";
 import { API_ROUTES, type ApiRoute } from "./routes.ts";
 
 /*
- * Einstieg der REST-API (#199): Pfad zuordnen, Token und Recht prüfen, Rate begrenzen, Body lesen, Handler aufrufen,
- * Aufruf protokollieren. Angemeldet wird nur per Bearer-Token, nie mit der Sitzung: Ein Cookie reicht der API nicht,
+ * Einstieg der REST-API (#199): Pfad zuordnen, Token und Recht prüfen, Rate begrenzen, Body lesen (JSON, für Belege
+ * multipart/form-data), Handler aufrufen, Aufruf protokollieren. Angemeldet wird nur per Bearer-Token, nie mit der Sitzung: Ein Cookie reicht der API nicht,
  * deshalb braucht sie keinen Schutz vor Anfragen fremder Seiten (csrf.ts nimmt sie aus).
  */
 
@@ -54,6 +54,63 @@ async function readJson(request: Request): Promise<{ body: unknown } | { failure
   }
 }
 
+/** Body bis höchstens `limit` Bytes, auch ohne Content-Length; null, sobald er größer ist (Rest wird nicht gelesen) */
+async function readLimited(request: Request, limit: number): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (!request.body) return new Uint8Array();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > limit) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+/** Felder eines Formulars als Objekt wie ein JSON-Body; ein mehrfach gesendetes Feld wird zur Liste, die das Schema ablehnt */
+function formFields(form: FormData): Record<string, unknown> {
+  return Object.fromEntries(
+    [...new Set(form.keys())].map((name) => {
+      const values = form.getAll(name);
+      return [name, values.length === 1 ? values[0] : values];
+    }),
+  );
+}
+
+/** multipart/form-data für Datei-Uploads, mit der Grenze des Endpunkts statt der für JSON */
+async function readMultipart(request: Request, limit: number): Promise<{ body: unknown } | { failure: ApiResult }> {
+  const type = request.headers.get("content-type") ?? "";
+  if (!/^multipart\/form-data\b/i.test(type)) {
+    return { failure: fail("unsupported_media_type", "Body bitte als multipart/form-data mit der Datei im Feld datei, z. B. curl -F datei=@rechnung.pdf.") };
+  }
+  const tooLarge = () => ({ failure: fail("payload_too_large", `Body ist größer als ${Math.floor(limit / 1024 / 1024)} MB.`) });
+  if (Number(request.headers.get("content-length") ?? 0) > limit) return tooLarge();
+  const bytes = await readLimited(request, limit);
+  if (!bytes) return tooLarge();
+  try {
+    return { body: formFields(await new Response(bytes, { headers: { "content-type": type } }).formData()) };
+  } catch {
+    return { failure: fail("invalid_multipart", "Body ist kein gültiges multipart/form-data.") };
+  }
+}
+
+function readBody(route: ApiRoute, request: Request): Promise<{ body: unknown } | { failure: ApiResult }> {
+  if (!WITH_BODY.has(route.method)) return Promise.resolve({ body: undefined });
+  return route.multipartLimit ? readMultipart(request, route.multipartLimit) : readJson(request);
+}
+
 async function runHandler(route: ApiRoute, request: ApiRequest): Promise<ApiResult> {
   try {
     return await route.handler(request);
@@ -71,7 +128,7 @@ async function authorized(route: ApiRoute, access: McpAccess, params: Record<str
   if (!hasScope(access.scopes, route.scope)) {
     return fail("forbidden", `Diesem Token fehlt das Recht „${route.scope}“. In Haben unter Einstellungen → KI-Assistenten und API ein Token damit anlegen.`);
   }
-  const body = WITH_BODY.has(route.method) ? await readJson(request) : { body: undefined };
+  const body = await readBody(route, request);
   if ("failure" in body) return body.failure;
   return runHandler(route, {
     actor: `api:${access.clientName}`,

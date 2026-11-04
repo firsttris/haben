@@ -26,7 +26,7 @@ export interface ApiRequest {
   params: Record<string, string>;
   /** Query-Parameter als Objekt, je Name der erste Wert */
   query: Record<string, string>;
-  /** Geparster JSON-Body bei POST und PATCH */
+  /** Geparster JSON-Body bei POST und PATCH; bei multipart/form-data die Felder als Objekt, Dateien als File */
   body: unknown;
   /** Adresse von Haben ohne Schrägstrich am Ende, für Links in den Antworten */
   baseUrl: string;
@@ -46,6 +46,7 @@ const STATUS: Record<ErrorCode, number> = {
   not_found: 404,
   method_not_allowed: 405,
   invalid_json: 400,
+  invalid_multipart: 400,
   unsupported_media_type: 415,
   payload_too_large: 413,
   validation_failed: 400,
@@ -55,8 +56,9 @@ const STATUS: Record<ErrorCode, number> = {
   internal_error: 500,
 };
 
-export function fail(code: ErrorCode, message: string, extra: { issues?: Issue[]; headers?: Record<string, string> } = {}): ApiResult {
-  return { status: STATUS[code], body: { error: { code, message, ...(extra.issues ? { issues: extra.issues } : {}) } }, headers: extra.headers };
+export function fail(code: ErrorCode, message: string, extra: { issues?: Issue[]; existingId?: string; headers?: Record<string, string> } = {}): ApiResult {
+  const details = { ...(extra.issues ? { issues: extra.issues } : {}), ...(extra.existingId ? { existingId: extra.existingId } : {}) };
+  return { status: STATUS[code], body: { error: { code, message, ...details } }, headers: extra.headers };
 }
 
 export const notFound = (message: string) => fail("not_found", message);

@@ -22,7 +22,15 @@ export class McpError extends UserError {}
  * Rechte eines Tokens. haben:lesen gilt für die Werkzeuge über MCP, die übrigen für die REST-API. Kein Recht bucht,
  * schreibt fest oder versendet; das bleibt wegen GoBD ein Klick in Haben.
  */
-export const TOKEN_SCOPES = ["haben:lesen", "kontakte:lesen", "kontakte:schreiben", "rechnungen:lesen", "rechnungen:entwuerfe"] as const;
+export const TOKEN_SCOPES = [
+  "haben:lesen",
+  "kontakte:lesen",
+  "kontakte:schreiben",
+  "rechnungen:lesen",
+  "rechnungen:entwuerfe",
+  "belege:lesen",
+  "belege:anlegen",
+] as const;
 export type TokenScope = (typeof TOKEN_SCOPES)[number];
 
 /** Beschreibung je Recht für Einstellungen und OpenAPI */
@@ -32,10 +40,16 @@ export const TOKEN_SCOPE_LABELS: Record<TokenScope, string> = {
   "kontakte:schreiben": "API: Kontakte lesen, anlegen und ändern",
   "rechnungen:lesen": "API: Rechnungen und Entwürfe lesen",
   "rechnungen:entwuerfe": "API: Rechnungen lesen, Entwürfe anlegen, ändern und löschen",
+  "belege:lesen": "API: Belege lesen",
+  "belege:anlegen": "API: Belege lesen und hochladen (landen als „Zu prüfen“)",
 };
 
 /** Ein Recht schließt ein anderes mit ein: wer schreiben darf, darf auch lesen */
-const IMPLIED: Partial<Record<TokenScope, TokenScope>> = { "kontakte:schreiben": "kontakte:lesen", "rechnungen:entwuerfe": "rechnungen:lesen" };
+const IMPLIED: Partial<Record<TokenScope, TokenScope>> = {
+  "kontakte:schreiben": "kontakte:lesen",
+  "rechnungen:entwuerfe": "rechnungen:lesen",
+  "belege:anlegen": "belege:lesen",
+};
 
 export function hasScope(granted: readonly TokenScope[], needed: TokenScope): boolean {
   return granted.some((scope) => scope === needed || IMPLIED[scope] === needed);

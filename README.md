@@ -82,7 +82,7 @@ auf deinem eigenen Server betreibst.
 | 📦 [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | Abruf über die Public API oder, ohne Tarif XL, als Sicherung über die Web-Oberfläche; DATEV-Buchungsstapel, offene Posten und Anlagen übernehmen |
 | 📦 [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html) | Abruf über die sevDesk-API, gleiches Archiv, gleicher Abgleich |
 | 🔐 [Anmeldung](https://firsttris.github.io/haben/einrichtung.html#konto-anlegen) · [App](https://firsttris.github.io/haben/einrichtung.html#als-app-installieren) | Passkey (Passwort als Ersatz), installierbar als App auf Handy und Desktop mit Kurzbefehlen und Teilen-Menü für Belege, helle und dunkle [Themes](https://firsttris.github.io/haben/einrichtung.html#einstellungen-und-darstellung) |
-| 🔌 [REST-API](https://firsttris.github.io/haben/api.html) | Versionierte Schnittstelle mit OpenAPI-Beschreibung für eigene Werkzeuge und Automationen: Kontakte und Rechnungsentwürfe anlegen, mit Bestellnummer der Plattform ohne Duplikate; API-Tokens mit Rechten je Bereich; bucht und schreibt nichts fest |
+| 🔌 [REST-API](https://firsttris.github.io/haben/api.html) | Versionierte Schnittstelle mit OpenAPI-Beschreibung für eigene Werkzeuge und Automationen: Kontakte und Rechnungsentwürfe anlegen, mit Bestellnummer der Plattform ohne Duplikate; Belege aus Dokumentenarchiven und Skripten hochladen, landen als „Zu prüfen“; API-Tokens mit Rechten je Bereich; bucht und schreibt nichts fest |
 | ♿ [Barrierefreiheit](https://firsttris.github.io/haben/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, sichtbarer Fokus, Kontraste in allen Themes; jede Seite in der CI mit axe-core gegen WCAG 2.2 AA geprüft |
 
 ## 📸 Screenshots

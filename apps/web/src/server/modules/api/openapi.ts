@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { TOKEN_SCOPE_LABELS, TOKEN_SCOPES } from "../mcp/index.ts";
 import { API_ROUTES, type ApiRoute } from "./routes.ts";
-import { requestSchemas, responseSchemas } from "./schemas.ts";
+import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
+import { DOCUMENT_MEDIA_TYPES, requestSchemas, responseSchemas } from "./schemas.ts";
 
 /*
  * OpenAPI-3.1-Beschreibung von /api/v1, erzeugt aus der Tabelle der Endpunkte (routes.ts) und den Zod-Schemas
@@ -13,10 +14,12 @@ type JsonSchema = Record<string, unknown>;
 
 const DOCS = "https://firsttris.github.io/haben/api.html";
 const REF = (id: string) => `#/components/schemas/${id}`;
+const MAX_DOCUMENT_MB = MAX_DOCUMENT_SIZE / 1024 / 1024;
 
 const DESCRIPTION = [
   "Allgemeine Schnittstelle von Haben für eigene Werkzeuge und Automationen. Sie liest und schreibt Kontakte und",
-  "Rechnungsentwürfe. Sie bucht nichts, schreibt nichts fest und versendet nichts: Das bleibt wegen GoBD ein Klick in Haben.",
+  "Rechnungsentwürfe und nimmt Eingangsbelege an, die in Haben als „Zu prüfen“ landen. Sie bucht nichts, schreibt nichts",
+  "fest und versendet nichts: Das bleibt wegen GoBD ein Klick in Haben.",
   "",
   "Anmeldung mit einem API-Token aus Einstellungen → KI-Assistenten und API als `Authorization: Bearer hb_…`. Jeder",
   "Endpunkt verlangt ein Recht (scope); schreiben schließt lesen ein.",
@@ -31,8 +34,16 @@ function withoutDialect({ $schema: _schema, $id: _id, ...schema }: JsonSchema): 
   return schema;
 }
 
+/** Datei in multipart/form-data nach OpenAPI 3.1: ein String mit Medientyp statt format: binary aus OpenAPI 3.0 */
+function fileAsBinary({ zodSchema, jsonSchema }: { zodSchema: unknown; jsonSchema: JsonSchema }) {
+  if ((zodSchema as { _zod: { def: { type: string } } })._zod.def.type !== "file") return;
+  delete jsonSchema.format;
+  delete jsonSchema.contentEncoding;
+  jsonSchema.contentMediaType = "application/octet-stream";
+}
+
 function registrySchemas(registry: typeof requestSchemas, io: "input" | "output"): Record<string, JsonSchema> {
-  const { schemas } = z.toJSONSchema(registry, { target: "draft-2020-12", io, uri: REF, unrepresentable: "any" });
+  const { schemas } = z.toJSONSchema(registry, { target: "draft-2020-12", io, uri: REF, unrepresentable: "any", override: fileAsBinary });
   return Object.fromEntries(Object.entries(schemas).map(([id, schema]) => [id, withoutDialect(schema as JsonSchema)]));
 }
 
@@ -41,13 +52,21 @@ const errorResponse = (description: string) => ({ description, content: { "appli
 /** Fehler, die bei diesem Endpunkt vorkommen können */
 function errorResponses(route: ApiRoute): Record<string, unknown> {
   const withBody = route.requestBody !== undefined;
+  const multipart = route.multipartLimit !== undefined;
+  const bodyErrors = multipart
+    ? {
+        413: errorResponse(`Datei größer als ${MAX_DOCUMENT_MB} MB`),
+        415: errorResponse("Body nicht als multipart/form-data, oder die Datei ist kein PDF, Bild oder E-Rechnungs-XML"),
+      }
+    : { 413: errorResponse("Body größer als 1 MB"), 415: errorResponse("Body nicht als application/json") };
+  const invalid = multipart ? "kein gültiges multipart/form-data (invalid_multipart)" : "kein JSON (invalid_json)";
   return {
-    ...(withBody || route.query ? { 400: errorResponse("Ungültige Eingabe (validation_failed) oder kein JSON (invalid_json)") } : {}),
+    ...(withBody || route.query ? { 400: errorResponse(`Ungültige Eingabe (validation_failed) oder ${invalid}`) } : {}),
     401: errorResponse("Kein gültiges Token, oder der Zugang ist in Haben ausgeschaltet"),
     403: errorResponse(`Dem Token fehlt das Recht ${route.scope}`),
     ...(route.path.includes("{id}") ? { 404: errorResponse("Nicht gefunden") } : {}),
-    ...(route.path.startsWith("/rechnungen/") && route.method !== "GET" ? { 409: errorResponse("Die Rechnung ist festgeschrieben") } : {}),
-    ...(withBody ? { 413: errorResponse("Body größer als 1 MB"), 415: errorResponse("Body nicht als application/json") } : {}),
+    ...Object.fromEntries(Object.entries(route.errors ?? {}).map(([status, description]) => [status, errorResponse(description)])),
+    ...(withBody ? bodyErrors : {}),
     ...(route.method !== "GET" ? { 422: errorResponse("Fachlich abgelehnt, z. B. unbekannter Kontakt") } : {}),
     429: errorResponse("Mehr als 120 Anfragen je Minute und Token"),
     500: errorResponse("Interner Fehler, Details im Server-Log"),
@@ -64,6 +83,13 @@ function parameters(route: ApiRoute) {
   return [...path, ...query];
 }
 
+function requestBody(route: ApiRoute, schema: string) {
+  if (!route.multipartLimit) return { required: true, content: { "application/json": { schema: { $ref: REF(schema) } } } };
+  // Welche Dateien Haben annimmt; erkannt wird am Inhalt, der angegebene Typ ist nur ein Hinweis
+  const encoding = { datei: { contentType: DOCUMENT_MEDIA_TYPES.join(", ") } };
+  return { required: true, content: { "multipart/form-data": { schema: { $ref: REF(schema) }, encoding } } };
+}
+
 function operation(route: ApiRoute) {
   const responses = Object.fromEntries(
     Object.entries(route.responses).map(([status, { schema, description }]) => [
@@ -78,7 +104,7 @@ function operation(route: ApiRoute) {
     tags: [route.tag],
     security: [{ token: [route.scope] }],
     parameters: parameters(route),
-    ...(route.requestBody ? { requestBody: { required: true, content: { "application/json": { schema: { $ref: REF(route.requestBody) } } } } } : {}),
+    ...(route.requestBody ? { requestBody: requestBody(route, route.requestBody) } : {}),
     responses: { ...responses, ...errorResponses(route) },
   };
 }
@@ -94,6 +120,7 @@ function buildDocument() {
     tags: [
       { name: "Kontakte", description: "Kunden; versioniert, nicht löschbar" },
       { name: "Rechnungen", description: "Alle Rechnungen lesen, Entwürfe anlegen, ändern und löschen" },
+      { name: "Belege", description: "Eingangsbelege hochladen und ihren Stand lesen; geprüft und gebucht wird in Haben" },
     ],
     paths,
     components: {
