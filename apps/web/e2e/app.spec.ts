@@ -1040,26 +1040,25 @@ test("Voranmeldung vierteljährlich: Zeitraum einstellen, Quartal prüfen und te
   await expect(page.getByText("Fällig am", { exact: false })).toContainText(`April ${next}`);
   // axe prüft das Quartal und den Bereich Voranmeldungszeitraum in barrierefreiheit.spec.ts
 
+  // Nach Prüfen und Senden zeigt die Seite die Meldung, bevor React die neu geladenen Daten einsetzt; mit ihnen baut
+  // sich das Formular neu auf (Schlüssel aus dem Stand des Entwurfs) und verliert PIN und Auswahl. Erst weiter, wenn
+  // der Verlauf den neuen Eintrag zeigt: Er kommt mit denselben Daten
+  const history = page.getByRole("region", { name: `Verlauf 1. Quartal ${next}` });
   await page.getByRole("button", { name: "Nur prüfen" }).click();
   await expect(page.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
-  // Das Prüfen hat den Entwurf gespeichert; das Formular baut sich danach neu auf und leert die PIN
+  await expect(history).toContainText(/Prüfung\s*OK/);
   const testSend = page.getByRole("button", { name: "Prüfen und testweise senden" });
-  await expect(async () => {
-    await page.getByLabel("Zertifikats-PIN").fill("123456");
-    await expect(testSend).toBeEnabled({ timeout: 1_000 });
-  }).toPass();
+  await page.getByLabel("Zertifikats-PIN").fill("123456");
   await testSend.click();
   await expect(page.getByText(/Testübermittlung erfolgreich/)).toBeVisible();
-  const history = page.getByRole("region", { name: `Verlauf 1. Quartal ${next}` });
-  await expect(history).toContainText("OK");
+  await expect(history).toContainText(/Testübermittlung\s*OK/);
 
-  // Zurück auf monatlich: Der Entwurf des Quartals bleibt mit seinem Verlauf, lässt sich aber nicht mehr senden. Erst
-  // warten, bis die Seite nach dem Senden neu geladen ist; sonst setzt sie die Auswahl zurück
-  await page.waitForLoadState("networkidle");
+  // Zurück auf monatlich: Der Entwurf des Quartals bleibt mit seinem Verlauf, lässt sich aber nicht mehr senden
   const frequency = page.getByRole("form", { name: `Voranmeldungszeitraum ${next}` });
   await frequency.getByRole("combobox", { name: "Zeitraum" }).selectOption("monatlich");
-  await expect(frequency.getByRole("combobox", { name: "Zeitraum" })).toHaveValue("monatlich");
   await frequency.getByRole("button", { name: "Zeitraum speichern" }).click();
+  await expect(frequency.getByRole("status")).toContainText(`Voranmeldungszeitraum ${next} gespeichert.`);
+  await expect(frequency).toContainText("Eingestellt: monatlich");
   await expect(page.getByText(`Für 1. Quartal ${next} passt die Voranmeldung nicht zum eingestellten Zeitraum (monatlich).`)).toBeVisible();
 });
 
