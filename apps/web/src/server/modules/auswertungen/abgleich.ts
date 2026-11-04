@@ -10,7 +10,7 @@ import {
   formatEuro,
   type VatPeriod,
 } from "@haben/core";
-import { and, gte, lt, sql } from "drizzle-orm";
+import { and, gte, lt, ne, sql } from "drizzle-orm";
 import { depreciationForEuer, listAssets, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { euerForYear } from "./reports.ts";
@@ -56,7 +56,10 @@ interface Summe {
   credit: number;
 }
 
-/** Soll und Haben je Kontenrahmen, Herkunft, Konto und Monat im Zeitraum */
+/**
+ * Soll und Haben je Kontenrahmen, Herkunft, Konto und Monat im Zeitraum. Ohne Eröffnungen: Was die Eröffnung aus dem
+ * DATEV-Stapel auf Umsatz- und Vorsteuer vorträgt, ist im Vorjahr angemeldet und gehört nicht zur Voranmeldung im Januar.
+ */
 async function journalSums(from: string, to: string, q: Db | Tx = db): Promise<Summe[]> {
   const e = schema.journalEntries;
   const l = schema.journalLines;
@@ -71,7 +74,7 @@ async function journalSums(from: string, to: string, q: Db | Tx = db): Promise<S
     })
     .from(l)
     .innerJoin(e, sql`${e.id} = ${l.entryId}`)
-    .where(and(gte(e.date, from), lt(e.date, to)))
+    .where(and(gte(e.date, from), lt(e.date, to), ne(e.sourceType, "eroeffnung")))
     .groupBy(e.kontenrahmen, e.sourceType, l.account, sql`extract(month from ${e.date})`);
   return rows.map((r) => ({ ...r, kontenrahmen: r.kontenrahmen as Kontenrahmen, month: Number(r.month), debit: Number(r.debit), credit: Number(r.credit) }));
 }

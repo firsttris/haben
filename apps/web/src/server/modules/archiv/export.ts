@@ -5,7 +5,7 @@ import pkg from "../../../../package.json" with { type: "json" };
 import { ASSET_KINDS, ASSET_METHODS, csvDecimal, formatExchangeRate, isKapitalgesellschaft, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
-import { accountName } from "../buchhaltung/index.ts";
+import { accountName, openingCash } from "../buchhaltung/index.ts";
 import { loadFile } from "../../storage.ts";
 import { cashBookCsv } from "../bank/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
@@ -718,8 +718,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     };
   }
 
-  // Kassenbuch: mit Anfangsbestand und Bestand nach jeder Zeile
-  if ((await db.select({ id: schema.cashEntries.id }).from(schema.cashEntries).limit(1)).length > 0) {
+  // Kassenbuch: mit Anfangsbestand und Bestand nach jeder Zeile; auch wenn nur die Eröffnung einen Bestand bringt
+  if ((await db.select({ id: schema.cashEntries.id }).from(schema.cashEntries).limit(1)).length > 0 || (await openingCash()).length > 0) {
     yield { path: "kasse/kassenbuch.csv", content: encoder.encode(await cashBookCsv(year)), compress: true };
   }
 

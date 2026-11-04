@@ -73,6 +73,7 @@ Nicht verglichen werden:
 
 - **Einnahmen und Ausgaben der EÜR.** Die EÜR rechnet nach Zahlung, das Journal bucht Rechnungen und Belege zum Rechnungs- bzw. Belegdatum. Zwischen beiden liegen Forderungen und Verbindlichkeiten.
 - **Privatnutzung von Fahrzeugen in der Voranmeldung.** Sie zählt monatlich, gebucht wird sie erst mit der AfA im Dezember. Abgeglichen wird sie deshalb mit der EÜR, sobald das Jahr gebucht ist.
+- **Eröffnungen.** Was eine Eröffnung (etwa aus dem DATEV-Stapel) auf Umsatz- und Vorsteuer vorträgt, ist in den Voranmeldungen der bisherigen Buchhaltung angemeldet und gehört nicht zum Januar.
 
 **Wo der Abgleich erscheint:** in der [Vorprüfung](umsatzsteuer.md#vorprüfung) der Voranmeldung, unter **Einstellungen › Export › Änderungsprotokoll prüfen** und in der wöchentlichen Mail mit dem Prüfwert. Eine Abweichung ist kein Beweis für eine Manipulation, aber ein Widerspruch in den Büchern. Kläre ihn, bevor du die Voranmeldung sendest.
 
@@ -290,7 +291,7 @@ Offener Eingangsbeleg (die Vorsteuer ist schon angemeldet):
 | 9000 Saldenvorträge | 9000 Saldenvorträge | brutto | |
 | 1600 Verbindlichkeiten | 3300 Verbindlichkeiten | | brutto |
 
-Die spätere Zahlung wird wie jede andere gebucht. Für die Voranmeldung zählt bei Soll-Versteuerung eine übernommene Rechnung nicht noch einmal, ebenso wenig die Vorsteuer eines übernommenen Belegs.
+Die spätere Zahlung wird wie jede andere gebucht. Für die Voranmeldung zählt bei Soll-Versteuerung eine übernommene Rechnung nicht noch einmal, ebenso wenig die Vorsteuer eines übernommenen Belegs. Steht schon eine [Eröffnung aus dem DATEV-Stapel](lexoffice.md#eröffnung-aus-dem-datev-stapel-gmbh-und-ug) nach dem Belegdatum, entfällt die Buchung: Der Posten steckt im Saldo der Forderungen bzw. Verbindlichkeiten der Eröffnung. Umgekehrt rechnet der Vorschlag der Eröffnung vorher übernommene Posten heraus.
 
 ### Anlagen und AfA
 
@@ -400,7 +401,9 @@ Der Vortrag ist berechnet, nicht gebucht: Bucht jemand nachträglich ins Vorjahr
 | Bank an Saldenvorträge | 1200 an 9000 | 1800 an 9000 |
 | Saldenvorträge an Gezeichnetes Kapital, Gewinnvortrag, Gesellschafter | 9000 an 0800, 0860, 0730 | 9000 an 2900, 2970, 3510 |
 
-Offene Rechnungen und Belege übernimmst du einzeln über den [Umzug](lexoffice.md) (Forderung bzw. Verbindlichkeit an 9000), Anlagen über das [Anlagenverzeichnis](anlagen.md), die Kasse über das Kassenbuch. Sind alle Bestände übernommen, ist 9000 ausgeglichen. In der Saldenliste stehen Eröffnungsbuchungen in der Spalte Eröffnung, im Journal mit der Herkunft „Eröffnung“.
+Offene Rechnungen und Belege übernimmst du einzeln über den [Umzug](lexoffice.md) (Forderung bzw. Verbindlichkeit an 9000), Anlagen über das [Anlagenverzeichnis](anlagen.md), die Kasse über das Kassenbuch. Sind alle Bestände übernommen, ist 9000 ausgeglichen.
+
+**Eröffnung aus dem DATEV-Stapel:** Liegt der Buchungsstapel der bisherigen Buchhaltung im Archiv, schlägt Haben auf derselben Seite die ganze Eröffnung aus der Schlussbilanz des letzten Stapeljahres vor, mit allen Bestandskonten einschließlich Bank, Kasse, Forderungen, Verbindlichkeiten, Umsatzsteuer und Anlagen; gebucht wird sie erst nach deiner Bestätigung. Die Lockerung gilt nur für diesen Vorschlag, den Haben beim Buchen selbst neu rechnet; die Eröffnung von Hand bleibt auf Bestandskonten ohne Nebenbuch, Bank und 9000 beschränkt. Wie offene Posten, Umsatzsteuer und Kasse dabei behandelt werden, steht unter [Eröffnung aus dem DATEV-Stapel](lexoffice.md#eröffnung-aus-dem-datev-stapel-gmbh-und-ug). Ist sie gebucht, lehnt Haben eine weitere Eröffnung von Hand ab. In der Saldenliste stehen Eröffnungsbuchungen in der Spalte Eröffnung, im Journal mit der Herkunft „Eröffnung“.
 
 Gibt es vor dem 1. Januar schon Buchungen in Haben, lehnt Haben eine Eröffnung ab; die Salden trägt es dann selbst vor. Umgekehrt lässt sich nach einer Eröffnung nichts mehr davor buchen, auch kein rückdatierter Beleg, sonst zählten die übernommenen Salden doppelt.
 

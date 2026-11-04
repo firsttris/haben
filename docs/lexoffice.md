@@ -249,6 +249,39 @@ Aus den Buchungen werden Salden je Sachkonto, so wie Haben sie selbst gebucht h�
 
 Für die Steuern braucht Haben Hebesatz und Verlustvorträge des Jahres; du trägst sie unter **Buchhaltung › Jahresabschluss** für dieses Jahr ein. Konten ohne Posten in Bilanz oder GuV und nicht ausgeglichene Vortragskonten stehen als Hinweis über der Bilanz.
 
+### Eröffnung aus dem DATEV-Stapel (GmbH und UG)
+
+Für das erste Jahr in Haben schlägt Haben die Eröffnungsbuchung aus der Schlussbilanz des letzten archivierten Stapeljahres vor, statt dass du sie von Hand abtippst. Du findest den Vorschlag unter **Buchungen › Buchung erfassen**, wenn du **Eröffnungsbuchung** wählst, unter dem Formular: alle Bestandskonten mit Saldo gegen 9000 Saldenvorträge am 1. Januar, das Ergebnis des letzten Stapeljahres als Gewinn- bzw. Verlustvortrag (SKR03 0860/0868, SKR04 2970/2978). Du prüfst die Zeilen, vergleichst die Bilanzsumme mit der Bilanz der Steuerberatung und bestätigst mit **Eröffnung buchen** und **Jetzt buchen**. Erst dann bucht Haben. Danach ist 9000 ausgeglichen, und die Bilanz zum 1. Januar ist die Schlussbilanz des Stapels. Das verlangt der Grundsatz der Bilanzidentität (§ 252 Abs. 1 Nr. 1 HGB): Die Eröffnungsbilanz eines Jahres stimmt mit der Schlussbilanz des Vorjahres überein.
+
+Gebucht wird genau, was du gesehen hast: Haben rechnet den Vorschlag beim Buchen neu und vergleicht ihn über eine Prüfsumme mit dem angezeigten. Hat sich etwas geändert (ein weiterer Stapel, eine Übernahme dazwischen), lehnt es ab und du lädst die Seite neu. Die Zeilen lassen sich nicht bearbeiten; passt etwas nicht, korrigierst du es nach der Eröffnung mit einer Umbuchung oder storniert die Eröffnung. Die Buchung hat die Herkunft „Eröffnung“ und verweist als Beleg auf die archivierte Stapel-Datei.
+
+**Vorbedingungen.** Statt des Knopfs steht der Grund da, wenn
+
+- die Rechtsform keine GmbH oder UG ist (dann gibt es den Vorschlag gar nicht),
+- das Jahr nach dem Stapel noch nicht begonnen hat,
+- ein Stapel einen anderen Kontenrahmen hat als die Firmendaten,
+- die Schlussbilanz nicht aufgeht: ein Konto ohne Posten in der Bilanz, ein anderes Konto der Klasse 9 mit Saldo, Saldenvortragskonten, die zusammen nicht null ergeben, oder Aktiva ungleich Passiva,
+- es vor dem 1. Januar schon Buchungen in Haben gibt (dann trägt Haben die Salden selbst vor) oder die Bücher erst später mit einer Eröffnung beginnen,
+- schon eine Eröffnung von Hand gebucht ist (zuerst stornieren) oder die Eröffnung aus dem Stapel schon gebucht ist,
+- offene Posten oder Anlagen erst nach dem Eröffnungsjahr gegen 9000 übernommen wurden.
+
+Bringt der letzte Stapel keine Eröffnungsbuchungen mit und gibt es keinen Stapel davor, zeigt Haben einen Hinweis, bucht aber: Das ist der Fall im Gründungsjahr. Sonst fehlen die Bestände des Stapeljahres, und du legst zuerst den Stapel des Vorjahres ins Archiv.
+
+**Saldenvortragskonten.** DATEV trägt Sachkonten über 9000, offene Posten der Debitoren über 9008 und der Kreditoren über 9009 vor. Ausgeglichen ist der Vortrag, wenn die drei zusammen null ergeben. Haben prüft deshalb die Summe von 9000 bis 9009, nicht jedes Konto einzeln; in der Eröffnung von Haben steht nur 9000.
+
+**Mehr als 20 Zeilen.** Die manuelle Buchung hat höchstens 20 Zeilen, weil man sie eintippt. Eine Schlussbilanz hat oft mehr Konten; der Vorschlag darf bis zu 500 Zeilen haben.
+
+**Nebenbücher.** Anders als die Eröffnung von Hand bucht der Vorschlag auch Bank, Kasse, Forderungen, Verbindlichkeiten, Umsatz- und Vorsteuer und Anlagen. Das geht, weil die Beträge aus dem Stapel gerechnet und nicht eingetippt werden, und weil die Nebenbücher den Eröffnungsbestand kennen:
+
+| Bereich | Wie Haben die Eröffnung berücksichtigt |
+| --- | --- |
+| Offene Posten | Schon übernommene Rechnungen und Belege (Forderung bzw. Verbindlichkeit gegen 9000) rechnet der Vorschlag heraus: Er bucht nur den Rest bis zum Saldo der Schlussbilanz und auf 9000 das Gegenteil der Übernahmen. Wer einen Posten nach der Eröffnung übernimmt, dessen Belegdatum davor liegt, bekommt Rechnung bzw. Beleg für den Bankabgleich, aber keine zweite Buchung gegen 9000; der Posten steckt schon im Saldo. |
+| Anlagen | Ebenso: Die Eröffnung einer übernommenen Anlage, die schon gebucht ist, rechnet der Vorschlag heraus; wird die AfA erst danach gebucht, verweist die Anlage auf die Eröffnung aus dem Stapel statt noch einmal gegen 9000 zu buchen. |
+| Umsatzsteuer | Umsatzsteuer, Vorsteuer, nicht fällige Umsatzsteuer und Vorauszahlungen werden mit ihrem Saldo vorgetragen, wie beim Saldenvortrag in Haben. Die Voranmeldung rechnet aus Rechnungen und Belegen, nicht aus diesen Konten; der vorgetragene Saldo gehört zu Voranmeldungen des Vorjahres und zählt nicht noch einmal. Der Abgleich zwischen Journal und Voranmeldung lässt Eröffnungen deshalb außen vor. Zahlst du im Januar die Zahllast für Dezember, ordnest du die Abbuchung im Bankabgleich als **USt-Vorauszahlung** zu; sie läuft auf SKR03 1780 bzw. SKR04 3820 gegen den vorgetragenen Saldo, die Steuerkonten gleichen sich danach zusammen aus. |
+| Kasse | Das Kassenbuch zählt den Kassenbestand der Eröffnung zum Anfangsbestand des Jahres, ohne eigene Zeile und ohne zweite Buchung (siehe [Kassenbuch](kasse.md)). |
+
+**Storno.** Die Eröffnung aus dem Stapel stornierst du wie jede manuelle Buchung in den aufgeklappten Buchungszeilen. Hängt das Kassenbuch am Eröffnungsbestand und würde ohne ihn negativ, lehnt Haben den Storno ab. Nach dem Storno lässt sich die Eröffnung neu vorschlagen und buchen; Übernahmen, die nach der ersten Eröffnung ohne Buchung blieben, stecken dann wieder im Saldo des neuen Vorschlags.
+
 ## Schritt 5: Abgleich je Jahr
 
 Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zeigt Haben eine Karte mit Prüfungen. Ein Jahr ist „vollständig“, wenn alle erfüllt sind:
@@ -319,12 +352,12 @@ Haben spricht standardmäßig mit `https://api.lexware.io/v1`. Mit der Umgebungs
 
 ## Umzug einer GmbH oder UG
 
-Für eine GmbH oder UG läuft der Umzug genauso. Weil sie bilanziert, kommen zu den offenen Posten die übrigen Bestände zum Stichtag dazu: Bank, Stammkapital, Gewinnvortrag und Gesellschafter-Verrechnungskonto erfasst du als [Eröffnungsbuchung](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) gegen 9000, Anlagen über das [Anlagenverzeichnis](anlagen.md). Die Werte stehen in der Schlussbilanz des Vorjahres von der Steuerberatung. Sind alle Bestände übernommen, ist 9000 ausgeglichen; die übernommenen offenen Posten stehen dann nicht noch einmal in der Eröffnungsbuchung. Den ganzen Ablauf zeigt [GmbH und UG](gmbh.md).
+Für eine GmbH oder UG läuft der Umzug genauso. Weil sie bilanziert, kommen zu den offenen Posten die übrigen Bestände zum Stichtag dazu. Liegt der DATEV-Stapel des Vorjahres im Archiv, schlägt Haben die ganze [Eröffnung aus dem DATEV-Stapel](#eröffnung-aus-dem-datev-stapel-gmbh-und-ug) vor, samt Bank, Kasse, offenen Posten und Umsatzsteuer; schon übernommene offene Posten rechnet sie heraus. Ohne Stapel erfasst du Bank, Stammkapital, Gewinnvortrag und Gesellschafter-Verrechnungskonto als [Eröffnungsbuchung](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) von Hand gegen 9000, Anlagen über das [Anlagenverzeichnis](anlagen.md). Die Werte stehen in der Schlussbilanz des Vorjahres von der Steuerberatung. Sind alle Bestände übernommen, ist 9000 ausgeglichen. Den ganzen Ablauf zeigt [GmbH und UG](gmbh.md).
 
 ## Grenzen
 
 - Der Client ist noch nicht gegen ein echtes Lexware-Konto gelaufen (siehe Hinweis oben).
-- Buchungen kommen nur aus dem DATEV-Stapel und werden archiviert, nicht in das Journal von Haben übernommen. Kontensalden und Saldenvorträge musst du für den Jahreswechsel selbst bzw. mit deiner Steuerberatung festhalten.
+- Buchungen kommen nur aus dem DATEV-Stapel und werden archiviert, nicht in das Journal von Haben übernommen. Bei GmbH und UG wird die Schlussbilanz des letzten Stapeljahres auf deine Bestätigung als [Eröffnung](#eröffnung-aus-dem-datev-stapel-gmbh-und-ug) gebucht; im Einzelunternehmen hältst du Salden für den Jahreswechsel selbst bzw. mit deiner Steuerberatung fest.
 - Der Abgleich prüft Vollständigkeit und Nummern, keine Kontierung. Summen und Umsatzsteuer vergleichst du selbst mit Lexware Office.
 - Die Umsatzsteuer je Monat kennt keine Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67), keine Berichtigungen nach § 17 und keine von Hand geänderten Voranmeldungen.
 - Teilweise bezahlte Posten, Gutschriften, Fremdwährung und andere Steuersätze als 19, 7 und 0 % werden nicht als offene Posten übernommen.

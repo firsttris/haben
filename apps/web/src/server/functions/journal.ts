@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createManualEntry, knownAccounts, loadJournal, manualEntrySchema, reverseManualEntry } from "../modules/buchhaltung/index.ts";
+import { bookDatevEroeffnung, datevEroeffnung, datevEroeffnungSchema } from "../modules/archiv/index.ts";
+import { checkCashReversal } from "../modules/bank/index.ts";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
@@ -12,12 +14,21 @@ export const getJournal = createServerFn({ method: "GET" })
   .validator(z.object({ year: yearSchema, month: z.number().int().min(1).max(12) }))
   .handler(({ data }) => loadJournal(data.year, data.month));
 
-/** Was das Formular für eine manuelle Buchung braucht: Rechtsform, Kontenrahmen und die bekannten Kontonamen */
+/**
+ * Was das Formular für eine manuelle Buchung braucht: Rechtsform, Kontenrahmen, die bekannten Kontonamen und, wenn es
+ * einen archivierten DATEV-Stapel gibt, den Vorschlag für die Eröffnung aus seiner Schlussbilanz
+ */
 export const getManualEntryForm = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
     const company = await loadCompany();
-    return { today: today(), kontenrahmen: company.kontenrahmen, rechtsform: company.rechtsform, accounts: knownAccounts(company.kontenrahmen) };
+    return {
+      today: today(),
+      kontenrahmen: company.kontenrahmen,
+      rechtsform: company.rechtsform,
+      accounts: knownAccounts(company.kontenrahmen),
+      datevEroeffnung: await datevEroeffnung(today()),
+    };
   });
 
 /** Manuelle Buchung (GmbH, UG); die Prüfung macht das Modul */
@@ -29,4 +40,10 @@ export const createManualEntryFn = createServerFn({ method: "POST" })
 export const reverseManualEntryFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
-  .handler(async ({ data, context }) => ({ id: await reverseManualEntry(context.user.id, data) }));
+  .handler(async ({ data, context }) => ({ id: await reverseManualEntry(context.user.id, data, checkCashReversal) }));
+
+/** Eröffnung aus der Schlussbilanz des DATEV-Stapels buchen, so wie der Nutzer den Vorschlag gesehen hat */
+export const bookDatevEroeffnungFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(datevEroeffnungSchema)
+  .handler(async ({ data, context }) => ({ id: await bookDatevEroeffnung(context.user.id, data, today()) }));

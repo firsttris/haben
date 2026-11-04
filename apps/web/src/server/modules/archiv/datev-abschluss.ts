@@ -20,6 +20,8 @@ export interface DatevAbschluss {
   kontenrahmen: Kontenrahmen;
   vortrag: DatevVortrag;
   report: Abschluss;
+  /** Salden zum 31.12. je Sachkonto samt Vortrag (Soll − Haben); daraus die Eröffnung des Folgejahres */
+  salden: { account: string; saldo: number }[];
   names: Record<string, string>;
   steuern: KapgSteuern | null;
   issues: AbschlussHinweis[];
@@ -116,6 +118,7 @@ export async function datevAbschluss(year: number): Promise<DatevAbschluss | nul
     kontenrahmen,
     vortrag: opening.vortrag,
     report,
+    salden,
     names: Object.fromEntries(salden.map((s) => [s.account, accountName(kontenrahmen, s.account)])),
     steuern,
     issues: [...hinweise(kontenrahmen, year, inYear, opening.vortrag, steuern !== null), ...abschlussHinweise(report, kontenrahmen)],

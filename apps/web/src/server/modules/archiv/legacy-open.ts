@@ -3,7 +3,7 @@ import { addDays, computeInvoice, openingDocumentPosting, openingInvoicePosting,
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
+import { openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { storeInvoiceTaxes } from "../rechnungen/index.ts";
 import type { LegacyCategoryRow } from "../../db/schema.ts";
@@ -137,6 +137,9 @@ function categoryFor(categories: LegacyCategoryRow[]): ExpenseCategory {
  * Übernimmt einen offenen Posten aus Lexoffice oder sevDesk, damit der Zahlungseingang bzw. die Zahlung im Bankabgleich
  * zugeordnet werden kann: Rechnungen mit Original-PDF und bisheriger Nummer, Belege gebucht und gesperrt.
  * Gebucht wird gegen den Saldenvortrag, nicht als Erlös oder Aufwand; die stehen schon in den alten Büchern.
+ * Steht schon eine Eröffnung aus dem DATEV-Stapel nach dem Belegdatum, enthält ihr Saldo der Forderungen bzw.
+ * Verbindlichkeiten den Posten bereits; dann legt die Übernahme nur Rechnung bzw. Beleg für den Bankabgleich an und bucht
+ * nicht noch einmal gegen 9000.
  */
 export async function takeOverLegacyItem(actor: string, voucherId: string): Promise<{ kind: "invoice" | "document"; id: string }> {
   const items = await openLegacyItems();
@@ -248,13 +251,14 @@ async function takeOverInvoice(
         updatedAt: now,
       })
       .where(eq(schema.invoices.id, id));
-    await post(tx, company, {
-      date: today(),
-      description: `Offene Rechnung ${voucher.number} aus ${SOURCE_LABEL[voucher.source]} · ${contact!.name}`,
-      sourceType: "invoice",
-      sourceId: id,
-      lines: openingInvoicePosting(totals, company.kontenrahmen, company.versteuerung),
-    });
+    if (!(await stapelOpeningCovering(tx, voucher.date)))
+      await post(tx, company, {
+        date: today(),
+        description: `Offene Rechnung ${voucher.number} aus ${SOURCE_LABEL[voucher.source]} · ${contact!.name}`,
+        sourceType: "invoice",
+        sourceId: id,
+        lines: openingInvoicePosting(totals, company.kontenrahmen, company.versteuerung),
+      });
     return { kind: "invoice" as const, id };
   });
 }
@@ -294,13 +298,14 @@ async function takeOverDocument(
       .returning({ id: schema.documents.id });
     const id = doc!.id;
     await tx.insert(schema.documentAmounts).values(voucher.taxes.map((t) => ({ documentId: id, taxRate: t.rate, net: t.net, tax: t.tax })));
-    await post(tx, company, {
-      date: today(),
-      description: `Offener Beleg ${voucher.number || file.filename} aus ${SOURCE_LABEL[voucher.source]} · ${voucher.contactName}`,
-      sourceType: "document",
-      sourceId: id,
-      lines: openingDocumentPosting(voucher.gross, company.kontenrahmen),
-    });
+    if (!(await stapelOpeningCovering(tx, voucher.date)))
+      await post(tx, company, {
+        date: today(),
+        description: `Offener Beleg ${voucher.number || file.filename} aus ${SOURCE_LABEL[voucher.source]} · ${voucher.contactName}`,
+        sourceType: "document",
+        sourceId: id,
+        lines: openingDocumentPosting(voucher.gross, company.kontenrahmen),
+      });
     await tx.update(schema.documents).set({ status: "gebucht", lockedAt: now, updatedAt: now }).where(eq(schema.documents.id, id));
     return { kind: "document" as const, id };
   });

@@ -24,6 +24,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany, type Company } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
+import { stapelOpeningCovering } from "./eroeffnung.ts";
 import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 
@@ -339,16 +340,20 @@ export async function bookDepreciation(actor: string, year: number, today: strin
         closing: 0,
       };
       if (asset.openingDate && !asset.openingEntryId) {
-        const openingEntryId = await post(tx, books, {
-          date: asset.openingDate,
-          description: `Eröffnung Anlage · ${asset.name}`,
-          sourceType: "asset",
-          sourceId: asset.id,
-          lines: [
-            { account: asset.account, debit: asset.openingBookValue!, credit: 0, taxCode: null },
-            { account: ACCOUNTS[kr].saldenvortrag, debit: 0, credit: asset.openingBookValue!, taxCode: null },
-          ],
-        });
+        // Steht die Anlage schon in der Eröffnung aus dem DATEV-Stapel, verweist sie darauf statt noch einmal zu buchen
+        const covering = await stapelOpeningCovering(tx, asset.acquisitionDate);
+        const openingEntryId =
+          covering?.id ??
+          (await post(tx, books, {
+            date: asset.openingDate,
+            description: `Eröffnung Anlage · ${asset.name}`,
+            sourceType: "asset",
+            sourceId: asset.id,
+            lines: [
+              { account: asset.account, debit: asset.openingBookValue!, credit: 0, taxCode: null },
+              { account: ACCOUNTS[kr].saldenvortrag, debit: 0, credit: asset.openingBookValue!, taxCode: null },
+            ],
+          }));
         await tx.update(schema.assets).set({ openingEntryId }).where(eq(schema.assets.id, asset.id));
       }
       const disposalInYear = asset.disposalDate && Number(asset.disposalDate.slice(0, 4)) === year;
