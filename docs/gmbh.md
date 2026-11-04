@@ -9,6 +9,7 @@ Gedacht ist das für eine kleine GmbH, etwa die eines Freiberuflers mit einem od
 - **Rechtsform** GmbH oder UG in den Firmendaten wählen, bevor die erste Buchung entsteht; danach ist sie fest. Was sich gegenüber dem Einzelunternehmen ändert, steht unter [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug).
 - **Kontenrahmen** SKR03 oder SKR04, wie bei der Steuerberatung. Bei GmbH und UG ist er ab der ersten Buchung fest, weil die Salden über die Jahre vorgetragen werden.
 - **Bestände übernehmen**, wenn die Buchhaltung nicht in Haben beginnt: [Eröffnungsbuchung](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) mit Bank, Stammkapital, Gewinnvortrag und Gesellschafter-Verrechnungskonto; offene Rechnungen und Belege über den Umzug aus [Lexware Office](lexoffice.md) oder [sevDesk](sevdesk.md); Anlagen über das [Anlagenverzeichnis](anlagen.md).
+- **Altes Jahr vergleichen:** Aus dem archivierten DATEV-Buchungsstapel der bisherigen Buchhaltung rechnet Haben Bilanz, GuV und Steuern eines Jahres zum Vergleich mit der Steuerberatung, ohne etwas zu buchen: [Abschluss aus dem DATEV-Stapel](lexoffice.md#abschluss-aus-dem-datev-stapel-gmbh-und-ug).
 - **Anteilseigner** mit Anteil, Steuer-ID und Kirchensteuerabzugsmerkmal in den [Angaben zur Körperschaftsteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug) erfassen; Ausschüttungen und Erklärung nutzen sie.
 
 ## Im Jahr

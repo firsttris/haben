@@ -16,6 +16,7 @@ export {
   kapgSteuernJahr,
   saveKapgAngaben,
   saveKapgErklaerungAngaben,
+  storedAngaben as gespeicherteKapgAngaben,
 } from "./koerperschaft.ts";
 export { estAngabenSchema, latestEstAngaben, prognose, saveEstAngaben } from "./income-tax.ts";
 export { meinElsterWerte } from "./mein-elster.ts";

@@ -236,6 +236,19 @@ Ein [KI-Assistent](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleich
 
 Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, und darunter die Umsätze je Konto. Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
 
+### Abschluss aus dem DATEV-Stapel (GmbH und UG)
+
+Bei GmbH und UG rechnet Haben unter **DATEV-Buchungen** aus dem Stapel eines Jahres auch Bilanz, GuV, Körperschaft- und Gewerbesteuer, mit denselben Funktionen wie den [Jahresabschluss](buchhaltung.md#jahresabschluss-gmbh-und-ug) aus dem eigenen Journal. So lässt sich ein Jahr der alten Buchhaltung mit dem Abschluss der Steuerberatung vergleichen, bevor die Buchhaltung in Haben beginnt. Gebucht wird dabei nichts: Die Zahlen fließen weder ins Journal noch in Voranmeldung oder Saldenvortrag.
+
+Aus den Buchungen werden Salden je Sachkonto, so wie Haben sie selbst gebucht hätte:
+
+- **Steuer:** Wo eine Steuerautomatik oder ein BU-Schlüssel (2, 3, 8, 9) greift, ist der Betrag brutto. Der Steueranteil geht auf das Umsatz- bzw. Vorsteuerkonto zu 19 % oder 7 % (SKR03 1776, 1771, 1576, 1571; SKR04 3806, 3801, 1406, 1401), das Erlös- oder Aufwandskonto behält den Nettobetrag. BU-Schlüssel 40 hebt die Automatik auf. Es sind dieselben Regeln wie für die Jahressummen im [Abgleich](#schritt-5-abgleich-je-jahr), mit denselben Grenzen bei Sonderfällen wie § 13b.
+- **Personenkonten:** Debitoren (erste Ziffer 1 bis 6) stehen auf Forderungen aus Lieferungen und Leistungen (SKR03 1400, SKR04 1200), Kreditoren (7 bis 9) auf Verbindlichkeiten (SKR03 1600, SKR04 3300).
+- **Bestände zum Jahresbeginn:** Enthält der Stapel Buchungen auf die Saldenvortragskonten 9000 bis 9009, bringt er seine Eröffnungsbilanz selbst mit. Sonst trägt Haben die Bestandskonten aus den Stapeln der Vorjahre vor, das Ergebnis der Vorjahre als Gewinn- oder Verlustvortrag, wie beim [Saldenvortrag](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) im Journal. Gibt es weder das eine noch das andere, fehlen die Bestände und die Bilanz ist unvollständig; GuV und Steuern stimmen trotzdem.
+- **Kontenrahmen:** Gerechnet wird im Kontenrahmen der Firmendaten. Steht im Kopf eines Stapels ein anderer, nennt Haben das als Fehler, denn die Posten stimmen dann nicht.
+
+Für die Steuern braucht Haben Hebesatz und Verlustvorträge des Jahres; du trägst sie unter **Buchhaltung › Jahresabschluss** für dieses Jahr ein. Konten ohne Posten in Bilanz oder GuV und nicht ausgeglichene Vortragskonten stehen als Hinweis über der Bilanz.
+
 ## Schritt 5: Abgleich je Jahr
 
 Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zeigt Haben eine Karte mit Prüfungen. Ein Jahr ist „vollständig“, wenn alle erfüllt sind:

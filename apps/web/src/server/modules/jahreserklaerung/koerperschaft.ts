@@ -93,7 +93,8 @@ async function storedRow(year: number): Promise<Record<string, unknown> | null> 
   return row?.data ?? null;
 }
 
-async function storedAngaben(year: number): Promise<KapgSteuerAngaben | null> {
+/** Unter Jahresabschluss gespeicherte Angaben des Jahres (Hebesatz, Verlustvorträge), ohne Fortschreibung aus dem Vorjahr */
+export async function storedAngaben(year: number): Promise<KapgSteuerAngaben | null> {
   const row = await storedRow(year);
   const parsed = row ? kapgAngabenSchema.safeParse(row) : null;
   return parsed?.success ? parsed.data : null;
