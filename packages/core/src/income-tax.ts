@@ -1,4 +1,5 @@
 import { altersvorsorgeQuote, arbeitslohnErgebnis, type Arbeitslohn } from "./arbeitnehmer.ts";
+import { kirchensteuerSatzBasispunkte } from "./lohnsteuer/kirchensteuer.ts";
 import type { Cents } from "./money.ts";
 import type { Bundesland } from "./steuernummer.ts";
 
@@ -132,7 +133,7 @@ export function solidaritaetszuschlag(est: Cents, year: number, zusammen = false
 
 /** 8 % in Baden-Württemberg und Bayern, sonst 9 % */
 export function kirchensteuerSatz(bundesland: Bundesland | null): number {
-  return bundesland === "BW" || bundesland === "BY" ? 0.08 : 0.09;
+  return kirchensteuerSatzBasispunkte(bundesland) / 10_000;
 }
 
 /** Religionsschlüssel, für die Kirchensteuer erhoben wird (11 = keine Religionszugehörigkeit, 10 = sonstige) */

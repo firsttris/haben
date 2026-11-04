@@ -23,6 +23,7 @@ export * from "./recurring.ts";
 export * from "./dunning.ts";
 export * from "./mail-templates.ts";
 export * from "./income-tax.ts";
+export * from "./lohnsteuer/index.ts";
 export * from "./einspruch.ts";
 export * from "./ledger.ts";
 export * from "./fristen.ts";
