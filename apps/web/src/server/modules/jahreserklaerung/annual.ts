@@ -159,6 +159,7 @@ const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage">, EuerFigur
   geschenke: "geschenke",
   beratung: "beratung",
   buchfuehrung: "beratung",
+  wareneinkauf: "waren",
   fremdleistung: "fremdleistungen",
   geldverkehr: "uebrige",
   kfzBetrieb: "kfzSonstige",

@@ -378,6 +378,27 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect((await documents.getDocument(id))!.document.exchangeRate).toBe("1.095000");
   });
 
+  it("lehnt § 13b beim Wareneinkauf ab: Waren aus dem EU-Ausland sind ein innergemeinschaftlicher Erwerb, keine sonstige Leistung", async () => {
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 41]), filename: "waren-eu.jpg" });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Groothandel B.V.",
+      supplierUstId: "NL123456789B01",
+      invoiceNumber: "NL-2026-7",
+      documentDate: "2026-09-30",
+      dueDate: null,
+      category: "wareneinkauf",
+      payment: "bank",
+      note: "",
+      reverseCharge: "eu",
+      currency: "EUR",
+      exchangeRate: null,
+      amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
+    });
+    const doc = (await documents.getDocument(id))!;
+    // § 13b Abs. 1 UStG gilt nur für sonstige Leistungen (Kz 46/47); Waren gehören in Kz 89/93 (§ 1a UStG)
+    expect(documents.bookingIssues(doc.document, doc.amounts)).toContain("§ 13b gilt nicht für Wareneinkäufe");
+  });
+
   it("Fremdwährung mit § 13b: Steuer aus dem umgerechneten Netto; zurück auf Euro löscht Kurs und Originalbeträge", async () => {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 8]), filename: "aws.jpg" });
     const base = {

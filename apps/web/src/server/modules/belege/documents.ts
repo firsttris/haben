@@ -546,6 +546,8 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDat
   if (doc.reverseCharge) {
     if (amounts.some((a) => a.taxRate === 0)) issues.push("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
     if (doc.category === "anlage") issues.push("§ 13b bei Anlagegütern wird nicht unterstützt");
+    // § 13b Abs. 1 und Abs. 2 Nr. 1 UStG: nur sonstige Leistungen und Werklieferungen; Waren sind innergemeinschaftlicher Erwerb (§ 1a UStG) oder Einfuhr
+    if (doc.category === "wareneinkauf") issues.push("§ 13b gilt nicht für Wareneinkäufe");
   }
   if (doc.category === "anlage") {
     const net = amounts.reduce((s, a) => s + a.net, 0);

@@ -193,6 +193,17 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(tag(xml, "E6017399")).toBe("280,00");
   });
 
+  it("übermittelt den Wareneinkauf als Waren, Rohstoffe und Hilfsstoffe vor den Fremdleistungen", () => {
+    const mitWaren = { ...figures, waren: 250_000, fremdleistungen: 80_000 };
+    const xml = buildEuerXml({ ...base, allgemein, figures: mitWaren, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    // Pfad laut ERiC-Plugin libcheckEUER_2025: /EUER/BAus/Ware_Rohstoff_Hilfsstoff/Sum/E6001601
+    expect(xml).toMatch(/<BAus>\s*<Ware_Rohstoff_Hilfsstoff>\s*<Sum>\s*<E6001601>2500,00<\/E6001601>/);
+    const [waren, fremd] = order(xml, ["Ware_Rohstoff_Hilfsstoff", "Fremdleistung"]);
+    expect(waren! < fremd!).toBe(true);
+    expect(tag(xml, "E6005301")).toBe("29300,00");
+  });
+
   it("übermittelt Pauschalen beschränkt abziehbar und als Nutzungseinlage, in der Reihenfolge des Formulars", () => {
     const withPauschalen = { ...figures, verpflegung: 4_200, tagespauschale: 126_000, fahrtNutzungseinlage: 37_200 };
     const xml = buildEuerXml({ ...base, allgemein, figures: withPauschalen, anlagen: [] });

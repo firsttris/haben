@@ -147,6 +147,18 @@ describe("documentPosting", () => {
     expect(lines[0]?.account).toBe("6805");
   });
 
+  it.each([
+    ["SKR03", "3200", "1576"],
+    ["SKR04", "5200", "1406"],
+  ] as const)("Wareneinkauf (Handelsware) auf Wareneingang (%s)", (kontenrahmen, wareneingang, vorsteuer19) => {
+    const lines = documentPosting(totals, "wareneinkauf", kontenrahmen, "einzelunternehmen", "bank");
+    expect(lines.slice(0, 2)).toEqual([
+      { account: wareneingang, debit: 10_000, credit: 0, taxCode: "VSt19" },
+      { account: vorsteuer19, debit: 1_900, credit: 0, taxCode: "VSt19" },
+    ]);
+    expect(balanced(lines)).toBe(true);
+  });
+
   it("Gutschrift dreht die Seiten", () => {
     const credit = computeInvoiceTotals([{ quantity: 1000, unitPrice: -10_000, taxRate: 1900 }]);
     const lines = documentPosting(credit, "software", "SKR03", "einzelunternehmen", "bank");

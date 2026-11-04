@@ -59,6 +59,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Werbung | Werbekosten |
 | Geschenke an Geschäftspartner | Geschenke (beschränkt abziehbar, Spalte „abziehbar“) |
 | Bewirtung von Geschäftspartnern | Bewirtungsaufwendungen: 70 % „abziehbar“, 30 % „nicht abziehbar“. Die Vorsteuer bleibt voll abziehbar. |
+| Wareneinkauf (Handelsware) | Waren, Rohstoffe und Hilfsstoffe einschließlich der Nebenkosten |
 | Fremdleistungen | Bezogene Fremdleistungen |
 | Kontoführung und Gebühren, Sonstiger Aufwand | Übrige Betriebsausgaben |
 | AfA aus dem Anlagenverzeichnis | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |

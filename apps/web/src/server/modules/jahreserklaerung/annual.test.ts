@@ -69,7 +69,14 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
 
   async function bookedDocument(
     marker: number,
-    fields: { supplierName: string; documentDate: string; category: "telefon" | "buero" | "software"; payment: "bank" | "privat"; net: number; tax: number },
+    fields: {
+      supplierName: string;
+      documentDate: string;
+      category: "telefon" | "buero" | "software" | "wareneinkauf";
+      payment: "bank" | "privat";
+      net: number;
+      tax: number;
+    },
   ) {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, marker]), filename: `beleg-${marker}.jpg` });
     await documents.updateDocument(actor, id, {
@@ -245,6 +252,24 @@ describe.skipIf(!testDatabaseUrl)("Jahreserklärungen (Postgres)", () => {
 
     await sql`update company set einkunftsart = null`;
     expect((await annual.annualOverview(2025, TODAY)).euer.issues[0]!.link).toBe("/einstellungen");
+  });
+
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)("Anlage EÜR: Wareneinkauf (Handelsware) in der Zeile Waren, Rohstoffe und Hilfsstoffe (%s, %s)", async (kontenrahmen, versteuerung) => {
+    await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+    await bookedDocument(3, {
+      supplierName: "Großhandel Süd",
+      documentDate: "2025-05-12",
+      category: "wareneinkauf",
+      payment: "privat",
+      net: 25_000,
+      tax: 4_750,
+    });
+    const euer = await annual.euerYear(2025);
+    expect(euer.figures).toMatchObject({ waren: 25_000, vorsteuer: 4_750 });
+    expect(euer.figures.uebrige).toBeUndefined();
   });
 
   it("prüft und übermittelt testweise, speichert Werte und XML, sperrt eine zweite Echtübermittlung", async () => {

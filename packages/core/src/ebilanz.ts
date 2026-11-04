@@ -53,6 +53,7 @@ const KATEGORIEN: Record<Exclude<ExpenseCategory, "hardware" | "anlage">, string
   beratung: `${OC}.legalConsulting`,
   buchfuehrung: `${OC}.legalConsulting`,
   // Mit oder ohne Vorsteuer, je nach Beleg
+  wareneinkauf: `${MAT}.material.purchased.unknownVAT`,
   fremdleistung: `${MAT}.services.unknownVAT`,
   geldverkehr: `${OC}.miscellaneous`,
   kfzBetrieb: `${OC}.vehicles`,

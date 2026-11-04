@@ -104,6 +104,8 @@ export const EXPENSE_CATEGORIES = {
   geschenke: { label: "Geschenke an Geschäftspartner (bis 50 € je Empfänger und Jahr)", SKR03: "4630", SKR04: "6610" },
   beratung: { label: "Rechts- und Beratungskosten", SKR03: "4950", SKR04: "6825" },
   buchfuehrung: { label: "Buchführung und Steuerberatung", SKR03: "4955", SKR04: "6830" },
+  // Waren zum Weiterverkauf; DATEV „Wareneingang“, Vorsteuer je nach Beleg
+  wareneinkauf: { label: "Wareneinkauf (Handelsware)", SKR03: "3200", SKR04: "5200" },
   fremdleistung: { label: "Fremdleistungen", SKR03: "3100", SKR04: "5900" },
   geldverkehr: { label: "Kontoführung und Gebühren", SKR03: "4970", SKR04: "6855" },
   kfzBetrieb: { label: "Kfz: Laden, Tanken, Wartung", SKR03: "4530", SKR04: "6530" },
