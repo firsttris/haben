@@ -47,6 +47,9 @@ const PAGES = [
   `/konten?jahr=${YEAR}`,
   `/konten/1200?jahr=${YEAR}`,
   "/archiv",
+  // Altbelege aus der Web-Sicherung in app.spec.ts, mit den Filtern Richtung und „Ohne Datei“
+  "/archiv?ansicht=belege",
+  "/archiv?ansicht=belege&richtung=ausgabe&ohneDatei=true",
   "/textbausteine",
   "/einstellungen",
   "/einstellungen?bereich=rechnungen",
@@ -288,4 +291,17 @@ test("Seitenwechsel über einen Link im Inhalt setzt den Fokus auf den Inhalt", 
   await page.waitForURL(/\/rechnungen\/neu$/);
   await expect(page.getByRole("button", { name: "Entwurf speichern" })).toBeVisible();
   await expect(page.getByRole("main")).toBeFocused();
+});
+
+test("Archiv: Nur der gewählte Bereich und die gewählten Filter tragen aria-current", async ({ page }) => {
+  // TanStack Router setzt aria-current="page" selbst, sobald die Suchparameter eines Links nur teilweise passen;
+  // „Alle“ und „Umzug“ setzen ihren Parameter auf undefined und galten deshalb immer als aktiv
+  await open(page, "/archiv?ansicht=belege&richtung=ausgabe&ohneDatei=true");
+  const current = (scope: ReturnType<Page["getByRole"]>) =>
+    scope.getByRole("link").evaluateAll((links) => links.filter((l) => l.getAttribute("aria-current") === "page").map((l) => l.textContent));
+  expect(await current(page.getByRole("navigation", { name: "Bereich wählen" }))).toEqual(["Belege"]);
+  expect(await current(page.getByRole("group", { name: "Richtung" }))).toEqual(["Ausgaben", "Ohne Datei"]);
+
+  await open(page, "/archiv?ansicht=belege");
+  expect(await current(page.getByRole("group", { name: "Richtung" }))).toEqual(["Alle"]);
 });

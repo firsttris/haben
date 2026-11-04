@@ -18,6 +18,12 @@ export const LEGACY_TYPES: Record<string, string> = {
   purchasecreditnote: "Ausgabe-Gutschrift",
 };
 
+/**
+ * Ein Filter-Link ist nur aktiv, wenn auch die auf undefined gesetzten Suchparameter fehlen. Sonst gilt „Alle“
+ * für TanStack Router immer als aktiv und bekommt von ihm aria-current="page", auch wenn „Ausgaben“ gewählt ist.
+ */
+export const EXACT_SEARCH = { explicitUndefined: true } as const;
+
 export function LegacyVouchers({ year, years, rows, search }: { year: number; years: number[]; rows: Row[]; search: ArchiveSearch }) {
   const navigate = useNavigate();
   const [term, setTerm] = useState(search.suche ?? "");
@@ -39,9 +45,10 @@ export function LegacyVouchers({ year, years, rows, search }: { year: number; ye
               key={value}
               to="/archiv"
               activeProps={{}}
+              activeOptions={EXACT_SEARCH}
               search={{ ...search, richtung: value === "alle" ? undefined : value }}
               className={direction === value ? "chip active" : "chip"}
-              aria-pressed={direction === value}
+              aria-current={direction === value ? "page" : undefined}
             >
               {value === "alle" ? "Alle" : value === "einnahme" ? "Einnahmen" : "Ausgaben"}
             </Link>
@@ -49,9 +56,10 @@ export function LegacyVouchers({ year, years, rows, search }: { year: number; ye
           <Link
             to="/archiv"
             activeProps={{}}
+            activeOptions={EXACT_SEARCH}
             search={{ ...search, ohneDatei: search.ohneDatei ? undefined : true }}
             className={search.ohneDatei ? "chip active" : "chip"}
-            aria-pressed={Boolean(search.ohneDatei)}
+            aria-current={search.ohneDatei ? "page" : undefined}
           >
             Ohne Datei
           </Link>
