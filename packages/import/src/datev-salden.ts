@@ -1,4 +1,4 @@
-import { ACCOUNTS } from "@haben/core";
+import { ACCOUNTS, postenOf } from "@haben/core";
 import { AUTOMATIC, BU_RATES, datevAccountKind, isPersonenkonto, shortAccount, type DatevBooking, type Kontenrahmen } from "./datev.ts";
 
 /*
@@ -30,16 +30,43 @@ function sachkonto(kontenrahmen: Kontenrahmen, account: string, accountLength: n
 }
 
 /** Steuerkonto für den Steueranteil einer brutto gebuchten Zeile, oder null, wenn der Satz kein Konto hat */
-function steuerkonto(kontenrahmen: Kontenrahmen, kind: "erloese" | "aufwand", rate: number): string | null {
+function steuerkonto(kontenrahmen: Kontenrahmen, art: "ust" | "vorsteuer", rate: number): string | null {
   const key = rate === 19 ? 1900 : rate === 7 ? 700 : null;
-  if (key === null) return null;
-  return (kind === "erloese" ? ACCOUNTS[kontenrahmen].ust : ACCOUNTS[kontenrahmen].vorsteuer)[key];
+  return key === null ? null : ACCOUNTS[kontenrahmen][art][key];
+}
+
+/** BU-Schlüssel 2 und 3 sind Umsatzsteuer, 8 und 9 Vorsteuer */
+const BU_ART: Record<string, "ust" | "vorsteuer"> = { "2": "ust", "3": "ust", "8": "vorsteuer", "9": "vorsteuer" };
+
+/**
+ * Steuer einer Seite: Erlös- und Aufwandskonten über Automatik oder BU-Schlüssel, Anlagevermögen (Kauf, Verkauf) nur über den
+ * BU-Schlüssel; alle anderen Konten tragen den Betrag, wie er gebucht ist.
+ */
+function steuerAnteil(
+  kontenrahmen: Kontenrahmen,
+  account: string,
+  accountLength: number,
+  konto: string,
+  buKey: string,
+): { rate: number; konto: string } | null {
+  if (buKey === "40") return null;
+  const kind = datevAccountKind(kontenrahmen, account, accountLength);
+  if (kind === "erloese" || kind === "aufwand") {
+    const rate = BU_RATES[buKey] ?? AUTOMATIC[kontenrahmen][konto] ?? 0;
+    const taxAccount = steuerkonto(kontenrahmen, kind === "erloese" ? "ust" : "vorsteuer", rate);
+    return taxAccount ? { rate, konto: taxAccount } : null;
+  }
+  const art = BU_ART[buKey];
+  if (!art || isPersonenkonto(account, accountLength) || postenOf(kontenrahmen, konto) !== "aktiva.A") return null;
+  const taxAccount = steuerkonto(kontenrahmen, art, BU_RATES[buKey]!);
+  return taxAccount ? { rate: BU_RATES[buKey]!, konto: taxAccount } : null;
 }
 
 /**
  * Salden je Sachkonto (Soll − Haben). Wo eine Steuerautomatik oder ein BU-Schlüssel (2, 3, 8, 9) greift, ist der Betrag
  * brutto gebucht; der Steueranteil geht dann wie in DATEV auf das Umsatz- bzw. Vorsteuerkonto, das Erlös- bzw.
- * Aufwandskonto behält den Nettobetrag. BU-Schlüssel 40 hebt die Automatik auf. Dieselben Regeln wie in datevYearSums.
+ * Aufwandskonto behält den Nettobetrag. BU-Schlüssel 40 hebt die Automatik auf. Dieselben Regeln wie in datevYearSums;
+ * zusätzlich teilt ein BU-Schlüssel auch beim Anlagevermögen die Steuer ab, sonst stünde eine Anlage brutto in der Bilanz.
  */
 export function datevSalden(bookings: readonly DatevSaldenBooking[], kontenrahmen: Kontenrahmen): DatevSaldo[] {
   const salden = new Map<string, number>();
@@ -53,12 +80,10 @@ export function datevSalden(bookings: readonly DatevSaldenBooking[], kontenrahme
       [credit, -1],
     ] as const) {
       const konto = sachkonto(kontenrahmen, account, accountLength);
-      const kind = datevAccountKind(kontenrahmen, account, accountLength);
-      const rate = kind === "erloese" || kind === "aufwand" ? (buKey === "40" ? 0 : (BU_RATES[buKey] ?? AUTOMATIC[kontenrahmen][konto] ?? 0)) : 0;
-      const taxAccount = rate > 0 && (kind === "erloese" || kind === "aufwand") ? steuerkonto(kontenrahmen, kind, rate) : null;
-      const tax = taxAccount ? Math.round((b.amount * rate) / (100 + rate)) : 0;
+      const steuer = steuerAnteil(kontenrahmen, account, accountLength, konto, buKey);
+      const tax = steuer ? Math.round((b.amount * steuer.rate) / (100 + steuer.rate)) : 0;
       add(konto, sign * (b.amount - tax));
-      if (taxAccount) add(taxAccount, sign * tax);
+      if (steuer) add(steuer.konto, sign * tax);
     }
   }
   return [...salden]
