@@ -203,10 +203,16 @@ describe.skipIf(!testDatabaseUrl)("Dauerfristverlängerung (Postgres)", () => {
   });
 
   // Die Sondervorauszahlung wird in der letzten Voranmeldung angerechnet, für die die Verlängerung gilt (§ 48 Abs. 4 UStDV).
-  // Ein Ende im Lauf des Jahres bildet Haben nicht ab; ein Ende für ein Jahr mit angemeldeter Sondervorauszahlung würde
-  // sie aus Kz 39 und dem Vorauszahlungssoll streichen. Deshalb erst ab dem Folgejahr beenden.
-  it("lässt sich für ein Jahr mit angemeldeter Sondervorauszahlung nicht beenden", async () => {
+  // Ein Ende im Lauf des Jahres bildet Haben nicht ab: Ist sie echt angemeldet oder gezahlt, fiele sie beim Beenden aus
+  // Kz 39 und dem Vorauszahlungssoll. Ein nur von Hand eingetragener Stand lässt sich dagegen zurücknehmen.
+  it("von Hand eingetragen lässt sich zurücknehmen; echt angemeldet erst ab dem Folgejahr beenden", async () => {
     await dauerfrist.saveDauerfrist(actor, { year: 2026, active: true, sondervorauszahlung: 120_000 });
+    await dauerfrist.saveDauerfrist(actor, { year: 2026, active: false, sondervorauszahlung: null });
+    expect(await dauerfrist.dauerfristFor(2026)).toBe(false);
+
+    await dauerfrist.saveDauerfrist(actor, { year: 2026, active: true, sondervorauszahlung: 120_000 });
+    await sql`insert into vat_extension_submissions (year, kz38, kind, ok, code, message, request_xml, response_xml, server_response_xml)
+      values (2026, 120000, 'send', true, 0, 'ok', '', '', '')`;
     await expect(dauerfrist.saveDauerfrist(actor, { year: 2026, active: false, sondervorauszahlung: null })).rejects.toThrow("Folgejahr");
     expect(await dauerfrist.loadDauerfrist()).toEqual([{ year: 2026, active: true, sondervorauszahlung: 120_000 }]);
     await dauerfrist.saveDauerfrist(actor, { year: 2027, active: false, sondervorauszahlung: null });
