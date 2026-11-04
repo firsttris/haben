@@ -3,6 +3,7 @@ import {
   abgabefrist,
   dueDate,
   isKapitalgesellschaft,
+  kapestFrist,
   periodKey,
   periodLabel,
   previousPeriod,
@@ -15,9 +16,10 @@ import { kleinunternehmerHistory, lastDayOfMonth, loadCompany } from "../stammda
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
+import { kapestAnmeldungen } from "../ausschuettung/index.ts";
 import { loadActiveCertificate } from "../elster/index.ts";
 
-export type FristArt = "ustva" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
+export type FristArt = "ustva" | "kapest" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
 
 export interface Frist {
   /** stabil, auch als UID im Kalender */
@@ -138,6 +140,23 @@ export async function listFristen(today: string): Promise<Frist[]> {
           link: "/finanzamt",
         });
       }
+    }
+  }
+
+  // Kapitalertragsteuer-Anmeldung je Ausschüttung (GmbH, UG), erledigt mit der Echtübermittlung
+  if (isKapitalgesellschaft(company.rechtsform)) {
+    for (const d of await kapestAnmeldungen()) {
+      const datum = kapestFrist(d.zufluss, bundesland);
+      if (!relevant(datum, !d.angemeldet)) continue;
+      fristen.push({
+        id: `kapest-${d.id}`,
+        art: "kapest",
+        datum,
+        titel: `Kapitalertragsteuer-Anmeldung (Zufluss ${d.zufluss.split("-").reverse().join(".")})`,
+        detail: "Anmeldung und Zahlung der einbehaltenen Kapitalertragsteuer, Soli und Kirchensteuer",
+        status: d.angemeldet ? "erledigt" : "offen",
+        link: `/ausschuettungen?jahr=${d.zufluss.slice(0, 4)}`,
+      });
     }
   }
 

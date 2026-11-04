@@ -120,6 +120,9 @@ const ERTRAGSTEUERN: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
   },
 };
 
+const EB_KAPEST_SCHULD = "bs.eqLiab.liab.other.theroffTax.otherTaxes";
+const EB_KAPEST_FORDERUNG = "bs.ass.currAss.receiv.other.otherTaxRec";
+
 /** Weitere Konten der Kapitalgesellschaft (DATEV-Kontenrahmen 2026, SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175) */
 const KAPITAL: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
   SKR03: {
@@ -128,6 +131,8 @@ const KAPITAL: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
     "0740": [GESELLSCHAFTER[1]!],
     "0750": [GESELLSCHAFTER[1]!],
     "0800": ["bs.eqLiab.equity.subscribed.corp"],
+    // Einbehaltene Kapitalertragsteuer, Soli und Kirchensteuer auf offene Ausschüttungen (ausschuettung.ts)
+    "1746": [EB_KAPEST_FORDERUNG, EB_KAPEST_SCHULD],
     "0860": ["bs.eqLiab.equity.retainedEarnings"],
     "0868": ["bs.eqLiab.equity.retainedEarnings"],
   },
@@ -135,6 +140,7 @@ const KAPITAL: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
     "3511": GESELLSCHAFTER,
     "3514": [GESELLSCHAFTER[1]!],
     "2900": ["bs.eqLiab.equity.subscribed.corp"],
+    "3760": [EB_KAPEST_FORDERUNG, EB_KAPEST_SCHULD],
     "2970": ["bs.eqLiab.equity.retainedEarnings"],
     "2978": ["bs.eqLiab.equity.retainedEarnings"],
   },

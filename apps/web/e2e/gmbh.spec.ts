@@ -210,6 +210,28 @@ test("Jahreserklärung der GmbH: Körperschaft- und Gewerbesteuer, Anteilseigner
   expect(await axe(), `/jahreserklaerung/${year}`).toEqual([]);
 });
 
+test("Ausschüttungen: Steuerabzug berechnen, ohne Gewinnvortrag nicht buchbar", async () => {
+  const year = new Date().getFullYear();
+  const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
+  await go("/");
+  await nav.getByRole("link", { name: "Ausschüttungen" }).click();
+  await page.waitForURL("**/ausschuettungen");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("heading", { name: `Ausschüttungen ${year}` })).toBeVisible();
+
+  const form = page.getByRole("form", { name: "Neue Ausschüttung" });
+  await form.getByLabel("Datum des Beschlusses").fill(`${year}-01-02`);
+  await form.getByLabel("Ausschüttung brutto").fill("1.000,00");
+  await form.getByRole("button", { name: "Steuerabzug berechnen" }).click();
+  // Anteilseigner aus den Angaben des Vorjahres; 25 % Kapitalertragsteuer, 5,5 % Soli
+  const rechnung = page.getByRole("region", { name: "Berechnung der Ausschüttung" });
+  await expect(rechnung.getByRole("row", { name: /^Summe/ })).toContainText("250,00");
+  await expect(rechnung.getByRole("row", { name: /^Summe/ })).toContainText("13,75");
+  await expect(rechnung).toContainText("mehr lässt sich nicht ausschütten");
+  await expect(rechnung.getByRole("button", { name: "Beschluss buchen" })).toBeDisabled();
+  expect(await axe(), "/ausschuettungen").toEqual([]);
+});
+
 test("Die Rechtsform ist nach der ersten Buchung fest", async () => {
   await go("/einstellungen");
   await expect(page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform")).toBeDisabled();

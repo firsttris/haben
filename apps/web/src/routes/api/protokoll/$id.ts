@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { loadKapEStProtocol } from "../../../server/modules/ausschuettung/index.ts";
 import { loadAnnualProtocol } from "../../../server/modules/jahreserklaerung/index.ts";
 import { auth } from "../../../server/auth.ts";
 import { db, schema } from "../../../server/db/index.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 
-/** Übertragungsprotokoll (PDF) einer Übermittlung: Voranmeldung oder Jahreserklärung */
+/** Übertragungsprotokoll (PDF) einer Übermittlung: Voranmeldung, Jahreserklärung oder Kapitalertragsteuer-Anmeldung */
 export const Route = createFileRoute("/api/protokoll/$id")({
   server: {
     handlers: {
@@ -27,9 +28,9 @@ export const Route = createFileRoute("/api/protokoll/$id")({
           .innerJoin(schema.vatReturns, eq(schema.vatReturns.id, schema.vatReturnSubmissions.vatReturnId))
           .where(eq(schema.vatReturnSubmissions.id, id.data));
         if (!row?.pdf) {
-          const annual = await loadAnnualProtocol(id.data);
-          if (!annual) return new Response("Nicht gefunden", { status: 404 });
-          return pdfResponse(annual.pdf, annual.filename);
+          const other = (await loadAnnualProtocol(id.data)) ?? (await loadKapEStProtocol(id.data));
+          if (!other) return new Response("Nicht gefunden", { status: 404 });
+          return pdfResponse(other.pdf, other.filename);
         }
 
         const filename = `UStVA-${row.year}-${String(row.month).padStart(2, "0")}-${row.createdAt.toISOString().slice(0, 10)}.pdf`;

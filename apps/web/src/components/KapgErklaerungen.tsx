@@ -153,7 +153,18 @@ function parseAnteil(text: string): number | null {
   return Number.isFinite(n) && n > 0 && n <= 100 ? Math.round(n * 100) : null;
 }
 
-type Person = { name: string; strasse: string; plzOrt: string; nummer: string; beteiligung: string; anteil: string; geaendert: boolean };
+type Person = {
+  name: string;
+  strasse: string;
+  plzOrt: string;
+  nummer: string;
+  beteiligung: string;
+  anteil: string;
+  geaendert: boolean;
+  /** Kirchensteuerabzugsmerkmal für Ausschüttungen: Satz und Religionsschlüssel */
+  kirchensteuer: 0 | 8 | 9;
+  religionsschluessel: string;
+};
 type Vertrag = { art: string; datum: string; partner: string; verguetung: string };
 
 export function KapgAngaben({ data }: { data: Data }) {
@@ -173,6 +184,8 @@ export function KapgAngaben({ data }: { data: Data }) {
       beteiligung: euro(p.beteiligung),
       anteil: anteilText(p.anteil),
       geaendert: p.geaendert,
+      kirchensteuer: p.kirchensteuer,
+      religionsschluessel: p.religionsschluessel ?? "",
     })),
   );
   const [vertraege, setVertraege] = useState<Vertrag[]>(a.vertraege.map((v) => ({ ...v, verguetung: euro(v.verguetung) })));
@@ -190,6 +203,8 @@ export function KapgAngaben({ data }: { data: Data }) {
       beteiligung: betrag(p.beteiligung),
       anteil: parseAnteil(p.anteil),
       geaendert: p.geaendert,
+      kirchensteuer: p.kirchensteuer,
+      ...(p.kirchensteuer > 0 ? { religionsschluessel: p.religionsschluessel.trim() } : {}),
     }));
     const vertragsliste = vertraege.map((v) => ({ art: v.art, datum: v.datum, partner: v.partner, verguetung: betrag(v.verguetung) }));
     const konto = betrag(einlagekonto);
@@ -274,6 +289,28 @@ export function KapgAngaben({ data }: { data: Data }) {
                   <input inputMode="decimal" value={p.anteil} onChange={(e) => setPerson(i, { anteil: e.target.value })} required />
                 </label>
               </div>
+              <div className="form-row cols-3">
+                <label className="field">
+                  Kirchensteuer bei Ausschüttungen Anteilseigner {i + 1}
+                  <select value={p.kirchensteuer} onChange={(e) => setPerson(i, { kirchensteuer: Number(e.target.value) as Person["kirchensteuer"] })}>
+                    <option value={0}>keine</option>
+                    <option value={8}>8 % (Bayern, Baden-Württemberg)</option>
+                    <option value={9}>9 %</option>
+                  </select>
+                </label>
+                {p.kirchensteuer > 0 && (
+                  <label className="field">
+                    Religionsschlüssel aus dem Kirchensteuerabzugsmerkmal Anteilseigner {i + 1}
+                    <input
+                      inputMode="numeric"
+                      value={p.religionsschluessel}
+                      onChange={(e) => setPerson(i, { religionsschluessel: e.target.value })}
+                      placeholder="z. B. 010100"
+                      required
+                    />
+                  </label>
+                )}
+              </div>
               <div className="actions" style={{ justifyContent: "space-between" }}>
                 <label className="checkbox">
                   <input type="checkbox" checked={p.geaendert} onChange={(e) => setPerson(i, { geaendert: e.target.checked })} />
@@ -289,7 +326,12 @@ export function KapgAngaben({ data }: { data: Data }) {
             <button
               type="button"
               className="btn"
-              onClick={() => setPersonen([...personen, { name: "", strasse: "", plzOrt: "", nummer: "", beteiligung: "", anteil: "", geaendert: true }])}
+              onClick={() =>
+                setPersonen([
+                  ...personen,
+                  { name: "", strasse: "", plzOrt: "", nummer: "", beteiligung: "", anteil: "", geaendert: true, kirchensteuer: 0, religionsschluessel: "" },
+                ])
+              }
             >
               Anteilseigner hinzufügen
             </button>

@@ -56,7 +56,14 @@ export const kapgErklaerungSchema = z.object({
           anteil: z.number().int().min(1).max(10_000),
           seit: isoDate.optional(),
           geaendert: z.boolean().default(false),
+          /** Für den Abzug bei Ausschüttungen: Kirchensteuerabzugsmerkmal (KiStAM) vom Bundeszentralamt für Steuern */
+          kirchensteuer: z.union([z.literal(0), z.literal(8), z.literal(9)]).default(0),
+          religionsschluessel: z
+            .string()
+            .regex(/^\d{6}$/, "Religionsschlüssel aus dem Kirchensteuerabzugsmerkmal hat sechs Ziffern")
+            .optional(),
         })
+        .refine((a) => a.kirchensteuer === 0 || a.religionsschluessel, "Zur Kirchensteuer fehlt der Religionsschlüssel")
         .refine((a) => a.idnr || a.steuernummer13, "Identifikationsnummer oder Steuernummer des Anteilseigners fehlt"),
     )
     .max(20)

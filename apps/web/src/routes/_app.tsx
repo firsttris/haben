@@ -48,6 +48,8 @@ const NAV_GROUPS = [
     links: [
       { to: "/umsatzsteuer", icon: "vat", label: "Umsatzsteuer" },
       { to: "/jahreserklaerung", icon: "annual", label: "Jahreserklärung" },
+      // Gewinnausschüttung und Kapitalertragsteuer gibt es nur für GmbH und UG
+      { to: "/ausschuettungen", icon: "cash", label: "Ausschüttungen", nurKapitalgesellschaft: true },
       { to: "/finanzamt", icon: "mail", label: "Finanzamt" },
       { to: "/fristen", icon: "calendar", label: "Fristen" },
     ],

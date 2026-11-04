@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAusschuettungenRouteImport } from './routes/_app/ausschuettungen'
 import { Route as AppAuswertungenRouteImport } from './routes/_app/auswertungen'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
@@ -94,6 +95,11 @@ const SetupRoute = SetupRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAusschuettungenRoute = AppAusschuettungenRouteImport.update({
+  id: '/ausschuettungen',
+  path: '/ausschuettungen',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAuswertungenRoute = AppAuswertungenRouteImport.update({
@@ -422,6 +428,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/ausschuettungen': typeof AppAusschuettungenRoute
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
   '/einstellungen': typeof AppEinstellungenRoute
@@ -489,6 +496,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/ausschuettungen': typeof AppAusschuettungenRoute
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
   '/einstellungen': typeof AppEinstellungenRoute
@@ -559,6 +567,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/_app/ausschuettungen': typeof AppAusschuettungenRoute
   '/_app/auswertungen': typeof AppAuswertungenRoute
   '/_app/bank': typeof AppBankRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
@@ -630,6 +639,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
+    | '/ausschuettungen'
     | '/auswertungen'
     | '/bank'
     | '/einstellungen'
@@ -697,6 +707,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/setup'
+    | '/ausschuettungen'
     | '/auswertungen'
     | '/bank'
     | '/einstellungen'
@@ -766,6 +777,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/setup'
+    | '/_app/ausschuettungen'
     | '/_app/auswertungen'
     | '/_app/bank'
     | '/_app/einstellungen'
@@ -889,6 +901,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ausschuettungen': {
+      id: '/_app/ausschuettungen'
+      path: '/ausschuettungen'
+      fullPath: '/ausschuettungen'
+      preLoaderRoute: typeof AppAusschuettungenRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/auswertungen': {
@@ -1336,6 +1355,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAusschuettungenRoute: typeof AppAusschuettungenRoute
   AppAuswertungenRoute: typeof AppAuswertungenRoute
   AppBankRoute: typeof AppBankRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
@@ -1380,6 +1400,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAusschuettungenRoute: AppAusschuettungenRoute,
   AppAuswertungenRoute: AppAuswertungenRoute,
   AppBankRoute: AppBankRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,

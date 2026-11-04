@@ -212,6 +212,9 @@ const SOURCE_LABELS: Record<string, string> = {
   pauschale: "Pauschale",
   kasse: "Kasse",
   ausbuchung: "Ausbuchung",
+  manuell: "Manuell",
+  eroeffnung: "Eröffnung",
+  ausschuettung: "Ausschüttung",
 };
 const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[number], string> = {
   invoice: "Rechnung",
@@ -219,6 +222,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   privat: "Privat",
   geldtransit: "Geldtransit",
   ustVorauszahlung: "USt-Vorauszahlung",
+  kapest: "Kapitalertragsteuer",
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",

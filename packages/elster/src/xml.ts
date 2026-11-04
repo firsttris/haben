@@ -48,6 +48,8 @@ export function datenartVersionFromXml(xml: string): string | undefined {
   if (erklaerung?.[1] && erklaerung[2]) {
     return `${{ E10: "ESt", E20: "GewSt", E30: "KSt_30", E50: "USt", E77: "EUER" }[erklaerung[1]]}_${erklaerung[2]}`;
   }
+  const kapest = /<KapEStA\b[^>]*\bversion="(\d{4})"/.exec(xml);
+  if (kapest?.[1]) return `KapEStA_${kapest[1]}`;
   const nachricht = /<DatenArt>(SonstigeNachrichten)<\/DatenArt>[\s\S]*<Nachricht\b[^>]*\bversion="(\d+)"/.exec(xml);
   if (nachricht?.[1] && nachricht[2]) return `${nachricht[1]}_${nachricht[2]}`;
   const bank = /<AenderungBankverbindung\b[^>]*\bversion="(\d+)"/.exec(xml);

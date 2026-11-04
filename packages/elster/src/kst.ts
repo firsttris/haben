@@ -1,14 +1,15 @@
 import type { Cents } from "@haben/core";
 import { germanDate } from "./bankverbindung.ts";
 import { checkEnvelope, envelope, render, vorsatz, type Envelope, type XmlNode } from "./erklaerung.ts";
+import { kst1fNode, type Kst1fInput } from "./kst1f.ts";
 import { ElsterEingabeError } from "./xml.ts";
 
 /**
  * Körperschaftsteuererklärung (E30, Unterfallart 30) einer GmbH oder UG: Hauptvordruck KSt 1 mit Anteilseignern,
  * Anlage GK (Gewinnermittlung), Anlage ZVE (Einkommen und Steuer), Anlage Verluste (§ 10d EStG) und Anlage KSt 1 F
  * (steuerliches Einlagekonto, § 27 KStG). Für ein Unternehmen ohne Organschaft, Beteiligungen, ausländische Einkünfte,
- * Spenden und verdeckte Gewinnausschüttungen, mit Kalenderjahr als Wirtschaftsjahr; ohne Ausschüttungen und ohne
- * Bewegungen auf dem Einlagekonto.
+ * Spenden und verdeckte Gewinnausschüttungen, mit Kalenderjahr als Wirtschaftsjahr; offene Gewinnausschüttungen mindern
+ * das Einlagekonto (kst1f.ts), Einlagen in das Einlagekonto gibt es nicht.
  *
  * Feldkennungen, Kontexte und Reihenfolge aus der Jahresdokumentation 30_2025 und dem Schema E30-2025 im ERiC-Paket
  * 43.4.6.0. Die Anlagen rechnen in vollen Euro; die Summen bildet der Baustein selbst aus den Einzelbeträgen, damit sie
@@ -42,7 +43,7 @@ export interface KstAnteilseigner {
   geaendert: boolean;
 }
 
-export interface KstXmlInput extends Omit<Envelope, "datenArt"> {
+export interface KstXmlInput extends Omit<Envelope, "datenArt">, Omit<Kst1fInput, "year" | "gruendung"> {
   rechtsform: keyof typeof RECHTSFORM;
   /** Ort von Sitz und Geschäftsleitung */
   sitz: string;
@@ -56,8 +57,6 @@ export interface KstXmlInput extends Omit<Envelope, "datenArt"> {
   verlustvortrag: Cents;
   /** Verlustrücktrag in die Vorjahre; 0 = Verzicht (§ 10d Abs. 1 Satz 5 EStG) */
   verlustruecktrag: Cents;
-  /** Bestand des steuerlichen Einlagekontos zum Schluss des Vorjahres */
-  einlagekonto: Cents;
   /** Anlage WA: Verträge mit Anteilseignern und ihnen nahestehenden Personen (Anstellung, Miete, Darlehen, Pension) */
   vertraege: readonly { art: string; datum: string; partner: string; verguetung: Cents }[];
 }
@@ -324,51 +323,7 @@ export function buildKstXml(input: KstXmlInput): string {
     ],
   ];
 
-  const einlagekonto = String(euro(input.einlagekonto));
-  const kst1f: XmlNode = [
-    "KSt1F",
-    [
-      ["WJ", "WJ1"],
-      [
-        "Allgemein",
-        [
-          ["E8200905", input.gruendung ? von : undefined],
-          ["E8200101", von],
-          ["E8200102", bis],
-        ],
-      ],
-      [
-        "ELK",
-        [
-          [
-            "Tabelle",
-            [
-              [
-                "Anfang",
-                // Im Gründungsjahr der Bestand beim Eintritt in die Steuerpflicht, sonst der zum Schluss des Vorjahres
-                input.gruendung
-                  ? [
-                      ["E8240102", einlagekonto],
-                      ["E8240104", "0"],
-                    ]
-                  : [
-                      ["E8240103", einlagekonto],
-                      ["E8240201", "0"],
-                    ],
-              ],
-              [
-                "Ende",
-                [
-                  ["E8245601", einlagekonto],
-                  ["E8245602", "0"],
-                ],
-              ],
-            ],
-          ],
-        ],
-      ],
-    ],
-  ];
+  const kst1f = kst1fNode(input);
 
   const e30 = [
     `<E30 xmlns="http://finkonsens.de/elster/elstererklaerung/kst/e30/v${y}" version="${y}">`,

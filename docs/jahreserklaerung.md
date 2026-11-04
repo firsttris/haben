@@ -138,6 +138,7 @@ Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester, Kind
 Die Werte kommen aus der [Steuerberechnung beim Jahresabschluss](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug); dort stehen auch Hebesatz, Verlustvorträge und ein Verlustrücktrag. Auf dieser Seite trägst du ein, was nur die Erklärung braucht, unter **Angaben zu den Erklärungen**:
 
 - **Anteilseigner** mit Anschrift, Identifikationsnummer (oder Steuernummer im ELSTER-Format), Beteiligung in Euro und Anteil; die Anteile ergeben zusammen 100 %. „Geändert“ markiert eine Änderung gegenüber dem Vorjahr.
+- Für Ausschüttungen je Anteilseigner das **Kirchensteuerabzugsmerkmal**: Kirchensteuersatz (8 oder 9 %) und Religionsschlüssel aus der Antwort des Bundeszentralamts für Steuern. Ohne Kirchensteuerpflicht bleibt das Feld auf „keine“.
 - **Verträge mit Anteilseignern** und nahestehenden Personen (Geschäftsführer-, Miet-, Darlehensvertrag) mit Datum und Vergütung im Jahr (Anlage WA).
 - Im Gründungsjahr das **Gründungsdatum**: Damit beginnen Steuerpflicht und erstes Wirtschaftsjahr.
 - Der **Bestand des steuerlichen Einlagekontos** zum Schluss des Vorjahres (meist 0) und, falls Lizenzen an im Ausland Ansässige gezahlt wurden, der Anteil nach § 50a EStG für die Gewerbesteuer.
@@ -146,13 +147,13 @@ Ohne Angaben für das Jahr übernimmt die Seite Anteilseigner und Verträge aus 
 
 | Erklärung | Was Haben sendet |
 | --- | --- |
-| Körperschaftsteuer (KSt 1 mit Anlagen GK, ZVE, WA, KSt 1 F, Verluste) | Jahresüberschuss, nicht abziehbare Steuern und Betriebsausgaben (Anlage GK Zeilen 81 bis 90), Einkünfte aus Gewerbebetrieb, Verlustabzug mit Mindestbesteuerung, zu versteuerndes Einkommen und 15 % Körperschaftsteuer; Anteilseigner, Verträge, kein schädlicher Beteiligungserwerb nach § 8c KStG, Einlagekonto ohne Bewegung |
+| Körperschaftsteuer (KSt 1 mit Anlagen GK, ZVE, WA, KSt 1 F, Verluste) | Jahresüberschuss, nicht abziehbare Steuern und Betriebsausgaben (Anlage GK Zeilen 81 bis 90), Einkünfte aus Gewerbebetrieb, Verlustabzug mit Mindestbesteuerung, zu versteuerndes Einkommen und 15 % Körperschaftsteuer; Anteilseigner, Verträge, kein schädlicher Beteiligungserwerb nach § 8c KStG, Einlagekonto (Anlage KSt 1 F) mit den [Ausschüttungen](buchhaltung.md#gewinnausschüttung-gmbh-und-ug) des Jahres, dem ausschüttbaren Gewinn und dem Teil aus dem Einlagekonto |
 | Gewerbesteuer (GewSt 1 A) | Rechtsform, Gegenstand (Einstellungen › Art des Betriebs), einzige Betriebsstätte am Sitz, Gewinn aus Gewerbebetrieb, Zinsen, Mieten, Leasing und Lizenzen in voller Höhe (§ 8 Nr. 1 GewStG; den Hinzurechnungsbetrag ermittelt das Finanzamt) und den Gewerbeverlust des Vorjahres |
 
 Alle Beträge in vollen Euro; die Summen rechnet Haben aus den Einzelbeträgen, wie die Plausibilitätsregeln es verlangen. **Nur prüfen** und die **Testübermittlung** gehen jederzeit; **echt senden** erst, wenn das Jahr [abgeschlossen](buchhaltung.md#jahresabschluss-gmbh-und-ug) ist, und je Erklärung nur einmal. Die Körperschaftsteuererklärung kennt Haben für 2025, die Gewerbesteuererklärung für 2024 und 2025; für spätere Jahre kommt das Formular mit dem nächsten ERiC.
 
 > [!WARNING]
-> Nicht abgedeckt sind Organschaft, Beteiligungen an anderen Gesellschaften (§ 8b KStG), verdeckte Gewinnausschüttungen, Spenden, Ausschüttungen und Einlagen in das Einlagekonto, ausländische Einkünfte, mehrere Betriebsstätten, Kürzungen nach § 9 GewStG und ein schädlicher Beteiligungserwerb (§ 8c KStG). Hat die GmbH davon etwas, gibt die Steuerberatung die Erklärungen ab.
+> Nicht abgedeckt sind Organschaft, Beteiligungen an anderen Gesellschaften (§ 8b KStG), verdeckte Gewinnausschüttungen, Spenden, Einlagen in das Einlagekonto, ausländische Einkünfte, mehrere Betriebsstätten, Kürzungen nach § 9 GewStG und ein schädlicher Beteiligungserwerb (§ 8c KStG). Hat die GmbH davon etwas, gibt die Steuerberatung die Erklärungen ab.
 
 ## Belege von ELSTER
 

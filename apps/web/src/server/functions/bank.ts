@@ -1,12 +1,4 @@
-import {
-  ACCOUNT_PURPOSES,
-  DIRECT_BOOKINGS,
-  PAYMENT_PROVIDERS,
-  directBookingLabel,
-  paymentProviderAccount,
-  suggestDirectBooking,
-  type DirectBooking,
-} from "@haben/core";
+import { ACCOUNT_PURPOSES, directBookingsFor, PAYMENT_PROVIDERS, directBookingLabel, paymentProviderAccount, suggestDirectBooking } from "@haben/core";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -96,7 +88,7 @@ export const getBankOverview = createServerFn({ method: "GET" })
       detail: detail && detail.transaction.bankAccountId === account?.id ? detail : null,
       directKinds: await (async () => {
         const { rechtsform } = await loadCompany();
-        return (Object.keys(DIRECT_BOOKINGS) as DirectBooking[]).map((value) => ({ value, label: directBookingLabel(value, rechtsform) }));
+        return directBookingsFor(rechtsform).map((value) => ({ value, label: directBookingLabel(value, rechtsform) }));
       })(),
       purposes: Object.entries(ACCOUNT_PURPOSES).map(([value, label]) => ({ value, label })),
       providers: Object.entries(PAYMENT_PROVIDERS).map(([value, p]) => ({ value, label: p.label })),

@@ -56,6 +56,9 @@ describe("Erklärungen der GmbH: Prüfungen vor dem XML", () => {
     verlustvortrag: 0,
     verlustruecktrag: 0,
     einlagekonto: 0,
+    leistungen: [],
+    eigenkapital: 0,
+    nennkapital: 0,
     vertraege: [],
   };
 

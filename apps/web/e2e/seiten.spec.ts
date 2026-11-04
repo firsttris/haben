@@ -37,6 +37,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["buchungen", `/buchungen?jahr=${YEAR}&monat=${month}`],
     ["buchung-erfassen", "/buchungen/neu"],
     ["jahresabschluss", `/abschluss/${YEAR - 1}`],
+    ["ausschuettungen", "/ausschuettungen"],
     ["konten", `/konten?jahr=${YEAR}`],
     ["kontenblatt", `/konten/1200?jahr=${YEAR}`],
     ["umsatzsteuer", "/umsatzsteuer"],
