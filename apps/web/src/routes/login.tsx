@@ -1,3 +1,4 @@
+import { PASSKEY_ERROR_CODES } from "@better-auth/passkey/client";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { authClient } from "../lib/auth-client.ts";
@@ -27,9 +28,11 @@ function LoginPage() {
     if (typeof PublicKeyCredential !== "undefined" && PublicKeyCredential.isConditionalMediationAvailable) {
       void PublicKeyCredential.isConditionalMediationAvailable().then((available) => {
         if (!available) return;
-        // Ein Abbruch ist kein Fehler: Das Autofill läuft im Hintergrund, und der Passkey-Knopf beendet es selbst
+        // Ein Abbruch ist kein Fehler: Das Autofill läuft im Hintergrund, und der Passkey-Knopf beendet es selbst.
+        // Lehnt der Server einen gewählten Passkey ab, soll man das aber sehen. @better-auth/passkey meldet jeden
+        // Abbruch im Browser mit dieser Meldung, der Server mit seiner eigenen (z. B. PASSKEY_NOT_FOUND)
         void authClient.signIn.passkey({ autoFill: true }).then((result) => {
-          if (!result?.error) void onResult(result);
+          if (result?.error?.message !== PASSKEY_ERROR_CODES.AUTH_CANCELLED.message) void onResult(result);
         });
       });
     }
