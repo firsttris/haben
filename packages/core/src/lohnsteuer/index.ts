@@ -52,9 +52,7 @@ const NICHT_UNTERSTUETZT: Record<keyof NichtUnterstuetzteEingabe, string> = {
 /** Eingabe wie im PAP; fehlende Merker gelten wie dort als 0 */
 export type LohnsteuerEingabe = Pick<PapEingabe, "LZZ" | "RE4" | "STKL"> & Partial<Omit<PapEingabe, "LZZ" | "RE4" | "STKL">> & NichtUnterstuetzteEingabe;
 
-export type LohnsteuerErgebnis =
-  | ({ ok: true } & PapAusgabe)
-  | { ok: false; grund: "nicht-hinterlegt" | "nicht-unterstuetzt" | "ungueltig"; meldung: string };
+export type LohnsteuerErgebnis = ({ ok: true } & PapAusgabe) | { ok: false; grund: "nicht-hinterlegt" | "nicht-unterstuetzt" | "ungueltig"; meldung: string };
 
 const fehler = (grund: Extract<LohnsteuerErgebnis, { ok: false }>["grund"], meldung: string): LohnsteuerErgebnis => ({ ok: false, grund, meldung });
 

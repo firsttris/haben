@@ -61,7 +61,7 @@ export function mal(a: Dezimal, b: Dezimal): Dezimal {
 function teile(zaehler: bigint, nenner: bigint, rundung: Rundung): bigint {
   const quotient = zaehler / nenner; // bigint-Division schneidet Richtung null ab
   if (rundung === "ab" || quotient * nenner === zaehler) return quotient;
-  return (zaehler < 0n) !== (nenner < 0n) ? quotient - 1n : quotient + 1n;
+  return zaehler < 0n !== nenner < 0n ? quotient - 1n : quotient + 1n;
 }
 
 /** `setScale(stellen, ROUND_DOWN | ROUND_UP)` */
