@@ -248,6 +248,28 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldungszeitraum (Postgres)", () => {
     expect(rows[0]?.actor).toBe(actor);
   });
 
+  // Wer mit einer Eröffnungsbuchung zu Haben wechselt, hat einen älteren Betrieb: kein Gründungsjahr nach § 18 Abs. 2 Satz 4 UStG
+  it("eine Eröffnungsbuchung ist kein Beginn der Tätigkeit", async () => {
+    const { withActor } = await import("../../db/actor.ts");
+    const ledger = await import("../buchhaltung/ledger.ts");
+    await withActor(actor, async (tx) =>
+      ledger.post(tx, await ledger.openBooks(tx), {
+        date: "2026-01-01",
+        description: "Eröffnung",
+        sourceType: "eroeffnung",
+        sourceId: globalThis.crypto.randomUUID(),
+        lines: [
+          { account: "1200", debit: 100_000, credit: 0, taxCode: null },
+          { account: "9000", debit: 0, credit: 100_000, taxCode: null },
+        ],
+      }),
+    );
+    await invoice(100_000, "2026-03-01");
+    const overview = await zeitraum.frequencyOverview(2027);
+    expect(overview.suggestion?.reason ?? "").not.toMatch(/aufgenommen/);
+    expect(overview.previousYearTax).toBe(19_000);
+  }, 30_000);
+
   it("Vorschlag aus der Steuer des Vorjahres", async () => {
     await invoice(5_000_000, "2025-03-01");
     await invoice(100_000, "2026-03-01");
