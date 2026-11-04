@@ -21,10 +21,11 @@ function keepNativeExternal(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   server: { port: 3000 },
-  // Abhängigkeiten des Servers mitbündeln, damit redact() auch deren React-Imports umleitet (README von TanStack Redact)
-  ssr: { noExternal: true },
+  // Abhängigkeiten des Servers mitbündeln, damit redact() auch deren React-Imports umleitet (README von TanStack Redact).
+  // Nur beim Bauen: Der Dev-Server führt mitgebündelte CommonJS-Pakete wie tslib im Modul-Runner nicht aus
+  ...(command === "build" ? { ssr: { noExternal: true } } : {}),
   define: { __HABEN_VERSION__: JSON.stringify(VERSION) },
   plugins: [
     keepNativeExternal(),
@@ -44,4 +45,4 @@ export default defineConfig({
     // Rendert synchron, ohne Time-Slicing; Haben nutzt weder useTransition noch useDeferredValue
     redact(),
   ],
-});
+}));
