@@ -19,8 +19,11 @@ export interface DatevSaldo {
 
 /**
  * Personenkonten auf das Sammelkonto: Debitoren (erste Ziffer 1 bis 6) auf Forderungen, Kreditoren (7 bis 9) auf
- * Verbindlichkeiten aus Lieferungen und Leistungen, nach der Nummernvergabe der DATEV-Format-Beschreibung.
- * Sachkonten mit mehr als vier Stellen (84000) auf die Kontonummer gekürzt.
+ * Verbindlichkeiten aus Lieferungen und Leistungen. Quelle: DATEV-Kontenrahmen SKR 03 und SKR 04, gültig für 2026
+ * (Art.-Nr. 11174 und 11175), Klasse 9 „Personenkonten“: 10000–69999 Debitoren, 70000–99999 Kreditoren bei vierstelligen
+ * Sachkonten. DATEV-Format, Buchungsstapel (developer.datev.de, Feld Konto): „Die Personenkontenlänge darf nur 1 Stelle
+ * länger sein als die definierte Sachkontennummernlänge“, Sachkontenlänge 4 bis 8 in der Kopfzeile; die erste Ziffer
+ * bestimmt die Art also bei jeder Länge. Sachkonten mit mehr als vier Stellen (84000) auf die Kontonummer gekürzt.
  */
 function sachkonto(kontenrahmen: Kontenrahmen, account: string, accountLength: number): string {
   if (isPersonenkonto(account, accountLength)) {
@@ -92,7 +95,11 @@ export function datevSalden(bookings: readonly DatevSaldenBooking[], kontenrahme
     .sort((a, b) => a.account.localeCompare(b.account, "de", { numeric: true }));
 }
 
-/** Saldenvortragskonten 9000 bis 9009: Stehen sie im Stapel eines Jahres, bringt er seine Eröffnungsbilanz selbst mit */
+/**
+ * Saldenvortragskonten 9000 bis 9009 (DATEV-Kontenrahmen SKR 03 und SKR 04 2026: 9000 und 9001–9007 „Saldenvorträge,
+ * Sachkonten“, 9008 „Saldenvorträge, Debitoren“, 9009 „Saldenvorträge, Kreditoren“): Stehen sie im Stapel eines Jahres,
+ * bringt er seine Eröffnungsbilanz selbst mit. Das Summenvortragskonto 9090 zählt nicht dazu.
+ */
 export function hasOpeningBalances(bookings: readonly DatevSaldenBooking[]): boolean {
   // Bei Sachkontenlänge 5 heißen sie 90000 bis 90090; gekürzt wie in datevSalden
   const isVortrag = (account: string, accountLength: number) => !isPersonenkonto(account, accountLength) && /^900\d$/.test(shortAccount(account));

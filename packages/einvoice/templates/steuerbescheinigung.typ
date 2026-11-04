@@ -10,7 +10,6 @@
 #let rule = rgb(d.palette.rule)
 #let accent = rgb(d.accent)
 
-#let medium(body) = text(font: "IBM Plex Sans Medm", body)
 #let semibold(body) = text(font: "IBM Plex Sans SmBld", body)
 
 #set document(title: d.docTitle, author: d.author)
@@ -91,18 +90,14 @@
 
 #v(98.46mm - 20mm)
 
+// Aufbau nach Muster II: Titel, Art der Bescheinigung, Satz mit Gläubiger, Beschluss und Zahlungstag, dann die Zeilen
 #semibold(text(size: 16pt, d.title))
 #v(-1mm)
 #text(fill: muted, d.subtitle)
 
 #v(4mm)
 
-#grid(
-  columns: (auto, 1fr),
-  column-gutter: 4mm,
-  row-gutter: 2.2mm,
-  ..d.parties.map(p => (text(fill: muted, p.label), p.value)).flatten()
-)
+#d.kind
 
 #v(4mm)
 
@@ -110,13 +105,11 @@
 
 #v(2mm)
 
-#let head(body) = medium(text(size: 8pt, fill: accent, body))
 #table(
   columns: (1fr, auto),
   align: (left, right),
-  stroke: (x, y) => if y == 0 { (bottom: 0.6pt + accent) } else { (bottom: 0.4pt + rule) },
+  stroke: (x, y) => (top: if y == 0 { 0.6pt + accent } else { none }, bottom: 0.4pt + rule),
   inset: (x: 1.6mm, y: 2.2mm),
-  table.header(head[Angabe], head[Betrag]),
   ..d.rows.map(r => (r.label, r.value)).flatten()
 )
 

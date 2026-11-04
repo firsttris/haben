@@ -131,6 +131,28 @@ describe("Eröffnungsbilanz im Stapel", () => {
     expect(hasOpeningBalances([b(500000, "H", "9008", "10001")])).toBe(true);
     expect(hasOpeningBalances([b(11900, "S", "1200", "8400")])).toBe(false);
   });
+
+  it("Kreditoren 90000 bis 99999 sind keine Saldenvortragskonten, das Summenvortragskonto 9090 auch nicht", () => {
+    // DATEV-Kontenrahmen 2026, Klasse 9: 70000–99999 Kreditoren; 9090 Summenvortragskonto
+    expect(hasOpeningBalances([b(5950, "H", "90001", "4930")])).toBe(false);
+    expect(hasOpeningBalances([b(5950, "H", "90080", "4930")])).toBe(false);
+    expect(hasOpeningBalances([b(5950, "S", "1200", "9090")])).toBe(false);
+  });
+});
+
+describe("Sachkontenlänge 8 (Höchstwert laut DATEV-Format)", () => {
+  it("kürzt achtstellige Sachkonten, Personenkonten haben neun Stellen", () => {
+    const lang = (x: ReturnType<typeof b>) => ({ ...x, accountLength: 8 });
+    expect(hasOpeningBalances([lang(b(500000, "H", "90090000", "700000001"))])).toBe(true);
+    expect(datevSalden([lang(b(11900, "S", "100000001", "84000000")), lang(b(5950, "H", "700000001", "49300000", "9"))], "SKR03")).toEqual([
+      { account: "1400", saldo: 11900 },
+      { account: "1576", saldo: 950 },
+      { account: "1600", saldo: -5950 },
+      { account: "1776", saldo: -1900 },
+      { account: "4930", saldo: 5000 },
+      { account: "8400", saldo: -10000 },
+    ]);
+  });
 });
 
 describe("Eröffnungsbilanz im Stapel mit Sachkontenlänge 5", () => {

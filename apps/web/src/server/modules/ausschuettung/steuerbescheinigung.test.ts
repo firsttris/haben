@@ -71,10 +71,14 @@ describe.skipIf(!testDatabaseUrl)("Steuerbescheinigungen (Postgres)", () => {
         await setup(kontenrahmen, versteuerung, k);
         await kst.saveKapgErklaerungAngaben(actor, 2026, {
           einlagekonto: 500_000,
-          anteilseigner: [{ ...erika, kirchensteuer: 9, religionsschluessel: "010100" }, max],
+          anteilseigner: [{ ...erika, kirchensteuer: 9, religionsschluessel: "010100", religionsgemeinschaft: "evangelisch" }, max],
         });
         // Ausschüttbarer Gewinn 20.000 €: von 22.000 € kommen 2.000 € aus dem Einlagekonto (60 : 40)
-        const id = await a.createAusschuettung(actor, { beschluss: "2026-04-01", auszahlungstag: "2026-04-10", brutto: 2_200_000 }, today);
+        const id = await a.createAusschuettung(
+          actor,
+          { geschaeftsjahr: 2025, beschluss: "2026-04-01", auszahlungstag: "2026-04-10", brutto: 2_200_000 },
+          today,
+        );
 
         const status = await s.steuerbescheinigungenDesJahres(2026, today);
         expect(status[id]).toEqual([
@@ -90,7 +94,8 @@ describe.skipIf(!testDatabaseUrl)("Steuerbescheinigungen (Postgres)", () => {
         expect(await s.loadSteuerbescheinigungPdf(crypto.randomUUID(), 0, today)).toBeNull();
 
         // Die Beträge der Bescheinigung sind die gebuchten des Gesellschafters
-        const [d] = await sql`select empfaenger from dividends where id = ${id}`;
+        const [d] = await sql`select empfaenger, geschaeftsjahr from dividends where id = ${id}`;
+        expect(d!.geschaeftsjahr).toBe(2025);
         expect(d!.empfaenger[0]).toMatchObject({ brutto: 1_320_000, ausEinlagekonto: 120_000, ertrag: 1_200_000, kirchensteuer: 9 });
         expect(d!.empfaenger[1]).toMatchObject({ brutto: 880_000, ausEinlagekonto: 80_000, ertrag: 800_000, kist: 0 });
       },
@@ -101,7 +106,7 @@ describe.skipIf(!testDatabaseUrl)("Steuerbescheinigungen (Postgres)", () => {
   it("erst ab dem Zahlungstag, nach einem Storno keine", async () => {
     await setup("SKR04", "ist", { bank: "1800", kapital: "2900", vortrag: "2970" });
     await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [{ ...erika, anteil: 10_000 }] });
-    const id = await a.createAusschuettung(actor, { beschluss: "2026-07-01", auszahlungstag: "2026-08-03", brutto: 1_000_000 }, today);
+    const id = await a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-07-01", auszahlungstag: "2026-08-03", brutto: 1_000_000 }, today);
     expect((await s.steuerbescheinigungenDesJahres(2026, today))[id]![0]!.fehlend).toEqual([
       "Die Ausschüttung fließt erst am 03.08.2026 zu; die Bescheinigung gibt es ab diesem Tag.",
     ]);
@@ -119,7 +124,7 @@ describe.skipIf(!testDatabaseUrl)("Steuerbescheinigungen (Postgres)", () => {
     const vater = { ...erika, name: "Max Muster", anteil: 5000, beteiligung: 1_250_000 };
     const sohn = { ...max, name: "Max Muster", anteil: 5000, beteiligung: 1_250_000 };
     await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [vater, sohn] });
-    const id = await a.createAusschuettung(actor, { beschluss: "2026-03-01", brutto: 100_000 }, today);
+    const id = await a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-03-01", brutto: 100_000 }, today);
     expect((await s.steuerbescheinigungenDesJahres(2026, today))[id]).toEqual([
       { nr: 0, name: "Max Muster", fehlend: [] },
       { nr: 1, name: "Max Muster", fehlend: ["Steuerliche Identifikationsnummer von Max Muster fehlt (Jahreserklärung › Angaben zu den Erklärungen)."] },
@@ -127,10 +132,26 @@ describe.skipIf(!testDatabaseUrl)("Steuerbescheinigungen (Postgres)", () => {
     await expect(s.loadSteuerbescheinigungPdf(id, 1, today)).rejects.toThrow("Identifikationsnummer von Max Muster fehlt");
   }, 30_000);
 
+  it("Kirchensteuer ohne Namen der Religionsgemeinschaft gemeldet; Geschäftsjahr nach dem Beschluss abgelehnt", async () => {
+    await setup("SKR03", "soll", { bank: "1200", kapital: "0800", vortrag: "0860" });
+    await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [{ ...erika, anteil: 10_000, kirchensteuer: 8, religionsschluessel: "026300" }] });
+    await expect(a.createAusschuettung(actor, { geschaeftsjahr: 2027, beschluss: "2026-03-01", brutto: 100_000 }, today)).rejects.toThrow(
+      "Das Geschäftsjahr 2027 liegt nach dem Jahr des Beschlusses.",
+    );
+    // Ein Zwischenstand aus dem Formular wie „1“ wird auf Deutsch abgelehnt
+    await expect(a.createAusschuettung(actor, { geschaeftsjahr: 1, beschluss: "2026-03-01", brutto: 100_000 }, today)).rejects.toThrow(
+      "Geschäftsjahr der Ausschüttung ist kein gültiges Jahr",
+    );
+    const id = await a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-03-01", brutto: 100_000 }, today);
+    expect((await s.steuerbescheinigungenDesJahres(2026, today))[id]![0]!.fehlend).toEqual([
+      "Kirchensteuererhebende Religionsgemeinschaft von Erika fehlt (Jahreserklärung › Angaben zu den Erklärungen).",
+    ]);
+  }, 30_000);
+
   it("fehlende Anschrift der Gesellschaft", async () => {
     await setup("SKR03", "ist", { bank: "1200", kapital: "0800", vortrag: "0860" });
     await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [{ ...erika, anteil: 10_000 }] });
-    const id = await a.createAusschuettung(actor, { beschluss: "2026-03-01", brutto: 100_000 }, today);
+    const id = await a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-03-01", brutto: 100_000 }, today);
     await sql.begin(async (tx) => {
       await tx`alter table company disable trigger user`;
       await tx`update company set strasse = ''`;
