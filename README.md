@@ -83,6 +83,7 @@ auf deinem eigenen Server betreibst.
 | 📦 [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html) | Abruf über die sevDesk-API, gleiches Archiv, gleicher Abgleich |
 | 🔐 [Anmeldung](https://firsttris.github.io/haben/einrichtung.html#konto-anlegen) · [App](https://firsttris.github.io/haben/einrichtung.html#als-app-installieren) | Passkey (Passwort als Ersatz), installierbar als App auf Handy und Desktop mit Kurzbefehlen und Teilen-Menü für Belege, helle und dunkle [Themes](https://firsttris.github.io/haben/einrichtung.html#einstellungen-und-darstellung) |
 | 🔌 [REST-API](https://firsttris.github.io/haben/api.html) | Versionierte Schnittstelle mit OpenAPI-Beschreibung für eigene Werkzeuge und Automationen: Kontakte und Rechnungsentwürfe anlegen, mit Bestellnummer der Plattform ohne Duplikate; Belege aus Dokumentenarchiven und Skripten hochladen, landen als „Zu prüfen“; API-Tokens mit Rechten je Bereich; bucht und schreibt nichts fest |
+| 🧩 [Eigene Seiten](https://firsttris.github.io/haben/eigene-seiten.html) | Eigene Werkzeuge wie eine Bestellübersicht aus n8n als Menüeintrag in Haben, im Rahmen angezeigt; Zugriff auf Haben nur über die REST-API mit eigenem Token |
 | ♿ [Barrierefreiheit](https://firsttris.github.io/haben/barrierefreiheit.html) | Vollständig per Tastatur bedienbar, sichtbarer Fokus, Kontraste in allen Themes; jede Seite in der CI mit axe-core gegen WCAG 2.2 AA geprüft |
 
 ## 📸 Screenshots

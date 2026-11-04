@@ -1754,3 +1754,18 @@ export const mcpCalls = pgTable(
   },
   (t) => [index("mcp_calls_at").on(t.at)],
 );
+
+/**
+ * Eigene Seiten (#199): Menüeinträge, die eine Seite außerhalb von Haben im Rahmen zeigen, etwa eine Bestellübersicht aus n8n.
+ * Haben gibt der Seite weder Sitzung noch Token; sie greift wie jedes Werkzeug mit eigenem API-Token zu. Einstellungen, keine
+ * Buchungsdaten: frei änderbar, jede Änderung steht im Änderungsprotokoll.
+ */
+export const customPages = pgTable("custom_pages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Text im Menü und Überschrift der Seite */
+  name: text("name").notNull(),
+  /** http(s)-Adresse auf einem anderen Host als Haben */
+  url: text("url").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

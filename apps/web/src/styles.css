@@ -611,3 +611,8 @@ summary { cursor: pointer; min-height: 24px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* Eigene Seiten (#199): der Rahmen füllt den Rest des Fensters unter dem Seitenkopf; auf dem Handy steht das Menü darüber */
+@media (min-width: 861px) { .main:has(> .custom-page-frame) { box-sizing: border-box; height: 100dvh; } }
+/* Weiß wie eine Seite im Browser: die fremde Seite kennt das Theme von Haben nicht und setzt oft keinen Hintergrund */
+.custom-page-frame { flex: 1 1 0; min-height: max(420px, calc(100dvh - 220px)); width: 100%; border: 1px solid var(--line); border-radius: 12px; background: #fff; }

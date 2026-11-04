@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
-import { ANONYMOUS, chunks, SESSION, USER } from "./daten.ts";
+import { ANONYMOUS, chunks, fakeEigeneSeite, firstLink, SESSION, USER } from "./daten.ts";
 
 /**
  * Barrierefreiheit und Tastaturbedienung, mit den Daten und der Sitzung aus app.spec.ts (Projekt „mit-daten“ in
@@ -55,6 +55,7 @@ const PAGES = [
   "/einstellungen?bereich=bank",
   "/einstellungen?bereich=ki",
   "/einstellungen?bereich=export",
+  "/einstellungen?bereich=seiten",
 ];
 
 /** Für die übrigen Themes: Seiten, auf denen zusammen jede Art von Link, Knopf, Hinweis und Tabelle vorkommt */
@@ -162,6 +163,23 @@ for (const theme of THEMES.filter((t) => t !== "wald")) {
       await open(page, path);
       expect.soft(await axe(page, ["color-contrast", "link-in-text-block"]), `${theme} ${path}`).toEqual([]);
     }
+  });
+}
+
+// Die Adresse der eigenen Seite aus app.spec.ts steht erst zur Laufzeit fest; axe prüft auch den Inhalt im Rahmen
+for (const [device, viewport] of [
+  ["Desktop", { width: 1440, height: 900 }],
+  ["Handy", { width: 320, height: 720 }],
+] as const) {
+  test(`Eigene Seite ohne axe-Verstöße (${device})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await withTheme(page, "wald");
+    await fakeEigeneSeite(page);
+    const path = await firstLink(page, "/einstellungen?bereich=seiten", /^\/seiten\/[0-9a-f-]{36}$/);
+    expect(path, "app.spec.ts hat eine eigene Seite angelegt").not.toBeNull();
+    await open(page, path!);
+    await expect(page.frameLocator("iframe").getByRole("heading", { name: "Offene Bestellungen" })).toBeVisible();
+    expect(await axe(page), path!).toEqual([]);
   });
 }
 

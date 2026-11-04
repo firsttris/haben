@@ -1,7 +1,7 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { zipSync } from "fflate";
 import { mkdirSync, readFileSync } from "node:fs";
-import { day, firstLink, SESSION, SHOTS, USER, YEAR } from "./daten.ts";
+import { day, EIGENE_SEITE, fakeEigeneSeite, firstLink, SESSION, SHOTS, USER, YEAR } from "./daten.ts";
 
 /**
  * Ein Durchlauf wie im echten Betrieb, in einer leeren Datenbank: Konto einrichten, Kunden anlegen,
@@ -1075,6 +1075,55 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer un
   const calls = page.getByRole("region", { name: "Letzte Aufrufe" });
   await expect(calls.getByText("POST /rechnungen").first()).toBeVisible();
   await expect(calls.getByText("POST /belege").first()).toBeVisible();
+});
+
+test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfernen", async () => {
+  await fakeEigeneSeite(page);
+  await page.route("https://lager.example/**", (route) =>
+    route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Lager</title><h1>Lager</h1>" }),
+  );
+  await go("/einstellungen?bereich=seiten");
+  const form = page.getByRole("form", { name: "Neue eigene Seite" });
+  // Haben selbst im Rahmen hätte die volle Sitzung: abgelehnt
+  await form.getByLabel("Name im Menü").fill("Bank");
+  await form.getByLabel("Adresse").fill(new URL("/bank", page.url()).href);
+  await form.getByRole("button", { name: "Seite hinzufügen" }).click();
+  await expect(page.getByText(/muss unter einer anderen Adresse laufen als Haben/).last()).toBeVisible();
+
+  await form.getByLabel("Name im Menü").fill(EIGENE_SEITE.name);
+  await form.getByLabel("Adresse").fill(EIGENE_SEITE.url);
+  await form.getByRole("button", { name: "Seite hinzufügen" }).click();
+  await expect(page.getByText("Seite angelegt. Sie steht jetzt im Menü.")).toBeVisible();
+  const menu = page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("group", { name: "Eigene Seiten" });
+  await menu.getByRole("link", { name: EIGENE_SEITE.name }).click();
+  await page.waitForURL(/\/seiten\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(EIGENE_SEITE.name);
+  await expect(page.getByRole("link", { name: "In neuem Tab öffnen" })).toHaveAttribute("href", EIGENE_SEITE.url);
+  const frame = page.locator(`iframe[title="${EIGENE_SEITE.name}"]`);
+  // Die Seite darf Haben nicht wegnavigieren und bekommt nicht einmal die Adresse von Haben mit
+  await expect(frame).toHaveAttribute("sandbox", /allow-scripts/);
+  await expect(frame).not.toHaveAttribute("sandbox", /allow-top-navigation/);
+  await expect(frame).toHaveAttribute("referrerpolicy", "no-referrer");
+  await expect(page.frameLocator(`iframe[title="${EIGENE_SEITE.name}"]`).getByRole("heading", { name: "Offene Bestellungen" })).toBeVisible();
+
+  // Eine zweite Seite anlegen, umbenennen und wieder entfernen
+  await go("/einstellungen?bereich=seiten");
+  await form.getByLabel("Name im Menü").fill("Lager");
+  await form.getByLabel("Adresse").fill("https://lager.example/");
+  await form.getByRole("button", { name: "Seite hinzufügen" }).click();
+  await expect(menu.getByRole("link", { name: "Lager" })).toBeVisible();
+  await page.getByRole("button", { name: "Lager bearbeiten" }).click();
+  const edit = page.getByRole("form", { name: "Lager bearbeiten" });
+  await expect(edit.getByLabel("Adresse")).toHaveValue("https://lager.example/");
+  await edit.getByLabel("Name im Menü").fill("Abholung");
+  await edit.getByRole("button", { name: "Speichern" }).click();
+  await expect(menu.getByRole("link", { name: "Abholung" })).toBeVisible();
+  await expect(menu.getByRole("link", { name: "Lager" })).toHaveCount(0);
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Abholung entfernen" }).click();
+  await expect(page.getByText("Seite entfernt.")).toBeVisible();
+  // Bestellungen bleibt für seiten.spec.ts und barrierefreiheit.spec.ts
+  await expect(menu.getByRole("link")).toHaveText([EIGENE_SEITE.name]);
 });
 
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {

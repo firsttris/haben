@@ -743,6 +743,20 @@
       "when": 1793988830647,
       "tag": "0105_belege_externe_referenz",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1793988831647,
+      "tag": "0106_eigene_seiten",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1793988832647,
+      "tag": "0107_eigene_seiten_trigger",
+      "breakpoints": true
     }
   ]
 }
