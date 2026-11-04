@@ -14,12 +14,13 @@ import { buildHinterlegungPdf } from "@haben/einvoice";
 import { z } from "zod";
 import { UserError } from "../../errors.ts";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
-import { ledgerRange, saldenliste } from "./ledger.ts";
+import { ledgerRange, saldenliste, uebernahmen } from "./ledger.ts";
 
 /*
  * Bilanz einer GmbH oder UG zur Hinterlegung beim Unternehmensregister (§ 326 Abs. 2 HGB), als PDF. Die Vorjahresspalte
  * (§ 265 Abs. 2 HGB) kommt aus der Spalte „Eröffnung“ der Saldenliste: Die Salden zum 1. Januar sind die Schlussbilanz
- * des Vorjahres (Bilanzidentität, § 252 Abs. 1 Nr. 1 HGB), ob vorgetragen oder per Eröffnungsbuchung übernommen.
+ * des Vorjahres (Bilanzidentität, § 252 Abs. 1 Nr. 1 HGB), ob vorgetragen oder per Eröffnungsbuchung übernommen; dazu
+ * kommt, was im Jahr gegen 9000 übernommen ist (Umzug, Anlagen).
  */
 
 export class HinterlegungError extends UserError {}
@@ -51,7 +52,12 @@ async function bilanzen(year: number, company: Company): Promise<{ report: Absch
     company.kontenrahmen,
     rows.map((r) => ({ account: r.account, saldo: r.saldo })),
   );
-  const eroeffnung = rows.filter((r) => r.eroeffnung !== 0).map((r) => ({ account: r.account, saldo: r.eroeffnung }));
+  // Stand am 1. Januar: Vortrag und Eröffnungsbuchung, dazu was im Jahr gegen 9000 übernommen ist (Umzug, Anlagen)
+  const salden = new Map<string, number>();
+  for (const { account, saldo } of [...rows.map((r) => ({ account: r.account, saldo: r.eroeffnung })), ...(await uebernahmen(year, company.kontenrahmen))]) {
+    salden.set(account, (salden.get(account) ?? 0) + saldo);
+  }
+  const eroeffnung = [...salden].filter(([, saldo]) => saldo !== 0).map(([account, saldo]) => ({ account, saldo }));
   return { report, vorjahr: eroeffnung.length > 0 ? abschluss(company.kontenrahmen, eroeffnung) : null };
 }
 
