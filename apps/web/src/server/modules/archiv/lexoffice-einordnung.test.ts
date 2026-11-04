@@ -116,6 +116,17 @@ describe.skipIf(!testDatabaseUrl)("Einordnung privater und neutraler Kategorien 
         const [raw] = await sql`select count(*)::int as n from lexoffice_vouchers where raw->>'privat' = 'true'`;
         expect(raw!.n).toBe(1);
       });
+
+      it("GmbH: ein Beleg mit Umsatzsteuer bleibt in der Umsatzsteuer je Monat, auch mit „privat“ im Namen", async () => {
+        await setup("gmbh", kontenrahmen, versteuerung);
+        await voucher({ direction: "einnahme", category: "Private Kfz-Nutzung", net: 50_000, tax: 9_500, paidOn: "2025-04-05" });
+        const { years } = await lexoffice.reconciliation();
+        const year = years.find((y) => y.year === 2025)!;
+        expect(year.einnahmen).toEqual({ count: 2, net: 150_000, tax: 28_500, gross: 178_500 });
+        expect(year.vat.find((m) => m.month === kz81Month)).toMatchObject({ kz81: 150_000 });
+        const period = await lexoffice.legacyVouchersForPeriod({ period: "2025", direction: "einnahme", search: "", withPayments: true, limit: 50 });
+        expect(period.vouchers.map((v) => v.net).sort((a, b) => a - b)).toEqual([50_000, 100_000]);
+      });
     });
   });
 });

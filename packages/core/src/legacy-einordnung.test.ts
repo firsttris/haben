@@ -60,3 +60,26 @@ describe("legacyNeutralSums", () => {
     ]);
   });
 });
+
+describe("Review: Einordnung bei GmbH und UG", () => {
+  it("ein Beleg mit Umsatzsteuer ist Leistungsaustausch und bleibt Einnahme bzw. Ausgabe (Private Kfz-Nutzung, § 3 Abs. 9a UStG)", () => {
+    expect(legacyNeutralKind({ privat: false, categories: ["Private Kfz-Nutzung"], tax: 1_900 }, "gmbh")).toBeNull();
+    expect(legacyNeutralKind({ privat: false, categories: ["Gesellschafter"], tax: -1_900 }, "ug")).toBeNull();
+    expect(legacyNeutralKind({ privat: false, categories: ["Gesellschafter"], tax: 0 }, "gmbh")).toBe("gesellschafter");
+  });
+
+  it("Solidaritätszuschlag zur Lohnsteuer ist Lohnaufwand, keine Steuer vom Einkommen der GmbH", () => {
+    expect(kind(["Lohnsteuer und Solidaritätszuschlag"], "gmbh")).toBeNull();
+    expect(kind(["Solidaritätszuschlag"], "gmbh")).toBe("ertragsteuern");
+  });
+
+  it("Gutschriften mindern Zufluss bzw. Abfluss statt sie zu erhöhen", () => {
+    expect(
+      legacyNeutralSums([
+        { kind: "gesellschafter", direction: "einnahme", gross: 100_000 },
+        { kind: "gesellschafter", direction: "einnahme", gross: -100_000 },
+        { kind: "gesellschafter", direction: "ausgabe", gross: 50_000 },
+      ]),
+    ).toEqual([{ kind: "gesellschafter", label: expect.any(String), count: 3, zufluss: 0, abfluss: 50_000 }]);
+  });
+});
