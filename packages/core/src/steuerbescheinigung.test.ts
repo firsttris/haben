@@ -55,9 +55,6 @@ describe("Steuerbescheinigung nach § 45a Abs. 2 EStG (Muster II)", () => {
       beschlusstag: "2026-04-28",
       zeitraum: "das Geschäftsjahr 2025",
     });
-    // Vor diesem Stand gebuchte Ausschüttungen kennen das Geschäftsjahr nicht
-    const alt = steuerbescheinigung(eingabe({ beschluss: { datum: "2026-04-28", geschaeftsjahr: null } }));
-    expect(alt.ok && alt.bescheinigung.zeitraum).toBeNull();
   });
 
   it("mit Kirchensteuer 9 %: ermäßigte KapESt und die Religionsgemeinschaft mit Namen unter der Kirchensteuer", () => {

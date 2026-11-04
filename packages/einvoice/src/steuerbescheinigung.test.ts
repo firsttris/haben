@@ -37,7 +37,6 @@ describe("Steuerbescheinigung als PDF (Muster II)", () => {
     expect(data.intro).toBe(
       "An Erika Muster, Lindenweg 1, 28195 Bremen (Identifikationsnummer 86095742719) wurden lt. Beschluss vom 28.04.2026 am 05.05.2026 für das Geschäftsjahr 2025 folgende Kapitalerträge gezahlt:",
     );
-    expect(steuerbescheinigungPdfData({ bescheinigung: bescheinigung(0, null) }).intro).toContain("am 05.05.2026 folgende Kapitalerträge gezahlt:");
   });
 
   it("Zeilen formatiert, Fußnoten des Musters zur Anlage KAP, keine eigenen Hinweise", () => {

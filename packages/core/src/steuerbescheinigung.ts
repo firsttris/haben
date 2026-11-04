@@ -99,6 +99,12 @@ export function bescheinigungFehlend(e: SteuerbescheinigungEingabe): string[] {
   if (!g.idnr || !/^\d{11}$/.test(g.idnr)) fehlend.push(`Steuerliche Identifikationsnummer von ${g.name} fehlt ${angaben}.`);
   // Muster II, Zeile unter der Kirchensteuer: „kirchensteuererhebende Religionsgemeinschaft“, mit Namen, nicht als Schlüssel
   if (anteil.kist > 0 && blank(g.religionsgemeinschaft)) fehlend.push(`Kirchensteuererhebende Religionsgemeinschaft von ${g.name} fehlt ${angaben}.`);
+  // Muster II, Alternative 1: „für … (Zeitraum)“; Rz. 1 des BMF-Schreibens erlaubt keine Abweichung im Inhalt
+  if (e.beschluss.geschaeftsjahr === null) {
+    fehlend.push(
+      "Das Geschäftsjahr der Ausschüttung fehlt; sie wurde vor diesem Feld gebucht. Für eine Bescheinigung die Ausschüttung stornieren und mit Geschäftsjahr neu buchen.",
+    );
+  }
   // Muster II „darf erst nach Vornahme der Leistung an den Gläubiger ausgestellt werden“ (Frotscher/Geurts, EStG § 45a Rz. 100)
   if (e.zahlungstag > e.ausstellungstag)
     fehlend.push(`Die Ausschüttung fließt erst am ${deutschesDatum(e.zahlungstag)} zu; die Bescheinigung gibt es ab diesem Tag.`);
