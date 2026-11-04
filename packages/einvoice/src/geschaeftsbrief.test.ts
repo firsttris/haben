@@ -100,6 +100,47 @@ describe("Pflichtangaben auf den Briefen", () => {
   });
 });
 
+/** Wörter eines PDFs mit unterem Rand und Seitenhöhe (pdftotext -bbox); ohne das Werkzeug null */
+function pdfWords(pdf: Uint8Array): { text: string; yMax: number; pageHeight: number }[] | null {
+  const dir = mkdtempSync(join(tmpdir(), "haben-35a-"));
+  try {
+    const file = join(dir, "beleg.pdf");
+    writeFileSync(file, pdf);
+    const html = execFileSync("pdftotext", ["-bbox", file, "-"], { encoding: "utf8" });
+    return html.split("<page ").slice(1).flatMap((page) => {
+      const pageHeight = Number(/height="([\d.]+)"/.exec(page)![1]);
+      return [...page.matchAll(/yMax="([\d.]+)">([^<]*)<\/word>/g)].map((m) => ({ text: m[2]!, yMax: Number(m[1]), pageHeight }));
+    });
+  } catch {
+    return null;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+describe("Fuß mit langen Pflichtangaben", () => {
+  // Rechtsform, drei Geschäftsführer und Aufsichtsrat: Die Zeile bricht um; der Fuß darf nicht über den Blattrand laufen
+  const seller = {
+    ...gmbhSeller,
+    name: "Mustermann Software",
+    legalInfo: {
+      ...gmbhSeller.legalInfo!,
+      legalForm: "UG (haftungsbeschränkt)",
+      managingDirectors: ["Erika Annemarie Mustermann", "Maximilian Alexander Mustermann", "Friederike Charlotte Schulze-Westerhoff"],
+      supervisoryBoardChair: "Hans-Joachim Lüdenscheid",
+    },
+  };
+  const lines = Array.from({ length: 40 }, () => ({ description: "Softwareentwicklung", quantity: 1000, unit: "Std.", unitPrice: 9500, taxRate: 1900 }));
+
+  it("bleibt mit Seitenzahl auf dem Blatt", () => {
+    const words = pdfWords(renderInvoicePdf({ ...sampleDocument({ lines }), seller }));
+    if (words === null) return;
+    expect(words.some((w) => w.text === "Seite")).toBe(true);
+    expect(words.some((w) => w.text === "Lüdenscheid")).toBe(true);
+    expect(words.filter((w) => w.yMax > w.pageHeight).map((w) => w.text)).toEqual([]);
+  });
+});
+
 describe("Pflichtangaben in der E-Rechnung", () => {
   it("UBL: Registernummer als BT-30, Pflichtangaben als BT-33", async () => {
     const { xml } = await buildEInvoice({ ...sampleDocument({ format: "xrechnung-ubl" }), seller: gmbhSeller });
