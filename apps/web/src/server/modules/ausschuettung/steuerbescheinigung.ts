@@ -1,4 +1,4 @@
-import { steuerbescheinigung, type SteuerbescheinigungErgebnis } from "@haben/core";
+import { legalInfo, steuerbescheinigung, type SteuerbescheinigungErgebnis } from "@haben/core";
 import { buildSteuerbescheinigungPdf } from "@haben/einvoice";
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
@@ -74,7 +74,9 @@ export async function loadSteuerbescheinigungPdf(dividendId: string, nr: number,
   const [company, { angaben }, letterhead] = await Promise.all([loadCompany(), kapgErklaerungAngaben(Number(d.beschlussDate.slice(0, 4))), loadLetterhead()]);
   const r = ergebnis(d, nr, company, angaben, today);
   if (!r.ok) throw new AusschuettungError(r.fehlend.join(" "));
-  const pdf = buildSteuerbescheinigungPdf({ ...letterhead, bescheinigung: r.bescheinigung });
+  // Die Bescheinigung ist ein Geschäftsbrief der Gesellschaft an den Gesellschafter (§ 35a Abs. 1 GmbHG)
+  const legal = legalInfo(company);
+  const pdf = buildSteuerbescheinigungPdf({ ...letterhead, bescheinigung: r.bescheinigung, ...(legal ? { legalInfo: legal } : {}) });
   const name = e.name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
   return { pdf, filename: `Steuerbescheinigung-${d.zufluss}-${name}.pdf` };
 }

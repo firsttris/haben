@@ -478,3 +478,57 @@ test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf
   await page.waitForURL(/\/buchungen/);
   await expect(page.getByText(/Storno: Beleg L-4711/)).toBeVisible();
 });
+
+test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pflichtangaben im Fuß der Rechnung und im XML", async () => {
+  // Registergericht und -nummer stehen seit der Hinterlegung in den Firmendaten, die Geschäftsführung fehlt noch
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await expect(firma.locator("#letter-issues")).toContainText("Für Rechnungen und Geschäftsbriefe fehlt noch (§ 35a GmbHG): Geschäftsführer fehlt.");
+
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Hafenkontor Logistik GmbH");
+  await page.getByLabel("Straße und Hausnummer").fill("Kaiserkai 7");
+  await page.getByLabel("PLZ").fill("20457");
+  await page.getByLabel("Ort").fill("Hamburg");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  // Fehlende Angaben sind ein Hinweis, keine Sperre (eine Vor-GmbH hat noch keine Registernummer)
+  await go("/rechnungen/neu");
+  await expect(page.locator("#letter-issues")).toContainText("Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): Geschäftsführer fehlt.");
+  await page.getByLabel("Kunde").selectOption({ label: "Hafenkontor Logistik GmbH · Hamburg" });
+  await page.getByLabel("Beschreibung Position 1").fill("Softwarewartung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("500");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const entwurf = new URL(page.url()).pathname;
+
+  await go("/einstellungen");
+  await firma.getByRole("textbox", { name: /^Geschäftsführer/ }).fill("E. Gesellschafter");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  await expect(firma.locator("#letter-issues")).toContainText("„E. Gesellschafter“: Familienname und ausgeschriebener Vorname");
+  await firma.getByRole("textbox", { name: /^Geschäftsführer/ }).fill("Erika Gesellschafter");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(firma.locator("#letter-issues")).toHaveCount(0);
+  expect(await axe(), "/einstellungen Geschäftsführer").toEqual([]);
+
+  const fuss = "Sitz der Gesellschaft: Bremen · Registergericht: Amtsgericht Bremen, HRB 12345 HB · Geschäftsführung: Erika Gesellschafter";
+  await go(entwurf);
+  await expect(page.locator("#letter-issues")).toHaveCount(0);
+  await expect(page.getByLabel("Vorschau der Rechnung")).toContainText(fuss);
+  expect(await axe(), "/rechnungen/… Entwurf der GmbH").toEqual([]);
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+
+  const id = entwurf.split("/").pop();
+  // EN 16931: Registernummer als BT-30, Pflichtangaben als BT-33 (in CII die Description des Verkäufers)
+  const xml = await (await page.request.get(`/api/rechnung/${id}/xml`)).text();
+  expect(xml).toContain(`<ram:Description>${fuss}</ram:Description>`);
+  expect(xml).toMatch(/<ram:SpecifiedLegalOrganization>\s*<ram:ID>HRB 12345 HB<\/ram:ID>/);
+  const pdf = await (await page.request.get(`/api/rechnung/${id}/pdf`)).body();
+  expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+});

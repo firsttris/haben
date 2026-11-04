@@ -2,6 +2,8 @@
 // formatiert als JSON über sys.inputs.data; hier wird nichts berechnet.
 
 #let d = json(bytes(sys.inputs.data))
+// Pflichtangaben einer GmbH oder UG (§ 35a GmbHG) unter den Spalten des Fußes; ohne sie bleibt der Fuß wie bisher
+#let legal = d.at("legal", default: none)
 
 // Grautöne für Text, Beschriftungen und Linien, aus der Akzentfarbe abgeleitet (accentPalette in packages/core)
 #let ink = rgb(d.palette.ink)
@@ -24,9 +26,14 @@
   lines.join(linebreak())
 }
 
+// Pflichtangaben über die ganze Breite unter den Spalten des Fußes
+#let legal-foot = if legal == none { none } else { pad(top: 2mm, footer-col((legal,))) }
+
 #set page(
   paper: "a4",
   margin: (top: 20mm, bottom: 34mm, left: 25mm, right: 20mm),
+  // Fest statt 30 % des Rands: Wächst der Rand um die Pflichtangaben, bekommt der Fuß den ganzen Zuwachs
+  footer-descent: 10.2mm,
   background: {
     // Falz- und Lochmarken (Form B)
     place(top + left, dx: 4mm, dy: 105mm, line(length: 4mm, stroke: 0.4pt + rule))
@@ -44,6 +51,7 @@
       footer-col(d.footer.at(1)),
       footer-col(d.footer.at(2)),
     )
+    if legal-foot != none { legal-foot }
     let total = counter(page).final().first()
     if total > 1 {
       v(2.5mm)
@@ -52,6 +60,14 @@
     }
   },
 )
+
+// Der Fuß hängt oben im unteren Rand und wächst nach unten: Bricht die Zeile mit den Pflichtangaben um, liefe er mit
+// festem Rand über das Blatt. Darum wächst der Rand um ihre gemessene Höhe (Satzspiegel 210 − 25 − 20 = 165 mm).
+#show: doc => context {
+  if legal-foot == none { return doc }
+  set page(margin: (top: 20mm, bottom: 34mm + measure(block(width: 165mm, legal-foot)).height, left: 25mm, right: 20mm))
+  doc
+}
 
 // Logo oben rechts im Briefkopf, höchstens 18 mm hoch und 60 mm breit
 #if d.at("logo", default: none) != none {
