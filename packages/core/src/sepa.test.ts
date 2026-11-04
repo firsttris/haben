@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { validateXML } from "xmllint-wasm";
 import { pain001, sepaAmount, sepaTransferProblems, type SepaTransferOrder } from "./sepa.ts";
-import { isValidBic, isValidIban, sepaText } from "./sepa-text.ts";
+import { isEwrIban, isValidBic, isValidIban, sepaText } from "./sepa-text.ts";
 
 /*
  * Schemas für die Prüfung:
@@ -90,6 +90,20 @@ describe("IBAN und BIC", () => {
     expect(isValidIban("DE88370400440532013000")).toBe(false);
     expect(isValidIban("DE8937040044")).toBe(false);
     expect(isValidIban("")).toBe(false);
+  });
+
+  // Haben erzeugt SEPA-Dateien nur für Empfänger im EWR (EU, Island, Liechtenstein, Norwegen): Außerhalb von SEPA lehnt die
+  // Bank ab, und SEPA-Länder außerhalb des EWR (Schweiz, Vereinigtes Königreich, Monaco …) verlangen BIC und Anschrift
+  it("erkennt IBANs aus dem EWR", () => {
+    expect(isEwrIban("DE89 3704 0044 0532 0130 00")).toBe(true);
+    expect(isEwrIban("AT611904300234573201")).toBe(true);
+    expect(isEwrIban("NO9386011117947")).toBe(true);
+    expect(isValidIban("TR330006100519786457841326")).toBe(true);
+    expect(isEwrIban("TR330006100519786457841326")).toBe(false);
+    expect(isValidIban("CH9300762011623852957")).toBe(true);
+    expect(isEwrIban("CH9300762011623852957")).toBe(false);
+    expect(isValidIban("GB29NWBK60161331926819")).toBe(true);
+    expect(isEwrIban("GB29NWBK60161331926819")).toBe(false);
   });
 
   it("prüft die BIC mit 8 oder 11 Zeichen", () => {

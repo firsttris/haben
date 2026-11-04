@@ -137,6 +137,8 @@ describe.skipIf(!testDatabaseUrl)("SEPA-Überweisungen (Postgres)", () => {
     const withoutIban = await bookedDocument({ supplierName: "Ohne Konto KG", invoiceNumber: "OK-1", net: 5_000 });
     const invalid = await bookedDocument({ supplierName: "Tippfehler GmbH", invoiceNumber: "TF-1", contactId: typo.id, net: 2_000 });
     const foreign = await bookedDocument({ supplierName: "US Inc.", invoiceNumber: "US-1", net: 3_000, currency: "USD" });
+    const swiss = await supplier("Zürich AG", "CH9300762011623852957");
+    const outsideEwr = await bookedDocument({ supplierName: "Zürich AG", invoiceNumber: "ZH-1", contactId: swiss.id, net: 4_000 });
     const eRechnung = await bookedEInvoice();
 
     const byId = new Map((await bank.transferCandidates()).map((c) => [c.documentId, c]));
@@ -144,6 +146,7 @@ describe.skipIf(!testDatabaseUrl)("SEPA-Überweisungen (Postgres)", () => {
     expect(byId.get(withoutIban)).toMatchObject({ iban: null, problem: "IBAN fehlt: im Kontakt des Lieferanten eintragen" });
     expect(byId.get(invalid)?.problem).toBe("IBAN DE00370400440532013000 ist ungültig (Kontakt)");
     expect(byId.get(foreign)?.problem).toBe("Rechnung in USD: SEPA überweist nur Euro");
+    expect(byId.get(outsideEwr)?.problem).toBe("IBAN CH9300762011623852957 liegt außerhalb des EWR: bitte direkt im Online-Banking überweisen");
     expect(byId.get(eRechnung)).toMatchObject({
       open: 21_563,
       iban: SUPPLIER_IBAN,
