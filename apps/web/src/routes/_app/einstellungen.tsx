@@ -197,6 +197,8 @@ function CompanyForm() {
           kontenrahmen: text("kontenrahmen") === "SKR04" ? "SKR04" : "SKR03",
           paymentTermDays: Number(text("paymentTermDays") || 14),
           defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
+          invoiceIntro: text("invoiceIntro"),
+          quoteIntro: text("quoteIntro"),
           kleinunternehmer: form.get("kleinunternehmer") === "on",
           tageskurs: form.get("tageskurs") === "on",
           einkunftsart: text("einkunftsart") === "gewerbe" ? "gewerbe" : text("einkunftsart") === "selbstaendig" ? "selbstaendig" : null,
@@ -438,7 +440,7 @@ function CompanyForm() {
       </section>
 
       <section className="form-section" aria-labelledby="company-invoices">
-        <h3 id="company-invoices">Rechnungen</h3>
+        <h3 id="company-invoices">Rechnungen und Angebote</h3>
         <div className="form-row cols-2">
           <label className="field">
             Standard-Zahlungsziel in Tagen
@@ -455,6 +457,20 @@ function CompanyForm() {
             </select>
           </label>
         </div>
+        <div className="form-row cols-2">
+          <label className="field">
+            Standard-Einleitung für Rechnungen
+            <textarea name="invoiceIntro" rows={3} maxLength={2000} defaultValue={company.invoiceIntro} aria-describedby="intro-hint" />
+          </label>
+          <label className="field">
+            Standard-Einleitung für Angebote
+            <textarea name="quoteIntro" rows={3} maxLength={2000} defaultValue={company.quoteIntro} aria-describedby="intro-hint" />
+          </label>
+        </div>
+        <p id="intro-hint" className="field-hint">
+          Steht in neuen Rechnungen und Angeboten als Einleitung über den Positionen und lässt sich dort anpassen. Rechnungen und Angebote, die es schon gibt,
+          ändern sich nicht. Leer = keine Einleitung.
+        </p>
       </section>
 
       {!gesellschaft && (

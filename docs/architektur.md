@@ -100,7 +100,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | Tabelle | Zweck | Schutz |
 | --- | --- | --- |
 | `year_closings` | Abgeschlossene Geschäftsjahre (GmbH, UG) mit Zahl und Prüfwert der Buchungen | Nur anhängen; Buchungen mit Datum in einem abgeschlossenen Jahr abgelehnt; Audit |
-| `company` | Firmendaten, Rechtsform, Versteuerungsart, Kontenrahmen, Zahlungsziel, Rechnungsformat; genau eine Zeile | Kontenrahmen, Versteuerung und Einschalten von § 19 gesperrt, sobald im laufenden Jahr gebucht ist; Rechtsform ab der ersten Buchung, bei GmbH und UG auch der Kontenrahmen; Audit |
+| `company` | Firmendaten, Rechtsform, Versteuerungsart, Kontenrahmen, Zahlungsziel, Rechnungsformat, Standard-Einleitung für Rechnungen und Angebote; genau eine Zeile | Kontenrahmen, Versteuerung und Einschalten von § 19 gesperrt, sobald im laufenden Jahr gebucht ist; Rechtsform ab der ersten Buchung, bei GmbH und UG auch der Kontenrahmen; Audit |
 | `elster_certificates` | ELSTER-Zertifikatsdatei, verschlüsselt; auf Wunsch die PIN für den automatischen Postfachabruf, ebenfalls verschlüsselt | Audit ohne Chiffrat und PIN |
 | `contacts` | Kunden und Lieferanten, mit Herkunft aus Lexoffice | nicht löschbar, versioniert, Audit |
 | `contact_versions` | Stand eines Kontakts je Version | nur anhängen |
