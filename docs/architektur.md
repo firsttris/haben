@@ -154,6 +154,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `vast_belege` | Abgeholte, entschlüsselte Belege (Lohnsteuerbescheinigung, Rentenbezüge, Beiträge …) als XML | nur anhängen, Audit ohne XML |
 | `dividends` | Gewinnausschüttungen einer GmbH oder UG: Beschluss, Zufluss, Bruttobetrag, Steuerabzug je Gesellschafter (JSON), Buchung; Storno per Gegenbuchung | nur anhängen, Audit |
 | `kapest_submissions` | Prüfungen und Übermittlungen der Kapitalertragsteuer-Anmeldung je Ausschüttung mit XML und Protokoll-PDF; höchstens eine erfolgreiche Echtübermittlung | nur anhängen, Audit ohne PDF |
+| `residual_terms` | Restlaufzeiten der Forderungen und Verbindlichkeiten einer GmbH oder UG je Jahr als JSON: je Konto Betrag beim Bestätigen und Teil über einem Jahr, für den Stichtag und die Vorjahresspalte (§ 268 Abs. 4 und 5 HGB) | änderbar, Audit |
 | `corporate_tax_inputs` | Angaben einer GmbH oder UG zu Körperschaft- und Gewerbesteuer je Jahr als JSON: Hebesatz, Verlustvorträge, Rücktrag, unter `erklaerung` Anteilseigner, Verträge, Gründung, Einlagekonto | änderbar, Audit |
 | `annual_submissions` | Prüfungen und Übermittlungen der Jahreserklärungen (Formulare `ust`, `euer`, `est`, `kst`, `gewst`) und der E-Bilanz (`ebilanz`) mit Werten, XML und Protokoll-PDF; höchstens eine erfolgreiche Echtübermittlung je Erklärung und Jahr | nur anhängen, Audit ohne PDF und XML |
 | `income_tax_inputs` | Angaben zur Einkommensteuererklärung je Jahr (Vorsorge, Sonderausgaben, Kinder, KAP) | änderbar, Audit |

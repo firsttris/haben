@@ -5,6 +5,7 @@ import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregister (Postgres)", () => {
   let sql: postgres.Sql;
   let hinterlegung: typeof import("./hinterlegung.ts");
+  let restlaufzeiten: typeof import("./restlaufzeiten.ts");
   let manual: typeof import("./manual.ts");
   let ledger: typeof import("./ledger.ts");
   const actor = "test-user";
@@ -14,6 +15,7 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
   beforeAll(async () => {
     sql = await setupTestDb();
     hinterlegung = await import("./hinterlegung.ts");
+    restlaufzeiten = await import("./restlaufzeiten.ts");
     manual = await import("./manual.ts");
     ledger = await import("./ledger.ts");
   }, 30_000);
@@ -28,7 +30,7 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
     versteuerung: "ist" | "soll",
     register = { sitz: "", registergericht: "Amtsgericht Bremen", registernummer: "HRB 12345 HB" },
   ) {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, company cascade`;
+    await sql`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, residual_terms, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform,
                                    sitz, registergericht, registernummer)
       values (1, 'Nordlicht GmbH', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB',
@@ -77,6 +79,11 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
         [k.ust, 0, 190_000],
       ]);
 
+      // Die Umsatzsteuer ist eine Verbindlichkeit: ohne bestätigte Restlaufzeit keine Datei (§ 268 Abs. 5 HGB)
+      expect((await hinterlegung.hinterlegungStand(2026, today))?.maengel).toEqual([
+        "Die Restlaufzeiten der Forderungen und Verbindlichkeiten zum 31.12.2026 sind noch nicht bestätigt (§ 268 Abs. 4 und 5 HGB).",
+      ]);
+      await restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: [{ account: k.ust, ueber1Jahr: 0 }], vorjahr: [] });
       const stand = await hinterlegung.hinterlegungStand(2026, today);
       expect(stand).toEqual({ frist: "2027-12-31", fristAbgelaufen: false, maengel: [], vorjahr: true });
 
@@ -87,6 +94,8 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
       expect(bilanz.passiva).toEqual([
         { label: "A. Eigenkapital", betrag: 3_500_000, vorjahr: 2_500_000 },
         { label: "C. Verbindlichkeiten", betrag: 190_000, vorjahr: 0 },
+        { label: "davon mit einer Restlaufzeit bis zu einem Jahr", betrag: 190_000, vorjahr: 0, vermerk: true },
+        { label: "davon mit einer Restlaufzeit von mehr als einem Jahr", betrag: 0, vorjahr: 0, vermerk: true },
       ]);
       expect(bilanz.summeAktiva.betrag).toBe(bilanz.summePassiva.betrag);
 
@@ -132,6 +141,9 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
         [k.forderung, 500_000, 0],
         ["9000", 0, 500_000],
       ]);
+      // Die übernommene Forderung ist in einem Jahr fällig, im Jahr und in der Vorjahresspalte
+      const offen = [{ account: k.forderung, ueber1Jahr: 0 }];
+      await restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: offen, vorjahr: offen });
       const stand = await hinterlegung.hinterlegungStand(2026, today);
       expect(stand?.maengel).toEqual([]);
       const bilanz = await hinterlegung.hinterlegungBilanzFuer(2026, KEINE, today);

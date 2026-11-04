@@ -1,6 +1,6 @@
-import { BILANZ_POSTEN, formatEuro, GUV_POSTEN, type Abschluss, type BilanzPosten, type GuvPosten, type Posten } from "@haben/core";
+import { BILANZ_POSTEN, formatEuro, GUV_POSTEN, type Abschluss, type BilanzPosten, type BilanzVermerk, type GuvPosten, type Posten } from "@haben/core";
 import { Link } from "@tanstack/react-router";
-import { useId, useState } from "react";
+import { Fragment, useId, useState } from "react";
 
 const AKTIVA: BilanzPosten[] = ["aktiva.A", "aktiva.B", "aktiva.C", "aktiva.D", "aktiva.E"];
 const PASSIVA: BilanzPosten[] = ["passiva.A", "passiva.B", "passiva.C", "passiva.D", "passiva.E"];
@@ -13,6 +13,26 @@ interface Props {
   names: Record<string, string>;
   /** Konten auf ihr Kontenblatt verlinken; nur für Buchungen aus dem Journal */
   kontoLinks: boolean;
+  /** Davon-Vermerke unter den Posten (§ 268 Abs. 4 und 5 HGB, § 42 Abs. 3 GmbHG) */
+  vermerke?: readonly BilanzVermerk[];
+}
+
+/** Die Vermerke eines Postens, eingerückt unter ihm */
+function VermerkRows({ vermerke, posten }: { vermerke: readonly BilanzVermerk[] | undefined; posten: BilanzPosten }) {
+  return (
+    <>
+      {(vermerke ?? [])
+        .filter((v) => v.posten === posten)
+        .map((v) => (
+          <tr key={v.label} className="subtotal-row">
+            <th scope="row" style={{ paddingLeft: 24 }}>
+              {v.label}
+            </th>
+            <td className="num">{formatEuro(v.betrag)}</td>
+          </tr>
+        ))}
+    </>
+  );
 }
 
 /** Ein Posten mit aufklappbaren Konten */
@@ -72,7 +92,10 @@ export function BilanzGuv(props: Props) {
           <table className="report-table">
             <tbody>
               {AKTIVA.filter((p) => report.bilanz[p] !== 0 || p === "aktiva.A" || p === "aktiva.B").map((p) => (
-                <PostenRow key={p} {...props} posten={p} label={BILANZ_POSTEN[p]} amount={report.bilanz[p]} />
+                <Fragment key={p}>
+                  <PostenRow {...props} posten={p} label={BILANZ_POSTEN[p]} amount={report.bilanz[p]} />
+                  <VermerkRows vermerke={props.vermerke} posten={p} />
+                </Fragment>
               ))}
             </tbody>
             <tfoot>
@@ -90,7 +113,10 @@ export function BilanzGuv(props: Props) {
           <table className="report-table">
             <tbody>
               {PASSIVA.filter((p) => report.bilanz[p] !== 0 || p === "passiva.A" || p === "passiva.C").map((p) => (
-                <PostenRow key={p} {...props} posten={p} label={BILANZ_POSTEN[p]} amount={report.bilanz[p]} />
+                <Fragment key={p}>
+                  <PostenRow {...props} posten={p} label={BILANZ_POSTEN[p]} amount={report.bilanz[p]} />
+                  <VermerkRows vermerke={props.vermerke} posten={p} />
+                </Fragment>
               ))}
             </tbody>
             <tfoot>

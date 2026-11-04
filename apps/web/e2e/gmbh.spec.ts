@@ -542,3 +542,31 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
   const pdf = await (await page.request.get(`/api/rechnung/${id}/pdf`)).body();
   expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
 });
+
+test("Restlaufzeiten und Vermerke: Gesellschafter-Verrechnungskonto, vorschlagen und bestätigen", async () => {
+  const year = new Date().getFullYear();
+  // Seit der Eröffnung aus dem DATEV-Stapel steht der Gesellschafter mit 300 € unter den Verbindlichkeiten
+  await go(`/abschluss/${year}`);
+  const passiva = page.getByRole("region", { name: `Passiva zum 31.12.${year}` });
+  // § 42 Abs. 3 GmbHG: ohne Bestätigung schon da; Restlaufzeiten (§ 268 Abs. 5 HGB) erst nach der Bestätigung
+  await expect(passiva.getByRole("row", { name: "davon gegenüber Gesellschaftern" })).toBeVisible();
+  await expect(passiva).not.toContainText("davon mit einer Restlaufzeit");
+
+  const rlz = page.getByRole("form", { name: `Restlaufzeiten ${year}` });
+  await expect(rlz).toContainText("Noch nicht bestätigt.");
+  await expect(rlz).toContainText("§ 271 Abs. 1 BGB");
+  const feld = rlz.getByLabel(`Konto 3510 zum 31.12.${year}: davon Restlaufzeit von mehr als einem Jahr`);
+  await expect(feld).toHaveValue("0,00");
+  // Vorjahresspalte: der Stand der Eröffnung
+  await expect(rlz.getByLabel(`Konto 3510 zum 31.12.${year - 1}: davon Restlaufzeit von mehr als einem Jahr`)).toHaveValue("0,00");
+  expect(await axe(), `/abschluss/${year} Restlaufzeiten`).toEqual([]);
+
+  // 100 € hat der Gesellschafter bis nach dem Folgejahr gestundet
+  await feld.fill("100,00");
+  await rlz.getByRole("button", { name: "Restlaufzeiten bestätigen" }).click();
+  await expect(page.getByText("Restlaufzeiten bestätigt.")).toBeVisible();
+  await expect(passiva.getByRole("row", { name: "davon mit einer Restlaufzeit von mehr als einem Jahr" })).toContainText("100,00");
+  await expect(passiva.getByRole("row", { name: "davon mit einer Restlaufzeit bis zu einem Jahr" })).toBeVisible();
+  await expect(rlz).toContainText("Zuletzt bestätigt am");
+  expect(await axe(), `/abschluss/${year} Restlaufzeiten bestätigt`).toEqual([]);
+});

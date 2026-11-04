@@ -26,7 +26,7 @@ Gedacht ist das für eine kleine GmbH, etwa die eines Freiberuflers mit einem od
 2. **Körperschaft- und Gewerbesteuer** rechnen und die Rückstellungen buchen: [Körperschaft- und Gewerbesteuer](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug).
 3. **Jahr abschließen**; danach lässt sich in das Jahr nichts mehr buchen.
 4. **E-Bilanz** an das Finanzamt (§ 5b EStG), von ERiC geprüft: [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug).
-5. **Hinterlegung** beim Unternehmensregister, spätestens ein Jahr nach dem Stichtag: Bilanz als PDF mit den Angaben unter der Bilanz, nach der Feststellung durch die Gesellschafter, siehe [Hinterlegung](buchhaltung.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug). Sitz, Registergericht und Registernummer stehen in den [Firmendaten](einrichtung.md#firmendaten).
+5. **Hinterlegung** beim Unternehmensregister, spätestens ein Jahr nach dem Stichtag: Bilanz als PDF mit den Vermerken zu Restlaufzeiten und gegenüber Gesellschaftern und den Angaben unter der Bilanz, nach der Feststellung durch die Gesellschafter, siehe [Hinterlegung](buchhaltung.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug). Sitz, Registergericht und Registernummer stehen in den [Firmendaten](einrichtung.md#firmendaten).
 6. **Erklärungen** an das Finanzamt: Umsatzsteuer, Körperschaftsteuer mit der Feststellung des Einlagekontos (Anlage KSt 1 F) und Gewerbesteuer, siehe [Jahreserklärungen](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug).
 
 Die Termine für Voranmeldung, Kapitalertragsteuer-Anmeldung und Erklärungen stehen unter [Fristen](fristen.md).
