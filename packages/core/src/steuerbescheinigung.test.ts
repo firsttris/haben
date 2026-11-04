@@ -147,6 +147,15 @@ describe("Steuerbescheinigung nach § 45a Abs. 2 EStG (Muster II)", () => {
     });
   });
 
+  // Muster II, Alternative 1: „für … (Zeitraum)“ gehört zum Inhalt; Rz. 1 des BMF-Schreibens vom 16.05.2025 erlaubt keine
+  // Abweichung. Ausschüttungen, die vor dem Feld „Geschäftsjahr“ gebucht wurden, bekommen deshalb keine Bescheinigung.
+  it("ohne Geschäftsjahr der Ausschüttung keine Bescheinigung", () => {
+    expect(steuerbescheinigung(eingabe({ beschluss: { datum: "2026-04-28", geschaeftsjahr: null } }))).toEqual({
+      ok: false,
+      fehlend: [expect.stringContaining("Geschäftsjahr")],
+    });
+  });
+
   it("erst ab dem Zahlungstag", () => {
     expect(steuerbescheinigung(eingabe({ zahlungstag: "2026-05-07", ausstellungstag: "2026-05-06" }))).toEqual({
       ok: false,
