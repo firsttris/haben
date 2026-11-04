@@ -1,4 +1,5 @@
 import {
+  ACCOUNTS,
   dauerfristActive,
   filingPeriodsOfYear,
   frequencyAt,
@@ -11,7 +12,7 @@ import {
   type VatPeriod,
 } from "@haben/core";
 import { buildDauerfristXml, type ElsterClient, type ElsterResult } from "@haben/elster";
-import { and, desc, eq, min } from "drizzle-orm";
+import { and, desc, eq, min, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/index.ts";
@@ -44,6 +45,23 @@ export interface DauerfristInput {
 }
 
 /** Stand von Hand: beantragt außerhalb von Haben, oder beendet (zurückgenommen oder vom Finanzamt widerrufen) */
+/**
+ * Ist die Sondervorauszahlung des Jahres echt angemeldet (Übermittlung aus Haben) oder gezahlt (Buchung auf dem Konto
+ * „Umsatzsteuer-Vorauszahlungen 1/11“)? Ein nur von Hand eingetragener Stand lässt sich dagegen zurücknehmen.
+ */
+async function sondervorauszahlungFiled(tx: Tx, year: number): Promise<boolean> {
+  const [row] = await tx.execute<{ filed: boolean }>(sql`
+    select exists (
+      select 1 from vat_extension_submissions s
+      where s.year = ${year} and s.kind = 'send' and s.ok and coalesce(s.kz38, 0) > 0
+    ) or exists (
+      select 1 from journal_lines l join journal_entries e on e.id = l.entry_id
+      where e.date >= ${`${year}-01-01`} and e.date <= ${`${year}-12-31`}
+        and l.account = case e.kontenrahmen when 'SKR03' then ${ACCOUNTS.SKR03.sondervorauszahlung} else ${ACCOUNTS.SKR04.sondervorauszahlung} end
+    ) as filed`);
+  return Boolean(row?.filed);
+}
+
 export async function saveDauerfrist(actor: string, input: DauerfristInput): Promise<void> {
   if (input.sondervorauszahlung !== null && (input.sondervorauszahlung < 0 || input.sondervorauszahlung % 100 !== 0)) {
     throw new VatError("Die Sondervorauszahlung ist ein Betrag in vollen Euro, nicht negativ.");
@@ -53,7 +71,7 @@ export async function saveDauerfrist(actor: string, input: DauerfristInput): Pro
     // Die Sondervorauszahlung wird in der letzten Voranmeldung angerechnet, für die die Verlängerung gilt (§ 48 Abs. 4
     // UStDV). Ein Ende im Lauf des Jahres bildet Haben nicht ab; beendet würde sie aus Kz 39 und dem Vorauszahlungssoll fallen.
     const [own] = await tx.select().from(schema.vatExtensions).where(eq(schema.vatExtensions.year, input.year)).for("update");
-    if (!input.active && own?.active && (own.sondervorauszahlung ?? 0) > 0) {
+    if (!input.active && own?.active && (own.sondervorauszahlung ?? 0) > 0 && (await sondervorauszahlungFiled(tx, input.year))) {
       throw new VatError(
         `Für ${input.year} ist eine Sondervorauszahlung angemeldet; die Verlängerung lässt sich erst ab dem Folgejahr beenden. Endet sie im Lauf des Jahres, rechnet das Finanzamt die Sondervorauszahlung in der letzten Voranmeldung davor an.`,
       );

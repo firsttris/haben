@@ -219,6 +219,25 @@ describe.skipIf(!testDatabaseUrl)("Dauerfristverlängerung (Postgres)", () => {
     expect(await dauerfrist.dauerfristFor(2027)).toBe(false);
   });
 
+  it("gezahlte Sondervorauszahlung: Verlängerung erst ab dem Folgejahr beenden", async () => {
+    const { withActor } = await import("../../db/actor.ts");
+    const ledger = await import("../buchhaltung/ledger.ts");
+    await dauerfrist.saveDauerfrist(actor, { year: 2026, active: true, sondervorauszahlung: 120_000 });
+    await withActor(actor, async (tx) =>
+      ledger.post(tx, await ledger.openBooks(tx), {
+        date: "2026-02-10",
+        description: "Sondervorauszahlung",
+        sourceType: "manuell",
+        sourceId: globalThis.crypto.randomUUID(),
+        lines: [
+          { account: "1781", debit: 120_000, credit: 0, taxCode: null },
+          { account: "1200", debit: 0, credit: 120_000, taxCode: null },
+        ],
+      }),
+    );
+    await expect(dauerfrist.saveDauerfrist(actor, { year: 2026, active: false, sondervorauszahlung: null })).rejects.toThrow("Folgejahr");
+  });
+
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const versteuerung of ["ist", "soll"] as const) {
       it(`Zahlung der Sondervorauszahlung bucht ${kontenrahmen} (${versteuerung}) auf „Umsatzsteuer-Vorauszahlungen 1/11“ und zählt in der EÜR`, async () => {
