@@ -133,6 +133,11 @@ function VatPeriodPage() {
 
       {/* key: Formular bei Zeitraum- oder Anmeldungswechsel neu aufsetzen */}
       <VatReturnEditor key={`${key}-${data.current?.id ?? "neu"}-${data.current?.updatedAt ?? ""}`} data={data} notice={notice} setNotice={setNotice} />
+      {/* Außerhalb des Editors: der baut sich nach jedem Speichern der Anmeldung neu auf und verwürfe sonst die Auswahl hier */}
+      <div className="grid-main" style={{ marginTop: 16 }}>
+        <VatFrequencyCard key={data.frequency.year} frequency={data.frequency} />
+        <DauerfristCard key={`dauerfrist-${data.dauerfrist.year}`} overview={data.dauerfrist} setup={data} />
+      </div>
     </>
   );
 }
@@ -558,8 +563,6 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
             blocked={dirty || stale || data.companyIssues.length > 0}
           />
         )}
-        <VatFrequencyCard key={data.frequency.year} frequency={data.frequency} />
-        <DauerfristCard key={`dauerfrist-${data.dauerfrist.year}`} overview={data.dauerfrist} setup={data} />
         <History data={data} />
       </div>
     </div>
