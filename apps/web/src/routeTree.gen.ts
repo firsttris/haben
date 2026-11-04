@@ -47,6 +47,7 @@ import { Route as AppKontenKontoRouteImport } from './routes/_app/konten/$konto'
 import { Route as AppRechnungenIndexRouteImport } from './routes/_app/rechnungen/index'
 import { Route as AppRechnungenIdRouteImport } from './routes/_app/rechnungen/$id'
 import { Route as AppRechnungenNeuRouteImport } from './routes/_app/rechnungen/neu'
+import { Route as AppSeitenIdRouteImport } from './routes/_app/seiten/$id'
 import { Route as AppTextbausteineIndexRouteImport } from './routes/_app/textbausteine/index'
 import { Route as AppUmsatzsteuerIndexRouteImport } from './routes/_app/umsatzsteuer/index'
 import { Route as AppUmsatzsteuerZeitraumRouteImport } from './routes/_app/umsatzsteuer/$zeitraum'
@@ -268,6 +269,11 @@ const AppRechnungenNeuRoute = AppRechnungenNeuRouteImport.update({
   path: '/rechnungen/neu',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSeitenIdRoute = AppSeitenIdRouteImport.update({
+  id: '/seiten/$id',
+  path: '/seiten/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppTextbausteineIndexRoute = AppTextbausteineIndexRouteImport.update({
   id: '/textbausteine/',
   path: '/textbausteine/',
@@ -451,6 +457,7 @@ export interface FileRoutesByFullPath {
   '/konten/$konto': typeof AppKontenKontoRoute
   '/rechnungen/$id': typeof AppRechnungenIdRoute
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
+  '/seiten/$id': typeof AppSeitenIdRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
   '/api/angebot/$id': typeof ApiAngebotIdRoute
@@ -520,6 +527,7 @@ export interface FileRoutesByTo {
   '/konten/$konto': typeof AppKontenKontoRoute
   '/rechnungen/$id': typeof AppRechnungenIdRoute
   '/rechnungen/neu': typeof AppRechnungenNeuRoute
+  '/seiten/$id': typeof AppSeitenIdRoute
   '/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
   '/api/angebot/$id': typeof ApiAngebotIdRoute
@@ -591,6 +599,7 @@ export interface FileRoutesById {
   '/_app/konten/$konto': typeof AppKontenKontoRoute
   '/_app/rechnungen/$id': typeof AppRechnungenIdRoute
   '/_app/rechnungen/neu': typeof AppRechnungenNeuRoute
+  '/_app/seiten/$id': typeof AppSeitenIdRoute
   '/_app/umsatzsteuer/$zeitraum': typeof AppUmsatzsteuerZeitraumRoute
   '/api/altbeleg/$id': typeof ApiAltbelegIdRoute
   '/api/angebot/$id': typeof ApiAngebotIdRoute
@@ -662,6 +671,7 @@ export interface FileRouteTypes {
     | '/konten/$konto'
     | '/rechnungen/$id'
     | '/rechnungen/neu'
+    | '/seiten/$id'
     | '/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
     | '/api/angebot/$id'
@@ -731,6 +741,7 @@ export interface FileRouteTypes {
     | '/konten/$konto'
     | '/rechnungen/$id'
     | '/rechnungen/neu'
+    | '/seiten/$id'
     | '/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
     | '/api/angebot/$id'
@@ -801,6 +812,7 @@ export interface FileRouteTypes {
     | '/_app/konten/$konto'
     | '/_app/rechnungen/$id'
     | '/_app/rechnungen/neu'
+    | '/_app/seiten/$id'
     | '/_app/umsatzsteuer/$zeitraum'
     | '/api/altbeleg/$id'
     | '/api/angebot/$id'
@@ -1141,6 +1153,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRechnungenNeuRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/seiten/$id': {
+      id: '/_app/seiten/$id'
+      path: '/seiten/$id'
+      fullPath: '/seiten/$id'
+      preLoaderRoute: typeof AppSeitenIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/textbausteine/': {
       id: '/_app/textbausteine/'
       path: '/textbausteine'
@@ -1377,6 +1396,7 @@ interface AppRouteChildren {
   AppKontenKontoRoute: typeof AppKontenKontoRoute
   AppRechnungenIdRoute: typeof AppRechnungenIdRoute
   AppRechnungenNeuRoute: typeof AppRechnungenNeuRoute
+  AppSeitenIdRoute: typeof AppSeitenIdRoute
   AppUmsatzsteuerZeitraumRoute: typeof AppUmsatzsteuerZeitraumRoute
   AppAbschlussIndexRoute: typeof AppAbschlussIndexRoute
   AppAngeboteIndexRoute: typeof AppAngeboteIndexRoute
@@ -1422,6 +1442,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppKontenKontoRoute: AppKontenKontoRoute,
   AppRechnungenIdRoute: AppRechnungenIdRoute,
   AppRechnungenNeuRoute: AppRechnungenNeuRoute,
+  AppSeitenIdRoute: AppSeitenIdRoute,
   AppUmsatzsteuerZeitraumRoute: AppUmsatzsteuerZeitraumRoute,
   AppAbschlussIndexRoute: AppAbschlussIndexRoute,
   AppAngeboteIndexRoute: AppAngeboteIndexRoute,

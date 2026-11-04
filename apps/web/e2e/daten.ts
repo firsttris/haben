@@ -44,3 +44,20 @@ export const ANONYMOUS = { storageState: { cookies: [], origins: [] } };
 export function chunks<T>(list: readonly T[], size: number): T[][] {
   return Array.from({ length: Math.ceil(list.length / size) }, (_, i) => list.slice(i * size, (i + 1) * size));
 }
+
+/** Die eigene Seite, die app.spec.ts unter Einstellungen → Eigene Seiten einhängt */
+export const EIGENE_SEITE = { name: "Bestellungen", url: "https://bestellungen.example/uebersicht" };
+
+/**
+ * Beantwortet die Adresse der eigenen Seite im Browser selbst: Im Test gibt es kein n8n, und .example löst nicht auf.
+ * Ohne `<main>`: axe zählt Landmarks über den Rahmen hinweg, und die der fremden Seite gestaltet Haben nicht.
+ */
+export async function fakeEigeneSeite(p: Page): Promise<void> {
+  await p.route(`${EIGENE_SEITE.url}**`, (route) =>
+    route.fulfill({
+      contentType: "text/html; charset=utf-8",
+      body: `<!doctype html><html lang="de"><head><title>Bestellungen</title></head><body><h1>Offene Bestellungen</h1>
+        <p>3 Bestellungen warten auf den Versand.</p><button type="button">Briefmarke drucken</button></body></html>`,
+    }),
+  );
+}

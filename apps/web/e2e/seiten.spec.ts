@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
-import { ANONYMOUS, day, firstLink, SESSION, SHOTS, YEAR } from "./daten.ts";
+import { ANONYMOUS, day, fakeEigeneSeite, firstLink, SESSION, SHOTS, YEAR } from "./daten.ts";
 
 /**
  * Von jeder Seite ein Screenshot (Desktop und Handy) unter test-results/screenshots, mit den Daten aus
@@ -15,6 +15,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     rechnung: await firstLink(page, "/rechnungen", /^\/rechnungen\/[0-9a-f-]{36}$/),
     beleg: await firstLink(page, "/belege", /^\/belege\/[0-9a-f-]{36}$/),
     kontakt: await firstLink(page, "/kontakte", /^\/kontakte\/[0-9a-f-]{36}$/),
+    eigeneSeite: await firstLink(page, "/einstellungen?bereich=seiten", /^\/seiten\/[0-9a-f-]{36}$/),
   };
   const month = Number(day(-12).slice(5, 7));
   return [
@@ -54,6 +55,8 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["einstellungen-bank", "/einstellungen?bereich=bank"],
     ["einstellungen-ki", "/einstellungen?bereich=ki"],
     ["einstellungen-export", "/einstellungen?bereich=export"],
+    ["einstellungen-seiten", "/einstellungen?bereich=seiten"],
+    ["eigene-seite", details.eigeneSeite],
   ];
 }
 
@@ -67,6 +70,7 @@ for (const [device, viewport] of [
   for (const half of HALVES) {
     test(`Screenshots aller Seiten (${device}, Teil ${half + 1})`, async ({ page }) => {
       await page.setViewportSize(viewport);
+      await fakeEigeneSeite(page);
       mkdirSync(`${SHOTS}/${device}`, { recursive: true });
       const errors: string[] = [];
       page.on("pageerror", (error) => errors.push(error.message));

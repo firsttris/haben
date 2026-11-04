@@ -25,6 +25,7 @@ import { LogoCard } from "../../components/LogoCard.tsx";
 import { CustomerNumberCard } from "../../components/CustomerNumberCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
+import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { authClient } from "../../lib/auth-client.ts";
@@ -41,6 +42,7 @@ import { getCompany, getExchangeRates, saveCompany, saveTaxpayerData } from "../
 import reportStyles from "../../styles/auswertungen.css?url";
 import { getDatevNumbers } from "../../server/functions/datev-export.ts";
 import { checkElsterFormats, confirmElsterPrivacy, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
+import { getCustomPages } from "../../server/functions/eigene-seiten.ts";
 import { getExportYears } from "../../server/functions/export.ts";
 import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
@@ -52,22 +54,25 @@ import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking] = await Promise.all([
-      getCompany(),
-      getVatPeriod({ data: currentFilingPeriod(new Date()) }),
-      getNumbering(),
-      getEricStatus(),
-      getMailSettings(),
-      getLogo(),
-      getInbox(),
-      getExportYears(),
-      getDatevNumbers(),
-      getChainHead(),
-      getBackupStatus(),
-      getMcpSettings(),
-      getExchangeRates(),
-      getEnableBankingSettings(),
-    ]);
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages] = await Promise.all(
+      [
+        getCompany(),
+        getVatPeriod({ data: currentFilingPeriod(new Date()) }),
+        getNumbering(),
+        getEricStatus(),
+        getMailSettings(),
+        getLogo(),
+        getInbox(),
+        getExportYears(),
+        getDatevNumbers(),
+        getChainHead(),
+        getBackupStatus(),
+        getMcpSettings(),
+        getExchangeRates(),
+        getEnableBankingSettings(),
+        getCustomPages(),
+      ],
+    );
     return {
       ...company,
       certificate: vat.certificate,
@@ -84,6 +89,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       mcp,
       rates,
       enableBanking,
+      customPages,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -93,7 +99,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking } = Route.useLoaderData();
+  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages } = Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
@@ -140,6 +146,7 @@ function SettingsPage() {
           {bereich === "bank" && <EnableBankingCard data={enableBanking} />}
           {bereich === "sicherheit" && <Passkeys />}
           {bereich === "ki" && <McpCard data={mcp} />}
+          {bereich === "seiten" && <EigeneSeitenCard pages={customPages} />}
           {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}
           {bereich === "export" && (
             <>

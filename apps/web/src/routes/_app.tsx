@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app")({
     const state = await getAuthState();
     if (!state.initialized) throw redirect({ to: "/setup" });
     if (!state.user) throw redirect({ to: "/login" });
-    return { user: state.user, rechtsform: state.rechtsform ?? "einzelunternehmen" };
+    return { user: state.user, rechtsform: state.rechtsform ?? "einzelunternehmen", eigeneSeiten: state.eigeneSeiten };
   },
   component: AppLayout,
 });
@@ -68,7 +68,7 @@ const NAV_GROUPS = [
 ] as const;
 
 function AppLayout() {
-  const { user, rechtsform } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -147,6 +147,20 @@ function AppLayout() {
                 ))}
             </div>
           ))}
+          {/* Eigene Seiten (#199): Seiten außerhalb von Haben, unter Einstellungen angelegt */}
+          {eigeneSeiten.length > 0 && (
+            <div className="nav-group" role="group" aria-label="Eigene Seiten">
+              <div className="nav-group-label" aria-hidden="true">
+                Eigene Seiten
+              </div>
+              {eigeneSeiten.map((seite) => (
+                <Link key={seite.id} to="/seiten/$id" params={{ id: seite.id }} className="nav-link">
+                  <Icon name="external" />
+                  {seite.name}
+                </Link>
+              ))}
+            </div>
+          )}
           <div className="nav-spacer" />
           <div className="nav-foot">
             <div className="nav-user">
