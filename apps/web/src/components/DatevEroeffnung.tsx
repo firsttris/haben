@@ -48,11 +48,13 @@ export function DatevEroeffnung({ data }: { data: Data }) {
         {formatEuro(data.bilanzsumme)}); gebucht wird erst nach deiner Bestätigung.
       </p>
       {data.issues.length > 0 && (
-        <ul className="small" role="status" aria-label="Eröffnung aus dem Stapel nicht buchbar" style={{ margin: 0 }}>
-          {data.issues.map((issue) => (
-            <li key={issue}>{issue}</li>
-          ))}
-        </ul>
+        <div role="status" aria-label="Eröffnung aus dem Stapel nicht buchbar">
+          <ul className="small" style={{ margin: 0 }}>
+            {data.issues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </div>
       )}
       {data.hinweise.map((text) => (
         <p key={text} className="small" style={{ margin: 0 }}>
