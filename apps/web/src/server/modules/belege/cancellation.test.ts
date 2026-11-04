@@ -178,6 +178,16 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
     });
   }
 
+  it("bar erstattete Gutschrift: Storno lehnt ab, wenn der Kassenbestand dadurch negativ würde", async () => {
+    await reset("SKR03", "soll");
+    // Gutschrift bar erstattet: 23,80 € kommen in die Kasse und werden am selben Tag entnommen
+    const { id } = await bookedDocument({ payment: "kasse", net: -2_000, tax: -380 });
+    await cash.createCashEntry(actor, { kind: "entnahme", date: "2026-09-15", amount: 2_380 }, "2026-09-15");
+    expect((await cash.cashBook(2026)).current).toBe(0);
+    await expect(cancellation.cancelDocument(actor, id, {}, "2026-10-05")).rejects.toThrow(/negativ/);
+    expect((await cash.cashBook(2026)).current).toBe(0);
+  });
+
   it("§ 13b: Storno mindert Kz 46/47 und Kz 67 im Monat des Stornos", async () => {
     await reset("SKR03", "soll");
     const { id } = await bookedDocument({ reverseCharge: "eu", net: 10_000, tax: 1_900 });
