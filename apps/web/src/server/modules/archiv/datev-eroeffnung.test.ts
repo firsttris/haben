@@ -394,6 +394,46 @@ describe.skipIf(!testDatabaseUrl)("Eröffnung aus dem DATEV-Stapel (Postgres)", 
     expect((await cash.cashBook(year)).opening).toBe(50_000);
   });
 
+  it("Storno der Eröffnung abgelehnt, solange Übernahmen ohne eigene Buchung oder Anlagen auf sie bauen", async () => {
+    await setup("SKR03");
+    await upload(schlussjahr, stack(schlussjahr, "SKR03", schlussRows("SKR03")));
+    const rechnung = await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE-9", date: `${schlussjahr}-03-15`, net: 100_000, tax: 19_000 });
+    const vorschlag = await modul.datevEroeffnung(today);
+    const id = await modul.bookDatevEroeffnung(actor, { year, fingerprint: vorschlag!.fingerprint }, today);
+    // Die Rechnung steckt schon in der Eröffnung; die Übernahme legt sie ohne eigene Buchung an
+    await legacy.takeOverLegacyItem(actor, rechnung);
+    const vorher = await salden();
+    await expect(manual.reverseManualEntry(actor, id, cash.checkCashReversal)).rejects.toThrow(/übernommen/);
+    expect(await salden()).toEqual(vorher);
+  });
+
+  it("Storno der Eröffnung abgelehnt, solange eine Anlage auf sie verweist", async () => {
+    await setup("SKR03");
+    const asset = await assets.createAsset(actor, {
+      name: "Notebook",
+      kind: "buero",
+      method: "linear",
+      acquisitionDate: `${schlussjahr - 2}-06-01`,
+      cost: 260_000,
+      usefulLifeMonths: 156,
+      openingDate: `${year}-01-01`,
+      openingBookValue: 200_000,
+      disposalDate: null,
+      note: "",
+    });
+    await upload(
+      schlussjahr,
+      stack(schlussjahr, "SKR03", [
+        [200_000, "S", asset.account, "9000", "", "0101"],
+        [200_000, "S", "9000", K.SKR03.kapital, "", "0101"],
+      ]),
+    );
+    const vorschlag = await modul.datevEroeffnung(today);
+    const id = await modul.bookDatevEroeffnung(actor, { year, fingerprint: vorschlag!.fingerprint }, today);
+    await assets.bookDepreciation(actor, year, `${year}-12-01`);
+    await expect(manual.reverseManualEntry(actor, id, cash.checkCashReversal)).rejects.toThrow(/Anlage/);
+  });
+
   it("negativer Kassenbestand in der Schlussbilanz: kein Vorschlag, das Kassenbuch würde mit einem Minus beginnen", async () => {
     const k = K.SKR03;
     await setup("SKR03");
