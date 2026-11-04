@@ -1,3 +1,4 @@
+import { fehlendeJahre } from "../jahressperre.ts";
 import type { Cents } from "../money.ts";
 import { type PapAusgabe, type PapEingabe, type PapJahr, papLaufenderArbeitslohn } from "./pap.ts";
 import { PAP_2026 } from "./pap-2026.ts";
@@ -126,13 +127,7 @@ export function lohnsteuer(jahr: number, eingabe: LohnsteuerEingabe): Lohnsteuer
   return { ok: true, ...papLaufenderArbeitslohn(e, pap) };
 }
 
-/**
- * Jahre, deren PAP am Tag `heute` fehlt: das laufende Jahr und ab Dezember auch das folgende. Der BMF
- * veröffentlicht den PAP für das nächste Jahr meist im November; ab Dezember soll die CI deshalb fehlschlagen,
- * bis er hinterlegt ist.
- */
+/** Jahre, deren PAP am Tag `heute` fehlt: das laufende Jahr und ab Dezember auch das folgende (siehe `fehlendeJahre`) */
 export function fehlendeLohnsteuerJahre(heute: Date): number[] {
-  const jahr = heute.getFullYear();
-  const noetig = heute.getMonth() === 11 ? [jahr, jahr + 1] : [jahr];
-  return noetig.filter((j) => !PAP_JAHRE[j]);
+  return fehlendeJahre(heute, LOHNSTEUER_JAHRE);
 }

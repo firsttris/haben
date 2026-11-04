@@ -1,7 +1,7 @@
 import { InvoiceService, type Invoice, type InvoiceServiceOptions, type Logger } from "@e-invoice-eu/core";
 import { TAX_TREATMENTS, treatmentNote, UNITS, type Cents, type Millis } from "@haben/core";
 import { accountHolder, compactIban, formatDate, isCreditNote, paymentSentence, servicePeriod } from "./format.ts";
-import { renderInvoicePdf } from "./pdf.ts";
+import { legalLine, renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
 import { validateForFormat } from "./validate.ts";
 import { extractFacturXXml } from "./zugferd.ts";
@@ -70,6 +70,21 @@ function categoryWithRate(doc: InvoiceDocument, rate: number, place: "line" | "b
   const id = taxCategory(doc, rate);
   const withRate = id !== "O" || place === "breakdown";
   return { "cbc:ID": id, ...(withRate ? { "cbc:Percent": percent(rate) } : {}), "cac:TaxScheme": { "cbc:ID": "VAT" } };
+}
+
+/**
+ * Verkäufer als juristische Person (BG-4): Name (BT-27), bei GmbH und UG die Handelsregisternummer als Kennung aus
+ * einem amtlichen Register (BT-30, ohne Schema: ISO/IEC 6523 kennt das deutsche Handelsregister nicht) und die
+ * Pflichtangaben nach § 35a GmbHG als „Seller additional legal information“ (BT-33, in CII ram:Description).
+ * Quelle: EN 16931-1, Semantisches Datenmodell, BG-4.
+ */
+function sellerLegalEntity(seller: InvoiceDocument["seller"]) {
+  const legal = legalLine(seller.legalInfo);
+  return {
+    "cbc:RegistrationName": seller.name,
+    ...(seller.legalInfo?.registerNumber ? { "cbc:CompanyID": seller.legalInfo.registerNumber } : {}),
+    ...(legal ? { "cbc:CompanyLegalForm": legal } : {}),
+  };
 }
 
 /**
@@ -155,7 +170,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
           "cac:Country": { "cbc:IdentificationCode": seller.land.toUpperCase() as CountryCode },
         },
         ...(sellerTax.length > 0 ? { "cac:PartyTaxScheme": sellerTax as UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:PartyTaxScheme"] } : {}),
-        "cac:PartyLegalEntity": { "cbc:RegistrationName": seller.name },
+        "cac:PartyLegalEntity": sellerLegalEntity(seller),
         "cac:Contact": sellerContact,
       },
     },
