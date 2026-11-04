@@ -1,4 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
@@ -230,6 +231,44 @@ test("Ausschüttungen: Steuerabzug berechnen, ohne Gewinnvortrag nicht buchbar",
   await expect(rechnung).toContainText("mehr lässt sich nicht ausschütten");
   await expect(rechnung.getByRole("button", { name: "Beschluss buchen" })).toBeDisabled();
   expect(await axe(), "/ausschuettungen").toEqual([]);
+});
+
+test("Ausschüttung mit Gewinnvortrag buchen, Steuerbescheinigung des Gesellschafters herunterladen", async () => {
+  const heute = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Berlin" });
+  const year = Number(heute.slice(0, 4));
+  // Gewinnvortrag aus der bisherigen Buchhaltung, damit es etwas auszuschütten gibt
+  await go("/buchungen/neu");
+  const buchung = page.getByRole("form", { name: "Manuelle Buchung" });
+  await buchung.getByLabel("Eröffnungsbuchung").check();
+  await buchung.getByLabel("Buchungstext").fill("Gewinnvortrag aus dem Vorjahr");
+  await buchung.getByLabel("Konto Zeile 1").fill("9000");
+  await buchung.getByLabel("Soll Zeile 1").fill("1.000,00");
+  await buchung.getByLabel("Konto Zeile 2").fill("2970");
+  await buchung.getByLabel("Haben Zeile 2").fill("1.000,00");
+  await buchung.getByRole("button", { name: "Buchen" }).click();
+  await page.waitForURL(/\/buchungen\?/);
+
+  await go(`/ausschuettungen?jahr=${year}`);
+  const form = page.getByRole("form", { name: "Neue Ausschüttung" });
+  await form.getByLabel("Datum des Beschlusses").fill(heute);
+  await form.getByLabel("Auszahlungstag laut Beschluss (optional)").fill(heute);
+  await form.getByLabel("Ausschüttung brutto").fill("1.000,00");
+  await form.getByRole("button", { name: "Steuerabzug berechnen" }).click();
+  await page.getByRole("button", { name: "Beschluss buchen" }).click();
+  await expect(page.getByText("Ausschüttung gebucht.")).toBeVisible();
+
+  const [y, m, d] = heute.split("-");
+  const karte = page.getByRole("region", { name: `Beschluss vom ${d}.${m}.${y}` });
+  const bescheinigungen = karte.getByRole("region", { name: "Steuerbescheinigungen" });
+  await expect(bescheinigungen).toContainText("Gib jedem Gesellschafter seine Bescheinigung");
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    bescheinigungen.getByRole("link", { name: `Steuerbescheinigung ${USER.name} (PDF)` }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe(`Steuerbescheinigung-${heute}-Erika-Gesellschafter.pdf`);
+  const pdf = await readFile((await download.path())!);
+  expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  expect(await axe(), "/ausschuettungen mit Ausschüttung").toEqual([]);
 });
 
 test("Archiv: Abschluss eines alten Jahres aus dem DATEV-Stapel", async () => {
