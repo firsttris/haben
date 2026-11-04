@@ -1,13 +1,13 @@
 # Lohn in Haben – Recherche und Umsetzungsplan
 
-Stand: 4. November 2026. Nur Plan, kein Code. Viele Primärseiten (gesetze-im-internet.de, itsg.de, sv-meldeportal.de, elster.de) waren aus der Sitzung nicht abrufbar; die Angaben stammen aus Suchergebnissen mit Zitaten. Vor der Umsetzung sind sie am Original zu prüfen (markiert mit „prüfen“).
+Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
 
 ## Kurzfazit
 
 - **Rechnen geht ohne Zertifizierung.** Lohnsteuer, Soli und Kirchensteuer nach dem Programmablaufplan (PAP) des BMF. SV-Beiträge nach Rechengrößen und Beitragssätzen. Buchungen ins Journal.
 - **Finanzamt geht über ERiC mit der vorhandenen Hersteller-ID.** Lohnsteuer-Anmeldung (Verfahren ElsterAnmeldung, Datenart LStA) wie UStVA und KapEStA. Die elektronische Lohnsteuerbescheinigung (LStB) ebenso. Der ELStAM-Abruf läuft auch über ERiC, braucht aber ein Organisationszertifikat; ob der Hersteller dafür extra freigeschaltet sein muss, ist offen.
 - **Sozialversicherung geht nicht direkt.** Meldungen und Beitragsnachweise sind nur aus systemgeprüften Programmen oder systemgeprüften Ausfüllhilfen zulässig (§ 95b SGB IV, früher § 28a Abs. 1). Die Systemprüfung macht die ITSG im Auftrag des GKV-Spitzenverbands, mit Pilotphase, laufender Kontrolle und befristetem Zertifikat. Das ist für ein Open-Source-Projekt nicht realistisch.
-- **sv.net gibt es nicht mehr.** Seit 1. Juli 2024 ist das SV-Meldeportal der ITSG der Ersatz. Es kostet Geld (rund 36 € netto je Betriebsnummer für drei Jahre, prüfen), braucht ein ELSTER-Organisationszertifikat über Mein Unternehmenskonto und hat keinen Datei-Import. Es rechnet nichts.
+- **sv.net gibt es nicht mehr.** sv.net wurde zum 30. Juni 2024 abgeschaltet; Nachfolger ist das SV-Meldeportal der ITSG, das seit Oktober 2023 läuft. Es kostet Geld (rund 36 € netto je Betriebsnummer für drei Jahre), braucht ein ELSTER-Organisationszertifikat über Mein Unternehmenskonto und ist eine Ausfüllhilfe zum Eintragen von Hand. Ob es Dateien importiert oder selbst Beiträge rechnet, ist zu prüfen; die Ausfüllliste geht vom Eintragen von Hand aus.
 - **Empfohlene Variante:** Haben rechnet, bucht, sendet LStA und LStB über ERiC und erzeugt für das SV-Meldeportal eine **Ausfüllliste** (Beitragsnachweis je Kasse, DEÜV-Felder je Person). Minijobs gehen genauso an die Minijob-Zentrale über das Portal. Der Gesellschafter-Geschäftsführer ohne SV-Pflicht ist der einfachste Fall und kommt zuerst.
 
 ## Vorgehen (Vorschlag)
@@ -24,14 +24,14 @@ Stand: 4. November 2026. Nur Plan, kein Code. Viele Primärseiten (gesetze-im-in
 ### PR 1 – Lohnsteuer nach PAP (packages/core)
 
 - **Umfang:** `packages/core/src/lohnsteuer/` mit dem PAP 2026 als TypeScript. Eingaben wie im PAP (RE4, LZZ, STKL, ZKF, KRV, PKV, PVZ, PVA, R …), Ausgaben LSTLZZ, SOLZLZZ, BK. Kirchensteuer 8 % oder 9 % nach Bundesland aus `steuernummer.ts`.
-- **Weg:** Code aus dem amtlichen PAP-XML (`bmf-steuerrechner.de/javax.faces.resource/daten/xmls/Lohnsteuer2026.xml.xhtml`) mit **LstGen** (MIT) erzeugen, einmal pro Jahr. Ergebnis in Cents, ohne Floats; der PAP rechnet mit BigDecimal, also eine kleine Dezimal-Hilfe statt `number`.
+- **Weg:** Code aus dem amtlichen PAP-XML (`bmf-steuerrechner.de/javax.faces.resource/daten/xmls/Lohnsteuer2026.xml.xhtml`) übertragen, einmal pro Jahr. **LstGen** erzeugt aus dem XML PHP, Python, Java, JavaScript und Go, aber kein TypeScript; die JavaScript-Ausgabe taugt als Vorlage, wenn die Lizenz am Repo geprüft ist. Ergebnis in Cents, ohne Floats; der PAP rechnet mit BigDecimal, also eine kleine Dezimal-Hilfe statt `number`.
 - **Abgrenzung:** `income-tax.ts` bleibt die Steuerprognose. Die Tarifwerte dort und im PAP gegenseitig per Test abgleichen.
-- **Tests:** Prüffälle gegen den BMF-Steuerrechner (Steuerklassen I–VI, mit und ohne Kinder, PKV, GGF ohne RV-Pflicht). Querprobe mit `lohnsteuer-bmf` (MIT), das schon Referenz der Prognose ist.
+- **Tests:** Prüffälle gegen den BMF-Steuerrechner (Steuerklassen I–V, mit und ohne Kinder, PKV, GGF ohne RV-Pflicht). Querprobe mit `lohnsteuer-bmf` (MIT), das schon Referenz der Prognose ist.
 
 ### PR 2 – SV-Beiträge (packages/core)
 
 - **Umfang:** `packages/core/src/sozialversicherung/`: Rechengrößen je Jahr (BBG KV/PV 5.812,50 €, RV/AV 8.450 € je Monat 2026), Sätze (KV 14,6 % plus Zusatzbeitrag je Kasse, PV 3,6 % mit Kinderlosenzuschlag und Kinderabschlägen, Sonderfall Sachsen, RV 18,6 %, AV 2,6 %), Umlagen U1/U2 je Kasse, Insolvenzgeldumlage 0,15 % (2026).
-- **Personengruppen:** sozialversicherungspflichtig (101), Minijob (109: 13 % KV, 15 % RV pauschal, 3,6 % RV-Anteil des AN ohne Befreiung, 2 % Pauschsteuer), Midijob mit Übergangsbereich 603,01–2.000 € und Faktor F 0,6619 (Formel § 20 Abs. 2a SGB IV, getrennte Bemessung für AN-Anteil), GGF ohne SV.
+- **Personengruppen:** sozialversicherungspflichtig (101), Minijob (109: 13 % KV, 15 % RV pauschal, 3,6 % RV-Anteil des AN ohne Befreiung, 2 % Pauschsteuer); dazu die Beitragsgruppenschlüssel je Person, bei Minijobs je nach RV-Befreiung und Krankenversicherung unterschiedlich (Schlüssel aus dem Gemeinsamen Rundschreiben übernehmen, prüfen), Midijob mit Übergangsbereich 603,01–2.000 € und Faktor F 0,6619 (Formel § 20 Abs. 2a SGB IV, getrennte Bemessung für AN-Anteil), GGF ohne SV.
 - **Pflege:** Zusatzbeitrag und U1/U2 trägt der Nutzer je Krankenkasse ein. Die bundesweiten Werte stehen als Tabelle im Code mit Quelle, wie `TARIFE` in `income-tax.ts`.
 - **Tests:** Beispielrechnungen aus Beratungsblättern der Kassen und der Minijob-Zentrale; Grenzfälle an BBG und Übergangsbereich.
 
@@ -60,7 +60,7 @@ Stand: 4. November 2026. Nur Plan, kein Code. Viele Primärseiten (gesetze-im-in
 | Verbindlichkeiten soziale Sicherheit | 1742 | 3740 |
 
 - **Buchung:** Aufwand brutto und AG-Anteil an 1740/1741/1742. Bank: neue Zuordnungen „Lohn/Gehalt“, „Lohnsteuer an Finanzamt“, „SV-Beiträge an Krankenkasse“. Vorsicht: SKR03 3730 ist in Haben „Erhaltene Skonti“, nicht verwechseln.
-- **Einzelunternehmen:** Dort gibt es keine manuellen Buchungen; der Lohn bucht trotzdem und landet in der EÜR (Zeile Löhne und Gehälter, Zufluss-/Abflussprinzip).
+- **Einzelunternehmen:** Dort gibt es keine manuellen Buchungen, und die Anlage EÜR rechnet aus Rechnungen, Belegen und Zahlungen, nicht aus dem Journal (siehe [Buchhaltung](buchhaltung.md)). Eine Lohnbuchung allein käme dort nicht an; der Lohn muss als eigene Quelle in die EÜR einfließen (Zeile Löhne und Gehälter, Zufluss-/Abflussprinzip). Das ist Teil dieses PR.
 - **Folgen:** Posten in `hgb.ts` (Personalaufwand, sonstige Verbindlichkeiten) und `ebilanz.ts` für 1740–1742/3720–3740.
 - **Tests:** SKR03 und SKR04, Ist und Soll, GmbH und Einzelunternehmen.
 
@@ -78,13 +78,13 @@ Stand: 4. November 2026. Nur Plan, kein Code. Viele Primärseiten (gesetze-im-in
 
 ### PR 7 – Lohnsteuerbescheinigung und ELStAM
 
-- **LStB:** `packages/elster/src/lstb.ts` (Verfahren ElsterLohn, Datenart LStB) bis 28. Februar des Folgejahres, mit eTIN/Steuer-ID. Schema aus dem ERiC-Paket.
+- **LStB:** `packages/elster/src/lstb.ts` (Verfahren ElsterLohn, Datenart LStB) bis zum letzten Tag im Februar des Folgejahres, mit eTIN/Steuer-ID. Schema aus dem ERiC-Paket.
 - **ELStAM:** An- und Abmeldung und Abruf über ERiC (ElsterLohn2, prüfen) mit Organisationszertifikat. Erst nach Klärung der Herstellerfrage. Bis dahin trägt der Nutzer die Merkmale von Hand ein.
 
 ## Gesellschafter-Geschäftsführer
 
 - **SV-frei**, wenn er mindestens 50 % des Kapitals hält oder eine echte, umfassende Sperrminorität hat (BSG, B 12 R 5/16 R; B 12 R 1/19 R; B 12 R 19/19 R). Eine Sperrminorität nur im Anstellungsvertrag reicht nicht.
-- **Statusfeststellung:** Meldet der Arbeitgeber einen GmbH-Gesellschafter-Geschäftsführer an (Statuskennzeichen 2), prüft die Clearingstelle der DRV Bund von Amts wegen (§ 7a Abs. 1 Satz 2 SGB IV, prüfen). Ist er SV-frei, gibt es keine DEÜV-Meldung und keinen Beitragsnachweis.
+- **Statusfeststellung:** Die Anmeldung eines GmbH-Gesellschafter-Geschäftsführers mit Statuskennzeichen 2 löst eine Prüfung durch die Clearingstelle der DRV Bund aus (§ 7a Abs. 1 Satz 2 SGB IV, prüfen). Stellt sie Versicherungsfreiheit fest, fallen keine Beiträge und keine Beitragsnachweise an; welche DEÜV-Meldungen danach noch nötig sind, ist zu prüfen.
 - **Trotzdem:** Lohnsteuer-Anmeldung, LStB, ELStAM, Lohnkonto. Im PAP ohne RV-Pflicht (KRV), meist privat versichert (PKV, AG-Zuschuss nur, wenn vereinbart; steuerpflichtig, wenn kein § 3 Nr. 62 EStG greift). Unfallversicherung nach Satzung der Berufsgenossenschaft. Keine Insolvenzgeldumlage.
 
 ## Pflichten einer Lohnsoftware
@@ -109,7 +109,7 @@ Stand: 4. November 2026. Nur Plan, kein Code. Viele Primärseiten (gesetze-im-in
 
 - PAP 2026, BMF-Schreiben 12.11.2025: https://www.ihk-muenchen.de/ihk/documents/Recht-Steuern/Steuerrecht/Einkommensteuer/2025-11-12-PAP-2026-anlage-1.pdf
 - PAP-XML: https://www.bmf-steuerrechner.de/javax.faces.resource/daten/xmls/Lohnsteuer2026.xml.xhtml
-- LstGen (MIT, PAP → TypeScript): https://github.com/jenner/LstGen
+- LstGen (PAP → PHP, Python, Java, JavaScript, Go; Lizenz am Repo prüfen): https://github.com/jenner/LstGen
 - lohnsteuer-bmf (MIT): https://github.com/L1nch-lab/lohnsteuer-bmf
 - Weitere: https://github.com/MarcelLehmann/Lohnsteuer (Apache-2.0), https://github.com/canida-software/lohnsteuer (MIT), https://github.com/taxcalcs/taxjs (MIT)
 - § 95b SGB IV: https://www.buzer.de/95b_SGB_IV.htm, https://www.gesetze-im-internet.de/sgb_4/__95b.html
