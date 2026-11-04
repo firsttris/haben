@@ -51,7 +51,8 @@ export function Hinterlegung({ year, stand, closed }: { year: number; stand: Hin
       </p>
       <p className="small muted" style={{ maxWidth: 760 }}>
         Ein PDF wandelt das Unternehmensregister gegen ein Entgelt von 1,75 Cent je sichtbarem Zeichen zuzüglich Umsatzsteuer um, zusätzlich zur Gebühr.
-        Kostenlos angenommen werden nur XML oder XBRL nach den Vorgaben des Bundesanzeiger Verlags und die Eingabe im Webformular der Plattform; wer die
+        Ohne dieses Entgelt, aber mit der Gebühr, nimmt es nur XML oder XBRL nach den Vorgaben des Bundesanzeiger Verlags und die Eingabe im Webformular der
+        Plattform an; wer die
         Umwandlung sparen will, tippt die Bilanz dort ab. XML oder XBRL erzeugt Haben nicht, weil der Verlag Schema und Vorgaben nur nach einer Freischaltung
         und ohne Recht zur Weitergabe herausgibt.
       </p>
