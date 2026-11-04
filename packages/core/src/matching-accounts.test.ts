@@ -43,6 +43,12 @@ describe("suggestDirectBooking", () => {
     ).toEqual(["Erstattung des Finanzamts auf das Steuerkonto"]);
   });
 
+  it("Sondervorauszahlung des Finanzamts: eigenes Konto 1/11 (SKR03 1781, SKR04 3830), nicht die laufende Vorauszahlung", () => {
+    for (const purpose of ["Umsatzsteuer-Sondervorauszahlung 2026 StNr 244/123/45678", "USt-SVZ 2026", "USt 1/11 2026"]) {
+      expect(suggestDirectBooking(tx({ counterpartyName: "Finanzamt Regensburg", purpose }), tax, all)?.kind, purpose).toBe("sondervorauszahlung");
+    }
+  });
+
   it("Einkommensteuer oder unklarer Zweck auf dem Steuerkonto: kein Umsatzsteuer-Vorschlag", () => {
     expect(
       suggestDirectBooking(tx({ counterpartyName: "Finanzamt Regensburg", purpose: "ESt-Vorauszahlung III/2026 StNr 244/123/45678" }), tax, all),
