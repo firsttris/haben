@@ -124,9 +124,27 @@ const ERTRAGSTEUERN: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
 const EB_KAPEST_SCHULD = "bs.eqLiab.liab.other.theroffTax.otherTaxes";
 const EB_KAPEST_FORDERUNG = "bs.ass.currAss.receiv.other.otherTaxRec";
 
+/*
+ * Weitere Konten gegenüber Gesellschaftern (§ 42 Abs. 3 GmbHG: gesondert auszuweisen) auf den Positionen der Taxonomie
+ * für Gesellschafter statt auf den Auffangpositionen; Soll-Saldo als Forderung, Haben-Saldo als Verbindlichkeit, wo der
+ * DATEV-Kontenrahmen beide Seiten kennt. Ausleihungen an Gesellschafter fehlen: Finanzanlagen bucht Haben nicht.
+ */
+const LUL_GES: EbilanzZiel = ["bs.ass.currAss.receiv.trade.shareholders", "bs.eqLiab.liab.trade.shareholders"];
+const GMBH_GES: EbilanzZiel = ["bs.ass.currAss.receiv.shareholders.gmbh", "bs.eqLiab.liab.shareholders.gmbh"];
+const SONSTIGE_GES: EbilanzZiel = ["bs.ass.currAss.receiv.shareholders.misc", "bs.eqLiab.liab.shareholders.misc"];
+const VERB_GES: EbilanzZiel = ["bs.eqLiab.liab.shareholders.gmbh"];
+const alle = (konten: string, ziel: EbilanzZiel): [string, EbilanzZiel][] => konten.split(" ").map((k) => [k, ziel]);
+
 /** Weitere Konten der Kapitalgesellschaft (DATEV-Kontenrahmen 2026, SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175) */
 const KAPITAL: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
   SKR03: {
+    ...Object.fromEntries([
+      ...alle("1490 1491 1495", LUL_GES),
+      ...alle("1650 1651 1655 1658", LUL_GES),
+      ...alle("1381 1382 1383 1665 1666", GMBH_GES),
+      ...alle("1507 1508", SONSTIGE_GES),
+      ...alle("0755 1667 1668", VERB_GES),
+    ]),
     // Mit Restlaufzeit: im DATEV-Kontenrahmen nur unter den Verbindlichkeiten
     "0731": [GESELLSCHAFTER[1]!],
     "0740": [GESELLSCHAFTER[1]!],
@@ -138,6 +156,12 @@ const KAPITAL: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
     "0868": ["bs.eqLiab.equity.retainedEarnings"],
   },
   SKR04: {
+    ...Object.fromEntries([
+      ...alle("1250 1251 1255 3340 3341 3345 3348", LUL_GES),
+      ...alle("1307 1308 1309 3640 3641", GMBH_GES),
+      ...alle("1330 1331 1335", SONSTIGE_GES),
+      ...alle("3517 3519 3642 3643", VERB_GES),
+    ]),
     "3511": GESELLSCHAFTER,
     "3514": [GESELLSCHAFTER[1]!],
     "2900": ["bs.eqLiab.equity.subscribed.corp"],

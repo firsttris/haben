@@ -3,7 +3,16 @@ import { describe, expect, it } from "vitest";
 import { ericMeldungen } from "../formatprobe.ts";
 import { ericHomeIn } from "../install.ts";
 import { EricProcessClient } from "../process-client.ts";
-import { type AnlagenspiegelZeile, EBILANZ_KONTEN, ebilanzZuordnung, postenOf, type Kontenrahmen } from "@haben/core";
+import {
+  abschluss,
+  type AnlagenspiegelZeile,
+  EBILANZ_KONTEN,
+  ebilanzRestlaufzeiten,
+  ebilanzZuordnung,
+  postenOf,
+  vermerkKonten,
+  type Kontenrahmen,
+} from "@haben/core";
 import { buildEbilanzXml, ebilanzWerte, type EbilanzInput } from "./xbrl.ts";
 
 /**
@@ -79,6 +88,76 @@ describe.skipIf(!ericHome)("E-Bilanz mit ERiC (Taxonomie 6.9)", () => {
       ],
     });
   }, 60_000);
+
+  // Restlaufzeiten (§ 268 Abs. 4 und 5 HGB) als Davon-Positionen, Gesellschafter auf eigenen Positionen (§ 42 Abs. 3 GmbHG)
+  it.each([
+    [
+      "SKR03",
+      {
+        bank: "1200",
+        kapital: "0800",
+        ford: "1400",
+        fordGes: "1383",
+        lulGes: "1490",
+        verb: "1600",
+        ges: "0730",
+        darlehen: "0640",
+        ust: "1776",
+        erloese: "8400",
+      },
+    ],
+    [
+      "SKR04",
+      {
+        bank: "1800",
+        kapital: "2900",
+        ford: "1200",
+        fordGes: "1309",
+        lulGes: "1250",
+        verb: "3300",
+        ges: "3510",
+        darlehen: "3160",
+        ust: "3806",
+        erloese: "4400",
+      },
+    ],
+  ] as const)(
+    "%s: Davon-Vermerke zu Restlaufzeiten und Gesellschafter",
+    async (kontenrahmen, k) => {
+      const salden = [
+        { account: k.bank, saldo: 3_100_000 },
+        { account: k.ford, saldo: 500_000 },
+        { account: k.erloese, saldo: -100_000 },
+        { account: k.fordGes, saldo: 100_000 },
+        { account: k.lulGes, saldo: 50_000 },
+        { account: k.kapital, saldo: -2_500_000 },
+        { account: k.verb, saldo: -150_000 },
+        { account: k.ges, saldo: -350_000 },
+        { account: k.darlehen, saldo: -600_000 },
+        { account: k.ust, saldo: -50_000 },
+      ];
+      const { zuordnung, fehlend } = ebilanzZuordnung(kontenrahmen, salden);
+      expect(fehlend).toEqual([]);
+      const konten = vermerkKonten(kontenrahmen, abschluss(kontenrahmen, salden));
+      const davon = ebilanzRestlaufzeiten(
+        kontenrahmen,
+        konten,
+        new Map([
+          [k.darlehen, 600_000],
+          [k.fordGes, 100_000],
+          [k.ges, 200_000],
+        ]),
+      );
+      expect(davon["bs.eqLiab.liab.above1year"]).toBe(800_000);
+      await pruefe({
+        ...basis,
+        werte: { ...ebilanzWerte(zuordnung), ...davon },
+        bvv: { eigenkapitalVorjahr: 2_500_000, ausschuettungen: 0, einlagen: 0 },
+        anlagen: [],
+      });
+    },
+    60_000,
+  );
 
   // Jedes Konto, das Haben bucht, mit einem Saldo auf seiner üblichen Seite; die Bank gleicht aus
   it.each(["SKR03", "SKR04"] as const)(

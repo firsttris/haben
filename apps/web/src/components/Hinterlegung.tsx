@@ -46,8 +46,9 @@ export function Hinterlegung({ year, stand, closed }: { year: number; stand: Hin
       </h2>
       <p className="small muted" style={{ marginTop: 0, maxWidth: 760 }}>
         Als Kleinstkapitalgesellschaft hinterlegt die Gesellschaft nur die Bilanz, statt den Jahresabschluss offenzulegen (§ 326 Abs. 2 HGB). Haben erstellt sie
-        als PDF mit Firma, Sitz und Registernummer, den Vorjahreszahlen und den Angaben unter der Bilanz, die den Anhang ersetzen. Das PDF lädst du auf der
-        Publikations-Plattform des Bundesanzeiger Verlags (publikations-plattform.de) als Hinterlegungsauftrag hoch; der Verlag berechnet dafür eine Gebühr.
+        als PDF mit Firma, Sitz und Registernummer, den Vorjahreszahlen, den Vermerken zu Restlaufzeiten und Gesellschaftern und den Angaben unter der Bilanz,
+        die den Anhang ersetzen. Das PDF lädst du auf der Publikations-Plattform des Bundesanzeiger Verlags (publikations-plattform.de) als Hinterlegungsauftrag
+        hoch; der Verlag berechnet dafür eine Gebühr.
       </p>
       <p className="small muted" style={{ maxWidth: 760 }}>
         Ein PDF wandelt das Unternehmensregister gegen ein Entgelt von 1,75 Cent je sichtbarem Zeichen zuzüglich Umsatzsteuer um, zusätzlich zur Gebühr.
@@ -80,8 +81,14 @@ export function Hinterlegung({ year, stand, closed }: { year: number; stand: Hin
       {blocked && (
         <div className="banner" role="note" style={{ marginBottom: 16 }}>
           <span>
-            Noch nicht möglich: {stand.maengel.join(" ")} Sitz, Registergericht und Registernummer trägst du unter{" "}
-            <Link to="/einstellungen">Einstellungen › Firmendaten</Link> ein.
+            Noch nicht möglich: {stand.maengel.join(" ")}
+            {stand.maengel.some((m) => m.includes("Firmendaten")) && (
+              <>
+                {" "}
+                Sitz, Registergericht und Registernummer trägst du unter <Link to="/einstellungen">Einstellungen › Firmendaten</Link> ein.
+              </>
+            )}
+            {stand.maengel.some((m) => m.includes("Restlaufzeiten")) && " Die Restlaufzeiten bestätigst du oben unter „Restlaufzeiten“."}
           </span>
         </div>
       )}

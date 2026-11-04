@@ -7,6 +7,7 @@ import { Hinterlegung } from "../../../components/Hinterlegung.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { KapgSteuern } from "../../../components/KapgSteuern.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { Restlaufzeiten } from "../../../components/Restlaufzeiten.tsx";
 import { formatDateTime } from "../../../lib/format.ts";
 import { useAction } from "../../../lib/use-action.ts";
 import { closeYearFn, getJahresabschluss } from "../../../server/functions/abschluss.ts";
@@ -95,7 +96,9 @@ function Report({ data }: { data: Kapitalgesellschaft }) {
         </section>
       )}
 
-      <BilanzGuv year={data.year} report={report} names={data.names} kontoLinks />
+      <BilanzGuv year={data.year} report={report} names={data.names} kontoLinks vermerke={data.vermerke} />
+
+      {data.restlaufzeiten && <Restlaufzeiten year={data.year} data={data.restlaufzeiten} />}
 
       {data.steuern && <KapgSteuern year={data.year} data={data.steuern} closed={Boolean(data.status)} />}
 

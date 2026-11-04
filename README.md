@@ -157,7 +157,7 @@ Kleinunternehmerregelung nach § 19 UStG, und für kleine GmbHs und UGs. Eine Gm
 Gesellschafter-Verrechnungskonto statt Privatkonten; Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung und
 sendet E-Bilanz, Körperschaft- und Gewerbesteuererklärung (für eine GmbH ohne Beteiligungen und Organschaft) und
 bucht Gewinnausschüttungen samt Kapitalertragsteuer-Anmeldung und Steuerbescheinigungen für die Gesellschafter. Die Bilanz zur Hinterlegung beim Unternehmensregister
-erstellt Haben als PDF. Lohnabrechnung macht Haben nicht, siehe [GmbH und UG](https://firsttris.github.io/haben/gmbh.html).
+erstellt Haben als PDF, mit den Vermerken zu Restlaufzeiten und gegenüber Gesellschaftern. Lohnabrechnung macht Haben nicht, siehe [GmbH und UG](https://firsttris.github.io/haben/gmbh.html).
 </details>
 
 <details>

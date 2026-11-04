@@ -15,7 +15,7 @@ import { renderHinterlegungPdf } from "./pdf.ts";
  */
 
 const betrag = (cents: number | null) => (cents === null ? "" : formatDecimal(cents));
-const zeile = (z: HinterlegungZeile) => ({ label: z.label, betrag: betrag(z.betrag), vorjahr: betrag(z.vorjahr) });
+const zeile = (z: HinterlegungZeile) => ({ label: z.label, betrag: betrag(z.betrag), vorjahr: betrag(z.vorjahr), vermerk: z.vermerk === true });
 
 /** Druckfertige Texte für templates/hinterlegung.typ */
 export function hinterlegungPdfData(bilanz: HinterlegungBilanz) {

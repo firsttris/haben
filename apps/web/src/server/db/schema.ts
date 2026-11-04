@@ -314,6 +314,17 @@ export const corporateTaxInputs = pgTable("corporate_tax_inputs", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Restlaufzeiten der Forderungen und Verbindlichkeiten einer GmbH oder UG zum 31.12. des Jahres, wie die Nutzerin sie
+ * bestätigt hat (§ 268 Abs. 4 und 5 HGB): je Konto Betrag und Teil mit mehr als einem Jahr, für das Jahr und die
+ * Vorjahresspalte der Bilanz. Änderbar, jede Änderung steht im Audit-Log.
+ */
+export const residualTerms = pgTable("residual_terms", {
+  year: smallint("year").primaryKey(),
+  data: jsonb("data").$type<Record<string, unknown>>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Ein Gesellschafter in einer Ausschüttung: Anteil, Beträge und Kirchensteuerabzugsmerkmal zum Zeitpunkt des Beschlusses */
 export interface AusschuettungEmpfaenger {
   name: string;

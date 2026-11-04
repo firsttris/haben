@@ -792,6 +792,20 @@
       "when": 1793989014647,
       "tag": "0112_geschaeftsfuehrer",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1793821465905,
+      "tag": "0113_restlaufzeiten",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1793821466982,
+      "tag": "0114_restlaufzeiten_trigger",
+      "breakpoints": true
     }
   ]
 }

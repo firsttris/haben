@@ -1,6 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { closeYear, hinterlegungStand, jahresabschluss } from "../modules/buchhaltung/index.ts";
+import {
+  bilanzVermerkeFuer,
+  closeYear,
+  hinterlegungStand,
+  jahresabschluss,
+  restlaufzeitenAnsicht,
+  restlaufzeitenSchema,
+  saveRestlaufzeiten,
+} from "../modules/buchhaltung/index.ts";
 import { elsterClient, elsterMode, loadActiveCertificate } from "../modules/elster/index.ts";
 import {
   bookSteuerrueckstellungen,
@@ -21,15 +29,19 @@ export const getJahresabschluss = createServerFn({ method: "GET" })
   .validator(yearSchema)
   .handler(async ({ data }) => {
     const now = today();
-    const [abschluss, ebilanz, steuern, certificate, hinterlegung] = await Promise.all([
+    const [abschluss, ebilanz, steuern, certificate, hinterlegung, restlaufzeiten] = await Promise.all([
       jahresabschluss(data, now),
       ebilanzOverview(data, now),
       kapgSteuernJahr(data),
       loadActiveCertificate(),
       hinterlegungStand(data, now),
+      restlaufzeitenAnsicht(data, now),
     ]);
+    const vermerke = abschluss.kapitalgesellschaft ? (await bilanzVermerkeFuer(data, abschluss.kontenrahmen)).jahr : [];
     return {
       ...abschluss,
+      vermerke,
+      restlaufzeiten,
       ebilanz,
       hinterlegung,
       steuern,
@@ -68,3 +80,8 @@ export const bookSteuerrueckstellungenFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ year: yearSchema }))
   .handler(({ data, context }) => bookSteuerrueckstellungen(context.user.id, data.year, today()));
+
+export const saveRestlaufzeitenFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ year: yearSchema, angaben: restlaufzeitenSchema }))
+  .handler(({ data, context }) => saveRestlaufzeiten(context.user.id, data.year, data.angaben, today()));
