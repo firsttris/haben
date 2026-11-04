@@ -13,6 +13,7 @@ import {
   homeofficeSatz,
   isKapitalgesellschaft,
   monthsOfPeriod,
+  sondervorauszahlungFor,
 } from "@haben/core";
 import {
   buildEstXml,
@@ -38,7 +39,7 @@ import { db, schema } from "../../db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { listPauschalen } from "../buchhaltung/index.ts";
 import { euerForYear } from "../auswertungen/index.ts";
-import { computeVatFigures, loadFrequencies } from "../umsatzsteuer/index.ts";
+import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
 export class AnnualError extends UserError {}
@@ -94,7 +95,8 @@ export async function ustYear(year: number): Promise<UstYear> {
     base7,
     tax7: taxOf(base7, 700),
     vorsteuer: total("kz66"),
-    vorauszahlungen: [...latest.values()].reduce((s, v) => s + v, 0),
+    // Vorauszahlungssoll einschließlich der Sondervorauszahlung: Um sie ist die Voranmeldung für Dezember gemindert (Kz 39)
+    vorauszahlungen: [...latest.values()].reduce((s, v) => s + v, 0) + sondervorauszahlungFor(await loadDauerfrist(), year),
   };
   return {
     figures,

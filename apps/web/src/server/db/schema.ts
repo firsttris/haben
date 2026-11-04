@@ -191,6 +191,8 @@ export const vatReturns = pgTable(
     kz84: integer("kz84").notNull().default(0),
     kz85: integer("kz85").notNull().default(0),
     kz67: integer("kz67").notNull().default(0),
+    /** Abzug der Sondervorauszahlung (Dauerfristverlängerung) in der letzten Voranmeldung des Jahres */
+    kz39: integer("kz39").notNull().default(0),
     kz83: integer("kz83").notNull().default(0),
     status: vatReturnStatusEnum("status").notNull().default("draft"),
     /** Berichtigte Anmeldung (Kz 10) */
@@ -213,6 +215,7 @@ export const vatReturns = pgTable(
       kz84?: number;
       kz85?: number;
       kz67?: number;
+      kz39?: number;
       kz83: number;
     }>(),
     correctsId: uuid("corrects_id"),
@@ -245,6 +248,43 @@ export const vatFrequencies = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.year, t.fromMonth] }), check("vat_frequencies_from_month", sql`${t.fromMonth} in (1, 4, 7, 10)`)],
+);
+
+/**
+ * Dauerfristverlängerung je Jahr (§ 46–48 UStDV): besteht sie, und welche Sondervorauszahlung ist angemeldet? Gesetzt
+ * mit der Echtübermittlung des Antrags oder von Hand, wenn der Antrag außerhalb von Haben gestellt wurde. Ein Jahr ohne
+ * Zeile übernimmt die letzte davor.
+ */
+export const vatExtensions = pgTable("vat_extensions", {
+  year: smallint("year").primaryKey(),
+  active: boolean("active").notNull(),
+  /** Angemeldete Sondervorauszahlung in Cent (volle Euro); null bei vierteljährlicher Abgabe oder ohne Anmeldung */
+  sondervorauszahlung: integer("sondervorauszahlung"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Prüfungen und Übermittlungen des Antrags auf Dauerfristverlängerung bzw. der Sondervorauszahlung (USt 1 H), nur anhängen */
+export const vatExtensionSubmissions = pgTable(
+  "vat_extension_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    year: smallint("year").notNull(),
+    /** Gemeldete Sondervorauszahlung (Kz 38) in Cent; null beim Antrag ohne Sondervorauszahlung (vierteljährlich) */
+    kz38: integer("kz38"),
+    /** Berichtigte Anmeldung der Sondervorauszahlung (Kz 10) */
+    berichtigt: boolean("berichtigt").notNull().default(false),
+    kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
+    ok: boolean("ok").notNull(),
+    code: integer("code").notNull(),
+    message: text("message").notNull(),
+    transferTicket: text("transfer_ticket"),
+    requestXml: text("request_xml").notNull(),
+    responseXml: text("response_xml").notNull(),
+    serverResponseXml: text("server_response_xml").notNull(),
+    protocolPdf: bytea("protocol_pdf"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("vat_extension_submissions_year").on(t.year), check("vat_extension_submissions_kz38", sql`${t.kz38} is null or ${t.kz38} >= 0`)],
 );
 
 /** Jede Prüfung oder Übermittlung an ELSTER, nur anhängen. */
@@ -1401,6 +1441,7 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "mahnerloes",
   "kursdifferenz",
   "kapest",
+  "sondervorauszahlung",
 ]);
 
 /**

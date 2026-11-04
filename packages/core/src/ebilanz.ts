@@ -182,10 +182,9 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     // Im Haben: Überzahlungen von Kunden; Verbindlichkeiten im Soll: Guthaben bei Lieferanten (DATEV „A oder B“)
     [a.forderungen, ["bs.ass.currAss.receiv.trade.other", "bs.eqLiab.liab.other.other"]],
     [a.verbindlichkeiten, ["bs.ass.currAss.receiv.other.other", "bs.eqLiab.liab.trade.genOther"]],
-    ...[...Object.values(a.vorsteuer), a.vorsteuerRc, ...Object.values(a.ust), a.ustRc, a.ustVorauszahlung].map((k): [string, EbilanzZiel] => [
-      k,
-      UMSATZSTEUER,
-    ]),
+    ...[...Object.values(a.vorsteuer), a.vorsteuerRc, ...Object.values(a.ust), a.ustRc, a.ustVorauszahlung, a.sondervorauszahlung].map(
+      (k): [string, EbilanzZiel] => [k, UMSATZSTEUER],
+    ),
     // Umsatzsteuer nicht fällig (Ist-Versteuerung): im DATEV-Kontenrahmen unter den Rückstellungen
     ...Object.values(a.ustNichtFaellig).map((k): [string, EbilanzZiel] => [k, [VAT_RECEIVABLE, "bs.eqLiab.accruals.tax.other"]]),
     [a.gesellschafter, GESELLSCHAFTER],

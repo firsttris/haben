@@ -1,5 +1,6 @@
 export * from "./types.ts";
 export * from "./xml.ts";
+export * from "./dauerfrist.ts";
 export * from "./erklaerung.ts";
 export * from "./est.ts";
 export * from "./nachricht.ts";

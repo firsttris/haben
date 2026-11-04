@@ -63,6 +63,7 @@ const KIND_LABEL = {
   privat: "Privat",
   geldtransit: "Geldtransit",
   ustVorauszahlung: "Umsatzsteuer",
+  sondervorauszahlung: "Sondervorauszahlung",
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",

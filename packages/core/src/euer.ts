@@ -52,7 +52,7 @@ export type EuerPayment =
        * Umsatzsteuer an das Finanzamt bzw. Erstattung, Gebühren, Mahnerlöse, Kursdifferenz bei Fremdwährung (Gewinn
        * positiv); Vorzeichen wie auf dem Konto
        */
-      kind: "ustVorauszahlung" | "gebuehren" | "mahnerloes" | "kursdifferenz";
+      kind: "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "kursdifferenz";
       date: string;
       amount: Cents;
       group?: string;
@@ -192,6 +192,8 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
         }
         break;
       case "ustVorauszahlung":
+      // Die Sondervorauszahlung ist Umsatzsteuer an das Finanzamt wie jede Vorauszahlung, abziehbar, wenn sie gezahlt ist
+      case "sondervorauszahlung":
         // Ausgang: Zahlung an das Finanzamt; Eingang: Erstattung
         if (p.sum < 0) add("gezahlteUst", -p.sum);
         else add("erstatteteUst", p.sum);

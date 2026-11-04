@@ -9,6 +9,7 @@ import { buildNachrichtXml } from "./nachricht.ts";
 import { EricProcessClient } from "./process-client.ts";
 import { computeUstva } from "@haben/core";
 import { buildUstvaXml, type UstvaXmlInput } from "./xml.ts";
+import { buildDauerfristXml } from "./dauerfrist.ts";
 
 /**
  * Prüft alle Nachrichten von Haben mit dem echten ERiC: Schema und Plausibilität, lokal (ERIC_VALIDIERE),
@@ -53,6 +54,15 @@ const ustva =
       test: true,
       ...extra,
     });
+const dauerfrist = (year: number) => ({
+  year,
+  steuernummer13: "9198011310010",
+  datenlieferant: { name: "Erika Mustermann", strasse: "Hauptstr. 1", plz: "10115", ort: "Berlin" },
+  herstellerId,
+  produktVersion: "0.1.0",
+  test: true,
+});
+
 /** Alle Kennzahlen, die Haben kennt, mit stimmigen Steuerbeträgen */
 const alleKennzahlen: Omit<UstvaXmlInput["figures"], "kz83"> = {
   kz81: 1_000_000,
@@ -281,6 +291,15 @@ const faelle: [string, () => string][] = [
   ["UStVA Dezember", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0 }, { period: { year: 2026, month: 12 } })],
   ["UStVA 1. Quartal (Zeitraum 41)", ustva(2026, { kz81: 300_000, kz86: 0, kz66: 5_000 }, { period: { year: 2026, month: 41 } })],
   ["UStVA 4. Quartal 2025 (Zeitraum 44)", ustva(2025, alleKennzahlen, { period: { year: 2025, month: 44 } })],
+  [
+    "UStVA Dezember mit Abzug der Sondervorauszahlung (Kz 39)",
+    ustva(2025, { kz81: 1_000_000, kz86: 0, kz66: 10_000, kz39: 40_000 }, { period: { year: 2025, month: 12 } }),
+  ],
+  // Antrag auf Dauerfristverlängerung (USt 1 H)
+  ["Dauerfristverlängerung 2026 (vierteljährlich)", () => buildDauerfristXml({ ...dauerfrist(2026), sondervorauszahlung: null })],
+  ["Sondervorauszahlung 2026 (monatlich)", () => buildDauerfristXml({ ...dauerfrist(2026), sondervorauszahlung: 400_000 })],
+  ["Sondervorauszahlung 2025 null Euro", () => buildDauerfristXml({ ...dauerfrist(2025), sondervorauszahlung: 0 })],
+  ["Sondervorauszahlung 2026 berichtigt", () => buildDauerfristXml({ ...dauerfrist(2026), sondervorauszahlung: 318_100, berichtigt: true })],
   ["UStVA echt (ohne Testmerker)", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0 }, { test: false })],
   [
     "UStVA langer Name, Sonderzeichen",

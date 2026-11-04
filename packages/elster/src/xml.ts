@@ -22,7 +22,7 @@ export interface UstvaXmlInput {
   /** 13-stellige Steuernummer im ELSTER-Format */
   steuernummer13: string;
   figures: Pick<UstvaFigures, "kz81" | "kz86" | "kz66" | "kz83"> &
-    Partial<Pick<UstvaFigures, "kz21" | "kz45" | "kz48" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67">>;
+    Partial<Pick<UstvaFigures, "kz21" | "kz45" | "kz48" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67" | "kz39">>;
   datenlieferant: Datenlieferant;
   herstellerId: string;
   produktVersion: string;
@@ -121,7 +121,7 @@ function yyyymmdd(date: Date): string {
   return `${date.getFullYear()}${mm}${dd}`;
 }
 
-function element(name: string, value: string): string {
+export function element(name: string, value: string): string {
   return `<${name}>${escapeXml(value)}</${name}>`;
 }
 
@@ -207,6 +207,7 @@ export function ustvaNutzdaten(input: UstvaNutzdatenInput): string[] {
     if (cents !== undefined && cents !== 0) kennzahlen.push(element(`Kz${kz}`, elsterDecimal(cents).replace(",", ".")));
   };
   base("21", figures.kz21);
+  tax("39", figures.kz39);
   base("45", figures.kz45);
   base("46", figures.kz46);
   tax("47", figures.kz47);
@@ -219,17 +220,7 @@ export function ustvaNutzdaten(input: UstvaNutzdatenInput): string[] {
   tax("85", figures.kz85);
   base("86", figures.kz86);
 
-  return [
-    `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${period.year}" version="${period.year}">`,
-    element("Erstellungsdatum", yyyymmdd(input.erstellungsdatum ?? new Date())),
-    // Längen laut Schema; der Datenlieferant ist nur Absenderangabe
-    `<DatenLieferant>`,
-    element("Name", dl.name.slice(0, 45)),
-    element("Strasse", dl.strasse.slice(0, 30)),
-    element("PLZ", dl.plz),
-    element("Ort", dl.ort.slice(0, 30)),
-    `</DatenLieferant>`,
-    `<Steuerfall>`,
+  return anmeldungssteuern(period.year, dl, input.erstellungsdatum, [
     `<Umsatzsteuervoranmeldung>`,
     element("Jahr", String(period.year)),
     element("Zeitraum", String(period.month).padStart(2, "0")),
@@ -238,14 +229,41 @@ export function ustvaNutzdaten(input: UstvaNutzdatenInput): string[] {
     element("Kz09", input.herstellerId),
     ...kennzahlen,
     `</Umsatzsteuervoranmeldung>`,
+  ]);
+}
+
+/**
+ * <Anmeldungssteuern> der Datenart UStVA um einen Steuerfall: Voranmeldung, Antrag auf Dauerfristverlängerung oder
+ * Anmeldung der Sondervorauszahlung; laut ERiC-Plugin checkUStVA darf je Nachricht nur einer davon stehen.
+ */
+export function anmeldungssteuern(year: number, dl: Datenlieferant, erstellungsdatum: Date | undefined, steuerfall: string[]): string[] {
+  return [
+    `<Anmeldungssteuern xmlns="http://finkonsens.de/elster/elsteranmeldung/ustva/v${year}" version="${year}">`,
+    element("Erstellungsdatum", yyyymmdd(erstellungsdatum ?? new Date())),
+    // Längen laut Schema; der Datenlieferant ist nur Absenderangabe
+    `<DatenLieferant>`,
+    element("Name", dl.name.slice(0, 45)),
+    element("Strasse", dl.strasse.slice(0, 30)),
+    element("PLZ", dl.plz),
+    element("Ort", dl.ort.slice(0, 30)),
+    `</DatenLieferant>`,
+    `<Steuerfall>`,
+    ...steuerfall,
     `</Steuerfall>`,
     `</Anmeldungssteuern>`,
   ];
 }
 
 export function buildUstvaXml(input: UstvaXmlInput): string {
+  return anmeldungXml(input, ustvaNutzdaten(input));
+}
+
+/** Umschlag der Datenart UStVA (ElsterAnmeldung) an das Finanzamt aus der Steuernummer */
+export function anmeldungXml(
+  input: Pick<UstvaXmlInput, "datenlieferant" | "test" | "herstellerId" | "steuernummer13" | "produktVersion">,
+  nutzdaten: string[],
+): string {
   const dl = input.datenlieferant;
-  const nutzdaten = ustvaNutzdaten(input);
   const lieferantKurz = `${dl.name}, ${dl.strasse}, ${dl.plz} ${dl.ort}`;
   return elsterXml(
     {

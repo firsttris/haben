@@ -5,6 +5,7 @@ import { EricProcessClient } from "./process-client.ts";
 import { parseTransferTicket } from "./ticket.ts";
 import { parseVastBeleg } from "./vast.ts";
 import { buildUstvaXml, TEST_HERSTELLER_ID } from "./xml.ts";
+import { buildDauerfristXml } from "./dauerfrist.ts";
 
 const xml = (test = true) =>
   buildUstvaXml({
@@ -74,6 +75,19 @@ describe("fakeProtokollPdf", () => {
 describe("checkXml", () => {
   it("erlaubt selbstschließende Elemente", () => {
     expect(checkXml("<Elster><a/><Kz83>1,00</Kz83></Elster>")).toBeUndefined();
+  });
+
+  it("verlangt Kz 83 nur in der Voranmeldung, nicht im Antrag auf Dauerfristverlängerung derselben Datenart", () => {
+    const antrag = buildDauerfristXml({
+      year: 2026,
+      steuernummer13: "9198011310010",
+      sondervorauszahlung: 100_000,
+      datenlieferant: { name: "Erika Mustermann", strasse: "Hauptstr. 1", plz: "10115", ort: "Berlin" },
+      herstellerId: TEST_HERSTELLER_ID,
+      produktVersion: "0.1.0",
+      test: true,
+    });
+    expect(checkXml(antrag)).toBeUndefined();
   });
 });
 

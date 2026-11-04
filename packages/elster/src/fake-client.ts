@@ -144,7 +144,8 @@ export function checkXml(xml: string): string | undefined {
     else if (stack.pop() !== name) return `Fehlerhafte Verschachtelung bei </${name}>.`;
   }
   if (stack.length > 0) return `Nicht geschlossenes Element <${stack.at(-1)}>.`;
-  if (/<DatenArt>UStVA<\/DatenArt>/.test(body) && !/<Kz83>[^<]+<\/Kz83>/.test(body)) return "Kennzahl 83 fehlt.";
+  // Nur die Voranmeldung hat Kz 83; Antrag auf Dauerfristverlängerung und Sondervorauszahlung gehen über dieselbe Datenart
+  if (/<Umsatzsteuervoranmeldung>/.test(body) && !/<Kz83>[^<]+<\/Kz83>/.test(body)) return "Kennzahl 83 fehlt.";
   return undefined;
 }
 

@@ -76,7 +76,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       and(
         gte(schema.bankTransactions.bookingDate, start),
         lt(schema.bankTransactions.bookingDate, end),
-        inArray(schema.allocations.kind, ["invoice", "document", "ustVorauszahlung", "gebuehren", "mahnerloes", "kursdifferenz"]),
+        inArray(schema.allocations.kind, ["invoice", "document", "ustVorauszahlung", "sondervorauszahlung", "gebuehren", "mahnerloes", "kursdifferenz"]),
       ),
     );
 
@@ -179,7 +179,13 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         privateShare: a.privateShare ?? 0,
         group,
       });
-    } else if (a.kind === "ustVorauszahlung" || a.kind === "gebuehren" || a.kind === "mahnerloes" || a.kind === "kursdifferenz") {
+    } else if (
+      a.kind === "ustVorauszahlung" ||
+      a.kind === "sondervorauszahlung" ||
+      a.kind === "gebuehren" ||
+      a.kind === "mahnerloes" ||
+      a.kind === "kursdifferenz"
+    ) {
       payments.push({ kind: a.kind, date: a.date, amount: a.amount, group });
     }
   }

@@ -1173,6 +1173,45 @@ test("Voranmeldung vierteljährlich: Zeitraum einstellen, Quartal prüfen und te
   await expect(page.getByText(`Für 1. Quartal ${next} passt die Voranmeldung nicht zum eingestellten Zeitraum (monatlich).`)).toBeVisible();
 });
 
+test("Dauerfristverlängerung: Sondervorauszahlung prüfen und testweise senden, Kz 39 im Dezember", async () => {
+  // Im Folgejahr, damit die übrigen Seiten und Bilder ohne Dauerfristverlängerung bleiben
+  const next = YEAR + 1;
+  await go(`/umsatzsteuer/${next}-01`);
+  const card = page.getByRole("region", { name: `Dauerfristverlängerung ${next}` });
+  await expect(card).toContainText("Nicht eingetragen");
+  const amount = card.getByRole("textbox", { name: "Sondervorauszahlung (Kz 38, volle Euro)" });
+  await amount.fill("1.234,56");
+  await expect(card.getByText("Betrag in vollen Euro, nicht negativ.")).toBeVisible();
+  await amount.fill("1.234");
+  const submit = card.getByRole("form", { name: "Sondervorauszahlung an ELSTER" });
+  await submit.getByRole("button", { name: "Nur prüfen" }).click();
+  await expect(submit.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
+  await submit.getByLabel("Zertifikats-PIN").fill("123456");
+  await submit.getByRole("button", { name: "Prüfen und testweise senden" }).click();
+  await expect(submit.getByText(/Testübermittlung erfolgreich/)).toBeVisible();
+  await expect(card.getByRole("list", { name: `Verlauf Dauerfristverlängerung ${next}` })).toContainText("Testübermittlung OK");
+
+  // Außerhalb von Haben beantragt: von Hand eintragen, dann zieht der Dezember die Sondervorauszahlung ab
+  const manual = card.getByRole("form", { name: "Außerhalb von Haben" });
+  await manual.getByRole("checkbox", { name: `Dauerfristverlängerung besteht für ${next}` }).check();
+  await manual.getByRole("button", { name: "Stand speichern" }).click();
+  await expect(manual.getByRole("status")).toContainText(`Dauerfristverlängerung für ${next} eingetragen.`);
+  await expect(card).toContainText("Voranmeldungen sind einen Monat später fällig");
+
+  await go(`/umsatzsteuer/${next}-12`);
+  await expect(page.getByText("Abzug der festgesetzten Sondervorauszahlung")).toBeVisible();
+  await expect(page.locator("#kz-39")).toHaveText(/1\.234,00/);
+  // Dezember mit Dauerfristverlängerung: fällig im Februar
+  await expect(page.getByText("Fällig am", { exact: false })).toContainText(`Februar ${next + 1}`);
+
+  // Wieder beenden, damit Fristen und Bilder ohne Verlängerung bleiben
+  await go(`/umsatzsteuer/${next}-01`);
+  const again = page.getByRole("region", { name: `Dauerfristverlängerung ${next}` }).getByRole("form", { name: "Außerhalb von Haben" });
+  await again.getByRole("checkbox", { name: `Dauerfristverlängerung besteht für ${next}` }).uncheck();
+  await again.getByRole("button", { name: "Stand speichern" }).click();
+  await expect(again.getByRole("status")).toContainText(`Dauerfristverlängerung ab ${next} beendet.`);
+});
+
 test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {
   await go("/einstellungen?bereich=ki");
   // Gesteuertes Kästchen: es zeigt den Stand erst nach der Antwort des Servers

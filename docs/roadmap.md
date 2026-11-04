@@ -8,16 +8,15 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 
 | # | Thema | Worum es geht | Aufwand | Stand |
 | --- | --- | --- | --- | --- |
-| 1 | Voranmeldung vierteljährlich oder keine, Dauerfristverlängerung | Voranmeldungszeitraum Kalendervierteljahr bzw. Befreiung (§ 18 Abs. 2 UStG) statt nur monatlich; Antrag auf Dauerfristverlängerung (USt 1 H) über ELSTER, bei monatlicher Abgabe mit Sondervorauszahlung (§ 47 UStDV) | M | in Arbeit |
-| 2 | Lohn | Lohnabrechnung, Buchung, Lohnsteuer-Anmeldung und -Bescheinigung über ELSTER, zuerst für den Gesellschafter-Geschäftsführer, dann für Angestellte und Minijobs; für die Sozialversicherung eine Ausfüllliste zum [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz). Lohnsteuer nach dem Programmablaufplan und Beiträge zur Sozialversicherung stehen; Plan: [Lohn – Recherche und Umsetzungsplan](lohn-plan.md) | L | in Arbeit |
-| 3 | Überweisungen als SEPA-Datei | Offene Belege gesammelt als pain.001 ausgeben, die man im Online-Banking hochlädt; die Abbuchung ordnet der Bankabgleich danach zu ([Belege](belege.md#überweisen-sepa-datei)). Später prüfen: Zahlungsauslösung über Enable Banking, das schon den Kontoabruf macht | S | erledigt |
-| 4 | Skonto | Skonto in den Zahlungsbedingungen der Rechnung, auf PDF und in der E-Rechnung (BT-20) | S | geplant |
-| 5 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst lesend für die Steuerberatung, später volle Rollen. Weicht von der bisherigen Entscheidung „genau ein Nutzer“ ab ([Architektur](architektur.md)); vor dem Bau zu klären | M | geplant |
-| 6 | Zusammenfassende Meldung | Meldung der innergemeinschaftlichen Leistungen je USt-IdNr. und Quartal über ELSTER | M | geplant |
-| 7 | Texterkennung ohne Cloud | Belege lokal erkennen (z. B. Tesseract im Worker); die KI bleibt wahlweise | M | geplant |
-| 8 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
-| 9 | BWA und Liquiditätsplanung | Betriebswirtschaftliche Auswertung mit Vorjahresvergleich und Vorschau aus offenen Posten | M | geplant |
-| 10 | CSV-Import | Kontakte, Artikel und Anlagen aus CSV übernehmen | S | geplant |
+| 1 | Lohn | Lohnabrechnung, Buchung, Lohnsteuer-Anmeldung und -Bescheinigung über ELSTER, zuerst für den Gesellschafter-Geschäftsführer, dann für Angestellte und Minijobs; für die Sozialversicherung eine Ausfüllliste zum [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz). Lohnsteuer nach dem Programmablaufplan und Beiträge zur Sozialversicherung stehen; Plan: [Lohn – Recherche und Umsetzungsplan](lohn-plan.md) | L | in Arbeit |
+| 2 | Überweisungen als SEPA-Datei | Offene Belege gesammelt als pain.001 ausgeben, die man im Online-Banking hochlädt; die Abbuchung ordnet der Bankabgleich danach zu ([Belege](belege.md#überweisen-sepa-datei)). Später prüfen: Zahlungsauslösung über Enable Banking, das schon den Kontoabruf macht | S | erledigt |
+| 3 | Skonto | Skonto in den Zahlungsbedingungen der Rechnung, auf PDF und in der E-Rechnung (BT-20) | S | geplant |
+| 4 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst lesend für die Steuerberatung, später volle Rollen. Weicht von der bisherigen Entscheidung „genau ein Nutzer“ ab ([Architektur](architektur.md)); vor dem Bau zu klären | M | geplant |
+| 5 | Zusammenfassende Meldung | Meldung der innergemeinschaftlichen Leistungen je USt-IdNr. und Quartal über ELSTER | M | geplant |
+| 6 | Texterkennung ohne Cloud | Belege lokal erkennen (z. B. Tesseract im Worker); die KI bleibt wahlweise | M | geplant |
+| 7 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
+| 8 | BWA und Liquiditätsplanung | Betriebswirtschaftliche Auswertung mit Vorjahresvergleich und Vorschau aus offenen Posten | M | geplant |
+| 9 | CSV-Import | Kontakte, Artikel und Anlagen aus CSV übernehmen | S | geplant |
 
 Danach: Alternativpositionen und Gesamtrabatt, Kundenhistorie mit Aufgaben und Notizen, OSS-Meldung, innergemeinschaftliche Lieferungen und Ausfuhr, Lastschrift-Datei (pain.008), Abrechnungen von Amazon und weiteren Shops, Fahrtenbuch, vollständigere Anlage EÜR (Bewirtung, Geschenke, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
 

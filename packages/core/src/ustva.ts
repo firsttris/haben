@@ -21,6 +21,8 @@ export interface UstvaValues {
   kz84?: Cents;
   kz85?: Cents;
   kz67?: Cents;
+  /** Abzug der festgesetzten Sondervorauszahlung (Dauerfristverlängerung), in der letzten Voranmeldung des Jahres */
+  kz39?: Cents;
 }
 
 export interface UstvaFigures {
@@ -41,6 +43,8 @@ export interface UstvaFigures {
   kz84: Cents;
   kz85: Cents;
   kz67: Cents;
+  /** Abzug der Sondervorauszahlung, centgenau (§ 48 Abs. 4 UStDV) */
+  kz39: Cents;
   /** Verbleibende Vorauszahlung; negativ = Erstattung */
   kz83: Cents;
 }
@@ -69,6 +73,7 @@ export function computeUstva(input: UstvaValues): UstvaFigures {
     kz84: toWholeEuros(input.kz84 ?? 0),
     kz85: input.kz85 ?? 0,
     kz67: input.kz67 ?? 0,
-    kz83: tax81 + tax86 + (input.kz47 ?? 0) + (input.kz85 ?? 0) - input.kz66 - (input.kz67 ?? 0),
+    kz39: input.kz39 ?? 0,
+    kz83: tax81 + tax86 + (input.kz47 ?? 0) + (input.kz85 ?? 0) - input.kz66 - (input.kz67 ?? 0) - (input.kz39 ?? 0),
   };
 }

@@ -36,6 +36,7 @@ export function ledgerManagedAccounts(kontenrahmen: Kontenrahmen): Map<string, s
       (account): [string, string] => [account, "Umsatzsteuer"],
     ),
     [a.ustVorauszahlung, "Umsatzsteuer"],
+    [a.sondervorauszahlung, "Umsatzsteuer"],
     ...[...Object.values(a.erloese), ...Object.values(a.erloeseSonder)].map((account): [string, string] => [account, "Rechnungen (Erlöse)"]),
     ...[
       ...Object.values(assets.anlage),

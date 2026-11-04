@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { loadKapEStProtocol } from "../../../server/modules/ausschuettung/index.ts";
 import { loadAnnualProtocol } from "../../../server/modules/jahreserklaerung/index.ts";
+import { loadDauerfristProtocol } from "../../../server/modules/umsatzsteuer/index.ts";
 import { auth } from "../../../server/auth.ts";
 import { db, schema } from "../../../server/db/index.ts";
 import { fileResponse } from "../../../server/file-response.ts";
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/api/protokoll/$id")({
           .innerJoin(schema.vatReturns, eq(schema.vatReturns.id, schema.vatReturnSubmissions.vatReturnId))
           .where(eq(schema.vatReturnSubmissions.id, id.data));
         if (!row?.pdf) {
-          const other = (await loadAnnualProtocol(id.data)) ?? (await loadKapEStProtocol(id.data));
+          const other = (await loadAnnualProtocol(id.data)) ?? (await loadKapEStProtocol(id.data)) ?? (await loadDauerfristProtocol(id.data));
           if (!other) return new Response("Nicht gefunden", { status: 404 });
           return pdfResponse(other.pdf, other.filename);
         }

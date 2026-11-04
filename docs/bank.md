@@ -249,6 +249,7 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Ohne Rechnung buchen**, wäh
 | Gesellschafter (Verrechnungskonto), statt Privat in GmbH und UG | beide Richtungen: 0730 Verbindlichkeiten gegenüber Gesellschaftern | beide Richtungen: 3510 |
 | Geldtransit (eigenes Konto) | 1360 | 1460 |
 | Umsatzsteuer an das Finanzamt | 1780 | 3820 |
+| Sondervorauszahlung (Dauerfristverlängerung), siehe [Umsatzsteuer](umsatzsteuer.md#buchen) | 1781 Umsatzsteuer-Vorauszahlungen 1/11 | 3830 |
 | Kontoführung und Bankgebühren | 4970 | 6855 |
 | Mahngebühren und Verzugszinsen (vom Kunden) | 2650 | 7100 |
 | Kapitalertragsteuer an das Finanzamt (Ausschüttung), nur GmbH und UG | 1746 Verbindlichkeiten aus Einbehaltungen | 3760 |
