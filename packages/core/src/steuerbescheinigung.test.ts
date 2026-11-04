@@ -76,7 +76,11 @@ describe("Steuerbescheinigung nach § 45a Abs. 2 EStG (Muster II)", () => {
   it("mehrere Gesellschafter: je eine Bescheinigung mit eigenem Anteil", () => {
     const anteile = [
       { g: erika, a: ausschuettungAnteil({ brutto: 600_000, ausEinlagekonto: 60_000, kirchensteuer: 8 }), rs: "010100" },
-      { g: { name: "Max Muster", strasse: "Am Deich 2", plzOrt: "27568 Bremerhaven", idnr: "57549285017" }, a: ausschuettungAnteil({ brutto: 400_000, ausEinlagekonto: 40_000, kirchensteuer: 0 }), rs: null },
+      {
+        g: { name: "Max Muster", strasse: "Am Deich 2", plzOrt: "27568 Bremerhaven", idnr: "57549285017" },
+        a: ausschuettungAnteil({ brutto: 400_000, ausEinlagekonto: 40_000, kirchensteuer: 0 }),
+        rs: null,
+      },
     ];
     const ergebnisse = anteile.map(({ g, a, rs }) => steuerbescheinigung(eingabe({ glaeubiger: g, anteil: { ...a, religionsschluessel: rs } })));
     expect(ergebnisse.map((r) => r.ok && r.bescheinigung.glaeubiger.name)).toEqual(["Erika Muster", "Max Muster"]);
@@ -88,9 +92,10 @@ describe("Steuerbescheinigung nach § 45a Abs. 2 EStG (Muster II)", () => {
     expect(zeile(1, "Höhe der Kapitalerträge")).toBe(360_000);
     expect(zeile(0, "Kirchensteuer zur Kapitalertragsteuer")).toBeGreaterThan(0);
     expect(zeile(1, "Kirchensteuer zur Kapitalertragsteuer")).toBe(0);
-    expect(zeile(0, "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 bis 7 KStG)")! + zeile(1, "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 bis 7 KStG)")!).toBe(
-      100_000,
-    );
+    expect(
+      zeile(0, "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 bis 7 KStG)")! +
+        zeile(1, "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 bis 7 KStG)")!,
+    ).toBe(100_000);
   });
 
   it("meldet fehlende Angaben statt leer zu drucken", () => {

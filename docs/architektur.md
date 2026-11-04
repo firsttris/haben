@@ -72,7 +72,7 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `umsatzsteuer` | `vat-figures` (Zahlen und Vorprüfung), `vat` (Entwürfe, Berichtigung, Übermittlung) |
 | `elster` | `elster-gateway` (Zugang, Zertifikat und PIN, Sendesperre und Protokoll für jede Übermittlung), `certificate`, `elster` (Datenschutzhinweise der Finanzverwaltung) |
 | `finanzamt` | `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `fristen` (Steuertermine, Kalender-Abo) |
-| `ausschuettung` | `ausschuettung` (Gewinnverwendungsbeschluss, Steuerabzug je Gesellschafter, Storno, Kapitalertragsteuer-Anmeldung) |
+| `ausschuettung` | `ausschuettung` (Gewinnverwendungsbeschluss, Steuerabzug je Gesellschafter, Storno, Kapitalertragsteuer-Anmeldung), `steuerbescheinigung` (Steuerbescheinigung nach § 45a EStG je Gesellschafter als PDF) |
 | `jahreserklaerung` | `annual` (Umsatzsteuererklärung, Anlage EÜR, Einkommensteuer), `income-tax` (Angaben zur Einkommensteuer) |
 | `auswertungen` | `reports` (EÜR, offene Posten), `abgleich` (Journal gegen Umsatzsteuer und EÜR), `integrity` (Prüfung von Hash-Kette, Siegeln und Abgleich), `datev-export` |
 | `archiv` | `archive` (Umzugsdateien), `export` (Jahresarchiv), `lexoffice` (Import über die API oder eine Sicherung aus der Web-Oberfläche), `legacy-open` (übernommene offene Posten) |

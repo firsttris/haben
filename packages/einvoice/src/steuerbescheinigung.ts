@@ -21,7 +21,8 @@ export function steuerbescheinigungPdfData({ bescheinigung: b }: Steuerbescheini
     author: a.name,
     title: "Steuerbescheinigung",
     // Titel des Musters II; Einzelsteuerbescheinigung für einen Zahlungstag
-    subtitle: "einer leistenden Körperschaft, Personenvereinigung oder Vermögensmasse oder eines Personenunternehmens oder eines Spezial-Investmentfonds – Einzelsteuerbescheinigung",
+    subtitle:
+      "einer leistenden Körperschaft, Personenvereinigung oder Vermögensmasse oder eines Personenunternehmens oder eines Spezial-Investmentfonds – Einzelsteuerbescheinigung",
     senderLine: [a.name, a.strasse, `${a.plz} ${a.ort}`].join(" · "),
     recipient: [g.name, ...g.anschrift],
     meta: [

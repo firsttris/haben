@@ -21,7 +21,8 @@ export const Route = createFileRoute("/api/steuerbescheinigung/$id/$nr")({
           return fileResponse(row.pdf, { mimeType: "application/pdf", filename: row.filename }, true);
         } catch (error) {
           // Fehlende Angaben oder Storno: Text statt eines leeren Formulars
-          if (error instanceof AusschuettungError) return new Response(error.message, { status: 409, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+          if (error instanceof AusschuettungError)
+            return new Response(error.message, { status: 409, headers: { "Content-Type": "text/plain; charset=utf-8" } });
           throw error;
         }
       },

@@ -18,7 +18,13 @@ type Dividend = typeof schema.dividends.$inferSelect;
 function ergebnis(d: Dividend, e: AusschuettungEmpfaenger, company: Company, angaben: KapgErklaerungAngaben, today: string): SteuerbescheinigungErgebnis {
   const gesellschafter = angaben.anteilseigner.find((a) => a.name === e.name);
   return steuerbescheinigung({
-    aussteller: { name: company.name, strasse: company.strasse, plz: company.plz, ort: company.ort, ...(company.steuernummer ? { steuernummer: company.steuernummer } : {}) },
+    aussteller: {
+      name: company.name,
+      strasse: company.strasse,
+      plz: company.plz,
+      ort: company.ort,
+      ...(company.steuernummer ? { steuernummer: company.steuernummer } : {}),
+    },
     glaeubiger: { name: e.name, strasse: gesellschafter?.strasse, plzOrt: gesellschafter?.plzOrt, idnr: gesellschafter?.idnr },
     anteil: e,
     zahlungstag: d.zufluss,

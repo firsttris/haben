@@ -87,10 +87,12 @@ export function bescheinigungFehlend(e: SteuerbescheinigungEingabe): string[] {
   if (blank(a.strasse) || blank(a.plz) || blank(a.ort)) fehlend.push("Anschrift der Gesellschaft ist unvollständig (Einstellungen › Firmendaten).");
   // § 45a Abs. 2 EStG in Verbindung mit § 32d: Name und Anschrift des Gläubigers; die IdNr. verlangt das Muster
   if (blank(g.strasse) || blank(g.plzOrt)) fehlend.push(`Anschrift von ${g.name} fehlt (Jahreserklärung › Angaben zu den Erklärungen).`);
-  if (!g.idnr || !/^\d{11}$/.test(g.idnr)) fehlend.push(`Steuerliche Identifikationsnummer von ${g.name} fehlt (Jahreserklärung › Angaben zu den Erklärungen).`);
+  if (!g.idnr || !/^\d{11}$/.test(g.idnr))
+    fehlend.push(`Steuerliche Identifikationsnummer von ${g.name} fehlt (Jahreserklärung › Angaben zu den Erklärungen).`);
   if (anteil.kist > 0 && !anteil.religionsschluessel) fehlend.push(`Religionsschlüssel zur Kirchensteuer von ${g.name} fehlt.`);
   // BMF-Schreiben vom 16. Mai 2025: Da der Zahlungstag zu bescheinigen ist, erst nach der Zahlung ausstellen
-  if (e.zahlungstag > e.ausstellungstag) fehlend.push(`Die Ausschüttung fließt erst am ${deutschesDatum(e.zahlungstag)} zu; die Bescheinigung gibt es ab diesem Tag.`);
+  if (e.zahlungstag > e.ausstellungstag)
+    fehlend.push(`Die Ausschüttung fließt erst am ${deutschesDatum(e.zahlungstag)} zu; die Bescheinigung gibt es ab diesem Tag.`);
   return fehlend;
 }
 

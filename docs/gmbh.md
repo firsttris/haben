@@ -17,7 +17,7 @@ Gedacht ist das für eine kleine GmbH, etwa die eines Freiberuflers mit einem od
 - **Rechnungen, Belege, Bank und Kasse** wie im Einzelunternehmen. Statt Privatentnahme und -einlage gibt es das [Gesellschafter-Verrechnungskonto](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug) (SKR03 0730, SKR04 3510): Legt der Gesellschafter etwas aus oder bekommt Geld von der GmbH, steht es dort.
 - **Manuelle Buchungen** für alles, was nicht aus einem Beleg kommt, etwa Abschlussbuchungen oder die Einzahlung des Stammkapitals: [Manuelle Buchungen](buchhaltung.md#manuelle-buchungen-gmbh-und-ug).
 - **Umsatzsteuer-Voranmeldung** wie gewohnt über [ELSTER](umsatzsteuer.md).
-- **Gewinnausschüttung** unter **Steuern › Ausschüttungen**: Gewinnverwendungsbeschluss buchen, Kapitalertragsteuer, Soli und Kirchensteuer je Gesellschafter einbehalten und die Kapitalertragsteuer-Anmeldung senden, siehe [Gewinnausschüttung](buchhaltung.md#gewinnausschüttung-gmbh-und-ug).
+- **Gewinnausschüttung** unter **Steuern › Ausschüttungen**: Gewinnverwendungsbeschluss buchen, Kapitalertragsteuer, Soli und Kirchensteuer je Gesellschafter einbehalten, die Kapitalertragsteuer-Anmeldung senden und jedem Gesellschafter die Steuerbescheinigung nach § 45a EStG als PDF geben, siehe [Gewinnausschüttung](buchhaltung.md#gewinnausschüttung-gmbh-und-ug).
 
 ## Zum Jahresende
 
@@ -33,7 +33,7 @@ Die Termine für Voranmeldung, Kapitalertragsteuer-Anmeldung und Erklärungen st
 
 - Lohnabrechnung für den Geschäftsführer oder Angestellte; die Lohnbuchungen kommen als manuelle Buchung aus dem Lohnprogramm.
 - Hinterlegung oder Offenlegung des Jahresabschlusses beim Unternehmensregister.
-- Steuerbescheinigungen für die Gesellschafter (§ 45a EStG) und die Abfrage der Kirchensteuerabzugsmerkmale beim Bundeszentralamt für Steuern.
+- Die Abfrage der Kirchensteuerabzugsmerkmale beim Bundeszentralamt für Steuern und Steuerbescheinigungen für Gesellschafter, die selbst Gesellschaften sind.
 - Organschaft, Beteiligungen an anderen Gesellschaften, verdeckte Gewinnausschüttungen, Spenden, Einlagen in das Einlagekonto, ausländische Einkünfte; die Liste je Erklärung steht bei den [Jahreserklärungen](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug).
 - Eine Überleitung von der Handels- zur Steuerbilanz.
 

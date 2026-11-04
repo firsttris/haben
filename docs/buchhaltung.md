@@ -473,8 +473,17 @@ In der **Körperschaftsteuererklärung** des Jahres stehen die Ausschüttungen i
 
 Ein **Storno** ist eine Gegenbuchung und geht nur, solange die Anmeldung nicht echt übermittelt ist. Danach korrigiert eine berichtigte Anmeldung über das ELSTER-Portal.
 
+**Steuerbescheinigung** (§ 45a Abs. 2 EStG). Die GmbH bescheinigt jedem Gesellschafter als Schuldner der Kapitalerträge, was sie ausgeschüttet und einbehalten hat; er braucht die Bescheinigung für seine Einkommensteuererklärung. Unter jeder gebuchten Ausschüttung steht je Gesellschafter ein Link **Steuerbescheinigung … (PDF)**.
+- **Muster:** Haben folgt dem amtlichen Muster II („Steuerbescheinigung einer leistenden Körperschaft, Personenvereinigung oder Vermögensmasse …“) aus dem [BMF-Schreiben vom 16. Mai 2025](https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Abgeltungsteuer/2025-05-16-kapitalertragSt-steuerbescheinigung.pdf), als Einzelsteuerbescheinigung für den Zahlungstag. Inhalt in `packages/core/src/steuerbescheinigung.ts`, PDF mit derselben Vorlage wie die Mahnung in `packages/einvoice`.
+- **Inhalt:** Aussteller mit Anschrift und Steuernummer, Gesellschafter mit Anschrift und steuerlicher Identifikationsnummer, Zahlungstag (der Zufluss) und die Zeilen Höhe der Kapitalerträge, Kapitalertragsteuer, Solidaritätszuschlag, Kirchensteuer zur Kapitalertragsteuer (mit Religionsschlüssel) und Leistungen aus dem steuerlichen Einlagekonto. Was aus dem Einlagekonto kommt, ist kein Kapitalertrag und steht nur in der letzten Zeile.
+- **Woher die Angaben kommen:** Beträge aus der gebuchten Ausschüttung, Anschrift und Identifikationsnummer aus den Angaben zur Körperschaftsteuererklärung des Beschlussjahres, der Aussteller aus den Firmendaten.
+- **Was fehlt, steht dort:** Fehlt die Anschrift, die Identifikationsnummer (eine Steuernummer genügt nicht) oder der Religionsschlüssel, zeigt Haben das statt des Links und erzeugt keine unvollständige Bescheinigung.
+- **Ab dem Zahlungstag:** Weil der Zahlungstag zu bescheinigen ist, gibt es die Bescheinigung erst ab dem Zufluss; zu einer stornierten Ausschüttung gibt es keine.
+- **Unterschrift:** Die Bescheinigung ist maschinell erstellt und nennt den Aussteller; eine Unterschrift braucht sie dann nicht (§ 45a Abs. 2 EStG).
+- **Übergabe und Aufbewahrung:** Gib jedem Gesellschafter seine Bescheinigung und leg eine Kopie zu den Unterlagen der Ausschüttung. Haben speichert die Bescheinigung nicht, sondern erzeugt sie bei jedem Abruf neu, mit dem Tag des Abrufs als Ausstellungsdatum. Ist eine ausgegebene Bescheinigung falsch, fordert die GmbH sie zurück und gibt eine berichtigte aus (§ 45a Abs. 6 EStG).
+
 > [!WARNING]
-> Haben fragt die Kirchensteuerabzugsmerkmale nicht selbst beim Bundeszentralamt für Steuern ab (KiStAM-Abfrage, jährlich zwischen 1. September und 31. Oktober); trag sie aus der Antwort ein. Nicht abgedeckt sind Ausschüttungen aus der Kapitalrücklage, verdeckte Gewinnausschüttungen, Gesellschafter im Ausland, Freistellungsaufträge und Nichtveranlagungsbescheinigungen. Die Steuerbescheinigung für die Gesellschafter (§ 45a EStG) erstellt Haben noch nicht.
+> Haben fragt die Kirchensteuerabzugsmerkmale nicht selbst beim Bundeszentralamt für Steuern ab (KiStAM-Abfrage, jährlich zwischen 1. September und 31. Oktober); trag sie aus der Antwort ein. Nicht abgedeckt sind Ausschüttungen aus der Kapitalrücklage, verdeckte Gewinnausschüttungen, Gesellschafter im Ausland, Freistellungsaufträge und Nichtveranlagungsbescheinigungen. Die Steuerbescheinigung deckt nur Gesellschafter mit steuerlicher Identifikationsnummer ab, also natürliche Personen; für eine Gesellschaft als Gesellschafterin stellt sie die Steuerberatung aus.
 
 ## E-Bilanz (GmbH und UG)
 
