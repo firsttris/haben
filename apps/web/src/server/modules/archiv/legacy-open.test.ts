@@ -412,6 +412,53 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
         },
       );
 
+      it.each(["ist", "soll"] as const)(
+        "%s: Einzelunternehmen: nach der ersten Übernahme steht der Stichtag fest, ein anderer wird abgelehnt",
+        async (versteuerung) => {
+          await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+          const juni = await legacyVoucher({
+            type: "invoice",
+            direction: "einnahme",
+            number: "RE-J",
+            date: `${alt}-06-10`,
+            net: 100_000,
+            tax: 19_000,
+            status: "paid",
+            payments: [{ date: `${alt}-07-05`, amount: 119_000 }],
+            file: PDF,
+          });
+          // Am 30.06. offen, im September bezahlt: Mit dem 31.12. als Stichtag fiele er aus der Liste, obwohl die Zahlung
+          // nach dem ersten Tag in Haben liegt und dort ankommt
+          const mai = await legacyVoucher({
+            type: "invoice",
+            direction: "einnahme",
+            number: "RE-K",
+            date: `${alt}-05-10`,
+            net: 50_000,
+            tax: 9_500,
+            status: "paid",
+            payments: [{ date: `${alt}-09-10`, amount: 59_500 }],
+            file: PDF,
+          });
+          const a = `${alt}-06-30`;
+          const b = `${alt}-12-31`;
+          await legacy.takeOverLegacyItem(actor, juni, a);
+
+          const fixed = { date: a, bookingDate: `${alt}-07-01`, fixed: expect.stringMatching(/übernommen/) };
+          expect(await legacy.legacyTakeoverCutoff()).toEqual(fixed);
+          expect(await legacy.legacyTakeoverCutoff(a)).toEqual(fixed);
+          await expect(legacy.legacyTakeoverCutoff(b)).rejects.toThrow(/Stichtag/);
+          await expect(legacy.takeOverLegacyItem(actor, mai, b)).rejects.toThrow(/Stichtag/);
+          await expect(legacy.takeOverAll(actor, b)).rejects.toThrow(/Stichtag/);
+          expect(await legacy.openItemsOverview(b)).toMatchObject({ cutoff: fixed, cutoffError: expect.stringMatching(/Stichtag/) });
+          // Ohne gewählten Stichtag gilt der feste: Der zweite Posten kommt zum selben Tag dazu
+          expect(await legacy.takeOverAll(actor)).toEqual([{ number: "RE-K" }]);
+          const dates = await sql`select distinct e.date::text as date from journal_entries e join invoices i on i.id = e.source_id
+            where i.lexoffice_voucher_id is not null`;
+          expect(dates.map((d) => d.date)).toEqual([`${alt}-07-01`]);
+        },
+      );
+
       it("im Januar bezahlter Eingangsbeleg: Saldenvortrag an Verbindlichkeiten zum 1.1.", async () => {
         await sql`update company set kontenrahmen = ${kontenrahmen}`;
         const id = await legacyVoucher({
