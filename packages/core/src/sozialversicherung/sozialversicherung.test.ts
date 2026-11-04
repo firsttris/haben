@@ -308,9 +308,17 @@ describe("nicht unterstützte und ungültige Eingaben", () => {
     ["Zuschlag trotz Kind", { pflege: { kinderlosenzuschlag: true, kinderUnter25: 1 } }, "Mit Kindern fällt kein Zuschlag für Kinderlose an."],
     ["halbe Kinder", { pflege: { kinderlosenzuschlag: false, kinderUnter25: 1.5 } }, "Die Zahl der Kinder unter 25 muss eine ganze, nicht negative Zahl sein."],
     ["31 SV-Tage", { svTage: 31 }, "Die SV-Tage müssen eine ganze Zahl von 1 bis 30 sein."],
-    ["Entgelt eines Minijobs", { entgelt: 603_00 }, "Bis 603,00 € im Monat ist die Beschäftigung geringfügig; dafür gibt es die Personengruppe Minijob."],
   ])("lehnt %s ab", (_, zusatz, meldung) => {
     expect(sozialversicherung(2026, { ...ANGESTELLT, ...(zusatz as Partial<SvBeschaeftigt>) })).toEqual({ ok: false, grund: "ungueltig", meldung });
+  });
+
+  // Ein einzelner Monat bis 603 € in einer versicherungspflichtigen Beschäftigung ist kein Minijob: Er wird nach § 2 Abs. 2
+  // Satz 2 und 5 BVV mit F × Entgelt bemessen (TK-Beratungsblatt 03/2026, Beispiel 6). Dafür braucht es das regelmäßige
+  // Entgelt aus der Lohnabrechnung; bis dahin nicht rechnen und nicht auf die Pauschalen des Minijobs verweisen.
+  it.each([1, 510_00, 603_00])("rechnet einen Monat mit %i Cent in versicherungspflichtiger Beschäftigung nicht", (entgelt) => {
+    const ergebnis = sozialversicherung(2026, { ...ANGESTELLT, entgelt });
+    expect(ergebnis).toMatchObject({ ok: false, grund: "nicht-unterstuetzt" });
+    expect(ergebnis.ok === false && ergebnis.meldung).not.toMatch(/Minijob/);
   });
 
   it("rechnet U1 nur, wenn der Arbeitgeber teilnimmt", () => {
