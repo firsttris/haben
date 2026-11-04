@@ -20,15 +20,20 @@ function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Autofill nur einmal beim Öffnen der Seite anbieten
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Autofill nur einmal beim Öffnen des Formulars anbieten
   useEffect(() => {
-    // Passkey-Autofill im Browser anbieten
+    // Passkey-Autofill braucht ein Feld mit autocomplete="webauthn", das gibt es erst im Passwort-Formular
+    if (!showPassword) return;
     if (typeof PublicKeyCredential !== "undefined" && PublicKeyCredential.isConditionalMediationAvailable) {
       void PublicKeyCredential.isConditionalMediationAvailable().then((available) => {
-        if (available) void authClient.signIn.passkey({ autoFill: true }).then(onResult);
+        if (!available) return;
+        // Ein Abbruch ist kein Fehler: Das Autofill läuft im Hintergrund, und der Passkey-Knopf beendet es selbst
+        void authClient.signIn.passkey({ autoFill: true }).then((result) => {
+          if (!result?.error) void onResult(result);
+        });
       });
     }
-  }, []);
+  }, [showPassword]);
 
   async function onResult(result: { error?: { message?: string } | null } | undefined) {
     if (result?.error) setError(result.error.message ?? "Anmeldung fehlgeschlagen.");
