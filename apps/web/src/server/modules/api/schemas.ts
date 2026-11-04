@@ -163,7 +163,7 @@ const draftApiFields = {
   serviceTo: draftFields.serviceTo,
   paymentTermDays: draftFields.paymentTermDays.describe("Zahlungsziel in Tagen, Vorgabe aus den Firmendaten"),
   format: draftFields.format.describe("Vorgabe: Standardformat des Kontakts, mit Leitweg-ID XRechnung, sonst aus den Firmendaten"),
-  intro: draftFields.intro.describe("Kopftext über den Positionen"),
+  intro: draftFields.intro.describe("Kopftext über den Positionen, Vorgabe aus den Firmendaten"),
   note: draftFields.note.describe("Fußtext unter den Summen"),
   taxTreatment: draftFields.taxTreatment,
   exemptionReason: draftFields.exemptionReason,

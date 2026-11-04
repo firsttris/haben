@@ -530,6 +530,35 @@ test("Textbausteine: Kopftext für einen Kunden anlegen und im Rechnungseditor e
   await expect(insert).toHaveValue("");
 });
 
+test("Standard-Einleitung: in den Firmendaten hinterlegt, je für Rechnungen und Angebote vorbelegt und änderbar", async () => {
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  const speichern = async () => {
+    await firma.getByRole("button", { name: "Speichern" }).click();
+    await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+    await page.waitForLoadState("networkidle");
+  };
+  await go("/einstellungen");
+  await firma.getByLabel("Standard-Einleitung für Rechnungen").fill("Für die erbrachten Leistungen berechne ich Ihnen:");
+  await firma.getByLabel("Standard-Einleitung für Angebote").fill("Gerne biete ich Ihnen an:");
+  await speichern();
+
+  const einleitung = page.getByLabel("Einleitung über den Positionen (optional)");
+  await go("/rechnungen/neu");
+  await expect(einleitung).toHaveValue("Für die erbrachten Leistungen berechne ich Ihnen:");
+  await einleitung.fill("Für das Projekt Relaunch berechne ich Ihnen:");
+  await expect(page.getByLabel("Vorschau der Rechnung")).toContainText("Für das Projekt Relaunch berechne ich Ihnen:");
+  await go("/angebote/neu");
+  await expect(einleitung).toHaveValue("Gerne biete ich Ihnen an:");
+
+  // Die folgenden Tests rechnen mit leerer Einleitung
+  await go("/einstellungen");
+  await firma.getByLabel("Standard-Einleitung für Rechnungen").fill("");
+  await firma.getByLabel("Standard-Einleitung für Angebote").fill("");
+  await speichern();
+  await go("/rechnungen/neu");
+  await expect(einleitung).toHaveValue("");
+});
+
 test("Bruttopreise: Artikel mit Endpreis, Umrechnung beim Einfügen, Vorschau mit „darin enthalten“", async () => {
   await go("/artikel");
   await page.getByRole("button", { name: "Neuer Artikel" }).click();

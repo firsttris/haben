@@ -61,6 +61,9 @@ export const companySchema = z
     rechtsform: z.enum(RECHTSFORM_KEYS),
     paymentTermDays: z.number().int().min(0).max(120),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
+    /** Vorgabe für die Einleitung neuer Rechnungen und Angebote; so lang wie das Feld im Beleg */
+    invoiceIntro: z.string().trim().max(2000).default(""),
+    quoteIntro: z.string().trim().max(2000).default(""),
     kleinunternehmer: z.boolean(),
     /** Anlage EÜR: Gewerbebetrieb oder selbständige (freiberufliche) Arbeit und Art des Betriebs */
     einkunftsart: z.enum(["gewerbe", "selbstaendig"]).nullable().default(null),

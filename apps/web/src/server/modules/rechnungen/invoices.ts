@@ -556,7 +556,7 @@ export async function newDraftDefaults(today: string) {
     serviceTo: null,
     paymentTermDays: company.paymentTermDays,
     format: company.defaultFormat,
-    intro: "",
+    intro: company.invoiceIntro,
     note: "",
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",

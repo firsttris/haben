@@ -151,7 +151,7 @@ export async function newQuoteDefaults(today: string) {
     validUntil: addDays(today, QUOTE_VALID_DAYS),
     serviceFrom: null,
     serviceTo: null,
-    intro: "",
+    intro: company.quoteIntro,
     note: "",
     taxTreatment: (company.kleinunternehmer ? "kleinunternehmer" : "regulaer") as TaxTreatment,
     exemptionReason: "",
