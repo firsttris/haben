@@ -1,15 +1,17 @@
 import { formatEuro } from "@haben/core";
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { errorMessage, formatDate } from "../../lib/format.ts";
 import { takeOverAllOpenItems, takeOverOpenItem, type getMigration } from "../../server/functions/archive.ts";
 import { Icon } from "../Icon.tsx";
 import { ScrollBox } from "../ScrollTable.tsx";
 
-type Item = Awaited<ReturnType<typeof getMigration>>["openItems"][number];
+type MigrationData = Awaited<ReturnType<typeof getMigration>>;
+type Item = MigrationData["openItems"][number];
+type Cutoff = MigrationData["cutoff"];
 
-export function OpenItems({ items, imported }: { items: Item[]; imported: boolean }) {
+export function OpenItems({ items, cutoff, cutoffError, imported }: { items: Item[]; cutoff: Cutoff; cutoffError: string | null; imported: boolean }) {
   const router = useRouter();
   const takeOver = useServerFn(takeOverOpenItem);
   const takeOverAll = useServerFn(takeOverAllOpenItems);
@@ -23,9 +25,9 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
     setMessages([]);
     try {
       if (id) {
-        await takeOver({ data: { id } });
+        await takeOver({ data: { id, stichtag: cutoff.date } });
       } else {
-        const results = await takeOverAll();
+        const results = await takeOverAll({ data: { stichtag: cutoff.date } });
         setMessages(results.map((r) => (r.error ? { tone: "danger", text: `${r.number}: ${r.error}` } : { tone: "ok", text: `${r.number}: übernommen.` })));
       }
       await router.invalidate();
@@ -49,6 +51,7 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
         Original-PDF und bisheriger Nummer, gebucht gegen den Saldenvortrag. Kommt das Geld, ordnest du es wie gewohnt im Bankabgleich zu. Die schon angemeldete
         Umsatz- und Vorsteuer zählt Haben dabei nicht doppelt.
       </p>
+      <CutoffForm key={cutoff.date} cutoff={cutoff} error={cutoffError} disabled={busy !== null} />
       {!imported ? (
         <p className="small muted" style={{ margin: 0 }}>
           Erst nach dem Abruf.
@@ -65,7 +68,7 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
                 <th>Datum</th>
                 <th>Nummer</th>
                 <th>Kontakt</th>
-                <th className="num">Offen</th>
+                <th className="num">Offen am Stichtag</th>
                 <th>
                   <span className="visually-hidden">Aktion</span>
                 </th>
@@ -83,7 +86,10 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
                       {item.dueDate ? `, fällig ${formatDate(item.dueDate)}` : ""}
                     </div>
                   </td>
-                  <td className="num mono">{formatEuro(item.open)}</td>
+                  <td className="num mono">
+                    {formatEuro(item.open)}
+                    {item.paidAfter > 0 && <div className="small muted">danach bezahlt {formatEuro(item.paidAfter)}</div>}
+                  </td>
                   <td>
                     {item.takenOver ? (
                       item.takenOver.kind === "invoice" ? (
@@ -126,5 +132,44 @@ export function OpenItems({ items, imported }: { items: Item[]; imported: boolea
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Stichtag der Übernahme: der letzte Tag der alten Buchhaltung. Offen ist, was an diesem Tag offen war; gebucht wird am
+ * Tag danach. Legt eine Eröffnung oder der DATEV-Stapel ihn fest, steht nur der Grund da.
+ */
+function CutoffForm({ cutoff, error, disabled }: { cutoff: Cutoff; error: string | null; disabled: boolean }) {
+  const navigate = useNavigate();
+  const [value, setValue] = useState(cutoff.date);
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    void navigate({ to: "/archiv", search: (prev) => ({ ...prev, stichtag: value }) });
+  }
+
+  const summary = `Stichtag ${formatDate(cutoff.date)}: Offen ist, was an diesem Tag offen war, auch wenn es danach bezahlt wurde. Gebucht wird zum ${formatDate(cutoff.bookingDate)}, dem ersten Tag in Haben.`;
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <p className="small" style={{ margin: 0 }} id="cutoff-summary">
+        {summary} {cutoff.fixed}
+      </p>
+      {!cutoff.fixed && (
+        <form onSubmit={onSubmit} style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
+          <label className="field">
+            Stichtag (letzter Tag der alten Buchhaltung)
+            <input type="date" value={value} onChange={(e) => setValue(e.target.value)} required aria-describedby="cutoff-summary" disabled={disabled} />
+          </label>
+          <button type="submit" className="btn" disabled={disabled || value === cutoff.date}>
+            Stichtag ändern
+          </button>
+        </form>
+      )}
+      {error && (
+        <p className="banner banner-danger" role="alert" style={{ margin: 0 }}>
+          {error} Es gilt der Vorschlag.
+        </p>
+      )}
+    </div>
   );
 }

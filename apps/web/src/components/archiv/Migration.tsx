@@ -95,7 +95,7 @@ export function Migration({ data }: { data: MigrationData }) {
         connected={Boolean(source === "sevdesk" ? data.sevdeskConnection : data.connection)}
         initial={lastImport}
       />
-      <OpenItems items={data.openItems} imported={Boolean(data.lastImport || data.sevdeskImport)} />
+      <OpenItems items={data.openItems} cutoff={data.cutoff} cutoffError={data.cutoffError} imported={Boolean(data.lastImport || data.sevdeskImport)} />
       <section className="card stack" aria-labelledby="upload-heading">
         <div className="step-head">
           <span className="step-num">4</span>

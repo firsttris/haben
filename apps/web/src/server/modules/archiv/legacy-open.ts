@@ -1,10 +1,24 @@
 import { UserError } from "../../errors.ts";
-import { addDays, computeInvoice, openingDocumentPosting, openingInvoicePosting, type ExpenseCategory, type PriceMode } from "@haben/core";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import {
+  addDays,
+  computeInvoice,
+  legacyOpenAt,
+  openingDocumentPosting,
+  openingInvoicePosting,
+  takeoverCutoff,
+  takeoverCutoffIssue,
+  type ExpenseCategory,
+  type LegacyOpenAt,
+  type PriceMode,
+  type TakeoverCutoff,
+} from "@haben/core";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
-import { openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
-import { db, schema } from "../../db/index.ts";
+import { activeOpenings, openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { loadCompany } from "../stammdaten/index.ts";
+import { lastStapelYear } from "./datev-eroeffnung.ts";
 import { storeInvoiceTaxes } from "../rechnungen/index.ts";
 import type { LegacyCategoryRow } from "../../db/schema.ts";
 import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
@@ -18,7 +32,6 @@ type LegacyVoucher = typeof schema.lexofficeVouchers.$inferSelect;
 /** Belegarten, die als offener Posten nach Haben wandern können */
 const SALES = new Set(["invoice"]);
 const PURCHASES = new Set(["purchaseinvoice"]);
-const OPEN_STATUS = new Set(["open", "overdue", "sepadebit"]);
 
 const SOURCE_LABEL = { lexoffice: "Lexoffice", sevdesk: "sevDesk" } as const;
 
@@ -32,44 +45,83 @@ export interface OpenLegacyItem {
   dueDate: string | null;
   contactName: string;
   gross: number;
+  /** Offen am Stichtag; bei Belegen nach dem Stichtag offen heute */
   open: number;
+  /** Davon nach dem Stichtag bezahlt: Die Zahlung ordnest du in Haben im Bankabgleich zu */
+  paidAfter: number;
   /** Übernommen als Rechnung bzw. Beleg in Haben */
   takenOver: { kind: "invoice" | "document"; id: string } | null;
   /** Warum sich der Posten nicht übernehmen lässt */
   blocker: string | null;
 }
 
-/** Offener Betrag laut Lexoffice bzw. sevDesk; ohne Zahlungsdaten zählt der Status. */
-function openAmount(voucher: Pick<LegacyVoucher, "payment" | "status" | "gross">): number {
-  if (voucher.payment) return Math.abs(voucher.payment.openAmount);
-  return OPEN_STATUS.has(voucher.status) ? Math.abs(voucher.gross) : 0;
+async function lastVoucherDate(q: Db | Tx): Promise<string | null> {
+  const [row] = await q.select({ last: sql<string | null>`max(${schema.lexofficeVouchers.date})::text` }).from(schema.lexofficeVouchers);
+  return row?.last ?? null;
 }
 
-function blockerFor(voucher: LegacyVoucher, hasPdf: boolean): string | null {
+/**
+ * Stichtag der Übernahme aus Firmendaten, Journal und Archiv (takeoverCutoff in @haben/core). Ein gewählter Stichtag
+ * gilt nur, wenn weder eine Eröffnung noch bei GmbH und UG der DATEV-Stapel ihn festlegt.
+ */
+export async function legacyTakeoverCutoff(requested?: string | null, q: Db | Tx = db): Promise<TakeoverCutoff> {
+  const [company, openings, stapelYear, lastVoucher] = await Promise.all([loadCompany(q), activeOpenings(q), lastStapelYear(q), lastVoucherDate(q)]);
+  const input = { rechtsform: company.rechtsform, openingDate: openings[0]?.date ?? null, stapelYear, lastVoucherDate: lastVoucher, today: today() };
+  const cutoff = takeoverCutoff(input);
+  if (cutoff.fixed || !requested) return cutoff;
+  const issue = takeoverCutoffIssue(requested, company.rechtsform, input.today);
+  if (issue) throw new TakeoverError(issue);
+  return takeoverCutoff({ ...input, requested });
+}
+
+function blockerFor(voucher: LegacyVoucher, state: LegacyOpenAt, cutoff: string, hasPdf: boolean): string | null {
   if (voucher.currency !== "EUR") return "Fremdwährung";
-  if (openAmount(voucher) !== Math.abs(voucher.gross))
-    return `teilweise bezahlt – Restbetrag erst in ${SOURCE_LABEL[voucher.source]} ausgleichen oder ohne Rechnung buchen`;
+  if (voucher.date > cutoff) return "nach dem Stichtag ausgestellt – gehört in die Bücher von Haben; dort als Rechnung bzw. Beleg erfassen";
+  if (state.issue) return `Stand am Stichtag unklar (${state.issue}) – in ${SOURCE_LABEL[voucher.source]} prüfen und von Hand erfassen`;
+  // Die Rechnung in Haben trägt den Betrag des Original-PDFs; offen ist dort, was keine Zahlung im Bankabgleich deckt.
+  // Eine Zahlung vor dem Stichtag hat keinen Bankumsatz in Haben, eine Ausbuchung änderte die Steuer (§ 17 UStG).
+  if (state.open !== Math.abs(voucher.gross))
+    return `bis zum Stichtag teilweise bezahlt – Restbetrag erst in ${SOURCE_LABEL[voucher.source]} ausgleichen oder ohne Rechnung buchen`;
   if (voucher.taxes.some((t) => ![1900, 700, 0].includes(t.rate))) return "Steuersatz, den Haben nicht kennt";
   if (voucher.gross <= 0) return "Betrag nicht positiv";
   if (!hasPdf) return `keine Datei aus ${SOURCE_LABEL[voucher.source]}`;
   return null;
 }
 
-/** Offene Rechnungen und Eingangsbelege aus Lexoffice oder sevDesk, die in Haben noch bezahlt werden */
-export async function openLegacyItems(): Promise<OpenLegacyItem[]> {
+/** Stichtag für den Stand heute: keine Zahlung liegt danach */
+const TODAY_STATE = "9999-12-31";
+
+/**
+ * Rechnungen und Eingangsbelege aus Lexoffice oder sevDesk, die am Stichtag offen waren und in Haben bezahlt werden,
+ * dazu heute offene nach dem Stichtag (nicht übernehmbar) und schon übernommene.
+ */
+export async function openLegacyItems(requestedCutoff?: string | null): Promise<OpenLegacyItem[]> {
+  return itemsAt((await legacyTakeoverCutoff(requestedCutoff)).date);
+}
+
+/**
+ * Für den Schritt „Offene Posten übernehmen“: Stichtag und Posten. Ein ungültiger gewählter Stichtag fällt auf den
+ * Vorschlag zurück und kommt als Hinweis mit.
+ */
+export async function openItemsOverview(
+  requestedCutoff?: string | null,
+): Promise<{ cutoff: TakeoverCutoff; cutoffError: string | null; items: OpenLegacyItem[] }> {
+  let cutoffError: string | null = null;
+  const cutoff = await legacyTakeoverCutoff(requestedCutoff).catch(async (error: unknown) => {
+    if (!(error instanceof TakeoverError)) throw error;
+    cutoffError = error.message;
+    return legacyTakeoverCutoff();
+  });
+  return { cutoff, cutoffError, items: await itemsAt(cutoff.date) };
+}
+
+async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   const vouchers = await db
     .select()
     .from(schema.lexofficeVouchers)
     .where(inArray(schema.lexofficeVouchers.type, [...SALES, ...PURCHASES]))
     .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number);
-  const candidates = vouchers.filter((v) => openAmount(v) > 0);
-  if (candidates.length === 0) return [];
-  const ids = candidates.map((v) => v.id);
-  const [files, invoices, documents] = await Promise.all([
-    db
-      .selectDistinct({ voucherId: schema.lexofficeVoucherFiles.voucherId })
-      .from(schema.lexofficeVoucherFiles)
-      .where(and(inArray(schema.lexofficeVoucherFiles.voucherId, ids), inArray(schema.lexofficeVoucherFiles.role, ["pdf", "anhang"]))),
+  const [invoices, documents] = await Promise.all([
     db
       .select({ id: schema.invoices.id, voucherId: schema.invoices.lexofficeVoucherId })
       .from(schema.invoices)
@@ -79,27 +131,48 @@ export async function openLegacyItems(): Promise<OpenLegacyItem[]> {
       .from(schema.documents)
       .where(isNotNull(schema.documents.lexofficeVoucherId)),
   ]);
-  const withFile = new Set(files.map((f) => f.voucherId));
   const invoiceBy = new Map(invoices.map((i) => [i.voucherId, i.id]));
   const documentBy = new Map(documents.map((d) => [d.voucherId, d.id]));
-  return candidates.map((v) => {
-    const invoiceId = invoiceBy.get(v.id);
-    const documentId = documentBy.get(v.id);
-    return {
-      id: v.id,
-      source: v.source,
-      type: v.type,
-      direction: v.direction,
-      number: v.number,
-      date: v.date,
-      dueDate: v.dueDate,
-      contactName: v.contactName,
-      gross: v.gross,
-      open: openAmount(v),
-      takenOver: invoiceId ? { kind: "invoice", id: invoiceId } : documentId ? { kind: "document", id: documentId } : null,
-      blocker: blockerFor(v, withFile.has(v.id)),
-    };
-  });
+  const takenOverOf = (id: string): OpenLegacyItem["takenOver"] => {
+    const invoiceId = invoiceBy.get(id);
+    const documentId = documentBy.get(id);
+    return invoiceId ? { kind: "invoice", id: invoiceId } : documentId ? { kind: "document", id: documentId } : null;
+  };
+  const candidates = vouchers
+    .map((v) => {
+      const state = legacyOpenAt(v, v.date <= cutoff ? cutoff : TODAY_STATE);
+      return { voucher: v, state, takenOver: takenOverOf(v.id) };
+    })
+    .filter((c) => c.state.open > 0 || c.takenOver);
+  if (candidates.length === 0) return [];
+  const files = await db
+    .selectDistinct({ voucherId: schema.lexofficeVoucherFiles.voucherId })
+    .from(schema.lexofficeVoucherFiles)
+    .where(
+      and(
+        inArray(
+          schema.lexofficeVoucherFiles.voucherId,
+          candidates.map((c) => c.voucher.id),
+        ),
+        inArray(schema.lexofficeVoucherFiles.role, ["pdf", "anhang"]),
+      ),
+    );
+  const withFile = new Set(files.map((f) => f.voucherId));
+  return candidates.map(({ voucher: v, state, takenOver }) => ({
+    id: v.id,
+    source: v.source,
+    type: v.type,
+    direction: v.direction,
+    number: v.number,
+    date: v.date,
+    dueDate: v.dueDate,
+    contactName: v.contactName,
+    gross: v.gross,
+    open: state.open,
+    paidAfter: v.date <= cutoff ? state.paidAfter : 0,
+    takenOver,
+    blocker: blockerFor(v, state, cutoff, withFile.has(v.id)),
+  }));
 }
 
 /** Kategorie aus Lexoffice grob auf die Ausgabenkategorie von Haben abbilden; sie zählt nur für die EÜR-Aufteilung */
@@ -136,30 +209,49 @@ function categoryFor(categories: LegacyCategoryRow[]): ExpenseCategory {
 /**
  * Übernimmt einen offenen Posten aus Lexoffice oder sevDesk, damit der Zahlungseingang bzw. die Zahlung im Bankabgleich
  * zugeordnet werden kann: Rechnungen mit Original-PDF und bisheriger Nummer, Belege gebucht und gesperrt.
- * Gebucht wird gegen den Saldenvortrag, nicht als Erlös oder Aufwand; die stehen schon in den alten Büchern.
+ * Gebucht wird gegen den Saldenvortrag, nicht als Erlös oder Aufwand; die stehen schon in den alten Büchern. Datum ist der
+ * Tag nach dem Stichtag, der erste Tag in Haben, nicht der Tag der Übernahme.
  * Steht schon eine Eröffnung aus dem DATEV-Stapel nach dem Belegdatum, enthält ihr Saldo der Forderungen bzw.
  * Verbindlichkeiten den Posten bereits; dann legt die Übernahme nur Rechnung bzw. Beleg für den Bankabgleich an und bucht
  * nicht noch einmal gegen 9000.
  */
-export async function takeOverLegacyItem(actor: string, voucherId: string): Promise<{ kind: "invoice" | "document"; id: string }> {
-  const items = await openLegacyItems();
+export async function takeOverLegacyItem(
+  actor: string,
+  voucherId: string,
+  requestedCutoff?: string | null,
+): Promise<{ kind: "invoice" | "document"; id: string }> {
+  const cutoff = await legacyTakeoverCutoff(requestedCutoff);
+  const items = await itemsAt(cutoff.date);
   const item = items.find((i) => i.id === voucherId);
   if (!item) throw new TakeoverError("Dieser Beleg ist in der bisherigen Buchhaltung nicht offen.");
   if (item.takenOver) throw new TakeoverError("Schon übernommen.");
   if (item.blocker) throw new TakeoverError(`Nicht übernehmbar: ${item.blocker}.`);
-  return takeOver(actor, item);
+  return takeOver(actor, item, cutoff);
 }
 
-async function takeOver(actor: string, item: OpenLegacyItem): Promise<{ kind: "invoice" | "document"; id: string }> {
+async function takeOver(actor: string, item: OpenLegacyItem, cutoff: TakeoverCutoff): Promise<{ kind: "invoice" | "document"; id: string }> {
   const [voucher] = await db.select().from(schema.lexofficeVouchers).where(eq(schema.lexofficeVouchers.id, item.id));
   const files = await db.select().from(schema.lexofficeVoucherFiles).where(eq(schema.lexofficeVoucherFiles.voucherId, item.id));
-  return item.direction === "einnahme" ? takeOverInvoice(actor, voucher!, files) : takeOverDocument(actor, voucher!, files);
+  return item.direction === "einnahme" ? takeOverInvoice(actor, voucher!, files, cutoff) : takeOverDocument(actor, voucher!, files, cutoff);
+}
+
+/**
+ * Sperrt wie die Eröffnung (stapelOpeningCovering) und liefert die Eröffnung aus dem Stapel, die den Posten enthält.
+ * Hat inzwischen jemand eine Eröffnung gebucht, die den Stichtag verschiebt, bricht die Übernahme ab, statt an einem
+ * anderen Tag zu buchen als angezeigt.
+ */
+async function lockedCovering(tx: Tx, voucher: LegacyVoucher, cutoff: TakeoverCutoff) {
+  const covering = await stapelOpeningCovering(tx, voucher.date);
+  const current = await legacyTakeoverCutoff(cutoff.fixed ? null : cutoff.date, tx);
+  if (current.date !== cutoff.date) throw new TakeoverError("Der Stichtag hat sich inzwischen geändert. Bitte die Seite neu laden.");
+  return covering;
 }
 
 async function takeOverInvoice(
   actor: string,
   voucher: LegacyVoucher,
   files: (typeof schema.lexofficeVoucherFiles.$inferSelect)[],
+  cutoff: TakeoverCutoff,
 ): Promise<{ kind: "invoice"; id: string }> {
   const pdfFile = files.find((f) => f.role === "pdf") ?? files.find((f) => f.mimeType === "application/pdf");
   if (!pdfFile) throw new TakeoverError("Zu dieser Rechnung fehlt das PDF.");
@@ -192,6 +284,7 @@ async function takeOverInvoice(
   }
 
   return withActor(actor, async (tx) => {
+    const covering = await lockedCovering(tx, voucher, cutoff);
     const company = await openBooks(tx);
     if (voucher.number) {
       const [clash] = await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.number, voucher.number));
@@ -251,9 +344,9 @@ async function takeOverInvoice(
         updatedAt: now,
       })
       .where(eq(schema.invoices.id, id));
-    if (!(await stapelOpeningCovering(tx, voucher.date)))
+    if (!covering)
       await post(tx, company, {
-        date: today(),
+        date: cutoff.bookingDate,
         description: `Offene Rechnung ${voucher.number} aus ${SOURCE_LABEL[voucher.source]} · ${contact!.name}`,
         sourceType: "invoice",
         sourceId: id,
@@ -267,10 +360,12 @@ async function takeOverDocument(
   actor: string,
   voucher: LegacyVoucher,
   files: (typeof schema.lexofficeVoucherFiles.$inferSelect)[],
+  cutoff: TakeoverCutoff,
 ): Promise<{ kind: "document"; id: string }> {
   const file = files.find((f) => f.mimeType === "application/pdf") ?? files[0];
   if (!file) throw new TakeoverError("Zu diesem Beleg fehlt die Datei.");
   return withActor(actor, async (tx) => {
+    const covering = await lockedCovering(tx, voucher, cutoff);
     const company = await openBooks(tx);
     const [existing] = await tx.select({ id: schema.documents.id }).from(schema.documents).where(eq(schema.documents.sha256, file.sha256));
     if (existing) throw new TakeoverError("Die Datei liegt in Haben schon als Beleg; bitte dort bezahlen.");
@@ -298,9 +393,9 @@ async function takeOverDocument(
       .returning({ id: schema.documents.id });
     const id = doc!.id;
     await tx.insert(schema.documentAmounts).values(voucher.taxes.map((t) => ({ documentId: id, taxRate: t.rate, net: t.net, tax: t.tax })));
-    if (!(await stapelOpeningCovering(tx, voucher.date)))
+    if (!covering)
       await post(tx, company, {
-        date: today(),
+        date: cutoff.bookingDate,
         description: `Offener Beleg ${voucher.number || file.filename} aus ${SOURCE_LABEL[voucher.source]} · ${voucher.contactName}`,
         sourceType: "document",
         sourceId: id,
@@ -312,12 +407,13 @@ async function takeOverDocument(
 }
 
 /** Alle übernehmbaren offenen Posten auf einmal; Fehler einzelner Posten kommen zurück */
-export async function takeOverAll(actor: string) {
-  const items = (await openLegacyItems()).filter((i) => !i.takenOver && !i.blocker);
+export async function takeOverAll(actor: string, requestedCutoff?: string | null) {
+  const cutoff = await legacyTakeoverCutoff(requestedCutoff);
+  const items = (await itemsAt(cutoff.date)).filter((i) => !i.takenOver && !i.blocker);
   const results: { number: string; error?: string }[] = [];
   for (const item of items) {
     try {
-      await takeOver(actor, item);
+      await takeOver(actor, item, cutoff);
       results.push({ number: item.number });
     } catch (error) {
       if (!(error instanceof TakeoverError)) throw error;

@@ -15,6 +15,8 @@ const searchSchema = z.object({
   ohneDatei: z.optional(z.boolean()),
   ohneBeleg: z.optional(z.boolean()),
   seite: z.optional(z.int().check(z.minimum(0))),
+  /** Stichtag der Übernahme offener Posten (letzter Tag der alten Buchhaltung) */
+  stichtag: z.optional(z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))),
 });
 
 export type ArchiveSearch = z.infer<typeof searchSchema>;
@@ -24,7 +26,7 @@ export const Route = createFileRoute("/_app/archiv/")({
   loaderDeps: ({ search }) => search,
   loader: async ({ deps }) => {
     const view = deps.ansicht ?? "umzug";
-    const migration = await getMigration();
+    const migration = await getMigration({ data: { stichtag: deps.stichtag } });
     const years = migration.years.map((y) => y.year);
     const year = deps.jahr ?? years[0] ?? new Date().getFullYear() - 1;
     if (view === "belege") {

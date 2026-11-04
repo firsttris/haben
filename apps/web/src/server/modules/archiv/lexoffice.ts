@@ -14,7 +14,7 @@ import {
   type LexofficeSource,
   webExportSource,
 } from "@haben/import";
-import { legacyVatByMonth, type Versteuerung } from "@haben/core";
+import { LEGACY_PAYMENT_TYPES, legacyVatByMonth, type Versteuerung } from "@haben/core";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { loadCompany } from "../stammdaten/index.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
@@ -455,13 +455,10 @@ export async function legacyVoucherFile(fileId: string) {
   return file ?? null;
 }
 
-/** Zahlungsarten, die Geld bewegen; Skonto, Mahnkosten, Kursdifferenz und Forderungsausfall zählen nicht als Entgelt */
-const PAYMENT_ITEM_TYPES = new Set(["partPaymentFinancialTransaction", "partPaymentCashBox", "manualPayment", "partPaymentCreditNote"]);
-
 /** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze) */
 function legacyPayments(v: { gross: number; payment: LegacyPayment | null }) {
   return (v.payment?.items ?? [])
-    .filter((p) => PAYMENT_ITEM_TYPES.has(p.type) && p.date)
+    .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date)
     .map((p) => ({ date: p.date, amount: Math.sign(v.gross) * Math.abs(p.amount) }));
 }
 
@@ -728,7 +725,7 @@ export async function legacyVouchersForPeriod(filter: {
           ? sql`or (v.direction = 'einnahme' and exists (
               select 1 from jsonb_array_elements(coalesce(v.payment->'items', '[]'::jsonb)) i
               where i->>'date' like ${like} and i->>'type' in (${sql.join(
-                [...PAYMENT_ITEM_TYPES].map((t) => sql`${t}`),
+                [...LEGACY_PAYMENT_TYPES].map((t) => sql`${t}`),
                 sql`, `,
               )})))`
           : sql``
