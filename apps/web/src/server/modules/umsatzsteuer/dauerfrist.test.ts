@@ -202,6 +202,17 @@ describe.skipIf(!testDatabaseUrl)("Dauerfristverlängerung (Postgres)", () => {
     await expect(sql`delete from vat_extension_submissions`).rejects.toThrow();
   });
 
+  // Die Sondervorauszahlung wird in der letzten Voranmeldung angerechnet, für die die Verlängerung gilt (§ 48 Abs. 4 UStDV).
+  // Ein Ende im Lauf des Jahres bildet Haben nicht ab; ein Ende für ein Jahr mit angemeldeter Sondervorauszahlung würde
+  // sie aus Kz 39 und dem Vorauszahlungssoll streichen. Deshalb erst ab dem Folgejahr beenden.
+  it("lässt sich für ein Jahr mit angemeldeter Sondervorauszahlung nicht beenden", async () => {
+    await dauerfrist.saveDauerfrist(actor, { year: 2026, active: true, sondervorauszahlung: 120_000 });
+    await expect(dauerfrist.saveDauerfrist(actor, { year: 2026, active: false, sondervorauszahlung: null })).rejects.toThrow("Folgejahr");
+    expect(await dauerfrist.loadDauerfrist()).toEqual([{ year: 2026, active: true, sondervorauszahlung: 120_000 }]);
+    await dauerfrist.saveDauerfrist(actor, { year: 2027, active: false, sondervorauszahlung: null });
+    expect(await dauerfrist.dauerfristFor(2027)).toBe(false);
+  });
+
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const versteuerung of ["ist", "soll"] as const) {
       it(`Zahlung der Sondervorauszahlung bucht ${kontenrahmen} (${versteuerung}) auf „Umsatzsteuer-Vorauszahlungen 1/11“ und zählt in der EÜR`, async () => {
