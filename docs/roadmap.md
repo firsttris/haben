@@ -9,7 +9,7 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 | Dauerfristverlängerung | Antrag auf Dauerfristverlängerung mit Sondervorauszahlung (USt 1 H) über ELSTER; Voranmeldungen dürfen dann einen Monat später kommen | geplant |
 | Steuerbescheinigung für Gesellschafter | Bescheinigung über Kapitalerträge, Kapitalertragsteuer und Leistungen aus dem Einlagekonto nach § 45a EStG zu jeder Ausschüttung einer GmbH oder UG | geplant |
 | Hinterlegung beim Unternehmensregister | Den Jahresabschluss einer Kleinstkapitalgesellschaft (§ 326 Abs. 2 HGB) als Datei für die Hinterlegung erzeugen | geplant |
-| Lohn | Lohnabrechnung für Geschäftsführer und Angestellte mit Lohnsteuer-Anmeldung und Meldungen an die Sozialversicherung; bis dahin kommen die Lohnbuchungen als manuelle Buchung aus dem Lohnprogramm | offen |
+| Lohn | Lohnabrechnung für Geschäftsführer und Angestellte mit Lohnsteuer-Anmeldung und Meldungen an die Sozialversicherung; bis dahin kommen die Lohnbuchungen als manuelle Buchung aus dem Lohnprogramm. Recherche und Plan: [Lohn – Recherche und Umsetzungsplan](lohn-plan.md) | geplant |
 | Zusammenfassende Meldung | Meldung der innergemeinschaftlichen Leistungen an das BZSt, nur bei Kunden in anderen EU-Ländern nötig | bei Bedarf |
 
 ## Blockiert

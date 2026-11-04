@@ -54,6 +54,7 @@ nav:
       - Architektur: architektur.md
       - Entwicklung: entwicklung.md
       - Roadmap: roadmap.md
+      - Lohn (Plan): lohn-plan.md
 
 theme:
   name: material
