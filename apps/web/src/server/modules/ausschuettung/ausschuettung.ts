@@ -35,7 +35,11 @@ export const ausschuettungSchema = z.object({
   /** Im Beschluss bestimmter Tag der Auszahlung; leer: Zufluss am Tag nach dem Beschluss */
   auszahlungstag: isoDate.nullable().default(null),
   /** Geschäftsjahr, dessen Gewinn ausgeschüttet wird; steht in der Steuerbescheinigung als Zeitraum (Muster II) */
-  geschaeftsjahr: z.number({ error: "Geschäftsjahr der Ausschüttung fehlt" }).int().min(1900).max(2999),
+  geschaeftsjahr: z
+    .number({ error: "Geschäftsjahr der Ausschüttung fehlt" })
+    .int("Geschäftsjahr der Ausschüttung ist kein gültiges Jahr")
+    .min(1900, "Geschäftsjahr der Ausschüttung ist kein gültiges Jahr")
+    .max(2999, "Geschäftsjahr der Ausschüttung ist kein gültiges Jahr"),
   brutto: z.number().int().min(1, "Betrag der Ausschüttung fehlt").max(100_000_000_000_00),
 });
 

@@ -138,6 +138,10 @@ describe.skipIf(!testDatabaseUrl)("Steuerbescheinigungen (Postgres)", () => {
     await expect(a.createAusschuettung(actor, { geschaeftsjahr: 2027, beschluss: "2026-03-01", brutto: 100_000 }, today)).rejects.toThrow(
       "Das Geschäftsjahr 2027 liegt nach dem Jahr des Beschlusses.",
     );
+    // Ein Zwischenstand aus dem Formular wie „1“ wird auf Deutsch abgelehnt
+    await expect(a.createAusschuettung(actor, { geschaeftsjahr: 1, beschluss: "2026-03-01", brutto: 100_000 }, today)).rejects.toThrow(
+      "Geschäftsjahr der Ausschüttung ist kein gültiges Jahr",
+    );
     const id = await a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-03-01", brutto: 100_000 }, today);
     expect((await s.steuerbescheinigungenDesJahres(2026, today))[id]![0]!.fehlend).toEqual([
       "Kirchensteuererhebende Religionsgemeinschaft von Erika fehlt (Jahreserklärung › Angaben zu den Erklärungen).",

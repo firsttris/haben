@@ -147,6 +147,8 @@ function NeueAusschuettung() {
   const [beschluss, setBeschluss] = useState("");
   const [auszahlungstag, setAuszahlungstag] = useState("");
   const [geschaeftsjahr, setGeschaeftsjahr] = useState("");
+  // Vorbelegt, bis jemand das Feld selbst ändert: Das Datumsfeld meldet beim Tippen Zwischenstände wie 0002-01-02
+  const [jahrSelbstGesetzt, setJahrSelbstGesetzt] = useState(false);
   const [betrag, setBetrag] = useState("");
   const [vorschlag, setVorschlag] = useState<Vorschlag | null>(null);
   const input = () => {
@@ -182,7 +184,7 @@ function NeueAusschuettung() {
               onChange={(e) => {
                 setBeschluss(e.target.value);
                 // Meist beschließt die Gesellschafterversammlung über den Gewinn des Vorjahres
-                if (!geschaeftsjahr && /^\d{4}-/.test(e.target.value)) setGeschaeftsjahr(String(Number(e.target.value.slice(0, 4)) - 1));
+                if (!jahrSelbstGesetzt && /^\d{4}-/.test(e.target.value)) setGeschaeftsjahr(String(Number(e.target.value.slice(0, 4)) - 1));
                 setVorschlag(null);
               }}
               required
@@ -206,6 +208,7 @@ function NeueAusschuettung() {
               value={geschaeftsjahr}
               onChange={(e) => {
                 setGeschaeftsjahr(e.target.value);
+                setJahrSelbstGesetzt(true);
                 setVorschlag(null);
               }}
               placeholder="z. B. 2025"
