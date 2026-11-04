@@ -243,6 +243,26 @@ describe.skipIf(!testDatabaseUrl)("MCP-Zugang für KI-Assistenten (Postgres)", (
       zahlungen: [{ datum: "2025-05-02", betrag: 1000 }],
     });
 
+    // GmbH: Körperschaftsteuer ist weder Einnahme noch Ausgabe, steht aber summiert da
+    await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, raw)
+      values ('lx-3', ${run!.id}, 'purchaseinvoice', 'ausgabe', 'KSt', '2025-05-10', 'paid', 'Finanzamt', 50000, 0, 50000,
+        ${JSON.stringify([{ rate: 0, net: 50000, tax: 0 }])}::jsonb,
+        ${JSON.stringify([{ categoryId: "k", name: "Körperschaftsteuer", rate: 0, net: 50000, tax: 0 }])}::jsonb, '{}'::jsonb)`;
+    await sql`update company set rechtsform = 'gmbh'`;
+    try {
+      const gmbh = (await run_("lexoffice_abgleich", { jahr: 2025 })) as { rechtsform: string; jahre: { nichtEinnahmeOderAusgabe: unknown[] }[] };
+      expect(gmbh.rechtsform).toBe("gmbh");
+      expect(gmbh.jahre[0]!.nichtEinnahmeOderAusgabe).toEqual([{ art: "Körperschaft- und Gewerbesteuer", anzahl: 1, zufluss: 0, abfluss: 500 }]);
+      const mai = (await run_("lexoffice_belege", { zeitraum: "2025-05", richtung: "alle", suche: "", limit: 50 })) as {
+        belege: { nummer: string }[];
+        nichtEinnahmeOderAusgabe: unknown[];
+      };
+      expect(mai.belege.map((b) => b.nummer)).toEqual(["RE1"]);
+      expect(mai.nichtEinnahmeOderAusgabe).toEqual([{ art: "Körperschaft- und Gewerbesteuer", anzahl: 1, zufluss: 0, abfluss: 500 }]);
+    } finally {
+      await sql`update company set rechtsform = 'einzelunternehmen'`;
+    }
+
     const [file] =
       await sql`insert into archive_files (kind, year, filename, sha256, mime_type, size) values ('datev', 2025, 'DATEV_2025.csv', 'abc', 'text/csv', 1) returning id`;
     await sql`insert into datev_bookings (file_id, row, date, amount, side, account, contra_account, voucher_field1, raw) values

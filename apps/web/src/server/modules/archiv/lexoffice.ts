@@ -14,14 +14,22 @@ import {
   type LexofficeSource,
   webExportSource,
 } from "@haben/import";
-import { legacyVatByMonth, type Versteuerung } from "@haben/core";
+import {
+  legacyNeutralKind,
+  legacyNeutralSums,
+  legacyVatByMonth,
+  type LegacyNeutralKind,
+  type LegacyNeutralSum,
+  type Rechtsform,
+  type Versteuerung,
+} from "@haben/core";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { loadCompany } from "../stammdaten/index.ts";
 import { decrypt, encrypt } from "../../crypto.ts";
 import { withActor } from "../../db/actor.ts";
 import { env } from "../../env.ts";
 import { db, schema } from "../../db/index.ts";
-import type { LegacyPayment, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
+import type { LegacyCategoryRow, LegacyPayment, LegacyTaxRow, LexofficeImportProgress } from "../../db/schema.ts";
 import { sha256Of, sniff, storeFile } from "../../storage.ts";
 import { latestSevdeskImport } from "./sevdesk.ts";
 
@@ -487,6 +495,11 @@ const TAX_SUB_TYPE = sql<string | null>`lexoffice_vouchers.raw->'taxConditions'-
 /** Buchung ohne Beleg aus der Sicherung der Web-Oberfläche: hat keine Datei und braucht keine */
 const WITHOUT_RECEIPT = sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBeleg')::boolean, false)`;
 
+/** Weder Einnahme noch Ausgabe? Zur Laufzeit aus Kategorien und Rechtsform (legacyNeutralKind); die Rohdaten sind gesperrt */
+function neutralKindOf(v: { privat: boolean; categories: LegacyCategoryRow[] }, rechtsform: Rechtsform): LegacyNeutralKind | null {
+  return legacyNeutralKind({ privat: v.privat, categories: v.categories.map((c) => c.name) }, rechtsform);
+}
+
 export type ReconciliationCheck = { ok: boolean; label: string; detail: string };
 
 /** Abgleich je Geschäftsjahr: Was liegt vor, was fehlt noch vor der Kündigung? */
@@ -505,6 +518,7 @@ export async function reconciliation() {
       tax: schema.lexofficeVouchers.tax,
       gross: schema.lexofficeVouchers.gross,
       taxes: schema.lexofficeVouchers.taxes,
+      categories: schema.lexofficeVouchers.categories,
       payment: schema.lexofficeVouchers.payment,
       taxType: TAX_TYPE,
       taxSubType: TAX_SUB_TYPE,
@@ -514,8 +528,10 @@ export async function reconciliation() {
       files: sql<number>`(select count(*)::int from lexoffice_voucher_files f where f.voucher_id = lexoffice_vouchers.id)`,
     })
     .from(schema.lexofficeVouchers);
-  // Privatentnahmen, Privateinlagen und Geldtransit ohne Beleg sind archiviert, aber weder Einnahme noch Ausgabe
-  const businessRows = voucherRows.filter((v) => !v.privat);
+  // Archiviert, aber weder Einnahme noch Ausgabe: im Einzelunternehmen Privates und Geldtransit, in GmbH und UG
+  // Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen; sie stehen je Jahr getrennt (neutral)
+  const classified = voucherRows.map((v) => ({ ...v, neutral: neutralKindOf(v, company.rechtsform) }));
+  const businessRows = classified.filter((v) => !v.neutral);
 
   const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,
@@ -549,6 +565,8 @@ export async function reconciliation() {
     .sort((a, b) => b - a)
     .map((year) => {
       const vouchers = businessRows.filter((v) => v.date.startsWith(`${year}-`));
+      // Alle Belege des Jahres, auch neutrale: Auch ein Körperschaftsteuerbescheid braucht seine Datei
+      const yearRows = classified.filter((v) => v.date.startsWith(`${year}-`));
       const withoutReceipt = voucherRows.filter((v) => v.ohneBeleg && v.date.startsWith(`${year}-`)).length;
       const yearBookings = vouchers.length === 0 ? datevRows.filter((b) => b.date.startsWith(`${year}-`)) : [];
       const fromDatev = yearBookings.length > 0 ? datevYearSums(yearBookings, company.kontenrahmen) : null;
@@ -565,7 +583,7 @@ export async function reconciliation() {
           gross: rows.reduce((s, r) => s + r.gross, 0),
         };
       };
-      const withoutFile = vouchers.filter((v) => !v.ohneBeleg && Number(v.files) === 0).length;
+      const withoutFile = yearRows.filter((v) => !v.ohneBeleg && Number(v.files) === 0).length;
       const unchecked = vouchers.filter((v) => v.status === "unchecked").length;
       const bookings = bookingRows.find((b) => Number(b.year) === year);
       const kinds = (kind: string) => files.filter((f) => f.year === year && f.kind === kind).length;
@@ -602,7 +620,7 @@ export async function reconciliation() {
           ok: vouchers.length > 0,
           label: "Belege und Rechnungen per API abgerufen",
           detail: [
-            `${vouchers.filter((v) => !v.ohneBeleg).length} Belege`,
+            `${yearRows.filter((v) => !v.ohneBeleg).length} Belege`,
             withoutReceipt > 0 ? `${withoutReceipt} ${withoutReceipt === 1 ? "Buchung" : "Buchungen"} ohne Beleg` : "",
           ]
             .filter(Boolean)
@@ -647,6 +665,8 @@ export async function reconciliation() {
         year,
         einnahmen: sum("einnahme"),
         ausgaben: sum("ausgabe"),
+        /** Weder Einnahme noch Ausgabe, je Art: zum Vergleich sichtbar statt still weggelassen */
+        neutral: legacyNeutralSums(yearRows.flatMap((v) => (v.neutral ? [{ kind: v.neutral, direction: v.direction, gross: v.gross }] : []))),
         /** "datev": keine Belege per API, die Summen stammen aus dem Buchungsstapel */
         sumsFrom: fromDatev ? ("datev" as const) : ("belege" as const),
         withoutFile,
@@ -659,7 +679,7 @@ export async function reconciliation() {
         ready: checks.every((c) => c.ok),
       };
     });
-  return { versteuerung, years: result, lastImport };
+  return { versteuerung, rechtsform: company.rechtsform, years: result, lastImport };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -695,7 +715,7 @@ export async function legacyVouchersForPeriod(filter: {
   search: string;
   withPayments: boolean;
   limit: number;
-}): Promise<{ total: number; vouchers: LegacyVoucherForVat[] }> {
+}): Promise<{ total: number; vouchers: LegacyVoucherForVat[]; neutral: LegacyNeutralSum[] }> {
   const like = `${filter.period}%`;
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
   const rows = await db.execute<{
@@ -712,12 +732,14 @@ export async function legacyVouchersForPeriod(filter: {
     gross: number;
     taxes: LegacyTaxRow[];
     payment: LegacyPayment | null;
+    categories: LegacyCategoryRow[];
+    privat: boolean;
     tax_type: string | null;
     tax_sub_type: string | null;
     files: number;
   }>(sql`
     select v.id, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.currency, v.net, v.tax, v.gross,
-      v.taxes, v.payment,
+      v.taxes, v.payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
@@ -733,30 +755,34 @@ export async function legacyVouchersForPeriod(filter: {
               )})))`
           : sql``
       })
-      -- Privatentnahmen und -einlagen ohne Beleg gehen nicht in die Umsatzsteuer ein, wie im Abgleich
-      and not coalesce((v.raw->>'privat')::boolean, false)
       ${filter.direction === "alle" ? sql`` : sql`and v.direction = ${filter.direction}`}
       ${term ? sql`and (v.number ilike ${term} or v.contact_name ilike ${term} or v.remark ilike ${term})` : sql``}
     order by v.date, v.number`);
-  const all = [...rows].map((r) => ({
-    id: r.id,
-    type: r.type,
-    direction: r.direction,
-    number: r.number,
-    date: r.date,
-    status: r.status,
-    contactName: r.contact_name,
-    currency: r.currency,
-    net: Number(r.net),
-    tax: Number(r.tax),
-    gross: Number(r.gross),
-    taxes: r.taxes,
-    taxType: r.tax_type,
-    taxSubType: r.tax_sub_type,
-    payments: legacyPayments({ gross: Number(r.gross), payment: r.payment }),
-    files: Number(r.files),
-  }));
-  return { total: all.length, vouchers: all.slice(0, filter.limit) };
+  // Was weder Einnahme noch Ausgabe ist, geht nicht in die Umsatzsteuer ein, wie im Abgleich; es steht summiert daneben
+  const { rechtsform } = await loadCompany();
+  const classified = [...rows].map((r) => ({ ...r, neutral: neutralKindOf(r, rechtsform) }));
+  const neutral = legacyNeutralSums(classified.flatMap((r) => (r.neutral ? [{ kind: r.neutral, direction: r.direction, gross: Number(r.gross) }] : [])));
+  const all = classified
+    .filter((r) => !r.neutral)
+    .map((r) => ({
+      id: r.id,
+      type: r.type,
+      direction: r.direction,
+      number: r.number,
+      date: r.date,
+      status: r.status,
+      contactName: r.contact_name,
+      currency: r.currency,
+      net: Number(r.net),
+      tax: Number(r.tax),
+      gross: Number(r.gross),
+      taxes: r.taxes,
+      taxType: r.tax_type,
+      taxSubType: r.tax_sub_type,
+      payments: legacyPayments({ gross: Number(r.gross), payment: r.payment }),
+      files: Number(r.files),
+    }));
+  return { total: all.length, vouchers: all.slice(0, filter.limit), neutral };
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

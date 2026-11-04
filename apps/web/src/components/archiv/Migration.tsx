@@ -348,6 +348,41 @@ function specialColumns(months: VatMonth[]) {
   return SPECIAL_COLUMNS.filter((c) => months.some((m) => m[c.key] !== 0));
 }
 
+/**
+ * Archiviert, aber weder Einnahme noch Ausgabe: im Einzelunternehmen Privates und Geldtransit, bei GmbH und UG
+ * Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen. Sichtbar, damit der Vergleich mit der alten Buchhaltung
+ * aufgeht und nichts still fehlt.
+ */
+function NeutralSums({ year, rows }: { year: number; rows: MigrationData["years"][number]["neutral"] }) {
+  return (
+    <div className="table-scroll">
+      <table className="data-table" aria-label={`Weder Einnahme noch Ausgabe ${year}`}>
+        <caption className="small muted" style={{ textAlign: "left", captionSide: "top", paddingBottom: 4 }}>
+          Weder Einnahme noch Ausgabe, deshalb nicht in den Summen oben und nicht in der Umsatzsteuer
+        </caption>
+        <thead>
+          <tr>
+            <th>Art</th>
+            <th className="num">Anzahl</th>
+            <th className="num">Zufluss</th>
+            <th className="num">Abfluss</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.kind}>
+              <td>{row.label}</td>
+              <td className="num mono">{row.count}</td>
+              <td className="num mono">{formatEuro(row.zufluss)}</td>
+              <td className="num mono">{formatEuro(row.abfluss)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function YearCheck({ year, versteuerung, product }: { year: MigrationData["years"][number]; versteuerung: "ist" | "soll"; product: string }) {
   return (
     <section className="card stack" aria-labelledby={`year-${year.year}`}>
@@ -400,6 +435,7 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
           </Link>
         )}
       </div>
+      {year.neutral.length > 0 && <NeutralSums year={year.year} rows={year.neutral} />}
       {year.vat.length > 0 && (
         <details>
           <summary>Umsatzsteuer je Monat zum Vergleich mit den übermittelten Voranmeldungen</summary>
