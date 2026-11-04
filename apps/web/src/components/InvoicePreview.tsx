@@ -16,6 +16,8 @@ export interface PreviewSeller {
   bank: string;
   /** Leer = Firmenname */
   kontoinhaber?: string;
+  /** GmbH und UG: Pflichtangaben nach § 35a GmbHG als eine Zeile unter den Spalten, wie im PDF */
+  legal?: string | null;
   /** SHA-256 des Logos, wenn eines hinterlegt ist */
   logo?: string | null;
   /** Akzentfarbe #RRGGBB aus den Einstellungen; fehlt = Standardgrün aus styles.css */
@@ -253,6 +255,7 @@ export function InvoicePreview({
               ))}
             </div>
           ))}
+          {seller.legal && <div className="sheet-foot-legal">{seller.legal}</div>}
         </div>
       </div>
     </div>

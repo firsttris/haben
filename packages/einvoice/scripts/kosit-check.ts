@@ -5,7 +5,17 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { buildEInvoice } from "../src/xml.ts";
-import { euBuyer, grossPriceLines, mixedRateLines, publicBuyer, sampleDocument, sampleSeller, thirdCountryBuyer, zeroRateLines } from "../src/samples.ts";
+import {
+  euBuyer,
+  gmbhSeller,
+  grossPriceLines,
+  mixedRateLines,
+  publicBuyer,
+  sampleDocument,
+  sampleSeller,
+  thirdCountryBuyer,
+  zeroRateLines,
+} from "../src/samples.ts";
 import type { InvoiceDocument } from "../src/types.ts";
 
 /** Das Standalone-JAR des Validators in dir, gleich welcher Version (validationtool-… bis 1.5, validator-… ab 1.6) */
@@ -48,6 +58,10 @@ const samples: Record<string, InvoiceDocument> = {
       `storno-korrektur-${format}`,
       sampleDocument({ kind: "storno", format, lines: mixedRateLines.map((line) => ({ ...line, unitPrice: -line.unitPrice })) }),
     ]),
+  ),
+  // GmbH: Handelsregisternummer (BT-30) und Pflichtangaben nach § 35a GmbHG (BT-33)
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).map((format) => [`gmbh-${format}`, { ...sampleDocument({ format }), seller: gmbhSeller }]),
   ),
   "leitweg-xr-cii": sampleDocument({ format: "xrechnung-cii", buyer: publicBuyer }),
   "leitweg-xr-ubl": sampleDocument({ format: "xrechnung-ubl", buyer: publicBuyer }),

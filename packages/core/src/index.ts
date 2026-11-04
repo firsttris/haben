@@ -6,6 +6,7 @@ export * from "./ustva.ts";
 export * from "./invoice.ts";
 export * from "./posting.ts";
 export * from "./rechtsform.ts";
+export * from "./geschaeftsbrief.ts";
 export * from "./manual.ts";
 export * from "./vortrag.ts";
 export * from "./hgb.ts";
