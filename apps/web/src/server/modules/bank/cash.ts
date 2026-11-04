@@ -83,6 +83,25 @@ export async function addDocumentCashEntry(tx: Tx, doc: { id: string; date: stri
   });
 }
 
+/**
+ * Gegenzeile für einen stornierten, bar bezahlten Beleg (#237): das Geld kommt rechnerisch in die Kasse zurück. Die
+ * Gegenbuchung „Kasse an …“ macht der Storno des Belegs selbst; die Zeile verweist auf die ursprüngliche.
+ */
+export async function reverseDocumentCashEntry(tx: Tx, input: { documentId: string; date: string; text: string; journalEntryId: string }): Promise<void> {
+  await tx.execute(lock);
+  const [original] = await tx.select().from(schema.cashEntries).where(eq(schema.cashEntries.documentId, input.documentId));
+  if (!original) throw new CashError("Zum Beleg gibt es keine Zeile im Kassenbuch.");
+  await tx.insert(schema.cashEntries).values({
+    number: await nextNumber(tx),
+    date: input.date,
+    amount: -original.amount,
+    kind: "beleg",
+    text: `${input.text} (Nr. ${original.number})`,
+    reversesId: original.id,
+    journalEntryId: input.journalEntryId,
+  });
+}
+
 async function postCash(tx: Tx, input: { id: string; date: string; amount: Cents; kind: CashBooking; text: string; reversesId?: string | null }) {
   const books = await openBooks(tx);
   return post(tx, books, {

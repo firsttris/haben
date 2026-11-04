@@ -450,8 +450,12 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       privateShare: schema.documents.privateShare,
       lockedAt: schema.documents.lockedAt,
       uploadedAt: schema.documents.uploadedAt,
+      // Storno (#237): der Beleg bleibt gebucht, die Gegenbuchung steht im Journal
+      cancelledOn: schema.documentCancellations.date,
+      cancellationReason: schema.documentCancellations.reason,
     })
     .from(schema.documents)
+    .leftJoin(schema.documentCancellations, eq(schema.documentCancellations.documentId, schema.documents.id))
     .where(sql`${documentDay}::date between ${yearStart(year)}::date and ${yearEnd(year)}::date`)
     .orderBy(asc(documentDay), asc(schema.documents.uploadedAt), asc(schema.documents.id));
 
@@ -514,6 +518,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
           : "Bank",
       doc.status,
       iso(doc.lockedAt),
+      doc.cancelledOn,
+      doc.cancellationReason,
       doc.extractedBy,
       doc.dueDate,
       doc.note,
@@ -548,6 +554,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         "Zahlung",
         "Status",
         "Gebucht am",
+        "Storniert am",
+        "Storno-Grund",
         "Quelle",
         "Fällig",
         "Notiz",
@@ -1346,7 +1354,8 @@ angebote/                Nur wenn vorhanden: festgeschriebene Angebote des Jahre
                          Rechnung.
 belege/                  Eingangsrechnungen und Quittungen als Originaldatei,
                          Name: Datum_Lieferant_Kurz-ID; belege.csv mit Beträgen je
-                         Steuersatz, Status, SHA-256 und ursprünglichem Dateinamen.
+                         Steuersatz, Status, Storno (Datum und Grund), SHA-256 und
+                         ursprünglichem Dateinamen.
 buchungen/journal.csv    Journal, eine Zeile je Buchungszeile (Konto, Soll, Haben,
                          Steuerschlüssel); Stornos verweisen auf die Ursprungsbuchung.
 anlagen/anlagenverzeichnis.csv

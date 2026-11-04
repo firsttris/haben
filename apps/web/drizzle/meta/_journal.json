@@ -757,6 +757,20 @@
       "when": 1793988832647,
       "tag": "0107_eigene_seiten_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1793988833647,
+      "tag": "0108_beleg_storno",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1793988834647,
+      "tag": "0109_beleg_storno_trigger",
+      "breakpoints": true
     }
   ]
 }

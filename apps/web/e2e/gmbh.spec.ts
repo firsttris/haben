@@ -236,3 +236,59 @@ test("Die Rechtsform ist nach der ersten Buchung fest", async () => {
   await go("/einstellungen");
   await expect(page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform")).toBeDisabled();
 });
+
+test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf mit derselben Datei", async ({ browser }) => {
+  const shot = await browser.newPage({ viewport: { width: 620, height: 400 } });
+  await shot.setContent(`<body style="font: 14px sans-serif; padding: 40px"><h2>Codewerk Lizenzen GmbH</h2>
+    <p>Rechnung L-4711</p><p>Lizenz 100,00 € · USt 19 % 19,00 € · Gesamt 119,00 €</p></body>`);
+  const jpeg = await shot.screenshot({ type: "jpeg", quality: 80 });
+  await shot.close();
+
+  await go("/belege");
+  await page.locator("input[type=file][multiple]").setInputFiles([{ name: "lizenz.jpg", mimeType: "image/jpeg", buffer: jpeg }]);
+  await expect(page.getByText("lizenz.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /lizenz\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const original = page.url();
+  await page.getByLabel("Lieferant", { exact: true }).fill("Codewerk Lizenzen GmbH");
+  await page.getByLabel("Rechnungsnummer").fill("L-4711");
+  await page.getByLabel("Belegdatum").fill(new Date().toISOString().slice(0, 10));
+  await page.getByLabel("Kategorie").selectOption("software");
+  // Wie im Anlass (#237): der Bruttobetrag im Feld „Netto“
+  await page.getByLabel("Netto", { exact: true }).fill("119,00");
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Beleg stornieren" }).click();
+  await expect(page.getByRole("alert")).toContainText("bucht den Beleg mit heutigem Datum zurück");
+  await page.getByLabel("Grund (optional)").fill("Brutto als Netto erfasst");
+  await page.getByRole("button", { name: "Jetzt stornieren" }).click();
+  await expect(page.getByText(/Storniert am .* Grund: Brutto als Netto erfasst/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Gegenbuchung" })).toBeVisible();
+  await expect(page.locator(".page-head").getByText("Storniert", { exact: true })).toBeVisible();
+  expect(await axe(), "/belege/… storniert").toEqual([]);
+
+  await page.getByRole("button", { name: "Neu erfassen" }).click();
+  await page.waitForURL((url) => url.href !== original && /belege\/[0-9a-f-]{36}$/.test(url.pathname));
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("Neu erfasst aus einem")).toBeVisible();
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Codewerk Lizenzen GmbH");
+  await expect(page.getByLabel("Netto", { exact: true })).toHaveValue("119,00");
+  await page.getByLabel("Netto", { exact: true }).fill("100,00");
+  await page.getByLabel("Vorsteuer", { exact: true }).fill("19,00");
+  await page.getByRole("button", { name: "Bestätigen und buchen" }).click();
+  await page.getByRole("button", { name: "Jetzt buchen" }).click();
+  await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
+
+  // Der stornierte Beleg führt jetzt zur Neuerfassung
+  await go(new URL(original).pathname);
+  await expect(page.getByRole("link", { name: "Zur Neuerfassung" })).toBeVisible();
+  await page.getByRole("link", { name: "Gegenbuchung" }).click();
+  await page.waitForURL(/\/buchungen/);
+  await expect(page.getByText(/Storno: Beleg L-4711/)).toBeVisible();
+});

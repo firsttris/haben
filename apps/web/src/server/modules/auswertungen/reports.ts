@@ -12,6 +12,7 @@ import {
 import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
@@ -100,6 +101,23 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       ),
     );
 
+  // Storno eines privat oder bar bezahlten Belegs (#237): fließt am Tag des Stornos zurück. Über die Bank bezahlte Belege
+  // lassen sich nur ohne Zahlung stornieren, sie haben in der EÜR nichts zurückzunehmen.
+  const cancelledDocs = await q
+    .select({
+      id: schema.documents.id,
+      date: schema.documentCancellations.date,
+      gross: schema.documents.gross,
+      category: schema.documents.category,
+      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+      privateShare: schema.documents.privateShare,
+    })
+    .from(schema.documentCancellations)
+    .innerJoin(schema.documents, eq(schema.documents.id, schema.documentCancellations.documentId))
+    .where(
+      and(inArray(schema.documents.payment, ["privat", "kasse"]), gte(schema.documentCancellations.date, start), lt(schema.documentCancellations.date, end)),
+    );
+
   // Kursdifferenz beim Ausgleich einer Fremdwährungsrechnung: in der EÜR zählt der gezahlte Euro-Betrag. Der ausgebuchte
   // Rest wird als Teil der Rechnung bzw. des Belegs gezählt und als eigener Posten Kursgewinn bzw. -verlust wieder abgezogen.
   const exchangeDifferences = await q
@@ -123,7 +141,13 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
 
   const invoiceTotals = await invoiceTotalsById([...new Set([...allocations, ...exchangeDifferences].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))], q);
   const docTotals = await documentTotalsById(
-    [...new Set([...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])), ...privateDocs.map((d) => d.id)])],
+    [
+      ...new Set([
+        ...[...allocations, ...exchangeDifferences].flatMap((a) => (a.documentId ? [a.documentId] : [])),
+        ...privateDocs.map((d) => d.id),
+        ...cancelledDocs.map((d) => d.id),
+      ]),
+    ],
     q,
   );
 
@@ -188,17 +212,17 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     // Rechnung: weniger erhalten (Rest positiv) ist Verlust; Beleg: weniger gezahlt (Rest negativ) ist Gewinn
     payments.push({ kind: "kursdifferenz", date: w.date, amount: -w.amount, group });
   }
-  for (const d of privateDocs) {
-    payments.push({
-      kind: "document",
-      date: d.date!,
-      paid: d.gross,
-      totals: docTotals.get(d.id)!,
-      category: isCategory(d.category) ? d.category : "sonstiges",
-      vorsteuerAbzug: d.vorsteuerAbzug,
-      privateShare: d.privateShare,
-    });
-  }
+  const documentPayment = (d: (typeof privateDocs)[number], date: string, paid: number): EuerPayment => ({
+    kind: "document",
+    date,
+    paid,
+    totals: docTotals.get(d.id)!,
+    category: isCategory(d.category) ? d.category : "sonstiges",
+    vorsteuerAbzug: d.vorsteuerAbzug,
+    privateShare: d.privateShare,
+  });
+  for (const d of privateDocs) payments.push(documentPayment(d, d.date!, d.gross));
+  for (const d of cancelledDocs) payments.push(documentPayment(d, d.date, -d.gross));
   const pauschalen = await q
     .select({
       date: schema.pauschalen.date,
@@ -276,7 +300,8 @@ export async function openPositions(today: string) {
       gross: schema.documents.gross,
     })
     .from(schema.documents)
-    .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank")));
+    // Storniert ist nichts mehr zu zahlen (#237)
+    .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank"), documentNotCancelled()));
   const documentPaid = await paidSums(documents.map((d) => d.id));
   const payables: OpenPosition[] = documents
     .map((d) => {

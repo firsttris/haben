@@ -1082,7 +1082,8 @@ export const documents = pgTable(
   "documents",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    sha256: text("sha256").notNull().unique(),
+    /** Ablage nach Inhalt; dieselbe Datei gibt es nur noch einmal als Neuerfassung eines stornierten Belegs */
+    sha256: text("sha256").notNull(),
     filename: text("filename").notNull(),
     mimeType: text("mime_type").notNull(),
     size: integer("size").notNull(),
@@ -1134,6 +1135,11 @@ export const documents = pgTable(
      */
     externalSource: text("external_source"),
     externalId: text("external_id"),
+    /**
+     * Neuerfassung (#237): der stornierte Beleg, den dieser Entwurf ersetzt. Er nutzt dieselbe Datei; wird nur beim
+     * Anlegen gesetzt und ist ab dem Buchen mit dem Beleg gesperrt.
+     */
+    replacesDocumentId: uuid("replaces_document_id"),
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1145,8 +1151,32 @@ export const documents = pgTable(
     // Externe Referenz nur vollständig: Quelle und Kennung zusammen
     check("documents_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
     uniqueIndex("documents_external_ref").on(t.externalSource, t.externalId),
+    // Keine Dubletten beim Hochladen; eine Neuerfassung nutzt dieselbe Datei, je storniertem Beleg höchstens eine
+    uniqueIndex("documents_sha256").on(t.sha256).where(sql`${t.replacesDocumentId} is null`),
+    uniqueIndex("documents_replaces").on(t.replacesDocumentId),
+    foreignKey({ name: "documents_replaces_fk", columns: [t.replacesDocumentId], foreignColumns: [t.id] }),
   ],
 );
+
+/**
+ * Storno eines gebuchten Belegs (#237): Gegenbuchung am Tag des Stornos, der Beleg selbst bleibt gesperrt und versiegelt.
+ * Nur anhängen, mit Siegel; je Beleg höchstens ein Storno.
+ */
+export const documentCancellations = pgTable("document_cancellations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: uuid("document_id")
+    .notNull()
+    .unique()
+    .references(() => documents.id),
+  /** Buchungsdatum der Gegenbuchung: der Tag des Stornos, damit abgegebene Voranmeldungen unberührt bleiben (§ 17 UStG) */
+  date: date("date", { mode: "string" }).notNull(),
+  reason: text("reason").notNull().default(""),
+  journalEntryId: uuid("journal_entry_id")
+    .notNull()
+    .unique()
+    .references(() => journalEntries.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Beträge eines Belegs je Steuersatz */
 export const documentAmounts = pgTable(

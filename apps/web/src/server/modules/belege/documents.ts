@@ -25,6 +25,7 @@ import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
@@ -156,6 +157,8 @@ export async function supplierCategory(
     .where(
       and(
         eq(schema.documents.status, "gebucht"),
+        // Ein stornierter Beleg war oft falsch erfasst; er soll den Vorschlag nicht prägen
+        documentNotCancelled(),
         sql`${schema.documents.category} is not null`,
         or(
           supplierUstId.trim() ? eq(schema.documents.supplierUstId, supplierUstId.trim()) : sql`false`,
@@ -325,6 +328,17 @@ export function documentFileProblem(file: { bytes: Uint8Array; filename: string 
   return null;
 }
 
+/** Beleg mit dieser Datei; nach einem Storno mit Neuerfassung (#237) der neueste, also die Neuerfassung */
+async function latestWithFile(sha256: string): Promise<string | null> {
+  const [row] = await db
+    .select({ id: schema.documents.id })
+    .from(schema.documents)
+    .where(eq(schema.documents.sha256, sha256))
+    .orderBy(desc(schema.documents.uploadedAt))
+    .limit(1);
+  return row?.id ?? null;
+}
+
 /** Legt die Zeile an; null, wenn dieselbe Datei gleichzeitig angelegt wurde */
 async function insertDocument(
   actor: string,
@@ -335,7 +349,8 @@ async function insertDocument(
     const [created] = await tx
       .insert(schema.documents)
       .values({ ...values, ...reference })
-      .onConflictDoNothing({ target: schema.documents.sha256 })
+      // Eindeutig ist die Datei nur außerhalb der Neuerfassungen (documents_sha256)
+      .onConflictDoNothing({ target: schema.documents.sha256, where: sql`${schema.documents.replacesDocumentId} is null` })
       .returning({ id: schema.documents.id });
     return created?.id ?? null;
   });
@@ -360,8 +375,8 @@ export async function uploadDocument(
   if (known) return { id: known.id, duplicate: true };
 
   const sha256 = await storeFile(file.bytes);
-  const [existing] = await db.select({ id: schema.documents.id }).from(schema.documents).where(eq(schema.documents.sha256, sha256));
-  if (existing) return { id: existing.id, duplicate: true };
+  const existing = await latestWithFile(sha256);
+  if (existing) return { id: existing, duplicate: true };
 
   const row = { sha256, filename: file.filename.slice(0, 200), mimeType: type.mimeType, size: file.bytes.byteLength, note: options.note ?? "", reference };
   let id: string | null;
@@ -375,8 +390,7 @@ export async function uploadDocument(
     return { id: winner.id, duplicate: true };
   }
   if (!id) {
-    const [again] = await db.select({ id: schema.documents.id }).from(schema.documents).where(eq(schema.documents.sha256, sha256));
-    return { id: again!.id, duplicate: true };
+    return { id: (await latestWithFile(sha256))!, duplicate: true };
   }
 
   if (type.kind === "pdf" || type.kind === "xml") {
@@ -652,8 +666,11 @@ export async function listDocuments() {
       externalId: schema.documents.externalId,
       lockedAt: schema.documents.lockedAt,
       uploadedAt: schema.documents.uploadedAt,
+      /** Storniert am (#237); der Beleg bleibt gebucht */
+      cancelledOn: schema.documentCancellations.date,
     })
     .from(schema.documents)
+    .leftJoin(schema.documentCancellations, eq(schema.documentCancellations.documentId, schema.documents.id))
     .orderBy(sql`${schema.documents.status} = 'gebucht'`, desc(schema.documents.documentDate), desc(schema.documents.uploadedAt));
 }
 

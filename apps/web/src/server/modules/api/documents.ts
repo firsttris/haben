@@ -1,5 +1,14 @@
 import type { z } from "zod";
-import { bookingIssues, documentFileProblem, getDocument, listDocuments, MAX_DOCUMENT_SIZE, uploadDocument, type DocumentReference } from "../belege/index.ts";
+import {
+  bookingIssues,
+  documentCancellation,
+  documentFileProblem,
+  getDocument,
+  listDocuments,
+  MAX_DOCUMENT_SIZE,
+  uploadDocument,
+  type DocumentReference,
+} from "../belege/index.ts";
 import { fail, notFound, ok, validate, type ApiRequest, type ApiResult } from "./http.ts";
 import { documentQuerySchema, documentUploadSchema, type documentSchema, type documentSummarySchema } from "./schemas.ts";
 
@@ -10,7 +19,7 @@ import { documentQuerySchema, documentUploadSchema, type documentSchema, type do
  */
 
 type ListRow = Awaited<ReturnType<typeof listDocuments>>[number];
-type Loaded = NonNullable<Awaited<ReturnType<typeof getDocument>>>;
+type Loaded = NonNullable<Awaited<ReturnType<typeof getDocument>>> & Awaited<ReturnType<typeof documentCancellation>>;
 
 const DOCUMENT_NOT_FOUND = "Beleg nicht gefunden.";
 const location = (id: string) => `/api/v1/belege/${id}`;
@@ -36,13 +45,14 @@ function summaryOut(row: ListRow, baseUrl: string): z.output<typeof documentSumm
     externalId: row.externalId,
     uploadedAt: row.uploadedAt.toISOString(),
     bookedAt: row.lockedAt?.toISOString() ?? null,
+    cancelledOn: row.cancelledOn,
     url: `${baseUrl}/belege/${row.id}`,
   };
 }
 
-function documentOut({ document, amounts }: Loaded, request: ApiRequest): z.output<typeof documentSchema> {
+function documentOut({ document, amounts, cancellation, reentryId }: Loaded, request: ApiRequest): z.output<typeof documentSchema> {
   return {
-    ...summaryOut(document, request.baseUrl),
+    ...summaryOut({ ...document, cancelledOn: cancellation?.date ?? null }, request.baseUrl),
     size: document.size,
     extractedBy: document.extractedBy,
     extractionError: document.extractionError,
@@ -54,12 +64,20 @@ function documentOut({ document, amounts }: Loaded, request: ApiRequest): z.outp
     tax: document.tax,
     amounts: amounts.map(({ taxRate, net, tax }) => ({ taxRate, net, tax })),
     issues: document.lockedAt ? [] : bookingIssues(document, amounts, request.today),
+    replacedById: reentryId,
+    replacesId: document.replacesDocumentId,
     updatedAt: document.updatedAt.toISOString(),
   };
 }
 
-async function respondWith(id: string, request: ApiRequest, status = 200, headers: Record<string, string> = {}): Promise<ApiResult> {
+/** Beleg mit Beträgen und Storno */
+async function load(id: string): Promise<Loaded | null> {
   const loaded = await getDocument(id);
+  return loaded && { ...loaded, ...(await documentCancellation(id)) };
+}
+
+async function respondWith(id: string, request: ApiRequest, status = 200, headers: Record<string, string> = {}): Promise<ApiResult> {
+  const loaded = await load(id);
   if (!loaded) return notFound(DOCUMENT_NOT_FOUND);
   return ok(documentOut(loaded, request), status, headers);
 }
@@ -87,7 +105,7 @@ const sameReference = (document: Loaded["document"], reference: DocumentReferenc
  * Werkzeug würde sich sonst den Beleg zu einem anderen Dokument merken, deshalb 409 mit dem vorhandenen Beleg.
  */
 async function existing(id: string, reference: DocumentReference | null, request: ApiRequest): Promise<ApiResult> {
-  const loaded = await getDocument(id);
+  const loaded = await load(id);
   if (!loaded) return notFound(DOCUMENT_NOT_FOUND);
   if (sameReference(loaded.document, reference)) return ok(documentOut(loaded, request), 200, { Location: location(id) });
   const { externalSource, externalId } = loaded.document;

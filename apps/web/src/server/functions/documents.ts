@@ -5,6 +5,11 @@ import { z } from "zod";
 import {
   bookDocument,
   bookingIssues,
+  cancelDocument,
+  cancellationInputSchema,
+  cancellationIssues,
+  documentCancellation,
+  reenterDocument,
   deleteDocument,
   DocumentError,
   documentInputSchema,
@@ -23,6 +28,7 @@ import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
 import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 import { UserError } from "../errors.ts";
+import { today } from "../today.ts";
 
 /** KI-Auslesung läuft nach der Antwort weiter; Fehler landen am Beleg. */
 const inBackground = (work: Promise<void>) => void work.catch((error) => console.error("Belegauslesung", error));
@@ -50,8 +56,13 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
     const { extraction: _extraction, ...document } = result.document;
     const [asset] = await db.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.documentId, data));
     const company = await loadCompany();
+    const { cancellation, reentryId } = await documentCancellation(data);
     return {
       document,
+      cancellation,
+      reentryId,
+      // Was gegen einen Storno spricht; die Zahlung im Bankabgleich prüft erst der Storno selbst
+      cancellationIssues: result.document.lockedAt && !cancellation ? cancellationIssues(result.document) : [],
       // Vor und zurück in der Reihenfolge der Belegliste
       navigation: documentNavigation(await listDocuments(), data),
       assetId: asset?.id ?? null,
@@ -130,3 +141,16 @@ export const reextractDocument = createServerFn({ method: "POST" })
     inBackground(runExtraction(context.user.id, data));
     return { ok: true };
   });
+
+export const cancelDocumentFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), cancellation: cancellationInputSchema }))
+  .handler(async ({ data, context }) => {
+    await cancelDocument(context.user.id, data.id, data.cancellation, today());
+    return { ok: true };
+  });
+
+export const reenterDocumentFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => ({ id: await reenterDocument(context.user.id, data) }));
