@@ -30,7 +30,7 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
   });
 
   async function setup(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, residual_terms, company cascade`;
+    await sql`truncate journal_lines, journal_entries, document_amounts, write_offs, documents, invoices, asset_depreciations, assets, residual_terms, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, kontenrahmen, versteuerung, rechtsform,
                                    sitz, registergericht, registernummer)
       values (1, 'Nordlicht GmbH', 'Hafenallee 3', '28217', 'Bremen', 'rechnung@example.com', '60/145/12345', 'HB',
@@ -51,8 +51,8 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
   }
 
   describe.each([
-    ["SKR03", { bank: "1200", kapital: "0800", ges: "0730", darlehen: "0640", fordGes: "1383", verb: "1600", aufwand: "4930" }],
-    ["SKR04", { bank: "1800", kapital: "2900", ges: "3510", darlehen: "3160", fordGes: "1309", verb: "3300", aufwand: "6815" }],
+    ["SKR03", { bank: "1200", kapital: "0800", ges: "0730", darlehen: "0640", fordGes: "1383", verb: "1600", aufwand: "4930", ford: "1400", erloese: "8400" }],
+    ["SKR04", { bank: "1800", kapital: "2900", ges: "3510", darlehen: "3160", fordGes: "1309", verb: "3300", aufwand: "6815", ford: "1200", erloese: "4400" }],
   ] as const)("%s", (kontenrahmen, k) => {
     it.each(["ist", "soll"] as const)("%s: vorschlagen, bestätigen, in Hinterlegung und E-Bilanz", async (versteuerung) => {
       await setup(kontenrahmen, versteuerung);
@@ -148,6 +148,73 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
       expect((await hinterlegung.hinterlegungStand(2026, today))?.maengel).toEqual([
         "Die Salden zum 31.12.2026 haben sich seit der Bestätigung der Restlaufzeiten geändert; bitte neu bestätigen.",
       ]);
+    });
+
+    it.each(["ist", "soll"] as const)("%s: Vorschlag aus offenen Posten, Ausbuchungen und Korrekturen bis zum Stichtag mindern ihn", async (versteuerung) => {
+      await setup(kontenrahmen, versteuerung);
+      await book("2025-02-01", [
+        [k.bank, 2_500_000, 0],
+        [k.kapital, 0, 2_500_000],
+      ]);
+      // Beleg über 3.000 €, erst im Juni 2027 fällig; im Dezember 2025 sind 90 € Skonto ausgebucht
+      await book("2025-11-01", [
+        [k.aufwand, 300_000, 0],
+        [k.verb, 0, 300_000],
+      ]);
+      const [beleg] = await sql`insert into documents (filename, sha256, mime_type, size, status, payment, gross, document_date, due_date)
+        values ('rate.pdf', 'rlz-skonto', 'application/pdf', 1, 'gebucht', 'bank', 300000, '2025-11-01', '2027-06-30') returning id`;
+      await sql`insert into write_offs (kind, document_id, date, amount) values ('skontoErhalten', ${beleg!.id}, '2025-12-15', -9000)`;
+      await book("2025-12-15", [
+        [k.verb, 9_000, 0],
+        [k.aufwand, 0, 9_000],
+      ]);
+      // Rechnung über 5.000 €, erst im Juni 2027 fällig, per Korrekturrechnung um 2.000 € gemindert
+      await book("2025-11-01", [
+        [k.ford, 500_000, 0],
+        [k.erloese, 0, 500_000],
+      ]);
+      await book("2025-12-01", [
+        [k.ford, 0, 200_000],
+        [k.erloese, 200_000, 0],
+      ]);
+      const [rechnung] = await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross)
+        values ('rechnung', 'final', 'RLZ-1', now(), '2025-11-01', '2027-06-30', 500000, 0, 500000) returning id`;
+      await sql`insert into invoices (kind, status, number, locked_at, issue_date, due_date, net, tax, gross, corrects_id)
+        values ('korrektur', 'final', 'RLZ-2', now(), '2025-12-01', '2027-06-30', -200000, 0, -200000, ${rechnung!.id})`;
+      // Eine kurzfristige Rechnung über 1.000 €, damit die Obergrenze (Saldo des Kontos) nicht greift
+      await book("2025-12-01", [
+        [k.ford, 100_000, 0],
+        [k.erloese, 0, 100_000],
+      ]);
+      await book("2025-12-02", [
+        [k.aufwand, 100_000, 0],
+        [k.verb, 0, 100_000],
+      ]);
+      const zeilen = (await restlaufzeiten.restlaufzeitenAnsicht(2025))!.jahr.zeilen;
+      expect(zeilen.find((z) => z.account === k.verb)).toMatchObject({ betrag: 391_000, vorschlag: 291_000 });
+      expect(zeilen.find((z) => z.account === k.ford)).toMatchObject({ betrag: 400_000, vorschlag: 300_000 });
+    });
+
+    it.each(["ist", "soll"] as const)("%s: Vorschlag mit einem Beleg, der erst nach dem Stichtag storniert ist", async (versteuerung) => {
+      await setup(kontenrahmen, versteuerung);
+      await book("2025-02-01", [
+        [k.bank, 2_500_000, 0],
+        [k.kapital, 0, 2_500_000],
+      ]);
+      await book("2025-11-01", [
+        [k.aufwand, 300_000, 0],
+        [k.verb, 0, 300_000],
+      ]);
+      const [beleg] = await sql`insert into documents (filename, sha256, mime_type, size, status, payment, gross, document_date, due_date, locked_at)
+        values ('rate.pdf', 'rlz-storno', 'application/pdf', 1, 'gebucht', 'bank', 300000, '2025-11-01', '2027-06-30', now()) returning id`;
+      // Storniert im Januar 2026: Zum 31.12.2025 steht die Verbindlichkeit noch in der Bilanz
+      const gegenbuchung = await book("2026-01-15", [
+        [k.verb, 300_000, 0],
+        [k.aufwand, 0, 300_000],
+      ]);
+      await sql`insert into document_cancellations (document_id, date, journal_entry_id) values (${beleg!.id}, '2026-01-15', ${gegenbuchung})`;
+      const zeile = (await restlaufzeiten.restlaufzeitenAnsicht(2025))!.jahr.zeilen.find((z) => z.account === k.verb);
+      expect(zeile).toMatchObject({ betrag: 300_000, vorschlag: 300_000 });
     });
 
     it("Vorjahresspalte aus der Bestätigung des Vorjahres", async () => {
