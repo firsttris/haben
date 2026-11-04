@@ -213,7 +213,7 @@ In der Liste stehen alle gebuchten, nicht stornierten Belege mit Bezahlung über
 | Verwendungszweck | Rechnungsnummer des Lieferanten, ohne Nummer „Rechnung vom …“; mit Skonto zusätzlich „abzgl. 2,00 Prozent Skonto 4,31 EUR“ |
 | Auftraggeber | Kontoinhaber aus den Firmendaten, sonst der Firmenname; die BIC nur, wenn die IBAN der Firmendaten das gewählte Konto ist |
 
-Einen Beleg ohne IBAN, mit ungültiger IBAN (Prüfziffer nach ISO 13616), ohne Lieferant oder in Fremdwährung kann Haben nicht überweisen; der Grund steht in der Zeile, der Haken ist gesperrt. Die IBAN trägst du im [Kontakt](rechnungen.md#kontakte) des Lieferanten ein und wählst ihn am Beleg. Nennt die E-Rechnung eine andere IBAN als der Kontakt, überweist Haben auf die des Kontakts und zeigt einen Hinweis: Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für Betrug.
+Einen Beleg ohne IBAN, mit ungültiger IBAN (Prüfziffer nach ISO 13616), mit einer IBAN außerhalb des Europäischen Wirtschaftsraums (EU, Island, Liechtenstein, Norwegen), ohne Lieferant oder in Fremdwährung kann Haben nicht überweisen; außerhalb des EWR verlangt SEPA BIC und Anschrift des Empfängers oder gilt gar nicht, solche Zahlungen gibst du direkt im Online-Banking ein; der Grund steht in der Zeile, der Haken ist gesperrt. Die IBAN trägst du im [Kontakt](rechnungen.md#kontakte) des Lieferanten ein und wählst ihn am Beleg. Nennt die E-Rechnung eine andere IBAN als der Kontakt, überweist Haben auf die des Kontakts und zeigt einen Hinweis: Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für Betrug.
 
 ### Skonto
 

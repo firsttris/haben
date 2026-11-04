@@ -65,6 +65,50 @@ export function isValidIban(iban: string): boolean {
   return /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/.test(value) && ibanChecksumOk(value);
 }
 
+/**
+ * Länder des Europäischen Wirtschaftsraums: die 27 EU-Staaten sowie Island, Liechtenstein und Norwegen. Haben erzeugt
+ * SEPA-Dateien nur für Empfänger dort: Für IBANs außerhalb von SEPA lehnt die Bank ab, und SEPA-Länder außerhalb des EWR
+ * (Schweiz, Vereinigtes Königreich, Monaco, San Marino …) verlangen nach dem SCT-Rulebook des EPC BIC und Anschrift des
+ * Empfängers, die Haben am Kontakt nicht führt.
+ */
+const EWR = new Set([
+  "AT",
+  "BE",
+  "BG",
+  "CY",
+  "CZ",
+  "DE",
+  "DK",
+  "EE",
+  "ES",
+  "FI",
+  "FR",
+  "GR",
+  "HR",
+  "HU",
+  "IE",
+  "IT",
+  "LT",
+  "LU",
+  "LV",
+  "MT",
+  "NL",
+  "PL",
+  "PT",
+  "RO",
+  "SE",
+  "SI",
+  "SK",
+  "IS",
+  "LI",
+  "NO",
+]);
+
+/** IBAN aus einem Land des EWR (nach dem Ländercode; die Prüfziffer prüft isValidIban) */
+export function isEwrIban(iban: string): boolean {
+  return EWR.has(compactIban(iban).slice(0, 2));
+}
+
 /** BIC nach BICFIDec2014Identifier im Schema: 8 oder 11 Zeichen */
 export function isValidBic(bic: string): boolean {
   return /^[A-Z0-9]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(bic.replace(/\s+/g, "").toUpperCase());

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import {
   documentOpen,
   formatDecimal,
+  isEwrIban,
   isValidIban,
   pain001,
   parseSkontoTerms,
@@ -47,9 +48,11 @@ function payeeAccount(payee: DocumentPayee | undefined): Pick<TransferCandidate,
   const problem =
     iban === null
       ? "IBAN fehlt: im Kontakt des Lieferanten eintragen"
-      : isValidIban(iban)
-        ? null
-        : `IBAN ${iban} ist ungültig (${ibanSource === "kontakt" ? "Kontakt" : "E-Rechnung"})`;
+      : !isValidIban(iban)
+        ? `IBAN ${iban} ist ungültig (${ibanSource === "kontakt" ? "Kontakt" : "E-Rechnung"})`
+        : !isEwrIban(iban)
+          ? `IBAN ${iban} liegt außerhalb des EWR: bitte direkt im Online-Banking überweisen`
+          : null;
   // Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für Betrug: nicht stillschweigend übergehen
   const differs = payee?.contactIban && payee.einvoiceIban && payee.contactIban !== payee.einvoiceIban;
   const warning = differs ? `Die E-Rechnung nennt eine andere IBAN (${payee.einvoiceIban}) als der Kontakt` : null;
