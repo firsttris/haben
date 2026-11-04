@@ -263,7 +263,8 @@ Gebucht wird genau, was du gesehen hast: Haben rechnet den Vorschlag beim Buchen
 - die Schlussbilanz nicht aufgeht: ein Konto ohne Posten in der Bilanz, ein anderes Konto der Klasse 9 mit Saldo, Saldenvortragskonten, die zusammen nicht null ergeben, oder Aktiva ungleich Passiva,
 - es vor dem 1. Januar schon Buchungen in Haben gibt (dann trägt Haben die Salden selbst vor) oder die Bücher erst später mit einer Eröffnung beginnen,
 - schon eine Eröffnung von Hand gebucht ist (zuerst stornieren) oder die Eröffnung aus dem Stapel schon gebucht ist,
-- offene Posten oder Anlagen erst nach dem Eröffnungsjahr gegen 9000 übernommen wurden.
+- offene Posten oder Anlagen erst nach dem Eröffnungsjahr gegen 9000 übernommen wurden,
+- die Kasse in der Schlussbilanz einen negativen Bestand hat (ein Kassenbuch beginnt nicht im Minus).
 
 Bringt der letzte Stapel keine Eröffnungsbuchungen mit und gibt es keinen Stapel davor, zeigt Haben einen Hinweis, bucht aber: Das ist der Fall im Gründungsjahr. Sonst fehlen die Bestände des Stapeljahres, und du legst zuerst den Stapel des Vorjahres ins Archiv.
 
