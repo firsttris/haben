@@ -379,15 +379,14 @@ test("Eröffnung aus der Schlussbilanz des DATEV-Stapels: prüfen, bestätigen, 
 
   await go(`/buchungen?jahr=${year}&monat=1`);
   const journal = page.getByRole("region", { name: "Buchungen" });
-  await journal
-    .getByRole("row")
-    .filter({ hasText: "Eröffnungsbilanz", hasNotText: "Storno:" })
-    .getByRole("button", { name: "Buchungszeilen anzeigen" })
-    .click();
-  const storno = journal.getByRole("button", { name: "Eröffnungsbilanz stornieren" });
-  await storno.click();
-  await storno.click();
-  await expect(page.getByText("Storniert: Eröffnungsbilanz")).toBeVisible();
+  // Alle Eröffnungen von Hand stornieren: die Eröffnungsbilanz und den Gewinnvortrag aus dem Ausschüttungs-Test
+  for (const text of ["Eröffnungsbilanz", "Gewinnvortrag aus dem Vorjahr"]) {
+    await journal.getByRole("row").filter({ hasText: text, hasNotText: "Storno:" }).getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
+    const storno = journal.getByRole("button", { name: `${text} stornieren` });
+    await storno.click();
+    await storno.click();
+    await expect(page.getByText(`Storniert: ${text}`)).toBeVisible();
+  }
 
   await go("/buchungen/neu");
   await page.getByRole("form", { name: "Manuelle Buchung" }).getByLabel("Eröffnungsbuchung").check();
