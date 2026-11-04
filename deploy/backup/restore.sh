@@ -22,8 +22,19 @@ db="$PGDATABASE"
 # Keine NOTICE-Zeilen von dropdb --if-exists
 export PGOPTIONS="-c client_min_messages=warning"
 admin() { psql -X -d postgres -v ON_ERROR_STOP=1 --quiet "$@"; }
+# Nur Verbindungen von Clients zählen: Autovacuum-Worker stehen mit datname ebenfalls in pg_stat_activity, und
+# DROP DATABASE beendet sie selbst (PostgreSQL-Doku, pg_stat_activity.backend_type und DROP DATABASE).
+client_connections() {
+  admin -At -c "SELECT count(*) FROM pg_stat_activity WHERE datname = '$db' AND backend_type = 'client backend'"
+}
+# Ein gerade beendeter Client steht noch kurz in der Liste, bis sein Backend abgebaut ist; daher mehrmals prüfen
 app_running() {
-  [ "$(admin -At -c "SELECT count(*) FROM pg_stat_activity WHERE datname = '$db'")" != 0 ]
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    [ "$(client_connections)" = 0 ] && return 1
+    [ "$attempt" = 5 ] || sleep 1
+  done
+  return 0
 }
 
 [ -w /belege ] || { echo "/belege ist nicht schreibbar eingehängt; nichts geändert." >&2; exit 1; }
