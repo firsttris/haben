@@ -9,8 +9,8 @@ import { AusschuettungError, dividendsOfYear, isReversed } from "./ausschuettung
 
 /*
  * Steuerbescheinigungen nach § 45a Abs. 2 EStG zu einer gebuchten Ausschüttung, je Gesellschafter (Inhalt:
- * steuerbescheinigung() in @haben/core, PDF: @haben/einvoice). Anschrift und Identifikationsnummer kommen aus den
- * Angaben zur Körperschaftsteuererklärung des Beschlussjahres, wie die Gesellschafter der Ausschüttung selbst.
+ * steuerbescheinigung() in @haben/core, PDF: @haben/einvoice). Anschrift, Identifikationsnummer und Religionsgemeinschaft
+ * kommen aus den Angaben zur Körperschaftsteuererklärung des Beschlussjahres, wie die Gesellschafter der Ausschüttung selbst.
  */
 
 type Dividend = typeof schema.dividends.$inferSelect;
@@ -36,8 +36,15 @@ function ergebnis(d: Dividend, nr: number, company: Company, angaben: KapgErklae
       ort: company.ort,
       ...(company.steuernummer ? { steuernummer: company.steuernummer } : {}),
     },
-    glaeubiger: { name: e.name, strasse: gesellschafter?.strasse, plzOrt: gesellschafter?.plzOrt, idnr: gesellschafter?.idnr },
+    glaeubiger: {
+      name: e.name,
+      strasse: gesellschafter?.strasse,
+      plzOrt: gesellschafter?.plzOrt,
+      idnr: gesellschafter?.idnr,
+      religionsgemeinschaft: gesellschafter?.religionsgemeinschaft,
+    },
     anteil: e,
+    beschluss: { datum: d.beschlussDate, geschaeftsjahr: d.geschaeftsjahr },
     zahlungstag: d.zufluss,
     ausstellungstag: today,
   });

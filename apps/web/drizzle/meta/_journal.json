@@ -792,6 +792,13 @@
       "when": 1793989014647,
       "tag": "0112_geschaeftsfuehrer",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1793822703063,
+      "tag": "0113_ausschuettung_geschaeftsjahr",
+      "breakpoints": true
     }
   ]
 }

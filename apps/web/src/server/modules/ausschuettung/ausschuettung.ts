@@ -34,6 +34,8 @@ export const ausschuettungSchema = z.object({
   beschluss: isoDate,
   /** Im Beschluss bestimmter Tag der Auszahlung; leer: Zufluss am Tag nach dem Beschluss */
   auszahlungstag: isoDate.nullable().default(null),
+  /** Geschäftsjahr, dessen Gewinn ausgeschüttet wird; steht in der Steuerbescheinigung als Zeitraum (Muster II) */
+  geschaeftsjahr: z.number({ error: "Geschäftsjahr der Ausschüttung fehlt" }).int().min(1900).max(2999),
   brutto: z.number().int().min(1, "Betrag der Ausschüttung fehlt").max(100_000_000_000_00),
 });
 
@@ -171,6 +173,7 @@ export async function ausschuettungVorschlag(input: AusschuettungInput, q: Db | 
     );
   }
   if (data.auszahlungstag && data.auszahlungstag < data.beschluss) issues.push("Der Auszahlungstag liegt vor dem Beschluss.");
+  if (data.geschaeftsjahr > year) issues.push(`Das Geschäftsjahr ${data.geschaeftsjahr} liegt nach dem Jahr des Beschlusses.`);
   return { ...data, zufluss, company: g.company, ausschuettbarerGewinn: g.ausschuettbarerGewinn, ausEinlagekonto: aus, empfaenger, issues };
 }
 
@@ -197,6 +200,7 @@ export async function createAusschuettung(actor: string, input: AusschuettungInp
       beschlussDate: v.beschluss,
       auszahlungstag: v.auszahlungstag,
       zufluss: v.zufluss,
+      geschaeftsjahr: v.geschaeftsjahr,
       brutto: v.brutto,
       empfaenger: v.empfaenger,
       entryId,
