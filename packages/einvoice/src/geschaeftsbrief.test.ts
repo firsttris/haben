@@ -107,10 +107,13 @@ function pdfWords(pdf: Uint8Array): { text: string; yMax: number; pageHeight: nu
     const file = join(dir, "beleg.pdf");
     writeFileSync(file, pdf);
     const html = execFileSync("pdftotext", ["-bbox", file, "-"], { encoding: "utf8" });
-    return html.split("<page ").slice(1).flatMap((page) => {
-      const pageHeight = Number(/height="([\d.]+)"/.exec(page)![1]);
-      return [...page.matchAll(/yMax="([\d.]+)">([^<]*)<\/word>/g)].map((m) => ({ text: m[2]!, yMax: Number(m[1]), pageHeight }));
-    });
+    return html
+      .split("<page ")
+      .slice(1)
+      .flatMap((page) => {
+        const pageHeight = Number(/height="([\d.]+)"/.exec(page)![1]);
+        return [...page.matchAll(/yMax="([\d.]+)">([^<]*)<\/word>/g)].map((m) => ({ text: m[2]!, yMax: Number(m[1]), pageHeight }));
+      });
   } catch {
     return null;
   } finally {
@@ -130,7 +133,13 @@ describe("Fuß mit langen Pflichtangaben", () => {
       supervisoryBoardChair: "Hans-Joachim Lüdenscheid",
     },
   };
-  const lines = Array.from({ length: 40 }, () => ({ description: "Softwareentwicklung", quantity: 1000, unit: "Std.", unitPrice: 9500, taxRate: 1900 }));
+  const lines = Array.from({ length: 40 }, () => ({
+    description: "Softwareentwicklung",
+    quantity: 1000,
+    unit: "Std." as const,
+    unitPrice: 9500,
+    taxRate: 1900 as const,
+  }));
 
   it("bleibt mit Seitenzahl auf dem Blatt", () => {
     const words = pdfWords(renderInvoicePdf({ ...sampleDocument({ lines }), seller }));
