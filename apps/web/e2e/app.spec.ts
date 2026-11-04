@@ -1151,15 +1151,16 @@ test("Voranmeldung vierteljährlich: Zeitraum einstellen, Quartal prüfen und te
   await expect(page.getByText("Fällig am", { exact: false })).toContainText(`April ${next}`);
   // axe prüft das Quartal und den Bereich Voranmeldungszeitraum in barrierefreiheit.spec.ts
 
-  // Nach Prüfen und Senden zeigt die Seite die Meldung, bevor React die neu geladenen Daten einsetzt; mit ihnen baut
-  // sich das Formular neu auf (Schlüssel aus dem Stand des Entwurfs) und verliert PIN und Auswahl. Erst weiter, wenn
-  // der Verlauf den neuen Eintrag zeigt: Er kommt mit denselben Daten
+  // Die Voranmeldung, nicht der Antrag auf Dauerfristverlängerung daneben. Nach Prüfen und Senden zeigt die Seite die
+  // Meldung, bevor React die neu geladenen Daten einsetzt; mit ihnen baut sich das Formular neu auf (Schlüssel aus dem
+  // Stand des Entwurfs) und verliert PIN und Auswahl. Erst weiter, wenn der Verlauf den neuen Eintrag zeigt
+  const elster = page.getByRole("form", { name: "An ELSTER übermitteln" });
   const history = page.getByRole("region", { name: `Verlauf 1. Quartal ${next}` });
-  await page.getByRole("button", { name: "Nur prüfen" }).click();
+  await elster.getByRole("button", { name: "Nur prüfen" }).click();
   await expect(page.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
   await expect(history).toContainText(/Prüfung\s*OK/);
-  const testSend = page.getByRole("button", { name: "Prüfen und testweise senden" });
-  await page.getByLabel("Zertifikats-PIN").fill("123456");
+  const testSend = elster.getByRole("button", { name: "Prüfen und testweise senden" });
+  await elster.getByLabel("Zertifikats-PIN").fill("123456");
   await testSend.click();
   await expect(page.getByText(/Testübermittlung erfolgreich/)).toBeVisible();
   await expect(history).toContainText(/Testübermittlung\s*OK/);
