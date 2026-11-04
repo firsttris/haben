@@ -57,12 +57,13 @@ describe("sozialversicherung, Jahressperre", () => {
 
 describe("sozialversicherungspflichtig beschäftigt", () => {
   it("teilt KV, PV, RV und AV je zur Hälfte und rechnet die Umlagen vom RV-Entgelt", () => {
-    // 4.000 € × 8,75 % (7,3 % + 1,45 %), × 1,8 %, × 9,3 %, × 1,3 %; Umlagen 1,6 %, 0,44 %, 0,15 %
+    // 4.000 € × 7,3 %, × 1,45 % (halber Zusatzbeitrag), × 1,8 %, × 9,3 %, × 1,3 %; Umlagen 1,6 %, 0,44 %, 0,15 %
     expect(rechne(ANGESTELLT)).toEqual({
       ok: true,
       personengruppe: "beschaeftigt",
       bemessung: { kvPv: 4000_00, rvAv: 4000_00, arbeitnehmer: null },
-      kv: { an: 350_00, ag: 350_00 },
+      kv: { an: 292_00, ag: 292_00 },
+      kvZusatz: { an: 58_00, ag: 58_00 },
       pv: { an: 72_00, ag: 72_00 },
       rv: { an: 372_00, ag: 372_00 },
       av: { an: 52_00, ag: 52_00 },
@@ -77,7 +78,8 @@ describe("sozialversicherungspflichtig beschäftigt", () => {
     // PV-Höchstbeitrag je Seite 104,63 € (IKK classic, Rechengrößen 01/2026: Zuschuss PV bundesweit 104,63 €)
     const ueber = rechne({ ...ANGESTELLT, entgelt: 6000_00 });
     expect(ueber.bemessung).toEqual({ kvPv: 5812_50, rvAv: 6000_00, arbeitnehmer: null });
-    expect(ueber.kv).toEqual({ an: 508_59, ag: 508_59 }); // 5.812,50 € × 8,75 % = 508,59375 €
+    expect(ueber.kv).toEqual({ an: 424_31, ag: 424_31 }); // 5.812,50 € × 7,3 % = 424,3125 €
+    expect(ueber.kvZusatz).toEqual({ an: 84_28, ag: 84_28 }); // 5.812,50 € × 1,45 % = 84,28125 €
     expect(ueber.pv).toEqual({ an: 104_63, ag: 104_63 });
     expect(ueber.rv.an).toBe(558_00);
     const weitUeber = rechne({ ...ANGESTELLT, entgelt: 9000_00 });
@@ -90,15 +92,18 @@ describe("sozialversicherungspflichtig beschäftigt", () => {
     expect(rechne({ ...ANGESTELLT, entgelt: 8450_00 }).rv).toEqual(weitUeber.rv);
   });
 
-  it("nimmt den Zusatzbeitrag der Kasse, auch mit ungeradem Satz", () => {
-    // 4.000 € × (14,6 % + 2,45 %) / 2 = 341,00 €; 3.333,33 € × 8,525 % = 284,166… €
-    expect(rechne({ ...ANGESTELLT, kv: { art: "gesetzlich", zusatzbeitrag: 245 } }).kv).toEqual({ an: 341_00, ag: 341_00 });
-    expect(rechne({ ...ANGESTELLT, entgelt: 3333_33, kv: { art: "gesetzlich", zusatzbeitrag: 245 } }).kv).toEqual({ an: 284_17, ag: 284_17 });
+  it("rechnet den Zusatzbeitrag der Kasse getrennt, auch mit ungeradem Satz", () => {
+    // 4.000 € × 2,45 % / 2 = 49,00 €; 3.333,33 € × 7,3 % = 243,333 € und × 1,225 % = 40,833 € (zusammen gerechnet
+    // wären es 284,17 € statt 243,33 € + 40,83 €)
+    expect(rechne({ ...ANGESTELLT, kv: { art: "gesetzlich", zusatzbeitrag: 245 } }).kvZusatz).toEqual({ an: 49_00, ag: 49_00 });
+    const krumm = rechne({ ...ANGESTELLT, entgelt: 3333_33, kv: { art: "gesetzlich", zusatzbeitrag: 245 } });
+    expect([krumm.kv.an, krumm.kvZusatz.an]).toEqual([243_33, 40_83]);
   });
 
   it("rechnet privat Versicherte ohne KV und PV", () => {
     const r = rechne({ ...ANGESTELLT, kv: { art: "privat" } });
     expect(r.kv).toEqual({ an: 0, ag: 0 });
+    expect(r.kvZusatz).toEqual({ an: 0, ag: 0 });
     expect(r.pv).toEqual({ an: 0, ag: 0 });
     expect(r.rv.an).toBe(372_00);
   });
@@ -130,33 +135,48 @@ describe("Pflegeversicherung", () => {
 });
 
 describe("Übergangsbereich (Midijob)", () => {
-  it("rechnet die beitragspflichtigen Einnahmen wie das Beratungsblatt der TK 2026", () => {
-    // TK, Beratungsblatt „Beschäftigungen im Übergangs-/Midijobbereich“ 2026: 1.000 € → 854,06 € und 568,36 €
-    expect(rechne({ ...ANGESTELLT, entgelt: 1000_00 }).bemessung).toEqual({ kvPv: 854_06, rvAv: 854_06, arbeitnehmer: 568_36 });
+  it("rechnet Beispiel 7 des TK-Beratungsblatts zum Übergangsbereich (03/2026) nach", () => {
+    // TK, „Beschäftigungen im Übergangs-/Midijobbereich“, Stand 03/2026, Beispiel 7 (Frau Meier, 1.000 €, TK-Zusatzbeitrag
+    // 2,69 %, kinderlos): https://www.tk.de/resource/blob/2031420/c5924456e673ed942a4be369a4ad070f/beratungsblatt-beschaeftigung-im-uebergangs-midijobbereich-data.pdf
+    const r = rechne({
+      ...ANGESTELLT,
+      entgelt: 1000_00,
+      kv: { art: "gesetzlich", zusatzbeitrag: 269 },
+      pflege: { kinderlosenzuschlag: true, kinderUnter25: 0 },
+    });
+    expect(r.bemessung).toEqual({ kvPv: 854_06, rvAv: 854_06, arbeitnehmer: 568_36 });
+    expect(r.kv).toEqual({ an: 41_49, ag: 83_21 }); // Gesamt 124,70 €
+    expect(r.kvZusatz).toEqual({ an: 7_64, ag: 15_34 }); // Gesamt 22,98 €
+    expect(r.pv).toEqual({ an: 10_23 + 5_12, ag: 20_51 }); // PV 30,74 €, Zuschlag 5,12 € allein beim AN
+    expect(r.rv).toEqual({ an: 52_86, ag: 106_00 }); // Gesamt 158,86 €
+    expect(r.av).toEqual({ an: 7_39, ag: 14_81 }); // Gesamt 22,20 €
+    // Summen der Tabelle: Gesamt 364,60 €, AG 239,87 €, AN 124,73 €
+    expect(r.arbeitnehmer).toBe(124_73);
+    expect(r.arbeitgeber - r.umlagen.u1 - r.umlagen.u2 - r.umlagen.insolvenzgeld).toBe(239_87);
   });
 
-  it("teilt Gesamtbeitrag und Arbeitnehmeranteil wie die Rechner der Kassen", () => {
-    // 1.200 €: Gesamt 1.083,25 €, AN 854,69 €; RV 79,49 € / 121,99 € (Midijob-Rechner 2026 von smart-rechner.de,
-    // gleiche Formel wie § 20 Abs. 2a SGB IV). Übrige Zweige: AN = 854,69 € × halber Satz, AG = 2 × (1.083,25 € ×
-    // halber Satz, gerundet) − AN.
+  it("rechnet 1.200 € wie die Midijob-Rechner und die Umlagen von der reduzierten Einnahme", () => {
+    // 1.200 €: BE 1.083,25 €, BE-AN 854,69 €; RV 79,49 € / 121,99 € (Midijob-Rechner 2026 von smart-rechner.de);
+    // übrige Zweige nach § 2 Abs. 2 BVV wie im TK-Beispiel. Umlagen vom Gesamtbetrag (§ 358 Abs. 2 SGB III).
     expect(rechne({ ...ANGESTELLT, entgelt: 1200_00 })).toEqual({
       ok: true,
       personengruppe: "beschaeftigt",
       bemessung: { kvPv: 1083_25, rvAv: 1083_25, arbeitnehmer: 854_69 },
-      kv: { an: 74_79, ag: 114_77 },
+      kv: { an: 62_39, ag: 95_77 },
+      kvZusatz: { an: 12_39, ag: 19_03 },
       pv: { an: 15_38, ag: 23_62 },
       rv: { an: 79_49, ag: 121_99 },
       av: { an: 11_11, ag: 17_05 },
-      umlagen: { u1: 17_33, u2: 4_77, insolvenzgeld: 1_62 }, // vom Gesamtbetrag 1.083,25 €
+      umlagen: { u1: 17_33, u2: 4_77, insolvenzgeld: 1_62 },
       pauschsteuer: 0,
-      arbeitnehmer: 180_77,
-      arbeitgeber: 301_15,
+      arbeitnehmer: 180_76,
+      arbeitgeber: 301_18,
     });
   });
 
   it("schlägt den Kinderlosenzuschlag aus der Gesamteinnahme auf den Arbeitnehmeranteil", () => {
-    // § 2 Abs. 2 Satz 6 BVV: Zuschlag auf die Einnahme nach § 20 Abs. 2a Satz 1 SGB IV, 1.083,25 € × 0,6 % = 6,4995 €
-    // → 6,50 €; AN 15,38 € + 6,50 € = 21,88 €
+    // § 2 Abs. 2 Satz 6 BVV: Zuschlag auf die Einnahme nach § 20 Abs. 2a Satz 1 SGB IV, wie im TK-Beispiel 7;
+    // 1.083,25 € × 0,6 % = 6,4995 € → 6,50 €; AN 15,38 € + 6,50 € = 21,88 €
     expect(rechne({ ...ANGESTELLT, entgelt: 1200_00, pflege: { kinderlosenzuschlag: true, kinderUnter25: 0 } }).pv).toEqual({ an: 21_88, ag: 23_62 });
   });
 
@@ -196,13 +216,15 @@ describe("Übergangsbereich (Midijob)", () => {
 describe("Minijob (gewerblich)", () => {
   it("rechnet die Abgaben an der Grenze von 603 €", () => {
     // 603 €: KV 13 % = 78,39 €, RV 15 % = 90,45 €, Pauschsteuer 2 % = 12,06 €, AN 3,6 % = 21,71 €
-    // (Minijob-Zentrale und Ratgeber 2026, siehe PR); U1 0,8 % = 4,82 €, U2 0,22 % = 1,33 €, U3 0,15 % = 0,90 €;
-    // zusammen 187,95 € (Minijob-Zentrale: Abgaben höchstens 31,17 % des Entgelts)
+    // U1 0,8 % = 4,82 €, U2 0,22 % = 1,33 €, Insolvenzgeld 0,15 % = 0,90 €; zusammen 187,95 €. Sätze und Obergrenze
+    // 31,17 % aus der Tabelle der Minijob-Zentrale, Abgaben & Steuern für Gewerbetreibende
+    // (https://www.minijob-zentrale.de/DE/fuer-gewerbetreibende/abgaben-und-steuern/abgaben-und-steuern_node.html)
     expect(rechne(MINIJOB)).toEqual({
       ok: true,
       personengruppe: "minijob",
       bemessung: { kvPv: 603_00, rvAv: 603_00, arbeitnehmer: null },
       kv: { an: 0, ag: 78_39 },
+      kvZusatz: { an: 0, ag: 0 },
       pv: { an: 0, ag: 0 },
       rv: { an: 21_71, ag: 90_45 },
       av: { an: 0, ag: 0 },
@@ -214,10 +236,12 @@ describe("Minijob (gewerblich)", () => {
   });
 
   it("rechnet den RV-Anteil unter 175 € aus der Mindestbemessung", () => {
-    // Minijob-Zentrale, FAQ Mindestbeitrag: 100 € → AG 15,00 €, AN 17,55 € ((100 € × 3,6 %) + (75 € × 18,6 %));
-    // § 2 Abs. 1 Satz 5 BVV: 175 € × 18,6 % = 32,55 € abzüglich 15,00 €
+    // Minijob-Zentrale, FAQ „Kann ich von jedem noch so kleinen Gehalt in die Rentenversicherung einzahlen?“: 150 € →
+    // Mindestbeitrag 32,55 €, AG 22,50 €, AN 10,05 € (§ 2 Abs. 1 Satz 5 BVV)
+    // https://www.minijob-zentrale.de/DE/meta/faq-bereich/rentenversicherung/54_kann_ich_von_kleinem_gehalt_in_rv_einzahlen/faq_54_kann_ich_von_kleinem_gehalt_in_rv_einzahlen.html
+    expect(rechne({ ...MINIJOB, entgelt: 150_00 }).rv).toEqual({ an: 10_05, ag: 22_50 });
     const r = rechne({ ...MINIJOB, entgelt: 100_00 });
-    expect(r.rv).toEqual({ an: 17_55, ag: 15_00 });
+    expect(r.rv).toEqual({ an: 17_55, ag: 15_00 }); // 32,55 € − 15,00 €
     expect(r.bemessung.rvAv).toBe(175_00);
     expect(rechne({ ...MINIJOB, entgelt: 175_00 }).rv).toEqual({ an: 6_30, ag: 26_25 }); // 3,6 % / 15 %
   });
@@ -243,7 +267,7 @@ describe("Minijob (gewerblich)", () => {
 describe("Gesellschafter-Geschäftsführer ohne SV-Pflicht", () => {
   it("zahlt keine Beiträge und keine Umlagen", () => {
     const r = rechne({ personengruppe: "ggf", entgelt: 8000_00 });
-    expect([r.kv, r.pv, r.rv, r.av]).toEqual(Array(4).fill({ an: 0, ag: 0 }));
+    expect([r.kv, r.kvZusatz, r.pv, r.rv, r.av]).toEqual(Array(5).fill({ an: 0, ag: 0 }));
     expect(r.umlagen).toEqual({ u1: 0, u2: 0, insolvenzgeld: 0 });
     expect([r.arbeitnehmer, r.arbeitgeber]).toEqual([0, 0]);
   });

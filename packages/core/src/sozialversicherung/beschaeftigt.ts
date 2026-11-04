@@ -9,7 +9,8 @@ export const imUebergangsbereich = (entgelt: Cents, w: SvJahreswerte): boolean =
 /** Zahl der Abschläge: ab dem zweiten Kind unter 25, höchstens bis zum fünften (§ 55 Abs. 3 SGB XI) */
 const abschlaege = (kinderUnter25: number, w: SvJahreswerte): number => Math.min(Math.max(kinderUnter25 - 1, 0), w.pvAbschlaegeHoechstens);
 
-const kvSatz = (e: Beschaeftigt, w: SvJahreswerte): BasisPoints | null => (e.kv.art === "gesetzlich" ? w.kv + e.kv.zusatzbeitrag : null);
+/** Zusatzbeitrag der Kasse, oder null bei privater Versicherung (dann weder KV noch PV) */
+const zusatz = (e: Beschaeftigt): BasisPoints | null => (e.kv.art === "gesetzlich" ? e.kv.zusatzbeitrag : null);
 
 /**
  * Pflegeversicherung außerhalb des Übergangsbereichs. Ohne Sachsen, Zuschlag und Abschläge je zur Hälfte; sonst
@@ -29,12 +30,13 @@ function pflege(basis: Cents, e: Beschaeftigt, w: SvJahreswerte): Anteile {
 export function regulaer(e: Beschaeftigt, w: SvJahreswerte): SvBeitraege {
   const kvPv = Math.min(e.entgelt, w.bbgKvPv);
   const rvAv = Math.min(e.entgelt, w.bbgRvAv);
-  const kv = kvSatz(e, w);
+  const z = zusatz(e);
   return mitSummen({
     personengruppe: "beschaeftigt",
     bemessung: { kvPv, rvAv, arbeitnehmer: null },
-    kv: kv === null ? KEINE : haelftig(kvPv, kv),
-    pv: kv === null ? KEINE : pflege(kvPv, e, w),
+    kv: z === null ? KEINE : haelftig(kvPv, w.kv),
+    kvZusatz: z === null ? KEINE : haelftig(kvPv, z),
+    pv: z === null ? KEINE : pflege(kvPv, e, w),
     rv: haelftig(rvAv, w.rv),
     av: haelftig(rvAv, w.av),
     umlagen: umlagen(rvAv, e, w),
@@ -74,15 +76,16 @@ function uebergangZweig(gesamt: Cents, arbeitnehmer: Cents, satz: BasisPoints): 
 export function uebergang(e: Beschaeftigt, w: SvJahreswerte): SvBeitraege {
   const gesamt = uebergangGesamt(e.entgelt, w);
   const arbeitnehmer = uebergangArbeitnehmer(e.entgelt, w);
-  const kv = kvSatz(e, w);
+  const z = zusatz(e);
   const pvBasis = uebergangZweig(gesamt, arbeitnehmer, w.pv);
   const zuschlag = e.pflege.kinderlosenzuschlag ? beitrag(gesamt, w.pvZuschlagKinderlos) : 0;
   const abschlag = beitrag(arbeitnehmer, abschlaege(e.pflege.kinderUnter25, w) * w.pvAbschlagJeKind);
   return mitSummen({
     personengruppe: "beschaeftigt",
     bemessung: { kvPv: gesamt, rvAv: gesamt, arbeitnehmer },
-    kv: kv === null ? KEINE : uebergangZweig(gesamt, arbeitnehmer, kv),
-    pv: kv === null ? KEINE : { an: pvBasis.an + zuschlag - abschlag, ag: pvBasis.ag },
+    kv: z === null ? KEINE : uebergangZweig(gesamt, arbeitnehmer, w.kv),
+    kvZusatz: z === null ? KEINE : uebergangZweig(gesamt, arbeitnehmer, z),
+    pv: z === null ? KEINE : { an: pvBasis.an + zuschlag - abschlag, ag: pvBasis.ag },
     rv: uebergangZweig(gesamt, arbeitnehmer, w.rv),
     av: uebergangZweig(gesamt, arbeitnehmer, w.av),
     umlagen: umlagen(gesamt, e, w),

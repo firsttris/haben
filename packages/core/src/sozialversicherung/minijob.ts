@@ -28,6 +28,7 @@ export function minijob(e: Minijob, w: SvJahreswerte): SvBeitraege {
     personengruppe: "minijob",
     bemessung: { kvPv: e.entgelt, rvAv: rv.bemessung, arbeitnehmer: null },
     kv: { an: 0, ag: e.gesetzlichKrankenversichert ? beitrag(e.entgelt, w.minijobKv) : 0 },
+    kvZusatz: KEINE,
     pv: KEINE,
     rv: { an: rv.an, ag: rv.ag },
     av: KEINE,

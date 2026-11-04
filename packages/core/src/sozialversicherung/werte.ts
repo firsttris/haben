@@ -57,8 +57,10 @@ export type SvJahr = { jahr: number; werte: SvJahreswerte; quellen: Record<keyof
 const GII = "https://www.gesetze-im-internet.de";
 const RECHENGROESSEN_2026 = `Sozialversicherungsrechengrößen-Verordnung 2026 vom 24.11.2025, BGBl. 2025 I Nr. 278 (${GII}/svbezgrv_2026/)`;
 const MINIJOB_ZENTRALE_2026 =
-  "Minijob-Zentrale, Abgaben & Steuern für Gewerbetreibende 2026 (https://www.minijob-zentrale.de/DE/fuer-gewerbetreibende/abgaben-und-steuern)";
+  "Minijob-Zentrale, „Der gewerbliche Minijob: Beiträge, Umlagen und Steuern“, Tabelle „Alle Abgaben in der Übersicht“ (https://www.minijob-zentrale.de/DE/fuer-gewerbetreibende/abgaben-und-steuern/abgaben-und-steuern_node.html)";
 const BANZ = "https://www.bundesanzeiger.de/pub/publication";
+const TK_UEBERGANG =
+  "TK-Beratungsblatt „Beschäftigungen im Übergangs-/Midijobbereich“, Stand 03/2026 (https://www.tk.de/resource/blob/2031420/c5924456e673ed942a4be369a4ad070f/beratungsblatt-beschaeftigung-im-uebergangs-midijobbereich-data.pdf)";
 
 /**
  * Werte 2026. Jede Zahl ist mit Quelle belegt; die Sekundärquellen (Kassen, Minijob-Zentrale) stimmen mit den
@@ -104,14 +106,14 @@ export const SV_2026: SvJahr = {
     rv: `Bekanntmachung der Beitragssätze in der allgemeinen Rentenversicherung und der knappschaftlichen Rentenversicherung für das Jahr 2026 vom 24.11.2025, BGBl. 2025 I Nr. 291: „weiterhin … 18,6 Prozent“ (${GII}/rvbeitrsbek_2026/)`,
     av: `§ 341 Abs. 2 SGB III: „Der Beitragssatz beträgt 2,6 Prozent“ (${GII}/sgb_3/__341.html)`,
     insolvenzgeld: `§ 360 SGB III: „Der Umlagesatz beträgt 0,15 Prozent“ (${GII}/sgb_3/__360.html); abweichende Verordnungen nach § 361 SGB III gab es nur für 2022 bis 2024`,
-    geringfuegigkeitsgrenze: `§ 8 Abs. 1a SGB IV (${GII}/sgb_4/__8.html): Mindestlohn 13,90 € × 130 / 3 = 602,33 €, auf volle Euro aufgerundet 603 €; bekannt gemacht vom BMAS, BAnz AT 20.11.2025 B1`,
+    geringfuegigkeitsgrenze: `§ 8 Abs. 1a SGB IV (${GII}/sgb_4/__8.html): Mindestlohn 13,90 € × 130 / 3 = 602,33 €, auf volle Euro aufgerundet 603 €; bekannt gemacht vom BMAS, BAnz AT 20.11.2025 B1; Übergangsbereich ab 603,01 € laut ${TK_UEBERGANG}`,
     uebergangsbereichBis: `§ 20 Abs. 2 SGB IV: Arbeitsentgelte, „die regelmäßig 2 000 Euro im Monat nicht übersteigen“ (${GII}/sgb_4/__20.html)`,
-    faktorF: `Bekanntmachung des BMAS vom 25.11.2025, BAnz AT 18.12.2025 B5: Gesamtsozialversicherungsbeitragssatz 42,3 %, Faktor F 0,6619 (${BANZ}/tEVvKJtcxc4VdUgfyAg/content/tEVvKJtcxc4VdUgfyAg/BAnz%20AT%2018.12.2025%20B5.pdf)`,
+    faktorF: `Bekanntmachung des BMAS vom 25.11.2025, BAnz AT 18.12.2025 B5: Gesamtsozialversicherungsbeitragssatz 42,3 %, Faktor F 0,6619 (${BANZ}/tEVvKJtcxc4VdUgfyAg/content/tEVvKJtcxc4VdUgfyAg/BAnz%20AT%2018.12.2025%20B5.pdf); ebenso ${TK_UEBERGANG}, Tabelle „Seit 01.01.2026“`,
     minijobKv: `§ 249b Satz 1 SGB V: 13 % des Arbeitsentgelts (${GII}/sgb_5/__249b.html); ${MINIJOB_ZENTRALE_2026}`,
     minijobRvAg: `§ 168 Abs. 1 Nr. 1b SGB VI (15 %, Rest trägt der Versicherte) und § 172 Abs. 3 SGB VI bei Befreiung (${GII}/sgb_6/__168.html); ${MINIJOB_ZENTRALE_2026}`,
     minijobRvMindestbemessung: `§ 163 Abs. 8 SGB VI: „mindestens jedoch der Betrag in Höhe von 175 Euro“ (${GII}/sgb_6/__163.html)`,
     minijobPauschsteuer: `§ 40a Abs. 2 EStG: „Pauschsteuersatz in Höhe von insgesamt 2 Prozent“ (${GII}/estg/__40a.html)`,
-    minijobU1: `${MINIJOB_ZENTRALE_2026}: 0,8 % (zum 1.1.2026 von 1,1 % gesenkt); Satzung der Knappschaft-Bahn-See, nicht im Gesetz`,
-    minijobU2: `${MINIJOB_ZENTRALE_2026}: 0,22 %; Satzung der Knappschaft-Bahn-See, nicht im Gesetz`,
+    minijobU1: `${MINIJOB_ZENTRALE_2026}: Umlage 1 (U1) 0,8 %; Satz der Knappschaft-Bahn-See, nicht im Gesetz`,
+    minijobU2: `${MINIJOB_ZENTRALE_2026}: Umlage 2 (U2) 0,22 %; Satz der Knappschaft-Bahn-See, nicht im Gesetz`,
   },
 };

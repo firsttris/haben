@@ -88,7 +88,13 @@ export interface SvBeitraege {
   personengruppe: SvEingabe["personengruppe"];
   /** Bemessungsgrundlagen in Cent; `arbeitnehmer` nur im Übergangsbereich (beitragspflichtige Einnahme für den AN-Anteil) */
   bemessung: { kvPv: Cents; rvAv: Cents; arbeitnehmer: Cents | null };
+  /** KV zum allgemeinen Satz; im Minijob die Pauschale */
   kv: Anteile;
+  /**
+   * Kassenindividueller Zusatzbeitrag, getrennt gerechnet und gerundet wie im Beitragsnachweis; so auch das
+   * Beispiel 7 im TK-Beratungsblatt zum Übergangsbereich (03/2026)
+   */
+  kvZusatz: Anteile;
   pv: Anteile;
   rv: Anteile;
   av: Anteile;
@@ -106,7 +112,7 @@ export type SvErgebnis = ({ ok: true } & SvBeitraege) | { ok: false; grund: "nic
 
 /** Summen aus den Einzelbeträgen */
 export function mitSummen(b: Omit<SvBeitraege, "arbeitnehmer" | "arbeitgeber">): SvBeitraege {
-  const zweige = [b.kv, b.pv, b.rv, b.av];
+  const zweige = [b.kv, b.kvZusatz, b.pv, b.rv, b.av];
   const arbeitnehmer = zweige.reduce((s, z) => s + z.an, 0);
   const arbeitgeber = zweige.reduce((s, z) => s + z.ag, 0) + b.umlagen.u1 + b.umlagen.u2 + b.umlagen.insolvenzgeld + b.pauschsteuer;
   return { ...b, arbeitnehmer, arbeitgeber };

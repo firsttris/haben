@@ -104,6 +104,7 @@ const ohneSv = (): SvBeitraege =>
     personengruppe: "ggf",
     bemessung: { kvPv: 0, rvAv: 0, arbeitnehmer: null },
     kv: KEINE,
+    kvZusatz: KEINE,
     pv: KEINE,
     rv: KEINE,
     av: KEINE,
