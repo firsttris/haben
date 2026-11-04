@@ -8,6 +8,8 @@ import {
   type Kontenrahmen,
   type PauschaleArt,
   formatEuro,
+  monthsOfPeriod,
+  periodKey,
   type VatPeriod,
 } from "@haben/core";
 import { and, gte, lt, ne, sql } from "drizzle-orm";
@@ -86,10 +88,11 @@ function saldo(sums: Summe[], accounts: (kr: Kontenrahmen) => string[], filter: 
 
 const ust = (rate: 1900 | 700) => (kr: Kontenrahmen) => [ACCOUNTS[kr].ust[rate]];
 
-/** Umsatzsteuer eines Monats: Steuerkonten im Journal gegen die Kennzahlen aus den Nebenbüchern */
+/** Umsatzsteuer eines Monats oder Quartals: Steuerkonten im Journal gegen die Kennzahlen aus den Nebenbüchern */
 function vatRows(period: VatPeriod, sums: Summe[], figures: Awaited<ReturnType<typeof computeVatFigures>>): AbgleichZeile[] {
-  const zeitraum = `${period.year}-${String(period.month).padStart(2, "0")}`;
-  const monat = sums.filter((s) => s.month === period.month);
+  const zeitraum = periodKey(period);
+  const months = new Set(monthsOfPeriod(period).map((m) => m.month));
+  const monat = sums.filter((s) => months.has(s.month));
   // Privatnutzung von Fahrzeugen: in der Voranmeldung monatlich, im Journal erst mit der AfA gebucht (siehe oben)
   const keinAnlagenbuch = (s: Summe) => s.sourceType !== "asset";
   const entnahme = figures.revenue.filter((r) => r.type === "entnahme").reduce((sum, r) => sum + r.tax, 0);
@@ -113,7 +116,7 @@ function vatRows(period: VatPeriod, sums: Summe[], figures: Awaited<ReturnType<t
 
 const yearRange = (year: number) => ({ from: `${year}-01-01`, to: `${year + 1}-01-01` });
 
-/** Abgleich für einen Monat der Voranmeldung, z. B. in der Vorprüfung vor dem Senden */
+/** Abgleich für einen Zeitraum der Voranmeldung (Monat oder Quartal), z. B. in der Vorprüfung vor dem Senden */
 export async function vatAbgleich(period: VatPeriod): Promise<Abgleich> {
   const { from, to } = yearRange(period.year);
   const sums = await journalSums(from, to);

@@ -1,6 +1,6 @@
 # Umsatzsteuer-Voranmeldung
 
-Haben berechnet die monatliche Umsatzsteuer-Voranmeldung aus deinen Buchungen und übermittelt sie über ERiC an ELSTER. Du siehst, welche Zahlungen, Rechnungen und Belege hinter jeder Kennzahl stehen, kannst die Werte mit Begründung überschreiben und vor dem Senden prüfen oder testweise übermitteln.
+Haben berechnet die Umsatzsteuer-Voranmeldung für den Monat oder das Quartal aus deinen Buchungen und übermittelt sie über ERiC an ELSTER. Du siehst, welche Zahlungen, Rechnungen und Belege hinter jeder Kennzahl stehen, kannst die Werte mit Begründung überschreiben und vor dem Senden prüfen oder testweise übermitteln.
 
 <img src="screenshot-umsatzsteuer.png" alt="Voranmeldung für einen Monat mit den Kennzahlen 81, 86, 66 und 83 links und dem Bereich An ELSTER übermitteln mit Zertifikat, PIN und Testoption rechts" width="900">
 
@@ -12,13 +12,13 @@ Haben berechnet die monatliche Umsatzsteuer-Voranmeldung aus deinen Buchungen un
 - Mit ERiC einmal die bestätigten **Datenschutzhinweise der Finanzverwaltung** (Einstellungen › ELSTER › ERiC).
 - Für echte Übermittlungen ein eingerichtetes **ERiC** (`ERIC_HOME`) und eine eigene **Hersteller-ID** (`ELSTER_HERSTELLER_ID`). Siehe [installation.md](installation.md).
 
-Haben unterstützt nur monatliche Voranmeldungen ohne Dauerfristverlängerung.
+Ob du monatlich, vierteljährlich oder gar keine Voranmeldung abgibst, stellst du unter [Voranmeldungszeitraum](#voranmeldungszeitraum) ein. Ohne Einstellung bleibt es monatlich.
 
 Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite oben einen Hinweis: Als Kleinunternehmer gibst du in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). Die Übersicht zeigt dann keine Aufgaben zur Voranmeldung, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER.
 
 ## So gehst du vor
 
-1. **Umsatzsteuer** öffnen. Haben springt zum Vormonat, also dem Monat, der gerade abzugeben ist. Über **Zeitraum** wählst du den laufenden Monat oder einen der zwölf davor.
+1. **Umsatzsteuer** öffnen. Haben springt zum zuletzt abgelaufenen Zeitraum, also dem, der gerade abzugeben ist: bei monatlicher Abgabe der Vormonat, bei vierteljährlicher das letzte volle Quartal. Über **Zeitraum** wählst du den laufenden oder einen der Zeiträume der letzten zwölf Monate.
 2. Die Hinweise oben abarbeiten (siehe [Vorprüfung](#vorprüfung)).
 3. Kennzahlen prüfen, bei Bedarf die Quellen aufklappen.
 4. **Nur prüfen**: ERiC prüft die Daten, ohne etwas zu senden.
@@ -26,6 +26,48 @@ Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite o
 6. Haken entfernen, **Prüfen und senden**, dann **Jetzt verbindlich senden**.
 
 Vor jedem Prüfen oder Senden speichert Haben den Entwurf, falls er neu oder geändert ist. Mit **Entwurf speichern** geht das auch ohne Prüfung.
+
+## Voranmeldungszeitraum
+
+Der Voranmeldungszeitraum ist nach § 18 Abs. 2 UStG das Kalendervierteljahr. Monatlich gibst du ab, wenn die Steuer des Vorjahres mehr als 9.000 € betrug. Bei höchstens 2.000 € kann dich das Finanzamt von den Voranmeldungen befreien; dann gibst du nur die Jahreserklärung ab. Festgelegt wird der Zeitraum vom Finanzamt, meist mit der Steuernummer oder nach der Jahreserklärung. Haben übernimmt, was du einträgst, und schlägt nur vor.
+
+Auf der Seite **Umsatzsteuer** steht dafür der Bereich **Voranmeldungszeitraum &lt;Jahr&gt;** für das Jahr des angezeigten Zeitraums:
+
+| Feld | Bedeutung |
+| --- | --- |
+| Zeitraum | monatlich, vierteljährlich oder keine Voranmeldung (befreit) |
+| Gilt ab | Januar für das ganze Jahr; April, Juli oder Oktober für einen Wechsel im Jahr |
+
+Darüber steht, was eingestellt ist, und ein Vorschlag aus der Steuer des Vorjahres, gerechnet aus den Buchungen (Summe der Zahllast der vier Quartale, wie Kz 83):
+
+| Steuer des Vorjahres | Vorschlag | Vorschrift |
+| --- | --- | --- |
+| mehr als 9.000 € | monatlich | § 18 Abs. 2 Satz 2 UStG |
+| mehr als 2.000 € bis 9.000 € | vierteljährlich | § 18 Abs. 2 Satz 1 UStG |
+| höchstens 2.000 € | Befreiung möglich, sonst vierteljährlich | § 18 Abs. 2 Satz 3 UStG |
+| Überschuss über 9.000 € | vierteljährlich, monatlich wählbar | § 18 Abs. 2a UStG |
+
+Die Grenzen gelten ab 2025 (Viertes Bürokratieentlastungsgesetz). Für Jahre bis 2024 rechnet der Vorschlag mit den damaligen Grenzen 7.500 € und 1.000 €.
+
+Für Neugründungen gilt: Ab 2027 ist im Jahr der Gründung und im Folgejahr der Monat der Voranmeldungszeitraum (§ 18 Abs. 2 Satz 4 UStG), Haben schlägt dann monatlich vor. Für 2021 bis 2026 ist das ausgesetzt (§ 18 Abs. 2 Satz 6 UStG): War der Betrieb nur einen Teil des Vorjahres tätig, rechnet Haben die Steuer auf ein Jahr hoch (angefangene Monate voll); im Gründungsjahr zählt die voraussichtliche Steuer, die Haben nicht kennt, deshalb gibt es dann keinen Vorschlag. Als Beginn der Tätigkeit nimmt Haben die erste Buchung. Gibt es eine Eröffnungsbuchung, war der Betrieb schon vorher tätig: Dann gilt keine Neugründung, und Haben schlägt nach der Steuer des Vorjahres vor.
+
+Ein Jahr ohne eigene Einstellung übernimmt die des Vorjahres; ganz ohne Einstellung gilt monatlich, wie in Haben vor dieser Einstellung.
+
+### Was die Einstellung ändert
+
+- **Seite und Auswahl:** Die Auswahl **Zeitraum** zeigt Monate oder Quartale, je nach Einstellung. Ein Quartal hat die Adresse `/umsatzsteuer/2026-Q3`.
+- **Kennzahlen:** Ein Quartal umfasst die Buchungen seiner drei Monate. Die Bemessungsgrundlagen schneidet Haben einmal für das Quartal auf volle Euro ab, nicht je Monat.
+- **ELSTER:** Im Feld Zeitraum steht der Schlüssel aus dem ERiC-Schema, `01` bis `12` für die Monate, `41` bis `44` für die Quartale.
+- **Fälligkeit und Fristen:** der 10. nach Ablauf des Zeitraums (§ 18 Abs. 1 UStG), beim Quartal also der 10. April, Juli, Oktober und Januar.
+- **Befreit:** Es gibt keine Voranmeldung und keine Frist dafür; die Übersicht zeigt keine Aufgabe zur Voranmeldung, und in der Umsatzsteuererklärung fehlen keine Monate.
+
+### Wechsel des Zeitraums
+
+Normalerweise wechselt der Zeitraum zum Jahreswechsel: Du stellst das neue Jahr ein, die Voranmeldung für Dezember bzw. das 4. Quartal des Vorjahres bleibt, wie sie war. Mitten im Jahr wechselst du nur, wenn das Finanzamt es festlegt, und nur zu Beginn eines Quartals (**Gilt ab** April, Juli oder Oktober); ein Quartal lässt sich nicht teilen.
+
+Gesendete Voranmeldungen bleiben, wie sie sind. Passt eine gesendete Voranmeldung nicht zum neuen Zeitraum, lehnt Haben die Einstellung ab und nennt die Zeiträume; wähle den Wechsel dann ab einem späteren Quartal. Eine berichtigte Anmeldung zu einer gesendeten geht immer, im Zeitraum der gesendeten. Entwürfe, die nicht mehr zum Zeitraum passen, bleiben mit ihrem Prüfverlauf stehen, lassen sich aber nicht mehr senden; die Seite zeigt dann „Für … passt die Voranmeldung nicht zum eingestellten Zeitraum“.
+
+Jede Änderung der Einstellung steht im Änderungsprotokoll.
 
 ## Wie die Kennzahlen entstehen
 
@@ -129,7 +171,7 @@ Die Hinweise blockieren nichts. Du entscheidest, ob du trotzdem sendest.
 
 ## Fälligkeit
 
-Die Voranmeldung ist am 10. des Folgemonats fällig. Fällt der 10. auf einen Samstag, Sonntag oder gesetzlichen Feiertag im Bundesland aus deinen Firmendaten, rechnet Haben mit dem nächsten Werktag (`dueDate` in `packages/core/src/period.ts`). Feiertage einzelner Gemeinden zählen nicht, ohne Bundesland nur die bundesweiten. Das Datum steht unter den Kennzahlen; die Übersicht zeigt die offene Voranmeldung als Aufgabe und hebt sie drei Tage vor der Frist hervor.
+Die Voranmeldung ist am 10. nach Ablauf des Zeitraums fällig (§ 18 Abs. 1 UStG): bei einem Monat am 10. des Folgemonats, bei einem Quartal am 10. des Monats nach Quartalsende. Fällt der 10. auf einen Samstag, Sonntag oder gesetzlichen Feiertag im Bundesland aus deinen Firmendaten, rechnet Haben mit dem nächsten Werktag (`dueDate` in `packages/core/src/period.ts`). Feiertage einzelner Gemeinden zählen nicht, ohne Bundesland nur die bundesweiten. Das Datum steht unter den Kennzahlen; die Übersicht zeigt die offene Voranmeldung als Aufgabe und hebt sie drei Tage vor der Frist hervor.
 
 ## Übermitteln an ELSTER
 
@@ -147,7 +189,7 @@ Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt. 
 
 Mein ELSTER kann eine Voranmeldung aus einer XML-Datei übernehmen. Haben schreibt diese Datei, eine eigene Hersteller-ID braucht es dafür nicht:
 
-1. Entwurf speichern und **XML für Mein ELSTER** klicken. Die Datei heißt `UStVA_<Jahr>-<Monat>.xml`.
+1. Entwurf speichern und **XML für Mein ELSTER** klicken. Die Datei heißt `UStVA_<Jahr>-<Monat>.xml`, für ein Quartal `UStVA_<Jahr>-Q<Quartal>.xml`.
 2. In Mein ELSTER **Formulare und Leistungen › Umsatzsteuer-Voranmeldung** öffnen, das Jahr wählen, **Weiter**.
 3. Auf der Seite **Datenübernahme** den Reiter **XML-Import** wählen, die Datei auswählen und **XML-Daten hochladen**.
 4. Mein ELSTER füllt das Formular. Zeitraum, Steuernummer und Kennzahlen gegen Haben prüfen, in Mein ELSTER **Prüfen** und selbst **Absenden**.
@@ -170,7 +212,7 @@ Schlägt der Import fehl oder willst du lieber Seite für Seite sehen, was einge
 
 ### Verlauf und Protokoll
 
-Der Bereich **Verlauf** listet für den Monat jede Prüfung, Testübermittlung und Übermittlung mit „OK“ oder „Fehler <Code>“, Zeitpunkt, Transfer-Ticket und Fehlermeldung. Wo es ein Protokoll gibt, öffnet **Protokoll** das PDF. Darunter stehen die zuletzt gesendeten Voranmeldungen aller Monate mit ihrer Zahllast.
+Der Bereich **Verlauf** listet für den Zeitraum jede Prüfung, Testübermittlung und Übermittlung mit „OK“ oder „Fehler <Code>“, Zeitpunkt, Transfer-Ticket und Fehlermeldung. Wo es ein Protokoll gibt, öffnet **Protokoll** das PDF. Darunter stehen die zuletzt gesendeten Voranmeldungen aller Zeiträume mit ihrer Zahllast.
 
 ## Berichtigte Anmeldung
 
@@ -193,7 +235,7 @@ Belege und Rechnungen in Fremdwährung zählen mit ihren Euro-Beträgen, umgerec
 ## Grenzen
 
 - Ist-Versteuerung bei Fremdwährung: Mit deutscher Umsatzsteuer wäre das Entgelt mit dem Kurs des Monats umzurechnen, in dem es eingeht (Abschn. 16.4 UStAE). Das kann Haben nicht, deshalb lassen sich solche Rechnungen bei Ist-Versteuerung nicht festschreiben. Rechnungen in Fremdwährung ohne deutsche Steuer an Unternehmen im Ausland gehen (siehe [rechnungen.md](rechnungen.md#rechnungen-in-fremdwährung)).
-- Nur Monatszeiträume, keine Quartals- oder Jahreserklärung, keine Dauerfristverlängerung.
+- Keine Dauerfristverlängerung.
 - Nur die Kennzahlen 81, 86, 21, 45, 46, 47, 48, 66, 67, 83, 84, 85 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe, keine Zusammenfassende Meldung.
 - Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.

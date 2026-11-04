@@ -47,7 +47,7 @@ function OverviewPage() {
   const certificateDays = data.certificate?.validUntil ? daysUntil(data.certificate.validUntil) : null;
 
   const todos: Todo[] = [];
-  if (!sent && !data.kleinunternehmer) {
+  if (!sent && !data.kleinunternehmer && !data.exempt) {
     todos.push({
       title: `Voranmeldung ${periodLabel(data.period)} senden`,
       detail: `Fällig ${formatLongDate(data.dueDate)}`,
@@ -62,7 +62,7 @@ function OverviewPage() {
   // Ist die Lastschrift schon eingezogen und zugeordnet, ist der Kontostand bereits um sie gesunken
   const zahllastOffen = Math.max(0, zahllast - data.vatPaid);
   const taxShortfall = taxAccount && taxAccount.balance !== null && zahllastOffen > 0 ? zahllastOffen - taxAccount.balance : 0;
-  if (taxAccount && taxShortfall > 0 && !data.kleinunternehmer) {
+  if (taxAccount && taxShortfall > 0 && !data.kleinunternehmer && !data.exempt) {
     todos.push({
       title: `Steuerkonto ${taxAccount.name} deckt die Zahllast nicht`,
       detail: `Es fehlen ${formatEuro(taxShortfall)} für ${periodLabel(data.period)}, fällig ${formatLongDate(data.dueDate)}`,
@@ -211,9 +211,11 @@ function OverviewPage() {
           <h1>Übersicht</h1>
         </div>
         <div className="actions">
-          <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: key }} className="btn">
-            Voranmeldung {periodLabel(data.period)}
-          </Link>
+          {!data.exempt && (
+            <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: key }} className="btn">
+              Voranmeldung {periodLabel(data.period)}
+            </Link>
+          )}
           <Link to="/rechnungen/neu" className="btn btn-primary">
             Neue Rechnung
           </Link>
@@ -248,14 +250,16 @@ function OverviewPage() {
           </div>
         </Link>
         <div className="card">
-          <div className="kpi-label">Umsatz {periodLabel(data.period).split(" ")[0]} (netto)</div>
+          <div className="kpi-label">Umsatz {periodLabel(data.previousMonth).split(" ")[0]} (netto)</div>
           <div className="kpi-value">{formatEuro(data.invoices.revenuePreviousMonth.net)}</div>
           <div className="small muted">nach Rechnungsdatum</div>
         </div>
         <div className="card">
           <div className="kpi-label">USt-Zahllast {periodLabel(data.period)}</div>
           <div className="kpi-value">{formatEuro(data.current?.status === "sent" ? data.current.kz83 : data.computedKz83)}</div>
-          <div className="small muted">{sent ? `gesendet ${formatDate(data.current!.sentAt!)}` : `Voranmeldung fällig ${formatDate(data.dueDate)}`}</div>
+          <div className="small muted">
+            {sent ? `gesendet ${formatDate(data.current!.sentAt!)}` : data.exempt ? "keine Voranmeldung" : `Voranmeldung fällig ${formatDate(data.dueDate)}`}
+          </div>
         </div>
         {taxAccount && taxAccount.balance !== null && !data.kleinunternehmer && (
           <div className="card">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { currentFilingPeriod, dueDate, parsePeriodKey, periodKey, periodLabel } from "./period.ts";
+import { currentFilingPeriod, dueDate, isQuarter, monthsOfPeriod, parsePeriodKey, periodKey, periodLabel, quarterOfMonth } from "./period.ts";
 
 describe("dueDate", () => {
   it("10. des Folgemonats", () => {
@@ -42,5 +42,42 @@ describe("Zeitraum", () => {
     expect(currentFilingPeriod(new Date("2026-12-31T23:30:00Z"))).toEqual({ year: 2026, month: 12 });
     // Kurz vor Mitternacht in Deutschland bleibt es beim alten Monat
     expect(currentFilingPeriod(new Date("2026-10-31T22:30:00Z"))).toEqual({ year: 2026, month: 9 });
+  });
+});
+
+describe("Quartale (Zeitraum 41–44 wie in ELSTER)", () => {
+  it("Schlüssel, Bezeichnung und Monate", () => {
+    expect(periodKey({ year: 2026, month: 43 })).toBe("2026-Q3");
+    expect(parsePeriodKey("2026-Q3")).toEqual({ year: 2026, month: 43 });
+    expect(parsePeriodKey("2026-Q5")).toBeNull();
+    expect(parsePeriodKey("2026-41")).toBeNull();
+    expect(periodLabel({ year: 2026, month: 41 })).toBe("1. Quartal 2026");
+    expect(monthsOfPeriod({ year: 2026, month: 44 })).toEqual([
+      { year: 2026, month: 10 },
+      { year: 2026, month: 11 },
+      { year: 2026, month: 12 },
+    ]);
+    expect(monthsOfPeriod({ year: 2026, month: 5 })).toEqual([{ year: 2026, month: 5 }]);
+    expect(quarterOfMonth(3)).toBe(41);
+    expect(quarterOfMonth(4)).toBe(42);
+    expect(isQuarter({ year: 2026, month: 42 })).toBe(true);
+    expect(isQuarter({ year: 2026, month: 12 })).toBe(false);
+  });
+  it("fällig am 10. nach Quartalsende", () => {
+    // 3. Quartal 2026: 10.10.2026 ist ein Samstag → Montag, 12.10.
+    expect(dueDate({ year: 2026, month: 43 })).toBe("2026-10-12");
+    // 4. Quartal: 10.01.2027 ist ein Sonntag → 11.01.
+    expect(dueDate({ year: 2026, month: 44 })).toBe("2027-01-11");
+  });
+  it("mit Dauerfristverlängerung einen Monat später (§ 46 UStDV)", () => {
+    expect(dueDate({ year: 2026, month: 10 }, null, true)).toBe("2026-12-10");
+    // November → 10. Januar 2027 (Sonntag) → 11.01.
+    expect(dueDate({ year: 2026, month: 11 }, null, true)).toBe("2027-01-11");
+    // Dezember → 10. Februar 2027 (Mittwoch)
+    expect(dueDate({ year: 2026, month: 12 }, null, true)).toBe("2027-02-10");
+    // 4. Quartal → 10. Februar
+    expect(dueDate({ year: 2026, month: 44 }, null, true)).toBe("2027-02-10");
+    // 1. Quartal 2026 → 10. Mai 2026 (Sonntag) → 11.05.
+    expect(dueDate({ year: 2026, month: 41 }, null, true)).toBe("2026-05-11");
   });
 });

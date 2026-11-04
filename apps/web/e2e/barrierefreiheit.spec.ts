@@ -37,6 +37,8 @@ const PAGES = [
   "/bank",
   "/kasse",
   "/umsatzsteuer",
+  // Quartal, das nicht zum eingestellten Zeitraum passt: mit Hinweis und gesperrtem Senden
+  `/umsatzsteuer/${YEAR}-Q1`,
   `/jahreserklaerung/${YEAR}`,
   "/finanzamt",
   "/fristen",

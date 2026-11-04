@@ -827,6 +827,20 @@
       "when": 1793989314647,
       "tag": "0117_restlaufzeiten_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1793989374647,
+      "tag": "0118_ustva_zeitraum",
+      "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1793989434647,
+      "tag": "0119_ustva_zeitraum_trigger",
+      "breakpoints": true
     }
   ]
 }

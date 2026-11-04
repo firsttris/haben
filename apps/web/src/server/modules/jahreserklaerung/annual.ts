@@ -9,8 +9,10 @@ import {
   type EuerResult,
   type ExpenseCategory,
   type PauschaleArt,
+  frequencyAt,
   homeofficeSatz,
   isKapitalgesellschaft,
+  monthsOfPeriod,
 } from "@haben/core";
 import {
   buildEstXml,
@@ -36,7 +38,7 @@ import { db, schema } from "../../db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { listPauschalen } from "../buchhaltung/index.ts";
 import { euerForYear } from "../auswertungen/index.ts";
-import { computeVatFigures } from "../umsatzsteuer/index.ts";
+import { computeVatFigures, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
 export class AnnualError extends UserError {}
@@ -62,7 +64,7 @@ export interface UstYear {
   kz48: Cents;
   /** § 13b als Leistungsempfänger: Steuer (Kz 47 und 85), noch nicht in der Erklärung */
   reverseChargeTax: Cents;
-  /** Monate ohne gesendete Voranmeldung */
+  /** Monate ohne gesendete Voranmeldung (Monat oder Quartal), ohne die befreiten */
   missingMonths: number[];
 }
 
@@ -82,6 +84,9 @@ export async function ustYear(year: number): Promise<UstYear> {
     .orderBy(desc(schema.vatReturns.sentAt));
   const latest = new Map<number, Cents>();
   for (const row of sent) if (!latest.has(row.month)) latest.set(row.month, row.kz83);
+  // Ein gesendetes Quartal deckt seine drei Monate; befreite Monate fehlen nicht
+  const covered = new Set([...latest.keys()].flatMap((month) => monthsOfPeriod({ year, month }).map((m) => m.month)));
+  const frequencies = await loadFrequencies();
 
   const figures: UstErklaerungFigures = {
     base19,
@@ -98,7 +103,7 @@ export async function ustYear(year: number): Promise<UstYear> {
     kz45: total("kz45"),
     kz48: total("kz48"),
     reverseChargeTax: total("kz47") + total("kz85"),
-    missingMonths: Array.from({ length: 12 }, (_, i) => i + 1).filter((m) => !latest.has(m)),
+    missingMonths: Array.from({ length: 12 }, (_, i) => i + 1).filter((m) => !covered.has(m) && frequencyAt(frequencies, { year, month: m }) !== "keine"),
   };
 }
 

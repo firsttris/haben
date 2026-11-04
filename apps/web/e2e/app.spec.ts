@@ -1132,6 +1132,47 @@ test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async 
   expect(xml).not.toContain("<TransferHeader");
 });
 
+test("Voranmeldung vierteljährlich: Zeitraum einstellen, Quartal prüfen und testweise senden", async () => {
+  // Im Folgejahr, damit die übrigen Seiten und Bilder beim monatlichen Zeitraum bleiben
+  const next = YEAR + 1;
+  await go(`/umsatzsteuer/${next}-01`);
+  const card = page.getByRole("form", { name: `Voranmeldungszeitraum ${next}` });
+  await expect(card).toContainText("monatlich");
+  await card.getByRole("combobox", { name: "Zeitraum" }).selectOption("vierteljaehrlich");
+  await card.getByLabel("Gilt ab").selectOption("1");
+  await card.getByRole("button", { name: "Zeitraum speichern" }).click();
+  await expect(card.getByRole("status")).toContainText(`Voranmeldungszeitraum ${next} gespeichert.`);
+  // Der Januar passt nicht mehr dazu
+  await expect(page.getByText(`Für Januar ${next} passt die Voranmeldung nicht zum eingestellten Zeitraum (vierteljährlich).`)).toBeVisible();
+
+  await go(`/umsatzsteuer/${next}-Q1`);
+  await expect(page.getByRole("heading", { level: 1, name: `1. Quartal ${next}` })).toBeVisible();
+  // 10. April oder der nächste Werktag danach (§ 108 Abs. 3 AO)
+  await expect(page.getByText("Fällig am", { exact: false })).toContainText(`April ${next}`);
+  // axe prüft das Quartal und den Bereich Voranmeldungszeitraum in barrierefreiheit.spec.ts
+
+  // Nach Prüfen und Senden zeigt die Seite die Meldung, bevor React die neu geladenen Daten einsetzt; mit ihnen baut
+  // sich das Formular neu auf (Schlüssel aus dem Stand des Entwurfs) und verliert PIN und Auswahl. Erst weiter, wenn
+  // der Verlauf den neuen Eintrag zeigt: Er kommt mit denselben Daten
+  const history = page.getByRole("region", { name: `Verlauf 1. Quartal ${next}` });
+  await page.getByRole("button", { name: "Nur prüfen" }).click();
+  await expect(page.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
+  await expect(history).toContainText(/Prüfung\s*OK/);
+  const testSend = page.getByRole("button", { name: "Prüfen und testweise senden" });
+  await page.getByLabel("Zertifikats-PIN").fill("123456");
+  await testSend.click();
+  await expect(page.getByText(/Testübermittlung erfolgreich/)).toBeVisible();
+  await expect(history).toContainText(/Testübermittlung\s*OK/);
+
+  // Zurück auf monatlich: Der Entwurf des Quartals bleibt mit seinem Verlauf, lässt sich aber nicht mehr senden
+  const frequency = page.getByRole("form", { name: `Voranmeldungszeitraum ${next}` });
+  await frequency.getByRole("combobox", { name: "Zeitraum" }).selectOption("monatlich");
+  await frequency.getByRole("button", { name: "Zeitraum speichern" }).click();
+  await expect(frequency.getByRole("status")).toContainText(`Voranmeldungszeitraum ${next} gespeichert.`);
+  await expect(frequency).toContainText("Eingestellt: monatlich");
+  await expect(page.getByText(`Für 1. Quartal ${next} passt die Voranmeldung nicht zum eingestellten Zeitraum (monatlich).`)).toBeVisible();
+});
+
 test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {
   await go("/einstellungen?bereich=ki");
   // Gesteuertes Kästchen: es zeigt den Stand erst nach der Antwort des Servers

@@ -62,6 +62,17 @@ describe("buildUstvaXml", () => {
     expect(tag(buildUstvaXml({ ...base, period: { year: 2026, month: 12 } }), "Zeitraum")).toBe("12");
   });
 
+  it("schreibt Quartale mit dem Schlüssel 41–44", () => {
+    expect(tag(buildUstvaXml({ ...base, period: { year: 2026, month: 41 } }), "Zeitraum")).toBe("41");
+    expect(tag(buildUstvaXml({ ...base, period: { year: 2026, month: 44 } }), "Zeitraum")).toBe("44");
+  });
+
+  it("lehnt Zeiträume ab, die es nicht gibt", () => {
+    for (const month of [0, 13, 40, 45]) {
+      expect(() => buildUstvaXml({ ...base, period: { year: 2026, month } })).toThrow(`Ungültiger Zeitraum: ${month}`);
+    }
+  });
+
   it("schreibt Kennzahlen im ELSTER-Format", () => {
     const xml = buildUstvaXml(base);
     expect(tag(xml, "Kz81")).toBe("1000");
@@ -201,7 +212,7 @@ describe("buildUstvaUpload (XML-Import in Mein ELSTER)", () => {
     expect(tag(xml, "Ort")).toBe("Köln");
   });
 
-  it("lehnt einen ungültigen Monat ab wie der Versand", () => {
-    expect(() => upload({ period: { year: 2026, month: 13 } })).toThrow("Ungültiger Monat: 13");
+  it("lehnt einen ungültigen Zeitraum ab wie der Versand", () => {
+    expect(() => upload({ period: { year: 2026, month: 13 } })).toThrow("Ungültiger Zeitraum: 13");
   });
 });

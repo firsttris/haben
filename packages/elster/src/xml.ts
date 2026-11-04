@@ -1,4 +1,4 @@
-import { finanzamtsnummer, type Cents, type UstvaFigures, type VatPeriod } from "@haben/core";
+import { filingPeriodSchema, finanzamtsnummer, type Cents, type UstvaFigures, type VatPeriod } from "@haben/core";
 import { encodeIso885915 } from "./iso8859-15.ts";
 
 /** Fehlende oder ungültige Angaben für eine ELSTER-Nachricht; die Meldung ist für den Nutzer bestimmt */
@@ -191,8 +191,9 @@ export type UstvaNutzdatenInput = Omit<UstvaXmlInput, "produktVersion" | "test">
 export function ustvaNutzdaten(input: UstvaNutzdatenInput): string[] {
   const { period, figures, datenlieferant: dl } = input;
   checkSteuernummer13(input.steuernummer13);
-  if (!Number.isInteger(period.month) || period.month < 1 || period.month > 12) {
-    throw new ElsterEingabeError(`Ungültiger Monat: ${period.month}`);
+  // Zeitraum laut ERiC-Schema: 01–12 Monate, 41–44 Kalendervierteljahre
+  if (!filingPeriodSchema.safeParse(period).success) {
+    throw new ElsterEingabeError(`Ungültiger Zeitraum: ${period.month}`);
   }
 
   // Kennzahlen in aufsteigender Reihenfolge, wie im Schema

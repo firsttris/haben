@@ -14,6 +14,7 @@ import {
   parseExchangeRate,
   rateMonth,
   type ExpenseCategory,
+  periodRange,
   type VatPeriod,
   isKapitalgesellschaft,
 } from "@haben/core";
@@ -676,10 +677,9 @@ export async function listDocuments() {
     .orderBy(sql`${schema.documents.status} = 'gebucht'`, desc(schema.documents.documentDate), desc(schema.documents.uploadedAt));
 }
 
-/** Vorsteuer aus gebuchten Belegen eines Monats (nach Belegdatum), für Kz 66; ohne die vorgetragene aus einer Eröffnung */
-export async function inputTaxForPeriod({ year, month }: VatPeriod): Promise<number> {
-  const start = `${year}-${String(month).padStart(2, "0")}-01`;
-  const end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+/** Vorsteuer aus gebuchten Belegen eines Monats oder Quartals (nach Belegdatum), für Kz 66; ohne die vorgetragene aus einer Eröffnung */
+export async function inputTaxForPeriod(period: VatPeriod): Promise<number> {
+  const { start, end } = periodRange(period);
   const company = await loadCompany();
   const vorsteuer = Object.values(ACCOUNTS[company.kontenrahmen].vorsteuer);
   const [row] = await db

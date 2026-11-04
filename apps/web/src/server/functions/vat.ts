@@ -1,9 +1,29 @@
-import { currentFilingPeriod, dueDate, vatPeriodSchema, type VatPeriod } from "@haben/core";
+import {
+  currentFilingPeriod,
+  currentMonth,
+  dueDate,
+  filingPeriodSchema,
+  FREQUENCY_START_MONTHS,
+  periodKey,
+  recentFilingPeriods,
+  latestEndedPeriod,
+  lastMonthOfPeriod,
+  VAT_FREQUENCIES,
+  type VatPeriod,
+} from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../modules/stammdaten/index.ts";
 import { inputTaxForPeriod } from "../modules/belege/index.ts";
-import { computeVatFigures, meinElsterUstvaWerte, preflight } from "../modules/umsatzsteuer/index.ts";
+import {
+  computeVatFigures,
+  frequencyOverview,
+  loadFrequencies,
+  meinElsterUstvaWerte,
+  periodProblem,
+  preflight,
+  saveFrequency,
+} from "../modules/umsatzsteuer/index.ts";
 import { abgleichIssues, vatAbgleich } from "../modules/auswertungen/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
 import { env } from "../env.ts";
@@ -33,23 +53,31 @@ function certificateSummary(certificate: Awaited<ReturnType<typeof loadActiveCer
 
 export const getVatPeriod = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(vatPeriodSchema)
+  .validator(filingPeriodSchema)
   .handler(async ({ data: period }) => {
-    const [returns, company, certificate, recent, inputTax, figures] = await Promise.all([
+    const [returns, company, certificate, recent, inputTax, figures, settings] = await Promise.all([
       returnsForPeriod(period),
       loadCompany(),
       loadActiveCertificate(),
       recentSentReturns(),
       inputTaxForPeriod(period),
       computeVatFigures(period),
+      loadFrequencies(),
     ]);
     const submissions = await submissionsFor(returns.map((r) => r.id));
     const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
+    const last = lastMonthOfPeriod(period);
     return {
       period,
       dueDate: dueDate(period, company.bundesland),
-      // Stand im Monat der Voranmeldung: nach der Umstellung zum Jahreswechsel ist der Dezember noch fällig
-      kleinunternehmer: await kleinunternehmerForMonth(period.year, period.month),
+      /** Zeiträume zur Auswahl nach der Einstellung: der laufende und die der letzten zwölf Monate */
+      periods: recentFilingPeriods(settings, currentMonth(new Date())),
+      /** Voranmeldungszeitraum des Jahres und Vorschlag aus der Steuer des Vorjahres */
+      frequency: await frequencyOverview(period.year, settings),
+      /** Passt der Zeitraum nicht zur Einstellung, die Meldung dazu; gesendete Anmeldungen bleiben trotzdem sichtbar */
+      periodProblem: periodProblem(settings, period),
+      // Stand am Ende des Zeitraums: nach der Umstellung zum Jahreswechsel ist der Dezember noch fällig
+      kleinunternehmer: await kleinunternehmerForMonth(last.year, last.month),
       current,
       returns,
       submissions,
@@ -67,10 +95,23 @@ export const getVatPeriod = createServerFn({ method: "GET" })
     };
   });
 
+/** Zeitraum, den /umsatzsteuer öffnet: der zuletzt abgelaufene, befreit der Vormonat */
+export const getFilingPeriodKey = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(async () => {
+    const now = new Date();
+    return periodKey(latestEndedPeriod(await loadFrequencies(), currentMonth(now)) ?? currentFilingPeriod(now));
+  });
+
 export const getOverview = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async () => {
-    const period: VatPeriod = currentFilingPeriod(new Date());
+    const now = new Date();
+    const settings = await loadFrequencies();
+    // Der zuletzt abgelaufene Zeitraum; befreit (keine Voranmeldung) bleibt es beim Vormonat, ohne Aufgabe
+    const ended = latestEndedPeriod(settings, currentMonth(now));
+    const period: VatPeriod = ended ?? currentFilingPeriod(now);
+    const last = lastMonthOfPeriod(period);
     const [returns, company, certificate, recent, computed] = await Promise.all([
       returnsForPeriod(period),
       loadCompany(),
@@ -86,10 +127,14 @@ export const getOverview = createServerFn({ method: "GET" })
       /** Nach Ende des Zeitraums schon an das Finanzamt gezahlt (zugeordnete Lastschriften), für die Deckung des Steuerkontos */
       /** Geldtransit ohne Gegenseite (Saldo von 1360 bzw. 1460) */
       transit: await transitBalance(),
-      vatPaid: await vatPaidAfter(new Date(Date.UTC(period.year, period.month, 0)).toISOString().slice(0, 10)),
+      vatPaid: await vatPaidAfter(new Date(Date.UTC(last.year, last.month, 0)).toISOString().slice(0, 10)),
       dueDate: dueDate(period, company.bundesland),
-      // Stand im Monat der Voranmeldung: nach der Umstellung zum Jahreswechsel ist der Dezember noch fällig
-      kleinunternehmer: await kleinunternehmerForMonth(period.year, period.month),
+      /** Von der Voranmeldung befreit: keine Aufgabe zur Voranmeldung */
+      exempt: ended === null || periodProblem(settings, period) !== null,
+      /** Vormonat, für den Umsatz in der Übersicht */
+      previousMonth: currentFilingPeriod(now),
+      // Stand am Ende des Zeitraums: nach der Umstellung zum Jahreswechsel ist der Dezember noch fällig
+      kleinunternehmer: await kleinunternehmerForMonth(last.year, last.month),
       afaPending: await pendingDepreciation(today()),
       appeals: (await openAppealDeadlines(today())).map((d) => ({
         id: d.id,
@@ -110,10 +155,10 @@ export const saveVatDraft = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
     z.discriminatedUnion("mode", [
-      z.object({ mode: z.literal("berechnet"), period: vatPeriodSchema }),
+      z.object({ mode: z.literal("berechnet"), period: filingPeriodSchema }),
       z.object({
         mode: z.literal("manuell"),
-        period: vatPeriodSchema,
+        period: filingPeriodSchema,
         kz81: centsSchema,
         kz86: centsSchema,
         kz21: centsSchema,
@@ -137,7 +182,7 @@ export const saveVatDraft = createServerFn({ method: "POST" })
 
 export const createVatCorrection = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(vatPeriodSchema)
+  .validator(filingPeriodSchema)
   .handler(async ({ data, context }) => {
     const created = await createCorrection(context.user.id, data);
     return { id: created.id };
@@ -171,3 +216,15 @@ export const getMeinElsterUstvaWerte = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid() }))
   .handler(async ({ data }) => meinElsterUstvaWerte(data.id));
+
+/** Voranmeldungszeitraum ab Jahr und Quartalsbeginn, wie ihn das Finanzamt festgelegt hat */
+export const saveVatFrequency = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(
+    z.object({
+      year: z.number().int().min(2000).max(2100),
+      fromMonth: z.union(FREQUENCY_START_MONTHS.map((m) => z.literal(m))),
+      frequency: z.enum(VAT_FREQUENCIES),
+    }),
+  )
+  .handler(async ({ data, context }) => saveFrequency(context.user.id, data));

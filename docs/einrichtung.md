@@ -6,7 +6,7 @@ Diese Seite führt dich durch die Einrichtung nach der Installation: Konto und P
 
 In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltung:
 
-1. Konto anlegen und einen Passkey hinzufügen
+2. Firmendaten ausfüllen, Rechtsform, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten; gibst du nicht monatlich ab, unter Umsatzsteuer den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) einstellen
 2. Firmendaten ausfüllen, Rechtsform, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
@@ -335,7 +335,7 @@ Vor dem Senden prüft Haben die Firmendaten: Name, Anschrift, Bundesland und ein
 > [!IMPORTANT]
 > Die ERiC-Anbindung ist mit ERiC 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und Protokoll-PDF mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
 
-Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatzsteuer](umsatzsteuer.md).
+Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatzsteuer](umsatzsteuer.md). Gibst du nicht monatlich ab, stellst du dort den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) ein: vierteljährlich oder keine Voranmeldung, so wie es das Finanzamt festgelegt hat.
 
 ## E-Mail
 
@@ -369,7 +369,7 @@ Name und Zweck eines Kontos (Geschäftskonto, Steuerkonto, Rücklagen, Privatkon
 - [Rechnungen](rechnungen.md) schreiben und festschreiben
 - [Belege](belege.md) hochladen und buchen
 - [Bank](bank.md): Kontoauszüge importieren und Zahlungen zuordnen
-- [Umsatzsteuer](umsatzsteuer.md): monatliche Voranmeldung
+- [Umsatzsteuer](umsatzsteuer.md): Voranmeldung monatlich oder vierteljährlich
 - [Auswertungen](auswertungen.md) und Jahresexport
 
 [Zurück zur Übersicht](README.md)

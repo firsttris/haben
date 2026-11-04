@@ -223,11 +223,28 @@ export const vatReturns = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    check("vat_returns_month", sql`${t.month} between 1 and 12`),
+    // Zeitraum wie im ELSTER-Feld Zeitraum: 1–12 Monate, 41–44 Kalendervierteljahre
+    check("vat_returns_month", sql`${t.month} between 1 and 12 or ${t.month} between 41 and 44`),
     foreignKey({ name: "vat_returns_corrects_fk", columns: [t.correctsId], foreignColumns: [t.id] }),
     // höchstens ein Entwurf je Zeitraum
     uniqueIndex("vat_returns_one_draft_per_period").on(t.year, t.month).where(sql`${t.status} = 'draft'`),
   ],
+);
+
+/**
+ * Voranmeldungszeitraum (§ 18 Abs. 2 UStG), wie ihn das Finanzamt festgelegt hat: ab Jahr und Monat (1, 4, 7 oder 10)
+ * monatlich, vierteljährlich oder keine Voranmeldung. Ein Jahr ohne Zeile übernimmt die letzte Einstellung davor, ganz
+ * ohne Zeile gilt monatlich.
+ */
+export const vatFrequencies = pgTable(
+  "vat_frequencies",
+  {
+    year: smallint("year").notNull(),
+    fromMonth: smallint("from_month").notNull().default(1),
+    frequency: text("frequency", { enum: ["monatlich", "vierteljaehrlich", "keine"] }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.year, t.fromMonth] }), check("vat_frequencies_from_month", sql`${t.fromMonth} in (1, 4, 7, 10)`)],
 );
 
 /** Jede Prüfung oder Übermittlung an ELSTER, nur anhängen. */
