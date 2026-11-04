@@ -1,4 +1,13 @@
-import { carryForward, isKapitalgesellschaft, type Cents, type KontenblattZeile, type Kontenrahmen, type PostingLine, type SaldenZeile } from "@haben/core";
+import {
+  ACCOUNTS,
+  carryForward,
+  isKapitalgesellschaft,
+  type Cents,
+  type KontenblattZeile,
+  type Kontenrahmen,
+  type PostingLine,
+  type SaldenZeile,
+} from "@haben/core";
 import { and, asc, eq, gt, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
@@ -184,6 +193,32 @@ export async function saldenliste({ from, to }: LedgerRange): Promise<SaldenZeil
       };
     })
     .filter((r) => r.eroeffnung !== 0 || r.soll !== 0 || r.haben !== 0);
+}
+
+/**
+ * Übernahmen im Jahr: Salden der Buchungen ohne Herkunft „Eröffnung“, die gegen 9000 Saldenvorträge buchen, etwa offene
+ * Posten aus dem Umzug oder die Eröffnung einer übernommenen Anlage. Sie gehören zum Stand am 1. Januar wie die
+ * Eröffnungsbuchung (docs/buchhaltung.md, „Saldenvortrag und Eröffnung“).
+ */
+export async function uebernahmen(year: number, kontenrahmen: Kontenrahmen): Promise<{ account: string; saldo: Cents }[]> {
+  const e = schema.journalEntries;
+  const l = schema.journalLines;
+  const vortrag = ACCOUNTS[kontenrahmen].saldenvortrag;
+  const rows = await db
+    .select({ account: l.account, saldo: sql<string>`sum(${l.debit} - ${l.credit})` })
+    .from(l)
+    .innerJoin(e, eq(l.entryId, e.id))
+    .where(
+      and(
+        gte(e.date, `${year}-01-01`),
+        lt(e.date, `${year + 1}-01-01`),
+        eq(e.kontenrahmen, kontenrahmen),
+        ne(e.sourceType, OPENING_SOURCE),
+        sql`exists (select 1 from ${l} v where v.entry_id = ${e.id} and v.account = ${vortrag})`,
+      ),
+    )
+    .groupBy(l.account);
+  return rows.map((r) => ({ account: r.account, saldo: Number(r.saldo) })).filter((r) => r.saldo !== 0);
 }
 
 export interface Kontenblatt {

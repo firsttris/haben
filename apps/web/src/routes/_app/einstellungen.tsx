@@ -180,6 +180,10 @@ function CompanyForm() {
         data: {
           name: text("name"),
           rechtsform,
+          // Ohne Kapitalgesellschaft stehen die Felder nicht im Formular; gespeicherte Angaben bleiben
+          sitz: gesellschaft ? text("sitz") : company.sitz,
+          registergericht: gesellschaft ? text("registergericht") : company.registergericht,
+          registernummer: gesellschaft ? text("registernummer") : company.registernummer,
           strasse: text("strasse"),
           plz: text("plz"),
           ort: text("ort"),
@@ -285,6 +289,32 @@ function CompanyForm() {
           </label>
         </div>
       </section>
+
+      {gesellschaft && (
+        <section className="form-section" aria-labelledby="company-register">
+          <h3 id="company-register">Handelsregister</h3>
+          <p className="field-hint" style={{ marginTop: 0 }}>
+            Gehören in den Jahresabschluss (§ 264 Abs. 1a HGB), etwa auf die Bilanz zur Hinterlegung beim Unternehmensregister. Sie stehen im Registerauszug.
+          </p>
+          <div className="form-row cols-2">
+            <label className="field">
+              Sitz
+              <input name="sitz" defaultValue={company.sitz} maxLength={100} placeholder={company.ort} aria-describedby="sitz-hint" />
+              <span id="sitz-hint" className="small muted">
+                Laut Gesellschaftsvertrag; leer = Ort der Anschrift.
+              </span>
+            </label>
+            <label className="field">
+              Registergericht
+              <input name="registergericht" defaultValue={company.registergericht} maxLength={100} placeholder="z. B. Amtsgericht Bremen" />
+            </label>
+            <label className="field">
+              Registernummer
+              <input name="registernummer" defaultValue={company.registernummer} maxLength={40} placeholder="z. B. HRB 12345 HB" className="mono" />
+            </label>
+          </div>
+        </section>
+      )}
 
       <section className="form-section" aria-labelledby="company-tax">
         <h3 id="company-tax">Steuern</h3>

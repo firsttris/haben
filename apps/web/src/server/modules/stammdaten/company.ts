@@ -59,6 +59,10 @@ export const companySchema = z
     kontenrahmen: z.enum(["SKR03", "SKR04"]),
     /** Ohne Vorgabe: Ein fehlendes Feld darf eine GmbH nicht still zum Einzelunternehmen machen */
     rechtsform: z.enum(RECHTSFORM_KEYS),
+    /** GmbH und UG: Angaben zum Handelsregister für den Jahresabschluss (§ 264 Abs. 1a HGB) */
+    sitz: z.string().trim().max(100).default(""),
+    registergericht: z.string().trim().max(100).default(""),
+    registernummer: z.string().trim().max(40).default(""),
     paymentTermDays: z.number().int().min(0).max(120),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     /** Vorgabe für die Einleitung neuer Rechnungen und Angebote; so lang wie das Feld im Beleg */

@@ -13,6 +13,7 @@ const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL(".."
 const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
 const STEUERBESCHEINIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "steuerbescheinigung.typ");
+const HINTERLEGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "hinterlegung.typ");
 const FONTS = ["Regular", "Medium", "SemiBold"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
 
 let compiler: NodeCompiler | undefined;
@@ -163,6 +164,11 @@ export function renderDunningPdf(data: object, date: string, letterhead: Letterh
 /** Steuerbescheinigung als PDF/A-3b; die Daten kommen fertig formatiert aus steuerbescheinigungPdfData */
 export function renderSteuerbescheinigungPdf(data: object, date: string, letterhead: Letterhead): Uint8Array {
   return compilePdf(STEUERBESCHEINIGUNG_TEMPLATE, data, date, "Steuerbescheinigung", letterhead);
+}
+
+/** Bilanz zur Hinterlegung als PDF/A-3b, ohne Logo und Akzentfarbe; die Daten kommen aus hinterlegungPdfData */
+export function renderHinterlegungPdf(data: object, date: string): Uint8Array {
+  return compilePdf(HINTERLEGUNG_TEMPLATE, data, date, "Bilanz-PDF", {});
 }
 
 /** Fußzeile wie auf der Rechnung: Kontakt, Bank, Steuernummern */

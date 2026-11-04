@@ -70,7 +70,12 @@ export default defineConfig({
     { name: "ablauf", testMatch: "app.spec.ts", use: chromium },
     // Liest nur, was „ablauf“ angelegt hat, mit dessen Sitzung (e2e/daten.ts). Playwright startet „ablauf“ auch
     // mit, wenn nur eine dieser Dateien laufen soll
-    { name: "mit-daten", testMatch: ["barrierefreiheit.spec.ts", "seiten.spec.ts", "zz-doku-screenshots.spec.ts"], dependencies: ["ablauf"], use: chromium },
+    {
+      name: "mit-daten",
+      testMatch: ["anmelden.spec.ts", "barrierefreiheit.spec.ts", "seiten.spec.ts", "zz-doku-screenshots.spec.ts"],
+      dependencies: ["ablauf"],
+      use: chromium,
+    },
     // Braucht keine Daten aus der App
     // GmbH mit eigenem Server und eigener Datenbank, von Anfang an daneben
     { name: "gmbh", testMatch: "gmbh.spec.ts", use: { ...chromium, baseURL: `http://localhost:${gmbhPort}` } },

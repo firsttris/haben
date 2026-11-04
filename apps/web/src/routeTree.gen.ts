@@ -62,6 +62,7 @@ import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiDatevJahrRouteImport } from './routes/api/datev/$jahr'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
 import { Route as ApiFristenKalenderRouteImport } from './routes/api/fristen/kalender'
+import { Route as ApiHinterlegungJahrRouteImport } from './routes/api/hinterlegung/$jahr'
 import { Route as ApiKasseJahrRouteImport } from './routes/api/kasse/$jahr'
 import { Route as ApiKontenJahrRouteImport } from './routes/api/konten/$jahr'
 import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
@@ -345,6 +346,11 @@ const ApiFristenKalenderRoute = ApiFristenKalenderRouteImport.update({
   path: '/api/fristen/kalender',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHinterlegungJahrRoute = ApiHinterlegungJahrRouteImport.update({
+  id: '/api/hinterlegung/$jahr',
+  path: '/api/hinterlegung/$jahr',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiKasseJahrRoute = ApiKasseJahrRouteImport.update({
   id: '/api/kasse/$jahr',
   path: '/api/kasse/$jahr',
@@ -477,6 +483,7 @@ export interface FileRoutesByFullPath {
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
+  '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
   '/api/kasse/$jahr': typeof ApiKasseJahrRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
@@ -548,6 +555,7 @@ export interface FileRoutesByTo {
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
+  '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
   '/api/kasse/$jahr': typeof ApiKasseJahrRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
@@ -621,6 +629,7 @@ export interface FileRoutesById {
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
+  '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
   '/api/kasse/$jahr': typeof ApiKasseJahrRoute
   '/api/konten/$jahr': typeof ApiKontenJahrRoute
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
@@ -694,6 +703,7 @@ export interface FileRouteTypes {
     | '/api/datev/$jahr'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
+    | '/api/hinterlegung/$jahr'
     | '/api/kasse/$jahr'
     | '/api/konten/$jahr'
     | '/api/mahnung/$id'
@@ -765,6 +775,7 @@ export interface FileRouteTypes {
     | '/api/datev/$jahr'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
+    | '/api/hinterlegung/$jahr'
     | '/api/kasse/$jahr'
     | '/api/konten/$jahr'
     | '/api/mahnung/$id'
@@ -837,6 +848,7 @@ export interface FileRouteTypes {
     | '/api/datev/$jahr'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
+    | '/api/hinterlegung/$jahr'
     | '/api/kasse/$jahr'
     | '/api/konten/$jahr'
     | '/api/mahnung/$id'
@@ -886,6 +898,7 @@ export interface RootRouteChildren {
   ApiDatevJahrRoute: typeof ApiDatevJahrRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
   ApiFristenKalenderRoute: typeof ApiFristenKalenderRoute
+  ApiHinterlegungJahrRoute: typeof ApiHinterlegungJahrRoute
   ApiKasseJahrRoute: typeof ApiKasseJahrRoute
   ApiKontenJahrRoute: typeof ApiKontenJahrRoute
   ApiMahnungIdRoute: typeof ApiMahnungIdRoute
@@ -1272,6 +1285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFristenKalenderRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/hinterlegung/$jahr': {
+      id: '/api/hinterlegung/$jahr'
+      path: '/api/hinterlegung/$jahr'
+      fullPath: '/api/hinterlegung/$jahr'
+      preLoaderRoute: typeof ApiHinterlegungJahrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/kasse/$jahr': {
       id: '/api/kasse/$jahr'
       path: '/api/kasse/$jahr'
@@ -1505,6 +1525,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDatevJahrRoute: ApiDatevJahrRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
   ApiFristenKalenderRoute: ApiFristenKalenderRoute,
+  ApiHinterlegungJahrRoute: ApiHinterlegungJahrRoute,
   ApiKasseJahrRoute: ApiKasseJahrRoute,
   ApiKontenJahrRoute: ApiKontenJahrRoute,
   ApiMahnungIdRoute: ApiMahnungIdRoute,
