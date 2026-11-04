@@ -108,6 +108,24 @@ describe.skipIf(!testDatabaseUrl)("Abschluss aus dem DATEV-Stapel (Postgres)", (
       expect(jahr!.report.aktiva).toBe(1_000_000);
       expect(jahr!.report.offeneVortraege).toEqual([]);
     });
+
+    it("trägt nur ab dem letzten Vorjahresstapel mit Eröffnungsbuchungen vor", async () => {
+      await setup("gmbh", kontenrahmen);
+      await upload(2023, stack(2023, kontenrahmen, [[2_500_000, "S", k.bank, k.kapital, "", "0101"]]));
+      // 2024 bringt die Bestände zum 1.1.2024 selbst mit; die Buchungen aus 2023 stecken darin schon
+      await upload(
+        2024,
+        stack(2024, kontenrahmen, [
+          [2_500_000, "S", k.bank, "9000", "", "0101"],
+          [2_500_000, "S", "9000", k.kapital, "", "0101"],
+        ]),
+      );
+      await upload(2025, stack(2025, kontenrahmen, [[23_800, "S", k.bank, k.erloese, "", "1006"]]));
+      const jahr = await modul.datevAbschluss(2025);
+      expect(jahr!.vortrag).toBe("vorjahre");
+      expect(jahr!.report.aktiva).toBe(2_500_000 + 23_800);
+      expect(jahr!.report.passiva).toBe(jahr!.report.aktiva);
+    });
   });
 
   it("gibt es nur für GmbH und UG und nur für Jahre mit Buchungen", async () => {
