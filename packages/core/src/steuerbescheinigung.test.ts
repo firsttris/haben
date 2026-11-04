@@ -5,12 +5,21 @@ import { steuerbescheinigung, type SteuerbescheinigungEingabe } from "./steuerbe
 const aussteller = { name: "Nordlicht Software GmbH", strasse: "Hafenallee 3", plz: "28217", ort: "Bremen", steuernummer: "60/145/12345" };
 const erika = { name: "Erika Muster", strasse: "Lindenweg 1", plzOrt: "28195 Bremen", idnr: "86095742719" };
 
+// Wortlaut der Zeilen aus Muster II (BMF-Schreiben vom 16. Mai 2025, Anlage, Seite 38 und 39)
+const NR1 = "Kapitalerträge im Sinne des § 43 Abs. 1 Satz 1 Nr. 1 EStG";
+const KAPEST = "Summe Kapitalertragsteuer in Höhe von 25 % oder wegen einbehaltener Kirchensteuer entsprechend geminderter Kapitalertragsteuerbetrag";
+const SOLI = "Summe Solidaritätszuschlag";
+const KIST = "Summe Kirchensteuer zur Kapitalertragsteuer";
+const RELIGION = "kirchensteuererhebende Religionsgemeinschaft";
+const EINLAGE = "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 – 7 KStG)";
+
 function eingabe(over: Partial<SteuerbescheinigungEingabe> = {}): SteuerbescheinigungEingabe {
   const r = ausschuettungAnteil({ brutto: 1_000_000, ausEinlagekonto: 0, kirchensteuer: 0 });
   return {
     aussteller,
     glaeubiger: erika,
     anteil: { ...r, religionsschluessel: null },
+    beschluss: { datum: "2026-04-28", geschaeftsjahr: 2025 },
     zahlungstag: "2026-05-05",
     ausstellungstag: "2026-05-06",
     ...over,
@@ -20,62 +29,70 @@ function eingabe(over: Partial<SteuerbescheinigungEingabe> = {}): Steuerbeschein
 const betraege = (e: SteuerbescheinigungEingabe) => {
   const r = steuerbescheinigung(e);
   if (!r.ok) throw new Error(r.fehlend.join(" "));
-  return Object.fromEntries(r.bescheinigung.zeilen.map((z) => [z.label, z.betrag]));
+  return Object.fromEntries(r.bescheinigung.zeilen.flatMap((z) => ("betrag" in z ? [[z.label, z.betrag]] : [])));
 };
 
 describe("Steuerbescheinigung nach § 45a Abs. 2 EStG (Muster II)", () => {
-  it("ohne Kirchensteuer: Kapitalertrag, 25 % KapESt, 5,5 % Soli, Kirchensteuer 0", () => {
+  it("ohne Kirchensteuer: Zeilen in Wortlaut und Reihenfolge des Musters, mit den Fußnoten zur Anlage KAP", () => {
     const r = steuerbescheinigung(eingabe());
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.bescheinigung.glaeubiger).toEqual({ name: "Erika Muster", anschrift: ["Lindenweg 1", "28195 Bremen"], idnr: "86095742719" });
     expect(r.bescheinigung.aussteller.steuernummer).toBe("60/145/12345");
     expect(r.bescheinigung.zahlungstag).toBe("2026-05-05");
-    expect(r.bescheinigung.religionsschluessel).toBeNull();
     expect(r.bescheinigung.zeilen).toEqual([
-      { label: "Höhe der Kapitalerträge", betrag: 1_000_000 },
-      { label: "Kapitalertragsteuer", betrag: 250_000 },
-      { label: "Solidaritätszuschlag", betrag: 13_750 },
-      { label: "Kirchensteuer zur Kapitalertragsteuer", betrag: 0 },
-      { label: "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 bis 7 KStG)", betrag: 0 },
+      { label: NR1, betrag: 1_000_000 },
+      { label: KAPEST, betrag: 250_000 },
+      { label: SOLI, betrag: 13_750, fussnote: "Bei Verwendung der Anlage KAP: Eintragung in Zeile 40." },
+      { label: KIST, betrag: 0, fussnote: "Bei Verwendung der Anlage KAP: Eintragung in Zeile 41." },
+      { label: EINLAGE, betrag: 0 },
     ]);
   });
 
-  it("mit Kirchensteuer 9 %: ermäßigte KapESt und Religionsschlüssel", () => {
-    const r = ausschuettungAnteil({ brutto: 1_000_000, ausEinlagekonto: 0, kirchensteuer: 9 });
-    const e = eingabe({ anteil: { ...r, religionsschluessel: "026300" } });
-    expect(betraege(e)).toMatchObject({
-      Kapitalertragsteuer: 244_498,
-      Solidaritätszuschlag: 13_447,
-      "Kirchensteuer zur Kapitalertragsteuer": 22_004,
+  it("nennt Beschluss, Zahlungstag und Zeitraum wie Alternative 1 des Musters", () => {
+    const r = steuerbescheinigung(eingabe());
+    expect(r.ok && { beschlusstag: r.bescheinigung.beschlusstag, zeitraum: r.bescheinigung.zeitraum }).toEqual({
+      beschlusstag: "2026-04-28",
+      zeitraum: "das Geschäftsjahr 2025",
     });
+  });
+
+  it("mit Kirchensteuer 9 %: ermäßigte KapESt und die Religionsgemeinschaft mit Namen unter der Kirchensteuer", () => {
+    const r = ausschuettungAnteil({ brutto: 1_000_000, ausEinlagekonto: 0, kirchensteuer: 9 });
+    const e = eingabe({ glaeubiger: { ...erika, religionsgemeinschaft: "römisch-katholisch" }, anteil: { ...r, religionsschluessel: "026300" } });
+    expect(betraege(e)).toMatchObject({ [KAPEST]: 244_498, [SOLI]: 13_447, [KIST]: 22_004 });
     const b = steuerbescheinigung(e);
-    expect(b.ok && b.bescheinigung.religionsschluessel).toBe("026300");
+    expect(b.ok && b.bescheinigung.zeilen.map((z) => z.label)).toEqual([NR1, KAPEST, SOLI, KIST, RELIGION, EINLAGE]);
+    expect(b.ok && b.bescheinigung.zeilen[4]).toEqual({ label: RELIGION, text: "römisch-katholisch" });
   });
 
   it("Leistung aus dem Einlagekonto: nicht in den Kapitalerträgen, eigene Zeile", () => {
     const r = ausschuettungAnteil({ brutto: 1_000_000, ausEinlagekonto: 300_000, kirchensteuer: 0 });
     expect(betraege(eingabe({ anteil: { ...r, religionsschluessel: null } }))).toMatchObject({
-      "Höhe der Kapitalerträge": 700_000,
-      Kapitalertragsteuer: 175_000,
-      "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 bis 7 KStG)": 300_000,
+      [NR1]: 700_000,
+      [KAPEST]: 175_000,
+      [EINLAGE]: 300_000,
     });
   });
 
-  it("ganz aus dem Einlagekonto: Kapitalerträge und Steuern 0", () => {
+  it("ganz aus dem Einlagekonto: Kapitalerträge und Steuern 0, keine Religionsgemeinschaft nötig", () => {
     const r = ausschuettungAnteil({ brutto: 500_000, ausEinlagekonto: 500_000, kirchensteuer: 9 });
     expect(betraege(eingabe({ anteil: { ...r, religionsschluessel: "026300" } }))).toEqual({
-      "Höhe der Kapitalerträge": 0,
-      Kapitalertragsteuer: 0,
-      Solidaritätszuschlag: 0,
-      "Kirchensteuer zur Kapitalertragsteuer": 0,
-      "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 bis 7 KStG)": 500_000,
+      [NR1]: 0,
+      [KAPEST]: 0,
+      [SOLI]: 0,
+      [KIST]: 0,
+      [EINLAGE]: 500_000,
     });
   });
 
   it("mehrere Gesellschafter: je eine Bescheinigung mit eigenem Anteil", () => {
     const anteile = [
-      { g: erika, a: ausschuettungAnteil({ brutto: 600_000, ausEinlagekonto: 60_000, kirchensteuer: 8 }), rs: "010100" },
+      {
+        g: { ...erika, religionsgemeinschaft: "evangelisch" },
+        a: ausschuettungAnteil({ brutto: 600_000, ausEinlagekonto: 60_000, kirchensteuer: 8 }),
+        rs: "010100",
+      },
       {
         g: { name: "Max Muster", strasse: "Am Deich 2", plzOrt: "27568 Bremerhaven", idnr: "57549285017" },
         a: ausschuettungAnteil({ brutto: 400_000, ausEinlagekonto: 40_000, kirchensteuer: 0 }),
@@ -86,16 +103,14 @@ describe("Steuerbescheinigung nach § 45a Abs. 2 EStG (Muster II)", () => {
     expect(ergebnisse.map((r) => r.ok && r.bescheinigung.glaeubiger.name)).toEqual(["Erika Muster", "Max Muster"]);
     const zeile = (i: number, label: string) => {
       const r = ergebnisse[i]!;
-      return r.ok ? r.bescheinigung.zeilen.find((z) => z.label === label)!.betrag : null;
+      const z = r.ok ? r.bescheinigung.zeilen.find((x) => x.label === label) : undefined;
+      return z && "betrag" in z ? z.betrag : null;
     };
-    expect(zeile(0, "Höhe der Kapitalerträge")).toBe(540_000);
-    expect(zeile(1, "Höhe der Kapitalerträge")).toBe(360_000);
-    expect(zeile(0, "Kirchensteuer zur Kapitalertragsteuer")).toBeGreaterThan(0);
-    expect(zeile(1, "Kirchensteuer zur Kapitalertragsteuer")).toBe(0);
-    expect(
-      zeile(0, "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 bis 7 KStG)")! +
-        zeile(1, "Leistungen aus dem steuerlichen Einlagekonto (§ 27 Abs. 1 bis 7 KStG)")!,
-    ).toBe(100_000);
+    expect(zeile(0, NR1)).toBe(540_000);
+    expect(zeile(1, NR1)).toBe(360_000);
+    expect(zeile(0, KIST)).toBeGreaterThan(0);
+    expect(zeile(1, KIST)).toBe(0);
+    expect(zeile(0, EINLAGE)! + zeile(1, EINLAGE)!).toBe(100_000);
   });
 
   it("meldet fehlende Angaben statt leer zu drucken", () => {
@@ -120,10 +135,22 @@ describe("Steuerbescheinigung nach § 45a Abs. 2 EStG (Muster II)", () => {
     expect(r.ok).toBe(false);
   });
 
-  it("Kirchensteuer ohne Religionsschlüssel fehlt", () => {
+  it("Kirchensteuer ohne Namen der Religionsgemeinschaft fehlt; der Religionsschlüssel allein genügt nicht", () => {
     const a = ausschuettungAnteil({ brutto: 1_000_000, ausEinlagekonto: 0, kirchensteuer: 9 });
-    const r = steuerbescheinigung(eingabe({ anteil: { ...a, religionsschluessel: null } }));
-    expect(r).toEqual({ ok: false, fehlend: ["Religionsschlüssel zur Kirchensteuer von Erika Muster fehlt."] });
+    const r = steuerbescheinigung(eingabe({ anteil: { ...a, religionsschluessel: "026300" } }));
+    expect(r).toEqual({
+      ok: false,
+      fehlend: ["Kirchensteuererhebende Religionsgemeinschaft von Erika Muster fehlt (Jahreserklärung › Angaben zu den Erklärungen)."],
+    });
+  });
+
+  // Muster II, Alternative 1: „für … (Zeitraum)“ gehört zum Inhalt; Rz. 1 des BMF-Schreibens vom 16.05.2025 erlaubt keine
+  // Abweichung. Ausschüttungen, die vor dem Feld „Geschäftsjahr“ gebucht wurden, bekommen deshalb keine Bescheinigung.
+  it("ohne Geschäftsjahr der Ausschüttung keine Bescheinigung", () => {
+    expect(steuerbescheinigung(eingabe({ beschluss: { datum: "2026-04-28", geschaeftsjahr: null } }))).toEqual({
+      ok: false,
+      fehlend: [expect.stringContaining("Geschäftsjahr")],
+    });
   });
 
   it("erst ab dem Zahlungstag", () => {

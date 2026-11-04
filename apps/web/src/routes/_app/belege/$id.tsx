@@ -24,7 +24,7 @@ import { DocumentCancellation } from "../../../components/DocumentCancellation.t
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { SupplierPicker, type SupplierOption } from "../../../components/SupplierPicker.tsx";
-import { formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
+import { formatDate, formatDateTime, parseUsefulLifeMonths } from "../../../lib/format.ts";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { bookDocumentFn, deleteDocumentFn, getDocumentDetail, reextractDocument, saveDocument } from "../../../server/functions/documents.ts";
@@ -204,6 +204,16 @@ function DocumentPage() {
           <span>Der Beleg hat ungespeicherte Änderungen. Noch einmal klicken, um ohne Speichern zu wechseln.</span>
         </div>
       )}
+      {data.sepaTransfers.map((t) => (
+        <div key={t.endToEndId} className="banner" role="status">
+          <Icon name="bank" />
+          <span>
+            Überweisung erzeugt am {formatDateTime(t.createdAt)}: {formatEuro(t.amount)}
+            {t.skonto > 0 ? ` nach ${formatEuro(t.skonto)} Skonto` : ""}, Ausführung {formatDate(t.executionDate)}, Referenz {t.endToEndId}. Bezahlt ist der
+            Beleg, sobald der <Link to="/bank">Bankabgleich</Link> die Abbuchung zuordnet.
+          </span>
+        </div>
+      ))}
       {geprueft && doc.status === "gebucht" && (
         <div className="banner banner-ok" role="status">
           <Icon name="check" />

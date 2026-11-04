@@ -164,6 +164,8 @@ type Person = {
   /** Kirchensteuerabzugsmerkmal für Ausschüttungen: Satz und Religionsschlüssel */
   kirchensteuer: 0 | 8 | 9;
   religionsschluessel: string;
+  /** Für die Steuerbescheinigung (Muster II): Name der kirchensteuererhebenden Religionsgemeinschaft */
+  religionsgemeinschaft: string;
 };
 type Vertrag = { art: string; datum: string; partner: string; verguetung: string };
 
@@ -186,6 +188,7 @@ export function KapgAngaben({ data }: { data: Data }) {
       geaendert: p.geaendert,
       kirchensteuer: p.kirchensteuer,
       religionsschluessel: p.religionsschluessel ?? "",
+      religionsgemeinschaft: p.religionsgemeinschaft ?? "",
     })),
   );
   const [vertraege, setVertraege] = useState<Vertrag[]>(a.vertraege.map((v) => ({ ...v, verguetung: euro(v.verguetung) })));
@@ -204,7 +207,7 @@ export function KapgAngaben({ data }: { data: Data }) {
       anteil: parseAnteil(p.anteil),
       geaendert: p.geaendert,
       kirchensteuer: p.kirchensteuer,
-      ...(p.kirchensteuer > 0 ? { religionsschluessel: p.religionsschluessel.trim() } : {}),
+      ...(p.kirchensteuer > 0 ? { religionsschluessel: p.religionsschluessel.trim(), religionsgemeinschaft: p.religionsgemeinschaft.trim() } : {}),
     }));
     const vertragsliste = vertraege.map((v) => ({ art: v.art, datum: v.datum, partner: v.partner, verguetung: betrag(v.verguetung) }));
     const konto = betrag(einlagekonto);
@@ -310,6 +313,16 @@ export function KapgAngaben({ data }: { data: Data }) {
                     />
                   </label>
                 )}
+                {p.kirchensteuer > 0 && (
+                  <label className="field">
+                    Kirchensteuererhebende Religionsgemeinschaft Anteilseigner {i + 1}
+                    <input
+                      value={p.religionsgemeinschaft}
+                      onChange={(e) => setPerson(i, { religionsgemeinschaft: e.target.value })}
+                      placeholder="z. B. römisch-katholisch"
+                    />
+                  </label>
+                )}
               </div>
               <div className="actions" style={{ justifyContent: "space-between" }}>
                 <label className="checkbox">
@@ -329,7 +342,18 @@ export function KapgAngaben({ data }: { data: Data }) {
               onClick={() =>
                 setPersonen([
                   ...personen,
-                  { name: "", strasse: "", plzOrt: "", nummer: "", beteiligung: "", anteil: "", geaendert: true, kirchensteuer: 0, religionsschluessel: "" },
+                  {
+                    name: "",
+                    strasse: "",
+                    plzOrt: "",
+                    nummer: "",
+                    beteiligung: "",
+                    anteil: "",
+                    geaendert: true,
+                    kirchensteuer: 0,
+                    religionsschluessel: "",
+                    religionsgemeinschaft: "",
+                  },
                 ])
               }
             >

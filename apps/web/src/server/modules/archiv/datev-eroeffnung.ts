@@ -55,7 +55,7 @@ export interface DatevEroeffnung {
   gebucht: { id: string; date: string } | null;
 }
 
-async function lastStapelYear(q: Db | Tx): Promise<number | null> {
+export async function lastStapelYear(q: Db | Tx): Promise<number | null> {
   const [row] = await q.select({ last: sql<string | null>`max(${schema.datevBookings.date})` }).from(schema.datevBookings);
   return row?.last ? Number(row.last.slice(0, 4)) : null;
 }

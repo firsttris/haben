@@ -1,5 +1,5 @@
 {
-  "id": "5596b30c-9be8-43eb-9803-2bf8594a1883",
+  "id": "456e3858-403f-4e92-a56b-140ea096a679",
   "prevId": "13532c38-2dae-4bbd-9771-c48f0ee3ea77",
   "version": "7",
   "dialect": "postgresql",
@@ -2854,6 +2854,12 @@
           "type": "date",
           "primaryKey": false,
           "notNull": true
+        },
+        "geschaeftsjahr": {
+          "name": "geschaeftsjahr",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "brutto": {
           "name": "brutto",
@@ -7041,38 +7047,6 @@
           "value": "\"recurring_invoices\".\"anchor_day\" between 1 and 31"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.residual_terms": {
-      "name": "residual_terms",
-      "schema": "",
-      "columns": {
-        "year": {
-          "name": "year",
-          "type": "smallint",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "data": {
-          "name": "data",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.seals": {

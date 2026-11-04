@@ -30,6 +30,7 @@ const PAGES = [
   "/kontakte",
   "/kontakte/neu",
   "/belege",
+  "/ueberweisungen",
   "/pauschalen",
   "/anlagen",
   "/anlagen/neu",

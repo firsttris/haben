@@ -30,6 +30,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["textbausteine", "/textbausteine"],
     ["belege", "/belege"],
     ["beleg", details.beleg],
+    ["ueberweisungen", "/ueberweisungen"],
     ["pauschalen", "/pauschalen"],
     ["kasse", "/kasse"],
     ["bank", "/bank"],

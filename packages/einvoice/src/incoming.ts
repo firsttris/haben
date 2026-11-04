@@ -28,6 +28,8 @@ export interface IncomingInvoice {
   lines: IncomingLine[];
   paymentReference?: string;
   iban?: string;
+  /** Zahlungsbedingungen (BT-20), mehrere Angaben je Zeile; darin Skonto nach XRechnung (#SKONTO#…) */
+  paymentTerms?: string;
 }
 
 export interface IncomingSeller {
@@ -106,6 +108,12 @@ function text(node: unknown): string | undefined {
 
 function attr(node: unknown, name: string): string | undefined {
   return node && typeof node === "object" ? text((node as Node)[`@_${name}`]) : undefined;
+}
+
+/** Alle Texte unter einem Pfad, je Zeile; undefined, wenn keiner da ist */
+function textsAt(node: unknown, ...path: string[]): string | undefined {
+  const texts = all(node, ...path).flatMap((found) => text(found) ?? []);
+  return texts.length > 0 ? texts.join("\n") : undefined;
 }
 
 function textAt(node: unknown, ...path: string[]): string | undefined {
@@ -310,6 +318,7 @@ function parseCii(root: unknown): IncomingInvoice {
     lines,
     paymentReference: textAt(settlement, "PaymentReference"),
     iban,
+    paymentTerms: textsAt(settlement, "SpecifiedTradePaymentTerms", "Description"),
   };
 }
 
@@ -386,6 +395,7 @@ function parseUbl(root: unknown, creditNote: boolean): IncomingInvoice {
     lines,
     paymentReference: paymentMeans.map((m) => textAt(m, "PaymentID")).find(Boolean),
     iban,
+    paymentTerms: textsAt(root, "PaymentTerms", "Note"),
   };
 }
 

@@ -25,6 +25,7 @@ import {
 import { extractionAvailable } from "../modules/belege/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
+import { documentSepaTransfers } from "../modules/bank/index.ts";
 import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 import { UserError } from "../errors.ts";
@@ -61,6 +62,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       document,
       cancellation,
       reentryId,
+      // Vermerk: für diesen Beleg erzeugte SEPA-Überweisungen
+      sepaTransfers: await documentSepaTransfers(data),
       // Was gegen einen Storno spricht; die Zahlung im Bankabgleich prüft erst der Storno selbst
       cancellationIssues: result.document.lockedAt && !cancellation ? cancellationIssues(result.document) : [],
       // Vor und zurück in der Reihenfolge der Belegliste

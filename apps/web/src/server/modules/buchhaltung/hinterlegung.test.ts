@@ -136,7 +136,7 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
         },
         today,
       );
-      // Offene Rechnung aus dem Umzug: Forderung an 9000 auf das Datum der Übernahme; danach ist 9000 ausgeglichen
+      // Offene Rechnung aus dem Umzug: Forderung an 9000 am ersten Tag in Haben; danach ist 9000 ausgeglichen
       await book("2026-01-01", [
         [k.forderung, 500_000, 0],
         ["9000", 0, 500_000],

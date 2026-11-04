@@ -245,6 +245,29 @@ describe("parseEInvoiceXml mit Fremdrechnungen", () => {
   });
 });
 
+describe("Zahlungsbedingungen (BT-20)", () => {
+  // Skontozeilen wie im Beispiel 01.10a der XRechnung-Testsuite (itplr-kosit/xrechnung-testsuite)
+  const skonto = "#SKONTO#TAGE=7#PROZENT=2.00#\n#SKONTO#TAGE=14#PROZENT=1.00#\n";
+
+  it("liest die Zahlungsbedingungen aus CII, mehrere Angaben je Zeile", () => {
+    const xml = fixture("cii-prefixes.xml").replace(
+      "<a:SpecifiedTradePaymentTerms>",
+      `<a:SpecifiedTradePaymentTerms><a:Description>${skonto}</a:Description></a:SpecifiedTradePaymentTerms><a:SpecifiedTradePaymentTerms><a:Description>Zahlbar ohne Abzug in 30 Tagen</a:Description>`,
+    );
+    expect(parseEInvoiceXml(xml).paymentTerms).toBe("#SKONTO#TAGE=7#PROZENT=2.00#\n#SKONTO#TAGE=14#PROZENT=1.00#\nZahlbar ohne Abzug in 30 Tagen");
+    expect(parseEInvoiceXml(fixture("zugferd1-comfort.xml")).paymentTerms).toBe("Zahlbar innerhalb 30 Tagen netto");
+  });
+
+  it("liest die Zahlungsbedingungen aus UBL", () => {
+    const xml = fixture("ubl-default-ns.xml").replace(
+      "<agg:PaymentMeans>",
+      `<agg:PaymentTerms><cbc:Note>${skonto}</cbc:Note></agg:PaymentTerms><agg:PaymentMeans>`,
+    );
+    expect(parseEInvoiceXml(xml).paymentTerms).toBe("#SKONTO#TAGE=7#PROZENT=2.00#\n#SKONTO#TAGE=14#PROZENT=1.00#");
+    expect(parseEInvoiceXml(fixture("ubl-default-ns.xml")).paymentTerms).toBeUndefined();
+  });
+});
+
 describe("eingebettete XML in PDFs", () => {
   it("findet zugferd-invoice.xml neben anderen Anhängen", async () => {
     const xml = fixture("cii-prefixes.xml");

@@ -194,6 +194,45 @@ In der [Voranmeldung](umsatzsteuer.md#-13b-als-leistungsempfänger) heben sich S
 | Vom Gesellschafter ausgelegt (nur GmbH, UG) | Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510) | Wie privat bezahlt; die GmbH schuldet dem Gesellschafter den Betrag. |
 | Bar aus der Kasse (Zeile im Kassenbuch) | Kasse | Beim Buchen entsteht eine Zeile im [Kassenbuch](kasse.md). Reicht der Kassenbestand am Belegdatum nicht, lehnt Haben das Buchen ab. |
 
+## Überweisen (SEPA-Datei)
+
+Unter **Überweisungen** (Menü **Ausgaben**) stellst du offene Belege zu einer SEPA-Datei zusammen, die du im Online-Banking hochlädst. Haben bucht dabei nichts: Bezahlt ist ein Beleg erst, wenn der [Bankabgleich](bank.md#überweisungen-aus-haben) die Abbuchung zuordnet.
+
+1. **Auftraggeberkonto** wählen: eines der Bankkonten unter [Bank](bank.md#konto), von dem das Geld abgeht. Zahlungsdienstleister stehen nicht zur Wahl.
+2. **Ausführungsdatum** setzen, frühestens heute.
+3. Die Belege ankreuzen, einzeln oder mit **Alle auswählen**. Darunter stehen Anzahl und Summe.
+4. **SEPA-Datei erzeugen**. Der Browser lädt die Datei `HABEN-….xml` herunter; unter **Erzeugte Dateien** bleibt sie zum erneuten Herunterladen.
+
+In der Liste stehen alle gebuchten, nicht stornierten Belege mit Bezahlung über das Geschäftskonto, die noch offen sind, die älteste Fälligkeit zuerst. Teilweise bezahlte Belege erscheinen mit dem Rest.
+
+| Angabe | Woher |
+| --- | --- |
+| Empfänger | Lieferant am Beleg |
+| IBAN | Aus dem Kontakt des Lieferanten (unter **Aus den Kontakten** gewählt), sonst aus der E-Rechnung (BT-84) |
+| Betrag | Offener Betrag, mit Skonto abzüglich Skonto |
+| Verwendungszweck | Rechnungsnummer des Lieferanten, ohne Nummer „Rechnung vom …“; mit Skonto zusätzlich „abzgl. 2,00 Prozent Skonto 4,31 EUR“ |
+| Auftraggeber | Kontoinhaber aus den Firmendaten, sonst der Firmenname; die BIC nur, wenn die IBAN der Firmendaten das gewählte Konto ist |
+
+Einen Beleg ohne IBAN, mit ungültiger IBAN (Prüfziffer nach ISO 13616), mit einer IBAN außerhalb des Europäischen Wirtschaftsraums (EU, Island, Liechtenstein, Norwegen), ohne Lieferant oder in Fremdwährung kann Haben nicht überweisen; außerhalb des EWR verlangt SEPA BIC und Anschrift des Empfängers oder gilt gar nicht, solche Zahlungen gibst du direkt im Online-Banking ein; der Grund steht in der Zeile, der Haken ist gesperrt. Die IBAN trägst du im [Kontakt](rechnungen.md#kontakte) des Lieferanten ein und wählst ihn am Beleg. Nennt die E-Rechnung eine andere IBAN als der Kontakt, überweist Haben auf die des Kontakts und zeigt einen Hinweis: Eine geänderte Bankverbindung in einer Rechnung ist ein bekanntes Muster für Betrug.
+
+### Skonto
+
+Skonto bietet Haben nur an, wenn die E-Rechnung es in den Zahlungsbedingungen (BT-20) so angibt, wie XRechnung es vorschreibt (Regel BR-DE-18): `#SKONTO#TAGE=7#PROZENT=2.00#`, wahlweise mit `#BASISBETRAG=…#`. Bei mehreren Stufen gilt die höchste, deren Frist am Ausführungsdatum noch läuft; die Frist zählt ab dem Rechnungsdatum. Dann steht unter dem Lieferanten ein Haken **2,00 % Skonto bis … abziehen**. Ohne Skontoangabe, bei schon teilweise bezahlten Belegen und dort, wo der Bankabgleich kein erhaltenes Skonto buchen kann (§ 13b, Privatanteil, Anlagegut), gibt es den Haken nicht. Nach der Abbuchung buchst du den Rest im Bankabgleich mit **Rest … als erhaltenes Skonto** aus ([Rest ausbuchen](bank.md#rest-ausbuchen-skonto-und-forderungsausfall)).
+
+### Vermerk am Beleg
+
+Für jede Überweisung steht am Beleg „Überweisung erzeugt am …“ mit Betrag, Ausführungsdatum und Referenz, in der Liste der Überweisungen zusätzlich die letzte. Die Datei lässt sich nicht ändern oder löschen; sie ist mit Auftraggeberkonto, Ausführungsdatum und jeder Überweisung in `sepa_transfers` und `sepa_transfer_items` festgehalten, mit Eintrag im [Änderungsprotokoll](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel). Ob die Bank die Datei angenommen hat, weiß Haben nicht; eine zweite Datei für denselben Beleg ist möglich, Haben warnt davor nur mit dem Vermerk.
+
+### Die Datei
+
+Das Format ist pain.001.001.09 nach Anlage 3 des DFÜ-Abkommens der Deutschen Kreditwirtschaft, Version 3.9 (gültig seit 5. Oktober 2025, Schema `pain.001.001.09_GBIC_5.xsd`):
+
+- Ein Zahlungsauftrag mit einer Überweisung je Beleg. `BtchBookg` ist `false`: Die Bank bucht jede Überweisung einzeln ab, statt einer Summe für die ganze Datei, damit der Abgleich jede Abbuchung ihrem Beleg zuordnen kann.
+- `NbOfTxs` und `CtrlSum` stehen im Kopf und im Auftrag und sind aus den Überweisungen gezählt.
+- Jede Überweisung trägt eine eigene `EndToEndId` (`HABEN-` und 16 Hex-Ziffern), die Datei eine eigene `MsgId`.
+- Text nur im Latin-Zeichensatz des EPC (Buchstaben ohne Umlaute, Ziffern und `/ - ? : ( ) . , ' +`): Umlaute schreibt Haben aus (ä → ae, ß → ss), Akzente fallen weg, `&` wird `+`, `@` wird `(at)`; andere Zeichen werden zu Leerzeichen. Namen sind auf 70 Zeichen gekürzt, der Verwendungszweck auf 140.
+- Ohne BIC des Auftraggebers steht dort `NOTPROVIDED`, wie das Schema der DK es verlangt; für den Empfänger reicht im SEPA-Raum die IBAN.
+
 ## Buchen
 
 Vor dem Buchen müssen Lieferant, Belegdatum und Kategorie gesetzt sein und mindestens ein Betrag eingetragen sein; bei einer Fremdwährung auch der Umrechnungskurs. Fehlt etwas, steht oberhalb der Knöpfe „Vor dem Buchen: …“.

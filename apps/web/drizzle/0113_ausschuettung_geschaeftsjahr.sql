@@ -1,0 +1,1 @@
+ALTER TABLE "dividends" ADD COLUMN "geschaeftsjahr" integer;

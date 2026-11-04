@@ -124,9 +124,20 @@ describe.skipIf(!testDatabaseUrl)("Eröffnung aus dem DATEV-Stapel (Postgres)", 
     ];
   }
 
-  async function legacyVoucher(values: { type: string; direction: "einnahme" | "ausgabe"; number: string; date: string; net: number; tax: number }) {
+  async function legacyVoucher(values: {
+    type: string;
+    direction: "einnahme" | "ausgabe";
+    number: string;
+    date: string;
+    net: number;
+    tax: number;
+    /** Ganz bezahlt an diesem Tag; sonst offen */
+    paidOn?: string;
+  }) {
     const gross = values.net + values.tax;
-    const payment = { status: "openRevenue", openAmount: gross, paidDate: null, items: [] };
+    const payment = values.paidOn
+      ? { status: "balanced", openAmount: 0, paidDate: values.paidOn, items: [{ type: "partPaymentFinancialTransaction", date: values.paidOn, amount: gross }] }
+      : { status: "openRevenue", openAmount: gross, paidDate: null, items: [] };
     const [row] = await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, number, date, due_date, status, contact_id,
         contact_name, net, tax, gross, taxes, categories, payment, raw)
       values (${crypto.randomUUID()}, (select id from lexoffice_imports limit 1), ${values.type}, ${values.direction}, ${values.number},
@@ -239,7 +250,10 @@ describe.skipIf(!testDatabaseUrl)("Eröffnung aus dem DATEV-Stapel (Postgres)", 
           net: 10_000,
           tax: 1_900,
         });
-        await legacy.takeOverLegacyItem(actor, rechnung);
+        const uebernommen = await legacy.takeOverLegacyItem(actor, rechnung);
+        // Zum Stichtag: Ende des Stapeljahres, gebucht am 1.1. wie die Eröffnung
+        const [uebernahme] = await sql`select date::text as date from journal_entries where source_id = ${uebernommen.id}`;
+        expect(uebernahme!.date).toBe(`${year}-01-01`);
 
         const vorschlag = await modul.datevEroeffnung(today);
         expect(vorschlag!.issues).toEqual([]);
@@ -263,6 +277,32 @@ describe.skipIf(!testDatabaseUrl)("Eröffnung aus dem DATEV-Stapel (Postgres)", 
         expect(vorher[k.verbindlichkeiten]).toBe(-11_900);
       },
     );
+
+    it("im Januar bezahlte Rechnung: am Stichtag offen, steht im Saldo der Eröffnung, Übernahme ohne zweite Buchung", async () => {
+      await setup(kontenrahmen, "ist");
+      await upload(schlussjahr, stack(schlussjahr, kontenrahmen, schlussRows(kontenrahmen)));
+      const vorschlag = await modul.datevEroeffnung(today);
+      await modul.bookDatevEroeffnung(actor, { year, fingerprint: vorschlag!.fingerprint }, today);
+      const rechnung = await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: "RE-7",
+        date: `${schlussjahr}-12-15`,
+        net: 100_000,
+        tax: 19_000,
+        paidOn: `${year}-01-10`,
+      });
+      // Die Eröffnung legt den Stichtag fest; ein anderer gewählter zählt nicht
+      expect(await legacy.legacyTakeoverCutoff(`${schlussjahr}-06-30`)).toMatchObject({ date: `${schlussjahr}-12-31`, fixed: expect.any(String) });
+      expect((await legacy.openLegacyItems(`${schlussjahr}-06-30`)).map((i) => [i.number, i.open, i.paidAfter, i.blocker])).toEqual([
+        ["RE-7", 119_000, 119_000, null],
+      ]);
+      const vorher = await salden();
+      const result = await legacy.takeOverLegacyItem(actor, rechnung);
+      expect(await sql`select 1 from journal_entries where source_id = ${result.id}`).toHaveLength(0);
+      expect(await salden()).toEqual(vorher);
+      expect(vorher[k.forderungen]).toBe(119_000);
+    });
 
     it("übernommene Anlage: steht sie in der Eröffnung, verweist sie darauf statt noch einmal gegen 9000 zu buchen", async () => {
       await setup(kontenrahmen);
