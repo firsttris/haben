@@ -31,6 +31,7 @@ const NAV_GROUPS = [
     label: "Ausgaben",
     links: [
       { to: "/belege", icon: "receipt", label: "Belege" },
+      { to: "/ueberweisungen", icon: "bank", label: "Überweisungen" },
       // Pauschalen ersetzen Ausgaben des Inhabers, eine GmbH oder UG hat sie nicht
       { to: "/pauschalen", icon: "pauschale", label: "Pauschalen", nurEinzelunternehmen: true },
       { to: "/anlagen", icon: "assets", label: "Anlagen" },

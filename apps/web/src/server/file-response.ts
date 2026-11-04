@@ -32,3 +32,16 @@ export function csvResponse(csv: string, filename: string): Response {
     },
   });
 }
+
+/** XML-Datei als Download, etwa die SEPA-Überweisung zum Hochladen ins Online-Banking */
+export function xmlDownloadResponse(xml: string, filename: string): Response {
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodeFilename(filename)}`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "sandbox; default-src 'none'",
+    },
+  });
+}

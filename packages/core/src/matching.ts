@@ -7,6 +7,10 @@ export interface MatchTransaction {
   counterpartyName: string;
   counterpartyIban?: string | null;
   purpose: string;
+  /** Referenz der Bank; manche Exporte tragen hier die EndToEndId (DKB: Kundenreferenz) */
+  bankReference?: string | null;
+  /** EndToEndId der Überweisung, soweit der Auszug sie nennt (CAMT) */
+  endToEndId?: string | null;
 }
 
 export interface OpenItem {
@@ -22,6 +26,8 @@ export interface OpenItem {
   partyIbans: string[];
   /** Währung der Rechnung bzw. des Belegs; open ist immer in Euro umgerechnet */
   currency?: string;
+  /** EndToEndIds der SEPA-Überweisungen, die Haben für den Beleg erzeugt hat */
+  references?: string[];
 }
 
 /** Bis zu dieser Abweichung (in Prozent des offenen Betrags) gilt eine Zahlung auf Fremdwährung als passend */
@@ -69,8 +75,18 @@ export function purposeContainsNumber(purpose: string, number: string): boolean 
 }
 
 /**
+ * Referenz einer Überweisung aus Haben im Umsatz: als EndToEndId, als Referenz der Bank oder im Verwendungszweck
+ * („EREF: HABEN-…“), unabhängig von Groß- und Kleinschreibung und Trennzeichen.
+ */
+export function transactionHasReference(tx: Pick<MatchTransaction, "purpose" | "bankReference" | "endToEndId">, reference: string): boolean {
+  const needle = compact(reference);
+  if (needle.length < 8) return false;
+  return [tx.endToEndId, tx.bankReference, tx.purpose].some((value) => value && compact(value).includes(needle));
+}
+
+/**
  * Vorschläge für einen Bankumsatz mit Begründung: Betrag, Rechnungsnummer im Verwendungszweck,
- * bekannte IBAN, Name; bei Belegen Betrag und Datum ± 5 Tage.
+ * bekannte IBAN, Name; bei Belegen Betrag und Datum ± 5 Tage und die Referenz einer Überweisung aus Haben.
  */
 export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 3): Suggestion[] {
   const iban = tx.counterpartyIban?.replace(/\s/g, "").toUpperCase();
@@ -95,13 +111,18 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
       score += 5;
       reasons.push("Teilbetrag des offenen Betrags");
     }
+    const reference = item.references?.find((r) => transactionHasReference(tx, r));
+    if (reference) {
+      score += 60;
+      reasons.push(`Überweisung aus Haben (${reference})`);
+    }
     if (purposeContainsNumber(tx.purpose, item.number)) {
       score += 40;
       reasons.push("Rechnungsnummer im Verwendungszweck");
     }
     if (iban && item.partyIbans.some((i) => i.replace(/\s/g, "").toUpperCase() === iban)) {
       score += 30;
-      reasons.push("IBAN bekannt vom Kontakt");
+      reasons.push(item.type === "document" ? "IBAN des Lieferanten" : "IBAN bekannt vom Kontakt");
     }
     const partyWords = words(item.partyName);
     if ([...partyWords].some((w) => txWords.has(w))) {
