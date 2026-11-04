@@ -1,4 +1,3 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { zipSync } from "fflate";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -1039,13 +1038,17 @@ test("Voranmeldung vierteljährlich: Zeitraum einstellen, Quartal prüfen und te
   await expect(page.getByRole("heading", { level: 1, name: `1. Quartal ${next}` })).toBeVisible();
   // 10. April oder der nächste Werktag danach (§ 108 Abs. 3 AO)
   await expect(page.getByText("Fällig am", { exact: false })).toContainText(`April ${next}`);
-  const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
-  expect(axe.violations.map((v) => v.id)).toEqual([]);
+  // axe prüft das Quartal und den Bereich Voranmeldungszeitraum in barrierefreiheit.spec.ts
 
   await page.getByRole("button", { name: "Nur prüfen" }).click();
   await expect(page.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
-  await page.getByLabel("Zertifikats-PIN").fill("123456");
-  await page.getByRole("button", { name: "Prüfen und testweise senden" }).click();
+  // Das Prüfen hat den Entwurf gespeichert; das Formular baut sich danach neu auf und leert die PIN
+  const testSend = page.getByRole("button", { name: "Prüfen und testweise senden" });
+  await expect(async () => {
+    await page.getByLabel("Zertifikats-PIN").fill("123456");
+    await expect(testSend).toBeEnabled({ timeout: 1_000 });
+  }).toPass();
+  await testSend.click();
   await expect(page.getByText(/Testübermittlung erfolgreich/)).toBeVisible();
   const history = page.getByRole("region", { name: `Verlauf 1. Quartal ${next}` });
   await expect(history).toContainText("OK");
