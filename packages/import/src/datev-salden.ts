@@ -69,6 +69,8 @@ export function datevSalden(bookings: readonly DatevSaldenBooking[], kontenrahme
 
 /** Saldenvortragskonten 9000 bis 9009: Stehen sie im Stapel eines Jahres, bringt er seine Eröffnungsbilanz selbst mit */
 export function hasOpeningBalances(bookings: readonly DatevSaldenBooking[]): boolean {
-  const isVortrag = (account: string) => /^900\d$/.test(account);
-  return bookings.some((b) => isVortrag(b.account) || isVortrag(b.contraAccount));
+  // Bei Sachkontenlänge 5 heißen sie 90000 bis 90090; gekürzt wie in datevSalden
+  const isVortrag = (account: string, accountLength: number) =>
+    !isPersonenkonto(account, accountLength) && /^900\d$/.test(shortAccount(account));
+  return bookings.some((b) => isVortrag(b.account, b.accountLength || 4) || isVortrag(b.contraAccount, b.accountLength || 4));
 }
