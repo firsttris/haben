@@ -99,6 +99,9 @@ export const company = pgTable(
     sitz: text("sitz").notNull().default(""),
     registergericht: text("registergericht").notNull().default(""),
     registernummer: text("registernummer").notNull().default(""),
+    /** GmbH und UG: alle Geschäftsführer, einer je Zeile, und ggf. der Vorsitzende des Aufsichtsrats (§ 35a Abs. 1 GmbHG) */
+    geschaeftsfuehrer: text("geschaeftsfuehrer").notNull().default(""),
+    aufsichtsratVorsitz: text("aufsichtsrat_vorsitz").notNull().default(""),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
     /** Vorgabe für die Einleitung über den Positionen neuer Rechnungen bzw. Angebote; im Beleg änderbar */

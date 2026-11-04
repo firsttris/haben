@@ -99,6 +99,12 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
         Text
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={8} required />
       </label>
+      {draft.signature && (
+        <div className="small muted" style={{ overflowWrap: "anywhere" }}>
+          <p style={{ margin: 0 }}>Darunter hängt Haben die Pflichtangaben der Gesellschaft an (§ 35a GmbHG):</p>
+          <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{draft.signature}</p>
+        </div>
+      )}
       <p className="small muted" style={{ margin: 0, overflowWrap: "anywhere" }}>
         Anhang: {draft.attachments.join(", ")}
       </p>

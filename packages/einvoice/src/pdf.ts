@@ -5,7 +5,7 @@ import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { accountHolder, countryName, formatIban, paymentSentence } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
-import { accentPalette, DEFAULT_ACCENT, lineAmount } from "@haben/core";
+import { accentPalette, DEFAULT_ACCENT, lineAmount, type LegalInfo } from "@haben/core";
 import type { Address, InvoiceDocument, Letterhead, Logo } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
@@ -88,7 +88,7 @@ export function documentPdfData(
     taxNote: t.note(treatment, doc.exemptionReason),
     intro: doc.intro?.trim() ? doc.intro.trim() : null,
     note: doc.note?.trim() ? doc.note.trim() : null,
-    footer: footerColumns(seller, t),
+    ...footerData(seller, t),
   };
 }
 
@@ -184,6 +184,35 @@ export function footerColumns(seller: InvoiceDocument["seller"], t: Texts = TEXT
   if (seller.steuernummer) tax.push(`${t.taxNumber} ${seller.steuernummer}`);
   if (seller.ustId) tax.push(`${t.vatId} ${seller.ustId}`);
   return [contact, bank, tax];
+}
+
+/** Pflichtangaben einer GmbH oder UG (§ 35a Abs. 1 GmbHG), je Angabe ein Text; leer ohne Angaben */
+export function legalLines(info: LegalInfo | undefined, t: Texts = TEXTS.de): string[] {
+  if (!info) return [];
+  const { legal } = t;
+  const register = [info.registerCourt, info.registerNumber].filter(Boolean).join(", ");
+  return [
+    info.legalForm ? `${legal.legalForm}: ${info.legalForm}` : "",
+    info.seat ? `${legal.seat}: ${info.seat}` : "",
+    // Ohne Gericht steht die Nummer für sich, z. B. „HRB 12345 HB“
+    info.registerCourt ? `${legal.registerCourt}: ${register}` : register,
+    info.managingDirectors.length > 0 ? `${legal.managingDirectors}: ${info.managingDirectors.join(", ")}` : "",
+    info.supervisoryBoardChair ? `${legal.supervisoryBoardChair}: ${info.supervisoryBoardChair}` : "",
+  ].filter(Boolean);
+}
+
+/**
+ * Die Pflichtangaben als eine Zeile über die ganze Breite unter den Spalten des Fußes; null ohne Angaben, dann bleibt
+ * der Fuß wie beim Einzelunternehmen.
+ */
+export function legalLine(info: LegalInfo | undefined, t: Texts = TEXTS.de): string | null {
+  const lines = legalLines(info, t);
+  return lines.length > 0 ? lines.join(" · ") : null;
+}
+
+/** Fuß für die Vorlagen: drei Spalten und die Pflichtangaben der Gesellschaft */
+export function footerData(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de) {
+  return { footer: footerColumns(seller, t), legal: legalLine(seller.legalInfo, t) };
 }
 
 /** Erkennt PNG und JPEG an den ersten Bytes; anderes lehnt Haben als Logo ab */

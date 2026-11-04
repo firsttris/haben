@@ -1,0 +1,23 @@
+[
+  {"eingabe": {"LZZ": 2, "RE4": 800000, "STKL": 1, "KRV": 1, "ALV": 1, "PKV": 1, "PKPV": 60000, "PKPVAGZ": 30000, "R": 1}, "LSTLZZ": 226166, "SOLZLZZ": 6733, "BK": 226166},
+  {"eingabe": {"LZZ": 1, "RE4": 12000000, "STKL": 3, "ZKF": 2000, "KRV": 1, "ALV": 1, "PKV": 1, "PKPV": 90000, "PKPVAGZ": 45000, "R": 1}, "LSTLZZ": 2593200, "SOLZLZZ": 0, "BK": 1896000},
+  {"eingabe": {"LZZ": 2, "RE4": 600000, "STKL": 1, "KRV": 1, "ALV": 1, "KVZ": 290, "PVZ": 1, "R": 1}, "LSTLZZ": 128933, "SOLZLZZ": 0, "BK": 128933},
+  {"eingabe": {"LZZ": 2, "RE4": 350000, "STKL": 2, "ZKF": 500, "KVZ": 290, "R": 1}, "LSTLZZ": 31100, "SOLZLZZ": 0, "BK": 20225},
+  {"eingabe": {"LZZ": 2, "RE4": 600000, "STKL": 3, "ZKF": 3000, "KVZ": 290, "PVA": 2, "R": 1}, "LSTLZZ": 63833, "SOLZLZZ": 0, "BK": 4216},
+  {"eingabe": {"LZZ": 2, "RE4": 450000, "STKL": 4, "ZKF": 2000, "KVZ": 290, "PVA": 1, "R": 1}, "LSTLZZ": 66250, "SOLZLZZ": 0, "BK": 41241},
+  {"eingabe": {"LZZ": 2, "RE4": 300000, "STKL": 5, "KVZ": 290, "PVZ": 1, "R": 1}, "LSTLZZ": 62566, "SOLZLZZ": 0, "BK": 62566},
+  {"eingabe": {"LZZ": 2, "RE4": 1000000, "STKL": 1, "ZKF": 1000, "KVZ": 290, "PVA": 1, "R": 1}, "LSTLZZ": 265350, "SOLZLZZ": 7332, "BK": 231200},
+  {"eingabe": {"LZZ": 1, "RE4": 100000000, "STKL": 1, "KVZ": 290, "PVZ": 1, "R": 1}, "LSTLZZ": 42231000, "SOLZLZZ": 2322705, "BK": 42231000},
+  {"eingabe": {"LZZ": 2, "RE4": 500000, "STKL": 1, "KRV": 1}, "LSTLZZ": 98175, "SOLZLZZ": 0, "BK": 0},
+  {"eingabe": {"LZZ": 2, "RE4": 500000, "STKL": 1, "ALV": 1}, "LSTLZZ": 81741, "SOLZLZZ": 0, "BK": 0},
+  {"eingabe": {"LZZ": 2, "RE4": 900000, "STKL": 1, "KRV": 1, "ALV": 1, "KVZ": 250}, "LSTLZZ": 256233, "SOLZLZZ": 10311, "BK": 0},
+  {"eingabe": {"LZZ": 3, "RE4": 150000, "STKL": 1, "KRV": 1, "ALV": 1, "PKV": 1, "PKPV": 15000, "PKPVAGZ": 7000}, "LSTLZZ": 39528, "SOLZLZZ": 0, "BK": 0},
+  {"eingabe": {"LZZ": 4, "RE4": 30000, "STKL": 6, "PKV": 1, "PKPV": 2000, "PKPVAGZ": 1000}, "LSTLZZ": 10325, "SOLZLZZ": 556, "BK": 0},
+  {"eingabe": {"LZZ": 2, "RE4": 500000, "STKL": 1, "PKV": 1, "PKPV": 30000, "PKPVAGZ": 15000}, "LSTLZZ": 91591, "SOLZLZZ": 0, "BK": 0},
+  {"eingabe": {"LZZ": 2, "RE4": 700000, "STKL": 4, "PKV": 1, "PKPV": 80000, "PKPVAGZ": 40000, "ZKF": 1000}, "LSTLZZ": 152625, "SOLZLZZ": 0, "BK": 0},
+  {"eingabe": {"LZZ": 2, "RE4": 500000, "STKL": 1, "PKV": 1, "PKPV": 30000, "PKPVAGZ": 40000}, "LSTLZZ": 94925, "SOLZLZZ": 0, "BK": 0},
+  {"eingabe": {"LZZ": 1, "RE4": 9000000, "STKL": 1, "KRV": 1, "PKV": 1, "PKPV": 900000, "PKPVAGZ": 450000, "R": 1}, "LSTLZZ": 559000, "SOLZLZZ": 0, "BK": 559000},
+  {"eingabe": {"LZZ": 2, "RE4": 1200000, "STKL": 2, "ZKF": 1500, "KRV": 1, "ALV": 1, "PKV": 1, "PKPV": 70000, "PKPVAGZ": 35000, "R": 1}, "LSTLZZ": 377158, "SOLZLZZ": 17926, "BK": 325941},
+  {"eingabe": {"LZZ": 2, "RE4": 400000, "STKL": 1, "PVS": 1, "KVZ": 310, "PVA": 3}, "LSTLZZ": 53375, "SOLZLZZ": 0, "BK": 0},
+  {"eingabe": {"LZZ": 2, "RE4": 500000, "STKL": 3, "KRV": 1, "ALV": 1, "KVZ": 290, "PVA": 4, "ZKF": 2500}, "LSTLZZ": 54600, "SOLZLZZ": 0, "BK": 0}
+]

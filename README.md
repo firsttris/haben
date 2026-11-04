@@ -60,7 +60,8 @@ auf deinem eigenen Server betreibst.
 - **Für Freiberufler und Kleingewerbe**: Einnahmen-Überschuss-Rechnung (EÜR), Ist- oder Soll-Versteuerung,
   Kleinunternehmerregelung nach § 19 UStG, Kontenrahmen SKR03 oder SKR04
 - **Für GmbH und UG**: Bilanz und GuV, E-Bilanz, Körperschaft- und Gewerbesteuer, Gewinnausschüttung mit
-  Kapitalertragsteuer-Anmeldung und Steuerbescheinigung für die Gesellschafter, siehe [GmbH und UG](https://firsttris.github.io/haben/gmbh.html)
+  Kapitalertragsteuer-Anmeldung und Steuerbescheinigung für die Gesellschafter, Pflichtangaben nach § 35a GmbHG auf
+  Rechnungen und Geschäftsbriefen, siehe [GmbH und UG](https://firsttris.github.io/haben/gmbh.html)
 
 ## ✨ Funktionen
 
@@ -73,7 +74,7 @@ auf deinem eigenen Server betreibst.
 | 📤 [Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Monatlich, vierteljährlich oder befreit, mit Vorschlag aus der Steuer des Vorjahres; Kennzahlen aus den Buchungen (Ist oder Soll), Herkunft jeder Zahl, Vorprüfung, Übermittlung per ERiC oder ohne Hersteller-ID über Mein ELSTER (XML-Import, Erweiterung, KI-Assistent; siehe [Abgabe an ELSTER](https://firsttris.github.io/haben/elster-abgabe.html)), Berichtigung |
 | 📑 [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung; für GmbH und UG Körperschaftsteuer mit Feststellung des Einlagekontos und Gewerbesteuer; per ERiC senden oder ohne Hersteller-ID mit der [Erweiterung](https://firsttris.github.io/haben/elster-mit-erweiterung.html) in Mein ELSTER eintragen; vorausgefüllte Belege von ELSTER abrufen |
 | 🏛️ [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen mit Steuerprognose |
-| 🏢 [GmbH und UG](https://firsttris.github.io/haben/gmbh.html) | Gesellschafter-Verrechnungskonto statt Privatkonten, Eröffnungsbuchung und Saldenvortrag, Bilanz und GuV der Kleinstkapitalgesellschaft, Rückstellungen für Körperschaft- und Gewerbesteuer, E-Bilanz per ERiC, Gewinnausschüttung mit Kapitalertragsteuer, Soli, Kirchensteuer, Kapitalertragsteuer-Anmeldung und Steuerbescheinigung je Gesellschafter (§ 45a EStG) |
+| 🏢 [GmbH und UG](https://firsttris.github.io/haben/gmbh.html) | Gesellschafter-Verrechnungskonto statt Privatkonten, Eröffnungsbuchung und Saldenvortrag, Bilanz und GuV der Kleinstkapitalgesellschaft, Rückstellungen für Körperschaft- und Gewerbesteuer, E-Bilanz per ERiC, Gewinnausschüttung mit Kapitalertragsteuer, Soli, Kirchensteuer, Kapitalertragsteuer-Anmeldung und Steuerbescheinigung je Gesellschafter (§ 45a EStG), Pflichtangaben nach § 35a GmbHG (Sitz, Registergericht, Geschäftsführung) im Fuß von Rechnung, Angebot und Mahnung, in der E-Rechnung und unter E-Mails |
 | ⏰ [Fristen](https://firsttris.github.io/haben/fristen.html) | Alle Steuertermine auf einer Seite, als Kalender-Feed (iCal) und per E-Mail |
 | 🚗 [Pauschalen](https://firsttris.github.io/haben/pauschalen.html) · [Kasse](https://firsttris.github.io/haben/kasse.html) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Kassenbuch für Barzahlungen |
 | 🖥️ [Anlagen und AfA](https://firsttris.github.io/haben/anlagen.html) | Anlagenverzeichnis, lineare AfA, GWG und Sammelposten, AfA-Buchung zum Jahresende |

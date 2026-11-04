@@ -8,8 +8,7 @@ import type { PapJahr } from "./pap.ts";
  * (https://www.bmf-steuerrechner.de/javax.faces.resource/daten/xmls/Lohnsteuer2026.xml.xhtml),
  * `<PAP name="Lohnsteuer2026" version="1.0" versionNummer="1.0">`, „Stand: 2025-10-23 12:40, ITZBund Berlin“,
  * bekannt gemacht mit BMF-Schreiben vom 12.11.2025. Die Datei liegt unverändert daneben; als amtliches Werk
- * (§ 5 UrhG) ist sie frei. Der Abruf beim BMF war aus der Entwicklungsumgebung gesperrt; die Kopie stammt aus
- * MarcelLehmann/Lohnsteuer (Apache-2.0) und ist byte-gleich mit der in canida-software/lohnsteuer (MIT),
+ * (§ 5 UrhG) ist sie frei. Am 04.11.2026 beim BMF unter der URL oben abgerufen: byte-gleich mit der Datei hier,
  * SHA-256 unten. `pap-2026.test.ts` gleicht jeden Wert hier mit dem XML ab.
  *
  * Die Kommentare nennen die Methode im PAP, in der der Wert steht.

@@ -1,5 +1,5 @@
 {
-  "id": "1515e941-f682-4255-8c8f-8e884341e1d9",
+  "id": "13532c38-2dae-4bbd-9771-c48f0ee3ea77",
   "prevId": "4a417671-ca6a-44f6-9e0d-9d20b6d5e567",
   "version": "7",
   "dialect": "postgresql",
@@ -2088,6 +2088,20 @@
         },
         "registernummer": {
           "name": "registernummer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "geschaeftsfuehrer": {
+          "name": "geschaeftsfuehrer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "aufsichtsrat_vorsitz": {
+          "name": "aufsichtsrat_vorsitz",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -7644,58 +7658,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.vat_frequencies": {
-      "name": "vat_frequencies",
-      "schema": "",
-      "columns": {
-        "year": {
-          "name": "year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "from_month": {
-          "name": "from_month",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "frequency": {
-          "name": "frequency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "vat_frequencies_year_from_month_pk": {
-          "name": "vat_frequencies_year_from_month_pk",
-          "columns": [
-            "year",
-            "from_month"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "vat_frequencies_from_month": {
-          "name": "vat_frequencies_from_month",
-          "value": "\"vat_frequencies\".\"from_month\" in (1, 4, 7, 10)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.vat_return_submissions": {
       "name": "vat_return_submissions",
       "schema": "",
@@ -8022,7 +7984,7 @@
       "checkConstraints": {
         "vat_returns_month": {
           "name": "vat_returns_month",
-          "value": "\"vat_returns\".\"month\" between 1 and 12 or \"vat_returns\".\"month\" between 41 and 44"
+          "value": "\"vat_returns\".\"month\" between 1 and 12"
         }
       },
       "isRLSEnabled": false

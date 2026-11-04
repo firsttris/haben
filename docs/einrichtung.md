@@ -70,13 +70,17 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Bank, IBAN, BIC | Zahlungsangaben auf der Rechnung. Die IBAN ist Pflicht zum Festschreiben; Eingabe ohne Leerzeichen, Haben entfernt sie aber auch selbst |
 | Kontoinhaber | Nur nötig, wenn das Konto nicht auf den Firmennamen läuft. Steht im GiroCode, in der Fußzeile und in der E-Rechnung (BT-85); leer = Firmenname. Höchstens 70 Zeichen, siehe [GiroCode](rechnungen.md#girocode) |
 | Rechtsform | Einzelunternehmen, GmbH oder UG (haftungsbeschränkt), siehe [unten](#rechtsform-einzelunternehmen-gmbh-oder-ug) |
-| Sitz, Registergericht, Registernummer | Nur GmbH und UG, Abschnitt **Handelsregister**: wie im Registerauszug, etwa „Amtsgericht Bremen“ und „HRB 12345 HB“. Sie gehören in den Jahresabschluss (§ 264 Abs. 1a HGB) und stehen auf der [Bilanz zur Hinterlegung](buchhaltung.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug). Sitz laut Gesellschaftsvertrag; leer = Ort der Anschrift |
+| Sitz, Registergericht, Registernummer | Nur GmbH und UG, Abschnitt **Handelsregister und Geschäftsführung**: wie im Registerauszug, etwa „Amtsgericht Bremen“ und „HRB 12345 HB“. Sie gehören in den Jahresabschluss (§ 264 Abs. 1a HGB), stehen auf der [Bilanz zur Hinterlegung](buchhaltung.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug) und auf jedem Geschäftsbrief (siehe [Pflichtangaben einer GmbH oder UG](rechnungen.md#pflichtangaben-einer-gmbh-oder-ug)). Sitz laut Gesellschaftsvertrag; leer = Ort der Anschrift |
+| Geschäftsführer | Nur GmbH und UG: alle Geschäftsführer, einer je Zeile, mit Familiennamen und mindestens einem ausgeschriebenen Vornamen, etwa „Erika Mustermann“ (§ 35a Abs. 1 GmbHG). Stehen im Fuß von Rechnung, Angebot, Mahnung und Lieferschein und unter E-Mails an Kunden |
+| Vorsitz des Aufsichtsrats | Nur, wenn die Gesellschaft einen Aufsichtsrat mit Vorsitz gebildet hat; sonst leer lassen |
 | Kontenrahmen | SKR03 oder SKR04, siehe unten |
 | Standard-Zahlungsziel in Tagen | Vorgabe für neue Rechnungen (0 bis 120 Tage) |
 | Standardformat für Rechnungen | ZUGFeRD (PDF mit eingebettetem XML), XRechnung (CII) oder XRechnung (UBL). Vorgabe für neue Rechnungen |
 | Standard-Einleitung für Rechnungen, für Angebote | Steht in neuen Rechnungen bzw. Angeboten als Einleitung über den Positionen, etwa eine Anrede oder „Für die erbrachten Leistungen berechne ich Ihnen:“. Im Beleg änderbar; bestehende Belege ändern sich nicht. Leer = keine Einleitung, höchstens 2000 Zeichen |
 | Versteuerung | Ist oder Soll, siehe unten |
 | Kleinunternehmer nach § 19 UStG | Haken setzen, wenn du die Kleinunternehmerregelung nutzt, siehe unten |
+
+Fehlt einer GmbH oder UG etwas davon, zeigt das Formular im Abschnitt **Handelsregister und Geschäftsführung** „Für Rechnungen und Geschäftsbriefe fehlt noch (§ 35a GmbHG): …“, etwa „Geschäftsführer fehlt“ oder bei „E. Mustermann“ den fehlenden ausgeschriebenen Vornamen.
 
 Die Umrechnung der Steuernummer prüft die Länge je Bundesland. Passt sie nicht, meldet Haben zum Beispiel „Steuernummer für Bayern muss 11 Ziffern haben“. Für Hessen setzt Haben die führende `0` der Finanzamtsnummer wie von ELSTER verlangt auf `6`.
 

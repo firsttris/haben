@@ -1053,15 +1053,13 @@ test("Voranmeldung vierteljährlich: Zeitraum einstellen, Quartal prüfen und te
   const history = page.getByRole("region", { name: `Verlauf 1. Quartal ${next}` });
   await expect(history).toContainText("OK");
 
-  // Zurück auf monatlich: Der Entwurf des Quartals bleibt mit seinem Verlauf, lässt sich aber nicht mehr senden
-  await page
-    .getByRole("form", { name: `Voranmeldungszeitraum ${next}` })
-    .getByRole("combobox", { name: "Zeitraum" })
-    .selectOption("monatlich");
-  await page
-    .getByRole("form", { name: `Voranmeldungszeitraum ${next}` })
-    .getByRole("button", { name: "Zeitraum speichern" })
-    .click();
+  // Zurück auf monatlich: Der Entwurf des Quartals bleibt mit seinem Verlauf, lässt sich aber nicht mehr senden. Erst
+  // warten, bis die Seite nach dem Senden neu geladen ist; sonst setzt sie die Auswahl zurück
+  await page.waitForLoadState("networkidle");
+  const frequency = page.getByRole("form", { name: `Voranmeldungszeitraum ${next}` });
+  await frequency.getByRole("combobox", { name: "Zeitraum" }).selectOption("monatlich");
+  await expect(frequency.getByRole("combobox", { name: "Zeitraum" })).toHaveValue("monatlich");
+  await frequency.getByRole("button", { name: "Zeitraum speichern" }).click();
   await expect(page.getByText(`Für 1. Quartal ${next} passt die Voranmeldung nicht zum eingestellten Zeitraum (monatlich).`)).toBeVisible();
 });
 
