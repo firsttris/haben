@@ -15,7 +15,7 @@ import {
   type SpaetFaellig,
   type VermerkKonto,
 } from "@haben/core";
-import { eq, sql } from "drizzle-orm";
+import { eq, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
@@ -53,24 +53,31 @@ async function gespeichert(year: number): Promise<{ data: z.output<typeof gespei
 
 /**
  * Offene Rechnungen und Belege zum Stichtag, die erst mehr als ein Jahr danach fällig sind: ausgestellt bzw. datiert bis
- * zum Stichtag, ohne Storno, abzüglich der bis dahin zugeordneten Zahlungen.
+ * zum Stichtag, nicht bis dahin storniert, abzüglich der bis dahin zugeordneten Zahlungen und Ausbuchungen (Skonto,
+ * Forderungsausfall, Kursdifferenz). Offen wie in den offenen Posten (lebenszyklus.ts): Eine Korrekturrechnung ist ein
+ * eigener Posten mit negativem Betrag und mindert, was offen ist.
  */
 async function spaetFaellig(year: number): Promise<SpaetFaellig> {
   const stichtag = `${year}-12-31`;
   const grenze = `${year + 1}-12-31`;
+  const erledigt = (spalte: "invoice_id" | "document_id", id: SQL) => sql`coalesce((
+      select sum(amount) from (
+        select a.amount from allocations a join bank_transactions t on t.id = a.transaction_id
+         where a.${sql.raw(spalte)} = ${id} and t.booking_date <= ${stichtag}
+        union all
+        select w.amount from write_offs w where w.${sql.raw(spalte)} = ${id} and w.date <= ${stichtag}
+      ) z), 0)`;
   const [row] = await db.execute<{ forderungen: string; verbindlichkeiten: string }>(sql`
     select
-      (select coalesce(sum(greatest(i.gross - coalesce((select sum(a.amount) from allocations a join bank_transactions t on t.id = a.transaction_id
-                                                         where a.invoice_id = i.id and t.booking_date <= ${stichtag}), 0), 0)), 0)
-         from invoices i
-        where i.status = 'final' and i.kind = 'rechnung' and i.issue_date <= ${stichtag} and i.due_date > ${grenze}
+      (select greatest(coalesce(sum(case when i.kind = 'korrektur' then least(o.offen, 0) else greatest(o.offen, 0) end), 0), 0)
+         from invoices i cross join lateral (select i.gross - ${erledigt("invoice_id", sql.raw("i.id"))} as offen) o
+        where i.status = 'final' and i.kind in ('rechnung', 'korrektur') and i.issue_date <= ${stichtag} and i.due_date > ${grenze}
           and not exists (select 1 from invoices s where s.corrects_id = i.id and s.kind = 'storno' and s.status = 'final' and s.issue_date <= ${stichtag})
       ) as forderungen,
-      (select coalesce(sum(greatest(d.gross + coalesce((select sum(a.amount) from allocations a join bank_transactions t on t.id = a.transaction_id
-                                                         where a.document_id = d.id and t.booking_date <= ${stichtag}), 0), 0)), 0)
+      (select coalesce(sum(greatest(d.gross + ${erledigt("document_id", sql.raw("d.id"))}, 0)), 0)
          from documents d
         where d.status = 'gebucht' and d.payment = 'bank' and d.document_date <= ${stichtag} and d.due_date > ${grenze}
-          and not exists (select 1 from document_cancellations c where c.document_id = d.id)
+          and not exists (select 1 from document_cancellations c where c.document_id = d.id and c.date <= ${stichtag})
       ) as verbindlichkeiten`);
   return { forderungen: Number(row?.forderungen ?? 0), verbindlichkeiten: Number(row?.verbindlichkeiten ?? 0) };
 }
