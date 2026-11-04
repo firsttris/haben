@@ -1094,4 +1094,39 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     const result = await bank.importStatement(actor, { bytes: n26, filename: "n26.csv" }, account.id);
     expect(result).toMatchObject({ added: 1, accountName: "N26 Business" });
   });
+  it.each([
+    ["SKR03", "1200", "0730"],
+    ["SKR04", "1800", "3510"],
+  ] as const)(
+    "GmbH, %s: Geld an und vom Gesellschafter geht auf das Verrechnungskonto",
+    async (kontenrahmen, bankKonto, gesellschafter) => {
+      await sql`update company set rechtsform = 'gmbh', kontenrahmen = ${kontenrahmen}`;
+      await bank.importStatement(
+        actor,
+        {
+          bytes: dkbCsv(
+            [
+              incoming("01.10.26", "Max Muster", "DE02100100100006820101", "Auslagen", "-300,00"),
+              incoming("02.10.26", "Max Muster", "DE02100100100006820101", "Darlehen", "1.000,00"),
+            ],
+            "700,00 €",
+            "02.10.2026",
+          ),
+          filename: "gmbh.csv",
+        },
+        null,
+      );
+      const rows = await sql`select id, amount from bank_transactions order by booking_date`;
+      for (const row of rows) await bank.allocate(actor, { kind: "privat", transactionId: row.id as string, amount: row.amount as number });
+      const lines = await sql`select e.description, l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
+      where e.source_type = 'allocation' order by e.date, l.debit desc`;
+      expect(lines.map((l) => ({ ...l }))).toEqual([
+        { description: "Max Muster · gesellschafter", account: gesellschafter, debit: 30_000, credit: 0 },
+        { description: "Max Muster · gesellschafter", account: bankKonto, debit: 0, credit: 30_000 },
+        { description: "Max Muster · gesellschafter", account: bankKonto, debit: 100_000, credit: 0 },
+        { description: "Max Muster · gesellschafter", account: gesellschafter, debit: 0, credit: 100_000 },
+      ]);
+    },
+    30_000,
+  );
 });

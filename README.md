@@ -75,7 +75,7 @@ auf deinem eigenen Server betreibst.
 | 🚗 [Pauschalen](https://firsttris.github.io/haben/pauschalen.html) · [Kasse](https://firsttris.github.io/haben/kasse.html) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Kassenbuch für Barzahlungen |
 | 🖥️ [Anlagen und AfA](https://firsttris.github.io/haben/anlagen.html) | Anlagenverzeichnis, lineare AfA, GWG und Sammelposten, AfA-Buchung zum Jahresende |
 | 📊 [Auswertungen](https://firsttris.github.io/haben/auswertungen.html) | EÜR, offene Posten, Monatsverlauf, Jahresexport als ZIP mit SHA-256-Prüfsummen |
-| 📚 [Buchhaltung](https://firsttris.github.io/haben/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export |
+| 📚 [Buchhaltung](https://firsttris.github.io/haben/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export; für GmbH und UG Gesellschafter-Verrechnungskonto, manuelle Buchungen, Saldenvortrag, Bilanz und GuV (Entwurf) und Jahresabschluss |
 | 📦 [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | Abruf über die Public API oder, ohne Tarif XL, als Sicherung über die Web-Oberfläche; DATEV-Buchungsstapel, offene Posten und Anlagen übernehmen |
 | 📦 [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html) | Abruf über die sevDesk-API, gleiches Archiv, gleicher Abgleich |
 | 🔐 [Anmeldung](https://firsttris.github.io/haben/einrichtung.html#konto-anlegen) · [App](https://firsttris.github.io/haben/einrichtung.html#als-app-installieren) | Passkey (Passwort als Ersatz), installierbar als App auf Handy und Desktop mit Kurzbefehlen und Teilen-Menü für Belege, helle und dunkle [Themes](https://firsttris.github.io/haben/einrichtung.html#einstellungen-und-darstellung) |
@@ -148,7 +148,11 @@ Lexware Office ohne Tarif XL, über eine Sicherung aus der Web-Oberfläche, sieh
 <summary><b>Für wen ist Haben gedacht?</b></summary>
 
 Für Freiberufler, Selbstständige und Kleinunternehmer mit Einnahmen-Überschuss-Rechnung (EÜR), auch mit
-Kleinunternehmerregelung nach § 19 UStG. Eine Bilanz, wie sie eine GmbH oder UG braucht, erstellt Haben nicht.
+Kleinunternehmerregelung nach § 19 UStG. Eine GmbH oder UG macht ihre laufende Buchhaltung in Haben, mit
+Gesellschafter-Verrechnungskonto statt Privatkonten; Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung und
+sendet E-Bilanz, Körperschaft- und Gewerbesteuererklärung (für eine GmbH ohne Beteiligungen, Organschaft und
+Ausschüttungen),
+siehe [Rechtsform](https://firsttris.github.io/haben/einrichtung.html#rechtsform-einzelunternehmen-gmbh-oder-ug).
 </details>
 
 <details>

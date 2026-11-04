@@ -671,7 +671,56 @@
       "idx": 95,
       "version": "7",
       "when": 1793988230647,
-      "tag": "0095_externe_referenz",
+      "tag": "0095_rechtsform",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1793988290647,
+      "tag": "0096_rechtsform_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1793988350647,
+      "tag": "0097_jahresabschluss",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1793988410647,
+      "tag": "0098_jahresabschluss_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1793988470647,
+      "tag": "0099_koerperschaft",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1793988530647,
+      "tag": "0100_koerperschaft_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1793988590647,
+      "tag": "0101_kontenrahmen_kapg",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1793988650647,
+      "tag": "0102_externe_referenz",
       "breakpoints": true
     }
   ]

@@ -33,7 +33,7 @@ describe("Mahnung", () => {
   });
 
   it("Zahlung von Gebühren und Zinsen: Bank an Zinserträge, in der EÜR ohne Umsatzsteuer", () => {
-    expect(directPosting("mahnerloes", 4_500, "SKR03")).toEqual([
+    expect(directPosting("mahnerloes", 4_500, "SKR03", "einzelunternehmen")).toEqual([
       { account: "1200", debit: 4_500, credit: 0, taxCode: null },
       { account: "2650", debit: 0, credit: 4_500, taxCode: null },
     ]);

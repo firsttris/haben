@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { computeInvoiceTotals } from "./invoice.ts";
 import {
+  ACCOUNT_NAMES,
+  ACCOUNTS,
+  cashBookingLabel,
   cashPosting,
+  directBookingLabel,
   directPosting,
   documentPaymentPosting,
   documentPosting,
@@ -72,7 +76,7 @@ describe("invoicePosting mit Steuerfällen", () => {
 describe("documentPosting", () => {
   it("Privatanteil: betrieblicher Teil ist Aufwand und Vorsteuer, der Rest Entnahme", () => {
     const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 4_000, taxRate: 1900 }]);
-    const lines = documentPosting(totals, "telefon", "SKR03", "bank", true, undefined, 20);
+    const lines = documentPosting(totals, "telefon", "SKR03", "einzelunternehmen", "bank", true, undefined, 20);
     expect(lines).toEqual([
       { account: "4920", debit: 3_200, credit: 0, taxCode: "VSt19" },
       { account: "1576", debit: 608, credit: 0, taxCode: "VSt19" },
@@ -84,27 +88,29 @@ describe("documentPosting", () => {
   it("§ 13b: Steuer selbst schulden und als Vorsteuer abziehen, gezahlt wird netto", () => {
     const base = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
     const totals = { ...base, gross: base.net };
-    const lines = documentPosting(totals, "software", "SKR03", "bank", true, undefined, 0, "eu");
+    const lines = documentPosting(totals, "software", "SKR03", "einzelunternehmen", "bank", true, undefined, 0, "eu");
     expect(lines).toEqual([
       { account: "4964", debit: 10_000, credit: 0, taxCode: "RC13bEU" },
       { account: "1577", debit: 1_900, credit: 0, taxCode: "VSt13b" },
       { account: "1787", debit: 0, credit: 1_900, taxCode: "RC13bEU" },
       { account: "1600", debit: 0, credit: 10_000, taxCode: null },
     ]);
-    expect(documentPosting(totals, "software", "SKR04", "privat", true, undefined, 0, "drittland").map((l) => [l.account, l.taxCode])).toEqual([
+    expect(
+      documentPosting(totals, "software", "SKR04", "einzelunternehmen", "privat", true, undefined, 0, "drittland").map((l) => [l.account, l.taxCode]),
+    ).toEqual([
       ["6837", "RC13bDrittland"],
       ["1407", "VSt13b"],
       ["3837", "RC13bDrittland"],
       ["2180", null],
     ]);
     // Kleinunternehmer: Steuer schulden, nicht abziehen; sie ist Aufwand
-    expect(documentPosting(totals, "software", "SKR03", "bank", false, undefined, 0, "eu")).toEqual([
+    expect(documentPosting(totals, "software", "SKR03", "einzelunternehmen", "bank", false, undefined, 0, "eu")).toEqual([
       { account: "4964", debit: 11_900, credit: 0, taxCode: "RC13bEU" },
       { account: "1787", debit: 0, credit: 1_900, taxCode: "RC13bEU" },
       { account: "1600", debit: 0, credit: 10_000, taxCode: null },
     ]);
     // Privatanteil: Vorsteuer nur für den betrieblichen Teil, Umsatzsteuer voll
-    const shared = documentPosting(totals, "telefon", "SKR03", "bank", true, undefined, 20, "eu");
+    const shared = documentPosting(totals, "telefon", "SKR03", "einzelunternehmen", "bank", true, undefined, 20, "eu");
     expect(shared.find((l) => l.account === "1577")!.debit).toBe(1_520);
     expect(shared.find((l) => l.account === "1787")!.credit).toBe(1_900);
     expect(balanced(shared)).toBe(true);
@@ -112,7 +118,7 @@ describe("documentPosting", () => {
 
   it("ohne Vorsteuerabzug (Kleinunternehmer) ist die Steuer Aufwand", () => {
     const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
-    expect(documentPosting(totals, "software", "SKR03", "bank", false)).toEqual([
+    expect(documentPosting(totals, "software", "SKR03", "einzelunternehmen", "bank", false)).toEqual([
       { account: "4964", debit: 11_900, credit: 0, taxCode: "keineVSt" },
       { account: "1600", debit: 0, credit: 11_900, taxCode: null },
     ]);
@@ -124,7 +130,7 @@ describe("documentPosting", () => {
   ]);
 
   it("Aufwand und Vorsteuer an Verbindlichkeiten (SKR03)", () => {
-    const lines = documentPosting(totals, "software", "SKR03", "bank");
+    const lines = documentPosting(totals, "software", "SKR03", "einzelunternehmen", "bank");
     expect(lines).toEqual([
       { account: "4964", debit: 10_000, credit: 0, taxCode: "VSt19" },
       { account: "1576", debit: 1_900, credit: 0, taxCode: "VSt19" },
@@ -136,14 +142,14 @@ describe("documentPosting", () => {
   });
 
   it("privat bezahlt an Privateinlage (SKR04)", () => {
-    const lines = documentPosting(totals, "telefon", "SKR04", "privat");
+    const lines = documentPosting(totals, "telefon", "SKR04", "einzelunternehmen", "privat");
     expect(lines.at(-1)).toEqual({ account: "2180", debit: 0, credit: 14_040, taxCode: null });
     expect(lines[0]?.account).toBe("6805");
   });
 
   it("Gutschrift dreht die Seiten", () => {
     const credit = computeInvoiceTotals([{ quantity: 1000, unitPrice: -10_000, taxRate: 1900 }]);
-    const lines = documentPosting(credit, "software", "SKR03", "bank");
+    const lines = documentPosting(credit, "software", "SKR03", "einzelunternehmen", "bank");
     expect(lines).toEqual([
       { account: "4964", debit: 0, credit: 10_000, taxCode: "VSt19" },
       { account: "1576", debit: 0, credit: 1_900, taxCode: "VSt19" },
@@ -189,12 +195,12 @@ describe("Zahlungen", () => {
   });
 
   it("Privatentnahme und Einlage", () => {
-    expect(directPosting("privat", -300_000, "SKR03")).toEqual([
+    expect(directPosting("privat", -300_000, "SKR03", "einzelunternehmen")).toEqual([
       { account: "1200", debit: 0, credit: 300_000, taxCode: null },
       { account: "1800", debit: 300_000, credit: 0, taxCode: null },
     ]);
-    expect(directPosting("privat", 10_000, "SKR04")[1]).toEqual({ account: "2180", debit: 0, credit: 10_000, taxCode: null });
-    expect(directPosting("ustVorauszahlung", -191_230, "SKR03")[1]?.account).toBe("1780");
+    expect(directPosting("privat", 10_000, "SKR04", "einzelunternehmen")[1]).toEqual({ account: "2180", debit: 0, credit: 10_000, taxCode: null });
+    expect(directPosting("ustVorauszahlung", -191_230, "SKR03", "einzelunternehmen")[1]?.account).toBe("1780");
   });
 });
 
@@ -255,20 +261,20 @@ describe("legacyCorrectionPosting", () => {
 describe("Kasse", () => {
   it("bar bezahlter Beleg geht gegen die Kasse", () => {
     const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 1_000, taxRate: 1900 }]);
-    expect(documentPosting(totals, "buero", "SKR03", "kasse").at(-1)).toEqual({ account: "1000", debit: 0, credit: 1_190, taxCode: null });
-    expect(documentPosting(totals, "buero", "SKR04", "kasse").at(-1)).toMatchObject({ account: "1600", credit: 1_190 });
+    expect(documentPosting(totals, "buero", "SKR03", "einzelunternehmen", "kasse").at(-1)).toEqual({ account: "1000", debit: 0, credit: 1_190, taxCode: null });
+    expect(documentPosting(totals, "buero", "SKR04", "einzelunternehmen", "kasse").at(-1)).toMatchObject({ account: "1600", credit: 1_190 });
   });
 
   it("Einlage, Entnahme und Geldtransit", () => {
-    expect(cashPosting("privat", 5_000, "SKR03")).toEqual([
+    expect(cashPosting("privat", 5_000, "SKR03", "einzelunternehmen")).toEqual([
       { account: "1000", debit: 5_000, credit: 0, taxCode: null },
       { account: "1890", debit: 0, credit: 5_000, taxCode: null },
     ]);
-    expect(cashPosting("privat", -2_000, "SKR03").map((l) => [l.account, l.debit, l.credit])).toEqual([
+    expect(cashPosting("privat", -2_000, "SKR03", "einzelunternehmen").map((l) => [l.account, l.debit, l.credit])).toEqual([
       ["1000", 0, 2_000],
       ["1800", 2_000, 0],
     ]);
-    expect(cashPosting("geldtransit", 10_000, "SKR04").map((l) => [l.account, l.debit, l.credit])).toEqual([
+    expect(cashPosting("geldtransit", 10_000, "SKR04", "einzelunternehmen").map((l) => [l.account, l.debit, l.credit])).toEqual([
       ["1600", 10_000, 0],
       ["1460", 0, 10_000],
     ]);
@@ -287,7 +293,10 @@ describe("Rundung bei Storno", () => {
     const beleg = computeInvoiceTotals([{ quantity: 1000, unitPrice: 1_234, taxRate: 1900 }]);
     const storno = computeInvoiceTotals([{ quantity: 1000, unitPrice: -1_234, taxRate: 1900 }]);
     expect(
-      saldo(documentPosting(beleg, "telefon", "SKR03", "bank", true, undefined, 25), documentPosting(storno, "telefon", "SKR03", "bank", true, undefined, 25)),
+      saldo(
+        documentPosting(beleg, "telefon", "SKR03", "einzelunternehmen", "bank", true, undefined, 25),
+        documentPosting(storno, "telefon", "SKR03", "einzelunternehmen", "bank", true, undefined, 25),
+      ),
     ).toEqual([]);
   });
 
@@ -349,5 +358,53 @@ describe("recordedTaxShares", () => {
     expect(recordedTaxShares(mixed, 10_000, [{ rate: 1900, base: 8_403, tax: 1_597 }])).toEqual(paidTaxShares(mixed, 10_000));
     expect(recordedTaxShares(totals, 3_966, [{ rate: 1900, base: 3_333, tax: 634 }])).toEqual(paidTaxShares(totals, 3_966));
     expect(recordedTaxShares(totals, 3_966, null)).toEqual(paidTaxShares(totals, 3_966));
+  });
+});
+
+describe("Kapitalgesellschaft: Gesellschafter-Verrechnungskonto statt Privat", () => {
+  const totals = computeInvoiceTotals([{ quantity: 1000, unitPrice: 10_000, taxRate: 1900 }]);
+
+  it.each([
+    ["SKR03", "0730"],
+    ["SKR04", "3510"],
+  ] as const)("%s: vom Gesellschafter ausgelegter Beleg geht auf %s", (kr, konto) => {
+    for (const rechtsform of ["gmbh", "ug"] as const) {
+      expect(documentPosting(totals, "buero", kr, rechtsform, "privat").at(-1)).toEqual({ account: konto, debit: 0, credit: 11_900, taxCode: null });
+    }
+  });
+
+  it.each([
+    ["SKR03", "0730"],
+    ["SKR04", "3510"],
+  ] as const)("%s: Bank und Kasse buchen beide Richtungen auf %s", (kr, konto) => {
+    expect(directPosting("privat", -300_000, kr, "gmbh")[1]).toEqual({ account: konto, debit: 300_000, credit: 0, taxCode: null });
+    expect(directPosting("privat", 50_000, kr, "gmbh")[1]).toEqual({ account: konto, debit: 0, credit: 50_000, taxCode: null });
+    expect(cashPosting("privat", 5_000, kr, "ug")[1]).toEqual({ account: konto, debit: 0, credit: 5_000, taxCode: null });
+    expect(cashPosting("privat", -2_000, kr, "ug")[1]).toEqual({ account: konto, debit: 2_000, credit: 0, taxCode: null });
+  });
+
+  it("Einzelunternehmen bleibt bei Privateinlage und Privatentnahme", () => {
+    expect(documentPosting(totals, "buero", "SKR04", "einzelunternehmen", "privat").at(-1)?.account).toBe("2180");
+    expect(directPosting("privat", -1, "SKR04", "einzelunternehmen")[1]?.account).toBe("2100");
+  });
+
+  it("lehnt einen Privatanteil ab", () => {
+    expect(() => documentPosting(totals, "telefon", "SKR03", "gmbh", "bank", true, undefined, 20)).toThrow(RangeError);
+    expect(documentPosting(totals, "telefon", "SKR03", "gmbh", "bank", true, undefined, 0)).toHaveLength(3);
+  });
+
+  it.each(["SKR03", "SKR04"] as const)("%s: das Gesellschafterkonto hat einen Namen", (kr) => {
+    expect(ACCOUNT_NAMES[kr][ACCOUNTS[kr].gesellschafter]).toBe("Verbindlichkeiten gegenüber Gesellschaftern");
+  });
+});
+
+describe("Beschriftung nach Rechtsform", () => {
+  it("Bank und Kasse", () => {
+    expect(directBookingLabel("privat", "einzelunternehmen")).toBe("Privat (Entnahme oder Einlage)");
+    expect(directBookingLabel("privat", "gmbh")).toBe("Gesellschafter (Verrechnungskonto)");
+    expect(directBookingLabel("gebuehren", "gmbh")).toBe("Kontoführung und Bankgebühren");
+    expect(cashBookingLabel("einlage", "einzelunternehmen")).toBe("Einlage");
+    expect(cashBookingLabel("entnahme", "ug")).toBe("An den Gesellschafter");
+    expect(cashBookingLabel("abhebung", "gmbh")).toBe("Abhebung von der Bank");
   });
 });

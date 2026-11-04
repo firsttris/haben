@@ -10,6 +10,7 @@ import {
   type ExpenseCategory,
   type PauschaleArt,
   homeofficeSatz,
+  isKapitalgesellschaft,
 } from "@haben/core";
 import {
   buildEstXml,
@@ -393,21 +394,25 @@ function yearIssues(year: number, today: string): Issue[] {
 }
 
 export async function submissions(year: number) {
-  return db
-    .select({
-      id: schema.annualSubmissions.id,
-      form: schema.annualSubmissions.form,
-      kind: schema.annualSubmissions.kind,
-      ok: schema.annualSubmissions.ok,
-      code: schema.annualSubmissions.code,
-      message: schema.annualSubmissions.message,
-      transferTicket: schema.annualSubmissions.transferTicket,
-      hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
-      createdAt: schema.annualSubmissions.createdAt,
-    })
-    .from(schema.annualSubmissions)
-    .where(eq(schema.annualSubmissions.year, year))
-    .orderBy(desc(schema.annualSubmissions.createdAt));
+  return (
+    db
+      .select({
+        id: schema.annualSubmissions.id,
+        form: schema.annualSubmissions.form,
+        kind: schema.annualSubmissions.kind,
+        ok: schema.annualSubmissions.ok,
+        code: schema.annualSubmissions.code,
+        message: schema.annualSubmissions.message,
+        transferTicket: schema.annualSubmissions.transferTicket,
+        hasPdf: sql<boolean>`${schema.annualSubmissions.protocolPdf} is not null`,
+        createdAt: schema.annualSubmissions.createdAt,
+      })
+      .from(schema.annualSubmissions)
+      // Die E-Bilanz steht auf der Abschluss-Seite (ebilanz.ts)
+      .where(and(eq(schema.annualSubmissions.year, year), inArray(schema.annualSubmissions.form, ["ust", "euer", "est", "kst", "gewst"])))
+      .orderBy(desc(schema.annualSubmissions.createdAt))
+      .then((rows) => rows as (Omit<(typeof rows)[number], "form"> & { form: AnnualForm })[])
+  );
 }
 
 export async function annualOverview(year: number, today: string) {
@@ -426,6 +431,7 @@ export async function annualOverview(year: number, today: string) {
     est: { ...est, issues: [...base, ...estIssues(company, euer), ...(await homeofficeIssues(year, est))], sent: sent("est") },
     history,
     versteuerung: await versteuerungForYear(year),
+    rechtsform: company.rechtsform,
   };
 }
 
@@ -489,6 +495,10 @@ type Checked = { company: Awaited<ReturnType<typeof loadCompany>>; data: UstYear
 /** Firmendaten und Werte des Jahres; Fehler aus den Prüfungen brechen ab */
 export async function checkAnnual(form: AnnualForm, year: number, today: string): Promise<Checked> {
   const company = await loadCompany();
+  // Eine Kapitalgesellschaft bilanziert und zahlt Körperschaftsteuer: keine Anlage EÜR, keine Einkommensteuer
+  if (form !== "ust" && isKapitalgesellschaft(company.rechtsform)) {
+    throw new AnnualError(`${company.rechtsform === "ug" ? "Eine UG" : "Eine GmbH"} gibt keine Anlage EÜR und keine Einkommensteuererklärung ab.`);
+  }
   const data = form === "ust" ? await ustYear(year) : await euerYear(year);
   const formIssues =
     form === "ust"
@@ -556,6 +566,13 @@ export async function loadAnnualProtocol(id: string) {
     .from(schema.annualSubmissions)
     .where(eq(schema.annualSubmissions.id, id));
   if (!row?.pdf) return null;
-  const name = { ust: "Umsatzsteuererklaerung", euer: "EUER", est: "Einkommensteuererklaerung" }[row.form];
+  const name = {
+    ust: "Umsatzsteuererklaerung",
+    euer: "EUER",
+    est: "Einkommensteuererklaerung",
+    kst: "Koerperschaftsteuererklaerung",
+    gewst: "Gewerbesteuererklaerung",
+    ebilanz: "E-Bilanz",
+  }[row.form];
   return { pdf: row.pdf, filename: `${name}-${row.year}-Protokoll.pdf` };
 }

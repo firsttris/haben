@@ -140,7 +140,7 @@ Gutschriften gibst du mit Minus ein.
 
 ## Privatanteil
 
-Wird etwas auch privat genutzt, etwa der Handy- oder Internetvertrag, trägst du unter den Beträgen den **Privatanteil in %** ein. Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme:
+Den Privatanteil gibt es nur im Einzelunternehmen; bei einer GmbH oder UG fehlt das Feld (siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug)). Wird etwas auch privat genutzt, etwa der Handy- oder Internetvertrag, trägst du unter den Beträgen den **Privatanteil in %** ein. Nur der betriebliche Teil wird Ausgabe und Vorsteuer, der private Teil ist eine Entnahme:
 
 ```
 4920 Telefon             32,00
@@ -176,6 +176,7 @@ In der [Voranmeldung](umsatzsteuer.md#-13b-als-leistungsempfänger) heben sich S
 | --- | --- | --- |
 | Über das Geschäftskonto (Zuordnung beim Bankabgleich) | Verbindlichkeiten | Der Beleg wird nach dem Buchen im [Bankabgleich](bank.md) als offener Posten angeboten. |
 | Privat bezahlt (Privateinlage) | Privateinlagen | Der Beleg ist damit erledigt und taucht im Bankabgleich nicht auf. |
+| Vom Gesellschafter ausgelegt (nur GmbH, UG) | Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510) | Wie privat bezahlt; die GmbH schuldet dem Gesellschafter den Betrag. |
 | Bar aus der Kasse (Zeile im Kassenbuch) | Kasse | Beim Buchen entsteht eine Zeile im [Kassenbuch](kasse.md). Reicht der Kassenbestand am Belegdatum nicht, lehnt Haben das Buchen ab. |
 
 ## Buchen

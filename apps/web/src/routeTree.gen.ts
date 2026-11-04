@@ -15,7 +15,6 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAuswertungenRouteImport } from './routes/_app/auswertungen'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
-import { Route as AppBuchungenRouteImport } from './routes/_app/buchungen'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
 import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
@@ -23,6 +22,8 @@ import { Route as AppKasseRouteImport } from './routes/_app/kasse'
 import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
+import { Route as AppAbschlussIndexRouteImport } from './routes/_app/abschluss/index'
+import { Route as AppAbschlussJahrRouteImport } from './routes/_app/abschluss/$jahr'
 import { Route as AppAngeboteIndexRouteImport } from './routes/_app/angebote/index'
 import { Route as AppAngeboteIdRouteImport } from './routes/_app/angebote/$id'
 import { Route as AppAngeboteNeuRouteImport } from './routes/_app/angebote/neu'
@@ -33,6 +34,8 @@ import { Route as AppArchivIndexRouteImport } from './routes/_app/archiv/index'
 import { Route as AppArtikelIndexRouteImport } from './routes/_app/artikel/index'
 import { Route as AppBelegeIndexRouteImport } from './routes/_app/belege/index'
 import { Route as AppBelegeIdRouteImport } from './routes/_app/belege/$id'
+import { Route as AppBuchungenIndexRouteImport } from './routes/_app/buchungen/index'
+import { Route as AppBuchungenNeuRouteImport } from './routes/_app/buchungen/neu'
 import { Route as AppJahreserklaerungIndexRouteImport } from './routes/_app/jahreserklaerung/index'
 import { Route as AppJahreserklaerungJahrRouteImport } from './routes/_app/jahreserklaerung/$jahr'
 import { Route as AppKontakteIndexRouteImport } from './routes/_app/kontakte/index'
@@ -103,11 +106,6 @@ const AppBankRoute = AppBankRouteImport.update({
   path: '/bank',
   getParentRoute: () => AppRoute,
 } as any)
-const AppBuchungenRoute = AppBuchungenRouteImport.update({
-  id: '/buchungen',
-  path: '/buchungen',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
   id: '/einstellungen',
   path: '/einstellungen',
@@ -142,6 +140,16 @@ const ApiMcpRoute = ApiMcpRouteImport.update({
   id: '/api/mcp',
   path: '/api/mcp',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppAbschlussIndexRoute = AppAbschlussIndexRouteImport.update({
+  id: '/abschluss/',
+  path: '/abschluss/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAbschlussJahrRoute = AppAbschlussJahrRouteImport.update({
+  id: '/abschluss/$jahr',
+  path: '/abschluss/$jahr',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppAngeboteIndexRoute = AppAngeboteIndexRouteImport.update({
   id: '/angebote/',
@@ -191,6 +199,16 @@ const AppBelegeIndexRoute = AppBelegeIndexRouteImport.update({
 const AppBelegeIdRoute = AppBelegeIdRouteImport.update({
   id: '/belege/$id',
   path: '/belege/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBuchungenIndexRoute = AppBuchungenIndexRouteImport.update({
+  id: '/buchungen/',
+  path: '/buchungen/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBuchungenNeuRoute = AppBuchungenNeuRouteImport.update({
+  id: '/buchungen/neu',
+  path: '/buchungen/neu',
   getParentRoute: () => AppRoute,
 } as any)
 const AppJahreserklaerungIndexRoute =
@@ -406,7 +424,6 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
-  '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -414,11 +431,13 @@ export interface FileRoutesByFullPath {
   '/pauschalen': typeof AppPauschalenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
+  '/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
+  '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -445,11 +464,13 @@ export interface FileRoutesByFullPath {
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/api/vast/$id': typeof ApiVastIdRoute
+  '/abschluss/': typeof AppAbschlussIndexRoute
   '/angebote/': typeof AppAngeboteIndexRoute
   '/anlagen/': typeof AppAnlagenIndexRoute
   '/archiv/': typeof AppArchivIndexRoute
   '/artikel/': typeof AppArtikelIndexRoute
   '/belege/': typeof AppBelegeIndexRoute
+  '/buchungen/': typeof AppBuchungenIndexRoute
   '/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/kontakte/': typeof AppKontakteIndexRoute
   '/konten/': typeof AppKontenIndexRoute
@@ -470,7 +491,6 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
-  '/buchungen': typeof AppBuchungenRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -479,11 +499,13 @@ export interface FileRoutesByTo {
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/': typeof AppIndexRoute
+  '/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
   '/anlagen/$id': typeof AppAnlagenIdRoute
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
+  '/buchungen/neu': typeof AppBuchungenNeuRoute
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -510,11 +532,13 @@ export interface FileRoutesByTo {
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/api/vast/$id': typeof ApiVastIdRoute
+  '/abschluss': typeof AppAbschlussIndexRoute
   '/angebote': typeof AppAngeboteIndexRoute
   '/anlagen': typeof AppAnlagenIndexRoute
   '/archiv': typeof AppArchivIndexRoute
   '/artikel': typeof AppArtikelIndexRoute
   '/belege': typeof AppBelegeIndexRoute
+  '/buchungen': typeof AppBuchungenIndexRoute
   '/jahreserklaerung': typeof AppJahreserklaerungIndexRoute
   '/kontakte': typeof AppKontakteIndexRoute
   '/konten': typeof AppKontenIndexRoute
@@ -537,7 +561,6 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/auswertungen': typeof AppAuswertungenRoute
   '/_app/bank': typeof AppBankRoute
-  '/_app/buchungen': typeof AppBuchungenRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/finanzamt': typeof AppFinanzamtRoute
   '/_app/fristen': typeof AppFristenRoute
@@ -546,11 +569,13 @@ export interface FileRoutesById {
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/_app/angebote/$id': typeof AppAngeboteIdRoute
   '/_app/angebote/neu': typeof AppAngeboteNeuRoute
   '/_app/anlagen/$id': typeof AppAnlagenIdRoute
   '/_app/anlagen/neu': typeof AppAnlagenNeuRoute
   '/_app/belege/$id': typeof AppBelegeIdRoute
+  '/_app/buchungen/neu': typeof AppBuchungenNeuRoute
   '/_app/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/_app/kontakte/$id': typeof AppKontakteIdRoute
   '/_app/kontakte/neu': typeof AppKontakteNeuRoute
@@ -577,11 +602,13 @@ export interface FileRoutesById {
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
   '/api/vast/$id': typeof ApiVastIdRoute
+  '/_app/abschluss/': typeof AppAbschlussIndexRoute
   '/_app/angebote/': typeof AppAngeboteIndexRoute
   '/_app/anlagen/': typeof AppAnlagenIndexRoute
   '/_app/archiv/': typeof AppArchivIndexRoute
   '/_app/artikel/': typeof AppArtikelIndexRoute
   '/_app/belege/': typeof AppBelegeIndexRoute
+  '/_app/buchungen/': typeof AppBuchungenIndexRoute
   '/_app/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/_app/kontakte/': typeof AppKontakteIndexRoute
   '/_app/konten/': typeof AppKontenIndexRoute
@@ -605,7 +632,6 @@ export interface FileRouteTypes {
     | '/setup'
     | '/auswertungen'
     | '/bank'
-    | '/buchungen'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -613,11 +639,13 @@ export interface FileRouteTypes {
     | '/pauschalen'
     | '/api/logo'
     | '/api/mcp'
+    | '/abschluss/$jahr'
     | '/angebote/$id'
     | '/angebote/neu'
     | '/anlagen/$id'
     | '/anlagen/neu'
     | '/belege/$id'
+    | '/buchungen/neu'
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -644,11 +672,13 @@ export interface FileRouteTypes {
     | '/api/ustva/$id'
     | '/api/v1/$'
     | '/api/vast/$id'
+    | '/abschluss/'
     | '/angebote/'
     | '/anlagen/'
     | '/archiv/'
     | '/artikel/'
     | '/belege/'
+    | '/buchungen/'
     | '/jahreserklaerung/'
     | '/kontakte/'
     | '/konten/'
@@ -669,7 +699,6 @@ export interface FileRouteTypes {
     | '/setup'
     | '/auswertungen'
     | '/bank'
-    | '/buchungen'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -678,11 +707,13 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/mcp'
     | '/'
+    | '/abschluss/$jahr'
     | '/angebote/$id'
     | '/angebote/neu'
     | '/anlagen/$id'
     | '/anlagen/neu'
     | '/belege/$id'
+    | '/buchungen/neu'
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -709,11 +740,13 @@ export interface FileRouteTypes {
     | '/api/ustva/$id'
     | '/api/v1/$'
     | '/api/vast/$id'
+    | '/abschluss'
     | '/angebote'
     | '/anlagen'
     | '/archiv'
     | '/artikel'
     | '/belege'
+    | '/buchungen'
     | '/jahreserklaerung'
     | '/kontakte'
     | '/konten'
@@ -735,7 +768,6 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/auswertungen'
     | '/_app/bank'
-    | '/_app/buchungen'
     | '/_app/einstellungen'
     | '/_app/finanzamt'
     | '/_app/fristen'
@@ -744,11 +776,13 @@ export interface FileRouteTypes {
     | '/api/logo'
     | '/api/mcp'
     | '/_app/'
+    | '/_app/abschluss/$jahr'
     | '/_app/angebote/$id'
     | '/_app/angebote/neu'
     | '/_app/anlagen/$id'
     | '/_app/anlagen/neu'
     | '/_app/belege/$id'
+    | '/_app/buchungen/neu'
     | '/_app/jahreserklaerung/$jahr'
     | '/_app/kontakte/$id'
     | '/_app/kontakte/neu'
@@ -775,11 +809,13 @@ export interface FileRouteTypes {
     | '/api/ustva/$id'
     | '/api/v1/$'
     | '/api/vast/$id'
+    | '/_app/abschluss/'
     | '/_app/angebote/'
     | '/_app/anlagen/'
     | '/_app/archiv/'
     | '/_app/artikel/'
     | '/_app/belege/'
+    | '/_app/buchungen/'
     | '/_app/jahreserklaerung/'
     | '/_app/kontakte/'
     | '/_app/konten/'
@@ -869,13 +905,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBankRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/buchungen': {
-      id: '/_app/buchungen'
-      path: '/buchungen'
-      fullPath: '/buchungen'
-      preLoaderRoute: typeof AppBuchungenRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/einstellungen': {
       id: '/_app/einstellungen'
       path: '/einstellungen'
@@ -924,6 +953,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/mcp'
       preLoaderRoute: typeof ApiMcpRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/abschluss/': {
+      id: '/_app/abschluss/'
+      path: '/abschluss'
+      fullPath: '/abschluss/'
+      preLoaderRoute: typeof AppAbschlussIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/abschluss/$jahr': {
+      id: '/_app/abschluss/$jahr'
+      path: '/abschluss/$jahr'
+      fullPath: '/abschluss/$jahr'
+      preLoaderRoute: typeof AppAbschlussJahrRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/angebote/': {
       id: '/_app/angebote/'
@@ -993,6 +1036,20 @@ declare module '@tanstack/react-router' {
       path: '/belege/$id'
       fullPath: '/belege/$id'
       preLoaderRoute: typeof AppBelegeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/buchungen/': {
+      id: '/_app/buchungen/'
+      path: '/buchungen'
+      fullPath: '/buchungen/'
+      preLoaderRoute: typeof AppBuchungenIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/buchungen/neu': {
+      id: '/_app/buchungen/neu'
+      path: '/buchungen/neu'
+      fullPath: '/buchungen/neu'
+      preLoaderRoute: typeof AppBuchungenNeuRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/jahreserklaerung/': {
@@ -1281,18 +1338,19 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAuswertungenRoute: typeof AppAuswertungenRoute
   AppBankRoute: typeof AppBankRoute
-  AppBuchungenRoute: typeof AppBuchungenRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppFinanzamtRoute: typeof AppFinanzamtRoute
   AppFristenRoute: typeof AppFristenRoute
   AppKasseRoute: typeof AppKasseRoute
   AppPauschalenRoute: typeof AppPauschalenRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppAbschlussJahrRoute: typeof AppAbschlussJahrRoute
   AppAngeboteIdRoute: typeof AppAngeboteIdRoute
   AppAngeboteNeuRoute: typeof AppAngeboteNeuRoute
   AppAnlagenIdRoute: typeof AppAnlagenIdRoute
   AppAnlagenNeuRoute: typeof AppAnlagenNeuRoute
   AppBelegeIdRoute: typeof AppBelegeIdRoute
+  AppBuchungenNeuRoute: typeof AppBuchungenNeuRoute
   AppJahreserklaerungJahrRoute: typeof AppJahreserklaerungJahrRoute
   AppKontakteIdRoute: typeof AppKontakteIdRoute
   AppKontakteNeuRoute: typeof AppKontakteNeuRoute
@@ -1300,11 +1358,13 @@ interface AppRouteChildren {
   AppRechnungenIdRoute: typeof AppRechnungenIdRoute
   AppRechnungenNeuRoute: typeof AppRechnungenNeuRoute
   AppUmsatzsteuerZeitraumRoute: typeof AppUmsatzsteuerZeitraumRoute
+  AppAbschlussIndexRoute: typeof AppAbschlussIndexRoute
   AppAngeboteIndexRoute: typeof AppAngeboteIndexRoute
   AppAnlagenIndexRoute: typeof AppAnlagenIndexRoute
   AppArchivIndexRoute: typeof AppArchivIndexRoute
   AppArtikelIndexRoute: typeof AppArtikelIndexRoute
   AppBelegeIndexRoute: typeof AppBelegeIndexRoute
+  AppBuchungenIndexRoute: typeof AppBuchungenIndexRoute
   AppJahreserklaerungIndexRoute: typeof AppJahreserklaerungIndexRoute
   AppKontakteIndexRoute: typeof AppKontakteIndexRoute
   AppKontenIndexRoute: typeof AppKontenIndexRoute
@@ -1322,18 +1382,19 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAuswertungenRoute: AppAuswertungenRoute,
   AppBankRoute: AppBankRoute,
-  AppBuchungenRoute: AppBuchungenRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppFinanzamtRoute: AppFinanzamtRoute,
   AppFristenRoute: AppFristenRoute,
   AppKasseRoute: AppKasseRoute,
   AppPauschalenRoute: AppPauschalenRoute,
   AppIndexRoute: AppIndexRoute,
+  AppAbschlussJahrRoute: AppAbschlussJahrRoute,
   AppAngeboteIdRoute: AppAngeboteIdRoute,
   AppAngeboteNeuRoute: AppAngeboteNeuRoute,
   AppAnlagenIdRoute: AppAnlagenIdRoute,
   AppAnlagenNeuRoute: AppAnlagenNeuRoute,
   AppBelegeIdRoute: AppBelegeIdRoute,
+  AppBuchungenNeuRoute: AppBuchungenNeuRoute,
   AppJahreserklaerungJahrRoute: AppJahreserklaerungJahrRoute,
   AppKontakteIdRoute: AppKontakteIdRoute,
   AppKontakteNeuRoute: AppKontakteNeuRoute,
@@ -1341,11 +1402,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppRechnungenIdRoute: AppRechnungenIdRoute,
   AppRechnungenNeuRoute: AppRechnungenNeuRoute,
   AppUmsatzsteuerZeitraumRoute: AppUmsatzsteuerZeitraumRoute,
+  AppAbschlussIndexRoute: AppAbschlussIndexRoute,
   AppAngeboteIndexRoute: AppAngeboteIndexRoute,
   AppAnlagenIndexRoute: AppAnlagenIndexRoute,
   AppArchivIndexRoute: AppArchivIndexRoute,
   AppArtikelIndexRoute: AppArtikelIndexRoute,
   AppBelegeIndexRoute: AppBelegeIndexRoute,
+  AppBuchungenIndexRoute: AppBuchungenIndexRoute,
   AppJahreserklaerungIndexRoute: AppJahreserklaerungIndexRoute,
   AppKontakteIndexRoute: AppKontakteIndexRoute,
   AppKontenIndexRoute: AppKontenIndexRoute,

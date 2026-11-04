@@ -11,6 +11,7 @@ import {
   type Fahrzeug,
   type PauschaleArt,
   type Reisetag,
+  isKapitalgesellschaft,
 } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -52,6 +53,30 @@ function detailText(entry: Entry): string {
 }
 
 function PauschalenPage() {
+  const { rechtsform } = Route.useRouteContext();
+  if (isKapitalgesellschaft(rechtsform)) return <OnlyEinzelunternehmen />;
+  return <PauschalenList />;
+}
+
+/** GmbH und UG: keine Pauschalen; Auslagen des Gesellschafters gehen mit Beleg auf das Verrechnungskonto */
+function OnlyEinzelunternehmen() {
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">Ausgaben ohne Beleg</div>
+          <h1>Pauschalen</h1>
+        </div>
+      </div>
+      <p className="muted" style={{ marginTop: 0, maxWidth: 760 }}>
+        Pauschalen gibt es nur im Einzelunternehmen. Erstattet die Gesellschaft dem Gesellschafter Reisekosten oder Auslagen, lade die Abrechnung unter{" "}
+        <Link to="/belege">Belege</Link> hoch und wähle „Vom Gesellschafter ausgelegt“.
+      </p>
+    </>
+  );
+}
+
+function PauschalenList() {
   const data = Route.useLoaderData();
   const { year, totals, homeoffice } = data;
   const [art, setArt] = useState<PauschaleArt>("homeoffice");
