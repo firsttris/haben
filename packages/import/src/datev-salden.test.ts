@@ -97,6 +97,28 @@ describe("Salden je Konto aus dem Buchungsstapel", () => {
     ]);
   });
 
+  it.each([
+    ["SKR03", "0420", "1200", "1576", "1776"],
+    ["SKR04", "0690", "1800", "1406", "3806"],
+  ] as const)("teilt bei Anlagen den BU-Schlüssel in netto und Steuer (%s)", (kontenrahmen, anlage, bank, vorsteuer, ust) => {
+    expect(
+      datevSalden(
+        [
+          b(11900, "S", anlage, bank, "9"), // Kauf mit 19 % Vorsteuer
+          b(2380, "H", anlage, bank, "3"), // Verkauf eines Teils mit 19 % Umsatzsteuer
+        ],
+        kontenrahmen,
+      ),
+    ).toEqual(
+      [
+        { account: anlage, saldo: 10000 - 2000 },
+        { account: bank, saldo: -11900 + 2380 },
+        { account: vorsteuer, saldo: 1900 },
+        { account: ust, saldo: -380 },
+      ].sort((x, y) => x.account.localeCompare(y.account, "de", { numeric: true })),
+    );
+  });
+
   it("ergibt in der Summe immer null", () => {
     const salden = datevSalden([b(11900, "S", "1200", "8400"), b(2140, "S", "4940", "1200", "8"), b(333, "H", "8300", "1200")], "SKR03");
     expect(salden.reduce((s, r) => s + r.saldo, 0)).toBe(0);
