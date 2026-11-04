@@ -2,6 +2,7 @@ import { formatEuro, isKapitalgesellschaft, MANUAL_MAX_LINES, manualPostingIssue
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
+import { DatevEroeffnung } from "../../../components/DatevEroeffnung.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { createManualEntryFn, getManualEntryForm } from "../../../server/functions/journal.ts";
@@ -83,140 +84,144 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
   }
 
   return (
-    <form className="card stack" onSubmit={onSubmit} aria-label="Manuelle Buchung">
-      <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-        Soll an Haben auf frei gewählten Konten ({data.kontenrahmen}), ohne Umsatzsteuer, etwa das Stammkapital, ein Gesellschafterdarlehen oder eine falsche
-        Kontierung. Bank, Kasse, offene Posten, Umsatzsteuer, Erlöse aus Rechnungen und Anlagen führen ihre eigenen Seiten und lassen sich hier nicht bebuchen.
-        Die Buchung ist sofort festgeschrieben; korrigiert wird per Storno.
-      </p>
-      <fieldset className="mode-switch" style={{ border: 0, padding: 0, margin: 0 }}>
-        <legend className="visually-hidden">Art der Buchung</legend>
-        <label className="checkbox">
-          <input type="radio" name="kind" checked={kind === "umbuchung"} onChange={() => setKind("umbuchung")} />
-          Umbuchung
-        </label>
-        <label className="checkbox">
-          <input
-            type="radio"
-            name="kind"
-            checked={kind === "eroeffnung"}
-            onChange={() => {
-              setKind("eroeffnung");
-              setDate(`${date.slice(0, 4)}-01-01`);
-            }}
-            aria-describedby="kind-eroeffnung-hint"
-          />
-          Eröffnungsbuchung
-        </label>
-        <span id="kind-eroeffnung-hint" className="small muted" style={{ display: "block" }}>
-          Salden aus der bisherigen Buchhaltung zum 1. Januar des ersten Jahres in Haben: Bestandskonten und der Kontostand der Bank gegen 9000 Saldenvorträge.
-          Offene Rechnungen und Belege kommen einzeln über den Umzug, Anlagen über das Anlagenverzeichnis.
-        </span>
-      </fieldset>
-      <div className="form-row cols-2">
-        <label className="field">
-          Datum
-          <input type="date" value={date} max={data.today} onChange={(e) => setDate(e.target.value)} required />
-        </label>
-        <label className="field">
-          Buchungstext
-          <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} required minLength={3} />
-        </label>
-      </div>
+    <>
+      <form className="card stack" onSubmit={onSubmit} aria-label="Manuelle Buchung">
+        <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
+          Soll an Haben auf frei gewählten Konten ({data.kontenrahmen}), ohne Umsatzsteuer, etwa das Stammkapital, ein Gesellschafterdarlehen oder eine falsche
+          Kontierung. Bank, Kasse, offene Posten, Umsatzsteuer, Erlöse aus Rechnungen und Anlagen führen ihre eigenen Seiten und lassen sich hier nicht
+          bebuchen. Die Buchung ist sofort festgeschrieben; korrigiert wird per Storno.
+        </p>
+        <fieldset className="mode-switch" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="visually-hidden">Art der Buchung</legend>
+          <label className="checkbox">
+            <input type="radio" name="kind" checked={kind === "umbuchung"} onChange={() => setKind("umbuchung")} />
+            Umbuchung
+          </label>
+          <label className="checkbox">
+            <input
+              type="radio"
+              name="kind"
+              checked={kind === "eroeffnung"}
+              onChange={() => {
+                setKind("eroeffnung");
+                setDate(`${date.slice(0, 4)}-01-01`);
+              }}
+              aria-describedby="kind-eroeffnung-hint"
+            />
+            Eröffnungsbuchung
+          </label>
+          <span id="kind-eroeffnung-hint" className="small muted" style={{ display: "block" }}>
+            Salden aus der bisherigen Buchhaltung zum 1. Januar des ersten Jahres in Haben: Bestandskonten und der Kontostand der Bank gegen 9000
+            Saldenvorträge. Offene Rechnungen und Belege kommen einzeln über den Umzug, Anlagen über das Anlagenverzeichnis. Liegt der DATEV-Stapel der
+            bisherigen Buchhaltung im Archiv, schlägt Haben die ganze Eröffnung aus seiner Schlussbilanz vor (unter dem Formular).
+          </span>
+        </fieldset>
+        <div className="form-row cols-2">
+          <label className="field">
+            Datum
+            <input type="date" value={date} max={data.today} onChange={(e) => setDate(e.target.value)} required />
+          </label>
+          <label className="field">
+            Buchungstext
+            <input value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} required minLength={3} />
+          </label>
+        </div>
 
-      <table className="report-table">
-        <caption className="visually-hidden">Buchungszeilen</caption>
-        <thead>
-          <tr>
-            <th scope="col">Konto</th>
-            <th scope="col">Bezeichnung</th>
-            <th scope="col" className="num">
-              Soll
-            </th>
-            <th scope="col" className="num">
-              Haben
-            </th>
-            <th scope="col">
-              <span className="visually-hidden">Entfernen</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, index) => (
-            <tr key={r.key}>
-              <td>
-                <input
-                  aria-label={`Konto Zeile ${index + 1}`}
-                  className="mono"
-                  inputMode="numeric"
-                  maxLength={4}
-                  size={6}
-                  value={r.account}
-                  onChange={(e) => update(r.key, { account: e.target.value.replace(/\D/g, "") })}
-                />
-              </td>
-              <td className="small muted">{data.accounts[r.account.trim()] ?? ""}</td>
-              <td className="num">
-                <input
-                  aria-label={`Soll Zeile ${index + 1}`}
-                  inputMode="decimal"
-                  size={10}
-                  value={r.debit}
-                  onChange={(e) => update(r.key, { debit: e.target.value })}
-                />
-              </td>
-              <td className="num">
-                <input
-                  aria-label={`Haben Zeile ${index + 1}`}
-                  inputMode="decimal"
-                  size={10}
-                  value={r.credit}
-                  onChange={(e) => update(r.key, { credit: e.target.value })}
-                />
-              </td>
-              <td>
-                {rows.length > 2 && (
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    onClick={() => setRows((current) => current.filter((x) => x.key !== r.key))}
-                    aria-label={`Zeile ${index + 1} entfernen`}
-                  >
-                    Entfernen
-                  </button>
-                )}
-              </td>
+        <table className="report-table">
+          <caption className="visually-hidden">Buchungszeilen</caption>
+          <thead>
+            <tr>
+              <th scope="col">Konto</th>
+              <th scope="col">Bezeichnung</th>
+              <th scope="col" className="num">
+                Soll
+              </th>
+              <th scope="col" className="num">
+                Haben
+              </th>
+              <th scope="col">
+                <span className="visually-hidden">Entfernen</span>
+              </th>
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <th scope="row" colSpan={2}>
-              Summe{difference !== 0 && ` · Differenz ${formatEuro(Math.abs(difference))}`}
-            </th>
-            <td className="num">{formatEuro(sum("debit"))}</td>
-            <td className="num">{formatEuro(sum("credit"))}</td>
-            <td />
-          </tr>
-        </tfoot>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r, index) => (
+              <tr key={r.key}>
+                <td>
+                  <input
+                    aria-label={`Konto Zeile ${index + 1}`}
+                    className="mono"
+                    inputMode="numeric"
+                    maxLength={4}
+                    size={6}
+                    value={r.account}
+                    onChange={(e) => update(r.key, { account: e.target.value.replace(/\D/g, "") })}
+                  />
+                </td>
+                <td className="small muted">{data.accounts[r.account.trim()] ?? ""}</td>
+                <td className="num">
+                  <input
+                    aria-label={`Soll Zeile ${index + 1}`}
+                    inputMode="decimal"
+                    size={10}
+                    value={r.debit}
+                    onChange={(e) => update(r.key, { debit: e.target.value })}
+                  />
+                </td>
+                <td className="num">
+                  <input
+                    aria-label={`Haben Zeile ${index + 1}`}
+                    inputMode="decimal"
+                    size={10}
+                    value={r.credit}
+                    onChange={(e) => update(r.key, { credit: e.target.value })}
+                  />
+                </td>
+                <td>
+                  {rows.length > 2 && (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => setRows((current) => current.filter((x) => x.key !== r.key))}
+                      aria-label={`Zeile ${index + 1} entfernen`}
+                    >
+                      Entfernen
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colSpan={2}>
+                Summe{difference !== 0 && ` · Differenz ${formatEuro(Math.abs(difference))}`}
+              </th>
+              <td className="num">{formatEuro(sum("debit"))}</td>
+              <td className="num">{formatEuro(sum("credit"))}</td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
 
-      <div className="actions">
-        <button type="button" className="btn" onClick={addRow} disabled={rows.length >= MANUAL_MAX_LINES}>
-          Zeile hinzufügen
-        </button>
-        <button type="submit" className="btn btn-primary" disabled={busy || issues.length > 0 || description.trim().length < 3}>
-          Buchen
-        </button>
-      </div>
-      {touched && issues.length > 0 && (
-        <ul className="small" role="status" aria-label="Noch nicht buchbar" style={{ margin: 0 }}>
-          {issues.map((issue) => (
-            <li key={issue}>{issue}</li>
-          ))}
-        </ul>
-      )}
-      <NoticeBanner notice={notice} />
-    </form>
+        <div className="actions">
+          <button type="button" className="btn" onClick={addRow} disabled={rows.length >= MANUAL_MAX_LINES}>
+            Zeile hinzufügen
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={busy || issues.length > 0 || description.trim().length < 3}>
+            Buchen
+          </button>
+        </div>
+        {touched && issues.length > 0 && (
+          <ul className="small" role="status" aria-label="Noch nicht buchbar" style={{ margin: 0 }}>
+            {issues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        )}
+        <NoticeBanner notice={notice} />
+      </form>
+      {kind === "eroeffnung" && data.datevEroeffnung && <DatevEroeffnung data={data.datevEroeffnung} />}
+    </>
   );
 }

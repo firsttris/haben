@@ -18,7 +18,7 @@ import {
   isKapitalgesellschaft,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
-import { and, desc, eq, gte, inArray, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
@@ -676,7 +676,7 @@ export async function listDocuments() {
     .orderBy(sql`${schema.documents.status} = 'gebucht'`, desc(schema.documents.documentDate), desc(schema.documents.uploadedAt));
 }
 
-/** Vorsteuer aus gebuchten Belegen eines Monats (nach Belegdatum), für Kz 66 */
+/** Vorsteuer aus gebuchten Belegen eines Monats (nach Belegdatum), für Kz 66; ohne die vorgetragene aus einer Eröffnung */
 export async function inputTaxForPeriod({ year, month }: VatPeriod): Promise<number> {
   const start = `${year}-${String(month).padStart(2, "0")}-01`;
   const end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
@@ -686,6 +686,13 @@ export async function inputTaxForPeriod({ year, month }: VatPeriod): Promise<num
     .select({ total: sql<string>`coalesce(sum(${schema.journalLines.debit} - ${schema.journalLines.credit}), 0)` })
     .from(schema.journalLines)
     .innerJoin(schema.journalEntries, eq(schema.journalEntries.id, schema.journalLines.entryId))
-    .where(and(gte(schema.journalEntries.date, start), lt(schema.journalEntries.date, end), inArray(schema.journalLines.account, vorsteuer)));
+    .where(
+      and(
+        gte(schema.journalEntries.date, start),
+        lt(schema.journalEntries.date, end),
+        inArray(schema.journalLines.account, vorsteuer),
+        ne(schema.journalEntries.sourceType, "eroeffnung"),
+      ),
+    );
   return Number(row?.total ?? 0);
 }

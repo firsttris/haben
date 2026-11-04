@@ -44,3 +44,4 @@ export {
   sevdeskConnectionStatus,
   startSevdeskImport,
 } from "./sevdesk.ts";
+export { bookDatevEroeffnung, datevEroeffnung, DatevEroeffnungError, datevEroeffnungSchema, type DatevEroeffnung } from "./datev-eroeffnung.ts";

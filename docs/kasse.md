@@ -23,6 +23,8 @@ Bei Abhebung und Einzahlung ordnest du den Umsatz auf dem Bankkonto im [Bankabgl
 - Der Kassenbestand darf an keinem Tag negativ sein. Würde eine Zeile ihn ins Minus bringen, auch an einem späteren Tag, lehnt Haben sie mit dem Datum ab. Trage dann zuerst die Einlage oder Abhebung ein.
 - Datum in der Zukunft ist nicht möglich.
 
+**Anfangsbestand aus der Eröffnung (GmbH und UG):** Bucht die [Eröffnung aus dem DATEV-Stapel](lexoffice.md#eröffnung-aus-dem-datev-stapel-gmbh-und-ug) einen Kassenbestand, ist er der Anfangsbestand des Jahres im Kassenbuch. Er bekommt keine eigene Zeile und wird nicht noch einmal gebucht; du erfasst ihn also nicht zusätzlich als Einlage. Er zählt für die Prüfung, dass der Bestand nicht negativ wird. Würde ein Storno der Eröffnung den Bestand an einem Tag negativ machen, lehnt Haben ihn ab.
+
 Zähle die Kasse regelmäßig und vergleiche mit **Bestand heute**. Weicht etwas ab, klärst du es mit einer Einlage oder Entnahme samt Text.
 
 ## Auswertungen

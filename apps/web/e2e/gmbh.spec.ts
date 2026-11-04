@@ -349,6 +349,76 @@ test("Archiv: Abschluss eines alten Jahres aus dem DATEV-Stapel", async () => {
   expect(await axe(), "/archiv?ansicht=buchungen").toEqual([]);
 });
 
+test("Eröffnung aus der Schlussbilanz des DATEV-Stapels: prüfen, bestätigen, Kasse und Forderungen stehen drin", async () => {
+  const year = new Date().getFullYear();
+  const schluss = year - 1;
+  // Stapel des Vorjahres (SKR04): Eröffnung über 9000 mit Bank, Kasse und Stammkapital, eine Rechnung an einen Debitor
+  const header = `"EXTF";700;21;"Buchungsstapel";13;${year}0102120000000;;"LO";"";"";1001;12345;${schluss}0101;4;${schluss}0101;${schluss}1231;"Lexware Export";"";1;0;0;"EUR";;"";;;"04";;;"";""`;
+  const columns =
+    "Umsatz (ohne Soll/Haben-Kz);Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basis-Umsatz;WKZ Basis-Umsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext";
+  const csv = [
+    header,
+    columns,
+    `25000,00;"S";"EUR";;;;1800;9000;"";0101;"";"";;"Eröffnung Bank"`,
+    `25000,00;"S";"EUR";;;;9000;2900;"";0101;"";"";;"Eröffnung Stammkapital"`,
+    `300,00;"S";"EUR";;;;1600;9000;"";0101;"";"";;"Eröffnung Kasse"`,
+    `300,00;"S";"EUR";;;;9000;3510;"";0101;"";"";;"Eröffnung Gesellschafter"`,
+    `1190,00;"S";"EUR";;;;10000;4400;"";1503;"RE-7";"";;"Rechnung RE-7"`,
+  ].join("\r\n");
+  await go("/archiv");
+  await page.getByLabel("Dateien für das Archiv").setInputFiles({ name: `EXTF_Buchungsstapel_${schluss}.csv`, mimeType: "text/csv", buffer: Buffer.from(csv) });
+  await page.getByRole("button", { name: "Ins Archiv legen" }).click();
+  await expect(page.getByText(`EXTF_Buchungsstapel_${schluss}.csv: archiviert, 5 Buchungen übernommen.`)).toBeVisible();
+
+  // Die Eröffnung von Hand aus dem Test oben steht noch: Der Vorschlag sagt es, statt doppelt zu eröffnen
+  await go("/buchungen/neu");
+  await page.getByRole("form", { name: "Manuelle Buchung" }).getByLabel("Eröffnungsbuchung").check();
+  const vorschlag = page.getByRole("region", { name: `Eröffnung aus dem DATEV-Stapel ${schluss}` });
+  await expect(vorschlag.getByRole("status", { name: "Eröffnung aus dem Stapel nicht buchbar" })).toContainText("zuerst stornieren");
+  await expect(vorschlag.getByRole("button", { name: "Eröffnung buchen" })).toHaveCount(0);
+
+  await go(`/buchungen?jahr=${year}&monat=1`);
+  const journal = page.getByRole("region", { name: "Buchungen" });
+  await journal
+    .getByRole("row")
+    .filter({ hasText: "Eröffnungsbilanz", hasNotText: "Storno:" })
+    .getByRole("button", { name: "Buchungszeilen anzeigen" })
+    .click();
+  const storno = journal.getByRole("button", { name: "Eröffnungsbilanz stornieren" });
+  await storno.click();
+  await storno.click();
+  await expect(page.getByText("Storniert: Eröffnungsbilanz")).toBeVisible();
+
+  await go("/buchungen/neu");
+  await page.getByRole("form", { name: "Manuelle Buchung" }).getByLabel("Eröffnungsbuchung").check();
+  await expect(vorschlag).toContainText("Bilanzsumme 26.490,00");
+  const zeilen = vorschlag.getByRole("table", { name: `Zeilen der Eröffnung zum 1.1.${year}` });
+  await expect(zeilen.getByRole("row").filter({ hasText: "1600" })).toContainText("300,00");
+  await expect(zeilen.getByRole("row").filter({ hasText: "1200" })).toContainText("1.190,00");
+  await expect(zeilen.getByRole("row").filter({ hasText: "3806" })).toContainText("190,00");
+  await expect(zeilen.getByRole("row").filter({ hasText: "2970" })).toContainText("1.000,00");
+  await expect(zeilen.getByRole("row", { name: /Summe/ })).toContainText("26.490,00");
+  expect(await axe(), "/buchungen/neu mit Vorschlag").toEqual([]);
+  const buchen = vorschlag.getByRole("button", { name: "Eröffnung buchen" });
+  await buchen.click();
+  await expect(vorschlag.getByRole("button", { name: "Jetzt buchen" })).toBeVisible();
+  await vorschlag.getByRole("button", { name: "Jetzt buchen" }).click();
+
+  await page.waitForURL(/\/buchungen\?/);
+  await expect(
+    page
+      .getByRole("region", { name: "Buchungen" })
+      .getByRole("row")
+      .filter({ hasText: `Eröffnung aus der Schlussbilanz ${schluss}` }),
+  ).toContainText("Eröffnung");
+  await go(`/konten?jahr=${year}`);
+  const liste = page.getByRole("region", { name: "Saldenliste" });
+  await expect(liste.getByRole("row").filter({ hasText: "1200" }).first()).toContainText("1.190,00");
+  await expect(liste.getByRole("row").filter({ hasText: /^9000/ })).toHaveCount(0);
+  await go(`/kasse?jahr=${year}`);
+  await expect(page.getByText(/300,00\s€ → 300,00\s€/)).toBeVisible();
+});
+
 test("Die Rechtsform ist nach der ersten Buchung fest", async () => {
   await go("/einstellungen");
   await expect(page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform")).toBeDisabled();

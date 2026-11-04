@@ -1,10 +1,10 @@
 import { UserError } from "../../errors.ts";
 import { CASH_BOOKINGS, cashBookingLabel, cashPosting, formatEuro, type CashBooking, type Cents } from "@haben/core";
-import { asc, eq, gte, lt, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { openBooks, post } from "../buchhaltung/index.ts";
-import { db, schema, type Tx } from "../../db/index.ts";
+import { openBooks, openingCash, post } from "../buchhaltung/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 
 /**
@@ -37,30 +37,44 @@ export const cashInputSchema = z.object({
 
 export type CashInput = z.input<typeof cashInputSchema>;
 
-/** Prüft, ob der Bestand mit der neuen Zeile an jedem Tag ab ihrem Datum nicht negativ wird */
-async function assertNeverNegative(tx: Tx, date: string, amount: Cents) {
-  if (amount >= 0) return;
-  const [before] = await tx
-    .select({ sum: sql<string>`coalesce(sum(${schema.cashEntries.amount}), 0)` })
-    .from(schema.cashEntries)
-    .where(lt(schema.cashEntries.date, date));
-  const days = await tx
+/**
+ * Bewegungen der Kasse je Tag: die Zeilen des Kassenbuchs und der Kassenbestand aus einer Eröffnung (aus dem
+ * DATEV-Stapel, openingCash). Die Eröffnung hat keine eigene Zeile; sie ist der Anfangsbestand.
+ */
+async function cashByDay(q: Db | Tx): Promise<Map<string, Cents>> {
+  const rows = await q
     .select({ date: schema.cashEntries.date, sum: sql<string>`sum(${schema.cashEntries.amount})` })
     .from(schema.cashEntries)
-    .where(gte(schema.cashEntries.date, date))
-    .groupBy(schema.cashEntries.date)
-    .orderBy(asc(schema.cashEntries.date));
-  // Bestand am Ende jedes Tages ab dem Datum der neuen Zeile
-  let balance = Number(before?.sum ?? 0) + amount;
-  if (days[0]?.date !== date) days.unshift({ date, sum: "0" });
-  for (const day of days) {
-    balance += Number(day.sum);
-    // Erster Tag, an dem der Bestand unter null fiele
-    if (balance < 0) {
-      const [y, m, d] = day.date.split("-");
+    .groupBy(schema.cashEntries.date);
+  const days = new Map(rows.map((r) => [r.date, Number(r.sum)]));
+  for (const o of await openingCash(q)) days.set(o.date, (days.get(o.date) ?? 0) + o.amount);
+  return days;
+}
+
+/** Prüft, ob der Bestand mit der neuen Bewegung an jedem Tag ab ihrem Datum nicht negativ wird */
+async function assertNeverNegative(tx: Tx, date: string, amount: Cents) {
+  if (amount >= 0) return;
+  const days = await cashByDay(tx);
+  days.set(date, (days.get(date) ?? 0) + amount);
+  // Bestand am Ende jedes Tages, aufsteigend
+  let balance = 0;
+  for (const [day, sum] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
+    balance += sum;
+    // Erster Tag ab der neuen Bewegung, an dem der Bestand unter null fiele
+    if (day >= date && balance < 0) {
+      const [y, m, d] = day.split("-");
       throw new CashError(`Der Kassenbestand würde am ${d}.${m}.${y} negativ (${formatEuro(balance)}). Erfasse vorher die Einlage oder Abhebung.`);
     }
   }
+}
+
+/**
+ * Prüfung für den Storno einer Eröffnung mit Kassenbestand (reverseManualEntry): sperrt das Kassenbuch und lehnt ab,
+ * wenn der Bestand ohne den Eröffnungsbestand an einem Tag negativ würde.
+ */
+export async function checkCashReversal(tx: Tx, date: string, amount: Cents): Promise<void> {
+  await tx.execute(lock);
+  await assertNeverNegative(tx, date, amount);
 }
 
 async function nextNumber(tx: Tx): Promise<number> {
@@ -191,7 +205,10 @@ export async function cashBook(year: number) {
     .orderBy(asc(schema.cashEntries.date), asc(schema.cashEntries.number));
   const start = `${year}-01-01`;
   const end = `${year + 1}-01-01`;
-  const opening = rows.filter((r) => r.date < start).reduce((s, r) => s + r.amount, 0);
+  // Eröffnungsbestand aus dem Journal (Eröffnung am 1. Januar) gehört zum Anfangsbestand seines Jahres
+  const openings = await openingCash();
+  const openingUntil = (date: string) => openings.filter((o) => o.date <= date).reduce((s, o) => s + o.amount, 0);
+  const opening = rows.filter((r) => r.date < start).reduce((s, r) => s + r.amount, 0) + openingUntil(start);
   const reversed = new Set(rows.flatMap((r) => (r.reversesId ? [r.reversesId] : [])));
   let balance = opening;
   const entries = rows
@@ -201,7 +218,8 @@ export async function cashBook(year: number) {
       return { ...r, balance, reversed: reversed.has(r.id) };
     });
   const { rechtsform } = await loadCompany();
-  return { year, rechtsform, opening, closing: balance, current: rows.reduce((s, r) => s + r.amount, 0), entries };
+  const current = rows.reduce((s, r) => s + r.amount, 0) + openingUntil("9999-12-31");
+  return { year, rechtsform, opening, closing: balance, current, entries };
 }
 
 /** Gequotetes Textfeld; beginnt es mit = + - @, wird ein ' vorangestellt, damit Excel es nicht als Formel ausführt */

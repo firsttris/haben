@@ -9,6 +9,7 @@ export * from "./rechtsform.ts";
 export * from "./manual.ts";
 export * from "./vortrag.ts";
 export * from "./hgb.ts";
+export * from "./datev-eroeffnung.ts";
 export * from "./hinterlegung.ts";
 export * from "./ebilanz.ts";
 export * from "./koerperschaft.ts";

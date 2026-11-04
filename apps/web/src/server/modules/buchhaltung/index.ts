@@ -24,5 +24,22 @@ export {
 export { HinterlegungError, hinterlegungAngabenSchema, hinterlegungPdf, hinterlegungStand, type HinterlegungStand } from "./hinterlegung.ts";
 export { accountName, knownAccounts, loadJournal, transitBalance } from "./journal.ts";
 export { kontenblatt, ledgerPeriodSchema, ledgerRange, openBooks, post, saldenliste } from "./ledger.ts";
-export { createManualEntry, ManualEntryError, manualEntrySchema, reverseManualEntry, type ManualEntryInput } from "./manual.ts";
+export {
+  activeOpenings,
+  firstEntryBefore,
+  lockOpenings,
+  openingAfter,
+  openingCash,
+  stapelOpeningCovering,
+  takeoverBalances,
+  type Eroeffnung,
+} from "./eroeffnung.ts";
+export {
+  createManualEntry,
+  ManualEntryError,
+  manualEntrySchema,
+  reverseManualEntry,
+  type CashReversalCheck,
+  type ManualEntryInput,
+} from "./manual.ts";
 export { createPauschale, listPauschalen, pauschaleInputSchema, reversePauschale } from "./pauschalen.ts";

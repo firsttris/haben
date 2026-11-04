@@ -1,9 +1,10 @@
-import { isKapitalgesellschaft, manualPosting, manualPostingIssues, MANUAL_MAX_LINES, reverseManualPosting } from "@haben/core";
+import { ACCOUNTS, isKapitalgesellschaft, manualPosting, manualPostingIssues, MANUAL_MAX_LINES, reverseManualPosting } from "@haben/core";
 import { and, asc, eq, inArray, lt } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
+import { activeOpenings, lockOpenings, openingDependents } from "./eroeffnung.ts";
 import { openBooks, post } from "./ledger.ts";
 
 /*
@@ -62,7 +63,10 @@ export async function createManualEntry(actor: string, input: ManualEntryInput, 
 async function openingIssues(tx: Tx, date: string): Promise<string[]> {
   if (!date.endsWith("-01-01")) return ["Eine Eröffnungsbuchung steht am 1. Januar"];
   const [earlier] = await tx.select({ id: schema.journalEntries.id }).from(schema.journalEntries).where(lt(schema.journalEntries.date, date)).limit(1);
-  return earlier ? [`Vor dem ${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(0, 4)} gibt es schon Buchungen; ihre Salden trägt Haben selbst vor`] : [];
+  if (earlier) return [`Vor dem ${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(0, 4)} gibt es schon Buchungen; ihre Salden trägt Haben selbst vor`];
+  // Die Eröffnung aus dem Stapel bringt alle Bestände der Schlussbilanz mit; eine weitere zählte sie doppelt
+  const stapel = (await activeOpenings(tx)).find((o) => o.ausStapel);
+  return stapel ? ["Die Eröffnung aus dem DATEV-Stapel enthält schon alle Bestände; für eine Änderung sie stornieren und neu eröffnen"] : [];
 }
 
 /** Die manuelle Buchung, gesperrt bis zum Ende der Transaktion: zwei gleichzeitige Stornos sehen einander */
@@ -80,10 +84,33 @@ async function lockedManualEntry(tx: Tx, entryId: string) {
 }
 
 /**
- * Storniert eine manuelle Buchung mit einer Gegenbuchung am selben Tag, damit sie im selben Zeitraum aufgeht.
- * Liegt der Tag in einem Jahr mit anderem Kontenrahmen, lehnt das Hauptbuch ab.
+ * Prüfung vor dem Storno einer Eröffnung, die die Kasse bebucht (aus dem DATEV-Stapel): Das Kassenbuch zählt den
+ * Bestand zum Anfangsbestand. Das Kassenbuch führt das Modul Bank und Kasse; es reicht die Prüfung herein.
  */
-export async function reverseManualEntry(actor: string, entryId: string): Promise<string> {
+export type CashReversalCheck = (tx: Tx, date: string, amount: number) => Promise<void>;
+
+/**
+ * Eine Eröffnung, auf die Übernahmen ohne eigene Buchung oder Anlagen bauen, bleibt stehen: Ihr Storno nähme deren
+ * Bestände mit, und eine neue Eröffnung brächte sie nicht zurück. Sperrt vorher wie Übernahme und Eröffnung (nach der Kasse).
+ */
+async function assertNoDependents(tx: Tx, entryId: string): Promise<void> {
+  await lockOpenings(tx);
+  const { uebernahmen, anlagen } = await openingDependents(tx, entryId);
+  const gruende = [
+    ...(uebernahmen > 0
+      ? [`${uebernahmen === 1 ? "ein übernommener offener Posten steht" : `${uebernahmen} übernommene offene Posten stehen`} nur in ihr`]
+      : []),
+    ...(anlagen > 0 ? [`${anlagen === 1 ? "eine Anlage verweist" : `${anlagen} Anlagen verweisen`} auf sie`] : []),
+  ];
+  if (gruende.length > 0) throw new ManualEntryError(`Die Eröffnung lässt sich nicht stornieren: ${gruende.join(", ")}.`);
+}
+
+/**
+ * Storniert eine manuelle Buchung mit einer Gegenbuchung am selben Tag, damit sie im selben Zeitraum aufgeht.
+ * Liegt der Tag in einem Jahr mit anderem Kontenrahmen, lehnt das Hauptbuch ab. Bebucht sie die Kasse, prüft
+ * `checkCash`, dass der Kassenbestand ohne sie an keinem Tag negativ wird; ohne Prüfung wird sie nicht storniert.
+ */
+export async function reverseManualEntry(actor: string, entryId: string, checkCash?: CashReversalCheck): Promise<string> {
   return withActor(actor, async (tx) => {
     const entry = await lockedManualEntry(tx, entryId);
     const books = await openBooks(tx);
@@ -97,6 +124,12 @@ export async function reverseManualEntry(actor: string, entryId: string): Promis
       .from(schema.journalLines)
       .where(eq(schema.journalLines.entryId, entryId))
       .orderBy(asc(schema.journalLines.id));
+    const kasse = lines.filter((l) => l.account === ACCOUNTS[entry.kontenrahmen].kasse).reduce((sum, l) => sum + l.debit - l.credit, 0);
+    if (kasse !== 0) {
+      if (!checkCash) throw new ManualEntryError("Die Buchung bebucht die Kasse; der Storno braucht die Prüfung des Kassenbuchs.");
+      await checkCash(tx, entry.date, -kasse);
+    }
+    if (entry.sourceType === "eroeffnung") await assertNoDependents(tx, entry.id);
     return post(tx, books, {
       date: entry.date,
       description: `Storno: ${entry.description}`,
