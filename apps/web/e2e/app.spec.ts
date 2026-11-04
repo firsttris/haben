@@ -44,6 +44,10 @@ const pageErrors: string[] = [];
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage();
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  // Ungültige SVG-Werte (etwa NaN in einem Diagramm) meldet der Browser nur in der Konsole, nicht als Seitenfehler
+  page.on("console", (message) => {
+    if (message.type() === "error" && /NaN/.test(message.text())) pageErrors.push(`${page.url()}: ${message.text()}`);
+  });
 });
 
 test.afterAll(async () => {
