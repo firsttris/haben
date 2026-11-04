@@ -393,4 +393,22 @@ describe.skipIf(!testDatabaseUrl)("Eröffnung aus dem DATEV-Stapel (Postgres)", 
     await modul.bookDatevEroeffnung(actor, { year, fingerprint: neu!.fingerprint }, today);
     expect((await cash.cashBook(year)).opening).toBe(50_000);
   });
+
+  it("negativer Kassenbestand in der Schlussbilanz: kein Vorschlag, das Kassenbuch würde mit einem Minus beginnen", async () => {
+    const k = K.SKR03;
+    await setup("SKR03");
+    await upload(
+      schlussjahr,
+      stack(schlussjahr, "SKR03", [
+        [100_000, "S", k.bank, "9000", "", "0101"],
+        [20_000, "H", k.kasse, "9000", "", "0101"],
+        [80_000, "S", "9000", k.kapital, "", "0101"],
+      ]),
+    );
+    const vorschlag = await modul.datevEroeffnung(today);
+    expect(vorschlag!.zeilen.find((z) => z.account === k.kasse)).toMatchObject({ credit: 20_000 });
+    expect(vorschlag!.issues.join(" ")).toMatch(/Kasse/);
+    await expect(modul.bookDatevEroeffnung(actor, { year, fingerprint: vorschlag!.fingerprint }, today)).rejects.toThrow(/Kasse/);
+    expect((await cash.cashBook(year)).opening).toBe(0);
+  });
 });
