@@ -14,6 +14,7 @@ export {
   kleinunternehmerForYear,
   kleinunternehmerHistory,
   lastDayOfMonth,
+  letterIssues,
   loadCompany,
   sellerIssues,
   versteuerungForYear,

@@ -1,6 +1,6 @@
-import { formatEuro, type Steuerbescheinigung } from "@haben/core";
+import { formatEuro, type LegalInfo, type Steuerbescheinigung } from "@haben/core";
 import { formatDate } from "./format.ts";
-import { renderSteuerbescheinigungPdf } from "./pdf.ts";
+import { legalLine, renderSteuerbescheinigungPdf } from "./pdf.ts";
 import type { Letterhead } from "./types.ts";
 
 /*
@@ -10,10 +10,12 @@ import type { Letterhead } from "./types.ts";
 
 export interface SteuerbescheinigungDocument extends Letterhead {
   bescheinigung: Steuerbescheinigung;
+  /** Pflichtangaben der ausschüttenden GmbH oder UG (§ 35a Abs. 1 GmbHG) */
+  legalInfo?: LegalInfo;
 }
 
 /** Druckfertige Texte für templates/steuerbescheinigung.typ */
-export function steuerbescheinigungPdfData({ bescheinigung: b }: SteuerbescheinigungDocument) {
+export function steuerbescheinigungPdfData({ bescheinigung: b, legalInfo }: SteuerbescheinigungDocument) {
   const { aussteller: a, glaeubiger: g } = b;
   const ausstellerAnschrift = `${a.strasse}, ${a.plz} ${a.ort}`;
   return {
@@ -44,6 +46,7 @@ export function steuerbescheinigungPdfData({ bescheinigung: b }: Steuerbescheini
     ],
     signature: "Die Bescheinigung ist maschinell erstellt und wird nicht unterschrieben (§ 45a Abs. 2 EStG).",
     footer: [[a.name, a.strasse, `${a.plz} ${a.ort}`], [], a.steuernummer ? [`Steuernummer ${a.steuernummer}`] : []],
+    legal: legalLine(legalInfo),
   };
 }
 

@@ -2,6 +2,8 @@
 // formatiert als JSON über sys.inputs.data; hier wird nichts berechnet.
 
 #let d = json(bytes(sys.inputs.data))
+// Pflichtangaben einer GmbH oder UG (§ 35a GmbHG) unter den Spalten des Fußes; ohne sie bleibt der Fuß wie bisher
+#let legal = d.at("legal", default: none)
 
 // Grautöne für Text, Beschriftungen und Linien, aus der Akzentfarbe abgeleitet (accentPalette in packages/core)
 #let ink = rgb(d.palette.ink)
@@ -26,7 +28,7 @@
 
 #set page(
   paper: "a4",
-  margin: (top: 20mm, bottom: 34mm, left: 25mm, right: 20mm),
+  margin: (top: 20mm, bottom: if legal == none { 34mm } else { 42mm }, left: 25mm, right: 20mm),
   background: {
     // Falz- und Lochmarken (Form B)
     place(top + left, dx: 4mm, dy: 105mm, line(length: 4mm, stroke: 0.4pt + rule))
@@ -44,6 +46,10 @@
       footer-col(d.footer.at(1)),
       footer-col(d.footer.at(2)),
     )
+    if legal != none {
+      v(2mm)
+      footer-col((legal,))
+    }
     let total = counter(page).final().first()
     if total > 1 {
       v(2.5mm)

@@ -3,6 +3,7 @@ import {
   EXPENSE_CATEGORY_KEYS,
   RECHTSFORM_KEYS,
   isKapitalgesellschaft,
+  legalInfoGaps,
   toElsterSteuernummer,
   SteuernummerError,
   type Versteuerung,
@@ -63,6 +64,9 @@ export const companySchema = z
     sitz: z.string().trim().max(100).default(""),
     registergericht: z.string().trim().max(100).default(""),
     registernummer: z.string().trim().max(40).default(""),
+    /** GmbH und UG: Pflichtangaben auf Geschäftsbriefen (§ 35a Abs. 1 GmbHG); Geschäftsführer einer je Zeile */
+    geschaeftsfuehrer: z.string().trim().max(1000).default(""),
+    aufsichtsratVorsitz: z.string().trim().max(200).default(""),
     paymentTermDays: z.number().int().min(0).max(120),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     /** Vorgabe für die Einleitung neuer Rechnungen und Angebote; so lang wie das Feld im Beleg */
@@ -195,6 +199,7 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     textBlocks: textBlocks.map(({ id, name, kind, text, contactId }) => ({ id, name, kind, text, contactId })),
     company: { name, strasse, plz, ort, email, steuernummer, ustId, iban, bic, bank, kontoinhaber, logo: logo?.sha256 ?? null, accent: company.accentColor },
     sellerIssues: sellerIssues(company),
+    letterIssues: letterIssues(company),
     bundesland: company.bundesland,
     kleinunternehmer: company.kleinunternehmer,
     tageskurs: company.tageskurs,
@@ -231,4 +236,14 @@ export function sellerIssues(company: Company): string[] {
   if (!company.email) issues.push("E-Mail-Adresse fehlt");
   if (!company.iban) issues.push("IBAN fehlt");
   return issues;
+}
+
+/**
+ * Was einer GmbH oder UG an Pflichtangaben für Geschäftsbriefe fehlt (§ 35a Abs. 1 GmbHG). Nur ein Hinweis, keine
+ * Sperre beim Festschreiben: Die Rechnung bleibt umsatzsteuerlich gültig (§ 14 Abs. 4 UStG verlangt die Angaben nicht),
+ * das Registergericht kann fehlende Angaben mit Zwangsgeld durchsetzen (§ 79 Abs. 1 GmbHG), und eine Vor-GmbH hat vor
+ * der Eintragung noch keine Registernummer, rechnet aber schon ab.
+ */
+export function letterIssues(company: Company): string[] {
+  return legalInfoGaps(company);
 }

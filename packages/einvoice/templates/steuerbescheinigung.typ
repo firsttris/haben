@@ -2,6 +2,8 @@
 // wie die Mahnung (DIN 5008 Form B). Alle Texte und Beträge kommen fertig formatiert als JSON über sys.inputs.data.
 
 #let d = json(bytes(sys.inputs.data))
+// Pflichtangaben einer GmbH oder UG (§ 35a GmbHG) unter den Spalten des Fußes; ohne sie bleibt der Fuß wie bisher
+#let legal = d.at("legal", default: none)
 
 #let ink = rgb(d.palette.ink)
 #let muted = rgb(d.palette.muted)
@@ -23,7 +25,7 @@
 
 #set page(
   paper: "a4",
-  margin: (top: 20mm, bottom: 34mm, left: 25mm, right: 20mm),
+  margin: (top: 20mm, bottom: if legal == none { 34mm } else { 42mm }, left: 25mm, right: 20mm),
   background: {
     place(top + left, dx: 4mm, dy: 105mm, line(length: 4mm, stroke: 0.4pt + rule))
     place(top + left, dx: 4mm, dy: 148.5mm, line(length: 6mm, stroke: 0.4pt + rule))
@@ -40,6 +42,10 @@
       footer-col(d.footer.at(1)),
       footer-col(d.footer.at(2)),
     )
+    if legal != none {
+      v(2mm)
+      footer-col((legal,))
+    }
     let total = counter(page).final().first()
     if total > 1 {
       v(2.5mm)
