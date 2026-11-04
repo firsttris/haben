@@ -113,6 +113,20 @@ describe.skipIf(!testDatabaseUrl)("Steuerbescheinigungen (Postgres)", () => {
     await expect(s.loadSteuerbescheinigungPdf(id, 0, "2026-08-03")).rejects.toThrow("storniert");
   }, 30_000);
 
+  it("zwei Gesellschafter mit gleichem Namen: jeder mit seinen eigenen Angaben", async () => {
+    await setup("SKR04", "soll", { bank: "1800", kapital: "2900", vortrag: "2970" });
+    // Vater und Sohn heißen gleich; nur der Vater hat eine IdNr. eingetragen
+    const vater = { ...erika, name: "Max Muster", anteil: 5000, beteiligung: 1_250_000 };
+    const sohn = { ...max, name: "Max Muster", anteil: 5000, beteiligung: 1_250_000 };
+    await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [vater, sohn] });
+    const id = await a.createAusschuettung(actor, { beschluss: "2026-03-01", brutto: 100_000 }, today);
+    expect((await s.steuerbescheinigungenDesJahres(2026, today))[id]).toEqual([
+      { nr: 0, name: "Max Muster", fehlend: [] },
+      { nr: 1, name: "Max Muster", fehlend: ["Steuerliche Identifikationsnummer von Max Muster fehlt (Jahreserklärung › Angaben zu den Erklärungen)."] },
+    ]);
+    await expect(s.loadSteuerbescheinigungPdf(id, 1, today)).rejects.toThrow("Identifikationsnummer von Max Muster fehlt");
+  }, 30_000);
+
   it("fehlende Anschrift der Gesellschaft", async () => {
     await setup("SKR03", "ist", { bank: "1200", kapital: "0800", vortrag: "0860" });
     await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [{ ...erika, anteil: 10_000 }] });
