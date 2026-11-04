@@ -58,7 +58,7 @@ Reverse Charge lässt sich ohne weitere Angaben nicht eindeutig Kz 21 oder Kz 60
 
 ### Zahlungen
 
-sevDesk liefert über diese Schnittstelle keine einzelnen Zahlungen, nur den bezahlten Betrag (`paidAmount`) und das letzte Zahldatum (`payDate`). Haben führt den bezahlten Betrag als eine Zahlung an diesem Datum. Bei Ist-Versteuerung rechnet die Umsatzsteuer je Monat im Abgleich damit; wurde eine Rechnung in mehreren Raten bezahlt, landet alles im Monat der letzten Zahlung. Vergleiche diese Monate mit den übermittelten Voranmeldungen.
+sevDesk liefert über diese Schnittstelle keine einzelnen Zahlungen, nur den bezahlten Betrag (`paidAmount`) und das letzte Zahldatum (`payDate`). Haben führt den bezahlten Betrag als eine Zahlung an diesem Datum. Bei Ist-Versteuerung rechnet die Umsatzsteuer je Monat im Abgleich damit; wurde eine Rechnung in mehreren Raten bezahlt, landet alles im Monat der letzten Zahlung. Vergleiche diese Monate mit den übermittelten Voranmeldungen. Dasselbe gilt für den [Stichtag](lexoffice.md#stichtag) der offenen Posten: Liegt die letzte Zahlung nach dem Stichtag, zählt der ganze bezahlte Betrag als danach gezahlt, auch wenn eine Rate davor lag. Prüfe solche Posten gegen die Offene-Posten-Liste in sevDesk zum Stichtag.
 
 ### Was die API nicht liefert
 

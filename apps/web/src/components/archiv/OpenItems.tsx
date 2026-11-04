@@ -51,7 +51,7 @@ export function OpenItems({ items, cutoff, cutoffError, imported }: { items: Ite
         Original-PDF und bisheriger Nummer, gebucht gegen den Saldenvortrag. Kommt das Geld, ordnest du es wie gewohnt im Bankabgleich zu. Die schon angemeldete
         Umsatz- und Vorsteuer zählt Haben dabei nicht doppelt.
       </p>
-      <CutoffForm key={cutoff.date} cutoff={cutoff} error={cutoffError} disabled={busy !== null} />
+      {imported && <CutoffForm key={cutoff.date} cutoff={cutoff} error={cutoffError} disabled={busy !== null} />}
       {!imported ? (
         <p className="small muted" style={{ margin: 0 }}>
           Erst nach dem Abruf.
@@ -68,7 +68,7 @@ export function OpenItems({ items, cutoff, cutoffError, imported }: { items: Ite
                 <th>Datum</th>
                 <th>Nummer</th>
                 <th>Kontakt</th>
-                <th className="num">Offen am Stichtag</th>
+                <th className="num">Offen</th>
                 <th>
                   <span className="visually-hidden">Aktion</span>
                 </th>

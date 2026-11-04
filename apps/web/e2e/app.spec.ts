@@ -976,7 +976,14 @@ test("Umzug ohne Public API: Skript abrufen, Sicherung hochladen und übernehmen
   const step2 = page.getByRole("region", { name: "Kontakte, Rechnungen und Belege abrufen" });
   await expect(step2).toContainText("Fertig am");
   // Die überfällige Ausgabe steht als offener Posten bereit
-  await expect(page.getByRole("region", { name: "Offene Posten übernehmen" })).toContainText("2025-4711");
+  const offen = page.getByRole("region", { name: "Offene Posten übernehmen" });
+  await expect(offen).toContainText("2025-4711");
+  // Stichtag: letzter Tag der alten Buchhaltung; im Einzelunternehmen wählbar, gebucht wird am Tag danach
+  await offen.getByLabel("Stichtag (letzter Tag der alten Buchhaltung)").fill(`${YEAR - 1}-12-30`);
+  await offen.getByRole("button", { name: "Stichtag ändern" }).click();
+  await expect(offen).toContainText(`Stichtag 30.12.${YEAR - 1}`);
+  await expect(offen).toContainText(`Gebucht wird zum 31.12.${YEAR - 1}`);
+  await expect(offen).toContainText("2025-4711");
 });
 
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {

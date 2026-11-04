@@ -18,7 +18,8 @@ export const LEGACY_PAYMENT_TYPES: ReadonlySet<string> = new Set([
 
 /**
  * Was den offenen Betrag mindert, ohne Geld zu bewegen. Nach dem Stichtag gehören Skonto und Forderungsausfall in die
- * Bücher von Haben (Minderung des Entgelts nach § 17 UStG im Zeitraum der Minderung); am Stichtag war der Betrag offen.
+ * Bücher von Haben: Die Steuer wird für den Zeitraum berichtigt, in dem das Entgelt sich mindert bzw. uneinbringlich wird
+ * (§ 17 Abs. 1 Satz 8, Abs. 2 Nr. 1 UStG); am Stichtag war der Betrag offen.
  */
 const SETTLING_TYPES: ReadonlySet<string> = new Set(["cashDiscount", "irrecoverableReceivable"]);
 

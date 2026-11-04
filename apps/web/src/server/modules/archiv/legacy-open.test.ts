@@ -406,7 +406,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
           expect(await figures.computeVatFigures({ year, month: 1 })).toMatchObject(
             versteuerung === "ist" ? { kz81: 100_000, tax81: 19_000 } : { kz81: 0, tax81: 0 },
           );
-          // EÜR: Zufluss im Januar (§ 11 EStG), also Einnahme im ersten Jahr in Haben
+          // EÜR: Zufluss im Januar (§ 11 Abs. 1 Satz 1 EStG), also Einnahme im ersten Jahr in Haben
           const euer = await reports.euerForYear(year);
           expect(euer.totalEinnahmen).toBe(119_000);
         },

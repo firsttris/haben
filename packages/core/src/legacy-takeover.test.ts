@@ -6,7 +6,7 @@ const paid = (date: string, amount: number, type = "partPaymentFinancialTransact
 
 describe("legacyOpenAt: offen am Stichtag", () => {
   it("ohne Zahlungen ist der ganze Betrag offen", () => {
-    expect(legacyOpenAt(invoice({ status: "openRevenue", openAmount: 119_000, paidDate: null, items: [] }), "2025-12-31")).toEqual({
+    expect(legacyOpenAt(invoice({ openAmount: 119_000, items: [] }), "2025-12-31")).toEqual({
       open: 119_000,
       paidAfter: 0,
       issue: null,
@@ -14,25 +14,23 @@ describe("legacyOpenAt: offen am Stichtag", () => {
   });
 
   it("im Januar bezahlt: am 31.12. ganz offen, die Zahlung kommt in Haben an", () => {
-    const voucher = invoice({ status: "balanced", openAmount: 0, paidDate: "2026-01-15", items: [paid("2026-01-15", 119_000)] }, "paid");
+    const voucher = invoice({ openAmount: 0, items: [paid("2026-01-15", 119_000)] }, "paid");
     expect(legacyOpenAt(voucher, "2025-12-31")).toEqual({ open: 119_000, paidAfter: 119_000, issue: null });
   });
 
   it("im Dezember bezahlt: am Stichtag nicht offen", () => {
-    const voucher = invoice({ status: "balanced", openAmount: 0, paidDate: "2025-12-20", items: [paid("2025-12-20", 119_000)] }, "paid");
+    const voucher = invoice({ openAmount: 0, items: [paid("2025-12-20", 119_000)] }, "paid");
     expect(legacyOpenAt(voucher, "2025-12-31").open).toBe(0);
   });
 
   it("am Stichtag selbst bezahlt zählt als bezahlt", () => {
-    const voucher = invoice({ status: "balanced", openAmount: 0, paidDate: "2025-12-31", items: [paid("2025-12-31", 119_000)] }, "paid");
+    const voucher = invoice({ openAmount: 0, items: [paid("2025-12-31", 119_000)] }, "paid");
     expect(legacyOpenAt(voucher, "2025-12-31").open).toBe(0);
   });
 
   it("Teilzahlung vor dem Stichtag mindert den offenen Betrag, eine danach nicht", () => {
     const voucher = invoice({
-      status: "partlyPaid",
       openAmount: 19_000,
-      paidDate: null,
       items: [paid("2025-11-30", 50_000), paid("2026-01-10", 50_000, "manualPayment")],
     });
     expect(legacyOpenAt(voucher, "2025-12-31")).toEqual({ open: 69_000, paidAfter: 50_000, issue: null });
@@ -42,7 +40,7 @@ describe("legacyOpenAt: offen am Stichtag", () => {
     const voucher: LegacyOpenVoucher = {
       gross: 11_900,
       status: "paid",
-      payment: { status: "balanced", openAmount: 0, paidDate: "2026-01-05", items: [paid("2026-01-05", -11_900)] },
+      payment: { openAmount: 0, items: [paid("2026-01-05", -11_900)] },
     };
     expect(legacyOpenAt(voucher, "2025-12-31")).toEqual({ open: 11_900, paidAfter: 11_900, issue: null });
   });
@@ -50,9 +48,7 @@ describe("legacyOpenAt: offen am Stichtag", () => {
   it("Skonto und Forderungsausfall nach dem Stichtag gehören in Haben; am Stichtag war der Betrag offen", () => {
     const voucher = invoice(
       {
-        status: "balanced",
         openAmount: 0,
-        paidDate: "2026-01-15",
         items: [paid("2026-01-15", 116_620), paid("2026-01-15", 2_380, "cashDiscount")],
       },
       "paid",
@@ -61,14 +57,14 @@ describe("legacyOpenAt: offen am Stichtag", () => {
   });
 
   it("unbekannte Zahlungsart oder Zahlung ohne Datum nach dem Stichtag: Stand unklar", () => {
-    const unknown = invoice({ status: "balanced", openAmount: 0, paidDate: null, items: [paid("2026-01-15", 119_000, "somethingNew")] }, "paid");
+    const unknown = invoice({ openAmount: 0, items: [paid("2026-01-15", 119_000, "somethingNew")] }, "paid");
     expect(legacyOpenAt(unknown, "2025-12-31").issue).toMatch(/somethingNew/);
-    const undated = invoice({ status: "balanced", openAmount: 0, paidDate: null, items: [paid("", 119_000)] }, "paid");
+    const undated = invoice({ openAmount: 0, items: [paid("", 119_000)] }, "paid");
     expect(legacyOpenAt(undated, "2025-12-31").issue).toMatch(/ohne Datum/);
   });
 
   it("Zahlungen über dem Betrag: Stand unklar", () => {
-    const voucher = invoice({ status: "openRevenue", openAmount: 119_000, paidDate: null, items: [paid("2026-01-15", 10_000)] });
+    const voucher = invoice({ openAmount: 119_000, items: [paid("2026-01-15", 10_000)] });
     expect(legacyOpenAt(voucher, "2025-12-31").issue).toMatch(/passen nicht/);
   });
 
