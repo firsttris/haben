@@ -2,7 +2,10 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   abgabefrist,
   dueDate,
+  filingPeriodOfMonth,
+  frequencyAt,
   isKapitalgesellschaft,
+  lastMonthOfPeriod,
   kapestFrist,
   periodKey,
   periodLabel,
@@ -18,6 +21,7 @@ import { db, schema } from "../../db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
 import { kapestAnmeldungen } from "../ausschuettung/index.ts";
 import { loadActiveCertificate } from "../elster/index.ts";
+import { loadFrequencies } from "../umsatzsteuer/index.ts";
 
 export type FristArt = "ustva" | "kapest" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
 
@@ -74,11 +78,14 @@ export async function listFristen(today: string): Promise<Frist[]> {
   // Monaten als Kleinunternehmer. Maßgeblich ist der Stand im Monat, nicht der heutige: Wer zum Jahreswechsel umstellt,
   // schuldet die Voranmeldung für Dezember noch.
   const kleinunternehmerAm = await kleinunternehmerHistory();
+  const frequencies = await loadFrequencies();
   {
     const sent = new Set(sentReturns.map((r) => periodKey(r)));
+    // Je Monat der Zeitraum, zu dem er gehört (Monat, Quartal oder befreit); ein Zeitraum zählt mit seinem letzten Monat
     const periods: VatPeriod[] = [];
     for (let p = previousPeriod({ year: Number(bis.slice(0, 4)), month: Number(bis.slice(5, 7)) }); periodKey(p) >= start; p = previousPeriod(p)) {
-      if (!kleinunternehmerAm(lastDayOfMonth(p.year, p.month))) periods.unshift(p);
+      const period = filingPeriodOfMonth(p, frequencyAt(frequencies, p));
+      if (period && lastMonthOfPeriod(period).month === p.month && !kleinunternehmerAm(lastDayOfMonth(p.year, p.month))) periods.unshift(period);
     }
     for (const period of periods) {
       const datum = dueDate(period, bundesland);

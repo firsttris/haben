@@ -1,4 +1,4 @@
-import { computeUstva, formatDecimal, formatEuro, parseEuro, parsePeriodKey, periodKey, periodLabel, previousPeriod, type VatPeriod } from "@haben/core";
+import { computeUstva, formatDecimal, formatEuro, parseEuro, parsePeriodKey, periodKey, periodLabel } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
@@ -6,6 +6,7 @@ import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
 import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
+import { VatFrequencyCard } from "../../../components/umsatzsteuer/VatFrequencyCard.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import { createVatCorrection, getMeinElsterUstvaWerte, getVatPeriod, saveVatDraft, submitVatReturn } from "../../../server/functions/vat.ts";
@@ -37,16 +38,6 @@ function sameFigures(a: Figures, b: Figures): boolean {
 }
 type PeriodNotice = { key: string; notice: Notice };
 
-function periodOptions(today = new Date()): VatPeriod[] {
-  let period: VatPeriod = { year: today.getFullYear(), month: today.getMonth() + 1 };
-  const options: VatPeriod[] = [];
-  for (let i = 0; i < 13; i++) {
-    options.push(period);
-    period = previousPeriod(period);
-  }
-  return options;
-}
-
 /** „Kz 81 1.000,00 €, Kz 86 0,00 € und Kz 66 12,00 €“; Kz 21/45/48 nur, wenn belegt */
 function describe(figures: Record<FieldKey, number>): string {
   const parts = FIELDS.filter((f) => ["kz81", "kz86", "kz66"].includes(f) || figures[f] !== 0).map((f) => `Kz ${f.slice(2)} ${formatEuro(figures[f])}`);
@@ -63,7 +54,8 @@ function VatPeriodPage() {
   const [periodNotice, setPeriodNotice] = useState<PeriodNotice | null>(null);
   const notice = periodNotice?.key === key ? periodNotice.notice : null;
   const setNotice = (next: Notice) => setPeriodNotice({ key, notice: next });
-  const options = periodOptions();
+  // Zeiträume nach dem eingestellten Voranmeldungszeitraum, dazu der angezeigte, falls er nicht dazugehört
+  const options = [...data.periods];
   if (!options.some((option) => periodKey(option) === key)) options.push(data.period);
 
   return (
@@ -101,6 +93,12 @@ function VatPeriodPage() {
               Abgabe in Mein ELSTER
             </a>
           </span>
+        </div>
+      )}
+      {data.periodProblem && (
+        <div className="banner" role="status">
+          <Icon name="alert" />
+          <span>{data.periodProblem}</span>
         </div>
       )}
       {data.companyIssues.length > 0 && (
@@ -162,7 +160,9 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
   // Negative Werte sind erlaubt, etwa wenn Gutschriften im Monat überwiegen
   const manualValid = Object.values(parsed).every((v) => v !== null) && reason.trim().length >= 10;
   const manualFigures = Object.fromEntries(FIELDS.map((f) => [f, parsed[f] ?? 0])) as Record<FieldKey, number>;
-  const valid = mode === "berechnet" || manualValid;
+  // Ein Zeitraum, der nicht zum eingestellten Voranmeldungszeitraum passt, lässt sich nicht neu anmelden; berichtigen geht
+  const allowed = !data.periodProblem || Boolean(current?.berichtigt);
+  const valid = allowed && (mode === "berechnet" || manualValid);
   const shown = locked ? computeUstva(current!) : mode === "manuell" ? computeUstva(manualFigures) : computed;
   // Gespeicherter berechneter Entwurf, dessen Werte sich inzwischen geändert haben
   const stale = !locked && current?.source === "berechnet" && !sameFigures(current, computed);
@@ -534,6 +534,7 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
             blocked={dirty || stale || data.companyIssues.length > 0}
           />
         )}
+        <VatFrequencyCard key={data.frequency.year} frequency={data.frequency} />
         <History data={data} />
       </div>
     </div>

@@ -5,6 +5,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { companyIssues, loadCompany } from "../stammdaten/index.ts";
 import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/index.ts";
 import { computeVatFigures } from "./vat-figures.ts";
+import { loadFrequencies, periodProblem } from "./zeitraum.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 
@@ -12,7 +13,7 @@ export type VatReturn = typeof schema.vatReturns.$inferSelect;
 
 export class VatError extends UserError {}
 
-/** Alle Anmeldungen eines Zeitraums, neueste zuerst. */
+/** Alle Anmeldungen eines Zeitraums (Monat oder Quartal), neueste zuerst. */
 export async function returnsForPeriod({ year, month }: VatPeriod): Promise<VatReturn[]> {
   return db
     .select()
@@ -115,6 +116,9 @@ export async function saveDraft(actor: string, period: VatPeriod, input: DraftIn
     if (sent) {
       throw new VatError("Für diesen Zeitraum ist schon eine Anmeldung gesendet. Lege eine berichtigte Anmeldung an.");
     }
+    // Neue Anmeldungen nur für Zeiträume, die zum eingestellten Voranmeldungszeitraum passen
+    const problem = periodProblem(await loadFrequencies(tx), period);
+    if (problem) throw new VatError(problem);
     const [created] = await tx
       .insert(schema.vatReturns)
       .values({ year: period.year, month: period.month, ...values })
@@ -195,6 +199,9 @@ export function submitReturn(actor: string, returnId: string, client: ElsterClie
       if (!vatReturn) throw new VatError("Anmeldung nicht gefunden.");
       const sendProblem = vatReturnSendProblem(vatReturn);
       if (sendProblem) throw new VatError(sendProblem);
+      // Eine berichtigte Anmeldung gehört zu einer gesendeten und bleibt in deren Zeitraum
+      const problem = vatReturn.berichtigt ? null : periodProblem(await loadFrequencies(), vatReturn);
+      if (problem) throw new VatError(problem);
       // Berechnete Entwürfe vor dem Senden auf den aktuellen Stand der Buchungen bringen
       if (vatReturn.source === "berechnet") {
         vatReturn = await saveDraft(actor, { year: vatReturn.year, month: vatReturn.month }, { mode: "berechnet" });

@@ -785,6 +785,20 @@
       "when": 1793988954647,
       "tag": "0111_registerangaben",
       "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1793818964956,
+      "tag": "0112_ustva_zeitraum",
+      "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1793818966195,
+      "tag": "0113_ustva_zeitraum_trigger",
+      "breakpoints": true
     }
   ]
 }

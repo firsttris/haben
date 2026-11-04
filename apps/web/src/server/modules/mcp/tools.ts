@@ -3,6 +3,8 @@ import {
   dueDate,
   kontenklasse,
   kontoart,
+  lastMonthOfPeriod,
+  latestEndedPeriod,
   parsePeriodKey,
   previousPeriod,
   periodKey,
@@ -33,7 +35,7 @@ import { listFristen, listVastBelege, openAppealDeadlines } from "../finanzamt/i
 import { annualOverview } from "../jahreserklaerung/index.ts";
 import { invoiceSummary, listInvoices, overdueInvoices } from "../rechnungen/index.ts";
 import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../stammdaten/index.ts";
-import { computeVatFigures, computedValues, preflight, returnsForPeriod } from "../umsatzsteuer/index.ts";
+import { computeVatFigures, computedValues, loadFrequencies, preflight, returnsForPeriod } from "../umsatzsteuer/index.ts";
 import { ustvaAusfuellliste } from "./ausfuellliste.ts";
 import { McpError, type TokenScope } from "./tokens.ts";
 
@@ -70,16 +72,26 @@ const KENNUNG_API = /taxnumber|taxid|idnr|steuernummer/i;
 const limitSchema = z.number().int().min(1).max(200).default(50).describe("Höchstens so viele Einträge (Standard 50)");
 const yearSchema = z.number().int().min(2000).max(2100);
 
-/** Monat, der als Nächstes abzugeben ist (der Vormonat), nach dem Datum in Deutschland und nicht der Zeitzone des Servers */
-function filingPeriod(today: string): VatPeriod {
-  return previousPeriod({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) });
+/**
+ * Zeitraum, der als Nächstes abzugeben ist (der Vormonat oder das letzte volle Quartal nach dem eingestellten
+ * Voranmeldungszeitraum), nach dem Datum in Deutschland und nicht der Zeitzone des Servers. Befreit: der Vormonat.
+ */
+async function filingPeriod(today: string): Promise<VatPeriod> {
+  const month = { year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) };
+  return latestEndedPeriod(await loadFrequencies(), month) ?? previousPeriod(month);
 }
 
-function periodFrom(key: string | undefined, today: string): VatPeriod {
+async function periodFrom(key: string | undefined, today: string): Promise<VatPeriod> {
   if (!key) return filingPeriod(today);
   const period = parsePeriodKey(key);
-  if (!period) throw new McpError(`Zeitraum „${key}“ ungültig, erwartet JJJJ-MM.`);
+  if (!period) throw new McpError(`Zeitraum „${key}“ ungültig, erwartet JJJJ-MM oder JJJJ-Q1 bis JJJJ-Q4.`);
   return period;
+}
+
+/** Kleinunternehmer am Ende des Zeitraums */
+function kleinunternehmerFor(period: VatPeriod): Promise<boolean> {
+  const last = lastMonthOfPeriod(period);
+  return kleinunternehmerForMonth(last.year, last.month);
 }
 
 function tool<Shape extends z.ZodRawShape>(definition: McpTool<Shape>): McpTool {
@@ -159,7 +171,7 @@ export const MCP_TOOLS: McpTool[] = [
     scope: "haben:lesen",
     input: {},
     run: async (_args, { today }) => {
-      const period = filingPeriod(today);
+      const period = await filingPeriod(today);
       const [company, returns, computed, invoices, accounts, documents, afa, appeals, certificate, fristen, kleinunternehmer] = await Promise.all([
         loadCompany(),
         returnsForPeriod(period),
@@ -171,7 +183,7 @@ export const MCP_TOOLS: McpTool[] = [
         openAppealDeadlines(today),
         loadActiveCertificate(),
         listFristen(today),
-        kleinunternehmerForMonth(period.year, period.month),
+        kleinunternehmerFor(period),
       ]);
       const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
       return {
@@ -391,25 +403,25 @@ export const MCP_TOOLS: McpTool[] = [
     name: "umsatzsteuer_voranmeldung",
     title: "Umsatzsteuer-Voranmeldung",
     description:
-      "Kennzahlen der Umsatzsteuer-Voranmeldung eines Monats aus den Buchungen, gespeicherter Stand (Entwurf oder gesendet), Fälligkeit " +
-      "und die Vorprüfung: was im Monat noch offen ist und die Zahlen verfälschen könnte, dazu der Abgleich mit dem Journal. " +
-      "Ohne Zeitraum der Monat, der als Nächstes abzugeben ist. Gesendet wird nur in Haben selbst.",
+      "Kennzahlen der Umsatzsteuer-Voranmeldung eines Monats oder Quartals aus den Buchungen, gespeicherter Stand (Entwurf oder gesendet), Fälligkeit " +
+      "und die Vorprüfung: was im Zeitraum noch offen ist und die Zahlen verfälschen könnte, dazu der Abgleich mit dem Journal. " +
+      "Ohne Zeitraum der Monat oder das Quartal, das als Nächstes abzugeben ist. Gesendet wird nur in Haben selbst.",
     scope: "haben:lesen",
     input: {
       zeitraum: z
         .string()
-        .regex(/^\d{4}-\d{2}$/)
+        .regex(/^\d{4}-(\d{2}|Q[1-4])$/)
         .optional()
-        .describe("Monat als JJJJ-MM"),
+        .describe("Monat als JJJJ-MM oder Quartal als JJJJ-Q1 bis JJJJ-Q4"),
     },
     run: async ({ zeitraum }, { today }) => {
-      const period = periodFrom(zeitraum, today);
+      const period = await periodFrom(zeitraum, today);
       const [company, returns, figures, abgleich, kleinunternehmer] = await Promise.all([
         loadCompany(),
         returnsForPeriod(period),
         computeVatFigures(period),
         vatAbgleich(period),
-        kleinunternehmerForMonth(period.year, period.month),
+        kleinunternehmerFor(period),
       ]);
       const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
       const issues = [...(await preflight(period, figures)), ...abgleichIssues(abgleich)];
@@ -452,7 +464,7 @@ export const MCP_TOOLS: McpTool[] = [
     name: "ustva_ausfuellliste",
     title: "Ausfüllliste Voranmeldung für Mein ELSTER",
     description:
-      "Die Werte der Umsatzsteuer-Voranmeldung eines Monats zum Eintragen in Mein ELSTER: Kennzahl, Abschnitt und Bezeichnung in der " +
+      "Die Werte der Umsatzsteuer-Voranmeldung eines Monats oder Quartals zum Eintragen in Mein ELSTER: Kennzahl, Abschnitt und Bezeichnung in der " +
       "Reihenfolge des Formulars und der Wert so, wie er eingetippt wird. Nur Felder mit Wert; alle anderen bleiben leer. Dazu die Werte, " +
       "die Mein ELSTER selbst rechnet (Steuer zu Kz 81 und 86, Kz 83), zum Vergleich nach „Prüfen“. Ohne Zeitraum der Monat, der als " +
       "Nächstes abzugeben ist. Absenden darf nur der Nutzer selbst.",
@@ -460,18 +472,18 @@ export const MCP_TOOLS: McpTool[] = [
     input: {
       zeitraum: z
         .string()
-        .regex(/^\d{4}-\d{2}$/)
+        .regex(/^\d{4}-(\d{2}|Q[1-4])$/)
         .optional()
-        .describe("Monat als JJJJ-MM"),
+        .describe("Monat als JJJJ-MM oder Quartal als JJJJ-Q1 bis JJJJ-Q4"),
     },
     run: async ({ zeitraum }, { today }) => {
-      const period = periodFrom(zeitraum, today);
+      const period = await periodFrom(zeitraum, today);
       const [company, returns, figures, abgleich, kleinunternehmer] = await Promise.all([
         loadCompany(),
         returnsForPeriod(period),
         computeVatFigures(period),
         vatAbgleich(period),
-        kleinunternehmerForMonth(period.year, period.month),
+        kleinunternehmerFor(period),
       ]);
       const draft = returns.find((r) => r.status === "draft") ?? null;
       const sent = draft ? null : (returns.find((r) => r.status === "sent") ?? null);

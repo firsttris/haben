@@ -1,4 +1,14 @@
-import { paidTaxShares, recordedTaxShares, splitPrivateShare, type Cents, type TaxTreatment, type VatPeriod } from "@haben/core";
+import {
+  lastMonthOfPeriod,
+  monthsOfPeriod,
+  paidTaxShares,
+  periodRange,
+  recordedTaxShares,
+  splitPrivateShare,
+  type Cents,
+  type TaxTreatment,
+  type VatPeriod,
+} from "@haben/core";
 import { and, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
@@ -64,19 +74,13 @@ export interface VatFigures {
   reverseCharge: ReverseChargeSource[];
 }
 
-function monthRange({ year, month }: VatPeriod) {
-  const start = `${year}-${String(month).padStart(2, "0")}-01`;
-  const end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
-  return { start, end };
-}
-
 /**
- * Kennzahlen eines Monats aus den Buchungen. Ist-Versteuerung: Umsatzsteuer nach Datum des
+ * Kennzahlen eines Monats oder Quartals aus den Buchungen; ein Quartal umfasst die Buchungen seiner drei Monate. Ist-Versteuerung: Umsatzsteuer nach Datum des
  * zugeordneten Zahlungseingangs, bei Teilzahlungen anteilig. Soll: nach Rechnungsdatum.
  * Vorsteuer in beiden Fällen nach Belegdatum.
  */
 export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Promise<VatFigures> {
-  const { start, end } = monthRange(period);
+  const { start, end } = periodRange(period);
   // Die Versteuerung des Jahres, nicht die aktuelle: nach einem Wechsel zum Jahreswechsel rechnet das Vorjahr weiter wie gebucht
   const versteuerung = await versteuerungForYear(period.year, q);
   const revenue: RevenueSource[] = [];
@@ -232,20 +236,22 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   }
 
   // Private Kfz-Nutzung: unentgeltliche Wertabgabe im Monat der Nutzung, auch bei Ist-Versteuerung
-  const lastDay = new Date(Date.UTC(period.year, period.month, 0)).toISOString().slice(0, 10);
-  for (const use of await privateUseForMonth(period.year, period.month, q)) {
-    revenue.push({
-      type: "entnahme",
-      date: lastDay,
-      invoiceId: "",
-      assetId: use.assetId,
-      number: "Privatnutzung",
-      customer: use.name,
-      treatment: "regulaer",
-      rate: 1900,
-      base: use.base,
-      tax: use.tax,
-    });
+  for (const { year, month } of monthsOfPeriod(period)) {
+    const lastDay = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+    for (const use of await privateUseForMonth(year, month, q)) {
+      revenue.push({
+        type: "entnahme",
+        date: lastDay,
+        invoiceId: "",
+        assetId: use.assetId,
+        number: "Privatnutzung",
+        customer: use.name,
+        treatment: "regulaer",
+        rate: 1900,
+        base: use.base,
+        tax: use.tax,
+      });
+    }
   }
 
   // Belege nach Belegdatum; ein Storno (#237) zählt mit umgekehrtem Vorzeichen im Monat des Stornos (§ 17 Abs. 1 UStG)
@@ -349,8 +355,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
 
   return {
     versteuerung,
-    // Stand im Monat der Voranmeldung, nicht der heutige
-    kleinunternehmer: await kleinunternehmerForMonth(period.year, period.month, q),
+    // Stand am Ende des Zeitraums der Voranmeldung, nicht der heutige
+    kleinunternehmer: await kleinunternehmerForMonth(lastMonthOfPeriod(period).year, lastMonthOfPeriod(period).month, q),
     kz81: sum(regular, 1900, "base"),
     tax81: sum(regular, 1900, "tax"),
     kz86: sum(regular, 700, "base"),
@@ -379,7 +385,7 @@ export interface PreflightIssue {
 
 /** Vorprüfung vor dem Senden: was im Zeitraum noch offen ist und die Zahlen verfälschen könnte */
 export async function preflight(period: VatPeriod, figures: VatFigures): Promise<PreflightIssue[]> {
-  const { start, end } = monthRange(period);
+  const { start, end } = periodRange(period);
   const issues: PreflightIssue[] = [];
   const open = sql`(${schema.bankTransactions.amount} - coalesce((select sum(a.amount) from allocations a where a.transaction_id = bank_transactions.id), 0))`;
 

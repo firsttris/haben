@@ -1,6 +1,7 @@
 export * from "./money.ts";
 export * from "./currency.ts";
 export * from "./period.ts";
+export * from "./voranmeldungszeitraum.ts";
 export * from "./steuernummer.ts";
 export * from "./ustva.ts";
 export * from "./invoice.ts";

@@ -279,6 +279,8 @@ const faelle: [string, () => string][] = [
   ["UStVA Nullmeldung", ustva(2026, { kz81: 0, kz86: 0, kz66: 0 })],
   ["UStVA berichtigt", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 1_745 }, { berichtigt: true })],
   ["UStVA Dezember", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0 }, { period: { year: 2026, month: 12 } })],
+  ["UStVA 1. Quartal (Zeitraum 41)", ustva(2026, { kz81: 300_000, kz86: 0, kz66: 5_000 }, { period: { year: 2026, month: 41 } })],
+  ["UStVA 4. Quartal 2025 (Zeitraum 44)", ustva(2025, alleKennzahlen, { period: { year: 2025, month: 44 } })],
   ["UStVA echt (ohne Testmerker)", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0 }, { test: false })],
   [
     "UStVA langer Name, Sonderzeichen",
