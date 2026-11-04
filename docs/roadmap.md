@@ -7,7 +7,7 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 | Thema | Worum es geht | Stand |
 | --- | --- | --- |
 | Dauerfristverlängerung | Antrag auf Dauerfristverlängerung mit Sondervorauszahlung (USt 1 H) über ELSTER; Voranmeldungen dürfen dann einen Monat später kommen | geplant |
-| Lohn | Lohnabrechnung für Geschäftsführer und Angestellte mit Lohnsteuer-Anmeldung und Meldungen an die Sozialversicherung; bis dahin kommen die Lohnbuchungen als manuelle Buchung aus dem Lohnprogramm. Die Berechnung der Lohnsteuer nach dem Programmablaufplan steht schon; Recherche und Plan: [Lohn – Recherche und Umsetzungsplan](lohn-plan.md) | in Arbeit |
+| Lohn | Lohnabrechnung für Geschäftsführer und Angestellte mit Lohnsteuer-Anmeldung und Meldungen an die Sozialversicherung; bis dahin kommen die Lohnbuchungen als manuelle Buchung aus dem Lohnprogramm. Die Berechnung der Lohnsteuer nach dem Programmablaufplan und der Beiträge zur Sozialversicherung steht schon; Recherche und Plan: [Lohn – Recherche und Umsetzungsplan](lohn-plan.md) | in Arbeit |
 | Zusammenfassende Meldung | Meldung der innergemeinschaftlichen Leistungen an das BZSt, nur bei Kunden in anderen EU-Ländern nötig | bei Bedarf |
 
 ## Blockiert

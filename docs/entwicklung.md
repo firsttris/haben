@@ -231,6 +231,17 @@ Die Lohnsteuer in `packages/core/src/lohnsteuer/` folgt dem Programmablaufplan (
 
 Die Rechnung läuft ohne Gleitkommazahlen über `dezimal.ts` (`bigint` mit Nachkommastellen) und rundet genau dort, wo der PAP `setScale` oder `divide` mit Rundung vorschreibt.
 
+## Sozialversicherung: Werte jährlich aktualisieren
+
+Die Beiträge zur Sozialversicherung in `packages/core/src/sozialversicherung/` rechnen mit den Rechengrößen und Beitragssätzen eines Kalenderjahres. Für ein Jahr ohne Werte gibt `sozialversicherung()` den Fehler „Die Sozialversicherungswerte {Jahr} sind noch nicht hinterlegt“ zurück und rechnet nicht mit den Werten des Vorjahres. Ab Dezember schlägt der Test „Jahreswechsel (echtes Datum)“ in `sozialversicherung.test.ts` fehl, bis die Werte des nächsten Jahres hinterlegt sind; die Regel dazu steht in `packages/core/src/jahressperre.ts` und gilt für die Lohnsteuer genauso.
+
+1. Die Werte des neuen Jahres sammeln, jeden mit Quelle: Sozialversicherungsrechengrößen-Verordnung (BBG KV/PV und RV/AV, Bundesgesetzblatt, meist im November), Bekanntmachung der Beitragssätze der Rentenversicherung, durchschnittlicher Zusatzbeitrag (BMG, Bundesanzeiger), Geringfügigkeitsgrenze und Faktor F (BMAS, Bundesanzeiger), Pflege- und Arbeitslosenversicherung, Insolvenzgeldumlage sowie Pauschalen und Umlagen der Minijob-Zentrale. Was sich nicht belegen lässt, bleibt offen; das Jahr wird dann nicht freigegeben.
+2. In `werte.ts` ein `SV_<Jahr>` nach dem Muster von `SV_2026` anlegen, mit Quelle je Wert, und in `SV_JAHRE` in `index.ts` eintragen. `werte.test.ts` prüft, dass jeder Wert eine Quelle hat, dass der Faktor F zu 28 % durch den Gesamtsozialversicherungsbeitragssatz passt und dass BBG und Sätze mit dem PAP der Lohnsteuer desselben Jahres übereinstimmen.
+3. Beispielrechnungen des neuen Jahres als Tests aufnehmen (Beratungsblätter der Kassen zum Übergangsbereich, Minijob-Zentrale), mit Quelle am Erwartungswert.
+4. Ändert sich eine Regel (Formel des Übergangsbereichs, Rundung, Pauschalen), braucht das neue Jahr eine eigene Rechnung; die alte bleibt für Korrekturen früherer Jahre.
+
+Gerechnet wird ohne Gleitkommazahlen: Entgelt in Cent mal Satz in Basispunkten mit `bigint`, kaufmännisch auf Cent gerundet erst am Ende (§ 1 Abs. 2 BVV). Beiträge, die Arbeitgeber und Beschäftigter je zur Hälfte tragen, rechnet Haben mit dem halben Satz und verdoppelt das gerundete Ergebnis (§ 2 Abs. 1 BVV); sonst ist der Beitrag die Summe der getrennt gerundeten Anteile. Im Übergangsbereich trägt der Arbeitgeber den Gesamtbeitrag abzüglich des Anteils des Beschäftigten.
+
 ## Konventionen
 
 - **Geld in ganzen Cent** (`Cents`), nie als Gleitkommazahl. Parser rechnen Dezimaltext direkt in Cent um.
