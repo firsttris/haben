@@ -6,7 +6,8 @@ import { isKapitalgesellschaft, RECHTSFORMEN, type Rechtsform } from "./rechtsfo
  * Vorsitzendem gebildet ist, dessen Vorsitzender, jeweils mit Familiennamen und mindestens einem ausgeschriebenen
  * Vornamen. Rechnungen und E-Mails an einen bestimmten Empfänger sind Geschäftsbriefe in diesem Sinn.
  * Angaben zum Kapital sind nicht Pflicht (§ 35a Abs. 1 Satz 2 GmbHG: nur wenn überhaupt welche gemacht werden);
- * Haben macht keine.
+ * Haben macht keine. Fehlende Angaben setzt das Registergericht mit Zwangsgeld durch (§ 79 Abs. 1 GmbHG).
+ * Quelle: https://www.gesetze-im-internet.de/gmbhg/__35a.html
  */
 
 /** Pflichtangaben für den Fuß von Rechnung, Angebot, Mahnung und anderen Briefen sowie für E-Mails */
