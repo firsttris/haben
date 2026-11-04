@@ -6,8 +6,8 @@ Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich 
 
 - **Rechnen geht ohne Zertifizierung.** Lohnsteuer, Soli und Kirchensteuer nach dem Programmablaufplan (PAP) des BMF. SV-Beiträge nach Rechengrößen und Beitragssätzen. Buchungen ins Journal.
 - **Finanzamt geht über ERiC mit der vorhandenen Hersteller-ID.** Lohnsteuer-Anmeldung (Verfahren ElsterAnmeldung, Datenart LStA) wie UStVA und KapEStA. Die elektronische Lohnsteuerbescheinigung (LStB) ebenso. Der ELStAM-Abruf läuft auch über ERiC, braucht aber ein Organisationszertifikat; ob der Hersteller dafür extra freigeschaltet sein muss, ist offen.
-- **Sozialversicherung geht nicht direkt.** Meldungen und Beitragsnachweise sind nur aus systemgeprüften Programmen oder systemgeprüften Ausfüllhilfen zulässig (§ 95b SGB IV, früher § 28a Abs. 1). Die Systemprüfung macht die ITSG im Auftrag des GKV-Spitzenverbands, mit Pilotphase, laufender Kontrolle und befristetem Zertifikat. Das ist für ein Open-Source-Projekt nicht realistisch.
-- **sv.net gibt es nicht mehr.** sv.net wurde zum 30. Juni 2024 abgeschaltet; Nachfolger ist das SV-Meldeportal der ITSG, das seit Oktober 2023 läuft. Es kostet Geld (rund 36 € netto je Betriebsnummer für drei Jahre), braucht ein ELSTER-Organisationszertifikat über Mein Unternehmenskonto und ist eine Ausfüllhilfe zum Eintragen von Hand. Ob es Dateien importiert oder selbst Beiträge rechnet, ist zu prüfen; die Ausfüllliste geht vom Eintragen von Hand aus.
+- **Sozialversicherung geht nicht direkt.** Meldungen und Beitragsnachweise sind nur aus systemgeprüften Programmen oder systemgeprüften Ausfüllhilfen zulässig (§ 95b Abs. 1 SGB IV, vorher § 28a Abs. 1 Satz 2 und 3). Die Systemprüfung führt der GKV-Spitzenverband durch (§ 95b Abs. 4), praktisch die ITSG in seinem Auftrag, mit Pilotphase, laufender Kontrolle und befristetem Zertifikat. Das ist für ein Open-Source-Projekt nicht realistisch.
+- **sv.net gibt es nicht mehr.** sv.net war seit 2. Januar 2024 nur noch eingeschränkt nutzbar und wurde zum 30. Juni 2024 endgültig abgeschaltet (TK). Geplant war der 29. Februar 2024; den Termin haben die Träger kurzfristig verschoben (DRV, März 2024), daher nennen ältere Texte wie der von Lexware noch dieses Datum. Nachfolger ist das SV-Meldeportal der ITSG, seit 4. Oktober 2023. Es kostet 36 € zuzüglich Umsatzsteuer für drei Jahre mit einer Betriebsnummer, 99 € mit mehreren, braucht ein ELSTER-Organisationszertifikat und ist eine Ausfüllhilfe: Es rechnet weder Entgelte noch Beiträge (TK). Ob es Dateien importiert, ist offen (prüfen; die Seiten des Portals selbst waren nicht abrufbar); die Ausfüllliste geht vom Eintragen von Hand aus.
 - **Empfohlene Variante:** Haben rechnet, bucht, sendet LStA und LStB über ERiC und erzeugt für das SV-Meldeportal eine **Ausfüllliste** (Beitragsnachweis je Kasse, DEÜV-Felder je Person). Minijobs gehen genauso an die Minijob-Zentrale über das Portal. Der Gesellschafter-Geschäftsführer ohne SV-Pflicht ist der einfachste Fall und kommt zuerst.
 
 ## Vorgehen (Vorschlag)
@@ -30,7 +30,7 @@ Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich 
 
 ### PR 2 – SV-Beiträge (packages/core)
 
-- **Umfang:** `packages/core/src/sozialversicherung/`: Rechengrößen je Jahr (BBG KV/PV 5.812,50 €, RV/AV 8.450 € je Monat 2026), Sätze (KV 14,6 % plus Zusatzbeitrag je Kasse, PV 3,6 % mit Kinderlosenzuschlag und Kinderabschlägen, Sonderfall Sachsen, RV 18,6 %, AV 2,6 %), Umlagen U1/U2 je Kasse, Insolvenzgeldumlage 0,15 % (2026).
+- **Umfang:** `packages/core/src/sozialversicherung/`: Rechengrößen je Jahr (BBG KV/PV 5.812,50 €, RV/AV 8.450 € je Monat 2026), Sätze (KV 14,6 % plus Zusatzbeitrag je Kasse, PV 3,6 % mit Kinderlosenzuschlag und Kinderabschlägen, Sonderfall Sachsen, RV 18,6 %, AV 2,6 %), Umlagen U1/U2 je Kasse, Insolvenzgeldumlage 0,15 % (2026). Amtlich belegt: die Grenzen (SV-Rechengrößenverordnung 2026, §§ 2 und 4), KV 14,6 % (§ 241 SGB V) und AV 2,6 % (§ 341 Abs. 2 SGB III). § 55 Abs. 1 SGB XI nennt für die PV noch 3,4 %; die 3,6 % kommen aus einer Verordnung nach Satz 2 und sind wie RV 18,6 % und die Insolvenzgeldumlage am Original zu prüfen.
 - **Personengruppen:** sozialversicherungspflichtig (101), Minijob (109: 13 % KV, 15 % RV pauschal, 3,6 % RV-Anteil des AN ohne Befreiung, 2 % Pauschsteuer); dazu die Beitragsgruppenschlüssel je Person, bei Minijobs je nach RV-Befreiung und Krankenversicherung unterschiedlich (Schlüssel aus dem Gemeinsamen Rundschreiben übernehmen, prüfen), Midijob mit Übergangsbereich 603,01–2.000 € und Faktor F 0,6619 (Formel § 20 Abs. 2a SGB IV, getrennte Bemessung für AN-Anteil), GGF ohne SV.
 - **Pflege:** Zusatzbeitrag und U1/U2 trägt der Nutzer je Krankenkasse ein. Die bundesweiten Werte stehen als Tabelle im Code mit Quelle, wie `TARIFE` in `income-tax.ts`.
 - **Tests:** Beispielrechnungen aus Beratungsblättern der Kassen und der Minijob-Zentrale; Grenzfälle an BBG und Übergangsbereich.
@@ -84,12 +84,12 @@ Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich 
 ## Gesellschafter-Geschäftsführer
 
 - **SV-frei**, wenn er mindestens 50 % des Kapitals hält oder eine echte, umfassende Sperrminorität hat (BSG, B 12 R 5/16 R; B 12 R 1/19 R; B 12 R 19/19 R). Eine Sperrminorität nur im Anstellungsvertrag reicht nicht.
-- **Statusfeststellung:** Die Anmeldung eines GmbH-Gesellschafter-Geschäftsführers mit Statuskennzeichen 2 löst eine Prüfung durch die Clearingstelle der DRV Bund aus (§ 7a Abs. 1 Satz 2 SGB IV, prüfen). Stellt sie Versicherungsfreiheit fest, fallen keine Beiträge und keine Beitragsnachweise an; welche DEÜV-Meldungen danach noch nötig sind, ist zu prüfen.
+- **Statusfeststellung:** Die Anmeldung eines GmbH-Gesellschafter-Geschäftsführers mit Statuskennzeichen 2 löst eine Prüfung durch die Clearingstelle der DRV Bund aus: Ergibt sich aus der Meldung, dass der Beschäftigte geschäftsführender Gesellschafter einer GmbH ist, stellt die Einzugsstelle den Antrag auf Statusfeststellung (§ 7a Abs. 1 Satz 2 SGB IV); das Statuskennzeichen 2 als Merkmal dafür in der Meldung ist zu prüfen. Stellt sie Versicherungsfreiheit fest, fallen keine Beiträge und keine Beitragsnachweise an; welche DEÜV-Meldungen danach noch nötig sind, ist zu prüfen.
 - **Trotzdem:** Lohnsteuer-Anmeldung, LStB, ELStAM, Lohnkonto. Im PAP ohne RV-Pflicht (KRV), meist privat versichert (PKV, AG-Zuschuss nur, wenn vereinbart; steuerpflichtig, wenn kein § 3 Nr. 62 EStG greift). Unfallversicherung nach Satzung der Berufsgenossenschaft. Keine Insolvenzgeldumlage.
 
 ## Pflichten einer Lohnsoftware
 
-- Lohnkonto je Arbeitnehmer (§ 41 EStG, § 4 LStDV), aufbewahren bis Ende des sechsten Jahres nach der letzten Eintragung.
+- Lohnkonto je Arbeitnehmer und Kalenderjahr (§ 41 Abs. 1 EStG, Einzelangaben in § 4 LStDV), aufbewahren bis zum Ablauf des sechsten Kalenderjahres, das auf die zuletzt eingetragene Lohnzahlung folgt (§ 41 Abs. 1 Satz 9 EStG).
 - Entgeltunterlagen elektronisch (§ 28f SGB IV, § 8 BVV), aufbewahren bis Ende des Jahres nach der letzten Betriebsprüfung.
 - Entgeltabrechnung in Textform (§ 108 GewO).
 - GoBD: festgeschrieben, versiegelt, Korrektur nur als Storno; passt zu Haben.
@@ -102,7 +102,7 @@ Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich 
 3. **ELStAM:** Braucht die Hersteller-ID eine Freischaltung für ElsterLohn2? Frage im ELSTER-Entwicklerforum.
 4. **Jährliche Pflege:** PAP (meist November), Rechengrößen, Minijob-Grenze, Faktor F, Zusatzbeiträge. Wer pflegt das, und sperrt Haben ein Jahr ohne Werte?
 5. **Abgrenzung:** keine Sachbezüge, Dienstwagen, bAV, Kurzarbeit, Mehrfachbeschäftigung, Baulohn im ersten Schritt?
-6. **Kosten für Nutzer:** SV-Meldeportal kostenpflichtig; Organisationszertifikat nötig.
+6. **Kosten für Nutzer:** SV-Meldeportal 36 € zuzüglich Umsatzsteuer für drei Jahre; Organisationszertifikat nötig.
 7. **Rechtsstand:** Der Pauschalbeitrag KV für Minijobs soll ab 2027 steigen; Werte vor dem Release prüfen.
 
 ## Quellen
@@ -112,12 +112,15 @@ Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich 
 - LstGen (PAP → PHP, Python, Java, JavaScript, Go; Lizenz am Repo prüfen): https://github.com/jenner/LstGen
 - lohnsteuer-bmf (MIT): https://github.com/L1nch-lab/lohnsteuer-bmf
 - Weitere: https://github.com/MarcelLehmann/Lohnsteuer (Apache-2.0), https://github.com/canida-software/lohnsteuer (MIT), https://github.com/taxcalcs/taxjs (MIT)
-- § 95b SGB IV: https://www.buzer.de/95b_SGB_IV.htm, https://www.gesetze-im-internet.de/sgb_4/__95b.html
+- § 95b SGB IV: https://www.gesetze-im-internet.de/sgb_4/__95b.html; Herkunft aus § 28a Abs. 1 Satz 2 und 3 laut Änderungshistorie: https://www.buzer.de/95b_SGB_IV.htm
+- § 7a SGB IV: https://www.gesetze-im-internet.de/sgb_4/__7a.html; § 41 EStG: https://www.gesetze-im-internet.de/estg/__41.html
 - Systemprüfung: https://www.informationsportal.de/aok-hessen/sv-bibliothek/meldeverfahren/gemeinsame-meldeverfahren/sonstige-themen-3/systemuntersuchung/
 - Gemeinsame Grundsätze § 22 DEÜV: https://files.viactiv.de/uploads/sites/11/25_06_15_GG_22_DEUEV.pdf
-- sv.net abgeschaltet: https://www.tk.de/firmenkunden/versicherung/meldeverfahren-faq/faq-sv-meldeportal/sv-net-ist-abgeschaltet-2155552
-- SV-Meldeportal: https://www.barmer.de/firmenkunden/sozialversicherung/sozialversicherungswissen/meldungen-sozialversicherung/sv-meldeportal-1143484, https://www.tk.de/resource/blob/2157898/7fdcc5766678c59178a71c281bb963cf/beratungsblatt-sv-meldeportal-data.pdf, https://arbeitgeber.de/wp-content/uploads/bda-arbeitgeber-faq-fragen_und_antworten_zur_nutzung_des_SVMeldeportals-2025-09-08.pdf
-- Rechengrößen 2026: https://www.deutsche-rentenversicherung.de/DRV/DE/Ueber-uns-und-Presse/Presse/Meldungen/2025/250910-sv-rechengroessen-vo-2026.html, https://www.tk.de/firmenkunden/service/fachthemen/fachthema-beitraege/sozialversicherungs-rechengroessen-2026-2203234
+- sv.net abgeschaltet: https://www.tk.de/firmenkunden/versicherung/meldeverfahren-faq/faq-sv-meldeportal/sv-net-wird-abgeschaltet-2154774 (30.06.2024), https://www.tk.de/firmenkunden/versicherung/meldeverfahren-faq/faq-sv-meldeportal/sv-net-ist-abgeschaltet-2155552; verschobener Termin 29.02.2024: https://www.deutsche-rentenversicherung.de/DRV/DE/Ueber-uns-und-Presse/Presse/Meldungen/2024/240322-sv-meldeportal-schon-umgestiegen.html
+- SV-Meldeportal, Start, Kosten und dass es nicht rechnet: https://www.tk.de/firmenkunden/versicherung/meldeverfahren-faq/faq-sv-meldeportal/was-kostet-sv-meldeportal-2154136, https://www.tk.de/firmenkunden/versicherung/meldeverfahren-faq/faq-sv-meldeportal/varianten-im-sv-meldeportal-2155412, https://www.tk.de/firmenkunden/versicherung/meldeverfahren-faq/faq-sv-meldeportal/was-ist-das-sv-meldeportal-2154134
+- SV-Meldeportal, weitere: https://www.barmer.de/firmenkunden/sozialversicherung/sozialversicherungswissen/meldungen-sozialversicherung/sv-meldeportal-1143484, https://www.tk.de/resource/blob/2157898/7fdcc5766678c59178a71c281bb963cf/beratungsblatt-sv-meldeportal-data.pdf, https://arbeitgeber.de/wp-content/uploads/bda-arbeitgeber-faq-fragen_und_antworten_zur_nutzung_des_SVMeldeportals-2025-09-08.pdf
+- Rechengrößen 2026, amtlich: Sozialversicherungs-Rechengrößenverordnung 2026, https://www.gesetze-im-internet.de/svbezgrv_2026/ (§ 2 Abs. 2 BBG KV/PV 69.750 €, § 4 Abs. 1 BBG RV/AV 101.400 €); Beitragssätze KV https://www.gesetze-im-internet.de/sgb_5/__241.html, AV https://www.gesetze-im-internet.de/sgb_3/__341.html
+- Rechengrößen 2026, weitere: https://www.deutsche-rentenversicherung.de/DRV/DE/Ueber-uns-und-Presse/Presse/Meldungen/2025/250910-sv-rechengroessen-vo-2026.html, https://www.tk.de/firmenkunden/service/fachthemen/fachthema-beitraege/sozialversicherungs-rechengroessen-2026-2203234
 - Übergangsbereich: https://www.tk.de/resource/blob/2031420/c5924456e673ed942a4be369a4ad070f/beratungsblatt-beschaeftigung-im-uebergangs-midijobbereich-data.pdf
 - Insolvenzgeldumlage 2026: https://www.tk.de/firmenkunden/versicherung/beitraege-faq-und-mehr/zahlen-und-grenzwerte/insolvenzgeldumlage-2047584
 - Minijob: https://www.aok.de/fk/nordwest/tools/weitere-inhalte/beitraege-und-rechengroessen-der-sozialversicherung/beitraege-fuer-minijobs/

@@ -6,12 +6,13 @@ import { renderHinterlegungPdf } from "./pdf.ts";
  * Bilanz einer Kleinstkapitalgesellschaft als PDF zur Hinterlegung beim Unternehmensregister (§ 326 Abs. 2 HGB). Die
  * Inhalte rechnet hinterlegungBilanz in @haben/core; hier wird nur formatiert.
  *
- * Warum PDF: Die Publikations-Plattform des Bundesanzeiger Verlags (https://www.publikations-plattform.de) nimmt zur
- * Hinterlegung die Eingabe im Webformular, RTF, Excel, PDF sowie XML/XBRL nach ihrer eigenen XSD an (AGB für die
- * Hinterlegung, https://www.bundesanzeiger.de/pub/D089.pdf). Ein PDF muss les-, kopier- und druckbar sein und den ganzen
- * zu hinterlegenden Text enthalten. Das XSD des Betreibers ist nicht öffentlich, Excel und RTF hängen an der Darstellung
- * des Programms; ein PDF/A mit echtem Text (Typst, wie die Rechnung) ist ohne Zertifikat hochzuladen, archivierbar und
- * sieht beim Register so aus wie hier.
+ * Warum PDF: Für Geschäftsjahre ab 2022 nimmt das Unternehmensregister über die Publikations-Plattform
+ * (https://www.publikations-plattform.de) XML/XBRL nach der XSD oder dem Webformular des Bundesanzeiger Verlags direkt an;
+ * Word, RTF, Excel und PDF konvertiert es gegen ein Entgelt je sichtbarem Zeichen (Allgemeine Nutzungsbedingungen für das
+ * Unternehmensregister §§ 8, 9, https://www.publikations-plattform.de/order/D088.pdf; Entgelte
+ * https://www.publikations-plattform.de/order/D051Preisliste.pdf). Ein PDF muss les-, kopier- und druckbar sein, den
+ * ganzen Text enthalten, unverschlüsselt und ohne JavaScript und Formulare sein und auf A4 passen. Das XSD des Betreibers
+ * ist nicht öffentlich; ein PDF/A mit echtem Text (Typst, wie die Rechnung) erfüllt das und kostet nur die Konvertierung.
  */
 
 const betrag = (cents: number | null) => (cents === null ? "" : formatDecimal(cents));
