@@ -6,7 +6,7 @@ Haben ist eine einzelne Anwendung auf Basis von TanStack Start, die unter Bun l�
 
 ```mermaid
 flowchart LR
-  Browser["Browser<br/>React, PWA"] -->|HTTPS| Caddy["Caddy<br/>Reverse Proxy"]
+  Browser["Browser<br/>React-API mit TanStack Redact, PWA"] -->|HTTPS| Caddy["Caddy<br/>Reverse Proxy"]
   Caddy --> Web
 
   subgraph Web["apps/web · TanStack Start auf Bun"]
@@ -55,7 +55,7 @@ Die Browser-Erweiterung „Haben für Mein ELSTER“ (Manifest V3, TypeScript, g
 | `apps/web/drizzle/` | SQL-Migrationen; Trigger und Funktionen stehen in eigenen Dateien (`0001_festschreibung.sql`, `*_trigger.sql`) |
 | `src/styles/`, `styles.css` | Globales Stylesheet und seitenbezogene Stylesheets (Auswertungen, Archiv). Farben stehen als CSS-Variablen in `:root`; ein Theme überschreibt sie per `[data-theme="…"]`. Klassen, die mehr als eine Seite nutzt, gehören ins globale Stylesheet, sonst fehlen sie auf Seiten, die das seitenbezogene nicht laden |
 | `src/lib/theme.ts` | Themes: Liste, Speicherung im `localStorage` und ein Inline-Skript, das `<html data-theme>` vor dem ersten Zeichnen setzt (`__root.tsx`) |
-| `vite.config.ts` | Setzt `__HABEN_VERSION__` aus der Root-`package.json`; die Navigation zeigt so die ausgelieferte Version |
+| `vite.config.ts` | Setzt `__HABEN_VERSION__` aus der Root-`package.json`; die Navigation zeigt so die ausgelieferte Version. Das Plugin `redact()` ersetzt React beim Bauen durch TanStack Redact |
 | `src/lib/` | Formatierung und Better-Auth-Client für den Browser |
 
 ### Module im Server
@@ -321,6 +321,7 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 | Dateien unter SHA-256 | Keine Dubletten, Integrität bei jedem Lesen prüfbar, Hash im Export als Nachweis |
 | ERiC im Kindprozess | Eine abstürzende native Bibliothek reißt die Anwendung nicht mit |
 | Bun als Laufzeit und Paketmanager | Ein Programm statt Node, npm, pnpm und tsx; TypeScript läuft ohne Build (ERiC-Worker, Migrationen, Skripte). Ausgeliefert wird ohnehin als Container. Die Prüfung aller Nachrichten mit dem echten ERiC (`eric-echt.test.ts`) läuft unter Bun wie zuvor unter Node |
+| TanStack Redact statt React | Gleiche API, der Code importiert weiter aus `react`; das Plugin leitet die Imports beim Bauen um. Das Start-Bundle im Browser schrumpft von rund 94 auf 49 KB (gzip). Redact rendert synchron ohne Time-Slicing, das braucht Haben nicht. Die Version ist fest gepinnt, weil Redact noch 0.x ist; zurück zu React geht es, indem man `redact()` aus `vite.config.ts` nimmt |
 | Jahresexport als Stream | Ein Jahr mit vielen Belegen braucht kaum Arbeitsspeicher; die Prüfsummen entstehen beim Packen |
 | Keine Job-Queue | Ein Prozess, eine Datenbank, einfacher Betrieb. Die einzigen langen Aufgaben sind wiederholbar bzw. fortsetzbar |
 | KI-Auslesung optional | Ohne Schlüssel bleiben alle Daten auf dem eigenen Server; E-Rechnungen werden ohnehin direkt gelesen |
