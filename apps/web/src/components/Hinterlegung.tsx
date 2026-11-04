@@ -45,32 +45,30 @@ export function Hinterlegung({ year, stand, closed }: { year: number; stand: Hin
         Hinterlegung beim Unternehmensregister {year}
       </h2>
       <p className="small muted" style={{ marginTop: 0, maxWidth: 760 }}>
-        Als Kleinstkapitalgesellschaft hinterlegt die Gesellschaft nur die Bilanz, statt den Jahresabschluss offenzulegen (§ 326 Abs. 2 HGB). Haben erstellt
-        sie als PDF mit Firma, Sitz und Registernummer, den Vorjahreszahlen und den Angaben unter der Bilanz, die den Anhang ersetzen. Das PDF lädst du auf
-        der Publikations-Plattform des Bundesanzeiger Verlags (publikations-plattform.de) als Hinterlegungsauftrag hoch; der Verlag berechnet dafür eine Gebühr.
+        Als Kleinstkapitalgesellschaft hinterlegt die Gesellschaft nur die Bilanz, statt den Jahresabschluss offenzulegen (§ 326 Abs. 2 HGB). Haben erstellt sie
+        als PDF mit Firma, Sitz und Registernummer, den Vorjahreszahlen und den Angaben unter der Bilanz, die den Anhang ersetzen. Das PDF lädst du auf der
+        Publikations-Plattform des Bundesanzeiger Verlags (publikations-plattform.de) als Hinterlegungsauftrag hoch; der Verlag berechnet dafür eine Gebühr.
       </p>
       <p style={{ maxWidth: 760 }}>
         {stand.fristAbgelaufen ? (
           <strong>Die Frist ist am {formatDate(stand.frist)} abgelaufen; hinterlege so bald wie möglich, sonst droht ein Ordnungsgeld (§ 335 HGB).</strong>
         ) : (
-          <>
-            Frist: bis {formatDate(stand.frist)}, ein Jahr nach dem Bilanzstichtag (§ 325 Abs. 1a HGB).
-          </>
+          <>Frist: bis {formatDate(stand.frist)}, ein Jahr nach dem Bilanzstichtag (§ 325 Abs. 1a HGB).</>
         )}
       </p>
       {!closed && (
         <div className="banner banner-info" role="note" style={{ marginBottom: 16 }}>
           <Icon name="info" />
           <span>
-            Das Jahr {year} ist noch nicht abgeschlossen. Hinterlege erst, wenn die Steuerberatung den Abschluss freigegeben, die Gesellschafterversammlung
-            ihn festgestellt hat und das Jahr abgeschlossen ist; jede spätere Buchung ins Jahr ändert die Bilanz.
+            Das Jahr {year} ist noch nicht abgeschlossen. Hinterlege erst, wenn die Steuerberatung den Abschluss freigegeben, die Gesellschafterversammlung ihn
+            festgestellt hat und das Jahr abgeschlossen ist; jede spätere Buchung ins Jahr ändert die Bilanz.
           </span>
         </div>
       )}
       {!stand.vorjahr && (
         <p className="small" style={{ maxWidth: 760 }}>
-          Ohne Vorjahresspalte: Zum 1.1.{year} gibt es in Haben keine Salden. Im ersten Geschäftsjahr ist das richtig; sonst gehören die Vorjahreszahlen dazu
-          (§ 265 Abs. 2 HGB), dann übernimm die Bestände mit einer Eröffnungsbuchung.
+          Ohne Vorjahresspalte: Zum 1.1.{year} gibt es in Haben keine Salden. Im ersten Geschäftsjahr ist das richtig; sonst gehören die Vorjahreszahlen dazu (§
+          265 Abs. 2 HGB), dann übernimm die Bestände mit einer Eröffnungsbuchung.
         </p>
       )}
       {blocked && (

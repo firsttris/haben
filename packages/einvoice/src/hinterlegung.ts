@@ -36,7 +36,8 @@ export function hinterlegungPdfData(bilanz: HinterlegungBilanz) {
     summePassiva: zeile(bilanz.summePassiva),
     angabenTitel: "Angaben unter der Bilanz (§ 264 Abs. 1 Satz 5 HGB)",
     angaben: bilanz.angaben,
-    hinweis: "Die Gesellschaft ist eine Kleinstkapitalgesellschaft (§\u00a0267a HGB). Ein Anhang wird nicht aufgestellt (§\u00a0264 Abs.\u00a01 Satz\u00a05 HGB).",
+    hinweis:
+      "Die Gesellschaft ist eine Kleinstkapitalgesellschaft (§\u00a0267a HGB). Ein Anhang wird nicht aufgestellt (§\u00a0264 Abs.\u00a01 Satz\u00a05 HGB).",
     feststellung: `Der Jahresabschluss wurde am ${formatDate(bilanz.feststellung)} festgestellt.`,
   };
 }

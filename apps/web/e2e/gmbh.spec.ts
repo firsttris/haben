@@ -210,7 +210,7 @@ test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als
 
   await go("/einstellungen");
   const firma = page.getByRole("form", { name: "Firmendaten" });
-  await expect(firma.getByLabel("Sitz", { exact: true })).toHaveAttribute("placeholder", "Bremen");
+  await expect(firma.getByRole("textbox", { name: /^Sitz/ })).toHaveAttribute("placeholder", "Bremen");
   await firma.getByLabel("Registergericht").fill("Amtsgericht Bremen");
   await firma.getByLabel("Registernummer").fill("HRB 12345 HB");
   await firma.getByRole("button", { name: "Speichern" }).click();

@@ -104,11 +104,7 @@ export function hinterlegungMaengel(firma: HinterlegungFirma, report: Abschluss,
 }
 
 /** Zeilen einer Seite: Posten mit Betrag in einem der beiden Jahre; das Eigenkapital immer (§ 265 Abs. 8 HGB) */
-function zeilen(
-  seite: readonly BilanzPosten[],
-  jahr: Record<BilanzPosten, Cents>,
-  vorjahr: Record<BilanzPosten, Cents> | null,
-): HinterlegungZeile[] {
+function zeilen(seite: readonly BilanzPosten[], jahr: Record<BilanzPosten, Cents>, vorjahr: Record<BilanzPosten, Cents> | null): HinterlegungZeile[] {
   return seite
     .filter((p) => p === "passiva.A" || jahr[p] !== 0 || (vorjahr?.[p] ?? 0) !== 0)
     .map((p) => ({ label: BILANZ_POSTEN[p], betrag: jahr[p], vorjahr: vorjahr ? vorjahr[p] : null }));

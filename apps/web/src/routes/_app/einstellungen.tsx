@@ -294,8 +294,7 @@ function CompanyForm() {
         <section className="form-section" aria-labelledby="company-register">
           <h3 id="company-register">Handelsregister</h3>
           <p className="field-hint" style={{ marginTop: 0 }}>
-            Gehören in den Jahresabschluss (§ 264 Abs. 1a HGB), etwa auf die Bilanz zur Hinterlegung beim Unternehmensregister. Sie stehen im
-            Registerauszug.
+            Gehören in den Jahresabschluss (§ 264 Abs. 1a HGB), etwa auf die Bilanz zur Hinterlegung beim Unternehmensregister. Sie stehen im Registerauszug.
           </p>
           <div className="form-row cols-2">
             <label className="field">

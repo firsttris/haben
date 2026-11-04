@@ -54,7 +54,11 @@ describe.each(["SKR03", "SKR04"] as const)("Bilanz zur Hinterlegung (§ 326 Abs.
       firma: FIRMA,
       report: jahr,
       vorjahr,
-      angaben: { ...KEINE, haftungsverhaeltnisse: " Bürgschaft für die Muster KG: 5.000 € ", organkredite: "Darlehen an die Geschäftsführerin: 2.000 €, 3 % Zinsen" },
+      angaben: {
+        ...KEINE,
+        haftungsverhaeltnisse: " Bürgschaft für die Muster KG: 5.000 € ",
+        organkredite: "Darlehen an die Geschäftsführerin: 2.000 €, 3 % Zinsen",
+      },
     });
     expect(bilanz.angaben.map((a) => a.text)).toEqual(["Bürgschaft für die Muster KG: 5.000 €", "Darlehen an die Geschäftsführerin: 2.000 €, 3 % Zinsen"]);
   });
