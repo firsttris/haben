@@ -26,6 +26,7 @@ import {
   invoiceListStatus,
   invoiceOpen,
   type InvoiceListStatus,
+  legalInfo,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
@@ -661,7 +662,23 @@ export function sellerFrom(company: Company): Seller {
     ...(company.bic ? { bic: company.bic } : {}),
     ...(company.bank ? { bank: company.bank } : {}),
     ...(company.kontoinhaber ? { kontoinhaber: company.kontoinhaber } : {}),
+    ...sellerLegalInfo(company),
   };
+}
+
+/** GmbH und UG: Pflichtangaben für Geschäftsbriefe (§ 35a Abs. 1 GmbHG) aus den Firmendaten */
+function sellerLegalInfo(company: Company): Pick<Seller, "legalInfo"> {
+  const info = legalInfo(company);
+  return info ? { legalInfo: info } : {};
+}
+
+/**
+ * Absender eines festgeschriebenen Belegs mit den Pflichtangaben von heute: Mahnung, Auftragsbestätigung und
+ * Lieferschein sind neue Briefe und brauchen sie auch dann, wenn der Beleg älter ist als die Angaben.
+ */
+export function withCurrentLegalInfo(seller: Seller, company: Company): Seller {
+  const { legalInfo: _snapshot, ...rest } = seller;
+  return { ...rest, ...sellerLegalInfo(company) };
 }
 
 export function buyerFrom(contact: Contact): Buyer {

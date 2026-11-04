@@ -7,7 +7,7 @@ import { z } from "zod";
 import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
-import { listInvoices } from "./invoices.ts";
+import { listInvoices, withCurrentLegalInfo } from "./invoices.ts";
 import { loadLetterhead } from "../stammdaten/index.ts";
 
 export class DunningError extends UserError {}
@@ -161,7 +161,7 @@ export async function createDunning(actor: string, input: DunningInput, today: s
       level: input.level,
       date: today,
       dueDate: input.dueDate,
-      seller: invoice.seller,
+      seller: withCurrentLegalInfo(invoice.seller, company),
       buyer: invoice.buyer,
       invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate },
       amounts,
