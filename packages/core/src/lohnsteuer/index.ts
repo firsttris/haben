@@ -76,6 +76,17 @@ function pruefe(e: PapEingabe): string | null {
   return pruefungen.find(([gilt]) => !gilt)?.[1] ?? null;
 }
 
+/** Wertebereich der nicht unterstützten Eingaben: Ein falscher Wert ist ungültig, nicht „nicht unterstützt“ */
+function pruefeNichtUnterstuetzte(e: NichtUnterstuetzteEingabe): string | null {
+  const cent = [e.SONSTB, e.MBV, e.VBEZ, e.LZZFREIB, e.LZZHINZU].every((n) => n === undefined || ganzNichtNegativ(n));
+  const pruefungen: [boolean, string][] = [
+    [cent, "SONSTB, MBV, VBEZ, LZZFREIB und LZZHINZU müssen ganze, nicht negative Beträge in Cent sein"],
+    [e.ALTER1 === undefined || imBereich(e.ALTER1, 1), "ALTER1 muss 0 oder 1 sein"],
+    [e.f === undefined || (ganzNichtNegativ(e.f) && e.f > 0), "f muss ein positiver Faktor in Tausendsteln sein"],
+  ];
+  return pruefungen.find(([gilt]) => !gilt)?.[1] ?? null;
+}
+
 function nichtUnterstuetzt(e: NichtUnterstuetzteEingabe): string | null {
   const gesetzt = (Object.keys(NICHT_UNTERSTUETZT) as (keyof NichtUnterstuetzteEingabe)[]).filter((name) => {
     const wert = e[name];
@@ -92,8 +103,6 @@ function nichtUnterstuetzt(e: NichtUnterstuetzteEingabe): string | null {
 export function lohnsteuer(jahr: number, eingabe: LohnsteuerEingabe): LohnsteuerErgebnis {
   const pap = PAP_JAHRE[jahr];
   if (!pap) return fehler("nicht-hinterlegt", `Lohnsteuer ${jahr} ist noch nicht hinterlegt.`);
-  const offen = nichtUnterstuetzt(eingabe);
-  if (offen) return fehler("nicht-unterstuetzt", `Lohnsteuer mit ${offen} ist nicht unterstützt.`);
   const e: PapEingabe = {
     LZZ: eingabe.LZZ,
     RE4: eingabe.RE4,
@@ -110,8 +119,10 @@ export function lohnsteuer(jahr: number, eingabe: LohnsteuerEingabe): Lohnsteuer
     PVA: eingabe.PVA ?? 0,
     R: eingabe.R ?? 0,
   };
-  const ungueltig = pruefe(e);
+  const ungueltig = pruefe(e) ?? pruefeNichtUnterstuetzte(eingabe);
   if (ungueltig) return fehler("ungueltig", `${ungueltig}.`);
+  const offen = nichtUnterstuetzt(eingabe);
+  if (offen) return fehler("nicht-unterstuetzt", `Lohnsteuer mit ${offen} ist nicht unterstützt.`);
   return { ok: true, ...papLaufenderArbeitslohn(e, pap) };
 }
 
