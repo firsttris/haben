@@ -91,6 +91,8 @@ export async function reverseDocumentCashEntry(tx: Tx, input: { documentId: stri
   await tx.execute(lock);
   const [original] = await tx.select().from(schema.cashEntries).where(eq(schema.cashEntries.documentId, input.documentId));
   if (!original) throw new CashError("Zum Beleg gibt es keine Zeile im Kassenbuch.");
+  // Bei einer bar erstatteten Gutschrift ist die Gegenzeile ein Ausgang; auch sie darf den Bestand nicht ins Minus bringen
+  await assertNeverNegative(tx, input.date, -original.amount);
   await tx.insert(schema.cashEntries).values({
     number: await nextNumber(tx),
     date: input.date,
