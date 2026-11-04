@@ -51,10 +51,9 @@ export function Hinterlegung({ year, stand, closed }: { year: number; stand: Hin
         eine Kleinstkapitalgesellschaft ist (§ 326 Abs. 2 Satz 2 HGB). Das Register berechnet eine Gebühr und für ein PDF ein Entgelt für die Umwandlung.
       </p>
       <p className="small muted" style={{ maxWidth: 760 }}>
-        Ein PDF wandelt das Unternehmensregister gegen ein Entgelt von 1,75 Cent je sichtbarem Zeichen zuzüglich Umsatzsteuer um, zusätzlich zur Gebühr.
-        Kostenlos angenommen werden nur XML oder XBRL nach den Vorgaben des Bundesanzeiger Verlags und die Eingabe im Webformular der Plattform; wer die
-        Umwandlung sparen will, tippt die Bilanz dort ab. XML oder XBRL erzeugt Haben nicht, weil der Verlag Schema und Vorgaben nur nach einer Freischaltung
-        und ohne Recht zur Weitergabe herausgibt.
+        Das Entgelt für die Umwandlung beträgt 1,75 Cent je sichtbarem Zeichen zuzüglich Umsatzsteuer. Ohne dieses Entgelt nimmt das Register nur XML oder XBRL
+        nach den Vorgaben des Bundesanzeiger Verlags und die Eingabe im Webformular der Plattform an; wer es sparen will, tippt die Bilanz dort ab. XML oder
+        XBRL erzeugt Haben nicht, weil der Verlag Schema und Vorgaben nur nach einer Freischaltung und ohne Recht zur Weitergabe herausgibt.
       </p>
       <p style={{ maxWidth: 760 }}>
         {stand.fristAbgelaufen ? (
