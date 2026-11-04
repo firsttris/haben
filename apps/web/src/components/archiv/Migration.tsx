@@ -18,6 +18,7 @@ import {
   type getMigration,
 } from "../../server/functions/archive.ts";
 import { Icon } from "../Icon.tsx";
+import { ScrollBox } from "../ScrollTable.tsx";
 import { ArchiveUpload } from "./ArchiveUpload.tsx";
 import { OpenItems } from "./OpenItems.tsx";
 import { WebBackup } from "./WebBackup.tsx";
@@ -355,7 +356,7 @@ function specialColumns(months: VatMonth[]) {
  */
 function NeutralSums({ year, rows }: { year: number; rows: MigrationData["years"][number]["neutral"] }) {
   return (
-    <div className="table-scroll">
+    <ScrollBox label={`Weder Einnahme noch Ausgabe ${year}`}>
       <table className="data-table" aria-label={`Weder Einnahme noch Ausgabe ${year}`}>
         <caption className="small muted" style={{ textAlign: "left", captionSide: "top", paddingBottom: 4 }}>
           Weder Einnahme noch Ausgabe, deshalb nicht in den Summen oben und nicht in der Umsatzsteuer
@@ -379,7 +380,7 @@ function NeutralSums({ year, rows }: { year: number; rows: MigrationData["years"
           ))}
         </tbody>
       </table>
-    </div>
+    </ScrollBox>
   );
 }
 
