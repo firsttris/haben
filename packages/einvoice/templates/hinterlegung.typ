@@ -35,7 +35,12 @@
 
 #let vorjahr = d.spalten.vorjahr != none
 #let spalten = if vorjahr { (1fr, 32mm, 32mm) } else { (1fr, 32mm) }
-#let zellen(z) = if vorjahr { (z.label, z.betrag, z.vorjahr) } else { (z.label, z.betrag) }
+// Davon-Vermerke (§ 268 Abs. 4 und 5 HGB, § 42 Abs. 3 GmbHG) eingerückt und kleiner unter ihrem Posten
+#let klein(z, body) = if z.at("vermerk", default: false) { text(size: 9pt, body) } else { body }
+#let zellen(z) = {
+  let label = if z.at("vermerk", default: false) { pad(left: 4mm, klein(z, z.label)) } else { z.label }
+  if vorjahr { (label, klein(z, z.betrag), klein(z, z.vorjahr)) } else { (label, klein(z, z.betrag)) }
+}
 #let summe(z) = zellen(z).map(semibold)
 
 #let seite(titel, zeilen, sum) = {

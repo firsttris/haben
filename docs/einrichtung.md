@@ -141,7 +141,7 @@ Den Ablauf eines Jahres für eine GmbH oder UG zeigt [GmbH und UG](gmbh.md).
 Die Rechtsform lässt sich nur vor der ersten Buchung festlegen. Danach sperren App und Datenbank die Änderung, auch über Jahre hinweg: Privatkonten und Gesellschafter-Verrechnungskonto gehören nicht in dieselben Bücher, und eine neue Rechtsform ist ein neues Unternehmen mit eigener Buchhaltung.
 
 > [!IMPORTANT]
-> Das Gesellschafter-Verrechnungskonto ist das Sammelkonto „Verbindlichkeiten gegenüber Gesellschaftern“ aus dem DATEV-Kontenrahmen. Für den Abschluss ordnet die Steuerberatung seinen Saldo nach Restlaufzeit oder als Forderung zu; stimme die Konten vor dem Echtbetrieb mit ihr ab.
+> Das Gesellschafter-Verrechnungskonto ist das Sammelkonto „Verbindlichkeiten gegenüber Gesellschaftern“ aus dem DATEV-Kontenrahmen. Im Abschluss steht sein Saldo je nach Seite unter den Verbindlichkeiten oder Forderungen, jeweils mit dem Vermerk „gegenüber Gesellschaftern“ (§ 42 Abs. 3 GmbHG); welcher Teil länger als ein Jahr läuft, bestätigst du beim [Jahresabschluss](buchhaltung.md#vermerke-unter-der-bilanz). Stimme die Konten vor dem Echtbetrieb mit der Steuerberatung ab.
 
 ## Versteuerung: Ist oder Soll
 

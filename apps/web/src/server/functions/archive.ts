@@ -23,7 +23,7 @@ import {
   startImport,
   startWebImport,
 } from "../modules/archiv/index.ts";
-import { openLegacyItems, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
+import { openItemsOverview, takeOverAll, takeOverLegacyItem } from "../modules/archiv/index.ts";
 import {
   cancelSevdeskImport as cancelSevdesk,
   latestSevdeskImport,
@@ -36,15 +36,19 @@ import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
 import { yearSchema } from "./schemas.ts";
 
+/** Stichtag der Übernahme offener Posten; geprüft wird er im Modul (takeoverCutoffIssue) */
+const stichtagSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
 /** Umzug: Verbindungen, letzte Abrufe, Abgleich je Jahr und archivierte Dateien */
 export const getMigration = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .handler(async () => {
-    const [connection, check, files, openItems, sevdeskConnection, sevdeskImport] = await Promise.all([
+  .validator(z.object({ stichtag: stichtagSchema.optional() }))
+  .handler(async ({ data }) => {
+    const [connection, check, files, { items: openItems, cutoff, cutoffError }, sevdeskConnection, sevdeskImport] = await Promise.all([
       connectionStatus(),
       reconciliation(),
       listArchiveFiles(),
-      openLegacyItems(),
+      openItemsOverview(data.stichtag),
       sevdeskConnectionStatus(),
       latestSevdeskImport(),
     ]);
@@ -53,6 +57,8 @@ export const getMigration = createServerFn({ method: "GET" })
       sevdeskConnection,
       sevdeskImport,
       openItems,
+      cutoff,
+      cutoffError,
       ...check,
       files: files.map(({ meta, ...file }) => ({
         ...file,
@@ -201,9 +207,10 @@ export const getDatevBookings = createServerFn({ method: "GET" })
 
 export const takeOverOpenItem = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ id: z.uuid() }))
-  .handler(async ({ data, context }) => takeOverLegacyItem(context.user.id, data.id));
+  .validator(z.object({ id: z.uuid(), stichtag: stichtagSchema }))
+  .handler(async ({ data, context }) => takeOverLegacyItem(context.user.id, data.id, data.stichtag));
 
 export const takeOverAllOpenItems = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => takeOverAll(context.user.id));
+  .validator(z.object({ stichtag: stichtagSchema }))
+  .handler(async ({ data, context }) => takeOverAll(context.user.id, data.stichtag));

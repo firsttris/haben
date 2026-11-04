@@ -1,4 +1,4 @@
-import { abschluss, hinterlegungBilanz, type Kontenrahmen } from "@haben/core";
+import { abschluss, hinterlegungBilanz, VERMERK, type Kontenrahmen } from "@haben/core";
 import { describe, expect, it } from "vitest";
 import { buildHinterlegungPdf, hinterlegungPdfData } from "./hinterlegung.ts";
 
@@ -34,5 +34,34 @@ describe.each(["SKR03", "SKR04"] as const)("PDF zur Hinterlegung, %s", (kr) => {
       expect(Buffer.from(pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
     }
     expect(hinterlegungPdfData(bilanz(kr, false)).spalten.vorjahr).toBeNull();
+  });
+
+  it("Davon-Vermerke eingerückt unter ihrem Posten, mit und ohne Vorjahr", () => {
+    const { bank, kapital } = KONTEN[kr];
+    const report = abschluss(kr, [
+      { account: bank, saldo: 2_500_000 },
+      { account: kapital, saldo: -2_000_000 },
+      { account: kr === "SKR03" ? "0730" : "3510", saldo: -500_000 },
+    ]);
+    for (const mitVorjahr of [true, false]) {
+      const vermerk = { posten: "passiva.C" as const, label: VERMERK.verbindlichkeitenGesellschafter, betrag: 500_000 };
+      const b = hinterlegungBilanz({
+        year: 2025,
+        firma: FIRMA,
+        report,
+        vorjahr: mitVorjahr ? report : null,
+        angaben: ANGABEN,
+        vermerke: { jahr: [vermerk], vorjahr: mitVorjahr ? [vermerk] : null },
+      });
+      const data = hinterlegungPdfData(b);
+      expect(data.passiva.at(-1)).toEqual({
+        label: "davon gegenüber Gesellschaftern",
+        betrag: "5.000,00",
+        vorjahr: mitVorjahr ? "5.000,00" : "",
+        vermerk: true,
+      });
+      const pdf = buildHinterlegungPdf(b, "2026-11-04");
+      expect(Buffer.from(pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
+    }
   });
 });

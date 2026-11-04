@@ -68,7 +68,7 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
       "%s: Steuerabzug je Gesellschafter, Buchung, Anmeldung, Storno",
       async (versteuerung) => {
         await setup(kontenrahmen, versteuerung, k);
-        const input = { beschluss: "2026-06-15", auszahlungstag: "2026-06-30", brutto: 1_000_000 };
+        const input = { geschaeftsjahr: 2025, beschluss: "2026-06-15", auszahlungstag: "2026-06-30", brutto: 1_000_000 };
         await expect(a.createAusschuettung(actor, input, today)).rejects.toThrow("keine Anteilseigner");
         await kst.saveKapgErklaerungAngaben(actor, 2026, {
           anteilseigner: [
@@ -130,7 +130,7 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
     it("Storno vor der Anmeldung; Leistung über dem ausschüttbaren Gewinn aus dem Einlagekonto", async () => {
       await setup(kontenrahmen, "ist", k);
       await kst.saveKapgErklaerungAngaben(actor, 2026, { einlagekonto: 500_000, anteilseigner: [{ ...erika, anteil: 10_000 }] });
-      const id = await a.createAusschuettung(actor, { beschluss: "2026-03-01", brutto: 500_000 }, today);
+      const id = await a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-03-01", brutto: 500_000 }, today);
       await a.reverseAusschuettung(actor, id);
       await expect(a.reverseAusschuettung(actor, id)).rejects.toThrow("schon storniert");
       expect((await a.dividendsOfYear(2026))[0]).toMatchObject({ storniert: true });
@@ -138,14 +138,14 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
       expect(saldo[0]!.s).toBe(-2_500_000);
 
       // Ausschüttbarer Gewinn: 50.000 € Eigenkapital − 25.000 € Stammkapital − 5.000 € Einlagekonto = 20.000 €
-      const v = await a.ausschuettungVorschlag({ beschluss: "2026-04-01", brutto: 2_200_000 });
+      const v = await a.ausschuettungVorschlag({ geschaeftsjahr: 2025, beschluss: "2026-04-01", brutto: 2_200_000 });
       expect(v.ausschuettbarerGewinn).toBe(2_000_000);
       expect(v.ausEinlagekonto).toBe(200_000);
       expect(v.empfaenger[0]).toMatchObject({ ertrag: 2_000_000, kapest: 500_000 });
       expect(v.zufluss).toBe("2026-04-02");
 
       // Für die Anlage KSt 1 F: nur die gültige Ausschüttung, mit dem Teil aus dem Einlagekonto
-      await a.createAusschuettung(actor, { beschluss: "2026-04-01", brutto: 2_200_000 }, today);
+      await a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-04-01", brutto: 2_200_000 }, today);
       const { loadCompany } = await import("../stammdaten/index.ts");
       expect(await a.einlagekontoJahr(await loadCompany(), 2026)).toEqual({
         eigenkapital: 5_000_000,
@@ -160,9 +160,9 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
     await setup("SKR03", "ist", k);
     await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [{ ...erika, anteil: 10_000 }] });
     // Der ganze Gewinnvortrag von 25.000 € ist am 1. Juni ausgeschüttet
-    await a.createAusschuettung(actor, { beschluss: "2026-06-01", brutto: 2_500_000 }, today);
+    await a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-06-01", brutto: 2_500_000 }, today);
     // Ein Beschluss vom 1. März sieht am Beschlusstag noch 25.000 €, darf sie aber nicht ein zweites Mal ausschütten
-    await expect(a.createAusschuettung(actor, { beschluss: "2026-03-01", brutto: 2_500_000 }, today)).rejects.toThrow("Gewinnvortrag");
+    await expect(a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-03-01", brutto: 2_500_000 }, today)).rejects.toThrow("Gewinnvortrag");
     const saldo = await sql`select sum(l.debit - l.credit)::int as s from journal_lines l where l.account = ${k.vortrag}`;
     expect(saldo[0]!.s).toBe(0);
   }, 30_000);
@@ -170,7 +170,7 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
   it("Gleichzeitiges Storno bucht nur eine Gegenbuchung", async () => {
     await setup("SKR03", "ist", { bank: "1200", kapital: "0800", vortrag: "0860" });
     await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [{ ...erika, anteil: 10_000 }] });
-    const id = await a.createAusschuettung(actor, { beschluss: "2026-03-01", brutto: 1_000_000 }, today);
+    const id = await a.createAusschuettung(actor, { geschaeftsjahr: 2025, beschluss: "2026-03-01", brutto: 1_000_000 }, today);
     const results = await Promise.allSettled([a.reverseAusschuettung(actor, id), a.reverseAusschuettung(actor, id)]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     const stornos = await sql`select count(*)::int as n from journal_entries where source_type = 'ausschuettung' and reverses_id is not null`;
@@ -184,6 +184,6 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
       await tx`update company set rechtsform = 'einzelunternehmen'`;
       await tx`alter table company enable trigger user`;
     });
-    await expect(a.ausschuettungVorschlag({ beschluss: "2026-03-01", brutto: 100 })).rejects.toThrow("nur in GmbH und UG");
+    await expect(a.ausschuettungVorschlag({ geschaeftsjahr: 2025, beschluss: "2026-03-01", brutto: 100 })).rejects.toThrow("nur in GmbH und UG");
   });
 });

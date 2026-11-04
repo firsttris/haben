@@ -1,3 +1,4 @@
+import { VERMERK, type BilanzVermerk } from "./bilanzvermerke.ts";
 import { BILANZ_POSTEN, type Abschluss, type BilanzPosten } from "./hgb.ts";
 import type { Cents } from "./money.ts";
 
@@ -15,12 +16,11 @@ import type { Cents } from "./money.ts";
  * - ohne Anhang die Angaben unter der Bilanz (§ 264 Abs. 1 Satz 5 HGB): Haftungsverhältnisse (§ 268 Abs. 7, § 251 HGB)
  *   und Vorschüsse und Kredite an Mitglieder der Geschäftsführung (§ 285 Nr. 9 Buchst. c HGB). Die dritte Angabe dort,
  *   eigene Aktien nach § 160 Abs. 3 Satz 2 AktG, gilt nur für die Aktiengesellschaft, nicht für GmbH und UG,
+ * - unter den Posten die Vermerke zu Restlaufzeiten (§ 268 Abs. 4 Satz 1, Abs. 5 Satz 1 HGB) und gegenüber
+ *   Gesellschaftern (§ 42 Abs. 3 GmbHG), mit Vorjahr; gerechnet in bilanzvermerke.ts,
  * - das Datum der Feststellung (§ 328 Abs. 1a Satz 1 HGB, für die Hinterlegung nach § 328 Abs. 5 entsprechend); vor der
  *   Feststellung durch die Gesellschafter wird nicht hinterlegt.
  *
- * Nicht auf dem Blatt: die Davon-Vermerke zu Restlaufzeiten (§ 268 Abs. 4 Satz 1, Abs. 5 Satz 1 HGB). Das Gesetz befreit
- * davon auch die Kleinstkapitalgesellschaft nicht (§ 274a HGB nennt nur Satz 2 bzw. 3, § 267a Abs. 2 HGB); ohne Anhang
- * gehören sie unter die Posten der Bilanz. Haben kennt die Restlaufzeiten nicht; docs/buchhaltung.md sagt das.
  * Das Eigenkapital steht als ein Posten, ohne gezeichnetes Kapital: § 42 Abs. 1 GmbHG schreibt vor, das Stammkapital als
  * gezeichnetes Kapital auszuweisen, „allerdings bestehen größenabhängige Erleichterungen für die Gliederungstiefe. So
  * reicht bei Kleinst-GmbHs der Ausweis des zusammengefassten Eigenkapitals aus“ (Müller/Reinke, Haufe, „Gesellschaft mit
@@ -56,6 +56,8 @@ export interface HinterlegungZeile {
   betrag: Cents;
   /** null = keine Vorjahresspalte (erstes Geschäftsjahr) */
   vorjahr: Cents | null;
+  /** Davon-Vermerk unter dem Posten davor */
+  vermerk?: true;
 }
 
 export interface HinterlegungAngabe {
@@ -112,11 +114,36 @@ export function hinterlegungMaengel(firma: HinterlegungFirma, report: Abschluss,
   return maengel;
 }
 
-/** Zeilen einer Seite: Posten mit Betrag in einem der beiden Jahre; das Eigenkapital immer (§ 265 Abs. 8 HGB) */
-function zeilen(seite: readonly BilanzPosten[], jahr: Record<BilanzPosten, Cents>, vorjahr: Record<BilanzPosten, Cents> | null): HinterlegungZeile[] {
+export interface HinterlegungVermerke {
+  jahr: readonly BilanzVermerk[];
+  /** null = keine Vorjahresspalte */
+  vorjahr: readonly BilanzVermerk[] | null;
+}
+
+const VERMERK_FOLGE: readonly string[] = Object.values(VERMERK);
+
+/** Vermerke unter einem Posten: jeder, den eines der beiden Jahre hat, in fester Reihenfolge */
+function vermerkZeilen(posten: BilanzPosten, vermerke: HinterlegungVermerke): HinterlegungZeile[] {
+  const betrag = (liste: readonly BilanzVermerk[], label: string) => liste.find((v) => v.posten === posten && v.label === label)?.betrag ?? 0;
+  const labels = new Set([...vermerke.jahr, ...(vermerke.vorjahr ?? [])].filter((v) => v.posten === posten).map((v) => v.label));
+  return VERMERK_FOLGE.filter((label) => labels.has(label)).map((label) => ({
+    label,
+    betrag: betrag(vermerke.jahr, label),
+    vorjahr: vermerke.vorjahr ? betrag(vermerke.vorjahr, label) : null,
+    vermerk: true,
+  }));
+}
+
+/** Zeilen einer Seite: Posten mit Betrag in einem der beiden Jahre; das Eigenkapital immer (§ 265 Abs. 8 HGB), je mit Vermerken */
+function zeilen(
+  seite: readonly BilanzPosten[],
+  jahr: Record<BilanzPosten, Cents>,
+  vorjahr: Record<BilanzPosten, Cents> | null,
+  vermerke: HinterlegungVermerke,
+): HinterlegungZeile[] {
   return seite
     .filter((p) => p === "passiva.A" || jahr[p] !== 0 || (vorjahr?.[p] ?? 0) !== 0)
-    .map((p) => ({ label: BILANZ_POSTEN[p], betrag: jahr[p], vorjahr: vorjahr ? vorjahr[p] : null }));
+    .flatMap((p) => [{ label: BILANZ_POSTEN[p], betrag: jahr[p], vorjahr: vorjahr ? vorjahr[p] : null }, ...vermerkZeilen(p, vermerke)]);
 }
 
 const keine = (text: string) => (text.trim() ? text.trim() : "Keine.");
@@ -138,11 +165,14 @@ export function hinterlegungBilanz(input: {
   report: Abschluss;
   vorjahr: Abschluss | null;
   angaben: HinterlegungAngaben;
+  /** Vermerke beider Jahre; ohne keine */
+  vermerke?: HinterlegungVermerke;
 }): HinterlegungBilanz {
   const { year, firma, angaben } = input;
+  const vermerke = input.vermerke ?? { jahr: [], vorjahr: input.vorjahr ? [] : null };
   const jahr = ausweis(input.report);
   const vorjahr = input.vorjahr ? ausweis(input.vorjahr) : null;
-  const aktiva = zeilen(AKTIVA, jahr.posten, vorjahr?.posten ?? null);
+  const aktiva = zeilen(AKTIVA, jahr.posten, vorjahr?.posten ?? null, vermerke);
   if (jahr.fehlbetrag !== 0 || (vorjahr?.fehlbetrag ?? 0) !== 0) {
     aktiva.push({ label: FEHLBETRAG_LABEL, betrag: jahr.fehlbetrag, vorjahr: vorjahr ? vorjahr.fehlbetrag : null });
   }
@@ -156,7 +186,7 @@ export function hinterlegungBilanz(input: {
     stichtag: `${year}-12-31`,
     vorjahresstichtag: vorjahr ? `${year - 1}-12-31` : null,
     aktiva,
-    passiva: zeilen(PASSIVA, jahr.posten, vorjahr?.posten ?? null),
+    passiva: zeilen(PASSIVA, jahr.posten, vorjahr?.posten ?? null, vermerke),
     summeAktiva: {
       label: "Summe Aktiva",
       betrag: summe(jahr.posten, AKTIVA) + jahr.fehlbetrag,

@@ -13,14 +13,15 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
-import { accountName, jahresabschluss, ledgerRange, listAssets, saldenliste } from "../buchhaltung/index.ts";
+import { accountName, ebilanzDavon, jahresabschluss, ledgerRange, listAssets, saldenliste } from "../buchhaltung/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 import { companyIssues, loadCompany, type Company } from "../stammdaten/index.ts";
 
 /*
  * E-Bilanz (§ 5b EStG) einer GmbH oder UG: Bilanz und GuV in der HGB-Taxonomie aus den Salden des Jahres
  * (Kontenzuordnung in @haben/core, ebilanz.ts), Betriebsvermögensvergleich aus den Eigenkapitalkonten, Anlagenspiegel
- * aus dem Anlagenverzeichnis. Prüfen, Test und Senden laufen wie die Jahreserklärungen über das ELSTER-Gateway und
+ * aus dem Anlagenverzeichnis, Davon-Positionen zu Restlaufzeiten aus den bestätigten Angaben (§ 268 Abs. 4 und 5 HGB;
+ * die Taxonomie verlangt sie nicht, sie gehören aber zur Handelsbilanz). Prüfen, Test und Senden laufen wie die Jahreserklärungen über das ELSTER-Gateway und
  * stehen im selben Protokoll (annual_submissions, Formular „ebilanz“). Echt gesendet wird nur ein abgeschlossenes Jahr.
  */
 
@@ -86,7 +87,8 @@ export async function ebilanzDaten(year: number, company: Company): Promise<{ da
     );
     if (zeile) anlagen.push(zeile);
   }
-  return { daten: { werte: ebilanzWerte(zuordnung), bvv: betriebsvermoegen(kontenrahmen, rows), anlagen }, issues };
+  const davon = (await ebilanzDavon(year, kontenrahmen)) ?? {};
+  return { daten: { werte: { ...ebilanzWerte(zuordnung), ...davon }, bvv: betriebsvermoegen(kontenrahmen, rows), anlagen }, issues };
 }
 
 function xmlFor(year: number, company: Company, daten: EbilanzDaten, test: boolean, herstellerId: string, erstellt: string): string {
@@ -140,6 +142,9 @@ async function ebilanzIssues(year: number, today: string, company: Company): Pro
     ...(abschluss.kapitalgesellschaft && !abschluss.status
       ? [{ tone: "hinweis" as const, text: `Echt senden lässt sich die E-Bilanz erst, wenn ${year} abgeschlossen ist.` }]
       : []),
+    ...((await ebilanzDavon(year, company.kontenrahmen))
+      ? []
+      : [{ tone: "hinweis" as const, text: "Ohne bestätigte Restlaufzeiten fehlen die Davon-Positionen zu Restlaufzeiten bis und über einem Jahr." }]),
   ];
   if (base.some((i) => i.tone === "fehler")) return base;
   const { daten, issues } = await ebilanzDaten(year, company);

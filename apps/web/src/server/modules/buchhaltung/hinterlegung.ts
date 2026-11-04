@@ -1,11 +1,9 @@
 import {
-  abschluss,
   feststellungFehler,
   hinterlegungBilanz,
   hinterlegungFrist,
   hinterlegungMaengel,
   isKapitalgesellschaft,
-  type Abschluss,
   type HinterlegungAngaben,
   type HinterlegungBilanz,
   type HinterlegungFirma,
@@ -14,13 +12,13 @@ import { buildHinterlegungPdf } from "@haben/einvoice";
 import { z } from "zod";
 import { UserError } from "../../errors.ts";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
-import { ledgerRange, saldenliste, uebernahmen } from "./ledger.ts";
+import { jahresBilanzen } from "./bilanzen.ts";
+import { bilanzVermerkeFuer } from "./restlaufzeiten.ts";
 
 /*
- * Bilanz einer GmbH oder UG zur Hinterlegung beim Unternehmensregister (§ 326 Abs. 2 HGB), als PDF. Die Vorjahresspalte
- * (§ 265 Abs. 2 HGB) kommt aus der Spalte „Eröffnung“ der Saldenliste: Die Salden zum 1. Januar sind die Schlussbilanz
- * des Vorjahres (Bilanzidentität, § 252 Abs. 1 Nr. 1 HGB), ob vorgetragen oder per Eröffnungsbuchung übernommen; dazu
- * kommt, was im Jahr gegen 9000 übernommen ist (Umzug, Anlagen).
+ * Bilanz einer GmbH oder UG zur Hinterlegung beim Unternehmensregister (§ 326 Abs. 2 HGB), als PDF, mit Vorjahresspalte
+ * (bilanzen.ts) und den Vermerken zu Restlaufzeiten und Gesellschaftern (restlaufzeiten.ts). Ohne bestätigte
+ * Restlaufzeiten gibt es keine Datei: Die Vermerke sind Pflicht (§ 268 Abs. 4 und 5 HGB).
  */
 
 export class HinterlegungError extends UserError {}
@@ -45,29 +43,19 @@ function firmaOf(company: Company): HinterlegungFirma {
   return { name: company.name, sitz: company.sitz || company.ort, registergericht: company.registergericht, registernummer: company.registernummer };
 }
 
-/** Bilanz des Jahres und, wenn es Salden zum 1. Januar gibt, die des Vorjahres */
-async function bilanzen(year: number, company: Company): Promise<{ report: Abschluss; vorjahr: Abschluss | null }> {
-  const rows = (await saldenliste(ledgerRange(year))).filter((r) => r.kontenrahmen === company.kontenrahmen);
-  const report = abschluss(
-    company.kontenrahmen,
-    rows.map((r) => ({ account: r.account, saldo: r.saldo })),
-  );
-  // Stand am 1. Januar: Vortrag und Eröffnungsbuchung, dazu was im Jahr gegen 9000 übernommen ist (Umzug, Anlagen)
-  const salden = new Map<string, number>();
-  for (const { account, saldo } of [...rows.map((r) => ({ account: r.account, saldo: r.eroeffnung })), ...(await uebernahmen(year, company.kontenrahmen))]) {
-    salden.set(account, (salden.get(account) ?? 0) + saldo);
-  }
-  const eroeffnung = [...salden].filter(([, saldo]) => saldo !== 0).map(([account, saldo]) => ({ account, saldo }));
-  return { report, vorjahr: eroeffnung.length > 0 ? abschluss(company.kontenrahmen, eroeffnung) : null };
-}
-
 /** Frist und Mängel für die Seite; null, wo es keine Hinterlegung gibt (Einzelunternehmen, laufendes Jahr) */
 export async function hinterlegungStand(year: number, today: string): Promise<HinterlegungStand | null> {
   const company = await loadCompany();
   if (!isKapitalgesellschaft(company.rechtsform) || `${year}-12-31` >= today) return null;
-  const { report, vorjahr } = await bilanzen(year, company);
+  const { report, vorjahr } = await jahresBilanzen(year, company.kontenrahmen);
+  const vermerke = await bilanzVermerkeFuer(year, company.kontenrahmen);
   const frist = hinterlegungFrist(year);
-  return { frist, fristAbgelaufen: frist < today, maengel: hinterlegungMaengel(firmaOf(company), report, vorjahr), vorjahr: vorjahr !== null };
+  return {
+    frist,
+    fristAbgelaufen: frist < today,
+    maengel: [...hinterlegungMaengel(firmaOf(company), report, vorjahr), ...vermerke.maengel],
+    vorjahr: vorjahr !== null,
+  };
 }
 
 /** Die Bilanz zur Hinterlegung mit den Angaben; wirft HinterlegungError, solange etwas fehlt */
@@ -78,10 +66,11 @@ export async function hinterlegungBilanzFuer(year: number, angaben: Hinterlegung
   const fehler = feststellungFehler(year, angaben.festgestelltAm, today);
   if (fehler) throw new HinterlegungError(fehler);
   const firma = firmaOf(company);
-  const { report, vorjahr } = await bilanzen(year, company);
-  const maengel = hinterlegungMaengel(firma, report, vorjahr);
+  const { report, vorjahr } = await jahresBilanzen(year, company.kontenrahmen);
+  const { maengel: offen, ...vermerke } = await bilanzVermerkeFuer(year, company.kontenrahmen);
+  const maengel = [...hinterlegungMaengel(firma, report, vorjahr), ...offen];
   if (maengel.length > 0) throw new HinterlegungError(maengel.join(" "));
-  return hinterlegungBilanz({ year, firma, report, vorjahr, angaben });
+  return hinterlegungBilanz({ year, firma, report, vorjahr, angaben, vermerke });
 }
 
 /** PDF der Bilanz zur Hinterlegung */

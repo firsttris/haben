@@ -28,6 +28,8 @@ export interface ParsedTransaction {
   type?: string;
   /** Referenz der Bank, falls vorhanden (CAMT AcctSvcrRef, EndToEndId) */
   bankReference?: string;
+  /** Kennung des Auftraggebers (CAMT Refs/EndToEndId), auch wenn bankReference die Referenz der Bank trägt */
+  endToEndId?: string;
   /** SEPA-Lastschrift: Gläubiger-ID und Mandatsreferenz, falls die Datei sie nennt */
   creditorId?: string;
   mandateReference?: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { purposeContainsNumber, suggestMatches, type OpenItem } from "./matching.ts";
+import { purposeContainsNumber, suggestMatches, transactionHasReference, type OpenItem } from "./matching.ts";
 
 const invoice = (over: Partial<OpenItem> = {}): OpenItem => ({
   type: "invoice",
@@ -54,6 +54,41 @@ describe("suggestMatches", () => {
       [doc],
     );
     expect(best?.reasons).toEqual(["Betrag stimmt exakt", "Rechnungsnummer im Verwendungszweck", "Name passt", "Datum passt (± 5 Tage)"]);
+  });
+
+  describe("Überweisung aus Haben (SEPA-Datei)", () => {
+    const doc = (over: Partial<OpenItem> = {}): OpenItem => ({
+      type: "document",
+      id: "b2",
+      number: "RE-0815",
+      date: "2026-08-01",
+      open: -11_900,
+      partyName: "Büro Müller",
+      partyIbans: ["DE02120300000000202051"],
+      references: ["HABEN-0A1B2C3D4E5F6071"],
+      ...over,
+    });
+    const debit = { bookingDate: "2026-11-06", amount: -11_662, counterpartyName: "Buero Mueller", counterpartyIban: null, purpose: "Sammler" };
+
+    it("findet den Beleg an der EndToEndId, auch mit Skonto abgezogen und ohne Rechnungsnummer", () => {
+      const [best] = suggestMatches({ ...debit, endToEndId: "HABEN-0A1B2C3D4E5F6071" }, [doc(), doc({ id: "b3", references: [] })]);
+      expect(best?.item.id).toBe("b2");
+      expect(best?.reasons).toEqual(["Teilbetrag des offenen Betrags", "Überweisung aus Haben (HABEN-0A1B2C3D4E5F6071)"]);
+      expect(best?.amount).toBe(-11_662);
+    });
+
+    it("liest die Referenz auch aus Kundenreferenz und Verwendungszweck", () => {
+      expect(transactionHasReference({ purpose: "", bankReference: "haben-0a1b2c3d4e5f6071" }, "HABEN-0A1B2C3D4E5F6071")).toBe(true);
+      expect(transactionHasReference({ purpose: "RE-0815 EREF: HABEN 0A1B2C3D4E5F6071 SVWZ" }, "HABEN-0A1B2C3D4E5F6071")).toBe(true);
+      expect(transactionHasReference({ purpose: "RE-0815" }, "HABEN-0A1B2C3D4E5F6071")).toBe(false);
+      // Zu kurze Referenzen träfen zufällig
+      expect(transactionHasReference({ purpose: "abc" }, "ABC")).toBe(false);
+    });
+
+    it("die IBAN des Lieferanten zählt auch bei Belegen", () => {
+      const [best] = suggestMatches({ ...debit, amount: -11_900, counterpartyIban: "DE02 1203 0000 0000 2020 51" }, [doc({ references: [] })]);
+      expect(best?.reasons).toEqual(["Betrag stimmt exakt", "IBAN des Lieferanten"]);
+    });
   });
 
   it("schwache Treffer fallen weg", () => {

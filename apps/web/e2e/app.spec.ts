@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { zipSync } from "fflate";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -239,7 +240,21 @@ test("Rechnungen schreiben und festschreiben", async () => {
   }
 });
 
+/** IBAN des Lieferanten Funknetz Mobil GmbH, im Kontakt und im Kontoauszug */
+const SUPPLIER_IBAN = "DE02100100100006820101";
+/** EndToEndId der SEPA-Überweisung für den Mobilfunkbeleg; der Kontoauszug nennt sie als Kundenreferenz */
+let endToEndId = "";
+
 test("Beleg hochladen und buchen", async ({ browser }) => {
+  // Lieferant mit IBAN, damit sich der Beleg als SEPA-Überweisung bezahlen lässt
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Funknetz Mobil GmbH");
+  await page.getByLabel("Kunde", { exact: true }).uncheck();
+  await page.getByLabel("Lieferant", { exact: true }).check();
+  await page.getByLabel("IBAN").fill(SUPPLIER_IBAN);
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
   await go("/belege");
   await page.locator("input[type=file][multiple]").setInputFiles([{ name: "mobilfunk.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser) }]);
   await expect(page.getByText("mobilfunk.jpg: abgelegt.")).toBeVisible();
@@ -249,7 +264,8 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
     .click();
   await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
   await page.waitForLoadState("networkidle");
-  await page.getByLabel("Lieferant", { exact: true }).fill("Funknetz Mobil GmbH");
+  await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Funknetz Mobil GmbH" });
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Funknetz Mobil GmbH");
   await page.getByLabel("Rechnungsnummer").fill("MF-0815");
   await page.getByLabel("Belegdatum").fill(day(-9));
   await page.getByLabel("Kategorie").selectOption("telefon");
@@ -268,20 +284,86 @@ test("Beleg hochladen und buchen", async ({ browser }) => {
   await expect(page.locator("#payables")).toBeInViewport();
 });
 
+test("Überweisung als SEPA-Datei: offenen Beleg wählen, Datei herunterladen, Vermerk am Beleg", async ({ browser }) => {
+  await go("/ueberweisungen");
+  // Ohne Bankkonto gibt es kein Auftraggeberkonto
+  await expect(page.getByText(/braucht Haben das Konto, von dem sie abgeht/)).toBeVisible();
+  await go("/bank");
+  await page.getByRole("button", { name: "Konto hinzufügen" }).click();
+  const accountForm = page.locator("form").filter({ has: page.getByRole("button", { name: "Konto anlegen" }) });
+  await accountForm.getByRole("textbox", { name: "Name" }).fill("Girokonto");
+  await accountForm.getByRole("textbox", { name: "IBAN" }).fill("DE45 1203 0000 1234 5678 90");
+  await accountForm.getByRole("button", { name: "Konto anlegen" }).click();
+  await expect(page.getByRole("combobox", { name: "Konto" }).locator("option", { hasText: "Girokonto" })).toHaveCount(1);
+
+  await go("/ueberweisungen");
+  const form = page.getByRole("form", { name: "SEPA-Überweisung erzeugen" });
+  await expect(form.getByLabel("Auftraggeberkonto")).toContainText("Girokonto · DE45 1203 0000 1234 5678 90");
+  await expect(form).toContainText("DE02 1001 0010 0006 8201 01");
+  // Später ist der Beleg bezahlt: Die Liste mit Auswahl prüft axe deshalb hier, am Desktop und am Handy (WCAG 2.2 AA wie
+  // barrierefreiheit.spec.ts). AxeBuilder braucht einen eigenen Kontext, mit derselben Sitzung
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  for (const width of [1440, 390]) {
+    await axePage.setViewportSize({ width, height: 900 });
+    await axePage.goto(new URL("/ueberweisungen", page.url()).toString());
+    await axePage.waitForLoadState("networkidle");
+    await expect(axePage.getByRole("checkbox", { name: "Funknetz Mobil GmbH MF-0815 überweisen" })).toBeVisible();
+    const { violations } = await new AxeBuilder({ page: axePage })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `/ueberweisungen bei ${width} px`,
+    ).toEqual([]);
+  }
+  await context.close();
+  await form.getByRole("checkbox", { name: "Funknetz Mobil GmbH MF-0815 überweisen" }).check();
+  await expect(form.getByText("1 ausgewählt · 45,90 €")).toBeVisible();
+  const download = page.waitForEvent("download");
+  await form.getByRole("button", { name: "SEPA-Datei erzeugen" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^HABEN-[0-9A-F]{16}\.xml$/);
+  const xml = readFileSync(await file.path(), "utf8");
+  expect(xml).toContain('<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09">');
+  expect(xml.match(/<NbOfTxs>1<\/NbOfTxs>/g)).toHaveLength(2);
+  expect(xml.match(/<CtrlSum>45\.90<\/CtrlSum>/g)).toHaveLength(2);
+  expect(xml).toContain('<InstdAmt Ccy="EUR">45.90</InstdAmt>');
+  expect(xml).toContain("<DbtrAcct><Id><IBAN>DE45120300001234567890</IBAN></Id></DbtrAcct>");
+  expect(xml).toContain(`<CdtrAcct><Id><IBAN>${SUPPLIER_IBAN}</IBAN></Id></CdtrAcct>`);
+  expect(xml).toContain("<Cdtr><Nm>Funknetz Mobil GmbH</Nm></Cdtr>");
+  expect(xml).toContain("<Ustrd>MF-0815</Ustrd>");
+  expect(xml).toContain(`<ReqdExctnDt><Dt>${day(0)}</Dt></ReqdExctnDt>`);
+  endToEndId = /<EndToEndId>(HABEN-[0-9A-F]{16})<\/EndToEndId>/.exec(xml)?.[1] ?? "";
+  expect(endToEndId).not.toBe("");
+  await expect(page.getByRole("status").filter({ hasText: "erzeugt: 1 Überweisung über 45,90 €" })).toBeVisible();
+
+  // Die Datei bleibt zum erneuten Herunterladen; der Beleg ist weiter offen und trägt den Vermerk
+  const files = page.getByRole("region", { name: "Erzeugte Dateien" });
+  await expect(files).toContainText("Girokonto");
+  const again = await page.request.get((await files.getByRole("link", { name: `${file.suggestedFilename()} herunterladen` }).getAttribute("href"))!);
+  expect(await again.text()).toBe(xml);
+  await expect(form).toContainText("Überweisung erzeugt am");
+  await form.getByRole("link", { name: "Funknetz Mobil GmbH" }).click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("status").filter({ hasText: "Überweisung erzeugt am" })).toContainText(endToEndId);
+});
+
 test("Kontoauszug importieren und zuordnen", async () => {
   const rows = [
     [day(-1), "Rheinpixel GmbH", "Max Mustermann", "Rechnung Wartung", "Eingang", "1.725,50"],
-    [day(-6), "Max Mustermann", "Funknetz Mobil GmbH", "Mobilfunk MF-0815", "Ausgang", "-45,90"],
+    // Die DKB nennt die EndToEndId der Überweisung als Kundenreferenz
+    [day(-6), "Max Mustermann", "Funknetz Mobil GmbH", "Mobilfunk MF-0815", "Ausgang", "-45,90", endToEndId],
     [day(-8), "Alpenblick Media AG", "Max Mustermann", "Rechnung Beratung", "Eingang", "3.724,70"],
     [day(-25), "Nordwerk Software GmbH", "Max Mustermann", "Rechnung Softwareentwicklung", "Eingang", "10.852,80"],
   ];
   const csv =
     "﻿" +
-    `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n"Kontostand vom ${dkb(day(0))}:";"16.257,10 €"\n""\n` +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n"Kontostand vom ${dkb(day(0))}:";"16.257,10 €"\n""\n` +
     `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
     rows
-      .map(([date, from, to, purpose, type, amount]) =>
-        [dkb(date!), dkb(date!), "Gebucht", from, to, purpose, type, "DE02100100100006820101", amount, "", "", ""].map((v) => `"${v}"`).join(";"),
+      .map(([date, from, to, purpose, type, amount, reference = ""]) =>
+        [dkb(date!), dkb(date!), "Gebucht", from, to, purpose, type, SUPPLIER_IBAN, amount, "", "", reference].map((v) => `"${v}"`).join(";"),
       )
       .join("\n") +
     "\n";
@@ -299,6 +381,8 @@ test("Kontoauszug importieren und zuordnen", async () => {
     // Erst zuordnen, wenn rechts der angeklickte Umsatz steht
     await expect(page.getByRole("heading", { name: party })).toBeVisible();
     await expect(page.getByText("Bester Treffer")).toBeVisible();
+    // Die Abbuchung der Überweisung aus Haben erkennt der Abgleich an ihrer Referenz
+    if (party === "Funknetz Mobil GmbH") await expect(page.getByText(`Überweisung aus Haben (${endToEndId})`)).toBeVisible();
     await page.getByRole("button", { name: "Zuordnen" }).click();
     // Erst weiter, wenn die Zuordnung dieses Umsatzes gespeichert ist: danach springt die Auswahl zum nächsten offenen
     // Umsatz. Ein vorzeitiges Weiterklicken bricht die laufende Anfrage ab.
@@ -949,6 +1033,8 @@ function webBackupZip(): Uint8Array {
   const purchase = fixture("purchase-gross.json");
   const privat = fixture("financial-private.json");
   const pdfPath = `dateien/${sales.list.entityId}/1-Rechnung_RE0042.pdf`;
+  // Die Ausgabe bringt eine Datei mit, damit sie sich als offener Posten übernehmen lässt
+  const purchasePath = `dateien/${purchase.list.entityId}/1-2025-4711.pdf`;
   return zipSync({
     "manifest.json": json({ format: "haben-lexware-web", version: 1, part: 1, createdAt: new Date().toISOString(), failed: [] }),
     "kontakte.json": json(fixture("contacts.json")),
@@ -956,9 +1042,13 @@ function webBackupZip(): Uint8Array {
       ...sales,
       files: [{ path: pdfPath, role: "pdf", mimeType: "application/pdf", filename: "Rechnung_RE0042.pdf" }],
     }),
-    [`belege/${purchase.list.entityId}.json`]: json({ ...purchase, files: [] }),
+    [`belege/${purchase.list.entityId}.json`]: json({
+      ...purchase,
+      files: [{ path: purchasePath, role: "anhang", mimeType: "application/pdf", filename: "2025-4711.pdf" }],
+    }),
     [`belege/${privat.list.entityId}.json`]: json({ ...privat, files: [] }),
     [pdfPath]: new TextEncoder().encode("%PDF-1.4\n%%EOF\n"),
+    [purchasePath]: new TextEncoder().encode("%PDF-1.4\n% 2025-4711\n%%EOF\n"),
   });
 }
 
@@ -978,7 +1068,24 @@ test("Umzug ohne Public API: Skript abrufen, Sicherung hochladen und übernehmen
   const step2 = page.getByRole("region", { name: "Kontakte, Rechnungen und Belege abrufen" });
   await expect(step2).toContainText("Fertig am");
   // Die überfällige Ausgabe steht als offener Posten bereit
-  await expect(page.getByRole("region", { name: "Offene Posten übernehmen" })).toContainText("2025-4711");
+  const offen = page.getByRole("region", { name: "Offene Posten übernehmen" });
+  await expect(offen).toContainText("2025-4711");
+  // Stichtag: letzter Tag der alten Buchhaltung; im Einzelunternehmen wählbar, gebucht wird am Tag danach
+  await offen.getByLabel("Stichtag (letzter Tag der alten Buchhaltung)").fill(`${YEAR - 1}-12-30`);
+  await offen.getByRole("button", { name: "Stichtag ändern" }).click();
+  await expect(offen).toContainText(`Stichtag 30.12.${YEAR - 1}`);
+  await expect(offen).toContainText(`Gebucht wird zum 31.12.${YEAR - 1}`);
+  await expect(offen).toContainText("2025-4711");
+  // Nach der ersten Übernahme steht der Stichtag fest: kein „Stichtag ändern“ mehr, der Grund steht im Text
+  await offen
+    .getByRole("row", { name: /2025-4711/ })
+    .getByRole("button", { name: "Übernehmen" })
+    .click();
+  await expect(offen.getByRole("row", { name: /2025-4711/ }).getByRole("link", { name: "übernommen" })).toBeVisible();
+  await expect(offen.getByRole("button", { name: "Stichtag ändern" })).toHaveCount(0);
+  await expect(offen.getByLabel("Stichtag (letzter Tag der alten Buchhaltung)")).toHaveCount(0);
+  await expect(offen).toContainText(`Stichtag 30.12.${YEAR - 1}`);
+  await expect(offen).toContainText(`Die ersten offenen Posten sind zum 31.12.${YEAR - 1} übernommen`);
   // Die Privateinlage ist weder Einnahme noch Ausgabe; der Abgleich weist sie getrennt aus statt sie wegzulassen
   await expect(page.getByRole("table", { name: "Weder Einnahme noch Ausgabe 2026" })).toContainText("Privat und Geldtransit");
 });

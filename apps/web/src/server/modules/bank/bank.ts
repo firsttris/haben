@@ -42,6 +42,7 @@ import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
+import { documentPayees, payeeIbans } from "./document-payees.ts";
 
 export class BankError extends UserError {}
 
@@ -279,6 +280,7 @@ export async function storeStatement(
         purpose: t.purpose,
         type: t.type ?? null,
         bankReference: t.bankReference ?? null,
+        endToEndId: t.endToEndId ?? null,
         dedupHash: t.dedupHash,
       })),
     );
@@ -334,6 +336,8 @@ export async function listTransactions(accountId: string, filter: TransactionFil
       counterpartyName: schema.bankTransactions.counterpartyName,
       counterpartyIban: schema.bankTransactions.counterpartyIban,
       purpose: schema.bankTransactions.purpose,
+      bankReference: schema.bankTransactions.bankReference,
+      endToEndId: schema.bankTransactions.endToEndId,
       open: openAmountSql.mapWith(Number),
     })
     .from(schema.bankTransactions)
@@ -384,6 +388,11 @@ const negatedShares = (shares: TaxShare[] | null) => shares?.map((s) => ({ rate:
 
 export async function invoicePayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("invoice_id", ids, q);
+}
+
+/** Erledigter Betrag je Beleg (Zuordnungen und Ausbuchungen), Vorzeichen wie auf dem Konto */
+export async function documentPayments(ids: string[], q: Db | Tx = db) {
+  return paidByTarget("document_id", ids, q);
 }
 
 /** Ausgebuchte Beträge je Rechnung (Skonto und Forderungsausfall, Gegenzeilen abgezogen) */
@@ -458,6 +467,8 @@ export async function openItems(): Promise<OpenItem[]> {
     "document_id",
     documents.map((d) => d.id),
   );
+  // Konto des Lieferanten und Referenzen der SEPA-Überweisungen aus Haben: Die Abbuchung findet so ihren Beleg
+  const payees = await documentPayees(documents.map((d) => d.id));
 
   const items: OpenItem[] = [];
   for (const inv of invoices) {
@@ -508,7 +519,8 @@ export async function openItems(): Promise<OpenItem[]> {
       dueDate: doc.dueDate,
       open,
       partyName: doc.supplierName,
-      partyIbans: [],
+      partyIbans: payeeIbans(payees.get(doc.id)),
+      references: payees.get(doc.id)?.references ?? [],
       currency: doc.currency,
     });
   }
@@ -529,6 +541,7 @@ export async function transactionDetail(id: string) {
       purpose: schema.bankTransactions.purpose,
       type: schema.bankTransactions.type,
       bankReference: schema.bankTransactions.bankReference,
+      endToEndId: schema.bankTransactions.endToEndId,
       open: openAmountSql.mapWith(Number),
     })
     .from(schema.bankTransactions)

@@ -1,5 +1,5 @@
 {
-  "id": "fcd74af5-d5e7-4136-877c-17e4232f9079",
+  "id": "456e3858-403f-4e92-a56b-140ea096a679",
   "prevId": "13532c38-2dae-4bbd-9771-c48f0ee3ea77",
   "version": "7",
   "dialect": "postgresql",
@@ -2854,6 +2854,12 @@
           "type": "date",
           "primaryKey": false,
           "notNull": true
+        },
+        "geschaeftsjahr": {
+          "name": "geschaeftsjahr",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "brutto": {
           "name": "brutto",
@@ -7658,58 +7664,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.vat_frequencies": {
-      "name": "vat_frequencies",
-      "schema": "",
-      "columns": {
-        "year": {
-          "name": "year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "from_month": {
-          "name": "from_month",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "frequency": {
-          "name": "frequency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "vat_frequencies_year_from_month_pk": {
-          "name": "vat_frequencies_year_from_month_pk",
-          "columns": [
-            "year",
-            "from_month"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "vat_frequencies_from_month": {
-          "name": "vat_frequencies_from_month",
-          "value": "\"vat_frequencies\".\"from_month\" in (1, 4, 7, 10)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.vat_return_submissions": {
       "name": "vat_return_submissions",
       "schema": "",
@@ -8036,7 +7990,7 @@
       "checkConstraints": {
         "vat_returns_month": {
           "name": "vat_returns_month",
-          "value": "\"vat_returns\".\"month\" between 1 and 12 or \"vat_returns\".\"month\" between 41 and 44"
+          "value": "\"vat_returns\".\"month\" between 1 and 12"
         }
       },
       "isRLSEnabled": false

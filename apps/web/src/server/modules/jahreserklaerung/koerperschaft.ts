@@ -62,6 +62,8 @@ export const kapgErklaerungSchema = z.object({
             .string()
             .regex(/^\d{6}$/, "Religionsschlüssel aus dem Kirchensteuerabzugsmerkmal hat sechs Ziffern")
             .optional(),
+          /** Für die Steuerbescheinigung: Muster II verlangt die Religionsgemeinschaft mit Namen, nicht den Schlüssel */
+          religionsgemeinschaft: z.string().trim().max(200).optional(),
         })
         .refine((a) => a.kirchensteuer === 0 || a.religionsschluessel, "Zur Kirchensteuer fehlt der Religionsschlüssel")
         .refine((a) => a.idnr || a.steuernummer13, "Identifikationsnummer oder Steuernummer des Anteilseigners fehlt"),

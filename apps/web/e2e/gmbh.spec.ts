@@ -275,7 +275,11 @@ test("Ausschüttungen: Steuerabzug berechnen, ohne Gewinnvortrag nicht buchbar",
   await expect(page.getByRole("heading", { name: `Ausschüttungen ${year}` })).toBeVisible();
 
   const form = page.getByRole("form", { name: "Neue Ausschüttung" });
+  // Beim Tippen meldet das Datumsfeld schon Zwischenstände wie 0002-01-02; das Geschäftsjahr folgt dem fertigen Datum
+  await form.getByLabel("Datum des Beschlusses").fill("0002-01-02");
   await form.getByLabel("Datum des Beschlusses").fill(`${year}-01-02`);
+  // Vorbelegt mit dem Vorjahr; steht in der Steuerbescheinigung als Zeitraum (Muster II)
+  await expect(form.getByLabel("Geschäftsjahr, dessen Gewinn ausgeschüttet wird")).toHaveValue(String(year - 1));
   await form.getByLabel("Ausschüttung brutto").fill("1.000,00");
   await form.getByRole("button", { name: "Steuerabzug berechnen" }).click();
   // Anteilseigner aus den Angaben des Vorjahres; 25 % Kapitalertragsteuer, 5,5 % Soli
@@ -537,4 +541,32 @@ test("Geschäftsbrief (§ 35a GmbHG): Geschäftsführer in den Firmendaten, Pfli
   expect(xml).toMatch(/<ram:SpecifiedLegalOrganization>\s*<ram:ID>HRB 12345 HB<\/ram:ID>/);
   const pdf = await (await page.request.get(`/api/rechnung/${id}/pdf`)).body();
   expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+});
+
+test("Restlaufzeiten und Vermerke: Gesellschafter-Verrechnungskonto, vorschlagen und bestätigen", async () => {
+  const year = new Date().getFullYear();
+  // Seit der Eröffnung aus dem DATEV-Stapel steht der Gesellschafter mit 300 € unter den Verbindlichkeiten
+  await go(`/abschluss/${year}`);
+  const passiva = page.getByRole("region", { name: `Passiva zum 31.12.${year}` });
+  // § 42 Abs. 3 GmbHG: ohne Bestätigung schon da; Restlaufzeiten (§ 268 Abs. 5 HGB) erst nach der Bestätigung
+  await expect(passiva.getByRole("row", { name: "davon gegenüber Gesellschaftern" })).toBeVisible();
+  await expect(passiva).not.toContainText("davon mit einer Restlaufzeit");
+
+  const rlz = page.getByRole("form", { name: `Restlaufzeiten ${year}` });
+  await expect(rlz).toContainText("Noch nicht bestätigt.");
+  await expect(rlz).toContainText("§ 271 Abs. 1 BGB");
+  const feld = rlz.getByLabel(`Konto 3510 zum 31.12.${year}: davon Restlaufzeit von mehr als einem Jahr`);
+  await expect(feld).toHaveValue("0,00");
+  // Vorjahresspalte: der Stand der Eröffnung
+  await expect(rlz.getByLabel(`Konto 3510 zum 31.12.${year - 1}: davon Restlaufzeit von mehr als einem Jahr`)).toHaveValue("0,00");
+  expect(await axe(), `/abschluss/${year} Restlaufzeiten`).toEqual([]);
+
+  // 100 € hat der Gesellschafter bis nach dem Folgejahr gestundet
+  await feld.fill("100,00");
+  await rlz.getByRole("button", { name: "Restlaufzeiten bestätigen" }).click();
+  await expect(page.getByText("Restlaufzeiten bestätigt.")).toBeVisible();
+  await expect(passiva.getByRole("row", { name: "davon mit einer Restlaufzeit von mehr als einem Jahr" })).toContainText("100,00");
+  await expect(passiva.getByRole("row", { name: "davon mit einer Restlaufzeit bis zu einem Jahr" })).toBeVisible();
+  await expect(rlz).toContainText("Zuletzt bestätigt am");
+  expect(await axe(), `/abschluss/${year} Restlaufzeiten bestätigt`).toEqual([]);
 });
