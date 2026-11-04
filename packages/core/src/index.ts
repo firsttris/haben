@@ -18,6 +18,7 @@ export * from "./ausschuettung.ts";
 export * from "./matching.ts";
 export * from "./euer.ts";
 export * from "./legacy-vat.ts";
+export * from "./legacy-einordnung.ts";
 export * from "./treatment.ts";
 export * from "./holidays.ts";
 export * from "./afa.ts";
