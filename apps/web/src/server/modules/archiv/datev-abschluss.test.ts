@@ -120,7 +120,7 @@ describe.skipIf(!testDatabaseUrl)("Abschluss aus dem DATEV-Stapel (Postgres)", (
           [2_500_000, "S", "9000", k.kapital, "", "0101"],
         ]),
       );
-      await upload(2025, stack(2025, kontenrahmen, [[23_800, "S", k.bank, k.erloese, "", "1006"]]));
+      await upload(2025, stack(2025, kontenrahmen, [[23_800, "S", k.bank, k.erloes, "", "1006"]]));
       const jahr = await modul.datevAbschluss(2025);
       expect(jahr!.vortrag).toBe("vorjahre");
       expect(jahr!.report.aktiva).toBe(2_500_000 + 23_800);
