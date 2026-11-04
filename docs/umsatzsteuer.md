@@ -81,6 +81,8 @@ Mit der Dauerfristverlängerung gibst du jede Voranmeldung einen Monat später a
 
 Auf der Seite **Umsatzsteuer** steht dafür unter dem Voranmeldungszeitraum der Bereich **Dauerfristverlängerung &lt;Jahr&gt;**.
 
+Beenden lässt sich die Verlängerung für ein Jahr, für das schon eine Sondervorauszahlung angemeldet ist, erst ab dem Folgejahr: Die Sondervorauszahlung wird in der letzten Voranmeldung angerechnet, für die die Verlängerung gilt (§ 48 Abs. 4 UStDV), und ein Ende im Lauf des Jahres bildet Haben nicht ab. Endet sie doch unterjährig, klärst du die Anrechnung mit dem Finanzamt.
+
 ### Sondervorauszahlung berechnen
 
 Haben schlägt die Sondervorauszahlung aus den gesendeten Voranmeldungen des Vorjahres vor (je Zeitraum die zuletzt gesendete, bei Berichtigungen die berichtigte):

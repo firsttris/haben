@@ -49,12 +49,20 @@ export async function saveDauerfrist(actor: string, input: DauerfristInput): Pro
     throw new VatError("Die Sondervorauszahlung ist ein Betrag in vollen Euro, nicht negativ.");
   }
   const values = { active: input.active, sondervorauszahlung: input.active ? input.sondervorauszahlung : null, updatedAt: new Date() };
-  await withActor(actor, (tx) =>
-    tx
+  await withActor(actor, async (tx) => {
+    // Die Sondervorauszahlung wird in der letzten Voranmeldung angerechnet, für die die Verlängerung gilt (§ 48 Abs. 4
+    // UStDV). Ein Ende im Lauf des Jahres bildet Haben nicht ab; beendet würde sie aus Kz 39 und dem Vorauszahlungssoll fallen.
+    const [own] = await tx.select().from(schema.vatExtensions).where(eq(schema.vatExtensions.year, input.year)).for("update");
+    if (!input.active && own?.active && (own.sondervorauszahlung ?? 0) > 0) {
+      throw new VatError(
+        `Für ${input.year} ist eine Sondervorauszahlung angemeldet; die Verlängerung lässt sich erst ab dem Folgejahr beenden. Endet sie im Lauf des Jahres, rechnet das Finanzamt die Sondervorauszahlung in der letzten Voranmeldung davor an.`,
+      );
+    }
+    await tx
       .insert(schema.vatExtensions)
       .values({ year: input.year, ...values })
-      .onConflictDoUpdate({ target: schema.vatExtensions.year, set: values }),
-  );
+      .onConflictDoUpdate({ target: schema.vatExtensions.year, set: values });
+  });
 }
 
 /** Letzter Voranmeldungszeitraum des Jahres: in ihm wird die Sondervorauszahlung abgezogen (§ 48 Abs. 4 UStDV) */
