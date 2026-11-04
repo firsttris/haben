@@ -2,7 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { z } from "zod/mini";
 import { ArchiveFiles } from "../../../components/archiv/ArchiveFiles.tsx";
 import { DatevBookings } from "../../../components/archiv/DatevBookings.tsx";
-import { LegacyVouchers } from "../../../components/archiv/LegacyVouchers.tsx";
+import { EXACT_SEARCH, LegacyVouchers } from "../../../components/archiv/LegacyVouchers.tsx";
 import { Migration } from "../../../components/archiv/Migration.tsx";
 import { getDatevBookings, getLegacyVouchers, getMigration } from "../../../server/functions/archive.ts";
 import styles from "../../../styles/archiv.css?url";
@@ -70,6 +70,7 @@ function ArchivePage() {
               key={view.value}
               to="/archiv"
               activeProps={{}}
+              activeOptions={EXACT_SEARCH}
               search={{ ansicht: view.value === "umzug" ? undefined : view.value, jahr: search.jahr }}
               className={data.view === view.value ? "chip active" : "chip"}
               aria-current={data.view === view.value ? "page" : undefined}
