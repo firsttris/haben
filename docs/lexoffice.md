@@ -178,9 +178,27 @@ Rechnungen, die deine Kunden noch nicht bezahlt haben, und Eingangsrechnungen, d
 
 Danach ordnest du den Zahlungseingang bzw. die Zahlung wie gewohnt im [Bankabgleich](bank.md) zu.
 
+### Stichtag
+
+Offene Posten übernimmst du zum **Stichtag**, dem letzten Tag der alten Buchhaltung, beim Wechsel zum Jahresanfang also zum 31. Dezember. Offen ist, was an diesem Tag offen war, nicht beim Abruf: Eine Rechnung vom Dezember, die der Kunde im Januar bezahlt hat, steht in der Liste, denn ihre Zahlung kommt in Haben an und braucht dort den offenen Posten. Unter dem Betrag steht dann, wie viel davon nach dem Stichtag bezahlt wurde. Haben liest das aus den Zahlungen des Belegs in Lexware Office: Was nach dem Stichtag gezahlt, mit Skonto ausgeglichen oder als Forderungsausfall ausgebucht wurde, war am Stichtag noch offen. Eine Zahlung am Stichtag selbst gehört noch zur alten Buchhaltung.
+
+Den Stichtag schlägt Haben vor; er steht über der Liste:
+
+| Fall | Stichtag |
+| --- | --- |
+| Eine Eröffnung ist gebucht (GmbH und UG) | Der Tag vor der Eröffnung, fest |
+| Einzelunternehmen, schon ein Posten übernommen | Der Tag vor der Buchung der ersten Übernahme, fest |
+| GmbH oder UG mit DATEV-Stapel im Archiv | 31.12. des letzten Stapeljahres, fest; dort setzt die [Eröffnung aus dem Stapel](#eröffnung-aus-dem-datev-stapel-gmbh-und-ug) an |
+| GmbH oder UG sonst | 31.12. des letzten Jahres der alten Buchhaltung, höchstens des Vorjahres; nur ein 31.12. ist möglich, weil die Eröffnung am 1. Januar steht |
+| Einzelunternehmen | 31.12. des letzten Jahres der alten Buchhaltung; reicht sie ins laufende Jahr, der Tag vor heute |
+
+Das letzte Jahr der alten Buchhaltung ist das Jahr des letzten abgerufenen Belegs bzw. des letzten DATEV-Stapels. Im Einzelunternehmen änderst du den Stichtag mit **Stichtag ändern**, etwa beim Wechsel unter dem Jahr auf den Tag vor dem Beginn in Haben. Haben übernimmt dann die Liste zu diesem Tag.
+
+Wähle den Stichtag vor der ersten Übernahme. Sobald ein Posten übernommen ist, steht er fest: Alle weiteren Posten kommen zum selben Tag, **Stichtag ändern** gibt es nicht mehr, und Haben lehnt einen anderen Stichtag ab. Sonst fiele ein Posten durch: Wer etwa zum 30.06. übernimmt und danach den 31.12. wählt, sähe eine Rechnung, die im September bezahlt wurde, als erledigt, obwohl die Zahlung nach dem ersten Tag in Haben liegt, in Haben ankommt und dort einen offenen Posten braucht.
+
 ### Wie gebucht wird
 
-Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben bucht deshalb nicht noch einmal Erlös oder Aufwand, sondern gegen den Saldenvortrag (Konto 9000), mit dem Datum der Übernahme. Die genauen Buchungssätze stehen in [Buchhaltung in Haben](buchhaltung.md#eröffnungsbuchungen-für-offene-posten-aus-lexoffice).
+Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben bucht deshalb nicht noch einmal Erlös oder Aufwand, sondern gegen den Saldenvortrag (Konto 9000), mit dem Tag nach dem Stichtag, dem ersten Tag in Haben (meist dem 1. Januar). Schon vorher übernommene Posten behalten ihre Buchung. Die genauen Buchungssätze stehen in [Buchhaltung in Haben](buchhaltung.md#eröffnungsbuchungen-für-offene-posten-aus-lexoffice).
 
 | Fall | Buchung | Umsatz- bzw. Vorsteuer |
 | --- | --- | --- |
@@ -188,19 +206,25 @@ Die Erlöse und Aufwände stehen schon in den Büchern von Lexware Office. Haben
 | Rechnung, Soll-Versteuerung | Forderung an Saldenvortrag | Schon in Lexware Office angemeldet; Haben zählt sie nicht noch einmal |
 | Eingangsbeleg | Saldenvortrag an Verbindlichkeiten | Vorsteuer schon in Lexware Office angemeldet; Haben zählt sie nicht noch einmal |
 
-So wird keine Steuer doppelt angemeldet. In der EÜR von Haben zählt die Zahlung, wenn sie in Haben eingeht oder abfließt, wie jede andere Zahlung.
+So wird keine Steuer doppelt angemeldet. In der EÜR von Haben zählt die Zahlung, wenn sie in Haben eingeht oder abfließt, wie jede andere Zahlung. Das ist im Einzelunternehmen auch für eine Rechnung vom Dezember richtig, die im Januar bezahlt wird: In der EÜR zählt der Zufluss (§ 11 Abs. 1 Satz 1 EStG), bei Ist-Versteuerung entsteht die Umsatzsteuer mit Ablauf des Voranmeldungszeitraums, in dem das Entgelt vereinnahmt wird (§ 13 Abs. 1 Nr. 1 Buchst. b UStG); beides gehört zum ersten Jahr in Haben und fehlt in der EÜR und den Voranmeldungen von Lexware Office. Die Buchung gegen 9000 berührt die EÜR nicht.
+
+Die Zahlung muss in Haben ankommen: Ruft Haben die Bank erst ab einem späteren Tag ab als dem ersten Tag in Haben, lädst du den Kontoauszug für die Tage davor als Datei hoch (siehe [Bank](bank.md)).
 
 ### Was nicht übernommen wird
 
-Übernehmen lassen sich nur Rechnungen aus dem Rechnungsmodul und Ausgabebelege, die laut Lexware Office offen sind. Statt des Knopfs steht der Grund da, wenn einer dieser Punkte zutrifft:
+Übernehmen lassen sich nur Rechnungen aus dem Rechnungsmodul und Ausgabebelege, die am Stichtag offen waren. Heute offene Belege mit einem Datum nach dem Stichtag stehen ebenfalls in der Liste, lassen sich aber nicht übernehmen. Statt des Knopfs steht der Grund da, wenn einer dieser Punkte zutrifft:
 
 | Hinweis | Was du tun kannst |
 | --- | --- |
 | Fremdwährung | Von Hand in Haben erfassen |
-| teilweise bezahlt | Den Rest in Lexware Office ausgleichen oder die Zahlung in Haben ohne Rechnung buchen |
+| nach dem Stichtag ausgestellt | Der Beleg gehört in die Bücher von Haben, nicht in die alten: in Haben als Rechnung bzw. Beleg erfassen, oder im Einzelunternehmen den Stichtag später setzen |
+| bis zum Stichtag teilweise bezahlt | Den Rest in Lexware Office ausgleichen oder die Zahlung in Haben ohne Rechnung buchen |
+| Stand am Stichtag unklar | Nach dem Stichtag steht eine Zahlung ohne Datum oder eine Zahlungsart, die Haben nicht kennt; in Lexware Office prüfen und von Hand erfassen |
 | Steuersatz, den Haben nicht kennt | Haben kennt 19 %, 7 % und 0 % |
 | Betrag nicht positiv | Gutschriften werden nicht übernommen |
 | keine Datei aus Lexoffice | Erst die Datei in Lexware Office anhängen und erneut abrufen |
+
+Warum eine Teilzahlung vor dem Stichtag sperrt: Die Rechnung in Haben trägt den Betrag des Original-PDFs, und offen ist in Haben, was keine Zahlung im Bankabgleich deckt. Für die Zahlung vor dem Stichtag gibt es in Haben keinen Bankumsatz. Sie als Ausbuchung zu erfassen, minderte die Umsatzsteuer wie eine Änderung der Bemessungsgrundlage (§ 17 Abs. 1 UStG), obwohl das Entgelt gezahlt ist. Eine Teilzahlung nach dem Stichtag sperrt nicht: Am Stichtag war der ganze Betrag offen, und die Zahlung kommt in Haben an.
 
 Außerdem lehnt Haben die Übernahme ab, wenn die Rechnungsnummer in Haben schon vergeben ist, wenn sich die Steuer aus den Positionen nicht centgenau nachbilden lässt (weder mit Netto- noch mit Bruttopreisen, siehe [Rechnungen](rechnungen.md#nettopreise-oder-bruttopreise)) oder wenn die Datei eines Belegs schon als Beleg in Haben liegt (dann bezahlst du dort).
 
@@ -243,7 +267,7 @@ Bei GmbH und UG rechnet Haben unter **DATEV-Buchungen** aus dem Stapel eines Jah
 Aus den Buchungen werden Salden je Sachkonto, so wie Haben sie selbst gebucht hätte:
 
 - **Steuer:** Wo eine Steuerautomatik oder ein BU-Schlüssel (2, 3, 8, 9) greift, ist der Betrag brutto. Der Steueranteil geht auf das Umsatz- bzw. Vorsteuerkonto zu 19 % oder 7 % (SKR03 1776, 1771, 1576, 1571; SKR04 3806, 3801, 1406, 1401), das Erlös- oder Aufwandskonto behält den Nettobetrag. BU-Schlüssel 40 hebt die Automatik auf. Es sind dieselben Regeln wie für die Jahressummen im [Abgleich](#schritt-5-abgleich-je-jahr), mit denselben Grenzen bei Sonderfällen wie § 13b.
-- **Personenkonten:** Debitoren (erste Ziffer 1 bis 6) stehen auf Forderungen aus Lieferungen und Leistungen (SKR03 1400, SKR04 1200), Kreditoren (7 bis 9) auf Verbindlichkeiten (SKR03 1600, SKR04 3300).
+- **Personenkonten:** Debitoren (erste Ziffer 1 bis 6) stehen auf Forderungen aus Lieferungen und Leistungen (SKR03 1400, SKR04 1200), Kreditoren (7 bis 9) auf Verbindlichkeiten (SKR03 1600, SKR04 3300). So vergibt DATEV die Nummern: 10000 bis 69999 Debitoren, 70000 bis 99999 Kreditoren bei vierstelligen Sachkonten ([Kontenrahmen SKR 03](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11174%20SKR03%20BilrUg.pdf) und [SKR 04](https://www.datev.de/content/dam/markenassets/themen-und-produktgruppen/zielgruppen/mandant/unternehmer/branche/bau/11175%20SKR04%20BilrUg.pdf), gültig für 2026). Bei längeren Sachkonten (Sachkontenlänge 5 bis 8 in der Kopfzeile) hat ein Personenkonto genau eine Stelle mehr ([DATEV-Format, Buchungsstapel](https://developer.datev.de/de/file-format/details/datev-format/format-description/booking-batch)); die erste Ziffer entscheidet weiter.
 - **Bestände zum Jahresbeginn:** Enthält der Stapel Buchungen auf die Saldenvortragskonten 9000 bis 9009, bringt er seine Eröffnungsbilanz selbst mit. Sonst trägt Haben die Bestandskonten aus den Stapeln der Vorjahre vor, das Ergebnis der Vorjahre als Gewinn- oder Verlustvortrag, wie beim [Saldenvortrag](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) im Journal. Gibt es weder das eine noch das andere, fehlen die Bestände und die Bilanz ist unvollständig; GuV und Steuern stimmen trotzdem.
 - **Kontenrahmen:** Gerechnet wird im Kontenrahmen der Firmendaten. Steht im Kopf eines Stapels ein anderer, nennt Haben das als Fehler, denn die Posten stimmen dann nicht.
 
@@ -268,7 +292,7 @@ Gebucht wird genau, was du gesehen hast: Haben rechnet den Vorschlag beim Buchen
 
 Bringt der letzte Stapel keine Eröffnungsbuchungen mit und gibt es keinen Stapel davor, zeigt Haben einen Hinweis, bucht aber: Das ist der Fall im Gründungsjahr. Sonst fehlen die Bestände des Stapeljahres, und du legst zuerst den Stapel des Vorjahres ins Archiv.
 
-**Saldenvortragskonten.** DATEV trägt Sachkonten über 9000, offene Posten der Debitoren über 9008 und der Kreditoren über 9009 vor. Ausgeglichen ist der Vortrag, wenn die drei zusammen null ergeben. Haben prüft deshalb die Summe von 9000 bis 9009, nicht jedes Konto einzeln; in der Eröffnung von Haben steht nur 9000.
+**Saldenvortragskonten.** DATEV trägt Sachkonten über 9000 (und 9001 bis 9007), offene Posten der Debitoren über 9008 und der Kreditoren über 9009 vor (Kontenrahmen SKR 03 und SKR 04 2026, Klasse 9 „Vortragskonten“). Das Summenvortragskonto 9090 ist kein Saldenvortrag. Ausgeglichen ist der Vortrag, wenn die drei zusammen null ergeben. Haben prüft deshalb die Summe von 9000 bis 9009, nicht jedes Konto einzeln; in der Eröffnung von Haben steht nur 9000.
 
 **Mehr als 20 Zeilen.** Die manuelle Buchung hat höchstens 20 Zeilen, weil man sie eintippt. Eine Schlussbilanz hat oft mehr Konten; der Vorschlag darf bis zu 500 Zeilen haben.
 
@@ -276,7 +300,7 @@ Bringt der letzte Stapel keine Eröffnungsbuchungen mit und gibt es keinen Stape
 
 | Bereich | Wie Haben die Eröffnung berücksichtigt |
 | --- | --- |
-| Offene Posten | Schon übernommene Rechnungen und Belege (Forderung bzw. Verbindlichkeit gegen 9000) rechnet der Vorschlag heraus: Er bucht nur den Rest bis zum Saldo der Schlussbilanz und auf 9000 das Gegenteil der Übernahmen. Wer einen Posten nach der Eröffnung übernimmt, dessen Belegdatum davor liegt, bekommt Rechnung bzw. Beleg für den Bankabgleich, aber keine zweite Buchung gegen 9000; der Posten steckt schon im Saldo. |
+| Offene Posten | Schon übernommene Rechnungen und Belege (Forderung bzw. Verbindlichkeit gegen 9000) rechnet der Vorschlag heraus: Er bucht nur den Rest bis zum Saldo der Schlussbilanz und auf 9000 das Gegenteil der Übernahmen. Wer einen Posten nach der Eröffnung übernimmt, dessen Belegdatum davor liegt, bekommt Rechnung bzw. Beleg für den Bankabgleich, aber keine zweite Buchung gegen 9000; der Posten steckt schon im Saldo. Das gilt auch für einen Posten, der erst im Januar bezahlt wurde: Am Stichtag, dem 31.12. des Stapeljahres, war er offen und steht in der Schlussbilanz. |
 | Anlagen | Ebenso: Die Eröffnung einer übernommenen Anlage, die schon gebucht ist, rechnet der Vorschlag heraus; wird die AfA erst danach gebucht, verweist die Anlage auf die Eröffnung aus dem Stapel statt noch einmal gegen 9000 zu buchen. |
 | Umsatzsteuer | Umsatzsteuer, Vorsteuer, nicht fällige Umsatzsteuer und Vorauszahlungen werden mit ihrem Saldo vorgetragen, wie beim Saldenvortrag in Haben. Die Voranmeldung rechnet aus Rechnungen und Belegen, nicht aus diesen Konten; der vorgetragene Saldo gehört zu Voranmeldungen des Vorjahres und zählt nicht noch einmal: Die Vorauszahlung gilt je Voranmeldungszeitraum ([§ 18 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18.html)), Besteuerungszeitraum ist das Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__16.html)). Der Abgleich zwischen Journal und Voranmeldung lässt Eröffnungen deshalb außen vor. Zahlst du im Januar die Zahllast für Dezember, ordnest du die Abbuchung im Bankabgleich als **USt-Vorauszahlung** zu; sie läuft auf SKR03 1780 bzw. SKR04 3820 gegen den vorgetragenen Saldo, die Steuerkonten gleichen sich danach zusammen aus. |
 | Kasse | Das Kassenbuch zählt den Kassenbestand der Eröffnung zum Anfangsbestand des Jahres, ohne eigene Zeile und ohne zweite Buchung (siehe [Kassenbuch](kasse.md)). |
@@ -378,7 +402,7 @@ Für eine GmbH oder UG läuft der Umzug genauso. Weil sie bilanziert, kommen zu 
 - Buchungen kommen nur aus dem DATEV-Stapel und werden archiviert, nicht in das Journal von Haben übernommen. Bei GmbH und UG wird die Schlussbilanz des letzten Stapeljahres auf deine Bestätigung als [Eröffnung](#eröffnung-aus-dem-datev-stapel-gmbh-und-ug) gebucht; im Einzelunternehmen hältst du Salden für den Jahreswechsel selbst bzw. mit deiner Steuerberatung fest.
 - Der Abgleich prüft Vollständigkeit und Nummern, keine Kontierung. Summen und Umsatzsteuer vergleichst du selbst mit Lexware Office.
 - Die Umsatzsteuer je Monat kennt keine Eingangsseite von § 13b (Kz 46, 47, 84, 85, 67), keine Berichtigungen nach § 17 und keine von Hand geänderten Voranmeldungen.
-- Teilweise bezahlte Posten, Gutschriften, Fremdwährung und andere Steuersätze als 19, 7 und 0 % werden nicht als offene Posten übernommen.
+- Bis zum Stichtag teilweise bezahlte Posten, Gutschriften, Fremdwährung und andere Steuersätze als 19, 7 und 0 % werden nicht als offene Posten übernommen.
 - Bei ungeprüften Belegen ohne Belegdatum nimmt Haben das Anlagedatum; solche Belege haben oft keine Beträge.
 
 ## Vor der Kündigung

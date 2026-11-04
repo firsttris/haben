@@ -19,7 +19,7 @@ export {
 export { datevAbschluss, type DatevAbschluss, type DatevVortrag } from "./datev-abschluss.ts";
 export { BACKUP_MAX_AGE_MS, backupOverview, type BackupOverview, type BackupRun } from "./backup-status.ts";
 export { exportFilename, exportYear, exportYears, toReadableStream } from "./export.ts";
-export { openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.ts";
+export { legacyTakeoverCutoff, openItemsOverview, openLegacyItems, takeOverAll, takeOverLegacyItem } from "./legacy-open.ts";
 export {
   cancelImport,
   connectionStatus,

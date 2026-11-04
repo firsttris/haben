@@ -206,6 +206,12 @@ test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als
   await go(`/abschluss/${year - 1}`);
   const region = page.getByRole("region", { name: regionName(year - 1) });
   await expect(region).toContainText(`Frist: bis 31.12.${year}`);
+  // Das Register wandelt ein PDF gegen Entgelt um; die Seite nennt Kosten und den Weg übers Webformular
+  await expect(region).toContainText("1,75 Cent je sichtbarem Zeichen");
+  await expect(region).toContainText("Webformular");
+  // Gebühren nach dem JVKostG fallen auf jedem Weg an, das Entgelt kommt hinzu (D051, Abschnitte 1 und 2)
+  await expect(region).toContainText("Das Register berechnet eine Gebühr und für ein PDF ein Entgelt");
+  await expect(region).not.toContainText("Kostenlos");
   await expect(region).toContainText("Das Registergericht fehlt in den Firmendaten.");
   await expect(region.getByRole("button", { name: "Bilanz als PDF herunterladen" })).toBeDisabled();
 
@@ -269,7 +275,11 @@ test("Ausschüttungen: Steuerabzug berechnen, ohne Gewinnvortrag nicht buchbar",
   await expect(page.getByRole("heading", { name: `Ausschüttungen ${year}` })).toBeVisible();
 
   const form = page.getByRole("form", { name: "Neue Ausschüttung" });
+  // Beim Tippen meldet das Datumsfeld schon Zwischenstände wie 0002-01-02; das Geschäftsjahr folgt dem fertigen Datum
+  await form.getByLabel("Datum des Beschlusses").fill("0002-01-02");
   await form.getByLabel("Datum des Beschlusses").fill(`${year}-01-02`);
+  // Vorbelegt mit dem Vorjahr; steht in der Steuerbescheinigung als Zeitraum (Muster II)
+  await expect(form.getByLabel("Geschäftsjahr, dessen Gewinn ausgeschüttet wird")).toHaveValue(String(year - 1));
   await form.getByLabel("Ausschüttung brutto").fill("1.000,00");
   await form.getByRole("button", { name: "Steuerabzug berechnen" }).click();
   // Anteilseigner aus den Angaben des Vorjahres; 25 % Kapitalertragsteuer, 5,5 % Soli

@@ -341,6 +341,8 @@ export const dividends = pgTable("dividends", {
   /** Im Beschluss bestimmter Tag der Auszahlung; ohne: Zufluss am Tag nach dem Beschluss (§ 44 Abs. 2 Satz 2 EStG) */
   auszahlungstag: date("auszahlungstag", { mode: "string" }),
   zufluss: date("zufluss", { mode: "string" }).notNull(),
+  /** Geschäftsjahr, dessen Gewinn der Beschluss ausschüttet: „für … (Zeitraum)“ in Muster II der Steuerbescheinigung; leer bei älteren Buchungen */
+  geschaeftsjahr: integer("geschaeftsjahr"),
   brutto: integer("brutto").notNull(),
   empfaenger: jsonb("empfaenger").$type<AusschuettungEmpfaenger[]>().notNull(),
   entryId: uuid("entry_id")

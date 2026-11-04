@@ -1,6 +1,8 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
+import { today as heute } from "../../today.ts";
+import { addDays } from "@haben/core";
 
 function dkbCsv(rows: string[][]) {
   const header = `"Girokonto";"DE12 1203 0000 1234 5678 90"\n""\n`;
@@ -16,6 +18,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   let bank: typeof import("../bank/bank.ts");
   let invoices: typeof import("../rechnungen/invoices.ts");
   let figures: typeof import("../umsatzsteuer/vat-figures.ts");
+  let reports: typeof import("../auswertungen/reports.ts");
   let storage: typeof import("../../storage.ts");
   let sql: postgres.Sql;
   const actor = "test-user";
@@ -26,6 +29,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     bank = await import("../bank/bank.ts");
     invoices = await import("../rechnungen/invoices.ts");
     figures = await import("../umsatzsteuer/vat-figures.ts");
+    reports = await import("../auswertungen/reports.ts");
     storage = await import("../../storage.ts");
   }, 30_000);
 
@@ -43,6 +47,8 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     rate?: number;
     status?: string;
     openAmount?: number | null;
+    /** Zahlungen laut Lexoffice; mit Zahlungen ist der Beleg heute so weit bezahlt */
+    payments?: { date: string; amount: number; type?: string }[];
     file?: Uint8Array;
     mime?: string;
     contact?: string;
@@ -50,7 +56,12 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
   }) {
     const rate = values.rate ?? 1900;
     const gross = values.net + values.tax;
-    const payment = values.openAmount === null ? null : { status: "openRevenue", openAmount: values.openAmount ?? gross, paidDate: null, items: [] };
+    const items = (values.payments ?? []).map((p) => ({ type: p.type ?? "partPaymentFinancialTransaction", date: p.date, amount: p.amount }));
+    const paid = items.reduce((s, i) => s + Math.abs(i.amount), 0);
+    const payment =
+      values.openAmount === null
+        ? null
+        : { status: paid >= gross ? "balanced" : "openRevenue", openAmount: values.openAmount ?? gross - paid, paidDate: null, items };
     const [contact] = values.contact ? await sql`select id from contacts where name = ${values.contact}` : [];
     const [row] = await sql`insert into lexoffice_vouchers (lexoffice_id, import_id, type, direction, number, date, due_date, status, contact_id,
         contact_name, net, tax, gross, taxes, categories, payment, raw)
@@ -306,5 +317,286 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     expect(await bank.openItems()).toEqual([]);
     const [balance] = await sql`select sum(debit) - sum(credit) as saldo from journal_lines where account = '1600'`;
     expect(Number(balance!.saldo)).toBe(0);
+  });
+
+  describe("zum Stichtag: offen am Ende der alten Buchhaltung, gebucht am ersten Tag in Haben", () => {
+    // Echte Daten: Die alte Buchhaltung endet am 31.12. des Vorjahres, Haben beginnt am 1.1.
+    const year = Number(heute().slice(0, 4));
+    const alt = year - 1;
+    const K = {
+      SKR03: { forderung: "1400", nichtFaellig: "1766", verbindlichkeit: "1600" },
+      SKR04: { forderung: "1200", nichtFaellig: "3816", verbindlichkeit: "3300" },
+    } as const;
+    const ddmmyy = (date: string) => `${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(2, 4)}`;
+
+    async function lines(sourceId: string) {
+      const rows = await sql`select e.date::text as date, l.account, l.debit, l.credit from journal_lines l join journal_entries e on e.id = l.entry_id
+        where e.source_id = ${sourceId} order by l.account`;
+      return rows.map((r) => [r.date, r.account, r.debit, r.credit]);
+    }
+
+    async function payIn(date: string, reference: string, amount: string) {
+      await bank.importStatement(
+        actor,
+        {
+          bytes: dkbCsv([
+            [ddmmyy(date), ddmmyy(date), "Gebucht", "Nordwerk Software GmbH", "Testfirma", reference, "Eingang", "DE02100100100006820101", amount, "", "", ""],
+          ]),
+          filename: `${reference}.csv`,
+        },
+        null,
+      );
+      const [tx] = await sql`select id from bank_transactions order by booking_date desc limit 1`;
+      return tx!.id as string;
+    }
+
+    describe.each(["SKR03", "SKR04"] as const)("%s", (kontenrahmen) => {
+      const k = K[kontenrahmen];
+
+      it.each(["ist", "soll"] as const)(
+        "%s: im Januar bezahlte Rechnung war am 31.12. offen; Übernahme zum 1.1., die Zahlung zählt im Januar",
+        async (versteuerung) => {
+          await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+          const id = await legacyVoucher({
+            type: "invoice",
+            direction: "einnahme",
+            number: "RE-A",
+            date: `${alt}-12-10`,
+            net: 100_000,
+            tax: 19_000,
+            status: "paid",
+            payments: [{ date: `${year}-01-15`, amount: 119_000 }],
+            file: PDF,
+            contact: "Nordwerk Software GmbH",
+          });
+          // Im Dezember bezahlt: in der alten Buchhaltung erledigt
+          await legacyVoucher({
+            type: "invoice",
+            direction: "einnahme",
+            number: "RE-B",
+            date: `${alt}-12-01`,
+            net: 100_000,
+            tax: 19_000,
+            status: "paid",
+            payments: [{ date: `${alt}-12-20`, amount: 119_000 }],
+            file: PDF,
+          });
+          expect((await legacy.openLegacyItems()).map((i) => [i.number, i.open, i.paidAfter, i.blocker])).toEqual([["RE-A", 119_000, 119_000, null]]);
+
+          const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id);
+          expect(await lines(invoiceId)).toEqual(
+            versteuerung === "ist"
+              ? [
+                  [`${year}-01-01`, k.forderung, 119_000, 0],
+                  [`${year}-01-01`, k.nichtFaellig, 0, 19_000],
+                  [`${year}-01-01`, "9000", 0, 100_000],
+                ]
+              : [
+                  [`${year}-01-01`, k.forderung, 119_000, 0],
+                  [`${year}-01-01`, "9000", 0, 119_000],
+                ],
+          );
+
+          const transactionId = await payIn(`${year}-01-15`, "RE-A", "1.190,00");
+          await bank.allocate(actor, { kind: "invoice", transactionId, invoiceId, amount: 119_000 });
+          expect(await bank.openItems()).toEqual([]);
+          const [forderung] = await sql`select sum(debit) - sum(credit) as saldo from journal_lines where account = ${k.forderung}`;
+          expect(Number(forderung!.saldo)).toBe(0);
+          // Ist: Die Steuer war in der alten Buchhaltung nicht angemeldet und wird mit der Zahlung im Januar fällig; Soll: schon angemeldet
+          expect(await figures.computeVatFigures({ year, month: 1 })).toMatchObject(
+            versteuerung === "ist" ? { kz81: 100_000, tax81: 19_000 } : { kz81: 0, tax81: 0 },
+          );
+          // EÜR: Zufluss im Januar (§ 11 Abs. 1 Satz 1 EStG), also Einnahme im ersten Jahr in Haben
+          const euer = await reports.euerForYear(year);
+          expect(euer.totalEinnahmen).toBe(119_000);
+        },
+      );
+
+      it.each(["ist", "soll"] as const)(
+        "%s: Einzelunternehmen: nach der ersten Übernahme steht der Stichtag fest, ein anderer wird abgelehnt",
+        async (versteuerung) => {
+          await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+          const juni = await legacyVoucher({
+            type: "invoice",
+            direction: "einnahme",
+            number: "RE-J",
+            date: `${alt}-06-10`,
+            net: 100_000,
+            tax: 19_000,
+            status: "paid",
+            payments: [{ date: `${alt}-07-05`, amount: 119_000 }],
+            file: PDF,
+          });
+          // Am 30.06. offen, im September bezahlt: Mit dem 31.12. als Stichtag fiele er aus der Liste, obwohl die Zahlung
+          // nach dem ersten Tag in Haben liegt und dort ankommt
+          const mai = await legacyVoucher({
+            type: "invoice",
+            direction: "einnahme",
+            number: "RE-K",
+            date: `${alt}-05-10`,
+            net: 50_000,
+            tax: 9_500,
+            status: "paid",
+            payments: [{ date: `${alt}-09-10`, amount: 59_500 }],
+            file: PDF,
+          });
+          const a = `${alt}-06-30`;
+          const b = `${alt}-12-31`;
+          await legacy.takeOverLegacyItem(actor, juni, a);
+
+          const fixed = { date: a, bookingDate: `${alt}-07-01`, fixed: expect.stringMatching(/übernommen/) };
+          expect(await legacy.legacyTakeoverCutoff()).toEqual(fixed);
+          expect(await legacy.legacyTakeoverCutoff(a)).toEqual(fixed);
+          await expect(legacy.legacyTakeoverCutoff(b)).rejects.toThrow(/Stichtag/);
+          await expect(legacy.takeOverLegacyItem(actor, mai, b)).rejects.toThrow(/Stichtag/);
+          await expect(legacy.takeOverAll(actor, b)).rejects.toThrow(/Stichtag/);
+          expect(await legacy.openItemsOverview(b)).toMatchObject({ cutoff: fixed, cutoffError: expect.stringMatching(/Stichtag/) });
+          // Ohne gewählten Stichtag gilt der feste: Der zweite Posten kommt zum selben Tag dazu
+          expect(await legacy.takeOverAll(actor)).toEqual([{ number: "RE-K" }]);
+          const dates = await sql`select distinct e.date::text as date from journal_entries e join invoices i on i.id = e.source_id
+            where i.lexoffice_voucher_id is not null`;
+          expect(dates.map((d) => d.date)).toEqual([`${alt}-07-01`]);
+        },
+      );
+
+      it("im Januar bezahlter Eingangsbeleg: Saldenvortrag an Verbindlichkeiten zum 1.1.", async () => {
+        await sql`update company set kontenrahmen = ${kontenrahmen}`;
+        const id = await legacyVoucher({
+          type: "purchaseinvoice",
+          direction: "ausgabe",
+          number: "B-1",
+          date: `${alt}-12-28`,
+          net: 10_000,
+          tax: 1_900,
+          status: "paid",
+          payments: [{ date: `${year}-01-05`, amount: -11_900 }],
+          file: JPEG,
+          mime: "image/jpeg",
+        });
+        expect(await legacy.takeOverAll(actor)).toEqual([{ number: "B-1" }]);
+        const [doc] = await sql`select id from documents where lexoffice_voucher_id = ${id}`;
+        expect(await lines(doc!.id)).toEqual([
+          [`${year}-01-01`, k.verbindlichkeit, 0, 11_900],
+          [`${year}-01-01`, "9000", 11_900, 0],
+        ]);
+      });
+    });
+
+    it("Teilzahlung vor dem Stichtag sperrt mit Grund, danach nicht; nach dem Stichtag ausgestellt gehört in Haben", async () => {
+      await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: "RE-T1",
+        date: `${alt}-11-10`,
+        net: 100_000,
+        tax: 19_000,
+        payments: [{ date: `${alt}-12-15`, amount: 50_000 }],
+        file: PDF,
+      });
+      await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: "RE-T2",
+        date: `${alt}-11-11`,
+        net: 100_000,
+        tax: 19_000,
+        payments: [{ date: `${year}-01-15`, amount: 50_000 }],
+        file: PDF,
+      });
+      await legacyVoucher({ type: "invoice", direction: "einnahme", number: "RE-N", date: `${year}-01-10`, net: 100_000, tax: 19_000, file: PDF });
+      // Reicht die alte Buchhaltung ins neue Jahr, schlägt Haben den Tag vor heute vor; hier endet sie am 31.12.
+      expect((await legacy.legacyTakeoverCutoff()).date).toBe(addDays(heute(), -1));
+      const cutoff = `${alt}-12-31`;
+      expect((await legacy.openLegacyItems(cutoff)).map((i) => [i.number, i.open, i.paidAfter, i.blocker])).toEqual([
+        ["RE-T1", 69_000, 0, expect.stringMatching(/^bis zum Stichtag teilweise bezahlt/)],
+        ["RE-T2", 119_000, 50_000, null],
+        ["RE-N", 119_000, 0, expect.stringMatching(/^nach dem Stichtag ausgestellt/)],
+      ]);
+      expect(await legacy.takeOverAll(actor, cutoff)).toEqual([{ number: "RE-T2" }]);
+      const [invoice] = await sql`select gross from invoices where number = 'RE-T2'`;
+      expect(invoice!.gross).toBe(119_000);
+    });
+
+    it("gewählter Stichtag unter dem Jahr: offen an diesem Tag, gebucht am Tag danach; ein Stichtag ab heute geht nicht", async () => {
+      const id = await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: "RE-M",
+        date: `${alt}-06-10`,
+        net: 100_000,
+        tax: 19_000,
+        status: "paid",
+        payments: [{ date: `${alt}-07-05`, amount: 119_000 }],
+        file: PDF,
+      });
+      expect(await legacy.openLegacyItems()).toEqual([]);
+      const cutoff = await legacy.legacyTakeoverCutoff(`${alt}-06-30`);
+      expect(cutoff).toEqual({ date: `${alt}-06-30`, bookingDate: `${alt}-07-01`, fixed: null });
+      expect((await legacy.openLegacyItems(`${alt}-06-30`)).map((i) => [i.number, i.blocker])).toEqual([["RE-M", null]]);
+      await expect(legacy.openLegacyItems(heute())).rejects.toThrow(/vor heute/);
+      expect(await legacy.openItemsOverview(heute())).toMatchObject({ cutoff: { date: `${alt}-12-31` }, cutoffError: expect.stringMatching(/vor heute/) });
+      const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id, `${alt}-06-30`);
+      expect((await lines(invoiceId)).map(([date]) => date)).toEqual([`${alt}-07-01`, `${alt}-07-01`, `${alt}-07-01`]);
+      // Schon übernommen bleibt sichtbar; der Stichtag steht jetzt fest
+      expect(await legacy.openLegacyItems()).toMatchObject([{ number: "RE-M", open: 119_000, takenOver: { kind: "invoice", id: invoiceId } }]);
+    });
+
+    it("GmbH: der Stichtag ist ein 31.12.; mit gebuchter Eröffnung steht er fest", async () => {
+      await sql`update company set rechtsform = 'gmbh'`;
+      await expect(legacy.legacyTakeoverCutoff(`${alt}-06-30`)).rejects.toThrow(/31\. Dezember/);
+      const manual = await import("../buchhaltung/manual.ts");
+      await manual.createManualEntry(
+        actor,
+        {
+          kind: "eroeffnung",
+          date: `${year}-01-01`,
+          description: "Eröffnungsbilanz",
+          lines: [
+            { account: "1200", debit: 2_500_000, credit: 0 },
+            { account: "9000", debit: 0, credit: 2_500_000 },
+          ],
+        },
+        heute(),
+      );
+      expect(await legacy.legacyTakeoverCutoff(`${alt}-06-30`)).toEqual({
+        date: `${alt}-12-31`,
+        bookingDate: `${year}-01-01`,
+        fixed: expect.stringMatching(/Eröffnung am 01\.01\./),
+      });
+    });
+
+    it("legt eine Eröffnung den Stichtag nach der Anzeige fest, bricht die Übernahme mit dem angezeigten Stichtag ab", async () => {
+      await sql`update company set rechtsform = 'gmbh'`;
+      const vorjahr = alt - 1;
+      const id = await legacyVoucher({
+        type: "invoice",
+        direction: "einnahme",
+        number: "RE-R",
+        date: `${vorjahr}-12-10`,
+        net: 100_000,
+        tax: 19_000,
+        file: PDF,
+      });
+      // Angezeigt: Stichtag 31.12.alt, gebucht zum 1.1.
+      expect((await legacy.openItemsOverview(`${alt}-12-31`)).cutoff).toEqual({ date: `${alt}-12-31`, bookingDate: `${year}-01-01`, fixed: null });
+      // Inzwischen bucht jemand die Eröffnung zum 1.1.alt; der Stichtag ist jetzt der 31.12. davor
+      const manual = await import("../buchhaltung/manual.ts");
+      await manual.createManualEntry(
+        actor,
+        {
+          kind: "eroeffnung",
+          date: `${alt}-01-01`,
+          description: "Eröffnungsbilanz",
+          lines: [
+            { account: "1200", debit: 2_500_000, credit: 0 },
+            { account: "9000", debit: 0, credit: 2_500_000 },
+          ],
+        },
+        heute(),
+      );
+      await expect(legacy.takeOverLegacyItem(actor, id, `${alt}-12-31`)).rejects.toThrow(/Stichtag hat sich inzwischen geändert/);
+      await expect(legacy.takeOverAll(actor, `${alt}-12-31`)).rejects.toThrow(/Stichtag hat sich inzwischen geändert/);
+      expect(await sql`select 1 from invoices where lexoffice_voucher_id = ${id}`).toHaveLength(0);
+    });
   });
 });

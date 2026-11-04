@@ -1,5 +1,5 @@
 {
-  "id": "0cfbb24b-3573-4605-a82b-63f852003688",
+  "id": "456e3858-403f-4e92-a56b-140ea096a679",
   "prevId": "13532c38-2dae-4bbd-9771-c48f0ee3ea77",
   "version": "7",
   "dialect": "postgresql",
@@ -1583,12 +1583,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "end_to_end_id": {
-          "name": "end_to_end_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "dedup_hash": {
           "name": "dedup_hash",
           "type": "text",
@@ -2860,6 +2854,12 @@
           "type": "date",
           "primaryKey": false,
           "notNull": true
+        },
+        "geschaeftsjahr": {
+          "name": "geschaeftsjahr",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         },
         "brutto": {
           "name": "brutto",
@@ -7124,216 +7124,6 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.sepa_transfer_items": {
-      "name": "sepa_transfer_items",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "transfer_id": {
-          "name": "transfer_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "document_id": {
-          "name": "document_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "end_to_end_id": {
-          "name": "end_to_end_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "skonto": {
-          "name": "skonto",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "creditor_name": {
-          "name": "creditor_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "creditor_iban": {
-          "name": "creditor_iban",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "remittance": {
-          "name": "remittance",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "sepa_transfer_items_document": {
-          "name": "sepa_transfer_items_document",
-          "columns": [
-            {
-              "expression": "document_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "sepa_transfer_items_transfer_id_sepa_transfers_id_fk": {
-          "name": "sepa_transfer_items_transfer_id_sepa_transfers_id_fk",
-          "tableFrom": "sepa_transfer_items",
-          "tableTo": "sepa_transfers",
-          "columnsFrom": [
-            "transfer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "sepa_transfer_items_document_id_documents_id_fk": {
-          "name": "sepa_transfer_items_document_id_documents_id_fk",
-          "tableFrom": "sepa_transfer_items",
-          "tableTo": "documents",
-          "columnsFrom": [
-            "document_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "sepa_transfer_items_end_to_end_id_unique": {
-          "name": "sepa_transfer_items_end_to_end_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "end_to_end_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "sepa_transfer_items_amount": {
-          "name": "sepa_transfer_items_amount",
-          "value": "\"sepa_transfer_items\".\"amount\" > 0 and \"sepa_transfer_items\".\"skonto\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.sepa_transfers": {
-      "name": "sepa_transfers",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "bank_account_id": {
-          "name": "bank_account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message_id": {
-          "name": "message_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "execution_date": {
-          "name": "execution_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "number_of_transactions": {
-          "name": "number_of_transactions",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "control_sum": {
-          "name": "control_sum",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "xml": {
-          "name": "xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "sepa_transfers_bank_account_id_bank_accounts_id_fk": {
-          "name": "sepa_transfers_bank_account_id_bank_accounts_id_fk",
-          "tableFrom": "sepa_transfers",
-          "tableTo": "bank_accounts",
-          "columnsFrom": [
-            "bank_account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "sepa_transfers_message_id_unique": {
-          "name": "sepa_transfers_message_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "message_id"
-          ]
-        }
-      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

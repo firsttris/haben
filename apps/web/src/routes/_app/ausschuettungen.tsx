@@ -146,18 +146,24 @@ function NeueAusschuettung() {
   const { busy, notice, setNotice, run } = useAction();
   const [beschluss, setBeschluss] = useState("");
   const [auszahlungstag, setAuszahlungstag] = useState("");
+  const [geschaeftsjahr, setGeschaeftsjahr] = useState("");
+  // Vorbelegt, bis jemand das Feld selbst ändert: Das Datumsfeld meldet beim Tippen Zwischenstände wie 0002-01-02
+  const [jahrSelbstGesetzt, setJahrSelbstGesetzt] = useState(false);
   const [betrag, setBetrag] = useState("");
   const [vorschlag, setVorschlag] = useState<Vorschlag | null>(null);
   const input = () => {
     const brutto = parseEuro(betrag);
-    return brutto && beschluss ? { beschluss, auszahlungstag: auszahlungstag || null, brutto } : null;
+    const jahr = Number(geschaeftsjahr);
+    return brutto && beschluss && Number.isInteger(jahr) && jahr > 0
+      ? { beschluss, auszahlungstag: auszahlungstag || null, geschaeftsjahr: jahr, brutto }
+      : null;
   };
 
   function berechnen(event: FormEvent) {
     event.preventDefault();
     const data = input();
     if (!data) {
-      setNotice({ tone: "danger", text: "Datum des Beschlusses und Betrag eingeben." });
+      setNotice({ tone: "danger", text: "Datum des Beschlusses, Geschäftsjahr und Betrag eingeben." });
       return;
     }
     void run(async () => setVorschlag(await preview({ data })));
@@ -169,7 +175,7 @@ function NeueAusschuettung() {
         Gewinnverwendungsbeschluss buchen
       </h2>
       <form onSubmit={berechnen} aria-label="Neue Ausschüttung" className="stack" style={{ gap: 12 }}>
-        <div className="form-row cols-3">
+        <div className="form-row cols-2">
           <label className="field">
             Datum des Beschlusses
             <input
@@ -177,6 +183,8 @@ function NeueAusschuettung() {
               value={beschluss}
               onChange={(e) => {
                 setBeschluss(e.target.value);
+                // Meist beschließt die Gesellschafterversammlung über den Gewinn des Vorjahres
+                if (!jahrSelbstGesetzt && /^\d{4}-/.test(e.target.value)) setGeschaeftsjahr(String(Number(e.target.value.slice(0, 4)) - 1));
                 setVorschlag(null);
               }}
               required
@@ -191,6 +199,20 @@ function NeueAusschuettung() {
                 setAuszahlungstag(e.target.value);
                 setVorschlag(null);
               }}
+            />
+          </label>
+          <label className="field">
+            Geschäftsjahr, dessen Gewinn ausgeschüttet wird
+            <input
+              inputMode="numeric"
+              value={geschaeftsjahr}
+              onChange={(e) => {
+                setGeschaeftsjahr(e.target.value);
+                setJahrSelbstGesetzt(true);
+                setVorschlag(null);
+              }}
+              placeholder="z. B. 2025"
+              required
             />
           </label>
           <label className="field">
@@ -263,7 +285,7 @@ function Steuerbescheinigungen({ a }: { a: Ausschuettung }) {
       </h3>
       <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
         Nach § 45a Abs. 2 EStG (amtliches Muster II), ab dem Zahlungstag. Gib jedem Gesellschafter seine Bescheinigung für die Einkommensteuererklärung und
-        bewahre eine Kopie bei den Unterlagen der Ausschüttung auf. Anschrift und Identifikationsnummer kommen aus den{" "}
+        bewahre eine Kopie bei den Unterlagen der Ausschüttung auf. Anschrift, Identifikationsnummer und Religionsgemeinschaft kommen aus den{" "}
         <Link to="/jahreserklaerung">Angaben zu den Erklärungen</Link>.
       </p>
       <ul className="stack" style={{ gap: 6, margin: 0, paddingLeft: 18 }}>

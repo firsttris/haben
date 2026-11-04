@@ -139,7 +139,7 @@ Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester, Kind
 Die Werte kommen aus der [Steuerberechnung beim Jahresabschluss](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug); dort stehen auch Hebesatz, Verlustvorträge und ein Verlustrücktrag. Auf dieser Seite trägst du ein, was nur die Erklärung braucht, unter **Angaben zu den Erklärungen**:
 
 - **Anteilseigner** mit Anschrift, Identifikationsnummer (oder Steuernummer im ELSTER-Format), Beteiligung in Euro und Anteil; die Anteile ergeben zusammen 100 %. „Geändert“ markiert eine Änderung gegenüber dem Vorjahr.
-- Für Ausschüttungen je Anteilseigner das **Kirchensteuerabzugsmerkmal**: Kirchensteuersatz (8 oder 9 %) und Religionsschlüssel aus der Antwort des Bundeszentralamts für Steuern. Ohne Kirchensteuerpflicht bleibt das Feld auf „keine“.
+- Für Ausschüttungen je Anteilseigner das **Kirchensteuerabzugsmerkmal**: Kirchensteuersatz (8 oder 9 %) und Religionsschlüssel aus der Antwort des Bundeszentralamts für Steuern, dazu der Name der kirchensteuererhebenden Religionsgemeinschaft (etwa „römisch-katholisch“): Den Schlüssel braucht die Kapitalertragsteuer-Anmeldung, den Namen die [Steuerbescheinigung](buchhaltung.md#gewinnausschüttung-gmbh-und-ug) nach Muster II. Ohne Kirchensteuerpflicht bleibt das Feld auf „keine“.
 - **Verträge mit Anteilseignern** und nahestehenden Personen (Geschäftsführer-, Miet-, Darlehensvertrag) mit Datum und Vergütung im Jahr (Anlage WA).
 - Im Gründungsjahr das **Gründungsdatum**: Damit beginnen Steuerpflicht und erstes Wirtschaftsjahr.
 - Der **Bestand des steuerlichen Einlagekontos** zum Schluss des Vorjahres (meist 0) und, falls Lizenzen an im Ausland Ansässige gezahlt wurden, der Anteil nach § 50a EStG für die Gewerbesteuer.
