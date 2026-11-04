@@ -69,6 +69,7 @@ export async function transferCandidates(): Promise<TransferCandidate[]> {
       currency: schema.documents.currency,
       reverseCharge: schema.documents.reverseCharge,
       privateShare: schema.documents.privateShare,
+      category: schema.documents.category,
     })
     .from(schema.documents)
     .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank"), documentNotCancelled()));
@@ -80,8 +81,8 @@ export async function transferCandidates(): Promise<TransferCandidate[]> {
       const open = -documentOpen(doc.gross, paidSoFar);
       const payee = payees.get(doc.id);
       const account = payeeAccount(payee);
-      // Erhaltenes Skonto bucht Haben nur ohne § 13b und Privatanteil und nur auf einen noch ganz offenen Beleg (bank.ts, writeOff)
-      const skontoAllowed = paidSoFar === 0 && doc.reverseCharge === null && doc.privateShare === 0 && doc.documentDate !== null;
+      // Erhaltenes Skonto bucht Haben nur ohne § 13b, Privatanteil und Anlagegut (bank.ts, writeOff); angeboten nur auf einen noch ganz offenen Beleg
+      const skontoAllowed = paidSoFar === 0 && doc.reverseCharge === null && doc.privateShare === 0 && doc.category !== "anlage" && doc.documentDate !== null;
       return {
         documentId: doc.id,
         supplierName: doc.supplierName,
