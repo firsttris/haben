@@ -9,7 +9,7 @@ import {
   type Cents,
 } from "@haben/core";
 import { buildKapEStAXml, KAPESTA_JAHRE, tagDanach, zuflussTag, type ElsterClient, type ElsterResult } from "@haben/elster";
-import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -56,6 +56,19 @@ export function nachAnteilen(betrag: Cents, anteile: readonly number[]): Cents[]
   return result;
 }
 
+/** Summe der nicht stornierten Ausschüttungen mit Beschluss nach dem Tag */
+async function spaetereAusschuettungen(beschluss: string, q: Db | Tx): Promise<Cents> {
+  const rows = await q
+    .select({ brutto: schema.dividends.brutto, entryId: schema.dividends.entryId })
+    .from(schema.dividends)
+    .where(gt(schema.dividends.beschlussDate, beschluss));
+  const reversed = await reversedEntries(
+    rows.map((r) => r.entryId),
+    q,
+  );
+  return rows.filter((r) => !reversed.has(r.entryId)).reduce((sum, r) => sum + r.brutto, 0);
+}
+
 interface Grundlagen {
   company: Company;
   /** Gewinnvortrag zum Beschluss (Haben positiv): aus ihm wird ausgeschüttet */
@@ -86,7 +99,9 @@ async function grundlagen(year: number, beschluss: string, q: Db | Tx): Promise<
   const { eigenkapital, nennkapital } = kapitalVorjahr(company, rows);
   const { angaben } = await kapgErklaerungAngaben(year);
   const vortrag = VORTRAG_ACCOUNTS[company.kontenrahmen];
-  const gewinnvortrag = -rows.filter((r) => r.account === vortrag.gewinn || r.account === vortrag.verlust).reduce((sum, r) => sum + r.saldo, 0);
+  const amBeschluss = -rows.filter((r) => r.account === vortrag.gewinn || r.account === vortrag.verlust).reduce((sum, r) => sum + r.saldo, 0);
+  // Später beschlossene, schon gebuchte Ausschüttungen mindern den Gewinnvortrag erst nach diesem Tag, verbrauchen ihn aber schon
+  const gewinnvortrag = amBeschluss - (await spaetereAusschuettungen(beschluss, q));
   const leistungenBisher = (await dividendsOfYear(year, q)).filter((d) => !d.storniert).reduce((sum, d) => sum + d.brutto, 0);
   return {
     company,
@@ -162,6 +177,8 @@ export async function ausschuettungVorschlag(input: AusschuettungInput, q: Db | 
 /** Bucht den Gewinnverwendungsbeschluss und hält den Steuerabzug je Gesellschafter fest */
 export async function createAusschuettung(actor: string, input: AusschuettungInput, today: string): Promise<string> {
   return withActor(actor, async (tx) => {
+    // Nacheinander: sonst sehen zwei gleichzeitige Beschlüsse denselben Gewinnvortrag
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext('haben.ausschuettung'))`);
     const v = await ausschuettungVorschlag(input, tx);
     if (v.beschluss > today) throw new AusschuettungError("Der Beschluss liegt in der Zukunft.");
     if (v.issues.length > 0) throw new AusschuettungError(v.issues.join(" "));
