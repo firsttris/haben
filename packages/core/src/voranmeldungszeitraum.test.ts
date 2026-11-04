@@ -90,6 +90,13 @@ describe("suggestFrequency (§ 18 Abs. 2 UStG)", () => {
   it("Überschuss über 9.000 €: Hinweis auf die Wahl nach § 18 Abs. 2a", () => {
     expect(suggestFrequency({ ...basis, previousYearTax: -1_000_000 })?.reason).toContain("§ 18 Abs. 2a UStG");
   });
+  it("bis 2024 die Grenzen 7.500 € und 1.000 € (vor dem Bürokratieentlastungsgesetz IV)", () => {
+    const vorher = { year: 2024, firstActivity: "2015-01" };
+    expect(suggestFrequency({ ...vorher, previousYearTax: 800_000 })?.frequency).toBe("monatlich");
+    expect(suggestFrequency({ ...vorher, previousYearTax: 750_000 })?.frequency).toBe("vierteljaehrlich");
+    expect(suggestFrequency({ ...vorher, previousYearTax: 150_000 })?.frequency).toBe("vierteljaehrlich");
+    expect(suggestFrequency({ ...vorher, previousYearTax: 100_000 })?.frequency).toBe("keine");
+  });
   it("ohne Zahlen kein Vorschlag", () => {
     expect(suggestFrequency({ ...basis, previousYearTax: null })).toBeNull();
   });
