@@ -95,6 +95,10 @@ export const company = pgTable(
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull().default("SKR03"),
     /** Einzelunternehmen oder Kapitalgesellschaft (GmbH, UG); fest ab der ersten Buchung (drizzle/0096) */
     rechtsform: text("rechtsform", { enum: RECHTSFORM_KEYS }).notNull().default("einzelunternehmen"),
+    /** GmbH und UG: Sitz laut Gesellschaftsvertrag (leer = Ort der Anschrift), Registergericht und Handelsregisternummer (§ 264 Abs. 1a HGB) */
+    sitz: text("sitz").notNull().default(""),
+    registergericht: text("registergericht").notNull().default(""),
+    registernummer: text("registernummer").notNull().default(""),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
     /** Vorgabe für die Einleitung über den Positionen neuer Rechnungen bzw. Angebote; im Beleg änderbar */

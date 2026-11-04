@@ -1,6 +1,6 @@
 /*
  * Buchhaltung: Hauptbuch (ledger.post ist der einzige Schreiber des Journals), Kontennamen, Anlagenverzeichnis mit AfA
- * Pauschalen ohne Beleg, manuelle Buchungen und Jahresabschluss (GmbH, UG).
+ * Pauschalen ohne Beleg, manuelle Buchungen, Jahresabschluss und Bilanz zur Hinterlegung (GmbH, UG).
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
@@ -21,6 +21,7 @@ export {
   updateAsset,
   withdrawalsForEuer,
 } from "./assets.ts";
+export { HinterlegungError, hinterlegungAngabenSchema, hinterlegungPdf, hinterlegungStand, type HinterlegungStand } from "./hinterlegung.ts";
 export { accountName, knownAccounts, loadJournal, transitBalance } from "./journal.ts";
 export { kontenblatt, ledgerPeriodSchema, ledgerRange, openBooks, post, saldenliste } from "./ledger.ts";
 export { createManualEntry, ManualEntryError, manualEntrySchema, reverseManualEntry, type ManualEntryInput } from "./manual.ts";
