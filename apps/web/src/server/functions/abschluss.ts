@@ -35,7 +35,7 @@ export const getJahresabschluss = createServerFn({ method: "GET" })
       kapgSteuernJahr(data),
       loadActiveCertificate(),
       hinterlegungStand(data, now),
-      restlaufzeitenAnsicht(data, now),
+      restlaufzeitenAnsicht(data),
     ]);
     const vermerke = abschluss.kapitalgesellschaft ? (await bilanzVermerkeFuer(data, abschluss.kontenrahmen)).jahr : [];
     return {
@@ -84,4 +84,4 @@ export const bookSteuerrueckstellungenFn = createServerFn({ method: "POST" })
 export const saveRestlaufzeitenFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ year: yearSchema, angaben: restlaufzeitenSchema }))
-  .handler(({ data, context }) => saveRestlaufzeiten(context.user.id, data.year, data.angaben, today()));
+  .handler(({ data, context }) => saveRestlaufzeiten(context.user.id, data.year, data.angaben));

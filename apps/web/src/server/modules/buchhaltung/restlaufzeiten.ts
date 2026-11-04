@@ -129,10 +129,14 @@ function block(kontenrahmen: Kontenrahmen, s: Stichtag): RestlaufzeitBlock {
   };
 }
 
-/** Die Seite „Jahresabschluss“: Konten mit Vorschlag und gespeichertem Wert; null für Einzelunternehmen und laufende Jahre */
-export async function restlaufzeitenAnsicht(year: number, today: string): Promise<RestlaufzeitenAnsicht | null> {
+/**
+ * Die Seite „Jahresabschluss“: Konten mit Vorschlag und gespeichertem Wert; null für Einzelunternehmen und Jahre ohne
+ * Forderungen und Verbindlichkeiten. Auch im laufenden Jahr, etwa zum Vorbereiten; jede spätere Buchung, die einen
+ * Betrag ändert, verlangt eine neue Bestätigung.
+ */
+export async function restlaufzeitenAnsicht(year: number): Promise<RestlaufzeitenAnsicht | null> {
   const company = await loadCompany();
-  if (!isKapitalgesellschaft(company.rechtsform) || `${year}-12-31` >= today) return null;
+  if (!isKapitalgesellschaft(company.rechtsform)) return null;
   const s = await stichtage(year, company.kontenrahmen);
   if (s.jahr.zeilen.length === 0 && (s.vorjahr?.zeilen.length ?? 0) === 0) return null;
   return {
@@ -158,10 +162,9 @@ function pruefe(s: Stichtag, eingaben: readonly { account: string; ueber1Jahr: C
 }
 
 /** Bestätigt die Restlaufzeiten des Jahres und, falls die Bilanz eine hat, der Vorjahresspalte */
-export async function saveRestlaufzeiten(actor: string, year: number, input: RestlaufzeitenInput, today: string): Promise<void> {
+export async function saveRestlaufzeiten(actor: string, year: number, input: RestlaufzeitenInput): Promise<void> {
   const company = await loadCompany();
   if (!isKapitalgesellschaft(company.rechtsform)) throw new RestlaufzeitError("Restlaufzeiten gibt es nur im Jahresabschluss von GmbH und UG.");
-  if (`${year}-12-31` >= today) throw new RestlaufzeitError(`Das Jahr ${year} ist noch nicht vorbei.`);
   const parsed = restlaufzeitenSchema.parse(input);
   const s = await stichtage(year, company.kontenrahmen);
   const data = { jahr: pruefe(s.jahr, parsed.jahr), vorjahr: s.vorjahr ? pruefe(s.vorjahr, parsed.vorjahr) : null };

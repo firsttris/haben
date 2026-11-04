@@ -35,7 +35,7 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz (Postgres)", () => {
   });
 
   async function setup(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, annual_submissions, elster_certificates, company cascade`;
+    await sql`truncate journal_lines, journal_entries, document_amounts, documents, asset_depreciations, assets, annual_submissions, elster_certificates, residual_terms, company cascade`;
     await sql.begin(async (tx) => {
       for (const table of ["year_closings", "annual_submissions"]) {
         await tx.unsafe(`alter table ${table} disable trigger ${table}_append_only`);
@@ -139,6 +139,28 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz (Postgres)", () => {
           "bs.eqLiab.liab.other.theroffTax.vat": 190_000,
         });
 
+        const ohneRestlaufzeit = "Ohne bestätigte Restlaufzeiten fehlen die Davon-Positionen zu Restlaufzeiten bis und über einem Jahr.";
+        expect((await ebilanz.ebilanzOverview(2026, today))?.issues).toEqual([
+          { tone: "hinweis", text: "Echt senden lässt sich die E-Bilanz erst, wenn 2026 abgeschlossen ist." },
+          { tone: "hinweis", text: ohneRestlaufzeit },
+        ]);
+        expect(Object.keys(daten.werte).some((p) => p.endsWith("1year"))).toBe(false);
+        // Restlaufzeiten bestätigt: 1.000 € des Gesellschafters laufen länger als ein Jahr (§ 268 Abs. 5 HGB)
+        const { saveRestlaufzeiten } = await import("../buchhaltung/restlaufzeiten.ts");
+        await saveRestlaufzeiten(actor, 2026, {
+          jahr: [
+            { account: k.gesellschafter, ueber1Jahr: 100_000 },
+            { account: k.ust, ueber1Jahr: 0 },
+          ],
+          vorjahr: [],
+        });
+        expect((await ebilanz.ebilanzDaten(2026, company)).daten.werte).toMatchObject({
+          "bs.eqLiab.liab.shareholders.upTo1year": 200_000,
+          "bs.eqLiab.liab.shareholders.above1year": 100_000,
+          "bs.eqLiab.liab.other.upTo1year": 190_000,
+          "bs.eqLiab.liab.upTo1year": 390_000,
+          "bs.eqLiab.liab.above1year": 100_000,
+        });
         const overview = await ebilanz.ebilanzOverview(2026, today);
         expect(overview?.issues).toEqual([{ tone: "hinweis", text: "Echt senden lässt sich die E-Bilanz erst, wenn 2026 abgeschlossen ist." }]);
 

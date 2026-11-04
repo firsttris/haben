@@ -81,7 +81,7 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
         [k.bank, 0, 100_000],
       ]);
 
-      const ansicht = (await restlaufzeiten.restlaufzeitenAnsicht(2026, today))!;
+      const ansicht = (await restlaufzeiten.restlaufzeitenAnsicht(2026))!;
       expect(ansicht.jahr.stand).toBe("fehlt");
       const zeile = (account: string) => ansicht.jahr.zeilen.find((z) => z.account === account)!;
       expect(zeile(k.darlehen)).toMatchObject({ eingabe: false, vorschlag: 600_000, betrag: 600_000 });
@@ -101,29 +101,19 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
       expect(ohne.jahr.map((v) => v.label)).toEqual([VERMERK.forderungenGesellschafter, VERMERK.verbindlichkeitenGesellschafter]);
       expect(await restlaufzeiten.ebilanzDavon(2026, kontenrahmen)).toBeNull();
 
-      await expect(restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: [], vorjahr: [] }, today)).rejects.toThrow(
+      await expect(restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: [], vorjahr: [] })).rejects.toThrow(
         `Zum 31.12.2026 fehlt die Restlaufzeit für Konto ${k.ges}.`,
       );
       await expect(
-        restlaufzeiten.saveRestlaufzeiten(
-          actor,
-          2026,
-          { jahr: [{ account: k.ges, ueber1Jahr: 400_001 }], vorjahr: [{ account: k.ges, ueber1Jahr: 0 }] },
-          today,
-        ),
+        restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: [{ account: k.ges, ueber1Jahr: 400_001 }], vorjahr: [{ account: k.ges, ueber1Jahr: 0 }] }),
       ).rejects.toThrow("höchstens der ganze Betrag");
       // Der Gesellschafter hat 2.500 € bis 2028 gestundet
-      await restlaufzeiten.saveRestlaufzeiten(
-        actor,
-        2026,
-        { jahr: [{ account: k.ges, ueber1Jahr: 250_000 }], vorjahr: [{ account: k.ges, ueber1Jahr: 0 }] },
-        today,
-      );
+      await restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: [{ account: k.ges, ueber1Jahr: 250_000 }], vorjahr: [{ account: k.ges, ueber1Jahr: 0 }] });
       const [log] = await sql`select action, new_value from audit_log where table_name = 'residual_terms' order by seq desc limit 1`;
       expect(log?.action).toBe("INSERT");
       expect(JSON.stringify(log?.new_value)).toContain(k.ges);
 
-      expect((await restlaufzeiten.restlaufzeitenAnsicht(2026, today))?.jahr.stand).toBe("bestaetigt");
+      expect((await restlaufzeiten.restlaufzeitenAnsicht(2026))?.jahr.stand).toBe("bestaetigt");
       expect((await hinterlegung.hinterlegungStand(2026, today))?.maengel).toEqual([]);
       const bilanz = await hinterlegung.hinterlegungBilanzFuer(2026, KEINE, today);
       expect(bilanz.passiva.map((z) => [z.label, z.betrag, z.vorjahr])).toEqual([
@@ -154,13 +144,13 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
         [k.bank, 50_000, 0],
         [k.ges, 0, 50_000],
       ]);
-      expect((await restlaufzeiten.restlaufzeitenAnsicht(2026, today))?.jahr.stand).toBe("geaendert");
+      expect((await restlaufzeiten.restlaufzeitenAnsicht(2026))?.jahr.stand).toBe("geaendert");
       expect((await hinterlegung.hinterlegungStand(2026, today))?.maengel).toEqual([
         "Die Salden zum 31.12.2026 haben sich seit der Bestätigung der Restlaufzeiten geändert; bitte neu bestätigen.",
       ]);
     });
 
-    it("Vorjahresspalte aus der Bestätigung des Vorjahres; laufendes Jahr ohne Restlaufzeiten", async () => {
+    it("Vorjahresspalte aus der Bestätigung des Vorjahres", async () => {
       await setup(kontenrahmen, "ist");
       await book("2025-02-01", [
         [k.bank, 2_900_000, 0],
@@ -174,27 +164,22 @@ describe.skipIf(!testDatabaseUrl)("Restlaufzeiten und Bilanzvermerke (Postgres)"
       ]);
       await sql`insert into documents (filename, sha256, mime_type, size, status, payment, gross, document_date, due_date)
         values ('rate.pdf', 'rlz', 'application/pdf', 1, 'gebucht', 'bank', 300000, '2025-11-01', '2027-06-30')`;
-      const vorschlag = (await restlaufzeiten.restlaufzeitenAnsicht(2025, today))!.jahr.zeilen.find((z) => z.account === k.verb);
+      const vorschlag = (await restlaufzeiten.restlaufzeitenAnsicht(2025))!.jahr.zeilen.find((z) => z.account === k.verb);
       expect(vorschlag).toMatchObject({ eingabe: true, vorschlag: 300_000, wert: 300_000 });
       expect(vorschlag?.grund).toContain("erst nach dem 31.12.2026 fällig");
-      await restlaufzeiten.saveRestlaufzeiten(
-        actor,
-        2025,
-        {
-          jahr: [
-            { account: k.ges, ueber1Jahr: 100_000 },
-            { account: k.verb, ueber1Jahr: 300_000 },
-          ],
-          vorjahr: null,
-        },
-        today,
-      );
-      const ansicht = (await restlaufzeiten.restlaufzeitenAnsicht(2026, today))!;
+      await restlaufzeiten.saveRestlaufzeiten(actor, 2025, {
+        jahr: [
+          { account: k.ges, ueber1Jahr: 100_000 },
+          { account: k.verb, ueber1Jahr: 300_000 },
+        ],
+        vorjahr: null,
+      });
+      const ansicht = (await restlaufzeiten.restlaufzeitenAnsicht(2026))!;
       expect(ansicht.vorjahr).toMatchObject({ stand: "bestaetigt" });
       expect(ansicht.vorjahr?.zeilen.find((z) => z.account === k.ges)).toMatchObject({ wert: 100_000 });
       expect(ansicht.jahr.stand).toBe("fehlt");
-      expect(await restlaufzeiten.restlaufzeitenAnsicht(2027, today)).toBeNull();
-      await expect(restlaufzeiten.saveRestlaufzeiten(actor, 2027, { jahr: [], vorjahr: null }, today)).rejects.toThrow("noch nicht vorbei");
+      // Auch im laufenden Jahr schon vorzubereiten
+      expect((await restlaufzeiten.restlaufzeitenAnsicht(2027))?.jahr.stand).toBe("fehlt");
     });
   });
 });

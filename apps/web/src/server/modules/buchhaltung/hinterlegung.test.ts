@@ -83,7 +83,7 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
       expect((await hinterlegung.hinterlegungStand(2026, today))?.maengel).toEqual([
         "Die Restlaufzeiten der Forderungen und Verbindlichkeiten zum 31.12.2026 sind noch nicht bestätigt (§ 268 Abs. 4 und 5 HGB).",
       ]);
-      await restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: [{ account: k.ust, ueber1Jahr: 0 }], vorjahr: [] }, today);
+      await restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: [{ account: k.ust, ueber1Jahr: 0 }], vorjahr: [] });
       const stand = await hinterlegung.hinterlegungStand(2026, today);
       expect(stand).toEqual({ frist: "2027-12-31", fristAbgelaufen: false, maengel: [], vorjahr: true });
 
@@ -143,7 +143,7 @@ describe.skipIf(!testDatabaseUrl)("Bilanz zur Hinterlegung beim Unternehmensregi
       ]);
       // Die übernommene Forderung ist in einem Jahr fällig, im Jahr und in der Vorjahresspalte
       const offen = [{ account: k.forderung, ueber1Jahr: 0 }];
-      await restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: offen, vorjahr: offen }, today);
+      await restlaufzeiten.saveRestlaufzeiten(actor, 2026, { jahr: offen, vorjahr: offen });
       const stand = await hinterlegung.hinterlegungStand(2026, today);
       expect(stand?.maengel).toEqual([]);
       const bilanz = await hinterlegung.hinterlegungBilanzFuer(2026, KEINE, today);
