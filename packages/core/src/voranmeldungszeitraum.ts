@@ -114,20 +114,32 @@ export interface FrequencyBasis {
 
 const euro = (cents: Cents) => `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(Math.trunc(cents / 100))} €`;
 
-/** Grenzen aus § 18 Abs. 2 Satz 2 und 3 UStG in der geltenden Fassung: 9.000 € und 2.000 € */
+/**
+ * Grenzen aus § 18 Abs. 2 Satz 2 und 3 UStG: 9.000 € und 2.000 € ab 2025 (Viertes Bürokratieentlastungsgesetz), bis 2024
+ * 7.500 € und 1.000 €. Maßgeblich ist die Fassung im Jahr, für das der Zeitraum gilt.
+ */
 export const MONTHLY_ABOVE: Cents = 900_000;
 export const EXEMPT_UP_TO: Cents = 200_000;
+const MONTHLY_ABOVE_BIS_2024: Cents = 750_000;
+const EXEMPT_UP_TO_BIS_2024: Cents = 100_000;
 
-function byAmount(tax: Cents, what: string): FrequencySuggestion {
-  if (tax > MONTHLY_ABOVE) return { frequency: "monatlich", reason: `${what} ${euro(tax)}, mehr als 9.000 €: monatlich (§ 18 Abs. 2 Satz 2 UStG).` };
-  if (tax <= EXEMPT_UP_TO) {
-    const ueberschuss = tax < -MONTHLY_ABOVE ? " Bei einem Überschuss über 9.000 € kannst du auch monatlich wählen (§ 18 Abs. 2a UStG)." : "";
+function limitsFor(year: number): { monthlyAbove: Cents; exemptUpTo: Cents } {
+  return year <= 2024 ? { monthlyAbove: MONTHLY_ABOVE_BIS_2024, exemptUpTo: EXEMPT_UP_TO_BIS_2024 } : { monthlyAbove: MONTHLY_ABOVE, exemptUpTo: EXEMPT_UP_TO };
+}
+
+function byAmount(tax: Cents, what: string, year: number): FrequencySuggestion {
+  const { monthlyAbove, exemptUpTo } = limitsFor(year);
+  const monthly = euro(monthlyAbove);
+  const exempt = euro(exemptUpTo);
+  if (tax > monthlyAbove) return { frequency: "monatlich", reason: `${what} ${euro(tax)}, mehr als ${monthly}: monatlich (§ 18 Abs. 2 Satz 2 UStG).` };
+  if (tax <= exemptUpTo) {
+    const ueberschuss = tax < -monthlyAbove ? ` Bei einem Überschuss über ${monthly} kannst du auch monatlich wählen (§ 18 Abs. 2a UStG).` : "";
     return {
       frequency: "keine",
-      reason: `${what} ${euro(tax)}, höchstens 2.000 €: Das Finanzamt kann dich von der Voranmeldung befreien (§ 18 Abs. 2 Satz 3 UStG); sonst vierteljährlich.${ueberschuss}`,
+      reason: `${what} ${euro(tax)}, höchstens ${exempt}: Das Finanzamt kann dich von der Voranmeldung befreien (§ 18 Abs. 2 Satz 3 UStG); sonst vierteljährlich.${ueberschuss}`,
     };
   }
-  return { frequency: "vierteljaehrlich", reason: `${what} ${euro(tax)}, zwischen 2.000 € und 9.000 €: vierteljährlich (§ 18 Abs. 2 Satz 1 UStG).` };
+  return { frequency: "vierteljaehrlich", reason: `${what} ${euro(tax)}, zwischen ${exempt} und ${monthly}: vierteljährlich (§ 18 Abs. 2 Satz 1 UStG).` };
 }
 
 /**
@@ -147,7 +159,7 @@ export function suggestFrequency({ year, previousYearTax, firstActivity }: Frequ
   if (founder && firstActivity) {
     // Nur einen Teil des Vorjahres tätig: auf ein Jahr hochrechnen, angefangene Monate voll (§ 18 Abs. 2 Satz 6 UStG)
     const months = 13 - Number(firstActivity.slice(5, 7));
-    if (months < 12) return byAmount(Math.trunc((previousYearTax * 12) / months), `Steuer ${year - 1} auf ein Jahr hochgerechnet (${months} Monate):`);
+    if (months < 12) return byAmount(Math.trunc((previousYearTax * 12) / months), `Steuer ${year - 1} auf ein Jahr hochgerechnet (${months} Monate):`, year);
   }
-  return byAmount(previousYearTax, `Steuer ${year - 1}:`);
+  return byAmount(previousYearTax, `Steuer ${year - 1}:`, year);
 }
