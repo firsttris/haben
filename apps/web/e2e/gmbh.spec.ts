@@ -189,6 +189,54 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
   expect(await axe(), `/abschluss/${year - 1}`).toEqual([]);
 });
 
+test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als PDF", async () => {
+  const year = new Date().getFullYear();
+  const regionName = (y: number) => `Hinterlegung beim Unternehmensregister ${y}`;
+
+  // Das laufende Jahr ist nicht vorbei; ein altes, nicht abgeschlossenes Jahr zeigt Hinweis und abgelaufene Frist
+  await go(`/abschluss/${year}`);
+  await expect(page.getByRole("region", { name: regionName(year) })).toHaveCount(0);
+  await go(`/abschluss/${year - 2}`);
+  const alt = page.getByRole("region", { name: regionName(year - 2) });
+  await expect(alt).toContainText(`Das Jahr ${year - 2} ist noch nicht abgeschlossen.`);
+  await expect(alt).toContainText(`Die Frist ist am 31.12.${year - 1} abgelaufen`);
+
+  // Ohne Registergericht und Registernummer gibt es keine Datei
+  await go(`/abschluss/${year - 1}`);
+  const region = page.getByRole("region", { name: regionName(year - 1) });
+  await expect(region).toContainText(`Frist: bis 31.12.${year}`);
+  await expect(region).toContainText("Das Registergericht fehlt in den Firmendaten.");
+  await expect(region.getByRole("button", { name: "Bilanz als PDF herunterladen" })).toBeDisabled();
+
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await expect(firma.getByLabel("Sitz", { exact: true })).toHaveAttribute("placeholder", "Bremen");
+  await firma.getByLabel("Registergericht").fill("Amtsgericht Bremen");
+  await firma.getByLabel("Registernummer").fill("HRB 12345 HB");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  expect(await axe(), "/einstellungen").toEqual([]);
+
+  await go(`/abschluss/${year - 1}`);
+  await expect(region).not.toContainText("fehlt in den Firmendaten");
+  await expect(region).toContainText("Ohne Vorjahresspalte");
+  const form = region.getByRole("form", { name: "Bilanz zur Hinterlegung" });
+  await form.getByLabel("Tag der Feststellung").fill(`${year}-01-01`);
+  const haftung = form.getByRole("group", { name: /Haftungsverhältnisse/ });
+  await expect(haftung.getByLabel("Keine")).toBeChecked();
+  await haftung.getByLabel("Ja, folgende").check();
+  await haftung.getByLabel(/Angaben, wie sie unter der Bilanz/).fill("Bürgschaft für die Muster KG über 5.000,00 EUR.");
+  await expect(form.getByRole("group", { name: /Vorschüsse und Kredite/ }).getByLabel("Keine")).toBeChecked();
+  expect(await axe(), `/abschluss/${year - 1} Hinterlegung`).toEqual([]);
+
+  const [download] = await Promise.all([page.waitForEvent("download"), form.getByRole("button", { name: "Bilanz als PDF herunterladen" }).click()]);
+  expect(download.suggestedFilename()).toBe(`Bilanz-${year - 1}-Hinterlegung.pdf`);
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  expect(Buffer.concat(chunks).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+});
+
 test("Jahreserklärung der GmbH: Körperschaft- und Gewerbesteuer, Anteilseigner erfassen", async () => {
   const year = new Date().getFullYear() - 1;
   await go(`/jahreserklaerung/${year}`);

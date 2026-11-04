@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { closeYear, jahresabschluss } from "../modules/buchhaltung/index.ts";
+import { closeYear, hinterlegungStand, jahresabschluss } from "../modules/buchhaltung/index.ts";
 import { elsterClient, elsterMode, loadActiveCertificate } from "../modules/elster/index.ts";
 import {
   bookSteuerrueckstellungen,
@@ -15,21 +15,23 @@ import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";
 
-/** Bilanz und GuV der Kleinst-GmbH, offene Punkte und Stand des Abschlusses, dazu die E-Bilanz */
+/** Bilanz und GuV der Kleinst-GmbH, offene Punkte und Stand des Abschlusses, dazu E-Bilanz und Hinterlegung */
 export const getJahresabschluss = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(yearSchema)
   .handler(async ({ data }) => {
     const now = today();
-    const [abschluss, ebilanz, steuern, certificate] = await Promise.all([
+    const [abschluss, ebilanz, steuern, certificate, hinterlegung] = await Promise.all([
       jahresabschluss(data, now),
       ebilanzOverview(data, now),
       kapgSteuernJahr(data),
       loadActiveCertificate(),
+      hinterlegungStand(data, now),
     ]);
     return {
       ...abschluss,
       ebilanz,
+      hinterlegung,
       steuern,
       elster: {
         mode: elsterMode(),
