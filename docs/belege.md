@@ -17,7 +17,7 @@ Mit **Speichern** sicherst du Zwischenstände, ohne zu buchen.
 
 ## Hochladen
 
-Es gibt drei Wege, alle führen zum selben Ergebnis:
+Es gibt mehrere Wege, alle führen zum selben Ergebnis:
 
 | Weg | Wie |
 | --- | --- |
@@ -25,6 +25,8 @@ Es gibt drei Wege, alle führen zum selben Ergebnis:
 | Dateiauswahl | **Dateien auswählen**, auch mehrere auf einmal (bis 50 je Vorgang). |
 | Kamera | Auf dem Handy **Foto aufnehmen**; öffnet direkt die Rückkamera. |
 | Teilen-Menü | In der als App installierten Version (PWA) taucht Haben im Teilen-Menü des Telefons auf. Geteilte Dateien gehen an `/api/belege/teilen` (bis 20 je Vorgang). Bei genau einer Datei öffnet Haben danach gleich den Beleg, sonst die Liste. |
+| E-Mail | Anhänge aus einem eigenen Postfach, siehe [Belege per E-Mail](#belege-per-e-mail). |
+| REST-API | Eigene Werkzeuge, Dokumentenarchive und Skripte schicken Belege mit einem API-Token, siehe [Belege aus der REST-API](#belege-aus-der-rest-api). |
 
 Erlaubt sind PDF, JPEG, PNG, WebP, HEIC und E-Rechnungs-XML bis 20 MB je Datei. Nach dem Hochladen meldet Haben je Datei „abgelegt“, „liegt schon in Haben, nicht doppelt abgelegt“ oder den Grund der Ablehnung.
 
@@ -51,6 +53,18 @@ Viele Rechnungen kommen per Mail. Unter **Einstellungen › E-Mail › Belege pe
 Am besten richtest du eine eigene Adresse oder einen Ordner mit Filterregel ein, etwa `belege@…` oder „Rechnungen“, und leitest Rechnungen dorthin weiter. Im Hauptpostfach würde Haben jede ungelesene Mail anfassen.
 
 Jede abgeholte Mail steht mit ihrer Message-ID genau einmal im Abrufprotokoll (nur anhängen). Markierst du sie wieder als ungelesen, legt Haben sie kein zweites Mal ab. Schlägt der Abruf fehl, etwa wegen eines falschen Passworts, steht der Fehler in den Einstellungen und auf der Belegseite.
+
+## Belege aus der REST-API
+
+Liegen deine Belege schon in einem anderen System, etwa einem Dokumentenarchiv, oder holt ein eigenes Skript sie aus Kundenportalen, dann liefert es sie über die [REST-API](api.md#belege) an Haben: `POST /api/v1/belege` mit der Datei im Feld `datei`, angemeldet mit einem API-Token, das das Recht „Belege lesen und hochladen“ (`belege:anlegen`) hat. Ein Token mit `belege:lesen` sieht nur den Stand.
+
+- **Derselbe Weg wie beim Hochladen:** gleiche Formate und 20 MB je Datei, Ablage unter dem SHA-256, E-Rechnungen werden sofort gelesen, sonst greift die KI-Auslesung, wenn sie eingerichtet ist.
+- **Der Beleg landet als „Zu prüfen“** in der Liste, gebucht wird nichts. Du prüfst und buchst ihn wie jeden anderen. Im Änderungsprotokoll steht als Akteur der Name des Tokens (`api:Dokumentenarchiv`).
+- **Keine Dubletten:** Das Werkzeug kann zu jedem Beleg eine Referenz mitschicken, Quelle und Kennung des Dokuments (`externalSource`, `externalId`). Dieselbe Referenz legt keinen zweiten Beleg an, auch nicht bei gleichzeitigen Anfragen. Dieselbe Datei erkennt Haben wie beim Hochladen am Inhalt; kommt sie mit einer anderen Referenz, lehnt die API sie ab und nennt den vorhandenen Beleg.
+- **Stand abfragen:** `GET /api/v1/belege` mit Filter nach Status und Referenz, `GET /api/v1/belege/{id}` mit Status, ob gebucht, was noch fehlt, und dem Link zur Seite in Haben. So sieht das Werkzeug, was schon geprüft und gebucht ist.
+- **Nicht über die API:** ändern, buchen, löschen und die Datei herunterladen. Löschst du einen ungebuchten Beleg in Haben, ist seine Referenz wieder frei.
+
+Einrichtung, Antworten und ein Beispiel mit `curl` stehen unter [REST-API › Belege](api.md#belege).
 
 ## E-Rechnungen
 

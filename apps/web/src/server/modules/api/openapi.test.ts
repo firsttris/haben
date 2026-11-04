@@ -74,6 +74,30 @@ describe("OpenAPI-Beschreibung der REST-API", () => {
     expect(contact.required).toEqual(["name"]);
   });
 
+  it("beschreibt den Beleg-Upload als multipart/form-data mit genau einer Datei", () => {
+    const post = (doc.paths["/belege"] as Record<string, { requestBody: { content: Record<string, { schema: { $ref: string } }> }; responses: object }>).post!;
+    expect(Object.keys(post.requestBody.content)).toEqual(["multipart/form-data"]);
+    expect(post.requestBody.content["multipart/form-data"]!.schema.$ref).toBe("#/components/schemas/DocumentUpload");
+    expect(Object.keys(post.responses)).toEqual(expect.arrayContaining(["200", "201", "409", "413", "415"]));
+    const upload = doc.components.schemas.DocumentUpload as {
+      additionalProperties: boolean;
+      required: string[];
+      properties: Record<string, { type?: string; contentMediaType?: string; description?: string }>;
+    };
+    expect(upload.additionalProperties).toBe(false);
+    expect(upload.required).toEqual(["datei"]);
+    expect(upload.properties.datei).toMatchObject({ type: "string", contentMediaType: "application/octet-stream" });
+    expect(upload.properties.datei!.description).toMatch(/20 MB/);
+    expect(upload.properties).toHaveProperty("externalSource");
+    expect(upload.properties).not.toHaveProperty("supplierName");
+    const get = (doc.paths["/belege/{id}"] as Record<string, { security: unknown }>).get!;
+    expect(get.security).toEqual([{ token: ["belege:lesen"] }]);
+    expect(post).toMatchObject({ security: [{ token: ["belege:anlegen"] }] });
+    const status = (doc.components.schemas.Document as { properties: Record<string, { enum?: string[]; description?: string }> }).properties.status!;
+    expect(status.enum).toEqual(["neu", "gebucht"]);
+    expect(status.description).toMatch(/Zu prüfen/);
+  });
+
   it("Listen haben Query-Parameter mit Grenzen", () => {
     const list = (doc.paths["/rechnungen"] as { get: { parameters: { name: string; in: string; schema: Record<string, unknown> }[] } }).get;
     const names = list.parameters.map((p) => p.name);

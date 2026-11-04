@@ -987,7 +987,7 @@ test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async 
   expect(xml).not.toContain("<TransferHeader");
 });
 
-test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer über die API", async () => {
+test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {
   await go("/einstellungen?bereich=ki");
   // Gesteuertes Kästchen: es zeigt den Stand erst nach der Antwort des Servers
   const zugang = page.getByLabel("Zugang für KI-Assistenten und API einschalten");
@@ -1000,13 +1000,14 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer ü
   await rechte.getByRole("checkbox", { name: /haben:lesen/ }).uncheck();
   await rechte.getByRole("checkbox", { name: /kontakte:lesen/ }).check();
   await rechte.getByRole("checkbox", { name: /rechnungen:entwuerfe/ }).check();
+  await rechte.getByRole("checkbox", { name: /belege:anlegen/ }).check();
   await form.getByRole("button", { name: "Token anlegen" }).click();
   const token = await page.getByLabel(/Token für „Shop-Automation“/).inputValue();
   expect(token).toMatch(/^hb_/);
   // Ohne MCP-Recht kein Befehl für Claude Code, dafür der Hinweis auf die REST-API
   await expect(page.getByLabel("In Claude Code eintragen")).toHaveCount(0);
   await expect(page.getByText(/Für die REST-API: Adresse/)).toBeVisible();
-  await expect(page.getByText(/Rechte: API: Kontakte lesen · API: Rechnungen lesen, Entwürfe/)).toBeVisible();
+  await expect(page.getByText(/Rechte: API: Kontakte lesen · API: Rechnungen lesen, Entwürfe .* · API: Belege lesen und hochladen/)).toBeVisible();
 
   // Die Sitzung im Browser reicht der API nicht, nur das Token
   expect((await page.request.get("/api/v1/kontakte")).status()).toBe(401);
@@ -1040,9 +1041,40 @@ test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer ü
   expect((await page.request.delete(`/api/v1/rechnungen/${invoice.id}`, { headers: auth })).status()).toBe(204);
   const found = (await (await page.request.get("/api/v1/rechnungen?externalSource=etsy&externalId=3141592653", { headers: auth })).json()) as { total: number };
   expect(found.total).toBe(0);
+
+  // Ein Beleg aus einem Dokumentenarchiv, wie mit curl -F datei=@… -F externalSource=… -F externalId=…
+  const beleg = {
+    datei: { name: "archiv-4711.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Druckerei Archivtest GmbH") },
+    externalSource: "archiv",
+    externalId: "4711",
+  };
+  const uploaded = await page.request.post("/api/v1/belege", { headers: auth, multipart: beleg });
+  expect(uploaded.status()).toBe(201);
+  const document = (await uploaded.json()) as { id: string; url: string; status: string; booked: boolean };
+  expect(document).toMatchObject({ status: "neu", booked: false });
+  // Dasselbe Dokument ein zweites Mal: derselbe Beleg
+  const repeated = await page.request.post("/api/v1/belege", { headers: auth, multipart: beleg });
+  expect(repeated.status()).toBe(200);
+  expect(((await repeated.json()) as { id: string }).id).toBe(document.id);
+
+  // Unter Belege steht er als „Zu prüfen“, wie ein Upload in Haben
+  await go("/belege");
+  const row = page.getByRole("link", { name: /archiv-4711\.jpg/ });
+  await expect(row).toContainText("Zu prüfen");
+  await row.click();
+  await page.waitForURL(new URL(document.url).pathname);
+  await page.waitForLoadState("networkidle");
+  // Nicht buchen: wieder löschen, damit die übrigen Seiten und Bilder dieselben Daten zeigen wie ohne diesen Test
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+  expect((await page.request.get(`/api/v1/belege/${document.id}`, { headers: auth })).status()).toBe(404);
+
   // Jeder Aufruf steht im Protokoll, ohne Inhalte
   await go("/einstellungen?bereich=ki");
-  await expect(page.getByRole("region", { name: "Letzte Aufrufe" }).getByText("POST /rechnungen").first()).toBeVisible();
+  const calls = page.getByRole("region", { name: "Letzte Aufrufe" });
+  await expect(calls.getByText("POST /rechnungen").first()).toBeVisible();
+  await expect(calls.getByText("POST /belege").first()).toBeVisible();
 });
 
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {

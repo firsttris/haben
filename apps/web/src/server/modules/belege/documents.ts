@@ -1,4 +1,4 @@
-import { UserError, userMessage } from "../../errors.ts";
+import { isUniqueViolation, UserError, userMessage } from "../../errors.ts";
 import {
   ACCOUNTS,
   ASSET_KIND_KEYS,
@@ -28,6 +28,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
+import { findDocumentByReference, type DocumentReference } from "./external-reference.ts";
 
 export type Document = typeof schema.documents.$inferSelect;
 export type DocumentAmount = typeof schema.documentAmounts.$inferSelect;
@@ -307,35 +308,72 @@ async function extract(actor: string, doc: Document): Promise<void> {
 
 export interface UploadResult {
   id: string;
+  /** Kein neuer Beleg: dieselbe Datei oder dieselbe externe Referenz gab es schon, id ist dieser Beleg */
   duplicate: boolean;
+}
+
+export interface FileProblem {
+  kind: "leer" | "zu_gross" | "format";
+  message: string;
+}
+
+/** Was gegen die Datei als Beleg spricht, oder null; dieselben Regeln für Upload, E-Mail und REST-API */
+export function documentFileProblem(file: { bytes: Uint8Array; filename: string }): FileProblem | null {
+  if (file.bytes.byteLength === 0) return { kind: "leer", message: `${file.filename}: Die Datei ist leer.` };
+  if (file.bytes.byteLength > MAX_DOCUMENT_SIZE) return { kind: "zu_gross", message: `${file.filename}: größer als 20 MB.` };
+  if (!sniff(file.bytes)) return { kind: "format", message: `${file.filename}: Erlaubt sind PDF, JPEG, PNG, WebP, HEIC und E-Rechnungs-XML.` };
+  return null;
+}
+
+/** Legt die Zeile an; null, wenn dieselbe Datei gleichzeitig angelegt wurde */
+async function insertDocument(
+  actor: string,
+  row: { sha256: string; filename: string; mimeType: string; size: number; note: string; reference: DocumentReference | null },
+): Promise<string | null> {
+  const { reference, ...values } = row;
+  return withActor(actor, async (tx) => {
+    const [created] = await tx
+      .insert(schema.documents)
+      .values({ ...values, ...reference })
+      .onConflictDoNothing({ target: schema.documents.sha256 })
+      .returning({ id: schema.documents.id });
+    return created?.id ?? null;
+  });
 }
 
 /**
  * Legt einen Beleg ab. E-Rechnungen werden sofort gelesen; andere PDFs und Fotos
- * gehen an die KI-Auslesung im Hintergrund, falls eingerichtet.
+ * gehen an die KI-Auslesung im Hintergrund, falls eingerichtet. Mit externer Referenz (REST-API) liefert dieselbe
+ * Referenz den vorhandenen Beleg, auch bei gleichzeitigen Anfragen.
  */
 export async function uploadDocument(
   actor: string,
   file: { bytes: Uint8Array; filename: string },
-  options: { background?: (work: Promise<void>) => void } = {},
+  options: { background?: (work: Promise<void>) => void; reference?: DocumentReference; note?: string } = {},
 ): Promise<UploadResult> {
-  if (file.bytes.byteLength === 0) throw new DocumentError(`${file.filename}: Die Datei ist leer.`);
-  if (file.bytes.byteLength > MAX_DOCUMENT_SIZE) throw new DocumentError(`${file.filename}: größer als 20 MB.`);
-  const type = sniff(file.bytes);
-  if (!type) throw new DocumentError(`${file.filename}: Erlaubt sind PDF, JPEG, PNG, WebP, HEIC und E-Rechnungs-XML.`);
+  const problem = documentFileProblem(file);
+  if (problem) throw new DocumentError(problem.message);
+  const type = sniff(file.bytes)!;
+  const reference = options.reference ?? null;
+  // Vor dem Speichern: Wer dieselbe Referenz erneut schickt, hinterlässt keine zweite Datei
+  const known = reference && (await findDocumentByReference(reference));
+  if (known) return { id: known.id, duplicate: true };
 
   const sha256 = await storeFile(file.bytes);
   const [existing] = await db.select({ id: schema.documents.id }).from(schema.documents).where(eq(schema.documents.sha256, sha256));
   if (existing) return { id: existing.id, duplicate: true };
 
-  const id = await withActor(actor, async (tx) => {
-    const [created] = await tx
-      .insert(schema.documents)
-      .values({ sha256, filename: file.filename.slice(0, 200), mimeType: type.mimeType, size: file.bytes.byteLength })
-      .onConflictDoNothing({ target: schema.documents.sha256 })
-      .returning({ id: schema.documents.id });
-    return created?.id ?? null;
-  });
+  const row = { sha256, filename: file.filename.slice(0, 200), mimeType: type.mimeType, size: file.bytes.byteLength, note: options.note ?? "", reference };
+  let id: string | null;
+  try {
+    id = await insertDocument(actor, row);
+  } catch (error) {
+    // Gleichzeitig mit derselben Referenz angelegt: der andere Beleg gilt. Die eigene Datei bleibt liegen, denn eine
+    // dritte Anfrage mit derselben Datei könnte sie gerade nutzen; unter ihrem Hash schadet sie nicht.
+    const winner = reference && isUniqueViolation(error, "documents_external_ref") ? await findDocumentByReference(reference) : null;
+    if (!winner) throw error;
+    return { id: winner.id, duplicate: true };
+  }
   if (!id) {
     const [again] = await db.select({ id: schema.documents.id }).from(schema.documents).where(eq(schema.documents.sha256, sha256));
     return { id: again!.id, duplicate: true };
@@ -609,6 +647,10 @@ export async function listDocuments() {
       documentDate: schema.documents.documentDate,
       category: schema.documents.category,
       gross: schema.documents.gross,
+      currency: schema.documents.currency,
+      externalSource: schema.documents.externalSource,
+      externalId: schema.documents.externalId,
+      lockedAt: schema.documents.lockedAt,
       uploadedAt: schema.documents.uploadedAt,
     })
     .from(schema.documents)

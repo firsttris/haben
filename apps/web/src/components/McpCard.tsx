@@ -56,8 +56,8 @@ export function McpCard({ data }: { data: Data }) {
           an ELSTER machst du weiter selbst in Haben.
         </p>
         <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
-          Über die REST-API legen eigene Werkzeuge und Automationen Kontakte und Rechnungsentwürfe an, etwa aus Bestellungen bei Etsy oder eBay. Auch sie bucht
-          nichts und schreibt nichts fest.{" "}
+          Über die REST-API legen eigene Werkzeuge und Automationen Kontakte und Rechnungsentwürfe an, etwa aus Bestellungen bei Etsy oder eBay, und liefern
+          Belege, etwa aus einem Dokumentenarchiv; sie landen unter Belege als „Zu prüfen“. Auch die API bucht nichts und schreibt nichts fest.{" "}
           <a href={API_DOCS} target="_blank" rel="noreferrer">
             Anleitung zur API
           </a>

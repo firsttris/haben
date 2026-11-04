@@ -736,6 +736,13 @@
       "when": 1793988770647,
       "tag": "0104_ausschuettung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1793988830647,
+      "tag": "0105_belege_externe_referenz",
+      "breakpoints": true
     }
   ]
 }

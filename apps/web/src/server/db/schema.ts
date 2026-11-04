@@ -1127,6 +1127,13 @@ export const documents = pgTable(
     reverseCharge: text("reverse_charge", { enum: ["eu", "drittland"] }),
     /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
     lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
+    /**
+     * Herkunft eines Belegs aus der REST-API (#104): Quelle, etwa „archiv“, und die Kennung des Dokuments dort. Zusammen
+     * eindeutig, damit derselbe Beleg nicht doppelt ankommt. Wird nur beim Anlegen gesetzt; fließt wie jede Spalte ab
+     * dem Buchen ins Siegel ein und ist danach gesperrt.
+     */
+    externalSource: text("external_source"),
+    externalId: text("external_id"),
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1135,6 +1142,9 @@ export const documents = pgTable(
   (t) => [
     check("documents_private_share_range", sql`${t.privateShare} between 0 and 100`),
     foreignKey({ name: "documents_lexoffice_voucher_fk", columns: [t.lexofficeVoucherId], foreignColumns: [lexofficeVouchers.id] }),
+    // Externe Referenz nur vollständig: Quelle und Kennung zusammen
+    check("documents_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
+    uniqueIndex("documents_external_ref").on(t.externalSource, t.externalId),
   ],
 );
 
@@ -1721,7 +1731,7 @@ export const mcpTokens = pgTable("mcp_tokens", {
   tokenHash: text("token_hash").notNull().unique(),
   /** Anfang des Tokens zum Wiedererkennen, z. B. hb_3fK9 */
   prefix: text("prefix").notNull(),
-  /** Rechte des Tokens, TOKEN_SCOPES in modules/mcp/tokens.ts: haben:lesen für MCP, kontakte:… und rechnungen:… für die REST-API */
+  /** Rechte des Tokens, TOKEN_SCOPES in modules/mcp/tokens.ts: haben:lesen für MCP, kontakte:…, rechnungen:… und belege:… für die REST-API */
   scopes: text("scopes").array().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

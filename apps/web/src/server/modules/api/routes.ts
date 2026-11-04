@@ -1,9 +1,11 @@
 import type { z } from "zod";
+import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import type { TokenScope } from "../mcp/index.ts";
 import { createContactHandler, getContactHandler, listContactsHandler, updateContactHandler } from "./contacts.ts";
 import type { Handler } from "./http.ts";
+import { createDocumentHandler, getDocumentHandler, listDocumentsHandler } from "./documents.ts";
 import { createInvoiceHandler, deleteInvoiceHandler, getInvoiceHandler, listInvoicesHandler, updateInvoiceHandler } from "./invoices.ts";
-import { contactQuerySchema, invoiceQuerySchema } from "./schemas.ts";
+import { contactQuerySchema, documentQuerySchema, invoiceQuerySchema } from "./schemas.ts";
 
 /*
  * Alle Endpunkte von /api/v1 an einer Stelle: Pfad, Recht, Handler und was die OpenAPI-Beschreibung über sie sagt.
@@ -19,12 +21,16 @@ export interface ApiRoute {
   scope: TokenScope;
   summary: string;
   description?: string;
-  tag: "Kontakte" | "Rechnungen";
+  tag: "Kontakte" | "Rechnungen" | "Belege";
   query?: z.ZodObject;
   /** Name in requestSchemas */
   requestBody?: string;
+  /** Body als multipart/form-data statt JSON, höchstens so viele Bytes */
+  multipartLimit?: number;
   /** Status → Name in responseSchemas (null: ohne Inhalt) und Beschreibung */
   responses: Record<number, { schema: string | null; description: string }>;
+  /** Fehler, die nur dieser Endpunkt kennt: Status → Beschreibung */
+  errors?: Record<number, string>;
   handler: Handler;
 }
 
@@ -117,6 +123,7 @@ export const API_ROUTES: ApiRoute[] = [
     description: "Nur solange Entwurf. Nur die genannten Felder ändern sich; lines ersetzt alle Positionen. Die externe Referenz bleibt.",
     requestBody: "InvoiceDraftPatch",
     responses: { 200: { schema: "Invoice", description: "Der geänderte Entwurf" } },
+    errors: { 409: "Die Rechnung ist festgeschrieben" },
     handler: updateInvoiceHandler,
   },
   {
@@ -127,6 +134,50 @@ export const API_ROUTES: ApiRoute[] = [
     summary: "Rechnungsentwurf löschen",
     description: "Nur solange Entwurf; danach ist die externe Referenz wieder frei.",
     responses: { 204: { schema: null, description: "Gelöscht" } },
+    errors: { 409: "Die Rechnung ist festgeschrieben" },
     handler: deleteInvoiceHandler,
+  },
+  {
+    method: "GET",
+    path: "/belege",
+    scope: "belege:lesen",
+    tag: "Belege",
+    summary: "Belege auflisten",
+    description:
+      "Zu prüfende Belege zuerst, dann nach Belegdatum absteigend. Mit externalSource und externalId sehen, ob ein Dokument schon da und gebucht ist.",
+    query: documentQuerySchema,
+    responses: { 200: { schema: "DocumentList", description: "Eine Seite Belege" } },
+    handler: listDocumentsHandler,
+  },
+  {
+    method: "POST",
+    path: "/belege",
+    scope: "belege:anlegen",
+    tag: "Belege",
+    summary: "Beleg hochladen",
+    description:
+      "Legt einen Eingangsbeleg als „Zu prüfen“ an, wie der Upload unter Belege: E-Rechnungen werden sofort gelesen, andere PDFs und Fotos von der " +
+      "KI-Auslesung im Hintergrund, wenn sie eingerichtet ist. Gebucht wird in Haben. Mit externalSource und externalId idempotent: Gibt es die " +
+      "Referenz schon, kommt der vorhandene Beleg unverändert mit 200 zurück. Dieselbe Datei ohne Referenz liefert ebenfalls den vorhandenen Beleg; " +
+      "liegt sie mit einer anderen oder ohne Referenz schon vor, antwortet die API mit 409 und existingId.",
+    requestBody: "DocumentUpload",
+    // Platz für die Felder und Grenzen des Formulars neben der größten Datei
+    multipartLimit: MAX_DOCUMENT_SIZE + 1024 * 1024,
+    responses: {
+      201: { schema: "Document", description: "Beleg angelegt; Location zeigt auf ihn" },
+      200: { schema: "Document", description: "Diese Referenz oder ohne Referenz diese Datei gibt es schon; der Beleg bleibt unverändert" },
+    },
+    errors: { 409: "Dieselbe Datei liegt mit einer anderen oder ohne Referenz schon vor; existingId nennt den Beleg" },
+    handler: createDocumentHandler,
+  },
+  {
+    method: "GET",
+    path: "/belege/{id}",
+    scope: "belege:lesen",
+    tag: "Belege",
+    summary: "Beleg lesen",
+    description: "Stand der Prüfung: Status, ob gebucht, was vor dem Buchen noch fehlt, und der Link zur Seite in Haben.",
+    responses: { 200: { schema: "Document", description: "Der Beleg" } },
+    handler: getDocumentHandler,
   },
 ];
