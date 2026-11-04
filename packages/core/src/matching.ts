@@ -187,7 +187,7 @@ export function providerPattern(account: Pick<OwnAccount, "provider">): RegExp |
 }
 
 export interface DirectSuggestion {
-  kind: "privat" | "geldtransit" | "ustVorauszahlung" | "gebuehren" | "mahnerloes";
+  kind: "privat" | "geldtransit" | "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes";
   reasons: string[];
   /**
    * Nur mit Gegenbuchung vorschlagen: Gegenpartei „PayPal“ auf der Bank kann auch ein mit PayPal bezahlter Einkauf sein;
@@ -203,6 +203,8 @@ const TAX_OFFICE = /finanzamt|finanzkasse|steuerverwaltung|landeshauptkasse|land
 /** Umsatzsteuer im Verwendungszweck: „USt 09/2026“, „Umsatzsteuer“, „UStVA“ */
 const VAT_PURPOSE = /umsatzsteuer|\bust\b|\bust[- ]?va\b|\bust\d|voranmeldung/i;
 /** Andere Steuern, die dasselbe Finanzamt einzieht oder erstattet (oft privat) */
+/** Sondervorauszahlung der Dauerfristverlängerung (§ 47 UStDV): „USt-Sondervorauszahlung“, „USt-SVZ“, „USt 1/11“ */
+const SVZ_PURPOSE = /sondervorauszahlung|\bsvz\b|\b1\/11\b/i;
 const OTHER_TAX_PURPOSE = /einkommen|\best\b|\best[- ]?v|kirchen|\bkist\b|soli|gewerbe|\bgewst\b|kfz|grundsteuer|lohnsteuer|\blst\b/i;
 
 /**
@@ -238,6 +240,10 @@ export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, 
   }
   // Nur bei erkennbarer Umsatzsteuer: auf dem Steuerkonto liegt oft auch die Rücklage für die Einkommensteuer
   if (account.purpose === "steuer" && TAX_OFFICE.test(tx.counterpartyName) && VAT_PURPOSE.test(tx.purpose) && !OTHER_TAX_PURPOSE.test(tx.purpose)) {
+    // Die Sondervorauszahlung gehört auf ihr eigenes Konto (SKR03 1781, SKR04 3830), nicht auf die laufende Vorauszahlung
+    if (SVZ_PURPOSE.test(tx.purpose)) {
+      return { kind: "sondervorauszahlung", reasons: ["Sondervorauszahlung (Dauerfristverlängerung) an das Finanzamt"] };
+    }
     return {
       kind: "ustVorauszahlung",
       reasons: [tx.amount < 0 ? "Lastschrift des Finanzamts auf dem Steuerkonto" : "Erstattung des Finanzamts auf das Steuerkonto"],

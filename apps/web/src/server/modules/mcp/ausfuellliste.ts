@@ -60,6 +60,14 @@ const FELDER: { kz: Feld; abschnitt: string; bezeichnung: string; volleEuro: boo
     bezeichnung: "Vorsteuerbeträge aus Leistungen im Sinne des § 13b UStG (§ 15 Abs. 1 Satz 1 Nr. 4 UStG)",
     volleEuro: false,
   },
+  {
+    kz: "kz39",
+    abschnitt: "Steuerberechnung",
+    // Wortlaut wie im ERiC-Plugin checkUStVA_2026
+    bezeichnung:
+      "Abzug der festgesetzten Sondervorauszahlung für Dauerfristverlängerung (in der Regel nur in der letzten Voranmeldung des Besteuerungszeitraums)",
+    volleEuro: false,
+  },
 ];
 
 /** Eingabe wie in Mein ELSTER: Dezimalkomma, ohne Tausenderpunkt; Bemessungsgrundlagen in vollen Euro */

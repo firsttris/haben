@@ -147,10 +147,10 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
 
   zeilen.push(
     row(
-      "Umsatzsteuer an das Finanzamt, abzüglich Erstattungen",
+      "Umsatzsteuer an das Finanzamt (mit Sondervorauszahlung), abzüglich Erstattungen",
       saldo(
         sums,
-        (kr) => [ACCOUNTS[kr].ustVorauszahlung],
+        (kr) => [ACCOUNTS[kr].ustVorauszahlung, ACCOUNTS[kr].sondervorauszahlung],
         (s) => s.sourceType === "allocation",
       ),
       line("gezahlteUst") - line("erstatteteUst"),

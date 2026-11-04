@@ -7,6 +7,7 @@ import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VatFrequencyCard } from "../../../components/umsatzsteuer/VatFrequencyCard.tsx";
+import { DauerfristCard } from "../../../components/umsatzsteuer/DauerfristCard.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import { createVatCorrection, getMeinElsterUstvaWerte, getVatPeriod, saveVatDraft, submitVatReturn } from "../../../server/functions/vat.ts";
@@ -27,8 +28,8 @@ export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
 const ELSTER_ABGABE_DOCS = "https://firsttris.github.io/haben/elster-abgabe.html";
 
 type PageData = Awaited<ReturnType<typeof getVatPeriod>>;
-type FieldKey = "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67";
-const FIELDS: FieldKey[] = ["kz81", "kz86", "kz21", "kz45", "kz46", "kz47", "kz48", "kz66", "kz67", "kz84", "kz85"];
+type FieldKey = "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67" | "kz39";
+const FIELDS: FieldKey[] = ["kz81", "kz86", "kz21", "kz39", "kz45", "kz46", "kz47", "kz48", "kz66", "kz67", "kz84", "kz85"];
 
 type Figures = Pick<Record<FieldKey, number>, "kz81" | "kz86" | "kz66"> & Partial<Record<FieldKey, number>>;
 
@@ -132,6 +133,11 @@ function VatPeriodPage() {
 
       {/* key: Formular bei Zeitraum- oder Anmeldungswechsel neu aufsetzen */}
       <VatReturnEditor key={`${key}-${data.current?.id ?? "neu"}-${data.current?.updatedAt ?? ""}`} data={data} notice={notice} setNotice={setNotice} />
+      {/* Außerhalb des Editors: der baut sich nach jedem Speichern der Anmeldung neu auf und verwürfe sonst die Auswahl hier */}
+      <div className="grid-main" style={{ marginTop: 16 }}>
+        <VatFrequencyCard key={data.frequency.year} frequency={data.frequency} />
+        <DauerfristCard key={`dauerfrist-${data.dauerfrist.year}`} overview={data.dauerfrist} setup={data} />
+      </div>
     </>
   );
 }
@@ -145,7 +151,8 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
 
   const current = data.current;
   const locked = current?.status === "sent";
-  const computed = computeUstva(data.figures);
+  // Kz 39: die Sondervorauszahlung, abgezogen in der letzten Voranmeldung des Jahres
+  const computed = computeUstva({ ...data.figures, kz39: data.kz39 });
   const [mode, setMode] = useState<"berechnet" | "manuell">(current?.source === "manuell" ? "manuell" : "berechnet");
   const [values, setValues] = useState<Record<FieldKey, string>>(
     () => Object.fromEntries(FIELDS.map((f) => [f, formatDecimal(current?.source === "manuell" ? current[f] : computed[f])])) as Record<FieldKey, string>,
@@ -459,6 +466,28 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
               )}
             </div>
           )}
+          {(shown.kz39 !== 0 || computed.kz39 !== 0) && (
+            <div className="kz-row">
+              <div className="kz-num">39</div>
+              <div className="kz-label">
+                <label htmlFor="kz-39">Abzug der festgesetzten Sondervorauszahlung (Dauerfristverlängerung)</label>
+              </div>
+              <div />
+              {editable ? (
+                <input
+                  id="kz-39"
+                  inputMode="decimal"
+                  value={values.kz39}
+                  onChange={(event) => update("kz39", event.target.value)}
+                  aria-invalid={parsed.kz39 === null}
+                />
+              ) : (
+                <output id="kz-39" className="kz-amount">
+                  {formatEuro(shown.kz39)}
+                </output>
+              )}
+            </div>
+          )}
           <div className="kz-row total">
             <div className="kz-num">83</div>
             <div>{shown.kz83 < 0 ? "Verbleibender Überschuss (Erstattung)" : "Verbleibende Umsatzsteuer-Vorauszahlung"}</div>
@@ -534,7 +563,6 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
             blocked={dirty || stale || data.companyIssues.length > 0}
           />
         )}
-        <VatFrequencyCard key={data.frequency.year} frequency={data.frequency} />
         <History data={data} />
       </div>
     </div>

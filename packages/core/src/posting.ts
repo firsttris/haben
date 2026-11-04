@@ -29,6 +29,8 @@ export const ACCOUNTS = {
     kapestEinbehalt: "1746",
     geldtransit: "1360",
     ustVorauszahlung: "1780",
+    /** Sondervorauszahlung bei Dauerfristverlängerung, „Umsatzsteuer-Vorauszahlungen 1/11“ (DATEV SKR03 1781) */
+    sondervorauszahlung: "1781",
     nebenkostenGeldverkehr: "4970",
     saldenvortrag: "9000",
     /** Bezahlte Mahngebühren, Pauschalen und Verzugszinsen: kein Entgelt für eine Leistung, deshalb ohne Umsatzsteuer */
@@ -60,6 +62,8 @@ export const ACCOUNTS = {
     kapestEinbehalt: "3760",
     geldtransit: "1460",
     ustVorauszahlung: "3820",
+    /** „Umsatzsteuer-Vorauszahlung 1/11“ (DATEV SKR04 3830) */
+    sondervorauszahlung: "3830",
     nebenkostenGeldverkehr: "6855",
     saldenvortrag: "9000",
     mahnerloes: "7100",
@@ -565,6 +569,7 @@ export const DIRECT_BOOKINGS = {
   privat: "Privat (Entnahme oder Einlage)",
   geldtransit: "Geldtransit (eigenes Konto)",
   ustVorauszahlung: "Umsatzsteuer an das Finanzamt",
+  sondervorauszahlung: "Sondervorauszahlung (Dauerfristverlängerung)",
   gebuehren: "Kontoführung und Bankgebühren",
   mahnerloes: "Mahngebühren und Verzugszinsen (vom Kunden)",
   kapest: "Kapitalertragsteuer an das Finanzamt (Ausschüttung)",
@@ -594,9 +599,11 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
           ? accounts.geldtransit
           : kind === "ustVorauszahlung"
             ? accounts.ustVorauszahlung
-            : kind === "mahnerloes"
-              ? accounts.mahnerloes
-              : accounts.nebenkostenGeldverkehr;
+            : kind === "sondervorauszahlung"
+              ? accounts.sondervorauszahlung
+              : kind === "mahnerloes"
+                ? accounts.mahnerloes
+                : accounts.nebenkostenGeldverkehr;
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 

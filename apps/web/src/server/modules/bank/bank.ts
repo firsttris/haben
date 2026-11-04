@@ -849,7 +849,7 @@ function reverseLines(lines: PostingLine[]): PostingLine[] {
   return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
 }
 
-const DIRECT_KINDS = ["privat", "geldtransit", "ustVorauszahlung", "gebuehren", "mahnerloes", "kapest"] as const;
+const DIRECT_KINDS = ["privat", "geldtransit", "ustVorauszahlung", "sondervorauszahlung", "gebuehren", "mahnerloes", "kapest"] as const;
 
 /** Ein stornierter Beleg (#237) ist erledigt: keine Zahlung, kein Skonto, keine Kursdifferenz mehr */
 async function assertNotCancelled(tx: Tx, documentId: string): Promise<void> {

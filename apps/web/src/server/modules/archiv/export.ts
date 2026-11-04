@@ -222,6 +222,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   privat: "Privat",
   geldtransit: "Geldtransit",
   ustVorauszahlung: "USt-Vorauszahlung",
+  sondervorauszahlung: "USt-Sondervorauszahlung",
   kapest: "Kapitalertragsteuer",
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",

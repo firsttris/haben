@@ -9,8 +9,12 @@ export function niceTicks(min: number, max: number, count = 4): number[] {
   const raw = range / count;
   const power = 10 ** Math.floor(Math.log10(raw));
   const step = [1, 2, 2.5, 5, 10].map((m) => m * power).find((s) => s >= raw)!;
+  const first = Math.floor(min / step) * step;
+  // Mindestens bis zur Spanne über dem kleinsten Wert: Bei min = max = 0 gäbe es sonst nur einen Achsenwert, und das
+  // Diagramm teilte durch null (NaN in den SVG-Attributen)
+  const last = Math.max(Math.ceil(max / step) * step, first + step);
   const ticks: number[] = [];
-  for (let v = Math.floor(min / step) * step; v <= Math.ceil(max / step) * step + step / 2; v += step) ticks.push(v);
+  for (let v = first; v <= last + step / 2; v += step) ticks.push(v);
   return ticks;
 }
 

@@ -17,12 +17,17 @@ import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../modules
 import { inputTaxForPeriod } from "../modules/belege/index.ts";
 import {
   computeVatFigures,
+  dauerfristFor,
+  dauerfristOverview,
   frequencyOverview,
+  kz39For,
   loadFrequencies,
   meinElsterUstvaWerte,
   periodProblem,
   preflight,
+  saveDauerfrist,
   saveFrequency,
+  submitDauerfrist,
 } from "../modules/umsatzsteuer/index.ts";
 import { abgleichIssues, vatAbgleich } from "../modules/auswertungen/index.ts";
 import { elsterClient, elsterMode } from "../modules/elster/index.ts";
@@ -67,9 +72,15 @@ export const getVatPeriod = createServerFn({ method: "GET" })
     const submissions = await submissionsFor(returns.map((r) => r.id));
     const current = returns.find((r) => r.status === "draft") ?? returns[0] ?? null;
     const last = lastMonthOfPeriod(period);
+    const dauerfrist = await dauerfristOverview(period.year, settings);
     return {
       period,
-      dueDate: dueDate(period, company.bundesland),
+      // Mit Dauerfristverlängerung einen Monat später (§ 46 UStDV)
+      dueDate: dueDate(period, company.bundesland, dauerfrist.active),
+      /** Dauerfristverlängerung und Sondervorauszahlung des Jahres */
+      dauerfrist,
+      /** Abzug der Sondervorauszahlung, nur in der letzten Voranmeldung des Jahres */
+      kz39: await kz39For(period),
       /** Zeiträume zur Auswahl nach der Einstellung: der laufende und die der letzten zwölf Monate */
       periods: recentFilingPeriods(settings, currentMonth(new Date())),
       /** Voranmeldungszeitraum des Jahres und Vorschlag aus der Steuer des Vorjahres */
@@ -128,7 +139,7 @@ export const getOverview = createServerFn({ method: "GET" })
       /** Geldtransit ohne Gegenseite (Saldo von 1360 bzw. 1460) */
       transit: await transitBalance(),
       vatPaid: await vatPaidAfter(new Date(Date.UTC(last.year, last.month, 0)).toISOString().slice(0, 10)),
-      dueDate: dueDate(period, company.bundesland),
+      dueDate: dueDate(period, company.bundesland, await dauerfristFor(period.year)),
       /** Von der Voranmeldung befreit: keine Aufgabe zur Voranmeldung */
       exempt: ended === null || periodProblem(settings, period) !== null,
       /** Vormonat, für den Umsatz in der Übersicht */
@@ -170,6 +181,7 @@ export const saveVatDraft = createServerFn({ method: "POST" })
         kz84: centsSchema.default(0),
         kz85: centsSchema.default(0),
         kz67: centsSchema.default(0),
+        kz39: centsSchema.default(0),
         reason: z.string().trim().min(10, "Bitte begründen, warum von den berechneten Werten abgewichen wird (mindestens 10 Zeichen).").max(1000),
       }),
     ]),
@@ -228,3 +240,30 @@ export const saveVatFrequency = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data, context }) => saveFrequency(context.user.id, data));
+
+const yearSchema = z.number().int().min(2000).max(2100);
+/** Sondervorauszahlung in Cent, volle Euro (Kz 38) */
+const svzSchema = z.number().int().min(0).max(1_000_000_000_00).multipleOf(100, "Sondervorauszahlung in vollen Euro").nullable();
+
+/** Antrag auf Dauerfristverlängerung bzw. Anmeldung der Sondervorauszahlung (USt 1 H) prüfen oder übermitteln */
+export const submitVatDauerfrist = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(
+    z.object({
+      year: yearSchema,
+      kind: z.enum(["validate", "test", "send"]),
+      pin: z.string().max(64).optional(),
+      sondervorauszahlung: svzSchema,
+      berichtigt: z.boolean(),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const result = await submitDauerfrist(context.user.id, elsterClient(), { ...data, herstellerId: env().ELSTER_HERSTELLER_ID });
+    return { ok: result.ok, code: result.code, message: result.message, transferTicket: result.transferTicket ?? null };
+  });
+
+/** Stand der Dauerfristverlängerung von Hand: außerhalb von Haben beantragt oder beendet */
+export const saveVatDauerfrist = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ year: yearSchema, active: z.boolean(), sondervorauszahlung: svzSchema }))
+  .handler(async ({ data, context }) => saveDauerfrist(context.user.id, data));

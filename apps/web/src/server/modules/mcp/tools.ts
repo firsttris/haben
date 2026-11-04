@@ -36,7 +36,7 @@ import { listFristen, listVastBelege, openAppealDeadlines } from "../finanzamt/i
 import { annualOverview } from "../jahreserklaerung/index.ts";
 import { invoiceSummary, listInvoices, overdueInvoices } from "../rechnungen/index.ts";
 import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../stammdaten/index.ts";
-import { computeVatFigures, computedValues, loadFrequencies, preflight, returnsForPeriod } from "../umsatzsteuer/index.ts";
+import { computeVatFigures, computedValues, dauerfristFor, loadFrequencies, preflight, returnsForPeriod } from "../umsatzsteuer/index.ts";
 import { ustvaAusfuellliste } from "./ausfuellliste.ts";
 import { McpError, type TokenScope } from "./tokens.ts";
 
@@ -201,7 +201,7 @@ export const MCP_TOOLS: McpTool[] = [
           : {
               zeitraum: periodKey(period),
               bezeichnung: periodLabel(period),
-              faellig: dueDate(period, company.bundesland),
+              faellig: dueDate(period, company.bundesland, await dauerfristFor(period.year)),
               status: current?.status === "sent" ? "gesendet" : current ? "entwurf" : "nicht angelegt",
               zahllast: euro(current?.kz83 ?? computed.kz83),
               link: link(`/umsatzsteuer/${periodKey(period)}`),
@@ -436,7 +436,7 @@ export const MCP_TOOLS: McpTool[] = [
         bezeichnung: periodLabel(period),
         kleinunternehmer,
         versteuerung: figures.versteuerung,
-        faellig: dueDate(period, company.bundesland),
+        faellig: dueDate(period, company.bundesland, await dauerfristFor(period.year)),
         ausDenBuchungen: {
           kz81Bemessungsgrundlage19: euro(figures.kz81),
           steuer19: euro(figures.tax81),
@@ -500,7 +500,7 @@ export const MCP_TOOLS: McpTool[] = [
         formular: `Umsatzsteuer-Voranmeldung ${period.year}`,
         zeitraum: periodKey(period),
         anmeldungszeitraum: periodLabel(period),
-        faellig: dueDate(period, company.bundesland),
+        faellig: dueDate(period, company.bundesland, await dauerfristFor(period.year)),
         grundlage: sent
           ? "in Haben als gesendet festgeschrieben"
           : draft?.source === "manuell"

@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   abgabefrist,
+  dauerfristActive,
   dueDate,
   filingPeriodOfMonth,
   frequencyAt,
@@ -21,7 +22,7 @@ import { db, schema } from "../../db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
 import { kapestAnmeldungen } from "../ausschuettung/index.ts";
 import { loadActiveCertificate } from "../elster/index.ts";
-import { loadFrequencies } from "../umsatzsteuer/index.ts";
+import { loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
 
 export type FristArt = "ustva" | "kapest" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
 
@@ -78,7 +79,7 @@ export async function listFristen(today: string): Promise<Frist[]> {
   // Monaten als Kleinunternehmer. Maßgeblich ist der Stand im Monat, nicht der heutige: Wer zum Jahreswechsel umstellt,
   // schuldet die Voranmeldung für Dezember noch.
   const kleinunternehmerAm = await kleinunternehmerHistory();
-  const frequencies = await loadFrequencies();
+  const [frequencies, dauerfrist] = await Promise.all([loadFrequencies(), loadDauerfrist()]);
   {
     const sent = new Set(sentReturns.map((r) => periodKey(r)));
     // Je Monat der Zeitraum, zu dem er gehört (Monat, Quartal oder befreit); ein Zeitraum zählt mit seinem letzten Monat
@@ -88,7 +89,8 @@ export async function listFristen(today: string): Promise<Frist[]> {
       if (period && lastMonthOfPeriod(period).month === p.month && !kleinunternehmerAm(lastDayOfMonth(p.year, p.month))) periods.unshift(period);
     }
     for (const period of periods) {
-      const datum = dueDate(period, bundesland);
+      // Mit Dauerfristverlängerung einen Monat später (§ 46 UStDV)
+      const datum = dueDate(period, bundesland, dauerfristActive(dauerfrist, period.year));
       const erledigt = sent.has(periodKey(period));
       if (!relevant(datum, !erledigt)) continue;
       fristen.push({
@@ -101,6 +103,24 @@ export async function listFristen(today: string): Promise<Frist[]> {
         link: `/umsatzsteuer/${periodKey(period)}`,
       });
     }
+  }
+
+  // Sondervorauszahlung: Bei monatlicher Abgabe mit Dauerfristverlängerung jedes Jahr neu, bis zum gesetzlichen Termin der
+  // ersten Voranmeldung, also dem 10. Februar (§ 48 Abs. 2 UStDV). Erledigt, sobald sie für das Jahr eingetragen ist.
+  for (let year = Number(start.slice(0, 4)) + 1; year <= Number(bis.slice(0, 4)); year++) {
+    if (frequencyAt(frequencies, { year, month: 1 }) !== "monatlich" || !dauerfristActive(dauerfrist, year)) continue;
+    const datum = dueDate({ year, month: 1 }, bundesland);
+    const erledigt = dauerfrist.some((d) => d.year === year && d.active && d.sondervorauszahlung !== null);
+    if (!relevant(datum, !erledigt)) continue;
+    fristen.push({
+      id: `svz-${year}`,
+      art: "ustva",
+      datum,
+      titel: `Sondervorauszahlung ${year} (Dauerfristverlängerung)`,
+      detail: "Anmeldung und Zahlung, ein Elftel der Vorauszahlungen des Vorjahres",
+      status: erledigt ? "erledigt" : "offen",
+      link: `/umsatzsteuer/${year}-01`,
+    });
   }
 
   // Jahreserklärungen ohne Steuerberater, ab dem ersten Buchungsjahr

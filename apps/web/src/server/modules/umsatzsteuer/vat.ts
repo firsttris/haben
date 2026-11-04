@@ -6,6 +6,7 @@ import { companyIssues, loadCompany } from "../stammdaten/index.ts";
 import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/index.ts";
 import { computeVatFigures } from "./vat-figures.ts";
 import { loadFrequencies, periodProblem } from "./zeitraum.ts";
+import { kz39For } from "./dauerfrist.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 
@@ -54,6 +55,8 @@ export interface FiguresInput {
   kz84?: Cents;
   kz85?: Cents;
   kz67?: Cents;
+  /** Abzug der Sondervorauszahlung in der letzten Voranmeldung des Jahres */
+  kz39?: Cents;
 }
 
 /** Die gespeicherten Kennzahlen einer Anmeldung */
@@ -70,6 +73,7 @@ function stored(ustva: ReturnType<typeof computeUstva>) {
     kz84: ustva.kz84,
     kz85: ustva.kz85,
     kz67: ustva.kz67,
+    kz39: ustva.kz39,
     kz83: ustva.kz83,
   };
 }
@@ -79,8 +83,8 @@ export type DraftInput = { mode: "berechnet" } | ({ mode: "manuell"; reason?: st
 
 /** Berechnete Kennzahlen in der Form der Voranmeldung (Bemessungsgrundlagen auf volle Euro) */
 export async function computedValues(period: VatPeriod) {
-  const figures = await computeVatFigures(period);
-  return stored(computeUstva(figures));
+  const [figures, kz39] = await Promise.all([computeVatFigures(period), kz39For(period)]);
+  return stored(computeUstva({ ...figures, kz39 }));
 }
 
 /** Legt den Entwurf des Zeitraums an oder aktualisiert ihn. */
@@ -162,6 +166,7 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
         kz84: latest.kz84,
         kz85: latest.kz85,
         kz67: latest.kz67,
+        kz39: latest.kz39,
         kz83: latest.kz83,
         source: latest.source,
         overrideReason: latest.overrideReason,

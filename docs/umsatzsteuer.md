@@ -12,7 +12,7 @@ Haben berechnet die Umsatzsteuer-Voranmeldung für den Monat oder das Quartal au
 - Mit ERiC einmal die bestätigten **Datenschutzhinweise der Finanzverwaltung** (Einstellungen › ELSTER › ERiC).
 - Für echte Übermittlungen ein eingerichtetes **ERiC** (`ERIC_HOME`) und eine eigene **Hersteller-ID** (`ELSTER_HERSTELLER_ID`). Siehe [installation.md](installation.md).
 
-Ob du monatlich, vierteljährlich oder gar keine Voranmeldung abgibst, stellst du unter [Voranmeldungszeitraum](#voranmeldungszeitraum) ein. Ohne Einstellung bleibt es monatlich.
+Ob du monatlich, vierteljährlich oder gar keine Voranmeldung abgibst, stellst du unter [Voranmeldungszeitraum](#voranmeldungszeitraum) ein. Ohne Einstellung bleibt es monatlich. Die [Dauerfristverlängerung](#dauerfristverlängerung) mit Sondervorauszahlung beantragst du auf derselben Seite.
 
 Bist du in den Einstellungen als Kleinunternehmer eingetragen, zeigt die Seite oben einen Hinweis: Als Kleinunternehmer gibst du in der Regel keine Voranmeldung ab. Nötig ist sie nur, wenn du selbst Steuer schuldest, etwa für Leistungen ausländischer Unternehmer an dich (Reverse Charge). Die Übersicht zeigt dann keine Aufgaben zur Voranmeldung, zum ELSTER-Zertifikat und zu den Firmendaten für ELSTER.
 
@@ -68,6 +68,56 @@ Normalerweise wechselt der Zeitraum zum Jahreswechsel: Du stellst das neue Jahr 
 Gesendete Voranmeldungen bleiben, wie sie sind. Passt eine gesendete Voranmeldung nicht zum neuen Zeitraum, lehnt Haben die Einstellung ab und nennt die Zeiträume; wähle den Wechsel dann ab einem späteren Quartal. Eine berichtigte Anmeldung zu einer gesendeten geht immer, im Zeitraum der gesendeten. Entwürfe, die nicht mehr zum Zeitraum passen, bleiben mit ihrem Prüfverlauf stehen, lassen sich aber nicht mehr senden; die Seite zeigt dann „Für … passt die Voranmeldung nicht zum eingestellten Zeitraum“.
 
 Jede Änderung der Einstellung steht im Änderungsprotokoll.
+
+## Dauerfristverlängerung
+
+Mit der Dauerfristverlängerung gibst du jede Voranmeldung einen Monat später ab und zahlst auch einen Monat später (§ 46 UStDV): die für Oktober am 10. Dezember statt am 10. November, die für das 3. Quartal am 10. November statt am 10. Oktober. Das Finanzamt muss sie auf Antrag gewähren, außer der Steueranspruch erscheint gefährdet.
+
+| Abgabe | Antrag | Sondervorauszahlung |
+| --- | --- | --- |
+| monatlich | jedes Jahr bis zum 10. Februar, zugleich Anmeldung der Sondervorauszahlung (§ 48 Abs. 1 und 2 UStDV) | ein Elftel der Vorauszahlungen des Vorjahres (§ 47 UStDV), abgezogen in der Voranmeldung für Dezember (Kz 39) |
+| vierteljährlich | einmal, gilt bis zur Rücknahme oder zum Widerruf | keine |
+| befreit | nicht nötig | keine |
+
+Auf der Seite **Umsatzsteuer** steht dafür unter dem Voranmeldungszeitraum der Bereich **Dauerfristverlängerung &lt;Jahr&gt;**.
+
+Ist die Sondervorauszahlung eines Jahres schon aus Haben übermittelt oder gezahlt (gebucht auf „Umsatzsteuer-Vorauszahlungen 1/11“), lässt sich die Verlängerung für dieses Jahr erst ab dem Folgejahr beenden; einen nur von Hand eingetragenen Stand nimmst du jederzeit zurück: Die Sondervorauszahlung wird in der letzten Voranmeldung angerechnet, für die die Verlängerung gilt (§ 48 Abs. 4 UStDV), und ein Ende im Lauf des Jahres bildet Haben nicht ab. Endet sie doch unterjährig, klärst du die Anrechnung mit dem Finanzamt.
+
+### Sondervorauszahlung berechnen
+
+Haben schlägt die Sondervorauszahlung aus den gesendeten Voranmeldungen des Vorjahres vor (je Zeitraum die zuletzt gesendete, bei Berichtigungen die berichtigte):
+
+- Summe der Vorauszahlungen (Kz 83) **zuzüglich** der im Vorjahr abgezogenen Sondervorauszahlung (Kz 39), denn um sie war die Vorauszahlung für Dezember gemindert,
+- davon ein Elftel, abgeschnitten auf volle Euro (ELSTER nimmt in Kz 38 nur volle Euro),
+- warst du nur einen Teil des Vorjahres tätig, rechnet Haben die Summe auf ein Jahr hoch; angefangene Monate zählen voll (§ 47 Abs. 2 UStDV). Als Beginn gilt die erste Buchung,
+- ein Überschuss ergibt 0 €.
+
+Beispiel: 39.000 € Vorauszahlungen und 5.000 € im Dezember abgezogen ergeben 44.000 €, davon ein Elftel 4.000 €.
+
+Unter dem Feld steht, aus wie vielen gesendeten Voranmeldungen die Summe stammt. Fehlen welche, etwa weil du sie außerhalb von Haben abgegeben hast, trägst du den Betrag selbst ein. Im ersten Jahr der Tätigkeit zählen die zu erwartenden Vorauszahlungen dieses Jahres (§ 47 Abs. 3 UStDV); die kennt Haben nicht, dann gibt es keinen Vorschlag.
+
+### Antrag senden
+
+Den Antrag schickst du wie die Voranmeldung über ERiC: **Nur prüfen**, **Prüfen und testweise senden**, **Prüfen und senden**. Bei monatlicher Abgabe geht er als Anmeldung der Sondervorauszahlung (Kz 38), bei vierteljährlicher ohne Betrag. Nach einer erfolgreichen Echtübermittlung trägt Haben die Verlängerung für das Jahr ein, mit der Sondervorauszahlung. Eine geänderte Sondervorauszahlung sendest du mit dem Haken **Berichtigte Anmeldung (Kz 10)**. Jeder Versuch steht im Verlauf darunter, mit Protokoll-PDF; diese Einträge lassen sich nur ergänzen.
+
+Hast du die Verlängerung außerhalb von Haben beantragt, setzt du unter **Außerhalb von Haben** den Haken **Dauerfristverlängerung besteht für &lt;Jahr&gt;** und, bei monatlicher Abgabe, die angemeldete Sondervorauszahlung im Feld darüber. Nimmst du den Antrag zurück oder widerruft ihn das Finanzamt, entfernst du den Haken für das Jahr, ab dem sie nicht mehr gilt. Ein Jahr ohne eigenen Eintrag übernimmt den Stand des Vorjahres. Jede Änderung steht im Änderungsprotokoll.
+
+### Was sich ändert
+
+- **Fälligkeit und Fristen:** einen Monat später, auf der Seite der Voranmeldung, in der Übersicht und unter [Fristen](fristen.md). Bei monatlicher Abgabe steht ab dem zweiten Jahr die **Sondervorauszahlung** als Frist am 10. Februar, bis sie für das Jahr eingetragen ist.
+- **Kz 39:** In der letzten Voranmeldung des Jahres (Dezember, bei einem Wechsel im Jahr der letzte Zeitraum) zieht Haben die für das Jahr angemeldete Sondervorauszahlung ab. Kz 83 sinkt um den Betrag und kann negativ werden. Gesendete Voranmeldungen bleiben, wie sie sind; trägst du die Sondervorauszahlung erst danach ein, legst du eine berichtigte Anmeldung an.
+- **Umsatzsteuererklärung:** Das Vorauszahlungssoll enthält die Sondervorauszahlung.
+
+### Buchen
+
+Die Zahlung der Sondervorauszahlung ordnest du im [Bankabgleich](bank.md) als **Sondervorauszahlung (Dauerfristverlängerung)** zu. Haben bucht sie auf das Konto „Umsatzsteuer-Vorauszahlungen 1/11“:
+
+| Kontenrahmen | Buchung |
+| --- | --- |
+| SKR03 | 1781 an 1200 (Bank) |
+| SKR04 | 3830 an 1800 (Bank) |
+
+In der EÜR zählt sie wie jede Umsatzsteuer-Vorauszahlung als gezahlte Umsatzsteuer, im Jahr der Zahlung. Mit der Voranmeldung für Dezember sinkt die Zahlung an das Finanzamt um die Sondervorauszahlung; einen Ausgleich zwischen 1781 und 1780 (SKR04 3830 und 3820) bucht Haben nicht gesondert, beide zählen zu den Umsatzsteuerkonten.
 
 ## Wie die Kennzahlen entstehen
 
@@ -134,7 +184,8 @@ ELSTER erwartet die Bemessungsgrundlagen in vollen Euro. Haben schneidet die Cen
 | 66 | Vorsteuer aus Rechnungen anderer Unternehmer | centgenau |
 | 46, 84 | Leistungen nach § 13b | volle Euro, Cent abgeschnitten |
 | 47, 85, 67 | Steuer und Vorsteuer nach § 13b | centgenau |
-| 83 | Verbleibende Umsatzsteuer-Vorauszahlung | Steuer 81 + Steuer 86 + Kz 47 + Kz 85 − Kz 66 − Kz 67 |
+| 39 | Abzug der Sondervorauszahlung (nur letzte Voranmeldung des Jahres, siehe [Dauerfristverlängerung](#dauerfristverlängerung)) | centgenau |
+| 83 | Verbleibende Umsatzsteuer-Vorauszahlung | Steuer 81 + Steuer 86 + Kz 47 + Kz 85 − Kz 66 − Kz 67 − Kz 39 |
 
 Ist Kz 83 negativ, heißt die Zeile „Verbleibender Überschuss (Erstattung)“.
 
@@ -171,7 +222,7 @@ Die Hinweise blockieren nichts. Du entscheidest, ob du trotzdem sendest.
 
 ## Fälligkeit
 
-Die Voranmeldung ist am 10. nach Ablauf des Zeitraums fällig (§ 18 Abs. 1 UStG): bei einem Monat am 10. des Folgemonats, bei einem Quartal am 10. des Monats nach Quartalsende. Fällt der 10. auf einen Samstag, Sonntag oder gesetzlichen Feiertag im Bundesland aus deinen Firmendaten, rechnet Haben mit dem nächsten Werktag (`dueDate` in `packages/core/src/period.ts`). Feiertage einzelner Gemeinden zählen nicht, ohne Bundesland nur die bundesweiten. Das Datum steht unter den Kennzahlen; die Übersicht zeigt die offene Voranmeldung als Aufgabe und hebt sie drei Tage vor der Frist hervor.
+Die Voranmeldung ist am 10. nach Ablauf des Zeitraums fällig (§ 18 Abs. 1 UStG): bei einem Monat am 10. des Folgemonats, bei einem Quartal am 10. des Monats nach Quartalsende. Mit [Dauerfristverlängerung](#dauerfristverlängerung) einen Monat später. Fällt der 10. auf einen Samstag, Sonntag oder gesetzlichen Feiertag im Bundesland aus deinen Firmendaten, rechnet Haben mit dem nächsten Werktag (`dueDate` in `packages/core/src/period.ts`). Feiertage einzelner Gemeinden zählen nicht, ohne Bundesland nur die bundesweiten. Das Datum steht unter den Kennzahlen; die Übersicht zeigt die offene Voranmeldung als Aufgabe und hebt sie drei Tage vor der Frist hervor.
 
 ## Übermitteln an ELSTER
 
@@ -235,7 +286,6 @@ Belege und Rechnungen in Fremdwährung zählen mit ihren Euro-Beträgen, umgerec
 ## Grenzen
 
 - Ist-Versteuerung bei Fremdwährung: Mit deutscher Umsatzsteuer wäre das Entgelt mit dem Kurs des Monats umzurechnen, in dem es eingeht (Abschn. 16.4 UStAE). Das kann Haben nicht, deshalb lassen sich solche Rechnungen bei Ist-Versteuerung nicht festschreiben. Rechnungen in Fremdwährung ohne deutsche Steuer an Unternehmen im Ausland gehen (siehe [rechnungen.md](rechnungen.md#rechnungen-in-fremdwährung)).
-- Keine Dauerfristverlängerung.
-- Nur die Kennzahlen 81, 86, 21, 45, 46, 47, 48, 66, 67, 83, 84, 85 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe, keine Zusammenfassende Meldung.
+- Nur die Kennzahlen 81, 86, 21, 39, 45, 46, 47, 48, 66, 67, 83, 84, 85 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe, keine Zusammenfassende Meldung.
 - Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.

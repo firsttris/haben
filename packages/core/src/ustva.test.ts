@@ -17,8 +17,13 @@ describe("computeUstva", () => {
       kz84: 0,
       kz85: 0,
       kz67: 0,
+      kz39: 0,
       kz83: 37_745,
     });
+  });
+
+  it("zieht die Sondervorauszahlung ab (Kz 39, § 48 Abs. 4 UStDV)", () => {
+    expect(computeUstva({ kz81: 290_000, kz86: 0, kz66: 17_355, kz39: 40_000 })).toMatchObject({ kz39: 40_000, kz83: -2_255 });
   });
 
   it("schneidet Cent der Bemessungsgrundlagen ab", () => {
