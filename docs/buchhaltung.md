@@ -267,7 +267,7 @@ Eine Zuordnung wird nicht gelöscht. Haben legt eine Gegenzeile mit negativem Be
 
 ### Eröffnungsbuchungen für offene Posten aus Lexoffice
 
-Beim [Umzug aus Lexoffice](lexoffice.md) lassen sich unbezahlte Rechnungen und Eingangsbelege übernehmen. Erlös bzw. Aufwand stehen schon in den alten Büchern, deshalb bucht Haben gegen den Saldenvortrag, auf das Datum der Übernahme.
+Beim [Umzug aus Lexoffice](lexoffice.md) lassen sich unbezahlte Rechnungen und Eingangsbelege übernehmen. Erlös bzw. Aufwand stehen schon in den alten Büchern, deshalb bucht Haben gegen den Saldenvortrag, auf den Tag nach dem [Stichtag](lexoffice.md#stichtag), den ersten Tag in Haben (meist den 1. Januar). Übernommen wird, was am Stichtag offen war, auch wenn es danach bezahlt wurde.
 
 Offene Rechnung bei Ist-Versteuerung (die Steuer ist noch nicht angemeldet und wird mit dem Zahlungseingang fällig):
 

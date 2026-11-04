@@ -949,6 +949,8 @@ function webBackupZip(): Uint8Array {
   const purchase = fixture("purchase-gross.json");
   const privat = fixture("financial-private.json");
   const pdfPath = `dateien/${sales.list.entityId}/1-Rechnung_RE0042.pdf`;
+  // Die Ausgabe bringt eine Datei mit, damit sie sich als offener Posten übernehmen lässt
+  const purchasePath = `dateien/${purchase.list.entityId}/1-2025-4711.pdf`;
   return zipSync({
     "manifest.json": json({ format: "haben-lexware-web", version: 1, part: 1, createdAt: new Date().toISOString(), failed: [] }),
     "kontakte.json": json(fixture("contacts.json")),
@@ -956,9 +958,13 @@ function webBackupZip(): Uint8Array {
       ...sales,
       files: [{ path: pdfPath, role: "pdf", mimeType: "application/pdf", filename: "Rechnung_RE0042.pdf" }],
     }),
-    [`belege/${purchase.list.entityId}.json`]: json({ ...purchase, files: [] }),
+    [`belege/${purchase.list.entityId}.json`]: json({
+      ...purchase,
+      files: [{ path: purchasePath, role: "anhang", mimeType: "application/pdf", filename: "2025-4711.pdf" }],
+    }),
     [`belege/${privat.list.entityId}.json`]: json({ ...privat, files: [] }),
     [pdfPath]: new TextEncoder().encode("%PDF-1.4\n%%EOF\n"),
+    [purchasePath]: new TextEncoder().encode("%PDF-1.4\n% 2025-4711\n%%EOF\n"),
   });
 }
 
@@ -978,7 +984,24 @@ test("Umzug ohne Public API: Skript abrufen, Sicherung hochladen und übernehmen
   const step2 = page.getByRole("region", { name: "Kontakte, Rechnungen und Belege abrufen" });
   await expect(step2).toContainText("Fertig am");
   // Die überfällige Ausgabe steht als offener Posten bereit
-  await expect(page.getByRole("region", { name: "Offene Posten übernehmen" })).toContainText("2025-4711");
+  const offen = page.getByRole("region", { name: "Offene Posten übernehmen" });
+  await expect(offen).toContainText("2025-4711");
+  // Stichtag: letzter Tag der alten Buchhaltung; im Einzelunternehmen wählbar, gebucht wird am Tag danach
+  await offen.getByLabel("Stichtag (letzter Tag der alten Buchhaltung)").fill(`${YEAR - 1}-12-30`);
+  await offen.getByRole("button", { name: "Stichtag ändern" }).click();
+  await expect(offen).toContainText(`Stichtag 30.12.${YEAR - 1}`);
+  await expect(offen).toContainText(`Gebucht wird zum 31.12.${YEAR - 1}`);
+  await expect(offen).toContainText("2025-4711");
+  // Nach der ersten Übernahme steht der Stichtag fest: kein „Stichtag ändern“ mehr, der Grund steht im Text
+  await offen
+    .getByRole("row", { name: /2025-4711/ })
+    .getByRole("button", { name: "Übernehmen" })
+    .click();
+  await expect(offen.getByRole("row", { name: /2025-4711/ }).getByRole("link", { name: "übernommen" })).toBeVisible();
+  await expect(offen.getByRole("button", { name: "Stichtag ändern" })).toHaveCount(0);
+  await expect(offen.getByLabel("Stichtag (letzter Tag der alten Buchhaltung)")).toHaveCount(0);
+  await expect(offen).toContainText(`Stichtag 30.12.${YEAR - 1}`);
+  await expect(offen).toContainText(`Die ersten offenen Posten sind zum 31.12.${YEAR - 1} übernommen`);
   // Die Privateinlage ist weder Einnahme noch Ausgabe; der Abgleich weist sie getrennt aus statt sie wegzulassen
   await expect(page.getByRole("table", { name: "Weder Einnahme noch Ausgabe 2026" })).toContainText("Privat und Geldtransit");
 });
