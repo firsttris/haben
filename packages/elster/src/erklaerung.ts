@@ -250,6 +250,7 @@ export interface EuerFigures {
   anlagenabgang?: Cents;
   privateKfz?: Cents;
   // Betriebsausgaben
+  waren?: Cents;
   fremdleistungen?: Cents;
   afaBeweglich?: Cents;
   gwg?: Cents;
@@ -285,6 +286,7 @@ export interface EuerFigures {
 
 export const EUER_EINNAHMEN = ["kleinunternehmer", "steuerpflichtig", "steuerfrei", "vereinnahmteUst", "erstatteteUst", "anlagenabgang", "privateKfz"] as const;
 export const EUER_AUSGABEN = [
+  "waren",
   "fremdleistungen",
   "afaBeweglich",
   "gwg",
@@ -325,6 +327,8 @@ export const EUER_FIELDS: Record<EuerFigureKey | "bewirtungNichtAbziehbar" | "en
   erstatteteUst: { kz: "E6000701", label: "Vom Finanzamt erstattete und ggf. verrechnete Umsatzsteuer" },
   anlagenabgang: { kz: "E6000801", label: "Veräußerung oder Entnahme von Anlagevermögen" },
   privateKfz: { kz: "E6000901", label: "Private Kfz-Nutzung" },
+  // Kennung und Element aus den ERiC-Plugins libcheckEUER_2023 bis _2025: /EUER/BAus/Ware_Rohstoff_Hilfsstoff/Sum/E6001601
+  waren: { kz: "E6001601", label: "Waren, Rohstoffe und Hilfsstoffe einschließlich der Nebenkosten" },
   fremdleistungen: { kz: "E6001701", label: "Bezogene Fremdleistungen" },
   afaBeweglich: { kz: "E6002101", label: "AfA auf bewegliche Wirtschaftsgüter" },
   gwg: { kz: "E6002301", label: "Aufwendungen für geringwertige Wirtschaftsgüter" },
@@ -573,6 +577,7 @@ export function buildEuerXml(input: EuerXmlInput): string {
       [
         "BAus",
         [
+          sumNode("Ware_Rohstoff_Hilfsstoff", kz("waren"), f.waren),
           sumNode("Fremdleistung", kz("fremdleistungen"), f.fremdleistungen),
           [
             "AfA",

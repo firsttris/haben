@@ -121,6 +121,7 @@ const CATEGORY_HINTS: [RegExp, ExpenseCategory][] = [
   [/werbung|marketing/i, "werbung"],
   [/buchführung|buchhaltung|steuerberat/i, "buchfuehrung"],
   [/beratung|rechts/i, "beratung"],
+  [/wareneingang|wareneinkauf|handelsware|\bwaren\b/i, "wareneinkauf"],
   [/fremdleistung|subunternehm/i, "fremdleistung"],
   [/kontoführung|gebühr|nebenkosten des geldverkehrs/i, "geldverkehr"],
   [/versicherung/i, "versicherung"],

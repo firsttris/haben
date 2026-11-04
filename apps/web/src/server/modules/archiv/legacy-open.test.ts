@@ -46,6 +46,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     file?: Uint8Array;
     mime?: string;
     contact?: string;
+    category?: string;
   }) {
     const rate = values.rate ?? 1900;
     const gross = values.net + values.tax;
@@ -56,7 +57,7 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
       values (${crypto.randomUUID()}, (select id from lexoffice_imports limit 1), ${values.type}, ${values.direction}, ${values.number},
         ${values.date}, ${values.date}, ${values.status ?? "open"}, ${contact?.id ?? null}, ${values.contact ?? "Bürobedarf Schmidt KG"},
         ${values.net}, ${values.tax}, ${gross}, ${JSON.stringify([{ rate, net: values.net, tax: values.tax }])}::jsonb,
-        ${JSON.stringify(values.direction === "ausgabe" ? [{ categoryId: "x", name: "Bürobedarf", rate, net: values.net, tax: values.tax }] : [])}::jsonb,
+        ${JSON.stringify(values.direction === "ausgabe" ? [{ categoryId: "x", name: values.category ?? "Bürobedarf", rate, net: values.net, tax: values.tax }] : [])}::jsonb,
         ${payment ? JSON.stringify(payment) : null}::jsonb, ${JSON.stringify({ address: { name: values.contact ?? "" } })}::jsonb)
       returning id`;
     if (values.file) {
@@ -248,6 +249,27 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     expect((await figures.computeVatFigures({ year: 2026, month: 9 })).kz81).toBe(0);
     const [contact] = await sql`select name from contacts c join invoices i on i.contact_id = c.id where i.id = ${result.id}`;
     expect(contact!.name).toBe("Bürobedarf Schmidt KG");
+  });
+
+  it.each([
+    ["Wareneingang 19 %", "wareneinkauf"],
+    ["Waren, Roh- und Hilfsstoffe", "wareneinkauf"],
+    ["Fremdleistungen", "fremdleistung"],
+  ])("leitet aus der Kategorie „%s“ die Kategorie %s ab", async (category, expected) => {
+    const id = await legacyVoucher({
+      type: "purchaseinvoice",
+      direction: "ausgabe",
+      number: "B-78",
+      date: "2026-09-25",
+      net: 10_000,
+      tax: 1_900,
+      category,
+      file: JPEG,
+      mime: "image/jpeg",
+    });
+    await legacy.takeOverAll(actor);
+    const [doc] = await sql`select category from documents where lexoffice_voucher_id = ${id}`;
+    expect(doc!.category).toBe(expected);
   });
 
   it("übernimmt einen offenen Eingangsbeleg; die Vorsteuer zählt nicht doppelt", async () => {

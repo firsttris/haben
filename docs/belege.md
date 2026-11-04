@@ -127,6 +127,7 @@ Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/
 | Geschenke an Geschäftspartner (bis 50 € je Empfänger und Jahr) | 4630 | 6610 |
 | Rechts- und Beratungskosten | 4950 | 6825 |
 | Buchführung und Steuerberatung | 4955 | 6830 |
+| Wareneinkauf (Handelsware) | 3200 | 5200 |
 | Fremdleistungen | 3100 | 5900 |
 | Kontoführung und Gebühren | 4970 | 6855 |
 | Versicherungen | 4360 | 6400 |

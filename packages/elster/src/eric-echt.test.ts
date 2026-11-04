@@ -164,6 +164,7 @@ const alleEuerFelder: EuerFigures = {
   erstatteteUst: 20_000,
   anlagenabgang: 100_000,
   privateKfz: 300_000,
+  waren: 250_000,
   fremdleistungen: 500_000,
   afaBeweglich: 666_667 + 400_000 + 9_000 + 233_333 + 10_000,
   gwg: 50_000,

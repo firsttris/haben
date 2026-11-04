@@ -66,6 +66,9 @@ describe("ebilanzPosition", () => {
     // Ohne feste Position: Auffangposition des DATEV-Postens
     ["SKR04", "6450", 1, "is.netIncome.regular.operatingTC.otherCost.misc"],
     ["SKR03", "4100", 1, "is.netIncome.regular.operatingTC.staff.misc"],
+    // Wareneinkauf (Handelsware): bezogene Waren
+    ["SKR03", "3200", 1, "is.netIncome.regular.operatingTC.grossTradingProfit.materialServices.material.purchased.unknownVAT"],
+    ["SKR04", "5200", 1, "is.netIncome.regular.operatingTC.grossTradingProfit.materialServices.material.purchased.unknownVAT"],
     // Anlagevermögen ohne Anlagenspiegel und Steuern ohne Art: keine
     ["SKR04", "0010", 1, null],
     ["SKR04", "7640", 1, null],
