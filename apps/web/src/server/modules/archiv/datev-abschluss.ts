@@ -51,7 +51,14 @@ async function bookingsUntil(year: number): Promise<Row[]> {
 function openingFor(kontenrahmen: Kontenrahmen, inYear: Row[], prior: Row[]): { vortrag: DatevVortrag; balances: Map<string, number> } {
   if (hasOpeningBalances(inYear)) return { vortrag: "stapel", balances: new Map() };
   if (prior.length === 0) return { vortrag: "keiner", balances: new Map() };
-  return { vortrag: "vorjahre", balances: carryForward(kontenrahmen, datevSalden(prior, kontenrahmen)) };
+  return { vortrag: "vorjahre", balances: carryForward(kontenrahmen, datevSalden(sinceLastOpening(prior), kontenrahmen)) };
+}
+
+/** Buchungen der Vorjahre ab dem letzten Jahr, dessen Stapel seine Eröffnungsbilanz mitbringt; die früheren stecken darin schon */
+function sinceLastOpening(prior: Row[]): Row[] {
+  const years = [...new Set(prior.map((r) => r.date.slice(0, 4)))].sort().reverse();
+  const opening = years.find((y) => hasOpeningBalances(prior.filter((r) => r.date.startsWith(y))));
+  return opening ? prior.filter((r) => r.date >= `${opening}-01-01`) : prior;
 }
 
 function merge(jahr: { account: string; saldo: number }[], vortrag: Map<string, number>) {
