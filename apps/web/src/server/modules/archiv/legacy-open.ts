@@ -6,13 +6,14 @@ import {
   openingDocumentPosting,
   openingInvoicePosting,
   takeoverCutoff,
+  takeoverCutoffConflict,
   takeoverCutoffIssue,
   type ExpenseCategory,
   type LegacyOpenAt,
   type PriceMode,
   type TakeoverCutoff,
 } from "@haben/core";
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
 import { activeOpenings, openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
@@ -61,14 +62,51 @@ async function lastVoucherDate(q: Db | Tx): Promise<string | null> {
 }
 
 /**
+ * Buchungstag der ersten Übernahme eines offenen Postens: die früheste Buchung einer übernommenen Rechnung bzw. eines
+ * übernommenen Belegs. Andere Buchungen haben diese Quellen nicht (Zahlungen buchen über die Zuordnung, Korrekturen als
+ * eigene Rechnung); Stornobuchungen zählen nicht.
+ */
+async function firstTakeoverDate(q: Db | Tx): Promise<string | null> {
+  const e = schema.journalEntries;
+  const [row] = await q
+    .select({ first: sql<string | null>`min(${e.date})::text` })
+    .from(e)
+    .where(
+      and(
+        isNull(e.reversesId),
+        sql`(${e.sourceType} = 'invoice' and exists (select 1 from ${schema.invoices} i where i.id = ${e.sourceId} and i.lexoffice_voucher_id is not null))
+          or (${e.sourceType} = 'document' and exists (select 1 from ${schema.documents} d where d.id = ${e.sourceId} and d.lexoffice_voucher_id is not null))`,
+      ),
+    );
+  return row?.first ?? null;
+}
+
+/**
  * Stichtag der Übernahme aus Firmendaten, Journal und Archiv (takeoverCutoff in @haben/core). Ein gewählter Stichtag
- * gilt nur, wenn weder eine Eröffnung noch bei GmbH und UG der DATEV-Stapel ihn festlegt.
+ * gilt nur, wenn weder eine Eröffnung noch die erste Übernahme noch bei GmbH und UG der DATEV-Stapel ihn festlegt; weicht
+ * er von dem der ersten Übernahme ab, lehnt Haben ihn ab.
  */
 export async function legacyTakeoverCutoff(requested?: string | null, q: Db | Tx = db): Promise<TakeoverCutoff> {
-  const [company, openings, stapelYear, lastVoucher] = await Promise.all([loadCompany(q), activeOpenings(q), lastStapelYear(q), lastVoucherDate(q)]);
-  const input = { rechtsform: company.rechtsform, openingDate: openings[0]?.date ?? null, stapelYear, lastVoucherDate: lastVoucher, today: today() };
+  const [company, openings, stapelYear, lastVoucher, firstTakeover] = await Promise.all([
+    loadCompany(q),
+    activeOpenings(q),
+    lastStapelYear(q),
+    lastVoucherDate(q),
+    firstTakeoverDate(q),
+  ]);
+  const input = {
+    rechtsform: company.rechtsform,
+    openingDate: openings[0]?.date ?? null,
+    stapelYear,
+    lastVoucherDate: lastVoucher,
+    firstTakeoverDate: firstTakeover,
+    today: today(),
+  };
   const cutoff = takeoverCutoff(input);
-  if (cutoff.fixed || !requested) return cutoff;
+  if (!requested) return cutoff;
+  const conflict = takeoverCutoffConflict(requested, input);
+  if (conflict) throw new TakeoverError(conflict);
+  if (cutoff.fixed) return cutoff;
   const issue = takeoverCutoffIssue(requested, company.rechtsform, input.today);
   if (issue) throw new TakeoverError(issue);
   return takeoverCutoff({ ...input, requested });

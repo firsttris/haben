@@ -137,7 +137,7 @@ export function OpenItems({ items, cutoff, cutoffError, imported }: { items: Ite
 
 /**
  * Stichtag der Übernahme: der letzte Tag der alten Buchhaltung. Offen ist, was an diesem Tag offen war; gebucht wird am
- * Tag danach. Legt eine Eröffnung oder der DATEV-Stapel ihn fest, steht nur der Grund da.
+ * Tag danach. Legt eine Eröffnung, die erste Übernahme oder der DATEV-Stapel ihn fest, steht nur der Grund da.
  */
 function CutoffForm({ cutoff, error, disabled }: { cutoff: Cutoff; error: string | null; disabled: boolean }) {
   const navigate = useNavigate();
@@ -167,7 +167,7 @@ function CutoffForm({ cutoff, error, disabled }: { cutoff: Cutoff; error: string
       )}
       {error && (
         <p className="banner banner-danger" role="alert" style={{ margin: 0 }}>
-          {error} Es gilt der Vorschlag.
+          {error} {cutoff.fixed ? "Es gilt der feste Stichtag." : "Es gilt der Vorschlag."}
         </p>
       )}
     </div>

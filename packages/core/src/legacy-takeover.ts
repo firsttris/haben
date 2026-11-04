@@ -72,6 +72,8 @@ export interface TakeoverCutoffInput {
   stapelYear: number | null;
   /** Letztes Belegdatum in Lexoffice bzw. sevDesk */
   lastVoucherDate: string | null;
+  /** Buchungstag der ersten Übernahme eines offenen Postens gegen den Saldenvortrag, ohne Stornos */
+  firstTakeoverDate: string | null;
   today: string;
   /** Vom Nutzer gewählt; gilt nur, wenn nichts den Stichtag festlegt, und ist vorher mit takeoverCutoffIssue geprüft */
   requested?: string | null;
@@ -94,14 +96,30 @@ function at(date: string, fixed: string | null): TakeoverCutoff {
 }
 
 /**
- * Stichtag der Übernahme. Eine gebuchte Eröffnung legt ihn fest (der Tag davor), bei GmbH und UG auch der DATEV-Stapel:
- * Dessen Eröffnung steht am 1.1. nach dem letzten Stapeljahr, und nur so enthält ihr Saldo genau die Posten, die am
- * Stichtag offen waren. Sonst ist er der 31.12. des letzten Jahres der alten Buchhaltung; reicht die ins laufende Jahr,
- * im Einzelunternehmen der Tag vor heute (Umzug unter dem Jahr), bei GmbH und UG der 31.12. des Vorjahres, weil ihre
- * Eröffnung immer am 1. Januar steht.
+ * Im Einzelunternehmen legt die erste Übernahme den Stichtag fest (der Tag vor ihrer Buchung): Alle offenen Posten
+ * müssen zum selben Tag kommen. Sonst zählte ein späterer Stichtag einen Posten als bezahlt, dessen Zahlung nach dem
+ * ersten Tag in Haben liegt und dort ankommt; er bliebe in Haben ohne offenen Posten. GmbH und UG legen ihn über die
+ * Eröffnung bzw. den DATEV-Stapel fest.
+ */
+function cutoffOfFirstTakeover(input: TakeoverCutoffInput): TakeoverCutoff | null {
+  if (!input.firstTakeoverDate || isKapitalgesellschaft(input.rechtsform)) return null;
+  return at(
+    addDays(input.firstTakeoverDate, -1),
+    `Die ersten offenen Posten sind zum ${dayOf(input.firstTakeoverDate)} übernommen; alle weiteren kommen zum selben Stichtag, sonst bliebe ein dazwischen bezahlter Posten in Haben offen.`,
+  );
+}
+
+/**
+ * Stichtag der Übernahme. Eine gebuchte Eröffnung legt ihn fest (der Tag davor), im Einzelunternehmen die erste
+ * Übernahme eines offenen Postens, bei GmbH und UG der DATEV-Stapel: Dessen Eröffnung steht am 1.1. nach dem letzten
+ * Stapeljahr, und nur so enthält ihr Saldo genau die Posten, die am Stichtag offen waren. Sonst ist er der 31.12. des
+ * letzten Jahres der alten Buchhaltung; reicht die ins laufende Jahr, im Einzelunternehmen der Tag vor heute (Umzug unter
+ * dem Jahr), bei GmbH und UG der 31.12. des Vorjahres, weil ihre Eröffnung immer am 1. Januar steht.
  */
 export function takeoverCutoff(input: TakeoverCutoffInput): TakeoverCutoff {
   if (input.openingDate) return at(addDays(input.openingDate, -1), `Die Bücher in Haben beginnen mit der Eröffnung am ${dayOf(input.openingDate)}.`);
+  const takenOver = cutoffOfFirstTakeover(input);
+  if (takenOver) return takenOver;
   const kapg = isKapitalgesellschaft(input.rechtsform);
   if (kapg && input.stapelYear !== null)
     return at(yearEnd(input.stapelYear), `Die Eröffnung aus dem DATEV-Stapel ${input.stapelYear} steht am 1.1.${input.stapelYear + 1}.`);
@@ -120,4 +138,16 @@ export function takeoverCutoffIssue(date: string, rechtsform: Rechtsform, today:
   if (isKapitalgesellschaft(rechtsform) && !date.endsWith("-12-31"))
     return "Bei GmbH und UG ist der Stichtag ein 31. Dezember: Die Eröffnung in Haben steht immer am 1. Januar.";
   return null;
+}
+
+/**
+ * Prüft einen gewählten Stichtag gegen den, den die erste Übernahme festlegt; null = in Ordnung. Anders als bei der
+ * Eröffnung, die einen gewählten Stichtag einfach übergeht, wird ein abweichender abgelehnt: Wer ihn wählt, erwartet die
+ * Liste zu diesem Tag, und die Übernahme buchte doch zum alten.
+ */
+export function takeoverCutoffConflict(requested: string, input: TakeoverCutoffInput): string | null {
+  if (input.openingDate) return null;
+  const takenOver = cutoffOfFirstTakeover(input);
+  if (!takenOver || takenOver.date === requested) return null;
+  return `Der Stichtag steht seit der ersten Übernahme offener Posten fest auf dem ${dayOf(takenOver.date)}.`;
 }

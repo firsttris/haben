@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { legacyOpenAt, takeoverCutoff, takeoverCutoffIssue, type LegacyOpenVoucher } from "./legacy-takeover.ts";
+import { legacyOpenAt, takeoverCutoff, takeoverCutoffConflict, takeoverCutoffIssue, type LegacyOpenVoucher } from "./legacy-takeover.ts";
 
 const invoice = (payment: LegacyOpenVoucher["payment"], status = "open"): LegacyOpenVoucher => ({ gross: 119_000, status, payment });
 const paid = (date: string, amount: number, type = "partPaymentFinancialTransaction") => ({ type, date, amount });
@@ -75,7 +75,14 @@ describe("legacyOpenAt: offen am Stichtag", () => {
 });
 
 describe("takeoverCutoff: Stichtag der Übernahme", () => {
-  const base = { rechtsform: "einzelunternehmen" as const, openingDate: null, stapelYear: null, lastVoucherDate: "2025-11-30", today: "2026-02-10" };
+  const base = {
+    rechtsform: "einzelunternehmen" as const,
+    openingDate: null,
+    stapelYear: null,
+    lastVoucherDate: "2025-11-30",
+    firstTakeoverDate: null,
+    today: "2026-02-10",
+  };
 
   it("Einzelunternehmen: 31.12. des letzten Jahres der alten Buchhaltung, gebucht zum 1.1.", () => {
     expect(takeoverCutoff(base)).toEqual({ date: "2025-12-31", bookingDate: "2026-01-01", fixed: null });
@@ -109,6 +116,33 @@ describe("takeoverCutoff: Stichtag der Übernahme", () => {
 
   it("GmbH ohne Stapel: immer ein 31.12., auch wenn die alte Buchhaltung ins laufende Jahr reicht", () => {
     expect(takeoverCutoff({ ...base, rechtsform: "gmbh", lastVoucherDate: "2026-01-20" }).date).toBe("2025-12-31");
+  });
+});
+
+describe("takeoverCutoff nach der ersten Übernahme", () => {
+  const base = {
+    rechtsform: "einzelunternehmen" as const,
+    openingDate: null,
+    stapelYear: null,
+    lastVoucherDate: "2025-11-30",
+    firstTakeoverDate: "2025-07-01",
+    today: "2026-02-10",
+  };
+
+  it("Einzelunternehmen: der Tag vor der ersten Übernahme, fest; ein anderer gewählter Stichtag ist ein Konflikt", () => {
+    expect(takeoverCutoff(base)).toEqual({ date: "2025-06-30", bookingDate: "2025-07-01", fixed: expect.stringMatching(/01\.07\.2025 übernommen/) });
+    expect(takeoverCutoff({ ...base, requested: "2025-12-31" }).date).toBe("2025-06-30");
+    expect(takeoverCutoffConflict("2025-12-31", base)).toMatch(/fest auf dem 30\.06\.2025/);
+    expect(takeoverCutoffConflict("2025-06-30", base)).toBeNull();
+  });
+
+  it("eine Eröffnung geht vor; GmbH und UG bleiben bei Eröffnung und Stapel", () => {
+    const opened = { ...base, openingDate: "2026-01-01" };
+    expect(takeoverCutoff(opened).date).toBe("2025-12-31");
+    expect(takeoverCutoffConflict("2025-11-30", opened)).toBeNull();
+    const gmbh = { ...base, rechtsform: "gmbh" as const, firstTakeoverDate: "2026-01-01" };
+    expect(takeoverCutoff({ ...gmbh, requested: "2024-12-31" })).toEqual({ date: "2024-12-31", bookingDate: "2025-01-01", fixed: null });
+    expect(takeoverCutoffConflict("2024-12-31", gmbh)).toBeNull();
   });
 });
 

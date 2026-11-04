@@ -187,11 +187,14 @@ Den Stichtag schlägt Haben vor; er steht über der Liste:
 | Fall | Stichtag |
 | --- | --- |
 | Eine Eröffnung ist gebucht (GmbH und UG) | Der Tag vor der Eröffnung, fest |
+| Einzelunternehmen, schon ein Posten übernommen | Der Tag vor der Buchung der ersten Übernahme, fest |
 | GmbH oder UG mit DATEV-Stapel im Archiv | 31.12. des letzten Stapeljahres, fest; dort setzt die [Eröffnung aus dem Stapel](#eröffnung-aus-dem-datev-stapel-gmbh-und-ug) an |
 | GmbH oder UG sonst | 31.12. des letzten Jahres der alten Buchhaltung, höchstens des Vorjahres; nur ein 31.12. ist möglich, weil die Eröffnung am 1. Januar steht |
 | Einzelunternehmen | 31.12. des letzten Jahres der alten Buchhaltung; reicht sie ins laufende Jahr, der Tag vor heute |
 
 Das letzte Jahr der alten Buchhaltung ist das Jahr des letzten abgerufenen Belegs bzw. des letzten DATEV-Stapels. Im Einzelunternehmen änderst du den Stichtag mit **Stichtag ändern**, etwa beim Wechsel unter dem Jahr auf den Tag vor dem Beginn in Haben. Haben übernimmt dann die Liste zu diesem Tag.
+
+Wähle den Stichtag vor der ersten Übernahme. Sobald ein Posten übernommen ist, steht er fest: Alle weiteren Posten kommen zum selben Tag, **Stichtag ändern** gibt es nicht mehr, und Haben lehnt einen anderen Stichtag ab. Sonst fiele ein Posten durch: Wer etwa zum 30.06. übernimmt und danach den 31.12. wählt, sähe eine Rechnung, die im September bezahlt wurde, als erledigt, obwohl die Zahlung nach dem ersten Tag in Haben liegt, in Haben ankommt und dort einen offenen Posten braucht.
 
 ### Wie gebucht wird
 

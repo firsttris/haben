@@ -533,12 +533,12 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
       const cutoff = await legacy.legacyTakeoverCutoff(`${alt}-06-30`);
       expect(cutoff).toEqual({ date: `${alt}-06-30`, bookingDate: `${alt}-07-01`, fixed: null });
       expect((await legacy.openLegacyItems(`${alt}-06-30`)).map((i) => [i.number, i.blocker])).toEqual([["RE-M", null]]);
-      const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id, `${alt}-06-30`);
-      expect((await lines(invoiceId)).map(([date]) => date)).toEqual([`${alt}-07-01`, `${alt}-07-01`, `${alt}-07-01`]);
-      // Schon übernommen bleibt sichtbar, auch wenn ein anderer Stichtag den Posten nicht mehr als offen zählt
-      expect(await legacy.openLegacyItems()).toMatchObject([{ number: "RE-M", open: 0, takenOver: { kind: "invoice", id: invoiceId } }]);
       await expect(legacy.openLegacyItems(heute())).rejects.toThrow(/vor heute/);
       expect(await legacy.openItemsOverview(heute())).toMatchObject({ cutoff: { date: `${alt}-12-31` }, cutoffError: expect.stringMatching(/vor heute/) });
+      const { id: invoiceId } = await legacy.takeOverLegacyItem(actor, id, `${alt}-06-30`);
+      expect((await lines(invoiceId)).map(([date]) => date)).toEqual([`${alt}-07-01`, `${alt}-07-01`, `${alt}-07-01`]);
+      // Schon übernommen bleibt sichtbar; der Stichtag steht jetzt fest
+      expect(await legacy.openLegacyItems()).toMatchObject([{ number: "RE-M", open: 119_000, takenOver: { kind: "invoice", id: invoiceId } }]);
     });
 
     it("GmbH: der Stichtag ist ein 31.12.; mit gebuchter Eröffnung steht er fest", async () => {

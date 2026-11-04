@@ -984,6 +984,14 @@ test("Umzug ohne Public API: Skript abrufen, Sicherung hochladen und übernehmen
   await expect(offen).toContainText(`Stichtag 30.12.${YEAR - 1}`);
   await expect(offen).toContainText(`Gebucht wird zum 31.12.${YEAR - 1}`);
   await expect(offen).toContainText("2025-4711");
+  // Nach der ersten Übernahme steht der Stichtag fest
+  await offen
+    .getByRole("row", { name: /2025-4711/ })
+    .getByRole("button", { name: "Übernehmen" })
+    .click();
+  await expect(offen.getByRole("link", { name: "übernommen" })).toBeVisible();
+  await expect(offen.getByRole("button", { name: "Stichtag ändern" })).toHaveCount(0);
+  await expect(offen).toContainText(`Die ersten offenen Posten sind zum 31.12.${YEAR - 1} übernommen`);
 });
 
 test("Auswertungen, Umsatzsteuer und Jahreserklärung laden", async () => {
