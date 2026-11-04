@@ -4,8 +4,8 @@
 
 <img src="docs/banner.png" alt="Haben: Rechnung 2026-031 festgeschrieben, Zahlungseingang zugeordnet, Voranmeldung September an ELSTER übermittelt" width="900">
 
-**Die Buchhaltungssoftware für Freiberufler, Selbstständige und Kleinunternehmer, die du selbst betreibst.**<br>
-Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR und die Umsatzsteuer-Voranmeldung
+**Die Buchhaltungssoftware für Freiberufler, Selbstständige, Kleinunternehmer und kleine GmbHs, die du selbst betreibst.**<br>
+Rechnungen mit E-Rechnung (ZUGFeRD, XRechnung), Belege, Bankabgleich, EÜR oder Bilanz mit E-Bilanz und die Steuern
 direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
 
 ![Status: Beta](https://img.shields.io/badge/Status-Beta-orange)
@@ -30,7 +30,7 @@ direkt an ELSTER. GoBD-konform, auf deinem Server, ohne Datenabfluss.
 [Dokumentation](https://firsttris.github.io/haben/) •
 [Entwicklung](#-entwicklung)
 
-<sub>English: self-hosted open-source bookkeeping for German freelancers and small businesses, with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR and VAT returns via ELSTER. The app and its [documentation](https://firsttris.github.io/haben/) are in German.</sub>
+<sub>English: self-hosted open-source bookkeeping for German freelancers, small businesses and small limited companies (GmbH, UG), with e-invoicing (ZUGFeRD, XRechnung), bank reconciliation, EÜR or balance sheet with E-Bilanz, and VAT, corporate and trade tax returns via ELSTER. The app and its [documentation](https://firsttris.github.io/haben/) are in German.</sub>
 
 <img src="docs/screenshot-uebersicht.png" alt="Übersicht in Haben: offene Forderungen, Umsatz, Umsatzsteuer-Zahllast, Kontostand und die nächsten Aufgaben" width="900">
 
@@ -59,6 +59,8 @@ auf deinem eigenen Server betreibst.
 - **Umzug ohne Datenverlust**: Rechnungen, Belege, Buchungen ohne Beleg und Kontakte aus Lexware Office übernehmen, DATEV-Export archivieren
 - **Für Freiberufler und Kleingewerbe**: Einnahmen-Überschuss-Rechnung (EÜR), Ist- oder Soll-Versteuerung,
   Kleinunternehmerregelung nach § 19 UStG, Kontenrahmen SKR03 oder SKR04
+- **Für GmbH und UG**: Bilanz und GuV, E-Bilanz, Körperschaft- und Gewerbesteuer, Gewinnausschüttung mit
+  Kapitalertragsteuer-Anmeldung, siehe [GmbH und UG](https://firsttris.github.io/haben/gmbh.html)
 
 ## ✨ Funktionen
 
@@ -69,8 +71,9 @@ auf deinem eigenen Server betreibst.
 | 📎 [Belege](https://firsttris.github.io/haben/belege.html) | Drag-and-drop, Kamera, Teilen am Handy oder per E-Mail (IMAP); E-Rechnungen direkt gelesen, sonst optional per KI; Lieferant aus dem gemeinsamen Kontaktverzeichnis für Kunden und Lieferanten |
 | 🏦 [Bankabgleich](https://firsttris.github.io/haben/bank.html) | Automatischer Abruf per PSD2 oder Import (DKB, N26, CAMT.053; PayPal, Stripe, Shopify Payments und eBay als Zahlungsdienstleister), Vorschläge mit Begründung, Teil- und Sammelzahlungen |
 | 📤 [Voranmeldung](https://firsttris.github.io/haben/umsatzsteuer.html) | Kennzahlen aus den Buchungen (Ist oder Soll), Herkunft jeder Zahl, Vorprüfung, Übermittlung per ERiC oder ohne Hersteller-ID über Mein ELSTER (XML-Import, Erweiterung, KI-Assistent; siehe [Abgabe an ELSTER](https://firsttris.github.io/haben/elster-abgabe.html)), Berichtigung |
-| 📑 [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung; per ERiC senden oder ohne Hersteller-ID mit der [Erweiterung](https://firsttris.github.io/haben/elster-mit-erweiterung.html) in Mein ELSTER eintragen; vorausgefüllte Belege von ELSTER abrufen |
+| 📑 [Jahreserklärungen](https://firsttris.github.io/haben/jahreserklaerung.html) | USt-Erklärung, Anlage EÜR mit AVEÜR, Einkommensteuererklärung; für GmbH und UG Körperschaftsteuer mit Feststellung des Einlagekontos und Gewerbesteuer; per ERiC senden oder ohne Hersteller-ID mit der [Erweiterung](https://firsttris.github.io/haben/elster-mit-erweiterung.html) in Mein ELSTER eintragen; vorausgefüllte Belege von ELSTER abrufen |
 | 🏛️ [Finanzamt](https://firsttris.github.io/haben/finanzamt.html) | Bescheide und Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen mit Steuerprognose |
+| 🏢 [GmbH und UG](https://firsttris.github.io/haben/gmbh.html) | Gesellschafter-Verrechnungskonto statt Privatkonten, Eröffnungsbuchung und Saldenvortrag, Bilanz und GuV der Kleinstkapitalgesellschaft, Rückstellungen für Körperschaft- und Gewerbesteuer, E-Bilanz per ERiC, Gewinnausschüttung mit Kapitalertragsteuer, Soli, Kirchensteuer und Kapitalertragsteuer-Anmeldung |
 | ⏰ [Fristen](https://firsttris.github.io/haben/fristen.html) | Alle Steuertermine auf einer Seite, als Kalender-Feed (iCal) und per E-Mail |
 | 🚗 [Pauschalen](https://firsttris.github.io/haben/pauschalen.html) · [Kasse](https://firsttris.github.io/haben/kasse.html) | Homeoffice, Kilometer, Verpflegungsmehraufwand; Kassenbuch für Barzahlungen |
 | 🖥️ [Anlagen und AfA](https://firsttris.github.io/haben/anlagen.html) | Anlagenverzeichnis, lineare AfA, GWG und Sammelposten, AfA-Buchung zum Jahresende |
@@ -148,11 +151,11 @@ Lexware Office ohne Tarif XL, über eine Sicherung aus der Web-Oberfläche, sieh
 <summary><b>Für wen ist Haben gedacht?</b></summary>
 
 Für Freiberufler, Selbstständige und Kleinunternehmer mit Einnahmen-Überschuss-Rechnung (EÜR), auch mit
-Kleinunternehmerregelung nach § 19 UStG. Eine GmbH oder UG macht ihre laufende Buchhaltung in Haben, mit
+Kleinunternehmerregelung nach § 19 UStG, und für kleine GmbHs und UGs. Eine GmbH oder UG macht ihre Buchhaltung in Haben, mit
 Gesellschafter-Verrechnungskonto statt Privatkonten; Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung und
 sendet E-Bilanz, Körperschaft- und Gewerbesteuererklärung (für eine GmbH ohne Beteiligungen und Organschaft) und
-bucht Gewinnausschüttungen samt Kapitalertragsteuer-Anmeldung,
-siehe [Rechtsform](https://firsttris.github.io/haben/einrichtung.html#rechtsform-einzelunternehmen-gmbh-oder-ug).
+bucht Gewinnausschüttungen samt Kapitalertragsteuer-Anmeldung. Lohnabrechnung und die Hinterlegung beim
+Unternehmensregister macht Haben nicht, siehe [GmbH und UG](https://firsttris.github.io/haben/gmbh.html).
 </details>
 
 <details>

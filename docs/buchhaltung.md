@@ -498,7 +498,7 @@ Kontensalden je Position (Kontennachweis) sendet Haben nicht mit; die Taxonomie 
 Jeder Versuch steht mit Werten und XML im Verlauf (Tabelle `annual_submissions`, Formular `ebilanz`), das Übertragungsprotokoll als PDF daneben.
 
 > [!WARNING]
-> Gesendet wird, was gebucht ist. Eine Überleitung von der Handels- zur Steuerbilanz rechnet Haben nicht, und Rückstellungen für Körperschaft- und Gewerbesteuer bucht ihr vorher selbst. Lasst die E-Bilanz von der Steuerberatung ansehen, bevor ihr echt sendet.
+> Gesendet wird, was gebucht ist. Eine Überleitung von der Handels- zur Steuerbilanz rechnet Haben nicht. Bucht vorher die Rückstellungen für [Körperschaft- und Gewerbesteuer](#körperschaft-und-gewerbesteuer-gmbh-und-ug) und eure übrigen Abschlussbuchungen. Lasst die E-Bilanz von der Steuerberatung ansehen, bevor ihr echt sendet.
 
 ## Die Seite „Konten“
 

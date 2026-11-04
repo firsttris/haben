@@ -304,6 +304,10 @@ Im [Jahresexport](auswertungen.md#jahresexport) steht der Altbestand jedes Jahre
 
 Haben spricht standardmäßig mit `https://api.lexware.io/v1`. Mit der Umgebungsvariable `LEXOFFICE_API_URL` setzt du eine andere Basis-URL, etwa zum Testen gegen einen nachgestellten Server oder falls Lexware die Adresse ändert. Die ältere Adresse `https://api.lexoffice.io/v1` sollte ebenfalls funktionieren.
 
+## Umzug einer GmbH oder UG
+
+Für eine GmbH oder UG läuft der Umzug genauso. Weil sie bilanziert, kommen zu den offenen Posten die übrigen Bestände zum Stichtag dazu: Bank, Stammkapital, Gewinnvortrag und Gesellschafter-Verrechnungskonto erfasst du als [Eröffnungsbuchung](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) gegen 9000, Anlagen über das [Anlagenverzeichnis](anlagen.md). Die Werte stehen in der Schlussbilanz des Vorjahres von der Steuerberatung. Sind alle Bestände übernommen, ist 9000 ausgeglichen; die übernommenen offenen Posten stehen dann nicht noch einmal in der Eröffnungsbuchung. Den ganzen Ablauf zeigt [GmbH und UG](gmbh.md).
+
 ## Grenzen
 
 - Der Client ist noch nicht gegen ein echtes Lexware-Konto gelaufen (siehe Hinweis oben).
