@@ -68,7 +68,7 @@ export function BalanceChart({ from, to, start, points, title }: { from: string;
           {ticks.map((t) => (
             <g key={t}>
               <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} className={t === 0 ? "axis-base" : "grid"} />
-              <text x={M.left - 8} y={y(t)} dy="0.32em" textAnchor="end" className="tick">
+              <text x={M.left - 8} y={y(t)} dy="0.32em" style={{ textAnchor: "end" }} className="tick">
                 {euroAxis.format(t / 100)} €
               </text>
             </g>
@@ -77,7 +77,7 @@ export function BalanceChart({ from, to, start, points, title }: { from: string;
             monthTicks.map((m, i) =>
               // Schmale Diagramme: nur jeden zweiten Monat beschriften
               i % (W < 520 ? 2 : 1) === 0 ? (
-                <text key={m.iso} x={x(m.iso)} y={H - 6} textAnchor="start" className="tick">
+                <text key={m.iso} x={x(m.iso)} y={H - 6} style={{ textAnchor: "start" }} className="tick">
                   {m.label}
                 </text>
               ) : null,
