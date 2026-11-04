@@ -8,11 +8,11 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 
 | # | Thema | Worum es geht | Aufwand | Stand |
 | --- | --- | --- | --- | --- |
-| 1 | Voranmeldung vierteljährlich oder keine, Dauerfristverlängerung | Voranmeldungszeitraum Kalendervierteljahr bzw. Befreiung (§ 18 Abs. 2 UStG) statt nur monatlich; Antrag auf Dauerfristverlängerung mit Sondervorauszahlung (USt 1 H) über ELSTER | M | in Arbeit |
+| 1 | Voranmeldung vierteljährlich oder keine, Dauerfristverlängerung | Voranmeldungszeitraum Kalendervierteljahr bzw. Befreiung (§ 18 Abs. 2 UStG) statt nur monatlich; Antrag auf Dauerfristverlängerung (USt 1 H) über ELSTER, bei monatlicher Abgabe mit Sondervorauszahlung (§ 47 UStDV) | M | in Arbeit |
 | 2 | Lohn | Lohnabrechnung, Buchung, Lohnsteuer-Anmeldung und -Bescheinigung über ELSTER, zuerst für den Gesellschafter-Geschäftsführer, dann für Angestellte und Minijobs; für die Sozialversicherung eine Ausfüllliste zum [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz). Lohnsteuer nach dem Programmablaufplan steht, die Beiträge sind in Arbeit; Plan: [Lohn – Recherche und Umsetzungsplan](lohn-plan.md) | L | in Arbeit |
-| 3 | Überweisungen als SEPA-Datei | Offene Belege gesammelt als pain.001 ausgeben, die man im Online-Banking hochlädt; die Abbuchung ordnet der Bankabgleich danach zu | S | geplant |
+| 3 | Überweisungen als SEPA-Datei | Offene Belege gesammelt als pain.001 ausgeben, die man im Online-Banking hochlädt; die Abbuchung ordnet der Bankabgleich danach zu. Später prüfen: Zahlungsauslösung über Enable Banking, das schon den Kontoabruf macht | S | geplant |
 | 4 | Skonto | Skonto in den Zahlungsbedingungen der Rechnung, auf PDF und in der E-Rechnung (BT-20) | S | geplant |
-| 5 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst lesend für die Steuerberatung, später volle Rollen | M | geplant |
+| 5 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst lesend für die Steuerberatung, später volle Rollen. Weicht von der bisherigen Entscheidung „genau ein Nutzer“ ab ([Architektur](architektur.md)); vor dem Bau zu klären | M | geplant |
 | 6 | Zusammenfassende Meldung | Meldung der innergemeinschaftlichen Leistungen je USt-IdNr. und Quartal über ELSTER | M | geplant |
 | 7 | Texterkennung ohne Cloud | Belege lokal erkennen (z. B. Tesseract im Worker); die KI bleibt wahlweise | M | geplant |
 | 8 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
@@ -26,10 +26,9 @@ Danach: Alternativpositionen und Gesamtrabatt, Kundenhistorie mit Aufgaben und N
 | Thema | Warum nicht | Was Haben stattdessen tut |
 | --- | --- | --- |
 | Meldungen an die Sozialversicherung, Beitragsnachweise, Erstattungsanträge | Nur aus systemgeprüften Programmen (§ 95b SGB IV, Prüfung durch die ITSG) | Werte zum Eintragen im SV-Meldeportal der ITSG |
-| Überweisungen direkt aus Haben | Zahlungsauslösung braucht eine Lizenz als Zahlungsdienst | SEPA-Datei zum Hochladen im Online-Banking |
 | Eigenes Geschäftskonto | Banklizenz | Abruf bestehender Konten über Enable Banking |
 | DATEV-Online-Schnittstellen | Kostenpflichtige Partnerschaft mit DATEV | DATEV-Export (Buchungsstapel) |
-| Kasse mit TSE | Zertifizierte technische Sicherheitseinrichtung | Kassenbuch für offene Ladenkassen ohne Pflicht zur TSE |
+| Kassensystem mit TSE | Elektronische Kassen brauchen eine zertifizierte technische Sicherheitseinrichtung (§ 146a AO) | Kein Kassensystem für den Ladenverkauf; das Kassenbuch führt Bargeld, das nicht über eine Registrierkasse läuft ([Kasse](kasse.md)) |
 
 ## Blockiert
 
