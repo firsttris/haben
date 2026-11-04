@@ -7,6 +7,7 @@ import {
   previousPeriod,
   periodKey,
   periodLabel,
+  type LegacyNeutralSum,
   type LegacyVatMonth,
   type VatPeriod,
 } from "@haben/core";
@@ -125,6 +126,11 @@ function legacyVatMonth(m: LegacyVatMonth) {
         .map(([key, cents]) => [key, euro(cents)]),
     ),
   };
+}
+
+/** Weder Einnahme noch Ausgabe (Privat, Gesellschafter, Kapital, Steuern vom Einkommen), je Art */
+function legacyNeutral(n: LegacyNeutralSum) {
+  return { art: n.label, anzahl: n.count, zufluss: euro(n.zufluss), abfluss: euro(n.abfluss) };
 }
 
 function legacyVoucher(v: LegacyVoucherForVat) {
@@ -618,11 +624,13 @@ export const MCP_TOOLS: McpTool[] = [
       "die Prüfungen vor der Kündigung, Summen der Einnahmen und Ausgaben, Steuerarten und die Umsatzsteuer je Monat, nachgerechnet " +
       "aus den abgerufenen Belegen (Kz 81, 86, 66 und Sonderfälle wie Kz 21, 41, 43, 45, 60, 87). Zum Vergleich mit den in Lexware " +
       "Office abgegebenen Voranmeldungen; ELSTER meldet Bemessungsgrundlagen in vollen Euro. Der Altbestand zählt nicht in Habens eigene " +
-      "Voranmeldung. Ohne Jahr alle Jahre. Abgerufen wird in Haben selbst.",
+      "Voranmeldung. Was weder Einnahme noch Ausgabe ist, steht je Jahr unter nichtEinnahmeOderAusgabe: im Einzelunternehmen Privates " +
+      "und Geldtransit, bei GmbH und UG Gesellschafter-Verrechnung, Stammkapital, Darlehen sowie Körperschaft- und Gewerbesteuer " +
+      "(nach dem Namen der Kategorie). Ohne Jahr alle Jahre. Abgerufen wird in Haben selbst.",
     scope: "haben:lesen",
     input: { jahr: yearSchema.optional() },
     run: async ({ jahr }) => {
-      const [connection, lastImport, { versteuerung, years }, files] = await Promise.all([
+      const [connection, lastImport, { versteuerung, rechtsform, years }, files] = await Promise.all([
         connectionStatus(),
         latestImport(),
         reconciliation(),
@@ -647,6 +655,7 @@ export const MCP_TOOLS: McpTool[] = [
             }
           : null,
         versteuerung,
+        rechtsform,
         hinweis:
           versteuerung === "ist"
             ? "Ist-Versteuerung: Einnahmen nach Datum der Zahlungen (Skonto, Mahnkosten, Kursdifferenzen und Forderungsausfälle zählen nicht), " +
@@ -660,6 +669,7 @@ export const MCP_TOOLS: McpTool[] = [
             pruefungen: y.checks.map((c) => ({ erfuellt: c.ok, pruefung: c.label, detail: c.detail })),
             einnahmen: { anzahl: y.einnahmen.count, netto: euro(y.einnahmen.net), steuer: euro(y.einnahmen.tax), brutto: euro(y.einnahmen.gross) },
             ausgaben: { anzahl: y.ausgaben.count, netto: euro(y.ausgaben.net), steuer: euro(y.ausgaben.tax), brutto: euro(y.ausgaben.gross) },
+            nichtEinnahmeOderAusgabe: y.neutral.map(legacyNeutral),
             ungepruefteBelege: y.unchecked,
             steuerartenDerEinnahmen: y.taxTypes.map((t) => ({ steuerart: t.taxType, anzahl: t.count })),
             letzteRechnungsnummer: y.lastInvoiceNumber,
@@ -678,7 +688,9 @@ export const MCP_TOOLS: McpTool[] = [
     description:
       "Aus Lexware Office abgerufene Rechnungen, Gutschriften und Belege eines Jahres oder Monats mit Beträgen je Steuersatz, Steuerart " +
       "und Zahlungen. Damit lässt sich eine Abweichung in der Umsatzsteuer je Monat bis auf den Beleg zurückverfolgen. Bei " +
-      "Ist-Versteuerung kommen standardmäßig auch Einnahmen dazu, die im Zeitraum bezahlt wurden (nachZahlung).",
+      "Ist-Versteuerung kommen standardmäßig auch Einnahmen dazu, die im Zeitraum bezahlt wurden (nachZahlung). Was weder Einnahme " +
+      "noch Ausgabe ist (Privat, Gesellschafter, Kapital, Darlehen, Steuern vom Einkommen), fehlt in belege und steht summiert unter " +
+      "nichtEinnahmeOderAusgabe.",
     scope: "haben:lesen",
     input: {
       zeitraum: z
@@ -693,7 +705,7 @@ export const MCP_TOOLS: McpTool[] = [
     run: async ({ zeitraum, richtung, suche, nachZahlung, limit }) => {
       const company = await loadCompany();
       const withPayments = nachZahlung ?? company.versteuerung === "ist";
-      const { total, vouchers } = await legacyVouchersForPeriod({ period: zeitraum, direction: richtung, search: suche, withPayments, limit });
+      const { total, vouchers, neutral } = await legacyVouchersForPeriod({ period: zeitraum, direction: richtung, search: suche, withPayments, limit });
       return {
         zeitraum,
         versteuerung: company.versteuerung,
@@ -701,6 +713,7 @@ export const MCP_TOOLS: McpTool[] = [
         anzahl: total,
         gekuerzt: total > vouchers.length,
         belege: vouchers.map(legacyVoucher),
+        nichtEinnahmeOderAusgabe: neutral.map(legacyNeutral),
       };
     },
   }),

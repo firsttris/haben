@@ -107,7 +107,7 @@ Das Skript findet sie über die Bankumsätze: Hat ein Umsatz mehr Zuordnungen, a
 - Die Steuer rechnet Haben aus Betrag und Satz wie bei den übrigen Belegen; Lexware Office rechnet die Vorsteuer aus dem Bruttobetrag heraus (250,00 € zu 19 % → 39,92 €).
 - Bezahlt ist die Buchung am Buchungstag des Bankumsatzes; bei Ist-Versteuerung zählen Einnahmen in diesem Monat.
 - Im Abgleich je Jahr zählt die Prüfung „Jeder Beleg hat eine Datei“ sie nicht mit, die erste Prüfung nennt ihre Zahl.
-- **Privat und Geldtransit:** Buchungen, deren Kategorien alle „privat“, „Geldtransit“, „Einkommensteuer“, „Kirchensteuer“ oder „Solidaritätszuschlag“ im Namen tragen, sind archiviert, zählen aber weder in den Einnahmen und Ausgaben noch in der Umsatzsteuer je Monat. Lexware Office kennzeichnet private Kategorien nicht, Haben erkennt sie nur am Namen.
+- **Privat und Geldtransit:** Buchungen, deren Kategorien alle „privat“, „Geldtransit“, „Einkommensteuer“, „Kirchensteuer“ oder „Solidaritätszuschlag“ im Namen tragen, sind archiviert, zählen aber weder in den Einnahmen und Ausgaben noch in der Umsatzsteuer je Monat. Der Abgleich je Jahr weist sie getrennt aus. Lexware Office kennzeichnet private Kategorien nicht, Haben erkennt sie nur am Namen. Bei GmbH und UG ordnet Haben anders ein, siehe [Einordnung bei GmbH und UG](#einordnung-bei-gmbh-und-ug).
 
 Hast du per API umgezogen, fehlen diese Buchungen. Lass dann zusätzlich das Skript laufen und lade die Sicherung hoch: Haben überspringt die Belege, die schon da sind, und übernimmt nur die Buchungen ohne Beleg.
 
@@ -298,6 +298,23 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 | Kontoauszüge archiviert | mindestens ein Kontoauszug mit diesem Jahr vorliegt |
 
 Daneben stehen Einnahmen netto, Umsatzsteuer, Ausgaben netto und Vorsteuer, jeweils nach Belegdatum, und die letzte Rechnungsnummer des Jahres. Vergleiche die Summen mit den Auswertungen in Lexware Office.
+
+Was weder Einnahme noch Ausgabe ist, fehlt in diesen Summen und in der Umsatzsteuer je Monat, steht aber in einer eigenen Tabelle **Weder Einnahme noch Ausgabe**: je Art die Zahl der Belege und Buchungen, Zufluss und Abfluss brutto; Gutschriften mindern sie. Im Einzelunternehmen ist das „Privat und Geldtransit“ (siehe [Buchungen ohne Beleg](#buchungen-ohne-beleg)), bei GmbH und UG gilt die folgende Einordnung. Weicht eine Summe von Lexware Office ab, steckt der Unterschied oft hier.
+
+### Einordnung bei GmbH und UG
+
+Eine GmbH oder UG hat keine Privatsphäre: Was im Einzelunternehmen Privatentnahme oder -einlage hieße, läuft über das Gesellschafter-Verrechnungskonto. Stammkapital, Gesellschafterdarlehen und deren Tilgung sind Kapital- und Finanzierungsvorgänge. Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer samt Zinsen und Säumniszuschlägen darauf mindern das Einkommen nicht (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG). Haben ordnet deshalb bei GmbH und UG nach dem Namen der Kategorie in Lexware Office ein:
+
+| Art | Kategorien mit … im Namen |
+| --- | --- |
+| Gesellschafter (Verrechnungskonto, Einlagen, Entnahmen, Ausschüttungen) | „Gesellschafter“, „Verrechnungskonto“, „privat“, „Einlage“, „Entnahme“, „Ausschüttung“, „Kapitalertragsteuer“, „Einkommensteuer“, „Kirchensteuer“ |
+| Stammkapital und Darlehen | „Stammkapital“, „Gezeichnetes Kapital“, „Kapitalerhöhung“, „Kapitalrücklage“, „Kapitaleinlage“, „Darlehen“, „Tilgung“ |
+| Körperschaft- und Gewerbesteuer | „Körperschaftsteuer“, „Gewerbesteuer“, „Solidaritätszuschlag“ |
+| Geldtransit | „Geldtransit“ |
+
+Nennt eine Kategorie außer Gesellschafter oder Darlehen auch Zinsen, Gehalt, Lohn, Geschäftsführer, Vergütung, Miete, Pacht, Gebühr, Provision oder Beratung, bleibt sie Einnahme bzw. Ausgabe: Zinsen für ein Gesellschafterdarlehen und das Gehalt des Gesellschafter-Geschäftsführers sind Aufwand. Lohnsteuer bleibt Ausgabe, auch mit Solidaritätszuschlag oder Kirchensteuer im Namen. Ein Beleg mit Umsatzsteuer ist Leistungsaustausch und bleibt immer Einnahme bzw. Ausgabe, etwa die private Kfz-Nutzung oder eine Rechnung an den Gesellschafter; Verrechnung, Kapital und Steuern vom Einkommen tragen keine Umsatzsteuer. Neutral ist ein Beleg nur, wenn jede seiner Kategorien es ist. Das gilt für Belege und Buchungen ohne Beleg; ein Steuerbescheid als Beleg braucht trotzdem seine Datei.
+
+Eingeordnet wird beim Anzeigen aus den archivierten Kategorien, die abgerufenen Daten bleiben unverändert. Ändert sich die Rechtsform in den Firmendaten, ändert sich die Einordnung mit. Im Einzelunternehmen bleibt es bei der Erkennung beim Abruf. Die KI-Werkzeuge `lexoffice_abgleich` und `lexoffice_belege` ordnen genauso ein.
 
 Gibt es für ein Jahr keine Belege per API (etwa im Tarif ohne Public API), rechnet Haben die Summen aus dem DATEV-Buchungsstapel: Erlöse und Aufwand nach den Kontenklassen des Kontenrahmens (SKR03: 8 sowie 3 und 4; SKR04: 4 sowie 5 und 6), die Steuer aus Automatikkonten und den BU-Schlüsseln 2, 3, 8 und 9 oder aus Buchungen auf den Umsatz- und Vorsteuerkonten. Personenkonten (Debitoren und Kreditoren, länger als die Sachkontenlänge aus der Kopfzeile) zählen nicht mit; fünfstellige Sachkonten wie 84000 liest Haben wie 8400. Das ist eine Näherung; Sonderfälle wie § 13b stehen nur über die Steuerkonten drin.
 
