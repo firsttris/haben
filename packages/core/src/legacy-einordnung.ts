@@ -25,6 +25,9 @@ export const LEGACY_NEUTRAL_LABELS: Record<LegacyNeutralKind, string> = {
 /** Steuern vom Einkommen und Ertrag, auch ihre Nebenleistungen (§ 10 Nr. 2 Halbsatz 2 KStG) */
 const ERTRAGSTEUERN = /körperschaftsteuer|koerperschaftsteuer|gewerbesteuer|solidarit/i;
 
+/** Lohnsteuer samt Solidaritätszuschlag und Kirchensteuer darauf: Lohnaufwand, keine Steuer vom Einkommen der GmbH */
+const PAYROLL = /lohn/i;
+
 /** Kosten und Erträge, auch wenn der Name einen Gesellschafter oder ein Darlehen nennt */
 const BUSINESS = /zins|gehalt|lohn|geschäftsführer|geschaeftsfuehrer|vergütung|verguetung|miete|pacht|gebühr|gebuehr|provision|beratung/i;
 
@@ -39,6 +42,7 @@ const KAPG_KINDS: [RegExp, LegacyNeutralKind][] = [
 
 function kapgKind(category: string): LegacyNeutralKind | null {
   if (/geldtransit/i.test(category)) return "geldtransit";
+  if (PAYROLL.test(category)) return null;
   if (ERTRAGSTEUERN.test(category)) return "ertragsteuern";
   if (BUSINESS.test(category)) return null;
   return KAPG_KINDS.find(([pattern]) => pattern.test(category))?.[1] ?? null;
@@ -49,14 +53,19 @@ export interface LegacyNeutralInput {
   privat: boolean;
   /** Namen der Kategorien in Lexoffice */
   categories: readonly string[];
+  /** Umsatzsteuer des Belegs */
+  tax: Cents;
 }
 
 /**
  * Was der Beleg ist, wenn er weder Einnahme noch Ausgabe ist; null = Einnahme bzw. Ausgabe. Bei GmbH und UG gilt ein
- * Beleg nur dann als neutral, wenn jede seiner Kategorien es ist; die Art kommt aus der ersten.
+ * Beleg nur dann als neutral, wenn jede seiner Kategorien es ist; die Art kommt aus der ersten. Ein Beleg mit Umsatzsteuer
+ * ist Leistungsaustausch (etwa private Kfz-Nutzung, § 3 Abs. 9a UStG) und bleibt Einnahme bzw. Ausgabe, auch mit
+ * „privat“ oder „Gesellschafter“ im Namen; Verrechnung, Kapital und Steuern vom Einkommen tragen keine Umsatzsteuer.
  */
 export function legacyNeutralKind(voucher: LegacyNeutralInput, rechtsform: Rechtsform): LegacyNeutralKind | null {
   if (!isKapitalgesellschaft(rechtsform)) return voucher.privat ? "privat" : null;
+  if (voucher.tax !== 0) return null;
   const kinds = voucher.categories.map(kapgKind);
   if (kinds.length === 0 || kinds.some((k) => k === null)) return null;
   return kinds[0]!;
@@ -66,9 +75,9 @@ export interface LegacyNeutralSum {
   kind: LegacyNeutralKind;
   label: string;
   count: number;
-  /** Geld herein (Einnahme-Seite), brutto */
+  /** Geld herein (Einnahme-Seite), brutto; Gutschriften mindern */
   zufluss: Cents;
-  /** Geld hinaus (Ausgabe-Seite), brutto */
+  /** Geld hinaus (Ausgabe-Seite), brutto; Gutschriften mindern */
   abfluss: Cents;
 }
 
@@ -77,7 +86,7 @@ export function legacyNeutralSums(vouchers: readonly { kind: LegacyNeutralKind; 
   return (Object.keys(LEGACY_NEUTRAL_LABELS) as LegacyNeutralKind[])
     .map((kind) => {
       const rows = vouchers.filter((v) => v.kind === kind);
-      const sum = (direction: "einnahme" | "ausgabe") => rows.filter((r) => r.direction === direction).reduce((s, r) => s + Math.abs(r.gross), 0);
+      const sum = (direction: "einnahme" | "ausgabe") => rows.filter((r) => r.direction === direction).reduce((s, r) => s + r.gross, 0);
       return { kind, label: LEGACY_NEUTRAL_LABELS[kind], count: rows.length, zufluss: sum("einnahme"), abfluss: sum("ausgabe") };
     })
     .filter((s) => s.count > 0);

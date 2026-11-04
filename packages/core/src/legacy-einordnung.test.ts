@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { legacyNeutralKind, legacyNeutralSums } from "./legacy-einordnung.ts";
 
-const kind = (categories: string[], rechtsform: "einzelunternehmen" | "gmbh" | "ug", privat = false) => legacyNeutralKind({ privat, categories }, rechtsform);
+const kind = (categories: string[], rechtsform: "einzelunternehmen" | "gmbh" | "ug", privat = false) =>
+  legacyNeutralKind({ privat, categories, tax: 0 }, rechtsform);
 
 describe("legacyNeutralKind", () => {
   it("Einzelunternehmen: unverändert das Kennzeichen aus dem Abruf", () => {
@@ -47,7 +48,7 @@ describe("legacyNeutralKind", () => {
 });
 
 describe("legacyNeutralSums", () => {
-  it("Summen je Art, Zufluss und Abfluss brutto ohne Vorzeichen", () => {
+  it("Summen je Art, Zufluss und Abfluss brutto; eine Gutschrift mindert", () => {
     expect(
       legacyNeutralSums([
         { kind: "ertragsteuern", direction: "ausgabe", gross: 120_000 },
@@ -56,7 +57,7 @@ describe("legacyNeutralSums", () => {
       ]),
     ).toEqual([
       { kind: "kapital", label: "Stammkapital und Darlehen", count: 1, zufluss: 2_500_000, abfluss: 0 },
-      { kind: "ertragsteuern", label: "Körperschaft- und Gewerbesteuer", count: 2, zufluss: 5_000, abfluss: 120_000 },
+      { kind: "ertragsteuern", label: "Körperschaft- und Gewerbesteuer", count: 2, zufluss: -5_000, abfluss: 120_000 },
     ]);
   });
 });

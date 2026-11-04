@@ -496,8 +496,8 @@ const TAX_SUB_TYPE = sql<string | null>`lexoffice_vouchers.raw->'taxConditions'-
 const WITHOUT_RECEIPT = sql<boolean>`coalesce((lexoffice_vouchers.raw->>'ohneBeleg')::boolean, false)`;
 
 /** Weder Einnahme noch Ausgabe? Zur Laufzeit aus Kategorien und Rechtsform (legacyNeutralKind); die Rohdaten sind gesperrt */
-function neutralKindOf(v: { privat: boolean; categories: LegacyCategoryRow[] }, rechtsform: Rechtsform): LegacyNeutralKind | null {
-  return legacyNeutralKind({ privat: v.privat, categories: v.categories.map((c) => c.name) }, rechtsform);
+function neutralKindOf(v: { privat: boolean; categories: LegacyCategoryRow[]; tax: number }, rechtsform: Rechtsform): LegacyNeutralKind | null {
+  return legacyNeutralKind({ privat: v.privat, categories: v.categories.map((c) => c.name), tax: Number(v.tax) }, rechtsform);
 }
 
 export type ReconciliationCheck = { ok: boolean; label: string; detail: string };

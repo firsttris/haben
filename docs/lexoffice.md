@@ -299,7 +299,7 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 
 Daneben stehen Einnahmen netto, Umsatzsteuer, Ausgaben netto und Vorsteuer, jeweils nach Belegdatum, und die letzte Rechnungsnummer des Jahres. Vergleiche die Summen mit den Auswertungen in Lexware Office.
 
-Was weder Einnahme noch Ausgabe ist, fehlt in diesen Summen und in der Umsatzsteuer je Monat, steht aber in einer eigenen Tabelle **Weder Einnahme noch Ausgabe**: je Art die Zahl der Belege und Buchungen, Zufluss und Abfluss brutto. Im Einzelunternehmen ist das „Privat und Geldtransit“ (siehe [Buchungen ohne Beleg](#buchungen-ohne-beleg)), bei GmbH und UG gilt die folgende Einordnung. Weicht eine Summe von Lexware Office ab, steckt der Unterschied oft hier.
+Was weder Einnahme noch Ausgabe ist, fehlt in diesen Summen und in der Umsatzsteuer je Monat, steht aber in einer eigenen Tabelle **Weder Einnahme noch Ausgabe**: je Art die Zahl der Belege und Buchungen, Zufluss und Abfluss brutto; Gutschriften mindern sie. Im Einzelunternehmen ist das „Privat und Geldtransit“ (siehe [Buchungen ohne Beleg](#buchungen-ohne-beleg)), bei GmbH und UG gilt die folgende Einordnung. Weicht eine Summe von Lexware Office ab, steckt der Unterschied oft hier.
 
 ### Einordnung bei GmbH und UG
 
@@ -312,7 +312,7 @@ Eine GmbH oder UG hat keine Privatsphäre: Was im Einzelunternehmen Privatentnah
 | Körperschaft- und Gewerbesteuer | „Körperschaftsteuer“, „Gewerbesteuer“, „Solidaritätszuschlag“ |
 | Geldtransit | „Geldtransit“ |
 
-Nennt eine Kategorie außer Gesellschafter oder Darlehen auch Zinsen, Gehalt, Lohn, Geschäftsführer, Vergütung, Miete, Pacht, Gebühr, Provision oder Beratung, bleibt sie Einnahme bzw. Ausgabe: Zinsen für ein Gesellschafterdarlehen und das Gehalt des Gesellschafter-Geschäftsführers sind Aufwand. Neutral ist ein Beleg nur, wenn jede seiner Kategorien es ist. Das gilt für Belege und Buchungen ohne Beleg; ein Steuerbescheid als Beleg braucht trotzdem seine Datei.
+Nennt eine Kategorie außer Gesellschafter oder Darlehen auch Zinsen, Gehalt, Lohn, Geschäftsführer, Vergütung, Miete, Pacht, Gebühr, Provision oder Beratung, bleibt sie Einnahme bzw. Ausgabe: Zinsen für ein Gesellschafterdarlehen und das Gehalt des Gesellschafter-Geschäftsführers sind Aufwand. Lohnsteuer bleibt Ausgabe, auch mit Solidaritätszuschlag oder Kirchensteuer im Namen. Ein Beleg mit Umsatzsteuer ist Leistungsaustausch und bleibt immer Einnahme bzw. Ausgabe, etwa die private Kfz-Nutzung oder eine Rechnung an den Gesellschafter; Verrechnung, Kapital und Steuern vom Einkommen tragen keine Umsatzsteuer. Neutral ist ein Beleg nur, wenn jede seiner Kategorien es ist. Das gilt für Belege und Buchungen ohne Beleg; ein Steuerbescheid als Beleg braucht trotzdem seine Datei.
 
 Eingeordnet wird beim Anzeigen aus den archivierten Kategorien, die abgerufenen Daten bleiben unverändert. Ändert sich die Rechtsform in den Firmendaten, ändert sich die Einordnung mit. Im Einzelunternehmen bleibt es bei der Erkennung beim Abruf. Die KI-Werkzeuge `lexoffice_abgleich` und `lexoffice_belege` ordnen genauso ein.
 
