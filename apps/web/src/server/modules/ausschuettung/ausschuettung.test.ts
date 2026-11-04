@@ -167,6 +167,16 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
     expect(saldo[0]!.s).toBe(0);
   }, 30_000);
 
+  it("Gleichzeitiges Storno bucht nur eine Gegenbuchung", async () => {
+    await setup("SKR03", "ist", { bank: "1200", kapital: "0800", vortrag: "0860" });
+    await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [{ ...erika, anteil: 10_000 }] });
+    const id = await a.createAusschuettung(actor, { beschluss: "2026-03-01", brutto: 1_000_000 }, today);
+    const results = await Promise.allSettled([a.reverseAusschuettung(actor, id), a.reverseAusschuettung(actor, id)]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const stornos = await sql`select count(*)::int as n from journal_entries where source_type = 'ausschuettung' and reverses_id is not null`;
+    expect(stornos[0]!.n).toBe(1);
+  }, 30_000);
+
   it("Einzelunternehmen haben keine Ausschüttungen", async () => {
     await setup("SKR04", "ist", { bank: "1800", kapital: "2900", vortrag: "2970" });
     await sql.begin(async (tx) => {
