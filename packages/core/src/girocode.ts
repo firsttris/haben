@@ -1,4 +1,5 @@
 import type { Cents } from "./money.ts";
+import { isValidIban } from "./sepa-text.ts";
 
 /**
  * Inhalt eines GiroCodes (EPC-QR-Code, EPC069-12 Version 002): Banking-Apps lesen daraus Empfänger,
@@ -15,23 +16,14 @@ export interface GirocodeInput {
 
 const compact = (value: string) => value.replace(/\s+/g, "").toUpperCase();
 
-/** Prüfziffer der IBAN (ISO 13616, MOD 97): ein Tippfehler soll nicht auf jeder Rechnung landen */
-function ibanChecksumOk(iban: string): boolean {
-  let rest = 0;
-  for (const char of iban.slice(4) + iban.slice(0, 4)) {
-    const value = /\d/.test(char) ? char : String(char.charCodeAt(0) - 55);
-    for (const digit of value) rest = (rest * 10 + Number(digit)) % 97;
-  }
-  return rest === 1;
-}
-
 /** Text für den QR-Code oder null, wenn eine Angabe nicht passt (dann entfällt der Code) */
 export function girocodePayload(input: GirocodeInput): string | null {
   const iban = compact(input.iban);
   const bic = compact(input.bic ?? "");
   const name = input.name.trim().replace(/\s+/g, " ");
   const text = input.text.trim().replace(/\s+/g, " ");
-  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban) || !ibanChecksumOk(iban)) return null;
+  // Ein Tippfehler in der IBAN soll nicht auf jeder Rechnung landen
+  if (!isValidIban(iban)) return null;
   if (bic && !/^[A-Z0-9]{8}([A-Z0-9]{3})?$/.test(bic)) return null;
   if (!name || name.length > 70 || text.length > 140) return null;
   if (!Number.isInteger(input.amount) || input.amount < 1 || input.amount > 99_999_999_999) return null;

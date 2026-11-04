@@ -209,6 +209,7 @@ export function parseCamt053(xml: string): ParsedStatement {
           type: transactionType(d) ?? transactionType(entry) ?? optional(additional) ?? familyCode(entry),
           // In Sammelbuchungen teilen sich alle Posten die Referenz des Eintrags
           bankReference: optionalReference(text(d, "Refs", "AcctSvcrRef")) ?? (inBatch ? (endToEnd ?? entryRef) : (entryRef ?? endToEnd)),
+          endToEndId: endToEnd,
           mandateReference: optional(normalizeText(text(d, "Refs", "MndtId"))),
           // bis .001.02 direkt unter Cdtr, ab .001.08 unter Cdtr/Pty
           creditorId: optional(

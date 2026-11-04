@@ -132,14 +132,27 @@ Jeder Posten bekommt Punkte:
 | --- | ---: |
 | Betrag stimmt exakt | 50 |
 | Rechnungsnummer im Verwendungszweck | 40 |
-| IBAN bekannt vom Kontakt | 30 |
+| Überweisung aus Haben (Referenz), nur bei Belegen | 60 |
+| IBAN bekannt vom Kontakt bzw. bei Belegen IBAN des Lieferanten | 30 |
 | Name passt | 15 |
 | Datum passt (± 5 Tage), nur bei Belegen, gemessen an Beleg- oder Fälligkeitsdatum | 10 |
 | Teilbetrag des offenen Betrags | 5 |
 
 Die Rechnungsnummer wird ohne Leer- und Trennzeichen gesucht, `2026-034` findet also auch `2026034`. Beim Namen zählen gemeinsame Wörter ab drei Buchstaben; Rechtsformen wie GmbH, UG oder AG werden ignoriert.
 
+Die IBAN des Lieferanten eines Belegs kennt Haben aus dem Kontakt, aus der E-Rechnung (BT-84) und aus einer [SEPA-Überweisung](belege.md#überweisen-sepa-datei) für diesen Beleg.
+
 Vorgeschlagen wird ein Posten erst ab 40 Punkten. Ein exakter Betrag reicht allein, ein passender Name allein nicht. Rechts erscheint der beste Treffer als **Bester Treffer** mit allen Gründen; bei Gleichstand gewinnt der ältere Posten.
+
+### Überweisungen aus Haben
+
+Jede Überweisung einer [SEPA-Datei aus Haben](belege.md#überweisen-sepa-datei) trägt eine eigene Referenz (EndToEndId, `HABEN-` und 16 Hex-Ziffern). Taucht sie in der Abbuchung wieder auf, schlägt Haben den Beleg mit „Überweisung aus Haben (HABEN-…)“ vor, auch wenn der Betrag nach Skonto nicht mehr stimmt oder die Bank den Verwendungszweck kürzt. Gesucht wird die Referenz:
+
+- in der EndToEndId des Umsatzes (CAMT.053: `Refs/EndToEndId`; Haben speichert sie ab dieser Version in `bank_transactions.end_to_end_id`, auch wenn die Bank eine eigene Referenz mitliefert),
+- in der Referenz der Bank (DKB: Spalte „Kundenreferenz“),
+- im Verwendungszweck, unabhängig von Leer- und Trennzeichen (manche Exporte schreiben `EREF: HABEN-…` dort hinein).
+
+Zugeordnet wird wie immer erst mit **Zuordnen**. Wurde mit Skonto überwiesen, bleibt danach der Skontobetrag offen; ihn buchst du mit **Rest … als erhaltenes Skonto** aus.
 
 ## Zuordnen
 

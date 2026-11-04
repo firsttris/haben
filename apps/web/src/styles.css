@@ -308,6 +308,9 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .recurring-cols { grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) 120px 110px 120px; }
 .recurring-history-cols { grid-template-columns: 110px minmax(0, 1fr) 120px; }
 .asset-cols { grid-template-columns: minmax(0, 2fr) 110px repeat(5, minmax(0, 1fr)); }
+.transfer-cols { grid-template-columns: 28px 96px minmax(0, 1.3fr) minmax(0, 1fr) 130px; padding-top: 8px; padding-bottom: 8px; }
+.row-check { width: 18px; height: 18px; accent-color: var(--accent); }
+.sepa-file-cols { grid-template-columns: 150px 110px minmax(0, 1fr) 130px auto; padding-top: 8px; padding-bottom: 8px; }
 .num { text-align: right; font-family: var(--mono); font-size: 13px; }
 @media (max-width: 760px) {
   /* Kunde links, Betrag rechts, Status darunter rechts */
@@ -328,6 +331,20 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
   .cash-cols > :nth-child(4) { grid-column: 2; grid-row: 1; }
   .cash-cols > :nth-child(6) { grid-column: 2; grid-row: 2; }
   .table-row.head.cash-cols { display: none; }
+  /* Auswahl links, Lieferant und Konto untereinander, Betrag rechts */
+  .transfer-cols { grid-template-columns: 28px minmax(0, 1fr) auto; row-gap: 4px; }
+  .transfer-cols > :nth-child(2) { display: none; }
+  .transfer-cols > :nth-child(1) { grid-row: 1 / span 2; align-self: start; padding-top: 2px; }
+  .transfer-cols > :nth-child(3) { grid-column: 2; grid-row: 1; }
+  .transfer-cols > :nth-child(4) { grid-column: 2 / -1; grid-row: 2; }
+  .transfer-cols > :nth-child(5) { grid-column: 3; grid-row: 1; align-self: start; }
+  .table-row.head.transfer-cols { display: none; }
+  .sepa-file-cols { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+  .sepa-file-cols > :nth-child(1), .sepa-file-cols > :nth-child(2) { display: none; }
+  .sepa-file-cols > :nth-child(3) { grid-column: 1; grid-row: 1; }
+  .sepa-file-cols > :nth-child(4) { grid-column: 2; grid-row: 1; }
+  .sepa-file-cols > :nth-child(5) { grid-column: 1 / -1; grid-row: 2; justify-self: start !important; }
+  .table-row.head.sepa-file-cols { display: none; }
   .article-cols { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
   .article-cols > :nth-child(3) { display: none; }
   .article-cols > :nth-child(4) { grid-column: 1 / -1; justify-content: flex-start !important; }

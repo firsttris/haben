@@ -1313,10 +1313,54 @@ export const bankTransactions = pgTable(
     purpose: text("purpose").notNull().default(""),
     type: text("type"),
     bankReference: text("bank_reference"),
+    /** Kennung der Überweisung (EndToEndId), soweit die Datei sie nennt; ordnet Überweisungen aus Haben ihrem Beleg zu */
+    endToEndId: text("end_to_end_id"),
     dedupHash: text("dedup_hash").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("bank_transactions_dedup").on(t.bankAccountId, t.dedupHash), index("bank_transactions_account_date").on(t.bankAccountId, t.bookingDate)],
+);
+
+/**
+ * Erzeugte SEPA-Überweisungsdateien (pain.001) für offene Belege, nur anhängen. Gebucht wird dabei nichts: Bezahlt ist
+ * ein Beleg erst, wenn der Bankabgleich die Abbuchung zuordnet.
+ */
+export const sepaTransfers = pgTable("sepa_transfers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  bankAccountId: uuid("bank_account_id")
+    .notNull()
+    .references(() => bankAccounts.id),
+  /** MsgId der Datei, zugleich Dateiname */
+  messageId: text("message_id").notNull().unique(),
+  executionDate: date("execution_date", { mode: "string" }).notNull(),
+  numberOfTransactions: integer("number_of_transactions").notNull(),
+  controlSum: bigint("control_sum", { mode: "number" }).notNull(),
+  /** Die Datei, wie sie heruntergeladen wurde */
+  xml: text("xml").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Eine Überweisung der Datei je Beleg; die EndToEndId findet der Bankabgleich im Kontoauszug wieder */
+export const sepaTransferItems = pgTable(
+  "sepa_transfer_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    transferId: uuid("transfer_id")
+      .notNull()
+      .references(() => sepaTransfers.id),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id),
+    endToEndId: text("end_to_end_id").notNull().unique(),
+    /** Überwiesener Betrag in Cent, nach Skonto */
+    amount: integer("amount").notNull(),
+    /** Abgezogenes Skonto in Cent; 0 ohne */
+    skonto: integer("skonto").notNull().default(0),
+    creditorName: text("creditor_name").notNull(),
+    creditorIban: text("creditor_iban").notNull(),
+    remittance: text("remittance").notNull(),
+  },
+  (t) => [index("sepa_transfer_items_document").on(t.documentId), check("sepa_transfer_items_amount", sql`${t.amount} > 0 and ${t.skonto} >= 0`)],
 );
 
 export const allocationKindEnum = pgEnum("allocation_kind", [

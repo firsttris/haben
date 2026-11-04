@@ -124,12 +124,21 @@ bun packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DI
 
 | Bereich | Was getestet wird |
 | --- | --- |
-| `packages/core` | Beträge und Rundung, Rechnungssummen netto und brutto und Nummernformat, Zeiträume und Fälligkeit der Voranmeldung, Feiertage je Bundesland, Steuerfälle von Rechnungen, Steuernummer-Umrechnung, Kennzahlen der UStVA, Buchungssätze für SKR03/SKR04 und Ist/Soll, Zuordnungsvorschläge im Bankabgleich, EÜR, Umsatzsteuer des Lexoffice-Altbestands |
+| `packages/core` | Beträge und Rundung, Rechnungssummen netto und brutto und Nummernformat, Zeiträume und Fälligkeit der Voranmeldung, Feiertage je Bundesland, Steuerfälle von Rechnungen, Steuernummer-Umrechnung, Kennzahlen der UStVA, Buchungssätze für SKR03/SKR04 und Ist/Soll, Zuordnungsvorschläge im Bankabgleich, EÜR, Umsatzsteuer des Lexoffice-Altbestands, SEPA-Überweisung (pain.001) gegen die Schemas von ISO 20022 und der Deutschen Kreditwirtschaft (siehe unten), Skonto nach XRechnung |
 | `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 09/10), XML der Umsatzsteuererklärung, der Anlage EÜR mit AVEÜR, der Einkommensteuer und der Sonstigen Nachricht, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz), Mock-ERiC über koffi, ERiC-Download (Entpacken nur Linux, defektes Archiv, Umschalten erst bei vollständiger Version, Pfade im Archiv); mit echtem ERiC alle Nachrichten in vielen Varianten (siehe oben) |
 | `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno, Leitweg-ID und Bruttopreisen, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
 | `packages/import` | DKB- (neu und alt), N26- und CAMT.053-Parser, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel, Lexoffice-API-Client (Paging, 429, Fehler) und Abbildung der Lexoffice-Daten |
 | `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge, OpenAPI-Beschreibung der REST-API (Verweise, Rechte, Einheiten) |
 | `apps/web` mit DB | Rechnungen festschreiben und sperren, Belege hochladen und buchen, Bankimport und Zuordnung, Voranmeldung (Entwurf, Test, Echt, Berichtigung, Audit-Log) und Berechnung aus Buchungen, Auswertungen, Jahresexport, Lexoffice-Übernahme und offene Posten, REST-API (Token und Rechte, Fehlerformat, externe Referenz auch bei gleichzeitigen Anfragen, Entwurf gegen festgeschrieben) |
+
+### Schema der SEPA-Überweisung
+
+`packages/core/src/sepa.test.ts` prüft die pain.001-Datei mit `xmllint-wasm` gegen zwei Schemas:
+
+- ISO 20022 `pain.001.001.09.xsd` liegt in `packages/core/test-fixtures/sepa/`. ISO erlaubt, die Schemas frei weiterzugeben; die Datei stammt aus `raphaelm/python-sepaxml`, das sie unverändert von iso20022.org führt.
+- Das Technical Validation Subset der Deutschen Kreditwirtschaft `pain.001.001.09_GBIC_5.xsd` (Anlage 3 des DFÜ-Abkommens, Version 3.9) veröffentlicht die DK auf ebics.de ohne Lizenzangabe. Es liegt deshalb nicht im Repository: Der Test lädt es von einem festen Commit eines Projekts, das es unverändert führt, und prüft den SHA-256. Ohne Netz wird diese Prüfung lokal übersprungen, in der CI (`CI` gesetzt) schlägt sie fehl.
+
+Kommt eine neue Version der Anlage 3, gehören neues Schema, URL und Prüfsumme in den Test.
 
 ### KoSIT-Validator
 
