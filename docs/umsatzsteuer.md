@@ -49,7 +49,7 @@ Darüber steht, was eingestellt ist, und ein Vorschlag aus der Steuer des Vorjah
 
 Die Grenzen gelten ab 2025 (Viertes Bürokratieentlastungsgesetz). Für Jahre bis 2024 rechnet der Vorschlag mit den damaligen Grenzen 7.500 € und 1.000 €.
 
-Für Neugründungen gilt: Ab 2027 ist im Jahr der Gründung und im Folgejahr der Monat der Voranmeldungszeitraum (§ 18 Abs. 2 Satz 4 UStG), Haben schlägt dann monatlich vor. Für 2021 bis 2026 ist das ausgesetzt (§ 18 Abs. 2 Satz 6 UStG): War der Betrieb nur einen Teil des Vorjahres tätig, rechnet Haben die Steuer auf ein Jahr hoch (angefangene Monate voll); im Gründungsjahr zählt die voraussichtliche Steuer, die Haben nicht kennt, deshalb gibt es dann keinen Vorschlag. Als Beginn der Tätigkeit nimmt Haben die erste Buchung.
+Für Neugründungen gilt: Ab 2027 ist im Jahr der Gründung und im Folgejahr der Monat der Voranmeldungszeitraum (§ 18 Abs. 2 Satz 4 UStG), Haben schlägt dann monatlich vor. Für 2021 bis 2026 ist das ausgesetzt (§ 18 Abs. 2 Satz 6 UStG): War der Betrieb nur einen Teil des Vorjahres tätig, rechnet Haben die Steuer auf ein Jahr hoch (angefangene Monate voll); im Gründungsjahr zählt die voraussichtliche Steuer, die Haben nicht kennt, deshalb gibt es dann keinen Vorschlag. Als Beginn der Tätigkeit nimmt Haben die erste Buchung. Gibt es eine Eröffnungsbuchung, war der Betrieb schon vorher tätig: Dann gilt keine Neugründung, und Haben schlägt nach der Steuer des Vorjahres vor.
 
 Ein Jahr ohne eigene Einstellung übernimmt die des Vorjahres; ganz ohne Einstellung gilt monatlich, wie in Haben vor dieser Einstellung.
 

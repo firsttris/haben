@@ -11,7 +11,7 @@ import {
   type VatFrequencySetting,
   type VatPeriod,
 } from "@haben/core";
-import { and, eq, gte, min } from "drizzle-orm";
+import { and, eq, gte, min, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { computeVatFigures } from "./vat-figures.ts";
@@ -92,9 +92,17 @@ export interface FrequencyOverview {
 /** Einstellung und Vorschlag für ein Jahr, für die Seite der Voranmeldung */
 export async function frequencyOverview(year: number, settings?: VatFrequencySetting[]): Promise<FrequencyOverview> {
   const all = settings ?? (await loadFrequencies());
-  const [first] = await db.select({ date: min(schema.journalEntries.date) }).from(schema.journalEntries);
-  const firstActivity = first?.date?.slice(0, 7) ?? null;
-  const hasPreviousYear = firstActivity !== null && Number(firstActivity.slice(0, 4)) < year;
+  const e = schema.journalEntries;
+  const [first] = await db
+    .select({
+      date: min(e.date),
+      // Eine Eröffnungsbuchung übernimmt Bestände eines älteren Betriebs: dann gibt es kein Gründungsjahr in Haben
+      eroeffnung: sql<boolean>`bool_or(${e.sourceType} = 'eroeffnung')`,
+    })
+    .from(e);
+  const firstEntry = first?.date?.slice(0, 7) ?? null;
+  const hasPreviousYear = firstEntry !== null && Number(firstEntry.slice(0, 4)) < year;
+  const firstActivity = first?.eroeffnung ? null : firstEntry;
   const previousYearTax = hasPreviousYear ? await yearTax(year - 1) : null;
   return {
     year,
