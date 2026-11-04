@@ -1,7 +1,7 @@
 import { FREQUENCY_START_MONTHS, formatEuro, MONTHS, VAT_FREQUENCIES, VAT_FREQUENCY_LABEL, type VatFrequency } from "@haben/core";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useId, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useAction } from "../../lib/use-action.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 import { saveVatFrequency, type getVatPeriod } from "../../server/functions/vat.ts";
@@ -17,7 +17,6 @@ export function VatFrequencyCard({ frequency: overview }: { frequency: Frequency
   const router = useRouter();
   const save = useServerFn(saveVatFrequency);
   const { busy, notice, run, setNotice } = useAction();
-  const id = useId();
   const [frequency, setFrequency] = useState<VatFrequency>(overview.own.at(-1)?.frequency ?? overview.frequency);
   const [fromMonth, setFromMonth] = useState<StartMonth>(1);
   const { year } = overview;
@@ -39,8 +38,8 @@ export function VatFrequencyCard({ frequency: overview }: { frequency: Frequency
   }
 
   return (
-    <form className="card" onSubmit={onSubmit} aria-labelledby={`${id}-heading`}>
-      <h2 id={`${id}-heading`}>Voranmeldungszeitraum {year}</h2>
+    <form className="card" onSubmit={onSubmit} aria-labelledby="vat-frequency-heading">
+      <h2 id="vat-frequency-heading">Voranmeldungszeitraum {year}</h2>
       <p className="small" style={{ margin: 0 }}>
         Eingestellt: {source}
       </p>
