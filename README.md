@@ -218,8 +218,7 @@ Alles im Detail, mit Suche: **https://firsttris.github.io/haben/**. Jede Funktio
 
 ## 🔧 Entwicklung
 
-Voraussetzungen: Bun 1.4.4, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich; Node, npm und pnpm
-braucht Haben nicht.
+Voraussetzungen: Bun 1.4.4, Git und PostgreSQL 18. Bun ist Laufzeit und Paketmanager zugleich.
 
 ```sh
 bun install
