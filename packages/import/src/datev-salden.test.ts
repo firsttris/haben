@@ -110,3 +110,11 @@ describe("Eröffnungsbilanz im Stapel", () => {
     expect(hasOpeningBalances([b(11900, "S", "1200", "8400")])).toBe(false);
   });
 });
+
+describe("Eröffnungsbilanz im Stapel mit Sachkontenlänge 5", () => {
+  it("erkennt die fünfstelligen Saldenvortragskonten 90000 bis 90090", () => {
+    expect(hasOpeningBalances([{ ...b(500000, "S", "12000", "90000"), accountLength: 5 }])).toBe(true);
+    expect(hasOpeningBalances([{ ...b(500000, "H", "90080", "100001"), accountLength: 5 }])).toBe(true);
+    expect(hasOpeningBalances([{ ...b(11900, "S", "12000", "84000"), accountLength: 5 }])).toBe(false);
+  });
+});
