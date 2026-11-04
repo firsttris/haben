@@ -38,6 +38,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
@@ -451,7 +452,8 @@ export async function openItems(): Promise<OpenItem[]> {
       supplierName: schema.documents.supplierName,
     })
     .from(schema.documents)
-    .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank")));
+    // Storniert: nichts mehr zu zahlen; stornieren lässt Haben nur ohne Zahlung (#237)
+    .where(and(eq(schema.documents.status, "gebucht"), eq(schema.documents.payment, "bank"), documentNotCancelled()));
   const documentPaid = await paidByTarget(
     "document_id",
     documents.map((d) => d.id),
@@ -836,6 +838,15 @@ function reverseLines(lines: PostingLine[]): PostingLine[] {
 
 const DIRECT_KINDS = ["privat", "geldtransit", "ustVorauszahlung", "gebuehren", "mahnerloes", "kapest"] as const;
 
+/** Ein stornierter Beleg (#237) ist erledigt: keine Zahlung, kein Skonto, keine Kursdifferenz mehr */
+async function assertNotCancelled(tx: Tx, documentId: string): Promise<void> {
+  const [cancelled] = await tx
+    .select({ id: schema.documentCancellations.id })
+    .from(schema.documentCancellations)
+    .where(eq(schema.documentCancellations.documentId, documentId));
+  if (cancelled) throw new BankError("Der Beleg ist storniert.");
+}
+
 export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invoice"), transactionId: z.uuid(), invoiceId: z.uuid(), amount: z.number().int() }),
   z.object({ kind: z.literal("document"), transactionId: z.uuid(), documentId: z.uuid(), amount: z.number().int() }),
@@ -928,6 +939,7 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, part.documentId)).for("update");
     if (doc?.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
     if (doc.payment !== "bank") throw new BankError("Der Beleg ist als privat bezahlt gebucht.");
+    await assertNotCancelled(tx, doc.id);
     const open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
     if (Math.sign(open) !== Math.sign(part.amount) || Math.abs(part.amount) > Math.abs(open)) {
       throw new BankError(`Der Beleg ist nur noch über ${Math.abs(open) / 100} € offen.`);
@@ -1161,6 +1173,7 @@ async function bookWriteOff(
       const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
       if (doc?.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
       if (doc.currency === "EUR") throw new BankError("Eine Kursdifferenz gibt es nur bei Belegen in Fremdwährung.");
+      await assertNotCancelled(tx, doc.id);
       amount = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));
       lines = exchangeDifferencePosting({ kind: "document" }, amount, company.kontenrahmen);
       description = `Kursdifferenz · Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
@@ -1171,6 +1184,7 @@ async function bookWriteOff(
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, input.documentId)).for("update");
     if (doc?.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
     if (doc.payment !== "bank") throw new BankError("Der Beleg ist privat oder bar bezahlt; dort gibt es nichts auszubuchen.");
+    await assertNotCancelled(tx, doc.id);
     if (doc.reverseCharge) throw new BankError("Skonto auf Belege mit § 13b wird nicht unterstützt.");
     if (doc.privateShare > 0) throw new BankError("Skonto auf Belege mit Privatanteil wird nicht unterstützt.");
     if (doc.category === "anlage") throw new BankError("Skonto auf Anlagegüter mindert die Anschaffungskosten und wird nicht unterstützt.");

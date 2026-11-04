@@ -311,6 +311,9 @@ const documentSummaryShape = {
   externalId: z.string().nullable(),
   uploadedAt: timestamp,
   bookedAt: timestamp.nullable().describe("Zeitpunkt des Buchens"),
+  cancelledOn: isoDate
+    .nullable()
+    .describe("Storniert am: Haben hat die Buchung an diesem Tag per Gegenbuchung aufgehoben; der Beleg bleibt gebucht und unveränderlich"),
   url: z.url().describe("Seite des Belegs in Haben, dort wird geprüft und gebucht"),
 };
 
@@ -333,6 +336,8 @@ export const documentSchema = z
       .array(z.object({ taxRate: z.number().int().describe("Basispunkte"), net: z.number().int(), tax: z.number().int() }))
       .describe("Beträge je Steuersatz in Euro-Cent"),
     issues: z.array(z.string()).describe("Was vor dem Buchen noch fehlt; leer, wenn bereit oder gebucht"),
+    replacedById: z.uuid().nullable().describe("Bei einem stornierten Beleg: der neu erfasste Beleg mit derselben Datei"),
+    replacesId: z.uuid().nullable().describe("Bei einer Neuerfassung: der stornierte Beleg, den dieser ersetzt"),
     updatedAt: timestamp,
   })
   .register(responseSchemas, { id: "Document" });

@@ -88,7 +88,7 @@ function DocumentsPage() {
                 <div className="small">{doc.category ? EXPENSE_CATEGORIES[doc.category as ExpenseCategory].label : "–"}</div>
                 <div className="num">{doc.gross ? formatEuro(doc.gross) : "–"}</div>
                 <div>
-                  <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} />
+                  <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} cancelled={doc.cancelledOn !== null} />
                 </div>
               </Link>
             ))}

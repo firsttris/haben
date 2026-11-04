@@ -248,19 +248,20 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     });
   }
 
-  const amounts = await q
-    .select({
-      documentId: schema.documents.id,
-      date: schema.documents.documentDate,
-      supplier: schema.documents.supplierName,
-      number: schema.documents.invoiceNumber,
-      rate: schema.documentAmounts.taxRate,
-      base: schema.documentAmounts.net,
-      tax: schema.documentAmounts.tax,
-      privateShare: schema.documents.privateShare,
-      vorsteuerAbzug: schema.documents.vorsteuerAbzug,
-      reverseCharge: schema.documents.reverseCharge,
-    })
+  // Belege nach Belegdatum; ein Storno (#237) zählt mit umgekehrtem Vorzeichen im Monat des Stornos (§ 17 Abs. 1 UStG)
+  const documentColumns = {
+    documentId: schema.documents.id,
+    supplier: schema.documents.supplierName,
+    number: schema.documents.invoiceNumber,
+    rate: schema.documentAmounts.taxRate,
+    base: schema.documentAmounts.net,
+    tax: schema.documentAmounts.tax,
+    privateShare: schema.documents.privateShare,
+    vorsteuerAbzug: schema.documents.vorsteuerAbzug,
+    reverseCharge: schema.documents.reverseCharge,
+  };
+  const booked = await q
+    .select({ ...documentColumns, date: schema.documents.documentDate })
     .from(schema.documentAmounts)
     .innerJoin(schema.documents, eq(schema.documents.id, schema.documentAmounts.documentId))
     .where(
@@ -271,14 +272,24 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
         isNull(schema.documents.lexofficeVoucherId),
       ),
     );
-  // Mit Privatanteil zählt nur der betriebliche Teil; Kleinunternehmer ziehen keine Vorsteuer ab
+  const cancelled = await q
+    .select({ ...documentColumns, date: schema.documentCancellations.date })
+    .from(schema.documentAmounts)
+    .innerJoin(schema.documents, eq(schema.documents.id, schema.documentAmounts.documentId))
+    .innerJoin(schema.documentCancellations, eq(schema.documentCancellations.documentId, schema.documents.id))
+    .where(and(gte(schema.documentCancellations.date, start), lt(schema.documentCancellations.date, end)));
+  const amounts = [
+    ...booked.map((a) => ({ ...a, date: a.date!, sign: 1 })),
+    ...cancelled.map((a) => ({ ...a, number: `Storno ${a.number}`.trim(), sign: -1 })),
+  ];
+  // Mit Privatanteil zählt nur der betriebliche Teil (beim Storno derselbe wie beim Buchen); Kleinunternehmer ziehen keine Vorsteuer ab
+  const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
   const inputTax = amounts
     .filter((a) => a.vorsteuerAbzug && !a.reverseCharge)
-    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, ...a }) => ({
+    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, sign, ...a }) => ({
       ...a,
-      date: a.date!,
-      base: splitPrivateShare(a.base, privateShare).business,
-      tax: splitPrivateShare(a.tax, privateShare).business,
+      base: business(a.base, privateShare, sign),
+      tax: business(a.tax, privateShare, sign),
     }))
     .filter((a) => a.tax !== 0);
   // Erhaltenes Skonto mindert die Vorsteuer im Monat der Ausbuchung (§ 17 Abs. 1 Satz 2 UStG), anteilig je Steuersatz
@@ -322,11 +333,12 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
   const reverseCharge: ReverseChargeSource[] = amounts
     .filter((a) => a.reverseCharge)
-    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, ...a }) => ({
+    .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, sign, ...a }) => ({
       ...a,
-      date: a.date!,
+      base: sign * a.base,
+      tax: sign * a.tax,
       reverseCharge: rc!,
-      deductible: vorsteuerAbzug ? splitPrivateShare(a.tax, privateShare).business : 0,
+      deductible: vorsteuerAbzug ? business(a.tax, privateShare, sign) : 0,
     }));
   const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") => reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
 

@@ -54,4 +54,4 @@ export {
   writeOff,
   writeOffSchema,
 } from "./bank.ts";
-export { addDocumentCashEntry, cashBook, cashBookCsv, cashInputSchema, createCashEntry, lockCash, reverseCashEntry } from "./cash.ts";
+export { addDocumentCashEntry, cashBook, reverseDocumentCashEntry, cashBookCsv, cashInputSchema, createCashEntry, lockCash, reverseCashEntry } from "./cash.ts";

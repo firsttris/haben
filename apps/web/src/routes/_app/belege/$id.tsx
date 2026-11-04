@@ -20,6 +20,7 @@ import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-r
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import { z } from "zod/mini";
+import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { SupplierPicker, type SupplierOption } from "../../../components/SupplierPicker.tsx";
@@ -173,7 +174,7 @@ function DocumentPage() {
           <h1>{doc.supplierName || "Neuer Beleg"}</h1>
         </div>
         <div className="actions">
-          <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} />
+          <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} cancelled={data.cancellation !== null} />
           {navigation.position > 0 && (
             <div className="doc-nav" role="group" aria-label="Zwischen Belegen wechseln">
               <button type="button" className="btn" onClick={() => go(navigation.previousId)} disabled={!navigation.previousId} title="Vorheriger Beleg (K)">
@@ -213,8 +214,12 @@ function DocumentPage() {
       )}
       <div className="editor-grid doc-editor">
         <Preview doc={doc} />
-        {/* key: nach dem Auslesen oder Speichern mit den neuen Werten aufsetzen */}
-        <DocumentForm key={`${doc.id}-${String(doc.updatedAt)}`} data={data} onDirtyChange={setDirty} />
+        <div className="stack">
+          {/* key: nach dem Auslesen oder Speichern mit den neuen Werten aufsetzen */}
+          <DocumentForm key={`${doc.id}-${String(doc.updatedAt)}`} data={data} onDirtyChange={setDirty} />
+          {/* Außerhalb des Formulars: Enter im Feld „Grund“ speichert nicht */}
+          <DocumentCancellation key={`storno-${doc.id}`} data={data} />
+        </div>
       </div>
     </>
   );
@@ -507,7 +512,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           Vorbefüllt aus {SOURCE_LABEL[doc.extractedBy]}. Bitte prüfen und bestätigen.
         </p>
       )}
-      {locked && (
+      {locked && !data.cancellation && (
         <div className="banner banner-ok" role="status">
           <Icon name="check" />
           <span>Gebucht {doc.lockedAt ? formatDateTime(doc.lockedAt) : ""}. Der Beleg ist festgeschrieben.</span>

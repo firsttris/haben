@@ -1,5 +1,5 @@
 /*
- * Belege: Hochladen, Auslesen (Extraktion), Buchen und Eingang per E-Mail (IMAP); externe Referenz für Belege aus der
+ * Belege: Hochladen, Auslesen (Extraktion), Buchen, Stornieren und Eingang per E-Mail (IMAP); externe Referenz für Belege aus der
  * REST-API.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
@@ -22,6 +22,14 @@ export {
   updateDocument,
   uploadDocument,
 } from "./documents.ts";
+export {
+  cancelDocument,
+  cancellationInputSchema,
+  cancellationIssues,
+  documentCancellation,
+  reenterDocument,
+  type DocumentCancellation,
+} from "./cancellation.ts";
 export { extractionAvailable } from "./extraction.ts";
 export { documentReferenceSchema, type DocumentReference } from "./external-reference.ts";
 export { documentNavigation, type DocumentNavigation } from "./navigation.ts";

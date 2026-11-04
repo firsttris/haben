@@ -124,7 +124,7 @@ Der Hinweis „Vorschlag“ in der Liste rechnet wie die Detailansicht, also auc
 
 ## Vorschläge
 
-Für den noch offenen Teil eines Umsatzes sucht Haben unter den offenen Posten: festgeschriebene Rechnungen und Rechnungskorrekturen, die nicht storniert und nicht voll bezahlt sind, und gebuchte Belege mit Bezahlung über das Geschäftskonto. Infrage kommen nur Posten in derselben Richtung: Eingänge für Rechnungen, Ausgänge für Belege und Rechnungskorrekturen.
+Für den noch offenen Teil eines Umsatzes sucht Haben unter den offenen Posten: festgeschriebene Rechnungen und Rechnungskorrekturen, die nicht storniert und nicht voll bezahlt sind, und gebuchte, nicht stornierte Belege mit Bezahlung über das Geschäftskonto. Infrage kommen nur Posten in derselben Richtung: Eingänge für Rechnungen, Ausgänge für Belege und Rechnungskorrekturen.
 
 Jeder Posten bekommt Punkte:
 

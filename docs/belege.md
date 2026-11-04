@@ -257,11 +257,38 @@ Belastet die Bank einen anderen Euro-Betrag als den umgerechneten, gleichst du d
 
 ## Vorsteuer in der Voranmeldung
 
-Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Siehe [umsatzsteuer.md](umsatzsteuer.md).
+Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung für den Monat seines **Belegdatums**, unabhängig davon, wann er bezahlt wird, und auch bei Ist-Versteuerung. Ungebuchte Belege zählen nicht; die Voranmeldung weist vor dem Senden darauf hin. Belege, die ohne Vorsteuerabzug gebucht wurden, zählen nicht. Ein Storno zählt mit umgekehrtem Vorzeichen im Monat des Stornos. Siehe [umsatzsteuer.md](umsatzsteuer.md).
+
+## Stornieren und neu erfassen
+
+Ein gebuchter Beleg lässt sich nicht mehr ändern oder löschen (GoBD). Hast du dich vertippt, etwa den Bruttobetrag ins Feld **Netto** geschrieben, hebst du ihn mit **Beleg stornieren** auf und erfasst ihn richtig neu, wie bei einer Stornorechnung.
+
+1. Den gebuchten Beleg öffnen und **Beleg stornieren** klicken. Darüber erscheint ein Hinweis und das Feld **Grund** (optional, z. B. „Brutto als Netto erfasst“).
+2. **Jetzt stornieren** klicken. Der Beleg zeigt danach „Storniert am …“ mit einem Link auf die Gegenbuchung im Journal, in der Liste steht er als **Storniert**.
+3. **Neu erfassen** legt einen neuen Entwurf mit derselben Datei und den Feldern des stornierten Belegs an. Du korrigierst ihn und buchst ihn wie jeden anderen. Gibt es den Entwurf schon, führt **Zur Neuerfassung** dorthin.
+
+Was dabei passiert:
+
+- **Gegenbuchung am Tag des Stornos.** Haben bucht die Belegbuchung mit vertauschten Seiten zurück („Storno: Beleg …“), mit heutigem Datum, frühestens am Belegdatum. Eine schon abgegebene Voranmeldung bleibt so unberührt: Die Vorsteuer des Belegs steht weiter im Monat des Belegdatums, der Storno mindert sie im Monat des Stornos (§ 17 Abs. 1 UStG). Ebenso Kz 46/47 bzw. 84/85 und 67 bei § 13b. Bei Ist- und Soll-Versteuerung gleich.
+- **Der Beleg bleibt, wie er ist.** Er bleibt gebucht, gesperrt und versiegelt. Den Storno hält eine eigene Zeile fest (Beleg, Gegenbuchung, Datum, Grund), die nur angehängt wird, im Änderungsprotokoll steht und ein eigenes Siegel trägt.
+- **EÜR:** Ein privat oder bar bezahlter Beleg zählt am Belegdatum als Ausgabe und am Tag des Stornos mit umgekehrtem Vorzeichen. Liegt der Storno im Folgejahr, mindert er die Ausgaben dort.
+- **Bar aus der Kasse:** Im [Kassenbuch](kasse.md) entsteht eine Gegenzeile mit neuer Nummer und dem Betrag zurück in die Kasse; die ursprüngliche Zeile ist als storniert markiert.
+- **Über das Geschäftskonto:** Der Beleg verschwindet aus den offenen Posten und lässt sich keiner Zahlung mehr zuordnen.
+- **Dieselbe Datei:** Beim Hochladen nimmt Haben dieselbe Datei sonst nicht ein zweites Mal an. Die Neuerfassung nutzt sie trotzdem; lädst du die Datei danach noch einmal hoch, landest du bei der Neuerfassung. Je storniertem Beleg gibt es eine Neuerfassung; löschst du den Entwurf, lässt er sich wieder neu erfassen.
+
+Nicht stornieren lassen sich:
+
+| Fall | Was stattdessen |
+| --- | --- |
+| Der Beleg ist schon einer Zahlung zugeordnet (auch Skonto oder Kursdifferenz) | Erst im [Bankabgleich](bank.md) die Zuordnung aufheben, dann stornieren. |
+| Anlagegut | Die Anlage bliebe im Verzeichnis und würde weiter abgeschrieben. Erfasse den Abgang im [Anlagenverzeichnis](anlagen.md). |
+| Aus Lexoffice übernommen | Die Vorsteuer ist dort angemeldet; korrigiere den Beleg in Lexoffice. |
+| Das Jahr des Stornos ist abgeschlossen (GmbH, UG) | In ein abgeschlossenes Jahr bucht Haben nichts mehr. |
+| Der Kontenrahmen wurde seit dem Buchen gewechselt | Die Kontonummern bedeuten im neuen Rahmen etwas anderes. |
 
 ## Löschen
 
-**Löschen** gibt es nur für Belege, die noch nicht gebucht sind. Haben fragt einmal nach: Der Knopf heißt dann **Endgültig löschen**, darüber steht ein Warnhinweis. Erst der zweite Klick löscht den Beleg, die Datei wird aus der Ablage entfernt. Nutzt das Archiv oder der Lexoffice-Umzug dieselbe Datei (gleicher Inhalt, gleicher SHA-256), bleibt sie liegen. Einen gebuchten Beleg kannst du nicht löschen und nicht ändern.
+**Löschen** gibt es nur für Belege, die noch nicht gebucht sind. Haben fragt einmal nach: Der Knopf heißt dann **Endgültig löschen**, darüber steht ein Warnhinweis. Erst der zweite Klick löscht den Beleg, die Datei wird aus der Ablage entfernt. Nutzt das Archiv oder der Lexoffice-Umzug dieselbe Datei (gleicher Inhalt, gleicher SHA-256), bleibt sie liegen. Einen gebuchten Beleg kannst du nicht löschen und nicht ändern, nur [stornieren](#stornieren-und-neu-erfassen).
 
 ## Liste und Status
 
@@ -273,6 +300,7 @@ Die Liste zeigt Datum, Lieferant mit Rechnungsnummer und Quelle (ZUGFeRD, XRechn
 | Zu prüfen | Bereit zur Prüfung, noch nicht gebucht. |
 | Prüfen | Die Auslesung ist fehlgeschlagen; der Grund steht am Beleg. |
 | Gebucht | Festgeschrieben. |
+| Storniert | Gebucht und per Gegenbuchung aufgehoben, siehe [Stornieren und neu erfassen](#stornieren-und-neu-erfassen). |
 
 Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hochgeladen hast. Für XML und HEIC zeigt Haben keine Vorschau, sondern einen Link zum Öffnen der Datei.
 
