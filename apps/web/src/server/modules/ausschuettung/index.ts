@@ -1,6 +1,7 @@
 /*
  * Gewinnausschüttungen einer GmbH oder UG: Gewinnverwendungsbeschluss buchen, Kapitalertragsteuer, Soli und
- * Kirchensteuer je Gesellschafter einbehalten, Kapitalertragsteuer-Anmeldung über ELSTER.
+ * Kirchensteuer je Gesellschafter einbehalten, Kapitalertragsteuer-Anmeldung über ELSTER, Steuerbescheinigungen nach
+ * § 45a Abs. 2 EStG.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
@@ -19,3 +20,4 @@ export {
   submitKapESt,
   type AusschuettungInput,
 } from "./ausschuettung.ts";
+export { loadSteuerbescheinigungPdf, steuerbescheinigungenDesJahres, type BescheinigungStatus } from "./steuerbescheinigung.ts";

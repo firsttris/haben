@@ -12,6 +12,7 @@ import type { Address, InvoiceDocument, Letterhead, Logo } from "./types.ts";
 const PACKAGE_DIR = process.env.HABEN_EINVOICE_DIR ?? fileURLToPath(new URL("..", import.meta.url));
 const TEMPLATE = join(PACKAGE_DIR, "templates", "rechnung.typ");
 const DUNNING_TEMPLATE = join(PACKAGE_DIR, "templates", "mahnung.typ");
+const STEUERBESCHEINIGUNG_TEMPLATE = join(PACKAGE_DIR, "templates", "steuerbescheinigung.typ");
 const FONTS = ["Regular", "Medium", "SemiBold"].map((weight) => join(PACKAGE_DIR, "fonts", `IBMPlexSans-${weight}.ttf`));
 
 let compiler: NodeCompiler | undefined;
@@ -157,6 +158,11 @@ export function renderQuotePdfData(data: object, date: string, letterhead: Lette
 /** Mahnung als PDF/A-3b; die Daten kommen fertig formatiert aus dunningPdfData */
 export function renderDunningPdf(data: object, date: string, letterhead: Letterhead): Uint8Array {
   return compilePdf(DUNNING_TEMPLATE, data, date, "Mahnungs-PDF", letterhead);
+}
+
+/** Steuerbescheinigung als PDF/A-3b; die Daten kommen fertig formatiert aus steuerbescheinigungPdfData */
+export function renderSteuerbescheinigungPdf(data: object, date: string, letterhead: Letterhead): Uint8Array {
+  return compilePdf(STEUERBESCHEINIGUNG_TEMPLATE, data, date, "Steuerbescheinigung", letterhead);
 }
 
 /** Fußzeile wie auf der Rechnung: Kontakt, Bank, Steuernummern */
