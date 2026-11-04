@@ -841,6 +841,20 @@
       "when": 1793989434647,
       "tag": "0119_ustva_zeitraum_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1793989494647,
+      "tag": "0120_dauerfrist",
+      "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1793989554647,
+      "tag": "0121_dauerfrist_trigger",
+      "breakpoints": true
     }
   ]
 }
