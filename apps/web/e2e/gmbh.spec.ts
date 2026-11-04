@@ -206,6 +206,12 @@ test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als
   await go(`/abschluss/${year - 1}`);
   const region = page.getByRole("region", { name: regionName(year - 1) });
   await expect(region).toContainText(`Frist: bis 31.12.${year}`);
+  // Das Register wandelt ein PDF gegen Entgelt um; die Seite nennt Kosten und den Weg übers Webformular
+  await expect(region).toContainText("1,75 Cent je sichtbarem Zeichen");
+  await expect(region).toContainText("Webformular");
+  // Gebühren nach dem JVKostG fallen auf jedem Weg an, das Entgelt kommt hinzu (D051, Abschnitte 1 und 2)
+  await expect(region).toContainText("Das Register berechnet eine Gebühr und für ein PDF ein Entgelt");
+  await expect(region).not.toContainText("Kostenlos");
   await expect(region).toContainText("Das Registergericht fehlt in den Firmendaten.");
   await expect(region.getByRole("button", { name: "Bilanz als PDF herunterladen" })).toBeDisabled();
 
