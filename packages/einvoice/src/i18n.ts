@@ -76,6 +76,13 @@ export const TEXTS = {
     accountHolder: "Kontoinhaber",
     taxNumber: "Steuernummer",
     vatId: "USt-IdNr.",
+    legal: {
+      legalForm: "Rechtsform",
+      seat: "Sitz der Gesellschaft",
+      registerCourt: "Registergericht",
+      managingDirectors: "Geschäftsführung",
+      supervisoryBoardChair: "Vorsitz des Aufsichtsrats",
+    },
     page: (n: string, total: string) => `Seite ${n} von ${total}`,
     date: (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`,
     money: (cents: Cents) => formatEuro(cents),
@@ -137,6 +144,13 @@ export const TEXTS = {
     accountHolder: "Account holder",
     taxNumber: "Tax number",
     vatId: "VAT ID",
+    legal: {
+      legalForm: "Legal form",
+      seat: "Registered office",
+      registerCourt: "Register court",
+      managingDirectors: "Managing directors",
+      supervisoryBoardChair: "Chair of the supervisory board",
+    },
     page: (n: string, total: string) => `Page ${n} of ${total}`,
     date: (iso: string) => {
       const [y, m, d] = isoParts(iso);

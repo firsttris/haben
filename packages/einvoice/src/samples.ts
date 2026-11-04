@@ -18,6 +18,19 @@ export const sampleSeller: Seller = {
   bank: "Commerzbank",
 };
 
+/** GmbH mit den Pflichtangaben nach § 35a GmbHG */
+export const gmbhSeller: Seller = {
+  ...sampleSeller,
+  name: "Mustermann Software GmbH",
+  kontoinhaber: "Mustermann Software GmbH",
+  legalInfo: {
+    seat: "Berlin",
+    registerCourt: "Amtsgericht Charlottenburg",
+    registerNumber: "HRB 123456 B",
+    managingDirectors: ["Erika Mustermann", "Max Mustermann"],
+  },
+};
+
 export const sampleBuyer: Buyer = {
   name: "Beispiel GmbH",
   strasse: "Hafenweg 3",

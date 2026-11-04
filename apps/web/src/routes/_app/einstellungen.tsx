@@ -163,7 +163,7 @@ function SettingsPage() {
 }
 
 function CompanyForm() {
-  const { company, issues, locks } = Route.useLoaderData();
+  const { company, issues, letterIssues, locks } = Route.useLoaderData();
   const router = useRouter();
   const save = useServerFn(saveCompany);
   const { busy, notice, run } = useAction();
@@ -184,6 +184,8 @@ function CompanyForm() {
           sitz: gesellschaft ? text("sitz") : company.sitz,
           registergericht: gesellschaft ? text("registergericht") : company.registergericht,
           registernummer: gesellschaft ? text("registernummer") : company.registernummer,
+          geschaeftsfuehrer: gesellschaft ? text("geschaeftsfuehrer") : company.geschaeftsfuehrer,
+          aufsichtsratVorsitz: gesellschaft ? text("aufsichtsratVorsitz") : company.aufsichtsratVorsitz,
           strasse: text("strasse"),
           plz: text("plz"),
           ort: text("ort"),
@@ -292,10 +294,16 @@ function CompanyForm() {
 
       {gesellschaft && (
         <section className="form-section" aria-labelledby="company-register">
-          <h3 id="company-register">Handelsregister</h3>
+          <h3 id="company-register">Handelsregister und Geschäftsführung</h3>
           <p className="field-hint" style={{ marginTop: 0 }}>
-            Gehören in den Jahresabschluss (§ 264 Abs. 1a HGB), etwa auf die Bilanz zur Hinterlegung beim Unternehmensregister. Sie stehen im Registerauszug.
+            Gehören in den Jahresabschluss (§ 264 Abs. 1a HGB), etwa auf die Bilanz zur Hinterlegung beim Unternehmensregister, und auf jeden Geschäftsbrief (§
+            35a GmbHG): Haben druckt sie in den Fuß von Rechnung, Angebot, Mahnung und Lieferschein und hängt sie an E-Mails an. Sie stehen im Registerauszug.
           </p>
+          {letterIssues.length > 0 && (
+            <div className="banner" id="letter-issues">
+              Für Rechnungen und Geschäftsbriefe fehlt noch (§ 35a GmbHG): {letterIssues.join(", ")}.
+            </div>
+          )}
           <div className="form-row cols-2">
             <label className="field">
               Sitz
@@ -311,6 +319,29 @@ function CompanyForm() {
             <label className="field">
               Registernummer
               <input name="registernummer" defaultValue={company.registernummer} maxLength={40} placeholder="z. B. HRB 12345 HB" className="mono" />
+            </label>
+          </div>
+          <div className="form-row cols-2">
+            <label className="field">
+              Geschäftsführer
+              <textarea
+                name="geschaeftsfuehrer"
+                defaultValue={company.geschaeftsfuehrer}
+                maxLength={1000}
+                rows={2}
+                placeholder="z. B. Erika Mustermann"
+                aria-describedby="geschaeftsfuehrer-hint"
+              />
+              <span id="geschaeftsfuehrer-hint" className="small muted">
+                Alle, einer je Zeile, mit ausgeschriebenem Vornamen.
+              </span>
+            </label>
+            <label className="field">
+              Vorsitz des Aufsichtsrats
+              <input name="aufsichtsratVorsitz" defaultValue={company.aufsichtsratVorsitz} maxLength={200} aria-describedby="aufsichtsrat-hint" />
+              <span id="aufsichtsrat-hint" className="small muted">
+                Nur, wenn die Gesellschaft einen Aufsichtsrat mit Vorsitz hat.
+              </span>
             </label>
           </div>
         </section>

@@ -134,6 +134,7 @@ export function InvoiceEditor({
   contacts,
   seller,
   sellerIssues,
+  letterIssues = [],
   issues,
   numberCounters,
   numberFormat,
@@ -154,6 +155,8 @@ export function InvoiceEditor({
   contacts: ContactOption[];
   seller: PreviewSeller;
   sellerIssues: string[];
+  /** GmbH und UG: fehlende Pflichtangaben für Geschäftsbriefe (§ 35a GmbHG); nur ein Hinweis, keine Sperre */
+  letterIssues?: string[];
   issues: string[];
   /** Letzte vergebene Nummer je Jahr */
   numberCounters: Record<number, number>;
@@ -474,6 +477,15 @@ export function InvoiceEditor({
           <Icon name="alert" />
           <span>
             Vor dem Festschreiben: {blocking.join(", ")}. {sellerIssues.length > 0 && <Link to="/einstellungen">Firmendaten ergänzen</Link>}
+          </span>
+        </div>
+      )}
+      {letterIssues.length > 0 && (
+        <div className="banner" role="status" id="letter-issues">
+          <Icon name="alert" />
+          <span>
+            Pflichtangaben für Geschäftsbriefe unvollständig (§ 35a GmbHG): {letterIssues.join(", ")}. Festschreiben geht trotzdem, der Fuß nennt dann nur, was
+            eingetragen ist. <Link to="/einstellungen">Firmendaten ergänzen</Link>
           </span>
         </div>
       )}

@@ -30,6 +30,8 @@ Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich 
 
 ### PR 2 – SV-Beiträge (packages/core)
 
+**Erledigt:** `sozialversicherung()` in `packages/core/src/sozialversicherung/` rechnet die Anteile je Monat für 2026, die Werte stehen mit Quelle je Wert in `werte.ts`, die Jahressperre teilt sich `jahressperre.ts` mit der Lohnsteuer ([Entwicklung](entwicklung.md#sozialversicherung-werte-jährlich-aktualisieren)). Abweichungen vom Plan: Die Beitragsgruppenschlüssel kommen erst mit der Ausfüllliste (PR 6). Im Übergangsbereich lehnt Haben die Pflegeversicherung in Sachsen als „nicht unterstützt“ ab: § 2 Abs. 2 BVV regelt dafür keine Aufteilung, und § 58 Abs. 5 SGB XI lässt sie offen. Ebenso abgelehnt: Mehrfachbeschäftigung, kurzfristige Beschäftigung, Auszubildende, Minijobs im Privathaushalt, Einmalzahlungen und Teilmonate.
+
 - **Umfang:** `packages/core/src/sozialversicherung/`: Rechengrößen je Jahr (BBG KV/PV 5.812,50 €, RV/AV 8.450 € je Monat 2026), Sätze (KV 14,6 % plus Zusatzbeitrag je Kasse, PV 3,6 % mit Kinderlosenzuschlag und Kinderabschlägen, Sonderfall Sachsen, RV 18,6 %, AV 2,6 %), Umlagen U1/U2 je Kasse, Insolvenzgeldumlage 0,15 % (2026).
 - **Personengruppen:** sozialversicherungspflichtig (101), Minijob (109: 13 % KV, 15 % RV pauschal, 3,6 % RV-Anteil des AN ohne Befreiung, 2 % Pauschsteuer); dazu die Beitragsgruppenschlüssel je Person, bei Minijobs je nach RV-Befreiung und Krankenversicherung unterschiedlich (Schlüssel aus dem Gemeinsamen Rundschreiben übernehmen, prüfen), Midijob mit Übergangsbereich 603,01–2.000 € und Faktor F 0,6619 (Formel § 20 Abs. 2a SGB IV, getrennte Bemessung für AN-Anteil), GGF ohne SV.
 - **Pflege:** Zusatzbeitrag und U1/U2 trägt der Nutzer je Krankenkasse ein. Die bundesweiten Werte stehen als Tabelle im Code mit Quelle, wie `TARIFE` in `income-tax.ts`.
@@ -40,6 +42,7 @@ Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich 
 - **Umfang:** Tabellen `mitarbeiter` (Steuer-ID, Steuerklasse, Kinderfreibeträge, Konfession, Krankenkasse mit Betriebsnummer, Personengruppe, Beitragsgruppe, Tätigkeitsschlüssel, SV-Nummer, Statusfeststellung) und `lohnabrechnungen` (je Monat, festgeschrieben und versiegelt wie `journal_entries`, Audit-Trigger, Korrektur nur als Storno plus neue Abrechnung).
 - **Modul:** `apps/web/src/server/modules/lohn/` mit `index.ts`; Server-Funktionen dünn. Seite **Personal › Lohn** mit Abrechnung als PDF (Typst, wie die Rechnung) nach § 108 GewO.
 - **Lohnkonto:** je Mitarbeiter und Jahr die Pflichtangaben aus § 41 EStG und § 4 LStDV; Export als PDF/CSV. Entgeltunterlagen nach § 28f SGB IV und Beitragsverfahrensverordnung.
+- **Regelmäßiges Entgelt:** Ein einzelner Monat bis 603 € oder über 2.000 € in einer Beschäftigung, deren regelmäßiges Entgelt woanders liegt, wird nach § 2 Abs. 2 BVV anders bemessen (TK-Beratungsblatt 03/2026, Beispiel 6). Die Beitragsrechnung lehnt Monate bis 603 € bei versicherungspflichtig Beschäftigten bis dahin als „nicht unterstützt“ ab; die Abrechnung muss das regelmäßige Entgelt mitgeben.
 - **Tests:** Postgres-Integration (Sperren, Storno), Playwright, Seite in `barrierefreiheit.spec.ts` und `seiten.spec.ts`.
 
 ### PR 4 – Buchungen aus dem Lohnjournal
