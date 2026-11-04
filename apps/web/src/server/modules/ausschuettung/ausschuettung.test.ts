@@ -155,6 +155,18 @@ describe.skipIf(!testDatabaseUrl)("Ausschüttungen (Postgres)", () => {
     }, 30_000);
   });
 
+  it("Rückdatierter Beschluss: nicht mehr als der Gewinnvortrag, auch wenn eine spätere Ausschüttung schon gebucht ist", async () => {
+    const k = { bank: "1200", kapital: "0800", vortrag: "0860" };
+    await setup("SKR03", "ist", k);
+    await kst.saveKapgErklaerungAngaben(actor, 2026, { anteilseigner: [{ ...erika, anteil: 10_000 }] });
+    // Der ganze Gewinnvortrag von 25.000 € ist am 1. Juni ausgeschüttet
+    await a.createAusschuettung(actor, { beschluss: "2026-06-01", brutto: 2_500_000 }, today);
+    // Ein Beschluss vom 1. März sieht am Beschlusstag noch 25.000 €, darf sie aber nicht ein zweites Mal ausschütten
+    await expect(a.createAusschuettung(actor, { beschluss: "2026-03-01", brutto: 2_500_000 }, today)).rejects.toThrow("Gewinnvortrag");
+    const saldo = await sql`select sum(l.debit - l.credit)::int as s from journal_lines l where l.account = ${k.vortrag}`;
+    expect(saldo[0]!.s).toBe(0);
+  }, 30_000);
+
   it("Einzelunternehmen haben keine Ausschüttungen", async () => {
     await setup("SKR04", "ist", { bank: "1800", kapital: "2900", vortrag: "2970" });
     await sql.begin(async (tx) => {
