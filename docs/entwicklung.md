@@ -128,8 +128,8 @@ bun packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DI
 | `packages/elster` | UStVA-XML (Kopf, Kennzahlen, Testmerker, Kz 09/10), XML der Umsatzsteuererklärung, der Anlage EÜR mit AVEÜR, der Einkommensteuer und der Sonstigen Nachricht, Transfer-Ticket, simulierter Client, Kindprozess (Zertifikat mit `0600`, Timeout, Absturz), Mock-ERiC über koffi, ERiC-Download (Entpacken nur Linux, defektes Archiv, Umschalten erst bei vollständiger Version, Pfade im Archiv); mit echtem ERiC alle Nachrichten in vielen Varianten (siehe oben) |
 | `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno, Leitweg-ID und Bruttopreisen, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
 | `packages/import` | DKB- (neu und alt), N26- und CAMT.053-Parser, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel, Lexoffice-API-Client (Paging, 429, Fehler) und Abbildung der Lexoffice-Daten |
-| `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge |
-| `apps/web` mit DB | Rechnungen festschreiben und sperren, Belege hochladen und buchen, Bankimport und Zuordnung, Voranmeldung (Entwurf, Test, Echt, Berichtigung, Audit-Log) und Berechnung aus Buchungen, Auswertungen, Jahresexport, Lexoffice-Übernahme und offene Posten |
+| `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge, OpenAPI-Beschreibung der REST-API (Verweise, Rechte, Einheiten) |
+| `apps/web` mit DB | Rechnungen festschreiben und sperren, Belege hochladen und buchen, Bankimport und Zuordnung, Voranmeldung (Entwurf, Test, Echt, Berichtigung, Audit-Log) und Berechnung aus Buchungen, Auswertungen, Jahresexport, Lexoffice-Übernahme und offene Posten, REST-API (Token und Rechte, Fehlerformat, externe Referenz auch bei gleichzeitigen Anfragen, Entwurf gegen festgeschrieben) |
 
 ### KoSIT-Validator
 

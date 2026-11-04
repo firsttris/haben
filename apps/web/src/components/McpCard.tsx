@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { formatDate, formatDateTime } from "../lib/format.ts";
 import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
@@ -9,29 +9,36 @@ import { createMcpTokenFn, revokeMcpTokenFn, setMcpEnabledFn, type getMcpSetting
 type Data = Awaited<ReturnType<typeof getMcpSettings>>;
 
 export const MCP_DOCS = "https://firsttris.github.io/haben/ki-assistenten.html";
+export const API_DOCS = "https://firsttris.github.io/haben/api.html";
 
 const STATUS = { aktiv: "pill-ok", abgelaufen: "pill-warn", widerrufen: "pill" } as const;
 
-/** Einstellungen → KI-Assistenten: Zugang über MCP ein- und ausschalten, API-Tokens und Protokoll */
+/** Einstellungen → KI-Assistenten und API: Zugang ein- und ausschalten, API-Tokens mit Rechten und Protokoll */
 export function McpCard({ data }: { data: Data }) {
   const router = useRouter();
   const setEnabled = useServerFn(setMcpEnabledFn);
   const create = useServerFn(createMcpTokenFn);
   const revoke = useServerFn(revokeMcpTokenFn);
   const { busy, notice, run } = useAction();
-  const [created, setCreated] = useState<{ name: string; token: string } | null>(null);
+  const [created, setCreated] = useState<{ name: string; token: string; scopes: string[] } | null>(null);
   const [copied, setCopied] = useState(false);
-  const endpoint = typeof window === "undefined" ? "/api/mcp" : `${window.location.origin}/api/mcp`;
+  // Erst nach dem Hydrieren: der Server kennt die Adresse im Browser nicht, sonst wiche der Text ab (React #418)
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const endpoint = `${origin}/api/mcp`;
+  const apiBase = `${origin}/api/v1`;
+  const label = (scope: string) => data.scopes.find((s) => s.id === scope)?.label ?? scope;
 
   function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const values = new FormData(form);
     const name = String(values.get("name") ?? "").trim();
+    const scopes = values.getAll("scopes").map(String) as Data["scopes"][number]["id"][];
     void run(async () => {
-      const { token } = await create({ data: { name, days: Number(values.get("days")) as 30 | 90 | 365 } });
+      const { token } = await create({ data: { name, days: Number(values.get("days")) as 30 | 90 | 365, scopes } });
       setCopied(false);
-      setCreated({ name, token });
+      setCreated({ name, token, scopes });
       form.reset();
       await router.invalidate();
     });
@@ -42,11 +49,18 @@ export function McpCard({ data }: { data: Data }) {
   return (
     <>
       <section className="card" aria-labelledby="mcp-heading">
-        <h2 id="mcp-heading">KI-Assistenten (MCP)</h2>
+        <h2 id="mcp-heading">KI-Assistenten (MCP) und REST-API</h2>
         <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
           Mit dem Model Context Protocol fragt ein KI-Assistent wie Claude Code, Claude Desktop oder ein lokales Modell deine Buchhaltung im Gespräch ab, etwa
           „Welche Rechnungen sind überfällig?“ oder „Wie viel Umsatzsteuer zahle ich im Oktober?“. Der Zugang kann nur lesen: Buchen, Festschreiben und Senden
           an ELSTER machst du weiter selbst in Haben.
+        </p>
+        <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
+          Über die REST-API legen eigene Werkzeuge und Automationen Kontakte und Rechnungsentwürfe an, etwa aus Bestellungen bei Etsy oder eBay. Auch sie bucht
+          nichts und schreibt nichts fest.{" "}
+          <a href={API_DOCS} target="_blank" rel="noreferrer">
+            Anleitung zur API
+          </a>
         </p>
         <div className="banner banner-info" style={{ maxWidth: 760 }}>
           Was der Assistent liest, geht an den Anbieter des Modells, bei Claude also an die Server von Anthropic, auch wenn Haben nur im Heimnetz läuft. Ganz
@@ -69,11 +83,15 @@ export function McpCard({ data }: { data: Data }) {
               });
             }}
           />
-          Zugang für KI-Assistenten einschalten
+          Zugang für KI-Assistenten und API einschalten
         </label>
         {data.enabled && (
           <p className="small muted" style={{ margin: 0 }}>
-            Endpunkt: <span className="mono">{endpoint}</span>
+            MCP: <span className="mono">{endpoint}</span> · REST-API: <span className="mono">{apiBase}</span> (Beschreibung:{" "}
+            <a href="/api/v1/openapi.json" target="_blank" rel="noreferrer">
+              openapi.json
+            </a>
+            )
           </p>
         )}
         <NoticeBanner notice={notice} />
@@ -83,8 +101,8 @@ export function McpCard({ data }: { data: Data }) {
         <section className="card" aria-labelledby="mcp-token-heading">
           <h2 id="mcp-token-heading">API-Tokens</h2>
           <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
-            Jeder Assistent bekommt ein eigenes Token, das du jederzeit widerrufen kannst. Haben speichert nur einen Hash; das Token siehst du nur direkt nach
-            dem Anlegen.
+            Jeder Assistent und jedes Werkzeug bekommt ein eigenes Token mit nur den Rechten, die es braucht, und du kannst es jederzeit widerrufen. Haben
+            speichert nur einen Hash; das Token siehst du nur direkt nach dem Anlegen.
           </p>
           {created && (
             <div className="stack" style={{ gap: 8 }}>
@@ -92,19 +110,33 @@ export function McpCard({ data }: { data: Data }) {
                 Token für „{created.name}“ (wird nur jetzt angezeigt)
                 <input readOnly className="mono" value={created.token} onFocus={(e) => e.currentTarget.select()} />
               </label>
-              <label className="field">
-                In Claude Code eintragen
-                <textarea readOnly className="mono" rows={3} value={command} onFocus={(e) => e.currentTarget.select()} />
-              </label>
-              <div className="actions">
-                <button type="button" className="btn btn-primary" onClick={() => void navigator.clipboard?.writeText(command).then(() => setCopied(true))}>
-                  {copied ? "Kopiert" : "Befehl kopieren"}
-                </button>
-              </div>
+              {created.scopes.includes("haben:lesen") && (
+                <>
+                  <label className="field">
+                    In Claude Code eintragen
+                    <textarea readOnly className="mono" rows={3} value={command} onFocus={(e) => e.currentTarget.select()} />
+                  </label>
+                  <div className="actions">
+                    <button type="button" className="btn btn-primary" onClick={() => void navigator.clipboard?.writeText(command).then(() => setCopied(true))}>
+                      {copied ? "Kopiert" : "Befehl kopieren"}
+                    </button>
+                  </div>
+                </>
+              )}
+              {created.scopes.some((scope) => scope !== "haben:lesen") && (
+                <p className="small muted" style={{ margin: 0 }}>
+                  Für die REST-API: Adresse <span className="mono">{apiBase}</span>, Header{" "}
+                  <span className="mono">Authorization: Bearer {created.token.slice(0, 7)}…</span>.
+                </p>
+              )}
               <p className="small muted" style={{ margin: 0 }}>
-                Wer das Token hat, liest deine Buchhaltung. Gib es nicht weiter. Für Claude Desktop und andere Clients steht die Einrichtung in der{" "}
+                Wer das Token hat, kann alles, was seine Rechte erlauben. Gib es nicht weiter. Die Einrichtung steht in den Anleitungen für{" "}
                 <a href={MCP_DOCS} target="_blank" rel="noreferrer">
-                  Anleitung
+                  KI-Assistenten
+                </a>{" "}
+                und die{" "}
+                <a href={API_DOCS} target="_blank" rel="noreferrer">
+                  REST-API
                 </a>
                 .
               </p>
@@ -126,6 +158,7 @@ export function McpCard({ data }: { data: Data }) {
                     {token.status === "widerrufen" ? `widerrufen ${formatDate(token.revokedAt!)}` : `gültig bis ${formatDate(token.expiresAt)}`} ·{" "}
                     {token.lastUsedAt ? `zuletzt benutzt ${formatDateTime(token.lastUsedAt)}` : "noch nicht benutzt"}
                   </span>
+                  <span className="small muted">Rechte: {token.scopes.map(label).join(" · ")}</span>
                 </div>
                 {token.status === "aktiv" && (
                   <button
@@ -158,6 +191,19 @@ export function McpCard({ data }: { data: Data }) {
                 <option value="365">1 Jahr</option>
               </select>
             </label>
+            <fieldset style={{ border: 0, padding: 0, margin: 0, gridColumn: "1 / -1" }}>
+              <legend className="small" style={{ fontWeight: 500, marginBottom: 4 }}>
+                Rechte
+              </legend>
+              {data.scopes.map((scope) => (
+                <label key={scope.id} className="checkbox">
+                  <input type="checkbox" name="scopes" value={scope.id} defaultChecked={scope.id === "haben:lesen"} />
+                  <span>
+                    {scope.label} <span className="mono small muted">{scope.id}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
             <div className="actions" style={{ gridColumn: "1 / -1" }}>
               <button type="submit" className="btn" disabled={busy}>
                 Token anlegen
@@ -171,8 +217,8 @@ export function McpCard({ data }: { data: Data }) {
         <section className="card" aria-labelledby="mcp-log-heading">
           <h2 id="mcp-log-heading">Letzte Aufrufe</h2>
           <p className="small muted" style={{ margin: 0 }}>
-            Welcher Assistent wann welches Werkzeug benutzt hat, ohne Inhalte; Haben hebt das 90 Tage auf. Angeboten werden:{" "}
-            {data.tools.map((t) => t.title).join(", ")}.
+            Welcher Zugang wann welches Werkzeug oder welchen Endpunkt der API benutzt hat, ohne Inhalte; Haben hebt das 90 Tage auf. KI-Assistenten werden
+            angeboten: {data.tools.map((t) => t.title).join(", ")}.
           </p>
           {data.calls.length === 0 ? (
             <p className="small muted" style={{ margin: 0 }}>

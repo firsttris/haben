@@ -14,11 +14,11 @@ Was der Assistent über die Werkzeuge liest, geht an den Anbieter des Modells. B
 
 ## Einrichten
 
-1. **Einstellungen → KI-Assistenten** öffnen und **Zugang für KI-Assistenten einschalten**.
-2. Unter **API-Tokens** einen Namen vergeben (z. B. „Claude Code am Laptop“), die Gültigkeit wählen (30 Tage, 90 Tage oder ein Jahr) und **Token anlegen**.
+1. **Einstellungen → KI-Assistenten und API** öffnen und **Zugang für KI-Assistenten und API einschalten**.
+2. Unter **API-Tokens** einen Namen vergeben (z. B. „Claude Code am Laptop“), die Gültigkeit wählen (30 Tage, 90 Tage oder ein Jahr) und **Token anlegen**. Unter **Rechte** ist „KI-Assistent (MCP): Buchhaltung lesen“ (`haben:lesen`) schon angekreuzt; die übrigen Rechte gehören zur [REST-API](api.md) und braucht ein Assistent nicht.
 3. Das Token sofort kopieren: Haben speichert nur seinen SHA-256-Hash und zeigt es nie wieder an.
 
-Jeder Assistent sollte sein eigenes Token bekommen. **Widerrufen** sperrt ein Token sofort; abgelaufene und widerrufene bleiben zur Nachvollziehbarkeit in der Liste. Wer den Zugang wieder ausschaltet, sperrt alle Tokens auf einmal.
+Jeder Assistent sollte sein eigenes Token bekommen. **Widerrufen** sperrt ein Token sofort; abgelaufene und widerrufene bleiben zur Nachvollziehbarkeit in der Liste. Wer den Zugang wieder ausschaltet, sperrt alle Tokens auf einmal, auch die für die REST-API. Ein Token ohne `haben:lesen` lehnt `/api/mcp` mit 403 ab.
 
 ### Claude Code
 
@@ -91,6 +91,6 @@ Beträge kommen in Euro, Datumsangaben als JJJJ-MM-TT. Die Listen sind auf 50 Ei
 
 ## Protokoll und Grenzen
 
-Unter **Letzte Aufrufe** steht, welcher Assistent wann welches Werkzeug benutzt hat und ob es geklappt hat, ohne Eingaben und Ergebnisse. Haben hebt das 90 Tage auf. Je Token sind 120 Anfragen pro Minute erlaubt; schickt ein Client mehrere Nachrichten in einer Anfrage (Batch), zählt jede einzeln.
+Unter **Letzte Aufrufe** steht, welcher Assistent wann welches Werkzeug benutzt hat und ob es geklappt hat, ohne Eingaben und Ergebnisse. Haben hebt das 90 Tage auf. Je Token sind 120 Anfragen pro Minute erlaubt, zusammen mit Aufrufen der REST-API; schickt ein Client mehrere Nachrichten in einer Anfrage (Batch), zählt jede einzeln.
 
 Das Ein- und Ausschalten des Zugangs steht im Änderungsprotokoll. Die Tokens selbst sind Zugangsdaten wie die Passkeys und stehen nicht darin.

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { INTERNAL_ERROR, userMessage } from "../../errors.ts";
-import { authenticateMcp, recordMcpCall, type McpAccess } from "./tokens.ts";
+import { authenticateMcp, hasScope, recordMcpCall, type McpAccess } from "./tokens.ts";
 import { MCP_TOOLS, todayContext } from "./tools.ts";
 
 const INSTRUCTIONS = [
@@ -49,7 +49,7 @@ function jsonError(status: number, message: string, headers: Record<string, stri
 
 function createServer(access: McpAccess): McpServer {
   const server = new McpServer({ name: "haben", title: "Haben", version: "1.0.0" }, { instructions: INSTRUCTIONS });
-  for (const tool of MCP_TOOLS.filter((t) => access.scopes.includes(t.scope))) {
+  for (const tool of MCP_TOOLS.filter((t) => hasScope(access.scopes, t.scope))) {
     server.registerTool(
       tool.name,
       {
@@ -86,7 +86,15 @@ export async function handleMcpRequest(request: Request): Promise<Response> {
   if (request.method !== "POST") return jsonError(405, "Nur POST; dieser Server hält keine Sitzungen.", { Allow: "POST" });
   const access = await authenticateMcp(request);
   if (!access)
-    return jsonError(401, "Kein gültiges API-Token. In Haben unter Einstellungen → KI-Assistenten anlegen.", { "WWW-Authenticate": 'Bearer realm="haben"' });
+    return jsonError(401, "Kein gültiges API-Token. In Haben unter Einstellungen → KI-Assistenten und API anlegen.", {
+      "WWW-Authenticate": 'Bearer realm="haben"',
+    });
+  // Ein Token nur für die REST-API (#199) bekäme hier keine Werkzeuge
+  if (!MCP_TOOLS.some((tool) => hasScope(access.scopes, tool.scope)))
+    return jsonError(
+      403,
+      "Diesem Token fehlt das Recht „haben:lesen“ für KI-Assistenten. In Haben unter Einstellungen → KI-Assistenten und API ein Token damit anlegen.",
+    );
   if (rateLimited(access.tokenId, Date.now(), await messageCount(request)))
     return jsonError(429, "Zu viele Anfragen, bitte kurz warten.", { "Retry-After": "60" });
 

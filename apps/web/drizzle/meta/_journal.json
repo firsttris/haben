@@ -715,6 +715,13 @@
       "when": 1793988590647,
       "tag": "0101_kontenrahmen_kapg",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1793988650647,
+      "tag": "0102_externe_referenz",
+      "breakpoints": true
     }
   ]
 }

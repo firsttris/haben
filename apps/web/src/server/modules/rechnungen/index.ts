@@ -19,6 +19,13 @@ export {
   sendInvoiceMail,
   sendQuoteMail,
 } from "./invoice-mail.ts";
+export {
+  createDraftForReference,
+  draftInputOf,
+  externalReferenceSchema,
+  findInvoiceByReference,
+  type ExternalReference,
+} from "./external-reference.ts";
 export { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 export {
   abschlagLinks,
@@ -41,6 +48,8 @@ export {
   setNextNumber,
   updateDraft,
   type DraftInput,
+  type Invoice,
+  type InvoiceLine,
   type InvoiceListStatus,
 } from "./invoices.ts";
 export { confirmationPdf, deliveryNotePdf, OrderDocumentError } from "./order-documents.ts";

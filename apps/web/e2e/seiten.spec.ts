@@ -51,6 +51,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["einstellungen-elster", "/einstellungen?bereich=elster"],
     ["einstellungen-email", "/einstellungen?bereich=email"],
     ["einstellungen-bank", "/einstellungen?bereich=bank"],
+    ["einstellungen-ki", "/einstellungen?bereich=ki"],
     ["einstellungen-export", "/einstellungen?bereich=export"],
   ];
 }

@@ -479,7 +479,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
   return { values, calculation, taxes };
 }
 
-type DraftExtra = Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate">>;
+type DraftExtra = Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate" | "externalSource" | "externalId">>;
 
 export async function createDraft(actor: string, input: DraftInput, extra: DraftExtra = {}) {
   return withActor(actor, (tx) => insertDraft(tx, input, extra));
@@ -607,6 +607,9 @@ export async function listInvoices(today: string, id?: string, q: Db | Tx = db) 
       gross: schema.invoices.gross,
       net: schema.invoices.net,
       correctsId: schema.invoices.correctsId,
+      contactId: schema.invoices.contactId,
+      externalSource: schema.invoices.externalSource,
+      externalId: schema.invoices.externalId,
       contactName: schema.contacts.name,
       buyerName: sql<string | null>`${schema.invoices.buyer} ->> 'name'`,
       cancelled: sql<boolean>`${schema.invoices.id} in (${cancelledIds})`,

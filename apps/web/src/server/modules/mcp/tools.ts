@@ -35,7 +35,7 @@ import { invoiceSummary, listInvoices, overdueInvoices } from "../rechnungen/ind
 import { companyIssues, kleinunternehmerForMonth, loadCompany } from "../stammdaten/index.ts";
 import { computeVatFigures, computedValues, preflight, returnsForPeriod } from "../umsatzsteuer/index.ts";
 import { ustvaAusfuellliste } from "./ausfuellliste.ts";
-import { McpError, type McpScope } from "./tokens.ts";
+import { McpError, type TokenScope } from "./tokens.ts";
 
 /*
  * Werkzeuge für KI-Assistenten, Stufe 1: nur lesen (#96). Jedes ist eine dünne Hülle um die öffentliche Schnittstelle
@@ -49,7 +49,7 @@ export interface McpTool<Shape extends z.ZodRawShape = z.ZodRawShape> {
   name: string;
   title: string;
   description: string;
-  scope: McpScope;
+  scope: TokenScope;
   input: Shape;
   run: (args: z.infer<z.ZodObject<Shape>>, context: ToolContext) => Promise<unknown>;
 }

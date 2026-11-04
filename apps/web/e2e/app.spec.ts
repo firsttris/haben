@@ -987,6 +987,64 @@ test("Voranmeldung als XML für den Import in Mein ELSTER herunterladen", async 
   expect(xml).not.toContain("<TransferHeader");
 });
 
+test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer über die API", async () => {
+  await go("/einstellungen?bereich=ki");
+  // Gesteuertes Kästchen: es zeigt den Stand erst nach der Antwort des Servers
+  const zugang = page.getByLabel("Zugang für KI-Assistenten und API einschalten");
+  await zugang.click();
+  await expect(zugang).toBeChecked();
+  const form = page.getByRole("form", { name: "Neues Token" });
+  await form.getByLabel("Name").fill("Shop-Automation");
+  const rechte = form.getByRole("group", { name: "Rechte" });
+  await expect(rechte.getByRole("checkbox", { name: /haben:lesen/ })).toBeChecked();
+  await rechte.getByRole("checkbox", { name: /haben:lesen/ }).uncheck();
+  await rechte.getByRole("checkbox", { name: /kontakte:lesen/ }).check();
+  await rechte.getByRole("checkbox", { name: /rechnungen:entwuerfe/ }).check();
+  await form.getByRole("button", { name: "Token anlegen" }).click();
+  const token = await page.getByLabel(/Token für „Shop-Automation“/).inputValue();
+  expect(token).toMatch(/^hb_/);
+  // Ohne MCP-Recht kein Befehl für Claude Code, dafür der Hinweis auf die REST-API
+  await expect(page.getByLabel("In Claude Code eintragen")).toHaveCount(0);
+  await expect(page.getByText(/Für die REST-API: Adresse/)).toBeVisible();
+  await expect(page.getByText(/Rechte: API: Kontakte lesen · API: Rechnungen lesen, Entwürfe/)).toBeVisible();
+
+  // Die Sitzung im Browser reicht der API nicht, nur das Token
+  expect((await page.request.get("/api/v1/kontakte")).status()).toBe(401);
+  const auth = { Authorization: `Bearer ${token}` };
+  expect((await page.request.get("/api/v1/openapi.json")).status()).toBe(200);
+  const kontakte = (await (await page.request.get("/api/v1/kontakte?q=Nordwerk", { headers: auth })).json()) as { data: { id: string }[] };
+  expect(kontakte.data).toHaveLength(1);
+  expect((await page.request.post("/api/v1/kontakte", { headers: auth, data: { name: "Ohne Recht" } })).status()).toBe(403);
+
+  const entwurf = {
+    contactId: kontakte.data[0]!.id,
+    externalSource: "etsy",
+    externalId: "3141592653",
+    lines: [{ description: "Keramikbecher handgemacht", quantity: 2000, unit: "Stk.", unitPrice: 2400, taxRate: 1900 }],
+  };
+  const created = await page.request.post("/api/v1/rechnungen", { headers: auth, data: entwurf });
+  expect(created.status()).toBe(201);
+  const invoice = (await created.json()) as { id: string; gross: number; url: string; status: string };
+  expect(invoice).toMatchObject({ gross: 5712, status: "draft" });
+  // Derselbe Vorgang ein zweites Mal: kein Duplikat
+  const again = await page.request.post("/api/v1/rechnungen", { headers: auth, data: entwurf });
+  expect(again.status()).toBe(200);
+  expect(((await again.json()) as { id: string }).id).toBe(invoice.id);
+
+  // Der Entwurf steht in Haben wie jeder andere, mit der Position aus der API
+  await go(new URL(invoice.url).pathname);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Rechnung");
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Keramikbecher handgemacht");
+
+  // Wieder weg, damit die übrigen Seiten und Bilder dieselben Daten zeigen wie ohne diesen Test
+  expect((await page.request.delete(`/api/v1/rechnungen/${invoice.id}`, { headers: auth })).status()).toBe(204);
+  const found = (await (await page.request.get("/api/v1/rechnungen?externalSource=etsy&externalId=3141592653", { headers: auth })).json()) as { total: number };
+  expect(found.total).toBe(0);
+  // Jeder Aufruf steht im Protokoll, ohne Inhalte
+  await go("/einstellungen?bereich=ki");
+  await expect(page.getByRole("region", { name: "Letzte Aufrufe" }).getByText("POST /rechnungen").first()).toBeVisible();
+});
+
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {
   expect(pageErrors).toEqual([]);
   await page.context().storageState({ path: SESSION });

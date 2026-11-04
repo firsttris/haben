@@ -66,6 +66,7 @@ import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as ApiUstvaIdRouteImport } from './routes/api/ustva/$id'
+import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
 import { Route as ApiVastIdRouteImport } from './routes/api/vast/$id'
 import { Route as AppArchivBelegIdRouteImport } from './routes/_app/archiv/beleg.$id'
 import { Route as AppRechnungenMahnwesenIndexRouteImport } from './routes/_app/rechnungen/mahnwesen/index'
@@ -361,6 +362,11 @@ const ApiUstvaIdRoute = ApiUstvaIdRouteImport.update({
   path: '/api/ustva/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiV1SplatRoute = ApiV1SplatRouteImport.update({
+  id: '/api/v1/$',
+  path: '/api/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiVastIdRoute = ApiVastIdRouteImport.update({
   id: '/api/vast/$id',
   path: '/api/vast/$id',
@@ -456,6 +462,7 @@ export interface FileRoutesByFullPath {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
+  '/api/v1/$': typeof ApiV1SplatRoute
   '/api/vast/$id': typeof ApiVastIdRoute
   '/abschluss/': typeof AppAbschlussIndexRoute
   '/angebote/': typeof AppAngeboteIndexRoute
@@ -523,6 +530,7 @@ export interface FileRoutesByTo {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
+  '/api/v1/$': typeof ApiV1SplatRoute
   '/api/vast/$id': typeof ApiVastIdRoute
   '/abschluss': typeof AppAbschlussIndexRoute
   '/angebote': typeof AppAngeboteIndexRoute
@@ -592,6 +600,7 @@ export interface FileRoutesById {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
+  '/api/v1/$': typeof ApiV1SplatRoute
   '/api/vast/$id': typeof ApiVastIdRoute
   '/_app/abschluss/': typeof AppAbschlussIndexRoute
   '/_app/angebote/': typeof AppAngeboteIndexRoute
@@ -661,6 +670,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/ustva/$id'
+    | '/api/v1/$'
     | '/api/vast/$id'
     | '/abschluss/'
     | '/angebote/'
@@ -728,6 +738,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/ustva/$id'
+    | '/api/v1/$'
     | '/api/vast/$id'
     | '/abschluss'
     | '/angebote'
@@ -796,6 +807,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/ustva/$id'
+    | '/api/v1/$'
     | '/api/vast/$id'
     | '/_app/abschluss/'
     | '/_app/angebote/'
@@ -843,6 +855,7 @@ export interface RootRouteChildren {
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiUstvaIdRoute: typeof ApiUstvaIdRoute
+  ApiV1SplatRoute: typeof ApiV1SplatRoute
   ApiVastIdRoute: typeof ApiVastIdRoute
   ApiDokumentArtIdRoute: typeof ApiDokumentArtIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
@@ -1249,6 +1262,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUstvaIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/v1/$': {
+      id: '/api/v1/$'
+      path: '/api/v1/$'
+      fullPath: '/api/v1/$'
+      preLoaderRoute: typeof ApiV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/vast/$id': {
       id: '/api/vast/$id'
       path: '/api/vast/$id'
@@ -1428,6 +1448,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiUstvaIdRoute: ApiUstvaIdRoute,
+  ApiV1SplatRoute: ApiV1SplatRoute,
   ApiVastIdRoute: ApiVastIdRoute,
   ApiDokumentArtIdRoute: ApiDokumentArtIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,

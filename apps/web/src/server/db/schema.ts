@@ -127,7 +127,7 @@ export const company = pgTable(
       .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
     /** SHA-256 des geheimen Tokens im Kalender-Abo der Fristen; null = kein Abo */
     calendarTokenHash: text("calendar_token_hash"),
-    /** Zugang für KI-Assistenten über MCP (/api/mcp); ausdrücklich einzuschalten, standardmäßig aus */
+    /** Zugang mit API-Tokens für KI-Assistenten über MCP (/api/mcp) und die REST-API (/api/v1); ausdrücklich einzuschalten, standardmäßig aus */
     mcpEnabled: boolean("mcp_enabled").notNull().default(false),
     /** Das Finanzamt hat den Tageskurs statt der monatlichen USt-Umrechnungskurse gestattet (§ 16 Abs. 6 Satz 3 UStG) */
     tageskurs: boolean("tageskurs").notNull().default(false),
@@ -736,11 +736,21 @@ export const invoices = pgTable(
     recurringDate: date("recurring_date", { mode: "string" }),
     /** Offene Rechnung aus Lexoffice übernommen: Original-PDF, Eröffnungsbuchung statt Erlösbuchung */
     lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
+    /**
+     * Vorgang außerhalb von Haben, aus dem ein Entwurf über die REST-API entstanden ist (#199): Plattform, etwa „etsy“,
+     * und deren Bestellnummer. Zusammen eindeutig, damit derselbe Vorgang nicht doppelt angelegt wird. Fließt wie jede
+     * Spalte ab dem Festschreiben ins Siegel ein und ist danach gesperrt.
+     */
+    externalSource: text("external_source"),
+    externalId: text("external_id"),
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    // Externe Referenz nur vollständig: Plattform und Bestellnummer zusammen
+    check("invoices_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
+    uniqueIndex("invoices_external_ref").on(t.externalSource, t.externalId),
     check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
     check("invoices_quote_kind", sql`${t.quoteId} is null or ${t.kind} = 'rechnung'`),
@@ -1638,7 +1648,7 @@ export const backupStatus = pgTable(
 );
 
 /**
- * Zugänge für KI-Assistenten über MCP (/api/mcp): widerrufbare API-Tokens mit Ablaufdatum und Rechten. Gespeichert
+ * API-Tokens für KI-Assistenten über MCP (/api/mcp) und die REST-API (/api/v1): widerrufbar, mit Ablaufdatum und Rechten. Gespeichert
  * ist nur der SHA-256 des Tokens; das Token selbst gibt es nur beim Anlegen. Zugangsdaten, keine Buchungsdaten: ohne
  * Audit-Log und Siegel (wie die Passkeys).
  */
@@ -1649,7 +1659,7 @@ export const mcpTokens = pgTable("mcp_tokens", {
   tokenHash: text("token_hash").notNull().unique(),
   /** Anfang des Tokens zum Wiedererkennen, z. B. hb_3fK9 */
   prefix: text("prefix").notNull(),
-  /** haben:lesen; später haben:entwuerfe */
+  /** Rechte des Tokens, TOKEN_SCOPES in modules/mcp/tokens.ts: haben:lesen für MCP, kontakte:… und rechnungen:… für die REST-API */
   scopes: text("scopes").array().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
