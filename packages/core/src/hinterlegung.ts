@@ -21,9 +21,15 @@ import type { Cents } from "./money.ts";
  * - das Datum der Feststellung (§ 328 Abs. 1a Satz 1 HGB, für die Hinterlegung nach § 328 Abs. 5 entsprechend); vor der
  *   Feststellung durch die Gesellschafter wird nicht hinterlegt.
  *
- * Quellen: Gesetzestexte unter https://www.gesetze-im-internet.de/hgb/ (§§ 264, 265, 266, 268, 285, 325, 326), § 328 in
- * der Fassung vom 04.02.2026 unter https://www.buzer.de/328_HGB.htm; zum Einreichen die AGB des Bundesanzeiger Verlags für
- * die Hinterlegung (https://www.bundesanzeiger.de/pub/D089.pdf).
+ * Das Eigenkapital steht als ein Posten, ohne gezeichnetes Kapital: § 42 Abs. 1 GmbHG schreibt vor, das Stammkapital als
+ * gezeichnetes Kapital auszuweisen, „allerdings bestehen größenabhängige Erleichterungen für die Gliederungstiefe. So
+ * reicht bei Kleinst-GmbHs der Ausweis des zusammengefassten Eigenkapitals aus“ (Müller/Reinke, Haufe, „Gesellschaft mit
+ * beschränkter Haftung: Rechnungslegung“, 7.3.1 Eigenkapital, Rz. 68).
+ *
+ * Quellen: Gesetzestexte unter https://www.gesetze-im-internet.de/hgb/ (§§ 264, 265, 266, 267a, 268, 274a, 285, 325,
+ * 326, 328) und https://www.gesetze-im-internet.de/gmbhg/__42.html, abgerufen am 04.11.2026; zum Einreichen die
+ * Allgemeinen Nutzungsbedingungen für das Unternehmensregister (https://www.publikations-plattform.de/order/D088.pdf), die
+ * für Geschäftsjahre ab 2022 gelten.
  */
 
 export interface HinterlegungFirma {

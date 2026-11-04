@@ -7,8 +7,11 @@ import type { KirchensteuerSatz } from "./ausschuettung.ts";
  *
  * Amtliches Muster: Muster II „Steuerbescheinigung einer leistenden Körperschaft, Personenvereinigung oder
  * Vermögensmasse oder eines Personenunternehmens oder eines Spezial-Investmentfonds“ aus dem BMF-Schreiben vom
- * 16. Mai 2025, IV C 1 - S 2401/00008/014/051, BStBl I 2025 S. 1388 (ersetzt das Schreiben vom 17. Januar 2023),
- * als Einzelsteuerbescheinigung für einen Zahlungstag:
+ * 16. Mai 2025, IV C 1 - S 2401/00008/014/051, BStBl I 2025 S. 1388 (Neufassung des Schreibens vom 23. Mai 2022,
+ * BStBl I 2022 S. 860; Eingangssatz laut Haufe-Rechtsquelle HI16827399), als Einzelsteuerbescheinigung für einen
+ * Zahlungstag. Rz. 1 des Schreibens: „Nach Inhalt, Aufbau und Reihenfolge der Angaben darf von ihnen nicht abgewichen
+ * werden.“ Das PDF des BMF war am 04.11.2026 nicht abrufbar (503); die Zeilen unten sind deshalb noch nicht am Muster
+ * selbst nachgeprüft:
  * https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Abgeltungsteuer/2025-05-16-kapitalertragSt-steuerbescheinigung.pdf
  * Muster II im Amtlichen Einkommensteuer-Handbuch, Anhang 19 I:
  * https://esth.bundesfinanzministerium.de/esth/2025/B-Anhaenge/Anhang-19/I/anlage-2.pdf
@@ -90,7 +93,7 @@ export function bescheinigungFehlend(e: SteuerbescheinigungEingabe): string[] {
   if (!g.idnr || !/^\d{11}$/.test(g.idnr))
     fehlend.push(`Steuerliche Identifikationsnummer von ${g.name} fehlt (Jahreserklärung › Angaben zu den Erklärungen).`);
   if (anteil.kist > 0 && !anteil.religionsschluessel) fehlend.push(`Religionsschlüssel zur Kirchensteuer von ${g.name} fehlt.`);
-  // BMF-Schreiben vom 16. Mai 2025: Da der Zahlungstag zu bescheinigen ist, erst nach der Zahlung ausstellen
+  // Muster II „darf erst nach Vornahme der Leistung an den Gläubiger ausgestellt werden“ (Frotscher/Geurts, EStG § 45a Rz. 100)
   if (e.zahlungstag > e.ausstellungstag)
     fehlend.push(`Die Ausschüttung fließt erst am ${deutschesDatum(e.zahlungstag)} zu; die Bescheinigung gibt es ab diesem Tag.`);
   return fehlend;
