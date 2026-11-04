@@ -1,7 +1,7 @@
-import { BILANZ_POSTEN, formatEuro, GUV_POSTEN, type BilanzPosten, type GuvPosten, type Posten } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState } from "react";
+import { BilanzGuv } from "../../../components/BilanzGuv.tsx";
 import { Ebilanz } from "../../../components/Ebilanz.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { KapgSteuern } from "../../../components/KapgSteuern.tsx";
@@ -23,11 +23,6 @@ export const Route = createFileRoute("/_app/abschluss/$jahr")({
 
 type Data = Awaited<ReturnType<typeof getJahresabschluss>>;
 type Kapitalgesellschaft = Extract<Data, { kapitalgesellschaft: true }>;
-
-const AKTIVA: BilanzPosten[] = ["aktiva.A", "aktiva.B", "aktiva.C", "aktiva.D", "aktiva.E"];
-const PASSIVA: BilanzPosten[] = ["passiva.A", "passiva.B", "passiva.C", "passiva.D", "passiva.E"];
-const ERTRAEGE: GuvPosten[] = ["umsatzerloese", "sonstigeErtraege"];
-const AUFWAND: GuvPosten[] = ["materialaufwand", "personalaufwand", "abschreibungen", "sonstigeAufwendungen", "steuern"];
 
 function AbschlussPage() {
   const data = Route.useLoaderData();
@@ -65,44 +60,6 @@ function AbschlussPage() {
   );
 }
 
-/** Ein Posten mit aufklappbaren Konten */
-function PostenRow({ data, posten, label, amount }: { data: Kapitalgesellschaft; posten: Posten; label: string; amount: number }) {
-  const konten = data.report.konten[posten] ?? [];
-  const [open, setOpen] = useState(false);
-  const sign = posten.startsWith("aktiva.") || AUFWAND.includes(posten as GuvPosten) ? 1 : -1;
-  return (
-    <>
-      <tr>
-        <th scope="row">
-          {konten.length > 0 ? (
-            <button type="button" className="expand-btn" aria-expanded={open} onClick={() => setOpen(!open)}>
-              <span className={`chevron${open ? " open" : ""}`} aria-hidden="true">
-                ›
-              </span>{" "}
-              {label}
-            </button>
-          ) : (
-            label
-          )}
-        </th>
-        <td className="num">{formatEuro(amount)}</td>
-      </tr>
-      {open &&
-        konten.map((k) => (
-          <tr key={k.account} className="lines-row">
-            <td className="small">
-              <Link to="/konten/$konto" params={{ konto: k.account }} search={{ jahr: data.year }} className="mono">
-                {k.account}
-              </Link>{" "}
-              {data.names[k.account] ?? ""}
-            </td>
-            <td className="num small">{formatEuro(sign * k.saldo)}</td>
-          </tr>
-        ))}
-    </>
-  );
-}
-
 function Report({ data }: { data: Kapitalgesellschaft }) {
   const { report } = data;
   const router = useRouter();
@@ -110,7 +67,6 @@ function Report({ data }: { data: Kapitalgesellschaft }) {
   const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
   const blocking = data.issues.filter((i) => i.tone === "fehler");
-  const ergebnis = report.jahresergebnis >= 0 ? "8. Jahresüberschuss" : "8. Jahresfehlbetrag";
 
   return (
     <div className="stack" style={{ gap: 24 }}>
@@ -138,67 +94,7 @@ function Report({ data }: { data: Kapitalgesellschaft }) {
         </section>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
-        <section className="card" aria-labelledby="aktiva-heading">
-          <h2 id="aktiva-heading" style={{ marginTop: 0 }}>
-            Aktiva zum 31.12.{data.year}
-          </h2>
-          <table className="report-table">
-            <tbody>
-              {AKTIVA.filter((p) => report.bilanz[p] !== 0 || p === "aktiva.A" || p === "aktiva.B").map((p) => (
-                <PostenRow key={p} data={data} posten={p} label={BILANZ_POSTEN[p]} amount={report.bilanz[p]} />
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <th scope="row">Summe Aktiva</th>
-                <td className="num">{formatEuro(report.aktiva)}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </section>
-        <section className="card" aria-labelledby="passiva-heading">
-          <h2 id="passiva-heading" style={{ marginTop: 0 }}>
-            Passiva zum 31.12.{data.year}
-          </h2>
-          <table className="report-table">
-            <tbody>
-              {PASSIVA.filter((p) => report.bilanz[p] !== 0 || p === "passiva.A" || p === "passiva.C").map((p) => (
-                <PostenRow key={p} data={data} posten={p} label={BILANZ_POSTEN[p]} amount={report.bilanz[p]} />
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <th scope="row">Summe Passiva</th>
-                <td className="num">{formatEuro(report.passiva)}</td>
-              </tr>
-            </tfoot>
-          </table>
-          <p className="small muted" style={{ marginBottom: 0 }}>
-            Das Eigenkapital enthält den {report.jahresergebnis >= 0 ? "Jahresüberschuss" : "Jahresfehlbetrag"} von{" "}
-            {formatEuro(Math.abs(report.jahresergebnis))}.
-          </p>
-        </section>
-      </div>
-
-      <section className="card" aria-labelledby="guv-heading">
-        <h2 id="guv-heading" style={{ marginTop: 0 }}>
-          Gewinn- und Verlustrechnung {data.year} (§ 275 Abs. 5 HGB)
-        </h2>
-        <table className="report-table">
-          <tbody>
-            {[...ERTRAEGE, ...AUFWAND].map((p) => (
-              <PostenRow key={p} data={data} posten={p} label={GUV_POSTEN[p]} amount={AUFWAND.includes(p) ? -report.guv[p] : report.guv[p]} />
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <th scope="row">{ergebnis}</th>
-              <td className="num">{formatEuro(report.jahresergebnis)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </section>
+      <BilanzGuv year={data.year} report={report} names={data.names} kontoLinks />
 
       {data.steuern && <KapgSteuern year={data.year} data={data.steuern} closed={Boolean(data.status)} />}
 

@@ -5,6 +5,7 @@ import {
   addArchiveFile,
   ARCHIVE_KINDS,
   ArchiveError,
+  datevAbschluss,
   listArchiveFiles,
   listDatevBookings,
   MAX_ARCHIVE_SIZE,
@@ -194,8 +195,8 @@ export const getDatevBookings = createServerFn({ method: "GET" })
     }),
   )
   .handler(async ({ data }) => {
-    const [bookings, totals] = await Promise.all([listDatevBookings(data), accountTotals(data.year)]);
-    return { ...bookings, totals };
+    const [bookings, totals, abschluss] = await Promise.all([listDatevBookings(data), accountTotals(data.year), datevAbschluss(data.year)]);
+    return { ...bookings, totals, abschluss };
   });
 
 export const takeOverOpenItem = createServerFn({ method: "POST" })

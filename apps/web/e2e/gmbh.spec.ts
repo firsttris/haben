@@ -232,6 +232,36 @@ test("Ausschüttungen: Steuerabzug berechnen, ohne Gewinnvortrag nicht buchbar",
   expect(await axe(), "/ausschuettungen").toEqual([]);
 });
 
+test("Archiv: Abschluss eines alten Jahres aus dem DATEV-Stapel", async () => {
+  const year = new Date().getFullYear() - 3;
+  // Stapel wie aus Lexware Office (SKR04): Eröffnung über 9000, eine Ausgangsrechnung mit Steuerautomatik
+  const header = `"EXTF";700;21;"Buchungsstapel";13;${year + 1}0102120000000;;"LO";"";"";1001;12345;${year}0101;4;${year}0101;${year}1231;"Lexware Export";"";1;0;0;"EUR";;"";;;"04";;;"";""`;
+  const columns =
+    "Umsatz (ohne Soll/Haben-Kz);Soll/Haben-Kennzeichen;WKZ Umsatz;Kurs;Basis-Umsatz;WKZ Basis-Umsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext";
+  const csv = [
+    header,
+    columns,
+    `25000,00;"S";"EUR";;;;1800;9000;"";0101;"";"";;"Eröffnung Bank"`,
+    `25000,00;"S";"EUR";;;;9000;2900;"";0101;"";"";;"Eröffnung Stammkapital"`,
+    `1190,00;"S";"EUR";;;;1800;4400;"";1503;"RE-1";"";;"Rechnung RE-1"`,
+  ].join("\r\n");
+
+  await go("/archiv");
+  await page.getByLabel("Dateien für das Archiv").setInputFiles({ name: `EXTF_Buchungsstapel_${year}.csv`, mimeType: "text/csv", buffer: Buffer.from(csv) });
+  await page.getByRole("button", { name: "Ins Archiv legen" }).click();
+  await expect(page.getByText(`EXTF_Buchungsstapel_${year}.csv: archiviert, 3 Buchungen übernommen.`)).toBeVisible();
+
+  await go(`/archiv?ansicht=buchungen&jahr=${year}`);
+  const abschluss = page.getByRole("region", { name: `Abschluss aus dem DATEV-Stapel ${year}` });
+  await expect(abschluss).toContainText("Eröffnungsbuchungen im Stapel");
+  await expect(abschluss).toContainText("Hebesatz");
+  const aktiva = page.getByRole("region", { name: `Aktiva zum 31.12.${year}` });
+  await expect(aktiva.getByRole("row", { name: "Summe Aktiva" })).toContainText("26.190,00");
+  await expect(page.getByRole("region", { name: `Passiva zum 31.12.${year}` }).getByRole("row", { name: "Summe Passiva" })).toContainText("26.190,00");
+  await expect(page.getByRole("region", { name: /Gewinn- und Verlustrechnung/ }).getByRole("row", { name: /Umsatzerlöse/ })).toContainText("1.000,00");
+  expect(await axe(), "/archiv?ansicht=buchungen").toEqual([]);
+});
+
 test("Die Rechtsform ist nach der ersten Buchung fest", async () => {
   await go("/einstellungen");
   await expect(page.getByRole("form", { name: "Firmendaten" }).getByLabel("Rechtsform")).toBeDisabled();

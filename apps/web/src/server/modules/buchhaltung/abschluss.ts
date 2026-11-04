@@ -49,7 +49,8 @@ async function openWork(year: number, q: Db | Tx): Promise<AbschlussHinweis[]> {
   return issues;
 }
 
-function reportIssues(report: Abschluss, kontenrahmen: Parameters<typeof accountName>[0]): AbschlussHinweis[] {
+/** Offene Vorträge und Konten ohne Posten als Hinweise; auch für den Abschluss aus einem DATEV-Stapel im Archiv */
+export function reportIssues(report: Abschluss, kontenrahmen: Parameters<typeof accountName>[0]): AbschlussHinweis[] {
   const konto = (account: string) => `${account}${accountName(kontenrahmen, account) ? ` ${accountName(kontenrahmen, account)}` : ""}`;
   return [
     ...report.offeneVortraege.map((k) => ({

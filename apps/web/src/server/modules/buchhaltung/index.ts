@@ -5,7 +5,7 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
-export { AbschlussError, closeYear, jahresabschluss } from "./abschluss.ts";
+export { AbschlussError, closeYear, jahresabschluss, reportIssues as abschlussHinweise, type AbschlussHinweis } from "./abschluss.ts";
 export {
   assetInputSchema,
   assetUpdateSchema,
