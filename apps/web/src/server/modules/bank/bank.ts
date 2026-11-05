@@ -359,22 +359,25 @@ export async function listTransactions(accountId: string, filter: TransactionFil
 
 /**
  * Erledigter Betrag je Rechnung bzw. Beleg: Zuordnungen und Ausbuchungen (Skonto, Forderungsausfall), Vorzeichen
- * wie auf dem Konto. Ausbuchungen bewegen kein Geld, zählen für „offen“ aber wie eine Zahlung.
+ * wie auf dem Konto. Ausbuchungen bewegen kein Geld, zählen für „offen“ aber wie eine Zahlung. Bei Rechnungen auch die
+ * Bareinnahmen im Kassenbuch (samt Gegenzeilen); bar bezahlte Belege sind schon beim Buchen bezahlt und zählen hier nicht.
  */
 async function paidByTarget(column: "invoice_id" | "document_id", ids: string[], q: Db | Tx = db): Promise<Map<string, number>> {
   if (ids.length === 0) return new Map();
   const col = sql.raw(column);
+  const cash = column === "invoice_id" ? sql`union all select invoice_id as id, amount from cash_entries where invoice_id in ${ids}` : sql``;
   const rows = await q.execute<{ id: string; paid: string }>(
     sql`select id, sum(amount) as paid from (
           select ${col} as id, amount from allocations where ${col} in ${ids}
           union all select ${col} as id, amount from write_offs where ${col} in ${ids}
+          ${cash}
         ) settled group by 1`,
   );
   return new Map([...rows].map((r) => [r.id, Number(r.paid)]));
 }
 
 /** Erledigter Betrag einer Rechnung bzw. eines Belegs innerhalb einer Transaktion (nach dem Sperren) */
-async function settledOn(tx: Tx, column: "invoice_id" | "document_id", id: string): Promise<number> {
+export async function settledOn(tx: Tx, column: "invoice_id" | "document_id", id: string): Promise<number> {
   return (await paidByTarget(column, [id], tx)).get(id) ?? 0;
 }
 
@@ -383,10 +386,11 @@ async function settledOn(tx: Tx, column: "invoice_id" | "document_id", id: strin
  * Alle zusammen ergeben so genau die Steuer der Rechnung. Ältere Zeilen ohne gespeicherten Anteil zählen, wie gebucht,
  * mit dem aus ihrem Betrag gerechneten. Erst nach dem Sperren der Rechnung aufrufen.
  */
-async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: InvoiceTotals, amount: number): Promise<TaxShare[]> {
+export async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: InvoiceTotals, amount: number): Promise<TaxShare[]> {
   const rows = await tx.execute<{ amount: number; tax_shares: TaxShare[] | null; tax_shares_invoice_id: string | null }>(
     sql`select amount, tax_shares, tax_shares_invoice_id from allocations where invoice_id = ${invoiceId}
-        union all select amount, tax_shares, tax_shares_invoice_id from write_offs where invoice_id = ${invoiceId}`,
+        union all select amount, tax_shares, tax_shares_invoice_id from write_offs where invoice_id = ${invoiceId}
+        union all select amount, tax_shares, tax_shares_invoice_id from cash_entries where invoice_id = ${invoiceId}`,
   );
   const settled = [...rows].reduce((sum, r) => sum + Number(r.amount), 0);
   // Wie Voranmeldung und EÜR (recordedTaxShares): ein Anteil zählt nur für die Rechnung, für die er gerechnet ist
@@ -395,7 +399,7 @@ async function invoiceTaxShares(tx: Tx, invoiceId: string, totals: InvoiceTotals
 }
 
 /** Gespeicherter Steueranteil einer Gegenzeile: genau umgekehrt */
-const negatedShares = (shares: TaxShare[] | null) => shares?.map((s) => ({ rate: s.rate, base: -s.base, tax: -s.tax })) ?? null;
+export const negatedShares = (shares: TaxShare[] | null) => shares?.map((s) => ({ rate: s.rate, base: -s.base, tax: -s.tax })) ?? null;
 
 export async function invoicePayments(ids: string[], q: Db | Tx = db) {
   return paidByTarget("invoice_id", ids, q);
@@ -870,7 +874,7 @@ function onLedger(lines: PostingLine[], kontenrahmen: Kontenrahmen, ledgerIndex:
   return lines.map((l) => (l.account === bank ? { ...l, account: ledger } : l));
 }
 
-function reverseLines(lines: PostingLine[]): PostingLine[] {
+export function reverseLines(lines: PostingLine[]): PostingLine[] {
   return lines.map((l) => ({ ...l, debit: l.credit, credit: l.debit }));
 }
 
@@ -1235,10 +1239,10 @@ export type WriteOffInput = z.infer<typeof writeOffSchema>;
 /** Kursdifferenz: nur zusammen mit einer Zahlung (allocateWithRest), auf eine Rechnung oder einen Beleg in Fremdwährung */
 type ExchangeDifferenceInput = { kind: "kursdifferenz"; date: string; transactionId: string } & ({ invoiceId: string } | { documentId: string });
 
-async function bookWriteOff(
+export async function bookWriteOff(
   tx: Tx,
   company: Awaited<ReturnType<typeof openBooks>>,
-  input: (WriteOffInput & { transactionId?: string }) | ExchangeDifferenceInput,
+  input: (WriteOffInput & { transactionId?: string; cashEntryId?: string }) | ExchangeDifferenceInput,
 ): Promise<number> {
   let amount: number;
   let lines: PostingLine[];
@@ -1313,6 +1317,7 @@ async function bookWriteOff(
       date: input.date,
       amount,
       transactionId: input.transactionId ?? null,
+      cashEntryId: "cashEntryId" in input ? (input.cashEntryId ?? null) : null,
     })
     .returning();
   await post(tx, company, { date: input.date, description, sourceType: "ausbuchung", sourceId: row!.id, lines });
@@ -1432,6 +1437,7 @@ export async function reverseWriteOff(actor: string, id: string, date: string): 
     const [row] = await tx.select().from(schema.writeOffs).where(eq(schema.writeOffs.id, id)).for("update");
     if (!row || row.reversesId) throw new BankError("Ausbuchung nicht gefunden.");
     if (row.transactionId) throw new BankError("Die Ausbuchung gehört zu einer Zahlung; hebe dort im Bankabgleich die Zuordnung auf.");
+    if (row.cashEntryId) throw new BankError("Die Ausbuchung gehört zu einer Bareinnahme; storniere dort im Kassenbuch die Zeile.");
     const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, id));
     if (already) throw new BankError("Die Ausbuchung ist bereits aufgehoben.");
     await reverseWriteOffRow(tx, row, date < row.date ? row.date : date);
@@ -1439,7 +1445,7 @@ export async function reverseWriteOff(actor: string, id: string, date: string): 
 }
 
 /** Gegenzeile einer Ausbuchung; mit einer Zuordnung zusammen am Datum der Ausbuchung (= Buchungsdatum des Umsatzes) */
-async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect, date = row.date) {
+export async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSelect, date = row.date) {
   const [already] = await tx.select({ id: schema.writeOffs.id }).from(schema.writeOffs).where(eq(schema.writeOffs.reversesId, row.id));
   if (already) return;
   const [entry] = await tx
@@ -1456,6 +1462,7 @@ async function reverseWriteOffRow(tx: Tx, row: typeof schema.writeOffs.$inferSel
       date,
       amount: -row.amount,
       transactionId: row.transactionId,
+      cashEntryId: row.cashEntryId,
       reversesId: row.id,
       taxShares: negatedShares(row.taxShares),
       taxSharesInvoiceId: row.taxSharesInvoiceId,

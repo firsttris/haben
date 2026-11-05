@@ -4,6 +4,7 @@ import {
   parsePercent,
   parseSkontoTerms,
   skontoFristen,
+  skontoGezogen,
   skontoOffer,
   skontoPaymentTerms,
   skontoProblem,
@@ -122,6 +123,30 @@ describe("skontoZahlfristen", () => {
     expect(skontoZahlfristen(stufe, "2026-05-25", 119_025, "BE")[0]?.paidBy).toBe("2026-06-04");
     // Tag der Deutschen Einheit am Samstag, 03.10.2026: erst Montag, 05.10.
     expect(skontoZahlfristen(stufe, "2026-09-23", 119_025, "BY")[0]?.paidBy).toBe("2026-10-05");
+  });
+});
+
+describe("skontoGezogen", () => {
+  const fristen = skontoZahlfristen(
+    [
+      { days: 7, percent: 300 },
+      { days: 14, percent: 200 },
+    ],
+    "2026-09-24",
+    119_000,
+    "BY",
+  );
+
+  it("findet die Stufe, deren Zahlbetrag gezahlt wurde, solange die Frist läuft", () => {
+    // 3 % bis 01.10.2026: 115.430; 2 % bis 08.10.2026: 116.620
+    expect(skontoGezogen(fristen, "2026-10-01", 115_430)).toMatchObject({ percent: 300, amount: 3_570 });
+    expect(skontoGezogen(fristen, "2026-10-08", 116_620)).toMatchObject({ percent: 200, amount: 2_380 });
+  });
+
+  it("nach der Frist, mit anderem Betrag oder ohne Stufen nichts", () => {
+    expect(skontoGezogen(fristen, "2026-10-02", 115_430)).toBeUndefined();
+    expect(skontoGezogen(fristen, "2026-10-01", 115_431)).toBeUndefined();
+    expect(skontoGezogen(undefined, "2026-10-01", 115_430)).toBeUndefined();
   });
 });
 

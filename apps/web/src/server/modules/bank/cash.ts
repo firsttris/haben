@@ -1,15 +1,16 @@
 import { UserError } from "../../errors.ts";
-import { CASH_BOOKINGS, cashBookingLabel, cashPosting, formatEuro, type CashBooking, type Cents } from "@haben/core";
-import { asc, eq, sql } from "drizzle-orm";
+import { CASH_BOOKINGS, cashEntryLabel, cashPosting, formatEuro, type CashBooking, type Cents, type PostingLine } from "@haben/core";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { openBooks, openingCash, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
+import { negatedShares, reverseLines, reverseWriteOffRow } from "./bank.ts";
 
 /**
  * Kassenbuch: fortlaufend nummeriert, nur anhängen, Korrektur per Storno. Der Bestand darf an keinem
- * Tag negativ werden; eine Zeile, die das bewirken würde, lehnt Haben ab.
+ * Tag negativ werden; eine Zeile, die das bewirken würde, lehnt Haben ab. Bareinnahmen auf Rechnungen: cash-invoice.ts.
  */
 
 export class CashError extends UserError {}
@@ -77,7 +78,7 @@ export async function checkCashReversal(tx: Tx, date: string, amount: Cents): Pr
   await assertNeverNegative(tx, date, amount);
 }
 
-async function nextNumber(tx: Tx): Promise<number> {
+export async function nextNumber(tx: Tx): Promise<number> {
   const [row] = await tx.select({ max: sql<number | null>`max(${schema.cashEntries.number})` }).from(schema.cashEntries);
   return Number(row?.max ?? 0) + 1;
 }
@@ -150,7 +151,10 @@ export async function createCashEntry(actor: string, input: CashInput, today: st
   });
 }
 
-/** Storno einer Zeile ohne Beleg: Gegenzeile mit heutigem Datum und Gegenbuchung */
+/**
+ * Storno einer Zeile ohne Beleg: Gegenzeile mit heutigem Datum und Gegenbuchung. Bei einer Bareinnahme auf eine Rechnung
+ * ist die Rechnung danach wieder offen (reverseInvoiceCashEntry).
+ */
 export async function reverseCashEntry(actor: string, id: string, today: string): Promise<CashEntry> {
   return withActor(actor, async (tx) => {
     await tx.execute(lock);
@@ -161,6 +165,7 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
     if (already) throw new CashError("Die Kassenbuchung ist bereits storniert.");
     const date = today < original.date ? original.date : today;
     await assertNeverNegative(tx, date, -original.amount);
+    if (original.kind === "rechnung") return reverseInvoiceCashEntry(tx, original, date);
     const reversalId = crypto.randomUUID();
     const text = `Storno Nr. ${original.number}: ${original.text}`;
     const journalEntryId = await postCash(tx, {
@@ -188,6 +193,50 @@ export async function reverseCashEntry(actor: string, id: string, today: string)
   });
 }
 
+/**
+ * Gegenzeile einer Bareinnahme auf eine Rechnung (GoBD: nichts wird überschrieben): Die Gegenbuchung dreht die Zeilen
+ * der ursprünglichen Buchung (Forderungen an Kasse, bei Ist auch die Umsatzsteuer zurück auf „nicht fällig“), der
+ * Steueranteil geht genau zurück. Ein mit der Bareinnahme als Skonto ausgebuchter Rest wird am selben Tag mit aufgehoben,
+ * wie beim Aufheben einer Zuordnung im Bankabgleich; ohne die Zahlung wäre er falsch.
+ */
+async function reverseInvoiceCashEntry(tx: Tx, original: CashEntry, date: string): Promise<CashEntry> {
+  if (!original.journalEntryId) throw new CashError("Zur Bareinnahme gibt es keine Buchung.");
+  const reversalId = crypto.randomUUID();
+  const text = `Storno Nr. ${original.number}: ${original.text}`;
+  const lines = await tx.select().from(schema.journalLines).where(eq(schema.journalLines.entryId, original.journalEntryId));
+  const journalEntryId = await post(tx, await openBooks(tx), {
+    date,
+    description: text,
+    sourceType: "kasse",
+    sourceId: reversalId,
+    reversesId: original.journalEntryId,
+    lines: reverseLines(lines.map((l) => ({ account: l.account, debit: l.debit, credit: l.credit, taxCode: l.taxCode as PostingLine["taxCode"] }))),
+  });
+  const [row] = await tx
+    .insert(schema.cashEntries)
+    .values({
+      id: reversalId,
+      number: await nextNumber(tx),
+      date,
+      amount: -original.amount,
+      kind: "rechnung",
+      text,
+      invoiceId: original.invoiceId,
+      taxShares: negatedShares(original.taxShares),
+      taxSharesInvoiceId: original.taxSharesInvoiceId,
+      reversesId: original.id,
+      journalEntryId,
+    })
+    .returning();
+  const linked = await tx
+    .select()
+    .from(schema.writeOffs)
+    .where(and(eq(schema.writeOffs.cashEntryId, original.id), isNull(schema.writeOffs.reversesId)))
+    .for("update");
+  for (const writeOff of linked) await reverseWriteOffRow(tx, writeOff, date);
+  return row!;
+}
+
 /** Kassenbuch eines Jahres mit Anfangsbestand und Bestand nach jeder Zeile */
 export async function cashBook(year: number) {
   const rows = await db
@@ -199,9 +248,12 @@ export async function cashBook(year: number) {
       kind: schema.cashEntries.kind,
       text: schema.cashEntries.text,
       documentId: schema.cashEntries.documentId,
+      invoiceId: schema.cashEntries.invoiceId,
+      invoiceNumber: schema.invoices.number,
       reversesId: schema.cashEntries.reversesId,
     })
     .from(schema.cashEntries)
+    .leftJoin(schema.invoices, eq(schema.invoices.id, schema.cashEntries.invoiceId))
     .orderBy(asc(schema.cashEntries.date), asc(schema.cashEntries.number));
   const start = `${year}-01-01`;
   const end = `${year + 1}-01-01`;
@@ -230,19 +282,31 @@ const csvAmount = (cents: Cents) => (cents / 100).toFixed(2).replace(".", ",");
 export async function cashBookCsv(year: number): Promise<string> {
   const book = await cashBook(year);
   const lines = [
-    ["Nr.", "Datum", "Art", "Text", "Einnahme", "Ausgabe", "Bestand", "Beleg-ID", "Storno von"].map(csvText).join(";"),
-    [csvText(""), csvText(`${year}-01-01`), csvText("Anfangsbestand"), csvText(""), "", "", csvAmount(book.opening), csvText(""), csvText("")].join(";"),
+    ["Nr.", "Datum", "Art", "Text", "Einnahme", "Ausgabe", "Bestand", "Beleg-ID", "Storno von", "Rechnung"].map(csvText).join(";"),
+    [
+      csvText(""),
+      csvText(`${year}-01-01`),
+      csvText("Anfangsbestand"),
+      csvText(""),
+      "",
+      "",
+      csvAmount(book.opening),
+      csvText(""),
+      csvText(""),
+      csvText(""),
+    ].join(";"),
     ...book.entries.map((e) =>
       [
         String(e.number),
         csvText(e.date),
-        csvText(e.kind === "beleg" ? "Beleg" : cashBookingLabel(e.kind, book.rechtsform)),
+        csvText(cashEntryLabel(e.kind, book.rechtsform)),
         csvText(e.text),
         e.amount > 0 ? csvAmount(e.amount) : "",
         e.amount < 0 ? csvAmount(-e.amount) : "",
         csvAmount(e.balance),
         csvText(e.documentId ?? ""),
         csvText(e.reversesId ?? ""),
+        csvText(e.invoiceNumber ?? ""),
       ].join(";"),
     ),
   ];

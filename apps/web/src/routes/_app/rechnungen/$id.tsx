@@ -398,6 +398,10 @@ function FinalInvoice({ data }: { data: Detail }) {
             </section>
           )}
 
+          {(data.payments.length > 0 || (data.open > 0 && invoice.kind !== "storno")) && (
+            <Payments invoiceId={invoice.id} payments={data.payments} open={data.open} cashable={invoice.kind !== "storno" && invoice.currency === "EUR"} />
+          )}
+
           {invoice.kind !== "storno" && (data.open > 0 || data.writeOffs.length > 0) && (
             <WriteOffs invoiceId={invoice.id} open={data.open} writeOffs={data.writeOffs} today={data.today} />
           )}
@@ -444,6 +448,43 @@ function FinalInvoice({ data }: { data: Detail }) {
   );
 }
 
+type PaymentRow = Awaited<ReturnType<typeof getInvoiceDetail>>["payments"][number];
+
+/** Zahlungen auf die Rechnung: über die Bank zugeordnet oder bar im Kassenbuch, dazu der Weg zur Bareinnahme */
+function Payments({ invoiceId, payments, open, cashable }: { invoiceId: string; payments: PaymentRow[]; open: number; cashable: boolean }) {
+  return (
+    <section className="card" aria-labelledby="payments-heading">
+      <h2 id="payments-heading">Zahlungen</h2>
+      {payments.length === 0 && (
+        <p className="small muted" style={{ margin: 0 }}>
+          Noch keine Zahlung. Überweisungen ordnest du im <Link to="/bank">Bankabgleich</Link> zu.
+        </p>
+      )}
+      {payments.map((p) => (
+        <div key={p.id} className="history-row">
+          <span style={{ textDecoration: p.reversed ? "line-through" : undefined }}>
+            {p.via === "bar" ? "bar" : "Bank"} am {formatDate(p.date)}
+            {p.via === "bar" && (
+              <span className="small muted">
+                {" "}
+                · <Link to="/kasse">Kassenbuch Nr. {p.cashNumber}</Link>
+              </span>
+            )}
+          </span>
+          <span className="small muted">{p.reversed ? (p.via === "bar" ? "storniert" : "aufgehoben") : formatEuro(p.amount)}</span>
+        </div>
+      ))}
+      {open > 0 && cashable && (
+        <div className="actions">
+          <Link className="btn" to="/kasse" search={{ rechnung: invoiceId }}>
+            Barzahlung in der Kasse erfassen
+          </Link>
+        </div>
+      )}
+    </section>
+  );
+}
+
 type WriteOffRow = Awaited<ReturnType<typeof getInvoiceDetail>>["writeOffs"][number];
 
 /**
@@ -482,6 +523,8 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
             {!w.reversed &&
               (w.transactionId ? (
                 "· mit der Zahlung im Bankabgleich aufheben"
+              ) : w.cashEntryId ? (
+                "· mit der Bareinnahme im Kassenbuch stornieren"
               ) : (
                 <button
                   type="button"
@@ -504,7 +547,8 @@ function WriteOffs({ invoiceId, open, writeOffs, today }: { invoiceId: string; o
         <form className="stack" style={{ gap: 10 }} onSubmit={onSubmit}>
           <p className="small muted" style={{ margin: 0 }}>
             Offen sind noch {formatEuro(open)}. Ausbuchen mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§ 17 UStG), bei Soll-Versteuerung in der
-            Voranmeldung des Monats der Ausbuchung. Hat der Kunde Skonto abgezogen, geht es mit der Zahlung zusammen im Bankabgleich.
+            Voranmeldung des Monats der Ausbuchung. Hat der Kunde Skonto abgezogen, geht es mit der Zahlung zusammen im Bankabgleich oder bei einer Barzahlung
+            im Kassenbuch.
           </p>
           <div className="form-grid">
             <label className="field">

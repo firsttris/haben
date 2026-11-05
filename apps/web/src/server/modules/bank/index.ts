@@ -65,6 +65,15 @@ export {
   type TransferCandidate,
 } from "./sepa-transfers.ts";
 export {
+  cashInvoiceCandidates,
+  cashInvoiceInputSchema,
+  createCashInvoiceEntry,
+  invoicePaymentList,
+  type CashInvoiceCandidate,
+  type CashInvoiceInput,
+  type InvoicePayment,
+} from "./cash-invoice.ts";
+export {
   addDocumentCashEntry,
   cashBook,
   cashBookCsv,

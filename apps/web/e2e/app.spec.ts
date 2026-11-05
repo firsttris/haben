@@ -1188,6 +1188,92 @@ test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () =
   await expect(liste).toContainText("Storno Nr. 1: Wechselgeld");
 });
 
+test("Kasse: Rechnung bar bezahlt, erst ein Teil, dann der Rest von der Rechnung aus, Storno der Bareinnahme", async ({ browser }) => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await page.getByLabel("Rechnungsdatum").fill(day(-3));
+  await page.getByLabel("Beschreibung Position 1").fill("Flyer gedruckt, bar bezahlt");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+  const invoicePath = new URL(page.url()).pathname;
+  const number = (await page.getByRole("heading", { level: 1 }).textContent())?.match(/^Rechnung (\S+)/)?.[1] ?? "";
+  expect(number).not.toBe("");
+  const zahlungen = page.getByRole("region", { name: "Zahlungen" });
+  await expect(zahlungen).toContainText("Noch keine Zahlung");
+
+  // Teilzahlung in der Kasse: 50,00 € von 119,00 €
+  await go("/kasse");
+  const form = page.getByRole("form", { name: "Kassenbuchung eintragen" });
+  await form.getByRole("button", { name: "Rechnung bar bezahlt" }).click();
+  const option = form.getByRole("option", { name: new RegExp(`^${number} · Rheinpixel GmbH`) });
+  await form.getByRole("combobox", { name: /^Rechnung/ }).selectOption((await option.getAttribute("value"))!);
+  await expect(form.getByLabel("Betrag (€)")).toHaveValue("119,00");
+  await form.getByLabel("Betrag (€)").fill("50,00");
+  await expect(form).toContainText(/Danach bleiben 69,00\s€ offen/);
+  await expect(form.getByRole("checkbox", { name: /als Skonto ausbuchen/ })).not.toBeChecked();
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: `gebucht: Bareinnahme Rechnung ${number} über 50,00` })).toBeVisible();
+  const liste = page.getByRole("region", { name: "Kassenbuch" });
+  await expect(liste.getByRole("link", { name: `Rechnung ${number} · Rheinpixel GmbH` })).toBeVisible();
+
+  await go(invoicePath);
+  await expect(page.getByText("Teilbezahlt").first()).toBeVisible();
+  await expect(zahlungen).toContainText("bar am");
+
+  // Der Rest von der Rechnung aus: Rechnung und offener Betrag sind vorbelegt; mehr als offen lehnt Haben ab
+  await zahlungen.getByRole("link", { name: "Barzahlung in der Kasse erfassen" }).click();
+  await page.waitForURL(/\/kasse\?rechnung=/);
+  await page.waitForLoadState("networkidle");
+  await expect(form.getByRole("button", { name: "Rechnung bar bezahlt" })).toHaveAttribute("aria-pressed", "true");
+  await expect(form.getByLabel("Betrag (€)")).toHaveValue("69,00");
+  // Die Bareinnahme mit Rechnung prüft axe hier, am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  for (const width of [1440, 390]) {
+    await axePage.setViewportSize({ width, height: 900 });
+    await axePage.goto(page.url());
+    await axePage.waitForLoadState("networkidle");
+    await expect(axePage.getByLabel("Betrag (€)")).toHaveValue("69,00");
+    const { violations } = await new AxeBuilder({ page: axePage })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `/kasse mit Rechnung bei ${width} px`,
+    ).toEqual([]);
+  }
+  await context.close();
+  await form.getByLabel("Betrag (€)").fill("70,00");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  await expect(page.getByRole("alert")).toContainText("nur noch über");
+  await form.getByLabel("Betrag (€)").fill("69,00");
+  await form.getByRole("button", { name: "Buchen" }).click();
+  const gebucht = page.getByRole("status").filter({ hasText: `gebucht: Bareinnahme Rechnung ${number} über 69,00` });
+  await expect(gebucht).toBeVisible();
+  const restNr = (await gebucht.textContent())?.match(/Nr\. (\d+) gebucht/)?.[1] ?? "";
+
+  await go(invoicePath);
+  await expect(page.getByText("Bezahlt").first()).toBeVisible();
+  await expect(zahlungen.getByRole("link", { name: "Barzahlung in der Kasse erfassen" })).toBeHidden();
+
+  // Storno der Restzahlung als Gegenzeile: Die Rechnung ist wieder teilweise offen
+  await go("/kasse");
+  const stornieren = liste.getByRole("button", { name: `Nr. ${restNr} stornieren` });
+  await stornieren.click();
+  await stornieren.click();
+  await expect(page.getByRole("status").filter({ hasText: "Storniert mit Nr." })).toBeVisible();
+  await expect(liste).toContainText(`Storno Nr. ${restNr}: Rechnung ${number}`);
+  await go(invoicePath);
+  await expect(page.getByText("Teilbezahlt").first()).toBeVisible();
+  await expect(zahlungen).toContainText("storniert");
+});
+
 /** Kleine Sicherung, wie sie lexware-sicherung.js herunterlädt: eine Rechnung mit PDF, eine offene Ausgabe und eine Privateinlage ohne Beleg */
 function webBackupZip(): Uint8Array {
   const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../../../packages/import/test-fixtures/lexoffice-web/${name}`, import.meta.url), "utf8"));

@@ -243,7 +243,7 @@ Skonto ist ein Abzug, den der Kunde machen darf, wenn er früh zahlt, etwa 2 % b
 - **In der E-Rechnung** beginnen die Zahlungsbedingungen (BT-20) mit einer Zeile je Stufe im Format der XRechnung, Regel BR-DE-18: `#SKONTO#TAGE=10#PROZENT=2.00#`, danach ein Zeilenumbruch und derselbe Inhalt als Satz. So lesen Buchhaltungsprogramme des Kunden das Skonto maschinell, in XRechnung (UBL und CII) wie in ZUGFeRD.
 - **In der E-Mail** nennt der Platzhalter `{zahlbar}` die Skontofristen mit, etwa „zahlbar bis zum 09.10.2026 ohne Abzug oder bis zum 05.10.2026 abzüglich 2 % Skonto“.
 
-Zahlt der Kunde in der Frist den Betrag abzüglich Skonto, erkennt der [Bankabgleich](bank.md#skonto-auf-eigene-rechnungen) die Zahlung und bucht das Skonto mit einem Klick aus. Wie das Skonto Erlöse und Umsatzsteuer mindert, steht unter [Ausbuchen](#ausbuchen). Nach der Fälligkeit gilt der volle Betrag: [Mahnungen](#mahnwesen) fordern den ganzen offenen Betrag und weisen darauf hin, dass das Skonto entfallen ist.
+Zahlt der Kunde in der Frist den Betrag abzüglich Skonto, erkennt der [Bankabgleich](bank.md#skonto-auf-eigene-rechnungen) die Zahlung und bucht das Skonto mit einem Klick aus; bei einer [Barzahlung](kasse.md#rechnung-bar-bezahlt) im Kassenbuch ebenso. Wie das Skonto Erlöse und Umsatzsteuer mindert, steht unter [Ausbuchen](#ausbuchen). Nach der Fälligkeit gilt der volle Betrag: [Mahnungen](#mahnwesen) fordern den ganzen offenen Betrag und weisen darauf hin, dass das Skonto entfallen ist.
 
 ## GiroCode
 
@@ -331,7 +331,7 @@ Die Seite einer Vorlage listet alle daraus erzeugten Rechnungen. Löschen lässt
 
 ## Mahnwesen
 
-Unter **Rechnungen › Mahnwesen** stehen alle überfälligen Rechnungen: festgeschrieben, nicht storniert, mit offenem Betrag und abgelaufener Fälligkeit. Ob eine Rechnung bezahlt ist, ergibt sich aus den Zuordnungen im [Bankabgleich](bank.md). Je Rechnung siehst du, wie viele Tage sie überfällig ist, den offenen Betrag und die letzte Mahnung mit ihrer Frist.
+Unter **Rechnungen › Mahnwesen** stehen alle überfälligen Rechnungen: festgeschrieben, nicht storniert, mit offenem Betrag und abgelaufener Fälligkeit. Ob eine Rechnung bezahlt ist, ergibt sich aus den Zuordnungen im [Bankabgleich](bank.md) und den Bareinnahmen im [Kassenbuch](kasse.md#rechnung-bar-bezahlt). Je Rechnung siehst du, wie viele Tage sie überfällig ist, den offenen Betrag und die letzte Mahnung mit ihrer Frist.
 
 Der Knopf rechts schlägt die nächste Stufe vor:
 
@@ -366,14 +366,14 @@ Jede Mahnung lässt sich auf der Seite der Rechnung **per E-Mail** schicken, mit
 
 ## Rechnungsliste und Status
 
-Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und einen Status. Der Status wird bei jedem Aufruf aus den Zuordnungen im Bankabgleich abgeleitet; gespeichert ist nur „Entwurf“ oder „festgeschrieben“.
+Die Liste unter **Rechnungen** zeigt Nummer, Kunde, Datum, Bruttobetrag und einen Status. Der Status wird bei jedem Aufruf aus den Zuordnungen im Bankabgleich und den Bareinnahmen im Kassenbuch abgeleitet; gespeichert ist nur „Entwurf“ oder „festgeschrieben“.
 
 | Status | Bedeutung |
 | --- | --- |
 | Entwurf | Noch nicht festgeschrieben, ohne Nummer. |
 | Offen | Festgeschrieben, nicht fällig, noch keine Zahlung zugeordnet. |
 | Teilbezahlt | Ein Teil ist bezahlt, die Fälligkeit ist noch nicht überschritten. |
-| Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet, gegebenenfalls abzüglich eines ausgebuchten Skontos. |
+| Bezahlt | Der volle Betrag ist im Bankabgleich zugeordnet oder bar im Kassenbuch eingenommen, gegebenenfalls abzüglich eines ausgebuchten Skontos. |
 | Ausgebucht | Erledigt, mit einem Forderungsausfall (siehe [Ausbuchen](#ausbuchen)). |
 | Überfällig | Fälligkeit überschritten und noch etwas offen, auch bei Teilzahlung. |
 | Storniert | Zu dieser Rechnung gibt es eine festgeschriebene Stornorechnung. |
@@ -389,6 +389,8 @@ Die Detailseite zeigt das PDF, die Eckdaten (Kunde, Rechnungsdatum, Fälligkeit,
 - **Lieferschein** erzeugt einen Lieferschein mit den Positionen und Mengen der Rechnung, ohne Preise (siehe [Angebote](angebote.md#auftragsbestätigung-und-lieferschein)).
 
 Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreiben entstanden sind. Sie werden nie neu erzeugt.
+
+Unter **Zahlungen** stehen die Zahlungen auf die Rechnung mit Datum und Betrag: „Bank“ für eine Zuordnung im [Bankabgleich](bank.md), „bar“ mit der Nummer im [Kassenbuch](kasse.md#rechnung-bar-bezahlt) für eine Bareinnahme. Aufgehobene und stornierte Zahlungen sind durchgestrichen. Solange die Rechnung offen ist, führt **Barzahlung in der Kasse erfassen** ins Kassenbuch, mit der Rechnung und dem offenen Betrag vorbelegt.
 
 ## Zusätzliche Anhänge
 
@@ -414,7 +416,7 @@ Ist eine festgeschriebene Rechnung noch offen, steht auf ihrer Seite der Abschni
 | Umsatzsteuer (bei Ist: nicht fällig) | | Steuer | |
 | 1400 Forderungen | 1200 Forderungen | | brutto |
 
-Bei Soll-Versteuerung mindert die Ausbuchung die Voranmeldung des Monats, in dem du ausbuchst; bei Ist zählt ohnehin nur, was bezahlt wurde. Ausbuchungen stehen mit Datum und Betrag in der Liste darüber und lassen sich dort aufheben (Gegenbuchung). Wurde der Rest zusammen mit einer Zahlung im Bankabgleich ausgebucht (Rest als Skonto), hebst du ihn dort mit der Zuordnung auf. Stornorechnungen lassen sich nicht ausbuchen.
+Bei Soll-Versteuerung mindert die Ausbuchung die Voranmeldung des Monats, in dem du ausbuchst; bei Ist zählt ohnehin nur, was bezahlt wurde. Ausbuchungen stehen mit Datum und Betrag in der Liste darüber und lassen sich dort aufheben (Gegenbuchung). Wurde der Rest zusammen mit einer Zahlung im Bankabgleich ausgebucht (Rest als Skonto), hebst du ihn dort mit der Zuordnung auf; zusammen mit einer Bareinnahme mit deren Storno im Kassenbuch. Stornorechnungen lassen sich nicht ausbuchen.
 
 Zahlt der Kunde später doch, hebst du die Ausbuchung auf und ordnest die Zahlung zu. Die Aufhebung bucht Haben am Tag, an dem du sie vornimmst: Bei Soll-Versteuerung ist die Umsatzsteuer dann im Monat des Zahlungseingangs erneut zu berichtigen (§ 17 Abs. 2 Nr. 1 Satz 2 UStG), die schon gesendete Voranmeldung des Ausbuchungsmonats bleibt richtig. Hebe die Ausbuchung deshalb im Monat der Zahlung auf.
 

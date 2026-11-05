@@ -1,6 +1,6 @@
 import { UserError } from "../../errors.ts";
 import { buildDatevBuchungsstapel, type DatevExportEntry } from "@haben/import";
-import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, lte } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
@@ -34,6 +34,7 @@ async function vouchers(entries: (typeof schema.journalEntries.$inferSelect)[]):
   const documentIds = ids("document");
   const allocationIds = ids("allocation");
   const writeOffIds = ids("ausbuchung");
+  const cashIds = ids("kasse");
   const allocations = [
     ...(allocationIds.length
       ? await db
@@ -47,6 +48,15 @@ async function vouchers(entries: (typeof schema.journalEntries.$inferSelect)[]):
           .select({ id: schema.writeOffs.id, invoiceId: schema.writeOffs.invoiceId, documentId: schema.writeOffs.documentId })
           .from(schema.writeOffs)
           .where(inArray(schema.writeOffs.id, writeOffIds))
+      : []),
+    // Bareinnahmen auf Rechnungen im Kassenbuch ebenso; Zeilen ohne Rechnung bleiben ohne Belegfeld
+    ...(cashIds.length
+      ? (
+          await db
+            .select({ id: schema.cashEntries.id, invoiceId: schema.cashEntries.invoiceId })
+            .from(schema.cashEntries)
+            .where(and(inArray(schema.cashEntries.id, cashIds), isNotNull(schema.cashEntries.invoiceId)))
+        ).map((c) => ({ ...c, documentId: null }))
       : []),
   ];
   const allInvoiceIds = [...new Set([...invoiceIds, ...allocations.flatMap((a) => (a.invoiceId ? [a.invoiceId] : []))])];

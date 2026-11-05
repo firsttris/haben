@@ -154,7 +154,24 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     .leftJoin(schema.invoices, eq(schema.invoices.id, schema.writeOffs.invoiceId))
     .where(and(eq(schema.writeOffs.kind, "kursdifferenz"), gte(schema.writeOffs.date, start), lt(schema.writeOffs.date, end)));
 
-  const invoiceTotals = await invoiceTotalsById([...new Set([...allocations, ...exchangeDifferences].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))], q);
+  // Bareinnahmen auf Rechnungen im Kassenbuch: Zufluss am Tag der Bareinnahme (§ 11 Abs. 1 EStG), Storno am Tag des Stornos
+  const cashReceipts = await q
+    .select({
+      amount: schema.cashEntries.amount,
+      taxShares: schema.cashEntries.taxShares,
+      taxSharesInvoiceId: schema.cashEntries.taxSharesInvoiceId,
+      invoiceId: schema.cashEntries.invoiceId,
+      date: schema.cashEntries.date,
+      treatment: schema.invoices.taxTreatment,
+    })
+    .from(schema.cashEntries)
+    .innerJoin(schema.invoices, eq(schema.invoices.id, schema.cashEntries.invoiceId))
+    .where(and(gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end)));
+
+  const invoiceTotals = await invoiceTotalsById(
+    [...new Set([...allocations, ...exchangeDifferences, ...cashReceipts].flatMap((a) => (a.invoiceId ? [a.invoiceId] : [])))],
+    q,
+  );
   const docTotals = await documentTotalsById(
     [
       ...new Set([
@@ -243,6 +260,17 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     }
     // Rechnung: weniger erhalten (Rest positiv) ist Verlust; Beleg: weniger gezahlt (Rest negativ) ist Gewinn
     payments.push({ kind: "kursdifferenz", date: w.date, amount: -w.amount, group });
+  }
+  for (const c of cashReceipts) {
+    const totals = invoiceTotals.get(c.invoiceId!)!;
+    payments.push({
+      kind: "invoice",
+      date: c.date,
+      paid: c.amount,
+      totals,
+      shares: recordedTaxShares(totals, c.amount, c.taxSharesInvoiceId === c.invoiceId ? c.taxShares : null),
+      treatment: c.treatment,
+    });
   }
   const documentPayment = (d: (typeof privateDocs)[number], date: string, paid: number): EuerPayment => ({
     kind: "document",
