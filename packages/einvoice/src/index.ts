@@ -6,6 +6,7 @@ export { buildConfirmationPdf, buildDeliveryNotePdf, confirmationPdfData, delive
 export { buildSteuerbescheinigungPdf, steuerbescheinigungPdfData, type SteuerbescheinigungDocument } from "./steuerbescheinigung.ts";
 export { buildLohnabrechnungPdf, lohnabrechnungPdfData, type LohnabrechnungDocument } from "./lohnabrechnung.ts";
 export { buildLohnkontoPdf, lohnkontoPdfData, type LohnkontoDocument } from "./lohnkonto.ts";
+export { buildLstbAusdruckPdf, lstbAusdruckPdfData, type LstbAusdruckDocument } from "./lohnsteuerbescheinigung.ts";
 export { buildDunningPdf, dunningPdfData, type DunningDocument } from "./dunning.ts";
 export { buildHinterlegungPdf, hinterlegungPdfData } from "./hinterlegung.ts";
 export { buildEInvoice } from "./xml.ts";

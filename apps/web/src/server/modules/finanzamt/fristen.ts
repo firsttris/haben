@@ -10,6 +10,7 @@ import {
   kapestFrist,
   lstaFrist,
   lstaLabel,
+  lstbFrist,
   periodKey,
   periodLabel,
   previousPeriod,
@@ -24,11 +25,11 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
 import { kapestAnmeldungen } from "../ausschuettung/index.ts";
-import { lstaZeitraeume } from "../lohn/index.ts";
+import { lstaZeitraeume, lstbJahre } from "../lohn/index.ts";
 import { loadActiveCertificate } from "../elster/index.ts";
 import { loadDauerfrist, loadFrequencies, zmQuartale } from "../umsatzsteuer/index.ts";
 
-export type FristArt = "ustva" | "zm" | "kapest" | "lsta" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
+export type FristArt = "ustva" | "zm" | "kapest" | "lsta" | "lstb" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
 
 export interface Frist {
   /** stabil, auch als UID im Kalender */
@@ -220,6 +221,22 @@ export async function listFristen(today: string): Promise<Frist[]> {
       detail: "Anmeldung und Zahlung der einbehaltenen Lohnsteuer, Soli und Kirchensteuer",
       status: z.angemeldet ? "erledigt" : "offen",
       link: `/lohn/anmeldung/${z.key}`,
+    });
+  }
+
+  // Lohnsteuerbescheinigungen je Jahr mit festgeschriebenen Abrechnungen, bis zum letzten Tag im Februar des Folgejahres
+  // (§ 93c Abs. 1 Nr. 1 AO); erledigt, wenn für jeden Arbeitnehmer eine passende Bescheinigung übermittelt ist
+  for (const j of await lstbJahre(today)) {
+    const datum = lstbFrist(j.year, bundesland);
+    if (!relevant(datum, !j.erledigt)) continue;
+    fristen.push({
+      id: `lstb-${j.year}`,
+      art: "lstb",
+      datum,
+      titel: `Lohnsteuerbescheinigungen ${j.year}`,
+      detail: "Elektronische Lohnsteuerbescheinigung je Arbeitnehmer (§ 41b EStG) und Ausdruck für den Arbeitnehmer",
+      status: j.erledigt ? "erledigt" : "offen",
+      link: `/lohn/bescheinigung/${j.year}`,
     });
   }
 
