@@ -12,6 +12,7 @@ import {
   periodLabel,
   previousPeriod,
   vorauszahlungstermine,
+  zmFrist,
   type Bundesland,
   type VatPeriod,
 } from "@haben/core";
@@ -22,9 +23,9 @@ import { db, schema } from "../../db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
 import { kapestAnmeldungen } from "../ausschuettung/index.ts";
 import { loadActiveCertificate } from "../elster/index.ts";
-import { loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
+import { loadDauerfrist, loadFrequencies, zmQuartale } from "../umsatzsteuer/index.ts";
 
-export type FristArt = "ustva" | "kapest" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
+export type FristArt = "ustva" | "zm" | "kapest" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
 
 export interface Frist {
   /** stabil, auch als UID im Kalender */
@@ -120,6 +121,22 @@ export async function listFristen(today: string): Promise<Frist[]> {
       detail: "Anmeldung und Zahlung, ein Elftel der Vorauszahlungen des Vorjahres",
       status: erledigt ? "erledigt" : "offen",
       link: `/umsatzsteuer/${year}-01`,
+    });
+  }
+
+  // Zusammenfassende Meldung je Quartal mit sonstigen Leistungen ins EU-Ausland, bis zum 25. nach Quartalsende (§ 18a Abs. 2
+  // UStG); nur Quartale mit solchen Umsätzen, erledigt mit der ersten Echtübermittlung
+  for (const quartal of await zmQuartale()) {
+    const datum = zmFrist(quartal.year, quartal.month - 40);
+    if (!relevant(datum, !quartal.sent)) continue;
+    fristen.push({
+      id: `zm-${periodKey(quartal)}`,
+      art: "zm",
+      datum,
+      titel: `Zusammenfassende Meldung ${periodLabel(quartal)}`,
+      detail: "Sonstige Leistungen ins EU-Ausland je USt-IdNr. an das BZSt",
+      status: quartal.sent ? "erledigt" : "offen",
+      link: `/umsatzsteuer/zm/${periodKey(quartal)}`,
     });
   }
 

@@ -1,5 +1,6 @@
 /*
- * Umsatzsteuer-Voranmeldung: Zahlen aus den Buchungen, Vorprüfung, Entwürfe, Berichtigung und Übermittlung.
+ * Umsatzsteuer-Voranmeldung: Zahlen aus den Buchungen, Vorprüfung, Entwürfe, Berichtigung und Übermittlung; dazu die
+ * Zusammenfassende Meldung an das BZSt.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
@@ -18,4 +19,5 @@ export {
   submitDauerfrist,
   type DauerfristOverview,
 } from "./dauerfrist.ts";
+export { loadZmProtocol, submitZm, zmOverview, zmQuartale, zmSubmissions, type ZmOverview } from "./zm.ts";
 export { VatError } from "./vat.ts";

@@ -34,7 +34,35 @@ export interface ZmPosten {
  * Länderkennzeichen, die ERiC für die USt-IdNr. des Kunden annimmt (Prüfregel knre1_Laenderkennzeichen im Plugin
  * checkZMDO): Griechenland als EL, Nordirland als XI. DE weist das Plugin als inländische Nummer ab, GB nach dem Brexit.
  */
-const LAENDER = new Set(["AT", "BE", "BG", "CY", "CZ", "DK", "EE", "EL", "ES", "FI", "FR", "HR", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL", "PL", "PT", "RO", "SE", "SI", "SK", "XI"]);
+const LAENDER = new Set([
+  "AT",
+  "BE",
+  "BG",
+  "CY",
+  "CZ",
+  "DK",
+  "EE",
+  "EL",
+  "ES",
+  "FI",
+  "FR",
+  "HR",
+  "HU",
+  "IE",
+  "IT",
+  "LT",
+  "LU",
+  "LV",
+  "MT",
+  "NL",
+  "PL",
+  "PT",
+  "RO",
+  "SE",
+  "SI",
+  "SK",
+  "XI",
+]);
 
 /** Schreibweise wie in der Meldung: Großbuchstaben, ohne Leerzeichen, Punkte und Bindestriche, GR als EL */
 export function normalizeUstId(raw: string): string {

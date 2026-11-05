@@ -12,7 +12,8 @@ describe("normalizeUstId", () => {
 
 describe("ustIdProblem (Prüfregeln des ERiC-Plugins checkZMDO)", () => {
   it("nimmt Nummern anderer Mitgliedstaaten an", () => {
-    for (const id of ["ATU12345678", "FR12345678901", "NL123456789B01", "IE1+23456B", "EL123456789", "SE123456789001"]) expect(ustIdProblem(id, "S")).toBeNull();
+    for (const id of ["ATU12345678", "FR12345678901", "NL123456789B01", "IE1+23456B", "EL123456789", "SE123456789001"])
+      expect(ustIdProblem(id, "S")).toBeNull();
   });
   it("lehnt fehlende, deutsche, britische und unbekannte Länderkennzeichen ab", () => {
     expect(ustIdProblem("", "S")).toMatch(/fehlt/);
@@ -94,7 +95,12 @@ describe("Berichtigung (§ 18a Abs. 10 UStG)", () => {
       { berichtigt: true, zeilen: [{ ustId: "NL123456789B01", art: "S", betrag: 5_000 }] },
     ]);
     expect(stand).toEqual([erst[0], { ustId: "NL123456789B01", art: "S", betrag: 5_000 }]);
-    expect(gemeldeterStand([{ berichtigt: false, zeilen: erst }, { berichtigt: false, zeilen: [erst[1]!] }])).toEqual([erst[1]]);
+    expect(
+      gemeldeterStand([
+        { berichtigt: false, zeilen: erst },
+        { berichtigt: false, zeilen: [erst[1]!] },
+      ]),
+    ).toEqual([erst[1]]);
   });
 });
 
