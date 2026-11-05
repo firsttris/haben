@@ -166,6 +166,25 @@ describe.skipIf(!testDatabaseUrl)("Zugang der Steuerberatung (Postgres)", () => 
     await expect(zugang.removeAccount(ownerId, ownerId)).rejects.toThrow(/Inhabers/);
   });
 
+  it("über Better Auth ändert niemand sein Konto (update-user): das schriebe ohne Akteur und an der Rollenprüfung vorbei", async () => {
+    const { token } = await invite();
+    const stb = await signUp("profil@example.de", { "x-haben-einladung": token });
+    for (const cookie of [stb.cookie, ownerCookie]) {
+      const response = await auth().handler(
+        new Request("http://localhost:3000/api/auth/update-user", {
+          method: "POST",
+          headers: { cookie, origin: "http://localhost:3000", "content-type": "application/json" },
+          body: JSON.stringify({ name: "Anders", image: "https://example.de/bild.png" }),
+        }),
+      );
+      expect(response.status).toBe(403);
+    }
+    expect(await sql`select name, image from "user" where id in (${stb.id}, ${ownerId}) order by role`).toEqual([
+      { name: "inhaber", image: null },
+      { name: "profil", image: null },
+    ]);
+  });
+
   it("Audit je Nutzer: Konten mit Rolle, Einladungen und jede Anmeldung stehen in der Hash-Kette, ohne Passwort", async () => {
     const { token, id } = await invite("Kanzlei Audit");
     const stb = await signUp("audit@example.de", { "x-haben-einladung": token });
