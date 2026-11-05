@@ -17,14 +17,14 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | 7 | Innergemeinschaftliche Lieferung und Erwerb, Ausfuhr | Rechnung und Beleg mit eigener Steuerregelung, Kz 41, 43, 89/93 und 61, ZM mit Lieferungen ([Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung), [Belege](belege.md#innergemeinschaftlicher-erwerb--1a-ustg), [Voranmeldung](umsatzsteuer.md#innergemeinschaftlicher-erwerb)). Dreiecksgeschäfte und Monatsmeldungen der ZM bleiben bewusst draußen ([Grenzen](umsatzsteuer.md#grenzen)) | M | erledigt |
 | 8 | Dauerbelege | Wiederkehrende Ausgaben wie Miete, Versicherung, Leasing oder Abos einmal mit Vertrag erfassen; Haben legt im Intervall Belege „Zu prüfen“ an und schlägt sie im Bankabgleich vor, Vorsteuer nur mit Steuerausweis im Dokument ([Dauerbelege](belege.md#dauerbelege)) | S–M | erledigt |
 | 9 | Barzahlung einer Rechnung in der Kasse | Bareinnahme einer Ausgangsrechnung im Kassenbuch zuordnen: Kasse an Forderungen wie im Bankabgleich, bei Ist mit der Umsatzsteuer im Monat der Bareinnahme, Teilzahlung, Skonto und Storno als Gegenzeile ([Rechnung bar bezahlt](kasse.md#rechnung-bar-bezahlt)) | S–M | erledigt |
-| 10 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst für die Steuerberatung. Entschieden: kommt; die bisherige Entscheidung „genau ein Nutzer“ ([Architektur](architektur.md#anmeldung)) wird dafür aufgegeben. Zu klären beim Bau: Rollen, Einladung statt Einrichtungscode, Audit je Nutzer | M–L | geplant |
+| 10 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst für die Steuerberatung. Entschieden: kommt; die bisherige Entscheidung „genau ein Nutzer“ ([Architektur](architektur.md#anmeldung)) wird dafür aufgegeben. Stufe 1: Rolle Steuerberatung, nur lesend, per Einladung; weitere Rollen siehe S8 | M–L | geplant |
 | 11 | Belegerkennung mit lokalem Modell | Auslesung über einen OpenAI-kompatiblen Endpunkt (z. B. Ollama, LM Studio, vLLM) mit einem Vision-Modell, ohne Cloud-Fallback; Anthropic bleibt wahlweise. Reine OCR genügt nicht, weil sie nur Text liefert und keine Belegfelder ([KI-Auslesung](belege.md#ki-auslesung), [Einrichtung](einrichtung.md#beispiel-ollama-mit-qwen-vl)) | M | erledigt |
 | 12 | Rabatte und Positionen im Angebot | Gesamt- und Positionsrabatt, optionale und alternative Positionen, Zahlungsplan mit Abschlägen aus dem Angebot | S–M | geplant |
-| 13 | Steuerzahlungen und Darlehen | Umsatz- und Gewerbesteuer für Vorjahre mit Steuerart und Bezugsjahr, private Steuern als Entnahme, abziehbare und nicht abziehbare Zinsen und Zuschläge, Darlehen mit Aufteilung der Rate in Tilgung, Zins und Gebühr, betriebliche Zinserträge, Einfuhrumsatzsteuer (Kz 62) | M | geplant |
-| 14 | Weitere Ausgabe-Kategorien | Miete, sonstiger Betriebsbedarf, Reparatur sonstiger Anlagen, sonstige Fahrzeugkosten, Berufsgenossenschaft, Versorgungskassen – je mit Zuordnung für EÜR, E-Bilanz und HGB | S | geplant |
+| 13 | Steuerzahlungen und Darlehen | Umsatz- und Gewerbesteuer für Vorjahre mit Steuerart und Bezugsjahr, private Steuern als Entnahme, abziehbare und nicht abziehbare Zinsen und Zuschläge, Darlehen mit Aufteilung der Rate in Tilgung, Zins und Gebühr, betriebliche Zinserträge, Einfuhrumsatzsteuer (Kz 62); SKR03 und SKR04 | M | geplant |
+| 14 | Weitere Ausgabe-Kategorien | Miete, sonstiger Betriebsbedarf, Reparatur sonstiger Anlagen, sonstige Fahrzeugkosten, Berufsgenossenschaft, Versorgungskassen – je mit Zuordnung für EÜR, E-Bilanz und HGB in SKR03 und SKR04; Miete auch für die Dauerbelege | S | geplant |
 | 15 | Gestaltung der Belege | Schrift aus einer festen Auswahl eingebetteter, PDF/A-tauglicher Schriften, Fußzeile in bis zu vier Spalten mit Platzhaltern, Briefpapier als PDF-Hintergrund; in der bestehenden Typst-Vorlage, PDF/A-3 und ZUGFeRD bleiben unverändert ([Rechnungen](rechnungen.md)) | S–M | geplant |
 | 16 | Vorschläge aus allen früheren Zuordnungen lernen | Kategorie und Buchungsart im Bankabgleich und bei Belegen aus allen früheren Zuordnungen vorschlagen, mit Begründung, ohne KI-Modell, immer zu bestätigen | S–M | geplant |
-| 17 | Eigene Sachkonten | Einstieg: eigenes Konto mit Name und Nummer, das Steuer-, EÜR- und E-Bilanz-Zuordnung einer bestehenden Kategorie ausdrücklich erbt (auch „EÜR-neutral“); Buchungen behalten die damals gültige Zuordnung | M | geplant |
+| 17 | Eigene Sachkonten | Einstieg: eigenes Konto mit Name und Nummer, das Steuer-, EÜR- und E-Bilanz-Zuordnung einer bestehenden Kategorie ausdrücklich erbt (auch „EÜR-neutral“); Buchungen behalten die damals gültige Zuordnung; vor dem Bau ist zu entscheiden, wie eigene Konten an Beleg- und Buchungszeilen hängen (gemeinsam mit Platz 18) | M | geplant |
 | 18 | Kostenstellen | Kostenstellen je Beleg- und Rechnungszeile mit Aufteilung, Auswertung je Kostenstelle und Zeitraum, Weitergabe im DATEV-Export (KOST1/KOST2) | M–L | geplant |
 | 19 | Bank-CSV und Export für die Betriebsprüfung | Bank-, Kreditkarten- und PayPal-Umsätze im allgemeinen CSV-Format mit Spaltenzuordnung; Datenexport mit Beschreibung `index.xml` für die Prüfsoftware | S | geplant |
 | 20 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
@@ -34,7 +34,32 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 
 ## Später oder vielleicht
 
-Sinnvoll, aber nicht jetzt: Anlagen der Art „sonstige Transportmittel“ und betriebliche Wertpapiere mit eigenem Ablauf; weitere Rollen (Mitarbeitende, buchende Steuerberatung, Betriebsprüfer nur lesend); Tags, Pro-forma-Rechnung, freier Brief, eigene Kontaktfelder, Gutschrift als Rechnungsersatz; Postversand über einen Druckdienstleister; eigene Vorlagen mit Editor und Vorschau und Textformatierung in Belegen; Absender- bzw. Markenprofile, auch mit eigenem Mail-Absender; Webhooks, Angebote und weitere schreibende Endpunkte in der API; Bankumsätze über eine gemeinsame Importschnittstelle für Connectoren; eigene Rechnung beim Beleg-Upload erkennen; Ausgangsrechnungen aus Fremdsystemen mit fremder Nummer; OAuth für Connectors in claude.ai und schreibender MCP-Server; Belege aus Cloud-Speichern; E-Mail-Versand über die Anmeldung bei Google oder Microsoft; ELStAM (offen, ob es eine freigeschaltete Hersteller-ID braucht); § 13b für Bauleistungen; weitere Fälle im Lohn; Module ausblenden; Sammelrechnung aus Lieferscheinen; Lastschrift-Datei (pain.008); Fahrtenbuch; vollständigere Anlage EÜR (häusliches Arbeitszimmer, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
+Sinnvoll, aber nicht jetzt – in dieser Reihenfolge, wenn die Plätze oben erledigt sind:
+
+| # | Thema | Worum es geht | Aufwand |
+| --- | --- | --- | --- |
+| S1 | Bankumsätze über eine gemeinsame Importschnittstelle | Ein Importvertrag für Enable Banking, CSV/CAMT, Zahlungsdienstleister und externe Connectoren (z. B. Vivid, PayPal), idempotent, ohne Zuordnung oder Buchung ([#306](https://github.com/firsttris/haben/issues/306)) | M–L |
+| S2 | Absender- bzw. Markenprofile | Ein Unternehmen, mehrere Marken mit Logo, Farbe, Kontakt, Bankkonto, Texten und eigenem Mail-Absender; baut auf Platz 15 auf ([#245](https://github.com/firsttris/haben/issues/245)) | M |
+| S3 | API ausbauen | Webhooks, Angebote, Artikel, offene Posten und weitere schreibende Endpunkte ([#297](https://github.com/firsttris/haben/issues/297)) | M |
+| S4 | Eigene Rechnung beim Beleg-Upload erkennen | Eine hochgeladene eigene Ausgangsrechnung an der eigenen USt-IdNr. im XML erkennen statt sie als Ausgabe vorzuschlagen ([#104](https://github.com/firsttris/haben/issues/104)) | S |
+| S5 | Ausgangsrechnungen aus Fremdsystemen | Rechnungen aus Shop oder Backoffice mit fremder Nummer und PDF übernehmen, als offener Posten ([#104](https://github.com/firsttris/haben/issues/104)) | M |
+| S6 | Vollständigere Anlage EÜR | Häusliches Arbeitszimmer, Fahrten zwischen Wohnung und Betriebsstätte, Investitionsabzugsbetrag | M |
+| S7 | Fahrtenbuch | Fahrten erfassen statt der 1-%-Regel | M |
+| S8 | Weitere Rollen | Mitarbeitende, buchende Steuerberatung, Betriebsprüfer nur lesend; baut auf Platz 10 auf | M |
+| S9 | Lastschrift-Datei | Forderungen als SEPA-Lastschrift (pain.008) einziehen, mit Mandaten | M |
+| S10 | MCP und OAuth | Connectors in claude.ai über OAuth, schreibender MCP-Server für Entwürfe ([#96](https://github.com/firsttris/haben/issues/96)) | M–L |
+| S11 | Eigene Vorlagen | Vorlagen mit Editor und Vorschau, Textformatierung in Positionen ([#113](https://github.com/firsttris/haben/issues/113), Schritt 3) | L |
+| S12 | ELStAM | An- und Abmeldung und Abruf der Lohnsteuerabzugsmerkmale; offen, ob es eine freigeschaltete Hersteller-ID braucht | M–L |
+| S13 | Weitere Fälle im Lohn | Teilmonate, Einmalzahlungen, Kurzfristige, Auszubildende und weitere Fälle, die heute „nicht unterstützt“ sind | L |
+| S14 | Gutschrift als Rechnungsersatz | Abrechnungsgutschrift nach § 14 Abs. 2 Satz 2 UStG ausstellen | M |
+| S15 | Sammelrechnung aus Lieferscheinen | Mehrere Lieferscheine zu einer Rechnung zusammenfassen | M |
+| S16 | Belege aus Cloud-Speichern | Belege aus Google Drive, Dropbox oder OneDrive übernehmen | M |
+| S17 | E-Mail-Versand über Google oder Microsoft | Anmeldung per OAuth statt SMTP-Passwort | M |
+| S18 | Module ausblenden | Nicht genutzte Bereiche in der Navigation ausblenden ([#266](https://github.com/firsttris/haben/issues/266)) | S–M |
+| S19 | Kleinere Belegfunktionen | Tags, Pro-forma-Rechnung, freier Brief, eigene Kontaktfelder | S |
+| S20 | § 13b für Bauleistungen | Bauleistungen als Leistender und als Empfänger | M |
+| S21 | Weitere Anlagen und Wertpapiere | Sonstige Transportmittel als Anlage, betriebliche Wertpapiere mit Erwerb, Bestand und Verkauf ([#312](https://github.com/firsttris/haben/issues/312), Teil 3) | M |
+| S22 | Postversand | Rechnungen per Brief über einen Druckdienstleister | M |
 
 ## Bewusst nicht
 
@@ -48,7 +73,7 @@ Sinnvoll, aber nicht jetzt: Anlagen der Art „sonstige Transportmittel“ und b
 | CRM mit Aufgaben und Push-Erinnerungen, Mitarbeiterportal | Kein Kern einer Buchhaltung für kleine Betriebe |
 | Mehrere Firmen in einer Installation | Eine Instanz je Firma; so bleiben Daten, Sperren und Audit getrennt |
 | E-Mails als HTML mit Editor | Hoher Aufwand bei wenig Nutzen; Textvorlagen mit Platzhaltern gibt es |
-| Eigenes lernendes Modell für Vorschläge | Die Regeln lernen schon aus früheren Zuordnungen; ein Modell kostet Pflege ohne deutlichen Gewinn |
+| Eigenes lernendes Modell für Vorschläge | Vorschläge lernen ohne Modell aus allen früheren Zuordnungen (Platz 16); ein Modell kostet Pflege ohne deutlichen Gewinn |
 
 ## Nicht machbar ohne Zertifizierung oder Lizenz
 
