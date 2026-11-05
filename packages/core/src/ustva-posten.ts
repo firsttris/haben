@@ -103,7 +103,10 @@ export function vatPostenStand(posten: readonly VatPosten[], payments: readonly 
     return { ...p, bezahlt, verrechnet: 0, offen: p.betrag - bezahlt, zahlungen };
   });
   verrechnen(stand);
-  const ohneBezug = payments.filter((z) => z.vatReturnId === null);
+  // Nach Buchungstag, nicht in der Reihenfolge der Zuordnung: so bekommt der älteste Posten die früheste passende Zahlung
+  const ohneBezug = payments
+    .filter((z) => z.vatReturnId === null)
+    .sort((a, b) => a.bookingDate.localeCompare(b.bookingDate) || a.id.localeCompare(b.id));
   const verwendet = new Set<string>();
   for (const p of stand) {
     if (p.zahlungen.length > 0 || p.offen === 0) continue;
