@@ -1728,6 +1728,90 @@ test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleic
   await expect(firma.getByRole("status")).toContainText("Firmendaten gespeichert.");
 });
 
+test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubletten", async ({ browser }) => {
+  // Kontakte wie aus Excel unter Windows: Windows-1252, Semikolon; die E-Mail-Spalte heißt anders und wird von Hand zugeordnet
+  const kontakte = [
+    "Kundennummer;Firmenname;Straße;PLZ;Ort;Land;Elektronische Post;IBAN",
+    "K-900;Brückenbau Süd GmbH;Talstraße 3;79098;Freiburg;DE;info@brueckenbau.example;DE89 3704 0044 0532 0130 00",
+    "K-901;Nordwerk Software GmbH;Hafenstraße 5;20457;Hamburg;DE;;",
+    "K-902;Öko-Druck eG;Feldweg 1;34117;Kassel;Deutschland;druck@oeko.example;DE89 3704 0044 0532 0130 01",
+    "K-903;Weinhaus Ahr GmbH;Ahrstraße 7;53474;Bad Neuenahr;276;;",
+  ].join("\r\n");
+  await go("/kontakte");
+  await page.getByRole("link", { name: "CSV importieren" }).click();
+  await page.waitForURL(/\/csv-import\?art=kontakte$/);
+  await page.getByLabel("CSV-Datei").setInputFiles([{ name: "kontakte.csv", mimeType: "text/csv", buffer: Buffer.from(kontakte, "latin1") }]);
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  const mapping = page.getByRole("region", { name: "Spalten zuordnen" });
+  await expect(mapping).toContainText("Erkannt: Windows-1252, Semikolon, 8 Spalten");
+  await expect(mapping.getByLabel("Firma")).toHaveValue("1");
+  await expect(mapping.getByLabel("E-Mail")).toHaveValue("");
+  await mapping.getByLabel("E-Mail").selectOption({ label: "Elektronische Post" });
+  const preview = page.getByRole("region", { name: "Vorschau" });
+  await expect(preview).toContainText("2 neu, 1 Dublette, 1 mit Fehlern");
+  await expect(preview).toContainText("Gibt es schon (Name nordwerk software gmbh)");
+  await expect(preview).toContainText("IBAN: „DE89 3704 0044 0532 0130 01“ ist ungültig");
+  // Barrierefreiheit mit Zuordnung und Vorschau, in eigenem Kontext (axe braucht ihn); barrierefreiheit.spec.ts sieht nur das leere Formular
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  await axePage.goto(new URL("/csv-import?art=kontakte", page.url()).toString());
+  await axePage.getByLabel("CSV-Datei").setInputFiles([{ name: "kontakte.csv", mimeType: "text/csv", buffer: Buffer.from(kontakte, "latin1") }]);
+  await axePage.getByRole("button", { name: "Vorschau" }).click();
+  await expect(axePage.getByRole("region", { name: "Vorschau" })).toContainText("mit Fehlern");
+  const { violations } = await new AxeBuilder({ page: axePage }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+  await context.close();
+  await preview.getByRole("button", { name: "2 Kontakte übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText(
+    "2 Kontakte übernommen, 1 Dublette und 1 fehlerhafte Zeile übersprungen.",
+  );
+  await go("/kontakte");
+  const liste = page.getByRole("region", { name: "Kontaktliste" });
+  await expect(liste).toContainText("Brückenbau Süd GmbH");
+  await expect(liste).toContainText("Weinhaus Ahr GmbH");
+  await expect(liste).not.toContainText("Öko-Druck eG");
+
+  // Artikel als UTF-8 mit Komma, Preise deutsch in Anführungszeichen
+  const artikel = [
+    "Artikelnummer,Bezeichnung,Einheit,Nettopreis,Umsatzsteuer",
+    'CSV-1,Datenmigration,Tag,"1.150,00",19',
+    'CSV-2,Fachbuch Steuern,Stück,"39,90",7',
+  ].join("\n");
+  await go("/artikel");
+  await page.getByRole("link", { name: "CSV importieren" }).click();
+  await page.waitForURL(/art=artikel$/);
+  await page.getByLabel("CSV-Datei").setInputFiles([{ name: "artikel.csv", mimeType: "text/csv", buffer: Buffer.from(artikel) }]);
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await expect(page.getByRole("region", { name: "Spalten zuordnen" })).toContainText("Erkannt: UTF-8, Komma");
+  await page.getByRole("button", { name: "2 Artikel übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText("2 Artikel übernommen.");
+  await go("/artikel");
+  await expect(page.getByRole("region", { name: "Artikelliste" })).toContainText("Datenmigration");
+
+  // Anlage mit Restbuchwert zum Stichtag; eine Anschaffung nach dem Stichtag gehört als Beleg gebucht
+  const anlagen = [
+    "Bezeichnung;Art;Anschaffungsdatum;Anschaffungskosten;Nutzungsdauer;Restbuchwert",
+    `Lastenrad;Fahrzeug;01.04.${YEAR - 2};4.800,00;6;3.600,00`,
+    `Neuer Monitor;Computer;02.01.${YEAR};900,00;;900,00`,
+  ].join("\n");
+  await go("/anlagen");
+  await page.getByRole("link", { name: "CSV importieren" }).click();
+  await page.waitForURL(/art=anlagen$/);
+  await page.getByLabel("Übernahmestichtag").fill(`${YEAR}-01-01`);
+  await page.getByLabel("CSV-Datei").setInputFiles([{ name: "anlagen.csv", mimeType: "text/csv", buffer: Buffer.from(anlagen) }]);
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await expect(page.getByRole("region", { name: "Vorschau" })).toContainText("als Beleg mit der Kategorie Anlagegut buchen");
+  // Ein anderer Stichtag nach der Vorschau gilt nicht ungesehen: Der Import übernähme sonst andere Werte als gezeigt
+  await page.getByLabel("Übernahmestichtag").fill(`${YEAR - 1}-01-01`);
+  await expect(page.getByRole("button", { name: "1 Anlage übernehmen" })).toHaveCount(0);
+  await page.getByLabel("Übernahmestichtag").fill(`${YEAR}-01-01`);
+  await page.getByRole("button", { name: "Vorschau" }).click();
+  await page.getByRole("button", { name: "1 Anlage übernehmen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText("1 Anlage übernommen, 1 fehlerhafte Zeile übersprungen.");
+  await go(`/anlagen?jahr=${YEAR}`);
+  await expect(page.getByText("Lastenrad").first()).toBeVisible();
+});
+
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {
   expect(pageErrors).toEqual([]);
   await page.context().storageState({ path: SESSION });

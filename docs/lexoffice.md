@@ -32,7 +32,7 @@ Wie die Belege zu Haben kommen, hängt von deinem Tarif ab. Buchungen, Bankumsä
 
 Hast du Tarif XL, nimm die Public API. Sonst ist die Sicherung aus der Web-Oberfläche der Weg, der dieselben Daten bringt. Nur über die Exporte bleibt, wenn das Skript scheitert; dann fehlen Kontakte, Belege als Datensätze und offene Posten.
 
-Bei jedem Weg gilt: Anlagen trägst du mit dem Restbuchwert ein ([Anlagen](anlagen.md#übernahme-aus-lexoffice)), Angebote, Aufträge, Lieferscheine und Mahnungen übernimmt Haben nicht.
+Bei jedem Weg gilt: Anlagen trägst du mit dem Restbuchwert ein, einzeln oder als CSV-Liste ([Anlagen](anlagen.md#übernahme-aus-lexoffice), [CSV-Import](csv-import.md#anlagen)), Artikel kommen per [CSV-Import](csv-import.md#artikel), Angebote, Aufträge, Lieferscheine und Mahnungen übernimmt Haben nicht.
 
 ## Voraussetzungen
 
@@ -124,7 +124,7 @@ Ohne Skript und ohne API bleibt der Umzug über die Exporte aus Schritt 4:
 Was dabei fehlt:
 
 - **Rechnungen und Belege als Datensätze.** Haben kennt nur die Buchungen aus dem DATEV-Stapel, nicht die einzelnen Belege mit Positionen, Zahlungsstatus und Steuerart. Die Belegdateien liegen nur als ZIP im Archiv, ohne Suche nach Nummer.
-- **Kontakte.** Kunden und Lieferanten legst du in Haben neu an.
+- **Kontakte.** Kunden und Lieferanten legst du in Haben neu an, am schnellsten mit dem Kontakt-Export von Lexware Office als CSV ([CSV-Import](csv-import.md#kontakte)).
 - **Offene Posten (Schritt 3).** Unbezahlte Rechnungen und Eingangsrechnungen trägst du in Haben selbst ein.
 - **Umsatzsteuer je Monat** im Abgleich. Einnahmen, Ausgaben und die Steuer je Jahr rechnet Haben näherungsweise aus dem Buchungsstapel (siehe [Schritt 5](#schritt-5-abgleich-je-jahr)).
 - **Der Status „vollständig“.** Die Prüfungen „Belege und Rechnungen per API abgerufen“ und „Jeder Beleg hat eine Datei“ bleiben offen, das Jahr wird im Abgleich nie als vollständig angezeigt. Ob alles da ist, entscheidest du selbst.

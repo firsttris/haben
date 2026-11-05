@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAusschuettungenRouteImport } from './routes/_app/ausschuettungen'
 import { Route as AppAuswertungenRouteImport } from './routes/_app/auswertungen'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
+import { Route as AppCsvImportRouteImport } from './routes/_app/csv-import'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
 import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
@@ -122,6 +123,11 @@ const AppAuswertungenRoute = AppAuswertungenRouteImport.update({
 const AppBankRoute = AppBankRouteImport.update({
   id: '/bank',
   path: '/bank',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsvImportRoute = AppCsvImportRouteImport.update({
+  id: '/csv-import',
+  path: '/csv-import',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
@@ -506,6 +512,7 @@ export interface FileRoutesByFullPath {
   '/ausschuettungen': typeof AppAusschuettungenRoute
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
+  '/csv-import': typeof AppCsvImportRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -586,6 +593,7 @@ export interface FileRoutesByTo {
   '/ausschuettungen': typeof AppAusschuettungenRoute
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
+  '/csv-import': typeof AppCsvImportRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -669,6 +677,7 @@ export interface FileRoutesById {
   '/_app/ausschuettungen': typeof AppAusschuettungenRoute
   '/_app/auswertungen': typeof AppAuswertungenRoute
   '/_app/bank': typeof AppBankRoute
+  '/_app/csv-import': typeof AppCsvImportRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/finanzamt': typeof AppFinanzamtRoute
   '/_app/fristen': typeof AppFristenRoute
@@ -753,6 +762,7 @@ export interface FileRouteTypes {
     | '/ausschuettungen'
     | '/auswertungen'
     | '/bank'
+    | '/csv-import'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -833,6 +843,7 @@ export interface FileRouteTypes {
     | '/ausschuettungen'
     | '/auswertungen'
     | '/bank'
+    | '/csv-import'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -915,6 +926,7 @@ export interface FileRouteTypes {
     | '/_app/ausschuettungen'
     | '/_app/auswertungen'
     | '/_app/bank'
+    | '/_app/csv-import'
     | '/_app/einstellungen'
     | '/_app/finanzamt'
     | '/_app/fristen'
@@ -1075,6 +1087,13 @@ declare module '@tanstack/react-router' {
       path: '/bank'
       fullPath: '/bank'
       preLoaderRoute: typeof AppBankRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/csv-import': {
+      id: '/_app/csv-import'
+      path: '/csv-import'
+      fullPath: '/csv-import'
+      preLoaderRoute: typeof AppCsvImportRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/einstellungen': {
@@ -1595,6 +1614,7 @@ interface AppRouteChildren {
   AppAusschuettungenRoute: typeof AppAusschuettungenRoute
   AppAuswertungenRoute: typeof AppAuswertungenRoute
   AppBankRoute: typeof AppBankRoute
+  AppCsvImportRoute: typeof AppCsvImportRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppFinanzamtRoute: typeof AppFinanzamtRoute
   AppFristenRoute: typeof AppFristenRoute
@@ -1646,6 +1666,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAusschuettungenRoute: AppAusschuettungenRoute,
   AppAuswertungenRoute: AppAuswertungenRoute,
   AppBankRoute: AppBankRoute,
+  AppCsvImportRoute: AppCsvImportRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppFinanzamtRoute: AppFinanzamtRoute,
   AppFristenRoute: AppFristenRoute,
