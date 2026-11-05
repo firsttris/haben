@@ -202,8 +202,10 @@ describe.skipIf(!testDatabaseUrl)("Lohnbuchung (Postgres)", () => {
   });
 
   it("Einzelunternehmen, SKR03, Ist: Gesellschafter-Geschäftsführer nicht buchbar, also nicht festgeschrieben", async () => {
-    await firma("einzelunternehmen", "SKR03", "ist");
+    // Anlegen lehnt Haben im Einzelunternehmen ab (lohn.test.ts); hier ein Bestand aus der Zeit vor der Rechtsform
+    await firma("gmbh", "SKR03", "ist");
     const id = await lohn.saveEmployee(actor, null, GGF);
+    await sql`update company set rechtsform = 'einzelunternehmen'`;
     await lohn.abrechnen(actor, oktober);
     const [p] = await sql<{ id: string }[]>`select id from payslips where employee_id = ${id}`;
     await expect(lohn.festschreiben(actor, { id: p!.id }, "2026-10-27")).rejects.toThrow(/nur in GmbH und UG/);

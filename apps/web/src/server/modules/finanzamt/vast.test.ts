@@ -113,6 +113,16 @@ describe.skipIf(!testDatabaseUrl)("Belegabruf VaSt (Postgres)", () => {
     expect(belege.every((b) => !b.test)).toBe(true);
   });
 
+  it("GmbH und UG: kein Belegabruf, die vorausgefüllte Steuererklärung gibt es nur für die Einkommensteuer", async () => {
+    await sql`update company set rechtsform = 'ug'`;
+    const calls: { idnr: string; test: boolean; pin: string }[] = [];
+    await expect(vast.fetchVastBelege(actor, scriptedClient(calls), { kind: "test", year: 2025, person: "a", pin: "1234" })).rejects.toThrow(
+      /nur im Einzelunternehmen/,
+    );
+    expect(calls).toEqual([]);
+    expect(await sql`select id from vast_requests`).toEqual([]);
+  });
+
   it("nimmt die gespeicherte PIN, wenn keine eingegeben ist", async () => {
     await sql`update elster_certificates set pin_ciphertext = ${crypto.encrypt(new TextEncoder().encode("gespeichert"))}`;
     const calls: { idnr: string; test: boolean; pin: string }[] = [];

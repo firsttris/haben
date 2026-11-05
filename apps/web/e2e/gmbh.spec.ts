@@ -967,3 +967,81 @@ test("Fahrzeug der GmbH übernehmen: keine Staffel nach § 7 Abs. 2a EStG, linea
   await expect(plan.locator(".table-row", { hasText: /^2031/ })).toContainText("3.887,89");
   expect(await axe(), "/anlagen/<id> Fahrzeug mit Erinnerungswert").toEqual([]);
 });
+
+test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", async () => {
+  const jahr = new Date().getFullYear();
+  // Die Herabsetzung rechnet mit Einkommensteuer aus der EÜR; eine GmbH zahlt Körperschaftsteuer (§ 31 KStG)
+  await go("/finanzamt");
+  await expect(page.getByRole("button", { name: "Freie Nachricht" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vorauszahlungen herabsetzen" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /Einkommensteuer-Vorauszahlungen/ })).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Betreff" })).toBeVisible();
+  expect(await axe(), "/finanzamt GmbH").toEqual([]);
+
+  // Belege der vorausgefüllten Steuererklärung gibt es nur für die Einkommensteuer; Privatnutzung bucht eine GmbH nicht
+  await go(`/jahreserklaerung/${jahr - 1}`);
+  await expect(page.getByRole("heading", { name: /Belege von ELSTER/ })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Abschnitte der Jahreserklärung" }).getByRole("link", { name: "Belege von ELSTER" })).toHaveCount(0);
+  await expect(page.getByText(/private Kfz-Nutzung/)).toHaveCount(0);
+
+  // Die Auswertung nach Zahlung ist keine EÜR; den Gewinn zeigt der Jahresabschluss
+  await go(`/auswertungen?jahr=${jahr}`);
+  await expect(page.getByRole("heading", { name: `Auswertungen ${jahr}` })).toBeVisible();
+  await expect(page.getByRole("link", { name: "EÜR als CSV" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: /Einnahmen-Überschuss-Rechnung/ })).toHaveCount(0);
+  await expect(page.getByRole("main").getByText(/EÜR/)).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("link", { name: "Jahresabschluss" })).toBeVisible();
+  expect(await axe(), "/auswertungen GmbH").toEqual([]);
+
+  // Pauschalen gibt es nur im Einzelunternehmen, also auch keine Herkunft „Pauschale“ im Journal
+  await go("/buchungen");
+  const herkunft = page.getByRole("group", { name: "Herkunft" });
+  await expect(herkunft.getByRole("button", { name: /^Manuell/ })).toBeVisible();
+  await expect(herkunft.getByRole("button", { name: /^Pauschale/ })).toHaveCount(0);
+
+  // Aus eigenem Geld bezahlt: bei der GmbH das Verrechnungskonto, keine Privateinlage
+  await go("/dauerbelege/neu");
+  const bezahlung = page.getByLabel("Bezahlung");
+  await expect(bezahlung.getByRole("option", { name: "Vom Gesellschafter ausgelegt (Verrechnungskonto)" })).toHaveCount(1);
+  await expect(bezahlung.getByRole("option", { name: /Privat/ })).toHaveCount(0);
+
+  await go("/kasse");
+  await expect(page.getByText(/Einlagen,\s+Entnahmen/)).toHaveCount(0);
+
+  // Anlage aus dem Test davor: die AfA steht vor dem Buchen in keiner EÜR, private Kfz-Nutzung gibt es nicht
+  await go(`/anlagen?jahr=${jahr}`);
+  await expect(page.getByText(/In der EÜR/)).toHaveCount(0);
+  await expect(page.getByText(/private Kfz-Nutzung/)).toHaveCount(0);
+
+  // Persönliche Angaben braucht ELSTER für Nachrichten und Postfach, Veranlagung und Ehegatte nur die Einkommensteuer
+  await go("/einstellungen?bereich=persoenlich");
+  await expect(page.getByRole("heading", { name: "Persönliche Angaben" })).toBeVisible();
+  await expect(page.getByRole("main").getByText(/Einkommensteuer/)).toHaveCount(0);
+  await expect(page.getByRole("group", { name: "Veranlagung" })).toHaveCount(0);
+  expect(await axe(), "/einstellungen persönliche Angaben GmbH").toEqual([]);
+
+  // Geld von der Gesellschafterin im Bankabgleich: zugeordnet als Gesellschafter, nicht als Privat
+  const auszug =
+    "﻿" +
+    `"Girokonto";"DE89 3704 0044 0532 0130 00"\n""\n"Kontostand vom ${zahlungTag}:";"35.655,36 €"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `"${zahlungTag}";"${zahlungTag}";"Gebucht";"Gerda Einleger";"Nordlicht Software GmbH";"Darlehen Gesellschafterin";"Eingang";"DE02120300000000202051";"250,00";"";"";""\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "gesellschafter.csv", mimeType: "text/csv", buffer: Buffer.from(auszug) }]);
+  await expect(page.getByText(/1 neuer Umsatz|1 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await go("/bank");
+  await page
+    .getByRole("link", { name: /Gerda Einleger/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Ohne Rechnung buchen" }).click();
+  await page.getByLabel("Buchen als").selectOption({ label: "Gesellschafter (Verrechnungskonto)" });
+  await page.getByRole("button", { name: "Buchen", exact: true }).click();
+  const zuordnung = page.getByRole("complementary", { name: "Zuordnung" });
+  await expect(zuordnung.getByRole("button", { name: "Aufheben" })).toBeVisible();
+  await expect(zuordnung.getByText("Gesellschafter", { exact: true })).toBeVisible();
+  await expect(zuordnung.getByText("Privat", { exact: true })).toHaveCount(0);
+});

@@ -287,6 +287,16 @@ describe.skipIf(!testDatabaseUrl)("Lohnabrechnung (Postgres)", () => {
     expect(r.fehler[0]?.meldung).toMatch(/Versicherungspflicht ergeben/);
   });
 
+  it("Einzelunternehmen: keinen Gesellschafter-Geschäftsführer anlegen oder dazu ändern, andere Beschäftigte schon", async () => {
+    // Die Rechtsform ist nach der ersten Buchung fest; die Buchungen der Tests davor weg
+    await sql`truncate journal_lines, journal_entries cascade`;
+    await sql`update company set rechtsform = 'einzelunternehmen'`;
+    await expect(lohn.saveEmployee(actor, null, GGF)).rejects.toThrow(/Gesellschafter-Geschäftsführer gibt es nur in GmbH und UG/);
+    const id = await lohn.saveEmployee(actor, null, ANGESTELLT);
+    await expect(lohn.saveEmployee(actor, id, { ...ANGESTELLT, art: "ggf" })).rejects.toThrow(/nur in GmbH und UG/);
+    expect((await lohn.listEmployees()).map((e) => e.art)).toEqual(["beschaeftigt"]);
+  });
+
   it("prüft Stammdaten: Steuer-ID, IBAN, Faktor nur in Klasse IV, Austritt nach Eintritt", async () => {
     await expect(lohn.saveEmployee(actor, null, { ...GGF, steuerId: "12345678901" })).rejects.toThrow(/Steuer-ID ist ungültig/);
     await expect(lohn.saveEmployee(actor, null, { ...GGF, iban: "DE00 1234" })).rejects.toThrow(/IBAN ist ungültig/);
