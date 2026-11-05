@@ -175,6 +175,7 @@ Rechnungen, die deine Kunden noch nicht bezahlt haben, und Eingangsrechnungen, d
 
 - Eine offene **Ausgangsrechnung** wird zu einer festgeschriebenen Rechnung in Haben, mit dem Original-PDF und der Rechnungsnummer aus Lexware Office (ohne Nummer `LX-` plus Kurz-ID). Je Steuersatz entsteht eine Position. Der Kunde ist der verknüpfte Kontakt; fehlt er, legt Haben ihn aus der Rechnungsadresse an.
 - Ein offener **Ausgabebeleg** wird zu einem gebuchten Beleg mit Zahlung „Bank“, mit Datei, Lieferant, Nummer, Belegdatum, Fälligkeit und Beträgen je Steuersatz. Die Kategorie leitet Haben grob aus den Kategorienamen in Lexware Office ab; sie zählt nur für die Aufteilung in der EÜR.
+- Die offene **Zahllast einer Voranmeldung** (in Lexware Office ein Ausgabebeleg des Finanzamts, etwa „UStVA-2026-10“) wird kein Beleg. Sie ist keine Betriebsausgabe, sondern Umsatzsteuer an das Finanzamt. Ihre Lastschrift ordnest du im Bankabgleich als **Umsatzsteuer an das Finanzamt** zu: Sie bucht auf das Konto der Umsatzsteuer-Vorauszahlungen (SKR03 1780, SKR04 3820) und steht in der EÜR in der Zeile „An das Finanzamt gezahlte Umsatzsteuer“, wie die Zahllast für Dezember nach einem Jahreswechsel.
 
 Danach ordnest du den Zahlungseingang bzw. die Zahlung wie gewohnt im [Bankabgleich](bank.md) zu.
 
@@ -221,10 +222,13 @@ Die Zahlung muss in Haben ankommen: Ruft Haben die Bank erst ab einem späteren 
 | bis zum Stichtag teilweise bezahlt | Den Rest in Lexware Office ausgleichen oder die Zahlung in Haben ohne Rechnung buchen |
 | Stand am Stichtag unklar | Nach dem Stichtag steht eine Zahlung ohne Datum oder eine Zahlungsart, die Haben nicht kennt; in Lexware Office prüfen und von Hand erfassen |
 | Steuersatz, den Haben nicht kennt | Haben kennt 19 %, 7 % und 0 % |
+| Umsatzsteuer an das Finanzamt | Die Zahlung im Bankabgleich als „Umsatzsteuer an das Finanzamt“ zuordnen (eine Sondervorauszahlung als „Sondervorauszahlung (Dauerfristverlängerung)“), siehe oben |
 | Betrag nicht positiv | Gutschriften werden nicht übernommen |
 | keine Datei aus Lexoffice | Erst die Datei in Lexware Office anhängen und erneut abrufen |
 
 Warum eine Teilzahlung vor dem Stichtag sperrt: Die Rechnung in Haben trägt den Betrag des Original-PDFs, und offen ist in Haben, was keine Zahlung im Bankabgleich deckt. Für die Zahlung vor dem Stichtag gibt es in Haben keinen Bankumsatz. Sie als Ausbuchung zu erfassen, minderte die Umsatzsteuer wie eine Änderung der Bemessungsgrundlage (§ 17 Abs. 1 UStG), obwohl das Entgelt gezahlt ist. Eine Teilzahlung nach dem Stichtag sperrt nicht: Am Stichtag war der ganze Betrag offen, und die Zahlung kommt in Haben an.
+
+Als Umsatzsteuer an das Finanzamt erkennt Haben einen Beleg ohne eigene Vorsteuer, dessen Nummer mit „UStVA“ beginnt (so nummeriert Lexware Office die Zahllast der Voranmeldung), oder dessen Kontakt das Finanzamt bzw. eine Finanzkasse ist und dessen Kategorie oder Nummer Umsatzsteuer, USt oder Voranmeldung nennt. Nennt er daneben eine andere Steuer (Einkommen-, Gewerbe-, Kfz-, Lohnsteuer …), bleibt er ein gewöhnlicher Ausgabebeleg; ebenso Säumnis- und Verspätungszuschläge oder Zinsen zur Umsatzsteuer, denn sie sind Betriebsausgaben. Ein schon früher übernommener Beleg zur Zahllast bleibt, wie er ist: Er ist gebucht und gesperrt.
 
 Außerdem lehnt Haben die Übernahme ab, wenn die Rechnungsnummer in Haben schon vergeben ist, wenn sich die Steuer aus den Positionen nicht centgenau nachbilden lässt (weder mit Netto- noch mit Bruttopreisen, siehe [Rechnungen](rechnungen.md#nettopreise-oder-bruttopreise)) oder wenn die Datei eines Belegs schon als Beleg in Haben liegt (dann bezahlst du dort).
 

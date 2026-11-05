@@ -256,7 +256,7 @@ export async function entwurfLoeschen(actor: string, id: string): Promise<void> 
 const sha256 = (data: Uint8Array) => createHash("sha256").update(data).digest("hex");
 
 /**
- * Schreibt einen Entwurf fest: mit PDF, danach gesperrt und versiegelt (Trigger aus 0124). Abgelehnt, wenn Angaben für die
+ * Schreibt einen Entwurf fest: mit PDF, danach gesperrt und versiegelt (Trigger aus 0125). Abgelehnt, wenn Angaben für die
  * Entgeltbescheinigung fehlen, die Stammdaten seit dem Entwurf geändert sind oder Stufe C nicht als gegengeprüft bestätigt ist.
  */
 export async function festschreiben(actor: string, input: z.input<typeof festschreibenSchema>, heute: string): Promise<void> {

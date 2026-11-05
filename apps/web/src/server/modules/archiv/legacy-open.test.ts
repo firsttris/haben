@@ -324,8 +324,8 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
     const year = Number(heute().slice(0, 4));
     const alt = year - 1;
     const K = {
-      SKR03: { forderung: "1400", nichtFaellig: "1766", verbindlichkeit: "1600" },
-      SKR04: { forderung: "1200", nichtFaellig: "3816", verbindlichkeit: "3300" },
+      SKR03: { forderung: "1400", nichtFaellig: "1766", verbindlichkeit: "1600", ustVorauszahlung: "1780" },
+      SKR04: { forderung: "1200", nichtFaellig: "3816", verbindlichkeit: "3300", ustVorauszahlung: "3820" },
     } as const;
     const ddmmyy = (date: string) => `${date.slice(8, 10)}.${date.slice(5, 7)}.${date.slice(2, 4)}`;
 
@@ -480,6 +480,64 @@ describe.skipIf(!testDatabaseUrl)("Offene Posten aus Lexoffice (Postgres)", () =
           [`${year}-01-01`, "9000", 11_900, 0],
         ]);
       });
+
+      // #269: Die Zahllast der letzten Voranmeldung ist in Lexware Office ein offener Posten des Finanzamts („UStVA-2026-10“)
+      it.each(["ist", "soll"] as const)(
+        "%s: offene Zahllast an das Finanzamt wird kein Ausgabebeleg; die Zahlung zählt als gezahlte Umsatzsteuer",
+        async (versteuerung) => {
+          await sql`update company set kontenrahmen = ${kontenrahmen}, versteuerung = ${versteuerung}`;
+          const id = await legacyVoucher({
+            type: "purchaseinvoice",
+            direction: "ausgabe",
+            number: `UStVA-${alt}-12`,
+            date: `${alt}-12-31`,
+            net: 775_494,
+            tax: 0,
+            rate: 0,
+            status: "paid",
+            payments: [{ date: `${year}-01-10`, amount: -775_494 }],
+            file: PDF,
+            contact: "Finanzamt Regensburg",
+            category: "Sonstige Ausgaben",
+          });
+          const [item] = await legacy.openLegacyItems();
+          expect(item).toMatchObject({ number: `UStVA-${alt}-12`, open: 775_494, blocker: expect.stringMatching(/Umsatzsteuer an das Finanzamt/) });
+          await expect(legacy.takeOverLegacyItem(actor, id)).rejects.toThrow(/Umsatzsteuer an das Finanzamt/);
+          expect(await legacy.takeOverAll(actor)).toEqual([]);
+          expect(await sql`select id from documents`).toHaveLength(0);
+
+          await bank.importStatement(
+            actor,
+            {
+              bytes: dkbCsv([
+                [
+                  ddmmyy(`${year}-01-10`),
+                  ddmmyy(`${year}-01-10`),
+                  "Gebucht",
+                  "Testfirma",
+                  "Finanzamt Regensburg",
+                  `St.-Nr. 198/113/10010 UStVA 12/${alt}`,
+                  "Ausgang",
+                  "DE21300500000001234567",
+                  "-7.754,94",
+                  "",
+                  "",
+                  "",
+                ],
+              ]),
+              filename: "fa.csv",
+            },
+            null,
+          );
+          const [tx] = await sql`select id from bank_transactions`;
+          await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: tx!.id, amount: -775_494 });
+          const [vorauszahlung] = await sql`select sum(debit) - sum(credit) as saldo from journal_lines where account = ${k.ustVorauszahlung}`;
+          expect(Number(vorauszahlung!.saldo)).toBe(775_494);
+          const euer = await reports.euerForYear(year);
+          expect(euer.ausgaben.find((l) => l.key === "gezahlteUst")?.amount).toBe(775_494);
+          expect(euer.ausgaben.find((l) => l.key === "ausgabe:sonstiges")).toBeUndefined();
+        },
+      );
     });
 
     it("Teilzahlung vor dem Stichtag sperrt mit Grund, danach nicht; nach dem Stichtag ausgestellt gehört in Haben", async () => {

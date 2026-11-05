@@ -2,6 +2,7 @@ import { UserError } from "../../errors.ts";
 import {
   addDays,
   computeInvoice,
+  isLegacyVatPayment,
   legacyOpenAt,
   openingDocumentPosting,
   openingInvoicePosting,
@@ -113,6 +114,11 @@ export async function legacyTakeoverCutoff(requested?: string | null, q: Db | Tx
 }
 
 function blockerFor(voucher: LegacyVoucher, state: LegacyOpenAt, cutoff: string, hasPdf: boolean): string | null {
+  // Zahllast an das Finanzamt (#269): als Beleg zählte die Zahlung in der EÜR als Ausgabe ihrer Kategorie. Im Bankabgleich
+  // als „Umsatzsteuer an das Finanzamt“ zugeordnet, bucht sie auf die Vorauszahlungen (SKR03 1780, SKR04 3820) und steht in
+  // der EÜR unter der gezahlten Umsatzsteuer, wie die Zahllast für Dezember nach dem Jahreswechsel.
+  if (isLegacyVatPayment({ ...voucher, categories: voucher.categories.map((c) => c.name) }))
+    return "Umsatzsteuer an das Finanzamt – kein Beleg in Haben; die Zahlung im Bankabgleich als „Umsatzsteuer an das Finanzamt“ zuordnen";
   if (voucher.currency !== "EUR") return "Fremdwährung";
   if (voucher.date > cutoff) return "nach dem Stichtag ausgestellt – gehört in die Bücher von Haben; dort als Rechnung bzw. Beleg erfassen";
   if (state.issue) return `Stand am Stichtag unklar (${state.issue}) – in ${SOURCE_LABEL[voucher.source]} prüfen und von Hand erfassen`;

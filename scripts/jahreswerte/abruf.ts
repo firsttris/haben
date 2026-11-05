@@ -37,23 +37,39 @@ const ZEITLIMIT_MS = 30_000;
 const PAUSE_VOR_WIEDERHOLUNG_MS = 2_000;
 
 /**
- * `holen`, das bei einem Netzwerkfehler oder 5xx nach einer Pause einmal wiederholt: gesetze-im-internet.de setzt
- * gelegentlich die Verbindung zurück, bundesfinanzministerium.de antwortet oft kurz mit 503. Antwortet die Quelle
- * auch dann nicht, wird daraus eine Warnung.
+ * Frist für alle Abrufe eines Laufs: der Job hat `timeout-minutes: 15`, und ERiC allein prüft über 300 Kandidaten. Danach
+ * scheitert jeder weitere Abruf sofort und wird zur Warnung; Zeit für die Issues bleibt.
  */
-export const mitWiederholung =
-  (holen: Holen, pause = PAUSE_VOR_WIEDERHOLUNG_MS): Holen =>
-  async (url, init) => {
+const GESAMTFRIST_MS = 10 * 60_000;
+
+/**
+ * `holen`, das bei einem Netzwerkfehler, einer Zeitüberschreitung oder 5xx nach einer Pause einmal wiederholt:
+ * gesetze-im-internet.de setzt gelegentlich die Verbindung zurück, bundesfinanzministerium.de antwortet oft kurz mit
+ * 503. Jeder Versuch bekommt sein eigenes Zeitlimit (auch für das Lesen des Körpers); ein gemeinsames liefe beim
+ * zweiten Versuch schon ab. Nach der `frist` (ab dem Erzeugen) wird nichts mehr abgerufen. Antwortet die Quelle nicht,
+ * wird daraus eine Warnung.
+ */
+export const mitWiederholung = (
+  holen: Holen,
+  pause = PAUSE_VOR_WIEDERHOLUNG_MS,
+  zeitlimit = ZEITLIMIT_MS,
+  frist: AbortSignal = AbortSignal.timeout(GESAMTFRIST_MS),
+): Holen => {
+  const versuch = (url: string, init?: RequestInit) => holen(url, { ...init, signal: AbortSignal.any([AbortSignal.timeout(zeitlimit), frist]) });
+  return async (url, init) => {
+    frist.throwIfAborted();
     try {
-      const antwort = await holen(url, init);
+      const antwort = await versuch(url, init);
       if (antwort.status < 500) return antwort;
       await antwort.body?.cancel();
     } catch {
-      // ein zweiter Versuch folgt
+      // ein zweiter Versuch folgt, außer die Frist ist um
     }
+    frist.throwIfAborted();
     await new Promise((fertig) => setTimeout(fertig, pause));
-    return holen(url, init);
+    return versuch(url, init);
   };
+};
 
 /**
  * Ruft eine URL ohne Weiterleitung ab (die Quellen melden „gibt es nicht“ teils mit 302/303 auf eine Fehlerseite).
@@ -62,7 +78,7 @@ export const mitWiederholung =
  */
 export async function abrufen(holen: Holen, url: string, init: RequestInit = {}, mitInhalt = true): Promise<Abruf> {
   try {
-    const antwort = await holen(url, { redirect: "manual", signal: AbortSignal.timeout(ZEITLIMIT_MS), ...init });
+    const antwort = await holen(url, { redirect: "manual", ...init });
     const inhalt = mitInhalt ? new Uint8Array(await antwort.arrayBuffer()) : new Uint8Array();
     if (!mitInhalt) await antwort.body?.cancel();
     return { art: "antwort", status: antwort.status, ort: antwort.headers.get("location"), inhalt, typ: antwort.headers.get("content-type") ?? "" };

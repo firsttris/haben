@@ -867,14 +867,21 @@
       "idx": 123,
       "version": "7",
       "when": 1793989674647,
-      "tag": "0123_lohn",
+      "tag": "0123_mail_from_name",
       "breakpoints": true
     },
     {
       "idx": 124,
       "version": "7",
       "when": 1793989734647,
-      "tag": "0124_lohn_trigger",
+      "tag": "0124_lohn",
+      "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1793989794647,
+      "tag": "0125_lohn_trigger",
       "breakpoints": true
     }
   ]
