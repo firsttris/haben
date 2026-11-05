@@ -20,7 +20,7 @@ import {
   isKapitalgesellschaft,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
-import { and, desc, eq, gte, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
@@ -336,12 +336,15 @@ export function documentFileProblem(file: { bytes: Uint8Array; filename: string 
   return null;
 }
 
-/** Beleg mit dieser Datei; nach einem Storno mit Neuerfassung (#237) der neueste, also die Neuerfassung */
+/**
+ * Beleg mit dieser Datei; nach einem Storno mit Neuerfassung (#237) der neueste, also die Neuerfassung. Belege aus einem
+ * Dauerbeleg zählen nicht: Sie teilen sich den Vertrag, der als eigener Beleg hochgeladen werden darf.
+ */
 async function latestWithFile(sha256: string): Promise<string | null> {
   const [row] = await db
     .select({ id: schema.documents.id })
     .from(schema.documents)
-    .where(eq(schema.documents.sha256, sha256))
+    .where(and(eq(schema.documents.sha256, sha256), isNull(schema.documents.recurringDocumentId)))
     .orderBy(desc(schema.documents.uploadedAt))
     .limit(1);
   return row?.id ?? null;
@@ -357,8 +360,11 @@ async function insertDocument(
     const [created] = await tx
       .insert(schema.documents)
       .values({ ...values, ...reference })
-      // Eindeutig ist die Datei nur außerhalb der Neuerfassungen (documents_sha256)
-      .onConflictDoNothing({ target: schema.documents.sha256, where: sql`${schema.documents.replacesDocumentId} is null` })
+      // Eindeutig ist die Datei nur außerhalb der Neuerfassungen und Dauerbelege (documents_sha256)
+      .onConflictDoNothing({
+        target: schema.documents.sha256,
+        where: sql`${schema.documents.replacesDocumentId} is null and ${schema.documents.recurringDocumentId} is null`,
+      })
       .returning({ id: schema.documents.id });
     return created?.id ?? null;
   });
