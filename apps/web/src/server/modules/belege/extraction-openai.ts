@@ -82,7 +82,8 @@ async function post(config: OpenAiConfig, deps: OpenAiDeps, body: unknown, signa
   const headers: Record<string, string> = { "content-type": "application/json", accept: "application/json" };
   if (config.apiKey) headers.authorization = `Bearer ${config.apiKey}`;
   try {
-    return await deps.fetch(config.endpoint, { method: "POST", headers, body: JSON.stringify(body), signal });
+    // Keiner Umleitung folgen: Ein 307/308 schickte den Beleg sonst an einen anderen Host als den eingerichteten
+    return await deps.fetch(config.endpoint, { method: "POST", headers, body: JSON.stringify(body), signal, redirect: "manual" });
   } catch (error) {
     throw networkError(config, error);
   }
@@ -132,6 +133,12 @@ async function serverMessage(response: Response): Promise<string> {
 async function httpError(config: OpenAiConfig, response: Response): Promise<ExtractionError> {
   const status = response.status;
   const reason = `http-${status}`;
+  if (status >= 300 && status < 400) {
+    return new ExtractionError(
+      `Der KI-Dienst unter ${publicEndpoint(config.endpoint)} leitet auf eine andere Adresse um. Haben folgt keinen Umleitungen, damit Belege nur an die eingerichtete Adresse gehen. Bitte EXTRACTION_BASE_URL auf die richtige Adresse setzen.`,
+      "umleitung",
+    );
+  }
   if (status === 401 || status === 403) {
     return new ExtractionError(
       config.apiKey
