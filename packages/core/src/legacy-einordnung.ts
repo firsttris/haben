@@ -1,3 +1,4 @@
+import { OTHER_TAX_PURPOSE, TAX_OFFICE, VAT_PURPOSE } from "./matching.ts";
 import type { Cents } from "./money.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
 
@@ -90,4 +91,39 @@ export function legacyNeutralSums(vouchers: readonly { kind: LegacyNeutralKind; 
       return { kind, label: LEGACY_NEUTRAL_LABELS[kind], count: rows.length, zufluss: sum("einnahme"), abfluss: sum("ausgabe") };
     })
     .filter((s) => s.count > 0);
+}
+
+/**
+ * Belegnummer, die Lexware Office der Zahllast einer übermittelten Voranmeldung gibt: „UStVA-“, Jahr, Zeitraum. Quelle:
+ * echte Lexware-Daten aus Issue #269 („UStVA-2026-10“, offen beim Umzug unter dem Jahr).
+ */
+const LEXWARE_VAT_NUMBER = /^ustva\b/i;
+
+/**
+ * Steuerliche Nebenleistungen zur Umsatzsteuer (§ 3 Abs. 4 AO): Säumnis- und Verspätungszuschläge, Zinsen, Kosten. Sie sind
+ * keine Umsatzsteuer, sondern Betriebsausgaben; § 12 Nr. 3 EStG schließt nur die zu nicht abziehbaren Steuern aus.
+ */
+const SIDE_PAYMENT = /säumnis|verspätung|zuschlag|zinsen|\bzins|mahngebühr|vollstreckung|zwangsgeld/i;
+
+export interface LegacyVatPaymentInput {
+  number: string;
+  contactName: string;
+  /** Namen der Kategorien in Lexoffice */
+  categories: readonly string[];
+  /** Umsatzsteuer des Belegs */
+  tax: Cents;
+}
+
+/**
+ * Ob ein Beleg aus Lexoffice die Umsatzsteuer an das Finanzamt ist (Zahllast der Voranmeldung, Sondervorauszahlung, #269).
+ * Sie ist keine Betriebsausgabe einer Kategorie, sondern steht in der EÜR in „An das Finanzamt gezahlte Umsatzsteuer“ und
+ * bucht auf das Konto der Vorauszahlungen. Erkennbar an der Belegnummer, die Lexware Office selbst vergibt, oder am
+ * Finanzamt als Kontakt mit Umsatzsteuer in Kategorie bzw. Nummer, wie Haben die Lastschrift im Bankabgleich erkennt
+ * (TAX_OFFICE, VAT_PURPOSE). Eine Zahllast trägt selbst keine Vorsteuer; andere Steuern desselben Finanzamts bleiben außen vor.
+ */
+export function isLegacyVatPayment(voucher: LegacyVatPaymentInput): boolean {
+  if (voucher.tax !== 0) return false;
+  const text = [voucher.number, ...voucher.categories].join(" ");
+  if (OTHER_TAX_PURPOSE.test(text) || SIDE_PAYMENT.test(text)) return false;
+  return LEXWARE_VAT_NUMBER.test(voucher.number) || (TAX_OFFICE.test(voucher.contactName) && VAT_PURPOSE.test(text));
 }

@@ -862,6 +862,13 @@
       "when": 1793989614647,
       "tag": "0122_skonto",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1793989674647,
+      "tag": "0123_mail_from_name",
+      "breakpoints": true
     }
   ]
 }

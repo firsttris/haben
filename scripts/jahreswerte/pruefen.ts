@@ -21,6 +21,7 @@ import { pruefeEric } from "./eric.ts";
 import { beschreibeAktion, githubApi, issuesAbgleichen, issueTitel } from "./issues.ts";
 import { pruefeLohnsteuer } from "./lohnsteuer.ts";
 import { mitAktuellenHashes, type Norm, type NormStand, pruefeNormen } from "./normen.ts";
+import { normenDatei } from "./normendatei.ts";
 import { pruefeSozialversicherung } from "./sozialversicherung.ts";
 
 const NORMEN_DATEI = join(import.meta.dirname, "normen.json");
@@ -51,7 +52,7 @@ async function main(argv: readonly string[]): Promise<void> {
   ausgeben(ergebnis);
 
   if (argv.includes("--normen-schreiben")) {
-    writeFileSync(NORMEN_DATEI, `${JSON.stringify({ normen: mitAktuellenHashes(stand) }, null, 2)}\n`);
+    writeFileSync(NORMEN_DATEI, normenDatei(mitAktuellenHashes(stand)));
     console.log(`\nHashes nach ${NORMEN_DATEI} geschrieben`);
   }
   if (trocken) return;

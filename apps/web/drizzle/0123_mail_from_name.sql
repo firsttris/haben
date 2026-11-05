@@ -1,0 +1,1 @@
+ALTER TABLE "mail_settings" ADD COLUMN "from_name" text DEFAULT '' NOT NULL;
