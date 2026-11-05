@@ -1,5 +1,5 @@
 import { csvDecimal, toCsv, type Cents } from "./money.ts";
-import { ACCOUNTS, type Kontenrahmen } from "./posting.ts";
+import { ACCOUNTS, EXPENSE_CATEGORIES, type Kontenrahmen } from "./posting.ts";
 
 /** Kontenklassen nach der ersten Ziffer der Kontonummer */
 export const KONTENKLASSEN: Record<Kontenrahmen, Record<string, string>> = {
@@ -95,6 +95,8 @@ export function kontenkennzahlen(rows: SaldenZeile[]): Kontenkennzahlen {
       a.vorsteuerRc,
       ...Object.values(a.ustIge),
       ...Object.values(a.vorsteuerIge),
+      // Entstandene Einfuhrumsatzsteuer (Kz 62) ist Vorsteuer wie die übrigen
+      EXPENSE_CATEGORIES.einfuhrumsatzsteuer[r.kontenrahmen],
       a.ustVorauszahlung,
       a.sondervorauszahlung,
     ] as string[];

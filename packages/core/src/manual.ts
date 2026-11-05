@@ -1,7 +1,7 @@
 import { ASSET_ACCOUNTS } from "./afa.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import type { Cents } from "./money.ts";
-import { ACCOUNTS, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
+import { ACCOUNTS, EXPENSE_CATEGORIES, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
 import { carriesForward } from "./vortrag.ts";
 
@@ -45,6 +45,8 @@ export function ledgerManagedAccounts(kontenrahmen: Kontenrahmen): Map<string, s
       a.vorsteuerRc,
       ...Object.values(a.ustIge),
       ...Object.values(a.vorsteuerIge),
+      // Entstandene Einfuhrumsatzsteuer: Kz 62 kommt aus den Belegen (Bescheid des Zolls)
+      EXPENSE_CATEGORIES.einfuhrumsatzsteuer[kontenrahmen],
     ].map((account): [string, string] => [account, "Umsatzsteuer"]),
     [a.ustVorauszahlung, "Umsatzsteuer"],
     [a.sondervorauszahlung, "Umsatzsteuer"],

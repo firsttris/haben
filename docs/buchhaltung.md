@@ -413,7 +413,7 @@ Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung dar
 | Bank, Zahlungsdienstleister, Geldtransit | Bankabgleich |
 | Kasse | Kassenbuch |
 | Forderungen, Verbindlichkeiten aus Lieferungen und Leistungen | Rechnungen und Belege (offene Posten) |
-| Umsatzsteuer, Vorsteuer, Umsatzsteuer-Vorauszahlungen | Voranmeldung |
+| Umsatzsteuer, Vorsteuer, entstandene Einfuhrumsatzsteuer (SKR03 1588, SKR04 1433), Umsatzsteuer-Vorauszahlungen | Voranmeldung |
 | Erlöskonten der Rechnungen | Rechnungen |
 | Anlagen, AfA, Restbuchwert | Anlagenverzeichnis |
 | Lohnaufwand und Lohnverbindlichkeiten (SKR03 4120, 4124, 4130, 4144, 4194, 4195, 1740–1742; SKR04 6020, 6024, 6035, 6036, 6110, 6171, 3720–3740) | Lohnabrechnung; die Verbindlichkeiten sind in der Eröffnung erlaubt |
