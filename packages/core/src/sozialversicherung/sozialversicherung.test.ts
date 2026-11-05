@@ -321,6 +321,28 @@ describe("nicht unterstützte und ungültige Eingaben", () => {
     expect(ergebnis.ok === false && ergebnis.meldung).not.toMatch(/Minijob/);
   });
 
+  // Ob der Übergangsbereich gilt, entscheidet das regelmäßige Entgelt (§ 20 Abs. 2 SGB IV); ein Monat in einem anderen
+  // Bereich wird nicht gerechnet, im selben Bereich wie bisher mit dem Entgelt des Monats
+  it.each([
+    ["Midijob, Monat über 2.000 €", 1500_00, 2500_00],
+    ["über 2.000 €, Monat im Übergangsbereich", 3000_00, 1500_00],
+    ["Midijob, Monat bis 603 €", 1500_00, 500_00],
+  ])("rechnet %s nicht", (_, regelmaessigesEntgelt, entgelt) => {
+    const ergebnis = sozialversicherung(2026, { ...ANGESTELLT, entgelt, regelmaessigesEntgelt });
+    expect(ergebnis).toMatchObject({ ok: false, grund: "nicht-unterstuetzt" });
+  });
+
+  it("rechnet einen Monat im Bereich des regelmäßigen Entgelts wie ohne Angabe", () => {
+    expect(sozialversicherung(2026, { ...ANGESTELLT, regelmaessigesEntgelt: 4200_00 })).toEqual(sozialversicherung(2026, ANGESTELLT));
+    expect(sozialversicherung(2026, { ...ANGESTELLT, entgelt: 1500_00, regelmaessigesEntgelt: 1400_00 })).toEqual(
+      sozialversicherung(2026, { ...ANGESTELLT, entgelt: 1500_00 }),
+    );
+  });
+
+  it("lehnt ein regelmäßiges Entgelt in Euro ab", () => {
+    expect(sozialversicherung(2026, { ...ANGESTELLT, regelmaessigesEntgelt: 40.5 })).toMatchObject({ ok: false, grund: "ungueltig" });
+  });
+
   it("rechnet U1 nur, wenn der Arbeitgeber teilnimmt", () => {
     expect(rechne({ ...ANGESTELLT, umlagen: { u1: null, u2: 44 } }).umlagen).toEqual({ u1: 0, u2: 17_60, insolvenzgeld: 6_00 });
   });

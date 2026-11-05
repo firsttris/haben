@@ -43,6 +43,10 @@ function pruefe(e: SvEingabe): string | null {
     [ganzNichtNegativ(e.entgelt), "Das Entgelt muss ein ganzer, nicht negativer Betrag in Cent sein"],
     [e.einmalzahlung === undefined || ganzNichtNegativ(e.einmalzahlung), "Die Einmalzahlung muss ein ganzer, nicht negativer Betrag in Cent sein"],
     [e.svTage === undefined || (Number.isInteger(e.svTage) && e.svTage >= 1 && e.svTage <= 30), "Die SV-Tage müssen eine ganze Zahl von 1 bis 30 sein"],
+    [
+      e.personengruppe !== "beschaeftigt" || e.regelmaessigesEntgelt === undefined || ganzNichtNegativ(e.regelmaessigesEntgelt),
+      "Das regelmäßige Entgelt muss ein ganzer, nicht negativer Betrag in Cent sein",
+    ],
   ];
   if (e.personengruppe === "beschaeftigt") {
     const { kv, pflege, umlagen } = e;
@@ -89,8 +93,20 @@ function nichtUnterstuetztImUebergang(e: SvEingabe, w: SvJahreswerte): string[] 
   if (e.personengruppe === "beschaeftigt" && e.entgelt > 0 && e.entgelt <= w.geringfuegigkeitsgrenze) {
     return [`einem Monatsentgelt bis ${formatEuro(w.geringfuegigkeitsgrenze)} in versicherungspflichtiger Beschäftigung`];
   }
+  // Ein Monat in einem anderen Bereich als das regelmäßige Entgelt (etwa über 2.000 € in einem Midijob oder darunter in
+  // einer Beschäftigung über 2.000 €): Ob der Übergangsbereich gilt, entscheidet das regelmäßige Entgelt (§ 20 Abs. 2
+  // SGB IV), nicht der Monat. Dafür hat Haben noch keine belegten Beispielrechnungen, also nicht rechnen
+  if (e.personengruppe === "beschaeftigt" && e.regelmaessigesEntgelt !== undefined && bereich(e.regelmaessigesEntgelt, w) !== bereich(e.entgelt, w)) {
+    return [`einem Monatsentgelt außerhalb des Bereichs des regelmäßigen Entgelts von ${formatEuro(e.regelmaessigesEntgelt)}`];
+  }
   if (e.personengruppe !== "beschaeftigt" || !imUebergangsbereich(e.entgelt, w) || e.kv.art === "privat") return [];
   return e.sachsen ? ["Pflegeversicherung in Sachsen im Übergangsbereich"] : [];
+}
+
+/** Bereich eines Monatsentgelts: bis zur Geringfügigkeitsgrenze, im Übergangsbereich oder darüber */
+function bereich(entgelt: number, w: SvJahreswerte): "geringfuegig" | "uebergang" | "darueber" {
+  if (entgelt <= w.geringfuegigkeitsgrenze) return "geringfuegig";
+  return imUebergangsbereich(entgelt, w) ? "uebergang" : "darueber";
 }
 
 /** Entgelt passt nicht zur Personengruppe */

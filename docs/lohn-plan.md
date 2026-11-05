@@ -1,6 +1,6 @@
 # Lohn in Haben – Recherche und Umsetzungsplan
 
-Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
+Stand: 5. November 2026. PR 1 bis 3 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
 
 ## Kurzfazit
 
@@ -42,6 +42,14 @@ Stand: 4. November 2026. Nur Plan, kein Code. Ein Teil der Angaben stützt sich 
 - **Tests:** Beispielrechnungen aus Beratungsblättern der Kassen und der Minijob-Zentrale; Grenzfälle an BBG und Übergangsbereich.
 
 ### PR 3 – Mitarbeiter und Lohnabrechnung (apps/web)
+
+**Erledigt:** Tabellen `employees`, `payroll_runs`, `payslips` und `payslip_cancellations` (englische Namen wie die übrigen Tabellen), Modul `apps/web/src/server/modules/lohn/`, Seite **Personal › Lohn** ([Lohn](lohn.md)). Gerechnet wird in `lohnabrechnung()` in `packages/core/src/lohnabrechnung/` nur mit `lohnsteuer`, `lohnkirchensteuer` und `sozialversicherung`. Abweichungen vom Plan:
+
+- **Regelmäßiges Entgelt:** Die Abrechnung gibt das Monatsgehalt der Stammdaten als `regelmaessigesEntgelt` an `sozialversicherung()`. Liegt das Entgelt des Monats in einem anderen Bereich (bis 603 €, Übergangsbereich, darüber), rechnet Haben nicht („nicht unterstützt“); die Bemessung nach § 2 Abs. 2 Satz 2 und 5 BVV bleibt offen, bis ein Rechenbeispiel sie belegt.
+- **Stufe C** (Beschäftigte mit SV) rechnet Haben, schreibt sie aber erst fest, wenn der Nutzer bestätigt, dass er sie gegengeprüft hat; die Spalte `gegengeprueft` hält das fest. Privat versicherte Beschäftigte und der Zuschuss zur PKV des Geschäftsführers sind nicht unterstützt.
+- **Nur ganze Monate:** Eintritt oder Austritt im Monat ist nicht unterstützt (anteilige BBG, Lohnsteuer nach Kalendertagen).
+- **Festschreiben** setzt voraus, dass alle Angaben für die Entgeltbescheinigung da sind (§ 1 Abs. 1 EntgBV) und die Stammdaten seit dem Entwurf unverändert sind. Ein Storno legt gleich den Entwurf der neuen Abrechnung an.
+- **Entgeltabrechnung** nach § 108 GewO und § 1 EntgBV, **Lohnkonto** nach § 41 EStG und § 4 LStDV als PDF und CSV; Entgeltunterlagen nach § 8 BVV und die elektronische Bereitstellung nach § 4 Abs. 2a LStDV (DLS) noch nicht.
 
 - **Umfang:** Tabellen `mitarbeiter` (Steuer-ID, Steuerklasse, Kinderfreibeträge, Konfession, Krankenkasse mit Betriebsnummer, Personengruppe, Beitragsgruppe, Tätigkeitsschlüssel, SV-Nummer, Statusfeststellung) und `lohnabrechnungen` (je Monat, festgeschrieben und versiegelt wie `journal_entries`, Audit-Trigger, Korrektur nur als Storno plus neue Abrechnung).
 - **Modul:** `apps/web/src/server/modules/lohn/` mit `index.ts`; Server-Funktionen dünn. Seite **Personal › Lohn** mit Abrechnung als PDF (Typst, wie die Rechnung) nach § 108 GewO.
