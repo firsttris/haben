@@ -336,6 +336,33 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung als offener Posten (Postgres)", 
     expect((await zahlung.ustvaPosten()).posten[0]!.faellig).toBe(faelligVorher);
   }, 60_000);
 
+  it("Altbestand: vor dem Update gesendete Voranmeldung ohne Zahlung mit Bezug ist kein Posten, keine Aufgabe, Übersicht wie vorher", async () => {
+    await firma("SKR03", "ist");
+    // Über ERiC gesendet, bevor es offene Posten gab (vor der Migration 0135/0136); bezahlt außerhalb der Konten in Haben
+    const [alt] = await sql`insert into vat_returns (year, month, status, source, kz81, kz83, transfer_ticket, sent_at, locked_at)
+      values (2025, 10, 'sent', 'manuell', 100000, 19000, 'etALTBESTAND1', '2025-11-09T10:00:00Z', '2025-11-09T10:00:00Z') returning id`;
+    // Dazu eine alte Lastschrift „Umsatzsteuer an das Finanzamt“ ohne Bezug, die nicht genau passt
+    await umsatz([row("10.12.25", "Finanzamt Regensburg", "USt 11/25", "-50,00")], "alt");
+    await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: await txId("USt 11/25"), amount: -5_000 });
+
+    const stand = await zahlung.ustvaPosten();
+    expect(stand.posten).toEqual([]);
+    // Die Lastschrift zählt wie vor dem Update für die Deckung der Zahllast (vatPaid in der Übersicht)
+    expect(stand.ohneBezug.map((z) => z.amount)).toEqual([-5_000]);
+    expect(await zahlung.ustvaOpenItems()).toEqual([]);
+    expect((await reports.openPositions("2026-11-20")).vat).toEqual([]);
+
+    // Ordnet jemand ihr ausdrücklich eine Zahlung mit Bezug zu, zeigt sie Stand und Rest wie eine neue
+    await umsatz([row("12.11.26", "Finanzamt Regensburg", "USt 10/25 Teil", "-100,00")], "teil");
+    await bank.allocate(actor, { kind: "ustva", transactionId: await txId("USt 10/25 Teil"), vatReturnId: alt!.id, amount: -10_000 });
+    expect((await zahlung.ustvaPosten()).posten).toEqual([expect.objectContaining({ vatReturnId: alt!.id, bezahlt: 10_000, offen: 9_000 })]);
+
+    // Neu abgegebene Voranmeldungen sind Posten wie bisher
+    const draft = await vat.saveDraft(actor, oktober, { mode: "manuell", kz81: 100_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" });
+    await vermerk.vermerkeAbgabe(actor, draft.id, abgabe(19_000), "2026-11-09");
+    expect((await zahlung.ustvaPosten()).posten.map((p) => p.vatReturnId)).toEqual([alt!.id, draft.id]);
+  }, 60_000);
+
   it("Integritätsprüfung erkennt einen geänderten Vermerk (Tag der Abgabe, Protokoll) wie einen Rechnungsanhang", async () => {
     await firma("SKR04", "ist");
     const draft = await vat.saveDraft(actor, oktober, { mode: "manuell", kz81: 100_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" });
