@@ -13,9 +13,13 @@ const fail = <T>(error: string): Parsed<T> => ({ ok: false, error });
 
 /**
  * Betrag in Cent, deutsch geschrieben („1.234,56“, „12,5“, „100 €“). Ein Punkt gilt nur als Dezimalpunkt, wenn er mit
- * ein oder zwei Nachkommastellen eindeutig ist („12.50“); „1.234“ ist deutsch gelesen tausendzweihundertvierunddreißig.
+ * ein oder zwei Nachkommastellen eindeutig ist („12.50“). „1.234“ ist deutsch 1.234 €, englisch 1,234 €; in einer Datei
+ * mit Dezimalpunkt („1.500“ = 1,50 €) ergäbe das deutsche Lesen das Tausendfache, also lieber ablehnen.
  */
 export function parseImportAmount(raw: string, label: string): Parsed<Cents> {
+  if (/^[+-]?\d{1,3}\.\d{3}-?$/.test(raw.replace(/[\s  €]|EUR/gi, ""))) {
+    return fail(`${label}: „${raw}“ ist mehrdeutig; bitte mit Dezimalkomma schreiben wie 1.234,00`);
+  }
   const german = parseGermanAmount(raw);
   if (german !== null) return ok(german);
   const compact = raw.replace(/[\s €]|EUR/gi, "");
