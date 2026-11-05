@@ -16,6 +16,20 @@ describe("Abruf", () => {
     expect(zweimalWeg.aufrufe).toHaveLength(2);
   });
 
+  it("gibt jedem Versuch ein eigenes Zeitlimit, damit die Wiederholung nach einer Zeitüberschreitung eine Chance hat", async () => {
+    const signale: (AbortSignal | null | undefined)[] = [];
+    const holen = mitWiederholung(async (_url, init) => {
+      signale.push(init?.signal);
+      if (signale.length === 1) throw new DOMException("The operation timed out.", "TimeoutError");
+      init?.signal?.throwIfAborted();
+      return new Response("ok");
+    }, 0);
+    expect(await abrufen(holen, URL_A)).toMatchObject({ art: "antwort", status: 200 });
+    expect(signale[0]).toBeInstanceOf(AbortSignal);
+    expect(signale[1]).toBeInstanceOf(AbortSignal);
+    expect(signale[1]).not.toBe(signale[0]);
+  });
+
   it("wiederholt bei 404 nicht", async () => {
     const holen = nachgestellt({});
     expect(await abrufen(mitWiederholung(holen, 0), URL_A)).toMatchObject({ art: "antwort", status: 404 });
