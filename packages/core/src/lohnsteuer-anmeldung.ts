@@ -14,6 +14,10 @@ import type { Bundesland } from "./steuernummer.ts";
  * - Getrennt nach dem Kalenderjahr, in dem der Arbeitslohn als bezogen gilt (§ 41a Abs. 1 Satz 1 Nr. 1 EStG): laufender
  *   Arbeitslohn im Jahr, in dem der Lohnzahlungszeitraum endet (§ 38a Abs. 1 Satz 2 EStG). Der Dezember mit Zahltag im
  *   Januar steht deshalb in der Spalte „Vorjahr“ der Januar-Anmeldung.
+ * - Laufender Arbeitslohn ist das nur, wenn der Lohn des Vorjahres innerhalb der ersten drei Wochen des neuen Jahres
+ *   zufließt (R 39b.2 Abs. 1 Nr. 7 LStR). Später gezahlt, oder im Voraus für einen Monat des Folgejahres, ist er ein
+ *   sonstiger Bezug des Zahlungsjahres (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR, § 38a Abs. 1 Satz 3 EStG), den die
+ *   Lohnabrechnung nicht als solchen rechnet: nicht unterstützt statt in der falschen Spalte gemeldet.
  * - Die Pauschsteuer von 2 % im Minijob (§ 40a Abs. 2 EStG) gehört nicht in die Lohnsteuer-Anmeldung: Sie geht mit den
  *   Beiträgen an die Minijob-Zentrale (§ 40a Abs. 6 EStG). Der Minijobber zählt aber bei der Zahl der Arbeitnehmer
  *   (Kz 86): laut Vordruck einschließlich der an die Deutsche Rentenversicherung Knappschaft-Bahn-See gemeldeten
@@ -191,6 +195,8 @@ export interface LstaAbrechnung {
   mitarbeiter: string;
   /** Jahr des Lohnzahlungszeitraums: in diesem Jahr gilt der laufende Arbeitslohn als bezogen */
   jahr: number;
+  /** JJJJ-MM-TT */
+  zahltag: string;
   lohnsteuer: Cents;
   soli: Cents;
   kirchensteuer: Cents;
@@ -235,16 +241,22 @@ export interface LstaKennzahlen {
 
 const leer = (): Jahresteile => ({ vorjahr: 0, lfdJahr: 0, folgejahr: 0 });
 
-/** Felder _Vorjahr nur bei Zeitraum 01, 02, 41 und 19, _Folgejahr nur bei 12, 44 und 19 (Regeln LStA_Vorjahrangabe_unzulaessig, LStA_Folgejahrangabe_unzulaessig) */
-const VORJAHR_ZULAESSIG = [1, 2, 41, LSTA_KALENDERJAHR];
-const FOLGEJAHR_ZULAESSIG = [12, 44, LSTA_KALENDERJAHR];
+/**
+ * Letzter Zahltag, an dem Lohn des Vorjahres noch laufender Arbeitslohn ist: drei Wochen nach Jahresende (R 39b.2 Abs. 1
+ * Nr. 7 LStR). Damit steht die Spalte Vorjahr nur im Januar, ersten Quartal oder Kalenderjahr, wo das Schema sie zulässt
+ * (Regel LStA_Vorjahrangabe_unzulaessig: 01, 02, 41, 19). Die Spalte Folgejahr bleibt leer: Lohn für das Folgejahr ist
+ * im Voraus gezahlt ein sonstiger Bezug des Zahlungsjahres.
+ */
+const letzterZahltagVorjahr = (year: number) => `${year}-01-21`;
 
 export type LstaErgebnis = { ok: true; kennzahlen: LstaKennzahlen } | { ok: false; probleme: string[] };
 
+const tag = (iso: string) => iso.split("-").reverse().join(".");
+
 /**
- * Kennzahlen der Anmeldung eines Zeitraums. Nicht unterstützt (statt falsch gemeldet): Arbeitslohn eines Jahres, das
- * weder Vorjahr, laufendes noch Folgejahr ist, Vorjahr oder Folgejahr in einem Zeitraum, der sie nicht zulässt, und
- * Kirchensteuer, für die das Land keine Kennzahl vorsieht.
+ * Kennzahlen der Anmeldung eines Zeitraums. Nicht unterstützt (statt falsch gemeldet): Arbeitslohn eines anderen Jahres,
+ * außer Lohn des Vorjahres in den ersten drei Wochen des Jahres, und Kirchensteuer, für die das Land keine Kennzahl
+ * vorsieht.
  */
 export function lstaKennzahlen(input: { zeitraum: LstaZeitraum; bundesland: Bundesland; abrechnungen: readonly LstaAbrechnung[] }): LstaErgebnis {
   const { zeitraum, bundesland } = input;
@@ -254,20 +266,14 @@ export function lstaKennzahlen(input: { zeitraum: LstaZeitraum; bundesland: Bund
   const kirche: Record<LstaKircheKz, Jahresteile> = { kz61: leer(), kz62: leer(), kz63: leer() };
   for (const a of input.abrechnungen) {
     const teil: keyof Jahresteile | null =
-      a.jahr === zeitraum.year ? "lfdJahr" : a.jahr === zeitraum.year - 1 ? "vorjahr" : a.jahr === zeitraum.year + 1 ? "folgejahr" : null;
+      a.jahr === zeitraum.year ? "lfdJahr" : a.jahr === zeitraum.year - 1 && a.zahltag <= letzterZahltagVorjahr(zeitraum.year) ? "vorjahr" : null;
     if (!teil) {
-      probleme.add(`Nicht unterstützt: Arbeitslohn für ${a.jahr} in der Anmeldung ${lstaLabel(zeitraum)}.`);
+      probleme.add(
+        a.jahr === zeitraum.year - 1 || a.jahr === zeitraum.year + 1
+          ? `Nicht unterstützt: Arbeitslohn für ${a.jahr} mit Zahltag ${tag(a.zahltag)} ist ein sonstiger Bezug des Jahres ${zeitraum.year} (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR); laufender Arbeitslohn des Vorjahres ist er nur bis drei Wochen nach Jahresende.`
+          : `Nicht unterstützt: Arbeitslohn für ${a.jahr} in der Anmeldung ${lstaLabel(zeitraum)}.`,
+      );
       continue;
-    }
-    if (teil === "vorjahr" && !VORJAHR_ZULAESSIG.includes(zeitraum.zeitraum)) {
-      probleme.add(
-        `Nicht unterstützt: Arbeitslohn für ${a.jahr} mit Zahltag in ${lstaLabel(zeitraum)}; die Anmeldung nimmt Lohnsteuer des Vorjahres nur im Januar, Februar, ersten Quartal oder Kalenderjahr an.`,
-      );
-    }
-    if (teil === "folgejahr" && !FOLGEJAHR_ZULAESSIG.includes(zeitraum.zeitraum)) {
-      probleme.add(
-        `Nicht unterstützt: Arbeitslohn für ${a.jahr} mit Zahltag in ${lstaLabel(zeitraum)}; die Anmeldung nimmt Lohnsteuer des Folgejahres nur im Dezember, vierten Quartal oder Kalenderjahr an.`,
-      );
     }
     kz42[teil] += a.lohnsteuer;
     kz49[teil] += a.soli;

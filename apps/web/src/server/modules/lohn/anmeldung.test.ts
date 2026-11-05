@@ -300,8 +300,8 @@ describe.skipIf(!testDatabaseUrl)("Lohnsteuer-Anmeldung (Postgres)", () => {
 
     await firma("SKR04", "soll");
     await lohn.saveEmployee(actor, null, GGF);
-    await abrechnen(2027, 1, "2026-12-30");
-    const dezember = await lohn.lstaOverview({ year: 2026, zeitraum: 12 }, "2027-01-05");
+    await abrechnen(2026, 1, "2025-12-30");
+    const dezember = await lohn.lstaOverview({ year: 2025, zeitraum: 12 }, "2026-01-05");
     expect(dezember.kennzahlen).toBeNull();
     expect(dezember.issues).toContainEqual({ tone: "error", text: expect.stringContaining("sonstiger Bezug") });
   }, 60_000);

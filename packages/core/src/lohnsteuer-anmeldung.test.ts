@@ -18,6 +18,7 @@ import {
 const ggf = (over: Partial<LstaAbrechnung> = {}): LstaAbrechnung => ({
   mitarbeiter: "a",
   jahr: 2026,
+  zahltag: "2026-11-27",
   lohnsteuer: 1_289_33,
   soli: 0,
   kirchensteuer: 116_03,
@@ -141,20 +142,25 @@ describe("Kennzahlen", () => {
   });
 
   it("Dezember mit Zahltag im Januar: Spalte Vorjahr (§ 38a Abs. 1 Satz 2 EStG)", () => {
-    const r = lstaKennzahlen({ zeitraum: { year: 2027, zeitraum: 1 }, bundesland: "BY", abrechnungen: [ggf({ jahr: 2026 }), ggf({ jahr: 2027 })] });
+    const r = lstaKennzahlen({
+      zeitraum: { year: 2027, zeitraum: 1 },
+      bundesland: "BY",
+      abrechnungen: [ggf({ jahr: 2026, zahltag: "2027-01-21" }), ggf({ jahr: 2027, zahltag: "2027-01-29" })],
+    });
     expect(r.ok && r.kennzahlen.kz42).toEqual({ vorjahr: 1_289_33, lfdJahr: 1_289_33, folgejahr: 0 });
     expect(r.ok && r.kennzahlen.kirche.kz61).toEqual({ vorjahr: 116_03, lfdJahr: 116_03, folgejahr: 0 });
     expect(r.ok && r.kennzahlen.kz86).toBe(1);
   });
 
-  it("lehnt Vorjahr und Folgejahr ab, wo das Schema sie nicht zulässt, und fremde Jahre", () => {
-    const maerz = lstaKennzahlen({ zeitraum: { year: 2027, zeitraum: 3 }, bundesland: "BY", abrechnungen: [ggf({ jahr: 2026 })] });
-    expect(maerz.ok).toBe(false);
-    expect(!maerz.ok && maerz.probleme[0]).toContain("nur im Januar, Februar, ersten Quartal oder Kalenderjahr");
-    const oktober = lstaKennzahlen({ zeitraum: { year: 2026, zeitraum: 10 }, bundesland: "BY", abrechnungen: [ggf({ jahr: 2027 })] });
-    expect(!oktober.ok && oktober.probleme[0]).toContain("Folgejahres");
-    const dezember = lstaKennzahlen({ zeitraum: { year: 2026, zeitraum: 12 }, bundesland: "BY", abrechnungen: [ggf({ jahr: 2027 })] });
-    expect(dezember.ok && dezember.kennzahlen.kz42.folgejahr).toBe(1_289_33);
+  it("Vorjahreslohn später als drei Wochen nach Jahresende und Lohn fürs Folgejahr im Voraus: sonstiger Bezug, nicht unterstützt (R 39b.2 LStR)", () => {
+    const spaet = lstaKennzahlen({ zeitraum: { year: 2027, zeitraum: 1 }, bundesland: "BY", abrechnungen: [ggf({ jahr: 2026, zahltag: "2027-01-22" })] });
+    expect(!spaet.ok && spaet.probleme[0]).toContain("sonstiger Bezug des Jahres 2027");
+    const februar = lstaKennzahlen({ zeitraum: { year: 2027, zeitraum: 2 }, bundesland: "BY", abrechnungen: [ggf({ jahr: 2026, zahltag: "2027-02-10" })] });
+    expect(februar.ok).toBe(false);
+    const quartal = lstaKennzahlen({ zeitraum: { year: 2027, zeitraum: 41 }, bundesland: "BY", abrechnungen: [ggf({ jahr: 2026, zahltag: "2027-01-15" })] });
+    expect(quartal.ok && quartal.kennzahlen.kz42.vorjahr).toBe(1_289_33);
+    const voraus = lstaKennzahlen({ zeitraum: { year: 2026, zeitraum: 12 }, bundesland: "BY", abrechnungen: [ggf({ jahr: 2027, zahltag: "2026-12-30" })] });
+    expect(!voraus.ok && voraus.probleme[0]).toContain("sonstiger Bezug des Jahres 2026");
     expect(lstaKennzahlen({ zeitraum: { year: 2026, zeitraum: 19 }, bundesland: "BY", abrechnungen: [ggf({ jahr: 2024 })] }).ok).toBe(false);
   });
 
