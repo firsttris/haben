@@ -167,8 +167,8 @@ export function DauerbelegForm({
 
   return (
     <form className="card form-card form-narrow" onSubmit={submit} aria-label="Dauerbeleg">
-      <section className="form-section" aria-labelledby="dauerbeleg-vertrag">
-        <h2 id="dauerbeleg-vertrag">Vertrag</h2>
+      <section className="form-section" aria-labelledby="dauerbeleg-allgemein">
+        <h2 id="dauerbeleg-allgemein">Allgemein</h2>
         <label className="field">
           Bezeichnung
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} placeholder="z. B. Büromiete Hafenstraße" required />
