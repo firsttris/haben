@@ -2402,6 +2402,8 @@ test("Darlehen: anlegen, Auszahlung zuordnen, Rate in Tilgung und Zinsen aufteil
     .first()
     .click();
   await page.waitForLoadState("networkidle");
+  // Erst weiter, wenn rechts der gewählte Umsatz steht; sonst gehört das Formular noch zum vorigen
+  await expect(panel.getByText("Auszahlung Darlehen 4711")).toBeVisible();
   if (await panel.getByRole("button", { name: "Ohne Rechnung buchen" }).isVisible()) await panel.getByRole("button", { name: "Ohne Rechnung buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("darlehen");
   await expect(panel.getByLabel("Teil der Rate")).toHaveValue("auszahlung");
@@ -2414,6 +2416,7 @@ test("Darlehen: anlegen, Auszahlung zuordnen, Rate in Tilgung und Zinsen aufteil
     .first()
     .click();
   await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Rate Darlehen 4711")).toBeVisible();
   await panel.getByRole("button", { name: "Aufteilen" }).click();
   const form = panel.getByRole("form", { name: "Umsatz aufteilen" });
   const rows = form.locator(".split-row");
