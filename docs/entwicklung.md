@@ -112,7 +112,7 @@ ERIC_DIR=data/eric bun --bun vitest run packages/elster
 ERIC_DIR=data/eric TEST_DATABASE_URL=postgres://haben:haben@localhost:5432/haben_test bun run test
 ```
 
-Körperschaft- und Gewerbesteuererklärung prüft `packages/elster/src/eric-kapg.test.ts` mit ERiC (Gewinn, Verlustvortrag mit Mindestbesteuerung, Verlustjahr, Gründung, Hinzurechnungen). Die E-Bilanz prüft `packages/elster/src/ebilanz/eric-ebilanz.test.ts` mit ERiC, darunter jedes Konto der Kontenzuordnung für SKR03 und SKR04 in einer Bilanz.
+Körperschaft- und Gewerbesteuererklärung prüft `packages/elster/src/eric-kapg.test.ts` mit ERiC (Gewinn, Verlustvortrag mit Mindestbesteuerung, Verlustjahr, Gründung, Hinzurechnungen). Die E-Bilanz prüft `packages/elster/src/ebilanz/eric-ebilanz.test.ts` mit ERiC, darunter jedes Konto der Kontenzuordnung für SKR03 und SKR04 in einer Bilanz, je mit Kontennachweis in den Taxonomien 6.9 (Wirtschaftsjahre 2025 und 2026) und 6.10 (2027). Die Fälle für 6.10 laufen nur mit einem ERiC, das das Plugin `libcheckBilanz_6_10.so` hat (ab 45); mit ERiC 44 sind sie übersprungen (`hatJahresPlugin`). So auch der Fake-Client der Postgres-Tests (`test-eric.ts`): Er lässt ERiC nur prüfen, was es kennt.
 
 Seit ERiC 39.4 ist die frühere Test-Hersteller-ID `74931` gesperrt, auch für die lokale Prüfung. Die Tests nehmen `ELSTER_HERSTELLER_ID`, sonst eine Platzhalter-ID; für die reine Prüfung reicht das. Die Schemas der Formulare stecken komprimiert in den Plugins unter `lib/plugins`; meldet ERiC ein unerwartetes Feld, lohnt der Blick dort hinein.
 
@@ -228,13 +228,23 @@ Bestehende Migrationen änderst du nicht; sie sind auf laufenden Installationen 
 
 ## HGB-Taxonomie der E-Bilanz
 
-Die E-Bilanz braucht von der Taxonomie nur je Position Pflichtgrad, Summe mit Gewicht, Soll/Haben und Periodentyp. Das steht als Auszug in `packages/elster/src/ebilanz/taxonomie-6-9.json`, erzeugt aus der Taxonomie von [esteuer.de](https://www.esteuer.de):
+Die E-Bilanz braucht von der Taxonomie nur je Position Pflichtgrad, Summe mit Gewicht, Soll/Haben und Periodentyp. Das steht als Auszug in `packages/elster/src/ebilanz/taxonomie-6-9.json` und `taxonomie-6-10.json`, erzeugt aus der Taxonomie von [esteuer.de](https://www.esteuer.de):
 
 ```sh
 bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2025-04-01 packages/elster/src/ebilanz/taxonomie-6-9.json
+bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2026-04-01 packages/elster/src/ebilanz/taxonomie-6-10.json
 ```
 
-Für eine neue Taxonomie (jährlich zum 1. April) den Auszug neu erzeugen, `EBILANZ_TAXONOMIEN` in `packages/elster/src/xml.ts` ergänzen und die Tests mit ERiC laufen lassen; `zuordnung.test.ts` meldet Positionen der Kontenzuordnung, die es nicht mehr gibt oder die keine Blätter mehr sind.
+Welche Taxonomie für ein Wirtschaftsjahr gilt, steht in `ebilanzTaxonomie` (`packages/elster/src/ebilanz/taxonomie.ts`), nach dem BMF-Schreiben zur jeweiligen Taxonomie. Für eine neue Taxonomie (jährlich zum 1. April, bekannt gegeben im Juni) den Auszug neu erzeugen, ihn in `taxonomie.ts` eintragen, `ebilanzTaxonomie` und `EBILANZ_TAXONOMIEN` in `packages/elster/src/xml.ts` ergänzen und die Tests mit ERiC laufen lassen; `zuordnung.test.ts` meldet Positionen der Kontenzuordnung, die es nicht mehr gibt oder die keine Blätter mehr sind. Die Prüfregeln stehen im Technischen Leitfaden und im Änderungsnachweis auf esteuer.de, ihre Umsetzung in den ERiC-Releasenotes (Kapitel „Datenart Bilanz“), Beispiele in der ERiC-Dokumentation unter `Datenarten/ElsterBilanz/Bilanz/Beispiele/Taxonomie_<Version>`.
+
+esteuer.de liefert ein falsches Zwischenzertifikat aus. Zum Herunterladen das richtige über die AIA-Adresse des Serverzertifikats holen (`openssl x509 -noout -text` zeigt sie unter „CA Issuers“, zurzeit `http://secure.globalsign.com/cacert/gsgccr46dvtlsca2025.crt`), nach PEM wandeln und zusammen mit den übrigen vertrauenswürdigen Zertifikaten an `curl --cacert` geben; die TLS-Prüfung bleibt an:
+
+```sh
+curl -sS -o r46.crt http://secure.globalsign.com/cacert/gsgccr46dvtlsca2025.crt
+openssl x509 -inform DER -in r46.crt -out r46.pem
+cat /etc/ssl/certs/ca-certificates.crt r46.pem > ca-esteuer.pem
+curl -sS --cacert ca-esteuer.pem -O https://www.esteuer.de/download/taxonomie_20260615/germany-gaap-taxonomy-v6.10-2026-04-01-xbrl.zip
+```
 
 ## Lohnsteuer: PAP jährlich aktualisieren
 

@@ -18,6 +18,8 @@ interface EbilanzEntry {
 }
 
 export interface EbilanzData {
+  /** HGB-Taxonomie des Wirtschaftsjahres, 6.9 oder 6.10 */
+  taxonomie: string;
   issues: { tone: "fehler" | "hinweis"; text: string }[];
   history: EbilanzEntry[];
   sent: EbilanzEntry | null;
@@ -42,9 +44,9 @@ export function Ebilanz({ year, ebilanz, setup, closed }: { year: number; ebilan
           E-Bilanz {year}
         </h2>
         <p className="small muted" style={{ marginTop: 0, maxWidth: 760 }}>
-          Bilanz und GuV als Steuerbilanz in der HGB-Taxonomie 6.9 an das Finanzamt (§ 5b EStG), mit Anlagenspiegel und Betriebsvermögensvergleich. Die
-          Positionen kommen aus den Konten; was Haben nicht zuordnen kann, steht unten. Eine Überleitung von der Handels- zur Steuerbilanz rechnet Haben nicht:
-          Gesendet wird, was gebucht ist.
+          Bilanz und GuV als Steuerbilanz in der HGB-Taxonomie {ebilanz.taxonomie} an das Finanzamt (§ 5b EStG), mit Anlagenspiegel, Betriebsvermögensvergleich
+          und dem Kontennachweis: jedes Konto mit Saldo auf seiner Position. Die Positionen kommen aus den Konten; was Haben nicht zuordnen kann, steht unten.
+          Eine Überleitung von der Handels- zur Steuerbilanz rechnet Haben nicht: Gesendet wird, was gebucht ist.
         </p>
         {ebilanz.issues.length > 0 && (
           <ul className="stack" style={{ gap: 4 }} aria-label="Offene Punkte der E-Bilanz">

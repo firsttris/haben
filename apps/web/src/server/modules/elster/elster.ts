@@ -5,6 +5,7 @@ import {
   createElsterClient,
   DEFAULT_ERIC_VERSION,
   EricInstallError,
+  hatJahresPlugin,
   installedEricVersion,
   ericHomeIn,
   installEric,
@@ -65,6 +66,15 @@ export function mitDatenschutzPruefung(inner: ElsterClient, check: () => Promise
       };
     },
   });
+}
+
+/**
+ * Kann das installierte ERiC die Datenart-Version prüfen und senden? Neue Jahre und Taxonomien bringt erst eine neuere
+ * Version mit (etwa Bilanz_6.10 ab ERiC 45). Simuliert gilt alles als bekannt.
+ */
+export function ericKenntDatenart(datenartVersion: string): boolean {
+  const home = ericHome();
+  return !home || hatJahresPlugin(home, datenartVersion);
 }
 
 /** Ohne ERiC läuft alles gegen einen simulierten Client. */

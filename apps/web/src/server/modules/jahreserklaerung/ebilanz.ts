@@ -8,18 +8,30 @@ import {
   type Cents,
   type Kontenrahmen,
 } from "@haben/core";
-import { buildEbilanzXml, EbilanzError, ebilanzPruefen, ebilanzWerte, type ElsterClient, type ElsterResult } from "@haben/elster";
+import {
+  buildEbilanzXml,
+  EbilanzError,
+  type EbilanzKontensaldo,
+  ebilanzKontensalden,
+  ebilanzPruefen,
+  type EbilanzTaxonomie,
+  ebilanzTaxonomie,
+  ebilanzWerte,
+  type ElsterClient,
+  type ElsterResult,
+} from "@haben/elster";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { accountName, ebilanzDavon, jahresabschluss, ledgerRange, listAssets, saldenliste } from "../buchhaltung/index.ts";
-import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
+import { ericKenntDatenart, PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 import { companyIssues, loadCompany, type Company } from "../stammdaten/index.ts";
 
 /*
- * E-Bilanz (§ 5b EStG) einer GmbH oder UG: Bilanz und GuV in der HGB-Taxonomie aus den Salden des Jahres
- * (Kontenzuordnung in @haben/core, ebilanz.ts), Betriebsvermögensvergleich aus den Eigenkapitalkonten, Anlagenspiegel
+ * E-Bilanz (§ 5b EStG) einer GmbH oder UG: Bilanz und GuV in der HGB-Taxonomie des Wirtschaftsjahres (6.9 bis 2026, 6.10
+ * ab 2027, ebilanzTaxonomie in @haben/elster) aus den Salden des Jahres (Kontenzuordnung in @haben/core, ebilanz.ts), mit
+ * dem Kontennachweis je Konto, Betriebsvermögensvergleich aus den Eigenkapitalkonten, Anlagenspiegel
  * aus dem Anlagenverzeichnis, Davon-Positionen zu Restlaufzeiten aus den bestätigten Angaben (§ 268 Abs. 4 und 5 HGB;
  * die Taxonomie verlangt sie nicht, sie gehören aber zur Handelsbilanz). Prüfen, Test und Senden laufen wie die Jahreserklärungen über das ELSTER-Gateway und
  * stehen im selben Protokoll (annual_submissions, Formular „ebilanz“). Echt gesendet wird nur ein abgeschlossenes Jahr.
@@ -33,7 +45,10 @@ export interface EbilanzHinweis {
 }
 
 export interface EbilanzDaten {
+  taxonomie: EbilanzTaxonomie;
   werte: Record<string, Cents>;
+  /** Kontennachweis: Saldo je Konto auf seiner Position */
+  konten: EbilanzKontensaldo[];
   bvv: { eigenkapitalVorjahr: Cents; ausschuettungen: Cents; einlagen: Cents };
   anlagen: AnlagenspiegelZeile[];
 }
@@ -88,7 +103,17 @@ export async function ebilanzDaten(year: number, company: Company): Promise<{ da
     if (zeile) anlagen.push(zeile);
   }
   const davon = (await ebilanzDavon(year, kontenrahmen)) ?? {};
-  return { daten: { werte: { ...ebilanzWerte(zuordnung), ...davon }, bvv: betriebsvermoegen(kontenrahmen, rows), anlagen }, issues };
+  const taxonomie = ebilanzTaxonomie(year);
+  return {
+    daten: {
+      taxonomie,
+      werte: { ...ebilanzWerte(zuordnung, taxonomie), ...davon },
+      konten: ebilanzKontensalden(zuordnung, (account) => accountName(kontenrahmen, account), taxonomie),
+      bvv: betriebsvermoegen(kontenrahmen, rows),
+      anlagen,
+    },
+    issues,
+  };
 }
 
 function xmlFor(year: number, company: Company, daten: EbilanzDaten, test: boolean, herstellerId: string, erstellt: string): string {
@@ -127,7 +152,7 @@ export async function ebilanzOverview(year: number, today: string) {
   if (!isKapitalgesellschaft(company.rechtsform)) return null;
   const issues = await ebilanzIssues(year, today, company);
   const history = await ebilanzSubmissions(year);
-  return { issues, history, sent: history.find((h) => h.kind === "send" && h.ok) ?? null };
+  return { taxonomie: ebilanzTaxonomie(year), issues, history, sent: history.find((h) => h.kind === "send" && h.ok) ?? null };
 }
 
 /**
@@ -136,8 +161,18 @@ export async function ebilanzOverview(year: number, today: string) {
  */
 async function ebilanzIssues(year: number, today: string, company: Company): Promise<EbilanzHinweis[]> {
   const abschluss = await jahresabschluss(year, today);
+  const taxonomie = ebilanzTaxonomie(year);
   const base: EbilanzHinweis[] = [
     ...companyIssues(company).map((text) => ({ tone: "fehler" as const, text: `Firmendaten: ${text}` })),
+    ...(ericKenntDatenart(`Bilanz_${taxonomie}`)
+      ? []
+      : [
+          {
+            tone: "fehler" as const,
+            // BMF-Schreiben vom 8. Juni 2026; das Plugin bringt erst ERiC 45 mit (ERiC-Releasenotes 45.1, Kap. 3.1.8)
+            text: `Für ${year} gilt die HGB-Taxonomie ${taxonomie}, die das installierte ERiC nicht prüfen kann. Unter Einstellungen › ERiC eine Version ab 45 installieren.`,
+          },
+        ]),
     ...(abschluss.kapitalgesellschaft ? abschluss.issues.filter((i) => i.tone === "fehler") : []),
     ...(abschluss.kapitalgesellschaft && !abschluss.status
       ? [{ tone: "hinweis" as const, text: `Echt senden lässt sich die E-Bilanz erst, wenn ${year} abgeschlossen ist.` }]

@@ -1,17 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { buildEbilanzXml, datenlieferant, EbilanzError, ebilanzSummen } from "./xbrl.ts";
+import { EbilanzError, ebilanzSummen } from "./taxonomie.ts";
+import { buildEbilanzXml, datenlieferant } from "./xbrl.ts";
 
 describe("E-Bilanz: Summen nach den Rechenregeln der Taxonomie 6.9", () => {
   it("gibt Werte mit Gewicht an die Summen weiter, bis Bilanzsumme und Jahresergebnis", () => {
-    const summen = ebilanzSummen({
-      "bs.ass.currAss.cashEquiv.bank": 3_200_000,
-      "bs.eqLiab.equity.subscribed.corp": 2_500_000,
-      "bs.eqLiab.equity.netIncome": 310_000,
-      "bs.eqLiab.liab.shareholders.gmbh": 200_000,
-      "bs.eqLiab.liab.other.other": 190_000,
-      "is.netIncome.regular.operatingTC.grossTradingProfit.totalOutput.netSales.grossSales.generalRateVAT": 1_000_000,
-      "is.netIncome.regular.operatingTC.otherCost.miscellaneous": 690_000,
-    });
+    const summen = ebilanzSummen(
+      {
+        "bs.ass.currAss.cashEquiv.bank": 3_200_000,
+        "bs.eqLiab.equity.subscribed.corp": 2_500_000,
+        "bs.eqLiab.equity.netIncome": 310_000,
+        "bs.eqLiab.liab.shareholders.gmbh": 200_000,
+        "bs.eqLiab.liab.other.other": 190_000,
+        "is.netIncome.regular.operatingTC.grossTradingProfit.totalOutput.netSales.grossSales.generalRateVAT": 1_000_000,
+        "is.netIncome.regular.operatingTC.otherCost.miscellaneous": 690_000,
+      },
+      "6.9",
+    );
     expect(summen.get("bs.ass.currAss.cashEquiv")).toBe(3_200_000);
     expect(summen.get("bs.ass")).toBe(3_200_000);
     expect(summen.get("bs.eqLiab")).toBe(3_200_000);
@@ -21,16 +25,20 @@ describe("E-Bilanz: Summen nach den Rechenregeln der Taxonomie 6.9", () => {
   });
 
   it("lehnt Positionen ab, die es in der Taxonomie nicht gibt", () => {
-    expect(() => ebilanzSummen({ "bs.ass.gibtEsNicht": 1 })).toThrow(EbilanzError);
+    expect(() => ebilanzSummen({ "bs.ass.gibtEsNicht": 1 }, "6.9")).toThrow(EbilanzError);
+    // Stille Gesellschafter einer GmbH hat 6.10 gestrichen
+    expect(() => ebilanzSummen({ "bs.eqLiab.liab.shareholders.gmbhSilent": 1 }, "6.10")).toThrow("Taxonomie 6.10");
   });
 
   it("lehnt eine Bilanz ab, deren Seiten nicht gleich sind", () => {
     expect(() =>
       buildEbilanzXml({
         year: 2025,
+        taxonomie: "6.9",
         steuernummer13: "5192050001265",
         firma: { name: "Test GmbH", strasse: "Hafenallee 3", plz: "28217", ort: "Bremen" },
         werte: { "bs.ass.currAss.cashEquiv.bank": 100 },
+        konten: [],
         bvv: { eigenkapitalVorjahr: 0, ausschuettungen: 0, einlagen: 0 },
         anlagen: [],
         herstellerId: "12345",
@@ -43,6 +51,8 @@ describe("E-Bilanz: Summen nach den Rechenregeln der Taxonomie 6.9", () => {
 
   const gmbh = {
     year: 2025,
+    taxonomie: "6.9" as const,
+    konten: [],
     steuernummer13: "5192050001265",
     firma: { name: "Test GmbH", strasse: "Hafenallee 3", plz: "28217", ort: "Bremen" },
     herstellerId: "12345",

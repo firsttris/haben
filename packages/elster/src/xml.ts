@@ -39,7 +39,7 @@ export function ustvaDatenartVersion(year: number): string {
 
 /** Liest die Datenart-Version aus dem XML (für validate/send ohne Zusatzangaben): UStVA_2026, USt_2025, EUER_2025 */
 /** Datum im Namensraum der Taxonomie → Version der Datenart Bilanz; Haben erzeugt nur aktuelle Taxonomien */
-export const EBILANZ_TAXONOMIEN: Record<string, string> = { "2024-04-01": "6.8", "2025-04-01": "6.9" };
+export const EBILANZ_TAXONOMIEN: Record<string, string> = { "2024-04-01": "6.8", "2025-04-01": "6.9", "2026-04-01": "6.10" };
 
 export function datenartVersionFromXml(xml: string): string | undefined {
   const ustva = /<Anmeldungssteuern\b[^>]*\bversion="(\d{4})"/.exec(xml);

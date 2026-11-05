@@ -1,7 +1,7 @@
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
-import { EricGeprueftClient } from "../../test-eric.ts";
+import { EricGeprueftClient, ericKennt } from "../../test-eric.ts";
 
 /*
  * E-Bilanz einer GmbH aus den Buchungen: Werte, Betriebsvermögensvergleich und Anlagenspiegel, Prüfen mit ERiC (wenn
@@ -172,6 +172,11 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz (Postgres)", () => {
         expect(row!.request_xml).toContain('<de-gaap-ci:bs.eqLiab.equity.netIncome contextRef="I-AKTJAHR" unitRef="EUR" decimals="2">1000.00<');
         expect(row!.request_xml).toContain("Nordlicht GmbH; Hafenallee; 3; ; ; 93047; Regensburg; Deutschland");
         expect(row!.figures.bvv).toEqual(daten.bvv);
+        // 2026: Taxonomie 6.9, mit Kontennachweis je Konto statt der Begründung NoKS
+        expect(daten.taxonomie).toBe("6.9");
+        expect(row!.request_xml).toContain("de-gaap-ci-2025-04-01");
+        expect(row!.request_xml).toContain(`<de-gaap-ci:detailedInformation.accountbalances.accountNumber contextRef="D-AKTJAHR">${k.bank}<`);
+        expect(row!.request_xml).not.toContain(">NoKS<");
 
         // Echt erst nach dem Abschluss; ein Client ohne Simulation, damit das Gateway bis zur Prüfung kommt
         await sql`insert into elster_certificates (filename, ciphertext) values ('test.pfx', ${crypto.encrypt(new Uint8Array([1, 2, 3]))})`;
@@ -188,6 +193,65 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz (Postgres)", () => {
         expect((await send()).ok).toBe(true);
         await expect(send()).rejects.toThrow("schon übermittelt");
         expect((await ebilanz.ebilanzOverview(2026, today))?.sent).toMatchObject({ kind: "send", ok: true });
+      },
+      60_000,
+    );
+
+    // Mit einem ERiC ohne Plugin für 6.10 lehnt Haben ab (ebilanz-eric44.test.ts)
+    it.skipIf(!ericKennt("Bilanz_6.10")).each(["ist", "soll"] as const)(
+      "%s: 2027 in Taxonomie 6.10 mit Kontennachweis je Konto (BMF-Schreiben vom 8. Juni 2026)",
+      async (versteuerung) => {
+        await setup(kontenrahmen, versteuerung);
+        await manual.createManualEntry(
+          actor,
+          {
+            kind: "eroeffnung",
+            date: "2027-01-01",
+            description: "Eröffnungsbilanz",
+            lines: [
+              { account: k.bank, debit: 2_500_000, credit: 0 },
+              { account: k.kapital, debit: 0, credit: 2_500_000 },
+            ],
+          },
+          "2028-02-10",
+        );
+        await book("2027-03-01", [
+          [k.bank, 1_190_000, 0],
+          [k.erloes, 0, 1_000_000],
+          [k.ust, 0, 190_000],
+        ]);
+        await book("2027-04-01", [
+          [k.aufwand, 300_000, 0],
+          [k.gesellschafter, 0, 300_000],
+        ]);
+        const company = await stammdaten.loadCompany();
+        const { daten, issues } = await ebilanz.ebilanzDaten(2027, company);
+        expect(issues).toEqual([]);
+        expect(daten.taxonomie).toBe("6.10");
+        // Saldo im Vorzeichen der Position: Erlöse und Verbindlichkeiten positiv
+        expect(daten.konten).toEqual(
+          expect.arrayContaining([
+            { account: k.bank, name: expect.any(String), position: "bs.ass.currAss.cashEquiv.bank", betrag: 3_690_000 },
+            { account: k.erloes, name: expect.any(String), position: expect.stringContaining("netSales.grossSales.generalRateVAT"), betrag: 1_000_000 },
+            { account: k.gesellschafter, name: expect.any(String), position: "bs.eqLiab.liab.shareholders.gmbh", betrag: 300_000 },
+          ]),
+        );
+        expect((await ebilanz.ebilanzOverview(2027, "2028-02-10"))?.taxonomie).toBe("6.10");
+
+        const validated = await ebilanz.submitEbilanz(actor, 2027, new EricGeprueftClient(), { kind: "validate", today: "2028-02-10" });
+        expect(validated.ok).toBe(true);
+        const [row] = await sql`select request_xml from annual_submissions where year = 2027`;
+        const xml: string = row!.request_xml;
+        expect(xml).toContain("de-gaap-ci-2026-04-01");
+        expect(xml).not.toContain("transmissionNotYetPossible");
+        // Je Konto mit Saldo ein Eintrag, der Jahresüberschuss ohne Konto: 7.000 € = 10.000 − 3.000
+        for (const konto of [k.bank, k.kapital, k.erloes, k.ust, k.aufwand, k.gesellschafter]) {
+          expect(xml).toContain(`<de-gaap-ci:detailedInformation.accountbalances.accountNumber contextRef="D-AKTJAHR">${konto}<`);
+        }
+        expect(xml.match(/<de-gaap-ci:detailedInformation\.accountBalances>/g)).toHaveLength(7);
+        expect(xml).toContain(
+          '<de-gaap-ci:detailedInformation.accountbalances.amount contextRef="D-AKTJAHR" unitRef="EUR" decimals="2">7000.00</de-gaap-ci:detailedInformation.accountbalances.amount><de-gaap-ci:detailedInformation.accountbalances.notPossible contextRef="D-AKTJAHR">true<',
+        );
       },
       60_000,
     );

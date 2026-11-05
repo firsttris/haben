@@ -5,7 +5,7 @@ import type { Cents } from "./money.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
 
 /*
- * Zuordnung der Konten zu den Positionen der E-Bilanz (§ 5b EStG, HGB-Taxonomie 6.9, Kerntaxonomie de-gaap-ci). Die
+ * Zuordnung der Konten zu den Positionen der E-Bilanz (§ 5b EStG, HGB-Taxonomien 6.9 und 6.10, Kerntaxonomie de-gaap-ci). Die
  * Taxonomie verlangt mehr Gliederung als der Kleinst-Abschluss (hgb.ts): Umsatzerlöse nach Umsatzsteuertatbestand,
  * sonstige Aufwendungen nach Art, Anlagen nach Bilanzposition für den Anlagenspiegel.
  *
