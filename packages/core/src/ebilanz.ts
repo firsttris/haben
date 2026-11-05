@@ -208,9 +208,16 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     // Im Haben: Überzahlungen von Kunden; Verbindlichkeiten im Soll: Guthaben bei Lieferanten (DATEV „A oder B“)
     [a.forderungen, ["bs.ass.currAss.receiv.trade.other", "bs.eqLiab.liab.other.other"]],
     [a.verbindlichkeiten, ["bs.ass.currAss.receiv.other.other", "bs.eqLiab.liab.trade.genOther"]],
-    ...[...Object.values(a.vorsteuer), a.vorsteuerRc, ...Object.values(a.ust), a.ustRc, a.ustVorauszahlung, a.sondervorauszahlung].map(
-      (k): [string, EbilanzZiel] => [k, UMSATZSTEUER],
-    ),
+    ...[
+      ...Object.values(a.vorsteuer),
+      a.vorsteuerRc,
+      ...Object.values(a.vorsteuerIge),
+      ...Object.values(a.ust),
+      a.ustRc,
+      ...Object.values(a.ustIge),
+      a.ustVorauszahlung,
+      a.sondervorauszahlung,
+    ].map((k): [string, EbilanzZiel] => [k, UMSATZSTEUER]),
     // Umsatzsteuer nicht fällig (Ist-Versteuerung): im DATEV-Kontenrahmen unter den Rückstellungen
     ...Object.values(a.ustNichtFaellig).map((k): [string, EbilanzZiel] => [k, [VAT_RECEIVABLE, "bs.eqLiab.accruals.tax.other"]]),
     [a.gesellschafter, GESELLSCHAFTER],
@@ -220,6 +227,9 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     // Leistungsort im Ausland: in Deutschland nicht steuerbar
     [a.erloeseSonder.reverse_charge, [`${GS}.untaxable`]],
     [a.erloeseSonder.drittland, [`${GS}.untaxable`]],
+    // Steuerfreie Lieferungen mit Vorsteuerabzug: innergemeinschaftlich an Abnehmer mit USt-IdNr. und Ausfuhr
+    [a.erloeseSonder.ig_lieferung, [`${GS}.taxExemptUStG4_1b.VIES_ID`]],
+    [a.erloeseSonder.ausfuhr, [`${GS}.taxExemptUStG4_1a`]],
     [a.erloeseSonder.steuerfrei, [`${GS}.taxExemptUStG4_8.other`]],
     [a.erloeseSonder.kleinunternehmer, [`${GS}.taxExemptUStG19_1`]],
     [a.skontiGewaehrt, [`${SALES}.reductionsFromGrossSales.unknownVAT`]],

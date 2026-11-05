@@ -1257,7 +1257,7 @@ async function bookWriteOff(
     if (doc?.status !== "gebucht") throw new BankError("Der Beleg muss erst gebucht sein.");
     if (doc.payment !== "bank") throw new BankError("Der Beleg ist privat oder bar bezahlt; dort gibt es nichts auszubuchen.");
     await assertNotCancelled(tx, doc.id);
-    if (doc.reverseCharge) throw new BankError("Skonto auf Belege mit § 13b wird nicht unterstützt.");
+    if (doc.reverseCharge) throw new BankError("Skonto auf Belege mit § 13b oder innergemeinschaftlichem Erwerb wird nicht unterstützt.");
     if (doc.privateShare > 0) throw new BankError("Skonto auf Belege mit Privatanteil wird nicht unterstützt.");
     if (doc.category === "anlage") throw new BankError("Skonto auf Anlagegüter mindert die Anschaffungskosten und wird nicht unterstützt.");
     const open = documentOpen(doc.gross, await settledOn(tx, "document_id", doc.id));

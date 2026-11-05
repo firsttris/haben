@@ -111,6 +111,12 @@ function vatRows(period: VatPeriod, sums: Summe[], figures: Awaited<ReturnType<t
       saldo(monat, (kr) => [ACCOUNTS[kr].vorsteuerRc]),
       figures.kz67,
     ),
+    row("Erwerbsteuer (Kz 89, 93)", -saldo(monat, (kr) => Object.values(ACCOUNTS[kr].ustIge)), figures.tax89 + figures.tax93),
+    row(
+      "Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61)",
+      saldo(monat, (kr) => Object.values(ACCOUNTS[kr].vorsteuerIge)),
+      figures.kz61,
+    ),
   ];
 }
 

@@ -6,7 +6,11 @@ import { taxOf, type Cents } from "./money.ts";
  * 45 (nicht steuerbar) und 48 (steuerfrei ohne Vorsteuerabzug) Umsätze ohne Steuer; ELSTER erwartet
  * dort volle Euro. Kz 46 und 84 sind Bemessungsgrundlagen von Leistungen, für die du als Empfänger die Steuer
  * schuldest (§ 13b UStG), in vollen Euro; Kz 47 und 85 die Steuer dazu in Cent. Kz 66 ist Vorsteuer, Kz 67
- * die Vorsteuer aus § 13b, beide in Cent. Kz 83 wird gerechnet. Alle Werte dürfen negativ
+ * die Vorsteuer aus § 13b, beide in Cent. Kz 41 (innergemeinschaftliche Lieferungen an Abnehmer mit USt-IdNr.) und 43
+ * (weitere steuerfreie Umsätze mit Vorsteuerabzug, hier Ausfuhrlieferungen) in vollen Euro; Kz 89 und 93 die
+ * Bemessungsgrundlagen steuerpflichtiger innergemeinschaftlicher Erwerbe zu 19 und 7 % in vollen Euro, die Steuer daraus
+ * rechnet das Formular wie bei Kz 81 und 86; Kz 61 die Vorsteuer aus dem Erwerb in Cent (Vordruckmuster USt 1 A 2026).
+ * Kz 83 wird gerechnet. Alle Werte dürfen negativ
  * sein, etwa wenn Gutschriften im Monat überwiegen.
  */
 export interface UstvaValues {
@@ -21,6 +25,11 @@ export interface UstvaValues {
   kz84?: Cents;
   kz85?: Cents;
   kz67?: Cents;
+  kz41?: Cents;
+  kz43?: Cents;
+  kz89?: Cents;
+  kz93?: Cents;
+  kz61?: Cents;
   /** Abzug der festgesetzten Sondervorauszahlung (Dauerfristverlängerung), in der letzten Voranmeldung des Jahres */
   kz39?: Cents;
 }
@@ -43,6 +52,15 @@ export interface UstvaFigures {
   kz84: Cents;
   kz85: Cents;
   kz67: Cents;
+  /** Steuerfreie Lieferungen mit Vorsteuerabzug in vollen Euro: innergemeinschaftlich (41), Ausfuhr (43) */
+  kz41: Cents;
+  kz43: Cents;
+  /** Innergemeinschaftlicher Erwerb: Bemessungsgrundlagen in vollen Euro, Steuer daraus, Vorsteuer (61) in Cent */
+  kz89: Cents;
+  tax89: Cents;
+  kz93: Cents;
+  tax93: Cents;
+  kz61: Cents;
   /** Abzug der Sondervorauszahlung, centgenau (§ 48 Abs. 4 UStDV) */
   kz39: Cents;
   /** Verbleibende Vorauszahlung; negativ = Erstattung */
@@ -59,6 +77,11 @@ export function computeUstva(input: UstvaValues): UstvaFigures {
   const kz86 = toWholeEuros(input.kz86);
   const tax81 = taxOf(kz81, 1900);
   const tax86 = taxOf(kz86, 700);
+  const kz89 = toWholeEuros(input.kz89 ?? 0);
+  const kz93 = toWholeEuros(input.kz93 ?? 0);
+  const tax89 = taxOf(kz89, 1900);
+  const tax93 = taxOf(kz93, 700);
+  const kz61 = input.kz61 ?? 0;
   return {
     kz81,
     tax81,
@@ -73,7 +96,14 @@ export function computeUstva(input: UstvaValues): UstvaFigures {
     kz84: toWholeEuros(input.kz84 ?? 0),
     kz85: input.kz85 ?? 0,
     kz67: input.kz67 ?? 0,
+    kz41: toWholeEuros(input.kz41 ?? 0),
+    kz43: toWholeEuros(input.kz43 ?? 0),
+    kz89,
+    tax89,
+    kz93,
+    tax93,
+    kz61,
     kz39: input.kz39 ?? 0,
-    kz83: tax81 + tax86 + (input.kz47 ?? 0) + (input.kz85 ?? 0) - input.kz66 - (input.kz67 ?? 0) - (input.kz39 ?? 0),
+    kz83: tax81 + tax86 + tax89 + tax93 + (input.kz47 ?? 0) + (input.kz85 ?? 0) - input.kz66 - (input.kz67 ?? 0) - kz61 - (input.kz39 ?? 0),
   };
 }

@@ -65,6 +65,13 @@ export interface UstYear {
   kz48: Cents;
   /** § 13b als Leistungsempfänger: Steuer (Kz 47 und 85), noch nicht in der Erklärung */
   reverseChargeTax: Cents;
+  /** Steuerfreie innergemeinschaftliche Lieferungen und Ausfuhrlieferungen (Kz 41, 43), noch nicht in der Erklärung */
+  kz41: Cents;
+  kz43: Cents;
+  /** Innergemeinschaftlicher Erwerb: Bemessungsgrundlagen 19 und 7 % und Vorsteuer daraus, noch nicht in der Erklärung */
+  igErwerb19: Cents;
+  igErwerb7: Cents;
+  igErwerbVorsteuer: Cents;
   /** Monate ohne gesendete Voranmeldung (Monat oder Quartal), ohne die befreiten */
   missingMonths: number[];
 }
@@ -72,7 +79,8 @@ export interface UstYear {
 /** Zahlen der Umsatzsteuererklärung: Summe der zwölf Monate aus den Buchungen, Vorauszahlungen aus den gesendeten Voranmeldungen */
 export async function ustYear(year: number): Promise<UstYear> {
   const months = await Promise.all(Array.from({ length: 12 }, (_, i) => computeVatFigures({ year, month: i + 1 })));
-  const total = (key: "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz47" | "kz85") => months.reduce((s, m) => s + m[key], 0);
+  const total = (key: "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz47" | "kz85" | "kz41" | "kz43" | "kz89" | "kz93" | "kz61") =>
+    months.reduce((s, m) => s + m[key], 0);
   // Wie in der Voranmeldung: Bemessungsgrundlage in vollen Euro, Steuer daraus
   const base19 = toWholeEuros(total("kz81"));
   const base7 = toWholeEuros(total("kz86"));
@@ -105,6 +113,11 @@ export async function ustYear(year: number): Promise<UstYear> {
     kz45: total("kz45"),
     kz48: total("kz48"),
     reverseChargeTax: total("kz47") + total("kz85"),
+    kz41: total("kz41"),
+    kz43: total("kz43"),
+    igErwerb19: total("kz89"),
+    igErwerb7: total("kz93"),
+    igErwerbVorsteuer: total("kz61"),
     missingMonths: Array.from({ length: 12 }, (_, i) => i + 1).filter((m) => !covered.has(m) && frequencyAt(frequencies, { year, month: m }) !== "keine"),
   };
 }
@@ -126,6 +139,9 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
     data.kz45 !== 0 && "nicht steuerbare Umsätze im Drittland (Kz 45)",
     data.kz48 !== 0 && "steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48)",
     data.reverseChargeTax !== 0 && "Steuer als Leistungsempfänger nach § 13b UStG (Kz 46/47, 84/85)",
+    data.kz41 !== 0 && "steuerfreie innergemeinschaftliche Lieferungen (Kz 41)",
+    data.kz43 !== 0 && "Ausfuhrlieferungen (Kz 43)",
+    (data.igErwerb19 !== 0 || data.igErwerb7 !== 0 || data.igErwerbVorsteuer !== 0) && "innergemeinschaftliche Erwerbe (Kz 89, 93 und 61)",
   ].filter(Boolean);
   if (unsupported.length > 0) {
     issues.push({

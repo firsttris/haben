@@ -22,7 +22,7 @@ export interface UstvaXmlInput {
   /** 13-stellige Steuernummer im ELSTER-Format */
   steuernummer13: string;
   figures: Pick<UstvaFigures, "kz81" | "kz86" | "kz66" | "kz83"> &
-    Partial<Pick<UstvaFigures, "kz21" | "kz45" | "kz48" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67" | "kz39">>;
+    Partial<Pick<UstvaFigures, "kz21" | "kz45" | "kz48" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67" | "kz39" | "kz41" | "kz43" | "kz89" | "kz93" | "kz61">>;
   datenlieferant: Datenlieferant;
   herstellerId: string;
   produktVersion: string;
@@ -215,10 +215,13 @@ export function ustvaNutzdaten(input: UstvaNutzdatenInput): string[] {
   };
   base("21", figures.kz21);
   tax("39", figures.kz39);
+  base("41", figures.kz41);
+  base("43", figures.kz43);
   base("45", figures.kz45);
   base("46", figures.kz46);
   tax("47", figures.kz47);
   base("48", figures.kz48);
+  tax("61", figures.kz61);
   tax("66", figures.kz66);
   tax("67", figures.kz67);
   base("81", figures.kz81);
@@ -226,6 +229,8 @@ export function ustvaNutzdaten(input: UstvaNutzdatenInput): string[] {
   base("84", figures.kz84);
   tax("85", figures.kz85);
   base("86", figures.kz86);
+  base("89", figures.kz89);
+  base("93", figures.kz93);
 
   return anmeldungssteuern(period.year, dl, input.erstellungsdatum, [
     `<Umsatzsteuervoranmeldung>`,

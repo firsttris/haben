@@ -194,6 +194,13 @@ function UstSection({ data }: { data: Data }) {
             {ust.kz45 !== 0 && <Row label="Nicht steuerbare Umsätze (Drittland)" extra={formatEuro(ust.kz45)} value="–" />}
             {ust.kz48 !== 0 && <Row label="Steuerfreie Umsätze ohne Vorsteuerabzug" extra={formatEuro(ust.kz48)} value="–" />}
             {ust.reverseChargeTax !== 0 && <Row label="Steuer als Leistungsempfänger (§ 13b)" extra="" value={formatEuro(ust.reverseChargeTax)} />}
+            {ust.kz41 !== 0 && <Row label="Steuerfreie innergemeinschaftliche Lieferungen" extra={formatEuro(ust.kz41)} value="–" />}
+            {ust.kz43 !== 0 && <Row label="Steuerfreie Ausfuhrlieferungen" extra={formatEuro(ust.kz43)} value="–" />}
+            {ust.igErwerb19 !== 0 && <Row label="Innergemeinschaftliche Erwerbe zu 19 %" extra={formatEuro(ust.igErwerb19)} value="–" />}
+            {ust.igErwerb7 !== 0 && <Row label="Innergemeinschaftliche Erwerbe zu 7 %" extra={formatEuro(ust.igErwerb7)} value="–" />}
+            {ust.igErwerbVorsteuer !== 0 && (
+              <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" extra="" value={`−${formatEuro(ust.igErwerbVorsteuer)}`} />
+            )}
             <Row label="Abziehbare Vorsteuer" extra="" value={`−${formatEuro(f.vorsteuer)}`} />
             <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
             <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={`−${formatEuro(f.vorauszahlungen)}`} />

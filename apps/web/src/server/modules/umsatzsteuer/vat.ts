@@ -55,6 +55,11 @@ export interface FiguresInput {
   kz84?: Cents;
   kz85?: Cents;
   kz67?: Cents;
+  kz41?: Cents;
+  kz43?: Cents;
+  kz89?: Cents;
+  kz93?: Cents;
+  kz61?: Cents;
   /** Abzug der Sondervorauszahlung in der letzten Voranmeldung des Jahres */
   kz39?: Cents;
 }
@@ -73,6 +78,11 @@ function stored(ustva: ReturnType<typeof computeUstva>) {
     kz84: ustva.kz84,
     kz85: ustva.kz85,
     kz67: ustva.kz67,
+    kz41: ustva.kz41,
+    kz43: ustva.kz43,
+    kz89: ustva.kz89,
+    kz93: ustva.kz93,
+    kz61: ustva.kz61,
     kz39: ustva.kz39,
     kz83: ustva.kz83,
   };
@@ -166,6 +176,11 @@ export async function createCorrection(actor: string, period: VatPeriod): Promis
         kz84: latest.kz84,
         kz85: latest.kz85,
         kz67: latest.kz67,
+        kz41: latest.kz41,
+        kz43: latest.kz43,
+        kz89: latest.kz89,
+        kz93: latest.kz93,
+        kz61: latest.kz61,
         kz39: latest.kz39,
         kz83: latest.kz83,
         source: latest.source,

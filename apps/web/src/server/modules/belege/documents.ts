@@ -18,6 +18,9 @@ import {
   periodRange,
   type VatPeriod,
   isKapitalgesellschaft,
+  SELF_ASSESSED_TAX_KEYS,
+  normalizeUstId,
+  ustIdProblem,
   maxDegressiveRate,
   usesUsefulLife,
   ELEKTRO_NUR_EINZELUNTERNEHMEN,
@@ -65,8 +68,8 @@ export const documentInputSchema = z.object({
   note: z.string().max(2000),
   /** Privatanteil in Prozent, z. B. beim Handyvertrag */
   privateShare: z.number().int().min(0).max(100).default(0),
-  /** § 13b: Steuer schuldest du als Leistungsempfänger; die Beträge tragen die selbst berechnete Steuer */
-  reverseCharge: z.enum(["eu", "drittland"]).nullable().default(null),
+  /** § 13b oder innergemeinschaftlicher Erwerb: Steuer schuldest du selbst; die Beträge tragen die selbst berechnete Steuer */
+  reverseCharge: z.enum(SELF_ASSESSED_TAX_KEYS).nullable().default(null),
   /** Nur bei Kategorie „anlage“ */
   asset: z
     .object({
@@ -548,6 +551,27 @@ function missingRateIssue(doc: Document, todayDate: string): string {
     : `Umrechnungskurs für ${doc.currency} ${formatRateMonth(month)} fehlt`;
 }
 
+/**
+ * Innergemeinschaftlicher Erwerb (§ 1a UStG), unabhängig von der Kategorie, auch für Anlagegüter: Der Lieferant ist
+ * Unternehmer in einem anderen Mitgliedstaat (seine USt-IdNr. steht auf der Rechnung, § 14a Abs. 3 UStG) und berechnet
+ * keine deutsche Umsatzsteuer. Haben rechnet die Erwerbsteuer zu 19 oder 7 %; steuerfreie Erwerbe (§ 4b UStG, Kz 91)
+ * und andere Sätze (Kz 95/98) unterstützt es nicht.
+ */
+function igErwerbIssues(doc: Document, amounts: DocumentAmount[]): string[] {
+  const issues: string[] = [];
+  if (amounts.some((a) => a.taxRate === 0)) issues.push("Beim innergemeinschaftlichen Erwerb steht jede Zeile auf 19 % oder 7 %");
+  // Geprüft wie die USt-IdNr. einer Lieferung in der Zusammenfassenden Meldung: Länderkennzeichen eines anderen Mitgliedstaats
+  const ustId = normalizeUstId(doc.supplierUstId ?? "");
+  if (!ustId) issues.push("Beim innergemeinschaftlichen Erwerb fehlt die USt-IdNr. des Lieferanten");
+  else if (ustId.startsWith("DE"))
+    issues.push("Lieferant mit deutscher USt-IdNr.: kein innergemeinschaftlicher Erwerb, die Rechnung muss deutsche Umsatzsteuer ausweisen");
+  else {
+    const problem = ustIdProblem(ustId, "L");
+    if (problem) issues.push(`Lieferant ${problem}`);
+  }
+  return issues;
+}
+
 /** Was vor dem Buchen fehlt; leere Liste = bereit. Mit Aufteilung (splits) statt der Kategorie die Zeilen geprüft. */
 export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDate = today(), splits: DocumentSplit[] = []): string[] {
   const issues: string[] = [];
@@ -563,7 +587,8 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDat
   if (values.length === 0 || values.every((a) => a.net === 0 && a.tax === 0)) issues.push("Beträge fehlen");
   // Mit Kurs, aber umgerechnet 0,00 € (winzige Beträge oder ein falscher Kurs): eine Buchung ohne Zeilen ginge nicht
   else if (foreign && doc.exchangeRate && amounts.every((a) => a.net === 0 && a.tax === 0)) issues.push("Umgerechnet 0,00 €, bitte den Kurs prüfen");
-  if (doc.reverseCharge) {
+  if (doc.reverseCharge === "ig_erwerb") issues.push(...igErwerbIssues(doc, amounts));
+  else if (doc.reverseCharge) {
     if (amounts.some((a) => a.taxRate === 0)) issues.push("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
     if (doc.category === "anlage") issues.push("§ 13b bei Anlagegütern wird nicht unterstützt");
     // § 13b Abs. 1 und Abs. 2 Nr. 1 UStG: nur sonstige Leistungen und Werklieferungen; Waren sind innergemeinschaftlicher Erwerb (§ 1a UStG) oder Einfuhr
@@ -617,6 +642,10 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
     };
     // Kleinunternehmer ziehen keine Vorsteuer ab; festgehalten am Beleg, damit spätere Auswertungen stimmen
     const vorsteuerAbzug = !company.kleinunternehmer;
+    // Kleinunternehmer erwerben nur oberhalb der Erwerbsschwelle oder mit Option steuerpflichtig (§ 1a Abs. 3 und 4 UStG)
+    if (doc.reverseCharge === "ig_erwerb" && company.kleinunternehmer) {
+      throw new DocumentError("Innergemeinschaftlicher Erwerb als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.");
+    }
     // Anlage: auf das Anlagekonto statt in den Aufwand; ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten
     const asset = doc.category === "anlage" ? doc.asset : null;
     const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, company.kontenrahmen) : undefined;

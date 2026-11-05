@@ -130,6 +130,32 @@ describe("buildEInvoice", () => {
     expect(xml).not.toContain("CHE-123");
   });
 
+  // EN 16931 BR-IC-01 bis BR-IC-12: Kategorie K mit beiden USt-IdNrn., Befreiungsgrund, Lieferdatum und Lieferland (BT-80)
+  it("innergemeinschaftliche Lieferung: Kategorie K, VATEX-EU-IC, beide USt-IdNrn. und Lieferland", async () => {
+    const { xml } = await buildEInvoice(sampleDocument({ format: "xrechnung-ubl", buyer: euBuyer, lines: zeroRateLines, taxTreatment: "ig_lieferung" }));
+    expect(xml).toContain("<cbc:ID>K</cbc:ID>");
+    expect(xml).toContain("<cbc:TaxExemptionReasonCode>VATEX-EU-IC</cbc:TaxExemptionReasonCode>");
+    expect(xml).toContain("Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1 Buchst. b, § 6a UStG).");
+    expect(xml).toContain("<cbc:CompanyID>ATU12345678</cbc:CompanyID>");
+    expect(xml).toContain("<cbc:CompanyID>DE123456789</cbc:CompanyID>");
+    expect(xml).toMatch(/<cac:Delivery>[\s\S]*<cac:DeliveryLocation>[\s\S]*<cbc:IdentificationCode>AT<\/cbc:IdentificationCode>/);
+    const cii = await buildEInvoice(sampleDocument({ format: "xrechnung-cii", buyer: euBuyer, lines: zeroRateLines, taxTreatment: "ig_lieferung" }));
+    expect(cii.xml).toContain("<ram:CategoryCode>K</ram:CategoryCode>");
+    expect(cii.xml).toMatch(/<ram:ShipToTradeParty>[\s\S]*<ram:CountryID>AT<\/ram:CountryID>/);
+  });
+
+  it("Ausfuhrlieferung: Kategorie G mit VATEX-EU-G", async () => {
+    const { xml } = await buildEInvoice(sampleDocument({ format: "xrechnung-ubl", buyer: thirdCountryBuyer, lines: zeroRateLines, taxTreatment: "ausfuhr" }));
+    expect(xml).toContain("<cbc:ID>G</cbc:ID>");
+    expect(xml).toContain("<cbc:TaxExemptionReasonCode>VATEX-EU-G</cbc:TaxExemptionReasonCode>");
+    expect(xml).toContain("<cbc:CompanyID>DE123456789</cbc:CompanyID>");
+  });
+
+  it("lehnt die innergemeinschaftliche Lieferung ohne USt-IdNr. des Kunden ab", async () => {
+    const doc = sampleDocument({ lines: zeroRateLines, taxTreatment: "ig_lieferung", buyer: { ...euBuyer, ustId: undefined } });
+    await expect(buildEInvoice(doc)).rejects.toThrow("USt-IdNr. des Kunden");
+  });
+
   it("lehnt Reverse Charge ohne USt-IdNr. des Kunden ab", async () => {
     const doc = sampleDocument({ lines: zeroRateLines, taxTreatment: "reverse_charge", buyer: { ...euBuyer, ustId: undefined } });
     await expect(buildEInvoice(doc)).rejects.toThrow("USt-IdNr. des Kunden");

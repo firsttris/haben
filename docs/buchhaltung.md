@@ -64,6 +64,8 @@ Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pausch
 | | Umsatzsteuer nach § 13b (Kz 47, 85) | Saldo des Kontos „Umsatzsteuer nach § 13b“ |
 | | Vorsteuer (Kz 66) | Saldo der Vorsteuerkonten 19 % und 7 % |
 | | Vorsteuer nach § 13b (Kz 67) | Saldo des Kontos „Abziehbare Vorsteuer nach § 13b“ |
+| | Erwerbsteuer (Kz 89, 93) | Saldo der Konten „Umsatzsteuer aus innergemeinschaftlichem Erwerb“ |
+| | Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61) | Saldo der Konten „Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb“ |
 | EÜR, je Jahr | Pauschalen | Aufwandskonten der Pauschalen |
 | | Umsatzsteuer an das Finanzamt abzüglich Erstattungen | Konto Umsatzsteuer-Vorauszahlungen |
 | | AfA, GWG, Sammelposten, Restbuchwert | AfA-Konten und Restbuchwert, sobald die AfA des Jahres gebucht ist |
@@ -361,7 +363,8 @@ Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, 
 Die Kennzahlen der [Voranmeldung](umsatzsteuer.md) rechnet Haben aus denselben Quellen wie die Buchungen (`apps/web/src/server/modules/umsatzsteuer/vat-figures.ts`):
 
 - **Kz 81 und 86:** Bemessungsgrundlagen der regulär besteuerten Rechnungen zu 19 % bzw. 7 %, bei Soll aus den festgeschriebenen Rechnungen des Monats, bei Ist aus den zugeordneten Zahlungseingängen des Monats, anteilig je Zahlung. ELSTER bekommt sie in vollen Euro, die Steuer wird daraus neu berechnet.
-- **Kz 21, 45 und 48:** Bemessungsgrundlagen der Rechnungen mit Reverse Charge, ins Drittland bzw. steuerfrei nach § 4 UStG, in vollen Euro und ohne Steuer. Kz 45 und 48 zählen wie Kz 81, Kz 21 immer nach Rechnungsdatum.
+- **Kz 21, 41, 43, 45 und 48:** Bemessungsgrundlagen der Rechnungen mit Reverse Charge, innergemeinschaftlicher Lieferung, Ausfuhrlieferung, ins Drittland bzw. steuerfrei nach § 4 UStG, in vollen Euro und ohne Steuer. Kz 43, 45 und 48 zählen wie Kz 81, Kz 21 und 41 immer nach Rechnungsdatum.
+- **Kz 89, 93 und 61:** Bemessungsgrundlagen der Belege mit innergemeinschaftlichem Erwerb zu 19 % bzw. 7 % und die Vorsteuer daraus, nach Belegdatum, auch bei Ist-Versteuerung.
 - **Kz 66:** Vorsteuer aus den gebuchten Belegen des Monats nach Belegdatum, ohne Belege, die ohne Vorsteuerabzug gebucht sind.
 - **Kz 83:** Umsatzsteuer aus Kz 81 und 86 minus Kz 66.
 
@@ -644,7 +647,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 
 - Gebäude, Sonderabschreibungen nach § 7g EStG und Investitionsabzugsbetrag
 - Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
-- Innergemeinschaftliche Lieferungen und Erwerbe von Waren; § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
+- Dreiecksgeschäfte, Konsignationslager, innergemeinschaftliches Verbringen und Einfuhrumsatzsteuer; innergemeinschaftliche Lieferungen und Erwerbe nur mit den Grenzen unter [Rechnungen](rechnungen.md#grenzen) und [Belege](belege.md#grenzen); § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn nur aus der [Lohnabrechnung](lohn.md#buchung), mit deren Grenzen (keine Sachbezüge, kein Zuschuss zur privaten Krankenversicherung, keine Beiträge zur Berufsgenossenschaft); Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
 - Im Einzelunternehmen Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG trägt Haben die Salden [vor](#saldenvortrag-und-eröffnung-gmbh-und-ug), einzelne Abschlussbuchungen lassen sich [manuell](#manuelle-buchungen-gmbh-und-ug) erfassen
 
