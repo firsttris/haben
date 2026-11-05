@@ -102,6 +102,7 @@ describe("Struktur der Module", () => {
     const top = readdirSync(server).filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
     expect(top.sort()).toEqual(
       [
+        "anmeldung.ts",
         "auth.ts",
         "crypto.ts",
         "csrf.ts",
@@ -109,6 +110,7 @@ describe("Struktur der Module", () => {
         "errors.ts",
         "file-response.ts",
         "middleware.ts",
+        "rollen.ts",
         "scheduler.ts",
         "security-headers.ts",
         "setup-code.ts",

@@ -4,16 +4,27 @@ import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { isKapitalgesellschaft } from "@haben/core";
+import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
 export const Route = createFileRoute("/_app")({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const state = await getAuthState();
     if (!state.initialized) throw redirect({ to: "/setup" });
     if (!state.user) throw redirect({ to: "/login" });
+    // Die Steuerberatung sieht nur ihre Seiten; die Server Functions prüfen das unabhängig davon selbst
+    if (state.user.role !== "inhaber" && !steuerberatungSieht(location.pathname)) throw redirect({ to: STEUERBERATUNG_START });
     return { user: state.user, rechtsform: state.rechtsform ?? "einzelunternehmen", eigeneSeiten: state.eigeneSeiten };
   },
   component: AppLayout,
 });
+
+interface NavLink {
+  to: string;
+  icon: Parameters<typeof Icon>[0]["name"];
+  label: string;
+  nurEinzelunternehmen?: true;
+  nurKapitalgesellschaft?: true;
+}
 
 /** Hauptnavigation nach Arbeitsbereichen; Einstellungen stehen unten bei Konto und Abmelden */
 const NAV_GROUPS = [
@@ -76,9 +87,25 @@ const NAV_GROUPS = [
   },
 ] as const;
 
+/** Navigation der Steuerberatung: nur lesen */
+const STEUERBERATUNG_NAV = [
+  {
+    label: "Steuerberatung",
+    links: [
+      { to: "/auswertungen", icon: "reports", label: "Auswertungen" },
+      { to: "/buchungen", icon: "journal", label: "Buchungen" },
+      { to: "/konten", icon: "ledger", label: "Konten" },
+      { to: "/belege", icon: "receipt", label: "Belege" },
+      { to: "/rechnungen", icon: "invoice", label: "Rechnungen" },
+    ],
+  },
+] as const;
+
 function AppLayout() {
   const { user, rechtsform, eigeneSeiten } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
+  const inhaber = user.role === "inhaber";
+  const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   // Erst wenn die neue Seite steht (resolvedLocation): solange der Loader läuft, ist noch die alte Seite mit dem geklickten Link zu sehen
@@ -122,7 +149,7 @@ function AppLayout() {
         Zum Inhalt springen
       </a>
       <nav className={`nav${menuOpen ? " open" : ""}`} aria-label="Hauptnavigation">
-        <Link to="/" className="brand">
+        <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="brand">
           <span className="brand-mark">H</span>Haben
         </Link>
         <button
@@ -137,17 +164,17 @@ function AppLayout() {
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>
-          <Link to="/" className="nav-link" activeOptions={{ exact: true }}>
+          <Link to={inhaber ? "/" : STEUERBERATUNG_START} className="nav-link" activeOptions={{ exact: true }}>
             <Icon name="overview" />
             Übersicht
           </Link>
-          {NAV_GROUPS.map((group) => (
+          {groups.map((group) => (
             <div key={group.label} className="nav-group" role="group" aria-label={group.label}>
               <div className="nav-group-label" aria-hidden="true">
                 {group.label}
               </div>
-              {group.links
-                .filter((link) => !(gesellschaft && "nurEinzelunternehmen" in link) && !(!gesellschaft && "nurKapitalgesellschaft" in link))
+              {(group.links as readonly NavLink[])
+                .filter((link) => !(gesellschaft && link.nurEinzelunternehmen) && !(!gesellschaft && link.nurKapitalgesellschaft))
                 .map((link) => (
                   <Link key={link.to} to={link.to} className="nav-link">
                     <Icon name={link.icon} />
@@ -178,13 +205,15 @@ function AppLayout() {
               </span>
               <span className="nav-user-text">
                 <span className="nav-user-name">{user.name}</span>
-                <span className="nav-user-meta">Geschäftsjahr {new Date().getFullYear()}</span>
+                <span className="nav-user-meta">{inhaber ? `Geschäftsjahr ${new Date().getFullYear()}` : `${ROLLEN_LABEL[user.role]} · nur lesen`}</span>
               </span>
             </div>
-            <Link to="/einstellungen" className="nav-link nav-foot-link">
-              <Icon name="settings" />
-              Einstellungen
-            </Link>
+            {inhaber && (
+              <Link to="/einstellungen" className="nav-link nav-foot-link">
+                <Icon name="settings" />
+                Einstellungen
+              </Link>
+            )}
             {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
             <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
               <Icon name="code" />

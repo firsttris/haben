@@ -22,10 +22,12 @@ import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
 import { Route as AppKasseRouteImport } from './routes/_app/kasse'
 import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
+import { Route as AppSteuerberatungRouteImport } from './routes/_app/steuerberatung'
 import { Route as AppSvMeldeportalRouteImport } from './routes/_app/sv-meldeportal'
 import { Route as AppUeberweisungenRouteImport } from './routes/_app/ueberweisungen'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
+import { Route as EinladungTokenRouteImport } from './routes/einladung.$token'
 import { Route as AppAbschlussIndexRouteImport } from './routes/_app/abschluss/index'
 import { Route as AppAbschlussJahrRouteImport } from './routes/_app/abschluss/$jahr'
 import { Route as AppAngeboteIndexRouteImport } from './routes/_app/angebote/index'
@@ -165,6 +167,11 @@ const AppPauschalenRoute = AppPauschalenRouteImport.update({
   path: '/pauschalen',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSteuerberatungRoute = AppSteuerberatungRouteImport.update({
+  id: '/steuerberatung',
+  path: '/steuerberatung',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSvMeldeportalRoute = AppSvMeldeportalRouteImport.update({
   id: '/sv-meldeportal',
   path: '/sv-meldeportal',
@@ -183,6 +190,11 @@ const ApiLogoRoute = ApiLogoRouteImport.update({
 const ApiMcpRoute = ApiMcpRouteImport.update({
   id: '/api/mcp',
   path: '/api/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EinladungTokenRoute = EinladungTokenRouteImport.update({
+  id: '/einladung/$token',
+  path: '/einladung/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAbschlussIndexRoute = AppAbschlussIndexRouteImport.update({
@@ -581,10 +593,12 @@ export interface FileRoutesByFullPath {
   '/fristen': typeof AppFristenRoute
   '/kasse': typeof AppKasseRoute
   '/pauschalen': typeof AppPauschalenRoute
+  '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
+  '/einladung/$token': typeof EinladungTokenRoute
   '/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
   '/angebote/neu': typeof AppAngeboteNeuRoute
@@ -672,10 +686,12 @@ export interface FileRoutesByTo {
   '/fristen': typeof AppFristenRoute
   '/kasse': typeof AppKasseRoute
   '/pauschalen': typeof AppPauschalenRoute
+  '/steuerberatung': typeof AppSteuerberatungRoute
   '/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
+  '/einladung/$token': typeof EinladungTokenRoute
   '/': typeof AppIndexRoute
   '/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/angebote/$id': typeof AppAngeboteIdRoute
@@ -766,10 +782,12 @@ export interface FileRoutesById {
   '/_app/fristen': typeof AppFristenRoute
   '/_app/kasse': typeof AppKasseRoute
   '/_app/pauschalen': typeof AppPauschalenRoute
+  '/_app/steuerberatung': typeof AppSteuerberatungRoute
   '/_app/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/_app/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
+  '/einladung/$token': typeof EinladungTokenRoute
   '/_app/': typeof AppIndexRoute
   '/_app/abschluss/$jahr': typeof AppAbschlussJahrRoute
   '/_app/angebote/$id': typeof AppAngeboteIdRoute
@@ -861,10 +879,12 @@ export interface FileRouteTypes {
     | '/fristen'
     | '/kasse'
     | '/pauschalen'
+    | '/steuerberatung'
     | '/sv-meldeportal'
     | '/ueberweisungen'
     | '/api/logo'
     | '/api/mcp'
+    | '/einladung/$token'
     | '/abschluss/$jahr'
     | '/angebote/$id'
     | '/angebote/neu'
@@ -952,10 +972,12 @@ export interface FileRouteTypes {
     | '/fristen'
     | '/kasse'
     | '/pauschalen'
+    | '/steuerberatung'
     | '/sv-meldeportal'
     | '/ueberweisungen'
     | '/api/logo'
     | '/api/mcp'
+    | '/einladung/$token'
     | '/'
     | '/abschluss/$jahr'
     | '/angebote/$id'
@@ -1045,10 +1067,12 @@ export interface FileRouteTypes {
     | '/_app/fristen'
     | '/_app/kasse'
     | '/_app/pauschalen'
+    | '/_app/steuerberatung'
     | '/_app/sv-meldeportal'
     | '/_app/ueberweisungen'
     | '/api/logo'
     | '/api/mcp'
+    | '/einladung/$token'
     | '/_app/'
     | '/_app/abschluss/$jahr'
     | '/_app/angebote/$id'
@@ -1132,6 +1156,7 @@ export interface RootRouteChildren {
   SetupRoute: typeof SetupRoute
   ApiLogoRoute: typeof ApiLogoRoute
   ApiMcpRoute: typeof ApiMcpRoute
+  EinladungTokenRoute: typeof EinladungTokenRoute
   ApiAltbelegIdRoute: typeof ApiAltbelegIdRoute
   ApiAngebotIdRoute: typeof ApiAngebotIdRoute
   ApiArchivIdRoute: typeof ApiArchivIdRoute
@@ -1257,6 +1282,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPauschalenRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/steuerberatung': {
+      id: '/_app/steuerberatung'
+      path: '/steuerberatung'
+      fullPath: '/steuerberatung'
+      preLoaderRoute: typeof AppSteuerberatungRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sv-meldeportal': {
       id: '/_app/sv-meldeportal'
       path: '/sv-meldeportal'
@@ -1283,6 +1315,13 @@ declare module '@tanstack/react-router' {
       path: '/api/mcp'
       fullPath: '/api/mcp'
       preLoaderRoute: typeof ApiMcpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/einladung/$token': {
+      id: '/einladung/$token'
+      path: '/einladung/$token'
+      fullPath: '/einladung/$token'
+      preLoaderRoute: typeof EinladungTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/abschluss/': {
@@ -1816,6 +1855,7 @@ interface AppRouteChildren {
   AppFristenRoute: typeof AppFristenRoute
   AppKasseRoute: typeof AppKasseRoute
   AppPauschalenRoute: typeof AppPauschalenRoute
+  AppSteuerberatungRoute: typeof AppSteuerberatungRoute
   AppSvMeldeportalRoute: typeof AppSvMeldeportalRoute
   AppUeberweisungenRoute: typeof AppUeberweisungenRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1875,6 +1915,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFristenRoute: AppFristenRoute,
   AppKasseRoute: AppKasseRoute,
   AppPauschalenRoute: AppPauschalenRoute,
+  AppSteuerberatungRoute: AppSteuerberatungRoute,
   AppSvMeldeportalRoute: AppSvMeldeportalRoute,
   AppUeberweisungenRoute: AppUeberweisungenRoute,
   AppIndexRoute: AppIndexRoute,
@@ -1932,6 +1973,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetupRoute: SetupRoute,
   ApiLogoRoute: ApiLogoRoute,
   ApiMcpRoute: ApiMcpRoute,
+  EinladungTokenRoute: EinladungTokenRoute,
   ApiAltbelegIdRoute: ApiAltbelegIdRoute,
   ApiAngebotIdRoute: ApiAngebotIdRoute,
   ApiArchivIdRoute: ApiArchivIdRoute,

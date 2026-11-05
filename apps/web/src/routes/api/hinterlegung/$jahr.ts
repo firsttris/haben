@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { auth } from "../../../server/auth.ts";
+import { requireUser } from "../../../server/rollen.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 import { yearSchema } from "../../../server/functions/schemas.ts";
 import { HinterlegungError, hinterlegungAngabenSchema, hinterlegungPdf } from "../../../server/modules/buchhaltung/index.ts";
@@ -13,8 +13,8 @@ export const Route = createFileRoute("/api/hinterlegung/$jahr")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const session = await auth().api.getSession({ headers: request.headers });
-        if (!session) return new Response("Nicht angemeldet", { status: 401 });
+        const user = await requireUser(request, "inhaber");
+        if (user instanceof Response) return user;
         const year = yearSchema.safeParse(Number(params.jahr));
         if (!year.success) return new Response("Nicht gefunden", { status: 404 });
         const angaben = hinterlegungAngabenSchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));

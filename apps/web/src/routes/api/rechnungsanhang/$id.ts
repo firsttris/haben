@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { auth } from "../../../server/auth.ts";
+import { requireUser } from "../../../server/rollen.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 import { loadInvoiceAttachment } from "../../../server/modules/rechnungen/index.ts";
 
@@ -9,8 +9,8 @@ export const Route = createFileRoute("/api/rechnungsanhang/$id")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const session = await auth().api.getSession({ headers: request.headers });
-        if (!session) return new Response("Nicht angemeldet", { status: 401 });
+        const user = await requireUser(request, "lesen");
+        if (user instanceof Response) return user;
         const id = z.uuid().safeParse(params.id);
         if (!id.success) return new Response("Nicht gefunden", { status: 404 });
         const file = await loadInvoiceAttachment(id.data);

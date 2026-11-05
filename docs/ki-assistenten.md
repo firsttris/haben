@@ -18,6 +18,8 @@ Was der Assistent über die Werkzeuge liest, geht an den Anbieter des Modells. B
 2. Unter **API-Tokens** einen Namen vergeben (z. B. „Claude Code am Laptop“), die Gültigkeit wählen (30 Tage, 90 Tage oder ein Jahr) und **Token anlegen**. Unter **Rechte** ist „KI-Assistent (MCP): Buchhaltung lesen“ (`haben:lesen`) schon angekreuzt; die übrigen Rechte gehören zur [REST-API](api.md) und braucht ein Assistent nicht.
 3. Das Token sofort kopieren: Haben speichert nur seinen SHA-256-Hash und zeigt es nie wieder an.
 
+Tokens legt nur der Inhaber an; ein [Zugang für die Steuerberatung](steuerberatung.md) sieht sie nicht und kann keine anlegen.
+
 Jeder Assistent sollte sein eigenes Token bekommen. **Widerrufen** sperrt ein Token sofort; abgelaufene und widerrufene bleiben zur Nachvollziehbarkeit in der Liste. Wer den Zugang wieder ausschaltet, sperrt alle Tokens auf einmal, auch die für die REST-API. Ein Token ohne `haben:lesen` lehnt `/api/mcp` mit 403 ab.
 
 ### Claude Code

@@ -1037,6 +1037,20 @@
       "when": 1793991114647,
       "tag": "0147_kasse_rechnung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1793991174647,
+      "tag": "0148_zugaenge",
+      "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1793991234647,
+      "tag": "0149_zugaenge_trigger",
+      "breakpoints": true
     }
   ]
 }
