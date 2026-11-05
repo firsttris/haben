@@ -63,7 +63,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Fremdleistungen | Bezogene Fremdleistungen |
 | Lohn, Lohnsteuer und SV-Beiträge aus dem Bankabgleich ([Lohn](lohn.md#buchung)) | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge). Lohnzahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis (§ 11 Abs. 2 Satz 2 EStG) |
 | Kontoführung und Gebühren, Sonstiger Aufwand | Übrige Betriebsausgaben |
-| AfA aus dem Anlagenverzeichnis | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
+| AfA aus dem Anlagenverzeichnis, linear, degressiv und für Elektrofahrzeuge (§ 7 Abs. 2a EStG) | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
 | [Pauschale](pauschalen.md): Verpflegungsmehraufwand | Verpflegungsmehraufwendungen (beschränkt abziehbar) |
@@ -77,7 +77,7 @@ Nicht abgebildet sind das häusliche Arbeitszimmer als Mittelpunkt (die Tagespau
 
 ### Anlage AVEÜR
 
-Das Anlagenverzeichnis listet jede Anlage mit Bezeichnung, Anschaffungsdatum, Anschaffungskosten, Buchwert zu Beginn, AfA, Abgang und Buchwert am Ende, gruppiert nach Kraftfahrzeugen, Büroeinrichtung und anderen beweglichen Wirtschaftsgütern; Sammelposten stehen je Jahrgang. Geringwertige Wirtschaftsgüter gehören nicht hinein. Anlagen, die im Jahr angeschafft wurden, stehen mit den Anschaffungskosten im Buchwert zu Beginn, wie es auch EasyCash&Tax übermittelt.
+Das Anlagenverzeichnis listet jede Anlage mit Bezeichnung, Anschaffungsdatum, Anschaffungskosten, Buchwert zu Beginn, AfA, Abgang und Buchwert am Ende, gruppiert nach Kraftfahrzeugen, Büroeinrichtung und anderen beweglichen Wirtschaftsgütern; Sammelposten stehen je Jahrgang. Geringwertige Wirtschaftsgüter gehören nicht hinein. Anlagen, die im Jahr angeschafft wurden, stehen mit den Anschaffungskosten im Buchwert zu Beginn, wie es auch EasyCash&Tax übermittelt. Degressive AfA und die Staffel für Elektrofahrzeuge stehen in der Spalte AfA, wie die lineare: § 7 Abs. 2 und 2a EStG sind Absetzungen für Abnutzung, die Spalte Sonderabschreibungen (`E6007318`) gehört zu § 7g EStG, den Haben nicht kennt. Ein Kraftfahrzeug mit AfA nach § 7 Abs. 2a meldet Haben als Elektrofahrzeug (`E6007327`), wie eines mit erfasstem Elektro- oder Hybridantrieb. Mit [Erinnerungswert](anlagen.md#erinnerungswert) steht eine abgeschriebene Anlage mit 1 € weiter im Verzeichnis, bis sie ausscheidet.
 
 ## Einkommensteuererklärung
 

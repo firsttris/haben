@@ -749,3 +749,27 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Erika Gesellschafter");
   expect(await axe(), "/lohn/mitarbeiter/<id>").toEqual([]);
 });
+
+test("Elektrofahrzeug der GmbH übernehmen: AfA nach § 7 Abs. 2a EStG mit Erinnerungswert", async () => {
+  await go("/anlagen/neu");
+  const form = page.getByRole("region", { name: "Angaben" });
+  await form.getByLabel("Bezeichnung").fill("E-Transporter");
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Fahrzeug" });
+  await form.getByLabel("Anschaffungsdatum").fill("2025-08-01");
+  await form.getByLabel("Anschaffungskosten netto (€)").fill("40.000,00");
+  await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("elektro");
+  await expect(form.getByText("Nur für reine Elektrofahrzeuge, angeschafft vom 01.07.2025 bis 31.12.2027")).toBeVisible();
+  await form.getByLabel("Erinnerungswert 1 € bis zum Abgang stehen lassen").check();
+  await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
+  // 75 % im Anschaffungsjahr: Restbuchwert 10.000 €
+  await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("10.000,00");
+  await form.getByRole("button", { name: "Anlage übernehmen" }).click();
+  await page.waitForURL(/\/anlagen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const plan = page.getByRole("region", { name: "Abschreibungsplan" });
+  await expect(plan).toContainText("Elektrofahrzeug 75/10/5/5/3/2 % (§ 7 Abs. 2a EStG), Erinnerungswert 1 €");
+  await expect(plan.locator(".table-row", { hasText: /^2026/ })).toContainText("4.000,00");
+  // Letztes Jahr der Staffel: 2 % abzüglich des Erinnerungswerts
+  await expect(plan.locator(".table-row", { hasText: /^2030/ })).toContainText("799,00");
+  expect(await axe(), "/anlagen/<id> Elektrofahrzeug").toEqual([]);
+});

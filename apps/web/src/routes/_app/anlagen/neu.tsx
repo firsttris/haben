@@ -39,6 +39,9 @@ function NewAssetPage() {
               acquisitionDate: "",
               cost: 0,
               usefulLifeMonths: 72,
+              degressiveRate: null,
+              linearFromYear: null,
+              memoValue: false,
               openingDate: `${year}-01-01`,
               openingBookValue: 0,
               disposalDate: null,
@@ -49,6 +52,7 @@ function NewAssetPage() {
             privateUseAvailable={!isKapitalgesellschaft(rechtsform)}
             privateUseLocked={false}
             lifeEditable
+            switchEditable
             showOpening
             submitLabel="Anlage übernehmen"
             busy={busy}

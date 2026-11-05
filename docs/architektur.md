@@ -68,7 +68,7 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `rechnungen` | `invoices`, `invoice-taxes` (Steuerzeilen), `number-counter` (Nummernkreise, Nummer im eingestellten Format), `quotes` (Angebote), `order-documents` (Auftragsbestätigung, Lieferschein), `dunning` (Mahnungen), `invoice-mail` (Rechnungen, Mahnungen und Angebote per E-Mail), `recurring` (Serienrechnungen) |
 | `belege` | `documents`, `cancellation` (Storno und Neuerfassung), `extraction` (Auslesen), `inbox` (Belege per E-Mail über IMAP), `external-reference` (Referenz für Belege aus der REST-API) |
 | `bank` | `bank` (Kontoauszüge, Zuordnung), `bank-sync` (Kontoabruf), `cash` (Kassenbuch), `sepa-transfers` (SEPA-Überweisungen für offene Belege), `document-payees` (IBAN des Lieferanten und Referenzen der Überweisungen je Beleg) |
-| `buchhaltung` | `ledger` (Hauptbuch: einziger Schreiber des Journals, Saldenliste, Kontenblatt), `journal` (Kontennamen), `assets` (Anlagenverzeichnis, AfA), `asset-import` (Anlagen aus CSV übernehmen), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg) |
+| `buchhaltung` | `ledger` (Hauptbuch: einziger Schreiber des Journals, Saldenliste, Kontenblatt), `journal` (Kontennamen), `assets` (Anlagenverzeichnis, AfA), `asset-methoden` (Regeln für degressive und Elektro-AfA), `asset-import` (Anlagen aus CSV übernehmen), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg) |
 | `umsatzsteuer` | `vat-figures` (Zahlen und Vorprüfung), `vat` (Entwürfe, Berichtigung, Übermittlung), `zeitraum` (Voranmeldungszeitraum je Jahr und Vorschlag), `dauerfrist` (Dauerfristverlängerung, Sondervorauszahlung, Kz 39) |
 | `elster` | `elster-gateway` (Zugang, Zertifikat und PIN, Sendesperre und Protokoll für jede Übermittlung), `certificate`, `elster` (Datenschutzhinweise der Finanzverwaltung) |
 | `finanzamt` | `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `fristen` (Steuertermine, Kalender-Abo) |
@@ -167,7 +167,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `annual_submissions` | Prüfungen und Übermittlungen der Jahreserklärungen (Formulare `ust`, `euer`, `est`, `kst`, `gewst`) und der E-Bilanz (`ebilanz`) mit Werten, XML und Protokoll-PDF; höchstens eine erfolgreiche Echtübermittlung je Erklärung und Jahr | nur anhängen, Audit ohne PDF und XML |
 | `income_tax_inputs` | Angaben zur Einkommensteuererklärung je Jahr (Vorsorge, Sonderausgaben, Kinder, KAP) | änderbar, Audit |
 | `pauschalen` | Pauschalen ohne Beleg (Homeoffice, Fahrt, Verpflegung) mit Angaben, Betrag und Buchung; Storno als Gegenzeile | nur anhängen, Audit |
-| `assets` | Anlagenverzeichnis: Art, Abschreibung, Anlagekonto, Anschaffung, Nutzungsdauer, Übernahme, Abgang | Grundlagen fest nach der ersten Buchung, Audit |
+| `assets` | Anlagenverzeichnis: Art, Abschreibung, Anlagekonto, Anschaffung, Nutzungsdauer, degressiver Satz, Wechsel zur linearen AfA, Erinnerungswert, Übernahme, Abgang | Grundlagen fest nach der ersten Buchung (Wechsel zur linearen AfA nur in ein noch nicht gebuchtes Jahr), Audit |
 | `asset_depreciations` | Gebuchte AfA je Anlage und Jahr mit Verweis auf die Buchung | nur anhängen, Audit |
 
 ### Lohn

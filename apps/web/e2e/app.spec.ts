@@ -1812,6 +1812,38 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await expect(page.getByText("Lastenrad").first()).toBeVisible();
 });
 
+test("Anlage übernehmen: degressive AfA mit Höchstsatz, Restbuchwert geprüft, Wechsel zur linearen", async () => {
+  await go("/anlagen/neu");
+  const form = page.getByRole("region", { name: "Angaben" });
+  await form.getByLabel("Bezeichnung").fill("Drehbank degressiv");
+  await form.getByRole("combobox", { name: "Art", exact: true }).selectOption({ label: "Sonstige Betriebs- und Geschäftsausstattung" });
+  await form.getByLabel("Anschaffungsdatum").fill("2024-04-10");
+  await form.getByLabel("Anschaffungskosten netto (€)").fill("50.000,00");
+  await form.getByRole("combobox", { name: "Abschreibung", exact: true }).selectOption("degressiv");
+  await form.getByLabel("Nutzungsdauer in Jahren").fill("10");
+  // Wachstumschancengesetz: April bis Dezember 2024 höchstens das Doppelte des linearen Satzes und 20 %
+  await expect(form.getByText("Höchstens 20 %; leer lassen für den Höchstsatz.")).toBeVisible();
+  await form.getByLabel("Übernahmestichtag").fill("2026-01-01");
+  await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("30.000,00");
+  await form.getByRole("button", { name: "Anlage übernehmen" }).click();
+  await expect(page.getByRole("alert")).toContainText("Restbuchwert passt nicht zur degressiven AfA (rechnerisch 34.000,00 €)");
+  await form.getByLabel("Restbuchwert zum Stichtag (€)").fill("34.000,00");
+  await form.getByRole("button", { name: "Anlage übernehmen" }).click();
+  await page.waitForURL(/\/anlagen\/[0-9a-f-]{36}$/);
+  const plan = page.getByRole("region", { name: "Abschreibungsplan" });
+  await expect(plan).toContainText("Degressiv mit Wechsel zur linearen (§ 7 Abs. 2 EStG), 10 Jahre, 20 %");
+  await expect(plan.locator(".table-row", { hasText: /^2026/ })).toContainText("6.800,00");
+
+  // Wechsel zur linearen AfA ab 2027: 27.200 € über die Restnutzungsdauer von 87 Monaten
+  const angaben = page.getByRole("region", { name: "Angaben" });
+  await angaben.getByLabel("Linear ab Jahr (optional)").fill("2027");
+  await angaben.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Gespeichert." })).toBeVisible();
+  await expect(plan).toContainText("linear ab 2027");
+  await expect(plan.locator(".table-row", { hasText: /^2027/ })).toContainText("3.751,72");
+  await expect(angaben.getByLabel("Erinnerungswert 1 € bis zum Abgang stehen lassen")).not.toBeChecked();
+});
+
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {
   expect(pageErrors).toEqual([]);
   await page.context().storageState({ path: SESSION });

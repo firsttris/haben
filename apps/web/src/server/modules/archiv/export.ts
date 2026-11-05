@@ -2,7 +2,16 @@ import { createHash } from "node:crypto";
 import { and, asc, between, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
 import pkg from "../../../../package.json" with { type: "json" };
-import { ASSET_KINDS, ASSET_METHODS, csvDecimal, formatExchangeRate, isKapitalgesellschaft, PAUSCHALE_LABEL, WRITE_OFF_KINDS } from "@haben/core";
+import {
+  ASSET_KINDS,
+  ASSET_METHODS,
+  csvDecimal,
+  formatDegressiveRate,
+  formatExchangeRate,
+  isKapitalgesellschaft,
+  PAUSCHALE_LABEL,
+  WRITE_OFF_KINDS,
+} from "@haben/core";
 import { listAssets } from "../buchhaltung/index.ts";
 import { db, schema } from "../../db/index.ts";
 import { accountName, openingCash } from "../buchhaltung/index.ts";
@@ -652,6 +661,10 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       a.acquisitionDate,
       money(a.cost),
       a.usefulLifeMonths,
+      // Verzeichnis nach § 7a Abs. 8 EStG für die degressive AfA: Satz und Wechsel zur linearen
+      a.degressiveRate === null ? "" : formatDegressiveRate(a.degressiveRate),
+      a.linearFromYear,
+      a.memoValue,
       a.openingDate,
       a.openingBookValue === null ? "" : money(a.openingBookValue),
       money(a.year?.opening ?? 0),
@@ -679,6 +692,9 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         "Anschaffung",
         "Anschaffungskosten",
         "Nutzungsdauer (Monate)",
+        "Degressiver Satz",
+        "Linear ab",
+        "Erinnerungswert",
         "Übernommen zum",
         "Buchwert bei Übernahme",
         "Buchwert Jahresanfang",

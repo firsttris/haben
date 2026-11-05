@@ -946,6 +946,20 @@
       "when": 1793990334647,
       "tag": "0134_lohnsteuer_anmeldung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1793990394647,
+      "tag": "0135_afa_methoden",
+      "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1793990454647,
+      "tag": "0136_afa_methoden_trigger",
+      "breakpoints": true
     }
   ]
 }

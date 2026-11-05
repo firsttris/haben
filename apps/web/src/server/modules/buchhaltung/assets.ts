@@ -24,6 +24,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { kleinunternehmerHistory, lastDayOfMonth, loadCompany, type Company } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
+import { elektroIssues, methodValues, switchToLinearProblem } from "./asset-methoden.ts";
 import { stapelOpeningCovering } from "./eroeffnung.ts";
 import { openBooks, post } from "./ledger.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -45,6 +46,12 @@ export const assetInputSchema = z.object({
   acquisitionDate: isoDate,
   cost: z.number().int().min(1).max(100_000_000_00),
   usefulLifeMonths: z.number().int().min(1).max(600).nullable(),
+  /** Nur bei degressiv: Satz in Basispunkten; ohne Angabe der Höchstsatz */
+  degressiveRate: z.number().int().min(1).max(3000).nullable().default(null),
+  /** Nur bei degressiv: ab diesem Jahr linear (§ 7 Abs. 3 EStG) */
+  linearFromYear: z.number().int().min(2000).max(2200).nullable().default(null),
+  /** Erinnerungswert von 1 € bis zum Abgang */
+  memoValue: z.boolean().default(false),
   openingDate: isoDate,
   openingBookValue: z.number().int().min(0).max(100_000_000_00),
   disposalDate: isoDate.nullable(),
@@ -64,22 +71,33 @@ export const assetInputSchema = z.object({
 export type AssetInput = z.input<typeof assetInputSchema>;
 
 /** Was an einer Anlage nach der Anlage noch geändert werden darf */
-export const assetUpdateSchema = assetInputSchema.partial().extend({ name: z.string().trim().min(1).max(200) });
+export const assetUpdateSchema = assetInputSchema.partial().extend({
+  name: z.string().trim().min(1).max(200),
+  // Ohne Vorgabe, damit eine Änderung ohne diese Felder sie nicht zurücksetzt
+  degressiveRate: z.number().int().min(1).max(3000).nullable().optional(),
+  linearFromYear: z.number().int().min(2000).max(2200).nullable().optional(),
+  memoValue: z.boolean().optional(),
+});
 
 function scheduleInput(asset: Asset): ScheduleAsset {
   return {
     acquisitionDate: asset.acquisitionDate,
     cost: asset.cost,
     method: asset.method,
+    kind: asset.kind,
     usefulLifeMonths: asset.usefulLifeMonths,
+    degressiveRate: asset.degressiveRate,
+    linearFromYear: asset.linearFromYear,
+    memoValue: asset.memoValue,
     opening: asset.openingDate ? { date: asset.openingDate, bookValue: asset.openingBookValue! } : null,
     disposalDate: asset.disposalDate,
   };
 }
 
-function scheduleOf(asset: Asset): ScheduleYear[] {
+/** Plan bis mindestens untilYear: Mit Erinnerungswert hat jedes Jahr bis dahin seine Zeile mit 1 € Buchwert */
+function scheduleOf(asset: Asset, untilYear: number): ScheduleYear[] {
   try {
-    return depreciationSchedule(scheduleInput(asset));
+    return depreciationSchedule(scheduleInput(asset), untilYear);
   } catch {
     return [];
   }
@@ -114,7 +132,7 @@ function privateUseForYear(asset: Asset, year: number, kleinunternehmer: Kleinun
 
 /** Was im Jahr zu buchen ist: AfA laut Plan und Privatnutzung */
 function yearPlan(asset: Asset, year: number, kleinunternehmer?: KleinunternehmerInMonth) {
-  const row = scheduleOf(asset).find((r) => r.year === year) ?? null;
+  const row = scheduleOf(asset, year).find((r) => r.year === year) ?? null;
   const privateUse = privateUseForYear(asset, year, kleinunternehmer);
   const hasWork = Boolean((row && (row.depreciation !== 0 || row.disposal !== 0)) || (privateUse && privateUse.withdrawal !== 0));
   return { row, privateUse, hasWork };
@@ -143,7 +161,7 @@ export async function listAssets(year: number, q: Db | Tx = db) {
   );
   const kleinunternehmer = await kleinunternehmerInYear(year, q);
   return assets.map((asset) => {
-    const schedule = scheduleOf(asset);
+    const schedule = scheduleOf(asset, year);
     const row = schedule.find((r) => r.year === year) ?? null;
     const first = schedule[0]?.year ?? Number(asset.acquisitionDate.slice(0, 4));
     // Nach dem Plan: Buchwert 0 bzw. vor Beginn kein Eintrag; zur Anzeige den Stand am Jahresende
@@ -169,7 +187,7 @@ export async function getAsset(id: string) {
   const booked = (await bookedYears([id])).get(id) ?? [];
   return {
     asset,
-    schedule: scheduleOf(asset),
+    schedule: scheduleOf(asset, new Date().getFullYear()),
     bookedYears: booked.sort((a, b) => a - b),
   };
 }
@@ -185,19 +203,19 @@ export async function insertAsset(tx: Tx, input: AssetInput): Promise<Asset> {
   const company = await loadCompany(tx);
   const values = {
     ...input,
+    ...methodValues(input.method, input),
     privateUse: privateUseValue(input.kind, input.privateUse ?? null, company),
-    usefulLifeMonths: input.method === "linear" ? input.usefulLifeMonths : null,
     account: assetAccount(input.kind, input.method, company.kontenrahmen),
   };
-  const issues = assetIssues(scheduleInput({ ...values, openingEntryId: null } as Asset));
+  const issues = [...assetIssues(scheduleInput({ ...values, openingEntryId: null } as Asset)), ...elektroIssues(values)];
   if (issues.length > 0) throw new AssetUserError(`${issues.join(", ")}.`);
   const [created] = await tx.insert(schema.assets).values(values).returning();
   return created!;
 }
 
 /**
- * Ändert eine Anlage. Ist schon etwas gebucht, gehen nur Bezeichnung, Notiz und der Abgang,
- * und der Abgang nur in ein Jahr, für das noch keine AfA gebucht ist.
+ * Ändert eine Anlage. Ist schon etwas gebucht, gehen nur Bezeichnung, Notiz, der Abgang und bei degressiver AfA der
+ * Wechsel zur linearen, beide nur in ein Jahr, für das noch keine AfA gebucht ist.
  */
 export async function updateAsset(actor: string, id: string, input: z.infer<typeof assetUpdateSchema>): Promise<Asset> {
   return withActor(actor, async (tx) => {
@@ -239,13 +257,23 @@ export async function updateAsset(actor: string, id: string, input: z.infer<type
         if (!same) throw new AssetUserError("GWG und Sammelposten werden schon bei der Belegbuchung festgelegt.");
         next.method = input.method;
       }
-      if (next.method !== "linear") next.usefulLifeMonths = null;
+      for (const key of ["degressiveRate", "linearFromYear", "memoValue"] as const) {
+        if (input[key] !== undefined) (next as Record<string, unknown>)[key] = input[key];
+      }
+      Object.assign(next, methodValues(next.method, next));
       if (input.privateUse !== undefined) next.privateUse = privateUseValue(next.kind, input.privateUse, company);
-    } else if (input.privateUse !== undefined && !samePrivateUse(input.privateUse, asset.privateUse)) {
-      throw new AssetUserError("Für die Anlage ist schon gebucht; die Privatnutzung lässt sich nicht mehr ändern.");
+    } else {
+      if (input.privateUse !== undefined && !samePrivateUse(input.privateUse, asset.privateUse)) {
+        throw new AssetUserError("Für die Anlage ist schon gebucht; die Privatnutzung lässt sich nicht mehr ändern.");
+      }
+      if (input.linearFromYear !== undefined && input.linearFromYear !== asset.linearFromYear) {
+        const problem = switchToLinearProblem(asset, input.linearFromYear, lastBooked);
+        if (problem) throw new AssetUserError(problem);
+        next.linearFromYear = input.linearFromYear;
+      }
     }
 
-    const issues = assetIssues(scheduleInput(next));
+    const issues = [...assetIssues(scheduleInput(next)), ...elektroIssues(next)];
     if (issues.length > 0) throw new AssetUserError(`${issues.join(", ")}.`);
     const { id: _id, createdAt: _createdAt, ...values } = next;
     const [updated] = await tx
@@ -423,7 +451,7 @@ export async function depreciationForEuer(year: number, q: Db | Tx = db): Promis
     restbuchwert: 0,
   };
   for (const asset of assets) {
-    const row = scheduleOf(asset).find((r) => r.year === year);
+    const row = scheduleOf(asset, year).find((r) => r.year === year);
     if (!row) continue;
     if (asset.method === "gwg") result.gwg += row.depreciation;
     else if (asset.method === "sammelposten") result.sammelposten += row.depreciation;

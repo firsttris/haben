@@ -269,10 +269,33 @@ describe("Anlagen", () => {
       acquisitionDate: "2024-03-15",
       cost: 3600000,
       usefulLifeMonths: 72,
+      degressiveRate: null,
       openingDate: STICHTAG,
       openingBookValue: 2500000,
       note: "",
     });
+  });
+
+  it("übernimmt degressive und Elektro-AfA nur mit dem rechnerischen Restbuchwert zum 01.01.", () => {
+    const rows = assets(
+      [
+        `${HEAD};Degressiver Satz`,
+        // April 2024, 10 Jahre, 20 %: 2024 9/12 von 10.000 €, 2025 8.500 €, Rest 34.000 €
+        "Maschine;Sonstiges;degressiv;10.04.2024;50.000,00;10;34.000,00;;",
+        // Satz angegeben, aber Restbuchwert passt zum Höchstsatz, nicht zu 15 %
+        "Presse;Sonstiges;degressiv;10.04.2024;50.000,00;10;34.000,00;;15",
+        "Tesla;Fahrzeug;Elektro § 7 Abs. 2a;03.11.2025;60.000,00;;15.000,00;;",
+        "E-Auto falsch;Fahrzeug;Elektro;03.11.2025;60.000,00;;20.000,00;;",
+        "Degressiv alt;;degressiv;01.02.2023;900,00;5;500,00;;",
+      ].join("\n"),
+    );
+    expect(rows[0]!.errors).toEqual([]);
+    expect(rows[0]!.value).toMatchObject({ method: "degressiv", usefulLifeMonths: 120, degressiveRate: null, openingBookValue: 3_400_000 });
+    expect(rows[1]!.errors).toEqual([expect.stringContaining("Restbuchwert passt nicht zur degressiven AfA")]);
+    expect(rows[2]!.errors).toEqual([]);
+    expect(rows[2]!.value).toMatchObject({ kind: "kfz", method: "elektro", usefulLifeMonths: null });
+    expect(rows[3]!.errors).toEqual(["Restbuchwert passt nicht zur AfA nach § 7 Abs. 2a EStG (rechnerisch 15.000,00 €); dann linear übernehmen"]);
+    expect(rows[4]!.errors).toEqual([expect.stringContaining("Degressive AfA nur bei Anschaffung vom 01.01.2020 bis 31.12.2022")]);
   });
 
   it("rechnet den Restbuchwert aus der bisherigen AfA; beide angegeben müssen zusammenpassen", () => {
@@ -315,7 +338,7 @@ describe("Anlagen", () => {
       ["Im Anschaffungsjahr voll abgeschrieben; der Restbuchwert muss 0 sein"],
       ["Sammelposten nach fünf Jahren aufgelöst; der Restbuchwert muss 0 sein"],
       ["Restbuchwert muss zwischen 0 und den Anschaffungskosten liegen"],
-      [expect.stringContaining("Degressive AfA kennt Haben nicht")],
+      [expect.stringContaining("Degressive AfA nur bei Anschaffung")],
       ["Nutzungsdauer fehlt"],
     ]);
   });

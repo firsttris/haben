@@ -12,9 +12,11 @@ import {
   type CarDrive,
   type CarPrivateUse,
   type PrivateUseRate,
+  usesUsefulLife,
 } from "@haben/core";
 import { useState, type FormEvent } from "react";
 import { parseUsefulLifeMonths } from "../lib/format.ts";
+import { AssetMethodOptions, parseRatePercent, ratePercentText } from "./AssetMethodOptions.tsx";
 
 export interface AssetFormValues {
   name: string;
@@ -23,6 +25,10 @@ export interface AssetFormValues {
   acquisitionDate: string;
   cost: number;
   usefulLifeMonths: number | null;
+  /** Nur degressiv: Basispunkte, null = Höchstsatz */
+  degressiveRate: number | null;
+  linearFromYear: number | null;
+  memoValue: boolean;
   openingDate: string;
   openingBookValue: number;
   disposalDate: string | null;
@@ -34,12 +40,14 @@ const RATE_LABELS: Record<PrivateUseRate, string> = { 100: "1 %", 50: "0,5 %", 2
 
 /**
  * Formular für eine Anlage. `locked` sperrt die Berechnungsgrundlagen (gebucht oder aus einem Beleg),
- * `lifeEditable` erlaubt trotzdem die Nutzungsdauer (Beleg-Anlage vor der ersten AfA).
+ * `lifeEditable` erlaubt trotzdem Nutzungsdauer, Abschreibung und ihre Angaben (Beleg-Anlage vor der ersten AfA),
+ * `switchEditable` den Wechsel von der degressiven zur linearen AfA (auch nach der ersten Buchung).
  */
 export function AssetForm({
   initial,
   locked,
   lifeEditable,
+  switchEditable,
   privateUseLocked,
   privateUseAvailable,
   showOpening,
@@ -50,6 +58,7 @@ export function AssetForm({
   initial: AssetFormValues;
   locked: boolean;
   lifeEditable: boolean;
+  switchEditable: boolean;
   /** Privatnutzung gesperrt (schon gebucht) */
   privateUseLocked: boolean;
   /** Privatnutzung als Entnahme gibt es nur im Einzelunternehmen; in GmbH und UG ist sie Arbeitslohn */
@@ -65,6 +74,9 @@ export function AssetForm({
   const [acquisitionDate, setAcquisitionDate] = useState(initial.acquisitionDate);
   const [cost, setCost] = useState(initial.cost ? formatDecimal(initial.cost) : "");
   const [years, setYears] = useState(initial.usefulLifeMonths ? String(initial.usefulLifeMonths / 12) : "");
+  const [rateText, setRateText] = useState(ratePercentText(initial.degressiveRate));
+  const [linearFrom, setLinearFrom] = useState(initial.linearFromYear ? String(initial.linearFromYear) : "");
+  const [memoValue, setMemoValue] = useState(initial.memoValue);
   const [openingDate, setOpeningDate] = useState(initial.openingDate);
   const [openingBookValue, setOpeningBookValue] = useState(initial.openingDate ? formatDecimal(initial.openingBookValue) : "");
   const [disposalDate, setDisposalDate] = useState(initial.disposalDate ?? "");
@@ -79,7 +91,12 @@ export function AssetForm({
   const parsedCost = parseEuro(cost);
   const parsedOpening = parseEuro(openingBookValue);
   const lifeMonths = parseUsefulLifeMonths(years);
-  const lifeValid = method !== "linear" || lifeMonths !== null;
+  const lifeValid = !usesUsefulLife(method) || lifeMonths !== null;
+  const parsedRate = parseRatePercent(rateText);
+  const parsedLinearFrom = /^\d{4}$/.test(linearFrom.trim()) ? Number(linearFrom.trim()) : linearFrom.trim() ? Number.NaN : null;
+  const degressiveValid = method !== "degressiv" || (!Number.isNaN(parsedRate) && !Number.isNaN(parsedLinearFrom));
+  // Bei einer Beleg-Anlage vor der ersten AfA bleibt das Anlagekonto: nur Methoden ohne eigenes Konto
+  const methodLocked = locked && !lifeEditable;
   const parsedListPrice = parseEuro(listPrice);
   const privateUseValid = kind !== "kfz" || !privateUsed || (parsedListPrice !== null && parsedListPrice > 0);
   // Satz folgt Antrieb, Listenpreis und Anschaffungsdatum, bis er von Hand gewählt wurde (ohne Datum: 1 %)
@@ -95,6 +112,7 @@ export function AssetForm({
     parsedCost !== null &&
     parsedCost > 0 &&
     lifeValid &&
+    degressiveValid &&
     (!showOpening || (Boolean(openingDate) && parsedOpening !== null && parsedOpening >= 0));
 
   function chooseKind(value: AssetKind) {
@@ -114,7 +132,10 @@ export function AssetForm({
       method,
       acquisitionDate,
       cost: parsedCost!,
-      usefulLifeMonths: method === "linear" ? lifeMonths : null,
+      usefulLifeMonths: usesUsefulLife(method) ? lifeMonths : null,
+      degressiveRate: method === "degressiv" ? parsedRate : null,
+      linearFromYear: method === "degressiv" ? parsedLinearFrom : null,
+      memoValue,
       openingDate,
       openingBookValue: parsedOpening ?? 0,
       disposalDate: disposalDate || null,
@@ -158,15 +179,17 @@ export function AssetForm({
         <div className="form-row cols-2">
           <label className="field">
             Abschreibung
-            <select value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={locked}>
-              {Object.entries(ASSET_METHODS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
+            <select value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={methodLocked}>
+              {Object.entries(ASSET_METHODS)
+                .filter(([value]) => value === method || methodChoices(kind, locked).includes(value as AssetMethod))
+                .map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
             </select>
           </label>
-          {method === "linear" && (
+          {usesUsefulLife(method) && (
             <label className="field">
               Nutzungsdauer in Jahren
               <input
@@ -180,11 +203,24 @@ export function AssetForm({
             </label>
           )}
         </div>
-        {method === "linear" && (
+        {usesUsefulLife(method) && (
           <p id="life-hint" className="field-hint">
             Laut AfA-Tabelle z. B. Pkw 6, Büromöbel 13 Jahre.
           </p>
         )}
+        <AssetMethodOptions
+          method={method}
+          acquisitionDate={acquisitionDate}
+          lifeMonths={lifeMonths}
+          rate={rateText}
+          onRate={setRateText}
+          linearFrom={linearFrom}
+          onLinearFrom={setLinearFrom}
+          memo={memoValue}
+          onMemo={setMemoValue}
+          locked={methodLocked}
+          switchEditable={switchEditable}
+        />
         {showOpening && (
           <>
             <div className="form-row cols-2">
@@ -313,4 +349,13 @@ export function AssetForm({
       </div>
     </form>
   );
+}
+
+/**
+ * Wählbare Methoden: Elektro nur bei Fahrzeugen; bei einer Beleg-Anlage (`fromDocument`) nur Methoden auf dem
+ * Anlagekonto der Art, GWG und Sammelposten legt die Belegbuchung mit eigenem Konto fest.
+ */
+function methodChoices(kind: AssetKind, fromDocument: boolean): AssetMethod[] {
+  const all = Object.keys(ASSET_METHODS) as AssetMethod[];
+  return all.filter((m) => (m !== "elektro" || kind === "kfz") && (!fromDocument || (m !== "gwg" && m !== "sammelposten")));
 }

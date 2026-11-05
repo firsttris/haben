@@ -13,7 +13,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | 3 | Lohn: Lohnsteuerbescheinigung | Elektronische Lohnsteuerbescheinigung über ERiC bis Ende Februar des Folgejahres | M | geplant |
 | 4 | E-Bilanz-Taxonomie 6.10 | Neue Taxonomie ab Wirtschaftsjahr 2027 mit Kontennachweis zu Bilanz und GuV ([Buchhaltung](buchhaltung.md)) | M | geplant |
 | 5 | Voranmeldung als offener Posten | Abgabe außerhalb von Haben vermerken (Datum, Transferticket, Protokoll; danach festgeschrieben, Frist erledigt, Kennzahlen geprüft) und Zahllast bzw. Erstattung als offenen Posten mit Fälligkeit im Bankabgleich zuordnen, mit Dauerfristverlängerung, Teilzahlung und Berichtigung (Säumniszuschläge bleiben Betriebsausgaben); Protokoll im Jahresarchiv | M | geplant |
-| 6 | Weitere AfA-Methoden | Degressive AfA mit Wechsel zur linearen, Sonderabschreibung für E-Fahrzeuge, Erinnerungswert ([Anlagen](anlagen.md)) | M | geplant |
+| 6 | Weitere AfA-Methoden | Degressive AfA mit Wechsel zur linearen, AfA-Staffel für Elektrofahrzeuge nach § 7 Abs. 2a EStG, Erinnerungswert ([Anlagen](anlagen.md#degressive-afa)) | M | erledigt |
 | 7 | Innergemeinschaftliche Lieferung und Erwerb, Ausfuhr | Rechnung und Beleg mit eigener Steuerregelung, Kz 41, 43, 89/93 und 61, ZM mit Lieferungen und Dreiecksgeschäften | M | geplant |
 | 8 | Dauerbelege | Wiederkehrende Ausgaben wie Miete oder Versicherung einmal erfassen, Haben legt sie im Intervall an | S–M | geplant |
 | 9 | Barzahlung einer Rechnung in der Kasse | Bareinnahme einer Ausgangsrechnung im Kassenbuch zuordnen ([Kasse](kasse.md)) | S–M | geplant |

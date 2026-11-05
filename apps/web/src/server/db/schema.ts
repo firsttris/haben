@@ -1830,6 +1830,12 @@ export const assets = pgTable(
     /** Anschaffungskosten netto (ohne Vorsteuerabzug brutto) */
     cost: integer("cost").notNull(),
     usefulLifeMonths: smallint("useful_life_months"),
+    /** Degressive AfA (§ 7 Abs. 2 EStG): fester Satz in Basispunkten, 3000 = 30 % */
+    degressiveRate: smallint("degressive_rate"),
+    /** Degressive AfA: ab diesem Jahr linear (§ 7 Abs. 3 EStG); auch nach der ersten Buchung für spätere Jahre setzbar */
+    linearFromYear: smallint("linear_from_year"),
+    /** Erinnerungswert von 1 € bis zum Abgang */
+    memoValue: boolean("memo_value").notNull().default(false),
     documentId: uuid("document_id")
       .unique()
       .references(() => documents.id),
@@ -1848,6 +1854,12 @@ export const assets = pgTable(
     check("assets_opening_complete", sql`(${t.openingDate} is null) = (${t.openingBookValue} is null)`),
     check("assets_cost_positive", sql`${t.cost} > 0`),
     check("assets_private_use_car", sql`${t.privateUse} is null or ${t.kind} = 'kfz'`),
+    check(
+      "assets_degressive_rate",
+      sql`(${t.method} = 'degressiv') = (${t.degressiveRate} is not null) and coalesce(${t.degressiveRate}, 1) between 1 and 3000`,
+    ),
+    check("assets_linear_from_year", sql`${t.linearFromYear} is null or ${t.method} = 'degressiv'`),
+    check("assets_elektro_kfz", sql`${t.method} <> 'elektro' or ${t.kind} = 'kfz'`),
     foreignKey({ name: "assets_opening_entry_fk", columns: [t.openingEntryId], foreignColumns: [journalEntries.id] }),
   ],
 );
