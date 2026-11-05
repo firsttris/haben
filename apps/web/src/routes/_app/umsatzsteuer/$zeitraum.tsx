@@ -30,8 +30,43 @@ export const Route = createFileRoute("/_app/umsatzsteuer/$zeitraum")({
 const ELSTER_ABGABE_DOCS = "https://firsttris.github.io/haben/elster-abgabe.html";
 
 type PageData = Awaited<ReturnType<typeof getVatPeriod>>;
-type FieldKey = "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz46" | "kz47" | "kz84" | "kz85" | "kz67" | "kz39";
-const FIELDS: FieldKey[] = ["kz81", "kz86", "kz21", "kz39", "kz45", "kz46", "kz47", "kz48", "kz66", "kz67", "kz84", "kz85"];
+type FieldKey =
+  | "kz81"
+  | "kz86"
+  | "kz21"
+  | "kz45"
+  | "kz48"
+  | "kz66"
+  | "kz46"
+  | "kz47"
+  | "kz84"
+  | "kz85"
+  | "kz67"
+  | "kz39"
+  | "kz41"
+  | "kz43"
+  | "kz89"
+  | "kz93"
+  | "kz61";
+const FIELDS: FieldKey[] = [
+  "kz81",
+  "kz86",
+  "kz21",
+  "kz39",
+  "kz41",
+  "kz43",
+  "kz45",
+  "kz46",
+  "kz47",
+  "kz48",
+  "kz61",
+  "kz66",
+  "kz67",
+  "kz84",
+  "kz85",
+  "kz89",
+  "kz93",
+];
 
 type Figures = Pick<Record<FieldKey, number>, "kz81" | "kz86" | "kz66"> & Partial<Record<FieldKey, number>>;
 
@@ -133,11 +168,12 @@ function VatPeriodPage() {
           </div>
         ))}
 
-      {data.figures.kz21 !== 0 && (
+      {(data.figures.kz21 !== 0 || data.figures.kz41 !== 0) && (
         <div className="banner banner-info" role="status">
           <Icon name="info" />
           <span>
-            Leistungen ins EU-Ausland (Kz 21) meldest du je Quartal zusätzlich dem BZSt.{" "}
+            {data.figures.kz41 !== 0 ? "Leistungen und Lieferungen ins EU-Ausland (Kz 21, 41)" : "Leistungen ins EU-Ausland (Kz 21)"} meldest du je Quartal
+            zusätzlich dem BZSt.{" "}
             <Link
               to="/umsatzsteuer/zm/$quartal"
               params={{
@@ -274,7 +310,23 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
       sources: treated("drittland"),
     },
     { kz: "48", field: "kz48" as const, label: "Steuerfreie Umsätze ohne Vorsteuerabzug", base: shown.kz48, tax: null, sources: treated("steuerfrei") },
-    // Kz 21, 45 und 48 nur zeigen, wenn es dort etwas gibt oder von Hand eingetragen wird
+    {
+      kz: "41",
+      field: "kz41" as const,
+      label: "Steuerfreie innergemeinschaftliche Lieferungen an Abnehmer mit USt-IdNr.",
+      base: shown.kz41,
+      tax: null,
+      sources: treated("ig_lieferung"),
+    },
+    {
+      kz: "43",
+      field: "kz43" as const,
+      label: "Weitere steuerfreie Umsätze mit Vorsteuerabzug (Ausfuhrlieferungen)",
+      base: shown.kz43,
+      tax: null,
+      sources: treated("ausfuhr"),
+    },
+    // Kz 21, 45, 48, 41 und 43 nur zeigen, wenn es dort etwas gibt oder von Hand eingetragen wird
   ].filter((row) => ["81", "86"].includes(row.kz) || editable || row.base !== 0 || computed[row.field] !== 0);
   // § 13b als Leistungsempfänger: Bemessungsgrundlage und Steuer, nur wenn belegt oder von Hand
   const rcSources = (kind: "eu" | "drittland") => data.figures.reverseCharge.filter((r) => r.reverseCharge === kind);
@@ -296,6 +348,12 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
       sources: rcSources("drittland"),
     },
   ].filter((row) => editable || shown[row.base] !== 0 || shown[row.tax] !== 0 || computed[row.base] !== 0 || computed[row.tax] !== 0);
+  // Innergemeinschaftlicher Erwerb: Bemessungsgrundlage 89/93, die Steuer rechnet das Formular daraus; Vorsteuer in Kz 61
+  const igeSources = (rate: number) => data.figures.igErwerb.filter((r) => r.rate === rate);
+  const igeRows = [
+    { kz: "89", field: "kz89" as const, label: "Steuerpflichtige innergemeinschaftliche Erwerbe 19 %", tax: shown.tax89, sources: igeSources(1900) },
+    { kz: "93", field: "kz93" as const, label: "Steuerpflichtige innergemeinschaftliche Erwerbe 7 %", tax: shown.tax93, sources: igeSources(700) },
+  ].filter((row) => editable || shown[row.field] !== 0 || computed[row.field] !== 0);
 
   return (
     <div className="grid-main">
@@ -384,6 +442,40 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
                 <div className="kz-amount">{row.tax === null ? "" : formatEuro(row.tax)}</div>
               </div>
               {!locked && openSources === row.kz && <SourcesTable id={`kz-${row.kz}-quellen`} kind="revenue" rows={row.sources} />}
+            </div>
+          ))}
+          {igeRows.map((row) => (
+            <div key={row.kz}>
+              <div className="kz-row">
+                <div className="kz-num">{row.kz}</div>
+                <div className="kz-label">
+                  <label htmlFor={`kz-${row.kz}`}>{row.label}</label>
+                  {!locked && (
+                    <SourcesToggle
+                      kind="inputTax"
+                      rows={row.sources}
+                      open={openSources === row.kz}
+                      controls={`kz-${row.kz}-quellen`}
+                      onToggle={() => toggleSources(row.kz)}
+                    />
+                  )}
+                </div>
+                {editable ? (
+                  <input
+                    id={`kz-${row.kz}`}
+                    inputMode="decimal"
+                    value={values[row.field]}
+                    onChange={(event) => update(row.field, event.target.value)}
+                    aria-invalid={parsed[row.field] === null}
+                  />
+                ) : (
+                  <output id={`kz-${row.kz}`} className="kz-amount">
+                    {formatEuro(shown[row.field])}
+                  </output>
+                )}
+                <div className="kz-amount">{formatEuro(row.tax)}</div>
+              </div>
+              {!locked && openSources === row.kz && <SourcesTable id={`kz-${row.kz}-quellen`} kind="inputTax" rows={row.sources} />}
             </div>
           ))}
           <div className="kz-row">
@@ -481,6 +573,28 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
               ) : (
                 <output id="kz-67" className="kz-amount">
                   {formatEuro(shown.kz67)}
+                </output>
+              )}
+            </div>
+          )}
+          {(igeRows.length > 0 || shown.kz61 !== 0) && (
+            <div className="kz-row">
+              <div className="kz-num">61</div>
+              <div className="kz-label">
+                <label htmlFor="kz-61">Vorsteuer aus dem innergemeinschaftlichen Erwerb von Gegenständen</label>
+              </div>
+              <div />
+              {editable ? (
+                <input
+                  id="kz-61"
+                  inputMode="decimal"
+                  value={values.kz61}
+                  onChange={(event) => update("kz61", event.target.value)}
+                  aria-invalid={parsed.kz61 === null}
+                />
+              ) : (
+                <output id="kz-61" className="kz-amount">
+                  {formatEuro(shown.kz61)}
                 </output>
               )}
             </div>

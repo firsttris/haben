@@ -74,8 +74,10 @@ function ZmPage() {
         <section className="card" aria-labelledby="zm-zeilen-heading">
           <h2 id="zm-zeilen-heading">Meldezeilen</h2>
           <p className="small muted" style={{ margin: 0 }}>
-            Sonstige Leistungen an Unternehmer im EU-Ausland (Reverse Charge, § 3a Abs. 2 UStG), je USt-IdNr. des Kunden in vollen Euro. Fällig am{" "}
-            {formatLongDate(data.frist)}.{data.kz21 !== null && ` Kz 21 der gesendeten Voranmeldungen: ${formatEuro(data.kz21)}.`}
+            Sonstige Leistungen an Unternehmer im EU-Ausland (Reverse Charge, § 3a Abs. 2 UStG) und innergemeinschaftliche Lieferungen, je USt-IdNr. des Kunden
+            und Umsatzart in vollen Euro. Fällig am {formatLongDate(data.frist)}.
+            {data.kz21 !== null && ` Kz 21 der gesendeten Voranmeldungen: ${formatEuro(data.kz21)}.`}
+            {data.kz41 !== null && data.kz41 !== 0 && ` Kz 41: ${formatEuro(data.kz41)}.`}
           </p>
           {data.zeilen.length === 0 ? (
             <p style={{ margin: 0 }}>Keine Umsätze im Quartal; ohne Umsätze ist keine Meldung abzugeben.</p>

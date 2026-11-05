@@ -29,6 +29,7 @@ import {
   PRICE_MODES,
   RECHTSFORM_KEYS,
   TAX_TREATMENT_KEYS,
+  SELF_ASSESSED_TAX_KEYS,
   EXCHANGE_RATE_SOURCE_KEYS,
   DAUERBELEG_STATUS_KEYS,
   type AssetKind,
@@ -204,6 +205,13 @@ export const vatReturns = pgTable(
     kz84: integer("kz84").notNull().default(0),
     kz85: integer("kz85").notNull().default(0),
     kz67: integer("kz67").notNull().default(0),
+    /** Steuerfreie Lieferungen mit Vorsteuerabzug: innergemeinschaftlich (41), Ausfuhr (43) */
+    kz41: integer("kz41").notNull().default(0),
+    kz43: integer("kz43").notNull().default(0),
+    /** Innergemeinschaftlicher Erwerb: Bemessungsgrundlagen 89/93, Vorsteuer daraus 61 */
+    kz89: integer("kz89").notNull().default(0),
+    kz93: integer("kz93").notNull().default(0),
+    kz61: integer("kz61").notNull().default(0),
     /** Abzug der Sondervorauszahlung (Dauerfristverlängerung) in der letzten Voranmeldung des Jahres */
     kz39: integer("kz39").notNull().default(0),
     kz83: integer("kz83").notNull().default(0),
@@ -228,6 +236,11 @@ export const vatReturns = pgTable(
       kz84?: number;
       kz85?: number;
       kz67?: number;
+      kz41?: number;
+      kz43?: number;
+      kz89?: number;
+      kz93?: number;
+      kz61?: number;
       kz39?: number;
       kz83: number;
     }>(),
@@ -1376,10 +1389,10 @@ export const documents = pgTable(
     /** Privatanteil in Prozent (Handy, Internet): nur der Rest ist Aufwand und Vorsteuer */
     privateShare: smallint("private_share").notNull().default(0),
     /**
-     * § 13b: Die Steuer schuldest du als Leistungsempfänger. Die Beträge tragen die selbst berechnete Steuer,
-     * gezahlt wird nur netto (gross = net).
+     * § 13b (eu, drittland) oder innergemeinschaftlicher Erwerb (ig_erwerb, § 1a UStG): Die Steuer schuldest du selbst.
+     * Die Beträge tragen die selbst berechnete Steuer, gezahlt wird nur netto (gross = net).
      */
-    reverseCharge: text("reverse_charge", { enum: ["eu", "drittland"] }),
+    reverseCharge: text("reverse_charge", { enum: SELF_ASSESSED_TAX_KEYS }),
     /** Offener Beleg aus Lexoffice übernommen: Vorsteuer schon dort angemeldet, Eröffnungsbuchung */
     lexofficeVoucherId: uuid("lexoffice_voucher_id").unique(),
     /**

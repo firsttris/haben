@@ -53,7 +53,7 @@ function percent(rate: number): string {
   return String(rate / 100);
 }
 
-type TaxCategoryCode = "S" | "Z" | "E" | "AE" | "O";
+type TaxCategoryCode = "S" | "Z" | "E" | "AE" | "K" | "G" | "O";
 
 /** Steuerkategorie (UNTDID 5305): Behandlung der Rechnung, sonst S bzw. Z für den Nullsatz */
 function taxCategory(doc: InvoiceDocument, rate: number): TaxCategoryCode {
@@ -230,10 +230,27 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   const notes = [doc.intro, doc.note].map((n) => n?.trim() ?? "").filter(Boolean);
   if (notes.length > 0) invoice["cbc:Note"] = notes;
 
+  // BR-IC-12: Bei der innergemeinschaftlichen Lieferung ist das Lieferland (BT-80) Pflicht, mit der Lieferanschrift
+  // (BG-15) verlangt XRechnung auch Ort und Postleitzahl (BR-DE-10, BR-DE-11). Haben kennt keine eigene Lieferanschrift;
+  // die Anschrift des Kunden ist der Bestimmungsort (siehe docs/rechnungen.md).
+  const deliveryLocation =
+    treatment === "ig_lieferung"
+      ? {
+          "cac:DeliveryLocation": {
+            "cac:Address": {
+              "cbc:StreetName": buyer.strasse,
+              "cbc:CityName": buyer.ort,
+              "cbc:PostalZone": buyer.plz,
+              "cac:Country": { "cbc:IdentificationCode": buyer.land.toUpperCase() as CountryCode },
+            },
+          },
+        }
+      : {};
   if (period.from === period.to) {
-    invoice["cac:Delivery"] = { "cbc:ActualDeliveryDate": period.from };
+    invoice["cac:Delivery"] = { "cbc:ActualDeliveryDate": period.from, ...deliveryLocation };
   } else {
     invoice["cac:InvoicePeriod"] = { "cbc:StartDate": period.from, "cbc:EndDate": period.to };
+    if (treatment === "ig_lieferung") invoice["cac:Delivery"] = deliveryLocation;
   }
 
   const references = [...(doc.corrects ? [doc.corrects] : []), ...(doc.deducted ?? [])];

@@ -78,6 +78,11 @@ const alleKennzahlen: Omit<UstvaXmlInput["figures"], "kz83"> = {
   kz84: 100_000,
   kz85: 19_000,
   kz67: 76_000,
+  kz41: 250_000,
+  kz43: 80_000,
+  kz89: 60_000,
+  kz93: 20_000,
+  kz61: 12_800,
 };
 
 // ---------------------------------------------------------------------------
@@ -315,6 +320,10 @@ const faelle: [string, () => string][] = [
   ["UStVA 2026 alle Kennzahlen", ustva(2026, alleKennzahlen)],
   ["UStVA 2025 alle Kennzahlen", ustva(2025, alleKennzahlen)],
   ["UStVA § 13b als Leistungsempfänger", ustva(2026, { kz81: 0, kz86: 0, kz66: 0, kz46: 12_345, kz47: 2_345, kz84: 5_000, kz85: 950, kz67: 3_295 })],
+  [
+    "UStVA innergemeinschaftliche Lieferung, Ausfuhr und Erwerb",
+    ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0, kz41: 300_000, kz43: 120_000, kz89: 50_000, kz93: 10_000, kz61: 10_200 }),
+  ],
   ["UStVA Erstattung", ustva(2026, { kz81: 0, kz86: 0, kz66: 1_200 })],
   ["UStVA Nullmeldung", ustva(2026, { kz81: 0, kz86: 0, kz66: 0 })],
   ["UStVA berichtigt", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 1_745 }, { berichtigt: true })],

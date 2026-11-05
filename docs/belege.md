@@ -236,7 +236,7 @@ Beispiel, alles zu 19 %: 100,00 € Handelsware, 50,00 € Software und 20,00 �
 
 **Storno und Neuerfassung.** Ein [Storno](#stornieren-und-neu-erfassen) bucht die ganze Buchung mit allen Zeilen zurück; **Neu erfassen** übernimmt die Aufteilung in den neuen Entwurf.
 
-**Noch nicht mit Aufteilung:** § 13b, Privatanteil, Fremdwährung und Anlagegüter. Haben lehnt das Buchen dann mit Grund ab („§ 13b mit Aufteilung wird nicht unterstützt“ usw.); solche Teile erfasst du als eigenen Beleg. Bei § 13b und Fremdwährung ist der Knopf zum Aufteilen gesperrt, mit Aufteilung fehlt das Feld **Privatanteil in %**.
+**Noch nicht mit Aufteilung:** § 13b und innergemeinschaftlicher Erwerb, Privatanteil, Fremdwährung und Anlagegüter. Haben lehnt das Buchen dann mit Grund ab („§ 13b mit Aufteilung wird nicht unterstützt“ usw.); solche Teile erfasst du als eigenen Beleg. Bei § 13b und Fremdwährung ist der Knopf zum Aufteilen gesperrt, mit Aufteilung fehlt das Feld **Privatanteil in %**.
 
 ## Privatanteil
 
@@ -269,6 +269,29 @@ Gebucht wird (SKR03, SKR04 in Klammern):
 - Vorsteuer nach § 13b auf 1577 (1407) an Umsatzsteuer nach § 13b auf 1787 (3837).
 
 In der [Voranmeldung](umsatzsteuer.md#-13b-als-leistungsempfänger) heben sich Steuer und Vorsteuer auf. Als Kleinunternehmer schuldest du die Steuer trotzdem, ziehst aber nichts ab: Sie wird Teil des Aufwands und ist mit der Voranmeldung zu zahlen. Mit Privatanteil ist die Steuer voll geschuldet, abziehbar nur der betriebliche Teil. In der EÜR zählt der gezahlte Nettobetrag; die Steuer an das Finanzamt erscheint dort, wenn sie gezahlt wird.
+
+## Innergemeinschaftlicher Erwerb (§ 1a UStG)
+
+Kaufst du als Unternehmer **Ware** bei einem Unternehmer aus einem anderen EU-Land und gelangt sie aus diesem Land nach Deutschland, stellt er dir die Rechnung ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. Die Umsatzsteuer (Erwerbsteuer) schuldest dann du und ziehst sie im selben Zug als Vorsteuer wieder ab. Ein Beispiel: Hardware von einem Händler aus den Niederlanden für 500 € netto; daraus entstehen 95 € Erwerbsteuer und 95 € Vorsteuer, an den Händler gehen 500 €.
+
+Unter **Umsatzsteuer auf dem Beleg** wählst du **Innergemeinschaftlicher Erwerb (§ 1a UStG): Ware aus dem EU-Ausland**. Die Steuerbehandlung ist unabhängig von der Kategorie: Ware zum Weiterverkauf („Wareneinkauf (Handelsware)“), Büroausstattung, Hardware und auch ein **Anlagegut** gehen. Bei einem Anlagegut kommt der Nettobetrag wie sonst ins [Anlagenverzeichnis](anlagen.md), Erwerbsteuer und Vorsteuer stehen daneben.
+
+Du trägst das Netto aus der Rechnung ein; Haben rechnet die Steuer zu 19 % oder 7 % aus (änderbar). Bezahlt wird der Nettobetrag. Zum Buchen braucht Haben die **USt-IdNr. des Lieferanten** aus einem anderen EU-Land; mit einer deutschen USt-IdNr. ist es kein innergemeinschaftlicher Erwerb.
+
+Gebucht wird (SKR03, SKR04 in Klammern), Konten aus dem DATEV-Kontenrahmen 2026:
+
+- Aufwand bzw. Anlagekonto netto an Verbindlichkeiten bzw. Privateinlage,
+- Vorsteuer aus innergemeinschaftlichem Erwerb 19 % auf 1574 (1404), 7 % auf 1572 (1402), an Umsatzsteuer aus innergemeinschaftlichem Erwerb 19 % auf 1774 (3804), 7 % auf 1772 (3802).
+
+Haben bucht auf das Aufwandskonto der Kategorie, nicht auf die DATEV-Automatikkonten 3425/3420 (5425/5420); die Steuer steht als eigene Zeile im Journal, deshalb rechnet DATEV sie beim [Export](auswertungen.md) nicht ein zweites Mal heraus.
+
+In der [Voranmeldung](umsatzsteuer.md#innergemeinschaftlicher-erwerb) steht das Netto in **Kz 89** (19 %) bzw. **Kz 93** (7 %), die Vorsteuer in **Kz 61**; beides hebt sich auf. Die Erwerbsteuer entsteht mit der Ausstellung der Rechnung, spätestens mit Ablauf des Folgemonats (§ 13 Abs. 1 Nr. 6 UStG). Haben meldet sie deshalb im Monat des **Belegdatums**, auch bei Ist-Versteuerung, und nicht mit der Zahlung. Mit Privatanteil ist die Erwerbsteuer voll geschuldet, als Vorsteuer abziehbar nur der betriebliche Teil (§ 15 Abs. 1 Satz 1 Nr. 3 UStG). In der EÜR zählt der gezahlte Nettobetrag; Erwerbsteuer und Vorsteuer heben sich auf.
+
+Abzugrenzen sind:
+
+- **Dienstleistungen** aus dem EU-Ausland (Software-Abos, Cloud, Beratung): § 13b, siehe oben.
+- **Händler aus dem EU-Ausland mit deutscher Umsatzsteuer** auf der Rechnung, etwa im Versandhandel oder über einen Marktplatz: ein gewöhnlicher Beleg mit Vorsteuer. Der Sitz des Händlers oder der Marktplatz allein machen keinen Erwerb.
+- Ein Storno zählt wie bei allen Belegen im Monat des Stornos mit umgekehrtem Vorzeichen (Kz 89/93 und 61).
 
 ## Bezahlung
 
@@ -434,7 +457,8 @@ Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hoch
 - Fremdwährung: Für den Monat gilt das Belegdatum; ein abweichendes Leistungsdatum hat der Beleg nicht.
 - Nur die Steuersätze 19 %, 7 % und 0 %, je Satz eine Zeile.
 - Aufteilung auf mehrere Kategorien nur auf die festen Kategorien, nicht auf frei gewählte Sachkonten, und nur mit deutscher Umsatzsteuer in Euro: nicht mit § 13b, Privatanteil, Fremdwährung oder Anlagegut. Die Steuerbehandlung gilt für den ganzen Beleg, nicht je Zeile.
-- § 13b nur für sonstige Leistungen ausländischer Unternehmer (Kz 46/47 und 84/85), nicht für Bauleistungen, Gebäudereinigung, Gold oder Mobilfunkgeräte, und nicht bei Anlagegütern. Keine innergemeinschaftlichen Erwerbe von Waren; einen Beleg der Kategorie „Wareneinkauf (Handelsware)“ mit § 13b bucht Haben nicht.
+- § 13b nur für sonstige Leistungen ausländischer Unternehmer (Kz 46/47 und 84/85), nicht für Bauleistungen, Gebäudereinigung, Gold oder Mobilfunkgeräte, und nicht bei Anlagegütern. Waren aus dem EU-Ausland sind ein [innergemeinschaftlicher Erwerb](#innergemeinschaftlicher-erwerb--1a-ustg); einen Beleg der Kategorie „Wareneinkauf (Handelsware)“ mit § 13b bucht Haben nicht.
+- Innergemeinschaftlicher Erwerb nur steuerpflichtig zu 19 % oder 7 % (Kz 89/93 und 61). Nicht unterstützt: steuerfreie Erwerbe (§ 4b UStG, Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), neue Fahrzeuge ohne USt-IdNr. des Lieferanten, Erwerbe als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG), Dreiecksgeschäfte als letzter Abnehmer (§ 25b UStG), Aufteilung auf mehrere Kategorien und erhaltenes Skonto. Die Einfuhr aus dem Drittland (Einfuhrumsatzsteuer) ist kein Erwerb und noch nicht unterstützt.
 - Keine Abschreibung über mehrere Jahre; die Kategorie Hardware ist für geringwertige Wirtschaftsgüter gedacht.
 - HEIC-Fotos werden abgelegt, aber weder in der Vorschau angezeigt noch von der KI gelesen.
-- Dauerbelege nur für Ausgaben in Euro mit festen Beträgen, ohne § 13b, Aufteilung auf mehrere Kategorien, Privatanteil oder Anlagegut; eine eigene Kategorie für Miete gibt es noch nicht (bis dahin etwa Sonstiger Aufwand).
+- Dauerbelege nur für Ausgaben in Euro mit festen Beträgen, ohne § 13b, innergemeinschaftlichen Erwerb, Aufteilung auf mehrere Kategorien, Privatanteil oder Anlagegut; eine eigene Kategorie für Miete gibt es noch nicht (bis dahin etwa Sonstiger Aufwand).

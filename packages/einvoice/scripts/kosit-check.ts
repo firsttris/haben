@@ -92,6 +92,12 @@ const samples: Record<string, InvoiceDocument> = {
     (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
       [`reverse-charge-${format}`, sampleDocument({ format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "reverse_charge" })],
       [`drittland-${format}`, sampleDocument({ format, buyer: thirdCountryBuyer, lines: zeroRateLines, taxTreatment: "drittland" })],
+      [`ig-lieferung-${format}`, sampleDocument({ format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "ig_lieferung" })],
+      [
+        `ig-lieferung-lieferdatum-${format}`,
+        { ...sampleDocument({ format, buyer: euBuyer, lines: zeroRateLines, taxTreatment: "ig_lieferung" }), serviceFrom: "2026-09-30", serviceTo: undefined },
+      ],
+      [`ausfuhr-${format}`, sampleDocument({ format, buyer: thirdCountryBuyer, lines: zeroRateLines, taxTreatment: "ausfuhr" })],
       [
         `steuerfrei-${format}`,
         sampleDocument({ format, lines: zeroRateLines, taxTreatment: "steuerfrei", exemptionReason: "Steuerfrei nach § 4 Nr. 21 UStG" }),
@@ -105,6 +111,7 @@ const samples: Record<string, InvoiceDocument> = {
       ],
     ]),
   ),
+  "storno-ig-lieferung-xr-cii": sampleDocument({ kind: "storno", format: "xrechnung-cii", buyer: euBuyer, lines: zeroRateLines, taxTreatment: "ig_lieferung" }),
   "storno-reverse-charge-xr-ubl": sampleDocument({
     kind: "storno",
     format: "xrechnung-ubl",

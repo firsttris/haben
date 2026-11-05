@@ -17,6 +17,13 @@ describe("computeUstva", () => {
       kz84: 0,
       kz85: 0,
       kz67: 0,
+      kz41: 0,
+      kz43: 0,
+      kz89: 0,
+      tax89: 0,
+      kz93: 0,
+      tax93: 0,
+      kz61: 0,
       kz39: 0,
       kz83: 37_745,
     });

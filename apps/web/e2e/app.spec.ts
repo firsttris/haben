@@ -1431,6 +1431,63 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await expect(page.getByRole("form", { name: "Meldung an das BZSt" })).toBeVisible();
 });
 
+test("Innergemeinschaftliche Lieferung: Kz 41 in der Voranmeldung und Umsatzart L in der Zusammenfassenden Meldung", async () => {
+  // Nach der Zusammenfassenden Meldung oben: USt-IdNr. in den Firmendaten und der Kunde in Wien sind angelegt
+  const next = YEAR + 1;
+  await go("/rechnungen/neu");
+  await page.getByLabel("Kunde").selectOption({ label: "Donaublick GmbH · Wien" });
+  await page.getByLabel("Rechnungsdatum").fill(`${next}-05-12`);
+  await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("ig_lieferung");
+  await expect(page.getByText(/Gelangensnachweis \(§ 17a UStDV\)/)).toBeVisible();
+  await page.getByLabel("Beschreibung Position 1").fill("Industrierechner");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("3.000,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+
+  await go(`/umsatzsteuer/${next}-05`);
+  await expect(page.getByText("Steuerfreie innergemeinschaftliche Lieferungen an Abnehmer mit USt-IdNr.")).toBeVisible();
+  await expect(page.locator("#kz-41")).toHaveText(/3\.000,00/);
+  await page.getByRole("link", { name: "Zur Zusammenfassenden Meldung" }).click();
+  await expect(page).toHaveURL(new RegExp(`/umsatzsteuer/zm/${next}-Q2$`));
+  const zeilen = page.getByRole("table", { name: `Meldezeilen 2. Quartal ${next}` });
+  await expect(zeilen).toContainText("ATU12345678");
+  await expect(zeilen).toContainText("Innergemeinschaftliche Lieferung");
+  await expect(zeilen).toContainText("3.000 €");
+  await expect(page.getByText(/Gelangensnachweis \(§ 17a UStDV\)/)).toBeVisible();
+});
+
+test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteuer, gezahlt wird netto", async ({ browser }) => {
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "hardware-nl.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Hollandse Hardware B.V.") }]);
+  await expect(page.getByText("hardware-nl.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /hardware-nl\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("NL123456789B01");
+  await page.getByLabel("Kategorie").selectOption("wareneinkauf");
+  await page.getByLabel("Netto", { exact: true }).fill("500");
+  await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
+  await expect(page.getByText(/bei Ware ein innergemeinschaftlicher Erwerb/)).toBeVisible();
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
+  await expect(page.getByLabel("Erwerbsteuer", { exact: true })).toHaveValue("95,00");
+  await expect(page.getByText(/Kz 89 \(19 %\)/)).toBeVisible();
+  await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
+  // Nicht buchen: der Beleg würde die folgenden Auswertungen und Bilder verändern
+  await page.getByRole("button", { name: "Löschen" }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+});
+
 test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {
   await go("/einstellungen?bereich=ki");
   // Gesteuertes Kästchen: es zeigt den Stand erst nach der Antwort des Servers

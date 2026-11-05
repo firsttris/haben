@@ -14,6 +14,7 @@ import {
   type AssetMethod,
   usesUsefulLife,
   type ExpenseCategory,
+  type SelfAssessedTax,
   isKapitalgesellschaft,
   elektroAvailable,
   ownerLabels,
@@ -291,7 +292,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [assetMethod, setAssetMethod] = useState<AssetMethod>(doc.asset?.method ?? "digital");
   const [assetYears, setAssetYears] = useState(doc.asset?.usefulLifeMonths ? String(doc.asset.usefulLifeMonths / 12) : "");
   const [note, setNote] = useState(doc.note);
-  const [reverseCharge, setReverseCharge] = useState<"eu" | "drittland" | null>(doc.reverseCharge ?? null);
+  const [reverseCharge, setReverseCharge] = useState<SelfAssessedTax | null>(doc.reverseCharge ?? null);
   const [currency, setCurrency] = useState(doc.currency);
   const [exchangeRate, setExchangeRate] = useState(doc.exchangeRate ? formatExchangeRate(doc.exchangeRate) : "");
   const [exchangeRateDate, setExchangeRateDate] = useState(doc.exchangeRateSource === "ust" ? "" : (doc.exchangeRateDate ?? ""));
@@ -340,7 +341,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     currencyValid &&
     parsedSplits !== null;
   // Aufteilen geht im ersten Schritt nur mit deutscher Umsatzsteuer in Euro
-  const splitBlocked = reverseCharge ? "§ 13b" : foreign ? "Fremdwährung" : null;
+  const splitBlocked = reverseCharge === "ig_erwerb" ? "innergemeinschaftlichem Erwerb" : reverseCharge ? "§ 13b" : foreign ? "Fremdwährung" : null;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
   const gross = valid ? parsed.reduce((s, p) => s + p.net! + (reverseCharge ? 0 : p.tax!), 0) : null;
   // Fremdwährung: dieselbe Umrechnung wie beim Speichern, damit die Vorschau mit dem Gebuchten übereinstimmt
@@ -357,9 +358,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const looksLikeReverseCharge =
     !reverseCharge && EU_VAT_PREFIX.test(supplierUstId.replace(/\s/g, "").toUpperCase()) && parsed.every((p) => p.tax === 0) && parsed.some((p) => p.net);
 
-  function chooseReverseCharge(value: "eu" | "drittland" | null) {
+  function chooseReverseCharge(value: SelfAssessedTax | null) {
     touch(setReverseCharge)(value);
-    // Die Steuer steht nicht auf der Rechnung; Haben rechnet sie aus dem Netto, 0 % gibt es bei § 13b nicht
+    // Die Steuer steht nicht auf der Rechnung; Haben rechnet sie aus dem Netto, 0 % gibt es bei § 13b und beim Erwerb nicht
     if (value) {
       setRows((prev) =>
         prev.map((row) => {
@@ -707,14 +708,22 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           Umsatzsteuer auf dem Beleg
           <select
             value={reverseCharge ?? ""}
-            onChange={(e) => chooseReverseCharge((e.target.value || null) as "eu" | "drittland" | null)}
+            onChange={(e) => chooseReverseCharge((e.target.value || null) as SelfAssessedTax | null)}
             aria-describedby="rc-hint"
           >
             <option value="">Mit deutscher Umsatzsteuer (Vorsteuer)</option>
             <option value="eu">§ 13b: Leistung eines Unternehmers aus dem EU-Ausland</option>
             <option value="drittland">§ 13b: Leistung eines Unternehmers aus dem Drittland</option>
+            <option value="ig_erwerb">Innergemeinschaftlicher Erwerb (§ 1a UStG): Ware aus dem EU-Ausland</option>
           </select>
-          {reverseCharge ? (
+          {reverseCharge === "ig_erwerb" ? (
+            <span id="rc-hint" className="small">
+              Ein Unternehmer aus einem anderen EU-Land liefert dir Ware ohne Umsatzsteuer, mit seiner und deiner USt-IdNr. auf der Rechnung. Die Erwerbsteuer
+              schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz 89 (19 %) bzw. 93 (7 %) im Monat des Belegdatums, auch bei Ist-Versteuerung, und
+              zieht sie zugleich als Vorsteuer ab (Kz 61). Bezahlt wird nur der Nettobetrag. Weist der Händler deutsche Umsatzsteuer aus, bleibt es ein
+              gewöhnlicher Beleg.
+            </span>
+          ) : reverseCharge ? (
             <span id="rc-hint" className="small">
               Die Rechnung weist keine deutsche Umsatzsteuer aus (Reverse Charge). Die Steuer schuldest du; Haben rechnet sie aus dem Netto, meldet sie in Kz{" "}
               {reverseCharge === "eu" ? "46/47" : "84/85"} und zieht sie zugleich als Vorsteuer ab (Kz 67). Bezahlt wird nur der Nettobetrag.
@@ -722,7 +731,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           ) : (
             looksLikeReverseCharge && (
               <span id="rc-hint" className="small">
-                Lieferant aus dem EU-Ausland ohne Umsatzsteuer auf der Rechnung, etwa Google, Microsoft oder AWS? Dann ist es meist § 13b.
+                Lieferant aus dem EU-Ausland ohne Umsatzsteuer auf der Rechnung? Bei einer Dienstleistung, etwa von Google, Microsoft oder AWS, ist es meist §
+                13b, bei Ware ein innergemeinschaftlicher Erwerb.
               </span>
             )
           )}
@@ -773,8 +783,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               )}
               Beträge unten in {currencyCode || "der Fremdwährung"}, wie auf dem Beleg. Haben rechnet sie mit dem Kurs in Euro um und bucht nur Euro. Lässt du
               den Kurs leer, nimmt Haben den Umsatzsteuer-Umrechnungskurs des BMF für den Monat des Belegdatums (§ 16 Abs. 6 UStG), sobald er veröffentlicht ist
-              {data.tageskurs ? "; mit gestattetem Tageskurs trägst du Kurs und Kursdatum ein" : ""}. Bei § 13b wird die Steuer aus dem umgerechneten Netto
-              berechnet.
+              {data.tageskurs ? "; mit gestattetem Tageskurs trägst du Kurs und Kursdatum ein" : ""}. Bei § 13b und beim innergemeinschaftlichen Erwerb wird die
+              Steuer aus dem umgerechneten Netto berechnet.
             </span>
           )}
         </div>
@@ -800,7 +810,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               />
             </label>
             <label className="field">
-              {reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
+              {reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
               {foreign ? ` ${currencyCode}` : ""}
               <input
                 className="mono"
