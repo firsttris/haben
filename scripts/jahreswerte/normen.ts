@@ -78,15 +78,20 @@ export async function pruefeNormen(normen: readonly Norm[], holen: Holen): Promi
   return { ergebnis: zusammen(stand.map(bewerte)), stand: stand.map(({ norm, sha256 }) => ({ norm, sha256 })) };
 }
 
-async function aktuell(norm: Norm, holen: Holen): Promise<{ sha256: string | null; problem: string | null }> {
+type Aktuell = { sha256: string | null; problem: string | null; verschwunden?: boolean };
+
+async function aktuell(norm: Norm, holen: Holen): Promise<Aktuell> {
   const a = await abrufen(holen, norm.url);
+  // 404 ist eine eindeutige Antwort (Norm aufgehoben, Gesetz unter neuer Adresse), kein Ausfall wie 503
+  if (a.art === "antwort" && a.status === 404) return { sha256: null, problem: null, verschwunden: true };
   if (a.art === "fehler" || a.status !== 200) return { sha256: null, problem: `nicht erreichbar (${beschreibe(a)})` };
   const t = normText(text(a));
   if (!t) return { sha256: null, problem: "keine Einzelnorm erkannt" };
   return { sha256: await sha256(new TextEncoder().encode(t)), problem: null };
 }
 
-function bewerte({ norm, sha256, problem }: NormStand & { problem: string | null }): Ergebnis {
+function bewerte({ norm, sha256, problem, verschwunden }: NormStand & Aktuell): Ergebnis {
+  if (verschwunden) return befund(nichtMehrDa(norm));
   if (!sha256) return warnung(`${norm.norm}: ${norm.url} ${problem}`);
   if (!norm.sha256) return warnung(`${norm.norm}: noch kein Hash in normen.json (aktuell ${sha256}); mit --normen-schreiben übernehmen`);
   if (norm.sha256 === sha256) return LEER;
@@ -105,6 +110,21 @@ function bewerte({ norm, sha256, problem }: NormStand & { problem: string | null
     ].join("\n"),
   });
 }
+
+const nichtMehrDa = (norm: Norm) => ({
+  schluessel: `norm-${norm.id}`,
+  titel: `${norm.norm} ist nicht mehr abrufbar – prüfen, ob Haben betroffen ist`,
+  text: [
+    `${norm.url} antwortet mit 404: Die Norm ist aufgehoben, umnummeriert oder das Gesetz steht unter einer neuen Adresse.`,
+    "",
+    `Haben braucht die Norm für: ${norm.zweck}`,
+    "",
+    "Stellen in Haben:",
+    ...norm.stellen.map((s) => `- \`${s}\``),
+    "",
+    `Zu tun: im Inhaltsverzeichnis des Gesetzes oder im Bundesgesetzblatt nachsehen, was aus der Norm geworden ist, die Stellen oben prüfen und in \`scripts/jahreswerte/normen.json\` die neue Adresse eintragen (Hash leeren und mit \`--normen-schreiben\` neu setzen) oder die Norm streichen. Siehe [docs/entwicklung.md](${DOKU_JAHRESWERTE}).`,
+  ].join("\n"),
+});
 
 /** normen.json mit den aktuellen Hashes; Normen, die nicht abrufbar waren, behalten ihren bisherigen */
 export const mitAktuellenHashes = (stand: readonly NormStand[]): Norm[] => stand.map(({ norm, sha256 }) => ({ ...norm, sha256: sha256 ?? norm.sha256 }));

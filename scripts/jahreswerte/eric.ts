@@ -41,7 +41,12 @@ export function kandidaten(aktuell: string): string[] {
 
 type Vorhanden = "ja" | "nein" | "unklar";
 
-const vorhanden = (a: Abruf): Vorhanden => (a.art === "fehler" ? "unklar" : a.status === 200 || a.status === 206 ? "ja" : a.status === 404 ? "nein" : "unklar");
+/** 206 auf `Range` ist das Paket; 200 nur ohne HTML, sonst kann es eine Wartungs- oder Fehlerseite sein */
+const vorhanden = (a: Abruf): Vorhanden => {
+  if (a.art === "fehler") return "unklar";
+  if (a.status === 206 || (a.status === 200 && !/html/i.test(a.typ))) return "ja";
+  return a.status === 404 ? "nein" : "unklar";
+};
 
 /** Nur das erste Byte: das Paket hat rund 500 MB */
 const pruefeVersion = async (holen: Holen, version: string) => vorhanden(await abrufen(holen, ericUrl(version), { headers: { Range: "bytes=0-0" } }, false));

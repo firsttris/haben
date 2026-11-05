@@ -54,7 +54,7 @@
       "url": "https://www.gesetze-im-internet.de/ustdv_1980/__46.html",
       "zweck": "Dauerfristverlängerung der Voranmeldung um einen Monat",
       "stellen": ["packages/core/src/period.ts", "apps/web/src/server/modules/finanzamt/fristen.ts"],
-      "sha256": "46541be4da93f06da09b09512fe6ec548d9e0d1675058ef1c2e3d8c5d4dad8b3"
+      "sha256": "65e75be74ca4196255166c48906035301f31f526372840d4b20f475e2e491c01"
     },
     {
       "id": "ustdv-47",
@@ -62,7 +62,7 @@
       "url": "https://www.gesetze-im-internet.de/ustdv_1980/__47.html",
       "zweck": "Sondervorauszahlung bei Dauerfristverlängerung (ein Elftel der Vorjahressumme)",
       "stellen": ["packages/core/src/dauerfrist.ts", "apps/web/src/server/modules/umsatzsteuer/dauerfrist.ts"],
-      "sha256": "ec501e1a511caafdd8c58db4fb5b8e80191d6b7b2f723927b312d96ef3504134"
+      "sha256": "fe2e53147e0593566d05ef0945c4bca55f1d7cba0610cc152fae1f473805dbeb"
     },
     {
       "id": "ustdv-48",
@@ -70,7 +70,7 @@
       "url": "https://www.gesetze-im-internet.de/ustdv_1980/__48.html",
       "zweck": "Verfahren der Dauerfristverlängerung, Anrechnung der Sondervorauszahlung im Dezember",
       "stellen": ["packages/core/src/ustva.ts", "packages/elster/src/dauerfrist.ts"],
-      "sha256": "cdc5da53adfe074a0b3509ab238ba9c5767e4952ffadb3703eb2f8a75a14a777"
+      "sha256": "4b6af8f2f58f39af62301a64b340f1c0c89e94ecc4a0744f8a505bfe57e65c9b"
     },
     {
       "id": "estg-4",
@@ -242,7 +242,7 @@
       "url": "https://www.gesetze-im-internet.de/gmbhg/__35a.html",
       "zweck": "Pflichtangaben auf Geschäftsbriefen und Rechnungen der GmbH",
       "stellen": ["packages/core/src/geschaeftsbrief.ts", "packages/einvoice/src/pdf.ts"],
-      "sha256": "29e36f7a265437576cea69eec02c73c0761fd2fe390c3dc1ddc015fcbb901ece"
+      "sha256": "44fe38be937ec0ea4cc797a66d9ad09e16a5124428fdb9f864d98c61e1097547"
     },
     {
       "id": "gmbhg-42",
@@ -250,7 +250,7 @@
       "url": "https://www.gesetze-im-internet.de/gmbhg/__42.html",
       "zweck": "Bilanz der GmbH: Ausweis gegenüber Gesellschaftern (Abs. 3)",
       "stellen": ["packages/core/src/bilanzvermerke.ts", "packages/core/src/ebilanz.ts"],
-      "sha256": "5d0418fa5f89f1fef7bb5408abbd41b5a6c7f5f59f9e51de72f0e0f36423dc76"
+      "sha256": "244a33ec021792a95cc340e7cc224538e0f5a0cf8a094c7a7d3018b2ca95a6db"
     },
     {
       "id": "bgb-247",
@@ -258,7 +258,7 @@
       "url": "https://www.gesetze-im-internet.de/bgb/__247.html",
       "zweck": "Basiszinssatz (Bezugsgröße und Termine 1.1./1.7.); der Wert steht in den Einstellungen",
       "stellen": ["packages/core/src/dunning.ts"],
-      "sha256": "ec42edd0abae9e8bfb7ba14f0b09d9a074e64026035dd0320b634c5ab44cebfd"
+      "sha256": "d9130f0f2c9d83f29151c52dd1db1eb6f80ba9c95b87b98769fe62379ab62d16"
     },
     {
       "id": "bgb-288",
@@ -266,7 +266,7 @@
       "url": "https://www.gesetze-im-internet.de/bgb/__288.html",
       "zweck": "Verzugszinsen und Verzugspauschale in Mahnungen",
       "stellen": ["packages/core/src/dunning.ts"],
-      "sha256": "cb606ef066e8958e6ac42666d3195c1c83b315992df428a4d872817430b519d7"
+      "sha256": "5673f745c3c10ee04f671a37dfe4f2be64545fb30b7ca01d986a0d0c006641c3"
     },
     {
       "id": "sgb4-20",
@@ -274,7 +274,7 @@
       "url": "https://www.gesetze-im-internet.de/sgb_4/__20.html",
       "zweck": "Übergangsbereich (Faktor F, Obergrenze) der Sozialversicherung",
       "stellen": ["packages/core/src/sozialversicherung/beschaeftigt.ts", "packages/core/src/sozialversicherung/werte.ts"],
-      "sha256": "89cd043078f255094bc8bcf78298f06fb834983c44c9f5334aca774b54feb3c4"
+      "sha256": "c468e2f967376b473fe1dc6f6cacb1e63757200a240fd1439d671b1c3f5c9e65"
     }
   ]
 }

@@ -74,9 +74,16 @@ export async function abrufen(holen: Holen, url: string, init: RequestInit = {},
 /** Kurzbeschreibung für eine Warnung: Status oder Fehlermeldung */
 export const beschreibe = (a: Abruf): string => (a.art === "fehler" ? a.meldung : `HTTP ${a.status}`);
 
-/** Text einer Antwort; gesetze-im-internet.de liefert ISO-8859-1, die übrigen Quellen UTF-8 */
+const CHARSET = /charset=["']?([\w-]+)/i;
+
+/**
+ * Text einer Antwort; gesetze-im-internet.de liefert ISO-8859-1, die übrigen Quellen UTF-8. Der Zeichensatz kommt aus
+ * dem Content-Type, sonst aus dem meta-Element am Anfang der Seite: gesetze-im-internet.de sendet bei 200 nur
+ * `text/html` ohne charset, hat aber rohe ISO-8859-1-Bytes in den Überschriften („Bürgerliches Gesetzbuch“).
+ */
 export function text(a: Abruf & { art: "antwort" }): string {
-  const zeichensatz = /charset=([\w-]+)/i.exec(a.typ)?.[1]?.toLowerCase() ?? "utf-8";
+  const kopf = new TextDecoder("windows-1252").decode(a.inhalt.subarray(0, 1024));
+  const zeichensatz = (CHARSET.exec(a.typ) ?? CHARSET.exec(kopf))?.[1]?.toLowerCase() ?? "utf-8";
   const latin1 = zeichensatz === "iso-8859-1" || zeichensatz === "latin1" || zeichensatz === "windows-1252";
   return new TextDecoder(latin1 ? "windows-1252" : "utf-8").decode(a.inhalt);
 }
