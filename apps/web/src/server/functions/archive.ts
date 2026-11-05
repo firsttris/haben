@@ -1,3 +1,4 @@
+import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
@@ -34,7 +35,7 @@ import {
 } from "../modules/archiv/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { UserError } from "../errors.ts";
-import { yearSchema } from "./schemas.ts";
+import { detailId, yearSchema } from "./schemas.ts";
 
 /** Stichtag der Übernahme offener Posten; geprüft wird er im Modul (takeoverCutoffIssue) */
 const stichtagSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -183,10 +184,10 @@ export const getLegacyVouchers = createServerFn({ method: "GET" })
 
 export const getLegacyVoucher = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.object({ id: z.uuid() }))
+  .validator(({ id }: { id: string }) => ({ id: detailId(id) }))
   .handler(async ({ data }) => {
     const detail = await legacyVoucherDetail(data.id);
-    if (!detail) throw new UserError("Beleg nicht gefunden.");
+    if (!detail) throw notFound();
     return detail;
   });
 

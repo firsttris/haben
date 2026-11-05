@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 import { createDunning, dunningDraft, dunningInputSchema, overdueInvoices } from "../modules/rechnungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
+import { detailId } from "./schemas.ts";
 
 export const getOverdue = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -10,7 +10,7 @@ export const getOverdue = createServerFn({ method: "GET" })
 
 export const getDunningDraft = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(({ data }) => dunningDraft(data, today()));
 
 export const createDunningFn = createServerFn({ method: "POST" })

@@ -1,3 +1,4 @@
+import { notFound } from "@tanstack/react-router";
 import { invoicesSentByMail, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { asc, eq, or } from "drizzle-orm";
@@ -27,7 +28,7 @@ import {
 import { db, schema } from "../db/index.ts";
 import { dunningsFor } from "../modules/rechnungen/index.ts";
 import { today } from "../today.ts";
-import { UserError } from "../errors.ts";
+import { detailId } from "./schemas.ts";
 
 /** Ohne PDF und XML, die gehen über die Download-Routen */
 function withoutFiles<T extends { pdf: unknown; xml: unknown }>({ pdf, xml, ...rest }: T) {
@@ -101,10 +102,10 @@ export const getNewInvoice = createServerFn({ method: "GET" })
 
 export const getInvoiceDetail = createServerFn({ method: "GET" })
   .middleware([readMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(async ({ data, context }) => {
     const result = await getInvoice(data);
-    if (!result || (context.user.role !== "inhaber" && result.invoice.status === "draft")) throw new UserError("Rechnung nicht gefunden.");
+    if (!result || (context.user.role !== "inhaber" && result.invoice.status === "draft")) throw notFound();
     const issues = result.invoice.status === "draft" ? await finalizeIssues(data) : [];
     // Mahnungen und ob die Rechnung gerade überfällig ist (offen und Fälligkeit vorbei)
     const listed = result.invoice.status === "final" ? (await listInvoices(today(), data))[0] : undefined;

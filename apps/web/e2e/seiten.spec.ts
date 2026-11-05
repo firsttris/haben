@@ -128,3 +128,50 @@ test("Screenshot der Anmeldeseite ohne Sitzung", async ({ browser }) => {
   await anonymous.screenshot({ path: `${SHOTS}/desktop/00-login.png` });
   await anonymous.close();
 });
+
+/** Gültige UUID, zu der es nichts gibt */
+const UNBEKANNT = "00000000-0000-4000-8000-000000000000";
+
+test("Unbekannter Datensatz oder kaputte Adresse: 404 mit deutscher Seite im Layout", async ({ page }) => {
+  const detailseiten = [
+    "/belege",
+    "/rechnungen",
+    "/kontakte",
+    "/angebote",
+    "/anlagen",
+    "/dauerbelege",
+    "/rechnungen/wiederkehrend",
+    "/archiv/beleg",
+    "/lohn/mitarbeiter",
+    "/seiten",
+  ];
+  for (const path of [...detailseiten.flatMap((seite) => [`${seite}/${UNBEKANNT}`, `${seite}/kaputt`]), "/rechnungen/mahnwesen/kaputt", "/abschluss/1999"]) {
+    const response = await page.goto(path);
+    expect(response?.status(), path).toBe(404);
+    await expect(page.getByRole("heading", { level: 1, name: "Seite nicht gefunden" }), path).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Hauptnavigation" }), path).toBeVisible();
+  }
+  await page.getByRole("link", { name: "Zur Übersicht" }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("Ungültiger Wert in der Adresse: deutsche Fehlerseite statt englischer Meldung", async ({ page }) => {
+  for (const path of ["/auswertungen?jahr=1999", "/buchungen?jahr=1999&monat=1"]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1, name: "Seite konnte nicht geladen werden" }), path).toBeVisible();
+    await expect(page.getByText("Something went wrong")).toHaveCount(0);
+  }
+});
+
+test("Jahres- und Monatswechsel enden an den Grenzen der gültigen Jahre", async ({ page }) => {
+  await page.goto("/auswertungen?jahr=2000");
+  await expect(page.getByRole("link", { name: "Folgejahr 2001" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Vorjahr 1999" })).toHaveCount(0);
+  await page.goto("/auswertungen?jahr=2100");
+  await expect(page.getByRole("link", { name: "Vorjahr 2099" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Folgejahr 2101" })).toHaveCount(0);
+  await page.goto("/buchungen?jahr=2000&monat=1");
+  await expect(page.getByRole("link", { name: /1999/ })).toHaveCount(0);
+  await page.goto("/buchungen?jahr=2100&monat=12");
+  await expect(page.getByRole("link", { name: /2101/ })).toHaveCount(0);
+});

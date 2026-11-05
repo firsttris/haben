@@ -19,6 +19,7 @@ import {
   stornoSchema,
 } from "../modules/lohn/index.ts";
 import { today } from "../today.ts";
+import { detailId } from "./schemas.ts";
 
 const monatSchema = z.object({ year: z.number().int().min(2000).max(2100), month: z.number().int().min(1).max(12) });
 
@@ -45,7 +46,7 @@ export const getLohn = createServerFn({ method: "GET" })
 
 export const getMitarbeiter = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(async ({ data }) => {
     const e = await getEmployee(data);
     return e ? { ...e, createdAt: undefined, updatedAt: undefined } : null;

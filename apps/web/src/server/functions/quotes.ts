@@ -1,3 +1,4 @@
+import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { editorContext } from "../modules/stammdaten/index.ts";
@@ -19,7 +20,7 @@ import {
   updateQuoteDraft,
 } from "../modules/rechnungen/index.ts";
 import { today } from "../today.ts";
-import { UserError } from "../errors.ts";
+import { detailId } from "./schemas.ts";
 
 export const getQuotes = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -34,10 +35,10 @@ export const getNewQuote = createServerFn({ method: "GET" })
 
 export const getQuoteDetail = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(async ({ data }) => {
     const result = await getQuote(data);
-    if (!result) throw new UserError("Angebot nicht gefunden.");
+    if (!result) throw notFound();
     const { pdf, ...quote } = result.quote;
     const draft = quote.status === "draft";
     return {

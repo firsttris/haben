@@ -1,3 +1,4 @@
+import { notFound } from "@tanstack/react-router";
 import { EXPENSE_CATEGORIES } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -19,6 +20,7 @@ import {
 } from "../modules/belege/index.ts";
 import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
 import { today } from "../today.ts";
+import { detailId } from "./schemas.ts";
 
 const categoryOptions = Object.entries(EXPENSE_CATEGORIES)
   .filter(([value]) => value !== "anlage")
@@ -44,10 +46,10 @@ export const getDauerbelegForm = createServerFn({ method: "GET" })
 
 export const getDauerbelegDetail = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(async ({ data }) => {
     const result = await getDauerbeleg(data);
-    if (!result) throw new UserError("Dauerbeleg nicht gefunden.");
+    if (!result) throw notFound();
     return { ...result, ...(await formContext()) };
   });
 

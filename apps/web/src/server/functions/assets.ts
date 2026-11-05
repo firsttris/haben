@@ -1,3 +1,4 @@
+import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
@@ -13,8 +14,7 @@ import {
 } from "../modules/buchhaltung/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
-import { UserError } from "../errors.ts";
-import { yearSchema } from "./schemas.ts";
+import { detailId, yearSchema } from "./schemas.ts";
 
 export const getAssets = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -27,10 +27,10 @@ export const getAssets = createServerFn({ method: "GET" })
 
 export const getAssetDetail = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(async ({ data }) => {
     const result = await getAsset(data);
-    if (!result) throw new UserError("Anlage nicht gefunden.");
+    if (!result) throw notFound();
     return result;
   });
 
