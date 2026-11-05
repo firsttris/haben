@@ -266,7 +266,8 @@ export interface PostingLine {
   taxCode: TaxCode | null;
 }
 
-function side(account: string, amount: Cents, debitIfPositive: boolean, taxCode: TaxCode | null): PostingLine {
+/** Buchungszeile: positiv auf die gewünschte Seite, negativ (Gutschrift, Storno) auf die andere */
+export function side(account: string, amount: Cents, debitIfPositive: boolean, taxCode: TaxCode | null): PostingLine {
   const debit = debitIfPositive ? amount > 0 : amount < 0;
   return { account, debit: debit ? Math.abs(amount) : 0, credit: debit ? 0 : Math.abs(amount), taxCode };
 }

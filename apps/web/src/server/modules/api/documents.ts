@@ -18,7 +18,7 @@ import { documentQuerySchema, documentUploadSchema, type documentSchema, type do
  * Haben, auf die Seite zeigt `url` in jeder Antwort.
  */
 
-type ListRow = Awaited<ReturnType<typeof listDocuments>>[number];
+type ListRow = Omit<Awaited<ReturnType<typeof listDocuments>>[number], "splitCount">;
 type Loaded = NonNullable<Awaited<ReturnType<typeof getDocument>>> & Awaited<ReturnType<typeof documentCancellation>>;
 
 const DOCUMENT_NOT_FOUND = "Beleg nicht gefunden.";
@@ -50,7 +50,7 @@ function summaryOut(row: ListRow, baseUrl: string): z.output<typeof documentSumm
   };
 }
 
-function documentOut({ document, amounts, cancellation, reentryId }: Loaded, request: ApiRequest): z.output<typeof documentSchema> {
+function documentOut({ document, amounts, splits, cancellation, reentryId }: Loaded, request: ApiRequest): z.output<typeof documentSchema> {
   return {
     ...summaryOut({ ...document, cancelledOn: cancellation?.date ?? null }, request.baseUrl),
     size: document.size,
@@ -63,7 +63,7 @@ function documentOut({ document, amounts, cancellation, reentryId }: Loaded, req
     net: document.net,
     tax: document.tax,
     amounts: amounts.map(({ taxRate, net, tax }) => ({ taxRate, net, tax })),
-    issues: document.lockedAt ? [] : bookingIssues(document, amounts, request.today),
+    issues: document.lockedAt ? [] : bookingIssues(document, amounts, request.today, splits),
     replacedById: reentryId,
     replacesId: document.replacesDocumentId,
     updatedAt: document.updatedAt.toISOString(),
