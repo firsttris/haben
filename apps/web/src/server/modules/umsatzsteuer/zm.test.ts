@@ -64,7 +64,11 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
     return contact.id;
   }
 
-  async function rechnung(issueDate: string, net: number, options: { name?: string; land?: string; ustId?: string; treatment?: "reverse_charge" | "regulaer" } = {}) {
+  async function rechnung(
+    issueDate: string,
+    net: number,
+    options: { name?: string; land?: string; ustId?: string; treatment?: "reverse_charge" | "regulaer" } = {},
+  ) {
     const { name = "Alpenblick GmbH", land = "AT", ustId = "ATU12345678", treatment = "reverse_charge" } = options;
     const draft = await invoices.createDraft(actor, {
       contactId: await kunde(name, land, ustId),
@@ -105,31 +109,35 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
     ["SKR03", "ist"],
     ["SKR04", "soll"],
     ["SKR04", "ist"],
-  ] as const)("%s, %s: je USt-IdNr. summiert wie Kz 21, nach Rechnungsdatum auch bei Ist", async (kontenrahmen, versteuerung) => {
-    await setCompany(kontenrahmen, versteuerung);
-    kunden.clear();
-    await rechnung("2026-07-10", 100_050);
-    await rechnung("2026-09-30", 200_000);
-    await rechnung("2026-08-01", 70_000, { name: "Lumière SARL", land: "FR", ustId: "fr 12 345678901" });
-    await rechnung("2026-08-15", 50_000, { name: "Inlandskunde GmbH", land: "DE", ustId: "", treatment: "regulaer" });
-    await rechnung("2026-10-01", 999_900);
+  ] as const)(
+    "%s, %s: je USt-IdNr. summiert wie Kz 21, nach Rechnungsdatum auch bei Ist",
+    async (kontenrahmen, versteuerung) => {
+      await setCompany(kontenrahmen, versteuerung);
+      kunden.clear();
+      await rechnung("2026-07-10", 100_050);
+      await rechnung("2026-09-30", 200_000);
+      await rechnung("2026-08-01", 70_000, { name: "Lumière SARL", land: "FR", ustId: "fr 12 345678901" });
+      await rechnung("2026-08-15", 50_000, { name: "Inlandskunde GmbH", land: "DE", ustId: "", treatment: "regulaer" });
+      await rechnung("2026-10-01", 999_900);
 
-    const overview = await zm.zmOverview(q3);
-    expect(overview.zeilen).toEqual([
-      { ustId: "ATU12345678", art: "S", betrag: 300_050 },
-      { ustId: "FR12345678901", art: "S", betrag: 70_000 },
-    ]);
-    expect(overview.naechste).toEqual({ berichtigt: false, zeilen: overview.zeilen });
-    expect(overview.frist).toBe("2026-10-26");
-    expect((await figures.computeVatFigures(q3)).kz21).toBe(370_050);
-    expect(overview.issues).toEqual([expect.objectContaining({ tone: "info", text: expect.stringContaining("Kz 21") })]);
+      const overview = await zm.zmOverview(q3);
+      expect(overview.zeilen).toEqual([
+        { ustId: "ATU12345678", art: "S", betrag: 300_050 },
+        { ustId: "FR12345678901", art: "S", betrag: 70_000 },
+      ]);
+      expect(overview.naechste).toEqual({ berichtigt: false, zeilen: overview.zeilen });
+      expect(overview.frist).toBe("2026-10-26");
+      expect((await figures.computeVatFigures(q3)).kz21).toBe(370_050);
+      expect(overview.issues).toEqual([expect.objectContaining({ tone: "info", text: expect.stringContaining("Kz 21") })]);
 
-    const result = await zm.submitZm(actor, liveClient(), { kind: "validate", period: q3 });
-    expect(result.ok, result.message).toBe(true);
-    expect(lastXml).toContain(`<zeile umsatzart="S"><knre>ATU12345678</knre><betrag>3000</betrag></zeile>`);
-    expect(lastXml).toContain(`<zeile umsatzart="S"><knre>FR12345678901</knre><betrag>700</betrag></zeile>`);
-    expect(lastXml).toContain("<mzr><quart>3</quart><jahr>2026</jahr></mzr>");
-  }, 60_000);
+      const result = await zm.submitZm(actor, liveClient(), { kind: "validate", period: q3 });
+      expect(result.ok, result.message).toBe(true);
+      expect(lastXml).toContain(`<zeile umsatzart="S"><knre>ATU12345678</knre><betrag>3000</betrag></zeile>`);
+      expect(lastXml).toContain(`<zeile umsatzart="S"><knre>FR12345678901</knre><betrag>700</betrag></zeile>`);
+      expect(lastXml).toContain("<mzr><quart>3</quart><jahr>2026</jahr></mzr>");
+    },
+    60_000,
+  );
 
   it("Storno und Gutschrift mindern im Quartal, in dem sie ausgestellt sind; Skonto im Quartal der Ausbuchung", async () => {
     await setCompany("SKR03", "soll");
