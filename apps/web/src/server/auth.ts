@@ -31,6 +31,9 @@ function createAuth() {
     hooks: {
       // Ein Konto legt nur an, wer den Einrichtungscode aus dem Server-Log (erstes Konto) oder eine gültige Einladung hat
       before: createAuthMiddleware(async (ctx) => {
+        // Name und Bild ändert Haben nicht über Better Auth: das schriebe ohne Audit-Akteur und an der Rollenprüfung
+        // vorbei, auch für die Steuerberatung, die nur lesen darf
+        if (ctx.path === "/update-user") throw new APIError("FORBIDDEN", { message: "Das Konto lässt sich hier nicht ändern." });
         if (ctx.path !== "/sign-up/email") return;
         const invitation = ctx.headers?.get(INVITATION_HEADER);
         if (invitation) {
