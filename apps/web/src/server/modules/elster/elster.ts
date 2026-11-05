@@ -105,7 +105,7 @@ export async function ericStatus() {
  */
 export function startEricInstall(version: string): void {
   if (env().ERIC_HOME?.trim()) throw new EricSetupError("ERiC ist über ERIC_HOME eingebunden; zum Herunterladen ERIC_HOME entfernen.");
-  if (!isEricVersion(version)) throw new EricSetupError("Die Version hat die Form 43.4.6.0.");
+  if (!isEricVersion(version)) throw new EricSetupError(`Die Version hat die Form ${DEFAULT_ERIC_VERSION}.`);
   if (installState?.status === "laeuft") throw new EricSetupError("Der Download läuft schon.");
   const state: InstallState = { status: "laeuft", version, progress: null, startedAt: new Date().toISOString() };
   installState = state;

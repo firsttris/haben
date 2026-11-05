@@ -103,7 +103,7 @@ Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kom
 
 ERiC darf nicht im Repository oder in der CI liegen. Ist es lokal da (`ERIC_HOME` oder per `install-cli.ts` nach `ERIC_DIR` geladen), laufen zwei Ebenen von Tests zusätzlich gegen das echte ERiC. Gesendet wird dabei nichts, ERiC prüft nur lokal Schema und Plausibilität (`ERIC_VALIDIERE`):
 
-- `packages/elster/src/eric-echt.test.ts` baut jede Nachricht in vielen Varianten: Voranmeldung 2025/2026 mit allen Kennzahlen, Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuer für 2023 bis 2025 mit allen Feldern, Sonstige Nachricht, Bankverbindung, Belegabruf, Abrufberechtigung und Postfach. Ohne ERiC wird die Datei übersprungen.
+- `packages/elster/src/eric-echt.test.ts` baut jede Nachricht in vielen Varianten: Voranmeldung 2025 bis 2027 mit allen Kennzahlen, Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuer für 2023 bis 2026 mit allen Feldern, Sonstige Nachricht, Bankverbindung, Belegabruf, Abrufberechtigung und Postfach. Ohne ERiC wird die Datei übersprungen.
 - Die Integrationstests in `apps/web/src/server` nutzen `EricGeprueftClient` (`test-eric.ts`). Mit ERiC lässt er jedes XML, das aus den Szenarien der Datenbank entsteht, zusätzlich von ERiC prüfen.
 
 ```sh
@@ -153,6 +153,14 @@ bun run --cwd packages/einvoice kosit /tmp/haben-kosit
 Ohne die Variablen sucht das Skript unter `/var/tmp/kosit/` (das `*-standalone.jar` in `validator/`, `xr/scenarios.xml`).
 
 Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.github/renovate.json5`) als Pull Request, ebenso Bun, PostgreSQL, Caddy und restic; der `kosit`-Job des Pull Requests prüft die Rechnungen mit der neuen Version. ERiC verfolgt Renovate nicht: `DEFAULT_ERIC_VERSION` in `packages/elster/src/install.ts` hebst du von Hand, wenn eine Testübermittlung damit geklappt hat (siehe [Erste Schritte](einrichtung.md)).
+
+### ERiC heben
+
+1. Neue Version suchen: Die Pakete liegen unter `https://download.elster.de/download/eric/eric_<Hauptversion>/ERiC-<Version>-Linux-x86_64.jar`, die Dokumentation daneben als `ERiC-<Version>-Dokumentation.zip`. Ein `.x.1`-Release im Herbst ist BETA (Senden nur mit Testmerker), das Hauptrelease folgt im November.
+2. Installieren, ohne das bisherige ERiC zu überschreiben: `ERIC_DIR=/var/tmp/eric-<Version> bun packages/elster/src/install-cli.ts --lizenz-akzeptiert <Version>`.
+3. In der Dokumentation `ERiC-Releasenotes.pdf` (Änderungen seit der letzten Mindestversion), `Datenartversionmatrix.ods` (welche Datenart-Versionen es gibt) und die Schemas unter `Datenarten/` lesen; die Header unter `include/` mit denen der alten Version vergleichen (`diff -r`). Entfallene Datenart-Versionen und geänderte Signaturen passt du in `packages/elster` an, neue Jahre dort, wo Haben Jahre aufzählt (`KAPESTA_JAHRE`, `GEWST_JAHRE`, `KST_JAHRE`, `EBILANZ_TAXONOMIEN`).
+4. Die Tests mit dem neuen ERiC laufen lassen, auch die neuen Jahre in `eric-echt.test.ts`, und mit dem alten ERiC gegenprüfen. Fälle für ein Jahr, dessen Plugin (`lib/plugins/libcheck<Datenart>_<Jahr>.so`) dem geladenen ERiC fehlt, überspringen die Tests (`eric-plugins.ts`).
+5. `DEFAULT_ERIC_VERSION` nur auf eine für Echtfälle freigegebene Version heben, kein BETA, und die Tabelle in [Erste Schritte › Welche ERiC-Version](einrichtung.md#welche-eric-version) nachziehen.
 
 ### Ende-zu-Ende-Tests mit Playwright
 

@@ -6,10 +6,10 @@ import { datenartVersionFromXml, hasTestmerker } from "./xml.ts";
 const base = { datenlieferant: "Max Muster", herstellerId: "74931", produktVersion: "0.1.0", test: true };
 
 describe("Postfach-XML", () => {
-  it("baut die PostfachAnfrage Version 31", () => {
+  it("baut die PostfachAnfrage Version 32", () => {
     const xml = buildPostfachAnfrageXml(base);
     expect(checkXml(xml)).toBeUndefined();
-    expect(datenartVersionFromXml(xml)).toBe("PostfachAnfrage_31");
+    expect(datenartVersionFromXml(xml)).toBe("PostfachAnfrage_32");
     expect(hasTestmerker(xml)).toBe(true);
     expect(xml).toContain("<Verfahren>ElsterDatenabholung</Verfahren>");
     expect(xml).toContain(`<Empfaenger id="L">CS</Empfaenger>`);
@@ -21,7 +21,7 @@ describe("Postfach-XML", () => {
   it("baut die PostfachBestaetigung", () => {
     const xml = buildPostfachBestaetigungXml(["a1", "b&2"], { ...base, test: false });
     expect(checkXml(xml)).toBeUndefined();
-    expect(datenartVersionFromXml(xml)).toBe("PostfachBestaetigung_31");
+    expect(datenartVersionFromXml(xml)).toBe("PostfachBestaetigung_32");
     expect(hasTestmerker(xml)).toBe(false);
     expect(xml).toContain(`<Bereitstellung id="a1"/>`);
     expect(xml).toContain(`<Bereitstellung id="b&amp;2"/>`);
@@ -32,7 +32,7 @@ describe("Postfach-XML", () => {
 describe("parsePostfachAntwort", () => {
   const antwort = `<?xml version="1.0" encoding="UTF-8"?>
 <Elster xmlns="http://www.elster.de/elsterxml/schema/v11"><DatenTeil><Nutzdatenblock><Nutzdaten>
-<da:Datenabholung xmlns:da="http://finkonsens.de/elster/elsterdatenabholung/v3" version="31"><da:PostfachAnfrage>
+<da:Datenabholung xmlns:da="http://finkonsens.de/elster/elsterdatenabholung/v3" version="32"><da:PostfachAnfrage>
   <da:DatenartBereitstellung name="ESB" anzahltreffer="0"/>
   <da:DatenartBereitstellung name="DivaBescheidESt" anzahltreffer="2">
     <da:Bereitstellung id="X1" groesse="1234">

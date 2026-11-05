@@ -148,6 +148,37 @@ describe("buildEstXml", () => {
     expect(xml).toMatch(/<Weit_Sons_VorAW>\s*<Pers>\s*<Person>PersonB<\/Person>\s*<E2004403>546<\/E2004403>\s*<\/Pers>\s*<A_B_LP>/);
   });
 
+  it("trennt ab 2026 Gewerkschaftsbeiträge von den Berufsverbänden (Gewerksch_Beit), bis 2025 eine Zeile", () => {
+    const mit = (year: number) => {
+      const base = estInput({ year });
+      return buildEstXml({
+        ...base,
+        angaben: {
+          ...base.angaben,
+          arbeitnehmer: { a: { bescheinigungen: [{ steuerklasse: 1, brutto: 100_000 }], werbungskosten: { berufsverbaende: 12_000, gewerkschaft: 24_000 } } },
+        },
+      });
+    };
+    expect(mit(2026)).toMatch(/<Berufsverb>[\s\S]*?<E0204002>120<\/E0204002>[\s\S]*?<\/Berufsverb>\s*<Gewerksch_Beit>[\s\S]*?<E0205519>240<\/E0205519>/);
+    expect(mit(2025)).toMatch(/<Berufsverb>[\s\S]*?<E0204002>360<\/E0204002>/);
+    expect(mit(2025)).not.toContain("Gewerksch_Beit");
+  });
+
+  it("gibt ab 2026 zu den Fortbildungskosten die steuerfreien Erstattungen an (E0206305, ggf. 0)", () => {
+    const mit = (year: number) => {
+      const base = estInput({ year });
+      return buildEstXml({
+        ...base,
+        angaben: { ...base.angaben, arbeitnehmer: { a: { bescheinigungen: [{ steuerklasse: 1, brutto: 100_000 }], werbungskosten: { fortbildung: 45_000 } } } },
+      });
+    };
+    expect(mit(2026)).toMatch(
+      /<Fortb>\s*<Einz>[\s\S]*?<\/Einz>\s*<Stfrei_Erst>\s*<E0206305>0<\/E0206305>\s*<\/Stfrei_Erst>\s*<Sum>\s*<E0204812>450<\/E0204812>/,
+    );
+    expect(mit(2025)).toMatch(/<Fortb>[\s\S]*<E0204812>450<\/E0204812>/);
+    expect(mit(2025)).not.toContain("Stfrei_Erst");
+  });
+
   it("prüft die Angaben der Anlage N", () => {
     const base = estInput();
     const mit = (an: NonNullable<EstXmlInput["angaben"]["arbeitnehmer"]>["a"]) => () =>

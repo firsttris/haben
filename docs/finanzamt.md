@@ -10,7 +10,7 @@ Damit Bescheide dort ankommen, musst du in Mein ELSTER einmal der elektronischen
 
 Der Abruf läuft in drei Schritten, wie bei viking:
 
-1. **PostfachAnfrage** (Datenabholung Version 31) listet die bereitgestellten Bescheide und ihre Anhänge.
+1. **PostfachAnfrage** (Datenabholung Version 32) listet die bereitgestellten Bescheide und ihre Anhänge.
 2. Die Anhänge kommen über Otto (`libotto.so`, liegt bei ERiC) vom ELSTER-Server.
 3. **PostfachBestaetigung** meldet ELSTER die Abholung. Bestätigt wird nur, was vollständig gespeichert ist.
 

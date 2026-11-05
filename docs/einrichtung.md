@@ -280,7 +280,7 @@ Haben übermittelt Voranmeldung, Jahreserklärungen und Nachrichten über ERiC, 
 | | Wofür | Woher | Dauer |
 | --- | --- | --- | --- |
 | **ERiC** | Bibliothek der Finanzverwaltung: prüft, verschlüsselt und überträgt | Haben lädt sie selbst, siehe [Schritte](#schritte) | Minuten |
-| **Hersteller-ID** (fünf Ziffern) | Kennung der Software in jeder Übermittlung; ERiC 43 verlangt sie schon fürs Prüfen | ELSTER-Entwicklerbereich: auf elster.de als Entwickler registrieren, das Bayerische Landesamt für Steuern prüft den Antrag | Tage bis Wochen |
+| **Hersteller-ID** (fünf Ziffern) | Kennung der Software in jeder Übermittlung; ERiC verlangt sie seit Version 43 schon fürs Prüfen | ELSTER-Entwicklerbereich: auf elster.de als Entwickler registrieren, das Bayerische Landesamt für Steuern prüft den Antrag | Tage bis Wochen |
 | **Zertifikatsdatei** (.pfx) und PIN | unterschreibt jede Übermittlung | ELSTER-Benutzerkonto mit der Anmeldeart „Zertifikatsdatei“, siehe [unten](#zertifikatsdatei-statt-elster-secure) | ein bis zwei Wochen (Brief) |
 
 Bis Hersteller-ID und Zertifikat da sind, arbeitest du ganz normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER: die Voranmeldung per XML-Import, alle Formulare mit der Erweiterung „Haben für Mein ELSTER“, mit einem KI-Assistenten oder von Hand. Die Wege im Vergleich: [Abgabe an ELSTER](elster-abgabe.md).
@@ -334,7 +334,22 @@ Die PIN fragt Haben bei jeder Übermittlung ab. Nur für den automatischen Postf
 Vor dem Senden prüft Haben die Firmendaten: Name, Anschrift, Bundesland und eine gültige Steuernummer müssen vorhanden sein.
 
 > [!IMPORTANT]
-> Die ERiC-Anbindung ist mit ERiC 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und Protokoll-PDF mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
+> Die ERiC-Anbindung ist mit ERiC 44.3.6.0, 45.1.5.0 und 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und PIN mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
+
+### Welche ERiC-Version
+
+Haben lädt vorgeschlagen ERiC 44.3.6.0, die neueste für Echtfälle freigegebene Version. Haben arbeitet mit ERiC 43 bis 45 und erkennt die Version selbst; eine andere trägst du ins Feld **Version** ein.
+
+ERiC 45.1.5.0 ist ein BETA-Release: Damit gehen nur Testübermittlungen mit Testmerker, Echtfälle lehnt ERiC ab (ERiC-Entwicklerhandbuch, Kap. 5.4.3). Nimm sie nur zum Ausprobieren der Formulare 2027. Das Hauptrelease 45.2 kündigt ELSTER für Mitte November an (Kap. 2.3); es bringt die Jahresversionen unten für Echtfälle, und dann hebt Haben den Vorschlag darauf.
+
+| Was | ab ERiC |
+| --- | --- |
+| Voranmeldung, Dauerfristverlängerung und Sondervorauszahlung 2027, Kapitalertragsteuer-Anmeldung 2027, Anlage EÜR und Einkommensteuer 2026 | 45 |
+| Sonstige Nachricht als Echtfall (Version 22) | 43.5 |
+| E-Bilanz ohne rechtsformfremde Angaben | jede; ERiC prüft das ab 43.5 |
+| Postfach und Belegabruf (Datenabholung Version 32) | 43.4 |
+
+Mit dem Mindestversionswechsel im April sperrt ELSTER die Versionen 43 und 44 für den Versand (ERiC-Entwicklerhandbuch, Kap. 2.3); bis dahin brauchst du die 45.
 
 Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatzsteuer](umsatzsteuer.md). Gibst du nicht monatlich ab, stellst du dort den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) ein: vierteljährlich oder keine Voranmeldung, so wie es das Finanzamt festgelegt hat.
 

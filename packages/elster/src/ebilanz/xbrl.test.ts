@@ -64,6 +64,25 @@ describe("E-Bilanz: Summen nach den Rechenregeln der Taxonomie 6.9", () => {
     );
   });
 
+  it("lässt für die GmbH rechtsformfremde Stammdaten weg, auch leer (ERiC ab 43.5, Fehler 170185126)", () => {
+    const xml = buildEbilanzXml({ ...gmbh, bvv: { eigenkapitalVorjahr: 0, ausschuettungen: 0, einlagen: 100_000 }, anlagen: [] });
+    for (const position of [
+      "report.id.reportElement.reportElements.KKE",
+      "report.id.reportElement.reportElements.SGE",
+      "report.id.reportElement.reportElements.SGEP",
+      "report.id.statementType.tax",
+      "company.id.optionKStGs1a",
+      "company.id.shareholder.group",
+      "company.id.shareholder.currentnumber",
+      "company.id.shareholder.SpecialBalanceRequired",
+      "company.id.shareholder.extensionRequired",
+    ]) {
+      expect(xml).not.toContain(`<de-gcd:genInfo.${position}`);
+    }
+    // Der Gesellschafter selbst bleibt als Mussfeld, leer
+    expect(xml).toContain('<de-gcd:genInfo.company.id.shareholder.name contextRef="D-AKTJAHR" xsi:nil="true"/>');
+  });
+
   it("lehnt einen Anlagenspiegel ab, dessen Buchwert nicht zur Bilanz passt", () => {
     expect(() =>
       buildEbilanzXml({

@@ -21,7 +21,7 @@ describe("Sonstige Nachricht", () => {
     const xml = buildNachrichtXml(input);
     expect(checkXml(xml)).toBeUndefined();
     expect(tag(xml, "Verfahren")).toBe("ElsterNachricht");
-    expect(datenartVersionFromXml(xml)).toBe("SonstigeNachrichten_21");
+    expect(datenartVersionFromXml(xml)).toBe("SonstigeNachrichten_22");
     expect(hasTestmerker(xml)).toBe(true);
     expect(xml).toContain(`<Empfaenger id="F">2893</Empfaenger>`);
     expect(tag(xml, "Strasse")).toBe("Hauptstraße");

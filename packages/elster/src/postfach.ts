@@ -3,8 +3,9 @@ import { ElsterEingabeError, elsterXml, escapeXml, TESTMERKER } from "./xml.ts";
 import { findDeep, int, text } from "./xml-lesen.ts";
 
 /**
- * Datenabholung aus dem ELSTER-Postfach (Verfahren ElsterDatenabholung, Version 31): Bescheide und
- * Mitteilungen des Finanzamts. Ablauf wie bei viking:
+ * Datenabholung aus dem ELSTER-Postfach (Verfahren ElsterDatenabholung, Version 32): Bescheide und
+ * Mitteilungen des Finanzamts. Version 31 kennt ERiC seit 44 nicht mehr (ERiC-Releasenotes 45.1, Kap. 6.1.1);
+ * Version 32 gibt es seit ERiC 43.4 und ergänzt Version 31 nur um optionale Angaben. Ablauf wie bei viking:
  * 1. PostfachAnfrage listet die Bereitstellungen samt Anhängen,
  * 2. die Anhänge kommen über Otto (libotto.so) vom OTTER-Server,
  * 3. PostfachBestaetigung quittiert die Abholung. Ohne Quittung innerhalb von 24 Stunden
@@ -62,7 +63,7 @@ function datenabholungXml(datenArt: "PostfachAnfrage" | "PostfachBestaetigung", 
         ticket: "1",
         empfaenger: { id: "L", wert: "CS" },
         produktVersion: input.produktVersion,
-        nutzdaten: [`<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="31">`, ...body, `</Datenabholung>`],
+        nutzdaten: [`<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="32">`, ...body, `</Datenabholung>`],
       },
     ],
   );

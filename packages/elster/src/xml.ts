@@ -56,7 +56,7 @@ export function datenartVersionFromXml(xml: string): string | undefined {
   if (bank?.[1]) return `AenderungBankverbindung_${bank[1]}`;
   const abholung = /<DatenArt>(PostfachAnfrage|PostfachBestaetigung)<\/DatenArt>[\s\S]*<Datenabholung\b[^>]*\bversion="(\d+)"/.exec(xml);
   if (abholung?.[1] && abholung[2]) return `${abholung[1]}_${abholung[2]}`;
-  if (/<DatenArt>ElsterVaStDaten<\/DatenArt>/.test(xml)) return "ElsterVaStDaten_31";
+  if (/<DatenArt>ElsterVaStDaten<\/DatenArt>/.test(xml)) return "ElsterVaStDaten_32";
   // E-Bilanz: Version der Taxonomie nach dem Datum im Namensraum (Beispiele zur Datenart Bilanz in der ERiC-Dokumentation)
   if (/<DatenArt>Bilanz<\/DatenArt>/.test(xml)) {
     const taxonomie = /xmlns:de-gcd="http:\/\/www\.xbrl\.de\/taxonomies\/de-gcd-(\d{4}-\d{2}-\d{2})"/.exec(xml)?.[1];

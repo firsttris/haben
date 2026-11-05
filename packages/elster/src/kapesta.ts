@@ -8,10 +8,13 @@ import { checkSteuernummer13, elsterDecimal, ElsterEingabeError, elsterXml, whol
  * Gewinnausschüttung an ihre Gesellschafter: Kapitalerträge mit 25 % Steuerabzug (§ 43 Abs. 1 Satz 1 Nr. 1 EStG), der
  * Gewinnverteilungsbeschluss, Soli und Kirchensteuer je Religionsschlüssel (Kirchensteuerabzugsmerkmal des
  * Bundeszentralamts für Steuern). Feldkennungen und Reihenfolge aus der Jahresdokumentation KapEStA_2026 und dem Schema
- * KapEStA-2026 im ERiC-Paket 43.4.6.0; Testmerker 160000001 (ERiC-Entwicklerhandbuch, Tabelle der Testmerker).
+ * KapEStA-2026 im ERiC-Paket 43.4.6.0; Testmerker 160000001 (ERiC-Entwicklerhandbuch, Tabelle der Testmerker). Das Schema
+ * KapEStA-2027 (ERiC 45.1.5.0) unterscheidet sich von 2026 nur in Namensraum und Version.
  */
 
-export const KAPESTA_JAHRE = [2025, 2026] as const;
+export const KAPESTA_JAHRE = [2025, 2026, 2027] as const;
+/** "2025, 2026 und 2027" für Meldungen */
+export const KAPESTA_JAHRE_TEXT = new Intl.ListFormat("de", { type: "conjunction" }).format(KAPESTA_JAHRE.map(String));
 
 /** Für KapEStA ist der allgemeine Testmerker 700000004 nicht zulässig */
 const TESTMERKER_KAPEST = "160000001";
@@ -41,7 +44,7 @@ export function tagDanach(iso: string): string {
   return new Date(Date.parse(`${iso}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 }
 
-/** Religionsschlüssel der Kirchensteuer in der Reihenfolge des Schemas (KapEStA-2025 und -2026 gleich) */
+/** Religionsschlüssel der Kirchensteuer in der Reihenfolge des Schemas (KapEStA-2025 bis -2027 gleich) */
 const RELIGIONSSCHLUESSEL =
   "010100 026300 010200 026400 010300 026500 010400 026600 010500 026700 010600 026800 010800 026900 010900 027000 011000 027100 011100 027200 011200 027300 011300 027400 011400 027500 011500 027600 011600 027700 011700 027800 011900 033200 012000 044000 012300 044100 012400 044200 025100 044300 025200 044400 025300 044500 025400 044600 025500 044700 025600 044800 025700 044900 025800 058200 025900 058300 026000 058400 026100 058500 026200 058600".split(
     " ",
@@ -57,7 +60,7 @@ export function buildKapEStAXml(input: KapEStAInput): string {
   const zufluss = zuflussTag(input.beschluss);
   const year = Number(zufluss.slice(0, 4));
   if (!(KAPESTA_JAHRE as readonly number[]).includes(year)) {
-    throw new ElsterEingabeError(`Die Kapitalertragsteuer-Anmeldung sendet Haben für ${KAPESTA_JAHRE.join(" und ")}, nicht für ${year}.`);
+    throw new ElsterEingabeError(`Die Kapitalertragsteuer-Anmeldung sendet Haben für ${KAPESTA_JAHRE_TEXT}, nicht für ${year}.`);
   }
   for (const k of input.kirchensteuer) {
     if (!RELIGIONSSCHLUESSEL.includes(k.religionsschluessel)) throw new ElsterEingabeError(`Religionsschlüssel ${k.religionsschluessel} gibt es nicht.`);

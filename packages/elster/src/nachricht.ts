@@ -3,7 +3,9 @@ import { checkSteuernummer13, ElsterEingabeError, elsterXml, escapeXml, TESTMERK
 
 /**
  * Sonstige Nachricht an das Finanzamt (Verfahren ElsterNachricht, Datenart SonstigeNachrichten,
- * Version 21). Aufbau wie bei viking, das damit an ELSTER sendet.
+ * Version 22). Aufbau wie bei viking, das damit an ELSTER sendet. Version 22 gleicht Version 21 bis auf den
+ * Namensraum (Schemas im ERiC-Paket 43.4.6.0); ERiC 45 kennt Version 21 nicht mehr, Echtfälle mit Version 22
+ * nimmt ERiC ab 43.5 an (ERiC-Releasenotes 45.1, Kap. 3.1.2 und 7.1.4).
  */
 export const NACHRICHT_BETREFF_MAX = 99;
 export const NACHRICHT_TEXT_MAX = 15_000;
@@ -58,7 +60,7 @@ export function buildNachrichtXml(input: NachrichtXmlInput): string {
         empfaenger: { id: "F", wert: finanzamtsnummer(input.steuernummer13) },
         produktVersion: input.produktVersion,
         nutzdaten: [
-          `<Nachricht xmlns="http://finkonsens.de/elster/elsternachricht/sonstigenachrichten/v21" version="21">`,
+          `<Nachricht xmlns="http://finkonsens.de/elster/elsternachricht/sonstigenachrichten/v22" version="22">`,
           `<Steuernummer>${input.steuernummer13}</Steuernummer>`,
           `<Steuerpflichtiger>`,
           ...(p
