@@ -103,6 +103,18 @@ describe("lohnsteuerbescheinigung", () => {
     expect(w.rvArbeitnehmer).toBeGreaterThan(0);
   });
 
+  it("Midijob (Übergangsbereich): bescheinigt die tatsächlich gezahlten Anteile, obwohl die Bemessung unter dem Entgelt liegt", () => {
+    // § 20 Abs. 2a SGB IV: Im Übergangsbereich ist die beitragspflichtige Einnahme kleiner als das Entgelt; mit der
+    // Beitragsbemessungsgrenze der Krankenversicherung (§ 223 Abs. 3 SGB V) hat das nichts zu tun
+    const midijob = { ...ANGESTELLT, monatsgehalt: 1500_00 };
+    const m = abrechnung(midijob, 1);
+    expect(m.sv.bemessung.kvPv).toBeLessThan(m.svBrutto);
+    const w = bereit(eingabe(midijob));
+    expect(w.bruttoarbeitslohn).toBe(18_000_00);
+    expect(w.rvArbeitnehmer).toBe(12 * m.sv.rv.an);
+    expect(w.kvArbeitnehmer).toBe(12 * (m.sv.kv.an + m.sv.kvZusatz.an));
+  });
+
   it("Austritt zum Monatsende: Zeitraum bis dahin, fertig schon im laufenden Jahr", () => {
     const s = { ...GGF, austritt: "2026-06-30" };
     const w = bereit(eingabe(s, { abrechnungen: monate(1, 6).map((m) => abrechnung(s, m)), heute: "2026-07-01" }));
