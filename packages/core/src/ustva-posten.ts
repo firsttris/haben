@@ -64,6 +64,17 @@ export function vatPosten(returns: readonly FiledVatReturn[], faelligkeit: (peri
 }
 
 /**
+ * Altbestand: Voranmeldungen, die vor Einführung der offenen Posten über ERiC gesendet wurden, sind kein Posten, solange
+ * ihnen keine Zahlung mit Bezug zugeordnet ist. Ob sie bezahlt sind, weiß Haben nicht, wenn die Zahlung nicht über ein
+ * Konto in Haben lief (vor dem ersten Kontoimport, vom Privatkonto, mit anderen Steuern verrechnet); eine Aufgabe
+ * „nicht bezahlt“ wäre dann falsch. Gefiltert wird nach `vatPosten`, damit eine spätere Berichtigung ihre Differenz behält.
+ */
+export function ohneAltbestand(posten: readonly VatPosten[], altbestand: ReadonlySet<string>, payments: readonly VatPayment[]): VatPosten[] {
+  const mitBezug = new Set(payments.flatMap((z) => (z.vatReturnId ? [z.vatReturnId] : [])));
+  return posten.filter((p) => !altbestand.has(p.vatReturnId) || mitBezug.has(p.vatReturnId));
+}
+
+/**
  * Zahlung an das bzw. vom Finanzamt im Bankabgleich (Zuordnung „Umsatzsteuer an das Finanzamt“). Aufgehobene Zuordnungen
  * samt Gegenzeile lässt der Aufrufer weg.
  */

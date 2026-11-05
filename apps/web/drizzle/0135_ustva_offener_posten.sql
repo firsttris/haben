@@ -1,3 +1,9 @@
+CREATE TABLE "vat_items_since" (
+	"id" integer PRIMARY KEY DEFAULT 1 NOT NULL,
+	"since" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "vat_items_since_single" CHECK ("vat_items_since"."id" = 1)
+);
+--> statement-breakpoint
 CREATE TABLE "vat_return_filings" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"vat_return_id" uuid NOT NULL,

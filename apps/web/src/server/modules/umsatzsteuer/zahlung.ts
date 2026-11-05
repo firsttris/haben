@@ -2,6 +2,7 @@ import {
   dauerfristActive,
   dueDate,
   formatEuro,
+  ohneAltbestand,
   type Cents,
   type OpenItem,
   type VatPayment,
@@ -61,14 +62,28 @@ async function vatPayments(q: Db | Tx): Promise<VatPayment[]> {
   return rows;
 }
 
-/** Stand aller Posten: Betrag, Fälligkeit, Zahlungen und was offen ist */
-export async function ustvaPosten(q: Db | Tx = db): Promise<UstvaPostenUebersicht> {
+/**
+ * Voranmeldungen, die vor dem Stichtag der offenen Posten (vat_items_since, gesetzt von Migration 0136) gesendet wurden.
+ * Ohne Stichtag (nicht zu erwarten, die Zeile ist nur anhängbar) gibt es keinen Altbestand.
+ */
+async function altbestand(q: Db | Tx, returns: { id: string; sentAt: Date | null }[]): Promise<Set<string>> {
+  const [row] = await q.select({ since: schema.vatItemsSince.since }).from(schema.vatItemsSince);
+  if (!row) return new Set();
+  return new Set(returns.filter((r) => r.sentAt !== null && r.sentAt < row.since).map((r) => r.id));
+}
+
+/**
+ * Stand aller Posten: Betrag, Fälligkeit, Zahlungen und was offen ist. Altbestand ohne Zahlung mit Bezug fehlt
+ * (ohneAltbestand); `mitAltbestand` nimmt ihn für eine ausdrückliche Zuordnung mit Bezug dazu.
+ */
+export async function ustvaPosten(q: Db | Tx = db, { mitAltbestand = false } = {}): Promise<UstvaPostenUebersicht> {
   // Nacheinander: in einer Transaktion teilen sich die Abfragen eine Verbindung
   const returns = await filedReturns(q);
   const payments = await vatPayments(q);
   const company = await loadCompany(q);
   const dauerfrist = await loadDauerfrist(q);
-  const posten = vatPosten(returns, (period) => dueDate(period, company.bundesland, dauerfristActive(dauerfrist, period.year)));
+  const alle = vatPosten(returns, (period) => dueDate(period, company.bundesland, dauerfristActive(dauerfrist, period.year)));
+  const posten = mitAltbestand ? alle : ohneAltbestand(alle, await altbestand(q, returns), payments);
   return vatPostenStand(posten, payments);
 }
 
@@ -106,7 +121,7 @@ export async function assertUstvaOffen(tx: Tx, vatReturnId: string, amount: Cent
     .where(eq(schema.vatReturns.id, vatReturnId))
     .for("update");
   if (locked?.status !== "sent") throw new VatError("Die Voranmeldung ist nicht abgegeben; zuordnen lässt sich nur eine gesendete oder vermerkte.");
-  const posten = (await ustvaPosten(tx)).posten.find((p) => p.vatReturnId === vatReturnId);
+  const posten = (await ustvaPosten(tx, { mitAltbestand: true })).posten.find((p) => p.vatReturnId === vatReturnId);
   const label = posten ? vatPostenLabel(posten) : "Die Voranmeldung";
   // Zahlung mit dem Vorzeichen des Kontos: Ausgang (negativ) für eine Zahllast (positiv)
   if (!posten || posten.offen === 0) throw new VatError(`${label} ist schon ausgeglichen.`);

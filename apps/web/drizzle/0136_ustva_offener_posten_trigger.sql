@@ -6,6 +6,18 @@
 
 SELECT set_config('haben.actor', 'system:migration', true);
 --> statement-breakpoint
+-- Stichtag der offenen Posten: der Zeitpunkt dieser Migration (Beginn ihrer Transaktion). Vorher über ERiC gesendete
+-- Voranmeldungen (Altbestand) bekommen keinen Posten, solange ihnen keine Zahlung mit Bezug zugeordnet ist; ob sie bezahlt
+-- sind, weiß Haben nicht, wenn die Zahlung nicht über ein Konto in Haben lief. Auf frischen Installationen ist das die
+-- Installation, also gilt alles danach.
+INSERT INTO vat_items_since (id, since) VALUES (1, now());
+--> statement-breakpoint
+CREATE TRIGGER vat_items_since_append_only BEFORE UPDATE OR DELETE ON vat_items_since
+  FOR EACH ROW EXECUTE FUNCTION haben_append_only();
+--> statement-breakpoint
+CREATE TRIGGER vat_items_since_audit AFTER INSERT ON vat_items_since
+  FOR EACH ROW EXECUTE FUNCTION haben_audit();
+--> statement-breakpoint
 CREATE TRIGGER vat_return_filings_append_only BEFORE UPDATE OR DELETE ON vat_return_filings
   FOR EACH ROW EXECUTE FUNCTION haben_append_only();
 --> statement-breakpoint

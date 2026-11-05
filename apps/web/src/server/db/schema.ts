@@ -373,6 +373,20 @@ export const vatReturnFilings = pgTable(
 );
 
 /**
+ * Seit wann abgegebene Voranmeldungen offene Posten sind: der Zeitpunkt der Migration, die die Funktion einführt
+ * (0136, auf frischen Installationen also die Installation). Früher über ERiC gesendete Anmeldungen (Altbestand) werden
+ * erst mit einer Zahlung mit Bezug ein Posten. Eine Zeile, nur anhängen.
+ */
+export const vatItemsSince = pgTable(
+  "vat_items_since",
+  {
+    id: integer("id").primaryKey().default(1),
+    since: timestamp("since", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("vat_items_since_single", sql`${t.id} = 1`)],
+);
+
+/**
  * Prüfungen und Übermittlungen der Jahreserklärungen (Umsatzsteuererklärung, Anlage EÜR), nur anhängen.
  * `figures` hält die gesendeten Werte fest, unabhängig davon, wie sich die Buchungen später ändern.
  */

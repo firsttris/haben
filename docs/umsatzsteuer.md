@@ -336,6 +336,8 @@ Im Jahresarchiv (`umsatzsteuer/<JJJJ-MM>/`) liegen das ERiC-Protokoll jeder Übe
 
 Jede abgegebene Voranmeldung, über ERiC gesendet oder vermerkt, ist ein offener Posten über ihre Zahllast (Kz 83): eine Lastschrift, die das Finanzamt einzieht, bzw. bei einem Überschuss eine Erstattung. Der Bereich **Zahlung an das Finanzamt** auf der Seite der Voranmeldung zeigt Betrag, Fälligkeit, die zugeordneten Zahlungen und was offen ist. Offene Posten stehen außerdem unter [Auswertungen](auswertungen.md) in **Umsatzsteuer gegenüber dem Finanzamt** und in der Übersicht beim Steuerkonto; eine überfällige Zahllast erscheint dort als Aufgabe.
 
+**Gilt ab dem Update:** Offene Posten entstehen für Voranmeldungen, die ab dem Update auf diese Version von Haben gesendet oder vermerkt werden (Zeitpunkt der Datenbank-Migration; bei einer neuen Installation also für alle). Früher über ERiC gesendete Voranmeldungen bekommen keinen Posten, keine Aufgabe „nicht bezahlt“ und zählen nicht zur offenen Zahllast, denn ob sie bezahlt sind, weiß Haben nicht, wenn die Zahlung nicht über ein Konto in Haben lief (etwa vor dem ersten Kontoimport oder mit anderen Steuern verrechnet). Ordnest du einer solchen Voranmeldung ausdrücklich eine Zahlung mit Bezug zu, zeigt sie Stand und Rest wie eine neue. Eine Berichtigung, die du ab dem Update abgibst, ist ein Posten über die Differenz, auch wenn die berichtigte Anmeldung älter ist.
+
 | Fall | Posten | Fällig |
 | --- | --- | --- |
 | Zahllast (Kz 83 positiv) | Ausgang über Kz 83 | am 10. nach Ablauf des Zeitraums (§ 18 Abs. 1 Satz 4 UStG), mit [Dauerfristverlängerung](#dauerfristverlängerung) einen Monat später (§ 46 UStDV), am nächsten Werktag; nicht vor dem Tag der Abgabe, denn vorher tritt keine Säumnis ein (§ 240 Abs. 1 Satz 3 AO) |

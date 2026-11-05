@@ -1,5 +1,5 @@
 {
-  "id": "e2d3506b-7cf9-46f9-8e1b-c37d7c858586",
+  "id": "8e5abaeb-eb19-4922-8065-63bf715afc6d",
   "prevId": "040907f8-020c-42df-b36d-355203cb5a7f",
   "version": "7",
   "dialect": "postgresql",
@@ -9280,6 +9280,38 @@
         "vat_frequencies_from_month": {
           "name": "vat_frequencies_from_month",
           "value": "\"vat_frequencies\".\"from_month\" in (1, 4, 7, 10)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.vat_items_since": {
+      "name": "vat_items_since",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "default": 1
+        },
+        "since": {
+          "name": "since",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "vat_items_since_single": {
+          "name": "vat_items_since_single",
+          "value": "\"vat_items_since\".\"id\" = 1"
         }
       },
       "isRLSEnabled": false

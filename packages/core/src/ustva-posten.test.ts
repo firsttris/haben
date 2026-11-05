@@ -3,6 +3,7 @@ import { suggestMatches, type MatchTransaction, type OpenItem } from "./matching
 import { formatEuro } from "./money.ts";
 import { dueDate } from "./period.ts";
 import {
+  ohneAltbestand,
   purposeNamesPeriod,
   saeumnisMonate,
   saeumniszuschlag,
@@ -113,6 +114,14 @@ describe("Stand der Posten", () => {
       ["okt", 0, ["nov"]],
     ]);
     expect(stand.ohneBezug).toEqual([]);
+  });
+
+  it("Altbestand ohne Zahlung mit Bezug ist kein Posten; seine Berichtigung bleibt ein Posten über die Differenz", () => {
+    const berichtigt: FiledVatReturn = { id: "b", year: 2026, month: 10, kz83: 1_500_00, correctsId: "okt", abgabeTag: "2026-12-01" };
+    const posten = vatPosten([oktober, berichtigt], faellig());
+    expect(ohneAltbestand(posten, new Set(["okt"]), []).map((p) => [p.vatReturnId, p.betrag])).toEqual([["b", 265_44]]);
+    const mitBezug = ohneAltbestand(posten, new Set(["okt"]), [zahlung("z", -100_00, "2026-11-10")]);
+    expect(mitBezug.map((p) => p.vatReturnId)).toEqual(["okt", "b"]);
   });
 
   it("Berichtigung nach unten vor der Zahlung: verrechnet mit der Zahllast, offen bleibt nur der berichtigte Betrag", () => {
