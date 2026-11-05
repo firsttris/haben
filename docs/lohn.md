@@ -187,7 +187,7 @@ Der Gesellschafter-Geschäftsführer ohne Sozialversicherung hat keine Beiträge
 | Korrektur nötig | Seit der Übermittlung ergeben die Abrechnungen andere Werte, etwa nach einem Storno |
 | storniert | Die zuletzt übermittelte Bescheinigung ist storniert; danach lässt sich eine neue übermitteln |
 
-**Nicht unterstützt:** Monate ohne Arbeitslohn (Großbuchstabe U), ein Wechsel zwischen Minijob mit Pauschsteuer und Lohnsteuer nach den ELStAM im selben Jahr, Eintritt oder Austritt im Lauf eines Monats und ein Entgelt über der Beitragsbemessungsgrenze der Krankenversicherung, weil die Versicherung dann freiwillig sein kann und andere Regeln für die Zeilen 24 bis 26 gelten. Was Haben schon bei der Abrechnung nicht rechnet (siehe oben), steht auch nicht auf der Bescheinigung.
+**Nicht unterstützt:** Monate ohne Arbeitslohn (Großbuchstabe U), ein Wechsel zwischen Minijob mit Pauschsteuer und Lohnsteuer nach den ELStAM im selben Jahr, Eintritt oder Austritt im Lauf eines Monats, ein Entgelt über der Beitragsbemessungsgrenze der Krankenversicherung, weil die Versicherung dann freiwillig sein kann und andere Regeln für die Zeilen 24 bis 26 gelten (ein Midijob im Übergangsbereich liegt darunter und wird bescheinigt), und Lohn, der als sonstiger Bezug eines anderen Jahres gilt: Lohn für Dezember mit Zahltag später als drei Wochen nach Jahresende oder Lohn, der schon im Vorjahr gezahlt wurde (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR, wie bei der Lohnsteuer-Anmeldung). Was Haben schon bei der Abrechnung nicht rechnet (siehe oben), steht auch nicht auf der Bescheinigung.
 
 ### Übermitteln
 
