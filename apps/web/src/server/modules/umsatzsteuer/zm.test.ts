@@ -245,6 +245,30 @@ describe.skipIf(!testDatabaseUrl)("Zusammenfassende Meldung (Postgres)", () => {
     expect((await zm.zmOverview(q3)).issues).toEqual([expect.objectContaining({ tone: "warn", text: expect.stringContaining("weicht von Kz 21") })]);
   }, 60_000);
 
+  it("eine im selben Quartal stornierte Rechnung ohne gültige USt-IdNr. sperrt die Meldung nicht", async () => {
+    await setCompany("SKR03", "soll");
+    kunden.clear();
+    // Versehentlich mit britischer USt-IdNr. festgeschrieben, im selben Quartal storniert: nichts davon ist zu melden, und die
+    // festgeschriebene Rechnung lässt sich nicht mehr ändern
+    const falsch = await rechnung("2026-07-10", 100_000, { name: "London Ltd", land: "GB", ustId: "GB123456789" });
+    await invoices.cancelInvoice(actor, falsch.id, "2026-07-11");
+    await rechnung("2026-07-12", 100_000);
+    const overview = await zm.zmOverview(q3);
+    expect(overview.zeilen).toEqual([{ ustId: "ATU12345678", art: "S", betrag: 100_000 }]);
+    expect(overview.issues.filter((i) => i.tone === "error")).toEqual([]);
+    const result = await zm.submitZm(actor, liveClient(), { kind: "validate", period: q3 });
+    expect(result.ok, result.message).toBe(true);
+  }, 60_000);
+
+  it("ein Quartal, dessen Umsätze sich im Quartal aufheben, hat keine offene Frist", async () => {
+    await setCompany("SKR03", "soll");
+    kunden.clear();
+    const a = await rechnung("2026-07-10", 100_000);
+    await invoices.cancelInvoice(actor, a.id, "2026-07-11");
+    expect((await zm.zmOverview(q3)).zeilen).toEqual([]);
+    expect((await fristen.listFristen("2026-12-01")).filter((f) => f.art === "zm" && f.status === "offen")).toEqual([]);
+  }, 60_000);
+
   it("nur Quartale mit Leistungen ins EU-Ausland stehen im Fristenkalender", async () => {
     await setCompany("SKR03", "soll");
     kunden.clear();
