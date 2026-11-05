@@ -15,6 +15,7 @@ export const Route = createFileRoute("/_app/belege/")({
 
 function DocumentsPage() {
   const { documents, aiAvailable, inbox } = Route.useLoaderData();
+  const inhaber = Route.useRouteContext().user.role === "inhaber";
   const router = useRouter();
   const running = documents.some((d) => d.extractionStatus === "laeuft");
   const open = documents.filter((d) => d.status === "neu").length;
@@ -35,7 +36,7 @@ function DocumentsPage() {
         </div>
         {open > 0 && <span className="pill pill-info">{open} zu prüfen</span>}
       </div>
-      <DocumentUpload aiAvailable={aiAvailable} />
+      {inhaber && <DocumentUpload aiAvailable={aiAvailable} />}
       {inbox ? (
         <p className="small muted" style={{ margin: 0, overflowWrap: "anywhere" }}>
           Belege per E-Mail: Anhänge an {inbox.username}
@@ -52,7 +53,7 @@ function DocumentsPage() {
           .
         </ErrorBanner>
       )}
-      {inbox ? null : (
+      {inbox || !inhaber ? null : (
         <p className="small muted" style={{ margin: 0 }}>
           Rechnungen per E-Mail? Mit einem{" "}
           <Link to="/einstellungen" search={{ bereich: "email" }}>

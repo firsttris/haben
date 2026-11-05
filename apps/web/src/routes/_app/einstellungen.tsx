@@ -28,8 +28,9 @@ import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import { PasskeysCard } from "../../components/PasskeysCard.tsx";
+import { ZugaengeCard } from "../../components/ZugaengeCard.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/SkontoFields.tsx";
-import { authClient } from "../../lib/auth-client.ts";
 import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
 import { useAction } from "../../lib/use-action.ts";
@@ -51,12 +52,13 @@ import { getChainHead } from "../../server/functions/integrity.ts";
 import { getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getMcpSettings } from "../../server/functions/mcp.ts";
+import { getZugaenge } from "../../server/functions/zugang.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages] = await Promise.all(
-      [
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages, zugaenge] =
+      await Promise.all([
         getCompany(),
         getVatPeriod({ data: currentFilingPeriod(new Date()) }),
         getNumbering(),
@@ -72,8 +74,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
         getExchangeRates(),
         getEnableBankingSettings(),
         getCustomPages(),
-      ],
-    );
+        getZugaenge(),
+      ]);
     return {
       ...company,
       certificate: vat.certificate,
@@ -91,6 +93,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       rates,
       enableBanking,
       customPages,
+      zugaenge,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -100,7 +103,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages } = Route.useLoaderData();
+  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages, zugaenge } =
+    Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
@@ -145,7 +149,12 @@ function SettingsPage() {
             </>
           )}
           {bereich === "bank" && <EnableBankingCard data={enableBanking} />}
-          {bereich === "sicherheit" && <Passkeys />}
+          {bereich === "sicherheit" && (
+            <>
+              <PasskeysCard />
+              <ZugaengeCard data={zugaenge} />
+            </>
+          )}
           {bereich === "ki" && <McpCard data={mcp} />}
           {bereich === "seiten" && <EigeneSeitenCard pages={customPages} />}
           {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}
@@ -1040,59 +1049,6 @@ function FormatCheck({ simuliert }: { simuliert: boolean }) {
         </>
       )}
     </div>
-  );
-}
-
-function Passkeys() {
-  // aktualisiert sich nach Hinzufügen und Entfernen selbst
-  const passkeys = authClient.useListPasskeys().data ?? [];
-  const action = useAction();
-  const { busy, notice } = action;
-
-  // better-auth meldet Fehler im Ergebnis statt per Exception
-  const run = (work: () => Promise<{ error?: { message?: string } | null } | undefined>, success: string) =>
-    action.run(async () => {
-      const result = await work();
-      if (result?.error) throw new Error(result.error.message ?? "Fehlgeschlagen");
-    }, success);
-
-  return (
-    <section className="card" aria-labelledby="passkey-heading">
-      <h2 id="passkey-heading">Passkeys</h2>
-      {passkeys.length === 0 ? (
-        <p className="small muted" style={{ margin: 0 }}>
-          Noch kein Passkey. Mit einem Passkey meldest du dich ohne Passwort an.
-        </p>
-      ) : (
-        passkeys.map((passkey) => (
-          <div key={passkey.id} className="history-row">
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span style={{ fontWeight: 500 }}>{passkey.name || "Passkey"}</span>
-              {passkey.createdAt && <span className="small muted">angelegt {formatDate(passkey.createdAt)}</span>}
-            </div>
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busy}
-              onClick={() => run(() => authClient.passkey.deletePasskey({ id: passkey.id }), "Passkey entfernt.")}
-            >
-              Entfernen
-            </button>
-          </div>
-        ))
-      )}
-      <div className="actions">
-        <button
-          type="button"
-          className="btn"
-          disabled={busy}
-          onClick={() => run(() => authClient.passkey.addPasskey({ name: "Haben" }), "Passkey hinzugefügt.")}
-        >
-          Passkey hinzufügen
-        </button>
-      </div>
-      <NoticeBanner notice={notice} />
-    </section>
   );
 }
 

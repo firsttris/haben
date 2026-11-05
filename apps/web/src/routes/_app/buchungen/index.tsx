@@ -115,7 +115,8 @@ function ReverseButton({ entry, busy, onConfirm }: { entry: Entry; busy: boolean
 
 function JournalPage() {
   const { period, entries } = Route.useLoaderData();
-  const { rechtsform } = Route.useRouteContext();
+  const { rechtsform, user } = Route.useRouteContext();
+  const inhaber = user.role === "inhaber";
   const router = useRouter();
   const reverse = useServerFn(reverseManualEntryFn);
   const { busy, notice, run } = useAction();
@@ -163,7 +164,7 @@ function JournalPage() {
           <Link to="/buchungen" search={{ jahr: next.year, monat: next.month }} className="btn">
             {periodLabel(next)} ›
           </Link>
-          {isKapitalgesellschaft(rechtsform) && (
+          {inhaber && isKapitalgesellschaft(rechtsform) && (
             <Link to="/buchungen/neu" className="btn btn-primary">
               Buchung erfassen
             </Link>
@@ -283,7 +284,7 @@ function JournalPage() {
                           </td>
                         </tr>
                       ))}
-                    {isOpen && (e.sourceType === "manuell" || e.sourceType === "eroeffnung") && !e.reversal && !e.reversed && (
+                    {inhaber && isOpen && (e.sourceType === "manuell" || e.sourceType === "eroeffnung") && !e.reversal && !e.reversed && (
                       <tr className="lines-row">
                         <td colSpan={8} style={{ textAlign: "right" }}>
                           <ReverseButton

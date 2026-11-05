@@ -20,7 +20,7 @@ Die vollständige Beschreibung als OpenAPI 3.1 liefert Haben selbst unter `https
 2. Unter **API-Tokens** einen Namen vergeben (z. B. „Shop-Automation“), die Gültigkeit wählen und unter **Rechte** nur ankreuzen, was das Werkzeug braucht. Für Bestellungen sind das meist „Kontakte lesen, anlegen und ändern“ und „Rechnungen lesen, Entwürfe anlegen, ändern und löschen“; den Haken bei „KI-Assistent (MCP)“ nimmst du dann heraus.
 3. **Token anlegen** und das Token sofort kopieren: Haben speichert nur seinen SHA-256-Hash und zeigt es nie wieder an.
 
-Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was ein Token darf, sagen allein seine Rechte. Jedes Werkzeug sollte sein eigenes Token bekommen. **Widerrufen** sperrt es sofort, den Zugang ausschalten sperrt alle auf einmal.
+Es sind dieselben Tokens wie für die [KI-Assistenten](ki-assistenten.md); was ein Token darf, sagen allein seine Rechte. Anlegen und widerrufen kann sie nur der Inhaber, nicht der [Zugang der Steuerberatung](steuerberatung.md). Jedes Werkzeug sollte sein eigenes Token bekommen. **Widerrufen** sperrt es sofort, den Zugang ausschalten sperrt alle auf einmal.
 
 | Recht | Erlaubt |
 | --- | --- |

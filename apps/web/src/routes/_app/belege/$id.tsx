@@ -94,6 +94,7 @@ function DocumentPage() {
   const router = useRouter();
   const navigate = useNavigate();
   const { geprueft } = Route.useSearch();
+  const inhaber = Route.useRouteContext().user.role === "inhaber";
   const { document: doc, navigation } = data;
   const running = doc.extractionStatus === "laeuft";
   // Das Formular meldet ungespeicherte Änderungen; beim Wechsel des Belegs setzt es sich mit false neu auf
@@ -232,7 +233,7 @@ function DocumentPage() {
           {/* key: nach dem Auslesen oder Speichern mit den neuen Werten aufsetzen */}
           <DocumentForm key={`${doc.id}-${String(doc.updatedAt)}`} data={data} onDirtyChange={setDirty} />
           {/* Außerhalb des Formulars: Enter im Feld „Grund“ speichert nicht */}
-          <DocumentCancellation key={`storno-${doc.id}`} data={data} />
+          {inhaber && <DocumentCancellation key={`storno-${doc.id}`} data={data} />}
         </div>
       </div>
     </>
@@ -275,6 +276,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const remove = useServerFn(deleteDocumentFn);
   const reextract = useServerFn(reextractDocument);
   const locked = doc.status === "gebucht";
+  // Die Steuerberatung sieht den Beleg wie einen gebuchten: alle Felder gesperrt, keine Knöpfe
+  const inhaber = Route.useRouteContext().user.role === "inhaber";
+  const readOnly = locked || !inhaber;
   const running = doc.extractionStatus === "laeuft";
 
   const [supplierName, setSupplierName] = useState(doc.supplierName);
@@ -507,7 +511,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   // Esc bricht eine offene Rückfrage ab
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (locked) return;
+      if (readOnly) return;
       if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey) {
         event.preventDefault();
         if (!busy && !running && valid) onBook();
@@ -554,7 +558,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </div>
       )}
 
-      <fieldset className="card" disabled={locked || running} style={{ margin: 0 }}>
+      <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend className="visually-hidden">Belegdaten</legend>
         <div className="form-grid">
           <label className="field">
@@ -629,7 +633,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               )}
             </label>
           )}
-          {!splitting && !locked && (
+          {!splitting && !readOnly && (
             <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
               <button type="button" className="link-button" onClick={startSplitting} disabled={splitBlocked !== null} aria-describedby="split-start-hint">
                 Auf mehrere Kategorien aufteilen
@@ -693,7 +697,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </div>
       </fieldset>
 
-      <fieldset className="card" disabled={locked || running} style={{ margin: 0 }}>
+      <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Beträge je Steuersatz</legend>
         <label className="field">
           Umsatzsteuer auf dem Beleg
@@ -898,7 +902,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               parsed.every((p) => p.net !== null && p.tax !== null) && !foreign ? parsed.map((p) => ({ taxRate: p.taxRate, net: p.net!, tax: p.tax! })) : null
             }
             categories={categories}
-            disabled={locked || running}
+            disabled={readOnly || running}
             onChange={touch(setSplitRows)}
             onDissolve={() => {
               // Zurück zu einer Kategorie: die der ersten Zeile
@@ -909,7 +913,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </div>
       )}
 
-      <fieldset className="card" disabled={locked || running} style={{ margin: 0 }}>
+      <fieldset className="card" disabled={readOnly || running} style={{ margin: 0 }}>
         <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Bezahlung</legend>
         <label className="checkbox">
           <input type="radio" name="payment" checked={payment === "bank"} onChange={() => touch(setPayment)("bank")} />
@@ -929,7 +933,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </label>
       </fieldset>
 
-      {!locked && issues.length > 0 && !dirty && (
+      {!readOnly && issues.length > 0 && !dirty && (
         <div className="banner" role="status">
           <Icon name="alert" />
           <span>Vor dem Buchen: {issues.join(", ")}.</span>
@@ -948,7 +952,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         </div>
       )}
       <NoticeBanner notice={notice} />
-      {!locked && (
+      {!readOnly && (
         <div className="actions doc-actions">
           <button type="button" className="btn btn-primary" onClick={onBook} disabled={busy || running || !valid} title="Strg+Enter">
             {confirming ? "Jetzt buchen" : "Bestätigen und buchen"}

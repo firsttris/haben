@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { auth } from "../../../server/auth.ts";
+import { requireUser } from "../../../server/rollen.ts";
 import { db, schema } from "../../../server/db/index.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/api/rechnung/$id/$datei")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const session = await auth().api.getSession({ headers: request.headers });
-        if (!session) return new Response("Nicht angemeldet", { status: 401 });
+        const user = await requireUser(request, "lesen");
+        if (user instanceof Response) return user;
         const id = z.uuid().safeParse(params.id);
         if (!id.success || (params.datei !== "pdf" && params.datei !== "xml")) {
           return new Response("Nicht gefunden", { status: 404 });

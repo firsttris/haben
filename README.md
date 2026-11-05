@@ -83,7 +83,7 @@ auf deinem eigenen Server betreibst.
 | 📚 [Buchhaltung](https://firsttris.github.io/haben/buchhaltung.html) | Doppelte Buchführung nach SKR03/SKR04, Journal, Saldenliste, Kontenblätter, DATEV-Export; für GmbH und UG Gesellschafter-Verrechnungskonto, manuelle Buchungen, Saldenvortrag, Bilanz und GuV (Entwurf) und Jahresabschluss |
 | 📦 [Umzug aus Lexoffice](https://firsttris.github.io/haben/lexoffice.html) | Abruf über die Public API oder, ohne Tarif XL, als Sicherung über die Web-Oberfläche; DATEV-Buchungsstapel, offene Posten zum Stichtag und Anlagen übernehmen; im Abgleich je Jahr Privates bzw. bei GmbH und UG Gesellschafter, Kapital, Darlehen und Ertragsteuern getrennt ausgewiesen; bei GmbH und UG Bilanz, GuV und Steuern eines alten Jahres aus dem Stapel zum Vergleich und die Eröffnung aus seiner Schlussbilanz zum Bestätigen |
 | 📦 [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html) | Abruf über die sevDesk-API, gleiches Archiv, gleicher Abgleich |
-| 🔐 [Anmeldung](https://firsttris.github.io/haben/einrichtung.html#konto-anlegen) · [App](https://firsttris.github.io/haben/einrichtung.html#als-app-installieren) | Passkey (Passwort als Ersatz), installierbar als App auf Handy und Desktop mit Kurzbefehlen und Teilen-Menü für Belege, helle und dunkle [Themes](https://firsttris.github.io/haben/einrichtung.html#einstellungen-und-darstellung) |
+| 🔐 [Anmeldung](https://firsttris.github.io/haben/einrichtung.html#konto-anlegen) · [App](https://firsttris.github.io/haben/einrichtung.html#als-app-installieren) | Passkey (Passwort als Ersatz), [Zugang für die Steuerberatung](https://firsttris.github.io/haben/steuerberatung.html) per Einladungslink (nur lesen: Auswertungen, Journal, Konten, Belege, Rechnungen, DATEV und Jahresarchiv; jede Anmeldung im Änderungsprotokoll), installierbar als App auf Handy und Desktop mit Kurzbefehlen und Teilen-Menü für Belege, helle und dunkle [Themes](https://firsttris.github.io/haben/einrichtung.html#einstellungen-und-darstellung) |
 | 📥 [CSV-Import](https://firsttris.github.io/haben/csv-import.html) | Kontakte, Artikel und Anlagen aus CSV, etwa aus Lexware Office oder Excel: Trennzeichen und Kodierung (UTF-8, Windows-1252) erkannt, Spalten per Vorschlag zuordnen, Vorschau mit Fehlern je Zeile (Beträge, Datum, IBAN, USt-IdNr.), Dubletten übersprungen, Import in einer Transaktion |
 | 🔌 [REST-API](https://firsttris.github.io/haben/api.html) | Versionierte Schnittstelle mit OpenAPI-Beschreibung für eigene Werkzeuge und Automationen: Kontakte und Rechnungsentwürfe anlegen, mit Bestellnummer der Plattform ohne Duplikate; Belege aus Dokumentenarchiven und Skripten hochladen, landen als „Zu prüfen“; API-Tokens mit Rechten je Bereich; bucht und schreibt nichts fest |
 | 🧩 [Eigene Seiten](https://firsttris.github.io/haben/eigene-seiten.html) | Eigene Werkzeuge wie eine Bestellübersicht aus n8n als Menüeintrag in Haben, im Rahmen angezeigt; Zugriff auf Haben nur über die REST-API mit eigenem Token |
@@ -185,13 +185,15 @@ Direkt aus Haben oder über das Portal Mein ELSTER ([alle Wege im Vergleich](htt
 <details>
 <summary><b>Kann meine Steuerberatung damit arbeiten?</b></summary>
 
-Ja, über den [DATEV-Export](https://firsttris.github.io/haben/auswertungen.html#datev-export-für-die-steuerberatung) im Kontenrahmen SKR03 oder SKR04.
+Ja, mit einem [eigenen Zugang](https://firsttris.github.io/haben/steuerberatung.html), der nur lesen kann, oder über den
+[DATEV-Export](https://firsttris.github.io/haben/auswertungen.html#datev-export-für-die-steuerberatung) im Kontenrahmen SKR03 oder SKR04.
 </details>
 
 <details>
 <summary><b>Können mehrere Personen Haben nutzen?</b></summary>
 
-Nein, Haben kennt genau ein Konto, gedacht für dich und deine eigene Firma.
+Haben ist für dich und deine eigene Firma gedacht: Es gibt genau einen Inhaber mit allen Rechten. Dazu kannst du deine
+Steuerberatung per Einladungslink mit einem [Zugang, der nur lesen kann](https://firsttris.github.io/haben/steuerberatung.html), dazuholen.
 </details>
 
 <details>

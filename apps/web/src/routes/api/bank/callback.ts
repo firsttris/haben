@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { auth } from "../../../server/auth.ts";
+import { requireUser } from "../../../server/rollen.ts";
 import { BankError } from "../../../server/modules/bank/index.ts";
 import { completeConnection } from "../../../server/modules/bank/index.ts";
 
@@ -8,8 +8,8 @@ export const Route = createFileRoute("/api/bank/callback")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const session = await auth().api.getSession({ headers: request.headers });
-        if (!session) return new Response("Nicht angemeldet", { status: 401 });
+        const user = await requireUser(request, "inhaber");
+        if (user instanceof Response) return user;
         const params = new URL(request.url).searchParams;
         const state = params.get("state");
         let message: string;
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/bank/callback")({
           message = "Die Rückleitung der Bank ist unvollständig.";
         } else {
           try {
-            const result = await completeConnection(session.user.id, {
+            const result = await completeConnection(user.id, {
               state,
               code: params.get("code") ?? undefined,
               error: params.get("error") ?? undefined,

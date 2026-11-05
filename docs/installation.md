@@ -253,7 +253,7 @@ Haben begrenzt Anmeldeversuche je Client-Adresse und liest sie aus dem ersten We
 
 ## Mehrere Instanzen
 
-Haben führt genau eine Buchhaltung: ein Unternehmen, ein Konto. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy.
+Haben führt genau eine Buchhaltung: ein Unternehmen, ein Inhaber, auf Wunsch mit einem [Zugang für die Steuerberatung](steuerberatung.md), der nur lesen kann. Für ein zweites Gewerbe, für Partner oder Familie betreibst du je eine eigene Instanz. Jede hat ihre eigene Datenbank, eigene Belege, eigene Schlüssel und ein eigenes ELSTER-Zertifikat; sichern, umziehen und löschen lässt sich jede für sich. Am einfachsten geht das mit Compose, je Instanz ein Verzeichnis, alle hinter einem gemeinsamen Reverse Proxy.
 
 ```
 haben-firma1/
@@ -640,7 +640,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **Passkey-Anmeldung schlägt fehl.** Meist passt `BETTER_AUTH_URL` nicht zur aufgerufenen Adresse (anderer Hostname, `http` statt `https`, Port). Mit Passwort anmelden geht unabhängig davon. Die Anmeldung ist auf 20 Anfragen pro Minute begrenzt.
 
-**„Haben ist bereits eingerichtet.“** Haben hat genau ein Konto. Ein zweites lässt sich nicht anlegen, auch nicht über die API.
+**„Haben ist bereits eingerichtet.“** Haben hat genau einen Inhaber. Ein zweites Konto entsteht nur über einen Einladungslink für die [Steuerberatung](steuerberatung.md), weder mit dem Einrichtungscode noch über die API.
 
 **Die Oberfläche meldet „ERiC ist nicht eingerichtet“.** Unter **Einstellungen › ELSTER › ERiC** herunterladen. Hast du ERiC von Hand eingebunden, ist `ERIC_HOME` in der App nicht gesetzt; prüfe `.env` bzw. `haben.env` und starte die App neu.
 

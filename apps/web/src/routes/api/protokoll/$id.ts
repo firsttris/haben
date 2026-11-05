@@ -6,7 +6,7 @@ import { loadKapEStProtocol } from "../../../server/modules/ausschuettung/index.
 import { loadAnnualProtocol } from "../../../server/modules/jahreserklaerung/index.ts";
 import { loadLstaProtocol } from "../../../server/modules/lohn/index.ts";
 import { loadDauerfristProtocol, loadFilingProtocol, loadZmProtocol } from "../../../server/modules/umsatzsteuer/index.ts";
-import { auth } from "../../../server/auth.ts";
+import { requireUser } from "../../../server/rollen.ts";
 import { db, schema } from "../../../server/db/index.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 
@@ -15,8 +15,8 @@ export const Route = createFileRoute("/api/protokoll/$id")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const session = await auth().api.getSession({ headers: request.headers });
-        if (!session) return new Response("Nicht angemeldet", { status: 401 });
+        const user = await requireUser(request, "inhaber");
+        if (user instanceof Response) return user;
         const id = z.uuid().safeParse(params.id);
         if (!id.success) return new Response("Nicht gefunden", { status: 404 });
 

@@ -71,6 +71,9 @@ const PAGES = [
   "/einstellungen?bereich=ki",
   "/einstellungen?bereich=export",
   "/einstellungen?bereich=seiten",
+  "/einstellungen?bereich=sicherheit",
+  // So sieht die Steuerberatung Haben; ihre eigene Sicht und die Einladung prüft steuerberatung.spec.ts
+  "/steuerberatung",
 ];
 
 /** Für die übrigen Themes: Seiten, auf denen zusammen jede Art von Link, Knopf, Hinweis und Tabelle vorkommt */

@@ -114,6 +114,8 @@ function InvoicePage() {
 
 function FinalInvoice({ data }: { data: Detail }) {
   const { invoice, corrects, correctedBy } = data;
+  // Die Steuerberatung sieht die Rechnung, ändert und versendet aber nichts
+  const inhaber = Route.useRouteContext().user.role === "inhaber";
   const router = useRouter();
   const navigate = useNavigate();
   const cancel = useServerFn(cancelFinalInvoice);
@@ -130,7 +132,7 @@ function FinalInvoice({ data }: { data: Detail }) {
     void router.invalidate();
   };
   const cancelled = correctedBy.find((c) => c.kind === "storno" && c.status === "final");
-  const canAmend = invoice.kind === "rechnung" && !cancelled;
+  const canAmend = inhaber && invoice.kind === "rechnung" && !cancelled;
 
   const onCancel = () => {
     if (!confirming) {
@@ -175,7 +177,7 @@ function FinalInvoice({ data }: { data: Detail }) {
               XML herunterladen
             </a>
           )}
-          {invoice.kind === "rechnung" && (
+          {inhaber && invoice.kind === "rechnung" && (
             <a className="btn" href={`/api/dokument/lieferschein-rechnung/${invoice.id}`} target="_blank" rel="noreferrer">
               Lieferschein
             </a>
@@ -346,7 +348,7 @@ function FinalInvoice({ data }: { data: Detail }) {
                 {mailNotice}
               </div>
             )}
-            {mailing?.kind === "rechnung" ? (
+            {!inhaber ? null : mailing?.kind === "rechnung" ? (
               <SendMailForm kind="rechnung" id={invoice.id} onDone={mailDone} />
             ) : (
               <div className="actions">
@@ -374,21 +376,23 @@ function FinalInvoice({ data }: { data: Detail }) {
                   </a>
                   <span className="small muted">
                     {formatEuro(d.total)} bis {formatDate(d.dueDate)}{" "}
-                    <button
-                      type="button"
-                      className="link-button"
-                      onClick={() => {
-                        setMailNotice(null);
-                        setMailing({ kind: "mahnung", id: d.id });
-                      }}
-                    >
-                      per E-Mail
-                    </button>
+                    {inhaber && (
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => {
+                          setMailNotice(null);
+                          setMailing({ kind: "mahnung", id: d.id });
+                        }}
+                      >
+                        per E-Mail
+                      </button>
+                    )}
                   </span>
                 </div>
               ))}
               {mailing?.kind === "mahnung" && <SendMailForm key={mailing.id} kind="mahnung" id={mailing.id} onDone={mailDone} />}
-              {data.overdue && (
+              {inhaber && data.overdue && (
                 <div className="actions">
                   <Link to="/rechnungen/mahnwesen/$id" params={{ id: invoice.id }} className="btn">
                     {data.dunnings.length === 0 ? "Zahlungserinnerung erstellen" : "Nächste Mahnstufe"}
@@ -398,7 +402,7 @@ function FinalInvoice({ data }: { data: Detail }) {
             </section>
           )}
 
-          {invoice.kind !== "storno" && (data.open > 0 || data.writeOffs.length > 0) && (
+          {inhaber && invoice.kind !== "storno" && (data.open > 0 || data.writeOffs.length > 0) && (
             <WriteOffs invoiceId={invoice.id} open={data.open} writeOffs={data.writeOffs} today={data.today} />
           )}
 

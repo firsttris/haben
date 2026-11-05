@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigserial, boolean, check, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { ROLLEN } from "../../lib/rollen.ts";
 
 // Tabellen für Better Auth (Kern + Passkey-Plugin)
 
@@ -13,9 +14,16 @@ export const user = pgTable(
     image: text("image"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Rolle des Zugangs. Vorgabe ist die mit den wenigsten Rechten: Inhaber wird nur das erste Konto der Einrichtung
+     * (Hook in server/auth.ts), jedes weitere kommt mit der Rolle seiner Einladung.
+     */
+    role: text("role", { enum: ROLLEN }).notNull().default("steuerberatung"),
+    /** Gesperrt vom Inhaber: keine neue Sitzung, laufende sind gelöscht */
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
   },
-  // Haben hat genau einen Nutzer, auch bei zwei gleichzeitigen Einrichtungen
-  () => [uniqueIndex("user_single").on(sql`(true)`)],
+  // Genau ein Inhaber, auch bei zwei gleichzeitigen Einrichtungen
+  (t) => [uniqueIndex("user_inhaber_single").on(t.role).where(sql`${t.role} = 'inhaber'`), check("user_role", sql`${t.role} in ('inhaber', 'steuerberatung')`)],
 );
 
 export const session = pgTable(
@@ -84,4 +92,43 @@ export const passkey = pgTable(
     aaguid: text("aaguid"),
   },
   (t) => [index("passkey_user_id_idx").on(t.userId), index("passkey_credential_id_idx").on(t.credentialID)],
+);
+
+/**
+ * Einladungen für weitere Zugänge (Steuerberatung). Der Link enthält ein zufälliges Token, gespeichert ist nur sein
+ * SHA-256; einmal einlösbar und nur bis expires_at. Audit-Log per Trigger.
+ */
+export const invitations = pgTable(
+  "invitations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tokenHash: text("token_hash").notNull().unique(),
+    role: text("role", { enum: ROLLEN }).notNull(),
+    /** Vom Inhaber vergeben, z. B. „Kanzlei Muster“ */
+    label: text("label").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedEmail: text("accepted_email"),
+    /** Konto, das mit der Einladung entstanden ist; ohne Fremdschlüssel, die Einladung bleibt nach dem Entfernen im Protokoll */
+    userId: text("user_id"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  // Über eine Einladung entsteht nie ein zweiter Inhaber
+  (t) => [check("invitations_role", sql`${t.role} = 'steuerberatung'`)],
+);
+
+/** Jede Anmeldung mit Rolle und Art (Passwort, Passkey, nach der Einladung), nur anhängen, Audit-Log per Trigger */
+export const userLogins = pgTable(
+  "user_logins",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    /** Ohne Fremdschlüssel: das Protokoll bleibt, wenn der Zugang entfernt wird */
+    userId: text("user_id").notNull(),
+    role: text("role", { enum: ROLLEN }).notNull(),
+    method: text("method").notNull(),
+  },
+  (t) => [index("user_logins_user").on(t.userId, t.at)],
 );
