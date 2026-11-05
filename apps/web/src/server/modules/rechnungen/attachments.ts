@@ -1,9 +1,9 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { MAX_DOCUMENT_SIZE } from "../belege/index.ts";
 import { withActor } from "../../db/actor.ts";
-import { fileInUse } from "../../db/file-in-use.ts";
+import { fileInUse, lockFileUse } from "../../db/file-in-use.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
-import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
+import { loadFile, removeFile, sha256Of, sniff, storeFile } from "../../storage.ts";
 import { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
 import { InvoiceError, lockDraft } from "./invoices.ts";
 
@@ -51,7 +51,8 @@ export async function listInvoiceAttachments(invoiceId: string, q: Db | Tx = db)
 
 /**
  * Hängt eine PDF-Datei an einen Entwurf. Dieselbe Datei ein zweites Mal liefert den vorhandenen Anhang. Die Datei wird
- * vor der Transaktion abgelegt; scheitert diese, bleibt sie unter ihrem Hash liegen, wie bei Belegen ohne Schaden.
+ * unter der Sperre auf ihren Hash (lockFileUse) abgelegt, damit ein gleichzeitiges Entfernen derselben Datei an anderer
+ * Stelle sie nicht nach dem Ablegen löscht; scheitert die Transaktion, bleibt sie unter ihrem Hash liegen, ohne Schaden.
  */
 export async function addInvoiceAttachment(
   actor: string,
@@ -60,9 +61,11 @@ export async function addInvoiceAttachment(
 ): Promise<{ id: string; duplicate: boolean }> {
   const problem = attachmentFileProblem(file);
   if (problem) throw new InvoiceError(problem);
-  const sha256 = await storeFile(file.bytes);
+  const sha256 = sha256Of(file.bytes);
   return withActor(actor, async (tx) => {
     await lockDraft(tx, invoiceId);
+    await lockFileUse(tx, sha256);
+    await storeFile(file.bytes);
     const existing = await listInvoiceAttachments(invoiceId, tx);
     const same = existing.find((a) => a.sha256 === sha256);
     if (same) return { id: same.id, duplicate: true };
@@ -101,9 +104,17 @@ export async function unusedFiles(tx: Tx, hashes: string[]): Promise<string[]> {
   return unused;
 }
 
-/** Nach dem Commit: nicht mehr genutzte Dateien aus dem Speicher nehmen */
+/**
+ * Nach dem Commit: nicht mehr genutzte Dateien aus dem Speicher nehmen. Unter der Sperre auf den Hash noch einmal
+ * prüfen: Ein Anhang, der die Datei inzwischen nutzt, war bei der Prüfung in der Transaktion noch nicht sichtbar.
+ */
 export async function removeFiles(hashes: string[]): Promise<void> {
-  for (const sha256 of hashes) await removeFile(sha256);
+  for (const sha256 of hashes) {
+    await db.transaction(async (tx) => {
+      await lockFileUse(tx, sha256);
+      if (!(await fileInUse(tx, sha256))) await removeFile(sha256);
+    });
+  }
 }
 
 /** Datei eines Anhangs zum Herunterladen, auch nach dem Festschreiben */

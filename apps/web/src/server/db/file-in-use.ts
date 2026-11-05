@@ -15,3 +15,11 @@ export async function fileInUse(tx: Tx, sha256: string): Promise<boolean> {
         or exists (select 1 from invoice_attachments where sha256 = ${sha256}) as used`);
   return Boolean(use?.used);
 }
+
+/**
+ * Sperrt die Datei bis zum Ende der Transaktion für andere, die sie ablegen oder löschen. Ohne die Sperre kann ein
+ * Löschen, dessen Prüfung den gerade entstehenden Datensatz noch nicht sieht, die Datei nach dessen Commit entfernen.
+ */
+export async function lockFileUse(tx: Tx, sha256: string): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`haben-datei:${sha256}`}, 0))`);
+}
