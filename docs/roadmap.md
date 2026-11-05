@@ -28,7 +28,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 
 ## Später oder vielleicht
 
-Sinnvoll, aber nicht jetzt: eigene Drucklayouts, Absenderprofile und Textformatierung in Belegen; Webhooks und Angebote in der API, schreibender MCP-Server; Belege aus Cloud-Speichern; E-Mail-Versand über die Anmeldung bei Google oder Microsoft; ELStAM (offen, ob es eine freigeschaltete Hersteller-ID braucht); § 13b für Bauleistungen; weitere Fälle im Lohn; eigene Sachkonten neben den Kategorien (braucht eine Entscheidung zur Architektur); Module ausblenden; Sammelrechnung aus Lieferscheinen; Lastschrift-Datei (pain.008); Fahrtenbuch; vollständigere Anlage EÜR (Bewirtung, Geschenke, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
+Sinnvoll, aber nicht jetzt: eigene Drucklayouts, Absenderprofile und Textformatierung in Belegen; Webhooks und Angebote in der API, schreibender MCP-Server; Belege aus Cloud-Speichern; E-Mail-Versand über die Anmeldung bei Google oder Microsoft; ELStAM (offen, ob es eine freigeschaltete Hersteller-ID braucht); § 13b für Bauleistungen; weitere Fälle im Lohn; eigene Sachkonten neben den Kategorien (braucht eine Entscheidung zur Architektur); Module ausblenden; Sammelrechnung aus Lieferscheinen; Lastschrift-Datei (pain.008); Fahrtenbuch; vollständigere Anlage EÜR (häusliches Arbeitszimmer, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
 
 ## Bewusst nicht
 

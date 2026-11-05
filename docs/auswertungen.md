@@ -81,10 +81,10 @@ Beide Summen stehen auch als Kacheln in der **Übersicht**, mit Anzahl und über
 
 Die Auswertung ist eine Vorschau und ersetzt nicht die Anlage EÜR. Bekannte Lücken:
 
-- Haben gibt keine Zeilennummern der Anlage EÜR aus. Du überträgst die Positionen selbst oder gibst die CSV an deine Steuerberatung.
+- Die Auswertung nennt keine Zeilennummern der Anlage EÜR. Die Anlage selbst ordnet Haben den Zeilen zu und sendet sie über ELSTER ([Jahreserklärungen](jahreserklaerung.md)).
 - Abschreibungen rechnet Haben linear, als Sofortabschreibung geringwertiger Wirtschaftsgüter und als Sammelposten ([Anlagen und AfA](anlagen.md)); degressive AfA und Sonderabschreibungen fehlen noch ([Roadmap](roadmap.md)).
 - Umsätze zu 0 %, Reverse Charge, Drittland und steuerfreie Umsätze landen gemeinsam unter „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“, ohne weitere Unterscheidung.
-- Private Kfz-Nutzung, Arbeitszimmer, Bewirtungsanteile und ähnliche Korrekturen kennt Haben nicht.
+- Private Kfz-Nutzung rechnet Haben nur nach der 1-%-Regel ([Anlagen](anlagen.md)), ein Fahrtenbuch fehlt. Das häusliche Arbeitszimmer als Mittelpunkt kennt Haben nicht, die Homeoffice-Pauschale schon ([Pauschalen](pauschalen.md)).
 
 > [!NOTE]
 > Lass die EÜR vor der Abgabe von deiner Steuerberatung prüfen, besonders im ersten Jahr mit Haben und wenn du Altbestand aus Lexoffice übernommen hast.
