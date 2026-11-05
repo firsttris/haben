@@ -1229,6 +1229,8 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
 
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Donaublick GmbH");
+  await page.getByLabel("Straße und Hausnummer").fill("Praterstraße 3");
+  await page.getByLabel("PLZ").fill("1020");
   await page.getByLabel("Ort").fill("Wien");
   await page.getByLabel("Land (ISO-Code)").fill("AT");
   await page.getByLabel("USt-IdNr.").fill("ATU12345678");
@@ -1238,7 +1240,7 @@ test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und tes
   await go("/rechnungen/neu");
   await page.getByLabel("Kunde").selectOption({ label: "Donaublick GmbH · Wien" });
   await page.getByLabel("Rechnungsdatum").fill(`${next}-02-10`);
-  await page.getByLabel("Umsatzsteuer", { exact: true }).selectOption("reverse_charge");
+  await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("reverse_charge");
   await page.getByLabel("Beschreibung Position 1").fill("Beratung Cloud-Architektur");
   await page.getByLabel("Menge Position 1").fill("2");
   await page.getByLabel(/Einzelpreis Position 1/).fill("1.200,50");
