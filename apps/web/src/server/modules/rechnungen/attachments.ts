@@ -10,7 +10,7 @@ import { InvoiceError, lockDraft } from "./invoices.ts";
 /**
  * Zusätzliche Anhänge an Ausgangsrechnungen (#272): PDF-Dateien wie Stundenzettel oder Leistungsnachweise, die mit der
  * Rechnung verschickt werden. Hinzufügen und Entfernen nur im Entwurf; beim Festschreiben sperrt die Datenbank sie mit
- * der Rechnung (invoice_attachments_locked, 0123). Die Dateien liegen wie Belege unter ihrem SHA-256 im
+ * der Rechnung (invoice_attachments_locked, 0125). Die Dateien liegen wie Belege unter ihrem SHA-256 im
  * Dokumentenspeicher (storage.ts). PDF und XML der Rechnung bleiben unverändert.
  */
 

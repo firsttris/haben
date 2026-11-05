@@ -117,7 +117,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `dunnings` | Zahlungserinnerungen und Mahnungen mit Stufe, Frist, Gebühr, Pauschale, Zinsen und PDF | nur anhängen, Audit ohne PDF |
 | `invoice_lines` | Positionen einer Rechnung: Bezeichnung (`description`), optionaler mehrzeiliger Text (`detail`, BT-154), Einzelpreis wie eingegeben (netto oder brutto, `invoices.price_mode`), Zeilennetto | gesperrt mit der Rechnung |
 | `invoice_taxes` | Netto und Umsatzsteuer je Steuersatz, einmal beim Speichern des Entwurfs berechnet; Voranmeldung, Zahlungsbuchung, Auswertungen, Schlussrechnung, PDF und XML lesen nur diese Werte | gesperrt mit der Rechnung |
-| `invoice_attachments` | Zusätzliche PDF-Anhänge einer Rechnung (#272): Dateiname, Größe, SHA-256 der Datei im Dateisystem (wie bei Belegen); je Rechnung jede Datei höchstens einmal. PDF und XML der Rechnung bleiben unberührt | gesperrt mit der Rechnung, im Siegel der Rechnung (Siegel ab `0123`), Audit |
+| `invoice_attachments` | Zusätzliche PDF-Anhänge einer Rechnung (#272): Dateiname, Größe, SHA-256 der Datei im Dateisystem (wie bei Belegen); je Rechnung jede Datei höchstens einmal. PDF und XML der Rechnung bleiben unberührt | gesperrt mit der Rechnung, im Siegel der Rechnung (Siegel ab `0125`), Audit |
 | `invoice_number_counters` | Letzte vergebene Nummer je Jahr | darf nicht sinken, Audit |
 | `quotes` | Angebote mit Gültigkeit, PDF, SHA-256, Antwort des Kunden (`decision`) und daraus entstandener Rechnung (`invoice_id`) | gesperrt ab Festschreibung bis auf Antwort und Rechnung, Audit ohne PDF |
 | `quote_lines` | Positionen eines Angebots: Bezeichnung (`description`), optionaler mehrzeiliger Text (`detail`) | gesperrt mit dem Angebot |

@@ -70,7 +70,7 @@ BEGIN
                             FROM invoice_lines l WHERE l.invoice_id = rid),
         'invoice_taxes', (SELECT coalesce(jsonb_agg(haben_pick(to_jsonb(t), cols -> 'invoice_taxes') ORDER BY t.rate), '[]'::jsonb)
                             FROM invoice_taxes t WHERE t.invoice_id = rid))
-        -- Nur Siegel ab 0123 kennen die Anhänge; ältere Siegel ergeben so denselben Inhalt wie bisher
+        -- Nur Siegel ab 0125 kennen die Anhänge; ältere Siegel ergeben so denselben Inhalt wie bisher
         || CASE WHEN cols ? 'invoice_attachments' THEN jsonb_build_object(
              'invoice_attachments', (SELECT coalesce(jsonb_agg(haben_pick(to_jsonb(a), cols -> 'invoice_attachments') ORDER BY a.id), '[]'::jsonb)
                                        FROM invoice_attachments a WHERE a.invoice_id = rid))

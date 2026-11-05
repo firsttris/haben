@@ -154,7 +154,7 @@ describe.skipIf(!testDatabaseUrl)("Zusätzliche Anhänge an Rechnungen (Postgres
     expect(problems).toEqual([]);
   });
 
-  it("ein Siegel ohne Anhänge in seinen Spalten (vor 0123) ergibt denselben Inhalt wie bisher", async () => {
+  it("ein Siegel ohne Anhänge in seinen Spalten (vor 0125) ergibt denselben Inhalt wie bisher", async () => {
     const { id } = await draft();
     await invoices.finalizeInvoice(actor, id);
     const [row] = await sql`
