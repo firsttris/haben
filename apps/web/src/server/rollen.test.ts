@@ -68,9 +68,10 @@ function serverFunctions(): ServerFn[] {
     });
 }
 
+const walk = (dir: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : []));
+
 function apiRoutes(): { id: string; code: string }[] {
-  const walk = (dir: string): string[] =>
-    readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(join(dir, e.name)) : e.name.endsWith(".ts") ? [join(dir, e.name)] : []));
   return walk(routesApi).map((path) => ({ id: relative(routesApi, path), code: readFileSync(path, "utf8") }));
 }
 
@@ -169,6 +170,32 @@ describe("API-Routen", () => {
         [...code.matchAll(/^\s+(\w+): async/gm)].map(([, m]) => m),
         id,
       ).toEqual(["GET"]);
+    }
+  });
+});
+
+describe("Wo Server-Code steht", () => {
+  const src = fileURLToPath(new URL("..", import.meta.url));
+  const files = walk(src)
+    .filter((path) => !/\.test\.tsx?$/.test(path) && !path.endsWith("routeTree.gen.ts"))
+    .map((path) => ({ id: relative(src, path), code: readFileSync(path, "utf8") }));
+
+  // Nur dort lesen die Tests oben jede Server Function und jede Route; anderswo fiele eine ohne Rollenprüfung nicht auf
+  it("Server Functions stehen nur direkt in server/functions", () => {
+    const elsewhere = files.filter((f) => f.code.includes("createServerFn") && !/^server\/functions\/[^/]+\.ts$/.test(f.id)).map((f) => f.id);
+    expect(elsewhere).toEqual([]);
+  });
+
+  it("HTTP-Handler stehen nur in routes/api", () => {
+    const elsewhere = files.filter((f) => /\bhandlers\s*:/.test(f.code) && !f.id.startsWith("routes/api/")).map((f) => f.id);
+    expect(elsewhere).toEqual([]);
+  });
+
+  it("jeder Handler einer Route mit Sitzung prüft den Zugriff selbst", () => {
+    for (const route of apiRoutes().filter((r) => !OHNE_SITZUNG.includes(r.id))) {
+      const handlers = route.code.match(/^\s+(GET|POST|PUT|PATCH|DELETE): /gm)?.length ?? 0;
+      const checks = route.code.match(/requireUser\(request, "\w+"\)|darf\(user\.role, "\w+"\)/g)?.length ?? 0;
+      expect(checks, route.id).toBe(handlers);
     }
   });
 });
