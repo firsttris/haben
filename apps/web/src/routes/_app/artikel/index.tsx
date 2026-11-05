@@ -1,5 +1,5 @@
 import { formatDecimal, formatEuro, LINE_DETAIL_MAX, parseEuro, UNITS, type UnitLabel } from "@haben/core";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { errorMessage } from "../../../lib/format.ts";
@@ -179,7 +179,14 @@ function ArticlesPage() {
           <div className="eyebrow">Verkauf</div>
           <h1>Artikel und Leistungen</h1>
         </div>
-        {!formOpen && <div className="actions">{newButton}</div>}
+        {!formOpen && (
+          <div className="actions">
+            <Link to="/csv-import" search={{ art: "artikel" }} className="btn">
+              CSV importieren
+            </Link>
+            {newButton}
+          </div>
+        )}
       </div>
       <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
         Stundensätze, Tagessätze oder Pauschalen legst du einmal an und fügst sie im Editor mit „Aus dem Katalog einfügen“ ein. Änderungen wirken nur auf neue

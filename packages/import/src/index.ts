@@ -12,3 +12,4 @@ export type { DatevHeader, DatevBooking, DatevStack, DatevYearSums } from "./dat
 export * from "./lexoffice/index.ts";
 export * from "./sevdesk/index.ts";
 export * from "./enablebanking/index.ts";
+export * from "./csv-import/index.ts";

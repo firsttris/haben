@@ -1,0 +1,4 @@
+Kundennummer;Lieferantennummer;Firmenname;Vorname;Nachname;Straße;PLZ;Ort;Land;E-Mail;USt-IdNr.;IBAN
+10001;;Müller & Söhne GmbH;;;Hauptstraße 5;50667;Köln;DE;rechnung@mueller-soehne.example;DE136695976;DE89 3704 0044 0532 0130 00
+10002;;;Erika;Mustermann;Lindenweg 2;80331;München;Deutschland;erika@mustermann.example;;
+;70001;Papierwerk Süd AG;;;Industriestr. 9;70173;Stuttgart;276;buchhaltung@papierwerk.example;;

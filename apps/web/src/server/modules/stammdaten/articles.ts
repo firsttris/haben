@@ -3,7 +3,7 @@ import { LINE_DETAIL_MAX, UNITS, type UnitLabel } from "@haben/core";
 import { asc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 
 /** Artikel- und Leistungskatalog: Vorlagen für Positionen in Rechnungen und Angeboten */
 
@@ -36,8 +36,12 @@ export async function listArticles({ archived = false }: { archived?: boolean } 
 }
 
 export async function createArticle(actor: string, input: ArticleInput): Promise<Article> {
-  const values = articleInputSchema.parse(input);
-  const [row] = await withActor(actor, (tx) => tx.insert(schema.articles).values(values).returning());
+  return withActor(actor, (tx) => insertArticle(tx, input));
+}
+
+/** Legt einen Artikel in der laufenden Transaktion an; auch für den CSV-Import */
+export async function insertArticle(tx: Tx, input: ArticleInput): Promise<Article> {
+  const [row] = await tx.insert(schema.articles).values(articleInputSchema.parse(input)).returning();
   return row!;
 }
 

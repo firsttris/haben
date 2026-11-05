@@ -5,7 +5,7 @@ Wirtschaftsgüter, die länger als ein Jahr im Betrieb bleiben und mehr als 800 
 ## So gehst du vor
 
 1. **Neue Anschaffung:** Lade die Rechnung als [Beleg](belege.md) hoch und wähle die Kategorie **Anlagegut (wird abgeschrieben)**. Gib Bezeichnung, Art, Abschreibung und gegebenenfalls die Nutzungsdauer an und buche den Beleg. Dabei entsteht die Anlage im Verzeichnis.
-2. **Anlage aus Lexoffice oder einer anderen Buchhaltung:** Unter **Anlagen › Anlage übernehmen** trägst du sie mit dem Restbuchwert zum Übernahmestichtag ein (siehe [Übernahme](#übernahme-aus-lexoffice)).
+2. **Anlage aus Lexoffice oder einer anderen Buchhaltung:** Unter **Anlagen › Anlage übernehmen** trägst du sie mit dem Restbuchwert zum Übernahmestichtag ein (siehe [Übernahme](#übernahme-aus-lexoffice)). Viele auf einmal übernimmst du mit **CSV importieren** aus einer Liste ([CSV-Import](csv-import.md#anlagen)).
 3. **Zum Jahresende:** Ab dem 1. Dezember buchst du unter **Anlagen** mit **AfA … buchen** die Abschreibungen des Jahres. Die Übersicht erinnert daran.
 
 In der EÜR steht die AfA schon vorher, sobald die Anlage im Verzeichnis ist.
@@ -61,6 +61,8 @@ Die Lexoffice-Schnittstelle liefert kein Anlagenverzeichnis. Öffne es in Lexoff
 Ab dem Stichtag schreibt Haben den Restbuchwert über die restliche Nutzungsdauer ab. Beispiel: Ein Auto für 36.000 € vom März 2024 mit sechs Jahren Nutzungsdauer hat zum 01.01.2026 noch 50 Monate. Bei einem Restbuchwert von 25.000 € sind das 6.000 € im Jahr.
 
 Voll abgeschriebene Anlagen, GWG aus Vorjahren und Computer mit einjähriger Nutzungsdauer musst du nicht übernehmen.
+
+Mehrere Anlagen übernimmst du mit **Anlagen › CSV importieren** aus einer Liste, mit denselben Regeln und einem Stichtag für die ganze Datei ([CSV-Import](csv-import.md#anlagen)).
 
 Solange nichts gebucht ist, lässt sich eine übernommene Anlage ändern und löschen. Mit der ersten AfA-Buchung bucht Haben auch die Eröffnung:
 
