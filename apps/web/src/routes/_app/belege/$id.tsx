@@ -21,6 +21,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import { z } from "zod/mini";
 import { DocumentCancellation } from "../../../components/DocumentCancellation.tsx";
+import { DocumentSplits, parseSplitRows, splitRow, type SplitRowState } from "../../../components/DocumentSplits.tsx";
 import { DocumentStatus, SOURCE_LABEL } from "../../../components/DocumentStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { SupplierPicker, type SupplierOption } from "../../../components/SupplierPicker.tsx";
@@ -263,7 +264,7 @@ function Preview({ doc }: { doc: Detail["document"] }) {
 }
 
 function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (dirty: boolean) => void }) {
-  const { document: doc, amounts, categories, issues, aiAvailable, navigation } = data;
+  const { document: doc, amounts, splits, categories, issues, aiAvailable, navigation } = data;
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveDocument);
@@ -306,6 +307,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       };
     }),
   );
+  // Aufteilung auf mehrere Kategorien (#271); leer = die Kategorie gilt für den ganzen Beleg
+  const [splitRows, setSplitRows] = useState<SplitRowState[]>(() =>
+    splits.map((s) => splitRow(s.category as ExpenseCategory, s.taxRate as Rate, formatDecimal(s.net))),
+  );
+  const splitting = splitRows.length > 0;
   const [dirty, setDirty] = useState(false);
   const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
@@ -317,14 +323,22 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
 
   const parsed = rows.map((r) => ({ taxRate: r.taxRate, net: parseEuro(r.net || "0"), tax: parseEuro(r.tax || "0") }));
-  const privateShareValue = category === "anlage" ? 0 : Number(privateShare || 0);
+  // Mit Aufteilung gibt es (noch) keinen Privatanteil, siehe Grenzen in docs/belege.md
+  const privateShareValue = category === "anlage" || splitting ? 0 : Number(privateShare || 0);
   const privateShareValid = Number.isInteger(privateShareValue) && privateShareValue >= 0 && privateShareValue <= 100;
   const currencyCode = currency.trim().toUpperCase();
   const foreign = currencyCode !== "EUR";
   const rate = exchangeRate.trim() ? parseExchangeRate(exchangeRate) : null;
   const currencyValid = CURRENCY_CODE.test(currencyCode) && (!foreign || !exchangeRate.trim() || rate !== null);
+  const parsedSplits = splitting ? parseSplitRows(splitRows) : [];
   const valid =
-    parsed.every((p) => p.net !== null && p.tax !== null) && new Set(rows.map((r) => r.taxRate)).size === rows.length && privateShareValid && currencyValid;
+    parsed.every((p) => p.net !== null && p.tax !== null) &&
+    new Set(rows.map((r) => r.taxRate)).size === rows.length &&
+    privateShareValid &&
+    currencyValid &&
+    parsedSplits !== null;
+  // Aufteilen geht im ersten Schritt nur mit deutscher Umsatzsteuer in Euro
+  const splitBlocked = reverseCharge ? "§ 13b" : foreign ? "Fremdwährung" : null;
   // § 13b: gezahlt wird netto, die Steuer geht ans Finanzamt
   const gross = valid ? parsed.reduce((s, p) => s + p.net! + (reverseCharge ? 0 : p.tax!), 0) : null;
   // Fremdwährung: dieselbe Umrechnung wie beim Speichern, damit die Vorschau mit dem Gebuchten übereinstimmt
@@ -353,6 +367,13 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
         }),
       );
     }
+  }
+
+  /** Aufteilen: je Betragszeile eine Zeile mit der bisherigen Kategorie, dazu eine leere zum Verteilen */
+  function startSplitting() {
+    const first = category === "anlage" ? "" : (category as ExpenseCategory | "");
+    const fromAmounts = rows.map((row, i) => splitRow(i === 0 ? first : "", row.taxRate, row.net));
+    touch(setSplitRows)([...fromAmounts, splitRow("", rows[0]?.taxRate ?? 1900, "")]);
   }
 
   function touch<T>(setter: (value: T) => void) {
@@ -407,7 +428,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           invoiceNumber,
           documentDate: documentDate || null,
           dueDate: dueDate || null,
-          category: (category || null) as ExpenseCategory | null,
+          category: splitting ? null : ((category || null) as ExpenseCategory | null),
           payment,
           note,
           privateShare: privateShareValue,
@@ -424,6 +445,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   usefulLifeMonths: assetMethod === "linear" ? parseUsefulLifeMonths(assetYears) : null,
                 }
               : null,
+          splits: parsedSplits ?? [],
           amounts: parsed
             .filter((p) => p.net !== 0 || p.tax !== 0)
             .map((p) =>
@@ -553,52 +575,70 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             Fällig am
             <input type="date" value={dueDate} onChange={(e) => touch(setDueDate)(e.target.value)} />
           </label>
-          <label className="field" style={{ gridColumn: "1 / -1" }}>
-            Kategorie
-            <select
-              value={category}
-              onChange={(e) => {
-                touch(setCategory)(e.target.value);
-                // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
-                const preset = data.privateShares[e.target.value];
-                setPrivateShare(preset ? String(preset) : "");
-              }}
-            >
-              <option value="">Bitte wählen</option>
-              {categories.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-            {data.categoryHint && (
-              <span className="small">
-                Bisher{" "}
-                {data.categoryHint.count === data.categoryHint.total
-                  ? `${data.categoryHint.count}×`
-                  : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
-                als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht
-                {category !== data.categoryHint.category && (
-                  <>
-                    {" · "}
-                    <button
-                      type="button"
-                      className="link-button"
-                      onClick={() => {
-                        const hint = data.categoryHint!.category;
-                        touch(setCategory)(hint);
-                        const preset = data.privateShares[hint];
-                        setPrivateShare(preset ? String(preset) : "");
-                      }}
-                    >
-                      übernehmen
-                    </button>
-                  </>
-                )}
+          {splitting ? (
+            <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
+              <strong>Kategorie:</strong> aufgeteilt auf {splitRows.length} Zeilen, siehe <a href="#aufteilung">Aufteilung auf Kategorien</a>.
+            </p>
+          ) : (
+            <label className="field" style={{ gridColumn: "1 / -1" }}>
+              Kategorie
+              <select
+                value={category}
+                onChange={(e) => {
+                  touch(setCategory)(e.target.value);
+                  // Vorgabe aus den Firmendaten, z. B. Telefon 20 %
+                  const preset = data.privateShares[e.target.value];
+                  setPrivateShare(preset ? String(preset) : "");
+                }}
+              >
+                <option value="">Bitte wählen</option>
+                {categories.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+              {data.categoryHint && (
+                <span className="small">
+                  Bisher{" "}
+                  {data.categoryHint.count === data.categoryHint.total
+                    ? `${data.categoryHint.count}×`
+                    : `${data.categoryHint.count} von ${data.categoryHint.total} Belegen`}{" "}
+                  als {categories.find((c) => c.value === data.categoryHint!.category)?.label ?? data.categoryHint.category} gebucht
+                  {category !== data.categoryHint.category && (
+                    <>
+                      {" · "}
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => {
+                          const hint = data.categoryHint!.category;
+                          touch(setCategory)(hint);
+                          const preset = data.privateShares[hint];
+                          setPrivateShare(preset ? String(preset) : "");
+                        }}
+                      >
+                        übernehmen
+                      </button>
+                    </>
+                  )}
+                </span>
+              )}
+            </label>
+          )}
+          {!splitting && !locked && (
+            <p className="small" style={{ gridColumn: "1 / -1", margin: 0 }}>
+              <button type="button" className="link-button" onClick={startSplitting} disabled={splitBlocked !== null} aria-describedby="split-start-hint">
+                Auf mehrere Kategorien aufteilen
+              </button>
+              <span id="split-start-hint" className="muted">
+                {splitBlocked
+                  ? ` · mit ${splitBlocked} noch nicht möglich`
+                  : " · z. B. Handelsware, Software und Bürobedarf auf einer Rechnung; ein Beleg, eine Zahlung"}
               </span>
-            )}
-          </label>
-          {category === "anlage" && (
+            </p>
+          )}
+          {category === "anlage" && !splitting && (
             <>
               <label className="field" style={{ gridColumn: "1 / -1" }}>
                 Bezeichnung der Anlage
@@ -817,7 +857,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           Gutschriften mit Minus eingeben.
         </p>
         {/* Privatanteil nur im Einzelunternehmen; in GmbH und UG wäre er Arbeitslohn oder verdeckte Gewinnausschüttung */}
-        {category !== "anlage" && !isKapitalgesellschaft(data.rechtsform) && (
+        {category !== "anlage" && !splitting && !isKapitalgesellschaft(data.rechtsform) && (
           <label className="field" style={{ maxWidth: 220 }}>
             Privatanteil in %
             <input
@@ -834,6 +874,25 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           </label>
         )}
       </fieldset>
+
+      {splitting && (
+        <div id="aufteilung">
+          <DocumentSplits
+            rows={splitRows}
+            amounts={
+              parsed.every((p) => p.net !== null && p.tax !== null) && !foreign ? parsed.map((p) => ({ taxRate: p.taxRate, net: p.net!, tax: p.tax! })) : null
+            }
+            categories={categories}
+            disabled={locked || running}
+            onChange={touch(setSplitRows)}
+            onDissolve={() => {
+              // Zurück zu einer Kategorie: die der ersten Zeile
+              touch(setCategory)(splitRows[0]?.category ?? "");
+              setSplitRows([]);
+            }}
+          />
+        </div>
+      )}
 
       <fieldset className="card" disabled={locked || running} style={{ margin: 0 }}>
         <legend style={{ fontWeight: 600, fontSize: 16, padding: 0, marginBottom: 4 }}>Bezahlung</legend>

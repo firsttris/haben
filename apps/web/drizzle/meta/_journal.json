@@ -902,14 +902,28 @@
       "idx": 128,
       "version": "7",
       "when": 1793989974647,
-      "tag": "0128_zusammenfassende_meldung",
+      "tag": "0128_beleg_aufteilung",
       "breakpoints": true
     },
     {
       "idx": 129,
       "version": "7",
       "when": 1793990034647,
-      "tag": "0129_zusammenfassende_meldung_trigger",
+      "tag": "0129_beleg_aufteilung_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1793990094647,
+      "tag": "0130_zusammenfassende_meldung",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1793990154647,
+      "tag": "0131_zusammenfassende_meldung_trigger",
       "breakpoints": true
     }
   ]

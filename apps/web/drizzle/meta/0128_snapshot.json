@@ -1,5 +1,5 @@
 {
-  "id": "1463d348-0ae7-494f-aa84-13e2ab3bb0d6",
+  "id": "e0d86e24-4532-439a-a411-8915acdd038d",
   "prevId": "84b25667-6508-4699-9a42-8c36f8e5d2cb",
   "version": "7",
   "dialect": "postgresql",
@@ -3118,6 +3118,98 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.document_splits": {
+      "name": "document_splits",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_rate": {
+          "name": "tax_rate",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "net": {
+          "name": "net",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax": {
+          "name": "tax",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "document_splits_position": {
+          "name": "document_splits_position",
+          "columns": [
+            {
+              "expression": "document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "position",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "document_splits_document_id_documents_id_fk": {
+          "name": "document_splits_document_id_documents_id_fk",
+          "tableFrom": "document_splits",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -9601,139 +9693,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.zm_submissions": {
-      "name": "zm_submissions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "year": {
-          "name": "year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "month": {
-          "name": "month",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "berichtigt": {
-          "name": "berichtigt",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "zeilen": {
-          "name": "zeilen",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ok": {
-          "name": "ok",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transfer_ticket": {
-          "name": "transfer_ticket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "request_xml": {
-          "name": "request_xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "response_xml": {
-          "name": "response_xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "server_response_xml": {
-          "name": "server_response_xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "protocol_pdf": {
-          "name": "protocol_pdf",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "zm_submissions_period": {
-          "name": "zm_submissions_period",
-          "columns": [
-            {
-              "expression": "year",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "month",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "zm_submissions_month": {
-          "name": "zm_submissions_month",
-          "value": "(\"zm_submissions\".\"month\" between 1 and 12) or (\"zm_submissions\".\"month\" between 41 and 44)"
-        }
-      },
       "isRLSEnabled": false
     }
   },

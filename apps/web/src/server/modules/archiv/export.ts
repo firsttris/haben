@@ -8,6 +8,7 @@ import { db, schema } from "../../db/index.ts";
 import { accountName, openingCash } from "../buchhaltung/index.ts";
 import { loadFile } from "../../storage.ts";
 import { cashBookCsv } from "../bank/index.ts";
+import { splitsByDocument } from "../belege/index.ts";
 import { chainHead, formatPruefwert } from "../auswertungen/index.ts";
 import { today } from "../../today.ts";
 
@@ -473,6 +474,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         )
     : [];
   const amountsByDocument = groupBy(amounts, (a) => a.documentId);
+  const splits = await splitsByDocument(documents.map((d) => d.id));
   const usedDocumentPaths = new Set<string>();
   const documentPaths = new Map<string, string>();
   const documentRows: CsvValue[][] = [];
@@ -496,7 +498,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
       doc.supplierName,
       doc.supplierUstId,
       doc.invoiceNumber,
-      doc.category,
+      // Aufgeteilt (#271): Kategorie, Satz und Netto je Zeile, z. B. „wareneinkauf 19 % 100,00 | software 19 % 50,00“
+      doc.category ?? (splits.get(doc.id) ?? []).map((l) => `${l.category} ${l.taxRate / 100} % ${money(l.net)}`).join(" | "),
       money(rate(1900)?.net),
       money(rate(1900)?.tax),
       money(rate(700)?.net),
