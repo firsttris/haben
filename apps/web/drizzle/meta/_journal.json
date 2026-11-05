@@ -860,14 +860,21 @@
       "idx": 122,
       "version": "7",
       "when": 1793989614647,
-      "tag": "0122_zusammenfassende_meldung",
+      "tag": "0122_skonto",
       "breakpoints": true
     },
     {
       "idx": 123,
       "version": "7",
       "when": 1793989674647,
-      "tag": "0123_zusammenfassende_meldung_trigger",
+      "tag": "0123_zusammenfassende_meldung",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1793989734647,
+      "tag": "0124_zusammenfassende_meldung_trigger",
       "breakpoints": true
     }
   ]

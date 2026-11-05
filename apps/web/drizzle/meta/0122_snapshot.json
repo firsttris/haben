@@ -1,5 +1,5 @@
 {
-  "id": "42d4e431-e7ea-44c2-8cd0-523846b98ef6",
+  "id": "434c874c-65f0-4316-a21b-e12a56d68326",
   "prevId": "019ba626-8570-462f-9eaf-a3f974008b51",
   "version": "7",
   "dialect": "postgresql",
@@ -2120,6 +2120,13 @@
           "notNull": true,
           "default": 14
         },
+        "skonto": {
+          "name": "skonto",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
         "default_format": {
           "name": "default_format",
           "type": "invoice_format",
@@ -2520,6 +2527,12 @@
           "name": "default_format",
           "type": "invoice_format",
           "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "skonto": {
+          "name": "skonto",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -4408,6 +4421,13 @@
           "type": "date",
           "primaryKey": false,
           "notNull": true
+        },
+        "skonto": {
+          "name": "skonto",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "format": {
           "name": "format",
@@ -8735,139 +8755,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.zm_submissions": {
-      "name": "zm_submissions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "year": {
-          "name": "year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "month": {
-          "name": "month",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "berichtigt": {
-          "name": "berichtigt",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "zeilen": {
-          "name": "zeilen",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ok": {
-          "name": "ok",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transfer_ticket": {
-          "name": "transfer_ticket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "request_xml": {
-          "name": "request_xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "response_xml": {
-          "name": "response_xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "server_response_xml": {
-          "name": "server_response_xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "protocol_pdf": {
-          "name": "protocol_pdf",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "zm_submissions_period": {
-          "name": "zm_submissions_period",
-          "columns": [
-            {
-              "expression": "year",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "month",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "zm_submissions_month": {
-          "name": "zm_submissions_month",
-          "value": "(\"zm_submissions\".\"month\" between 1 and 12) or (\"zm_submissions\".\"month\" between 41 and 44)"
-        }
-      },
       "isRLSEnabled": false
     }
   },

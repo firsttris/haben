@@ -1,4 +1,4 @@
-import type { BasisPoints, Cents, InvoiceTotals, LegalInfo, Millis, PriceMode, TaxTreatment, UnitLabel } from "@haben/core";
+import type { BasisPoints, Cents, InvoiceTotals, LegalInfo, Millis, PriceMode, SkontoStufe, TaxTreatment, UnitLabel } from "@haben/core";
 
 /** Rechnung, Stornorechnung oder Rechnungskorrektur (Gutschrift) */
 export type InvoiceKind = "rechnung" | "storno" | "korrektur";
@@ -81,6 +81,8 @@ export interface InvoiceDocument extends Letterhead {
   issueDate: string;
   dueDate: string;
   paymentTermDays: number;
+  /** Skonto nach Frist ab dem Rechnungsdatum; nur bei Rechnungen mit Zahlbetrag, fehlt = ohne Abzug */
+  skonto?: SkontoStufe[];
   serviceFrom?: string;
   serviceTo?: string;
   /** ISO-4217-Code; Beträge in lines und totals sind in dieser Währung */

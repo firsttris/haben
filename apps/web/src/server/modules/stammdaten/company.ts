@@ -5,6 +5,8 @@ import {
   isKapitalgesellschaft,
   legalInfo,
   legalInfoGaps,
+  skontoProblem,
+  skontoStufenSchema,
   toElsterSteuernummer,
   SteuernummerError,
   type Versteuerung,
@@ -70,6 +72,8 @@ export const companySchema = z
     geschaeftsfuehrer: z.string().trim().max(1000).default(""),
     aufsichtsratVorsitz: z.string().trim().max(200).default(""),
     paymentTermDays: z.number().int().min(0).max(120),
+    /** Vorgabe für das Skonto neuer Rechnungen; fehlt = unverändert */
+    skonto: z.optional(skontoStufenSchema),
     defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     /** Vorgabe für die Einleitung neuer Rechnungen und Angebote; so lang wie das Feld im Beleg */
     invoiceIntro: z.string().trim().max(2000).default(""),
@@ -94,6 +98,10 @@ export const companySchema = z
   .refine((c) => !isKapitalgesellschaft(c.rechtsform) || Object.values(c.privateShares).every((share) => !share), {
     message: "Privatanteile gibt es nur im Einzelunternehmen",
     path: ["privateShares"],
+  })
+  .superRefine((c, ctx) => {
+    const problem = c.skonto ? skontoProblem(c.skonto, c.paymentTermDays) : null;
+    if (problem) ctx.addIssue({ code: "custom", message: problem, path: ["skonto"] });
   });
 
 export type CompanyInput = z.infer<typeof companySchema>;
@@ -220,6 +228,8 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     bundesland: company.bundesland,
     kleinunternehmer: company.kleinunternehmer,
     tageskurs: company.tageskurs,
+    /** Skonto-Vorgabe für Kunden ohne eigenes */
+    companySkonto: company.skonto,
     numberFormat: kind === "rechnung" ? company.invoiceNumberFormat : company.quoteNumberFormat,
     numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
   };

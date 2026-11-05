@@ -101,7 +101,7 @@ curl -s -X POST "$HABEN/kontakte" -H "Authorization: Bearer $TOKEN" -H "Content-
   -d '{"name": "Anna Muster", "strasse": "Lindenweg 3", "plz": "10115", "ort": "Berlin", "email": "anna@example.com"}'
 ```
 
-Rechnungsentwurf zu einer Etsy-Bestellung, zwei Becher zu je 24,00 € netto mit 19 %. Nicht genannte Felder nehmen die Vorgaben aus den Firmendaten (Zahlungsziel, Format, Einleitung, Kleinunternehmer), Format und Sprache wie im Rechnungseditor vom Kontakt (sein Standardformat, mit Leitweg-ID XRechnung), das Datum ist heute:
+Rechnungsentwurf zu einer Etsy-Bestellung, zwei Becher zu je 24,00 € netto mit 19 %. Nicht genannte Felder nehmen die Vorgaben aus den Firmendaten (Zahlungsziel, Format, Einleitung, Kleinunternehmer), Format, Sprache und Skonto wie im Rechnungseditor vom Kontakt (sein Standardformat, mit Leitweg-ID XRechnung), das Datum ist heute:
 
 ```sh
 curl -s -X POST "$HABEN/rechnungen" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{
@@ -133,9 +133,11 @@ Die Antwort enthält Summen, Positionen und `url`, den Link auf den Entwurf in H
 }
 ```
 
+Skonto steht in `skonto` als Liste von Stufen, Frist in Tagen ab dem Rechnungsdatum und Satz in Basispunkten: `"skonto": [{ "days": 10, "percent": 200 }]` für 2 % in 10 Tagen, `[]` für keins. Ohne Angabe gilt das Skonto des Kontakts, sonst das aus den Firmendaten, ohne Stufen über das Zahlungsziel hinaus; bei Fremdwährung keins (siehe [Skonto](rechnungen.md#skonto)).
+
 Endpreise inklusive Umsatzsteuer, wie in Shops üblich, gehen mit `"priceMode": "brutto"`; dann ist `unitPrice` der Bruttopreis in Cent. Einheiten sind `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.` und `km`.
 
-Entwurf ändern, nur die genannten Felder; `lines` ersetzt alle Positionen:
+Entwurf ändern, nur die genannten Felder; `lines` ersetzt alle Positionen. Ohne `skonto` passt sich das Skonto des Entwurfs an: Stufen über ein neues Zahlungsziel hinaus entfallen, bei Fremdwährung entfällt es ganz. Beispiel:
 
 ```sh
 curl -s -X PATCH "$HABEN/rechnungen/5f3e…" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \

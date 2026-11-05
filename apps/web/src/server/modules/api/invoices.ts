@@ -2,6 +2,7 @@ import type { z } from "zod";
 import {
   createDraftForReference,
   createDraft,
+  defaultSkonto,
   deleteDraft,
   draftInputOf,
   draftSchema,
@@ -12,7 +13,7 @@ import {
   type Invoice,
   type InvoiceLine,
 } from "../rechnungen/index.ts";
-import { getContact, type Contact } from "../stammdaten/index.ts";
+import { getContact, loadCompany, type Contact } from "../stammdaten/index.ts";
 import { fail, noContent, notFound, ok, validate, type ApiRequest, type ApiResult } from "./http.ts";
 import { draftCreateSchema, draftPatchSchema, invoiceQuerySchema, type invoiceSchema, type invoiceSummarySchema } from "./schemas.ts";
 
@@ -55,6 +56,7 @@ function invoiceOut(row: ListRow, invoice: Invoice, lines: InvoiceLine[], baseUr
     serviceFrom: invoice.serviceFrom,
     serviceTo: invoice.serviceTo,
     paymentTermDays: invoice.paymentTermDays,
+    skonto: invoice.skonto,
     format: invoice.format,
     intro: invoice.intro,
     note: invoice.note,
@@ -98,6 +100,15 @@ async function contactProblem(contactId: string | null | undefined): Promise<Api
   return fail("unprocessable", "Kontakt nicht gefunden. Erst über /kontakte anlegen.");
 }
 
+/** Skonto gibt es nur auf Rechnungen in Euro; ohne Angabe ist die Währung Euro */
+function isEuro(currency: unknown): boolean {
+  return (
+    String(currency ?? "EUR")
+      .trim()
+      .toUpperCase() === "EUR"
+  );
+}
+
 /** Vorgaben eines Kunden wie im Rechnungseditor (chooseContact): sein Format, mit Leitweg-ID XRechnung, und seine Sprache */
 function contactDefaults(contact: Contact | undefined): { format?: NonNullable<Contact["defaultFormat"]>; language?: Contact["language"] } {
   if (!contact) return {};
@@ -125,7 +136,7 @@ export async function getInvoiceHandler(request: ApiRequest): Promise<ApiResult>
 }
 
 /**
- * Neuer Entwurf mit den Vorgaben der Oberfläche (Zahlungsziel, Format, Steuer aus den Firmendaten). Mit externer
+ * Neuer Entwurf mit den Vorgaben der Oberfläche (Zahlungsziel, Skonto, Format, Steuer aus den Firmendaten). Mit externer
  * Referenz idempotent: gibt es sie schon, kommt diese Rechnung unverändert mit 200 zurück statt eines Duplikats.
  */
 export async function createInvoiceHandler(request: ApiRequest): Promise<ApiResult> {
@@ -135,7 +146,10 @@ export async function createInvoiceHandler(request: ApiRequest): Promise<ApiResu
   if (problem) return problem;
   const contact = shape.data.contactId ? (await getContact(shape.data.contactId))?.contact : undefined;
   const { externalSource, externalId, ...fields } = request.body as Record<string, unknown>;
-  const input = validate(draftSchema, { ...(await newDraftDefaults(request.today)), ...contactDefaults(contact), ...fields });
+  const merged = { ...(await newDraftDefaults(request.today)), ...contactDefaults(contact), ...fields };
+  // Skonto ohne Angabe wie im Editor: vom Kunden, sonst aus den Firmendaten, passend zum Zahlungsziel; in Fremdwährung keins
+  if (!("skonto" in fields)) merged.skonto = isEuro(fields.currency) ? defaultSkonto(await loadCompany(), contact, merged.paymentTermDays) : [];
+  const input = validate(draftSchema, merged);
   if ("failure" in input) return input.failure;
   const reference =
     shape.data.externalSource && shape.data.externalId ? { externalSource: shape.data.externalSource, externalId: shape.data.externalId } : null;
@@ -156,7 +170,14 @@ export async function updateInvoiceHandler(request: ApiRequest): Promise<ApiResu
   if (invoice.kind !== "rechnung" || invoice.variant || invoice.quoteId) {
     return fail("conflict", "Storno, Korrektur, Abschlags- und Schlussrechnung sowie Rechnungen zu einem Angebot bitte in Haben bearbeiten.");
   }
-  const input = validate(draftSchema, { ...draftInputOf(invoice, lines), ...(request.body as object) });
+  const body = request.body as Record<string, unknown>;
+  const merged = { ...draftInputOf(invoice, lines), ...body };
+  // Ohne Angabe passt sich das Skonto an wie beim Anlegen, damit ein Client ohne Skonto Zahlungsziel und Währung ändern
+  // kann: Fristen über das neue Zahlungsziel hinaus entfallen, in Fremdwährung keins
+  if (!("skonto" in body)) {
+    merged.skonto = isEuro(merged.currency) ? (merged.skonto ?? []).filter((s) => s.days <= Number(merged.paymentTermDays)) : [];
+  }
+  const input = validate(draftSchema, merged);
   if ("failure" in input) return input.failure;
   const problem = await contactProblem(input.data.contactId);
   if (problem) return problem;
