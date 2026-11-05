@@ -98,10 +98,7 @@ export async function darlehenBuchung(
  * Vor dem Aufheben von Zuordnungen: Ohne eine Auszahlung dürfen die Tilgungen den Bestand nicht übersteigen, sonst stünde
  * das Darlehen im Minus, obwohl beim Buchen jede Tilgung auf den Bestand begrenzt ist. Erst die Tilgungen aufheben.
  */
-export async function darlehenAufhebenPruefen(
-  tx: Tx,
-  parts: { loanId: string | null; loanPart: DarlehenTeil | null; amount: Cents }[],
-): Promise<void> {
+export async function darlehenAufhebenPruefen(tx: Tx, parts: { loanId: string | null; loanPart: DarlehenTeil | null; amount: Cents }[]): Promise<void> {
   const wirkung = new Map<string, Cents>();
   for (const p of parts) {
     if (p.loanId && (p.loanPart === "auszahlung" || p.loanPart === "tilgung")) wirkung.set(p.loanId, (wirkung.get(p.loanId) ?? 0) - p.amount);
