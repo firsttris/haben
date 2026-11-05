@@ -49,19 +49,21 @@ const TAXONOMIEN: [EbilanzTaxonomie, number][] = [
   ["6.10", 2027],
 ];
 
-describe.skipIf(!ericHome).each(TAXONOMIEN.filter(([version]) => ericHome && hatJahresPlugin(ericHome, `Bilanz_${version}`)))(
-  "E-Bilanz mit ERiC (Taxonomie %s, Wirtschaftsjahr %i)",
-  (taxonomie, year) => {
-    const client = new EricProcessClient({ ericHome: ericHome! });
-    const pruefe = async (input: Omit<EbilanzInput, "year" | "taxonomie" | "konten"> & { konten?: EbilanzInput["konten"] }) => {
-      const xml = buildEbilanzXml({ year, taxonomie, konten: kontenAus(input.werte as Record<string, number>), ...input });
-      const result = await client.validate(xml);
-      expect(ericMeldungen(result.responseXml), result.message).toEqual([]);
-      expect(result.code).toBe(0);
-      expect(xml).toContain("detailedInformation.accountBalances");
-    };
+describe.each(TAXONOMIEN)("E-Bilanz mit ERiC (Taxonomie %s, Wirtschaftsjahr %i)", (taxonomie, year) => {
+  // Ohne ERiC oder ohne dessen Plugin für die Taxonomie (ERiC 44 kennt 6.10 nicht) übersprungen
+  const fall = ericHome && hatJahresPlugin(ericHome, `Bilanz_${taxonomie}`) ? it : it.skip;
+  const client = ericHome ? new EricProcessClient({ ericHome }) : null;
+  const pruefe = async (input: Omit<EbilanzInput, "year" | "taxonomie" | "konten"> & { konten?: EbilanzInput["konten"] }) => {
+    const xml = buildEbilanzXml({ year, taxonomie, konten: kontenAus(input.werte as Record<string, number>), ...input });
+    const result = await client!.validate(xml);
+    expect(ericMeldungen(result.responseXml), result.message).toEqual([]);
+    expect(result.code).toBe(0);
+    expect(xml).toContain("detailedInformation.accountBalances");
+  };
 
-    it("Gründungsjahr: Stammkapital eingezahlt, Gewinn, ohne Anlagevermögen", async () => {
+  fall(
+    "Gründungsjahr: Stammkapital eingezahlt, Gewinn, ohne Anlagevermögen",
+    async () => {
       await pruefe({
         ...basis,
         werte: {
@@ -76,9 +78,13 @@ describe.skipIf(!ericHome).each(TAXONOMIEN.filter(([version]) => ericHome && hat
         bvv: { eigenkapitalVorjahr: 0, ausschuettungen: 0, einlagen: 2_500_000 },
         anlagen: [],
       });
-    }, 60_000);
+    },
+    60_000,
+  );
 
-    it("Folgejahr: Pkw mit AfA im Anlagenspiegel, Verlust", async () => {
+  fall(
+    "Folgejahr: Pkw mit AfA im Anlagenspiegel, Verlust",
+    async () => {
       await pruefe({
         ...basis,
         werte: {
@@ -105,10 +111,14 @@ describe.skipIf(!ericHome).each(TAXONOMIEN.filter(([version]) => ericHome && hat
           },
         ],
       });
-    }, 60_000);
+    },
+    60_000,
+  );
 
-    // GWG im Jahr gekauft und abgeschrieben: Anlagenspiegel mit Bewegung, Buchwert und Anlagevermögen 0
-    it("GWG im Jahr abgeschrieben: Anlagenspiegel ohne Buchwert", async () => {
+  // GWG im Jahr gekauft und abgeschrieben: Anlagenspiegel mit Bewegung, Buchwert und Anlagevermögen 0
+  fall(
+    "GWG im Jahr abgeschrieben: Anlagenspiegel ohne Buchwert",
+    async () => {
       await pruefe({
         ...basis,
         werte: {
@@ -132,101 +142,102 @@ describe.skipIf(!ericHome).each(TAXONOMIEN.filter(([version]) => ericHome && hat
           },
         ],
       });
-    }, 60_000);
+    },
+    60_000,
+  );
 
-    // Restlaufzeiten (§ 268 Abs. 4 und 5 HGB) als Davon-Positionen, Gesellschafter auf eigenen Positionen (§ 42 Abs. 3 GmbHG)
-    it.each([
-      [
-        "SKR03",
-        {
-          bank: "1200",
-          kapital: "0800",
-          ford: "1400",
-          fordGes: "1383",
-          lulGes: "1490",
-          verb: "1600",
-          ges: "0730",
-          darlehen: "0640",
-          ust: "1776",
-          erloese: "8400",
-        },
-      ],
-      [
-        "SKR04",
-        {
-          bank: "1800",
-          kapital: "2900",
-          ford: "1200",
-          fordGes: "1309",
-          lulGes: "1250",
-          verb: "3300",
-          ges: "3510",
-          darlehen: "3160",
-          ust: "3806",
-          erloese: "4400",
-        },
-      ],
-    ] as const)(
-      "%s: Davon-Vermerke zu Restlaufzeiten und Gesellschafter",
-      async (kontenrahmen, k) => {
-        const salden = [
-          { account: k.bank, saldo: 3_100_000 },
-          { account: k.ford, saldo: 500_000 },
-          { account: k.erloese, saldo: -100_000 },
-          { account: k.fordGes, saldo: 100_000 },
-          { account: k.lulGes, saldo: 50_000 },
-          { account: k.kapital, saldo: -2_500_000 },
-          { account: k.verb, saldo: -150_000 },
-          { account: k.ges, saldo: -350_000 },
-          { account: k.darlehen, saldo: -600_000 },
-          { account: k.ust, saldo: -50_000 },
-        ];
-        const { zuordnung, fehlend } = ebilanzZuordnung(kontenrahmen, salden);
-        expect(fehlend).toEqual([]);
-        const konten = vermerkKonten(kontenrahmen, abschluss(kontenrahmen, salden));
-        const davon = ebilanzRestlaufzeiten(
-          kontenrahmen,
-          konten,
-          new Map([
-            [k.darlehen, 600_000],
-            [k.fordGes, 100_000],
-            [k.ges, 200_000],
-          ]),
-        );
-        expect(davon["bs.eqLiab.liab.above1year"]).toBe(800_000);
-        await pruefe({
-          ...basis,
-          werte: { ...ebilanzWerte(zuordnung, taxonomie), ...davon },
-          konten: ebilanzKontensalden(zuordnung, (a) => `Konto ${a}`, taxonomie),
-          bvv: { eigenkapitalVorjahr: 2_500_000, ausschuettungen: 0, einlagen: 0 },
-          anlagen: [],
-        });
+  // Restlaufzeiten (§ 268 Abs. 4 und 5 HGB) als Davon-Positionen, Gesellschafter auf eigenen Positionen (§ 42 Abs. 3 GmbHG)
+  fall.each([
+    [
+      "SKR03",
+      {
+        bank: "1200",
+        kapital: "0800",
+        ford: "1400",
+        fordGes: "1383",
+        lulGes: "1490",
+        verb: "1600",
+        ges: "0730",
+        darlehen: "0640",
+        ust: "1776",
+        erloese: "8400",
       },
-      60_000,
-    );
+    ],
+    [
+      "SKR04",
+      {
+        bank: "1800",
+        kapital: "2900",
+        ford: "1200",
+        fordGes: "1309",
+        lulGes: "1250",
+        verb: "3300",
+        ges: "3510",
+        darlehen: "3160",
+        ust: "3806",
+        erloese: "4400",
+      },
+    ],
+  ] as const)(
+    "%s: Davon-Vermerke zu Restlaufzeiten und Gesellschafter",
+    async (kontenrahmen, k) => {
+      const salden = [
+        { account: k.bank, saldo: 3_100_000 },
+        { account: k.ford, saldo: 500_000 },
+        { account: k.erloese, saldo: -100_000 },
+        { account: k.fordGes, saldo: 100_000 },
+        { account: k.lulGes, saldo: 50_000 },
+        { account: k.kapital, saldo: -2_500_000 },
+        { account: k.verb, saldo: -150_000 },
+        { account: k.ges, saldo: -350_000 },
+        { account: k.darlehen, saldo: -600_000 },
+        { account: k.ust, saldo: -50_000 },
+      ];
+      const { zuordnung, fehlend } = ebilanzZuordnung(kontenrahmen, salden);
+      expect(fehlend).toEqual([]);
+      const konten = vermerkKonten(kontenrahmen, abschluss(kontenrahmen, salden));
+      const davon = ebilanzRestlaufzeiten(
+        kontenrahmen,
+        konten,
+        new Map([
+          [k.darlehen, 600_000],
+          [k.fordGes, 100_000],
+          [k.ges, 200_000],
+        ]),
+      );
+      expect(davon["bs.eqLiab.liab.above1year"]).toBe(800_000);
+      await pruefe({
+        ...basis,
+        werte: { ...ebilanzWerte(zuordnung, taxonomie), ...davon },
+        konten: ebilanzKontensalden(zuordnung, (a) => `Konto ${a}`, taxonomie),
+        bvv: { eigenkapitalVorjahr: 2_500_000, ausschuettungen: 0, einlagen: 0 },
+        anlagen: [],
+      });
+    },
+    60_000,
+  );
 
-    // Jedes Konto, das Haben bucht, mit einem Saldo auf seiner üblichen Seite; die Bank gleicht aus
-    it.each(["SKR03", "SKR04"] as const)(
-      "%s: alle Konten der Zuordnung zusammen",
-      async (kontenrahmen: Kontenrahmen) => {
-        const salden = Object.keys(EBILANZ_KONTEN[kontenrahmen]).map((account, i) => {
-          const posten = postenOf(kontenrahmen, account)!;
-          const soll = posten.startsWith("aktiva.") || !["passiva.", "umsatzerloese", "sonstigeErtraege"].some((p) => posten.startsWith(p));
-          return { account, saldo: (soll ? 1 : -1) * (10_000 + i * 100) };
-        });
-        const bank = kontenrahmen === "SKR03" ? "1200" : "1800";
-        const ohneBank = salden.filter((s) => s.account !== bank);
-        const { zuordnung, fehlend } = ebilanzZuordnung(kontenrahmen, [...ohneBank, { account: bank, saldo: -ohneBank.reduce((sum, s) => sum + s.saldo, 0) }]);
-        expect(fehlend).toEqual([]);
-        const werte = ebilanzWerte(zuordnung, taxonomie);
-        const anlagen: AnlagenspiegelZeile[] = Object.entries(werte)
-          .filter(([position]) => position.startsWith("bs.ass.fixAss."))
-          .map(([position, wert]) => ({ position, akAnfang: wert, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 }));
-        const eigenkapital = ["bs.eqLiab.equity.subscribed.corp", "bs.eqLiab.equity.retainedEarnings"].reduce((sum, p) => sum + (werte[p] ?? 0), 0);
-        const konten = ebilanzKontensalden(zuordnung, (a) => `Konto ${a}`, taxonomie);
-        await pruefe({ ...basis, werte, konten, bvv: { eigenkapitalVorjahr: eigenkapital, ausschuettungen: 0, einlagen: 0 }, anlagen });
-      },
-      60_000,
-    );
-  },
-);
+  // Jedes Konto, das Haben bucht, mit einem Saldo auf seiner üblichen Seite; die Bank gleicht aus
+  fall.each(["SKR03", "SKR04"] as const)(
+    "%s: alle Konten der Zuordnung zusammen",
+    async (kontenrahmen: Kontenrahmen) => {
+      const salden = Object.keys(EBILANZ_KONTEN[kontenrahmen]).map((account, i) => {
+        const posten = postenOf(kontenrahmen, account)!;
+        const soll = posten.startsWith("aktiva.") || !["passiva.", "umsatzerloese", "sonstigeErtraege"].some((p) => posten.startsWith(p));
+        return { account, saldo: (soll ? 1 : -1) * (10_000 + i * 100) };
+      });
+      const bank = kontenrahmen === "SKR03" ? "1200" : "1800";
+      const ohneBank = salden.filter((s) => s.account !== bank);
+      const { zuordnung, fehlend } = ebilanzZuordnung(kontenrahmen, [...ohneBank, { account: bank, saldo: -ohneBank.reduce((sum, s) => sum + s.saldo, 0) }]);
+      expect(fehlend).toEqual([]);
+      const werte = ebilanzWerte(zuordnung, taxonomie);
+      const anlagen: AnlagenspiegelZeile[] = Object.entries(werte)
+        .filter(([position]) => position.startsWith("bs.ass.fixAss."))
+        .map(([position, wert]) => ({ position, akAnfang: wert, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 }));
+      const eigenkapital = ["bs.eqLiab.equity.subscribed.corp", "bs.eqLiab.equity.retainedEarnings"].reduce((sum, p) => sum + (werte[p] ?? 0), 0);
+      const konten = ebilanzKontensalden(zuordnung, (a) => `Konto ${a}`, taxonomie);
+      await pruefe({ ...basis, werte, konten, bvv: { eigenkapitalVorjahr: eigenkapital, ausschuettungen: 0, einlagen: 0 }, anlagen });
+    },
+    60_000,
+  );
+});
