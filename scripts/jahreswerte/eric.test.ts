@@ -44,7 +44,7 @@ describe("ERiC", () => {
     expect(e.befunde.map((b) => b.schluessel)).toEqual(["eric-43.4.6.0-entfernt", "eric"]);
   });
 
-  describe("BETA einer neuen Hauptversion (Entwicklerhandbuch Kap. 2.3 und 5.4.3)", () => {
+  describe("BETA einer neuen Hauptversion (Entwicklerhandbuch Kap. 2.3 und 5.4.3, Releasenotes)", () => {
     it("meldet <Haupt>.1 einer neuen Hauptversion nicht, solange es kein <Haupt>.2 gibt", async () => {
       const e = await pruefeEric("44.3.6.0", nachgestellt(vorhanden("44.3.6.0", "45.1.5.0")));
       expect(e.befunde).toEqual([]);
