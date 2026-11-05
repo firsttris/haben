@@ -94,10 +94,11 @@ Der Import ist eine [Übernahme aus der bisherigen Buchhaltung](anlagen.md#über
 | --- | --- | --- |
 | Bezeichnung | Bezeichnung, Anlagegut, Wirtschaftsgut | Pflicht |
 | Art | Art, Anlagenart, Kategorie | Fahrzeug (auch Pkw, Lkw), Computer (auch Hardware, Software, Laptop), Büromöbel, Sonstiges. Leer ist Sonstiges |
-| Abschreibung | Abschreibung, AfA-Art, AfA-Methode | linear, GWG, Sammelposten oder digital (Computer mit einem Jahr). Leer: der Vorschlag zur Art ([Art und Abschreibung](anlagen.md#art-und-abschreibung)) |
+| Abschreibung | Abschreibung, AfA-Art, AfA-Methode | linear, degressiv, Elektro (§ 7 Abs. 2a EStG, nur Fahrzeuge im Einzelunternehmen), GWG, Sammelposten oder digital (Computer mit einem Jahr). Leer: der Vorschlag zur Art ([Art und Abschreibung](anlagen.md#art-und-abschreibung)) |
 | Anschaffungsdatum | Anschaffungsdatum, Kaufdatum, Zugangsdatum | Pflicht, vor dem Stichtag |
 | Anschaffungskosten | Anschaffungskosten, AK, AHK | Pflicht, netto |
-| Nutzungsdauer | Nutzungsdauer (Jahre), Nutzungsdauer (Monate) | Bei linearer AfA Pflicht; in Jahren auch als Bruchteil, solange ganze Monate herauskommen (`2,5` = 30 Monate) |
+| Nutzungsdauer | Nutzungsdauer (Jahre), Nutzungsdauer (Monate) | Bei linearer und degressiver AfA Pflicht; in Jahren auch als Bruchteil, solange ganze Monate herauskommen (`2,5` = 30 Monate) |
+| Degressiver Satz | Degressiver Satz, AfA-Satz | In Prozent (`25`, `23,07`); leer: der Höchstsatz ([Degressive AfA](anlagen.md#degressive-afa)) |
 | Restbuchwert zum Stichtag | Restbuchwert, Buchwert | Buchwert am Tag vor dem Stichtag, also zum 31.12. des Vorjahres |
 | Bisherige AfA | bisherige AfA, kumulierte AfA | Statt des Restbuchwerts: Anschaffungskosten minus bisherige AfA. Stehen beide da, müssen sie zusammenpassen |
 | Notiz | Notiz, Bemerkung, Inventarnummer | |
@@ -118,7 +119,7 @@ Haben übernimmt nur, was das Anlagenverzeichnis fachlich richtig abbilden kann.
 | GWG oder Computer mit einem Jahr aus einem Vorjahr mit Restbuchwert über 0 | Beide sind im Anschaffungsjahr voll abgeschrieben. |
 | Linear mit abgelaufener Nutzungsdauer und Restbuchwert über 0, Sammelposten nach fünf Jahren mit Restbuchwert | Der Rest müsste schon abgeschrieben sein. |
 | Restbuchwert unter 0 oder über den Anschaffungskosten, Sammelposten oder GWG außerhalb der Grenzen | Wie im Formular ([Art und Abschreibung](anlagen.md#art-und-abschreibung)). |
-| Degressive AfA und andere Methoden | Haben rechnet nur linear ([Grenzen](anlagen.md#grenzen)). |
+| Degressive oder Elektro-AfA mit einem Restbuchwert, der nicht zum Plan passt, mit Stichtag nicht am 01.01. oder außerhalb der Zeiträume | Haben kann nicht nachrechnen, wie die bisherige Buchhaltung abgeschrieben hat, und nennt den rechnerischen Wert. Übernimm die Anlage dann linear mit Restbuchwert; das ist der Wechsel zur linearen AfA nach § 7 Abs. 3 EStG ([Übernahme](anlagen.md#übernahme-aus-lexoffice)). |
 | Stichtag in einem Jahr, für das schon AfA gebucht ist, oder in einem abgeschlossenen Jahr | Der Import sperrt dann die ganze Datei: Er änderte die AfA eines Jahres, dessen EÜR, Bilanz oder Voranmeldungen womöglich schon abgegeben sind. Nachträge für frühere Jahre klärst du mit der Steuerberatung. |
 
 Private Kfz-Nutzung und Abgang übernimmt der Import nicht. Beides trägst du danach auf der Seite der Anlage ein ([Private Nutzung](anlagen.md#private-nutzung-von-firmenwagen), [Abgang](anlagen.md#abgang)).

@@ -22,7 +22,7 @@ Die Sperren stecken nicht nur im Anwendungscode, sondern als Trigger in Postgres
 | Kontakte | `contacts` | Löschen abgelehnt; jede Änderung erhöht die Version und legt eine Kopie in `contact_versions` ab |
 | Angebote | `quotes` | Nach dem Festschreiben nur noch Antwort des Kunden und Verweis auf die Rechnung änderbar, Löschen abgelehnt |
 | Nummernkreis | `invoice_number_counters`, `quote_number_counters` | Zähler darf nicht sinken, Zeilen nicht gelöscht werden |
-| Anlagen | `assets` | Sobald AfA oder Eröffnung gebucht ist, sind Art, Abschreibung, Konto, Datum, Kosten, Nutzungsdauer und Übernahmewerte fest; Löschen nur ohne Buchung und ohne Beleg |
+| Anlagen | `assets` | Sobald AfA oder Eröffnung gebucht ist, sind Art, Abschreibung, Konto, Datum, Kosten, Nutzungsdauer, degressiver Satz, Erinnerungswert und Übernahmewerte fest; der Wechsel von degressiver zu linearer AfA nur in ein noch nicht gebuchtes Jahr; Löschen nur ohne Buchung und ohne Beleg |
 | Zuordnungen | `allocations` | Vorzeichen muss dem Bankumsatz entsprechen, die Summe darf den Umsatz nicht übersteigen |
 | Hauptbuch | `journal_entries` | Eine Buchung ist beim Commit festgeschrieben, sonst wird die Transaktion abgelehnt; ihr Kontenrahmen ist der aus den Firmendaten (`0065_hauptbuch_sperren.sql`) |
 | Firmendaten | `company` | Kontenrahmen, Versteuerung und das Einschalten von § 19 UStG werden abgelehnt, sobald im laufenden Jahr (deutsche Zeit) gebucht ist; die Rechtsform, sobald es überhaupt eine Buchung gibt (`0096_rechtsform_trigger.sql`), bei GmbH und UG ebenso der Kontenrahmen (`0101_kontenrahmen_kapg.sql`) |
@@ -645,7 +645,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 
 ## Was Haben nicht bucht
 
-- Gebäude, degressive AfA, Sonderabschreibungen und Investitionsabzugsbetrag
+- Gebäude, Sonderabschreibungen nach § 7g EStG und Investitionsabzugsbetrag
 - Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
 - Dreiecksgeschäfte, Konsignationslager, innergemeinschaftliches Verbringen und Einfuhrumsatzsteuer; innergemeinschaftliche Lieferungen und Erwerbe nur mit den Grenzen unter [Rechnungen](rechnungen.md#grenzen) und [Belege](belege.md#grenzen); § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn nur aus der [Lohnabrechnung](lohn.md#buchung), mit deren Grenzen (keine Sachbezüge, kein Zuschuss zur privaten Krankenversicherung, keine Beiträge zur Berufsgenossenschaft); Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten

@@ -12,9 +12,11 @@ import {
   taxOf,
   type AssetKind,
   type AssetMethod,
+  usesUsefulLife,
   type ExpenseCategory,
   type SelfAssessedTax,
   isKapitalgesellschaft,
+  elektroAvailable,
   ownerLabels,
 } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
@@ -443,7 +445,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                   name: assetName.trim() || supplierName.trim() || "Anlage",
                   kind: assetKind,
                   method: assetMethod,
-                  usefulLifeMonths: assetMethod === "linear" ? parseUsefulLifeMonths(assetYears) : null,
+                  usefulLifeMonths: usesUsefulLife(assetMethod) ? parseUsefulLifeMonths(assetYears) : null,
                 }
               : null,
           splits: parsedSplits ?? [],
@@ -667,21 +669,24 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
               <label className="field">
                 Abschreibung
                 <select value={assetMethod} onChange={(e) => touch(setAssetMethod)(e.target.value as AssetMethod)}>
-                  {Object.entries(ASSET_METHODS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
+                  {Object.entries(ASSET_METHODS)
+                    .filter(([value]) => value !== "elektro" || (assetKind === "kfz" && elektroAvailable(data.rechtsform)) || value === assetMethod)
+                    .map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
                 </select>
               </label>
-              {assetMethod === "linear" && (
+              {usesUsefulLife(assetMethod) && (
                 <label className="field">
                   Nutzungsdauer in Jahren
                   <input inputMode="decimal" value={assetYears} onChange={(e) => touch(setAssetYears)(e.target.value)} />
                 </label>
               )}
               <p className="small muted" style={{ gridColumn: "1 / -1", margin: 0 }}>
-                Beim Buchen entsteht die Anlage im <Link to="/anlagen">Anlagenverzeichnis</Link>; abgeschrieben wird ab dem Belegdatum.
+                Beim Buchen entsteht die Anlage im <Link to="/anlagen">Anlagenverzeichnis</Link>; abgeschrieben wird ab dem Belegdatum. Degressiv mit dem
+                Höchstsatz; Satz und Erinnerungswert änderst du bis zur ersten AfA an der Anlage.
               </p>
             </>
           )}

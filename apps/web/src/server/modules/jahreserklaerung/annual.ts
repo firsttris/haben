@@ -304,8 +304,8 @@ export async function euerYear(year: number): Promise<EuerYear> {
       afa: a.year!.depreciation,
       abgang: a.year!.disposal,
       buchwertEnde: a.year!.closing,
-      // Antrieb ist nur bei erfasster Privatnutzung bekannt; ohne Angabe gilt das Kfz als Verbrenner
-      ...(a.kind === "kfz" ? { elektro: a.privateUse ? a.privateUse.drive !== "verbrenner" : false } : {}),
+      // Antrieb ist bei erfasster Privatnutzung und bei der AfA nach § 7 Abs. 2a EStG bekannt; sonst gilt das Kfz als Verbrenner
+      ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
   return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length, lohnUmJahreswechsel };
 }

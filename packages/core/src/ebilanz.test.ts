@@ -25,6 +25,17 @@ describe.each([
     expect(buchwert(z2026)).toBe(plan.find((r) => r.year === 2026)!.closing);
   });
 
+  it("Erinnerungswert: nach der Nutzungsdauer 1 € Buchwert, beim Abgang gehen Kosten und AfA ab", () => {
+    const memo = { ...pkw, memoValue: true };
+    const z2032 = anlagenspiegelZeile(kontenrahmen, memo, depreciationSchedule(memo, 2032), 2032)!;
+    expect(z2032).toMatchObject({ akAnfang: 3_600_000, afaAnfang: 3_599_900, afaJahr: 0 });
+    expect(buchwert(z2032)).toBe(100);
+    const verkauft = { ...memo, disposalDate: "2033-02-01" };
+    const z2033 = anlagenspiegelZeile(kontenrahmen, verkauft, depreciationSchedule(verkauft), 2033)!;
+    expect(z2033).toMatchObject({ abgaenge: 3_600_000, afaAbgaenge: 3_599_900 });
+    expect(buchwert(z2033)).toBe(0);
+  });
+
   it("Abgang: Anschaffungskosten und kumulierte AfA gehen ab, Buchwert 0", () => {
     const verkauft = { ...pkw, disposalDate: "2027-03-31" };
     const z = zeile(verkauft, 2027)!;

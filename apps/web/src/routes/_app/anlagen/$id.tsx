@@ -1,4 +1,4 @@
-import { ASSET_KINDS, ASSET_METHODS, formatDecimal, isKapitalgesellschaft } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, formatDecimal, formatDegressiveRate, elektroAvailable, isKapitalgesellschaft } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -27,6 +27,9 @@ function AssetPage() {
   const booked = bookedYears.length > 0 || asset.openingEntryId !== null;
   const fromDocument = asset.documentId !== null;
   const deletable = !booked && !fromDocument;
+  const lastBooked = bookedYears.at(-1) ?? null;
+  // § 7 Abs. 3 EStG: Wechsel zur linearen AfA, solange er noch nicht gebucht ist
+  const switchEditable = asset.method === "degressiv" && (lastBooked === null || asset.linearFromYear === null || asset.linearFromYear > lastBooked);
 
   return (
     <>
@@ -63,7 +66,10 @@ function AssetPage() {
           <h2 id="plan-heading">Abschreibungsplan</h2>
           <p className="small muted" style={{ margin: 0 }}>
             {ASSET_METHODS[asset.method]}
-            {asset.usefulLifeMonths ? `, ${asset.usefulLifeMonths / 12} Jahre` : ""} · Konto {asset.account} ·{" "}
+            {asset.usefulLifeMonths ? `, ${asset.usefulLifeMonths / 12} Jahre` : ""}
+            {asset.degressiveRate ? `, ${formatDegressiveRate(asset.degressiveRate)}` : ""}
+            {asset.linearFromYear ? `, linear ab ${asset.linearFromYear}` : ""}
+            {asset.memoValue ? ", Erinnerungswert 1 €" : ""} · Konto {asset.account} ·{" "}
             {fromDocument ? (
               <Link to="/belege/$id" params={{ id: asset.documentId! }}>
                 Anschaffungsbeleg
@@ -101,8 +107,8 @@ function AssetPage() {
           {(booked || fromDocument) && (
             <p className="small muted" style={{ margin: 0 }}>
               {booked
-                ? "Es ist schon gebucht; änderbar sind nur Bezeichnung, Notiz und ein Abgang in einem noch nicht gebuchten Jahr."
-                : "Art, Abschreibung, Datum und Kosten kommen aus dem gebuchten Beleg; bis zur ersten AfA lässt sich die Nutzungsdauer ändern."}
+                ? "Es ist schon gebucht; änderbar sind nur Bezeichnung, Notiz, ein Abgang und bei degressiver AfA der Wechsel zur linearen, beide in einem noch nicht gebuchten Jahr."
+                : "Art, Datum und Kosten kommen aus dem gebuchten Beleg; bis zur ersten AfA lassen sich Abschreibung und Nutzungsdauer ändern."}
             </p>
           )}
           <AssetForm
@@ -114,6 +120,9 @@ function AssetPage() {
               acquisitionDate: asset.acquisitionDate,
               cost: asset.cost,
               usefulLifeMonths: asset.usefulLifeMonths,
+              degressiveRate: asset.degressiveRate,
+              linearFromYear: asset.linearFromYear,
+              memoValue: asset.memoValue,
               openingDate: asset.openingDate ?? "",
               openingBookValue: asset.openingBookValue ?? 0,
               disposalDate: asset.disposalDate,
@@ -122,8 +131,10 @@ function AssetPage() {
             }}
             locked={booked || fromDocument}
             privateUseAvailable={!isKapitalgesellschaft(rechtsform)}
+            elektroOffered={elektroAvailable(rechtsform)}
             privateUseLocked={booked}
             lifeEditable={!booked}
+            switchEditable={switchEditable}
             showOpening={!fromDocument}
             submitLabel="Speichern"
             busy={busy}

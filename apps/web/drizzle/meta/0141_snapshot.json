@@ -1,5 +1,5 @@
 {
-  "id": "9938a84a-d6ab-46b6-8fc7-936aa12de60d",
+  "id": "41dec52a-8ab1-4f8b-abce-df24727026b0",
   "prevId": "aa5d85fc-be41-49bc-8161-26f77ce546fa",
   "version": "7",
   "dialect": "postgresql",
@@ -881,6 +881,25 @@
           "primaryKey": false,
           "notNull": false
         },
+        "degressive_rate": {
+          "name": "degressive_rate",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linear_from_year": {
+          "name": "linear_from_year",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "memo_value": {
+          "name": "memo_value",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "document_id": {
           "name": "document_id",
           "type": "uuid",
@@ -991,6 +1010,18 @@
         "assets_private_use_car": {
           "name": "assets_private_use_car",
           "value": "\"assets\".\"private_use\" is null or \"assets\".\"kind\" = 'kfz'"
+        },
+        "assets_degressive_rate": {
+          "name": "assets_degressive_rate",
+          "value": "(\"assets\".\"method\" = 'degressiv') = (\"assets\".\"degressive_rate\" is not null) and coalesce(\"assets\".\"degressive_rate\", 1) between 1 and 3000"
+        },
+        "assets_linear_from_year": {
+          "name": "assets_linear_from_year",
+          "value": "\"assets\".\"linear_from_year\" is null or \"assets\".\"method\" = 'degressiv'"
+        },
+        "assets_elektro_kfz": {
+          "name": "assets_elektro_kfz",
+          "value": "\"assets\".\"method\" <> 'elektro' or \"assets\".\"kind\" = 'kfz'"
         }
       },
       "isRLSEnabled": false
@@ -9982,41 +10013,6 @@
         },
         "kz67": {
           "name": "kz67",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "kz41": {
-          "name": "kz41",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "kz43": {
-          "name": "kz43",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "kz89": {
-          "name": "kz89",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "kz93": {
-          "name": "kz93",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "kz61": {
-          "name": "kz61",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,

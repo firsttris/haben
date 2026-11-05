@@ -993,7 +993,21 @@
       "idx": 141,
       "version": "7",
       "when": 1793990754647,
-      "tag": "0141_ig_lieferung_erwerb",
+      "tag": "0141_afa_methoden",
+      "breakpoints": true
+    },
+    {
+      "idx": 142,
+      "version": "7",
+      "when": 1793990814647,
+      "tag": "0142_afa_methoden_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 143,
+      "version": "7",
+      "when": 1793990874647,
+      "tag": "0143_ig_lieferung_erwerb",
       "breakpoints": true
     }
   ]
