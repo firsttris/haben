@@ -27,6 +27,7 @@ const ART_LABEL: Record<Frist["art"], string> = {
   vorauszahlung: "Vorauszahlung",
   einspruch: "Einspruch",
   zertifikat: "Zertifikat",
+  sv: "Sozialversicherung",
 };
 
 function wann(datum: string, today: string): string {
@@ -125,7 +126,8 @@ function FristenPage() {
       </div>
       <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
         Voranmeldungen, Jahreserklärungen, Vorauszahlungen, Einspruchsfristen aus dem <Link to="/finanzamt">ELSTER-Postfach</Link> und der Ablauf des
-        Zertifikats. Fällt eine Frist auf ein Wochenende oder einen Feiertag, gilt der nächste Werktag. Erledigt ist, was echt übermittelt ist.
+        Zertifikats, dazu Beitragsnachweise und Meldungen im <Link to="/sv-meldeportal">SV-Meldeportal</Link>. Fällt eine Steuerfrist auf ein Wochenende oder
+        einen Feiertag, gilt der nächste Werktag. Erledigt ist, was echt übermittelt oder als im Portal abgegeben vermerkt ist.
       </p>
       <div className="stack" style={{ gap: 16 }}>
         {ueberfaellig.length > 0 && <Gruppe titel="Überfällig" fristen={ueberfaellig} today={today} />}

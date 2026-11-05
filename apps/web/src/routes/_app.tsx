@@ -46,7 +46,10 @@ const NAV_GROUPS = [
   },
   {
     label: "Personal",
-    links: [{ to: "/lohn", icon: "payroll", label: "Lohn" }],
+    links: [
+      { to: "/lohn", icon: "payroll", label: "Lohn" },
+      { to: "/sv-meldeportal", icon: "mail", label: "SV-Meldeportal" },
+    ],
   },
   {
     label: "Steuern",

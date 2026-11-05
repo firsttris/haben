@@ -22,6 +22,7 @@ import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
 import { Route as AppKasseRouteImport } from './routes/_app/kasse'
 import { Route as AppPauschalenRouteImport } from './routes/_app/pauschalen'
+import { Route as AppSvMeldeportalRouteImport } from './routes/_app/sv-meldeportal'
 import { Route as AppUeberweisungenRouteImport } from './routes/_app/ueberweisungen'
 import { Route as ApiLogoRouteImport } from './routes/api/logo'
 import { Route as ApiMcpRouteImport } from './routes/api/mcp'
@@ -72,6 +73,7 @@ import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
 import { Route as ApiRechnungsanhangIdRouteImport } from './routes/api/rechnungsanhang/$id'
+import { Route as ApiSvProtokollIdRouteImport } from './routes/api/sv-protokoll/$id'
 import { Route as ApiUeberweisungIdRouteImport } from './routes/api/ueberweisung/$id'
 import { Route as ApiUstvaIdRouteImport } from './routes/api/ustva/$id'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
@@ -157,6 +159,11 @@ const AppKasseRoute = AppKasseRouteImport.update({
 const AppPauschalenRoute = AppPauschalenRouteImport.update({
   id: '/pauschalen',
   path: '/pauschalen',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSvMeldeportalRoute = AppSvMeldeportalRouteImport.update({
+  id: '/sv-meldeportal',
+  path: '/sv-meldeportal',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUeberweisungenRoute = AppUeberweisungenRouteImport.update({
@@ -410,6 +417,11 @@ const ApiRechnungsanhangIdRoute = ApiRechnungsanhangIdRouteImport.update({
   path: '/api/rechnungsanhang/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSvProtokollIdRoute = ApiSvProtokollIdRouteImport.update({
+  id: '/api/sv-protokoll/$id',
+  path: '/api/sv-protokoll/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiUeberweisungIdRoute = ApiUeberweisungIdRouteImport.update({
   id: '/api/ueberweisung/$id',
   path: '/api/ueberweisung/$id',
@@ -545,6 +557,7 @@ export interface FileRoutesByFullPath {
   '/fristen': typeof AppFristenRoute
   '/kasse': typeof AppKasseRoute
   '/pauschalen': typeof AppPauschalenRoute
+  '/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -581,6 +594,7 @@ export interface FileRoutesByFullPath {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
+  '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
@@ -630,6 +644,7 @@ export interface FileRoutesByTo {
   '/fristen': typeof AppFristenRoute
   '/kasse': typeof AppKasseRoute
   '/pauschalen': typeof AppPauschalenRoute
+  '/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -667,6 +682,7 @@ export interface FileRoutesByTo {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
+  '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
@@ -718,6 +734,7 @@ export interface FileRoutesById {
   '/_app/fristen': typeof AppFristenRoute
   '/_app/kasse': typeof AppKasseRoute
   '/_app/pauschalen': typeof AppPauschalenRoute
+  '/_app/sv-meldeportal': typeof AppSvMeldeportalRoute
   '/_app/ueberweisungen': typeof AppUeberweisungenRoute
   '/api/logo': typeof ApiLogoRoute
   '/api/mcp': typeof ApiMcpRoute
@@ -755,6 +772,7 @@ export interface FileRoutesById {
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
   '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
+  '/api/sv-protokoll/$id': typeof ApiSvProtokollIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
@@ -807,6 +825,7 @@ export interface FileRouteTypes {
     | '/fristen'
     | '/kasse'
     | '/pauschalen'
+    | '/sv-meldeportal'
     | '/ueberweisungen'
     | '/api/logo'
     | '/api/mcp'
@@ -843,6 +862,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
+    | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
     | '/api/v1/$'
@@ -892,6 +912,7 @@ export interface FileRouteTypes {
     | '/fristen'
     | '/kasse'
     | '/pauschalen'
+    | '/sv-meldeportal'
     | '/ueberweisungen'
     | '/api/logo'
     | '/api/mcp'
@@ -929,6 +950,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
+    | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
     | '/api/v1/$'
@@ -979,6 +1001,7 @@ export interface FileRouteTypes {
     | '/_app/fristen'
     | '/_app/kasse'
     | '/_app/pauschalen'
+    | '/_app/sv-meldeportal'
     | '/_app/ueberweisungen'
     | '/api/logo'
     | '/api/mcp'
@@ -1016,6 +1039,7 @@ export interface FileRouteTypes {
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
     | '/api/rechnungsanhang/$id'
+    | '/api/sv-protokoll/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
     | '/api/v1/$'
@@ -1078,6 +1102,7 @@ export interface RootRouteChildren {
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
   ApiRechnungsanhangIdRoute: typeof ApiRechnungsanhangIdRoute
+  ApiSvProtokollIdRoute: typeof ApiSvProtokollIdRoute
   ApiUeberweisungIdRoute: typeof ApiUeberweisungIdRoute
   ApiUstvaIdRoute: typeof ApiUstvaIdRoute
   ApiV1SplatRoute: typeof ApiV1SplatRoute
@@ -1181,6 +1206,13 @@ declare module '@tanstack/react-router' {
       path: '/pauschalen'
       fullPath: '/pauschalen'
       preLoaderRoute: typeof AppPauschalenRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sv-meldeportal': {
+      id: '/_app/sv-meldeportal'
+      path: '/sv-meldeportal'
+      fullPath: '/sv-meldeportal'
+      preLoaderRoute: typeof AppSvMeldeportalRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/ueberweisungen': {
@@ -1533,6 +1565,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRechnungsanhangIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/sv-protokoll/$id': {
+      id: '/api/sv-protokoll/$id'
+      path: '/api/sv-protokoll/$id'
+      fullPath: '/api/sv-protokoll/$id'
+      preLoaderRoute: typeof ApiSvProtokollIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ueberweisung/$id': {
       id: '/api/ueberweisung/$id'
       path: '/api/ueberweisung/$id'
@@ -1700,6 +1739,7 @@ interface AppRouteChildren {
   AppFristenRoute: typeof AppFristenRoute
   AppKasseRoute: typeof AppKasseRoute
   AppPauschalenRoute: typeof AppPauschalenRoute
+  AppSvMeldeportalRoute: typeof AppSvMeldeportalRoute
   AppUeberweisungenRoute: typeof AppUeberweisungenRoute
   AppIndexRoute: typeof AppIndexRoute
   AppAbschlussJahrRoute: typeof AppAbschlussJahrRoute
@@ -1755,6 +1795,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFristenRoute: AppFristenRoute,
   AppKasseRoute: AppKasseRoute,
   AppPauschalenRoute: AppPauschalenRoute,
+  AppSvMeldeportalRoute: AppSvMeldeportalRoute,
   AppUeberweisungenRoute: AppUeberweisungenRoute,
   AppIndexRoute: AppIndexRoute,
   AppAbschlussJahrRoute: AppAbschlussJahrRoute,
@@ -1826,6 +1867,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
   ApiRechnungsanhangIdRoute: ApiRechnungsanhangIdRoute,
+  ApiSvProtokollIdRoute: ApiSvProtokollIdRoute,
   ApiUeberweisungIdRoute: ApiUeberweisungIdRoute,
   ApiUstvaIdRoute: ApiUstvaIdRoute,
   ApiV1SplatRoute: ApiV1SplatRoute,

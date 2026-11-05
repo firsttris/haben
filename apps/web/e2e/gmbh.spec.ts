@@ -860,6 +860,87 @@ test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck
   expect(await axe(), `/lohn/bescheinigung/${lohnJahr} storniert`).toEqual([]);
 });
 
+/*
+ * SV-Meldeportal im laufenden Monat (docs/lohn-plan.md, PR 6): Minijob ab dem Ersten anlegen, abrechnen und festschreiben;
+ * die Ausfüllliste zeigt den Beitragsnachweis an die Minijob-Zentrale und die Anmeldung, der Vermerk mit Protokoll
+ * erledigt die Frist. Läuft nach der Lohnsteuerbescheinigung, damit deren Personalnummern unverändert bleiben. Beträge: 520 € × 13 % KV-Pauschale = 67,60 €, × 2 % Pauschsteuer = 10,40 €.
+ */
+test("SV-Meldeportal: Minijob abrechnen, Beitragsnachweis und Anmeldung abtippen, Abgabe mit Protokoll vermerken", async () => {
+  test.skip(!LOHN_BMF[lohnJahr], `Werte für ${lohnJahr} fehlen`);
+  await go("/lohn/mitarbeiter/neu");
+  const form = page.getByRole("form", { name: "Stammdaten des Mitarbeiters" });
+  await form.getByLabel("Vorname").fill("Mia");
+  await form.getByLabel("Nachname").fill("Aushilfe");
+  await form.getByLabel("Straße und Hausnummer").fill("Deichstraße 7");
+  await form.getByLabel("PLZ").fill("28195");
+  await form.getByLabel("Ort", { exact: true }).fill("Bremen");
+  await form.getByLabel("Geburtsdatum").fill("2001-09-03");
+  await form.getByLabel("Art der Beschäftigung").selectOption("minijob");
+  await form.getByLabel("Monatsgehalt brutto in Euro").fill("520,00");
+  await form.getByLabel("Eintritt", { exact: true }).fill(`${lohnJahr}-${mm}-01`);
+  await form.getByLabel("Steuer-ID").fill("47291830467");
+  await form.getByLabel("Versicherungsnummer").fill("12030901A123");
+  await form.getByLabel("Personengruppe").fill("109");
+  await form.getByLabel("Beitragsgruppenschlüssel").fill("6100");
+  await form.getByLabel("Tätigkeitsschlüssel").fill("512220000");
+  await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL(/\/lohn$/);
+
+  await go(lohnSeite);
+  await page
+    .getByRole("form", { name: `${lohnMonatsname} ${lohnJahr} abrechnen` })
+    .getByRole("button", { name: "Monat abrechnen" })
+    .click();
+  await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
+  const abrechnung = page.getByRole("region", { name: "Mia Aushilfe" }).getByRole("region", { name: /^1\. Abrechnung Stufe B/ });
+  await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
+  await abrechnung.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
+
+  await page
+    .getByRole("navigation", { name: "Hauptnavigation" })
+    .getByRole("group", { name: "Personal" })
+    .getByRole("link", { name: "SV-Meldeportal" })
+    .click();
+  await page.waitForURL("**/sv-meldeportal");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(`SV-Meldeportal ${lohnMonatsname} ${lohnJahr}`);
+  await expect(page.getByText("Haben übermittelt nicht an die Sozialversicherung.")).toBeVisible();
+  await expect(page.getByText(/Erika Gesellschafter.*\(Gesellschafter-Geschäftsführer ohne Sozialversicherungspflicht\)/)).toBeVisible();
+  expect(await axe(), "/sv-meldeportal").toEqual([]);
+
+  const nachweis = page.getByRole("region", { name: `Beitragsnachweis ${lohnMonatsname} ${lohnJahr} · Minijob-Zentrale` });
+  await expect(nachweis.getByText("offen", { exact: true })).toBeVisible();
+  await expect(nachweis.getByRole("row", { name: /Betriebsnummer der Einzugsstelle/ })).toContainText("98000006");
+  await expect(nachweis.getByRole("row", { name: /Pauschalbeiträge zur Krankenversicherung/ })).toContainText("67,60");
+  await expect(nachweis.getByRole("row", { name: /Einheitliche Pauschsteuer/ })).toContainText("10,40");
+  await expect(nachweis.getByRole("row", { name: /Steuernummer des Arbeitgebers/ })).toContainText("60/145/12345");
+
+  const anmeldung = page.getByRole("region", { name: `Anmeldung Mia Aushilfe (Beginn 01.${mm}.${lohnJahr})` });
+  await expect(anmeldung.getByRole("row", { name: /Meldegrund/ })).toContainText("10");
+  await expect(anmeldung.getByRole("row", { name: /Versicherungsnummer/ })).toContainText("12030901A123");
+  await expect(anmeldung.getByRole("row", { name: /^Beitragsgruppe/ })).toContainText("6100");
+  await expect(anmeldung.getByRole("row", { name: /Staatsangehörigkeit/ })).toContainText("kennt Haben nicht");
+
+  // Abgabe vermerken, mit Protokoll aus dem Portal
+  const vermerk = nachweis.getByRole("form", { name: /^Abgabe vermerken/ });
+  await vermerk
+    .getByLabel("Protokoll (PDF oder Bild, optional)")
+    .setInputFiles({ name: "protokoll.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Protokoll\n%%EOF\n") });
+  await vermerk.getByRole("button", { name: "Im Portal abgegeben" }).click();
+  await expect(nachweis.getByText("Vermerkt: im Portal abgegeben.")).toBeVisible();
+  await expect(nachweis.getByText("abgegeben", { exact: true })).toBeVisible();
+  const protokoll = await page.request.get((await nachweis.getByRole("link", { name: "Protokoll protokoll.pdf" }).getAttribute("href"))!);
+  expect((await protokoll.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  expect(await axe(), "/sv-meldeportal mit Vermerk").toEqual([]);
+
+  // Fristen: die Anmeldung ist offen, der Beitragsnachweis erledigt
+  await go("/fristen");
+  await expect(page.getByRole("row", { name: new RegExp(`Anmeldung Mia Aushilfe \\(Beginn 01\\.${mm}\\.${lohnJahr}\\)`) })).toBeVisible();
+  await page.getByText(/^Erledigt \(/).click();
+  await expect(page.getByRole("row", { name: new RegExp(`Beitragsnachweis ${lohnMonatsname} ${lohnJahr} · Minijob-Zentrale`) })).toBeVisible();
+});
+
 test("Elektrofahrzeug der GmbH übernehmen: AfA nach § 7 Abs. 2a EStG mit Erinnerungswert", async () => {
   await go("/anlagen/neu");
   const form = page.getByRole("region", { name: "Angaben" });
