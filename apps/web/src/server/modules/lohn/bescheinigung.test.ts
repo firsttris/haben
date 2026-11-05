@@ -238,6 +238,25 @@ describe.skipIf(!testDatabaseUrl)("Lohnsteuerbescheinigung (Postgres)", () => {
     );
   }, 120_000);
 
+  it.each([
+    // R 39b.2 Abs. 1 Nr. 7 LStR: Lohn für Dezember, der bis drei Wochen nach Jahresende zufließt, ist laufender Arbeitslohn des Jahres
+    [1, "2026-01-28", 12, "2027-01-21", "bereit"],
+    // R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR: später gezahlt ist er ein sonstiger Bezug des Zahlungsjahres (§ 38a Abs. 1 Satz 3 EStG)
+    [1, "2026-01-28", 12, "2027-02-10", "nicht-unterstuetzt"],
+    // Im Voraus im Vorjahr gezahlt: sonstiger Bezug des Vorjahres
+    [1, "2025-12-20", 12, "2026-12-28", "nicht-unterstuetzt"],
+  ] as const)("Lohn über den Jahreswechsel: %i mit Zahltag %s, %i mit Zahltag %s → %s", async (erster, zahltagErster, letzter, zahltagLetzter, status) => {
+    await firma("SKR03", "ist");
+    await lohn.saveEmployee(actor, null, { ...GGF, austritt: null });
+    for (let m = 1; m <= 12; m++) {
+      const zahltag = m === erster ? zahltagErster : m === letzter ? zahltagLetzter : `2026-${String(m).padStart(2, "0")}-28`;
+      await lohn.abrechnen(actor, { year: 2026, month: m, zahltag });
+      const drafts = await sql<{ id: string }[]>`select id from payslips where year = 2026 and month = ${m} and locked_at is null`;
+      for (const d of drafts) await lohn.festschreiben(actor, { id: d.id, gegengeprueft: true }, zahltag);
+    }
+    expect((await stand("Erika Muster", 2026, "2027-03-01")).ergebnis.status).toBe(status);
+  }, 120_000);
+
   it("bis 2025 über ERiC: neu, Korrektur mit RefKmId, Storno; ohne Abweichung nichts zu senden", async () => {
     await firma("SKR03", "soll");
     const id = await lohn.saveEmployee(actor, null, GGF);
