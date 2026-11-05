@@ -5,12 +5,12 @@ import { z } from "zod";
 import { loadKapEStProtocol } from "../../../server/modules/ausschuettung/index.ts";
 import { loadAnnualProtocol } from "../../../server/modules/jahreserklaerung/index.ts";
 import { loadLstaProtocol } from "../../../server/modules/lohn/index.ts";
-import { loadDauerfristProtocol, loadZmProtocol } from "../../../server/modules/umsatzsteuer/index.ts";
+import { loadDauerfristProtocol, loadFilingProtocol, loadZmProtocol } from "../../../server/modules/umsatzsteuer/index.ts";
 import { auth } from "../../../server/auth.ts";
 import { db, schema } from "../../../server/db/index.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 
-/** Übertragungsprotokoll (PDF) einer Übermittlung: Voranmeldung, Jahreserklärung, Kapitalertragsteuer-Anmeldung, Zusammenfassende Meldung, Lohnsteuer-Anmeldung */
+/** Übertragungsprotokoll (PDF) einer Übermittlung: Voranmeldung, Jahreserklärung, Kapitalertragsteuer-Anmeldung, Zusammenfassende Meldung, Lohnsteuer-Anmeldung; dazu das Übermittlungsprotokoll einer vermerkten Abgabe außerhalb von Haben */
 export const Route = createFileRoute("/api/protokoll/$id")({
   server: {
     handlers: {
@@ -36,7 +36,8 @@ export const Route = createFileRoute("/api/protokoll/$id")({
             (await loadKapEStProtocol(id.data)) ??
             (await loadDauerfristProtocol(id.data)) ??
             (await loadZmProtocol(id.data)) ??
-            (await loadLstaProtocol(id.data));
+            (await loadLstaProtocol(id.data)) ??
+            (await loadFilingProtocol(id.data));
           if (!other) return new Response("Nicht gefunden", { status: 404 });
           return pdfResponse(other.pdf, other.filename);
         }

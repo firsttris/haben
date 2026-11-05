@@ -73,6 +73,20 @@ const KIND_LABEL = {
   sozialversicherung: "SV-Beiträge",
 } as const;
 
+/** Offener Posten in Auswahl und Treffer: Rechnung, Beleg oder Zahllast bzw. Erstattung einer Voranmeldung */
+function itemLabel(item: { type: "invoice" | "document" | "ustva"; number: string; partyName: string }): string {
+  if (item.type === "invoice") return `Rechnung ${item.number}`;
+  if (item.type === "ustva") return `Voranmeldung ${item.number}`;
+  return `Beleg ${item.partyName} ${item.number}`;
+}
+
+/** Ziel einer Zuordnung aus „Typ:ID“ der Auswahl */
+function itemTarget(type: string | undefined, id: string, amount: number) {
+  if (type === "invoice") return { kind: "invoice" as const, invoiceId: id, amount };
+  if (type === "ustva") return { kind: "ustva" as const, vatReturnId: id, amount };
+  return { kind: "document" as const, documentId: id, amount };
+}
+
 const FORMAT_LABEL = (format: string) =>
   format === "enablebanking"
     ? "Abruf"
@@ -852,16 +866,7 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
     const choice = mode === "best" && best ? `${best.item.type}:${best.item.id}` : candidate;
     const [type, id] = choice.split(":");
     if (!id) return;
-    return runAndAdvance(
-      () =>
-        allocateFn({
-          data:
-            type === "invoice"
-              ? { kind: "invoice", transactionId: tx.id, invoiceId: id, amount: signedAmount }
-              : { kind: "document", transactionId: tx.id, documentId: id, amount: signedAmount },
-        }),
-      completes,
-    );
+    return runAndAdvance(() => allocateFn({ data: { ...itemTarget(type, id, signedAmount), transactionId: tx.id } }), completes);
   }
 
   // Enter ordnet zu, solange der Fokus nicht in einem Eingabefeld liegt
@@ -881,7 +886,7 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   // Posten, der gerade zugeordnet würde; ist er höher als der Umsatz, bietet sich „Rest als Gebühr“ an
   const target = mode === "best" && best ? best.item : mode === "other" ? selectedCandidate : undefined;
   // Nur bei Zahlungseingängen: der Dienstleister behält eine Gebühr ein. Zahlst du selbst weniger, ist das Skonto, keine Gebühr.
-  const feeRest = target && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
+  const feeRest = target && target.type !== "ustva" && tx.amount > 0 && target.open > tx.open ? tx.open - target.open : 0;
   // Beim Wechsel zu „Aufteilen“ festgehalten: dort ist der Modus „split“ und target wäre leer
   const [splitInitial, setSplitInitial] = useState<typeof target>(undefined);
 
@@ -908,10 +913,7 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
 
   function bookRestAsFee() {
     if (!target || feeRest === 0) return;
-    const first =
-      target.type === "invoice"
-        ? { kind: "invoice" as const, invoiceId: target.id, amount: target.open }
-        : { kind: "document" as const, documentId: target.id, amount: target.open };
+    const first = itemTarget(target.type, target.id, target.open);
     return run(() => splitFn({ data: { transactionId: tx.id, parts: [first, { kind: "gebuehren", amount: feeRest }] } }));
   }
 
@@ -951,6 +953,7 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                   {KIND_LABEL[a.kind]}
                   {a.invoiceNumber ? ` ${a.invoiceNumber}` : ""}
                   {a.documentSupplier ? ` ${a.documentSupplier}${a.documentNumber ? ` (${a.documentNumber})` : ""}` : ""}
+                  {a.vatReturnLabel ? ` ${a.vatReturnLabel}` : ""}
                 </span>
                 <span className="small muted">
                   {a.reversed ? "aufgehoben" : a.splitId ? `${a.amount < 0 ? "−" : "+"}${formatEuro(Math.abs(a.amount))}` : formatEuro(Math.abs(a.amount))}
@@ -990,10 +993,12 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
               <div className="match-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ fontWeight: 600 }}>{best.item.type === "invoice" ? `Rechnung ${best.item.number}` : `Beleg ${best.item.partyName}`}</span>
+                    <span style={{ fontWeight: 600 }}>{best.item.type === "document" ? `Beleg ${best.item.partyName}` : itemLabel(best.item)}</span>
                     <span className="small muted">
-                      vom {formatDate(best.item.date)}
-                      {best.item.dueDate ? ` · fällig ${formatDate(best.item.dueDate)}` : ""}
+                      {best.item.type === "ustva"
+                        ? `${best.item.open < 0 ? "fällig" : "Erstattung ab"} ${formatDate(best.item.date)}`
+                        : `vom ${formatDate(best.item.date)}`}
+                      {best.item.dueDate && best.item.type !== "ustva" ? ` · fällig ${formatDate(best.item.dueDate)}` : ""}
                       {best.item.type === "document" && best.item.number ? ` · ${best.item.number}` : ""}
                     </span>
                   </div>
@@ -1011,14 +1016,16 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
               <p className="small muted" style={{ margin: 0 }}>
                 {best.item.type === "invoice"
                   ? "Bucht Bank an Forderungen; bei Ist-Versteuerung wird die Umsatzsteuer mit diesem Zahlungseingang fällig."
-                  : "Bucht Verbindlichkeiten an Bank."}
+                  : best.item.type === "ustva"
+                    ? "Bucht wie „Umsatzsteuer an das Finanzamt“ (Umsatzsteuer-Vorauszahlungen), mit Bezug auf die Voranmeldung."
+                    : "Bucht Verbindlichkeiten an Bank."}
               </p>
             </div>
           )}
 
           {mode === "other" && (
             <label className="field">
-              Rechnung oder Beleg
+              Rechnung, Beleg oder Voranmeldung
               <select
                 value={candidate}
                 onChange={(e) => {
@@ -1030,11 +1037,11 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
                 <option value="">Bitte wählen</option>
                 {candidates.map((c) => (
                   <option key={`${c.type}:${c.id}`} value={`${c.type}:${c.id}`}>
-                    {c.type === "invoice" ? `Rechnung ${c.number}` : `Beleg ${c.partyName} ${c.number}`} · {c.partyName} · offen {formatEuro(Math.abs(c.open))}
+                    {itemLabel(c)} · {c.partyName} · offen {formatEuro(Math.abs(c.open))}
                   </option>
                 ))}
               </select>
-              {candidates.length === 0 && <span className="small">Keine offenen Rechnungen oder gebuchten Belege in dieser Richtung.</span>}
+              {candidates.length === 0 && <span className="small">Keine offenen Rechnungen, gebuchten Belege oder Voranmeldungen in dieser Richtung.</span>}
             </label>
           )}
 
@@ -1207,6 +1214,7 @@ type SplitTarget = Detail["splitCandidates"][number];
 type SplitPart =
   | { kind: "invoice"; invoiceId: string; amount: number }
   | { kind: "document"; documentId: string; amount: number }
+  | { kind: "ustva"; vatReturnId: string; amount: number }
   | { kind: DirectBooking; amount: number };
 
 interface SplitRow {
@@ -1261,8 +1269,7 @@ function SplitForm({
 
   function toPart(row: SplitRow, amount: number): SplitPart {
     const [type, id] = row.target.split(":");
-    if (type === "invoice") return { kind: "invoice", invoiceId: id!, amount };
-    if (type === "document") return { kind: "document", documentId: id!, amount };
+    if (id) return itemTarget(type, id, amount);
     return { kind: row.target as DirectBooking, amount };
   }
 
@@ -1295,10 +1302,10 @@ function SplitForm({
               }}
             >
               <option value="">Bitte wählen</option>
-              <optgroup label="Rechnungen und Belege">
+              <optgroup label="Rechnungen, Belege und Voranmeldungen">
                 {splitCandidates.map((c) => (
                   <option key={`${c.type}:${c.id}`} value={`${c.type}:${c.id}`}>
-                    {c.type === "invoice" ? `Rechnung ${c.number}` : `Beleg ${c.partyName} ${c.number}`} · {c.partyName} · offen {signed(c.open)} €
+                    {itemLabel(c)} · {c.partyName} · offen {signed(c.open)} €
                   </option>
                 ))}
               </optgroup>

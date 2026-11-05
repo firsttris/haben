@@ -52,7 +52,7 @@ Nach einem Update von Haben lädst du das neue ZIP, entpackst es in denselben Or
    - **gehört zur Anlage einer anderen Person**: siehe unten;
    - **noch auf keiner besuchten Seite gefunden**: Werte, deren Feld du noch nicht geöffnet hast. Darunter stehen auch Angaben, die Mein ELSTER aus deinem Profil nimmt (Name, Steuernummer).
 5. Nach der letzten Seite in Mein ELSTER **Prüfen**, Fehler und Hinweise mit Haben abgleichen und selbst **Absenden**.
-6. Das Übermittlungsprotokoll herunterladen. In Haben bleibt die Erklärung bzw. Voranmeldung ungesendet; Haben erfährt von der Abgabe in Mein ELSTER nichts.
+6. Das Übermittlungsprotokoll herunterladen. Bei der Voranmeldung vermerkst du die Abgabe danach in Haben unter **Außerhalb von Haben abgegeben** ([Abgabe vermerken](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken)); eine Jahreserklärung bleibt in Haben ungesendet.
 
 Hast du eine Seite verlassen und kommst zurück, trägt die Erweiterung erneut ein; was schon gleich ist, lässt sie stehen. „Erneut eintragen“ in der Leiste wiederholt das für die offene Seite.
 

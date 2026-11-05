@@ -1812,6 +1812,83 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await expect(page.getByText("Lastenrad").first()).toBeVisible();
 });
 
+test("Voranmeldung außerhalb von Haben abgegeben: Abgabe vermerken, Zahllast im Bankabgleich zuordnen", async () => {
+  // Ein Monat vor dem Vorjahr ohne Buchungen, damit die übrigen Seiten, Bilder und die Sondervorauszahlung unverändert bleiben
+  const year = YEAR - 2;
+  const yy = String(year).slice(2);
+  await go(`/umsatzsteuer/${year}-06`);
+  await page.getByRole("button", { name: "Manuell überschreiben" }).click();
+  await page.getByLabel("Steuerpflichtige Umsätze 19 %").fill("1.000,00");
+  await page.getByLabel("Begründung der Abweichung (Pflicht)").fill("Rechnung aus der alten Buchhaltung, dort nicht gemeldet");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await expect(page.getByText("Entwurf gespeichert.")).toBeVisible();
+
+  const vermerk = page.getByRole("form", { name: "Außerhalb von Haben abgegeben" });
+  await vermerk.getByLabel("Tag der Abgabe").fill(`${year}-07-09`);
+  await vermerk.getByLabel("Transferticket").fill("et7f3k9m2q8w4x1z");
+  await vermerk.getByLabel("Übermittlungsprotokoll (PDF)").setInputFiles({
+    name: "Uebermittlungsprotokoll.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n% Übermittlungsprotokoll Juni\n%%EOF\n"),
+  });
+  // Kz 83 laut Protokoll weicht ab: Haben lehnt ab
+  await vermerk.getByLabel("Kz 83 laut Protokoll").fill("200,00");
+  await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  await expect(vermerk.getByRole("alert")).toContainText("weicht von der Voranmeldung");
+  await vermerk.getByLabel("Kz 83 laut Protokoll").fill("190,00");
+  await vermerk.getByRole("button", { name: "Abgabe vermerken" }).click();
+  await expect(page.getByText(`Abgegeben 09.07.${year} (vermerkt)`)).toBeVisible();
+  await expect(page.getByRole("region", { name: `Verlauf Juni ${year}` })).toContainText("Abgabe vermerkt");
+  const zahlung = page.getByRole("region", { name: "Zahlung an das Finanzamt" });
+  await expect(zahlung).toContainText("offen 190,00");
+  const protokoll = await page.request.get((await page.getByRole("link", { name: "Protokoll" }).first().getAttribute("href"))!);
+  expect(protokoll.headers()["content-type"]).toContain("application/pdf");
+
+  // Lastschrift des Finanzamts: Haben schlägt die Voranmeldung vor, gebucht wird Umsatzsteuer an Bank mit Bezug
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n"Kontostand vom ${dkb(day(0))}:";"16.067,10 €"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    [
+      `10.07.${yy}`,
+      `10.07.${yy}`,
+      "Gebucht",
+      "Max Mustermann",
+      "Finanzamt Regensburg",
+      `USt 06/${yy} StNr 198/113/10010`,
+      "Ausgang",
+      "DE76750000000075001007",
+      "-190,00",
+      "",
+      "",
+      "",
+    ]
+      .map((v) => `"${v}"`)
+      .join(";") +
+    "\n";
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "finanzamt.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/1 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await page
+    .getByRole("link", { name: /Finanzamt Regensburg/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await expect(panel.getByRole("heading", { name: "Finanzamt Regensburg" })).toBeVisible();
+  await expect(panel.getByText(`Voranmeldung USt 06/${year}`)).toBeVisible();
+  await expect(panel.getByText("Zeitraum im Verwendungszweck")).toBeVisible();
+  await panel.getByRole("button", { name: "Zuordnen" }).click();
+  await expect(panel.getByRole("heading", { name: "Finanzamt Regensburg" })).toBeHidden();
+  await page.waitForLoadState("networkidle");
+
+  await go(`/umsatzsteuer/${year}-06`);
+  await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("ausgeglichen");
+  await expect(page.getByRole("region", { name: "Zahlung an das Finanzamt" })).toContainText("Lastschrift 190,00");
+});
+
 test("Anlage übernehmen: degressive AfA mit Höchstsatz, Restbuchwert geprüft, Wechsel zur linearen", async () => {
   await go("/anlagen/neu");
   const form = page.getByRole("region", { name: "Angaben" });

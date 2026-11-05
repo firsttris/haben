@@ -449,12 +449,15 @@ describe.skipIf(!testDatabaseUrl)("Bankabgleich (Postgres)", () => {
     expect((await bank.transactionDetail(refund!.id))?.direct?.kind).toBe("ustVorauszahlung");
 
     const [debit] = await sql`select id from bank_transactions where amount = -41230`;
-    expect(await bank.vatPaidAfter("2026-09-30")).toBe(0);
+    // Ohne abgegebene Voranmeldung bleiben die Zahlungen ohne Posten; die Übersicht rechnet sie gegen die Zahllast
+    const { ustvaPosten } = await import("../umsatzsteuer/zahlung.ts");
+    const vatPaidAfter = async (after: string) => (await ustvaPosten()).ohneBezug.filter((z) => z.bookingDate > after).reduce((sum, z) => sum - z.amount, 0);
+    expect(await vatPaidAfter("2026-09-30")).toBe(0);
     await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: debit!.id, amount: -41_230 });
     await bank.allocate(actor, { kind: "ustVorauszahlung", transactionId: refund!.id, amount: 60_000 });
     // Gezahlt 412,30, erstattet 600,00: netto −187,70; für die Deckung zählt der Saldo
-    expect(await bank.vatPaidAfter("2026-09-30")).toBe(-18_770);
-    expect(await bank.vatPaidAfter("2026-10-12")).toBe(0);
+    expect(await vatPaidAfter("2026-09-30")).toBe(-18_770);
+    expect(await vatPaidAfter("2026-10-12")).toBe(0);
   }, 30_000);
 
   it("Zahlungseingang: Vorschlag, Zuordnung, Ist-Buchung, bezahlt", async () => {

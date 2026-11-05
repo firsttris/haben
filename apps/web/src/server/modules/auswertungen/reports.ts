@@ -10,6 +10,8 @@ import {
   recordedTaxShares,
   totalsFromTaxes,
   documentOpen,
+  periodKey,
+  vatPostenLabel,
 } from "@haben/core";
 import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
@@ -19,6 +21,7 @@ import { splitsByDocument } from "../belege/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
+import { ustvaPosten } from "../umsatzsteuer/index.ts";
 
 const isCategory = (value: string | null): value is ExpenseCategory => value !== null && value in EXPENSE_CATEGORIES;
 
@@ -376,6 +379,21 @@ export async function openPositions(today: string) {
     })
     .filter((d) => d.open !== 0);
 
+  // Zahllast (positiv) und Erstattung (negativ) abgegebener Voranmeldungen; id ist der Zeitraum für den Link
+  const vat: OpenPosition[] = (await ustvaPosten()).posten
+    .filter((p) => p.offen !== 0)
+    .map((p) => ({
+      id: periodKey(p),
+      number: `${vatPostenLabel(p)}${p.berichtigt ? " (Berichtigung)" : ""}`,
+      party: "Finanzamt",
+      date: p.faellig,
+      dueDate: p.faellig,
+      gross: p.betrag,
+      open: p.offen,
+      // Eine Erstattung ist nicht überfällig: Wann sie kommt, entscheidet das Finanzamt
+      daysOverdue: p.offen > 0 ? daysBetween(p.faellig, today) : -1,
+    }));
+
   const byDue = (a: OpenPosition, b: OpenPosition) => a.dueDate.localeCompare(b.dueDate) || a.number.localeCompare(b.number);
   receivables.sort(byDue);
   payables.sort(byDue);
@@ -388,6 +406,9 @@ export async function openPositions(today: string) {
     payablesTotal: total(payables),
     receivablesOverdue: total(overdue(receivables)),
     payablesOverdue: total(overdue(payables)),
+    vat,
+    vatTotal: total(vat),
+    vatOverdue: total(overdue(vat)),
   };
 }
 
