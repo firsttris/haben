@@ -1,5 +1,5 @@
 {
-  "id": "04d4cd7c-4ccb-4465-a661-491043fe9244",
+  "id": "654f3691-19a5-46a4-96f3-342640024db3",
   "prevId": "040907f8-020c-42df-b36d-355203cb5a7f",
   "version": "7",
   "dialect": "postgresql",
@@ -843,25 +843,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "degressive_rate": {
-          "name": "degressive_rate",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "linear_from_year": {
-          "name": "linear_from_year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "memo_value": {
-          "name": "memo_value",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "document_id": {
           "name": "document_id",
           "type": "uuid",
@@ -972,18 +953,6 @@
         "assets_private_use_car": {
           "name": "assets_private_use_car",
           "value": "\"assets\".\"private_use\" is null or \"assets\".\"kind\" = 'kfz'"
-        },
-        "assets_degressive_rate": {
-          "name": "assets_degressive_rate",
-          "value": "(\"assets\".\"method\" = 'degressiv') = (\"assets\".\"degressive_rate\" is not null) and coalesce(\"assets\".\"degressive_rate\", 1) between 1 and 3000"
-        },
-        "assets_linear_from_year": {
-          "name": "assets_linear_from_year",
-          "value": "\"assets\".\"linear_from_year\" is null or \"assets\".\"method\" = 'degressiv'"
-        },
-        "assets_elektro_kfz": {
-          "name": "assets_elektro_kfz",
-          "value": "\"assets\".\"method\" <> 'elektro' or \"assets\".\"kind\" = 'kfz'"
         }
       },
       "isRLSEnabled": false
@@ -6342,6 +6311,199 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.lstb_submissions": {
+      "name": "lstb_submissions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "art": {
+          "name": "art",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "km_id": {
+          "name": "km_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ref_km_id": {
+          "name": "ref_km_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "werte": {
+          "name": "werte",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "angaben": {
+          "name": "angaben",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "datum": {
+          "name": "datum",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grund": {
+          "name": "grund",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "ok": {
+          "name": "ok",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transfer_ticket": {
+          "name": "transfer_ticket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "request_xml": {
+          "name": "request_xml",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "response_xml": {
+          "name": "response_xml",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "server_response_xml": {
+          "name": "server_response_xml",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "protocol_pdf": {
+          "name": "protocol_pdf",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "lstb_submissions_employee_year": {
+          "name": "lstb_submissions_employee_year",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "year",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "lstb_submissions_km_id": {
+          "name": "lstb_submissions_km_id",
+          "columns": [
+            {
+              "expression": "km_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"lstb_submissions\".\"kind\" = 'send' and \"lstb_submissions\".\"ok\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lstb_submissions_employee_id_employees_id_fk": {
+          "name": "lstb_submissions_employee_id_employees_id_fk",
+          "tableFrom": "lstb_submissions",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "lstb_submissions_ref": {
+          "name": "lstb_submissions_ref",
+          "value": "\"lstb_submissions\".\"art\" = 'neu' or \"lstb_submissions\".\"kind\" = 'portal' or \"lstb_submissions\".\"ref_km_id\" is not null"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.mail_log": {

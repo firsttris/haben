@@ -951,14 +951,28 @@
       "idx": 135,
       "version": "7",
       "when": 1793990394647,
-      "tag": "0135_afa_methoden",
+      "tag": "0135_lohnsteuerbescheinigung",
       "breakpoints": true
     },
     {
       "idx": 136,
       "version": "7",
       "when": 1793990454647,
-      "tag": "0136_afa_methoden_trigger",
+      "tag": "0136_lohnsteuerbescheinigung_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "7",
+      "when": 1793990514647,
+      "tag": "0137_afa_methoden",
+      "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1793990574647,
+      "tag": "0138_afa_methoden_trigger",
       "breakpoints": true
     }
   ]

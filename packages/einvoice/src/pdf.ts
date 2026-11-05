@@ -172,7 +172,13 @@ export function renderHinterlegungPdf(data: object, date: string): Uint8Array {
 }
 
 /** Entgeltabrechnung und Lohnkonto als PDF/A-3b; die Daten kommen fertig formatiert aus lohnabrechnungPdfData bzw. lohnkontoPdfData */
-export function renderLohnPdf(template: "lohnabrechnung.typ" | "lohnkonto.typ", data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
+export function renderLohnPdf(
+  template: "lohnabrechnung.typ" | "lohnkonto.typ" | "lohnsteuerbescheinigung.typ",
+  data: object,
+  date: string,
+  label: string,
+  letterhead: Letterhead,
+): Uint8Array {
   return compilePdf(join(PACKAGE_DIR, "templates", template), data, date, label, letterhead);
 }
 
