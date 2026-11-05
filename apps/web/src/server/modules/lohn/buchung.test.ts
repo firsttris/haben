@@ -250,6 +250,29 @@ describe.skipIf(!testDatabaseUrl)("Lohnbuchung (Postgres)", () => {
     expect(euer.totalAusgaben).toBe(790_95);
   });
 
+  it("Einzelunternehmen, SKR03, Ist: Lohnzahlung nur bis zur offenen Verbindlichkeit, sonst wäre eine Entnahme Personalausgabe", async () => {
+    await firma("einzelunternehmen", "SKR03", "ist");
+    await bank.importStatement(
+      actor,
+      dkbCsv([
+        ["28.10.26", "Inhaber", "Privat", "-5.000,00"],
+        ["29.10.26", "Mia Aushilfe", "Lohn 10/2026", "-581,29"],
+        ["30.10.26", "Mia Aushilfe", "Rückzahlung", "100,00"],
+      ]),
+      null,
+    );
+    const umsatz = async (amount: number) => (await sql`select id from bank_transactions where amount = ${amount}`)[0]!.id as string;
+    const { payslipId } = await festgeschrieben(MINIJOB);
+    // Mehr als die offenen 581,29 € auf 1740: abgelehnt
+    await expect(bank.allocate(actor, { kind: "lohn", transactionId: await umsatz(-5000_00), amount: -5000_00 })).rejects.toThrow(/nur noch 581,29\s€ offen/);
+    // Eingang ohne Überzahlung: abgelehnt
+    await expect(bank.allocate(actor, { kind: "lohn", transactionId: await umsatz(100_00), amount: 100_00 })).rejects.toThrow(/nichts überzahlt/);
+    // Nach dem Storno ist nichts mehr offen, auch wenn eine Abrechnung festgeschrieben ist
+    await lohn.stornieren(actor, { id: payslipId, grund: "falsch" }, "2026-10-29");
+    await expect(bank.allocate(actor, { kind: "lohn", transactionId: await umsatz(-581_29), amount: -581_29 })).rejects.toThrow(/nichts offen/);
+    expect((await reports.euerForYear(2026)).ausgaben.find((l) => l.key === "personal")).toBeUndefined();
+  });
+
   it("Einzelunternehmen, SKR04, Soll: Beschäftigter; Lohnsteuer im Folgemonat, Aufheben einer Zuordnung mindert die EÜR wieder", async () => {
     await firma("einzelunternehmen", "SKR04", "soll");
     const { payslipId } = await festgeschrieben(ANGESTELLT);
