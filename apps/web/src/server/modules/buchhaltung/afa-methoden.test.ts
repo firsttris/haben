@@ -82,7 +82,9 @@ describe.skipIf(!testDatabaseUrl)("Weitere AfA-Methoden (Postgres)", () => {
     const maschine = await buyByDocument("2025-09-15", 10_000_000, { name: "Fräsmaschine", kind: "sonstiges", method: "degressiv", usefulLifeMonths: 120 });
     // § 7 Abs. 2a EStG nur im Einzelunternehmen; die GmbH-Fälle prüft der Test weiter unten
     const einzel = fall[2] === "einzelunternehmen";
-    const auto = einzel ? await buyByDocument("2025-11-03", 6_000_000, { name: "Tesla Model 3", kind: "kfz", method: "elektro", usefulLifeMonths: null }) : null;
+    const auto = einzel
+      ? await buyByDocument("2025-11-03", 6_000_000, { name: "Tesla Model 3", kind: "kfz", method: "elektro", usefulLifeMonths: null })
+      : null;
 
     const list = await assets.listAssets(2025);
     expect(list.find((a) => a.id === maschine)).toMatchObject({
@@ -91,7 +93,8 @@ describe.skipIf(!testDatabaseUrl)("Weitere AfA-Methoden (Postgres)", () => {
       account: k.bga,
       year: { depreciation: 1_000_000 },
     });
-    if (auto) expect(list.find((a) => a.id === auto)).toMatchObject({ method: "elektro", account: k.kfz, year: { depreciation: 4_500_000, closing: 1_500_000 } });
+    if (auto)
+      expect(list.find((a) => a.id === auto)).toMatchObject({ method: "elektro", account: k.kfz, year: { depreciation: 4_500_000, closing: 1_500_000 } });
     const euer = await reports.euerForYear(2025);
     expect(euer.ausgaben.find((l) => l.key === "afa")?.amount).toBe(einzel ? 5_500_000 : 1_000_000);
 
