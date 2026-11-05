@@ -59,4 +59,12 @@ describe("ERiC", () => {
     expect(e.befunde.map((b) => b.titel)).toEqual(["ERiC 44.1.6.0 ist verfügbar (Haben: 43.4.6.0)"]);
     expect(e.warnungen).toHaveLength(1);
   });
+
+  it("hält eine Wartungsseite, die jede Adresse mit 200 beantwortet, nicht für vorhandene Pakete", async () => {
+    const wartung = antwort(200, "<html><body>Wartungsarbeiten</body></html>", { "content-type": "text/html" });
+    const alle = Object.fromEntries(["43.4.6.0", ...kandidaten("43.4.6.0")].map((v) => [ericUrl(v), wartung]));
+    const e = await pruefeEric("43.4.6.0", nachgestellt(alle));
+    expect(e.befunde).toEqual([]);
+    expect(e.warnungen).not.toEqual([]);
+  });
 });

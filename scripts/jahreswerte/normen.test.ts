@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { antwort, nachgestellt } from "./nachgestellt.ts";
+import { antwort, type Nachgestellt, nachgestellt } from "./nachgestellt.ts";
 import { mitAktuellenHashes, type Norm, normText, pruefeNormen } from "./normen.ts";
 
 // Aufbau einer Einzelnorm auf gesetze-im-internet.de (gekürzt): Navigation, Überschrift, Text, Fußnote, Fußzeile
@@ -88,5 +88,27 @@ describe("Gesetzeswächter", () => {
       expect(n.url, n.norm).toMatch(/^https:\/\/www\.gesetze-im-internet\.de\/[\w-]+\/__\w+\.html$/);
       for (const s of n.stellen) expect(() => readFileSync(new URL(`../../${s}`, import.meta.url)), s).not.toThrow();
     }
+  });
+
+  // gesetze-im-internet.de sendet bei 200 „Content-Type: text/html“ ohne charset; der Zeichensatz steht nur im
+  // meta-Element, und Überschriften enthalten rohe ISO-8859-1-Bytes (§ 247 BGB: „B\xfcrgerliches Gesetzbuch“)
+  const mitRohemUmlaut = (byte: number): Nachgestellt => {
+    const bytes = new Uint8Array(new TextEncoder().encode(seite("(1) Text").replace("B&#252;rgerliches", "B?rgerliches")));
+    bytes[bytes.indexOf(0x3f)] = byte;
+    return { status: 200, bytes, headers: { "content-type": "text/html" } };
+  };
+
+  it("liest rohe ISO-8859-1-Bytes nach dem meta-Element, nicht als UTF-8", async () => {
+    const ue = await pruefeNormen([norm(unveraendert)], nachgestellt({ [URL_247]: mitRohemUmlaut(0xfc) }));
+    expect(ue.ergebnis).toEqual({ befunde: [], warnungen: [] });
+    // Ein anderes Zeichen in der Überschrift ist eine Änderung, kein gleiches Ersatzzeichen U+FFFD
+    const ae = await pruefeNormen([norm(unveraendert)], nachgestellt({ [URL_247]: mitRohemUmlaut(0xe4) }));
+    expect(ae.ergebnis.befunde).toHaveLength(1);
+  });
+
+  it("meldet eine Norm, die es unter der Adresse nicht mehr gibt (404), als Befund statt nur als Warnung", async () => {
+    const weg = antwort(404, "<html><body>Seite nicht gefunden</body></html>", { "content-type": "text/html; charset=iso-8859-1" });
+    const { ergebnis } = await pruefeNormen([norm(unveraendert)], nachgestellt({ [URL_247]: weg }));
+    expect(ergebnis.befunde.map((b) => b.schluessel)).toEqual(["norm-bgb-247"]);
   });
 });
