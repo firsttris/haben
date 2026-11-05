@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
+import { mkdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
+import { fullPageScreenshot, SHOTS } from "./daten.ts";
 
 /**
  * Eine GmbH in eigener, leerer Datenbank (Projekt „gmbh“ in playwright.config.ts, eigener Server): einrichten mit
@@ -1044,4 +1046,28 @@ test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", as
   await expect(zuordnung.getByRole("button", { name: "Aufheben" })).toBeVisible();
   await expect(zuordnung.getByText("Gesellschafter", { exact: true })).toBeVisible();
   await expect(zuordnung.getByText("Privat", { exact: true })).toHaveCount(0);
+});
+
+// Die Seiten in seiten.spec.ts zeigen ein Einzelunternehmen; was nur eine GmbH hat, steht dort als Hinweis. Für den Blick
+// auf die GmbH-Ansichten (CI-Artefakt e2e-screenshots) hier dieselben Seiten mit den Daten dieses Durchlaufs.
+test("Screenshots der GmbH-Seiten", async () => {
+  const jahr = new Date().getFullYear();
+  const seiten: [string, string][] = [
+    ["uebersicht", "/"],
+    ["jahresabschluss-vorjahr", `/abschluss/${jahr - 1}`],
+    ["jahresabschluss", `/abschluss/${jahr}`],
+    ["ausschuettungen", `/ausschuettungen?jahr=${jahr}`],
+    ["jahreserklaerung", `/jahreserklaerung/${jahr}`],
+    ["buchungen", "/buchungen"],
+    ["buchung-erfassen", "/buchungen/neu"],
+    ["konten", `/konten?jahr=${jahr}`],
+    ["lohn", "/lohn"],
+    ["auswertungen", `/auswertungen?jahr=${jahr}`],
+    ["einstellungen", "/einstellungen"],
+  ];
+  mkdirSync(`${SHOTS}/gmbh`, { recursive: true });
+  for (const [index, [name, path]] of seiten.entries()) {
+    await go(path);
+    await fullPageScreenshot(page, { path: `${SHOTS}/gmbh/${String(index + 1).padStart(2, "0")}-${name}.png`, animations: "disabled", caret: "hide" });
+  }
 });
