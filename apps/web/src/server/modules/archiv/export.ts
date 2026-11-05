@@ -216,6 +216,7 @@ const SOURCE_LABELS: Record<string, string> = {
   manuell: "Manuell",
   eroeffnung: "Eröffnung",
   ausschuettung: "Ausschüttung",
+  lohn: "Lohn",
 };
 const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[number], string> = {
   invoice: "Rechnung",
@@ -225,6 +226,9 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   ustVorauszahlung: "USt-Vorauszahlung",
   sondervorauszahlung: "USt-Sondervorauszahlung",
   kapest: "Kapitalertragsteuer",
+  lohn: "Lohn/Gehalt",
+  lohnsteuer: "Lohnsteuer",
+  sozialversicherung: "SV-Beiträge",
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",

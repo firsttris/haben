@@ -1,4 +1,13 @@
-import { ACCOUNT_NAMES, ACCOUNTS, ASSET_ACCOUNT_NAMES, EXPENSE_CATEGORIES, PAUSCHALE_KONTEN, PRIVATE_USE_ACCOUNT_NAMES, type Kontenrahmen } from "@haben/core";
+import {
+  ACCOUNT_NAMES,
+  ACCOUNTS,
+  ASSET_ACCOUNT_NAMES,
+  EXPENSE_CATEGORIES,
+  LOHN_KONTO_NAMEN,
+  PAUSCHALE_KONTEN,
+  PRIVATE_USE_ACCOUNT_NAMES,
+  type Kontenrahmen,
+} from "@haben/core";
 import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 
@@ -16,6 +25,7 @@ const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     ...ASSET_ACCOUNT_NAMES.SKR03,
     ...PRIVATE_USE_ACCOUNT_NAMES.SKR03,
     ...Object.fromEntries(Object.values(PAUSCHALE_KONTEN).map((k) => [k.SKR03.konto, k.SKR03.name])),
+    ...LOHN_KONTO_NAMEN.SKR03,
   },
   SKR04: {
     [ACCOUNTS.SKR04.vorsteuer[1900]]: "Vorsteuer 19 %",
@@ -30,6 +40,7 @@ const EXTRA_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     ...ASSET_ACCOUNT_NAMES.SKR04,
     ...PRIVATE_USE_ACCOUNT_NAMES.SKR04,
     ...Object.fromEntries(Object.values(PAUSCHALE_KONTEN).map((k) => [k.SKR04.konto, k.SKR04.name])),
+    ...LOHN_KONTO_NAMEN.SKR04,
   },
 };
 

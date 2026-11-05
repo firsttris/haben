@@ -178,6 +178,7 @@ const alleEuerFelder: EuerFigures = {
   privateKfz: 300_000,
   waren: 250_000,
   fremdleistungen: 500_000,
+  personal: 1_200_000,
   afaBeweglich: 666_667 + 400_000 + 9_000 + 233_333 + 10_000,
   gwg: 50_000,
   sammelposten: 38_000,

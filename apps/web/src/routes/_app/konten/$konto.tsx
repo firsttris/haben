@@ -45,6 +45,7 @@ function SourceLink({ type, id, reversal }: { type: string; id: string; reversal
   if (type === "allocation") return <Link to="/bank">{label}</Link>;
   if (type === "pauschale") return <Link to="/pauschalen">{label}</Link>;
   if (type === "kasse") return <Link to="/kasse">{label}</Link>;
+  if (type === "lohn") return <Link to="/lohn">{label}</Link>;
   return <>{label}</>;
 }
 

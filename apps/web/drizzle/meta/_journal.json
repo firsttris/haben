@@ -925,6 +925,13 @@
       "when": 1793990154647,
       "tag": "0131_zusammenfassende_meldung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1793990214647,
+      "tag": "0132_lohn_buchungen",
+      "breakpoints": true
     }
   ]
 }

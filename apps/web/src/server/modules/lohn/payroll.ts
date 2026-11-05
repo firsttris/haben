@@ -8,12 +8,14 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import type { PayslipMitarbeiter } from "../../db/schema.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { abrechnungPdf } from "./abrechnung-pdf.ts";
+import { bucheAbrechnung, bucheStorno, gebuchteAbrechnungen } from "./buchung.ts";
 import { type Employee, fehlendeAngaben, hinweiseZuStammdaten, LohnError, payslipMitarbeiter } from "./employees.ts";
 
 /*
  * Lohnabrechnung je Monat und Mitarbeiter: Entwurf rechnen (`lohnabrechnung` in @haben/core), prüfen, festschreiben
  * (gesperrt und versiegelt, mit PDF), stornieren. Nach einem Storno entsteht eine neue Abrechnung desselben Monats, die
- * auf die stornierte verweist; die stornierte bleibt unverändert (GoBD). Keine Buchung ins Journal: die kommt mit PR 4.
+ * auf die stornierte verweist; die stornierte bleibt unverändert (GoBD). Festschreiben bucht die Abrechnung ins Journal,
+ * ein Storno die Gegenbuchung (buchung.ts).
  */
 
 export type Payslip = typeof schema.payslips.$inferSelect;
@@ -139,6 +141,7 @@ export async function monatsuebersicht(year: number, month: number) {
           .from(schema.employees)
           .where(inArray(schema.employees.id, [...ids]))
       : employees;
+  const gebucht = await gebuchteAbrechnungen(payslips.map((p) => p.id));
   const zeilen = alle
     .sort((a, b) => a.personalnummer - b.personalnummer)
     .map((e) => {
@@ -147,7 +150,13 @@ export async function monatsuebersicht(year: number, month: number) {
       const vorschau = aktiv ? null : company.bundesland ? berechne(e, year, month, company.bundesland) : null;
       return {
         employee: { id: e.id, personalnummer: e.personalnummer, name: `${e.vorname} ${e.nachname}`, art: e.art },
-        payslips: eigene.map((p) => ({ ...p, pdf: undefined, fehlend: fehlendeAngaben(p.mitarbeiter), veraltet: !p.lockedAt && veraltet(p, e) })),
+        payslips: eigene.map((p) => ({
+          ...p,
+          pdf: undefined,
+          fehlend: fehlendeAngaben(p.mitarbeiter),
+          veraltet: !p.lockedAt && veraltet(p, e),
+          gebucht: gebucht.has(p.id),
+        })),
         vorschau:
           vorschau &&
           (vorschau.ok
@@ -256,8 +265,9 @@ export async function entwurfLoeschen(actor: string, id: string): Promise<void> 
 const sha256 = (data: Uint8Array) => createHash("sha256").update(data).digest("hex");
 
 /**
- * Schreibt einen Entwurf fest: mit PDF, danach gesperrt und versiegelt (Trigger aus 0127). Abgelehnt, wenn Angaben für die
- * Entgeltbescheinigung fehlen, die Stammdaten seit dem Entwurf geändert sind oder Stufe C nicht als gegengeprüft bestätigt ist.
+ * Schreibt einen Entwurf fest: mit PDF, danach gesperrt und versiegelt (Trigger aus 0127), und bucht ihn. Abgelehnt, wenn
+ * Angaben für die Entgeltbescheinigung fehlen, die Stammdaten seit dem Entwurf geändert sind, Stufe C nicht als
+ * gegengeprüft bestätigt ist oder sich die Abrechnung nicht buchen lässt.
  */
 export async function festschreiben(actor: string, input: z.input<typeof festschreibenSchema>, heute: string): Promise<void> {
   const { id, gegengeprueft } = festschreibenSchema.parse(input);
@@ -279,6 +289,7 @@ export async function festschreiben(actor: string, input: z.input<typeof festsch
       .update(schema.payslips)
       .set({ pdf: Buffer.from(pdf), sha256: sha256(pdf), gegengeprueft, lockedAt: new Date(), updatedAt: new Date() })
       .where(eq(schema.payslips.id, id));
+    await bucheAbrechnung(tx, p);
   });
 }
 
@@ -301,6 +312,7 @@ export async function stornieren(
     if (schon) throw new LohnError("Die Abrechnung ist schon storniert.");
     const land = await bundesland(tx);
     await tx.insert(schema.payslipCancellations).values({ payslipId: id, date: heute, reason: grund });
+    await bucheStorno(tx, p, heute);
     const r = berechne(e!, p.year, p.month, land);
     if (!r.ok) return { entwurf: null, meldung: r.meldung };
     const [neu] = await tx

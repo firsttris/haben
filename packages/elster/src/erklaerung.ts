@@ -252,6 +252,8 @@ export interface EuerFigures {
   // Betriebsausgaben
   waren?: Cents;
   fremdleistungen?: Cents;
+  /** Ausgaben für eigenes Personal: Löhne und Gehälter, Lohnsteuer und Beiträge zur Sozialversicherung */
+  personal?: Cents;
   afaBeweglich?: Cents;
   gwg?: Cents;
   sammelposten?: Cents;
@@ -288,6 +290,7 @@ export const EUER_EINNAHMEN = ["kleinunternehmer", "steuerpflichtig", "steuerfre
 export const EUER_AUSGABEN = [
   "waren",
   "fremdleistungen",
+  "personal",
   "afaBeweglich",
   "gwg",
   "sammelposten",
@@ -330,6 +333,8 @@ export const EUER_FIELDS: Record<EuerFigureKey | "bewirtungNichtAbziehbar" | "en
   // Kennung und Element aus den ERiC-Plugins libcheckEUER_2023 bis _2025: /EUER/BAus/Ware_Rohstoff_Hilfsstoff/Sum/E6001601
   waren: { kz: "E6001601", label: "Waren, Rohstoffe und Hilfsstoffe einschließlich der Nebenkosten" },
   fremdleistungen: { kz: "E6001701", label: "Bezogene Fremdleistungen" },
+  // Schema E77-2023 bis E77-2026 im ERiC-Paket: /EUER/BAus/Personal/Sum/E6001801
+  personal: { kz: "E6001801", label: "Ausgaben für eigenes Personal (z. B. Gehälter, Löhne und Versicherungsbeiträge)" },
   afaBeweglich: { kz: "E6002101", label: "AfA auf bewegliche Wirtschaftsgüter" },
   gwg: { kz: "E6002301", label: "Aufwendungen für geringwertige Wirtschaftsgüter" },
   sammelposten: { kz: "E6003302", label: "Auflösung Sammelposten nach § 6 Abs. 2a EStG" },
@@ -579,6 +584,7 @@ export function buildEuerXml(input: EuerXmlInput): string {
         [
           sumNode("Ware_Rohstoff_Hilfsstoff", kz("waren"), f.waren),
           sumNode("Fremdleistung", kz("fremdleistungen"), f.fremdleistungen),
+          sumNode("Personal", kz("personal"), f.personal),
           [
             "AfA",
             [

@@ -1,6 +1,7 @@
 import { roundHalfAwayFromZero, splitPrivateShare, type BasisPoints, type Cents } from "./money.ts";
 import type { InvoiceTotals, TaxRate } from "./invoice.ts";
 import type { TaxTreatment } from "./treatment.ts";
+import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import { isKapitalgesellschaft, ownerLabels, type Rechtsform } from "./rechtsform.ts";
 
 export type Kontenrahmen = "SKR03" | "SKR04";
@@ -574,7 +575,24 @@ export const DIRECT_BOOKINGS = {
   gebuehren: "Kontoführung und Bankgebühren",
   mahnerloes: "Mahngebühren und Verzugszinsen (vom Kunden)",
   kapest: "Kapitalertragsteuer an das Finanzamt (Ausschüttung)",
+  // Zahlungen aus der Lohnabrechnung, gegen die Verbindlichkeiten ihrer Buchung (lohn-buchung.ts)
+  lohn: "Lohn/Gehalt an Mitarbeiter",
+  lohnsteuer: "Lohnsteuer an das Finanzamt",
+  sozialversicherung: "SV-Beiträge an Krankenkasse oder Minijob-Zentrale",
 } as const;
+
+/** Buchungen ohne Beleg, die eine Verbindlichkeit aus der Lohnabrechnung bezahlen; in der EÜR Ausgaben für Personal */
+export const LOHN_ZAHLUNGEN = ["lohn", "lohnsteuer", "sozialversicherung"] as const satisfies readonly (keyof typeof DIRECT_BOOKINGS)[];
+
+export type LohnZahlung = (typeof LOHN_ZAHLUNGEN)[number];
+
+export const isLohnZahlung = (kind: string): kind is LohnZahlung => (LOHN_ZAHLUNGEN as readonly string[]).includes(kind);
+
+/** Verbindlichkeit, die eine Lohnzahlung tilgt */
+function lohnZahlungKonto(kind: LohnZahlung, kontenrahmen: Kontenrahmen): string {
+  const k = LOHN_KONTEN[kontenrahmen];
+  return kind === "lohn" ? k.verbLohn : kind === "lohnsteuer" ? k.verbLohnsteuer : k.verbSv;
+}
 
 export type DirectBooking = keyof typeof DIRECT_BOOKINGS;
 
@@ -591,8 +609,9 @@ export function directBookingsFor(rechtsform: Rechtsform): DirectBooking[] {
 export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: Kontenrahmen, rechtsform: Rechtsform): PostingLine[] {
   const accounts = ACCOUNTS[kontenrahmen];
   if (!directBookingsFor(rechtsform).includes(kind)) throw new Error(`${DIRECT_BOOKINGS[kind]} gibt es nur in GmbH und UG`);
-  const counter =
-    kind === "kapest"
+  const counter = isLohnZahlung(kind)
+    ? lohnZahlungKonto(kind, kontenrahmen)
+    : kind === "kapest"
       ? accounts.kapestEinbehalt
       : kind === "privat"
         ? ownerAccount(kontenrahmen, rechtsform, amount < 0 ? "entnahme" : "einlage")

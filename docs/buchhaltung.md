@@ -244,7 +244,7 @@ Beim Zuordnen eines Bankumsatzes zu einem gebuchten Beleg, gebucht auf den Buchu
 
 ### Bankumsätze ohne Rechnung oder Beleg
 
-Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer von vier Arten zuordnen. Gebucht wird Bank gegen ein Gegenkonto, auf den Buchungstag. Bei einem Ausgang (negativer Betrag) steht die Bank im Haben, bei einem Eingang im Soll.
+Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer dieser Arten zuordnen; die drei Lohnzahlungen erst, wenn es eine festgeschriebene [Lohnabrechnung](#lohnabrechnung) gibt. Gebucht wird Bank gegen ein Gegenkonto, auf den Buchungstag. Bei einem Ausgang (negativer Betrag) steht die Bank im Haben, bei einem Eingang im Soll.
 
 | Art | Gegenkonto SKR03 | Gegenkonto SKR04 | Ausgang | Eingang |
 | --- | --- | --- | --- | --- |
@@ -253,6 +253,9 @@ Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer von vier Art
 | Umsatzsteuer an das Finanzamt | 1780 | 3820 | Vorauszahlung an Bank | Bank an Vorauszahlung (Erstattung) |
 | Kontoführung und Bankgebühren | 4970 | 6855 | Gebühren an Bank | Bank an Gebühren |
 | Mahngebühren und Verzugszinsen | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
+| Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Rückzahlung) |
+| Lohnsteuer an das Finanzamt | 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
+| SV-Beiträge an Krankenkasse oder Minijob-Zentrale | 1742 Verbindlichkeiten im Rahmen der sozialen Sicherheit | 3740 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
 
 Beispiel Bankgebühr von 9,90 € in SKR03:
 
@@ -309,6 +312,35 @@ Homeoffice-Tage, Fahrten mit dem Privatfahrzeug und Verpflegungsmehraufwand buch
 
 Ein Storno ist eine Gegenbuchung am selben Tag. Sätze und Grenzen stehen unter [Pauschalen](pauschalen.md).
 
+### Lohnabrechnung
+
+Beim Festschreiben einer [Lohnabrechnung](lohn.md#buchung), gebucht auf den letzten Tag des abgerechneten Monats, ohne Steuerschlüssel. Beschreibung: `Lohn <Monat> · <Name>`. Die Konten stehen so im DATEV-Kontenrahmen 2026 (SKR03 Art.-Nr. 11174, SKR04 Art.-Nr. 11175; `LOHN_KONTEN` in `packages/core/src/lohn-buchung.ts`):
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | --- | --- |
+| 4120 Gehälter, 4124 Geschäftsführergehälter der GmbH-Gesellschafter bzw. 4195 Löhne für Minijobs | 6020, 6024 bzw. 6035 | Brutto | |
+| 4130 Gesetzliche soziale Aufwendungen bzw. im Minijob 4144 Soziale Abgaben für Minijobber | 6110 bzw. 6171 | Anteile des Arbeitgebers, Umlagen U1, U2, Insolvenzgeld | |
+| 4194 Pauschale Steuer für Minijobber | 6036 | Pauschsteuer 2 % | |
+| 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 | | Auszahlung |
+| 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 | | Lohnsteuer, Soli, Kirchensteuer |
+| 1742 Verbindlichkeiten im Rahmen der sozialen Sicherheit | 3740 | | Anteile beider Seiten, Umlagen, im Minijob die Pauschsteuer |
+
+Beispiel Beschäftigter mit 4.000,00 € im Oktober 2026 (Steuerklasse I ohne Kinderfreibetrag, vier Kinder unter 25 in der Pflegeversicherung, Zusatzbeitrag 3,1 %, Umlagen 1,6 % und 0,44 %), SKR04:
+
+| Konto | Soll | Haben |
+| --- | --- | --- |
+| 6020 Gehälter | 4.000,00 | |
+| 6110 Gesetzliche soziale Aufwendungen | 937,60 | |
+| 3720 Verbindlichkeiten aus Lohn und Gehalt | | 2.640,17 |
+| 3730 Verbindlichkeiten aus Lohn- und Kirchensteuer | | 539,83 |
+| 3740 Verbindlichkeiten im Rahmen der sozialen Sicherheit | | 1.757,60 |
+
+Achtung bei 3730: Im SKR04 ist das die Lohnsteuer, im SKR03 „Erhaltene Skonti“. Ein Storno der Abrechnung ist eine Gegenbuchung am selben Tag. Bezahlt werden die Verbindlichkeiten im Bankabgleich ([Bankumsätze ohne Rechnung oder Beleg](#bankumsätze-ohne-rechnung-oder-beleg)).
+
+Für Minijobs nennt der DATEV-Kontenrahmen 2026 eigene Konten (4195, 4194, 4144 bzw. 6035, 6036, 6171), nicht die allgemeinen Aushilfslöhne (4190 bzw. 6030); die E-Bilanz fragt Löhne für Minijobs getrennt ab. Beiträge zur Berufsgenossenschaft (4138 bzw. 6120) bucht die Lohnabrechnung nicht; sie kommen jährlich mit dem Bescheid.
+
+In der EÜR eines Einzelunternehmens zählt nicht diese Buchung, sondern die Zahlung: Lohn, Lohnsteuer und Beiträge sind am Tag der Zuordnung im Bankabgleich „Ausgaben für eigenes Personal“ (Anlage EÜR, Kennzahl E6001801).
+
 ## Steuerschlüssel und Kennzahlen
 
 Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, Verbindlichkeiten, Bank, Privat- und Saldenvortragskonten bleiben ohne; ebenso die Zeilen der Eröffnungsbuchungen.
@@ -338,7 +370,7 @@ Regulär besteuerte Umsätze zu 0 % (Schlüssel `frei`) meldet Haben nicht; die 
 ## Die Seite „Buchungen“
 
 Unter **Buchungen** steht das Journal je Monat, neueste zuerst, mit Pfeilen zum Vor- und Folgemonat. Jede Buchung ist eine Zeile:
-- Datum und Herkunft („Rechnung“, „Beleg“, „Bank“, „Anlage“ oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
+- Datum und Herkunft („Rechnung“, „Beleg“, „Bank“, „Anlage“, „Lohn“ oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
 - Buchungstext.
 - Soll- und Habenkonto, jeweils das größte. Weitere Konten stehen als „+n“ daneben.
 - Betrag und Steuerschlüssel.
@@ -347,7 +379,7 @@ Der Pfeil links klappt alle Buchungszeilen mit Soll, Haben und Steuerschlüssel 
 
 Darüber lässt sich nach Herkunft, Kontonummer und Text filtern. Unten stehen die Zahl der Buchungen und ihre Summe.
 
-Gebucht wird über Rechnungen, Belege, Bank, Kasse und Anlagen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-buchungen-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+Gebucht wird über Rechnungen, Belege, Bank, Kasse, Anlagen und Lohnabrechnungen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-buchungen-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
 
 ## Manuelle Buchungen (GmbH und UG)
 
@@ -371,6 +403,7 @@ Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung dar
 | Umsatzsteuer, Vorsteuer, Umsatzsteuer-Vorauszahlungen | Voranmeldung |
 | Erlöskonten der Rechnungen | Rechnungen |
 | Anlagen, AfA, Restbuchwert | Anlagenverzeichnis |
+| Lohnaufwand und Lohnverbindlichkeiten (SKR03 4120, 4124, 4130, 4144, 4194, 4195, 1740–1742; SKR04 6020, 6024, 6035, 6036, 6110, 6171, 3720–3740) | Lohnabrechnung; die Verbindlichkeiten sind in der Eröffnung erlaubt |
 | Klasse 9 (Saldenvorträge, statistische Konten) | – |
 | Privatkonten (SKR03 1800–1899, SKR04 2100–2199) | gibt es in GmbH und UG nicht |
 
@@ -607,7 +640,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 - Gebäude, degressive AfA, Sonderabschreibungen und Investitionsabzugsbetrag
 - Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
 - Innergemeinschaftliche Lieferungen und Erwerbe von Waren; § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
-- Lohn; Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
+- Lohn nur aus der [Lohnabrechnung](lohn.md#buchung), mit deren Grenzen (keine Sachbezüge, kein Zuschuss zur privaten Krankenversicherung, keine Beiträge zur Berufsgenossenschaft); Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
 - Im Einzelunternehmen Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG trägt Haben die Salden [vor](#saldenvortrag-und-eröffnung-gmbh-und-ug), einzelne Abschlussbuchungen lassen sich [manuell](#manuelle-buchungen-gmbh-und-ug) erfassen
 
 > [!NOTE]

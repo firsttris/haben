@@ -571,7 +571,7 @@ test("Restlaufzeiten und Vermerke: Gesellschafter-Verrechnungskonto, vorschlagen
   expect(await axe(), `/abschluss/${year} Restlaufzeiten bestätigt`).toEqual([]);
 });
 
-test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, festschreiben, PDF, Lohnkonto und Storno", async () => {
+test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, festschreiben und buchen, PDF, Lohnkonto, Auszahlung und Storno", async () => {
   await go("/lohn?jahr=2026&monat=10");
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await expect(nav.getByRole("group", { name: "Personal" }).getByRole("link", { name: "Lohn" })).toBeVisible();
@@ -619,7 +619,7 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, fe
   await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
   await abrechnung.getByRole("button", { name: "Jetzt festschreiben" }).click();
   await expect(page.getByText("Abrechnung festgeschrieben.")).toBeVisible();
-  await expect(abrechnung.getByText("festgeschrieben", { exact: true })).toBeVisible();
+  await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const pdf = await page.request.get((await abrechnung.getByRole("link", { name: "Entgeltabrechnung (PDF)" }).getAttribute("href"))!);
   expect(pdf.headers()["content-type"]).toBe("application/pdf");
   expect((await pdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
@@ -633,7 +633,51 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, fe
   const konto = await page.request.get(`/api/lohn/lohnkonto/${id}/2026/pdf`);
   expect((await konto.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
-  // Storno: die Abrechnung bleibt, daneben ein neuer Entwurf für denselben Monat
+  // Buchung am Monatsende (SKR04): Geschäftsführergehalt an Verbindlichkeiten aus Lohn und Gehalt bzw. Lohn- und Kirchensteuer
+  await go("/buchungen?jahr=2026&monat=10");
+  const journal = page.getByRole("region", { name: "Buchungen" });
+  const lohnzeile = journal.getByRole("row").filter({ hasText: "Lohn Oktober 2026 · Erika Gesellschafter" });
+  await expect(lohnzeile).toContainText("31.10.");
+  await expect(lohnzeile.getByRole("link", { name: "Lohn" })).toBeVisible();
+  await expect(lohnzeile).toContainText("6024");
+  await expect(lohnzeile).toContainText("3720");
+  await expect(lohnzeile).toContainText("6.000,00");
+  await lohnzeile.getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
+  await expect(journal.getByText("3730").first()).toBeVisible();
+  expect(await axe(), "/buchungen mit Lohn").toEqual([]);
+
+  // Auszahlung im Bankabgleich: Lohn/Gehalt an Mitarbeiter gleicht 3720 aus
+  const auszug =
+    "\ufeff" +
+    `"Girokonto";"DE89 3704 0044 0532 0130 00"\n""\n"Kontostand vom 28.10.2026:";"35.405,36 €"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `"28.10.26";"28.10.26";"Gebucht";"Nordlicht Software GmbH";"Erika Gesellschafter";"Gehalt 10/2026";"Ausgang";"DE89370400440532013000";"-4.594,64";"";"";""\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "lohn.csv", mimeType: "text/csv", buffer: Buffer.from(auszug) }]);
+  await expect(page.getByText(/1 neuer Umsatz|1 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await go("/bank");
+  await page
+    .getByRole("link", { name: /Erika Gesellschafter/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("heading", { name: "Erika Gesellschafter" })).toBeVisible();
+  await page.getByRole("button", { name: "Ohne Rechnung buchen" }).click();
+  await page.getByLabel("Buchen als").selectOption({ label: "Lohn/Gehalt an Mitarbeiter" });
+  expect(await axe(), "/bank Lohnzahlung").toEqual([]);
+  await page.getByRole("button", { name: "Buchen", exact: true }).click();
+  // Der einzige Umsatz bleibt ausgewählt, jetzt zugeordnet
+  await expect(page.getByRole("complementary", { name: "Zuordnung" }).getByRole("button", { name: "Aufheben" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Zuordnung" })).toContainText("Lohn/Gehalt");
+  await go("/konten/3720?jahr=2026&zeitraum=jahr");
+  await expect(page.getByRole("heading", { name: /3720/ })).toContainText("Verbindlichkeiten aus Lohn und Gehalt");
+  await expect(page.getByText("Lohn Oktober 2026 · Erika Gesellschafter")).toBeVisible();
+  await expect(page.getByText(/Erika Gesellschafter · lohn/)).toBeVisible();
+
+  // Storno: die Abrechnung bleibt, daneben ein neuer Entwurf für denselben Monat; die Buchung wird gegengebucht
+  await go("/lohn?jahr=2026&monat=10");
   await abrechnung.getByRole("button", { name: "Stornieren" }).click();
   const storno = page.getByRole("form", { name: "Abrechnung stornieren" });
   await storno.getByLabel("Grund des Stornos").fill("Gehalt rückwirkend geändert");
@@ -642,6 +686,14 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, fe
   await expect(mitarbeiterin.getByRole("region", { name: /Abrechnung Stufe A/ })).toHaveCount(2);
   await expect(mitarbeiterin.getByText("Grund des Stornos: Gehalt rückwirkend geändert")).toBeVisible();
   expect(await axe(), "/lohn nach Storno").toEqual([]);
+  await go("/buchungen?jahr=2026&monat=10");
+  const gegen = page
+    .getByRole("region", { name: "Buchungen" })
+    .getByRole("row")
+    .filter({ hasText: /Storno vom .*: Lohn Oktober 2026 · Erika Gesellschafter/ });
+  await expect(gegen).toContainText("Gegenbuchung");
+  await expect(gegen).toContainText("6.000,00");
+  await go("/lohn?jahr=2026&monat=10");
 
   await mitarbeiterLink.click();
   await page.waitForURL(/\/lohn\/mitarbeiter\/[0-9a-f-]{36}$/);

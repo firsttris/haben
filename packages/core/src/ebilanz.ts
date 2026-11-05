@@ -1,5 +1,6 @@
 import { ASSET_ACCOUNTS, type ScheduleAsset, type ScheduleYear } from "./afa.ts";
 import { postenForSaldo, type Posten } from "./hgb.ts";
+import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import type { Cents } from "./money.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
 
@@ -171,6 +172,31 @@ const KAPITAL: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
   },
 };
 
+const STAFF = `${IS}.staff`;
+
+/**
+ * Konten der Lohnbuchung (lohn-buchung.ts). Gehälter auf „übrige“ Löhne und Gehälter; Geschäftsführer und Minijobs fragt
+ * die Taxonomie als Mussfeld getrennt ab, die Pauschsteuer im Minijob gehört zu dessen Lohn (DATEV 4194 / 6036 unter
+ * „Löhne und Gehälter“). Arbeitgeberanteile und Umlagen sind soziale Abgaben; ihr Mussfeld „other“ steht neben dem für
+ * angestellte Mitunternehmer (§ 15 EStG), die Haben nicht abrechnet. Die Verbindlichkeiten haben eigene Davon-Positionen;
+ * mit Soll-Saldo (überzahlt) sind sie Forderungen gegen Beschäftigte, Finanzamt bzw. Sozialversicherung.
+ */
+function lohnKonten(kontenrahmen: Kontenrahmen): [string, EbilanzZiel][] {
+  const k = LOHN_KONTEN[kontenrahmen];
+  const sozial = `${STAFF}.social.socExp.other`;
+  return [
+    [k.gehaelter, [`${STAFF}.salaries.misc`]],
+    [k.ggf, [`${STAFF}.salaries.managerPartner`]],
+    [k.minijob, [`${STAFF}.salaries.minijobs`]],
+    [k.minijobPauschsteuer, [`${STAFF}.salaries.minijobs`]],
+    [k.sozial, [sozial]],
+    [k.minijobSozial, [sozial]],
+    [k.verbLohn, ["bs.ass.currAss.receiv.other.employees", "bs.eqLiab.liab.other.employees"]],
+    [k.verbLohnsteuer, [EB_KAPEST_FORDERUNG, EB_KAPEST_SCHULD]],
+    [k.verbSv, ["bs.ass.currAss.receiv.other.socInsur", "bs.eqLiab.liab.other.thereoffSocSec"]],
+  ];
+}
+
 function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
   const a = ACCOUNTS[kontenrahmen];
   const anlagen = ASSET_ACCOUNTS[kontenrahmen];
@@ -219,6 +245,7 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     [anlagen.restbuchwert, [`${OC}.disposFixAss.bookValue.tan.other`]],
     ...Object.entries(ERTRAGSTEUERN[kontenrahmen]),
     ...Object.entries(KAPITAL[kontenrahmen]),
+    ...lohnKonten(kontenrahmen),
   ];
   return Object.fromEntries(entries);
 }
