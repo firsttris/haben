@@ -12,7 +12,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | 2 | Lohn: Ausfüllliste SV-Meldeportal | Beitragsnachweis und DEÜV-Meldungen zum Abtippen im [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz), mit Fristen und Vermerk „abgegeben“ | S–M | geplant |
 | 3 | Lohn: Lohnsteuerbescheinigung | Elektronische Lohnsteuerbescheinigung über ERiC bis Ende Februar des Folgejahres | M | geplant |
 | 4 | E-Bilanz-Taxonomie 6.10 | Neue Taxonomie ab Wirtschaftsjahr 2027 mit Kontennachweis zu Bilanz und GuV ([Buchhaltung](buchhaltung.md)) | M | geplant |
-| 5 | Voranmeldung als offener Posten | Zahllast und Erstattung der Umsatzsteuer-Voranmeldung im Bankabgleich zuordnen, auch für außerhalb von Haben abgegebene Voranmeldungen | M | geplant |
+| 5 | Voranmeldung als offener Posten | Abgabe außerhalb von Haben vermerken (Datum, Transferticket, Protokoll; danach festgeschrieben, Frist erledigt, Kennzahlen geprüft) und Zahllast bzw. Erstattung als offenen Posten mit Fälligkeit im Bankabgleich zuordnen, mit Teilzahlung und Berichtigung; Protokoll im Jahresarchiv | M | geplant |
 | 6 | Weitere AfA-Methoden | Degressive AfA mit Wechsel zur linearen, Sonderabschreibung für E-Fahrzeuge, Erinnerungswert ([Anlagen](anlagen.md)) | M | geplant |
 | 7 | Innergemeinschaftliche Lieferung und Erwerb, Ausfuhr | Rechnung und Beleg mit eigener Steuerregelung, Kz 41, 43, 89/93 und 61, ZM mit Lieferungen und Dreiecksgeschäften | M | geplant |
 | 8 | Dauerbelege | Wiederkehrende Ausgaben wie Miete oder Versicherung einmal erfassen, Haben legt sie im Intervall an | S–M | geplant |
@@ -28,7 +28,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 
 ## Später oder vielleicht
 
-Sinnvoll, aber nicht jetzt: eigene Drucklayouts, Absenderprofile und Textformatierung in Belegen; Webhooks und Angebote in der API, schreibender MCP-Server; Belege aus Cloud-Speichern; E-Mail-Versand über die Anmeldung bei Google oder Microsoft; ELStAM (offen, ob es eine freigeschaltete Hersteller-ID braucht); § 13b für Bauleistungen; weitere Fälle im Lohn; eigene Sachkonten neben den Kategorien (braucht eine Entscheidung zur Architektur); Module ausblenden; Sammelrechnung aus Lieferscheinen; Lastschrift-Datei (pain.008); Fahrtenbuch; vollständigere Anlage EÜR (häusliches Arbeitszimmer, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
+Sinnvoll, aber nicht jetzt: eigene Drucklayouts (Schrift, Fußzeile in Spalten, Briefpapier) und Textformatierung in Belegen; Absender- bzw. Markenprofile, auch mit eigenem Mail-Absender; Webhooks und Angebote in der API; Bankumsätze über eine gemeinsame Importschnittstelle für Connectoren; eigene Rechnung beim Beleg-Upload erkennen; Ausgangsrechnungen aus Fremdsystemen mit fremder Nummer; OAuth für Connectors in claude.ai und schreibender MCP-Server; Belege aus Cloud-Speichern; E-Mail-Versand über die Anmeldung bei Google oder Microsoft; ELStAM (offen, ob es eine freigeschaltete Hersteller-ID braucht); § 13b für Bauleistungen; weitere Fälle im Lohn; eigene Sachkonten neben den Kategorien (braucht eine Entscheidung zur Architektur; Einstieg: eigenes Aufwandskonto, das die Zuordnung einer bestehenden Kategorie erbt); Module ausblenden; Sammelrechnung aus Lieferscheinen; Lastschrift-Datei (pain.008); Fahrtenbuch; vollständigere Anlage EÜR (häusliches Arbeitszimmer, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
 
 ## Bewusst nicht
 

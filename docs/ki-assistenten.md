@@ -45,7 +45,7 @@ Claude Desktop bindet lokal konfigurierte Server über die Datei `claude_desktop
 }
 ```
 
-Ein Connector aus den Einstellungen von claude.ai (auch für die Handy-App und claude.ai im Browser) geht noch nicht: Dort ruft Anthropic Haben aus dem Internet auf und erwartet OAuth. Das ist der nächste Schritt ([#96](https://github.com/firsttris/haben/issues/96)).
+Ein Connector aus den Einstellungen von claude.ai (auch für die Handy-App und claude.ai im Browser) geht noch nicht: Dort ruft Anthropic Haben aus dem Internet auf und erwartet OAuth. Das ist geplant, aber noch nicht dran ([Roadmap](roadmap.md), „Später oder vielleicht“).
 
 ### Andere Clients
 

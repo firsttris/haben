@@ -123,7 +123,7 @@ Maßgeblich ist immer die Kennzahl. Abschnitte und Bezeichnungen folgen dem amtl
 
 ## Grenzen
 
-- **Haben erfährt nichts von der Abgabe.** Die Voranmeldung bleibt in Haben ein Entwurf, und die [Frist](fristen.md) bleibt offen. Ein Werkzeug „Abgabe vermerken“ mit Datum, Transferticket und Protokoll wäre der erste schreibende Zugang ([#96](https://github.com/firsttris/haben/issues/96)).
+- **Haben erfährt nichts von der Abgabe.** Die Voranmeldung bleibt in Haben ein Entwurf, und die [Frist](fristen.md) bleibt offen. „Abgabe vermerken“ mit Datum, Transferticket und Protokoll ist geplant ([Roadmap](roadmap.md), Platz 5).
 - **Kein Ersatz für ERiC:** kein Senden aus Haben heraus, kein Postfachabruf, keine Übernahme von Bescheiden. Wer eine Hersteller-ID hat, sendet weiter direkt aus Haben.
 - **Nur die Voranmeldung.** Für die Jahreserklärungen (Umsatzsteuererklärung, Anlage EÜR) gibt es noch keine Ausfüllliste; die Werte liefert das Werkzeug `jahreserklaerung`.
 - **Abgesendet wird nur von dir.**
