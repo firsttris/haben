@@ -14,7 +14,7 @@ import { and, asc, eq, getTableColumns } from "drizzle-orm";
 import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
-import { FinanzamtError } from "./finanzamt.ts";
+import { FinanzamtError, nurEinzelunternehmen } from "./finanzamt.ts";
 import { prepareAbruf, protocolSubmission, underSendLock } from "../elster/index.ts";
 
 /**
@@ -52,6 +52,7 @@ type Art = (typeof schema.brmRequests.$inferInsert)["art"];
 
 async function ehegatte() {
   const company = await loadCompany();
+  nurEinzelunternehmen(company.rechtsform, "Die Abrufberechtigung für den Ehegatten");
   const b = company.taxpayer.b;
   if (!b) throw new FinanzamtError("Angaben zum Ehegatten fehlen (Einstellungen → Persönliche Angaben).");
   const a = company.taxpayer.a;

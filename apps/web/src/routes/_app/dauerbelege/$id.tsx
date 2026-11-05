@@ -23,6 +23,7 @@ const STATUS_TEXT = {
 
 function DauerbelegDetailPage() {
   const { vorlage, belege, termine, suppliers, categories, kleinunternehmer } = Route.useLoaderData();
+  const { rechtsform } = Route.useRouteContext();
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveDauerbeleg);
@@ -133,6 +134,7 @@ function DauerbelegDetailPage() {
             suppliers={suppliers}
             categories={categories}
             kleinunternehmer={kleinunternehmer}
+            rechtsform={rechtsform}
             isNew={false}
             busy={busy}
             submitLabel="Speichern"

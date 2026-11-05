@@ -1,6 +1,7 @@
 import { Link, createFileRoute, notFound, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { MitarbeiterForm } from "../../../../components/MitarbeiterForm.tsx";
+import { isKapitalgesellschaft } from "@haben/core";
+import { beschaeftigungsartenFor, MitarbeiterForm } from "../../../../components/MitarbeiterForm.tsx";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../../lib/use-action.ts";
 import { getMitarbeiter, saveMitarbeiterFn } from "../../../../server/functions/lohn.ts";
@@ -20,6 +21,7 @@ function MitarbeiterPage() {
   const router = useRouter();
   const save = useServerFn(saveMitarbeiterFn);
   const { busy, notice, setNotice, run } = useAction();
+  const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
   const jahr = new Date().getFullYear();
   return (
     <>
@@ -49,6 +51,7 @@ function MitarbeiterPage() {
         <MitarbeiterForm
           key={m.id}
           initial={m}
+          arten={beschaeftigungsartenFor(gesellschaft, m.art)}
           submitLabel="Speichern"
           busy={busy}
           onError={(text) => setNotice({ tone: "danger", text })}

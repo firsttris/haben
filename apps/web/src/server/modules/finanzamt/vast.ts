@@ -3,7 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
-import { FinanzamtError } from "./finanzamt.ts";
+import { FinanzamtError, nurEinzelunternehmen } from "./finanzamt.ts";
 import { prepareAbruf } from "../elster/index.ts";
 
 export interface VastFetchOptions {
@@ -32,8 +32,9 @@ export interface VastFetchSummary {
  * bleiben, wie sie sind; ein berichtigter Beleg kommt bei ELSTER mit neuer ID.
  */
 export async function fetchVastBelege(actor: string, client: ElsterClient, options: VastFetchOptions): Promise<VastFetchSummary> {
-  const { test, herstellerId, pfx, pin } = await prepareAbruf(client, options);
   const company = await loadCompany();
+  nurEinzelunternehmen(company.rechtsform, "Belege der vorausgefüllten Steuererklärung");
+  const { test, herstellerId, pfx, pin } = await prepareAbruf(client, options);
   const person = company.taxpayer[options.person];
   if (!person) {
     throw new FinanzamtError(

@@ -28,6 +28,8 @@ export const Route = createFileRoute("/_app/finanzamt")({
 });
 
 type Data = Awaited<ReturnType<typeof getFinanzamt>> & { today: string };
+/** Zahlen für die Herabsetzung; nur im Einzelunternehmen, eine GmbH oder UG hat keine Einkommensteuer-Vorauszahlungen */
+type Basis = NonNullable<Data["basis"]>;
 type Topic = "vorauszahlung" | "nachricht";
 type Tab = Topic | "bankverbindung";
 type SendResult = { ok: boolean; code: number; message: string; transferTicket: string | null };
@@ -48,8 +50,7 @@ const DATENART_LABEL: Record<string, string> = {
 };
 
 /** Formloser Antrag nach § 37 Abs. 3 EStG mit den Zahlen aus der Buchhaltung */
-function prepaymentLetter(data: Data, current: number | null, wanted: number | null, reason: string, usePrognose: boolean) {
-  const b = data.basis;
+function prepaymentLetter(data: Data, b: Basis, current: number | null, wanted: number | null, reason: string, usePrognose: boolean) {
   const art = b.einkunftsart === "gewerbe" ? "Gewerbebetrieb" : "selbständiger Arbeit";
   const lines = [
     "Sehr geehrte Damen und Herren,",
@@ -84,7 +85,9 @@ function prepaymentLetter(data: Data, current: number | null, wanted: number | n
 
 function FinanzamtPage() {
   const data = Route.useLoaderData();
-  const [tab, setTab] = useState<Tab>("vorauszahlung");
+  const basis = data.basis;
+  const tabs = basis ? (["vorauszahlung", "nachricht", "bankverbindung"] as const) : (["nachricht", "bankverbindung"] as const);
+  const [tab, setTab] = useState<Tab>(tabs[0]);
 
   return (
     <>
@@ -119,14 +122,14 @@ function FinanzamtPage() {
 
       <h2 style={{ margin: "24px 0 12px" }}>An das Finanzamt schreiben</h2>
       <div role="group" aria-label="Art der Nachricht" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        {(["vorauszahlung", "nachricht", "bankverbindung"] as const).map((t) => (
+        {tabs.map((t) => (
           <button key={t} type="button" className={`chip${tab === t ? " active" : ""}`} aria-pressed={tab === t} onClick={() => setTab(t)}>
             {TAB_LABEL[t]}
           </button>
         ))}
       </div>
 
-      {tab === "vorauszahlung" && <PrepaymentForm key="v" data={data} />}
+      {tab === "vorauszahlung" && basis && <PrepaymentForm key="v" data={data} basis={basis} />}
       {tab === "nachricht" && <MessageForm key="n" data={data} topic="nachricht" initial={{ betreff: "", text: "" }} />}
       {tab === "bankverbindung" && <BankChangeForm data={data} />}
 
@@ -135,16 +138,15 @@ function FinanzamtPage() {
   );
 }
 
-function PrepaymentForm({ data }: { data: Data }) {
+function PrepaymentForm({ data, basis: b }: { data: Data; basis: Basis }) {
   const [current, setCurrent] = useState("");
-  const b = data.basis;
   const p = b.prognose;
   const [wanted, setWanted] = useState(p.jeQuartal > 0 ? formatDecimal(p.jeQuartal) : "");
   const [reason, setReason] = useState("");
   const [usePrognose, setUsePrognose] = useState(true);
   const currentCents = current.trim() ? parseEuro(current) : null;
   const wantedCents = wanted.trim() ? parseEuro(wanted) : null;
-  const letter = prepaymentLetter(data, currentCents, wantedCents, reason, usePrognose);
+  const letter = prepaymentLetter(data, b, currentCents, wantedCents, reason, usePrognose);
 
   return (
     <div className="stack" style={{ gap: 16 }}>
@@ -304,8 +306,8 @@ function MessageForm({
       <section className="card" aria-label={TOPIC_LABEL[topic]}>
         <h2>{topic === "vorauszahlung" ? "Antrag" : "Nachricht an das Finanzamt"}</h2>
         <p className="small muted" style={{ margin: 0 }}>
-          An {data.company.finanzamt || "das Finanzamt"} zur Steuernummer {data.company.steuernummer || "–"}. Für Einzelunternehmer ist das meist auch die
-          Steuernummer der Einkommensteuer.
+          An {data.company.finanzamt || "das Finanzamt"} zur Steuernummer {data.company.steuernummer || "–"}.
+          {data.basis && " Für Einzelunternehmer ist das meist auch die Steuernummer der Einkommensteuer."}
         </p>
         <label className="field">
           Betreff

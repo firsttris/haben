@@ -128,6 +128,9 @@ function SettingsPage() {
     Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
+  // Eine GmbH oder UG zahlt keine Einkommensteuer; die persönlichen Angaben braucht ELSTER dort für Nachrichten und Postfach
+  const hint = (a: (typeof SETTINGS_AREAS)[number]) =>
+    a.id === "persoenlich" && isKapitalgesellschaft(company.rechtsform) ? "Für Nachrichten an das Finanzamt" : a.hint;
   return (
     <>
       <div className="page-head">
@@ -141,7 +144,7 @@ function SettingsPage() {
           {SETTINGS_AREAS.map((a) => (
             <Link key={a.id} to="/einstellungen" search={{ bereich: a.id }} className="settings-nav-link" aria-current={a.id === bereich ? "page" : undefined}>
               <span>{a.label}</span>
-              <span className="settings-nav-hint">{a.hint}</span>
+              <span className="settings-nav-hint">{hint(a)}</span>
             </Link>
           ))}
         </nav>
@@ -712,10 +715,14 @@ function PersonFields({ prefix, person }: { prefix: PersonKey; person: TaxpayerP
   );
 }
 
-/** Persönliche Angaben für ELSTER: Bankverbindung ändern, Einkommensteuererklärung */
+/**
+ * Persönliche Angaben für ELSTER: Nachrichten, Postfach, Bankverbindung ändern, im Einzelunternehmen auch die
+ * Einkommensteuererklärung. Veranlagung und Ehegatte gibt es nur dort; bei GmbH und UG bleiben gespeicherte Werte, wie sie sind.
+ */
 function TaxpayerForm() {
   const { company } = Route.useLoaderData();
   const taxpayer = company.taxpayer;
+  const istPerson = !isKapitalgesellschaft(company.rechtsform);
   const router = useRouter();
   const save = useServerFn(saveTaxpayerData);
   const [veranlagung, setVeranlagung] = useState(taxpayer.veranlagung ?? "einzel");
@@ -740,12 +747,14 @@ function TaxpayerForm() {
     void run(async () => {
       const zusammen = veranlagung === "zusammen";
       await save({
-        data: {
-          a: person("a"),
-          b: zusammen ? person("b") : undefined,
-          veranlagung,
-          verheiratetSeit: zusammen && text("verheiratetSeit") ? text("verheiratetSeit") : undefined,
-        },
+        data: istPerson
+          ? {
+              a: person("a"),
+              b: zusammen ? person("b") : undefined,
+              veranlagung,
+              verheiratetSeit: zusammen && text("verheiratetSeit") ? text("verheiratetSeit") : undefined,
+            }
+          : { ...taxpayer, a: person("a") },
       });
       await router.invalidate();
     }, "Persönliche Angaben gespeichert.");
@@ -755,35 +764,43 @@ function TaxpayerForm() {
     <form className="card form-card" onSubmit={onSubmit} aria-labelledby="taxpayer-heading">
       <div className="form-card-head">
         <h2 id="taxpayer-heading">Persönliche Angaben</h2>
-        <p className="small muted">Für die Änderung der Bankverbindung und die Einkommensteuererklärung über ELSTER.</p>
+        <p className="small muted">
+          {istPerson
+            ? "Für die Änderung der Bankverbindung und die Einkommensteuererklärung über ELSTER."
+            : "Für Nachrichten an das Finanzamt, das Postfach und die Änderung der Bankverbindung über ELSTER."}
+        </p>
       </div>
       <section className="form-section" aria-labelledby="taxpayer-a">
         <h3 id="taxpayer-a">Steuerpflichtige Person</h3>
         <PersonFields prefix="a" person={taxpayer.a} />
       </section>
-      <fieldset className="form-section">
-        <legend>Veranlagung</legend>
-        <div className="form-row cols-2">
-          <label className="field">
-            Art
-            <select value={veranlagung} onChange={(e) => setVeranlagung(e.target.value === "zusammen" ? "zusammen" : "einzel")}>
-              <option value="einzel">Einzelveranlagung</option>
-              <option value="zusammen">Zusammenveranlagung mit Ehegatten</option>
-            </select>
-          </label>
+      {istPerson && (
+        <>
+          <fieldset className="form-section">
+            <legend>Veranlagung</legend>
+            <div className="form-row cols-2">
+              <label className="field">
+                Art
+                <select value={veranlagung} onChange={(e) => setVeranlagung(e.target.value === "zusammen" ? "zusammen" : "einzel")}>
+                  <option value="einzel">Einzelveranlagung</option>
+                  <option value="zusammen">Zusammenveranlagung mit Ehegatten</option>
+                </select>
+              </label>
+              {veranlagung === "zusammen" && (
+                <label className="field">
+                  Verheiratet seit
+                  <input name="verheiratetSeit" type="date" defaultValue={taxpayer.verheiratetSeit ?? ""} />
+                </label>
+              )}
+            </div>
+          </fieldset>
           {veranlagung === "zusammen" && (
-            <label className="field">
-              Verheiratet seit
-              <input name="verheiratetSeit" type="date" defaultValue={taxpayer.verheiratetSeit ?? ""} />
-            </label>
+            <fieldset className="form-section">
+              <legend>Ehegatte (Person B)</legend>
+              <PersonFields prefix="b" person={taxpayer.b} />
+            </fieldset>
           )}
-        </div>
-      </fieldset>
-      {veranlagung === "zusammen" && (
-        <fieldset className="form-section">
-          <legend>Ehegatte (Person B)</legend>
-          <PersonFields prefix="b" person={taxpayer.b} />
-        </fieldset>
+        </>
       )}
       <NoticeBanner notice={notice} />
       <div className="actions form-footer">

@@ -1,6 +1,7 @@
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { MitarbeiterForm, NEUER_MITARBEITER } from "../../../../components/MitarbeiterForm.tsx";
+import { isKapitalgesellschaft } from "@haben/core";
+import { beschaeftigungsartenFor, MitarbeiterForm, NEUER_MITARBEITER } from "../../../../components/MitarbeiterForm.tsx";
 import { NoticeBanner } from "../../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../../lib/use-action.ts";
 import { saveMitarbeiterFn } from "../../../../server/functions/lohn.ts";
@@ -14,6 +15,7 @@ function NeuerMitarbeiterPage() {
   const navigate = useNavigate();
   const save = useServerFn(saveMitarbeiterFn);
   const { busy, notice, setNotice, run } = useAction();
+  const arten = beschaeftigungsartenFor(isKapitalgesellschaft(Route.useRouteContext().rechtsform));
   return (
     <>
       <div className="page-head">
@@ -29,7 +31,8 @@ function NeuerMitarbeiterPage() {
           Die Lohnsteuerabzugsmerkmale (ELStAM) überträgst du aus dem ELSTER-Portal; den Abruf über ELSTER gibt es noch nicht.
         </p>
         <MitarbeiterForm
-          initial={NEUER_MITARBEITER}
+          initial={{ ...NEUER_MITARBEITER, art: arten[0]! }}
+          arten={arten}
           submitLabel="Mitarbeiter anlegen"
           busy={busy}
           onError={(text) => setNotice({ tone: "danger", text })}
