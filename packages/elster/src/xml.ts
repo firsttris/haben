@@ -42,6 +42,9 @@ export function ustvaDatenartVersion(year: number): string {
 export const EBILANZ_TAXONOMIEN: Record<string, string> = { "2024-04-01": "6.8", "2025-04-01": "6.9" };
 
 export function datenartVersionFromXml(xml: string): string | undefined {
+  // Lohnsteuer-Anmeldung: dasselbe Wurzelelement wie die Voranmeldung, aber eigener Namensraum (LStA-2026.xsd)
+  const lsta = /<Anmeldungssteuern\b[^>]*elsteranmeldung\/lsta\/v\d{4}"[^>]*\bversion="(\d{4})"/.exec(xml);
+  if (lsta?.[1]) return `LStA_${lsta[1]}`;
   const ustva = /<Anmeldungssteuern\b[^>]*\bversion="(\d{4})"/.exec(xml);
   if (ustva?.[1]) return ustvaDatenartVersion(Number(ustva[1]));
   const erklaerung = /<(E10|E20|E30|E50|E77)\b[^>]*\bversion="(\d{4})"/.exec(xml);

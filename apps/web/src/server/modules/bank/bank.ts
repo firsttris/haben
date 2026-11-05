@@ -24,6 +24,7 @@ import {
   learnedDirectBooking,
   type DirectSuggestion,
   suggestDirectBooking,
+  suggestLohnsteuer,
   documentPaymentPosting,
   invoiceOpen,
   invoicePaymentPosting,
@@ -45,7 +46,7 @@ import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
-import { offeneLohnverbindlichkeit } from "../lohn/index.ts";
+import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { sha256Of } from "../../storage.ts";
@@ -625,6 +626,8 @@ export async function transactionDetail(id: string) {
     }
   }
   if (direct?.requiresCounterpart && !counterpart) direct = null;
+  // Lohnsteuer: Lastschrift des Finanzamts über den Gesamtbetrag einer übermittelten Lohnsteuer-Anmeldung
+  if (!direct && tx.open === tx.amount) direct = suggestLohnsteuer(tx, await lstaZahlbetraege());
   // Sonst aus früheren Buchungen derselben Gegenpartei (Gebühren, Privat …), schwächer als die Regeln der Kontozwecke
   if (!direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung

@@ -20,3 +20,5 @@ export * from "./gewst.ts";
 export * from "./kst.ts";
 export * from "./kst1f.ts";
 export * from "./kapesta.ts";
+export * from "./lsta.ts";
+export { hatJahresPlugin } from "./eric-plugins.ts";
