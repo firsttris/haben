@@ -1,7 +1,7 @@
 import {
   ARTICLE_FIELDS,
   articleCandidates,
-  articleKeys,
+  articleStockKeys,
   CONTACT_FIELDS,
   contactCandidates,
   contactKeys,
@@ -74,7 +74,7 @@ export async function insertImportedContacts(tx: Tx, contacts: readonly ContactI
 
 async function articleKeysInStock(q: Db | Tx) {
   const rows = await q.select({ number: schema.articles.number, description: schema.articles.description }).from(schema.articles);
-  return rows.flatMap(articleKeys);
+  return rows.flatMap(articleStockKeys);
 }
 
 export async function planArticleImport(q: Db | Tx, table: CsvTable, mapping: ColumnMapping): Promise<PlannedRow<z.output<typeof articleInputSchema>>[]> {

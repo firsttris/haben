@@ -45,7 +45,7 @@ Haben legt nichts doppelt an und überschreibt nichts:
 | Art | Wiedererkannt an |
 | --- | --- |
 | Kontakte | Kundennummer, Lieferantennummer, jeder E-Mail-Adresse, USt-IdNr. oder Name (Groß- und Kleinschreibung egal) |
-| Artikel | Artikelnummer; ohne Nummer an der Bezeichnung |
+| Artikel | Artikelnummer; eine Zeile ohne Nummer an der Bezeichnung, auch gegen einen Artikel mit Nummer |
 | Anlagen | Bezeichnung, Anschaffungsdatum und Anschaffungskosten zusammen |
 
 Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffice.md#kontakte-verknüpfen): Lieber einmal zu viel überspringen als einen Kunden doppelt anlegen. Einen zweiten Kunden mit gleichem Namen legst du von Hand an.

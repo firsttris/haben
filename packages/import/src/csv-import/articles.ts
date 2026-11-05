@@ -107,3 +107,11 @@ export function articleCandidates(table: CsvTable, mapping: ColumnMapping): RowC
 export function articleKeys(a: { number: string; description: string }) {
   return a.number.trim() ? duplicateKey("Artikelnummer", a.number) : duplicateKey("Bezeichnung", a.description);
 }
+
+/**
+ * Merkmale eines Artikels im Bestand: Nummer und Bezeichnung. Eine Zeile ohne Nummer erkennt der Import so auch an
+ * einem gleichnamigen Artikel mit Nummer; eine Zeile mit anderer Nummer bleibt ein eigener Artikel.
+ */
+export function articleStockKeys(a: { number: string; description: string }) {
+  return [...duplicateKey("Artikelnummer", a.number), ...duplicateKey("Bezeichnung", a.description)];
+}

@@ -3,7 +3,7 @@ import { ASSET_FIELDS } from "./assets.ts";
 import { CONTACT_FIELDS } from "./contacts.ts";
 import type { ImportField } from "./mapping.ts";
 
-export { ARTICLE_FIELDS, articleCandidates, articleKeys, type ArticleRow } from "./articles.ts";
+export { ARTICLE_FIELDS, articleCandidates, articleKeys, articleStockKeys, type ArticleRow } from "./articles.ts";
 export { ASSET_FIELDS, assetCandidates, assetKeys, takeoverProblems, type AssetRow } from "./assets.ts";
 export { CONTACT_FIELDS, contactCandidates, contactKeys, ustIdImportProblem, type ContactRow } from "./contacts.ts";
 export { mappingProblem, normalizeColumnName, suggestMapping, type ColumnMapping, type ImportField } from "./mapping.ts";
