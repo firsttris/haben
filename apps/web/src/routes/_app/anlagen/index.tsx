@@ -53,6 +53,9 @@ function AssetsPage() {
           <h1>Anlagen {year}</h1>
         </div>
         <div className="actions">
+          <Link to="/csv-import" search={{ art: "anlagen" }} className="btn">
+            CSV importieren
+          </Link>
           <Link to="/anlagen/neu" className="btn">
             Anlage übernehmen
           </Link>

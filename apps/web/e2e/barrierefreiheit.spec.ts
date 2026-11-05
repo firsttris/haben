@@ -34,6 +34,7 @@ const PAGES = [
   "/pauschalen",
   "/anlagen",
   "/anlagen/neu",
+  "/csv-import?art=anlagen",
   "/bank",
   "/kasse",
   "/umsatzsteuer",

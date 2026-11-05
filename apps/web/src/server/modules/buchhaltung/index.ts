@@ -21,6 +21,7 @@ export {
   updateAsset,
   withdrawalsForEuer,
 } from "./assets.ts";
+export { assetImportStichtagProblem, insertImportedAssets, planAssetImport } from "./asset-import.ts";
 export { HinterlegungError, hinterlegungAngabenSchema, hinterlegungPdf, hinterlegungStand, type HinterlegungStand } from "./hinterlegung.ts";
 export {
   bilanzVermerkeFuer,

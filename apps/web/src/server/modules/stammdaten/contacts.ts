@@ -3,7 +3,7 @@ import { joinEmails, MAX_EMAIL_RECIPIENTS, skontoProblem, skontoStufenSchema, so
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Tx } from "../../db/index.ts";
 import { takeCustomerNumber } from "./customer-numbers.ts";
 
 export const contactSchema = z.object({
@@ -103,18 +103,21 @@ function clean(input: ContactInput) {
 }
 
 export async function createContact(actor: string, input: ContactInput): Promise<Contact> {
-  return withActor(actor, async (tx) => {
-    const values = clean(input);
-    // Ohne eigene Nummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht; nur an Kunden,
-    // ein reiner Lieferant hat keine Kundennummer (#224)
-    // Eine eigene Nummer geht immer über die Sperre der Firmenzeile, damit keine gleichzeitige Vergabe sie doppelt nimmt
-    const kundennummer = values.isCustomer || values.kundennummer ? await takeCustomerNumber(tx, values.kundennummer) : null;
-    const [created] = await tx
-      .insert(schema.contacts)
-      .values({ ...values, kundennummer })
-      .returning();
-    return created!;
-  });
+  return withActor(actor, (tx) => insertContact(tx, input));
+}
+
+/** Legt einen Kontakt in der laufenden Transaktion an; auch für den CSV-Import, der alle Zeilen in einer Transaktion anlegt */
+export async function insertContact(tx: Tx, input: ContactInput): Promise<Contact> {
+  const values = clean(input);
+  // Ohne eigene Nummer vergibt Haben die nächste, wenn in den Einstellungen ein Format steht; nur an Kunden,
+  // ein reiner Lieferant hat keine Kundennummer (#224)
+  // Eine eigene Nummer geht immer über die Sperre der Firmenzeile, damit keine gleichzeitige Vergabe sie doppelt nimmt
+  const kundennummer = values.isCustomer || values.kundennummer ? await takeCustomerNumber(tx, values.kundennummer) : null;
+  const [created] = await tx
+    .insert(schema.contacts)
+    .values({ ...values, kundennummer })
+    .returning();
+  return created!;
 }
 
 /** Änderungen erhöhen per Trigger die Version; alte Stände bleiben in contact_versions. */

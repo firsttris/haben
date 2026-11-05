@@ -176,20 +176,23 @@ export async function getAsset(id: string) {
 
 /** Übernimmt eine Anlage mit Restbuchwert zum Stichtag. */
 export async function createAsset(actor: string, input: AssetInput): Promise<Asset> {
-  return withActor(actor, async (tx) => {
-    // Anlagekonto und Umsatzsteuer auf die Privatnutzung nach den Firmendaten in derselben Transaktion
-    const company = await loadCompany(tx);
-    const values = {
-      ...input,
-      privateUse: privateUseValue(input.kind, input.privateUse ?? null, company),
-      usefulLifeMonths: input.method === "linear" ? input.usefulLifeMonths : null,
-      account: assetAccount(input.kind, input.method, company.kontenrahmen),
-    };
-    const issues = assetIssues(scheduleInput({ ...values, openingEntryId: null } as Asset));
-    if (issues.length > 0) throw new AssetUserError(`${issues.join(", ")}.`);
-    const [created] = await tx.insert(schema.assets).values(values).returning();
-    return created!;
-  });
+  return withActor(actor, (tx) => insertAsset(tx, input));
+}
+
+/** Übernimmt eine Anlage in der laufenden Transaktion; auch für den CSV-Import, der alle Zeilen in einer Transaktion anlegt */
+export async function insertAsset(tx: Tx, input: AssetInput): Promise<Asset> {
+  // Anlagekonto und Umsatzsteuer auf die Privatnutzung nach den Firmendaten in derselben Transaktion
+  const company = await loadCompany(tx);
+  const values = {
+    ...input,
+    privateUse: privateUseValue(input.kind, input.privateUse ?? null, company),
+    usefulLifeMonths: input.method === "linear" ? input.usefulLifeMonths : null,
+    account: assetAccount(input.kind, input.method, company.kontenrahmen),
+  };
+  const issues = assetIssues(scheduleInput({ ...values, openingEntryId: null } as Asset));
+  if (issues.length > 0) throw new AssetUserError(`${issues.join(", ")}.`);
+  const [created] = await tx.insert(schema.assets).values(values).returning();
+  return created!;
 }
 
 /**

@@ -32,6 +32,9 @@ function ContactsPage() {
           <h1>Kontakte</h1>
         </div>
         <div className="actions">
+          <Link to="/csv-import" search={{ art: "kontakte" }} className="btn">
+            CSV importieren
+          </Link>
           <Link to="/kontakte/neu" className="btn btn-primary">
             Neuer Kontakt
           </Link>

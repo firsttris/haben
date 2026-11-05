@@ -37,6 +37,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["bank", "/bank"],
     ["anlagen", "/anlagen"],
     ["anlage-neu", "/anlagen/neu"],
+    ["csv-import", "/csv-import?art=kontakte"],
     ["buchungen", `/buchungen?jahr=${YEAR}&monat=${month}`],
     ["buchung-erfassen", "/buchungen/neu"],
     ["jahresabschluss", `/abschluss/${YEAR - 1}`],

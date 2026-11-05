@@ -16,7 +16,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | 6 | Texterkennung ohne Cloud | Belege lokal erkennen (z. B. Tesseract im Worker); die KI bleibt wahlweise | M | geplant |
 | 7 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
 | 8 | BWA und Liquiditätsplanung | Betriebswirtschaftliche Auswertung mit Vorjahresvergleich und Vorschau aus offenen Posten | M | geplant |
-| 9 | CSV-Import | Kontakte, Artikel und Anlagen aus CSV übernehmen | S | geplant |
+| 9 | CSV-Import | Kontakte, Artikel und Anlagen aus CSV übernehmen, mit Zuordnung der Spalten, Vorschau und ohne Dubletten; Anlagen als Übernahme zum Stichtag ohne Buchung ([CSV-Import](csv-import.md)) | S | erledigt |
 
 Danach: Alternativpositionen und Gesamtrabatt, Kundenhistorie mit Aufgaben und Notizen, OSS-Meldung, innergemeinschaftliche Lieferungen und Ausfuhr, Lastschrift-Datei (pain.008), Abrechnungen von Amazon und weiteren Shops, Fahrtenbuch, vollständigere Anlage EÜR (Bewirtung, Geschenke, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
 
