@@ -7,7 +7,7 @@ Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug 
 ## So gehst du vor
 
 1. **Datei wählen.** Bis 5 MB und 5.000 Zeilen; die erste nicht leere Zeile enthält die Spaltennamen. Trennzeichen und Kodierung erkennt Haben selbst, du kannst sie aber festlegen.
-2. **Vorschau.** Haben ordnet die Spalten nach ihren Namen den Feldern zu und prüft jede Zeile.
+2. **Vorschau.** Haben ordnet die Spalten nach ihren Namen den Feldern zu und prüft jede Zeile. Änderst du danach Trennzeichen, Kodierung oder Stichtag, verschwindet die Vorschau; übernommen wird nur, was eine Vorschau gezeigt hat.
 3. **Spalten zuordnen.** Passt eine Zuordnung nicht, wählst du je Feld die richtige Spalte oder „nicht übernehmen“. Die Vorschau rechnet nach jeder Änderung neu.
 4. **Übernehmen.** Der Knopf nennt, wie viele Datensätze neu angelegt werden. Danach steht da, wie viele übernommen und wie viele übersprungen wurden.
 

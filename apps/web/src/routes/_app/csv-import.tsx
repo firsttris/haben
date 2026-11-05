@@ -87,6 +87,11 @@ function CsvImport({ kind }: { kind: Kind }) {
   const [settings, setSettings] = useState<Settings>({ encoding: "auto", delimiter: "auto", stichtag: `${new Date().getFullYear()}-01-01` });
   const [preview, setPreview] = useState<Preview | null>(null);
   const { busy, notice, setNotice, run } = useAction();
+  // Die Vorschau gilt nur für die Einstellungen, mit denen sie gerechnet ist; der Import schickt die aktuellen
+  const changeSettings = (patch: Partial<Settings>) => {
+    setSettings({ ...settings, ...patch });
+    setPreview(null);
+  };
 
   const send = (fn: typeof previewFn | typeof importFn, chosen: File, mapping: Record<string, number | null> | null) => {
     const form = new FormData();
@@ -142,7 +147,7 @@ function CsvImport({ kind }: { kind: Kind }) {
           </label>
           <label className="field">
             Trennzeichen
-            <select value={settings.delimiter} onChange={(e) => setSettings({ ...settings, delimiter: e.target.value as Settings["delimiter"] })}>
+            <select value={settings.delimiter} onChange={(e) => changeSettings({ delimiter: e.target.value as Settings["delimiter"] })}>
               <option value="auto">Automatisch erkennen</option>
               <option value=";">Semikolon</option>
               <option value=",">Komma</option>
@@ -151,7 +156,7 @@ function CsvImport({ kind }: { kind: Kind }) {
           </label>
           <label className="field">
             Kodierung
-            <select value={settings.encoding} onChange={(e) => setSettings({ ...settings, encoding: e.target.value as Settings["encoding"] })}>
+            <select value={settings.encoding} onChange={(e) => changeSettings({ encoding: e.target.value as Settings["encoding"] })}>
               <option value="auto">Automatisch erkennen</option>
               <option value="utf-8">UTF-8</option>
               <option value="windows-1252">Windows-1252 (Excel unter Windows)</option>
@@ -160,7 +165,7 @@ function CsvImport({ kind }: { kind: Kind }) {
           {kind === "anlagen" && (
             <label className="field">
               Übernahmestichtag
-              <input type="date" value={settings.stichtag} required onChange={(e) => setSettings({ ...settings, stichtag: e.target.value })} />
+              <input type="date" value={settings.stichtag} required onChange={(e) => changeSettings({ stichtag: e.target.value })} />
               <span className="small">In der Regel der 01.01. des ersten Jahres in Haben; Restbuchwert zum Vortag.</span>
             </label>
           )}
