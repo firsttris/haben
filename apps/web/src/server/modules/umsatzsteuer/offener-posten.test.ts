@@ -323,6 +323,34 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung als offener Posten (Postgres)", 
     expect(stand.find((p) => p.vatReturnId === second.id)).toMatchObject({ betrag: -19_000, offen: 0 });
   }, 60_000);
 
+  it("Vermerk nur zusammen mit der Festschreibung: nicht nachträglich zu einer gesendeten oder vermerkten Anmeldung", async () => {
+    await firma("SKR03", "soll");
+    const draft = await vat.saveDraft(actor, oktober, { mode: "manuell", kz81: 100_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" });
+    expect((await vat.submitReturn(actor, draft.id, liveClient(), { kind: "send", pin: "1", herstellerId: "12345" })).ok).toBe(true);
+    const faelligVorher = (await zahlung.ustvaPosten()).posten[0]!.faellig;
+    // Ein späterer Vermerk würde den Tag der Abgabe (und damit die Fälligkeit) der festgeschriebenen Anmeldung verschieben
+    await expect(
+      sql`insert into vat_return_filings (vat_return_id, filed_on, transfer_ticket, kz83, filename, sha256, size)
+        values (${draft.id}, '2026-12-20', 'etNACHTRAEGLICH', 19000, 'p.pdf', 'abc', 1)`,
+    ).rejects.toThrow(/ohne festgeschriebene Voranmeldung/);
+    expect((await zahlung.ustvaPosten()).posten[0]!.faellig).toBe(faelligVorher);
+  }, 60_000);
+
+  it("Integritätsprüfung erkennt einen geänderten Vermerk (Tag der Abgabe, Protokoll) wie einen Rechnungsanhang", async () => {
+    await firma("SKR04", "ist");
+    const draft = await vat.saveDraft(actor, oktober, { mode: "manuell", kz81: 100_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" });
+    await vermerk.vermerkeAbgabe(actor, draft.id, abgabe(19_000), "2026-11-09");
+    const problems = async () => (await sql`select * from haben_integrity_problems()`).filter((p) => p.zeile === draft.id);
+    expect(await problems()).toEqual([]);
+    // Wer an den Triggern vorbei schreibt (Superuser), verschiebt den Tag der Abgabe und tauscht das Protokoll
+    await sql.begin(async (tx) => {
+      await tx`alter table vat_return_filings disable trigger vat_return_filings_append_only`;
+      await tx`update vat_return_filings set filed_on = '2026-11-25', sha256 = ${"0".repeat(64)} where vat_return_id = ${draft.id}`;
+      await tx`alter table vat_return_filings enable trigger vat_return_filings_append_only`;
+    });
+    expect(await problems()).toEqual([expect.objectContaining({ tabelle: "vat_returns", zeile: draft.id, befund: "Inhalt passt nicht zum Siegel" })]);
+  }, 60_000);
+
   it("Zahlung ohne Bezug gleicht genau passende Posten aus; Bezug nur auf abgegebene Voranmeldungen", async () => {
     await firma("SKR03", "ist");
     const draft = await vat.saveDraft(actor, oktober, { mode: "manuell", kz81: 100_000, kz86: 0, kz66: 0, reason: "Werte laut Steuerberatung" });

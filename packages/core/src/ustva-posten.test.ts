@@ -101,6 +101,20 @@ describe("Stand der Posten", () => {
     ]);
   });
 
+  it("Zahlungen ohne Bezug in beliebiger Reihenfolge: die früheste passende gleicht den ältesten Posten aus", () => {
+    const september = { ...oktober, id: "sep", month: 9, abgabeTag: "2026-10-09" };
+    // Die Lastschrift vom November (für Oktober) wurde vor der vom Oktober (für September) zugeordnet
+    const stand = vatPostenStand(vatPosten([september, oktober], faellig()), [
+      zahlung("nov", -1_234_56, "2026-11-10", null),
+      zahlung("okt", -1_234_56, "2026-10-12", null),
+    ]);
+    expect(stand.posten.map((p) => [p.vatReturnId, p.offen, p.zahlungen.map((z) => z.id)])).toEqual([
+      ["sep", 0, ["okt"]],
+      ["okt", 0, ["nov"]],
+    ]);
+    expect(stand.ohneBezug).toEqual([]);
+  });
+
   it("Berichtigung nach unten vor der Zahlung: verrechnet mit der Zahllast, offen bleibt nur der berichtigte Betrag", () => {
     const berichtigt: FiledVatReturn = { id: "b", year: 2026, month: 10, kz83: 1_000_00, correctsId: "okt", abgabeTag: "2026-11-09" };
     const stand = vatPostenStand(vatPosten([oktober, berichtigt], faellig()), []).posten;
