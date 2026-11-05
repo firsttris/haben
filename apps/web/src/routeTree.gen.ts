@@ -83,6 +83,7 @@ import { Route as AppRechnungenMahnwesenIdRouteImport } from './routes/_app/rech
 import { Route as AppRechnungenWiederkehrendIndexRouteImport } from './routes/_app/rechnungen/wiederkehrend/index'
 import { Route as AppRechnungenWiederkehrendIdRouteImport } from './routes/_app/rechnungen/wiederkehrend/$id'
 import { Route as AppRechnungenWiederkehrendNeuRouteImport } from './routes/_app/rechnungen/wiederkehrend/neu'
+import { Route as AppUmsatzsteuerZmQuartalRouteImport } from './routes/_app/umsatzsteuer/zm.$quartal'
 import { Route as ApiDokumentArtIdRouteImport } from './routes/api/dokument/$art.$id'
 import { Route as ApiLohnAbrechnungIdRouteImport } from './routes/api/lohn/abrechnung.$id'
 import { Route as ApiRechnungIdDateiRouteImport } from './routes/api/rechnung/$id.$datei'
@@ -464,6 +465,12 @@ const AppRechnungenWiederkehrendNeuRoute =
     path: '/rechnungen/wiederkehrend/neu',
     getParentRoute: () => AppRoute,
   } as any)
+const AppUmsatzsteuerZmQuartalRoute =
+  AppUmsatzsteuerZmQuartalRouteImport.update({
+    id: '/umsatzsteuer/zm/$quartal',
+    path: '/umsatzsteuer/zm/$quartal',
+    getParentRoute: () => AppRoute,
+  } as any)
 const ApiDokumentArtIdRoute = ApiDokumentArtIdRouteImport.update({
   id: '/api/dokument/$art/$id',
   path: '/api/dokument/$art/$id',
@@ -564,6 +571,7 @@ export interface FileRoutesByFullPath {
   '/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
   '/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
+  '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/lohn/abrechnung/$id': typeof ApiLohnAbrechnungIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
@@ -644,6 +652,7 @@ export interface FileRoutesByTo {
   '/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
   '/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
+  '/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/lohn/abrechnung/$id': typeof ApiLohnAbrechnungIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
@@ -726,6 +735,7 @@ export interface FileRoutesById {
   '/_app/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
   '/_app/rechnungen/wiederkehrend/$id': typeof AppRechnungenWiederkehrendIdRoute
   '/_app/rechnungen/wiederkehrend/neu': typeof AppRechnungenWiederkehrendNeuRoute
+  '/_app/umsatzsteuer/zm/$quartal': typeof AppUmsatzsteuerZmQuartalRoute
   '/api/dokument/$art/$id': typeof ApiDokumentArtIdRoute
   '/api/lohn/abrechnung/$id': typeof ApiLohnAbrechnungIdRoute
   '/api/rechnung/$id/$datei': typeof ApiRechnungIdDateiRoute
@@ -808,6 +818,7 @@ export interface FileRouteTypes {
     | '/rechnungen/mahnwesen/$id'
     | '/rechnungen/wiederkehrend/$id'
     | '/rechnungen/wiederkehrend/neu'
+    | '/umsatzsteuer/zm/$quartal'
     | '/api/dokument/$art/$id'
     | '/api/lohn/abrechnung/$id'
     | '/api/rechnung/$id/$datei'
@@ -888,6 +899,7 @@ export interface FileRouteTypes {
     | '/rechnungen/mahnwesen/$id'
     | '/rechnungen/wiederkehrend/$id'
     | '/rechnungen/wiederkehrend/neu'
+    | '/umsatzsteuer/zm/$quartal'
     | '/api/dokument/$art/$id'
     | '/api/lohn/abrechnung/$id'
     | '/api/rechnung/$id/$datei'
@@ -969,6 +981,7 @@ export interface FileRouteTypes {
     | '/_app/rechnungen/mahnwesen/$id'
     | '/_app/rechnungen/wiederkehrend/$id'
     | '/_app/rechnungen/wiederkehrend/neu'
+    | '/_app/umsatzsteuer/zm/$quartal'
     | '/api/dokument/$art/$id'
     | '/api/lohn/abrechnung/$id'
     | '/api/rechnung/$id/$datei'
@@ -1533,6 +1546,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRechnungenWiederkehrendNeuRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/umsatzsteuer/zm/$quartal': {
+      id: '/_app/umsatzsteuer/zm/$quartal'
+      path: '/umsatzsteuer/zm/$quartal'
+      fullPath: '/umsatzsteuer/zm/$quartal'
+      preLoaderRoute: typeof AppUmsatzsteuerZmQuartalRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/dokument/$art/$id': {
       id: '/api/dokument/$art/$id'
       path: '/api/dokument/$art/$id'
@@ -1617,6 +1637,7 @@ interface AppRouteChildren {
   AppRechnungenMahnwesenIdRoute: typeof AppRechnungenMahnwesenIdRoute
   AppRechnungenWiederkehrendIdRoute: typeof AppRechnungenWiederkehrendIdRoute
   AppRechnungenWiederkehrendNeuRoute: typeof AppRechnungenWiederkehrendNeuRoute
+  AppUmsatzsteuerZmQuartalRoute: typeof AppUmsatzsteuerZmQuartalRoute
   AppRechnungenMahnwesenIndexRoute: typeof AppRechnungenMahnwesenIndexRoute
   AppRechnungenWiederkehrendIndexRoute: typeof AppRechnungenWiederkehrendIndexRoute
 }
@@ -1667,6 +1688,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRechnungenMahnwesenIdRoute: AppRechnungenMahnwesenIdRoute,
   AppRechnungenWiederkehrendIdRoute: AppRechnungenWiederkehrendIdRoute,
   AppRechnungenWiederkehrendNeuRoute: AppRechnungenWiederkehrendNeuRoute,
+  AppUmsatzsteuerZmQuartalRoute: AppUmsatzsteuerZmQuartalRoute,
   AppRechnungenMahnwesenIndexRoute: AppRechnungenMahnwesenIndexRoute,
   AppRechnungenWiederkehrendIndexRoute: AppRechnungenWiederkehrendIndexRoute,
 }

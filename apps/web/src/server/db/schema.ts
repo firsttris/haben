@@ -297,6 +297,38 @@ export const vatExtensionSubmissions = pgTable(
   (t) => [index("vat_extension_submissions_year").on(t.year), check("vat_extension_submissions_kz38", sql`${t.kz38} is null or ${t.kz38} >= 0`)],
 );
 
+/**
+ * Zusammenfassende Meldung (§ 18a UStG) an das BZSt: jede Prüfung und Übermittlung, nur anhängen. Eine echt übermittelte
+ * Meldung bleibt so unverändert; eine Korrektur ist eine neue Zeile als Berichtigung mit den geänderten Meldezeilen.
+ */
+export const zmSubmissions = pgTable(
+  "zm_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    year: smallint("year").notNull(),
+    /** Meldezeitraum wie in vat_returns: 1–12 Monate, 41–44 Kalendervierteljahre */
+    month: smallint("month").notNull(),
+    /** Berichtigte Meldung (meldeart 11) */
+    berichtigt: boolean("berichtigt").notNull().default(false),
+    /** Gemeldete Zeilen: USt-IdNr., Art (L, S, D) und Betrag in Cent; gemeldet in vollen Euro */
+    zeilen: jsonb("zeilen").$type<{ ustId: string; art: "L" | "S" | "D"; betrag: number }[]>().notNull(),
+    kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
+    ok: boolean("ok").notNull(),
+    code: integer("code").notNull(),
+    message: text("message").notNull(),
+    transferTicket: text("transfer_ticket"),
+    requestXml: text("request_xml").notNull(),
+    responseXml: text("response_xml").notNull(),
+    serverResponseXml: text("server_response_xml").notNull(),
+    protocolPdf: bytea("protocol_pdf"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("zm_submissions_period").on(t.year, t.month),
+    check("zm_submissions_month", sql`(${t.month} between 1 and 12) or (${t.month} between 41 and 44)`),
+  ],
+);
+
 /** Jede Prüfung oder Übermittlung an ELSTER, nur anhängen. */
 export const vatReturnSubmissions = pgTable("vat_return_submissions", {
   id: uuid("id").primaryKey().defaultRandom(),

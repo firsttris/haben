@@ -19,6 +19,7 @@ type Frist = Data["fristen"][number];
 
 const ART_LABEL: Record<Frist["art"], string> = {
   ustva: "Voranmeldung",
+  zm: "Zusammenfassende Meldung",
   kapest: "Kapitalertragsteuer",
   erklaerung: "Erklärung",
   vorauszahlung: "Vorauszahlung",
