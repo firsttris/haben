@@ -1,4 +1,4 @@
-import { formatExchangeRate, type UnitLabel } from "@haben/core";
+import { discountFromColumns, formatExchangeRate, type UnitLabel } from "@haben/core";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -83,6 +83,8 @@ export function draftInputOf(invoice: Invoice, lines: InvoiceLine[]): DraftInput
     currency: invoice.currency,
     exchangeRate: invoice.exchangeRate && invoice.exchangeRateSource !== "ust" ? formatExchangeRate(invoice.exchangeRate) : null,
     exchangeRateDate: invoice.exchangeRateSource === "ust" ? null : invoice.exchangeRateDate,
+    // Rabatte bleiben, wenn die API nur andere Felder ändert; die API selbst setzt keine
+    discount: discountFromColumns(invoice.discountPercent, invoice.discountAmount),
     lines: lines
       .filter((line) => !line.deductionOf)
       .map((line) => ({
@@ -92,6 +94,7 @@ export function draftInputOf(invoice: Invoice, lines: InvoiceLine[]): DraftInput
         unit: line.unit as UnitLabel,
         unitPrice: line.unitPrice,
         taxRate: line.taxRate as 1900 | 700 | 0,
+        discount: discountFromColumns(line.discountPercent, line.discountAmount),
       })),
   };
 }

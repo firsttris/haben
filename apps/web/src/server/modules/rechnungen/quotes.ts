@@ -1,9 +1,26 @@
 import { UserError } from "../../errors.ts";
 import {
   addDays,
+  alternativeMain,
+  chosenLines,
   computeInvoice,
-  computeInvoiceTotals,
+  countsInTotal,
+  discountColumns,
+  discountFromColumns,
+  discountSchema,
+  discountedLineAmount,
+  documentDiscountProblem,
   lineAmount,
+  lineDiscountProblem,
+  netOf,
+  orderRateAmounts,
+  paymentPlanSchema,
+  planProblem,
+  planSchedule,
+  quoteLineKindProblem,
+  type Discount,
+  type InvoiceCalculation,
+  type QuoteLineKind,
   PRICE_MODES,
   QUOTE_VALID_DAYS,
   TAX_TREATMENT_KEYS,
@@ -16,7 +33,7 @@ import {
   quoteStatus as coreQuoteStatus,
   type QuoteListStatus,
 } from "@haben/core";
-import { buildQuotePdf, texts, type QuoteDocument } from "@haben/einvoice";
+import { buildQuotePdf, texts, type QuoteDocument, type QuoteDocumentLine } from "@haben/einvoice";
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -25,8 +42,9 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead } from "../stammdaten/index.ts";
 import { documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
-import { draftLineSchema } from "./draft-line.ts";
-import { buyerFrom, effectivePriceMode, insertDraft, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
+import { quoteDraftLineSchema } from "./draft-line.ts";
+import { buyerFrom, effectivePriceMode, insertDraft, invoiceDiscountOf, lineDiscountOf, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
+import { quoteChoices, storeQuoteChoices } from "./quote-choices.ts";
 import { defaultSkonto } from "./skonto.ts";
 
 /**
@@ -58,20 +76,71 @@ export const quoteDraftSchema = z
     priceMode: z.enum(PRICE_MODES).default("netto"),
     /** Sprache des PDFs für den Kunden */
     language: z.enum(["de", "en"]).default("de"),
-    lines: z.array(draftLineSchema).max(200),
+    lines: z.array(quoteDraftLineSchema).max(200),
+    /** Gesamtrabatt auf die Positionen, die zählen; null = keiner */
+    discount: z.nullable(discountSchema).default(null),
+    /** Zahlungsplan: Prozent, fester Betrag im Preismodus oder Rest je Zeile; leer = keiner */
+    paymentPlan: z._default(paymentPlanSchema, []),
+    /** Zahlungsplan auch in der Auftragsbestätigung */
+    paymentPlanInConfirmation: z.boolean().default(false),
   })
   .refine((d) => d.validUntil >= d.issueDate, { message: "Das Angebot muss mindestens bis zum Angebotsdatum gelten", path: ["validUntil"] })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",
     path: ["serviceTo"],
+  })
+  .superRefine((d, ctx) => {
+    const lines = d.lines.map((line, i) => ({ ...line, position: i + 1 }));
+    lines.forEach((line, i) => {
+      const problem = lineDiscountProblem(line);
+      if (problem) ctx.addIssue({ code: "custom", message: `Position ${i + 1}: ${problem}`, path: ["lines", i, "discount"] });
+    });
+    const kindProblem = quoteLineKindProblem(lines);
+    if (kindProblem) ctx.addIssue({ code: "custom", message: kindProblem, path: ["lines"] });
+    const counted = lines.filter(countsInTotal);
+    const discountProblem = documentDiscountProblem(counted, d.discount);
+    if (discountProblem) ctx.addIssue({ code: "custom", message: discountProblem, path: ["discount"] });
+    if (kindProblem || discountProblem) return;
+    const priceMode = effectivePriceMode(d);
+    const { totals } = computeInvoice(counted, priceMode, d.discount);
+    const problem = planProblem(
+      d.paymentPlan,
+      orderRateAmounts(totals, priceMode).reduce((s, a) => s + a.amount, 0),
+    );
+    if (problem) ctx.addIssue({ code: "custom", message: problem, path: ["paymentPlan"] });
   });
 
 export type QuoteDraftInput = z.input<typeof quoteDraftSchema>;
 
 export type { QuoteListStatus };
 
+/** Positionen einer Abschlagsrechnung aus einer Zeile des Zahlungsplans, mit der Zeile (quote-plan.ts) */
+export interface AbschlagPlanLines {
+  row: number;
+  lines: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0 }[];
+}
+
+/** Berechnet die Positionen in der Transaktion, die das Angebot gesperrt hat, nach der Auswahl des Kunden */
+export type PlanLinesFor = (tx: Tx, quote: Quote, lines: QuoteLine[], choices: number[]) => Promise<AbschlagPlanLines>;
+
+type CalcLine = Parameters<typeof computeInvoice>[0][number] & { kind?: QuoteLineKind | null };
+
+/**
+ * Summen eines Angebots aus den Positionen, die zählen, mit Positions- und Gesamtrabatt; optionale und alternative
+ * Positionen haben ihr Netto für sich (ohne Gesamtrabatt), denn sie stehen nur zur Wahl.
+ */
+export function quoteCalculation(lines: CalcLine[], priceMode: "netto" | "brutto", discount: Discount | null): InvoiceCalculation {
+  const counted = lines.filter((l) => countsInTotal({ kind: l.kind ?? null }));
+  const calc = computeInvoice(counted, priceMode, discount);
+  let next = 0;
+  const lineNets = lines.map((line) =>
+    countsInTotal({ kind: line.kind ?? null }) ? calc.lineNets[next++]! : netOf(discountedLineAmount(line), line.taxRate, priceMode),
+  );
+  return { ...calc, lineNets, lineAmounts: lines.map((l) => discountedLineAmount(l)) };
+}
+
 function lineRows(quoteId: string, input: QuoteDraftInput) {
-  const { lineNets } = computeInvoice(input.lines, effectivePriceMode(input));
+  const { lineNets } = quoteCalculation(input.lines, effectivePriceMode(input), input.discount ?? null);
   return input.lines.map((line, index) => ({
     quoteId,
     position: index + 1,
@@ -82,12 +151,14 @@ function lineRows(quoteId: string, input: QuoteDraftInput) {
     unitPrice: line.unitPrice,
     taxRate: line.taxRate,
     net: lineNets[index]!,
+    ...discountColumns(line.discount),
+    kind: line.kind ?? null,
   }));
 }
 
 function draftValues(input: QuoteDraftInput) {
   const priceMode = effectivePriceMode(input);
-  const totals = computeInvoiceTotals(input.lines, priceMode);
+  const { totals } = quoteCalculation(input.lines, priceMode, input.discount ?? null);
   const treatment = input.taxTreatment ?? "regulaer";
   return {
     contactId: input.contactId,
@@ -101,6 +172,9 @@ function draftValues(input: QuoteDraftInput) {
     exemptionReason: treatment !== "regulaer" ? (input.exemptionReason ?? "").trim() : "",
     priceMode,
     language: input.language ?? "de",
+    ...discountColumns(input.discount),
+    paymentPlan: input.paymentPlan ?? [],
+    paymentPlanInConfirmation: (input.paymentPlan ?? []).length > 0 && (input.paymentPlanInConfirmation ?? false),
     net: totals.net,
     tax: totals.tax,
     gross: totals.gross,
@@ -159,6 +233,9 @@ export async function newQuoteDefaults(today: string) {
     priceMode: "netto" as PriceMode,
     language: "de" as const,
     lines: [{ description: "", quantity: 1000, unit: "Std." as UnitLabel, unitPrice: 0, taxRate: (company.kleinunternehmer ? 0 : 1900) as 1900 | 0 }],
+    discount: null,
+    paymentPlan: [],
+    paymentPlanInConfirmation: false,
   } satisfies QuoteDraftInput;
 }
 
@@ -173,7 +250,14 @@ export async function getQuote(id: string, q: Db | Tx = db) {
         .from(schema.invoices)
         .where(eq(schema.invoices.id, quote.invoiceId))
     : [];
-  return { quote, lines, contact: contact ?? null, invoice: invoice ?? null, billing: await quoteBilling(id, quote.invoiceId, q) };
+  return {
+    quote,
+    lines,
+    contact: contact ?? null,
+    invoice: invoice ?? null,
+    billing: await quoteBilling(id, quote.invoiceId, q),
+    choices: await quoteChoices(id, q),
+  };
 }
 
 /**
@@ -187,6 +271,7 @@ async function quoteBilling(quoteId: string, invoiceId: string | null, q: Db | T
       number: schema.invoices.number,
       status: schema.invoices.status,
       variant: schema.invoices.variant,
+      paymentPlanRow: schema.invoices.paymentPlanRow,
       issueDate: schema.invoices.issueDate,
       gross: schema.invoices.gross,
       cancelled: sql<boolean>`exists (select 1 from invoices s where s.corrects_id = ${schema.invoices.id} and s.kind = 'storno' and s.status = 'final')`,
@@ -228,13 +313,44 @@ export async function listQuotes(today: string) {
   return rows.map((row) => ({ ...row, customer: row.buyerName ?? row.contactName ?? "–", listStatus: quoteStatus(row, today) }));
 }
 
+/** Positionen in der Form, die computeInvoice und quoteCalculation lesen */
+export const calcLines = (lines: QuoteLine[]) =>
+  lines.map((line) => ({
+    ...line,
+    taxRate: line.taxRate as 1900 | 700 | 0,
+    discount: discountFromColumns(line.discountPercent, line.discountAmount),
+  }));
+
+/**
+ * Auftrag nach der Auswahl des Kunden: gewählte optionale und alternative Positionen statt der Hauptpositionen, als normale
+ * Positionen; ohne Auswahl die Hauptpositionen. Grundlage für Rechnung, Abschläge, Zahlungsplan und Auftragsbestätigung.
+ */
+export function orderLines(lines: QuoteLine[], choices: number[]): QuoteLine[] {
+  return chosenLines(lines, choices).map((line) => ({ ...line, kind: null }));
+}
+
+/** Summen des Auftrags nach der Auswahl, mit den Rabatten des Angebots */
+export function orderCalculation(quote: Quote, lines: QuoteLine[], choices: number[]): InvoiceCalculation {
+  return computeInvoice(calcLines(orderLines(lines, choices)), quote.priceMode, discountFromColumns(quote.discountPercent, quote.discountAmount));
+}
+
+/**
+ * Angebot bzw. Auftragsbestätigung als Dokument. Ohne `choices` das Angebot mit allen Positionen (optionale und
+ * alternative gekennzeichnet), mit `choices` der Auftrag nach der Auswahl, fortlaufend nummeriert. Der Zahlungsplan steht
+ * im Angebot immer, in der Auftragsbestätigung nur auf Wunsch (`withPlan`).
+ */
 export function quoteDocumentFor(
   quote: Quote,
-  lines: QuoteLine[],
+  allLines: QuoteLine[],
   seller: QuoteDocument["seller"],
   buyer: QuoteDocument["buyer"],
   number: string,
+  order: { choices: number[]; withPlan: boolean } | null = null,
 ): QuoteDocument {
+  const lines = order ? orderLines(allLines, order.choices).map((line, i) => ({ ...line, position: i + 1 })) : allLines;
+  const discount = discountFromColumns(quote.discountPercent, quote.discountAmount);
+  const calc = quoteCalculation(calcLines(lines), quote.priceMode, discount);
+  const withPlan = quote.paymentPlan.length > 0 && (!order || order.withPlan);
   return {
     number,
     issueDate: quote.issueDate,
@@ -243,20 +359,24 @@ export function quoteDocumentFor(
     ...(quote.serviceTo ? { serviceTo: quote.serviceTo } : {}),
     seller,
     buyer,
-    lines: lines.map((line) => ({
-      position: line.position,
-      description: line.description,
-      ...(line.detail ? { detail: line.detail } : {}),
-      quantity: line.quantity,
-      unit: line.unit as UnitLabel,
-      unitPrice: line.unitPrice,
-      taxRate: line.taxRate,
-      net: line.net,
-    })),
-    totals: computeInvoiceTotals(
-      lines.map((line) => ({ ...line, taxRate: line.taxRate as 1900 | 700 | 0 })),
-      quote.priceMode,
+    lines: lines.map(
+      (line, i): QuoteDocumentLine => ({
+        position: line.position,
+        description: line.description,
+        ...(line.detail ? { detail: line.detail } : {}),
+        quantity: line.quantity,
+        unit: line.unit as UnitLabel,
+        unitPrice: line.unitPrice,
+        taxRate: line.taxRate,
+        net: calc.lineNets[i]!,
+        ...lineDiscountOf(line),
+        ...(line.kind ? { kind: line.kind } : {}),
+        ...(line.kind === "alternative" ? { alternativeTo: alternativeMain(lines, line.position) ?? 0 } : {}),
+      }),
     ),
+    totals: calc.totals,
+    ...(discount ? { discount } : {}),
+    ...(withPlan ? { paymentPlan: planSchedule(quote.paymentPlan, orderRateAmounts(calc.totals, quote.priceMode), quote.priceMode) } : {}),
     ...(quote.intro ? { intro: quote.intro } : {}),
     ...(quote.note ? { note: quote.note } : {}),
     ...(quote.taxTreatment !== "regulaer" ? { taxTreatment: quote.taxTreatment } : {}),
@@ -280,6 +400,10 @@ export async function quoteIssues(id: string): Promise<string[]> {
   if (lines.length === 0) issues.push("Keine Positionen");
   if (lines.some((line) => lineAmount(line.quantity, line.unitPrice) === 0)) issues.push("Position ohne Betrag");
   if (quote.gross <= 0) issues.push("Angebotssumme muss positiv sein");
+  const kindProblem = quoteLineKindProblem(lines);
+  if (kindProblem) issues.push(kindProblem);
+  const planIssue = planProblem(quote.paymentPlan, quote.priceMode === "brutto" ? quote.gross : quote.net);
+  if (planIssue) issues.push(planIssue);
   return issues;
 }
 
@@ -334,8 +458,11 @@ async function lockQuote(tx: Tx, id: string): Promise<Quote> {
   return quote;
 }
 
-/** Antwort des Kunden festhalten oder zurücknehmen; nicht mehr, sobald eine Rechnung daraus entstanden ist */
-export async function setQuoteDecision(actor: string, id: string, decision: "angenommen" | "abgelehnt" | null): Promise<void> {
+/**
+ * Antwort des Kunden festhalten oder zurücknehmen; nicht mehr, sobald eine Rechnung daraus entstanden ist. Mit der Annahme
+ * die Auswahl optionaler und alternativer Positionen (`choices`, Positionsnummern), ohne Annahme fällt sie weg.
+ */
+export async function setQuoteDecision(actor: string, id: string, decision: "angenommen" | "abgelehnt" | null, choices: number[] | null = null): Promise<void> {
   await withActor(actor, async (tx) => {
     const quote = await lockQuote(tx, id);
     const problem = quoteDecisionProblem(quote);
@@ -344,6 +471,8 @@ export async function setQuoteDecision(actor: string, id: string, decision: "ang
       .update(schema.quotes)
       .set({ decision, decidedAt: decision ? new Date() : null, updatedAt: new Date() })
       .where(eq(schema.quotes.id, id));
+    if (decision !== "angenommen") await storeQuoteChoices(tx, id, []);
+    else if (choices) await storeQuoteChoices(tx, id, choices);
   });
 }
 
@@ -356,14 +485,24 @@ export async function setQuoteDecision(actor: string, id: string, decision: "ang
  *   bleibt offen für weitere Abschläge und die Schlussrechnung.
  * - `schluss`: Schlussrechnung mit allen Positionen; abgezogen werden die festgeschriebenen Abschläge dieses Angebots.
  */
-export async function quoteToInvoice(actor: string, id: string, today: string, variant: "abschlag" | "schluss" | null = null): Promise<Invoice> {
+export async function quoteToInvoice(
+  actor: string,
+  id: string,
+  today: string,
+  variant: "abschlag" | "schluss" | null = null,
+  options: { choices?: number[] | null; planLines?: PlanLinesFor } = {},
+): Promise<Invoice> {
   return withActor(actor, async (tx) => {
     const locked = await lockQuote(tx, id);
     const problem = quoteInvoiceProblem(locked);
     if (problem) throw new QuoteError(problem);
-    const { lines, contact } = (await getQuote(id, tx))!;
+    // Auswahl des Kunden zuerst festhalten: Rechnung, Abschläge und Auftragsbestätigung beruhen auf ihr
+    if (options.choices) await storeQuoteChoices(tx, id, options.choices);
+    const { lines: allLines, contact, choices } = (await getQuote(id, tx))!;
+    const lines = orderLines(allLines, choices);
     const company = await loadCompany(tx);
     const t = texts(locked.language);
+    const planned = variant === "abschlag" && options.planLines ? await options.planLines(tx, locked, allLines, choices) : null;
     // Abschlag: eine Position zum Steuersatz mit dem größten Anteil am Angebot, Betrag offen
     const mainRate = lines.reduce<{ rate: number; amount: number } | null>((best, line) => {
       const amount = Math.abs(line.quantity * line.unitPrice);
@@ -382,35 +521,42 @@ export async function quoteToInvoice(actor: string, id: string, today: string, v
             .filter((a) => a.quoteId === id && a.contactId === locked.contactId && a.taxTreatment === locked.taxTreatment)
             .map((a) => a.id)
         : [];
-    const invoice = await insertDraft(tx, {
-      contactId: locked.contactId,
-      issueDate: today,
-      serviceFrom: locked.serviceFrom,
-      serviceTo: locked.serviceTo,
-      paymentTermDays: company.paymentTermDays,
-      skonto: defaultSkonto(company, contact, company.paymentTermDays),
-      format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
-      intro: locked.intro,
-      note: texts(locked.language).fromQuote(locked.number ?? "", texts(locked.language).date(locked.issueDate)),
-      taxTreatment: locked.taxTreatment,
-      exemptionReason: locked.exemptionReason,
-      priceMode: locked.priceMode,
-      language: locked.language,
-      variant,
-      deducts,
-      quoteId: id,
-      lines:
-        variant === "abschlag"
-          ? [abschlagLine]
-          : lines.map((line) => ({
-              description: line.description,
-              detail: line.detail,
-              quantity: line.quantity,
-              unit: line.unit as UnitLabel,
-              unitPrice: line.unitPrice,
-              taxRate: line.taxRate as 1900 | 700 | 0,
-            })),
-    });
+    const invoice = await insertDraft(
+      tx,
+      {
+        contactId: locked.contactId,
+        issueDate: today,
+        serviceFrom: locked.serviceFrom,
+        serviceTo: locked.serviceTo,
+        paymentTermDays: company.paymentTermDays,
+        skonto: defaultSkonto(company, contact, company.paymentTermDays),
+        format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
+        intro: locked.intro,
+        note: texts(locked.language).fromQuote(locked.number ?? "", texts(locked.language).date(locked.issueDate)),
+        taxTreatment: locked.taxTreatment,
+        exemptionReason: locked.exemptionReason,
+        priceMode: locked.priceMode,
+        language: locked.language,
+        variant,
+        deducts,
+        quoteId: id,
+        // Der Abschlag ist schon rabattiert berechnet; Rechnung und Schlussrechnung übernehmen die Rabatte des Angebots
+        ...(variant === "abschlag" ? {} : invoiceDiscountOf(locked)),
+        lines:
+          variant === "abschlag"
+            ? (planned?.lines ?? [abschlagLine])
+            : lines.map((line) => ({
+                description: line.description,
+                detail: line.detail,
+                quantity: line.quantity,
+                unit: line.unit as UnitLabel,
+                unitPrice: line.unitPrice,
+                taxRate: line.taxRate as 1900 | 700 | 0,
+                ...lineDiscountOf(line),
+              })),
+      },
+      planned ? { paymentPlanRow: planned.row } : {},
+    );
     // invoice_id setzt insertDraft (syncQuoteBilling): ein Abschlag rechnet das Angebot noch nicht ab, erst die Schlussrechnung
     // bzw. die Rechnung über alles
     await tx
@@ -439,6 +585,9 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
     exemptionReason: quote.exemptionReason,
     priceMode: quote.priceMode,
     language: quote.language,
+    discount: discountFromColumns(quote.discountPercent, quote.discountAmount),
+    paymentPlan: quote.paymentPlan,
+    paymentPlanInConfirmation: quote.paymentPlanInConfirmation,
     lines: lines.map((line) => ({
       description: line.description,
       detail: line.detail,
@@ -446,6 +595,8 @@ export async function copyQuote(actor: string, id: string, today: string): Promi
       unit: line.unit as UnitLabel,
       unitPrice: line.unitPrice,
       taxRate: line.taxRate as 1900 | 700 | 0,
+      kind: line.kind,
+      ...lineDiscountOf(line),
     })),
   });
 }

@@ -1,4 +1,4 @@
-import type { BasisPoints, Cents, InvoiceTotals, LegalInfo, Millis, PriceMode, SkontoStufe, TaxTreatment, UnitLabel } from "@haben/core";
+import type { BasisPoints, Cents, Discount, InvoiceTotals, LegalInfo, Millis, PriceMode, SkontoStufe, TaxTreatment, UnitLabel } from "@haben/core";
 
 /** Rechnung, Stornorechnung oder Rechnungskorrektur (Gutschrift) */
 export type InvoiceKind = "rechnung" | "storno" | "korrektur";
@@ -52,8 +52,12 @@ export interface InvoiceDocumentLine {
   /** Wie eingegeben: netto, bei Bruttopreisen brutto; bei Storno und Korrektur negativ */
   unitPrice: Cents;
   taxRate: BasisPoints;
-  /** Zeilennetto, bei Bruttopreisen der Anteil an der Bemessungsgrundlage; bei Storno und Korrektur negativ */
+  /** Zeilennetto nach Positionsrabatt (BT-131), bei Bruttopreisen der Anteil am Netto des Satzes; bei Storno und Korrektur negativ */
   net: Cents;
+  /** Positionsrabatt wie eingegeben (BG-27); ein fester Betrag im Preismodus und mit dem Vorzeichen der Position */
+  discount?: Discount;
+  /** Schlussrechnung: Abzug einer Abschlagsrechnung; zählt nicht zur Grundlage des Gesamtrabatts */
+  deductionOf?: string;
 }
 
 /** Firmenlogo für den Briefkopf; PNG oder JPEG */
@@ -91,6 +95,8 @@ export interface InvoiceDocument extends Letterhead {
   buyer: Buyer;
   lines: InvoiceDocumentLine[];
   totals: InvoiceTotals;
+  /** Gesamtrabatt wie eingegeben; je Satz als Document level allowance (BG-20), abgeleitet aus Zeilennetto und Steuerzeilen */
+  discount?: Discount;
   /**
    * Nur bei Fremdwährung: Umsatzsteuer in Euro (§ 14 Abs. 4 Nr. 8 UStG, Abschn. 14.5 UStAE), je Satz und gesamt,
    * mit dem Kurs als Text für das PDF, z. B. „1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)“. Im XML als

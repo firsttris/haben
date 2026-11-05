@@ -1,5 +1,5 @@
 {
-  "id": "9171773b-17ea-4fe9-8c1b-d23285d76f34",
+  "id": "85643a6f-a465-46f4-b5e7-d2191d944462",
   "prevId": "9fb53a83-e820-44ac-9b0e-e5681904ac0a",
   "version": "7",
   "dialect": "postgresql",
@@ -199,24 +199,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "tax_type": {
-          "name": "tax_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_year": {
-          "name": "tax_year",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_item": {
-          "name": "tax_item",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -376,10 +358,6 @@
         "allocations_target": {
           "name": "allocations_target",
           "value": "(\"allocations\".\"kind\" <> 'invoice' or \"allocations\".\"invoice_id\" is not null) and (\"allocations\".\"kind\" <> 'document' or \"allocations\".\"document_id\" is not null)"
-        },
-        "allocations_tax": {
-          "name": "allocations_tax",
-          "value": "case when \"allocations\".\"kind\"::text = 'steuer' then \"allocations\".\"tax_type\" is not null and \"allocations\".\"tax_year\" is not null and \"allocations\".\"tax_item\" is not null else \"allocations\".\"tax_type\" is null and \"allocations\".\"tax_year\" is null and \"allocations\".\"tax_item\" is null end"
         },
         "allocations_vat_return_kind": {
           "name": "allocations_vat_return_kind",
@@ -2290,6 +2268,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "payment_plan_templates": {
+          "name": "payment_plan_templates",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[{\"name\":\"30/40/30\",\"rows\":[{\"label\":\"Anzahlung\",\"share\":{\"kind\":\"prozent\",\"value\":3000},\"due\":\"Auftragserteilung\"},{\"label\":\"Abschlag\",\"share\":{\"kind\":\"prozent\",\"value\":4000},\"due\":\"Lieferung\"},{\"label\":\"Schlussrechnung\",\"share\":{\"kind\":\"rest\"},\"due\":\"Abnahme\"}]},{\"name\":\"50/50\",\"rows\":[{\"label\":\"Anzahlung\",\"share\":{\"kind\":\"prozent\",\"value\":5000},\"due\":\"Auftragserteilung\"},{\"label\":\"Schlussrechnung\",\"share\":{\"kind\":\"rest\"},\"due\":\"Abnahme\"}]}]'::jsonb"
         },
         "kleinunternehmer": {
           "name": "kleinunternehmer",
@@ -4950,6 +4935,18 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_amount": {
+          "name": "discount_amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -5000,7 +4997,16 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "invoice_lines_discount": {
+          "name": "invoice_lines_discount",
+          "value": "\"invoice_lines\".\"discount_percent\" is null or \"invoice_lines\".\"discount_amount\" is null"
+        },
+        "invoice_lines_discount_percent": {
+          "name": "invoice_lines_discount_percent",
+          "value": "\"invoice_lines\".\"discount_percent\" is null or \"invoice_lines\".\"discount_percent\" between 1 and 10000"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.invoice_number_counters": {
@@ -5284,6 +5290,24 @@
         "quote_id": {
           "name": "quote_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_plan_row": {
+          "name": "payment_plan_row",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_amount": {
+          "name": "discount_amount",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -5607,6 +5631,18 @@
         "invoices_quote_kind": {
           "name": "invoices_quote_kind",
           "value": "\"invoices\".\"quote_id\" is null or \"invoices\".\"kind\" = 'rechnung'"
+        },
+        "invoices_plan_row": {
+          "name": "invoices_plan_row",
+          "value": "\"invoices\".\"payment_plan_row\" is null or (\"invoices\".\"variant\" = 'abschlag' and \"invoices\".\"quote_id\" is not null and \"invoices\".\"payment_plan_row\" >= 0)"
+        },
+        "invoices_discount": {
+          "name": "invoices_discount",
+          "value": "\"invoices\".\"discount_percent\" is null or \"invoices\".\"discount_amount\" is null"
+        },
+        "invoices_discount_percent": {
+          "name": "invoices_discount_percent",
+          "value": "\"invoices\".\"discount_percent\" is null or \"invoices\".\"discount_percent\" between 1 and 10000"
         },
         "invoices_corrects_original": {
           "name": "invoices_corrects_original",
@@ -8081,6 +8117,60 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.quote_choices": {
+      "name": "quote_choices",
+      "schema": "",
+      "columns": {
+        "quote_id": {
+          "name": "quote_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "position": {
+          "name": "position",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "quote_choices_quote_id_quotes_id_fk": {
+          "name": "quote_choices_quote_id_quotes_id_fk",
+          "tableFrom": "quote_choices",
+          "tableTo": "quotes",
+          "columnsFrom": [
+            "quote_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "quote_choices_quote_id_position_pk": {
+          "name": "quote_choices_quote_id_position_pk",
+          "columns": [
+            "quote_id",
+            "position"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.quote_lines": {
       "name": "quote_lines",
       "schema": "",
@@ -8146,6 +8236,24 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_amount": {
+          "name": "discount_amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
@@ -8167,7 +8275,20 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "quote_lines_discount": {
+          "name": "quote_lines_discount",
+          "value": "\"quote_lines\".\"discount_percent\" is null or \"quote_lines\".\"discount_amount\" is null"
+        },
+        "quote_lines_discount_percent": {
+          "name": "quote_lines_discount_percent",
+          "value": "\"quote_lines\".\"discount_percent\" is null or \"quote_lines\".\"discount_percent\" between 1 and 10000"
+        },
+        "quote_lines_kind": {
+          "name": "quote_lines_kind",
+          "value": "\"quote_lines\".\"kind\" is null or \"quote_lines\".\"kind\" in ('optional', 'alternative')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.quote_number_counters": {
@@ -8373,6 +8494,32 @@
           "primaryKey": false,
           "notNull": false
         },
+        "discount_percent": {
+          "name": "discount_percent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "discount_amount": {
+          "name": "discount_amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payment_plan": {
+          "name": "payment_plan",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "payment_plan_in_confirmation": {
+          "name": "payment_plan_in_confirmation",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "locked_at": {
           "name": "locked_at",
           "type": "timestamp with time zone",
@@ -8464,6 +8611,14 @@
         "quotes_decision_final": {
           "name": "quotes_decision_final",
           "value": "\"quotes\".\"decision\" is null or \"quotes\".\"status\" = 'final'"
+        },
+        "quotes_discount": {
+          "name": "quotes_discount",
+          "value": "\"quotes\".\"discount_percent\" is null or \"quotes\".\"discount_amount\" is null"
+        },
+        "quotes_discount_percent": {
+          "name": "quotes_discount_percent",
+          "value": "\"quotes\".\"discount_percent\" is null or \"quotes\".\"discount_percent\" between 1 and 10000"
         }
       },
       "isRLSEnabled": false
@@ -11190,9 +11345,7 @@
         "sondervorauszahlung",
         "lohn",
         "lohnsteuer",
-        "sozialversicherung",
-        "steuer",
-        "zinsertrag"
+        "sozialversicherung"
       ]
     },
     "public.bundesland": {

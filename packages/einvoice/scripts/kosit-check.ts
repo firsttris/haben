@@ -5,7 +5,9 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { buildEInvoice } from "../src/xml.ts";
+import type { Discount } from "@haben/core";
 import {
+  discountLines,
   euBuyer,
   gmbhSeller,
   grossPriceLines,
@@ -180,6 +182,42 @@ const samples: Record<string, InvoiceDocument> = {
       [`brutto-schluss-${format}`, schlussrechnung(format, "brutto")],
     ]),
   ),
+  // Rabatte: Positionsrabatt (BG-27) in Prozent und als Betrag, Gesamtrabatt je Steuersatz (BG-20)
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
+      [`rabatt-prozent-${format}`, sampleDocument({ format, lines: discountLines, discount: { kind: "prozent", value: 500 } })],
+      [`rabatt-betrag-${format}`, sampleDocument({ format, lines: discountLines, discount: { kind: "betrag", value: 10_001 } })],
+      [`rabatt-brutto-${format}`, sampleDocument({ format, lines: discountLines, discount: { kind: "prozent", value: 300 }, priceMode: "brutto" })],
+      [`rabatt-storno-${format}`, sampleDocument({ kind: "storno", format, lines: discountLines, discount: { kind: "betrag", value: 10_001 } })],
+      [
+        `rabatt-brutto-storno-${format}`,
+        sampleDocument({ kind: "storno", format, lines: discountLines, discount: { kind: "betrag", value: 999 }, priceMode: "brutto" }),
+      ],
+      [`rabatt-schluss-${format}`, schlussrechnung(format, "netto", { kind: "prozent", value: 1000 })],
+      [`rabatt-brutto-schluss-${format}`, schlussrechnung(format, "brutto", { kind: "betrag", value: 5000 })],
+      [
+        `rabatt-reverse-charge-${format}`,
+        sampleDocument({
+          format,
+          buyer: euBuyer,
+          lines: zeroRateLines.map((l) => ({ ...l, discount: { kind: "prozent" as const, value: 1500 } })),
+          discount: { kind: "betrag", value: 2000 },
+          taxTreatment: "reverse_charge",
+        }),
+      ],
+      [
+        `rabatt-drittland-${format}`,
+        sampleDocument({ format, buyer: thirdCountryBuyer, lines: zeroRateLines, discount: { kind: "prozent", value: 1000 }, taxTreatment: "drittland" }),
+      ],
+      [
+        `rabatt-kleinunternehmer-${format}`,
+        {
+          ...sampleDocument({ format, lines: zeroRateLines, discount: { kind: "prozent", value: 250 }, taxTreatment: "kleinunternehmer" }),
+          seller: { ...sampleSeller, ustId: undefined },
+        },
+      ],
+    ]),
+  ),
   "brutto-grosse-menge-xr-ubl": sampleDocument({
     format: "xrechnung-ubl",
     lines: [
@@ -198,7 +236,7 @@ const samples: Record<string, InvoiceDocument> = {
  * Schlussrechnung mit zwei Steuersätzen, abzüglich einer Abschlagsrechnung als negative Positionen;
  * bei Bruttopreisen werden die Abschläge brutto abgezogen
  */
-function schlussrechnung(format: InvoiceDocument["format"], priceMode: "netto" | "brutto" = "netto"): InvoiceDocument {
+function schlussrechnung(format: InvoiceDocument["format"], priceMode: "netto" | "brutto" = "netto", discount?: Discount): InvoiceDocument {
   const gross = priceMode === "brutto";
   const deductions = [
     {
@@ -207,6 +245,7 @@ function schlussrechnung(format: InvoiceDocument["format"], priceMode: "netto" |
       unit: "Psch." as const,
       unitPrice: gross ? -119000 : -100000,
       taxRate: 1900 as const,
+      deductionOf: "abschlag-2026-030",
     },
     {
       description: "Abzüglich Abschlagsrechnung 2026-030 vom 15.09.2026 (netto 50,00 €, USt 3,50 €)",
@@ -214,6 +253,7 @@ function schlussrechnung(format: InvoiceDocument["format"], priceMode: "netto" |
       unit: "Psch." as const,
       unitPrice: gross ? -5350 : -5000,
       taxRate: 700 as const,
+      deductionOf: "abschlag-2026-030",
     },
   ];
   return {
@@ -221,6 +261,7 @@ function schlussrechnung(format: InvoiceDocument["format"], priceMode: "netto" |
       format,
       lines: [...(gross ? grossPriceLines.map((l) => ({ ...l, quantity: l.quantity * 10 })) : mixedRateLines), ...deductions],
       priceMode,
+      ...(discount ? { discount } : {}),
     }),
     variant: "schluss",
     deducted: [{ number: "2026-030", issueDate: "2026-09-15" }],

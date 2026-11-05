@@ -24,6 +24,7 @@ import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
 import { CustomerNumberCard } from "../../components/CustomerNumberCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
+import { PlanTemplatesCard } from "../../components/PlanTemplatesCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
@@ -152,6 +153,7 @@ function SettingsPage() {
             <>
               <NumberingForm />
               <NumberFormatCard invoice={company.invoiceNumberFormat} quote={company.quoteNumberFormat} year={numbering.year} />
+              <PlanTemplatesCard templates={company.paymentPlanTemplates} />
               <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} year={numbering.year} />
               <LogoCard info={logo} />
               <AccentColorCard color={company.accentColor} />

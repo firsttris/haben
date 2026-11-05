@@ -1,5 +1,17 @@
 import { InvoiceService, type Invoice, type InvoiceServiceOptions, type Logger } from "@e-invoice-eu/core";
-import { formatEuro, formatPercent, skontoPaymentTerms, TAX_TREATMENTS, treatmentNote, UNITS, type Cents, type Millis } from "@haben/core";
+import {
+  documentAllowances,
+  formatEuro,
+  formatPercent,
+  lineAmount,
+  netOf,
+  skontoPaymentTerms,
+  TAX_TREATMENTS,
+  treatmentNote,
+  UNITS,
+  type Cents,
+  type Millis,
+} from "@haben/core";
 import { accountHolder, compactIban, formatDate, invoiceSkonto, isCreditNote, paymentSentence, servicePeriod } from "./format.ts";
 import { legalLine, renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
@@ -8,6 +20,8 @@ import { extractFacturXXml } from "./zugferd.ts";
 
 type UblInvoice = Invoice["ubl:Invoice"];
 type InvoiceLine = UblInvoice["cac:InvoiceLine"][number];
+type LineAllowance = NonNullable<InvoiceLine["cac:AllowanceCharge"]>[number];
+type DocumentAllowance = NonNullable<UblInvoice["cac:AllowanceCharge"]>[number];
 type CountryCode = UblInvoice["cac:AccountingSupplierParty"]["cac:Party"]["cac:PostalAddress"]["cac:Country"]["cbc:IdentificationCode"];
 
 const SERVICE_FORMATS: Record<InvoiceFormat, string> = {
@@ -121,16 +135,21 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       : {};
 
   const grossPrices = doc.priceMode === "brutto";
+  const priceMode = grossPrices ? "brutto" : "netto";
   const lines = doc.lines.map((line): InvoiceLine => {
     const net = sign * line.net;
     // Preise sind nie negativ (BR-27); ein Vorzeichen trägt die Menge
     const qty = Math.sign(net || 1) * Math.abs(line.quantity);
+    // Netto vor dem Positionsrabatt; der Rabatt ist die Differenz zum Zeilennetto (BT-131 = Menge × Preis − BT-136)
+    const before = line.discount ? netOf(lineAmount(line.quantity, line.unitPrice), line.taxRate, priceMode) : line.net;
+    const allowance = lineAllowance(line.discount, sign * (before - line.net), sign * before, grossPrices, currency);
     return {
       "cbc:ID": String(line.position),
       "cbc:InvoicedQuantity": quantity(qty),
       "cbc:InvoicedQuantity@unitCode": UNITS[line.unit],
       "cbc:LineExtensionAmount": amount(net),
       "cbc:LineExtensionAmount@currencyID": currency,
+      ...(allowance ? { "cac:AllowanceCharge": [allowance] } : {}),
       "cac:Item": {
         // Beschreibung (BT-154) steht im UBL-Schema vor dem Namen (BT-153)
         ...(line.detail?.trim() ? { "cbc:Description": line.detail.trim() } : {}),
@@ -139,11 +158,15 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       },
       "cac:Price": {
         // Bei Bruttopreisen steht im XML der Nettopreis (BT-146), mit mehr Nachkommastellen
-        "cbc:PriceAmount": grossPrices ? netUnitPrice(line.net, line.quantity) : amount(Math.abs(line.unitPrice)),
+        "cbc:PriceAmount": grossPrices ? netUnitPrice(before, line.quantity) : amount(Math.abs(line.unitPrice)),
         "cbc:PriceAmount@currencyID": currency,
       },
     };
   });
+  // Gesamtrabatt je Steuersatz (BG-20), abgeleitet aus Zeilennetto und Steuerzeilen wie gespeichert
+  const allowances = doc.discount ? documentAllowances(doc.lines, doc.totals, priceMode).filter((a) => a.net !== 0) : [];
+  const allowanceTotal = allowances.reduce((s, a) => s + a.net, 0);
+  const linesTotal = doc.lines.reduce((s, l) => s + l.net, 0);
   const [firstLine, ...otherLines] = lines;
   if (!firstLine) throw new Error("Rechnung ohne Positionen");
 
@@ -208,10 +231,12 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       },
     ],
     "cac:LegalMonetaryTotal": {
-      "cbc:LineExtensionAmount": amount(sign * doc.totals.net),
+      // BR-CO-10: Summe der Positionen; BR-CO-13: abzüglich der Abzüge auf Belegebene ergibt das Netto
+      "cbc:LineExtensionAmount": amount(sign * (allowances.length > 0 ? linesTotal : doc.totals.net)),
       "cbc:LineExtensionAmount@currencyID": currency,
       "cbc:TaxExclusiveAmount": amount(sign * doc.totals.net),
       "cbc:TaxExclusiveAmount@currencyID": currency,
+      ...(allowances.length > 0 ? { "cbc:AllowanceTotalAmount": amount(sign * allowanceTotal), "cbc:AllowanceTotalAmount@currencyID": currency } : {}),
       "cbc:TaxInclusiveAmount": amount(payable),
       "cbc:TaxInclusiveAmount@currencyID": currency,
       "cbc:PayableAmount": amount(payable),
@@ -219,6 +244,23 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
     },
     "cac:InvoiceLine": [firstLine, ...otherLines],
   };
+
+  if (allowances.length > 0) {
+    invoice["cac:AllowanceCharge"] = allowances.map(
+      (a): DocumentAllowance => ({
+        "cbc:ChargeIndicator": "false",
+        "cbc:AllowanceChargeReasonCode": "95",
+        "cbc:AllowanceChargeReason": "Rabatt",
+        // Prozent und Grundlage (BT-94, BT-93) nur, wo der Abzug genau Grundlage × Prozent ist: Nettopreise
+        ...(doc.discount?.kind === "prozent" && !grossPrices ? { "cbc:MultiplierFactorNumeric": percent(doc.discount.value) } : {}),
+        "cbc:Amount": amount(sign * a.net),
+        "cbc:Amount@currencyID": currency,
+        ...(doc.discount?.kind === "prozent" && !grossPrices ? { "cbc:BaseAmount": amount(sign * a.basis), "cbc:BaseAmount@currencyID": currency } : {}),
+        // Wie die Position: bei „nicht steuerbar“ ohne Satz (BR-O-06)
+        "cac:TaxCategory": categoryWithRate(doc, a.rate, "line") as DocumentAllowance["cac:TaxCategory"],
+      }),
+    );
+  }
 
   // Fremdwährung: Steuerwährung Euro (BT-6) und die Umsatzsteuer in Euro als zweite Steuersumme ohne Aufschlüsselung (BT-111)
   if (doc.euroTax && currency !== "EUR") {
@@ -287,6 +329,30 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   }
 
   return withoutInvalidXmlChars({ "ubl:Invoice": invoice });
+}
+
+/**
+ * Positionsrabatt als Line allowance (BG-27): Grund „Rabatt“ mit Code 95 (UNTDID 5189, BR-42), Betrag netto (BT-136); bei
+ * Prozent und Nettopreisen auch Grundlage (BT-137) und Prozent (BT-138), denn nur dort ist der Abzug genau Grundlage × Prozent.
+ */
+function lineAllowance(
+  discount: InvoiceDocument["discount"],
+  value: Cents,
+  base: Cents,
+  grossPrices: boolean,
+  currency: UblInvoice["cbc:DocumentCurrencyCode"],
+): LineAllowance | null {
+  if (!discount || value === 0) return null;
+  const withPercent = discount.kind === "prozent" && !grossPrices;
+  return {
+    "cbc:ChargeIndicator": "false",
+    "cbc:AllowanceChargeReasonCode": "95",
+    "cbc:AllowanceChargeReason": "Rabatt",
+    ...(withPercent ? { "cbc:MultiplierFactorNumeric": percent(discount.value) } : {}),
+    "cbc:Amount": amount(value),
+    "cbc:Amount@currencyID": currency,
+    ...(withPercent ? { "cbc:BaseAmount": amount(base), "cbc:BaseAmount@currencyID": currency } : {}),
+  };
 }
 
 /**

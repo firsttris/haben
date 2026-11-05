@@ -39,7 +39,8 @@ Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**
 | Text zu Position | Optional, mehrzeilig, bis 2000 Zeichen, z. B. Leistungsumfang oder Bestellbezug. Steht im PDF in kleinerer Schrift unter der Bezeichnung, die dann halbfett ist, und im XML als Artikelbeschreibung (BT-154). Storno und Rechnungskorrektur übernehmen ihn, ebenso Rechnungen aus einem Angebot oder einer Vorlage und der Lieferschein. Angebote und wiederkehrende Rechnungen haben dasselbe Feld. |
 | Menge | Bis zu drei Nachkommastellen, z. B. `0,5` oder `152`. Muss größer als null sein. |
 | Einheit | `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.`, `km` |
-| Einzelpreis | In Euro, z. B. `95,00`. Negative Preise sind möglich, etwa für einen Rabatt. |
+| Einzelpreis | In Euro, z. B. `95,00`. Negative Preise sind möglich, für einen Nachlass aber besser der [Rabatt](#rabatte). |
+| Rabatt | Optional, als Prozent (`10 %`) oder Betrag (`50,00`), siehe [Rabatte](#rabatte). |
 | Steuersatz | 19 %, 7 % oder 0 % |
 
 Der Zeilenbetrag ist Menge mal Einzelpreis, kaufmännisch auf Cent gerundet. Bei Nettopreisen rechnet Haben die Umsatzsteuer nach EN 16931 je Steuersatz auf die Summe der Zeilennetto, nicht als Summe der Steuer je Zeile. Bei mehreren Steuersätzen weist das PDF die Steuer je Satz mit ihrer Bemessungsgrundlage aus.
@@ -232,6 +233,30 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 
 Fällig ist eine Rechnung am Rechnungsdatum plus Zahlungsziel. Fällt dieser Tag auf einen Samstag, Sonntag oder gesetzlichen Feiertag im Bundesland aus deinen Firmendaten, gilt der nächste Werktag (§ 193 BGB). Haben kennt nur Feiertage, die im ganzen Bundesland gelten; Feiertage einzelner Gemeinden (Fronleichnam in Teilen Sachsens und Thüringens, Mariä Himmelfahrt in Bayern, Augsburger Friedensfest) zählen nicht. Ohne Bundesland zählen nur die bundesweiten Feiertage. Bei Zahlungsziel 0 ist die Rechnung am Rechnungsdatum fällig, auch an einem Wochenende. Die Berechnung steht in `packages/core/src/holidays.ts`.
 
+## Rabatte
+
+Einen Nachlass gibst du als **Positionsrabatt** auf einzelne Positionen oder als **Gesamtrabatt** auf alles, wie in Lexware Office. Beides gibt es in Rechnung, Angebot und Auftragsbestätigung.
+
+- **Positionsrabatt:** Im Feld **Rabatt** unter der Position `10 %` oder einen Betrag wie `50,00` eintragen. Der Zeilenbetrag ist danach Menge × Einzelpreis abzüglich Rabatt; Prozent rundet Haben kaufmännisch auf Cent. Ein Betrag darf die Position nicht übersteigen. Anders als Lexware Office kennt Haben auch beim Positionsrabatt einen festen Betrag.
+- **Gesamtrabatt:** Unter den Positionen im Feld **Gesamtrabatt** ebenso Prozent oder Betrag. Er gilt für die Summe der Positionen nach ihren Rabatten: erst der Positionsrabatt, dann der Gesamtrabatt.
+- **Netto oder brutto:** Ein Betrag gilt im Preismodus der Rechnung, bei Bruttopreisen also brutto.
+- **Mehrere Steuersätze:** Der Gesamtrabatt teilt sich je Steuersatz auf. Prozent gilt für jeden Satz gleich, ein Betrag im Verhältnis der Summen je Satz; den Rundungsrest trägt der größte Satz. Die Umsatzsteuer rechnet Haben je Satz auf den Betrag nach Rabatt (§ 10 Abs. 1 UStG: Bemessungsgrundlage ist das, was der Kunde aufwendet).
+- **Schlussrechnung:** Der Gesamtrabatt gilt nur für die Leistung, nicht für die Abzüge der Abschlagsrechnungen. Storno und Rechnungskorrektur einer Schlussrechnung übernehmen die Abzüge als solche, ebenfalls ohne Rabatt; in der Korrektur stehen sie fest unter den Positionen.
+- **Skonto** bleibt davon getrennt: Er gilt für den Betrag nach Rabatt und nur bei früher Zahlung (siehe [Skonto](#skonto)).
+
+Im **PDF** steht der Positionsrabatt unter der Bezeichnung („abzüglich 10 % Rabatt (95,00 €)“), der Zeilenbetrag nach Rabatt. Mit Gesamtrabatt stehen über der Summe netto die **Zwischensumme** und der **Gesamtrabatt**; bei Bruttopreisen über dem Gesamtbetrag.
+
+In der **E-Rechnung** nach EN 16931:
+
+| Rabatt | Im XML |
+| --- | --- |
+| Positionsrabatt | Abzug auf Positionsebene (BG-27): Betrag netto (BT-136), Grund „Rabatt“ mit Code 95 (BT-139, BT-140); bei Prozent und Nettopreisen auch Grundlage (BT-137) und Prozent (BT-138). Das Zeilennetto (BT-131) ist nach Rabatt. |
+| Gesamtrabatt | Je Steuersatz ein Abzug auf Belegebene (BG-20) mit Betrag netto (BT-92), Steuerkategorie und Satz (BT-95, BT-96) und Grund (BT-97, BT-98); bei Prozent und Nettopreisen auch Grundlage (BT-93) und Prozent (BT-94). In den Summen steht er als Summe der Abzüge (BT-107); Summe der Positionen (BT-106) minus Abzüge ergibt das Netto (BT-109). |
+
+Bei Bruttopreisen stehen im XML die Netto-Beträge der Abzüge; Prozent und Grundlage fehlen dort, weil der Abzug netto nicht genau Grundlage × Prozent ist. Der KoSIT-Validator nimmt Rechnungen mit Rabatten in allen drei Formaten an, auch Storno, Schlussrechnung, Reverse Charge und Kleinunternehmer.
+
+**Gebucht** wird das Netto nach Rabatt auf das Erlöskonto, die Umsatzsteuer darauf; ein eigenes Konto für Rabatte gibt es nicht, denn der Rabatt mindert das Entgelt schon auf der Rechnung. Storno und Rechnungskorrektur übernehmen die Rabatte, ein fester Betrag mit umgekehrtem Vorzeichen, sodass das Storno die Rechnung auf den Cent aufhebt. Wiederkehrende Rechnungen und die REST-API kennen keine Rabatte; ein Entwurf mit Rabatten behält sie, wenn die API andere Felder ändert.
+
 ## Skonto
 
 Skonto ist ein Abzug, den der Kunde machen darf, wenn er früh zahlt, etwa 2 % bei Zahlung innerhalb von 10 Tagen. Im Rechnungseditor stehen unter dem Zahlungsziel bis zu drei **Skontostufen**, je mit **Skonto in %** (bis zu zwei Nachkommastellen) und **Frist in Tagen**. Neben jeder Stufe zeigt der Editor das Datum, den Skontobetrag und den Zahlbetrag. Mit **+ Skontostufe hinzufügen** kommt eine weitere Stufe dazu, das Kreuz entfernt eine; ohne Stufe hat die Rechnung kein Skonto.
@@ -273,7 +298,7 @@ In Fremdwährung gibt es keinen GiroCode (SEPA kennt nur Euro), keine Abschlags-
 
 Bei größeren Aufträgen rechnest du in Teilen ab: zuerst Abschlagsrechnungen, am Ende eine Schlussrechnung über alles.
 
-1. **Abschlagsrechnung:** Neue Rechnung, unter **Rechnungsart** „Abschlagsrechnung“ wählen und den Teilbetrag als Position eintragen, z. B. „1. Abschlag 30 % gemäß Angebot AN-2026-004“. Sie wird wie jede Rechnung festgeschrieben, gebucht, bezahlt und gemahnt. Im XML trägt sie den Typ 326 (Teilrechnung). Gibt es ein Angebot zum Auftrag, wählst du es unter **Angebot** aus, oder du legst den Abschlag gleich im Angebot mit **Abschlagsrechnung erstellen** an (siehe [angebote.md](angebote.md#in-abschlägen-abrechnen)).
+1. **Abschlagsrechnung:** Neue Rechnung, unter **Rechnungsart** „Abschlagsrechnung“ wählen und den Teilbetrag als Position eintragen, z. B. „1. Abschlag 30 % gemäß Angebot AN-2026-004“. Sie wird wie jede Rechnung festgeschrieben, gebucht, bezahlt und gemahnt. Im XML trägt sie den Typ 326 (Teilrechnung). Gibt es ein Angebot zum Auftrag, wählst du es unter **Angebot** aus, oder du legst den Abschlag gleich im Angebot mit **Abschlagsrechnung erstellen** an (siehe [angebote.md](angebote.md#in-abschlägen-abrechnen)). Hat das Angebot einen [Zahlungsplan](angebote.md#zahlungsplan), rechnet Haben den Betrag je Zeile selbst aus, anteilig je Steuersatz.
 2. **Schlussrechnung:** In der festgeschriebenen Abschlagsrechnung bzw. im Angebot auf **Schlussrechnung erstellen** klicken oder bei einer neuen Rechnung „Schlussrechnung“ wählen. Gehört die Schlussrechnung zu einem Angebot, schlägt Haben dessen offene Abschlagsrechnungen zum Abzug vor, sonst alle offenen Abschlagsrechnungen des Kunden. Per Häkchen wählst du sie ab oder wieder an, auch die anderer Aufträge. Unter **Positionen** steht die gesamte Leistung.
 
 Die Abzüge setzt Haben selbst als eigene Positionen darunter, je Abschlagsrechnung und Steuersatz eine, mit Netto und Umsatzsteuer der Abschlagsrechnung, z. B. „Abzüglich Abschlagsrechnung 2026-031 vom 15.09.2026 (netto 3.000,00 €, USt 570,00 €)“. So weist die Schlussrechnung nur noch die Umsatzsteuer auf den Rest aus (§ 14 Abs. 5 UStG), und gebucht wird nur der Restbetrag; die Abschläge sind schon als Erlös gebucht. Im XML verweist die Schlussrechnung auf jede abgezogene Abschlagsrechnung.

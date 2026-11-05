@@ -5,7 +5,8 @@ import { asc, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
 import { loadCompany, loadLetterhead } from "../stammdaten/index.ts";
 import { withCurrentLegalInfo } from "./invoices.ts";
-import { quoteDocumentFor } from "./quotes.ts";
+import { quoteChoices } from "./quote-choices.ts";
+import { orderLines, quoteDocumentFor } from "./quotes.ts";
 import { today } from "../../today.ts";
 
 /**
@@ -22,13 +23,20 @@ async function acceptedQuote(id: string) {
   }
   if (quote.decision !== "angenommen" || !quote.decidedAt) throw new OrderDocumentError("Das Angebot ist nicht als angenommen markiert.");
   const lines = await db.select().from(schema.quoteLines).where(eq(schema.quoteLines.quoteId, id)).orderBy(asc(schema.quoteLines.position));
-  return { quote: { ...quote, number: quote.number, seller: quote.seller, buyer: quote.buyer, decidedAt: quote.decidedAt }, lines };
+  const choices = await quoteChoices(id);
+  return { quote: { ...quote, number: quote.number, seller: quote.seller, buyer: quote.buyer, decidedAt: quote.decidedAt }, lines, choices };
 }
 
-/** Auftragsbestätigung zum angenommenen Angebot, datiert auf die Annahme */
+/**
+ * Auftragsbestätigung zum angenommenen Angebot, datiert auf die Annahme: nur die Positionen nach der Auswahl des Kunden,
+ * auf Wunsch mit dem Zahlungsplan
+ */
 export async function confirmationPdf(quoteId: string) {
-  const { quote, lines } = await acceptedQuote(quoteId);
-  const doc = quoteDocumentFor(quote, lines, withCurrentLegalInfo(quote.seller, await loadCompany()), quote.buyer, quote.number);
+  const { quote, lines, choices } = await acceptedQuote(quoteId);
+  const doc = quoteDocumentFor(quote, lines, withCurrentLegalInfo(quote.seller, await loadCompany()), quote.buyer, quote.number, {
+    choices,
+    withPlan: quote.paymentPlanInConfirmation,
+  });
   const pdf = buildConfirmationPdf({ ...doc, ...(await loadLetterhead()) }, today(quote.decidedAt));
   return { pdf, filename: `${quote.language === "en" ? "Order-confirmation" : "Auftragsbestaetigung"}-${quote.number}.pdf` };
 }
@@ -46,7 +54,7 @@ interface DeliverySource {
 
 async function deliverySource(source: "angebot" | "rechnung", id: string): Promise<DeliverySource> {
   if (source === "angebot") {
-    const { quote, lines } = await acceptedQuote(id);
+    const { quote, lines, choices } = await acceptedQuote(id);
     const date = today(quote.decidedAt);
     return {
       number: quote.number,
@@ -56,7 +64,7 @@ async function deliverySource(source: "angebot" | "rechnung", id: string): Promi
       seller: quote.seller,
       buyer: quote.buyer,
       language: quote.language,
-      lines,
+      lines: orderLines(lines, choices),
     };
   }
   const [invoice] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, id));

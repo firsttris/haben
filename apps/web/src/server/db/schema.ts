@@ -34,6 +34,10 @@ import {
   DAUERBELEG_STATUS_KEYS,
   STEUERART_KEYS,
   STEUER_POSTEN_KEYS,
+  DEFAULT_PLAN_TEMPLATES,
+  QUOTE_LINE_KINDS,
+  type PaymentPlanRow,
+  type PlanTemplate,
   type AssetKind,
   type AssetMethod,
   type CarPrivateUse,
@@ -123,6 +127,8 @@ export const company = pgTable(
     /** Vorgabe für die Einleitung über den Positionen neuer Rechnungen bzw. Angebote; im Beleg änderbar */
     invoiceIntro: text("invoice_intro").notNull().default(""),
     quoteIntro: text("quote_intro").notNull().default(""),
+    /** Vorlagen für den Zahlungsplan im Angebot, z. B. „30/40/30“ und „50/50“ */
+    paymentPlanTemplates: jsonb("payment_plan_templates").$type<PlanTemplate[]>().notNull().default(DEFAULT_PLAN_TEMPLATES),
     /** Kleinunternehmer nach § 19 UStG: Rechnungen ohne Umsatzsteuer, keine Voranmeldung, kein Vorsteuerabzug */
     kleinunternehmer: boolean("kleinunternehmer").notNull().default(false),
     /** Für die Anlage EÜR: Einkunftsart und Art des Betriebs */
@@ -976,6 +982,14 @@ export const invoices = pgTable(
     variant: text("variant", { enum: ["abschlag", "schluss"] }),
     /** Angebot, aus dem bzw. zu dem die Rechnung entstanden ist; die Schlussrechnung zieht dessen Abschläge ab */
     quoteId: uuid("quote_id").references((): AnyPgColumn => quotes.id),
+    /** Abschlagsrechnung zu einer Zeile des Zahlungsplans im Angebot (Index ab 0) */
+    paymentPlanRow: smallint("payment_plan_row"),
+    /**
+     * Gesamtrabatt wie eingegeben: Prozent in Basispunkten oder fester Betrag in Cent im Preismodus; höchstens eins. Der
+     * Abzug je Satz steckt in invoice_taxes (Bemessungsgrundlage nach Rabatt) und folgt aus Zeilennetto minus Grundlage.
+     */
+    discountPercent: integer("discount_percent"),
+    discountAmount: integer("discount_amount"),
     net: integer("net").notNull().default(0),
     tax: integer("tax").notNull().default(0),
     gross: integer("gross").notNull().default(0),
@@ -1009,6 +1023,9 @@ export const invoices = pgTable(
     check("invoices_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
     check("invoices_variant_kind", sql`${t.variant} is null or ${t.kind} = 'rechnung'`),
     check("invoices_quote_kind", sql`${t.quoteId} is null or ${t.kind} = 'rechnung'`),
+    check("invoices_plan_row", sql`${t.paymentPlanRow} is null or (${t.variant} = 'abschlag' and ${t.quoteId} is not null and ${t.paymentPlanRow} >= 0)`),
+    check("invoices_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
+    check("invoices_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
     // Storno und Korrektur verweisen immer auf das Original
     check("invoices_corrects_original", sql`${t.kind} = 'rechnung' or ${t.correctsId} is not null`),
     uniqueIndex("invoices_number_counter").on(t.numberYear, t.numberCounter),
@@ -1046,8 +1063,15 @@ export const invoiceLines = pgTable(
     net: integer("net").notNull(),
     /** Schlussrechnung: Abzug dieser Abschlagsrechnung; erzeugt Haben, nicht der Editor */
     deductionOf: uuid("deduction_of").references(() => invoices.id),
+    /** Positionsrabatt wie eingegeben: Prozent in Basispunkten oder fester Betrag in Cent im Preismodus; net ist nach Rabatt */
+    discountPercent: integer("discount_percent"),
+    discountAmount: integer("discount_amount"),
   },
-  (t) => [index("invoice_lines_invoice").on(t.invoiceId)],
+  (t) => [
+    index("invoice_lines_invoice").on(t.invoiceId),
+    check("invoice_lines_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
+    check("invoice_lines_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
+  ],
 );
 
 /**
@@ -1143,6 +1167,13 @@ export const quotes = pgTable(
     decidedAt: timestamp("decided_at", { withTimezone: true }),
     /** Rechnung, die aus dem Angebot entstanden ist */
     invoiceId: uuid("invoice_id").references(() => invoices.id),
+    /** Gesamtrabatt wie bei der Rechnung: Prozent in Basispunkten oder fester Betrag in Cent, höchstens eins */
+    discountPercent: integer("discount_percent"),
+    discountAmount: integer("discount_amount"),
+    /** Zahlungsplan: je Zeile Prozent, fester Betrag (im Preismodus) oder Rest, mit Fälligkeit als Text; leer = keiner */
+    paymentPlan: jsonb("payment_plan").$type<PaymentPlanRow[]>().notNull().default([]),
+    /** Zahlungsplan auch in der Auftragsbestätigung */
+    paymentPlanInConfirmation: boolean("payment_plan_in_confirmation").notNull().default(false),
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1150,27 +1181,60 @@ export const quotes = pgTable(
   (t) => [
     check("quotes_final_has_number", sql`${t.status} = 'draft' or (${t.number} is not null and ${t.lockedAt} is not null)`),
     check("quotes_decision_final", sql`${t.decision} is null or ${t.status} = 'final'`),
+    check("quotes_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
+    check("quotes_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
     uniqueIndex("quotes_number_counter").on(t.numberYear, t.numberCounter),
   ],
 );
 
-export const quoteLines = pgTable("quote_lines", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  quoteId: uuid("quote_id")
-    .notNull()
-    .references(() => quotes.id, { onDelete: "cascade" }),
-  position: smallint("position").notNull(),
-  /** Bezeichnung der Position, eine Zeile */
-  description: text("description").notNull(),
-  /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
-  detail: text("detail").notNull().default(""),
-  /** Tausendstel */
-  quantity: integer("quantity").notNull(),
-  unit: text("unit").notNull(),
-  unitPrice: integer("unit_price").notNull(),
-  taxRate: smallint("tax_rate").notNull(),
-  net: integer("net").notNull(),
-});
+export const quoteLines = pgTable(
+  "quote_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => quotes.id, { onDelete: "cascade" }),
+    position: smallint("position").notNull(),
+    /** Bezeichnung der Position, eine Zeile */
+    description: text("description").notNull(),
+    /** Beschreibung unter der Bezeichnung, mehrzeilig; leer = keine */
+    detail: text("detail").notNull().default(""),
+    /** Tausendstel */
+    quantity: integer("quantity").notNull(),
+    unit: text("unit").notNull(),
+    unitPrice: integer("unit_price").notNull(),
+    taxRate: smallint("tax_rate").notNull(),
+    /** Zeilennetto nach Positionsrabatt */
+    net: integer("net").notNull(),
+    /** Positionsrabatt wie bei der Rechnung */
+    discountPercent: integer("discount_percent"),
+    discountAmount: integer("discount_amount"),
+    /** Optionale Position oder Alternative zur Hauptposition davor; beide zählen nicht zur Angebotssumme. null = normal */
+    kind: text("kind", { enum: QUOTE_LINE_KINDS }),
+  },
+  (t) => [
+    check("quote_lines_discount", sql`${t.discountPercent} is null or ${t.discountAmount} is null`),
+    check("quote_lines_discount_percent", sql`${t.discountPercent} is null or ${t.discountPercent} between 1 and 10000`),
+    check("quote_lines_kind", sql`${t.kind} is null or ${t.kind} in ('optional', 'alternative')`),
+  ],
+);
+
+/**
+ * Auswahl des Kunden bei optionalen und alternativen Positionen eines festgeschriebenen Angebots: je gewählter Position
+ * eine Zeile. Rechnung, Abschläge und Auftragsbestätigung übernehmen danach nur die gewählten (Lexware: „Weiterführen“).
+ * Änderbar, bis eine Rechnung zum Angebot festgeschrieben ist (Trigger in drizzle/).
+ */
+export const quoteChoices = pgTable(
+  "quote_choices",
+  {
+    quoteId: uuid("quote_id")
+      .notNull()
+      .references(() => quotes.id, { onDelete: "cascade" }),
+    position: smallint("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.quoteId, t.position] })],
+);
 
 /** Firmenlogo für Rechnungen, Angebote und Mahnungen; höchstens eine Zeile */
 export const companyLogo = pgTable(
