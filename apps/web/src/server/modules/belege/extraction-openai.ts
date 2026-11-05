@@ -117,17 +117,39 @@ async function rejectsStructuredOutput(response: Response): Promise<boolean> {
   return /response_format|json_schema|structured|grammar/i.test(text);
 }
 
-/** Meldung des Dienstes kurz an den Beleg; sie steht nicht im Server-Log */
-async function serverMessage(response: Response): Promise<string> {
+/**
+ * Meldung des Dienstes kurz an den Beleg; sie steht nicht im Server-Log. Schreibt der Dienst oder ein Proxy davor den
+ * Schlüssel zurück, fällt er heraus: Die Meldung landet in der Belegtabelle und damit im Audit-Log.
+ */
+async function serverMessage(config: OpenAiConfig, response: Response): Promise<string> {
   const text = await response.text().catch(() => "");
+  return withoutSecrets(config, messageOf(text)).slice(0, 300);
+}
+
+function messageOf(text: string): string {
   try {
     const parsed = JSON.parse(text) as { error?: { message?: unknown } | string; message?: unknown };
     const message = typeof parsed.error === "string" ? parsed.error : (parsed.error?.message ?? parsed.message);
-    if (typeof message === "string") return message.slice(0, 300);
+    if (typeof message === "string") return message;
   } catch {
     // keine JSON-Antwort
   }
-  return text.slice(0, 300);
+  return text;
+}
+
+/** Schlüssel und Passwort aus der Adresse, das Passwort auch dekodiert */
+function withoutSecrets(config: OpenAiConfig, text: string): string {
+  const { password } = new URL(config.endpoint);
+  const secrets = [config.apiKey, password, decoded(password)].filter((secret): secret is string => Boolean(secret));
+  return secrets.reduce((result, secret) => result.split(secret).join("…"), text);
+}
+
+function decoded(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }
 
 async function httpError(config: OpenAiConfig, response: Response): Promise<ExtractionError> {
@@ -153,7 +175,7 @@ async function httpError(config: OpenAiConfig, response: Response): Promise<Extr
       reason,
     );
   }
-  const detail = await serverMessage(response);
+  const detail = await serverMessage(config, response);
   if (status === 400 || status === 413 || status === 422) {
     return new ExtractionError(
       `Der KI-Dienst konnte den Beleg nicht verarbeiten (HTTP ${status}). Kann das Modell „${config.model}“ Bilder lesen (Vision-Modell)?${detail ? ` Meldung: ${detail}` : ""}`,
