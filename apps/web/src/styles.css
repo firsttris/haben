@@ -192,7 +192,7 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.field { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--muted); }
 .field input, .field select { min-height: var(--control-h); padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
 /* Lange Texte wachsen mit dem Inhalt, wo der Browser das kann */
 textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
@@ -216,22 +216,26 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 
 /* Formular in Abschnitten (Kontakt, Firmendaten, Persönliche Angaben) */
 .form-card { gap: 0; padding: 0; }
-.contact-form { max-width: 760px; }
+.contact-form, .form-narrow { max-width: 760px; }
 .form-card-head { display: flex; flex-direction: column; gap: 8px; padding: 20px 24px 0; }
 .form-card-head p { margin: 0; }
-.form-section { display: flex; flex-direction: column; gap: 14px; padding: 20px 24px; border: 0; border-top: 1px solid var(--line); margin: 0; min-width: 0; }
+.form-section { display: flex; flex-direction: column; gap: 16px; padding: 20px 24px; border: 0; border-top: 1px solid var(--line); margin: 0; min-width: 0; }
 .form-section:first-child, .form-card-head + .form-section { border-top: 0; }
 .form-section > h2, .form-section > h3, .form-section > legend { float: left; width: 100%; padding: 0; margin: 0; font-size: 13px; font-weight: 500; color: var(--muted); }
 .form-section > legend + * { clear: both; }
 /* Abschnitte innerhalb einer Karte, die schon Innenabstand hat */
 .plain-sections > .form-section { padding: 16px 0; }
 .plain-sections > .form-section:first-child { padding-top: 0; }
-.form-row { display: grid; gap: 14px; align-items: start; }
+.form-row { display: grid; gap: 16px; align-items: start; }
 .form-row.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .form-row.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .form-row.cols-address { grid-template-columns: 120px minmax(0, 1fr) 120px; }
 .form-row.cols-place { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr); }
-.field-group { display: flex; flex-direction: column; gap: 6px; }
+/* Betragszeile: Satz, Netto, Steuer und Platz für den Entfernen-Knopf, auch wenn er fehlt, damit die Zeilen fluchten */
+.form-row.cols-amount { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 40px; align-items: end; }
+.form-row.cols-amount.ohne-steuer { grid-template-columns: 120px minmax(0, 1fr) 40px; }
+.dauerbeleg-summe { margin: 0; padding-top: 12px; border-top: 1px solid var(--line-soft); font-variant-numeric: tabular-nums; }
+.field-group { display: flex; flex-direction: column; gap: 8px; }
 .field-hint, .field .small { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
 .field input.mono { font-family: var(--mono); font-size: 13px; letter-spacing: 0.02em; }
 .field input.uppercase { text-transform: uppercase; }
@@ -244,6 +248,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   .form-row.cols-2, .form-row.cols-3 { grid-template-columns: minmax(0, 1fr); }
   .form-row.cols-address, .form-row.cols-place { grid-template-columns: 100px minmax(0, 1fr); }
   .form-row.cols-address > :last-child, .form-row.cols-place > :last-child { grid-column: 1 / -1; }
+  .form-row.cols-amount { grid-template-columns: 96px minmax(0, 1fr) 40px; }
+  .form-row.cols-amount > .field:nth-child(3) { grid-column: 2; }
 }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
 .checkbox { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 14px; }
