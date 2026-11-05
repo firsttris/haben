@@ -137,7 +137,7 @@ Skonto steht in `skonto` als Liste von Stufen, Frist in Tagen ab dem Rechnungsda
 
 Endpreise inklusive Umsatzsteuer, wie in Shops üblich, gehen mit `"priceMode": "brutto"`; dann ist `unitPrice` der Bruttopreis in Cent. Einheiten sind `Std.`, `Tag`, `Monat`, `Stk.`, `Psch.` und `km`.
 
-Entwurf ändern, nur die genannten Felder; `lines` ersetzt alle Positionen:
+Entwurf ändern, nur die genannten Felder; `lines` ersetzt alle Positionen. Ohne `skonto` passt sich das Skonto des Entwurfs an: Stufen über ein neues Zahlungsziel hinaus entfallen, bei Fremdwährung entfällt es ganz. Beispiel:
 
 ```sh
 curl -s -X PATCH "$HABEN/rechnungen/5f3e…" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \

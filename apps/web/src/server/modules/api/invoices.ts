@@ -100,6 +100,15 @@ async function contactProblem(contactId: string | null | undefined): Promise<Api
   return fail("unprocessable", "Kontakt nicht gefunden. Erst über /kontakte anlegen.");
 }
 
+/** Skonto gibt es nur auf Rechnungen in Euro; ohne Angabe ist die Währung Euro */
+function isEuro(currency: unknown): boolean {
+  return (
+    String(currency ?? "EUR")
+      .trim()
+      .toUpperCase() === "EUR"
+  );
+}
+
 /** Vorgaben eines Kunden wie im Rechnungseditor (chooseContact): sein Format, mit Leitweg-ID XRechnung, und seine Sprache */
 function contactDefaults(contact: Contact | undefined): { format?: NonNullable<Contact["defaultFormat"]>; language?: Contact["language"] } {
   if (!contact) return {};
@@ -139,13 +148,7 @@ export async function createInvoiceHandler(request: ApiRequest): Promise<ApiResu
   const { externalSource, externalId, ...fields } = request.body as Record<string, unknown>;
   const merged = { ...(await newDraftDefaults(request.today)), ...contactDefaults(contact), ...fields };
   // Skonto ohne Angabe wie im Editor: vom Kunden, sonst aus den Firmendaten, passend zum Zahlungsziel; in Fremdwährung keins
-  if (!("skonto" in fields)) {
-    const euro =
-      String(fields.currency ?? "EUR")
-        .trim()
-        .toUpperCase() === "EUR";
-    merged.skonto = euro ? defaultSkonto(await loadCompany(), contact, merged.paymentTermDays) : [];
-  }
+  if (!("skonto" in fields)) merged.skonto = isEuro(fields.currency) ? defaultSkonto(await loadCompany(), contact, merged.paymentTermDays) : [];
   const input = validate(draftSchema, merged);
   if ("failure" in input) return input.failure;
   const reference =
@@ -167,7 +170,14 @@ export async function updateInvoiceHandler(request: ApiRequest): Promise<ApiResu
   if (invoice.kind !== "rechnung" || invoice.variant || invoice.quoteId) {
     return fail("conflict", "Storno, Korrektur, Abschlags- und Schlussrechnung sowie Rechnungen zu einem Angebot bitte in Haben bearbeiten.");
   }
-  const input = validate(draftSchema, { ...draftInputOf(invoice, lines), ...(request.body as object) });
+  const body = request.body as Record<string, unknown>;
+  const merged = { ...draftInputOf(invoice, lines), ...body };
+  // Ohne Angabe passt sich das Skonto an wie beim Anlegen, damit ein Client ohne Skonto Zahlungsziel und Währung ändern
+  // kann: Fristen über das neue Zahlungsziel hinaus entfallen, in Fremdwährung keins
+  if (!("skonto" in body)) {
+    merged.skonto = isEuro(merged.currency) ? (merged.skonto ?? []).filter((s) => s.days <= Number(merged.paymentTermDays)) : [];
+  }
+  const input = validate(draftSchema, merged);
   if ("failure" in input) return input.failure;
   const problem = await contactProblem(input.data.contactId);
   if (problem) return problem;
