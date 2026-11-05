@@ -297,6 +297,15 @@ describe.skipIf(!testDatabaseUrl)("Lohnabrechnung (Postgres)", () => {
     expect((await lohn.listEmployees()).map((e) => e.art)).toEqual(["beschaeftigt"]);
   });
 
+  it("Einzelunternehmen: einen Gesellschafter-Geschäftsführer aus der Zeit vor der Rechtsform weiter ändern, etwa austreten lassen", async () => {
+    // Das Formular lässt die gespeicherte Art wählbar (beschaeftigungsartenFor); speichern muss dann auch gehen
+    await sql`truncate journal_lines, journal_entries cascade`;
+    const id = await lohn.saveEmployee(actor, null, GGF);
+    await sql`update company set rechtsform = 'einzelunternehmen'`;
+    await lohn.saveEmployee(actor, id, { ...GGF, austritt: "2026-12-31" });
+    expect((await lohn.getEmployee(id))?.austritt).toBe("2026-12-31");
+  });
+
   it("prüft Stammdaten: Steuer-ID, IBAN, Faktor nur in Klasse IV, Austritt nach Eintritt", async () => {
     await expect(lohn.saveEmployee(actor, null, { ...GGF, steuerId: "12345678901" })).rejects.toThrow(/Steuer-ID ist ungültig/);
     await expect(lohn.saveEmployee(actor, null, { ...GGF, iban: "DE00 1234" })).rejects.toThrow(/IBAN ist ungültig/);
