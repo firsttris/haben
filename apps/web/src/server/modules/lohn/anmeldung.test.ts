@@ -288,6 +288,40 @@ describe.skipIf(!testDatabaseUrl)("Lohnsteuer-Anmeldung (Postgres)", () => {
     expect(await audit()).toBe(vorher + 1);
   }, 60_000);
 
+  it("nicht unterstützt: Vorjahreslohn später als drei Wochen nach Jahresende und Vorauszahlung fürs Folgejahr (sonstige Bezüge)", async () => {
+    // R 39b.2 Abs. 1 Nr. 7, Abs. 2 Satz 2 Nr. 8 LStR, § 38a Abs. 1 Satz 3 EStG: nur bis drei Wochen nach Ablauf des Jahres
+    // laufender Arbeitslohn des Vorjahres; später oder im Voraus fürs Folgejahr gezahlt ein sonstiger Bezug des Zahlungsjahres
+    await firma("SKR03", "ist");
+    await lohn.saveEmployee(actor, null, GGF);
+    await abrechnen(2026, 12, "2027-01-22");
+    const januar = await lohn.lstaOverview({ year: 2027, zeitraum: 1 }, "2027-02-02");
+    expect(januar.kennzahlen).toBeNull();
+    expect(januar.issues).toContainEqual({ tone: "error", text: expect.stringContaining("sonstiger Bezug") });
+
+    await firma("SKR04", "soll");
+    await lohn.saveEmployee(actor, null, GGF);
+    await abrechnen(2027, 1, "2026-12-30");
+    const dezember = await lohn.lstaOverview({ year: 2026, zeitraum: 12 }, "2027-01-05");
+    expect(dezember.kennzahlen).toBeNull();
+    expect(dezember.issues).toContainEqual({ tone: "error", text: expect.stringContaining("sonstiger Bezug") });
+  }, 60_000);
+
+  it("Anmeldungszeitraum bleibt nach einer Echtübermittlung, auch wenn sich der Vorschlag danach ändert", async () => {
+    await firma("SKR03", "soll");
+    await lohn.saveEmployee(actor, null, { ...ANGESTELLT, monatsgehalt: 2000_00 });
+    await abrechnen(2026, 10, "2026-10-28");
+    // Erste Buchung am 31.10.2026, November noch nicht abgerechnet: kein Vorschlag, monatlich
+    expect(await lohn.turnusDesJahres(2026)).toMatchObject({ turnus: "monatlich", vorschlag: null });
+    expect((await senden()).ok).toBe(true);
+    // November abgerechnet: der Vorschlag wäre jetzt vierteljährlich oder jährlich, die Oktober-Anmeldung ist aber gesendet
+    await abrechnen(2026, 11, "2026-11-27");
+    expect((await lohn.turnusDesJahres(2026)).vorschlag?.turnus).not.toBe("monatlich");
+    expect((await lohn.turnusDesJahres(2026)).turnus).toBe("monatlich");
+    expect((await lohn.lstaOverview(oktober, "2026-12-05")).issues.filter((i) => i.tone === "error")).toEqual([]);
+    // Sonst stünde die schon gemeldete Oktober-Lohnsteuer ein zweites Mal im Quartal oder Kalenderjahr
+    expect((await lohn.lstaZeitraeume("2026-12-05")).map((z) => z.key)).toEqual(["2026-10", "2026-11"]);
+  }, 60_000);
+
   it("nicht unterstützt: alt-katholische Kirchensteuer in Sachsen (keine Kz 63)", async () => {
     await firma("SKR03", "ist", "SN");
     await lohn.saveEmployee(actor, null, { ...GGF, konfession: "ak", plz: "01067", ort: "Dresden" });
