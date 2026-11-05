@@ -164,6 +164,14 @@ function veraltet(p: Payslip, e: Employee): boolean {
   return !isDeepStrictEqual(p.mitarbeiter, payslipMitarbeiter(e));
 }
 
+/**
+ * Der Entwurf hat die Werte, die die Rechnung jetzt mit seinem Entgelt ergibt. Das Bundesland der Firma (Kirchensteuer,
+ * Pflegeversicherung in Sachsen) steht nicht in der Abrechnung; ändert es sich nach dem Entwurf, fiele das sonst nicht auf.
+ */
+function wieGerechnet(p: Payslip, r: Extract<ReturnType<typeof berechne>, { ok: true }>): boolean {
+  return Object.entries(werte(r)).every(([k, v]) => isDeepStrictEqual(p[k as keyof Payslip], v));
+}
+
 /** Lohnlauf des Monats; legt ihn an oder setzt einen geänderten Zahltag */
 async function lohnlauf(tx: Tx, year: number, month: number, zahltag: string): Promise<string> {
   const [run] = await tx
@@ -256,6 +264,11 @@ export async function festschreiben(actor: string, input: z.input<typeof festsch
   await withActor(actor, async (tx) => {
     const { p, e } = await entwurfZumAendern(tx, id);
     if (veraltet(p, e)) throw new LohnError("Die Stammdaten haben sich seit dem Entwurf geändert. Den Entwurf neu berechnen und prüfen.");
+    const r = berechne(e, p.year, p.month, await bundesland(tx), p.brutto);
+    if (!r.ok) throw new LohnError(r.meldung);
+    if (!wieGerechnet(p, r)) {
+      throw new LohnError("Mit den aktuellen Firmendaten (etwa dem Bundesland) ergibt sich ein anderes Ergebnis. Den Entwurf neu berechnen und prüfen.");
+    }
     const fehlt = fehlendeAngaben(p.mitarbeiter);
     if (fehlt.length > 0) throw new LohnError(`Für die Entgeltbescheinigung fehlt: ${fehlt.join(", ")}.`);
     if (p.gegenpruefen && !gegengeprueft) {
