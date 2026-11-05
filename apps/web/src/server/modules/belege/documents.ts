@@ -18,6 +18,13 @@ import {
   periodRange,
   type VatPeriod,
   isKapitalgesellschaft,
+  maxDegressiveRate,
+  usesUsefulLife,
+  ELEKTRO_NUR_EINZELUNTERNEHMEN,
+  elektroAvailable,
+  type AssetKind,
+  type AssetMethod,
+  type Cents,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
 import { and, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
@@ -574,10 +581,24 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDat
     else if (doc.privateShare > 0) issues.push("Ein Privatanteil bei Anlagegütern wird nicht unterstützt");
     else if (net <= 0) issues.push("Gutschriften zu Anlagen werden nicht unterstützt");
     else if (doc.documentDate) {
-      issues.push(...assetIssues({ acquisitionDate: doc.documentDate, cost: net, method: doc.asset.method, usefulLifeMonths: doc.asset.usefulLifeMonths }));
+      issues.push(...assetIssues(documentScheduleAsset(doc.asset, doc.documentDate, net)));
     }
   }
   return issues;
+}
+
+/**
+ * Anlage aus dem Beleg: Nutzungsdauer nur bei linear und degressiv, bei degressiv der Höchstsatz (§ 7 Abs. 2 EStG).
+ * Satz, Wechsel zur linearen AfA und Erinnerungswert lassen sich an der Anlage bis zur ersten AfA noch ändern.
+ */
+function documentAssetMethod(asset: { method: AssetMethod; usefulLifeMonths: number | null }, acquisitionDate: string) {
+  const usefulLifeMonths = usesUsefulLife(asset.method) ? asset.usefulLifeMonths : null;
+  const degressiveRate = asset.method === "degressiv" && usefulLifeMonths ? maxDegressiveRate(acquisitionDate, usefulLifeMonths) : null;
+  return { usefulLifeMonths, degressiveRate };
+}
+
+function documentScheduleAsset(asset: { kind: AssetKind; method: AssetMethod; usefulLifeMonths: number | null }, acquisitionDate: string, cost: Cents) {
+  return { acquisitionDate, cost, kind: asset.kind, method: asset.method, ...documentAssetMethod(asset, acquisitionDate) };
 }
 
 /** Bucht den Beleg (Aufwand + Vorsteuer an Verbindlichkeiten bzw. Privateinlage) und sperrt ihn. */
@@ -592,6 +613,7 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
     const issues = bookingIssues(doc, amounts, today(), splits);
     // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
     if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
+    if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
     if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
 
     // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
@@ -646,7 +668,7 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
         account: assetAccountNo!,
         acquisitionDate: doc.documentDate!,
         cost: vorsteuerAbzug ? totals.net : totals.gross,
-        usefulLifeMonths: asset.method === "linear" ? asset.usefulLifeMonths : null,
+        ...documentAssetMethod(asset, doc.documentDate!),
         documentId: id,
       });
     }

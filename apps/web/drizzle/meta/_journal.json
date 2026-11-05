@@ -988,6 +988,20 @@
       "when": 1793990694647,
       "tag": "0140_sv_meldeportal_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 141,
+      "version": "7",
+      "when": 1793990754647,
+      "tag": "0141_afa_methoden",
+      "breakpoints": true
+    },
+    {
+      "idx": 142,
+      "version": "7",
+      "when": 1793990814647,
+      "tag": "0142_afa_methoden_trigger",
+      "breakpoints": true
     }
   ]
 }

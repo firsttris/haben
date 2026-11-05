@@ -1,4 +1,4 @@
-import { ASSET_KINDS, assetIssues, type AssetKind, type AssetMethod, type Cents, formatDecimal } from "@haben/core";
+import { ASSET_KINDS, assetIssues, type AssetKind, type AssetMethod, type Cents, formatDecimal, maxDegressiveRate, usesUsefulLife } from "@haben/core";
 import { type ColumnMapping, type ImportField, rowReader } from "./mapping.ts";
 import { duplicateKey, type RowCandidate } from "./plan.ts";
 import type { CsvTable } from "./read.ts";
@@ -22,7 +22,7 @@ export const ASSET_FIELDS = [
   {
     key: "method",
     label: "Abschreibung",
-    hint: "linear, GWG, Sammelposten oder digital; leer = Vorschlag zur Art",
+    hint: "linear, degressiv, Elektro (§ 7 Abs. 2a), GWG, Sammelposten oder digital; leer = Vorschlag zur Art",
     aliases: ["Abschreibung", "Abschreibungsart", "AfA-Art", "AfA-Methode", "Methode"],
   },
   {
@@ -43,6 +43,12 @@ export const ASSET_FIELDS = [
     aliases: ["Nutzungsdauer", "Nutzungsdauer (Jahre)", "Nutzungsdauer in Jahren", "ND", "ND (Jahre)"],
   },
   { key: "usefulLifeMonths", label: "Nutzungsdauer in Monaten", aliases: ["Nutzungsdauer (Monate)", "Nutzungsdauer in Monaten", "ND (Monate)"] },
+  {
+    key: "degressiveRate",
+    label: "Degressiver Satz",
+    hint: "in Prozent, z. B. 25 oder 23,07; leer = Höchstsatz",
+    aliases: ["Degressiver Satz", "AfA-Satz", "AfA-Satz (%)", "Satz degressiv", "Abschreibungssatz"],
+  },
   {
     key: "bookValue",
     label: "Restbuchwert zum Stichtag",
@@ -65,6 +71,8 @@ export interface AssetRow {
   acquisitionDate: string;
   cost: Cents;
   usefulLifeMonths: number | null;
+  /** Nur bei degressiv, in Basispunkten; null = Höchstsatz */
+  degressiveRate: number | null;
   openingDate: string;
   openingBookValue: Cents;
   note: string;
@@ -90,11 +98,22 @@ function parseMethod(raw: string, kind: AssetKind): Parsed<AssetMethod> {
   if (/gwg|geringwertig/.test(value)) return { ok: true, value: "gwg" };
   if (/sammelposten|pool/.test(value)) return { ok: true, value: "sammelposten" };
   if (/digital|1 jahr|ein jahr/.test(value)) return { ok: true, value: "digital" };
+  if (/degressiv|fallend/.test(value)) return { ok: true, value: "degressiv" };
+  if (/elektro|7 ?abs\.? ?2a|e-auto/.test(value)) return { ok: true, value: "elektro" };
   if (/linear/.test(value)) return { ok: true, value: "linear" };
   return {
     ok: false,
-    error: `Abschreibung: „${raw}“; möglich sind linear, GWG, Sammelposten und digital (Computer, 1 Jahr). Degressive AfA kennt Haben nicht`,
+    error: `Abschreibung: „${raw}“; möglich sind linear, degressiv, Elektro (§ 7 Abs. 2a EStG), GWG, Sammelposten und digital (Computer, 1 Jahr)`,
   };
+}
+
+/** Degressiver Satz in Prozent („25“, „23,07 %“) als Basispunkte */
+function parseRate(raw: string): Parsed<number> | null {
+  const value = raw.replace("%", "").trim();
+  if (!value) return null;
+  const match = /^(\d{1,2})(?:,(\d{1,2}))?$/.exec(value);
+  const rate = match ? Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0")) : 0;
+  return rate > 0 ? { ok: true, value: rate } : { ok: false, error: `Degressiver Satz: „${raw}“ ist kein Prozentsatz wie 25 oder 23,07` };
 }
 
 /** Nutzungsdauer in Monaten aus der Monats- oder Jahresspalte („6“, „2,5“) */
@@ -154,7 +173,10 @@ export function takeoverProblems(asset: AssetRow): string[] {
     problems.push("Nutzungsdauer am Stichtag abgelaufen; der Restbuchwert muss 0 sein");
   }
   if (asset.method === "sammelposten" && yearsBefore >= 5 && value > 0) problems.push("Sammelposten nach fünf Jahren aufgelöst; der Restbuchwert muss 0 sein");
-  return [...problems, ...assetIssues({ ...asset, opening: { date: asset.openingDate, bookValue: value } })];
+  // Degressiv ohne Satz: der Höchstsatz, wie beim Anlegen; ob der Restbuchwert dazu passt, prüft assetIssues
+  const degressiveRate =
+    asset.method === "degressiv" && asset.usefulLifeMonths ? (asset.degressiveRate ?? maxDegressiveRate(asset.acquisitionDate, asset.usefulLifeMonths)) : null;
+  return [...problems, ...assetIssues({ ...asset, degressiveRate, opening: { date: asset.openingDate, bookValue: value } })];
 }
 
 export function assetCandidates(table: CsvTable, mapping: ColumnMapping, openingDate: string): RowCandidate<AssetRow>[] {
@@ -171,12 +193,14 @@ export function assetCandidates(table: CsvTable, mapping: ColumnMapping, opening
     const rawCost = read.raw("cost");
     const cost = rawCost ? parseImportAmount(rawCost, "Anschaffungskosten") : { ok: false as const, error: "Anschaffungskosten fehlen" };
     const life = usefulLife(read.raw("usefulLifeMonths"), read.raw("usefulLifeYears"));
+    const rate = parseRate(read.raw("degressiveRate"));
     const stated = read.raw("bookValue") ? parseImportAmount(read.raw("bookValue"), "Restbuchwert") : null;
     const accumulated = read.raw("accumulated") ? parseImportAmount(read.raw("accumulated"), "Bisherige AfA") : null;
     const value = cost.ok ? bookValue(cost.value, stated, accumulated) : null;
-    for (const parsed of [kind, method, date, cost, life, value]) if (parsed && !parsed.ok) errors.push(parsed.error);
-    const linear = method?.ok && method.value === "linear";
-    if (linear && !life) errors.push("Nutzungsdauer fehlt");
+    for (const parsed of [kind, method, date, cost, life, value, rate]) if (parsed && !parsed.ok) errors.push(parsed.error);
+    const withLife = method?.ok && usesUsefulLife(method.value);
+    const degressive = method?.ok && method.value === "degressiv";
+    if (withLife && !life) errors.push("Nutzungsdauer fehlt");
 
     let asset: AssetRow | null = null;
     if (errors.length === 0 && kind.ok && method?.ok && date.ok && cost.ok && value?.ok) {
@@ -186,7 +210,8 @@ export function assetCandidates(table: CsvTable, mapping: ColumnMapping, opening
         method: method.value,
         acquisitionDate: date.value,
         cost: cost.value,
-        usefulLifeMonths: linear && life?.ok ? life.value : null,
+        usefulLifeMonths: withLife && life?.ok ? life.value : null,
+        degressiveRate: degressive && rate?.ok ? rate.value : null,
         openingDate,
         openingBookValue: value.value,
         note,

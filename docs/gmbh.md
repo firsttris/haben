@@ -37,6 +37,6 @@ Die Termine für Voranmeldung, Kapitalertragsteuer-Anmeldung und Erklärungen st
 - Offenlegung des Jahresabschlusses (nötig, sobald die Gesellschaft keine Kleinstkapitalgesellschaft mehr ist) und das Hochladen auf die Publikations-Plattform; die Bilanz zur Hinterlegung erstellt Haben, hochladen tust du sie selbst.
 - Die Abfrage der Kirchensteuerabzugsmerkmale beim Bundeszentralamt für Steuern und Steuerbescheinigungen für Gesellschafter, die selbst Gesellschaften sind.
 - Organschaft, Beteiligungen an anderen Gesellschaften, verdeckte Gewinnausschüttungen, Spenden, Einlagen in das Einlagekonto, ausländische Einkünfte; die Liste je Erklärung steht bei den [Jahreserklärungen](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug).
-- Eine Überleitung von der Handels- zur Steuerbilanz.
+- Eine Überleitung von der Handels- zur Steuerbilanz; rein steuerliche Abschreibungen wie die Staffel für Elektrofahrzeuge (§ 7 Abs. 2a EStG) gibt es deshalb nicht, siehe [Elektrofahrzeuge](anlagen.md#elektrofahrzeuge).
 
 Was davon geplant ist, steht in der [Roadmap](roadmap.md).
