@@ -18,6 +18,9 @@ const PAP_JAHRE: Readonly<Record<number, PapJahr>> = { 2026: PAP_2026 };
 /** Jahre, für die ein PAP hinterlegt ist */
 export const LOHNSTEUER_JAHRE: readonly number[] = Object.keys(PAP_JAHRE).map(Number);
 
+/** Herkunft des hinterlegten PAP (Datei, Version, Stand, SHA-256 des XML); scripts/jahreswerte vergleicht damit */
+export const lohnsteuerPapQuelle = (jahr: number): PapJahr["quelle"] | null => PAP_JAHRE[jahr]?.quelle ?? null;
+
 /**
  * Eingaben, die Haben noch nicht rechnet. Der PAP kennt sie; sie brauchen aber weitere Angaben (voraussichtlicher
  * Jahresarbeitslohn, Versorgungsbeginn, Geburtsjahr), und Haben hat dafür noch keine Prüffälle des BMF. Ist
