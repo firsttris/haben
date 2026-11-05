@@ -27,6 +27,7 @@ import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
+import { ExtractionCard } from "../../components/ExtractionCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { PasskeysCard } from "../../components/PasskeysCard.tsx";
 import { ZugaengeCard } from "../../components/ZugaengeCard.tsx";
@@ -53,11 +54,12 @@ import { getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getMcpSettings } from "../../server/functions/mcp.ts";
 import { getZugaenge } from "../../server/functions/zugang.ts";
+import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages, zugaenge] =
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages, zugaenge, extraction] =
       await Promise.all([
         getCompany(),
         getVatPeriod({ data: currentFilingPeriod(new Date()) }),
@@ -75,6 +77,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
         getEnableBankingSettings(),
         getCustomPages(),
         getZugaenge(),
+        getExtractionSettings(),
       ]);
     return {
       ...company,
@@ -94,6 +97,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       enableBanking,
       customPages,
       zugaenge,
+      extraction,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -103,7 +107,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages, zugaenge } =
+  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages, zugaenge, extraction } =
     Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
@@ -155,7 +159,12 @@ function SettingsPage() {
               <ZugaengeCard data={zugaenge} />
             </>
           )}
-          {bereich === "ki" && <McpCard data={mcp} />}
+          {bereich === "ki" && (
+            <>
+              <McpCard data={mcp} />
+              <ExtractionCard settings={extraction} />
+            </>
+          )}
           {bereich === "seiten" && <EigeneSeitenCard pages={customPages} />}
           {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}
           {bereich === "export" && (

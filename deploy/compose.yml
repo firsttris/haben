@@ -66,6 +66,13 @@ services:
       ERIC_SHA256: ${ERIC_SHA256:-}
       ELSTER_HERSTELLER_ID: ${ELSTER_HERSTELLER_ID:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Oder ein selbst betriebenes Modell (OpenAI-kompatibel, z. B. Ollama); dann geht kein Beleg an Anthropic
+      EXTRACTION_PROVIDER: ${EXTRACTION_PROVIDER:-}
+      EXTRACTION_BASE_URL: ${EXTRACTION_BASE_URL:-}
+      EXTRACTION_MODEL: ${EXTRACTION_MODEL:-}
+      EXTRACTION_API_KEY: ${EXTRACTION_API_KEY:-}
+      EXTRACTION_TIMEOUT_SECONDS: ${EXTRACTION_TIMEOUT_SECONDS:-}
+      EXTRACTION_MAX_PAGES: ${EXTRACTION_MAX_PAGES:-}
       ENABLE_BANKING_APP_ID: ${ENABLE_BANKING_APP_ID:-}
       ENABLE_BANKING_KEY_FILE: /run/secrets/enablebanking.pem
     volumes:
@@ -79,6 +86,9 @@ services:
       # - /opt/eric:/opt/eric:ro
       # Automatischer Kontoabruf: privater Schlüssel der Enable-Banking-Anwendung, Zeile einkommentieren
       # - ./enablebanking.pem:/run/secrets/enablebanking.pem:ro
+    # KI-Dienst (z. B. Ollama) direkt auf dem Server: unter Linux kennt der Container host.docker.internal nur so
+    # extra_hosts:
+    #   - host.docker.internal:host-gateway
 
   # Tägliches Backup von Datenbank und Belegen mit restic
   backup:

@@ -42,6 +42,8 @@ function webServer(serverPort: number, serverDatabaseUrl: string, suffix = "") {
       ERIC_HOME: "",
       ELSTER_HERSTELLER_ID: "",
       ANTHROPIC_API_KEY: "",
+      EXTRACTION_PROVIDER: "",
+      EXTRACTION_BASE_URL: "",
     },
   };
 }
