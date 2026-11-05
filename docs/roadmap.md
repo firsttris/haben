@@ -4,7 +4,7 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 
 ## Geplant
 
-Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office und den offenen Issues (Stand November 2026): zuerst Pflichten der GmbH und Lohn, dann was Freiberuflern und kleinen GmbHs im Alltag am meisten fehlt. Erledigt sind aus der letzten Runde: SEPA-Überweisungen, Skonto, Zusammenfassende Meldung für sonstige Leistungen, CSV-Import, Lohnabrechnung mit Buchung.
+Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office und sevDesk und den offenen Issues (Stand November 2026): zuerst Pflichten der GmbH und Lohn, dann was Freiberuflern und kleinen GmbHs im Alltag am meisten fehlt. Erledigt sind aus der letzten Runde: SEPA-Überweisungen, Skonto, Zusammenfassende Meldung für sonstige Leistungen, CSV-Import, Lohnabrechnung mit Buchung.
 
 | # | Thema | Worum es geht | Aufwand | Stand |
 | --- | --- | --- | --- | --- |
@@ -20,22 +20,27 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | 10 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst für die Steuerberatung. Entschieden: kommt; die bisherige Entscheidung „genau ein Nutzer“ ([Architektur](architektur.md#anmeldung)) wird dafür aufgegeben. Zu klären beim Bau: Rollen, Einladung statt Einrichtungscode, Audit je Nutzer | M–L | geplant |
 | 11 | Belegerkennung mit lokalem Modell | Auslesung über einen OpenAI-kompatiblen Endpunkt (z. B. Ollama, LM Studio, vLLM) mit einem Vision-Modell, ohne Cloud-Fallback; Anthropic bleibt wahlweise. Reine OCR genügt nicht, weil sie nur Text liefert und keine Belegfelder ([KI-Auslesung](belege.md#ki-auslesung), [Einrichtung](einrichtung.md#beispiel-ollama-mit-qwen-vl)) | M | erledigt |
 | 12 | Rabatte und Positionen im Angebot | Gesamt- und Positionsrabatt, optionale und alternative Positionen, Zahlungsplan mit Abschlägen aus dem Angebot | S–M | geplant |
-| 13 | Gestaltung der Belege | Schrift aus einer festen Auswahl eingebetteter, PDF/A-tauglicher Schriften, Fußzeile in bis zu vier Spalten mit Platzhaltern, Briefpapier als PDF-Hintergrund; in der bestehenden Typst-Vorlage, PDF/A-3 und ZUGFeRD bleiben unverändert ([Rechnungen](rechnungen.md)) | S–M | geplant |
-| 14 | Bank-CSV und Export für die Betriebsprüfung | Bank-, Kreditkarten- und PayPal-Umsätze im allgemeinen CSV-Format mit Spaltenzuordnung; Datenexport mit Beschreibung `index.xml` für die Prüfsoftware | S | geplant |
-| 15 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
-| 16 | BWA und Liquiditätsplanung | Betriebswirtschaftliche Auswertung mit Vorjahresvergleich und Vorschau aus offenen Posten | M | geplant |
-| 17 | OSS | Rechnungen an Privatpersonen im EU-Ausland mit dem Steuersatz des Ziellands, Lieferschwelle, Datei für das BZSt-Online-Portal | M | geplant |
-| 18 | Offene Posten ohne Bankumsatz verrechnen | Rechnung gegen Gutschrift oder Storno ausgleichen; vor dem Bau fachlich zu klären (Aufrechnung oder Aufhebung, Ist und Soll) | M | geplant |
+| 13 | Steuerzahlungen und Darlehen | Umsatz- und Gewerbesteuer für Vorjahre mit Steuerart und Bezugsjahr, private Steuern als Entnahme, abziehbare und nicht abziehbare Zinsen und Zuschläge, Darlehen mit Aufteilung der Rate in Tilgung, Zins und Gebühr, betriebliche Zinserträge, Einfuhrumsatzsteuer (Kz 62) | M | geplant |
+| 14 | Weitere Ausgabe-Kategorien | Miete, sonstiger Betriebsbedarf, Reparatur sonstiger Anlagen, sonstige Fahrzeugkosten, Berufsgenossenschaft, Versorgungskassen – je mit Zuordnung für EÜR, E-Bilanz und HGB | S | geplant |
+| 15 | Gestaltung der Belege | Schrift aus einer festen Auswahl eingebetteter, PDF/A-tauglicher Schriften, Fußzeile in bis zu vier Spalten mit Platzhaltern, Briefpapier als PDF-Hintergrund; in der bestehenden Typst-Vorlage, PDF/A-3 und ZUGFeRD bleiben unverändert ([Rechnungen](rechnungen.md)) | S–M | geplant |
+| 16 | Vorschläge aus allen früheren Zuordnungen lernen | Kategorie und Buchungsart im Bankabgleich und bei Belegen aus allen früheren Zuordnungen vorschlagen, mit Begründung, ohne KI-Modell, immer zu bestätigen | S–M | geplant |
+| 17 | Eigene Sachkonten | Einstieg: eigenes Konto mit Name und Nummer, das Steuer-, EÜR- und E-Bilanz-Zuordnung einer bestehenden Kategorie ausdrücklich erbt (auch „EÜR-neutral“); Buchungen behalten die damals gültige Zuordnung | M | geplant |
+| 18 | Kostenstellen | Kostenstellen je Beleg- und Rechnungszeile mit Aufteilung, Auswertung je Kostenstelle und Zeitraum, Weitergabe im DATEV-Export (KOST1/KOST2) | M–L | geplant |
+| 19 | Bank-CSV und Export für die Betriebsprüfung | Bank-, Kreditkarten- und PayPal-Umsätze im allgemeinen CSV-Format mit Spaltenzuordnung; Datenexport mit Beschreibung `index.xml` für die Prüfsoftware | S | geplant |
+| 20 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
+| 21 | BWA und Liquiditätsplanung | Betriebswirtschaftliche Auswertung mit Vorjahresvergleich und Vorschau aus offenen Posten, mit Filter nach Kostenstelle | M | geplant |
+| 22 | OSS | Rechnungen an Privatpersonen im EU-Ausland mit dem Steuersatz des Ziellands, Lieferschwelle, Datei für das BZSt-Online-Portal | M | geplant |
+| 23 | Offene Posten ohne Bankumsatz verrechnen | Rechnung gegen Gutschrift oder Storno ausgleichen; vor dem Bau fachlich zu klären (Aufrechnung oder Aufhebung, Ist und Soll) | M | geplant |
 
 ## Später oder vielleicht
 
-Sinnvoll, aber nicht jetzt: eigene Vorlagen mit Editor und Vorschau und Textformatierung in Belegen; Absender- bzw. Markenprofile, auch mit eigenem Mail-Absender; Webhooks, Angebote und weitere schreibende Endpunkte in der API; Bankumsätze über eine gemeinsame Importschnittstelle für Connectoren; eigene Rechnung beim Beleg-Upload erkennen; Ausgangsrechnungen aus Fremdsystemen mit fremder Nummer; OAuth für Connectors in claude.ai und schreibender MCP-Server; Belege aus Cloud-Speichern; E-Mail-Versand über die Anmeldung bei Google oder Microsoft; ELStAM (offen, ob es eine freigeschaltete Hersteller-ID braucht); § 13b für Bauleistungen; weitere Fälle im Lohn; eigene Sachkonten neben den Kategorien (braucht eine Entscheidung zur Architektur; Einstieg: eigenes Aufwandskonto, das die Zuordnung einer bestehenden Kategorie erbt); Module ausblenden; Sammelrechnung aus Lieferscheinen; Lastschrift-Datei (pain.008); Fahrtenbuch; vollständigere Anlage EÜR (häusliches Arbeitszimmer, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
+Sinnvoll, aber nicht jetzt: Anlagen der Art „sonstige Transportmittel“ und betriebliche Wertpapiere mit eigenem Ablauf; weitere Rollen (Mitarbeitende, buchende Steuerberatung, Betriebsprüfer nur lesend); Tags, Pro-forma-Rechnung, freier Brief, eigene Kontaktfelder, Gutschrift als Rechnungsersatz; Postversand über einen Druckdienstleister; eigene Vorlagen mit Editor und Vorschau und Textformatierung in Belegen; Absender- bzw. Markenprofile, auch mit eigenem Mail-Absender; Webhooks, Angebote und weitere schreibende Endpunkte in der API; Bankumsätze über eine gemeinsame Importschnittstelle für Connectoren; eigene Rechnung beim Beleg-Upload erkennen; Ausgangsrechnungen aus Fremdsystemen mit fremder Nummer; OAuth für Connectors in claude.ai und schreibender MCP-Server; Belege aus Cloud-Speichern; E-Mail-Versand über die Anmeldung bei Google oder Microsoft; ELStAM (offen, ob es eine freigeschaltete Hersteller-ID braucht); § 13b für Bauleistungen; weitere Fälle im Lohn; Module ausblenden; Sammelrechnung aus Lieferscheinen; Lastschrift-Datei (pain.008); Fahrtenbuch; vollständigere Anlage EÜR (häusliches Arbeitszimmer, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
 
 ## Bewusst nicht
 
 | Thema | Grund |
 | --- | --- |
-| Lagerbestand | Kein Kern einer Buchhaltung; auch Lexware Office führt keinen |
+| Lagerbestand | Kein Kern einer Buchhaltung; gehört in eine Warenwirtschaft (Lexware Office führt keinen, sevDesk nur als Zusatzmodul) |
 | Zeiterfassung und Projekte | Gehört in eigene Werkzeuge; Rechnungen und Belege kommen über die [API](api.md) |
 | Eigene Shop-Anbindungen | Abrechnungen der Zahlungsdienste, API und n8n decken das ab; auch Lexware Office bindet Shops nur über Partner an |
 | Lastschrifteinzug über einen Zahlungsdienst | Gehört zum Zahlungsdienst; Lexware Office macht es nur über Partner |
