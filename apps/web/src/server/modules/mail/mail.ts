@@ -43,6 +43,8 @@ export const mailSettingsSchema = z.object({
   /** leer: das gespeicherte Passwort behalten */
   password: z.string().max(500).optional(),
   fromAddress: email,
+  /** leer: der Firmenname */
+  fromName: z.string().trim().max(200).default(""),
   reminderTo: email,
   remindersEnabled: z.boolean(),
   reminderDays: z.array(z.number().int().min(0).max(60)).max(5),
@@ -127,14 +129,21 @@ export interface Message {
   quoteId?: string;
 }
 
+/** Name im Absender: der eingetragene, sonst der Firmenname, damit Kunden nicht „Haben“ als Absender sehen */
+export function senderName(fromName: string, companyName: string): string {
+  return fromName.trim() || companyName.trim() || "Haben";
+}
+
 /** Sendet und protokolliert; Fehler des Servers kommen als Ergebnis zurück, nicht als Ausnahme */
 export async function send(actor: string, message: Message): Promise<{ ok: boolean; error: string | null }> {
   const settings = await loadMailSettings();
   if (!settings) throw new MailError("Es ist kein E-Mail-Zugang eingerichtet.");
+  // Nur lesen: loadCompany legt die Zeile an und schriebe so beim Versand ins Änderungsprotokoll
+  const [company] = await db.select({ name: schema.company.name }).from(schema.company).where(eq(schema.company.id, 1));
   let error: string | null = null;
   try {
     await transportFactory(settings).sendMail({
-      from: { name: "Haben", address: settings.fromAddress },
+      from: { name: senderName(settings.fromName, company?.name ?? ""), address: settings.fromAddress },
       to: message.to,
       ...(message.bcc ? { bcc: message.bcc } : {}),
       subject: message.subject,

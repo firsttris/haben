@@ -566,6 +566,8 @@ export const mailSettings = pgTable(
     /** Passwort AES-256-GCM-verschlüsselt wie das Zertifikat; bleibt aus dem Audit-Log */
     ciphertext: bytea("ciphertext").notNull(),
     fromAddress: text("from_address").notNull(),
+    /** Name vor der Absenderadresse; leer: der Firmenname, ohne den „Haben“ (senderName in mail.ts) */
+    fromName: text("from_name").notNull().default(""),
     /** Empfänger der Erinnerungen */
     reminderTo: text("reminder_to").notNull(),
     remindersEnabled: boolean("reminders_enabled").notNull().default(true),
