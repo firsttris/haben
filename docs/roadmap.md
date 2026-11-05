@@ -18,7 +18,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | 8 | Dauerbelege | Wiederkehrende Ausgaben wie Miete oder Versicherung einmal erfassen, Haben legt sie im Intervall an | S–M | geplant |
 | 9 | Barzahlung einer Rechnung in der Kasse | Bareinnahme einer Ausgangsrechnung im Kassenbuch zuordnen ([Kasse](kasse.md)) | S–M | geplant |
 | 10 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst für die Steuerberatung. Entschieden: kommt; die bisherige Entscheidung „genau ein Nutzer“ ([Architektur](architektur.md#anmeldung)) wird dafür aufgegeben. Zu klären beim Bau: Rollen, Einladung statt Einrichtungscode, Audit je Nutzer | M–L | geplant |
-| 11 | Belegerkennung ohne Cloud | Belege lokal erkennen (z. B. Tesseract im Worker); die KI bleibt wahlweise | M | geplant |
+| 11 | Belegerkennung mit lokalem Modell | Auslesung über einen OpenAI-kompatiblen Endpunkt (z. B. Ollama, LM Studio, vLLM) mit einem Vision-Modell, ohne Cloud-Fallback; Anthropic bleibt wahlweise. Reine OCR genügt nicht, weil sie nur Text liefert und keine Belegfelder | M | geplant |
 | 12 | Rabatte und Positionen im Angebot | Gesamt- und Positionsrabatt, optionale und alternative Positionen, Zahlungsplan mit Abschlägen aus dem Angebot | S–M | geplant |
 | 13 | Bank-CSV und Export für die Betriebsprüfung | Bank-, Kreditkarten- und PayPal-Umsätze im allgemeinen CSV-Format mit Spaltenzuordnung; Datenexport mit Beschreibung `index.xml` für die Prüfsoftware | S | geplant |
 | 14 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
