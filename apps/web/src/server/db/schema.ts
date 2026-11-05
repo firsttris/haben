@@ -35,6 +35,13 @@ import {
   type CarPrivateUse,
   type MailTemplates,
   type TaxShare,
+  BESCHAEFTIGUNGSARTEN,
+  KONFESSIONEN,
+  type Beschaeftigungsart,
+  type Bestandteil,
+  type Konfession,
+  type LohnStammdaten,
+  type SvBeitraege,
 } from "@haben/core";
 
 export * from "./auth-schema.ts";
@@ -1923,4 +1930,175 @@ export const customPages = pgTable("custom_pages", {
   url: text("url").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/*
+ * Lohn (docs/lohn-plan.md, PR 3): Stammdaten der Mitarbeiter, Lohnläufe je Monat und Abrechnungen je Mitarbeiter. Eine
+ * festgeschriebene Abrechnung ist gesperrt und versiegelt wie eine Rechnung; korrigiert wird nur mit Storno
+ * (payslip_cancellations) und einer neuen Abrechnung, die auf die stornierte verweist.
+ */
+
+export type EmployeeStatusfeststellung = "" | "beantragt" | "versicherungsfrei" | "versicherungspflichtig";
+
+/** Angaben eines Mitarbeiters, wie sie in eine Abrechnung eingehen; die Abrechnung hält sie fest (§ 4 Abs. 1 LStDV) */
+export interface PayslipMitarbeiter {
+  personalnummer: number;
+  vorname: string;
+  nachname: string;
+  strasse: string;
+  plz: string;
+  ort: string;
+  geburtsdatum: string;
+  steuerId: string;
+  svNummer: string;
+  krankenkasse: string;
+  krankenkasseBetriebsnummer: string;
+  personengruppe: string;
+  beitragsgruppen: string;
+  taetigkeitsschluessel: string;
+  statusfeststellung: EmployeeStatusfeststellung;
+  iban: string;
+  lohn: LohnStammdaten;
+}
+
+/** Stammdaten der Mitarbeiter; änderbar, jede Änderung im Audit-Log. Abrechnungen halten ihren Stand selbst fest */
+export const employees = pgTable(
+  "employees",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    personalnummer: integer("personalnummer").notNull().unique(),
+    vorname: text("vorname").notNull(),
+    nachname: text("nachname").notNull(),
+    strasse: text("strasse").notNull().default(""),
+    plz: text("plz").notNull().default(""),
+    ort: text("ort").notNull().default(""),
+    geburtsdatum: date("geburtsdatum", { mode: "string" }).notNull(),
+    /** Steuerliche Identifikationsnummer, 11 Ziffern */
+    steuerId: text("steuer_id").notNull().default(""),
+    steuerklasse: smallint("steuerklasse").notNull().default(1),
+    /** Faktor im Faktorverfahren in Tausendsteln; 1000 ohne */
+    faktor: integer("faktor").notNull().default(1000),
+    /** Zahl der Kinderfreibeträge in Tausendsteln (0,5 = 500) */
+    kinderfreibetraege: integer("kinderfreibetraege").notNull().default(0),
+    /** Kirchensteuermerkmal (ELStAM), null ohne */
+    konfession: text("konfession", { enum: Object.keys(KONFESSIONEN) as [Konfession, ...Konfession[]] }),
+    art: text("art", { enum: Object.keys(BESCHAEFTIGUNGSARTEN) as [Beschaeftigungsart, ...Beschaeftigungsart[]] }).notNull(),
+    /** Vereinbartes Monatsgehalt in Cent, das regelmäßige Entgelt */
+    monatsgehalt: integer("monatsgehalt").notNull(),
+    krankenversicherung: text("krankenversicherung", { enum: ["gesetzlich", "privat"] })
+      .notNull()
+      .default("gesetzlich"),
+    krankenkasse: text("krankenkasse").notNull().default(""),
+    /** Betriebsnummer der Krankenkasse (Einzugsstelle), 8 Ziffern */
+    krankenkasseBetriebsnummer: text("krankenkasse_betriebsnummer").notNull().default(""),
+    /** Kassenindividueller Zusatzbeitrag in Basispunkten */
+    zusatzbeitrag: integer("zusatzbeitrag").notNull().default(0),
+    /** Privat versichert: Beitrag zur Basiskranken- und Pflege-Pflichtversicherung im Monat und Zuschuss des Arbeitgebers, Cent */
+    pkvBasisbeitrag: integer("pkv_basisbeitrag").notNull().default(0),
+    pkvZuschuss: integer("pkv_zuschuss").notNull().default(0),
+    kinderlosenzuschlag: boolean("kinderlosenzuschlag").notNull().default(false),
+    kinderUnter25: smallint("kinder_unter_25").notNull().default(0),
+    /** Umlagesätze der Kasse in Basispunkten; U1 null ohne Teilnahme (im Minijob gelten die Sätze der Minijob-Zentrale) */
+    u1Satz: integer("u1_satz"),
+    u2Satz: integer("u2_satz").notNull().default(0),
+    rvBefreit: boolean("rv_befreit").notNull().default(false),
+    pauschsteuer: boolean("pauschsteuer").notNull().default(true),
+    personengruppe: text("personengruppe").notNull().default(""),
+    beitragsgruppen: text("beitragsgruppen").notNull().default(""),
+    taetigkeitsschluessel: text("taetigkeitsschluessel").notNull().default(""),
+    /** Versicherungsnummer der Rentenversicherung (§ 147 SGB VI) */
+    svNummer: text("sv_nummer").notNull().default(""),
+    /** Statusfeststellung (§ 7a SGB IV) für Gesellschafter-Geschäftsführer */
+    statusfeststellung: text("statusfeststellung", { enum: ["", "beantragt", "versicherungsfrei", "versicherungspflichtig"] })
+      .notNull()
+      .default(""),
+    eintritt: date("eintritt", { mode: "string" }).notNull(),
+    austritt: date("austritt", { mode: "string" }),
+    iban: text("iban").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("employees_steuerklasse", sql`${t.steuerklasse} between 1 and 6`),
+    check("employees_austritt", sql`${t.austritt} is null or ${t.austritt} >= ${t.eintritt}`),
+  ],
+);
+
+/** Lohnlauf eines Monats mit dem Tag der Lohnzahlung */
+export const payrollRuns = pgTable(
+  "payroll_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    year: integer("year").notNull(),
+    month: smallint("month").notNull(),
+    zahltag: date("zahltag", { mode: "string" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("payroll_runs_month").on(t.year, t.month), check("payroll_runs_month_range", sql`${t.month} between 1 and 12`)],
+);
+
+/** Abrechnung je Monat und Mitarbeiter; Entwurf bis zum Festschreiben (locked_at), danach gesperrt und versiegelt */
+export const payslips = pgTable(
+  "payslips",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => payrollRuns.id),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id),
+    year: integer("year").notNull(),
+    month: smallint("month").notNull(),
+    zahltag: date("zahltag", { mode: "string" }).notNull(),
+    mitarbeiter: jsonb("mitarbeiter").$type<PayslipMitarbeiter>().notNull(),
+    bestandteile: jsonb("bestandteile").$type<Bestandteil[]>().notNull(),
+    brutto: integer("brutto").notNull(),
+    steuerBrutto: integer("steuer_brutto").notNull(),
+    svBrutto: integer("sv_brutto").notNull(),
+    pauschalBrutto: integer("pauschal_brutto").notNull(),
+    lohnsteuer: integer("lohnsteuer").notNull(),
+    soli: integer("soli").notNull(),
+    kirchensteuer: integer("kirchensteuer").notNull(),
+    /** Anteile des Beschäftigten und Aufwand des Arbeitgebers (Anteile, Umlagen, Pauschsteuer); Einzelheiten in `sv` */
+    svArbeitnehmer: integer("sv_arbeitnehmer").notNull(),
+    svArbeitgeber: integer("sv_arbeitgeber").notNull(),
+    pauschsteuer: integer("pauschsteuer").notNull(),
+    sv: jsonb("sv").$type<SvBeitraege>().notNull(),
+    netto: integer("netto").notNull(),
+    auszahlung: integer("auszahlung").notNull(),
+    steuertage: smallint("steuertage").notNull(),
+    svTage: smallint("sv_tage").notNull(),
+    stufe: text("stufe", { enum: ["A", "B", "C"] }).notNull(),
+    /** Stufe C: Entwurf zum Gegenprüfen; festschreiben erst mit der Bestätigung, dass gegengeprüft ist */
+    gegenpruefen: boolean("gegenpruefen").notNull(),
+    gegengeprueft: boolean("gegengeprueft").notNull().default(false),
+    hinweise: jsonb("hinweise").$type<string[]>().notNull().default([]),
+    /** Neue Abrechnung nach einem Storno: die stornierte */
+    replacesId: uuid("replaces_id").references((): AnyPgColumn => payslips.id),
+    pdf: bytea("pdf"),
+    sha256: text("sha256"),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("payslips_employee_month").on(t.employeeId, t.year, t.month),
+    uniqueIndex("payslips_replaces").on(t.replacesId),
+    check("payslips_final_has_pdf", sql`${t.lockedAt} is null or (${t.pdf} is not null and ${t.sha256} is not null)`),
+    check("payslips_month_range", sql`${t.month} between 1 and 12`),
+    check("payslips_gegengeprueft", sql`${t.lockedAt} is null or not ${t.gegenpruefen} or ${t.gegengeprueft}`),
+  ],
+);
+
+/** Storno einer festgeschriebenen Abrechnung; je Abrechnung höchstens eines, nur anhängbar und versiegelt */
+export const payslipCancellations = pgTable("payslip_cancellations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  payslipId: uuid("payslip_id")
+    .notNull()
+    .unique()
+    .references(() => payslips.id),
+  date: date("date", { mode: "string" }).notNull(),
+  reason: text("reason").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

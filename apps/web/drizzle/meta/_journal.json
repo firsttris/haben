@@ -855,6 +855,20 @@
       "when": 1793989554647,
       "tag": "0121_dauerfrist_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1793989614647,
+      "tag": "0122_lohn",
+      "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1793989674647,
+      "tag": "0123_lohn_trigger",
+      "breakpoints": true
     }
   ]
 }
