@@ -245,17 +245,21 @@ describe.skipIf(!testDatabaseUrl)("Lohnsteuerbescheinigung (Postgres)", () => {
     [1, "2026-01-28", 12, "2027-02-10", "nicht-unterstuetzt"],
     // Im Voraus im Vorjahr gezahlt: sonstiger Bezug des Vorjahres
     [1, "2025-12-20", 12, "2026-12-28", "nicht-unterstuetzt"],
-  ] as const)("Lohn über den Jahreswechsel: %i mit Zahltag %s, %i mit Zahltag %s → %s", async (erster, zahltagErster, letzter, zahltagLetzter, status) => {
-    await firma("SKR03", "ist");
-    await lohn.saveEmployee(actor, null, { ...GGF, austritt: null });
-    for (let m = 1; m <= 12; m++) {
-      const zahltag = m === erster ? zahltagErster : m === letzter ? zahltagLetzter : `2026-${String(m).padStart(2, "0")}-28`;
-      await lohn.abrechnen(actor, { year: 2026, month: m, zahltag });
-      const drafts = await sql<{ id: string }[]>`select id from payslips where year = 2026 and month = ${m} and locked_at is null`;
-      for (const d of drafts) await lohn.festschreiben(actor, { id: d.id, gegengeprueft: true }, zahltag);
-    }
-    expect((await stand("Erika Muster", 2026, "2027-03-01")).ergebnis.status).toBe(status);
-  }, 120_000);
+  ] as const)(
+    "Lohn über den Jahreswechsel: %i mit Zahltag %s, %i mit Zahltag %s → %s",
+    async (erster, zahltagErster, letzter, zahltagLetzter, status) => {
+      await firma("SKR03", "ist");
+      await lohn.saveEmployee(actor, null, { ...GGF, austritt: null });
+      for (let m = 1; m <= 12; m++) {
+        const zahltag = m === erster ? zahltagErster : m === letzter ? zahltagLetzter : `2026-${String(m).padStart(2, "0")}-28`;
+        await lohn.abrechnen(actor, { year: 2026, month: m, zahltag });
+        const drafts = await sql<{ id: string }[]>`select id from payslips where year = 2026 and month = ${m} and locked_at is null`;
+        for (const d of drafts) await lohn.festschreiben(actor, { id: d.id, gegengeprueft: true }, zahltag);
+      }
+      expect((await stand("Erika Muster", 2026, "2027-03-01")).ergebnis.status).toBe(status);
+    },
+    120_000,
+  );
 
   it("bis 2025 über ERiC: neu, Korrektur mit RefKmId, Storno; ohne Abweichung nichts zu senden", async () => {
     await firma("SKR03", "soll");

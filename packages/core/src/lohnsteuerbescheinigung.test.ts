@@ -178,7 +178,10 @@ describe("lohnsteuerbescheinigung", () => {
     expect(lohnsteuerbescheinigung(eingabe(GGF, { austritt: "2026-05-31" })).status).toBe("nicht-unterstuetzt");
     // Dezemberlohn später als drei Wochen nach Jahresende: sonstiger Bezug des Folgejahres (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR)
     const spaet = eingabe(GGF).abrechnungen.map((a) => (a.monat === 12 ? { ...a, zahltag: "2027-01-22" } : a));
-    expect(lohnsteuerbescheinigung(eingabe(GGF, { abrechnungen: spaet }))).toMatchObject({ status: "nicht-unterstuetzt", meldung: expect.stringContaining("2027") });
+    expect(lohnsteuerbescheinigung(eingabe(GGF, { abrechnungen: spaet }))).toMatchObject({
+      status: "nicht-unterstuetzt",
+      meldung: expect.stringContaining("2027"),
+    });
   });
 
   it("Werte vergleichen", () => {
