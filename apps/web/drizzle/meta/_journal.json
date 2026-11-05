@@ -874,14 +874,28 @@
       "idx": 124,
       "version": "7",
       "when": 1793989734647,
-      "tag": "0124_lohn",
+      "tag": "0124_rechnungsanhaenge",
       "breakpoints": true
     },
     {
       "idx": 125,
       "version": "7",
       "when": 1793989794647,
-      "tag": "0125_lohn_trigger",
+      "tag": "0125_rechnungsanhaenge_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1793989854647,
+      "tag": "0126_lohn",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1793989914647,
+      "tag": "0127_lohn_trigger",
       "breakpoints": true
     }
   ]

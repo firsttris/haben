@@ -2,7 +2,7 @@
 -- Eine Abrechnung ist bis zum Festschreiben ein Entwurf; ab locked_at gesperrt (haben_reject_locked aus 0001) und
 -- versiegelt wie eine Rechnung (haben_seal aus 0063). Korrigiert wird nur mit einem Storno in payslip_cancellations
 -- (nur anhängbar, versiegelt wie document_cancellations aus 0109) und einer neuen Abrechnung desselben Monats.
--- Siegel-Funktionen und Integritätsprüfung wie in 0109, um payslips und payslip_cancellations erweitert.
+-- Siegel-Funktionen wie in 0125 (mit Rechnungsanhängen), Integritätsprüfung wie in 0109, um payslips und payslip_cancellations erweitert.
 
 SELECT set_config('haben.actor', 'system:migration', true);
 --> statement-breakpoint
@@ -13,7 +13,7 @@ LANGUAGE sql STABLE AS $$
       'journal_entries', haben_columns('journal_entries'), 'journal_lines', haben_columns('journal_lines'))
     WHEN 'invoices' THEN jsonb_build_object(
       'invoices', haben_columns('invoices'), 'invoice_lines', haben_columns('invoice_lines'),
-      'invoice_taxes', haben_columns('invoice_taxes'))
+      'invoice_taxes', haben_columns('invoice_taxes'), 'invoice_attachments', haben_columns('invoice_attachments'))
     WHEN 'documents' THEN jsonb_build_object(
       'documents', haben_columns('documents'), 'document_amounts', haben_columns('document_amounts'))
     WHEN 'vat_returns' THEN jsonb_build_object('vat_returns', haben_columns('vat_returns'))
@@ -46,7 +46,12 @@ BEGIN
         'invoice_lines', (SELECT coalesce(jsonb_agg(haben_pick(to_jsonb(l), cols -> 'invoice_lines') ORDER BY l.id), '[]'::jsonb)
                             FROM invoice_lines l WHERE l.invoice_id = rid),
         'invoice_taxes', (SELECT coalesce(jsonb_agg(haben_pick(to_jsonb(t), cols -> 'invoice_taxes') ORDER BY t.rate), '[]'::jsonb)
-                            FROM invoice_taxes t WHERE t.invoice_id = rid));
+                            FROM invoice_taxes t WHERE t.invoice_id = rid))
+        -- Nur Siegel ab 0125 kennen die Anhänge; ältere Siegel ergeben so denselben Inhalt wie bisher
+        || CASE WHEN cols ? 'invoice_attachments' THEN jsonb_build_object(
+             'invoice_attachments', (SELECT coalesce(jsonb_agg(haben_pick(to_jsonb(a), cols -> 'invoice_attachments') ORDER BY a.id), '[]'::jsonb)
+                                       FROM invoice_attachments a WHERE a.invoice_id = rid))
+           ELSE '{}'::jsonb END;
     WHEN 'documents' THEN
       content := jsonb_build_object(
         'documents', (SELECT haben_pick(to_jsonb(d), cols -> 'documents') FROM documents d WHERE d.id = rid),

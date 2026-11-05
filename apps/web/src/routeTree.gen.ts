@@ -70,6 +70,7 @@ import { Route as ApiKontenJahrRouteImport } from './routes/api/konten/$jahr'
 import { Route as ApiMahnungIdRouteImport } from './routes/api/mahnung/$id'
 import { Route as ApiPostfachIdRouteImport } from './routes/api/postfach/$id'
 import { Route as ApiProtokollIdRouteImport } from './routes/api/protokoll/$id'
+import { Route as ApiRechnungsanhangIdRouteImport } from './routes/api/rechnungsanhang/$id'
 import { Route as ApiUeberweisungIdRouteImport } from './routes/api/ueberweisung/$id'
 import { Route as ApiUstvaIdRouteImport } from './routes/api/ustva/$id'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
@@ -393,6 +394,11 @@ const ApiProtokollIdRoute = ApiProtokollIdRouteImport.update({
   path: '/api/protokoll/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRechnungsanhangIdRoute = ApiRechnungsanhangIdRouteImport.update({
+  id: '/api/rechnungsanhang/$id',
+  path: '/api/rechnungsanhang/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiUeberweisungIdRoute = ApiUeberweisungIdRouteImport.update({
   id: '/api/ueberweisung/$id',
   path: '/api/ueberweisung/$id',
@@ -533,6 +539,7 @@ export interface FileRoutesByFullPath {
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
@@ -612,6 +619,7 @@ export interface FileRoutesByTo {
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
@@ -693,6 +701,7 @@ export interface FileRoutesById {
   '/api/mahnung/$id': typeof ApiMahnungIdRoute
   '/api/postfach/$id': typeof ApiPostfachIdRoute
   '/api/protokoll/$id': typeof ApiProtokollIdRoute
+  '/api/rechnungsanhang/$id': typeof ApiRechnungsanhangIdRoute
   '/api/ueberweisung/$id': typeof ApiUeberweisungIdRoute
   '/api/ustva/$id': typeof ApiUstvaIdRoute
   '/api/v1/$': typeof ApiV1SplatRoute
@@ -774,6 +783,7 @@ export interface FileRouteTypes {
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
+    | '/api/rechnungsanhang/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
     | '/api/v1/$'
@@ -853,6 +863,7 @@ export interface FileRouteTypes {
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
+    | '/api/rechnungsanhang/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
     | '/api/v1/$'
@@ -933,6 +944,7 @@ export interface FileRouteTypes {
     | '/api/mahnung/$id'
     | '/api/postfach/$id'
     | '/api/protokoll/$id'
+    | '/api/rechnungsanhang/$id'
     | '/api/ueberweisung/$id'
     | '/api/ustva/$id'
     | '/api/v1/$'
@@ -989,6 +1001,7 @@ export interface RootRouteChildren {
   ApiMahnungIdRoute: typeof ApiMahnungIdRoute
   ApiPostfachIdRoute: typeof ApiPostfachIdRoute
   ApiProtokollIdRoute: typeof ApiProtokollIdRoute
+  ApiRechnungsanhangIdRoute: typeof ApiRechnungsanhangIdRoute
   ApiUeberweisungIdRoute: typeof ApiUeberweisungIdRoute
   ApiUstvaIdRoute: typeof ApiUstvaIdRoute
   ApiV1SplatRoute: typeof ApiV1SplatRoute
@@ -1429,6 +1442,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProtokollIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/rechnungsanhang/$id': {
+      id: '/api/rechnungsanhang/$id'
+      path: '/api/rechnungsanhang/$id'
+      fullPath: '/api/rechnungsanhang/$id'
+      preLoaderRoute: typeof ApiRechnungsanhangIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ueberweisung/$id': {
       id: '/api/ueberweisung/$id'
       path: '/api/ueberweisung/$id'
@@ -1676,6 +1696,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMahnungIdRoute: ApiMahnungIdRoute,
   ApiPostfachIdRoute: ApiPostfachIdRoute,
   ApiProtokollIdRoute: ApiProtokollIdRoute,
+  ApiRechnungsanhangIdRoute: ApiRechnungsanhangIdRoute,
   ApiUeberweisungIdRoute: ApiUeberweisungIdRoute,
   ApiUstvaIdRoute: ApiUstvaIdRoute,
   ApiV1SplatRoute: ApiV1SplatRoute,

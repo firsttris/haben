@@ -366,6 +366,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     ),
     compress: true,
   };
+  yield* invoiceAttachmentFiles(invoices, problems);
 
   // Angebote (Handelsbriefe, nur wenn vorhanden) -------------------------
   const quotes = await db
@@ -1327,6 +1328,47 @@ async function pruefwertText(year: number, now: Date): Promise<string> {
   ].join("\n");
 }
 
+/**
+ * Zusätzliche Anhänge der festgeschriebenen Rechnungen (#272) unter rechnungen/anhaenge/, nur wenn vorhanden, mit
+ * anhaenge.csv: Rechnung, ursprünglicher Dateiname, Datei im Archiv und SHA-256.
+ */
+async function* invoiceAttachmentFiles(invoices: { id: string; number: string | null }[], problems: string[]): AsyncGenerator<ArchiveFile> {
+  if (invoices.length === 0) return;
+  const attachments = await db
+    .select()
+    .from(schema.invoiceAttachments)
+    .where(
+      inArray(
+        schema.invoiceAttachments.invoiceId,
+        invoices.map((i) => i.id),
+      ),
+    )
+    .orderBy(asc(schema.invoiceAttachments.createdAt), asc(schema.invoiceAttachments.id));
+  if (attachments.length === 0) return;
+  const numbers = new Map(invoices.map((i) => [i.id, i.number ?? i.id]));
+  const used = new Set<string>();
+  const rows: CsvValue[][] = [];
+  for (const attachment of attachments) {
+    const number = numbers.get(attachment.invoiceId)!;
+    const path = uniquePath(used, `rechnungen/anhaenge/${safeName(number, 60)}_${safeName(attachment.filename.replace(/\.pdf$/i, ""), 80, "Anhang")}.pdf`);
+    let bytes: Buffer | null = null;
+    try {
+      bytes = await loadFile(attachment.sha256);
+    } catch (error) {
+      problems.push(
+        `Anhang ${attachment.id} (${attachment.filename}) der Rechnung ${number}: Datei nicht lesbar – ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    if (bytes) yield { path, content: new Uint8Array(bytes), compress: false };
+    rows.push([number, attachment.filename, bytes ? path.replace(/^rechnungen\/anhaenge\//, "") : "", attachment.size, attachment.sha256, attachment.id]);
+  }
+  yield {
+    path: "rechnungen/anhaenge/anhaenge.csv",
+    content: csv(["Rechnung", "Dateiname", "Datei", "Größe (Bytes)", "SHA-256", "ID"], rows),
+    compress: true,
+  };
+}
+
 function readme(year: number, now: Date, company: typeof schema.company.$inferSelect | undefined): string {
   const created = new Intl.DateTimeFormat("de-DE", { dateStyle: "long", timeStyle: "medium", timeZone: "Europe/Berlin" }).format(now);
   return `Haben – Jahresarchiv ${year}
@@ -1349,7 +1391,9 @@ INHALT
 rechnungen/              Festgeschriebene Ausgangsrechnungen als PDF und E-Rechnungs-XML
                          (bei ZUGFeRD steckt das XML zusätzlich im PDF), dazu
                          rechnungen.csv mit Beträgen und SHA-256 aus der Festschreibung.
-                         Entwürfe ohne Rechnungsnummer sind nicht enthalten.
+                         Entwürfe ohne Rechnungsnummer sind nicht enthalten. Nur wenn
+                         vorhanden: zusätzliche Anhänge der Rechnungen unter anhaenge/,
+                         Name: Nummer_Dateiname, mit anhaenge.csv.
 angebote/                Nur wenn vorhanden: festgeschriebene Angebote des Jahres als PDF,
                          angebote.csv mit Antwort des Kunden und daraus entstandener
                          Rechnung.

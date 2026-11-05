@@ -976,6 +976,32 @@ export const invoiceTaxes = pgTable(
   (t) => [primaryKey({ columns: [t.invoiceId, t.rate] })],
 );
 
+/**
+ * Zusätzliche PDF-Anhänge einer Ausgangsrechnung (#272), etwa Stundenzettel oder Leistungsnachweise. Die Datei liegt
+ * wie bei Belegen unter ihrem SHA-256 im Dokumentenspeicher; mit der Rechnung festgeschrieben und versiegelt. PDF und
+ * XML der Rechnung bleiben davon unberührt.
+ */
+export const invoiceAttachments = pgTable(
+  "invoice_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    invoiceId: uuid("invoice_id")
+      .notNull()
+      .references(() => invoices.id, { onDelete: "cascade" }),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Dieselbe Datei hängt höchstens einmal an derselben Rechnung
+    uniqueIndex("invoice_attachments_file").on(t.invoiceId, t.sha256),
+    // Für die Frage, ob eine Datei im Speicher noch gebraucht wird
+    index("invoice_attachments_sha256").on(t.sha256),
+  ],
+);
+
 /** Letzte vergebene laufende Nummer je Jahr; lückenlos, weil nur beim Festschreiben gezogen */
 export const invoiceNumberCounters = pgTable("invoice_number_counters", {
   year: smallint("year").primaryKey(),

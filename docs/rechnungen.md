@@ -162,7 +162,7 @@ Alles läuft in einer einzigen Datenbanktransaktion. Schlägt ein Schritt fehl, 
 4. **XML erzeugen.** Die Bibliothek `@e-invoice-eu/core` erzeugt je nach Format Factur-X EN 16931 (und bettet es ins PDF ein), XRechnung CII oder XRechnung UBL.
 5. **Prüfsummen.** Von PDF und XML wird je ein SHA-256 gespeichert. Die ersten Zeichen des PDF-Hashes stehen auf der Detailseite.
 6. **Buchen.** Haben legt den Buchungssatz an (siehe unten) und schreibt ihn fest.
-7. **Sperren.** Die Rechnung bekommt einen Festschreibungszeitpunkt. Ab dann lehnen Datenbank-Trigger jede Änderung oder Löschung der Rechnung und ihrer Positionen ab.
+7. **Sperren.** Die Rechnung bekommt einen Festschreibungszeitpunkt. Ab dann lehnen Datenbank-Trigger jede Änderung oder Löschung der Rechnung, ihrer Positionen und ihrer [zusätzlichen Anhänge](#zusätzliche-anhänge) ab. Das Siegel der Rechnung schließt die Anhänge ein.
 
 ## Pflichtangaben einer GmbH oder UG
 
@@ -374,6 +374,20 @@ Die Detailseite zeigt das PDF, die Eckdaten (Kunde, Rechnungsdatum, Fälligkeit,
 
 Beide Dateien werden aus der Datenbank ausgeliefert, so wie sie beim Festschreiben entstanden sind. Sie werden nie neu erzeugt.
 
+## Zusätzliche Anhänge
+
+Manche Kunden wollen mit der Rechnung weitere Unterlagen: Stundenzettel, Leistungsnachweise, Abnahmeprotokolle. Solche PDF-Dateien hängst du im Entwurf an die Rechnung; beim Versand per E-Mail wählst du, welche mitgehen.
+
+1. Den Entwurf einmal speichern. Danach steht im Editor unter den Positionen der Abschnitt **Anhänge**.
+2. **PDF anhängen** öffnet die Dateiauswahl; mehrere Dateien auf einmal gehen. Jede Datei steht danach mit Name und Größe in der Liste, ein Klick auf den Namen öffnet sie, **Herunterladen** lädt sie herunter.
+3. **Entfernen** nimmt einen Anhang wieder von der Rechnung, solange sie ein Entwurf ist.
+
+Erlaubt sind nur PDF-Dateien bis 20 MB, höchstens zehn je Rechnung. Den Typ erkennt Haben am Inhalt, nicht an der Endung: Ein umbenanntes Foto wird abgelehnt. Dieselbe Datei hängt nur einmal an derselben Rechnung. Die Dateien liegen wie Belege unter ihrem SHA-256 im Belegverzeichnis (siehe [Architektur](architektur.md#dateiablage)).
+
+Mit dem Festschreiben sind die Anhänge zusammen mit der Rechnung gesperrt: Die Datenbank lehnt Hinzufügen, Ändern und Entfernen ab, das Siegel der Rechnung schließt Dateiname, Größe und SHA-256 jedes Anhangs ein. Auf der Seite der festgeschriebenen Rechnung stehen sie weiter unter **Anhänge** zum Ansehen und Herunterladen, im [Jahresarchiv](auswertungen.md#jahresexport) unter `rechnungen/anhaenge/` mit `anhaenge.csv`.
+
+PDF, XML und E-Rechnung bleiben, wie sie sind: Die Anhänge stecken weder im ZUGFeRD-PDF noch in der XRechnung (keine BG-24 „Rechnungsbegründende Unterlagen“), sie gehen nur als eigene Dateien in der E-Mail mit.
+
 ## Ausbuchen
 
 Ist eine festgeschriebene Rechnung noch offen, steht auf ihrer Seite der Abschnitt **Ausbuchen**. Dort buchst du einen Rest aus, den du nicht mehr bekommst: **Forderungsausfall** (uneinbringlich, etwa bei Insolvenz) oder **Skonto gewährt**, jeweils mit Datum und Betrag (vorbelegt: der ganze offene Betrag). Haben mindert Erlöse und Umsatzsteuer anteilig je Steuersatz (§ 17 UStG) und bucht
@@ -395,8 +409,9 @@ Eine ausgebuchte Rechnung lässt sich erst stornieren, wenn die Ausbuchung aufge
 Mit einem E-Mail-Zugang ([Einstellungen › E-Mail › E-Mail-Versand](einrichtung.md#e-mail)) verschickt Haben festgeschriebene Rechnungen, Stornos, Korrekturen und Mahnungen. Auf der Seite der Rechnung unter **Per E-Mail**:
 
 1. **Rechnung senden** öffnet das Formular. Vorbelegt sind alle E-Mail-Adressen aus dem Kontakt (etwa Rechnungseingang und Freigeber), sonst die Adresse auf der Rechnung, dazu Betreff und Text aus der Vorlage. Alles lässt sich vor dem Senden ändern; mehrere Empfänger trennst du mit Komma (höchstens fünf).
-2. **Blindkopie an mich** schickt eine Kopie an den Absender aus den Einstellungen.
-3. **Jetzt senden** verschickt die Mail sofort.
+2. Hat die Rechnung [zusätzliche Anhänge](#zusätzliche-anhänge), stehen sie unter **Zusätzliche Anhänge mitsenden**, alle angehakt. Was nicht mitgehen soll, hakst du ab.
+3. **Blindkopie an mich** schickt eine Kopie an den Absender aus den Einstellungen.
+4. **Jetzt senden** verschickt die Mail sofort.
 
 Bei GmbH und UG hängt Haben beim Senden die [Pflichtangaben](#pflichtangaben-einer-gmbh-oder-ug) als Signatur unter den Text (Firmenname, Sitz, Registergericht und -nummer, Geschäftsführung); das Formular zeigt sie unter dem Textfeld. Sie steht nicht im bearbeitbaren Text, damit sie beim Ändern nicht verloren geht.
 
@@ -406,7 +421,9 @@ Bei GmbH und UG hängt Haben beim Senden die [Pflichtangaben](#pflichtangaben-ei
 | XRechnung | `Rechnung-<Nummer>.pdf` zur Ansicht und `Rechnung-<Nummer>-cii.xml` bzw. `-ubl.xml` als E-Rechnung |
 | Mahnung | das PDF der Mahnung, z. B. `Zahlungserinnerung-<Nummer>.pdf` |
 
-Jeder Versand steht mit Zeitpunkt und Empfänger unter **Per E-Mail**, auch fehlgeschlagene mit der Meldung des Servers. In der Rechnungsliste markiert ✉ per E-Mail versendete Rechnungen. Das Protokoll ist unveränderlich (`mail_log`).
+Ausgewählte zusätzliche Anhänge kommen bei Rechnungen nach PDF und XML dazu, mit ihrem Dateinamen.
+
+Jeder Versand steht mit Zeitpunkt, Empfänger und den Dateinamen der tatsächlich versandten Anhänge unter **Per E-Mail**, auch fehlgeschlagene mit der Meldung des Servers. In der Rechnungsliste markiert ✉ per E-Mail versendete Rechnungen. Das Protokoll ist unveränderlich (`mail_log`).
 
 **Vorlagen:** Betreff und Text stellst du unter Einstellungen › E-Mail › E-Mail-Versand › Vorlagen ein, je Sprache (Deutsch, Englisch) und Art:
 
@@ -504,3 +521,4 @@ Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten 
 - Skonto nur vom ganzen Rechnungsbetrag (kein Basisbetrag nach BR-DE-18), höchstens drei Stufen, nur in Euro. Keine Zu- oder Abschläge auf Belegebene.
 - Höchstens 200 Positionen je Rechnung.
 - Rechnungen gehen per E-Mail über deinen SMTP-Zugang, nicht über Peppol oder die Portale öffentlicher Auftraggeber.
+- Zusätzliche Anhänge nur als PDF, bis 20 MB je Datei und zehn je Rechnung. Viele Mailserver nehmen Mails ab etwa 25 MB nicht mehr an; das Versandprotokoll zeigt dann die Meldung des Servers. Anhänge lassen sich nur in Haben hochladen, nicht über die [REST-API](api.md); [wiederkehrende Rechnungen](#wiederkehrende-rechnungen) haben keine Anhänge und versenden ohne sie. Mahnungen gehen ohne die Anhänge der Rechnung.
