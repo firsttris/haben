@@ -30,7 +30,7 @@ import {
   type Cents,
 } from "@haben/core";
 import { readEInvoice, type IncomingInvoice } from "@haben/einvoice";
-import { and, desc, eq, gte, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
@@ -346,12 +346,15 @@ export function documentFileProblem(file: { bytes: Uint8Array; filename: string 
   return null;
 }
 
-/** Beleg mit dieser Datei; nach einem Storno mit Neuerfassung (#237) der neueste, also die Neuerfassung */
+/**
+ * Beleg mit dieser Datei; nach einem Storno mit Neuerfassung (#237) der neueste, also die Neuerfassung. Belege aus einem
+ * Dauerbeleg zählen nicht: Sie teilen sich den Vertrag, der als eigener Beleg hochgeladen werden darf.
+ */
 async function latestWithFile(sha256: string): Promise<string | null> {
   const [row] = await db
     .select({ id: schema.documents.id })
     .from(schema.documents)
-    .where(eq(schema.documents.sha256, sha256))
+    .where(and(eq(schema.documents.sha256, sha256), isNull(schema.documents.recurringDocumentId)))
     .orderBy(desc(schema.documents.uploadedAt))
     .limit(1);
   return row?.id ?? null;
@@ -367,8 +370,11 @@ async function insertDocument(
     const [created] = await tx
       .insert(schema.documents)
       .values({ ...values, ...reference })
-      // Eindeutig ist die Datei nur außerhalb der Neuerfassungen (documents_sha256)
-      .onConflictDoNothing({ target: schema.documents.sha256, where: sql`${schema.documents.replacesDocumentId} is null` })
+      // Eindeutig ist die Datei nur außerhalb der Neuerfassungen und Dauerbelege (documents_sha256)
+      .onConflictDoNothing({
+        target: schema.documents.sha256,
+        where: sql`${schema.documents.replacesDocumentId} is null and ${schema.documents.recurringDocumentId} is null`,
+      })
       .returning({ id: schema.documents.id });
     return created?.id ?? null;
   });
@@ -623,80 +629,83 @@ function documentScheduleAsset(asset: { kind: AssetKind; method: AssetMethod; us
 
 /** Bucht den Beleg (Aufwand + Vorsteuer an Verbindlichkeiten bzw. Privateinlage) und sperrt ihn. */
 export async function bookDocument(actor: string, id: string): Promise<void> {
-  await withActor(actor, async (tx) => {
-    const doc = await lockOpen(tx, id);
-    // Kasse vor der ersten Buchung sperren, wie beim Kassenbuch selbst (siehe lockCash)
-    if (doc.payment === "kasse") await lockCash(tx);
-    const company = await openBooks(tx);
-    const amounts = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
-    const splits = await loadSplits(id, tx);
-    const issues = bookingIssues(doc, amounts, today(), splits);
-    // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
-    if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
-    if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
-    if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
+  await withActor(actor, (tx) => bookDocumentIn(tx, id));
+}
 
-    // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
-    const totals = {
-      ...totalsOf(amounts, doc.reverseCharge),
-      taxes: [...amounts].sort((a, b) => b.taxRate - a.taxRate).map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })),
-    };
-    // Kleinunternehmer ziehen keine Vorsteuer ab; festgehalten am Beleg, damit spätere Auswertungen stimmen
-    const vorsteuerAbzug = !company.kleinunternehmer;
-    // Kleinunternehmer erwerben nur oberhalb der Erwerbsschwelle oder mit Option steuerpflichtig (§ 1a Abs. 3 und 4 UStG)
-    if (doc.reverseCharge === "ig_erwerb" && company.kleinunternehmer) {
-      throw new DocumentError("Innergemeinschaftlicher Erwerb als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.");
-    }
-    // Anlage: auf das Anlagekonto statt in den Aufwand; ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten
-    const asset = doc.category === "anlage" ? doc.asset : null;
-    const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, company.kontenrahmen) : undefined;
-    // Aufgeteilt (#271): eine Buchung mit einer Aufwandszeile je Kategorie; sonst wie bisher über die Kategorie des Belegs
-    const lines =
-      splits.length > 0
-        ? documentSplitPosting(totals, splitLines(splits), company.kontenrahmen, company.rechtsform, doc.payment, vorsteuerAbzug)
-        : documentPosting(
-            totals,
-            doc.category as ExpenseCategory,
-            company.kontenrahmen,
-            company.rechtsform,
-            doc.payment,
-            vorsteuerAbzug,
-            assetAccountNo,
-            doc.privateShare,
-            doc.reverseCharge,
-          );
-    const now = new Date();
-    const entryId = await post(tx, company, {
-      date: doc.documentDate!,
-      description: `Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`,
-      sourceType: "document",
-      sourceId: id,
-      lines,
-    });
-    // Bar aus der Kasse: Zeile im Kassenbuch; lehnt ab, wenn der Bestand dadurch negativ würde
-    if (doc.payment === "kasse") {
-      await addDocumentCashEntry(tx, {
-        id,
-        date: doc.documentDate!,
-        gross: totals.gross,
-        text: `${doc.supplierName}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
-        journalEntryId: entryId,
-      });
-    }
-    await tx.update(schema.documents).set({ status: "gebucht", vorsteuerAbzug, lockedAt: now, updatedAt: now }).where(eq(schema.documents.id, id));
-    if (asset) {
-      await tx.insert(schema.assets).values({
-        name: asset.name,
-        kind: asset.kind,
-        method: asset.method,
-        account: assetAccountNo!,
-        acquisitionDate: doc.documentDate!,
-        cost: vorsteuerAbzug ? totals.net : totals.gross,
-        ...documentAssetMethod(asset, doc.documentDate!),
-        documentId: id,
-      });
-    }
+/** Wie bookDocument, in einer laufenden Transaktion; etwa zusammen mit der Zuordnung im Bankabgleich */
+export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
+  const doc = await lockOpen(tx, id);
+  // Kasse vor der ersten Buchung sperren, wie beim Kassenbuch selbst (siehe lockCash)
+  if (doc.payment === "kasse") await lockCash(tx);
+  const company = await openBooks(tx);
+  const amounts = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
+  const splits = await loadSplits(id, tx);
+  const issues = bookingIssues(doc, amounts, today(), splits);
+  // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
+  if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
+  if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
+  if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
+
+  // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.
+  const totals = {
+    ...totalsOf(amounts, doc.reverseCharge),
+    taxes: [...amounts].sort((a, b) => b.taxRate - a.taxRate).map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax })),
+  };
+  // Kleinunternehmer ziehen keine Vorsteuer ab; festgehalten am Beleg, damit spätere Auswertungen stimmen
+  const vorsteuerAbzug = !company.kleinunternehmer;
+  // Kleinunternehmer erwerben nur oberhalb der Erwerbsschwelle oder mit Option steuerpflichtig (§ 1a Abs. 3 und 4 UStG)
+  if (doc.reverseCharge === "ig_erwerb" && company.kleinunternehmer) {
+    throw new DocumentError("Innergemeinschaftlicher Erwerb als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG) wird nicht unterstützt.");
+  }
+  // Anlage: auf das Anlagekonto statt in den Aufwand; ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten
+  const asset = doc.category === "anlage" ? doc.asset : null;
+  const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, company.kontenrahmen) : undefined;
+  // Aufgeteilt (#271): eine Buchung mit einer Aufwandszeile je Kategorie; sonst wie bisher über die Kategorie des Belegs
+  const lines =
+    splits.length > 0
+      ? documentSplitPosting(totals, splitLines(splits), company.kontenrahmen, company.rechtsform, doc.payment, vorsteuerAbzug)
+      : documentPosting(
+          totals,
+          doc.category as ExpenseCategory,
+          company.kontenrahmen,
+          company.rechtsform,
+          doc.payment,
+          vorsteuerAbzug,
+          assetAccountNo,
+          doc.privateShare,
+          doc.reverseCharge,
+        );
+  const now = new Date();
+  const entryId = await post(tx, company, {
+    date: doc.documentDate!,
+    description: `Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`,
+    sourceType: "document",
+    sourceId: id,
+    lines,
   });
+  // Bar aus der Kasse: Zeile im Kassenbuch; lehnt ab, wenn der Bestand dadurch negativ würde
+  if (doc.payment === "kasse") {
+    await addDocumentCashEntry(tx, {
+      id,
+      date: doc.documentDate!,
+      gross: totals.gross,
+      text: `${doc.supplierName}${doc.invoiceNumber ? ` · ${doc.invoiceNumber}` : ""}`,
+      journalEntryId: entryId,
+    });
+  }
+  await tx.update(schema.documents).set({ status: "gebucht", vorsteuerAbzug, lockedAt: now, updatedAt: now }).where(eq(schema.documents.id, id));
+  if (asset) {
+    await tx.insert(schema.assets).values({
+      name: asset.name,
+      kind: asset.kind,
+      method: asset.method,
+      account: assetAccountNo!,
+      acquisitionDate: doc.documentDate!,
+      cost: vorsteuerAbzug ? totals.net : totals.gross,
+      ...documentAssetMethod(asset, doc.documentDate!),
+      documentId: id,
+    });
+  }
 }
 
 /** Nur ungebuchte Belege lassen sich löschen; die Datei geht mit, solange sie sonst niemand nutzt. */
@@ -730,6 +739,8 @@ export async function listDocuments() {
       externalId: schema.documents.externalId,
       lockedAt: schema.documents.lockedAt,
       uploadedAt: schema.documents.uploadedAt,
+      /** Aus einem Dauerbeleg angelegt */
+      recurringDocumentId: schema.documents.recurringDocumentId,
       /** Storniert am (#237); der Beleg bleibt gebucht */
       cancelledOn: schema.documentCancellations.date,
     })

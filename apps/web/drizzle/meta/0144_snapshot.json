@@ -1,5 +1,5 @@
 {
-  "id": "945468a0-70c5-46ac-91c2-2ba72d4060b7",
+  "id": "ecff9cd1-0df9-400a-8a67-43831000bd78",
   "prevId": "622fb857-fef6-4e81-a4f4-b4cdf8a22adc",
   "version": "7",
   "dialect": "postgresql",
@@ -3507,6 +3507,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "recurring_document_id": {
+          "name": "recurring_document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recurring_period": {
+          "name": "recurring_period",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "locked_at": {
           "name": "locked_at",
           "type": "timestamp with time zone",
@@ -3561,7 +3573,28 @@
             }
           ],
           "isUnique": true,
-          "where": "\"documents\".\"replaces_document_id\" is null",
+          "where": "\"documents\".\"replaces_document_id\" is null and \"documents\".\"recurring_document_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "documents_recurring_period": {
+          "name": "documents_recurring_period",
+          "columns": [
+            {
+              "expression": "recurring_document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "recurring_period",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3589,6 +3622,19 @@
           "tableTo": "contacts",
           "columnsFrom": [
             "supplier_contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "documents_recurring_document_id_recurring_documents_id_fk": {
+          "name": "documents_recurring_document_id_recurring_documents_id_fk",
+          "tableFrom": "documents",
+          "tableTo": "recurring_documents",
+          "columnsFrom": [
+            "recurring_document_id"
           ],
           "columnsTo": [
             "id"
@@ -3642,6 +3688,10 @@
         "documents_external_ref_pair": {
           "name": "documents_external_ref_pair",
           "value": "(\"documents\".\"external_source\" is null) = (\"documents\".\"external_id\" is null)"
+        },
+        "documents_recurring_pair": {
+          "name": "documents_recurring_pair",
+          "value": "(\"documents\".\"recurring_document_id\" is null) = (\"documents\".\"recurring_period\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -4552,100 +4602,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.invitations": {
-      "name": "invitations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "accepted_at": {
-          "name": "accepted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "accepted_email": {
-          "name": "accepted_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "invitations_token_hash_unique": {
-          "name": "invitations_token_hash_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "invitations_role": {
-          "name": "invitations_role",
-          "value": "\"invitations\".\"role\" = 'steuerberatung'"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.invoice_attachments": {
@@ -8345,6 +8301,239 @@
       },
       "isRLSEnabled": false
     },
+    "public.recurring_documents": {
+      "name": "recurring_documents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'aktiv'"
+        },
+        "supplier_name": {
+          "name": "supplier_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_ust_id": {
+          "name": "supplier_ust_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "supplier_contact_id": {
+          "name": "supplier_contact_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment": {
+          "name": "payment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'bank'"
+        },
+        "private_share": {
+          "name": "private_share",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "amounts": {
+          "name": "amounts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_shown": {
+          "name": "tax_shown",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "interval_months": {
+          "name": "interval_months",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anchor_day": {
+          "name": "anchor_day",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "next_date": {
+          "name": "next_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "due_days": {
+          "name": "due_days",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size": {
+          "name": "size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_run_at": {
+          "name": "last_run_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recurring_documents_sha256": {
+          "name": "recurring_documents_sha256",
+          "columns": [
+            {
+              "expression": "sha256",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "recurring_documents_supplier_contact_id_contacts_id_fk": {
+          "name": "recurring_documents_supplier_contact_id_contacts_id_fk",
+          "tableFrom": "recurring_documents",
+          "tableTo": "contacts",
+          "columnsFrom": [
+            "supplier_contact_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recurring_documents_interval": {
+          "name": "recurring_documents_interval",
+          "value": "\"recurring_documents\".\"interval_months\" in (1, 3, 6, 12)"
+        },
+        "recurring_documents_anchor_day": {
+          "name": "recurring_documents_anchor_day",
+          "value": "\"recurring_documents\".\"anchor_day\" between 1 and 31"
+        },
+        "recurring_documents_private_share": {
+          "name": "recurring_documents_private_share",
+          "value": "\"recurring_documents\".\"private_share\" between 0 and 100"
+        },
+        "recurring_documents_due_days": {
+          "name": "recurring_documents_due_days",
+          "value": "\"recurring_documents\".\"due_days\" between 0 and 120"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.recurring_invoices": {
       "name": "recurring_invoices",
       "schema": "",
@@ -9311,34 +9500,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'steuerberatung'"
-        },
-        "locked_at": {
-          "name": "locked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
-        "user_inhaber_single": {
-          "name": "user_inhaber_single",
+        "user_single": {
+          "name": "user_single",
           "columns": [
             {
-              "expression": "role",
-              "isExpression": false,
+              "expression": "(true)",
               "asc": true,
+              "isExpression": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "where": "\"user\".\"role\" = 'inhaber'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9355,77 +9530,6 @@
           ]
         }
       },
-      "policies": {},
-      "checkConstraints": {
-        "user_role": {
-          "name": "user_role",
-          "value": "\"user\".\"role\" in ('inhaber', 'steuerberatung')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.user_logins": {
-      "name": "user_logins",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "bigserial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "at": {
-          "name": "at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "user_logins_user": {
-          "name": "user_logins_user",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false

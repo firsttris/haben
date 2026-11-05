@@ -17,6 +17,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     kontakt: await firstLink(page, "/kontakte", /^\/kontakte\/[0-9a-f-]{36}$/),
     eigeneSeite: await firstLink(page, "/einstellungen?bereich=seiten", /^\/seiten\/[0-9a-f-]{36}$/),
     mitarbeiter: await firstLink(page, "/lohn", /^\/lohn\/mitarbeiter\/[0-9a-f-]{36}$/),
+    dauerbeleg: await firstLink(page, "/dauerbelege", /^\/dauerbelege\/[0-9a-f-]{36}$/),
   };
   const month = Number(day(-12).slice(5, 7));
   return [
@@ -31,6 +32,9 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["textbausteine", "/textbausteine"],
     ["belege", "/belege"],
     ["beleg", details.beleg],
+    ["dauerbelege", "/dauerbelege"],
+    ["dauerbeleg-neu", "/dauerbelege/neu"],
+    ["dauerbeleg", details.dauerbeleg],
     ["ueberweisungen", "/ueberweisungen"],
     ["pauschalen", "/pauschalen"],
     ["kasse", "/kasse"],

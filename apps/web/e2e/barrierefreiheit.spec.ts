@@ -30,6 +30,8 @@ const PAGES = [
   "/kontakte",
   "/kontakte/neu",
   "/belege",
+  "/dauerbelege",
+  "/dauerbelege/neu",
   "/ueberweisungen",
   "/pauschalen",
   "/anlagen",
@@ -206,6 +208,15 @@ test("Stammdaten eines Mitarbeiters ohne axe-Verstöße", async ({ page }) => {
   await withTheme(page, "wald");
   const path = await firstLink(page, "/lohn", /^\/lohn\/mitarbeiter\/[0-9a-f-]{36}$/);
   expect(path, "app.spec.ts hat einen Mitarbeiter angelegt").not.toBeNull();
+  await open(page, path!);
+  expect(await axe(page), path!).toEqual([]);
+});
+
+// Dauerbeleg aus app.spec.ts mit angelegtem Beleg
+test("Dauerbeleg ohne axe-Verstöße", async ({ page }) => {
+  await withTheme(page, "wald");
+  const path = await firstLink(page, "/dauerbelege", /^\/dauerbelege\/[0-9a-f-]{36}$/);
+  expect(path, "app.spec.ts hat einen Dauerbeleg angelegt").not.toBeNull();
   await open(page, path!);
   expect(await axe(page), path!).toEqual([]);
 });

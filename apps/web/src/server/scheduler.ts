@@ -1,7 +1,7 @@
 import { runDueBankSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
-import { applyPublishedRates, runDueInboxFetch } from "./modules/belege/index.ts";
+import { applyPublishedRates, runDueDauerbelege, runDueInboxFetch } from "./modules/belege/index.ts";
 import { runDueExchangeRates } from "./modules/stammdaten/index.ts";
 import { runDueFristenMails, runDuePruefwertMail } from "./modules/mail/index.ts";
 import { runDuePostfachFetch } from "./modules/finanzamt/index.ts";
@@ -24,6 +24,13 @@ export async function runScheduledJobs(): Promise<void> {
     }
   } catch (error) {
     console.error("Wiederkehrende Rechnungen", error);
+  }
+  try {
+    const result = await runDueDauerbelege(today());
+    if (result.created > 0 || result.errors.length > 0) console.log(`Dauerbelege: ${result.created} Belege zu prüfen angelegt`);
+    for (const error of result.errors) console.warn(error);
+  } catch (error) {
+    console.error("Dauerbelege", error);
   }
   try {
     const result = await runDueBankSyncs();

@@ -14,6 +14,7 @@ import {
   DocumentError,
   documentInputSchema,
   documentNavigation,
+  dauerbelegName,
   getDocument,
   supplierCategory,
   listDocuments,
@@ -82,6 +83,10 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       categories: categoryOptions,
       // Lieferanten aus den Kontakten zur Auswahl im Beleg
       suppliers: (await listContacts(false, "lieferant")).map(({ id, name, ustId }) => ({ id, name, ustId })),
+      // Aus einem Dauerbeleg angelegt: Name der Vorlage für den Verweis
+      dauerbeleg: result.document.recurringDocumentId
+        ? { id: result.document.recurringDocumentId, name: await dauerbelegName(result.document.recurringDocumentId) }
+        : null,
     };
   });
 
