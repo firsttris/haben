@@ -39,6 +39,10 @@
 .report-table th, .report-table td { text-align: left; font-weight: 400; padding: 10px 8px; border-top: 1px solid var(--line-soft); vertical-align: baseline; }
 .report-table thead th { border-top: 0; font-size: 13px; color: var(--muted); font-weight: 400; padding-top: 0; }
 .report-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Eingaben in Tabellen (Buchungszeilen, Restlaufzeiten) wie die Formularfelder, nur etwas niedriger */
+.report-table td input:not([type="checkbox"]):not([type="radio"]), .report-table td select { min-height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 8px; font: inherit; font-size: 14px; color: var(--ink); background-color: var(--surface); }
+.report-table td.num input { text-align: right; font-family: var(--mono); font-size: 13px; }
+.report-table td input:focus-visible, .report-table td select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .report-table tfoot th, .report-table tfoot td { border-top: 2px solid var(--ink); font-weight: 600; }
 
 .euer-table .euer-section th { padding-top: 20px; font-weight: 600; font-size: 14px; color: var(--ink); border-top: 0; }

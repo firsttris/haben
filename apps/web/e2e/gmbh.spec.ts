@@ -80,6 +80,13 @@ test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () =>
   await page.waitForLoadState("networkidle");
   expect(await axe(), "/buchungen/neu").toEqual([]);
 
+  // Auch direkt aufgerufen (ohne die Buchungsliste davor) sind die Zeilen eine gestaltete Tabelle mit echten Eingabefeldern
+  await go("/buchungen/neu");
+  const zeilen = page.getByRole("table", { name: "Buchungszeilen" });
+  await expect(zeilen.getByRole("columnheader", { name: "Konto" })).toHaveCSS("text-align", "left");
+  await expect(zeilen.getByLabel("Konto Zeile 1")).toHaveCSS("border-radius", "8px");
+  await expect(zeilen.getByLabel("Soll Zeile 1")).toHaveCSS("text-align", "right");
+
   const form = page.getByRole("form", { name: "Manuelle Buchung" });
   await form.getByLabel("Buchungstext").fill("Stammkapital, eingezahlt vom Gesellschafter");
   // Die Bank führt der Bankabgleich; das Formular sagt es, bevor gebucht wird

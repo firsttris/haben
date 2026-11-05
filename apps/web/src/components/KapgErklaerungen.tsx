@@ -23,18 +23,45 @@ const LINK_LABEL = { "/einstellungen": "Zu den Einstellungen", "/abschluss": "Zu
 const euro = (cents: number) => formatEuro(cents).replace(/\s*€$/, "");
 const ganzeEuro = (euros: number) => formatEuro(euros * 100);
 
+/** Hinweise einer Erklärung: je Ton ein Kasten, mehrere als Liste darin, statt eines Kastens je Hinweis */
 function Hinweise({ issues }: { issues: Hinweis[] }) {
+  const warnungen = issues.filter((issue) => issue.tone !== "hinweis");
+  const infos = issues.filter((issue) => issue.tone === "hinweis");
   return (
     <>
-      {issues.map((issue) => (
-        <div key={issue.text} className={`banner ${issue.tone === "hinweis" ? "banner-info" : ""}`} role="status">
-          <Icon name={issue.tone === "hinweis" ? "info" : "alert"} />
-          <span>
-            {issue.text} {issue.link && <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>}
-          </span>
-        </div>
-      ))}
+      <HinweisKasten issues={warnungen} info={false} />
+      <HinweisKasten issues={infos} info />
     </>
+  );
+}
+
+function HinweisText({ issue }: { issue: Hinweis }) {
+  return (
+    <>
+      {issue.text} {issue.link && <Link to={issue.link}>{LINK_LABEL[issue.link]}</Link>}
+    </>
+  );
+}
+
+function HinweisKasten({ issues, info }: { issues: Hinweis[]; info: boolean }) {
+  if (issues.length === 0) return null;
+  return (
+    <div className={`banner ${info ? "banner-info" : ""}`} role="status">
+      <Icon name={info ? "info" : "alert"} />
+      {issues.length === 1 ? (
+        <span>
+          <HinweisText issue={issues[0]!} />
+        </span>
+      ) : (
+        <ul className="banner-list">
+          {issues.map((issue) => (
+            <li key={issue.text}>
+              <HinweisText issue={issue} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -260,41 +287,44 @@ export function KapgAngaben({ data }: { data: Data }) {
           </label>
         </div>
 
-        <fieldset className="stack" style={{ gap: 12 }}>
+        <fieldset className="stack fieldset-plain" style={{ gap: 16 }}>
           <legend>Anteilseigner</legend>
           {personen.map((p, i) => (
-            <div key={i} className="stack" style={{ gap: 8, borderBottom: "1px solid var(--line)", paddingBottom: 12 }}>
-              <div className="form-row cols-3">
+            <div key={i} className="stack sub-group" style={{ gap: 12 }} role="group" aria-label={`Anteilseigner ${i + 1}`}>
+              <div className="sub-group-title" aria-hidden="true">
+                Anteilseigner {i + 1}
+              </div>
+              <div className="form-row cols-3 align-end">
                 <label className="field">
-                  Name Anteilseigner {i + 1}
+                  Name<span className="visually-hidden"> Anteilseigner {i + 1}</span>
                   <input value={p.name} onChange={(e) => setPerson(i, { name: e.target.value })} required />
                 </label>
                 <label className="field">
-                  Straße und Hausnummer Anteilseigner {i + 1}
+                  Straße und Hausnummer<span className="visually-hidden"> Anteilseigner {i + 1}</span>
                   <input value={p.strasse} onChange={(e) => setPerson(i, { strasse: e.target.value })} required />
                 </label>
                 <label className="field">
-                  PLZ und Ort Anteilseigner {i + 1}
+                  PLZ und Ort<span className="visually-hidden"> Anteilseigner {i + 1}</span>
                   <input value={p.plzOrt} onChange={(e) => setPerson(i, { plzOrt: e.target.value })} required />
                 </label>
               </div>
-              <div className="form-row cols-3">
+              <div className="form-row cols-3 align-end">
                 <label className="field">
-                  Identifikationsnummer oder Steuernummer (13 Ziffern) Anteilseigner {i + 1}
+                  Identifikationsnummer oder Steuernummer (13 Ziffern)<span className="visually-hidden"> Anteilseigner {i + 1}</span>
                   <input inputMode="numeric" value={p.nummer} onChange={(e) => setPerson(i, { nummer: e.target.value })} required />
                 </label>
                 <label className="field">
-                  Beteiligung in Euro Anteilseigner {i + 1}
+                  Beteiligung in Euro<span className="visually-hidden"> Anteilseigner {i + 1}</span>
                   <input inputMode="decimal" value={p.beteiligung} onChange={(e) => setPerson(i, { beteiligung: e.target.value })} required />
                 </label>
                 <label className="field">
-                  Anteil in Prozent Anteilseigner {i + 1}
+                  Anteil in Prozent<span className="visually-hidden"> Anteilseigner {i + 1}</span>
                   <input inputMode="decimal" value={p.anteil} onChange={(e) => setPerson(i, { anteil: e.target.value })} required />
                 </label>
               </div>
-              <div className="form-row cols-3">
+              <div className="form-row cols-3 align-end">
                 <label className="field">
-                  Kirchensteuer bei Ausschüttungen Anteilseigner {i + 1}
+                  Kirchensteuer bei Ausschüttungen<span className="visually-hidden"> Anteilseigner {i + 1}</span>
                   <select value={p.kirchensteuer} onChange={(e) => setPerson(i, { kirchensteuer: Number(e.target.value) as Person["kirchensteuer"] })}>
                     <option value={0}>keine</option>
                     <option value={8}>8 % (Bayern, Baden-Württemberg)</option>
@@ -303,7 +333,7 @@ export function KapgAngaben({ data }: { data: Data }) {
                 </label>
                 {p.kirchensteuer > 0 && (
                   <label className="field">
-                    Religionsschlüssel aus dem Kirchensteuerabzugsmerkmal Anteilseigner {i + 1}
+                    Religionsschlüssel aus dem Kirchensteuerabzugsmerkmal<span className="visually-hidden"> Anteilseigner {i + 1}</span>
                     <input
                       inputMode="numeric"
                       value={p.religionsschluessel}
@@ -315,7 +345,7 @@ export function KapgAngaben({ data }: { data: Data }) {
                 )}
                 {p.kirchensteuer > 0 && (
                   <label className="field">
-                    Kirchensteuererhebende Religionsgemeinschaft Anteilseigner {i + 1}
+                    Kirchensteuererhebende Religionsgemeinschaft<span className="visually-hidden"> Anteilseigner {i + 1}</span>
                     <input
                       value={p.religionsgemeinschaft}
                       onChange={(e) => setPerson(i, { religionsgemeinschaft: e.target.value })}
@@ -362,26 +392,28 @@ export function KapgAngaben({ data }: { data: Data }) {
           </div>
         </fieldset>
 
-        <fieldset className="stack" style={{ gap: 12 }}>
+        <fieldset className="stack fieldset-plain" style={{ gap: 16 }}>
           <legend>Verträge mit Anteilseignern und nahestehenden Personen (Anlage WA)</legend>
           {vertraege.map((v, i) => (
-            <div key={i} className="form-row cols-3" style={{ alignItems: "end" }}>
-              <label className="field">
-                Vertragsart Vertrag {i + 1}
-                <input value={v.art} onChange={(e) => setVertrag(i, { art: e.target.value })} placeholder="z. B. Geschäftsführervertrag" required />
-              </label>
-              <label className="field">
-                Abschluss oder letzte Änderung Vertrag {i + 1}
-                <input type="date" value={v.datum} onChange={(e) => setVertrag(i, { datum: e.target.value })} required />
-              </label>
-              <label className="field">
-                Vertragspartner Vertrag {i + 1}
-                <input value={v.partner} onChange={(e) => setVertrag(i, { partner: e.target.value })} required />
-              </label>
-              <label className="field">
-                Vergütung im Jahr Vertrag {i + 1}
-                <input inputMode="decimal" value={v.verguetung} onChange={(e) => setVertrag(i, { verguetung: e.target.value })} required />
-              </label>
+            <div key={i} className="stack sub-group" style={{ gap: 12 }} role="group" aria-label={`Vertrag ${i + 1}`}>
+              <div className="form-row cols-2 align-end">
+                <label className="field">
+                  Vertragsart<span className="visually-hidden"> Vertrag {i + 1}</span>
+                  <input value={v.art} onChange={(e) => setVertrag(i, { art: e.target.value })} placeholder="z. B. Geschäftsführervertrag" required />
+                </label>
+                <label className="field">
+                  Abschluss oder letzte Änderung<span className="visually-hidden"> Vertrag {i + 1}</span>
+                  <input type="date" value={v.datum} onChange={(e) => setVertrag(i, { datum: e.target.value })} required />
+                </label>
+                <label className="field">
+                  Vertragspartner<span className="visually-hidden"> Vertrag {i + 1}</span>
+                  <input value={v.partner} onChange={(e) => setVertrag(i, { partner: e.target.value })} required />
+                </label>
+                <label className="field">
+                  Vergütung im Jahr<span className="visually-hidden"> Vertrag {i + 1}</span>
+                  <input inputMode="decimal" value={v.verguetung} onChange={(e) => setVertrag(i, { verguetung: e.target.value })} required />
+                </label>
+              </div>
               <div>
                 <button type="button" className="btn btn-sm btn-danger" onClick={() => setVertraege(vertraege.filter((_, j) => j !== i))}>
                   Vertrag {i + 1} entfernen

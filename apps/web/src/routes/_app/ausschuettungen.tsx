@@ -362,26 +362,26 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
                 )}
               </div>
             ))}
-            {!a.angemeldet && (
-              <div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-danger"
-                  disabled={busy}
-                  onClick={() =>
-                    confirming
-                      ? void run(async () => {
-                          await reverse({ data: { id: a.id } });
-                          await router.invalidate();
-                        }, "Ausschüttung storniert.")
-                      : setConfirming(true)
-                  }
-                >
-                  {confirming ? "Jetzt stornieren" : `${titel} stornieren`}
-                </button>
-              </div>
-            )}
           </div>
+        </div>
+      )}
+      {!a.storniert && !a.angemeldet && (
+        <div className="actions" style={{ marginTop: 16 }}>
+          <button
+            type="button"
+            className="btn btn-sm btn-danger"
+            disabled={busy}
+            onClick={() =>
+              confirming
+                ? void run(async () => {
+                    await reverse({ data: { id: a.id } });
+                    await router.invalidate();
+                  }, "Ausschüttung storniert.")
+                : setConfirming(true)
+            }
+          >
+            {confirming ? "Jetzt stornieren" : `${titel} stornieren`}
+          </button>
         </div>
       )}
       {a.storniert && <NoticeBanner notice={notice} />}

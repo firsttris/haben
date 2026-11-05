@@ -231,6 +231,13 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .form-row.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .form-row.cols-address { grid-template-columns: 120px minmax(0, 1fr) 120px; }
 .form-row.cols-place { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr); }
+.form-row.align-end { align-items: end; }
+/* Fieldset als Abschnitt ohne Browser-Rahmen; die Legende ist seine Überschrift */
+.fieldset-plain { border: 0; padding: 0; margin: 0; min-width: 0; }
+.fieldset-plain > legend { padding: 0; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: var(--ink); }
+/* Wiederholte Gruppe in einem Formular (Anteilseigner, Vertrag): Fläche statt Trennlinie */
+.sub-group { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--ground); }
+.sub-group-title { font-size: 14px; font-weight: 500; color: var(--ink); }
 /* Server, Port und Verschlüsselung für SMTP und IMAP */
 .form-row.cols-server { grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); }
 /* Betragszeile: Satz, Netto, Steuer und Platz für den Entfernen-Knopf, auch wenn er fehlt, damit die Zeilen fluchten */
@@ -265,11 +272,12 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .pill-info { background: var(--info-soft); color: var(--info-ink); }
 .pill-danger { background: var(--danger-soft); color: var(--danger-ink); }
 
-.banner { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
+.banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 10px; font-size: 14px; background: var(--warn-soft); color: var(--warn-ink); }
 .banner-info { background: var(--info-soft); color: var(--info-ink); }
 .banner-ok { background: var(--accent-soft); color: var(--accent-ink); }
 .banner-danger { background: var(--danger-soft); color: var(--danger-ink); }
 .banner a { color: inherit; font-weight: 500; }
+.banner-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding-left: 16px; }
 .error-banner details { margin-top: 4px; font-size: 13px; }
 .error-banner summary { cursor: pointer; }
 .error-banner code { display: block; margin-top: 4px; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
