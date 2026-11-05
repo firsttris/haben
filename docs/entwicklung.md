@@ -230,7 +230,7 @@ Für eine neue Taxonomie (jährlich zum 1. April) den Auszug neu erzeugen, `EBIL
 
 ## Lohnsteuer: PAP jährlich aktualisieren
 
-Die Lohnsteuer in `packages/core/src/lohnsteuer/` folgt dem Programmablaufplan (PAP) des BMF für die maschinelle Berechnung der Lohnsteuer. Er gilt für ein Kalenderjahr; für ein Jahr ohne PAP gibt `lohnsteuer()` den Fehler „Lohnsteuer {Jahr} ist noch nicht hinterlegt“ zurück und rechnet nicht mit den Werten des Vorjahres. Ab Dezember schlägt der Test „Jahreswechsel (echtes Datum)“ in `lohnsteuer.test.ts` fehl, bis der PAP des nächsten Jahres hinterlegt ist. Der BMF veröffentlicht ihn meist im November, unter Umständen im Lauf des Jahres eine geänderte Fassung.
+Die Lohnsteuer in `packages/core/src/lohnsteuer/` folgt dem Programmablaufplan (PAP) des BMF für die maschinelle Berechnung der Lohnsteuer. Er gilt für ein Kalenderjahr; für ein Jahr ohne PAP gibt `lohnsteuer()` den Fehler „Lohnsteuer {Jahr} ist noch nicht hinterlegt“ zurück und rechnet nicht mit den Werten des Vorjahres. Ab Dezember schlägt der Test „Jahreswechsel (echtes Datum)“ in `lohnsteuer.test.ts` fehl, bis der PAP des nächsten Jahres hinterlegt ist. Der BMF veröffentlicht ihn meist im November, unter Umständen im Lauf des Jahres eine geänderte Fassung. Beides meldet der Workflow [Jahreswerte prüfen](#jahreswerte-erinnerung-per-workflow) als Issue.
 
 1. Das PAP-XML vom [BMF-Steuerrechner](https://www.bmf-steuerrechner.de/) laden (`/javax.faces.resource/daten/xmls/Lohnsteuer<Jahr>.xml.xhtml`) und unverändert als `Lohnsteuer<Jahr>.xml` neben `pap.ts` legen.
 2. Mit dem XML des Vorjahres vergleichen (`diff`). Ändern sich nur Zahlen, reicht eine neue Datei `pap-<Jahr>.ts` nach dem Muster von `pap-2026.ts` mit Version, Stand und SHA-256 der Datei. Ändert sich der Ablauf einer Methode, die `pap.ts` überträgt (MPARA, MRE4JL, MRE4ABZ, MBERECH, MZTABFB, MLSTJAHR, UPEVP, MVSPKVPV, MVSPHB, UPMLST, MST5_6, UP5_6, UPTAB, MSOLZ, UPANTEIL), braucht das neue Jahr eine eigene Übertragung; die alte bleibt für Korrekturen früherer Jahre.
@@ -242,7 +242,7 @@ Die Rechnung läuft ohne Gleitkommazahlen über `dezimal.ts` (`bigint` mit Nachk
 
 ## Sozialversicherung: Werte jährlich aktualisieren
 
-Die Beiträge zur Sozialversicherung in `packages/core/src/sozialversicherung/` rechnen mit den Rechengrößen und Beitragssätzen eines Kalenderjahres. Für ein Jahr ohne Werte gibt `sozialversicherung()` den Fehler „Die Sozialversicherungswerte {Jahr} sind noch nicht hinterlegt“ zurück und rechnet nicht mit den Werten des Vorjahres. Ab Dezember schlägt der Test „Jahreswechsel (echtes Datum)“ in `sozialversicherung.test.ts` fehl, bis die Werte des nächsten Jahres hinterlegt sind; die Regel dazu steht in `packages/core/src/jahressperre.ts` und gilt für die Lohnsteuer genauso.
+Die Beiträge zur Sozialversicherung in `packages/core/src/sozialversicherung/` rechnen mit den Rechengrößen und Beitragssätzen eines Kalenderjahres. Für ein Jahr ohne Werte gibt `sozialversicherung()` den Fehler „Die Sozialversicherungswerte {Jahr} sind noch nicht hinterlegt“ zurück und rechnet nicht mit den Werten des Vorjahres. Ab Dezember schlägt der Test „Jahreswechsel (echtes Datum)“ in `sozialversicherung.test.ts` fehl, bis die Werte des nächsten Jahres hinterlegt sind; die Regel dazu steht in `packages/core/src/jahressperre.ts` und gilt für die Lohnsteuer genauso. Sobald die Sozialversicherungsrechengrößen-Verordnung des nächsten Jahres auf gesetze-im-internet.de steht, öffnet der Workflow [Jahreswerte prüfen](#jahreswerte-erinnerung-per-workflow) ein Issue.
 
 1. Die Werte des neuen Jahres sammeln, jeden mit Quelle: Sozialversicherungsrechengrößen-Verordnung (BBG KV/PV und RV/AV, Bundesgesetzblatt, meist im November), Bekanntmachung der Beitragssätze der Rentenversicherung, durchschnittlicher Zusatzbeitrag (BMG, Bundesanzeiger), Geringfügigkeitsgrenze und Faktor F (BMAS, Bundesanzeiger), Pflege- und Arbeitslosenversicherung, Insolvenzgeldumlage sowie Pauschalen und Umlagen der Minijob-Zentrale. Was sich nicht belegen lässt, bleibt offen; das Jahr wird dann nicht freigegeben.
 2. In `werte.ts` ein `SV_<Jahr>` nach dem Muster von `SV_2026` anlegen, mit Quelle je Wert, und in `SV_JAHRE` in `index.ts` eintragen. `werte.test.ts` prüft, dass jeder Wert eine Quelle hat, dass der Faktor F zu 28 % durch den Gesamtsozialversicherungsbeitragssatz passt und dass BBG und Sätze mit dem PAP der Lohnsteuer desselben Jahres übereinstimmen.
@@ -250,6 +250,39 @@ Die Beiträge zur Sozialversicherung in `packages/core/src/sozialversicherung/` 
 4. Ändert sich eine Regel (Formel des Übergangsbereichs, Rundung, Pauschalen), braucht das neue Jahr eine eigene Rechnung; die alte bleibt für Korrekturen früherer Jahre.
 
 Gerechnet wird ohne Gleitkommazahlen: Entgelt in Cent mal Satz in Basispunkten mit `bigint`, kaufmännisch auf Cent gerundet erst am Ende (§ 1 Abs. 2 BVV). Beiträge, die Arbeitgeber und Beschäftigter je zur Hälfte tragen, rechnet Haben mit dem halben Satz und verdoppelt das gerundete Ergebnis (§ 2 Abs. 1 BVV), den Zusatzbeitrag der Kasse getrennt vom allgemeinen Satz wie im Beispiel 7 des TK-Beratungsblatts zum Übergangsbereich; sonst ist der Beitrag die Summe der getrennt gerundeten Anteile. Im Übergangsbereich trägt der Arbeitgeber den Gesamtbeitrag abzüglich des Anteils des Beschäftigten; Kinderlosenzuschlag und Kinderabschläge rechnet § 2 Abs. 2 BVV gesondert. Die Vorschriften stehen mit Link im Code; Gesetzestexte am besten bei gesetze-im-internet.de, Bekanntmachungen im Bundesanzeiger lesen, nicht in Ratgebern.
+
+## Jahreswerte: Erinnerung per Workflow
+
+Renovate meldet neue Versionen der Abhängigkeiten; was Haben an amtlichen Werten braucht, beobachtet der Workflow **Jahreswerte prüfen** (`.github/workflows/jahreswerte.yml`). Er läuft montags früh und auf Knopfdruck (**Actions → Jahreswerte prüfen → Run workflow**), führt `scripts/jahreswerte/pruefen.ts` aus und öffnet je Befund ein Issue mit dem Label `jahreswerte` und einer festen Kennung im Titel, z. B. `[jahreswerte:pap-2027]`. Gibt es schon ein offenes Issue mit der Kennung, entsteht kein zweites; hat sich der Befund geändert (neuere Version, anderer Hash), bekommt es einen Kommentar, und Titel und Text werden nachgezogen. Eine Quelle, die nicht antwortet (503, Verbindungsabbruch), steht nur als Warnung im Lauf; der Workflow schlägt deshalb nicht fehl. Die Jahreswechsel-Tests (`fehlendeLohnsteuerJahre`, `fehlendeSozialversicherungJahre`) bleiben die letzte Sicherung: Sie schlagen ab Dezember fehl, wenn das nächste Jahr fehlt.
+
+| Kennung | Quelle | Befund | Zu tun |
+| --- | --- | --- | --- |
+| `pap-<Jahr>` | [BMF-Steuerrechner](https://www.bmf-steuerrechner.de/), `Lohnsteuer<Jahr>.xml.xhtml` für das laufende und das nächste Jahr | Das XML eines Jahres ohne PAP in Haben ist erschienen | [Lohnsteuer: PAP jährlich aktualisieren](#lohnsteuer-pap-jährlich-aktualisieren) |
+| `pap-<Jahr>-geaendert` | wie oben | Das XML eines hinterlegten Jahres hat einen anderen SHA-256 als in `pap-<Jahr>.ts` | neue Fassung vergleichen, Werte, Quelle und Hash nachziehen |
+| `est-tarif-<Jahr>` | wie oben (der PAP enthält den Tarif, Methode UPTAB) | Es gibt den PAP des Jahres, aber `TARIFE` in `packages/core/src/income-tax.ts` hat das Jahr nicht | Schritt 5 der PAP-Aktualisierung |
+| `sv-<Jahr>` | gesetze-im-internet.de, `/svbezgrv_<Jahr>/` (Titel „SVBezGrV <Jahr>“) | Die Sozialversicherungsrechengrößen-Verordnung eines Jahres ohne Werte in Haben ist erschienen | [Sozialversicherung: Werte jährlich aktualisieren](#sozialversicherung-werte-jährlich-aktualisieren) |
+| `eric` | download.elster.de, `eric_<Haupt>/ERiC-<Version>-Linux-x86_64.jar` | Es gibt eine neuere Version als `DEFAULT_ERIC_VERSION` | installieren, [Tests mit echtem ERiC](#tests-mit-echtem-eric), Testübermittlung, `DEFAULT_ERIC_VERSION` anheben; neue Datenarten des Jahres und Taxonomie der E-Bilanz im Paket ansehen |
+| `eric-<Version>-entfernt` | wie oben | Die eingestellte Version ist nicht mehr herunterladbar | wie oben |
+| `datev-skr03`, `datev-skr04` | DATEV-Shop, Produktseiten Art.-Nr. 11174 und 11175, Merkmal „Stand“ | Der Stand ist ein anderer als `HABEN_KONTENRAHMEN_STAND` in `scripts/jahreswerte/datev.ts` | Kontenzuordnung (`hgb.ts`, `posting.ts`, `ebilanz.ts`) mit der neuen Ausgabe abgleichen, Konstante anheben |
+| `norm-<id>` | gesetze-im-internet.de, Einzelnormen aus `scripts/jahreswerte/normen.json` | Der Normtext hat einen anderen SHA-256 als in `normen.json`, oder die Seite antwortet mit 404 (Norm aufgehoben oder unter neuer Adresse) | siehe unten |
+
+**ERiC:** Die Infoseite für Entwickler bei ELSTER ist nur nach Anmeldung lesbar, und download.elster.de hat kein Verzeichnis. Die Pakete selbst sind frei abrufbar; das Skript fragt deshalb Versionen oberhalb von `DEFAULT_ERIC_VERSION` (bis zwei Hauptversionen voraus, Neben 0 bis 9, Patch 0 bis 12) mit `Range: bytes=0-0` ab und meldet die höchste, die es gibt. Als vorhanden zählt 206 (oder 200 ohne HTML); eine Wartungsseite mit 200 ist nur eine Warnung.
+
+**Gesetzeswächter:** `scripts/jahreswerte/normen.json` nennt je Norm, auf die Haben sich stützt, die Seite bei gesetze-im-internet.de, wofür Haben sie braucht, die Stellen im Code und den SHA-256 des Normtexts (Überschrift, Absätze und Fußnoten, ohne Tags, Navigation und Fußzeile, Leerraum zusammengefasst; die Seiten sind ISO-8859-1, den Zeichensatz nennt nur das `meta`-Element). Meldet der Workflow eine Norm als geändert: Änderung lesen (Fußnote und „Textnachweis“ nennen das ändernde Gesetz und ab wann es gilt), die genannten Stellen prüfen und anpassen, dann den Hash aktualisieren – auch wenn sich in Haben nichts ändert, sonst bleibt der Befund:
+
+```sh
+bun scripts/jahreswerte/pruefen.ts --trocken --normen-schreiben   # aktuelle Hashes nach normen.json
+```
+
+Eine neue Norm kommt mit leerem `sha256` in die Liste und bekommt ihren Hash mit demselben Befehl. Der Befehl übernimmt die Hashes aller Normen; vorher sollte kein anderer Befund zu einer Norm offen sein.
+
+Lokal ohne Issues, nur mit Ausgabe der Befunde und Warnungen:
+
+```sh
+bun scripts/jahreswerte/pruefen.ts --trocken
+```
+
+Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvollständige Zertifikatskette, die Bun ablehnt; neue Taxonomien kommen mit ERiC, siehe Befund `eric`), die Seiten des BMF (antworten oft mit 503) und der Basiszinssatz (§ 247 BGB, steht in den Einstellungen jeder Installation; nur der Normtext ist im Gesetzeswächter).
 
 ## Konventionen
 
@@ -275,6 +308,7 @@ Gerechnet wird ohne Gleitkommazahlen: Entgelt in Cent mal Satz in Basispunkten m
 | `apps/web/src/routes` | Seiten (TanStack Router) und API-Routen unter `api/` |
 | `apps/web/src/server` | `modules/` mit der Serverlogik je Fachbereich (öffentlich über `index.ts`), `db/` mit Schema und Migrationsskript, `functions/` mit den Server-Funktionen, daneben gemeinsame Infrastruktur |
 | `scripts/modulgrenzen/` | Prüfung der Modulgrenzen, läuft mit `bun run lint` |
+| `scripts/jahreswerte/` | Prüfung der amtlichen Jahreswerte, Normen und ERiC-Version für den Workflow „Jahreswerte prüfen“ |
 | `apps/web/src/components`, `lib` | React-Komponenten, Auth-Client, Formatierung |
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
