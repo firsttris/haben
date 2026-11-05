@@ -39,10 +39,13 @@ const nameVon = (p: SvPerson) => `${p.vorname} ${p.nachname}`;
 /**
  * Beitragsnachweise eines Monats: je Einzugsstelle, bei der eine festgeschriebene Abrechnung oder ein im Monat
  * Beschäftigter mit Sozialversicherung liegt. Wer noch keine festgeschriebene Abrechnung hat, steht als Hinweis daneben.
+ * Wer abgerechnet ist, zählt nur bei der Einzugsstelle seiner Abrechnung: Nach einem Kassenwechsel zeigen die
+ * Stammdaten schon die neue Kasse, die Beiträge des Monats gehen aber an die, mit der gerechnet ist.
  */
 export function beitragsnachweiseImMonat(d: ListenDaten, jahr: number, monat: number): Beitragsnachweis[] {
   const abrechnungen = d.abrechnungen.filter((a) => a.jahr === jahr && a.monat === monat);
-  const beschaeftigt = d.mitarbeiter.filter((m) => einzugsstelle(m.person) && imMonat(m.person, jahr, monat));
+  const abgerechnet = new Set(abrechnungen.map((a) => a.employeeId));
+  const beschaeftigt = d.mitarbeiter.filter((m) => einzugsstelle(m.person) && imMonat(m.person, jahr, monat) && !abgerechnet.has(m.id));
   const stellen = new Map<string, Einzugsstelle>();
   for (const p of [...abrechnungen.map((a) => a.person), ...beschaeftigt.map((m) => m.person)]) {
     const stelle = einzugsstelle(p);
@@ -50,10 +53,7 @@ export function beitragsnachweiseImMonat(d: ListenDaten, jahr: number, monat: nu
   }
   return [...stellen.values()].map((stelle) => {
     const eigene = abrechnungen.filter((a) => einzugsstelle(a.person)?.betriebsnummer === stelle.betriebsnummer);
-    const abgerechnet = new Set(eigene.map((a) => a.employeeId));
-    const ohneAbrechnung = beschaeftigt
-      .filter((m) => einzugsstelle(m.person)?.betriebsnummer === stelle.betriebsnummer && !abgerechnet.has(m.id))
-      .map((m) => nameVon(m.person));
+    const ohneAbrechnung = beschaeftigt.filter((m) => einzugsstelle(m.person)?.betriebsnummer === stelle.betriebsnummer).map((m) => nameVon(m.person));
     return beitragsnachweis({ jahr, monat, einzugsstelle: stelle, abrechnungen: eigene, ohneAbrechnung, steuernummer: d.steuernummer });
   });
 }
