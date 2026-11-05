@@ -179,6 +179,18 @@ describe.skipIf(!testDatabaseUrl)("CSV-Import (Postgres)", () => {
     });
   }
 
+  it("Anlagen der GmbH: die Vorschau lehnt die Staffel nach § 7 Abs. 2a EStG ab, nicht erst der Import", async () => {
+    await sql`update company set rechtsform = 'gmbh'`;
+    const file = [
+      "Bezeichnung;Art;Abschreibung;Anschaffungsdatum;Anschaffungskosten;Nutzungsdauer;Restbuchwert",
+      "E-Transporter;Fahrzeug;Elektro;01.08.2025;40.000,00;;10.000,00",
+      "Drehbank;Sonstige;degressiv;10.04.2024;50.000,00;10;34.000,00",
+    ].join("\n");
+    const preview = await csv.previewCsvImport(bytes(file), options("anlagen", { stichtag: "2026-01-01" }));
+    expect(preview.counts).toEqual({ neu: 1, dublette: 0, fehler: 1 });
+    expect(preview.rows[0]!.message).toMatch(/§ 7 Abs. 2a EStG nur im Einzelunternehmen/);
+  });
+
   it("Anlagen: kein Stichtag in einem abgeschlossenen Jahr, Stichtag ist Pflicht", async () => {
     await sql`insert into year_closings (year) values (2025)`;
     const preview = await csv.previewCsvImport(bytes(ANLAGEN), options("anlagen", { stichtag: "2025-06-01" }));

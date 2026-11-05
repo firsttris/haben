@@ -80,7 +80,9 @@ describe.skipIf(!testDatabaseUrl)("Weitere AfA-Methoden (Postgres)", () => {
     await setup(fall);
     const k = KONTEN[fall[0]];
     const maschine = await buyByDocument("2025-09-15", 10_000_000, { name: "Fräsmaschine", kind: "sonstiges", method: "degressiv", usefulLifeMonths: 120 });
-    const auto = await buyByDocument("2025-11-03", 6_000_000, { name: "Tesla Model 3", kind: "kfz", method: "elektro", usefulLifeMonths: null });
+    // § 7 Abs. 2a EStG nur im Einzelunternehmen; die GmbH-Fälle prüft der Test weiter unten
+    const einzel = fall[2] === "einzelunternehmen";
+    const auto = einzel ? await buyByDocument("2025-11-03", 6_000_000, { name: "Tesla Model 3", kind: "kfz", method: "elektro", usefulLifeMonths: null }) : null;
 
     const list = await assets.listAssets(2025);
     expect(list.find((a) => a.id === maschine)).toMatchObject({
@@ -89,35 +91,38 @@ describe.skipIf(!testDatabaseUrl)("Weitere AfA-Methoden (Postgres)", () => {
       account: k.bga,
       year: { depreciation: 1_000_000 },
     });
-    expect(list.find((a) => a.id === auto)).toMatchObject({ method: "elektro", account: k.kfz, year: { depreciation: 4_500_000, closing: 1_500_000 } });
+    if (auto) expect(list.find((a) => a.id === auto)).toMatchObject({ method: "elektro", account: k.kfz, year: { depreciation: 4_500_000, closing: 1_500_000 } });
     const euer = await reports.euerForYear(2025);
-    expect(euer.ausgaben.find((l) => l.key === "afa")?.amount).toBe(5_500_000);
+    expect(euer.ausgaben.find((l) => l.key === "afa")?.amount).toBe(einzel ? 5_500_000 : 1_000_000);
 
     await assets.bookDepreciation(actor, 2025, "2025-12-01");
     expect(await linesOf(maschine, 2025)).toEqual([
       { date: "2025-12-31", account: k.afa, debit: 1_000_000, credit: 0 },
       { date: "2025-12-31", account: k.bga, debit: 0, credit: 1_000_000 },
     ]);
-    expect(await linesOf(auto, 2025)).toEqual([
-      { date: "2025-12-31", account: k.afaKfz, debit: 4_500_000, credit: 0 },
-      { date: "2025-12-31", account: k.kfz, debit: 0, credit: 4_500_000 },
-    ]);
+    if (auto) {
+      expect(await linesOf(auto, 2025)).toEqual([
+        { date: "2025-12-31", account: k.afaKfz, debit: 4_500_000, credit: 0 },
+        { date: "2025-12-31", account: k.kfz, debit: 0, credit: 4_500_000 },
+      ]);
+    }
 
     // DATEV-Export: AfA wie jede Buchung, gegen das Anlagekonto
     await datev.saveDatevNumbers(actor, { beraterNr: "29098", mandantNr: "55003" });
     const stack = parseDatevBuchungsstapel((await datev.datevExport(2025, new Date(2026, 0, 4))).bytes);
     const pairs = stack.bookings.map((b) => `${[b.account, b.contraAccount].sort().join("/")}:${b.amount}`);
-    expect(pairs).toEqual(expect.arrayContaining([`${[k.afa, k.bga].sort().join("/")}:1000000`, `${[k.afaKfz, k.kfz].sort().join("/")}:4500000`]));
+    const expected = [`${[k.afa, k.bga].sort().join("/")}:1000000`, ...(auto ? [`${[k.afaKfz, k.kfz].sort().join("/")}:4500000`] : [])];
+    expect(pairs).toEqual(expect.arrayContaining(expected));
 
     // Satz, Erinnerungswert und Methode sind nach der ersten Buchung fest, auch in der Datenbank
     await expect(sql`update assets set degressive_rate = 2000 where id = ${maschine}`).rejects.toThrow("unveränderlich");
-    await expect(sql`update assets set memo_value = true where id = ${auto}`).rejects.toThrow("unveränderlich");
+    await expect(sql`update assets set memo_value = true where id = ${maschine}`).rejects.toThrow("unveränderlich");
     await expect(sql`update assets set method = 'linear', degressive_rate = null where id = ${maschine}`).rejects.toThrow("unveränderlich");
 
     // Wechsel zur linearen AfA (§ 7 Abs. 3 EStG): nur in ein noch nicht gebuchtes Jahr
     await expect(assets.updateAsset(actor, maschine, { name: "Fräsmaschine", linearFromYear: 2025 })).rejects.toThrow("frühestens 2026");
     await expect(sql`update assets set linear_from_year = 2025 where id = ${maschine}`).rejects.toThrow("Wechsel zur linearen AfA");
-    await expect(assets.updateAsset(actor, auto, { name: "Tesla Model 3", linearFromYear: 2026 })).rejects.toThrow("nur bei der degressiven");
+    if (auto) await expect(assets.updateAsset(actor, auto, { name: "Tesla Model 3", linearFromYear: 2026 })).rejects.toThrow("nur bei der degressiven");
     await assets.updateAsset(actor, maschine, { name: "Fräsmaschine", linearFromYear: 2026 });
 
     await assets.bookDepreciation(actor, 2026, "2026-12-01");
@@ -126,10 +131,12 @@ describe.skipIf(!testDatabaseUrl)("Weitere AfA-Methoden (Postgres)", () => {
       { date: "2026-12-31", account: k.afa, debit: 931_034, credit: 0 },
       { date: "2026-12-31", account: k.bga, debit: 0, credit: 931_034 },
     ]);
-    expect(await linesOf(auto, 2026)).toEqual([
-      { date: "2026-12-31", account: k.afaKfz, debit: 600_000, credit: 0 },
-      { date: "2026-12-31", account: k.kfz, debit: 0, credit: 600_000 },
-    ]);
+    if (auto) {
+      expect(await linesOf(auto, 2026)).toEqual([
+        { date: "2026-12-31", account: k.afaKfz, debit: 600_000, credit: 0 },
+        { date: "2026-12-31", account: k.kfz, debit: 0, credit: 600_000 },
+      ]);
+    }
     // zurück zur degressiven geht nicht (§ 7 Abs. 3 Satz 3 EStG)
     await expect(assets.updateAsset(actor, maschine, { name: "Fräsmaschine", linearFromYear: null })).rejects.toThrow("zurück zur degressiven");
     await expect(sql`update assets set linear_from_year = null where id = ${maschine}`).rejects.toThrow("Wechsel zur linearen AfA");
@@ -231,5 +238,33 @@ describe.skipIf(!testDatabaseUrl)("Weitere AfA-Methoden (Postgres)", () => {
     // Ungebucht lässt sich die Methode noch wechseln; Satz und Wechsel fallen dann weg
     const linear = await assets.updateAsset(actor, car.id, { name: "Auto", method: "linear", usefulLifeMonths: 72, openingBookValue: 3_000_000 });
     expect(linear).toMatchObject({ method: "linear", degressiveRate: null, linearFromYear: null });
+  });
+
+  // GmbH und UG: Haben führt ein Buch für Handels- und Steuerbilanz ohne Überleitung. Die Staffel nach § 7 Abs. 2a EStG ist
+  // keine planmäßige Abschreibung nach § 253 Abs. 3 Satz 1 HGB; seit dem BilMoG folgt die Handelsbilanz steuerlichen
+  // Wahlrechten nicht mehr (§ 5 Abs. 1 Satz 1 Halbsatz 2 EStG), darum bietet Haben sie dort nicht an.
+  it.each(["SKR03", "SKR04"] as const)("%s, GmbH: keine AfA nach § 7 Abs. 2a EStG, weder angelegt noch per Beleg", async (kontenrahmen) => {
+    await setup([kontenrahmen, "soll", "gmbh"]);
+    await expect(
+      assets.createAsset(actor, {
+        name: "E-Transporter",
+        kind: "kfz",
+        method: "elektro",
+        acquisitionDate: "2025-08-01",
+        cost: 4_000_000,
+        usefulLifeMonths: null,
+        openingDate: "2026-01-01",
+        openingBookValue: 1_000_000,
+        disposalDate: null,
+        note: "",
+      }),
+    ).rejects.toThrow("§ 7 Abs. 2a EStG nur im Einzelunternehmen");
+    await expect(buyByDocument("2025-11-03", 6_000_000, { name: "Tesla Model 3", kind: "kfz", method: "elektro", usefulLifeMonths: null })).rejects.toThrow(
+      "§ 7 Abs. 2a EStG nur im Einzelunternehmen",
+    );
+    expect(await sql`select 1 from assets`).toHaveLength(0);
+    // Degressiv bleibt: nach HGB eine anerkannte planmäßige Methode
+    const maschine = await buyByDocument("2025-09-15", 10_000_000, { name: "Fräsmaschine", kind: "sonstiges", method: "degressiv", usefulLifeMonths: 120 });
+    expect((await assets.listAssets(2025)).find((a) => a.id === maschine)).toMatchObject({ degressiveRate: 3000, year: { depreciation: 1_000_000 } });
   });
 });
