@@ -96,9 +96,9 @@ const ERTRAGSTEUERN: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
     "4635": [`${LIMITED}.gifts.nondeductible`],
     "4636": [`${LIMITED}.gifts.nondeductible`],
     "4637": [`${LIMITED}.gifts.nondeductible`],
-    "4652": [`${LIMITED}.other`],
+    "4652": [`${LIMITED}.other.miscellaneous.nonDeductible`],
     "4654": [`${LIMITED}.entertainment.nonDeductible`],
-    "4655": [`${LIMITED}.other`],
+    "4655": [`${LIMITED}.other.miscellaneous.nonDeductible`],
   },
   SKR04: {
     "7600": [`${T}.kst`],
@@ -118,9 +118,9 @@ const ERTRAGSTEUERN: Record<Kontenrahmen, Record<string, EbilanzZiel>> = {
     "6620": [`${LIMITED}.gifts.nondeductible`],
     "6621": [`${LIMITED}.gifts.nondeductible`],
     "6622": [`${LIMITED}.gifts.nondeductible`],
-    "6642": [`${LIMITED}.other`],
+    "6642": [`${LIMITED}.other.miscellaneous.nonDeductible`],
     "6644": [`${LIMITED}.entertainment.nonDeductible`],
-    "6645": [`${LIMITED}.other`],
+    "6645": [`${LIMITED}.other.miscellaneous.nonDeductible`],
   },
 };
 
