@@ -29,19 +29,45 @@ describe("ERiC", () => {
   });
 
   it("meldet die neueste gefundene Version und nennt alle", async () => {
-    const e = await pruefeEric("43.4.6.0", nachgestellt(vorhanden("43.4.6.0", "43.5.4.0", "44.3.6.0", "45.1.5.0")));
+    const e = await pruefeEric("43.4.6.0", nachgestellt(vorhanden("43.4.6.0", "43.5.4.0", "44.3.6.0", "45.2.1.0")));
     expect(e.warnungen).toEqual([]);
     expect(e.befunde).toHaveLength(1);
     expect(e.befunde[0]?.schluessel).toBe("eric");
-    expect(e.befunde[0]?.titel).toBe("ERiC 45.1.5.0 ist verfügbar (Haben: 43.4.6.0)");
+    expect(e.befunde[0]?.titel).toBe("ERiC 45.2.1.0 ist verfügbar (Haben: 43.4.6.0)");
     expect(e.befunde[0]?.text).toContain(ericUrl("43.5.4.0"));
     expect(e.befunde[0]?.text).toContain("DEFAULT_ERIC_VERSION");
     expect(e.befunde[0]?.text).toContain("checkUStVA_<Jahr>");
   });
 
   it("meldet, wenn die eingestellte Version vom Server genommen wurde", async () => {
-    const e = await pruefeEric("43.4.6.0", nachgestellt(vorhanden("44.1.6.0")));
+    const e = await pruefeEric("43.4.6.0", nachgestellt(vorhanden("44.2.4.0")));
     expect(e.befunde.map((b) => b.schluessel)).toEqual(["eric-43.4.6.0-entfernt", "eric"]);
+  });
+
+  describe("BETA einer neuen Hauptversion (Entwicklerhandbuch Kap. 2.3 und 5.4.3)", () => {
+    it("meldet <Haupt>.1 einer neuen Hauptversion nicht, solange es kein <Haupt>.2 gibt", async () => {
+      const e = await pruefeEric("44.3.6.0", nachgestellt(vorhanden("44.3.6.0", "45.1.5.0")));
+      expect(e.befunde).toEqual([]);
+      expect(e.warnungen).toEqual(["ERiC: 45.1.5.0 ist eine BETA (nur Testfälle mit Testmerker), noch nicht anheben"]);
+    });
+
+    it("meldet das Hauptrelease <Haupt>.2, sobald es da ist, ohne die BETA", async () => {
+      const e = await pruefeEric("44.3.6.0", nachgestellt(vorhanden("44.3.6.0", "45.1.5.0", "45.2.1.0")));
+      expect(e.warnungen).toEqual([]);
+      expect(e.befunde.map((b) => b.titel)).toEqual(["ERiC 45.2.1.0 ist verfügbar (Haben: 44.3.6.0)"]);
+      expect(e.befunde[0]?.text).not.toContain(ericUrl("45.1.5.0"));
+    });
+
+    it("meldet ein Wartungsrelease der eingestellten Hauptversion wie bisher", async () => {
+      const e = await pruefeEric("44.3.6.0", nachgestellt(vorhanden("44.3.6.0", "44.3.7.0", "45.1.5.0")));
+      expect(e.befunde.map((b) => b.titel)).toEqual(["ERiC 44.3.7.0 ist verfügbar (Haben: 44.3.6.0)"]);
+      expect(e.warnungen).toEqual(["ERiC: 45.1.5.0 ist eine BETA (nur Testfälle mit Testmerker), noch nicht anheben"]);
+    });
+
+    it("hält bei eingestellter BETA ihre eigenen Wartungsreleases nicht für BETA", async () => {
+      const e = await pruefeEric("45.1.5.0", nachgestellt(vorhanden("45.1.5.0", "45.1.6.0")));
+      expect(e.befunde.map((b) => b.titel)).toEqual(["ERiC 45.1.6.0 ist verfügbar (Haben: 45.1.5.0)"]);
+    });
   });
 
   it("macht aus einem Server, der nicht antwortet, Warnungen statt Befunden", async () => {
@@ -55,8 +81,8 @@ describe("ERiC", () => {
   });
 
   it("meldet eine gefundene Version auch, wenn einzelne Abfragen scheitern", async () => {
-    const e = await pruefeEric("43.4.6.0", nachgestellt({ ...vorhanden("43.4.6.0", "44.1.6.0"), [ericUrl("43.4.7.0")]: netzwerkfehler }));
-    expect(e.befunde.map((b) => b.titel)).toEqual(["ERiC 44.1.6.0 ist verfügbar (Haben: 43.4.6.0)"]);
+    const e = await pruefeEric("43.4.6.0", nachgestellt({ ...vorhanden("43.4.6.0", "44.2.4.0"), [ericUrl("43.4.7.0")]: netzwerkfehler }));
+    expect(e.befunde.map((b) => b.titel)).toEqual(["ERiC 44.2.4.0 ist verfügbar (Haben: 43.4.6.0)"]);
     expect(e.warnungen).toHaveLength(1);
   });
 
