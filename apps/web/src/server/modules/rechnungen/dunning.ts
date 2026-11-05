@@ -74,16 +74,31 @@ function owed(list: Awaited<ReturnType<typeof listInvoices>>) {
   });
 }
 
-async function openInvoice(invoiceId: string, today: string) {
+/** Festgeschriebene Rechnung mit dem, was der Kunde schuldet; undefined, wenn es keine mit dieser Id gibt */
+async function finalInvoice(invoiceId: string, today: string) {
   const invoice = owed(await listInvoices(today)).find((i) => i.id === invoiceId);
-  if (invoice?.status !== "final") throw new DunningError("Rechnung nicht gefunden.");
+  return invoice?.status === "final" ? invoice : undefined;
+}
+
+function assertOpen<T extends { kind: string; open: number }>(invoice: T): T {
   if (invoice.kind !== "rechnung" || invoice.open <= 0) throw new DunningError("Für diese Rechnung ist nichts offen.");
   return invoice;
 }
 
-/** Vorschlag für eine neue Mahnung: nächste Stufe, Frist, Gebühr und Texte aus den Einstellungen */
+async function openInvoice(invoiceId: string, today: string) {
+  const invoice = await finalInvoice(invoiceId, today);
+  if (!invoice) throw new DunningError("Rechnung nicht gefunden.");
+  return assertOpen(invoice);
+}
+
+/**
+ * Vorschlag für eine neue Mahnung: nächste Stufe, Frist, Gebühr und Texte aus den Einstellungen. null, wenn es die
+ * Rechnung nicht gibt: Die Mahnungsseite zeigt dann 404 wie jede Detailseite.
+ */
 export async function dunningDraft(invoiceId: string, today: string) {
-  const invoice = await openInvoice(invoiceId, today);
+  const found = await finalInvoice(invoiceId, today);
+  if (!found) return null;
+  const invoice = assertOpen(found);
   const { dunning } = await loadCompany();
   const [last] = await dunningsFor([invoiceId]);
   const level = nextLevel(last);

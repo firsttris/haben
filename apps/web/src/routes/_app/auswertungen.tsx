@@ -8,9 +8,10 @@ import type { OpenPosition } from "../../server/modules/auswertungen/index.ts";
 import { getReports } from "../../server/functions/reports.ts";
 import styles from "../../styles/auswertungen.css?url";
 import { ScrollTable } from "../../components/ScrollTable.tsx";
+import { ERSTES_JAHR, LETZTES_JAHR } from "../../lib/jahre.ts";
 
 export const Route = createFileRoute("/_app/auswertungen")({
-  validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(2000), z.maximum(2100))) }),
+  validateSearch: z.object({ jahr: z.optional(z.int().check(z.minimum(ERSTES_JAHR), z.maximum(LETZTES_JAHR))) }),
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => getReports({ data: { year: deps.jahr ?? new Date().getFullYear() } }),
   head: () => ({ meta: [{ title: "Auswertungen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
@@ -41,9 +42,11 @@ function ReportsPage() {
         </div>
         <div className="actions">
           <nav className="year-switch" aria-label="Jahr wählen">
-            <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`}>
-              ‹ {year - 1}
-            </Link>
+            {year > ERSTES_JAHR && (
+              <Link to="/auswertungen" search={{ jahr: year - 1 }} className="chip" aria-label={`Vorjahr ${year - 1}`}>
+                ‹ {year - 1}
+              </Link>
+            )}
             {yearOptions.map((y) => (
               <Link
                 key={y}
@@ -55,9 +58,11 @@ function ReportsPage() {
                 {y}
               </Link>
             ))}
-            <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`}>
-              {year + 1} ›
-            </Link>
+            {year < LETZTES_JAHR && (
+              <Link to="/auswertungen" search={{ jahr: year + 1 }} className="chip" aria-label={`Folgejahr ${year + 1}`}>
+                {year + 1} ›
+              </Link>
+            )}
           </nav>
           {!gesellschaft && (
             <a className="btn btn-primary" href={`/api/auswertungen/${year}`} download>

@@ -158,7 +158,7 @@ describe.skipIf(!testDatabaseUrl)("Review: Storno und Korrektur (Postgres)", () 
     const { original } = await corrected();
     const proposal = await dunning.dunningDraft(original.id, "2026-10-29");
     // Der Kunde schuldet nach der Korrektur 952 €
-    expect(proposal.invoice.open).toBe(95_200);
+    expect(proposal?.invoice.open).toBe(95_200);
     expect((await dunning.overdueInvoices("2026-10-29")).find((i) => i.id === original.id)?.open).toBe(95_200);
   }, 60_000);
 

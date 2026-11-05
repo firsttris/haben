@@ -8,6 +8,7 @@ import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { getJournal, reverseManualEntryFn } from "../../../server/functions/journal.ts";
 import styles from "../../../styles/auswertungen.css?url";
+import { ERSTES_JAHR, LETZTES_JAHR } from "../../../lib/jahre.ts";
 
 export const Route = createFileRoute("/_app/buchungen/")({
   validateSearch: z.object({ jahr: z.optional(z.int()), monat: z.optional(z.int().check(z.minimum(1), z.maximum(12))) }),
@@ -158,12 +159,16 @@ function JournalPage() {
           <h1>Buchungen {periodLabel(period)}</h1>
         </div>
         <div className="actions">
-          <Link to="/buchungen" search={{ jahr: prev.year, monat: prev.month }} className="btn">
-            ‹ {periodLabel(prev)}
-          </Link>
-          <Link to="/buchungen" search={{ jahr: next.year, monat: next.month }} className="btn">
-            {periodLabel(next)} ›
-          </Link>
+          {prev.year >= ERSTES_JAHR && (
+            <Link to="/buchungen" search={{ jahr: prev.year, monat: prev.month }} className="btn">
+              ‹ {periodLabel(prev)}
+            </Link>
+          )}
+          {next.year <= LETZTES_JAHR && (
+            <Link to="/buchungen" search={{ jahr: next.year, monat: next.month }} className="btn">
+              {periodLabel(next)} ›
+            </Link>
+          )}
           {inhaber && isKapitalgesellschaft(rechtsform) && (
             <Link to="/buchungen/neu" className="btn btn-primary">
               Buchung erfassen
