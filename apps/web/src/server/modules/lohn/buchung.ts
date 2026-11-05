@@ -1,5 +1,5 @@
-import { lohnBuchung, lohnStornoBuchung, monatsgrenzen, monatsname } from "@haben/core";
-import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { type Cents, type Kontenrahmen, lohnBuchung, lohnStornoBuchung, monatsgrenzen, monatsname } from "@haben/core";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
@@ -89,8 +89,16 @@ export async function nachbuchen(actor: string, id: string): Promise<void> {
   });
 }
 
-/** Ob es eine festgeschriebene Abrechnung gibt; ohne sie gibt es keine Lohnverbindlichkeit zu bezahlen */
-export async function hatFestgeschriebeneAbrechnung(q: Db | Tx = db): Promise<boolean> {
-  const [row] = await q.select({ id: schema.payslips.id }).from(schema.payslips).where(isNotNull(schema.payslips.lockedAt)).limit(1);
-  return Boolean(row);
+/**
+ * Offener Betrag einer Lohnverbindlichkeit über alle Buchungen im Kontenrahmen (Haben − Soll; negativ = überzahlt). Sperrt
+ * bis zum Ende der Transaktion, damit zwei gleichzeitige Lohnzahlungen dieselbe Verbindlichkeit nicht gemeinsam überziehen.
+ */
+export async function offeneLohnverbindlichkeit(tx: Tx, konto: string, kontenrahmen: Kontenrahmen): Promise<Cents> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext('haben.lohnzahlung'))`);
+  const [row] = await tx
+    .select({ offen: sql<number>`coalesce(sum(${schema.journalLines.credit} - ${schema.journalLines.debit}), 0)`.mapWith(Number) })
+    .from(schema.journalLines)
+    .innerJoin(schema.journalEntries, eq(schema.journalEntries.id, schema.journalLines.entryId))
+    .where(and(eq(schema.journalLines.account, konto), eq(schema.journalEntries.kontenrahmen, kontenrahmen)));
+  return row?.offen ?? 0;
 }

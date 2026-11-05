@@ -71,7 +71,7 @@ Die Pauschsteuer im Minijob zieht die Minijob-Zentrale mit den Beiträgen ein (�
 
 Ein **Storno** bucht dieselben Zeilen mit getauschten Seiten, am selben Tag wie die stornierte Buchung, damit Storno und neue Abrechnung im selben Monat stehen; der Tag des Stornos steht im Buchungstext.
 
-**Bezahlen** ordnest du im [Bankabgleich](bank.md#ohne-rechnung-buchen) mit **Ohne Rechnung buchen** zu: „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“. Die Zuordnung bucht die Verbindlichkeit an Bank. Das geht erst, wenn es eine festgeschriebene Abrechnung gibt.
+**Bezahlen** ordnest du im [Bankabgleich](bank.md#ohne-rechnung-buchen) mit **Ohne Rechnung buchen** zu: „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“. Die Zuordnung bucht die Verbindlichkeit an Bank. Das geht erst, wenn es eine festgeschriebene Abrechnung gibt, und höchstens über den Betrag, der auf dem Konto noch offen ist.
 
 **Nebenbuch:** Die Lohnkonten (Aufwand und Verbindlichkeiten) bebucht nur die Lohnabrechnung; eine [manuelle Buchung](buchhaltung.md#manuelle-buchungen-gmbh-und-ug) darauf lehnt Haben ab. Ausnahme ist die Eröffnung: Offene Lohnverbindlichkeiten aus der bisherigen Buchhaltung, etwa die Lohnsteuer für Dezember, übernimmst du dort und bezahlst sie im neuen Jahr über die Bank.
 

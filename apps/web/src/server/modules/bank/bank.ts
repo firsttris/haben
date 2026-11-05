@@ -5,6 +5,10 @@ import {
   paymentProviderAccount,
   providerPattern,
   type Kontenrahmen,
+  type Cents,
+  formatEuro,
+  type LohnZahlung,
+  lohnZahlungKonto,
   directPosting,
   documentOpen,
   documentWriteOffPosting,
@@ -41,7 +45,7 @@ import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
-import { hatFestgeschriebeneAbrechnung } from "../lohn/index.ts";
+import { offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { sha256Of } from "../../storage.ts";
@@ -873,6 +877,28 @@ const DIRECT_KINDS = [
   "sozialversicherung",
 ] as const;
 
+/**
+ * Eine Lohnzahlung tilgt nur, was die Lohnabrechnung als Verbindlichkeit gebucht hat, wie eine Zahlung den offenen Betrag
+ * eines Belegs: ein Ausgang höchstens die offene Verbindlichkeit, ein Eingang höchstens eine Überzahlung. Im
+ * Einzelunternehmen zählte ein Betrag darüber hinaus in der EÜR als Personalausgabe, etwa eine Entnahme des Inhabers.
+ */
+async function assertLohnOffen(tx: Tx, kind: LohnZahlung, amount: Cents, kontenrahmen: Kontenrahmen): Promise<void> {
+  const konto = lohnZahlungKonto(kind, kontenrahmen);
+  const offen = await offeneLohnverbindlichkeit(tx, konto, kontenrahmen);
+  if (Math.sign(-amount) === Math.sign(offen) && Math.abs(amount) <= Math.abs(offen)) return;
+  if (amount > 0) {
+    throw new BankError(
+      offen < 0
+        ? `Auf Konto ${konto} ist nur ${formatEuro(-offen)} überzahlt; mehr kann ein Eingang nicht erstatten.`
+        : `Ein Eingang erstattet nur eine Überzahlung; auf Konto ${konto} ist nichts überzahlt.`,
+    );
+  }
+  if (offen > 0) throw new BankError(`Auf Konto ${konto} ist nur noch ${formatEuro(offen)} offen.`);
+  throw new BankError(
+    `Auf Konto ${konto} ist nichts offen. Lohnzahlungen lassen sich erst zuordnen, wenn eine Lohnabrechnung festgeschrieben ist (Personal › Lohn).`,
+  );
+}
+
 /** Ein stornierter Beleg (#237) ist erledigt: keine Zahlung, kein Skonto, keine Kursdifferenz mehr */
 async function assertNotCancelled(tx: Tx, documentId: string): Promise<void> {
   const [cancelled] = await tx
@@ -986,11 +1012,7 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     lines = exchangeDifferenceBankPosting(part.amount, company.kontenrahmen);
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;
   } else {
-    // Ohne festgeschriebene Lohnabrechnung gibt es keine Lohnverbindlichkeit; im Einzelunternehmen zählte die Zahlung sonst
-    // als Personalausgabe in der EÜR, auch wenn es eine Entnahme des Inhabers ist
-    if (isLohnZahlung(part.kind) && !(await hatFestgeschriebeneAbrechnung(tx))) {
-      throw new BankError("Lohnzahlungen lassen sich erst zuordnen, wenn eine Lohnabrechnung festgeschrieben ist (Personal › Lohn).");
-    }
+    if (isLohnZahlung(part.kind)) await assertLohnOffen(tx, part.kind, part.amount, company.kontenrahmen);
     lines = directPosting(part.kind as DirectBooking, part.amount, company.kontenrahmen, company.rechtsform);
     // In GmbH und UG ist „privat“ das Gesellschafter-Verrechnungskonto; so steht es auch im Buchungstext
     const label = part.kind === "privat" && isKapitalgesellschaft(company.rechtsform) ? "gesellschafter" : part.kind;

@@ -19,4 +19,4 @@ export {
   stornoSchema,
 } from "./payroll.ts";
 export { abrechnungDatei, lohnkontoDatei, lohnkontoDesJahres } from "./lohnkonto.ts";
-export { gebuchteAbrechnungen, hatFestgeschriebeneAbrechnung, nachbuchen } from "./buchung.ts";
+export { gebuchteAbrechnungen, nachbuchen, offeneLohnverbindlichkeit } from "./buchung.ts";

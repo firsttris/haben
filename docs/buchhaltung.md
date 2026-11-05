@@ -244,7 +244,7 @@ Beim Zuordnen eines Bankumsatzes zu einem gebuchten Beleg, gebucht auf den Buchu
 
 ### Bankumsätze ohne Rechnung oder Beleg
 
-Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer dieser Arten zuordnen; die drei Lohnzahlungen erst, wenn es eine festgeschriebene [Lohnabrechnung](#lohnabrechnung) gibt. Gebucht wird Bank gegen ein Gegenkonto, auf den Buchungstag. Bei einem Ausgang (negativer Betrag) steht die Bank im Haben, bei einem Eingang im Soll.
+Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer dieser Arten zuordnen; die drei Lohnzahlungen nur über das, was eine festgeschriebene [Lohnabrechnung](#lohnabrechnung) als Verbindlichkeit gebucht hat und noch offen ist (ein Eingang nur, soweit überzahlt). Gebucht wird Bank gegen ein Gegenkonto, auf den Buchungstag. Bei einem Ausgang (negativer Betrag) steht die Bank im Haben, bei einem Eingang im Soll.
 
 | Art | Gegenkonto SKR03 | Gegenkonto SKR04 | Ausgang | Eingang |
 | --- | --- | --- | --- | --- |

@@ -589,7 +589,7 @@ export type LohnZahlung = (typeof LOHN_ZAHLUNGEN)[number];
 export const isLohnZahlung = (kind: string): kind is LohnZahlung => (LOHN_ZAHLUNGEN as readonly string[]).includes(kind);
 
 /** Verbindlichkeit, die eine Lohnzahlung tilgt */
-function lohnZahlungKonto(kind: LohnZahlung, kontenrahmen: Kontenrahmen): string {
+export function lohnZahlungKonto(kind: LohnZahlung, kontenrahmen: Kontenrahmen): string {
   const k = LOHN_KONTEN[kontenrahmen];
   return kind === "lohn" ? k.verbLohn : kind === "lohnsteuer" ? k.verbLohnsteuer : k.verbSv;
 }
