@@ -22,7 +22,7 @@ import {
   updateDocument,
   uploadDocument,
 } from "../modules/belege/index.ts";
-import { extractionAvailable } from "../modules/belege/index.ts";
+import { extractionAvailable, extractionSettings } from "../modules/belege/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
 import { documentSepaTransfers } from "../modules/bank/index.ts";
@@ -137,11 +137,16 @@ export const deleteDocumentFn = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Einstellungen › KI-Assistenten und API: welcher Anbieter Belege ausliest; ohne Schlüssel */
+export const getExtractionSettings = createServerFn({ method: "GET" })
+  .middleware([authMiddleware])
+  .handler(() => extractionSettings());
+
 export const reextractDocument = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.uuid())
   .handler(async ({ data, context }) => {
-    if (!extractionAvailable()) throw new UserError("Die KI-Auslesung ist nicht eingerichtet (ANTHROPIC_API_KEY).");
+    if (!extractionAvailable()) throw new UserError("Die KI-Auslesung ist nicht eingerichtet (ANTHROPIC_API_KEY oder EXTRACTION_BASE_URL).");
     inBackground(runExtraction(context.user.id, data));
     return { ok: true };
   });

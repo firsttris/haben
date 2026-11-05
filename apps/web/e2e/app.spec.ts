@@ -1490,6 +1490,10 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
 
 test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {
   await go("/einstellungen?bereich=ki");
+  // Ohne ANTHROPIC_API_KEY und EXTRACTION_BASE_URL ist die Belegauslesung aus; die Karte sagt es und verweist auf die Doku
+  const auslesung = page.getByRole("region", { name: "Belegauslesung" });
+  await expect(auslesung).toContainText("Die KI-Auslesung ist aus.");
+  await expect(auslesung.getByRole("link", { name: "Belegauslesung einrichten" })).toHaveAttribute("href", /einrichtung\.html#ki-auslesung-von-belegen/);
   // Gesteuertes Kästchen: es zeigt den Stand erst nach der Antwort des Servers
   const zugang = page.getByLabel("Zugang für KI-Assistenten und API einschalten");
   await zugang.click();

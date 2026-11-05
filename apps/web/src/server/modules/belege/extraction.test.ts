@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { decimalToCents, describeExtractionError, toFields, type Extraction } from "./extraction.ts";
+import { decimalToCents, describeExtractionError, extractDocument, toFields, type Extraction } from "./extraction.ts";
+import { ExtractionError } from "./extraction-schema.ts";
 
 const base: Extraction = {
   lieferant: " Hetzner Online GmbH ",
@@ -65,5 +66,54 @@ describe("KI-Auslesung umwandeln", () => {
 
   it("Gutschrift wird negativ", () => {
     expect(toFields({ ...base, istGutschrift: true, brutto: "38.56" }).amounts).toEqual([{ taxRate: 1900, net: -3240, tax: -616 }]);
+  });
+});
+
+describe("Anbieter der Auslesung", () => {
+  const local = {
+    provider: "openai-compatible" as const,
+    model: "qwen2.5vl:7b",
+    endpoint: "http://127.0.0.1:9/v1/chat/completions",
+    apiKey: null,
+    timeoutMs: 1_000,
+    maxPages: 4,
+  };
+  const pdfWarning = "Das PDF hat mehr als 4 Seiten; ausgelesen wurden nur die ersten 4.";
+  const providers = () => ({
+    anthropic: vi.fn(async () => ({ extraction: base, warnings: [] as string[] })),
+    "openai-compatible": vi.fn(async () => ({ extraction: base, warnings: [pdfWarning] })),
+  });
+
+  it("ruft nur den gewählten Anbieter und prüft dessen Antwort wie bisher", async () => {
+    const calls = providers();
+    const result = await extractDocument(new Uint8Array([1]), "pdf", local, calls);
+    expect(calls["openai-compatible"]).toHaveBeenCalledOnce();
+    expect(calls.anthropic).not.toHaveBeenCalled();
+    expect(result.fields).toMatchObject({ supplierName: "Hetzner Online GmbH", amounts: [{ taxRate: 1900, net: 3240, tax: 616 }] });
+    expect(result.fields.warnings).toEqual([pdfWarning]);
+  });
+
+  it("kein Cloud-Fallback: schlägt der eigene Dienst fehl, bleibt Anthropic unberührt", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const calls = providers();
+    calls["openai-compatible"].mockRejectedValueOnce(
+      new ExtractionError("Der KI-Dienst unter http://127.0.0.1:9/v1 ist nicht erreichbar.", "nicht-erreichbar"),
+    );
+    await expect(extractDocument(new Uint8Array([1]), "jpeg", local, calls)).rejects.toThrow(/nicht erreichbar/);
+    expect(calls.anthropic).not.toHaveBeenCalled();
+    // Im Log Anbieter, Modell und Fehlerart, aber nicht die Meldung mit Adresse oder Inhalten
+    expect(warn).toHaveBeenCalledWith("KI-Auslesung fehlgeschlagen (openai-compatible, qwen2.5vl:7b): nicht-erreichbar");
+  });
+
+  it("ohne Einrichtung kein Aufruf", async () => {
+    const calls = providers();
+    await expect(extractDocument(new Uint8Array([1]), "jpeg", null, calls)).rejects.toThrow(/nicht eingerichtet/);
+    expect(calls.anthropic).not.toHaveBeenCalled();
+    expect(calls["openai-compatible"]).not.toHaveBeenCalled();
+  });
+
+  it("Fehler des eigenen Dienstes stehen unverändert am Beleg", () => {
+    const message = "Die Antwort des KI-Dienstes passt nicht zum Belegschema.";
+    expect(describeExtractionError(new ExtractionError(message, "schema"))).toBe(message);
   });
 });

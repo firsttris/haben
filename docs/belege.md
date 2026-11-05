@@ -36,7 +36,7 @@ Erlaubt sind PDF, JPEG, PNG, WebP, HEIC und E-Rechnungs-XML bis 20 MB je Datei. 
 2. **Ablegen unter dem SHA-256.** Die Datei wird unter ihrem SHA-256-Hash im Verzeichnis `DOCUMENTS_DIR` gespeichert (`<dir>/ab/abcdef…`), atomar über eine temporäre Datei. Beim Lesen prüft Haben den Hash erneut und meldet eine beschädigte Datei.
 3. **Keine Dubletten.** Gibt es schon einen Beleg mit demselben Hash, entsteht kein zweiter; du landest beim vorhandenen.
 4. **E-Rechnung lesen.** Bei PDF und XML versucht Haben zuerst, eine E-Rechnung zu lesen (siehe unten).
-5. **KI-Auslesung.** Ist es keine E-Rechnung und ist ein Anthropic-API-Schlüssel eingerichtet, startet für PDF, JPEG, PNG und WebP die KI-Auslesung im Hintergrund. Der Beleg zeigt solange „Wird ausgelesen“, Liste und Detailseite aktualisieren sich selbst.
+5. **KI-Auslesung.** Ist es keine E-Rechnung und ist die KI-Auslesung eingerichtet (Claude oder ein eigenes Modell), startet für PDF, JPEG, PNG und WebP die Auslesung im Hintergrund. Der Beleg zeigt solange „Wird ausgelesen“, Liste und Detailseite aktualisieren sich selbst.
 
 Ohne E-Rechnung und ohne KI füllst du die Felder von Hand aus.
 
@@ -86,13 +86,13 @@ Lässt sich eine hochgeladene XML-Datei nicht als E-Rechnung lesen, steht der Fe
 
 Eine E-Rechnung bringt keine Kategorie mit. Haben schlägt die Kategorie vor, unter der du Belege desselben Lieferanten bisher am häufigsten gebucht hast; gibt es keinen, bleibt das Feld leer.
 
-## KI-Auslesung mit Claude
+## KI-Auslesung
 
-Die KI-Auslesung ist optional und nur aktiv, wenn `ANTHROPIC_API_KEY` gesetzt ist (siehe [installation.md](installation.md)). Ohne Schlüssel funktioniert alles andere weiter, auch das Lesen von E-Rechnungen.
+Die KI-Auslesung ist optional. Sie liest entweder Claude über die Anthropic-API (`ANTHROPIC_API_KEY`) oder ein selbst betriebenes Vision-Modell über eine OpenAI-kompatible Schnittstelle, etwa Ollama mit Qwen-VL (`EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`); Einrichtung in [Erste Schritte](einrichtung.md#ki-auslesung-von-belegen). Es gilt immer genau ein Anbieter: Ist ein eigenes Modell eingerichtet, gehen Belege nur dorthin, auch wenn zusätzlich ein Anthropic-Schlüssel gesetzt ist, und bei einem Fehler weicht Haben nicht in die Cloud aus. Ohne beides funktioniert alles andere weiter, auch das Lesen von E-Rechnungen.
 
-**Was gesendet wird:** die Belegdatei selbst (PDF als Dokument, JPEG, PNG oder WebP als Bild) zusammen mit einer festen Anweisung und der Liste der Ausgabenkategorien. Sonst nichts aus deiner Buchhaltung. HEIC-Fotos und XML-Dateien gehen nicht an die KI.
+**Was gesendet wird:** die Belegdatei selbst zusammen mit einer festen Anweisung und der Liste der Ausgabenkategorien. Sonst nichts aus deiner Buchhaltung. An Claude geht ein PDF als Dokument, JPEG, PNG oder WebP als Bild. An ein eigenes Modell gehen Fotos als Bild und PDFs als Seitenbilder, die Haben vorher auf dem Server erzeugt (höchstens `EXTRACTION_MAX_PAGES` Seiten, Standard 4). HEIC-Fotos und XML-Dateien gehen nicht an die KI.
 
-**Was zurückkommt:** ein festes Schema mit Lieferant, USt-IdNr., Rechnungsnummer, Belegdatum, Fälligkeit, Währung, Netto und Steuer je Steuersatz, Bruttobetrag, Kategorie, ob es eine Gutschrift ist, und einem Hinweis bei Unklarheiten. Die Anweisung verlangt, nur zu übernehmen, was auf dem Beleg steht, und nichts zu raten.
+**Was zurückkommt:** bei beiden Anbietern dasselbe feste Schema mit Lieferant, USt-IdNr., Rechnungsnummer, Belegdatum, Fälligkeit, Währung, Netto und Steuer je Steuersatz, Bruttobetrag, Kategorie, ob es eine Gutschrift ist, und einem Hinweis bei Unklarheiten. Die Anweisung verlangt, nur zu übernehmen, was auf dem Beleg steht, und nichts zu raten. Beim eigenen Modell verlangt Haben das Schema als strukturierte Ausgabe (JSON-Schema); kann der Dienst das nicht, prüft Haben die Antwort selbst. Passt sie nicht zum Schema, steht „Die Antwort des KI-Dienstes passt nicht zum Belegschema“ am Beleg, und es werden keine Felder übernommen.
 
 Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
 
@@ -100,8 +100,9 @@ Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
 - Ein Betrag ist nicht lesbar.
 - Die Währung ist nicht Euro und der Kurs des Monats ist noch nicht veröffentlicht: Die Beträge stehen dann als Originalbeträge am Beleg, der Kurs fehlt noch.
 - Der Hinweis der KI zu unklaren Stellen.
+- Beim eigenen Modell: Das PDF hatte mehr Seiten als ausgelesen wurden.
 
-Die KI bucht nie selbst. Jeder ausgelesene Beleg bleibt im Status „Zu prüfen“, bis du ihn mit **Bestätigen und buchen** bestätigst. Mit **Mit KI neu auslesen** kannst du die Auslesung wiederholen, solange der Beleg nicht gebucht ist; dabei werden die Felder überschrieben und eine Aufteilung auf mehrere Kategorien verworfen. Fehler (ungültiger Schlüssel, Auslastung, keine Verbindung, abgelehnte Auslesung) stehen am Beleg, der dann den Status „Prüfen“ trägt.
+Die KI bucht nie selbst. Jeder ausgelesene Beleg bleibt im Status „Zu prüfen“, bis du ihn mit **Bestätigen und buchen** bestätigst. Mit **Mit KI neu auslesen** kannst du die Auslesung wiederholen, solange der Beleg nicht gebucht ist; dabei werden die Felder überschrieben und eine Aufteilung auf mehrere Kategorien verworfen. Fehler (ungültiger Schlüssel, Auslastung, keine Verbindung, Zeitüberschreitung, unbekanntes Modell, Antwort im falschen Format, abgelehnte Auslesung) stehen am Beleg, der dann den Status „Prüfen“ trägt.
 
 Bei der Kategorie haben die gebuchten Belege desselben Lieferanten Vorrang vor dem Vorschlag der KI: Haben nimmt die Kategorie, unter der sie am häufigsten gebucht sind, bei Gleichstand die zuletzt gebuchte. So wechselt der Vorschlag nicht, nur weil ein Lieferant wie Amazon einmal etwas anderes geliefert hat. Erkannt wird der Lieferant an der USt-IdNr. oder am Namen (ohne Groß- und Kleinschreibung). Unter dem Feld **Kategorie** steht, wie oft, etwa „Bisher 7 von 9 Belegen als Software und Lizenzen gebucht“; hast du eine andere gewählt, übernimmst du die bisherige mit **übernehmen**.
 
