@@ -94,7 +94,7 @@ Der Import ist eine [Übernahme aus der bisherigen Buchhaltung](anlagen.md#über
 | --- | --- | --- |
 | Bezeichnung | Bezeichnung, Anlagegut, Wirtschaftsgut | Pflicht |
 | Art | Art, Anlagenart, Kategorie | Fahrzeug (auch Pkw, Lkw), Computer (auch Hardware, Software, Laptop), Büromöbel, Sonstiges. Leer ist Sonstiges |
-| Abschreibung | Abschreibung, AfA-Art, AfA-Methode | linear, degressiv, Elektro (§ 7 Abs. 2a EStG, nur Fahrzeuge), GWG, Sammelposten oder digital (Computer mit einem Jahr). Leer: der Vorschlag zur Art ([Art und Abschreibung](anlagen.md#art-und-abschreibung)) |
+| Abschreibung | Abschreibung, AfA-Art, AfA-Methode | linear, degressiv, Elektro (§ 7 Abs. 2a EStG, nur Fahrzeuge im Einzelunternehmen), GWG, Sammelposten oder digital (Computer mit einem Jahr). Leer: der Vorschlag zur Art ([Art und Abschreibung](anlagen.md#art-und-abschreibung)) |
 | Anschaffungsdatum | Anschaffungsdatum, Kaufdatum, Zugangsdatum | Pflicht, vor dem Stichtag |
 | Anschaffungskosten | Anschaffungskosten, AK, AHK | Pflicht, netto |
 | Nutzungsdauer | Nutzungsdauer (Jahre), Nutzungsdauer (Monate) | Bei linearer und degressiver AfA Pflicht; in Jahren auch als Bruchteil, solange ganze Monate herauskommen (`2,5` = 30 Monate) |
