@@ -318,4 +318,20 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
     expect(sep).toMatchObject({ kz66: 9_500, kz89: 0, kz61: 0 });
     expect((await lines(id)).map((l) => l.account)).toEqual(["1576", "1600", "3200"]);
   }, 60_000);
+
+  // § 18a Abs. 1 Satz 2 UStG: Maßgeblich ist die Summe der Bemessungsgrundlagen, nicht die je Zeile auf volle Euro
+  // abgeschnittenen Beträge der Meldung; 50.001,20 € übersteigen 50.000 €
+  it("Monatsmeldung: Grenze von 50.000 € nach der Summe der Bemessungsgrundlagen, nicht der abgeschnittenen Zeilen", () => {
+    const issues = zm.zmIssues({
+      company: { ustId: "DE136695976", name: "Testfirma", strasse: "Musterstraße 1", plz: "93047", ort: "Regensburg" },
+      quellen: [],
+      zeilen: [
+        { ustId: "ATU12345678", art: "L", betrag: 2_500_060 },
+        { ustId: "NL987654321B01", art: "L", betrag: 2_500_060 },
+      ],
+      kz21: null,
+      voranmeldungen: 3,
+    });
+    expect(issues.some((i) => i.tone === "error" && i.text.includes("monatlich"))).toBe(true);
+  });
 });
