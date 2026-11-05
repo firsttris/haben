@@ -9,7 +9,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | # | Thema | Worum es geht | Aufwand | Stand |
 | --- | --- | --- | --- | --- |
 | 1 | Lohnsteuer-Anmeldung | Über ERiC aus den festgeschriebenen Abrechnungen, mit Anmeldungszeitraum nach § 41a EStG, Frist und Berichtigung ([Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung), [Lohn – Umsetzungsplan](lohn-plan.md)) | M | erledigt |
-| 2 | Lohn: Ausfüllliste SV-Meldeportal | Beitragsnachweis und DEÜV-Meldungen zum Abtippen im [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz), mit Fristen und Vermerk „abgegeben“ | S–M | geplant |
+| 2 | Lohn: Ausfüllliste SV-Meldeportal | Beitragsnachweis je Monat und Einzugsstelle und DEÜV-Meldungen (Anmeldung, Abmeldung, Jahresmeldung, Sofortmeldung) zum Abtippen im [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz), mit Fristen und Vermerk „im Portal abgegeben“ samt Protokoll ([SV-Meldeportal](lohn.md#sv-meldeportal)) | S–M | erledigt |
 | 3 | Lohn: Lohnsteuerbescheinigung | Elektronische Lohnsteuerbescheinigung je Arbeitnehmer und Jahr aus den festgeschriebenen Abrechnungen, Frist Ende Februar des Folgejahres, Ausdruck nach amtlichem Muster, Korrektur und Storno ([Lohnsteuerbescheinigung](lohn.md#lohnsteuerbescheinigung)). Ab 2026 übermittelt im ELSTER-Portal und in Haben vermerkt, bis die Schnittstelle der LSTMitteilung vorliegt (siehe Blockiert) | M | erledigt |
 | 4 | E-Bilanz-Taxonomie 6.10 | Neue Taxonomie ab Wirtschaftsjahr 2027 (BMF-Schreiben vom 8. Juni 2026) mit Kontennachweis je Konto zu Bilanz und GuV, auch in 6.9 ([E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug)) | M | erledigt |
 | 5 | Voranmeldung als offener Posten | Abgabe außerhalb von Haben vermerken (Datum, Transferticket, Protokoll; danach festgeschrieben, Frist erledigt, Kennzahlen geprüft) und Zahllast bzw. Erstattung als offenen Posten mit Fälligkeit im Bankabgleich zuordnen, mit Dauerfristverlängerung, Teilzahlung und Berichtigung (Säumniszuschläge bleiben Betriebsausgaben); Protokoll im Jahresarchiv ([Abgabe vermerken](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken), [Zahlung an das Finanzamt](umsatzsteuer.md#zahlung-an-das-finanzamt)) | M | erledigt |
@@ -49,7 +49,7 @@ Sinnvoll, aber nicht jetzt: eigene Vorlagen mit Editor und Vorschau und Textform
 
 | Thema | Warum nicht | Was Haben stattdessen tut |
 | --- | --- | --- |
-| Meldungen an die Sozialversicherung, Beitragsnachweise, Erstattungsanträge | Nur aus systemgeprüften Programmen (§ 95b SGB IV, Prüfung durch die ITSG) | Werte zum Eintragen im SV-Meldeportal der ITSG |
+| Meldungen an die Sozialversicherung, Beitragsnachweise, Erstattungsanträge | Nur aus systemgeprüften Programmen (§ 95b SGB IV, Prüfung durch die ITSG) | [Ausfüllliste](lohn.md#sv-meldeportal) zum Eintragen im SV-Meldeportal der ITSG |
 | Eigenes Geschäftskonto | Banklizenz | Abruf bestehender Konten über Enable Banking |
 | DATEV-Online-Schnittstellen | Kostenpflichtige Partnerschaft mit DATEV | DATEV-Export (Buchungsstapel) |
 | Hinterlegung des Jahresabschlusses als XML oder XBRL | Schema und XBRL-Vorgaben des Bundesanzeiger Verlags gibt es nur nach einer Freischaltung, ihre Nutzungsbedingungen untersagen die Weitergabe; die Testplattform nur auf Anfrage ([Hinterlegung](buchhaltung.md#xml-oder-xbrl-statt-pdf)) | Bilanz als PDF, das das Register gegen ein Entgelt je Zeichen umwandelt, oder Abtippen im Webformular |

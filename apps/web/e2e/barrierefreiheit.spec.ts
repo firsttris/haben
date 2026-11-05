@@ -53,6 +53,7 @@ const PAGES = [
   `/lohn/bescheinigung/${YEAR}`,
   "/lohn",
   "/lohn/mitarbeiter/neu",
+  "/sv-meldeportal",
   // Lohnsteuer-Anmeldung für das Kalenderjahr: passt meist nicht zum Anmeldungszeitraum, mit Hinweis
   `/lohn/anmeldung/${YEAR}`,
   `/konten?jahr=${YEAR}`,

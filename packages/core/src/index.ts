@@ -38,6 +38,7 @@ export * from "./lohnsteuer/index.ts";
 export * from "./sozialversicherung/index.ts";
 export * from "./lohnabrechnung/index.ts";
 export * from "./lohn-buchung.ts";
+export * from "./sv-meldeportal/index.ts";
 export * from "./lohnsteuer-anmeldung.ts";
 export * from "./lohnsteuerbescheinigung.ts";
 export * from "./einspruch.ts";

@@ -3,7 +3,8 @@ import type { Tx } from "./index.ts";
 
 /**
  * Ob ein Datensatz die Datei im Dokumentenspeicher nutzt (Ablage nach Inhalt, also derselbe SHA-256). Belege,
- * Archivdateien, Lexoffice-Dateien, Bescheide, Rechnungsanhänge und Protokolle vermerkter Voranmeldungen teilen sich den Speicher; gelöscht wird eine Datei
+ * Archivdateien, Lexoffice-Dateien, Bescheide, Rechnungsanhänge, Protokolle vermerkter Voranmeldungen und Protokolle aus
+ * dem SV-Meldeportal teilen sich den Speicher; gelöscht wird eine Datei
  * erst, wenn keiner sie mehr braucht.
  */
 export async function fileInUse(tx: Tx, sha256: string): Promise<boolean> {
@@ -13,7 +14,8 @@ export async function fileInUse(tx: Tx, sha256: string): Promise<boolean> {
         or exists (select 1 from lexoffice_voucher_files where sha256 = ${sha256})
         or exists (select 1 from postfach_documents where sha256 = ${sha256})
         or exists (select 1 from invoice_attachments where sha256 = ${sha256})
-        or exists (select 1 from vat_return_filings where sha256 = ${sha256}) as used`);
+        or exists (select 1 from vat_return_filings where sha256 = ${sha256})
+        or exists (select 1 from sv_portal_filings where protokoll_sha256 = ${sha256}) as used`);
   return Boolean(use?.used);
 }
 

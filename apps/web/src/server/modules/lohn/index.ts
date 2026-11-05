@@ -21,6 +21,7 @@ export {
 } from "./payroll.ts";
 export { abrechnungDatei, lohnkontoDatei, lohnkontoDesJahres } from "./lohnkonto.ts";
 export { gebuchteAbrechnungen, nachbuchen, offeneLohnverbindlichkeit } from "./buchung.ts";
+export { svLohnDaten, type SvLohnDaten, type SvMitarbeiter } from "./sv-daten.ts";
 export {
   loadLstaProtocol,
   lstaAusfuelllisteFuer,

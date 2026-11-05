@@ -1084,7 +1084,10 @@ test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, 
   await expect(split.getByLabel("Kategorie")).toHaveCount(3);
 
   // Gespeichert und neu geladen: die Zeilen bleiben, nichts fehlt mehr vor dem Buchen
+  // Erst neu laden, wenn der Server das Speichern beantwortet hat: „Speichern“ ist schon während der Anfrage gesperrt
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Speichern" }).click();
+  expect((await gespeichert).ok()).toBe(true);
   await expect(page.getByRole("button", { name: "Speichern" })).toBeDisabled();
   await page.reload();
   await page.waitForLoadState("networkidle");

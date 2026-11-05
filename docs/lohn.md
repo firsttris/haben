@@ -3,7 +3,7 @@
 Unter **Personal › Lohn** legst du Mitarbeiter an, rechnest jeden Monat ab und schreibst die Abrechnung fest. Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und die Beiträge zur Sozialversicherung, erzeugt die Entgeltabrechnung als PDF, bucht die Abrechnung ins Journal, führt das Lohnkonto je Mitarbeiter und Jahr, übermittelt die [Lohnsteuer-Anmeldung](#lohnsteuer-anmeldung) über ELSTER und erstellt die [Lohnsteuerbescheinigung](#lohnsteuerbescheinigung).
 
 > [!IMPORTANT]
-> Noch nicht dabei: die Meldungen an die Sozialversicherung. Den Beitragsnachweis gibst du bis dahin im SV-Meldeportal ab. Die [Lohnsteuerbescheinigung](#lohnsteuerbescheinigung) rechnet Haben und druckt den Ausdruck; ab 2026 übermittelst du sie im ELSTER-Portal. Was wann kommt, steht im [Plan](lohn-plan.md).
+> Haben übermittelt nicht an die Sozialversicherung. Beitragsnachweise und Meldungen gibst du selbst im SV-Meldeportal ab; Haben liefert die Werte dafür Feld für Feld. Die [Lohnsteuerbescheinigung](#lohnsteuerbescheinigung) rechnet Haben und druckt den Ausdruck; ab 2026 übermittelst du sie im ELSTER-Portal. Was wann kommt, steht im [Plan](lohn-plan.md).
 
 ## Was Haben abrechnet
 
@@ -158,6 +158,47 @@ Für jeden Mitarbeiter und jedes Jahr führt Haben das Lohnkonto (§ 41 Abs. 1 E
 
 Aufbewahren musst du das Lohnkonto bis zum Ablauf des sechsten Kalenderjahres nach der letzten Lohnzahlung (§ 41 Abs. 1 Satz 9 EStG); das PDF nennt das Datum.
 
+## SV-Meldeportal
+
+Meldungen und Beitragsnachweise an die Sozialversicherung gehen nur aus systemgeprüften Programmen oder Ausfüllhilfen wie dem [SV-Meldeportal](https://info.sv-meldeportal.de/) der ITSG (§ 95b SGB IV). Haben ist keines davon und übermittelt nichts. Das Portal kennt keinen Datei-Import und verbietet, seine Formulare durch andere Programme zu füllen (Fragen und Antworten 9.7). **Personal › SV-Meldeportal** zeigt deshalb je Monat jedes Feld zum Abtippen, in der Reihenfolge der Formulare (Benutzerhandbuch, Kap. 4.1 und 4.2), mit Hinweisen und dem, was fehlt.
+
+> [!TIP]
+> Mit aktiviertem Online-Speicher legst du Firma und Mitarbeiter einmal im Portal an. Der Stammdaten-Assistent übernimmt dann Name, Anschrift und Versicherungsnummer ins Formular, und du tippst je Monat nur die Beträge. Die Betriebsnummer deiner Firma nimmt das Portal aus deinen Firmen-Basisdaten; in Haben steht sie deshalb nicht.
+
+### Beitragsnachweis
+
+Für jeden Monat und jede Einzugsstelle ein Beitragsnachweis: die Krankenkasse der Beschäftigten (Formular „Beitragsnachweis (Allgemein, Knappschaft, See)“) oder die Minijob-Zentrale mit der Betriebsnummer 98000006 (Formular „Beitragsnachweis geringfügig Beschäftigte“). Er enthält die Summen aller **festgeschriebenen** Abrechnungen des Monats, die nicht storniert sind:
+
+| Beschäftigte (Krankenkasse) | Minijob (Minijob-Zentrale) |
+| --- | --- |
+| 1000 Krankenversicherung, allgemeiner Beitrag | 6000 Pauschalbeiträge zur Krankenversicherung |
+| Zusatzbeitrag zur Krankenversicherung (gesondert, § 271 Abs. 1a SGB V) | 0100 Rentenversicherung, voller Beitrag (ohne Befreiung) |
+| 0100 Rentenversicherung, voller Beitrag | 0500 Pauschalbeiträge zur Rentenversicherung (befreit) |
+| 0010 Arbeitsförderung, voller Beitrag | Umlagen U1 und U2 |
+| 0001 Pflegeversicherung, voller Beitrag, mit Zuschlag für Kinderlose | 0050 Insolvenzgeldumlage |
+| Umlagen U1 und U2, 0050 Insolvenzgeldumlage | Einheitliche Pauschsteuer, mit der Steuernummer der Firma (§ 28f Abs. 3 Satz 4 SGB IV) |
+
+Dazu die Gesamtsumme, den Zeitraum und die Termine. Wer im Monat beschäftigt ist, aber noch keine festgeschriebene Abrechnung hat, fehlt in der Summe; das steht als Hinweis am Nachweis. Passen Beitragsgruppen- oder Personengruppenschlüssel in den Stammdaten nicht zu dem, womit Haben gerechnet hat (1111 und 101 für Beschäftigte, 6100, 6500, 0100 oder 0500 und 109 im Minijob), steht auch das als Hinweis da. Haben ändert die Schlüssel nicht selbst.
+
+**Termine:** Die Beiträge sind am drittletzten Bankarbeitstag des Monats fällig, in dem gearbeitet wird (§ 23 Abs. 1 SGB IV). Der Beitragsnachweis muss der Kasse um 0 Uhr des fünftletzten Bankarbeitstags vorliegen (zwei Arbeitstage vor Fälligkeit, § 28f Abs. 3 SGB IV); übermitteln musst du ihn also bis zum Tag davor. Bankarbeitstage richten sich nach dem Sitz der Kasse; den kennt Haben nicht und nimmt deshalb die Feiertage aller Länder, dazu den 24. und 31. Dezember. Der Termin ist so nie zu spät, in manchen Monaten einen Tag früher als bei der Kasse.
+
+### Meldungen
+
+Für jeden Beschäftigten und jeden Minijob die DEÜV-Meldungen, im Monat ihres Anlasses:
+
+| Meldung | Meldegrund | Frist (der frühere Termin) |
+| --- | --- | --- |
+| Anmeldung | 10 | Zahltag der ersten Abrechnung ab Beginn, spätestens sechs Wochen nach Beginn (§ 6 DEÜV) |
+| Abmeldung | 30 | nächster Zahltag nach dem Ende, spätestens sechs Wochen nach dem Ende (§ 8 DEÜV) |
+| Jahresmeldung | 50 | erster Zahltag im neuen Jahr, spätestens 15. Februar (§ 10 DEÜV); entfällt bei Abmeldung zum 31. Dezember |
+| Sofortmeldung | 20 | spätestens bei Aufnahme der Beschäftigung, nur in den Branchen nach § 28a Abs. 4 SGB IV (Bau, Gastronomie, Transport, Gebäudereinigung, Friseure und weitere); Haben kennt die Branche nicht und führt keine Frist |
+
+Jede Meldung zeigt Einzugsstelle, Versicherungsnummer, Name, Anschrift, Zeitraum, Personengruppe, Beitragsgruppe und Tätigkeitsschlüssel aus den Stammdaten. Ab- und Jahresmeldung zeigen das in der Rentenversicherung beitragspflichtige Entgelt des Kalenderjahres in vollen Euro (§ 5 Abs. 4 DEÜV), im Übergangsbereich die reduzierte Einnahme mit Kennzeichen und das tatsächliche Entgelt für die Rentenberechnung; im Minijob die Steuer-ID, die Steuernummer der Firma und die Art der Besteuerung. Fehlt eine Abrechnung im Zeitraum, bleibt das Entgelt leer. Was Haben nicht kennt, etwa die Staatsangehörigkeit oder das Statuskennzeichen, steht als leeres Feld mit Hinweis da; Haben rät nichts. Den Gesellschafter-Geschäftsführer ohne Sozialversicherungspflicht meldet Haben nicht.
+
+### Abgabe vermerken
+
+Hast du einen Nachweis oder eine Meldung im Portal abgegeben, trägst du das mit **Im Portal abgegeben** ein: Tag der Abgabe, auf Wunsch das Protokoll aus dem Portal (PDF, PNG oder JPEG) und eine Notiz. Der Vermerk hält die Werte der Liste fest; ändern sie sich danach, etwa durch ein Storno, zeigt Haben „geändert seit Abgabe“, und du korrigierst im Portal. Vermerke lassen sich nicht ändern oder löschen, nur mit Grund **zurücknehmen**; der alte bleibt sichtbar und steht wie jeder Vermerk im Änderungsprotokoll. Mit dem Vermerk ist die Frist unter [Fristen](fristen.md) erledigt. Fristen nennt Haben ab dem ersten Lohnlauf in Haben; was davor liegt, hat die bisherige Lohnabrechnung gemeldet.
+
 ## Lohnsteuerbescheinigung
 
 Nach dem Abschluss des Lohnkontos, am Ende des Jahres oder mit dem Austritt, übermittelt der Arbeitgeber für jeden Arbeitnehmer die elektronische Lohnsteuerbescheinigung (§ 41b Abs. 1 EStG), spätestens bis zum letzten Tag im Februar des Folgejahres (§ 93c Abs. 1 Nr. 1 AO; fällt er auf ein Wochenende, der nächste Werktag), und gibt ihm einen Ausdruck nach amtlichem Muster. **Lohnsteuerbescheinigungen** in der Mitarbeiterliste unter **Personal › Lohn** führt zur Seite des Jahres.
@@ -222,3 +263,8 @@ Jede Übermittlung, jeder Vermerk und jede Prüfung steht im Verlauf der Karte. 
 - Ausdruck der elektronischen Lohnsteuerbescheinigung für 2026, BMF-Schreiben vom 29.8.2025: <https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Lohnsteuer/2025-08-29-ausdruck-elektr-lstbesch-2026.html>
 - ERiC-Entwicklerhandbuch 45.1.5.0, Kap. 9.5 (Lohnsteuerbescheinigung bis 2025) und 9.8 (ElsterKMV, LSTMitteilung ab 2026); Schemas `lstb202501.xsd` und `lstb_storno_000002.xsd` im ERiC-Dokumentationspaket
 - § 20 Abs. 2 SGB IV (Übergangsbereich): <https://www.gesetze-im-internet.de/sgb_4/__20.html>; § 2 BVV: <https://www.gesetze-im-internet.de/beitrvv/__2.html>
+- SV-Meldeportal: Benutzerhandbuch (Stand 01.12.2025), Kap. 4.1 und 4.2: <https://info.sv-meldeportal.de/wp-content/uploads/de-benutzerhandbuch.pdf>; Fragen und Antworten: <https://info.sv-meldeportal.de/fragen-antworten/>
+- § 23 SGB IV (Fälligkeit): <https://www.gesetze-im-internet.de/sgb_4/__23.html>; § 28a SGB IV (Meldungen): <https://www.gesetze-im-internet.de/sgb_4/__28a.html>; § 28f SGB IV (Beitragsnachweis): <https://www.gesetze-im-internet.de/sgb_4/__28f.html>
+- DEÜV §§ 5, 6, 8, 10: <https://www.gesetze-im-internet.de/de_v/__5.html>, <https://www.gesetze-im-internet.de/de_v/__6.html>, <https://www.gesetze-im-internet.de/de_v/__8.html>, <https://www.gesetze-im-internet.de/de_v/__10.html>
+- TK-Beratungsblatt „Beitragsnachweis“ (07/2026) mit Fälligkeitsterminen 2026: <https://www.tk.de/resource/blob/2032950/db10bad9264a10f8b84f84a1edd9ee10/beratungsblatt-beitragsnachweis-data.pdf>; Bankarbeitstage, 24. und 31. Dezember: <https://www.tk.de/firmenkunden/versicherung/beitraege-faq-und-mehr/angaben-beitragszahlung/zu-welchem-zeitpunkt-sind-die-beitraege-faellig-2031324>
+- Übergangsbereich in Meldungen: DRV, summa summarum, Lexikon „Übergangsbereich“: <https://www.deutsche-rentenversicherung.de/DRV/DE/Experten/Arbeitgeber-und-Steuerberater/summa-summarum/Lexikon/U/uebergangsbereich.html>
