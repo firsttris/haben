@@ -8,6 +8,8 @@ import {
   isKapitalgesellschaft,
   lastMonthOfPeriod,
   kapestFrist,
+  lstaFrist,
+  lstaLabel,
   lstbFrist,
   periodKey,
   periodLabel,
@@ -23,11 +25,11 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { openAppealDeadlines } from "./postfach.ts";
 import { kapestAnmeldungen } from "../ausschuettung/index.ts";
-import { lstbJahre } from "../lohn/index.ts";
+import { lstaZeitraeume, lstbJahre } from "../lohn/index.ts";
 import { loadActiveCertificate } from "../elster/index.ts";
 import { loadDauerfrist, loadFrequencies, zmQuartale } from "../umsatzsteuer/index.ts";
 
-export type FristArt = "ustva" | "zm" | "kapest" | "lstb" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
+export type FristArt = "ustva" | "zm" | "kapest" | "lsta" | "lstb" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
 
 export interface Frist {
   /** stabil, auch als UID im Kalender */
@@ -204,6 +206,22 @@ export async function listFristen(today: string): Promise<Frist[]> {
         link: `/ausschuettungen?jahr=${d.zufluss.slice(0, 4)}`,
       });
     }
+  }
+
+  // Lohnsteuer-Anmeldung je Anmeldungszeitraum mit festgeschriebenen Abrechnungen, am 10. nach Ablauf (§ 41a Abs. 1 EStG);
+  // erledigt, solange die zuletzt echt übermittelte Anmeldung zu den Abrechnungen passt, sonst offen bis zur Berichtigung
+  for (const z of await lstaZeitraeume(today)) {
+    const datum = lstaFrist(z, bundesland);
+    if (!relevant(datum, !z.angemeldet)) continue;
+    fristen.push({
+      id: `lsta-${z.key}`,
+      art: "lsta",
+      datum,
+      titel: `Lohnsteuer-Anmeldung ${lstaLabel(z)}${z.gesendet && !z.angemeldet ? " (Berichtigung)" : ""}`,
+      detail: "Anmeldung und Zahlung der einbehaltenen Lohnsteuer, Soli und Kirchensteuer",
+      status: z.angemeldet ? "erledigt" : "offen",
+      link: `/lohn/anmeldung/${z.key}`,
+    });
   }
 
   // Lohnsteuerbescheinigungen je Jahr mit festgeschriebenen Abrechnungen, bis zum letzten Tag im Februar des Folgejahres

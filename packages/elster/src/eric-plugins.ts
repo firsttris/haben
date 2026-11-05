@@ -9,7 +9,7 @@ import { ericPluginPath } from "./eric.ts";
 export function hatJahresPlugin(ericHome: string, datenartVersion: string | undefined): boolean {
   // Die Lohnsteuerbescheinigung hat ein Plugin ohne Jahr; welche Jahre es kennt, steht in LSTB_SCHNITTSTELLEN (lstb.ts)
   if (datenartVersion === "ElsterLohn") return existsSync(`${ericPluginPath(ericHome)}/libcheckElsterLohn.so`);
-  const jahr = /^(UStVA|USt|EUER|ESt|KapEStA)_(\d{4})$/.exec(datenartVersion ?? "");
+  const jahr = /^(UStVA|USt|EUER|ESt|KapEStA|LStA)_(\d{4})$/.exec(datenartVersion ?? "");
   if (!jahr) return true;
   return existsSync(`${ericPluginPath(ericHome)}/libcheck${jahr[1]}_${jahr[2]}.so`);
 }

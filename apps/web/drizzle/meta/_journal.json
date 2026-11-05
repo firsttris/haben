@@ -937,14 +937,28 @@
       "idx": 133,
       "version": "7",
       "when": 1793990274647,
-      "tag": "0133_lohnsteuerbescheinigung",
+      "tag": "0133_lohnsteuer_anmeldung",
       "breakpoints": true
     },
     {
       "idx": 134,
       "version": "7",
       "when": 1793990334647,
-      "tag": "0134_lohnsteuerbescheinigung_trigger",
+      "tag": "0134_lohnsteuer_anmeldung_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1793990394647,
+      "tag": "0135_lohnsteuerbescheinigung",
+      "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1793990454647,
+      "tag": "0136_lohnsteuerbescheinigung_trigger",
       "breakpoints": true
     }
   ]

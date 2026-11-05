@@ -178,6 +178,8 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `payroll_runs` | Lohnlauf je Monat mit Zahltag | Audit |
 | `payslips` | Abrechnung je Mitarbeiter und Monat: Stand der Stammdaten (JSON), Bestandteile, Brutto, Steuern, SV-Anteile mit Einzelheiten, Netto, Auszahlung, Stufe, gegengeprüft; beim Festschreiben PDF und SHA-256; bei einer Korrektur die stornierte (`replaces_id`) | Entwurf änderbar; ab `locked_at` gesperrt und versiegelt; je Mitarbeiter und Monat höchstens eine nicht stornierte (Trigger); Audit ohne PDF |
 | `payslip_cancellations` | Storno einer festgeschriebenen Abrechnung mit Tag und Grund; je Abrechnung höchstens eines | nur anhängen, nur für festgeschriebene, Audit, Siegel |
+| `lsta_turnus` | Anmeldungszeitraum der Lohnsteuer je Jahr, wenn der Nutzer ihn abweichend vom Vorschlag festlegt | änderbar, Audit |
+| `lsta_submissions` | Prüfungen und Übermittlungen der Lohnsteuer-Anmeldung je Zeitraum mit gemeldeten Kennzahlen (JSON), berichtigt, XML, Antwort und Protokoll-PDF | nur anhängen, Audit ohne PDF |
 | `lstb_submissions` | Lohnsteuerbescheinigung je Mitarbeiter und Jahr: jede Prüfung und Übermittlung über ERiC und jeder Vermerk einer Übermittlung im ELSTER-Portal, mit Art (neu, Korrektur, Storno), KmId und Verweis auf die vorige, Werten, Angaben, Transferticket und XML | nur anhängen, je echt gesendeter KmId eine Zeile, Audit ohne Protokoll-PDF |
 
 ### Archiv und Umzug

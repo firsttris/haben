@@ -15,7 +15,7 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import type { LstbAngaben } from "../../db/schema.ts";
-import { PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/index.ts";
+import { ericKennt, PRODUKT_VERSION, uebermitteln, type ElsterVorgang } from "../elster/index.ts";
 import { companyIssues, loadCompany } from "../stammdaten/index.ts";
 import { LohnError } from "./employees.ts";
 
@@ -223,6 +223,9 @@ const korrekturGrund = (year: number, heute: string) => (heute >= `${year + 1}-0
 function nichtUeberEric(year: number) {
   const ohne = lstbOhneSchnittstelle(year);
   if (ohne) throw new LohnError(`${ohne} Übermittle sie im ELSTER-Portal und vermerke sie hier.`);
+  // Das Plugin checkElsterLohn hat kein Jahr; fehlt es dem geladenen ERiC, gar nicht erst senden
+  if (!ericKennt("ElsterLohn"))
+    throw new LohnError("Das geladene ERiC kennt das Verfahren ElsterLohn nicht; unter Einstellungen › ELSTER eine andere Version laden.");
 }
 
 export interface LstbSubmitOptions {

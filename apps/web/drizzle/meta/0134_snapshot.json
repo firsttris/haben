@@ -1,6 +1,6 @@
 {
-  "id": "c8b8238a-177f-4336-b16c-5134ad97e26d",
-  "prevId": "065e2f32-06f6-40fa-8136-63486c6e9fef",
+  "id": "040907f8-020c-42df-b36d-355203cb5a7f",
+  "prevId": "270fc01b-b1ef-4264-b8ec-1a705480e85a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6148,8 +6148,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.lstb_submissions": {
-      "name": "lstb_submissions",
+    "public.lsta_submissions": {
+      "name": "lsta_submissions",
       "schema": "",
       "columns": {
         "id": {
@@ -6159,21 +6159,28 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "employee_id": {
-          "name": "employee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "year": {
           "name": "year",
           "type": "smallint",
           "primaryKey": false,
           "notNull": true
         },
-        "art": {
-          "name": "art",
-          "type": "text",
+        "zeitraum": {
+          "name": "zeitraum",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "berichtigt": {
+          "name": "berichtigt",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "kennzahlen": {
+          "name": "kennzahlen",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
         },
@@ -6182,43 +6189,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "km_id": {
-          "name": "km_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ref_km_id": {
-          "name": "ref_km_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "werte": {
-          "name": "werte",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "angaben": {
-          "name": "angaben",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "datum": {
-          "name": "datum",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "grund": {
-          "name": "grund",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
         },
         "ok": {
           "name": "ok",
@@ -6277,17 +6247,17 @@
         }
       },
       "indexes": {
-        "lstb_submissions_employee_year": {
-          "name": "lstb_submissions_employee_year",
+        "lsta_submissions_period": {
+          "name": "lsta_submissions_period",
           "columns": [
             {
-              "expression": "employee_id",
+              "expression": "year",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             },
             {
-              "expression": "year",
+              "expression": "zeitraum",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6297,48 +6267,50 @@
           "with": {},
           "method": "btree",
           "concurrently": false
-        },
-        "lstb_submissions_km_id": {
-          "name": "lstb_submissions_km_id",
-          "columns": [
-            {
-              "expression": "km_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "with": {},
-          "method": "btree",
-          "where": "\"lstb_submissions\".\"kind\" = 'send' and \"lstb_submissions\".\"ok\"",
-          "concurrently": false
         }
       },
-      "foreignKeys": {
-        "lstb_submissions_employee_id_employees_id_fk": {
-          "name": "lstb_submissions_employee_id_employees_id_fk",
-          "tableFrom": "lstb_submissions",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "tableTo": "employees",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
-        "lstb_submissions_ref": {
-          "name": "lstb_submissions_ref",
-          "value": "\"lstb_submissions\".\"art\" = 'neu' or \"lstb_submissions\".\"kind\" = 'portal' or \"lstb_submissions\".\"ref_km_id\" is not null"
+        "lsta_submissions_zeitraum": {
+          "name": "lsta_submissions_zeitraum",
+          "value": "(\"lsta_submissions\".\"zeitraum\" between 1 and 12) or (\"lsta_submissions\".\"zeitraum\" between 41 and 44) or \"lsta_submissions\".\"zeitraum\" = 19"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.lsta_turnus": {
+      "name": "lsta_turnus",
+      "schema": "",
+      "columns": {
+        "year": {
+          "name": "year",
+          "type": "smallint",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "turnus": {
+          "name": "turnus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.mail_log": {
