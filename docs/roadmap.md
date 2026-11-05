@@ -4,21 +4,45 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 
 ## Geplant
 
-Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office (Stand November 2026): zuerst, was Freiberuflern und kleinen GmbHs im Alltag am meisten fehlt.
+Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office und den offenen Issues (Stand November 2026): zuerst Pflichten der GmbH und Lohn, dann was Freiberuflern und kleinen GmbHs im Alltag am meisten fehlt. Erledigt sind aus der letzten Runde: SEPA-Überweisungen, Skonto, Zusammenfassende Meldung für sonstige Leistungen, CSV-Import, Lohnabrechnung mit Buchung.
 
 | # | Thema | Worum es geht | Aufwand | Stand |
 | --- | --- | --- | --- | --- |
-| 1 | Lohn | Lohnabrechnung, Buchung, Lohnsteuer-Anmeldung und -Bescheinigung über ELSTER, zuerst für den Gesellschafter-Geschäftsführer, dann für Angestellte und Minijobs; für die Sozialversicherung eine Ausfüllliste zum [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz). Lohnsteuer nach dem Programmablaufplan, Beiträge zur Sozialversicherung, die [Lohnabrechnung](lohn.md) mit Entgeltabrechnung und Lohnkonto ihre [Buchung](lohn.md#buchung) mit Bankzuordnung und EÜR und die [Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung) stehen; Plan: [Lohn – Recherche und Umsetzungsplan](lohn-plan.md) | L | in Arbeit |
-| 2 | Überweisungen als SEPA-Datei | Offene Belege gesammelt als pain.001 ausgeben, die man im Online-Banking hochlädt; die Abbuchung ordnet der Bankabgleich danach zu ([Belege](belege.md#überweisen-sepa-datei)). Später prüfen: Zahlungsauslösung über Enable Banking, das schon den Kontoabruf macht | S | erledigt |
-| 3 | Skonto | Skonto in den Zahlungsbedingungen der Rechnung, auf PDF und in der E-Rechnung (BT-20), im Bankabgleich erkannt ([Rechnungen](rechnungen.md#skonto)) | S | erledigt |
-| 4 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst lesend für die Steuerberatung, später volle Rollen. Entschieden: kommt; die bisherige Entscheidung „genau ein Nutzer“ ([Architektur](architektur.md#anmeldung)) wird dafür aufgegeben. Zu klären beim Bau: Rollen, Anmeldung des zweiten Zugangs (Einladung statt Einrichtungscode), Audit je Nutzer | M | geplant |
-| 5 | Zusammenfassende Meldung | Meldung der sonstigen Leistungen ins EU-Ausland je USt-IdNr. und Quartal über ERiC an das BZSt, mit Berichtigung ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)); Lieferungen und Dreiecksgeschäfte mit den innergemeinschaftlichen Lieferungen | M | erledigt |
-| 6 | Texterkennung ohne Cloud | Belege lokal erkennen (z. B. Tesseract im Worker); die KI bleibt wahlweise | M | geplant |
-| 7 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
-| 8 | BWA und Liquiditätsplanung | Betriebswirtschaftliche Auswertung mit Vorjahresvergleich und Vorschau aus offenen Posten | M | geplant |
-| 9 | CSV-Import | Kontakte, Artikel und Anlagen aus CSV übernehmen, mit Zuordnung der Spalten, Vorschau und ohne Dubletten; Anlagen als Übernahme zum Stichtag ohne Buchung ([CSV-Import](csv-import.md)) | S | erledigt |
+| 1 | Lohnsteuer-Anmeldung | Über ERiC aus den festgeschriebenen Abrechnungen, mit Anmeldungszeitraum nach § 41a EStG, Frist und Berichtigung ([Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung), [Lohn – Umsetzungsplan](lohn-plan.md)) | M | erledigt |
+| 2 | Lohn: Ausfüllliste SV-Meldeportal | Beitragsnachweis und DEÜV-Meldungen zum Abtippen im [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz), mit Fristen und Vermerk „abgegeben“ | S–M | geplant |
+| 3 | Lohn: Lohnsteuerbescheinigung | Elektronische Lohnsteuerbescheinigung über ERiC bis Ende Februar des Folgejahres | M | geplant |
+| 4 | E-Bilanz-Taxonomie 6.10 | Neue Taxonomie ab Wirtschaftsjahr 2027 mit Kontennachweis zu Bilanz und GuV ([Buchhaltung](buchhaltung.md)) | M | geplant |
+| 5 | Voranmeldung als offener Posten | Zahllast und Erstattung der Umsatzsteuer-Voranmeldung im Bankabgleich zuordnen, auch für außerhalb von Haben abgegebene Voranmeldungen | M | geplant |
+| 6 | Weitere AfA-Methoden | Degressive AfA mit Wechsel zur linearen, Sonderabschreibung für E-Fahrzeuge, Erinnerungswert ([Anlagen](anlagen.md)) | M | geplant |
+| 7 | Innergemeinschaftliche Lieferung und Erwerb, Ausfuhr | Rechnung und Beleg mit eigener Steuerregelung, Kz 41, 43, 89/93 und 61, ZM mit Lieferungen und Dreiecksgeschäften | M | geplant |
+| 8 | Dauerbelege | Wiederkehrende Ausgaben wie Miete oder Versicherung einmal erfassen, Haben legt sie im Intervall an | S–M | geplant |
+| 9 | Barzahlung einer Rechnung in der Kasse | Bareinnahme einer Ausgangsrechnung im Kassenbuch zuordnen ([Kasse](kasse.md)) | S–M | geplant |
+| 10 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst für die Steuerberatung. Entschieden: kommt; die bisherige Entscheidung „genau ein Nutzer“ ([Architektur](architektur.md#anmeldung)) wird dafür aufgegeben. Zu klären beim Bau: Rollen, Einladung statt Einrichtungscode, Audit je Nutzer | M–L | geplant |
+| 11 | Belegerkennung ohne Cloud | Belege lokal erkennen (z. B. Tesseract im Worker); die KI bleibt wahlweise | M | geplant |
+| 12 | Rabatte und Positionen im Angebot | Gesamt- und Positionsrabatt, optionale und alternative Positionen, Zahlungsplan mit Abschlägen aus dem Angebot | S–M | geplant |
+| 13 | Bank-CSV und Export für die Betriebsprüfung | Bank-, Kreditkarten- und PayPal-Umsätze im allgemeinen CSV-Format mit Spaltenzuordnung; Datenexport mit Beschreibung `index.xml` für die Prüfsoftware | S | geplant |
+| 14 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
+| 15 | BWA und Liquiditätsplanung | Betriebswirtschaftliche Auswertung mit Vorjahresvergleich und Vorschau aus offenen Posten | M | geplant |
+| 16 | OSS | Rechnungen an Privatpersonen im EU-Ausland mit dem Steuersatz des Ziellands, Lieferschwelle, Datei für das BZSt-Online-Portal | M | geplant |
+| 17 | Offene Posten ohne Bankumsatz verrechnen | Rechnung gegen Gutschrift oder Storno ausgleichen; vor dem Bau fachlich zu klären (Aufrechnung oder Aufhebung, Ist und Soll) | M | geplant |
 
-Danach: Alternativpositionen und Gesamtrabatt, Kundenhistorie mit Aufgaben und Notizen, OSS-Meldung, innergemeinschaftliche Lieferungen und Ausfuhr, Lastschrift-Datei (pain.008), Abrechnungen von Amazon und weiteren Shops, Fahrtenbuch, vollständigere Anlage EÜR (Bewirtung, Geschenke, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
+## Später oder vielleicht
+
+Sinnvoll, aber nicht jetzt: eigene Drucklayouts, Absenderprofile und Textformatierung in Belegen; Webhooks und Angebote in der API, schreibender MCP-Server; Belege aus Cloud-Speichern; E-Mail-Versand über die Anmeldung bei Google oder Microsoft; ELStAM (offen, ob es eine freigeschaltete Hersteller-ID braucht); § 13b für Bauleistungen; weitere Fälle im Lohn; eigene Sachkonten neben den Kategorien (braucht eine Entscheidung zur Architektur); Module ausblenden; Sammelrechnung aus Lieferscheinen; Lastschrift-Datei (pain.008); Fahrtenbuch; vollständigere Anlage EÜR (häusliches Arbeitszimmer, Fahrten Wohnung–Betrieb, Investitionsabzugsbetrag).
+
+## Bewusst nicht
+
+| Thema | Grund |
+| --- | --- |
+| Lagerbestand | Kein Kern einer Buchhaltung; auch Lexware Office führt keinen |
+| Zeiterfassung und Projekte | Gehört in eigene Werkzeuge; Rechnungen und Belege kommen über die [API](api.md) |
+| Eigene Shop-Anbindungen | Abrechnungen der Zahlungsdienste, API und n8n decken das ab; auch Lexware Office bindet Shops nur über Partner an |
+| Lastschrifteinzug über einen Zahlungsdienst | Gehört zum Zahlungsdienst; Lexware Office macht es nur über Partner |
+| Native Apps | Haben ist eine installierbare Web-App mit Kamera und Teilen-Menü; zwei App-Stores zu pflegen lohnt nicht |
+| CRM mit Aufgaben und Push-Erinnerungen, Mitarbeiterportal | Kein Kern einer Buchhaltung für kleine Betriebe |
+| Mehrere Firmen in einer Installation | Eine Instanz je Firma; so bleiben Daten, Sperren und Audit getrennt |
+| E-Mails als HTML mit Editor | Hoher Aufwand bei wenig Nutzen; Textvorlagen mit Platzhaltern gibt es |
+| Eigenes lernendes Modell für Vorschläge | Die Regeln lernen schon aus früheren Zuordnungen; ein Modell kostet Pflege ohne deutlichen Gewinn |
 
 ## Nicht machbar ohne Zertifizierung oder Lizenz
 
