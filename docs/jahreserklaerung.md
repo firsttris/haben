@@ -68,8 +68,13 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | [Pauschale](pauschalen.md): Fahrten mit dem Privatfahrzeug | Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage) |
 | [Pauschale](pauschalen.md): Verpflegungsmehraufwand | Verpflegungsmehraufwendungen (beschränkt abziehbar) |
 | Private Kfz-Nutzung | Private Kfz-Nutzung (Einnahme), die Umsatzsteuer darauf bei der vereinnahmten Umsatzsteuer |
+| [Steuerzahlung](bank.md#steuerzahlungen): Umsatzsteuer früherer Jahre | An das Finanzamt gezahlte bzw. vom Finanzamt erstattete Umsatzsteuer, im Jahr der Zahlung (§ 11 EStG). Zahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis: eine Vorauszahlung für Dezember gehört in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG) |
+| Steuerzahlung: Zinsen, Säumnis- und Verspätungszuschläge zur Umsatzsteuer | Übrige unbeschränkt abziehbare Betriebsausgaben; nicht die Schuldzinsen der Zeilen 55 und 56, die für die nicht abziehbaren Schuldzinsen (§ 4 Abs. 4a EStG) gemeint sind |
+| Steuerzahlung: Erstattungszinsen zur Umsatzsteuer, [Zinserträge](bank.md#ohne-rechnung-buchen) | Umsatzsteuerfreie, nicht umsatzsteuerbare Betriebseinnahmen |
+| Steuerzahlung: Gewerbesteuer mit Zinsen und Zuschlägen, abzüglich Erstattungen | Sonstige beschränkt abziehbare Betriebsausgaben, Spalte „nicht abziehbar“ (`E6004301`), wie es die amtliche Anleitung für Gewerbesteuer und Nebenleistungen verlangt; mindert den Gewinn nicht (§ 4 Abs. 5b EStG), nach Erstattungen auch negativ |
+| Steuerzahlung: Einkommen-, Kirchensteuer, Soli, einbehaltene Kapitalertragsteuer | keine Betriebsausgabe; Entnahme (Privatsteuern), Erstattungen mindern die Entnahmen |
 
-**Entnahmen und Einlagen** kommen aus dem Journal: alles, was auf den Privatkonten gebucht ist (Privatüberweisungen im Bankabgleich, privat bezahlte Belege, Pauschalen ohne Beleg, Privatanteile, Privatnutzung der Firmenwagen mit Umsatzsteuer).
+**Entnahmen und Einlagen** kommen aus dem Journal: alles, was auf den Privatkonten gebucht ist (Privatüberweisungen im Bankabgleich, private Steuern vom Geschäftskonto auf Privatsteuern, privat bezahlte Belege, Pauschalen ohne Beleg, Privatanteile, Privatnutzung der Firmenwagen mit Umsatzsteuer).
 
 **Allgemeine Angaben:** Rechtsform „Angehörige freier Berufe“ bzw. „Einzelgewerbetreibende“, Betriebsinhaber ist die steuerpflichtige Person, keine Veräußerung von Grundstücken. Für Gesellschaften ist die Anlage EÜR in Haben nicht gedacht.
 

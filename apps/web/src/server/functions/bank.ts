@@ -1,4 +1,15 @@
-import { ACCOUNT_PURPOSES, directBookingsFor, PAYMENT_PROVIDERS, directBookingLabel, paymentProviderAccount, suggestDirectBooking } from "@haben/core";
+import {
+  ACCOUNT_PURPOSES,
+  directBookingsFor,
+  PAYMENT_PROVIDERS,
+  directBookingLabel,
+  paymentProviderAccount,
+  STEUER_POSTEN,
+  STEUER_POSTEN_KEYS,
+  STEUERARTEN,
+  steuerartenFor,
+  suggestDirectBooking,
+} from "@haben/core";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -90,6 +101,9 @@ export const getBankOverview = createServerFn({ method: "GET" })
         const { rechtsform } = await loadCompany();
         return directBookingsFor(rechtsform).map((value) => ({ value, label: directBookingLabel(value, rechtsform) }));
       })(),
+      /** Steuerzahlung: Steuerarten der Rechtsform und Teile (Steuer, Zinsen, Zuschläge) */
+      steuerarten: steuerartenFor((await loadCompany()).rechtsform).map((value) => ({ value, label: STEUERARTEN[value] })),
+      steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
       purposes: Object.entries(ACCOUNT_PURPOSES).map(([value, label]) => ({ value, label })),
       providers: Object.entries(PAYMENT_PROVIDERS).map(([value, p]) => ({ value, label: p.label })),
       /** Sachkonto je Zahlungsdienstleister, zur Anzeige */

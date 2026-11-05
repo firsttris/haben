@@ -1,5 +1,6 @@
 import type { Cents } from "./money.ts";
 import { EXPENSE_CATEGORIES, type Kontenrahmen } from "./posting.ts";
+import { nichtAbziehbareNebenleistungen } from "./steuerzahlung.ts";
 
 /*
  * Körperschaftsteuer, Solidaritätszuschlag und Gewerbesteuer einer GmbH oder UG aus dem Jahresergebnis, als Grundlage
@@ -169,6 +170,12 @@ export function kapgSteuern(
     { gk: "kapest" as const, text: "Kapitalertragsteuer (§ 10 Nr. 2 KStG)", betrag: summe(k.kapest) },
     { gk: "gewst" as const, text: "Gewerbesteuer (§ 4 Abs. 5b EStG)", betrag: summe([...k.gewst, ...k.gewstVorjahre]) },
     { gk: "sonstige" as const, text: "Nicht abziehbare Geschenke, Bewirtung und Betriebsausgaben (§ 4 Abs. 5 EStG)", betrag: summe(k.nichtAbziehbar) },
+    // Zinsen und Zuschläge zu Körperschaft- und Gewerbesteuer (steuerzahlung.ts); die Konten trennen die Steuerart nicht
+    {
+      gk: "sonstige" as const,
+      text: "Nicht abziehbare Nebenleistungen zu Steuern (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG)",
+      betrag: summe(nichtAbziehbareNebenleistungen(kontenrahmen)),
+    },
     {
       gk: "sonstige" as const,
       text: "30 % der Bewirtungskosten (§ 4 Abs. 5 Nr. 2 EStG)",

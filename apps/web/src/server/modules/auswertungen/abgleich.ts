@@ -4,6 +4,9 @@ import {
   PAUSCHALE_KONTEN,
   PAUSCHALE_LABEL,
   PRIVATE_USE_ACCOUNTS,
+  STEUER_KONTEN,
+  abziehbareNebenleistungen,
+  nichtAbziehbareNebenleistungen,
   type Cents,
   type Kontenrahmen,
   type PauschaleArt,
@@ -156,12 +159,26 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
       "Umsatzsteuer an das Finanzamt (mit Sondervorauszahlung), abzüglich Erstattungen",
       saldo(
         sums,
-        (kr) => [ACCOUNTS[kr].ustVorauszahlung, ACCOUNTS[kr].sondervorauszahlung],
+        // Mit der Umsatzsteuer früherer Jahre (Steuerzahlungen, steuerzahlung.ts): gezahlt bzw. erstattet im Jahr der Zahlung
+        (kr) => [ACCOUNTS[kr].ustVorauszahlung, ACCOUNTS[kr].sondervorauszahlung, STEUER_KONTEN[kr].ustVorjahr, STEUER_KONTEN[kr].ustFruehereJahre],
         (s) => s.sourceType === "allocation",
       ),
       line("gezahlteUst") - line("erstatteteUst"),
     ),
   );
+
+  // Steuerzahlungen: Zinsen und Zuschläge zu betrieblichen Steuern als Ausgabe, Gewerbesteuer samt Nebenleistungen nur
+  // nachrichtlich. Im Einzelunternehmen gibt es keine Körperschaftsteuer; die nicht abziehbaren Zinskonten bucht dort nur
+  // die Gewerbesteuer.
+  const zahlung = (s: Summe) => s.sourceType === "allocation";
+  const nebenleistungen = saldo(sums, (kr) => abziehbareNebenleistungen(kr), zahlung);
+  if (nebenleistungen !== 0 || line("steuerNebenleistungen") !== 0) {
+    zeilen.push(row("Zinsen und Zuschläge zu betrieblichen Steuern", nebenleistungen, line("steuerNebenleistungen")));
+  }
+  const gewerbesteuer = saldo(sums, (kr) => [STEUER_KONTEN[kr].gewst, STEUER_KONTEN[kr].gewstVorjahre, ...nichtAbziehbareNebenleistungen(kr)], zahlung);
+  if (gewerbesteuer !== 0 || euer.gewerbesteuerNichtAbziehbar !== 0) {
+    zeilen.push(row("Gewerbesteuer und Nebenleistungen darauf (nicht abziehbar)", gewerbesteuer, euer.gewerbesteuerNichtAbziehbar));
+  }
 
   // Kursdifferenzen bei Fremdwährung: Aufwand und Ertrag aus Kursdifferenzen gegen die Posten der EÜR
   const kurs = saldo(sums, (kr) => [ACCOUNTS[kr].kursAufwand, ACCOUNTS[kr].kursErtrag]);

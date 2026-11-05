@@ -202,6 +202,8 @@ const alleEuerFelder: EuerFigures = {
   geschenke: 12_000,
   bewirtung: 21_000,
   bewirtungNichtAbziehbar: 9_000,
+  // Gewerbesteuer samt Nebenleistungen, Spalte „nicht abziehbar“ (§ 4 Abs. 5b EStG)
+  gewerbesteuerNichtAbziehbar: 154_300,
   verpflegung: 4_200,
   tagespauschale: 126_000,
   kfzLeasing: 240_000,
@@ -396,6 +398,17 @@ const faelle: [string, () => string][] = [
           ...envelope(year),
           allgemein: { artDesBetriebs: "Handel", einkunftsart: "gewerbe" },
           figures: { steuerpflichtig: 1_000_000, vereinnahmteUst: 190_000, uebrige: 50_000 },
+          anlagen: [],
+        }),
+    ],
+    [
+      // Erstattung der Gewerbesteuer eines Vorjahres über den Zahlungen des Jahres: nicht abziehbar negativ
+      `Anlage EÜR ${year} Gewerbe mit Gewerbesteuer-Erstattung`,
+      () =>
+        buildEuerXml({
+          ...envelope(year),
+          allgemein: { artDesBetriebs: "Handel", einkunftsart: "gewerbe" },
+          figures: { steuerpflichtig: 1_000_000, vereinnahmteUst: 190_000, uebrige: 50_000, gewerbesteuerNichtAbziehbar: -30_000 },
           anlagen: [],
         }),
     ],

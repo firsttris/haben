@@ -7,4 +7,4 @@
 export { abgleichIssues, euerAbgleich, vatAbgleich } from "./abgleich.ts";
 export { datevExport, DatevExportError, datevNumbersSchema, saveDatevNumbers } from "./datev-export.ts";
 export { chainHead, checkIntegrity, checkPruefwert, formatPruefwert, parsePruefwert, type IntegrityReport } from "./integrity.ts";
-export { euerForYear, lohnZahlungenUmJahreswechsel, openPositions, reportYears, type OpenPosition } from "./reports.ts";
+export { euerForYear, lohnZahlungenUmJahreswechsel, openPositions, reportYears, umsatzsteuerVorjahreUmJahreswechsel, type OpenPosition } from "./reports.ts";

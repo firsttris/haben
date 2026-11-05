@@ -93,6 +93,31 @@ describe("Körperschaft- und Gewerbesteuer", () => {
     expect([mitRuecktrag.verlustvortragKst, mitRuecktrag.verlustvortragGewst]).toEqual([500_000, 2_000_000]);
   });
 
+  it.each([
+    ["SKR03", { gewstVorjahre: "2281", zinsen: "2105", saeumnis: "2102", verspaetung: "4397", abziehbar: "2107" }],
+    ["SKR04", { gewstVorjahre: "7641", zinsen: "7308", saeumnis: "7302", verspaetung: "6437", abziehbar: "7305" }],
+  ] as const)("%s: Steuerzahlungen aus dem Bankabgleich, nicht abziehbare Nebenleistungen zurück, abziehbare nicht", (kontenrahmen, k) => {
+    const s = kapgSteuern(
+      kontenrahmen,
+      2026,
+      [
+        { account: k.gewstVorjahre, saldo: 50_000 },
+        { account: k.zinsen, saldo: 1_800 },
+        { account: k.saeumnis, saldo: 500 },
+        { account: k.verspaetung, saldo: 2_500 },
+        // Zinsen zur Umsatzsteuer sind Betriebsausgaben
+        { account: k.abziehbar, saldo: 4_000 },
+      ],
+      1_000_000,
+      ohneVortrag,
+    );
+    expect(s.hinzurechnungen.map((z) => [z.gk, z.betrag])).toEqual([
+      ["gewst", 50_000],
+      ["sonstige", 4_800],
+    ]);
+    expect(s.einkommen).toBe(1_054_800);
+  });
+
   it("Hinzurechnung nach § 8 Nr. 1 GewStG erst über 200.000 €", () => {
     const klein = kapgSteuern("SKR04", 2026, [{ account: "6310", saldo: 2_400_000 }], 1_000_000, ohneVortrag);
     expect(klein.hinzurechnungGewst).toBe(0);

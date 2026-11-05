@@ -238,6 +238,8 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   lohn: "Lohn/Gehalt",
   lohnsteuer: "Lohnsteuer",
   sozialversicherung: "SV-Beiträge",
+  steuer: "Steuerzahlung",
+  zinsertrag: "Zinserträge",
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",

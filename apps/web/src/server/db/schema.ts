@@ -32,6 +32,8 @@ import {
   SELF_ASSESSED_TAX_KEYS,
   EXCHANGE_RATE_SOURCE_KEYS,
   DAUERBELEG_STATUS_KEYS,
+  STEUERART_KEYS,
+  STEUER_POSTEN_KEYS,
   type AssetKind,
   type AssetMethod,
   type CarPrivateUse,
@@ -1672,6 +1674,9 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "lohn",
   "lohnsteuer",
   "sozialversicherung",
+  // Steuerzahlungen mit Steuerart, Bezugsjahr und Teil; betriebliche Zinserträge (Roadmap Platz 13)
+  "steuer",
+  "zinsertrag",
 ]);
 
 /**
@@ -1705,10 +1710,22 @@ export const allocations = pgTable(
      * (offener Posten). Gebucht wird wie ohne Bezug; ältere Zuordnungen haben keinen.
      */
     vatReturnId: uuid("vat_return_id").references(() => vatReturns.id),
+    /**
+     * Nur bei Steuerzahlungen (kind „steuer“): Steuerart, Bezugsjahr und Teil (Steuer oder Nebenleistung), siehe
+     * packages/core/src/steuerzahlung.ts. Mit der Zeile gesperrt und versiegelt; die Gegenzeile trägt dieselben Angaben.
+     */
+    taxType: text("tax_type", { enum: STEUERART_KEYS }),
+    taxYear: integer("tax_year"),
+    taxItem: text("tax_item", { enum: STEUER_POSTEN_KEYS }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     check("allocations_target", sql`(${t.kind} <> 'invoice' or ${t.invoiceId} is not null) and (${t.kind} <> 'document' or ${t.documentId} is not null)`),
+    // Als Text verglichen: Ein neuer Wert des Enums ist in der Transaktion, die ihn anlegt, noch nicht verwendbar
+    check(
+      "allocations_tax",
+      sql`case when ${t.kind}::text = 'steuer' then ${t.taxType} is not null and ${t.taxYear} is not null and ${t.taxItem} is not null else ${t.taxType} is null and ${t.taxYear} is null and ${t.taxItem} is null end`,
+    ),
     check("allocations_vat_return_kind", sql`${t.vatReturnId} is null or ${t.kind} = 'ustVorauszahlung'`),
     index("allocations_vat_return").on(t.vatReturnId),
     index("allocations_transaction").on(t.transactionId),

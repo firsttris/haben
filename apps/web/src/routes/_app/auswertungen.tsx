@@ -173,6 +173,14 @@ function ReportsPage() {
               <th scope="row">{euer.gewinn >= 0 ? "Gewinn" : "Verlust"}</th>
               <td className="num">{formatEuro(euer.gewinn)}</td>
             </tr>
+            {euer.gewerbesteuerNichtAbziehbar !== 0 && (
+              <tr>
+                <th scope="row" className="muted">
+                  Nachrichtlich: Gewerbesteuer und Nebenleistungen darauf, keine Betriebsausgabe (§ 4 Abs. 5b EStG)
+                </th>
+                <td className="num muted">{formatEuro(euer.gewerbesteuerNichtAbziehbar)}</td>
+              </tr>
+            )}
           </tbody>
         </ScrollTable>
       </section>
