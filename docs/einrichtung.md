@@ -276,6 +276,16 @@ Beispiele: `RE-{JJJJ}-{NNNN}` ergibt `RE-2026-0034`, `R{JJ}{NNN}` ergibt `R26034
 - Der Bankabgleich findet die Nummer im Verwendungszweck in jedem Format.
 - Die Änderung steht wie die übrigen Firmendaten im Änderungsprotokoll.
 
+### Vorlagen für den Zahlungsplan
+
+Unter **Einstellungen › Rechnungen › Vorlagen für den Zahlungsplan** legst du Zahlungspläne an, die du in Angeboten oft brauchst. Ab Werk gibt es **30/40/30** (Anzahlung 30 % bei Auftragserteilung, Abschlag 40 % bei Lieferung, Rest mit der Schlussrechnung bei Abnahme) und **50/50**.
+
+- Jede Vorlage hat einen Namen und Zahlungen mit Bezeichnung, Anteil (Prozent oder fester Betrag) und Fälligkeit als Text. Die letzte Zahlung ist immer der Rest.
+- Im Angebot übernimmt **Vorlage übernehmen** eine Kopie; du passt sie dort an. Spätere Änderungen an der Vorlage ändern kein Angebot.
+- Die Änderung steht wie die übrigen Firmendaten im Änderungsprotokoll.
+
+Wie der Plan im Angebot wirkt, steht unter [Zahlungsplan](angebote.md#zahlungsplan).
+
 ## ELSTER einrichten
 
 Haben übermittelt Voranmeldung, Jahreserklärungen und Nachrichten über ERiC, die offizielle Bibliothek der Steuerverwaltung, und holt darüber Bescheide aus dem ELSTER-Postfach. Ohne ERiC laufen Prüfen und Senden simuliert, und die Oberfläche weist darauf hin. Welcher Weg zum Finanzamt ohne Hersteller-ID bleibt, steht in [Abgabe an ELSTER](elster-abgabe.md).

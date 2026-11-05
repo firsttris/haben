@@ -230,6 +230,8 @@ export async function editorContext(kind: "rechnung" | "angebot") {
     tageskurs: company.tageskurs,
     /** Skonto-Vorgabe für Kunden ohne eigenes */
     companySkonto: company.skonto,
+    /** Vorlagen für den Zahlungsplan im Angebot */
+    planTemplates: company.paymentPlanTemplates,
     numberFormat: kind === "rechnung" ? company.invoiceNumberFormat : company.quoteNumberFormat,
     numberCounters: Object.fromEntries(counters.map((c) => [c.year, c.last])) as Record<number, number>,
   };

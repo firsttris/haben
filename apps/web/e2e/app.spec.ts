@@ -837,6 +837,86 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
   }
 });
 
+test("Angebot mit Rabatt, Wahlpositionen und Zahlungsplan: Abschlag per Klick aus dem Plan", async () => {
+  await go("/angebote/neu");
+  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await page.getByLabel("Beschreibung Position 1").fill("Website Relaunch");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("10000");
+  await page.getByLabel("Rabatt Position 1, Prozent oder Betrag").fill("10 %");
+  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByLabel("Beschreibung Position 2").fill("Website Relaunch mit Shop");
+  await page.getByLabel(/Einzelpreis Position 2/).fill("12000");
+  await page.getByLabel("Art der Position 2").selectOption("alternative");
+  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByLabel("Beschreibung Position 3").fill("Schulung");
+  await page.getByLabel(/Einzelpreis Position 3/).fill("1000");
+  await page.getByLabel("Art der Position 3").selectOption("optional");
+  await page.getByLabel("Gesamtrabatt (optional)").fill("500");
+  const vorschau = page.getByLabel("Vorschau des Angebots");
+  // 10.000 € − 10 % = 9.000 €, Gesamtrabatt 500 € → 8.500 € netto, 10.115 € brutto; Alternative und Schulung zählen nicht
+  await expect(vorschau).toContainText("Alternative zu Pos. 1, nicht in der Angebotssumme");
+  await expect(vorschau).toContainText("abzüglich 10 % Rabatt (1.000,00 €)");
+  await expect(vorschau).toContainText("10.115,00 €");
+
+  const plan = page.getByRole("region", { name: "Zahlungsplan" });
+  await plan.getByLabel("Vorlage übernehmen").selectOption("30/40/30");
+  await expect(plan.getByText("2.550,00 € netto · 3.034,50 € brutto").first()).toBeVisible();
+  await expect(plan.getByText("3.400,00 € netto · 4.046,00 € brutto")).toBeVisible();
+  await expect(vorschau.getByRole("table", { name: "Zahlungsplan" })).toContainText("2. Abschlag");
+  await plan.getByLabel("Zahlungsplan auch in der Auftragsbestätigung").check();
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/angebote\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByRole("region", { name: /Antwort des Kunden/ })).toContainText("Offen", { timeout: 30_000 });
+
+  // Auswahl des Kunden: Variante mit Shop und die Schulung
+  const auswahl = page.getByRole("region", { name: "Auswahl des Kunden" });
+  await auswahl.getByLabel(/Pos\. 2 Website Relaunch mit Shop/).check();
+  await auswahl.getByLabel(/Pos\. 3 Schulung/).check();
+
+  const zahlungsplan = page.getByRole("region", { name: "Zahlungsplan" });
+  await expect(zahlungsplan).toContainText("Abgerechnet 0,00 € von 10.115,00 €");
+  await zahlungsplan.getByRole("button", { name: "Abschlagsrechnung erstellen: Zahlung 1" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await expect(page.getByLabel("Rechnungsart")).toHaveValue("abschlag");
+  // 30 % des Auftrags nach der Auswahl: 12.000 € + 1.000 € − 500 € = 12.500 € netto → 3.750 €
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue(/^1\. Anzahlung 30 % gemäß Angebot AN-\d{4}-002 vom/);
+  await expect(page.getByLabel(/Einzelpreis Position 1/)).toHaveValue("3.750,00");
+  await page.goBack();
+  await page.waitForLoadState("networkidle");
+  await expect(zahlungsplan).toContainText("Entwurf");
+  await expect(zahlungsplan).toContainText("Abgerechnet 0,00 € von 14.875,00 €");
+  const response = await page.request.get((await page.getByRole("link", { name: "Auftragsbestätigung (PDF)" }).getAttribute("href"))!);
+  expect(response.status()).toBe(200);
+
+  // Den Abschlag wieder verwerfen, damit Buchungen und Konten der übrigen Schritte unverändert bleiben
+  await zahlungsplan.getByRole("link", { name: "Abschlagsrechnung (Entwurf)" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.getByRole("button", { name: "Entwurf löschen" }).click();
+  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await page.waitForURL(/\/rechnungen$/);
+});
+
+test("Rechnung mit Positions- und Gesamtrabatt in der Vorschau", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("10");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  await page.getByLabel("Rabatt Position 1, Prozent oder Betrag").fill("50");
+  await page.getByLabel("Gesamtrabatt (optional)").fill("10 %");
+  const vorschau = page.getByLabel("Vorschau der Rechnung");
+  // 1.000 € − 50 € = 950 €, abzüglich 10 % = 855 € netto, 1.017,45 € brutto
+  await expect(vorschau).toContainText("abzüglich 50,00 € Rabatt");
+  await expect(vorschau).toContainText("Gesamtrabatt 10 %");
+  await expect(vorschau).toContainText("1.017,45 €");
+  await page.getByLabel("Gesamtrabatt (optional)").fill("2000");
+  await expect(page.getByText("Der Gesamtrabatt ist höher als die Summe der Positionen")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Entwurf speichern" })).toBeDisabled();
+});
+
 test("Pauschalen: Homeoffice, Fahrt, Verpflegung und Storno", async () => {
   await go("/pauschalen");
   await expect(page.getByRole("heading", { name: /^Pauschalen \d{4}$/, level: 1 })).toBeVisible();

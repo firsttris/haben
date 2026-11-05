@@ -133,8 +133,16 @@
   ..d.lines.map(l => {
     // Bezeichnung, darunter die mehrzeilige Beschreibung der Position
     let detail = l.at("detail", default: none)
-    let desc = if detail == none { l.description } else {
-      stack(spacing: 1.4mm, medium(l.description), text(size: 8.5pt, fill: muted, detail))
+    // Kennzeichen optionaler und alternativer Positionen im Angebot, Positionsrabatt unter dem Text
+    let tag = l.at("tag", default: none)
+    let discount = l.at("discount", default: none)
+    let desc = if detail == none and tag == none and discount == none { l.description } else {
+      let parts = ()
+      if tag != none { parts.push(medium(text(size: 8pt, fill: accent, tag))) }
+      parts.push(if detail == none and tag == none { l.description } else { medium(l.description) })
+      if detail != none { parts.push(text(size: 8.5pt, fill: muted, detail)) }
+      if discount != none { parts.push(text(size: 8.5pt, fill: muted, discount)) }
+      stack(spacing: 1.4mm, ..parts)
     }
     if noPrices { (l.pos, desc, l.quantity) } else { (l.pos, desc, l.quantity, l.unitPrice, l.rate, l.net) }
   }).flatten()
@@ -194,6 +202,24 @@
 })) }
 
 #v(8mm)
+
+// Zahlungsplan im Angebot und auf Wunsch in der Auftragsbestätigung
+#let plan = d.at("plan", default: none)
+#if plan != none {
+  block(breakable: false, {
+    semibold(plan.title)
+    v(1mm)
+    table(
+      columns: (auto, 1fr, auto, auto),
+      align: (left, left, right, right),
+      stroke: (x, y) => if y == 0 { (bottom: 0.6pt + accent) } else { (bottom: 0.4pt + rule) },
+      inset: (x: 1.6mm, y: 1.8mm),
+      table.header(head(plan.columns.label), head(plan.columns.due), head(plan.columns.share), head(plan.columns.amount)),
+      ..plan.rows.map(r => (r.label, r.due, r.share, r.amount)).flatten()
+    )
+  })
+  v(4mm)
+}
 
 #if d.taxNote != none {
   block(breakable: false, semibold(d.taxNote))

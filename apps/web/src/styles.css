@@ -430,6 +430,9 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .sheet-table .num { text-align: right; white-space: nowrap; font-family: inherit; }
 .sheet-table td.num { font-size: inherit; }
 .sheet-table .desc { width: 100%; overflow-wrap: anywhere; }
+.sheet-tag { color: var(--brand); font-weight: 500; font-size: calc(8 * 0.3528 * var(--mm)); }
+.sheet-plan caption { text-align: left; font-weight: 600; caption-side: top; }
+.sheet-plan td.num { white-space: normal; }
 .sheet-totals { align-self: flex-end; width: calc(80 * var(--mm)); margin: calc(3 * var(--mm)) 0 calc(8 * var(--mm)); display: grid; grid-template-columns: 1fr auto; gap: calc(2.2 * var(--mm)) 0; }
 .sheet-totals dt, .sheet-totals dd { margin: 0; padding: 0 calc(1.6 * var(--mm)); }
 .sheet-totals dt { color: var(--ink-muted); }
@@ -642,3 +645,22 @@ summary { cursor: pointer; min-height: 24px; }
 @media (min-width: 861px) { .main:has(> .custom-page-frame) { box-sizing: border-box; height: 100dvh; } }
 /* Weiß wie eine Seite im Browser: die fremde Seite kennt das Theme von Haben nicht und setzt oft keinen Hintergrund */
 .custom-page-frame { flex: 1 1 0; min-height: max(420px, calc(100dvh - 220px)); width: 100%; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+
+/* Zahlungsplan im Angebot und in den Vorlagen: je Zahlung Bezeichnung, Anteil, Fälligkeit, Betrag */
+.plan-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) auto; gap: 8px; align-items: end; margin: 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line-soft); min-width: 0; }
+.plan-share { display: flex; gap: 6px; }
+.plan-share input { flex: 1 1 auto; min-width: 0; }
+.plan-share select { flex: 0 0 auto; width: auto; }
+.plan-amount { align-self: center; color: var(--muted); font-family: var(--mono); }
+/* Auswahl des Kunden im Angebot und Vorlagen in den Einstellungen */
+.choice-group { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.choice-group > legend:not(.visually-hidden) { padding: 0; margin-bottom: 4px; font-size: 13px; color: var(--muted); }
+/* Zusatzangaben einer Position: Rabatt und im Angebot die Art */
+.line-row > .line-extra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.line-extra label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.line-extra input { width: 9.5em; }
+.line-row .line-extra select { width: auto; }
+@media (max-width: 720px) {
+  .plan-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .plan-amount { grid-column: 1 / -1; }
+}

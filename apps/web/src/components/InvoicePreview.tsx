@@ -1,15 +1,23 @@
 import type { CSSProperties } from "react";
 import {
   accentPalette,
-  computeInvoiceTotals,
+  alternativeMain,
+  computeInvoice,
+  discountedLineAmount,
+  discountLabel,
   formatEuro,
   formatPercent,
   formatQuantity,
   formatRate,
   lineAmount,
+  lineDiscountAmount,
+  planShareLabel,
   skontoFristen,
+  type Discount,
   type InvoiceLineInput,
   type PriceMode,
+  type QuoteLineKind,
+  type ScheduledRow,
   type SkontoStufe,
 } from "@haben/core";
 import { formatDate } from "../lib/format.ts";
@@ -50,6 +58,22 @@ function sheetColors(accent: string): CSSProperties {
   return { "--brand": accent, "--ink": ink, "--ink-muted": muted, "--rule": rule } as CSSProperties;
 }
 
+/** Position der Vorschau mit Rabatt und (im Angebot) Art; Abzüge der Schlussrechnung zählen nicht zum Gesamtrabatt */
+export type PreviewLine = InvoiceLineInput & {
+  detail?: string;
+  valid: boolean;
+  discount?: Discount | null;
+  kind?: QuoteLineKind | null;
+  deductionOf?: string;
+};
+
+/** Text unter der Bezeichnung wie im PDF: „abzüglich 10 % Rabatt (95,00 €)“ */
+function lineDiscountText(line: PreviewLine, money: (cents: number) => string): string | null {
+  if (!line.discount) return null;
+  const amount = Math.abs(lineDiscountAmount(lineAmount(line.quantity, line.unitPrice), line.discount));
+  return `abzüglich ${discountLabel(line.discount)} Rabatt${line.discount.kind === "prozent" ? ` (${money(amount)})` : ""}`;
+}
+
 /** HTML-Abbild des PDFs für den Editor; das verbindliche Dokument rendert Typst. */
 export function InvoicePreview({
   kind,
@@ -70,6 +94,8 @@ export function InvoicePreview({
   title,
   currency = "EUR",
   skonto = [],
+  discount = null,
+  plan = [],
 }: {
   kind: keyof typeof KIND_TITLE;
   number: string;
@@ -81,7 +107,7 @@ export function InvoicePreview({
   serviceTo: string | null;
   seller: PreviewSeller;
   buyer: PreviewBuyer | null;
-  lines: (InvoiceLineInput & { detail?: string; valid: boolean })[];
+  lines: PreviewLine[];
   /** Einleitung über den Positionen */
   intro?: string;
   note: string;
@@ -96,6 +122,10 @@ export function InvoicePreview({
   currency?: string;
   /** Skontostufen der Rechnung; der Satz dazu wie im PDF (paymentSentence in @haben/einvoice) */
   skonto?: SkontoStufe[];
+  /** Gesamtrabatt */
+  discount?: Discount | null;
+  /** Zahlungsplan des Angebots mit Beträgen */
+  plan?: ScheduledRow[];
 }) {
   const money =
     currency === "EUR"
@@ -103,7 +133,12 @@ export function InvoicePreview({
       : (cents: number) => new Intl.NumberFormat("de-DE", { style: "currency", currency, currencyDisplay: "code" }).format(cents / 100);
   const valid = lines.filter((l) => l.valid);
   const gross = priceMode === "brutto";
-  const totals = computeInvoiceTotals(valid, priceMode);
+  // Optionale und alternative Positionen stehen zur Wahl und zählen nicht zur Summe
+  const counted = valid.filter((l) => !l.kind);
+  const { totals, allowances } = computeInvoice(counted, priceMode, discount);
+  const reduction = allowances.reduce((s, a) => s + a.amount, 0);
+  const subtotal = counted.reduce((s, l) => s + discountedLineAmount(l), 0);
+  const positions = valid.map((l, i) => ({ position: i + 1, kind: l.kind ?? null }));
   const quote = kind === "angebot";
   const sender = [seller.name, seller.strasse, `${seller.plz} ${seller.ort}`.trim()].filter(Boolean).join(" · ");
   const meta: [string, string][] = [
@@ -203,19 +238,26 @@ export function InvoicePreview({
                 <tr key={index}>
                   <td>{index + 1}</td>
                   <td className="desc">
-                    {line.detail ? <strong>{line.description}</strong> : line.description}
+                    {line.kind && (
+                      <div className="sheet-tag">
+                        {line.kind === "optional" ? "Optional" : `Alternative zu Pos. ${alternativeMain(positions, index + 1) ?? "?"}`}, nicht in der
+                        Angebotssumme
+                      </div>
+                    )}
+                    {line.detail || line.kind ? <strong>{line.description}</strong> : line.description}
                     {line.detail && (
                       <div className="sheet-muted" style={{ whiteSpace: "pre-wrap" }}>
                         {line.detail}
                       </div>
                     )}
+                    {line.discount && <div className="sheet-muted">{lineDiscountText(line, money)}</div>}
                   </td>
                   <td className="num">
                     {formatQuantity(line.quantity)} {line.unit}
                   </td>
                   <td className="num">{money(line.unitPrice)}</td>
                   <td className="num">{taxNote ? "–" : formatRate(line.taxRate)}</td>
-                  <td className="num">{money(lineAmount(line.quantity, line.unitPrice))}</td>
+                  <td className="num">{money(discountedLineAmount(line))}</td>
                 </tr>
               ))}
               {valid.length === 0 && (
@@ -229,6 +271,14 @@ export function InvoicePreview({
             </tbody>
           </table>
           <dl className="sheet-totals">
+            {allowances.length > 0 && discount && (
+              <>
+                <dt>Zwischensumme</dt>
+                <dd>{money(subtotal)}</dd>
+                <dt>Gesamtrabatt{discount.kind === "prozent" && ` ${discountLabel(discount)}`}</dt>
+                <dd>−{money(reduction)}</dd>
+              </>
+            )}
             {!gross && (
               <>
                 <dt>Summe netto</dt>
@@ -264,6 +314,31 @@ export function InvoicePreview({
               </>
             )}
           </dl>
+          {plan.length > 0 && (
+            <table className="sheet-table sheet-plan" aria-label="Zahlungsplan">
+              <caption>Zahlungsplan</caption>
+              <thead>
+                <tr>
+                  <th>Zahlung</th>
+                  <th>Fällig bei</th>
+                  <th className="num">Anteil</th>
+                  <th className="num">Betrag</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.map((row, i) => (
+                  <tr key={i}>
+                    <td>
+                      {i + 1}. {row.label}
+                    </td>
+                    <td>{row.due}</td>
+                    <td className="num">{planShareLabel(row.share, formatPercent, money, "Rest")}</td>
+                    <td className="num">{!taxNote && !gross ? `${money(row.net)} netto (${money(row.gross)} brutto)` : money(row.gross)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
           {taxNote && <p className="sheet-strong">{taxNote}</p>}
           <p>{payment}</p>
           {note && <p style={{ whiteSpace: "pre-wrap" }}>{note}</p>}

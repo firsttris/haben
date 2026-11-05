@@ -138,7 +138,8 @@ export const contactQuerySchema = z
 // ── Rechnungen ────────────────────────────────────────────────────────────────
 
 const draftFields = draftSchema.shape;
-const lineFields = draftFields.lines.element.shape;
+// Rabatte bleiben der Oberfläche vorbehalten, wie Abschlags- und Schlussrechnung
+const { discount: _discount, ...lineFields } = draftFields.lines.element.shape;
 
 const lineInputSchema = z
   .object({

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { computeInvoice, orderRateAmounts, planSchedule, type PaymentPlanRow } from "@haben/core";
+import { buildConfirmationPdf, confirmationPdfData } from "./order.ts";
 import { buildQuotePdf, quotePdfData, type QuoteDocument } from "./quote.ts";
 import { grossPriceLines, sampleDocument } from "./samples.ts";
 
@@ -46,6 +48,83 @@ describe("Angebot", () => {
 
   it("erzeugt ein PDF", () => {
     const pdf = buildQuotePdf(sampleQuote());
+    expect(Buffer.from(pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
+  });
+
+  it("kennzeichnet optionale und alternative Positionen, die Summe zählt nur die übrigen", () => {
+    const { lines, totals } = sampleDocument();
+    const data = quotePdfData(
+      sampleQuote({
+        lines: [lines[0]!, { ...lines[1]!, position: 2, kind: "alternative", alternativeTo: 1 }, { ...lines[1]!, position: 3, kind: "optional" }],
+        totals: computeInvoice([lines[0]!], "netto").totals,
+      }),
+    );
+    expect(data.lines.map((l) => ("tag" in l ? l.tag : null))).toEqual([
+      null,
+      "Alternative zu Pos. 1, nicht in der Angebotssumme",
+      "Optional, nicht in der Angebotssumme",
+    ]);
+    expect(data.totals.rows[0]).toEqual({ label: "Summe netto", value: "14.440,00\u00a0€" });
+    expect(totals.net).not.toBe(1_444_000);
+  });
+
+  it("Gesamtrabatt nur aus den Positionen, die zählen", () => {
+    const { lines } = sampleDocument();
+    const counted = [lines[0]!];
+    const calc = computeInvoice(counted, "netto", { kind: "prozent", value: 1000 });
+    const data = quotePdfData(
+      sampleQuote({
+        lines: [
+          { ...lines[0]!, net: calc.lineNets[0]! },
+          { ...lines[1]!, kind: "optional" },
+        ],
+        totals: calc.totals,
+        discount: { kind: "prozent", value: 1000 },
+      }),
+    );
+    expect(data.totals.rows.slice(0, 3)).toEqual([
+      { label: "Zwischensumme", value: "14.440,00\u00a0€" },
+      { label: "Gesamtrabatt 10\u00a0%", value: "\u22121.444,00\u00a0€" },
+      { label: "Summe netto", value: "12.996,00\u00a0€" },
+    ]);
+  });
+
+  it("Zahlungsplan mit Anteil, Fälligkeit und Betrag netto und brutto", () => {
+    const { totals } = sampleDocument();
+    const rows: PaymentPlanRow[] = [
+      { label: "Anzahlung", share: { kind: "prozent", value: 3000 }, due: "Auftragserteilung" },
+      { label: "Schlussrechnung", share: { kind: "rest" }, due: "Abnahme" },
+    ];
+    const paymentPlan = planSchedule(rows, orderRateAmounts(totals, "netto"), "netto");
+    const quote = sampleQuote({ paymentPlan });
+    expect(quotePdfData(quote).plan).toEqual({
+      title: "Zahlungsplan",
+      columns: { label: "Zahlung", due: "Fällig bei", share: "Anteil", amount: "Betrag" },
+      rows: [
+        { label: "1. Anzahlung", due: "Auftragserteilung", share: "30\u00a0%", amount: "4.388,97\u00a0€ netto (5.222,87\u00a0€ brutto)" },
+        { label: "2. Schlussrechnung", due: "Abnahme", share: "Rest", amount: "10.240,93\u00a0€ netto (12.186,71\u00a0€ brutto)" },
+      ],
+    });
+    expect(quotePdfData(sampleQuote()).plan).toBeNull();
+    // Auftragsbestätigung: nur mit Plan, wenn er übergeben wird
+    expect(confirmationPdfData(quote, "2026-10-05").plan?.rows).toHaveLength(2);
+    const pdf = buildConfirmationPdf(quote, "2026-10-05");
+    expect(Buffer.from(pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
+  });
+
+  it("setzt Kennzeichen, Rabatt und Plan ins PDF", () => {
+    const { lines, totals } = sampleDocument();
+    const pdf = buildQuotePdf(
+      sampleQuote({
+        lines: [
+          { ...lines[0]!, discount: { kind: "prozent", value: 1000 } },
+          { ...lines[1]!, kind: "optional" },
+        ],
+        totals,
+        discount: { kind: "betrag", value: 1000 },
+        paymentPlan: planSchedule([{ label: "Schlussrechnung", share: { kind: "rest" }, due: "Abnahme" }], orderRateAmounts(totals, "netto"), "netto"),
+      }),
+    );
     expect(Buffer.from(pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
   });
 });

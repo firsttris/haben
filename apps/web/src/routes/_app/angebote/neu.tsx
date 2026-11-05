@@ -27,6 +27,7 @@ function NewQuotePage() {
       kleinunternehmer={data.kleinunternehmer}
       articles={data.articles}
       textBlocks={data.textBlocks}
+      planTemplates={data.planTemplates}
     />
   );
 }

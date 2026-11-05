@@ -65,6 +65,8 @@ export {
   type InvoiceListStatus,
 } from "./invoices.ts";
 export { confirmationPdf, deliveryNotePdf, OrderDocumentError } from "./order-documents.ts";
+export { QuoteChoiceError } from "./quote-choices.ts";
+export { abschlagFromPlan, PlanError, quotePlanOverview, type PlanRowOverview } from "./quote-plan.ts";
 export {
   copyQuote,
   createQuoteDraft,

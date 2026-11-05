@@ -1,7 +1,7 @@
 export * from "./types.ts";
 export { LANGUAGES, texts, type Language } from "./i18n.ts";
 export { legalLine, legalLines, logoFormat, renderInvoicePdf } from "./pdf.ts";
-export { buildQuotePdf, quotePdfData, type QuoteDocument } from "./quote.ts";
+export { buildQuotePdf, quotePdfData, type QuoteDocument, type QuoteDocumentLine } from "./quote.ts";
 export { buildConfirmationPdf, buildDeliveryNotePdf, confirmationPdfData, deliveryNotePdfData, type DeliveryNoteDocument } from "./order.ts";
 export { buildSteuerbescheinigungPdf, steuerbescheinigungPdfData, type SteuerbescheinigungDocument } from "./steuerbescheinigung.ts";
 export { buildLohnabrechnungPdf, lohnabrechnungPdfData, type LohnabrechnungDocument } from "./lohnabrechnung.ts";

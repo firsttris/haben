@@ -1,4 +1,4 @@
-import { invoiceLineInputSchema, LINE_DETAIL_MAX } from "@haben/core";
+import { discountSchema, invoiceLineInputSchema, LINE_DETAIL_MAX, QUOTE_LINE_KINDS } from "@haben/core";
 import { z } from "zod";
 
 /**
@@ -7,3 +7,9 @@ import { z } from "zod";
  * auch wenn invoices.ts über einen Importkreis noch nicht fertig geladen ist.
  */
 export const draftLineSchema = z.object({ ...invoiceLineInputSchema.shape, detail: z.string().trim().max(LINE_DETAIL_MAX).default("") });
+
+/** Position einer Rechnung mit Positionsrabatt (Prozent oder Betrag im Preismodus); wiederkehrende Rechnungen haben keinen */
+export const invoiceDraftLineSchema = draftLineSchema.extend({ discount: z.nullable(discountSchema).default(null) });
+
+/** Position eines Angebots: dazu optional oder Alternative zur Hauptposition davor (null = normale Position) */
+export const quoteDraftLineSchema = invoiceDraftLineSchema.extend({ kind: z.enum(QUOTE_LINE_KINDS).nullable().default(null) });

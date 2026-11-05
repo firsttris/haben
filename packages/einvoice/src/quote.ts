@@ -1,7 +1,14 @@
-import type { InvoiceTotals, PriceMode, TaxTreatment } from "@haben/core";
+import { planShareLabel, type Discount, type InvoiceTotals, type PriceMode, type QuoteLineKind, type ScheduledRow, type TaxTreatment } from "@haben/core";
 import { texts, type Language, type Texts } from "./i18n.ts";
-import { documentPdfData, renderQuotePdfData } from "./pdf.ts";
+import { documentPdfData, renderQuotePdfData, showsGrossPrices } from "./pdf.ts";
 import type { Buyer, InvoiceDocumentLine, Letterhead, Seller } from "./types.ts";
+
+/** Position im Angebot; optionale und alternative zählen nicht zur Summe (help.lexware.de, Artikel 547989) */
+export interface QuoteDocumentLine extends InvoiceDocumentLine {
+  kind?: QuoteLineKind;
+  /** Bei einer Alternative: Position der Hauptposition */
+  alternativeTo?: number;
+}
 
 /** Angebot: wie eine Rechnung aufgebaut, aber ohne Zahlungsaufforderung und ohne E-Rechnungs-XML */
 export interface QuoteDocument extends Letterhead {
@@ -13,8 +20,13 @@ export interface QuoteDocument extends Letterhead {
   serviceTo?: string;
   seller: Seller;
   buyer: Buyer;
-  lines: InvoiceDocumentLine[];
+  lines: QuoteDocumentLine[];
+  /** Summen der Positionen, die zählen (ohne optionale und alternative) */
   totals: InvoiceTotals;
+  /** Gesamtrabatt wie eingegeben */
+  discount?: Discount;
+  /** Zahlungsplan mit Beträgen; im Angebot immer, in der Auftragsbestätigung nur auf Wunsch */
+  paymentPlan?: ScheduledRow[];
   /** Einleitung über den Positionen (Kopftext) */
   intro?: string;
   note?: string;
@@ -37,12 +49,42 @@ export function quoteDetails(doc: QuoteDocument, t: Texts): { label: string; val
   return meta;
 }
 
+/** Zahlungsplan für die Vorlage: je Zeile Bezeichnung, Fälligkeit, Anteil und Betrag; null ohne Plan */
+export function planPdfData(doc: QuoteDocument, t: Texts) {
+  if (!doc.paymentPlan || doc.paymentPlan.length === 0) return null;
+  const taxed = (doc.taxTreatment ?? "regulaer") === "regulaer";
+  const netPrices = !showsGrossPrices(doc);
+  return {
+    title: t.plan.title,
+    columns: t.plan.columns,
+    rows: doc.paymentPlan.map((row, i) => ({
+      label: `${i + 1}. ${row.label}`,
+      due: row.due,
+      share: planShareLabel(row.share, t.percent, t.money, t.plan.rest),
+      amount: taxed && netPrices ? t.plan.netAndGross(t.money(row.net), t.money(row.gross)) : t.money(row.gross),
+    })),
+  };
+}
+
+/** Kennzeichen über der Bezeichnung optionaler und alternativer Positionen */
+function lineTags(doc: QuoteDocument, t: Texts) {
+  return doc.lines.map((line) =>
+    line.kind === "optional" ? t.optionalTag : line.kind === "alternative" ? t.alternativeTag(String(line.alternativeTo ?? "")) : null,
+  );
+}
+
 /** Druckfertige Texte für templates/rechnung.typ */
 export function quotePdfData(doc: QuoteDocument) {
   const t = texts(doc.language);
-  const { totalRows, included, grossLabel, ...body } = documentPdfData(doc, t);
+  // Summen und Gesamtrabatt nur aus den Positionen, die zählen; gezeigt werden alle
+  const counted = doc.lines.filter((l) => !l.kind);
+  const { totalRows, included, grossLabel, ...body } = documentPdfData({ ...doc, lines: counted }, t);
+  const all = documentPdfData(doc, t).lines;
+  const tags = lineTags(doc, t);
   return {
     ...body,
+    lines: all.map((line, i) => (tags[i] ? { ...line, tag: tags[i] } : line)),
+    plan: planPdfData(doc, t),
     docTitle: `${t.titles.angebot} ${doc.number}`,
     title: t.titles.angebot,
     reference: null,
