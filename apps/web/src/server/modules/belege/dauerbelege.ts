@@ -156,9 +156,11 @@ export async function updateDauerbeleg(actor: string, id: string, input: Dauerbe
     if (previous.status === "beendet") throw new DauerbelegError("Ein beendeter Dauerbeleg lässt sich nicht mehr ändern. Lege bei Bedarf einen neuen an.");
     await checkSupplier(tx, row.supplierContactId);
     const contract = file ? await storeContract(tx, file) : {};
+    // Unveränderter Termin: Ankertag behalten, sonst würde aus dem Monatsletzten nach einer Änderung am 28.02. der 28.
+    const anchorDay = row.nextDate === previous.nextDate ? previous.anchorDay : row.anchorDay;
     const [saved] = await tx
       .update(schema.recurringDocuments)
-      .set({ ...row, ...contract, lastError: null })
+      .set({ ...row, anchorDay, ...contract, lastError: null })
       .where(eq(schema.recurringDocuments.id, id))
       .returning();
     const replaced = file && previous.sha256 !== saved!.sha256 ? await unusedFile(tx, previous.sha256) : null;

@@ -279,7 +279,9 @@ describe.skipIf(!testDatabaseUrl)("Dauerbelege (Postgres)", () => {
     await bank.importStatement(
       actor,
       {
-        bytes: dkbCsv([["03.11.26", "03.11.26", "Gebucht", "Testfirma", "Hafen Immobilien GmbH", "Nebenkosten", "Ausgang", "DE02100100100006820101", "-300,00", "", "", ""]]),
+        bytes: dkbCsv([
+          ["03.11.26", "03.11.26", "Gebucht", "Testfirma", "Hafen Immobilien GmbH", "Nebenkosten", "Ausgang", "DE02100100100006820101", "-300,00", "", "", ""],
+        ]),
         filename: "konto.csv",
       },
       null,

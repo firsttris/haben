@@ -114,7 +114,7 @@ Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist
 
 ### Ändern, pausieren, beenden
 
-- **Ändern** gilt nur für künftige Belege. Angelegte Belege behalten ihre Felder, Beträge und ihre Datei; gebuchte sind ohnehin gesperrt. Eine neue Datei (Nachtrag, neue Dauerrechnung nach einer Mieterhöhung) lädst du unter **Neuer Vertrag oder Nachtrag** hoch; die alte bleibt an den bisherigen Belegen.
+- **Ändern** gilt nur für künftige Belege. Angelegte Belege behalten ihre Felder, Beträge und ihre Datei; gebuchte sind ohnehin gesperrt. Eine neue Datei (Nachtrag, neue Dauerrechnung nach einer Mieterhöhung) lädst du unter **Neuer Vertrag oder Nachtrag** hoch; die alte bleibt an den bisherigen Belegen. Lässt du **Nächster Beleg am** unverändert, bleibt auch der Tag im Monat: Ein Dauerbeleg zum 31. bleibt beim Monatsende, auch wenn du ihn änderst, während der nächste Termin auf den 28. Februar fällt.
 - **Pausieren** hält den Dauerbeleg an. **Fortsetzen** macht beim ersten Termin ab heute weiter: Termine, die in die Pause fielen, legt Haben nicht an. Willst du sie doch, setzt du vor dem Speichern **Nächster Beleg am** zurück.
 - **Beenden** ist endgültig: Es entstehen keine Belege mehr, und die Vorlage lässt sich nicht mehr ändern. Die angelegten Belege bleiben.
 - **Löschen** geht nur, solange kein Beleg aus der Vorlage entstanden ist; sonst beendest du sie. Jede Änderung an der Vorlage steht im Änderungsprotokoll, die Belege eines Laufs mit dem Akteur `system:dauerbelege`.
