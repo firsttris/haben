@@ -974,20 +974,6 @@
       "when": 1793990574647,
       "tag": "0138_ustva_offener_posten_trigger",
       "breakpoints": true
-    },
-    {
-      "idx": 139,
-      "version": "7",
-      "when": 1793990634647,
-      "tag": "0139_afa_methoden",
-      "breakpoints": true
-    },
-    {
-      "idx": 140,
-      "version": "7",
-      "when": 1793990694647,
-      "tag": "0140_afa_methoden_trigger",
-      "breakpoints": true
     }
   ]
 }
