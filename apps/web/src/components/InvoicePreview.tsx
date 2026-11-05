@@ -1,5 +1,17 @@
 import type { CSSProperties } from "react";
-import { accentPalette, computeInvoiceTotals, formatEuro, formatQuantity, formatRate, lineAmount, type InvoiceLineInput, type PriceMode } from "@haben/core";
+import {
+  accentPalette,
+  computeInvoiceTotals,
+  formatEuro,
+  formatPercent,
+  formatQuantity,
+  formatRate,
+  lineAmount,
+  skontoFristen,
+  type InvoiceLineInput,
+  type PriceMode,
+  type SkontoStufe,
+} from "@haben/core";
 import { formatDate } from "../lib/format.ts";
 import { KIND_TITLE } from "../lib/invoice.ts";
 
@@ -57,6 +69,7 @@ export function InvoicePreview({
   corrects,
   title,
   currency = "EUR",
+  skonto = [],
 }: {
   kind: keyof typeof KIND_TITLE;
   number: string;
@@ -81,6 +94,8 @@ export function InvoicePreview({
   title?: string;
   /** Währung der Rechnung; Beträge in dieser Währung wie auf dem PDF */
   currency?: string;
+  /** Skontostufen der Rechnung; der Satz dazu wie im PDF (paymentSentence in @haben/einvoice) */
+  skonto?: SkontoStufe[];
 }) {
   const money =
     currency === "EUR"
@@ -112,7 +127,13 @@ export function InvoicePreview({
       ? "Der Betrag wird Ihnen erstattet."
       : totals.gross === 0
         ? "Es ist keine Zahlung erforderlich."
-        : `Bitte überweisen Sie den Betrag bis zum ${formatDate(dueDate)} unter Angabe der Rechnungsnummer.`;
+        : [
+            `Bitte überweisen Sie den Betrag bis zum ${formatDate(dueDate)} unter Angabe der Rechnungsnummer.`,
+            ...(kind === "rechnung" ? skontoFristen(skonto, issueDate, totals.gross) : []).map(
+              (s) =>
+                `Bei Zahlung bis zum ${formatDate(s.until)} gewähren wir ${formatPercent(s.percent)} Skonto (${money(s.amount)}); Sie überweisen dann ${money(s.payable)}.`,
+            ),
+          ].join(" ");
   const footer = [
     [seller.name || "[Firmenname]", seller.strasse, `${seller.plz} ${seller.ort}`.trim(), seller.email],
     [

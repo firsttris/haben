@@ -163,7 +163,8 @@ export async function createDunning(actor: string, input: DunningInput, today: s
       dueDate: input.dueDate,
       seller: withCurrentLegalInfo(invoice.seller, company),
       buyer: invoice.buyer,
-      invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate },
+      // Gemahnt wird erst nach der Fälligkeit, also nach jeder Skontofrist: dann gilt der volle Betrag
+      invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate, skontoExpired: invoice.skonto.length > 0 },
       amounts,
       intro: input.intro,
       closing: input.closing,

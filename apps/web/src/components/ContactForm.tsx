@@ -1,9 +1,10 @@
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { saveContact } from "../server/functions/contacts.ts";
 import type { Contact, ContactInput } from "../server/modules/stammdaten/index.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
 import { FORMAT_LABEL, FORMATS } from "../lib/invoice.ts";
 import { useAction } from "../lib/use-action.ts";
 
@@ -31,6 +32,9 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
   const { busy, notice, setNotice, run } = useAction();
+  // Skonto: null = Vorgabe aus den Einstellungen; eigene Stufen, leer = ohne Skonto
+  const [ownSkonto, setOwnSkonto] = useState(contact?.skonto != null);
+  const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(contact?.skonto ?? []));
   const initial: ContactInput = contact
     ? {
         ...EMPTY,
@@ -48,8 +52,10 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
     const format = text("defaultFormat");
     const isCustomer = form.get("isCustomer") === "on";
     const isSupplier = form.get("isSupplier") === "on";
+    const skonto = parseSkontoRows(skontoRows);
     void run(async () => {
       if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
+      if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
       const result = await save({
         data: {
           id: contact?.id ?? null,
@@ -66,6 +72,7 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
             leitwegId: text("leitwegId"),
             defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
             language: text("language") === "en" ? "en" : "de",
+            skonto: ownSkonto ? skonto.stufen : null,
             isCustomer,
             isSupplier,
             lieferantennummer: text("lieferantennummer"),
@@ -196,7 +203,22 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
               <option value="en">Englisch</option>
             </select>
           </label>
+          <label className="field">
+            Skonto
+            <select value={ownSkonto ? "eigen" : "vorgabe"} onChange={(e) => setOwnSkonto(e.target.value === "eigen")}>
+              <option value="vorgabe">wie in den Einstellungen</option>
+              <option value="eigen">eigenes für diesen Kunden</option>
+            </select>
+          </label>
         </div>
+        {ownSkonto && (
+          <SkontoFields
+            id="contact-skonto"
+            rows={skontoRows}
+            onChange={setSkontoRows}
+            hint="Ohne Stufe bekommt dieser Kunde kein Skonto. Eine Frist, die länger ist als das Zahlungsziel der Rechnung, entfällt dort."
+          />
+        )}
       </section>
 
       <NoticeBanner notice={notice} />

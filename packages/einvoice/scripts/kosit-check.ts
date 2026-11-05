@@ -63,6 +63,22 @@ const samples: Record<string, InvoiceDocument> = {
   ...Object.fromEntries(
     (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).map((format) => [`gmbh-${format}`, { ...sampleDocument({ format }), seller: gmbhSeller }]),
   ),
+  // Skonto in den Zahlungsbedingungen (BT-20) nach BR-DE-18, zwei Stufen wie im Testfall 01.10a der XRechnung-Testsuite
+  ...Object.fromEntries(
+    (["zugferd", "xrechnung-cii", "xrechnung-ubl"] as const).flatMap((format) => [
+      [
+        `skonto-${format}`,
+        {
+          ...sampleDocument({ format }),
+          skonto: [
+            { days: 10, percent: 200 },
+            { days: 14, percent: 100 },
+          ],
+        },
+      ],
+      [`skonto-leitweg-${format}`, { ...sampleDocument({ format, buyer: publicBuyer }), skonto: [{ days: 7, percent: 250 }] }],
+    ]),
+  ),
   "leitweg-xr-cii": sampleDocument({ format: "xrechnung-cii", buyer: publicBuyer }),
   "leitweg-xr-ubl": sampleDocument({ format: "xrechnung-ubl", buyer: publicBuyer }),
   "leistungsdatum-xr-ubl": { ...sampleDocument({ format: "xrechnung-ubl" }), serviceFrom: "2026-09-30", serviceTo: undefined },

@@ -34,6 +34,7 @@ import {
   type AssetMethod,
   type CarPrivateUse,
   type MailTemplates,
+  type SkontoStufe,
   type TaxShare,
   BESCHAEFTIGUNGSARTEN,
   KONFESSIONEN,
@@ -110,6 +111,8 @@ export const company = pgTable(
     geschaeftsfuehrer: text("geschaeftsfuehrer").notNull().default(""),
     aufsichtsratVorsitz: text("aufsichtsrat_vorsitz").notNull().default(""),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
+    /** Vorgabe für das Skonto neuer Rechnungen, je Stufe Frist in Tagen und Satz in Basispunkten; leer = kein Skonto */
+    skonto: jsonb("skonto").$type<SkontoStufe[]>().notNull().default([]),
     defaultFormat: invoiceFormatEnum("default_format").notNull().default("zugferd"),
     /** Vorgabe für die Einleitung über den Positionen neuer Rechnungen bzw. Angebote; im Beleg änderbar */
     invoiceIntro: text("invoice_intro").notNull().default(""),
@@ -794,6 +797,8 @@ export const contacts = pgTable("contacts", {
   iban: text("iban").notNull().default(""),
   leitwegId: text("leitweg_id").notNull().default(""),
   defaultFormat: invoiceFormatEnum("default_format"),
+  /** Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto */
+  skonto: jsonb("skonto").$type<SkontoStufe[]>(),
   /** Sprache von Rechnungen und Angeboten an diesen Kontakt */
   language: text("language", { enum: ["de", "en"] })
     .notNull()
@@ -844,6 +849,11 @@ export const invoices = pgTable(
     serviceTo: date("service_to", { mode: "string" }),
     paymentTermDays: smallint("payment_term_days").notNull().default(14),
     dueDate: date("due_date", { mode: "string" }).notNull(),
+    /**
+     * Skonto in den Zahlungsbedingungen, je Stufe Frist in Tagen ab dem Rechnungsdatum und Satz in Basispunkten vom
+     * ganzen Betrag; im PDF mit Datum und Betrag, in der E-Rechnung als #SKONTO# in BT-20. Leer = ohne Abzug
+     */
+    skonto: jsonb("skonto").$type<SkontoStufe[]>().notNull().default([]),
     format: invoiceFormatEnum("format").notNull().default("zugferd"),
     /** Einleitung über den Positionen (Kopftext) */
     intro: text("intro").notNull().default(""),

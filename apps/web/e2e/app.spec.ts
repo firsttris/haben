@@ -1387,6 +1387,136 @@ test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async () => {
   await expect(abrechnung.getByRole("row", { name: "Auszahlung" })).toContainText("501,28");
 });
 
+test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleichen", async ({ browser }) => {
+  // Vorgabe in den Firmendaten: 2 % in 10 Tagen
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await firma.getByRole("button", { name: "+ Skontostufe hinzufügen" }).click();
+  await firma.getByLabel("Stufe 1: Skonto in %").fill("2");
+  await firma.getByLabel("Stufe 1: Frist in Tagen").fill("10");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(firma.getByRole("status")).toContainText("Firmendaten gespeichert.");
+
+  // Ein Kunde mit eigenem Skonto: 3 % in 7 Tagen
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Kontor Lindner KG");
+  await page.getByLabel("Straße und Hausnummer").fill("Speicherstadt 4");
+  await page.getByLabel("PLZ").fill("20457");
+  await page.getByLabel("Ort").fill("Hamburg");
+  await page.getByRole("combobox", { name: /^Skonto/ }).selectOption("eigen");
+  await page.getByRole("button", { name: "+ Skontostufe hinzufügen" }).click();
+  await page.getByLabel("Stufe 1: Skonto in %").fill("3");
+  await page.getByLabel("Stufe 1: Frist in Tagen").fill("7");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  // Neue Rechnung: erst die Vorgabe der Firma, mit dem Kunden dessen Skonto; Datum und Betrag stehen daneben
+  const issueDate = day(-2);
+  await go("/rechnungen/neu");
+  await expect(page.getByLabel("Stufe 1: Skonto in %")).toHaveValue("2");
+  await page.getByLabel("Kunde").selectOption({ label: "Kontor Lindner KG · Hamburg" });
+  await expect(page.getByLabel("Stufe 1: Skonto in %")).toHaveValue("3");
+  await expect(page.getByLabel("Stufe 1: Frist in Tagen")).toHaveValue("7");
+  await page.getByLabel("Rechnungsdatum").fill(issueDate);
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung Lagerlogistik");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("1.000,00");
+  const until = new Date(`${issueDate}T00:00:00Z`);
+  until.setUTCDate(until.getUTCDate() + 7);
+  const untilText = until.toISOString().slice(0, 10).split("-").reverse().join(".");
+  // 3 % von 1.190,00 € = 35,70 €
+  await expect(page.getByText(`bis ${untilText}: 35,70 € Skonto, zu zahlen 1.154,30 €`)).toBeVisible();
+  await expect(page.getByLabel("Vorschau der Rechnung")).toContainText(`Bei Zahlung bis zum ${untilText} gewähren wir 3 % Skonto (35,70 €)`);
+  // Eine Frist über das Zahlungsziel hinaus lässt sich nicht speichern
+  await page.getByLabel("Stufe 1: Frist in Tagen").fill("30");
+  await expect(page.getByText("Die Skontofrist von 30 Tagen ist länger als das Zahlungsziel von 14 Tagen.")).toBeVisible();
+  await page.getByLabel("Stufe 1: Frist in Tagen").fill("7");
+
+  // Editor mit Skontostufe für axe, am Desktop und am Handy (WCAG 2.2 AA wie barrierefreiheit.spec.ts)
+  async function axe(path: string, ready: (p: Page) => Promise<void>) {
+    const context = await browser.newContext({ storageState: await page.context().storageState() });
+    const axePage = await context.newPage();
+    for (const width of [1440, 390]) {
+      await axePage.setViewportSize({ width, height: 900 });
+      await axePage.goto(new URL(path, page.url()).toString());
+      await axePage.waitForLoadState("networkidle");
+      await ready(axePage);
+      const { violations } = await new AxeBuilder({ page: axePage })
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+        .analyze();
+      expect(
+        violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+        `${path} bei ${width} px`,
+      ).toEqual([]);
+    }
+    await context.close();
+  }
+
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const invoicePath = new URL(page.url()).pathname;
+  await axe(invoicePath, (p) => expect(p.getByLabel("Stufe 1: Skonto in %")).toHaveValue("3"));
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+  const number = (await page.getByRole("heading", { level: 1 }).textContent())?.match(/\d{4}-\d{3}/)?.[0] ?? "";
+  expect(number).not.toBe("");
+
+  // Zahlung in der Frist mit 3 % Skonto
+  const csv =
+    "﻿" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n"Kontostand vom ${dkb(day(0))}:";"1.154,30 €"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    [
+      dkb(day(0)),
+      dkb(day(0)),
+      "Gebucht",
+      "Kontor Lindner KG",
+      "Max Mustermann",
+      `RE ${number} abzgl. 3 % Skonto`,
+      "Eingang",
+      "DE75512108001245126199",
+      "1.154,30",
+      "",
+      "",
+      "",
+    ]
+      .map((v) => `"${v}"`)
+      .join(";") +
+    "\n";
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "skonto.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/1 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await page
+    .getByRole("link", { name: /Kontor Lindner KG/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await expect(panel.getByRole("heading", { name: "Kontor Lindner KG" })).toBeVisible();
+  await expect(panel.getByText("Betrag stimmt mit 3 % Skonto (35,70 €), in der Frist")).toBeVisible();
+  await axe(new URL(page.url()).pathname + new URL(page.url()).search, (p) =>
+    expect(p.getByRole("button", { name: "Zuordnen, Rest 35,70 € als Skonto" })).toBeVisible(),
+  );
+  await panel.getByRole("button", { name: "Zuordnen, Rest 35,70 € als Skonto" }).click();
+  await expect(panel.getByRole("heading", { name: "Kontor Lindner KG" })).toBeHidden();
+  await page.waitForLoadState("networkidle");
+
+  // Die Rechnung ist bezahlt, das Skonto ausgebucht
+  await go(invoicePath);
+  await expect(page.getByText("Bezahlt").first()).toBeVisible();
+  await expect(page.getByText("Skonto gewährt").first()).toBeVisible();
+
+  // Vorgabe wieder entfernen, damit die übrigen Tests ohne Skonto rechnen
+  await go("/einstellungen");
+  await firma.getByRole("button", { name: "Skontostufe 1 entfernen" }).click();
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(firma.getByRole("status")).toContainText("Firmendaten gespeichert.");
+});
+
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {
   expect(pageErrors).toEqual([]);
   await page.context().storageState({ path: SESSION });
