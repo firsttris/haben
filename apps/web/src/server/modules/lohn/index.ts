@@ -6,7 +6,7 @@
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
-export { employeeSchema, getEmployee, listEmployees, LohnError, saveEmployee, type Employee, type EmployeeInput } from "./employees.ts";
+export { employeeSchema, getEmployee, hasEmployees, listEmployees, LohnError, saveEmployee, type Employee, type EmployeeInput } from "./employees.ts";
 export {
   abrechnen,
   abrechnenSchema,

@@ -110,6 +110,13 @@ describe.skipIf(!testDatabaseUrl)("Lohnabrechnung (Postgres)", () => {
     expect(audit.map((a) => `${a.table_name}:${a.action}`)).toEqual(["employees:INSERT", "payroll_runs:INSERT", "payslips:INSERT"]);
   });
 
+  // Hinter dem ersten Test: dessen Audit-Log erwartet nur seinen eigenen Mitarbeiter
+  it("kennt Mitarbeiter erst ab dem ersten angelegten, ausgetretene zählen mit (Menüpunkt SV-Meldeportal)", async () => {
+    expect(await lohn.hasEmployees()).toBe(false);
+    await lohn.saveEmployee(actor, null, { ...GGF, austritt: "2025-12-31" });
+    expect(await lohn.hasEmployees()).toBe(true);
+  });
+
   it("legt für einen Teilmonat keinen Entwurf an und nennt den Grund", async () => {
     await lohn.saveEmployee(actor, null, { ...GGF, eintritt: "2026-10-15" });
     const r = await lohn.abrechnen(actor, oktober);

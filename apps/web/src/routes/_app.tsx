@@ -4,6 +4,7 @@ import { ThemePicker } from "../components/ThemePicker.tsx";
 import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { isKapitalgesellschaft } from "@haben/core";
+import { navLinkSichtbar, type NavBedingung } from "../lib/navigation.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
 export const Route = createFileRoute("/_app")({
@@ -13,17 +14,20 @@ export const Route = createFileRoute("/_app")({
     if (!state.user) throw redirect({ to: "/login" });
     // Die Steuerberatung sieht nur ihre Seiten; die Server Functions prüfen das unabhängig davon selbst
     if (state.user.role !== "inhaber" && !steuerberatungSieht(location.pathname)) throw redirect({ to: STEUERBERATUNG_START });
-    return { user: state.user, rechtsform: state.rechtsform ?? "einzelunternehmen", eigeneSeiten: state.eigeneSeiten };
+    return {
+      user: state.user,
+      rechtsform: state.rechtsform ?? "einzelunternehmen",
+      eigeneSeiten: state.eigeneSeiten,
+      hatMitarbeiter: state.hatMitarbeiter,
+    };
   },
   component: AppLayout,
 });
 
-interface NavLink {
+interface NavLink extends NavBedingung {
   to: string;
   icon: Parameters<typeof Icon>[0]["name"];
   label: string;
-  nurEinzelunternehmen?: true;
-  nurKapitalgesellschaft?: true;
 }
 
 /** Hauptnavigation nach Arbeitsbereichen; Einstellungen stehen unten bei Konto und Abmelden */
@@ -60,7 +64,8 @@ const NAV_GROUPS = [
     label: "Personal",
     links: [
       { to: "/lohn", icon: "payroll", label: "Lohn" },
-      { to: "/sv-meldeportal", icon: "mail", label: "SV-Meldeportal" },
+      // Lohn bleibt immer sichtbar, dort entsteht der erste Mitarbeiter
+      { to: "/sv-meldeportal", icon: "mail", label: "SV-Meldeportal", nurMitMitarbeitern: true },
     ],
   },
   {
@@ -102,7 +107,7 @@ const STEUERBERATUNG_NAV = [
 ] as const;
 
 function AppLayout() {
-  const { user, rechtsform, eigeneSeiten } = Route.useRouteContext();
+  const { user, rechtsform, eigeneSeiten, hatMitarbeiter } = Route.useRouteContext();
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const inhaber = user.role === "inhaber";
   const groups = inhaber ? NAV_GROUPS : STEUERBERATUNG_NAV;
@@ -174,7 +179,7 @@ function AppLayout() {
                 {group.label}
               </div>
               {(group.links as readonly NavLink[])
-                .filter((link) => !(gesellschaft && link.nurEinzelunternehmen) && !(!gesellschaft && link.nurKapitalgesellschaft))
+                .filter((link) => navLinkSichtbar(link, { gesellschaft, hatMitarbeiter }))
                 .map((link) => (
                   <Link key={link.to} to={link.to} className="nav-link">
                     <Icon name={link.icon} />
