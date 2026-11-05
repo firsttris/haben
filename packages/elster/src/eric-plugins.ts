@@ -13,6 +13,8 @@ export function hatJahresPlugin(ericHome: string, datenartVersion: string | unde
 }
 
 function pluginName(datenartVersion: string): string | null {
+  // Die Lohnsteuerbescheinigung hat ein Plugin ohne Jahr; welche Jahre es kennt, steht in LSTB_SCHNITTSTELLEN (lstb.ts)
+  if (datenartVersion === "ElsterLohn") return "ElsterLohn";
   const jahr = /^(UStVA|USt|EUER|ESt|KapEStA|LStA)_(\d{4})$/.exec(datenartVersion);
   if (jahr) return `${jahr[1]}_${jahr[2]}`;
   const bilanz = /^Bilanz_(\d+)\.(\d+)$/.exec(datenartVersion);

@@ -1,6 +1,6 @@
 -- SV-Meldeportal (docs/lohn-plan.md, PR 6): Vermerke „im Portal abgegeben“ sind nur anhängbar und stehen im Audit-Log.
 -- Eine Rücknahme ist eine neue Zeile, die auf einen Vermerk desselben Gegenstands zeigt; eine Rücknahme selbst lässt
--- sich nicht zurücknehmen, und je Vermerk gibt es höchstens eine (eindeutiger Index aus 0135).
+-- sich nicht zurücknehmen, und je Vermerk gibt es höchstens eine (eindeutiger Index aus 0137).
 CREATE FUNCTION haben_check_sv_portal_filing() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN

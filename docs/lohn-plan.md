@@ -1,6 +1,6 @@
 # Lohn in Haben – Recherche und Umsetzungsplan
 
-Stand: 5. November 2026. PR 1 bis 6 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
+Stand: 5. November 2026. PR 1 bis 6 und die Lohnsteuerbescheinigung aus PR 7 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
 
 ## Kurzfazit
 
@@ -131,6 +131,17 @@ Stand: 5. November 2026. PR 1 bis 6 sind umgesetzt, der Rest ist Plan. Ein Teil 
 - **Stammdaten einmal im Portal:** Die Ausfüllliste empfiehlt, den Online-Speicher zu aktivieren und Firma und Mitarbeiter einmal dort anzulegen; danach holt der Stammdaten-Assistent Name, Anschrift und Versicherungsnummer ins Formular, und die Liste braucht je Monat nur die Bewegungsdaten (Entgelt, Beiträge je Beitragsgruppe, Zeitraum).
 
 ### PR 7 – Lohnsteuerbescheinigung und ELStAM
+
+**Lohnsteuerbescheinigung erledigt** (ELStAM nicht): `lohnsteuerbescheinigung.ts` in `packages/core` (Werte, Zeitraum, Merkmale, Frist, KmId), `lstb.ts` in `packages/elster` (ElsterLohn, LStB 202501 und LStBStorno Version 2), Ausdruck nach amtlichem Muster in `packages/einvoice` (`lohnsteuerbescheinigung.typ`), Modul `lohn` (`bescheinigung.ts`) mit der Tabelle `lstb_submissions`, Seite **Personal › Lohn › Lohnsteuerbescheinigungen** ([Lohn](lohn.md#lohnsteuerbescheinigung)). Abweichungen und Entscheidungen:
+
+- **Ab 2026 nicht über ERiC.** Die Datenart LStB im Verfahren ElsterLohn gilt nur bis zum Bescheinigungszeitraum 2025; ab 2026 heißt sie LSTMitteilung im Verfahren ElsterKMV (ERiC-Entwicklerhandbuch 45.1.5.0, Kap. 9.5.1, 9.8 und Tabelle 4-4). Ihre Schnittstelle („Mitteilungen zu Lohnsteuerbescheinigungen nach § 41b EStG“, Versionen 2 und 3) steht nur auf esteuer.de, nicht im ERiC-Paket, und esteuer.de war beim Bau nicht erreichbar. Da Haben erst ab 2026 abrechnet, übermittelt der Nutzer im ELSTER-Portal (Formular „Lohnsteuerbescheinigung (Neu / Korrektur) ab 2026“) und vermerkt Tag und Transferticket. Nachziehen, sobald das Schema vorliegt: LSTMitteilung in `lstb.ts`, Jahr in `LSTB_SCHNITTSTELLEN`.
+- **ERiC bis 2025:** Neu, Korrektur (mit RefKmId, ab 1. März des Folgejahres mit Grund „Einfache Berichtigung“) und Storno; Testmerker 220000000. ERiC prüft die Nutzdaten von ElsterLohn nicht (Kap. 9.5.1), deshalb prüft `lstb.test.ts` sie mit `ERIC_DOKU` gegen das Schema (Validator des JDK; xmllint versteht die Muster mit `\p{…}` nicht). Ein Plugin je Jahr gibt es nicht (`checkElsterLohn`); welche Jahre gehen, sagt `LSTB_SCHNITTSTELLEN`, andere lehnt Haben vor ERiC ab. „Korrektur nach § 41c“ als Grund und das Verarbeitungsprotokoll (ELOProtokoll über ElsterDatenabholung) fehlen.
+- **Identifikation:** nur Steuer-ID. Die eTIN gibt es ab 2023 nicht mehr (§ 41b Abs. 2 EStG), das Schema 2025 kennt nur `IdNr`; Ordnungsmerkmal ist die Personalnummer.
+- **Werte:** Zeilen 3 bis 6, 22a, 23a, 25 bis 27 aus den festgeschriebenen Abrechnungen nach Lohnzahlungszeitraum; der Zusatzbeitrag zählt zu Zeile 25. Private Basiskranken- und Pflege-Pflichtversicherung bis 2025 als Jahressumme in Zeile 28, ab 2026 im Ausdruck links als Monatsbeitrag (Muster 2026, Zeile 28 unbesetzt).
+- **Nicht unterstützt (konservativ):** Großbuchstabe U (Monate ohne Abrechnung lassen die Bescheinigung offen), Teilmonate, Wechsel zwischen Minijob mit Pauschsteuer und Lohnsteuer nach ELStAM, und Beschäftigte mit Entgelt über der BBG der Krankenversicherung, weil dann eine freiwillige Versicherung möglich ist (Zeilen 24 bis 26 anders); die BBG ist dafür strenger als die allgemeine Jahresarbeitsentgeltgrenze. Minijobs mit Pauschsteuer bekommen keine Bescheinigung (§ 41b Abs. 6 EStG).
+- **Fertig erst nach Abschluss des Lohnkontos** (nach dem 31. Dezember oder dem Austritt, § 41b Abs. 1 Satz 1 EStG), mit Abrechnung für jeden Monat der Beschäftigung und ohne Entwurf. Frist: letzter Tag im Februar des Folgejahres (§ 93c Abs. 1 Nr. 1 AO), auf den nächsten Werktag verschoben.
+- **Ausdruck** nach dem Muster 2026 (BMF-Schreiben vom 29.8.2025) mit allen Zeilen, vor der Übermittlung nur als Entwurf; nach einem Storno mit Vermerk „Stornierung“.
+- **Historie** in `lstb_submissions`, nur anhängen, mit Audit-Trigger; eine stornierte Bescheinigung zählt für die Frist als erledigt.
 
 - **LStB:** `packages/elster/src/lstb.ts` (Verfahren ElsterLohn, Datenart LStB) bis zum letzten Tag im Februar des Folgejahres, mit eTIN/Steuer-ID. Schema aus dem ERiC-Paket.
 - **ELStAM:** An- und Abmeldung und Abruf über ERiC (ElsterLohn2, prüfen) mit Organisationszertifikat. Erst nach Klärung der Herstellerfrage. Bis dahin trägt der Nutzer die Merkmale von Hand ein.

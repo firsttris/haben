@@ -247,7 +247,7 @@ const leer = (): Jahresteile => ({ vorjahr: 0, lfdJahr: 0, folgejahr: 0 });
  * (Regel LStA_Vorjahrangabe_unzulaessig: 01, 02, 41, 19). Die Spalte Folgejahr bleibt leer: Lohn für das Folgejahr ist
  * im Voraus gezahlt ein sonstiger Bezug des Zahlungsjahres.
  */
-const letzterZahltagVorjahr = (year: number) => `${year}-01-21`;
+export const letzterZahltagVorjahr = (year: number): string => `${year}-01-21`;
 
 export type LstaErgebnis = { ok: true; kennzahlen: LstaKennzahlen } | { ok: false; probleme: string[] };
 

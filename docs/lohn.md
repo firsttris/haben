@@ -1,9 +1,9 @@
 # Lohn
 
-Unter **Personal › Lohn** legst du Mitarbeiter an, rechnest jeden Monat ab und schreibst die Abrechnung fest. Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und die Beiträge zur Sozialversicherung, erzeugt die Entgeltabrechnung als PDF, bucht die Abrechnung ins Journal, führt das Lohnkonto je Mitarbeiter und Jahr und übermittelt die [Lohnsteuer-Anmeldung](#lohnsteuer-anmeldung) über ELSTER. Unter **Personal › SV-Meldeportal** steht je Monat, was du im [SV-Meldeportal](#sv-meldeportal) abtippst.
+Unter **Personal › Lohn** legst du Mitarbeiter an, rechnest jeden Monat ab und schreibst die Abrechnung fest. Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und die Beiträge zur Sozialversicherung, erzeugt die Entgeltabrechnung als PDF, bucht die Abrechnung ins Journal, führt das Lohnkonto je Mitarbeiter und Jahr, übermittelt die [Lohnsteuer-Anmeldung](#lohnsteuer-anmeldung) über ELSTER und erstellt die [Lohnsteuerbescheinigung](#lohnsteuerbescheinigung).
 
 > [!IMPORTANT]
-> Haben übermittelt nicht an die Sozialversicherung. Beitragsnachweise und Meldungen gibst du selbst im SV-Meldeportal ab; Haben liefert die Werte dafür Feld für Feld. Noch nicht dabei: die Lohnsteuerbescheinigung. Was wann kommt, steht im [Plan](lohn-plan.md).
+> Haben übermittelt nicht an die Sozialversicherung. Beitragsnachweise und Meldungen gibst du selbst im SV-Meldeportal ab; Haben liefert die Werte dafür Feld für Feld. Die [Lohnsteuerbescheinigung](#lohnsteuerbescheinigung) rechnet Haben und druckt den Ausdruck; ab 2026 übermittelst du sie im ELSTER-Portal. Was wann kommt, steht im [Plan](lohn-plan.md).
 
 ## Was Haben abrechnet
 
@@ -199,6 +199,57 @@ Jede Meldung zeigt Einzugsstelle, Versicherungsnummer, Name, Anschrift, Zeitraum
 
 Hast du einen Nachweis oder eine Meldung im Portal abgegeben, trägst du das mit **Im Portal abgegeben** ein: Tag der Abgabe, auf Wunsch das Protokoll aus dem Portal (PDF, PNG oder JPEG) und eine Notiz. Der Vermerk hält die Werte der Liste fest; ändern sie sich danach, etwa durch ein Storno, zeigt Haben „geändert seit Abgabe“, und du korrigierst im Portal. Vermerke lassen sich nicht ändern oder löschen, nur mit Grund **zurücknehmen**; der alte bleibt sichtbar und steht wie jeder Vermerk im Änderungsprotokoll. Mit dem Vermerk ist die Frist unter [Fristen](fristen.md) erledigt. Fristen nennt Haben ab dem ersten Lohnlauf in Haben; was davor liegt, hat die bisherige Lohnabrechnung gemeldet.
 
+## Lohnsteuerbescheinigung
+
+Nach dem Abschluss des Lohnkontos, am Ende des Jahres oder mit dem Austritt, übermittelt der Arbeitgeber für jeden Arbeitnehmer die elektronische Lohnsteuerbescheinigung (§ 41b Abs. 1 EStG), spätestens bis zum letzten Tag im Februar des Folgejahres (§ 93c Abs. 1 Nr. 1 AO; fällt er auf ein Wochenende, der nächste Werktag), und gibt ihm einen Ausdruck nach amtlichem Muster. **Lohnsteuerbescheinigungen** in der Mitarbeiterliste unter **Personal › Lohn** führt zur Seite des Jahres.
+
+**Werte:** Haben nimmt sie aus den festgeschriebenen, nicht stornierten Abrechnungen des Jahres (Lohnzahlungszeitraum, § 38a Abs. 1 Satz 2 EStG). Die Seite zeigt sie mit den Zeilen des Musters; das ist zugleich die Ausfüllliste für Mein ELSTER:
+
+| Zeile | Inhalt | Aus den Abrechnungen |
+| --- | --- | --- |
+| 1 | Bescheinigungszeitraum | Eintritt bzw. 1. Januar bis Austritt bzw. 31. Dezember |
+| 3 | Bruttoarbeitslohn | steuerpflichtiger Arbeitslohn |
+| 4 bis 6 | Lohnsteuer, Soli, Kirchensteuer des Arbeitnehmers | einbehaltene Beträge |
+| 22a, 23a | Arbeitgeber- und Arbeitnehmeranteil zur Rentenversicherung | Anteile laut Abrechnung |
+| 25 bis 27 | Arbeitnehmerbeiträge zur Kranken- (mit Zusatzbeitrag), Pflege- und Arbeitslosenversicherung | Anteile laut Abrechnung |
+| links | Steuerklasse, Kinderfreibeträge, Kirchensteuermerkmal des letzten Monats; private Basiskranken- und Pflege-Pflichtversicherung des Geschäftsführers als Monatsbeitrag | Stand der letzten Abrechnung, Änderungen im Jahr mit Datum |
+
+Der Gesellschafter-Geschäftsführer ohne Sozialversicherung hat keine Beiträge in den Zeilen 22 bis 27: Seine Kranken- und Pflegeversicherung zahlt er selbst, einen Zuschuss rechnet Haben nicht. Die Identifikation läuft über die Steuer-ID; die eTIN gibt es seit 2023 nicht mehr (§ 41b Abs. 2 EStG). Als Personalnummer steht die Personalnummer aus Haben auf der Bescheinigung.
+
+**Wann sie fertig ist:** Für jeden Monat der Beschäftigung im Jahr braucht es eine festgeschriebene Abrechnung, Entwürfe dürfen keine mehr offen sein, und das Lohnkonto muss abgeschlossen sein: nach dem 31. Dezember oder nach dem Austritt. Bis dahin steht der Grund an der Karte des Mitarbeiters.
+
+| Stand | Bedeutung |
+| --- | --- |
+| keine Bescheinigung | Nur Minijob mit Pauschsteuer: pauschal besteuerter Arbeitslohn wird nicht bescheinigt (§ 41b Abs. 6 EStG) |
+| noch nicht fertig | Lohnkonto noch nicht abgeschlossen, ein Monat ohne festgeschriebene Abrechnung oder ein Entwurf |
+| nicht unterstützt | Ein Fall, den Haben nicht sicher bescheinigt, siehe unten |
+| bereit zur Übermittlung | Die Werte stehen fest |
+| übermittelt | Die zuletzt übermittelte Bescheinigung passt zu den Abrechnungen |
+| Korrektur nötig | Seit der Übermittlung ergeben die Abrechnungen andere Werte, etwa nach einem Storno |
+| storniert | Die zuletzt übermittelte Bescheinigung ist storniert; danach lässt sich eine neue übermitteln |
+
+**Nicht unterstützt:** Monate ohne Arbeitslohn (Großbuchstabe U), ein Wechsel zwischen Minijob mit Pauschsteuer und Lohnsteuer nach den ELStAM im selben Jahr, Eintritt oder Austritt im Lauf eines Monats, ein Entgelt über der Beitragsbemessungsgrenze der Krankenversicherung, weil die Versicherung dann freiwillig sein kann und andere Regeln für die Zeilen 24 bis 26 gelten (ein Midijob im Übergangsbereich liegt darunter und wird bescheinigt), und Lohn, der als sonstiger Bezug eines anderen Jahres gilt: Lohn für Dezember mit Zahltag später als drei Wochen nach Jahresende oder Lohn, der schon im Vorjahr gezahlt wurde (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR, wie bei der Lohnsteuer-Anmeldung). Was Haben schon bei der Abrechnung nicht rechnet (siehe oben), steht auch nicht auf der Bescheinigung.
+
+### Übermitteln
+
+Ab dem Bescheinigungszeitraum 2026 geht die Lohnsteuerbescheinigung nicht mehr als Datenart LStB im Verfahren ElsterLohn, sondern als LSTMitteilung im Verfahren ElsterKMV (ERiC-Entwicklerhandbuch, Kap. 9.5 und 9.8). Deren Schnittstelle liegt nicht im ERiC-Paket, sondern nur auf esteuer.de; Haben hat sie nicht und sendet die Bescheinigung deshalb nicht selbst. So gehst du vor:
+
+1. In Mein ELSTER das Formular **Lohnsteuerbescheinigung (Neu / Korrektur) ab 2026** öffnen und die Werte von der Seite eintragen.
+2. Absenden und aus der Bestätigung Tag und Transferticket notieren.
+3. In Haben an der Karte des Mitarbeiters **Übermittlung vermerken** mit Tag und Transferticket. Haben hält die Werte fest, mit denen es gerade rechnet.
+
+Für Bescheinigungen bis 2025 kann Haben über ERiC senden (ElsterLohn, mit Testmerker 220000000 als Test); da Haben erst ab 2026 abrechnet, kommt das nur nach einer Übernahme vor. ERiC prüft dabei nur den Umschlag; Fehler in den Daten meldet die Finanzverwaltung erst im Verarbeitungsprotokoll.
+
+### Ausdruck
+
+**Entwurf des Ausdrucks (PDF)** zeigt die Werte vor der Übermittlung, quer mit „Entwurf“ beschriftet. Nach dem Vermerk ist es der **Ausdruck für den Arbeitnehmer** nach dem Muster des BMF für 2026 (BMF-Schreiben vom 29. August 2025) mit Tag der Übermittlung und Transferticket; den gibst du dem Arbeitnehmer (§ 41b Abs. 1 Satz 3 EStG).
+
+### Korrektur und Storno
+
+Wird eine Abrechnung des Jahres nach der Übermittlung storniert und neu festgeschrieben, steht die Bescheinigung auf „Korrektur nötig“. Du korrigierst sie in Mein ELSTER mit demselben Formular und vermerkst die **Korrektur**. Nach Ablauf der Frist ist eine Korrektur nur für falsch übermittelte Daten gedacht: Den Lohnsteuerabzug selbst darf der Arbeitgeber nach der Übermittlung nicht mehr ändern (§ 41c Abs. 3 Satz 1 EStG). Eine **Stornierung** ist für Bescheinigungen, die nie hätten übermittelt werden dürfen, etwa für den falschen Arbeitnehmer (§ 93c Abs. 3 AO); auch sie vermerkst du mit Transferticket.
+
+Jede Übermittlung, jeder Vermerk und jede Prüfung steht im Verlauf der Karte. Die Einträge lassen sich nicht ändern oder löschen und stehen im Änderungsprotokoll. In den [Fristen](fristen.md) steht die Lohnsteuerbescheinigung je Jahr, bis für jeden Arbeitnehmer eine passende übermittelt oder sie storniert ist. Den Namen des Finanzamts, an das die Lohnsteuer abgeführt wird, trägst du in den [Firmendaten](einrichtung.md#firmendaten) ein; er steht auf der Bescheinigung.
+
 ## Quellen
 
 - DATEV-Kontenrahmen 2026 SKR 03 (Art.-Nr. 11174) und SKR 04 (Art.-Nr. 11175), siehe [Plan](lohn-plan.md#quellen)
@@ -208,6 +259,9 @@ Hast du einen Nachweis oder eine Meldung im Portal abgegeben, trägst du das mit
 - § 108 GewO: <https://www.gesetze-im-internet.de/gewo/__108.html>
 - Entgeltbescheinigungsverordnung §§ 1 und 2: <https://www.gesetze-im-internet.de/entgbv/__1.html>, <https://www.gesetze-im-internet.de/entgbv/__2.html>
 - § 41 EStG: <https://www.gesetze-im-internet.de/estg/__41.html>; § 4 LStDV: <https://www.gesetze-im-internet.de/lstdv/__4.html>
+- § 41b EStG: <https://www.gesetze-im-internet.de/estg/__41b.html>; § 41c EStG: <https://www.gesetze-im-internet.de/estg/__41c.html>; § 93c AO: <https://www.gesetze-im-internet.de/ao_1977/__93c.html>
+- Ausdruck der elektronischen Lohnsteuerbescheinigung für 2026, BMF-Schreiben vom 29.8.2025: <https://www.bundesfinanzministerium.de/Content/DE/Downloads/BMF_Schreiben/Steuerarten/Lohnsteuer/2025-08-29-ausdruck-elektr-lstbesch-2026.html>
+- ERiC-Entwicklerhandbuch 45.1.5.0, Kap. 9.5 (Lohnsteuerbescheinigung bis 2025) und 9.8 (ElsterKMV, LSTMitteilung ab 2026); Schemas `lstb202501.xsd` und `lstb_storno_000002.xsd` im ERiC-Dokumentationspaket
 - § 20 Abs. 2 SGB IV (Übergangsbereich): <https://www.gesetze-im-internet.de/sgb_4/__20.html>; § 2 BVV: <https://www.gesetze-im-internet.de/beitrvv/__2.html>
 - SV-Meldeportal: Benutzerhandbuch (Stand 01.12.2025), Kap. 4.1 und 4.2: <https://info.sv-meldeportal.de/wp-content/uploads/de-benutzerhandbuch.pdf>; Fragen und Antworten: <https://info.sv-meldeportal.de/fragen-antworten/>
 - § 23 SGB IV (Fälligkeit): <https://www.gesetze-im-internet.de/sgb_4/__23.html>; § 28a SGB IV (Meldungen): <https://www.gesetze-im-internet.de/sgb_4/__28a.html>; § 28f SGB IV (Beitragsnachweis): <https://www.gesetze-im-internet.de/sgb_4/__28f.html>

@@ -50,6 +50,7 @@ const PAGES = [
   "/buchungen/neu",
   `/abschluss/${YEAR - 1}`,
   "/ausschuettungen",
+  `/lohn/bescheinigung/${YEAR}`,
   "/lohn",
   "/lohn/mitarbeiter/neu",
   "/sv-meldeportal",

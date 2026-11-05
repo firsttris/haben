@@ -1,5 +1,5 @@
 {
-  "id": "564d5121-37ae-47d4-a7e7-0d133af404c1",
+  "id": "654f3691-19a5-46a4-96f3-342640024db3",
   "prevId": "040907f8-020c-42df-b36d-355203cb5a7f",
   "version": "7",
   "dialect": "postgresql",
@@ -6313,6 +6313,199 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.lstb_submissions": {
+      "name": "lstb_submissions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "art": {
+          "name": "art",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "km_id": {
+          "name": "km_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ref_km_id": {
+          "name": "ref_km_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "werte": {
+          "name": "werte",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "angaben": {
+          "name": "angaben",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "datum": {
+          "name": "datum",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grund": {
+          "name": "grund",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "ok": {
+          "name": "ok",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transfer_ticket": {
+          "name": "transfer_ticket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "request_xml": {
+          "name": "request_xml",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "response_xml": {
+          "name": "response_xml",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "server_response_xml": {
+          "name": "server_response_xml",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "protocol_pdf": {
+          "name": "protocol_pdf",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "lstb_submissions_employee_year": {
+          "name": "lstb_submissions_employee_year",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "year",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "lstb_submissions_km_id": {
+          "name": "lstb_submissions_km_id",
+          "columns": [
+            {
+              "expression": "km_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"lstb_submissions\".\"kind\" = 'send' and \"lstb_submissions\".\"ok\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lstb_submissions_employee_id_employees_id_fk": {
+          "name": "lstb_submissions_employee_id_employees_id_fk",
+          "tableFrom": "lstb_submissions",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "lstb_submissions_ref": {
+          "name": "lstb_submissions_ref",
+          "value": "\"lstb_submissions\".\"art\" = 'neu' or \"lstb_submissions\".\"kind\" = 'portal' or \"lstb_submissions\".\"ref_km_id\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.mail_log": {
       "name": "mail_log",
       "schema": "",
@@ -8641,169 +8834,6 @@
         "sevdesk_connection_single_row": {
           "name": "sevdesk_connection_single_row",
           "value": "\"sevdesk_connection\".\"id\" = 1"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.sv_portal_filings": {
-      "name": "sv_portal_filings",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "gegenstand": {
-          "name": "gegenstand",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "art": {
-          "name": "art",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "titel": {
-          "name": "titel",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "employee_id": {
-          "name": "employee_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "datum": {
-          "name": "datum",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "werte": {
-          "name": "werte",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notiz": {
-          "name": "notiz",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "protokoll_sha256": {
-          "name": "protokoll_sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "protokoll_dateiname": {
-          "name": "protokoll_dateiname",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "protokoll_mime_type": {
-          "name": "protokoll_mime_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "protokoll_groesse": {
-          "name": "protokoll_groesse",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revokes_id": {
-          "name": "revokes_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "sv_portal_filings_gegenstand": {
-          "name": "sv_portal_filings_gegenstand",
-          "columns": [
-            {
-              "expression": "gegenstand",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "sv_portal_filings_revokes": {
-          "name": "sv_portal_filings_revokes",
-          "columns": [
-            {
-              "expression": "revokes_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "sv_portal_filings_employee_id_employees_id_fk": {
-          "name": "sv_portal_filings_employee_id_employees_id_fk",
-          "tableFrom": "sv_portal_filings",
-          "tableTo": "employees",
-          "columnsFrom": [
-            "employee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "sv_portal_filings_revokes_id_sv_portal_filings_id_fk": {
-          "name": "sv_portal_filings_revokes_id_sv_portal_filings_id_fk",
-          "tableFrom": "sv_portal_filings",
-          "tableTo": "sv_portal_filings",
-          "columnsFrom": [
-            "revokes_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "sv_portal_filings_protokoll": {
-          "name": "sv_portal_filings_protokoll",
-          "value": "(\"sv_portal_filings\".\"protokoll_sha256\" is null) = (\"sv_portal_filings\".\"protokoll_dateiname\" is null) and (\"sv_portal_filings\".\"protokoll_sha256\" is null) = (\"sv_portal_filings\".\"protokoll_groesse\" is null) and (\"sv_portal_filings\".\"protokoll_sha256\" is null) = (\"sv_portal_filings\".\"protokoll_mime_type\" is null)"
         }
       },
       "isRLSEnabled": false

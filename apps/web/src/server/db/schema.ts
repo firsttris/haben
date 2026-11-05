@@ -45,6 +45,7 @@ import {
   type LstaKennzahlen,
   type SvBeitraege,
 } from "@haben/core";
+import type { LstbWerte } from "@haben/core";
 
 export * from "./auth-schema.ts";
 
@@ -2284,5 +2285,54 @@ export const lstaSubmissions = pgTable(
   (t) => [
     index("lsta_submissions_period").on(t.year, t.zeitraum),
     check("lsta_submissions_zeitraum", sql`(${t.zeitraum} between 1 and 12) or (${t.zeitraum} between 41 and 44) or ${t.zeitraum} = 19`),
+  ],
+);
+
+/** Angaben zu Arbeitnehmer und Arbeitgeber, wie sie in eine Lohnsteuerbescheinigung eingehen (für Ausdruck und Storno) */
+export interface LstbAngaben {
+  arbeitnehmer: { idnr: string; ordnungsmerkmal: string; vorname: string; nachname: string; geburtsdatum: string; strasse: string; plz: string; ort: string };
+  arbeitgeber: { name: string; steuernummer13: string; finanzamt: string; bundesland: string; strasse: string; plz: string; ort: string };
+}
+
+/**
+ * Elektronische Lohnsteuerbescheinigung (§ 41b EStG) je Arbeitnehmer und Jahr: jede Prüfung und Übermittlung über ERiC und
+ * jeder Vermerk einer Übermittlung im ELSTER-Portal, nur anhängen. Eine übermittelte Bescheinigung bleibt so unverändert;
+ * Korrektur und Storno sind neue Zeilen, die mit `ref_km_id` auf die vorige verweisen (§ 93c Abs. 3 AO).
+ */
+export const lstbSubmissions = pgTable(
+  "lstb_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id),
+    year: smallint("year").notNull(),
+    art: text("art", { enum: ["neu", "korrektur", "storno"] }).notNull(),
+    /** validate, test, send: über ERiC; portal: vom Nutzer vermerkt, im ELSTER-Portal übermittelt */
+    kind: text("kind", { enum: ["validate", "test", "send", "portal"] }).notNull(),
+    /** Kennung der Mitteilung; im Portal vergibt ELSTER sie, dann null */
+    kmId: text("km_id"),
+    refKmId: text("ref_km_id"),
+    /** Bescheinigte Werte in Cent (LstbWerte aus @haben/core); null beim Storno und bei einem Vermerk ohne Werte aus Haben */
+    werte: jsonb("werte").$type<LstbWerte>(),
+    angaben: jsonb("angaben").$type<LstbAngaben>().notNull(),
+    /** Tag der Übermittlung */
+    datum: date("datum", { mode: "string" }).notNull(),
+    grund: text("grund").notNull().default(""),
+    ok: boolean("ok").notNull(),
+    code: integer("code").notNull(),
+    message: text("message").notNull(),
+    transferTicket: text("transfer_ticket"),
+    requestXml: text("request_xml").notNull(),
+    responseXml: text("response_xml").notNull(),
+    serverResponseXml: text("server_response_xml").notNull(),
+    protocolPdf: bytea("protocol_pdf"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("lstb_submissions_employee_year").on(t.employeeId, t.year),
+    // Jede übermittelte Mitteilung hat eine eigene KmId; Prüfungen und Tests dürfen sie wiederholen
+    uniqueIndex("lstb_submissions_km_id").on(t.kmId).where(sql`${t.kind} = 'send' and ${t.ok}`),
+    check("lstb_submissions_ref", sql`${t.art} = 'neu' or ${t.kind} = 'portal' or ${t.refKmId} is not null`),
   ],
 );
