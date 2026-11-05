@@ -13,7 +13,7 @@ import { alleMeldungen, beitragsnachweiseImMonat, beitragsnachweisTitel, listenD
 /*
  * Vermerk „im Portal abgegeben“: Der Nutzer hält fest, dass er einen Beitragsnachweis oder eine Meldung im
  * SV-Meldeportal abgegeben hat, mit Tag und auf Wunsch dem Protokoll des Portals. Nur anhängbar und im Audit-Log
- * (Trigger aus 0138); eine Rücknahme ist eine neue Zeile. Titel und Werte bildet der Server selbst aus der Liste, nicht
+ * (Trigger aus 0140); eine Rücknahme ist eine neue Zeile. Titel und Werte bildet der Server selbst aus der Liste, nicht
  * aus Angaben des Browsers.
  */
 

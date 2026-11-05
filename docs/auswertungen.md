@@ -64,12 +64,13 @@ Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlung
 
 ## Offene Posten
 
-Die beiden Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten Jahr. Sortiert wird nach Fälligkeit.
+Die drei Tabellen am Ende zeigen den Stand von heute, unabhängig vom gewählten Jahr. Sortiert wird nach Fälligkeit.
 
 - **Offene Forderungen:** festgeschriebene Rechnungen und Rechnungskorrekturen, die nicht storniert sind, mit Betrag abzüglich zugeordneter Zahlungen. Eine Korrektur erscheint mit negativem offenem Betrag, ebenso eine Stornorechnung, solange die Zahlung auf die stornierte Rechnung noch nicht erstattet ist. Offen heißt hier dasselbe wie in der Rechnungsliste und im Bankabgleich.
 - **Offene Verbindlichkeiten:** gebuchte Belege mit Zahlung „Bank“, abzüglich zugeordneter Zahlungen. Ohne Fälligkeitsdatum gilt das Belegdatum.
+- **Umsatzsteuer gegenüber dem Finanzamt:** Zahllast (positiv) und Erstattung (negativ) jeder abgegebenen Voranmeldung, abzüglich der im Bankabgleich zugeordneten Zahlungen; eine berichtigte Anmeldung als eigene Zeile über die Differenz. Die Nummer führt zur Voranmeldung. Siehe [Zahlung an das Finanzamt](umsatzsteuer.md#zahlung-an-das-finanzamt).
 
-Der Status zeigt, wie viele Tage ein Posten überfällig ist oder in wie vielen Tagen er fällig wird. Nummer bzw. Rechnungsnummer führen zur Rechnung oder zum Beleg.
+Der Status zeigt, wie viele Tage ein Posten überfällig ist oder in wie vielen Tagen er fällig wird. Nummer bzw. Rechnungsnummer führen zur Rechnung oder zum Beleg. Eine Erstattung des Finanzamts ist nie überfällig; sie steht als „Erstattung erwartet“.
 
 Beide Summen stehen auch als Kacheln in der **Übersicht**, mit Anzahl und überfälligen Posten; bei den Verbindlichkeiten ohne Überfälliges das nächste Fälligkeitsdatum. Ein Klick auf die Kachel führt zur jeweiligen Tabelle hier.
 

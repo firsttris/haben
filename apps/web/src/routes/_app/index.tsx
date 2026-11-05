@@ -59,8 +59,21 @@ function OverviewPage() {
   // Steuerkonto: reicht der Stand für die Zahllast, die das Finanzamt per Lastschrift einzieht?
   const zahllast = data.current?.status === "sent" ? data.current.kz83 : data.computedKz83;
   const taxAccount = data.invoices.bank.find((a) => a.purpose === "steuer");
-  // Ist die Lastschrift schon eingezogen und zugeordnet, ist der Kontostand bereits um sie gesunken
-  const zahllastOffen = Math.max(0, zahllast - data.vatPaid);
+  // Abgegebene Voranmeldungen: was je Posten noch offen ist; der Zeitraum ohne Abgabe nach den Buchungen, abzüglich
+  // schon eingezogener Lastschriften ohne Bezug (dann ist der Kontostand bereits um sie gesunken)
+  const periodOpen = data.vatOpen.filter((p) => p.year === data.period.year && p.month === data.period.month).reduce((sum, p) => sum + p.offen, 0);
+  const postenOffen = data.vatOpen.filter((p) => p.offen > 0).reduce((sum, p) => sum + p.offen, 0);
+  const zahllastOffen = postenOffen + (sent ? 0 : Math.max(0, data.computedKz83 - data.vatPaid));
+  for (const posten of data.vatOpen.filter((p) => p.offen > 0 && daysUntil(p.faellig) < 0)) {
+    todos.push({
+      id: `ustva-${posten.vatReturnId}`,
+      title: `Umsatzsteuer ${periodLabel(posten)}${posten.berichtigt ? " (Berichtigung)" : ""} nicht bezahlt`,
+      detail: `${formatEuro(posten.offen)} offen, fällig seit ${formatLongDate(posten.faellig)}; Lastschrift im Bankabgleich der Voranmeldung zuordnen`,
+      action: "Zur Bank",
+      tone: "warn",
+      to: "/bank",
+    });
+  }
   const taxShortfall = taxAccount && taxAccount.balance !== null && zahllastOffen > 0 ? zahllastOffen - taxAccount.balance : 0;
   if (taxAccount && taxShortfall > 0 && !data.kleinunternehmer && !data.exempt) {
     todos.push({
@@ -258,7 +271,11 @@ function OverviewPage() {
           <div className="kpi-label">USt-Zahllast {periodLabel(data.period)}</div>
           <div className="kpi-value">{formatEuro(data.current?.status === "sent" ? data.current.kz83 : data.computedKz83)}</div>
           <div className="small muted">
-            {sent ? `gesendet ${formatDate(data.current!.sentAt!)}` : data.exempt ? "keine Voranmeldung" : `Voranmeldung fällig ${formatDate(data.dueDate)}`}
+            {sent
+              ? `gesendet ${formatDate(data.current!.sentAt!)} · ${periodOpen === 0 ? "ausgeglichen" : `${periodOpen > 0 ? "offen" : "Erstattung offen"} ${formatEuro(Math.abs(periodOpen))}`}`
+              : data.exempt
+                ? "keine Voranmeldung"
+                : `Voranmeldung fällig ${formatDate(data.dueDate)}`}
           </div>
         </div>
         {taxAccount && taxAccount.balance !== null && !data.kleinunternehmer && (
@@ -267,7 +284,7 @@ function OverviewPage() {
             <div className="kpi-value">{formatEuro(taxAccount.balance)}</div>
             <div className="small" style={{ color: taxShortfall > 0 ? "var(--warn-ink)" : "var(--muted)" }}>
               Steuerkonto ·{" "}
-              {zahllast <= 0
+              {zahllast <= 0 && zahllastOffen === 0
                 ? "keine Zahllast offen"
                 : zahllastOffen === 0
                   ? `Zahllast ${formatEuro(zahllast)} bezahlt`
