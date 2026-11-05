@@ -10,6 +10,7 @@ import { EricProcessClient } from "./process-client.ts";
 import { computeUstva } from "@haben/core";
 import { buildUstvaXml, type UstvaXmlInput } from "./xml.ts";
 import { buildDauerfristXml } from "./dauerfrist.ts";
+import { buildZmXml, type ZmXmlInput } from "./zm.ts";
 
 /**
  * Prüft alle Nachrichten von Haben mit dem echten ERiC: Schema und Plausibilität, lokal (ERIC_VALIDIERE),
@@ -278,6 +279,29 @@ const est =
     });
 
 const jahre = [2023, 2024, 2025];
+// ---------------------------------------------------------------------------
+// Zusammenfassende Meldung an das BZSt (Datenart ZMDO). ERiC weist Meldezeiträume in der Zukunft ab, deshalb das Vorjahr.
+
+const zmJahr = new Date().getFullYear() - 1;
+const zm =
+  (extra: Partial<ZmXmlInput> = {}) =>
+  () =>
+    buildZmXml({
+      period: { year: zmJahr, month: 43 },
+      ustId: "DE136695976",
+      anschrift: absender,
+      zeilen: [
+        { ustId: "ATU12345678", art: "S", betrag: 1_250_099 },
+        { ustId: "FR12345678901", art: "S", betrag: -30_000 },
+        { ustId: "NL123456789B01", art: "S", betrag: 99_999_999_999_00 },
+      ],
+      berichtigt: false,
+      herstellerId,
+      produktVersion: "0.1.0",
+      test: true,
+      ...extra,
+    });
+
 const faelle: [string, () => string][] = [
   // Voranmeldung
   ["UStVA 2026 einfach", ustva(2026, { kz81: 100_000, kz86: 50_000, kz66: 1_745 })],
@@ -409,6 +433,22 @@ const faelle: [string, () => string][] = [
     est(2025, { angaben: { ...leereAngaben, kap: { ertraegeOhneSteuerabzugInland: 30_000, ertraegeAusland: 20_000 } } }),
   ],
   ["ESt 2025 ohne weitere Angaben", est(2025, { angaben: leereAngaben, telefon: undefined })],
+  // Zusammenfassende Meldung
+  [`ZM ${zmJahr} 3. Quartal, sonstige Leistungen mit Gutschrift`, zm()],
+  [
+    `ZM ${zmJahr} 4. Quartal, alle Umsatzarten`,
+    zm({
+      period: { year: zmJahr, month: 44 },
+      zeilen: [
+        { ustId: "XI123456789", art: "L", betrag: 500_000 },
+        { ustId: "ESX1234567X", art: "D", betrag: 200_000 },
+        { ustId: "EL123456789", art: "S", betrag: 100_000 },
+      ],
+    }),
+  ],
+  [`ZM ${zmJahr} Dezember (Monatsmeldung)`, zm({ period: { year: zmJahr, month: 12 } })],
+  [`ZM ${zmJahr} Berichtigung, Zeile zurückgenommen`, zm({ berichtigt: true, zeilen: [{ ustId: "ATU12345678", art: "S", betrag: 0 }] })],
+  [`ZM ${zmJahr} Straße ohne Hausnummer`, zm({ anschrift: { ...absender, strasse: "Am Markt" } })],
   // Nachrichten an das Finanzamt
   [
     "Sonstige Nachricht",

@@ -3,6 +3,7 @@ export * from "./currency.ts";
 export * from "./period.ts";
 export * from "./voranmeldungszeitraum.ts";
 export * from "./dauerfrist.ts";
+export * from "./zm.ts";
 export * from "./steuernummer.ts";
 export * from "./ustva.ts";
 export * from "./invoice.ts";

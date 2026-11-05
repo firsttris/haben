@@ -63,6 +63,8 @@ export function datenartVersionFromXml(xml: string): string | undefined {
     const version = taxonomie ? EBILANZ_TAXONOMIEN[taxonomie] : undefined;
     if (version) return `Bilanz_${version}`;
   }
+  // Zusammenfassende Meldung: die Datenart ZMDO hat keine Jahresversion (ERiC-Plugin checkZMDO)
+  if (/<DatenArt>ZMDO<\/DatenArt>/.test(xml)) return "ZMDO";
   // Berechtigungsmanagement: Datenart = Datenart-Version
   const brm = /<DatenArt>(SpezRecht(?:Antrag|Freischaltung|Storno|Liste))<\/DatenArt>/.exec(xml);
   if (brm?.[1]) return brm[1];
