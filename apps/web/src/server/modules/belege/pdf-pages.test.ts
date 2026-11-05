@@ -38,3 +38,15 @@ describe.skipIf(!hasPdftoppm)("PDF in Seitenbilder (pdftoppm)", () => {
     await expect(pdfToPageImages(new TextEncoder().encode("%PDF-1.7 kaputt"), 2)).rejects.toThrow(/nicht in Bilder umwandeln/);
   });
 });
+
+describe("PDF in Seitenbilder ohne pdftoppm", () => {
+  it("meldet verständlich, dass poppler-utils fehlt", async () => {
+    const path = process.env.PATH;
+    process.env.PATH = "/nirgendwo";
+    try {
+      await expect(pdfToPageImages(new TextEncoder().encode("%PDF-1.7"), 2)).rejects.toMatchObject({ reason: "pdftoppm-fehlt" });
+    } finally {
+      process.env.PATH = path;
+    }
+  });
+});

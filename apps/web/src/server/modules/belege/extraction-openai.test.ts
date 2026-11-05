@@ -1,3 +1,5 @@
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ExtractionConfig } from "./extraction-config.ts";
 import { extractWithOpenAiCompatible, parseExtraction } from "./extraction-openai.ts";
@@ -152,6 +154,81 @@ describe("OpenAI-kompatibler Dienst", () => {
     await expect(extract()).rejects.toThrow(/Vision-Modell.*does not support images/);
     service.reply(() => ({ status: 500, body: "kaputt" }));
     await expect(extract()).rejects.toThrow(/HTTP 500/);
+  });
+});
+
+describe("Umleitungen des Dienstes", () => {
+  it("folgt keiner Umleitung: Beleg und Schlüssel gehen nur an die eingerichtete Adresse", async () => {
+    const received: { authorization?: string; bytes: number }[] = [];
+    const other = createServer((req, res) => {
+      let bytes = 0;
+      req.on("data", (chunk: Buffer) => {
+        bytes += chunk.length;
+      });
+      req.on("end", () => {
+        received.push({ authorization: req.headers.authorization, bytes });
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(completion(JSON.stringify(ANSWER))));
+      });
+    });
+    await new Promise<void>((resolve) => other.listen(0, "127.0.0.1", resolve));
+    const otherPort = (other.address() as AddressInfo).port;
+    // Anderer Host als der eingerichtete (localhost statt 127.0.0.1), 307 behält POST und Inhalt
+    const original = createServer((req, res) => {
+      req.resume();
+      req.on("end", () => {
+        res.writeHead(307, { location: `http://localhost:${otherPort}/v1/chat/completions` });
+        res.end();
+      });
+    });
+    await new Promise<void>((resolve) => original.listen(0, "127.0.0.1", resolve));
+    const port = (original.address() as AddressInfo).port;
+    try {
+      const config: OpenAiConfig = {
+        provider: "openai-compatible",
+        model: "qwen2.5vl:7b",
+        endpoint: `http://127.0.0.1:${port}/v1/chat/completions`,
+        apiKey: "geheim-123",
+        timeoutMs: 5_000,
+        maxPages: 2,
+      };
+      const error = await extractWithOpenAiCompatible(config, JPEG, "jpeg", { fetch, pdfToImages: noPdf }).catch((e: unknown) => e);
+      expect(received).toEqual([]);
+      expect(error).toMatchObject({ reason: "umleitung" });
+      expect((error as Error).message).not.toContain("geheim");
+    } finally {
+      original.closeAllConnections();
+      other.closeAllConnections();
+      await new Promise<void>((resolve) => original.close(() => resolve()));
+      await new Promise<void>((resolve) => other.close(() => resolve()));
+    }
+  });
+});
+
+describe("Meldungen des Dienstes", () => {
+  let service: TestService;
+  beforeAll(async () => {
+    service = await startTestService(() => ({ status: 500, body: { error: { message: "upstream rejected Authorization: Bearer geheim-123" } } }));
+  });
+  afterAll(async () => {
+    await service.close();
+  });
+
+  it("gibt den Schlüssel nie in der Meldung am Beleg wieder, auch wenn der Dienst ihn zurückschreibt", async () => {
+    const config: OpenAiConfig = {
+      provider: "openai-compatible",
+      model: "qwen2.5vl:7b",
+      endpoint: `${service.baseUrl}/chat/completions`,
+      apiKey: "geheim-123",
+      timeoutMs: 5_000,
+      maxPages: 2,
+    };
+    for (const status of [400, 500]) {
+      service.reply(() => ({ status, body: { error: { message: "upstream rejected Authorization: Bearer geheim-123" } } }));
+      const error = await extractWithOpenAiCompatible(config, JPEG, "jpeg", { fetch, pdfToImages: noPdf }).catch((e: unknown) => e);
+      expect((error as Error).message).toMatch(new RegExp(`HTTP ${status}`));
+      expect((error as Error).message).not.toContain("geheim-123");
+    }
   });
 });
 
