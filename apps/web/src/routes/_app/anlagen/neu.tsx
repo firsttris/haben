@@ -1,4 +1,4 @@
-import { isKapitalgesellschaft } from "@haben/core";
+import { elektroAvailable, isKapitalgesellschaft } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { AssetForm } from "../../../components/AssetForm.tsx";
@@ -39,6 +39,9 @@ function NewAssetPage() {
               acquisitionDate: "",
               cost: 0,
               usefulLifeMonths: 72,
+              degressiveRate: null,
+              linearFromYear: null,
+              memoValue: false,
               openingDate: `${year}-01-01`,
               openingBookValue: 0,
               disposalDate: null,
@@ -47,8 +50,10 @@ function NewAssetPage() {
             }}
             locked={false}
             privateUseAvailable={!isKapitalgesellschaft(rechtsform)}
+            elektroOffered={elektroAvailable(rechtsform)}
             privateUseLocked={false}
             lifeEditable
+            switchEditable
             showOpening
             submitLabel="Anlage übernehmen"
             busy={busy}

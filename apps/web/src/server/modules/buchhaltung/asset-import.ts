@@ -2,6 +2,8 @@ import { assetCandidates, assetKeys, type ColumnMapping, type CsvTable, planRows
 import { gte, max } from "drizzle-orm";
 import type { z } from "zod";
 import { type Db, schema, type Tx } from "../../db/index.ts";
+import { loadCompany } from "../stammdaten/index.ts";
+import { elektroIssues } from "./asset-methoden.ts";
 import { type AssetInput, assetInputSchema, insertAsset } from "./assets.ts";
 
 /*
@@ -35,8 +37,12 @@ export async function planAssetImport(
   mapping: ColumnMapping,
   stichtag: string,
 ): Promise<PlannedRow<z.output<typeof assetInputSchema>>[]> {
+  const { rechtsform } = await loadCompany(q);
   const candidates = assetCandidates(table, mapping, stichtag).map((row) => {
     if (!row.value) return { ...row, value: null };
+    // Wie insertAsset: in GmbH und UG keine Staffel nach § 7 Abs. 2a EStG, schon in der Vorschau
+    const issues = elektroIssues({ method: row.value.method, privateUse: null }, rechtsform);
+    if (issues.length > 0) return { ...row, value: null, errors: issues };
     const result = assetInputSchema.safeParse({ ...row.value, disposalDate: null, privateUse: null });
     return result.success ? { ...row, value: result.data } : { ...row, value: null, errors: result.error.issues.map((i) => i.message) };
   });
