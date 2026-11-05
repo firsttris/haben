@@ -170,7 +170,8 @@ function lieferungIssues(input: { zeilen: readonly ZmZeile[]; kz41?: Cents | nul
       text: `Lieferungen in der Meldung ${summe} € weichen von Kz 41 der gesendeten Voranmeldungen (${zmEuro(input.kz41)} €) ab. Stimmt die Voranmeldung noch, oder fehlt eine Berichtigung?`,
     });
   }
-  if (summe * 100 > MONATSMELDUNG_AB) {
+  // Die Grenze gilt für die Summe der Bemessungsgrundlagen, nicht für die je Zeile auf volle Euro abgeschnittenen Beträge
+  if (lieferungen.reduce((s, z) => s + z.betrag, 0) > MONATSMELDUNG_AB) {
     issues.push({
       tone: "error",
       text: "Mehr als 50.000 € innergemeinschaftliche Lieferungen im Quartal: Die Meldung ist monatlich abzugeben (§ 18a Abs. 1 Satz 2 UStG). Monatsmeldungen unterstützt Haben nicht; gib sie im BZStOnline-Portal ab.",
