@@ -5,3 +5,11 @@ export const sammelHinweise = (gruende: string[]): Map<string, number> => {
   const mehrfach = [...anzahl].filter(([, n]) => n > 1).map(([grund]) => grund);
   return new Map(mehrfach.map((grund, index) => [grund, index + 1]));
 };
+
+/** Hinweise zweier Erklärungen aufteilen: was in beiden gleich lautet, steht einmal über beiden statt in jeder */
+export const teileHinweise = <T extends { text: string }>(a: T[], b: T[]): { gemeinsam: T[]; nurA: T[]; nurB: T[] } => {
+  const inB = new Set(b.map((h) => h.text));
+  const gemeinsam = a.filter((h) => inB.has(h.text));
+  const texte = new Set(gemeinsam.map((h) => h.text));
+  return { gemeinsam, nurA: a.filter((h) => !texte.has(h.text)), nurB: b.filter((h) => !texte.has(h.text)) };
+};

@@ -1055,6 +1055,18 @@ test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", as
   await expect(zuordnung.getByText("Privat", { exact: true })).toHaveCount(0);
 });
 
+test("Jahreserklärung: was Körperschaft- und Gewerbesteuer gleich melden, steht einmal über beiden", async () => {
+  const jahr = new Date().getFullYear();
+  await go(`/jahreserklaerung/${jahr}`);
+  const gemeinsam = page.getByRole("region", { name: "Hinweise zur Körperschaft- und Gewerbesteuererklärung" });
+  await expect(gemeinsam).toContainText(`Das Jahr ${jahr} ist noch nicht vorbei.`);
+  await expect(page.getByText(`Das Jahr ${jahr} ist noch nicht vorbei.`)).toHaveCount(1);
+  await expect(page.getByText(`Echt senden lässt sich die Erklärung erst, wenn ${jahr} abgeschlossen ist.`)).toHaveCount(1);
+  // Was nur eine Erklärung betrifft, bleibt in ihrer Karte
+  await expect(page.getByRole("region", { name: /^Gewerbesteuererklärung/ }).first()).toContainText(`nicht für ${jahr}`);
+  expect(await axe(), `/jahreserklaerung/${jahr} GmbH`).toEqual([]);
+});
+
 // Die Seiten in seiten.spec.ts zeigen ein Einzelunternehmen; was nur eine GmbH hat, steht dort als Hinweis. Für den Blick
 // auf die GmbH-Ansichten (CI-Artefakt e2e-screenshots) hier dieselben Seiten mit den Daten dieses Durchlaufs.
 test("Screenshots der GmbH-Seiten", async () => {

@@ -6,6 +6,7 @@ import { elsterNotice } from "../lib/elster.ts";
 import { useAction } from "../lib/use-action.ts";
 import { type getAnnualReturns, saveKapgErklaerung, submitKapgReturn } from "../server/functions/annual.ts";
 import { ElsterSubmit } from "./ElsterSubmit.tsx";
+import { teileHinweise } from "../lib/hinweise.ts";
 import { Icon } from "./Icon.tsx";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 
@@ -32,6 +33,22 @@ function Hinweise({ issues }: { issues: Hinweis[] }) {
       <HinweisKasten issues={warnungen} info={false} />
       <HinweisKasten issues={infos} info />
     </>
+  );
+}
+
+/** Was Körperschaft- und Gewerbesteuer gleich melden (Jahresabschluss, Firmendaten), einmal über beiden Erklärungen */
+const geteilt = (data: Data) => teileHinweise(data.kapg!.kst.issues, data.kapg!.gewst.issues);
+
+export function KapgGemeinsameHinweise({ data }: { data: Data }) {
+  const { gemeinsam } = geteilt(data);
+  if (gemeinsam.length === 0) return null;
+  return (
+    <section className="stack" style={{ gap: 8 }} aria-label="Hinweise zur Körperschaft- und Gewerbesteuererklärung">
+      <p className="small muted" style={{ margin: 0 }}>
+        Für die Körperschaft- und die Gewerbesteuererklärung:
+      </p>
+      <Hinweise issues={gemeinsam} />
+    </section>
   );
 }
 
@@ -119,7 +136,7 @@ export function KstSection({ data }: { data: Data }) {
         <h2 id="kst-heading" style={{ margin: 0 }}>
           Körperschaftsteuererklärung {k.sent && <span className="pill pill-ok">übermittelt</span>}
         </h2>
-        <Hinweise issues={k.issues} />
+        <Hinweise issues={geteilt(data).nurA} />
         {w && (
           <table className="report-table">
             <tbody>
@@ -152,7 +169,7 @@ export function GewstSection({ data }: { data: Data }) {
         <h2 id="gewst-heading" style={{ margin: 0 }}>
           Gewerbesteuererklärung {g.sent && <span className="pill pill-ok">übermittelt</span>}
         </h2>
-        <Hinweise issues={g.issues} />
+        <Hinweise issues={geteilt(data).nurB} />
         {w && (
           <table className="report-table">
             <tbody>

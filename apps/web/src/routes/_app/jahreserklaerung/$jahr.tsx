@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { AnlageNFields, parseArbeitnehmer, toArbeitnehmerDraft } from "../../../components/AnlageN.tsx";
 import { ElsterSubmit } from "../../../components/ElsterSubmit.tsx";
-import { GewstSection, KapgAngaben, KstSection } from "../../../components/KapgErklaerungen.tsx";
+import { GewstSection, KapgAngaben, KapgGemeinsameHinweise, KstSection } from "../../../components/KapgErklaerungen.tsx";
 import { MeinElsterWerte } from "../../../components/MeinElsterWerte.tsx";
 import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
@@ -104,6 +104,7 @@ function AnnualPage() {
         <UstSection data={data} />
         {!gesellschaft && <EuerSection data={data} />}
         {!gesellschaft && <EstSection key={data.year} data={data} />}
+        {data.kapg && <KapgGemeinsameHinweise data={data} />}
         {data.kapg && <KstSection data={data} />}
         {data.kapg && <GewstSection data={data} />}
         {data.kapg && <KapgAngaben key={`kapg-${data.year}`} data={data} />}
