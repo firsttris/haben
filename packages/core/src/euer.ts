@@ -3,6 +3,7 @@ import { roundHalfAwayFromZero, splitPrivateShare, toCsv, type Cents } from "./m
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory, type TaxShare } from "./posting.ts";
 import type { AllocatedSplitLine } from "./document-split.ts";
 import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
+import { steuerEuerWirkung, type Steuerart, type SteuerPosten } from "./steuerzahlung.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
 /**
@@ -52,10 +53,10 @@ export type EuerPayment =
     }
   | {
       /**
-       * Umsatzsteuer an das Finanzamt bzw. Erstattung, Gebühren, Mahnerlöse, Kursdifferenz bei Fremdwährung (Gewinn
-       * positiv); Vorzeichen wie auf dem Konto
+       * Umsatzsteuer an das Finanzamt bzw. Erstattung, Gebühren, Mahnerlöse, betriebliche Zinserträge, Kursdifferenz bei
+       * Fremdwährung (Gewinn positiv); Vorzeichen wie auf dem Konto
        */
-      kind: "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "kursdifferenz";
+      kind: "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "zinsertrag" | "kursdifferenz";
       date: string;
       amount: Cents;
       group?: string;
@@ -68,6 +69,15 @@ export type EuerPayment =
       kind: "lohn";
       date: string;
       amount: Cents;
+      group?: string;
+    }
+  | {
+      /** Steuerzahlung bzw. Erstattung mit Steuerart und Teil (steuerzahlung.ts); Vorzeichen wie auf dem Konto */
+      kind: "steuer";
+      date: string;
+      amount: Cents;
+      art: Steuerart;
+      posten: SteuerPosten;
       group?: string;
     };
 
@@ -84,6 +94,7 @@ export type EuerLineKey =
   | `ausgabe:${ExpenseCategory}`
   | `pauschale:${PauschaleArt}`
   | "personal"
+  | "steuerNebenleistungen"
   | "afa"
   | "gwg"
   | "sammelposten"
@@ -107,6 +118,12 @@ export interface EuerResult {
   gewinn: Cents;
   /** Nicht abziehbarer Teil der Bewirtung (30 %): mindert den Gewinn nicht, steht aber in der Anlage EÜR */
   bewirtungNichtAbziehbar: Cents;
+  /**
+   * Gezahlte Gewerbesteuer und Nebenleistungen darauf abzüglich Erstattungen: keine Betriebsausgabe (§ 4 Abs. 5b EStG), dazu
+   * Hinterziehungszinsen (§ 4 Abs. 5 Satz 1 Nr. 8a EStG);
+   * in der Anlage EÜR nachrichtlich unter den sonstigen beschränkt abziehbaren Betriebsausgaben, Spalte „nicht abziehbar“
+   */
+  gewerbesteuerNichtAbziehbar: Cents;
   /** Netto je Monat (ohne Umsatzsteuer, Vorsteuer und Zahlungen an/vom Finanzamt), Index 0 = Januar */
   monthly: { einnahmen: Cents[]; ausgaben: Cents[] };
 }
@@ -126,6 +143,7 @@ export const EUER_LABELS = {
   sammelposten: "Auflösung Sammelposten",
   restbuchwert: "Restbuchwert ausgeschiedener Anlagegüter",
   personal: "Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung",
+  steuerNebenleistungen: "Zinsen und Zuschläge zu betrieblichen Steuern (abziehbare Nebenleistungen)",
   vorsteuer: "Gezahlte Vorsteuerbeträge",
   gezahlteUst: "An das Finanzamt gezahlte Umsatzsteuer",
 } as const;
@@ -135,13 +153,16 @@ const monthIndex = (date: string) => Number(date.slice(5, 7)) - 1;
 
 type Netted = EuerPayment & { sum: Cents };
 
+/** Gruppe zum Verrechnen: Zahlung und Gegenzeile derselben Art, bei Steuerzahlungen auch derselben Steuerart und desselben Teils */
+const groupKey = (p: EuerPayment) => (p.kind === "steuer" ? `steuer|${p.art}|${p.posten}` : p.kind);
+
 /** Addiert Zahlungen derselben Gruppe; ohne Gruppe bleibt jede Zahlung für sich. */
 function netGroups(payments: EuerPayment[]): Netted[] {
   const groups = new Map<string, Netted>();
   const result: Netted[] = [];
   payments.forEach((p, i) => {
     const amount = p.kind === "invoice" || p.kind === "document" ? p.paid : p.amount;
-    const key = p.group === undefined ? `#${i}` : `${p.kind}|${p.group}|${p.date}`;
+    const key = p.group === undefined ? `#${i}` : `${groupKey(p)}|${p.group}|${p.date}`;
     const existing = groups.get(key);
     if (existing) {
       existing.sum += amount;
@@ -190,6 +211,7 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
   const monthlyIn: Cents[] = Array.from({ length: 12 }, () => 0);
   const monthlyOut: Cents[] = Array.from({ length: 12 }, () => 0);
   let bewirtungNichtAbziehbar = 0;
+  let gewerbesteuerNichtAbziehbar = 0;
 
   for (const p of netGroups(payments.filter((p) => yearOf(p.date) === year))) {
     const month = monthIndex(p.date);
@@ -228,9 +250,34 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
         else add("erstatteteUst", p.sum);
         break;
       case "mahnerloes":
-        // Verzugszinsen und Mahngebühren: Betriebseinnahme ohne Umsatzsteuer
+      // Zinsen sind umsatzsteuerfrei (§ 4 Nr. 8 Buchst. a UStG), Verzugszinsen und Mahngebühren nicht steuerbar
+      case "zinsertrag":
+        // Verzugszinsen, Mahngebühren und Zinsen auf betriebliche Guthaben: Betriebseinnahme ohne Umsatzsteuer
         add("einnahmenSteuerfrei", p.sum);
         monthlyIn[month]! += p.sum;
+        break;
+      case "steuer":
+        switch (steuerEuerWirkung(p.art, p.posten, p.sum)) {
+          case "umsatzsteuer":
+            // Umsatzsteuer früherer Jahre: im Jahr der Zahlung gezahlte bzw. erstattete Umsatzsteuer (§ 11 EStG)
+            if (p.sum < 0) add("gezahlteUst", -p.sum);
+            else add("erstatteteUst", p.sum);
+            break;
+          case "einnahme":
+            add("einnahmenSteuerfrei", p.sum);
+            monthlyIn[month]! += p.sum;
+            break;
+          case "nebenleistung":
+            add("steuerNebenleistungen", -p.sum);
+            monthlyOut[month]! -= p.sum;
+            break;
+          case "nichtAbziehbar":
+            gewerbesteuerNichtAbziehbar -= p.sum;
+            break;
+          // Private Steuern sind Entnahmen bzw. Einlagen; die zählt die Anlage EÜR aus den Privatkonten
+          case "privat":
+            break;
+        }
         break;
       case "kursdifferenz":
         // Fremdwährung: Unterschied zwischen umgerechnetem Rechnungsbetrag und Zahlung, ohne Umsatzsteuer
@@ -268,7 +315,7 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     add("privateKfz", withdrawals.privateKfz);
     add("ustEntnahmen", withdrawals.ustEntnahmen);
   }
-  const optional = (key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste" | "personal") =>
+  const optional = (key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste" | "personal" | "steuerNebenleistungen") =>
     (sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : [];
   const einnahmen = [
     ...(sums.has("einnahmenKleinunternehmer") ? [line("einnahmenKleinunternehmer", EUER_LABELS.einnahmenKleinunternehmer)] : []),
@@ -302,6 +349,7 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     ...pauschalen,
     ...depreciationLines,
     ...optional("kursverluste"),
+    ...optional("steuerNebenleistungen"),
     line("vorsteuer", EUER_LABELS.vorsteuer),
     line("gezahlteUst", EUER_LABELS.gezahlteUst),
   ];
@@ -315,6 +363,7 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     totalAusgaben,
     gewinn: totalEinnahmen - totalAusgaben,
     bewirtungNichtAbziehbar,
+    gewerbesteuerNichtAbziehbar,
     monthly: { einnahmen: monthlyIn, ausgaben: monthlyOut },
   };
 }
@@ -328,5 +377,12 @@ export function euerToCsv(euer: EuerResult): string {
   rows.push(["Betriebsausgaben", "Summe Betriebsausgaben", euer.totalAusgaben]);
   rows.push(["Ergebnis", euer.gewinn >= 0 ? "Gewinn" : "Verlust", euer.gewinn]);
   if (euer.bewirtungNichtAbziehbar !== 0) rows.push(["Nachrichtlich", "Nicht abziehbare Bewirtungsaufwendungen (30 %)", euer.bewirtungNichtAbziehbar]);
+  if (euer.gewerbesteuerNichtAbziehbar !== 0) {
+    rows.push([
+      "Nachrichtlich",
+      "Gewerbesteuer und Nebenleistungen darauf, Hinterziehungszinsen (nicht abziehbar, § 4 Abs. 5b, Abs. 5 Satz 1 Nr. 8a EStG)",
+      euer.gewerbesteuerNichtAbziehbar,
+    ]);
+  }
   return toCsv(rows);
 }

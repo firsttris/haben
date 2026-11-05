@@ -61,3 +61,4 @@ export * from "./email-list.ts";
 export * from "./accent.ts";
 export * from "./number-format.ts";
 export * from "./steuerbescheinigung.ts";
+export * from "./steuerzahlung.ts";

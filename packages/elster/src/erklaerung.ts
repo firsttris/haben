@@ -274,6 +274,12 @@ export interface EuerFigures {
   bewirtung?: Cents;
   /** Nicht abziehbare 30 % der Bewirtung; nur zur Information, nicht in den Betriebsausgaben */
   bewirtungNichtAbziehbar?: Cents;
+  /**
+   * Gewerbesteuer und Nebenleistungen darauf, abzüglich Erstattungen, und Hinterziehungszinsen: keine Betriebsausgabe (§ 4
+   * Abs. 5b, Abs. 5 Satz 1 Nr. 8a EStG); nach der
+   * Anleitung zur Anlage EÜR in der Zeile der sonstigen beschränkt abziehbaren Betriebsausgaben, Spalte „nicht abziehbar“
+   */
+  gewerbesteuerNichtAbziehbar?: Cents;
   verpflegung?: Cents;
   tagespauschale?: Cents;
   kfzLeasing?: Cents;
@@ -319,7 +325,10 @@ export const EUER_AUSGABEN = [
 export type EuerFigureKey = (typeof EUER_EINNAHMEN)[number] | (typeof EUER_AUSGABEN)[number];
 
 /** Zeile der Anlage EÜR 2025 und amtlicher Text, für die Vorschau */
-export const EUER_FIELDS: Record<EuerFigureKey | "bewirtungNichtAbziehbar" | "entnahmen" | "einlagen", { kz: string; label: string }> = {
+export const EUER_FIELDS: Record<
+  EuerFigureKey | "bewirtungNichtAbziehbar" | "gewerbesteuerNichtAbziehbar" | "entnahmen" | "einlagen",
+  { kz: string; label: string }
+> = {
   kleinunternehmer: { kz: "E6000101", label: "Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer" },
   steuerpflichtig: { kz: "E6000401", label: "Umsatzsteuerpflichtige Betriebseinnahmen" },
   steuerfrei: {
@@ -357,6 +366,11 @@ export const EUER_FIELDS: Record<EuerFigureKey | "bewirtungNichtAbziehbar" | "en
   geschenke: { kz: "E6004002", label: "Geschenke (abziehbar)" },
   bewirtung: { kz: "E6004102", label: "Bewirtungsaufwendungen (abziehbar)" },
   bewirtungNichtAbziehbar: { kz: "E6004101", label: "Bewirtungsaufwendungen (nicht abziehbar)" },
+  // Schema E77-2023 bis E77-2026: /EUER/BAus/Beschr_abziehbar/Nicht_abziehbar/Sonst/Sum/E6004301, darf negativ sein
+  gewerbesteuerNichtAbziehbar: {
+    kz: "E6004301",
+    label: "Sonstige beschränkt abziehbare Betriebsausgaben (nicht abziehbar): Gewerbesteuer, Hinterziehungszinsen",
+  },
   verpflegung: { kz: "E6005002", label: "Verpflegungsmehraufwendungen" },
   tagespauschale: { kz: "E6006405", label: "Tagespauschale für die Tätigkeit in der häuslichen Wohnung" },
   fahrtNutzungseinlage: { kz: "E6006103", label: "Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage)" },
@@ -618,10 +632,14 @@ export function buildEuerXml(input: EuerXmlInput): string {
           [
             "Beschr_abziehbar",
             [
-              // Der nicht abziehbare Teil steht nur nachrichtlich in der Anlage und muss positiv sein
-              (f.bewirtungNichtAbziehbar ?? 0) > 0 && [
+              // Nicht abziehbare Beträge stehen nur nachrichtlich in der Anlage: die Bewirtung muss positiv sein, die
+              // Gewerbesteuer ist nach Erstattungen auch negativ möglich
+              ((f.bewirtungNichtAbziehbar ?? 0) > 0 || (f.gewerbesteuerNichtAbziehbar ?? 0) !== 0) && [
                 "Nicht_abziehbar",
-                [sumNode("Bewirtung", EUER_FIELDS.bewirtungNichtAbziehbar.kz, f.bewirtungNichtAbziehbar)],
+                [
+                  (f.bewirtungNichtAbziehbar ?? 0) > 0 ? sumNode("Bewirtung", EUER_FIELDS.bewirtungNichtAbziehbar.kz, f.bewirtungNichtAbziehbar) : null,
+                  sumNode("Sonst", EUER_FIELDS.gewerbesteuerNichtAbziehbar.kz, f.gewerbesteuerNichtAbziehbar),
+                ],
               ],
               [
                 "Abziehbar",

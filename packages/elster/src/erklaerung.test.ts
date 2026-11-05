@@ -243,6 +243,19 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(euerTotals(mitBewirtung).ausgaben).toBe(euerTotals(figures).ausgaben + 15_000 + 7_000);
   });
 
+  it("übermittelt Gewerbesteuer und Nebenleistungen nur nachrichtlich als nicht abziehbar, nach Erstattungen auch negativ", () => {
+    const mitGewst = { ...figures, gewerbesteuerNichtAbziehbar: 54_300 };
+    const xml = buildEuerXml({ ...base, allgemein, figures: mitGewst, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(xml).toMatch(/<Beschr_abziehbar>\s*<Nicht_abziehbar>\s*<Sonst>\s*<Sum>\s*<E6004301>543,00<\/E6004301>/);
+    expect(euerTotals(mitGewst)).toEqual(euerTotals(figures));
+    // Bewirtung steht vor „Sonst“ (Schema E77)
+    const beide = buildEuerXml({ ...base, allgemein, figures: { ...mitGewst, bewirtung: 7_000, bewirtungNichtAbziehbar: 3_000 }, anlagen: [] });
+    expect(beide).toMatch(/<Nicht_abziehbar>\s*<Bewirtung>[\s\S]*<\/Bewirtung>\s*<Sonst>/);
+    const erstattet = buildEuerXml({ ...base, allgemein, figures: { ...figures, gewerbesteuerNichtAbziehbar: -20_000 }, anlagen: [] });
+    expect(tag(erstattet, "E6004301")).toBe("-200,00");
+  });
+
   it("lässt die AVEÜR ohne Anlagen weg", () => {
     const xml = buildEuerXml({ ...base, allgemein: { artDesBetriebs: "Handel", einkunftsart: "gewerbe" }, figures: { steuerpflichtig: 100 }, anlagen: [] });
     expect(xml).not.toContain("<AVEUER>");

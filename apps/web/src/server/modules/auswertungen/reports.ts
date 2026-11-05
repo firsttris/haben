@@ -13,7 +13,7 @@ import {
   periodKey,
   vatPostenLabel,
 } from "@haben/core";
-import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -73,6 +73,8 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       vorsteuerAbzug: schema.documents.vorsteuerAbzug,
       privateShare: schema.documents.privateShare,
       treatment: schema.invoices.taxTreatment,
+      taxType: schema.allocations.taxType,
+      taxItem: schema.allocations.taxItem,
     })
     .from(schema.allocations)
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
@@ -90,6 +92,8 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
           "gebuehren",
           "mahnerloes",
           "kursdifferenz",
+          "zinsertrag",
+          "steuer",
           ...LOHN_ZAHLUNGEN,
         ]),
       ),
@@ -223,9 +227,13 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       a.kind === "sondervorauszahlung" ||
       a.kind === "gebuehren" ||
       a.kind === "mahnerloes" ||
+      a.kind === "zinsertrag" ||
       a.kind === "kursdifferenz"
     ) {
       payments.push({ kind: a.kind, date: a.date, amount: a.amount, group });
+    } else if (a.kind === "steuer" && a.taxType && a.taxItem) {
+      // Im Jahr der Zahlung (§ 11 EStG), unabhängig vom Bezugsjahr; Teil und Steuerart bestimmen die Zeile
+      payments.push({ kind: "steuer", date: a.date, amount: a.amount, art: a.taxType, posten: a.taxItem, group });
     } else if (isLohnZahlung(a.kind)) {
       // Lohn, Lohnsteuer und Beiträge: Ausgaben für Personal, wenn sie von der Bank abfließen (§ 11 Abs. 2 Satz 1 EStG)
       payments.push({ kind: "lohn", date: a.date, amount: a.amount, group });
@@ -298,13 +306,8 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   return payments;
 }
 
-/**
- * Lohnzahlungen in den zehn Tagen um einen Jahreswechsel des Jahres (22.12. bis 10.01.). Regelmäßig wiederkehrende Ausgaben
- * gehören dann in das Jahr, zu dem sie wirtschaftlich gehören (§ 11 Abs. 2 Satz 2 EStG, etwa die Lohnsteuer für Dezember,
- * fällig am 10. Januar nach § 41a Abs. 1 EStG). Welchem Monat eine Zahlung gilt, weiß Haben nicht; es zählt sie am Tag
- * der Zahlung und weist auf sie hin.
- */
-export async function lohnZahlungenUmJahreswechsel(year: number, q: Db | Tx = db): Promise<number> {
+/** Umsätze in den zehn Tagen um einen Jahreswechsel des Jahres (22.12. bis 10.01.), deren Zuordnung `art` erfüllt */
+async function zahlungenUmJahreswechsel(year: number, art: SQL | undefined, q: Db | Tx): Promise<number> {
   const fenster = (y: number) => and(gte(schema.bankTransactions.bookingDate, `${y - 1}-12-22`), lte(schema.bankTransactions.bookingDate, `${y}-01-10`));
   const [row] = await q
     .select({ n: sql<number>`count(distinct ${schema.allocations.transactionId})`.mapWith(Number) })
@@ -312,7 +315,7 @@ export async function lohnZahlungenUmJahreswechsel(year: number, q: Db | Tx = db
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
     .where(
       and(
-        inArray(schema.allocations.kind, [...LOHN_ZAHLUNGEN]),
+        art,
         // Aufgehobene Zuordnungen zählen nicht: weder die Gegenzeile noch die aufgehobene Zeile selbst
         isNull(schema.allocations.reversesId),
         sql`not exists (select 1 from allocations r where r.reverses_id = ${schema.allocations.id})`,
@@ -320,6 +323,29 @@ export async function lohnZahlungenUmJahreswechsel(year: number, q: Db | Tx = db
       ),
     );
   return row?.n ?? 0;
+}
+
+/**
+ * Lohnzahlungen in den zehn Tagen um einen Jahreswechsel des Jahres (22.12. bis 10.01.). Regelmäßig wiederkehrende Ausgaben
+ * gehören dann in das Jahr, zu dem sie wirtschaftlich gehören (§ 11 Abs. 2 Satz 2 EStG, etwa die Lohnsteuer für Dezember,
+ * fällig am 10. Januar nach § 41a Abs. 1 EStG). Welchem Monat eine Zahlung gilt, weiß Haben nicht; es zählt sie am Tag
+ * der Zahlung und weist auf sie hin.
+ */
+export async function lohnZahlungenUmJahreswechsel(year: number, q: Db | Tx = db): Promise<number> {
+  return zahlungenUmJahreswechsel(year, inArray(schema.allocations.kind, [...LOHN_ZAHLUNGEN]), q);
+}
+
+/**
+ * Umsatzsteuer früherer Jahre (Steuerzahlung) in den zehn Tagen um einen Jahreswechsel. Eine Abschlusszahlung aus der
+ * Jahreserklärung zählt im Jahr der Zahlung; ist es aber die Vorauszahlung für Dezember bzw. das vierte Quartal, gehört sie
+ * als regelmäßig wiederkehrende Ausgabe in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG) und als Voranmeldung zugeordnet.
+ */
+export async function umsatzsteuerVorjahreUmJahreswechsel(year: number, q: Db | Tx = db): Promise<number> {
+  return zahlungenUmJahreswechsel(
+    year,
+    and(eq(schema.allocations.kind, "steuer"), eq(schema.allocations.taxType, "ust"), eq(schema.allocations.taxItem, "steuer")),
+    q,
+  );
 }
 
 export async function euerForYear(year: number, q: Db | Tx = db): Promise<EuerResult> {

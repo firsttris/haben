@@ -49,6 +49,8 @@ export const ACCOUNTS = {
     saldenvortrag: "9000",
     /** Bezahlte Mahngebühren, Pauschalen und Verzugszinsen: kein Entgelt für eine Leistung, deshalb ohne Umsatzsteuer */
     mahnerloes: "2650",
+    /** Zinsen auf Guthaben eines betrieblichen Kontos (DATEV SKR03 2650 „Sonstige Zinsen und ähnliche Erträge“) */
+    zinsertraege: "2650",
     /** Ausbuchungen (§ 17 UStG): gewährte und erhaltene Skonti, Forderungsverluste */
     skontiGewaehrt: "8730",
     skontiErhalten: "3730",
@@ -91,6 +93,7 @@ export const ACCOUNTS = {
     nebenkostenGeldverkehr: "6855",
     saldenvortrag: "9000",
     mahnerloes: "7100",
+    zinsertraege: "7100",
     skontiGewaehrt: "4730",
     skontiErhalten: "5730",
     forderungsverluste: "6930",
@@ -186,7 +189,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "8125": "Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG",
     "2150": "Aufwendungen aus Kursdifferenzen",
     "2400": "Forderungsverluste (übliche Höhe)",
-    "2650": "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)",
+    "2650": "Sonstige Zinsen und ähnliche Erträge",
     "2660": "Erträge aus Kursdifferenzen",
     "3730": "Erhaltene Skonti",
     "8730": "Gewährte Skonti",
@@ -240,7 +243,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "5730": "Erhaltene Skonti",
     "6880": "Aufwendungen aus Kursdifferenzen",
     "6930": "Forderungsverluste (übliche Höhe)",
-    "7100": "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)",
+    "7100": "Sonstige Zinsen und ähnliche Erträge",
     "9000": "Saldenvorträge Sachkonten",
   },
 };
@@ -656,6 +659,8 @@ export const DIRECT_BOOKINGS = {
   sondervorauszahlung: "Sondervorauszahlung (Dauerfristverlängerung)",
   gebuehren: "Kontoführung und Bankgebühren",
   mahnerloes: "Mahngebühren und Verzugszinsen (vom Kunden)",
+  // Bruttozins; einbehaltene Kapitalertragsteuer als eigener Teil einer Aufteilung (Steuerzahlung, steuerzahlung.ts)
+  zinsertrag: "Zinserträge (Guthabenzinsen auf ein betriebliches Konto)",
   kapest: "Kapitalertragsteuer an das Finanzamt (Ausschüttung)",
   // Zahlungen aus der Lohnabrechnung, gegen die Verbindlichkeiten ihrer Buchung (lohn-buchung.ts)
   lohn: "Lohn/Gehalt an Mitarbeiter",
@@ -705,7 +710,9 @@ export function directPosting(kind: DirectBooking, amount: Cents, kontenrahmen: 
               ? accounts.sondervorauszahlung
               : kind === "mahnerloes"
                 ? accounts.mahnerloes
-                : accounts.nebenkostenGeldverkehr;
+                : kind === "zinsertrag"
+                  ? accounts.zinsertraege
+                  : accounts.nebenkostenGeldverkehr;
   return [side(accounts.bank, amount, true, null), side(counter, amount, false, null)].filter((line) => line.debit !== 0 || line.credit !== 0);
 }
 

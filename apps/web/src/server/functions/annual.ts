@@ -60,7 +60,7 @@ export const getAnnualReturns = createServerFn({ method: "GET" })
         ausgaben: euerRows(overview.euer.figures, EUER_AUSGABEN),
         // Nach dem Gewinn: nachrichtlich die nicht abziehbare Bewirtung, dann Entnahmen und Einlagen
         privat: [
-          ...euerRows(overview.euer.figures, ["bewirtungNichtAbziehbar"]),
+          ...euerRows(overview.euer.figures, ["bewirtungNichtAbziehbar", "gewerbesteuerNichtAbziehbar"]),
           ...(["entnahmen", "einlagen"] as const).map((key) => ({ key, ...EUER_FIELDS[key], amount: overview.euer.figures[key] ?? 0 })),
         ],
       },

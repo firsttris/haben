@@ -14,6 +14,8 @@ import {
   isKapitalgesellschaft,
   monthsOfPeriod,
   sondervorauszahlungFor,
+  STEUER_KONTEN,
+  type Kontenrahmen,
 } from "@haben/core";
 import {
   buildEstXml,
@@ -38,7 +40,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { listPauschalen } from "../buchhaltung/index.ts";
-import { euerForYear, lohnZahlungenUmJahreswechsel } from "../auswertungen/index.ts";
+import { euerForYear, lohnZahlungenUmJahreswechsel, umsatzsteuerVorjahreUmJahreswechsel } from "../auswertungen/index.ts";
 import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
@@ -232,6 +234,9 @@ function euerFigures(euer: EuerResult): EuerFigures {
         sammelposten: "sammelposten",
         restbuchwert: "restbuchwert",
         personal: "personal",
+        // Zinsen und Zuschläge zu betrieblichen Steuern: übrige unbeschränkt abziehbare Betriebsausgaben, nicht die
+        // Schuldzinsen der Zeilen 55 und 56 (die rechnen für § 4 Abs. 4a EStG mit Darlehenszinsen)
+        steuerNebenleistungen: "uebrige",
         vorsteuer: "vorsteuer",
         gezahlteUst: "gezahlteUst",
         // Kursgewinne sind nicht steuerbare Einnahmen, Kursverluste übrige Ausgaben
@@ -242,6 +247,7 @@ function euerFigures(euer: EuerResult): EuerFigures {
     add(key, line.amount);
   }
   if (euer.bewirtungNichtAbziehbar !== 0) figures.bewirtungNichtAbziehbar = euer.bewirtungNichtAbziehbar;
+  if (euer.gewerbesteuerNichtAbziehbar !== 0) figures.gewerbesteuerNichtAbziehbar = euer.gewerbesteuerNichtAbziehbar;
   return figures;
 }
 
@@ -261,15 +267,23 @@ async function privateMovements(year: number) {
         lt(schema.journalEntries.date, `${year + 1}-01-01`),
         or(
           ...(["SKR03", "SKR04"] as const).map((kr) =>
-            and(eq(schema.journalEntries.kontenrahmen, kr), inArray(schema.journalLines.account, [ACCOUNTS[kr].privatentnahmen, ACCOUNTS[kr].privateinlagen])),
+            and(
+              eq(schema.journalEntries.kontenrahmen, kr),
+              inArray(schema.journalLines.account, [ACCOUNTS[kr].privatentnahmen, STEUER_KONTEN[kr].privatsteuern, ACCOUNTS[kr].privateinlagen]),
+            ),
           ),
         ),
       ),
     )
     .groupBy(schema.journalEntries.kontenrahmen, schema.journalLines.account);
-  const saldo = (key: "privatentnahmen" | "privateinlagen") =>
-    rows.filter((r) => r.account === ACCOUNTS[r.kontenrahmen][key]).reduce((sum, r) => sum + Number(r.saldo), 0);
-  return { entnahmen: saldo("privatentnahmen"), einlagen: -saldo("privateinlagen") || 0 };
+  const saldo = (konto: (kr: Kontenrahmen) => string) => rows.filter((r) => r.account === konto(r.kontenrahmen)).reduce((sum, r) => sum + Number(r.saldo), 0);
+  // Private Steuern vom Geschäftskonto (Privatsteuern, steuerzahlung.ts) sind Entnahmen, ihre Erstattungen mindern sie.
+  // Übersteigen die Erstattungen die Zahlungen, ist der Rest eine Einlage: Die Anlage EÜR kennt keine negativen Entnahmen.
+  const privatsteuern = saldo((kr) => STEUER_KONTEN[kr].privatsteuern);
+  return {
+    entnahmen: saldo((kr) => ACCOUNTS[kr].privatentnahmen) + Math.max(0, privatsteuern),
+    einlagen: -saldo((kr) => ACCOUNTS[kr].privateinlagen) + Math.max(0, -privatsteuern) || 0,
+  };
 }
 
 export interface EuerYear {
@@ -282,14 +296,17 @@ export interface EuerYear {
   pendingAssets: number;
   /** Lohnzahlungen um den Jahreswechsel (§ 11 Abs. 2 Satz 2 EStG), siehe lohnZahlungenUmJahreswechsel */
   lohnUmJahreswechsel: number;
+  /** Umsatzsteuer früherer Jahre um den Jahreswechsel, siehe umsatzsteuerVorjahreUmJahreswechsel */
+  ustUmJahreswechsel: number;
 }
 
 export async function euerYear(year: number): Promise<EuerYear> {
-  const [euer, movements, assets, lohnUmJahreswechsel] = await Promise.all([
+  const [euer, movements, assets, lohnUmJahreswechsel, ustUmJahreswechsel] = await Promise.all([
     euerForYear(year),
     privateMovements(year),
     listAssets(year),
     lohnZahlungenUmJahreswechsel(year),
+    umsatzsteuerVorjahreUmJahreswechsel(year),
   ]);
   const figures: EuerFigures = { ...euerFigures(euer), ...movements };
   const anlagen: AveuerAnlage[] = assets
@@ -307,7 +324,7 @@ export async function euerYear(year: number): Promise<EuerYear> {
       // Antrieb ist bei erfasster Privatnutzung und bei der AfA nach § 7 Abs. 2a EStG bekannt; sonst gilt das Kfz als Verbrenner
       ...(a.kind === "kfz" ? { elektro: a.method === "elektro" || (a.privateUse ? a.privateUse.drive !== "verbrenner" : false) } : {}),
     }));
-  return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length, lohnUmJahreswechsel };
+  return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length, lohnUmJahreswechsel, ustUmJahreswechsel };
 }
 
 function euerIssues(company: Company, data: EuerYear): Issue[] {
@@ -327,6 +344,13 @@ function euerIssues(company: Company, data: EuerYear): Issue[] {
     issues.push({
       tone: "hinweis",
       text: `${data.lohnUmJahreswechsel === 1 ? "Eine Lohnzahlung liegt" : `${data.lohnUmJahreswechsel} Lohnzahlungen liegen`} zwischen 22. Dezember und 10. Januar. Regelmäßig wiederkehrende Ausgaben gehören dann in das Jahr, zu dem sie wirtschaftlich gehören (§ 11 Abs. 2 Satz 2 EStG), etwa die Lohnsteuer für Dezember. Haben zählt sie am Tag der Zahlung; prüfe die Zuordnung mit der Steuerberatung.`,
+      link: "/bank",
+    });
+  }
+  if (data.ustUmJahreswechsel > 0) {
+    issues.push({
+      tone: "hinweis",
+      text: `${data.ustUmJahreswechsel === 1 ? "Eine Zahlung" : `${data.ustUmJahreswechsel} Zahlungen`} „Umsatzsteuer früherer Jahre“ zwischen 22. Dezember und 10. Januar. Eine Abschlusszahlung zählt im Jahr der Zahlung; ist es die Vorauszahlung für Dezember bzw. das vierte Quartal, gehört sie in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG). Ordne sie dann der Voranmeldung zu.`,
       link: "/bank",
     });
   }

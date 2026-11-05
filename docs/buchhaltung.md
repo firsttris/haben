@@ -67,7 +67,9 @@ Voranmeldung und EÜR rechnet Haben aus Rechnungen, Belegen, Zuordnungen, Pausch
 | | Erwerbsteuer (Kz 89, 93) | Saldo der Konten „Umsatzsteuer aus innergemeinschaftlichem Erwerb“ |
 | | Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61) | Saldo der Konten „Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb“ |
 | EÜR, je Jahr | Pauschalen | Aufwandskonten der Pauschalen |
-| | Umsatzsteuer an das Finanzamt abzüglich Erstattungen | Konto Umsatzsteuer-Vorauszahlungen |
+| | Umsatzsteuer an das Finanzamt abzüglich Erstattungen | Konto Umsatzsteuer-Vorauszahlungen, Sondervorauszahlung und Umsatzsteuer früherer Jahre aus Zuordnungen |
+| | Zinsen und Zuschläge zu betrieblichen Steuern | abziehbare Zinsen §§ 233a bis 237 AO, abziehbare andere Nebenleistungen, abziehbare Verspätungszuschläge |
+| | Gewerbesteuer und Nebenleistungen darauf (nachrichtlich) | Gewerbesteuer, Gewerbesteuer Vorjahre und die nicht abziehbaren Zinsen und Zuschläge |
 | | AfA, GWG, Sammelposten, Restbuchwert | AfA-Konten und Restbuchwert, sobald die AfA des Jahres gebucht ist |
 | | Private Kfz-Nutzung und die Umsatzsteuer darauf | Erlöskonten der Privatnutzung und Umsatzsteuer 19 % aus den Buchungen der Anlagen, ebenfalls erst nach der AfA |
 
@@ -118,7 +120,9 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Vorsteuer 19 % | 1576 | 1406 |
 | Vorsteuer 7 % | 1571 | 1401 |
 | Umsatzsteuer-Vorauszahlungen | 1780 | 3820 |
+| Umsatzsteuerverbindlichkeiten Vorjahr bzw. frühere Jahre ([Steuerzahlungen](bank.md#steuerzahlungen)) | 1790 bzw. 1791 | 3841 bzw. 3845 |
 | Privatentnahmen | 1800 | 2100 |
+| Privatsteuern (Einkommen-, Kirchensteuer, Soli des Inhabers vom Geschäftskonto) | 1810 | 2150 |
 | Privateinlagen | 1890 | 2180 |
 | Gesellschafter-Verrechnungskonto (nur GmbH, UG): Verbindlichkeiten gegenüber Gesellschaftern | 0730 | 3510 |
 | Geldtransit | 1360 | 1460 |
@@ -255,9 +259,13 @@ Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer dieser Arten
 | Umsatzsteuer an das Finanzamt | 1780 | 3820 | Vorauszahlung an Bank | Bank an Vorauszahlung (Erstattung) |
 | Kontoführung und Bankgebühren | 4970 | 6855 | Gebühren an Bank | Bank an Gebühren |
 | Mahngebühren und Verzugszinsen | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
+| Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
+| Steuerzahlung oder Erstattung | nach Steuerart, Bezugsjahr und Teil, siehe [Steuerzahlungen](bank.md#steuerzahlungen) | ebenso | Steuerkonto an Bank | Bank an Steuerkonto |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Rückzahlung) |
 | Lohnsteuer an das Finanzamt | 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
 | SV-Beiträge an Krankenkasse oder Minijob-Zentrale | 1742 Verbindlichkeiten im Rahmen der sozialen Sicherheit | 3740 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
+
+Eine Steuerzahlung trägt Steuerart (`allocations.tax_type`), Bezugsjahr (`tax_year`) und Teil (`tax_item`: Steuer, Zinsen nach § 233a AO, §§ 234, 237 AO oder § 235 AO, Säumnis- oder Verspätungszuschlag); die drei Angaben sind mit der Zuordnung gesperrt und versiegelt, eine Aufhebung übernimmt sie in die Gegenzeile. Kontierung und EÜR folgen daraus (`packages/core/src/steuerzahlung.ts`), Buchungszeilen ohne Steuerschlüssel: Eine Steuerzahlung erzeugt weder Umsatz noch Vorsteuer. In der EÜR (Einzelunternehmen, nach Zahlung) zählt die Umsatzsteuer früherer Jahre als gezahlte bzw. erstattete Umsatzsteuer, Zinsen und Zuschläge zur Umsatzsteuer als übrige Betriebsausgaben, Erstattungszinsen dazu als Einnahme; Gewerbesteuer samt Nebenleistungen mindert den Gewinn nicht (§ 4 Abs. 5b EStG) und steht wie Hinterziehungszinsen (§ 4 Abs. 5 Satz 1 Nr. 8a EStG) nur nachrichtlich da; private Steuern sind Entnahmen. Der [Abgleich](#abgleich-von-journal-umsatzsteuer-und-eür) vergleicht die Steuerkonten im Journal mit diesen Posten.
 
 Beispiel Bankgebühr von 9,90 € in SKR03:
 
@@ -536,7 +544,7 @@ Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritä
 | − Gewerbeverlust | bis 1 Mio. € voll, darüber 60 % (§ 10a GewStG) |
 | Gewerbesteuer | Gewerbeertrag auf volle 100 € abgerundet, ohne Freibetrag (Kapitalgesellschaft), Messzahl 3,5 %, mal Hebesatz |
 
-Weil die gebuchten Steuern wieder hinzugerechnet werden, ändert eine gebuchte Rückstellung das Ergebnis nicht. **Rückstellungen buchen** bucht als Umbuchung zum 31.12., was zur Steuer noch fehlt: Körperschaftsteuer und Soli an Körperschaftsteuerrückstellung (SKR03 0963, SKR04 3040), Gewerbesteuer an Gewerbesteuerrückstellung (0956 bzw. 3035). Vorauszahlungen, auf die Steueraufwandskonten gebucht (SKR03 2200, 2208, 4320; SKR04 7600, 7608, 7610), sind abgezogen. Übersteigen sie die Steuer, bucht Haben keine Erstattung; die Forderung gegen das Finanzamt bucht ihr mit der Steuerberatung.
+Weil die gebuchten Steuern wieder hinzugerechnet werden, ändert eine gebuchte Rückstellung das Ergebnis nicht. **Rückstellungen buchen** bucht als Umbuchung zum 31.12., was zur Steuer noch fehlt: Körperschaftsteuer und Soli an Körperschaftsteuerrückstellung (SKR03 0963, SKR04 3040), Gewerbesteuer an Gewerbesteuerrückstellung (0956 bzw. 3035). Vorauszahlungen, auf die Steueraufwandskonten gebucht (SKR03 2200, 2208, 4320; SKR04 7600, 7608, 7610), sind abgezogen; im Bankabgleich ordnest du sie als [Steuerzahlung](bank.md#steuerzahlungen) des laufenden Jahres zu. Übersteigen sie die Steuer, bucht Haben keine Erstattung; die Forderung gegen das Finanzamt bucht ihr mit der Steuerberatung. Eine Nachzahlung für ein Vorjahr verbraucht im Bankabgleich zuerst die Rückstellung dieses Jahres, der Rest geht auf die Konten für Vorjahre. Zinsen und Zuschläge zu Körperschaft- und Gewerbesteuer (SKR03 2102, 2104, 2105, 2108, 4397; SKR04 7302, 7304, 7308, 7306, 6437) rechnet die Steuerberechnung als nicht abziehbar hinzu (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG), in der Anlage GK unter den übrigen nicht abziehbaren Aufwendungen.
 
 Im Verlustjahr lässt sich ein **Verlustrücktrag** in die zwei Vorjahre eintragen (höchstens 1 Mio. €, § 10d Abs. 1 EStG); leer bedeutet Verzicht, der ganze Verlust geht in den Vortrag. Die Gewerbesteuer kennt keinen Rücktrag.
 

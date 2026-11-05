@@ -3,6 +3,7 @@ import { postenForSaldo, type Posten } from "./hgb.ts";
 import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import type { Cents } from "./money.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
+import { STEUER_KONTEN } from "./steuerzahlung.ts";
 
 /*
  * Zuordnung der Konten zu den Positionen der E-Bilanz (§ 5b EStG, HGB-Taxonomien 6.9 und 6.10, Kerntaxonomie de-gaap-ci). Die
@@ -197,6 +198,32 @@ function lohnKonten(kontenrahmen: Kontenrahmen): [string, EbilanzZiel][] {
   ];
 }
 
+const INTEREST = "is.netIncome.regular.fin.netInterest";
+
+/**
+ * Konten der Steuerzahlungen im Bankabgleich (steuerzahlung.ts): Umsatzsteuer früherer Jahre bei der Umsatzsteuer, Zinsen
+ * und Zuschläge nach ihrer Abziehbarkeit auf den Positionen der Taxonomie für steuerliche Nebenleistungen, Verspätungszuschläge
+ * und Zwangsgelder bei den sonstigen beschränkt abziehbaren Aufwendungen, Erstattungszinsen § 233a AO bei den Zinserträgen
+ */
+function steuerzahlungKonten(kontenrahmen: Kontenrahmen): [string, EbilanzZiel][] {
+  const k = STEUER_KONTEN[kontenrahmen];
+  const zinsen = `${INTEREST}.expenses.regularInterest`;
+  return [
+    [k.ustVorjahr, UMSATZSTEUER],
+    [k.ustFruehereJahre, UMSATZSTEUER],
+    [k.zinsen233aAbziehbar, [`${zinsen}.AO233a.deductible`]],
+    [k.zinsen233aNichtAbziehbar, [`${zinsen}.AO233a.nondeductible`]],
+    [k.zinsenAbziehbar, [`${zinsen}.AO234to237.deductible`]],
+    [k.zinsenNichtAbziehbar, [`${zinsen}.AO234to237.nonDeductible`]],
+    [k.nebenleistungenAbziehbar, [`${zinsen}.relatedPayments.deduct`]],
+    [k.nebenleistungenNichtAbziehbar, [`${zinsen}.relatedPayments.nondeduct`]],
+    [k.nebenleistungenGewst, [`${zinsen}.relatedPayments.nondeduct`]],
+    [k.verspaetungAbziehbar, [`${LIMITED}.other.miscellaneous.deductible`]],
+    [k.verspaetungNichtAbziehbar, [`${LIMITED}.other.miscellaneous.nonDeductible`]],
+    [k.erstattungszinsen, [`${INTEREST}.income.deposits.AO233a`]],
+  ];
+}
+
 function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
   const a = ACCOUNTS[kontenrahmen];
   const anlagen = ASSET_ACCOUNTS[kontenrahmen];
@@ -256,6 +283,7 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     ...Object.entries(ERTRAGSTEUERN[kontenrahmen]),
     ...Object.entries(KAPITAL[kontenrahmen]),
     ...lohnKonten(kontenrahmen),
+    ...steuerzahlungKonten(kontenrahmen),
   ];
   return Object.fromEntries(entries);
 }

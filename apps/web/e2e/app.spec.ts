@@ -2305,6 +2305,70 @@ test("Dauerbeleg: Miete mit Vertrag anlegen, Beleg zu prüfen, im Bankabgleich b
   await expect(page.getByText(/Aktiv: Haben legt zu jedem Termin/)).toBeVisible();
 });
 
+test("Steuerzahlung im Bankabgleich: Gewerbesteuerbescheid auf Steuer und Verspätungszuschlag aufteilen, in der EÜR nur nachrichtlich", async () => {
+  const bezugsjahr = String(YEAR - 2);
+  const csv =
+    "﻿" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    [
+      dkb(day(0)),
+      dkb(day(0)),
+      "Gebucht",
+      "Max Mustermann",
+      "Stadtkasse Regensburg",
+      `GewSt ${bezugsjahr} Bescheid`,
+      "Ausgang",
+      "DE91750500000000123456",
+      "-543,00",
+      "",
+      "",
+      "",
+    ]
+      .map((v) => `"${v}"`)
+      .join(";") +
+    "\n";
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "gewerbesteuer.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/1 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await page
+    .getByRole("link", { name: /Stadtkasse Regensburg/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await expect(panel.getByRole("heading", { name: "Stadtkasse Regensburg" })).toBeVisible();
+
+  // Eine Zahlung, zwei Teile: die Steuer für ein Vorjahr und der Verspätungszuschlag, beide zur Gewerbesteuer
+  await panel.getByRole("button", { name: "Aufteilen" }).click();
+  const form = panel.getByRole("form", { name: "Umsatz aufteilen" });
+  const rows = form.locator(".split-row");
+  for (const [index, posten, betrag] of [
+    [0, "steuer", "-500,00"],
+    [1, "verspaetung", "-43,00"],
+  ] as const) {
+    const row = rows.nth(index);
+    // Ziel des Teils: die erste Auswahl der Zeile („Teil 1“, „Teil 2“)
+    await row.locator("select").first().selectOption("steuer");
+    await row.getByLabel("Steuerart").selectOption("gewst");
+    await row.getByLabel("Bezugsjahr").fill(bezugsjahr);
+    await row.getByLabel("Teil der Zahlung").selectOption(posten);
+    await row.getByLabel("Betrag").fill(betrag);
+  }
+  await expect(form.getByText("Keine Betriebsausgabe, auch nicht Zinsen und Zuschläge darauf (§ 4 Abs. 5b EStG)").first()).toBeVisible();
+  await form.getByRole("button", { name: "Aufteilen und buchen" }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText(`Steuer: Gewerbesteuer ${bezugsjahr} · Zahlung`)).toBeVisible();
+  await expect(panel.getByText(`Steuer: Gewerbesteuer ${bezugsjahr} · Verspätungszuschlag (§ 152 AO) oder Zwangsgeld (§ 329 AO)`)).toBeVisible();
+
+  // Keine Betriebsausgabe: die EÜR nennt die Gewerbesteuer nur nachrichtlich
+  await go("/auswertungen");
+  const nachrichtlich = page.getByRole("row", { name: /Nachrichtlich: Gewerbesteuer/ });
+  await expect(nachrichtlich).toContainText("543,00");
+});
+
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {
   expect(pageErrors).toEqual([]);
   await page.context().storageState({ path: SESSION });

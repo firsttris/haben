@@ -546,6 +546,7 @@ export const MCP_TOOLS: McpTool[] = [
         summeAusgaben: euro(euer.totalAusgaben),
         gewinn: euro(euer.gewinn),
         bewirtungNichtAbziehbar: euro(euer.bewirtungNichtAbziehbar),
+        gewerbesteuerNichtAbziehbar: euro(euer.gewerbesteuerNichtAbziehbar),
         monate: euer.monthly.einnahmen.map((einnahmen, i) => ({ monat: i + 1, einnahmen: euro(einnahmen), ausgaben: euro(euer.monthly.ausgaben[i] ?? 0) })),
         link: link("/auswertungen"),
       };
