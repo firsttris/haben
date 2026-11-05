@@ -229,7 +229,7 @@ test("Rechnungen schreiben und festschreiben", async () => {
     await page.getByLabel("Kunde").selectOption({ label: invoice.customer });
     await page.getByLabel("Rechnungsdatum").fill(invoice.date);
     for (const [i, [description, quantity, price]] of invoice.lines.entries()) {
-      if (i > 0) await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+      if (i > 0) await page.getByRole("button", { name: "Position hinzufügen" }).click();
       await page.getByLabel(`Beschreibung Position ${i + 1}`).fill(description!);
       await page.getByLabel(`Menge Position ${i + 1}`).fill(quantity!);
       await page.getByLabel(new RegExp(`Einzelpreis Position ${i + 1}`)).fill(price!);
@@ -533,12 +533,12 @@ test("Artikelkatalog: anlegen und im Rechnungseditor einfügen", async () => {
   await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
 
   // Vorschlag aus dem Katalog beim Tippen: die Bezeichnung übernimmt Einheit und Preis
-  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
   await page.getByLabel("Beschreibung Position 2").fill("Beratung Softwarearchitektur");
   await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("110,00");
 
   // Eine neue Position als Artikel speichern; danach steht sie im Katalog
-  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
   await page.getByLabel("Beschreibung Position 3").fill("Wartungspauschale");
   await page.getByLabel(/Einzelpreis Position 3/).fill("250,00");
   await page.getByRole("button", { name: "Position 3 als Artikel speichern" }).click();
@@ -566,7 +566,7 @@ test("Positionstext: Artikel mit Bezeichnung und Text, die Vorschau zeigt beides
   await expect(page.getByRole("button", { name: "Position 1 als Artikel speichern" })).toBeDisabled();
 
   // Vorschlag beim Tippen der Bezeichnung: ebenso, dazu Preis und Einheit
-  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
   await page.getByLabel("Beschreibung Position 2").fill("Website-Relaunch");
   await expect(page.getByLabel(/Einzelpreis Position 2/)).toHaveValue("4.800,00");
   await expect(page.getByLabel("Text zu Position 2 (optional)")).toHaveValue("Konzeption, Design und Umsetzung");
@@ -843,11 +843,11 @@ test("Angebot mit Rabatt, Wahlpositionen und Zahlungsplan: Abschlag per Klick au
   await page.getByLabel("Beschreibung Position 1").fill("Website Relaunch");
   await page.getByLabel(/Einzelpreis Position 1/).fill("10000");
   await page.getByLabel("Rabatt Position 1, Prozent oder Betrag").fill("10 %");
-  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
   await page.getByLabel("Beschreibung Position 2").fill("Website Relaunch mit Shop");
   await page.getByLabel(/Einzelpreis Position 2/).fill("12000");
   await page.getByLabel("Art der Position 2").selectOption("alternative");
-  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
   await page.getByLabel("Beschreibung Position 3").fill("Schulung");
   await page.getByLabel(/Einzelpreis Position 3/).fill("1000");
   await page.getByLabel("Art der Position 3").selectOption("optional");

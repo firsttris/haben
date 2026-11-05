@@ -93,7 +93,7 @@ export function MailCard({ data }: { data: Data }) {
           ))}
         </select>
       </label>
-      <div className="form-grid">
+      <div className="form-row cols-server">
         <label className="field">
           SMTP-Server
           <input name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.gmail.com" required />
@@ -109,6 +109,8 @@ export function MailCard({ data }: { data: Data }) {
             <option value="starttls">STARTTLS (meist Port 587)</option>
           </select>
         </label>
+      </div>
+      <div className="form-row cols-2">
         <label className="field">
           Benutzername
           <input name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />
@@ -117,6 +119,8 @@ export function MailCard({ data }: { data: Data }) {
           Passwort
           <input name="password" type="password" autoComplete="new-password" placeholder={s ? "unverändert lassen" : undefined} />
         </label>
+      </div>
+      <div className="form-row cols-2">
         <label className="field">
           Absender
           <input name="fromAddress" type="email" defaultValue={s?.fromAddress ?? ""} required />
@@ -128,12 +132,8 @@ export function MailCard({ data }: { data: Data }) {
             Leer lassen für den Firmennamen
           </span>
         </label>
-        <label className="field">
-          Erinnerungen an
-          <input name="reminderTo" type="email" defaultValue={s?.reminderTo ?? ""} required />
-        </label>
       </div>
-      <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+      <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 12 }}>
         <legend className="small" style={{ fontWeight: 500, marginBottom: 8 }}>
           Erinnern vor einer Frist
         </legend>
@@ -154,9 +154,13 @@ export function MailCard({ data }: { data: Data }) {
             </button>
           ))}
         </div>
-        <p className="small muted" style={{ margin: "6px 0 0" }}>
+        <p className="small muted" style={{ margin: 0 }}>
           Morgens nach 7 Uhr, mehrere Fristen in einer Mail; Überfälliges einmal. Erledigte Fristen werden nicht erinnert.
         </p>
+        <label className="field">
+          Erinnerungen an
+          <input name="reminderTo" type="email" defaultValue={s?.reminderTo ?? ""} required />
+        </label>
       </fieldset>
       <div>
         <label className="checkbox">

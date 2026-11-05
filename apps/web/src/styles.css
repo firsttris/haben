@@ -231,6 +231,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .form-row.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .form-row.cols-address { grid-template-columns: 120px minmax(0, 1fr) 120px; }
 .form-row.cols-place { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr); }
+/* Server, Port und Verschlüsselung für SMTP und IMAP */
+.form-row.cols-server { grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); }
 /* Betragszeile: Satz, Netto, Steuer und Platz für den Entfernen-Knopf, auch wenn er fehlt, damit die Zeilen fluchten */
 .form-row.cols-amount { grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 40px; align-items: end; }
 .form-row.cols-amount.ohne-steuer { grid-template-columns: 120px minmax(0, 1fr) 40px; }
@@ -249,6 +251,8 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   .form-row.cols-address, .form-row.cols-place { grid-template-columns: 100px minmax(0, 1fr); }
   .form-row.cols-address > :last-child, .form-row.cols-place > :last-child { grid-column: 1 / -1; }
   .form-row.cols-amount { grid-template-columns: 96px minmax(0, 1fr) 40px; }
+  .form-row.cols-server { grid-template-columns: minmax(0, 1fr) 96px; }
+  .form-row.cols-server > :last-child { grid-column: 1 / -1; }
   .form-row.cols-amount > .field:nth-child(3) { grid-column: 2; }
 }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }

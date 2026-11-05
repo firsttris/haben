@@ -77,7 +77,7 @@ export function InboxCard({ data }: { data: Data }) {
           ))}
         </select>
       </label>
-      <div className="form-grid">
+      <div className="form-row cols-server">
         <label className="field">
           IMAP-Server
           <input name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="imap.gmail.com" required />
@@ -93,6 +93,8 @@ export function InboxCard({ data }: { data: Data }) {
             <option value="starttls">STARTTLS (meist Port 143)</option>
           </select>
         </label>
+      </div>
+      <div className="form-row cols-3">
         <label className="field">
           Benutzername
           <input name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />

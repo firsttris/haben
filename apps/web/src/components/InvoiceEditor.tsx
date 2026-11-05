@@ -1086,7 +1086,7 @@ export function InvoiceEditor({
                   setDirty(true);
                 }}
               >
-                + Position hinzufügen
+                <Icon name="plus" size={16} /> Position hinzufügen
               </button>
               {articles.length > 0 && (
                 <select
