@@ -45,6 +45,10 @@ const NAV_GROUPS = [
     ],
   },
   {
+    label: "Personal",
+    links: [{ to: "/lohn", icon: "payroll", label: "Lohn" }],
+  },
+  {
     label: "Steuern",
     links: [
       { to: "/umsatzsteuer", icon: "vat", label: "Umsatzsteuer" },

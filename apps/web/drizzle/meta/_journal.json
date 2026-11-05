@@ -883,6 +883,34 @@
       "when": 1793989794647,
       "tag": "0125_rechnungsanhaenge_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1793989854647,
+      "tag": "0126_lohn",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1793989914647,
+      "tag": "0127_lohn_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1793989974647,
+      "tag": "0128_beleg_aufteilung",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1793990034647,
+      "tag": "0129_beleg_aufteilung_trigger",
+      "breakpoints": true
     }
   ]
 }

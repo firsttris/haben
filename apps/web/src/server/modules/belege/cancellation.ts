@@ -7,6 +7,7 @@ import { isUniqueViolation } from "../../errors.ts";
 import { lockCash, reverseDocumentCashEntry } from "../bank/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { DocumentError, type Document } from "./documents.ts";
+import { loadSplits } from "./splits.ts";
 
 /*
  * Storno gebuchter Belege (#237), nach dem Muster der Stornorechnung: Die Belegbuchung wird mit vertauschten Seiten
@@ -125,7 +126,8 @@ export async function documentCancellation(id: string): Promise<{ cancellation: 
 }
 
 /**
- * Neu erfassen: ein Entwurf mit derselben Datei und den Feldern des stornierten Belegs, zum Korrigieren und neu Buchen.
+ * Neu erfassen: ein Entwurf mit derselben Datei und den Feldern des stornierten Belegs, mit Beträgen und Aufteilung, zum
+ * Korrigieren und neu Buchen.
  * Je storniertem Beleg einer; gibt es ihn schon, liefert Haben ihn.
  */
 export async function reenterDocument(actor: string, id: string): Promise<string> {
@@ -184,6 +186,11 @@ export async function reenterDocument(actor: string, id: string): Promise<string
             originalTax: a.originalTax,
           })),
         );
+      }
+      // Aufteilung (#271) wie gebucht, mit derselben Vorsteuer je Zeile
+      const splits = await loadSplits(id, tx);
+      if (splits.length > 0) {
+        await tx.insert(schema.documentSplits).values(splits.map(({ id: _id, documentId: _documentId, ...line }) => ({ documentId: created!.id, ...line })));
       }
       return created!.id;
     });
