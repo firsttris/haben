@@ -24,8 +24,9 @@ import { openAppealDeadlines } from "./postfach.ts";
 import { kapestAnmeldungen } from "../ausschuettung/index.ts";
 import { loadActiveCertificate } from "../elster/index.ts";
 import { loadDauerfrist, loadFrequencies, zmQuartale } from "../umsatzsteuer/index.ts";
+import { svFristen } from "../sv-meldungen/index.ts";
 
-export type FristArt = "ustva" | "zm" | "kapest" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat";
+export type FristArt = "ustva" | "zm" | "kapest" | "erklaerung" | "vorauszahlung" | "einspruch" | "zertifikat" | "sv";
 
 export interface Frist {
   /** stabil, auch als UID im Kalender */
@@ -202,6 +203,12 @@ export async function listFristen(today: string): Promise<Frist[]> {
         link: `/ausschuettungen?jahr=${d.zufluss.slice(0, 4)}`,
       });
     }
+  }
+
+  // Beitragsnachweise und DEÜV-Meldungen im SV-Meldeportal; erledigt mit dem Vermerk „im Portal abgegeben“
+  for (const f of await svFristen(today, bis)) {
+    if (!relevant(f.datum, !f.erledigt)) continue;
+    fristen.push({ id: f.id, art: "sv", datum: f.datum, titel: f.titel, detail: f.detail, status: f.erledigt ? "erledigt" : "offen", link: f.link });
   }
 
   for (const appeal of appeals) {

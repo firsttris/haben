@@ -52,6 +52,7 @@ const PAGES = [
   "/ausschuettungen",
   "/lohn",
   "/lohn/mitarbeiter/neu",
+  "/sv-meldeportal",
   `/konten?jahr=${YEAR}`,
   `/konten/1200?jahr=${YEAR}`,
   "/archiv",

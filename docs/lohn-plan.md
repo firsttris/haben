@@ -1,6 +1,6 @@
 # Lohn in Haben – Recherche und Umsetzungsplan
 
-Stand: 5. November 2026. PR 1 bis 4 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
+Stand: 5. November 2026. PR 1 bis 4 und PR 6 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
 
 ## Kurzfazit
 
@@ -98,6 +98,19 @@ Stand: 5. November 2026. PR 1 bis 4 sind umgesetzt, der Rest ist Plan. Ein Teil 
 - **Tests:** XML gegen Schema, echter ERiC mit Testmerker (wie `eric-kapesta.test.ts`).
 
 ### PR 6 – Ausfüllliste für SV-Meldeportal und Minijob-Zentrale
+
+**Erledigt:** `packages/core/src/sv-meldeportal/` bildet Beitragsnachweis, DEÜV-Meldungen und Termine, das Modul `apps/web/src/server/modules/sv-meldungen/` die Liste je Monat, die Vermerke (Tabelle `sv_portal_filings`, nur anhängbar, Audit) und die Fristen; Seite **Personal › SV-Meldeportal** ([Lohn](lohn.md#sv-meldeportal)). Abweichungen vom Plan:
+
+- **Nur festgeschriebene Abrechnungen** gehen in Beitragsnachweis und Meldungen ein. Wer im Monat ohne festgeschriebene Abrechnung beschäftigt ist, steht als Hinweis am Nachweis; das Entgelt einer Ab- oder Jahresmeldung bleibt leer, bis alle Monate festgeschrieben sind.
+- **Beitragsgruppen im Nachweis:** nur die, mit denen Haben rechnet: 1000, 0100, 0010, 0001 und der Zusatzbeitrag gesondert für Beschäftigte, 6000, 0100, 0500 und die Pauschsteuer für Minijobs, dazu U1, U2 und 0050. 3000 (ermäßigt) und halbe Beiträge (0300, 0020, 0002) entstehen nicht, weil Haben solche Fälle nicht rechnet. Die Schlüssel aus den Stammdaten übernimmt Haben unverändert; weichen sie von 1111/101 bzw. 6100, 6500, 0100, 0500/109 ab, steht ein Hinweis da.
+- **Termine ohne Sitz der Kasse:** Bankarbeitstage zählt Haben mit den Feiertagen aller Länder sowie dem 24. und 31. Dezember. Das ergibt den frühesten möglichen Termin; für 2026 stimmt er mit der Tabelle der TK überein. Abzugeben ist der Nachweis am Tag vor dem fünftletzten Bankarbeitstag, weil er um 0 Uhr vorliegen muss.
+- **DEÜV-Fristen:** Als „erste folgende Lohn- und Gehaltsabrechnung“ zählt der Zahltag eines Lohnlaufs; es gilt der frühere Termin. Fristen am Wochenende verschiebt Haben nicht. Fristen gibt es erst ab dem ersten Lohnlauf in Haben (ohne Lohnlauf ab dem laufenden Monat).
+- **Sofortmeldung** als Liste ohne Frist: Ob sie nötig ist, hängt am Wirtschaftszweig (§ 28a Abs. 4 SGB IV), den Haben nicht kennt.
+- **Keine Meldung für den Gesellschafter-Geschäftsführer** ohne SV-Pflicht; er ist nicht beschäftigt im Sinne von § 7 Abs. 1 SGB IV. Ob die Clearingstelle das bestätigt, hält die Statusfeststellung in den Stammdaten fest.
+- **Offen gelassen statt geraten:** Staatsangehörigkeit, Statuskennzeichen, Tag des Antrags auf Befreiung von der Rentenversicherung und bei fehlender Versicherungsnummer Geburtsname, Geburtsort und Geschlecht kennt Haben nicht; die Felder stehen leer mit Hinweis. Im Minijob unter der Mindestbeitragsbemessungsgrundlage von 175 € (§ 163 Abs. 8 SGB VI) lässt Haben das Entgelt der Meldung leer, bis geklärt ist, welches zu melden ist. Kombinierte An- und Abmeldung (Meldegrund 40) nennt Haben nur als Hinweis.
+- **Betriebsnummer des Arbeitgebers** fehlt in der Liste: Das Portal nimmt sie aus den Firmen-Basisdaten der Registrierung.
+- **Vermerk:** Rücknahme als neue Zeile mit Grund statt Löschen; der Vermerk hält die Werte der Liste fest, sodass Haben eine spätere Änderung (Storno) als „geändert seit Abgabe“ zeigt. Das Protokoll liegt im Dokumentenspeicher wie Belege (PDF, PNG oder JPEG).
+- **Nicht geprüft am Formular selbst:** Das Portal verlangt eine Anmeldung mit ELSTER-Organisationszertifikat; Reihenfolge und Bezeichnungen der Felder folgen daher den Datensätzen und dem Benutzerhandbuch, nicht einem Bildschirmfoto des Formulars. Weicht das Formular ab, gilt der Schlüssel der Beitragsgruppe bzw. der Name des Feldes.
 
 - **Umfang:** je Monat und Krankenkasse die Werte des Beitragsnachweises (Beitragsgruppen 1000/3000/0100/0010/0001, Umlagen, Insolvenzgeld); je Person die DEÜV-Felder für Anmeldung (10), Abmeldung (30), Jahresmeldung (50), Sofortmeldung. Fristen: Beitragsnachweis zwei Arbeitstage vor dem drittletzten Bankarbeitstag; in `fristen.ts`.
 - **Vermerk:** Der Nutzer trägt „im Portal abgegeben“ mit Datum ein; das Protokoll aus dem Portal hängt er an.

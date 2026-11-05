@@ -45,6 +45,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["lohn", "/lohn"],
     ["mitarbeiter-neu", "/lohn/mitarbeiter/neu"],
     ["mitarbeiter", details.mitarbeiter],
+    ["sv-meldeportal", "/sv-meldeportal"],
     ["konten", `/konten?jahr=${YEAR}`],
     ["kontenblatt", `/konten/1200?jahr=${YEAR}`],
     ["umsatzsteuer", "/umsatzsteuer"],

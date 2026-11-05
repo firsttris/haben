@@ -2198,3 +2198,49 @@ export const payslipCancellations = pgTable("payslip_cancellations", {
   reason: text("reason").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/*
+ * SV-Meldeportal (docs/lohn-plan.md, PR 6): Haben übermittelt nicht an die Sozialversicherung, es erzeugt nur die
+ * Ausfüllliste. Hat der Nutzer einen Beitragsnachweis oder eine Meldung im Portal abgegeben, hält er das hier fest, mit
+ * Tag, den Werten der Liste zu diesem Zeitpunkt und auf Wunsch dem Protokoll des Portals als Datei. Nur anhängbar; ein
+ * versehentlicher Vermerk wird mit einer neuen Zeile zurückgenommen (`revokes_id`), die alte bleibt sichtbar.
+ */
+export const svPortalFilings = pgTable(
+  "sv_portal_filings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Was abgegeben ist, z. B. `beitragsnachweis:2026-11:15027365` oder `anmeldung:<Mitarbeiter>:2026-11-01` */
+    gegenstand: text("gegenstand").notNull(),
+    art: text("art", { enum: ["beitragsnachweis", "anmeldung", "sofortmeldung", "abmeldung", "jahresmeldung"] }).notNull(),
+    titel: text("titel").notNull(),
+    employeeId: uuid("employee_id").references(() => employees.id),
+    /** Tag der Abgabe im Portal; bei einer Rücknahme der Tag der Rücknahme */
+    datum: date("datum", { mode: "string" }).notNull(),
+    /** Felder der Ausfüllliste beim Vermerk, um spätere Änderungen zu erkennen */
+    werte: jsonb("werte").$type<SvPortalWert[]>().notNull(),
+    notiz: text("notiz").notNull().default(""),
+    /** Protokoll aus dem Portal im Dokumentenspeicher (storage.ts) */
+    protokollSha256: text("protokoll_sha256"),
+    protokollDateiname: text("protokoll_dateiname"),
+    protokollMimeType: text("protokoll_mime_type"),
+    protokollGroesse: integer("protokoll_groesse"),
+    /** Rücknahme eines früheren Vermerks */
+    revokesId: uuid("revokes_id").references((): AnyPgColumn => svPortalFilings.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("sv_portal_filings_gegenstand").on(t.gegenstand),
+    uniqueIndex("sv_portal_filings_revokes").on(t.revokesId),
+    check(
+      "sv_portal_filings_protokoll",
+      sql`(${t.protokollSha256} is null) = (${t.protokollDateiname} is null) and (${t.protokollSha256} is null) = (${t.protokollGroesse} is null) and (${t.protokollSha256} is null) = (${t.protokollMimeType} is null)`,
+    ),
+  ],
+);
+
+/** Ein Feld der Ausfüllliste, wie es beim Vermerk stand */
+export interface SvPortalWert {
+  abschnitt: string;
+  name: string;
+  wert: string;
+}

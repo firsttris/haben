@@ -25,6 +25,7 @@ const ART_LABEL: Record<Frist["art"], string> = {
   vorauszahlung: "Vorauszahlung",
   einspruch: "Einspruch",
   zertifikat: "Zertifikat",
+  sv: "Sozialversicherung",
 };
 
 function wann(datum: string, today: string): string {
