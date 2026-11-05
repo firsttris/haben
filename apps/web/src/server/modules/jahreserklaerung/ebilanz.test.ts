@@ -16,6 +16,7 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz (Postgres)", () => {
   let abschluss: typeof import("../buchhaltung/abschluss.ts");
   let stammdaten: typeof import("../stammdaten/index.ts");
   let crypto: typeof import("../../crypto.ts");
+  let documents: typeof import("../belege/documents.ts");
   const actor = "test-user";
   const today = "2027-02-10";
 
@@ -28,6 +29,7 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz (Postgres)", () => {
     abschluss = await import("../buchhaltung/abschluss.ts");
     stammdaten = await import("../stammdaten/index.ts");
     crypto = await import("../../crypto.ts");
+    documents = await import("../belege/documents.ts");
   }, 30_000);
 
   afterAll(async () => {
@@ -252,6 +254,86 @@ describe.skipIf(!testDatabaseUrl)("E-Bilanz (Postgres)", () => {
         expect(xml).toContain(
           '<de-gaap-ci:detailedInformation.accountbalances.amount contextRef="D-AKTJAHR" unitRef="EUR" decimals="2">7000.00</de-gaap-ci:detailedInformation.accountbalances.amount><de-gaap-ci:detailedInformation.accountbalances.notPossible contextRef="D-AKTJAHR">true<',
         );
+      },
+      60_000,
+    );
+
+    // Anlagenspiegel 6.10 aus dem Anlagenverzeichnis: Pkw mit Buchwert, GWG und Sammelposten im Jahr gekauft
+    it.skipIf(!ericKennt("Bilanz_6.10")).each(["ist", "soll"] as const)(
+      "%s: 2027 mit Pkw, GWG und Sammelposten im Anlagenspiegel 6.10",
+      async (versteuerung) => {
+        await setup(kontenrahmen, versteuerung);
+        await assets.createAsset(actor, {
+          name: "VW Passat",
+          kind: "kfz",
+          method: "linear",
+          acquisitionDate: "2024-01-10",
+          cost: 3_600_000,
+          usefulLifeMonths: 72,
+          openingDate: "2027-01-01",
+          openingBookValue: 1_800_000,
+          disposalDate: null,
+          note: "",
+        });
+        await manual.createManualEntry(
+          actor,
+          {
+            kind: "eroeffnung",
+            date: "2027-01-01",
+            description: "Eröffnungsbilanz",
+            lines: [
+              { account: k.bank, debit: 2_500_000, credit: 0 },
+              { account: "9000", debit: 1_800_000, credit: 0 },
+              { account: k.kapital, debit: 0, credit: 2_500_000 },
+              { account: k.vortrag, debit: 0, credit: 1_800_000 },
+            ],
+          },
+          "2028-02-10",
+        );
+        // GWG und Sammelposten als Beleg im Jahr gekauft, privat bezahlt (an den Gesellschafter)
+        for (const [n, datum, net, asset] of [
+          [1, "2027-02-01", 79_900, { name: "Monitor", kind: "edv", method: "gwg", usefulLifeMonths: null }],
+          [2, "2027-03-01", 90_000, { name: "Schreibtisch", kind: "buero", method: "sammelposten", usefulLifeMonths: null }],
+        ] as const) {
+          const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, n]), filename: `anlage-${n}.jpg` });
+          await documents.updateDocument(actor, id, {
+            supplierName: "Händler",
+            supplierUstId: "",
+            invoiceNumber: `A-${n}`,
+            documentDate: datum,
+            dueDate: null,
+            category: "anlage",
+            payment: "privat",
+            note: "",
+            amounts: [{ taxRate: 1900, net, tax: Math.round(net * 0.19) }],
+            asset,
+          });
+          await documents.bookDocument(actor, id);
+        }
+        await book("2027-03-15", [
+          [k.bank, 1_190_000, 0],
+          [k.erloes, 0, 1_000_000],
+          [k.ust, 0, 190_000],
+        ]);
+        await assets.bookDepreciation(actor, 2027, "2027-12-05");
+
+        const company = await stammdaten.loadCompany();
+        const { daten, issues } = await ebilanz.ebilanzDaten(2027, company);
+        expect(issues).toEqual([]);
+        expect(daten.taxonomie).toBe("6.10");
+        expect(daten.anlagen.map((z) => [z.position, z.zugaenge])).toEqual(
+          expect.arrayContaining([
+            ["bs.ass.fixAss.tan.otherEquipm.gwg", 79_900],
+            [expect.stringContaining("bs.ass.fixAss.tan.otherEquipm"), 90_000],
+          ]),
+        );
+        const validated = await ebilanz.submitEbilanz(actor, 2027, new EricGeprueftClient(), { kind: "validate", today: "2028-02-10" });
+        expect(validated.ok, validated.message).toBe(true);
+        // Jedes Anlagekonto mit Saldo steht im Kontennachweis
+        const [row] = await sql`select request_xml from annual_submissions where year = 2027`;
+        for (const konto of daten.konten.filter((kt) => kt.betrag !== 0)) {
+          expect(row!.request_xml).toContain(`<de-gaap-ci:detailedInformation.accountbalances.accountNumber contextRef="D-AKTJAHR">${konto.account}<`);
+        }
       },
       60_000,
     );

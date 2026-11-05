@@ -146,6 +146,51 @@ describe.each(TAXONOMIEN)("E-Bilanz mit ERiC (Taxonomie %s, Wirtschaftsjahr %i)"
     60_000,
   );
 
+  // Pkw mit Buchwert, daneben ein GWG im Jahr gekauft und abgeschrieben: die GWG-Position hat im Anlagenspiegel Bewegung,
+  // in der Bilanz keinen Wert, das Anlagevermögen insgesamt aber schon
+  fall(
+    "Pkw mit Buchwert und GWG im Jahr abgeschrieben",
+    async () => {
+      await pruefe({
+        ...basis,
+        werte: {
+          "bs.ass.currAss.cashEquiv.bank": 3_200_000,
+          "bs.ass.fixAss.tan.otherEquipm.passengerCars": 1_800_000,
+          "bs.eqLiab.equity.subscribed.corp": 2_500_000,
+          "bs.eqLiab.equity.netIncome": -370_000,
+          "bs.eqLiab.liab.shareholders.gmbh": 2_680_000,
+          "bs.eqLiab.liab.other.other": 190_000,
+          [ERLOESE_19]: 1_000_000,
+          [SONSTIGE]: 690_000,
+          "is.netIncome.regular.operatingTC.deprAmort.fixAss.tan.other": 600_000,
+          "is.netIncome.regular.operatingTC.deprAmort.fixAss.tan.lowValueAs": 80_000,
+        },
+        bvv: { eigenkapitalVorjahr: 2_500_000, ausschuettungen: 0, einlagen: 0 },
+        anlagen: [
+          {
+            position: "bs.ass.fixAss.tan.otherEquipm.passengerCars",
+            akAnfang: 3_600_000,
+            zugaenge: 0,
+            abgaenge: 0,
+            afaAnfang: 1_200_000,
+            afaJahr: 600_000,
+            afaAbgaenge: 0,
+          },
+          {
+            position: "bs.ass.fixAss.tan.otherEquipm.gwg",
+            akAnfang: 0,
+            zugaenge: 80_000,
+            abgaenge: 80_000,
+            afaAnfang: 0,
+            afaJahr: 80_000,
+            afaAbgaenge: 80_000,
+          },
+        ],
+      });
+    },
+    60_000,
+  );
+
   // Restlaufzeiten (§ 268 Abs. 4 und 5 HGB) als Davon-Positionen, Gesellschafter auf eigenen Positionen (§ 42 Abs. 3 GmbHG)
   fall.each([
     [
