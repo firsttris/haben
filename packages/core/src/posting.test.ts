@@ -4,12 +4,14 @@ import {
   ACCOUNT_NAMES,
   ACCOUNTS,
   cashBookingLabel,
+  cashEntryLabel,
   cashPosting,
   directBookingLabel,
   directBookingsFor,
   directPosting,
   documentPaymentPosting,
   documentPosting,
+  invoiceCashPaymentPosting,
   invoicePaymentPosting,
   invoicePosting,
   legacyCorrectionPosting,
@@ -192,6 +194,44 @@ describe("Zahlungen", () => {
 
   it("Soll-Versteuerung: nur Bank an Forderungen", () => {
     expect(invoicePaymentPosting(totals, 50_000, "SKR04", "soll").map((l) => l.account)).toEqual(["1800", "1200"]);
+  });
+
+  it("Art der Zeile im Kassenbuch", () => {
+    expect(cashEntryLabel("rechnung", "einzelunternehmen")).toBe("Bareinnahme Rechnung");
+    expect(cashEntryLabel("beleg", "gmbh")).toBe("Beleg");
+    expect(cashEntryLabel("einlage", "gmbh")).toBe(cashBookingLabel("einlage", "gmbh"));
+  });
+
+  describe("Bareinnahme auf eine Rechnung: Kasse an Forderungen", () => {
+    for (const [kontenrahmen, kasse, forderungen] of [
+      ["SKR03", "1000", "1400"],
+      ["SKR04", "1600", "1200"],
+    ] as const) {
+      it(`${kontenrahmen}, Ist: Kasse statt Bank, die Umsatzsteuer wird mit der Bareinnahme fällig`, () => {
+        const lines = invoiceCashPaymentPosting(totals, totals.gross, kontenrahmen, "ist");
+        const bank = invoicePaymentPosting(totals, totals.gross, kontenrahmen, "ist");
+        expect(lines[0]).toEqual({ account: kasse, debit: 129_700, credit: 0, taxCode: null });
+        expect(lines[1]).toEqual({ account: forderungen, debit: 0, credit: 129_700, taxCode: null });
+        // Steuerzeilen wie bei der Zahlung über die Bank
+        expect(lines.slice(2)).toEqual(bank.slice(2));
+        expect(lines).toHaveLength(6);
+        expect(balanced(lines)).toBe(true);
+      });
+
+      it(`${kontenrahmen}, Soll: nur Kasse an Forderungen, auch bei einer Teilzahlung`, () => {
+        expect(invoiceCashPaymentPosting(totals, 50_000, kontenrahmen, "soll")).toEqual([
+          { account: kasse, debit: 50_000, credit: 0, taxCode: null },
+          { account: forderungen, debit: 0, credit: 50_000, taxCode: null },
+        ]);
+      });
+    }
+
+    it("Storno der Bareinnahme (negativ): Seiten gedreht", () => {
+      expect(invoiceCashPaymentPosting(totals, -50_000, "SKR03", "soll")).toEqual([
+        { account: "1000", debit: 0, credit: 50_000, taxCode: null },
+        { account: "1400", debit: 50_000, credit: 0, taxCode: null },
+      ]);
+    });
   });
 
   it("Teilzahlung verteilt die Steuer anteilig und exakt", () => {

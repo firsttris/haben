@@ -1,6 +1,6 @@
 import { formatEuro, type Cents } from "./money.ts";
 import type { VatPeriod } from "./period.ts";
-import { formatPercent, type SkontoZahlfrist } from "./skonto.ts";
+import { formatPercent, skontoGezogen, type SkontoZahlfrist } from "./skonto.ts";
 import { purposeNamesPeriod, saeumnisMonate, saeumniszuschlag } from "./ustva-posten.ts";
 
 export interface MatchTransaction {
@@ -59,12 +59,9 @@ export interface Suggestion {
   skonto?: Cents;
 }
 
-/**
- * Stufe, um deren Skonto die Zahlung gekürzt ist, wenn sie bis zum letzten Tag der Frist eingeht; endet die Frist an
- * einem Wochenende oder Feiertag, auch am nächsten Werktag (§ 193 BGB)
- */
+/** Stufe, um deren Skonto die Zahlung gekürzt ist (skontoGezogen) */
 function skontoTaken(tx: Pick<MatchTransaction, "amount" | "bookingDate">, item: OpenItem): SkontoZahlfrist | undefined {
-  return item.skonto?.find((s) => s.payable === tx.amount && tx.bookingDate <= s.paidBy);
+  return skontoGezogen(item.skonto, tx.bookingDate, tx.amount);
 }
 
 const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");

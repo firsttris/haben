@@ -862,12 +862,14 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
   };
   // Ausbuchungen des Jahres (Skonto, Forderungsausfall, erhaltenes Skonto) nach Datum der Ausbuchung
   const writeOffs = await db
-    .select()
+    .select({ writeOff: schema.writeOffs, cashNumber: schema.cashEntries.number })
     .from(schema.writeOffs)
+    // Skonto zu einer Bareinnahme: die Zeile im Kassenbuch (kasse/kassenbuch.csv), wie die Umsatz-ID bei der Bank
+    .leftJoin(schema.cashEntries, eq(schema.cashEntries.id, schema.writeOffs.cashEntryId))
     .where(and(gte(schema.writeOffs.date, yearStart(year)), lte(schema.writeOffs.date, yearEnd(year))))
     .orderBy(asc(schema.writeOffs.date), asc(schema.writeOffs.createdAt), asc(schema.writeOffs.id));
   if (writeOffs.length > 0) {
-    const missing = [...new Set(writeOffs.map((w) => w.invoiceId).filter((id): id is string => id !== null && !invoiceNumbers.has(id)))];
+    const missing = [...new Set(writeOffs.map(({ writeOff: w }) => w.invoiceId).filter((id): id is string => id !== null && !invoiceNumbers.has(id)))];
     if (missing.length > 0) {
       for (const row of await db
         .select({ id: schema.invoices.id, number: schema.invoices.number })
@@ -879,8 +881,8 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
     yield {
       path: "bank/ausbuchungen.csv",
       content: csv(
-        ["Datum", "Art", "Rechnung", "Beleg", "Betrag", "Hebt auf", "Angelegt", "Umsatz-ID", "Rechnungs-ID", "Beleg-ID", "Ausbuchungs-ID"],
-        writeOffs.map((w) => [
+        ["Datum", "Art", "Rechnung", "Beleg", "Betrag", "Hebt auf", "Angelegt", "Umsatz-ID", "Rechnungs-ID", "Beleg-ID", "Ausbuchungs-ID", "Kassenbuch-Nr."],
+        writeOffs.map(({ writeOff: w, cashNumber }) => [
           w.date,
           WRITE_OFF_KINDS[w.kind],
           w.invoiceId ? (invoiceNumbers.get(w.invoiceId) ?? "") : "",
@@ -892,6 +894,7 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
           w.invoiceId,
           w.documentId,
           w.id,
+          cashNumber,
         ]),
       ),
       compress: true,
@@ -1472,12 +1475,14 @@ pauschalen/pauschalen.csv
                          Fahrten, Verpflegungsmehraufwand) mit ihren Angaben als
                          Eigenbeleg; Stornos als Gegenzeile.
 kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufender
-                         Nummer, Anfangsbestand und Bestand nach jeder Zeile.
+                         Nummer, Anfangsbestand und Bestand nach jeder Zeile; bei
+                         Bareinnahmen auf Rechnungen die Rechnungsnummer.
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto (Zahlungsdienstleister unter ihrem Namen).
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.
 bank/ausbuchungen.csv    Nur wenn vorhanden: ausgebuchte Reste von Rechnungen und Belegen
-                         (Skonto, Forderungsausfall); aufgehobene als Gegenzeile.
+                         (Skonto, Forderungsausfall); aufgehobene als Gegenzeile; bei
+                         Skonto zu einer Bareinnahme die Nummer im Kassenbuch.
 bank/importe.csv         Importierte Kontoauszugsdateien mit SHA-256, Zeitraum und Salden.
                          Die Auszugsdateien selbst speichert Haben nicht.
 umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldung.json),

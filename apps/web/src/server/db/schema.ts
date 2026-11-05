@@ -781,8 +781,8 @@ export const pauschalen = pgTable(
 
 /**
  * Kassenbuch: jede Bewegung der Barkasse mit fortlaufender Nummer, nur anhängen. Bar bezahlte Belege
- * stehen hier mit ihrem Beleg; Einlagen, Entnahmen und Geldtransit von und zur Bank ohne Beleg.
- * Korrekturen nur per Storno (Gegenzeile).
+ * stehen hier mit ihrem Beleg, Bareinnahmen auf Ausgangsrechnungen mit ihrer Rechnung; Einlagen, Entnahmen und
+ * Geldtransit von und zur Bank ohne Beleg. Korrekturen nur per Storno (Gegenzeile).
  */
 export const cashEntries = pgTable(
   "cash_entries",
@@ -793,9 +793,14 @@ export const cashEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     /** Cent; Eingang positiv, Ausgang negativ */
     amount: integer("amount").notNull(),
-    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung"] }).notNull(),
+    kind: text("kind", { enum: ["beleg", "einlage", "entnahme", "abhebung", "einzahlung", "rechnung"] }).notNull(),
     text: text("text").notNull(),
     documentId: uuid("document_id").references(() => documents.id),
+    /** Bareinnahme auf eine Ausgangsrechnung (Kasse an Forderungen), auch bei ihrer Gegenzeile; mehrere Zeilen je Rechnung bei Teilzahlungen */
+    invoiceId: uuid("invoice_id").references(() => invoices.id),
+    /** Bareinnahme: Netto und Steuer je Satz, wie gebucht (settlementTaxShares), und für welche Rechnung; wie bei allocations */
+    taxShares: jsonb("tax_shares").$type<TaxShare[]>(),
+    taxSharesInvoiceId: uuid("tax_shares_invoice_id"),
     /** Storno: die aufgehobene Zeile */
     reversesId: uuid("reverses_id"),
     journalEntryId: uuid("journal_entry_id").references(() => journalEntries.id),
@@ -804,6 +809,8 @@ export const cashEntries = pgTable(
   (t) => [
     uniqueIndex("cash_entries_document").on(t.documentId),
     uniqueIndex("cash_entries_reverses").on(t.reversesId),
+    index("cash_entries_invoice").on(t.invoiceId),
+    check("cash_entries_invoice_kind", sql`(${t.kind} = 'rechnung') = (${t.invoiceId} is not null)`),
     foreignKey({ name: "cash_entries_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
   ],
 );
@@ -1728,6 +1735,8 @@ export const writeOffs = pgTable(
     amount: integer("amount").notNull(),
     /** Zahlung, mit der zusammen ausgebucht wurde (Rest als Skonto); wird mit deren Zuordnung aufgehoben */
     transactionId: uuid("transaction_id").references(() => bankTransactions.id),
+    /** Ebenso bei einer Bareinnahme: die Zeile im Kassenbuch; wird mit deren Storno aufgehoben */
+    cashEntryId: uuid("cash_entry_id").references(() => cashEntries.id),
     reversesId: uuid("reverses_id"),
     /** Rechnung: Netto und Steuer je Satz, wie gebucht, und für welche Rechnung (wie bei allocations) */
     taxShares: jsonb("tax_shares").$type<TaxShare[]>(),
@@ -1742,6 +1751,8 @@ export const writeOffs = pgTable(
     index("write_offs_invoice").on(t.invoiceId),
     index("write_offs_document").on(t.documentId),
     index("write_offs_transaction").on(t.transactionId),
+    index("write_offs_cash_entry").on(t.cashEntryId),
+    check("write_offs_payment", sql`${t.transactionId} is null or ${t.cashEntryId} is null`),
     foreignKey({ name: "write_offs_reverses_fk", columns: [t.reversesId], foreignColumns: [t.id] }),
   ],
 );
