@@ -1,9 +1,9 @@
 # Lohn
 
-Unter **Personal › Lohn** legst du Mitarbeiter an, rechnest jeden Monat ab und schreibst die Abrechnung fest. Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und die Beiträge zur Sozialversicherung, erzeugt die Entgeltabrechnung als PDF und führt das Lohnkonto je Mitarbeiter und Jahr.
+Unter **Personal › Lohn** legst du Mitarbeiter an, rechnest jeden Monat ab und schreibst die Abrechnung fest. Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und die Beiträge zur Sozialversicherung, erzeugt die Entgeltabrechnung als PDF, bucht die Abrechnung ins Journal und führt das Lohnkonto je Mitarbeiter und Jahr.
 
 > [!IMPORTANT]
-> Noch nicht dabei: die Buchung ins Journal, die Lohnsteuer-Anmeldung, die Lohnsteuerbescheinigung und die Meldungen an die Sozialversicherung. Den Lohn buchst du bis dahin wie bisher als [manuelle Buchung](buchhaltung.md) (GmbH und UG) bzw. als Beleg; Lohnsteuer-Anmeldung und Beitragsnachweis gibst du im ELSTER-Portal und im SV-Meldeportal ab. Was wann kommt, steht im [Plan](lohn-plan.md).
+> Noch nicht dabei: die Lohnsteuer-Anmeldung, die Lohnsteuerbescheinigung und die Meldungen an die Sozialversicherung. Lohnsteuer-Anmeldung und Beitragsnachweis gibst du bis dahin im ELSTER-Portal und im SV-Meldeportal ab. Was wann kommt, steht im [Plan](lohn-plan.md).
 
 ## Was Haben abrechnet
 
@@ -49,11 +49,37 @@ Der Entwurf zeigt Brutto, Steuern, den Anteil zur Sozialversicherung, Netto, Aus
 
 **Festschreiben** setzt das PDF, speichert es mit der Abrechnung und sperrt beides. Haben lehnt das Festschreiben ab, solange für die Entgeltbescheinigung etwas fehlt (Anschrift, Steuer-ID, bei Sozialversicherung Versicherungsnummer, Personengruppe, Beitragsgruppen und Einzugsstelle) oder die Stammdaten seit dem Entwurf geändert sind. Ebenso, wenn die Rechnung jetzt ein anderes Ergebnis ergäbe, etwa weil sich das Bundesland in den Firmendaten geändert hat (Kirchensteuersatz, Pflegeversicherung in Sachsen); dann rechnest du den Entwurf neu. In Stufe C setzt du vorher den Haken „gegengeprüft“.
 
+Mit dem Festschreiben bucht Haben die Abrechnung ins Journal (siehe [Buchung](#buchung)). Lässt sie sich nicht buchen, etwa weil das Jahr abgeschlossen ist, bleibt sie ein Entwurf.
+
 Festgeschriebene Abrechnungen sind wie Rechnungen und Buchungen in der Datenbank gesperrt und versiegelt; jede Änderung an Stammdaten, Lohnlauf und Abrechnung steht im Änderungsprotokoll (siehe [GoBD](buchhaltung.md#gobd-unveränderbarkeit-in-der-datenbank)).
 
 ## Storno und Korrektur
 
-Eine festgeschriebene Abrechnung korrigierst du mit **Stornieren**: Haben hält das Storno mit Tag und Grund in einer eigenen, versiegelten Zeile fest, lässt die Abrechnung selbst unverändert und legt gleich einen neuen Entwurf für denselben Monat mit den aktuellen Stammdaten an. Der neue Entwurf verweist auf die stornierte Abrechnung.
+Eine festgeschriebene Abrechnung korrigierst du mit **Stornieren**: Haben hält das Storno mit Tag und Grund in einer eigenen, versiegelten Zeile fest, lässt die Abrechnung selbst unverändert, bucht gegen und legt gleich einen neuen Entwurf für denselben Monat mit den aktuellen Stammdaten an. Der neue Entwurf verweist auf die stornierte Abrechnung; gebucht wird er erst, wenn du ihn festschreibst.
+
+## Buchung
+
+Beim Festschreiben bucht Haben den Aufwand des Monats an die Verbindlichkeiten gegenüber Beschäftigtem, Finanzamt und Krankenkasse bzw. Minijob-Zentrale. Gebucht wird auf den letzten Tag des abgerechneten Monats, auch wenn der Zahltag im Folgemonat liegt: Der Lohn ist Aufwand des Monats, für den er gezahlt wird. Herkunft im [Journal](buchhaltung.md#die-seite-buchungen) ist „Lohn“, der Buchungstext `Lohn <Monat> · <Name>`. Konten und Buchungssätze stehen unter [Buchhaltung](buchhaltung.md#lohnabrechnung).
+
+| Beschäftigung | Aufwand (Soll) | Verbindlichkeiten (Haben) |
+| --- | --- | --- |
+| Gesellschafter-Geschäftsführer | Brutto auf Geschäftsführergehälter | Auszahlung; Lohnsteuer, Soli und Kirchensteuer |
+| Beschäftigter mit SV | Brutto auf Gehälter; Anteile des Arbeitgebers und Umlagen auf gesetzliche soziale Aufwendungen | Auszahlung; Lohnsteuer, Soli und Kirchensteuer; alle Beiträge (Anteile beider Seiten und Umlagen) |
+| Minijob | Brutto auf Löhne für Minijobs; Pauschalen und Umlagen auf soziale Abgaben für Minijobber; Pauschsteuer auf ihr eigenes Konto | Auszahlung; Beiträge, Umlagen und Pauschsteuer an die Minijob-Zentrale |
+
+Die Pauschsteuer im Minijob zieht die Minijob-Zentrale mit den Beiträgen ein (§ 40a Abs. 6 EStG), deshalb steht sie bei den Verbindlichkeiten der sozialen Sicherheit, nicht bei der Lohnsteuer.
+
+Ein **Storno** bucht dieselben Zeilen mit getauschten Seiten, am selben Tag wie die stornierte Buchung, damit Storno und neue Abrechnung im selben Monat stehen; der Tag des Stornos steht im Buchungstext.
+
+**Bezahlen** ordnest du im [Bankabgleich](bank.md#ohne-rechnung-buchen) mit **Ohne Rechnung buchen** zu: „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“. Die Zuordnung bucht die Verbindlichkeit an Bank. Das geht erst, wenn es eine festgeschriebene Abrechnung gibt, und höchstens über den Betrag, der auf dem Konto noch offen ist.
+
+**Nebenbuch:** Die Lohnkonten (Aufwand und Verbindlichkeiten) bebucht nur die Lohnabrechnung; eine [manuelle Buchung](buchhaltung.md#manuelle-buchungen-gmbh-und-ug) darauf lehnt Haben ab. Ausnahme ist die Eröffnung: Offene Lohnverbindlichkeiten aus der bisherigen Buchhaltung, etwa die Lohnsteuer für Dezember, übernimmst du dort und bezahlst sie im neuen Jahr über die Bank.
+
+**Einzelunternehmen:** Die [EÜR](auswertungen.md) rechnet nicht aus dem Journal, sondern nach Zahlung. Was du als Lohn, Lohnsteuer oder SV-Beiträge im Bankabgleich zuordnest, zählt am Tag der Zahlung als „Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung“, in der Anlage EÜR in der Zeile „Ausgaben für eigenes Personal“. Liegt eine Lohnzahlung zwischen 22. Dezember und 10. Januar, weist die Jahreserklärung darauf hin: Regelmäßig wiederkehrende Ausgaben gehören dann in das Jahr, zu dem sie wirtschaftlich gehören (§ 11 Abs. 2 Satz 2 EStG). Haben ordnet sie nicht selbst um. Einen Gesellschafter-Geschäftsführer gibt es im Einzelunternehmen nicht; seine Abrechnung lässt sich dort nicht festschreiben. Was der Inhaber selbst entnimmt, ist kein Lohn, sondern eine Entnahme.
+
+**Vor dieser Version festgeschrieben:** Abrechnungen, die festgeschrieben wurden, bevor Haben Lohn gebucht hat, zeigen „festgeschrieben, aber noch nicht gebucht“ und den Knopf **Jetzt buchen**. Ein Storno einer solchen Abrechnung hat nichts gegenzubuchen.
+
+Nicht gebucht werden die Beiträge zur Berufsgenossenschaft (jährlich nach Bescheid, als Beleg der Kategorie „Beiträge“ oder von der Steuerberatung auf SKR03 4138 bzw. SKR04 6120) und ein Zuschuss zur privaten Krankenversicherung, den Haben nicht abrechnet.
 
 ## Entgeltabrechnung
 
@@ -74,6 +100,8 @@ Aufbewahren musst du das Lohnkonto bis zum Ablauf des sechsten Kalenderjahres na
 
 ## Quellen
 
+- DATEV-Kontenrahmen 2026 SKR 03 (Art.-Nr. 11174) und SKR 04 (Art.-Nr. 11175), siehe [Plan](lohn-plan.md#quellen)
+- § 11 Abs. 2 EStG: <https://www.gesetze-im-internet.de/estg/__11.html>; § 40a Abs. 6 EStG: <https://www.gesetze-im-internet.de/estg/__40a.html>; § 41a EStG: <https://www.gesetze-im-internet.de/estg/__41a.html>
 - § 108 GewO: <https://www.gesetze-im-internet.de/gewo/__108.html>
 - Entgeltbescheinigungsverordnung §§ 1 und 2: <https://www.gesetze-im-internet.de/entgbv/__1.html>, <https://www.gesetze-im-internet.de/entgbv/__2.html>
 - § 41 EStG: <https://www.gesetze-im-internet.de/estg/__41.html>; § 4 LStDV: <https://www.gesetze-im-internet.de/lstdv/__4.html>

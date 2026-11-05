@@ -571,8 +571,30 @@ test("Restlaufzeiten und Vermerke: Gesellschafter-Verrechnungskonto, vorschlagen
   expect(await axe(), `/abschluss/${year} Restlaufzeiten bestätigt`).toEqual([]);
 });
 
-test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, festschreiben, PDF, Lohnkonto und Storno", async () => {
-  await go("/lohn?jahr=2026&monat=10");
+/*
+ * Lohn im laufenden Monat: Der Test „Jahresabschluss“ schließt das Vorjahr ab, und die Abrechnung bucht am Monatsende. Ein
+ * fester Monat läge ab dem Folgejahr im abgeschlossenen Jahr, das Festschreiben schlüge fehl. Die Beträge hängen vom
+ * Programmablaufplan des Jahres ab: BMF-Steuerrechner, 6.000 € in Klasse I ohne Renten- und Arbeitslosenversicherung,
+ * KVZ 2,9 %, kinderlos, evangelisch.
+ */
+const LOHN_BMF: Record<number, { lohnsteuer: string; kirchensteuer: string; auszahlung: string }> = {
+  2026: { lohnsteuer: "1.289,33", kirchensteuer: "116,03", auszahlung: "4.594,64" },
+};
+const lohnHeute = new Date();
+const lohnJahr = lohnHeute.getFullYear();
+const lohnMonat = lohnHeute.getMonth() + 1;
+const mm = String(lohnMonat).padStart(2, "0");
+const lohnMonatsname = new Date(lohnJahr, lohnMonat - 1, 1).toLocaleString("de-DE", { month: "long" });
+const lohnLetzter = new Date(lohnJahr, lohnMonat, 0).getDate();
+const zahlungTag = `${String(lohnHeute.getDate()).padStart(2, "0")}.${mm}.${String(lohnJahr).slice(2)}`;
+const lohnText = `Lohn ${lohnMonatsname} ${lohnJahr} · Erika Gesellschafter`;
+const lohnSeite = `/lohn?jahr=${lohnJahr}&monat=${lohnMonat}`;
+const buchungenSeite = `/buchungen?jahr=${lohnJahr}&monat=${lohnMonat}`;
+
+test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechnen, festschreiben und buchen, PDF, Lohnkonto, Auszahlung und Storno", async () => {
+  const bmf = LOHN_BMF[lohnJahr];
+  test.skip(!bmf, `Beträge für ${lohnJahr} aus dem BMF-Steuerrechner in LOHN_BMF ergänzen`);
+  await go(lohnSeite);
   const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
   await expect(nav.getByRole("group", { name: "Personal" }).getByRole("link", { name: "Lohn" })).toBeVisible();
   expect(await axe(), "/lohn ohne Mitarbeiter").toEqual([]);
@@ -600,17 +622,16 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, fe
   await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
   await page.waitForURL(/\/lohn$/);
 
-  await go("/lohn?jahr=2026&monat=10");
-  const monat = page.getByRole("form", { name: "Oktober 2026 abrechnen" });
-  await monat.getByLabel("Zahltag").fill("2026-10-28");
+  await go(lohnSeite);
+  const monat = page.getByRole("form", { name: `${lohnMonatsname} ${lohnJahr} abrechnen` });
+  await monat.getByLabel("Zahltag").fill(`${lohnJahr}-${mm}-28`);
   await monat.getByRole("button", { name: "Monat abrechnen" }).click();
   await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
 
-  // BMF-Steuerrechner: 6.000 € in Klasse I ohne Renten- und Arbeitslosenversicherung, KVZ 2,9 %, kinderlos → 1.289,33 €
   const mitarbeiterin = page.getByRole("region", { name: "Erika Gesellschafter" });
-  const abrechnung = mitarbeiterin.getByRole("region", { name: /^1\. Abrechnung Stufe A, Zahltag 28\.10\.2026/ });
-  await expect(abrechnung.getByRole("row", { name: "Lohnsteuer" })).toContainText("-1.289,33");
-  await expect(abrechnung.getByRole("row", { name: "Kirchensteuer" })).toContainText("-116,03");
+  const abrechnung = mitarbeiterin.getByRole("region", { name: new RegExp(`^1\\. Abrechnung Stufe A, Zahltag 28\\.${mm}\\.${lohnJahr}`) });
+  await expect(abrechnung.getByRole("row", { name: "Lohnsteuer" })).toContainText(`-${bmf!.lohnsteuer}`);
+  await expect(abrechnung.getByRole("row", { name: "Kirchensteuer" })).toContainText(`-${bmf!.kirchensteuer}`);
   await expect(abrechnung.getByText("Entwurf", { exact: true })).toBeVisible();
   expect(await axe(), "/lohn mit Entwurf").toEqual([]);
   const entwurfPdf = await page.request.get((await abrechnung.getByRole("link", { name: "Entwurf ansehen (PDF)" }).getAttribute("href"))!);
@@ -619,21 +640,65 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, fe
   await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
   await abrechnung.getByRole("button", { name: "Jetzt festschreiben" }).click();
   await expect(page.getByText("Abrechnung festgeschrieben.")).toBeVisible();
-  await expect(abrechnung.getByText("festgeschrieben", { exact: true })).toBeVisible();
+  await expect(abrechnung.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
   const pdf = await page.request.get((await abrechnung.getByRole("link", { name: "Entgeltabrechnung (PDF)" }).getAttribute("href"))!);
   expect(pdf.headers()["content-type"]).toBe("application/pdf");
   expect((await pdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
-  // Lohnkonto 2026 (§ 41 EStG) als CSV und PDF
+  // Lohnkonto des Jahres (§ 41 EStG) als CSV und PDF
   const mitarbeiterLink = page.getByRole("link", { name: "Erika Gesellschafter", exact: true });
   const id = (await mitarbeiterLink.getAttribute("href"))!.split("/").pop();
-  const csv = await (await page.request.get(`/api/lohn/lohnkonto/${id}/2026/csv`)).text();
-  expect(csv).toContain("Lohnkonto;2026");
-  expect(csv).toContain("28.10.2026;10/2026;Abrechnung;StKl I, Kfb 0, ev;6000,00;6000,00;0,00;0,00;1289,33");
-  const konto = await page.request.get(`/api/lohn/lohnkonto/${id}/2026/pdf`);
+  const csv = await (await page.request.get(`/api/lohn/lohnkonto/${id}/${lohnJahr}/csv`)).text();
+  expect(csv).toContain(`Lohnkonto;${lohnJahr}`);
+  expect(csv).toContain(`28.${mm}.${lohnJahr};${mm}/${lohnJahr};Abrechnung;StKl I, Kfb 0, ev;6000,00;6000,00;0,00;0,00;${bmf!.lohnsteuer.replace(".", "")}`);
+  const konto = await page.request.get(`/api/lohn/lohnkonto/${id}/${lohnJahr}/pdf`);
   expect((await konto.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
-  // Storno: die Abrechnung bleibt, daneben ein neuer Entwurf für denselben Monat
+  // Buchung am Monatsende (SKR04): Geschäftsführergehalt an Verbindlichkeiten aus Lohn und Gehalt bzw. Lohn- und Kirchensteuer
+  await go(buchungenSeite);
+  const journal = page.getByRole("region", { name: "Buchungen" });
+  const lohnzeile = journal.getByRole("row").filter({ hasText: lohnText });
+  await expect(lohnzeile).toContainText(`${lohnLetzter}.${mm}.`);
+  await expect(lohnzeile.getByRole("link", { name: "Lohn" })).toBeVisible();
+  await expect(lohnzeile).toContainText("6024");
+  await expect(lohnzeile).toContainText("3720");
+  await expect(lohnzeile).toContainText("6.000,00");
+  await lohnzeile.getByRole("button", { name: "Buchungszeilen anzeigen" }).click();
+  await expect(journal.getByText("3730").first()).toBeVisible();
+  expect(await axe(), "/buchungen mit Lohn").toEqual([]);
+
+  // Auszahlung im Bankabgleich: Lohn/Gehalt an Mitarbeiter gleicht 3720 aus
+  const auszug =
+    "\ufeff" +
+    `"Girokonto";"DE89 3704 0044 0532 0130 00"\n""\n"Kontostand vom ${zahlungTag}:";"35.405,36 €"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `"${zahlungTag}";"${zahlungTag}";"Gebucht";"Nordlicht Software GmbH";"Erika Gesellschafter";"Gehalt ${mm}/${lohnJahr}";"Ausgang";"DE89370400440532013000";"-${bmf!.auszahlung}";"";"";""\n`;
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "lohn.csv", mimeType: "text/csv", buffer: Buffer.from(auszug) }]);
+  await expect(page.getByText(/1 neuer Umsatz|1 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await go("/bank");
+  await page
+    .getByRole("link", { name: /Erika Gesellschafter/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("heading", { name: "Erika Gesellschafter" })).toBeVisible();
+  await page.getByRole("button", { name: "Ohne Rechnung buchen" }).click();
+  await page.getByLabel("Buchen als").selectOption({ label: "Lohn/Gehalt an Mitarbeiter" });
+  expect(await axe(), "/bank Lohnzahlung").toEqual([]);
+  await page.getByRole("button", { name: "Buchen", exact: true }).click();
+  // Der einzige Umsatz bleibt ausgewählt, jetzt zugeordnet
+  await expect(page.getByRole("complementary", { name: "Zuordnung" }).getByRole("button", { name: "Aufheben" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Zuordnung" })).toContainText("Lohn/Gehalt");
+  await go(`/konten/3720?jahr=${lohnJahr}&zeitraum=jahr`);
+  await expect(page.getByRole("heading", { name: /3720/ })).toContainText("Verbindlichkeiten aus Lohn und Gehalt");
+  await expect(page.getByText(lohnText)).toBeVisible();
+  await expect(page.getByText(/Erika Gesellschafter · lohn/)).toBeVisible();
+
+  // Storno: die Abrechnung bleibt, daneben ein neuer Entwurf für denselben Monat; die Buchung wird gegengebucht
+  await go(lohnSeite);
   await abrechnung.getByRole("button", { name: "Stornieren" }).click();
   const storno = page.getByRole("form", { name: "Abrechnung stornieren" });
   await storno.getByLabel("Grund des Stornos").fill("Gehalt rückwirkend geändert");
@@ -642,6 +707,14 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, fe
   await expect(mitarbeiterin.getByRole("region", { name: /Abrechnung Stufe A/ })).toHaveCount(2);
   await expect(mitarbeiterin.getByText("Grund des Stornos: Gehalt rückwirkend geändert")).toBeVisible();
   expect(await axe(), "/lohn nach Storno").toEqual([]);
+  await go(buchungenSeite);
+  const gegen = page
+    .getByRole("region", { name: "Buchungen" })
+    .getByRole("row")
+    .filter({ hasText: new RegExp(`Storno vom .*: ${lohnText}`) });
+  await expect(gegen).toContainText("Gegenbuchung");
+  await expect(gegen).toContainText("6.000,00");
+  await go(lohnSeite);
 
   await mitarbeiterLink.click();
   await page.waitForURL(/\/lohn\/mitarbeiter\/[0-9a-f-]{36}$/);

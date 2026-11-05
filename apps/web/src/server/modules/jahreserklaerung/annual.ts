@@ -38,7 +38,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { loadEstAngaben, prognose } from "./income-tax.ts";
 import { listPauschalen } from "../buchhaltung/index.ts";
-import { euerForYear } from "../auswertungen/index.ts";
+import { euerForYear, lohnZahlungenUmJahreswechsel } from "../auswertungen/index.ts";
 import { computeVatFigures, loadDauerfrist, loadFrequencies } from "../umsatzsteuer/index.ts";
 import { PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 
@@ -215,6 +215,7 @@ function euerFigures(euer: EuerResult): EuerFigures {
         gwg: "gwg",
         sammelposten: "sammelposten",
         restbuchwert: "restbuchwert",
+        personal: "personal",
         vorsteuer: "vorsteuer",
         gezahlteUst: "gezahlteUst",
         // Kursgewinne sind nicht steuerbare Einnahmen, Kursverluste übrige Ausgaben
@@ -263,10 +264,17 @@ export interface EuerYear {
   anlagen: AveuerAnlage[];
   /** Anlagen, deren AfA bzw. Privatnutzung für das Jahr noch nicht gebucht ist */
   pendingAssets: number;
+  /** Lohnzahlungen um den Jahreswechsel (§ 11 Abs. 2 Satz 2 EStG), siehe lohnZahlungenUmJahreswechsel */
+  lohnUmJahreswechsel: number;
 }
 
 export async function euerYear(year: number): Promise<EuerYear> {
-  const [euer, movements, assets] = await Promise.all([euerForYear(year), privateMovements(year), listAssets(year)]);
+  const [euer, movements, assets, lohnUmJahreswechsel] = await Promise.all([
+    euerForYear(year),
+    privateMovements(year),
+    listAssets(year),
+    lohnZahlungenUmJahreswechsel(year),
+  ]);
   const figures: EuerFigures = { ...euerFigures(euer), ...movements };
   const anlagen: AveuerAnlage[] = assets
     .filter((a) => a.year && a.method !== "gwg")
@@ -283,7 +291,7 @@ export async function euerYear(year: number): Promise<EuerYear> {
       // Antrieb ist nur bei erfasster Privatnutzung bekannt; ohne Angabe gilt das Kfz als Verbrenner
       ...(a.kind === "kfz" ? { elektro: a.privateUse ? a.privateUse.drive !== "verbrenner" : false } : {}),
     }));
-  return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length };
+  return { figures, ...euerTotals(figures), anlagen, pendingAssets: assets.filter((a) => a.pending).length, lohnUmJahreswechsel };
 }
 
 function euerIssues(company: Company, data: EuerYear): Issue[] {
@@ -299,6 +307,13 @@ function euerIssues(company: Company, data: EuerYear): Issue[] {
     });
   }
   if (data.einnahmen === 0 && data.ausgaben === 0) issues.push({ tone: "fehler", text: "Keine Betriebseinnahmen und -ausgaben im Jahr." });
+  if (data.lohnUmJahreswechsel > 0) {
+    issues.push({
+      tone: "hinweis",
+      text: `${data.lohnUmJahreswechsel === 1 ? "Eine Lohnzahlung liegt" : `${data.lohnUmJahreswechsel} Lohnzahlungen liegen`} zwischen 22. Dezember und 10. Januar. Regelmäßig wiederkehrende Ausgaben gehören dann in das Jahr, zu dem sie wirtschaftlich gehören (§ 11 Abs. 2 Satz 2 EStG), etwa die Lohnsteuer für Dezember. Haben zählt sie am Tag der Zahlung; prüfe die Zuordnung mit der Steuerberatung.`,
+      link: "/bank",
+    });
+  }
   return issues;
 }
 

@@ -1,6 +1,6 @@
 # Lohn in Haben – Recherche und Umsetzungsplan
 
-Stand: 5. November 2026. PR 1 bis 3 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
+Stand: 5. November 2026. PR 1 bis 4 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
 
 ## Kurzfazit
 
@@ -58,6 +58,18 @@ Stand: 5. November 2026. PR 1 bis 3 sind umgesetzt, der Rest ist Plan. Ein Teil 
 - **Tests:** Postgres-Integration (Sperren, Storno), Playwright, Seite in `barrierefreiheit.spec.ts` und `seiten.spec.ts`.
 
 ### PR 4 – Buchungen aus dem Lohnjournal
+
+**Erledigt:** `lohnBuchung()` in `packages/core/src/lohn-buchung.ts` bildet den Buchungssatz, das Modul `lohn` (`buchung.ts`) bucht ihn beim Festschreiben in derselben Transaktion und beim Storno die Gegenbuchung (Herkunft „Lohn“). Die Lohnkonten sind ein Nebenbuch „Lohn“ in `ledgerManagedAccounts`; neue Bankzuordnungen „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ und „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“; im Einzelunternehmen zählen sie in der EÜR als Ausgaben für Personal (Anlage EÜR E6001801). Posten in `hgb.ts` (schon vorhanden, jetzt per Test belegt) und `ebilanz.ts` ([Lohn](lohn.md#buchung), [Buchhaltung](buchhaltung.md#lohnabrechnung)). Abweichungen vom Plan:
+
+- **Minijob-Konten:** Der DATEV-Kontenrahmen 2026 hat eigene Konten für Minijobs: SKR03 4195 / SKR04 6035 „Löhne für Minijobs“, 4194 / 6036 „Pauschale Steuer für Minijobber“, 4144 / 6171 „Soziale Abgaben für Minijobber“. Haben nimmt sie statt 4190 / 6030 „Aushilfslöhne“ und 4199 / 6040 „Pauschale Steuer für Aushilfen“; die E-Bilanz fragt Löhne für Minijobs als Mussfeld getrennt ab. Ihre AG-Pauschalen gehen nicht auf 4130 / 6110.
+- **Pauschsteuer im Minijob** steht mit den Beiträgen auf 1742 / 3740, nicht auf 1741 / 3730: Sie wird mit den Beiträgen an die Minijob-Zentrale gezahlt (§ 40a Abs. 6 EStG).
+- **Buchungsdatum** ist der letzte Tag des abgerechneten Monats (Lohnzahlungszeitraum, § 38a Abs. 1 Satz 2 EStG), nicht der Zahltag. Die Gegenbuchung steht am selben Tag; der Tag des Stornos steht im Buchungstext.
+- **Nicht buchbar, also nicht festschreibbar:** ein Gesellschafter-Geschäftsführer im Einzelunternehmen (den gibt es dort nicht; der Lohn des Inhabers ist eine Entnahme), eine Auszahlung über das Netto hinaus (Zuschuss zur privaten Krankenversicherung), eine Abrechnung in einem abgeschlossenen Jahr.
+- **EÜR nach Zahlung, nicht aus der Abrechnung:** Quelle sind die drei Bankzuordnungen am Tag der Zahlung (§ 11 Abs. 2 Satz 1 EStG). Zahlungen zwischen 22. Dezember und 10. Januar ordnet Haben nicht nach § 11 Abs. 2 Satz 2 EStG um, weil es nicht weiß, welchem Monat sie gelten; die Jahreserklärung weist auf sie hin. Lohnzahlungen lassen sich nur bis zur offenen Verbindlichkeit aus festgeschriebenen Abrechnungen zuordnen, damit keine Entnahme des Inhabers als Personalausgabe zählt.
+- **Eröffnung:** Die Lohnverbindlichkeiten (1740–1742 / 3720–3740) sind in der Eröffnung von Hand erlaubt, etwa die Lohnsteuer für Dezember aus der bisherigen Buchhaltung; der Lohnaufwand nicht.
+- **Berufsgenossenschaft** (4138 / 6120) bucht die Lohnabrechnung nicht: Der Beitrag kommt jährlich per Bescheid und läuft wie bisher als Beleg.
+- **Altbestand:** Vor PR 4 festgeschriebene Abrechnungen lassen sich mit „Jetzt buchen“ nachbuchen; ihr Storno hat nichts gegenzubuchen.
+- **E-Bilanz:** Gehälter auf „Löhne und Gehälter, übrige“, Geschäftsführer und Minijobs auf ihre Mussfelder, AG-Anteile auf „soziale Abgaben“ (`socExp.other`), Verbindlichkeiten auf die Davon-Positionen gegenüber Arbeitnehmern, aus Steuern und im Rahmen der sozialen Sicherheit. Die Bezeichnungen der Taxonomie-Positionen sind aus dem Namen erschlossen, nicht aus der Label-Datei (esteuer.de war nicht erreichbar); mit der Steuerberatung prüfen.
 
 - **Umfang:** `packages/core/src/lohn-buchung.ts` erzeugt je Abrechnung eine Buchung; ein Nebenbuch „Lohn“ sperrt die Lohnkonten für manuelle Buchungen (`manual.ts`, `ledgerManagedAccounts`).
 - **Konten (DATEV-Kontenrahmen SKR 03 und SKR 04, gültig für 2026, Art.-Nr. 11174 und 11175; am Original geprüft):**

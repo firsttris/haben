@@ -1,4 +1,5 @@
 import { ASSET_ACCOUNTS } from "./afa.ts";
+import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import type { Cents } from "./money.ts";
 import { ACCOUNTS, paymentProviderAccount, type Kontenrahmen, type PostingLine } from "./posting.ts";
 import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
@@ -10,7 +11,8 @@ import { carriesForward } from "./vortrag.ts";
  *
  * Nicht bebuchbar sind Konten, die ein Nebenbuch führt: Bank, Kasse und Zahlungsdienstleister (Bankabgleich, Kassenbuch),
  * Forderungen und Verbindlichkeiten (offene Posten), Umsatz- und Vorsteuer (Voranmeldung, Abgleich), Erlöse mit
- * Umsatzsteuer (Rechnungen), Anlagen und AfA (Anlagenverzeichnis) und die Vortragskonten der Klasse 9. Eine Buchung
+ * Umsatzsteuer (Rechnungen), Anlagen und AfA (Anlagenverzeichnis), Lohnaufwand und Lohnverbindlichkeiten
+ * (Lohnabrechnung) und die Vortragskonten der Klasse 9. Eine Buchung
  * daran vorbei bräche den Abgleich zwischen Nebenbuch und Journal.
  */
 export interface ManualLine {
@@ -48,6 +50,7 @@ export function ledgerManagedAccounts(kontenrahmen: Kontenrahmen): Map<string, s
       assets.afaSammelposten,
       assets.restbuchwert,
     ].map((account): [string, string] => [account, "Anlagen"]),
+    ...Object.values(LOHN_KONTEN[kontenrahmen]).map((account): [string, string] => [account, "Lohn"]),
   ];
   return new Map(entries);
 }
@@ -68,10 +71,22 @@ const isCents = (value: number) => Number.isInteger(value) && value >= 0 && valu
  */
 export type ManualKind = "umbuchung" | "eroeffnung";
 
-/** In der Eröffnung zusätzlich bebuchbar: der Kontostand der Bank zum Start und das Gegenkonto der Vorträge */
+/**
+ * In der Eröffnung zusätzlich bebuchbar: der Kontostand der Bank zum Start, das Gegenkonto der Vorträge und die
+ * Lohnverbindlichkeiten der bisherigen Buchhaltung (etwa die Lohnsteuer für Dezember, fällig am 10. Januar, § 41a Abs. 1
+ * EStG), die im neuen Jahr über die Bank bezahlt werden. Den Lohnaufwand bucht nur die Lohnabrechnung.
+ */
 function openingAccounts(kontenrahmen: Kontenrahmen): Set<string> {
   const a = ACCOUNTS[kontenrahmen];
-  return new Set([a.bank, ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => paymentProviderAccount(kontenrahmen, i)), a.saldenvortrag]);
+  const lohn = LOHN_KONTEN[kontenrahmen];
+  return new Set([
+    a.bank,
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => paymentProviderAccount(kontenrahmen, i)),
+    a.saldenvortrag,
+    lohn.verbLohn,
+    lohn.verbLohnsteuer,
+    lohn.verbSv,
+  ]);
 }
 
 /** Was einer manuellen Buchung fehlt; leer = buchbar */

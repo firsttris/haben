@@ -61,6 +61,7 @@ Grundlage ist dieselbe Rechnung wie unter [Auswertungen](auswertungen.md): Zuflu
 | Bewirtung von Geschäftspartnern | Bewirtungsaufwendungen: 70 % „abziehbar“, 30 % „nicht abziehbar“. Die Vorsteuer bleibt voll abziehbar. |
 | Wareneinkauf (Handelsware) | Waren, Rohstoffe und Hilfsstoffe einschließlich der Nebenkosten |
 | Fremdleistungen | Bezogene Fremdleistungen |
+| Lohn, Lohnsteuer und SV-Beiträge aus dem Bankabgleich ([Lohn](lohn.md#buchung)) | Ausgaben für eigenes Personal (Gehälter, Löhne und Versicherungsbeiträge). Lohnzahlungen zwischen 22. Dezember und 10. Januar zeigt die Vorprüfung als Hinweis (§ 11 Abs. 2 Satz 2 EStG) |
 | Kontoführung und Gebühren, Sonstiger Aufwand | Übrige Betriebsausgaben |
 | AfA aus dem Anlagenverzeichnis | AfA auf bewegliche Wirtschaftsgüter, Auflösung Sammelposten, Restbuchwert ausgeschiedener Anlagen |
 | [Pauschale](pauschalen.md): Homeoffice-Tage | Tagespauschale für die Arbeit in der Wohnung |

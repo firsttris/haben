@@ -39,6 +39,7 @@ export const JOURNAL_SOURCE = {
   manuell: "Manuell",
   eroeffnung: "Eröffnung",
   ausschuettung: "Ausschüttung",
+  lohn: "Lohn",
 } as const;
 export type JournalSource = keyof typeof JOURNAL_SOURCE;
 

@@ -59,6 +59,16 @@ export type EuerPayment =
       date: string;
       amount: Cents;
       group?: string;
+    }
+  | {
+      /**
+       * Zahlung aus der Lohnabrechnung (Auszahlung an Beschäftigte, Lohnsteuer an das Finanzamt, Beiträge an die
+       * Einzugsstelle): Ausgabe für Personal, wenn sie abfließt. Vorzeichen wie auf dem Konto, Ausgang negativ
+       */
+      kind: "lohn";
+      date: string;
+      amount: Cents;
+      group?: string;
     };
 
 export type EuerLineKey =
@@ -73,6 +83,7 @@ export type EuerLineKey =
   | "kursverluste"
   | `ausgabe:${ExpenseCategory}`
   | `pauschale:${PauschaleArt}`
+  | "personal"
   | "afa"
   | "gwg"
   | "sammelposten"
@@ -114,6 +125,7 @@ export const EUER_LABELS = {
   gwg: "Sofortabschreibung geringwertiger Wirtschaftsgüter",
   sammelposten: "Auflösung Sammelposten",
   restbuchwert: "Restbuchwert ausgeschiedener Anlagegüter",
+  personal: "Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung",
   vorsteuer: "Gezahlte Vorsteuerbeträge",
   gezahlteUst: "An das Finanzamt gezahlte Umsatzsteuer",
 } as const;
@@ -230,6 +242,11 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
           monthlyOut[month]! -= p.sum;
         }
         break;
+      case "lohn":
+        // Ausgaben für eigenes Personal (Anlage EÜR, Personal): Lohn, einbehaltene Lohnsteuer und alle Beiträge
+        add("personal", -p.sum);
+        monthlyOut[month]! -= p.sum;
+        break;
       case "gebuehren":
         add("ausgabe:geldverkehr", -p.sum);
         monthlyOut[month]! -= p.sum;
@@ -251,7 +268,8 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     add("privateKfz", withdrawals.privateKfz);
     add("ustEntnahmen", withdrawals.ustEntnahmen);
   }
-  const optional = (key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste") => ((sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : []);
+  const optional = (key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste" | "personal") =>
+    (sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : [];
   const einnahmen = [
     ...(sums.has("einnahmenKleinunternehmer") ? [line("einnahmenKleinunternehmer", EUER_LABELS.einnahmenKleinunternehmer)] : []),
     line("einnahmenSteuerpflichtig", EUER_LABELS.einnahmenSteuerpflichtig),
@@ -279,6 +297,7 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     .filter((art) => (sums.get(`pauschale:${art}`) ?? 0) !== 0)
     .map((art) => line(`pauschale:${art}`, PAUSCHALE_LABEL[art], "Pauschale ohne Beleg, privat bezahlt"));
   const ausgaben = [
+    ...optional("personal"),
     ...categories,
     ...pauschalen,
     ...depreciationLines,
