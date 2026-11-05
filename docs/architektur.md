@@ -143,6 +143,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `vat_frequencies` | Voranmeldungszeitraum ab Jahr und Quartalsbeginn: monatlich, vierteljährlich oder keine Voranmeldung | Audit |
 | `vat_extensions` | Dauerfristverlängerung je Jahr mit angemeldeter Sondervorauszahlung, aus der Echtübermittlung oder von Hand | Audit |
 | `vat_extension_submissions` | Prüfungen und Übermittlungen des Antrags auf Dauerfristverlängerung (USt 1 H) mit XML und Protokoll | nur anhängen, Audit ohne PDF |
+| `zm_submissions` | Prüfungen und Übermittlungen der Zusammenfassenden Meldung je Quartal mit den gemeldeten Zeilen, XML und Protokoll; Berichtigungen als neue Zeile | nur anhängen, Audit ohne PDF |
 | `vat_return_submissions` | Jede Prüfung und Übermittlung mit XML und Protokoll-PDF | nur anhängen, Audit ohne PDF und XML |
 | `elster_messages` | Nachrichten an das Finanzamt (Sonstige Nachricht, Änderung der Bankverbindung) mit Text, Werten und XML | nur anhängen, Audit ohne XML |
 | `postfach_requests` | Abrufe des ELSTER-Postfachs und Bestätigungen der Abholung mit XML | nur anhängen, Audit ohne XML |

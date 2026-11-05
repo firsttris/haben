@@ -119,6 +119,54 @@ Die Zahlung der Sondervorauszahlung ordnest du im [Bankabgleich](bank.md) als **
 
 In der EÜR zählt sie wie jede Umsatzsteuer-Vorauszahlung als gezahlte Umsatzsteuer, im Jahr der Zahlung. Mit der Voranmeldung für Dezember sinkt die Zahlung an das Finanzamt um die Sondervorauszahlung; einen Ausgleich zwischen 1781 und 1780 (SKR04 3830 und 3820) bucht Haben nicht gesondert, beide zählen zu den Umsatzsteuerkonten.
 
+## Zusammenfassende Meldung
+
+Leistungen an Unternehmer im EU-Ausland mit Reverse Charge (Kz 21) meldest du zusätzlich dem Bundeszentralamt für Steuern (BZSt), je USt-IdNr. des Kunden die Summe der Bemessungsgrundlagen eines Kalendervierteljahres, bis zum 25. Tag nach Quartalsende (§ 18a Abs. 2 und 7 UStG). Eine Dauerfristverlängerung gilt dafür nicht. Kleinunternehmer melden nichts (§ 18a Abs. 4 UStG).
+
+Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr>-Q<Quartal>`) erreichst du über den Hinweis auf der Voranmeldung, sobald es im Zeitraum Kz 21 gibt, und über die Frist unter [Fristen](fristen.md). Quartale ohne solche Umsätze tauchen nirgends auf; eine Nullmeldung gibt es nicht.
+
+### Woher die Zeilen kommen
+
+| Umsatz | Quartal |
+| --- | --- |
+| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland** | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 21 |
+| Storno und Rechnungskorrektur (Gutschrift) dazu | ihr eigenes Datum: Sie mindern das Quartal, in dem sie ausgestellt sind (§ 18a Abs. 7 Satz 2 mit § 17 UStG); überwiegen sie, steht die Zeile negativ |
+| Skonto und Forderungsausfall dazu | Datum der Ausbuchung |
+
+Haben fasst alles je USt-IdNr. des Kunden zusammen (in Großbuchstaben, ohne Leerzeichen; griechische Nummern mit EL statt GR) und meldet volle Euro, die Cent fallen wie in der Voranmeldung weg. Unter **Rechnungen dazu** steht jede Rechnung mit ihrem Betrag. Aus Lexoffice übernommene Rechnungen zählen nicht mit, ihre Meldung lief dort.
+
+### Vorprüfung
+
+| Prüfung | Folge |
+| --- | --- |
+| Eigene USt-IdNr. fehlt oder hat eine falsche Prüfziffer | Senden gesperrt; in den Firmendaten eintragen. Die ZM geht nur mit USt-IdNr., nicht mit der Steuernummer |
+| Anschrift unvollständig (Straße, fünfstellige PLZ, Ort) | Senden gesperrt |
+| USt-IdNr. eines Kunden fehlt, ist deutsch, britisch (seit dem Brexit; für Nordirland XI) oder hat kein Länderkennzeichen eines anderen Mitgliedstaats, oder nach dem Kennzeichen nicht 5 bis 12 Buchstaben, Ziffern, + oder * | Senden gesperrt, mit Rechnung und Kunde. Nordirische Nummern (XI) gelten nur für Lieferungen |
+| Voranmeldungen des Quartals noch nicht alle gesendet | Hinweis; der Abgleich mit Kz 21 folgt danach |
+| Summe der Meldung weicht von Kz 21 der gesendeten Voranmeldungen ab | Warnung. Bis zu einem Euro je Zeile und Voranmeldung ist Rundung. Eine größere Abweichung heißt: Die Voranmeldung oder die Meldung braucht eine Berichtigung |
+
+Die Prüfungen sind die des ERiC-Plugins `checkZMDO`; ob eine USt-IdNr. tatsächlich erteilt ist, prüft das nicht. Das klärst du vor der ersten Rechnung mit der Bestätigungsabfrage beim BZSt.
+
+### Senden
+
+Wie die Voranmeldung über ERiC: **Nur prüfen**, **Prüfen und testweise senden**, **Prüfen und senden**. Es braucht dasselbe ELSTER-Zertifikat und eine eigene Hersteller-ID. Jeder Versuch steht im **Verlauf** mit Zeilenzahl, Transfer-Ticket und Protokoll-PDF; die Einträge lassen sich nur ergänzen, eine echt übermittelte Meldung ändert niemand mehr. Die Frist ist erledigt, sobald die Meldung echt übermittelt ist.
+
+### Berichtigung
+
+Nach der Echtübermittlung vergleicht Haben die Zeilen aus den Rechnungen mit dem Stand beim BZSt (Erstmeldung und alle Berichtigungen danach). Ändert sich eine Zeile, etwa weil eine Rechnung mit Datum im Quartal erst später festgeschrieben wird, zeigt der Bereich **Übermittelt** die Zeilen, die eine Berichtigung senden würde: nur die geänderten mit dem richtigen Betrag, eine entfallene mit 0 €. Die Berichtigung geht innerhalb eines Monats, nachdem du den Fehler erkannt hast (§ 18a Abs. 10 UStG). Stimmt der Stand, gibt es nichts zu senden.
+
+Ein Storno oder eine Gutschrift in einem späteren Quartal ist keine Berichtigung: Sie mindert das Quartal, in dem sie ausgestellt ist.
+
+### Was im Hintergrund passiert
+
+Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` für das BZSt) nach dem Schema `zm_000005.xsd`: eigene USt-IdNr., Teilnehmernummer `N`/`1111111` (so verlangt das Schema es bei Übermittlung mit ERiC), Anschrift mit Staat DE, Meldezeitraum als Quartal 1 bis 4 mit Jahr, `meldeart` 10 für die Erstmeldung und 11 für die Berichtigung, Währung Euro und je Zeile USt-IdNr., Umsatzart `S` (sonstige Leistung) und Betrag in vollen Euro. Die Anzeige der monatlichen Abgabe stellt Haben nicht. ERiC prüft den Datensatz vor dem Senden; ein Quartal nimmt es erst ab dem ersten Tag seines zweiten Monats an, Zeiträume in der Zukunft gar nicht.
+
+### Grenzen
+
+- Nur sonstige Leistungen (§ 3a Abs. 2 UStG). Innergemeinschaftliche Lieferungen und Dreiecksgeschäfte kennen die Rechnungen von Haben noch nicht; mit ihnen kämen die Monatsmeldung über 50.000 € Lieferungen im Quartal (§ 18a Abs. 1 UStG) und Kz 41 dazu. Der Datensatz kann beides schon.
+- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist (§ 18a Abs. 8 Satz 2 UStG). Haben nimmt dafür das Rechnungsdatum, wie bei Kz 21.
+- Die Meldung geht nur für ganze Quartale, nicht monatlich nach § 18a Abs. 3 UStG.
+
 ## Wie die Kennzahlen entstehen
 
 Die Werte kommen aus den gebuchten Daten, nicht aus einer eigenen Eingabe.
@@ -286,6 +334,6 @@ Belege und Rechnungen in Fremdwährung zählen mit ihren Euro-Beträgen, umgerec
 ## Grenzen
 
 - Ist-Versteuerung bei Fremdwährung: Mit deutscher Umsatzsteuer wäre das Entgelt mit dem Kurs des Monats umzurechnen, in dem es eingeht (Abschn. 16.4 UStAE). Das kann Haben nicht, deshalb lassen sich solche Rechnungen bei Ist-Versteuerung nicht festschreiben. Rechnungen in Fremdwährung ohne deutsche Steuer an Unternehmen im Ausland gehen (siehe [rechnungen.md](rechnungen.md#rechnungen-in-fremdwährung)).
-- Nur die Kennzahlen 81, 86, 21, 39, 45, 46, 47, 48, 66, 67, 83, 84, 85 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe, keine Zusammenfassende Meldung.
+- Nur die Kennzahlen 81, 86, 21, 39, 45, 46, 47, 48, 66, 67, 83, 84, 85 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe; die [Zusammenfassende Meldung](#zusammenfassende-meldung) nur für sonstige Leistungen.
 - Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.

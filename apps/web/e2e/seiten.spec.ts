@@ -43,6 +43,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["konten", `/konten?jahr=${YEAR}`],
     ["kontenblatt", `/konten/1200?jahr=${YEAR}`],
     ["umsatzsteuer", "/umsatzsteuer"],
+    ["zusammenfassende-meldung", `/umsatzsteuer/zm/${YEAR + 1}-Q1`],
     ["jahreserklaerung", `/jahreserklaerung/${YEAR - 1}`],
     ["finanzamt", "/finanzamt"],
     ["fristen", "/fristen"],

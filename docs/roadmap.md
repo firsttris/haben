@@ -12,7 +12,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | 2 | Überweisungen als SEPA-Datei | Offene Belege gesammelt als pain.001 ausgeben, die man im Online-Banking hochlädt; die Abbuchung ordnet der Bankabgleich danach zu ([Belege](belege.md#überweisen-sepa-datei)). Später prüfen: Zahlungsauslösung über Enable Banking, das schon den Kontoabruf macht | S | erledigt |
 | 3 | Skonto | Skonto in den Zahlungsbedingungen der Rechnung, auf PDF und in der E-Rechnung (BT-20) | S | geplant |
 | 4 | Weitere Benutzer und Steuerberatung | Zweiter Zugang mit Rollen, zuerst lesend für die Steuerberatung, später volle Rollen. Weicht von der bisherigen Entscheidung „genau ein Nutzer“ ab ([Architektur](architektur.md)); vor dem Bau zu klären | M | geplant |
-| 5 | Zusammenfassende Meldung | Meldung der innergemeinschaftlichen Leistungen je USt-IdNr. und Quartal über ELSTER | M | geplant |
+| 5 | Zusammenfassende Meldung | Meldung der sonstigen Leistungen ins EU-Ausland je USt-IdNr. und Quartal über ERiC an das BZSt, mit Berichtigung ([Umsatzsteuer](umsatzsteuer.md#zusammenfassende-meldung)); Lieferungen und Dreiecksgeschäfte mit den innergemeinschaftlichen Lieferungen | M | erledigt |
 | 6 | Texterkennung ohne Cloud | Belege lokal erkennen (z. B. Tesseract im Worker); die KI bleibt wahlweise | M | geplant |
 | 7 | Online-Kundenportal | Link für Kunden: Angebot annehmen, Rechnung als PDF und XML laden, per GiroCode oder Zahlungslink bezahlen | M | geplant |
 | 8 | BWA und Liquiditätsplanung | Betriebswirtschaftliche Auswertung mit Vorjahresvergleich und Vorschau aus offenen Posten | M | geplant |
