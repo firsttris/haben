@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { formatPercent, parsePercent, parseSkontoTerms, skontoFristen, skontoOffer, skontoPaymentTerms, skontoProblem, skontoStufenSchema } from "./skonto.ts";
+import {
+  formatPercent,
+  parsePercent,
+  parseSkontoTerms,
+  skontoFristen,
+  skontoOffer,
+  skontoPaymentTerms,
+  skontoProblem,
+  skontoStufenSchema,
+  skontoZahlfristen,
+} from "./skonto.ts";
 
 describe("parseSkontoTerms", () => {
   it("liest die Skontozeilen nach BR-DE-18 (Beispiel 01.10a der XRechnung-Testsuite)", () => {
@@ -85,6 +95,33 @@ describe("skontoFristen", () => {
   it("lässt Stufen weg, die nichts abzögen, und bietet bei Gutschriften keins an", () => {
     expect(skontoFristen([{ days: 10, percent: 200 }], "2026-10-02", 20)).toEqual([]);
     expect(skontoFristen([{ days: 10, percent: 200 }], "2026-10-02", -11_900)).toEqual([]);
+  });
+});
+
+describe("skontoZahlfristen", () => {
+  const stufe = [{ days: 10, percent: 200 }];
+
+  it("Fristende an einem Werktag: Zahlung bis zu diesem Tag", () => {
+    // 02.10.2026 + 10 Tage = Montag, 12.10.2026
+    expect(skontoZahlfristen(stufe, "2026-10-02", 119_025, "BY")).toEqual([
+      { days: 10, percent: 200, until: "2026-10-12", paidBy: "2026-10-12", amount: 2_381, payable: 116_644 },
+    ]);
+  });
+
+  it("Fristende am Sonntag: Zahlung am Montag noch rechtzeitig (§ 193 BGB), das Fristende selbst bleibt", () => {
+    // 24.09.2026 + 10 Tage = Sonntag, 04.10.2026
+    const [frist] = skontoZahlfristen(stufe, "2026-09-24", 119_025, "BY");
+    expect(frist).toMatchObject({ until: "2026-10-04", paidBy: "2026-10-05" });
+  });
+
+  it("Fristende am Feiertag des Bundeslands der Firma", () => {
+    // Christi Himmelfahrt, Donnerstag 14.05.2026, bundesweit
+    expect(skontoZahlfristen(stufe, "2026-05-04", 119_025, null)[0]?.paidBy).toBe("2026-05-15");
+    // Fronleichnam, Donnerstag 04.06.2026: Feiertag in Bayern, nicht in Berlin
+    expect(skontoZahlfristen(stufe, "2026-05-25", 119_025, "BY")[0]?.paidBy).toBe("2026-06-05");
+    expect(skontoZahlfristen(stufe, "2026-05-25", 119_025, "BE")[0]?.paidBy).toBe("2026-06-04");
+    // Tag der Deutschen Einheit am Samstag, 03.10.2026: erst Montag, 05.10.
+    expect(skontoZahlfristen(stufe, "2026-09-23", 119_025, "BY")[0]?.paidBy).toBe("2026-10-05");
   });
 });
 
