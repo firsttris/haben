@@ -61,8 +61,14 @@ export async function planContactImport(q: Db | Tx, table: CsvTable, mapping: Co
   return planRows(candidates, await contactKeysInStock(q));
 }
 
+/**
+ * Erst die Kontakte mit eigener Kundennummer, dann die ohne: Die automatische Vergabe überspringt nur Nummern, die
+ * schon in der Tabelle stehen, und nähme sonst eine Nummer, die weiter unten in der Datei steht.
+ */
 export async function insertImportedContacts(tx: Tx, contacts: readonly ContactInput[]): Promise<number> {
-  for (const contact of contacts) await insertContact(tx, contact);
+  const own = contacts.filter((c) => c.kundennummer.trim());
+  const numberless = contacts.filter((c) => !c.kundennummer.trim());
+  for (const contact of [...own, ...numberless]) await insertContact(tx, contact);
   return contacts.length;
 }
 
