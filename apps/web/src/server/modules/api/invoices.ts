@@ -139,8 +139,11 @@ export async function createInvoiceHandler(request: ApiRequest): Promise<ApiResu
   const { externalSource, externalId, ...fields } = request.body as Record<string, unknown>;
   const merged = { ...(await newDraftDefaults(request.today)), ...contactDefaults(contact), ...fields };
   // Skonto ohne Angabe wie im Editor: vom Kunden, sonst aus den Firmendaten, passend zum Zahlungsziel; in Fremdwährung keins
-  if (shape.data.skonto === undefined) {
-    const euro = (shape.data.currency ?? "EUR") === "EUR";
+  if (!("skonto" in fields)) {
+    const euro =
+      String(fields.currency ?? "EUR")
+        .trim()
+        .toUpperCase() === "EUR";
     merged.skonto = euro ? defaultSkonto(await loadCompany(), contact, merged.paymentTermDays) : [];
   }
   const input = validate(draftSchema, merged);

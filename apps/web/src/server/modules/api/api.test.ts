@@ -226,6 +226,29 @@ describe.skipIf(!testDatabaseUrl)("REST-API /api/v1 (Postgres)", () => {
       expect(explicit.json).toMatchObject({ format: "zugferd", language: "de" });
     });
 
+    it("Skonto ohne Angabe aus den Firmendaten, passend zum Zahlungsziel; eigene Stufen und Fremdwährung", async () => {
+      await sql`update company set skonto = ${JSON.stringify([
+        { days: 10, percent: 200 },
+        { days: 30, percent: 100 },
+      ])}::jsonb`;
+      try {
+        const t = await token(["rechnungen:entwuerfe"]);
+        const created = await call(t, "POST", "/rechnungen", draft());
+        expect(schemas.invoiceSchema.parse(created.json).skonto).toEqual([{ days: 10, percent: 200 }]);
+        expect((await call(t, "POST", "/rechnungen", draft({ paymentTermDays: 30 }))).json).toMatchObject({
+          skonto: [
+            { days: 10, percent: 200 },
+            { days: 30, percent: 100 },
+          ],
+        });
+        expect((await call(t, "POST", "/rechnungen", draft({ skonto: [] }))).json).toMatchObject({ skonto: [] });
+        expect((await call(t, "POST", "/rechnungen", draft({ currency: "USD", exchangeRate: "1,08" }))).json).toMatchObject({ skonto: [] });
+        expect((await call(t, "POST", "/rechnungen", draft({ skonto: [{ days: 20, percent: 200 }] }))).status).toBe(400);
+      } finally {
+        await sql`update company set skonto = '[]'::jsonb`;
+      }
+    });
+
     it("dieselbe externe Referenz liefert den vorhandenen Entwurf mit 200 statt eines Duplikats, auch gleichzeitig", async () => {
       const t = await token(["rechnungen:entwuerfe"]);
       const ref = { externalSource: "etsy", externalId: "3141592653" };
