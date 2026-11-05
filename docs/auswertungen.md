@@ -82,7 +82,7 @@ Beide Summen stehen auch als Kacheln in der **Übersicht**, mit Anzahl und über
 Die Auswertung ist eine Vorschau und ersetzt nicht die Anlage EÜR. Bekannte Lücken:
 
 - Haben gibt keine Zeilennummern der Anlage EÜR aus. Du überträgst die Positionen selbst oder gibst die CSV an deine Steuerberatung.
-- Anlagevermögen und Abschreibungen (AfA) bildet Haben nicht ab. Die Kategorie „Hardware“ ist für geringwertige Wirtschaftsgüter bis 800 € netto gedacht und zählt voll im Jahr der Zahlung. Teurere Anschaffungen musst du außerhalb von Haben abschreiben.
+- Abschreibungen rechnet Haben linear, als Sofortabschreibung geringwertiger Wirtschaftsgüter und als Sammelposten ([Anlagen und AfA](anlagen.md)); degressive AfA und Sonderabschreibungen fehlen noch ([Roadmap](roadmap.md)).
 - Umsätze zu 0 %, Reverse Charge, Drittland und steuerfreie Umsätze landen gemeinsam unter „Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen“, ohne weitere Unterscheidung.
 - Private Kfz-Nutzung, Arbeitszimmer, Bewirtungsanteile und ähnliche Korrekturen kennt Haben nicht.
 
