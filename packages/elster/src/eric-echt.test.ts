@@ -83,6 +83,8 @@ const alleKennzahlen: Omit<UstvaXmlInput["figures"], "kz83"> = {
   kz89: 60_000,
   kz93: 20_000,
   kz61: 12_800,
+  // Entstandene Einfuhrumsatzsteuer (Bescheid des Zolls)
+  kz62: 38_000,
 };
 
 // ---------------------------------------------------------------------------
@@ -196,6 +198,9 @@ const alleEuerFelder: EuerFigures = {
   edv: 60_000,
   arbeitsmittel: 25_000,
   werbung: 35_000,
+  // Schuldzinsen aus Darlehen: zur Finanzierung von Anlagevermögen und übrige
+  schuldzinsenAnlage: 48_000,
+  schuldzinsen: 24_000,
   vorsteuer: 200_000,
   gezahlteUst: 1_200_000,
   uebrige: 15_000,
@@ -327,6 +332,7 @@ const faelle: [string, () => string][] = [
     ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0, kz41: 300_000, kz43: 120_000, kz89: 50_000, kz93: 10_000, kz61: 10_200 }),
   ],
   ["UStVA Erstattung", ustva(2026, { kz81: 0, kz86: 0, kz66: 1_200 })],
+  ["UStVA Einfuhrumsatzsteuer", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 1_900, kz62: 38_000 })],
   ["UStVA Nullmeldung", ustva(2026, { kz81: 0, kz86: 0, kz66: 0 })],
   ["UStVA berichtigt", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 1_745 }, { berichtigt: true })],
   ["UStVA Dezember", ustva(2026, { kz81: 100_000, kz86: 0, kz66: 0 }, { period: { year: 2026, month: 12 } })],

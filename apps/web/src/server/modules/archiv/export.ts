@@ -240,6 +240,7 @@ const ALLOCATION_LABELS: Record<(typeof schema.allocationKindEnum.enumValues)[nu
   sozialversicherung: "SV-Beiträge",
   steuer: "Steuerzahlung",
   zinsertrag: "Zinserträge",
+  darlehen: "Darlehen",
   gebuehren: "Bankgebühren",
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",

@@ -1072,6 +1072,20 @@
       "when": 1793991414647,
       "tag": "0152_steuerzahlungen",
       "breakpoints": true
+    },
+    {
+      "idx": 153,
+      "version": "7",
+      "when": 1793991474647,
+      "tag": "0153_darlehen_einfuhrumsatzsteuer",
+      "breakpoints": true
+    },
+    {
+      "idx": 154,
+      "version": "7",
+      "when": 1793991534647,
+      "tag": "0154_darlehen_trigger",
+      "breakpoints": true
     }
   ]
 }

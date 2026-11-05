@@ -266,6 +266,9 @@ export interface EuerFigures {
   edv?: Cents;
   arbeitsmittel?: Cents;
   werbung?: Cents;
+  /** Schuldzinsen zur Finanzierung von Anschaffungs- und Herstellungskosten von Anlagevermögen bzw. übrige (Darlehen) */
+  schuldzinsenAnlage?: Cents;
+  schuldzinsen?: Cents;
   vorsteuer?: Cents;
   gezahlteUst?: Cents;
   uebrige?: Cents;
@@ -309,6 +312,8 @@ export const EUER_AUSGABEN = [
   "edv",
   "arbeitsmittel",
   "werbung",
+  "schuldzinsenAnlage",
+  "schuldzinsen",
   "vorsteuer",
   "gezahlteUst",
   "uebrige",
@@ -356,6 +361,12 @@ export const EUER_FIELDS: Record<
   edv: { kz: "E6004405", label: "Laufende EDV-Kosten" },
   arbeitsmittel: { kz: "E6004408", label: "Arbeitsmittel (z. B. Bürobedarf, Porto, Fachliteratur)" },
   werbung: { kz: "E6004501", label: "Werbekosten" },
+  // Schema E77-2023 bis E77-2026: /EUER/BAus/Sonst_unbeschraenkt/Schuldzins_AnlageVerm/Sum/E6004202 und …/Schuldzins_Uebrige/Sum/E6004303
+  schuldzinsenAnlage: {
+    kz: "E6004202",
+    label: "Schuldzinsen zur Finanzierung von Anschaffungs- und Herstellungskosten von Wirtschaftsgütern des Anlagevermögens",
+  },
+  schuldzinsen: { kz: "E6004303", label: "Übrige Schuldzinsen" },
   vorsteuer: { kz: "E6005001", label: "Gezahlte Vorsteuerbeträge" },
   gezahlteUst: { kz: "E6005101", label: "An das Finanzamt gezahlte und ggf. verrechnete Umsatzsteuer" },
   uebrige: { kz: "E6004901", label: "Übrige unbeschränkt abziehbare Betriebsausgaben" },
@@ -624,6 +635,8 @@ export function buildEuerXml(input: EuerXmlInput): string {
               sumNode("EDV", kz("edv"), f.edv),
               sumNode("Arbeitsmittel", kz("arbeitsmittel"), f.arbeitsmittel),
               sumNode("Werbung", kz("werbung"), f.werbung),
+              sumNode("Schuldzins_AnlageVerm", kz("schuldzinsenAnlage"), f.schuldzinsenAnlage),
+              sumNode("Schuldzins_Uebrige", kz("schuldzinsen"), f.schuldzinsen),
               sumNode("Vorsteuer", kz("vorsteuer"), f.vorsteuer),
               sumNode("USt", kz("gezahlteUst"), f.gezahlteUst),
               sumNode("Sonst_unbeschr_abziehbar", kz("uebrige"), f.uebrige),

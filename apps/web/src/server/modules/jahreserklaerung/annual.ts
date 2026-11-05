@@ -74,6 +74,8 @@ export interface UstYear {
   igErwerb19: Cents;
   igErwerb7: Cents;
   igErwerbVorsteuer: Cents;
+  /** Entstandene Einfuhrumsatzsteuer des Jahres (Kz 62 der Voranmeldungen) */
+  einfuhrumsatzsteuer: Cents;
   /** Monate ohne gesendete Voranmeldung (Monat oder Quartal), ohne die befreiten */
   missingMonths: number[];
 }
@@ -81,7 +83,7 @@ export interface UstYear {
 /** Zahlen der Umsatzsteuererklärung: Summe der zwölf Monate aus den Buchungen, Vorauszahlungen aus den gesendeten Voranmeldungen */
 export async function ustYear(year: number): Promise<UstYear> {
   const months = await Promise.all(Array.from({ length: 12 }, (_, i) => computeVatFigures({ year, month: i + 1 })));
-  const total = (key: "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz47" | "kz85" | "kz41" | "kz43" | "kz89" | "kz93" | "kz61") =>
+  const total = (key: "kz81" | "kz86" | "kz21" | "kz45" | "kz48" | "kz66" | "kz47" | "kz85" | "kz41" | "kz43" | "kz89" | "kz93" | "kz61" | "kz62") =>
     months.reduce((s, m) => s + m[key], 0);
   // Wie in der Voranmeldung: Bemessungsgrundlage in vollen Euro, Steuer daraus
   const base19 = toWholeEuros(total("kz81"));
@@ -120,6 +122,7 @@ export async function ustYear(year: number): Promise<UstYear> {
     igErwerb19: total("kz89"),
     igErwerb7: total("kz93"),
     igErwerbVorsteuer: total("kz61"),
+    einfuhrumsatzsteuer: total("kz62"),
     missingMonths: Array.from({ length: 12 }, (_, i) => i + 1).filter((m) => !covered.has(m) && frequencyAt(frequencies, { year, month: m }) !== "keine"),
   };
 }
@@ -144,6 +147,7 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
     data.kz41 !== 0 && "steuerfreie innergemeinschaftliche Lieferungen (Kz 41)",
     data.kz43 !== 0 && "Ausfuhrlieferungen (Kz 43)",
     (data.igErwerb19 !== 0 || data.igErwerb7 !== 0 || data.igErwerbVorsteuer !== 0) && "innergemeinschaftliche Erwerbe (Kz 89, 93 und 61)",
+    data.einfuhrumsatzsteuer !== 0 && "Einfuhrumsatzsteuer (Kz 62)",
   ].filter(Boolean);
   if (unsupported.length > 0) {
     issues.push({
@@ -166,8 +170,8 @@ export function ustIssues(kleinunternehmer: boolean, data: UstYear, year: number
 
 // ------------------------------------------------------------------ Anlage EÜR
 
-/** Kategorie der Belege → Zeile der Anlage EÜR */
-const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage">, EuerFigureKey> = {
+/** Kategorie der Belege → Zeile der Anlage EÜR; Anlagen über die AfA, die Einfuhrumsatzsteuer als gezahlte Vorsteuer */
+const EUER_CATEGORY_FIELDS: Record<Exclude<ExpenseCategory, "anlage" | "einfuhrumsatzsteuer">, EuerFigureKey> = {
   software: "edv",
   edv: "edv",
   hardware: "gwg",
@@ -237,6 +241,8 @@ function euerFigures(euer: EuerResult): EuerFigures {
         // Zinsen und Zuschläge zu betrieblichen Steuern: übrige unbeschränkt abziehbare Betriebsausgaben, nicht die
         // Schuldzinsen der Zeilen 55 und 56 (die rechnen für § 4 Abs. 4a EStG mit Darlehenszinsen)
         steuerNebenleistungen: "uebrige",
+        schuldzinsenAnlage: "schuldzinsenAnlage",
+        schuldzinsen: "schuldzinsen",
         vorsteuer: "vorsteuer",
         gezahlteUst: "gezahlteUst",
         // Kursgewinne sind nicht steuerbare Einnahmen, Kursverluste übrige Ausgaben

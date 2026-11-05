@@ -2369,6 +2369,75 @@ test("Steuerzahlung im Bankabgleich: Gewerbesteuerbescheid auf Steuer und Versp�
   await expect(nachrichtlich).toContainText("543,00");
 });
 
+test("Darlehen: anlegen, Auszahlung zuordnen, Rate in Tilgung und Zinsen aufteilen, Bestand sinkt um die Tilgung", async () => {
+  await go("/darlehen");
+  const neu = page.getByRole("form", { name: "Darlehen anlegen" });
+  await neu.getByLabel("Name").fill("Hausbank Investitionskredit");
+  await neu.getByRole("button", { name: "Darlehen anlegen" }).click();
+  await expect(page.getByRole("row", { name: /Hausbank Investitionskredit/ })).toContainText("0630");
+
+  const csv =
+    "﻿" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    [
+      [dkb(day(-1)), "Hausbank Regensburg", "Max Mustermann", "Auszahlung Darlehen 4711", "Eingang", "10.000,00"],
+      [dkb(day(0)), "Max Mustermann", "Hausbank Regensburg", "Rate Darlehen 4711", "Ausgang", "-1.000,00"],
+    ]
+      .map(([date, from, to, purpose, type, amount]) =>
+        [date, date, "Gebucht", from, to, purpose, type, "DE27750500000000654321", amount, "", "", ""].map((v) => `"${v}"`).join(";"),
+      )
+      .join("\n") +
+    "\n";
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "darlehen.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/2 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+
+  // Auszahlung: ohne Rechnung als Darlehen, erfolgsneutral
+  await page
+    .getByRole("link", { name: /Auszahlung Darlehen 4711/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  // Erst weiter, wenn rechts der gewählte Umsatz steht; sonst gehört das Formular noch zum vorigen
+  await expect(panel.getByText("Auszahlung Darlehen 4711")).toBeVisible();
+  if (await panel.getByRole("button", { name: "Ohne Rechnung buchen" }).isVisible()) await panel.getByRole("button", { name: "Ohne Rechnung buchen" }).click();
+  await panel.getByLabel("Buchen als").selectOption("darlehen");
+  await expect(panel.getByLabel("Teil der Rate")).toHaveValue("auszahlung");
+  await panel.getByRole("button", { name: "Buchen", exact: true }).click();
+  await page.waitForLoadState("networkidle");
+
+  // Rate: 800 € Tilgung und 200 € Zinsen
+  await page
+    .getByRole("link", { name: /Rate Darlehen 4711/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Rate Darlehen 4711")).toBeVisible();
+  await panel.getByRole("button", { name: "Aufteilen" }).click();
+  const form = panel.getByRole("form", { name: "Umsatz aufteilen" });
+  const rows = form.locator(".split-row");
+  for (const [index, teil, betrag] of [
+    [0, "tilgung", "-800,00"],
+    [1, "zins", "-200,00"],
+  ] as const) {
+    const row = rows.nth(index);
+    await row.locator("select").first().selectOption("darlehen");
+    await row.getByLabel("Teil der Rate").selectOption(teil);
+    await row.getByLabel("Betrag").fill(betrag);
+  }
+  await form.getByRole("button", { name: "Aufteilen und buchen" }).click();
+  await page.waitForLoadState("networkidle");
+  await expect(panel.getByText("Darlehen: Darlehen Hausbank Investitionskredit · Tilgung")).toBeVisible();
+  await expect(panel.getByText("Darlehen: Darlehen Hausbank Investitionskredit · Zinsen")).toBeVisible();
+
+  await go("/darlehen");
+  await expect(page.getByRole("row", { name: /Hausbank Investitionskredit/ })).toContainText("9.200,00");
+});
+
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {
   expect(pageErrors).toEqual([]);
   await page.context().storageState({ path: SESSION });

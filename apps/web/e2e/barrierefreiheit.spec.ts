@@ -39,6 +39,7 @@ const PAGES = [
   "/csv-import?art=anlagen",
   "/bank",
   "/kasse",
+  "/darlehen",
   "/umsatzsteuer",
   // Quartal, das nicht zum eingestellten Zeitraum passt: mit Hinweis und gesperrtem Senden
   `/umsatzsteuer/${YEAR}-Q1`,

@@ -84,3 +84,4 @@ export {
   reverseCashEntry,
   reverseDocumentCashEntry,
 } from "./cash.ts";
+export { createLoan, DarlehenError, listLoans, loanSchema } from "./darlehen.ts";

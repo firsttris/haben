@@ -165,6 +165,7 @@ Jeder Beleg bekommt eine Kategorie. Sie bestimmt das Aufwandskonto und die Zeile
 | Versicherungen | 4360 | 6400 |
 | Beiträge | 4380 | 6420 |
 | Sonstiger Aufwand | 4900 | 6300 |
+| Einfuhrumsatzsteuer (Bescheid des Zolls), kein Aufwand: Vorsteuer Kz 62 | 1588 Entstandene Einfuhrumsatzsteuer | 1433 |
 
 Hardware wird als geringwertiges Wirtschaftsgut voll im Jahr der Zahlung abgezogen. Anlagevermögen mit Abschreibung kennt Haben nicht.
 
@@ -261,6 +262,7 @@ Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer dieser Arten
 | Mahngebühren und Verzugszinsen | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
 | Steuerzahlung oder Erstattung | nach Steuerart, Bezugsjahr und Teil, siehe [Steuerzahlungen](bank.md#steuerzahlungen) | ebenso | Steuerkonto an Bank | Bank an Steuerkonto |
+| Darlehen: Auszahlung, Tilgung, Zinsen, Gebühren | Darlehenskonto (0630–0650, 1705–1708), Zinsen 2110/2120/2126, Gebühren 2141, siehe [Darlehen](bank.md#darlehen) | 3150–3170, 3560–3567, 7310/7320/7326, 7355 | Tilgung, Zinsen, Gebühren an Bank | Bank an Darlehen (Auszahlung) |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Rückzahlung) |
 | Lohnsteuer an das Finanzamt | 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
 | SV-Beiträge an Krankenkasse oder Minijob-Zentrale | 1742 Verbindlichkeiten im Rahmen der sozialen Sicherheit | 3740 | Verbindlichkeit an Bank | Bank an Verbindlichkeit (Erstattung) |
@@ -411,7 +413,7 @@ Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung dar
 | Bank, Zahlungsdienstleister, Geldtransit | Bankabgleich |
 | Kasse | Kassenbuch |
 | Forderungen, Verbindlichkeiten aus Lieferungen und Leistungen | Rechnungen und Belege (offene Posten) |
-| Umsatzsteuer, Vorsteuer, Umsatzsteuer-Vorauszahlungen | Voranmeldung |
+| Umsatzsteuer, Vorsteuer, entstandene Einfuhrumsatzsteuer (SKR03 1588, SKR04 1433), Umsatzsteuer-Vorauszahlungen | Voranmeldung |
 | Erlöskonten der Rechnungen | Rechnungen |
 | Anlagen, AfA, Restbuchwert | Anlagenverzeichnis |
 | Lohnaufwand und Lohnverbindlichkeiten (SKR03 4120, 4124, 4130, 4144, 4194, 4195, 1740–1742; SKR04 6020, 6024, 6035, 6036, 6110, 6171, 3720–3740) | Lohnabrechnung; die Verbindlichkeiten sind in der Eröffnung erlaubt |
@@ -540,7 +542,7 @@ Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritä
 | = Einkommen | zugleich Gewinn aus Gewerbebetrieb (§ 7 GewStG) |
 | − Verlustabzug | bis 1 Mio. € voll, darüber 70 % (2024 bis 2027, § 10d Abs. 2 EStG), sonst 60 % |
 | Körperschaftsteuer | 15 % des zu versteuernden Einkommens in vollen Euro; Soli 5,5 % davon, Bruchteile eines Cents fallen weg |
-| + Hinzurechnung § 8 Nr. 1 GewStG | ein Viertel der Summe aus Zinsen (voll), Miete und Leasing beweglicher Wirtschaftsgüter (20 %), unbeweglicher (50 %) und Aufwand für Rechte (25 %), soweit sie 200.000 € übersteigt; gelesen aus den DATEV-Konten mit Kennzeichen G |
+| + Hinzurechnung § 8 Nr. 1 GewStG | ein Viertel der Summe aus Zinsen (voll, auch die zur Finanzierung des Anlagevermögens aus den [Darlehen](bank.md#darlehen)), Miete und Leasing beweglicher Wirtschaftsgüter (20 %), unbeweglicher (50 %) und Aufwand für Rechte (25 %), soweit sie 200.000 € übersteigt; gelesen aus den DATEV-Konten mit Kennzeichen G |
 | − Gewerbeverlust | bis 1 Mio. € voll, darüber 60 % (§ 10a GewStG) |
 | Gewerbesteuer | Gewerbeertrag auf volle 100 € abgerundet, ohne Freibetrag (Kapitalgesellschaft), Messzahl 3,5 %, mal Hebesatz |
 
@@ -655,7 +657,7 @@ Dasselbe Journal steht im [Jahresexport](auswertungen.md#jahresexport) als `buch
 
 - Gebäude, Sonderabschreibungen nach § 7g EStG und Investitionsabzugsbetrag
 - Sachentnahmen, Fahrtenbuch und Fahrten zwischen Wohnung und Betriebsstätte
-- Dreiecksgeschäfte, Konsignationslager, innergemeinschaftliches Verbringen und Einfuhrumsatzsteuer; innergemeinschaftliche Lieferungen und Erwerbe nur mit den Grenzen unter [Rechnungen](rechnungen.md#grenzen) und [Belege](belege.md#grenzen); § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
+- Dreiecksgeschäfte, Konsignationslager und innergemeinschaftliches Verbringen; Einfuhrumsatzsteuer nur aus dem Bescheid des Zolls als Beleg ([Belege](belege.md#einfuhrumsatzsteuer)); innergemeinschaftliche Lieferungen und Erwerbe nur mit den Grenzen unter [Rechnungen](rechnungen.md#grenzen) und [Belege](belege.md#grenzen); § 13b als Leistungsempfänger nur für sonstige Leistungen ausländischer Unternehmer
 - Lohn nur aus der [Lohnabrechnung](lohn.md#buchung), mit deren Grenzen (keine Sachbezüge, kein Zuschuss zur privaten Krankenversicherung, keine Beiträge zur Berufsgenossenschaft); Fremdwährung nur für Belege und Rechnungen (siehe [Belege](belege.md#fremdwährung) und [Rechnungen](rechnungen.md#rechnungen-in-fremdwährung)), nicht für Bank- und Verrechnungskonten
 - Im Einzelunternehmen Abschlussbuchungen und Saldenvorträge zum Jahreswechsel (außer für übernommene offene Posten); in GmbH und UG trägt Haben die Salden [vor](#saldenvortrag-und-eröffnung-gmbh-und-ug), einzelne Abschlussbuchungen lassen sich [manuell](#manuelle-buchungen-gmbh-und-ug) erfassen
 

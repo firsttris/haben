@@ -456,6 +456,7 @@ export const MCP_TOOLS: McpTool[] = [
           kz89: euro(figures.kz89),
           kz93: euro(figures.kz93),
           kz61: euro(figures.kz61),
+          kz62: euro(figures.kz62),
         },
         gespeichert: current
           ? {

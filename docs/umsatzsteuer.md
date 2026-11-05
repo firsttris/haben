@@ -337,7 +337,7 @@ Der Vermerk lässt sich nur ergänzen, nicht ändern oder löschen, steht im Än
 
 ### Was im Hintergrund passiert
 
-1. Haben erzeugt das ElsterXML der Datenart `UStVA_<Jahr>` mit 13-stelliger Steuernummer, Empfänger-Finanzamt aus der Steuernummer, Datenlieferant aus den Firmendaten und den Kennzahlen. Die Kennzahlen stehen in aufsteigender Reihenfolge (10, 21, 39, 41, 43, 45, 46, 47, 48, 61, 66, 67, 81, 83, 84, 85, 86, 89, 93). Alle außer Kz 83 erscheinen nur, wenn sie nicht null sind; Kz 83 steht immer drin.
+1. Haben erzeugt das ElsterXML der Datenart `UStVA_<Jahr>` mit 13-stelliger Steuernummer, Empfänger-Finanzamt aus der Steuernummer, Datenlieferant aus den Firmendaten und den Kennzahlen. Die Kennzahlen stehen in aufsteigender Reihenfolge (10, 21, 39, 41, 43, 45, 46, 47, 48, 61, 62, 66, 67, 81, 83, 84, 85, 86, 89, 93). Alle außer Kz 83 erscheinen nur, wenn sie nicht null sind; Kz 83 steht immer drin.
 2. Jeder ERiC-Aufruf läuft in einem eigenen, kurzlebigen Kindprozess mit 120 Sekunden Zeitlimit.
 3. Zum Senden wird das Zertifikat entschlüsselt und nur für die Dauer des Aufrufs in ein privates temporäres Verzeichnis geschrieben, danach gelöscht. Die PIN wird weder gespeichert noch geloggt.
 4. Beim Senden prüft ERiC, übermittelt und erzeugt das Übertragungsprotokoll als PDF.
@@ -400,6 +400,6 @@ Belege und Rechnungen in Fremdwährung zählen mit ihren Euro-Beträgen, umgerec
 ## Grenzen
 
 - Ist-Versteuerung bei Fremdwährung: Mit deutscher Umsatzsteuer wäre das Entgelt mit dem Kurs des Monats umzurechnen, in dem es eingeht (Abschn. 16.4 UStAE). Das kann Haben nicht, deshalb lassen sich solche Rechnungen bei Ist-Versteuerung nicht festschreiben. Rechnungen in Fremdwährung ohne deutsche Steuer an Unternehmen im Ausland gehen (siehe [rechnungen.md](rechnungen.md#rechnungen-in-fremdwährung)).
-- Nur die Kennzahlen 81, 86, 21, 39, 41, 43, 45, 46, 47, 48, 61, 66, 67, 83, 84, 85, 89, 93 und 10. Nicht unterstützt: innergemeinschaftliche Lieferungen an Abnehmer ohne USt-IdNr. und neue Fahrzeuge (Kz 44, 49), steuerfreie Erwerbe (Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), Dreiecksgeschäfte (Kz 42, § 25b UStG) und die Einfuhrumsatzsteuer (Kz 62).
-- Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer, innergemeinschaftliche Lieferungen, Ausfuhren oder Erwerbe enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
+- Nur die Kennzahlen 81, 86, 21, 39, 41, 43, 45, 46, 47, 48, 61, 62, 66, 67, 83, 84, 85, 89, 93 und 10. Nicht unterstützt: innergemeinschaftliche Lieferungen an Abnehmer ohne USt-IdNr. und neue Fahrzeuge (Kz 44, 49), steuerfreie Erwerbe (Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98) und Dreiecksgeschäfte (Kz 42, § 25b UStG). Die Einfuhrumsatzsteuer (Kz 62) kommt aus Belegen der Kategorie „Einfuhrumsatzsteuer“ ([Belege](belege.md#einfuhrumsatzsteuer)).
+- Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer, innergemeinschaftliche Lieferungen, Ausfuhren, Erwerbe oder Einfuhrumsatzsteuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.

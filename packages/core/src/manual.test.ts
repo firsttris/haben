@@ -59,6 +59,9 @@ describe("manuelle Buchung", () => {
     ["SKR04", "1406", "Umsatzsteuer"],
     ["SKR04", "4400", "Rechnungen (Erlöse)"],
     ["SKR04", "6220", "Anlagen"],
+    // Entstandene Einfuhrumsatzsteuer: Kz 62 der Voranmeldung kommt aus den Belegen, eine Umbuchung daran vorbei bräche den Abgleich
+    ["SKR03", "1588", "Umsatzsteuer"],
+    ["SKR04", "1433", "Umsatzsteuer"],
   ] as const)("%s: Konto %s führt das Nebenbuch %s", (kr, account, ledger) => {
     expect(ledgerManagedAccounts(kr).get(account)).toBe(ledger);
     expect(manualPostingIssues([line(account, 100, 0), line("4900", 0, 100)], kr, "gmbh")).toContain(`Zeile 1: Konto ${account} führt das Nebenbuch ${ledger}`);

@@ -34,6 +34,10 @@ import {
   DAUERBELEG_STATUS_KEYS,
   STEUERART_KEYS,
   STEUER_POSTEN_KEYS,
+  DARLEHENSGEBER_KEYS,
+  DARLEHEN_LAUFZEIT_KEYS,
+  DARLEHEN_TEIL_KEYS,
+  DARLEHEN_ZWECK_KEYS,
   DEFAULT_PLAN_TEMPLATES,
   QUOTE_LINE_KINDS,
   type PaymentPlanRow,
@@ -220,6 +224,8 @@ export const vatReturns = pgTable(
     kz89: integer("kz89").notNull().default(0),
     kz93: integer("kz93").notNull().default(0),
     kz61: integer("kz61").notNull().default(0),
+    /** Entstandene Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG) */
+    kz62: integer("kz62").notNull().default(0),
     /** Abzug der Sondervorauszahlung (Dauerfristverlängerung) in der letzten Voranmeldung des Jahres */
     kz39: integer("kz39").notNull().default(0),
     kz83: integer("kz83").notNull().default(0),
@@ -249,6 +255,7 @@ export const vatReturns = pgTable(
       kz89?: number;
       kz93?: number;
       kz61?: number;
+      kz62?: number;
       kz39?: number;
       kz83: number;
     }>(),
@@ -1741,7 +1748,26 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   // Steuerzahlungen mit Steuerart, Bezugsjahr und Teil; betriebliche Zinserträge (Roadmap Platz 13)
   "steuer",
   "zinsertrag",
+  // Auszahlung, Tilgung, Zinsen und Gebühren eines Darlehens (loans)
+  "darlehen",
 ]);
+
+/**
+ * Darlehen, die das Unternehmen aufgenommen hat (packages/core/src/darlehen.ts): Geber und Restlaufzeit bestimmen das
+ * Konto, der Zweck das Zinskonto. Ein laufendes Darlehen bringt seine Restschuld zum Stichtag mit. Nach der ersten
+ * Zuordnung sind die Grundlagen fest (Trigger), nur der Name bleibt änderbar.
+ */
+export const loans = pgTable("loans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  lender: text("lender", { enum: DARLEHENSGEBER_KEYS }).notNull(),
+  term: text("term", { enum: DARLEHEN_LAUFZEIT_KEYS }).notNull(),
+  purpose: text("purpose", { enum: DARLEHEN_ZWECK_KEYS }).notNull(),
+  /** Restschuld eines übernommenen Darlehens am Stichtag; 0 bei einem neuen */
+  openingBalance: integer("opening_balance").notNull().default(0),
+  openingDate: date("opening_date", { mode: "string" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /**
  * Zuordnung eines Bankumsatzes (ganz oder teilweise) zu Rechnung, Beleg oder einer Buchung ohne Beleg.
@@ -1781,6 +1807,9 @@ export const allocations = pgTable(
     taxType: text("tax_type", { enum: STEUERART_KEYS }),
     taxYear: integer("tax_year"),
     taxItem: text("tax_item", { enum: STEUER_POSTEN_KEYS }),
+    /** Nur bei Darlehen (kind „darlehen“): das Darlehen und der Teil (Auszahlung, Tilgung, Zinsen, Gebühren) */
+    loanId: uuid("loan_id").references(() => loans.id),
+    loanPart: text("loan_part", { enum: DARLEHEN_TEIL_KEYS }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1791,6 +1820,11 @@ export const allocations = pgTable(
       sql`case when ${t.kind}::text = 'steuer' then ${t.taxType} is not null and ${t.taxYear} is not null and ${t.taxItem} is not null else ${t.taxType} is null and ${t.taxYear} is null and ${t.taxItem} is null end`,
     ),
     check("allocations_vat_return_kind", sql`${t.vatReturnId} is null or ${t.kind} = 'ustVorauszahlung'`),
+    check(
+      "allocations_loan",
+      sql`case when ${t.kind}::text = 'darlehen' then ${t.loanId} is not null and ${t.loanPart} is not null else ${t.loanId} is null and ${t.loanPart} is null end`,
+    ),
+    index("allocations_loan").on(t.loanId),
     index("allocations_vat_return").on(t.vatReturnId),
     index("allocations_transaction").on(t.transactionId),
     index("allocations_invoice").on(t.invoiceId),

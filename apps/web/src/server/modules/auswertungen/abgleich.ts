@@ -4,7 +4,9 @@ import {
   PAUSCHALE_KONTEN,
   PAUSCHALE_LABEL,
   PRIVATE_USE_ACCOUNTS,
+  EXPENSE_CATEGORIES,
   STEUER_KONTEN,
+  DARLEHEN_KONTEN,
   abziehbareNebenleistungen,
   nichtAbziehbareNebenleistungen,
   type Cents,
@@ -116,6 +118,11 @@ function vatRows(period: VatPeriod, sums: Summe[], figures: Awaited<ReturnType<t
     ),
     row("Erwerbsteuer (Kz 89, 93)", -saldo(monat, (kr) => Object.values(ACCOUNTS[kr].ustIge)), figures.tax89 + figures.tax93),
     row(
+      "Einfuhrumsatzsteuer (Kz 62)",
+      saldo(monat, (kr) => [EXPENSE_CATEGORIES.einfuhrumsatzsteuer[kr]]),
+      figures.kz62,
+    ),
+    row(
       "Vorsteuer aus innergemeinschaftlichem Erwerb (Kz 61)",
       saldo(monat, (kr) => Object.values(ACCOUNTS[kr].vorsteuerIge)),
       figures.kz61,
@@ -175,6 +182,19 @@ export async function euerAbgleich(year: number, q: Db | Tx = db): Promise<Abgle
   if (nebenleistungen !== 0 || line("steuerNebenleistungen") !== 0) {
     zeilen.push(row("Zinsen und Zuschläge zu betrieblichen Steuern", nebenleistungen, line("steuerNebenleistungen")));
   }
+  // Darlehen: Zinsen und Gebühren gegen die Schuldzinsen der EÜR
+  const darlehen = saldo(
+    sums,
+    (kr) => [
+      DARLEHEN_KONTEN[kr].zinsenKurzfristig,
+      DARLEHEN_KONTEN[kr].zinsenLangfristig,
+      DARLEHEN_KONTEN[kr].zinsenAnlagevermoegen,
+      DARLEHEN_KONTEN[kr].gebuehren,
+    ],
+    zahlung,
+  );
+  const schuldzinsen = line("schuldzinsen") + line("schuldzinsenAnlage");
+  if (darlehen !== 0 || schuldzinsen !== 0) zeilen.push(row("Schuldzinsen und Gebühren der Darlehen", darlehen, schuldzinsen));
   const gewerbesteuer = saldo(sums, (kr) => [STEUER_KONTEN[kr].gewst, STEUER_KONTEN[kr].gewstVorjahre, ...nichtAbziehbareNebenleistungen(kr)], zahlung);
   if (gewerbesteuer !== 0 || euer.gewerbesteuerNichtAbziehbar !== 0) {
     zeilen.push(row("Gewerbesteuer und Nebenleistungen darauf, Hinterziehungszinsen (nicht abziehbar)", gewerbesteuer, euer.gewerbesteuerNichtAbziehbar));

@@ -4,6 +4,7 @@ import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import type { Cents } from "./money.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, type ExpenseCategory, type Kontenrahmen } from "./posting.ts";
 import { STEUER_KONTEN } from "./steuerzahlung.ts";
+import { DARLEHEN_KONTEN } from "./darlehen.ts";
 
 /*
  * Zuordnung der Konten zu den Positionen der E-Bilanz (§ 5b EStG, HGB-Taxonomien 6.9 und 6.10, Kerntaxonomie de-gaap-ci). Die
@@ -33,7 +34,7 @@ const UMSATZSTEUER: EbilanzZiel = [VAT_RECEIVABLE, TAX_LIABILITY];
 const GESELLSCHAFTER: EbilanzZiel = ["bs.ass.currAss.receiv.other.shareholders", "bs.eqLiab.liab.shareholders.gmbh"];
 
 /** Aufwand der Ausgabenkategorien; Anlagen (hardware, anlage) stehen bei den Anlagekonten */
-const KATEGORIEN: Record<Exclude<ExpenseCategory, "hardware" | "anlage">, string> = {
+const KATEGORIEN: Record<Exclude<ExpenseCategory, "hardware" | "anlage" | "einfuhrumsatzsteuer">, string> = {
   // DATEV „Aufwendungen für die zeitlich befristete Überlassung von Rechten (Lizenzen)“; der Empfänger kann im Ausland sitzen
   software: `${OC}.concessLicenses.nonallocable`,
   // DATEV 4806/6495 „Wartungskosten für Hard- und Software“
@@ -224,6 +225,24 @@ function steuerzahlungKonten(kontenrahmen: Kontenrahmen): [string, EbilanzZiel][
   ];
 }
 
+/**
+ * Darlehen (darlehen.ts): Verbindlichkeiten gegenüber Kreditinstituten bzw. sonstige Verbindlichkeiten, die Restlaufzeit
+ * vermerkt die Bilanz (bilanzvermerke.ts); Zinsen als regelmäßige Zinsaufwendungen, Kreditprovisionen als Kreditgebühren
+ */
+function darlehenKonten(kontenrahmen: Kontenrahmen): [string, EbilanzZiel][] {
+  const k = DARLEHEN_KONTEN[kontenrahmen];
+  const zinsen = `${INTEREST}.expenses.regularInterest.other`;
+  return [
+    // Im Soll (überzahlt) eine sonstige Forderung, wie im DATEV-Kontenrahmen („Verbindlichkeiten … oder sonstige Vermögensgegenstände“)
+    ...Object.values(k.bank).map((konto): [string, EbilanzZiel] => [konto, ["bs.ass.currAss.receiv.other.misc", "bs.eqLiab.liab.bank.other"]]),
+    ...Object.values(k.sonstige).map((konto): [string, EbilanzZiel] => [konto, ["bs.eqLiab.liab.other.other"]]),
+    [k.zinsenKurzfristig, [zinsen]],
+    [k.zinsenLangfristig, [zinsen]],
+    [k.zinsenAnlagevermoegen, [zinsen]],
+    [k.gebuehren, [`${INTEREST}.expenses.loanFees`]],
+  ];
+}
+
 function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
   const a = ACCOUNTS[kontenrahmen];
   const anlagen = ASSET_ACCOUNTS[kontenrahmen];
@@ -244,6 +263,8 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
       ...Object.values(a.ustIge),
       a.ustVorauszahlung,
       a.sondervorauszahlung,
+      // Entstandene Einfuhrumsatzsteuer: Vorsteuer wie die übrigen
+      EXPENSE_CATEGORIES.einfuhrumsatzsteuer[kontenrahmen],
     ].map((k): [string, EbilanzZiel] => [k, UMSATZSTEUER]),
     // Umsatzsteuer nicht fällig (Ist-Versteuerung): im DATEV-Kontenrahmen unter den Rückstellungen
     ...Object.values(a.ustNichtFaellig).map((k): [string, EbilanzZiel] => [k, [VAT_RECEIVABLE, "bs.eqLiab.accruals.tax.other"]]),
@@ -284,6 +305,7 @@ function kontenOf(kontenrahmen: Kontenrahmen): Record<string, EbilanzZiel> {
     ...Object.entries(KAPITAL[kontenrahmen]),
     ...lohnKonten(kontenrahmen),
     ...steuerzahlungKonten(kontenrahmen),
+    ...darlehenKonten(kontenrahmen),
   ];
   return Object.fromEntries(entries);
 }

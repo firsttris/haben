@@ -75,11 +75,14 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       treatment: schema.invoices.taxTreatment,
       taxType: schema.allocations.taxType,
       taxItem: schema.allocations.taxItem,
+      loanPart: schema.allocations.loanPart,
+      loanPurpose: schema.loans.purpose,
     })
     .from(schema.allocations)
     .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
     .leftJoin(schema.documents, eq(schema.documents.id, schema.allocations.documentId))
     .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
+    .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
     .where(
       and(
         gte(schema.bankTransactions.bookingDate, start),
@@ -94,6 +97,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
           "kursdifferenz",
           "zinsertrag",
           "steuer",
+          "darlehen",
           ...LOHN_ZAHLUNGEN,
         ]),
       ),
@@ -234,6 +238,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     } else if (a.kind === "steuer" && a.taxType && a.taxItem) {
       // Im Jahr der Zahlung (§ 11 EStG), unabhängig vom Bezugsjahr; Teil und Steuerart bestimmen die Zeile
       payments.push({ kind: "steuer", date: a.date, amount: a.amount, art: a.taxType, posten: a.taxItem, group });
+    } else if (a.kind === "darlehen" && a.loanPart && a.loanPurpose) {
+      // Zinsen und Gebühren als Schuldzinsen, wenn sie abfließen; Auszahlung und Tilgung sind erfolgsneutral
+      payments.push({ kind: "darlehen", date: a.date, amount: a.amount, zweck: a.loanPurpose, teil: a.loanPart, group });
     } else if (isLohnZahlung(a.kind)) {
       // Lohn, Lohnsteuer und Beiträge: Ausgaben für Personal, wenn sie von der Bank abfließen (§ 11 Abs. 2 Satz 1 EStG)
       payments.push({ kind: "lohn", date: a.date, amount: a.amount, group });

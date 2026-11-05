@@ -58,6 +58,7 @@ const NAV_GROUPS = [
     links: [
       { to: "/bank", icon: "bank", label: "Bank" },
       { to: "/kasse", icon: "cash", label: "Kasse" },
+      { to: "/darlehen", icon: "bank", label: "Darlehen" },
     ],
   },
   {

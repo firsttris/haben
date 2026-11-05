@@ -89,12 +89,16 @@ export interface VatFigures {
   kz93: Cents;
   tax93: Cents;
   kz61: Cents;
+  /** Entstandene Einfuhrumsatzsteuer laut Bescheid des Zolls (Beleg der Kategorie „Einfuhrumsatzsteuer“), nach Belegdatum */
+  kz62: Cents;
   /** Regulär besteuerte Umsätze zu 0 %, die in dieser Voranmeldung nicht gemeldet werden */
   steuerfrei: Cents;
   revenue: RevenueSource[];
   inputTax: InputTaxSource[];
   reverseCharge: ReverseChargeSource[];
   igErwerb: IgErwerbSource[];
+  /** Belege zur Einfuhrumsatzsteuer: der ganze Betrag als Steuer */
+  einfuhr: InputTaxSource[];
 }
 
 /**
@@ -303,6 +307,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     privateShare: schema.documents.privateShare,
     vorsteuerAbzug: schema.documents.vorsteuerAbzug,
     reverseCharge: schema.documents.reverseCharge,
+    category: schema.documents.category,
   };
   const booked = await q
     .select({ ...documentColumns, date: schema.documents.documentDate })
@@ -330,7 +335,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   const business = (amount: Cents, privateShare: number, sign: number) => sign * splitPrivateShare(amount, privateShare).business;
   const inputTax = amounts
     .filter((a) => a.vorsteuerAbzug && !a.reverseCharge)
-    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, sign, ...a }) => ({
+    .map(({ privateShare, vorsteuerAbzug: _abzug, reverseCharge: _rc, sign, category: _category, ...a }) => ({
       ...a,
       base: business(a.base, privateShare, sign),
       tax: business(a.tax, privateShare, sign),
@@ -394,6 +399,10 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
       tax: sign * a.tax,
       deductible: vorsteuerAbzug ? business(a.tax, privateShare, sign) : 0,
     }));
+  // Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG): der Betrag des Bescheids ist die Steuer, abziehbar nach Belegdatum
+  const einfuhr: InputTaxSource[] = amounts
+    .filter((a) => a.category === "einfuhrumsatzsteuer" && a.vorsteuerAbzug && !a.reverseCharge)
+    .map(({ privateShare: _p, vorsteuerAbzug: _v, reverseCharge: _rc, category: _c, sign, ...a }) => ({ ...a, base: 0, tax: sign * (a.base + a.tax) }));
   const ige = (rate: number, key: "base" | "tax") => igErwerb.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
   const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") => reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
 
@@ -426,11 +435,13 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     kz93: ige(700, "base"),
     tax93: ige(700, "tax"),
     kz61: igErwerb.reduce((s, r) => s + r.deductible, 0),
+    kz62: einfuhr.reduce((s, r) => s + r.tax, 0),
     steuerfrei: sum(regular, 0, "base"),
     revenue,
     inputTax,
     reverseCharge,
     igErwerb,
+    einfuhr,
   };
 }
 
