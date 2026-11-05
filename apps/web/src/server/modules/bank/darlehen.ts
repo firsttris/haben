@@ -93,3 +93,26 @@ export async function darlehenBuchung(
     target: { loanId: loan.id, loanPart: teil },
   };
 }
+
+/**
+ * Vor dem Aufheben von Zuordnungen: Ohne eine Auszahlung dürfen die Tilgungen den Bestand nicht übersteigen, sonst stünde
+ * das Darlehen im Minus, obwohl beim Buchen jede Tilgung auf den Bestand begrenzt ist. Erst die Tilgungen aufheben.
+ */
+export async function darlehenAufhebenPruefen(
+  tx: Tx,
+  parts: { loanId: string | null; loanPart: DarlehenTeil | null; amount: Cents }[],
+): Promise<void> {
+  const wirkung = new Map<string, Cents>();
+  for (const p of parts) {
+    if (p.loanId && (p.loanPart === "auszahlung" || p.loanPart === "tilgung")) wirkung.set(p.loanId, (wirkung.get(p.loanId) ?? 0) - p.amount);
+  }
+  if (wirkung.size === 0) return;
+  const ids = [...wirkung.keys()];
+  const loans = await tx.select().from(schema.loans).where(inArray(schema.loans.id, ids)).for("update");
+  const bewegt = await bestaende(ids, tx);
+  for (const loan of loans) {
+    if (loan.openingBalance + (bewegt.get(loan.id) ?? 0) + wirkung.get(loan.id)! < 0) {
+      throw new DarlehenError(`Ohne diese Auszahlung wären die Tilgungen von „${loan.name}“ höher als der Bestand; hebe zuerst die Tilgungen auf.`);
+    }
+  }
+}

@@ -60,7 +60,7 @@ import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { documentPayees, payeeIbans } from "./document-payees.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
-import { darlehenBuchung, loanPartSchema } from "./darlehen.ts";
+import { darlehenAufhebenPruefen, darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 
 export class BankError extends UserError {}
 
@@ -1154,6 +1154,7 @@ export async function reverseAllocation(actor: string, allocationId: string): Pr
           .orderBy(asc(schema.allocations.createdAt))
           .for("update")
       : [allocation];
+    await darlehenAufhebenPruefen(tx, parts);
     for (const part of parts) await reverseOne(tx, part);
     // Mit der Zahlung ausgebuchter Rest (Skonto): ohne die Zahlung wäre er falsch, also mit aufheben
     const targets = parts.flatMap((p) => [p.invoiceId, p.documentId]).filter((id): id is string => id !== null);

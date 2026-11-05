@@ -385,6 +385,8 @@ Beispiel: Die Bank bucht eine Rate von 1.000,00 € ab, davon 800,00 € Tilgung
 
 Der Umsatz ist ganz zugeordnet, der Bestand sinkt um 800,00 €, in der EÜR zählen nur die 200,00 € als Schuldzinsen (Anlage EÜR: übrige Schuldzinsen bzw. Schuldzinsen zur Finanzierung von Anlagevermögen). Die Grenze für Schuldzinsen bei Überentnahmen (§ 4 Abs. 4a EStG, Anlage SZ) rechnet Haben nicht; hast du mehr entnommen, als du Gewinn und Einlagen hattest, prüft das die Steuerberatung. In GmbH und UG rechnet die Steuerberechnung die Zinsen dem Gewerbeertrag anteilig hinzu (§ 8 Nr. 1 a GewStG, über dem Freibetrag).
 
+Hebst du eine Zuordnung auf, kehrt der Bestand zurück: Eine aufgehobene Tilgung erhöht ihn wieder. Eine Auszahlung lässt sich nur aufheben, solange die Tilgungen danach nicht höher als der Bestand wären; sonst hebst du zuerst die Tilgungen auf.
+
 **Nicht unterstützt:** Darlehen, die das Unternehmen vergibt, Darlehen in Fremdwährung, Disagio und Gesellschafterdarlehen mit eigenem Konto.
 
 ## Zahlungsdienstleister
