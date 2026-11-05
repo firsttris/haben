@@ -24,6 +24,7 @@ import {
   invoicePaymentPosting,
   recordedTaxShares,
   settlementTaxShares,
+  skontoFristen,
   suggestMatches,
   type DirectBooking,
   type InvoiceTotals,
@@ -428,6 +429,7 @@ export async function openItems(): Promise<OpenItem[]> {
       dueDate: schema.invoices.dueDate,
       gross: schema.invoices.gross,
       currency: schema.invoices.currency,
+      skonto: schema.invoices.skonto,
       buyer: schema.invoices.buyer,
       contactIban: schema.contacts.iban,
     })
@@ -472,8 +474,11 @@ export async function openItems(): Promise<OpenItem[]> {
 
   const items: OpenItem[] = [];
   for (const inv of invoices) {
-    const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid: invoicePaid.get(inv.id) ?? 0, cancelled: cancelled.has(inv.id) });
+    const paid = invoicePaid.get(inv.id) ?? 0;
+    const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid, cancelled: cancelled.has(inv.id) });
     if (open === 0) continue;
+    // Skonto nur auf den ganzen Betrag: nach einer Teilzahlung oder Ausbuchung erkennt der Abgleich es nicht mehr
+    const skonto = inv.kind === "rechnung" && inv.currency === "EUR" && paid === 0 ? skontoFristen(inv.skonto, inv.issueDate, inv.gross) : [];
     items.push({
       type: "invoice",
       id: inv.id,
@@ -484,6 +489,7 @@ export async function openItems(): Promise<OpenItem[]> {
       partyName: inv.buyer?.name ?? "",
       partyIbans: inv.contactIban ? [inv.contactIban] : [],
       currency: inv.currency,
+      ...(skonto.length > 0 ? { skonto } : {}),
     });
   }
   // Storno einer schon bezahlten Rechnung: die Erstattung wird der Stornorechnung zugeordnet

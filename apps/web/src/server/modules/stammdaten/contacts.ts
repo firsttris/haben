@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { joinEmails, MAX_EMAIL_RECIPIENTS, splitEmails } from "@haben/core";
+import { joinEmails, MAX_EMAIL_RECIPIENTS, skontoProblem, skontoStufenSchema, sortSkonto, splitEmails } from "@haben/core";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -40,6 +40,15 @@ export const contactSchema = z.object({
   ]),
   leitwegId: z.string().trim().max(46),
   defaultFormat: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]).nullable(),
+  /**
+   * Skonto für Rechnungen an diesen Kunden; null = Vorgabe aus den Firmendaten, leer = kein Skonto, fehlt = unverändert.
+   * Eine Frist länger als das Zahlungsziel der Rechnung entfällt dort (defaultSkonto).
+   */
+  skonto: z.optional(z.nullable(skontoStufenSchema)).superRefine((skonto, ctx) => {
+    // Ohne Zahlungsziel des Kunden: nur doppelte Fristen und die Reihenfolge der Sätze prüfen
+    const problem = skonto ? skontoProblem(skonto, 120) : null;
+    if (problem) ctx.addIssue({ code: "custom", message: problem });
+  }),
   /** Sprache von Rechnungen und Angeboten */
   language: z.enum(["de", "en"]).default("de"),
   /** Rollen; mindestens eine (cleanRoles). Fehlt = Kunde wie bisher */
@@ -89,6 +98,7 @@ function clean(input: ContactInput) {
     email: joinEmails(splitEmails(input.email)),
     ustId: input.ustId.replace(/\s/g, "").toUpperCase(),
     iban: input.iban.replace(/\s/g, "").toUpperCase(),
+    ...(input.skonto === undefined ? {} : { skonto: input.skonto && sortSkonto(input.skonto) }),
   };
 }
 

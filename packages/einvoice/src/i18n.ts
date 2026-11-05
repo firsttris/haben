@@ -1,4 +1,4 @@
-import { formatEuro, formatQuantity, formatRate, treatmentNote, type Cents, type Millis, type TaxTreatment, type UnitLabel } from "@haben/core";
+import { formatEuro, formatPercent, formatQuantity, formatRate, treatmentNote, type Cents, type Millis, type TaxTreatment, type UnitLabel } from "@haben/core";
 import type { InvoiceKind } from "./types.ts";
 
 /** Sprache der Belege für den Kunden; XML und Buchhaltung bleiben unverändert */
@@ -70,6 +70,9 @@ export const TEXTS = {
     refund: "Der Betrag wird Ihnen erstattet.",
     noPayment: "Es ist keine Zahlung erforderlich.",
     payBy: (date: string) => `Bitte überweisen Sie den Betrag bis zum ${date} unter Angabe der Rechnungsnummer.`,
+    skonto: (percent: string, date: string, amount: string, payable: string) =>
+      `Bei Zahlung bis zum ${date} gewähren wir ${percent} Skonto (${amount}); Sie überweisen dann ${payable}.`,
+    percent: (percent: number) => formatPercent(percent),
     quoteValid: (date: string) => `Dieses Angebot gilt bis zum ${date}. Wir freuen uns auf Ihren Auftrag.`,
     girocodeText: (number: string) => `Rechnung ${number}`,
     phone: "Tel.",
@@ -138,6 +141,9 @@ export const TEXTS = {
     refund: "The amount will be refunded to you.",
     noPayment: "No payment is required.",
     payBy: (date: string) => `Please transfer the amount by ${date}, quoting the invoice number.`,
+    skonto: (percent: string, date: string, amount: string, payable: string) =>
+      `If paid by ${date}, you may deduct a ${percent} cash discount (${amount}) and transfer ${payable}.`,
+    percent: (percent: number) => `${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2 }).format(percent / 100)}%`,
     quoteValid: (date: string) => `This quote is valid until ${date}. We look forward to your order.`,
     girocodeText: (number: string) => `Invoice ${number}`,
     phone: "Phone",

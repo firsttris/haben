@@ -17,6 +17,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 1. Unter **Rechnungen** auf **Neue Rechnung** klicken.
 2. **Kunde** wählen. Hat der Kontakt ein Standardformat, wird es übernommen; hat er eine Leitweg-ID und kein Standardformat, stellt Haben auf XRechnung 3.0 (CII) um.
 3. **Rechnungsdatum** und **Zahlungsziel in Tagen** (0 bis 120) eintragen. Darunter steht das errechnete Fälligkeitsdatum (siehe [Fälligkeit](#fälligkeit)). Vorgabe für das Zahlungsziel ist der Wert aus den Firmendaten.
+   Optional **Skonto**: je Stufe Satz und Frist in Tagen, vorbelegt vom Kunden oder aus den Firmendaten (siehe [Skonto](#skonto)).
 4. Optional **Leistung von** und **Leistung bis**. Ohne Angabe gilt das Rechnungsdatum als Leistungsdatum; ist nur ein Tag angegeben oder sind beide gleich, erscheint auf der Rechnung „Leistungsdatum“, sonst „Leistungszeitraum“.
 5. **E-Rechnungsformat** prüfen.
 6. Unter **Umsatzsteuer** die steuerliche Behandlung wählen, im Normalfall „Regulär besteuert“ (siehe [Umsatzsteuer auf der Rechnung](#umsatzsteuer-auf-der-rechnung)).
@@ -215,6 +216,19 @@ Rechnungen ohne Steuerausweis gehen ohne Steuerzeile auf eigene Erlöskonten:
 
 Fällig ist eine Rechnung am Rechnungsdatum plus Zahlungsziel. Fällt dieser Tag auf einen Samstag, Sonntag oder gesetzlichen Feiertag im Bundesland aus deinen Firmendaten, gilt der nächste Werktag (§ 193 BGB). Haben kennt nur Feiertage, die im ganzen Bundesland gelten; Feiertage einzelner Gemeinden (Fronleichnam in Teilen Sachsens und Thüringens, Mariä Himmelfahrt in Bayern, Augsburger Friedensfest) zählen nicht. Ohne Bundesland zählen nur die bundesweiten Feiertage. Bei Zahlungsziel 0 ist die Rechnung am Rechnungsdatum fällig, auch an einem Wochenende. Die Berechnung steht in `packages/core/src/holidays.ts`.
 
+## Skonto
+
+Skonto ist ein Abzug, den der Kunde machen darf, wenn er früh zahlt, etwa 2 % bei Zahlung innerhalb von 10 Tagen. Im Rechnungseditor stehen unter dem Zahlungsziel bis zu drei **Skontostufen**, je mit **Skonto in %** (bis zu zwei Nachkommastellen) und **Frist in Tagen**. Neben jeder Stufe zeigt der Editor das Datum, den Skontobetrag und den Zahlbetrag. Mit **+ Skontostufe hinzufügen** kommt eine weitere Stufe dazu, das Kreuz entfernt eine; ohne Stufe hat die Rechnung kein Skonto.
+
+- **Vorgabe:** Das Skonto eines neuen Entwurfs kommt vom Kunden, wenn dort ein eigenes eingetragen ist (siehe [Kontakte](#kontakte)), sonst aus den [Firmendaten](einrichtung.md). Stufen mit einer Frist länger als das Zahlungsziel der Rechnung lässt Haben dabei weg. Dasselbe gilt für Rechnungen aus einem Angebot, wiederkehrende Rechnungen und Entwürfe aus der [REST-API](api.md).
+- **Regeln:** Die Frist zählt ab dem Rechnungsdatum und endet spätestens mit dem Zahlungsziel; eine Stufe mit längerer Frist braucht einen kleineren Satz. Skonto gilt immer für den ganzen Rechnungsbetrag. Es gibt es nur bei Rechnungen in Euro, nicht bei Storno und Rechnungskorrektur.
+- **Bis zum Festschreiben änderbar:** Danach ist das Skonto wie die ganze Rechnung gesperrt.
+- **Auf dem PDF** steht unter der Zahlungsaufforderung je Stufe ein Satz wie „Bei Zahlung bis zum 05.10.2026 gewähren wir 2 % Skonto (95,20 €); Sie überweisen dann 4.664,80 €.“ Die Frist ist hier ein Datum: Rechnungsdatum plus Tage, ohne Verschiebung auf den nächsten Werktag. Der GiroCode bleibt beim vollen Betrag, denn welches Skonto der Kunde nutzt, steht vorher nicht fest.
+- **In der E-Rechnung** beginnen die Zahlungsbedingungen (BT-20) mit einer Zeile je Stufe im Format der XRechnung, Regel BR-DE-18: `#SKONTO#TAGE=10#PROZENT=2.00#`, danach ein Zeilenumbruch und derselbe Inhalt als Satz. So lesen Buchhaltungsprogramme des Kunden das Skonto maschinell, in XRechnung (UBL und CII) wie in ZUGFeRD.
+- **In der E-Mail** nennt der Platzhalter `{zahlbar}` die Skontofristen mit, etwa „zahlbar bis zum 09.10.2026 ohne Abzug oder bis zum 05.10.2026 abzüglich 2 % Skonto“.
+
+Zahlt der Kunde in der Frist den Betrag abzüglich Skonto, erkennt der [Bankabgleich](bank.md#skonto-auf-eigene-rechnungen) die Zahlung und bucht das Skonto mit einem Klick aus. Wie das Skonto Erlöse und Umsatzsteuer mindert, steht unter [Ausbuchen](#ausbuchen). Nach der Fälligkeit gilt der volle Betrag: [Mahnungen](#mahnwesen) fordern den ganzen offenen Betrag und weisen darauf hin, dass das Skonto entfallen ist.
+
 ## GiroCode
 
 Neben der Zahlungsaufforderung druckt Haben einen GiroCode, also einen EPC-QR-Code nach dem Standard des European Payments Council. Der Kunde scannt ihn mit der Banking-App, und die Überweisung ist ausgefüllt:
@@ -312,6 +326,8 @@ Der Knopf rechts schlägt die nächste Stufe vor:
 | Letzte Mahnung | Letzte Mahnung, mit Hinweis auf gerichtliche Schritte |
 
 Läuft die Frist der letzten Mahnung noch, ist der Knopf hell. Mahnen kannst du trotzdem.
+
+Gemahnt wird immer der volle offene Betrag. Bot die Rechnung [Skonto](#skonto) an, ist dessen Frist bei der Mahnung vorbei (sie endet spätestens mit dem Zahlungsziel); das Schreiben sagt deshalb unter der Zahlungsaufforderung, dass das Skonto entfallen ist.
 
 Im Formular legst du fest:
 
@@ -459,6 +475,7 @@ Kontakte erreichst du in der Navigation unter **Verkauf › Kontakte**. Es gibt 
 | IBAN | Hilft beim Bankabgleich. Wird beim ersten zugeordneten Zahlungseingang automatisch gemerkt, wenn das Feld leer ist. |
 | Leitweg-ID (öffentliche Auftraggeber) | Steht auf der Rechnung und wird im XML als Käuferreferenz verwendet. |
 | Standardformat für Rechnungen | ZUGFeRD, XRechnung (CII), XRechnung (UBL) oder „wie in den Einstellungen“. |
+| Skonto | „wie in den Einstellungen“ oder „eigenes für diesen Kunden“ mit bis zu drei Stufen; ohne Stufe bekommt der Kunde kein Skonto (siehe [Skonto](#skonto)). |
 
 **Kundennummern automatisch.** Unter **Einstellungen › Rechnungen › Kundennummern** trägst du ein Format wie `K-{NNNN}` und die nächste laufende Nummer ein. Legst du dann einen Kontakt ohne Kundennummer an, vergibt Haben die nächste (`K-0001`, `K-0002` …); das Formular zeigt sie vorab an. Platzhalter wie beim [Nummernformat](einrichtung.md#nummernformat), das Jahr ist hier aber nicht nötig, weil der Zähler nicht jährlich neu beginnt. Eine eingetragene Nummer bleibt, wie sie ist, und zählt nicht mit; Nummern, die ein Kontakt schon trägt, etwa aus einem Import, überspringt Haben. Beim Bearbeiten eines Kontakts vergibt Haben keine Nummer, und einem reinen Lieferanten (ohne Häkchen **Kunde**) auch nicht. Leeres Format schaltet die automatische Vergabe ab.
 
@@ -478,12 +495,12 @@ Gebucht werden diese Rechnungen nicht als Erlös, sondern gegen den Saldenvortra
 
 ## Prüfung gegen den KoSIT-Validator
 
-Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten E-Rechnungen mit dem offiziellen KoSIT-Validator (Version 1.5.0) und der XRechnung-Konfiguration 3.0.2. Geprüft werden Beispielrechnungen in den drei Formaten, darunter einfache Rechnung zu 19 %, gemischte Steuersätze, Storno, Rechnungskorrektur, Leitweg-ID, einzelnes Leistungsdatum, Absender nur mit Steuernummer, eine Rechnung zum Nullsatz, je eine Rechnung mit Reverse Charge, ins Drittland, steuerfrei nach § 4 UStG und als Kleinunternehmer sowie Rechnungen mit Bruttopreisen (gemischte Sätze, Storno, 9,80 € zu 19 %, Schlussrechnung, große Mengen). Die Prüfberichte liegen als Artefakt am CI-Lauf. Wie du die Prüfung lokal startest, steht in [entwicklung.md](entwicklung.md).
+Die CI prüft bei jedem Push auf `main` und in jedem Pull Request die erzeugten E-Rechnungen mit dem offiziellen KoSIT-Validator (Version 1.5.0) und der XRechnung-Konfiguration 3.0.2. Geprüft werden Beispielrechnungen in den drei Formaten, darunter einfache Rechnung zu 19 %, gemischte Steuersätze, Storno, Rechnungskorrektur, Leitweg-ID, einzelnes Leistungsdatum, Absender nur mit Steuernummer, eine Rechnung zum Nullsatz, je eine Rechnung mit Reverse Charge, ins Drittland, steuerfrei nach § 4 UStG und als Kleinunternehmer sowie Rechnungen mit Bruttopreisen (gemischte Sätze, Storno, 9,80 € zu 19 %, Schlussrechnung, große Mengen) und Rechnungen mit Skonto (zwei Stufen, mit Leitweg-ID). Die Prüfberichte liegen als Artefakt am CI-Lauf. Wie du die Prüfung lokal startest, steht in [entwicklung.md](entwicklung.md).
 
 ## Grenzen
 
 - Nur die Steuersätze 19 %, 7 % und 0 %. Fremdwährung mit den Einschränkungen unter [Rechnungen in Fremdwährung](#rechnungen-in-fremdwährung); Angebote nur in Euro.
 - Keine innergemeinschaftlichen Lieferungen von Waren (§ 4 Nr. 1b UStG) und keine Zusammenfassende Meldung; die ZM für Reverse-Charge-Rechnungen gibst du selbst ab.
-- Keine Skonto-Angaben, keine Zu- oder Abschläge auf Belegebene.
+- Skonto nur vom ganzen Rechnungsbetrag (kein Basisbetrag nach BR-DE-18), höchstens drei Stufen, nur in Euro. Keine Zu- oder Abschläge auf Belegebene.
 - Höchstens 200 Positionen je Rechnung.
 - Rechnungen gehen per E-Mail über deinen SMTP-Zugang, nicht über Peppol oder die Portale öffentlicher Auftraggeber.

@@ -52,6 +52,7 @@ function InvoicePage() {
           serviceFrom: invoice.serviceFrom,
           serviceTo: invoice.serviceTo,
           paymentTermDays: invoice.paymentTermDays,
+          skonto: invoice.skonto,
           format: invoice.format,
           intro: invoice.intro,
           note: invoice.note,
@@ -94,6 +95,7 @@ function InvoicePage() {
         corrects={data.corrects}
         bundesland={data.bundesland}
         kleinunternehmer={data.kleinunternehmer}
+        companySkonto={data.companySkonto}
         articles={data.articles}
         textBlocks={data.textBlocks}
         abschlaege={data.abschlaege}

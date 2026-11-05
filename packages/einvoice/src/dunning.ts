@@ -12,7 +12,8 @@ export interface DunningDocument extends Letterhead {
   dueDate: string;
   seller: Seller;
   buyer: Buyer;
-  invoice: { number: string; issueDate: string; dueDate: string };
+  /** skontoExpired: Die Rechnung bot Skonto an; nach Fristablauf weist die Mahnung darauf hin, dass es entfallen ist */
+  invoice: { number: string; issueDate: string; dueDate: string; skontoExpired?: boolean };
   amounts: DunningAmounts;
   intro: string;
   closing: string;
@@ -63,7 +64,10 @@ export function dunningPdfData(doc: DunningDocument) {
     ],
     rows,
     total: { label: "Zu zahlen", value: formatEuro(amounts.total) },
-    payment: `Bitte überweisen Sie ${formatEuro(amounts.total)} bis zum ${formatDate(doc.dueDate)}${account} unter Angabe der Rechnungsnummer ${doc.invoice.number}.`,
+    payment: [
+      `Bitte überweisen Sie ${formatEuro(amounts.total)} bis zum ${formatDate(doc.dueDate)}${account} unter Angabe der Rechnungsnummer ${doc.invoice.number}.`,
+      ...(doc.invoice.skontoExpired ? ["Das Skonto aus der Rechnung ist mit Ablauf der Skontofrist entfallen."] : []),
+    ].join(" "),
     qr: seller.iban
       ? girocodeSvg({
           name: accountHolder(seller),

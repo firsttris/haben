@@ -834,9 +834,15 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
       else await router.invalidate();
     });
 
+  // Zahlung in der Skontofrist um genau das Skonto gekürzt: zuordnen und den Rest gleich als gewährtes Skonto ausbuchen
+  const skontoRest = mode === "best" && best?.skonto && best.item.type === "invoice" && signedAmount === tx.open ? best.skonto : 0;
+
   function submitAllocation() {
     if (signedAmount === null || signedAmount === 0) return;
     const completes = signedAmount === tx.open;
+    if (skontoRest !== 0 && best) {
+      return runAndAdvance(() => restFn({ data: { transactionId: tx.id, target: { kind: "invoice", invoiceId: best.item.id }, rest: "skonto" } }), true);
+    }
     if (mode === "direct") {
       return runAndAdvance(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }), completes);
     }
@@ -1106,7 +1112,7 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
               disabled={busy || signedAmount === null || (mode === "other" && !selectedCandidate)}
               onClick={() => void submitAllocation()}
             >
-              {mode === "direct" ? "Buchen" : "Zuordnen"}
+              {mode === "direct" ? "Buchen" : skontoRest !== 0 ? `Zuordnen, Rest ${formatEuro(Math.abs(skontoRest))} als Skonto` : "Zuordnen"}
             </button>
             {mode !== "other" && (
               <button type="button" className="btn" onClick={() => setMode("other")} disabled={busy}>
