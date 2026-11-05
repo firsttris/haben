@@ -192,7 +192,8 @@ BEGIN
 END;
 $$;
 --> statement-breakpoint
-CREATE TRIGGER payslips_check BEFORE INSERT ON payslips
+-- Auch beim Ändern eines Entwurfs: sonst ließe er sich in einen Monat mit aktiver Abrechnung schieben
+CREATE TRIGGER payslips_check BEFORE INSERT OR UPDATE OF employee_id, year, month, replaces_id ON payslips
   FOR EACH ROW EXECUTE FUNCTION haben_check_payslip();
 --> statement-breakpoint
 CREATE TRIGGER payslips_locked BEFORE UPDATE OR DELETE ON payslips
