@@ -560,7 +560,13 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
       lines,
       rate,
     );
-    const [updated] = await tx.update(schema.invoices).set(values).where(eq(schema.invoices.id, id)).returning();
+    // Abschlag zu einer Zeile des Zahlungsplans: nur solange es ein Abschlag zu diesem Angebot bleibt
+    const keepsPlanRow = values.variant === "abschlag" && values.quoteId === draft.quoteId;
+    const [updated] = await tx
+      .update(schema.invoices)
+      .set({ ...values, ...(keepsPlanRow ? {} : { paymentPlanRow: null }) })
+      .where(eq(schema.invoices.id, id))
+      .returning();
     await storeLines(tx, id, lines, calculation, taxes);
     // Bezug oder Rechnungsart geändert: das bisherige und das neue Angebot neu bewerten
     await syncQuoteBilling(tx, quoteIds);

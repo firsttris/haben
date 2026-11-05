@@ -1,3 +1,4 @@
+import type { PaymentPlanRow } from "@haben/core";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -44,7 +45,7 @@ describe.skipIf(!testDatabaseUrl)("Angebot mit Wahlpositionen und Zahlungsplan (
       { label: "Anzahlung", share: { kind: "prozent", value: 3000 }, due: "Auftragserteilung" },
       { label: "Abschlag", share: { kind: "betrag", value: 200_000 }, due: "Lieferung" },
       { label: "Schlussrechnung", share: { kind: "rest" }, due: "Abnahme" },
-    ],
+    ] as PaymentPlanRow[],
     paymentPlanInConfirmation: true,
     ...overrides,
   });

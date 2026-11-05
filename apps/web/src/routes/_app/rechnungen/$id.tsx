@@ -1,5 +1,6 @@
 import {
   describeExchangeRate,
+  discountFromColumns,
   DUNNING_LEVELS,
   formatEuro,
   formatExchangeRate,
@@ -74,6 +75,7 @@ function InvoicePage() {
             ]),
           ],
           quoteId: invoice.quoteId,
+          discount: discountFromColumns(invoice.discountPercent, invoice.discountAmount),
           // Abzüge erzeugt Haben beim Speichern; im Editor stehen nur die eigenen Positionen
           lines: data.lines
             .filter((line) => !line.deductionOf)
@@ -84,6 +86,7 @@ function InvoicePage() {
               unit: line.unit as UnitLabel,
               unitPrice: line.unitPrice,
               taxRate: line.taxRate as 1900 | 700 | 0,
+              discount: discountFromColumns(line.discountPercent, line.discountAmount),
             })),
         }}
         contacts={data.contacts}

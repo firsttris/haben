@@ -1,13 +1,24 @@
 import {
-  computeInvoiceTotals,
+  computeInvoice,
   convertPrice,
   CURRENCY_CODE,
+  discountedLineAmount,
+  discountInput,
+  documentDiscountProblem,
+  lineDiscountProblem,
+  orderRateAmounts,
+  parseDiscount,
+  planSchedule,
+  quoteLineKindProblem,
+  type Discount,
+  type PaymentPlanRow,
+  type PlanTemplate,
+  type QuoteLineKind,
   formatDecimal,
   formatEuro,
   formatDocumentNumber,
   formatQuantity,
   invoiceDueDate,
-  lineAmount,
   LINE_DETAIL_MAX,
   parseEuro,
   parseExchangeRate,
@@ -37,6 +48,8 @@ import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
+import { LineExtras } from "./LineExtras.tsx";
+import { parsePlanRows, PaymentPlanFields, toPlanRows } from "./PaymentPlanFields.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 
@@ -101,14 +114,29 @@ interface LineState {
   unit: UnitLabel;
   unitPrice: string;
   taxRate: 1900 | 700 | 0;
+  /** Positionsrabatt wie eingegeben, „10 %“ oder „50,00“ */
+  discount: string;
+  /** Nur im Angebot: optional oder Alternative zur Hauptposition davor */
+  kind: QuoteLineKind | null;
 }
+
+/** Position im Entwurf; im Angebot zusätzlich die Art */
+type EditorLine = DraftInput["lines"][number] & { kind?: QuoteLineKind | null };
+
+/** Werte beim Öffnen; beim Angebot zusätzlich Gültigkeit und Zahlungsplan */
+export type EditorInitial = Omit<DraftInput, "lines"> & {
+  lines: EditorLine[];
+  validUntil?: string;
+  paymentPlan?: PaymentPlanRow[];
+  paymentPlanInConfirmation?: boolean;
+};
 
 let nextKey = 1;
 
 /** Bezeichnungen vergleichen, ohne dass Zeilenumbrüche und doppelte Leerzeichen zählen */
 const sameText = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
 
-function toLineState(line: DraftInput["lines"][number]): LineState {
+function toLineState(line: EditorLine): LineState {
   return {
     key: nextKey++,
     description: line.description,
@@ -117,20 +145,45 @@ function toLineState(line: DraftInput["lines"][number]): LineState {
     unit: line.unit,
     unitPrice: line.unitPrice === 0 ? "" : formatDecimal(line.unitPrice),
     taxRate: line.taxRate,
+    discount: discountInput(line.discount),
+    kind: line.kind ?? null,
   };
 }
 
-function parseLine(line: LineState): InvoiceLineInput & { detail: string; valid: boolean } {
+/** Leere Zeile mit Einheit und Satz der letzten */
+const emptyLine = (unit: UnitLabel, taxRate: 1900 | 700 | 0): LineState => ({
+  key: nextKey++,
+  description: "",
+  detail: "",
+  quantity: "1",
+  unit,
+  unitPrice: "",
+  taxRate,
+  discount: "",
+  kind: null,
+});
+
+type ParsedLine = InvoiceLineInput & { detail: string; discount: Discount | null; kind: QuoteLineKind | null; valid: boolean; discountError: boolean };
+
+function parseLine(line: LineState): ParsedLine {
   const quantity = parseQuantity(line.quantity);
   const unitPrice = parseEuro(line.unitPrice);
-  return {
+  const discount = parseDiscount(line.discount);
+  const parsed = {
     description: line.description.trim(),
     detail: line.detail.trim(),
     quantity: quantity ?? 0,
     unit: line.unit,
     unitPrice: unitPrice ?? 0,
     taxRate: line.taxRate,
-    valid: quantity !== null && quantity > 0 && unitPrice !== null && line.description.trim() !== "",
+    discount: discount === "ungültig" ? null : discount,
+    kind: line.kind,
+  };
+  const discountError = discount === "ungültig" || lineDiscountProblem(parsed) !== null;
+  return {
+    ...parsed,
+    discountError,
+    valid: quantity !== null && quantity > 0 && unitPrice !== null && line.description.trim() !== "" && !discountError,
   };
 }
 
@@ -156,11 +209,12 @@ export function InvoiceEditor({
   rateInfo = null,
   companySkonto = [],
   attachments = null,
+  planTemplates = [],
 }: {
   id: string | null;
   kind: keyof typeof KIND_TITLE;
-  /** Beim Angebot zusätzlich die Gültigkeit; Zahlungsziel und Format spielen dort keine Rolle */
-  initial: DraftInput & { validUntil?: string };
+  /** Beim Angebot zusätzlich Gültigkeit und Zahlungsplan; Zahlungsziel und Format spielen dort keine Rolle */
+  initial: EditorInitial;
   contacts: ContactOption[];
   seller: PreviewSeller;
   sellerIssues: string[];
@@ -191,6 +245,8 @@ export function InvoiceEditor({
   companySkonto?: SkontoStufe[];
   /** Abschnitt für zusätzliche Anhänge (#272); nur bei einem gespeicherten Rechnungsentwurf */
   attachments?: ReactNode;
+  /** Vorlagen für den Zahlungsplan im Angebot, aus den Einstellungen */
+  planTemplates?: PlanTemplate[];
 }) {
   const router = useRouter();
   const navigate = useNavigate();
@@ -226,6 +282,9 @@ export function InvoiceEditor({
   const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(initial.skonto ?? []));
+  const [discountText, setDiscountText] = useState(() => discountInput(initial.discount));
+  const [planRows, setPlanRows] = useState(() => toPlanRows(initial.paymentPlan ?? []));
+  const [planInConfirmation, setPlanInConfirmation] = useState(initial.paymentPlanInConfirmation ?? false);
   const [dirty, setDirty] = useState(id === null);
   /** Fehler einer Position erst zeigen, wenn sie verlassen oder gespeichert wurde, nicht schon beim Öffnen */
   const [touched, setTouched] = useState<Set<number>>(() => new Set());
@@ -263,6 +322,7 @@ export function InvoiceEditor({
         unitPrice: -(grossPrices ? r.base + r.tax : r.base),
         taxRate: r.rate as 1900 | 700 | 0,
         valid: true,
+        deductionOf: a.id,
       })),
   );
   const title = invoiceTitle(kind, variant);
@@ -276,14 +336,26 @@ export function InvoiceEditor({
   const skontoAllowed = kind === "rechnung" && !foreign;
   const skonto = parseSkontoRows(skontoAllowed ? skontoRows : []);
   const skontoIssue = !skonto.valid ? "Je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben." : termValid ? skontoProblem(skonto.stufen, term) : null;
-  const previewGross = computeInvoiceTotals(
-    [...parsed, ...deductionPreview].filter((l) => l.valid),
-    grossPrices ? "brutto" : "netto",
-  ).gross;
+  const parsedDiscount = parseDiscount(discountText);
+  const discount = parsedDiscount === "ungültig" ? null : parsedDiscount;
+  // Optionale und alternative Positionen zählen nicht zur Summe, auch nicht für den Gesamtrabatt und den Zahlungsplan
+  const counted = [...parsed.filter((l) => !quote || l.kind === null), ...deductionPreview].filter((l) => l.valid);
+  const discountIssue =
+    parsedDiscount === "ungültig" ? "Rabatt als Prozent (z. B. 5 %) oder Betrag (z. B. 100,00)" : documentDiscountProblem(counted, discount);
+  const previewTotals = computeInvoice(counted, grossPrices ? "brutto" : "netto", discountIssue ? null : discount).totals;
+  const previewGross = previewTotals.gross;
+  const kindIssue = quote ? quoteLineKindProblem(parsed.map((l, i) => ({ position: i + 1, kind: l.kind }))) : null;
+  const plan = parsePlanRows(quote ? planRows : []);
+  const planAmounts = orderRateAmounts(previewTotals, grossPrices ? "brutto" : "netto");
+  const planPreview = plan.valid && plan.rows.length > 0 ? planSchedule(plan.rows, planAmounts, grossPrices ? "brutto" : "netto") : [];
+  const planIssue = !plan.valid || (plan.rows.length > 0 && planPreview.some((r) => r.rates.some((x) => x.amount < 0)));
   const allValid =
     parsed.every((l) => l.valid) &&
     (quote ? validUntilOk : termValid) &&
     skontoIssue === null &&
+    discountIssue === null &&
+    kindIssue === null &&
+    !planIssue &&
     Boolean(issueDate) &&
     (taxTreatment !== "steuerfrei" || exemptionReason.trim() !== "");
 
@@ -328,7 +400,7 @@ export function InvoiceEditor({
   }
 
   /** Position als Artikel in den Katalog übernehmen; die Position selbst bleibt unverändert */
-  function storeAsArticle(p: ReturnType<typeof parseLine>) {
+  function storeAsArticle(p: ParsedLine) {
     void run(async () => {
       await storeArticle({
         data: {
@@ -345,13 +417,10 @@ export function InvoiceEditor({
     const article = articles.find((a) => a.id === articleId);
     if (!article) return;
     const line: LineState = {
-      key: nextKey++,
+      ...emptyLine(article.unit as UnitLabel, special ? 0 : (article.taxRate as 1900 | 700 | 0)),
       description: article.description,
       detail: article.detail,
-      quantity: "1",
-      unit: article.unit as UnitLabel,
       unitPrice: articlePrice(article),
-      taxRate: special ? 0 : (article.taxRate as 1900 | 700 | 0),
     };
     setLines((prev) => (prev.length === 1 && !prev[0]!.description.trim() && !prev[0]!.unitPrice.trim() ? [line] : [...prev, line]));
     setDirty(true);
@@ -416,7 +485,8 @@ export function InvoiceEditor({
       currency: currencyCode,
       exchangeRate: foreign && exchangeRate.trim() ? exchangeRate : null,
       exchangeRateDate: foreign && exchangeRate.trim() && exchangeRateDate ? exchangeRateDate : null,
-      lines: parsed.filter((l) => l.valid).map(({ valid: _valid, ...line }) => line),
+      discount,
+      lines: parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, kind: _kind, ...line }) => line),
     };
   }
 
@@ -431,7 +501,15 @@ export function InvoiceEditor({
       quoteId: _quote,
       ...common
     } = draft();
-    const result = quote ? await saveQuote({ data: { id, draft: { ...common, validUntil } } }) : await save({ data: { id, draft: draft() } });
+    const quoteLines = parsed.filter((l) => l.valid).map(({ valid: _valid, discountError: _error, ...line }) => line);
+    const result = quote
+      ? await saveQuote({
+          data: {
+            id,
+            draft: { ...common, lines: quoteLines, validUntil, paymentPlan: plan.rows, paymentPlanInConfirmation: plan.rows.length > 0 && planInConfirmation },
+          },
+        })
+      : await save({ data: { id, draft: draft() } });
     setDirty(false);
     return result.id;
   }
@@ -926,7 +1004,7 @@ export function InvoiceEditor({
                   </select>
                   <div className="num line-net">
                     <span className="line-net-label">{amountLabel} </span>
-                    {p.valid ? formatEuro(lineAmount(p.quantity, p.unitPrice)) : "–"}
+                    {p.valid ? formatEuro(discountedLineAmount(p)) : "–"}
                   </div>
                   <div className="line-actions">
                     <button
@@ -975,27 +1053,30 @@ export function InvoiceEditor({
                       </svg>
                     </button>
                   </div>
+                  <LineExtras
+                    index={index}
+                    discount={line.discount}
+                    discountError={showError(line.key) && p.discountError}
+                    onDiscount={(value) => updateLine(line.key, { discount: value })}
+                    onBlur={() => markTouched(line.key)}
+                    kind={quote ? line.kind : undefined}
+                    onKind={(value) => updateLine(line.key, { kind: value })}
+                  />
                 </div>
               );
             })}
+            {kindIssue && (
+              <p className="field-error" role="alert" style={{ margin: 0 }}>
+                {kindIssue}.
+              </p>
+            )}
             <div className="actions">
               <button
                 type="button"
                 className="btn btn-dashed"
                 onClick={() => {
                   const last = lines[lines.length - 1];
-                  setLines((prev) => [
-                    ...prev,
-                    {
-                      key: nextKey++,
-                      description: "",
-                      detail: "",
-                      quantity: "1",
-                      unit: last?.unit ?? "Std.",
-                      unitPrice: "",
-                      taxRate: special ? 0 : (last?.taxRate ?? 1900),
-                    },
-                  ]);
+                  setLines((prev) => [...prev, emptyLine(last?.unit ?? "Std.", special ? 0 : (last?.taxRate ?? 1900))]);
                   setDirty(true);
                 }}
               >
@@ -1022,6 +1103,21 @@ export function InvoiceEditor({
                 </select>
               )}
             </div>
+            <label className="field">
+              Gesamtrabatt (optional)
+              <input
+                className="mono"
+                value={discountText}
+                placeholder="z. B. 5 % oder 100,00"
+                onChange={(e) => touch(setDiscountText)(e.target.value)}
+                aria-invalid={discountIssue !== null}
+                aria-describedby="discount-hint"
+              />
+              <span id="discount-hint" className={discountIssue ? "field-error" : "small"}>
+                {discountIssue ??
+                  `Auf die Summe der Positionen nach ihren Rabatten, je Steuersatz anteilig; ein Betrag gilt ${grossPrices ? "brutto" : "netto"}. Skonto bleibt davon getrennt.`}
+              </span>
+            </label>
             <TextBlockField
               label={quote ? "Hinweis auf dem Angebot (optional)" : "Hinweis auf der Rechnung (optional)"}
               kind="fuss"
@@ -1031,6 +1127,31 @@ export function InvoiceEditor({
               contactId={contactId || null}
             />
           </section>
+
+          {quote && (
+            <section className="card" aria-labelledby="plan-heading">
+              <h2 id="plan-heading">Zahlungsplan</h2>
+              <p className="small muted" style={{ margin: 0 }}>
+                Optional: in welchen Teilen der Auftrag abgerechnet wird, etwa 30 % bei Auftragserteilung, 40 % bei Lieferung und der Rest mit der
+                Schlussrechnung. Der Plan steht im Angebots-PDF; aus jeder Zeile entsteht später mit einem Klick die Abschlagsrechnung.
+              </p>
+              <PaymentPlanFields
+                id="quote-plan"
+                rows={planRows}
+                onChange={touch(setPlanRows)}
+                templates={planTemplates}
+                amounts={planAmounts}
+                priceMode={grossPrices ? "brutto" : "netto"}
+                taxed={!special}
+              />
+              {planRows.length > 0 && (
+                <label className="checkbox">
+                  <input type="checkbox" checked={planInConfirmation} onChange={(e) => touch(setPlanInConfirmation)(e.target.checked)} />
+                  <span>Zahlungsplan auch in der Auftragsbestätigung</span>
+                </label>
+              )}
+            </section>
+          )}
 
           {attachments}
 
@@ -1066,7 +1187,9 @@ export function InvoiceEditor({
             serviceTo={serviceTo || null}
             seller={seller}
             buyer={contact}
-            lines={[...parsed, ...deductionPreview]}
+            lines={[...parsed.map((l) => ({ ...l, kind: quote ? l.kind : null })), ...deductionPreview]}
+            discount={discountIssue ? null : discount}
+            plan={planIssue ? [] : planPreview}
             intro={intro}
             note={note}
             priceMode={grossPrices ? "brutto" : "netto"}
