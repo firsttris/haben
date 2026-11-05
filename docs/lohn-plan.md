@@ -1,6 +1,6 @@
 # Lohn in Haben – Recherche und Umsetzungsplan
 
-Stand: 5. November 2026. PR 1 bis 4 und PR 6 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
+Stand: 5. November 2026. PR 1 bis 6 sind umgesetzt, der Rest ist Plan. Ein Teil der Angaben stützt sich auf Sekundärquellen; sie sind mit „prüfen“ markiert und vor der Umsetzung am Original zu bestätigen.
 
 ## Kurzfazit
 
@@ -92,6 +92,18 @@ Stand: 5. November 2026. PR 1 bis 4 und PR 6 sind umgesetzt, der Rest ist Plan. 
 - **Tests:** SKR03 und SKR04, Ist und Soll, GmbH und Einzelunternehmen.
 
 ### PR 5 – Lohnsteuer-Anmeldung über ERiC
+
+**Erledigt:** `lohnsteuer-anmeldung.ts` in `packages/core` (Zeitraum, Frist, Vorschlag nach § 41a Abs. 2 EStG, Kennzahlen), `lsta.ts` in `packages/elster` (XML 2026 und 2027, Ausfüllliste), Modul `lohn` (`anmeldung.ts`) mit den Tabellen `lsta_turnus` und `lsta_submissions`, Seite **Personal › Lohn › Lohnsteuer-Anmeldung** ([Lohn](lohn.md#lohnsteuer-anmeldung)). Abweichungen und Entscheidungen:
+
+- **Zuordnung nach Zahltag**, nicht nach Abrechnungsmonat: Angemeldet wird die im Zeitraum einbehaltene Lohnsteuer (§ 41a Abs. 1 Satz 1 EStG, Einbehalt bei Zahlung nach § 38 Abs. 3 EStG); das Jahr des Bezugs (§ 38a Abs. 1 Satz 2 EStG) entscheidet über die Spalten Vorjahr, laufendes Jahr und Folgejahr. Wo das Schema eine Spalte nicht zulässt (Regeln `LStA_Vorjahrangabe_unzulaessig`, `LStA_Folgejahrangabe_unzulaessig`, von ERiC bestätigt), ist der Fall nicht unterstützt.
+- **Minijob:** Die Pauschsteuer von 2 % geht nicht in die Anmeldung (§ 40a Abs. 6 EStG), der Minijobber zählt aber in Kz 86 (Vordruck: einschließlich der an die Knappschaft-Bahn-See gemeldeten geringfügig Beschäftigten). Auch ein Zeitraum nur mit Minijobbern steht in den Fristen; vorsichtshalber, eine Nullanmeldung schadet nicht, eine versäumte kostet einen Verspätungszuschlag.
+- **Kirchensteuer:** ev, lt und rf auf Kz 61, rk auf Kz 62, ak auf Kz 63; Kz 63 lehnt Haben in den Ländern ab, deren Regel sie verbietet (HB, MV, SN, ST, TH). Andere Kennzahlen (64 bis 78, 41, 44, 45, 47, 33) füllt Haben nicht.
+- **Anmeldungszeitraum:** Vorschlag aus der Lohnsteuer des Vorjahres in Haben; Eröffnung der Betriebsstätte ist die erste Buchung ohne Eröffnungsbuchung, umgerechnet über die vollen Monate. Der Nutzer kann ihn je Jahr festlegen (das Finanzamt bestimmt ihn); ein Wechsel gegen eine gesendete Anmeldung wird abgelehnt.
+- **Berichtigung:** immer mit allen Werten (Kz 10); nötig, sobald die zuletzt gesendeten Kennzahlen von den Abrechnungen abweichen, etwa nach einem Storno. Echt senden erst nach Ablauf des Zeitraums.
+- **Jahre:** 2026 und 2027 (neuer Aufbau mit `Allgemein` und `LStSoliKi`, Kz 09 nur fünfstellig). LStA_2027 fehlt in ERiC 43 und 44; Haben lehnt den Versand dann ab, statt ERiC scheitern zu lassen.
+- **Ohne Hersteller-ID:** Ausfüllliste auf der Seite statt der Erweiterung „Haben für Mein ELSTER“; deren Feldnamen im Formular Lohnsteuer-Anmeldung sind nicht belegt.
+- **Bank:** Vorschlag „Lohnsteuer an das Finanzamt“ für eine Lastschrift des Finanzamts über genau Kz 83 einer übermittelten Anmeldung.
+- **Steuernummer:** die aus den Firmendaten; eine eigene Steuernummer der Betriebsstätte für die Lohnsteuer kennt Haben nicht.
 
 - **Umfang:** `packages/elster/src/lsta.ts` nach dem Muster von `kapesta.ts` und `elsterXml` (Verfahren ElsterAnmeldung, Datenart LStA). Kennzahlen und Reihenfolge aus Schema und Jahresdokumentation LStA_2026 im ERiC-Paket. Anmeldezeitraum nach § 41a EStG (monatlich, vierteljährlich, jährlich nach der Vorjahressteuer). Frist am 10. in `fristen.ts`. Berichtigte Anmeldung.
 - **Ohne Hersteller-ID:** Ausfüllliste für Mein ELSTER, wie bei den anderen Formularen.

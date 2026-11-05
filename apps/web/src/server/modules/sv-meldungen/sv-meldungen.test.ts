@@ -125,7 +125,12 @@ describe.skipIf(!testDatabaseUrl)("SV-Meldeportal (Postgres)", () => {
     await oktoberFestgeschrieben();
     const id = await sv.vermerken(actor, { gegenstand: tk, datum: "2026-10-24", notiz: "Ticket 123" }, heute, { bytes: PDF, filename: "../protokoll.pdf" });
     const [v] = await sql`select titel, art, datum::text, protokoll_dateiname, protokoll_sha256, werte from sv_portal_filings where id = ${id}`;
-    expect(v).toMatchObject({ titel: "Beitragsnachweis Oktober 2026 · Techniker Krankenkasse", art: "beitragsnachweis", datum: "2026-10-24", protokoll_dateiname: "protokoll.pdf" });
+    expect(v).toMatchObject({
+      titel: "Beitragsnachweis Oktober 2026 · Techniker Krankenkasse",
+      art: "beitragsnachweis",
+      datum: "2026-10-24",
+      protokoll_dateiname: "protokoll.pdf",
+    });
     expect((v!.werte as { name: string }[]).some((w) => w.name === "Gesamtsumme")).toBe(true);
     const liste = await sv.ausfuellliste(2026, 10, heute);
     expect(liste.beitragsnachweise.find((b) => b.gegenstand === tk)!.stand).toMatchObject({ abgegeben: true, geaendert: false });
@@ -169,7 +174,11 @@ describe.skipIf(!testDatabaseUrl)("SV-Meldeportal (Postgres)", () => {
     const liste = await fristen.listFristen(heute);
     const sv_ = liste.filter((f) => f.art === "sv");
     // Oktober 2026: fünftletzter Bankarbeitstag Montag, 26.; übermitteln bis Sonntag, 25.
-    expect(sv_.find((f) => f.id === "svbn-2026-10-15027365")).toMatchObject({ datum: "2026-10-25", status: "erledigt", link: "/sv-meldeportal?jahr=2026&monat=10" });
+    expect(sv_.find((f) => f.id === "svbn-2026-10-15027365")).toMatchObject({
+      datum: "2026-10-25",
+      status: "erledigt",
+      link: "/sv-meldeportal?jahr=2026&monat=10",
+    });
     expect(sv_.find((f) => f.id === "svbn-2026-10-98000006")).toMatchObject({ datum: "2026-10-25", status: "offen" });
     expect(sv_.find((f) => f.titel === "Anmeldung Mia Aushilfe (Beginn 01.10.2026)")).toMatchObject({ datum: "2026-10-28", status: "offen" });
     // Jahresmeldung 2026 mit Frist am 15. Februar, keine Frist für die Sofortmeldung

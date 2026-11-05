@@ -577,8 +577,9 @@ test("Restlaufzeiten und Vermerke: Gesellschafter-Verrechnungskonto, vorschlagen
  * Programmablaufplan des Jahres ab: BMF-Steuerrechner, 6.000 € in Klasse I ohne Renten- und Arbeitslosenversicherung,
  * KVZ 2,9 %, kinderlos, evangelisch.
  */
-const LOHN_BMF: Record<number, { lohnsteuer: string; kirchensteuer: string; auszahlung: string }> = {
-  2026: { lohnsteuer: "1.289,33", kirchensteuer: "116,03", auszahlung: "4.594,64" },
+const LOHN_BMF: Record<number, { lohnsteuer: string; kirchensteuer: string; auszahlung: string; gesamt: string }> = {
+  // gesamt: Kz 83 der Lohnsteuer-Anmeldung, Lohnsteuer und Kirchensteuer (kein Soli unter der Freigrenze)
+  2026: { lohnsteuer: "1.289,33", kirchensteuer: "116,03", auszahlung: "4.594,64", gesamt: "1.405,36" },
 };
 const lohnHeute = new Date();
 const lohnJahr = lohnHeute.getFullYear();
@@ -653,6 +654,32 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   expect(csv).toContain(`28.${mm}.${lohnJahr};${mm}/${lohnJahr};Abrechnung;StKl I, Kfb 0, ev;6000,00;6000,00;0,00;0,00;${bmf!.lohnsteuer.replace(".", "")}`);
   const konto = await page.request.get(`/api/lohn/lohnkonto/${id}/${lohnJahr}/pdf`);
   expect((await konto.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+  // Lohnsteuer-Anmeldung des Monats: Kennzahlen aus der festgeschriebenen Abrechnung, Ausfüllliste ohne Hersteller-ID, prüfen
+  await go(lohnSeite);
+  await page.getByRole("link", { name: "Lohnsteuer-Anmeldung" }).click();
+  await page.waitForURL(/\/lohn\/anmeldung\/\d{4}(-(\d{2}|Q[1-4]))?$/);
+  await go(`/lohn/anmeldung/${lohnJahr}-${mm}`);
+  const turnus = page.getByRole("region", { name: `Anmeldungszeitraum ${lohnJahr}` });
+  await turnus.getByLabel(`Anmeldungszeitraum ${lohnJahr}`).selectOption("monatlich");
+  await turnus.getByRole("button", { name: "Speichern" }).click();
+  await expect(turnus.getByText("Anmeldungszeitraum gespeichert.")).toBeVisible();
+  await expect(turnus.getByText("monatlich (festgelegt)")).toBeVisible();
+  const kennzahlen = page.getByRole("table", { name: `Kennzahlen ${lohnMonatsname} ${lohnJahr}` });
+  await expect(kennzahlen.getByRole("row", { name: /Summe der einzubehaltenden Lohnsteuer/ })).toContainText(bmf!.lohnsteuer);
+  await expect(kennzahlen.getByRole("row", { name: /Evangelische Kirchensteuer/ })).toContainText(bmf!.kirchensteuer);
+  await expect(kennzahlen.getByRole("row", { name: /Gesamtbetrag/ })).toContainText(bmf!.gesamt);
+  await expect(kennzahlen.getByRole("row", { name: /Zahl der Arbeitnehmer/ })).toContainText("1");
+  await expect(page.getByText(/Der Zeitraum endet erst am/)).toBeVisible();
+  const liste = page.getByRole("table", { name: "Ausfüllliste für Mein ELSTER" });
+  await expect(liste.getByRole("row", { name: /laufendes Jahr \(Kz 42\)/ })).toContainText(bmf!.lohnsteuer.replace(".", ""));
+  await page.getByRole("button", { name: "Nur prüfen" }).click();
+  await expect(page.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Verlauf" })).toContainText("Prüfung OK");
+  expect(await axe(), "/lohn/anmeldung").toEqual([]);
+  await go("/fristen");
+  for (const alle of await page.getByRole("button", { name: /^Alle \d+ zeigen$/ }).all()) await alle.click();
+  await expect(page.getByText(`Lohnsteuer-Anmeldung ${lohnMonatsname} ${lohnJahr}`, { exact: true }).first()).toBeVisible();
 
   // Buchung am Monatsende (SKR04): Geschäftsführergehalt an Verbindlichkeiten aus Lohn und Gehalt bzw. Lohn- und Kirchensteuer
   await go(buchungenSeite);
@@ -750,7 +777,10 @@ test("SV-Meldeportal: Minijob abrechnen, Beitragsnachweis und Anmeldung abtippen
   await page.waitForURL(/\/lohn$/);
 
   await go(lohnSeite);
-  await page.getByRole("form", { name: `${lohnMonatsname} ${lohnJahr} abrechnen` }).getByRole("button", { name: "Monat abrechnen" }).click();
+  await page
+    .getByRole("form", { name: `${lohnMonatsname} ${lohnJahr} abrechnen` })
+    .getByRole("button", { name: "Monat abrechnen" })
+    .click();
   await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
   const abrechnung = page.getByRole("region", { name: "Mia Aushilfe" }).getByRole("region", { name: /^1\. Abrechnung Stufe B/ });
   await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
