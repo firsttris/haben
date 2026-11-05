@@ -162,6 +162,8 @@ Aufbewahren musst du das Lohnkonto bis zum Ablauf des sechsten Kalenderjahres na
 
 Meldungen und Beitragsnachweise an die Sozialversicherung gehen nur aus systemgeprüften Programmen oder Ausfüllhilfen wie dem [SV-Meldeportal](https://info.sv-meldeportal.de/) der ITSG (§ 95b SGB IV). Haben ist keines davon und übermittelt nichts. Das Portal kennt keinen Datei-Import und verbietet, seine Formulare durch andere Programme zu füllen (Fragen und Antworten 9.7). **Personal › SV-Meldeportal** zeigt deshalb je Monat jedes Feld zum Abtippen, in der Reihenfolge der Formulare (Benutzerhandbuch, Kap. 4.1 und 4.2), mit Hinweisen und dem, was fehlt.
 
+Den Menüpunkt gibt es erst, wenn unter **Personal › Lohn** ein Mitarbeiter angelegt ist; ausgetretene zählen mit, weil ihre Ab- und Jahresmeldungen noch anstehen können. Vorher verweist die Seite auf Lohn.
+
 > [!TIP]
 > Mit aktiviertem Online-Speicher legst du Firma und Mitarbeiter einmal im Portal an. Der Stammdaten-Assistent übernimmt dann Name, Anschrift und Versicherungsnummer ins Formular, und du tippst je Monat nur die Beträge. Die Betriebsnummer deiner Firma nimmt das Portal aus deinen Firmen-Basisdaten; in Haben steht sie deshalb nicht.
 

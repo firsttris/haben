@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { navLinkSichtbar } from "./navigation.ts";
+import { type NavBedingung, navLinkSichtbar } from "./navigation.ts";
 
-const lohn = { to: "/lohn" };
+/** Lohn ohne Bedingung */
+const lohn: NavBedingung = {};
 const svMeldeportal = { to: "/sv-meldeportal", nurMitMitarbeitern: true } as const;
 const pauschalen = { to: "/pauschalen", nurEinzelunternehmen: true } as const;
 const ausschuettungen = { to: "/ausschuettungen", nurKapitalgesellschaft: true } as const;

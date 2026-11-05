@@ -141,8 +141,30 @@ function OffenAnderswo({ data }: { data: Data }) {
   );
 }
 
+/** Ohne Mitarbeiter fehlt der Menüpunkt; wer die Seite trotzdem aufruft, bekommt den Weg zu Lohn */
+function OhneMitarbeiter() {
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <div className="eyebrow">Personal</div>
+          <h1>SV-Meldeportal</h1>
+        </div>
+      </div>
+      <div className="banner banner-info" role="note">
+        <p style={{ margin: 0 }}>
+          Noch kein Mitarbeiter angelegt. Beitragsnachweise und Meldungen entstehen aus den Abrechnungen; lege den ersten Mitarbeiter unter{" "}
+          <Link to="/lohn">Lohn</Link> an.
+        </p>
+      </div>
+    </>
+  );
+}
+
 function SvMeldeportalPage() {
+  const { hatMitarbeiter } = Route.useRouteContext();
   const data = Route.useLoaderData();
+  if (!hatMitarbeiter) return <OhneMitarbeiter />;
   return (
     <>
       <div className="page-head">

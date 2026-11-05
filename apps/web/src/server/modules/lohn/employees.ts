@@ -108,6 +108,12 @@ export async function listEmployees(q: Db | Tx = db): Promise<Employee[]> {
   return q.select().from(schema.employees).orderBy(asc(schema.employees.personalnummer));
 }
 
+/** Ob je ein Mitarbeiter angelegt wurde, auch ein ausgetretener (Menüpunkt SV-Meldeportal) */
+export async function hasEmployees(q: Db | Tx = db): Promise<boolean> {
+  const [row] = await q.select({ id: schema.employees.id }).from(schema.employees).limit(1);
+  return row !== undefined;
+}
+
 export async function getEmployee(id: string, q: Db | Tx = db): Promise<Employee | null> {
   const [row] = await q.select().from(schema.employees).where(eq(schema.employees.id, id));
   return row ?? null;
