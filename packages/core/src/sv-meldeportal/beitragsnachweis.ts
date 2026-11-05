@@ -1,4 +1,4 @@
-import { monatsgrenzen, monatsname } from "../lohnabrechnung/index.ts";
+import { monatsgrenzen } from "../lohnabrechnung/index.ts";
 import type { Cents } from "../money.ts";
 import type { SvAnteile } from "../sozialversicherung/index.ts";
 import { type Beitragstermine, beitragstermine } from "./termine.ts";
@@ -226,7 +226,7 @@ export function beitragsnachweis(e: BeitragsnachweisEingabe): Beitragsnachweis {
     einzugsstelle: e.einzugsstelle,
     formular: minijob ? "Beitragsnachweis › Beitragsnachweis geringfügig Beschäftigte" : "Beitragsnachweis › Beitragsnachweis (Allgemein, Knappschaft, See)",
     abschnitte: [
-      { titel: `Kopf: ${monatsname(e.jahr, e.monat)}`, felder: kopf },
+      { titel: "Kopf", felder: kopf },
       { titel: "Beiträge und Umlagen", felder: beitraege },
       { titel: "Summe", felder: [{ name: "Gesamtsumme", wert: betragText(gesamt) }] },
     ],

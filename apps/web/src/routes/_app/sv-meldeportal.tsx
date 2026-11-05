@@ -154,12 +154,14 @@ function SvMeldeportalPage() {
       </div>
       <div className="stack" style={{ gap: 24 }}>
         <div className="banner banner-danger" role="note">
-          <strong>Haben übermittelt nicht an die Sozialversicherung.</strong> Beitragsnachweise und Meldungen gibst du selbst im{" "}
-          <a href="https://info.sv-meldeportal.de/" target="_blank" rel="noreferrer">
-            SV-Meldeportal
-          </a>{" "}
-          ab, Minijobs an die Minijob-Zentrale ebenfalls dort. Das Portal kennt keinen Import und verbietet automatisches Befüllen; deshalb steht hier jedes
-          Feld zum Abtippen, in der Reihenfolge des Formulars. Danach vermerkst du die Abgabe mit Datum und hängst das Protokoll an.
+          <p style={{ margin: 0 }}>
+            <strong>Haben übermittelt nicht an die Sozialversicherung.</strong> Beitragsnachweise und Meldungen gibst du selbst im{" "}
+            <a href="https://info.sv-meldeportal.de/" target="_blank" rel="noreferrer">
+              SV-Meldeportal
+            </a>{" "}
+            ab, Minijobs an die Minijob-Zentrale ebenfalls dort. Das Portal kennt keinen Import und verbietet automatisches Befüllen; deshalb steht hier jedes
+            Feld zum Abtippen, in der Reihenfolge des Formulars. Danach vermerkst du die Abgabe mit Datum und hängst das Protokoll an.
+          </p>
         </div>
         <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
           Tipp: Mit aktiviertem Online-Speicher legst du Firma und Mitarbeiter einmal im Portal an; der Stammdaten-Assistent füllt dann Name, Anschrift und
