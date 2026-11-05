@@ -99,6 +99,12 @@ export function legacyNeutralSums(vouchers: readonly { kind: LegacyNeutralKind; 
  */
 const LEXWARE_VAT_NUMBER = /^ustva\b/i;
 
+/**
+ * Steuerliche Nebenleistungen zur Umsatzsteuer (§ 3 Abs. 4 AO): Säumnis- und Verspätungszuschläge, Zinsen, Kosten. Sie sind
+ * keine Umsatzsteuer, sondern Betriebsausgaben; § 12 Nr. 3 EStG schließt nur die zu nicht abziehbaren Steuern aus.
+ */
+const SIDE_PAYMENT = /säumnis|verspätung|zuschlag|zinsen|\bzins|mahngebühr|vollstreckung|zwangsgeld/i;
+
 export interface LegacyVatPaymentInput {
   number: string;
   contactName: string;
@@ -118,6 +124,6 @@ export interface LegacyVatPaymentInput {
 export function isLegacyVatPayment(voucher: LegacyVatPaymentInput): boolean {
   if (voucher.tax !== 0) return false;
   const text = [voucher.number, ...voucher.categories].join(" ");
-  if (OTHER_TAX_PURPOSE.test(text)) return false;
+  if (OTHER_TAX_PURPOSE.test(text) || SIDE_PAYMENT.test(text)) return false;
   return LEXWARE_VAT_NUMBER.test(voucher.number) || (TAX_OFFICE.test(voucher.contactName) && VAT_PURPOSE.test(text));
 }
