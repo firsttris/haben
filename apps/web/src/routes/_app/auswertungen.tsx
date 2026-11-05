@@ -1,4 +1,4 @@
-import { MONTHS, formatEuro, type EuerLine } from "@haben/core";
+import { MONTHS, formatEuro, isKapitalgesellschaft, type EuerLine } from "@haben/core";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod/mini";
@@ -17,10 +17,15 @@ export const Route = createFileRoute("/_app/auswertungen")({
   component: ReportsPage,
 });
 
+type Data = Awaited<ReturnType<typeof getReports>>;
+
 const MONTHS_SHORT = MONTHS.map((m) => m.slice(0, 3));
 
 function ReportsPage() {
   const { euer, open, years, today, versteuerung } = Route.useLoaderData();
+  // GmbH und UG bilanzieren (§ 238 HGB): Die Zahlen nach Zahlung sind dort keine EÜR, den Gewinn zeigt der Jahresabschluss
+  const { rechtsform, user } = Route.useRouteContext();
+  const gesellschaft = isKapitalgesellschaft(rechtsform);
   const year = euer.year;
   const netIn = euer.monthly.einnahmen.reduce((s, v) => s + v, 0);
   const netOut = euer.monthly.ausgaben.reduce((s, v) => s + v, 0);
@@ -31,7 +36,7 @@ function ReportsPage() {
     <>
       <div className="page-head">
         <div>
-          <div className="eyebrow">Einnahmen-Überschuss-Rechnung · Zufluss und Abfluss</div>
+          <div className="eyebrow">{gesellschaft ? "Zufluss und Abfluss" : "Einnahmen-Überschuss-Rechnung · Zufluss und Abfluss"}</div>
           <h1>Auswertungen {year}</h1>
         </div>
         <div className="actions">
@@ -54,9 +59,11 @@ function ReportsPage() {
               {year + 1} ›
             </Link>
           </nav>
-          <a className="btn btn-primary" href={`/api/auswertungen/${year}`} download>
-            EÜR als CSV
-          </a>
+          {!gesellschaft && (
+            <a className="btn btn-primary" href={`/api/auswertungen/${year}`} download>
+              EÜR als CSV
+            </a>
+          )}
         </div>
       </div>
 
@@ -73,10 +80,16 @@ function ReportsPage() {
         </div>
         <div className="card">
           <div className="kpi-label">
-            {euer.gewinn >= 0 ? "Gewinn" : "Verlust"} {year}
+            {gesellschaft ? (euer.gewinn >= 0 ? "Überschuss nach Zahlung" : "Fehlbetrag nach Zahlung") : euer.gewinn >= 0 ? "Gewinn" : "Verlust"} {year}
           </div>
           <div className="kpi-value">{formatEuro(euer.gewinn)}</div>
-          <div className="small muted">Einnahmen minus Ausgaben laut EÜR</div>
+          <div className="small muted">
+            {gesellschaft ? (
+              <>Einnahmen minus Ausgaben; den Gewinn zeigt der {user.role === "inhaber" ? <Link to="/abschluss">Jahresabschluss</Link> : "Jahresabschluss"}</>
+            ) : (
+              "Einnahmen minus Ausgaben laut EÜR"
+            )}
+          </div>
         </div>
         <div className="card">
           <div className="kpi-label">Offene Forderungen</div>
@@ -148,34 +161,7 @@ function ReportsPage() {
         </details>
       </section>
 
-      <section className="card" aria-labelledby="euer-heading">
-        <div>
-          <h2 id="euer-heading">Einnahmen-Überschuss-Rechnung {year}</h2>
-          <p className="small muted" style={{ margin: "4px 0 0" }}>
-            Bruttomethode wie in der Anlage EÜR: vereinnahmte Umsatzsteuer ist Einnahme, gezahlte Vorsteuer und die Umsatzsteuer an das Finanzamt sind Ausgaben
-            ({versteuerung === "ist" ? "Ist" : "Soll"}-Versteuerung ändert daran nichts).
-          </p>
-        </div>
-        <ScrollTable className="report-table euer-table">
-          <caption className="visually-hidden">Einnahmen-Überschuss-Rechnung {year}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Position</th>
-              <th scope="col" className="num">
-                Betrag
-              </th>
-            </tr>
-          </thead>
-          <EuerSection title="Betriebseinnahmen" lines={euer.einnahmen} total={euer.totalEinnahmen} />
-          <EuerSection title="Betriebsausgaben" lines={euer.ausgaben} total={euer.totalAusgaben} />
-          <tbody>
-            <tr className="euer-result">
-              <th scope="row">{euer.gewinn >= 0 ? "Gewinn" : "Verlust"}</th>
-              <td className="num">{formatEuro(euer.gewinn)}</td>
-            </tr>
-          </tbody>
-        </ScrollTable>
-      </section>
+      {!gesellschaft && <EuerCard euer={euer} versteuerung={versteuerung} />}
 
       <OpenTable
         id="receivables"
@@ -208,6 +194,41 @@ function ReportsPage() {
         kind="ustva"
       />
     </>
+  );
+}
+
+/** Die EÜR des Jahres nach § 4 Abs. 3 EStG, nur im Einzelunternehmen */
+function EuerCard({ euer, versteuerung }: { euer: Data["euer"]; versteuerung: Data["versteuerung"] }) {
+  const year = euer.year;
+  return (
+    <section className="card" aria-labelledby="euer-heading">
+      <div>
+        <h2 id="euer-heading">Einnahmen-Überschuss-Rechnung {year}</h2>
+        <p className="small muted" style={{ margin: "4px 0 0" }}>
+          Bruttomethode wie in der Anlage EÜR: vereinnahmte Umsatzsteuer ist Einnahme, gezahlte Vorsteuer und die Umsatzsteuer an das Finanzamt sind Ausgaben (
+          {versteuerung === "ist" ? "Ist" : "Soll"}-Versteuerung ändert daran nichts).
+        </p>
+      </div>
+      <ScrollTable className="report-table euer-table">
+        <caption className="visually-hidden">Einnahmen-Überschuss-Rechnung {year}</caption>
+        <thead>
+          <tr>
+            <th scope="col">Position</th>
+            <th scope="col" className="num">
+              Betrag
+            </th>
+          </tr>
+        </thead>
+        <EuerSection title="Betriebseinnahmen" lines={euer.einnahmen} total={euer.totalEinnahmen} />
+        <EuerSection title="Betriebsausgaben" lines={euer.ausgaben} total={euer.totalAusgaben} />
+        <tbody>
+          <tr className="euer-result">
+            <th scope="row">{euer.gewinn >= 0 ? "Gewinn" : "Verlust"}</th>
+            <td className="num">{formatEuro(euer.gewinn)}</td>
+          </tr>
+        </tbody>
+      </ScrollTable>
+    </section>
   );
 }
 

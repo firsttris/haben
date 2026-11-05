@@ -2,6 +2,8 @@
 
 Die Seite „Auswertungen“ zeigt dir die Einnahmen-Überschuss-Rechnung (EÜR) eines Jahres, Einnahmen und Ausgaben je Monat und die offenen Posten. Unter „Einstellungen“ lädst du das Jahresarchiv als ZIP für die Aufbewahrung herunter. Als Anlage EÜR an das Finanzamt geht die EÜR unter [Jahreserklärungen](jahreserklaerung.md).
 
+Eine GmbH oder UG bilanziert (§ 238 HGB, § 8 Abs. 1 KStG) und macht keine EÜR. Bei ihr zeigt die Seite Einnahmen und Ausgaben je Monat nach Zahlung, den Überschuss nach Zahlung und die offenen Posten, aber keine EÜR-Tabelle und kein „EÜR als CSV“; den Gewinn zeigt der [Jahresabschluss](buchhaltung.md#jahresabschluss-gmbh-und-ug).
+
 <img src="screenshot-auswertungen.png" alt="Seite Auswertungen mit Kennzahlen, Säulendiagramm der Einnahmen und Ausgaben je Monat und der EÜR-Tabelle" width="900">
 
 ## Überblick

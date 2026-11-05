@@ -21,6 +21,7 @@ function nextMonthStart(today: string): string {
 
 function NewDauerbelegPage() {
   const { suppliers, categories, kleinunternehmer, today } = Route.useLoaderData();
+  const { rechtsform } = Route.useRouteContext();
   const navigate = useNavigate();
   const save = useServerFn(saveDauerbeleg);
   const { busy, notice, run } = useAction();
@@ -56,6 +57,7 @@ function NewDauerbelegPage() {
         suppliers={suppliers}
         categories={categories}
         kleinunternehmer={kleinunternehmer}
+        rechtsform={rechtsform}
         isNew
         busy={busy}
         submitLabel="Dauerbeleg anlegen"

@@ -3,7 +3,7 @@ import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Fragment, useMemo, useState } from "react";
 import { z } from "zod/mini";
-import { JOURNAL_SOURCE, shortDate, type JournalSource } from "../../../components/Ledger.tsx";
+import { JOURNAL_SOURCE, journalSourcesFor, shortDate, type JournalSource } from "../../../components/Ledger.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { getJournal, reverseManualEntryFn } from "../../../server/functions/journal.ts";
@@ -175,7 +175,7 @@ function JournalPage() {
 
       <div className="filter-row">
         <div className="chip-row" role="group" aria-label="Herkunft">
-          {(["alle", ...(Object.keys(JOURNAL_SOURCE) as JournalSource[])] as const).map((s) => (
+          {(["alle", ...journalSourcesFor(isKapitalgesellschaft(rechtsform), counts)] as const).map((s) => (
             <button key={s} type="button" className={`chip${source === s ? " active" : ""}`} aria-pressed={source === s} onClick={() => setSource(s)}>
               {s === "alle" ? `Alle (${entries.length})` : `${JOURNAL_SOURCE[s]} (${counts[s] ?? 0})`}
             </button>

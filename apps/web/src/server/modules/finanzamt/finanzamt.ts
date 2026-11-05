@@ -1,5 +1,5 @@
 import { UserError } from "../../errors.ts";
-import { toElsterSteuernummer, type Cents, type Prognose } from "@haben/core";
+import { isKapitalgesellschaft, toElsterSteuernummer, type Cents, type Prognose, type Rechtsform } from "@haben/core";
 import {
   buildBankverbindungXml,
   buildNachrichtXml,
@@ -21,6 +21,15 @@ import { PRODUKT_VERSION, SENDEN, uebermitteln } from "../elster/index.ts";
 import { createHash } from "node:crypto";
 
 export class FinanzamtError extends UserError {}
+
+/**
+ * Lehnt ab, was es nur für die Einkommensteuer einer Person gibt: Eine GmbH oder UG zahlt Körperschaftsteuer
+ * (§ 1 Abs. 1 Nr. 1 KStG), hat keine Einkommensteuer-Vorauszahlungen, keine vorausgefüllte Steuererklärung und
+ * keine Zusammenveranlagung (docs/einrichtung.md, Rechtsform).
+ */
+export function nurEinzelunternehmen(rechtsform: Rechtsform, was: string): void {
+  if (isKapitalgesellschaft(rechtsform)) throw new FinanzamtError(`${was} gibt es nur im Einzelunternehmen; eine GmbH oder UG zahlt keine Einkommensteuer.`);
+}
 
 export const messageSchema = z.object({
   topic: z.enum(["nachricht", "vorauszahlung"]),
@@ -110,6 +119,7 @@ export interface SendMessageOptions {
 export async function sendMessage(actor: string, rawInput: MessageInput, client: ElsterClient, options: SendMessageOptions): Promise<ElsterResult> {
   const input = messageSchema.parse(rawInput);
   const company = await loadCompany();
+  if (input.topic === "vorauszahlung") nurEinzelunternehmen(company.rechtsform, "Die Herabsetzung der Einkommensteuer-Vorauszahlungen");
   const issues = messageIssues(company);
   if (issues.length > 0) throw new FinanzamtError(`Firmendaten unvollständig: ${issues.join(", ")}.`);
 

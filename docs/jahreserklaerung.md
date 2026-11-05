@@ -159,6 +159,8 @@ Alle Beträge in vollen Euro; die Summen rechnet Haben aus den Einzelbeträgen, 
 
 ## Belege von ELSTER
 
+Nur im Einzelunternehmen: Die vorausgefüllte Steuererklärung gibt es für die Einkommensteuer; bei GmbH und UG fehlt der Abschnitt, und Haben lehnt den Abruf ab, ebenso die Abrufberechtigung für den Ehegatten.
+
 Arbeitgeber, Rentenversicherung, Krankenkassen und andere Stellen melden dem Finanzamt Daten für die Steuererklärung: Lohnsteuerbescheinigung, Rentenbezüge, Beiträge zur Kranken- und Pflegeversicherung, Lohnersatzleistungen und mehr. Diese Belege der vorausgefüllten Steuererklärung (VaSt) holt Haben unter **Belege von ELSTER** auf der Seite des Jahres ab:
 
 1. Persönliche Angaben mit Steuer-ID hinterlegen ([Einstellungen](einrichtung.md#persönliche-angaben)) und das ELSTER-Zertifikat hochladen.

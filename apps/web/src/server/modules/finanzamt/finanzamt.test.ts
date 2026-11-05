@@ -56,6 +56,18 @@ describe.skipIf(!testDatabaseUrl)("Nachrichten an das Finanzamt (Postgres)", () 
     await expect(finanzamt.sendMessage(actor, antrag, client, { kind: "validate" })).rejects.toThrow(/Hausnummer/);
   });
 
+  it("GmbH und UG: kein Antrag zu Einkommensteuer-Vorauszahlungen, freie Nachrichten schon", async () => {
+    const client = new EricGeprueftClient();
+    await sql`update company set rechtsform = 'gmbh', einkunftsart = null, name = 'Testfirma GmbH'`;
+    // elster_messages ist nur anhängen; gezählt wird, was dieser Test schreibt
+    const vorher = (await sql`select count(*)::int as n from elster_messages`)[0]!.n as number;
+    await expect(finanzamt.sendMessage(actor, antrag, client, { kind: "validate" })).rejects.toThrow(/nur im Einzelunternehmen/);
+    expect((await finanzamt.sendMessage(actor, { ...antrag, topic: "nachricht" }, client, { kind: "validate" })).ok).toBe(true);
+    const neu = await sql`select topic from elster_messages order by created_at desc limit 1`;
+    expect((await sql`select count(*)::int as n from elster_messages`)[0]!.n).toBe(vorher + 1);
+    expect(neu[0]!.topic).toBe("nachricht");
+  });
+
   it("rechnet den Gewinn aufs Jahr hoch", async () => {
     const basis = await finanzamt.prepaymentBasis("2026-07-02");
     expect(basis).toMatchObject({ year: 2026, until: "2026-07-02", profitSoFar: 0, profitForecast: 0, einkunftsart: "selbstaendig" });

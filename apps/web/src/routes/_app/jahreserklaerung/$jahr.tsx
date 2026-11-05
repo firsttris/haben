@@ -96,7 +96,7 @@ function AnnualPage() {
         {gesellschaft && <a href="#kst">Körperschaftsteuer</a>}
         {gesellschaft && <a href="#gewst">Gewerbesteuer</a>}
         {gesellschaft && <a href="#kapg-angaben">Angaben</a>}
-        <a href="#vast">Belege von ELSTER</a>
+        {!gesellschaft && <a href="#vast">Belege von ELSTER</a>}
         <a href="#verlauf">Verlauf</a>
       </nav>
 
@@ -107,9 +107,12 @@ function AnnualPage() {
         {data.kapg && <KstSection data={data} />}
         {data.kapg && <GewstSection data={data} />}
         {data.kapg && <KapgAngaben key={`kapg-${data.year}`} data={data} />}
-        <div id="vast" className="jump-target">
-          <VastBelege key={`vast-${data.year}`} data={data} />
-        </div>
+        {/* Die vorausgefüllte Steuererklärung gibt es nur für die Einkommensteuer einer Person */}
+        {!gesellschaft && (
+          <div id="vast" className="jump-target">
+            <VastBelege key={`vast-${data.year}`} data={data} />
+          </div>
+        )}
         <History data={data} />
       </div>
     </>
@@ -209,7 +212,9 @@ function UstSection({ data }: { data: Data }) {
         </table>
         <p className="small muted" style={{ margin: 0 }}>
           Bemessungsgrundlagen in vollen Euro, die Steuer daraus wie in der Voranmeldung.{" "}
-          {data.versteuerung === "ist" ? "Ist-Versteuerung" : "Soll-Versteuerung"}. Die private Kfz-Nutzung ist in den Umsätzen zu 19 % enthalten.
+          {data.versteuerung === "ist" ? "Ist-Versteuerung" : "Soll-Versteuerung"}.
+          {/* Privatnutzung als unentgeltliche Wertabgabe bucht Haben nur im Einzelunternehmen (docs/anlagen.md) */}
+          {!isKapitalgesellschaft(data.rechtsform) && " Die private Kfz-Nutzung ist in den Umsätzen zu 19 % enthalten."}
         </p>
       </div>
       <SubmitPanel form="ust" data={data} blocked={ust.issues.some((i) => i.tone === "fehler")} sent={Boolean(ust.sent)} />

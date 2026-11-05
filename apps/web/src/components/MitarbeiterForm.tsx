@@ -138,14 +138,24 @@ function Abschnitt({ titel, children }: { titel: string; children: ReactNode }) 
   );
 }
 
+/**
+ * Arten der Beschäftigung, die es in der Rechtsform gibt: einen Gesellschafter-Geschäftsführer nur in GmbH und UG, im
+ * Einzelunternehmen ist der Lohn des Inhabers eine Entnahme. Eine schon gespeicherte Art bleibt wählbar.
+ */
+export function beschaeftigungsartenFor(gesellschaft: boolean, current?: Beschaeftigungsart): Beschaeftigungsart[] {
+  return (Object.keys(BESCHAEFTIGUNGSARTEN) as Beschaeftigungsart[]).filter((art) => art !== "ggf" || gesellschaft || art === current);
+}
+
 export function MitarbeiterForm({
   initial,
+  arten,
   submitLabel,
   busy,
   onSubmit,
   onError,
 }: {
   initial: MitarbeiterWerte;
+  arten: readonly Beschaeftigungsart[];
   submitLabel: string;
   busy: boolean;
   onSubmit: (werte: MitarbeiterWerte) => void;
@@ -226,9 +236,9 @@ export function MitarbeiterForm({
           <label className="field">
             Art der Beschäftigung
             <select value={w.art} onChange={(e) => set("art", e.target.value as Beschaeftigungsart)}>
-              {Object.entries(BESCHAEFTIGUNGSARTEN).map(([key, label]) => (
+              {arten.map((key) => (
                 <option key={key} value={key}>
-                  {label}
+                  {BESCHAEFTIGUNGSARTEN[key]}
                 </option>
               ))}
             </select>

@@ -1,4 +1,14 @@
-import { dauerbelegSummen, formatDecimal, formatEuro, parseEuro, RECURRING_INTERVALS, VORSTEUER_HINWEIS, type RecurringInterval } from "@haben/core";
+import {
+  dauerbelegSummen,
+  formatDecimal,
+  formatEuro,
+  ownerLabels,
+  parseEuro,
+  RECURRING_INTERVALS,
+  VORSTEUER_HINWEIS,
+  type RecurringInterval,
+  type Rechtsform,
+} from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { FilePicker } from "./FilePicker.tsx";
 import { SupplierPicker, type SupplierOption } from "./SupplierPicker.tsx";
@@ -35,7 +45,9 @@ interface AmountState {
 let nextKey = 1;
 
 const RATES: Rate[] = [1900, 700, 0];
-const PAYMENT_LABEL = { bank: "Über das Geschäftskonto (Bankabgleich)", privat: "Privat bezahlt (Privateinlage)", kasse: "Bar aus der Kasse" } as const;
+/** Aus eigenem Geld bezahlt heißt je nach Rechtsform Privateinlage oder Verrechnungskonto des Gesellschafters */
+const paymentLabels = (rechtsform: Rechtsform) =>
+  ({ bank: "Über das Geschäftskonto (Bankabgleich)", privat: ownerLabels(rechtsform).documentPaid, kasse: "Bar aus der Kasse" }) as const;
 
 const taxOf = (net: number | null, rate: Rate) => (net === null ? 0 : Math.round((net * rate) / 10_000));
 
@@ -48,6 +60,7 @@ export function DauerbelegForm({
   suppliers,
   categories,
   kleinunternehmer,
+  rechtsform,
   isNew,
   busy,
   submitLabel,
@@ -57,6 +70,7 @@ export function DauerbelegForm({
   suppliers: SupplierOption[];
   categories: { value: string; label: string }[];
   kleinunternehmer: boolean;
+  rechtsform: Rechtsform;
   isNew: boolean;
   busy: boolean;
   submitLabel: string;
@@ -207,7 +221,7 @@ export function DauerbelegForm({
           <label className="field">
             Bezahlung
             <select value={payment} onChange={(e) => setPayment(e.target.value as DauerbelegValues["payment"])}>
-              {Object.entries(PAYMENT_LABEL).map(([value, label]) => (
+              {Object.entries(paymentLabels(rechtsform)).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
