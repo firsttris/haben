@@ -1,10 +1,12 @@
 import {
   DUNNING_LEVELS,
   formatEuro,
+  formatPercent,
   invoiceTemplateKind,
   joinEmails,
   MAX_EMAIL_RECIPIENTS,
   resolveMailTemplate,
+  skontoFristen,
   splitEmails,
   legalInfo,
   type DunningLevel,
@@ -113,16 +115,24 @@ async function displayGross(invoice: typeof schema.invoices.$inferSelect): Promi
   return texts(invoice.language, invoice.currency).money(gross);
 }
 
+/** Skontostufen der Rechnung für {zahlbar}: Frist und Satz, ohne Betrag */
+function skontoTerms(invoice: typeof schema.invoices.$inferSelect) {
+  return invoice.kind === "rechnung" ? skontoFristen(invoice.skonto, invoice.issueDate, invoice.gross) : [];
+}
+
 function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: string, betrag: string, language = invoice.language) {
+  const skonto = skontoTerms(invoice);
   if (language === "en") {
     const t = texts("en");
+    const discounts = skonto.map((s) => ` or by ${t.date(s.until)} less ${t.percent(s.percent)} cash discount`).join("");
     return {
       art: invoice.kind === "rechnung" && invoice.variant ? t.variants[invoice.variant] : t.titles[invoice.kind],
       nummer: invoice.number ?? "",
       datum: t.date(invoice.issueDate),
       betrag,
       faellig: t.date(invoice.dueDate),
-      zahlbar: invoice.kind === "rechnung" && invoice.gross > 0 ? `, payable by ${t.date(invoice.dueDate)}` : "",
+      zahlbar:
+        invoice.kind === "rechnung" && invoice.gross > 0 ? `, payable by ${t.date(invoice.dueDate)}${discounts ? ` without deduction${discounts}` : ""}` : "",
       kunde: (invoice.buyer as { name?: string } | null)?.name ?? "",
       firma,
     };
@@ -133,10 +143,17 @@ function invoiceValues(invoice: typeof schema.invoices.$inferSelect, firma: stri
     datum: germanDate(invoice.issueDate),
     betrag,
     faellig: germanDate(invoice.dueDate),
-    zahlbar: invoice.kind === "rechnung" && invoice.gross > 0 ? `, zahlbar bis zum ${germanDate(invoice.dueDate)}` : "",
+    zahlbar:
+      invoice.kind === "rechnung" && invoice.gross > 0
+        ? `, zahlbar bis zum ${germanDate(invoice.dueDate)}${skonto.length > 0 ? ` ohne Abzug${germanDiscounts(skonto)}` : ""}`
+        : "",
     kunde: (invoice.buyer as { name?: string } | null)?.name ?? "",
     firma,
   };
+}
+
+function germanDiscounts(skonto: ReturnType<typeof skontoTerms>): string {
+  return skonto.map((s) => ` oder bis zum ${germanDate(s.until)} abzüglich ${formatPercent(s.percent)} Skonto`).join("");
 }
 
 function invoiceAttachments(invoice: typeof schema.invoices.$inferSelect) {

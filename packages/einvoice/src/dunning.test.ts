@@ -31,6 +31,13 @@ describe("Mahnung als PDF", () => {
     expect(data.qr).toMatch(/^<svg /);
   });
 
+  it("bietet nach Fristablauf kein Skonto mehr an: voller Betrag und ein Hinweis, wenn die Rechnung Skonto hatte", () => {
+    const withSkonto = dunningPdfData({ ...doc, invoice: { ...doc.invoice, skontoExpired: true } });
+    expect(withSkonto.rows[0]).toEqual({ label: "Offener Rechnungsbetrag", value: "17.409,58 €" });
+    expect(withSkonto.payment).toMatch(/ Das Skonto aus der Rechnung ist mit Ablauf der Skontofrist entfallen\.$/);
+    expect(dunningPdfData(doc).payment).not.toContain("Skonto");
+  });
+
   it("erzeugt ein PDF", () => {
     const pdf = buildDunningPdf(doc);
     expect(Buffer.from(pdf.subarray(0, 5)).toString("latin1")).toBe("%PDF-");
