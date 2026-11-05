@@ -334,11 +334,13 @@ Die PIN fragt Haben bei jeder Übermittlung ab. Nur für den automatischen Postf
 Vor dem Senden prüft Haben die Firmendaten: Name, Anschrift, Bundesland und eine gültige Steuernummer müssen vorhanden sein.
 
 > [!IMPORTANT]
-> Die ERiC-Anbindung ist mit ERiC 45.1.5.0 und 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und PIN mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
+> Die ERiC-Anbindung ist mit ERiC 44.3.6.0, 45.1.5.0 und 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und PIN mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
 
 ### Welche ERiC-Version
 
-Haben lädt vorgeschlagen ERiC 45.1.5.0. Die 45.1 ist ein BETA-Release: ERiC sendet damit nur Testübermittlungen, Echtfälle erst mit dem Hauptrelease 45.2, das ELSTER für Mitte November ankündigt (ERiC-Entwicklerhandbuch, Kap. 2.3 und 5.4.3). Bis dahin trägst du für Echtfälle eine freigegebene Version ins Feld **Version** ein, etwa 45.2.x.0, sobald es sie gibt, oder 44.3.6.0. Haben arbeitet mit ERiC ab 43 und erkennt die Version selbst.
+Haben lädt vorgeschlagen ERiC 44.3.6.0, die neueste für Echtfälle freigegebene Version. Haben arbeitet mit ERiC 43 bis 45 und erkennt die Version selbst; eine andere trägst du ins Feld **Version** ein.
+
+ERiC 45.1.5.0 ist ein BETA-Release: Damit gehen nur Testübermittlungen mit Testmerker, Echtfälle lehnt ERiC ab (ERiC-Entwicklerhandbuch, Kap. 5.4.3). Nimm sie nur zum Ausprobieren der Formulare 2027. Das Hauptrelease 45.2 kündigt ELSTER für Mitte November an (Kap. 2.3); es bringt die Jahresversionen unten für Echtfälle, und dann hebt Haben den Vorschlag darauf.
 
 | Was | ab ERiC |
 | --- | --- |

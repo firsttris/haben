@@ -159,8 +159,8 @@ Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.githu
 1. Neue Version suchen: Die Pakete liegen unter `https://download.elster.de/download/eric/eric_<Hauptversion>/ERiC-<Version>-Linux-x86_64.jar`, die Dokumentation daneben als `ERiC-<Version>-Dokumentation.zip`. Ein `.x.1`-Release im Herbst ist BETA (Senden nur mit Testmerker), das Hauptrelease folgt im November.
 2. Installieren, ohne das bisherige ERiC zu überschreiben: `ERIC_DIR=/var/tmp/eric-<Version> bun packages/elster/src/install-cli.ts --lizenz-akzeptiert <Version>`.
 3. In der Dokumentation `ERiC-Releasenotes.pdf` (Änderungen seit der letzten Mindestversion), `Datenartversionmatrix.ods` (welche Datenart-Versionen es gibt) und die Schemas unter `Datenarten/` lesen; die Header unter `include/` mit denen der alten Version vergleichen (`diff -r`). Entfallene Datenart-Versionen und geänderte Signaturen passt du in `packages/elster` an, neue Jahre dort, wo Haben Jahre aufzählt (`KAPESTA_JAHRE`, `GEWST_JAHRE`, `KST_JAHRE`, `EBILANZ_TAXONOMIEN`).
-4. Die Tests mit dem neuen ERiC laufen lassen, auch die neuen Jahre in `eric-echt.test.ts`, und mit dem alten ERiC gegenprüfen.
-5. `DEFAULT_ERIC_VERSION` heben und die Tabelle in [Erste Schritte › Welche ERiC-Version](einrichtung.md#welche-eric-version) nachziehen.
+4. Die Tests mit dem neuen ERiC laufen lassen, auch die neuen Jahre in `eric-echt.test.ts`, und mit dem alten ERiC gegenprüfen. Fälle für ein Jahr, dessen Plugin (`lib/plugins/libcheck<Datenart>_<Jahr>.so`) dem geladenen ERiC fehlt, überspringen die Tests (`eric-plugins.ts`).
+5. `DEFAULT_ERIC_VERSION` nur auf eine für Echtfälle freigegebene Version heben, kein BETA, und die Tabelle in [Erste Schritte › Welche ERiC-Version](einrichtung.md#welche-eric-version) nachziehen.
 
 ### Ende-zu-Ende-Tests mit Playwright
 

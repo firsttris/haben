@@ -15,10 +15,11 @@ import { networkErrorText } from "@haben/core";
 import { ericLibraryPath, ericPluginPath } from "./eric.ts";
 
 /**
- * Zuletzt bekannte ERiC-Version; neuere stehen im Entwicklerbereich von ELSTER. 45.1 ist ein BETA-Release: Senden geht
- * damit nur mit Testmerker (ERiC-Entwicklerhandbuch, Kap. 5.4.3), Echtfälle erst mit dem Hauptrelease 45.2.
+ * Neueste für Echtfälle freigegebene ERiC-Version; neuere stehen im Entwicklerbereich von ELSTER. Haben arbeitet mit
+ * ERiC 43 bis 45. 45.1.5.0 ist ein BETA-Release: Senden geht damit nur mit Testmerker (ERiC-Entwicklerhandbuch,
+ * Kap. 5.4.3); auf 45 hebt man mit dem Hauptrelease 45.2 (Kap. 2.3).
  */
-export const DEFAULT_ERIC_VERSION = "45.1.5.0";
+export const DEFAULT_ERIC_VERSION = "44.3.6.0";
 export const ERIC_DOWNLOAD_BASE = "https://download.elster.de/download/eric";
 /** Infoseite mit der aktuellen Version und den Nutzungsbedingungen */
 export const ERIC_INFO_URL = "https://www.elster.de/elsterweb/entwickler/infoseite/eric";

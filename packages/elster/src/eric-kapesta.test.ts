@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ericMeldungen } from "./formatprobe.ts";
 import { ericHomeIn } from "./install.ts";
 import { buildKapEStAXml, KAPESTA_JAHRE, type KapEStAInput } from "./kapesta.ts";
+import { hatJahresPlugin } from "./eric-plugins.ts";
 import { EricProcessClient } from "./process-client.ts";
 
 /**
@@ -33,7 +34,10 @@ describe.skipIf(!ericHome)("Kapitalertragsteuer-Anmeldung mit ERiC", () => {
     expect(result.code).toBe(0);
   };
 
-  it.each(KAPESTA_JAHRE)(
+  // KapEStA_2027 kennt ERiC erst ab 45; fehlt das Plugin, wird das Jahr übersprungen
+  const vorhanden = (year: number) => hatJahresPlugin(ericHome!, `KapEStA_${year}`);
+  it.skip.each(KAPESTA_JAHRE.filter((y) => !vorhanden(y)))("%i (Plugin fehlt in diesem ERiC)", () => {});
+  it.each(KAPESTA_JAHRE.filter(vorhanden))(
     "%i: ohne und mit Kirchensteuer",
     async (year) => {
       const z = (iso: string) => iso.replace("2026", String(year));
