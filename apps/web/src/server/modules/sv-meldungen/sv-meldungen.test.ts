@@ -121,6 +121,16 @@ describe.skipIf(!testDatabaseUrl)("SV-Meldeportal (Postgres)", () => {
     expect(b!.hinweise[0]).toContain("Ohne festgeschriebene Abrechnung nicht enthalten: Max Beispiel");
   });
 
+  it("legt nach einem Kassenwechsel keinen leeren Beitragsnachweis für die neue Kasse in abgerechneten Monaten an", async () => {
+    // Die Abrechnung hält die Kasse fest, mit der sie gerechnet ist; die Stammdaten zeigen schon die neue Kasse
+    const { angestellt } = await oktoberFestgeschrieben();
+    await lohn.saveEmployee(actor, angestellt, { ...ANGESTELLT, krankenkasse: "AOK Bremen/Bremerhaven", krankenkasseBetriebsnummer: "20012084" });
+    const liste = await sv.ausfuellliste(2026, 10, heute);
+    expect(liste.beitragsnachweise.map((b) => b.gegenstand).sort()).toEqual([tk, "beitragsnachweis:2026-10:98000006"]);
+    const ids = (await fristen.listFristen(heute)).map((f) => f.id);
+    expect(ids).not.toContain("svbn-2026-10-20012084");
+  });
+
   it("vermerkt die Abgabe mit Protokoll, nur anhängbar und im Audit-Log; Werte und Titel bildet der Server", async () => {
     await oktoberFestgeschrieben();
     const id = await sv.vermerken(actor, { gegenstand: tk, datum: "2026-10-24", notiz: "Ticket 123" }, heute, { bytes: PDF, filename: "../protokoll.pdf" });
