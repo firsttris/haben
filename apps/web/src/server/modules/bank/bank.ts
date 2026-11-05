@@ -24,7 +24,7 @@ import {
   invoicePaymentPosting,
   recordedTaxShares,
   settlementTaxShares,
-  skontoFristen,
+  skontoZahlfristen,
   suggestMatches,
   type DirectBooking,
   type InvoiceTotals,
@@ -41,6 +41,7 @@ import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { loadCompany } from "../stammdaten/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { documentPayees, payeeIbans } from "./document-payees.ts";
@@ -471,6 +472,8 @@ export async function openItems(): Promise<OpenItem[]> {
   );
   // Konto des Lieferanten und Referenzen der SEPA-Überweisungen aus Haben: Die Abbuchung findet so ihren Beleg
   const payees = await documentPayees(documents.map((d) => d.id));
+  // Feiertage für das Ende der Skontofrist (§ 193 BGB) wie beim Zahlungsziel: die im Bundesland der Firma
+  const { bundesland } = await loadCompany();
 
   const items: OpenItem[] = [];
   for (const inv of invoices) {
@@ -478,7 +481,7 @@ export async function openItems(): Promise<OpenItem[]> {
     const open = invoiceOpen({ status: "final", kind: inv.kind, gross: inv.gross, paid, cancelled: cancelled.has(inv.id) });
     if (open === 0) continue;
     // Skonto nur auf den ganzen Betrag: nach einer Teilzahlung oder Ausbuchung erkennt der Abgleich es nicht mehr
-    const skonto = inv.kind === "rechnung" && inv.currency === "EUR" && paid === 0 ? skontoFristen(inv.skonto, inv.issueDate, inv.gross) : [];
+    const skonto = inv.kind === "rechnung" && inv.currency === "EUR" && paid === 0 ? skontoZahlfristen(inv.skonto, inv.issueDate, inv.gross, bundesland) : [];
     items.push({
       type: "invoice",
       id: inv.id,

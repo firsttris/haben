@@ -1,4 +1,4 @@
-import { invoicesSentByMail, mailsForInvoice } from "../modules/rechnungen/index.ts";
+import { invoicesSentByMail, listInvoiceAttachments, mailsForInvoice } from "../modules/rechnungen/index.ts";
 import { createServerFn } from "@tanstack/react-start";
 import { asc, eq, or } from "drizzle-orm";
 import { z } from "zod";
@@ -110,6 +110,7 @@ export const getInvoiceDetail = createServerFn({ method: "GET" })
       ...result,
       invoice: withoutFiles(result.invoice),
       issues,
+      attachments: (await listInvoiceAttachments(data)).map(({ id, filename, size }) => ({ id, filename, size })),
       dunnings: await dunningsFor([data]),
       mails: result.invoice.status === "final" ? await mailsForInvoice(data) : [],
       overdue: listed?.listStatus === "ueberfaellig",

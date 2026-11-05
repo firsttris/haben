@@ -1,5 +1,5 @@
 import { formatEuro, type Cents } from "./money.ts";
-import { formatPercent, type SkontoFrist } from "./skonto.ts";
+import { formatPercent, type SkontoZahlfrist } from "./skonto.ts";
 
 export interface MatchTransaction {
   bookingDate: string;
@@ -30,7 +30,7 @@ export interface OpenItem {
   /** EndToEndIds der SEPA-Überweisungen, die Haben für den Beleg erzeugt hat */
   references?: string[];
   /** Nur bei eigenen, noch ganz offenen Rechnungen in Euro: das angebotene Skonto je Stufe */
-  skonto?: SkontoFrist[];
+  skonto?: SkontoZahlfrist[];
 }
 
 /** Bis zu dieser Abweichung (in Prozent des offenen Betrags) gilt eine Zahlung auf Fremdwährung als passend */
@@ -54,9 +54,12 @@ export interface Suggestion {
   skonto?: Cents;
 }
 
-/** Stufe, um deren Skonto die Zahlung gekürzt ist, wenn sie bis zum letzten Tag der Frist eingeht */
-function skontoTaken(tx: Pick<MatchTransaction, "amount" | "bookingDate">, item: OpenItem): SkontoFrist | undefined {
-  return item.skonto?.find((s) => s.payable === tx.amount && tx.bookingDate <= s.until);
+/**
+ * Stufe, um deren Skonto die Zahlung gekürzt ist, wenn sie bis zum letzten Tag der Frist eingeht; endet die Frist an
+ * einem Wochenende oder Feiertag, auch am nächsten Werktag (§ 193 BGB)
+ */
+function skontoTaken(tx: Pick<MatchTransaction, "amount" | "bookingDate">, item: OpenItem): SkontoZahlfrist | undefined {
+  return item.skonto?.find((s) => s.payable === tx.amount && tx.bookingDate <= s.paidBy);
 }
 
 const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -223,13 +226,13 @@ export interface DirectSuggestion {
 }
 
 /** Finanzkassen und Steuerverwaltung, wie sie im Namen der Gegenpartei stehen */
-const TAX_OFFICE = /finanzamt|finanzkasse|steuerverwaltung|landeshauptkasse|landesfinanzkasse|bundeskasse|staatsoberkasse|finanzbehörde/i;
+export const TAX_OFFICE = /finanzamt|finanzkasse|steuerverwaltung|landeshauptkasse|landesfinanzkasse|bundeskasse|staatsoberkasse|finanzbehörde/i;
 /** Umsatzsteuer im Verwendungszweck: „USt 09/2026“, „Umsatzsteuer“, „UStVA“ */
-const VAT_PURPOSE = /umsatzsteuer|\bust\b|\bust[- ]?va\b|\bust\d|voranmeldung/i;
+export const VAT_PURPOSE = /umsatzsteuer|\bust\b|\bust[- ]?va\b|\bust\d|voranmeldung/i;
 /** Andere Steuern, die dasselbe Finanzamt einzieht oder erstattet (oft privat) */
 /** Sondervorauszahlung der Dauerfristverlängerung (§ 47 UStDV): „USt-Sondervorauszahlung“, „USt-SVZ“, „USt 1/11“ */
 const SVZ_PURPOSE = /sondervorauszahlung|\bsvz\b|\b1\/11\b/i;
-const OTHER_TAX_PURPOSE = /einkommen|\best\b|\best[- ]?v|kirchen|\bkist\b|soli|gewerbe|\bgewst\b|kfz|grundsteuer|lohnsteuer|\blst\b/i;
+export const OTHER_TAX_PURPOSE = /einkommen|\best\b|\best[- ]?v|kirchen|\bkist\b|soli|gewerbe|\bgewst\b|kfz|grundsteuer|lohnsteuer|\blst\b/i;
 
 /**
  * Vorschlag für einen Umsatz ohne Rechnung aus dem Zweck der Konten:

@@ -171,6 +171,11 @@ export function renderHinterlegungPdf(data: object, date: string): Uint8Array {
   return compilePdf(HINTERLEGUNG_TEMPLATE, data, date, "Bilanz-PDF", {});
 }
 
+/** Entgeltabrechnung und Lohnkonto als PDF/A-3b; die Daten kommen fertig formatiert aus lohnabrechnungPdfData bzw. lohnkontoPdfData */
+export function renderLohnPdf(template: "lohnabrechnung.typ" | "lohnkonto.typ", data: object, date: string, label: string, letterhead: Letterhead): Uint8Array {
+  return compilePdf(join(PACKAGE_DIR, "templates", template), data, date, label, letterhead);
+}
+
 /** Fußzeile wie auf der Rechnung: Kontakt, Bank, Steuernummern */
 export function footerColumns(seller: InvoiceDocument["seller"], t: Texts = TEXTS.de): string[][] {
   const contact = [seller.name, ...addressLines(seller, t), seller.email];

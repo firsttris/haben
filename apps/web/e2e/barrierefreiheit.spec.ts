@@ -49,6 +49,8 @@ const PAGES = [
   "/buchungen/neu",
   `/abschluss/${YEAR - 1}`,
   "/ausschuettungen",
+  "/lohn",
+  "/lohn/mitarbeiter/neu",
   `/konten?jahr=${YEAR}`,
   `/konten/1200?jahr=${YEAR}`,
   "/archiv",
@@ -190,6 +192,15 @@ for (const [device, viewport] of [
     expect(await axe(page), path!).toEqual([]);
   });
 }
+
+// Stammdaten des Minijobbers aus app.spec.ts; die Adresse steht erst zur Laufzeit fest
+test("Stammdaten eines Mitarbeiters ohne axe-Verstöße", async ({ page }) => {
+  await withTheme(page, "wald");
+  const path = await firstLink(page, "/lohn", /^\/lohn\/mitarbeiter\/[0-9a-f-]{36}$/);
+  expect(path, "app.spec.ts hat einen Mitarbeiter angelegt").not.toBeNull();
+  await open(page, path!);
+  expect(await axe(page), path!).toEqual([]);
+});
 
 test.describe("Handy", () => {
   test.use({ viewport: { width: 320, height: 720 } });

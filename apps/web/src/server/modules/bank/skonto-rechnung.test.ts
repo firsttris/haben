@@ -83,8 +83,8 @@ describe.skipIf(!testDatabaseUrl)("Skonto auf Ausgangsrechnungen (Postgres)", ()
   }
 
   /** Rechnung vom 25.09.2026 über 4.000,00 € netto, 4.760,00 € brutto, mit den Vorgaben wie ein neuer Entwurf im Editor */
-  async function finalInvoice(contactId: string, format: "zugferd" | "xrechnung-cii" = "zugferd") {
-    const defaults = await invoices.newDraftDefaults("2026-09-25");
+  async function finalInvoice(contactId: string, format: "zugferd" | "xrechnung-cii" = "zugferd", issueDate = "2026-09-25") {
+    const defaults = await invoices.newDraftDefaults(issueDate);
     const draft = await invoices.createDraft(actor, {
       ...defaults,
       contactId,
@@ -153,6 +153,37 @@ describe.skipIf(!testDatabaseUrl)("Skonto auf Ausgangsrechnungen (Postgres)", ()
           const abgleich = await auswertungen.vatAbgleich({ year: 2026, month });
           expect(abgleich.zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
         }
+      }, 60_000);
+    }
+  }
+
+  for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
+    for (const versteuerung of ["ist", "soll"] as const) {
+      it(`${kontenrahmen}, ${versteuerung}: Skontofrist endet am Sonntag, Zahlung am Montag noch mit Skonto (§ 193 BGB)`, async () => {
+        await company(kontenrahmen, versteuerung);
+        const { id: contactId } = await customer();
+        // Rechnung vom 24.09.2026: 2 % in 10 Tagen bis Sonntag, 04.10.2026; die E-Rechnung nennt die Frist unverändert
+        const invoice = await finalInvoice(contactId, "xrechnung-cii", "2026-09-24");
+        expect(invoice.xml).toContain("#SKONTO#TAGE=10#PROZENT=2.00#\n");
+        await bank.importStatement(
+          actor,
+          {
+            bytes: dkbCsv([incoming("05.10.26", `RE ${invoice.number}`, "4.664,80"), incoming("06.10.26", `RE ${invoice.number}`, "4.664,80")]),
+            filename: "a.csv",
+          },
+          null,
+        );
+        const [monday] = await sql`select id from bank_transactions where booking_date = '2026-10-05'`;
+        const [tuesday] = await sql`select id from bank_transactions where booking_date = '2026-10-06'`;
+        expect((await bank.transactionDetail(monday!.id))?.suggestions[0]).toMatchObject({ item: { id: invoice.id }, amount: 466_480, skonto: 9_520 });
+        expect((await bank.transactionDetail(tuesday!.id))?.suggestions[0]?.skonto).toBeUndefined();
+
+        await bank.allocateWithRest(actor, { transactionId: monday!.id, target: { kind: "invoice", invoiceId: invoice.id }, rest: "skonto" });
+        expect((await bank.listWriteOffs({ invoiceId: invoice.id })).map((w) => [w.kind, w.amount, w.date])).toEqual([["skonto", 9_520, "2026-10-05"]]);
+        const a = ACCOUNTS[kontenrahmen];
+        expect(await balances()).toEqual({ [a.bank]: 466_480, [a.ust]: -74_480, [a.erloese]: -400_000, [a.skonto]: 8_000 });
+        const october = await vat.computeVatFigures({ year: 2026, month: 10 });
+        expect(october).toMatchObject(versteuerung === "soll" ? { kz81: -8_000, tax81: -1_520 } : { kz81: 392_000, tax81: 74_480 });
       }, 60_000);
     }
   }

@@ -570,3 +570,82 @@ test("Restlaufzeiten und Vermerke: Gesellschafter-Verrechnungskonto, vorschlagen
   await expect(rlz).toContainText("Zuletzt bestätigt am");
   expect(await axe(), `/abschluss/${year} Restlaufzeiten bestätigt`).toEqual([]);
 });
+
+test("Lohn: Gesellschafter-Geschäftsführer anlegen, Oktober 2026 abrechnen, festschreiben, PDF, Lohnkonto und Storno", async () => {
+  await go("/lohn?jahr=2026&monat=10");
+  const nav = page.getByRole("navigation", { name: "Hauptnavigation" });
+  await expect(nav.getByRole("group", { name: "Personal" }).getByRole("link", { name: "Lohn" })).toBeVisible();
+  expect(await axe(), "/lohn ohne Mitarbeiter").toEqual([]);
+  await page.getByRole("link", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL("**/lohn/mitarbeiter/neu");
+  await page.waitForLoadState("networkidle");
+  expect(await axe(), "/lohn/mitarbeiter/neu").toEqual([]);
+
+  const form = page.getByRole("form", { name: "Stammdaten des Mitarbeiters" });
+  await form.getByLabel("Vorname").fill("Erika");
+  await form.getByLabel("Nachname").fill("Gesellschafter");
+  await form.getByLabel("Straße und Hausnummer").fill("Lindenweg 1");
+  await form.getByLabel("PLZ").fill("28195");
+  await form.getByLabel("Ort", { exact: true }).fill("Bremen");
+  await form.getByLabel("Geburtsdatum").fill("1980-04-12");
+  await form.getByLabel("IBAN für die Auszahlung").fill("DE89 3704 0044 0532 0130 00");
+  await expect(form.getByLabel("Art der Beschäftigung")).toHaveValue("ggf");
+  await form.getByLabel("Monatsgehalt brutto in Euro").fill("6.000,00");
+  await form.getByLabel("Eintritt", { exact: true }).fill("2024-01-01");
+  await form.getByLabel("Statusfeststellung (§ 7a SGB IV)").selectOption("versicherungsfrei");
+  await form.getByLabel("Steuer-ID").fill("86095742719");
+  await form.getByLabel("Kirchensteuermerkmal").selectOption("ev");
+  await form.getByLabel("Zusatzbeitrag der Kasse in Prozent").fill("2,90");
+  await form.getByLabel(/Zuschlag für Kinderlose/).check();
+  await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL(/\/lohn$/);
+
+  await go("/lohn?jahr=2026&monat=10");
+  const monat = page.getByRole("form", { name: "Oktober 2026 abrechnen" });
+  await monat.getByLabel("Zahltag").fill("2026-10-28");
+  await monat.getByRole("button", { name: "Monat abrechnen" }).click();
+  await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
+
+  // BMF-Steuerrechner: 6.000 € in Klasse I ohne Renten- und Arbeitslosenversicherung, KVZ 2,9 %, kinderlos → 1.289,33 €
+  const mitarbeiterin = page.getByRole("region", { name: "Erika Gesellschafter" });
+  const abrechnung = mitarbeiterin.getByRole("region", { name: /^1\. Abrechnung Stufe A, Zahltag 28\.10\.2026/ });
+  await expect(abrechnung.getByRole("row", { name: "Lohnsteuer" })).toContainText("-1.289,33");
+  await expect(abrechnung.getByRole("row", { name: "Kirchensteuer" })).toContainText("-116,03");
+  await expect(abrechnung.getByText("Entwurf", { exact: true })).toBeVisible();
+  expect(await axe(), "/lohn mit Entwurf").toEqual([]);
+  const entwurfPdf = await page.request.get((await abrechnung.getByRole("link", { name: "Entwurf ansehen (PDF)" }).getAttribute("href"))!);
+  expect((await entwurfPdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+  await abrechnung.getByRole("button", { name: "Festschreiben" }).click();
+  await abrechnung.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByText("Abrechnung festgeschrieben.")).toBeVisible();
+  await expect(abrechnung.getByText("festgeschrieben", { exact: true })).toBeVisible();
+  const pdf = await page.request.get((await abrechnung.getByRole("link", { name: "Entgeltabrechnung (PDF)" }).getAttribute("href"))!);
+  expect(pdf.headers()["content-type"]).toBe("application/pdf");
+  expect((await pdf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+  // Lohnkonto 2026 (§ 41 EStG) als CSV und PDF
+  const mitarbeiterLink = page.getByRole("link", { name: "Erika Gesellschafter", exact: true });
+  const id = (await mitarbeiterLink.getAttribute("href"))!.split("/").pop();
+  const csv = await (await page.request.get(`/api/lohn/lohnkonto/${id}/2026/csv`)).text();
+  expect(csv).toContain("Lohnkonto;2026");
+  expect(csv).toContain("28.10.2026;10/2026;Abrechnung;StKl I, Kfb 0, ev;6000,00;6000,00;0,00;0,00;1289,33");
+  const konto = await page.request.get(`/api/lohn/lohnkonto/${id}/2026/pdf`);
+  expect((await konto.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+  // Storno: die Abrechnung bleibt, daneben ein neuer Entwurf für denselben Monat
+  await abrechnung.getByRole("button", { name: "Stornieren" }).click();
+  const storno = page.getByRole("form", { name: "Abrechnung stornieren" });
+  await storno.getByLabel("Grund des Stornos").fill("Gehalt rückwirkend geändert");
+  await storno.getByRole("button", { name: "Jetzt stornieren" }).click();
+  await expect(mitarbeiterin.getByText(/^storniert am/)).toBeVisible();
+  await expect(mitarbeiterin.getByRole("region", { name: /Abrechnung Stufe A/ })).toHaveCount(2);
+  await expect(mitarbeiterin.getByText("Grund des Stornos: Gehalt rückwirkend geändert")).toBeVisible();
+  expect(await axe(), "/lohn nach Storno").toEqual([]);
+
+  await mitarbeiterLink.click();
+  await page.waitForURL(/\/lohn\/mitarbeiter\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Erika Gesellschafter");
+  expect(await axe(), "/lohn/mitarbeiter/<id>").toEqual([]);
+});

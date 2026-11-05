@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { skontoFristen } from "./skonto.ts";
+import { skontoZahlfristen } from "./skonto.ts";
 import { purposeContainsNumber, suggestMatches, transactionHasReference, type OpenItem } from "./matching.ts";
 
 const invoice = (over: Partial<OpenItem> = {}): OpenItem => ({
@@ -38,13 +38,14 @@ describe("suggestMatches", () => {
 
   describe("Skonto auf eigene Rechnungen", () => {
     // Rechnung vom 05.09.2026 über 4.760,00 €: 2 % in 10 Tagen (bis 15.09.), 1 % in 20 Tagen (bis 25.09.)
-    const skonto = skontoFristen(
+    const skonto = skontoZahlfristen(
       [
         { days: 10, percent: 200 },
         { days: 20, percent: 100 },
       ],
       "2026-09-05",
       476_000,
+      "BY",
     );
     const withSkonto = invoice({ skonto });
 
@@ -68,6 +69,21 @@ describe("suggestMatches", () => {
         reasons: expect.arrayContaining(["Betrag stimmt exakt"]),
       });
       expect(suggestMatches({ ...tx, bookingDate: "2026-09-10" }, [withSkonto])[0]?.skonto).toBeUndefined();
+    });
+
+    it("Fristende am Sonntag: Zahlung am Montag gilt nach § 193 BGB noch als rechtzeitig, am Dienstag nicht", () => {
+      // Rechnung vom 24.09.2026, 2 % in 10 Tagen: Frist bis Sonntag, 04.10.2026
+      const sunday = invoice({ skonto: skontoZahlfristen([{ days: 10, percent: 200 }], "2026-09-24", 476_000, "BY") });
+      expect(suggestMatches({ ...tx, bookingDate: "2026-10-05", amount: 466_480 }, [sunday])[0]?.skonto).toBe(9_520);
+      expect(suggestMatches({ ...tx, bookingDate: "2026-10-06", amount: 466_480 }, [sunday])[0]?.skonto).toBeUndefined();
+    });
+
+    it("Fristende am Feiertag: Zahlung am nächsten Werktag noch rechtzeitig", () => {
+      // Rechnung vom 25.05.2026: Frist bis Fronleichnam, Donnerstag 04.06.2026, in Bayern Feiertag, in Berlin nicht
+      const bayern = invoice({ skonto: skontoZahlfristen([{ days: 10, percent: 200 }], "2026-05-25", 476_000, "BY") });
+      const berlin = invoice({ skonto: skontoZahlfristen([{ days: 10, percent: 200 }], "2026-05-25", 476_000, "BE") });
+      expect(suggestMatches({ ...tx, bookingDate: "2026-06-05", amount: 466_480 }, [bayern])[0]?.skonto).toBe(9_520);
+      expect(suggestMatches({ ...tx, bookingDate: "2026-06-05", amount: 466_480 }, [berlin])[0]?.skonto).toBeUndefined();
     });
 
     it("Skonto allein mit dem Betrag reicht für einen Vorschlag wie ein exakter Betrag", () => {

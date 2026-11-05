@@ -40,6 +40,7 @@ import { loadLetterhead } from "../stammdaten/index.ts";
 import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
+import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
 import { draftLineSchema } from "./draft-line.ts";
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
@@ -515,7 +516,7 @@ export async function insertDraft(tx: Tx, input: DraftInput, extra: DraftExtra =
   return invoice!;
 }
 
-async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
+export async function lockDraft(tx: Tx, id: string): Promise<Invoice> {
   const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
   if (!invoice) throw new InvoiceError("Rechnung nicht gefunden.");
   const problem = invoiceEditProblem(invoice);
@@ -550,15 +551,19 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
 }
 
 export async function deleteDraft(actor: string, id: string) {
-  await withActor(actor, async (tx) => {
+  const unused = await withActor(actor, async (tx) => {
     const quoteIds = await lockQuotes(tx, await quotesTouching(tx, [id]));
     await lockDraft(tx, id);
     await assertQuotesLocked(tx, quoteIds, [id]);
     // Aus einem Angebot entstanden: das Angebot lässt sich danach wieder abrechnen
     await tx.update(schema.quotes).set({ invoiceId: null, updatedAt: new Date() }).where(eq(schema.quotes.invoiceId, id));
+    const files = await attachmentFiles(tx, id);
+    // Anhänge gehen mit der Rechnung (on delete cascade)
     await tx.delete(schema.invoices).where(eq(schema.invoices.id, id));
     await syncQuoteBilling(tx, quoteIds);
+    return unusedFiles(tx, files);
   });
+  await removeFiles(unused);
 }
 
 /** Neue Rechnung mit den Vorgaben aus den Firmendaten */

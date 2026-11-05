@@ -880,9 +880,13 @@ test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", asy
   await zugang.getByLabel("Benutzername", { exact: true }).fill("max");
   await zugang.getByLabel("Passwort", { exact: true }).fill("geheim");
   await zugang.getByLabel("Absender", { exact: true }).fill("rechnung@mustermann.example");
+  // Leer gelassen gilt der Firmenname; die Vorgabe zeigt ihn an
+  await expect(zugang.getByLabel("Absendername")).toHaveAttribute("placeholder", /Mustermann IT/);
+  await zugang.getByLabel("Absendername").fill("Max Mustermann IT");
   await zugang.getByLabel("Erinnerungen an", { exact: true }).fill("max@mustermann.example");
   await zugang.getByRole("button", { name: "Speichern" }).click();
   await expect(zugang.getByRole("status")).toHaveText("E-Mail-Zugang gespeichert.");
+  await expect(zugang.getByLabel("Absendername")).toHaveValue("Max Mustermann IT");
 
   const rechnung = await firstLink(page, "/rechnungen", /^\/rechnungen\/[0-9a-f-]{36}$/);
   await go(rechnung!);
@@ -898,6 +902,70 @@ test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", asy
   await page.reload();
   await page.waitForLoadState("networkidle");
   await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText("Fehlgeschlagen");
+});
+
+/** Kleinste Datei, die Haben am Inhalt als PDF erkennt */
+const attachmentPdf = (text: string) => Buffer.from(`%PDF-1.4\n% ${text}\n%%EOF\n`);
+
+test("Anhänge an der Rechnung: PDF hochladen, entfernen, festschreiben und beim Versand auswählen", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung mit Stundennachweis");
+  await page.getByLabel("Menge Position 1").fill("8");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("120,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+
+  const anhaenge = page.getByRole("region", { name: "Anhänge" });
+  const auswahl = page.getByLabel("PDF-Anhänge auswählen");
+  await auswahl.setInputFiles([
+    { name: "stundenzettel.pdf", mimeType: "application/pdf", buffer: attachmentPdf("Stundenzettel") },
+    { name: "abnahme.pdf", mimeType: "application/pdf", buffer: attachmentPdf("Abnahme") },
+  ]);
+  await expect(anhaenge.getByText("stundenzettel.pdf: angehängt.")).toBeVisible();
+  await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toBeVisible();
+  // Nur PDF, am Inhalt erkannt: ein Bild mit der Endung .pdf wird abgelehnt
+  await auswahl.setInputFiles([{ name: "foto.pdf", mimeType: "application/pdf", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) }]);
+  await expect(anhaenge.getByText("foto.pdf: Als Anhang sind nur PDF-Dateien erlaubt.")).toBeVisible();
+  await anhaenge.getByRole("button", { name: "abnahme.pdf entfernen" }).click();
+  await expect(anhaenge.getByText("abnahme.pdf: entfernt.")).toBeVisible();
+  await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+  const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Rechnung ", "").trim();
+  await expect(anhaenge).toContainText("Mit der Rechnung festgeschrieben.");
+  await expect(anhaenge.getByRole("button", { name: /entfernen/ })).toHaveCount(0);
+  const download = await page.request.get((await anhaenge.getByRole("link", { name: "stundenzettel.pdf herunterladen" }).getAttribute("href"))!);
+  expect(download.headers()["content-type"]).toBe("application/pdf");
+  expect((await download.body()).toString()).toContain("Stundenzettel");
+
+  // Der Zugang aus dem Test davor zeigt auf einen Port ohne Mailserver: der Versand scheitert, das Protokoll nennt die Dateien
+  const bereich = page.getByRole("region", { name: "Per E-Mail" });
+  await bereich.getByRole("button", { name: "Rechnung senden" }).click();
+  const formular = bereich.getByRole("form", { name: "Rechnung per E-Mail senden" });
+  const mitsenden = formular.getByRole("group", { name: "Zusätzliche Anhänge mitsenden" }).getByRole("checkbox", { name: "stundenzettel.pdf" });
+  await expect(mitsenden).toBeChecked();
+  await formular.getByLabel("An", { exact: true }).fill("buchhaltung@alpenblick.example");
+  await formular.getByRole("button", { name: "Jetzt senden" }).click();
+  await expect(formular.getByRole("alert")).toContainText("Nicht gesendet");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText(`Anhang: Rechnung-${number}.pdf, stundenzettel.pdf`);
+
+  // Abgewählt geht nur die Rechnung mit
+  // Kein Versand ging durch, der Knopf heißt also weiter „Rechnung senden“
+  await page.getByRole("region", { name: "Per E-Mail" }).getByRole("button", { name: "Rechnung senden" }).click();
+  const zweites = page.getByRole("form", { name: "Rechnung per E-Mail senden" });
+  await zweites.getByRole("checkbox", { name: "stundenzettel.pdf" }).uncheck();
+  await zweites.getByLabel("An", { exact: true }).fill("buchhaltung@alpenblick.example");
+  await zweites.getByRole("button", { name: "Jetzt senden" }).click();
+  await expect(zweites.getByRole("alert")).toContainText("Nicht gesendet");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText(new RegExp(`Anhang: Rechnung-${number}\\.pdf(?!, )`));
 });
 
 test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async () => {
@@ -1409,6 +1477,37 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await expect(page.getByText("Seite entfernt.")).toBeVisible();
   // Bestellungen bleibt für seiten.spec.ts und barrierefreiheit.spec.ts
   await expect(menu.getByRole("link")).toHaveText([EIGENE_SEITE.name]);
+});
+
+test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async () => {
+  await go("/lohn");
+  await page.getByRole("link", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL("**/lohn/mitarbeiter/neu");
+  await page.waitForLoadState("networkidle");
+  const form = page.getByRole("form", { name: "Stammdaten des Mitarbeiters" });
+  await form.getByLabel("Vorname").fill("Jonas");
+  await form.getByLabel("Nachname").fill("Aushilfe");
+  await form.getByLabel("Straße und Hausnummer").fill("Am Markt 2");
+  await form.getByLabel("PLZ").fill("93047");
+  await form.getByLabel("Ort", { exact: true }).fill("Regensburg");
+  await form.getByLabel("Geburtsdatum").fill("2001-03-15");
+  await form.getByLabel("Art der Beschäftigung").selectOption("minijob");
+  await form.getByLabel("Monatsgehalt brutto in Euro").fill("520,00");
+  await form.getByLabel("Eintritt", { exact: true }).fill(`${new Date().getFullYear()}-01-01`);
+  await form.getByLabel("Steuer-ID").fill("47291830467");
+  await form.getByLabel("Versicherungsnummer").fill("65150301A123");
+  await form.getByLabel("Personengruppe").fill("109");
+  await form.getByLabel("Beitragsgruppenschlüssel").fill("6100");
+  await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL(/\/lohn$/);
+  await expect(page.getByRole("link", { name: "Jonas Aushilfe", exact: true })).toBeVisible();
+
+  // Minijob mit Pauschsteuer: keine Lohnsteuer, der Beschäftigte trägt 3,6 % zur Rentenversicherung (520 € → 18,72 €)
+  await page.getByRole("button", { name: "Monat abrechnen" }).click();
+  await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
+  const abrechnung = page.getByRole("region", { name: /^1\. Abrechnung Stufe B/ });
+  await expect(abrechnung.getByRole("row", { name: /Sozialversicherung \(Anteil Beschäftigte\)/ })).toContainText("-18,72");
+  await expect(abrechnung.getByRole("row", { name: "Auszahlung" })).toContainText("501,28");
 });
 
 test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleichen", async ({ browser }) => {

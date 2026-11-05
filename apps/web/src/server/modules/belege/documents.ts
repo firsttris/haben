@@ -27,6 +27,7 @@ import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
+import { fileInUse } from "../../db/file-in-use.ts";
 import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
@@ -628,16 +629,6 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
       });
     }
   });
-}
-
-/** Ob ein anderer Datensatz dieselbe Datei nutzt (Ablage nach Inhalt, also derselbe SHA-256) */
-async function fileInUse(tx: Tx, sha256: string): Promise<boolean> {
-  const [use] = await tx.execute<{ used: boolean }>(sql`
-    select exists (select 1 from documents where sha256 = ${sha256})
-        or exists (select 1 from archive_files where sha256 = ${sha256})
-        or exists (select 1 from lexoffice_voucher_files where sha256 = ${sha256})
-        or exists (select 1 from postfach_documents where sha256 = ${sha256}) as used`);
-  return Boolean(use?.used);
 }
 
 /** Nur ungebuchte Belege lassen sich löschen; die Datei geht mit, solange sie sonst niemand nutzt. */

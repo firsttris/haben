@@ -1,5 +1,5 @@
 {
-  "id": "c66e9063-e26e-4f04-aa2c-5307267380ff",
+  "id": "7decaad6-c1f8-42ae-9dd9-f048bb66f9ad",
   "prevId": "434c874c-65f0-4316-a21b-e12a56d68326",
   "version": "7",
   "dialect": "postgresql",
@@ -5851,6 +5851,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "from_name": {
+          "name": "from_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
         "reminder_to": {
           "name": "reminder_to",
           "type": "text",
@@ -8755,139 +8762,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.zm_submissions": {
-      "name": "zm_submissions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "year": {
-          "name": "year",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "month": {
-          "name": "month",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "berichtigt": {
-          "name": "berichtigt",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "zeilen": {
-          "name": "zeilen",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ok": {
-          "name": "ok",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code": {
-          "name": "code",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transfer_ticket": {
-          "name": "transfer_ticket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "request_xml": {
-          "name": "request_xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "response_xml": {
-          "name": "response_xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "server_response_xml": {
-          "name": "server_response_xml",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "protocol_pdf": {
-          "name": "protocol_pdf",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "zm_submissions_period": {
-          "name": "zm_submissions_period",
-          "columns": [
-            {
-              "expression": "year",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "month",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "zm_submissions_month": {
-          "name": "zm_submissions_month",
-          "value": "(\"zm_submissions\".\"month\" between 1 and 12) or (\"zm_submissions\".\"month\" between 41 and 44)"
-        }
-      },
       "isRLSEnabled": false
     }
   },

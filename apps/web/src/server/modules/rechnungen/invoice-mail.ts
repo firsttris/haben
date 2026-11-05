@@ -17,6 +17,8 @@ import { and, desc, eq, or } from "drizzle-orm";
 import { z } from "zod";
 import { loadCompany, type Company } from "../stammdaten/index.ts";
 import { db, schema } from "../../db/index.ts";
+import { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
+import { attachmentsForMail, listInvoiceAttachments } from "./attachments.ts";
 import { invoiceDocumentTotals } from "./invoice-taxes.ts";
 import { invoiceTitle } from "./invoices.ts";
 import { escapeHtml, loadMailSettings, MailError, send } from "../mail/index.ts";
@@ -86,6 +88,13 @@ export const outgoingMailSchema = z.object({
 });
 
 export type OutgoingMail = z.input<typeof outgoingMailSchema>;
+
+/** Bei der Rechnung zusätzlich: welche Anhänge an der Rechnung (#272) mitgehen */
+export const invoiceMailSchema = outgoingMailSchema.extend({
+  attachmentIds: z.array(z.uuid()).max(MAX_INVOICE_ATTACHMENTS).default([]),
+});
+
+export type InvoiceMail = z.input<typeof invoiceMailSchema>;
 
 async function loadInvoice(id: string) {
   const [invoice] = await db.select().from(schema.invoices).where(eq(schema.invoices.id, id));
@@ -178,26 +187,30 @@ export async function invoiceMailDraft(invoiceId: string) {
     body: fillTemplate(template.body, values),
     signature: legalSignature(company, invoice.language),
     attachments: invoiceAttachments(invoice).map((a) => a.filename),
+    /** Zusätzliche Anhänge an der Rechnung zur Auswahl */
+    extraAttachments: (await listInvoiceAttachments(invoiceId)).map(({ id, filename, size }) => ({ id, filename, size })),
     configured: Boolean(settings),
   };
 }
 
-export async function sendInvoiceMail(actor: string, invoiceId: string, input: OutgoingMail) {
-  const mail = outgoingMailSchema.parse(input);
+/** Versand mit PDF (und bei XRechnung XML) und den ausgewählten Zusatzanhängen; das Protokoll nennt alle Dateinamen */
+export async function sendInvoiceMail(actor: string, invoiceId: string, input: InvoiceMail) {
+  const mail = invoiceMailSchema.parse(input);
   const [invoice, settings, company] = await Promise.all([loadInvoice(invoiceId), loadMailSettings(), loadCompany()]);
   if (!settings) throw new MailError("Es ist kein E-Mail-Zugang eingerichtet (Einstellungen › E-Mail-Versand).");
+  const extra = await attachmentsForMail(invoiceId, mail.attachmentIds);
   return send(actor, {
     kind: "rechnung",
     to: mail.to,
     ...(mail.copyToMe ? { bcc: settings.fromAddress } : {}),
     subject: mail.subject,
     ...mailBody(mail.body, legalSignature(company, invoice.language)),
-    attachments: invoiceAttachments(invoice),
+    attachments: [...invoiceAttachments(invoice), ...extra],
     invoiceId,
   });
 }
 
-/** Für wiederkehrende Rechnungen: mit der Vorlage an die Adresse des Kunden, ohne Formular */
+/** Für wiederkehrende Rechnungen: mit der Vorlage an die Adresse des Kunden, ohne Formular und ohne Zusatzanhänge */
 export async function sendInvoiceMailWithTemplate(actor: string, invoiceId: string) {
   const draft = await invoiceMailDraft(invoiceId);
   if (!draft.configured) throw new MailError("Es ist kein E-Mail-Zugang eingerichtet.");
@@ -265,6 +278,7 @@ export async function mailsForInvoice(invoiceId: string) {
       subject: schema.mailLog.subject,
       ok: schema.mailLog.ok,
       error: schema.mailLog.error,
+      attachments: schema.mailLog.attachments,
       dunningId: schema.mailLog.dunningId,
       createdAt: schema.mailLog.createdAt,
     })
