@@ -104,6 +104,20 @@ describe("buildUstvaXml", () => {
     expect(order).toEqual([9, 46, 47, 67, 83, 84, 85]);
   });
 
+  it("schreibt innergemeinschaftliche Lieferungen (41), Ausfuhr (43), Erwerbe (89/93 in Euro) und Erwerbsvorsteuer (61 in Cent)", () => {
+    const xml = buildUstvaXml({
+      ...base,
+      figures: { kz81: 0, kz86: 0, kz66: 0, kz41: 300_099, kz43: 120_000, kz89: 50_000, kz93: 10_000, kz61: 10_200, kz83: 0 },
+    });
+    expect(tag(xml, "Kz41")).toBe("3000");
+    expect(tag(xml, "Kz43")).toBe("1200");
+    expect(tag(xml, "Kz89")).toBe("500");
+    expect(tag(xml, "Kz93")).toBe("100");
+    expect(tag(xml, "Kz61")).toBe("102.00");
+    const order = [...xml.matchAll(/<Kz(\d+)>/g)].map((m) => Number(m[1]));
+    expect(order).toEqual([9, 41, 43, 61, 83, 89, 93]);
+  });
+
   it("lässt Nullwerte weg, Kz83 aber nie", () => {
     const xml = buildUstvaXml({ ...base, figures: { kz81: 0, kz86: 0, kz66: 0, kz83: 0 } });
     expect(xml).not.toContain("<Kz81>");

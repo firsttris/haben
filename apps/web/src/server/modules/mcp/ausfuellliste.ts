@@ -6,7 +6,7 @@ import { csvDecimal, type UstvaFigures } from "@haben/core";
  * Bezeichnungen folgen dem amtlichen Vordruck und können in Mein ELSTER leicht anders lauten.
  */
 
-type Feld = keyof Omit<UstvaFigures, "tax81" | "tax86" | "kz83">;
+type Feld = keyof Omit<UstvaFigures, "tax81" | "tax86" | "tax89" | "tax93" | "kz83">;
 
 const FELDER: { kz: Feld; abschnitt: string; bezeichnung: string; volleEuro: boolean }[] = [
   {
@@ -22,9 +22,33 @@ const FELDER: { kz: Feld; abschnitt: string; bezeichnung: string; volleEuro: boo
     volleEuro: true,
   },
   {
+    kz: "kz41",
+    abschnitt: "Steuerfreie Lieferungen und sonstige Leistungen",
+    bezeichnung: "Innergemeinschaftliche Lieferungen (§ 4 Nr. 1 Buchst. b UStG) an Abnehmer mit USt-IdNr.",
+    volleEuro: true,
+  },
+  {
+    kz: "kz43",
+    abschnitt: "Steuerfreie Lieferungen und sonstige Leistungen",
+    bezeichnung: "Weitere steuerfreie Umsätze mit Vorsteuerabzug (z. B. Ausfuhrlieferungen)",
+    volleEuro: true,
+  },
+  {
     kz: "kz48",
     abschnitt: "Steuerfreie Lieferungen und sonstige Leistungen",
     bezeichnung: "Steuerfreie Umsätze ohne Vorsteuerabzug (§ 4 UStG)",
+    volleEuro: true,
+  },
+  {
+    kz: "kz89",
+    abschnitt: "Innergemeinschaftliche Erwerbe",
+    bezeichnung: "Steuerpflichtige innergemeinschaftliche Erwerbe zum Steuersatz von 19 Prozent, Bemessungsgrundlage",
+    volleEuro: true,
+  },
+  {
+    kz: "kz93",
+    abschnitt: "Innergemeinschaftliche Erwerbe",
+    bezeichnung: "Steuerpflichtige innergemeinschaftliche Erwerbe zum Steuersatz von 7 Prozent, Bemessungsgrundlage",
     volleEuro: true,
   },
   {
@@ -52,6 +76,12 @@ const FELDER: { kz: Feld; abschnitt: string; bezeichnung: string; volleEuro: boo
     kz: "kz66",
     abschnitt: "Abziehbare Vorsteuerbeträge",
     bezeichnung: "Vorsteuerbeträge aus Rechnungen von anderen Unternehmern (§ 15 Abs. 1 Satz 1 Nr. 1 UStG)",
+    volleEuro: false,
+  },
+  {
+    kz: "kz61",
+    abschnitt: "Abziehbare Vorsteuerbeträge",
+    bezeichnung: "Vorsteuerbeträge aus dem innergemeinschaftlichen Erwerb von Gegenständen (§ 15 Abs. 1 Satz 1 Nr. 3 UStG)",
     volleEuro: false,
   },
   {

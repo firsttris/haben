@@ -10,7 +10,9 @@ import {
   zmEuro,
   zmFrist,
   type Cents,
+  type TaxTreatment,
   type VatPeriod,
+  type ZmArt,
   type ZmZeile,
 } from "@haben/core";
 import { buildZmXml, type ElsterClient, type ElsterResult } from "@haben/elster";
@@ -24,10 +26,11 @@ import { VatError } from "./vat.ts";
 
 /*
  * Zusammenfassende Meldung (§ 18a UStG) an das BZSt. Haben meldet die sonstigen Leistungen an Unternehmer im übrigen
- * Gemeinschaftsgebiet (§ 3a Abs. 2 UStG, Rechnungen mit Reverse Charge) je Kalendervierteljahr (§ 18a Abs. 2 UStG), aus
- * denselben Umsätzen wie Kz 21 der Voranmeldung: nach Rechnungsdatum, auch bei Ist-Versteuerung; Stornos, Gutschriften,
- * Skonto und Forderungsausfall mindern im Zeitraum, in dem sie anfallen (§ 18a Abs. 7 Satz 2 mit § 17 UStG). Innergemein-
- * schaftliche Lieferungen und Dreiecksgeschäfte kennen die Rechnungen von Haben noch nicht.
+ * Gemeinschaftsgebiet (§ 3a Abs. 2 UStG, Rechnungen mit Reverse Charge, Umsatzart S) und die innergemeinschaftlichen
+ * Lieferungen (§ 18a Abs. 6 Nr. 1 UStG, Umsatzart L) je Kalendervierteljahr (§ 18a Abs. 1 und 2 UStG), aus denselben
+ * Umsätzen wie Kz 21 und 41 der Voranmeldung: nach Rechnungsdatum, auch bei Ist-Versteuerung; Stornos, Gutschriften,
+ * Skonto und Forderungsausfall mindern im Zeitraum, in dem sie anfallen (§ 18a Abs. 7 Satz 2 mit § 17 UStG).
+ * Dreiecksgeschäfte (Umsatzart D) und Monatsmeldungen bei Lieferungen über 50.000 € im Quartal unterstützt Haben nicht.
  */
 
 /** Ein Umsatz der Meldung mit seiner Rechnung, zum Nachvollziehen in der Oberfläche */
@@ -38,12 +41,20 @@ export interface ZmQuelle {
   date: string;
   type: "invoice" | "ausbuchung";
   ustId: string;
+  /** S für Reverse Charge, L für innergemeinschaftliche Lieferungen */
+  art: ZmArt;
   base: Cents;
 }
 
+/** Steuerfall der Rechnung → Umsatzart der Meldung */
+const ZM_ARTEN: Partial<Record<TaxTreatment, ZmArt>> = { reverse_charge: "S", ig_lieferung: "L" };
+
+/** Lieferungen über diesem Betrag im Quartal verlangen eine Monatsmeldung (§ 18a Abs. 1 Satz 2 UStG) */
+const MONATSMELDUNG_AB: Cents = 50_000_00;
+
 async function zmQuellen(period: VatPeriod, q: Db | Tx): Promise<ZmQuelle[]> {
   const revenue = (await computeVatFigures(period, q)).revenue.filter(
-    (r): r is typeof r & { type: "invoice" | "ausbuchung" } => r.treatment === "reverse_charge" && (r.type === "invoice" || r.type === "ausbuchung"),
+    (r): r is typeof r & { type: "invoice" | "ausbuchung" } => r.treatment in ZM_ARTEN && (r.type === "invoice" || r.type === "ausbuchung"),
   );
   const ids = [...new Set(revenue.map((r) => r.invoiceId))];
   const buyers = ids.length
@@ -57,6 +68,7 @@ async function zmQuellen(period: VatPeriod, q: Db | Tx): Promise<ZmQuelle[]> {
     date: r.date,
     type: r.type,
     ustId: ustIdOf.get(r.invoiceId) ?? "",
+    art: ZM_ARTEN[r.treatment]!,
     base: r.base,
   }));
 }
@@ -83,32 +95,34 @@ async function sentMeldungen(period: VatPeriod, q: Db | Tx) {
 }
 
 /**
- * Kz 21 der zuletzt gesendeten Voranmeldungen, die im Quartal liegen (die drei Monate oder das Quartal selbst); null, solange
- * nicht für das ganze Quartal gesendet ist.
+ * Kz 21 (sonstige Leistungen) bzw. Kz 41 (Lieferungen) der zuletzt gesendeten Voranmeldungen, die im Quartal liegen (die drei
+ * Monate oder das Quartal selbst); null, solange nicht für das ganze Quartal gesendet ist.
  */
-async function kz21Gesendet(period: VatPeriod, q: Db | Tx): Promise<Cents | null> {
+async function kennzahlGesendet(period: VatPeriod, kz: "kz21" | "kz41", q: Db | Tx): Promise<Cents | null> {
   const months = monthsOfPeriod(period).map((m) => m.month);
   const rows = await q
-    .select({ month: schema.vatReturns.month, kz21: schema.vatReturns.kz21 })
+    .select({ month: schema.vatReturns.month, value: schema.vatReturns[kz] })
     .from(schema.vatReturns)
     .where(and(eq(schema.vatReturns.year, period.year), eq(schema.vatReturns.status, "sent"), inArray(schema.vatReturns.month, [...months, period.month])))
     .orderBy(desc(schema.vatReturns.sentAt));
   const latest = new Map<number, Cents>();
-  for (const row of rows) if (!latest.has(row.month)) latest.set(row.month, row.kz21);
+  for (const row of rows) if (!latest.has(row.month)) latest.set(row.month, row.value);
   if (latest.has(period.month)) return latest.get(period.month)!;
   return months.every((m) => latest.has(m)) ? months.reduce((s, m) => s + latest.get(m)!, 0) : null;
 }
 
 /**
  * Vorprüfung: eigene USt-IdNr. und Anschrift, die USt-IdNr. jedes Kunden wie ERiC sie prüft, und der Abgleich mit Kz 21
- * der gesendeten Voranmeldungen. Kz 21 wird je Voranmeldung auf volle Euro abgeschnitten, die Meldung je Zeile; bis zu
- * einem Euro je Zeile und Voranmeldung ist deshalb Rundung.
+ * (sonstige Leistungen) und Kz 41 (Lieferungen) der gesendeten Voranmeldungen. Die Kennzahlen werden je Voranmeldung auf
+ * volle Euro abgeschnitten, die Meldung je Zeile; bis zu einem Euro je Zeile und Voranmeldung ist deshalb Rundung.
  */
 export function zmIssues(input: {
   company: { ustId: string; name: string; strasse: string; plz: string; ort: string };
   quellen: readonly ZmQuelle[];
   zeilen: readonly ZmZeile[];
   kz21: Cents | null;
+  /** Kz 41 der gesendeten Voranmeldungen; ohne Angabe kein Abgleich der Lieferungen */
+  kz41?: Cents | null;
   voranmeldungen: number;
 }): ZmIssue[] {
   const issues: ZmIssue[] = [];
@@ -123,7 +137,7 @@ export function zmIssues(input: {
   const gemeldeteIds = new Set(input.zeilen.map((z) => z.ustId));
   const seen = new Set<string>();
   for (const quelle of input.quellen.filter((q) => gemeldeteIds.has(q.ustId))) {
-    const problem = ustIdProblem(quelle.ustId, "S");
+    const problem = ustIdProblem(quelle.ustId, quelle.art);
     if (!problem || seen.has(`${quelle.invoiceId} ${problem}`)) continue;
     seen.add(`${quelle.invoiceId} ${problem}`);
     issues.push({ tone: "error", text: `Rechnung ${quelle.number} an ${quelle.customer}: ${problem}.` });
@@ -135,6 +149,36 @@ export function zmIssues(input: {
     issues.push({
       tone: "warn",
       text: `Summe der Meldung ${gemeldet} € weicht von Kz 21 der gesendeten Voranmeldungen (${zmEuro(input.kz21)} €) ab. Stimmt die Voranmeldung noch, oder fehlt eine Berichtigung?`,
+    });
+  }
+  issues.push(...lieferungIssues(input));
+  return issues;
+}
+
+/**
+ * Innergemeinschaftliche Lieferungen: Abgleich mit Kz 41, die Grenze für Monatsmeldungen (§ 18a Abs. 1 Satz 2 UStG: mehr
+ * als 50.000 € im Quartal oder in einem der vier vorangegangenen) und der Gelangensnachweis (§ 17a UStDV) als Erinnerung
+ */
+function lieferungIssues(input: { zeilen: readonly ZmZeile[]; kz41?: Cents | null; voranmeldungen: number }): ZmIssue[] {
+  const lieferungen = input.zeilen.filter((z) => z.art === "L");
+  if (lieferungen.length === 0 && !input.kz41) return [];
+  const issues: ZmIssue[] = [];
+  const summe = lieferungen.reduce((s, z) => s + zmEuro(z.betrag), 0);
+  if (input.kz41 !== undefined && input.kz41 !== null && Math.abs(summe - zmEuro(input.kz41)) > lieferungen.length + input.voranmeldungen) {
+    issues.push({
+      tone: "warn",
+      text: `Lieferungen in der Meldung ${summe} € weichen von Kz 41 der gesendeten Voranmeldungen (${zmEuro(input.kz41)} €) ab. Stimmt die Voranmeldung noch, oder fehlt eine Berichtigung?`,
+    });
+  }
+  if (summe * 100 > MONATSMELDUNG_AB) {
+    issues.push({
+      tone: "error",
+      text: "Mehr als 50.000 € innergemeinschaftliche Lieferungen im Quartal: Die Meldung ist monatlich abzugeben (§ 18a Abs. 1 Satz 2 UStG). Monatsmeldungen unterstützt Haben nicht; gib sie im BZStOnline-Portal ab.",
+    });
+  } else if (lieferungen.length > 0) {
+    issues.push({
+      tone: "info",
+      text: "Lagen die Lieferungen im laufenden oder in einem der vier vorangegangenen Quartale über 50.000 €, ist monatlich zu melden (§ 18a Abs. 1 Satz 2 UStG); das unterstützt Haben nicht. Für jede Lieferung gehört der Gelangensnachweis (§ 17a UStDV) zu den Unterlagen.",
     });
   }
   return issues;
@@ -159,12 +203,18 @@ export async function zmSubmissions(period: VatPeriod) {
     .orderBy(desc(schema.zmSubmissions.createdAt));
 }
 
-const zmZeilen = (quellen: readonly ZmQuelle[]) => aggregateZm(quellen.map((r) => ({ ustId: r.ustId, art: "S" as const, base: r.base })));
+const zmZeilen = (quellen: readonly ZmQuelle[]) => aggregateZm(quellen.map((r) => ({ ustId: r.ustId, art: r.art, base: r.base })));
 
 /** Stand eines Quartals: was zu melden ist, was gemeldet ist, und was eine Übermittlung jetzt senden würde */
 export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
-  const [quellen, company, meldungen, kz21] = await Promise.all([zmQuellen(period, q), loadCompany(q), sentMeldungen(period, q), kz21Gesendet(period, q)]);
+  const [quellen, company, meldungen, kz21] = await Promise.all([
+    zmQuellen(period, q),
+    loadCompany(q),
+    sentMeldungen(period, q),
+    kennzahlGesendet(period, "kz21", q),
+  ]);
   const zeilen = zmZeilen(quellen);
+  const kz41 = await kennzahlGesendet(period, "kz41", q);
   const sent = meldungen.length > 0;
   const gemeldet = gemeldeterStand(meldungen);
   const voranmeldungen = monthsOfPeriod(period).length;
@@ -180,19 +230,20 @@ export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
     /** Was als Nächstes gesendet würde: die Erstmeldung oder die geänderten Zeilen als Berichtigung */
     naechste: { berichtigt: sent, zeilen: sent ? zmBerichtigung(gemeldet, zeilen) : zeilen },
     kz21,
-    issues: zmIssues({ company, quellen, zeilen, kz21, voranmeldungen }),
+    kz41,
+    issues: zmIssues({ company, quellen, zeilen, kz21, kz41, voranmeldungen }),
   };
 }
 
 export type ZmOverview = Awaited<ReturnType<typeof zmOverview>>;
 
 /**
- * Quartale mit Umsätzen für die Meldung: Rechnungen mit Reverse Charge oder Ausbuchungen dazu (ohne aus Lexoffice
+ * Quartale mit Umsätzen für die Meldung: Rechnungen mit Reverse Charge oder innergemeinschaftlicher Lieferung oder Ausbuchungen dazu (ohne aus Lexoffice
  * übernommene, deren Steuer dort gemeldet ist), sofern sie eine Meldezeile ergeben, dazu jedes Quartal, für das schon eine
  * Meldung übermittelt ist.
  */
 export async function zmQuartale(q: Db | Tx = db): Promise<(VatPeriod & { sent: boolean })[]> {
-  const rc = and(eq(schema.invoices.taxTreatment, "reverse_charge"), isNull(schema.invoices.lexofficeVoucherId));
+  const rc = and(inArray(schema.invoices.taxTreatment, ["reverse_charge", "ig_lieferung"]), isNull(schema.invoices.lexofficeVoucherId));
   const quarter = (date: string) => ({ year: Number(date.slice(0, 4)), month: 40 + Math.ceil(Number(date.slice(5, 7)) / 3) });
   const [issued, writeOffs, sent] = await Promise.all([
     q

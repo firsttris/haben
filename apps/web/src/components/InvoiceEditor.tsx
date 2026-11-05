@@ -741,6 +741,19 @@ export function InvoiceEditor({
                     Nur für Leistungen an Unternehmen im EU-Ausland mit USt-IdNr.; zusätzlich in der Zusammenfassenden Meldung angeben.
                   </span>
                 )}
+                {taxTreatment === "ig_lieferung" && (
+                  <span id="treatment-hint" className="small">
+                    Nur für Ware, die zu einem Unternehmen in einem anderen EU-Land gelangt, mit dessen USt-IdNr.; Haben meldet sie in Kz 41 und in der
+                    Zusammenfassenden Meldung. Den Gelangensnachweis (§ 17a UStDV), etwa die Gelangensbestätigung oder den Versandbeleg, bewahrst du zur
+                    Rechnung auf.
+                  </span>
+                )}
+                {taxTreatment === "ausfuhr" && (
+                  <span id="treatment-hint" className="small">
+                    Nur für Ware, die ins Drittland gelangt, mit Ausfuhrnachweis (§ 8 bis § 11 UStDV), etwa dem Ausgangsvermerk aus ATLAS. Dienstleistungen ins
+                    Drittland sind „Leistung ins Nicht-EU-Ausland“.
+                  </span>
+                )}
               </label>
               {!special && (
                 <label className="field" style={{ gridColumn: "1 / -1" }}>

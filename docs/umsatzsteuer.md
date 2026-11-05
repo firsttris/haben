@@ -121,19 +121,20 @@ In der EÜR zählt sie wie jede Umsatzsteuer-Vorauszahlung als gezahlte Umsatzst
 
 ## Zusammenfassende Meldung
 
-Leistungen an Unternehmer im EU-Ausland mit Reverse Charge (Kz 21) meldest du zusätzlich dem Bundeszentralamt für Steuern (BZSt), je USt-IdNr. des Kunden die Summe der Bemessungsgrundlagen eines Kalendervierteljahres, bis zum 25. Tag nach Quartalsende (§ 18a Abs. 2 und 7 UStG). Eine Dauerfristverlängerung gilt dafür nicht. Kleinunternehmer melden nichts (§ 18a Abs. 4 UStG).
+Leistungen an Unternehmer im EU-Ausland mit Reverse Charge (Kz 21) und innergemeinschaftliche Lieferungen (Kz 41) meldest du zusätzlich dem Bundeszentralamt für Steuern (BZSt), je USt-IdNr. des Kunden und Umsatzart die Summe der Bemessungsgrundlagen eines Kalendervierteljahres, bis zum 25. Tag nach Quartalsende (§ 18a Abs. 1, 2 und 7 UStG). Eine Dauerfristverlängerung gilt dafür nicht. Kleinunternehmer melden nichts (§ 18a Abs. 4 UStG).
 
-Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr>-Q<Quartal>`) erreichst du über den Hinweis auf der Voranmeldung, sobald es im Zeitraum Kz 21 gibt, und über die Frist unter [Fristen](fristen.md). Quartale ohne solche Umsätze tauchen nirgends auf, auch nicht, wenn sie sich im Quartal aufheben (etwa durch ein Storno); eine Nullmeldung gibt es nicht.
+Die Seite **Umsatzsteuer › Zusammenfassende Meldung** (`/umsatzsteuer/zm/<Jahr>-Q<Quartal>`) erreichst du über den Hinweis auf der Voranmeldung, sobald es im Zeitraum Kz 21 oder 41 gibt, und über die Frist unter [Fristen](fristen.md). Quartale ohne solche Umsätze tauchen nirgends auf, auch nicht, wenn sie sich im Quartal aufheben (etwa durch ein Storno); eine Nullmeldung gibt es nicht.
 
 ### Woher die Zeilen kommen
 
 | Umsatz | Quartal |
 | --- | --- |
-| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland** | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 21 |
+| Rechnung mit **Reverse Charge: Leistung an Unternehmen im EU-Ausland**, Umsatzart S (sonstige Leistung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 21 |
+| Rechnung mit **Innergemeinschaftliche Lieferung**, Umsatzart L (Lieferung) | Rechnungsdatum, auch bei Ist-Versteuerung, wie Kz 41 |
 | Storno und Rechnungskorrektur (Gutschrift) dazu | ihr eigenes Datum: Sie mindern das Quartal, in dem sie ausgestellt sind (§ 18a Abs. 7 Satz 2 mit § 17 UStG); überwiegen sie, steht die Zeile negativ |
 | Skonto und Forderungsausfall dazu | Datum der Ausbuchung |
 
-Haben fasst alles je USt-IdNr. des Kunden zusammen (in Großbuchstaben, ohne Leerzeichen; griechische Nummern mit EL statt GR) und meldet volle Euro, die Cent fallen wie in der Voranmeldung weg. Unter **Rechnungen dazu** steht jede Rechnung mit ihrem Betrag. Aus Lexoffice übernommene Rechnungen zählen nicht mit, ihre Meldung lief dort.
+Haben fasst alles je USt-IdNr. des Kunden und Umsatzart zusammen (in Großbuchstaben, ohne Leerzeichen; griechische Nummern mit EL statt GR) und meldet volle Euro, die Cent fallen wie in der Voranmeldung weg. Unter **Rechnungen dazu** steht jede Rechnung mit ihrem Betrag. Aus Lexoffice übernommene Rechnungen zählen nicht mit, ihre Meldung lief dort.
 
 ### Vorprüfung
 
@@ -143,7 +144,9 @@ Haben fasst alles je USt-IdNr. des Kunden zusammen (in Großbuchstaben, ohne Lee
 | Anschrift unvollständig (Straße, fünfstellige PLZ, Ort) | Senden gesperrt |
 | USt-IdNr. eines Kunden fehlt, ist deutsch, britisch (seit dem Brexit; für Nordirland XI) oder hat kein Länderkennzeichen eines anderen Mitgliedstaats, oder nach dem Kennzeichen nicht 5 bis 12 Buchstaben, Ziffern, + oder * | Senden gesperrt, mit Rechnung und Kunde. Nordirische Nummern (XI) gelten nur für Lieferungen |
 | Voranmeldungen des Quartals noch nicht alle gesendet | Hinweis; der Abgleich mit Kz 21 folgt danach |
-| Summe der Meldung weicht von Kz 21 der gesendeten Voranmeldungen ab | Warnung. Bis zu einem Euro je Zeile und Voranmeldung ist Rundung. Eine größere Abweichung heißt: Die Voranmeldung oder die Meldung braucht eine Berichtigung |
+| Summe der Meldung weicht von Kz 21 der gesendeten Voranmeldungen ab, bei Lieferungen von Kz 41 | Warnung. Bis zu einem Euro je Zeile und Voranmeldung ist Rundung. Eine größere Abweichung heißt: Die Voranmeldung oder die Meldung braucht eine Berichtigung |
+| Mehr als 50.000 € Lieferungen im Quartal | Senden gesperrt: Die Meldung ist dann monatlich abzugeben (§ 18a Abs. 1 Satz 2 UStG), das kann Haben nicht; gib sie im BZStOnline-Portal ab |
+| Lieferungen im Quartal | Hinweis: Lagen sie in einem der vier vorangegangenen Quartale über 50.000 €, ist ebenfalls monatlich zu melden; und für jede Lieferung gehört der Gelangensnachweis (§ 17a UStDV) zu den Unterlagen |
 
 Die Prüfungen sind die des ERiC-Plugins `checkZMDO`; ob eine USt-IdNr. tatsächlich erteilt ist, prüft das nicht. Das klärst du vor der ersten Rechnung mit der Bestätigungsabfrage beim BZSt.
 
@@ -159,12 +162,13 @@ Ein Storno oder eine Gutschrift in einem späteren Quartal ist keine Berichtigun
 
 ### Was im Hintergrund passiert
 
-Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` für das BZSt) nach dem Schema `zm_000005.xsd`: eigene USt-IdNr., Teilnehmernummer `N`/`1111111` (so verlangt das Schema es bei Übermittlung mit ERiC), Anschrift mit Staat DE, Meldezeitraum als Quartal 1 bis 4 mit Jahr, `meldeart` 10 für die Erstmeldung und 11 für die Berichtigung, Währung Euro und je Zeile USt-IdNr., Umsatzart `S` (sonstige Leistung) und Betrag in vollen Euro. Die Anzeige der monatlichen Abgabe stellt Haben nicht. ERiC prüft den Datensatz vor dem Senden; ein Quartal nimmt es erst ab dem ersten Tag seines zweiten Monats an, Zeiträume in der Zukunft gar nicht.
+Haben erzeugt die Datenart `ZMDO` (Verfahren `ElsterExtern`, Empfänger `BF` für das BZSt) nach dem Schema `zm_000005.xsd`: eigene USt-IdNr., Teilnehmernummer `N`/`1111111` (so verlangt das Schema es bei Übermittlung mit ERiC), Anschrift mit Staat DE, Meldezeitraum als Quartal 1 bis 4 mit Jahr, `meldeart` 10 für die Erstmeldung und 11 für die Berichtigung, Währung Euro und je Zeile USt-IdNr., Umsatzart `S` (sonstige Leistung) oder `L` (innergemeinschaftliche Lieferung) und Betrag in vollen Euro. Die Anzeige der monatlichen Abgabe stellt Haben nicht. ERiC prüft den Datensatz vor dem Senden; ein Quartal nimmt es erst ab dem ersten Tag seines zweiten Monats an, Zeiträume in der Zukunft gar nicht.
 
 ### Grenzen
 
-- Nur sonstige Leistungen (§ 3a Abs. 2 UStG). Innergemeinschaftliche Lieferungen und Dreiecksgeschäfte kennen die Rechnungen von Haben noch nicht; mit ihnen kämen die Monatsmeldung über 50.000 € Lieferungen im Quartal (§ 18a Abs. 1 UStG) und Kz 41 dazu. Der Datensatz kann beides schon.
-- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist (§ 18a Abs. 8 Satz 2 UStG). Haben nimmt dafür das Rechnungsdatum, wie bei Kz 21.
+- Sonstige Leistungen (§ 3a Abs. 2 UStG, Umsatzart S) und innergemeinschaftliche Lieferungen (Umsatzart L). Keine Dreiecksgeschäfte (Umsatzart D, § 25b UStG): Die Rechnungen von Haben kennen sie nicht.
+- Keine Monatsmeldung: Liegen die Lieferungen im Quartal oder in einem der vier vorangegangenen über 50.000 €, ist monatlich zu melden (§ 18a Abs. 1 Satz 2 UStG). Über 50.000 € im Quartal sperrt Haben das Senden; die vorangegangenen Quartale prüft es nicht.
+- Maßgeblich ist der Zeitraum, in dem die Leistung ausgeführt ist bzw. die Rechnung für die Lieferung ausgestellt, spätestens der Folgemonat (§ 18a Abs. 8 UStG). Haben nimmt dafür das Rechnungsdatum, wie bei Kz 21 und 41.
 - Die Meldung geht nur für ganze Quartale, nicht monatlich nach § 18a Abs. 3 UStG.
 
 ## Wie die Kennzahlen entstehen
@@ -182,19 +186,21 @@ Ausbuchungen (§ 17 UStG, gewährtes Skonto und Forderungsausfall, siehe [Bank](
 
 Kz 81 ist die Bemessungsgrundlage zu 19 %, Kz 86 die zu 7 %. Dazu zählen nur regulär besteuerte Rechnungen und, in Kz 81, die private Nutzung von Firmenwagen im Monat der Nutzung ([Anlagen und AfA](anlagen.md#private-nutzung-von-firmenwagen)). Belege mit Privatanteil zählen in Kz 66 nur mit dem betrieblichen Teil. Regulär besteuerte Umsätze zu 0 % meldet Haben nicht; die Vorprüfung weist darauf hin.
 
-### Umsätze ohne Steuer (Kz 21, 45 und 48)
+### Umsätze ohne Steuer (Kz 21, 41, 43, 45 und 48)
 
 Rechnungen ohne Steuerausweis (siehe [Rechnungen](rechnungen.md#umsatzsteuer-auf-der-rechnung)) meldet Haben mit ihrer Bemessungsgrundlage, ohne Steuer. Sie ändern Kz 83 nicht.
 
 | Kennzahl | Umsatzsteuer an der Rechnung | Maßgeblich |
 | --- | --- | --- |
 | 21 | Reverse Charge: Leistung an Unternehmen im EU-Ausland | immer das Rechnungsdatum, auch bei Ist-Versteuerung |
+| 41 | Innergemeinschaftliche Lieferung (steuerfrei, § 4 Nr. 1 Buchst. b UStG) | immer das Rechnungsdatum, auch bei Ist-Versteuerung (§ 18b Satz 1 Nr. 1 und Satz 2 UStG) |
+| 43 | Ausfuhrlieferung ins Drittland (steuerfrei, § 4 Nr. 1 Buchst. a UStG) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 | 45 | Leistung ins Nicht-EU-Ausland (nicht steuerbar) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 | 48 | Steuerfrei nach § 4 UStG (ohne Vorsteuerabzug) | wie Kz 81: Ist nach Zahlungseingang, Soll nach Rechnungsdatum |
 
-Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Haben nimmt das Rechnungsdatum als Näherung dafür. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
+Bei Reverse Charge ist der Monat der Leistung maßgeblich, nicht die Zahlung. Haben nimmt das Rechnungsdatum als Näherung dafür. Innergemeinschaftliche Lieferungen gehören in den Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist, spätestens in den Monat nach der Lieferung (§ 18b UStG); Haben nimmt das Rechnungsdatum. Kz 41 und 43 sind steuerfreie Umsätze **mit** Vorsteuerabzug: Die Vorsteuer aus den Einkäufen dafür bleibt abziehbar. Kleinunternehmer-Rechnungen erscheinen in keiner Kennzahl.
 
-In der Tabelle der Kennzahlen stehen Kz 21, 45 und 48 nur, wenn sie nicht null sind oder du die Werte von Hand überschreibst.
+In der Tabelle der Kennzahlen stehen Kz 21, 41, 43, 45 und 48 nur, wenn sie nicht null sind oder du die Werte von Hand überschreibst.
 
 ### Vorsteuer (Kz 66)
 
@@ -211,6 +217,18 @@ Aus [Belegen mit § 13b](belege.md#reverse-charge-als-leistungsempfänger--13b) 
 | 67 | Vorsteuer aus diesen Leistungen, bei Privatanteil nur der betriebliche Teil; bei Kleinunternehmern 0 |
 
 Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst.
+
+### Innergemeinschaftlicher Erwerb
+
+Aus [Belegen mit innergemeinschaftlichem Erwerb](belege.md#innergemeinschaftlicher-erwerb--1a-ustg) nach **Belegdatum**, bei Ist- wie bei Soll-Versteuerung: Die Erwerbsteuer entsteht mit der Ausstellung der Rechnung, spätestens mit Ablauf des Monats nach dem Erwerb (§ 13 Abs. 1 Nr. 6 UStG), nicht mit der Zahlung.
+
+| Kz | Inhalt |
+| --- | --- |
+| 89 | Steuerpflichtige innergemeinschaftliche Erwerbe zu 19 %: Netto in vollen Euro, die Steuer rechnet das Formular daraus wie bei Kz 81 |
+| 93 | Steuerpflichtige innergemeinschaftliche Erwerbe zu 7 %: ebenso |
+| 61 | Vorsteuer aus dem innergemeinschaftlichen Erwerb (§ 15 Abs. 1 Satz 1 Nr. 3 UStG), centgenau; bei Privatanteil nur der betriebliche Teil |
+
+Bei vollem Vorsteuerabzug heben sich Erwerbsteuer und Kz 61 auf, bis auf die Rundung der Bemessungsgrundlage auf volle Euro. Die Zeilen erscheinen nur, wenn es solche Belege gibt oder du die Werte von Hand überschreibst.
 
 ### Übernahmen aus Lexoffice
 
@@ -319,7 +337,7 @@ Der Vermerk lässt sich nur ergänzen, nicht ändern oder löschen, steht im Än
 
 ### Was im Hintergrund passiert
 
-1. Haben erzeugt das ElsterXML der Datenart `UStVA_<Jahr>` mit 13-stelliger Steuernummer, Empfänger-Finanzamt aus der Steuernummer, Datenlieferant aus den Firmendaten und den Kennzahlen. Die Kennzahlen stehen in aufsteigender Reihenfolge (10, 21, 45, 48, 66, 81, 83, 86). Kz 21, 45, 48, 66, 81 und 86 erscheinen nur, wenn sie nicht null sind; Kz 83 steht immer drin.
+1. Haben erzeugt das ElsterXML der Datenart `UStVA_<Jahr>` mit 13-stelliger Steuernummer, Empfänger-Finanzamt aus der Steuernummer, Datenlieferant aus den Firmendaten und den Kennzahlen. Die Kennzahlen stehen in aufsteigender Reihenfolge (10, 21, 39, 41, 43, 45, 46, 47, 48, 61, 66, 67, 81, 83, 84, 85, 86, 89, 93). Alle außer Kz 83 erscheinen nur, wenn sie nicht null sind; Kz 83 steht immer drin.
 2. Jeder ERiC-Aufruf läuft in einem eigenen, kurzlebigen Kindprozess mit 120 Sekunden Zeitlimit.
 3. Zum Senden wird das Zertifikat entschlüsselt und nur für die Dauer des Aufrufs in ein privates temporäres Verzeichnis geschrieben, danach gelöscht. Die PIN wird weder gespeichert noch geloggt.
 4. Beim Senden prüft ERiC, übermittelt und erzeugt das Übertragungsprotokoll als PDF.
@@ -382,6 +400,6 @@ Belege und Rechnungen in Fremdwährung zählen mit ihren Euro-Beträgen, umgerec
 ## Grenzen
 
 - Ist-Versteuerung bei Fremdwährung: Mit deutscher Umsatzsteuer wäre das Entgelt mit dem Kurs des Monats umzurechnen, in dem es eingeht (Abschn. 16.4 UStAE). Das kann Haben nicht, deshalb lassen sich solche Rechnungen bei Ist-Versteuerung nicht festschreiben. Rechnungen in Fremdwährung ohne deutsche Steuer an Unternehmen im Ausland gehen (siehe [rechnungen.md](rechnungen.md#rechnungen-in-fremdwährung)).
-- Nur die Kennzahlen 81, 86, 21, 39, 45, 46, 47, 48, 66, 67, 83, 84, 85 und 10. Keine innergemeinschaftlichen Lieferungen oder Erwerbe; die [Zusammenfassende Meldung](#zusammenfassende-meldung) nur für sonstige Leistungen.
-- Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
+- Nur die Kennzahlen 81, 86, 21, 39, 41, 43, 45, 46, 47, 48, 61, 66, 67, 83, 84, 85, 89, 93 und 10. Nicht unterstützt: innergemeinschaftliche Lieferungen an Abnehmer ohne USt-IdNr. und neue Fahrzeuge (Kz 44, 49), steuerfreie Erwerbe (Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), Dreiecksgeschäfte (Kz 42, § 25b UStG) und die Einfuhrumsatzsteuer (Kz 62).
+- Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer, innergemeinschaftliche Lieferungen, Ausfuhren oder Erwerbe enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.

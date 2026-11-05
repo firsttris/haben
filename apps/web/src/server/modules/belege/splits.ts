@@ -67,7 +67,7 @@ export function splitBookingIssues(
   splits: Pick<DocumentSplit, "category" | "taxRate" | "net" | "tax">[],
 ): string[] {
   const issues: string[] = [];
-  if (doc.reverseCharge) issues.push("§ 13b mit Aufteilung wird nicht unterstützt");
+  if (doc.reverseCharge) issues.push(`${doc.reverseCharge === "ig_erwerb" ? "Innergemeinschaftlicher Erwerb" : "§ 13b"} mit Aufteilung wird nicht unterstützt`);
   if (doc.privateShare > 0) issues.push("Ein Privatanteil mit Aufteilung wird nicht unterstützt");
   if (doc.currency !== "EUR") issues.push("Fremdwährung mit Aufteilung wird nicht unterstützt");
   return [...issues, ...splitIssues(splitLines(splits), amounts)];

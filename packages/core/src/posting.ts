@@ -14,13 +14,26 @@ export const ACCOUNTS = {
     bank: "1200",
     kasse: "1000",
     erloese: { 1900: "8400", 700: "8300", 0: "8200" },
-    erloeseSonder: { reverse_charge: "8336", drittland: "8338", steuerfrei: "8100", kleinunternehmer: "8195" },
+    erloeseSonder: {
+      reverse_charge: "8336",
+      drittland: "8338",
+      ig_lieferung: "8125",
+      ausfuhr: "8120",
+      steuerfrei: "8100",
+      kleinunternehmer: "8195",
+    },
     ust: { 1900: "1776", 700: "1771" },
     ustNichtFaellig: { 1900: "1766", 700: "1761" },
     vorsteuer: { 1900: "1576", 700: "1571" },
     /** § 13b: selbst geschuldete Umsatzsteuer und die Vorsteuer daraus */
     ustRc: "1787",
     vorsteuerRc: "1577",
+    /**
+     * Innergemeinschaftlicher Erwerb (§ 1a UStG): Erwerbsteuer und Vorsteuer daraus, je Satz (DATEV-Kontenrahmen SKR03 2026;
+     * 1772 und 1572 sind die Konten ohne Satz, Haben nimmt sie für 7 %). Kein Automatikkonto: Haben bucht die Steuer selbst.
+     */
+    ustIge: { 1900: "1774", 700: "1772" },
+    vorsteuerIge: { 1900: "1574", 700: "1572" },
     verbindlichkeiten: "1600",
     privateinlagen: "1890",
     privatentnahmen: "1800",
@@ -49,12 +62,22 @@ export const ACCOUNTS = {
     bank: "1800",
     kasse: "1600",
     erloese: { 1900: "4400", 700: "4300", 0: "4200" },
-    erloeseSonder: { reverse_charge: "4336", drittland: "4338", steuerfrei: "4100", kleinunternehmer: "4185" },
+    erloeseSonder: {
+      reverse_charge: "4336",
+      drittland: "4338",
+      ig_lieferung: "4125",
+      ausfuhr: "4120",
+      steuerfrei: "4100",
+      kleinunternehmer: "4185",
+    },
     ust: { 1900: "3806", 700: "3801" },
     ustNichtFaellig: { 1900: "3816", 700: "3811" },
     vorsteuer: { 1900: "1406", 700: "1401" },
     ustRc: "3837",
     vorsteuerRc: "1407",
+    /** Innergemeinschaftlicher Erwerb (DATEV-Kontenrahmen SKR04 2026; 3802 und 1402 ohne Satz, für 7 %) */
+    ustIge: { 1900: "3804", 700: "3802" },
+    vorsteuerIge: { 1900: "1404", 700: "1402" },
     verbindlichkeiten: "3300",
     privateinlagen: "2180",
     privatentnahmen: "2100",
@@ -155,6 +178,12 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "1771": "Umsatzsteuer 7 %",
     "1776": "Umsatzsteuer 19 %",
     "1787": "Umsatzsteuer nach § 13b UStG",
+    "1572": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb",
+    "1574": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 %",
+    "1772": "Umsatzsteuer aus innergemeinschaftlichem Erwerb",
+    "1774": "Umsatzsteuer aus innergemeinschaftlichem Erwerb 19 %",
+    "8120": "Steuerfreie Umsätze § 4 Nr. 1a UStG",
+    "8125": "Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG",
     "2150": "Aufwendungen aus Kursdifferenzen",
     "2400": "Forderungsverluste (übliche Höhe)",
     "2650": "Sonstige Zinsen und ähnliche Erträge (Verzugszinsen, Mahngebühren)",
@@ -191,6 +220,12 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
     "3801": "Umsatzsteuer 7 %",
     "3806": "Umsatzsteuer 19 %",
     "3837": "Umsatzsteuer nach § 13b UStG",
+    "1402": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb",
+    "1404": "Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 %",
+    "3802": "Umsatzsteuer aus innergemeinschaftlichem Erwerb",
+    "3804": "Umsatzsteuer aus innergemeinschaftlichem Erwerb 19 %",
+    "4120": "Steuerfreie Umsätze § 4 Nr. 1a UStG",
+    "4125": "Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG",
     "3811": "Umsatzsteuer nicht fällig 7 %",
     "3816": "Umsatzsteuer nicht fällig 19 %",
     "4100": "Steuerfreie Umsätze § 4 Nr. 8 ff. UStG",
@@ -213,7 +248,8 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
 /**
  * Steuerschlüssel einer Buchungszeile, mit Kennzahl der Voranmeldung: USt19 (Kz 81), USt7 (86), frei,
  * RC (21), Drittland (45), Steuerfrei (48), KU (Kleinunternehmer), VSt19/VSt7 (66), keineVSt,
- * RC13bEU (46/47), RC13bDrittland (84/85), VSt13b (67)
+ * RC13bEU (46/47), RC13bDrittland (84/85), VSt13b (67), IGL (41, innergemeinschaftliche Lieferung),
+ * Ausfuhr (43), IGE19/IGE7 (89/93, innergemeinschaftlicher Erwerb), VStIGE (61)
  */
 export type TaxCode =
   | "USt19"
@@ -228,7 +264,12 @@ export type TaxCode =
   | "keineVSt"
   | "RC13bEU"
   | "RC13bDrittland"
-  | "VSt13b";
+  | "VSt13b"
+  | "IGL"
+  | "Ausfuhr"
+  | "IGE19"
+  | "IGE7"
+  | "VStIGE";
 
 /**
  * Steuerschuld als Leistungsempfänger (§ 13b UStG) für Belege: sonstige Leistungen eines Unternehmers
@@ -241,7 +282,30 @@ export const REVERSE_CHARGE_IN: Record<ReverseChargeIn, { label: string; code: "
   drittland: { label: "Leistung eines Unternehmers aus dem Drittland (§ 13b Abs. 2 Nr. 1 UStG)", code: "RC13bDrittland", kz: "84", taxKz: "85" },
 };
 
-const TREATMENT_TAX_CODES = { reverse_charge: "RC", drittland: "Drittland", steuerfrei: "Steuerfrei", kleinunternehmer: "KU" } as const;
+/**
+ * Steuer, die du am Eingangsbeleg selbst schuldest: § 13b (eu, drittland) oder innergemeinschaftlicher Erwerb (§ 1a UStG).
+ * Beim Erwerb entsteht die Steuer mit Ausstellung der Rechnung, spätestens mit Ablauf des Folgemonats (§ 13 Abs. 1 Nr. 6
+ * UStG), auch bei Ist-Versteuerung; Haben nimmt dafür das Belegdatum.
+ */
+export type SelfAssessedTax = ReverseChargeIn | "ig_erwerb";
+
+export const SELF_ASSESSED_TAX_KEYS = ["eu", "drittland", "ig_erwerb"] as const satisfies readonly SelfAssessedTax[];
+
+export const IG_ERWERB = {
+  label: "Innergemeinschaftlicher Erwerb (§ 1a UStG): Ware von einem Unternehmer aus dem EU-Ausland",
+  code: { 1900: "IGE19", 700: "IGE7" },
+  kz: { 1900: "89", 700: "93" },
+  taxKz: "61",
+} as const;
+
+const TREATMENT_TAX_CODES = {
+  reverse_charge: "RC",
+  drittland: "Drittland",
+  ig_lieferung: "IGL",
+  ausfuhr: "Ausfuhr",
+  steuerfrei: "Steuerfrei",
+  kleinunternehmer: "KU",
+} as const;
 
 export function revenueTaxCode(rate: BasisPoints, treatment: TaxTreatment = "regulaer"): TaxCode {
   if (treatment !== "regulaer") {
@@ -328,8 +392,9 @@ export function documentPosting(
   /**
    * § 13b: Die Steuer in totals schuldest du selbst, gezahlt wird nur netto (totals.gross = Netto).
    * Gebucht wird die Steuer als Umsatzsteuer und, mit Vorsteuerabzug, im selben Betrag als Vorsteuer.
+   * Beim innergemeinschaftlichen Erwerb (ig_erwerb) ebenso, auf die Konten der Erwerbsteuer und Erwerbsvorsteuer.
    */
-  reverseCharge: ReverseChargeIn | null = null,
+  reverseCharge: SelfAssessedTax | null = null,
 ): PostingLine[] {
   // Privat genutzt ist bei einer GmbH keine Entnahme, sondern Arbeitslohn oder verdeckte Gewinnausschüttung
   if (privateShare !== 0 && isKapitalgesellschaft(rechtsform)) throw new RangeError("Privatanteil gibt es nur im Einzelunternehmen");
@@ -345,15 +410,16 @@ export function documentPosting(
     const base = baseSplit.business;
     const tax = taxSplit.business;
     if (reverseCharge) {
-      if (rate === 0) throw new RangeError("§ 13b: Steuersatz muss 19 % oder 7 % sein");
-      const code = REVERSE_CHARGE_IN[reverseCharge].code;
+      const ige = reverseCharge === "ig_erwerb";
+      if (rate === 0) throw new RangeError(`${ige ? "Innergemeinschaftlicher Erwerb" : "§ 13b"}: Steuersatz muss 19 % oder 7 % sein`);
+      const code = ige ? IG_ERWERB.code[vatRate(rate)] : REVERSE_CHARGE_IN[reverseCharge].code;
       if (!vorsteuerAbzug) {
         if (base + tax !== 0) lines.push(side(expense, base + tax, true, code));
       } else {
         if (base !== 0) lines.push(side(expense, base, true, code));
-        if (tax !== 0) lines.push(side(accounts.vorsteuerRc, tax, true, "VSt13b"));
+        if (tax !== 0) lines.push(ige ? side(accounts.vorsteuerIge[vatRate(rate)], tax, true, "VStIGE") : side(accounts.vorsteuerRc, tax, true, "VSt13b"));
       }
-      if (row.tax !== 0) lines.push(side(accounts.ustRc, row.tax, false, code));
+      if (row.tax !== 0) lines.push(side(ige ? accounts.ustIge[vatRate(rate)] : accounts.ustRc, row.tax, false, code));
       continue;
     }
     if (!vorsteuerAbzug) {

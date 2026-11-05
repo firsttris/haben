@@ -9,7 +9,7 @@ import {
   type TaxTreatment,
   type VatPeriod,
 } from "@haben/core";
-import { and, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { privateUseForMonth } from "../buchhaltung/index.ts";
 import { kleinunternehmerForMonth, versteuerungForYear } from "../stammdaten/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
@@ -47,6 +47,19 @@ export interface ReverseChargeSource extends InputTaxSource {
   deductible: Cents;
 }
 
+/** Beleg über einen innergemeinschaftlichen Erwerb (§ 1a UStG): Erwerbsteuer (Kz 89/93) und Vorsteuer daraus (Kz 61) */
+export interface IgErwerbSource extends InputTaxSource {
+  /** Davon als Vorsteuer abziehbar (Kz 61): betrieblicher Teil */
+  deductible: Cents;
+}
+
+/**
+ * Steuerfälle der Ausgangsrechnung, die auch bei Ist-Versteuerung nach Rechnungsdatum gemeldet werden: Reverse Charge
+ * (Kz 21) und innergemeinschaftliche Lieferungen (Kz 41) im Voranmeldungszeitraum, in dem die Rechnung ausgestellt ist,
+ * spätestens im Folgemonat der Leistung (§ 18b Satz 1 und 2 UStG); Haben nimmt das Rechnungsdatum.
+ */
+export const NACH_RECHNUNGSDATUM = ["reverse_charge", "ig_lieferung"] as const satisfies readonly TaxTreatment[];
+
 export interface VatFigures {
   versteuerung: "ist" | "soll";
   /** Kleinunternehmer geben keine Voranmeldung ab */
@@ -67,11 +80,21 @@ export interface VatFigures {
   kz84: Cents;
   kz85: Cents;
   kz67: Cents;
+  /** Steuerfreie Lieferungen mit Vorsteuerabzug: innergemeinschaftlich (41), Ausfuhr (43) */
+  kz41: Cents;
+  kz43: Cents;
+  /** Innergemeinschaftlicher Erwerb: Bemessungsgrundlagen 19 % (89) und 7 % (93) mit der Erwerbsteuer laut Beleg, Vorsteuer (61) */
+  kz89: Cents;
+  tax89: Cents;
+  kz93: Cents;
+  tax93: Cents;
+  kz61: Cents;
   /** Regulär besteuerte Umsätze zu 0 %, die in dieser Voranmeldung nicht gemeldet werden */
   steuerfrei: Cents;
   revenue: RevenueSource[];
   inputTax: InputTaxSource[];
   reverseCharge: ReverseChargeSource[];
+  igErwerb: IgErwerbSource[];
 }
 
 /**
@@ -105,8 +128,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           eq(schema.allocations.kind, "invoice"),
           gte(schema.bankTransactions.bookingDate, start),
           lt(schema.bankTransactions.bookingDate, end),
-          // Reverse Charge zählt im Monat der Rechnung, auch bei Ist-Versteuerung (siehe unten)
-          ne(schema.invoices.taxTreatment, "reverse_charge"),
+          // Reverse Charge und innergemeinschaftliche Lieferung zählen im Monat der Rechnung, auch bei Ist (siehe unten)
+          notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM]),
         ),
       );
     // Mit der Zahlung als Kursdifferenz ausgebuchter Rest: die Steuer darauf wird mit der Zahlung fällig, in voller Höhe
@@ -129,7 +152,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           eq(schema.writeOffs.kind, "kursdifferenz"),
           gte(schema.writeOffs.date, start),
           lt(schema.writeOffs.date, end),
-          ne(schema.invoices.taxTreatment, "reverse_charge"),
+          notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM]),
         ),
       );
     payments.push(...differences);
@@ -153,8 +176,8 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     }
   }
 
-  // Soll: alle Rechnungen nach Rechnungsdatum. Ist: nur Reverse Charge, die Meldung in Kz 21
-  // richtet sich nach der Leistung, nicht nach der Zahlung (Rechnungsdatum als Näherung).
+  // Soll: alle Rechnungen nach Rechnungsdatum. Ist: nur Reverse Charge und innergemeinschaftliche Lieferungen, die
+  // Meldung in Kz 21 und 41 richtet sich nach der Rechnung, nicht nach der Zahlung (§ 18b UStG).
   {
     const issued = await q
       .select()
@@ -166,7 +189,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           lt(schema.invoices.issueDate, end),
           // aus Lexoffice übernommen: die Steuer ist dort schon angemeldet
           isNull(schema.invoices.lexofficeVoucherId),
-          ...(versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
+          ...(versteuerung === "ist" ? [inArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM])] : []),
         ),
       );
     const totals = await invoiceTotalsById(
@@ -191,7 +214,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   }
 
   // Ausbuchungen (§ 17 UStG): Skonto und Forderungsausfall mindern die Bemessungsgrundlage im Monat der Ausbuchung.
-  // Bei Ist zählt ohnehin nur, was bezahlt wird; ausgenommen Reverse Charge, das auch bei Ist nach Rechnung zählt.
+  // Bei Ist zählt ohnehin nur, was bezahlt wird; ausgenommen, was auch bei Ist nach Rechnung zählt (NACH_RECHNUNGSDATUM).
   {
     const rows = await q
       .select({
@@ -212,7 +235,7 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           lt(schema.writeOffs.date, end),
           // Kursdifferenzen ändern die Bemessungsgrundlage nicht, sie bleibt beim Kurs der Rechnung
           ne(schema.writeOffs.kind, "kursdifferenz"),
-          ...(versteuerung === "ist" ? [eq(schema.invoices.taxTreatment, "reverse_charge")] : []),
+          ...(versteuerung === "ist" ? [inArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM])] : []),
         ),
       );
     const totals = await invoiceTotalsById([...new Set(rows.map((r) => r.invoiceId))], q);
@@ -338,14 +361,25 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
   }
   // § 13b: Bemessungsgrundlage und Steuer voll, auch bei Privatanteil; Vorsteuer nur betrieblich
   const reverseCharge: ReverseChargeSource[] = amounts
-    .filter((a) => a.reverseCharge)
+    .filter((a): a is typeof a & { reverseCharge: "eu" | "drittland" } => a.reverseCharge === "eu" || a.reverseCharge === "drittland")
     .map(({ privateShare, vorsteuerAbzug, reverseCharge: rc, sign, ...a }) => ({
       ...a,
       base: sign * a.base,
       tax: sign * a.tax,
-      reverseCharge: rc!,
+      reverseCharge: rc,
       deductible: vorsteuerAbzug ? business(a.tax, privateShare, sign) : 0,
     }));
+  // Innergemeinschaftlicher Erwerb ebenso, nach Belegdatum auch bei Ist-Versteuerung: Die Steuer entsteht mit Ausstellung
+  // der Rechnung, spätestens mit Ablauf des Folgemonats (§ 13 Abs. 1 Nr. 6 UStG), nicht mit der Zahlung
+  const igErwerb: IgErwerbSource[] = amounts
+    .filter((a) => a.reverseCharge === "ig_erwerb")
+    .map(({ privateShare, vorsteuerAbzug, reverseCharge: _rc, sign, ...a }) => ({
+      ...a,
+      base: sign * a.base,
+      tax: sign * a.tax,
+      deductible: vorsteuerAbzug ? business(a.tax, privateShare, sign) : 0,
+    }));
+  const ige = (rate: number, key: "base" | "tax") => igErwerb.filter((r) => r.rate === rate).reduce((s, r) => s + r[key], 0);
   const rcSum = (kind: "eu" | "drittland", key: "base" | "tax") => reverseCharge.filter((r) => r.reverseCharge === kind).reduce((s, r) => s + r[key], 0);
 
   const regular = revenue.filter((r) => r.treatment === "regulaer");
@@ -370,10 +404,18 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
     kz84: rcSum("drittland", "base"),
     kz85: rcSum("drittland", "tax"),
     kz67: reverseCharge.reduce((s, r) => s + r.deductible, 0),
+    kz41: treated("ig_lieferung"),
+    kz43: treated("ausfuhr"),
+    kz89: ige(1900, "base"),
+    tax89: ige(1900, "tax"),
+    kz93: ige(700, "base"),
+    tax93: ige(700, "tax"),
+    kz61: igErwerb.reduce((s, r) => s + r.deductible, 0),
     steuerfrei: sum(regular, 0, "base"),
     revenue,
     inputTax,
     reverseCharge,
+    igErwerb,
   };
 }
 
