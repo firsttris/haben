@@ -242,6 +242,45 @@ describe.skipIf(!testDatabaseUrl)("Lohnabrechnung (Postgres)", () => {
     expect(pdf!.filename).toBe("Lohnkonto-2026-Muster-Erika.pdf");
   });
 
+  it("lässt auch per UPDATE an der App vorbei keine zweite aktive Abrechnung im Monat zu", async () => {
+    const id = await lohn.saveEmployee(actor, null, GGF);
+    await lohn.abrechnen(actor, oktober);
+    await lohn.abrechnen(actor, { year: 2026, month: 9, zahltag: "2026-09-28" });
+    const [september, oktoberEntwurf] = await sql<{ id: string }[]>`select id from payslips where employee_id = ${id} order by month`;
+    await expect(sql`update payslips set month = 10 where id = ${september!.id}`).rejects.toThrow(/schon eine Abrechnung/);
+    await expect(sql`update payslips set replaces_id = ${september!.id} where id = ${oktoberEntwurf!.id}`).rejects.toThrow(/keine stornierte Abrechnung/);
+  });
+
+  it("schreibt keinen Entwurf fest, der mit einem anderen Bundesland gerechnet ist", async () => {
+    const id = await lohn.saveEmployee(actor, null, GGF);
+    await sql`update company set bundesland = 'BY'`;
+    await lohn.abrechnen(actor, oktober);
+    await sql`update company set bundesland = 'HB'`;
+    const [p] = await payslipsOf(id);
+    await expect(lohn.festschreiben(actor, { id: p!.id }, heute)).rejects.toThrow(/neu berechnen/);
+    await lohn.entwurfNeuBerechnen(actor, { id: p!.id });
+    await lohn.festschreiben(actor, { id: p!.id }, heute);
+  });
+
+  it("Lohnkonto: die Pauschsteuer steht nur in ihrer Spalte, nicht auch in den Beiträgen des Arbeitgebers", async () => {
+    const id = await lohn.saveEmployee(actor, null, {
+      ...ANGESTELLT,
+      art: "minijob",
+      monatsgehalt: 600_00,
+      personengruppe: "109",
+      beitragsgruppen: "6500",
+      u1Satz: 80,
+      u2Satz: 22,
+      kinderUnter25: 0,
+    });
+    await lohn.abrechnen(actor, oktober);
+    const [p] = await payslipsOf(id);
+    await lohn.festschreiben(actor, { id: p!.id }, heute);
+    const [zeile] = (await lohn.lohnkontoDesJahres(id, 2026))!.konto.zeilen;
+    // 13 % KV + 15 % RV + U1 0,8 % + U2 0,22 % + Insolvenzgeldumlage 0,15 % von 600 €; Pauschsteuer 2 % eigens
+    expect(zeile).toMatchObject({ pauschsteuer: 12_00, svArbeitgeber: 78_00 + 90_00 + 4_80 + 1_32 + 90 });
+  });
+
   it("rechnet einen Geschäftsführer mit festgestellter Versicherungspflicht nicht ohne SV", async () => {
     await lohn.saveEmployee(actor, null, { ...GGF, statusfeststellung: "versicherungspflichtig" });
     const r = await lohn.abrechnen(actor, oktober);
