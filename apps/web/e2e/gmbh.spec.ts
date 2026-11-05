@@ -188,6 +188,11 @@ test("Jahresabschluss: Bilanz und GuV der Kleinst-GmbH, Vorjahr abschließen", a
   await expect(page.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
   await expect(page.getByRole("group", { name: "Verlauf der E-Bilanz" })).toContainText("Prüfung");
   expect(await axe(), `/abschluss/${year - 1}`).toEqual([]);
+
+  // Wirtschaftsjahre ab 2027 gehen in der Taxonomie 6.10 (BMF-Schreiben vom 8. Juni 2026), mit Kontennachweis
+  await go(`/abschluss/${year + 1}`);
+  await expect(page.getByRole("region", { name: `E-Bilanz ${year + 1}` })).toContainText(`HGB-Taxonomie ${year + 1 >= 2027 ? "6.10" : "6.9"}`);
+  await expect(page.getByRole("region", { name: `E-Bilanz ${year + 1}` })).toContainText("Kontennachweis");
 });
 
 test("Hinterlegung: Registerangaben in den Firmendaten, Bilanz des Vorjahres als PDF", async () => {

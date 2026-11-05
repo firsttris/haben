@@ -1,36 +1,31 @@
 import type { AnlagenspiegelZeile, Cents, EbilanzZuordnung } from "@haben/core";
 import { splitStrasse } from "../nachricht.ts";
 import { elsterXml, escapeXml } from "../xml.ts";
-import taxonomie from "./taxonomie-6-9.json" with { type: "json" };
+import { type EbilanzKontensaldo, kontennachweis, kontennachweisXml } from "./kontennachweis.ts";
+import { EbilanzError, type EbilanzTaxonomie, ebilanzPositionen, ebilanzSaldoSeite, ebilanzSummen, ebilanzTaxonomieDatum } from "./taxonomie.ts";
 
 /*
- * E-Bilanz (§ 5b EStG) einer Kapitalgesellschaft als XBRL-Instanz in der HGB-Taxonomie 6.9, im ELSTER-Umschlag der
- * Datenart „Bilanz“ (ERiC-Dokumentation, Schnittstellenbeschreibungen/Sonstige/Bilanz, ebilanz_000002.xsd; Beispiele
- * Taxonomie_6_9). Übermittelt wird eine Steuerbilanz (accountingStandard AO) mit Bilanz und GuV nach dem
- * Gesamtkostenverfahren als Einzelabschluss.
+ * E-Bilanz (§ 5b EStG) einer Kapitalgesellschaft als XBRL-Instanz in der HGB-Taxonomie 6.9 oder 6.10 (taxonomie.ts), im
+ * ELSTER-Umschlag der Datenart „Bilanz“ (ERiC-Dokumentation, Schnittstellenbeschreibungen/Sonstige/Bilanz,
+ * ebilanz_000002.xsd; Beispiele Taxonomie_6_9 und Taxonomie_6_10). Übermittelt wird eine Steuerbilanz (accountingStandard
+ * AO) mit Bilanz und GuV nach dem Gesamtkostenverfahren als Einzelabschluss, mit dem Kontennachweis (kontennachweis.ts).
  *
  * Die Werte kommen je Taxonomie-Position (Blatt) herein; Summen rechnet der Baustein nach den Rechenregeln der Taxonomie
  * (summation-item mit Gewicht) selbst. Mussfelder und Summenmussfelder ohne Wert stehen leer (xsi:nil), wie die
  * Finanzverwaltung es für nicht belegte Mussfelder vorsieht.
  */
 
-export const EBILANZ_TAXONOMIE = "6.9";
-const GCD = "http://www.xbrl.de/taxonomies/de-gcd-2025-04-01";
-const GAAP = "http://www.xbrl.de/taxonomies/de-gaap-ci-2025-04-01";
-
-/** [Pflichtgrad, Summe, Gewicht, Soll/Haben, Periodentyp] je Position; Pflichtgrad M Muss, S Summenmuss, R rechnerisch notwendig */
-type Position = [req: string, parent: string | null, weight: number, balance: string, period: string];
-const POSITIONEN = taxonomie.positionen as unknown as Record<string, Position>;
-
-export class EbilanzError extends Error {}
-
 export interface EbilanzInput {
   /** Wirtschaftsjahr = Kalenderjahr */
   year: number;
+  /** Taxonomie nach dem Wirtschaftsjahr, ebilanzTaxonomie() */
+  taxonomie: EbilanzTaxonomie;
   steuernummer13: string;
   firma: { name: string; strasse: string; plz: string; ort: string; telefon?: string; email?: string };
   /** Werte je Blattposition der Taxonomie (ohne Präfix), im Vorzeichen der Position: Soll-Position Soll positiv */
   werte: Readonly<Record<string, Cents>>;
+  /** Salden der Sachkonten je Position für den Kontennachweis */
+  konten: readonly EbilanzKontensaldo[];
   /** Betriebsvermögensvergleich: Eigenkapital am Ende des Vorjahres, Ausschüttungen und Einlagen im Jahr */
   bvv: { eigenkapitalVorjahr: Cents; ausschuettungen: Cents; einlagen: Cents };
   /** Anlagenspiegel je Bilanzposition des Anlagevermögens (Blatt), Beträge positiv */
@@ -42,67 +37,39 @@ export interface EbilanzInput {
   erstellt: string;
 }
 
-/** Summen nach den Rechenregeln: jede Position mit Wert gibt ihn, mit Gewicht, an ihre Summe weiter */
-export function ebilanzSummen(werte: Readonly<Record<string, Cents>>): Map<string, Cents> {
-  const result = new Map<string, Cents>();
-  for (const [name, value] of Object.entries(werte)) {
-    if (!POSITIONEN[name]) throw new EbilanzError(`Position ${name} gibt es in der Taxonomie ${EBILANZ_TAXONOMIE} nicht`);
-    if (value === 0) continue;
-    let current: string | null = name;
-    let factor = 1;
-    while (current) {
-      result.set(current, (result.get(current) ?? 0) + factor * value);
-      const [, parent, weight]: Position = POSITIONEN[current]!;
-      factor *= weight;
-      current = parent;
-    }
-  }
-  return result;
-}
-
 /**
  * Werte je Position aus den zugeordneten Salden (Soll − Haben): Soll-Positionen mit dem Saldo, Haben-Positionen mit
  * seinem Gegenwert. Das Jahresergebnis der GuV steht als Jahresüberschuss/-fehlbetrag im Eigenkapital, weil Haben es
  * nicht auf ein Konto abschließt.
  */
-export function ebilanzWerte(zuordnung: readonly EbilanzZuordnung[]): Record<string, Cents> {
+export function ebilanzWerte(zuordnung: readonly EbilanzZuordnung[], version: EbilanzTaxonomie): Record<string, Cents> {
   const werte: Record<string, Cents> = {};
-  for (const { position, saldo } of zuordnung) {
-    const p = POSITIONEN[position];
-    if (!p) throw new EbilanzError(`Position ${position} gibt es in der Taxonomie ${EBILANZ_TAXONOMIE} nicht`);
-    werte[position] = (werte[position] ?? 0) + (p[3] === "credit" ? -saldo : saldo);
-  }
+  for (const { position, betrag } of ebilanzKontensalden(zuordnung, () => "", version)) werte[position] = (werte[position] ?? 0) + betrag;
   const guv = Object.fromEntries(Object.entries(werte).filter(([name]) => name.startsWith("is.")));
-  const ergebnis = ebilanzSummen(guv).get("is.netIncome") ?? 0;
+  const ergebnis = ebilanzSummen(guv, version).get("is.netIncome") ?? 0;
   if (ergebnis !== 0) werte["bs.eqLiab.equity.netIncome"] = (werte["bs.eqLiab.equity.netIncome"] ?? 0) + ergebnis;
   return werte;
 }
 
-/**
- * Positionen, die einen Wert tragen dürfen: ohne Unterpositionen mit Pflichtgrad (Muss, Summenmuss, rechnerisch
- * notwendig). Freiwillige Unterpositionen, etwa die Entwicklung des gezeichneten Kapitals, dürfen leer bleiben.
- */
-export function istEbilanzBlatt(position: string): boolean {
-  return Boolean(POSITIONEN[position]) && !SUMMENPOSITIONEN.has(position);
-}
-const SUMMENPOSITIONEN = new Set(
-  Object.values(POSITIONEN)
-    .filter(([req, parent]) => req !== "" && parent !== null)
-    .map(([, parent]) => parent!),
-);
-
-/** Kette der Summen bis zur Wurzel (bs.ass, bs.eqLiab, is.netIncome) */
-export function ebilanzSummenkette(position: string): string[] {
-  const chain: string[] = [];
-  for (let p: string | null = position; p; p = POSITIONEN[p]?.[1] ?? null) chain.push(p);
-  return chain;
+/** Salden der Konten im Vorzeichen ihrer Position (Soll − Haben bei Soll-Positionen, Haben − Soll bei Haben-Positionen) */
+export function ebilanzKontensalden(
+  zuordnung: readonly EbilanzZuordnung[],
+  kontoName: (account: string) => string,
+  version: EbilanzTaxonomie,
+): EbilanzKontensaldo[] {
+  return zuordnung.map(({ account, saldo, position }) => ({
+    account,
+    name: kontoName(account),
+    position,
+    betrag: ebilanzSaldoSeite(version, position) === "credit" ? -saldo : saldo,
+  }));
 }
 
 const decimal = (cents: Cents) => `${cents < 0 ? "-" : ""}${Math.trunc(Math.abs(cents) / 100)}.${String(Math.abs(cents) % 100).padStart(2, "0")}`;
 
 /** Fakten von Bilanz und GuV: alle Positionen mit Wert, dazu Muss- und Summenmussfelder leer */
-function gaapFacts(summen: Map<string, Cents>): string[] {
-  return Object.entries(POSITIONEN)
+function gaapFacts(summen: Map<string, Cents>, version: EbilanzTaxonomie): string[] {
+  return Object.entries(ebilanzPositionen(version))
     .filter(([name, [req]]) => summen.has(name) || req === "M" || req === "S")
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([name, [, , , , period]]) => {
@@ -114,8 +81,11 @@ function gaapFacts(summen: Map<string, Cents>): string[] {
     });
 }
 
-/** Stammdaten (GCD-Modul): Bericht, Zeitraum, Unternehmen; Aufbau wie in den Beispielen der ERiC-Dokumentation */
-function gcdFacts(input: EbilanzInput): string[] {
+/**
+ * Stammdaten (GCD-Modul): Bericht, Zeitraum, Unternehmen; Aufbau wie in den Beispielen der ERiC-Dokumentation.
+ * mitKontensalden: der Berichtsteil Kontensalden (KS) ist angekündigt und belegt.
+ */
+function gcdFacts(input: EbilanzInput, mitKontensalden: boolean, mitAnlagenspiegel: boolean): string[] {
   const d = 'contextRef="D-AKTJAHR"';
   const fact = (name: string, value?: string | null) =>
     value === undefined
@@ -132,8 +102,8 @@ function gcdFacts(input: EbilanzInput): string[] {
   // Ohne KKE, SGE und SGEP: für Kapitalgesellschaften rechtsformfremd; Taxonomie 6.9 verbietet sie auch leer, ERiC prüft
   // das ab 43.5 (Fehler 170185126, ERiC-Releasenotes 45.1, Kap. 7.1.16.1)
   const elements = ["B", "BAL", "BVV", "EB", "EV", "GuV", "KS", "STU"] as const;
-  // Bilanz, Anlagenspiegel, GuV mit Betriebsvermögensvergleich
-  const BERICHTSTEILE = new Set<string>(["B", "BAL", "BVV", "GuV"]);
+  // Bilanz, Anlagenspiegel, GuV mit Betriebsvermögensvergleich, Kontennachweis
+  const BERICHTSTEILE = new Set<string>(["B", "BVV", "GuV", ...(mitAnlagenspiegel ? ["BAL"] : []), ...(mitKontensalden ? ["KS"] : [])]);
   return [
     fact("doc.id.generationDate", input.erstellt),
     ...group("report.id.reportStatus", [fact("report.id.reportStatus.reportStatus.E")]),
@@ -142,8 +112,9 @@ function gcdFacts(input: EbilanzInput): string[] {
       "report.id.reportElement",
       elements.map((e) => fact(`report.id.reportElement.reportElements.${e}`, BERICHTSTEILE.has(e) ? undefined : null)),
     ),
-    // Kontensalden je Position übermittelt Haben noch nicht; die Taxonomie erlaubt dafür diese Angabe
-    fact("report.id.reportElement.reportElements.transmissionNotYetPossible", "NoKS"),
+    // Nur 6.9 kennt die Begründung, warum der Kontennachweis fehlt (Technischer Leitfaden 6.9, Tz. B.12), als Mussfeld,
+    // mit Kontennachweis leer; 6.10 hat sie gestrichen (Änderungsnachweis zur Taxonomie 6.10, Nr. 2)
+    ...(input.taxonomie === "6.9" ? [fact("report.id.reportElement.reportElements.transmissionNotYetPossible", mitKontensalden ? null : "NoKS")] : []),
     ...group("report.id.statementType", [fact("report.id.statementType.statementType.E")]),
     fact("report.id.incomeStatementendswithBalProfit", "false"),
     ...group("report.id.accountingStandard", [fact("report.id.accountingStandard.accountingStandard.AO")]),
@@ -177,6 +148,9 @@ function gcdFacts(input: EbilanzInput): string[] {
       fact("company.id.idNo.type.companyId.BF4", input.steuernummer13.slice(0, 4)),
     ]),
     // Gesellschafter: Mussfeld der Stammdaten, bei Kapitalgesellschaften ohne Angaben (sie gelten Personengesellschaften).
+    // Die neuen Prüfregeln der Taxonomie 6.10 zu Steuernummer, IdNr. und W-IdNr. der Gesellschafter und zu „noch nicht
+    // vergeben“ [idNotAssigned] gelten nur für Personengesellschaften (Technischer Leitfaden 6.10, Tz. B.14.3.1.19 und
+    // B.14.3.1.20; ERiC-Releasenotes 45.1, Kap. 3.1.8.1); idNotAssigned ist kein Mussfeld und bleibt weg.
     // Option nach § 1a KStG, Gesellschaftergruppe, laufende Nummer, Sonder- und Ergänzungsbilanz sowie die steuerliche
     // Bilanzart fehlen: rechtsformfremd für Kapitalgesellschaften, ab ERiC 43.5 auch leer abgelehnt (siehe oben)
     ...group("company.id.shareholder", [
@@ -204,7 +178,8 @@ function gcdFacts(input: EbilanzInput): string[] {
  * (Rechenregel notesTableStmOfChgInFAssGross: Buchwert = Bruttowert − kumulierte AfA). Die Zeilen werden zu allen
  * übergeordneten Positionen bis bs.ass.fixAss summiert; der Buchwert je Position muss dem Bilanzwert gleichen.
  */
-function anlagenspiegel(input: Pick<EbilanzInput, "year" | "anlagen">, summen: Map<string, Cents>, entity: string): string[] {
+function anlagenspiegel(input: Pick<EbilanzInput, "year" | "anlagen" | "taxonomie">, summen: Map<string, Cents>, entity: string): string[] {
+  const positionen = ebilanzPositionen(input.taxonomie);
   const groups = new Map<string, AnlagenspiegelZeile>();
   const add = (position: string, z: AnlagenspiegelZeile) => {
     const g = groups.get(position) ?? { position, akAnfang: 0, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 };
@@ -213,9 +188,9 @@ function anlagenspiegel(input: Pick<EbilanzInput, "year" | "anlagen">, summen: M
   };
   groups.set("bs.ass.fixAss", { position: "bs.ass.fixAss", akAnfang: 0, zugaenge: 0, abgaenge: 0, afaAnfang: 0, afaJahr: 0, afaAbgaenge: 0 });
   for (const zeile of input.anlagen) {
-    if (!zeile.position.startsWith("bs.ass.fixAss.") || !POSITIONEN[zeile.position])
+    if (!zeile.position.startsWith("bs.ass.fixAss.") || !positionen[zeile.position])
       throw new EbilanzError(`${zeile.position} ist keine Position des Anlagevermögens`);
-    for (let p: string | null = zeile.position; p?.startsWith("bs.ass.fixAss"); p = POSITIONEN[p]![1]) add(p, zeile);
+    for (let p: string | null = zeile.position; p?.startsWith("bs.ass.fixAss"); p = positionen[p]![1]) add(p, zeile);
   }
   const y = input.year;
   const lines: string[] = [];
@@ -290,16 +265,19 @@ export function datenlieferant(firma: EbilanzInput["firma"]): string {
  * Prüft, was ERiC sonst erst beim Senden fände, ohne XML zu bauen: Betriebsvermögensvergleich gegen GuV, Aktiva gegen
  * Passiva, Anlagenspiegel gegen Bilanz. Gibt die Summen samt Betriebsvermögensvergleich zurück.
  */
-export function ebilanzPruefen(input: Pick<EbilanzInput, "year" | "werte" | "bvv" | "anlagen">): Map<string, Cents> {
-  const bilanz = ebilanzSummen(input.werte);
+export function ebilanzPruefen(input: Pick<EbilanzInput, "year" | "taxonomie" | "werte" | "bvv" | "anlagen">): Map<string, Cents> {
+  const bilanz = ebilanzSummen(input.werte, input.taxonomie);
   // Betriebsvermögensvergleich: Eigenkapital zu Beginn und Ende, Ausschüttungen, Einlagen; er muss das Jahresergebnis ergeben
-  const summen = ebilanzSummen({
-    ...input.werte,
-    "BVV.profitLoss.assetsCurrentYear": (bilanz.get("bs.eqLiab.equity") ?? 0) - (bilanz.get("bs.ass.deficitNotCoveredByCapital") ?? 0),
-    "BVV.profitLoss.assetsPreviousYear.assets": input.bvv.eigenkapitalVorjahr,
-    "BVV.profitLoss.withdrawalDistrib": input.bvv.ausschuettungen,
-    "BVV.profitLoss.contribution": input.bvv.einlagen,
-  });
+  const summen = ebilanzSummen(
+    {
+      ...input.werte,
+      "BVV.profitLoss.assetsCurrentYear": (bilanz.get("bs.eqLiab.equity") ?? 0) - (bilanz.get("bs.ass.deficitNotCoveredByCapital") ?? 0),
+      "BVV.profitLoss.assetsPreviousYear.assets": input.bvv.eigenkapitalVorjahr,
+      "BVV.profitLoss.withdrawalDistrib": input.bvv.ausschuettungen,
+      "BVV.profitLoss.contribution": input.bvv.einlagen,
+    },
+    input.taxonomie,
+  );
   const bvv = summen.get("BVV.profitLoss") ?? 0;
   const ergebnis = summen.get("is.netIncome") ?? 0;
   if (bvv !== ergebnis) {
@@ -314,25 +292,51 @@ export function ebilanzPruefen(input: Pick<EbilanzInput, "year" | "werte" | "bvv
   return summen;
 }
 
+/**
+ * Ab 6.10 muss der Buchwert des Anlagevermögens im Anlagenspiegel dem Wert in der Bilanz gleichen, auch wenn dort keiner
+ * steht (Technischer Leitfaden 6.10, Tz. B.14.12.1 g; ERiC-Releasenotes 45.1, ERU-24975), und leer lässt ERiC ihn im
+ * Anlagenspiegel nicht. Ohne Anlagen im Jahr bleibt der Anlagenspiegel deshalb weg (in 6.9 steht er wie bisher mit 0);
+ * sind alle Anlagen abgeschrieben oder abgegangen, stehen ihre Positionen in der Bilanz mit 0, belegt im Kontennachweis
+ * mit dem Eintrag ohne Konto, weil kein Konto einen Saldo hat.
+ */
+function anlagenOhneBuchwert(input: Pick<EbilanzInput, "taxonomie" | "anlagen">, summen: Map<string, Cents>): Map<string, Cents> {
+  if (input.taxonomie === "6.9" || summen.has("bs.ass.fixAss")) return summen;
+  const result = new Map(summen);
+  const positionen = ebilanzPositionen(input.taxonomie);
+  for (const { position } of input.anlagen) {
+    for (let p: string | null = position; p && !result.has(p); p = positionen[p]?.[1] ?? null) result.set(p, 0);
+  }
+  return result;
+}
+
 /** E-Bilanz im ELSTER-Umschlag, Datenart Bilanz; Empfänger ist das Finanzamt nach der Bundesfinanzamtsnummer */
 export function buildEbilanzXml(input: EbilanzInput): string {
   if (!/^\d{13}$/.test(input.steuernummer13)) throw new EbilanzError("Steuernummer im ELSTER-Format (13 Ziffern) fehlt");
-  const summen = ebilanzPruefen(input);
+  const mitAnlagenspiegel = input.taxonomie === "6.9" || input.anlagen.length > 0;
+  const summen = anlagenOhneBuchwert(input, ebilanzPruefen(input));
+  const nachweis = kontennachweis(summen, input.konten, input.taxonomie);
+  // 6.9 verlangt, wenn KS angekündigt ist, zu Bilanz und GuV je mindestens einen Kontensaldo (Technischer Leitfaden 6.9,
+  // Tz. B.12); fehlt einer, bleibt es dort bei der Begründung. 6.10 verlangt den Nachweis je Position (kontennachweis.ts).
+  const mitKontensalden = input.taxonomie === "6.9" ? ["bs.", "is."].every((teil) => nachweis.some((e) => e.position.startsWith(teil))) : nachweis.length > 0;
+  const datum = ebilanzTaxonomieDatum(input.taxonomie);
+  const gcd = `http://www.xbrl.de/taxonomies/de-gcd-${datum}`;
+  const gaap = `http://www.xbrl.de/taxonomies/de-gaap-ci-${datum}`;
   const entity = `<xbrli:entity><xbrli:identifier scheme="http://www.rzf-nrw.de/Steuernummer">${input.steuernummer13}</xbrli:identifier></xbrli:entity>`;
   const y = input.year;
   const instanz = [
     `<ebilanz:EBilanz version="000002" xmlns:ebilanz="http://rzf.fin-nrw.de/RMS/EBilanz/2016/XMLSchema">`,
     `<ebilanz:stichtag>${y}1231</ebilanz:stichtag>`,
-    `<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:iso4217="http://www.xbrl.org/2003/iso4217" xmlns:de-gcd="${GCD}" xmlns:de-gaap-ci="${GAAP}">`,
-    `<link:schemaRef xlink:type="simple" xlink:href="${GCD}/de-gcd-2025-04-01-shell.xsd"/>`,
-    `<link:schemaRef xlink:type="simple" xlink:href="${GAAP}/de-gaap-ci-2025-04-01-shell-fiscal.xsd"/>`,
+    `<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:iso4217="http://www.xbrl.org/2003/iso4217" xmlns:de-gcd="${gcd}" xmlns:de-gaap-ci="${gaap}">`,
+    `<link:schemaRef xlink:type="simple" xlink:href="${gcd}/de-gcd-${datum}-shell.xsd"/>`,
+    `<link:schemaRef xlink:type="simple" xlink:href="${gaap}/de-gaap-ci-${datum}-shell-fiscal.xsd"/>`,
     `<xbrli:context id="I-AKTJAHR">${entity}<xbrli:period><xbrli:instant>${y}-12-31</xbrli:instant></xbrli:period></xbrli:context>`,
     `<xbrli:context id="D-AKTJAHR">${entity}<xbrli:period><xbrli:startDate>${y}-01-01</xbrli:startDate><xbrli:endDate>${y}-12-31</xbrli:endDate></xbrli:period></xbrli:context>`,
     `<xbrli:unit id="EUR"><xbrli:measure>iso4217:EUR</xbrli:measure></xbrli:unit>`,
     `<xbrli:unit id="PURE"><xbrli:measure>xbrli:pure</xbrli:measure></xbrli:unit>`,
-    ...anlagenspiegel(input, summen, entity),
-    ...gcdFacts(input),
-    ...gaapFacts(summen),
+    ...(mitAnlagenspiegel ? anlagenspiegel(input, summen, entity) : []),
+    ...gcdFacts(input, mitKontensalden, mitAnlagenspiegel),
+    ...gaapFacts(summen, input.taxonomie),
+    ...(mitKontensalden ? kontennachweisXml(nachweis, input.taxonomie) : []),
     `</xbrli:xbrl>`,
     `</ebilanz:EBilanz>`,
   ];

@@ -1,11 +1,13 @@
 import { EBILANZ_AUFFANG, EBILANZ_KONTEN, ebilanzZuordnung, postenForSaldo, type Kontenrahmen, type Posten } from "@haben/core";
 import { describe, expect, it } from "vitest";
-import { buildEbilanzXml, ebilanzSummenkette, ebilanzWerte, istEbilanzBlatt } from "./xbrl.ts";
+import { type EbilanzTaxonomie, ebilanzSummenkette, istEbilanzBlatt } from "./taxonomie.ts";
+import { buildEbilanzXml, ebilanzKontensalden, ebilanzWerte } from "./xbrl.ts";
 
 /*
  * Die Kontenzuordnung der E-Bilanz (@haben/core, ebilanz.ts) gegen den Taxonomie-Auszug: jede Position ist ein Blatt der
  * Rechenregeln, summiert sich bis Bilanz oder GuV und liegt unter dem Teil der Taxonomie, der dem Kleinst-Posten des
- * DATEV-Kontenrahmens entspricht. So weichen E-Bilanz und Jahresabschluss nicht voneinander ab.
+ * DATEV-Kontenrahmens entspricht. So weichen E-Bilanz und Jahresabschluss nicht voneinander ab. Die Zuordnung gilt für
+ * beide Taxonomien, 6.9 und 6.10.
  */
 
 /** Teilbäume der Taxonomie je Posten nach § 266 und § 275 Abs. 5 HGB */
@@ -31,16 +33,21 @@ const TEILBAUM: Record<Posten, readonly string[]> = {
 };
 
 const unter = (position: string, posten: Posten) => TEILBAUM[posten].some((t) => position === t || position.startsWith(`${t}.`));
-const wurzel = (position: string) => ebilanzSummenkette(position).at(-1);
+const wurzel = (position: string, version: EbilanzTaxonomie) => ebilanzSummenkette(position, version).at(-1);
 
-describe.each(["SKR03", "SKR04"] as const)("E-Bilanz-Zuordnung %s", (kontenrahmen: Kontenrahmen) => {
+describe.each([
+  ["SKR03", "6.9"],
+  ["SKR04", "6.9"],
+  ["SKR03", "6.10"],
+  ["SKR04", "6.10"],
+] as const)("E-Bilanz-Zuordnung %s, Taxonomie %s", (kontenrahmen: Kontenrahmen, version: EbilanzTaxonomie) => {
   const konten = Object.entries(EBILANZ_KONTEN[kontenrahmen]);
 
   it.each(konten)("Konto %s: Blatt, summiert bis zur Wurzel, im Teilbaum seines Postens", (account, ziel) => {
     for (const [i, position] of ziel.entries()) {
       if (!position) continue;
-      expect(istEbilanzBlatt(position), position).toBe(true);
-      expect(["bs.ass", "bs.eqLiab", "is.netIncome"], position).toContain(wurzel(position));
+      expect(istEbilanzBlatt(position, version), position).toBe(true);
+      expect(["bs.ass", "bs.eqLiab", "is.netIncome"], position).toContain(wurzel(position, version));
       // Erste Position für den Soll-Saldo, zweite für den Haben-Saldo; ohne zweite bleibt der Posten beider gleich
       const saldo = i === 0 ? 100 : -100;
       const posten = postenForSaldo(kontenrahmen, account, ziel[1] ? saldo : 100);
@@ -52,9 +59,9 @@ describe.each(["SKR03", "SKR04"] as const)("E-Bilanz-Zuordnung %s", (kontenrahme
   it("Auffangpositionen sind Blätter im Teilbaum ihres Postens", () => {
     for (const [posten, position] of Object.entries(EBILANZ_AUFFANG) as [Posten, string | null][]) {
       if (!position) continue;
-      expect(istEbilanzBlatt(position), position).toBe(true);
+      expect(istEbilanzBlatt(position, version), position).toBe(true);
       expect(unter(position, posten), `${posten} → ${position}`).toBe(true);
-      expect(["bs.ass", "bs.eqLiab", "is.netIncome"]).toContain(wurzel(position));
+      expect(["bs.ass", "bs.eqLiab", "is.netIncome"]).toContain(wurzel(position, version));
     }
   });
 });
@@ -73,7 +80,7 @@ describe("Werte aus Salden", () => {
       { account: "9000", saldo: 0 },
     ]);
     expect(fehlend).toEqual([]);
-    const werte = ebilanzWerte(zuordnung);
+    const werte = ebilanzWerte(zuordnung, "6.9");
     expect(werte).toEqual({
       "bs.ass.currAss.cashEquiv.bank": 3_690_000,
       "bs.eqLiab.equity.subscribed.corp": 2_500_000,
@@ -86,9 +93,11 @@ describe("Werte aus Salden", () => {
     expect(() =>
       buildEbilanzXml({
         year: 2026,
+        taxonomie: "6.9",
         steuernummer13: "5192050001265",
         firma: { name: "Nordlicht GmbH", strasse: "Hafenallee 3", plz: "28217", ort: "Bremen" },
         werte,
+        konten: ebilanzKontensalden(zuordnung, () => "", "6.9"),
         bvv: { eigenkapitalVorjahr: 0, ausschuettungen: 0, einlagen: 2_500_000 },
         anlagen: [],
         herstellerId: "12345",
@@ -108,7 +117,7 @@ describe("Werte aus Salden", () => {
       { account: gesellschafter, saldo: 30_000 },
       { account: vorsteuer, saldo: 20_000 },
     ]);
-    expect(ebilanzWerte(zuordnung)).toEqual({
+    expect(ebilanzWerte(zuordnung, "6.10")).toEqual({
       "bs.eqLiab.liab.bank.other": 50_000,
       "bs.ass.currAss.receiv.other.shareholders": 30_000,
       "bs.ass.currAss.receiv.other.vat": 20_000,
