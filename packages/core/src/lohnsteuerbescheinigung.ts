@@ -1,7 +1,7 @@
 import { naechsterWerktag } from "./holidays.ts";
 import type { Konfession, LohnStammdaten } from "./lohnabrechnung/typen.ts";
 import type { Cents } from "./money.ts";
-import type { SvBeitraege } from "./sozialversicherung/index.ts";
+import { sozialversicherungJahr, type SvBeitraege } from "./sozialversicherung/index.ts";
 import type { Bundesland } from "./steuernummer.ts";
 
 /*
@@ -116,15 +116,18 @@ const entwurfOffen = (monate: readonly number[]): LstbErgebnis => ({
 const pauschal = (a: LstbAbrechnung) => a.stammdaten.art === "minijob" && a.stammdaten.minijob.pauschsteuer;
 
 /** Was gegen eine Bescheinigung spricht, die Haben sicher ausstellen kann; null, wenn nichts */
-function nichtUnterstuetzt(a: LstbAbrechnung): string | null {
+function nichtUnterstuetzt(a: LstbAbrechnung, jahr: number): string | null {
   const s = a.stammdaten;
   const monat = `${MONATE[a.monat - 1]}`;
   if (s.art === "minijob") return `Ein Minijob ohne Pauschsteuer (${monat}) bescheinigt Haben nicht.`;
   if (s.faktor !== 1000) return `Das Faktorverfahren (${monat}) bescheinigt Haben nicht.`;
   if (s.kv.art === "privat" && s.kv.arbeitgeberzuschuss > 0)
     return `Einen Zuschuss zur privaten Krankenversicherung (${monat}) bescheinigt Haben nicht (Zeile 24).`;
-  // Über der BBG der KV (zugleich besondere Jahresarbeitsentgeltgrenze, § 6 Abs. 7 SGB V) kann die Versicherung freiwillig sein
-  if (s.art === "beschaeftigt" && a.sv.bemessung.kvPv < a.svBrutto) {
+  // Über der BBG der KV (zugleich besondere Jahresarbeitsentgeltgrenze, § 6 Abs. 7 SGB V) kann die Versicherung freiwillig
+  // sein. Verglichen wird das Entgelt mit der Grenze, nicht mit der Bemessung: Im Übergangsbereich ist die beitragspflichtige
+  // Einnahme kleiner als das Entgelt (§ 20 Abs. 2a SGB IV), ohne dass die Grenze erreicht wäre.
+  const bbgKv = sozialversicherungJahr(jahr)?.werte.bbgKvPv;
+  if (s.art === "beschaeftigt" && (bbgKv === undefined || a.svBrutto > bbgKv)) {
     return `Im ${monat} liegt das Entgelt über der Beitragsbemessungsgrenze der Krankenversicherung; ob die Versicherung freiwillig ist (Zeilen 24 bis 26), weiß Haben nicht.`;
   }
   return null;
@@ -151,7 +154,7 @@ export function lohnsteuerbescheinigung(e: LstbEingabe): LstbErgebnis {
     };
   }
   for (const a of abrechnungen) {
-    const grund = nichtUnterstuetzt(a);
+    const grund = nichtUnterstuetzt(a, jahr);
     if (grund) return { status: "nicht-unterstuetzt", meldung: grund };
   }
   if (new Set(abrechnungen.map((a) => a.monat)).size !== abrechnungen.length) {
