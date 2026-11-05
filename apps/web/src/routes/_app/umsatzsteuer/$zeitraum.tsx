@@ -8,6 +8,8 @@ import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { VatFrequencyCard } from "../../../components/umsatzsteuer/VatFrequencyCard.tsx";
 import { DauerfristCard } from "../../../components/umsatzsteuer/DauerfristCard.tsx";
+import { AbgabeVermerken } from "../../../components/umsatzsteuer/AbgabeVermerken.tsx";
+import { UstvaZahlung } from "../../../components/umsatzsteuer/UstvaZahlung.tsx";
 import { ELSTER_KIND_LABEL, elsterNotice, type ElsterKind } from "../../../lib/elster.ts";
 import { formatDate, formatDateTime, formatLongDate, errorMessage } from "../../../lib/format.ts";
 import { createVatCorrection, getMeinElsterUstvaWerte, getVatPeriod, saveVatDraft, submitVatReturn } from "../../../server/functions/vat.ts";
@@ -300,7 +302,7 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
       <form className="card" onSubmit={onSave} aria-labelledby="kz-heading">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h2 id="kz-heading">Kennzahlen</h2>
-          <StatusPill current={current} />
+          <StatusPill current={current} filing={data.filings.find((f) => f.vatReturnId === current?.id)} />
         </div>
         {data.kleinunternehmer && (
           <div className="banner banner-info" role="status">
@@ -573,6 +575,16 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
             onSubmit={onSubmit}
           />
         )}
+        <UstvaZahlung posten={data.posten} />
+        {!locked && current && (
+          <AbgabeVermerken
+            returnId={current.id}
+            kz83={shown.kz83}
+            blocked={dirty || stale}
+            today={data.today}
+            onFiled={() => setNotice({ tone: "ok", text: "Abgabe vermerkt und Voranmeldung festgeschrieben. Die Zahllast steht jetzt im Bankabgleich." })}
+          />
+        )}
         {!data.herstellerIdConfigured && !locked && current && (
           <MeinElsterWerte
             load={() => loadWerte({ data: { id: current.id } })}
@@ -663,12 +675,12 @@ function SourcesTable({ id, kind, rows }: { id: string; kind: "revenue" | "input
   );
 }
 
-function StatusPill({ current }: { current: PageData["current"] }) {
+function StatusPill({ current, filing }: { current: PageData["current"]; filing: PageData["filings"][number] | undefined }) {
   if (!current) return <span className="pill">Noch nicht angelegt</span>;
   if (current.status === "sent") {
     return (
       <span className="pill pill-ok">
-        Gesendet {formatDate(current.sentAt!)}
+        {filing ? `Abgegeben ${formatDate(filing.filedOn)} (vermerkt)` : `Gesendet ${formatDate(current.sentAt!)}`}
         {current.berichtigt ? " · berichtigt" : ""}
       </span>
     );
@@ -680,7 +692,23 @@ function History({ data }: { data: PageData }) {
   return (
     <section className="card" aria-labelledby="history-heading">
       <h2 id="history-heading">Verlauf {periodLabel(data.period)}</h2>
-      {data.submissions.length === 0 ? (
+      {data.filings.map((filing) => (
+        <div key={filing.id} className="history-row">
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+            <span style={{ fontWeight: 500 }}>
+              Abgabe vermerkt <span className="pill pill-ok">außerhalb von Haben</span>
+            </span>
+            <span className="small muted" style={{ overflowWrap: "anywhere" }}>
+              abgegeben {formatDate(filing.filedOn)} · vermerkt {formatDateTime(filing.createdAt)} · Ticket {filing.transferTicket} · Kz 83{" "}
+              {formatEuro(filing.kz83)}
+            </span>
+          </div>
+          <a href={`/api/protokoll/${filing.id}`} target="_blank" rel="noreferrer" className="small">
+            Protokoll
+          </a>
+        </div>
+      ))}
+      {data.submissions.length === 0 && data.filings.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
           Noch nichts geprüft oder gesendet.
         </p>

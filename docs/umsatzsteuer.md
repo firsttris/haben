@@ -292,13 +292,30 @@ Mein ELSTER kann eine Voranmeldung aus einer XML-Datei übernehmen. Haben schrei
 2. In Mein ELSTER **Formulare und Leistungen › Umsatzsteuer-Voranmeldung** öffnen, das Jahr wählen, **Weiter**.
 3. Auf der Seite **Datenübernahme** den Reiter **XML-Import** wählen, die Datei auswählen und **XML-Daten hochladen**.
 4. Mein ELSTER füllt das Formular. Zeitraum, Steuernummer und Kennzahlen gegen Haben prüfen, in Mein ELSTER **Prüfen** und selbst **Absenden**.
-5. Das Übermittlungsprotokoll aus Mein ELSTER herunterladen und aufheben.
+5. Das Übermittlungsprotokoll aus Mein ELSTER herunterladen und die Abgabe in Haben vermerken (siehe unten).
 
 Die Datei enthält nur die Nutzdaten (`<Anmeldungssteuern>`), im Zeichensatz ISO-8859-15, wie es die Benutzeranleitung zum Hochladen von Formulardaten in Mein ELSTER verlangt. Sie entsprechen Zeichen für Zeichen dem, was Haben über ERiC senden würde. Kz 09 (Hersteller-ID) übernimmt Mein ELSTER laut Anleitung nicht; im Feld steht deshalb die Test-ID `74931`. Der Import gibt es für die Jahre, die Mein ELSTER anbietet (laufendes und die drei vorherigen), und nur für die Voranmeldung, nicht für die Jahreserklärungen.
 
-In Haben bleibt die Anmeldung danach ein Entwurf: Haben erfährt nicht, dass du sie in Mein ELSTER gesendet hast.
+Haben erfährt nicht von selbst, dass du sie in Mein ELSTER gesendet hast. Das trägst du unter [Abgabe außerhalb von Haben vermerken](#abgabe-außerhalb-von-haben-vermerken) ein.
 
 Schlägt der Import fehl oder willst du lieber Seite für Seite sehen, was eingetragen wird: Neben dem Senden-Kasten kopiert **Werte für Mein ELSTER kopieren** dieselben Werte für die Erweiterung [Haben für Mein ELSTER](elster-mit-erweiterung.md#umsatzsteuer-voranmeldung).
+
+### Abgabe außerhalb von Haben vermerken
+
+Hast du die Voranmeldung außerhalb von Haben abgegeben, per XML-Import in Mein ELSTER, mit der [Erweiterung](elster-mit-erweiterung.md) oder einem [KI-Assistenten](elster-mit-assistent.md), hältst du das im Bereich **Außerhalb von Haben abgegeben** neben dem gespeicherten Entwurf fest:
+
+| Feld | Aus dem Übermittlungsprotokoll |
+| --- | --- |
+| Tag der Abgabe | Datum der Übermittlung; nicht in der Zukunft und nicht vor Beginn des Zeitraums |
+| Transferticket | das Ticket aus Mein ELSTER; jedes Ticket nur einmal |
+| Kz 83 laut Protokoll | die verbleibende Vorauszahlung bzw. der Überschuss, wie gemeldet |
+| Übermittlungsprotokoll (PDF) | das Protokoll aus Mein ELSTER |
+
+**Abgabe vermerken** schreibt die Anmeldung fest wie eine Übermittlung über ERiC: Status „Abgegeben … (vermerkt)“, die [Frist](fristen.md) ist erledigt, eine Berichtigung geht wie nach dem Senden über **Berichtigte Anmeldung anlegen**, und die Zahllast wird ein [offener Posten](#zahlung-an-das-finanzamt). Ein berechneter Entwurf wird vorher auf den Stand der Buchungen gebracht, wie vor dem Senden.
+
+Weicht Kz 83 laut Protokoll von der Anmeldung in Haben ab, lehnt Haben den Vermerk ab: Dann ist beim Finanzamt etwas anderes angekommen, als Haben gespeichert hat, etwa weil sich Buchungen nach dem Herunterladen des XML geändert haben oder du in Mein ELSTER Werte geändert hast. Prüfe die Abweichung; stimmen die Werte des Finanzamts, überschreibst du die Kennzahlen von Hand mit Begründung und vermerkst dann. Verglichen wird nur Kz 83, weil sie über Zahllast und Zahlung entscheidet; die übrigen Kennzahlen stehen im Protokoll.
+
+Der Vermerk lässt sich nur ergänzen, nicht ändern oder löschen, und steht im Änderungsprotokoll. Das Protokoll-PDF liegt wie Belege unter seinem SHA-256 im Dokumentenspeicher; im Verlauf öffnet **Protokoll** es, im Jahresarchiv liegt es bei der Voranmeldung (siehe [Verlauf und Protokoll](#verlauf-und-protokoll)).
 
 ### Was im Hintergrund passiert
 
@@ -311,7 +328,36 @@ Schlägt der Import fehl oder willst du lieber Seite für Seite sehen, was einge
 
 ### Verlauf und Protokoll
 
-Der Bereich **Verlauf** listet für den Zeitraum jede Prüfung, Testübermittlung und Übermittlung mit „OK“ oder „Fehler <Code>“, Zeitpunkt, Transfer-Ticket und Fehlermeldung. Wo es ein Protokoll gibt, öffnet **Protokoll** das PDF. Darunter stehen die zuletzt gesendeten Voranmeldungen aller Zeiträume mit ihrer Zahllast.
+Der Bereich **Verlauf** listet für den Zeitraum jede Prüfung, Testübermittlung und Übermittlung mit „OK“ oder „Fehler <Code>“, Zeitpunkt, Transfer-Ticket und Fehlermeldung, dazu jeden Abgabevermerk mit Tag der Abgabe, Ticket und Kz 83. Wo es ein Protokoll gibt, öffnet **Protokoll** das PDF. Darunter stehen die zuletzt gesendeten oder vermerkten Voranmeldungen aller Zeiträume mit ihrer Zahllast.
+
+Im Jahresarchiv (`umsatzsteuer/<JJJJ-MM>/`) liegen das ERiC-Protokoll jeder Übermittlung und das Protokoll aus Mein ELSTER jedes Vermerks (`<Tag>_vermerk_…_protokoll.pdf`); `übermittlungen.csv` nennt beide, den Vermerk mit Kz 83 und SHA-256 der Datei.
+
+## Zahlung an das Finanzamt
+
+Jede abgegebene Voranmeldung, über ERiC gesendet oder vermerkt, ist ein offener Posten über ihre Zahllast (Kz 83): eine Lastschrift, die das Finanzamt einzieht, bzw. bei einem Überschuss eine Erstattung. Der Bereich **Zahlung an das Finanzamt** auf der Seite der Voranmeldung zeigt Betrag, Fälligkeit, die zugeordneten Zahlungen und was offen ist. Offene Posten stehen außerdem unter [Auswertungen](auswertungen.md) in **Umsatzsteuer gegenüber dem Finanzamt** und in der Übersicht beim Steuerkonto; eine überfällige Zahllast erscheint dort als Aufgabe.
+
+| Fall | Posten | Fällig |
+| --- | --- | --- |
+| Zahllast (Kz 83 positiv) | Ausgang über Kz 83 | am 10. nach Ablauf des Zeitraums (§ 18 Abs. 1 Satz 4 UStG), mit [Dauerfristverlängerung](#dauerfristverlängerung) einen Monat später (§ 46 UStDV), am nächsten Werktag; nicht vor dem Tag der Abgabe, denn vorher tritt keine Säumnis ein (§ 240 Abs. 1 Satz 3 AO) |
+| Überschuss (Kz 83 negativ) | Eingang über den Betrag | Die Erstattung kommt erst mit der Zustimmung des Finanzamts (§ 168 Satz 2 AO); angezeigt wird der früheste Tag wie oben |
+| Berichtigte Anmeldung | eigener Posten über die Differenz zur berichtigten | wie oben, frühestens am Tag der Berichtigung |
+| Dezember mit Sondervorauszahlung | Kz 83 nach Abzug von Kz 39, oft ein Überschuss | mit Dauerfristverlängerung am 10. Februar |
+
+Die Sondervorauszahlung selbst ist kein Posten der Voranmeldung; sie wird wie bisher als **Sondervorauszahlung (Dauerfristverlängerung)** gebucht (siehe [Buchen](#buchen)).
+
+### Zuordnen im Bankabgleich
+
+Bei einer Lastschrift oder Erstattung des Finanzamts schlägt der [Bankabgleich](bank.md#vorschläge) die passende Voranmeldung vor, etwa „Voranmeldung USt 10/2026“, mit den Gründen Betrag, Zeitraum im Verwendungszweck („USt 10/26“, „10.2026“, „Okt. 2026“, für Quartale „Q3/26“, „3. VJ 2026“, „III/26“) und Finanzamt als Gegenpartei. Unter **Andere Rechnung** steht sie in der Auswahl **Rechnung, Beleg oder Voranmeldung**.
+
+Gebucht wird wie bisher „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820, gegen die Bank); in der EÜR zählt die Zahlung als gezahlte bzw. erstattete Umsatzsteuer. Neu ist nur der Bezug auf die Voranmeldung, mit dem Haben den Posten ausgleicht. Mehr als offen ist, lässt sich nicht zuordnen, und nur in der Richtung des Postens.
+
+- **Teilzahlung:** Ordnest du weniger zu, bleibt der Rest offen, bis die nächste Zahlung kommt.
+- **Säumniszuschlag:** Zieht das Finanzamt nach der Fälligkeit mehr ein, erkennt Haben einen Säumniszuschlag nach § 240 AO (je angefangenem Monat 1 % der auf 50 € abgerundeten Zahllast, drei Tage Schonfrist) und schlägt nur die Zahllast vor. Der Zuschlag ist keine Umsatzsteuer, sondern eine steuerliche Nebenleistung und Betriebsausgabe: Den Rest ordnest du einem Beleg zu, etwa dem Schreiben des Finanzamts.
+- **Berichtigung nach unten:** Ist die erste Zahllast noch nicht bezahlt, verrechnet Haben die Minderung damit; offen bleibt nur der berichtigte Betrag. War sie schon bezahlt, ist die Minderung eine Erstattung.
+- **Zahlung ohne Bezug:** Zuordnungen „Umsatzsteuer an das Finanzamt“ ohne Bezug, etwa aus früheren Versionen, gleichen einen Posten nur aus, wenn sie ihn genau treffen: noch ganz offen, gleicher Betrag, gebucht nach Ende des Zeitraums. Sonst bleibt der Posten offen; hebst du die Zuordnung auf und ordnest sie der Voranmeldung zu, stimmt er wieder.
+- **Aufheben** einer Zuordnung öffnet den Posten wieder.
+
+Eine Zuordnung mit Bezug geht nur zu einer abgegebenen Voranmeldung; das prüft auch die Datenbank.
 
 ## Berichtigte Anmeldung
 

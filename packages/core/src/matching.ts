@@ -1,5 +1,7 @@
 import { formatEuro, type Cents } from "./money.ts";
+import type { VatPeriod } from "./period.ts";
 import { formatPercent, type SkontoZahlfrist } from "./skonto.ts";
+import { purposeNamesPeriod, saeumnisMonate, saeumniszuschlag } from "./ustva-posten.ts";
 
 export interface MatchTransaction {
   bookingDate: string;
@@ -15,7 +17,8 @@ export interface MatchTransaction {
 }
 
 export interface OpenItem {
-  type: "invoice" | "document";
+  /** ustva: Zahllast oder Erstattung einer abgegebenen Voranmeldung (id ist die Voranmeldung) */
+  type: "invoice" | "document" | "ustva";
   id: string;
   /** Rechnungsnummer (eigene oder des Lieferanten) */
   number: string;
@@ -31,6 +34,8 @@ export interface OpenItem {
   references?: string[];
   /** Nur bei eigenen, noch ganz offenen Rechnungen in Euro: das angebotene Skonto je Stufe */
   skonto?: SkontoZahlfrist[];
+  /** Nur bei Voranmeldungen: der Zeitraum, den die Finanzkasse im Verwendungszweck nennt */
+  period?: VatPeriod;
 }
 
 /** Bis zu dieser Abweichung (in Prozent des offenen Betrags) gilt eine Zahlung auf Fremdwährung als passend */
@@ -111,6 +116,11 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
 
   for (const item of items) {
     if (item.open === 0 || Math.sign(item.open) !== Math.sign(tx.amount)) continue;
+    if (item.type === "ustva") {
+      const vat = vatPostenSuggestion(tx, item);
+      if (vat) suggestions.push(vat);
+      continue;
+    }
     const reasons: string[] = [];
     let score = 0;
 
@@ -170,6 +180,45 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
   }
 
   return suggestions.sort((a, b) => b.score - a.score || a.item.date.localeCompare(b.item.date)).slice(0, limit);
+}
+
+/**
+ * Voranmeldung als offener Posten: nur bei einer Zahlung des bzw. an das Finanzamt oder mit Umsatzsteuer im
+ * Verwendungszweck, nie bei einer anderen Steuer oder der Sondervorauszahlung. Punkte wie bei Rechnungen: Betrag 50,
+ * Zeitraum im Verwendungszweck 40 (statt der Rechnungsnummer), Finanzamt als Gegenpartei 15. Übersteigt die Lastschrift
+ * die Zahllast genau um einen Säumniszuschlag (§ 240 AO), wird nur die Zahllast zugeordnet; der Rest bleibt für den Beleg.
+ */
+function vatPostenSuggestion(tx: MatchTransaction, item: OpenItem): Suggestion | null {
+  const finanzamt = TAX_OFFICE.test(tx.counterpartyName);
+  if (!finanzamt && !VAT_PURPOSE.test(tx.purpose)) return null;
+  if (OTHER_TAX_PURPOSE.test(tx.purpose) || SVZ_PURPOSE.test(tx.purpose)) return null;
+  const reasons: string[] = [];
+  let score = 0;
+  if (item.open === tx.amount) {
+    score += 50;
+    reasons.push("Betrag stimmt exakt");
+  } else if (Math.abs(tx.amount) < Math.abs(item.open)) {
+    score += 5;
+    reasons.push("Teilbetrag des offenen Betrags");
+  } else if (tx.amount < 0 && item.dueDate) {
+    const monate = saeumnisMonate(item.dueDate, tx.bookingDate);
+    const zuschlag = saeumniszuschlag(-item.open, monate);
+    if (zuschlag > 0 && -tx.amount === -item.open + zuschlag) {
+      score += 40;
+      reasons.push(`Zahllast und ${formatEuro(zuschlag)} Säumniszuschlag (§ 240 AO, ${monate} ${monate === 1 ? "Monat" : "Monate"})`);
+    }
+  }
+  if (item.period && purposeNamesPeriod(tx.purpose, item.period)) {
+    score += 40;
+    reasons.push("Zeitraum im Verwendungszweck");
+  }
+  if (finanzamt) {
+    score += 15;
+    reasons.push("Finanzamt als Gegenpartei");
+  }
+  if (score < 40) return null;
+  const amount = Math.abs(tx.amount) <= Math.abs(item.open) ? tx.amount : item.open;
+  return { item, score, reasons, amount };
 }
 
 /** Wofür ein Bankkonto dient; steuert Vorschläge für Buchungen ohne Rechnung */

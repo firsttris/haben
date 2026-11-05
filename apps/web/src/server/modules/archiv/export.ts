@@ -946,6 +946,18 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
         )
         .orderBy(asc(schema.vatReturnSubmissions.createdAt))
     : [];
+  // Abgaben außerhalb von Haben: das Übermittlungsprotokoll aus Mein ELSTER liegt im Dokumentenspeicher
+  const filings = vatReturns.length
+    ? await db
+        .select()
+        .from(schema.vatReturnFilings)
+        .where(
+          inArray(
+            schema.vatReturnFilings.vatReturnId,
+            vatReturns.map((r) => r.id),
+          ),
+        )
+    : [];
   for (const [month, returns] of groupBy(vatReturns, (r) => r.month)) {
     const dir = `umsatzsteuer/${year}-${String(month).padStart(2, "0")}`;
     const submissionRows: CsvValue[][] = [];
@@ -989,6 +1001,32 @@ async function* yearFiles(year: number, now: Date): AsyncGenerator<ArchiveFile> 
           ...names,
           `anmeldung${suffix}.json`,
           submission.id,
+        ]);
+      }
+      for (const filing of filings.filter((f) => f.vatReturnId === vatReturn.id)) {
+        const name = `${filing.filedOn}_vermerk_${filing.id.slice(0, 8)}_protokoll.pdf`;
+        let bytes: Buffer | null = null;
+        try {
+          bytes = await loadFile(filing.sha256);
+        } catch (error) {
+          problems.push(
+            `Protokoll der Voranmeldung ${dir.slice("umsatzsteuer/".length)} (${filing.filename}): Datei nicht lesbar – ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+        if (bytes) yield { path: `${dir}/${name}`, content: new Uint8Array(bytes), compress: false };
+        submissionRows.push([
+          iso(filing.createdAt),
+          `Abgabe vermerkt (außerhalb von Haben, abgegeben ${filing.filedOn})`,
+          true,
+          0,
+          `Kz 83 ${money(filing.kz83)}; Protokoll ${filing.filename}, SHA-256 ${filing.sha256}`,
+          filing.transferTicket,
+          bytes ? name : "",
+          "",
+          "",
+          "",
+          `anmeldung${suffix}.json`,
+          filing.id,
         ]);
       }
     }
@@ -1428,7 +1466,9 @@ bank/importe.csv         Importierte Kontoauszugsdateien mit SHA-256, Zeitraum u
                          Die Auszugsdateien selbst speichert Haben nicht.
 umsatzsteuer/<JJJJ-MM>/  Voranmeldung mit den gespeicherten Kennzahlen (anmeldung.json),
                          jede Prüfung und Übermittlung (übermittlungen.csv) mit
-                         ERiC-Protokoll (PDF) und gesendetem bzw. empfangenem XML.
+                         ERiC-Protokoll (PDF) und gesendetem bzw. empfangenem XML;
+                         bei einer Abgabe außerhalb von Haben der Vermerk mit dem
+                         Übermittlungsprotokoll aus Mein ELSTER (PDF).
 stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkonten und
                          Firmendaten. Das ELSTER-Zertifikat ist absichtlich nicht enthalten.
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus

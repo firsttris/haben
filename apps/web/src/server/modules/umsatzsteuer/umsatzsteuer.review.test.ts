@@ -18,7 +18,7 @@ describe.skipIf(!testDatabaseUrl)("Review: berichtigte Voranmeldung (Postgres)",
   });
 
   beforeEach(async () => {
-    await sql`truncate vat_return_submissions, vat_returns, company`;
+    await sql`truncate vat_return_filings, vat_return_submissions, vat_returns, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY')`;
   });

@@ -69,7 +69,7 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `belege` | `documents`, `cancellation` (Storno und Neuerfassung), `extraction` (Auslesen), `inbox` (Belege per E-Mail über IMAP), `external-reference` (Referenz für Belege aus der REST-API) |
 | `bank` | `bank` (Kontoauszüge, Zuordnung), `bank-sync` (Kontoabruf), `cash` (Kassenbuch), `sepa-transfers` (SEPA-Überweisungen für offene Belege), `document-payees` (IBAN des Lieferanten und Referenzen der Überweisungen je Beleg) |
 | `buchhaltung` | `ledger` (Hauptbuch: einziger Schreiber des Journals, Saldenliste, Kontenblatt), `journal` (Kontennamen), `assets` (Anlagenverzeichnis, AfA), `asset-import` (Anlagen aus CSV übernehmen), `pauschalen` (Homeoffice, Fahrten, Verpflegung ohne Beleg) |
-| `umsatzsteuer` | `vat-figures` (Zahlen und Vorprüfung), `vat` (Entwürfe, Berichtigung, Übermittlung), `zeitraum` (Voranmeldungszeitraum je Jahr und Vorschlag), `dauerfrist` (Dauerfristverlängerung, Sondervorauszahlung, Kz 39) |
+| `umsatzsteuer` | `vat-figures` (Zahlen und Vorprüfung), `vat` (Entwürfe, Berichtigung, Übermittlung), `vermerk` (Abgabe außerhalb von Haben vermerken, mit Protokoll), `zahlung` (Zahllast und Erstattung je abgegebener Voranmeldung als offener Posten, Prüfung der Zuordnung; gerechnet mit `ustva-posten.ts` in `packages/core`), `zeitraum` (Voranmeldungszeitraum je Jahr und Vorschlag), `dauerfrist` (Dauerfristverlängerung, Sondervorauszahlung, Kz 39) |
 | `elster` | `elster-gateway` (Zugang, Zertifikat und PIN, Sendesperre und Protokoll für jede Übermittlung), `certificate`, `elster` (Datenschutzhinweise der Finanzverwaltung) |
 | `finanzamt` | `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `fristen` (Steuertermine, Kalender-Abo) |
 | `ausschuettung` | `ausschuettung` (Gewinnverwendungsbeschluss, Steuerabzug je Gesellschafter, Storno, Kapitalertragsteuer-Anmeldung), `steuerbescheinigung` (Steuerbescheinigung nach § 45a EStG je Gesellschafter als PDF) |
@@ -142,8 +142,9 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `sepa_transfers` | Erzeugte SEPA-Dateien (pain.001) mit Auftraggeberkonto, Ausführungsdatum, Anzahl, Summe und XML | nur anhängen, Audit |
 | `sepa_transfer_items` | Je Beleg eine Überweisung der Datei: EndToEndId (eindeutig), Betrag, Skonto, Empfänger, IBAN, Verwendungszweck | nur anhängen, Audit |
 | `bank_connections` | Zustimmungen für den Kontoabruf über Enable Banking: Bank, Status, Ablauf, beim Verbinden gewählter Abrufbeginn, freigegebene Konten mit Abrufstand; Sitzungskennung verschlüsselt | Audit ohne Chiffrat |
-| `allocations` | Zuordnung eines Umsatzes (ganz oder teilweise); aufgehoben per Gegenzeile | nur anhängen, Betragsprüfung, Audit |
-| `vat_returns` | Voranmeldungen je Monat oder Quartal mit Kennzahlen, berechnet oder überschrieben; `month` hält den Zeitraum-Schlüssel aus ELSTER (1–12 Monate, 41–44 Quartale) | gesperrt nach Echtübermittlung, Audit |
+| `allocations` | Zuordnung eines Umsatzes (ganz oder teilweise); aufgehoben per Gegenzeile; bei „Umsatzsteuer an das Finanzamt“ der Bezug auf die Voranmeldung (`vat_return_id`, offener Posten) | nur anhängen, Betragsprüfung, Bezug nur zu einer abgegebenen Voranmeldung, Audit |
+| `vat_returns` | Voranmeldungen je Monat oder Quartal mit Kennzahlen, berechnet oder überschrieben; `month` hält den Zeitraum-Schlüssel aus ELSTER (1–12 Monate, 41–44 Quartale) | gesperrt nach Echtübermittlung oder Abgabevermerk, Audit |
+| `vat_return_filings` | Abgabevermerk einer außerhalb von Haben abgegebenen Voranmeldung: Tag, Transferticket, Kz 83 laut Protokoll, Protokoll-PDF im Dokumentenspeicher (SHA-256); je Anmeldung höchstens einer | nur anhängen, nur zusammen mit der Festschreibung der Anmeldung (beim Commit geprüft), Audit |
 | `vat_frequencies` | Voranmeldungszeitraum ab Jahr und Quartalsbeginn: monatlich, vierteljährlich oder keine Voranmeldung | Audit |
 | `vat_extensions` | Dauerfristverlängerung je Jahr mit angemeldeter Sondervorauszahlung, aus der Echtübermittlung oder von Hand | Audit |
 | `vat_extension_submissions` | Prüfungen und Übermittlungen des Antrags auf Dauerfristverlängerung (USt 1 H) mit XML und Protokoll | nur anhängen, Audit ohne PDF |
@@ -261,7 +262,7 @@ Aufheben legt eine Gegenzeile und eine Gegenbuchung an, statt etwas zu löschen.
 
 ## Dateiablage
 
-Belegdateien, Lexoffice-Dateien, Archivexporte, Bescheide aus dem Postfach und zusätzliche Anhänge von Rechnungen liegen im Dateisystem unter `DOCUMENTS_DIR` (Standard `data/belege`, im Container ein Volume), adressiert über ihren SHA-256: `<DOCUMENTS_DIR>/ab/abcdef…`. Daraus folgt:
+Belegdateien, Lexoffice-Dateien, Archivexporte, Bescheide aus dem Postfach, zusätzliche Anhänge von Rechnungen und Übermittlungsprotokolle vermerkter Voranmeldungen liegen im Dateisystem unter `DOCUMENTS_DIR` (Standard `data/belege`, im Container ein Volume), adressiert über ihren SHA-256: `<DOCUMENTS_DIR>/ab/abcdef…`. Daraus folgt:
 
 - Dieselbe Datei wird nur einmal abgelegt; ein zweites Hochladen findet den vorhandenen Beleg.
 - Gelöscht wird eine Datei erst, wenn kein Datensatz sie mehr nutzt (`fileInUse` in `server/db/file-in-use.ts`), etwa beim Löschen eines ungebuchten Belegs oder eines Anhangs im Rechnungsentwurf.

@@ -24,7 +24,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung (Postgres)", () => {
   });
 
   beforeEach(async () => {
-    await sql`truncate vat_return_submissions, vat_returns, elster_certificates, company`;
+    await sql`truncate vat_return_filings, vat_return_submissions, vat_returns, elster_certificates, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, steuernummer, bundesland)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', '198/113/10010', 'BY')`;
     await db.db.insert(db.schema.elsterCertificates).values({

@@ -12,7 +12,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | 2 | Lohn: Ausfüllliste SV-Meldeportal | Beitragsnachweis und DEÜV-Meldungen zum Abtippen im [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz), mit Fristen und Vermerk „abgegeben“ | S–M | geplant |
 | 3 | Lohn: Lohnsteuerbescheinigung | Elektronische Lohnsteuerbescheinigung über ERiC bis Ende Februar des Folgejahres | M | geplant |
 | 4 | E-Bilanz-Taxonomie 6.10 | Neue Taxonomie ab Wirtschaftsjahr 2027 mit Kontennachweis zu Bilanz und GuV ([Buchhaltung](buchhaltung.md)) | M | geplant |
-| 5 | Voranmeldung als offener Posten | Zahllast und Erstattung der Umsatzsteuer-Voranmeldung im Bankabgleich zuordnen, auch für außerhalb von Haben abgegebene Voranmeldungen | M | geplant |
+| 5 | Voranmeldung als offener Posten | Zahllast und Erstattung der Umsatzsteuer-Voranmeldung im Bankabgleich zuordnen, auch für außerhalb von Haben abgegebene Voranmeldungen ([Abgabe vermerken](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken), [Zahlung an das Finanzamt](umsatzsteuer.md#zahlung-an-das-finanzamt)) | M | erledigt |
 | 6 | Weitere AfA-Methoden | Degressive AfA mit Wechsel zur linearen, Sonderabschreibung für E-Fahrzeuge, Erinnerungswert ([Anlagen](anlagen.md)) | M | geplant |
 | 7 | Innergemeinschaftliche Lieferung und Erwerb, Ausfuhr | Rechnung und Beleg mit eigener Steuerregelung, Kz 41, 43, 89/93 und 61, ZM mit Lieferungen und Dreiecksgeschäften | M | geplant |
 | 8 | Dauerbelege | Wiederkehrende Ausgaben wie Miete oder Versicherung einmal erfassen, Haben legt sie im Intervall an | S–M | geplant |

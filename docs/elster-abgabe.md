@@ -46,7 +46,7 @@ Ohne Hersteller-ID gibst du im Portal **Mein ELSTER** ab. Für alle Wege dort gi
 - **Du meldest dich selbst an**, mit jeder Anmeldeart, die Mein ELSTER anbietet: Zertifikatsdatei, ELSTER Secure oder Ausweis. Haben verbindet sich nicht mit ELSTER und kennt weder Passwort noch Zertifikat.
 - **Die Werte sind dieselben**, die Haben über ERiC senden würde: ein von Hand überschriebener Entwurf der Voranmeldung, sonst die aus den Buchungen gerechneten Kennzahlen. Arbeite vorher die Hinweise der [Vorprüfung](umsatzsteuer.md#vorprüfung) bzw. der Jahreserklärung ab.
 - **Prüfen und Absenden machst du** in Mein ELSTER. Lade danach das Übermittlungsprotokoll herunter und leg es bei deinen Unterlagen ab.
-- **Haben erfährt von der Abgabe nichts.** Die Voranmeldung bzw. Erklärung bleibt in Haben ein Entwurf, und die [Frist](fristen.md) bleibt offen. Einen Vermerk „in Mein ELSTER abgegeben“ gibt es noch nicht ([#96](https://github.com/firsttris/haben/issues/96)).
+- **Die Abgabe vermerkst du in Haben.** Bei der Voranmeldung trägst du unter **Außerhalb von Haben abgegeben** Tag, Transferticket, Kz 83 und das Übermittlungsprotokoll ein; danach ist sie festgeschrieben, die [Frist](fristen.md) erledigt und die Zahllast ein offener Posten im Bankabgleich ([Abgabe vermerken](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken)). Für die Jahreserklärungen gibt es den Vermerk noch nicht: Sie bleiben in Haben ein Entwurf, ihre Frist bleibt offen.
 
 ### XML-Import in Mein ELSTER
 
