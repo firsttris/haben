@@ -31,6 +31,7 @@ import {
   TAX_TREATMENT_KEYS,
   SELF_ASSESSED_TAX_KEYS,
   EXCHANGE_RATE_SOURCE_KEYS,
+  DAUERBELEG_STATUS_KEYS,
   type AssetKind,
   type AssetMethod,
   type CarPrivateUse,
@@ -1281,6 +1282,62 @@ export const journalLines = pgTable(
   ],
 );
 
+/**
+ * Dauerbelege (Roadmap Platz 8): Vorlage für wiederkehrende Ausgaben wie Miete, Versicherung, Leasing oder Abos. Ein
+ * Hintergrundjob legt zu jedem fälligen Termin einen Eingangsbeleg „Zu prüfen“ an (documents.recurring_document_id),
+ * mit dem hinterlegten Vertrag bzw. der Dauerrechnung als Datei. Änderungen gelten nur für künftige Belege, die
+ * angelegten bleiben, wie sie sind. Beträge in Cent je Steuersatz.
+ */
+export const recurringDocuments = pgTable(
+  "recurring_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    /** aktiv, pausiert oder beendet (DAUERBELEG_STATUS); beendet ist endgültig */
+    status: text("status", { enum: DAUERBELEG_STATUS_KEYS }).notNull().default("aktiv"),
+    supplierName: text("supplier_name").notNull(),
+    supplierUstId: text("supplier_ust_id").notNull().default(""),
+    supplierContactId: uuid("supplier_contact_id").references(() => contacts.id),
+    /** Vertrags- oder Kundennummer; steht als Rechnungsnummer an jedem Beleg (Verwendungszweck, Bankabgleich) */
+    reference: text("reference").notNull().default(""),
+    category: text("category").notNull(),
+    payment: text("payment", { enum: ["bank", "privat", "kasse"] })
+      .notNull()
+      .default("bank"),
+    privateShare: smallint("private_share").notNull().default(0),
+    amounts: jsonb("amounts").$type<{ taxRate: number; net: number; tax: number }[]>().notNull(),
+    /** Das Dokument weist die Umsatzsteuer gesondert aus (Dauerrechnung, Vertrag mit Steuerbetrag); sonst keine Vorsteuer */
+    taxShown: boolean("tax_shown").notNull().default(false),
+    note: text("note").notNull().default(""),
+    /** Monate zwischen zwei Belegen: 1, 3, 6 oder 12 */
+    intervalMonths: smallint("interval_months").notNull(),
+    /** Tag im Monat, auf den die Termine fallen (31 = Monatsende) */
+    anchorDay: smallint("anchor_day").notNull(),
+    /** Erster Termin beim Anlegen, nur zur Anzeige */
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    nextDate: date("next_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }),
+    /** Fällig am = Termin plus so viele Tage */
+    dueDays: smallint("due_days").notNull().default(0),
+    /** Vertrag oder Dauerrechnung im Dokumentenspeicher; jeder Beleg nutzt die Datei, die beim Anlegen hinterlegt war */
+    sha256: text("sha256").notNull(),
+    filename: text("filename").notNull(),
+    mimeType: text("mime_type").notNull(),
+    size: integer("size").notNull(),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("recurring_documents_interval", sql`${t.intervalMonths} in (1, 3, 6, 12)`),
+    check("recurring_documents_anchor_day", sql`${t.anchorDay} between 1 and 31`),
+    check("recurring_documents_private_share", sql`${t.privateShare} between 0 and 100`),
+    check("recurring_documents_due_days", sql`${t.dueDays} between 0 and 120`),
+    index("recurring_documents_sha256").on(t.sha256),
+  ],
+);
+
 export const documentStatusEnum = pgEnum("document_status", ["neu", "gebucht"]);
 export const extractionStatusEnum = pgEnum("extraction_status", ["keine", "laeuft", "fertig", "fehler"]);
 
@@ -1350,6 +1407,13 @@ export const documents = pgTable(
      * Anlegen gesetzt und ist ab dem Buchen mit dem Beleg gesperrt.
      */
     replacesDocumentId: uuid("replaces_document_id"),
+    /**
+     * Aus einem Dauerbeleg angelegt: die Vorlage und die Periode (Monatserster des Termins). Je Vorlage und Periode
+     * höchstens ein Beleg, auch bei gleichzeitigen Läufen. Die Datei ist der Vertrag der Vorlage, also dieselbe für
+     * alle Belege der Vorlage. Nur beim Anlegen gesetzt, ab dem Buchen mit dem Beleg gesperrt und versiegelt.
+     */
+    recurringDocumentId: uuid("recurring_document_id").references(() => recurringDocuments.id),
+    recurringPeriod: date("recurring_period", { mode: "string" }),
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -1362,7 +1426,10 @@ export const documents = pgTable(
     check("documents_external_ref_pair", sql`(${t.externalSource} is null) = (${t.externalId} is null)`),
     uniqueIndex("documents_external_ref").on(t.externalSource, t.externalId),
     // Keine Dubletten beim Hochladen; eine Neuerfassung nutzt dieselbe Datei, je storniertem Beleg höchstens eine
-    uniqueIndex("documents_sha256").on(t.sha256).where(sql`${t.replacesDocumentId} is null`),
+    // Dauerbelege nutzen alle die Datei ihrer Vorlage
+    uniqueIndex("documents_sha256").on(t.sha256).where(sql`${t.replacesDocumentId} is null and ${t.recurringDocumentId} is null`),
+    check("documents_recurring_pair", sql`(${t.recurringDocumentId} is null) = (${t.recurringPeriod} is null)`),
+    uniqueIndex("documents_recurring_period").on(t.recurringDocumentId, t.recurringPeriod),
     uniqueIndex("documents_replaces").on(t.replacesDocumentId),
     foreignKey({ name: "documents_replaces_fk", columns: [t.replacesDocumentId], foreignColumns: [t.id] }),
   ],

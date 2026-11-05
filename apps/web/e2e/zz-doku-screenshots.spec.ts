@@ -83,12 +83,13 @@ test("Bankabgleich mit Vorschlag", async () => {
 });
 
 test("Beleg mit ausgelesenen Feldern", async () => {
-  // Der einzige gebuchte Beleg ist die Mobilfunkrechnung; in der Liste steht der Lieferant, nicht die Datei
+  // Die Mobilfunkrechnung mit Bild; der Beleg aus dem Dauerbeleg hat nur einen Platzhalter-Vertrag ohne Vorschau
   await go("/belege");
   const href = await page
-    .locator("a[href]")
-    .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? "").find((h) => /^\/belege\/[0-9a-f-]{36}$/.test(h)));
-  expect(href, "ein Beleg in der Liste").toBeTruthy();
+    .getByRole("link", { name: /Funknetz Mobil GmbH/ })
+    .first()
+    .getAttribute("href");
+  expect(href, "die Mobilfunkrechnung in der Liste").toBeTruthy();
   await go(href!);
   await shot("belege");
 });
