@@ -232,7 +232,10 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
     for await (const chunk of exporter.exportYear(2026, new Date("2026-10-06T10:00:00Z"))) chunks.push(chunk);
     const files = unzipSync(Buffer.concat(chunks));
     const name = Object.keys(files).find((f) => f.endsWith("bank/ausbuchungen.csv"));
-    const [header, line] = new TextDecoder().decode(files[name ?? ""]).trim().split(/\r?\n/);
+    const [header, line] = new TextDecoder()
+      .decode(files[name ?? ""])
+      .trim()
+      .split(/\r?\n/);
     expect(header?.split(";").at(-1)).toBe("Kassenbuch-Nr.");
     expect(line?.split(";").at(-1)).toBe(String(entry.number));
   }, 60_000);
