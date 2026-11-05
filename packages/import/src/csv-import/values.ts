@@ -40,7 +40,9 @@ export function parseImportDate(raw: string, label: string): Parsed<string> {
 
 /** Steuersatz in Basispunkten: „19“, „19 %“, „19,00“, „7%“, „0“ */
 export function parseImportTaxRate(raw: string): Parsed<0 | 700 | 1900> {
-  const match = /^(\d{1,2})(?:[,.]0{1,2})?\s*%?$/.exec(raw.trim());
+  // „USt 19%“ ist die Steuerart der Artikelvorlage von Lexware Office
+  // (https://help.lexware.de/de-form/articles/625906-fehlercodes-beim-artikel-import-csv-beheben)
+  const match = /^(?:(?:USt|MwSt)\.?\s*)?(\d{1,2})(?:[,.]0{1,2})?\s*%?$/i.exec(raw.trim());
   const rate = match ? ((Number(match[1]) * 100) as BasisPoints) : null;
   if (rate === 1900 || rate === 700 || rate === 0) return ok(rate);
   return fail(`Steuersatz: „${raw}“; möglich sind 19 %, 7 % und 0 %`);
