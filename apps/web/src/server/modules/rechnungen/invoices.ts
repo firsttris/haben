@@ -29,6 +29,12 @@ import {
   legalInfo,
   skontoProblem,
   sortSkonto,
+  discountColumns,
+  discountFromColumns,
+  discountSchema,
+  documentDiscountProblem,
+  lineDiscountProblem,
+  negateDiscount,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
@@ -41,7 +47,7 @@ import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { attachmentFiles, removeFiles, unusedFiles } from "./attachments.ts";
-import { draftLineSchema } from "./draft-line.ts";
+import { invoiceDraftLineSchema } from "./draft-line.ts";
 import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
@@ -94,11 +100,21 @@ export const draftSchema = z
         return rate;
       }),
     exchangeRateDate: isoDate.nullable().default(null),
-    lines: z.array(draftLineSchema).max(200),
+    lines: z.array(invoiceDraftLineSchema).max(200),
+    /** Gesamtrabatt in Prozent oder als fester Betrag im Preismodus; null = keiner */
+    discount: z.nullable(discountSchema).default(null),
   })
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",
     path: ["serviceTo"],
+  })
+  .superRefine((d, ctx) => {
+    d.lines.forEach((line, i) => {
+      const problem = lineDiscountProblem(line);
+      if (problem) ctx.addIssue({ code: "custom", message: `Position ${i + 1}: ${problem}`, path: ["lines", i, "discount"] });
+    });
+    const discountProblem = documentDiscountProblem(d.lines, d.discount);
+    if (discountProblem) ctx.addIssue({ code: "custom", message: discountProblem, path: ["discount"] });
   })
   .superRefine((d, ctx) => {
     if (d.skonto.length === 0) return;
@@ -128,6 +144,7 @@ function lineRows(invoiceId: string, lines: LineInput[], lineNets: number[]) {
     taxRate: line.taxRate,
     net: lineNets[index]!,
     deductionOf: line.deductionOf ?? null,
+    ...discountColumns(line.discount),
   }));
 }
 
@@ -461,7 +478,7 @@ export async function applyPublishedRatesToDrafts(actor: string): Promise<number
  */
 function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines: LineInput[], rate: { currency: string } & RateFields) {
   const priceMode = effectivePriceMode(input);
-  const calculation = computeInvoice(lines, priceMode);
+  const calculation = computeInvoice(lines, priceMode, input.discount ?? null);
   // Gebucht wird in Euro: bei Fremdwährung je Satz mit dem Kurs umgerechnet
   const taxes = euroTaxes(calculation.totals.taxes, rate.currency, rate.exchangeRate);
   if (rate.currency !== "EUR" && taxes.some((t) => Math.abs(t.base) > MAX_EURO_CENTS || Math.abs(t.tax) > MAX_EURO_CENTS)) {
@@ -485,6 +502,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     language: input.language ?? "de",
     variant: input.variant ?? null,
     quoteId: input.quoteId ?? null,
+    ...discountColumns(input.discount),
     ...rate,
     net: totals.net,
     tax: totals.tax,
@@ -494,7 +512,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
   return { values, calculation, taxes };
 }
 
-type DraftExtra = Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate" | "externalSource" | "externalId">>;
+type DraftExtra = Partial<Pick<Invoice, "kind" | "correctsId" | "recurringId" | "recurringDate" | "externalSource" | "externalId" | "paymentPlanRow">>;
 
 export async function createDraft(actor: string, input: DraftInput, extra: DraftExtra = {}) {
   return withActor(actor, (tx) => insertDraft(tx, input, extra));
@@ -759,8 +777,11 @@ function documentFor(
       unitPrice: line.unitPrice,
       taxRate: line.taxRate,
       net: line.net,
+      ...lineDiscountOf(line),
+      ...(line.deductionOf ? { deductionOf: line.deductionOf } : {}),
     })),
     totals,
+    ...invoiceDiscountOf(invoice),
     ...(corrects ? { corrects } : {}),
     ...(invoice.intro ? { intro: invoice.intro } : {}),
     ...(invoice.note ? { note: invoice.note } : {}),
@@ -771,6 +792,18 @@ function documentFor(
     ...(invoice.kind === "rechnung" && invoice.variant ? { variant: invoice.variant } : {}),
     ...(deducted.length > 0 ? { deducted } : {}),
   };
+}
+
+/** Positionsrabatt einer gespeicherten Position, für PDF, XML und neue Entwürfe */
+export function lineDiscountOf(line: { discountPercent: number | null; discountAmount: number | null }) {
+  const discount = discountFromColumns(line.discountPercent, line.discountAmount);
+  return discount ? { discount } : {};
+}
+
+/** Gesamtrabatt einer gespeicherten Rechnung oder eines Angebots */
+export function invoiceDiscountOf(invoice: { discountPercent: number | null; discountAmount: number | null }) {
+  const discount = discountFromColumns(invoice.discountPercent, invoice.discountAmount);
+  return discount ? { discount } : {};
 }
 
 /** Abschlagsrechnungen, die eine Schlussrechnung abzieht, in Reihenfolge der Positionen */
@@ -1060,6 +1093,7 @@ async function finalOriginal(id: string, q: Db | Tx = db) {
   return data;
 }
 
+/** Positionen mit umgekehrtem Vorzeichen; ein fester Positionsrabatt wechselt es mit (Storno hebt so auf den Cent auf) */
 function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
   return lines.map((line) => ({
     description: line.description,
@@ -1068,8 +1102,12 @@ function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
     unit: line.unit as UnitLabel,
     unitPrice: -line.unitPrice,
     taxRate: line.taxRate as 1900 | 700 | 0,
+    discount: negateDiscount(discountFromColumns(line.discountPercent, line.discountAmount)),
   }));
 }
+
+/** Gesamtrabatt für Storno und Korrektur: wie in der Rechnung, ein fester Betrag mit umgekehrtem Vorzeichen */
+const negatedDiscount = (invoice: Invoice) => negateDiscount(discountFromColumns(invoice.discountPercent, invoice.discountAmount));
 
 /**
  * Stornorechnung mit allen Positionen negativ, sofort festgeschrieben; festgeschriebene Korrekturen der Rechnung
@@ -1120,6 +1158,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
           priceMode: target.priceMode,
           language: target.language,
           lines: negatedLines(targetLines),
+          discount: negatedDiscount(target),
         },
         { kind: "storno", correctsId: target.id },
       );
@@ -1156,6 +1195,7 @@ export async function createCorrection(actor: string, id: string, today: string)
       priceMode: invoice.priceMode,
       language: invoice.language,
       lines: negatedLines(lines),
+      discount: negatedDiscount(invoice),
     },
     { kind: "korrektur", correctsId: invoice.id },
   );

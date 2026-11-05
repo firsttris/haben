@@ -50,6 +50,7 @@ export { AccentColorError, loadLetterhead, saveAccentColor } from "./letterhead.
 export { loadLogo, logoInfo, MAX_LOGO_BYTES, removeLogo, saveLogo } from "./logo.ts";
 export { CustomerNumberError, customerNumbering, saveCustomerNumbering } from "./customer-numbers.ts";
 export { NumberFormatError, saveNumberFormats, type NumberFormats } from "./number-formats.ts";
+export { PlanTemplateError, planTemplatesProblem, savePlanTemplates } from "./plan-templates.ts";
 export { saveCompany, settingsLocks } from "./settings-guard.ts";
 export { saveTaxpayer, taxpayerSchema } from "./taxpayer.ts";
 export {

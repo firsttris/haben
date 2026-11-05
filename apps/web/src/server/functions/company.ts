@@ -1,4 +1,4 @@
-import { parseBmfRates } from "@haben/core";
+import { parseBmfRates, planTemplateSchema } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { UserError } from "../errors.ts";
@@ -18,7 +18,7 @@ import {
 } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { saveCompany as saveCompanySettings, settingsLocks } from "../modules/stammdaten/index.ts";
-import { customerNumbering, saveCustomerNumbering, saveNumberFormats, saveTaxpayer, taxpayerSchema } from "../modules/stammdaten/index.ts";
+import { customerNumbering, saveCustomerNumbering, saveNumberFormats, savePlanTemplates, saveTaxpayer, taxpayerSchema } from "../modules/stammdaten/index.ts";
 import { today } from "../today.ts";
 
 export const getCompany = createServerFn({ method: "GET" })
@@ -42,6 +42,15 @@ export const saveNumberFormatSettings = createServerFn({ method: "POST" })
   .validator(z.object({ invoice: z.string().max(100), quote: z.string().max(100) }))
   .handler(async ({ data, context }) => {
     await saveNumberFormats(context.user.id, data);
+    return { ok: true };
+  });
+
+/** Vorlagen für den Zahlungsplan im Angebot; die Regeln prüft savePlanTemplates */
+export const savePlanTemplateSettings = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.array(planTemplateSchema).max(20))
+  .handler(async ({ data, context }) => {
+    await savePlanTemplates(context.user.id, data);
     return { ok: true };
   });
 

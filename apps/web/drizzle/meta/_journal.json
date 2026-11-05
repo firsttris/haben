@@ -1037,6 +1037,20 @@
       "when": 1793991114647,
       "tag": "0147_kasse_rechnung_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 150,
+      "version": "7",
+      "when": 1793991294647,
+      "tag": "0150_rabatte_zahlungsplan",
+      "breakpoints": true
+    },
+    {
+      "idx": 151,
+      "version": "7",
+      "when": 1793991354647,
+      "tag": "0151_rabatte_zahlungsplan_trigger",
+      "breakpoints": true
     }
   ]
 }
