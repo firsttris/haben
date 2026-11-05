@@ -6,6 +6,11 @@ import { getMailDraft, sendDocumentMail } from "../server/functions/invoice-mail
 
 type Draft = Awaited<ReturnType<typeof getMailDraft>>;
 
+/** Zusätzliche Anhänge zur Auswahl gibt es nur bei der Rechnung (#272) */
+function extraAttachmentsOf(draft: Draft): { id: string; filename: string }[] {
+  return "extraAttachments" in draft ? (draft.extraAttachments as { id: string; filename: string }[]) : [];
+}
+
 /**
  * Formular zum Versand einer Rechnung oder Mahnung per E-Mail. Empfänger, Betreff und Text kommen aus der
  * Vorlage und lassen sich vor dem Senden ändern.
@@ -18,6 +23,8 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [copyToMe, setCopyToMe] = useState(true);
+  /** Ausgewählte Zusatzanhänge; vorbelegt sind alle */
+  const [attachmentIds, setAttachmentIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +37,7 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
         setTo(d.to);
         setSubject(d.subject);
         setBody(d.body);
+        setAttachmentIds(extraAttachmentsOf(d).map((a) => a.id));
       })
       .catch((e: unknown) => active && setError(errorMessage(e)));
     return () => {
@@ -42,7 +50,8 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
     setBusy(true);
     setError(null);
     try {
-      const result = await send({ data: { kind, id, mail: { to, subject, body, copyToMe } } });
+      const mail = { to, subject, body, copyToMe };
+      const result = await send({ data: kind === "rechnung" ? { kind, id, mail: { ...mail, attachmentIds } } : { kind, id, mail } });
       if (result.ok) onDone(`An ${to} gesendet.`);
       else setError(`Nicht gesendet: ${result.error}`);
     } catch (e) {
@@ -108,6 +117,23 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
       <p className="small muted" style={{ margin: 0, overflowWrap: "anywhere" }}>
         Anhang: {draft.attachments.join(", ")}
       </p>
+      {extraAttachmentsOf(draft).length > 0 && (
+        <fieldset className="stack" style={{ gap: 6, border: 0, margin: 0, padding: 0 }}>
+          <legend className="small" style={{ padding: 0, marginBottom: 4 }}>
+            Zusätzliche Anhänge mitsenden
+          </legend>
+          {extraAttachmentsOf(draft).map((a) => (
+            <label key={a.id} className="checkbox" style={{ overflowWrap: "anywhere" }}>
+              <input
+                type="checkbox"
+                checked={attachmentIds.includes(a.id)}
+                onChange={(e) => setAttachmentIds((ids) => (e.target.checked ? [...ids, a.id] : ids.filter((x) => x !== a.id)))}
+              />
+              {a.filename}
+            </label>
+          ))}
+        </fieldset>
+      )}
       <label className="checkbox">
         <input type="checkbox" checked={copyToMe} onChange={(e) => setCopyToMe(e.target.checked)} />
         Blindkopie an mich

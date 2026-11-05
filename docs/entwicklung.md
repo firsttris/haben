@@ -129,7 +129,7 @@ bun packages/elster/src/check-formats-cli.ts   # ERiC aus ERIC_HOME oder ERIC_DI
 | `packages/einvoice` | Rechnungs-PDF (PDF/A-3b), ZUGFeRD und XRechnung (CII, UBL) inklusive Storno, Leitweg-ID und Bruttopreisen, Pflichtangaben je Format, Einlesen fremder E-Rechnungen und eingebetteter XML |
 | `packages/import` | DKB- (neu und alt), N26- und CAMT.053-Parser, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel, Lexoffice-API-Client (Paging, 429, Fehler) und Abbildung der Lexoffice-Daten |
 | `apps/web` ohne DB | Umwandlung der KI-Auslesung in Felder und Beträge, OpenAPI-Beschreibung der REST-API (Verweise, Rechte, Einheiten) |
-| `apps/web` mit DB | Rechnungen festschreiben und sperren, Belege hochladen und buchen, Bankimport und Zuordnung, Voranmeldung (Entwurf, Test, Echt, Berichtigung, Audit-Log) und Berechnung aus Buchungen, Auswertungen, Jahresexport, Lexoffice-Übernahme und offene Posten, REST-API (Token und Rechte, Fehlerformat, externe Referenz auch bei gleichzeitigen Anfragen, Entwurf gegen festgeschrieben) |
+| `apps/web` mit DB | Rechnungen festschreiben und sperren, zusätzliche Anhänge (Typ und Größe, Sperre, Siegel, Auswahl beim Versand, Jahresarchiv), Belege hochladen und buchen, Bankimport und Zuordnung, Voranmeldung (Entwurf, Test, Echt, Berichtigung, Audit-Log) und Berechnung aus Buchungen, Auswertungen, Jahresexport, Lexoffice-Übernahme und offene Posten, REST-API (Token und Rechte, Fehlerformat, externe Referenz auch bei gleichzeitigen Anfragen, Entwurf gegen festgeschrieben) |
 
 ### Schema der SEPA-Überweisung
 

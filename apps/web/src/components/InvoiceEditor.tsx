@@ -26,7 +26,7 @@ import {
 } from "@haben/core";
 import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { useAction } from "../lib/use-action.ts";
@@ -155,6 +155,7 @@ export function InvoiceEditor({
   tageskurs = false,
   rateInfo = null,
   companySkonto = [],
+  attachments = null,
 }: {
   id: string | null;
   kind: keyof typeof KIND_TITLE;
@@ -188,6 +189,8 @@ export function InvoiceEditor({
   rateInfo?: string | null;
   /** Skonto aus den Firmendaten, wenn der gewählte Kunde kein eigenes hat */
   companySkonto?: SkontoStufe[];
+  /** Abschnitt für zusätzliche Anhänge (#272); nur bei einem gespeicherten Rechnungsentwurf */
+  attachments?: ReactNode;
 }) {
   const router = useRouter();
   const navigate = useNavigate();
@@ -1015,6 +1018,8 @@ export function InvoiceEditor({
               contactId={contactId || null}
             />
           </section>
+
+          {attachments}
 
           <div className="banner banner-info">
             <Icon name="info" />
