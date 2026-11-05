@@ -3,8 +3,10 @@
  * (Gesamtkostenverfahren) und steuerlichem Betriebsvermögensvergleich (BVV) der steuerliche Pflichtgrad, die Summenbeziehung, Soll/Haben und der Periodentyp. Bezeichnungen
  * übernimmt der Auszug nicht; er enthält nur, was die Übermittlung braucht.
  *
- * Quelle: www.esteuer.de, german-gaap-taxonomy-v6.9-2025-04-01-xbrl.zip. Aufruf mit dem entpackten Ordner:
+ * Quelle: www.esteuer.de, german-gaap-taxonomy-v6.9-2025-04-01-xbrl.zip und germany-gaap-taxonomy-v6.10-2026-04-01-xbrl.zip.
+ * Aufruf mit dem entpackten Ordner:
  *   bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2025-04-01 packages/elster/src/ebilanz/taxonomie-6-9.json
+ *   bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2026-04-01 packages/elster/src/ebilanz/taxonomie-6-10.json
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
