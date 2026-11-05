@@ -7,7 +7,7 @@ import { ericPluginPath } from "./eric.ts";
  * Andere Datenart-Versionen gelten als vorhanden.
  */
 export function hatJahresPlugin(ericHome: string, datenartVersion: string | undefined): boolean {
-  const jahr = /^(UStVA|USt|EUER|ESt|KapEStA)_(\d{4})$/.exec(datenartVersion ?? "");
+  const jahr = /^(UStVA|USt|EUER|ESt|KapEStA|LStA)_(\d{4})$/.exec(datenartVersion ?? "");
   if (!jahr) return true;
   return existsSync(`${ericPluginPath(ericHome)}/libcheck${jahr[1]}_${jahr[2]}.so`);
 }

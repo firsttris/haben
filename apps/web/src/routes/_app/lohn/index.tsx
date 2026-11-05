@@ -220,8 +220,8 @@ function LohnPage() {
       <div className="stack" style={{ gap: 24 }}>
         <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
           Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und Sozialversicherung, hält die Abrechnung fest, bucht sie und gibt Entgeltabrechnung
-          und Lohnkonto aus. Die Zahlungen ordnest du im <Link to="/bank">Bankabgleich</Link> zu (Lohn/Gehalt, Lohnsteuer, SV-Beiträge). Lohnsteuer-Anmeldung
-          und Meldungen an die Sozialversicherung übermittelt Haben nicht.
+          und Lohnkonto aus. Die <Link to="/lohn/anmeldung">Lohnsteuer-Anmeldung</Link> geht über ELSTER ans Finanzamt. Die Zahlungen ordnest du im{" "}
+          <Link to="/bank">Bankabgleich</Link> zu (Lohn/Gehalt, Lohnsteuer, SV-Beiträge). Meldungen an die Sozialversicherung übermittelt Haben nicht.
         </p>
         <Abrechnen data={data} />
         {data.monat.zeilen.map((z) => (

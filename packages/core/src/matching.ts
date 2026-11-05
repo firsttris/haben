@@ -214,7 +214,7 @@ export function providerPattern(account: Pick<OwnAccount, "provider">): RegExp |
 }
 
 export interface DirectSuggestion {
-  kind: "privat" | "geldtransit" | "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes";
+  kind: "privat" | "geldtransit" | "ustVorauszahlung" | "sondervorauszahlung" | "gebuehren" | "mahnerloes" | "lohnsteuer";
   reasons: string[];
   /**
    * Nur mit Gegenbuchung vorschlagen: Gegenpartei „PayPal“ auf der Bank kann auch ein mit PayPal bezahlter Einkauf sein;
@@ -277,6 +277,20 @@ export function suggestDirectBooking(tx: MatchTransaction, account: OwnAccount, 
     };
   }
   return null;
+}
+
+/**
+ * Lastschrift des Finanzamts über genau den Gesamtbetrag (Kz 83) einer übermittelten Lohnsteuer-Anmeldung: die Lohnsteuer
+ * dieses Zeitraums. Nur bei eindeutigem Betrag; zwei Zeiträume mit demselben Betrag lassen offen, welcher gezahlt ist.
+ */
+export function suggestLohnsteuer(
+  tx: Pick<MatchTransaction, "amount" | "counterpartyName">,
+  anmeldungen: readonly { label: string; betrag: Cents }[],
+): DirectSuggestion | null {
+  if (tx.amount >= 0 || !TAX_OFFICE.test(tx.counterpartyName)) return null;
+  const passend = anmeldungen.filter((a) => a.betrag === -tx.amount);
+  if (passend.length !== 1) return null;
+  return { kind: "lohnsteuer", reasons: [`Gesamtbetrag (Kz 83) der Lohnsteuer-Anmeldung ${passend[0]!.label}`] };
 }
 
 /** Auszahlungs-ID aus der Referenz einer Teilauszahlung („payout-98765|…“, Shopify Payments) */

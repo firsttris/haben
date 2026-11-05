@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { skontoZahlfristen } from "./skonto.ts";
-import { purposeContainsNumber, suggestMatches, transactionHasReference, type OpenItem } from "./matching.ts";
+import { purposeContainsNumber, suggestLohnsteuer, suggestMatches, transactionHasReference, type OpenItem } from "./matching.ts";
 
 const invoice = (over: Partial<OpenItem> = {}): OpenItem => ({
   type: "invoice",
@@ -180,5 +180,28 @@ describe("suggestMatches mit Fremdwährung", () => {
       { ...item, currency: "EUR" },
     ]);
     expect(euro!.exchangeDifference).toBeUndefined();
+  });
+});
+
+describe("Lohnsteuer an das Finanzamt", () => {
+  const anmeldungen = [
+    { label: "Oktober 2026", betrag: 1_392_47 },
+    { label: "November 2026", betrag: 1_400_00 },
+  ];
+
+  it("schlägt die Lastschrift des Finanzamts über den Gesamtbetrag einer übermittelten Anmeldung vor", () => {
+    expect(suggestLohnsteuer({ amount: -1_392_47, counterpartyName: "Finanzamt München" }, anmeldungen)).toEqual({
+      kind: "lohnsteuer",
+      reasons: ["Gesamtbetrag (Kz 83) der Lohnsteuer-Anmeldung Oktober 2026"],
+    });
+  });
+
+  it("nicht bei anderer Gegenpartei, anderem Betrag, Eingang oder mehrdeutigem Betrag", () => {
+    expect(suggestLohnsteuer({ amount: -1_392_47, counterpartyName: "Erika Muster" }, anmeldungen)).toBeNull();
+    expect(suggestLohnsteuer({ amount: -1_392_48, counterpartyName: "Finanzamt München" }, anmeldungen)).toBeNull();
+    expect(suggestLohnsteuer({ amount: 1_392_47, counterpartyName: "Finanzamt München" }, anmeldungen)).toBeNull();
+    expect(
+      suggestLohnsteuer({ amount: -1_400_00, counterpartyName: "Finanzamt München" }, [...anmeldungen, { label: "Dezember 2026", betrag: 1_400_00 }]),
+    ).toBeNull();
   });
 });

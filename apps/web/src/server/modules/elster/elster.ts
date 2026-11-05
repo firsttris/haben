@@ -5,6 +5,7 @@ import {
   createElsterClient,
   DEFAULT_ERIC_VERSION,
   EricInstallError,
+  hatJahresPlugin,
   installedEricVersion,
   ericHomeIn,
   installEric,
@@ -65,6 +66,15 @@ export function mitDatenschutzPruefung(inner: ElsterClient, check: () => Promise
       };
     },
   });
+}
+
+/**
+ * Kennt das geladene ERiC die Datenart-Version eines Jahres (z. B. LStA_2027)? Neue Jahre bringt erst eine neuere
+ * ERiC-Version mit (Prüf-Plugin libcheck<Datenart>_<Jahr>.so); simuliert gilt jede als bekannt.
+ */
+export function ericKennt(datenartVersion: string): boolean {
+  const home = ericHome();
+  return !home || hatJahresPlugin(home, datenartVersion);
 }
 
 /** Ohne ERiC läuft alles gegen einen simulierten Client. */
