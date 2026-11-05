@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { auth } from "../../../server/auth.ts";
+import { requireUser } from "../../../server/rollen.ts";
 import { csvResponse, fileResponse } from "../../../server/file-response.ts";
 import { yearSchema } from "../../../server/functions/schemas.ts";
 import { lohnkontoDatei } from "../../../server/modules/lohn/index.ts";
@@ -11,8 +11,8 @@ export const Route = createFileRoute("/api/lohn/lohnkonto/$id/$jahr/$format")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const session = await auth().api.getSession({ headers: request.headers });
-        if (!session) return new Response("Nicht angemeldet", { status: 401 });
+        const user = await requireUser(request, "inhaber");
+        if (user instanceof Response) return user;
         const id = z.uuid().safeParse(params.id);
         const jahr = z.coerce.number().pipe(yearSchema).safeParse(params.jahr);
         const format = z.enum(["pdf", "csv"]).safeParse(params.format);

@@ -4,13 +4,13 @@ import { createManualEntry, knownAccounts, loadJournal, manualEntrySchema, rever
 import { bookDatevEroeffnung, datevEroeffnung, datevEroeffnungSchema } from "../modules/archiv/index.ts";
 import { checkCashReversal } from "../modules/bank/index.ts";
 import { loadCompany } from "../modules/stammdaten/index.ts";
-import { authMiddleware } from "../middleware.ts";
+import { authMiddleware, readMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";
 
 /** Buchungen eines Monats mit ihren Zeilen, nur lesend */
 export const getJournal = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
+  .middleware([readMiddleware])
   .validator(z.object({ year: yearSchema, month: z.number().int().min(1).max(12) }))
   .handler(({ data }) => loadJournal(data.year, data.month));
 

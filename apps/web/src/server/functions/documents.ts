@@ -24,7 +24,7 @@ import {
   uploadDocument,
 } from "../modules/belege/index.ts";
 import { extractionAvailable, extractionSettings } from "../modules/belege/index.ts";
-import { authMiddleware } from "../middleware.ts";
+import { authMiddleware, readMiddleware } from "../middleware.ts";
 import { listContacts, loadCompany } from "../modules/stammdaten/index.ts";
 import { documentSepaTransfers } from "../modules/bank/index.ts";
 import { db, schema } from "../db/index.ts";
@@ -38,9 +38,10 @@ const inBackground = (work: Promise<void>) => void work.catch((error) => console
 const categoryOptions = Object.entries(EXPENSE_CATEGORIES).map(([value, { label }]) => ({ value, label }));
 
 export const getDocuments = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async () => {
-    const inbox = await loadInboxSettings();
+  .middleware([readMiddleware])
+  .handler(async ({ context }) => {
+    // Postfach für Belege per E-Mail ist eine Einstellung des Inhabers
+    const inbox = context.user.role === "inhaber" ? await loadInboxSettings() : null;
     return {
       documents: await listDocuments(),
       aiAvailable: extractionAvailable(),
@@ -49,7 +50,7 @@ export const getDocuments = createServerFn({ method: "GET" })
   });
 
 export const getDocumentDetail = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
+  .middleware([readMiddleware])
   .validator(z.uuid())
   .handler(async ({ data }) => {
     const result = await getDocument(data);

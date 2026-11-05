@@ -1,6 +1,6 @@
 import { kontenblattToCsv, saldenlisteToCsv } from "@haben/core";
 import { createFileRoute } from "@tanstack/react-router";
-import { auth } from "../../../server/auth.ts";
+import { requireUser } from "../../../server/rollen.ts";
 import { csvResponse } from "../../../server/file-response.ts";
 import { yearSchema } from "../../../server/functions/schemas.ts";
 import { kontenblatt, ledgerPeriodSchema, ledgerRange, saldenliste } from "../../../server/modules/buchhaltung/index.ts";
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/api/konten/$jahr")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const session = await auth().api.getSession({ headers: request.headers });
-        if (!session) return new Response("Nicht angemeldet", { status: 401 });
+        const user = await requireUser(request, "lesen");
+        if (user instanceof Response) return user;
         const url = new URL(request.url);
         const year = yearSchema.safeParse(Number(params.jahr));
         const period = ledgerPeriodSchema.safeParse(url.searchParams.get("zeitraum") ?? undefined);

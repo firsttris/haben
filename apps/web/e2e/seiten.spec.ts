@@ -70,6 +70,8 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["einstellungen-ki", "/einstellungen?bereich=ki"],
     ["einstellungen-export", "/einstellungen?bereich=export"],
     ["einstellungen-seiten", "/einstellungen?bereich=seiten"],
+    ["einstellungen-sicherheit", "/einstellungen?bereich=sicherheit"],
+    ["steuerberatung", "/steuerberatung"],
     ["eigene-seite", details.eigeneSeite],
   ];
 }
