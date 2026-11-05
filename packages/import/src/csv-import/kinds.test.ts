@@ -44,6 +44,90 @@ describe("Kontakte", () => {
     expect(rows[2]!.value).toMatchObject({ name: "Papierwerk Süd AG", land: "DE", isCustomer: false, isSupplier: true, lieferantennummer: "70001" });
   });
 
+  // Mustervorlage, Spalten A bis AF: https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten
+  const LEXWARE_VORLAGE = [
+    "Firmenname;Steuernummer;Umsatzsteuer ID;Anrede;Vorname;Nachname;Notiz",
+    "Straße (Rechnungsadresse);Adresszusatz (Rechnungsadresse);Ort (Rechnungsadresse);PLZ (Rechnungsadresse);Land (Rechnungsadresse)",
+    "Straße (Lieferadresse);Adresszusatz (Lieferadresse);Ort (Lieferadresse);PLZ (Lieferadresse);Land (Lieferadresse)",
+    "Geschäftlich (Rufnummer);Mobil (Rufnummer);Fax (Rufnummer);Geschäftlich (E-Mail);Privat (E-Mail)",
+    "Bankname;Kontoinhaber;IBAN;BIC",
+    "Anrede (Ansprechpartner);Vorname (Ansprechpartner);Nachname (Ansprechpartner);Rufnummer (Ansprechpartner);E-Mail (Ansprechpartner)",
+  ].join(";");
+
+  it("ordnet die Spalten der Mustervorlage von Lexware Office zu, Rechnungs- vor Lieferadresse", () => {
+    const header = table(`Kundennummer;${LEXWARE_VORLAGE}\n10001;A GmbH\n`).header;
+    const mapping = suggestMapping(header, CONTACT_FIELDS);
+    const column = (key: string) => (mapping[key] === null || mapping[key] === undefined ? null : header[mapping[key]!]);
+    expect(Object.fromEntries(CONTACT_FIELDS.map((f) => [f.key, column(f.key)]))).toEqual({
+      kundennummer: "Kundennummer",
+      lieferantennummer: null,
+      firma: "Firmenname",
+      vorname: "Vorname",
+      nachname: "Nachname",
+      strasse: "Straße (Rechnungsadresse)",
+      plz: "PLZ (Rechnungsadresse)",
+      ort: "Ort (Rechnungsadresse)",
+      land: "Land (Rechnungsadresse)",
+      email: "Geschäftlich (E-Mail)",
+      ustId: "Umsatzsteuer ID",
+      iban: "IBAN",
+      leitwegId: null,
+      rolle: null,
+    });
+  });
+
+  it("legt Zeilen der Lieferanten-Vorlage ohne Nummer als Lieferanten an", () => {
+    const empty = ";".repeat(LEXWARE_VORLAGE.split(";").length - 1);
+    const { t, mapping } = mapped(`Lieferantennummer;${LEXWARE_VORLAGE}\n;Papierwerk Süd AG${empty.slice(1)}\n`, CONTACT_FIELDS);
+    const [row] = contactCandidates(t, mapping);
+    expect(row!.errors).toEqual([]);
+    expect(row!.value).toMatchObject({ name: "Papierwerk Süd AG", isCustomer: false, isSupplier: true });
+  });
+
+  it("ordnet die Spalten des Kontakt-Exports von Lexware Office zu: Adresse 1 und E-Mail 1, Umsatzsteuernummer", () => {
+    // Exportnamen und ihre Entsprechung in der Vorlage:
+    // https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office
+    const header = [
+      "Kundennummer",
+      "Lieferantennummer",
+      "Firmenname",
+      "Anrede",
+      "Vorname",
+      "Nachname",
+      "Steuernummer",
+      "Umsatzsteuernummer",
+      "Adresszusatz 1",
+      "Straße 1",
+      "PLZ 1",
+      "Ort 1",
+      "Land 1",
+      "Adresszusatz 2",
+      "Straße 2",
+      "PLZ 2",
+      "Ort 2",
+      "Land 2",
+      "Telefon 1",
+      "Telefon 2",
+      "E-Mail 1",
+      "E-Mail 2",
+      "Ansprechpartner 1 Anrede",
+      "Ansprechpartner 1 Vorname",
+      "Ansprechpartner 1 Nachname",
+      "Ansprechpartner 1 E-Mail",
+      "Ansprechpartner 1 Telefon",
+    ];
+    const mapping = suggestMapping(header, CONTACT_FIELDS);
+    const column = (key: string) => (mapping[key] === null || mapping[key] === undefined ? null : header[mapping[key]!]);
+    expect([column("strasse"), column("plz"), column("ort"), column("land"), column("email"), column("ustId")]).toEqual([
+      "Straße 1",
+      "PLZ 1",
+      "Ort 1",
+      "Land 1",
+      "E-Mail 1",
+      "Umsatzsteuernummer",
+    ]);
+  });
+
   it("meldet je Zeile falsche IBAN, falsche Prüfziffer der USt-IdNr., fehlenden Namen und Formeln", () => {
     const { t, mapping } = mapped(
       [
@@ -134,6 +218,17 @@ describe("Artikel", () => {
       note: "",
     });
     expect(rows[1]!.value).toMatchObject({ unit: "Stk.", unitPrice: 2990, taxRate: 700, priceIncludesTax: true });
+  });
+
+  it("liest die Steuerart der Mustervorlage von Lexware Office (USt 19%)", () => {
+    // Werte „USt 19%“, „USt 7%“, „USt 0%“: https://help.lexware.de/de-form/articles/625906-fehlercodes-beim-artikel-import-csv-beheben
+    const { t, mapping } = mapped(
+      "Bezeichnung;Einheit;Steuerart;Nettopreis\nBeratung;Stunde;USt 19%;95,00\nBuch;Stück;USt 7%;10,00\nAusland;Stück;USt 0%;10,00\n",
+      ARTICLE_FIELDS,
+    );
+    const rows = articleCandidates(t, mapping);
+    expect(rows.map((r) => r.errors)).toEqual([[], [], []]);
+    expect(rows.map((r) => r.value?.taxRate)).toEqual([1900, 700, 0]);
   });
 
   it("meldet fehlenden Steuersatz, fehlenden Preis und Netto/Brutto, die nicht zusammenpassen", () => {

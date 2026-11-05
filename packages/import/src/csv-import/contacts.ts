@@ -5,9 +5,13 @@ import type { CsvTable } from "./read.ts";
 import { parseImportCountry } from "./values.ts";
 
 /**
- * Kontakte aus CSV. Die Spaltennamen folgen der Vorlage und dem Export von Lexware Office („Kundennummer“,
- * „Firmenname“, „Rechnungsadresse Straße“ …) und den Feldern der Lexware-API (companyName, firstName …), dazu den
- * üblichen Namen aus Excel-Listen.
+ * Kontakte aus CSV. Die Spaltennamen folgen der Mustervorlage von Lexware Office („Kundennummer“, „Firmenname“,
+ * „Straße (Rechnungsadresse)“, „Geschäftlich (E-Mail)“ …, Lexware-Hilfe „Anleitung zum Import von Kontakten“:
+ * https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten), dem
+ * Kontakt-Export („Straße 1“, „E-Mail 1“, „Umsatzsteuernummer“ …, Lexware-Hilfe „Kontakte beim Account-Wechsel
+ * übertragen“: https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office)
+ * und den Feldern der Lexware-API (companyName, firstName …), dazu den üblichen Namen aus Excel-Listen. Von zwei
+ * Adressen gilt die Rechnungsadresse (Vorlage) bzw. Adresse 1 (Export); die Lieferadresse übernimmt Haben nicht.
  */
 export const CONTACT_FIELDS = [
   {
@@ -31,21 +35,26 @@ export const CONTACT_FIELDS = [
   {
     key: "strasse",
     label: "Straße",
-    aliases: ["Straße", "Strasse", "Straße und Hausnummer", "Straße Hausnummer", "Rechnungsadresse Straße", "Adresse", "Anschrift", "street"],
+    aliases: ["Straße", "Strasse", "Straße und Hausnummer", "Straße Hausnummer", "Straße (Rechnungsadresse)", "Straße 1", "Adresse", "Anschrift", "street"],
   },
-  { key: "plz", label: "PLZ", aliases: ["PLZ", "Postleitzahl", "Rechnungsadresse PLZ", "zip"] },
-  { key: "ort", label: "Ort", aliases: ["Ort", "Stadt", "Rechnungsadresse Ort", "city"] },
+  { key: "plz", label: "PLZ", aliases: ["PLZ", "Postleitzahl", "PLZ (Rechnungsadresse)", "PLZ 1", "zip"] },
+  { key: "ort", label: "Ort", aliases: ["Ort", "Stadt", "Ort (Rechnungsadresse)", "Ort 1", "city"] },
   {
     key: "land",
     label: "Land",
     hint: "Ländercode wie DE, auch 276 oder „Deutschland“; leer = DE",
-    aliases: ["Land", "Ländercode", "Länderkennzeichen", "Rechnungsadresse Land", "Rechnungsadresse Ländercode", "countryCode", "country"],
+    aliases: ["Land", "Ländercode", "Länderkennzeichen", "Land (Rechnungsadresse)", "Land 1", "countryCode", "country"],
   },
-  { key: "email", label: "E-Mail", aliases: ["E-Mail", "Email", "E-Mail-Adresse", "E-Mail geschäftlich", "Mail", "emailAddress"] },
+  {
+    key: "email",
+    label: "E-Mail",
+    aliases: ["E-Mail", "Email", "E-Mail-Adresse", "E-Mail geschäftlich", "Geschäftlich (E-Mail)", "E-Mail 1", "Mail", "emailAddress"],
+  },
   {
     key: "ustId",
     label: "USt-IdNr.",
-    aliases: ["USt-IdNr.", "USt-IdNr", "USt-ID", "UStIdNr", "Umsatzsteuer-ID", "Umsatzsteuer-Identifikationsnummer", "vatRegistrationId"],
+    // „Umsatzsteuer ID“ in der Vorlage, „Umsatzsteuernummer“ im Export von Lexware Office (dort die USt-IdNr.)
+    aliases: ["USt-IdNr.", "USt-IdNr", "USt-ID", "UStIdNr", "Umsatzsteuer-ID", "Umsatzsteuer-Identifikationsnummer", "Umsatzsteuernummer", "vatRegistrationId"],
   },
   { key: "iban", label: "IBAN", aliases: ["IBAN"] },
   { key: "leitwegId", label: "Leitweg-ID", aliases: ["Leitweg-ID", "LeitwegID", "Leitweg", "buyerReference"] },
@@ -73,10 +82,17 @@ export interface ContactRow {
   isSupplier: boolean;
 }
 
-/** Rolle aus der Spalte, sonst aus den Nummern: nur Lieferantennummer = Lieferant, sonst Kunde */
-function roles(raw: string, kundennummer: string, lieferantennummer: string): { isCustomer: boolean; isSupplier: boolean } | string {
+/**
+ * Rolle aus der Spalte, sonst aus den Nummern: nur Lieferantennummer = Lieferant, sonst Kunde. `supplierFile`: Die Datei
+ * hat eine Spalte Lieferantennummer, aber keine Kundennummer, wie die Lieferanten-Vorlage von Lexware Office; dort darf
+ * die Nummer leer bleiben (Lexware-Hilfe, Artikel 548267, Spalte A).
+ */
+function roles(raw: string, kundennummer: string, lieferantennummer: string, supplierFile: boolean): { isCustomer: boolean; isSupplier: boolean } | string {
   const value = raw.toLowerCase();
-  if (!value) return { isCustomer: Boolean(kundennummer) || !lieferantennummer, isSupplier: Boolean(lieferantennummer) };
+  if (!value) {
+    const isSupplier = Boolean(lieferantennummer) || (supplierFile && !kundennummer);
+    return { isCustomer: Boolean(kundennummer) || !isSupplier, isSupplier };
+  }
   const kunde = /kunde|debitor|customer/.test(value);
   const lieferant = /lieferant|kreditor|vendor|supplier/.test(value);
   const beides = /beide|both/.test(value);
@@ -94,6 +110,7 @@ export function ustIdImportProblem(raw: string): string | null {
 }
 
 export function contactCandidates(table: CsvTable, mapping: ColumnMapping): RowCandidate<ContactRow>[] {
+  const supplierFile = mapping.lieferantennummer != null && mapping.kundennummer == null;
   return table.rows.map((row) => {
     const read = rowReader(row, mapping, CONTACT_FIELDS, table.header.length);
     const { errors } = read;
@@ -110,7 +127,7 @@ export function contactCandidates(table: CsvTable, mapping: ColumnMapping): RowC
     if (ustProblem) errors.push(ustProblem);
     const rawIban = read.raw("iban");
     if (rawIban && !isValidIban(rawIban)) errors.push(`IBAN: „${rawIban}“ ist ungültig (Prüfziffer oder Länge)`);
-    const role = roles(read.raw("rolle"), kundennummer, lieferantennummer);
+    const role = roles(read.raw("rolle"), kundennummer, lieferantennummer, supplierFile);
     if (typeof role === "string") errors.push(role);
     // Mehrere Adressen in einer Zelle getrennt mit Komma oder Semikolon, gespeichert wie im Formular mit „, “
     const emails = joinEmails(splitEmails(read.text("email")));
