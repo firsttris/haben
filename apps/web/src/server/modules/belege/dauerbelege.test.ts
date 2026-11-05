@@ -259,6 +259,39 @@ describe.skipIf(!testDatabaseUrl)("Dauerbelege (Postgres)", () => {
     expect(await sql`select id from recurring_documents where id = ${leer.id}`).toHaveLength(0);
   });
 
+  it("Monatsende bleibt Monatsende, auch wenn die Vorlage im Februar geändert wird", async () => {
+    await reset();
+    const vorlage = await dauer.createDauerbeleg(actor, miete({ nextDate: "2027-01-31" }), vertrag());
+    await lauf.runDueDauerbelege("2027-02-01");
+    const [stand] = await sql`select next_date::text from recurring_documents where id = ${vorlage.id}`;
+    expect(stand!.next_date).toBe("2027-02-28");
+    // Nur der Betrag ändert sich; das Formular schickt den nächsten Termin unverändert mit
+    await dauer.updateDauerbeleg(actor, vorlage.id, miete({ nextDate: "2027-02-28", amounts: [{ taxRate: 1900, net: 110_000, tax: 20_900 }] }), null);
+    await lauf.runDueDauerbelege("2027-04-01");
+    expect((await belege(vorlage.id)).map((r) => r.document_date)).toEqual(["2027-01-31", "2027-02-28", "2027-03-31"]);
+  });
+
+  it("Buchen und zuordnen: scheitert die Zuordnung, bleibt der Beleg ungebucht", async () => {
+    await reset();
+    const vorlage = await dauer.createDauerbeleg(actor, miete({ nextDate: "2026-10-31" }), vertrag());
+    await lauf.runDueDauerbelege("2026-11-05");
+    // Abbuchung über einen anderen Betrag (etwa nur die Nebenkosten); der Vorschlag war veraltet
+    await bank.importStatement(
+      actor,
+      {
+        bytes: dkbCsv([["03.11.26", "03.11.26", "Gebucht", "Testfirma", "Hafen Immobilien GmbH", "Nebenkosten", "Ausgang", "DE02100100100006820101", "-300,00", "", "", ""]]),
+        filename: "konto.csv",
+      },
+      null,
+    );
+    const [transaction] = await sql`select id from bank_transactions`;
+    const [beleg] = await belege(vorlage.id);
+    await expect(lauf.bookAndAllocateDauerbeleg(actor, { documentId: beleg!.id as string, transactionId: transaction!.id as string })).rejects.toThrow();
+    const [nachher] = await sql`select status from documents where id = ${beleg!.id}`;
+    expect(nachher!.status).toBe("neu");
+    expect(await sql`select id from journal_entries`).toHaveLength(0);
+  });
+
   it("jede Änderung an der Vorlage steht im Audit-Log", async () => {
     await reset();
     const vorlage = await dauer.createDauerbeleg(actor, miete(), vertrag());
