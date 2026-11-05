@@ -153,9 +153,12 @@ describe.skipIf(!testDatabaseUrl)("Sperren und Eindeutigkeit in der Datenbank (P
     expect(brm!.new_value).not.toHaveProperty("server_response_xml");
   });
 
-  it("höchstens ein Nutzer und ein festgeschriebenes Storno je Rechnung", async () => {
-    await sql`insert into "user" (id, name, email) values ('u1', 'A', 'a@example.de')`;
-    await expect(sql`insert into "user" (id, name, email) values ('u2', 'B', 'b@example.de')`).rejects.toThrow(/user_single/);
+  it("höchstens ein Inhaber und ein festgeschriebenes Storno je Rechnung", async () => {
+    await sql`insert into "user" (id, name, email, role) values ('u1', 'A', 'a@example.de', 'inhaber')`;
+    await expect(sql`insert into "user" (id, name, email, role) values ('u2', 'B', 'b@example.de', 'inhaber')`).rejects.toThrow(/user_inhaber_single/);
+    // Weitere Konten nur mit der Rolle Steuerberatung, die auch die Vorgabe ist
+    await sql`insert into "user" (id, name, email) values ('u3', 'C', 'c@example.de')`;
+    expect(await sql`select role from "user" where id = 'u3'`).toEqual([{ role: "steuerberatung" }]);
 
     const [original] = await sql`insert into invoices (status, number, issue_date, due_date, locked_at)
       values ('final', 'RE-1', '2026-01-10', '2026-01-24', now()) returning id`;

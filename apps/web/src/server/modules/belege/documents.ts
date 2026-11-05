@@ -34,7 +34,7 @@ import { and, desc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-or
 import { z } from "zod";
 import { loadCompany, resolveExchangeRate } from "../stammdaten/index.ts";
 import { addDocumentCashEntry, lockCash } from "../bank/index.ts";
-import { withActor } from "../../db/actor.ts";
+import { isReadOnly, withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
@@ -486,7 +486,8 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
 export async function getDocument(id: string) {
   let [doc] = await db.select().from(schema.documents).where(eq(schema.documents.id, id));
   if (!doc) return null;
-  if (doc.extractionStatus === "laeuft" && !runningExtractions.has(id)) {
+  // Nur lesend (Steuerberatung) bleibt der Beleg, wie er ist; freigeben darf ihn erst der Inhaber beim Öffnen
+  if (doc.extractionStatus === "laeuft" && !runningExtractions.has(id) && !isReadOnly()) {
     // Server während der Auslesung neu gestartet: Beleg wieder freigeben statt ewig „läuft“
     [doc] = await withActor("system:auslesung", (tx) =>
       tx

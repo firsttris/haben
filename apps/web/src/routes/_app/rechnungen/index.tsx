@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_app/rechnungen/")({
 
 function InvoicesPage() {
   const invoices = Route.useLoaderData();
+  const inhaber = Route.useRouteContext().user.role === "inhaber";
   return (
     <>
       <div className="page-head">
@@ -21,13 +22,16 @@ function InvoicesPage() {
           <div className="eyebrow">Verkauf</div>
           <h1>Rechnungen</h1>
         </div>
-        <div className="actions">
-          <Link to="/rechnungen/neu" className="btn btn-primary">
-            Neue Rechnung
-          </Link>
-        </div>
+        {inhaber && (
+          <div className="actions">
+            <Link to="/rechnungen/neu" className="btn btn-primary">
+              Neue Rechnung
+            </Link>
+          </div>
+        )}
       </div>
-      <InvoiceTabs />
+      {/* Wiederkehrend und Mahnwesen sind Arbeit des Inhabers */}
+      {inhaber && <InvoiceTabs />}
       <section className="card" aria-label="Rechnungsliste">
         {invoices.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>

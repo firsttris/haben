@@ -74,7 +74,7 @@ export default defineConfig({
     // mit, wenn nur eine dieser Dateien laufen soll
     {
       name: "mit-daten",
-      testMatch: ["anmelden.spec.ts", "barrierefreiheit.spec.ts", "seiten.spec.ts", "zz-doku-screenshots.spec.ts"],
+      testMatch: ["anmelden.spec.ts", "barrierefreiheit.spec.ts", "seiten.spec.ts", "steuerberatung.spec.ts", "zz-doku-screenshots.spec.ts"],
       dependencies: ["ablauf"],
       use: chromium,
     },

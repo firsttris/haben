@@ -36,6 +36,7 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 | [CSV-Import](csv-import.md) | Kontakte, Artikel und Anlagen aus CSV: Trennzeichen und Kodierung erkennen, Spalten zuordnen, Vorschau mit Fehlern je Zeile, Dubletten überspringen |
 | [REST-API](api.md) | Kontakte und Rechnungsentwürfe aus eigenen Werkzeugen, mit Bestellnummer ohne Duplikate; Belege aus Dokumentenarchiven und Skripten; OpenAPI, Rechte je Token, Beispiele mit curl |
 | [Eigene Seiten](eigene-seiten.md) | Eigene Werkzeuge wie eine Bestellübersicht aus n8n als Menüeintrag, im Rahmen angezeigt |
+| [Zugang für die Steuerberatung](steuerberatung.md) | Eigener Zugang per Einladungslink, nur lesen: Auswertungen, Journal, Konten, Belege, Rechnungen, DATEV und Jahresarchiv |
 | [Mein ELSTER mit KI-Assistent](elster-mit-assistent.md) | Ohne Hersteller-ID in Mein ELSTER abgeben: der Assistent trägt die Kennzahlen ein, du sendest ab |
 | [Barrierefreiheit und Tastatur](barrierefreiheit.md) | Bedienung ohne Maus, Tastenkürzel, Kontraste in allen Themes, Prüfung mit axe-core nach WCAG 2.2 AA |
 

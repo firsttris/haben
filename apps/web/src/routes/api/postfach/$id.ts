@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import { auth } from "../../../server/auth.ts";
+import { requireUser } from "../../../server/rollen.ts";
 import { fileResponse } from "../../../server/file-response.ts";
 import { postfachDocumentFile } from "../../../server/modules/finanzamt/index.ts";
 import { loadFile } from "../../../server/storage.ts";
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/api/postfach/$id")({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
-        const session = await auth().api.getSession({ headers: request.headers });
-        if (!session) return new Response("Nicht angemeldet", { status: 401 });
+        const user = await requireUser(request, "inhaber");
+        if (user instanceof Response) return user;
         const id = z.uuid().safeParse(params.id);
         if (!id.success) return new Response("Nicht gefunden", { status: 404 });
         const file = await postfachDocumentFile(id.data);

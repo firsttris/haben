@@ -5,7 +5,7 @@ import { z } from "zod";
 import { invoicePaymentList, listAccounts, listWriteOffs } from "../modules/bank/index.ts";
 import { openPositions } from "../modules/auswertungen/index.ts";
 import { editorContext } from "../modules/stammdaten/index.ts";
-import { authMiddleware } from "../middleware.ts";
+import { authMiddleware, readMiddleware } from "../middleware.ts";
 import {
   cancelInvoice,
   createCorrection,
@@ -35,10 +35,12 @@ function withoutFiles<T extends { pdf: unknown; xml: unknown }>({ pdf, xml, ...r
 }
 
 export const getInvoices = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async () => {
+  .middleware([readMiddleware])
+  .handler(async ({ context }) => {
     const [invoices, mailed] = await Promise.all([listInvoices(today()), invoicesSentByMail()]);
-    return invoices.map((invoice) => ({ ...invoice, mailed: mailed.has(invoice.id) }));
+    // Entwürfe sind Arbeitsstand des Inhabers, für die Steuerberatung zählt nur Festgeschriebenes
+    const visible = context.user.role === "inhaber" ? invoices : invoices.filter((invoice) => invoice.status !== "draft");
+    return visible.map((invoice) => ({ ...invoice, mailed: mailed.has(invoice.id) }));
   });
 
 export const getInvoiceSummary = createServerFn({ method: "GET" })
@@ -98,11 +100,11 @@ export const getNewInvoice = createServerFn({ method: "GET" })
   .handler(async () => ({ draft: await newDraftDefaults(today()), ...(await invoiceEditorContext()) }));
 
 export const getInvoiceDetail = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
+  .middleware([readMiddleware])
   .validator(z.uuid())
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const result = await getInvoice(data);
-    if (!result) throw new UserError("Rechnung nicht gefunden.");
+    if (!result || (context.user.role !== "inhaber" && result.invoice.status === "draft")) throw new UserError("Rechnung nicht gefunden.");
     const issues = result.invoice.status === "draft" ? await finalizeIssues(data) : [];
     // Mahnungen und ob die Rechnung gerade überfällig ist (offen und Fälligkeit vorbei)
     const listed = result.invoice.status === "final" ? (await listInvoices(today(), data))[0] : undefined;
