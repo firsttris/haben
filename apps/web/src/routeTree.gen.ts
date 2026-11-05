@@ -40,6 +40,9 @@ import { Route as AppBelegeIndexRouteImport } from './routes/_app/belege/index'
 import { Route as AppBelegeIdRouteImport } from './routes/_app/belege/$id'
 import { Route as AppBuchungenIndexRouteImport } from './routes/_app/buchungen/index'
 import { Route as AppBuchungenNeuRouteImport } from './routes/_app/buchungen/neu'
+import { Route as AppDauerbelegeIndexRouteImport } from './routes/_app/dauerbelege/index'
+import { Route as AppDauerbelegeIdRouteImport } from './routes/_app/dauerbelege/$id'
+import { Route as AppDauerbelegeNeuRouteImport } from './routes/_app/dauerbelege/neu'
 import { Route as AppJahreserklaerungIndexRouteImport } from './routes/_app/jahreserklaerung/index'
 import { Route as AppJahreserklaerungJahrRouteImport } from './routes/_app/jahreserklaerung/$jahr'
 import { Route as AppKontakteIndexRouteImport } from './routes/_app/kontakte/index'
@@ -64,6 +67,7 @@ import { Route as ApiBankCallbackRouteImport } from './routes/api/bank/callback'
 import { Route as ApiBelegIdRouteImport } from './routes/api/beleg/$id'
 import { Route as ApiBelegeTeilenRouteImport } from './routes/api/belege/teilen'
 import { Route as ApiDatevJahrRouteImport } from './routes/api/datev/$jahr'
+import { Route as ApiDauerbelegIdRouteImport } from './routes/api/dauerbeleg/$id'
 import { Route as ApiExportJahrRouteImport } from './routes/api/export/$jahr'
 import { Route as ApiFristenKalenderRouteImport } from './routes/api/fristen/kalender'
 import { Route as ApiHinterlegungJahrRouteImport } from './routes/api/hinterlegung/$jahr'
@@ -251,6 +255,21 @@ const AppBuchungenNeuRoute = AppBuchungenNeuRouteImport.update({
   path: '/buchungen/neu',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDauerbelegeIndexRoute = AppDauerbelegeIndexRouteImport.update({
+  id: '/dauerbelege/',
+  path: '/dauerbelege/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDauerbelegeIdRoute = AppDauerbelegeIdRouteImport.update({
+  id: '/dauerbelege/$id',
+  path: '/dauerbelege/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDauerbelegeNeuRoute = AppDauerbelegeNeuRouteImport.update({
+  id: '/dauerbelege/neu',
+  path: '/dauerbelege/neu',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppJahreserklaerungIndexRoute =
   AppJahreserklaerungIndexRouteImport.update({
     id: '/jahreserklaerung/',
@@ -370,6 +389,11 @@ const ApiBelegeTeilenRoute = ApiBelegeTeilenRouteImport.update({
 const ApiDatevJahrRoute = ApiDatevJahrRouteImport.update({
   id: '/api/datev/$jahr',
   path: '/api/datev/$jahr',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDauerbelegIdRoute = ApiDauerbelegIdRouteImport.update({
+  id: '/api/dauerbeleg/$id',
+  path: '/api/dauerbeleg/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiExportJahrRoute = ApiExportJahrRouteImport.update({
@@ -568,6 +592,8 @@ export interface FileRoutesByFullPath {
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
   '/buchungen/neu': typeof AppBuchungenNeuRoute
+  '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
+  '/dauerbelege/neu': typeof AppDauerbelegeNeuRoute
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -585,6 +611,7 @@ export interface FileRoutesByFullPath {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
+  '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
@@ -606,6 +633,7 @@ export interface FileRoutesByFullPath {
   '/artikel/': typeof AppArtikelIndexRoute
   '/belege/': typeof AppBelegeIndexRoute
   '/buchungen/': typeof AppBuchungenIndexRoute
+  '/dauerbelege/': typeof AppDauerbelegeIndexRoute
   '/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/kontakte/': typeof AppKontakteIndexRoute
   '/konten/': typeof AppKontenIndexRoute
@@ -656,6 +684,8 @@ export interface FileRoutesByTo {
   '/anlagen/neu': typeof AppAnlagenNeuRoute
   '/belege/$id': typeof AppBelegeIdRoute
   '/buchungen/neu': typeof AppBuchungenNeuRoute
+  '/dauerbelege/$id': typeof AppDauerbelegeIdRoute
+  '/dauerbelege/neu': typeof AppDauerbelegeNeuRoute
   '/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/kontakte/$id': typeof AppKontakteIdRoute
   '/kontakte/neu': typeof AppKontakteNeuRoute
@@ -673,6 +703,7 @@ export interface FileRoutesByTo {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
+  '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
@@ -694,6 +725,7 @@ export interface FileRoutesByTo {
   '/artikel': typeof AppArtikelIndexRoute
   '/belege': typeof AppBelegeIndexRoute
   '/buchungen': typeof AppBuchungenIndexRoute
+  '/dauerbelege': typeof AppDauerbelegeIndexRoute
   '/jahreserklaerung': typeof AppJahreserklaerungIndexRoute
   '/kontakte': typeof AppKontakteIndexRoute
   '/konten': typeof AppKontenIndexRoute
@@ -746,6 +778,8 @@ export interface FileRoutesById {
   '/_app/anlagen/neu': typeof AppAnlagenNeuRoute
   '/_app/belege/$id': typeof AppBelegeIdRoute
   '/_app/buchungen/neu': typeof AppBuchungenNeuRoute
+  '/_app/dauerbelege/$id': typeof AppDauerbelegeIdRoute
+  '/_app/dauerbelege/neu': typeof AppDauerbelegeNeuRoute
   '/_app/jahreserklaerung/$jahr': typeof AppJahreserklaerungJahrRoute
   '/_app/kontakte/$id': typeof AppKontakteIdRoute
   '/_app/kontakte/neu': typeof AppKontakteNeuRoute
@@ -763,6 +797,7 @@ export interface FileRoutesById {
   '/api/beleg/$id': typeof ApiBelegIdRoute
   '/api/belege/teilen': typeof ApiBelegeTeilenRoute
   '/api/datev/$jahr': typeof ApiDatevJahrRoute
+  '/api/dauerbeleg/$id': typeof ApiDauerbelegIdRoute
   '/api/export/$jahr': typeof ApiExportJahrRoute
   '/api/fristen/kalender': typeof ApiFristenKalenderRoute
   '/api/hinterlegung/$jahr': typeof ApiHinterlegungJahrRoute
@@ -784,6 +819,7 @@ export interface FileRoutesById {
   '/_app/artikel/': typeof AppArtikelIndexRoute
   '/_app/belege/': typeof AppBelegeIndexRoute
   '/_app/buchungen/': typeof AppBuchungenIndexRoute
+  '/_app/dauerbelege/': typeof AppDauerbelegeIndexRoute
   '/_app/jahreserklaerung/': typeof AppJahreserklaerungIndexRoute
   '/_app/kontakte/': typeof AppKontakteIndexRoute
   '/_app/konten/': typeof AppKontenIndexRoute
@@ -836,6 +872,8 @@ export interface FileRouteTypes {
     | '/anlagen/neu'
     | '/belege/$id'
     | '/buchungen/neu'
+    | '/dauerbelege/$id'
+    | '/dauerbelege/neu'
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -853,6 +891,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/datev/$jahr'
+    | '/api/dauerbeleg/$id'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/hinterlegung/$jahr'
@@ -874,6 +913,7 @@ export interface FileRouteTypes {
     | '/artikel/'
     | '/belege/'
     | '/buchungen/'
+    | '/dauerbelege/'
     | '/jahreserklaerung/'
     | '/kontakte/'
     | '/konten/'
@@ -924,6 +964,8 @@ export interface FileRouteTypes {
     | '/anlagen/neu'
     | '/belege/$id'
     | '/buchungen/neu'
+    | '/dauerbelege/$id'
+    | '/dauerbelege/neu'
     | '/jahreserklaerung/$jahr'
     | '/kontakte/$id'
     | '/kontakte/neu'
@@ -941,6 +983,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/datev/$jahr'
+    | '/api/dauerbeleg/$id'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/hinterlegung/$jahr'
@@ -962,6 +1005,7 @@ export interface FileRouteTypes {
     | '/artikel'
     | '/belege'
     | '/buchungen'
+    | '/dauerbelege'
     | '/jahreserklaerung'
     | '/kontakte'
     | '/konten'
@@ -1013,6 +1057,8 @@ export interface FileRouteTypes {
     | '/_app/anlagen/neu'
     | '/_app/belege/$id'
     | '/_app/buchungen/neu'
+    | '/_app/dauerbelege/$id'
+    | '/_app/dauerbelege/neu'
     | '/_app/jahreserklaerung/$jahr'
     | '/_app/kontakte/$id'
     | '/_app/kontakte/neu'
@@ -1030,6 +1076,7 @@ export interface FileRouteTypes {
     | '/api/beleg/$id'
     | '/api/belege/teilen'
     | '/api/datev/$jahr'
+    | '/api/dauerbeleg/$id'
     | '/api/export/$jahr'
     | '/api/fristen/kalender'
     | '/api/hinterlegung/$jahr'
@@ -1051,6 +1098,7 @@ export interface FileRouteTypes {
     | '/_app/artikel/'
     | '/_app/belege/'
     | '/_app/buchungen/'
+    | '/_app/dauerbelege/'
     | '/_app/jahreserklaerung/'
     | '/_app/kontakte/'
     | '/_app/konten/'
@@ -1093,6 +1141,7 @@ export interface RootRouteChildren {
   ApiBelegIdRoute: typeof ApiBelegIdRoute
   ApiBelegeTeilenRoute: typeof ApiBelegeTeilenRoute
   ApiDatevJahrRoute: typeof ApiDatevJahrRoute
+  ApiDauerbelegIdRoute: typeof ApiDauerbelegIdRoute
   ApiExportJahrRoute: typeof ApiExportJahrRoute
   ApiFristenKalenderRoute: typeof ApiFristenKalenderRoute
   ApiHinterlegungJahrRoute: typeof ApiHinterlegungJahrRoute
@@ -1334,6 +1383,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBuchungenNeuRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/dauerbelege/': {
+      id: '/_app/dauerbelege/'
+      path: '/dauerbelege'
+      fullPath: '/dauerbelege/'
+      preLoaderRoute: typeof AppDauerbelegeIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dauerbelege/$id': {
+      id: '/_app/dauerbelege/$id'
+      path: '/dauerbelege/$id'
+      fullPath: '/dauerbelege/$id'
+      preLoaderRoute: typeof AppDauerbelegeIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dauerbelege/neu': {
+      id: '/_app/dauerbelege/neu'
+      path: '/dauerbelege/neu'
+      fullPath: '/dauerbelege/neu'
+      preLoaderRoute: typeof AppDauerbelegeNeuRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/jahreserklaerung/': {
       id: '/_app/jahreserklaerung/'
       path: '/jahreserklaerung'
@@ -1500,6 +1570,13 @@ declare module '@tanstack/react-router' {
       path: '/api/datev/$jahr'
       fullPath: '/api/datev/$jahr'
       preLoaderRoute: typeof ApiDatevJahrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/dauerbeleg/$id': {
+      id: '/api/dauerbeleg/$id'
+      path: '/api/dauerbeleg/$id'
+      fullPath: '/api/dauerbeleg/$id'
+      preLoaderRoute: typeof ApiDauerbelegIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/export/$jahr': {
@@ -1749,6 +1826,8 @@ interface AppRouteChildren {
   AppAnlagenNeuRoute: typeof AppAnlagenNeuRoute
   AppBelegeIdRoute: typeof AppBelegeIdRoute
   AppBuchungenNeuRoute: typeof AppBuchungenNeuRoute
+  AppDauerbelegeIdRoute: typeof AppDauerbelegeIdRoute
+  AppDauerbelegeNeuRoute: typeof AppDauerbelegeNeuRoute
   AppJahreserklaerungJahrRoute: typeof AppJahreserklaerungJahrRoute
   AppKontakteIdRoute: typeof AppKontakteIdRoute
   AppKontakteNeuRoute: typeof AppKontakteNeuRoute
@@ -1764,6 +1843,7 @@ interface AppRouteChildren {
   AppArtikelIndexRoute: typeof AppArtikelIndexRoute
   AppBelegeIndexRoute: typeof AppBelegeIndexRoute
   AppBuchungenIndexRoute: typeof AppBuchungenIndexRoute
+  AppDauerbelegeIndexRoute: typeof AppDauerbelegeIndexRoute
   AppJahreserklaerungIndexRoute: typeof AppJahreserklaerungIndexRoute
   AppKontakteIndexRoute: typeof AppKontakteIndexRoute
   AppKontenIndexRoute: typeof AppKontenIndexRoute
@@ -1805,6 +1885,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppAnlagenNeuRoute: AppAnlagenNeuRoute,
   AppBelegeIdRoute: AppBelegeIdRoute,
   AppBuchungenNeuRoute: AppBuchungenNeuRoute,
+  AppDauerbelegeIdRoute: AppDauerbelegeIdRoute,
+  AppDauerbelegeNeuRoute: AppDauerbelegeNeuRoute,
   AppJahreserklaerungJahrRoute: AppJahreserklaerungJahrRoute,
   AppKontakteIdRoute: AppKontakteIdRoute,
   AppKontakteNeuRoute: AppKontakteNeuRoute,
@@ -1820,6 +1902,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppArtikelIndexRoute: AppArtikelIndexRoute,
   AppBelegeIndexRoute: AppBelegeIndexRoute,
   AppBuchungenIndexRoute: AppBuchungenIndexRoute,
+  AppDauerbelegeIndexRoute: AppDauerbelegeIndexRoute,
   AppJahreserklaerungIndexRoute: AppJahreserklaerungIndexRoute,
   AppKontakteIndexRoute: AppKontakteIndexRoute,
   AppKontenIndexRoute: AppKontenIndexRoute,
@@ -1858,6 +1941,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBelegIdRoute: ApiBelegIdRoute,
   ApiBelegeTeilenRoute: ApiBelegeTeilenRoute,
   ApiDatevJahrRoute: ApiDatevJahrRoute,
+  ApiDauerbelegIdRoute: ApiDauerbelegIdRoute,
   ApiExportJahrRoute: ApiExportJahrRoute,
   ApiFristenKalenderRoute: ApiFristenKalenderRoute,
   ApiHinterlegungJahrRoute: ApiHinterlegungJahrRoute,

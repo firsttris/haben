@@ -2027,6 +2027,98 @@ test("Anlage anlegen: Erinnerungswert angehakt, dann zu Computer gewechselt, wir
   await expect(page.getByRole("region", { name: "Abschreibungsplan" })).not.toContainText("Erinnerungswert");
 });
 
+test("Dauerbeleg: Miete mit Vertrag anlegen, Beleg zu prüfen, im Bankabgleich buchen und zuordnen", async () => {
+  const termin = day(-4);
+  await go("/dauerbelege");
+  await page.getByRole("link", { name: "Neuer Dauerbeleg" }).click();
+  await page.waitForURL(/\/dauerbelege\/neu$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Bezeichnung").fill("Büromiete Hafenstraße");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Hafen Immobilien GmbH");
+  await page.getByLabel("Vertrags- oder Kundennummer (optional)").fill("MV-2026-17");
+  await page.getByLabel("Kategorie").selectOption({ label: "Sonstiger Aufwand" });
+  await page.getByLabel("Erster Beleg am").fill(termin);
+  await page.getByLabel("Fällig Tage nach dem Termin").fill("3");
+  await page
+    .locator("input[type=file]")
+    .setInputFiles([{ name: "mietvertrag.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% Mietvertrag Hafenstraße 5\n%%EOF\n") }]);
+  // Ohne Steuerausweis gibt es keine Vorsteuer; der Vertrag weist sie hier aus (Option nach § 9 UStG)
+  await expect(page.getByText(/Vorsteuer nur mit einem Dokument/)).toBeVisible();
+  await page.getByLabel("Steuersatz 1").selectOption("1900");
+  await page.getByLabel(/weist die Umsatzsteuer gesondert aus/).check();
+  await page.getByLabel("Netto 1").fill("500,00");
+  await expect(page.getByLabel("Umsatzsteuer 1")).toHaveValue("95,00");
+  await expect(page.getByText("Je Termin: 500,00 € netto + 95,00 € Umsatzsteuer = 595,00 €")).toBeVisible();
+  await page.getByRole("button", { name: "Dauerbeleg anlegen" }).click();
+  await page.waitForURL(/\/dauerbelege\/[0-9a-f-]{36}$/);
+  await expect(page.getByRole("heading", { name: "Büromiete Hafenstraße" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "mietvertrag.pdf" })).toBeVisible();
+
+  // Der Termin liegt zurück: der Lauf legt den Beleg „Zu prüfen“ an, gebucht wird nichts
+  await go("/dauerbelege");
+  await page.getByRole("button", { name: "1 fällige jetzt anlegen" }).click();
+  await expect(page.getByText("1 Beleg zum Prüfen angelegt.")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Büromiete Hafenstraße/ })).toContainText("1 zu prüfen");
+  await go("/belege");
+  await expect(page.getByRole("link", { name: /Hafen Immobilien GmbH/ })).toContainText("Dauerbeleg");
+  await expect(page.getByRole("link", { name: /Hafen Immobilien GmbH/ })).toContainText("Zu prüfen");
+
+  // Abbuchung der Miete: Haben schlägt den Beleg vor, ein Klick bucht und ordnet zu
+  const csv =
+    "\ufeff" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    [
+      dkb(termin),
+      dkb(termin),
+      "Gebucht",
+      "Max Mustermann",
+      "Hafen Immobilien GmbH",
+      "Miete MV-2026-17",
+      "Ausgang",
+      "DE02100100100006820101",
+      "-595,00",
+      "",
+      "",
+      "",
+    ]
+      .map((v) => `"${v}"`)
+      .join(";") +
+    "\n";
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "miete.csv", mimeType: "text/csv", buffer: Buffer.from(csv) }]);
+  await expect(page.getByText(/1 neue Umsätze/)).toBeVisible({ timeout: 30_000 });
+  await page
+    .getByRole("link", { name: /Hafen Immobilien GmbH/ })
+    .first()
+    .click();
+  await page.waitForLoadState("networkidle");
+  const panel = page.getByRole("complementary", { name: "Zuordnung" });
+  await expect(panel.getByText("Dauerbeleg, noch zu prüfen")).toBeVisible();
+  await panel.getByRole("button", { name: "Buchen und zuordnen" }).click();
+  await expect(panel.getByRole("heading", { name: "Hafen Immobilien GmbH" })).toBeHidden();
+  await page.waitForLoadState("networkidle");
+
+  // Der Beleg ist gebucht, verweist auf den Dauerbeleg und hat den Vertrag als Datei
+  await go("/belege");
+  await page.getByRole("link", { name: /Hafen Immobilien GmbH/ }).click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Büromiete Hafenstraße" })).toBeVisible();
+
+  // Pausieren und fortsetzen auf der Seite der Vorlage
+  await page.getByRole("link", { name: "Büromiete Hafenstraße" }).click();
+  await page.waitForURL(/\/dauerbelege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Pausieren" }).click();
+  await expect(page.getByText(/Pausiert: Bis zum Fortsetzen/)).toBeVisible();
+  await page.getByRole("button", { name: "Fortsetzen" }).click();
+  await expect(page.getByText(/Aktiv: Haben legt zu jedem Termin/)).toBeVisible();
+});
+
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {
   expect(pageErrors).toEqual([]);
   await page.context().storageState({ path: SESSION });

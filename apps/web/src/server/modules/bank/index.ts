@@ -22,6 +22,7 @@ export {
 export {
   accountSchema,
   allocate,
+  allocateIn,
   allocateTransfer,
   allocateSplit,
   allocationSchema,
