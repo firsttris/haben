@@ -155,7 +155,22 @@ export async function computeVatFigures(period: VatPeriod, q: Db | Tx = db): Pro
           notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM]),
         ),
       );
-    payments.push(...differences);
+    // Bareinnahmen auf Rechnungen im Kassenbuch (samt Storno): wie eine Zahlung über die Bank, am Tag der Bareinnahme
+    const cash = await q
+      .select({
+        date: schema.cashEntries.date,
+        amount: schema.cashEntries.amount,
+        taxShares: schema.cashEntries.taxShares,
+        taxSharesInvoiceId: schema.cashEntries.taxSharesInvoiceId,
+        invoiceId: schema.invoices.id,
+        number: schema.invoices.number,
+        buyer: schema.invoices.buyer,
+        treatment: schema.invoices.taxTreatment,
+      })
+      .from(schema.cashEntries)
+      .innerJoin(schema.invoices, eq(schema.invoices.id, schema.cashEntries.invoiceId))
+      .where(and(gte(schema.cashEntries.date, start), lt(schema.cashEntries.date, end), notInArray(schema.invoices.taxTreatment, [...NACH_RECHNUNGSDATUM])));
+    payments.push(...differences, ...cash);
     const totals = await invoiceTotalsById([...new Set(payments.map((p) => p.invoiceId))], q);
     for (const p of payments) {
       // Wie gebucht (bank.ts, settlementTaxShares); ältere Zahlungen ohne gespeicherten Anteil aus dem Betrag

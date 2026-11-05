@@ -1028,14 +1028,28 @@
       "idx": 146,
       "version": "7",
       "when": 1793991054647,
-      "tag": "0146_zugaenge",
+      "tag": "0146_kasse_rechnung",
       "breakpoints": true
     },
     {
       "idx": 147,
       "version": "7",
       "when": 1793991114647,
-      "tag": "0147_zugaenge_trigger",
+      "tag": "0147_kasse_rechnung_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1793991174647,
+      "tag": "0148_zugaenge",
+      "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1793991234647,
+      "tag": "0149_zugaenge_trigger",
       "breakpoints": true
     }
   ]

@@ -1,6 +1,6 @@
 {
-  "id": "a91894c4-890e-48bb-af50-5e76568fe5df",
-  "prevId": "5f1dc46a-98ac-4bf4-aadd-385e2b987c0f",
+  "id": "d39b5488-fe2d-40c8-9214-40a998ae60f6",
+  "prevId": "2eef2f67-747b-4b94-b4aa-d0b2d76738bc",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1908,6 +1908,24 @@
           "primaryKey": false,
           "notNull": false
         },
+        "invoice_id": {
+          "name": "invoice_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tax_shares": {
+          "name": "tax_shares",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tax_shares_invoice_id": {
+          "name": "tax_shares_invoice_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "reverses_id": {
           "name": "reverses_id",
           "type": "uuid",
@@ -1958,6 +1976,21 @@
           "with": {},
           "method": "btree",
           "concurrently": false
+        },
+        "cash_entries_invoice": {
+          "name": "cash_entries_invoice",
+          "columns": [
+            {
+              "expression": "invoice_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -1968,6 +2001,19 @@
             "document_id"
           ],
           "tableTo": "documents",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "cash_entries_invoice_id_invoices_id_fk": {
+          "name": "cash_entries_invoice_id_invoices_id_fk",
+          "tableFrom": "cash_entries",
+          "columnsFrom": [
+            "invoice_id"
+          ],
+          "tableTo": "invoices",
           "columnsTo": [
             "id"
           ],
@@ -2012,7 +2058,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "cash_entries_invoice_kind": {
+          "name": "cash_entries_invoice_kind",
+          "value": "(\"cash_entries\".\"kind\" = 'rechnung') = (\"cash_entries\".\"invoice_id\" is not null)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.company": {
@@ -4602,100 +4653,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.invitations": {
-      "name": "invitations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "accepted_at": {
-          "name": "accepted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "accepted_email": {
-          "name": "accepted_email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "invitations_token_hash_unique": {
-          "name": "invitations_token_hash_unique",
-          "columns": [
-            "token_hash"
-          ],
-          "nullsNotDistinct": false
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "invitations_role": {
-          "name": "invitations_role",
-          "value": "\"invitations\".\"role\" = 'steuerberatung'"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.invoice_attachments": {
@@ -9594,28 +9551,15 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'steuerberatung'"
-        },
-        "locked_at": {
-          "name": "locked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
-        "user_inhaber_single": {
-          "name": "user_inhaber_single",
+        "user_single": {
+          "name": "user_single",
           "columns": [
             {
-              "expression": "role",
-              "isExpression": false,
+              "expression": "(true)",
+              "isExpression": true,
               "asc": true,
               "nulls": "last"
             }
@@ -9623,7 +9567,6 @@
           "isUnique": true,
           "with": {},
           "method": "btree",
-          "where": "\"user\".\"role\" = 'inhaber'",
           "concurrently": false
         }
       },
@@ -9638,77 +9581,6 @@
           "nullsNotDistinct": false
         }
       },
-      "policies": {},
-      "checkConstraints": {
-        "user_role": {
-          "name": "user_role",
-          "value": "\"user\".\"role\" in ('inhaber', 'steuerberatung')"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.user_logins": {
-      "name": "user_logins",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "bigserial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "at": {
-          "name": "at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "user_logins_user": {
-          "name": "user_logins_user",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -10750,6 +10622,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "cash_entry_id": {
+          "name": "cash_entry_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "reverses_id": {
           "name": "reverses_id",
           "type": "uuid",
@@ -10821,6 +10699,21 @@
           "with": {},
           "method": "btree",
           "concurrently": false
+        },
+        "write_offs_cash_entry": {
+          "name": "write_offs_cash_entry",
+          "columns": [
+            {
+              "expression": "cash_entry_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -10863,6 +10756,19 @@
           "onUpdate": "no action",
           "onDelete": "no action"
         },
+        "write_offs_cash_entry_id_cash_entries_id_fk": {
+          "name": "write_offs_cash_entry_id_cash_entries_id_fk",
+          "tableFrom": "write_offs",
+          "columnsFrom": [
+            "cash_entry_id"
+          ],
+          "tableTo": "cash_entries",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
         "write_offs_reverses_fk": {
           "name": "write_offs_reverses_fk",
           "tableFrom": "write_offs",
@@ -10884,6 +10790,10 @@
         "write_offs_target": {
           "name": "write_offs_target",
           "value": "(\"write_offs\".\"kind\" = 'skontoErhalten' and \"write_offs\".\"document_id\" is not null and \"write_offs\".\"invoice_id\" is null) or (\"write_offs\".\"kind\" in ('skonto', 'forderungsausfall') and \"write_offs\".\"invoice_id\" is not null and \"write_offs\".\"document_id\" is null) or (\"write_offs\".\"kind\" = 'kursdifferenz' and (\"write_offs\".\"invoice_id\" is null) <> (\"write_offs\".\"document_id\" is null) and \"write_offs\".\"transaction_id\" is not null)"
+        },
+        "write_offs_payment": {
+          "name": "write_offs_payment",
+          "value": "\"write_offs\".\"transaction_id\" is null or \"write_offs\".\"cash_entry_id\" is null"
         }
       },
       "isRLSEnabled": false
