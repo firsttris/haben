@@ -786,7 +786,7 @@ test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck
   await expect(page.getByRole("region", { name: "Erika Gesellschafter" })).toContainText(`Für ${lohnMonatsname} gibt es einen Entwurf`);
   expect(await axe(), `/lohn/bescheinigung/${lohnJahr}`).toEqual([]);
 
-  const entwurf = await page.request.get((await karte.getByRole("link", { name: /Ausdruck der Lohnsteuerbescheinigung/ }).getAttribute("href"))!);
+  const entwurf = await page.request.get((await karte.getByRole("link", { name: /Ausdruck/ }).getAttribute("href"))!);
   expect(entwurf.headers()["content-disposition"]).toContain("Entwurf");
   expect((await entwurf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
@@ -796,7 +796,7 @@ test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck
   await vermerk.getByRole("button", { name: "Übermittlung vermerken" }).click();
   await expect(karte.getByText("Nr. 2 · übermittelt")).toBeVisible();
   await expect(karte.getByRole("list")).toContainText("Transferticket et9f3k2m7q1x");
-  const ausdruck = await page.request.get((await karte.getByRole("link", { name: /Ausdruck der Lohnsteuerbescheinigung/ }).getAttribute("href"))!);
+  const ausdruck = await page.request.get((await karte.getByRole("link", { name: /Ausdruck/ }).getAttribute("href"))!);
   expect(ausdruck.headers()["content-disposition"]).not.toContain("Entwurf");
   expect((await ausdruck.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
   expect(await axe(), `/lohn/bescheinigung/${lohnJahr} übermittelt`).toEqual([]);

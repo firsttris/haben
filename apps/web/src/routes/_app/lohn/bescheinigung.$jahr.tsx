@@ -124,7 +124,7 @@ function MitarbeiterKarte({ data, m }: { data: Data; m: Mitarbeiter }) {
       {werte && <Werte werte={werte} name={m.name} />}
       {m.ausdruck && (
         <p style={{ margin: 0 }}>
-          <a href={`/api/lohn/bescheinigung/${m.id}/${data.year}`} aria-label={`Ausdruck der Lohnsteuerbescheinigung ${data.year} von ${m.name} (PDF)`}>
+          <a href={`/api/lohn/bescheinigung/${m.id}/${data.year}`}>
             {m.ausdruck === "entwurf" ? "Entwurf des Ausdrucks (PDF)" : "Ausdruck für den Arbeitnehmer (PDF)"}
           </a>
         </p>
