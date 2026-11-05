@@ -1054,18 +1054,21 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
 
 /** Ordnet (einen Teil) eines Umsatzes zu und bucht die Zahlung. */
 export async function allocate(actor: string, input: AllocationInput): Promise<void> {
-  await withActor(actor, async (tx) => {
-    const company = await openBooks(tx);
-    const bank = await lockTransaction(tx, input.transactionId);
-    if (input.amount === 0 || Math.sign(input.amount) !== Math.sign(bank.amount)) {
-      throw new BankError("Der Betrag muss das Vorzeichen des Umsatzes haben.");
-    }
-    if (Math.abs(input.amount) > Math.abs(bank.open)) {
-      throw new BankError("Der Betrag ist größer als der noch offene Teil des Umsatzes.");
-    }
-    const { transactionId: _transactionId, ...part } = input;
-    await bookPart(tx, company, bank, part, null);
-  });
+  await withActor(actor, (tx) => allocateIn(tx, input));
+}
+
+/** Wie allocate, in einer laufenden Transaktion; etwa zusammen mit dem Buchen des Belegs (Dauerbelege) */
+export async function allocateIn(tx: Tx, input: AllocationInput): Promise<void> {
+  const company = await openBooks(tx);
+  const bank = await lockTransaction(tx, input.transactionId);
+  if (input.amount === 0 || Math.sign(input.amount) !== Math.sign(bank.amount)) {
+    throw new BankError("Der Betrag muss das Vorzeichen des Umsatzes haben.");
+  }
+  if (Math.abs(input.amount) > Math.abs(bank.open)) {
+    throw new BankError("Der Betrag ist größer als der noch offene Teil des Umsatzes.");
+  }
+  const { transactionId: _transactionId, ...part } = input;
+  await bookPart(tx, company, bank, part, null);
 }
 
 /**

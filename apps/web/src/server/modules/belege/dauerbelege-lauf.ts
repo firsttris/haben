@@ -21,9 +21,9 @@ import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Tx } from "../../db/index.ts";
 import { INTERNAL_ERROR, userMessage } from "../../errors.ts";
-import { allocate } from "../bank/index.ts";
+import { allocateIn } from "../bank/index.ts";
 import { DauerbelegError, type Dauerbeleg } from "./dauerbelege.ts";
-import { bookDocument } from "./documents.ts";
+import { bookDocumentIn } from "./documents.ts";
 
 /** Wer die Belege eines Laufs im Audit-Log angelegt hat */
 export const DAUERBELEG_ACTOR = "system:dauerbelege";
@@ -175,15 +175,21 @@ export async function dauerbelegSuggestions(tx: MatchTransaction): Promise<Sugge
 export const bookAndAllocateSchema = z.object({ documentId: z.uuid(), transactionId: z.uuid() });
 
 /**
- * Bankabgleich: einen Beleg aus einem Dauerbeleg auf Klick buchen und dem Umsatz zuordnen. Zwei Schritte nacheinander;
- * scheitert die Zuordnung, bleibt der Beleg gebucht und lässt sich wie jeder andere zuordnen.
+ * Bankabgleich: einen Beleg aus einem Dauerbeleg auf Klick buchen und dem Umsatz zuordnen, in einer Transaktion.
+ * Scheitert die Zuordnung (anderer Betrag, Umsatz schon zugeordnet), bleibt der Beleg ungebucht; sonst stünde die
+ * Vorsteuer im Journal, obwohl der Nutzer nur eine Fehlermeldung sieht.
  */
 export async function bookAndAllocateDauerbeleg(actor: string, input: z.infer<typeof bookAndAllocateSchema>): Promise<void> {
-  const [doc] = await db
-    .select({ status: schema.documents.status, gross: schema.documents.gross, recurringDocumentId: schema.documents.recurringDocumentId })
-    .from(schema.documents)
-    .where(eq(schema.documents.id, input.documentId));
-  if (!doc?.recurringDocumentId) throw new DauerbelegError("Der Beleg stammt nicht aus einem Dauerbeleg.");
-  if (doc.status !== "gebucht") await bookDocument(actor, input.documentId);
-  await allocate(actor, { kind: "document", transactionId: input.transactionId, documentId: input.documentId, amount: documentOpen(doc.gross, 0) });
+  await withActor(actor, async (tx) => {
+    // Sperren wie bei jeder Zuordnung: erst der Umsatz, dann der Beleg, beides vor dem ersten Schreiben (Audit-Kette)
+    await tx.select({ id: schema.bankTransactions.id }).from(schema.bankTransactions).where(eq(schema.bankTransactions.id, input.transactionId)).for("update");
+    const [doc] = await tx
+      .select({ status: schema.documents.status, gross: schema.documents.gross, recurringDocumentId: schema.documents.recurringDocumentId })
+      .from(schema.documents)
+      .where(eq(schema.documents.id, input.documentId))
+      .for("update");
+    if (!doc?.recurringDocumentId) throw new DauerbelegError("Der Beleg stammt nicht aus einem Dauerbeleg.");
+    if (doc.status !== "gebucht") await bookDocumentIn(tx, input.documentId);
+    await allocateIn(tx, { kind: "document", transactionId: input.transactionId, documentId: input.documentId, amount: documentOpen(doc.gross, 0) });
+  });
 }
