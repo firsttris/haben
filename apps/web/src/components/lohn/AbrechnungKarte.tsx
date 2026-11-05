@@ -49,12 +49,15 @@ function Betraege({ p }: { p: Abrechnung }) {
   );
 }
 
-function EntwurfAktionen({ p }: { p: Abrechnung }) {
+/** Zustand der Aktionen; liegt in der Karte, damit die Meldung bleibt, wenn der Entwurf nach dem Festschreiben verschwindet */
+type Aktion = ReturnType<typeof useAction>;
+
+function EntwurfAktionen({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
   const router = useRouter();
   const neu = useServerFn(entwurfNeuBerechnenFn);
   const loeschen = useServerFn(entwurfLoeschenFn);
   const fest = useServerFn(festschreibenFn);
-  const { busy, notice, setNotice, run } = useAction();
+  const { busy, setNotice, run } = aktion;
   const [entgelt, setEntgelt] = useState("");
   const [geprueft, setGeprueft] = useState(false);
   const [bestaetigen, setBestaetigen] = useState(false);
@@ -129,15 +132,14 @@ function EntwurfAktionen({ p }: { p: Abrechnung }) {
           Festgeschrieben ist die Abrechnung unveränderbar; korrigieren geht dann nur mit Storno.
         </p>
       )}
-      <NoticeBanner notice={notice} />
     </div>
   );
 }
 
-function Storno({ p }: { p: Abrechnung }) {
+function Storno({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
   const router = useRouter();
   const storno = useServerFn(stornierenFn);
-  const { busy, notice, run } = useAction();
+  const { busy, run } = aktion;
   const [offen, setOffen] = useState(false);
   const [grund, setGrund] = useState("");
   const grundId = useId();
@@ -173,20 +175,19 @@ function Storno({ p }: { p: Abrechnung }) {
           Jetzt stornieren
         </button>
       </div>
-      <NoticeBanner notice={notice} />
     </form>
   );
 }
 
-export function AbrechnungKarte({ p }: { p: Abrechnung }) {
+/** `nummer`: die wievielte Abrechnung des Mitarbeiters im Monat, damit jede Karte nach Stornos einen eigenen Namen hat */
+export function AbrechnungKarte({ p, nummer }: { p: Abrechnung; nummer: number }) {
+  const aktion = useAction();
   const s = status(p);
-  const headingId = useId();
+  const titel = `${nummer}. Abrechnung ${STUFE[p.stufe]}, Zahltag ${formatDate(p.zahltag)}`;
   return (
-    <section className="stack" style={{ gap: 10 }} aria-labelledby={headingId}>
+    <section className="stack" style={{ gap: 10 }} aria-label={`${titel}, ${s.text}`}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <h3 id={headingId} style={{ margin: 0 }}>
-          Abrechnung {STUFE[p.stufe]}, Zahltag {formatDate(p.zahltag)}
-        </h3>
+        <h3 style={{ margin: 0 }}>{titel}</h3>
         <span className={`pill ${s.tone}`}>{s.text}</span>
       </div>
       <Betraege p={p} />
@@ -211,8 +212,9 @@ export function AbrechnungKarte({ p }: { p: Abrechnung }) {
           {p.lockedAt ? "Entgeltabrechnung (PDF)" : "Entwurf ansehen (PDF)"}
         </a>
       </div>
-      {!p.lockedAt && <EntwurfAktionen p={p} />}
-      {p.lockedAt && !p.storno && <Storno p={p} />}
+      {!p.lockedAt && <EntwurfAktionen p={p} aktion={aktion} />}
+      {p.lockedAt && !p.storno && <Storno p={p} aktion={aktion} />}
+      <NoticeBanner notice={aktion.notice} />
     </section>
   );
 }

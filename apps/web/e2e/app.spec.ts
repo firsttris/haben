@@ -1356,6 +1356,37 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await expect(menu.getByRole("link")).toHaveText([EIGENE_SEITE.name]);
 });
 
+test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async () => {
+  await go("/lohn");
+  await page.getByRole("link", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL("**/lohn/mitarbeiter/neu");
+  await page.waitForLoadState("networkidle");
+  const form = page.getByRole("form", { name: "Stammdaten des Mitarbeiters" });
+  await form.getByLabel("Vorname").fill("Jonas");
+  await form.getByLabel("Nachname").fill("Aushilfe");
+  await form.getByLabel("Straße und Hausnummer").fill("Am Markt 2");
+  await form.getByLabel("PLZ").fill("93047");
+  await form.getByLabel("Ort", { exact: true }).fill("Regensburg");
+  await form.getByLabel("Geburtsdatum").fill("2001-03-15");
+  await form.getByLabel("Art der Beschäftigung").selectOption("minijob");
+  await form.getByLabel("Monatsgehalt brutto in Euro").fill("520,00");
+  await form.getByLabel("Eintritt", { exact: true }).fill(`${new Date().getFullYear()}-01-01`);
+  await form.getByLabel("Steuer-ID").fill("47291830467");
+  await form.getByLabel("Versicherungsnummer").fill("65150301A123");
+  await form.getByLabel("Personengruppe").fill("109");
+  await form.getByLabel("Beitragsgruppenschlüssel").fill("6100");
+  await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL(/\/lohn$/);
+  await expect(page.getByRole("link", { name: "Jonas Aushilfe", exact: true })).toBeVisible();
+
+  // Minijob mit Pauschsteuer: keine Lohnsteuer, der Beschäftigte trägt 3,6 % zur Rentenversicherung (520 € → 18,72 €)
+  await page.getByRole("button", { name: "Monat abrechnen" }).click();
+  await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
+  const abrechnung = page.getByRole("region", { name: /^1\. Abrechnung Stufe B/ });
+  await expect(abrechnung.getByRole("row", { name: /Sozialversicherung \(Anteil Beschäftigte\)/ })).toContainText("-18,72");
+  await expect(abrechnung.getByRole("row", { name: "Auszahlung" })).toContainText("501,28");
+});
+
 test("Keine Fehler im Browser, Sitzung für die übrigen Tests speichern", async () => {
   expect(pageErrors).toEqual([]);
   await page.context().storageState({ path: SESSION });

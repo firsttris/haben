@@ -32,8 +32,8 @@ Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über
 
 | Paket | Aufgabe |
 | --- | --- |
-| `packages/core` | Reine Fachlogik ohne Ein- und Ausgabe: Cent-Beträge und Formatierung, Zeiträume (Monate und Quartale) und Fälligkeiten mit Feiertagen je Bundesland (`holidays.ts`), Voranmeldungszeitraum und Vorschlag nach § 18 Abs. 2 UStG (`voranmeldungszeitraum.ts`), Sondervorauszahlung nach § 47 UStDV (`dauerfrist.ts`), Steuernummer-Umrechnung ins ELSTER-Format, Rechnungssummen, umsatzsteuerliche Behandlung von Rechnungen (`treatment.ts`), Kontenrahmen und Buchungssätze (`posting.ts`), Vorschläge für den Bankabgleich (`matching.ts`), SEPA-Überweisung als pain.001.001.09 mit Zeichensatz, IBAN und BIC (`sepa.ts`, `sepa-text.ts`), Skonto aus den Zahlungsbedingungen einer XRechnung (`skonto.ts`), UStVA-Berechnung, EÜR (`euer.ts`), Umsatzsteuer aus Lexoffice-Belegen (`legacy-vat.ts`), Lebenszyklen von Rechnung, Angebot und Voranmeldung und der offene Betrag von Rechnungen und Belegen (`lebenszyklus.ts`; Rechnungsliste, Bankabgleich, offene Posten, Mahnwesen und die Sperre der Firmendaten rechnen damit, ein Test prüft, dass alle dasselbe ergeben) |
-| `packages/einvoice` | Rechnungs-PDF mit Typst (Vorlage `templates/rechnung.typ`), ZUGFeRD und XRechnung über `@e-invoice-eu/core`, Prüfung der Pflichtfelder je Format, Lesen eingehender E-Rechnungen (eingebettetes XML aus PDFs, CII und UBL) |
+| `packages/core` | Reine Fachlogik ohne Ein- und Ausgabe: Cent-Beträge und Formatierung, Zeiträume (Monate und Quartale) und Fälligkeiten mit Feiertagen je Bundesland (`holidays.ts`), Voranmeldungszeitraum und Vorschlag nach § 18 Abs. 2 UStG (`voranmeldungszeitraum.ts`), Sondervorauszahlung nach § 47 UStDV (`dauerfrist.ts`), Steuernummer-Umrechnung ins ELSTER-Format, Rechnungssummen, umsatzsteuerliche Behandlung von Rechnungen (`treatment.ts`), Kontenrahmen und Buchungssätze (`posting.ts`), Vorschläge für den Bankabgleich (`matching.ts`), SEPA-Überweisung als pain.001.001.09 mit Zeichensatz, IBAN und BIC (`sepa.ts`, `sepa-text.ts`), Skonto aus den Zahlungsbedingungen einer XRechnung (`skonto.ts`), UStVA-Berechnung, EÜR (`euer.ts`), Umsatzsteuer aus Lexoffice-Belegen (`legacy-vat.ts`), Lebenszyklen von Rechnung, Angebot und Voranmeldung und der offene Betrag von Rechnungen und Belegen (`lebenszyklus.ts`; Rechnungsliste, Bankabgleich, offene Posten, Mahnwesen und die Sperre der Firmendaten rechnen damit, ein Test prüft, dass alle dasselbe ergeben), Lohnsteuer nach dem PAP des BMF (`lohnsteuer/`), Beiträge zur Sozialversicherung (`sozialversicherung/`) und die Lohnabrechnung eines Monats aus den Stammdaten samt Lohnkonto (`lohnabrechnung/`) |
+| `packages/einvoice` | Rechnungs-PDF mit Typst (Vorlage `templates/rechnung.typ`), weitere PDFs nach demselben Muster (Mahnung, Steuerbescheinigung, Bilanz zur Hinterlegung, Entgeltabrechnung `lohnabrechnung.typ`, Lohnkonto `lohnkonto.typ`), ZUGFeRD und XRechnung über `@e-invoice-eu/core`, Prüfung der Pflichtfelder je Format, Lesen eingehender E-Rechnungen (eingebettetes XML aus PDFs, CII und UBL) |
 | `packages/import` | Parser für Kontoauszüge (DKB, N26, CAMT.053), Dekodierung, Deduplizierung, Saldenprüfung, DATEV-Buchungsstapel (`datev.ts`), Client und Abbildungen für die Lexware-Office-API (`lexoffice/`) und das Lesen einer Sicherung aus deren Web-Oberfläche (`lexoffice/web/`, erzeugt von `apps/web/public/lexware-sicherung.js`), Client und Abbildungen für die sevDesk-API (`sevdesk/`), Client und Abbildung für den Kontoabruf über Enable Banking (`enablebanking/`) |
 | `packages/elster` | `ElsterClient` mit echtem ERiC-Client (Kindprozess, `koffi`) und simuliertem Client, UStVA-XML, XML der Jahreserklärungen (Umsatzsteuererklärung E50, Anlage EÜR mit AVEÜR E77, `erklaerung.ts`; Einkommensteuererklärung E10, `est.ts`), Kapitalertragsteuer-Anmeldung (`kapesta.ts`), Körperschaftsteuererklärung E30 (`kst.ts`, Anlage KSt 1 F in `kst1f.ts`) und Gewerbesteuererklärung E20 (`gewst.ts`), E-Bilanz als XBRL in der HGB-Taxonomie 6.9 mit Anlagenspiegel und Betriebsvermögensvergleich (`ebilanz/xbrl.ts`, Taxonomie-Auszug `ebilanz/taxonomie-6-9.json`), Sonstige Nachricht (`nachricht.ts`), Änderung der Bankverbindung (`bankverbindung.ts`), Datenabholung aus dem Postfach (`postfach.ts`, Download der Anhänge über Otto), Belegabruf der vorausgefüllten Steuererklärung (`vast.ts`, Entschlüsselung mit `EricDekodiereDaten`), Berechtigungen zum Belegabruf (`berechtigung.ts`, ElsterBRM), Transfer-Ticket, ERiC-Download (`install.ts`) |
 
@@ -73,6 +73,7 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `elster` | `elster-gateway` (Zugang, Zertifikat und PIN, Sendesperre und Protokoll für jede Übermittlung), `certificate`, `elster` (Datenschutzhinweise der Finanzverwaltung) |
 | `finanzamt` | `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `fristen` (Steuertermine, Kalender-Abo) |
 | `ausschuettung` | `ausschuettung` (Gewinnverwendungsbeschluss, Steuerabzug je Gesellschafter, Storno, Kapitalertragsteuer-Anmeldung), `steuerbescheinigung` (Steuerbescheinigung nach § 45a EStG je Gesellschafter als PDF) |
+| `lohn` | `employees` (Stammdaten der Mitarbeiter), `payroll` (Lohnlauf je Monat, Entwurf, festschreiben, Storno mit neuer Abrechnung), `abrechnung-pdf` (Entgeltabrechnung als PDF), `lohnkonto` (Lohnkonto je Jahr als PDF und CSV); gerechnet wird mit `lohnabrechnung` in `packages/core` |
 | `jahreserklaerung` | `annual` (Umsatzsteuererklärung, Anlage EÜR, Einkommensteuer), `income-tax` (Angaben zur Einkommensteuer) |
 | `auswertungen` | `reports` (EÜR, offene Posten), `abgleich` (Journal gegen Umsatzsteuer und EÜR), `integrity` (Prüfung von Hash-Kette, Siegeln und Abgleich), `datev-export` |
 | `archiv` | `archive` (Umzugsdateien), `export` (Jahresarchiv), `lexoffice` (Import über die API oder eine Sicherung aus der Web-Oberfläche), `legacy-open` (übernommene offene Posten) |
@@ -165,6 +166,15 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `assets` | Anlagenverzeichnis: Art, Abschreibung, Anlagekonto, Anschaffung, Nutzungsdauer, Übernahme, Abgang | Grundlagen fest nach der ersten Buchung, Audit |
 | `asset_depreciations` | Gebuchte AfA je Anlage und Jahr mit Verweis auf die Buchung | nur anhängen, Audit |
 
+### Lohn
+
+| Tabelle | Zweck | Schutz |
+| --- | --- | --- |
+| `employees` | Mitarbeiter: Person, Lohnsteuerabzugsmerkmale, Kranken- und Pflegeversicherung, Meldedaten, Monatsgehalt, Eintritt und Austritt, Statusfeststellung des Gesellschafter-Geschäftsführers; fortlaufende Personalnummer | änderbar, Audit |
+| `payroll_runs` | Lohnlauf je Monat mit Zahltag | Audit |
+| `payslips` | Abrechnung je Mitarbeiter und Monat: Stand der Stammdaten (JSON), Bestandteile, Brutto, Steuern, SV-Anteile mit Einzelheiten, Netto, Auszahlung, Stufe, gegengeprüft; beim Festschreiben PDF und SHA-256; bei einer Korrektur die stornierte (`replaces_id`) | Entwurf änderbar; ab `locked_at` gesperrt und versiegelt; je Mitarbeiter und Monat höchstens eine nicht stornierte (Trigger); Audit ohne PDF |
+| `payslip_cancellations` | Storno einer festgeschriebenen Abrechnung mit Tag und Grund; je Abrechnung höchstens eines | nur anhängen, nur für festgeschriebene, Audit, Siegel |
+
 ### Archiv und Umzug
 
 | Tabelle | Zweck | Schutz |
@@ -182,7 +192,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | --- | --- | --- |
 | `audit_log` | Jede Änderung mit Zeitpunkt, Nutzer, Tabelle, altem und neuem Wert; als Hash-Kette mit Nummer (`seq`), Vorgänger-Hash und Hash | nur anhängen, auch kein `TRUNCATE` |
 | `audit_chain` | Kopf der Hash-Kette: letzte Nummer und Hash, genau eine Zeile | nur vom Trigger auf `audit_log` fortgeschrieben |
-| `seals` | Siegel festgeschriebener Buchungen, Rechnungen, Belege und Voranmeldungen sowie jeder Zeile in Kassenbuch, Zuordnungen, Pauschalen und AfA: SHA-256 über Datensatz und abhängige Zeilen, mit den Spalten, über die er gebildet ist | nur anhängen, Audit |
+| `seals` | Siegel festgeschriebener Buchungen, Rechnungen, Belege, Voranmeldungen und Lohnabrechnungen sowie jeder Zeile in Kassenbuch, Zuordnungen, Pauschalen und AfA: SHA-256 über Datensatz und abhängige Zeilen, mit den Spalten, über die er gebildet ist | nur anhängen, Audit |
 | `user`, `session`, `account`, `verification`, `passkey` | Tabellen von Better Auth samt Passkey-Plugin | – |
 
 ## Anmeldung
