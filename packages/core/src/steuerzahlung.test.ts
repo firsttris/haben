@@ -4,6 +4,7 @@ import { directPosting } from "./posting.ts";
 import {
   nichtAbziehbareNebenleistungen,
   STEUER_KONTO_NAMEN,
+  STEUER_POSTEN,
   steuerartenFor,
   steuerEuerWirkung,
   steuerKontierung,
@@ -156,6 +157,22 @@ describe("steuerKontierung: Nebenleistungen zur Umsatzsteuer (Steuerart entschei
   it("Erstattungszinsen zur Umsatzsteuer sind steuerpflichtige Zinserträge (2657 bzw. 7105)", () => {
     expect(konto({ art: "ust", jahr: 2024, posten: "zinsen233a" }, 30_00, "SKR03").konto).toBe("2657");
     expect(konto({ art: "ust", jahr: 2024, posten: "zinsen233a" }, 30_00, "SKR04", "gmbh").konto).toBe("7105");
+  });
+
+  it("Hinterziehungszinsen (§ 235 AO) sind auch zur Umsatzsteuer nicht abziehbar (§ 4 Abs. 5 Nr. 8a EStG): 2108 bzw. 7306", () => {
+    // Eigener Teil: Die abziehbaren Stundungs- und Aussetzungszinsen dürfen § 235 AO nicht mit umfassen
+    expect(STEUER_POSTEN.zinsen).not.toMatch(/235|Hinterziehung/);
+    const angabe = { art: "ust", jahr: 2024, posten: "zinsen235" } as const;
+    expect(konto(angabe, -10_00, "SKR03").konto).toBe("2108");
+    expect(konto(angabe, -10_00, "SKR04").konto).toBe("7306");
+    expect(konto(angabe, -10_00, "SKR03", "gmbh").konto).toBe("2108");
+    expect(konto({ ...angabe, art: "gewst" }, -10_00, "SKR04", "gmbh").konto).toBe("7306");
+    expect(konto({ ...angabe, art: "est" }, -10_00, "SKR03").konto).toBe("1810");
+    // EÜR: keine Betriebsausgabe, nachrichtlich bei den nicht abziehbaren sonstigen Betriebsausgaben
+    const euer = computeEuer(2026, [{ kind: "steuer", date: "2026-10-15", amount: -10_00, art: "ust", posten: "zinsen235" }]);
+    expect(euer.gewinn).toBe(0);
+    expect(euer.gewerbesteuerNichtAbziehbar).toBe(10_00);
+    expect(nichtAbziehbareNebenleistungen("SKR03")).toContain("2108");
   });
 
   it("Zinsen zur Einkommensteuer sind dagegen privat", () => {

@@ -213,6 +213,20 @@ describe.skipIf(!testDatabaseUrl)("Steuerzahlungen im Bankabgleich (Postgres)", 
     expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
   });
 
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)("Einzelunternehmen, %s, %s: Erstattung der Einkommensteuer ohne Entnahmen ist eine Einlage, keine negative Entnahme", async (kr, vst) => {
+    await firma("einzelunternehmen", kr, vst);
+    await bank.importStatement(actor, dkbCsv([["14.09.26", "Finanzamt Bremen", "Erstattung ESt 2024", "800,00"]]), null);
+    await bank.allocate(actor, { kind: "steuer", transactionId: await umsatz(800_00), amount: 800_00, steuer: { art: "est", jahr: 2024, posten: "steuer" } });
+    const year = await annual.euerYear(2026);
+    // Anlage EÜR Zeilen 101 und 102: Entnahmen und Einlagen stehen je für sich, beide nicht negativ
+    expect(year.figures.entnahmen).toBe(0);
+    expect(year.figures.einlagen).toBe(800_00);
+    expect(year.gewinn).toBe(0);
+  });
+
   it("Einzelunternehmen, SKR03, Ist: Zinsgutschrift mit einbehaltener Kapitalertragsteuer", async () => {
     await firma("einzelunternehmen", "SKR03", "ist");
     await bank.importStatement(actor, dkbCsv([["30.06.26", "Nordbank", "Zinsen 2. Quartal", "73,63"]]), null);
