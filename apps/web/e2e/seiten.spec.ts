@@ -155,6 +155,12 @@ test("Unbekannter Datensatz oder kaputte Adresse: 404 mit deutscher Seite im Lay
   await expect(page).toHaveURL(/\/$/);
 });
 
+test("Mahnung zu einer unbekannten Rechnung: 404 wie bei den anderen Detailseiten", async ({ page }) => {
+  const response = await page.goto(`/rechnungen/mahnwesen/${UNBEKANNT}`);
+  expect(response?.status()).toBe(404);
+  await expect(page.getByRole("heading", { level: 1, name: "Seite nicht gefunden" })).toBeVisible();
+});
+
 test("Ungültiger Wert in der Adresse: deutsche Fehlerseite statt englischer Meldung", async ({ page }) => {
   for (const path of ["/auswertungen?jahr=1999", "/buchungen?jahr=1999&monat=1"]) {
     await page.goto(path);
