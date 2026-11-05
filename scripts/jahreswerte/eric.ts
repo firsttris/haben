@@ -6,6 +6,15 @@
  * Kandidaten oberhalb von DEFAULT_ERIC_VERSION mit `Range: bytes=0-0` ab (206 = vorhanden, 404 = nicht) und meldet die
  * höchste gefundene. Am 05.11.2026 gab es so 43.5.4.0, 44.1.6.0, 44.2.4.0, 44.3.6.0 und 45.1.5.0. ELSTER nimmt alte
  * Fassungen vom Server (42.3.6.0 antwortet 404); fehlt die eingestellte Version selbst, ist das ein eigener Befund.
+ *
+ * BETA: Im Herbst erscheint `<Haupt>.1` einer neuen Hauptversion als BETA, nur für Testfälle mit Testmerker; das
+ * Hauptrelease `<Haupt>.2` folgt im November (ERiC-Entwicklerhandbuch Kap. 2.3 und 5.4.3; die Releasenotes in
+ * ERiC-45.1.5.0-Dokumentation.zip überschreiben das Kapitel „Änderungen in ERiC 45.1 (BETA)“). Paketname und
+ * Dokumentationspaket tragen kein Kennzeichen, das sich mit einem kleinen Abruf lesen ließe (Liesmich.txt und
+ * MANIFEST.MF sind für BETA und Hauptrelease gleich, der Status steht nur im PDF). Die Prüfung wendet deshalb die
+ * Regel des Handbuchs an: `<Haupt>.0` und `<Haupt>.1` oberhalb der eingestellten Hauptversion gelten als BETA und sind
+ * kein Befund (also kein Issue); solange nichts Freigegebenes darüber liegt, nennt eine Warnung die neueste BETA.
+ * Wartungsreleases der eingestellten Hauptversion und ab `<Haupt>.2` sind Befunde.
  */
 import { type Abruf, abrufen, begrenzt, befund, DOKU_JAHRESWERTE, type Ergebnis, type Holen, LEER, warnung, zusammen } from "./abruf.ts";
 
@@ -51,14 +60,34 @@ const vorhanden = (a: Abruf): Vorhanden => {
 /** Nur das erste Byte: das Paket hat rund 500 MB */
 const pruefeVersion = async (holen: Holen, version: string) => vorhanden(await abrufen(holen, ericUrl(version), { headers: { Range: "bytes=0-0" } }, false));
 
+/** Erste Nebenversion des Hauptreleases (Entwicklerhandbuch Kap. 5.4.3) */
+const HAUPTRELEASE_NEBEN = 2;
+
+/** `<Haupt>.0`/`<Haupt>.1` einer neueren Hauptversion als `aktuell` ist eine BETA, auch nachdem das Hauptrelease da ist */
+export function istBeta(version: string, aktuell: string): boolean {
+  const [haupt, neben] = versionAus(version);
+  return haupt > versionAus(aktuell)[0] && neben < HAUPTRELEASE_NEBEN;
+}
+
+/** Warnung nur, solange die neueste BETA über allem Freigegebenen liegt; danach ist sie überholt */
+const betaHinweis = (betas: readonly string[], gefunden: readonly string[]) => {
+  const beta = betas.at(-1);
+  const freigegeben = gefunden.at(-1);
+  if (beta === undefined || (freigegeben !== undefined && vergleiche(versionAus(freigegeben), versionAus(beta)) > 0)) return LEER;
+  return warnung(`ERiC: ${beta} ist eine BETA (nur Testfälle mit Testmerker), noch nicht anheben`);
+};
+
 export async function pruefeEric(aktuell: string, holen: Holen): Promise<Ergebnis> {
   const liste = kandidaten(aktuell);
   const [eigene, ...antworten] = await begrenzt([aktuell, ...liste], PARALLEL, (v) => pruefeVersion(holen, v));
-  const gefunden = liste.filter((_, i) => antworten[i] === "ja");
+  const vorhandene = liste.filter((_, i) => antworten[i] === "ja");
+  const betas = vorhandene.filter((v) => istBeta(v, aktuell));
+  const gefunden = vorhandene.filter((v) => !betas.includes(v));
   const unklar = antworten.filter((x) => x === "unklar").length;
   return zusammen([
     eigene === "nein" ? befund(nichtMehrDa(aktuell)) : eigene === "unklar" ? warnung(`ERiC: ${ericUrl(aktuell)} nicht erreichbar`) : LEER,
     gefunden.length > 0 ? befund(neuere(aktuell, gefunden)) : LEER,
+    betaHinweis(betas, gefunden),
     unklar > 0 ? warnung(`ERiC: ${unklar} von ${liste.length} Kandidaten bei ${ERIC_BASIS} nicht erreichbar`) : LEER,
   ]);
 }
