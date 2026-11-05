@@ -69,6 +69,7 @@ export function draftInputOf(invoice: Invoice, lines: InvoiceLine[]): DraftInput
     serviceFrom: invoice.serviceFrom,
     serviceTo: invoice.serviceTo,
     paymentTermDays: invoice.paymentTermDays,
+    skonto: invoice.skonto,
     format: invoice.format,
     intro: invoice.intro,
     note: invoice.note,

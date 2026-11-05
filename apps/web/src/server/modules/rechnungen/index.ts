@@ -27,6 +27,7 @@ export {
   type ExternalReference,
 } from "./external-reference.ts";
 export { invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
+export { defaultSkonto } from "./skonto.ts";
 export {
   abschlagLinks,
   buyerFrom,

@@ -1,4 +1,5 @@
-import type { Cents } from "./money.ts";
+import { formatEuro, type Cents } from "./money.ts";
+import { formatPercent, type SkontoFrist } from "./skonto.ts";
 
 export interface MatchTransaction {
   bookingDate: string;
@@ -28,6 +29,8 @@ export interface OpenItem {
   currency?: string;
   /** EndToEndIds der SEPA-Überweisungen, die Haben für den Beleg erzeugt hat */
   references?: string[];
+  /** Nur bei eigenen, noch ganz offenen Rechnungen in Euro: das angebotene Skonto je Stufe */
+  skonto?: SkontoFrist[];
 }
 
 /** Bis zu dieser Abweichung (in Prozent des offenen Betrags) gilt eine Zahlung auf Fremdwährung als passend */
@@ -44,6 +47,16 @@ export interface Suggestion {
    * die Abweichung als Kursdifferenz buchen.
    */
   exchangeDifference?: Cents;
+  /**
+   * Zahlung in der Frist genau um das Skonto einer Stufe gekürzt: dieser Rest (offen − Zahlung), den der Abgleich mit
+   * der Zahlung als gewährtes Skonto ausbucht
+   */
+  skonto?: Cents;
+}
+
+/** Stufe, um deren Skonto die Zahlung gekürzt ist, wenn sie bis zum letzten Tag der Frist eingeht */
+function skontoTaken(tx: Pick<MatchTransaction, "amount" | "bookingDate">, item: OpenItem): SkontoFrist | undefined {
+  return item.skonto?.find((s) => s.payable === tx.amount && tx.bookingDate <= s.until);
 }
 
 const compact = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -101,9 +114,13 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
     const exact = item.open === tx.amount;
     const foreign = item.currency !== undefined && item.currency !== "EUR";
     const nearRate = foreign && !exact && Math.abs(tx.amount - item.open) <= Math.abs(item.open) * EXCHANGE_TOLERANCE;
+    const skonto = exact ? undefined : skontoTaken(tx, item);
     if (exact) {
       score += 50;
       reasons.push("Betrag stimmt exakt");
+    } else if (skonto) {
+      score += 50;
+      reasons.push(`Betrag stimmt mit ${formatPercent(skonto.percent)} Skonto (${formatEuro(skonto.amount)}), in der Frist`);
     } else if (nearRate) {
       score += 30;
       reasons.push(`Betrag passt bis auf eine Kursdifferenz (${item.currency})`);
@@ -139,7 +156,14 @@ export function suggestMatches(tx: MatchTransaction, items: OpenItem[], limit = 
     // Ohne passenden Betrag nur mit starkem weiteren Hinweis vorschlagen
     if (score < 40) continue;
     const amount = Math.abs(tx.amount) <= Math.abs(item.open) ? tx.amount : item.open;
-    suggestions.push({ item, score, reasons, amount, ...(nearRate ? { exchangeDifference: tx.amount - item.open } : {}) });
+    suggestions.push({
+      item,
+      score,
+      reasons,
+      amount,
+      ...(nearRate ? { exchangeDifference: tx.amount - item.open } : {}),
+      ...(skonto ? { skonto: item.open - tx.amount } : {}),
+    });
   }
 
   return suggestions.sort((a, b) => b.score - a.score || a.item.date.localeCompare(b.item.date)).slice(0, limit);
@@ -199,13 +223,13 @@ export interface DirectSuggestion {
 }
 
 /** Finanzkassen und Steuerverwaltung, wie sie im Namen der Gegenpartei stehen */
-const TAX_OFFICE = /finanzamt|finanzkasse|steuerverwaltung|landeshauptkasse|landesfinanzkasse|bundeskasse|staatsoberkasse|finanzbehörde/i;
+export const TAX_OFFICE = /finanzamt|finanzkasse|steuerverwaltung|landeshauptkasse|landesfinanzkasse|bundeskasse|staatsoberkasse|finanzbehörde/i;
 /** Umsatzsteuer im Verwendungszweck: „USt 09/2026“, „Umsatzsteuer“, „UStVA“ */
-const VAT_PURPOSE = /umsatzsteuer|\bust\b|\bust[- ]?va\b|\bust\d|voranmeldung/i;
+export const VAT_PURPOSE = /umsatzsteuer|\bust\b|\bust[- ]?va\b|\bust\d|voranmeldung/i;
 /** Andere Steuern, die dasselbe Finanzamt einzieht oder erstattet (oft privat) */
 /** Sondervorauszahlung der Dauerfristverlängerung (§ 47 UStDV): „USt-Sondervorauszahlung“, „USt-SVZ“, „USt 1/11“ */
 const SVZ_PURPOSE = /sondervorauszahlung|\bsvz\b|\b1\/11\b/i;
-const OTHER_TAX_PURPOSE = /einkommen|\best\b|\best[- ]?v|kirchen|\bkist\b|soli|gewerbe|\bgewst\b|kfz|grundsteuer|lohnsteuer|\blst\b/i;
+export const OTHER_TAX_PURPOSE = /einkommen|\best\b|\best[- ]?v|kirchen|\bkist\b|soli|gewerbe|\bgewst\b|kfz|grundsteuer|lohnsteuer|\blst\b/i;
 
 /**
  * Vorschlag für einen Umsatz ohne Rechnung aus dem Zweck der Konten:

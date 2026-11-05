@@ -1,6 +1,6 @@
 import { InvoiceService, type Invoice, type InvoiceServiceOptions, type Logger } from "@e-invoice-eu/core";
-import { TAX_TREATMENTS, treatmentNote, UNITS, type Cents, type Millis } from "@haben/core";
-import { accountHolder, compactIban, formatDate, isCreditNote, paymentSentence, servicePeriod } from "./format.ts";
+import { formatEuro, formatPercent, skontoPaymentTerms, TAX_TREATMENTS, treatmentNote, UNITS, type Cents, type Millis } from "@haben/core";
+import { accountHolder, compactIban, formatDate, invoiceSkonto, isCreditNote, paymentSentence, servicePeriod } from "./format.ts";
 import { legalLine, renderInvoicePdf } from "./pdf.ts";
 import type { InvoiceDocument, InvoiceFormat } from "./types.ts";
 import { validateForFormat } from "./validate.ts";
@@ -262,9 +262,7 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
       // Nichts zu zahlen und keine IBAN: BG-16 ist trotzdem Pflicht (BR-DE-1), Zahlungsweg nicht festgelegt
       invoice["cac:PaymentMeans"] = [{ "cbc:PaymentMeansCode": "1", "cbc:PaymentID": doc.number }];
     }
-    invoice["cac:PaymentTerms"] = {
-      "cbc:Note": `Zahlbar ohne Abzug bis zum ${formatDate(doc.dueDate)} (${doc.paymentTermDays} Tage).`,
-    };
+    invoice["cac:PaymentTerms"] = { "cbc:Note": paymentTerms(doc) };
   } else {
     // Erstattung an den Kunden: Zahlungsweg nicht festgelegt
     invoice["cac:PaymentMeans"] = [{ "cbc:PaymentMeansCode": "1", "cbc:PaymentID": doc.number }];
@@ -272,6 +270,19 @@ export function toEInvoiceData(doc: InvoiceDocument): Invoice {
   }
 
   return withoutInvalidXmlChars({ "ubl:Invoice": invoice });
+}
+
+/**
+ * Zahlungsbedingungen (BT-20): bei Skonto zuerst je Stufe die Zeile nach XRechnung BR-DE-18 (#SKONTO#TAGE=…#PROZENT=…#
+ * mit Zeilenumbruch), die Empfänger maschinell lesen, danach derselbe Inhalt als Satz mit Datum und Betrag
+ */
+function paymentTerms(doc: InvoiceDocument): string {
+  const skonto = invoiceSkonto(doc);
+  const text = [
+    `Zahlbar ohne Abzug bis zum ${formatDate(doc.dueDate)} (${doc.paymentTermDays} Tage).`,
+    ...skonto.map((s) => `Bei Zahlung bis zum ${formatDate(s.until)} (${s.days} Tage) ${formatPercent(s.percent)} Skonto, ${formatEuro(s.amount)}.`),
+  ].join(" ");
+  return `${skontoPaymentTerms(skonto)}${text}`;
 }
 
 /** Entfernt in XML 1.0 unzulässige Zeichen aus allen Texten (etwa ein aus Word kopierter vertikaler Tab), sonst lehnt der Empfänger das XML ab */

@@ -1,4 +1,5 @@
 import {
+  computeInvoiceTotals,
   convertPrice,
   CURRENCY_CODE,
   formatDecimal,
@@ -11,12 +12,15 @@ import {
   parseEuro,
   parseExchangeRate,
   parseQuantity,
+  skontoFristen,
+  skontoProblem,
   TAX_TREATMENTS,
   treatmentNote,
   UNITS,
   type Bundesland,
   type InvoiceLineInput,
   type PriceMode,
+  type SkontoStufe,
   type TaxTreatment,
   type UnitLabel,
 } from "@haben/core";
@@ -33,6 +37,7 @@ import { saveArticle } from "../server/functions/articles.ts";
 import type { DraftInput } from "../server/modules/rechnungen/index.ts";
 import { Icon } from "./Icon.tsx";
 import { InvoicePreview, type PreviewSeller } from "./InvoicePreview.tsx";
+import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx";
 import { TextBlockField, type TextBlockOption } from "./TextBlockField.tsx";
 
 interface ContactOption {
@@ -45,6 +50,8 @@ interface ContactOption {
   defaultFormat: DraftInput["format"] | null;
   leitwegId: string;
   language: "de" | "en";
+  /** Eigenes Skonto des Kunden; null = Vorgabe aus den Firmendaten */
+  skonto: SkontoStufe[] | null;
   /** Nur Kunden stehen zur Auswahl; ein schon gewählter Kontakt bleibt sichtbar */
   isCustomer: boolean;
 }
@@ -147,6 +154,7 @@ export function InvoiceEditor({
   quotes = [],
   tageskurs = false,
   rateInfo = null,
+  companySkonto = [],
 }: {
   id: string | null;
   kind: keyof typeof KIND_TITLE;
@@ -178,6 +186,8 @@ export function InvoiceEditor({
   tageskurs?: boolean;
   /** Gespeicherter Kurs mit Herkunft, z. B. „1 EUR = 1,0812 USD (USt-Umrechnungskurs 09/2026)“ */
   rateInfo?: string | null;
+  /** Skonto aus den Firmendaten, wenn der gewählte Kunde kein eigenes hat */
+  companySkonto?: SkontoStufe[];
 }) {
   const router = useRouter();
   const navigate = useNavigate();
@@ -212,6 +222,7 @@ export function InvoiceEditor({
   const [deducts, setDeducts] = useState<string[]>(initial.deducts ?? []);
   const [quoteId, setQuoteId] = useState(initial.quoteId ?? "");
   const [lines, setLines] = useState<LineState[]>(() => initial.lines.map(toLineState));
+  const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(initial.skonto ?? []));
   const [dirty, setDirty] = useState(id === null);
   /** Fehler einer Position erst zeigen, wenn sie verlassen oder gespeichert wurde, nicht schon beim Öffnen */
   const [touched, setTouched] = useState<Set<number>>(() => new Set());
@@ -258,9 +269,18 @@ export function InvoiceEditor({
   const numberYear = Number((issueDate || initial.issueDate).slice(0, 4));
   const nextNumber = formatDocumentNumber(numberFormat, numberYear, (numberCounters[numberYear] ?? 0) + 1);
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
+  // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
+  const skontoAllowed = kind === "rechnung" && !foreign;
+  const skonto = parseSkontoRows(skontoAllowed ? skontoRows : []);
+  const skontoIssue = !skonto.valid ? "Je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben." : termValid ? skontoProblem(skonto.stufen, term) : null;
+  const previewGross = computeInvoiceTotals(
+    [...parsed, ...deductionPreview].filter((l) => l.valid),
+    grossPrices ? "brutto" : "netto",
+  ).gross;
   const allValid =
     parsed.every((l) => l.valid) &&
     (quote ? validUntilOk : termValid) &&
+    skontoIssue === null &&
     Boolean(issueDate) &&
     (taxTreatment !== "steuerfrei" || exemptionReason.trim() !== "");
 
@@ -347,6 +367,10 @@ export function InvoiceEditor({
     if (chosen?.defaultFormat) setFormat(chosen.defaultFormat);
     else if (chosen?.leitwegId) setFormat("xrechnung-cii");
     if (chosen) setLanguage(chosen.language);
+    // Skonto des Kunden, sonst aus den Firmendaten; Fristen über das Zahlungsziel hinaus entfallen (wie defaultSkonto)
+    if (chosen && kind === "rechnung") {
+      setSkontoRows(toSkontoRows((chosen.skonto ?? companySkonto).filter((s) => !termValid || s.days <= term)));
+    }
     // Ein Angebot gehört zu genau einem Kunden
     const keptQuote = quotes.some((q) => q.id === quoteId && q.contactId === value) ? quoteId : "";
     setQuoteId(keptQuote);
@@ -375,6 +399,7 @@ export function InvoiceEditor({
       serviceFrom: serviceFrom || null,
       serviceTo: serviceTo || null,
       paymentTermDays: term,
+      skonto: skonto.stufen,
       format,
       intro,
       note,
@@ -395,6 +420,7 @@ export function InvoiceEditor({
   async function persist(): Promise<string> {
     const {
       paymentTermDays: _term,
+      skonto: _skonto,
       format: _format,
       currency: _currency,
       exchangeRate: _rate,
@@ -589,6 +615,18 @@ export function InvoiceEditor({
                     fällig {formatDate(dueDate)}
                   </span>
                 </label>
+              )}
+              {skontoAllowed && (
+                <SkontoFields
+                  id="invoice-skonto"
+                  rows={skontoRows}
+                  onChange={touch(setSkontoRows)}
+                  problem={attempted || skonto.valid ? skontoIssue : null}
+                  describe={(stufe) => {
+                    const [frist] = skontoFristen([stufe], issueDate || initial.issueDate, previewGross);
+                    return frist ? `bis ${formatDate(frist.until)}: ${formatEuro(frist.amount)} Skonto, zu zahlen ${formatEuro(frist.payable)}` : null;
+                  }}
+                />
               )}
               <label className="field">
                 Leistung von
@@ -1017,6 +1055,7 @@ export function InvoiceEditor({
             taxNote={treatmentNote(taxTreatment, exemptionReason)}
             corrects={corrects}
             title={title}
+            skonto={skonto.stufen}
             // Auch bei einer Korrektur: Sie übernimmt Währung und Kurs der Rechnung, nur ohne eigenes Feld dafür
             currency={currencyCode !== "EUR" && CURRENCY_CODE.test(currencyCode) ? currencyCode : "EUR"}
           />
