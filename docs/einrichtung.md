@@ -279,7 +279,7 @@ Haben übermittelt Voranmeldung, Jahreserklärungen und Nachrichten über ERiC, 
 | | Wofür | Woher | Dauer |
 | --- | --- | --- | --- |
 | **ERiC** | Bibliothek der Finanzverwaltung: prüft, verschlüsselt und überträgt | Haben lädt sie selbst, siehe [Schritte](#schritte) | Minuten |
-| **Hersteller-ID** (fünf Ziffern) | Kennung der Software in jeder Übermittlung; ERiC 43 verlangt sie schon fürs Prüfen | ELSTER-Entwicklerbereich: auf elster.de als Entwickler registrieren, das Bayerische Landesamt für Steuern prüft den Antrag | Tage bis Wochen |
+| **Hersteller-ID** (fünf Ziffern) | Kennung der Software in jeder Übermittlung; ERiC verlangt sie seit Version 43 schon fürs Prüfen | ELSTER-Entwicklerbereich: auf elster.de als Entwickler registrieren, das Bayerische Landesamt für Steuern prüft den Antrag | Tage bis Wochen |
 | **Zertifikatsdatei** (.pfx) und PIN | unterschreibt jede Übermittlung | ELSTER-Benutzerkonto mit der Anmeldeart „Zertifikatsdatei“, siehe [unten](#zertifikatsdatei-statt-elster-secure) | ein bis zwei Wochen (Brief) |
 
 Bis Hersteller-ID und Zertifikat da sind, arbeitest du ganz normal: Belege, Rechnungen, Bank, Auswertungen, Voranmeldung und Jahreserklärungen rechnet Haben vollständig, Prüfen und Senden laufen simuliert. Abgeben kannst du in der Zwischenzeit in Mein ELSTER: die Voranmeldung per XML-Import, alle Formulare mit der Erweiterung „Haben für Mein ELSTER“, mit einem KI-Assistenten oder von Hand. Die Wege im Vergleich: [Abgabe an ELSTER](elster-abgabe.md).
@@ -333,7 +333,20 @@ Die PIN fragt Haben bei jeder Übermittlung ab. Nur für den automatischen Postf
 Vor dem Senden prüft Haben die Firmendaten: Name, Anschrift, Bundesland und eine gültige Steuernummer müssen vorhanden sein.
 
 > [!IMPORTANT]
-> Die ERiC-Anbindung ist mit ERiC 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und Protokoll-PDF mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
+> Die ERiC-Anbindung ist mit ERiC 45.1.5.0 und 43.4.6.0 geprüft: Funktionssignaturen und Strukturen gegen die mitgelieferten Header, alle Nachrichten lokal gegen ERiCs Schemas und Plausibilitätsprüfungen, Zertifikat und PIN mit dem Testzertifikat aus dem ERiC-Paket. Die Übertragung an den ELSTER-Server lässt sich nur mit eigener Hersteller-ID testen; das ist deine erste Testübermittlung. ERiC-Updates spielst du erst ein, wenn eine Testübermittlung damit geklappt hat.
+
+### Welche ERiC-Version
+
+Haben lädt vorgeschlagen ERiC 45.1.5.0. Die 45.1 ist ein BETA-Release: ERiC sendet damit nur Testübermittlungen, Echtfälle erst mit dem Hauptrelease 45.2, das ELSTER für Mitte November ankündigt (ERiC-Entwicklerhandbuch, Kap. 2.3 und 5.4.3). Bis dahin trägst du für Echtfälle eine freigegebene Version ins Feld **Version** ein, etwa 45.2.x.0, sobald es sie gibt, oder 44.3.6.0. Haben arbeitet mit ERiC ab 43 und erkennt die Version selbst.
+
+| Was | ab ERiC |
+| --- | --- |
+| Voranmeldung, Dauerfristverlängerung und Sondervorauszahlung 2027, Kapitalertragsteuer-Anmeldung 2027, Anlage EÜR und Einkommensteuer 2026 | 45 |
+| Sonstige Nachricht als Echtfall (Version 22) | 43.5 |
+| E-Bilanz ohne rechtsformfremde Angaben | jede; ERiC prüft das ab 43.5 |
+| Postfach und Belegabruf (Datenabholung Version 32) | 43.4 |
+
+Mit dem Mindestversionswechsel im April sperrt ELSTER die Versionen 43 und 44 für den Versand (ERiC-Entwicklerhandbuch, Kap. 2.3); bis dahin brauchst du die 45.
 
 Wie du Voranmeldungen erstellst und was die Vorprüfung meldet, steht in [Umsatzsteuer](umsatzsteuer.md). Gibst du nicht monatlich ab, stellst du dort den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) ein: vierteljährlich oder keine Voranmeldung, so wie es das Finanzamt festgelegt hat.
 

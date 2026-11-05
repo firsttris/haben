@@ -232,6 +232,7 @@ const arbeitnehmer = (steuerklasse: 1 | 3 | 4): EstArbeitnehmer => ({
     arbeitsmittel: 34_900,
     fortbildung: 45_000,
     berufsverbaende: 12_000,
+    gewerkschaft: 24_000,
     sonstige: 1_600,
   },
 });

@@ -604,6 +604,21 @@ const posten = (name: string, felder: [string, string, string], text: string, ce
 
 /** Anlage N einer Person: Lohnsteuerbescheinigungen (Steuerklasse 1–5 bzw. 6) und Werbungskosten */
 /**
+ * Ab 2026 hat die Anlage N eine eigene Zeile für Gewerkschaftsbeiträge (Gewerksch_Beit, Schema E10-2026 im ERiC-Paket
+ * 45.1.5.0), weil sie neben dem Arbeitnehmer-Pauschbetrag abziehbar sind (§ 9a Satz 3 EStG); bis 2025 stehen sie mit den
+ * Berufsverbänden in einer Zeile.
+ */
+function berufsverbaende(w: EstArbeitnehmer["werbungskosten"], year: number): (XmlNode | null)[] {
+  if (year < 2026) {
+    return [posten("Berufsverb", ["E0204001", "E0204003", "E0204002"], "Berufsverbände und Gewerkschaft", (w.berufsverbaende ?? 0) + (w.gewerkschaft ?? 0))];
+  }
+  return [
+    posten("Berufsverb", ["E0204001", "E0204003", "E0204002"], "Berufsverbände", w.berufsverbaende),
+    posten("Gewerksch_Beit", ["E0205509", "E0205510", "E0205519"], "Gewerkschaft", w.gewerkschaft),
+  ];
+}
+
+/**
  * Fortbildungskosten. Ab 2026 verlangt die Anlage N daneben die steuerfreien Erstattungen (E0206305, „ggf. 0“) und
  * zieht sie in der Summe ab (Schema E10-2026 und Plausibilitätsprüfung im ERiC-Paket 45.1.5.0). Erstattungen erfasst
  * Haben nicht; die Kosten sind schon um sie gemindert.
@@ -665,7 +680,7 @@ export function anlageN(person: string, an: EstArbeitnehmer, year: number): XmlN
             ],
           ]
         : null,
-      posten("Berufsverb", ["E0204001", "E0204003", "E0204002"], "Berufsverbände und Gewerkschaft", (w.berufsverbaende ?? 0) + (w.gewerkschaft ?? 0)),
+      ...berufsverbaende(w, year),
       posten("Arbeitsmittel", ["E0204401", "E0204402", "E0204403"], "Arbeitsmittel", w.arbeitsmittel),
       ganz(w.homeofficeTage) ? ["Homeoffice", [[w.keinAndererArbeitsplatz ? "E0206206" : "E0204507", ganz(w.homeofficeTage)]]] : null,
       fortbildung(w.fortbildung, year),
