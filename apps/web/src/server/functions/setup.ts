@@ -3,6 +3,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import { count } from "drizzle-orm";
 import { db, schema } from "../db/index.ts";
 import { listCustomPages } from "../modules/eigene-seiten/index.ts";
+import { hasEmployees } from "../modules/lohn/index.ts";
 import { loadCompany } from "../modules/stammdaten/index.ts";
 import { sessionUser } from "../rollen.ts";
 
@@ -17,5 +18,7 @@ export const getAuthState = createServerFn({ method: "GET" }).handler(async () =
     rechtsform: user ? (await loadCompany()).rechtsform : null,
     // Eigene Seiten (#199) als Menüeinträge des Inhabers, ebenfalls erst nach der Anmeldung
     eigeneSeiten: user?.role === "inhaber" ? (await listCustomPages()).map(({ id, name }) => ({ id, name })) : [],
+    // Menüpunkt SV-Meldeportal erst mit dem ersten Mitarbeiter; die Steuerberatung hat ihre eigene Navigation
+    hatMitarbeiter: user?.role === "inhaber" ? await hasEmployees() : false,
   };
 });

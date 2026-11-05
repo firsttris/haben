@@ -1717,8 +1717,27 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await expect(menu.getByRole("link")).toHaveText([EIGENE_SEITE.name]);
 });
 
-test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async () => {
-  await go("/lohn");
+test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async ({ browser }) => {
+  // Ohne Mitarbeiter kein SV-Meldeportal im Menü; die Seite selbst bleibt erreichbar und verweist auf Lohn
+  const personal = page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("group", { name: "Personal" });
+  await go("/sv-meldeportal");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("SV-Meldeportal");
+  await expect(personal.getByRole("link")).toHaveText(["Lohn"]);
+  // Den Hinweis ohne Mitarbeiter sieht barrierefreiheit.spec.ts nicht mehr. AxeBuilder braucht einen eigenen Kontext, mit derselben Sitzung
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  await axePage.goto(new URL("/sv-meldeportal", page.url()).toString());
+  await axePage.waitForLoadState("networkidle");
+  await expect(axePage.getByRole("heading", { level: 1 })).toHaveText("SV-Meldeportal");
+  const { violations } = await new AxeBuilder({ page: axePage }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+  expect(
+    violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+    "/sv-meldeportal ohne Mitarbeiter",
+  ).toEqual([]);
+  await context.close();
+  await page.getByRole("main").getByRole("link", { name: "Lohn", exact: true }).click();
+  await page.waitForURL(/\/lohn$/);
+  await page.waitForLoadState("networkidle");
   await page.getByRole("link", { name: "Mitarbeiter anlegen" }).click();
   await page.waitForURL("**/lohn/mitarbeiter/neu");
   await page.waitForLoadState("networkidle");
@@ -1739,6 +1758,7 @@ test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async () => {
   await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
   await page.waitForURL(/\/lohn$/);
   await expect(page.getByRole("link", { name: "Jonas Aushilfe", exact: true })).toBeVisible();
+  await expect(personal.getByRole("link")).toHaveText(["Lohn", "SV-Meldeportal"]);
 
   // Minijob mit Pauschsteuer: keine Lohnsteuer, der Beschäftigte trägt 3,6 % zur Rentenversicherung (520 € → 18,72 €)
   await page.getByRole("button", { name: "Monat abrechnen" }).click();
