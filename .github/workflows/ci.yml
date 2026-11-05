@@ -66,6 +66,8 @@ jobs:
       # Die Datenbank ist nach dem Job weg: ohne Schreiben auf die Platte bei jedem Commit
       - name: PostgreSQL ohne fsync
         run: docker exec ${{ job.services.postgres.id }} psql -U haben -d haben_test -qc "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off" -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
+      # pdftoppm wandelt PDFs für einen selbst betriebenen KI-Dienst in Seitenbilder (wie im Image)
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends poppler-utils
       # Jeder Worker von Vitest klont seine Datenbank aus einer Vorlage (apps/web/src/server/test-db.ts)
       - run: bun run test
         env:

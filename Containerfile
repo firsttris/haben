@@ -36,6 +36,10 @@ COPY --from=build /app/apps/web/src/server/db/migrate.ts ./apps/web/src/server/d
 COPY --from=build /app/apps/web/package.json ./apps/web/package.json
 COPY --from=build /app/package.json ./package.json
 COPY deploy/entrypoint.sh /usr/local/bin/haben-entrypoint
+# pdftoppm: PDFs als Seitenbilder für einen selbst betriebenen KI-Dienst (Belegauslesung), als eigener Prozess
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends poppler-utils \
+ && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /var/lib/haben/eric-log /var/lib/haben/eric /var/lib/haben/belege && chown -R bun:bun /var/lib/haben
 USER bun
 EXPOSE 3000

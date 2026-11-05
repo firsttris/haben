@@ -27,6 +27,7 @@ import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
+import { ExtractionCard } from "../../components/ExtractionCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/SkontoFields.tsx";
 import { authClient } from "../../lib/auth-client.ts";
@@ -51,12 +52,13 @@ import { getChainHead } from "../../server/functions/integrity.ts";
 import { getLogo } from "../../server/functions/logo.ts";
 import { getMailSettings } from "../../server/functions/mail.ts";
 import { getMcpSettings } from "../../server/functions/mcp.ts";
+import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
-    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages] = await Promise.all(
-      [
+    const [company, vat, numbering, eric, mail, logo, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages, extraction] =
+      await Promise.all([
         getCompany(),
         getVatPeriod({ data: currentFilingPeriod(new Date()) }),
         getNumbering(),
@@ -72,8 +74,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
         getExchangeRates(),
         getEnableBankingSettings(),
         getCustomPages(),
-      ],
-    );
+        getExtractionSettings(),
+      ]);
     return {
       ...company,
       certificate: vat.certificate,
@@ -91,6 +93,7 @@ export const Route = createFileRoute("/_app/einstellungen")({
       rates,
       enableBanking,
       customPages,
+      extraction,
     };
   },
   head: () => ({ meta: [{ title: "Einstellungen · Haben" }], links: [{ rel: "stylesheet", href: reportStyles }] }),
@@ -100,7 +103,8 @@ export const Route = createFileRoute("/_app/einstellungen")({
 });
 
 function SettingsPage() {
-  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages } = Route.useLoaderData();
+  const { company, numbering, logo, mail, inbox, exportYears, datev, chainHead, backup, mcp, rates, enableBanking, customPages, extraction } =
+    Route.useLoaderData();
   const { bereich = "firma" } = Route.useSearch();
   const area = SETTINGS_AREAS.find((a) => a.id === bereich)!;
   return (
@@ -146,7 +150,12 @@ function SettingsPage() {
           )}
           {bereich === "bank" && <EnableBankingCard data={enableBanking} />}
           {bereich === "sicherheit" && <Passkeys />}
-          {bereich === "ki" && <McpCard data={mcp} />}
+          {bereich === "ki" && (
+            <>
+              <McpCard data={mcp} />
+              <ExtractionCard settings={extraction} />
+            </>
+          )}
           {bereich === "seiten" && <EigeneSeitenCard pages={customPages} />}
           {bereich === "waehrung" && <ExchangeRatesCard data={rates} />}
           {bereich === "export" && (

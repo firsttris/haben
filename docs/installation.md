@@ -77,7 +77,7 @@ In `.env` trägst du ein:
 | `ENCRYPTION_KEY` | `openssl rand -base64 32`, zusätzlich an einem zweiten Ort sichern |
 | `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
 | `RESTIC_REPOSITORY` | optional: Backup auf einem zweiten System statt im Volume `backups`, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
-| `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
+| `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
 
 ```sh
 docker compose up -d
@@ -319,7 +319,13 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ERIC_WORKER_PATH` | nein | Pfad zum ERiC-Worker (`packages/elster/src/worker.ts`). Im Image gesetzt, sonst nicht nötig | `/app/packages/elster/src/worker.ts` |
 | `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Mit ERiC 43 nötig für Prüfen, Test- und Echtübermittlung; ohne ERiC läuft alles simuliert | `12345` |
 | `DOCUMENTS_DIR` | nein | Ablage der Belegdateien. Standard `data/belege` (relativ zum Arbeitsverzeichnis); im Image `/var/lib/haben/belege` | `/var/lib/haben/belege` |
-| `ANTHROPIC_API_KEY` | nein | Schaltet die KI-Auslesung von Belegen ein | `sk-ant-…` |
+| `ANTHROPIC_API_KEY` | nein | Schaltet die KI-Auslesung von Belegen mit Claude ein | `sk-ant-…` |
+| `EXTRACTION_BASE_URL` | nein | Basis-URL eines selbst betriebenen KI-Dienstes mit OpenAI-kompatibler Schnittstelle. Ist sie gesetzt, liest nur dieser Dienst Belege aus, auch wenn `ANTHROPIC_API_KEY` gesetzt ist ([eigenes Modell](#ki-auslesung-mit-eigenem-modell)) | `http://host.docker.internal:11434/v1` |
+| `EXTRACTION_MODEL` | mit `EXTRACTION_BASE_URL` | Name des Vision-Modells beim Dienst. Fehlt er, startet die App nicht | `qwen2.5vl:7b` |
+| `EXTRACTION_API_KEY` | nein | Schlüssel des Dienstes, falls er einen verlangt; geht als `Authorization: Bearer …` mit | `…` |
+| `EXTRACTION_PROVIDER` | nein | Anbieter ausdrücklich wählen: `anthropic` oder `openai-compatible`. Ohne Angabe gilt der eigene Dienst, sobald `EXTRACTION_BASE_URL` gesetzt ist | `openai-compatible` |
+| `EXTRACTION_TIMEOUT_SECONDS` | nein | Wartezeit auf den eigenen Dienst je Beleg, 5 bis 3600. Standard `300` | `600` |
+| `EXTRACTION_MAX_PAGES` | nein | So viele PDF-Seiten gehen höchstens als Bild an den eigenen Dienst, 1 bis 20. Standard `4` | `2` |
 | `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (wiederkehrende Rechnungen, Kontoabruf), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
 | `ENABLE_BANKING_APP_ID` | nein | Application ID der Enable-Banking-Anwendung. Schaltet zusammen mit dem Schlüssel den automatischen Kontoabruf ein. Einfacher: unter Einstellungen › Bank hochladen; das geht dann vor | `0b7c3f1e-…` |
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
@@ -584,6 +590,74 @@ Was an Anthropic geht und wann:
 
 Ohne Schlüssel bleibt alles lokal, und du füllst die Felder von Hand aus. Mehr dazu in [Belege](belege.md).
 
+## KI-Auslesung mit eigenem Modell
+
+Optional und statt Anthropic. Haben spricht jeden Dienst an, der die OpenAI-Schnittstelle `POST /v1/chat/completions` anbietet, etwa [Ollama](https://docs.ollama.com/api/openai-compatibility), LM Studio, vLLM oder Docker Model Runner (`docker model run`). Ein schon laufender Dienst genügt; einen Modell-Container bringt Haben nicht mit. Das Modell muss Bilder lesen können (Vision-Modell, z. B. aus der Qwen-VL-Familie wie `qwen2.5vl`). Ein reines Textmodell oder reine Texterkennung (OCR) genügt nicht: Haben braucht die Belegfelder, nicht nur den Text.
+
+```sh
+# .env (Compose) bzw. haben.env (Quadlets)
+EXTRACTION_BASE_URL=http://host.docker.internal:11434/v1
+EXTRACTION_MODEL=qwen2.5vl:7b
+```
+
+Was dabei passiert:
+
+- **Nur dieser Dienst.** Ist `EXTRACTION_BASE_URL` gesetzt, gehen Belege ausschließlich an diese Adresse, auch wenn zusätzlich `ANTHROPIC_API_KEY` gesetzt ist. Ist der Dienst nicht erreichbar, zu langsam oder antwortet er falsch, steht der Fehler am Beleg; Haben weicht nie auf Anthropic oder einen anderen Anbieter aus. Leitet der Dienst auf eine andere Adresse um (HTTP 3xx), folgt Haben dem nicht und meldet es am Beleg.
+- **Fotos** (JPEG, PNG, WebP) gehen als Bild an den Dienst. **PDFs** wandelt Haben vorher lokal mit `pdftoppm` (poppler-utils, im Image enthalten) in Seitenbilder um, höchstens `EXTRACTION_MAX_PAGES` Seiten (Standard 4, längere Seite 1600 Pixel); hat das PDF mehr Seiten, steht ein Hinweis am Beleg. HEIC-Fotos und XML-Dateien gehen nicht an den Dienst.
+- **Antwortformat.** Haben verlangt strukturierte Ausgabe nach einem JSON-Schema (`response_format` mit `json_schema`); Ollama, LM Studio und vLLM können das. Lehnt der Dienst das ab, fragt Haben denselben Dienst noch einmal ohne und prüft die Antwort selbst gegen dasselbe Schema. Ein JSON-Schema garantiert keine richtigen Werte: Haben prüft Beträge, Daten und Summen wie bei Claude.
+- **Authentifizierung.** Ohne `EXTRACTION_API_KEY` schickt Haben keinen Schlüssel. Verlangt der Dienst einen (vLLM mit `--api-key`, ein Proxy davor), setze ihn; bei den Quadlets als Secret `haben-extraction-key` (Zeile in `haben-app.container` einkommentieren). Er steht nirgends in der Oberfläche oder im Log.
+- **Wartezeit.** Auf einer CPU braucht ein 7B-Vision-Modell für einen Beleg leicht ein bis mehrere Minuten. Haben wartet `EXTRACTION_TIMEOUT_SECONDS` (Standard 300) und meldet dann eine Zeitüberschreitung am Beleg.
+- **Log.** Bei einem Fehler schreibt Haben nur Anbieter, Modell und die Art des Fehlers ins Log, etwa `KI-Auslesung fehlgeschlagen (openai-compatible, qwen2.5vl:7b): zeitueberschreitung`. Beleginhalte, Antworten des Modells und Schlüssel stehen nicht im Log. Welcher Anbieter gerade gilt, zeigt **Einstellungen › KI-Assistenten und API › Belegauslesung**.
+
+### Den Dienst aus dem Container erreichen
+
+Im Container ist `localhost` der Container selbst, nicht der Server. Läuft Ollama direkt auf dem Server:
+
+| Betrieb | Adresse | Was noch nötig ist |
+| --- | --- | --- |
+| Docker Compose unter Linux | `http://host.docker.internal:11434/v1` | in `compose.yml` beim Dienst `app` die Zeilen `extra_hosts: - host.docker.internal:host-gateway` einkommentieren; Ollama muss auf der Docker-Bridge lauschen: `OLLAMA_HOST=0.0.0.0:11434` (oder die Adresse der Bridge, meist `172.17.0.1`) |
+| Docker Desktop (macOS, Windows) | `http://host.docker.internal:11434/v1` | nichts |
+| Podman (Quadlets) | `http://host.containers.internal:11434/v1` | Ollama mit `OLLAMA_HOST=0.0.0.0:11434`; den Namen trägt Podman selbst im Container ein |
+| Dienst auf einem anderen Rechner im Netz | `http://192.168.178.20:11434/v1` | Firewall für den Port öffnen, nur für den Server |
+
+Lauscht Ollama auf `0.0.0.0`, ist es von allen Rechnern im Netz erreichbar und hat keine Anmeldung. Beschränke den Port mit der Firewall auf den Server, oder setze einen Reverse Proxy mit Schlüssel davor und trage den Schlüssel als `EXTRACTION_API_KEY` ein.
+
+Prüfen, ob der Container den Dienst erreicht:
+
+```sh
+docker compose exec app bun -e 'fetch(process.env.EXTRACTION_BASE_URL + "/models").then(r => r.text()).then(console.log, console.error)'
+# Quadlets: podman exec haben-app bun -e '…'
+```
+
+### Beispiel: Ollama als eigener Container
+
+Wer Ollama nicht schon betreibt, kann es neben Haben starten, etwa in einer `compose.override.yml`. Das ist nur ein Beispiel; Haben braucht diesen Container nicht.
+
+```yaml
+services:
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    # Mit NVIDIA-GPU deutlich schneller; ohne GPU diese Zeilen weglassen
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+  app:
+    environment:
+      EXTRACTION_BASE_URL: http://ollama:11434/v1
+      EXTRACTION_MODEL: qwen2.5vl:7b
+
+volumes:
+  ollama:
+```
+
+Das Modell lädst du einmal: `docker compose exec ollama ollama pull qwen2.5vl:7b` (rund 6 GB). Im selben Compose-Projekt erreicht Haben den Dienst unter seinem Namen `ollama`, ohne dass der Port nach außen offen ist.
+
+**Grenzen.** Ein lokales 7B-Modell liest saubere PDFs und gut ausgeleuchtete Fotos meist richtig, verliest sich aber eher als Claude bei Kassenzetteln, schrägen Fotos und kleinen Beträgen. Deshalb bleibt jeder Beleg „Zu prüfen“, bis du ihn bestätigst. Mehrseitige PDFs kosten je Seite Rechenzeit; bei Rechnungen stehen die Summen meist auf den ersten Seiten.
+
 ## Kontoabruf (Enable Banking)
 
 Optional. Haben holt die Umsätze einmal täglich selbst über [Enable Banking](https://enablebanking.com), einen PSD2-Dienst mit Zugang zu fast allen deutschen Banken (DKB, Sparkassen, Volksbanken, N26 und viele mehr). Ohne Einrichtung bleibt der Import per CSV oder CAMT; beides geht auch nebeneinander.
@@ -654,7 +728,13 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **Echtübermittlung ist ausgegraut.** Es fehlt `ELSTER_HERSTELLER_ID`. Siehe [Erste Schritte](einrichtung.md#elster-einrichten).
 
-**Belege werden nicht automatisch ausgelesen.** Ohne `ANTHROPIC_API_KEY` liest Haben nur E-Rechnungen. Ist der Schlüssel gesetzt, steht der Grund eines Fehlers am Beleg.
+**Belege werden nicht automatisch ausgelesen.** Ohne `ANTHROPIC_API_KEY` oder `EXTRACTION_BASE_URL` liest Haben nur E-Rechnungen. Ist eins davon gesetzt, steht der Grund eines Fehlers am Beleg. Welcher Anbieter gilt, zeigt **Einstellungen › KI-Assistenten und API**.
+
+**„Der KI-Dienst unter … ist nicht erreichbar.“** Der Container erreicht den eigenen Dienst nicht. Meist steht `localhost` in `EXTRACTION_BASE_URL` (im Container ist das der Container selbst) oder der Dienst lauscht nur auf `127.0.0.1`. Siehe [Den Dienst aus dem Container erreichen](#den-dienst-aus-dem-container-erreichen).
+
+**„Der KI-Dienst kennt das Modell … nicht.“** Das Modell ist beim Dienst nicht geladen (`ollama pull …`) oder die Basis-URL endet nicht auf `/v1`.
+
+**„Die Antwort des KI-Dienstes passt nicht zum Belegschema.“** Das Modell hat kein gültiges JSON mit den Belegfeldern geliefert. Erneut auslesen hilft manchmal; sonst ein größeres oder ein anderes Vision-Modell wählen. Der Beleg wird nicht gebucht, die Felder füllst du von Hand aus.
 
 **restic meldet beim Sichern der Belege „permission denied“.** Bei rootless Podman gehören die Dateien im Volume einer Unter-UID des Hosts, nicht deinem Nutzer. Das aktuelle `backup.sh` ruft restic deshalb über `podman unshare` auf. Tritt der Fehler auf, hast du vermutlich noch ein älteres Skript; lade `backup.sh` neu herunter. Prüfe danach mit `restic ls latest`, ob die Belege im Snapshot sind.
 

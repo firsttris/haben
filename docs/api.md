@@ -166,7 +166,7 @@ Ein Ablauf für Bestellungen sieht typischerweise so aus:
 Ein Dokumentenarchiv, ein Scanner mit eigenem Skript oder ein Werkzeug, das Rechnungen aus einem Postfach oder Kundenportal holt, schickt Eingangsbelege mit `POST /belege` an Haben. Der Beleg geht denselben Weg wie ein Upload unter **Belege**:
 
 - **Formate und Größe** wie beim Upload: PDF, JPEG, PNG, WebP, HEIC und E-Rechnungs-XML (XRechnung, ZUGFeRD), höchstens 20 MB. Haben erkennt das Format am Inhalt, nicht am Dateinamen. Genau eine Datei je Anfrage, im Feld `datei`.
-- **Auslesen:** Eine E-Rechnung liest Haben sofort, die Antwort enthält dann schon Lieferant, Nummer, Datum und Beträge. Andere PDFs und Fotos liest die [KI-Auslesung](belege.md#ki-auslesung-mit-claude) im Hintergrund, wenn sie eingerichtet ist; bis dahin steht `extractionStatus` auf `laeuft`.
+- **Auslesen:** Eine E-Rechnung liest Haben sofort, die Antwort enthält dann schon Lieferant, Nummer, Datum und Beträge. Andere PDFs und Fotos liest die [KI-Auslesung](belege.md#ki-auslesung) im Hintergrund, wenn sie eingerichtet ist; bis dahin steht `extractionStatus` auf `laeuft`.
 - **Nichts wird gebucht.** Der Beleg steht unter Belege als „Zu prüfen“ (`status: "neu"`). Kategorie, Zahlungsweg und Buchen bleiben in Haben.
 - **Vorbelegen** lässt sich nur eine Notiz (`note`). Lieferant, Nummer, Datum und Beträge nimmt die API bewusst nicht an: Sie kommen aus der E-Rechnung oder der Auslesung, die sie sonst überschriebe, und geprüft werden sie ohnehin in Haben.
 
