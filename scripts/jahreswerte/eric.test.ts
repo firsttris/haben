@@ -68,6 +68,14 @@ describe("ERiC", () => {
       const e = await pruefeEric("45.1.5.0", nachgestellt(vorhanden("45.1.5.0", "45.1.6.0")));
       expect(e.befunde.map((b) => b.titel)).toEqual(["ERiC 45.1.6.0 ist verfügbar (Haben: 45.1.5.0)"]);
     });
+
+    // Releasenotes in ERiC-45.1.5.0-Dokumentation.zip: „Änderungen in ERiC 44.1“ ohne BETA (technisches Mai-Release,
+    // Entwicklerhandbuch Kap. 2.3), ebenso 42.1; BETA waren nur 41.1, 43.1 und 45.1 vor dem November-Release
+    it("meldet <Haupt>.1 eines technischen Mai-Releases (44.1) als Befund, nicht als BETA", async () => {
+      const e = await pruefeEric("43.5.4.0", nachgestellt(vorhanden("43.5.4.0", "44.1.6.0")));
+      expect(e.befunde.map((b) => b.titel)).toEqual(["ERiC 44.1.6.0 ist verfügbar (Haben: 43.5.4.0)"]);
+      expect(e.warnungen).toEqual([]);
+    });
   });
 
   it("macht aus einem Server, der nicht antwortet, Warnungen statt Befunden", async () => {
