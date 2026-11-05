@@ -9,7 +9,8 @@ import { taxOf, type Cents } from "./money.ts";
  * die Vorsteuer aus § 13b, beide in Cent. Kz 41 (innergemeinschaftliche Lieferungen an Abnehmer mit USt-IdNr.) und 43
  * (weitere steuerfreie Umsätze mit Vorsteuerabzug, hier Ausfuhrlieferungen) in vollen Euro; Kz 89 und 93 die
  * Bemessungsgrundlagen steuerpflichtiger innergemeinschaftlicher Erwerbe zu 19 und 7 % in vollen Euro, die Steuer daraus
- * rechnet das Formular wie bei Kz 81 und 86; Kz 61 die Vorsteuer aus dem Erwerb in Cent (Vordruckmuster USt 1 A 2026).
+ * rechnet das Formular wie bei Kz 81 und 86; Kz 61 die Vorsteuer aus dem Erwerb in Cent (Vordruckmuster USt 1 A 2026); Kz 62 die
+ * entstandene Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG) in Cent.
  * Kz 83 wird gerechnet. Alle Werte dürfen negativ
  * sein, etwa wenn Gutschriften im Monat überwiegen.
  */
@@ -30,6 +31,8 @@ export interface UstvaValues {
   kz89?: Cents;
   kz93?: Cents;
   kz61?: Cents;
+  /** Entstandene Einfuhrumsatzsteuer, als Vorsteuer abziehbar */
+  kz62?: Cents;
   /** Abzug der festgesetzten Sondervorauszahlung (Dauerfristverlängerung), in der letzten Voranmeldung des Jahres */
   kz39?: Cents;
 }
@@ -61,6 +64,8 @@ export interface UstvaFigures {
   kz93: Cents;
   tax93: Cents;
   kz61: Cents;
+  /** Einfuhrumsatzsteuer in Cent */
+  kz62: Cents;
   /** Abzug der Sondervorauszahlung, centgenau (§ 48 Abs. 4 UStDV) */
   kz39: Cents;
   /** Verbleibende Vorauszahlung; negativ = Erstattung */
@@ -82,6 +87,7 @@ export function computeUstva(input: UstvaValues): UstvaFigures {
   const tax89 = taxOf(kz89, 1900);
   const tax93 = taxOf(kz93, 700);
   const kz61 = input.kz61 ?? 0;
+  const kz62 = input.kz62 ?? 0;
   return {
     kz81,
     tax81,
@@ -103,7 +109,8 @@ export function computeUstva(input: UstvaValues): UstvaFigures {
     kz93,
     tax93,
     kz61,
+    kz62,
     kz39: input.kz39 ?? 0,
-    kz83: tax81 + tax86 + tax89 + tax93 + (input.kz47 ?? 0) + (input.kz85 ?? 0) - input.kz66 - (input.kz67 ?? 0) - kz61 - (input.kz39 ?? 0),
+    kz83: tax81 + tax86 + tax89 + tax93 + (input.kz47 ?? 0) + (input.kz85 ?? 0) - input.kz66 - (input.kz67 ?? 0) - kz61 - kz62 - (input.kz39 ?? 0),
   };
 }

@@ -73,13 +73,14 @@ export function steuerKonten(kontenrahmen: Kontenrahmen) {
 export type HinzurechnungArt = "zinsen" | "beweglich" | "unbeweglich" | "rechte";
 const HINZURECHNUNG: Record<Kontenrahmen, readonly [art: HinzurechnungArt, konten: readonly string[], anteil: number, text: string][]> = {
   SKR03: [
-    ["zinsen", ["2100", "2110", "2120"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    // Mit den Zinsen zur Finanzierung des Anlagevermögens aus dem Darlehen (darlehen.ts)
+    ["zinsen", ["2100", "2110", "2120", "2126"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
     ["beweglich", ["4570", "4575", "4960", "4961", "4963", "4965"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
     ["unbeweglich", ["4210", "4211", "4215", "4220"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
     ["rechte", ["4964"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],
   ],
   SKR04: [
-    ["zinsen", ["7300", "7310", "7320"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
+    ["zinsen", ["7300", "7310", "7320", "7326"], 10_000, "Zinsen (§ 8 Nr. 1 a)"],
     ["beweglich", ["6560", "6565", "6835", "6836", "6838"], 2000, "Miete, Pacht und Leasing beweglicher Wirtschaftsgüter (§ 8 Nr. 1 d)"],
     ["unbeweglich", ["6310", "6315", "6316", "6317"], 5000, "Miete, Pacht und Leasing unbeweglicher Wirtschaftsgüter (§ 8 Nr. 1 e)"],
     ["rechte", ["6837"], 2500, "Überlassung von Rechten (§ 8 Nr. 1 f)"],

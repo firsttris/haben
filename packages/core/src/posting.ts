@@ -149,6 +149,9 @@ export const EXPENSE_CATEGORIES = {
   sonstiges: { label: "Sonstiger Aufwand", SKR03: "4900", SKR04: "6300" },
   // Kein Aufwand: gebucht wird auf das Anlagekonto der Anlage, abgeschrieben über das Anlagenverzeichnis
   anlage: { label: "Anlagegut (wird abgeschrieben)", SKR03: "0490", SKR04: "0690" },
+  // Kein Aufwand: Bescheid des Zolls über die Einfuhrumsatzsteuer, der ganze Betrag ist Vorsteuer (§ 15 Abs. 1 Satz 1 Nr. 2
+  // UStG, Kz 62); DATEV-Kontenrahmen 2026 „Entstandene Einfuhrumsatzsteuer“ (SKR03 1588, SKR04 1433)
+  einfuhrumsatzsteuer: { label: "Einfuhrumsatzsteuer (Bescheid des Zolls)", SKR03: "1588", SKR04: "1433" },
 } as const;
 
 export type ExpenseCategory = keyof typeof EXPENSE_CATEGORIES;
@@ -252,7 +255,7 @@ export const ACCOUNT_NAMES: Record<Kontenrahmen, Record<string, string>> = {
  * Steuerschlüssel einer Buchungszeile, mit Kennzahl der Voranmeldung: USt19 (Kz 81), USt7 (86), frei,
  * RC (21), Drittland (45), Steuerfrei (48), KU (Kleinunternehmer), VSt19/VSt7 (66), keineVSt,
  * RC13bEU (46/47), RC13bDrittland (84/85), VSt13b (67), IGL (41, innergemeinschaftliche Lieferung),
- * Ausfuhr (43), IGE19/IGE7 (89/93, innergemeinschaftlicher Erwerb), VStIGE (61)
+ * Ausfuhr (43), IGE19/IGE7 (89/93, innergemeinschaftlicher Erwerb), VStIGE (61), EUSt (62, Einfuhrumsatzsteuer)
  */
 export type TaxCode =
   | "USt19"
@@ -272,7 +275,8 @@ export type TaxCode =
   | "Ausfuhr"
   | "IGE19"
   | "IGE7"
-  | "VStIGE";
+  | "VStIGE"
+  | "EUSt";
 
 /**
  * Steuerschuld als Leistungsempfänger (§ 13b UStG) für Belege: sonstige Leistungen eines Unternehmers
@@ -402,6 +406,8 @@ export function documentPosting(
   // Privat genutzt ist bei einer GmbH keine Entnahme, sondern Arbeitslohn oder verdeckte Gewinnausschüttung
   if (privateShare !== 0 && isKapitalgesellschaft(rechtsform)) throw new RangeError("Privatanteil gibt es nur im Einzelunternehmen");
   const accounts = ACCOUNTS[kontenrahmen];
+  if (category === "einfuhrumsatzsteuer")
+    return einfuhrumsatzsteuerPosting(totals, kontenrahmen, rechtsform, payment, vorsteuerAbzug, privateShare, reverseCharge);
   const expense = account ?? EXPENSE_CATEGORIES[category][kontenrahmen];
   const lines: PostingLine[] = [];
   let privatePart = 0;
@@ -438,6 +444,43 @@ export function documentPosting(
   const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
   lines.push(side(counter, totals.gross, false, null));
   return lines.filter((line) => line.debit !== 0 || line.credit !== 0);
+}
+
+/**
+ * Was einem Beleg „Einfuhrumsatzsteuer“ fehlt: Der Bescheid des Zolls enthält nur die Steuer, als ein Betrag ohne
+ * Steuersatz (0 %, ohne Steuer im Betrag), abziehbar nur mit Vorsteuerabzug und ohne Privatanteil oder § 13b. Leer = buchbar.
+ */
+export function einfuhrumsatzsteuerIssues(
+  totals: Pick<InvoiceTotals, "taxes">,
+  vorsteuerAbzug: boolean,
+  privateShare: number,
+  reverseCharge: SelfAssessedTax | null,
+): string[] {
+  const issues: string[] = [];
+  if (totals.taxes.some((t) => t.rate !== 0 || t.tax !== 0)) issues.push("Die Einfuhrumsatzsteuer steht als ein Betrag zu 0 % im Beleg, ohne Steuer darauf");
+  if (!vorsteuerAbzug) issues.push("Ohne Vorsteuerabzug gehört die Einfuhrumsatzsteuer zu den Kosten der Ware; buche sie mit deren Kategorie");
+  if (privateShare !== 0) issues.push("Einen Privatanteil gibt es bei der Einfuhrumsatzsteuer nicht");
+  if (reverseCharge) issues.push("Einfuhrumsatzsteuer ist weder § 13b noch innergemeinschaftlicher Erwerb");
+  return issues;
+}
+
+/** Einfuhrumsatzsteuer an Verbindlichkeiten (Bank), Kasse oder Privateinlage; ohne Aufwand, Vorsteuer Kz 62 */
+function einfuhrumsatzsteuerPosting(
+  totals: InvoiceTotals,
+  kontenrahmen: Kontenrahmen,
+  rechtsform: Rechtsform,
+  payment: DocumentPayment,
+  vorsteuerAbzug: boolean,
+  privateShare: number,
+  reverseCharge: SelfAssessedTax | null,
+): PostingLine[] {
+  const issues = einfuhrumsatzsteuerIssues(totals, vorsteuerAbzug, privateShare, reverseCharge);
+  if (issues.length > 0) throw new RangeError(issues.join(". "));
+  const accounts = ACCOUNTS[kontenrahmen];
+  const counter = payment === "privat" ? ownerAccount(kontenrahmen, rechtsform, "einlage") : payment === "kasse" ? accounts.kasse : accounts.verbindlichkeiten;
+  return [side(EXPENSE_CATEGORIES.einfuhrumsatzsteuer[kontenrahmen], totals.gross, true, "EUSt"), side(counter, totals.gross, false, null)].filter(
+    (line) => line.debit !== 0 || line.credit !== 0,
+  );
 }
 
 /** Netto und Steuer je Satz, die auf eine Zahlung oder Ausbuchung entfallen */

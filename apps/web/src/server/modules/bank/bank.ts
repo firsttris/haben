@@ -40,6 +40,8 @@ import {
   type Steuerart,
   type SteuerPosten,
   steuerzahlungText,
+  type DarlehenTeil,
+  darlehenText,
   type TaxShare,
 } from "@haben/core";
 import { checkBalanceContinuity, parseStatement, PSP_FORMATS, StatementParseError, withDedupHashes, type ParsedStatement } from "@haben/import";
@@ -58,6 +60,7 @@ import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { documentPayees, payeeIbans } from "./document-payees.ts";
 import { steuerangabeSchema, steuerbuchung } from "./steuerzahlung.ts";
+import { darlehenBuchung, loanPartSchema } from "./darlehen.ts";
 
 export class BankError extends UserError {}
 
@@ -590,10 +593,13 @@ export async function transactionDetail(id: string) {
       taxType: schema.allocations.taxType,
       taxYear: schema.allocations.taxYear,
       taxItem: schema.allocations.taxItem,
+      loanName: schema.loans.name,
+      loanPart: schema.allocations.loanPart,
     })
     .from(schema.allocations)
     .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
     .leftJoin(schema.documents, eq(schema.documents.id, schema.allocations.documentId))
+    .leftJoin(schema.loans, eq(schema.loans.id, schema.allocations.loanId))
     .where(eq(schema.allocations.transactionId, id))
     // Teile einer Aufteilung haben denselben Zeitstempel (eine Transaktion): Erlös vor Gebühr, damit die Reihenfolge feststeht
     .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
@@ -606,6 +612,7 @@ export async function transactionDetail(id: string) {
       reversed: reversed.has(a.id),
       vatReturnLabel: a.vatReturnId ? (vatLabels.get(a.vatReturnId) ?? null) : null,
       steuerLabel: a.taxType && a.taxYear !== null && a.taxItem ? steuerzahlungText({ art: a.taxType, jahr: a.taxYear, posten: a.taxItem }, a.amount) : null,
+      darlehenLabel: a.loanName && a.loanPart ? darlehenText(a.loanName, a.loanPart) : null,
     }));
 
   // Offene Rechnungen und Belege, dazu Zahllast und Erstattung abgegebener Voranmeldungen
@@ -947,6 +954,8 @@ export const allocationSchema = z.discriminatedUnion("kind", [
   }),
   // Steuerzahlung oder Erstattung mit Steuerart, Bezugsjahr und Teil (Steuer oder Nebenleistung)
   z.object({ kind: z.literal("steuer"), transactionId: z.uuid(), amount: z.number().int(), steuer: steuerangabeSchema }),
+  // Auszahlung, Tilgung, Zinsen oder Gebühren eines Darlehens
+  z.object({ kind: z.literal("darlehen"), transactionId: z.uuid(), amount: z.number().int(), darlehen: loanPartSchema }),
 ]);
 
 export type AllocationInput = z.infer<typeof allocationSchema>;
@@ -958,6 +967,7 @@ const splitPartSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("ustva"), vatReturnId: z.uuid(), amount: z.number().int() }),
   z.object({ kind: z.enum(DIRECT_KINDS), amount: z.number().int() }),
   z.object({ kind: z.literal("steuer"), amount: z.number().int(), steuer: steuerangabeSchema }),
+  z.object({ kind: z.literal("darlehen"), amount: z.number().int(), darlehen: loanPartSchema }),
 ]);
 
 export const splitSchema = z.object({ transactionId: z.uuid(), parts: z.array(splitPartSchema).min(2).max(20) });
@@ -1004,6 +1014,8 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     taxType?: Steuerart;
     taxYear?: number;
     taxItem?: SteuerPosten;
+    loanId?: string;
+    loanPart?: DarlehenTeil;
   } = {};
 
   if (part.kind === "invoice") {
@@ -1056,6 +1068,8 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     lines = directPosting("ustVorauszahlung", part.amount, company.kontenrahmen, company.rechtsform);
     description = `${label} · ${bank.counterpartyName || "Finanzamt"}`;
     target = { vatReturnId: part.vatReturnId };
+  } else if (part.kind === "darlehen") {
+    ({ lines, description, target } = await darlehenBuchung(tx, company.kontenrahmen, bank, part.darlehen.loanId, part.darlehen.part, part.amount));
   } else if (part.kind === "steuer") {
     ({ lines, description, target } = await steuerbuchung(tx, company, bank, part.steuer, part.amount));
   } else if (part.kind === "kursdifferenz") {
@@ -1181,6 +1195,8 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       taxType: allocation.taxType,
       taxYear: allocation.taxYear,
       taxItem: allocation.taxItem,
+      loanId: allocation.loanId,
+      loanPart: allocation.loanPart,
       amount: -allocation.amount,
       splitId: allocation.splitId,
       reversesId: allocation.id,

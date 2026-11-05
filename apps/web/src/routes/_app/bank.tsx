@@ -8,6 +8,7 @@ import { Icon } from "../../components/Icon.tsx";
 import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
 import { SteuerFelder, steuerangabe, steuerWahlFuer, type SteuerOptionen, type SteuerWahl } from "../../components/SteuerFelder.tsx";
+import { DarlehenFelder, darlehenWahlFuer, type DarlehenOptionen, type DarlehenWahl } from "../../components/DarlehenFelder.tsx";
 import { defaultFetchFrom, fetchFromForConnect } from "../../lib/bank-connect.ts";
 import { errorMessage, formatDate, formatDateTime, daysUntil } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
@@ -76,11 +77,13 @@ const KIND_LABEL = {
   sozialversicherung: "SV-Beiträge",
   steuer: "Steuer",
   zinsertrag: "Zinserträge",
+  darlehen: "Darlehen",
 } as const;
 
 /** „Ohne Rechnung buchen“: Buchungsarten ohne Beleg und die Steuerzahlung mit Steuerart, Bezugsjahr und Teil */
-type DirectChoice = DirectBooking | "steuer";
+type DirectChoice = DirectBooking | "steuer" | "darlehen";
 const STEUER_OPTION = { value: "steuer", label: "Steuerzahlung oder Erstattung (Finanzamt, Gemeinde)" } as const;
+const DARLEHEN_OPTION = { value: "darlehen", label: "Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren" } as const;
 
 /** Offener Posten in Auswahl und Treffer: Rechnung, Beleg oder Zahllast bzw. Erstattung einer Voranmeldung */
 function itemLabel(item: { type: "invoice" | "document" | "ustva"; number: string; partyName: string }): string {
@@ -252,6 +255,7 @@ function BankPage() {
                 detail={data.detail}
                 directKinds={data.directKinds}
                 steuerOptionen={{ steuerarten: data.steuerarten, steuerPosten: data.steuerPosten }}
+                darlehenOptionen={{ loans: data.loans, loanParts: data.loanParts }}
                 nextOpenId={nextOpenAfter(data.transactions, data.detail.transaction.id)}
               />
             ) : (
@@ -828,11 +832,13 @@ function AllocationPanel({
   detail,
   directKinds,
   steuerOptionen,
+  darlehenOptionen,
   nextOpenId,
 }: {
   detail: Detail;
   directKinds: Data["directKinds"];
   steuerOptionen: SteuerOptionen;
+  darlehenOptionen: DarlehenOptionen;
   nextOpenId: string | undefined;
 }) {
   const router = useRouter();
@@ -853,6 +859,7 @@ function AllocationPanel({
   const [candidate, setCandidate] = useState(best ? `${best.item.type}:${best.item.id}` : "");
   const [directKind, setDirectKind] = useState<DirectChoice>(direct?.kind ?? "privat");
   const [steuer, setSteuer] = useState<SteuerWahl>(() => steuerWahlFuer(steuerOptionen, tx.bookingDate));
+  const [darlehen, setDarlehen] = useState<DarlehenWahl>(() => darlehenWahlFuer(darlehenOptionen, tx.amount));
   const [amount, setAmount] = useState(formatDecimal(Math.abs(best?.amount ?? tx.open)));
   const action = useAction();
   const { busy, notice } = action;
@@ -885,6 +892,10 @@ function AllocationPanel({
       return runAndAdvance(() => restFn({ data: { transactionId: tx.id, target: { kind: "invoice", invoiceId: best.item.id }, rest: "skonto" } }), true);
     }
     if (mode === "direct") {
+      if (directKind === "darlehen") {
+        if (!darlehen.loanId) return;
+        return runAndAdvance(() => allocateFn({ data: { kind: "darlehen", transactionId: tx.id, amount: signedAmount, darlehen } }), completes);
+      }
       if (directKind !== "steuer") {
         return runAndAdvance(() => allocateFn({ data: { kind: directKind, transactionId: tx.id, amount: signedAmount } }), completes);
       }
@@ -984,6 +995,7 @@ function AllocationPanel({
                   {a.documentSupplier ? ` ${a.documentSupplier}${a.documentNumber ? ` (${a.documentNumber})` : ""}` : ""}
                   {a.vatReturnLabel ? ` ${a.vatReturnLabel}` : ""}
                   {a.steuerLabel ? `: ${a.steuerLabel}` : ""}
+                  {a.darlehenLabel ? `: ${a.darlehenLabel}` : ""}
                 </span>
                 <span className="small muted">
                   {a.reversed ? "aufgehoben" : a.splitId ? `${a.amount < 0 ? "−" : "+"}${formatEuro(Math.abs(a.amount))}` : formatEuro(Math.abs(a.amount))}
@@ -1010,6 +1022,7 @@ function AllocationPanel({
           splitCandidates={splitCandidates}
           directKinds={directKinds}
           steuerOptionen={steuerOptionen}
+          darlehenOptionen={darlehenOptionen}
           busy={busy}
           onCancel={() => setMode(best ? "best" : candidates.length ? "other" : "direct")}
           onSubmit={(parts) => run(() => splitFn({ data: { transactionId: tx.id, parts } }))}
@@ -1131,7 +1144,7 @@ function AllocationPanel({
             <label className="field">
               Buchen als
               <select value={directKind} onChange={(e) => setDirectKind(e.target.value as DirectChoice)}>
-                {[...directKinds, STEUER_OPTION].map((k) => (
+                {[...directKinds, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                   <option key={k.value} value={k.value}>
                     {k.label}
                   </option>
@@ -1146,6 +1159,7 @@ function AllocationPanel({
           )}
 
           {mode === "direct" && directKind === "steuer" && <SteuerFelder options={steuerOptionen} value={steuer} onChange={setSteuer} />}
+          {mode === "direct" && directKind === "darlehen" && <DarlehenFelder options={darlehenOptionen} value={darlehen} onChange={setDarlehen} />}
 
           <label className="field">
             Betrag
@@ -1169,7 +1183,8 @@ function AllocationPanel({
                 busy ||
                 signedAmount === null ||
                 (mode === "other" && !selectedCandidate) ||
-                (mode === "direct" && directKind === "steuer" && !steuerangabe(steuer))
+                (mode === "direct" && directKind === "steuer" && !steuerangabe(steuer)) ||
+                (mode === "direct" && directKind === "darlehen" && !darlehen.loanId)
               }
               onClick={() => void submitAllocation()}
             >
@@ -1267,6 +1282,7 @@ type SplitPart =
   | { kind: "document"; documentId: string; amount: number }
   | { kind: "ustva"; vatReturnId: string; amount: number }
   | { kind: "steuer"; amount: number; steuer: NonNullable<ReturnType<typeof steuerangabe>> }
+  | { kind: "darlehen"; amount: number; darlehen: DarlehenWahl }
   | { kind: DirectBooking; amount: number };
 
 interface SplitRow {
@@ -1276,6 +1292,8 @@ interface SplitRow {
   amount: string;
   /** Nur bei "steuer": Steuerart, Bezugsjahr und Teil */
   steuer: SteuerWahl;
+  /** Nur bei "darlehen": Darlehen und Teil der Rate */
+  darlehen: DarlehenWahl;
 }
 
 let nextSplitKey = 1;
@@ -1289,6 +1307,7 @@ function SplitForm({
   splitCandidates,
   directKinds,
   steuerOptionen,
+  darlehenOptionen,
   busy,
   onCancel,
   onSubmit,
@@ -1298,20 +1317,22 @@ function SplitForm({
   splitCandidates: SplitTarget[];
   directKinds: Data["directKinds"];
   steuerOptionen: SteuerOptionen;
+  darlehenOptionen: DarlehenOptionen;
   busy: boolean;
   onCancel: () => void;
   onSubmit: (parts: SplitPart[]) => void;
 }) {
   const steuerStart = steuerWahlFuer(steuerOptionen, tx.bookingDate);
+  const darlehenStart = darlehenWahlFuer(darlehenOptionen, tx.amount);
   const [rows, setRows] = useState<SplitRow[]>(() =>
     initial
       ? [
-          { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open), steuer: steuerStart },
-          { key: nextSplitKey++, target: "gebuehren", amount: signed(tx.open - initial.open), steuer: steuerStart },
+          { key: nextSplitKey++, target: `${initial.type}:${initial.id}`, amount: signed(initial.open), steuer: steuerStart, darlehen: darlehenStart },
+          { key: nextSplitKey++, target: "gebuehren", amount: signed(tx.open - initial.open), steuer: steuerStart, darlehen: darlehenStart },
         ]
       : [
-          { key: nextSplitKey++, target: "", amount: signed(tx.open), steuer: steuerStart },
-          { key: nextSplitKey++, target: "gebuehren", amount: "", steuer: steuerStart },
+          { key: nextSplitKey++, target: "", amount: signed(tx.open), steuer: steuerStart, darlehen: darlehenStart },
+          { key: nextSplitKey++, target: "gebuehren", amount: "", steuer: steuerStart, darlehen: darlehenStart },
         ],
   );
 
@@ -1319,7 +1340,14 @@ function SplitForm({
   const sum = parsed.reduce<number>((s, p) => s + (p ?? 0), 0);
   const rest = tx.open - sum;
   const complete =
-    rows.every((r, i) => r.target && parsed[i] !== null && parsed[i] !== 0 && (r.target !== "steuer" || steuerangabe(r.steuer) !== null)) && rest === 0;
+    rows.every(
+      (r, i) =>
+        r.target &&
+        parsed[i] !== null &&
+        parsed[i] !== 0 &&
+        (r.target !== "steuer" || steuerangabe(r.steuer) !== null) &&
+        (r.target !== "darlehen" || r.darlehen.loanId !== ""),
+    ) && rest === 0;
 
   function update(key: number, patch: Partial<SplitRow>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -1330,6 +1358,7 @@ function SplitForm({
     if (id) return itemTarget(type, id, amount);
     const angabe = steuerangabe(row.steuer);
     if (row.target === "steuer" && angabe) return { kind: "steuer", amount, steuer: angabe };
+    if (row.target === "darlehen") return { kind: "darlehen", amount, darlehen: row.darlehen };
     return { kind: row.target as DirectBooking, amount };
   }
 
@@ -1370,7 +1399,7 @@ function SplitForm({
                 ))}
               </optgroup>
               <optgroup label="Ohne Rechnung">
-                {[...directKinds, STEUER_OPTION].map((k) => (
+                {[...directKinds, STEUER_OPTION, DARLEHEN_OPTION].map((k) => (
                   <option key={k.value} value={k.value}>
                     {k.label}
                   </option>
@@ -1406,6 +1435,11 @@ function SplitForm({
               <SteuerFelder options={steuerOptionen} value={row.steuer} onChange={(steuer) => update(row.key, { steuer })} />
             </div>
           )}
+          {row.target === "darlehen" && (
+            <div style={{ gridColumn: "1 / -1" }}>
+              <DarlehenFelder options={darlehenOptionen} value={row.darlehen} onChange={(darlehen) => update(row.key, { darlehen })} />
+            </div>
+          )}
         </div>
       ))}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -1413,7 +1447,12 @@ function SplitForm({
           type="button"
           className="btn btn-dashed"
           disabled={rows.length >= 20}
-          onClick={() => setRows((prev) => [...prev, { key: nextSplitKey++, target: "", amount: rest !== 0 ? signed(rest) : "", steuer: steuerStart }])}
+          onClick={() =>
+            setRows((prev) => [
+              ...prev,
+              { key: nextSplitKey++, target: "", amount: rest !== 0 ? signed(rest) : "", steuer: steuerStart, darlehen: darlehenStart },
+            ])
+          }
         >
           + Teil
         </button>

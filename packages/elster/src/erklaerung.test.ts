@@ -256,6 +256,16 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(tag(erstattet, "E6004301")).toBe("-200,00");
   });
 
+  it("übermittelt Schuldzinsen aus Darlehen in den Zeilen 55 und 56, zwischen Werbung und Vorsteuer", () => {
+    const mitZinsen = { ...figures, werbung: 10_000, schuldzinsenAnlage: 48_000, schuldzinsen: 24_000, vorsteuer: 5_000 };
+    const xml = buildEuerXml({ ...base, allgemein, figures: mitZinsen, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    expect(xml).toMatch(
+      /<Werbung>[\s\S]*<\/Werbung>\s*<Schuldzins_AnlageVerm>\s*<Sum>\s*<E6004202>480,00<\/E6004202>[\s\S]*<Schuldzins_Uebrige>\s*<Sum>\s*<E6004303>240,00<\/E6004303>\s*<\/Sum>\s*<\/Schuldzins_Uebrige>\s*<Vorsteuer>/,
+    );
+    expect(euerTotals(mitZinsen).ausgaben).toBe(euerTotals({ ...mitZinsen, schuldzinsenAnlage: 0, schuldzinsen: 0 }).ausgaben + 72_000);
+  });
+
   it("lässt die AVEÜR ohne Anlagen weg", () => {
     const xml = buildEuerXml({ ...base, allgemein: { artDesBetriebs: "Handel", einkunftsart: "gewerbe" }, figures: { steuerpflichtig: 100 }, anlagen: [] });
     expect(xml).not.toContain("<AVEUER>");

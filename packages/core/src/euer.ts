@@ -4,6 +4,7 @@ import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory, type TaxShare 
 import type { AllocatedSplitLine } from "./document-split.ts";
 import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
 import { steuerEuerWirkung, type Steuerart, type SteuerPosten } from "./steuerzahlung.ts";
+import { darlehenEuerZeile, type DarlehenTeil, type DarlehenZweck } from "./darlehen.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
 /**
@@ -79,6 +80,15 @@ export type EuerPayment =
       art: Steuerart;
       posten: SteuerPosten;
       group?: string;
+    }
+  | {
+      /** Teil eines Bankumsatzes zu einem Darlehen (darlehen.ts); Vorzeichen wie auf dem Konto */
+      kind: "darlehen";
+      date: string;
+      amount: Cents;
+      zweck: DarlehenZweck;
+      teil: DarlehenTeil;
+      group?: string;
     };
 
 export type EuerLineKey =
@@ -95,6 +105,8 @@ export type EuerLineKey =
   | `pauschale:${PauschaleArt}`
   | "personal"
   | "steuerNebenleistungen"
+  | "schuldzinsenAnlage"
+  | "schuldzinsen"
   | "afa"
   | "gwg"
   | "sammelposten"
@@ -144,6 +156,8 @@ export const EUER_LABELS = {
   restbuchwert: "Restbuchwert ausgeschiedener Anlagegüter",
   personal: "Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung",
   steuerNebenleistungen: "Zinsen und Zuschläge zu betrieblichen Steuern (abziehbare Nebenleistungen)",
+  schuldzinsenAnlage: "Schuldzinsen zur Finanzierung von Anlagevermögen",
+  schuldzinsen: "Übrige Schuldzinsen",
   vorsteuer: "Gezahlte Vorsteuerbeträge",
   gezahlteUst: "An das Finanzamt gezahlte Umsatzsteuer",
 } as const;
@@ -154,7 +168,7 @@ const monthIndex = (date: string) => Number(date.slice(5, 7)) - 1;
 type Netted = EuerPayment & { sum: Cents };
 
 /** Gruppe zum Verrechnen: Zahlung und Gegenzeile derselben Art, bei Steuerzahlungen auch derselben Steuerart und desselben Teils */
-const groupKey = (p: EuerPayment) => (p.kind === "steuer" ? `steuer|${p.art}|${p.posten}` : p.kind);
+const groupKey = (p: EuerPayment) => (p.kind === "steuer" ? `steuer|${p.art}|${p.posten}` : p.kind === "darlehen" ? `darlehen|${p.zweck}|${p.teil}` : p.kind);
 
 /** Addiert Zahlungen derselben Gruppe; ohne Gruppe bleibt jede Zahlung für sich. */
 function netGroups(payments: EuerPayment[]): Netted[] {
@@ -227,6 +241,11 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
         for (const { category, share } of documentShares(p, p.sum)) {
           const base = splitPrivateShare(share.base, p.privateShare ?? 0).business;
           const tax = splitPrivateShare(share.tax, p.privateShare ?? 0).business;
+          // Einfuhrumsatzsteuer: der ganze Betrag ist gezahlte Vorsteuer, wenn er abfließt (Kz 62); ohne Steuer im Betrag
+          if (category === "einfuhrumsatzsteuer") {
+            add("vorsteuer", share.base + share.tax);
+            continue;
+          }
           // Anschaffung einer Anlage ist keine Ausgabe; sie wirkt über die AfA. Die Vorsteuer schon.
           if (category === "anlage") {
             if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
@@ -289,6 +308,15 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
           monthlyOut[month]! -= p.sum;
         }
         break;
+      case "darlehen": {
+        // Auszahlung und Tilgung sind erfolgsneutral; Zinsen und Gebühren Schuldzinsen, wenn sie abfließen (§ 11 Abs. 2 EStG)
+        const zeile = darlehenEuerZeile(p.zweck, p.teil);
+        if (zeile) {
+          add(zeile, -p.sum);
+          monthlyOut[month]! -= p.sum;
+        }
+        break;
+      }
       case "lohn":
         // Ausgaben für eigenes Personal (Anlage EÜR, Personal): Lohn, einbehaltene Lohnsteuer und alle Beiträge
         add("personal", -p.sum);
@@ -315,8 +343,9 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     add("privateKfz", withdrawals.privateKfz);
     add("ustEntnahmen", withdrawals.ustEntnahmen);
   }
-  const optional = (key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste" | "personal" | "steuerNebenleistungen") =>
-    (sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : [];
+  const optional = (
+    key: "privateKfz" | "ustEntnahmen" | "kursgewinne" | "kursverluste" | "personal" | "steuerNebenleistungen" | "schuldzinsenAnlage" | "schuldzinsen",
+  ) => ((sums.get(key) ?? 0) !== 0 ? [line(key, EUER_LABELS[key])] : []);
   const einnahmen = [
     ...(sums.has("einnahmenKleinunternehmer") ? [line("einnahmenKleinunternehmer", EUER_LABELS.einnahmenKleinunternehmer)] : []),
     line("einnahmenSteuerpflichtig", EUER_LABELS.einnahmenSteuerpflichtig),
@@ -350,6 +379,8 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
     ...depreciationLines,
     ...optional("kursverluste"),
     ...optional("steuerNebenleistungen"),
+    ...optional("schuldzinsenAnlage"),
+    ...optional("schuldzinsen"),
     line("vorsteuer", EUER_LABELS.vorsteuer),
     line("gezahlteUst", EUER_LABELS.gezahlteUst),
   ];

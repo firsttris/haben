@@ -9,6 +9,7 @@ import {
   CURRENCY_CODE,
   documentPosting,
   documentSplitPosting,
+  einfuhrumsatzsteuerIssues,
   EXPENSE_CATEGORY_KEYS,
   formatRateMonth,
   mostFrequent,
@@ -644,6 +645,12 @@ export async function bookDocumentIn(tx: Tx, id: string): Promise<void> {
   // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
   if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
   if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
+  // Einfuhrumsatzsteuer (Kz 62): nur der Bescheid des Zolls allein, als Vorsteuer
+  if (splits.length === 0 && doc.category === "einfuhrumsatzsteuer") {
+    const rows = amounts.map((a) => ({ rate: a.taxRate, base: a.net, tax: a.tax }));
+    issues.push(...einfuhrumsatzsteuerIssues({ taxes: rows }, !company.kleinunternehmer, doc.privateShare, doc.reverseCharge));
+  }
+  if (splits.some((s) => s.category === "einfuhrumsatzsteuer")) issues.push("Die Einfuhrumsatzsteuer lässt sich nicht mit anderen Kategorien aufteilen");
   if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
 
   // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.

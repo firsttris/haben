@@ -6,6 +6,9 @@ import {
   paymentProviderAccount,
   STEUER_POSTEN,
   STEUER_POSTEN_KEYS,
+  DARLEHEN_TEILE,
+  DARLEHEN_TEIL_KEYS,
+  formatEuro,
   STEUERARTEN,
   steuerartenFor,
   suggestDirectBooking,
@@ -27,6 +30,7 @@ import {
   providerAccountSchema,
   importStatement,
   listAccounts,
+  listLoans,
   learnedDirectSuggestions,
   listTransactions,
   openItems,
@@ -104,6 +108,9 @@ export const getBankOverview = createServerFn({ method: "GET" })
       /** Steuerzahlung: Steuerarten der Rechtsform und Teile (Steuer, Zinsen, Zuschläge) */
       steuerarten: steuerartenFor((await loadCompany()).rechtsform).map((value) => ({ value, label: STEUERARTEN[value] })),
       steuerPosten: STEUER_POSTEN_KEYS.map((value) => ({ value, label: STEUER_POSTEN[value] })),
+      /** Darlehen mit Bestand und die Teile einer Rate */
+      loans: (await listLoans()).map((l) => ({ value: l.id, label: `${l.name} · Bestand ${formatEuro(l.balance)}` })),
+      loanParts: DARLEHEN_TEIL_KEYS.map((value) => ({ value, label: DARLEHEN_TEILE[value] })),
       purposes: Object.entries(ACCOUNT_PURPOSES).map(([value, label]) => ({ value, label })),
       providers: Object.entries(PAYMENT_PROVIDERS).map(([value, p]) => ({ value, label: p.label })),
       /** Sachkonto je Zahlungsdienstleister, zur Anzeige */

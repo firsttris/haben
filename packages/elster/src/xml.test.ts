@@ -118,6 +118,13 @@ describe("buildUstvaXml", () => {
     expect(order).toEqual([9, 41, 43, 61, 83, 89, 93]);
   });
 
+  it("schreibt die Einfuhrumsatzsteuer (62 in Cent) nach Kz 61 und vor Kz 66", () => {
+    const xml = buildUstvaXml({ ...base, figures: { kz81: 0, kz86: 0, kz66: 1_900, kz61: 500, kz62: 38_000, kz83: -40_400 } });
+    expect(tag(xml, "Kz62")).toBe("380.00");
+    const order = [...xml.matchAll(/<Kz(\d+)>/g)].map((m) => Number(m[1]));
+    expect(order).toEqual([9, 61, 62, 66, 83]);
+  });
+
   it("lässt Nullwerte weg, Kz83 aber nie", () => {
     const xml = buildUstvaXml({ ...base, figures: { kz81: 0, kz86: 0, kz66: 0, kz83: 0 } });
     expect(xml).not.toContain("<Kz81>");

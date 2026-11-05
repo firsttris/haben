@@ -47,7 +47,8 @@ type FieldKey =
   | "kz43"
   | "kz89"
   | "kz93"
-  | "kz61";
+  | "kz61"
+  | "kz62";
 const FIELDS: FieldKey[] = [
   "kz81",
   "kz86",
@@ -60,6 +61,7 @@ const FIELDS: FieldKey[] = [
   "kz47",
   "kz48",
   "kz61",
+  "kz62",
   "kz66",
   "kz67",
   "kz84",
@@ -595,6 +597,28 @@ function VatReturnEditor({ data, notice, setNotice }: { data: PageData; notice: 
               ) : (
                 <output id="kz-61" className="kz-amount">
                   {formatEuro(shown.kz61)}
+                </output>
+              )}
+            </div>
+          )}
+          {(shown.kz62 !== 0 || computed.kz62 !== 0) && (
+            <div className="kz-row">
+              <div className="kz-num">62</div>
+              <div className="kz-label">
+                <label htmlFor="kz-62">Entstandene Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG)</label>
+              </div>
+              <div />
+              {editable ? (
+                <input
+                  id="kz-62"
+                  inputMode="decimal"
+                  value={values.kz62}
+                  onChange={(event) => update("kz62", event.target.value)}
+                  aria-invalid={parsed.kz62 === null}
+                />
+              ) : (
+                <output id="kz-62" className="kz-amount">
+                  {formatEuro(shown.kz62)}
                 </output>
               )}
             </div>

@@ -193,6 +193,7 @@ Die Kategorie bestimmt das Aufwandskonto. Die Zuordnung steht in `packages/core/
 | Kfz: Reparaturen | 4540 | 6540 |
 | Kfz: Leasing | 4570 | 6560 |
 | Anlagegut (wird abgeschrieben) | Anlagekonto je Art | Anlagekonto je Art |
+| Einfuhrumsatzsteuer (Bescheid des Zolls), kein Aufwand, siehe [unten](#einfuhrumsatzsteuer) | 1588 | 1433 |
 
 **Bewirtung** von Geschäftspartnern zählt zu 70 % als Betriebsausgabe, die Vorsteuer voll; die Aufteilung macht die EÜR. **Geschenke** an Geschäftspartner sind nur bis 50 € netto je Empfänger und Jahr abziehbar (bis 2023: 35 €). Teurere Geschenke sind keine Betriebsausgabe, auch die Vorsteuer nicht: Buche sie mit Privatanteil 100 %.
 
@@ -293,6 +294,19 @@ Abzugrenzen sind:
 - **Dienstleistungen** aus dem EU-Ausland (Software-Abos, Cloud, Beratung): § 13b, siehe oben.
 - **Händler aus dem EU-Ausland mit deutscher Umsatzsteuer** auf der Rechnung, etwa im Versandhandel oder über einen Marktplatz: ein gewöhnlicher Beleg mit Vorsteuer. Der Sitz des Händlers oder der Marktplatz allein machen keinen Erwerb.
 - Ein Storno zählt wie bei allen Belegen im Monat des Stornos mit umgekehrtem Vorzeichen (Kz 89/93 und 61).
+
+## Einfuhrumsatzsteuer
+
+Bei der Einfuhr von Waren aus dem Drittland erhebt der Zoll die Einfuhrumsatzsteuer. Sie ist als Vorsteuer abziehbar (§ 15 Abs. 1 Satz 1 Nr. 2 UStG) und steht in der Voranmeldung in Kz 62. Lade den Bescheid des Zolls (Einfuhrabgabenbescheid) als Beleg hoch und wähle die Kategorie **Einfuhrumsatzsteuer (Bescheid des Zolls)**. Der Beleg enthält nur die Steuer, als **ein Betrag zu 0 %**; die Rechnung des Lieferanten über die Ware buchst du getrennt (ohne Vorsteuer, mit der Kategorie der Ware). Zölle und andere Abgaben auf demselben Bescheid gehören nicht in diesen Beleg, sondern zu den Kosten der Ware.
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 1588 Entstandene Einfuhrumsatzsteuer | 1433 | 380,00 | |
+| 1600 Verbindlichkeiten | 3300 Verbindlichkeiten | | 380,00 |
+
+- **Voranmeldung:** Kz 62 im Monat des Belegdatums, bei Ist- und Soll-Versteuerung; sie mindert die Zahllast (Kz 83) wie Vorsteuer.
+- **EÜR:** gezahlte Vorsteuer, wenn der Bescheid bezahlt ist (im Bankabgleich wie jeder Beleg); keine Betriebsausgabe.
+- **Nicht unterstützt:** Kleinunternehmer und Belege ohne Vorsteuerabzug (dann gehört die Einfuhrumsatzsteuer zu den Kosten der Ware; buche sie mit deren Kategorie), Privatanteil, § 13b und Aufteilung mit anderen Kategorien. Die Umsatzsteuer-Jahreserklärung übermittelt Haben für ein Jahr mit Einfuhrumsatzsteuer nicht; die Seite nennt die Werte für das ELSTER-Portal.
 
 ## Bezahlung
 
@@ -459,7 +473,7 @@ Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hoch
 - Nur die Steuersätze 19 %, 7 % und 0 %, je Satz eine Zeile.
 - Aufteilung auf mehrere Kategorien nur auf die festen Kategorien, nicht auf frei gewählte Sachkonten, und nur mit deutscher Umsatzsteuer in Euro: nicht mit § 13b, Privatanteil, Fremdwährung oder Anlagegut. Die Steuerbehandlung gilt für den ganzen Beleg, nicht je Zeile.
 - § 13b nur für sonstige Leistungen ausländischer Unternehmer (Kz 46/47 und 84/85), nicht für Bauleistungen, Gebäudereinigung, Gold oder Mobilfunkgeräte, und nicht bei Anlagegütern. Waren aus dem EU-Ausland sind ein [innergemeinschaftlicher Erwerb](#innergemeinschaftlicher-erwerb--1a-ustg); einen Beleg der Kategorie „Wareneinkauf (Handelsware)“ mit § 13b bucht Haben nicht.
-- Innergemeinschaftlicher Erwerb nur steuerpflichtig zu 19 % oder 7 % (Kz 89/93 und 61). Nicht unterstützt: steuerfreie Erwerbe (§ 4b UStG, Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), neue Fahrzeuge ohne USt-IdNr. des Lieferanten, Erwerbe als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG), Dreiecksgeschäfte als letzter Abnehmer (§ 25b UStG), Aufteilung auf mehrere Kategorien und erhaltenes Skonto. Die Einfuhr aus dem Drittland (Einfuhrumsatzsteuer) ist kein Erwerb und noch nicht unterstützt.
+- Innergemeinschaftlicher Erwerb nur steuerpflichtig zu 19 % oder 7 % (Kz 89/93 und 61). Nicht unterstützt: steuerfreie Erwerbe (§ 4b UStG, Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98), neue Fahrzeuge ohne USt-IdNr. des Lieferanten, Erwerbe als Kleinunternehmer (Erwerbsschwelle, § 1a Abs. 3 UStG), Dreiecksgeschäfte als letzter Abnehmer (§ 25b UStG), Aufteilung auf mehrere Kategorien und erhaltenes Skonto. Die Einfuhr aus dem Drittland ist kein Erwerb; die Einfuhrumsatzsteuer erfasst du mit dem Bescheid des Zolls (siehe [Einfuhrumsatzsteuer](#einfuhrumsatzsteuer)).
 - Keine Abschreibung über mehrere Jahre; die Kategorie Hardware ist für geringwertige Wirtschaftsgüter gedacht.
 - HEIC-Fotos werden abgelegt, aber weder in der Vorschau angezeigt noch von der KI gelesen.
 - Dauerbelege nur für Ausgaben in Euro mit festen Beträgen, ohne § 13b, innergemeinschaftlichen Erwerb, Aufteilung auf mehrere Kategorien, Privatanteil oder Anlagegut; eine eigene Kategorie für Miete gibt es noch nicht (bis dahin etwa Sonstiger Aufwand).

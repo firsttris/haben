@@ -11,6 +11,7 @@ import {
   directPosting,
   documentPaymentPosting,
   documentPosting,
+  einfuhrumsatzsteuerIssues,
   invoiceCashPaymentPosting,
   invoicePaymentPosting,
   invoicePosting,
@@ -482,5 +483,27 @@ describe("Beschriftung nach Rechtsform", () => {
     expect(cashBookingLabel("einlage", "einzelunternehmen")).toBe("Einlage");
     expect(cashBookingLabel("entnahme", "ug")).toBe("An den Gesellschafter");
     expect(cashBookingLabel("abhebung", "gmbh")).toBe("Abhebung von der Bank");
+  });
+});
+
+describe("Einfuhrumsatzsteuer (Bescheid des Zolls, Kz 62)", () => {
+  const bescheid = { net: 380_00, tax: 0, gross: 380_00, taxes: [{ rate: 0 as const, base: 380_00, tax: 0 }] };
+
+  it.each([
+    ["SKR03", "1588", "1600"],
+    ["SKR04", "1433", "3300"],
+  ] as const)("%s: Entstandene Einfuhrumsatzsteuer an Verbindlichkeiten, ohne Aufwand", (kr, konto, verbindlichkeiten) => {
+    expect(documentPosting(bescheid, "einfuhrumsatzsteuer", kr, "einzelunternehmen", "bank")).toEqual([
+      { account: konto, debit: 380_00, credit: 0, taxCode: "EUSt" },
+      { account: verbindlichkeiten, debit: 0, credit: 380_00, taxCode: null },
+    ]);
+  });
+
+  it("nur ein Betrag zu 0 %, nur mit Vorsteuerabzug, ohne Privatanteil und § 13b", () => {
+    expect(einfuhrumsatzsteuerIssues(bescheid, true, 0, null)).toEqual([]);
+    expect(einfuhrumsatzsteuerIssues({ taxes: [{ rate: 1900, base: 2000_00, tax: 380_00 }] }, true, 0, null)).toHaveLength(1);
+    expect(einfuhrumsatzsteuerIssues(bescheid, false, 0, null)[0]).toMatch(/Ohne Vorsteuerabzug/);
+    expect(einfuhrumsatzsteuerIssues(bescheid, true, 20, "eu")).toHaveLength(2);
+    expect(() => documentPosting(bescheid, "einfuhrumsatzsteuer", "SKR03", "einzelunternehmen", "bank", false)).toThrow(RangeError);
   });
 });

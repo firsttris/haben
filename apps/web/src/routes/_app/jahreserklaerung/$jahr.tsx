@@ -204,6 +204,9 @@ function UstSection({ data }: { data: Data }) {
             {ust.igErwerbVorsteuer !== 0 && (
               <Row label="Vorsteuer aus innergemeinschaftlichem Erwerb" extra="" value={`−${formatEuro(ust.igErwerbVorsteuer)}`} />
             )}
+            {ust.einfuhrumsatzsteuer !== 0 && (
+              <Row label="Entstandene Einfuhrumsatzsteuer (Kz 62)" extra="" value={`−${formatEuro(ust.einfuhrumsatzsteuer)}`} />
+            )}
             <Row label="Abziehbare Vorsteuer" extra="" value={`−${formatEuro(f.vorsteuer)}`} />
             <Row label={ust.steuer >= 0 ? "Umsatzsteuer" : "Überschuss"} extra="" value={formatEuro(ust.steuer)} total />
             <Row label="Vorauszahlungssoll (gesendete Voranmeldungen)" extra="" value={`−${formatEuro(f.vorauszahlungen)}`} />

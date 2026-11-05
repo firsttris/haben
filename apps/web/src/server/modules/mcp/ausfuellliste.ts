@@ -85,6 +85,12 @@ const FELDER: { kz: Feld; abschnitt: string; bezeichnung: string; volleEuro: boo
     volleEuro: false,
   },
   {
+    kz: "kz62",
+    abschnitt: "Abziehbare Vorsteuerbeträge",
+    bezeichnung: "Entstandene Einfuhrumsatzsteuer (§ 15 Abs. 1 Satz 1 Nr. 2 UStG)",
+    volleEuro: false,
+  },
+  {
     kz: "kz67",
     abschnitt: "Abziehbare Vorsteuerbeträge",
     bezeichnung: "Vorsteuerbeträge aus Leistungen im Sinne des § 13b UStG (§ 15 Abs. 1 Satz 1 Nr. 4 UStG)",

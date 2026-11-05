@@ -17,6 +17,7 @@ import { Route as AppAusschuettungenRouteImport } from './routes/_app/ausschuett
 import { Route as AppAuswertungenRouteImport } from './routes/_app/auswertungen'
 import { Route as AppBankRouteImport } from './routes/_app/bank'
 import { Route as AppCsvImportRouteImport } from './routes/_app/csv-import'
+import { Route as AppDarlehenRouteImport } from './routes/_app/darlehen'
 import { Route as AppEinstellungenRouteImport } from './routes/_app/einstellungen'
 import { Route as AppFinanzamtRouteImport } from './routes/_app/finanzamt'
 import { Route as AppFristenRouteImport } from './routes/_app/fristen'
@@ -140,6 +141,11 @@ const AppBankRoute = AppBankRouteImport.update({
 const AppCsvImportRoute = AppCsvImportRouteImport.update({
   id: '/csv-import',
   path: '/csv-import',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDarlehenRoute = AppDarlehenRouteImport.update({
+  id: '/darlehen',
+  path: '/darlehen',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEinstellungenRoute = AppEinstellungenRouteImport.update({
@@ -588,6 +594,7 @@ export interface FileRoutesByFullPath {
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
   '/csv-import': typeof AppCsvImportRoute
+  '/darlehen': typeof AppDarlehenRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -681,6 +688,7 @@ export interface FileRoutesByTo {
   '/auswertungen': typeof AppAuswertungenRoute
   '/bank': typeof AppBankRoute
   '/csv-import': typeof AppCsvImportRoute
+  '/darlehen': typeof AppDarlehenRoute
   '/einstellungen': typeof AppEinstellungenRoute
   '/finanzamt': typeof AppFinanzamtRoute
   '/fristen': typeof AppFristenRoute
@@ -777,6 +785,7 @@ export interface FileRoutesById {
   '/_app/auswertungen': typeof AppAuswertungenRoute
   '/_app/bank': typeof AppBankRoute
   '/_app/csv-import': typeof AppCsvImportRoute
+  '/_app/darlehen': typeof AppDarlehenRoute
   '/_app/einstellungen': typeof AppEinstellungenRoute
   '/_app/finanzamt': typeof AppFinanzamtRoute
   '/_app/fristen': typeof AppFristenRoute
@@ -874,6 +883,7 @@ export interface FileRouteTypes {
     | '/auswertungen'
     | '/bank'
     | '/csv-import'
+    | '/darlehen'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -967,6 +977,7 @@ export interface FileRouteTypes {
     | '/auswertungen'
     | '/bank'
     | '/csv-import'
+    | '/darlehen'
     | '/einstellungen'
     | '/finanzamt'
     | '/fristen'
@@ -1062,6 +1073,7 @@ export interface FileRouteTypes {
     | '/_app/auswertungen'
     | '/_app/bank'
     | '/_app/csv-import'
+    | '/_app/darlehen'
     | '/_app/einstellungen'
     | '/_app/finanzamt'
     | '/_app/fristen'
@@ -1245,6 +1257,13 @@ declare module '@tanstack/react-router' {
       path: '/csv-import'
       fullPath: '/csv-import'
       preLoaderRoute: typeof AppCsvImportRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/darlehen': {
+      id: '/_app/darlehen'
+      path: '/darlehen'
+      fullPath: '/darlehen'
+      preLoaderRoute: typeof AppDarlehenRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/einstellungen': {
@@ -1850,6 +1869,7 @@ interface AppRouteChildren {
   AppAuswertungenRoute: typeof AppAuswertungenRoute
   AppBankRoute: typeof AppBankRoute
   AppCsvImportRoute: typeof AppCsvImportRoute
+  AppDarlehenRoute: typeof AppDarlehenRoute
   AppEinstellungenRoute: typeof AppEinstellungenRoute
   AppFinanzamtRoute: typeof AppFinanzamtRoute
   AppFristenRoute: typeof AppFristenRoute
@@ -1910,6 +1930,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAuswertungenRoute: AppAuswertungenRoute,
   AppBankRoute: AppBankRoute,
   AppCsvImportRoute: AppCsvImportRoute,
+  AppDarlehenRoute: AppDarlehenRoute,
   AppEinstellungenRoute: AppEinstellungenRoute,
   AppFinanzamtRoute: AppFinanzamtRoute,
   AppFristenRoute: AppFristenRoute,

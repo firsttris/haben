@@ -107,6 +107,7 @@ describe("Rechte der Rollen", () => {
       "/bank",
       "/umsatzsteuer",
       "/lohn",
+      "/darlehen",
       "/konten/abc",
     ]) {
       expect(steuerberatungSieht(path), path).toBe(false);

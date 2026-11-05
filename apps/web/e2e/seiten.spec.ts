@@ -38,6 +38,7 @@ async function routes(page: Page): Promise<[string, string | null][]> {
     ["ueberweisungen", "/ueberweisungen"],
     ["pauschalen", "/pauschalen"],
     ["kasse", "/kasse"],
+    ["darlehen", "/darlehen"],
     ["bank", "/bank"],
     ["anlagen", "/anlagen"],
     ["anlage-neu", "/anlagen/neu"],

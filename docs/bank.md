@@ -283,6 +283,7 @@ Für Umsätze ohne Rechnung oder Beleg klickst du **Ohne Rechnung buchen**, wäh
 | Mahngebühren und Verzugszinsen (vom Kunden) | 2650 | 7100 |
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 |
 | Steuerzahlung oder Erstattung (Finanzamt, Gemeinde), siehe [Steuerzahlungen](#steuerzahlungen) | je nach Steuerart und Teil | je nach Steuerart und Teil |
+| Darlehen: Auszahlung, Tilgung, Zinsen oder Gebühren, siehe [Darlehen](#darlehen) | je nach Darlehen und Teil | je nach Darlehen und Teil |
 | Kapitalertragsteuer an das Finanzamt (Ausschüttung), nur GmbH und UG | 1746 Verbindlichkeiten aus Einbehaltungen | 3760 |
 | Lohn/Gehalt an Mitarbeiter | 1740 Verbindlichkeiten aus Lohn und Gehalt | 3720 |
 | Lohnsteuer an das Finanzamt | 1741 Verbindlichkeiten aus Lohn- und Kirchensteuer | 3730 |
@@ -349,6 +350,42 @@ Die EÜR 2026 bleibt dadurch unverändert; die 543,00 € stehen nachrichtlich a
 **GmbH und UG:** Eine Nachzahlung von Körperschaftsteuer, Soli oder Gewerbesteuer für ein Vorjahr verbraucht zuerst die Rückstellung, die der [Jahresabschluss](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug) zum 31.12. dieses Jahres gebucht hat, soweit Zahlungen für dasselbe Jahr sie nicht schon verbraucht haben; nur der Rest ist Aufwand für Vorjahre. Bleibt nach dem endgültigen Bescheid ein Rest der Rückstellung stehen, löst ihr ihn mit der Steuerberatung als manuelle Buchung auf. Nicht abziehbare Zinsen und Zuschläge rechnet die Steuerberechnung dem Einkommen wieder hinzu.
 
 **Nicht unterstützt:** Erstattungszinsen zur Gewerbe- und Körperschaftsteuer (der DATEV-Kontenrahmen führt sie auf steuerfreien Konten, deren Kürzung die Erklärungen in Haben nicht abbilden) und Steuern, die nicht in der Auswahl stehen. Die Kfz-Steuer kommt weiter mit einem Beleg (Kategorie „Kfz: Steuer“), die Lohnsteuer über die [Lohnabrechnung](lohn.md#buchung).
+
+### Darlehen
+
+Ein aufgenommenes Darlehen legst du unter **Geld › Darlehen** an: Name, **Darlehensgeber** (Kreditinstitut oder anderer Darlehensgeber; Darlehen von Gesellschaftern laufen weiter über das Gesellschafter-Verrechnungskonto), **Restlaufzeit** und **Verwendung** (laufender Betrieb oder Finanzierung von Anlagevermögen). Ein laufendes Darlehen bringt seine **Restschuld** zum Stichtag mit, etwa beim Umzug in Haben; ein neues beginnt bei null und bekommt seinen Bestand mit der Auszahlung. Die Seite zeigt je Darlehen das Konto und den **Bestand**: Restschuld beim Anlegen plus Auszahlungen minus Tilgungen aus dem Bankabgleich. Nach der ersten Zuordnung sind Geber, Restlaufzeit, Verwendung und Restschuld fest, weil sie die Konten der gebuchten Zahlungen bestimmen; der Name bleibt änderbar.
+
+Im Bankabgleich ordnest du unter **Ohne Rechnung buchen** bzw. mit **Aufteilen** „Darlehen“ zu, mit dem Darlehen und dem Teil:
+
+| Teil | Buchung | EÜR (Einzelunternehmen) |
+| --- | --- | --- |
+| Auszahlung (Eingang) | Bank an Darlehen | keine Wirkung |
+| Tilgung (Ausgang, höchstens bis zum Bestand) | Darlehen an Bank | keine Wirkung |
+| Zinsen | Zinsaufwand an Bank | Schuldzinsen |
+| Gebühren (Bearbeitung, Bereitstellung) | Kreditprovisionen und Verwaltungskostenbeiträge an Bank | Schuldzinsen |
+
+Konten (DATEV-Kontenrahmen 2026): Das Darlehen steht nach Geber und Restlaufzeit auf
+
+| Restlaufzeit | Kreditinstitut SKR03 | SKR04 | Anderer Geber SKR03 | SKR04 |
+| --- | --- | --- | --- | --- |
+| ohne Angabe | 0630 | 3150 | 1705 Darlehen | 3560 |
+| bis 1 Jahr | 0631 | 3151 | 1706 | 3561 |
+| 1 bis 5 Jahre | 0640 | 3160 | 1707 | 3564 |
+| größer 5 Jahre | 0650 | 3170 | 1708 | 3567 |
+
+Eine Grenze für die Restlaufzeit legt Haben nicht fest: Du wählst sie beim Anlegen. Ohne Angabe bestätigst du sie in einer GmbH oder UG im [Jahresabschluss](buchhaltung.md#vermerke-unter-der-bilanz) je Konto (§ 268 Abs. 5 HGB); die Konten mit Restlaufzeit vermerkt Haben dort von selbst. Zinsen gehen bei der Finanzierung von Anlagevermögen auf 2126 bzw. 7326 (Zinsen zur Finanzierung des Anlagevermögens), sonst auf 2120 bzw. 7320 (langfristige Verbindlichkeiten), mit Restlaufzeit bis zu einem Jahr auf 2110 bzw. 7310; Gebühren auf 2141 bzw. 7355.
+
+Beispiel: Die Bank bucht eine Rate von 1.000,00 € ab, davon 800,00 € Tilgung und 200,00 € Zinsen. Mit **Aufteilen** in zwei Teile:
+
+| Konto SKR03 | Konto SKR04 | Soll | Haben |
+| --- | --- | ---: | ---: |
+| 0630 Verbindlichkeiten gegenüber Kreditinstituten | 3150 | 800,00 | |
+| 2120 Zinsaufwendungen für langfristige Verbindlichkeiten | 7320 | 200,00 | |
+| 1200 Bank | 1800 Bank | | 1.000,00 |
+
+Der Umsatz ist ganz zugeordnet, der Bestand sinkt um 800,00 €, in der EÜR zählen nur die 200,00 € als Schuldzinsen (Anlage EÜR: übrige Schuldzinsen bzw. Schuldzinsen zur Finanzierung von Anlagevermögen). Die Grenze für Schuldzinsen bei Überentnahmen (§ 4 Abs. 4a EStG, Anlage SZ) rechnet Haben nicht; hast du mehr entnommen, als du Gewinn und Einlagen hattest, prüft das die Steuerberatung. In GmbH und UG rechnet die Steuerberechnung die Zinsen dem Gewerbeertrag anteilig hinzu (§ 8 Nr. 1 a GewStG, über dem Freibetrag).
+
+**Nicht unterstützt:** Darlehen, die das Unternehmen vergibt, Darlehen in Fremdwährung, Disagio und Gesellschafterdarlehen mit eigenem Konto.
 
 ## Zahlungsdienstleister
 
