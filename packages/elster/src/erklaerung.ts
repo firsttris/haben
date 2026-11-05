@@ -275,7 +275,8 @@ export interface EuerFigures {
   /** Nicht abziehbare 30 % der Bewirtung; nur zur Information, nicht in den Betriebsausgaben */
   bewirtungNichtAbziehbar?: Cents;
   /**
-   * Gewerbesteuer und Nebenleistungen darauf, abzüglich Erstattungen: keine Betriebsausgabe (§ 4 Abs. 5b EStG); nach der
+   * Gewerbesteuer und Nebenleistungen darauf, abzüglich Erstattungen, und Hinterziehungszinsen: keine Betriebsausgabe (§ 4
+   * Abs. 5b, Abs. 5 Satz 1 Nr. 8a EStG); nach der
    * Anleitung zur Anlage EÜR in der Zeile der sonstigen beschränkt abziehbaren Betriebsausgaben, Spalte „nicht abziehbar“
    */
   gewerbesteuerNichtAbziehbar?: Cents;
@@ -366,7 +367,10 @@ export const EUER_FIELDS: Record<
   bewirtung: { kz: "E6004102", label: "Bewirtungsaufwendungen (abziehbar)" },
   bewirtungNichtAbziehbar: { kz: "E6004101", label: "Bewirtungsaufwendungen (nicht abziehbar)" },
   // Schema E77-2023 bis E77-2026: /EUER/BAus/Beschr_abziehbar/Nicht_abziehbar/Sonst/Sum/E6004301, darf negativ sein
-  gewerbesteuerNichtAbziehbar: { kz: "E6004301", label: "Sonstige beschränkt abziehbare Betriebsausgaben (nicht abziehbar): Gewerbesteuer" },
+  gewerbesteuerNichtAbziehbar: {
+    kz: "E6004301",
+    label: "Sonstige beschränkt abziehbare Betriebsausgaben (nicht abziehbar): Gewerbesteuer, Hinterziehungszinsen",
+  },
   verpflegung: { kz: "E6005002", label: "Verpflegungsmehraufwendungen" },
   tagespauschale: { kz: "E6006405", label: "Tagespauschale für die Tätigkeit in der häuslichen Wohnung" },
   fahrtNutzungseinlage: { kz: "E6006103", label: "Fahrtkosten für nicht zum Betriebsvermögen gehörende Fahrzeuge (Nutzungseinlage)" },

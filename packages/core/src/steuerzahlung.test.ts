@@ -276,7 +276,8 @@ describe("EÜR nach Zahlung", () => {
     expect(steuerEuerWirkung("ust", "steuer", -1)).toBe("umsatzsteuer");
     expect(steuerEuerWirkung("ust", "zinsen233a", 1)).toBe("einnahme");
     expect(steuerEuerWirkung("ust", "zinsen233a", -1)).toBe("nebenleistung");
-    expect(steuerEuerWirkung("gewst", "saeumnis", -1)).toBe("gewerbesteuer");
+    expect(steuerEuerWirkung("gewst", "saeumnis", -1)).toBe("nichtAbziehbar");
+    expect(steuerEuerWirkung("ust", "zinsen235", -1)).toBe("nichtAbziehbar");
     expect(steuerEuerWirkung("kist", "steuer", -1)).toBe("privat");
     expect(steuerEuerWirkung("kapest", "steuer", -1)).toBe("privat");
   });

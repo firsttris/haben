@@ -308,7 +308,7 @@ Zahlungen an das Finanzamt oder die Gemeinde und Erstattungen von dort, die kein
 
 - **Steuerart:** Umsatzsteuer, Gewerbesteuer, im Einzelunternehmen Einkommensteuer, Kirchensteuer und Solidaritätszuschlag, in GmbH und UG Körperschaftsteuer und Solidaritätszuschlag, dazu die von der Bank einbehaltene Kapitalertragsteuer (siehe oben).
 - **Bezugsjahr:** das Jahr, für das die Steuer festgesetzt ist, etwa 2024 für den Bescheid über die Gewerbesteuer 2024. Es bleibt am Vorgang stehen; gezählt wird die Zahlung trotzdem am Tag der Zahlung (§ 11 EStG).
-- **Teil der Zahlung:** die Steuer selbst oder eine steuerliche Nebenleistung (§ 3 Abs. 4 AO): Nachzahlungs- oder Erstattungszinsen (§ 233a AO), Stundungs-, Hinterziehungs- oder Aussetzungszinsen (§§ 234 bis 237 AO), Säumniszuschlag (§ 240 AO), Verspätungszuschlag (§ 152 AO) oder Zwangsgeld (§ 329 AO).
+- **Teil der Zahlung:** die Steuer selbst oder eine steuerliche Nebenleistung (§ 3 Abs. 4 AO): Nachzahlungs- oder Erstattungszinsen (§ 233a AO), Stundungs- oder Aussetzungszinsen (§§ 234, 237 AO), Hinterziehungszinsen (§ 235 AO), Säumniszuschlag (§ 240 AO), Verspätungszuschlag (§ 152 AO) oder Zwangsgeld (§ 329 AO).
 
 Ob Zinsen und Zuschläge den Gewinn mindern, entscheidet die Steuerart, nicht das Wort „Zinsen“ im Verwendungszweck: Zur Umsatzsteuer sind sie Betriebsausgaben, zur Gewerbesteuer nicht (§ 4 Abs. 5b EStG), zur Einkommensteuer privat (§ 12 Nr. 3 EStG), zur Körperschaftsteuer nicht abziehbar (§ 10 Nr. 2 KStG). Ein Bescheid mit Steuer, Zinsen und Zuschlag in einer Zahlung wird mit **Aufteilen** auf mehrere Teile verteilt, jeder mit eigener Steuerart, eigenem Bezugsjahr und eigenem Teil; zusammen ergeben sie den Umsatz, aufgehoben wird nur die ganze Aufteilung.
 
@@ -320,14 +320,15 @@ Gebucht wird ohne Steuerschlüssel: Eine Steuerzahlung erzeugt weder Umsatz noch
 | Umsatzsteuer, Steuer für frühere Jahre | 1791 Umsatzsteuerverbindlichkeiten frühere Jahre | 3845 | gezahlte bzw. erstattete Umsatzsteuer |
 | Gewerbesteuer des laufenden Jahres (Vorauszahlung) | 4320 Gewerbesteuer | 7610 | keine Betriebsausgabe, nachrichtlich |
 | Gewerbesteuer für Vorjahre, Nachzahlung und Erstattung | 2281 Gewerbesteuernachzahlungen und -erstattungen für Vorjahre nach § 4 Abs. 5b EStG | 7641 | keine Betriebsausgabe, nachrichtlich |
-| Einkommen-, Kirchensteuer, Soli des Inhabers, mit Zinsen und Zuschlägen | 1810 Privatsteuern | 2150 | Entnahme bzw. Einlage |
+| Einkommen-, Kirchensteuer, Soli des Inhabers, mit Zinsen und Zuschlägen | 1810 Privatsteuern | 2150 | Entnahme; übersteigen die Erstattungen im Jahr die Zahlungen, Einlage |
 | Erstattungszinsen zur Einkommensteuer | 1890 Privateinlagen | 2180 | Einlage (private Kapitalerträge, § 20 Abs. 1 Nr. 7 EStG) |
 | Körperschaftsteuer bzw. Soli des laufenden Jahres (GmbH) | 2200 bzw. 2208 | 7600 bzw. 7608 | – |
 | Körperschaftsteuer bzw. Soli für Vorjahre (GmbH), Nachzahlung | 2203 bzw. 2209, vorher die Rückstellung 0963 | 7603 bzw. 7609, vorher 3040 | – |
 | Körperschaftsteuer bzw. Soli für Vorjahre (GmbH), Erstattung | 2204 bzw. 2210 | 7604 bzw. 7607 | – |
 | Gewerbesteuer für Vorjahre (GmbH), Nachzahlung | 2281, vorher die Rückstellung 0956 | 7641, vorher 3035 | – |
 | Zinsen § 233a AO zur Umsatzsteuer / zu Gewerbe- und Körperschaftsteuer | 2107 / 2105 | 7305 / 7308 | Betriebsausgabe / nachrichtlich bei der Gewerbesteuer |
-| Zinsen §§ 234 bis 237 AO zur Umsatzsteuer / zu Gewerbe- und Körperschaftsteuer | 2111 / 2108 | 7311 / 7306 | Betriebsausgabe / nachrichtlich bei der Gewerbesteuer |
+| Stundungs- und Aussetzungszinsen (§§ 234, 237 AO) zur Umsatzsteuer / zu Gewerbe- und Körperschaftsteuer | 2111 / 2108 | 7311 / 7306 | Betriebsausgabe / nachrichtlich bei der Gewerbesteuer |
+| Hinterziehungszinsen (§ 235 AO), auch zur Umsatzsteuer | 2108 | 7306 | nie abziehbar (§ 4 Abs. 5 Satz 1 Nr. 8a EStG), nachrichtlich bei der Gewerbesteuer |
 | Säumniszuschlag zur Umsatzsteuer / zur Gewerbesteuer / zur Körperschaftsteuer | 2103 / 2102 / 2104 | 7303 / 7302 / 7304 | Betriebsausgabe / nachrichtlich bei der Gewerbesteuer |
 | Verspätungszuschlag, Zwangsgeld zur Umsatzsteuer / zu Gewerbe- und Körperschaftsteuer | 4396 / 4397 | 6436 / 6437 | Betriebsausgabe / nachrichtlich bei der Gewerbesteuer |
 | Erstattungszinsen § 233a AO zur Umsatzsteuer | 2657 Zinserträge § 233a AO, steuerpflichtig | 7105 | Betriebseinnahme |

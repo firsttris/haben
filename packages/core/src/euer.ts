@@ -119,7 +119,8 @@ export interface EuerResult {
   /** Nicht abziehbarer Teil der Bewirtung (30 %): mindert den Gewinn nicht, steht aber in der Anlage EÜR */
   bewirtungNichtAbziehbar: Cents;
   /**
-   * Gezahlte Gewerbesteuer und Nebenleistungen darauf abzüglich Erstattungen: keine Betriebsausgabe (§ 4 Abs. 5b EStG),
+   * Gezahlte Gewerbesteuer und Nebenleistungen darauf abzüglich Erstattungen: keine Betriebsausgabe (§ 4 Abs. 5b EStG), dazu
+   * Hinterziehungszinsen (§ 4 Abs. 5 Satz 1 Nr. 8a EStG);
    * in der Anlage EÜR nachrichtlich unter den sonstigen beschränkt abziehbaren Betriebsausgaben, Spalte „nicht abziehbar“
    */
   gewerbesteuerNichtAbziehbar: Cents;
@@ -270,7 +271,7 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
             add("steuerNebenleistungen", -p.sum);
             monthlyOut[month]! -= p.sum;
             break;
-          case "gewerbesteuer":
+          case "nichtAbziehbar":
             gewerbesteuerNichtAbziehbar -= p.sum;
             break;
           // Private Steuern sind Entnahmen bzw. Einlagen; die zählt die Anlage EÜR aus den Privatkonten
@@ -377,7 +378,11 @@ export function euerToCsv(euer: EuerResult): string {
   rows.push(["Ergebnis", euer.gewinn >= 0 ? "Gewinn" : "Verlust", euer.gewinn]);
   if (euer.bewirtungNichtAbziehbar !== 0) rows.push(["Nachrichtlich", "Nicht abziehbare Bewirtungsaufwendungen (30 %)", euer.bewirtungNichtAbziehbar]);
   if (euer.gewerbesteuerNichtAbziehbar !== 0) {
-    rows.push(["Nachrichtlich", "Gewerbesteuer und Nebenleistungen darauf (nicht abziehbar, § 4 Abs. 5b EStG)", euer.gewerbesteuerNichtAbziehbar]);
+    rows.push([
+      "Nachrichtlich",
+      "Gewerbesteuer und Nebenleistungen darauf, Hinterziehungszinsen (nicht abziehbar, § 4 Abs. 5b, Abs. 5 Satz 1 Nr. 8a EStG)",
+      euer.gewerbesteuerNichtAbziehbar,
+    ]);
   }
   return toCsv(rows);
 }

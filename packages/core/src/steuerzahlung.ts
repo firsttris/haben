@@ -33,7 +33,9 @@ export const STEUERART_KEYS = Object.keys(STEUERARTEN) as [Steuerart, ...Steuera
 export const STEUER_POSTEN = {
   steuer: "Steuer",
   zinsen233a: "Nachzahlungs- oder Erstattungszinsen (§ 233a AO)",
-  zinsen: "Stundungs-, Hinterziehungs- oder Aussetzungszinsen (§§ 234 bis 237 AO)",
+  zinsen: "Stundungs- oder Aussetzungszinsen (§§ 234, 237 AO)",
+  /** Nie abziehbar, auch zu betrieblichen Steuern (§ 4 Abs. 5 Satz 1 Nr. 8a EStG) */
+  zinsen235: "Hinterziehungszinsen (§ 235 AO)",
   saeumnis: "Säumniszuschlag (§ 240 AO)",
   verspaetung: "Verspätungszuschlag (§ 152 AO) oder Zwangsgeld (§ 329 AO)",
 } as const;
@@ -205,6 +207,7 @@ const fehler = (text: string): SteuerKontierung => ({ ok: false, fehler: text })
 function nebenleistungKonto(posten: Exclude<SteuerPosten, "steuer">, gruppe: SteuerGruppe, kontenrahmen: Kontenrahmen): string {
   const k = STEUER_KONTEN[kontenrahmen];
   const abziehbar = gruppe === "betrieblich";
+  if (posten === "zinsen235") return k.zinsenNichtAbziehbar;
   if (posten === "zinsen233a") return abziehbar ? k.zinsen233aAbziehbar : k.zinsen233aNichtAbziehbar;
   if (posten === "zinsen") return abziehbar ? k.zinsenAbziehbar : k.zinsenNichtAbziehbar;
   if (posten === "verspaetung") return abziehbar ? k.verspaetungAbziehbar : k.verspaetungNichtAbziehbar;
@@ -325,16 +328,17 @@ export function steuerzahlungText(angabe: Steuerangabe, amount: Cents): string {
 
 /**
  * Wirkung in der EÜR (Einzelunternehmen, § 4 Abs. 3 EStG, nach Zahlung): gezahlte bzw. erstattete Umsatzsteuer,
- * Erstattungszinsen als Einnahme, abziehbare Nebenleistungen als Ausgabe, Gewerbesteuer samt Nebenleistungen nur
- * nachrichtlich (Anlage EÜR: Zeile „sonstige beschränkt abziehbare Betriebsausgaben“, Spalte „nicht abziehbar“), private
+ * Erstattungszinsen als Einnahme, abziehbare Nebenleistungen als Ausgabe, Gewerbesteuer samt Nebenleistungen und
+ * Hinterziehungszinsen nur nachrichtlich (Anlage EÜR: Zeile „sonstige beschränkt abziehbare Betriebsausgaben“, Spalte „nicht abziehbar“), private
  * Steuern als Entnahme bzw. Einlage (aus dem Journal, nicht hier).
  */
-export type SteuerEuerWirkung = "umsatzsteuer" | "einnahme" | "nebenleistung" | "gewerbesteuer" | "privat";
+export type SteuerEuerWirkung = "umsatzsteuer" | "einnahme" | "nebenleistung" | "nichtAbziehbar" | "privat";
 
 export function steuerEuerWirkung(art: Steuerart, posten: SteuerPosten, amount: Cents): SteuerEuerWirkung {
   const gruppe = steuerGruppe(art, "einzelunternehmen");
   if (gruppe === "privat") return "privat";
-  if (gruppe === "gewerbesteuer") return "gewerbesteuer";
+  // Hinterziehungszinsen (§ 4 Abs. 5 Satz 1 Nr. 8a EStG) stehen dort wie die Gewerbesteuer nur nachrichtlich
+  if (gruppe === "gewerbesteuer" || posten === "zinsen235") return "nichtAbziehbar";
   if (posten === "steuer") return "umsatzsteuer";
   return posten === "zinsen233a" && amount > 0 ? "einnahme" : "nebenleistung";
 }

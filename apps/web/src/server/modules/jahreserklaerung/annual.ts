@@ -277,9 +277,13 @@ async function privateMovements(year: number) {
     )
     .groupBy(schema.journalEntries.kontenrahmen, schema.journalLines.account);
   const saldo = (konto: (kr: Kontenrahmen) => string) => rows.filter((r) => r.account === konto(r.kontenrahmen)).reduce((sum, r) => sum + Number(r.saldo), 0);
-  // Private Steuern vom Geschäftskonto (Privatsteuern, steuerzahlung.ts) sind Entnahmen, ihre Erstattungen mindern sie
-  const entnahmen = saldo((kr) => ACCOUNTS[kr].privatentnahmen) + saldo((kr) => STEUER_KONTEN[kr].privatsteuern);
-  return { entnahmen, einlagen: -saldo((kr) => ACCOUNTS[kr].privateinlagen) || 0 };
+  // Private Steuern vom Geschäftskonto (Privatsteuern, steuerzahlung.ts) sind Entnahmen, ihre Erstattungen mindern sie.
+  // Übersteigen die Erstattungen die Zahlungen, ist der Rest eine Einlage: Die Anlage EÜR kennt keine negativen Entnahmen.
+  const privatsteuern = saldo((kr) => STEUER_KONTEN[kr].privatsteuern);
+  return {
+    entnahmen: saldo((kr) => ACCOUNTS[kr].privatentnahmen) + Math.max(0, privatsteuern),
+    einlagen: -saldo((kr) => ACCOUNTS[kr].privateinlagen) + Math.max(0, -privatsteuern) || 0,
+  };
 }
 
 export interface EuerYear {

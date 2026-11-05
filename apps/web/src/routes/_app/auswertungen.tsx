@@ -176,7 +176,7 @@ function ReportsPage() {
             {euer.gewerbesteuerNichtAbziehbar !== 0 && (
               <tr>
                 <th scope="row" className="muted">
-                  Nachrichtlich: Gewerbesteuer und Nebenleistungen darauf, keine Betriebsausgabe (§ 4 Abs. 5b EStG)
+                  Nachrichtlich: Gewerbesteuer und Nebenleistungen darauf, Hinterziehungszinsen; keine Betriebsausgaben (§ 4 Abs. 5b, Abs. 5 Satz 1 Nr. 8a EStG)
                 </th>
                 <td className="num muted">{formatEuro(euer.gewerbesteuerNichtAbziehbar)}</td>
               </tr>

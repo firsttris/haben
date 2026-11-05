@@ -33,6 +33,7 @@ function wirkung(wahl: SteuerWahl): string {
     return "Steuer des Inhabers: privat (§ 12 Nr. 3 EStG), gebucht als Entnahme bzw. Einlage, mit Zinsen und Zuschlägen.";
   }
   if (wahl.art === "kst") return "Nicht abziehbar (§ 10 Nr. 2 KStG); eine Nachzahlung für ein Vorjahr verbraucht zuerst die Rückstellung.";
+  if (wahl.posten === "zinsen235") return "Hinterziehungszinsen sind nie Betriebsausgaben (§ 4 Abs. 5 Satz 1 Nr. 8a EStG); in der EÜR nur nachrichtlich.";
   return wahl.posten === "steuer"
     ? "Nur für frühere Jahre (Jahreserklärung, Bescheid). Die Zahllast einer Voranmeldung ordnest du der Voranmeldung zu."
     : "Zinsen und Zuschläge zur Umsatzsteuer sind Betriebsausgaben; Erstattungszinsen sind Betriebseinnahmen.";
