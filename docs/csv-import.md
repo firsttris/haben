@@ -15,7 +15,7 @@ Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug 
 
 | Einstellung | Was Haben macht |
 | --- | --- |
-| Trennzeichen | Semikolon, Komma oder Tabulator. Automatisch nimmt Haben das Zeichen, bei dem die ersten Zeilen gleichmäßig in mehrere Spalten zerfallen; bei Gleichstand das Semikolon, wie es das deutsche Excel schreibt. Felder in Anführungszeichen dürfen das Trennzeichen und Zeilenumbrüche enthalten. |
+| Trennzeichen | Semikolon, Komma oder Tabulator. Automatisch nimmt Haben das Zeichen, bei dem die ersten Zeilen gleichmäßig in mehrere Spalten zerfallen; bei Gleichstand das Semikolon, wie es das deutsche Excel schreibt. Felder in Anführungszeichen dürfen das Trennzeichen und Zeilenumbrüche enthalten. Hat eine Zeile mehr Werte als die Kopfzeile Spalten, stand ein Trennzeichen ohne Anführungszeichen in einem Feld; Haben übernimmt sie nicht, statt die Werte verschoben einzutragen. |
 | Kodierung | UTF-8 mit oder ohne BOM und Windows-1252 („CSV (Trennzeichen-getrennt)“ aus Excel unter Windows). Ein BOM entscheidet immer, auch UTF-16 mit BOM wird erkannt. Automatisch liest Haben UTF-8 und, wenn die Datei kein gültiges UTF-8 ist, Windows-1252. Wählst du UTF-8 und die Datei ist es nicht, lehnt Haben sie mit einem Hinweis ab, statt Umlaute zu zerstören. |
 | Zeilennummer | Die Vorschau zählt Datensätze wie die Datei, die Kopfzeile ist Zeile 1. Leere Zeilen fallen weg. |
 

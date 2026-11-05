@@ -159,7 +159,7 @@ export function takeoverProblems(asset: AssetRow): string[] {
 
 export function assetCandidates(table: CsvTable, mapping: ColumnMapping, openingDate: string): RowCandidate<AssetRow>[] {
   return table.rows.map((row) => {
-    const read = rowReader(row, mapping, ASSET_FIELDS);
+    const read = rowReader(row, mapping, ASSET_FIELDS, table.header.length);
     const { errors } = read;
     const name = read.text("name");
     const note = read.text("note");

@@ -95,7 +95,7 @@ export function ustIdImportProblem(raw: string): string | null {
 
 export function contactCandidates(table: CsvTable, mapping: ColumnMapping): RowCandidate<ContactRow>[] {
   return table.rows.map((row) => {
-    const read = rowReader(row, mapping, CONTACT_FIELDS);
+    const read = rowReader(row, mapping, CONTACT_FIELDS, table.header.length);
     const { errors } = read;
     const firma = read.text("firma");
     const person = [read.text("vorname"), read.text("nachname")].filter(Boolean).join(" ");

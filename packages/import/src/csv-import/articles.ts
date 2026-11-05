@@ -73,7 +73,7 @@ function price(net: string, gross: string, rate: number | null): { unitPrice: Ce
 
 export function articleCandidates(table: CsvTable, mapping: ColumnMapping): RowCandidate<ArticleRow>[] {
   return table.rows.map((row) => {
-    const read = rowReader(row, mapping, ARTICLE_FIELDS);
+    const read = rowReader(row, mapping, ARTICLE_FIELDS, table.header.length);
     const { errors } = read;
     const number = read.text("number");
     const description = read.text("description");

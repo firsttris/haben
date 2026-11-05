@@ -58,10 +58,15 @@ export function mappingProblem(mapping: ColumnMapping, header: readonly string[]
 
 /**
  * Liest die Felder einer Zeile. `text` prüft auf Formeln (CSV-Injection) und sammelt die Meldung in `errors`, damit die
- * Umsetzung je Art nur noch die fachlichen Regeln enthält.
+ * Umsetzung je Art nur noch die fachlichen Regeln enthält. Hat die Zeile mehr Werte als die Kopfzeile Spalten, stand
+ * ein Trennzeichen ohne Anführungszeichen in einem Feld und alle Werte dahinter sind verschoben; leere Werte am Ende
+ * schreiben manche Programme ohne Folgen.
  */
-export function rowReader(row: CsvRow, mapping: ColumnMapping, fields: readonly ImportField[]) {
+export function rowReader(row: CsvRow, mapping: ColumnMapping, fields: readonly ImportField[], width: number) {
   const errors: string[] = [];
+  if (row.cells.slice(width).some((cell) => cell.trim() !== "")) {
+    errors.push(`Die Zeile hat ${row.cells.length} Werte, die Kopfzeile ${width} Spalten; steht ein Trennzeichen ohne Anführungszeichen in einem Feld?`);
+  }
   const label = (key: string) => fields.find((f) => f.key === key)?.label ?? key;
   const raw = (key: string): string => {
     const index = mapping[key];
