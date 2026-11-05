@@ -131,7 +131,7 @@ export function DauerfristCard({ overview, setup }: { overview: Overview; setup:
         <NoticeBanner notice={manual.notice} />
       </form>
       {overview.submissions.length > 0 && (
-        <ul className="small" style={{ margin: 0, paddingLeft: 18 }} aria-label={`Verlauf Dauerfristverlängerung ${year}`}>
+        <ul className="small" style={{ margin: 0, paddingLeft: 20 }} aria-label={`Verlauf Dauerfristverlängerung ${year}`}>
           {overview.submissions.map((entry) => (
             <li key={entry.id}>
               {ELSTER_KIND_LABEL[entry.kind]} {entry.ok ? "OK" : `Fehler ${entry.code}`} · {formatDateTime(entry.createdAt)}

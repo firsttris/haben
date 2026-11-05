@@ -166,7 +166,7 @@ function AppLayout() {
           aria-controls="hauptmenue"
           onClick={() => setMenuOpen((open) => !open)}
         >
-          <span aria-hidden="true">{menuOpen ? "✕" : "☰"}</span> Menü
+          <Icon name={menuOpen ? "close" : "menu"} /> Menü
         </button>
         {/* Auf dem Handy schließt ein Klick auf einen Link das Menü */}
         <div className="nav-body" id="hauptmenue" onClick={(event) => (event.target as HTMLElement).closest("a") && setMenuOpen(false)}>

@@ -9,7 +9,7 @@
 .chart-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .chart-legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); }
 .chart-legend li { display: flex; align-items: center; gap: 6px; }
-.swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.swatch { width: 12px; height: 12px; border-radius: 4px; display: inline-block; }
 .swatch-in { background: var(--series-in); }
 .swatch-out { background: var(--series-out); }
 
@@ -17,7 +17,7 @@
 .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .chart .grid { stroke: var(--line-soft); stroke-width: 1; }
 .chart .axis-base { stroke: var(--line-strong); stroke-width: 1; }
-.chart .tick { fill: var(--muted); font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .tick { fill: var(--muted); font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
 .chart .hit { fill: transparent; }
 .chart .month { cursor: default; outline: none; }
 .chart .month.active .hit { fill: var(--ground); }
@@ -37,11 +37,11 @@
 
 .report-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .report-table th, .report-table td { text-align: left; font-weight: 400; padding: 10px 8px; border-top: 1px solid var(--line-soft); vertical-align: baseline; }
-.report-table thead th { border-top: 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 400; padding-top: 0; }
+.report-table thead th { border-top: 0; font-size: 13px; color: var(--muted); font-weight: 400; padding-top: 0; }
 .report-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .report-table tfoot th, .report-table tfoot td { border-top: 2px solid var(--ink); font-weight: 600; }
 
-.euer-table .euer-section th { padding-top: 20px; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); border-top: 0; }
+.euer-table .euer-section th { padding-top: 20px; font-weight: 600; font-size: 14px; color: var(--ink); border-top: 0; }
 .euer-table .euer-label { padding-left: 16px; }
 .euer-table .euer-zero td, .euer-table .euer-zero .euer-label { color: var(--muted); }
 .euer-table .euer-total th, .euer-table .euer-total td { font-weight: 600; border-top: 1px solid var(--line-strong); }
@@ -60,11 +60,11 @@
 .chevron { display: inline-block; width: 12px; transition: transform 0.15s; color: var(--muted); }
 .chevron.open { transform: rotate(90deg); }
 .saldo-hint { display: inline-block; min-width: 4.5em; text-align: left; margin-left: 6px; font-size: 12px; color: var(--muted); font-family: var(--sans); }
-.side-mark { font-size: 11px; color: var(--muted); margin-left: 4px; }
+.side-mark { font-size: 12px; color: var(--muted); margin-left: 4px; }
 
 /* Kacheln über der Saldenliste */
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.kpi-grid .card { padding: 14px 16px; }
+.kpi-grid .card { padding: 16px; }
 
 /* Journal: eine Zeile je Buchung */
 .journal-table td { vertical-align: top; }

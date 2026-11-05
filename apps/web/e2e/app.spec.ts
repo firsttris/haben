@@ -1852,7 +1852,7 @@ test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleic
   // Vorgabe in den Firmendaten: 2 % in 10 Tagen
   await go("/einstellungen");
   const firma = page.getByRole("form", { name: "Firmendaten" });
-  await firma.getByRole("button", { name: "+ Skontostufe hinzufügen" }).click();
+  await firma.getByRole("button", { name: "Skontostufe hinzufügen" }).click();
   await firma.getByLabel("Stufe 1: Skonto in %").fill("2");
   await firma.getByLabel("Stufe 1: Frist in Tagen").fill("10");
   await firma.getByRole("button", { name: "Speichern" }).click();
@@ -1865,7 +1865,7 @@ test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleic
   await page.getByLabel("PLZ").fill("20457");
   await page.getByLabel("Ort").fill("Hamburg");
   await page.getByRole("combobox", { name: /^Skonto/ }).selectOption("eigen");
-  await page.getByRole("button", { name: "+ Skontostufe hinzufügen" }).click();
+  await page.getByRole("button", { name: "Skontostufe hinzufügen" }).click();
   await page.getByLabel("Stufe 1: Skonto in %").fill("3");
   await page.getByLabel("Stufe 1: Frist in Tagen").fill("7");
   await page.getByRole("button", { name: "Kontakt anlegen" }).click();

@@ -304,7 +304,7 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
           {progress.failed.length > 0 && (
             <details>
               <summary className="small">{progress.failed.length} Belege nicht übernommen – ein neuer Abruf versucht sie erneut</summary>
-              <ul className="small" style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+              <ul className="small" style={{ margin: "8px 0 0", paddingLeft: 20 }}>
                 {progress.failed.slice(0, 50).map((f) => (
                   <li key={f.lexofficeId}>
                     {f.number || f.lexofficeId}: {f.message}

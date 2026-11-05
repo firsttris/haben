@@ -288,7 +288,7 @@ function Steuerbescheinigungen({ a }: { a: Ausschuettung }) {
         bewahre eine Kopie bei den Unterlagen der Ausschüttung auf. Anschrift, Identifikationsnummer und Religionsgemeinschaft kommen aus den{" "}
         <Link to="/jahreserklaerung">Angaben zu den Erklärungen</Link>.
       </p>
-      <ul className="stack" style={{ gap: 6, margin: 0, paddingLeft: 18 }}>
+      <ul className="stack" style={{ gap: 8, margin: 0, paddingLeft: 20 }}>
         {a.bescheinigungen.map((b) => (
           <li key={b.nr}>
             {b.fehlend.length === 0 ? (

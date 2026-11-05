@@ -12,7 +12,7 @@
 .progress-facts div { display: flex; flex-direction: column; gap: 2px; }
 .progress-facts strong { font-family: var(--mono); font-size: 18px; font-weight: 500; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th { text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.data-table th { text-align: left; font-weight: 500; font-size: 13px; color: var(--muted); padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .data-table td { padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 .data-table .num { text-align: right; white-space: nowrap; }
 .data-table tr.unmatched td { background: var(--warn-soft); }

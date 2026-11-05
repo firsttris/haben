@@ -57,6 +57,7 @@ import { getMcpSettings } from "../../server/functions/mcp.ts";
 import { getZugaenge } from "../../server/functions/zugang.ts";
 import { getExtractionSettings } from "../../server/functions/documents.ts";
 import { getVatPeriod } from "../../server/functions/vat.ts";
+import { Icon } from "../../components/Icon.tsx";
 
 export const Route = createFileRoute("/_app/einstellungen")({
   loader: async () => {
@@ -1074,10 +1075,11 @@ function FormatCheck({ simuliert }: { simuliert: boolean }) {
               ? `Alle ${result.results.length} Nachrichten sind gültig${result.mode === "simuliert" ? " (simuliert, ohne ERiC)" : ""}.`
               : `${failed} von ${result.results.length} Nachrichten bemängelt ERiC. Bitte die Meldungen als Issue melden.`}
           </div>
-          <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
+          <ul className="small stack" style={{ gap: 4, margin: 0, padding: 0, listStyle: "none" }}>
             {result.results.map((r) => (
               <li key={r.name}>
-                {r.ok ? "✓" : "✗"} {r.name} <span className="muted mono">{r.datenartVersion}</span>
+                <Icon name={r.ok ? "check" : "close"} size={14} />
+                <span className="visually-hidden">{r.ok ? "gültig" : "bemängelt"}</span> {r.name} <span className="muted mono">{r.datenartVersion}</span>
                 {!r.ok && (
                   <div style={{ overflowWrap: "anywhere" }}>
                     {r.code}: {r.message}

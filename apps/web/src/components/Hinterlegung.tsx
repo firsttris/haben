@@ -9,7 +9,7 @@ function Angabe({ name, legend, hint }: { name: string; legend: string; hint: st
   const id = useId();
   const [vorhanden, setVorhanden] = useState(false);
   return (
-    <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 6 }} aria-describedby={`${id}-hint`}>
+    <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0, gap: 8 }} aria-describedby={`${id}-hint`}>
       <legend style={{ fontWeight: 600, marginBottom: 2 }}>{legend}</legend>
       <span id={`${id}-hint`} className="field-hint">
         {hint}

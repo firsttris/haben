@@ -159,7 +159,7 @@ export function InboxCard({ data }: { data: Data }) {
       )}
       {s?.lastError && <ErrorBanner title="Letzter Abruf" detail={s.lastError} />}
       {data.last.length > 0 && (
-        <ul className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
+        <ul className="small muted" style={{ margin: 0, paddingLeft: 20 }}>
           {data.last.map((m) => (
             <li key={m.id} style={{ overflowWrap: "anywhere" }}>
               {formatDateTime(m.createdAt)}: {m.subject || "(ohne Betreff)"} von {m.sender} · {m.documentIds.length} Beleg

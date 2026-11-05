@@ -118,7 +118,7 @@ export function SendMailForm({ kind, id, onDone }: { kind: "rechnung" | "mahnung
         Anhang: {draft.attachments.join(", ")}
       </p>
       {extraAttachmentsOf(draft).length > 0 && (
-        <fieldset className="stack" style={{ gap: 6, border: 0, margin: 0, padding: 0 }}>
+        <fieldset className="stack" style={{ gap: 8, border: 0, margin: 0, padding: 0 }}>
           <legend className="small" style={{ padding: 0, marginBottom: 4 }}>
             Zusätzliche Anhänge mitsenden
           </legend>

@@ -138,7 +138,7 @@ function MitarbeiterKarte({ data, m }: { data: Data; m: Mitarbeiter }) {
       {m.verlauf.length > 0 && (
         <div>
           <h3 style={{ margin: "0 0 4px" }}>Verlauf</h3>
-          <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
+          <ul className="small" style={{ margin: 0, paddingLeft: 20 }}>
             {m.verlauf.map((s) => (
               <li key={s.id}>
                 {ART[s.art]} · {s.kind === "portal" ? "im ELSTER-Portal übermittelt" : ELSTER_KIND_LABEL[s.kind]} · {formatDate(s.datum)}

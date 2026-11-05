@@ -5,6 +5,7 @@ import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
 import { formatDate } from "../../../lib/format.ts";
 import { VARIANT_TITLE } from "../../../lib/invoice.ts";
 import { getInvoices } from "../../../server/functions/invoices.ts";
+import { Icon } from "../../../components/Icon.tsx";
 
 export const Route = createFileRoute("/_app/rechnungen/")({
   loader: () => getInvoices(),
@@ -62,8 +63,9 @@ function InvoicesPage() {
                 <div>
                   <InvoiceStatus status={invoice.listStatus} />
                   {invoice.mailed && (
-                    <span className="small muted" title="per E-Mail versendet" style={{ marginLeft: 6 }}>
-                      ✉<span className="visually-hidden"> per E-Mail versendet</span>
+                    <span className="small muted" title="per E-Mail versendet" style={{ marginLeft: 8, verticalAlign: "middle" }}>
+                      <Icon name="mail" size={14} />
+                      <span className="visually-hidden"> per E-Mail versendet</span>
                     </span>
                   )}
                 </div>

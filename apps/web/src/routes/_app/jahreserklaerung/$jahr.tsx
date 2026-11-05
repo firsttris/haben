@@ -262,7 +262,7 @@ function EuerSection({ data }: { data: Data }) {
           </tbody>
         </ScrollTable>
         {euer.anlagen.length > 0 && (
-          <div className="stack" style={{ gap: 6 }}>
+          <div className="stack" style={{ gap: 8 }}>
             <div className="section-label">Anlagenverzeichnis (Anlage AVEÜR)</div>
             <div style={{ overflowX: "auto" }}>
               <ScrollTable className="report-table">

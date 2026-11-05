@@ -972,7 +972,7 @@ function AllocationPanel({
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div className="small muted">Ausgewählter Umsatz · {formatDate(tx.bookingDate)}</div>
         <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>{tx.counterpartyName || "–"}</h2>
-        <div className="mono" style={{ fontSize: 22, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
+        <div className="mono" style={{ fontSize: 24, color: tx.amount > 0 ? "var(--accent-ink)" : undefined }}>
           {tx.amount > 0 ? "+" : "−"}
           {formatEuro(Math.abs(tx.amount))}
         </div>
@@ -984,7 +984,7 @@ function AllocationPanel({
       </div>
 
       {allocations.length > 0 && (
-        <div className="stack" style={{ gap: 6 }}>
+        <div className="stack" style={{ gap: 8 }}>
           <div className="section-label">Zugeordnet</div>
           {allocations.map((a) => (
             <div key={a.id} className="history-row">
@@ -1202,7 +1202,7 @@ function AllocationPanel({
             )}
           </div>
           {feeRest !== 0 && (
-            <div className="stack" style={{ gap: 6 }}>
+            <div className="stack" style={{ gap: 8 }}>
               <button type="button" className="btn" onClick={() => void bookRestAsFee()} disabled={busy}>
                 Voll zuordnen, Rest {formatEuro(Math.abs(feeRest))} als Gebühr
               </button>
@@ -1213,7 +1213,7 @@ function AllocationPanel({
             </div>
           )}
           {mode === "other" && selectedCandidate?.type === "document" && tx.amount < 0 && tx.purpose.startsWith("Gebühr") && (
-            <div className="stack" style={{ gap: 6 }}>
+            <div className="stack" style={{ gap: 8 }}>
               <button
                 type="button"
                 className="btn"
@@ -1226,7 +1226,7 @@ function AllocationPanel({
             </div>
           )}
           {exchangeDifference !== 0 && target && (
-            <div className="stack" style={{ gap: 6 }}>
+            <div className="stack" style={{ gap: 8 }}>
               <button type="button" className="btn" onClick={() => void bookRest("kursdifferenz")} disabled={busy}>
                 Ausgleichen, {formatEuro(Math.abs(exchangeDifference))} als Kursdifferenz
               </button>
@@ -1238,7 +1238,7 @@ function AllocationPanel({
             </div>
           )}
           {restKinds.length > 0 && (
-            <div className="stack" style={{ gap: 6 }}>
+            <div className="stack" style={{ gap: 8 }}>
               <div className="actions">
                 {restKinds.map((k) => (
                   <button key={k} type="button" className="btn" onClick={() => void bookRest(k)} disabled={busy}>

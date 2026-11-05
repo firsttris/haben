@@ -208,7 +208,7 @@ export function MailCard({ data }: { data: Data }) {
       </div>
       <NoticeBanner notice={notice} />
       {data.last.length > 0 && (
-        <ul className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
+        <ul className="small muted" style={{ margin: 0, paddingLeft: 20 }}>
           {data.last.map((m, i) => (
             <li key={i}>
               {formatDateTime(m.createdAt)}: {m.subject}{" "}

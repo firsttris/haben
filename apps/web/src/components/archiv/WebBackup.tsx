@@ -84,7 +84,7 @@ export function WebBackup() {
         Belege mit Original-PDF, E-Rechnungs-XML und Zahlungen. Es liest nur und lädt ZIP-Dateien herunter (je bis etwa 50 MB). Bei tausend Belegen dauert das
         rund eine Viertelstunde.
       </p>
-      <ol className="small" style={{ margin: 0, paddingLeft: 18 }}>
+      <ol className="small" style={{ margin: 0, paddingLeft: 20 }}>
         <li>In app.lexware.de anmelden und die Entwicklerwerkzeuge öffnen (F12), dort die Konsole.</li>
         <li>
           Skript einfügen und mit Enter starten. Fragt der Browser beim ersten Einfügen nach einer Bestätigung, tippe ein, was er verlangt (in Chrome, Edge und

@@ -101,7 +101,7 @@ export function ZugaengeCard({ data }: { data: Data }) {
         </div>
       ))}
 
-      <h3 style={{ margin: "8px 0 0", fontSize: 15 }}>Steuerberatung einladen</h3>
+      <h3 style={{ margin: "8px 0 0", fontSize: 16 }}>Steuerberatung einladen</h3>
       {created && (
         <div className="stack" style={{ gap: 8 }}>
           <label className="field">

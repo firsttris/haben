@@ -335,7 +335,7 @@ function Senden({ data }: { data: Data }) {
       {data.submissions.length > 0 && (
         <section className="card" aria-labelledby="lsta-verlauf-heading">
           <h2 id="lsta-verlauf-heading">Verlauf</h2>
-          <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
+          <ul className="small" style={{ margin: 0, paddingLeft: 20 }}>
             {data.submissions.map((entry) => (
               <li key={entry.id}>
                 {ELSTER_KIND_LABEL[entry.kind]}
