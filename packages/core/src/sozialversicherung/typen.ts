@@ -57,6 +57,12 @@ export interface Beschaeftigt extends Gemeinsam {
   /** Beschäftigungsort in Sachsen: anderer Anteil an der Pflegeversicherung (§ 58 Abs. 3 SGB XI) */
   sachsen: boolean;
   umlagen: UmlageSaetze;
+  /**
+   * Regelmäßiges Monatsentgelt der Beschäftigung, etwa das vereinbarte Monatsgehalt aus der Lohnabrechnung. Ob der
+   * Übergangsbereich gilt, hängt am regelmäßigen Entgelt („Arbeitsentgelte …, die regelmäßig 2 000 Euro im Monat nicht
+   * übersteigen“, § 20 Abs. 2 SGB IV); liegt dieser Monat in einem anderen Bereich, rechnet Haben nicht (siehe `index.ts`)
+   */
+  regelmaessigesEntgelt?: Cents;
 }
 
 /** Geringfügig entlohnte Beschäftigung im gewerblichen Bereich (Personengruppe 109) */
