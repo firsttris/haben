@@ -109,3 +109,14 @@ describe("isLegacyVatPayment (#269)", () => {
     expect(vat("B-77", ["Bürobedarf"])).toBe(false);
   });
 });
+
+describe("Review: steuerliche Nebenleistungen zur Umsatzsteuer (#269)", () => {
+  // Säumnis- und Verspätungszuschläge sowie Zinsen zur Umsatzsteuer sind keine Umsatzsteuer, sondern Betriebsausgaben
+  // (§ 3 Abs. 4 AO Nebenleistungen; § 12 Nr. 3 EStG schließt nur die zu nicht abziehbaren Steuern aus)
+  it("lässt Säumniszuschlag, Verspätungszuschlag und Zinsen zur Umsatzsteuer als Ausgabebeleg", () => {
+    const vat = (number: string, categories: string[]) => isLegacyVatPayment({ number, contactName: "Finanzamt Regensburg", categories, tax: 0 });
+    expect(vat("Säumniszuschlag USt 10/2026", ["Säumniszuschläge"])).toBe(false);
+    expect(vat("", ["Verspätungszuschlag Umsatzsteuer"])).toBe(false);
+    expect(vat("Zinsen zur Umsatzsteuer 2024", ["Zinsen"])).toBe(false);
+  });
+});
