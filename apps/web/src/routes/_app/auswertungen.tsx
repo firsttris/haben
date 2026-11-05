@@ -197,6 +197,16 @@ function ReportsPage() {
         overdue={open.payablesOverdue}
         kind="document"
       />
+      <OpenTable
+        id="umsatzsteuer"
+        title="Umsatzsteuer gegenüber dem Finanzamt"
+        empty="Keine offene Zahllast oder Erstattung aus abgegebenen Voranmeldungen."
+        partyLabel="Gegenüber"
+        items={open.vat}
+        total={open.vatTotal}
+        overdue={open.vatOverdue}
+        kind="ustva"
+      />
     </>
   );
 }
@@ -234,7 +244,7 @@ function OpenTable(props: {
   items: OpenPosition[];
   total: number;
   overdue: number;
-  kind: "invoice" | "document";
+  kind: "invoice" | "document" | "ustva";
 }) {
   const { id, title, items, kind } = props;
   return (
@@ -282,6 +292,10 @@ function OpenTable(props: {
                       <Link to="/rechnungen/$id" params={{ id: item.id }}>
                         {item.number}
                       </Link>
+                    ) : kind === "ustva" ? (
+                      <Link to="/umsatzsteuer/$zeitraum" params={{ zeitraum: item.id }}>
+                        {item.number}
+                      </Link>
                     ) : (
                       <Link to="/belege/$id" params={{ id: item.id }}>
                         {item.number}
@@ -295,9 +309,7 @@ function OpenTable(props: {
                   <td>{formatDate(item.dueDate)}</td>
                   <td className="num">{formatEuro(item.gross)}</td>
                   <td className="num">{formatEuro(item.open)}</td>
-                  <td>
-                    <DueStatus days={item.daysOverdue} />
-                  </td>
+                  <td>{kind === "ustva" && item.open < 0 ? <span className="pill">Erstattung erwartet</span> : <DueStatus days={item.daysOverdue} />}</td>
                 </tr>
               ))}
             </tbody>

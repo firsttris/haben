@@ -44,7 +44,6 @@ export {
   splitSchema,
   transactionDetail,
   transferSchema,
-  vatPaidAfter,
   allocateWithRest,
   allocateFeesToDocument,
   feesSchema,

@@ -49,6 +49,7 @@ import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
+import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
 import { today } from "../../today.ts";
 import { documentPayees, payeeIbans } from "./document-payees.ts";
@@ -576,6 +577,7 @@ export async function transactionDetail(id: string) {
       documentId: schema.allocations.documentId,
       documentSupplier: schema.documents.supplierName,
       documentNumber: schema.documents.invoiceNumber,
+      vatReturnId: schema.allocations.vatReturnId,
     })
     .from(schema.allocations)
     .leftJoin(schema.invoices, eq(schema.invoices.id, schema.allocations.invoiceId))
@@ -584,9 +586,13 @@ export async function transactionDetail(id: string) {
     // Teile einer Aufteilung haben denselben Zeitstempel (eine Transaktion): Erlös vor Gebühr, damit die Reihenfolge feststeht
     .orderBy(asc(schema.allocations.createdAt), desc(schema.allocations.amount), asc(schema.allocations.id));
   const reversed = new Set(allocationRows.filter((a) => a.reversesId).map((a) => a.reversesId));
-  const allocations = allocationRows.filter((a) => !a.reversesId).map((a) => ({ ...a, reversed: reversed.has(a.id) }));
+  const vatLabels = await ustvaLabels(allocationRows.flatMap((a) => (a.vatReturnId ? [a.vatReturnId] : [])));
+  const allocations = allocationRows
+    .filter((a) => !a.reversesId)
+    .map((a) => ({ ...a, reversed: reversed.has(a.id), vatReturnLabel: a.vatReturnId ? (vatLabels.get(a.vatReturnId) ?? null) : null }));
 
-  const items = tx.open === 0 ? [] : await openItems();
+  // Offene Rechnungen und Belege, dazu Zahllast und Erstattung abgegebener Voranmeldungen
+  const items = tx.open === 0 ? [] : [...(await openItems()), ...(await ustvaOpenItems())];
   // Vorschläge für den noch offenen Teil des Umsatzes
   const suggestions = tx.open === 0 ? [] : suggestMatches({ ...tx, amount: tx.open }, items);
   const candidates = items.filter((i) => Math.sign(i.open) === Math.sign(tx.amount));
@@ -632,16 +638,6 @@ export async function transactionDetail(id: string) {
   if (!direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
   return { transaction: tx, allocations, suggestions, candidates, splitCandidates: items, direct: direct ? { ...direct, counterpart } : null };
-}
-
-/** Schon gezahlte Umsatzsteuer (Zuordnungen „Umsatzsteuer an das Finanzamt“, positiv) mit Buchungsdatum nach `after` */
-export async function vatPaidAfter(after: string): Promise<number> {
-  const [row] = await db
-    .select({ paid: sql<string>`coalesce(-sum(${schema.allocations.amount}), 0)` })
-    .from(schema.allocations)
-    .innerJoin(schema.bankTransactions, eq(schema.bankTransactions.id, schema.allocations.transactionId))
-    .where(and(eq(schema.allocations.kind, "ustVorauszahlung"), sql`${schema.bankTransactions.bookingDate} > ${after}`));
-  return Number(row?.paid ?? 0);
 }
 
 type History = Map<string, { kinds: { value: string; count: number; last: string }[]; total: number }>;
@@ -914,6 +910,8 @@ async function assertNotCancelled(tx: Tx, documentId: string): Promise<void> {
 export const allocationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invoice"), transactionId: z.uuid(), invoiceId: z.uuid(), amount: z.number().int() }),
   z.object({ kind: z.literal("document"), transactionId: z.uuid(), documentId: z.uuid(), amount: z.number().int() }),
+  // Zahllast oder Erstattung einer abgegebenen Voranmeldung: gebucht wie „Umsatzsteuer an das Finanzamt“, mit Bezug
+  z.object({ kind: z.literal("ustva"), transactionId: z.uuid(), vatReturnId: z.uuid(), amount: z.number().int() }),
   z.object({
     kind: z.enum(DIRECT_KINDS),
     transactionId: z.uuid(),
@@ -927,6 +925,7 @@ export type AllocationInput = z.infer<typeof allocationSchema>;
 const splitPartSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invoice"), invoiceId: z.uuid(), amount: z.number().int() }),
   z.object({ kind: z.literal("document"), documentId: z.uuid(), amount: z.number().int() }),
+  z.object({ kind: z.literal("ustva"), vatReturnId: z.uuid(), amount: z.number().int() }),
   z.object({ kind: z.enum(DIRECT_KINDS), amount: z.number().int() }),
 ]);
 
@@ -965,7 +964,7 @@ type LockedTransaction = Awaited<ReturnType<typeof lockTransaction>>;
 async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, bank: LockedTransaction, part: Part, splitId: string | null) {
   let lines: PostingLine[];
   let description: string;
-  let target: { invoiceId?: string; documentId?: string; taxShares?: TaxShare[]; taxSharesInvoiceId?: string } = {};
+  let target: { invoiceId?: string; documentId?: string; taxShares?: TaxShare[]; taxSharesInvoiceId?: string; vatReturnId?: string } = {};
 
   if (part.kind === "invoice") {
     const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, part.invoiceId)).for("update");
@@ -1011,6 +1010,12 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     lines = documentPaymentPosting(part.amount, company.kontenrahmen);
     description = `Zahlung Beleg ${doc.invoiceNumber || doc.filename} · ${doc.supplierName}`;
     target = { documentId: doc.id };
+  } else if (part.kind === "ustva") {
+    // Buchung wie „Umsatzsteuer an das Finanzamt“ (SKR03 1780, SKR04 3820); neu ist nur der Bezug auf die Voranmeldung
+    const label = await assertUstvaOffen(tx, part.vatReturnId, part.amount);
+    lines = directPosting("ustVorauszahlung", part.amount, company.kontenrahmen, company.rechtsform);
+    description = `${label} · ${bank.counterpartyName || "Finanzamt"}`;
+    target = { vatReturnId: part.vatReturnId };
   } else if (part.kind === "kursdifferenz") {
     lines = exchangeDifferenceBankPosting(part.amount, company.kontenrahmen);
     description = `Kursdifferenz · ${bank.counterpartyName || "Bankumsatz"}`;
@@ -1022,9 +1027,10 @@ async function bookPart(tx: Tx, company: Awaited<ReturnType<typeof openBooks>>, 
     description = `${bank.counterpartyName || "Bankumsatz"} · ${label}`;
   }
 
+  const kind = part.kind === "ustva" ? "ustVorauszahlung" : part.kind;
   const [allocation] = await tx
     .insert(schema.allocations)
-    .values({ transactionId: bank.id, kind: part.kind, amount: part.amount, splitId, ...target })
+    .values({ transactionId: bank.id, kind, amount: part.amount, splitId, ...target })
     .returning();
   await post(tx, company, {
     date: bank.bookingDate,
@@ -1126,6 +1132,7 @@ async function reverseOne(tx: Tx, allocation: typeof schema.allocations.$inferSe
       kind: allocation.kind,
       invoiceId: allocation.invoiceId,
       documentId: allocation.documentId,
+      vatReturnId: allocation.vatReturnId,
       amount: -allocation.amount,
       splitId: allocation.splitId,
       reversesId: allocation.id,

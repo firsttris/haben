@@ -350,6 +350,44 @@ export const vatReturnSubmissions = pgTable("vat_return_submissions", {
 });
 
 /**
+ * Abgabevermerk einer Voranmeldung, die außerhalb von Haben abgegeben wurde (XML-Import in Mein ELSTER, Erweiterung,
+ * KI-Assistent): Tag der Abgabe, Transferticket, die dort gemeldete Zahllast (gleich Kz 83 der Anmeldung) und das
+ * Übermittlungsprotokoll als PDF im Dokumentenspeicher (SHA-256, wie Rechnungsanhänge). Mit dem Vermerk ist die
+ * Anmeldung festgeschrieben wie nach einer Übermittlung über ERiC; nur anhängen, je Anmeldung höchstens einer.
+ */
+export const vatReturnFilings = pgTable(
+  "vat_return_filings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    vatReturnId: uuid("vat_return_id")
+      .notNull()
+      .references(() => vatReturns.id),
+    filedOn: date("filed_on", { mode: "string" }).notNull(),
+    transferTicket: text("transfer_ticket").notNull(),
+    kz83: integer("kz83").notNull(),
+    filename: text("filename").notNull(),
+    sha256: text("sha256").notNull(),
+    size: integer("size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("vat_return_filings_return").on(t.vatReturnId), index("vat_return_filings_sha256").on(t.sha256)],
+);
+
+/**
+ * Seit wann abgegebene Voranmeldungen offene Posten sind: der Zeitpunkt der Migration, die die Funktion einführt
+ * (0138, auf frischen Installationen also die Installation). Früher über ERiC gesendete Anmeldungen (Altbestand) werden
+ * erst mit einer Zahlung mit Bezug ein Posten. Eine Zeile, nur anhängen.
+ */
+export const vatItemsSince = pgTable(
+  "vat_items_since",
+  {
+    id: integer("id").primaryKey().default(1),
+    since: timestamp("since", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("vat_items_since_single", sql`${t.id} = 1`)],
+);
+
+/**
  * Prüfungen und Übermittlungen der Jahreserklärungen (Umsatzsteuererklärung, Anlage EÜR), nur anhängen.
  * `figures` hält die gesendeten Werte fest, unabhängig davon, wie sich die Buchungen später ändern.
  */
@@ -1575,10 +1613,17 @@ export const allocations = pgTable(
     taxShares: jsonb("tax_shares").$type<TaxShare[]>(),
     /** Rechnung, für die taxShares gerechnet sind; hängt die Zuordnung woanders, gilt der Anteil nicht (recordedTaxShares) */
     taxSharesInvoiceId: uuid("tax_shares_invoice_id"),
+    /**
+     * Nur bei „Umsatzsteuer an das Finanzamt“: die Voranmeldung, deren Zahllast bzw. Erstattung die Zahlung betrifft
+     * (offener Posten). Gebucht wird wie ohne Bezug; ältere Zuordnungen haben keinen.
+     */
+    vatReturnId: uuid("vat_return_id").references(() => vatReturns.id),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     check("allocations_target", sql`(${t.kind} <> 'invoice' or ${t.invoiceId} is not null) and (${t.kind} <> 'document' or ${t.documentId} is not null)`),
+    check("allocations_vat_return_kind", sql`${t.vatReturnId} is null or ${t.kind} = 'ustVorauszahlung'`),
+    index("allocations_vat_return").on(t.vatReturnId),
     index("allocations_transaction").on(t.transactionId),
     index("allocations_invoice").on(t.invoiceId),
     index("allocations_document").on(t.documentId),
