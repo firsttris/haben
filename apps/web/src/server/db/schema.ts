@@ -42,6 +42,7 @@ import {
   type Bestandteil,
   type Konfession,
   type LohnStammdaten,
+  type LstaKennzahlen,
   type SvBeitraege,
 } from "@haben/core";
 
@@ -2198,3 +2199,45 @@ export const payslipCancellations = pgTable("payslip_cancellations", {
   reason: text("reason").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Anmeldungszeitraum der Lohnsteuer je Jahr (§ 41a Abs. 2 EStG), wenn der Nutzer ihn abweichend vom Vorschlag aus der
+ * Lohnsteuer des Vorjahres festlegt (das Finanzamt bestimmt ihn). Ein Jahr ohne Zeile folgt dem Vorschlag.
+ */
+export const lstaTurnus = pgTable("lsta_turnus", {
+  year: smallint("year").primaryKey(),
+  turnus: text("turnus", { enum: ["monatlich", "vierteljaehrlich", "jaehrlich"] }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Lohnsteuer-Anmeldung (§ 41a EStG): jede Prüfung und Übermittlung, nur anhängen. Eine echt übermittelte Anmeldung
+ * bleibt so unverändert; eine Korrektur ist eine neue Zeile als berichtigte Anmeldung (Kz 10) mit allen Kennzahlen.
+ */
+export const lstaSubmissions = pgTable(
+  "lsta_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    year: smallint("year").notNull(),
+    /** Zeitraum wie im Schema: 1–12 Monate, 41–44 Kalendervierteljahre, 19 Kalenderjahr */
+    zeitraum: smallint("zeitraum").notNull(),
+    /** Berichtigte Anmeldung (Kz 10) */
+    berichtigt: boolean("berichtigt").notNull().default(false),
+    /** Gemeldete Kennzahlen in Cent (LstaKennzahlen aus @haben/core) */
+    kennzahlen: jsonb("kennzahlen").$type<LstaKennzahlen>().notNull(),
+    kind: text("kind", { enum: ["validate", "test", "send"] }).notNull(),
+    ok: boolean("ok").notNull(),
+    code: integer("code").notNull(),
+    message: text("message").notNull(),
+    transferTicket: text("transfer_ticket"),
+    requestXml: text("request_xml").notNull(),
+    responseXml: text("response_xml").notNull(),
+    serverResponseXml: text("server_response_xml").notNull(),
+    protocolPdf: bytea("protocol_pdf"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("lsta_submissions_period").on(t.year, t.zeitraum),
+    check("lsta_submissions_zeitraum", sql`(${t.zeitraum} between 1 and 12) or (${t.zeitraum} between 41 and 44) or ${t.zeitraum} = 19`),
+  ],
+);

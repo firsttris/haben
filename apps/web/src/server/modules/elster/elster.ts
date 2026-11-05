@@ -69,10 +69,10 @@ export function mitDatenschutzPruefung(inner: ElsterClient, check: () => Promise
 }
 
 /**
- * Kann das installierte ERiC die Datenart-Version prüfen und senden? Neue Jahre und Taxonomien bringt erst eine neuere
- * Version mit (etwa Bilanz_6.10 ab ERiC 45). Simuliert gilt alles als bekannt.
+ * Kennt das geladene ERiC die Datenart-Version (z. B. LStA_2027, Bilanz_6.10)? Neue Jahre und Taxonomien bringt erst eine
+ * neuere ERiC-Version mit (Prüf-Plugin libcheck<Datenart>_<Version>.so); simuliert gilt jede als bekannt.
  */
-export function ericKenntDatenart(datenartVersion: string): boolean {
+export function ericKennt(datenartVersion: string): boolean {
   const home = ericHome();
   return !home || hatJahresPlugin(home, datenartVersion);
 }

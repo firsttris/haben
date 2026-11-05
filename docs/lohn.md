@@ -1,9 +1,9 @@
 # Lohn
 
-Unter **Personal › Lohn** legst du Mitarbeiter an, rechnest jeden Monat ab und schreibst die Abrechnung fest. Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und die Beiträge zur Sozialversicherung, erzeugt die Entgeltabrechnung als PDF, bucht die Abrechnung ins Journal und führt das Lohnkonto je Mitarbeiter und Jahr.
+Unter **Personal › Lohn** legst du Mitarbeiter an, rechnest jeden Monat ab und schreibst die Abrechnung fest. Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und die Beiträge zur Sozialversicherung, erzeugt die Entgeltabrechnung als PDF, bucht die Abrechnung ins Journal, führt das Lohnkonto je Mitarbeiter und Jahr und übermittelt die [Lohnsteuer-Anmeldung](#lohnsteuer-anmeldung) über ELSTER.
 
 > [!IMPORTANT]
-> Noch nicht dabei: die Lohnsteuer-Anmeldung, die Lohnsteuerbescheinigung und die Meldungen an die Sozialversicherung. Lohnsteuer-Anmeldung und Beitragsnachweis gibst du bis dahin im ELSTER-Portal und im SV-Meldeportal ab. Was wann kommt, steht im [Plan](lohn-plan.md).
+> Noch nicht dabei: die Lohnsteuerbescheinigung und die Meldungen an die Sozialversicherung. Den Beitragsnachweis gibst du bis dahin im SV-Meldeportal ab. Was wann kommt, steht im [Plan](lohn-plan.md).
 
 ## Was Haben abrechnet
 
@@ -81,6 +81,66 @@ Ein **Storno** bucht dieselben Zeilen mit getauschten Seiten, am selben Tag wie 
 
 Nicht gebucht werden die Beiträge zur Berufsgenossenschaft (jährlich nach Bescheid, als Beleg der Kategorie „Beiträge“ oder von der Steuerberatung auf SKR03 4138 bzw. SKR04 6120) und ein Zuschuss zur privaten Krankenversicherung, den Haben nicht abrechnet.
 
+## Lohnsteuer-Anmeldung
+
+Die einbehaltene Lohnsteuer meldest du dem Finanzamt bis zum 10. nach Ablauf jedes Anmeldungszeitraums an und zahlst sie (§ 41a Abs. 1 EStG). Unter **Personal › Lohn › Lohnsteuer-Anmeldung** rechnet Haben die Anmeldung aus den festgeschriebenen Abrechnungen, prüft und sendet sie über ELSTER wie die [Voranmeldung](umsatzsteuer.md#übermitteln-an-elster): **Nur prüfen**, **Prüfen und testweise senden**, dann echt mit zweiter Bestätigung. Das Übertragungsprotokoll liegt als PDF im Verlauf; die [Frist](fristen.md) ist danach erledigt.
+
+### Anmeldungszeitraum
+
+Der Zeitraum richtet sich nach der Lohnsteuer des Vorjahres (§ 41a Abs. 2 EStG):
+
+| Lohnsteuer des Vorjahres | Anmeldungszeitraum |
+| --- | --- |
+| höchstens 1.080 € | Kalenderjahr |
+| mehr als 1.080 €, höchstens 5.000 € | Kalendervierteljahr |
+| mehr als 5.000 € | Kalendermonat |
+
+Haben schlägt den Zeitraum vor und nennt den Grund. Bestand der Betrieb nicht das ganze Vorjahr, rechnet es die Lohnsteuer auf ein Jahr um (Satz 3): Haben nimmt dafür die vollen Monate ab der ersten Buchung. Im ersten Jahr zählt die Lohnsteuer des ersten vollen Kalendermonats nach der Eröffnung mal zwölf (Satz 4), sobald dieser Monat abgerechnet ist. Gibt es eine Eröffnungsbuchung, bestand der Betrieb schon vorher; dann kennt Haben das Vorjahr nur, wenn es das ganze Vorjahr führt. Ohne Grundlage gilt der Kalendermonat (Satz 1). Maßgeblich ist, was das Finanzamt festlegt: Unter **Anmeldungszeitraum** stellst du ihn je Jahr ein. Passt eine schon gesendete Anmeldung nicht mehr zum neuen Zeitraum, lehnt Haben die Änderung ab. Ist im Jahr schon echt angemeldet, bleibt ohne eigene Einstellung der Zeitraum dieser Anmeldung, auch wenn sich der Vorschlag danach ändert, etwa weil im ersten Jahr der erste volle Monat erst später abgerechnet wird; sonst stünde die schon gemeldete Lohnsteuer noch einmal im Quartal oder Kalenderjahr.
+
+Die Pauschsteuer im Minijob zählt dabei nicht mit; sie geht an die Minijob-Zentrale.
+
+### Was in die Anmeldung geht
+
+Haben ordnet jede festgeschriebene, nicht stornierte Abrechnung nach ihrem **Zahltag** dem Anmeldungszeitraum zu: Angemeldet wird die im Zeitraum einbehaltene Lohnsteuer (§ 41a Abs. 1 Satz 1 EStG), und einbehalten wird sie bei der Lohnzahlung (§ 38 Abs. 3 EStG). Getrennt wird nach dem Jahr, in dem der Lohn als bezogen gilt: laufender Arbeitslohn im Jahr, in dem der Abrechnungsmonat endet (§ 38a Abs. 1 Satz 2 EStG). Das Gehalt für Dezember mit Zahltag im Januar steht deshalb in der Januar-Anmeldung in der Spalte „Vorjahr“. Laufender Arbeitslohn des Vorjahres ist das aber nur bis drei Wochen nach Jahresende (R 39b.2 Abs. 1 Nr. 7 LStR): Später gezahlt, oder im Voraus für einen Monat des Folgejahres, ist er ein sonstiger Bezug des Zahlungsjahres (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR), den die Abrechnung nicht so rechnet. Eine solche Abrechnung meldet Haben als nicht unterstützt, statt sie in der falschen Spalte anzumelden; die Spalte „Folgejahr“ bleibt deshalb leer.
+
+| Kz | Inhalt |
+| --- | --- |
+| 42 | Lohnsteuer, aufgeteilt nach Vorjahr und laufendem Jahr (Folgejahr bleibt leer) |
+| 48 | Verbleiben, hier gleich Kz 42 |
+| 49 | Solidaritätszuschlag, aufgeteilt wie Kz 42 |
+| 61 | Evangelische Kirchensteuer (Merkmale ev, lt, rf) |
+| 62 | Römisch-katholische Kirchensteuer |
+| 63 | Alt-katholische Kirchensteuer |
+| 83 | Gesamtbetrag |
+| 86 | Zahl der Arbeitnehmer: jeder Mitarbeiter mit einer Abrechnung im Zeitraum einmal, auch Minijobber |
+
+Die **Pauschsteuer von 2 % im Minijob** gehört nicht in die Lohnsteuer-Anmeldung: Sie geht mit den Beiträgen an die Minijob-Zentrale (§ 40a Abs. 6 EStG). Der Minijobber zählt aber als Arbeitnehmer (Kz 86); laut Vordruck gehören die an die Knappschaft-Bahn-See gemeldeten geringfügig Beschäftigten dazu. Hat ein Zeitraum nur Minijobber, ist die Anmeldung eine mit 0 € und der Zahl der Arbeitnehmer.
+
+Kennzahlen und Reihenfolge stammen aus Schema und Jahresdokumentation der Datenart LStA im ERiC-Paket. Ab 2027 hat das Schema einen neuen Aufbau; Haben schreibt beide. Die Lohnsteuer-Anmeldung 2027 kennt ERiC erst ab Version 45; mit einem älteren ERiC lehnt Haben sie mit einem Hinweis ab.
+
+### Berichtigung
+
+Nach der ersten Echtübermittlung geht jede weitere als **berichtigte Anmeldung** (Kz 10) mit allen Werten des Zeitraums. Haben vergleicht die zuletzt gesendeten Kennzahlen mit den aktuellen Abrechnungen: Nach einem [Storno](#storno-und-korrektur) weichen sie ab, die Frist ist wieder offen, und die Seite bietet die Berichtigung an. Schreibst du die neue Abrechnung mit denselben Werten fest, gibt es nichts zu berichtigen. Gesendete Anmeldungen bleiben in der Datenbank unverändert (nur anhängen) und stehen im Änderungsprotokoll.
+
+### Nicht unterstützt
+
+Haben meldet diese Fälle als Fehler, statt falsch anzumelden:
+
+- Lohn des Vorjahres mit Zahltag später als drei Wochen nach Jahresende und Lohn des Folgejahres, der im Voraus gezahlt ist: Beides ist ein sonstiger Bezug (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR), Lohn anderer Jahre ebenso.
+- Alt-katholische Kirchensteuer in Bremen, Mecklenburg-Vorpommern, Sachsen, Sachsen-Anhalt und Thüringen: Dort sieht die Anmeldung Kz 63 nicht vor.
+- Pauschale Lohnsteuer (Kz 41, 44), pauschale Kirchensteuer (Kz 47), der Förderbetrag zur betrieblichen Altersversorgung (Kz 45, 90) und die Kürzung für Handelsschiffe (Kz 33): Solche Bezüge rechnet Haben nicht ab.
+- Echt senden vor Ablauf des Zeitraums.
+
+Die Steuernummer ist die aus den Firmendaten; meldet das Finanzamt die Lohnsteuer unter einer eigenen Steuernummer der Betriebsstätte an, gibst du in Mein ELSTER ab.
+
+### Ohne Hersteller-ID: Mein ELSTER
+
+Ohne eigene Hersteller-ID zeigt die Seite eine **Ausfüllliste**: jedes Feld mit Bezeichnung, Kennzahl und dem Wert so, wie du ihn in Mein ELSTER eintippst, aus denselben Daten, die Haben senden würde. In Mein ELSTER öffnest du das Formular Lohnsteuer-Anmeldung des Jahres, wählst den Zeitraum, trägst die Werte ein, prüfst und sendest dort. Haben erfährt davon nichts; die Frist bleibt offen (siehe [Abgabe an ELSTER](elster-abgabe.md#über-mein-elster)).
+
+### Zahlen
+
+Die Lohnsteuer zahlst du mit Soli und Kirchensteuer in einer Summe, den Gesamtbetrag Kz 83. Im [Bankabgleich](bank.md#ohne-rechnung-buchen) ordnest du die Zahlung als „Lohnsteuer an das Finanzamt“ zu; eine Lastschrift des Finanzamts über genau den Gesamtbetrag einer übermittelten Anmeldung schlägt Haben so vor.
+
 ## Entgeltabrechnung
 
 Das PDF ist die Abrechnung in Textform nach § 108 Abs. 1 GewO und als Bescheinigung nach § 108 Abs. 3 Satz 1 GewO gekennzeichnet (§ 1 Abs. 4 EntgBV). Es enthält die Angaben aus § 1 der Entgeltbescheinigungsverordnung:
@@ -101,6 +161,8 @@ Aufbewahren musst du das Lohnkonto bis zum Ablauf des sechsten Kalenderjahres na
 ## Quellen
 
 - DATEV-Kontenrahmen 2026 SKR 03 (Art.-Nr. 11174) und SKR 04 (Art.-Nr. 11175), siehe [Plan](lohn-plan.md#quellen)
+- Datenart LStA: Schemas `LStA-2026.xsd` und `LStA-2027.xsd`, Jahresdokumentationen LStA_2026 und LStA_2027 und Beispiel `lsta_2026_ok.xml` in der Dokumentation zu ERiC 45.1.5.0 (`Datenarten/ElsterAnmeldung/LStA`); Muster der Lohnsteuer-Anmeldung 2026, BMF-Schreiben vom 14. August 2025
+- § 38 und § 38a EStG: <https://www.gesetze-im-internet.de/estg/__38.html>, <https://www.gesetze-im-internet.de/estg/__38a.html>
 - § 11 Abs. 2 EStG: <https://www.gesetze-im-internet.de/estg/__11.html>; § 40a Abs. 6 EStG: <https://www.gesetze-im-internet.de/estg/__40a.html>; § 41a EStG: <https://www.gesetze-im-internet.de/estg/__41a.html>
 - § 108 GewO: <https://www.gesetze-im-internet.de/gewo/__108.html>
 - Entgeltbescheinigungsverordnung §§ 1 und 2: <https://www.gesetze-im-internet.de/entgbv/__1.html>, <https://www.gesetze-im-internet.de/entgbv/__2.html>

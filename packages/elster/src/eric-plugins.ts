@@ -13,7 +13,7 @@ export function hatJahresPlugin(ericHome: string, datenartVersion: string | unde
 }
 
 function pluginName(datenartVersion: string): string | null {
-  const jahr = /^(UStVA|USt|EUER|ESt|KapEStA)_(\d{4})$/.exec(datenartVersion);
+  const jahr = /^(UStVA|USt|EUER|ESt|KapEStA|LStA)_(\d{4})$/.exec(datenartVersion);
   if (jahr) return `${jahr[1]}_${jahr[2]}`;
   const bilanz = /^Bilanz_(\d+)\.(\d+)$/.exec(datenartVersion);
   return bilanz ? `Bilanz_${bilanz[1]}_${bilanz[2]}` : null;

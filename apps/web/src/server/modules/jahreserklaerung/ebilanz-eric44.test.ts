@@ -6,7 +6,7 @@ import { EricGeprueftClient } from "../../test-eric.ts";
 // Ein installiertes ERiC wie 44.3, das die Taxonomie 6.9 prüfen kann, 6.10 aber nicht (kein libcheckBilanz_6_10.so)
 vi.mock("../elster/index.ts", async (importOriginal) => {
   const original = await importOriginal<typeof import("../elster/index.ts")>();
-  return { ...original, ericKenntDatenart: (datenartVersion: string) => datenartVersion !== "Bilanz_6.10" };
+  return { ...original, ericKennt: (datenartVersion: string) => datenartVersion !== "Bilanz_6.10" };
 });
 
 /*

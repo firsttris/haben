@@ -25,7 +25,7 @@ import { withActor } from "../../db/actor.ts";
 import { db, schema } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 import { accountName, ebilanzDavon, jahresabschluss, ledgerRange, listAssets, saldenliste } from "../buchhaltung/index.ts";
-import { ericKenntDatenart, PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
+import { ericKennt, PRODUKT_VERSION, uebermitteln } from "../elster/index.ts";
 import { companyIssues, loadCompany, type Company } from "../stammdaten/index.ts";
 
 /*
@@ -164,7 +164,7 @@ async function ebilanzIssues(year: number, today: string, company: Company): Pro
   const taxonomie = ebilanzTaxonomie(year);
   const base: EbilanzHinweis[] = [
     ...companyIssues(company).map((text) => ({ tone: "fehler" as const, text: `Firmendaten: ${text}` })),
-    ...(ericKenntDatenart(`Bilanz_${taxonomie}`)
+    ...(ericKennt(`Bilanz_${taxonomie}`)
       ? []
       : [
           {
