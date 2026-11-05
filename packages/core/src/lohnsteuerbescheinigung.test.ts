@@ -40,6 +40,7 @@ function abrechnung(stammdaten: LohnStammdaten, monat: number): LstbAbrechnung {
   if (!r.ok) throw new Error(r.meldung);
   return {
     monat,
+    zahltag: `2026-${String(monat).padStart(2, "0")}-28`,
     stammdaten,
     steuerBrutto: r.steuerBrutto,
     svBrutto: r.svBrutto,
@@ -175,6 +176,9 @@ describe("lohnsteuerbescheinigung", () => {
       meldung: expect.stringContaining("Beitragsbemessungsgrenze"),
     });
     expect(lohnsteuerbescheinigung(eingabe(GGF, { austritt: "2026-05-31" })).status).toBe("nicht-unterstuetzt");
+    // Dezemberlohn später als drei Wochen nach Jahresende: sonstiger Bezug des Folgejahres (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR)
+    const spaet = eingabe(GGF).abrechnungen.map((a) => (a.monat === 12 ? { ...a, zahltag: "2027-01-22" } : a));
+    expect(lohnsteuerbescheinigung(eingabe(GGF, { abrechnungen: spaet }))).toMatchObject({ status: "nicht-unterstuetzt", meldung: expect.stringContaining("2027") });
   });
 
   it("Werte vergleichen", () => {

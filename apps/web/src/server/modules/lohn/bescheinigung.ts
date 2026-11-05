@@ -53,6 +53,7 @@ async function abrechnungenDesJahres(year: number, q: Db | Tx) {
     .select({
       employeeId: p.employeeId,
       month: p.month,
+      zahltag: p.zahltag,
       mitarbeiter: p.mitarbeiter,
       steuerBrutto: p.steuerBrutto,
       svBrutto: p.svBrutto,
@@ -122,6 +123,7 @@ export async function lstbMitarbeiter(year: number, heute: string, q: Db | Tx = 
         .map(
           (a): LstbAbrechnung => ({
             monat: a.month,
+            zahltag: a.zahltag,
             stammdaten: a.mitarbeiter.lohn,
             steuerBrutto: a.steuerBrutto,
             svBrutto: a.svBrutto,

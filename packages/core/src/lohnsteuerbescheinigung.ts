@@ -1,4 +1,5 @@
 import { naechsterWerktag } from "./holidays.ts";
+import { letzterZahltagVorjahr } from "./lohnsteuer-anmeldung.ts";
 import type { Konfession, LohnStammdaten } from "./lohnabrechnung/typen.ts";
 import type { Cents } from "./money.ts";
 import { sozialversicherungJahr, type SvBeitraege } from "./sozialversicherung/index.ts";
@@ -27,6 +28,8 @@ import type { Bundesland } from "./steuernummer.ts";
 export interface LstbAbrechnung {
   /** Lohnzahlungszeitraum, 1 bis 12; laufender Arbeitslohn gehört in das Jahr, in dem er endet (§ 38a Abs. 1 Satz 2 EStG) */
   monat: number;
+  /** Tag der Lohnzahlung, JJJJ-MM-TT */
+  zahltag: string;
   /** Stand der Stammdaten, mit dem abgerechnet wurde */
   stammdaten: LohnStammdaten;
   steuerBrutto: Cents;
@@ -119,6 +122,12 @@ const pauschal = (a: LstbAbrechnung) => a.stammdaten.art === "minijob" && a.stam
 function nichtUnterstuetzt(a: LstbAbrechnung, jahr: number): string | null {
   const s = a.stammdaten;
   const monat = `${MONATE[a.monat - 1]}`;
+  // Laufender Arbeitslohn des Jahres ist er nur, wenn er im Jahr oder bis drei Wochen danach zufließt (R 39b.2 Abs. 1 Nr. 7
+  // LStR); sonst ist er ein sonstiger Bezug des Zahlungsjahres (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR, § 38a Abs. 1 Satz 3 EStG),
+  // wie in der Lohnsteuer-Anmeldung
+  if (a.zahltag < `${jahr}-01-01` || a.zahltag > letzterZahltagVorjahr(jahr + 1)) {
+    return `Der Lohn für ${monat} ${jahr} mit Zahltag ${datumText(a.zahltag)} ist ein sonstiger Bezug des Jahres ${a.zahltag.slice(0, 4)} (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR); das bescheinigt Haben nicht.`;
+  }
   if (s.art === "minijob") return `Ein Minijob ohne Pauschsteuer (${monat}) bescheinigt Haben nicht.`;
   if (s.faktor !== 1000) return `Das Faktorverfahren (${monat}) bescheinigt Haben nicht.`;
   if (s.kv.art === "privat" && s.kv.arbeitgeberzuschuss > 0)
