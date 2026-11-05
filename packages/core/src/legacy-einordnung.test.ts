@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { legacyNeutralKind, legacyNeutralSums } from "./legacy-einordnung.ts";
+import { isLegacyVatPayment, legacyNeutralKind, legacyNeutralSums } from "./legacy-einordnung.ts";
 
 const kind = (categories: string[], rechtsform: "einzelunternehmen" | "gmbh" | "ug", privat = false) =>
   legacyNeutralKind({ privat, categories, tax: 0 }, rechtsform);
@@ -82,5 +82,30 @@ describe("Review: Einordnung bei GmbH und UG", () => {
         { kind: "gesellschafter", direction: "ausgabe", gross: 50_000 },
       ]),
     ).toEqual([{ kind: "gesellschafter", label: expect.any(String), count: 3, zufluss: 0, abfluss: 50_000 }]);
+  });
+});
+
+describe("isLegacyVatPayment (#269)", () => {
+  const vat = (number: string, categories: string[], tax = 0, contactName = "Finanzamt Regensburg") =>
+    isLegacyVatPayment({ number, contactName, categories, tax });
+
+  it("erkennt die Zahllast der Voranmeldung an der Belegnummer aus Lexware Office („UStVA-2026-10“)", () => {
+    expect(vat("UStVA-2026-10", ["Sonstige Ausgaben"])).toBe(true);
+    expect(vat("UStVA-2026-Q3", [], 0, "")).toBe(true);
+  });
+
+  it("erkennt sie an einer Kategorie mit Umsatzsteuer, wenn der Beleg vom Finanzamt kommt", () => {
+    expect(vat("", ["Umsatzsteuer-Vorauszahlung"])).toBe(true);
+    expect(vat("4711", ["Umsatzsteuerzahlung"], 0, "Finanzkasse Bremen")).toBe(true);
+    expect(vat("", ["USt-Sondervorauszahlung"])).toBe(true);
+  });
+
+  it("lässt andere Steuern, Lieferanten und Belege mit eigener Vorsteuer als Ausgabebeleg", () => {
+    expect(vat("", ["Einkommensteuer"])).toBe(false);
+    expect(vat("", ["Gewerbesteuer"])).toBe(false);
+    expect(vat("ESt-2025", ["Umsatzsteuer, Einkommensteuer"])).toBe(false);
+    expect(vat("", ["Umsatzsteuer-Vorauszahlung"], 0, "Steuerkanzlei Huber")).toBe(false);
+    expect(vat("UStVA-2026-10", ["Bürobedarf"], 1_900)).toBe(false);
+    expect(vat("B-77", ["Bürobedarf"])).toBe(false);
   });
 });
