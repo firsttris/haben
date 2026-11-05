@@ -30,7 +30,7 @@ export {
   reenterDocument,
   type DocumentCancellation,
 } from "./cancellation.ts";
-export { extractionAvailable } from "./extraction.ts";
+export { extractionAvailable, extractionSettings } from "./extraction.ts";
 export { splitsByDocument, type DocumentSplit } from "./splits.ts";
 export { documentReferenceSchema, type DocumentReference } from "./external-reference.ts";
 export { documentNavigation, type DocumentNavigation } from "./navigation.ts";
