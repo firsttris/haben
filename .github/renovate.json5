@@ -4,7 +4,9 @@
 // package.json, Screenshots, README), PostgreSQL (Datenbank, Backup-Image, CI, Doku), Caddy und restic.
 // Nicht über Renovate: ERiC (download.elster.de hat keine Liste, die Renovate lesen könnte;
 // DEFAULT_ERIC_VERSION in packages/elster/src/install.ts hebt man von Hand nach einer
-// Testübermittlung) und Habens eigene Images.
+// Testübermittlung) und Habens eigene Images. Neue ERiC-Versionen, Lohnsteuer-PAP, Sozialversicherungswerte,
+// DATEV-Kontenrahmen und geänderte Normen meldet stattdessen der Workflow .github/workflows/jahreswerte.yml
+// als Issue mit dem Label „jahreswerte“ (docs/entwicklung.md, „Jahreswerte: Erinnerung per Workflow“).
 // Alle übrigen Pakete, die Actions und die Images kommen mit den gemeinsamen Einstellungen aus
 // firsttris/workflows (renovate/default.json5): Minor- und Patch-Updates einmal im Monat in einem
 // Pull Request, der sich bei grüner CI selbst merged; Majors auf Anfrage im Dashboard.

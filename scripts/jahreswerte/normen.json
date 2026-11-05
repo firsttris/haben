@@ -1,0 +1,280 @@
+{
+  "normen": [
+    {
+      "id": "ustg-13b",
+      "norm": "§ 13b UStG",
+      "url": "https://www.gesetze-im-internet.de/ustg_1980/__13b.html",
+      "zweck": "Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge): Buchung, Kennzahlen der Voranmeldung, Rechnungshinweis",
+      "stellen": ["packages/core/src/posting.ts", "packages/core/src/ustva.ts", "packages/core/src/legacy-vat.ts"],
+      "sha256": "42c7ae7b1970014fe8d9c24d0f92716446ad9c135330fe9a3518239bac200a0a"
+    },
+    {
+      "id": "ustg-14",
+      "norm": "§ 14 UStG",
+      "url": "https://www.gesetze-im-internet.de/ustg_1980/__14.html",
+      "zweck": "Pflichtangaben und Form der Rechnung, E-Rechnung",
+      "stellen": ["packages/einvoice/src/pdf.ts", "packages/einvoice/src/types.ts", "apps/web/src/server/modules/stammdaten/company.ts"],
+      "sha256": "e8f798659bfc446b367b20f7a82ebe66a1a6974e6252872811bd3855e50ab8d2"
+    },
+    {
+      "id": "ustg-17",
+      "norm": "§ 17 UStG",
+      "url": "https://www.gesetze-im-internet.de/ustg_1980/__17.html",
+      "zweck": "Berichtigung der Steuer bei Entgeltminderung (Skonto, Forderungsausfall)",
+      "stellen": ["packages/core/src/posting.ts", "apps/web/src/server/modules/umsatzsteuer/vat-figures.ts", "apps/web/src/server/modules/bank/bank.ts"],
+      "sha256": "909c2348bab83751ea288d52b0ed56e25a9dd618fe7ca1a84c9808cab053cdbb"
+    },
+    {
+      "id": "ustg-18",
+      "norm": "§ 18 UStG",
+      "url": "https://www.gesetze-im-internet.de/ustg_1980/__18.html",
+      "zweck": "Voranmeldungszeitraum (Grenzen 9.000 € und 2.000 €), Fälligkeit am 10., Jahreserklärung",
+      "stellen": ["packages/core/src/voranmeldungszeitraum.ts", "packages/core/src/period.ts"],
+      "sha256": "cdd7e1ca458cbba34c4581638d2b6545abdf59cd5bd23d5dd50359062fd0aa90"
+    },
+    {
+      "id": "ustg-18a",
+      "norm": "§ 18a UStG",
+      "url": "https://www.gesetze-im-internet.de/ustg_1980/__18a.html",
+      "zweck": "Zusammenfassende Meldung: Haben erstellt sie nicht, erinnert aber bei Reverse Charge daran",
+      "stellen": ["docs/rechnungen.md", "docs/umsatzsteuer.md"],
+      "sha256": "33676a6072f42ae9da9be8dfa8926ffc3ea0915208b07077da674200b32f35a0"
+    },
+    {
+      "id": "ustg-19",
+      "norm": "§ 19 UStG",
+      "url": "https://www.gesetze-im-internet.de/ustg_1980/__19.html",
+      "zweck": "Kleinunternehmerregelung: Grenzen, Rechnungshinweis, keine Umsatzsteuer",
+      "stellen": ["packages/core/src/treatment.ts", "packages/core/src/posting.ts", "packages/einvoice/src/i18n.ts"],
+      "sha256": "9b5383ccfbbb5f1eccc4a6f4483a01bb6690643db2b0adc6f05138adc0d9da0d"
+    },
+    {
+      "id": "ustdv-46",
+      "norm": "§ 46 UStDV",
+      "url": "https://www.gesetze-im-internet.de/ustdv_1980/__46.html",
+      "zweck": "Dauerfristverlängerung der Voranmeldung um einen Monat",
+      "stellen": ["packages/core/src/period.ts", "apps/web/src/server/modules/finanzamt/fristen.ts"],
+      "sha256": "46541be4da93f06da09b09512fe6ec548d9e0d1675058ef1c2e3d8c5d4dad8b3"
+    },
+    {
+      "id": "ustdv-47",
+      "norm": "§ 47 UStDV",
+      "url": "https://www.gesetze-im-internet.de/ustdv_1980/__47.html",
+      "zweck": "Sondervorauszahlung bei Dauerfristverlängerung (ein Elftel der Vorjahressumme)",
+      "stellen": ["packages/core/src/dauerfrist.ts", "apps/web/src/server/modules/umsatzsteuer/dauerfrist.ts"],
+      "sha256": "ec501e1a511caafdd8c58db4fb5b8e80191d6b7b2f723927b312d96ef3504134"
+    },
+    {
+      "id": "ustdv-48",
+      "norm": "§ 48 UStDV",
+      "url": "https://www.gesetze-im-internet.de/ustdv_1980/__48.html",
+      "zweck": "Verfahren der Dauerfristverlängerung, Anrechnung der Sondervorauszahlung im Dezember",
+      "stellen": ["packages/core/src/ustva.ts", "packages/elster/src/dauerfrist.ts"],
+      "sha256": "cdc5da53adfe074a0b3509ab238ba9c5767e4952ffadb3703eb2f8a75a14a777"
+    },
+    {
+      "id": "estg-4",
+      "norm": "§ 4 EStG",
+      "url": "https://www.gesetze-im-internet.de/estg/__4.html",
+      "zweck": "Nicht abziehbare Betriebsausgaben (Abs. 5: Bewirtung, Geschenke, Verpflegung, Arbeitszimmer) in EÜR und Pauschalen",
+      "stellen": ["packages/core/src/euer.ts", "packages/core/src/pauschalen.ts", "packages/core/src/koerperschaft.ts"],
+      "sha256": "423c5e39129be5d2985ac693e264e60cdd66ece7ef4092f15f782ffe5d473c50"
+    },
+    {
+      "id": "estg-6",
+      "norm": "§ 6 EStG",
+      "url": "https://www.gesetze-im-internet.de/estg/__6.html",
+      "zweck": "Geringwertige Wirtschaftsgüter (Abs. 2) und Sammelposten (Abs. 2a): Grenzen und Behandlung",
+      "stellen": ["packages/core/src/afa.ts", "packages/elster/src/erklaerung.ts"],
+      "sha256": "0f2f775eed620acbeb76eb555aa7d1d983d04c848a19a382f546b3cf312c07a9"
+    },
+    {
+      "id": "estg-7",
+      "norm": "§ 7 EStG",
+      "url": "https://www.gesetze-im-internet.de/estg/__7.html",
+      "zweck": "Absetzung für Abnutzung: linear, degressiv, monatsgenau",
+      "stellen": ["packages/core/src/afa.ts"],
+      "sha256": "406384f4e15d0ae9c99df7453de52a07d1c3dcbea1170028b14a035847380814"
+    },
+    {
+      "id": "estg-7g",
+      "norm": "§ 7g EStG",
+      "url": "https://www.gesetze-im-internet.de/estg/__7g.html",
+      "zweck": "Investitionsabzugsbetrag und Sonderabschreibung (Position der E-Bilanz)",
+      "stellen": ["packages/elster/src/ebilanz/xbrl.ts"],
+      "sha256": "e676f50502d19e0ebdeafe8dc0dfd8bac1b96d4c85d04e73b56444e5b9394284"
+    },
+    {
+      "id": "estg-9",
+      "norm": "§ 9 EStG",
+      "url": "https://www.gesetze-im-internet.de/estg/__9.html",
+      "zweck": "Verpflegungsmehraufwand (Abs. 4a) für die Pauschalen",
+      "stellen": ["packages/core/src/pauschalen.ts"],
+      "sha256": "6a46501e312d4fff96c09a11e25f5b61b052ced4d6d867ee095effd07788239a"
+    },
+    {
+      "id": "estg-32a",
+      "norm": "§ 32a EStG",
+      "url": "https://www.gesetze-im-internet.de/estg/__32a.html",
+      "zweck": "Einkommensteuertarif der Prognose und des Lohnsteuer-PAP",
+      "stellen": ["packages/core/src/income-tax.ts", "packages/core/src/lohnsteuer/pap.ts"],
+      "sha256": "3f99c7eec3bb470154df8c269d5684ab00a2ff20d71461ccba8eb065c2434aec"
+    },
+    {
+      "id": "estg-41",
+      "norm": "§ 41 EStG",
+      "url": "https://www.gesetze-im-internet.de/estg/__41.html",
+      "zweck": "Lohnkonto (geplante Lohnabrechnung)",
+      "stellen": ["docs/lohn-plan.md"],
+      "sha256": "b18a84204c30d7c9b5c130bfd352f0d011f06588d03429379adef0a76bd2edcf"
+    },
+    {
+      "id": "estg-45a",
+      "norm": "§ 45a EStG",
+      "url": "https://www.gesetze-im-internet.de/estg/__45a.html",
+      "zweck": "Anmeldung der Kapitalertragsteuer und Steuerbescheinigung bei Ausschüttungen",
+      "stellen": [
+        "packages/core/src/steuerbescheinigung.ts",
+        "packages/einvoice/src/steuerbescheinigung.ts",
+        "apps/web/src/server/modules/ausschuettung/index.ts"
+      ],
+      "sha256": "558fd8774dea1d95eb170620e5e60cc3806f5d385ee73e9d93b823eac3fa1d7a"
+    },
+    {
+      "id": "ao-146a",
+      "norm": "§ 146a AO",
+      "url": "https://www.gesetze-im-internet.de/ao_1977/__146a.html",
+      "zweck": "Elektronische Aufzeichnungssysteme mit TSE: Abgrenzung des Kassenbuchs",
+      "stellen": ["docs/roadmap.md", "apps/web/src/server/modules/bank/cash.ts"],
+      "sha256": "601c46b4a5afa9d35e5c62abf402c687081e854ebae7e58999a190ae1d1be54b"
+    },
+    {
+      "id": "ao-149",
+      "norm": "§ 149 AO",
+      "url": "https://www.gesetze-im-internet.de/ao_1977/__149.html",
+      "zweck": "Abgabefristen der Jahreserklärungen",
+      "stellen": ["packages/core/src/fristen.ts", "apps/web/src/server/modules/finanzamt/fristen.ts"],
+      "sha256": "9d2e7106a33d11a4283a68b40ea21a3c2ac5baf694470278799800db52fc40c8"
+    },
+    {
+      "id": "hgb-264",
+      "norm": "§ 264 HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__264.html",
+      "zweck": "Pflicht zum Jahresabschluss der Kapitalgesellschaft, Erleichterungen für Kleinstkapitalgesellschaften",
+      "stellen": ["packages/core/src/hinterlegung.ts", "packages/einvoice/src/hinterlegung.ts"],
+      "sha256": "5610fd2bb1e78ed5ea187c613ab46bbd7ebba8e4f5ee834a5bf555070d94c5f1"
+    },
+    {
+      "id": "hgb-265",
+      "norm": "§ 265 HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__265.html",
+      "zweck": "Allgemeine Grundsätze der Gliederung (Vorjahreszahlen, Leerposten)",
+      "stellen": ["packages/core/src/hgb.ts"],
+      "sha256": "10b66769b9d6776f195d610de0a623ed5d576069a2f9aa47d7f3fa4cfaa77d02"
+    },
+    {
+      "id": "hgb-266",
+      "norm": "§ 266 HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__266.html",
+      "zweck": "Gliederung der Bilanz",
+      "stellen": ["packages/core/src/hgb.ts", "apps/web/src/components/BilanzGuv.tsx"],
+      "sha256": "bae9f1d719bdf795b640e160bbaa2e24f7e0f053e8af28619d616cec163101c7"
+    },
+    {
+      "id": "hgb-267",
+      "norm": "§ 267 HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__267.html",
+      "zweck": "Größenklassen der Kapitalgesellschaften",
+      "stellen": ["packages/core/src/hgb.ts", "packages/core/src/bilanzvermerke.ts"],
+      "sha256": "6fcf2ca2774bb344ede09ddf42907675b1c47d28bd5ab28c9d0d7f461f2c3467"
+    },
+    {
+      "id": "hgb-267a",
+      "norm": "§ 267a HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__267a.html",
+      "zweck": "Kleinstkapitalgesellschaften: Schwellenwerte",
+      "stellen": ["packages/core/src/hinterlegung.ts", "packages/core/src/hgb.ts"],
+      "sha256": "041ec0b7e7755cc1bfcd886cf21ea9b495a96878af5fce5bde1a5d0d70980102"
+    },
+    {
+      "id": "hgb-268",
+      "norm": "§ 268 HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__268.html",
+      "zweck": "Vermerke zur Bilanz (Restlaufzeiten von Forderungen und Verbindlichkeiten)",
+      "stellen": ["packages/core/src/bilanzvermerke.ts", "packages/core/src/hgb.ts"],
+      "sha256": "358fea8ba5e2e33bcded322e70390e7ca84c507af343aad8fc16a7256a3c6dc0"
+    },
+    {
+      "id": "hgb-274a",
+      "norm": "§ 274a HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__274a.html",
+      "zweck": "Größenabhängige Erleichterungen für kleine Kapitalgesellschaften",
+      "stellen": ["packages/core/src/bilanzvermerke.ts"],
+      "sha256": "9755a6cf1f74e94a5feaae15f76b433d2da159c8376e28fdd9ffb7d2a137b5c5"
+    },
+    {
+      "id": "hgb-325",
+      "norm": "§ 325 HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__325.html",
+      "zweck": "Offenlegung des Jahresabschlusses",
+      "stellen": ["packages/core/src/hinterlegung.ts", "apps/web/src/components/Hinterlegung.tsx"],
+      "sha256": "b972dfa17e965c363d20f08b9746819ff666f4cda736c36b17ab6dab215d5243"
+    },
+    {
+      "id": "hgb-326",
+      "norm": "§ 326 HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__326.html",
+      "zweck": "Erleichterungen bei der Offenlegung, Hinterlegung der Kleinstkapitalgesellschaft",
+      "stellen": ["packages/core/src/hinterlegung.ts", "packages/einvoice/src/hinterlegung.ts"],
+      "sha256": "5a2c60fdad72932e933f1ae4180332a35d852c430817238d362788bd804fe785"
+    },
+    {
+      "id": "hgb-328",
+      "norm": "§ 328 HGB",
+      "url": "https://www.gesetze-im-internet.de/hgb/__328.html",
+      "zweck": "Form und Inhalt der offengelegten Unterlagen",
+      "stellen": ["packages/core/src/hinterlegung.ts", "apps/web/src/components/Hinterlegung.tsx"],
+      "sha256": "5000cbad7ff16eec34de19d9cd31ffed57d72e2673dfacccf953ca1f3348f386"
+    },
+    {
+      "id": "gmbhg-35a",
+      "norm": "§ 35a GmbHG",
+      "url": "https://www.gesetze-im-internet.de/gmbhg/__35a.html",
+      "zweck": "Pflichtangaben auf Geschäftsbriefen und Rechnungen der GmbH",
+      "stellen": ["packages/core/src/geschaeftsbrief.ts", "packages/einvoice/src/pdf.ts"],
+      "sha256": "29e36f7a265437576cea69eec02c73c0761fd2fe390c3dc1ddc015fcbb901ece"
+    },
+    {
+      "id": "gmbhg-42",
+      "norm": "§ 42 GmbHG",
+      "url": "https://www.gesetze-im-internet.de/gmbhg/__42.html",
+      "zweck": "Bilanz der GmbH: Ausweis gegenüber Gesellschaftern (Abs. 3)",
+      "stellen": ["packages/core/src/bilanzvermerke.ts", "packages/core/src/ebilanz.ts"],
+      "sha256": "5d0418fa5f89f1fef7bb5408abbd41b5a6c7f5f59f9e51de72f0e0f36423dc76"
+    },
+    {
+      "id": "bgb-247",
+      "norm": "§ 247 BGB",
+      "url": "https://www.gesetze-im-internet.de/bgb/__247.html",
+      "zweck": "Basiszinssatz (Bezugsgröße und Termine 1.1./1.7.); der Wert steht in den Einstellungen",
+      "stellen": ["packages/core/src/dunning.ts"],
+      "sha256": "ec42edd0abae9e8bfb7ba14f0b09d9a074e64026035dd0320b634c5ab44cebfd"
+    },
+    {
+      "id": "bgb-288",
+      "norm": "§ 288 BGB",
+      "url": "https://www.gesetze-im-internet.de/bgb/__288.html",
+      "zweck": "Verzugszinsen und Verzugspauschale in Mahnungen",
+      "stellen": ["packages/core/src/dunning.ts"],
+      "sha256": "cb606ef066e8958e6ac42666d3195c1c83b315992df428a4d872817430b519d7"
+    },
+    {
+      "id": "sgb4-20",
+      "norm": "§ 20 SGB IV",
+      "url": "https://www.gesetze-im-internet.de/sgb_4/__20.html",
+      "zweck": "Übergangsbereich (Faktor F, Obergrenze) der Sozialversicherung",
+      "stellen": ["packages/core/src/sozialversicherung/beschaeftigt.ts", "packages/core/src/sozialversicherung/werte.ts"],
+      "sha256": "89cd043078f255094bc8bcf78298f06fb834983c44c9f5334aca774b54feb3c4"
+    }
+  ]
+}
