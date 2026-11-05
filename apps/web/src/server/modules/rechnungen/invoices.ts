@@ -148,6 +148,26 @@ function lineRows(invoiceId: string, lines: LineInput[], lineNets: number[]) {
   }));
 }
 
+/**
+ * Abzüge, die eine Korrektur aus der Schlussrechnung übernommen hat: Der Editor zeigt sie nur an, Haben behält sie beim
+ * Speichern. So bleiben sie wie in der Schlussrechnung außerhalb der Grundlage des Gesamtrabatts (discountBasis).
+ */
+async function keptDeductions(tx: Tx, invoiceId: string): Promise<LineInput[]> {
+  const rows = await tx.select().from(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, invoiceId)).orderBy(asc(schema.invoiceLines.position));
+  return rows.flatMap((line) => (line.deductionOf ? [{ ...lineInputOf(line), deductionOf: line.deductionOf }] : []));
+}
+
+/** Gespeicherte Position als Eingabe, mit Positionsrabatt */
+const lineInputOf = (line: InvoiceLine): LineInput => ({
+  description: line.description,
+  detail: line.detail,
+  quantity: line.quantity,
+  unit: line.unit as UnitLabel,
+  unitPrice: line.unitPrice,
+  taxRate: line.taxRate as 1900 | 700 | 0,
+  discount: discountFromColumns(line.discountPercent, line.discountAmount),
+});
+
 /** Positionen und Steuerzeilen eines Entwurfs speichern, wie sie draftValues berechnet hat */
 async function storeLines(tx: Tx, invoiceId: string, lines: LineInput[], { lineNets }: InvoiceCalculation, taxes: ReturnType<typeof euroTaxes>) {
   await tx.delete(schema.invoiceLines).where(eq(schema.invoiceLines.invoiceId, invoiceId));
@@ -216,6 +236,8 @@ async function deductedElsewhere(abschlagIds: string[], exceptInvoiceId: string 
     .where(
       and(
         inArray(schema.invoiceLines.deductionOf, abschlagIds),
+        // Nur Schlussrechnungen ziehen ab; Storno und Korrektur tragen den Abzug nur für die Grundlage des Gesamtrabatts mit
+        eq(schema.invoices.kind, "rechnung"),
         eq(schema.invoices.status, "final"),
         sql`${schema.invoices.id} not in (${cancelledIds})`,
         exceptInvoiceId ? ne(schema.invoices.id, exceptInvoiceId) : undefined,
@@ -297,7 +319,7 @@ export async function abschlagLinks(invoiceId: string) {
     .selectDistinct({ id: schema.invoices.id, number: schema.invoices.number, status: schema.invoices.status })
     .from(schema.invoiceLines)
     .innerJoin(schema.invoices, eq(schema.invoices.id, schema.invoiceLines.invoiceId))
-    .where(and(eq(schema.invoiceLines.deductionOf, invoiceId), sql`${schema.invoices.id} not in (${cancelledIds})`));
+    .where(and(eq(schema.invoiceLines.deductionOf, invoiceId), eq(schema.invoices.kind, "rechnung"), sql`${schema.invoices.id} not in (${cancelledIds})`));
   return { deducts, deductedIn };
 }
 
@@ -549,7 +571,7 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     await assertQuotesLocked(tx, quoteIds, [id], [input.quoteId]);
     const { bundesland } = await loadCompany(tx);
     if (draft.kind === "rechnung") await checkQuote(tx, input.quoteId);
-    const lines = await allLines(tx, id, input);
+    const lines = draft.kind === "rechnung" ? await allLines(tx, id, input) : [...input.lines, ...(await keptDeductions(tx, id))];
     if (input.variant && draft.kind !== "rechnung") throw new InvoiceError("Storno und Korrektur sind keine Abschlags- oder Schlussrechnung.");
     // Eine Korrektur rechnet wie die ursprüngliche Rechnung, netto oder brutto
     const rate = await draftRate(tx, input, draft.correctsId, draft);
@@ -992,7 +1014,7 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
       : "Die korrigierte Rechnung fehlt";
     if (problem) throw new InvoiceError(`${problem}.`);
   }
-  if (deducts.length > 0) {
+  if (invoice.kind === "rechnung" && deducts.length > 0) {
     const { problems } = await deductionProblems(id, { contactId: invoice.contactId, deducts, taxTreatment: invoice.taxTreatment }, tx);
     if (problems.length > 0) throw new InvoiceError(`${problems.join(", ")}.`);
   }
@@ -1099,16 +1121,16 @@ async function finalOriginal(id: string, q: Db | Tx = db) {
   return data;
 }
 
-/** Positionen mit umgekehrtem Vorzeichen; ein fester Positionsrabatt wechselt es mit (Storno hebt so auf den Cent auf) */
-function negatedLines(lines: InvoiceLine[]): DraftInput["lines"] {
+/**
+ * Positionen mit umgekehrtem Vorzeichen; ein fester Positionsrabatt wechselt es mit. Abzüge einer Schlussrechnung bleiben
+ * als solche markiert, damit sie wie dort nicht zur Grundlage des Gesamtrabatts zählen (Storno hebt so auf den Cent auf).
+ */
+function negatedLines(lines: InvoiceLine[]): LineInput[] {
   return lines.map((line) => ({
-    description: line.description,
-    detail: line.detail,
-    quantity: line.quantity,
-    unit: line.unit as UnitLabel,
+    ...lineInputOf(line),
     unitPrice: -line.unitPrice,
-    taxRate: line.taxRate as 1900 | 700 | 0,
     discount: negateDiscount(discountFromColumns(line.discountPercent, line.discountAmount)),
+    ...(line.deductionOf ? { deductionOf: line.deductionOf } : {}),
   }));
 }
 

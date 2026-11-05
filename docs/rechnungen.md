@@ -241,7 +241,7 @@ Einen Nachlass gibst du als **Positionsrabatt** auf einzelne Positionen oder als
 - **Gesamtrabatt:** Unter den Positionen im Feld **Gesamtrabatt** ebenso Prozent oder Betrag. Er gilt für die Summe der Positionen nach ihren Rabatten: erst der Positionsrabatt, dann der Gesamtrabatt.
 - **Netto oder brutto:** Ein Betrag gilt im Preismodus der Rechnung, bei Bruttopreisen also brutto.
 - **Mehrere Steuersätze:** Der Gesamtrabatt teilt sich je Steuersatz auf. Prozent gilt für jeden Satz gleich, ein Betrag im Verhältnis der Summen je Satz; den Rundungsrest trägt der größte Satz. Die Umsatzsteuer rechnet Haben je Satz auf den Betrag nach Rabatt (§ 10 Abs. 1 UStG: Bemessungsgrundlage ist das, was der Kunde aufwendet).
-- **Schlussrechnung:** Der Gesamtrabatt gilt nur für die Leistung, nicht für die Abzüge der Abschlagsrechnungen.
+- **Schlussrechnung:** Der Gesamtrabatt gilt nur für die Leistung, nicht für die Abzüge der Abschlagsrechnungen. Storno und Rechnungskorrektur einer Schlussrechnung übernehmen die Abzüge als solche, ebenfalls ohne Rabatt; in der Korrektur stehen sie fest unter den Positionen.
 - **Skonto** bleibt davon getrennt: Er gilt für den Betrag nach Rabatt und nur bei früher Zahlung (siehe [Skonto](#skonto)).
 
 Im **PDF** steht der Positionsrabatt unter der Bezeichnung („abzüglich 10 % Rabatt (95,00 €)“), der Zeilenbetrag nach Rabatt. Mit Gesamtrabatt stehen über der Summe netto die **Zwischensumme** und der **Gesamtrabatt**; bei Bruttopreisen über dem Gesamtbetrag.

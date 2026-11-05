@@ -210,6 +210,7 @@ export function InvoiceEditor({
   companySkonto = [],
   attachments = null,
   planTemplates = [],
+  keptDeductions = [],
 }: {
   id: string | null;
   kind: keyof typeof KIND_TITLE;
@@ -247,6 +248,8 @@ export function InvoiceEditor({
   attachments?: ReactNode;
   /** Vorlagen für den Zahlungsplan im Angebot, aus den Einstellungen */
   planTemplates?: PlanTemplate[];
+  /** Korrektur einer Schlussrechnung: die übernommenen Abzüge, fest; Haben behält sie beim Speichern */
+  keptDeductions?: { description: string; quantity: number; unit: UnitLabel; unitPrice: number; taxRate: 1900 | 700 | 0; deductionOf: string }[];
 }) {
   const router = useRouter();
   const navigate = useNavigate();
@@ -312,19 +315,22 @@ export function InvoiceEditor({
   const foreign = kind === "rechnung" && currencyCode !== "EUR";
   const amountLabel = grossPrices ? "Brutto" : "Netto";
   // Vorschau: je Abschlagsrechnung und Steuersatz eine negative Position, wie beim Speichern
-  const deductionPreview = deducted.flatMap((a) =>
-    a.rates
-      .filter((r) => r.base !== 0)
-      .map((r) => ({
-        description: `Abzüglich Abschlagsrechnung ${a.number} vom ${formatDate(a.issueDate)}`,
-        quantity: 1000,
-        unit: "Psch." as UnitLabel,
-        unitPrice: -(grossPrices ? r.base + r.tax : r.base),
-        taxRate: r.rate as 1900 | 700 | 0,
-        valid: true,
-        deductionOf: a.id,
-      })),
-  );
+  const deductionPreview = [
+    ...deducted.flatMap((a) =>
+      a.rates
+        .filter((r) => r.base !== 0)
+        .map((r) => ({
+          description: `Abzüglich Abschlagsrechnung ${a.number} vom ${formatDate(a.issueDate)}`,
+          quantity: 1000,
+          unit: "Psch." as UnitLabel,
+          unitPrice: -(grossPrices ? r.base + r.tax : r.base),
+          taxRate: r.rate as 1900 | 700 | 0,
+          valid: true,
+          deductionOf: a.id,
+        })),
+    ),
+    ...keptDeductions.map((line) => ({ ...line, valid: true })),
+  ];
   const title = invoiceTitle(kind, variant);
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
