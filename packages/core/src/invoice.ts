@@ -75,7 +75,7 @@ export interface InvoiceCalculation {
   allowances: DocumentAllowance[];
 }
 
-type CalculationLine = Pick<InvoiceLineInput, "quantity" | "unitPrice" | "taxRate"> & {
+type CalculationLine = { quantity: Millis; unitPrice: Cents; taxRate: BasisPoints } & {
   discount?: Discount | null | undefined;
   /** Abzugsposition einer Schlussrechnung: vom Gesamtrabatt ausgenommen */
   deductionOf?: string | null | undefined;

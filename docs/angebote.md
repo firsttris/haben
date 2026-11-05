@@ -14,8 +14,41 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - Preise netto oder brutto inklusive Umsatzsteuer, wie bei der [Rechnung](rechnungen.md#nettopreise-oder-bruttopreise)
 - Einleitung über den Positionen, Positionen und ein Hinweis, beide auch aus [Textbausteinen](rechnungen.md#textbausteine); die Einleitung ist mit der Standard-Einleitung für Angebote aus den [Firmendaten](einrichtung.md) vorbelegt
 - zu jeder Position optional ein mehrzeiliger **Text zur Position** wie bei der [Rechnung](rechnungen.md#positionen); er steht im PDF unter der Bezeichnung und geht in die Rechnung aus dem Angebot über
+- **Positionsrabatt** und **Gesamtrabatt** in Prozent oder als Betrag wie bei der [Rechnung](rechnungen.md#rabatte); die Rechnung aus dem Angebot übernimmt beide
+- je Position die **Art**: zählt zur Summe, **optional** oder **Alternative** zur Position davor (siehe unten)
+- optional ein **Zahlungsplan** (siehe unten)
 
 Rechts siehst du die Vorschau. Der Entwurf lässt sich beliebig speichern, ändern und löschen.
+
+### Optionale und alternative Positionen
+
+Wie in Lexware Office bietest du in einem Angebot Wahlmöglichkeiten an:
+
+- **Optional** ist eine Zusatzleistung, die der Kunde dazu bestellen kann, etwa eine Schulung. Er kann keine, eine oder mehrere optionale Positionen nehmen.
+- Eine **Alternative** ist eine andere Variante der Position direkt darüber, ihrer Hauptposition, etwa „Website mit Shop“ statt „Website“. Unter einer Hauptposition können mehrere Alternativen stehen; der Kunde nimmt genau eine Variante.
+
+Beide zählen nicht zur Angebotssumme, auch nicht für Gesamtrabatt und Zahlungsplan. Im PDF stehen sie mit Preis und dem Hinweis „Optional, nicht in der Angebotssumme“ bzw. „Alternative zu Pos. 1, nicht in der Angebotssumme“. Mindestens eine Position muss zur Summe zählen, und eine Alternative braucht ihre Hauptposition direkt darüber.
+
+Auf dem festgeschriebenen Angebot hältst du unter **Auswahl des Kunden** fest, was er nimmt: optionale Positionen per Haken, je Hauptposition eine Variante. Die Auswahl gilt mit **Angenommen**, **Rechnung erstellen**, den Abschlägen und **Auswahl speichern**. Rechnung, Abschläge, Zahlungsplan, Auftragsbestätigung und Lieferschein übernehmen nur die gewählten Positionen, als normale Positionen; ohne Auswahl die Hauptpositionen. Sobald eine Rechnung zum Angebot festgeschrieben ist, ist die Auswahl fest (auch in der Datenbank); nach dem Storno dieser Rechnung lässt sie sich wieder ändern.
+
+### Zahlungsplan
+
+Bei größeren Aufträgen legst du im Abschnitt **Zahlungsplan** fest, in welchen Teilen abgerechnet wird, z. B.:
+
+| Nr. | Bezeichnung | Anteil | Fällig bei |
+| --- | --- | --- | --- |
+| 1 | Anzahlung | 30 % | Auftragserteilung |
+| 2 | Abschlag | 40 % | Lieferung |
+| 3 | Schlussrechnung | Rest | Abnahme |
+
+- Je Zahlung ein **Prozentsatz** des Angebotsbetrags oder ein **fester Betrag**. Der Betrag gilt im Preismodus des Angebots, bei Bruttopreisen also brutto.
+- Die letzte Zahlung ist immer der **Rest**; ihn rechnet die Schlussrechnung ab.
+- Die **Fälligkeit** ist Text, etwa „Lieferung“; ein Datum schlägt Haben daraus nicht vor.
+- Haben zeigt je Zahlung Netto und Brutto und prüft, dass der Plan den Angebotsbetrag nicht übersteigt.
+- **Vorlage übernehmen** setzt einen Plan aus den [Vorlagen](einrichtung.md#vorlagen-für-den-zahlungsplan) ein, ab Werk 30/40/30 und 50/50.
+- Der Plan steht im Angebots-PDF unter den Summen; mit **Zahlungsplan auch in der Auftragsbestätigung** auch dort.
+
+**Mehrere Steuersätze:** Jede Zahlung teilt sich anteilig je Steuersatz auf. Ein Prozentsatz gilt für jeden Satz gleich, ein fester Betrag im Verhältnis der Nettobeträge je Satz; den Rundungsrest trägt der größte Satz. Bei einem Angebot über 7.000 € zu 19 % und 3.000 € zu 7 % ergeben 30 % also 2.100 € und 900 €, ein fester Abschlag von 2.000 € 1.400 € und 600 €.
 
 **Festschreiben** vergibt die Nummer und erzeugt das PDF:
 
@@ -67,7 +100,8 @@ Jedes Angebot lässt sich nur einmal abrechnen. Löschst du den Rechnungsentwurf
 
 Bei größeren Aufträgen rechnest du das Angebot in Teilen ab (siehe [Abschlags- und Schlussrechnung](rechnungen.md#abschlags--und-schlussrechnung)):
 
-- **Abschlagsrechnung erstellen** legt einen Entwurf mit Rechnungsart „Abschlagsrechnung“ an, mit Kunde, Umsatzsteuer und Preismodus aus dem Angebot und einer Position „Abschlag gemäß Angebot AN-2026-004 vom …“. Den Betrag trägst du selbst ein, z. B. 30 % der Angebotssumme. Das Angebot gilt als angenommen, bleibt aber offen für weitere Abschläge.
+- **Mit Zahlungsplan** steht auf dem Angebot die Übersicht **Zahlungsplan**: je Zahlung Plan (netto und brutto), die Rechnung dazu mit Link und Betrag und der Status **Offen**, **Entwurf**, **Festgeschrieben** oder **Bezahlt**. **Abschlagsrechnung erstellen** legt zu einer Zahlung den Entwurf an, mit Kunde, Preismodus und Umsatzsteuer aus dem Angebot und je Steuersatz einer Position wie „2. Abschlag 40 % gemäß Angebot AN-2026-004 vom 01.10.2026“, den Betrag anteilig aus dem Auftrag nach der Auswahl des Kunden. Den Betrag kannst du im Entwurf noch ändern; die Übersicht zeigt dann Plan und Ist. Je Zahlung gibt es eine Abschlagsrechnung; nach ihrem Storno oder dem Löschen des Entwurfs wieder eine neue. Beim Rest steht **Schlussrechnung erstellen**. Darunter der Fortschritt: „Abgerechnet 7.000,00 € von 10.000,00 € (70 %), offen 3.000,00 €“, gerechnet aus den festgeschriebenen, nicht stornierten Rechnungen zum Angebot.
+- **Ohne Zahlungsplan** legt **Abschlagsrechnung erstellen** einen Entwurf mit Rechnungsart „Abschlagsrechnung“ an, mit Kunde, Umsatzsteuer und Preismodus aus dem Angebot und einer Position „Abschlag gemäß Angebot AN-2026-004 vom …“. Den Betrag trägst du selbst ein, z. B. 30 % der Angebotssumme. Das Angebot gilt als angenommen, bleibt aber offen für weitere Abschläge.
 - **Schlussrechnung erstellen** erscheint, sobald ein Abschlag festgeschrieben ist. Der Entwurf übernimmt alle Positionen des Angebots und zieht die festgeschriebenen Abschläge **dieses** Angebots ab, nicht die anderer Aufträge desselben Kunden. Erst die Schlussrechnung rechnet das Angebot ab.
 - Unter **Rechnungen zu diesem Angebot** stehen alle Abschläge, die Schlussrechnung bzw. die Rechnung aus dem Angebot mit Datum, Betrag und Status, darunter wie viel schon in Abschlägen abgerechnet ist.
 
@@ -75,8 +109,8 @@ Bei größeren Aufträgen rechnest du das Angebot in Teilen ab (siehe [Abschlags
 
 Bei einem angenommenen Angebot stehen unter **Antwort des Kunden** zwei weitere PDFs:
 
-- **Auftragsbestätigung:** dieselben Positionen und Preise wie im Angebot, datiert auf den Tag der Annahme, mit Bezug auf das Angebot und der Auftragssumme.
-- **Lieferschein:** die Positionen mit Menge und Text zur Position, ohne Preise, mit einem Feld für die Empfangsbestätigung des Kunden. Als Lieferdatum gilt das Ende des Leistungszeitraums, sonst der Tag der Annahme.
+- **Auftragsbestätigung:** dieselben Positionen, Preise und Rabatte wie im Angebot, nach der Auswahl des Kunden bei optionalen und alternativen Positionen, datiert auf den Tag der Annahme, mit Bezug auf das Angebot und der Auftragssumme; auf Wunsch mit dem Zahlungsplan, gerechnet auf die Auftragssumme.
+- **Lieferschein:** die gewählten Positionen mit Menge und Text zur Position, ohne Preise, mit einem Feld für die Empfangsbestätigung des Kunden. Als Lieferdatum gilt das Ende des Leistungszeitraums, sonst der Tag der Annahme.
 
 Beide entstehen beim Abruf aus dem festgeschriebenen Angebot, buchen nichts und sehen jedes Mal gleich aus, solange die Antwort „angenommen“ bleibt. Sprache und Logo folgen dem Angebot bzw. den Einstellungen. Einen Lieferschein gibt es auch zu jeder festgeschriebenen Rechnung (Schaltfläche **Lieferschein** auf der Rechnung).
 
@@ -84,5 +118,5 @@ Beide entstehen beim Abruf aus dem festgeschriebenen Angebot, buchen nichts und 
 
 Angebote sind Handelsbriefe (§ 257 HGB, § 147 AO) und werden sechs Jahre aufbewahrt.
 
-- In der Datenbank sind sie nach dem Festschreiben gesperrt. Ein Trigger lässt nur noch die Antwort des Kunden und den Verweis auf die Rechnung zu.
+- In der Datenbank sind sie nach dem Festschreiben gesperrt, mit Rabatten, Art der Positionen und Zahlungsplan. Ein Trigger lässt nur noch die Antwort des Kunden und den Verweis auf die Rechnung zu. Die Auswahl des Kunden steht in einer eigenen Tabelle mit Änderungsprotokoll und ist fest, sobald eine Rechnung zum Angebot festgeschrieben ist.
 - Im [Jahresarchiv](auswertungen.md#jahresexport) liegen sie unter `angebote/`: die PDFs plus `angebote.csv` mit Beträgen, Antwort, Rechnungsnummer und SHA-256.
