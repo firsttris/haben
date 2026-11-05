@@ -100,6 +100,7 @@ h1 { margin: 0; font-size: 28px; font-weight: 600; }
 h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .mono { font-family: var(--mono); }
 .muted { color: var(--muted); }
+.fehlerseite { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 24px 0; }
 .small { font-size: 13px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 

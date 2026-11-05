@@ -1,3 +1,4 @@
+import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { listTextBlocks, loadCompany } from "../modules/stammdaten/index.ts";
@@ -14,7 +15,7 @@ import {
   updateRecurring,
 } from "../modules/rechnungen/index.ts";
 import { today } from "../today.ts";
-import { UserError } from "../errors.ts";
+import { detailId } from "./schemas.ts";
 
 async function formContext() {
   const [company, textBlocks] = await Promise.all([loadCompany(), listTextBlocks()]);
@@ -43,10 +44,10 @@ export const getRecurringForm = createServerFn({ method: "GET" })
 
 export const getRecurringDetail = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(async ({ data }) => {
     const result = await getRecurring(data);
-    if (!result) throw new UserError("Vorlage nicht gefunden.");
+    if (!result) throw notFound();
     // Vorschau der nächsten Rechnung mit ersetzten Platzhaltern
     return { ...result, preview: invoiceForDate(result.recurring, result.recurring.nextDate), ...(await formContext()) };
   });

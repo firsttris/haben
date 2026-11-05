@@ -1,3 +1,4 @@
+import { notFound } from "@tanstack/react-router";
 import { EXPENSE_CATEGORIES } from "@haben/core";
 import { loadInboxSettings } from "../modules/belege/index.ts";
 import { createServerFn } from "@tanstack/react-start";
@@ -31,6 +32,7 @@ import { db, schema } from "../db/index.ts";
 import { eq } from "drizzle-orm";
 import { UserError } from "../errors.ts";
 import { today } from "../today.ts";
+import { detailId } from "./schemas.ts";
 
 /** KI-Auslesung läuft nach der Antwort weiter; Fehler landen am Beleg. */
 const inBackground = (work: Promise<void>) => void work.catch((error) => console.error("Belegauslesung", error));
@@ -51,10 +53,10 @@ export const getDocuments = createServerFn({ method: "GET" })
 
 export const getDocumentDetail = createServerFn({ method: "GET" })
   .middleware([readMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(async ({ data }) => {
     const result = await getDocument(data);
-    if (!result) throw new UserError("Beleg nicht gefunden.");
+    if (!result) throw notFound();
     // Rohdaten der Auslesung bleiben auf dem Server
     const { extraction: _extraction, ...document } = result.document;
     const [asset] = await db.select({ id: schema.assets.id }).from(schema.assets).where(eq(schema.assets.documentId, data));

@@ -1,8 +1,9 @@
+import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { contactSchema, createContact, getContact, listContacts, setContactArchived, updateContact } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
-import { UserError } from "../errors.ts";
+import { detailId } from "./schemas.ts";
 
 export const getContacts = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -11,10 +12,10 @@ export const getContacts = createServerFn({ method: "GET" })
 
 export const getContactDetail = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .validator(z.uuid())
+  .validator(detailId)
   .handler(async ({ data }) => {
     const result = await getContact(data);
-    if (!result) throw new UserError("Kontakt nicht gefunden.");
+    if (!result) throw notFound();
     return result;
   });
 

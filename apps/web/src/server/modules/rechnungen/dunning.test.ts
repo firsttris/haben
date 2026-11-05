@@ -54,6 +54,10 @@ describe.skipIf(!testDatabaseUrl)("Mahnwesen (Postgres)", () => {
     invoiceId = (await invoices.finalizeInvoice(actor, draft.id)).id;
   }, 30_000);
 
+  it("unbekannte Rechnung: kein Vorschlag statt Fachfehler, damit die Mahnungsseite 404 zeigt", async () => {
+    expect(await dunning.dunningDraft("00000000-0000-4000-8000-000000000000", "2026-10-15")).toBeNull();
+  });
+
   it("überfällige Rechnung: Vorschlag, Mahnung mit Zinsen und PDF, danach nächste Stufe", async () => {
     // fällig am 15.09.2026
     const [overdue] = await dunning.overdueInvoices("2026-10-15");
