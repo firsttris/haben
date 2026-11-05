@@ -122,7 +122,7 @@ function MitarbeiterKarte({ data, m }: { data: Data; m: Mitarbeiter }) {
         </div>
       )}
       {werte && <Werte werte={werte} name={m.name} />}
-      {m.ausdruck && (
+      {m.ausdruck && (m.ausdruck === "uebermittelt" || data.firmenfehler.length === 0) && (
         <p style={{ margin: 0 }}>
           <a href={`/api/lohn/bescheinigung/${m.id}/${data.year}`}>
             {m.ausdruck === "entwurf" ? "Entwurf des Ausdrucks (PDF)" : "Ausdruck für den Arbeitnehmer (PDF)"}

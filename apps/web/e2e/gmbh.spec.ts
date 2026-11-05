@@ -813,6 +813,17 @@ test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck
   await expect(page.getByRole("region", { name: "Erika Gesellschafter" })).toContainText(`Für ${lohnMonatsname} gibt es einen Entwurf`);
   expect(await axe(), `/lohn/bescheinigung/${lohnJahr}`).toEqual([]);
 
+  // Ohne den Namen des Finanzamts in den Firmendaten kein Ausdruck und kein Vermerk
+  await expect(page.getByText(/Firmendaten: Name des Finanzamts fehlt/)).toBeVisible();
+  await expect(karte.getByRole("link", { name: /Ausdruck/ })).toHaveCount(0);
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await firma.getByLabel("Finanzamt", { exact: true }).fill("Finanzamt Bremen");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  await go(`/lohn/bescheinigung/${lohnJahr}`);
+  await expect(page.getByText(/Firmendaten: /)).toHaveCount(0);
+
   const entwurf = await page.request.get((await karte.getByRole("link", { name: /Ausdruck/ }).getAttribute("href"))!);
   expect(entwurf.headers()["content-disposition"]).toContain("Entwurf");
   expect((await entwurf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
