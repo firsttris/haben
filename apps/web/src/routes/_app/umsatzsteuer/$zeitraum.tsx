@@ -1,4 +1,4 @@
-import { computeUstva, formatDecimal, formatEuro, parseEuro, parsePeriodKey, periodKey, periodLabel } from "@haben/core";
+import { computeUstva, formatDecimal, formatEuro, parseEuro, parsePeriodKey, periodKey, periodLabel, quarterOfMonth } from "@haben/core";
 import { Link, createFileRoute, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
@@ -130,6 +130,23 @@ function VatPeriodPage() {
             </span>
           </div>
         ))}
+
+      {data.figures.kz21 !== 0 && (
+        <div className="banner banner-info" role="status">
+          <Icon name="info" />
+          <span>
+            Leistungen ins EU-Ausland (Kz 21) meldest du je Quartal zusätzlich dem BZSt.{" "}
+            <Link
+              to="/umsatzsteuer/zm/$quartal"
+              params={{
+                quartal: periodKey({ year: data.period.year, month: data.period.month >= 41 ? data.period.month : quarterOfMonth(data.period.month) }),
+              }}
+            >
+              Zur Zusammenfassenden Meldung
+            </Link>
+          </span>
+        </div>
+      )}
 
       {/* key: Formular bei Zeitraum- oder Anmeldungswechsel neu aufsetzen */}
       <VatReturnEditor key={`${key}-${data.current?.id ?? "neu"}-${data.current?.updatedAt ?? ""}`} data={data} notice={notice} setNotice={setNotice} />

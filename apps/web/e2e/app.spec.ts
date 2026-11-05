@@ -1373,6 +1373,61 @@ test("Dauerfristverlängerung: Sondervorauszahlung prüfen und testweise senden,
   await expect(again.getByRole("status")).toContainText(`Dauerfristverlängerung ab ${next} beendet.`);
 });
 
+test("Zusammenfassende Meldung: Leistung ins EU-Ausland, Quartal prüfen und testweise senden", async () => {
+  // Im Folgejahr wie die Dauerfristverlängerung, damit die Zahlen des laufenden Jahres und die Bilder gleich bleiben
+  const next = YEAR + 1;
+  await go("/einstellungen");
+  const firma = page.getByRole("form", { name: "Firmendaten" });
+  await firma.getByLabel("USt-IdNr.").fill("DE136695976");
+  await firma.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByText("Firmendaten gespeichert.")).toBeVisible();
+  await page.waitForLoadState("networkidle");
+
+  await go("/kontakte/neu");
+  await page.getByLabel("Name oder Firma").fill("Donaublick GmbH");
+  await page.getByLabel("Straße und Hausnummer").fill("Praterstraße 3");
+  await page.getByLabel("PLZ").fill("1020");
+  await page.getByLabel("Ort").fill("Wien");
+  await page.getByLabel("Land (ISO-Code)").fill("AT");
+  await page.getByLabel("USt-IdNr.").fill("ATU12345678");
+  await page.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+
+  await go("/rechnungen/neu");
+  await page.getByLabel("Kunde").selectOption({ label: "Donaublick GmbH · Wien" });
+  await page.getByLabel("Rechnungsdatum").fill(`${next}-02-10`);
+  await page.getByRole("combobox", { name: "Umsatzsteuer", exact: true }).selectOption("reverse_charge");
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung Cloud-Architektur");
+  await page.getByLabel("Menge Position 1").fill("2");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("1.200,50");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+
+  // Die Voranmeldung des Monats verweist auf die Meldung des Quartals
+  await go(`/umsatzsteuer/${next}-02`);
+  await page.getByRole("link", { name: "Zur Zusammenfassenden Meldung" }).click();
+  await expect(page).toHaveURL(new RegExp(`/umsatzsteuer/zm/${next}-Q1$`));
+  await expect(page.getByRole("heading", { name: `1. Quartal ${next}` })).toBeVisible();
+  const zeilen = page.getByRole("table", { name: `Meldezeilen 1. Quartal ${next}` });
+  await expect(zeilen).toContainText("ATU12345678");
+  await expect(zeilen).toContainText("Sonstige Leistung");
+  await expect(zeilen).toContainText("2.401 €");
+
+  const submit = page.getByRole("form", { name: "Meldung an das BZSt" });
+  await submit.getByRole("button", { name: "Nur prüfen" }).click();
+  await expect(submit.getByText("ERiC hat die Daten geprüft, keine Fehler.")).toBeVisible();
+  await submit.getByLabel("Zertifikats-PIN").fill("123456");
+  await submit.getByRole("button", { name: "Prüfen und testweise senden" }).click();
+  await expect(submit.getByText(/Testübermittlung erfolgreich/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Verlauf" })).toContainText("Testübermittlung OK");
+  // Eine Testübermittlung zählt nicht als gemeldet: weiter als Erstmeldung
+  await expect(page.getByRole("form", { name: "Meldung an das BZSt" })).toBeVisible();
+});
+
 test("REST-API: Token mit Rechten anlegen, Rechnungsentwurf mit Bestellnummer und Beleg über die API", async ({ browser }) => {
   await go("/einstellungen?bereich=ki");
   // Gesteuertes Kästchen: es zeigt den Stand erst nach der Antwort des Servers
