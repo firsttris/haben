@@ -25,7 +25,7 @@ Rechnungen, Belege und Buchungen gehen nicht per CSV: Dafür gibt es den [Umzug 
 | --- | --- |
 | Beträge | Deutsch, `1.234,56`, auch `12,5` oder `100 €`. Ein Punkt gilt nur als Dezimalpunkt, wenn er eindeutig ist (`12.50`). `1.234` lehnt Haben als mehrdeutig ab: deutsch sind das 1.234 €, englisch 1,234 €; schreibe `1.234,00` oder `1234`. `1.234.567` ist eindeutig. Englische Tausendertrenner wie `1,234.56` lehnt Haben ab. Gerechnet wird in ganzen Cent. |
 | Datum | `TT.MM.JJJJ` oder `JJJJ-MM-TT`. Zweistellige Jahre lehnt Haben ab, weil eine Anschaffung von `99` 1999 oder 2099 sein könnte. |
-| Steuersatz | `19`, `19 %`, `19,00`, `7`, `0`. Andere Sätze (16 %, 5 %) kennt der Artikelkatalog nicht. |
+| Steuersatz | `19`, `19 %`, `19,00`, `7`, `0`, auch `USt 19%` wie in der Artikelvorlage von Lexware Office. Andere Sätze (16 %, 5 %) kennt der Artikelkatalog nicht. |
 | Land | Ländercode nach ISO 3166-1 (`DE`), die Ziffern daraus wie in Lexware Office (`276`) oder der deutsche Name (`Deutschland`, `Österreich`, `Schweiz` …). Leer ist Deutschland. |
 
 ### Formeln (CSV-Injection)
@@ -58,16 +58,16 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 | Lieferantennummer | Lieferantennummer, Kreditorennummer | |
 | Firma | Firmenname, Firma, Unternehmen, Name | Fehlt sie, gilt „Vorname Nachname“; ohne beides ist die Zeile fehlerhaft |
 | Vorname, Nachname | Vorname, Nachname | |
-| Straße, PLZ, Ort, Land | Straße, PLZ, Ort, Land, auch mit „Rechnungsadresse“ davor | Land siehe [Werte](#werte) |
-| E-Mail | E-Mail, Email, E-Mail-Adresse | Mehrere Adressen mit Komma oder Semikolon, höchstens fünf, wie im Formular |
-| USt-IdNr. | USt-IdNr., USt-ID, Umsatzsteuer-ID | Form wie `DE123456789`; die deutsche auch mit Prüfziffer (ISO 7064). Ob sie erteilt ist, weiß nur das BZSt |
+| Straße, PLZ, Ort, Land | Straße, PLZ, Ort, Land, auch „Straße (Rechnungsadresse)“ … und „Straße 1“ … wie bei Lexware Office | Land siehe [Werte](#werte). Die Lieferadresse („… (Lieferadresse)“, „Straße 2“ …) übernimmt Haben nicht |
+| E-Mail | E-Mail, Email, E-Mail-Adresse, Geschäftlich (E-Mail), E-Mail 1 | Mehrere Adressen mit Komma oder Semikolon, höchstens fünf, wie im Formular |
+| USt-IdNr. | USt-IdNr., USt-ID, Umsatzsteuer-ID, Umsatzsteuer ID, Umsatzsteuernummer | Form wie `DE123456789`; die deutsche auch mit Prüfziffer (ISO 7064). Ob sie erteilt ist, weiß nur das BZSt |
 | IBAN | IBAN | Prüfziffer nach ISO 13616; Leerzeichen fallen weg |
 | Leitweg-ID | Leitweg-ID | |
-| Rolle | Rolle, Typ, Kontaktart | „Kunde“, „Lieferant“ oder beides. Ohne Spalte: Lieferant, wenn nur eine Lieferantennummer dasteht, beides bei beiden Nummern, sonst Kunde |
+| Rolle | Rolle, Typ, Kontaktart | „Kunde“, „Lieferant“ oder beides. Ohne Spalte: Lieferant, wenn nur eine Lieferantennummer dasteht, beides bei beiden Nummern, sonst Kunde. Hat die Datei eine Spalte Lieferantennummer, aber keine Kundennummer (Lieferanten-Vorlage von Lexware Office), ist auch eine Zeile ohne Nummer ein Lieferant |
 
 Rechnungsformat, Sprache und Skonto übernimmt Haben nicht; sie stehen wie bei einem neuen Kontakt auf „wie in den Einstellungen“, Deutsch und der Vorgabe aus den Firmendaten.
 
-Die Namen folgen der Vorlage und dem Kontakt-Export von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …). Weichen die Spaltennamen deiner Datei ab, ordnest du sie in der Vorschau zu.
+Die Namen folgen der [Mustervorlage für den Kontaktimport](https://help.lexware.de/de-form/articles/548267-anleitung-zum-import-von-kontakten-kunden-und-lieferanten) und dem [Kontakt-Export](https://help.lexware.de/de-form/articles/548116-kontakte-beim-account-wechsel-ubertragen-export-und-import-in-lexware-office) von Lexware Office und den Feldern der Lexware-API (`companyName`, `firstName` …). Weichen die Spaltennamen deiner Datei ab, ordnest du sie in der Vorschau zu.
 
 ## Artikel
 
@@ -79,8 +79,10 @@ Die Namen folgen der Vorlage und dem Kontakt-Export von Lexware Office und den F
 | Einheit | Einheit, Mengeneinheit | Std., Tag, Monat, Stk., Psch. oder km, auch ausgeschrieben („Stunde“, „Stück“, „pauschal“). Leer ist Stück |
 | Nettopreis | Nettopreis, Preis netto, Einzelpreis, Preis | |
 | Bruttopreis | Bruttopreis, Preis brutto | Nur ohne Nettopreis: dann ein Artikel mit Endpreis |
-| Steuersatz | Umsatzsteuer, Steuersatz, USt, MwSt | Pflicht, ohne stille Vorgabe: Kleinunternehmer brauchen 0 %, alle anderen meist 19 % |
+| Steuersatz | Umsatzsteuer, Steuersatz, Steuerart, USt, MwSt | Pflicht, ohne stille Vorgabe: Kleinunternehmer brauchen 0 %, alle anderen meist 19 % |
 | Notiz | Notiz, Bemerkung | |
+
+Die Namen folgen der [Mustervorlage für Produkte und Services](https://help.lexware.de/de-form/articles/548269-produkte-und-services-per-csv-datei-importieren) von Lexware Office. Deren Spalte „Verkaufspreis“ ist netto oder brutto, je nachdem, was in Lexware Office unter den Allgemeinen Einstellungen steht. Haben ordnet sie deshalb nicht selbst zu; du wählst sie in der Vorschau als Netto- oder Bruttopreis.
 
 Stehen Netto- und Bruttopreis da, wie im Export von Lexware Office, gilt der Nettopreis, und der Bruttopreis muss auf einen Cent genau dazu passen. Sonst wäre unklar, welcher stimmt, und Haben übernimmt die Zeile nicht.
 

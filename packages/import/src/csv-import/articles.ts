@@ -5,8 +5,11 @@ import type { CsvTable } from "./read.ts";
 import { parseImportAmount, parseImportTaxRate, parseImportUnit } from "./values.ts";
 
 /**
- * Artikel aus CSV, Spaltennamen wie in „Produkte und Services“ von Lexware Office (Artikelnummer, Bezeichnung,
- * Beschreibung, Einheit, Netto- und Bruttopreis, Umsatzsteuer) und den Feldern der Lexware-API (articleNumber, title …).
+ * Artikel aus CSV, Spaltennamen wie in der Mustervorlage von Lexware Office für Produkte und Services (Artikelnummer,
+ * Bezeichnung, Beschreibung, Einheit, Steuerart, Verkaufspreis, Notiz; Lexware-Hilfe „Produkte und Services per
+ * CSV-Datei importieren“: https://help.lexware.de/de-form/articles/548269-produkte-und-services-per-csv-datei-importieren)
+ * und den Feldern der Lexware-API (articleNumber, title …). Ein bloßes „Verkaufspreis“ ordnet Haben nicht selbst zu:
+ * Ob er netto oder brutto ist, hängt in Lexware Office von den Allgemeinen Einstellungen ab.
  */
 export const ARTICLE_FIELDS = [
   { key: "number", label: "Artikelnummer", aliases: ["Artikelnummer", "Artikelnr", "Art.-Nr.", "Produktnummer", "Nummer", "articleNumber", "SKU"] },
@@ -33,7 +36,19 @@ export const ARTICLE_FIELDS = [
     key: "taxRate",
     label: "Steuersatz",
     hint: "19, 7 oder 0",
-    aliases: ["Steuersatz", "Umsatzsteuer", "Umsatzsteuersatz", "USt", "USt-Satz", "MwSt", "MwSt-Satz", "Mehrwertsteuer", "taxRate", "taxRatePercentage"],
+    aliases: [
+      "Steuersatz",
+      "Umsatzsteuer",
+      "Umsatzsteuersatz",
+      "USt",
+      "USt-Satz",
+      "MwSt",
+      "MwSt-Satz",
+      "Mehrwertsteuer",
+      "Steuerart",
+      "taxRate",
+      "taxRatePercentage",
+    ],
   },
   { key: "note", label: "Notiz", aliases: ["Notiz", "Bemerkung", "Interne Notiz", "note"] },
 ] as const satisfies readonly ImportField[];
