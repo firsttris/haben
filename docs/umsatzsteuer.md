@@ -315,7 +315,7 @@ Hast du die Voranmeldung außerhalb von Haben abgegeben, per XML-Import in Mein 
 
 Weicht Kz 83 laut Protokoll von der Anmeldung in Haben ab, lehnt Haben den Vermerk ab: Dann ist beim Finanzamt etwas anderes angekommen, als Haben gespeichert hat, etwa weil sich Buchungen nach dem Herunterladen des XML geändert haben oder du in Mein ELSTER Werte geändert hast. Prüfe die Abweichung; stimmen die Werte des Finanzamts, überschreibst du die Kennzahlen von Hand mit Begründung und vermerkst dann. Verglichen wird nur Kz 83, weil sie über Zahllast und Zahlung entscheidet; die übrigen Kennzahlen stehen im Protokoll.
 
-Der Vermerk lässt sich nur ergänzen, nicht ändern oder löschen, und steht im Änderungsprotokoll. Das Protokoll-PDF liegt wie Belege unter seinem SHA-256 im Dokumentenspeicher; im Verlauf öffnet **Protokoll** es, im Jahresarchiv liegt es bei der Voranmeldung (siehe [Verlauf und Protokoll](#verlauf-und-protokoll)).
+Der Vermerk lässt sich nur ergänzen, nicht ändern oder löschen, steht im Änderungsprotokoll und gehört zum Siegel der Voranmeldung: Ändert jemand Tag, Ticket oder Protokoll an Haben vorbei, meldet das die [Integritätsprüfung](buchhaltung.md#manipulationserkennung-hash-kette-und-siegel). Nachträglich, etwa zu einer schon über ERiC gesendeten Anmeldung, lässt er sich nicht anlegen. Das Protokoll-PDF liegt wie Belege unter seinem SHA-256 im Dokumentenspeicher; im Verlauf öffnet **Protokoll** es, im Jahresarchiv liegt es bei der Voranmeldung (siehe [Verlauf und Protokoll](#verlauf-und-protokoll)).
 
 ### Was im Hintergrund passiert
 

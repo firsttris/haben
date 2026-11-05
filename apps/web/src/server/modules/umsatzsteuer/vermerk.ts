@@ -1,5 +1,5 @@
 import { formatEuro, periodKey, periodRange, vatReturnSendProblem, type Cents } from "@haben/core";
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { withActor } from "../../db/actor.ts";
 import { lockFileUse } from "../../db/file-in-use.ts";
 import { db, schema } from "../../db/index.ts";
@@ -96,7 +96,8 @@ export function vermerkeAbgabe(actor: string, returnId: string, input: VermerkIn
         sha256,
         size: input.file.bytes.byteLength,
       });
-      const now = new Date();
+      // now() ist der Beginn der Transaktion: Daran erkennt der Trigger beim Commit, dass Vermerk und Festschreibung zusammengehören
+      const now = sql`now()`;
       const [sent] = await tx
         .update(schema.vatReturns)
         .set({ status: "sent", transferTicket, sentAt: now, lockedAt: now, updatedAt: now })
