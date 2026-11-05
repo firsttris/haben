@@ -5,7 +5,16 @@ import { NodeCompiler } from "@myriaddreamin/typst-ts-node-compiler";
 import { accountHolder, countryName, formatIban, paymentSentence } from "./format.ts";
 import { texts, TEXTS, type Texts } from "./i18n.ts";
 import { girocodeSvg } from "./qr.ts";
-import { accentPalette, DEFAULT_ACCENT, lineAmount, type LegalInfo } from "@haben/core";
+import {
+  accentPalette,
+  DEFAULT_ACCENT,
+  discountedLineAmount,
+  documentAllowances,
+  lineAmount,
+  lineDiscountAmount,
+  type Discount,
+  type LegalInfo,
+} from "@haben/core";
 import type { Address, InvoiceDocument, Letterhead, Logo } from "./types.ts";
 
 // Paketverzeichnis mit templates/ und fonts/; im gebündelten Server per HABEN_EINVOICE_DIR gesetzt.
@@ -48,9 +57,38 @@ export function showsGrossPrices(doc: Pick<InvoiceDocument, "taxTreatment" | "pr
   return (doc.taxTreatment ?? "regulaer") === "regulaer" && doc.priceMode === "brutto";
 }
 
+/** Rabatt als Text: „10 %“ bzw. „49,00 €“ */
+const discountText = (discount: Discount, t: Texts) => (discount.kind === "prozent" ? t.percent(discount.value) : t.money(Math.abs(discount.value)));
+
+/** Abzug als Text mit Minus; bei Storno und Korrektur (negativer Abzug) ohne */
+const minus = (value: number, t: Texts) => (value >= 0 ? `\u2212${t.money(value)}` : t.money(-value));
+
+/** „abzüglich 10 % Rabatt (1.444,00 €)“ unter der Bezeichnung; null ohne Positionsrabatt */
+function lineDiscountText(line: InvoiceDocument["lines"][number], t: Texts): string | null {
+  if (!line.discount) return null;
+  const amount = Math.abs(lineDiscountAmount(lineAmount(line.quantity, line.unitPrice), line.discount));
+  return t.lineDiscount(discountText(line.discount, t), line.discount.kind === "prozent" ? t.money(amount) : null);
+}
+
+/**
+ * Gesamtrabatt in den Summen: Zwischensumme der Positionen und der Abzug, im Preismodus des Belegs; leer ohne Rabatt.
+ * Die Beträge folgen aus Zeilennetto und Steuerzeilen (documentAllowances), wie in der E-Rechnung.
+ */
+function documentDiscountRows(doc: Pick<InvoiceDocument, "lines" | "totals" | "discount">, gross: boolean, t: Texts) {
+  if (!doc.discount) return [];
+  const allowances = documentAllowances(doc.lines, doc.totals, gross ? "brutto" : "netto");
+  if (allowances.length === 0) return [];
+  const subtotal = doc.lines.reduce((s, l) => s + (gross ? discountedLineAmount(l) : l.net), 0);
+  const reduction = allowances.reduce((s, a) => s + a.amount, 0);
+  return [
+    { label: t.subtotal, value: t.money(subtotal) },
+    { label: t.documentDiscount(doc.discount.kind === "prozent" ? discountText(doc.discount, t) : null), value: minus(reduction, t) },
+  ];
+}
+
 /** Gemeinsamer Teil von Rechnung und Angebot: Adressen, Positionen, Summenzeilen, Hinweise, Fußzeile */
 export function documentPdfData(
-  doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "intro" | "note" | "priceMode">,
+  doc: Pick<InvoiceDocument, "seller" | "buyer" | "lines" | "totals" | "taxTreatment" | "exemptionReason" | "intro" | "note" | "priceMode" | "discount">,
   t: Texts,
 ) {
   const { seller, buyer } = doc;
@@ -80,9 +118,10 @@ export function documentPdfData(
       quantity: t.quantity(line.quantity, line.unit),
       unitPrice: t.money(line.unitPrice),
       rate: treatment === "regulaer" ? t.rate(line.taxRate) : "–",
-      net: t.money(gross ? lineAmount(line.quantity, line.unitPrice) : line.net),
+      net: t.money(gross ? discountedLineAmount(line) : line.net),
+      discount: lineDiscountText(line, t),
     })),
-    totalRows: gross ? [] : [{ label: t.totalNet, value: t.money(doc.totals.net) }, ...taxRows],
+    totalRows: [...documentDiscountRows(doc, gross, t), ...(gross ? [] : [{ label: t.totalNet, value: t.money(doc.totals.net) }, ...taxRows])],
     included: gross ? { label: t.included, rows: includedRows } : null,
     grossLabel: (label: string) => (gross ? t.inclVat(label) : label),
     taxNote: t.note(treatment, doc.exemptionReason),
