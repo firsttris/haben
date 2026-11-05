@@ -66,6 +66,59 @@ Liegen deine Belege schon in einem anderen System, etwa einem Dokumentenarchiv, 
 
 Einrichtung, Antworten und ein Beispiel mit `curl` stehen unter [REST-API › Belege](api.md#belege).
 
+## Dauerbelege
+
+Für Ausgaben, die in festen Abständen mit gleichem Betrag anfallen, etwa Büromiete, Versicherung, Leasing oder Abos, legst du unter **Dauerbelege** (Menü **Ausgaben**) einmal eine Vorlage mit dem Vertrag an. Haben legt daraus zu jedem Termin einen Beleg an und schlägt ihn im [Bankabgleich](bank.md#dauerbelege-noch-zu-prüfen) vor. Vorbild ist der Dauerbeleg in Lexware Office (Hilfeartikel „Regelmäßige Buchungen: So legst du Dauerbelege an“ auf help.lexware.de): Vertrag, Vertragspartner, Kategorie, Intervall und Start einmal erfassen, Änderungen gelten für künftige Belege, deaktivieren hält ihn an. Anders als dort bucht Haben nichts selbst.
+
+1. **Neuer Dauerbeleg** öffnen.
+2. **Bezeichnung**, **Lieferant** (aus den Kontakten oder frei), optional **USt-IdNr.** und **Vertrags- oder Kundennummer**, **Kategorie** und **Bezahlung** eintragen.
+3. Unter **Termine** das **Intervall** (monatlich, vierteljährlich, halbjährlich, jährlich), **Erster Beleg am**, optional **Endet nach dem** und **Fällig Tage nach dem Termin** wählen.
+4. Unter **Vertrag und Beträge** den **Vertrag oder die Dauerrechnung** hochladen (PDF, Foto oder E-Rechnung wie beim Hochladen eines Belegs, bis 20 MB), die Beträge je Steuersatz eintragen und angeben, ob das Dokument die Umsatzsteuer gesondert ausweist.
+5. **Dauerbeleg anlegen**.
+
+| Feld | Bedeutung |
+| --- | --- |
+| Erster Beleg am, später Nächster Beleg am | Belegdatum des nächsten Belegs, etwa der Zahlungsbeginn laut Vertrag. Die folgenden Termine liegen am selben Tag im Monat; der 31. wird in kürzeren Monaten zum Monatsende (28. oder im Schaltjahr 29. Februar) und springt danach zurück, wie bei [wiederkehrenden Rechnungen](rechnungen.md#wiederkehrende-rechnungen). |
+| Endet nach dem | optional. Der letzte Beleg entsteht am letzten Termin bis zu diesem Tag, danach ist der Dauerbeleg beendet. |
+| Fällig Tage nach dem Termin | **Fällig am** des Belegs: 0 am Termin, 3 etwa für eine Miete bis zum dritten des Monats. |
+| Vertrags- oder Kundennummer | steht als Rechnungsnummer an jedem Beleg, im Verwendungszweck einer [SEPA-Überweisung](#überweisen-sepa-datei) und hilft dem Bankabgleich. |
+| Bezahlung | wie am Beleg: Geschäftskonto, privat oder Kasse (siehe [Bezahlung](#bezahlung)). |
+
+### Was zu jedem Termin entsteht
+
+Der Server prüft kurz nach dem Start und danach stündlich, ob ein Termin fällig ist; mit **… fällige jetzt anlegen** in der Liste startest du den Lauf sofort. Liegt der erste Termin in der Vergangenheit oder war Haben aus, holt der Lauf die verpassten Termine mit ihrem Datum nach.
+
+- **Ein Beleg „Zu prüfen“**, nicht gebucht: mit Lieferant, Vertragsnummer, Belegdatum (Termin), Fälligkeit, Kategorie, Bezahlung und den Beträgen der Vorlage. In der Liste steht er mit „Dauerbeleg“, auf seiner Seite mit einem Link zur Vorlage. Du prüfst ihn und buchst ihn wie jeden anderen Beleg mit **Bestätigen und buchen** oder im Bankabgleich mit **Buchen und zuordnen**. Ab dem Buchen ist er gesperrt und versiegelt.
+- **Der Vertrag als Datei des Belegs.** Bei Miete ersetzt der Mietvertrag die monatliche Rechnung; die GoBD verlangen zu jeder Buchung einen Beleg. Jeder Beleg nutzt die Datei, die bei seinem Anlegen an der Vorlage hing, unter ihrem SHA-256; die Notiz am Beleg nennt Dateiname und Prüfsumme. Im [Jahresarchiv](auswertungen.md) liegt sie bei jedem Beleg.
+- **Je Monat höchstens ein Beleg je Vorlage**, auch nach einem Neustart, bei zwei gleichzeitigen Läufen oder wenn du den nächsten Termin auf einen anderen Tag im selben Monat zurücksetzt (eindeutiger Index auf Vorlage und Periode).
+
+Einen ungebuchten Beleg aus einem Dauerbeleg kannst du [löschen](#löschen), etwa für einen mietfreien Monat; Haben legt ihn nicht neu an. Die Datei bleibt, solange die Vorlage sie nutzt.
+
+### Vorsteuer nur mit Steuerausweis
+
+Vorsteuer ziehst du nur aus einer Rechnung ab, die die Umsatzsteuer gesondert ausweist (§ 15 Abs. 1 Nr. 1 und § 14 Abs. 4 Nr. 8 UStG). Ein Vertrag gilt als Rechnung, wenn er die Pflichtangaben enthält, bei Miete etwa ein Mietvertrag mit Steuerbetrag nach einer Option zur Umsatzsteuer (§ 9 UStG), oder eine Dauerrechnung des Leasinggebers.
+
+- Weist das Dokument die Steuer aus, setzt du den Haken **Das Dokument weist die Umsatzsteuer gesondert aus** und trägst Netto und Umsatzsteuer je Satz ein; die Steuer rechnet Haben aus dem Netto vor.
+- Ohne Haken gibt es kein Feld für die Steuer, und Haben lehnt eine Vorlage mit Steuer ab: „Vorsteuer nur mit einem Dokument, das die Umsatzsteuer gesondert ausweist …“. Den Betrag erfasst du dann mit 0 %, etwa für steuerfreie Miete (§ 4 Nr. 12 UStG) oder Versicherungsbeiträge. Die Notiz am Beleg sagt, dass das Dokument keine Steuer ausweist.
+- Als Kleinunternehmer bucht Haben wie bei jedem Beleg den Bruttobetrag als Aufwand, ohne Vorsteuer.
+
+Gebucht wird wie jeder Beleg, im Beispiel 1.000 € Miete zuzüglich 19 % mit der Kategorie Sonstiger Aufwand (SKR04 in Klammern):
+
+| Konto | Soll | Haben |
+| --- | ---: | ---: |
+| 4900 (6300) Sonstiger Aufwand | 1.000,00 | |
+| 1576 (1406) Vorsteuer 19 % | 190,00 | |
+| 1600 (3300) Verbindlichkeiten | | 1.190,00 |
+
+Die Vorsteuer zählt in der Voranmeldung für den Monat des Belegdatums, bei Ist- und Soll-Versteuerung gleich (siehe [Vorsteuer in der Voranmeldung](#vorsteuer-in-der-voranmeldung)).
+
+### Ändern, pausieren, beenden
+
+- **Ändern** gilt nur für künftige Belege. Angelegte Belege behalten ihre Felder, Beträge und ihre Datei; gebuchte sind ohnehin gesperrt. Eine neue Datei (Nachtrag, neue Dauerrechnung nach einer Mieterhöhung) lädst du unter **Neuer Vertrag oder Nachtrag** hoch; die alte bleibt an den bisherigen Belegen.
+- **Pausieren** hält den Dauerbeleg an. **Fortsetzen** macht beim ersten Termin ab heute weiter: Termine, die in die Pause fielen, legt Haben nicht an. Willst du sie doch, setzt du vor dem Speichern **Nächster Beleg am** zurück.
+- **Beenden** ist endgültig: Es entstehen keine Belege mehr, und die Vorlage lässt sich nicht mehr ändern. Die angelegten Belege bleiben.
+- **Löschen** geht nur, solange kein Beleg aus der Vorlage entstanden ist; sonst beendest du sie. Jede Änderung an der Vorlage steht im Änderungsprotokoll, die Belege eines Laufs mit dem Akteur `system:dauerbelege`.
+
 ## E-Rechnungen
 
 Haben liest diese Formate:
@@ -384,3 +437,4 @@ Mit **Original herunterladen** bekommst du die Datei so zurück, wie du sie hoch
 - § 13b nur für sonstige Leistungen ausländischer Unternehmer (Kz 46/47 und 84/85), nicht für Bauleistungen, Gebäudereinigung, Gold oder Mobilfunkgeräte, und nicht bei Anlagegütern. Keine innergemeinschaftlichen Erwerbe von Waren; einen Beleg der Kategorie „Wareneinkauf (Handelsware)“ mit § 13b bucht Haben nicht.
 - Keine Abschreibung über mehrere Jahre; die Kategorie Hardware ist für geringwertige Wirtschaftsgüter gedacht.
 - HEIC-Fotos werden abgelegt, aber weder in der Vorschau angezeigt noch von der KI gelesen.
+- Dauerbelege nur für Ausgaben in Euro mit festen Beträgen, ohne § 13b, Aufteilung auf mehrere Kategorien, Privatanteil oder Anlagegut; eine eigene Kategorie für Miete gibt es noch nicht (bis dahin etwa Sonstiger Aufwand).

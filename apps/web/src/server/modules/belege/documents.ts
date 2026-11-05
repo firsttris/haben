@@ -706,6 +706,8 @@ export async function listDocuments() {
       externalId: schema.documents.externalId,
       lockedAt: schema.documents.lockedAt,
       uploadedAt: schema.documents.uploadedAt,
+      /** Aus einem Dauerbeleg angelegt */
+      recurringDocumentId: schema.documents.recurringDocumentId,
       /** Storniert am (#237); der Beleg bleibt gebucht */
       cancelledOn: schema.documentCancellations.date,
     })

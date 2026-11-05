@@ -48,6 +48,7 @@ import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
 import { lstaZahlbetraege, offeneLohnverbindlichkeit } from "../lohn/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { dauerbelegSuggestions } from "../belege/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { assertUstvaOffen, ustvaLabels, ustvaOpenItems } from "../umsatzsteuer/index.ts";
 import { sha256Of } from "../../storage.ts";
@@ -637,7 +638,17 @@ export async function transactionDetail(id: string) {
   // Sonst aus früheren Buchungen derselben Gegenpartei (Gebühren, Privat …), schwächer als die Regeln der Kontozwecke
   if (!direct && account && tx.open === tx.amount) direct = (await learnedDirectSuggestions([tx])).get(tx.id) ?? null;
   // Für die Aufteilung auch Posten in Gegenrichtung, etwa der Gebührenbeleg in einer Auszahlung
-  return { transaction: tx, allocations, suggestions, candidates, splitCandidates: items, direct: direct ? { ...direct, counterpart } : null };
+  // Belege aus Dauerbelegen, die noch zu prüfen sind: auf Klick buchen und zuordnen (bookAndAllocateDauerbeleg)
+  const dauerbelege = tx.open === 0 ? [] : await dauerbelegSuggestions({ ...tx, amount: tx.open });
+  return {
+    transaction: tx,
+    allocations,
+    suggestions,
+    candidates,
+    splitCandidates: items,
+    dauerbelege,
+    direct: direct ? { ...direct, counterpart } : null,
+  };
 }
 
 type History = Map<string, { kinds: { value: string; count: number; last: string }[]; total: number }>;

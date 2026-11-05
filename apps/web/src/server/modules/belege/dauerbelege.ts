@@ -5,15 +5,7 @@
  * deaktivieren hält ihn an. Anders als dort bucht Haben nichts selbst: Jeder Termin wird ein Beleg „Zu prüfen“
  * (dauerbelege-lauf.ts).
  */
-import {
-  dauerbelegProbleme,
-  EXPENSE_CATEGORY_KEYS,
-  RECURRING_INTERVALS,
-  terminAbStichtag,
-  vorschauTermine,
-  type DauerbelegStatus,
-  type RecurringInterval,
-} from "@haben/core";
+import { dauerbelegProbleme, EXPENSE_CATEGORY_KEYS, terminAbStichtag, vorschauTermine, type DauerbelegStatus, type RecurringInterval } from "@haben/core";
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -232,5 +224,3 @@ export async function dauerbelegFile(id: string) {
     .where(and(eq(schema.recurringDocuments.id, id)));
   return row ?? null;
 }
-
-export const DAUERBELEG_INTERVALLE = RECURRING_INTERVALS;

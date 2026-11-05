@@ -82,7 +82,7 @@ function DocumentsPage() {
                   <span className="ellipsis">{doc.supplierName || doc.filename}</span>
                   <span className="small muted ellipsis">
                     {doc.invoiceNumber || doc.filename}
-                    {doc.extractedBy ? ` · ${SOURCE_LABEL[doc.extractedBy]}` : ""}
+                    {doc.recurringDocumentId ? " · Dauerbeleg" : doc.extractedBy ? ` · ${SOURCE_LABEL[doc.extractedBy]}` : ""}
                   </span>
                 </div>
                 <div className="small">

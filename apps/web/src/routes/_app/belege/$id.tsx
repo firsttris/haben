@@ -546,6 +546,15 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
           Vorbefüllt aus {SOURCE_LABEL[doc.extractedBy]}. Bitte prüfen und bestätigen.
         </p>
       )}
+      {data.dauerbeleg && (
+        <p className="small" style={{ margin: 0 }}>
+          Aus dem Dauerbeleg{" "}
+          <Link to="/dauerbelege/$id" params={{ id: data.dauerbeleg.id }}>
+            {data.dauerbeleg.name ?? "Vorlage"}
+          </Link>{" "}
+          angelegt; die Datei ist der dort hinterlegte Vertrag.{!locked && " Bitte prüfen und buchen."}
+        </p>
+      )}
       {locked && !data.cancellation && (
         <div className="banner banner-ok" role="status">
           <Icon name="check" />
