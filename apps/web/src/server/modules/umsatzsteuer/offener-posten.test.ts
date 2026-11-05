@@ -338,7 +338,7 @@ describe.skipIf(!testDatabaseUrl)("Voranmeldung als offener Posten (Postgres)", 
 
   it("Altbestand: vor dem Update gesendete Voranmeldung ohne Zahlung mit Bezug ist kein Posten, keine Aufgabe, Übersicht wie vorher", async () => {
     await firma("SKR03", "ist");
-    // Über ERiC gesendet, bevor es offene Posten gab (vor der Migration 0135/0136); bezahlt außerhalb der Konten in Haben
+    // Über ERiC gesendet, bevor es offene Posten gab (vor der Migration 0137/0138); bezahlt außerhalb der Konten in Haben
     const [alt] = await sql`insert into vat_returns (year, month, status, source, kz81, kz83, transfer_ticket, sent_at, locked_at)
       values (2025, 10, 'sent', 'manuell', 100000, 19000, 'etALTBESTAND1', '2025-11-09T10:00:00Z', '2025-11-09T10:00:00Z') returning id`;
     // Dazu eine alte Lastschrift „Umsatzsteuer an das Finanzamt“ ohne Bezug, die nicht genau passt

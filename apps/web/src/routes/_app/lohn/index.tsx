@@ -151,9 +151,14 @@ function MitarbeiterListe({ data }: { data: Data }) {
         <h2 id="mitarbeiter-heading" style={{ margin: 0 }}>
           Mitarbeiter
         </h2>
-        <Link to="/lohn/mitarbeiter/neu" className="btn">
-          Mitarbeiter anlegen
-        </Link>
+        <div className="actions">
+          <Link to="/lohn/bescheinigung/$jahr" params={{ jahr: String(jahr) }} className="btn">
+            Lohnsteuerbescheinigungen {jahr}
+          </Link>
+          <Link to="/lohn/mitarbeiter/neu" className="btn">
+            Mitarbeiter anlegen
+          </Link>
+        </div>
       </div>
       {data.employees.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>

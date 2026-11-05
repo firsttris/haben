@@ -1,5 +1,5 @@
 {
-  "id": "8e5abaeb-eb19-4922-8065-63bf715afc6d",
+  "id": "654f3691-19a5-46a4-96f3-342640024db3",
   "prevId": "040907f8-020c-42df-b36d-355203cb5a7f",
   "version": "7",
   "dialect": "postgresql",
@@ -193,12 +193,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "vat_return_id": {
-          "name": "vat_return_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -208,21 +202,6 @@
         }
       },
       "indexes": {
-        "allocations_vat_return": {
-          "name": "allocations_vat_return",
-          "columns": [
-            {
-              "expression": "vat_return_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "allocations_transaction": {
           "name": "allocations_transaction",
           "columns": [
@@ -324,19 +303,6 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "allocations_vat_return_id_vat_returns_id_fk": {
-          "name": "allocations_vat_return_id_vat_returns_id_fk",
-          "tableFrom": "allocations",
-          "tableTo": "vat_returns",
-          "columnsFrom": [
-            "vat_return_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "allocations_reverses_fk": {
           "name": "allocations_reverses_fk",
           "tableFrom": "allocations",
@@ -358,10 +324,6 @@
         "allocations_target": {
           "name": "allocations_target",
           "value": "(\"allocations\".\"kind\" <> 'invoice' or \"allocations\".\"invoice_id\" is not null) and (\"allocations\".\"kind\" <> 'document' or \"allocations\".\"document_id\" is not null)"
-        },
-        "allocations_vat_return_kind": {
-          "name": "allocations_vat_return_kind",
-          "value": "\"allocations\".\"vat_return_id\" is null or \"allocations\".\"kind\" = 'ustVorauszahlung'"
         }
       },
       "isRLSEnabled": false
@@ -6351,6 +6313,199 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.lstb_submissions": {
+      "name": "lstb_submissions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "employee_id": {
+          "name": "employee_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "year": {
+          "name": "year",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "art": {
+          "name": "art",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "km_id": {
+          "name": "km_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ref_km_id": {
+          "name": "ref_km_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "werte": {
+          "name": "werte",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "angaben": {
+          "name": "angaben",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "datum": {
+          "name": "datum",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grund": {
+          "name": "grund",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "ok": {
+          "name": "ok",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "code": {
+          "name": "code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "transfer_ticket": {
+          "name": "transfer_ticket",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "request_xml": {
+          "name": "request_xml",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "response_xml": {
+          "name": "response_xml",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "server_response_xml": {
+          "name": "server_response_xml",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "protocol_pdf": {
+          "name": "protocol_pdf",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "lstb_submissions_employee_year": {
+          "name": "lstb_submissions_employee_year",
+          "columns": [
+            {
+              "expression": "employee_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "year",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "lstb_submissions_km_id": {
+          "name": "lstb_submissions_km_id",
+          "columns": [
+            {
+              "expression": "km_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"lstb_submissions\".\"kind\" = 'send' and \"lstb_submissions\".\"ok\"",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "lstb_submissions_employee_id_employees_id_fk": {
+          "name": "lstb_submissions_employee_id_employees_id_fk",
+          "tableFrom": "lstb_submissions",
+          "tableTo": "employees",
+          "columnsFrom": [
+            "employee_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "lstb_submissions_ref": {
+          "name": "lstb_submissions_ref",
+          "value": "\"lstb_submissions\".\"art\" = 'neu' or \"lstb_submissions\".\"kind\" = 'portal' or \"lstb_submissions\".\"ref_km_id\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.mail_log": {
       "name": "mail_log",
       "schema": "",
@@ -9282,152 +9437,6 @@
           "value": "\"vat_frequencies\".\"from_month\" in (1, 4, 7, 10)"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.vat_items_since": {
-      "name": "vat_items_since",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "default": 1
-        },
-        "since": {
-          "name": "since",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "vat_items_since_single": {
-          "name": "vat_items_since_single",
-          "value": "\"vat_items_since\".\"id\" = 1"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.vat_return_filings": {
-      "name": "vat_return_filings",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "vat_return_id": {
-          "name": "vat_return_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "filed_on": {
-          "name": "filed_on",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "transfer_ticket": {
-          "name": "transfer_ticket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kz83": {
-          "name": "kz83",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sha256": {
-          "name": "sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "size": {
-          "name": "size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "vat_return_filings_return": {
-          "name": "vat_return_filings_return",
-          "columns": [
-            {
-              "expression": "vat_return_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "vat_return_filings_sha256": {
-          "name": "vat_return_filings_sha256",
-          "columns": [
-            {
-              "expression": "sha256",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "vat_return_filings_vat_return_id_vat_returns_id_fk": {
-          "name": "vat_return_filings_vat_return_id_vat_returns_id_fk",
-          "tableFrom": "vat_return_filings",
-          "tableTo": "vat_returns",
-          "columnsFrom": [
-            "vat_return_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.vat_return_submissions": {

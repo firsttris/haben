@@ -63,7 +63,7 @@ async function vatPayments(q: Db | Tx): Promise<VatPayment[]> {
 }
 
 /**
- * Voranmeldungen, die vor dem Stichtag der offenen Posten (vat_items_since, gesetzt von Migration 0136) gesendet wurden.
+ * Voranmeldungen, die vor dem Stichtag der offenen Posten (vat_items_since, gesetzt von Migration 0138) gesendet wurden.
  * Ohne Stichtag (nicht zu erwarten, die Zeile ist nur anhängbar) gibt es keinen Altbestand.
  */
 async function altbestand(q: Db | Tx, returns: { id: string; sentAt: Date | null }[]): Promise<Set<string>> {
