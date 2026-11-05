@@ -1,3 +1,4 @@
+import { notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { createDunning, dunningDraft, dunningInputSchema, overdueInvoices } from "../modules/rechnungen/index.ts";
 import { authMiddleware } from "../middleware.ts";
@@ -11,7 +12,11 @@ export const getOverdue = createServerFn({ method: "GET" })
 export const getDunningDraft = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(detailId)
-  .handler(({ data }) => dunningDraft(data, today()));
+  .handler(async ({ data }) => {
+    const draft = await dunningDraft(data, today());
+    if (!draft) throw notFound();
+    return draft;
+  });
 
 export const createDunningFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
