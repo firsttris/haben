@@ -13,6 +13,7 @@ import { and, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { depreciationForEuer, withdrawalsForEuer } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
+import { splitsByDocument } from "../belege/index.ts";
 import { invoiceTotalsById } from "../rechnungen/index.ts";
 import { listInvoices } from "../rechnungen/index.ts";
 import { today as todayInGermany } from "../../today.ts";
@@ -150,6 +151,12 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     ],
     q,
   );
+  // Aufgeteilte Belege (#271): Ausgaben je Kontierungszeile statt je Kategorie des Belegs
+  const docSplits = await splitsByDocument([...docTotals.keys()], q);
+  const splitsOf = (documentId: string) => {
+    const splits = docSplits.get(documentId);
+    return splits ? { splits } : {};
+  };
 
   const payments: EuerPayment[] = [];
   for (const a of allocations) {
@@ -177,6 +184,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         category: isCategory(a.category) ? a.category : "sonstiges",
         vorsteuerAbzug: a.vorsteuerAbzug ?? true,
         privateShare: a.privateShare ?? 0,
+        ...splitsOf(a.documentId),
         group,
       });
     } else if (
@@ -212,6 +220,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
         category: isCategory(w.category) ? w.category : "sonstiges",
         vorsteuerAbzug: w.vorsteuerAbzug ?? true,
         privateShare: w.privateShare ?? 0,
+        ...splitsOf(w.documentId),
         group,
       });
     }
@@ -226,6 +235,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
     category: isCategory(d.category) ? d.category : "sonstiges",
     vorsteuerAbzug: d.vorsteuerAbzug,
     privateShare: d.privateShare,
+    ...splitsOf(d.id),
   });
   for (const d of privateDocs) payments.push(documentPayment(d, d.date!, d.gross));
   for (const d of cancelledDocs) payments.push(documentPayment(d, d.date, -d.gross));

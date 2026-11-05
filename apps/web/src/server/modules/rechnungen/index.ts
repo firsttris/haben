@@ -1,14 +1,24 @@
 /*
  * Rechnungen und Angebote: Entwürfe, Festschreiben mit Nummernkreis, Storno und Korrektur, Steuerzeilen, Mahnungen,
- * Auftragsbestätigung und Lieferschein, Versand per E-Mail und Serienrechnungen.
+ * Auftragsbestätigung und Lieferschein, zusätzliche Anhänge, Versand per E-Mail und Serienrechnungen.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
  * (Modulgrenzen, scripts/modulgrenzen/regel.ts).
  */
+export {
+  addInvoiceAttachment,
+  attachmentFileProblem,
+  listInvoiceAttachments,
+  loadInvoiceAttachment,
+  removeInvoiceAttachment,
+  type InvoiceAttachment,
+} from "./attachments.ts";
+export { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
 export { createDunning, dunningDraft, dunningInputSchema, dunningsFor, loadDunningPdf, overdueInvoices } from "./dunning.ts";
 export {
   dunningMailDraft,
   invoiceMailDraft,
+  invoiceMailSchema,
   invoicesSentByMail,
   mailsForInvoice,
   mailsForQuote,
@@ -40,6 +50,7 @@ export {
   finalizeInvoice,
   finalizeIssues,
   getInvoice,
+  InvoiceError,
   invoiceSummary,
   listInvoices,
   newDraftDefaults,

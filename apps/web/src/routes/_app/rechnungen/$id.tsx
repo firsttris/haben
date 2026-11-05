@@ -16,6 +16,7 @@ import { useState, type FormEvent } from "react";
 import { reverseWriteOffFn, writeOffRest } from "../../../server/functions/bank.ts";
 import { InvoiceStatus } from "../../../components/InvoiceStatus.tsx";
 import { Icon } from "../../../components/Icon.tsx";
+import { InvoiceAttachments } from "../../../components/InvoiceAttachments.tsx";
 import { InvoiceEditor } from "../../../components/InvoiceEditor.tsx";
 import { SendMailForm } from "../../../components/SendMail.tsx";
 import { formatDate, formatDateTime } from "../../../lib/format.ts";
@@ -104,6 +105,7 @@ function InvoicePage() {
         rateInfo={
           invoice.exchangeRate ? describeExchangeRate(invoice.currency, invoice.exchangeRate, invoice.exchangeRateSource, invoice.exchangeRateDate) : null
         }
+        attachments={<InvoiceAttachments invoiceId={invoice.id} attachments={data.attachments} editable />}
       />
     );
   }
@@ -312,6 +314,8 @@ function FinalInvoice({ data }: { data: Detail }) {
             </p>
           </section>
 
+          <InvoiceAttachments invoiceId={invoice.id} attachments={data.attachments} editable={false} />
+
           <section className="card" aria-labelledby="mail-heading">
             <h2 id="mail-heading">Per E-Mail</h2>
             {data.mails.length > 0 ? (
@@ -323,6 +327,11 @@ function FinalInvoice({ data }: { data: Detail }) {
                       {formatDateTime(m.createdAt)}
                       {!m.ok && ` · ${m.error}`}
                     </span>
+                    {m.attachments.length > 0 && (
+                      <span className="small muted" style={{ display: "block" }}>
+                        Anhang: {m.attachments.join(", ")}
+                      </span>
+                    )}
                   </span>
                   <span className={`pill ${m.ok ? "pill-ok" : "pill-danger"}`}>{m.ok ? "Gesendet" : "Fehlgeschlagen"}</span>
                 </div>

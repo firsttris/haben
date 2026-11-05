@@ -73,7 +73,8 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       rechtsform: company.rechtsform,
       tageskurs: company.tageskurs,
       amounts: result.amounts,
-      issues: result.document.lockedAt ? [] : bookingIssues(result.document, result.amounts),
+      splits: result.splits,
+      issues: result.document.lockedAt ? [] : bookingIssues(result.document, result.amounts, today(), result.splits),
       // Bisherige Kategorie des Lieferanten als Hinweis am Feld, nur solange der Beleg offen ist
       categoryHint: result.document.lockedAt ? null : await supplierCategory(result.document.supplierName, result.document.supplierUstId),
       aiAvailable: extractionAvailable(),

@@ -904,6 +904,70 @@ test("Rechnung per E-Mail: Zugang einrichten, Vorlage, Fehler im Protokoll", asy
   await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText("Fehlgeschlagen");
 });
 
+/** Kleinste Datei, die Haben am Inhalt als PDF erkennt */
+const attachmentPdf = (text: string) => Buffer.from(`%PDF-1.4\n% ${text}\n%%EOF\n`);
+
+test("Anhänge an der Rechnung: PDF hochladen, entfernen, festschreiben und beim Versand auswählen", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Kunde").selectOption({ label: "Alpenblick Media AG · München" });
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung mit Stundennachweis");
+  await page.getByLabel("Menge Position 1").fill("8");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("120,00");
+  await page.getByRole("button", { name: "Entwurf speichern" }).click();
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+
+  const anhaenge = page.getByRole("region", { name: "Anhänge" });
+  const auswahl = page.getByLabel("PDF-Anhänge auswählen");
+  await auswahl.setInputFiles([
+    { name: "stundenzettel.pdf", mimeType: "application/pdf", buffer: attachmentPdf("Stundenzettel") },
+    { name: "abnahme.pdf", mimeType: "application/pdf", buffer: attachmentPdf("Abnahme") },
+  ]);
+  await expect(anhaenge.getByText("stundenzettel.pdf: angehängt.")).toBeVisible();
+  await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toBeVisible();
+  // Nur PDF, am Inhalt erkannt: ein Bild mit der Endung .pdf wird abgelehnt
+  await auswahl.setInputFiles([{ name: "foto.pdf", mimeType: "application/pdf", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) }]);
+  await expect(anhaenge.getByText("foto.pdf: Als Anhang sind nur PDF-Dateien erlaubt.")).toBeVisible();
+  await anhaenge.getByRole("button", { name: "abnahme.pdf entfernen" }).click();
+  await expect(anhaenge.getByText("abnahme.pdf: entfernt.")).toBeVisible();
+  await expect(anhaenge.getByRole("link", { name: "abnahme.pdf", exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Festschreiben" }).click();
+  await page.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(page.getByText(/Festgeschrieben/).first()).toBeVisible({ timeout: 30_000 });
+  const number = (await page.getByRole("heading", { level: 1 }).textContent())!.replace("Rechnung ", "").trim();
+  await expect(anhaenge).toContainText("Mit der Rechnung festgeschrieben.");
+  await expect(anhaenge.getByRole("button", { name: /entfernen/ })).toHaveCount(0);
+  const download = await page.request.get((await anhaenge.getByRole("link", { name: "stundenzettel.pdf herunterladen" }).getAttribute("href"))!);
+  expect(download.headers()["content-type"]).toBe("application/pdf");
+  expect((await download.body()).toString()).toContain("Stundenzettel");
+
+  // Der Zugang aus dem Test davor zeigt auf einen Port ohne Mailserver: der Versand scheitert, das Protokoll nennt die Dateien
+  const bereich = page.getByRole("region", { name: "Per E-Mail" });
+  await bereich.getByRole("button", { name: "Rechnung senden" }).click();
+  const formular = bereich.getByRole("form", { name: "Rechnung per E-Mail senden" });
+  const mitsenden = formular.getByRole("group", { name: "Zusätzliche Anhänge mitsenden" }).getByRole("checkbox", { name: "stundenzettel.pdf" });
+  await expect(mitsenden).toBeChecked();
+  await formular.getByLabel("An", { exact: true }).fill("buchhaltung@alpenblick.example");
+  await formular.getByRole("button", { name: "Jetzt senden" }).click();
+  await expect(formular.getByRole("alert")).toContainText("Nicht gesendet");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText(`Anhang: Rechnung-${number}.pdf, stundenzettel.pdf`);
+
+  // Abgewählt geht nur die Rechnung mit
+  // Kein Versand ging durch, der Knopf heißt also weiter „Rechnung senden“
+  await page.getByRole("region", { name: "Per E-Mail" }).getByRole("button", { name: "Rechnung senden" }).click();
+  const zweites = page.getByRole("form", { name: "Rechnung per E-Mail senden" });
+  await zweites.getByRole("checkbox", { name: "stundenzettel.pdf" }).uncheck();
+  await zweites.getByLabel("An", { exact: true }).fill("buchhaltung@alpenblick.example");
+  await zweites.getByRole("button", { name: "Jetzt senden" }).click();
+  await expect(zweites.getByRole("alert")).toContainText("Nicht gesendet");
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Per E-Mail" })).toContainText(new RegExp(`Anhang: Rechnung-${number}\\.pdf(?!, )`));
+});
+
 test("Abschlagsrechnung festschreiben und Schlussrechnung vorbereiten", async () => {
   await go("/rechnungen/neu");
   await page.getByRole("combobox", { name: /^Rechnungsart/ }).selectOption("abschlag");
@@ -966,6 +1030,94 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Löschen", exact: true })).toBeVisible();
   expect(page.url()).toBe(url);
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+});
+
+test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
+  // Beispiel aus #271, je 19 %: 100 € Handelsware, 50 € Software, 20 € Bürobedarf = 170 € netto, 32,30 € Vorsteuer
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "buerohaus.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Bürohaus Nord GmbH") }]);
+  await expect(page.getByText("buerohaus.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /buerohaus\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Bürohaus Nord GmbH");
+  await page.getByLabel("Belegdatum").fill(day(-5));
+  await page.getByLabel("Kategorie").selectOption("wareneinkauf");
+  const amounts = page.getByRole("group", { name: "Beträge je Steuersatz" });
+  await amounts.getByLabel("Netto", { exact: true }).fill("170,00");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("32,30");
+
+  await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
+  const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
+  // Erste Zeile mit der bisherigen Kategorie und dem ganzen Netto, dazu eine leere
+  await expect(split.getByLabel("Kategorie")).toHaveCount(2);
+  await expect(split.getByLabel("Kategorie").first()).toHaveValue("wareneinkauf");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).first().fill("100,00");
+  await split.getByLabel("Kategorie").nth(1).selectOption("software");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).nth(1).fill("50,00");
+  await expect(split.getByText("19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen")).toBeVisible();
+  // Bis eine Kategorie gewählt ist, lässt sich nicht speichern
+  await split.getByRole("button", { name: "+ Zeile" }).click();
+  await expect(page.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  await split.getByLabel("Kategorie").nth(2).selectOption("buero");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).nth(2).fill("20,00");
+  await expect(split.getByText("19 %: Zeilen 170,00 € von 170,00 € netto · stimmt")).toBeVisible();
+  // Vorsteuer anteilig: 19,00 + 9,50 + 3,80 = 32,30
+  await expect(split.getByText("Vorsteuer 19,00")).toBeVisible();
+  await expect(split.getByText("Vorsteuer 9,50")).toBeVisible();
+  await expect(split.getByText("Vorsteuer 3,80")).toBeVisible();
+
+  // Eine vierte Zeile mit gleicher Kategorie und gleichem Satz, wieder entfernt
+  await split.getByRole("button", { name: "+ Zeile" }).click();
+  await split.getByLabel("Kategorie").nth(3).selectOption("software");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).nth(3).fill("5,00");
+  await expect(split.getByText("19 %: Zeilen 175,00 € von 170,00 € netto · 5,00 € zu viel")).toBeVisible();
+  await split.getByRole("button", { name: "Zeile 4 der Aufteilung entfernen" }).click();
+  await expect(split.getByLabel("Kategorie")).toHaveCount(3);
+
+  // Gespeichert und neu geladen: die Zeilen bleiben, nichts fehlt mehr vor dem Buchen
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("aufgeteilt auf 3 Zeilen")).toBeVisible();
+  await expect(split.getByRole("textbox", { name: "Netto", exact: true })).toHaveCount(3);
+  await expect(split.getByRole("textbox", { name: "Netto", exact: true }).nth(2)).toHaveValue("20,00");
+  await expect(page.getByText(/Vor dem Buchen/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Bestätigen und buchen" })).toBeEnabled();
+
+  // Barrierefrei auch mit Aufteilung, am Desktop und am Handy
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  for (const width of [1440, 390]) {
+    await axePage.setViewportSize({ width, height: 900 });
+    await axePage.goto(page.url());
+    await axePage.waitForLoadState("networkidle");
+    await expect(axePage.getByRole("group", { name: "Aufteilung auf Kategorien" })).toBeVisible();
+    const { violations } = await new AxeBuilder({ page: axePage })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `Beleg mit Aufteilung bei ${width} px`,
+    ).toEqual([]);
+  }
+  await context.close();
+
+  // Aufheben: wieder eine Kategorie, die der ersten Zeile
+  await split.getByRole("button", { name: "Aufteilung aufheben" }).click();
+  await expect(split).toHaveCount(0);
+  await expect(page.getByLabel("Kategorie")).toHaveValue("wareneinkauf");
+  // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern; Buchung, EÜR, UStVA und DATEV prüfen die
+  // Integrationstests in server/modules/belege/splits.test.ts
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
   await page.getByRole("button", { name: "Endgültig löschen" }).click();
   await page.waitForURL(/\/belege$/);
@@ -1358,6 +1510,37 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
   await expect(page.getByText("Seite entfernt.")).toBeVisible();
   // Bestellungen bleibt für seiten.spec.ts und barrierefreiheit.spec.ts
   await expect(menu.getByRole("link")).toHaveText([EIGENE_SEITE.name]);
+});
+
+test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async () => {
+  await go("/lohn");
+  await page.getByRole("link", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL("**/lohn/mitarbeiter/neu");
+  await page.waitForLoadState("networkidle");
+  const form = page.getByRole("form", { name: "Stammdaten des Mitarbeiters" });
+  await form.getByLabel("Vorname").fill("Jonas");
+  await form.getByLabel("Nachname").fill("Aushilfe");
+  await form.getByLabel("Straße und Hausnummer").fill("Am Markt 2");
+  await form.getByLabel("PLZ").fill("93047");
+  await form.getByLabel("Ort", { exact: true }).fill("Regensburg");
+  await form.getByLabel("Geburtsdatum").fill("2001-03-15");
+  await form.getByLabel("Art der Beschäftigung").selectOption("minijob");
+  await form.getByLabel("Monatsgehalt brutto in Euro").fill("520,00");
+  await form.getByLabel("Eintritt", { exact: true }).fill(`${new Date().getFullYear()}-01-01`);
+  await form.getByLabel("Steuer-ID").fill("47291830467");
+  await form.getByLabel("Versicherungsnummer").fill("65150301A123");
+  await form.getByLabel("Personengruppe").fill("109");
+  await form.getByLabel("Beitragsgruppenschlüssel").fill("6100");
+  await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL(/\/lohn$/);
+  await expect(page.getByRole("link", { name: "Jonas Aushilfe", exact: true })).toBeVisible();
+
+  // Minijob mit Pauschsteuer: keine Lohnsteuer, der Beschäftigte trägt 3,6 % zur Rentenversicherung (520 € → 18,72 €)
+  await page.getByRole("button", { name: "Monat abrechnen" }).click();
+  await expect(page.getByText("Ein Entwurf angelegt.")).toBeVisible();
+  const abrechnung = page.getByRole("region", { name: /^1\. Abrechnung Stufe B/ });
+  await expect(abrechnung.getByRole("row", { name: /Sozialversicherung \(Anteil Beschäftigte\)/ })).toContainText("-18,72");
+  await expect(abrechnung.getByRole("row", { name: "Auszahlung" })).toContainText("501,28");
 });
 
 test("Skonto: Vorgabe und Kunde, Rechnung mit Skonto, Zahlung mit Skonto abgleichen", async ({ browser }) => {

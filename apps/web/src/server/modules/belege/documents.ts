@@ -8,6 +8,7 @@ import {
   convertForeignAmounts,
   CURRENCY_CODE,
   documentPosting,
+  documentSplitPosting,
   EXPENSE_CATEGORY_KEYS,
   formatRateMonth,
   mostFrequent,
@@ -27,10 +28,12 @@ import { withActor } from "../../db/actor.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { documentNotCancelled } from "../../db/document-cancelled.ts";
+import { fileInUse } from "../../db/file-in-use.ts";
 import { today } from "../../today.ts";
 import { describeExtractionError, extractDocument, extractionAvailable, type ExtractedFields } from "./extraction.ts";
 import { loadFile, removeFile, sniff, storeFile } from "../../storage.ts";
 import { findDocumentByReference, type DocumentReference } from "./external-reference.ts";
+import { loadSplits, replaceSplits, splitBookingIssues, splitInputSchema, splitLines, type DocumentSplit } from "./splits.ts";
 
 export type Document = typeof schema.documents.$inferSelect;
 export type DocumentAmount = typeof schema.documentAmounts.$inferSelect;
@@ -95,6 +98,8 @@ export const documentInputSchema = z.object({
     )
     .max(3)
     .refine((rows) => new Set(rows.map((r) => r.taxRate)).size === rows.length, "Jeder Steuersatz nur einmal"),
+  /** Aufteilung auf mehrere Kategorien (#271); leer = die Kategorie oben gilt für den ganzen Beleg */
+  splits: z.array(splitInputSchema).max(50).default([]),
 });
 
 /** Höchstwert der int4-Spalten: umgerechnete Beträge (kleiner Kurs) dürfen ihn nicht sprengen */
@@ -246,6 +251,8 @@ async function applyFields(
     if (amounts.length > 0) {
       await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
     }
+    // Neu ausgelesen gilt die ausgelesene Kategorie; eine Aufteilung passte zu den alten Beträgen
+    await replaceSplits(tx, id, [], []);
     await tx
       .update(schema.documents)
       .set({
@@ -441,13 +448,17 @@ export async function updateDocument(actor: string, id: string, input: DocumentI
     if (amounts.length > 0) {
       await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
     }
-    const { amounts: _amounts, asset, ...fields } = parsed;
+    // Aufgeteilt: Kategorie und Anlage stehen in den Zeilen bzw. gibt es nicht (Anlagegüter lassen sich nicht aufteilen)
+    await replaceSplits(tx, id, parsed.splits, amounts);
+    const { amounts: _amounts, splits, asset, ...fields } = parsed;
+    const category = splits.length > 0 ? null : fields.category;
     await tx
       .update(schema.documents)
       .set({
         ...fields,
         ...rate,
-        asset: fields.category === "anlage" ? (asset ?? null) : null,
+        category,
+        asset: category === "anlage" ? (asset ?? null) : null,
         supplierUstId: fields.supplierUstId.replace(/\s/g, "").toUpperCase(),
         ...totalsOf(amounts, fields.reverseCharge),
         updatedAt: new Date(),
@@ -472,7 +483,7 @@ export async function getDocument(id: string) {
     if (!doc) return null;
   }
   const amounts = await db.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id)).orderBy(desc(schema.documentAmounts.taxRate));
-  return { document: doc, amounts };
+  return { document: doc, amounts, splits: await loadSplits(id) };
 }
 
 /**
@@ -530,12 +541,13 @@ function missingRateIssue(doc: Document, todayDate: string): string {
     : `Umrechnungskurs für ${doc.currency} ${formatRateMonth(month)} fehlt`;
 }
 
-/** Was vor dem Buchen fehlt; leere Liste = bereit */
-export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDate = today()): string[] {
+/** Was vor dem Buchen fehlt; leere Liste = bereit. Mit Aufteilung (splits) statt der Kategorie die Zeilen geprüft. */
+export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDate = today(), splits: DocumentSplit[] = []): string[] {
   const issues: string[] = [];
   if (!doc.supplierName) issues.push("Lieferant fehlt");
   if (!doc.documentDate) issues.push("Belegdatum fehlt");
-  if (!doc.category) issues.push("Kategorie fehlt");
+  if (splits.length > 0) issues.push(...splitBookingIssues(doc, amounts, splits));
+  else if (!doc.category) issues.push("Kategorie fehlt");
   const foreign = doc.currency !== "EUR";
   if (foreign && !doc.exchangeRate) issues.push(missingRateIssue(doc, todayDate));
   if (foreign && amounts.some((a) => a.originalNet === null || a.originalTax === null)) issues.push(`Beträge in ${doc.currency} fehlen`);
@@ -570,7 +582,8 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
     if (doc.payment === "kasse") await lockCash(tx);
     const company = await openBooks(tx);
     const amounts = await tx.select().from(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
-    const issues = bookingIssues(doc, amounts);
+    const splits = await loadSplits(id, tx);
+    const issues = bookingIssues(doc, amounts, today(), splits);
     // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
     if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
     if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
@@ -585,17 +598,21 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
     // Anlage: auf das Anlagekonto statt in den Aufwand; ohne Vorsteuerabzug gehört die Steuer zu den Anschaffungskosten
     const asset = doc.category === "anlage" ? doc.asset : null;
     const assetAccountNo = asset ? assetAccount(asset.kind, asset.method, company.kontenrahmen) : undefined;
-    const lines = documentPosting(
-      totals,
-      doc.category as ExpenseCategory,
-      company.kontenrahmen,
-      company.rechtsform,
-      doc.payment,
-      vorsteuerAbzug,
-      assetAccountNo,
-      doc.privateShare,
-      doc.reverseCharge,
-    );
+    // Aufgeteilt (#271): eine Buchung mit einer Aufwandszeile je Kategorie; sonst wie bisher über die Kategorie des Belegs
+    const lines =
+      splits.length > 0
+        ? documentSplitPosting(totals, splitLines(splits), company.kontenrahmen, company.rechtsform, doc.payment, vorsteuerAbzug)
+        : documentPosting(
+            totals,
+            doc.category as ExpenseCategory,
+            company.kontenrahmen,
+            company.rechtsform,
+            doc.payment,
+            vorsteuerAbzug,
+            assetAccountNo,
+            doc.privateShare,
+            doc.reverseCharge,
+          );
     const now = new Date();
     const entryId = await post(tx, company, {
       date: doc.documentDate!,
@@ -630,16 +647,6 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
   });
 }
 
-/** Ob ein anderer Datensatz dieselbe Datei nutzt (Ablage nach Inhalt, also derselbe SHA-256) */
-async function fileInUse(tx: Tx, sha256: string): Promise<boolean> {
-  const [use] = await tx.execute<{ used: boolean }>(sql`
-    select exists (select 1 from documents where sha256 = ${sha256})
-        or exists (select 1 from archive_files where sha256 = ${sha256})
-        or exists (select 1 from lexoffice_voucher_files where sha256 = ${sha256})
-        or exists (select 1 from postfach_documents where sha256 = ${sha256}) as used`);
-  return Boolean(use?.used);
-}
-
 /** Nur ungebuchte Belege lassen sich löschen; die Datei geht mit, solange sie sonst niemand nutzt. */
 export async function deleteDocument(actor: string, id: string): Promise<void> {
   const { sha256, shared } = await withActor(actor, async (tx) => {
@@ -663,6 +670,8 @@ export async function listDocuments() {
       invoiceNumber: schema.documents.invoiceNumber,
       documentDate: schema.documents.documentDate,
       category: schema.documents.category,
+      /** Zahl der Kontierungszeilen (#271); 0 = die Kategorie gilt für den ganzen Beleg */
+      splitCount: sql<number>`(select count(*)::int from document_splits s where s.document_id = ${schema.documents.id})`,
       gross: schema.documents.gross,
       currency: schema.documents.currency,
       externalSource: schema.documents.externalSource,

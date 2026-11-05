@@ -44,6 +44,15 @@ const PATHS = {
     </>
   ),
   textblock: <path d="M4 5h16M4 9h16M4 13h10M4 17h7M15 15l2 2 4-4" />,
+  // Person mit Lohnzettel
+  payroll: (
+    <>
+      <circle cx="8" cy="7" r="3" />
+      <path d="M2.5 19a5.5 5.5 0 0 1 11 0" />
+      <rect x="15" y="9" width="6.5" height="11" rx="1" />
+      <path d="M17 12.5h2.5M17 15.5h2.5" />
+    </>
+  ),
   contacts: (
     <>
       <circle cx="9" cy="8" r="3.5" />
