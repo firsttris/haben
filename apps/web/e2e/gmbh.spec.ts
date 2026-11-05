@@ -722,3 +722,97 @@ test("Lohn: Gesellschafter-Geschäftsführer anlegen, im laufenden Monat abrechn
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Erika Gesellschafter");
   expect(await axe(), "/lohn/mitarbeiter/<id>").toEqual([]);
 });
+
+/*
+ * Lohnsteuerbescheinigung im laufenden Jahr: Ein Geschäftsführer, der nur im Vormonat beschäftigt war, hat ein
+ * abgeschlossenes Lohnkonto (§ 41b Abs. 1 EStG); Erika aus dem Test davor hat nach dem Storno nur einen Entwurf. Ab 2026 übermittelt Haben
+ * nicht über ERiC (LSTMitteilung), sondern vermerkt die Übermittlung im ELSTER-Portal. Im Januar liegt der Vormonat im
+ * abgeschlossenen Vorjahr: dann übersprungen.
+ */
+test("Lohnsteuerbescheinigung: Austritt im Vormonat, Werte, Entwurf und Ausdruck, Übermittlung im ELSTER-Portal vermerken, Frist, Stornierung", async () => {
+  const bmf = LOHN_BMF[lohnJahr];
+  test.skip(!bmf || lohnMonat === 1, `Im Januar oder ohne Beträge für ${lohnJahr} in LOHN_BMF`);
+  const vm = lohnMonat - 1;
+  const vmm = String(vm).padStart(2, "0");
+  const vmName = new Date(lohnJahr, vm - 1, 1).toLocaleString("de-DE", { month: "long" });
+  const vmLetzter = String(new Date(lohnJahr, vm, 0).getDate()).padStart(2, "0");
+
+  await go("/lohn/mitarbeiter/neu");
+  const form = page.getByRole("form", { name: "Stammdaten des Mitarbeiters" });
+  await form.getByLabel("Vorname").fill("Max");
+  await form.getByLabel("Nachname").fill("Kurzzeit");
+  await form.getByLabel("Straße und Hausnummer").fill("Am Deich 7");
+  await form.getByLabel("PLZ").fill("28199");
+  await form.getByLabel("Ort", { exact: true }).fill("Bremen");
+  await form.getByLabel("Geburtsdatum").fill("1975-09-30");
+  await form.getByLabel("IBAN für die Auszahlung").fill("DE89 3704 0044 0532 0130 00");
+  await form.getByLabel("Monatsgehalt brutto in Euro").fill("6.000,00");
+  await form.getByLabel("Eintritt", { exact: true }).fill(`${lohnJahr}-${vmm}-01`);
+  await form.getByLabel("Austritt (optional)").fill(`${lohnJahr}-${vmm}-${vmLetzter}`);
+  await form.getByLabel("Statusfeststellung (§ 7a SGB IV)").selectOption("versicherungsfrei");
+  await form.getByLabel("Steuer-ID").fill("47291830467");
+  await form.getByLabel("Kirchensteuermerkmal").selectOption("ev");
+  await form.getByLabel("Zusatzbeitrag der Kasse in Prozent").fill("2,90");
+  await form.getByLabel(/Zuschlag für Kinderlose/).check();
+  await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
+  await page.waitForURL(/\/lohn$/);
+
+  // Vormonat abrechnen: Max festschreiben, Erikas Entwurf wieder löschen
+  await go(`/lohn?jahr=${lohnJahr}&monat=${vm}`);
+  const monat = page.getByRole("form", { name: `${vmName} ${lohnJahr} abrechnen` });
+  await monat.getByLabel("Zahltag").fill(`${lohnJahr}-${vmm}-28`);
+  await monat.getByRole("button", { name: "Monat abrechnen" }).click();
+  await expect(page.getByText("2 Entwürfe angelegt.")).toBeVisible();
+  const max = page.getByRole("region", { name: "Max Kurzzeit" }).getByRole("region", { name: /^1\. Abrechnung Stufe A/ });
+  await max.getByRole("button", { name: "Festschreiben" }).click();
+  await max.getByRole("button", { name: "Jetzt festschreiben" }).click();
+  await expect(max.getByText("festgeschrieben und gebucht", { exact: true })).toBeVisible();
+  const erika = page.getByRole("region", { name: "Erika Gesellschafter" });
+  await erika.getByRole("button", { name: "Entwurf löschen" }).click();
+  await expect(erika.getByRole("button", { name: "Entwurf löschen" })).toHaveCount(0);
+
+  await page.getByRole("link", { name: `Lohnsteuerbescheinigungen ${lohnJahr}` }).click();
+  await page.waitForURL(`**/lohn/bescheinigung/${lohnJahr}`);
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Lohnsteuerbescheinigungen ${lohnJahr}`);
+  await expect(page.getByText(/LSTMitteilung über ElsterKMV/)).toBeVisible();
+  const karte = page.getByRole("region", { name: "Max Kurzzeit" });
+  await expect(karte).toContainText("bereit zur Übermittlung");
+  await expect(karte.getByRole("row", { name: /^1\. Bescheinigungszeitraum/ })).toContainText(`01.${vmm}.${lohnJahr} – ${vmLetzter}.${vmm}.${lohnJahr}`);
+  await expect(karte.getByRole("row", { name: /^3\. Bruttoarbeitslohn/ })).toContainText("6.000,00");
+  await expect(karte.getByRole("row", { name: /^4\. Lohnsteuer/ })).toContainText(bmf!.lohnsteuer);
+  await expect(karte.getByRole("row", { name: /^6\. Kirchensteuer/ })).toContainText(bmf!.kirchensteuer);
+  // Erika hat nach dem Storno nur einen Entwurf: noch nicht fertig
+  await expect(page.getByRole("region", { name: "Erika Gesellschafter" })).toContainText(`Für ${lohnMonatsname} gibt es einen Entwurf`);
+  expect(await axe(), `/lohn/bescheinigung/${lohnJahr}`).toEqual([]);
+
+  const entwurf = await page.request.get((await karte.getByRole("link", { name: /Ausdruck der Lohnsteuerbescheinigung/ }).getAttribute("href"))!);
+  expect(entwurf.headers()["content-disposition"]).toContain("Entwurf");
+  expect((await entwurf.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+
+  // Im ELSTER-Portal übermittelt: Tag und Transferticket vermerken
+  const vermerk = karte.getByRole("form", { name: "Bescheinigung im ELSTER-Portal vermerken: Max Kurzzeit" });
+  await vermerk.getByLabel("Transferticket").fill("et9f3k2m7q1x");
+  await vermerk.getByRole("button", { name: "Übermittlung vermerken" }).click();
+  await expect(karte.getByText("Nr. 2 · übermittelt")).toBeVisible();
+  await expect(karte.getByRole("list")).toContainText("Transferticket et9f3k2m7q1x");
+  const ausdruck = await page.request.get((await karte.getByRole("link", { name: /Ausdruck der Lohnsteuerbescheinigung/ }).getAttribute("href"))!);
+  expect(ausdruck.headers()["content-disposition"]).not.toContain("Entwurf");
+  expect((await ausdruck.body()).subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  expect(await axe(), `/lohn/bescheinigung/${lohnJahr} übermittelt`).toEqual([]);
+
+  // Frist bis Ende Februar des Folgejahres, offen wegen Erikas Entwurf
+  await go("/fristen");
+  await expect(page.getByText(`Lohnsteuerbescheinigungen ${lohnJahr}`)).toBeVisible();
+  expect(await axe(), "/fristen mit Lohnsteuerbescheinigung").toEqual([]);
+
+  // Stornierung im Portal vermerken: danach wieder bereit für eine neue Bescheinigung
+  await go(`/lohn/bescheinigung/${lohnJahr}`);
+  const storno = karte.getByRole("form", { name: "Stornierung im ELSTER-Portal vermerken: Max Kurzzeit" });
+  await storno.getByLabel("Transferticket").fill("et9f3k2m7q2y");
+  await storno.getByLabel("Grund").fill("Test der Stornierung");
+  await storno.getByRole("button", { name: "Stornierung vermerken" }).click();
+  await expect(karte.getByText("Nr. 2 · storniert")).toBeVisible();
+  await expect(karte.getByRole("form", { name: "Bescheinigung im ELSTER-Portal vermerken: Max Kurzzeit" })).toBeVisible();
+  expect(await axe(), `/lohn/bescheinigung/${lohnJahr} storniert`).toEqual([]);
+});

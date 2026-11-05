@@ -1,6 +1,6 @@
 # Finanzamt
 
-Unter **Finanzamt** holst du Bescheide aus deinem ELSTER-Postfach und schreibst dem Finanzamt über ELSTER, ohne Mein ELSTER zu öffnen. Die Nachricht geht an das Finanzamt der Steuernummer aus den Einstellungen; für Einzelunternehmer ist das meist dieselbe Steuernummer wie für die Einkommensteuer. Gesendet wird wie bei der Voranmeldung mit Zertifikat und PIN, erst als Testübermittlung, dann echt.
+Unter **Finanzamt** holst du Bescheide aus deinem ELSTER-Postfach und schreibst dem Finanzamt über ELSTER, ohne Mein ELSTER zu öffnen. Die Lohnsteuerbescheinigung steht unter [Lohn](lohn.md#lohnsteuerbescheinigung); ab 2026 übermittelst du sie in Mein ELSTER. Die Nachricht geht an das Finanzamt der Steuernummer aus den Einstellungen; für Einzelunternehmer ist das meist dieselbe Steuernummer wie für die Einkommensteuer. Gesendet wird wie bei der Voranmeldung mit Zertifikat und PIN, erst als Testübermittlung, dann echt.
 
 ## Bescheide aus dem ELSTER-Postfach
 

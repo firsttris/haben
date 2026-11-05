@@ -77,6 +77,7 @@ import { Route as ApiUstvaIdRouteImport } from './routes/api/ustva/$id'
 import { Route as ApiV1SplatRouteImport } from './routes/api/v1/$'
 import { Route as ApiVastIdRouteImport } from './routes/api/vast/$id'
 import { Route as AppArchivBelegIdRouteImport } from './routes/_app/archiv/beleg.$id'
+import { Route as AppLohnBescheinigungJahrRouteImport } from './routes/_app/lohn/bescheinigung.$jahr'
 import { Route as AppLohnMitarbeiterIdRouteImport } from './routes/_app/lohn/mitarbeiter/$id'
 import { Route as AppLohnMitarbeiterNeuRouteImport } from './routes/_app/lohn/mitarbeiter/neu'
 import { Route as AppRechnungenMahnwesenIndexRouteImport } from './routes/_app/rechnungen/mahnwesen/index'
@@ -89,6 +90,7 @@ import { Route as ApiDokumentArtIdRouteImport } from './routes/api/dokument/$art
 import { Route as ApiLohnAbrechnungIdRouteImport } from './routes/api/lohn/abrechnung.$id'
 import { Route as ApiRechnungIdDateiRouteImport } from './routes/api/rechnung/$id.$datei'
 import { Route as ApiSteuerbescheinigungIdNrRouteImport } from './routes/api/steuerbescheinigung/$id.$nr'
+import { Route as ApiLohnBescheinigungIdJahrRouteImport } from './routes/api/lohn/bescheinigung.$id.$jahr'
 import { Route as ApiLohnLohnkontoIdJahrFormatRouteImport } from './routes/api/lohn/lohnkonto.$id.$jahr.$format'
 
 const AppRoute = AppRouteImport.update({
@@ -431,6 +433,12 @@ const AppArchivBelegIdRoute = AppArchivBelegIdRouteImport.update({
   path: '/archiv/beleg/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLohnBescheinigungJahrRoute =
+  AppLohnBescheinigungJahrRouteImport.update({
+    id: '/lohn/bescheinigung/$jahr',
+    path: '/lohn/bescheinigung/$jahr',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppLohnMitarbeiterIdRoute = AppLohnMitarbeiterIdRouteImport.update({
   id: '/lohn/mitarbeiter/$id',
   path: '/lohn/mitarbeiter/$id',
@@ -496,6 +504,12 @@ const ApiSteuerbescheinigungIdNrRoute =
   ApiSteuerbescheinigungIdNrRouteImport.update({
     id: '/api/steuerbescheinigung/$id/$nr',
     path: '/api/steuerbescheinigung/$id/$nr',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiLohnBescheinigungIdJahrRoute =
+  ApiLohnBescheinigungIdJahrRouteImport.update({
+    id: '/api/lohn/bescheinigung/$id/$jahr',
+    path: '/api/lohn/bescheinigung/$id/$jahr',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiLohnLohnkontoIdJahrFormatRoute =
@@ -573,6 +587,7 @@ export interface FileRoutesByFullPath {
   '/textbausteine/': typeof AppTextbausteineIndexRoute
   '/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
   '/archiv/beleg/$id': typeof AppArchivBelegIdRoute
+  '/lohn/bescheinigung/$jahr': typeof AppLohnBescheinigungJahrRoute
   '/lohn/mitarbeiter/$id': typeof AppLohnMitarbeiterIdRoute
   '/lohn/mitarbeiter/neu': typeof AppLohnMitarbeiterNeuRoute
   '/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
@@ -585,6 +600,7 @@ export interface FileRoutesByFullPath {
   '/api/steuerbescheinigung/$id/$nr': typeof ApiSteuerbescheinigungIdNrRoute
   '/rechnungen/mahnwesen/': typeof AppRechnungenMahnwesenIndexRoute
   '/rechnungen/wiederkehrend/': typeof AppRechnungenWiederkehrendIndexRoute
+  '/api/lohn/bescheinigung/$id/$jahr': typeof ApiLohnBescheinigungIdJahrRoute
   '/api/lohn/lohnkonto/$id/$jahr/$format': typeof ApiLohnLohnkontoIdJahrFormatRoute
 }
 export interface FileRoutesByTo {
@@ -655,6 +671,7 @@ export interface FileRoutesByTo {
   '/textbausteine': typeof AppTextbausteineIndexRoute
   '/umsatzsteuer': typeof AppUmsatzsteuerIndexRoute
   '/archiv/beleg/$id': typeof AppArchivBelegIdRoute
+  '/lohn/bescheinigung/$jahr': typeof AppLohnBescheinigungJahrRoute
   '/lohn/mitarbeiter/$id': typeof AppLohnMitarbeiterIdRoute
   '/lohn/mitarbeiter/neu': typeof AppLohnMitarbeiterNeuRoute
   '/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
@@ -667,6 +684,7 @@ export interface FileRoutesByTo {
   '/api/steuerbescheinigung/$id/$nr': typeof ApiSteuerbescheinigungIdNrRoute
   '/rechnungen/mahnwesen': typeof AppRechnungenMahnwesenIndexRoute
   '/rechnungen/wiederkehrend': typeof AppRechnungenWiederkehrendIndexRoute
+  '/api/lohn/bescheinigung/$id/$jahr': typeof ApiLohnBescheinigungIdJahrRoute
   '/api/lohn/lohnkonto/$id/$jahr/$format': typeof ApiLohnLohnkontoIdJahrFormatRoute
 }
 export interface FileRoutesById {
@@ -739,6 +757,7 @@ export interface FileRoutesById {
   '/_app/textbausteine/': typeof AppTextbausteineIndexRoute
   '/_app/umsatzsteuer/': typeof AppUmsatzsteuerIndexRoute
   '/_app/archiv/beleg/$id': typeof AppArchivBelegIdRoute
+  '/_app/lohn/bescheinigung/$jahr': typeof AppLohnBescheinigungJahrRoute
   '/_app/lohn/mitarbeiter/$id': typeof AppLohnMitarbeiterIdRoute
   '/_app/lohn/mitarbeiter/neu': typeof AppLohnMitarbeiterNeuRoute
   '/_app/rechnungen/mahnwesen/$id': typeof AppRechnungenMahnwesenIdRoute
@@ -751,6 +770,7 @@ export interface FileRoutesById {
   '/api/steuerbescheinigung/$id/$nr': typeof ApiSteuerbescheinigungIdNrRoute
   '/_app/rechnungen/mahnwesen/': typeof AppRechnungenMahnwesenIndexRoute
   '/_app/rechnungen/wiederkehrend/': typeof AppRechnungenWiederkehrendIndexRoute
+  '/api/lohn/bescheinigung/$id/$jahr': typeof ApiLohnBescheinigungIdJahrRoute
   '/api/lohn/lohnkonto/$id/$jahr/$format': typeof ApiLohnLohnkontoIdJahrFormatRoute
 }
 export interface FileRouteTypes {
@@ -823,6 +843,7 @@ export interface FileRouteTypes {
     | '/textbausteine/'
     | '/umsatzsteuer/'
     | '/archiv/beleg/$id'
+    | '/lohn/bescheinigung/$jahr'
     | '/lohn/mitarbeiter/$id'
     | '/lohn/mitarbeiter/neu'
     | '/rechnungen/mahnwesen/$id'
@@ -835,6 +856,7 @@ export interface FileRouteTypes {
     | '/api/steuerbescheinigung/$id/$nr'
     | '/rechnungen/mahnwesen/'
     | '/rechnungen/wiederkehrend/'
+    | '/api/lohn/bescheinigung/$id/$jahr'
     | '/api/lohn/lohnkonto/$id/$jahr/$format'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -905,6 +927,7 @@ export interface FileRouteTypes {
     | '/textbausteine'
     | '/umsatzsteuer'
     | '/archiv/beleg/$id'
+    | '/lohn/bescheinigung/$jahr'
     | '/lohn/mitarbeiter/$id'
     | '/lohn/mitarbeiter/neu'
     | '/rechnungen/mahnwesen/$id'
@@ -917,6 +940,7 @@ export interface FileRouteTypes {
     | '/api/steuerbescheinigung/$id/$nr'
     | '/rechnungen/mahnwesen'
     | '/rechnungen/wiederkehrend'
+    | '/api/lohn/bescheinigung/$id/$jahr'
     | '/api/lohn/lohnkonto/$id/$jahr/$format'
   id:
     | '__root__'
@@ -988,6 +1012,7 @@ export interface FileRouteTypes {
     | '/_app/textbausteine/'
     | '/_app/umsatzsteuer/'
     | '/_app/archiv/beleg/$id'
+    | '/_app/lohn/bescheinigung/$jahr'
     | '/_app/lohn/mitarbeiter/$id'
     | '/_app/lohn/mitarbeiter/neu'
     | '/_app/rechnungen/mahnwesen/$id'
@@ -1000,6 +1025,7 @@ export interface FileRouteTypes {
     | '/api/steuerbescheinigung/$id/$nr'
     | '/_app/rechnungen/mahnwesen/'
     | '/_app/rechnungen/wiederkehrend/'
+    | '/api/lohn/bescheinigung/$id/$jahr'
     | '/api/lohn/lohnkonto/$id/$jahr/$format'
   fileRoutesById: FileRoutesById
 }
@@ -1035,6 +1061,7 @@ export interface RootRouteChildren {
   ApiLohnAbrechnungIdRoute: typeof ApiLohnAbrechnungIdRoute
   ApiRechnungIdDateiRoute: typeof ApiRechnungIdDateiRoute
   ApiSteuerbescheinigungIdNrRoute: typeof ApiSteuerbescheinigungIdNrRoute
+  ApiLohnBescheinigungIdJahrRoute: typeof ApiLohnBescheinigungIdJahrRoute
   ApiLohnLohnkontoIdJahrFormatRoute: typeof ApiLohnLohnkontoIdJahrFormatRoute
 }
 
@@ -1516,6 +1543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppArchivBelegIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/lohn/bescheinigung/$jahr': {
+      id: '/_app/lohn/bescheinigung/$jahr'
+      path: '/lohn/bescheinigung/$jahr'
+      fullPath: '/lohn/bescheinigung/$jahr'
+      preLoaderRoute: typeof AppLohnBescheinigungJahrRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/lohn/mitarbeiter/$id': {
       id: '/_app/lohn/mitarbeiter/$id'
       path: '/lohn/mitarbeiter/$id'
@@ -1600,6 +1634,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSteuerbescheinigungIdNrRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/lohn/bescheinigung/$id/$jahr': {
+      id: '/api/lohn/bescheinigung/$id/$jahr'
+      path: '/api/lohn/bescheinigung/$id/$jahr'
+      fullPath: '/api/lohn/bescheinigung/$id/$jahr'
+      preLoaderRoute: typeof ApiLohnBescheinigungIdJahrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/lohn/lohnkonto/$id/$jahr/$format': {
       id: '/api/lohn/lohnkonto/$id/$jahr/$format'
       path: '/api/lohn/lohnkonto/$id/$jahr/$format'
@@ -1652,6 +1693,7 @@ interface AppRouteChildren {
   AppTextbausteineIndexRoute: typeof AppTextbausteineIndexRoute
   AppUmsatzsteuerIndexRoute: typeof AppUmsatzsteuerIndexRoute
   AppArchivBelegIdRoute: typeof AppArchivBelegIdRoute
+  AppLohnBescheinigungJahrRoute: typeof AppLohnBescheinigungJahrRoute
   AppLohnMitarbeiterIdRoute: typeof AppLohnMitarbeiterIdRoute
   AppLohnMitarbeiterNeuRoute: typeof AppLohnMitarbeiterNeuRoute
   AppRechnungenMahnwesenIdRoute: typeof AppRechnungenMahnwesenIdRoute
@@ -1704,6 +1746,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTextbausteineIndexRoute: AppTextbausteineIndexRoute,
   AppUmsatzsteuerIndexRoute: AppUmsatzsteuerIndexRoute,
   AppArchivBelegIdRoute: AppArchivBelegIdRoute,
+  AppLohnBescheinigungJahrRoute: AppLohnBescheinigungJahrRoute,
   AppLohnMitarbeiterIdRoute: AppLohnMitarbeiterIdRoute,
   AppLohnMitarbeiterNeuRoute: AppLohnMitarbeiterNeuRoute,
   AppRechnungenMahnwesenIdRoute: AppRechnungenMahnwesenIdRoute,
@@ -1748,6 +1791,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLohnAbrechnungIdRoute: ApiLohnAbrechnungIdRoute,
   ApiRechnungIdDateiRoute: ApiRechnungIdDateiRoute,
   ApiSteuerbescheinigungIdNrRoute: ApiSteuerbescheinigungIdNrRoute,
+  ApiLohnBescheinigungIdJahrRoute: ApiLohnBescheinigungIdJahrRoute,
   ApiLohnLohnkontoIdJahrFormatRoute: ApiLohnLohnkontoIdJahrFormatRoute,
 }
 export const routeTree = rootRouteImport

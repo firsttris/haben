@@ -21,6 +21,7 @@ const ART_LABEL: Record<Frist["art"], string> = {
   ustva: "Voranmeldung",
   zm: "Zusammenfassende Meldung",
   kapest: "Kapitalertragsteuer",
+  lstb: "Lohnsteuerbescheinigung",
   erklaerung: "Erklärung",
   vorauszahlung: "Vorauszahlung",
   einspruch: "Einspruch",

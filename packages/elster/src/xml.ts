@@ -63,6 +63,8 @@ export function datenartVersionFromXml(xml: string): string | undefined {
     const version = taxonomie ? EBILANZ_TAXONOMIEN[taxonomie] : undefined;
     if (version) return `Bilanz_${version}`;
   }
+  // Lohnsteuerbescheinigung bis VZ 2025: eine Datenart-Version für das ganze Verfahren (Datenartversionmatrix, checkElsterLohn)
+  if (/<Verfahren>ElsterLohn<\/Verfahren>/.test(xml)) return "ElsterLohn";
   // Zusammenfassende Meldung: die Datenart ZMDO hat keine Jahresversion (ERiC-Plugin checkZMDO)
   if (/<DatenArt>ZMDO<\/DatenArt>/.test(xml)) return "ZMDO";
   // Berechtigungsmanagement: Datenart = Datenart-Version
