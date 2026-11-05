@@ -95,17 +95,17 @@ Der Zeitraum richtet sich nach der Lohnsteuer des Vorjahres (§ 41a Abs. 2 EStG)
 | mehr als 1.080 €, höchstens 5.000 € | Kalendervierteljahr |
 | mehr als 5.000 € | Kalendermonat |
 
-Haben schlägt den Zeitraum vor und nennt den Grund. Bestand der Betrieb nicht das ganze Vorjahr, rechnet es die Lohnsteuer auf ein Jahr um (Satz 3): Haben nimmt dafür die vollen Monate ab der ersten Buchung. Im ersten Jahr zählt die Lohnsteuer des ersten vollen Kalendermonats nach der Eröffnung mal zwölf (Satz 4), sobald dieser Monat abgerechnet ist. Gibt es eine Eröffnungsbuchung, bestand der Betrieb schon vorher; dann kennt Haben das Vorjahr nur, wenn es das ganze Vorjahr führt. Ohne Grundlage gilt der Kalendermonat (Satz 1). Maßgeblich ist, was das Finanzamt festlegt: Unter **Anmeldungszeitraum** stellst du ihn je Jahr ein. Passt eine schon gesendete Anmeldung nicht mehr zum neuen Zeitraum, lehnt Haben die Änderung ab.
+Haben schlägt den Zeitraum vor und nennt den Grund. Bestand der Betrieb nicht das ganze Vorjahr, rechnet es die Lohnsteuer auf ein Jahr um (Satz 3): Haben nimmt dafür die vollen Monate ab der ersten Buchung. Im ersten Jahr zählt die Lohnsteuer des ersten vollen Kalendermonats nach der Eröffnung mal zwölf (Satz 4), sobald dieser Monat abgerechnet ist. Gibt es eine Eröffnungsbuchung, bestand der Betrieb schon vorher; dann kennt Haben das Vorjahr nur, wenn es das ganze Vorjahr führt. Ohne Grundlage gilt der Kalendermonat (Satz 1). Maßgeblich ist, was das Finanzamt festlegt: Unter **Anmeldungszeitraum** stellst du ihn je Jahr ein. Passt eine schon gesendete Anmeldung nicht mehr zum neuen Zeitraum, lehnt Haben die Änderung ab. Ist im Jahr schon echt angemeldet, bleibt ohne eigene Einstellung der Zeitraum dieser Anmeldung, auch wenn sich der Vorschlag danach ändert, etwa weil im ersten Jahr der erste volle Monat erst später abgerechnet wird; sonst stünde die schon gemeldete Lohnsteuer noch einmal im Quartal oder Kalenderjahr.
 
 Die Pauschsteuer im Minijob zählt dabei nicht mit; sie geht an die Minijob-Zentrale.
 
 ### Was in die Anmeldung geht
 
-Haben ordnet jede festgeschriebene, nicht stornierte Abrechnung nach ihrem **Zahltag** dem Anmeldungszeitraum zu: Angemeldet wird die im Zeitraum einbehaltene Lohnsteuer (§ 41a Abs. 1 Satz 1 EStG), und einbehalten wird sie bei der Lohnzahlung (§ 38 Abs. 3 EStG). Getrennt wird nach dem Jahr, in dem der Lohn als bezogen gilt: laufender Arbeitslohn im Jahr, in dem der Abrechnungsmonat endet (§ 38a Abs. 1 Satz 2 EStG). Das Gehalt für Dezember mit Zahltag im Januar steht deshalb in der Januar-Anmeldung in der Spalte „Vorjahr“.
+Haben ordnet jede festgeschriebene, nicht stornierte Abrechnung nach ihrem **Zahltag** dem Anmeldungszeitraum zu: Angemeldet wird die im Zeitraum einbehaltene Lohnsteuer (§ 41a Abs. 1 Satz 1 EStG), und einbehalten wird sie bei der Lohnzahlung (§ 38 Abs. 3 EStG). Getrennt wird nach dem Jahr, in dem der Lohn als bezogen gilt: laufender Arbeitslohn im Jahr, in dem der Abrechnungsmonat endet (§ 38a Abs. 1 Satz 2 EStG). Das Gehalt für Dezember mit Zahltag im Januar steht deshalb in der Januar-Anmeldung in der Spalte „Vorjahr“. Laufender Arbeitslohn des Vorjahres ist das aber nur bis drei Wochen nach Jahresende (R 39b.2 Abs. 1 Nr. 7 LStR): Später gezahlt, oder im Voraus für einen Monat des Folgejahres, ist er ein sonstiger Bezug des Zahlungsjahres (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR), den die Abrechnung nicht so rechnet. Eine solche Abrechnung meldet Haben als nicht unterstützt, statt sie in der falschen Spalte anzumelden; die Spalte „Folgejahr“ bleibt deshalb leer.
 
 | Kz | Inhalt |
 | --- | --- |
-| 42 | Lohnsteuer, aufgeteilt nach Vorjahr, laufendem Jahr und Folgejahr |
+| 42 | Lohnsteuer, aufgeteilt nach Vorjahr und laufendem Jahr (Folgejahr bleibt leer) |
 | 48 | Verbleiben, hier gleich Kz 42 |
 | 49 | Solidaritätszuschlag, aufgeteilt wie Kz 42 |
 | 61 | Evangelische Kirchensteuer (Merkmale ev, lt, rf) |
@@ -126,7 +126,7 @@ Nach der ersten Echtübermittlung geht jede weitere als **berichtigte Anmeldung*
 
 Haben meldet diese Fälle als Fehler, statt falsch anzumelden:
 
-- Lohn eines Vorjahres in einem anderen Zeitraum als Januar, Februar, erstem Quartal oder Kalenderjahr, und Lohn des Folgejahres außerhalb von Dezember, viertem Quartal oder Kalenderjahr; das lässt die Anmeldung nicht zu.
+- Lohn des Vorjahres mit Zahltag später als drei Wochen nach Jahresende und Lohn des Folgejahres, der im Voraus gezahlt ist: Beides ist ein sonstiger Bezug (R 39b.2 Abs. 2 Satz 2 Nr. 8 LStR), Lohn anderer Jahre ebenso.
 - Alt-katholische Kirchensteuer in Bremen, Mecklenburg-Vorpommern, Sachsen, Sachsen-Anhalt und Thüringen: Dort sieht die Anmeldung Kz 63 nicht vor.
 - Pauschale Lohnsteuer (Kz 41, 44), pauschale Kirchensteuer (Kz 47), der Förderbetrag zur betrieblichen Altersversorgung (Kz 45, 90) und die Kürzung für Handelsschiffe (Kz 33): Solche Bezüge rechnet Haben nicht ab.
 - Echt senden vor Ablauf des Zeitraums.

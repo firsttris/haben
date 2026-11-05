@@ -66,6 +66,7 @@ async function abrechnungenImBereich(start: string, end: string, q: Db | Tx) {
 const alsLsta = (a: Awaited<ReturnType<typeof abrechnungenImBereich>>[number]): LstaAbrechnung => ({
   mitarbeiter: a.employeeId,
   jahr: a.year,
+  zahltag: a.zahltag,
   lohnsteuer: a.lohnsteuer,
   soli: a.soli,
   kirchensteuer: a.kirchensteuer,
@@ -129,13 +130,29 @@ export interface TurnusStand {
   vorschlag: LstaTurnusVorschlag | null;
 }
 
-/** Anmeldungszeitraum eines Jahres: die Einstellung, sonst der Vorschlag, sonst monatlich (§ 41a Abs. 2 Satz 1 EStG) */
+/** Anmeldungszeitraum, zu dem ein Zeitraum-Schlüssel gehört: 01–12 Monat, 41–44 Vierteljahr, 19 Kalenderjahr */
+const turnusVon = (zeitraum: number): LstaTurnus => (zeitraum === 19 ? "jaehrlich" : zeitraum >= 41 ? "vierteljaehrlich" : "monatlich");
+
+/**
+ * Anmeldungszeitraum eines Jahres: die Einstellung, sonst der, in dem schon echt angemeldet ist, sonst der Vorschlag,
+ * sonst monatlich (§ 41a Abs. 2 Satz 1 EStG). Ein Vorschlag, der sich nach dem Senden ändert (etwa wenn im ersten Jahr
+ * der erste volle Monat später abgerechnet wird), wechselt den Zeitraum nicht: Sonst stünde schon angemeldete Lohnsteuer
+ * ein zweites Mal im Quartal oder Kalenderjahr.
+ */
 export async function turnusDesJahres(year: number, q: Db | Tx = db): Promise<TurnusStand> {
-  const [[eigen], vorschlag] = await Promise.all([
+  const s = schema.lstaSubmissions;
+  const [[eigen], [gesendet], vorschlag] = await Promise.all([
     q.select({ turnus: schema.lstaTurnus.turnus }).from(schema.lstaTurnus).where(eq(schema.lstaTurnus.year, year)),
+    q
+      .select({ zeitraum: s.zeitraum })
+      .from(s)
+      .where(and(eq(s.year, year), eq(s.kind, "send"), eq(s.ok, true)))
+      .orderBy(asc(s.createdAt))
+      .limit(1),
     turnusVorschlag(year, q),
   ]);
-  return { year, turnus: eigen?.turnus ?? vorschlag?.turnus ?? "monatlich", eigen: Boolean(eigen), vorschlag };
+  const turnus = eigen?.turnus ?? (gesendet ? turnusVon(gesendet.zeitraum) : (vorschlag?.turnus ?? "monatlich"));
+  return { year, turnus, eigen: Boolean(eigen), vorschlag };
 }
 
 const passt = (z: LstaZeitraum, turnus: LstaTurnus) => lstaKey(lstaZeitraumAm(lstaBereich(z).start, turnus)) === lstaKey(z);
