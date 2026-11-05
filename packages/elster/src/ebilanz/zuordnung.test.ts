@@ -56,6 +56,17 @@ describe.each([
     }
   });
 
+  // Ein Wert auf einer Summe ist nur gültig, solange darunter nichts steht; ERiC prüft die Summe, die CI hat kein ERiC
+  it("Keine Position liegt über einer anderen", () => {
+    const ziele = new Set([...konten.flatMap(([, ziel]) => ziel), ...Object.values(EBILANZ_AUFFANG)].filter((position) => typeof position === "string"));
+    const summen = [...ziele].flatMap((position) =>
+      ebilanzSummenkette(position, version)
+        .slice(1)
+        .filter((summe) => ziele.has(summe)),
+    );
+    expect(summen).toEqual([]);
+  });
+
   it("Auffangpositionen sind Blätter im Teilbaum ihres Postens", () => {
     for (const [posten, position] of Object.entries(EBILANZ_AUFFANG) as [Posten, string | null][]) {
       if (!position) continue;
