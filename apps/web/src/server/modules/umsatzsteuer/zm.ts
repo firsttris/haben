@@ -118,8 +118,11 @@ export function zmIssues(input: {
   if (!input.company.name || !input.company.strasse || !/^\d{5}$/.test(input.company.plz) || !input.company.ort) {
     issues.push({ tone: "error", text: "Anschrift in den Firmendaten unvollständig." });
   }
+  // Nur Kunden mit einer Zeile in der Meldung: hebt sich ein Umsatz im Quartal auf (Storno im selben Quartal), ist nichts
+  // zu melden, und die festgeschriebene Rechnung ließe sich ohnehin nicht mehr ändern
+  const gemeldeteIds = new Set(input.zeilen.map((z) => z.ustId));
   const seen = new Set<string>();
-  for (const quelle of input.quellen) {
+  for (const quelle of input.quellen.filter((q) => gemeldeteIds.has(q.ustId))) {
     const problem = ustIdProblem(quelle.ustId, "S");
     if (!problem || seen.has(`${quelle.invoiceId} ${problem}`)) continue;
     seen.add(`${quelle.invoiceId} ${problem}`);
@@ -156,10 +159,12 @@ export async function zmSubmissions(period: VatPeriod) {
     .orderBy(desc(schema.zmSubmissions.createdAt));
 }
 
+const zmZeilen = (quellen: readonly ZmQuelle[]) => aggregateZm(quellen.map((r) => ({ ustId: r.ustId, art: "S" as const, base: r.base })));
+
 /** Stand eines Quartals: was zu melden ist, was gemeldet ist, und was eine Übermittlung jetzt senden würde */
 export async function zmOverview(period: VatPeriod, q: Db | Tx = db) {
   const [quellen, company, meldungen, kz21] = await Promise.all([zmQuellen(period, q), loadCompany(q), sentMeldungen(period, q), kz21Gesendet(period, q)]);
-  const zeilen = aggregateZm(quellen.map((r) => ({ ustId: r.ustId, art: "S" as const, base: r.base })));
+  const zeilen = zmZeilen(quellen);
   const sent = meldungen.length > 0;
   const gemeldet = gemeldeterStand(meldungen);
   const voranmeldungen = monthsOfPeriod(period).length;
@@ -183,7 +188,8 @@ export type ZmOverview = Awaited<ReturnType<typeof zmOverview>>;
 
 /**
  * Quartale mit Umsätzen für die Meldung: Rechnungen mit Reverse Charge oder Ausbuchungen dazu (ohne aus Lexoffice
- * übernommene, deren Steuer dort gemeldet ist), dazu jedes Quartal, für das schon eine Meldung übermittelt ist.
+ * übernommene, deren Steuer dort gemeldet ist), sofern sie eine Meldezeile ergeben, dazu jedes Quartal, für das schon eine
+ * Meldung übermittelt ist.
  */
 export async function zmQuartale(q: Db | Tx = db): Promise<(VatPeriod & { sent: boolean })[]> {
   const rc = and(eq(schema.invoices.taxTreatment, "reverse_charge"), isNull(schema.invoices.lexofficeVoucherId));
@@ -205,6 +211,8 @@ export async function zmQuartale(q: Db | Tx = db): Promise<(VatPeriod & { sent: 
   ]);
   const quartale = new Map<string, VatPeriod & { sent: boolean }>();
   for (const { date } of [...issued, ...writeOffs]) if (date) quartale.set(periodKey(quarter(date)), { ...quarter(date), sent: false });
+  // Heben sich die Umsätze eines Quartals auf, ist keine Meldung abzugeben (keine Nullmeldung, § 18a Abs. 1 UStG)
+  for (const [k, quartal] of quartale) if (zmZeilen(await zmQuellen(quartal, q)).length === 0) quartale.delete(k);
   for (const s of sent) quartale.set(periodKey(s), { ...s, sent: true });
   return [...quartale.values()].sort((a, b) => a.year - b.year || a.month - b.month);
 }
