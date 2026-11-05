@@ -163,6 +163,27 @@ describe("computeEuer", () => {
     expect(computeEuer(2025, payments).totalEinnahmen).toBe(476_000);
   });
 
+  it("Lohn: Auszahlung, Lohnsteuer und SV-Beiträge sind Ausgaben für Personal, wenn sie abfließen (§ 11 Abs. 2 EStG)", () => {
+    // Abrechnung Oktober 2026 (lohn-buchung.test.ts): 2.640,17 € Auszahlung am 30.10., 539,83 € Lohnsteuer am 10.11.,
+    // 1.757,60 € SV-Beiträge am 28.10.; die Dezemberbeiträge erst im Januar. Eine Rückzahlung mindert die Ausgabe.
+    const payments: EuerPayment[] = [
+      { kind: "lohn", date: "2026-10-30", amount: -2640_17 },
+      { kind: "lohn", date: "2026-11-10", amount: -539_83 },
+      { kind: "lohn", date: "2026-10-28", amount: -1757_60 },
+      { kind: "lohn", date: "2026-11-12", amount: 10_00 },
+      { kind: "lohn", date: "2027-01-08", amount: -539_83 },
+    ];
+    const euer = computeEuer(2026, payments);
+    expect(amount(euer, "personal")).toBe(2640_17 + 539_83 + 1757_60 - 10_00);
+    expect(euer.ausgaben.find((l) => l.key === "personal")?.label).toBe("Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung");
+    expect(euer.totalAusgaben).toBe(4927_60);
+    expect(euer.monthly.ausgaben[9]).toBe(2640_17 + 1757_60);
+    expect(euer.monthly.ausgaben[10]).toBe(539_83 - 10_00);
+    expect(amount(computeEuer(2027, payments), "personal")).toBe(539_83);
+    // Ohne Lohn keine Zeile
+    expect(computeEuer(2026, []).ausgaben.some((l) => l.key === "personal")).toBe(false);
+  });
+
   it("CSV mit Semikolon und Dezimalkomma", () => {
     const csv = euerToCsv(computeEuer(2026, [{ kind: "invoice", date: "2026-10-01", paid: 476_000, totals: invoice19 }]));
     expect(csv.startsWith("﻿Bereich;Position;Betrag (EUR)\r\n")).toBe(true);

@@ -1183,7 +1183,7 @@ export const journalEntries = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     description: text("description").notNull(),
     sourceType: text("source_type", {
-      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung"],
+      enum: ["invoice", "document", "allocation", "asset", "pauschale", "kasse", "ausbuchung", "manuell", "eroeffnung", "ausschuettung", "lohn"],
     }).notNull(),
     sourceId: uuid("source_id").notNull(),
     kontenrahmen: kontenrahmenEnum("kontenrahmen").notNull(),
@@ -1541,6 +1541,10 @@ export const allocationKindEnum = pgEnum("allocation_kind", [
   "kursdifferenz",
   "kapest",
   "sondervorauszahlung",
+  // Zahlungen aus der Lohnabrechnung (docs/lohn-plan.md, PR 4)
+  "lohn",
+  "lohnsteuer",
+  "sozialversicherung",
 ]);
 
 /**

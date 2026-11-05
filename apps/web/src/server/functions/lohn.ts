@@ -13,6 +13,7 @@ import {
   getEmployee,
   listEmployees,
   monatsuebersicht,
+  nachbuchen,
   saveEmployee,
   stornieren,
   stornoSchema,
@@ -88,3 +89,12 @@ export const stornierenFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(stornoSchema)
   .handler(({ data, context }) => stornieren(context.user.id, data, today()));
+
+/** Bucht eine Abrechnung, die vor der Lohnbuchung festgeschrieben wurde */
+export const nachbuchenFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.uuid())
+  .handler(async ({ data, context }) => {
+    await nachbuchen(context.user.id, data);
+    return { ok: true };
+  });

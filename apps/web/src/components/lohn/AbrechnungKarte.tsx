@@ -4,12 +4,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useId, useState } from "react";
 import { formatDate } from "../../lib/format.ts";
 import { useAction } from "../../lib/use-action.ts";
-import { entwurfLoeschenFn, entwurfNeuBerechnenFn, festschreibenFn, stornierenFn, type getLohn } from "../../server/functions/lohn.ts";
+import { entwurfLoeschenFn, entwurfNeuBerechnenFn, festschreibenFn, nachbuchenFn, stornierenFn, type getLohn } from "../../server/functions/lohn.ts";
 import { NoticeBanner } from "../NoticeBanner.tsx";
 
 /*
  * Eine Abrechnung im Monat: Beträge, Hinweise und je nach Stand die Aktionen. Ein Entwurf lässt sich neu rechnen (auf
- * Wunsch mit einem anderen Entgelt dieses Monats), löschen und festschreiben; eine festgeschriebene nur stornieren.
+ * Wunsch mit einem anderen Entgelt dieses Monats), löschen und festschreiben (das bucht sie); eine festgeschriebene nur
+ * stornieren (mit Gegenbuchung). Eine vor der Lohnbuchung festgeschriebene Abrechnung lässt sich nachbuchen.
  */
 
 type Lohn = Awaited<ReturnType<typeof getLohn>>;
@@ -19,7 +20,7 @@ const STUFE = { A: "Stufe A", B: "Stufe B", C: "Stufe C" } as const;
 
 function status(p: Abrechnung): { text: string; tone: string } {
   if (p.storno) return { text: `storniert am ${formatDate(p.storno.date)}`, tone: "pill-danger" };
-  if (p.lockedAt) return { text: "festgeschrieben", tone: "pill-ok" };
+  if (p.lockedAt) return { text: p.gebucht ? "festgeschrieben und gebucht" : "festgeschrieben", tone: "pill-ok" };
   if (p.gegenpruefen) return { text: "Entwurf, gegenprüfen", tone: "pill-warn" };
   return { text: "Entwurf", tone: "pill-info" };
 }
@@ -129,9 +130,36 @@ function EntwurfAktionen({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
       </div>
       {bestaetigen && (
         <p className="small muted" style={{ margin: 0 }}>
-          Festgeschrieben ist die Abrechnung unveränderbar; korrigieren geht dann nur mit Storno.
+          Festgeschrieben ist die Abrechnung unveränderbar und gebucht; korrigieren geht dann nur mit Storno.
         </p>
       )}
+    </div>
+  );
+}
+
+/** Festgeschrieben, aber noch nicht gebucht: vor der Lohnbuchung festgeschrieben */
+function Nachbuchen({ p, aktion }: { p: Abrechnung; aktion: Aktion }) {
+  const router = useRouter();
+  const buchen = useServerFn(nachbuchenFn);
+  const { busy, run } = aktion;
+  return (
+    <div className="banner banner-info stack" role="note" style={{ gap: 8 }}>
+      <span>Diese Abrechnung ist festgeschrieben, aber noch nicht gebucht.</span>
+      <div className="actions">
+        <button
+          type="button"
+          className="btn btn-sm"
+          disabled={busy}
+          onClick={() =>
+            void run(async () => {
+              await buchen({ data: p.id });
+              await router.invalidate();
+            }, "Abrechnung gebucht.")
+          }
+        >
+          Jetzt buchen
+        </button>
+      </div>
     </div>
   );
 }
@@ -213,6 +241,7 @@ export function AbrechnungKarte({ p, nummer }: { p: Abrechnung; nummer: number }
         </a>
       </div>
       {!p.lockedAt && <EntwurfAktionen p={p} aktion={aktion} />}
+      {p.lockedAt && !p.storno && !p.gebucht && <Nachbuchen p={p} aktion={aktion} />}
       {p.lockedAt && !p.storno && <Storno p={p} aktion={aktion} />}
       <NoticeBanner notice={aktion.notice} />
     </section>

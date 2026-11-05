@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ASSET_ACCOUNTS } from "./afa.ts";
 import { abschluss, type Posten, postenForSaldo, postenOf } from "./hgb.ts";
+import { LOHN_KONTEN } from "./lohn-buchung.ts";
 import { PAUSCHALE_KONTEN } from "./pauschalen.ts";
 import { ACCOUNTS, EXPENSE_CATEGORIES, paymentProviderAccount, type Kontenrahmen } from "./posting.ts";
 import { PRIVATE_USE_ACCOUNTS } from "./private-use.ts";
@@ -18,6 +19,7 @@ function habenAccounts(kr: Kontenrahmen): string[] {
     ...flat(PRIVATE_USE_ACCOUNTS[kr]),
     ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => paymentProviderAccount(kr, i)),
     ...Object.values(VORTRAG_ACCOUNTS[kr]),
+    ...Object.values(LOHN_KONTEN[kr]),
   ];
 }
 

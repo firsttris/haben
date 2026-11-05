@@ -204,6 +204,18 @@ describe("Anlage EÜR (E77) mit AVEÜR", () => {
     expect(tag(xml, "E6005301")).toBe("29300,00");
   });
 
+  it("übermittelt Löhne und Gehälter als Ausgaben für eigenes Personal nach den Fremdleistungen", () => {
+    const mitLohn = { ...figures, fremdleistungen: 80_000, personal: 4_927_60 };
+    const xml = buildEuerXml({ ...base, allgemein, figures: mitLohn, anlagen: [] });
+    expect(checkXml(xml)).toBeUndefined();
+    // Schema E77-2025 im ERiC-Paket: /EUER/BAus/Personal/Sum/E6001801 „Ausgaben für eigenes Personal (z. B. Gehälter,
+    // Löhne und Versicherungsbeiträge)“, zwischen Fremdleistung und AfA
+    expect(xml).toMatch(/<Personal>\s*<Sum>\s*<E6001801>4927,60<\/E6001801>/);
+    const [fremd, personal, afa] = order(xml, ["Fremdleistung", "Personal", "AfA"]);
+    expect(fremd! < personal! && personal! < afa!).toBe(true);
+    expect(euerTotals(mitLohn).ausgaben).toBe(2_600_000 + 80_000 + 4_927_60);
+  });
+
   it("übermittelt Pauschalen beschränkt abziehbar und als Nutzungseinlage, in der Reihenfolge des Formulars", () => {
     const withPauschalen = { ...figures, verpflegung: 4_200, tagespauschale: 126_000, fahrtNutzungseinlage: 37_200 };
     const xml = buildEuerXml({ ...base, allgemein, figures: withPauschalen, anlagen: [] });

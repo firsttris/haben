@@ -12,7 +12,7 @@ import styles from "../../../styles/auswertungen.css?url";
 
 /*
  * Personal › Lohn: Mitarbeiter und die Abrechnung eines Monats. Haben rechnet Lohnsteuer und Sozialversicherung, hält
- * die Abrechnung fest und gibt Entgeltabrechnung und Lohnkonto aus; Buchung, Lohnsteuer-Anmeldung und Meldungen an die
+ * die Abrechnung fest, bucht sie und gibt Entgeltabrechnung und Lohnkonto aus; Lohnsteuer-Anmeldung und Meldungen an die
  * Sozialversicherung kommen später (docs/lohn-plan.md).
  */
 
@@ -219,8 +219,9 @@ function LohnPage() {
       </div>
       <div className="stack" style={{ gap: 24 }}>
         <p className="muted small" style={{ margin: 0, maxWidth: 760 }}>
-          Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und Sozialversicherung, hält die Abrechnung fest und gibt Entgeltabrechnung und
-          Lohnkonto aus. Gebucht wird der Lohn noch nicht; Lohnsteuer-Anmeldung und Meldungen an die Sozialversicherung übermittelt Haben nicht.
+          Haben rechnet Lohnsteuer, Solidaritätszuschlag, Kirchensteuer und Sozialversicherung, hält die Abrechnung fest, bucht sie und gibt Entgeltabrechnung
+          und Lohnkonto aus. Die Zahlungen ordnest du im <Link to="/bank">Bankabgleich</Link> zu (Lohn/Gehalt, Lohnsteuer, SV-Beiträge). Lohnsteuer-Anmeldung
+          und Meldungen an die Sozialversicherung übermittelt Haben nicht.
         </p>
         <Abrechnen data={data} />
         {data.monat.zeilen.map((z) => (

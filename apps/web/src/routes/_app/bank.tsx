@@ -68,6 +68,9 @@ const KIND_LABEL = {
   mahnerloes: "Mahngebühren und Zinsen",
   kursdifferenz: "Kursdifferenz",
   kapest: "Kapitalertragsteuer",
+  lohn: "Lohn/Gehalt",
+  lohnsteuer: "Lohnsteuer",
+  sozialversicherung: "SV-Beiträge",
 } as const;
 
 const FORMAT_LABEL = (format: string) =>

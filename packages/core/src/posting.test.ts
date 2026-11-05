@@ -6,6 +6,7 @@ import {
   cashBookingLabel,
   cashPosting,
   directBookingLabel,
+  directBookingsFor,
   directPosting,
   documentPaymentPosting,
   documentPosting,
@@ -213,6 +214,29 @@ describe("Zahlungen", () => {
     ]);
     expect(directPosting("privat", 10_000, "SKR04", "einzelunternehmen")[1]).toEqual({ account: "2180", debit: 0, credit: 10_000, taxCode: null });
     expect(directPosting("ustVorauszahlung", -191_230, "SKR03", "einzelunternehmen")[1]?.account).toBe("1780");
+  });
+
+  // Zahlungen aus der Lohnabrechnung gegen die Verbindlichkeiten der Lohnbuchung (lohn-buchung.ts), in jeder Rechtsform
+  it.each([
+    ["SKR03", "lohn", "1200", "1740"],
+    ["SKR03", "lohnsteuer", "1200", "1741"],
+    ["SKR03", "sozialversicherung", "1200", "1742"],
+    ["SKR04", "lohn", "1800", "3720"],
+    ["SKR04", "lohnsteuer", "1800", "3730"],
+    ["SKR04", "sozialversicherung", "1800", "3740"],
+  ] as const)("%s: %s an Bank, Rückzahlung umgekehrt", (kr, kind, bank, konto) => {
+    for (const rechtsform of ["einzelunternehmen", "gmbh"] as const) {
+      expect(directPosting(kind, -2640_17, kr, rechtsform)).toEqual([
+        { account: bank, debit: 0, credit: 2640_17, taxCode: null },
+        { account: konto, debit: 2640_17, credit: 0, taxCode: null },
+      ]);
+      expect(directPosting(kind, 10_00, kr, rechtsform)[1]).toEqual({ account: konto, debit: 0, credit: 10_00, taxCode: null });
+    }
+    expect(directBookingsFor("einzelunternehmen")).toContain(kind);
+  });
+
+  it("SKR03: Lohnsteuer nie auf 3730 (dort Erhaltene Skonti)", () => {
+    expect(directPosting("lohnsteuer", -100, "SKR03", "gmbh").map((l) => l.account)).not.toContain("3730");
   });
 });
 
