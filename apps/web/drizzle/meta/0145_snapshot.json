@@ -1,6 +1,6 @@
 {
-  "id": "e0fd873c-d449-4e88-97fd-c06e44f293ac",
-  "prevId": "c49a7bb9-3f38-4aa8-bda7-f25facf93b5b",
+  "id": "8c19a01a-3ee5-4abf-834d-4c0469f55aac",
+  "prevId": "ecff9cd1-0df9-400a-8a67-43831000bd78",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1908,24 +1908,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "invoice_id": {
-          "name": "invoice_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_shares": {
-          "name": "tax_shares",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "tax_shares_invoice_id": {
-          "name": "tax_shares_invoice_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "reverses_id": {
           "name": "reverses_id",
           "type": "uuid",
@@ -1976,21 +1958,6 @@
           "with": {},
           "method": "btree",
           "concurrently": false
-        },
-        "cash_entries_invoice": {
-          "name": "cash_entries_invoice",
-          "columns": [
-            {
-              "expression": "invoice_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -2001,19 +1968,6 @@
             "document_id"
           ],
           "tableTo": "documents",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
-        "cash_entries_invoice_id_invoices_id_fk": {
-          "name": "cash_entries_invoice_id_invoices_id_fk",
-          "tableFrom": "cash_entries",
-          "columnsFrom": [
-            "invoice_id"
-          ],
-          "tableTo": "invoices",
           "columnsTo": [
             "id"
           ],
@@ -2058,12 +2012,7 @@
         }
       },
       "policies": {},
-      "checkConstraints": {
-        "cash_entries_invoice_kind": {
-          "name": "cash_entries_invoice_kind",
-          "value": "(\"cash_entries\".\"kind\" = 'rechnung') = (\"cash_entries\".\"invoice_id\" is not null)"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.company": {
@@ -3558,6 +3507,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "recurring_document_id": {
+          "name": "recurring_document_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recurring_period": {
+          "name": "recurring_period",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "locked_at": {
           "name": "locked_at",
           "type": "timestamp with time zone",
@@ -3614,7 +3575,28 @@
           "isUnique": true,
           "with": {},
           "method": "btree",
-          "where": "\"documents\".\"replaces_document_id\" is null",
+          "where": "\"documents\".\"replaces_document_id\" is null and \"documents\".\"recurring_document_id\" is null",
+          "concurrently": false
+        },
+        "documents_recurring_period": {
+          "name": "documents_recurring_period",
+          "columns": [
+            {
+              "expression": "recurring_document_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "recurring_period",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
           "concurrently": false
         },
         "documents_replaces": {
@@ -3641,6 +3623,19 @@
             "supplier_contact_id"
           ],
           "tableTo": "contacts",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "documents_recurring_document_id_recurring_documents_id_fk": {
+          "name": "documents_recurring_document_id_recurring_documents_id_fk",
+          "tableFrom": "documents",
+          "columnsFrom": [
+            "recurring_document_id"
+          ],
+          "tableTo": "recurring_documents",
           "columnsTo": [
             "id"
           ],
@@ -3693,6 +3688,10 @@
         "documents_external_ref_pair": {
           "name": "documents_external_ref_pair",
           "value": "(\"documents\".\"external_source\" is null) = (\"documents\".\"external_id\" is null)"
+        },
+        "documents_recurring_pair": {
+          "name": "documents_recurring_pair",
+          "value": "(\"documents\".\"recurring_document_id\" is null) = (\"documents\".\"recurring_period\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -8302,6 +8301,239 @@
       },
       "isRLSEnabled": false
     },
+    "public.recurring_documents": {
+      "name": "recurring_documents",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'aktiv'"
+        },
+        "supplier_name": {
+          "name": "supplier_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "supplier_ust_id": {
+          "name": "supplier_ust_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "supplier_contact_id": {
+          "name": "supplier_contact_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payment": {
+          "name": "payment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'bank'"
+        },
+        "private_share": {
+          "name": "private_share",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "amounts": {
+          "name": "amounts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tax_shown": {
+          "name": "tax_shown",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "interval_months": {
+          "name": "interval_months",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "anchor_day": {
+          "name": "anchor_day",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "next_date": {
+          "name": "next_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "due_days": {
+          "name": "due_days",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size": {
+          "name": "size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_run_at": {
+          "name": "last_run_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recurring_documents_sha256": {
+          "name": "recurring_documents_sha256",
+          "columns": [
+            {
+              "expression": "sha256",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "recurring_documents_supplier_contact_id_contacts_id_fk": {
+          "name": "recurring_documents_supplier_contact_id_contacts_id_fk",
+          "tableFrom": "recurring_documents",
+          "columnsFrom": [
+            "supplier_contact_id"
+          ],
+          "tableTo": "contacts",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recurring_documents_interval": {
+          "name": "recurring_documents_interval",
+          "value": "\"recurring_documents\".\"interval_months\" in (1, 3, 6, 12)"
+        },
+        "recurring_documents_anchor_day": {
+          "name": "recurring_documents_anchor_day",
+          "value": "\"recurring_documents\".\"anchor_day\" between 1 and 31"
+        },
+        "recurring_documents_private_share": {
+          "name": "recurring_documents_private_share",
+          "value": "\"recurring_documents\".\"private_share\" between 0 and 100"
+        },
+        "recurring_documents_due_days": {
+          "name": "recurring_documents_due_days",
+          "value": "\"recurring_documents\".\"due_days\" between 0 and 120"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.recurring_invoices": {
       "name": "recurring_invoices",
       "schema": "",
@@ -10339,12 +10571,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "cash_entry_id": {
-          "name": "cash_entry_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "reverses_id": {
           "name": "reverses_id",
           "type": "uuid",
@@ -10416,21 +10642,6 @@
           "with": {},
           "method": "btree",
           "concurrently": false
-        },
-        "write_offs_cash_entry": {
-          "name": "write_offs_cash_entry",
-          "columns": [
-            {
-              "expression": "cash_entry_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "with": {},
-          "method": "btree",
-          "concurrently": false
         }
       },
       "foreignKeys": {
@@ -10473,19 +10684,6 @@
           "onUpdate": "no action",
           "onDelete": "no action"
         },
-        "write_offs_cash_entry_id_cash_entries_id_fk": {
-          "name": "write_offs_cash_entry_id_cash_entries_id_fk",
-          "tableFrom": "write_offs",
-          "columnsFrom": [
-            "cash_entry_id"
-          ],
-          "tableTo": "cash_entries",
-          "columnsTo": [
-            "id"
-          ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
-        },
         "write_offs_reverses_fk": {
           "name": "write_offs_reverses_fk",
           "tableFrom": "write_offs",
@@ -10507,10 +10705,6 @@
         "write_offs_target": {
           "name": "write_offs_target",
           "value": "(\"write_offs\".\"kind\" = 'skontoErhalten' and \"write_offs\".\"document_id\" is not null and \"write_offs\".\"invoice_id\" is null) or (\"write_offs\".\"kind\" in ('skonto', 'forderungsausfall') and \"write_offs\".\"invoice_id\" is not null and \"write_offs\".\"document_id\" is null) or (\"write_offs\".\"kind\" = 'kursdifferenz' and (\"write_offs\".\"invoice_id\" is null) <> (\"write_offs\".\"document_id\" is null) and \"write_offs\".\"transaction_id\" is not null)"
-        },
-        "write_offs_payment": {
-          "name": "write_offs_payment",
-          "value": "\"write_offs\".\"transaction_id\" is null or \"write_offs\".\"cash_entry_id\" is null"
         }
       },
       "isRLSEnabled": false

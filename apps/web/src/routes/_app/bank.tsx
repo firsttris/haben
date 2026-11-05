@@ -3,6 +3,7 @@ import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-r
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { z } from "zod/mini";
+import { DauerbelegVorschlaege } from "../../components/DauerbelegVorschlaege.tsx";
 import { Icon } from "../../components/Icon.tsx";
 import { shortDate } from "../../components/Ledger.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
@@ -26,6 +27,7 @@ import {
   splitTransaction,
   syncBankConnection,
 } from "../../server/functions/bank.ts";
+import { bookAndAllocateDauerbelegFn } from "../../server/functions/dauerbelege.ts";
 import { today as todayInGermany } from "../../server/today.ts";
 
 const searchSchema = z.object({
@@ -823,7 +825,8 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
   const feesFn = useServerFn(allocateProviderFees);
   const reverseFn = useServerFn(reverseTransactionAllocation);
   const transferFn = useServerFn(transferBetweenAccounts);
-  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct } = detail;
+  const dauerbelegFn = useServerFn(bookAndAllocateDauerbelegFn);
+  const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege } = detail;
   const best = suggestions[0];
   // Ein Treffer mit Rechnung geht vor; sonst der Vorschlag aus dem Zweck der Konten (Geldtransit, Umsatzsteuer, Privat)
   const [mode, setMode] = useState<"best" | "other" | "direct" | "split">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
@@ -982,6 +985,19 @@ function AllocationPanel({ detail, directKinds, nextOpenId }: { detail: Detail; 
           busy={busy}
           onCancel={() => setMode(best ? "best" : candidates.length ? "other" : "direct")}
           onSubmit={(parts) => run(() => splitFn({ data: { transactionId: tx.id, parts } }))}
+        />
+      )}
+
+      {tx.open !== 0 && mode !== "split" && (
+        <DauerbelegVorschlaege
+          suggestions={dauerbelege}
+          busy={busy}
+          onBook={(documentId) =>
+            runAndAdvance(
+              () => dauerbelegFn({ data: { documentId, transactionId: tx.id } }),
+              dauerbelege.find((d) => d.item.id === documentId)?.amount === tx.open,
+            )
+          }
         />
       )}
 

@@ -1014,14 +1014,28 @@
       "idx": 144,
       "version": "7",
       "when": 1793990934647,
-      "tag": "0144_kasse_rechnung",
+      "tag": "0144_dauerbelege",
       "breakpoints": true
     },
     {
       "idx": 145,
       "version": "7",
       "when": 1793990994647,
-      "tag": "0145_kasse_rechnung_trigger",
+      "tag": "0145_dauerbelege_trigger",
+      "breakpoints": true
+    },
+    {
+      "idx": 146,
+      "version": "7",
+      "when": 1793991054647,
+      "tag": "0146_kasse_rechnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 147,
+      "version": "7",
+      "when": 1793991114647,
+      "tag": "0147_kasse_rechnung_trigger",
       "breakpoints": true
     }
   ]

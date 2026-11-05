@@ -1,5 +1,5 @@
 /*
- * Belege: Hochladen, Auslesen (Extraktion), Buchen, Stornieren und Eingang per E-Mail (IMAP); externe Referenz für Belege aus der
+ * Belege: Hochladen, Auslesen (Extraktion), Buchen, Stornieren, Eingang per E-Mail (IMAP) und Dauerbelege; externe Referenz für Belege aus der
  * REST-API.
  *
  * Öffentliche Schnittstelle des Moduls: Andere Module, Server Functions und Routen importieren nur von hier
@@ -43,3 +43,25 @@ export {
   runDueInboxFetch,
   saveInboxSettings,
 } from "./inbox.ts";
+export {
+  createDauerbeleg,
+  DAUERBELEG_AKTIONEN,
+  dauerbelegFile,
+  dauerbelegInputSchema,
+  dauerbelegName,
+  DauerbelegError,
+  deleteDauerbeleg,
+  getDauerbeleg,
+  listDauerbelege,
+  setDauerbelegStatus,
+  updateDauerbeleg,
+  type DauerbelegAktion,
+  type DauerbelegInput,
+} from "./dauerbelege.ts";
+export {
+  bookAndAllocateDauerbeleg,
+  bookAndAllocateSchema,
+  DAUERBELEG_ACTOR,
+  dauerbelegSuggestions,
+  runDueDauerbelege,
+} from "./dauerbelege-lauf.ts";
