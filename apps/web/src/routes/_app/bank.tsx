@@ -1,4 +1,4 @@
-import { formatDecimal, formatEuro, parseEuro, type DirectBooking } from "@haben/core";
+import { formatDecimal, formatEuro, isKapitalgesellschaft, parseEuro, type DirectBooking } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
@@ -845,6 +845,8 @@ function AllocationPanel({
   const transferFn = useServerFn(transferBetweenAccounts);
   const dauerbelegFn = useServerFn(bookAndAllocateDauerbelegFn);
   const { transaction: tx, suggestions, candidates, splitCandidates, allocations, direct, dauerbelege } = detail;
+  // Eine GmbH oder UG hat kein Privat; dieselbe Zuordnung geht dort auf das Gesellschafter-Verrechnungskonto
+  const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
   const best = suggestions[0];
   // Ein Treffer mit Rechnung geht vor; sonst der Vorschlag aus dem Zweck der Konten (Geldtransit, Umsatzsteuer, Privat)
   const [mode, setMode] = useState<"best" | "other" | "direct" | "split">(best ? "best" : direct ? "direct" : candidates.length ? "other" : "direct");
@@ -977,7 +979,7 @@ function AllocationPanel({
             <div key={a.id} className="history-row">
               <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                 <span style={{ textDecoration: a.reversed ? "line-through" : undefined }}>
-                  {KIND_LABEL[a.kind]}
+                  {a.kind === "privat" && gesellschaft ? "Gesellschafter" : KIND_LABEL[a.kind]}
                   {a.invoiceNumber ? ` ${a.invoiceNumber}` : ""}
                   {a.documentSupplier ? ` ${a.documentSupplier}${a.documentNumber ? ` (${a.documentNumber})` : ""}` : ""}
                   {a.vatReturnLabel ? ` ${a.vatReturnLabel}` : ""}

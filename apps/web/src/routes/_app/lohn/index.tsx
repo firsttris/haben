@@ -1,4 +1,4 @@
-import { BESCHAEFTIGUNGSARTEN, formatEuro, monatsgrenzen } from "@haben/core";
+import { BESCHAEFTIGUNGSARTEN, formatEuro, isKapitalgesellschaft, monatsgrenzen } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
@@ -144,6 +144,8 @@ function MitarbeiterMonat({ zeile }: { zeile: Zeile }) {
 }
 
 function MitarbeiterListe({ data }: { data: Data }) {
+  // Einen Gesellschafter-Geschäftsführer gibt es nur in GmbH und UG
+  const gesellschaft = isKapitalgesellschaft(Route.useRouteContext().rechtsform);
   const jahr = data.monat.year;
   return (
     <section className="card stack" aria-labelledby="mitarbeiter-heading">
@@ -162,8 +164,8 @@ function MitarbeiterListe({ data }: { data: Data }) {
       </div>
       {data.employees.length === 0 ? (
         <p className="muted" style={{ margin: 0 }}>
-          Noch keine Mitarbeiter. Haben rechnet Gesellschafter-Geschäftsführer ohne Sozialversicherung, Minijobs mit Pauschsteuer und, als Entwurf zum
-          Gegenprüfen, versicherungspflichtig Beschäftigte mit festem Monatsgehalt.
+          Noch keine Mitarbeiter. Haben rechnet {gesellschaft && "Gesellschafter-Geschäftsführer ohne Sozialversicherung, "}Minijobs mit Pauschsteuer und, als
+          Entwurf zum Gegenprüfen, versicherungspflichtig Beschäftigte mit festem Monatsgehalt.
         </p>
       ) : (
         <table className="report-table stack-table">

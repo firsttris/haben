@@ -1,4 +1,4 @@
-import { ASSET_KINDS, ASSET_METHODS, formatEuro } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, formatEuro, isKapitalgesellschaft } from "@haben/core";
 import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -24,6 +24,8 @@ function AssetsPage() {
   const [confirming, setConfirming] = useState(false);
   const { busy, notice, setNotice, run } = useAction();
   const { year, assets } = data;
+  // Private Kfz-Nutzung und EÜR gibt es nur im Einzelunternehmen; in GmbH und UG ist die Privatnutzung Arbeitslohn
+  const person = !isKapitalgesellschaft(Route.useRouteContext().rechtsform);
 
   // Jahre, in denen es Anlagen gibt, und das aktuelle
   const years = [
@@ -89,15 +91,18 @@ function AssetsPage() {
         <div className="banner" role="alert">
           <Icon name="alert" />
           <span>
-            Die Abschreibungen und die private Kfz-Nutzung für {year} werden für {data.pending} {data.pending === 1 ? "Anlage" : "Anlagen"} gebucht und
-            festgeschrieben; danach lassen sich Anschaffungskosten, Nutzungsdauer und Abgang in {year} nicht mehr ändern. Noch einmal klicken zum Buchen.
+            Die Abschreibungen {person && "und die private Kfz-Nutzung "}für {year} werden für {data.pending} {data.pending === 1 ? "Anlage" : "Anlagen"}{" "}
+            gebucht und festgeschrieben; danach lassen sich Anschaffungskosten, Nutzungsdauer und Abgang in {year} nicht mehr ändern. Noch einmal klicken zum
+            Buchen.
           </span>
         </div>
       )}
       {!data.canBook && data.pending > 0 && (
         <div className="banner banner-info" role="status">
           <Icon name="info" />
-          <span>Die AfA für {year} lässt sich ab dem 1. Dezember buchen. In der EÜR ist sie schon enthalten.</span>
+          <span>
+            Die AfA für {year} lässt sich ab dem 1. Dezember buchen.{person && " In der EÜR ist sie schon enthalten."}
+          </span>
         </div>
       )}
       <NoticeBanner notice={notice} />

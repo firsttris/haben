@@ -106,6 +106,15 @@ describe.skipIf(!testDatabaseUrl)("Berechtigung zum Belegabruf (Postgres)", () =
     expect(row).toMatchObject({ ok: false, code: 371015211 });
   });
 
+  it("GmbH und UG: keine Abrufberechtigung für den Ehegatten, es gibt keine Zusammenveranlagung", async () => {
+    await sql`update company set rechtsform = 'gmbh'`;
+    const sent: string[] = [];
+    await expect(brm.requestBerechtigung(actor, recordingClient(sent), { kind: "test", pin: "1", gueltigBis: "2028-12-31" })).rejects.toThrow(
+      /nur im Einzelunternehmen/,
+    );
+    expect(sent).toEqual([]);
+  });
+
   it("braucht Angaben zum Ehegatten und für den Echtabruf ERiC", async () => {
     await expect(
       brm.requestBerechtigung(actor, new EricGeprueftClient(), { kind: "send", pin: "1", herstellerId: "12345", gueltigBis: "2028-12-31" }),

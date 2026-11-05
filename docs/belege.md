@@ -82,7 +82,7 @@ Für Ausgaben, die in festen Abständen mit gleichem Betrag anfallen, etwa Büro
 | Endet nach dem | optional. Der letzte Beleg entsteht am letzten Termin bis zu diesem Tag, danach ist der Dauerbeleg beendet. |
 | Fällig Tage nach dem Termin | **Fällig am** des Belegs: 0 am Termin, 3 etwa für eine Miete bis zum dritten des Monats. |
 | Vertrags- oder Kundennummer | steht als Rechnungsnummer an jedem Beleg, im Verwendungszweck einer [SEPA-Überweisung](#überweisen-sepa-datei) und hilft dem Bankabgleich. |
-| Bezahlung | wie am Beleg: Geschäftskonto, privat oder Kasse (siehe [Bezahlung](#bezahlung)). |
+| Bezahlung | wie am Beleg: Geschäftskonto, privat (bei GmbH und UG „Vom Gesellschafter ausgelegt“) oder Kasse (siehe [Bezahlung](#bezahlung)). |
 
 ### Was zu jedem Termin entsteht
 

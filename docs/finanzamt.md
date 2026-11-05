@@ -34,6 +34,8 @@ Der Testabruf läuft wie die Testübermittlung mit Testmerker und deiner Herstel
 
 Das Finanzamt setzt Einkommensteuer-Vorauszahlungen (fällig 10.3., 10.6., 10.9. und 10.12.) nach dem letzten Bescheid fest. Verdienst du in diesem Jahr weniger, kannst du die Herabsetzung formlos beantragen (§ 37 Abs. 3 EStG). Ein eigenes ELSTER-Formular dafür braucht es nicht; Haben schickt den Antrag als Sonstige Nachricht.
 
+Nur im Einzelunternehmen: Eine GmbH oder UG zahlt Körperschaftsteuer statt Einkommensteuer; bei ihr fehlt der Reiter, und Haben lehnt einen solchen Antrag ab. Eine Herabsetzung der Körperschaftsteuer-Vorauszahlungen schreibst du als [freie Nachricht](#freie-nachricht).
+
 Haben füllt den Antrag mit den Zahlen aus deiner Buchhaltung und schätzt die Steuer des Jahres:
 
 | Angabe | Woher |

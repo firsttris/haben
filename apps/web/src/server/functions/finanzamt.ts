@@ -1,3 +1,4 @@
+import { isKapitalgesellschaft } from "@haben/core";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { loadCompany } from "../modules/stammdaten/index.ts";
@@ -54,7 +55,8 @@ export const getFinanzamt = createServerFn({ method: "GET" })
       lastFetch,
       pendingConfirmations: { test: pendingTest.length, live: pendingLive.length },
       autoFetch,
-      basis,
+      // Einkommensteuer-Vorauszahlungen hat nur ein Einzelunternehmen; eine GmbH oder UG zahlt Körperschaftsteuer
+      basis: isKapitalgesellschaft(company.rechtsform) ? null : basis,
       messages,
       certificate: certificate ? { filename: certificate.filename } : null,
       mode: elsterMode(),
