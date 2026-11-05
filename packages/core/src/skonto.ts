@@ -145,6 +145,15 @@ export function skontoZahlfristen(stufen: readonly SkontoStufe[], issueDate: str
   return skontoFristen(stufen, issueDate, gross).map((s) => ({ ...s, paidBy: naechsterWerktag(s.until, bundesland) }));
 }
 
+/**
+ * Stufe, um deren Skonto eine Zahlung gekürzt ist: Der Betrag ist der Zahlbetrag der Stufe und die Zahlung kam bis zum
+ * letzten Tag der Frist, endet sie an einem Wochenende oder Feiertag, auch am nächsten Werktag (§ 193 BGB). Für den
+ * Bankabgleich und die Bareinnahme in der Kasse.
+ */
+export function skontoGezogen(fristen: readonly SkontoZahlfrist[] | undefined, paidOn: string, amount: Cents): SkontoZahlfrist | undefined {
+  return fristen?.find((s) => s.payable === amount && paidOn <= s.paidBy);
+}
+
 /** "2" oder "2,5 %" → Basispunkte; null, wenn die Eingabe kein Satz mit höchstens zwei Nachkommastellen ist */
 export function parsePercent(input: string): BasisPoints | null {
   const value = parseEuro(input.replace(/%/g, ""));

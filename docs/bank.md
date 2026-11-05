@@ -320,6 +320,8 @@ Bei **Ist-Versteuerung** kommt die Umbuchung der Steuer dazu; erst damit wird si
 
 Bei Teilzahlungen wird nur der Steueranteil der Zahlung umgebucht, bei mehreren Steuersätzen anteilig je Satz. Rundungsreste schlägt Haben dem größten Posten zu, damit die Summe stimmt.
 
+Bezahlt der Kunde bar, erfasst du das im [Kassenbuch](kasse.md#rechnung-bar-bezahlt): gebucht genauso, nur 1000 Kasse (SKR04 1600) statt Bank, mit dem Datum der Bareinnahme. Der Bankabgleich sieht danach nur noch den offenen Rest.
+
 **Zahlung eines Belegs**, Beispiel 119,00 €:
 
 | Konto SKR03 | Konto SKR04 | Soll | Haben |

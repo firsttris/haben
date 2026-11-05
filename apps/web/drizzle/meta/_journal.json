@@ -1009,6 +1009,20 @@
       "when": 1793990874647,
       "tag": "0143_ig_lieferung_erwerb",
       "breakpoints": true
+    },
+    {
+      "idx": 144,
+      "version": "7",
+      "when": 1793990934647,
+      "tag": "0144_kasse_rechnung",
+      "breakpoints": true
+    },
+    {
+      "idx": 145,
+      "version": "7",
+      "when": 1793990994647,
+      "tag": "0145_kasse_rechnung_trigger",
+      "breakpoints": true
     }
   ]
 }

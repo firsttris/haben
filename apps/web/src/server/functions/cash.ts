@@ -1,6 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { cashBook, cashInputSchema, createCashEntry, reverseCashEntry } from "../modules/bank/index.ts";
+import {
+  cashBook,
+  cashInputSchema,
+  cashInvoiceCandidates,
+  cashInvoiceInputSchema,
+  createCashEntry,
+  createCashInvoiceEntry,
+  reverseCashEntry,
+} from "../modules/bank/index.ts";
 import { authMiddleware } from "../middleware.ts";
 import { today } from "../today.ts";
 import { yearSchema } from "./schemas.ts";
@@ -8,13 +16,22 @@ import { yearSchema } from "./schemas.ts";
 export const getCashBook = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .validator(yearSchema)
-  .handler(async ({ data: year }) => ({ ...(await cashBook(year)), today: today() }));
+  .handler(async ({ data: year }) => ({ ...(await cashBook(year)), openInvoices: await cashInvoiceCandidates(), today: today() }));
 
 export const createCashEntryFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(cashInputSchema)
   .handler(async ({ data, context }) => {
     const row = await createCashEntry(context.user.id, data, today());
+    return { number: row.number };
+  });
+
+/** Bareinnahme auf eine offene Ausgangsrechnung */
+export const createCashInvoiceEntryFn = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(cashInvoiceInputSchema)
+  .handler(async ({ data, context }) => {
+    const row = await createCashInvoiceEntry(context.user.id, data, today());
     return { number: row.number };
   });
 

@@ -1472,7 +1472,8 @@ pauschalen/pauschalen.csv
                          Fahrten, Verpflegungsmehraufwand) mit ihren Angaben als
                          Eigenbeleg; Stornos als Gegenzeile.
 kasse/kassenbuch.csv     Nur wenn vorhanden: Kassenbuch des Jahres mit fortlaufender
-                         Nummer, Anfangsbestand und Bestand nach jeder Zeile.
+                         Nummer, Anfangsbestand und Bestand nach jeder Zeile; bei
+                         Bareinnahmen auf Rechnungen die Rechnungsnummer.
 bank/<IBAN>/umsaetze.csv Importierte Kontoumsätze je Konto (Zahlungsdienstleister unter ihrem Namen).
 bank/zuordnungen.csv     Zuordnungen der Umsätze zu Rechnungen, Belegen und Buchungen
                          ohne Beleg; aufgehobene Zuordnungen als Gegenzeile.

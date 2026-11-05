@@ -519,6 +519,22 @@ export function invoicePaymentPosting(
 }
 
 /**
+ * Bareinnahme auf eine Rechnung im Kassenbuch: wie der Zahlungseingang über die Bank, nur Kasse an Forderungen. Bei
+ * Ist-Versteuerung wird die Umsatzsteuer so mit der Bareinnahme fällig (§ 13 Abs. 1 Nr. 1 Buchst. b UStG: mit Ablauf des
+ * Voranmeldungszeitraums, in dem das Entgelt vereinnahmt ist). Negativ: Storno der Bareinnahme.
+ */
+export function invoiceCashPaymentPosting(
+  totals: InvoiceTotals,
+  paid: Cents,
+  kontenrahmen: Kontenrahmen,
+  versteuerung: Versteuerung,
+  shares: TaxShare[] = paidTaxShares(totals, paid),
+): PostingLine[] {
+  const { bank, kasse } = ACCOUNTS[kontenrahmen];
+  return invoicePaymentPosting(totals, paid, kontenrahmen, versteuerung, shares).map((l) => (l.account === bank ? { ...l, account: kasse } : l));
+}
+
+/**
  * Verrechnungskonto eines Zahlungsdienstleisters (Guthaben bei PayPal, Stripe …): SKR03 1361–1369, SKR04 1461–1469,
  * neben dem Geldtransitkonto. Nummer 1 bis 9 je Dienstleister.
  */
@@ -707,6 +723,11 @@ export type CashBooking = keyof typeof CASH_BOOKINGS;
 export function cashBookingLabel(kind: CashBooking, rechtsform: Rechtsform): string {
   const owner = ownerLabels(rechtsform);
   return kind === "einlage" ? owner.cashIn : kind === "entnahme" ? owner.cashOut : CASH_BOOKINGS[kind].label;
+}
+
+/** Art einer Zeile im Kassenbuch: bar bezahlter Beleg, Bareinnahme auf eine Rechnung oder eine Kassenbuchung ohne Beleg */
+export function cashEntryLabel(kind: CashBooking | "beleg" | "rechnung", rechtsform: Rechtsform): string {
+  return kind === "beleg" ? "Beleg" : kind === "rechnung" ? "Bareinnahme Rechnung" : cashBookingLabel(kind, rechtsform);
 }
 
 /** Kasse an Privateinlage (bzw. Gesellschafter) oder Geldtransit; Ausgänge aus der Kasse (negativ) drehen die Seiten */
