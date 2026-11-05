@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { abrufen, begrenzt, mitWiederholung, text } from "./abruf.ts";
+import { abrufen, begrenzt, type Holen, mitWiederholung, text } from "./abruf.ts";
 import { antwort, nachgestellt, netzwerkfehler } from "./nachgestellt.ts";
 
 const URL_A = "https://example.org/a";
@@ -15,6 +15,30 @@ describe("Abruf", () => {
     expect(await abrufen(mitWiederholung(zweimalWeg, 0), URL_A)).toEqual({ art: "fehler", meldung: "Connection reset by peer" });
     expect(zweimalWeg.aufrufe).toHaveLength(2);
   });
+
+  it("gibt jedem Versuch ein eigenes Zeitlimit, damit die Wiederholung nach einer Zeitüberschreitung eine Chance hat", async () => {
+    const signale: (AbortSignal | null | undefined)[] = [];
+    const holen = mitWiederholung(async (_url, init) => {
+      signale.push(init?.signal);
+      if (signale.length === 1) throw new DOMException("The operation timed out.", "TimeoutError");
+      init?.signal?.throwIfAborted();
+      return new Response("ok");
+    }, 0);
+    expect(await abrufen(holen, URL_A)).toMatchObject({ art: "antwort", status: 200 });
+    expect(signale[0]).toBeInstanceOf(AbortSignal);
+    expect(signale[1]).toBeInstanceOf(AbortSignal);
+    expect(signale[1]).not.toBe(signale[0]);
+  });
+
+  it("bricht nach Ablauf der Gesamtfrist jeden Abruf sofort ab, damit der Lauf vor dem Zeitlimit des Jobs endet", async () => {
+    // ERiC prüft über 300 Kandidaten zu sechst: hängt download.elster.de, wären das 56 Runden je 2 × 30 s, weit über
+    // die 15 Minuten des Jobs; ohne Gesamtfrist bricht GitHub den Lauf ab, statt eine Warnung auszugeben.
+    const haengt: Holen = (_url, init) => new Promise((_, ab) => init?.signal?.addEventListener("abort", () => ab(init.signal?.reason)));
+    const holen = mitWiederholung(haengt, 0, 60_000, AbortSignal.timeout(50));
+    const ergebnisse = await Promise.all([URL_A, URL_A, URL_A].map((url) => abrufen(holen, url)));
+    expect(ergebnisse.every((e) => e.art === "fehler")).toBe(true);
+    expect((await abrufen(holen, URL_A)).art).toBe("fehler");
+  }, 2_000);
 
   it("wiederholt bei 404 nicht", async () => {
     const holen = nachgestellt({});
