@@ -104,4 +104,23 @@ describe("Konten", () => {
     ]);
     expect(k).toEqual({ bank: 113_050, forderungen: 0, verbindlichkeiten: 5_950, umsatzsteuer: 19_000 - 950 - 10_000, ertraege: 100_000, aufwand: 5_000 });
   });
+
+  it.each([
+    ["SKR03", "1588"],
+    ["SKR04", "1433"],
+  ] as const)("%s: entstandene Einfuhrumsatzsteuer (%s) mindert die Umsatzsteuer wie Vorsteuer", (kr, konto) => {
+    const row = (account: string, soll: number) => ({
+      kontenrahmen: kr,
+      account,
+      name: "",
+      eroeffnung: 0,
+      vortrag: 0,
+      soll,
+      haben: 0,
+      sollJahr: soll,
+      habenJahr: 0,
+      saldo: soll,
+    });
+    expect(kontenkennzahlen([row(konto, 380_00)]).umsatzsteuer).toBe(-380_00);
+  });
 });

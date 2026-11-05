@@ -181,6 +181,33 @@ describe.skipIf(!testDatabaseUrl)("Darlehen im Bankabgleich (Postgres)", () => {
     expect(reversed.every((r) => r.loan_id === loanId)).toBe(true);
   });
 
+  it.each([
+    ["SKR03", "ist"],
+    ["SKR04", "soll"],
+  ] as const)("%s, %s: Aufheben einer Auszahlung, deren Bestand schon getilgt ist, ergäbe einen negativen Bestand", async (kr, versteuerung) => {
+    await firma("einzelunternehmen", kr, versteuerung);
+    const loanId = await darlehen.createLoan(actor, { name: "Hausbank", lender: "bank", term: "ohne", purpose: "betrieb", ...neu });
+    await bank.importStatement(
+      actor,
+      dkbCsv([
+        ["02.01.26", "Hausbank", "Auszahlung", "5.000,00"],
+        ["31.03.26", "Hausbank", "Tilgung", "-800,00"],
+      ]),
+      null,
+    );
+    await bank.allocate(actor, { kind: "darlehen", transactionId: await umsatz(5_000_00), amount: 5_000_00, darlehen: { loanId, part: "auszahlung" } });
+    await bank.allocate(actor, { kind: "darlehen", transactionId: await umsatz(-800_00), amount: -800_00, darlehen: { loanId, part: "tilgung" } });
+    const [auszahlung] = await sql`select id from allocations where loan_part = 'auszahlung'`;
+    // Die Tilgung darf den Bestand nicht übersteigen; ohne die Auszahlung wäre sie höher als der Bestand
+    await expect(bank.reverseAllocation(actor, auszahlung!.id)).rejects.toThrow(/Bestand/);
+    expect((await darlehen.listLoans())[0]?.balance).toBe(4_200_00);
+    // Erst die Tilgung aufheben, dann geht auch die Auszahlung
+    const [tilgung] = await sql`select id from allocations where loan_part = 'tilgung'`;
+    await bank.reverseAllocation(actor, tilgung!.id);
+    await bank.reverseAllocation(actor, auszahlung!.id);
+    expect((await darlehen.listLoans())[0]?.balance).toBe(0);
+  });
+
   it("GmbH, SKR03, Soll und SKR04, Ist: Konten mit Restlaufzeitvermerk, Positionen in Bilanz und E-Bilanz", async () => {
     for (const [kr, versteuerung, konten] of [
       ["SKR03", "soll", { darlehen: "0640", zins: "2120", bank: "1200" }],
