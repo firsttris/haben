@@ -1,6 +1,7 @@
 import { z } from "zod/mini";
-import { addDays } from "./holidays.ts";
+import { addDays, naechsterWerktag } from "./holidays.ts";
 import { parseEuro, roundHalfAwayFromZero, type BasisPoints, type Cents } from "./money.ts";
+import type { Bundesland } from "./steuernummer.ts";
 
 /** Eine Skontostufe aus den Zahlungsbedingungen einer E-Rechnung */
 export interface SkontoTerm {
@@ -128,6 +129,20 @@ export function skontoFristen(stufen: readonly SkontoStufe[], issueDate: string,
     if (amount <= 0 || amount >= gross) return [];
     return [{ days: s.days, percent: s.percent, until: addDays(issueDate, s.days), amount, payable: gross - amount }];
   });
+}
+
+export interface SkontoZahlfrist extends SkontoFrist {
+  /** Letzter Tag, an dem eine Zahlung die Frist noch wahrt: `until` oder der nächste Werktag danach (§ 193 BGB) */
+  paidBy: string;
+}
+
+/**
+ * Fristen wie `skontoFristen` für die Prüfung, ob eine Zahlung in der Frist liegt. Endet die Frist an einem Samstag,
+ * Sonntag oder Feiertag im Bundesland der Firma, wahrt nach § 193 BGB eine Zahlung am nächsten Werktag sie noch, wie
+ * beim Zahlungsziel (`invoiceDueDate`). Rechnung, PDF, E-Mail und BT-20 nennen weiter das Fristende aus TAGE=n.
+ */
+export function skontoZahlfristen(stufen: readonly SkontoStufe[], issueDate: string, gross: Cents, bundesland: Bundesland | null): SkontoZahlfrist[] {
+  return skontoFristen(stufen, issueDate, gross).map((s) => ({ ...s, paidBy: naechsterWerktag(s.until, bundesland) }));
 }
 
 /** "2" oder "2,5 %" → Basispunkte; null, wenn die Eingabe kein Satz mit höchstens zwei Nachkommastellen ist */
