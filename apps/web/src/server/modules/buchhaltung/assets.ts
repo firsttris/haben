@@ -207,7 +207,7 @@ export async function insertAsset(tx: Tx, input: AssetInput): Promise<Asset> {
     privateUse: privateUseValue(input.kind, input.privateUse ?? null, company),
     account: assetAccount(input.kind, input.method, company.kontenrahmen),
   };
-  const issues = [...assetIssues(scheduleInput({ ...values, openingEntryId: null } as Asset)), ...elektroIssues(values)];
+  const issues = [...assetIssues(scheduleInput({ ...values, openingEntryId: null } as Asset)), ...elektroIssues(values, company.rechtsform)];
   if (issues.length > 0) throw new AssetUserError(`${issues.join(", ")}.`);
   const [created] = await tx.insert(schema.assets).values(values).returning();
   return created!;
@@ -273,7 +273,7 @@ export async function updateAsset(actor: string, id: string, input: z.infer<type
       }
     }
 
-    const issues = [...assetIssues(scheduleInput(next)), ...elektroIssues(next)];
+    const issues = [...assetIssues(scheduleInput(next)), ...elektroIssues(next, company.rechtsform)];
     if (issues.length > 0) throw new AssetUserError(`${issues.join(", ")}.`);
     const { id: _id, createdAt: _createdAt, ...values } = next;
     const [updated] = await tx

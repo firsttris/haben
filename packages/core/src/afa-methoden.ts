@@ -1,4 +1,5 @@
 import type { Cents } from "./money.ts";
+import { isKapitalgesellschaft, type Rechtsform } from "./rechtsform.ts";
 
 /**
  * Regeln der degressiven AfA (§ 7 Abs. 2 EStG) und der AfA für Elektrofahrzeuge (§ 7 Abs. 2a EStG). Den Plan je Jahr
@@ -58,6 +59,17 @@ export const ELEKTRO_FROM = "2025-07-01";
 export const ELEKTRO_TO = "2027-12-31";
 
 export const isElektroDate = (acquisitionDate: string) => acquisitionDate >= ELEKTRO_FROM && acquisitionDate <= ELEKTRO_TO;
+
+/**
+ * Die Staffel nur im Einzelunternehmen (EÜR). GmbH und UG führen in Haben ein Buch für Handels- und Steuerbilanz ohne
+ * Überleitung; die Staffel ist keine planmäßige Abschreibung über die Nutzungsdauer (§ 253 Abs. 3 Satz 1 HGB), und seit
+ * dem BilMoG übernimmt die Handelsbilanz steuerliche Wahlrechte nicht mehr (§ 5 Abs. 1 Satz 1 Halbsatz 2 EStG). Die
+ * degressive AfA bleibt: Sie ist auch nach HGB eine planmäßige Methode.
+ */
+export const elektroAvailable = (rechtsform: Rechtsform) => !isKapitalgesellschaft(rechtsform);
+
+export const ELEKTRO_NUR_EINZELUNTERNEHMEN =
+  "AfA nach § 7 Abs. 2a EStG nur im Einzelunternehmen; in GmbH und UG ginge sie ohne Überleitung zur Steuerbilanz in die Handelsbilanz";
 
 /** Kumulierte AfA nach § 7 Abs. 2a bis einschließlich des Jahres mit Index k (0 = Anschaffungsjahr) */
 export function elektroCumulative(cost: Cents, k: number): Cents {

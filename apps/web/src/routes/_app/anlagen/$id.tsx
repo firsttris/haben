@@ -1,4 +1,4 @@
-import { ASSET_KINDS, ASSET_METHODS, formatDecimal, formatDegressiveRate, isKapitalgesellschaft } from "@haben/core";
+import { ASSET_KINDS, ASSET_METHODS, formatDecimal, formatDegressiveRate, elektroAvailable, isKapitalgesellschaft } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -131,6 +131,7 @@ function AssetPage() {
             }}
             locked={booked || fromDocument}
             privateUseAvailable={!isKapitalgesellschaft(rechtsform)}
+            elektroOffered={elektroAvailable(rechtsform)}
             privateUseLocked={booked}
             lifeEditable={!booked}
             switchEditable={switchEditable}

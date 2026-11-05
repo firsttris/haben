@@ -62,11 +62,11 @@ Die degressive AfA steht in der EÜR und der Anlage AVEÜR in denselben Zeilen w
 
 ## Elektrofahrzeuge
 
-Für Elektrofahrzeuge nach § 9 Abs. 2 KraftStG, die du vom 01.07.2025 bis 31.12.2027 angeschafft hast, gilt statt linearer oder degressiver AfA wahlweise eine feste Staffel (§ 7 Abs. 2a EStG): 75 % der Anschaffungskosten im Anschaffungsjahr, egal in welchem Monat, im ersten Folgejahr 10 %, dann zweimal 5 %, 3 % und 2 %. Das gilt im Einzelunternehmen wie in der GmbH, nur für Anlagen der Art **Fahrzeug** und nur für reine Elektrofahrzeuge; ist bei der Privatnutzung ein anderer Antrieb erfasst, lehnt Haben die Methode ab. Bei einem Abgang zählt der Satz des Jahres zeitanteilig bis zum Abgangsmonat, der Rest ist Restbuchwert.
+Für Elektrofahrzeuge nach § 9 Abs. 2 KraftStG, die du vom 01.07.2025 bis 31.12.2027 angeschafft hast, gilt statt linearer oder degressiver AfA wahlweise eine feste Staffel (§ 7 Abs. 2a EStG): 75 % der Anschaffungskosten im Anschaffungsjahr, egal in welchem Monat, im ersten Folgejahr 10 %, dann zweimal 5 %, 3 % und 2 %. Haben bietet sie nur im Einzelunternehmen an, nur für Anlagen der Art **Fahrzeug** und nur für reine Elektrofahrzeuge; ist bei der Privatnutzung ein anderer Antrieb erfasst, lehnt Haben die Methode ab. Bei einem Abgang zählt der Satz des Jahres zeitanteilig bis zum Abgangsmonat, der Rest ist Restbuchwert.
 
 Das Gesetz nennt die Staffel „Absetzung für Abnutzung“, nicht Sonderabschreibung. Sie steht deshalb in der Anlage EÜR in der Zeile **AfA auf bewegliche Wirtschaftsgüter** und in der Anlage AVEÜR in der Spalte AfA; die Spalte für Sonderabschreibungen ist § 7g EStG vorbehalten. Haben meldet das Fahrzeug in der AVEÜR als Elektrofahrzeug. Gebucht wird auf das Konto für Kfz-Abschreibungen.
 
-Bei einer GmbH ist die Staffel eine rein steuerliche Abschreibung. Haben führt ein Buch für Handels- und Steuerbilanz; wer die Handelsbilanz planmäßig abschreiben will, stimmt das vorher mit der Steuerberatung ab.
+In GmbH und UG bietet Haben die Staffel nicht an. Sie ist eine rein steuerliche Abschreibung: In der Handelsbilanz wird planmäßig über die Nutzungsdauer abgeschrieben (§ 253 Abs. 3 Satz 1 HGB), und seit dem BilMoG folgt die Handelsbilanz steuerlichen Wahlrechten nicht mehr (§ 5 Abs. 1 Satz 1 Halbsatz 2 EStG). Haben führt ein Buch für Handels- und Steuerbilanz ohne Überleitung; die Staffel stünde damit auch in der Handelsbilanz. Die degressive AfA bleibt in der GmbH wählbar, sie ist auch nach HGB eine planmäßige Methode.
 
 ## Erinnerungswert
 

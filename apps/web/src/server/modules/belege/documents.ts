@@ -20,6 +20,8 @@ import {
   isKapitalgesellschaft,
   maxDegressiveRate,
   usesUsefulLife,
+  ELEKTRO_NUR_EINZELUNTERNEHMEN,
+  elektroAvailable,
   type AssetKind,
   type AssetMethod,
   type Cents,
@@ -605,6 +607,7 @@ export async function bookDocument(actor: string, id: string): Promise<void> {
     const issues = bookingIssues(doc, amounts, today(), splits);
     // GmbH und UG: privat Genutztes ist Arbeitslohn oder verdeckte Gewinnausschüttung, keine Entnahme
     if (doc.privateShare > 0 && isKapitalgesellschaft(company.rechtsform)) issues.push("Einen Privatanteil gibt es nur im Einzelunternehmen");
+    if (doc.category === "anlage" && doc.asset?.method === "elektro" && !elektroAvailable(company.rechtsform)) issues.push(ELEKTRO_NUR_EINZELUNTERNEHMEN);
     if (issues.length > 0) throw new DocumentError(`Noch nicht bereit: ${issues.join(", ")}.`);
 
     // Je Satz die Beträge vom Beleg übernehmen, nicht nachrechnen: die Steuer steht auf der Rechnung.

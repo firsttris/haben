@@ -13,6 +13,7 @@ import {
   type CarPrivateUse,
   type PrivateUseRate,
   usesUsefulLife,
+  allowsMemoValue,
 } from "@haben/core";
 import { useState, type FormEvent } from "react";
 import { parseUsefulLifeMonths } from "../lib/format.ts";
@@ -50,6 +51,7 @@ export function AssetForm({
   switchEditable,
   privateUseLocked,
   privateUseAvailable,
+  elektroOffered,
   showOpening,
   submitLabel,
   busy,
@@ -63,6 +65,8 @@ export function AssetForm({
   privateUseLocked: boolean;
   /** Privatnutzung als Entnahme gibt es nur im Einzelunternehmen; in GmbH und UG ist sie Arbeitslohn */
   privateUseAvailable: boolean;
+  /** AfA nach § 7 Abs. 2a EStG nur im Einzelunternehmen (elektroAvailable in @haben/core) */
+  elektroOffered: boolean;
   showOpening: boolean;
   submitLabel: string;
   busy: boolean;
@@ -135,7 +139,8 @@ export function AssetForm({
       usefulLifeMonths: usesUsefulLife(method) ? lifeMonths : null,
       degressiveRate: method === "degressiv" ? parsedRate : null,
       linearFromYear: method === "degressiv" ? parsedLinearFrom : null,
-      memoValue,
+      // Ein ausgeblendetes Häkchen (GWG, Sammelposten, Computer) geht nicht mit
+      memoValue: allowsMemoValue(method) && memoValue,
       openingDate,
       openingBookValue: parsedOpening ?? 0,
       disposalDate: disposalDate || null,
@@ -181,7 +186,7 @@ export function AssetForm({
             Abschreibung
             <select value={method} onChange={(e) => setMethod(e.target.value as AssetMethod)} disabled={methodLocked}>
               {Object.entries(ASSET_METHODS)
-                .filter(([value]) => value === method || methodChoices(kind, locked).includes(value as AssetMethod))
+                .filter(([value]) => value === method || methodChoices(kind, locked, elektroOffered).includes(value as AssetMethod))
                 .map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}
@@ -352,10 +357,10 @@ export function AssetForm({
 }
 
 /**
- * Wählbare Methoden: Elektro nur bei Fahrzeugen; bei einer Beleg-Anlage (`fromDocument`) nur Methoden auf dem
- * Anlagekonto der Art, GWG und Sammelposten legt die Belegbuchung mit eigenem Konto fest.
+ * Wählbare Methoden: Elektro nur bei Fahrzeugen im Einzelunternehmen; bei einer Beleg-Anlage (`fromDocument`) nur
+ * Methoden auf dem Anlagekonto der Art, GWG und Sammelposten legt die Belegbuchung mit eigenem Konto fest.
  */
-function methodChoices(kind: AssetKind, fromDocument: boolean): AssetMethod[] {
+function methodChoices(kind: AssetKind, fromDocument: boolean, elektroOffered: boolean): AssetMethod[] {
   const all = Object.keys(ASSET_METHODS) as AssetMethod[];
-  return all.filter((m) => (m !== "elektro" || kind === "kfz") && (!fromDocument || (m !== "gwg" && m !== "sammelposten")));
+  return all.filter((m) => (m !== "elektro" || (kind === "kfz" && elektroOffered)) && (!fromDocument || (m !== "gwg" && m !== "sammelposten")));
 }

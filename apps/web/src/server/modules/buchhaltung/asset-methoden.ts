@@ -1,4 +1,12 @@
-import { type AssetMethod, type CarPrivateUse, maxDegressiveRate, usesUsefulLife } from "@haben/core";
+import {
+  type AssetMethod,
+  type CarPrivateUse,
+  ELEKTRO_NUR_EINZELUNTERNEHMEN,
+  elektroAvailable,
+  maxDegressiveRate,
+  type Rechtsform,
+  usesUsefulLife,
+} from "@haben/core";
 
 /*
  * Regeln je Abschreibungsmethode beim Anlegen und Ändern einer Anlage (docs/anlagen.md): degressive AfA nach § 7 Abs. 2
@@ -42,9 +50,12 @@ export function switchToLinearProblem(
   return null;
 }
 
-/** § 7 Abs. 2a EStG gilt nur für Elektrofahrzeuge; ist der Antrieb bei der Privatnutzung erfasst, muss er passen */
-export function elektroIssues(asset: { method: AssetMethod; privateUse: CarPrivateUse | null }): string[] {
-  return asset.method === "elektro" && asset.privateUse && asset.privateUse.drive !== "elektro"
-    ? ["AfA nach § 7 Abs. 2a EStG nur für reine Elektrofahrzeuge"]
-    : [];
+/**
+ * § 7 Abs. 2a EStG gilt nur für Elektrofahrzeuge; ist der Antrieb bei der Privatnutzung erfasst, muss er passen. In GmbH
+ * und UG bietet Haben die Staffel nicht an (elektroAvailable in @haben/core).
+ */
+export function elektroIssues(asset: { method: AssetMethod; privateUse: CarPrivateUse | null }, rechtsform: Rechtsform): string[] {
+  if (asset.method !== "elektro") return [];
+  if (!elektroAvailable(rechtsform)) return [ELEKTRO_NUR_EINZELUNTERNEHMEN];
+  return asset.privateUse && asset.privateUse.drive !== "elektro" ? ["AfA nach § 7 Abs. 2a EStG nur für reine Elektrofahrzeuge"] : [];
 }

@@ -15,6 +15,7 @@ import {
   usesUsefulLife,
   type ExpenseCategory,
   isKapitalgesellschaft,
+  elektroAvailable,
   ownerLabels,
 } from "@haben/core";
 import { Link, createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
@@ -668,7 +669,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
                 Abschreibung
                 <select value={assetMethod} onChange={(e) => touch(setAssetMethod)(e.target.value as AssetMethod)}>
                   {Object.entries(ASSET_METHODS)
-                    .filter(([value]) => value !== "elektro" || assetKind === "kfz" || value === assetMethod)
+                    .filter(([value]) => value !== "elektro" || (assetKind === "kfz" && elektroAvailable(data.rechtsform)) || value === assetMethod)
                     .map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}

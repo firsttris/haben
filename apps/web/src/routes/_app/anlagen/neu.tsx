@@ -1,4 +1,4 @@
-import { isKapitalgesellschaft } from "@haben/core";
+import { elektroAvailable, isKapitalgesellschaft } from "@haben/core";
 import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { AssetForm } from "../../../components/AssetForm.tsx";
@@ -50,6 +50,7 @@ function NewAssetPage() {
             }}
             locked={false}
             privateUseAvailable={!isKapitalgesellschaft(rechtsform)}
+            elektroOffered={elektroAvailable(rechtsform)}
             privateUseLocked={false}
             lifeEditable
             switchEditable
