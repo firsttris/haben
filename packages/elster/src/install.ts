@@ -14,8 +14,11 @@ import { crc32, createInflateRaw } from "node:zlib";
 import { networkErrorText } from "@haben/core";
 import { ericLibraryPath, ericPluginPath } from "./eric.ts";
 
-/** Zuletzt bekannte ERiC-Version; neuere stehen im Entwicklerbereich von ELSTER */
-export const DEFAULT_ERIC_VERSION = "43.4.6.0";
+/**
+ * Zuletzt bekannte ERiC-Version; neuere stehen im Entwicklerbereich von ELSTER. 45.1 ist ein BETA-Release: Senden geht
+ * damit nur mit Testmerker (ERiC-Entwicklerhandbuch, Kap. 5.4.3), Echtfälle erst mit dem Hauptrelease 45.2.
+ */
+export const DEFAULT_ERIC_VERSION = "45.1.5.0";
 export const ERIC_DOWNLOAD_BASE = "https://download.elster.de/download/eric";
 /** Infoseite mit der aktuellen Version und den Nutzungsbedingungen */
 export const ERIC_INFO_URL = "https://www.elster.de/elsterweb/entwickler/infoseite/eric";

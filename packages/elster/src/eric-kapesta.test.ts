@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ericMeldungen } from "./formatprobe.ts";
 import { ericHomeIn } from "./install.ts";
-import { buildKapEStAXml, type KapEStAInput } from "./kapesta.ts";
+import { buildKapEStAXml, KAPESTA_JAHRE, type KapEStAInput } from "./kapesta.ts";
 import { EricProcessClient } from "./process-client.ts";
 
 /**
@@ -33,7 +33,7 @@ describe.skipIf(!ericHome)("Kapitalertragsteuer-Anmeldung mit ERiC", () => {
     expect(result.code).toBe(0);
   };
 
-  it.each([2025, 2026])(
+  it.each(KAPESTA_JAHRE)(
     "%i: ohne und mit Kirchensteuer",
     async (year) => {
       const z = (iso: string) => iso.replace("2026", String(year));

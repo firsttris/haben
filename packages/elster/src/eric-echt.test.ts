@@ -277,9 +277,12 @@ const est =
       ...overrides,
     });
 
-const jahre = [2023, 2024, 2025];
+// 2026: EUER_2026 und ESt_2026 ab ERiC 45; USt_2026 schon in ERiC 43
+const jahre = [2023, 2024, 2025, 2026];
 const faelle: [string, () => string][] = [
   // Voranmeldung
+  ["UStVA 2027 einfach (ERiC 45)", ustva(2027, { kz81: 100_000, kz86: 50_000, kz66: 1_745 })],
+  ["UStVA 2027 alle Kennzahlen", ustva(2027, alleKennzahlen)],
   ["UStVA 2026 einfach", ustva(2026, { kz81: 100_000, kz86: 50_000, kz66: 1_745 })],
   ["UStVA 2025 einfach", ustva(2025, { kz81: 100_000, kz86: 50_000, kz66: 1_745 })],
   ["UStVA 2026 alle Kennzahlen", ustva(2026, alleKennzahlen)],
@@ -297,6 +300,7 @@ const faelle: [string, () => string][] = [
   ],
   // Antrag auf Dauerfristverlängerung (USt 1 H)
   ["Dauerfristverlängerung 2026 (vierteljährlich)", () => buildDauerfristXml({ ...dauerfrist(2026), sondervorauszahlung: null })],
+  ["Sondervorauszahlung 2027 (monatlich)", () => buildDauerfristXml({ ...dauerfrist(2027), sondervorauszahlung: 400_000 })],
   ["Sondervorauszahlung 2026 (monatlich)", () => buildDauerfristXml({ ...dauerfrist(2026), sondervorauszahlung: 400_000 })],
   ["Sondervorauszahlung 2025 null Euro", () => buildDauerfristXml({ ...dauerfrist(2025), sondervorauszahlung: 0 })],
   ["Sondervorauszahlung 2026 berichtigt", () => buildDauerfristXml({ ...dauerfrist(2026), sondervorauszahlung: 318_100, berichtigt: true })],
@@ -481,6 +485,10 @@ const faelle: [string, () => string][] = [
   ],
 ];
 
+/** Meldung zum Freigabedatum (ESt, EÜR des laufenden Jahres) und Rückgabecode dazu laut eric_fehlercodes.h */
+const VOR_ABLAUF = "ACHTUNG, eine Übermittlung vor Ablauf des Veranlagungszeitraums ist nicht zulässig.";
+const ERIC_GLOBAL_PRUEF_FEHLER = 610001002;
+
 describe.skipIf(!ericHome)("Echtes ERiC: Nachrichten lokal prüfen", () => {
   const client = new EricProcessClient({ ericHome: ericHome! });
 
@@ -488,7 +496,10 @@ describe.skipIf(!ericHome)("Echtes ERiC: Nachrichten lokal prüfen", () => {
     "%s",
     async (_name, build) => {
       const result = await client.validate(build());
-      expect(result.ok, `${result.code} ${result.message}\n${ericMeldungen(result.responseXml).join("\n")}`).toBe(true);
+      // Vor Ablauf des Jahres sperrt ERiC Erklärungen dieses Jahres (Freigabedatum); alle anderen Prüfungen laufen trotzdem
+      const meldungen = ericMeldungen(result.responseXml).filter((m) => !m.startsWith(VOR_ABLAUF));
+      if (meldungen.length === 0 && result.code === ERIC_GLOBAL_PRUEF_FEHLER && ericMeldungen(result.responseXml).length > 0) return;
+      expect(result.ok, `${result.code} ${result.message}\n${meldungen.join("\n")}`).toBe(true);
     },
     60_000,
   );

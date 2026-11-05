@@ -8,7 +8,7 @@ import {
   VORTRAG_ACCOUNTS,
   type Cents,
 } from "@haben/core";
-import { buildKapEStAXml, KAPESTA_JAHRE, tagDanach, zuflussTag, type ElsterClient, type ElsterResult } from "@haben/elster";
+import { buildKapEStAXml, KAPESTA_JAHRE, KAPESTA_JAHRE_TEXT, tagDanach, zuflussTag, type ElsterClient, type ElsterResult } from "@haben/elster";
 import { and, asc, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
@@ -318,7 +318,7 @@ export function submitKapESt(actor: string, dividendId: string, client: ElsterCl
       if (problems.length > 0) throw new AusschuettungError(`Firmendaten: ${problems.join(", ")}`);
       const year = Number(d.zufluss.slice(0, 4));
       if (!(KAPESTA_JAHRE as readonly number[]).includes(year)) {
-        throw new AusschuettungError(`Die Kapitalertragsteuer-Anmeldung kennt Haben für ${KAPESTA_JAHRE.join(" und ")}, nicht für ${year}.`);
+        throw new AusschuettungError(`Die Kapitalertragsteuer-Anmeldung kennt Haben für ${KAPESTA_JAHRE_TEXT}, nicht für ${year}.`);
       }
       if (options.kind === "send" && (await sentIds([d.id], db)).size > 0) {
         throw new AusschuettungError("Diese Anmeldung ist schon übermittelt. Eine Berichtigung geht über das ELSTER-Portal.");

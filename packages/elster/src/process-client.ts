@@ -62,7 +62,7 @@ export class EricProcessClient implements ElsterClient {
   async fetchPostfach(xml: string, certificate: Uint8Array, pin: string, options: PostfachOptions): Promise<PostfachResult> {
     const leer = { bereitstellungen: [], dateien: [] };
     const datenartVersion = datenartVersionFromXml(xml);
-    if (datenartVersion !== "PostfachAnfrage_31") return { ...failure("Keine PostfachAnfrage (Version 31)."), ...leer };
+    if (datenartVersion !== "PostfachAnfrage_32") return { ...failure("Keine PostfachAnfrage (Version 32)."), ...leer };
     const mismatch = testmerkerMismatch(xml, options.test);
     if (mismatch) return { ...failure(mismatch), ...leer };
 

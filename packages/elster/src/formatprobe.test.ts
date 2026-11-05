@@ -16,14 +16,14 @@ describe("Formatprüfung", () => {
   it("baut je Nachricht eine Probe wie beim echten Senden", () => {
     const proben = formatProben(input);
     expect(proben.map((p) => datenartVersionFromXml(p.xml))).toEqual([
-      "ElsterVaStDaten_31",
-      "ElsterVaStDaten_31",
+      "ElsterVaStDaten_32",
+      "ElsterVaStDaten_32",
       "SpezRechtAntrag",
       "SpezRechtFreischaltung",
       "SpezRechtStorno",
       "SpezRechtListe",
-      "PostfachAnfrage_31",
-      "PostfachBestaetigung_31",
+      "PostfachAnfrage_32",
+      "PostfachBestaetigung_32",
     ]);
     expect(proben.every((p) => !hasTestmerker(p.xml))).toBe(true);
   });

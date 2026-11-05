@@ -425,7 +425,7 @@ export function buildEstXml(input: EstXmlInput): string {
     ["PersonA", x.arbeitnehmer?.a],
     ["PersonB", zusammen ? x.arbeitnehmer?.b : undefined],
   ];
-  const anlagenN = personen.flatMap(([person, an]) => (an && an.bescheinigungen.length > 0 ? [anlageN(person, an)] : []));
+  const anlagenN = personen.flatMap(([person, an]) => (an && an.bescheinigungen.length > 0 ? [anlageN(person, an, input.year)] : []));
   const lstb = (an: EstArbeitnehmer | undefined, key: keyof Omit<EstLohnsteuerbescheinigung, "steuerklasse">) =>
     an ? an.bescheinigungen.reduce((s, b) => s + (b[key] ?? 0), 0) : 0;
 
@@ -582,7 +582,8 @@ export function buildEstXml(input: EstXmlInput): string {
 const ganz = (n: number | undefined) => (n && n > 0 ? String(Math.floor(n)) : undefined);
 
 /** Ein Einzelposten mit Bezeichnung und Betrag und seine Summe */
-const posten = (name: string, felder: [string, string, string], text: string, cents: Cents | undefined): XmlNode | null => {
+/** Einzelposten mit Summe; zwischen: weitere Angaben, die das Schema zwischen Einz und Sum erwartet */
+const posten = (name: string, felder: [string, string, string], text: string, cents: Cents | undefined, zwischen: XmlNode[] = []): XmlNode | null => {
   const value = euro(cents);
   if (!value) return null;
   return [
@@ -595,13 +596,23 @@ const posten = (name: string, felder: [string, string, string], text: string, ce
           [felder[1], value],
         ],
       ],
+      ...zwischen,
       ["Sum", [[felder[2], value]]],
     ],
   ];
 };
 
 /** Anlage N einer Person: Lohnsteuerbescheinigungen (Steuerklasse 1–5 bzw. 6) und Werbungskosten */
-export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
+/**
+ * Fortbildungskosten. Ab 2026 verlangt die Anlage N daneben die steuerfreien Erstattungen (E0206305, „ggf. 0“) und
+ * zieht sie in der Summe ab (Schema E10-2026 und Plausibilitätsprüfung im ERiC-Paket 45.1.5.0). Erstattungen erfasst
+ * Haben nicht; die Kosten sind schon um sie gemindert.
+ */
+function fortbildung(cents: Cents | undefined, year: number): XmlNode | null {
+  return posten("Fortb", ["E0204804", "E0204808", "E0204812"], "Fortbildung", cents, year >= 2026 ? [["Stfrei_Erst", [["E0206305", "0"]]]] : []);
+}
+
+export function anlageN(person: string, an: EstArbeitnehmer, year: number): XmlNode {
   for (const b of an.bescheinigungen) {
     if (!(b.brutto > 0)) throw new ElsterEingabeError("Anlage N: Der Bruttoarbeitslohn fehlt.");
     if (![1, 2, 3, 4, 5, 6].includes(b.steuerklasse)) throw new ElsterEingabeError("Anlage N: Die Steuerklasse fehlt.");
@@ -657,7 +668,7 @@ export function anlageN(person: string, an: EstArbeitnehmer): XmlNode {
       posten("Berufsverb", ["E0204001", "E0204003", "E0204002"], "Berufsverbände und Gewerkschaft", (w.berufsverbaende ?? 0) + (w.gewerkschaft ?? 0)),
       posten("Arbeitsmittel", ["E0204401", "E0204402", "E0204403"], "Arbeitsmittel", w.arbeitsmittel),
       ganz(w.homeofficeTage) ? ["Homeoffice", [[w.keinAndererArbeitsplatz ? "E0206206" : "E0204507", ganz(w.homeofficeTage)]]] : null,
-      posten("Fortb", ["E0204804", "E0204808", "E0204812"], "Fortbildung", w.fortbildung),
+      fortbildung(w.fortbildung, year),
       euro(w.sonstige)
         ? [
             "Weitere_Wk",

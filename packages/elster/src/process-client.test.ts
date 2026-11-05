@@ -115,12 +115,15 @@ describe("EricProcessClient mit Stub-Worker", () => {
   });
 });
 
-/** Der echte Worker gegen eine nachgebaute libericapi.so (nur mit C-Compiler). */
-function compileMockEric(): string | undefined {
+const bestaetigung = () => buildPostfachBestaetigungXml(["b-1"], { datenlieferant: "Test", herstellerId: "74931", produktVersion: "0.1.0", test: true });
+const belegabruf = { idnr: "02293417683", veranlagungsjahr: 2025, datenlieferant: "Test", herstellerId: "74931", test: true };
+
+/** Der echte Worker gegen eine nachgebaute libericapi.so der Hauptversion major (nur mit C-Compiler). */
+function compileMockEric(major: number): string | undefined {
   const home = mkdtempSync(join(tmpdir(), "haben-mock-eric-"));
   mkdirSync(join(home, "lib"));
   try {
-    execFileSync("cc", ["-shared", "-fPIC", "-o", join(home, "lib/libericapi.so"), join(fixtures, "mock-eric.c")], {
+    execFileSync("cc", ["-shared", "-fPIC", `-DERIC_MAJOR=${major}`, "-o", join(home, "lib/libericapi.so"), join(fixtures, "mock-eric.c")], {
       stdio: "ignore",
     });
     execFileSync("cc", ["-shared", "-fPIC", "-o", join(home, "lib/libotto.so"), join(fixtures, "mock-otto.c")], {
@@ -133,12 +136,13 @@ function compileMockEric(): string | undefined {
   }
 }
 
-const mockHome = compileMockEric();
+const mockHome = compileMockEric(45);
+const mockHome43 = compileMockEric(43);
 afterAll(() => {
-  if (mockHome) rmSync(mockHome, { recursive: true, force: true });
+  for (const home of [mockHome, mockHome43]) if (home) rmSync(home, { recursive: true, force: true });
 });
 
-describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => {
+describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC 45 über koffi", () => {
   const client = () => new EricProcessClient({ ericHome: mockHome!, logDir: mockHome! });
 
   it("validiert nur mit ERIC_VALIDIERE und ohne Parameterstrukturen", async () => {
@@ -146,7 +150,7 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
     expect(result.ok).toBe(true);
     expect(result.message).toBe("Text zu 0 äö");
     expect(result.responseXml).toContain("<V>UStVA_2026</V><F>2</F><D>0:-</D><C>0:0:-</C>");
-    expect(result.responseXml).toContain("<TH>(nil)</TH>");
+    expect(result.responseXml).toContain("<TH>keins</TH>");
   });
 
   it("sendet mit Flags, Druck- und Verschlüsselungsparametern", async () => {
@@ -157,7 +161,7 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
     expect(Buffer.from(result.pdf!).toString()).toBe("%PDF-mock");
   });
 
-  it("sendet Nachrichten ohne Transferhandle und ohne Druck", async () => {
+  it("sendet Nachrichten ohne Druck", async () => {
     const nachricht = buildNachrichtXml({
       steuernummer13: "9198011310010",
       bundesland: "BY",
@@ -170,8 +174,8 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
     });
     const result = await client().send(nachricht, new Uint8Array([1]), "geheim", { test: true, print: false });
     expect(result.ok).toBe(true);
-    expect(result.responseXml).toMatch(/<V>SonstigeNachrichten_21<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
-    expect(result.responseXml).toContain("<TH>(nil)</TH>");
+    expect(result.responseXml).toMatch(/<V>SonstigeNachrichten_22<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
+    expect(result.responseXml).toContain("<TH>keins</TH>");
     expect(result.pdf).toBeUndefined();
   });
 
@@ -179,8 +183,8 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
     const anfrage = buildPostfachAnfrageXml({ datenlieferant: "Test", herstellerId: "74931", produktVersion: "0.1.0", test: true });
     const result = await client().fetchPostfach(anfrage, new Uint8Array([1]), "geheim", { test: true, herstellerId: "74931" });
     expect(result.ok).toBe(true);
-    expect(result.responseXml).toMatch(/<V>PostfachAnfrage_31<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
-    expect(result.responseXml).not.toContain("<TH>(nil)</TH>");
+    expect(result.responseXml).toMatch(/<V>PostfachAnfrage_32<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
+    expect(result.responseXml).toContain("<TH>keins</TH>");
     expect(result.bereitstellungen).toEqual([
       expect.objectContaining({ id: "b-1", datenart: "DivaBescheidESt", veranlagungszeitraum: "2025", anhaenge: expect.any(Array) }),
     ]);
@@ -190,19 +194,17 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
     expect(fehlt).toEqual({ referenzId: "fehlt", fehler: "Otto-Fehler 610: Objekt nicht gefunden" });
   });
 
-  it("bestätigt die Abholung mit Transferhandle", async () => {
-    const xml = buildPostfachBestaetigungXml(["b-1"], { datenlieferant: "Test", herstellerId: "74931", produktVersion: "0.1.0", test: true });
-    const result = await client().send(xml, new Uint8Array([1]), "geheim", { test: true, print: false });
-    expect(result.responseXml).toContain("<V>PostfachBestaetigung_31</V>");
-    expect(result.responseXml).not.toContain("<TH>(nil)</TH>");
+  it("bestätigt die Abholung", async () => {
+    const result = await client().send(bestaetigung(), new Uint8Array([1]), "geheim", { test: true, print: false });
+    expect(result.responseXml).toContain("<V>PostfachBestaetigung_32</V>");
+    expect(result.responseXml).toContain("<TH>keins</TH>");
   });
 
-  it("holt Belege: Liste, Abholung mit Transferhandle, Entschlüsselung je Beleg", async () => {
-    const input = { idnr: "02293417683", veranlagungsjahr: 2025, datenlieferant: "Test", herstellerId: "74931", test: true };
-    const result = await client().fetchBelege(input, new Uint8Array([1]), "geheim");
+  it("holt Belege: Liste, Abholung, Entschlüsselung je Beleg", async () => {
+    const result = await client().fetchBelege(belegabruf, new Uint8Array([1]), "geheim");
     expect(result.ok).toBe(true);
-    expect(result.responseXml).toMatch(/<V>ElsterVaStDaten_31<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
-    expect(result.responseXml).not.toContain("<TH>(nil)</TH>");
+    expect(result.responseXml).toMatch(/<V>ElsterVaStDaten_32<\/V><F>6<\/F><D>0:-<\/D><C>3:42:geheim<\/C>/);
+    expect(result.responseXml).toContain("<TH>keins</TH>");
     expect(result.requestXml).toContain("<Anfrage ");
     expect(result.liste.map((b) => [b.id, b.belegart])).toEqual([
       ["a-1", "VaSt_RBM"],
@@ -210,7 +212,7 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
       ["a-3", "VaSt_LStB"],
     ]);
     expect(result.abholung!.requestXml).toContain('<Abholung id="a-3"');
-    expect(result.abholung!.serverResponseXml).toContain("<TH>ja</TH><N>1</N>");
+    expect(result.abholung!.serverResponseXml).toContain("<TH>keins</TH><N>1</N>");
     const [a1, a2, a3] = result.belege;
     expect(a1!.xml).toContain("<Info>42:geheim:QUJDREVG</Info>");
     expect(a2).toEqual({ id: "a-2", fehler: "Text zu 610301200 äö" });
@@ -221,5 +223,24 @@ describe.skipIf(!mockHome)("EricProcessClient mit Mock-ERiC über koffi", () => 
     const result = await client().validate(xml().replace("<Kz83>", "<Kz83>CRASH"));
     expect(result.ok).toBe(false);
     expect(result.message).toContain("Signal SIGSEGV");
+  });
+});
+
+// ERiC 43 erwartet das Transferhandle laut ericapi.h bei der Datenabholung, sonst NULL
+describe.skipIf(!mockHome43)("EricProcessClient mit Mock-ERiC 43 über koffi", () => {
+  const client = () => new EricProcessClient({ ericHome: mockHome43!, logDir: mockHome43! });
+
+  it("übergibt bei Anmeldungen kein Transferhandle", async () => {
+    const result = await client().send(xml(), new Uint8Array([1]), "geheim", { test: true });
+    expect(result.ok).toBe(true);
+    expect(result.responseXml).toContain("<TH>(nil)</TH>");
+  });
+
+  it("übergibt bei Postfach und Belegabruf ein Transferhandle", async () => {
+    const postfach = await client().send(bestaetigung(), new Uint8Array([1]), "geheim", { test: true, print: false });
+    expect(postfach.responseXml).toContain("<TH>handle</TH>");
+    const belege = await client().fetchBelege(belegabruf, new Uint8Array([1]), "geheim");
+    expect(belege.responseXml).toContain("<TH>handle</TH>");
+    expect(belege.abholung!.serverResponseXml).toContain("<TH>handle</TH><N>1</N>");
   });
 });

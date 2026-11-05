@@ -4,8 +4,10 @@ import { existsSync } from "node:fs";
  * Wird nur im Worker-Prozess geladen: ein Absturz der nativen Bibliothek
  * darf nie den Server-Prozess mitreißen.
  *
- * Struktur-Versionen und -Layouts entsprechen eric_types.h und ericapi.h aus ERiC 43
- * (eric_druck_parameter_t Version 4, eric_verschluesselungs_parameter_t Version 3).
+ * Struktur-Versionen und -Layouts entsprechen eric_types.h und ericapi.h aus ERiC 43 bis 45
+ * (eric_druck_parameter_t Version 4, eric_verschluesselungs_parameter_t Version 3). Seit ERiC 44 hat
+ * EricBearbeiteVorgang() kein Transferhandle mehr (ERiC-Releasenotes 45.1, Kap. 6.2.6, ERIC-36021);
+ * welche Signatur gilt, sagt EricVersion() der geladenen Bibliothek.
  */
 import { parsePostfachAntwort, type PostfachBereitstellung } from "./postfach.ts";
 import { parseTransferTicket } from "./ticket.ts";
@@ -16,9 +18,9 @@ const ERIC_VALIDIERE = 1 << 1;
 const ERIC_SENDE = 1 << 2;
 const ERIC_DRUCKE = 1 << 5;
 
-/** Version von eric_druck_parameter_t laut eric_types.h (ERiC 43) */
+/** Version von eric_druck_parameter_t laut eric_types.h (ERiC 43 bis 45) */
 const DRUCK_PARAMETER_VERSION = 4;
-/** Version von eric_verschluesselungs_parameter_t laut eric_types.h (ERiC 43) */
+/** Version von eric_verschluesselungs_parameter_t laut eric_types.h (ERiC 43 bis 45) */
 const VERSCHLUESSELUNGS_PARAMETER_VERSION = 3;
 
 export interface EricConfig {
@@ -87,7 +89,7 @@ function ottoLibraryPath(ericHome: string): string {
   return `${ericHome}/lib/libotto.so`;
 }
 
-/** ERiC 43 liefert die Plugins unter lib/plugins, ältere Versionen unter lib/plugins2 */
+/** ERiC 43 bis 45 liefern die Plugins unter lib/plugins, ältere Versionen unter lib/plugins2 */
 export function ericPluginPath(ericHome: string): string {
   const current = `${ericHome}/lib/plugins`;
   return existsSync(current) ? current : `${ericHome}/lib/plugins2`;
@@ -105,13 +107,25 @@ interface EricApi {
   EricHoleFehlerText: (fehlerkode: number, puffer: Puffer) => number;
   EricGetHandleToCertificate: (hToken: number[], iInfoPinSupport: number[], pathToKeystore: string) => number;
   EricCloseHandleToCertificate: (hToken: number) => number;
-  EricBearbeiteVorgang: (
+  EricVersion: (puffer: Puffer) => number;
+  /** Bis ERiC 43, mit Transferhandle zwischen cryptoParameter und rueckgabeXmlPuffer */
+  EricBearbeiteVorgang43: (
     datenpuffer: string,
     datenartVersion: string,
     bearbeitungsFlags: number,
     druckParameter: object | null,
     cryptoParameter: object | null,
     transferHandle: number[] | null,
+    rueckgabeXmlPuffer: Puffer,
+    serverantwortXmlPuffer: Puffer,
+  ) => number;
+  /** Ab ERiC 44 */
+  EricBearbeiteVorgang: (
+    datenpuffer: string,
+    datenartVersion: string,
+    bearbeitungsFlags: number,
+    druckParameter: object | null,
+    cryptoParameter: object | null,
     rueckgabeXmlPuffer: Puffer,
     serverantwortXmlPuffer: Puffer,
   ) => number;
@@ -153,11 +167,17 @@ async function loadEric(libraryPath: string): Promise<EricApi> {
     EricHoleFehlerText: lib.func("int EricHoleFehlerText(int fehlerkode, EricRueckgabepufferHandle puffer)"),
     EricGetHandleToCertificate: lib.func("int EricGetHandleToCertificate(_Out_ uint32_t *hToken, _Out_ uint32_t *iInfoPinSupport, const char *pathToKeystore)"),
     EricCloseHandleToCertificate: lib.func("int EricCloseHandleToCertificate(uint32_t hToken)"),
-    EricBearbeiteVorgang: lib.func(
+    EricVersion: lib.func("int EricVersion(EricRueckgabepufferHandle rueckgabeXmlPuffer)"),
+    EricBearbeiteVorgang43: lib.func(
       "int EricBearbeiteVorgang(const char *datenpuffer, const char *datenartVersion, uint32_t bearbeitungsFlags, " +
         "const eric_druck_parameter_t *druckParameter, const eric_verschluesselungs_parameter_t *cryptoParameter, " +
         "_Inout_ uint32_t *transferHandle, EricRueckgabepufferHandle rueckgabeXmlPuffer, " +
         "EricRueckgabepufferHandle serverantwortXmlPuffer)",
+    ),
+    EricBearbeiteVorgang: lib.func(
+      "int EricBearbeiteVorgang(const char *datenpuffer, const char *datenartVersion, uint32_t bearbeitungsFlags, " +
+        "const eric_druck_parameter_t *druckParameter, const eric_verschluesselungs_parameter_t *cryptoParameter, " +
+        "EricRueckgabepufferHandle rueckgabeXmlPuffer, EricRueckgabepufferHandle serverantwortXmlPuffer)",
     ),
     EricDekodiereDaten: lib.func(
       "int EricDekodiereDaten(uint32_t zertifikatHandle, const char *pin, const char *base64Eingabe, EricRueckgabepufferHandle rueckgabePuffer)",
@@ -213,13 +233,18 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
       };
     }
 
-    // Laut ericapi.h nur bei der Datenabholung (Postfach, Belegabruf) ein Transferhandle, sonst immer NULL
+    // Bis ERiC 43 laut ericapi.h nur bei der Datenabholung (Postfach, Belegabruf) ein Transferhandle, sonst immer NULL
+    // Ohne lesbare Version gilt die aktuelle Signatur
+    const hauptversion = ericHauptversion(eric);
+    const mitTransferhandle = hauptversion !== null && hauptversion < 44;
     const datenabholung = request.datenartVersion.startsWith("Postfach") || request.datenartVersion === VAST_DATENART_VERSION;
     const bearbeite = (xml: string) => {
       const rueckgabe = eric.EricRueckgabepufferErzeugen();
       const serverantwort = eric.EricRueckgabepufferErzeugen();
       try {
-        const code = eric.EricBearbeiteVorgang(xml, request.datenartVersion, flags, druck, crypto, datenabholung ? [0] : null, rueckgabe, serverantwort);
+        const code = mitTransferhandle
+          ? eric.EricBearbeiteVorgang43(xml, request.datenartVersion, flags, druck, crypto, datenabholung ? [0] : null, rueckgabe, serverantwort)
+          : eric.EricBearbeiteVorgang(xml, request.datenartVersion, flags, druck, crypto, rueckgabe, serverantwort);
         return {
           code,
           message: fehlerText(eric, code),
@@ -274,6 +299,23 @@ export async function runEric(config: EricConfig, request: EricRequest): Promise
   } finally {
     if (zertifikatHandle !== undefined) eric.EricCloseHandleToCertificate(zertifikatHandle);
     eric.EricBeende();
+  }
+}
+
+/** Hauptversion von libericapi.so aus der Antwort von EricVersion(), z. B. 45 aus <Produktversion>45, 1, 3, 0</Produktversion> */
+export function ericHauptversionAusXml(versionXml: string): number | null {
+  const produkt = /<Name>libericapi\.so<\/Name>\s*<Produktversion>\s*(\d+)\s*,/.exec(versionXml)?.[1];
+  return produkt ? Number(produkt) : null;
+}
+
+/** Erst nach EricInitialisiere(); vorher liefert EricVersion() einen Fehler */
+function ericHauptversion(eric: EricApi): number | null {
+  const puffer = eric.EricRueckgabepufferErzeugen();
+  try {
+    if (eric.EricVersion(puffer) !== ERIC_OK) return null;
+    return ericHauptversionAusXml(eric.EricRueckgabepufferInhalt(puffer) ?? "");
+  } finally {
+    eric.EricRueckgabepufferFreigeben(puffer);
   }
 }
 

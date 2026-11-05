@@ -36,6 +36,13 @@ describe("Kapitalertragsteuer-Anmeldung", () => {
     expect(buildKapEStAXml({ ...basis, test: false })).not.toContain("Testmerker");
   });
 
+  it("meldet Zuflüsse 2027 mit KapEStA_2027 (ERiC 45, Schema wie 2026)", () => {
+    const xml = buildKapEStAXml({ ...basis, beschluss: { datum: "2027-03-01", betrag: 1_000_000 } });
+    expect(xml).toContain('<KapEStA xmlns="http://finkonsens.de/elster/elsterkapest/kapesta/v2027" version="2027">');
+    expect(xml).toContain("<AnmZtr>20270302</AnmZtr>");
+    expect(datenartVersionFromXml(xml)).toBe("KapEStA_2027");
+  });
+
   it("Kirchensteuer je Religionsschlüssel zusammengefasst, in der Reihenfolge des Schemas, mit Summe", () => {
     const xml = buildKapEStAXml({
       ...basis,

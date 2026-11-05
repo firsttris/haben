@@ -129,7 +129,9 @@ function gcdFacts(input: EbilanzInput): string[] {
   const anschrift = splitStrasse(input.firma.strasse);
   const street = anschrift?.strasse ?? input.firma.strasse.trim();
   const houseNo = anschrift ? `${anschrift.hausnummer}${anschrift.zusatz ?? ""}` : "";
-  const elements = ["B", "BAL", "BVV", "EB", "EV", "GuV", "KKE", "KS", "SGE", "SGEP", "STU"] as const;
+  // Ohne KKE, SGE und SGEP: für Kapitalgesellschaften rechtsformfremd; Taxonomie 6.9 verbietet sie auch leer, ERiC prüft
+  // das ab 43.5 (Fehler 170185126, ERiC-Releasenotes 45.1, Kap. 7.1.16.1)
+  const elements = ["B", "BAL", "BVV", "EB", "EV", "GuV", "KS", "STU"] as const;
   // Bilanz, Anlagenspiegel, GuV mit Betriebsvermögensvergleich
   const BERICHTSTEILE = new Set<string>(["B", "BAL", "BVV", "GuV"]);
   return [
@@ -143,7 +145,6 @@ function gcdFacts(input: EbilanzInput): string[] {
     // Kontensalden je Position übermittelt Haben noch nicht; die Taxonomie erlaubt dafür diese Angabe
     fact("report.id.reportElement.reportElements.transmissionNotYetPossible", "NoKS"),
     ...group("report.id.statementType", [fact("report.id.statementType.statementType.E")]),
-    ...group("report.id.statementType.tax", [fact("report.id.statementType.tax.statementTypeTax.GHB", null)]),
     fact("report.id.incomeStatementendswithBalProfit", "false"),
     ...group("report.id.accountingStandard", [fact("report.id.accountingStandard.accountingStandard.AO")]),
     // K: keine Sonderrechnungslegung (Kreditinstitute, Versicherungen, Krankenhäuser …)
@@ -175,13 +176,12 @@ function gcdFacts(input: EbilanzInput): string[] {
       fact("company.id.idNo.type.companyId.STWID", null),
       fact("company.id.idNo.type.companyId.BF4", input.steuernummer13.slice(0, 4)),
     ]),
-    fact("company.id.optionKStGs1a", null),
-    // Gesellschafter: Mussfeld der Stammdaten, bei Kapitalgesellschaften ohne Angaben (sie gelten Personengesellschaften)
+    // Gesellschafter: Mussfeld der Stammdaten, bei Kapitalgesellschaften ohne Angaben (sie gelten Personengesellschaften).
+    // Option nach § 1a KStG, Gesellschaftergruppe, laufende Nummer, Sonder- und Ergänzungsbilanz sowie die steuerliche
+    // Bilanzart fehlen: rechtsformfremd für Kapitalgesellschaften, ab ERiC 43.5 auch leer abgelehnt (siehe oben)
     ...group("company.id.shareholder", [
       fact("company.id.shareholder.name", null),
       fact("company.id.shareholder.id", null),
-      ...group("company.id.shareholder.group", [fact("company.id.shareholder.group.genPartnerFullyLiable", null)]),
-      `<de-gcd:genInfo.company.id.shareholder.currentnumber ${d} unitRef="PURE" xsi:nil="true"/>`,
       fact("company.id.shareholder.taxnumber", null),
       fact("company.id.shareholder.taxid", null),
       fact("company.id.shareholder.WID", null),
@@ -190,8 +190,6 @@ function gcdFacts(input: EbilanzInput): string[] {
         fact("company.id.shareholder.ShareDivideKey.numerator", null),
         fact("company.id.shareholder.ShareDivideKey.denominator", null),
       ]),
-      fact("company.id.shareholder.SpecialBalanceRequired", null),
-      fact("company.id.shareholder.extensionRequired", null),
     ]),
     ...group("report.id.accordingTo", [
       fact("report.id.accordingTo.name", null),

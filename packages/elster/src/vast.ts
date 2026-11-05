@@ -5,15 +5,15 @@ import { findDeep, int, text } from "./xml-lesen.ts";
 
 /**
  * Belegabruf für die vorausgefüllte Steuererklärung (VaSt): Verfahren ElsterDatenabholung, Datenart
- * ElsterVaStDaten, Datenabholung Version 31 (wie das Postfach). Ablauf wie bei erica (digitalservicebund, MIT):
+ * ElsterVaStDaten, Datenabholung Version 32 (wie das Postfach). Ablauf wie bei erica (digitalservicebund, MIT):
  * 1. Anfrage listet die Belege eines Jahres zur IdNr (Lohnsteuerbescheinigung, Rentenbezüge, Beiträge …),
  * 2. Abholung holt sie, ein Nutzdatenblock je Beleg-ID, Inhalt verschlüsselt im Datenpaket,
  * 3. EricDekodiereDaten entschlüsselt jedes Datenpaket mit dem Zertifikat zu Beleg-XML.
  * Eine Bestätigung wie beim Postfach gibt es nicht; die Belege lassen sich beliebig oft abholen.
  */
 
-/** Datenartversion wie im ERiC-Plugin ElsterDatenabholung (ERiC 43: _31 und _32) */
-export const VAST_DATENART_VERSION = "ElsterVaStDaten_31";
+/** Datenartversion wie im ERiC-Plugin ElsterDatenabholung (ERiC 43: _31 und _32, ab ERiC 44 nur _32; Datenartversionmatrix) */
+export const VAST_DATENART_VERSION = "ElsterVaStDaten_32";
 /** Testmerker für Belegabruf und Berechtigungsmanagement wie bei erica (ElsterDatenabholung, ElsterBRM) */
 export const VAST_TESTMERKER = "370000001";
 
@@ -73,7 +73,7 @@ function vastXml(nutzdaten: { ticket: string; body: string }[], input: VastXmlIn
     nutzdaten.map(({ ticket, body }) => ({
       ticket,
       empfaenger: { id: "L", wert: "CS" },
-      nutzdaten: [`<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="31">`, body, `</Datenabholung>`],
+      nutzdaten: [`<Datenabholung xmlns="http://finkonsens.de/elster/elsterdatenabholung/v3" version="32">`, body, `</Datenabholung>`],
     })),
   );
 }
