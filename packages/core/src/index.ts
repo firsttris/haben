@@ -7,6 +7,7 @@ export * from "./steuernummer.ts";
 export * from "./ustva.ts";
 export * from "./invoice.ts";
 export * from "./posting.ts";
+export * from "./document-split.ts";
 export * from "./rechtsform.ts";
 export * from "./geschaeftsbrief.ts";
 export * from "./manual.ts";

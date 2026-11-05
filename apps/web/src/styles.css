@@ -484,6 +484,14 @@ textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid
 .split-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 40px; gap: 8px; align-items: end; }
 .split-row select, .split-row input { width: 100%; min-width: 0; }
 .amount-row input, .amount-row select { width: 100%; min-width: 0; }
+/* Aufteilung eines Belegs (#271): Kategorie, Satz, Netto mit Vorsteuer darunter, Entfernen */
+.document-split-row { display: grid; grid-template-columns: minmax(0, 2fr) 90px minmax(0, 1fr) 40px; gap: 8px; align-items: start; }
+.document-split-row input, .document-split-row select { width: 100%; min-width: 0; }
+.document-split-row .icon-btn { margin-top: 22px; }
+@media (max-width: 560px) {
+  .document-split-row { grid-template-columns: minmax(0, 1fr) 90px; }
+  .document-split-row .field:first-child { grid-column: 1 / -1; }
+}
 .page-head .actions { align-items: center; }
 .doc-nav { display: flex; align-items: center; gap: 8px; }
 .doc-nav .small { min-width: 4.5em; text-align: center; white-space: nowrap; }

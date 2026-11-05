@@ -1,6 +1,7 @@
 import type { InvoiceTotals } from "./invoice.ts";
 import { roundHalfAwayFromZero, splitPrivateShare, toCsv, type Cents } from "./money.ts";
 import { EXPENSE_CATEGORIES, paidTaxShares, type ExpenseCategory, type TaxShare } from "./posting.ts";
+import type { AllocatedSplitLine } from "./document-split.ts";
 import { PAUSCHALE_LABEL, type PauschaleArt } from "./pauschalen.ts";
 import type { TaxTreatment } from "./treatment.ts";
 
@@ -37,6 +38,8 @@ export type EuerPayment =
       vorsteuerAbzug?: boolean;
       /** Privatanteil in Prozent: nur der betriebliche Teil ist Ausgabe bzw. Vorsteuer */
       privateShare?: number;
+      /** Aufgeteilter Beleg (#271): Netto und Vorsteuer je Kontierungszeile; category gilt dann nicht */
+      splits?: AllocatedSplitLine[];
       group?: string;
     }
   | {
@@ -155,6 +158,20 @@ export interface EuerWithdrawals {
   ustEntnahmen: Cents;
 }
 
+type DocumentPayment = Extract<EuerPayment, { kind: "document" }>;
+
+/**
+ * Netto und Steuer einer (Teil-)Zahlung auf einen Beleg, je Kategorie. Ohne Aufteilung je Steuersatz wie bisher; mit
+ * Aufteilung (#271) je Kontierungszeile, gerechnet wie eine Teilzahlung über Zeilen statt Sätze: Die Steuer der Zahlung
+ * ist dieselbe wie ohne Aufteilung, eine vollständige Zahlung ergibt genau die Beträge der Zeilen.
+ */
+function documentShares(p: DocumentPayment, paid: Cents): { category: ExpenseCategory; share: TaxShare }[] {
+  if (!p.splits || p.splits.length === 0) return paidTaxShares(p.totals, paid).map((share) => ({ category: p.category, share }));
+  const lines = p.splits;
+  const shares = paidTaxShares({ ...p.totals, taxes: lines.map((l) => ({ rate: l.taxRate, base: l.net, tax: l.tax })) }, paid);
+  return shares.map((share, i) => ({ category: lines[i]!.category, share }));
+}
+
 export function computeEuer(year: number, payments: EuerPayment[], depreciation?: EuerDepreciation, withdrawals?: EuerWithdrawals): EuerResult {
   const sums = new Map<EuerLineKey, Cents>();
   const add = (key: EuerLineKey, amount: Cents) => sums.set(key, (sums.get(key) ?? 0) + amount);
@@ -173,11 +190,11 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
         }
         break;
       case "document":
-        for (const share of paidTaxShares(p.totals, p.sum)) {
+        for (const { category, share } of documentShares(p, p.sum)) {
           const base = splitPrivateShare(share.base, p.privateShare ?? 0).business;
           const tax = splitPrivateShare(share.tax, p.privateShare ?? 0).business;
           // Anschaffung einer Anlage ist keine Ausgabe; sie wirkt über die AfA. Die Vorsteuer schon.
-          if (p.category === "anlage") {
+          if (category === "anlage") {
             if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
             continue;
           }
@@ -185,9 +202,9 @@ export function computeEuer(year: number, payments: EuerPayment[], depreciation?
           const ausgabe = p.vorsteuerAbzug === false ? base + tax : base;
           if (p.vorsteuerAbzug !== false) add("vorsteuer", tax);
           // Bewirtung: 30 % sind nicht abziehbar (§ 4 Abs. 5 Nr. 2 EStG), die Vorsteuer bleibt voll abziehbar
-          const nichtAbziehbar = p.category === "bewirtung" ? ausgabe - roundHalfAwayFromZero((ausgabe * 7) / 10) : 0;
+          const nichtAbziehbar = category === "bewirtung" ? ausgabe - roundHalfAwayFromZero((ausgabe * 7) / 10) : 0;
           bewirtungNichtAbziehbar += nichtAbziehbar;
-          add(`ausgabe:${p.category}`, ausgabe - nichtAbziehbar);
+          add(`ausgabe:${category}`, ausgabe - nichtAbziehbar);
           monthlyOut[month]! += ausgabe - nichtAbziehbar;
         }
         break;

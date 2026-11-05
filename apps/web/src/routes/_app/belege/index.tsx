@@ -85,7 +85,13 @@ function DocumentsPage() {
                     {doc.extractedBy ? ` · ${SOURCE_LABEL[doc.extractedBy]}` : ""}
                   </span>
                 </div>
-                <div className="small">{doc.category ? EXPENSE_CATEGORIES[doc.category as ExpenseCategory].label : "–"}</div>
+                <div className="small">
+                  {doc.category
+                    ? EXPENSE_CATEGORIES[doc.category as ExpenseCategory].label
+                    : doc.splitCount > 0
+                      ? `Aufgeteilt auf ${doc.splitCount} Zeilen`
+                      : "–"}
+                </div>
                 <div className="num">{doc.gross ? formatEuro(doc.gross) : "–"}</div>
                 <div>
                   <DocumentStatus status={doc.status} extractionStatus={doc.extractionStatus} cancelled={doc.cancelledOn !== null} />

@@ -1323,6 +1323,28 @@ export const documentAmounts = pgTable(
   (t) => [uniqueIndex("document_amounts_rate").on(t.documentId, t.taxRate)],
 );
 
+/**
+ * Aufteilung eines Belegs auf mehrere Kontierungszeilen (#271): Kategorie, Steuersatz und Netto je Zeile, dazu der
+ * anteilige Betrag der Vorsteuer des Satzes (allocateSplitTax). Ohne Zeilen gilt documents.category. Gesperrt mit dem
+ * Beleg und Teil seines Siegels.
+ */
+export const documentSplits = pgTable(
+  "document_splits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id")
+      .notNull()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    /** Reihenfolge wie eingegeben, ab 1 */
+    position: smallint("position").notNull(),
+    category: text("category").notNull(),
+    taxRate: smallint("tax_rate").notNull(),
+    net: integer("net").notNull(),
+    tax: integer("tax").notNull(),
+  },
+  (t) => [uniqueIndex("document_splits_position").on(t.documentId, t.position)],
+);
+
 /** Bankkonten; der Import ordnet Umsätze über die IBAN zu. */
 export const bankAccounts = pgTable(
   "bank_accounts",

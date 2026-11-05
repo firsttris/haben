@@ -1035,6 +1035,94 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.waitForURL(/\/belege$/);
 });
 
+test("Beleg auf mehrere Kategorien aufteilen: Zeilen hinzufügen und entfernen, Summen gegen den Beleg", async ({ browser }) => {
+  // Beispiel aus #271, je 19 %: 100 € Handelsware, 50 € Software, 20 € Bürobedarf = 170 € netto, 32,30 € Vorsteuer
+  await go("/belege");
+  await page
+    .locator("input[type=file][multiple]")
+    .setInputFiles([{ name: "buerohaus.jpg", mimeType: "image/jpeg", buffer: await receiptJpeg(browser, "Bürohaus Nord GmbH") }]);
+  await expect(page.getByText("buerohaus.jpg: abgelegt.")).toBeVisible();
+  await page
+    .getByRole("link", { name: /buerohaus\.jpg/ })
+    .first()
+    .click();
+  await page.waitForURL(/belege\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  await page.getByLabel("Lieferant", { exact: true }).fill("Bürohaus Nord GmbH");
+  await page.getByLabel("Belegdatum").fill(day(-5));
+  await page.getByLabel("Kategorie").selectOption("wareneinkauf");
+  const amounts = page.getByRole("group", { name: "Beträge je Steuersatz" });
+  await amounts.getByLabel("Netto", { exact: true }).fill("170,00");
+  await expect(amounts.getByLabel("Vorsteuer", { exact: true })).toHaveValue("32,30");
+
+  await page.getByRole("button", { name: "Auf mehrere Kategorien aufteilen" }).click();
+  const split = page.getByRole("group", { name: "Aufteilung auf Kategorien" });
+  // Erste Zeile mit der bisherigen Kategorie und dem ganzen Netto, dazu eine leere
+  await expect(split.getByLabel("Kategorie")).toHaveCount(2);
+  await expect(split.getByLabel("Kategorie").first()).toHaveValue("wareneinkauf");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).first().fill("100,00");
+  await split.getByLabel("Kategorie").nth(1).selectOption("software");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).nth(1).fill("50,00");
+  await expect(split.getByText("19 %: Zeilen 150,00 € von 170,00 € netto · noch 20,00 € zu verteilen")).toBeVisible();
+  // Bis eine Kategorie gewählt ist, lässt sich nicht speichern
+  await split.getByRole("button", { name: "+ Zeile" }).click();
+  await expect(page.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  await split.getByLabel("Kategorie").nth(2).selectOption("buero");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).nth(2).fill("20,00");
+  await expect(split.getByText("19 %: Zeilen 170,00 € von 170,00 € netto · stimmt")).toBeVisible();
+  // Vorsteuer anteilig: 19,00 + 9,50 + 3,80 = 32,30
+  await expect(split.getByText("Vorsteuer 19,00")).toBeVisible();
+  await expect(split.getByText("Vorsteuer 9,50")).toBeVisible();
+  await expect(split.getByText("Vorsteuer 3,80")).toBeVisible();
+
+  // Eine vierte Zeile mit gleicher Kategorie und gleichem Satz, wieder entfernt
+  await split.getByRole("button", { name: "+ Zeile" }).click();
+  await split.getByLabel("Kategorie").nth(3).selectOption("software");
+  await split.getByRole("textbox", { name: "Netto", exact: true }).nth(3).fill("5,00");
+  await expect(split.getByText("19 %: Zeilen 175,00 € von 170,00 € netto · 5,00 € zu viel")).toBeVisible();
+  await split.getByRole("button", { name: "Zeile 4 der Aufteilung entfernen" }).click();
+  await expect(split.getByLabel("Kategorie")).toHaveCount(3);
+
+  // Gespeichert und neu geladen: die Zeilen bleiben, nichts fehlt mehr vor dem Buchen
+  await page.getByRole("button", { name: "Speichern" }).click();
+  await expect(page.getByRole("button", { name: "Speichern" })).toBeDisabled();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("aufgeteilt auf 3 Zeilen")).toBeVisible();
+  await expect(split.getByRole("textbox", { name: "Netto", exact: true })).toHaveCount(3);
+  await expect(split.getByRole("textbox", { name: "Netto", exact: true }).nth(2)).toHaveValue("20,00");
+  await expect(page.getByText(/Vor dem Buchen/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Bestätigen und buchen" })).toBeEnabled();
+
+  // Barrierefrei auch mit Aufteilung, am Desktop und am Handy
+  const context = await browser.newContext({ storageState: await page.context().storageState() });
+  const axePage = await context.newPage();
+  for (const width of [1440, 390]) {
+    await axePage.setViewportSize({ width, height: 900 });
+    await axePage.goto(page.url());
+    await axePage.waitForLoadState("networkidle");
+    await expect(axePage.getByRole("group", { name: "Aufteilung auf Kategorien" })).toBeVisible();
+    const { violations } = await new AxeBuilder({ page: axePage })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(
+      violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`),
+      `Beleg mit Aufteilung bei ${width} px`,
+    ).toEqual([]);
+  }
+  await context.close();
+
+  // Aufheben: wieder eine Kategorie, die der ersten Zeile
+  await split.getByRole("button", { name: "Aufteilung aufheben" }).click();
+  await expect(split).toHaveCount(0);
+  await expect(page.getByLabel("Kategorie")).toHaveValue("wareneinkauf");
+  // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern; Buchung, EÜR, UStVA und DATEV prüfen die
+  // Integrationstests in server/modules/belege/splits.test.ts
+  await page.getByRole("button", { name: "Löschen", exact: true }).click();
+  await page.getByRole("button", { name: "Endgültig löschen" }).click();
+  await page.waitForURL(/\/belege$/);
+});
+
 test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser }) => {
   await go("/kontakte/neu");
   await page.getByLabel("Name oder Firma").fill("Hetzner Online GmbH");
