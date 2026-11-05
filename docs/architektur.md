@@ -73,7 +73,8 @@ Die Dienste liegen in `apps/web/src/server/modules/`, ein Ordner je Fachbereich.
 | `elster` | `elster-gateway` (Zugang, Zertifikat und PIN, Sendesperre und Protokoll für jede Übermittlung), `certificate`, `elster` (Datenschutzhinweise der Finanzverwaltung) |
 | `finanzamt` | `finanzamt` (Nachrichten, Bankverbindung), `postfach` (Bescheide abholen), `vast` (Belege der vorausgefüllten Steuererklärung), `berechtigung` (Abrufberechtigung für den Ehegatten), `fristen` (Steuertermine, Kalender-Abo) |
 | `ausschuettung` | `ausschuettung` (Gewinnverwendungsbeschluss, Steuerabzug je Gesellschafter, Storno, Kapitalertragsteuer-Anmeldung), `steuerbescheinigung` (Steuerbescheinigung nach § 45a EStG je Gesellschafter als PDF) |
-| `lohn` | `employees` (Stammdaten der Mitarbeiter), `payroll` (Lohnlauf je Monat, Entwurf, festschreiben, Storno mit neuer Abrechnung), `abrechnung-pdf` (Entgeltabrechnung als PDF), `lohnkonto` (Lohnkonto je Jahr als PDF und CSV), `buchung` (Buchung beim Festschreiben, Gegenbuchung beim Storno, Nachbuchen älterer Abrechnungen); gerechnet wird mit `lohnabrechnung` und `lohnBuchung` in `packages/core` |
+| `lohn` | `employees` (Stammdaten der Mitarbeiter), `payroll` (Lohnlauf je Monat, Entwurf, festschreiben, Storno mit neuer Abrechnung), `abrechnung-pdf` (Entgeltabrechnung als PDF), `lohnkonto` (Lohnkonto je Jahr als PDF und CSV), `buchung` (Buchung beim Festschreiben, Gegenbuchung beim Storno, Nachbuchen älterer Abrechnungen), `sv-daten` (Stammdaten, festgeschriebene Abrechnungen und Zahltage für die Ausfüllliste, nur lesend); gerechnet wird mit `lohnabrechnung` und `lohnBuchung` in `packages/core` |
+| `sv-meldungen` | `liste` (Beitragsnachweise je Monat und Einzugsstelle, DEÜV-Meldungen je Person aus `packages/core`, liest über `lohn`), `vermerke` (Vermerk „im Portal abgegeben“ mit Protokoll, Rücknahme, Vergleich mit der aktuellen Liste), `seite` (Ausfüllliste eines Monats, Fristen für `finanzamt`); übermittelt nichts an die Sozialversicherung |
 | `jahreserklaerung` | `annual` (Umsatzsteuererklärung, Anlage EÜR, Einkommensteuer), `income-tax` (Angaben zur Einkommensteuer) |
 | `auswertungen` | `reports` (EÜR, offene Posten), `abgleich` (Journal gegen Umsatzsteuer und EÜR), `integrity` (Prüfung von Hash-Kette, Siegeln und Abgleich), `datev-export` |
 | `archiv` | `archive` (Umzugsdateien), `export` (Jahresarchiv), `lexoffice` (Import über die API oder eine Sicherung aus der Web-Oberfläche), `legacy-open` (übernommene offene Posten) |
@@ -180,6 +181,7 @@ Alle Tabellen stehen in `apps/web/src/server/db/schema.ts`. Beträge sind ganze 
 | `payslip_cancellations` | Storno einer festgeschriebenen Abrechnung mit Tag und Grund; je Abrechnung höchstens eines | nur anhängen, nur für festgeschriebene, Audit, Siegel |
 | `lsta_turnus` | Anmeldungszeitraum der Lohnsteuer je Jahr, wenn der Nutzer ihn abweichend vom Vorschlag festlegt | änderbar, Audit |
 | `lsta_submissions` | Prüfungen und Übermittlungen der Lohnsteuer-Anmeldung je Zeitraum mit gemeldeten Kennzahlen (JSON), berichtigt, XML, Antwort und Protokoll-PDF | nur anhängen, Audit ohne PDF |
+| `sv_portal_filings` | Vermerke „im SV-Meldeportal abgegeben“ je Beitragsnachweis oder Meldung (`gegenstand`): Tag, Werte der Ausfüllliste beim Vermerk (JSON), Notiz, Protokoll im Dokumentenspeicher (SHA-256, Name, Typ, Größe); eine Rücknahme ist eine neue Zeile mit `revokes_id` | nur anhängen, Rücknahme nur einmal und nur zum selben Gegenstand (Trigger), Audit |
 
 ### Archiv und Umzug
 
@@ -261,7 +263,7 @@ Aufheben legt eine Gegenzeile und eine Gegenbuchung an, statt etwas zu löschen.
 
 ## Dateiablage
 
-Belegdateien, Lexoffice-Dateien, Archivexporte, Bescheide aus dem Postfach und zusätzliche Anhänge von Rechnungen liegen im Dateisystem unter `DOCUMENTS_DIR` (Standard `data/belege`, im Container ein Volume), adressiert über ihren SHA-256: `<DOCUMENTS_DIR>/ab/abcdef…`. Daraus folgt:
+Belegdateien, Lexoffice-Dateien, Archivexporte, Bescheide aus dem Postfach, zusätzliche Anhänge von Rechnungen und Protokolle aus dem SV-Meldeportal liegen im Dateisystem unter `DOCUMENTS_DIR` (Standard `data/belege`, im Container ein Volume), adressiert über ihren SHA-256: `<DOCUMENTS_DIR>/ab/abcdef…`. Daraus folgt:
 
 - Dieselbe Datei wird nur einmal abgelegt; ein zweites Hochladen findet den vorhandenen Beleg.
 - Gelöscht wird eine Datei erst, wenn kein Datensatz sie mehr nutzt (`fileInUse` in `server/db/file-in-use.ts`), etwa beim Löschen eines ungebuchten Belegs oder eines Anhangs im Rechnungsentwurf.

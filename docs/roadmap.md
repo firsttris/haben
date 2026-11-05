@@ -9,7 +9,7 @@ Die Reihenfolge folgt einem Abgleich mit dem Funktionsumfang von Lexware Office 
 | # | Thema | Worum es geht | Aufwand | Stand |
 | --- | --- | --- | --- | --- |
 | 1 | Lohnsteuer-Anmeldung | Über ERiC aus den festgeschriebenen Abrechnungen, mit Anmeldungszeitraum nach § 41a EStG, Frist und Berichtigung ([Lohnsteuer-Anmeldung](lohn.md#lohnsteuer-anmeldung), [Lohn – Umsetzungsplan](lohn-plan.md)) | M | erledigt |
-| 2 | Lohn: Ausfüllliste SV-Meldeportal | Beitragsnachweis und DEÜV-Meldungen zum Abtippen im [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz), mit Fristen und Vermerk „abgegeben“ | S–M | geplant |
+| 2 | Lohn: Ausfüllliste SV-Meldeportal | Beitragsnachweis je Monat und Einzugsstelle und DEÜV-Meldungen (Anmeldung, Abmeldung, Jahresmeldung, Sofortmeldung) zum Abtippen im [SV-Meldeportal](#nicht-machbar-ohne-zertifizierung-oder-lizenz), mit Fristen und Vermerk „im Portal abgegeben“ samt Protokoll ([SV-Meldeportal](lohn.md#sv-meldeportal)) | S–M | erledigt |
 | 3 | Lohn: Lohnsteuerbescheinigung | Elektronische Lohnsteuerbescheinigung über ERiC bis Ende Februar des Folgejahres | M | geplant |
 | 4 | E-Bilanz-Taxonomie 6.10 | Neue Taxonomie ab Wirtschaftsjahr 2027 mit Kontennachweis zu Bilanz und GuV ([Buchhaltung](buchhaltung.md)) | M | geplant |
 | 5 | Voranmeldung als offener Posten | Abgabe außerhalb von Haben vermerken (Datum, Transferticket, Protokoll; danach festgeschrieben, Frist erledigt, Kennzahlen geprüft) und Zahllast bzw. Erstattung als offenen Posten mit Fälligkeit im Bankabgleich zuordnen, mit Dauerfristverlängerung, Teilzahlung und Berichtigung (Säumniszuschläge bleiben Betriebsausgaben); Protokoll im Jahresarchiv | M | geplant |
@@ -48,7 +48,7 @@ Sinnvoll, aber nicht jetzt: eigene Drucklayouts (Schrift, Fußzeile in Spalten, 
 
 | Thema | Warum nicht | Was Haben stattdessen tut |
 | --- | --- | --- |
-| Meldungen an die Sozialversicherung, Beitragsnachweise, Erstattungsanträge | Nur aus systemgeprüften Programmen (§ 95b SGB IV, Prüfung durch die ITSG) | Werte zum Eintragen im SV-Meldeportal der ITSG |
+| Meldungen an die Sozialversicherung, Beitragsnachweise, Erstattungsanträge | Nur aus systemgeprüften Programmen (§ 95b SGB IV, Prüfung durch die ITSG) | [Ausfüllliste](lohn.md#sv-meldeportal) zum Eintragen im SV-Meldeportal der ITSG |
 | Eigenes Geschäftskonto | Banklizenz | Abruf bestehender Konten über Enable Banking |
 | DATEV-Online-Schnittstellen | Kostenpflichtige Partnerschaft mit DATEV | DATEV-Export (Buchungsstapel) |
 | Hinterlegung des Jahresabschlusses als XML oder XBRL | Schema und XBRL-Vorgaben des Bundesanzeiger Verlags gibt es nur nach einer Freischaltung, ihre Nutzungsbedingungen untersagen die Weitergabe; die Testplattform nur auf Anfrage ([Hinterlegung](buchhaltung.md#xml-oder-xbrl-statt-pdf)) | Bilanz als PDF, das das Register gegen ein Entgelt je Zeichen umwandelt, oder Abtippen im Webformular |
