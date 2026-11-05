@@ -47,7 +47,7 @@ Wähle Monat und Jahr, trage den **Zahltag** ein und klicke **Monat abrechnen**.
 
 Der Entwurf zeigt Brutto, Steuern, den Anteil zur Sozialversicherung, Netto, Auszahlung und was der Arbeitgeber zusätzlich trägt. **Entwurf ansehen (PDF)** zeigt die Entgeltabrechnung mit dem Vermerk „Entwurf“. Ändern sich danach die Stammdaten, rechnest du den Entwurf neu; ein Entwurf lässt sich auch löschen.
 
-**Festschreiben** setzt das PDF, speichert es mit der Abrechnung und sperrt beides. Haben lehnt das Festschreiben ab, solange für die Entgeltbescheinigung etwas fehlt (Anschrift, Steuer-ID, bei Sozialversicherung Versicherungsnummer, Personengruppe, Beitragsgruppen und Einzugsstelle) oder die Stammdaten seit dem Entwurf geändert sind. In Stufe C setzt du vorher den Haken „gegengeprüft“.
+**Festschreiben** setzt das PDF, speichert es mit der Abrechnung und sperrt beides. Haben lehnt das Festschreiben ab, solange für die Entgeltbescheinigung etwas fehlt (Anschrift, Steuer-ID, bei Sozialversicherung Versicherungsnummer, Personengruppe, Beitragsgruppen und Einzugsstelle) oder die Stammdaten seit dem Entwurf geändert sind. Ebenso, wenn die Rechnung jetzt ein anderes Ergebnis ergäbe, etwa weil sich das Bundesland in den Firmendaten geändert hat (Kirchensteuersatz, Pflegeversicherung in Sachsen); dann rechnest du den Entwurf neu. In Stufe C setzt du vorher den Haken „gegengeprüft“.
 
 Festgeschriebene Abrechnungen sind wie Rechnungen und Buchungen in der Datenbank gesperrt und versiegelt; jede Änderung an Stammdaten, Lohnlauf und Abrechnung steht im Änderungsprotokoll (siehe [GoBD](buchhaltung.md#gobd-unveränderbarkeit-in-der-datenbank)).
 
@@ -68,7 +68,7 @@ Das Kirchensteuermerkmal darf der Beschäftigte schwärzen (§ 2 Abs. 2 EntgBV).
 
 ## Lohnkonto
 
-Für jeden Mitarbeiter und jedes Jahr führt Haben das Lohnkonto (§ 41 Abs. 1 EStG) aus den festgeschriebenen Abrechnungen, als **PDF** oder **CSV** in der Mitarbeiterliste und auf der Seite des Mitarbeiters. Es enthält die Angaben nach § 4 LStDV: Name, Geburtstag, Wohnung, die Besteuerungsmerkmale (je Abrechnung, so ist eine Änderung im Jahr zu sehen) und je Lohnzahlung Tag, Zeitraum, Arbeitslohn, Lohnsteuer, Soli, Kirchensteuer, pauschal besteuerte Bezüge mit Pauschsteuer und die Beiträge zur Sozialversicherung. Ein Storno steht mit negativen Beträgen am Tag des Stornos.
+Für jeden Mitarbeiter und jedes Jahr führt Haben das Lohnkonto (§ 41 Abs. 1 EStG) aus den festgeschriebenen Abrechnungen, als **PDF** oder **CSV** in der Mitarbeiterliste und auf der Seite des Mitarbeiters. Es enthält die Angaben nach § 4 LStDV: Name, Geburtstag, Wohnung, die Besteuerungsmerkmale (je Abrechnung, so ist eine Änderung im Jahr zu sehen) und je Lohnzahlung Tag, Zeitraum, Arbeitslohn, Lohnsteuer, Soli, Kirchensteuer, pauschal besteuerte Bezüge mit Pauschsteuer und die Beiträge zur Sozialversicherung. Die Spalte der Arbeitgeberbeiträge enthält Anteile und Umlagen, die Pauschsteuer steht nur in ihrer eigenen Spalte. Ein Storno steht mit negativen Beträgen am Tag des Stornos.
 
 Aufbewahren musst du das Lohnkonto bis zum Ablauf des sechsten Kalenderjahres nach der letzten Lohnzahlung (§ 41 Abs. 1 Satz 9 EStG); das PDF nennt das Datum.
 

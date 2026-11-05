@@ -51,7 +51,8 @@ function zeilen(a: Abrechnung): LohnkontoZeile[] {
     kirchensteuer: a.kirchensteuer,
     pauschsteuer: a.pauschsteuer,
     svArbeitnehmer: a.svArbeitnehmer,
-    svArbeitgeber: a.svArbeitgeber,
+    // `svArbeitgeber` der Abrechnung enthält die Pauschsteuer; sie hat im Lohnkonto ihre eigene Spalte
+    svArbeitgeber: a.svArbeitgeber - a.pauschsteuer,
     netto: a.netto,
   };
   if (!a.storno) return [zeile];
