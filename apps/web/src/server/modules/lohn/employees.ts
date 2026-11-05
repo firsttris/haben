@@ -117,8 +117,9 @@ export async function getEmployee(id: string, q: Db | Tx = db): Promise<Employee
 /** Legt einen Mitarbeiter an (id null) oder ändert ihn; gibt die id zurück */
 export async function saveEmployee(actor: string, id: string | null, input: EmployeeInput): Promise<string> {
   const data = employeeSchema.parse(input);
-  // Wie die Buchung (lohnBuchung in @haben/core): im Einzelunternehmen ist der Lohn des Inhabers eine Entnahme
-  if (data.art === "ggf" && !isKapitalgesellschaft((await loadCompany()).rechtsform)) {
+  // Wie die Buchung (lohnBuchung in @haben/core): im Einzelunternehmen ist der Lohn des Inhabers eine Entnahme. Ein
+  // Bestand aus der Zeit vor der Rechtsform bleibt änderbar, etwa für den Austritt; das Formular bietet seine Art weiter an.
+  if (data.art === "ggf" && !isKapitalgesellschaft((await loadCompany()).rechtsform) && (!id || (await getEmployee(id))?.art !== "ggf")) {
     throw new LohnError("Einen Gesellschafter-Geschäftsführer gibt es nur in GmbH und UG; im Einzelunternehmen ist der Lohn des Inhabers eine Entnahme.");
   }
   return withActor(actor, async (tx) => {
