@@ -1718,7 +1718,16 @@ test("Eigene Seiten: im Menü einhängen, im Rahmen anzeigen, ändern und entfer
 });
 
 test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async () => {
-  await go("/lohn");
+  // Ohne Mitarbeiter kein SV-Meldeportal im Menü; die Seite selbst bleibt erreichbar und verweist auf Lohn
+  const personal = page.getByRole("navigation", { name: "Hauptnavigation" }).getByRole("group", { name: "Personal" });
+  await go("/sv-meldeportal");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("SV-Meldeportal");
+  await expect(personal.getByRole("link")).toHaveText(["Lohn"]);
+  const { violations } = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"]).analyze();
+  expect(violations, "/sv-meldeportal ohne Mitarbeiter").toEqual([]);
+  await page.getByRole("main").getByRole("link", { name: "Lohn", exact: true }).click();
+  await page.waitForURL(/\/lohn$/);
+  await page.waitForLoadState("networkidle");
   await page.getByRole("link", { name: "Mitarbeiter anlegen" }).click();
   await page.waitForURL("**/lohn/mitarbeiter/neu");
   await page.waitForLoadState("networkidle");
@@ -1739,6 +1748,7 @@ test("Lohn: Minijob anlegen und den laufenden Monat abrechnen", async () => {
   await form.getByRole("button", { name: "Mitarbeiter anlegen" }).click();
   await page.waitForURL(/\/lohn$/);
   await expect(page.getByRole("link", { name: "Jonas Aushilfe", exact: true })).toBeVisible();
+  await expect(personal.getByRole("link")).toHaveText(["Lohn", "SV-Meldeportal"]);
 
   // Minijob mit Pauschsteuer: keine Lohnsteuer, der Beschäftigte trägt 3,6 % zur Rentenversicherung (520 € → 18,72 €)
   await page.getByRole("button", { name: "Monat abrechnen" }).click();
