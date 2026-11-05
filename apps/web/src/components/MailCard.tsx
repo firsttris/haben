@@ -62,6 +62,7 @@ export function MailCard({ data }: { data: Data }) {
           username: text("username"),
           password: text("password") || undefined,
           fromAddress: text("fromAddress"),
+          fromName: text("fromName"),
           reminderTo: text("reminderTo"),
           remindersEnabled: form.get("remindersEnabled") === "on",
           reminderDays: days,
@@ -120,7 +121,14 @@ export function MailCard({ data }: { data: Data }) {
           Absender
           <input name="fromAddress" type="email" defaultValue={s?.fromAddress ?? ""} required />
         </label>
-        <label className="field" style={{ gridColumn: "1 / -1" }}>
+        <label className="field">
+          Absendername
+          <input name="fromName" defaultValue={s?.fromName ?? ""} placeholder={data.companyName || "Haben"} aria-describedby="mail-from-name-hint" />
+          <span id="mail-from-name-hint" className="small muted">
+            Leer lassen für den Firmennamen
+          </span>
+        </label>
+        <label className="field">
           Erinnerungen an
           <input name="reminderTo" type="email" defaultValue={s?.reminderTo ?? ""} required />
         </label>

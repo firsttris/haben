@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { deleteMailSettings, lastMails, mailSettingsSchema, mailSettingsSummary, saveMailSettings, sendTestMail, SMTP_PRESETS } from "../modules/mail/index.ts";
+import { loadCompany } from "../modules/stammdaten/index.ts";
 import { authMiddleware } from "../middleware.ts";
 
 export const getMailSettings = createServerFn({ method: "GET" })
@@ -8,6 +9,8 @@ export const getMailSettings = createServerFn({ method: "GET" })
     settings: await mailSettingsSummary(),
     presets: SMTP_PRESETS,
     last: await lastMails(),
+    /** Vorgabe für den Absendernamen, solange keiner eingetragen ist */
+    companyName: (await loadCompany()).name,
   }));
 
 export const saveMail = createServerFn({ method: "POST" })
