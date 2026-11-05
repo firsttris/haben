@@ -88,6 +88,16 @@ describe.skipIf(!testDatabaseUrl)("CSV-Import (Postgres)", () => {
     await expect(csv.runCsvImport(actor, bytes(KONTAKTE), options("kontakte"))).rejects.toThrow("Nichts zu übernehmen");
   });
 
+  it("Kontakte: eine automatische Kundennummer nimmt keine Nummer, die weiter unten in derselben Datei steht", async () => {
+    const file = "Kundennummer;Firmenname\n;Ohne Nummer GmbH\nK-1;Mit Nummer GmbH\n";
+    expect(await csv.runCsvImport(actor, bytes(file), options("kontakte"))).toEqual({ created: 2, duplicates: 0, failed: 0 });
+    const rows = await sql`select name, kundennummer from contacts order by name`;
+    expect(rows.map((r) => ({ ...r }))).toEqual([
+      { name: "Mit Nummer GmbH", kundennummer: "K-1" },
+      { name: "Ohne Nummer GmbH", kundennummer: "K-2" },
+    ]);
+  });
+
   it("legt alle Zeilen in einer Transaktion an: scheitert eine in der Datenbank, bleibt keine", async () => {
     await sql`alter table articles add constraint test_kein_kaputt check (description <> 'Kaputt')`;
     try {
@@ -112,6 +122,16 @@ describe.skipIf(!testDatabaseUrl)("CSV-Import (Postgres)", () => {
     const [row] = await sql`select description, unit, unit_price, tax_rate, price_includes_tax from articles where number = 'A-2'`;
     expect({ ...row }).toEqual({ description: "Übersetzung", unit: "Psch.", unit_price: 120000, tax_rate: 700, price_includes_tax: false });
     await expect(csv.previewCsvImport(file, options("artikel", { mapping: { number: 0, description: 0 } }))).rejects.toThrow(/Artikelnummer und Bezeichnung/);
+  });
+
+  it("Artikel: eine Zeile ohne Nummer ist Dublette eines gleichnamigen Artikels mit Nummer; mit anderer Nummer nicht", async () => {
+    await sql`insert into articles (number, description, unit, unit_price, tax_rate) values ('A-1', 'Beratung', 'Std.', 100, 1900)`;
+    const file = "Artikelnummer;Bezeichnung;Nettopreis;Steuersatz\n;beratung;95,00;19\nB-2;Beratung;95,00;19\n";
+    const preview = await csv.previewCsvImport(bytes(file), options("artikel"));
+    expect(preview.rows.map((r) => [r.status, r.message])).toEqual([
+      ["dublette", "Gibt es schon (Bezeichnung beratung)"],
+      ["neu", null],
+    ]);
   });
 
   const ANLAGEN = [

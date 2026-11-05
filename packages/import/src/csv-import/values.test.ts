@@ -14,8 +14,18 @@ describe("parseImportAmount", () => {
 
   it("liest einen Punkt nur als Dezimalpunkt, wenn das eindeutig ist", () => {
     expect(value(parseImportAmount("12.50", "Preis"))).toBe(1250);
-    // Deutsch gelesen: tausendzweihundertvierunddreißig Euro, nicht 1,23 €
-    expect(value(parseImportAmount("1.234", "Preis"))).toBe(123400);
+    expect(value(parseImportAmount("1.234.567", "Preis"))).toBe(123456700);
+    expect(value(parseImportAmount("1.234,00", "Preis"))).toBe(123400);
+  });
+
+  it("lehnt „1.234“ ab: deutsch 1.234 €, englisch 1,234 € – lieber ablehnen als tausendfach falsch übernehmen", () => {
+    expect(value(parseImportAmount("1.234", "Preis"))).toMatch(/mehrdeutig/);
+    expect(value(parseImportAmount("-1.500 €", "Preis"))).toMatch(/mehrdeutig/);
+  });
+
+  it("rundet nicht: mehr als zwei Nachkommastellen sind kein Centbetrag", () => {
+    expect(value(parseImportAmount("12,345", "Preis"))).toMatch(/kein Betrag/);
+    expect(value(parseImportAmount("12.345,678", "Preis"))).toMatch(/kein Betrag/);
   });
 
   it("lehnt englische Tausendertrenner und Text ab", () => {

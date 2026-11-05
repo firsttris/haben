@@ -1801,6 +1801,11 @@ test("CSV-Import: Kontakte, Artikel und Anlagen mit Vorschau, Zuordnung und Dubl
   await page.getByLabel("CSV-Datei").setInputFiles([{ name: "anlagen.csv", mimeType: "text/csv", buffer: Buffer.from(anlagen) }]);
   await page.getByRole("button", { name: "Vorschau" }).click();
   await expect(page.getByRole("region", { name: "Vorschau" })).toContainText("als Beleg mit der Kategorie Anlagegut buchen");
+  // Ein anderer Stichtag nach der Vorschau gilt nicht ungesehen: Der Import übernähme sonst andere Werte als gezeigt
+  await page.getByLabel("Übernahmestichtag").fill(`${YEAR - 1}-01-01`);
+  await expect(page.getByRole("button", { name: "1 Anlage übernehmen" })).toHaveCount(0);
+  await page.getByLabel("Übernahmestichtag").fill(`${YEAR}-01-01`);
+  await page.getByRole("button", { name: "Vorschau" }).click();
   await page.getByRole("button", { name: "1 Anlage übernehmen" }).click();
   await expect(page.getByRole("status").filter({ hasText: "übernommen" })).toHaveText("1 Anlage übernommen, 1 fehlerhafte Zeile übersprungen.");
   await go(`/anlagen?jahr=${YEAR}`);

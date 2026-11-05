@@ -65,6 +65,15 @@ describe("Kontakte", () => {
     expect(rows[4]!.errors).toEqual([expect.stringMatching(/^Ort: beginnt mit „=“/)]);
   });
 
+  it("lehnt eine Zeile mit mehr Werten als Spalten ab: ein Trennzeichen ohne Anführungszeichen verschiebt die Werte", () => {
+    const { t, mapping } = mapped("Firma;Ort\nMüller; Söhne GmbH;Köln\nA GmbH;Köln;\n", CONTACT_FIELDS);
+    const rows = contactCandidates(t, mapping);
+    expect(rows[0]!.value).toBeNull();
+    expect(rows[0]!.errors).toEqual([expect.stringContaining("3 Werte, die Kopfzeile 2 Spalten")]);
+    // Ein leerer Wert am Ende, wie ihn manche Programme schreiben, verschiebt nichts
+    expect(rows[1]!.errors).toEqual([]);
+  });
+
   it("liest die Rolle aus der Spalte, auch beides", () => {
     const { t, mapping } = mapped("Name;Typ\nA;Kunde\nB;Lieferant\nC;Kunde und Lieferant\nD;Partner\n", CONTACT_FIELDS);
     const rows = contactCandidates(t, mapping);
