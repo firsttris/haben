@@ -1,4 +1,5 @@
 import { ACCOUNTS } from "@haben/core";
+import { unzipSync } from "fflate";
 import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
@@ -221,6 +222,20 @@ describe.skipIf(!testDatabaseUrl)("Bareinnahme auf eine Rechnung (Postgres)", ()
       }, 60_000);
     }
   }
+
+  it("Jahresarchiv: Skonto zu einer Bareinnahme nennt die Zeile im Kassenbuch, wie die Umsatz-ID bei der Bank", async () => {
+    await company("SKR03", "ist", [{ days: 10, percent: 200 }]);
+    const invoice = await finalInvoice();
+    const entry = await cash.createCashInvoiceEntry(actor, { invoiceId: invoice.id, date: "2026-10-02", amount: 466_480, skonto: true }, today);
+    const exporter = await import("../archiv/export.ts");
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of exporter.exportYear(2026, new Date("2026-10-06T10:00:00Z"))) chunks.push(chunk);
+    const files = unzipSync(Buffer.concat(chunks));
+    const name = Object.keys(files).find((f) => f.endsWith("bank/ausbuchungen.csv"));
+    const [header, line] = new TextDecoder().decode(files[name ?? ""]).trim().split(/\r?\n/);
+    expect(header?.split(";").at(-1)).toBe("Kassenbuch-Nr.");
+    expect(line?.split(";").at(-1)).toBe(String(entry.number));
+  }, 60_000);
 
   it("Stornorechnung, stornierte Rechnung und Entwurf lassen sich nicht bar kassieren; die Datenbank prüft die Rechnung", async () => {
     await company("SKR03", "ist");
