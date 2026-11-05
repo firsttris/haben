@@ -128,7 +128,8 @@ test("Einladung, lesen ja, ändern nein, sperren", async ({ page: owner, browser
   await expect(owner.getByRole("button", { name: "Zurückziehen" }).first()).toBeVisible();
 
   // Der Inhaber sieht die Anmeldung und sperrt den Zugang; die Sitzung endet sofort
-  const row = owner.locator(".history-row", { hasText: KANZLEI.email });
+  // Die Zeile des Kontos, nicht die der eingelösten Einladung darunter
+  const row = owner.locator(".history-row", { hasText: KANZLEI.email }).filter({ hasText: "Steuerberatung" });
   await expect(row).toContainText("zuletzt angemeldet");
   await row.getByRole("button", { name: "Sperren" }).click();
   await expect(row).toContainText("gesperrt");

@@ -80,7 +80,7 @@ function Aenderungen({ data }: { data: Data["aenderungen"] }) {
           Seitdem hat sich nichts geändert.
         </p>
       ) : (
-        <ul className="stack" style={{ gap: 4, margin: 0, paddingLeft: 20 }}>
+        <ul className="stack" style={{ gap: 12, margin: 0, paddingLeft: 20 }}>
           {rows
             .filter((row) => row.n > 0)
             .map((row) => (
