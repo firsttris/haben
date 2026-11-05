@@ -162,6 +162,9 @@ const draftApiFields = {
   serviceFrom: draftFields.serviceFrom,
   serviceTo: draftFields.serviceTo,
   paymentTermDays: draftFields.paymentTermDays.describe("Zahlungsziel in Tagen, Vorgabe aus den Firmendaten"),
+  skonto: draftFields.skonto.describe(
+    "Skontostufen: Frist in Tagen ab Rechnungsdatum (höchstens das Zahlungsziel) und Satz in Basispunkten (200 = 2 %); [] = ohne Skonto. Vorgabe vom Kontakt, sonst aus den Firmendaten; nur in Euro",
+  ),
   format: draftFields.format.describe("Vorgabe: Standardformat des Kontakts, mit Leitweg-ID XRechnung, sonst aus den Firmendaten"),
   intro: draftFields.intro.describe("Kopftext über den Positionen, Vorgabe aus den Firmendaten"),
   note: draftFields.note.describe("Fußtext unter den Summen"),
@@ -237,6 +240,7 @@ export const invoiceSchema = z
     serviceFrom: isoDate.nullable(),
     serviceTo: isoDate.nullable(),
     paymentTermDays: z.number().int(),
+    skonto: z.array(z.object({ days: z.number().int(), percent: z.number().int() })).describe("Skontostufen: Frist in Tagen, Satz in Basispunkten"),
     format: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     intro: z.string(),
     note: z.string(),

@@ -2,6 +2,7 @@ import type { z } from "zod";
 import {
   createDraftForReference,
   createDraft,
+  defaultSkonto,
   deleteDraft,
   draftInputOf,
   draftSchema,
@@ -12,7 +13,7 @@ import {
   type Invoice,
   type InvoiceLine,
 } from "../rechnungen/index.ts";
-import { getContact, type Contact } from "../stammdaten/index.ts";
+import { getContact, loadCompany, type Contact } from "../stammdaten/index.ts";
 import { fail, noContent, notFound, ok, validate, type ApiRequest, type ApiResult } from "./http.ts";
 import { draftCreateSchema, draftPatchSchema, invoiceQuerySchema, type invoiceSchema, type invoiceSummarySchema } from "./schemas.ts";
 
@@ -55,6 +56,7 @@ function invoiceOut(row: ListRow, invoice: Invoice, lines: InvoiceLine[], baseUr
     serviceFrom: invoice.serviceFrom,
     serviceTo: invoice.serviceTo,
     paymentTermDays: invoice.paymentTermDays,
+    skonto: invoice.skonto,
     format: invoice.format,
     intro: invoice.intro,
     note: invoice.note,
@@ -125,7 +127,7 @@ export async function getInvoiceHandler(request: ApiRequest): Promise<ApiResult>
 }
 
 /**
- * Neuer Entwurf mit den Vorgaben der Oberfläche (Zahlungsziel, Format, Steuer aus den Firmendaten). Mit externer
+ * Neuer Entwurf mit den Vorgaben der Oberfläche (Zahlungsziel, Skonto, Format, Steuer aus den Firmendaten). Mit externer
  * Referenz idempotent: gibt es sie schon, kommt diese Rechnung unverändert mit 200 zurück statt eines Duplikats.
  */
 export async function createInvoiceHandler(request: ApiRequest): Promise<ApiResult> {
@@ -135,7 +137,13 @@ export async function createInvoiceHandler(request: ApiRequest): Promise<ApiResu
   if (problem) return problem;
   const contact = shape.data.contactId ? (await getContact(shape.data.contactId))?.contact : undefined;
   const { externalSource, externalId, ...fields } = request.body as Record<string, unknown>;
-  const input = validate(draftSchema, { ...(await newDraftDefaults(request.today)), ...contactDefaults(contact), ...fields });
+  const merged = { ...(await newDraftDefaults(request.today)), ...contactDefaults(contact), ...fields };
+  // Skonto ohne Angabe wie im Editor: vom Kunden, sonst aus den Firmendaten, passend zum Zahlungsziel; in Fremdwährung keins
+  if (shape.data.skonto === undefined) {
+    const euro = (shape.data.currency ?? "EUR") === "EUR";
+    merged.skonto = euro ? defaultSkonto(await loadCompany(), contact, merged.paymentTermDays) : [];
+  }
+  const input = validate(draftSchema, merged);
   if ("failure" in input) return input.failure;
   const reference =
     shape.data.externalSource && shape.data.externalId ? { externalSource: shape.data.externalSource, externalId: shape.data.externalId } : null;

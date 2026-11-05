@@ -27,6 +27,7 @@ import { loadLetterhead } from "../stammdaten/index.ts";
 import { documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { draftLineSchema } from "./draft-line.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
+import { defaultSkonto } from "./skonto.ts";
 
 /**
  * Angebote: eigener Nummernkreis (AN-2026-001), PDF mit der Rechnungsvorlage, keine Buchung.
@@ -348,7 +349,7 @@ export async function setQuoteDecision(actor: string, id: string, decision: "ang
 
 /**
  * Rechnungsentwurf aus dem Angebot: Kunde, Positionen, Leistungszeitraum und Umsatzsteuer übernommen,
- * Datum heute, Zahlungsziel und Format wie bei neuen Rechnungen. Das Angebot gilt damit als angenommen.
+ * Datum heute, Zahlungsziel, Skonto und Format wie bei neuen Rechnungen. Das Angebot gilt damit als angenommen.
  * Entwurf und Verknüpfung entstehen in einer Transaktion mit gesperrtem Angebot.
  *
  * - `abschlag`: Abschlagsrechnung mit einer Position „Abschlag gemäß Angebot …“, den Betrag trägst du ein. Das Angebot
@@ -387,6 +388,7 @@ export async function quoteToInvoice(actor: string, id: string, today: string, v
       serviceFrom: locked.serviceFrom,
       serviceTo: locked.serviceTo,
       paymentTermDays: company.paymentTermDays,
+      skonto: defaultSkonto(company, contact, company.paymentTermDays),
       format: contact?.defaultFormat ?? (contact?.leitwegId ? "xrechnung-cii" : company.defaultFormat),
       intro: locked.intro,
       note: texts(locked.language).fromQuote(locked.number ?? "", texts(locked.language).date(locked.issueDate)),

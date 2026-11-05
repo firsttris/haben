@@ -28,6 +28,7 @@ import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
 import { McpCard } from "../../components/McpCard.tsx";
 import { NoticeBanner } from "../../components/NoticeBanner.tsx";
+import { parseSkontoRows, SkontoFields, toSkontoRows } from "../../components/SkontoFields.tsx";
 import { authClient } from "../../lib/auth-client.ts";
 import { formatDate } from "../../lib/format.ts";
 import { FORMAT_LABEL, FORMATS } from "../../lib/invoice.ts";
@@ -170,12 +171,15 @@ function CompanyForm() {
   // Steuert, was nur ein Einzelunternehmen hat: Einkunftsart der EÜR und Privatanteile
   const [rechtsform, setRechtsform] = useState<Rechtsform>(company.rechtsform);
   const gesellschaft = isKapitalgesellschaft(rechtsform);
+  const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(company.skonto));
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const text = (name: string) => String(form.get(name) ?? "");
+    const skonto = parseSkontoRows(skontoRows);
     void run(async () => {
+      if (!skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
       await save({
         data: {
           name: text("name"),
@@ -202,6 +206,7 @@ function CompanyForm() {
           kontoinhaber: text("kontoinhaber"),
           kontenrahmen: text("kontenrahmen") === "SKR04" ? "SKR04" : "SKR03",
           paymentTermDays: Number(text("paymentTermDays") || 14),
+          skonto: skonto.stufen,
           defaultFormat: (text("defaultFormat") || "zugferd") as "zugferd" | "xrechnung-cii" | "xrechnung-ubl",
           invoiceIntro: text("invoiceIntro"),
           quoteIntro: text("quoteIntro"),
@@ -518,6 +523,12 @@ function CompanyForm() {
             </select>
           </label>
         </div>
+        <SkontoFields
+          id="company-skonto"
+          rows={skontoRows}
+          onChange={setSkontoRows}
+          hint="Vorgabe für neue Rechnungen, z. B. 2 % bei Zahlung innerhalb von 10 Tagen; am Kunden und in der Rechnung änderbar. Die Frist zählt ab dem Rechnungsdatum und endet spätestens mit dem Zahlungsziel."
+        />
         <div className="form-row cols-2">
           <label className="field">
             Standard-Einleitung für Rechnungen

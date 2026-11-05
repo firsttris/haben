@@ -27,6 +27,8 @@ import {
   invoiceOpen,
   type InvoiceListStatus,
   legalInfo,
+  skontoProblem,
+  sortSkonto,
 } from "@haben/core";
 import { buildEInvoice, texts, validateForFormat, type Buyer, type InvoiceDocument, type InvoiceFormat, type Seller } from "@haben/einvoice";
 import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
@@ -39,6 +41,7 @@ import { invoiceLosses, invoicePayments, invoiceWrittenOff } from "../bank/index
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { draftLineSchema } from "./draft-line.ts";
+import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
@@ -58,6 +61,8 @@ export const draftSchema = z
     serviceFrom: isoDate.nullable(),
     serviceTo: isoDate.nullable(),
     paymentTermDays: z.number().int().min(0).max(120),
+    /** Skontostufen (Frist in Tagen, Satz in Basispunkten); nur bei Rechnungen in Euro */
+    skonto: draftSkontoSchema,
     format: z.enum(["zugferd", "xrechnung-cii", "xrechnung-ubl"]),
     /** Einleitung über den Positionen, etwa aus einem Textbaustein */
     intro: z.string().max(2000).default(""),
@@ -93,6 +98,13 @@ export const draftSchema = z
   .refine((d) => !d.serviceFrom || !d.serviceTo || d.serviceFrom <= d.serviceTo, {
     message: "Leistungszeitraum endet vor seinem Beginn",
     path: ["serviceTo"],
+  })
+  .superRefine((d, ctx) => {
+    if (d.skonto.length === 0) return;
+    // Der Bankabgleich erkennt Skonto am Betrag in Euro; bei Fremdwährung stimmt der nach dem Kurs nicht
+    if (d.currency !== "EUR") ctx.addIssue({ code: "custom", message: "Skonto gibt es nur bei Rechnungen in Euro.", path: ["skonto"] });
+    const problem = skontoProblem(d.skonto, d.paymentTermDays);
+    if (problem) ctx.addIssue({ code: "custom", message: problem, path: ["skonto"] });
   });
 
 export type DraftInput = z.input<typeof draftSchema>;
@@ -462,6 +474,7 @@ function draftValues(input: DraftInput, bundesland: Company["bundesland"], lines
     serviceTo: input.serviceTo,
     paymentTermDays: input.paymentTermDays,
     dueDate: invoiceDueDate(input.issueDate, input.paymentTermDays, bundesland),
+    skonto: sortSkonto(input.skonto ?? []),
     format: input.format,
     intro: input.intro ?? "",
     note: input.note,
@@ -522,7 +535,8 @@ export async function updateDraft(actor: string, id: string, input: DraftInput) 
     // Eine Korrektur rechnet wie die ursprüngliche Rechnung, netto oder brutto
     const rate = await draftRate(tx, input, draft.correctsId, draft);
     const { values, calculation, taxes } = draftValues(
-      draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode, quoteId: null },
+      // Storno und Korrektur zahlt der Kunde nicht, also auch kein Skonto
+      draft.kind === "rechnung" ? input : { ...input, priceMode: draft.priceMode, quoteId: null, skonto: [] },
       bundesland,
       lines,
       rate,
@@ -556,6 +570,7 @@ export async function newDraftDefaults(today: string) {
     serviceFrom: null,
     serviceTo: null,
     paymentTermDays: company.paymentTermDays,
+    skonto: defaultSkonto(company, null, company.paymentTermDays),
     format: company.defaultFormat,
     intro: company.invoiceIntro,
     note: "",
@@ -714,6 +729,7 @@ function documentFor(
     issueDate: invoice.issueDate,
     dueDate: invoice.dueDate,
     paymentTermDays: invoice.paymentTermDays,
+    ...(invoice.kind === "rechnung" && invoice.skonto.length > 0 ? { skonto: invoice.skonto } : {}),
     ...(invoice.serviceFrom ? { serviceFrom: invoice.serviceFrom } : {}),
     ...(invoice.serviceTo ? { serviceTo: invoice.serviceTo } : {}),
     currency: invoice.currency,

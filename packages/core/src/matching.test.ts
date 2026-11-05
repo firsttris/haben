@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { skontoFristen } from "./skonto.ts";
 import { purposeContainsNumber, suggestMatches, transactionHasReference, type OpenItem } from "./matching.ts";
 
 const invoice = (over: Partial<OpenItem> = {}): OpenItem => ({
@@ -33,6 +34,46 @@ describe("suggestMatches", () => {
     const [best] = suggestMatches({ ...tx, amount: 200_000, counterpartyIban: null }, [invoice()]);
     expect(best?.reasons).toContain("Teilbetrag des offenen Betrags");
     expect(best?.amount).toBe(200_000);
+  });
+
+  describe("Skonto auf eigene Rechnungen", () => {
+    // Rechnung vom 05.09.2026 über 4.760,00 €: 2 % in 10 Tagen (bis 15.09.), 1 % in 20 Tagen (bis 25.09.)
+    const skonto = skontoFristen(
+      [
+        { days: 10, percent: 200 },
+        { days: 20, percent: 100 },
+      ],
+      "2026-09-05",
+      476_000,
+    );
+    const withSkonto = invoice({ skonto });
+
+    it("Zahlung in der Frist um das Skonto gekürzt: Vorschlag mit dem Rest als Skonto", () => {
+      const [best] = suggestMatches({ ...tx, bookingDate: "2026-09-15", amount: 466_480 }, [withSkonto]);
+      expect(best?.reasons[0]).toBe("Betrag stimmt mit 2\u00a0% Skonto (95,20\u00a0€), in der Frist");
+      expect(best?.score).toBe(50 + 40 + 30 + 15);
+      expect(best).toMatchObject({ amount: 466_480, skonto: 9_520 });
+      // Die zweite Stufe bis zu ihrem letzten Tag
+      expect(suggestMatches({ ...tx, bookingDate: "2026-09-25", amount: 471_240 }, [withSkonto])[0]?.skonto).toBe(4_760);
+    });
+
+    it("nach der Frist oder mit anderem Betrag nur ein Teilbetrag, ohne Skonto", () => {
+      const [late] = suggestMatches({ ...tx, bookingDate: "2026-09-16", amount: 466_480 }, [withSkonto]);
+      expect(late?.reasons[0]).toBe("Teilbetrag des offenen Betrags");
+      expect(late?.skonto).toBeUndefined();
+      expect(suggestMatches({ ...tx, bookingDate: "2026-09-10", amount: 466_481 }, [withSkonto])[0]?.skonto).toBeUndefined();
+      // Voller Betrag: kein Skonto
+      expect(suggestMatches({ ...tx, bookingDate: "2026-09-10" }, [withSkonto])[0]).toMatchObject({
+        amount: 476_000,
+        reasons: expect.arrayContaining(["Betrag stimmt exakt"]),
+      });
+      expect(suggestMatches({ ...tx, bookingDate: "2026-09-10" }, [withSkonto])[0]?.skonto).toBeUndefined();
+    });
+
+    it("Skonto allein mit dem Betrag reicht für einen Vorschlag wie ein exakter Betrag", () => {
+      const anonymous = { bookingDate: "2026-09-12", amount: 466_480, counterpartyName: "Unbekannt", counterpartyIban: null, purpose: "Danke" };
+      expect(suggestMatches(anonymous, [withSkonto])[0]).toMatchObject({ score: 50, skonto: 9_520 });
+    });
   });
 
   it("nur gleiche Richtung: Ausgang passt nicht auf Forderung", () => {

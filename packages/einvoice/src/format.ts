@@ -1,3 +1,4 @@
+import { skontoFristen, type SkontoFrist } from "@haben/core";
 import { TEXTS, type Texts } from "./i18n.ts";
 import type { InvoiceDocument, Seller } from "./types.ts";
 
@@ -30,11 +31,19 @@ export function servicePeriod(doc: InvoiceDocument): { from: string; to: string 
   return { from, to };
 }
 
-/** Zahlungssatz unter der Summe; das XML bleibt wie BT-20 und BT-120 deutsch (siehe i18n.ts) */
-export function paymentSentence(doc: Pick<InvoiceDocument, "totals" | "dueDate">, t: Texts = TEXTS.de): string {
+type PaymentFields = Pick<InvoiceDocument, "kind" | "totals" | "issueDate" | "dueDate" | "skonto">;
+
+/** Skontostufen mit Frist und Betrag; nur auf Rechnungen mit Zahlbetrag, nicht auf Storno und Korrektur */
+export function invoiceSkonto(doc: PaymentFields): SkontoFrist[] {
+  return doc.kind === "rechnung" && doc.skonto ? skontoFristen(doc.skonto, doc.issueDate, doc.totals.gross) : [];
+}
+
+/** Zahlungssatz unter der Summe, mit Skonto je Stufe; das XML bleibt wie BT-20 und BT-120 deutsch (siehe i18n.ts) */
+export function paymentSentence(doc: PaymentFields, t: Texts = TEXTS.de): string {
   if (doc.totals.gross < 0) return t.refund;
   if (doc.totals.gross === 0) return t.noPayment;
-  return t.payBy(t.date(doc.dueDate));
+  const skonto = invoiceSkonto(doc).map((s) => t.skonto(t.percent(s.percent), t.date(s.until), t.money(s.amount), t.money(s.payable)));
+  return [t.payBy(t.date(doc.dueDate)), ...skonto].join(" ");
 }
 
 export function countryName(code: string, locale = "de"): string {
