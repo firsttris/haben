@@ -296,6 +296,15 @@ function ImportCard({ source, connected, initial }: { source: Source; connected:
               <strong>{progress.files}</strong>
             </div>
           </div>
+          {source === "sevdesk" && (
+            <div className="banner">
+              <p style={{ margin: 0 }}>
+                <strong>Kontaktrollen prüfen:</strong> Neue Partner, Interessenten und Kontakte ohne eindeutige sevDesk-Kategorie werden zunächst als Kunden
+                angelegt. Bestehende Kontakte erhalten nur zusätzliche eindeutige Rollen; ein früher fälschlich als Kunde importierter Lieferant bleibt deshalb
+                auch Kunde. Entferne diese Rolle bei Bedarf unter Kontakte. Vorhandene Nummern bleiben unverändert.
+              </p>
+            </div>
+          )}
           {run.error && (
             <div className="banner banner-danger" role="alert">
               {run.error}

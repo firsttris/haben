@@ -12,6 +12,8 @@ import type { SevCommunicationWay, SevContact, SevContactAddress, SevCreditNote,
 export interface SevImportedContact {
   sevdeskId: string;
   name: string;
+  /** Nur eine eindeutige sevDesk-Kategorie; null ist keine belegte Kunden- oder Lieferantenrolle. */
+  role: "customer" | "supplier" | null;
   kundennummer: string | null;
   strasse: string;
   plz: string;
@@ -62,6 +64,10 @@ export function isSevMainContact(c: SevContact): boolean {
 }
 
 export function mapSevContact(c: SevContact, address?: SevContactAddress, email?: SevCommunicationWay): SevImportedContact {
+  // Contact-Tags der sevDesk-OpenAPI: Supplier 2, Customer 3, Partner 4, Prospect 28.
+  // Partner und Interessent belegen keine der beiden Haben-Rollen: https://api.sevdesk.de/openapi.yaml
+  const category = refId(c.category);
+  const role = category === "2" ? "supplier" : category === "3" ? "customer" : null;
   const person = [c.surename, c.familyname]
     .map((s) => s?.trim())
     .filter(Boolean)
@@ -69,7 +75,9 @@ export function mapSevContact(c: SevContact, address?: SevContactAddress, email?
   return {
     sevdeskId: String(c.id),
     name: c.name?.trim() || person || `Kontakt ${c.id}`,
-    kundennummer: c.customerNumber?.trim() || null,
+    role,
+    // Die eigene Nummer des Lieferanten ist weder unsere Kundennummer noch unsere Nummer bei ihm.
+    kundennummer: role === "customer" ? c.customerNumber?.trim() || null : null,
     strasse: address?.street?.trim() ?? "",
     plz: address?.zip?.trim() ?? "",
     ort: address?.city?.trim() ?? "",

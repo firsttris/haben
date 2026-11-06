@@ -65,14 +65,11 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Kontaktrollen (Postgres)", () => {
       ('Vorhandener Kunde', true, false, 'H-10', 'BEIM-10'),
       ('Vorhandener Lieferant', false, true, null, 'BEIM-11'),
       ('Vorhandener Partner', false, true, null, 'BEIM-12')`;
-    contacts = [
-      contact("10", "vorhandener kunde", "2"),
-      contact("11", "Vorhandener Lieferant", "3"),
-      contact("12", "Vorhandener Partner", "4"),
-    ];
+    contacts = [contact("10", "vorhandener kunde", "2"), contact("11", "Vorhandener Lieferant", "3"), contact("12", "Vorhandener Partner", "4")];
     await runImport();
     expect((await sevdesk.latestSevdeskImport())!.progress).toMatchObject({ contacts: 0, contactsLinked: 3 });
-    const rows = await sql`select sevdesk_id, is_customer, is_supplier, kundennummer, lieferantennummer from contacts where sevdesk_id in ('10', '11', '12') order by sevdesk_id`;
+    const rows =
+      await sql`select sevdesk_id, is_customer, is_supplier, kundennummer, lieferantennummer from contacts where sevdesk_id in ('10', '11', '12') order by sevdesk_id`;
     expect(rows.map((row) => [row.sevdesk_id, row.is_customer, row.is_supplier, row.kundennummer, row.lieferantennummer])).toEqual([
       ["10", true, true, "H-10", "BEIM-10"],
       ["11", true, true, null, "BEIM-11"],
@@ -93,7 +90,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Kontaktrollen (Postgres)", () => {
       contact("23", "Unklarer Bestandskontakt", null),
     ];
     await runImport();
-    const rows = await sql`select sevdesk_id, is_customer, is_supplier, kundennummer, lieferantennummer, version from contacts where sevdesk_id in ('20', '21', '22', '23') order by sevdesk_id`;
+    const rows =
+      await sql`select sevdesk_id, is_customer, is_supplier, kundennummer, lieferantennummer, version from contacts where sevdesk_id in ('20', '21', '22', '23') order by sevdesk_id`;
     expect(rows.map((row) => [row.sevdesk_id, row.is_customer, row.is_supplier, row.kundennummer, row.lieferantennummer])).toEqual([
       ["20", true, true, "ALT-20", "BEIM-20"],
       ["21", true, true, "H-21", "BEIM-21"],
@@ -106,6 +104,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Kontaktrollen (Postgres)", () => {
     expect(changes.every((row) => row.actor === actor)).toBe(true);
     await runImport();
     expect((await sevdesk.latestSevdeskImport())!.progress).toMatchObject({ contacts: 0, contactsLinked: 0 });
-    expect(await sql`select sevdesk_id, is_customer, is_supplier, kundennummer, lieferantennummer, version from contacts where sevdesk_id in ('20', '21', '22', '23') order by sevdesk_id`).toEqual(rows);
+    expect(
+      await sql`select sevdesk_id, is_customer, is_supplier, kundennummer, lieferantennummer, version from contacts where sevdesk_id in ('20', '21', '22', '23') order by sevdesk_id`,
+    ).toEqual(rows);
   });
 });
