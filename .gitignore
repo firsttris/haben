@@ -10,6 +10,9 @@ dist/
 !.env.example
 data/
 coverage/
+
+# Temporäre Worktrees von Claude Code (z. B. für das TDD-Review)
+.claude/worktrees/
 test-results/
 playwright-report/
 
