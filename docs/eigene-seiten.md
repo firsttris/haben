@@ -51,4 +51,4 @@ Nicht erlaubt ist, das Fenster von Haben wegzunavigieren oder auf Haben zuzugrei
 3. Für die Rechnung zu einer Bestellung ruft der Workflow `POST /api/v1/rechnungen` mit der Bestellnummer als externer Referenz auf ([Ablauf für Bestellungen](api.md#ablauf-für-bestellungen)).
 4. In Haben unter **Einstellungen → Eigene Seiten** die Adresse des Webhooks eintragen, etwa `https://n8n.example.de/webhook/bestellungen`.
 
-[Zurück zur Übersicht](README.md)
+[Zurück zur Übersicht](ueberblick.md)

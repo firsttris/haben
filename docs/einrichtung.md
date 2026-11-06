@@ -459,4 +459,4 @@ Name und Zweck eines Kontos (Geschäftskonto, Steuerkonto, Rücklagen, Privatkon
 - [Umsatzsteuer](umsatzsteuer.md): Voranmeldung monatlich oder vierteljährlich
 - [Auswertungen](auswertungen.md) und Jahresexport
 
-[Zurück zur Übersicht](README.md)
+[Zurück zur Übersicht](ueberblick.md)
