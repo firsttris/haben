@@ -10,7 +10,7 @@ Unter **Belege** legst du Eingangsrechnungen und Quittungen ab. E-Rechnungen lie
 2. Den Beleg in der Liste öffnen. Ist er aus einer E-Rechnung oder von der KI vorbefüllt, steht dort „Vorbefüllt aus … Bitte prüfen und bestätigen.“
 3. **Lieferant**, **Rechnungsnummer**, **USt-IdNr. des Lieferanten**, **Belegdatum**, **Fällig am** und **Kategorie** prüfen oder eintragen. Ist der Lieferant schon in den Kontakten (Rolle **Lieferant**), wählst du ihn unter **Aus den Kontakten**; Haben übernimmt Name und USt-IdNr. Änderst du den Namen danach von Hand, fällt die Verknüpfung weg. Ein neuer Lieferant lässt sich wie bisher einfach eintippen.
 4. Unter **Beträge je Steuersatz** Netto und Vorsteuer je Satz prüfen. Mit **+ Steuersatz** kommt eine Zeile für einen weiteren Satz dazu (höchstens 19 %, 7 % und 0 % je einmal). Gehören Teile der Rechnung in verschiedene Kategorien, teilst du sie mit **Auf mehrere Kategorien aufteilen** auf (siehe [Auf mehrere Kategorien aufteilen](#auf-mehrere-kategorien-aufteilen)).
-5. Unter **Bezahlung** wählen, ob der Beleg über das Geschäftskonto oder privat bezahlt wurde.
+5. Unter **Bezahlung** wählen, ob der Beleg über das Geschäftskonto, privat oder bar aus der Kasse bezahlt wurde (siehe [Bezahlung](#bezahlung)).
 6. **Bestätigen und buchen**, dann **Jetzt buchen**. Ungespeicherte Änderungen werden dabei vorher gespeichert.
 
 Mit **Speichern** sicherst du Zwischenstände, ohne zu buchen.
@@ -46,13 +46,13 @@ Viele Rechnungen kommen per Mail. Unter **Einstellungen › E-Mail › Belege pe
 
 - **Zugang:** IMAP-Server, Port, Verschlüsselung, Benutzername, Passwort und Ordner. Für Gmail, GMX, web.de, Posteo und mailbox.org sind Server und Port vorbelegt; Gmail, GMX und web.de brauchen ein App-Passwort bzw. freigeschaltetes IMAP. Das Passwort liegt verschlüsselt in der Datenbank.
 - **Was abgeholt wird:** jede ungelesene Mail im Ordner. Ihre Anhänge gehen wie beim Hochladen zu den Belegen. E-Rechnungen werden gelesen, sonst greift die KI-Auslesung, und Dubletten erkennt Haben am Inhalt.
-- **Was übersprungen wird:** eingebettete Bilder wie Logos und Signaturen sowie Dateien, die kein Beleg sein können (Word, ZIP …). Der Grund steht im Abrufprotokoll.
+- **Was übersprungen wird:** eingebettete Bilder wie Logos und Signaturen sowie Dateien, die kein Beleg sein können (Word, ZIP …), und Mails über 60 MB (deren Anhänge lädst du einzeln hoch). Der Grund steht im Abrufprotokoll.
 - **Danach** ist die Mail im Postfach als gelesen markiert. Am Beleg steht als Notiz, von wem und mit welchem Betreff er kam.
 - **Wann:** stündlich, solange „Stündlich abrufen“ an ist, oder sofort mit **Jetzt abrufen**. Je Lauf höchstens 50 Mails.
 
 Am besten richtest du eine eigene Adresse oder einen Ordner mit Filterregel ein, etwa `belege@…` oder „Rechnungen“, und leitest Rechnungen dorthin weiter. Im Hauptpostfach würde Haben jede ungelesene Mail anfassen.
 
-Jede abgeholte Mail steht mit ihrer Message-ID genau einmal im Abrufprotokoll (nur anhängen). Markierst du sie wieder als ungelesen, legt Haben sie kein zweites Mal ab. Schlägt der Abruf fehl, etwa wegen eines falschen Passworts, steht der Fehler in den Einstellungen und auf der Belegseite.
+Jede abgeholte Mail steht mit ihrer Message-ID genau einmal im Abrufprotokoll (nur anhängen). Markierst du sie wieder als ungelesen, legt Haben sie kein zweites Mal ab. Ausnahme: Scheitert die Verarbeitung einer Mail, steht der Fehler im Abrufprotokoll und die Mail ist trotzdem als gelesen markiert, damit sie spätere Mails nicht aufhält; setzt du sie wieder auf ungelesen, holt Haben sie nach. Schlägt der Abruf fehl, etwa wegen eines falschen Passworts, steht der Fehler in den Einstellungen und auf der Belegseite.
 
 ## Belege aus der REST-API
 
@@ -73,7 +73,7 @@ Für Ausgaben, die in festen Abständen mit gleichem Betrag anfallen, etwa Büro
 1. **Neuer Dauerbeleg** öffnen.
 2. **Bezeichnung**, **Lieferant** (aus den Kontakten oder frei), optional **USt-IdNr.** und **Vertrags- oder Kundennummer**, **Kategorie** und **Bezahlung** eintragen.
 3. Unter **Termine** das **Intervall** (monatlich, vierteljährlich, halbjährlich, jährlich), **Erster Beleg am**, optional **Endet nach dem** und **Fällig Tage nach dem Termin** wählen.
-4. Unter **Vertrag und Beträge** den **Vertrag oder die Dauerrechnung** hochladen (PDF, Foto oder E-Rechnung wie beim Hochladen eines Belegs, bis 20 MB), die Beträge je Steuersatz eintragen und angeben, ob das Dokument die Umsatzsteuer gesondert ausweist.
+4. Unter **Dokument** den **Vertrag oder die Dauerrechnung** hochladen (PDF, Foto oder E-Rechnung wie beim Hochladen eines Belegs, bis 20 MB) und angeben, ob das Dokument die Umsatzsteuer gesondert ausweist; unter **Beträge je Termin** die Beträge je Steuersatz eintragen.
 5. **Dauerbeleg anlegen**.
 
 | Feld | Bedeutung |
@@ -238,7 +238,7 @@ Beispiel, alles zu 19 %: 100,00 € Handelsware, 50,00 € Software und 20,00 �
 
 **Storno und Neuerfassung.** Ein [Storno](#stornieren-und-neu-erfassen) bucht die ganze Buchung mit allen Zeilen zurück; **Neu erfassen** übernimmt die Aufteilung in den neuen Entwurf.
 
-**Noch nicht mit Aufteilung:** § 13b und innergemeinschaftlicher Erwerb, Privatanteil, Fremdwährung und Anlagegüter. Haben lehnt das Buchen dann mit Grund ab („§ 13b mit Aufteilung wird nicht unterstützt“ usw.); solche Teile erfasst du als eigenen Beleg. Bei § 13b und Fremdwährung ist der Knopf zum Aufteilen gesperrt, mit Aufteilung fehlt das Feld **Privatanteil in %**.
+**Noch nicht mit Aufteilung:** § 13b und innergemeinschaftlicher Erwerb, Privatanteil, Fremdwährung und Anlagegüter. Haben lehnt das Buchen dann mit Grund ab („§ 13b mit Aufteilung wird nicht unterstützt“ usw.); solche Teile erfasst du als eigenen Beleg. Bei § 13b, innergemeinschaftlichem Erwerb und Fremdwährung ist der Knopf zum Aufteilen gesperrt, mit Aufteilung fehlt das Feld **Privatanteil in %**.
 
 ## Privatanteil
 

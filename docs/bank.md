@@ -131,6 +131,8 @@ Jeder Posten bekommt Punkte:
 | Grund (wie angezeigt) | Punkte |
 | --- | ---: |
 | Betrag stimmt exakt | 50 |
+| Betrag stimmt mit … Skonto (…), in der Frist (siehe [Skonto auf eigene Rechnungen](#skonto-auf-eigene-rechnungen)) | 50 |
+| Betrag passt bis auf eine Kursdifferenz (…), nur bei Fremdwährung (siehe [Kursdifferenz](#kursdifferenz-bei-fremdwährung)) | 30 |
 | Rechnungsnummer im Verwendungszweck | 40 |
 | Überweisung aus Haben (Referenz), nur bei Belegen | 60 |
 | IBAN bekannt vom Kontakt bzw. bei Belegen IBAN des Lieferanten | 30 |
@@ -241,7 +243,7 @@ Das gilt nur, solange die Rechnung noch ganz offen ist, und nur für Rechnungen 
 
 ### Kursdifferenz bei Fremdwährung
 
-Rechnungen und Belege in Fremdwährung stehen im Bankabgleich mit ihrem Euro-Betrag zum Kurs der Rechnung (USt-Umrechnungskurs oder eigener Kurs). Die Bank rechnet zum Tageskurs, die Zahlung weicht also meist um ein paar Cent oder Euro ab. Weicht sie um höchstens 5 % ab, schlägt Haben die Rechnung trotzdem vor („Betrag passt bis auf eine Kursdifferenz (USD)“) und bietet **Ausgleichen, … als Kursdifferenz** an:
+Rechnungen und Belege in Fremdwährung stehen im Bankabgleich mit ihrem Euro-Betrag zum Kurs der Rechnung (USt-Umrechnungskurs oder eigener Kurs). Die Bank rechnet zum Tageskurs, die Zahlung weicht also meist um ein paar Cent oder Euro ab. Weicht sie um höchstens 5 % ab, bekommt die Rechnung dafür 30 Punkte („Betrag passt bis auf eine Kursdifferenz (USD)“); vorgeschlagen wird sie, sobald ein weiterer Grund wie Rechnungsnummer, IBAN oder Name dazukommt. Ist eine Rechnung oder ein Beleg in Fremdwährung gewählt, als bester Treffer oder unter **Andere Rechnung**, bietet Haben **Ausgleichen, … als Kursdifferenz** an:
 
 - **Weniger** als offen: Die Zahlung wird zugeordnet, der Rest ausgebucht.
 - **Mehr** als offen: Haben teilt den Umsatz auf, den offenen Betrag auf die Rechnung bzw. den Beleg und den Überschuss als Kursdifferenz.
@@ -347,7 +349,7 @@ Die EÜR 2026 bleibt dadurch unverändert; die 543,00 € stehen nachrichtlich a
 
 **Abgrenzung zur Voranmeldung:** Die Zahllast einer abgegebenen Voranmeldung ordnest du weiter der [Voranmeldung](#voranmeldung-zahllast-und-erstattung) zu, auch die für Dezember im Januar. Umsatzsteuer als Steuerzahlung gibt es nur für frühere Jahre, also aus Jahreserklärung oder Bescheid; die Steuer des laufenden Jahres lehnt Haben dort ab. Zinsen und Zuschläge zur Umsatzsteuer, etwa ein Säumniszuschlag zur Voranmeldung, gehen auch für das laufende Jahr. Liegt eine Zahlung „Umsatzsteuer früherer Jahre“ zwischen 22. Dezember und 10. Januar, weist die Jahreserklärung darauf hin: Ist es die Vorauszahlung für Dezember oder das vierte Quartal, gehört sie in das Vorjahr (§ 11 Abs. 2 Satz 2 EStG) und als Voranmeldung zugeordnet.
 
-**GmbH und UG:** Eine Nachzahlung von Körperschaftsteuer, Soli oder Gewerbesteuer für ein Vorjahr verbraucht zuerst die Rückstellung, die der [Jahresabschluss](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug) zum 31.12. dieses Jahres gebucht hat, soweit Zahlungen für dasselbe Jahr sie nicht schon verbraucht haben; nur der Rest ist Aufwand für Vorjahre. Bleibt nach dem endgültigen Bescheid ein Rest der Rückstellung stehen, löst ihr ihn mit der Steuerberatung als manuelle Buchung auf. Nicht abziehbare Zinsen und Zuschläge rechnet die Steuerberechnung dem Einkommen wieder hinzu.
+**GmbH und UG:** Eine Nachzahlung von Körperschaftsteuer, Soli oder Gewerbesteuer für ein Vorjahr verbraucht zuerst die Rückstellung, die der [Jahresabschluss](buchhaltung.md#körperschaft--und-gewerbesteuer-gmbh-und-ug) zum 31.12. dieses Jahres gebucht hat, soweit Zahlungen für dasselbe Jahr sie nicht schon verbraucht haben; nur der Rest ist Aufwand für Vorjahre. Bleibt nach dem endgültigen Bescheid ein Rest der Rückstellung stehen, löst ihr ihn mit der Steuerberatung als manuelle Buchung auf. Nicht abziehbare Zinsen und Zuschläge rechnet die Steuerberechnung dem Einkommen wieder hinzu.
 
 Erstattungszinsen zur Gewerbesteuer sind Betriebseinnahmen wie die zur Umsatzsteuer; § 4 Abs. 5b EStG nimmt nur die Nachzahlungszinsen aus dem Gewinn (BFH, Urteil vom 26.09.2025, IV R 16/23). Die Erstattung der Gewerbesteuer selbst bleibt außerhalb des Gewinns.
 
