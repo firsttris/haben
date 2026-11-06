@@ -280,6 +280,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const inhaber = Route.useRouteContext().user.role === "inhaber";
   const readOnly = locked || !inhaber;
   const running = doc.extractionStatus === "laeuft";
+  // Alte Entwürfe können noch manuell eingegebene Steuer enthalten; festgeschriebene Beträge bleiben unverändert.
+  const calculateInitialTax = !readOnly && !running && Boolean(doc.reverseCharge);
 
   const [supplierName, setSupplierName] = useState(doc.supplierName);
   const [supplierUstId, setSupplierUstId] = useState(doc.supplierUstId);
@@ -304,7 +306,7 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
   const [rows, setRows] = useState<AmountState[]>(() =>
     (amounts.length > 0 ? amounts : [{ taxRate: 1900, net: 0, tax: 0, originalNet: null, originalTax: null }]).map((a) => {
       const net = doc.currency === "EUR" ? a.net : (a.originalNet ?? 0);
-      const tax = doc.currency === "EUR" ? a.tax : (a.originalTax ?? 0);
+      const tax = calculateInitialTax ? taxOf(net, a.taxRate) : doc.currency === "EUR" ? a.tax : (a.originalTax ?? 0);
       return {
         key: nextKey++,
         taxRate: a.taxRate as Rate,
@@ -319,7 +321,9 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
     splits.map((s) => splitRow(s.category as ExpenseCategory, s.taxRate as Rate, formatDecimal(s.net))),
   );
   const splitting = splitRows.length > 0;
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(
+    () => calculateInitialTax && amounts.some((a, index) => parseEuro(rows[index]!.tax) !== (doc.currency === "EUR" ? a.tax : (a.originalTax ?? 0))),
+  );
   const { busy, notice, run } = useAction();
   const [confirming, setConfirming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -397,8 +401,8 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
       prev.map((row) => {
         if (row.key !== key) return row;
         const next = { ...row, ...patch };
-        // Steuer aus dem Netto vorschlagen, bis sie von Hand geändert wurde
-        if (!next.taxTouched && ("net" in patch || "taxRate" in patch)) {
+        // Selbst geschuldete Steuer immer berechnen; Vorsteuer laut Beleg nur bis zur manuellen Änderung vorschlagen.
+        if ((reverseCharge || !next.taxTouched) && ("net" in patch || "taxRate" in patch)) {
           const net = parseEuro(next.net || "0");
           next.tax = net === null ? next.tax : formatDecimal(taxOf(net, next.taxRate));
         }
@@ -816,13 +820,16 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             <label className="field">
               {reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : reverseCharge ? "Steuer § 13b" : "Vorsteuer"}
               {foreign ? ` ${currencyCode}` : ""}
+              {reverseCharge ? " (automatisch)" : ""}
               <input
                 className="mono"
                 inputMode="decimal"
                 value={row.tax}
                 placeholder="0,00"
+                readOnly={Boolean(reverseCharge)}
                 onChange={(e) => updateRow(row.key, { tax: e.target.value, taxTouched: true })}
                 aria-invalid={parsed[index]!.tax === null}
+                aria-describedby={reverseCharge ? "self-assessed-tax-hint" : undefined}
               />
             </label>
             <button
@@ -841,6 +848,11 @@ function DocumentForm({ data, onDirtyChange }: { data: Detail; onDirtyChange: (d
             </button>
           </div>
         ))}
+        {reverseCharge && (
+          <p id="self-assessed-tax-hint" className="small">
+            Haben berechnet die Steuer automatisch aus Netto und Satz. Änderungen am Netto oder am Satz aktualisieren den schreibgeschützten Steuerbetrag.
+          </p>
+        )}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <button
             type="button"

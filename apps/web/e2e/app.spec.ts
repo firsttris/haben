@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { zipSync } from "fflate";
 import { mkdirSync, readFileSync } from "node:fs";
+import postgres from "postgres";
 import { day, EIGENE_SEITE, fakeEigeneSeite, firstLink, fullPageScreenshot, SESSION, SHOTS, USER, YEAR } from "./daten.ts";
 
 /**
@@ -1097,12 +1098,53 @@ test("Beleg mit § 13b: Steuer selbst berechnet, gezahlt wird netto", async ({ b
   await page.waitForLoadState("networkidle");
   await page.getByLabel(/^USt-IdNr\. des Lieferanten/).fill("IE6388047V");
   await page.getByLabel("Netto", { exact: true }).fill("100");
+  await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
   await expect(page.getByText(/meist § 13b/)).toBeVisible();
   await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("eu");
   await expect(page.getByLabel("Steuer § 13b")).toHaveValue("19,00");
+  await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
+  await expect(page.getByLabel("Steuer § 13b")).toHaveAttribute("readonly", "");
+  await expect(page.getByText("Steuer § 13b (automatisch)", { exact: true })).toBeVisible();
   await expect(page.getByText(/Kz 46\/47/)).toBeVisible();
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
+  await page.getByLabel("Netto", { exact: true }).fill("200");
+  await expect(page.getByLabel("Steuer § 13b")).toHaveValue("38,00");
+  await page.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
+  await expect(page.getByLabel("Steuer § 13b")).toHaveValue("14,00");
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("drittland");
+  await expect(page.getByLabel("Steuer § 13b")).not.toBeEditable();
+  const gespeichert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await gespeichert).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Speichern", exact: true })).toBeDisabled();
+  // Altbestand: Die bisherige Maske erlaubte, selbst geschuldete Steuer manuell auf 0 zu setzen.
+  const sql = postgres(process.env.E2E_DATABASE_URL!, { max: 1 });
+  try {
+    await sql`update document_amounts set tax = 0 where document_id = ${page.url().split("/").pop()!}`;
+  } finally {
+    await sql.end();
+  }
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByLabel("Steuer § 13b")).toHaveValue("14,00");
+  // Die Korrektur ist ungespeichert, damit auch „Bestätigen und buchen“ sie zuerst persistiert.
+  await expect(page.getByRole("button", { name: "Speichern", exact: true })).toBeEnabled();
+  const korrigiert = page.waitForResponse((r) => r.url().includes("/_serverFn/") && r.request().method() === "POST");
+  await page.getByRole("button", { name: "Speichern", exact: true }).click();
+  expect((await korrigiert).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Speichern", exact: true })).toBeDisabled();
+  await page.reload();
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByLabel("Steuer § 13b")).toHaveValue("14,00");
+  // Auch gespeicherte Zeilen müssen bei einer Änderung weiter automatisch rechnen.
+  await page.getByLabel("Netto", { exact: true }).fill("300");
+  await expect(page.getByLabel("Steuer § 13b")).toHaveValue("21,00");
+  await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("");
+  await expect(page.getByLabel("Vorsteuer", { exact: true })).toBeEditable();
+  await page.getByLabel("Vorsteuer", { exact: true }).fill("20,99");
+  await page.getByLabel("Netto", { exact: true }).fill("400");
+  await expect(page.getByLabel("Vorsteuer", { exact: true })).toHaveValue("20,99");
   // Nicht buchen: der Beleg würde die folgenden Auswertungen verändern
   await page.getByRole("button", { name: "Löschen" }).click();
   // Esc bricht nur die Rückfrage ab und bleibt beim Beleg
@@ -1645,7 +1687,14 @@ test("Beleg mit innergemeinschaftlichem Erwerb: 500 € netto, 95 € Erwerbsteu
   await page.getByLabel("Vorsteuer", { exact: true }).fill("0");
   await expect(page.getByText(/bei Ware ein innergemeinschaftlicher Erwerb/)).toBeVisible();
   await page.getByRole("combobox", { name: /^Umsatzsteuer auf dem Beleg/ }).selectOption("ig_erwerb");
-  await expect(page.getByLabel("Erwerbsteuer", { exact: true })).toHaveValue("95,00");
+  const tax = page.getByLabel(/^Erwerbsteuer/);
+  await expect(tax).toHaveValue("95,00");
+  await expect(tax).toHaveAttribute("readonly", "");
+  await expect(page.getByText("Erwerbsteuer (automatisch)", { exact: true })).toBeVisible();
+  await page.getByLabel("Netto", { exact: true }).fill("600");
+  await expect(tax).toHaveValue("114,00");
+  await page.getByRole("combobox", { name: /^Satz/ }).selectOption("700");
+  await expect(tax).toHaveValue("42,00");
   await expect(page.getByText(/Kz 89 \(19 %\)/)).toBeVisible();
   await expect(page.getByText("Zu zahlen (netto)")).toBeVisible();
   // Nicht buchen: der Beleg würde die folgenden Auswertungen und Bilder verändern
