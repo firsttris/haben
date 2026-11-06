@@ -22,7 +22,8 @@ exclude_docs: |
   banner.svg
 
 nav:
-  - Übersicht: README.md
+  - Start: index.md
+  - Übersicht: ueberblick.md
   - Betrieb:
       - Betrieb und Installation: installation.md
       - Erste Schritte: einrichtung.md
@@ -61,6 +62,8 @@ nav:
 
 theme:
   name: material
+  # Vorschaubild beim Teilen eines Links (overrides/main.html)
+  custom_dir: overrides
   language: de
   logo: assets/icon.svg
   favicon: assets/favicon.png
@@ -99,6 +102,7 @@ theme:
 
 extra_css:
   - assets/stylesheets/extra.css
+  - assets/stylesheets/startseite.css
 
 plugins:
   - search:

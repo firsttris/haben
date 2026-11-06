@@ -1,0 +1,154 @@
+/* Startseite (index.md): große Bilder, wenig Text, je Zeile eine Funktion. Aufbau wie die
+   Startseite von Kontext (firsttris/kontext, docs/assets/entdecken.css). */
+
+.showcase-hero {
+  text-align: center;
+  margin: 1rem 0 2.5rem;
+}
+
+.md-typeset .showcase-hero h1 {
+  margin: 0 auto 0.8rem;
+  max-width: 22em;
+  font-size: 2.3rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--md-default-fg-color);
+}
+
+.showcase-hero .showcase-claim {
+  margin: 0 auto 1.4rem;
+  max-width: 36em;
+  font-size: 1.05rem;
+  color: var(--md-default-fg-color--light);
+}
+
+.showcase-kicker {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-primary-fg-color);
+}
+
+[data-md-color-scheme="slate"] .showcase-kicker {
+  color: var(--md-primary-fg-color--light);
+}
+
+/* Die Bilder tragen ihre Größe, damit die Seite beim Laden nicht springt */
+.md-typeset .showcase-shot img,
+.md-typeset .showcase-phone img {
+  display: block;
+  height: auto;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.6rem;
+  box-shadow: 0 0.8rem 2.4rem rgb(0 0 0 / 14%);
+}
+
+.md-typeset .showcase-shot--hero img {
+  margin: 0 auto 1rem;
+  box-shadow: 0 1.2rem 3.2rem rgb(0 0 0 / 22%);
+}
+
+/* Das Archiv ist eine lange Seite: nur ihr oberer Teil im Format der anderen Bilder */
+.md-typeset .showcase-shot--crop img {
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  object-position: top;
+}
+
+.md-typeset .showcase-phone img {
+  max-width: 16rem;
+  margin: 0 auto;
+  border-radius: 1.4rem;
+}
+
+.showcase-feature {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.7fr);
+  gap: 2.5rem;
+  align-items: center;
+  margin: 4.5rem 0;
+}
+
+.showcase-feature--flip {
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+}
+
+.showcase-feature--flip > :first-child {
+  order: 2;
+}
+
+.md-typeset .showcase-feature h2 {
+  margin-top: 0.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.md-typeset .showcase-center h2,
+.md-typeset .showcase-hero h2 {
+  font-weight: 700;
+}
+
+.showcase-center {
+  text-align: center;
+}
+
+.showcase-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0 3rem;
+}
+
+.md-typeset .showcase-cards > div {
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.6rem;
+}
+
+.md-typeset .showcase-cards p {
+  margin: 0.3rem 0 0;
+}
+
+/* „Rundgang starten“ landet mit der ganzen ersten Funktion unter der Kopfzeile */
+#rundgang {
+  scroll-margin-top: 4rem;
+}
+
+/* Die Knöpfe unter einer Überschrift: nebeneinander mit Abstand, am Handy untereinander */
+.md-typeset .showcase-hero p:has(> .md-button) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+.md-typeset .showcase-hero .md-button {
+  margin: 0;
+}
+
+/* Handy und Tablet: eine Spalte, der Text über seinem Bild */
+@media screen and (max-width: 59.99em) {
+  .showcase-feature,
+  .showcase-feature--flip {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    margin: 3rem 0;
+  }
+
+  .showcase-feature--flip > :first-child {
+    order: 0;
+  }
+
+  .md-typeset .showcase-hero h1 {
+    font-size: 1.7rem;
+  }
+}
+
+@media screen and (max-width: 29.99em) {
+  .md-typeset .showcase-hero .md-button {
+    width: 100%;
+    max-width: 20rem;
+    text-align: center;
+  }
+}

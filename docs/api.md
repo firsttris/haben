@@ -226,4 +226,4 @@ curl -s "$HABEN/belege/0c9a…" -H "Authorization: Bearer $TOKEN"
 - Die API meldet sich nur mit dem Token an, nie mit dem Sitzungscookie. Eine fremde Webseite, die du im selben Browser öffnest, kann sie deshalb nicht in deinem Namen aufrufen.
 - Ein Token ist so viel wert wie seine Rechte. Halte es in den Zugangsdaten deines Werkzeugs, nicht im Klartext in Skripten oder Workflows, und erreichst du Haben aus dem Internet, dann nur über HTTPS.
 
-[Zurück zur Übersicht](README.md)
+[Zurück zur Übersicht](ueberblick.md)
