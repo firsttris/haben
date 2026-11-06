@@ -6,7 +6,7 @@ Was als Nächstes geplant ist, was blockiert ist und woher die Unterlagen dafür
 
 Stand 6. November 2026, nach Abgleich mit Lexware Office und sevDesk und den offenen Issues. Die Reihenfolge: zuerst Fehler, dann kleine Wünsche aus dem Alltag, dann was Freiberuflern und kleinen GmbHs beim Buchen am meisten fehlt.
 
-Erledigt aus der letzten Runde: Lohnsteuer-Anmeldung, Ausfüllliste für das SV-Meldeportal und Lohnsteuerbescheinigung ([Lohn](lohn.md)), E-Bilanz-Taxonomie 6.10 ([E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug)), Voranmeldung als offener Posten ([Umsatzsteuer](umsatzsteuer.md#zahlung-an-das-finanzamt)), degressive AfA ([Anlagen](anlagen.md#degressive-afa)), innergemeinschaftliche Lieferung und Erwerb, Ausfuhr ([Umsatzsteuer](umsatzsteuer.md#innergemeinschaftlicher-erwerb)), Dauerbelege ([Belege](belege.md#dauerbelege)), Barzahlung einer Rechnung ([Kasse](kasse.md#rechnung-bar-bezahlt)), Zugang für die Steuerberatung, Stufe 1 ([Steuerberatung](steuerberatung.md)), Belegerkennung mit lokalem Modell ([KI-Auslesung](belege.md#ki-auslesung)), Rabatte, optionale Positionen und Zahlungsplan ([Angebote](angebote.md#zahlungsplan)), Steuerzahlungen und Darlehen ([Bank](bank.md#darlehen)).
+Erledigt aus der letzten Runde: Lohnsteuer-Anmeldung, Ausfüllliste für das SV-Meldeportal und Lohnsteuerbescheinigung ([Lohn](lohn.md), [#213](https://github.com/firsttris/haben/issues/213)), E-Bilanz-Taxonomie 6.10 ([E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug), [#213](https://github.com/firsttris/haben/issues/213)), Voranmeldung als offener Posten ([Umsatzsteuer](umsatzsteuer.md#zahlung-an-das-finanzamt), [#269](https://github.com/firsttris/haben/issues/269)), degressive AfA ([Anlagen](anlagen.md#degressive-afa)), innergemeinschaftliche Lieferung und Erwerb, Ausfuhr ([Umsatzsteuer](umsatzsteuer.md#innergemeinschaftlicher-erwerb), [#273](https://github.com/firsttris/haben/issues/273)), Dauerbelege ([Belege](belege.md#dauerbelege)), Barzahlung einer Rechnung ([Kasse](kasse.md#rechnung-bar-bezahlt), [#276](https://github.com/firsttris/haben/issues/276)), Zugang für die Steuerberatung, Stufe 1 ([Steuerberatung](steuerberatung.md)), Belegerkennung mit lokalem Modell ([KI-Auslesung](belege.md#ki-auslesung), [#128](https://github.com/firsttris/haben/issues/128)), Rabatte, optionale Positionen und Zahlungsplan ([Angebote](angebote.md#zahlungsplan), [#114](https://github.com/firsttris/haben/issues/114)), Steuerzahlungen und Darlehen ([Bank](bank.md#darlehen), [#312](https://github.com/firsttris/haben/issues/312)). Die Issues zu erledigten Plätzen bleiben offen, bis die Meldenden bestätigen, dass nichts fehlt.
 
 ### Zuerst: Fehler
 
@@ -63,6 +63,11 @@ Sinnvoll, aber nicht jetzt – in dieser Reihenfolge, wenn die Plätze oben erle
 | S21 | Weitere Anlagen und Wertpapiere | Sonstige Transportmittel als Anlage, betriebliche Wertpapiere mit Erwerb, Bestand und Verkauf (Folgearbeit aus [#312](https://github.com/firsttris/haben/issues/312)) | M |
 | S22 | Postversand | Rechnungen per Brief über einen Druckdienstleister | M |
 | S23 | Rechnungsanhänge erweitern | Zusätzliche Anhänge auch an Serien- und Korrekturrechnungen und über die API ([#272](https://github.com/firsttris/haben/issues/272)) | S |
+| S24 | Fremdwährung erweitern | Verrechnungskonto in Fremdwährung (z. B. PayPal-Guthaben in USD), Fremdwährung auch für Abschlags-, Schluss- und Serienrechnungen, Angebote und Mahnungen, eigenes Leistungsdatum am Beleg ([#109](https://github.com/firsttris/haben/issues/109), [#108](https://github.com/firsttris/haben/issues/108)) | M |
+| S25 | Aufgeteilte Belege mit Sonderfällen | § 13b, Privatanteil, Fremdwährung und Anlagegut je Zeile eines aufgeteilten Belegs; heute lehnt Haben sie bei einer Aufteilung ab ([#271](https://github.com/firsttris/haben/issues/271)) | M |
+| S26 | Weitere Zahlungsdienstleister | Abrechnungen von SumUp und Amazon, sobald Beispieldateien vorliegen; lieber kein Import als ein geratener ([#108](https://github.com/firsttris/haben/issues/108)) | S |
+| S27 | Zeitstempel für das Audit-Log | Qualifizierter Zeitstempel nach RFC 3161 auf die Hash-Kette, zusätzlich zu den Siegeln ([#78](https://github.com/firsttris/haben/issues/78)) | S–M |
+| S28 | Backup in der Wochenmail | Stand der Sicherung und des Test-Restores in der wöchentlichen Mail ([#95](https://github.com/firsttris/haben/issues/95)) | S |
 
 ## Bewusst nicht
 
@@ -70,18 +75,27 @@ Sinnvoll, aber nicht jetzt – in dieser Reihenfolge, wenn die Plätze oben erle
 | --- | --- |
 | Lagerbestand | Kein Kern einer Buchhaltung; gehört in eine Warenwirtschaft (Lexware Office führt keinen, sevDesk nur als Zusatzmodul) |
 | Zeiterfassung und Projekte | Gehört in eigene Werkzeuge; Rechnungen und Belege kommen über die [API](api.md) |
-| Eigene Shop-Anbindungen | Abrechnungen der Zahlungsdienste, API und n8n decken das ab; auch Lexware Office bindet Shops nur über Partner an |
+| Eigene Shop-Anbindungen, Bestellungen und Versand | Abrechnungen der Zahlungsdienste, API und n8n decken das ab; auch Lexware Office bindet Shops nur über Partner an. Bestellungen mit Status, Druck-Buttons, Sendungsnummern und Webhook-Aktionen würden Haben zum Versandtool machen; eigene Seiten bekommen bewusst keine Anmeldung von Haben, weil eine fremde Seite mit der Sitzung festschreiben oder an ELSTER senden könnte ([#199](https://github.com/firsttris/haben/issues/199)) |
 | Lastschrifteinzug über einen Zahlungsdienst | Gehört zum Zahlungsdienst; Lexware Office macht es nur über Partner |
 | Native Apps | Haben ist eine installierbare Web-App mit Kamera und Teilen-Menü; zwei App-Stores zu pflegen lohnt nicht |
 | CRM mit Aufgaben und Push-Erinnerungen, Mitarbeiterportal | Kein Kern einer Buchhaltung für kleine Betriebe |
-| Mehrere Firmen in einer Installation | Eine Instanz je Firma; so bleiben Daten, Sperren und Audit getrennt |
-| E-Mails als HTML mit Editor | Hoher Aufwand bei wenig Nutzen; Textvorlagen mit Platzhaltern gibt es |
-| Eigenes lernendes Modell für Vorschläge | Vorschläge lernen ohne Modell aus allen früheren Zuordnungen (Platz 3); ein Modell kostet Pflege ohne deutlichen Gewinn |
+| Mehrere Firmen in einer Installation | Eine Instanz je Firma; so bleiben Daten, Sperren und Audit getrennt, und ein Fehler macht keine fremde Buchhaltung sichtbar ([#66](https://github.com/firsttris/haben/issues/66)) |
+| Mehrere Geschäftsidentitäten mit eigenen Steuerdaten | Ein Unternehmer hat ein Unternehmen (§ 2 Abs. 1 Satz 2 UStG), auf der Rechnung steht sein vollständiger Name; Marken mit Logo, Kontakt und Bankkonto kommen als Profile (S2) ([#245](https://github.com/firsttris/haben/issues/245)) |
+| E-Mails als HTML mit Editor | Hoher Aufwand (Editor, Vorschau, sicheres HTML, Darstellung in vielen Mailprogrammen) bei wenig Nutzen; auch kein schlichter HTML-Rahmen mit Logo und Signatur. Textvorlagen je Art und Sprache mit Platzhaltern gibt es ([#115](https://github.com/firsttris/haben/issues/115)) |
+| Vorlagen mit HTML-Renderer | Ein Renderer wie WeasyPrint brächte Python in den Container und ein Risiko für PDF/A; die Gestaltung läuft über die Typst-Vorlage (Platz 4, S11) ([#113](https://github.com/firsttris/haben/issues/113)) |
+| Eigenes lernendes Modell für Vorschläge | Vorschläge lernen ohne Modell aus allen früheren Zuordnungen (Platz 3); ein Modell kostet Pflege ohne deutlichen Gewinn ([#107](https://github.com/firsttris/haben/issues/107)) |
 | Zins- und Tilgungspläne berechnen | Den Plan liefert die Bank, die Rate lässt sich aufgeteilt buchen; Zinsmethoden, Sondertilgungen und Schlussraten je Vertrag nachzurechnen kostet viel Pflege für wenig Gewinn. Unterlagen am Darlehen siehe Platz 10 ([#326](https://github.com/firsttris/haben/issues/326)) |
 | Frei vergebene Rechnungsnummer je Entwurf | Nummern vergibt Haben beim Festschreiben aus dem Nummernkreis; eine Nummer von Hand müsste Eindeutigkeit und Zähler selbst absichern ([#328](https://github.com/firsttris/haben/issues/328)) |
 | Freie Buchung auf jedes Konto mit Steuerschlüssel | EÜR, Voranmeldung und E-Bilanz hängen an den Kategorien; direkt gebucht wird auf eine Kategorie oder ein eigenes Konto mit geerbter Zuordnung (Platz 2 und 5) ([#324](https://github.com/firsttris/haben/issues/324)) |
 | Personenkonten im Journal | Offene Posten führt Haben je Rechnung und Beleg; Personenkonten braucht die Steuerberatung im DATEV-Export, dort setzt Haben sie ein (Platz 7) ([#327](https://github.com/firsttris/haben/issues/327)) |
-| Texterkennung (OCR) vor dem Modell | Für Scans und Fotos liest ein Vision-Modell besser als OCR mit Textmodell; eine OCR-Engine wäre eine weitere Abhängigkeit im Container ([#329](https://github.com/firsttris/haben/issues/329)) |
+| Texterkennung (OCR) vor dem Modell | Für Scans und Fotos liest ein Vision-Modell besser als OCR mit Textmodell; eine OCR-Engine wäre eine weitere Abhängigkeit im Container ([#128](https://github.com/firsttris/haben/issues/128), [#329](https://github.com/firsttris/haben/issues/329)) |
+| Getrennte Verzeichnisse für Kunden und Lieferanten | Eine Firma ist oft beides und stünde sonst doppelt drin; ein Kontakt hat die Rollen Kunde und Lieferant ([#224](https://github.com/firsttris/haben/issues/224)) |
+| Zweite Farbe auf Rechnungen | Text und Beträge in der Akzentfarbe lesen sich schlecht; die Grautöne leiten sich aus der Akzentfarbe ab ([#222](https://github.com/firsttris/haben/issues/222)) |
+| Sachkonto je Bankkonto | Alle Bankkonten buchen auf das Bankkonto des Kontenrahmens; getrennte Salden im Kontenblatt lohnen den Aufwand nicht. Benennen vor dem Anlegen würde den Ablauf mit Enable Banking unterbrechen, und der Zweck eines Kontos setzt nicht die IBAN auf Rechnungen ([#105](https://github.com/firsttris/haben/issues/105)) |
+| Fremdwährungsrechnung mit deutscher Umsatzsteuer bei Ist-Versteuerung | Gesperrt statt nachgebildet: Sonst änderte sich die Steuer einer festgeschriebenen Rechnung mit dem Kurs bei der Zahlung ([#109](https://github.com/firsttris/haben/issues/109)) |
+| Andere Datenbank oder Aufteilung in Dienste | Unveränderbarkeit nach GoBD hängt an Triggern in PostgreSQL; ohne sie hinge sie nur an Berechtigungen und App-Code ([#63](https://github.com/firsttris/haben/issues/63)) |
+| Eigener `dev`-Branch | Trunk-based auf `main`, Release Candidates als Tags mit `:next` ([#92](https://github.com/firsttris/haben/issues/92)) |
+| Paket `packages/contracts` | Server-Funktionen mit Zod und die Schnittstellen der Module (`index.ts`) decken die Verträge ab ([#81](https://github.com/firsttris/haben/issues/81)) |
 
 ## Nicht machbar ohne Zertifizierung oder Lizenz
 
