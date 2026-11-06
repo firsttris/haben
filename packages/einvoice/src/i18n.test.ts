@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { texts } from "./i18n.ts";
 import { pdfData, renderInvoicePdf } from "./pdf.ts";
 import { quotePdfData } from "./quote.ts";
 import { sampleDocument } from "./samples.ts";
 
 describe("Belege auf Englisch", () => {
+  it.each(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec"].map((month, index) => [index + 1, month] as const))(
+    "formatiert Monat %i einheitlich als %s",
+    (month, expected) => {
+      expect(texts("en").date(`2026-${String(month).padStart(2, "0")}-02`)).toBe(`2 ${expected} 2026`);
+    },
+  );
+
   it("übersetzt Titel, Felder, Beträge, Einheiten und Zahlungssatz", () => {
     const doc = { ...sampleDocument({ taxTreatment: "reverse_charge" }), language: "en" as const };
     doc.buyer = { ...doc.buyer, land: "GB", ustId: "GB123456789" };
