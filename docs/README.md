@@ -16,18 +16,19 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 | | |
 |---|---|
 | [Rechnungen und E-Rechnung](rechnungen.md) | Editor, Artikelkatalog, Textbausteine, Festschreiben, ZUGFeRD und XRechnung, Pflichtangaben, Abschläge, wiederkehrende Rechnungen, Mahnwesen, Versand, Storno und Korrektur, Kontakte |
-| [Angebote](angebote.md) | Eigener Nummernkreis, PDF, Versand per E-Mail, Antwort des Kunden, Rechnung aus dem Angebot |
-| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Kategorien, Buchen |
+| [Angebote](angebote.md) | Eigener Nummernkreis, PDF, optionale und alternative Positionen, Zahlungsplan mit Abschlägen, Versand per E-Mail, Antwort des Kunden, Rechnung aus dem Angebot, Auftragsbestätigung und Lieferschein |
+| [Belege](belege.md) | Hochladen, Teilen am Handy, E-Rechnungen lesen, KI-Auslesung, Dauerbelege, Kategorien, Aufteilung auf mehrere Kategorien, Buchen |
 | [Pauschalen](pauschalen.md) | Homeoffice-Tagespauschale, Fahrten mit dem Privatfahrzeug, Verpflegungsmehraufwand; Buchung und Storno |
-| [Kassenbuch](kasse.md) | Barkasse: Einlage, Entnahme, Geldtransit, bar bezahlte Belege; nie negativer Bestand, Storno |
-| [Anlagen und AfA](anlagen.md) | Anlagenverzeichnis, Anschaffung per Beleg, Übernahme aus Lexoffice, AfA buchen, Abgang |
-| [Bankimport und Abgleich](bank.md) | Automatischer Abruf per PSD2 (Enable Banking), DKB, N26, CAMT.053, Dubletten, Saldenprüfung, Vorschläge, Teilzahlungen, Buchungen ohne Beleg |
-| [Umsatzsteuer-Voranmeldung](umsatzsteuer.md) | Kennzahlen aus den Buchungen, Vorprüfung, Prüfen, Test- und Echtübermittlung, XML-Import in Mein ELSTER, Berichtigung |
+| [Kassenbuch](kasse.md) | Barkasse: Einlage, Entnahme, Geldtransit, bar bezahlte Belege und Rechnungen; nie negativer Bestand, Storno |
+| [Anlagen und AfA](anlagen.md) | Anlagenverzeichnis, lineare und degressive AfA, Anschaffung per Beleg, Übernahme aus Lexoffice, AfA buchen, Abgang |
+| [Bankimport und Abgleich](bank.md) | Automatischer Abruf per PSD2 (Enable Banking), DKB, N26, CAMT.053, Zahlungsdienstleister, Dubletten, Saldenprüfung, Vorschläge, Teilzahlungen, Buchungen ohne Beleg, Steuerzahlungen, Darlehen |
+| [Umsatzsteuer-Voranmeldung](umsatzsteuer.md) | Kennzahlen aus den Buchungen, Vorprüfung, Prüfen, Test- und Echtübermittlung, XML-Import in Mein ELSTER, Berichtigung, Zahlung an das Finanzamt, Dauerfristverlängerung, Zusammenfassende Meldung |
 | [Finanzamt](finanzamt.md) | Bescheide aus dem ELSTER-Postfach, Einspruchsfrist, Nachrichten über ELSTER, Herabsetzung der Vorauszahlungen, Bankverbindung |
 | [Fristen](fristen.md) | Voranmeldungen, Abgabefristen, Vorauszahlungen, Einspruchsfristen; Kalender-Abo und Erinnerungen per E-Mail |
-| [Jahreserklärungen](jahreserklaerung.md) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung, Prüfen, Test- und Echtübermittlung, Belege von ELSTER |
+| [Jahreserklärungen](jahreserklaerung.md) | Umsatzsteuererklärung, Anlage EÜR mit AVEÜR und Einkommensteuererklärung, für GmbH und UG Körperschaft- und Gewerbesteuererklärung, Prüfen, Test- und Echtübermittlung, Belege von ELSTER |
+| [GmbH und UG](gmbh.md) | Ablauf eines Jahres mit doppelter Buchführung: Einrichten, Bilanz und GuV, Jahresabschluss, E-Bilanz, Körperschaft- und Gewerbesteuer, Gewinnausschüttung, Hinterlegung |
 | [Abgabe an ELSTER](elster-abgabe.md) | Alle Wege im Überblick: direkt per ERiC mit Hersteller-ID oder über Mein ELSTER mit XML-Import, Erweiterung, KI-Assistent oder von Hand |
-| [Lohn](lohn.md) | Mitarbeiter, Abrechnung je Monat (Geschäftsführer, Minijob, Angestellte als Entwurf), festschreiben und stornieren, Entgeltabrechnung als PDF, Lohnkonto, Ausfüllliste für das SV-Meldeportal |
+| [Lohn](lohn.md) | Mitarbeiter, Abrechnung je Monat (Geschäftsführer, Minijob, Angestellte als Entwurf), festschreiben und stornieren, Entgeltabrechnung als PDF, Lohnkonto, Lohnsteuer-Anmeldung, Ausfüllliste für das SV-Meldeportal, Lohnsteuerbescheinigung |
 | [Mein ELSTER mit Erweiterung](elster-mit-erweiterung.md) | Ohne Hersteller-ID: die Browser-Erweiterung trägt Voranmeldung, USt-Erklärung, EÜR und Einkommensteuer in Mein ELSTER ein, du sendest ab |
 | [Auswertungen und Jahresexport](auswertungen.md) | EÜR, offene Posten, Monatsverlauf, CSV, Archiv-ZIP mit Prüfsummen, Aufbewahrung |
 | [Umzug aus Lexoffice](lexoffice.md) | API-Abruf, Sicherung über die Web-Oberfläche oder Umzug nur über die Exporte, DATEV-Buchungsstapel, Originalexporte, offene Posten, Abgleich vor der Kündigung |
@@ -48,6 +49,7 @@ Auch als Website mit Suche: **https://firsttris.github.io/haben/**
 | [Architektur](architektur.md) | Module, Datenmodell, Ablauf von Anfragen, Dateiablage, ERiC-Worker, E-Rechnung, Sicherheit |
 | [Entwicklung](entwicklung.md) | Lokale Umgebung, Befehle, Tests, Migrationen, Konventionen, neue Bankformate, Mitwirken |
 | [Roadmap](roadmap.md) | Was geplant ist, was blockiert ist, Quellen für Feldkennungen |
+| [Lohn (Plan)](lohn-plan.md) | Recherche und Umsetzungsplan für den Lohn: Pull Requests, Pflichten einer Lohnsoftware, offene Fragen, Quellen |
 
 ## Screenshots
 

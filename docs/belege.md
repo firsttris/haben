@@ -52,7 +52,7 @@ Viele Rechnungen kommen per Mail. Unter **Einstellungen › E-Mail › Belege pe
 
 Am besten richtest du eine eigene Adresse oder einen Ordner mit Filterregel ein, etwa `belege@…` oder „Rechnungen“, und leitest Rechnungen dorthin weiter. Im Hauptpostfach würde Haben jede ungelesene Mail anfassen.
 
-Jede abgeholte Mail steht mit ihrer Message-ID genau einmal im Abrufprotokoll (nur anhängen). Markierst du sie wieder als ungelesen, legt Haben sie kein zweites Mal ab. Ausnahme: Scheitert die Verarbeitung einer Mail, steht der Fehler im Abrufprotokoll und die Mail ist trotzdem als gelesen markiert, damit sie spätere Mails nicht aufhält; setzt du sie wieder auf ungelesen, holt Haben sie nach. Schlägt der Abruf fehl, etwa wegen eines falschen Passworts, steht der Fehler in den Einstellungen und auf der Belegseite.
+Jede abgeholte Mail steht mit ihrer Message-ID im Abrufprotokoll (nur anhängen). Markierst du sie wieder als ungelesen, legt Haben sie kein zweites Mal ab. Ausnahme: Scheitert die Verarbeitung einer Mail, steht der Fehler im Abrufprotokoll und die Mail ist trotzdem als gelesen markiert, damit sie spätere Mails nicht aufhält; setzt du sie wieder auf ungelesen, holt Haben sie nach, mit einem zweiten Eintrag „(nachgeholt)“ neben dem des Fehlschlags. Schlägt der Abruf fehl, etwa wegen eines falschen Passworts, steht der Fehler in den Einstellungen und auf der Belegseite.
 
 ## Belege aus der REST-API
 
