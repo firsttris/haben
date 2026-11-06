@@ -26,9 +26,7 @@ function Kpi({ label, value, hint }: { label: string; value: number; hint: strin
   return (
     <div className="card">
       <div className="kpi-label">{label}</div>
-      <div className="kpi-value" style={{ fontSize: 22 }}>
-        {formatEuro(value)}
-      </div>
+      <div className="kpi-value">{formatEuro(value)}</div>
       <div className="small muted">{hint}</div>
     </div>
   );

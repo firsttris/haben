@@ -148,7 +148,7 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
             Vorsorgeaufwand. Bei mehreren Arbeitgebern je Bescheinigung eine Zeile.
           </p>
           {draft.bescheinigungen.map((b, index) => (
-            <div key={b.key} className="form-grid" role="group" aria-label={`Lohnsteuerbescheinigung ${index + 1} · ${wer}`}>
+            <div key={b.key} className="form-row cols-2" role="group" aria-label={`Lohnsteuerbescheinigung ${index + 1} · ${wer}`}>
               <label className="field">
                 Steuerklasse
                 <select value={b.steuerklasse} onChange={(e) => setB(b.key, { steuerklasse: e.target.value })}>
@@ -187,7 +187,7 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
           <div className="subhead" aria-hidden="true">
             Werbungskosten
           </div>
-          <div className="form-grid" role="group" aria-label={`Werbungskosten · ${wer}`}>
+          <div className="form-row cols-2" role="group" aria-label={`Werbungskosten · ${wer}`}>
             <label className="field" style={{ gridColumn: "1 / -1" }}>
               Erste Tätigkeitsstätte (PLZ, Ort, Straße)
               <input value={draft.adresse} onChange={(e) => set({ adresse: e.target.value })} maxLength={200} />
@@ -213,7 +213,7 @@ export function AnlageNFields({ wer, draft, onChange }: { wer: string; draft: Ar
               <input inputMode="numeric" value={draft.homeofficeTage} onChange={(e) => set({ homeofficeTage: e.target.value })} />
               <span className="small muted">ohne Fahrt zur Tätigkeitsstätte; 6 € je Tag, höchstens 210 Tage</span>
             </label>
-            <label className="checkbox" style={{ alignSelf: "end" }}>
+            <label className="checkbox" style={{ gridColumn: "1 / -1" }}>
               <input type="checkbox" checked={draft.keinAndererArbeitsplatz} onChange={(e) => set({ keinAndererArbeitsplatz: e.target.checked })} />
               Dauerhaft kein anderer Arbeitsplatz
             </label>

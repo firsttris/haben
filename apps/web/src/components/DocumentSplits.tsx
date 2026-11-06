@@ -132,7 +132,7 @@ export function DocumentSplits({
           Aufteilung aufheben
         </button>
       </div>
-      <ul className="small" aria-live="polite" style={{ margin: 0, paddingLeft: 18 }}>
+      <ul className="small" aria-live="polite" style={{ margin: 0, paddingLeft: 20 }}>
         {rates.map((rate) => {
           const target = amounts?.find((a) => a.taxRate === rate)?.net ?? 0;
           const sum = rows.reduce((s, row, i) => (row.taxRate === rate ? s + (parsed[i] ?? 0) : s), 0);

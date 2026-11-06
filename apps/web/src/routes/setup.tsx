@@ -63,7 +63,7 @@ function SetupPage() {
         </div>
         {state.user ? (
           <>
-            <h1 style={{ fontSize: 22 }}>Passkey einrichten</h1>
+            <h1 style={{ fontSize: 24 }}>Passkey einrichten</h1>
             <p className="muted">Melde dich künftig mit einem Passkey an, ohne Passwort. Das Passwort bleibt als Rückfallebene.</p>
             <button type="button" className="btn btn-primary" onClick={addPasskey} disabled={busy}>
               Passkey hinzufügen
@@ -74,7 +74,7 @@ function SetupPage() {
           </>
         ) : (
           <form className="stack" onSubmit={createAccount}>
-            <h1 style={{ fontSize: 22 }}>Haben einrichten</h1>
+            <h1 style={{ fontSize: 24 }}>Haben einrichten</h1>
             <p className="muted" style={{ margin: 0 }}>
               Haben hat genau ein Konto. Nach dem Anlegen fügst du einen Passkey hinzu.
             </p>

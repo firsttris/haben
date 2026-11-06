@@ -1,4 +1,5 @@
 import { formatDecimal, MAX_SKONTO_STUFEN, parsePercent, type SkontoStufe } from "@haben/core";
+import { Icon } from "./Icon.tsx";
 
 /** Eine Skontostufe im Formular, wie eingegeben */
 export interface SkontoRow {
@@ -100,7 +101,7 @@ export function SkontoFields({
       {rows.length < MAX_SKONTO_STUFEN && (
         <div>
           <button type="button" className="btn" onClick={() => onChange([...rows, { key: nextKey++, percent: "", days: "" }])} disabled={disabled}>
-            + Skontostufe hinzufügen
+            <Icon name="plus" size={16} /> Skontostufe hinzufügen
           </button>
         </div>
       )}

@@ -288,7 +288,7 @@ function Steuerbescheinigungen({ a }: { a: Ausschuettung }) {
         bewahre eine Kopie bei den Unterlagen der Ausschüttung auf. Anschrift, Identifikationsnummer und Religionsgemeinschaft kommen aus den{" "}
         <Link to="/jahreserklaerung">Angaben zu den Erklärungen</Link>.
       </p>
-      <ul className="stack" style={{ gap: 6, margin: 0, paddingLeft: 18 }}>
+      <ul className="stack" style={{ gap: 8, margin: 0, paddingLeft: 20 }}>
         {a.bescheinigungen.map((b) => (
           <li key={b.nr}>
             {b.fehlend.length === 0 ? (
@@ -362,26 +362,26 @@ function AusschuettungCard({ data, a }: { data: Data; a: Ausschuettung }) {
                 )}
               </div>
             ))}
-            {!a.angemeldet && (
-              <div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-danger"
-                  disabled={busy}
-                  onClick={() =>
-                    confirming
-                      ? void run(async () => {
-                          await reverse({ data: { id: a.id } });
-                          await router.invalidate();
-                        }, "Ausschüttung storniert.")
-                      : setConfirming(true)
-                  }
-                >
-                  {confirming ? "Jetzt stornieren" : `${titel} stornieren`}
-                </button>
-              </div>
-            )}
           </div>
+        </div>
+      )}
+      {!a.storniert && !a.angemeldet && (
+        <div className="actions" style={{ marginTop: 16 }}>
+          <button
+            type="button"
+            className="btn btn-sm btn-danger"
+            disabled={busy}
+            onClick={() =>
+              confirming
+                ? void run(async () => {
+                    await reverse({ data: { id: a.id } });
+                    await router.invalidate();
+                  }, "Ausschüttung storniert.")
+                : setConfirming(true)
+            }
+          >
+            {confirming ? "Jetzt stornieren" : `${titel} stornieren`}
+          </button>
         </div>
       )}
       {a.storniert && <NoticeBanner notice={notice} />}

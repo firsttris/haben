@@ -64,7 +64,7 @@ function Hinweise({ hinweise }: { hinweise: string[] }) {
   if (hinweise.length === 0) return null;
   return (
     <div className="banner banner-info" role="note">
-      <ul style={{ margin: 0, paddingLeft: 18 }}>
+      <ul style={{ margin: 0, paddingLeft: 20 }}>
         {hinweise.map((h) => (
           <li key={h}>{h}</li>
         ))}
@@ -127,7 +127,7 @@ function OffenAnderswo({ data }: { data: Data }) {
       <h2 id="offen-heading" style={{ margin: 0 }}>
         Offene Meldungen aus anderen Monaten
       </h2>
-      <ul style={{ margin: 0, paddingLeft: 18 }}>
+      <ul style={{ margin: 0, paddingLeft: 20 }}>
         {data.offenAnderswo.map((o) => (
           <li key={o.gegenstand}>
             <Link to="/sv-meldeportal" search={{ jahr: o.jahr, monat: o.monat }}>

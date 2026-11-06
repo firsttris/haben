@@ -3,13 +3,15 @@ import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, type FormEvent } from "react";
 import { DatevEroeffnung } from "../../../components/DatevEroeffnung.tsx";
+import { Icon } from "../../../components/Icon.tsx";
 import { NoticeBanner } from "../../../components/NoticeBanner.tsx";
 import { useAction } from "../../../lib/use-action.ts";
 import { createManualEntryFn, getManualEntryForm } from "../../../server/functions/journal.ts";
+import styles from "../../../styles/auswertungen.css?url";
 
 export const Route = createFileRoute("/_app/buchungen/neu")({
   loader: () => getManualEntryForm(),
-  head: () => ({ meta: [{ title: "Buchung erfassen · Haben" }] }),
+  head: () => ({ meta: [{ title: "Buchung erfassen · Haben" }], links: [{ rel: "stylesheet", href: styles }] }),
   component: ManualEntryPage,
 });
 
@@ -181,11 +183,11 @@ function ManualEntryForm({ data }: { data: Awaited<ReturnType<typeof getManualEn
                   {rows.length > 2 && (
                     <button
                       type="button"
-                      className="btn btn-sm"
+                      className="icon-btn"
                       onClick={() => setRows((current) => current.filter((x) => x.key !== r.key))}
                       aria-label={`Zeile ${index + 1} entfernen`}
                     >
-                      Entfernen
+                      <Icon name="close" size={16} />
                     </button>
                   )}
                 </td>

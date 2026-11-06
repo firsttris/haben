@@ -75,7 +75,7 @@ function LoginPage() {
         <div className="brand" style={{ color: "var(--ink)", padding: 0 }}>
           <span className="brand-mark">H</span>Haben
         </div>
-        <h1 style={{ fontSize: 22 }}>Anmelden</h1>
+        <h1 style={{ fontSize: 24 }}>Anmelden</h1>
         <button type="button" className="btn btn-primary" onClick={withPasskey} disabled={busy}>
           Mit Passkey anmelden
         </button>

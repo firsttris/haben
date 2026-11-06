@@ -111,7 +111,7 @@ export function IntegrityCard({ head }: { head: Head }) {
         </button>
       </div>
       {report && report.problems.length > 0 && (
-        <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>
+        <ul className="small" style={{ margin: 0, paddingLeft: 20 }}>
           {report.problems.map((p, i) => (
             <li key={i} style={{ overflowWrap: "anywhere" }}>
               <strong>{TABELLEN[p.tabelle] ?? p.tabelle}</strong>
@@ -124,7 +124,7 @@ export function IntegrityCard({ head }: { head: Head }) {
       {report && (report.abgleich.abweichungen.length > 0 || report.abgleich.hinweise.length > 0) && (
         <div className="small">
           <div className="muted">Abgleich von Journal, Umsatzsteuer und EÜR</div>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
+          <ul style={{ margin: 0, paddingLeft: 20 }}>
             {report.abgleich.abweichungen.map((a, i) => (
               <li key={i}>
                 <strong>

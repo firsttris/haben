@@ -1,6 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
+import { mkdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
+import { fullPageScreenshot, SHOTS } from "./daten.ts";
 
 /**
  * Eine GmbH in eigener, leerer Datenbank (Projekt „gmbh“ in playwright.config.ts, eigener Server): einrichten mit
@@ -77,6 +79,13 @@ test("Manuelle Buchung: Stammkapital erfassen, prüfen, stornieren", async () =>
   await page.waitForURL("**/buchungen/neu");
   await page.waitForLoadState("networkidle");
   expect(await axe(), "/buchungen/neu").toEqual([]);
+
+  // Auch direkt aufgerufen (ohne die Buchungsliste davor) sind die Zeilen eine gestaltete Tabelle mit echten Eingabefeldern
+  await go("/buchungen/neu");
+  const zeilen = page.getByRole("table", { name: "Buchungszeilen" });
+  await expect(zeilen.getByRole("columnheader", { name: "Konto" })).toHaveCSS("text-align", "left");
+  await expect(zeilen.getByLabel("Konto Zeile 1")).toHaveCSS("border-radius", "8px");
+  await expect(zeilen.getByLabel("Soll Zeile 1")).toHaveCSS("text-align", "right");
 
   const form = page.getByRole("form", { name: "Manuelle Buchung" });
   await form.getByLabel("Buchungstext").fill("Stammkapital, eingezahlt vom Gesellschafter");
@@ -1044,4 +1053,40 @@ test("Anzeige nach Rechtsform: nichts, was es nur im Einzelunternehmen gibt", as
   await expect(zuordnung.getByRole("button", { name: "Aufheben" })).toBeVisible();
   await expect(zuordnung.getByText("Gesellschafter", { exact: true })).toBeVisible();
   await expect(zuordnung.getByText("Privat", { exact: true })).toHaveCount(0);
+});
+
+test("Jahreserklärung: was Körperschaft- und Gewerbesteuer gleich melden, steht einmal über beiden", async () => {
+  const jahr = new Date().getFullYear();
+  await go(`/jahreserklaerung/${jahr}`);
+  const gemeinsam = page.getByRole("region", { name: "Hinweise zur Körperschaft- und Gewerbesteuererklärung" });
+  await expect(gemeinsam).toContainText(`Das Jahr ${jahr} ist noch nicht vorbei.`);
+  await expect(page.getByText(`Das Jahr ${jahr} ist noch nicht vorbei.`)).toHaveCount(1);
+  await expect(page.getByText(`Echt senden lässt sich die Erklärung erst, wenn ${jahr} abgeschlossen ist.`)).toHaveCount(1);
+  // Was nur eine Erklärung betrifft, bleibt in ihrer Karte
+  await expect(page.getByRole("region", { name: /^Gewerbesteuererklärung/ }).first()).toContainText(`nicht für ${jahr}`);
+  expect(await axe(), `/jahreserklaerung/${jahr} GmbH`).toEqual([]);
+});
+
+// Die Seiten in seiten.spec.ts zeigen ein Einzelunternehmen; was nur eine GmbH hat, steht dort als Hinweis. Für den Blick
+// auf die GmbH-Ansichten (CI-Artefakt e2e-screenshots) hier dieselben Seiten mit den Daten dieses Durchlaufs.
+test("Screenshots der GmbH-Seiten", async () => {
+  const jahr = new Date().getFullYear();
+  const seiten: [string, string][] = [
+    ["uebersicht", "/"],
+    ["jahresabschluss-vorjahr", `/abschluss/${jahr - 1}`],
+    ["jahresabschluss", `/abschluss/${jahr}`],
+    ["ausschuettungen", `/ausschuettungen?jahr=${jahr}`],
+    ["jahreserklaerung", `/jahreserklaerung/${jahr}`],
+    ["buchungen", "/buchungen"],
+    ["buchung-erfassen", "/buchungen/neu"],
+    ["konten", `/konten?jahr=${jahr}`],
+    ["lohn", "/lohn"],
+    ["auswertungen", `/auswertungen?jahr=${jahr}`],
+    ["einstellungen", "/einstellungen"],
+  ];
+  mkdirSync(`${SHOTS}/gmbh`, { recursive: true });
+  for (const [index, [name, path]] of seiten.entries()) {
+    await go(path);
+    await fullPageScreenshot(page, { path: `${SHOTS}/gmbh/${String(index + 1).padStart(2, "0")}-${name}.png`, animations: "disabled", caret: "hide" });
+  }
 });

@@ -11,6 +11,7 @@ import {
 } from "@haben/core";
 import { useRef, useState, type FormEvent } from "react";
 import { FilePicker } from "./FilePicker.tsx";
+import { Icon } from "./Icon.tsx";
 import { SupplierPicker, type SupplierOption } from "./SupplierPicker.tsx";
 
 type Rate = 1900 | 700 | 0;
@@ -165,24 +166,25 @@ export function DauerbelegForm({
   }
 
   return (
-    <form className="stack" onSubmit={submit}>
-      <section className="card stack" aria-label="Dauerbeleg">
-        <div className="form-grid">
-          <label className="field">
-            Bezeichnung
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} placeholder="z. B. Büromiete Hafenstraße" required />
-          </label>
-          <SupplierPicker
-            suppliers={suppliers}
-            value={supplierContactId}
-            onPick={(supplier) => {
-              setSupplierContactId(supplier?.id ?? null);
-              if (supplier) {
-                setSupplierName(supplier.name);
-                setSupplierUstId(supplier.ustId);
-              }
-            }}
-          />
+    <form className="card form-card form-narrow" onSubmit={submit} aria-label="Dauerbeleg">
+      <section className="form-section" aria-labelledby="dauerbeleg-allgemein">
+        <h2 id="dauerbeleg-allgemein">Allgemein</h2>
+        <label className="field">
+          Bezeichnung
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} placeholder="z. B. Büromiete Hafenstraße" required />
+        </label>
+        <SupplierPicker
+          suppliers={suppliers}
+          value={supplierContactId}
+          onPick={(supplier) => {
+            setSupplierContactId(supplier?.id ?? null);
+            if (supplier) {
+              setSupplierName(supplier.name);
+              setSupplierUstId(supplier.ustId);
+            }
+          }}
+        />
+        <div className="form-row cols-2">
           <label className="field">
             Lieferant
             <input
@@ -200,13 +202,8 @@ export function DauerbelegForm({
             USt-IdNr. des Lieferanten (optional)
             <input value={supplierUstId} onChange={(e) => setSupplierUstId(e.target.value)} maxLength={20} />
           </label>
-          <label className="field">
-            Vertrags- oder Kundennummer (optional)
-            <input value={reference} onChange={(e) => setReference(e.target.value)} maxLength={100} aria-describedby="reference-hint" />
-            <span id="reference-hint" className="small">
-              Steht als Rechnungsnummer an jedem Beleg und hilft im Bankabgleich.
-            </span>
-          </label>
+        </div>
+        <div className="form-row cols-2">
           <label className="field">
             Kategorie
             <select value={category} onChange={(e) => setCategory(e.target.value)} required>
@@ -229,11 +226,23 @@ export function DauerbelegForm({
             </select>
           </label>
         </div>
+        <label className="field">
+          Vertrags- oder Kundennummer (optional)
+          <input value={reference} onChange={(e) => setReference(e.target.value)} maxLength={100} aria-describedby="reference-hint" />
+          <span id="reference-hint" className="small">
+            Steht als Rechnungsnummer an jedem Beleg und hilft im Bankabgleich.
+          </span>
+        </label>
       </section>
 
-      <section className="card stack" aria-labelledby="dauerbeleg-termine">
+      <section className="form-section" aria-labelledby="dauerbeleg-termine">
         <h2 id="dauerbeleg-termine">Termine</h2>
-        <div className="form-grid">
+        {/* Die Hinweise stehen unter der Zeile, damit beide Felder einer Zeile auf einer Höhe bleiben */}
+        <div className="form-row cols-2">
+          <label className="field">
+            {isNew ? "Erster Beleg am" : "Nächster Beleg am"}
+            <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required aria-describedby="dauer-next-hint" />
+          </label>
           <label className="field">
             Intervall
             <select value={intervalMonths} onChange={(e) => setIntervalMonths(Number(e.target.value) as RecurringInterval)}>
@@ -244,30 +253,28 @@ export function DauerbelegForm({
               ))}
             </select>
           </label>
+        </div>
+        <p id="dauer-next-hint" className="field-hint">
+          Belegdatum, etwa der Zahlungsbeginn laut Vertrag. Die folgenden Termine liegen am selben Tag im Monat; der 31. wird zum Monatsende. Liegt er in der
+          Vergangenheit, legt Haben die verpassten Belege mit ihrem Datum an.
+        </p>
+        <div className="form-row cols-2">
           <label className="field">
-            {isNew ? "Erster Beleg am" : "Nächster Beleg am"}
-            <input type="date" value={nextDate} onChange={(e) => setNextDate(e.target.value)} required aria-describedby="dauer-next-hint" />
-            <span id="dauer-next-hint" className="small">
-              Belegdatum, etwa der Zahlungsbeginn laut Vertrag. Die folgenden Termine liegen am selben Tag im Monat; der 31. wird zum Monatsende. Liegt er in
-              der Vergangenheit, legt Haben die verpassten Belege mit ihrem Datum an.
-            </span>
+            Fällig Tage nach dem Termin
+            <input inputMode="numeric" value={dueDays} onChange={(e) => setDueDays(e.target.value)} aria-describedby="due-hint" />
           </label>
           <label className="field">
             Endet nach dem (optional)
             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} aria-invalid={Boolean(endDate) && endDate < nextDate} />
           </label>
-          <label className="field">
-            Fällig Tage nach dem Termin
-            <input inputMode="numeric" value={dueDays} onChange={(e) => setDueDays(e.target.value)} aria-describedby="due-hint" />
-            <span id="due-hint" className="small">
-              0 = am Termin, etwa 3 für eine Miete bis zum dritten des Monats.
-            </span>
-          </label>
         </div>
+        <p id="due-hint" className="field-hint">
+          0 = am Termin, etwa 3 für eine Miete bis zum dritten des Monats.
+        </p>
       </section>
 
-      <section className="card stack" aria-labelledby="dauerbeleg-dokument">
-        <h2 id="dauerbeleg-dokument">Vertrag und Beträge</h2>
+      <section className="form-section" aria-labelledby="dauerbeleg-dokument">
+        <h2 id="dauerbeleg-dokument">Dokument</h2>
         <label className="field">
           {isNew ? "Vertrag oder Dauerrechnung" : "Neuer Vertrag oder Nachtrag (optional, gilt für künftige Belege)"}
           <FilePicker inputRef={fileRef} accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,.xml" required={isNew} />
@@ -284,50 +291,59 @@ export function DauerbelegForm({
             {VORSTEUER_HINWEIS} Wohnraum- und viele Gewerbemieten sind steuerfrei (§ 4 Nr. 12 UStG), Versicherungen ebenso.
           </p>
         )}
-        {kleinunternehmer && (
-          <p className="small muted" style={{ margin: 0 }}>
-            Als Kleinunternehmer ziehst du keine Vorsteuer ab; Haben bucht den Bruttobetrag als Aufwand.
-          </p>
-        )}
-        <div className="stack" style={{ gap: 8 }}>
-          {amounts.map((a, index) => (
-            <div key={a.key} className="form-grid" style={{ alignItems: "end" }}>
+        {kleinunternehmer && <p className="field-hint">Als Kleinunternehmer ziehst du keine Vorsteuer ab; Haben bucht den Bruttobetrag als Aufwand.</p>}
+      </section>
+
+      <section className="form-section" aria-labelledby="dauerbeleg-betraege">
+        <h2 id="dauerbeleg-betraege">Beträge je Termin</h2>
+        {amounts.map((a, index) => (
+          <div key={a.key} className={taxShown ? "form-row cols-amount" : "form-row cols-amount ohne-steuer"}>
+            <label className="field">
+              Steuersatz {index + 1}
+              <select value={a.taxRate} onChange={(e) => updateAmount(a.key, { taxRate: Number(e.target.value) as Rate })}>
+                {RATES.filter((r) => r === a.taxRate || !usedRates.has(r)).map((r) => (
+                  <option key={r} value={r}>
+                    {r / 100} %
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              Netto {index + 1}
+              <input
+                inputMode="decimal"
+                className="num"
+                value={a.net}
+                onChange={(e) => updateAmount(a.key, { net: e.target.value })}
+                aria-invalid={!parsed[index]!.valid}
+              />
+            </label>
+            {taxShown && (
               <label className="field">
-                Steuersatz {index + 1}
-                <select value={a.taxRate} onChange={(e) => updateAmount(a.key, { taxRate: Number(e.target.value) as Rate })}>
-                  {RATES.filter((r) => r === a.taxRate || !usedRates.has(r)).map((r) => (
-                    <option key={r} value={r}>
-                      {r / 100} %
-                    </option>
-                  ))}
-                </select>
+                Umsatzsteuer {index + 1}
+                <input inputMode="decimal" className="num" value={a.tax} onChange={(e) => updateAmount(a.key, { tax: e.target.value, taxEdited: true })} />
               </label>
-              <label className="field">
-                Netto {index + 1}
-                <input inputMode="decimal" value={a.net} onChange={(e) => updateAmount(a.key, { net: e.target.value })} aria-invalid={!parsed[index]!.valid} />
-              </label>
-              {taxShown && (
-                <label className="field">
-                  Umsatzsteuer {index + 1}
-                  <input inputMode="decimal" value={a.tax} onChange={(e) => updateAmount(a.key, { tax: e.target.value, taxEdited: true })} />
-                </label>
-              )}
-              {amounts.length > 1 && (
-                <button type="button" className="btn btn-sm" onClick={() => setAmounts((prev) => prev.filter((x) => x.key !== a.key))}>
-                  Steuersatz {a.taxRate / 100} % entfernen
-                </button>
-              )}
-            </div>
-          ))}
-          {amounts.length < RATES.length && (
-            <div>
-              <button type="button" className="btn btn-sm" onClick={addRate}>
-                + Steuersatz
+            )}
+            {amounts.length > 1 && (
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={`Steuersatz ${a.taxRate / 100} % entfernen`}
+                onClick={() => setAmounts((prev) => prev.filter((x) => x.key !== a.key))}
+              >
+                <Icon name="close" size={16} />
               </button>
-            </div>
-          )}
-        </div>
-        <p style={{ margin: 0 }}>
+            )}
+          </div>
+        ))}
+        {amounts.length < RATES.length && (
+          <div>
+            <button type="button" className="btn btn-sm" onClick={addRate}>
+              <Icon name="plus" size={16} /> Steuersatz hinzufügen
+            </button>
+          </div>
+        )}
+        <p className="dauerbeleg-summe">
           Je Termin: {formatEuro(sums.net)} netto{taxShown ? ` + ${formatEuro(sums.tax)} Umsatzsteuer` : ""} = <strong>{formatEuro(sums.gross)}</strong>
         </p>
         <label className="field">
@@ -336,7 +352,7 @@ export function DauerbelegForm({
         </label>
       </section>
 
-      <div className="actions">
+      <div className="actions form-footer">
         <button type="submit" className="btn btn-primary" disabled={busy || !valid}>
           {submitLabel}
         </button>

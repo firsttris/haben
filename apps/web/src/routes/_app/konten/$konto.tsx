@@ -99,14 +99,14 @@ function KontenblattPage() {
       <div className="kpi-grid">
         <div className="card">
           <div className="kpi-label">Eröffnung</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>
+          <div className="kpi-value">
             <SaldoBetrag kontenrahmen={kr} account={konto} saldo={data.eroeffnung} />
           </div>
           <div className="small muted">am {formatDate(data.from)}</div>
         </div>
         <div className="card kpi-wide">
           <div className="kpi-label">Bewegungen im Zeitraum</div>
-          <dl className="facts" style={{ gap: "2px 12px", fontSize: 15 }}>
+          <dl className="facts" style={{ gap: "2px 12px", fontSize: 16 }}>
             <dt>Soll</dt>
             <dd className="mono">{formatEuro(data.soll)}</dd>
             <dt>Haben</dt>
@@ -116,7 +116,7 @@ function KontenblattPage() {
         </div>
         <div className="card">
           <div className="kpi-label">Saldo am Ende</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>
+          <div className="kpi-value">
             <SaldoBetrag kontenrahmen={kr} account={konto} saldo={data.saldo} />
           </div>
           <div className="small muted">am {formatDate(lastDayBefore(data.to))}</div>

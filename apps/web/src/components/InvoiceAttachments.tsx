@@ -70,7 +70,7 @@ export function InvoiceAttachments({ invoiceId, attachments, editable }: { invoi
     <section className="card" aria-labelledby={headingId}>
       <h2 id={headingId}>Anhänge</h2>
       {attachments.length > 0 ? (
-        <ul className="stack" style={{ gap: 6, listStyle: "none", margin: 0, padding: 0 }} aria-label="Zusätzliche Anhänge">
+        <ul className="stack" style={{ gap: 8, listStyle: "none", margin: 0, padding: 0 }} aria-label="Zusätzliche Anhänge">
           {attachments.map((row) => (
             <li key={row.id} className="history-row">
               <a href={`/api/rechnungsanhang/${row.id}`} target="_blank" rel="noreferrer" style={{ minWidth: 0, overflowWrap: "anywhere" }}>

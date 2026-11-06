@@ -57,7 +57,7 @@ test("Rechnung schreiben mit Vorschau", async () => {
   await page.getByLabel("Beschreibung Position 1").fill("Konzeption und Umsetzung Kundenportal");
   await page.getByLabel("Menge Position 1").fill("24");
   await page.getByLabel(/Einzelpreis Position 1/).fill("95,00");
-  await page.getByRole("button", { name: "+ Position hinzufügen" }).click();
+  await page.getByRole("button", { name: "Position hinzufügen" }).click();
   await page.getByLabel("Beschreibung Position 2").fill("Hosting");
   await page.getByLabel("Menge Position 2").fill("1");
   await page.getByLabel(/Einzelpreis Position 2/).fill("49,00");

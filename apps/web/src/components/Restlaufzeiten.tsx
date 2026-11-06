@@ -3,6 +3,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useId, useState, type FormEvent } from "react";
 import { formatDate, formatDateTime } from "../lib/format.ts";
+import { sammelHinweise } from "../lib/hinweise.ts";
 import { useAction } from "../lib/use-action.ts";
 import type { RestlaufzeitBlock, RestlaufzeitenAnsicht } from "../server/modules/buchhaltung/index.ts";
 import { saveRestlaufzeitenFn } from "../server/functions/abschluss.ts";
@@ -25,6 +26,7 @@ const anfang = (block: RestlaufzeitBlock | null): Werte =>
 function Stichtag({ block, werte, setWert }: { block: RestlaufzeitBlock; werte: Werte; setWert: (account: string, wert: string) => void }) {
   const id = useId();
   const datum = formatDate(block.stichtag);
+  const hinweise = sammelHinweise(block.zeilen.map((z) => z.grund));
   return (
     <section aria-labelledby={`${id}-titel`} className="stack" style={{ gap: 8 }}>
       <h3 id={`${id}-titel`} style={{ margin: 0 }}>
@@ -62,18 +64,27 @@ function Stichtag({ block, werte, setWert }: { block: RestlaufzeitBlock; werte: 
                       aria-label={`Konto ${z.account} zum ${datum}: davon Restlaufzeit von mehr als einem Jahr`}
                       value={werte[z.account] ?? ""}
                       onChange={(e) => setWert(z.account, e.target.value)}
-                      style={{ maxWidth: 140, textAlign: "right" }}
+                      size={12}
                     />
                   ) : (
                     formatEuro(z.vorschlag)
                   )}
                 </td>
-                <td className="small muted">{z.grund}</td>
+                <td className="small muted">{hinweise.has(z.grund) ? `Hinweis ${hinweise.get(z.grund)}` : z.grund}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {hinweise.size > 0 && (
+        <ol className="small muted" style={{ margin: 0, paddingLeft: 20 }} aria-label={`Hinweise zum ${datum}`}>
+          {[...hinweise.keys()].map((grund, index) => (
+            <li key={grund} value={index + 1}>
+              {grund}
+            </li>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }

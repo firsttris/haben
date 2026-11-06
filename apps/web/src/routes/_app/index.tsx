@@ -306,13 +306,6 @@ function OverviewPage() {
               <div className="small muted">{a.balanceDate ? `Stand letzter Import ${formatDate(a.balanceDate)}` : "Stand letzter Import"}</div>
             </div>
           ))}
-        <div className="card">
-          <div className="kpi-label">ELSTER-Zertifikat</div>
-          <div className="kpi-value" style={{ fontSize: 18, fontFamily: "var(--sans)" }}>
-            {data.certificate ? data.certificate.filename : "nicht hinterlegt"}
-          </div>
-          <div className="small muted">{data.certificate?.validUntil ? `gültig bis ${formatDate(data.certificate.validUntil)}` : "Ablaufdatum unbekannt"}</div>
-        </div>
       </div>
 
       <div className="grid-main">
@@ -358,6 +351,11 @@ function OverviewPage() {
                 </div>
               ))
             )}
+            {/* Das Zertifikat ist keine Kennzahl; es gehört zum Senden der Voranmeldungen, Ablauf und Fehlen meldet „Zu erledigen“ */}
+            <p className="small muted" style={{ margin: 0 }}>
+              ELSTER-Zertifikat: {data.certificate ? data.certificate.filename : "nicht hinterlegt"}
+              {data.certificate && (data.certificate.validUntil ? ` · gültig bis ${formatDate(data.certificate.validUntil)}` : " · Ablaufdatum unbekannt")}
+            </p>
           </section>
         </div>
         <section className="card" aria-labelledby="invoices-heading">

@@ -111,7 +111,7 @@ export function VastBelege({ data }: { data: Data }) {
               if (belege.length === 0) return null;
               return (
                 <div key={p.key}>
-                  <h3 style={{ margin: "0 0 4px", fontSize: 15 }}>{p.name}</h3>
+                  <h3 style={{ margin: "0 0 4px", fontSize: 16 }}>{p.name}</h3>
                   {belege.map((b) => (
                     <BelegDetails key={b.id} beleg={b} />
                   ))}

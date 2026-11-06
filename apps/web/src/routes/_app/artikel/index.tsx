@@ -66,7 +66,7 @@ function ArticleForm({ article, onDone }: { article: Article | null; onDone: (no
   return (
     <form className="card" style={{ maxWidth: 720 }} onSubmit={onSubmit} aria-label={article ? "Artikel bearbeiten" : "Neuer Artikel"}>
       <h2 style={{ margin: 0, fontSize: 16 }}>{article ? "Artikel bearbeiten" : "Neuer Artikel"}</h2>
-      <div className="form-grid">
+      <div className="form-row cols-2">
         <label className="field" style={{ gridColumn: "1 / -1" }}>
           Bezeichnung
           <input name="description" defaultValue={article?.description ?? ""} maxLength={500} required autoFocus />

@@ -66,7 +66,7 @@ function InvitationPage() {
         </div>
         {accepted ? (
           <>
-            <h1 style={{ fontSize: 22 }}>Passkey einrichten</h1>
+            <h1 style={{ fontSize: 24 }}>Passkey einrichten</h1>
             <p className="muted">Melde dich künftig mit einem Passkey an, ohne Passwort. Das Passwort bleibt als Rückfallebene.</p>
             <button type="button" className="btn btn-primary" onClick={addPasskey} disabled={busy}>
               Passkey hinzufügen
@@ -77,14 +77,14 @@ function InvitationPage() {
           </>
         ) : state.user ? (
           <>
-            <h1 style={{ fontSize: 22 }}>Einladung</h1>
+            <h1 style={{ fontSize: 24 }}>Einladung</h1>
             <p className="muted" style={{ margin: 0 }}>
               Du bist schon als {state.user.name} angemeldet. Melde dich ab, um mit dieser Einladung einen eigenen Zugang anzulegen.
             </p>
           </>
         ) : invitation.valid ? (
           <form className="stack" onSubmit={createAccount}>
-            <h1 style={{ fontSize: 22 }}>Zugang für die Steuerberatung</h1>
+            <h1 style={{ fontSize: 24 }}>Zugang für die Steuerberatung</h1>
             <p className="muted" style={{ margin: 0 }}>
               Einladung „{invitation.label}“, gültig bis {formatDateTime(invitation.expiresAt)}. Der Zugang kann alles ansehen und herunterladen, aber nichts
               ändern.
@@ -107,7 +107,7 @@ function InvitationPage() {
           </form>
         ) : (
           <>
-            <h1 style={{ fontSize: 22 }}>Einladung ungültig</h1>
+            <h1 style={{ fontSize: 24 }}>Einladung ungültig</h1>
             <p className="muted" style={{ margin: 0 }}>
               Dieser Link ist abgelaufen, schon eingelöst oder zurückgezogen. Bitte den Inhaber um eine neue Einladung.
             </p>

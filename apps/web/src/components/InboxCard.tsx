@@ -77,7 +77,7 @@ export function InboxCard({ data }: { data: Data }) {
           ))}
         </select>
       </label>
-      <div className="form-grid">
+      <div className="form-row cols-server">
         <label className="field">
           IMAP-Server
           <input name="host" value={host} onChange={(e) => setHost(e.target.value)} placeholder="imap.gmail.com" required />
@@ -93,6 +93,8 @@ export function InboxCard({ data }: { data: Data }) {
             <option value="starttls">STARTTLS (meist Port 143)</option>
           </select>
         </label>
+      </div>
+      <div className="form-row cols-3">
         <label className="field">
           Benutzername
           <input name="username" defaultValue={s?.username ?? ""} autoComplete="off" required />
@@ -159,7 +161,7 @@ export function InboxCard({ data }: { data: Data }) {
       )}
       {s?.lastError && <ErrorBanner title="Letzter Abruf" detail={s.lastError} />}
       {data.last.length > 0 && (
-        <ul className="small muted" style={{ margin: 0, paddingLeft: 18 }}>
+        <ul className="small muted" style={{ margin: 0, paddingLeft: 20 }}>
           {data.last.map((m) => (
             <li key={m.id} style={{ overflowWrap: "anywhere" }}>
               {formatDateTime(m.createdAt)}: {m.subject || "(ohne Betreff)"} von {m.sender} · {m.documentIds.length} Beleg
