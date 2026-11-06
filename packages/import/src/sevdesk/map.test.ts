@@ -44,7 +44,7 @@ describe("Grundbausteine", () => {
 
 describe("mapSevContact", () => {
   it("nimmt Firmennamen, sonst Vor- und Nachname, mit Adresse, Land und Haupt-E-Mail", () => {
-    const org = sevContactSchema.parse({ id: 7, name: "Berliner Kindl GmbH", customerNumber: "1001", vatNumber: "DE123456789" });
+    const org = sevContactSchema.parse({ id: 7, name: "Berliner Kindl GmbH", category: { id: "3" }, customerNumber: "1001", vatNumber: "DE123456789" });
     const person = sevContactSchema.parse({ id: "8", surename: "Erika", familyname: "Mustermann" });
     const addresses = firstByContact([
       {
@@ -64,6 +64,7 @@ describe("mapSevContact", () => {
       sevdeskId: "7",
       name: "Berliner Kindl GmbH",
       kundennummer: "1001",
+      role: "customer",
       strasse: "Hauptstr. 1",
       plz: "10115",
       ort: "Berlin",
@@ -73,6 +74,20 @@ describe("mapSevContact", () => {
       steuernummer: "",
     });
     expect(mapSevContact(person)).toMatchObject({ name: "Erika Mustermann", land: "DE", kundennummer: null });
+  });
+
+  it.each([
+    ["2", "supplier", null],
+    [2, "supplier", null],
+    ["3", "customer", "1001"],
+    [3, "customer", "1001"],
+    ["4", null, null],
+    ["28", null, null],
+    ["999", null, null],
+    [null, null, null],
+  ])("ordnet Kategorie %s eindeutig zu und übernimmt nur die Nummer eines Kunden", (categoryId, role, kundennummer) => {
+    const raw = sevContactSchema.parse({ id: "7", customerNumber: " 1001 ", category: categoryId === null ? null : { id: categoryId } });
+    expect(mapSevContact(raw)).toMatchObject({ role, kundennummer });
   });
 
   it("erkennt Ansprechpartner einer Organisation", () => {
