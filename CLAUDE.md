@@ -36,7 +36,7 @@ Update what the change affects, in the same pull request, and only that:
   Playwright in `apps/web/e2e/` for what a user clicks; a bug fix starts with a test that fails;
 - bookings and tax: test cases for SKR03 and SKR04 and for Ist and Soll;
 - the docs in `docs/` that describe it, in German;
-- the README when a feature a user sees is added, changed or removed;
+- the README only when a feature area is added or removed or its one-line summary no longer fits; details go into `docs/`, the table row stays short;
 - a new page: add it to `e2e/barrierefreiheit.spec.ts` and the screenshot list in `e2e/seiten.spec.ts`;
 - the screenshots after a change to the look: **Actions → Update screenshots → Run workflow**, then
   look at the new pictures.
