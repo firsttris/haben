@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { darlehenEuerZeile, darlehenKonto, darlehenPosting, darlehenTeilFehler, darlehenZinskonto, type Darlehen } from "./darlehen.ts";
+import { darlehenEuerZeile, darlehenKonto, darlehenPosting, darlehenStichtagFehler, darlehenTeilFehler, darlehenZinskonto, type Darlehen } from "./darlehen.ts";
 import { computeEuer } from "./euer.ts";
 import { postenForSaldo } from "./hgb.ts";
 import { restlaufzeitLautKonto } from "./bilanzvermerke.ts";
@@ -73,6 +73,16 @@ describe("Prüffall 2: Rate von 1.000 € aus 800 € Tilgung und 200 € Zinsen
     expect(darlehenTeilFehler("tilgung", 800_00, 10_000_00)).toMatch(/Ausgang/);
     expect(darlehenTeilFehler("auszahlung", -1, 0)).toMatch(/Eingang/);
     expect(darlehenTeilFehler("zins", 20_00, 0)).toBeNull();
+  });
+
+  it("Stichtag nach Tagesabschluss: Auszahlung und Tilgung bis einschließlich Stichtag stecken in der Restschuld (#325)", () => {
+    expect(darlehenStichtagFehler("tilgung", "2026-11-30", "2026-11-30")).toMatch(/zum 30\.11\.2026 .* vom 30\.11\.2026 .* als Tilgung/);
+    expect(darlehenStichtagFehler("auszahlung", "2026-11-29", "2026-11-30")).toMatch(/als Auszahlung/);
+    expect(darlehenStichtagFehler("tilgung", "2026-12-01", "2026-11-30")).toBeNull();
+    // Zinsen und Gebühren ändern den Bestand nicht, ein neues Darlehen hat keinen Stichtag
+    expect(darlehenStichtagFehler("zins", "2026-11-15", "2026-11-30")).toBeNull();
+    expect(darlehenStichtagFehler("gebuehr", "2026-11-15", "2026-11-30")).toBeNull();
+    expect(darlehenStichtagFehler("tilgung", "2020-01-01", null)).toBeNull();
   });
 });
 
