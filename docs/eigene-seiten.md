@@ -7,7 +7,7 @@ Haben speichert nur Name und Adresse. Was die Seite zeigt und tut, liegt bei dir
 ## Einrichten
 
 1. **Einstellungen → Eigene Seiten** öffnen.
-2. Einen **Namen im Menü** vergeben (z. B. „Bestellungen“, höchstens 40 Zeichen) und die **Adresse** der Seite eintragen, mit `https://` oder `http://`.
+2. Einen **Namen im Menü** vergeben (z. B. „Bestellungen“, höchstens 40 Zeichen) und die **Adresse** der Seite eintragen, mit `https://` oder `http://`. Benutzername und Passwort in der Adresse (`https://nutzer:passwort@…`) lehnt Haben ab, weil sie sonst im Menü und im Änderungsprotokoll stünden.
 3. **Seite hinzufügen.** Die Seite steht jetzt im Menü unter **Eigene Seiten**.
 
 **Bearbeiten** ändert Name oder Adresse, **Entfernen** nimmt die Seite aus dem Menü. Die Seite selbst bleibt dabei, wo sie ist. Jede Änderung steht im Änderungsprotokoll.

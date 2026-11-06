@@ -6,8 +6,8 @@ Diese Seite führt dich durch die Einrichtung nach der Installation: Konto und P
 
 In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltung:
 
+1. Konto anlegen und einen Passkey hinzufügen, siehe [Konto anlegen](#konto-anlegen)
 2. Firmendaten ausfüllen, Rechtsform, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten; gibst du nicht monatlich ab, unter Umsatzsteuer den [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum) einstellen
-2. Firmendaten ausfüllen, Rechtsform, Versteuerung und Kontenrahmen wählen, gegebenenfalls Kleinunternehmer einschalten
 3. Wenn du aus Lexoffice kommst: Umzug durchführen, siehe [Umzug aus Lexoffice](lexoffice.md). Der Abgleich zeigt dir die letzte Rechnungsnummer
 4. Nächste Rechnungsnummer setzen
 5. Hersteller-ID und ELSTER-Zertifikat **gleich jetzt** beantragen: Beides dauert ein bis zwei Wochen, siehe [Was du brauchst](#was-du-brauchst)
@@ -38,7 +38,7 @@ Deine Steuerberatung bekommt auf Wunsch einen eigenen Zugang, der nur lesen kann
 
 ## Einstellungen und Darstellung
 
-Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Logo, Akzentfarbe), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`.
+Die **Einstellungen** (unten links in der Navigation) sind in Bereiche geteilt: **Firma**, **Persönliche Angaben**, **Rechnungen** (Nummernkreis, Nummernformat, Vorlagen für den Zahlungsplan, Kundennummern, Logo, Akzentfarbe), **ELSTER** (Zertifikat, ERiC), **E-Mail** (Versand, Belege-Postfach), **Bank** (automatischer Kontoabruf), **Sicherheit** (Passkeys, Zugänge), **Fremdwährung** (Umrechnungskurse), **KI-Assistenten und API** (MCP, [REST-API](api.md), Belegauslesung), **Eigene Seiten** ([eigene Werkzeuge im Menü](eigene-seiten.md)) und **Export** (Jahresarchiv, DATEV, Änderungsprotokoll prüfen, Backup). Links aus der App, etwa „Zertifikat hochladen“ in der Übersicht, führen direkt in den passenden Bereich; die Adresse lautet dann z. B. `/einstellungen?bereich=elster`.
 
 Ebenfalls unten links wählst du das **Theme**: Wald (Grün, Standard), Ozean, Pflaume, Graphit, die dunklen Themes Nacht und Tiefsee oder **Automatisch**, das je nach Systemeinstellung zwischen Wald und Nacht wechselt. Die Wahl gilt für diesen Browser und wird dort gespeichert, nicht auf dem Server; auf einem anderen Gerät wählst du sie neu. Rechnungen und PDFs bleiben in jedem Theme gleich.
 
@@ -65,6 +65,7 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Feld | Wofür |
 | --- | --- |
 | Name | Absender auf Rechnungen, Datenlieferant in der Voranmeldung. Pflicht für beides |
+| Art des Betriebs bzw. Gegenstand des Unternehmens | z. B. „Softwareentwicklung“; für die Anlage EÜR, bei GmbH und UG für die Gewerbesteuererklärung, siehe [Jahreserklärungen](jahreserklaerung.md) |
 | E-Mail | Absender auf Rechnungen. Pflicht zum Festschreiben einer Rechnung |
 | Straße und Hausnummer, PLZ, Ort | Anschrift auf Rechnungen und in der Voranmeldung. Pflicht für beides; die PLZ hat fünf Ziffern |
 | Bundesland | Nötig, um die Steuernummer ins ELSTER-Format umzurechnen. Pflicht für ELSTER. Bestimmt außerdem die Feiertage für die Fälligkeit von Rechnungen und Voranmeldungen |
@@ -75,6 +76,7 @@ Unter **Einstellungen › Firma** hinterlegst du die Angaben, die auf Rechnungen
 | Bank, IBAN, BIC | Zahlungsangaben auf der Rechnung. Die IBAN ist Pflicht zum Festschreiben; Eingabe ohne Leerzeichen, Haben entfernt sie aber auch selbst |
 | Kontoinhaber | Nur nötig, wenn das Konto nicht auf den Firmennamen läuft. Steht im GiroCode, in der Fußzeile und in der E-Rechnung (BT-85); leer = Firmenname. Höchstens 70 Zeichen, siehe [GiroCode](rechnungen.md#girocode) |
 | Rechtsform | Einzelunternehmen, GmbH oder UG (haftungsbeschränkt), siehe [unten](#rechtsform-einzelunternehmen-gmbh-oder-ug) |
+| Einkunftsart | Nur im Einzelunternehmen: selbständige Arbeit oder Gewerbebetrieb, für die Anlage EÜR, siehe [Jahreserklärungen](jahreserklaerung.md) |
 | Sitz, Registergericht, Registernummer | Nur GmbH und UG, Abschnitt **Handelsregister und Geschäftsführung**: wie im Registerauszug, etwa „Amtsgericht Bremen“ und „HRB 12345 HB“. Sie gehören in den Jahresabschluss (§ 264 Abs. 1a HGB), stehen auf der [Bilanz zur Hinterlegung](buchhaltung.md#hinterlegung-beim-unternehmensregister-gmbh-und-ug) und auf jedem Geschäftsbrief (siehe [Pflichtangaben einer GmbH oder UG](rechnungen.md#pflichtangaben-einer-gmbh-oder-ug)). Sitz laut Gesellschaftsvertrag; leer = Ort der Anschrift |
 | Geschäftsführer | Nur GmbH und UG: alle Geschäftsführer, einer je Zeile, mit Familiennamen und mindestens einem ausgeschriebenen Vornamen, etwa „Erika Mustermann“ (§ 35a Abs. 1 GmbHG). Stehen im Fuß von Rechnung, Angebot, Mahnung und Lieferschein und unter E-Mails an Kunden |
 | Vorsitz des Aufsichtsrats | Nur, wenn die Gesellschaft einen Aufsichtsrat mit Vorsitz gebildet hat; sonst leer lassen |
@@ -134,14 +136,14 @@ Die Rechtsform bestimmt, wohin Geld zwischen dem Unternehmen und dir gebucht wir
 | [Manuelle Buchungen](buchhaltung.md#manuelle-buchungen-gmbh-und-ug) | nein | ja |
 | [Saldenvortrag, Eröffnungsbuchung](buchhaltung.md#saldenvortrag-und-eröffnung-gmbh-und-ug) | nein, jedes Jahr beginnt bei null | ja |
 | [Jahresabschluss](buchhaltung.md#jahresabschluss-gmbh-und-ug): Bilanz und GuV (Entwurf), Jahr abschließen | nein | ja |
-| [Körperschaft- und Gewerbesteuer](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug) rechnen, Rückstellungen buchen | nein | ja |
-| [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug) an das Finanzamt | nein | ja |
+| [Körperschaft- und Gewerbesteuer](buchhaltung.md#körperschaft--und-gewerbesteuer-gmbh-und-ug) rechnen, Rückstellungen buchen | nein | ja |
+| [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug) an das Finanzamt | nein | ja |
 | [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) an das Finanzamt | nein | ja |
 | [Gewinnausschüttung](buchhaltung.md#gewinnausschüttung-gmbh-und-ug) mit Kapitalertragsteuer-Anmeldung | nein | ja |
 
 Eine Kapitalgesellschaft hat kein Privat. Was der Gesellschafter für sie auslegt oder von ihr bekommt, ist eine Verbindlichkeit bzw. Forderung ihm gegenüber; das Verrechnungskonto zeigt den Stand. Ein Privatanteil wäre bei einer GmbH Arbeitslohn oder eine verdeckte Gewinnausschüttung, die Privatnutzung eines Firmenwagens ein Sachbezug in der Lohnabrechnung. Beides bucht Haben deshalb nicht; die Pauschalen ersetzen Ausgaben eines Einzelunternehmers. Erstattet die GmbH dir Reisekosten, lädst du die Abrechnung als Beleg hoch und wählst „Vom Gesellschafter ausgelegt“.
 
-Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung, rechnet Körperschaft- und Gewerbesteuer samt Rückstellungen und sendet die [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) und die [Erklärungen](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug) für eine GmbH ohne Beteiligungen, Organschaft und Ausschüttungen. Die laufende Buchhaltung mit Rechnungen, Belegen, Bank und Umsatzsteuer machst du in Haben und gibst den [DATEV-Export](auswertungen.md) an die Steuerberatung. Der Weg zum Abschluss steht in [Issue #213](https://github.com/firsttris/haben/issues/213).
+Bilanz und GuV zeigt Haben als Entwurf für die Steuerberatung, rechnet Körperschaft- und Gewerbesteuer samt Rückstellungen und sendet die [E-Bilanz](buchhaltung.md#e-bilanz-gmbh-und-ug) und die [Erklärungen](jahreserklaerung.md#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug) für eine GmbH ohne Beteiligungen, Organschaft und Ausschüttungen. Die laufende Buchhaltung mit Rechnungen, Belegen, Bank und Umsatzsteuer machst du in Haben und gibst den [DATEV-Export](auswertungen.md) an die Steuerberatung. Der Weg zum Abschluss steht in [Issue #213](https://github.com/firsttris/haben/issues/213).
 
 Den Ablauf eines Jahres für eine GmbH oder UG zeigt [GmbH und UG](gmbh.md).
 
@@ -286,6 +288,15 @@ Unter **Einstellungen › Rechnungen › Vorlagen für den Zahlungsplan** legst 
 - Die Änderung steht wie die übrigen Firmendaten im Änderungsprotokoll.
 
 Wie der Plan im Angebot wirkt, steht unter [Zahlungsplan](angebote.md#zahlungsplan).
+
+### Kundennummern
+
+Unter **Einstellungen › Rechnungen › Kundennummern** legst du ein Format fest, mit dem Haben beim Anlegen eines Kunden ohne eigene Nummer die nächste Kundennummer vergibt (reine Lieferanten bekommen keine), etwa `K-{NNNN}` → `K-0001`.
+
+- Platzhalter wie beim [Nummernformat](#nummernformat); das Jahr ist hier nicht nötig.
+- **Nächste laufende Nummer** setzt den Zähler (mindestens 1). Nummern, die ein Kontakt schon trägt (von Hand oder aus einem Import), überspringt Haben; lückenlos müssen Kundennummern nicht sein.
+- Bleibt das Format leer, trägst du Kundennummern von Hand ein.
+- Das gilt auch für Kontakte, die über die [REST-API](api.md) angelegt werden.
 
 ## ELSTER einrichten
 
