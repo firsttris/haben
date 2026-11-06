@@ -39,7 +39,7 @@ Haben legt nichts doppelt an und überschreibt nichts:
 - **Dublette:** Gibt es den Datensatz schon in Haben (auch archiviert) oder steht er weiter oben in derselben Datei, überspringt Haben die Zeile. Die Vorschau nennt das Merkmal, etwa „Gibt es schon (Kundennummer 10001)“ oder „Wie Zeile 3 (E-Mail …)“.
 - **Fehler:** Zeilen mit Fehlern übernimmt Haben nicht; die Vorschau nennt jeden Fehler mit dem Feld. Korrigiere die Datei und lade sie noch einmal: Was schon übernommen ist, zählt dann als Dublette.
 - **Alles oder nichts:** Alle neuen Zeilen entstehen in einer Transaktion. Scheitert eine beim Speichern, wird keine angelegt.
-- Die Vorschau zeigt Fehler und Dubletten zuerst, danach bis zu 200 Zeilen.
+- Die Vorschau zeigt bis zu 200 Zeilen, Fehler und Dubletten zuerst.
 - Jede angelegte Zeile steht wie beim Anlegen von Hand im Änderungsprotokoll.
 
 | Art | Wiedererkannt an |
