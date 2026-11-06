@@ -332,7 +332,7 @@ Gebucht wird ohne Steuerschlüssel: Eine Steuerzahlung erzeugt weder Umsatz noch
 | Hinterziehungszinsen (§ 235 AO), auch zur Umsatzsteuer | 2108 | 7306 | nie abziehbar (§ 4 Abs. 5 Satz 1 Nr. 8a EStG), nachrichtlich bei der Gewerbesteuer |
 | Säumniszuschlag zur Umsatzsteuer / zur Gewerbesteuer / zur Körperschaftsteuer | 2103 / 2102 / 2104 | 7303 / 7302 / 7304 | Betriebsausgabe / nachrichtlich bei der Gewerbesteuer |
 | Verspätungszuschlag, Zwangsgeld zur Umsatzsteuer / zu Gewerbe- und Körperschaftsteuer | 4396 / 4397 | 6436 / 6437 | Betriebsausgabe / nachrichtlich bei der Gewerbesteuer |
-| Erstattungszinsen § 233a AO zur Umsatzsteuer | 2657 Zinserträge § 233a AO, steuerpflichtig | 7105 | Betriebseinnahme |
+| Erstattungszinsen § 233a AO zur Umsatz- oder Gewerbesteuer | 2657 Zinserträge § 233a AO, steuerpflichtig | 7105 | Betriebseinnahme |
 
 Beispiel: Der Bescheid über die Gewerbesteuer 2024 kommt im Oktober 2026, die Stadtkasse zieht 543,00 € ein: 500,00 € Steuer, 18,00 € Nachzahlungszinsen und 25,00 € Verspätungszuschlag. Aufgeteilt in drei Teile, Steuerart Gewerbesteuer, Bezugsjahr 2024:
 
@@ -349,7 +349,9 @@ Die EÜR 2026 bleibt dadurch unverändert; die 543,00 € stehen nachrichtlich a
 
 **GmbH und UG:** Eine Nachzahlung von Körperschaftsteuer, Soli oder Gewerbesteuer für ein Vorjahr verbraucht zuerst die Rückstellung, die der [Jahresabschluss](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug) zum 31.12. dieses Jahres gebucht hat, soweit Zahlungen für dasselbe Jahr sie nicht schon verbraucht haben; nur der Rest ist Aufwand für Vorjahre. Bleibt nach dem endgültigen Bescheid ein Rest der Rückstellung stehen, löst ihr ihn mit der Steuerberatung als manuelle Buchung auf. Nicht abziehbare Zinsen und Zuschläge rechnet die Steuerberechnung dem Einkommen wieder hinzu.
 
-**Nicht unterstützt:** Erstattungszinsen zur Gewerbe- und Körperschaftsteuer (der DATEV-Kontenrahmen führt sie auf steuerfreien Konten, deren Kürzung die Erklärungen in Haben nicht abbilden) und Steuern, die nicht in der Auswahl stehen. Die Kfz-Steuer kommt weiter mit einem Beleg (Kategorie „Kfz: Steuer“), die Lohnsteuer über die [Lohnabrechnung](lohn.md#buchung).
+Erstattungszinsen zur Gewerbesteuer sind Betriebseinnahmen wie die zur Umsatzsteuer; § 4 Abs. 5b EStG nimmt nur die Nachzahlungszinsen aus dem Gewinn (BFH, Urteil vom 26.09.2025, IV R 16/23). Die Erstattung der Gewerbesteuer selbst bleibt außerhalb des Gewinns.
+
+**Nicht unterstützt:** Erstattungszinsen zur Körperschaftsteuer und zum Solidaritätszuschlag der GmbH (steuerfrei nach § 10 Nr. 2 KStG; die Kürzung außerhalb der Bilanz bilden die Erklärungen in Haben nicht ab) und Steuern, die nicht in der Auswahl stehen. Die Kfz-Steuer kommt weiter mit einem Beleg (Kategorie „Kfz: Steuer“), die Lohnsteuer über die [Lohnabrechnung](lohn.md#buchung).
 
 ### Darlehen
 

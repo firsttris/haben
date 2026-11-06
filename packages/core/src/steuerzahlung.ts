@@ -274,9 +274,14 @@ export function steuerKontierung(
 
   if (posten !== "steuer") {
     if (posten === "zinsen233a" && erstattung) {
-      // Erstattungszinsen zur Umsatzsteuer sind steuerpflichtige Betriebseinnahmen; zu Gewerbe- und Körperschaftsteuer führt
-      // der DATEV-Kontenrahmen steuerfreie Konten, deren Kürzung die Erklärungen in Haben nicht abbilden
-      if (gruppe !== "betrieblich") return fehler(`Erstattungszinsen zur ${STEUERARTEN[art]} bucht Haben nicht; bucht sie mit der Steuerberatung.`);
+      // Erstattungszinsen zur Umsatz- und Gewerbesteuer sind steuerpflichtige Betriebseinnahmen; § 4 Abs. 5b EStG gilt nur
+      // für Nachzahlungszinsen (BFH, Urteil vom 26.09.2025, IV R 16/23). Zu Körperschaftsteuer und Solidaritätszuschlag der
+      // GmbH sind sie steuerfrei (§ 10 Nr. 2 KStG); deren Kürzung außerhalb der Bilanz bilden die Erklärungen in Haben nicht ab
+      if (gruppe === "ertragsteuer") {
+        return fehler(
+          `Erstattungszinsen zur ${STEUERARTEN[art]} sind steuerfrei (§ 10 Nr. 2 KStG); die Kürzung außerhalb der Bilanz bildet Haben nicht ab. Bucht sie mit der Steuerberatung.`,
+        );
+      }
       return { ok: true, konto: k.erstattungszinsen, rueckstellung: null };
     }
     return { ok: true, konto: nebenleistungKonto(posten, gruppe, kontenrahmen), rueckstellung: null };
@@ -337,8 +342,9 @@ export type SteuerEuerWirkung = "umsatzsteuer" | "einnahme" | "nebenleistung" | 
 export function steuerEuerWirkung(art: Steuerart, posten: SteuerPosten, amount: Cents): SteuerEuerWirkung {
   const gruppe = steuerGruppe(art, "einzelunternehmen");
   if (gruppe === "privat") return "privat";
+  // Erstattungszinsen sind auch zur Gewerbesteuer Betriebseinnahmen (BFH, Urteil vom 26.09.2025, IV R 16/23)
+  if (posten === "zinsen233a" && amount > 0) return "einnahme";
   // Hinterziehungszinsen (§ 4 Abs. 5 Satz 1 Nr. 8a EStG) stehen dort wie die Gewerbesteuer nur nachrichtlich
   if (gruppe === "gewerbesteuer" || posten === "zinsen235") return "nichtAbziehbar";
-  if (posten === "steuer") return "umsatzsteuer";
-  return posten === "zinsen233a" && amount > 0 ? "einnahme" : "nebenleistung";
+  return posten === "steuer" ? "umsatzsteuer" : "nebenleistung";
 }

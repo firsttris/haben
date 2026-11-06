@@ -179,6 +179,34 @@ describe.skipIf(!testDatabaseUrl)("Steuerzahlungen im Bankabgleich (Postgres)", 
     ]);
   });
 
+  it.each([
+    ["einzelunternehmen", "SKR03", "ist", { bank: "1200", gewst: "2281", zinsen: "2657" }],
+    ["gmbh", "SKR04", "soll", { bank: "1800", gewst: "7641", zinsen: "7105" }],
+  ] as const)(
+    "%s, %s, %s: Erstattung der Gewerbesteuer mit Erstattungszinsen – die Zinsen sind Betriebseinnahmen (#312)",
+    async (rechtsform, kr, versteuerung, konten) => {
+      await firma(rechtsform, kr, versteuerung);
+      await bank.importStatement(actor, dkbCsv([["20.06.26", "Stadtkasse Bremen", "Erstattung GewSt 2024 mit Zinsen", "350,00"]]), null);
+      const transactionId = await umsatz(350_00);
+      await bank.allocateSplit(actor, {
+        transactionId,
+        parts: [
+          { kind: "steuer", amount: 300_00, steuer: { art: "gewst", jahr: 2024, posten: "steuer" } },
+          { kind: "steuer", amount: 50_00, steuer: { art: "gewst", jahr: 2024, posten: "zinsen233a" } },
+        ],
+      });
+      const s = await salden();
+      expect(s).toEqual({ [konten.bank]: 350_00, [konten.gewst]: -300_00, [konten.zinsen]: -50_00 });
+      if (rechtsform === "einzelunternehmen") {
+        // Die Erstattung der Gewerbesteuer selbst bleibt außerhalb des Gewinns, die Zinsen zählen als Einnahme
+        expect((await reports.euerForYear(2026)).einnahmen.find((l) => l.key === "einnahmenSteuerfrei")?.amount).toBe(50_00);
+        expect(abgleich.abweichungen((await abgleich.euerAbgleich(2026)).zeilen)).toEqual([]);
+      } else {
+        for (const [account, saldo] of Object.entries(s)) expect(ebilanzPosition(kr, account, saldo), account).not.toBeNull();
+      }
+    },
+  );
+
   it("Einzelunternehmen, SKR04, Ist: Zinsen zur Umsatzsteuer abziehbar; Einkommensteuer und Zinsen darauf als Entnahme", async () => {
     await firma("einzelunternehmen", "SKR04", "ist");
     await bank.importStatement(
