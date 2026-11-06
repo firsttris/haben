@@ -8,8 +8,8 @@ Unter **Fristen** sammelt Haben alle steuerlichen Termine an einem Ort und erinn
 | --- | --- | --- |
 | Umsatzsteuer-Voranmeldung | 10. nach Ablauf des Zeitraums, mit [Dauerfristverlängerung](umsatzsteuer.md#dauerfristverlängerung) einen Monat später: bei monatlicher Abgabe der 10. des Folgemonats, bei vierteljährlicher der 10. April, Juli, Oktober und Januar, je nach [Voranmeldungszeitraum](umsatzsteuer.md#voranmeldungszeitraum); ab dem ersten Buchungsmonat; nicht, wenn du befreit bist, und nicht für Monate als Kleinunternehmer (Stand am Ende des Zeitraums, die Voranmeldung für Dezember bleibt also nach einer Umstellung zum Jahreswechsel) | die Voranmeldung echt übermittelt oder ihre [Abgabe außerhalb von Haben vermerkt](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken) ist; die Zahlung verfolgt Haben als [offenen Posten](umsatzsteuer.md#zahlung-an-das-finanzamt) |
 | Sondervorauszahlung | 10. Februar, nur bei monatlicher Abgabe mit Dauerfristverlängerung, ab dem zweiten Jahr (§ 48 Abs. 2 UStDV) | die Sondervorauszahlung für das Jahr übermittelt oder eingetragen ist |
-| Zusammenfassende Meldung | 25. nach Quartalsende, nur für Quartale mit Leistungen ins EU-Ausland (Reverse Charge, § 18a Abs. 2 UStG); keine Dauerfristverlängerung, verschoben nur bei Wochenende und bundesweiten Feiertagen, da die Meldung an das BZSt geht ([Zusammenfassende Meldung](umsatzsteuer.md#zusammenfassende-meldung)) | die Meldung echt übermittelt ist |
-| Umsatzsteuererklärung, Anlage EÜR, Einkommensteuererklärung | ohne Steuerberater 31. Juli des Folgejahres (§ 149 Abs. 2 AO); für 2020 bis 2023 die verlängerten Fristen (1.11.2021, 31.10.2022, 2.10.2023, 2.9.2024) | die Erklärung echt übermittelt ist |
+| Zusammenfassende Meldung | 25. nach Quartalsende, nur für Quartale mit Leistungen ins EU-Ausland (Reverse Charge) oder innergemeinschaftlichen Lieferungen (§ 18a Abs. 2 UStG); keine Dauerfristverlängerung, verschoben nur bei Wochenende und bundesweiten Feiertagen, da die Meldung an das BZSt geht ([Zusammenfassende Meldung](umsatzsteuer.md#zusammenfassende-meldung)) | die Meldung echt übermittelt ist |
+| Umsatzsteuererklärung, Anlage EÜR, Einkommensteuererklärung | ohne Steuerberater 31. Juli des Folgejahres (§ 149 Abs. 2 AO); für 2020 bis 2023 die verlängerten Fristen (1.11.2021, 31.10.2022, 2.10.2023, 2.9.2024); ab dem ersten Buchungsjahr; die Umsatzsteuererklärung nicht für Jahre ab 2024, in denen du am 31.12. Kleinunternehmer bist (§ 18 Abs. 3 UStG) | die Erklärung echt übermittelt ist |
 | Lohnsteuer-Anmeldung | 10. nach Ablauf des [Anmeldungszeitraums](lohn.md#anmeldungszeitraum) (Monat, Quartal oder Kalenderjahr, § 41a Abs. 1 EStG), für jeden Zeitraum mit festgeschriebenen Lohnabrechnungen nach Zahltag | die Anmeldung echt übermittelt ist und zu den Abrechnungen passt; nach einem Storno wieder offen, bis die berichtigte Anmeldung gesendet ist |
 | Lohnsteuerbescheinigung | letzter Tag im Februar des Folgejahres (§ 93c Abs. 1 Nr. 1 AO), für jedes Jahr mit festgeschriebenen Lohnabrechnungen ([Lohnsteuerbescheinigung](lohn.md#lohnsteuerbescheinigung)) | für jeden Arbeitnehmer mit Bescheinigung eine passende übermittelt oder vermerkt ist, oder sie storniert ist; nach einem Storno einer Abrechnung wieder offen, bis die Korrektur vermerkt ist |
 | Einkommensteuer-Vorauszahlung | 10. März, Juni, September und Dezember | nur Hinweis: ob und wie viel zu zahlen ist, steht im Vorauszahlungsbescheid |
@@ -22,7 +22,7 @@ Bei einer GmbH oder UG fehlen Anlage EÜR, Einkommensteuererklärung und die Ein
 
 Fällt eine Frist auf ein Wochenende oder einen Feiertag im Bundesland der Firma, gilt der nächste Werktag (§ 108 Abs. 3 AO). Die Liste reicht ein Jahr voraus; Offenes aus der Vergangenheit bleibt stehen, bis es erledigt ist, Erledigtes der letzten 60 Tage steht eingeklappt darunter. Ein Klick auf eine Frist führt zur Seite, auf der sie sich erledigen lässt.
 
-Die Einkommensteuererklärung erscheint, sobald [persönliche Angaben](einrichtung.md#persönliche-angaben) hinterlegt sind. Mit Steuerberater gelten längere Fristen; die kennt Haben nicht.
+Die Einkommensteuererklärung und die Einkommensteuer-Vorauszahlungen erscheinen, sobald [persönliche Angaben](einrichtung.md#persönliche-angaben) hinterlegt sind. Mit Steuerberater gelten längere Fristen; die kennt Haben nicht.
 
 ## Kalender-Abo
 
@@ -38,7 +38,7 @@ Die Einkommensteuererklärung erscheint, sobald [persönliche Angaben](einrichtu
 Mit einem E-Mail-Zugang (siehe [Einrichtung](einrichtung.md#e-mail)) schickt Haben Erinnerungen:
 
 - zu den eingestellten Tagen vor einer offenen Frist (Vorgabe: 7 Tage und 1 Tag vorher, wählbar 14, 7, 3, 1 Tag oder am Tag),
-- einmal, wenn eine Voranmeldung oder Erklärung überfällig ist,
+- einmal, wenn eine Frist überfällig ist, außer bei Einspruchsfristen und reinen Hinweisen wie den Einkommensteuer-Vorauszahlungen,
 - morgens nach 7 Uhr (Berliner Zeit) mit dem stündlichen Hintergrundjob, mehrere Fristen in einer Mail.
 
 Jede Frist und Stufe erinnert nur einmal. War der Server aus, holt der nächste Lauf die engste schon erreichte Stufe nach. Scheitert der Versand, steht der Fehler im Protokoll unter Einstellungen › E-Mail › E-Mail-Versand, und der nächste Lauf versucht es erneut. Gesendete Mails stehen unveränderlich im Protokoll.

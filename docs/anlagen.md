@@ -124,7 +124,7 @@ Die Buchungen sind wie alle anderen sofort festgeschrieben. Danach sind die Bere
 
 ## Abgang
 
-Wird eine Anlage verkauft, entnommen oder verschrottet, trägst du das **Abgangsdatum** ein. Haben schreibt bis einschließlich des Abgangsmonats ab und bucht den verbleibenden Buchwert als Aufwand:
+Wird eine Anlage verkauft, entnommen oder verschrottet, trägst du auf der Seite der Anlage unter **Abgang (Verkauf, Entnahme, Verschrottung)** das Datum ein. Haben schreibt bis einschließlich des Abgangsmonats ab und bucht den verbleibenden Buchwert als Aufwand:
 
 ```
 4832 Abschreibungen auf Kfz              1.500,00   an  0320 Pkw   1.500,00
