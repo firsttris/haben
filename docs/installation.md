@@ -320,8 +320,8 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `ELSTER_HERSTELLER_ID` | nein | Eigene Hersteller-ID, genau fünf Ziffern. Mit ERiC 43 nötig für Prüfen, Test- und Echtübermittlung; ohne ERiC läuft alles simuliert | `12345` |
 | `DOCUMENTS_DIR` | nein | Ablage der Belegdateien. Standard `data/belege` (relativ zum Arbeitsverzeichnis); im Image `/var/lib/haben/belege` | `/var/lib/haben/belege` |
 | `ANTHROPIC_API_KEY` | nein | Schaltet die KI-Auslesung von Belegen mit Claude ein | `sk-ant-…` |
-| `EXTRACTION_BASE_URL` | nein | Basis-URL eines selbst betriebenen KI-Dienstes mit OpenAI-kompatibler Schnittstelle. Ist sie gesetzt, liest nur dieser Dienst Belege aus, auch wenn `ANTHROPIC_API_KEY` gesetzt ist ([eigenes Modell](#ki-auslesung-mit-eigenem-modell)) | `http://host.docker.internal:11434/v1` |
-| `EXTRACTION_MODEL` | mit `EXTRACTION_BASE_URL` | Name des Vision-Modells beim Dienst. Fehlt er, startet die App nicht | `qwen2.5vl:7b` |
+| `EXTRACTION_BASE_URL` | nein | Basis-URL eines KI-Dienstes mit OpenAI-kompatibler Schnittstelle, selbst betrieben (Ollama) oder in der Cloud (OpenRouter, OpenAI, …). Ist sie gesetzt, liest nur dieser Dienst Belege aus, auch wenn `ANTHROPIC_API_KEY` gesetzt ist ([OpenAI-kompatible Schnittstelle](#ki-auslesung-über-openai-kompatible-schnittstelle)) | `http://host.docker.internal:11434/v1`, `https://openrouter.ai/api/v1` |
+| `EXTRACTION_MODEL` | mit `EXTRACTION_BASE_URL` | Name des Vision-Modells beim Dienst, so wie der Dienst ihn schreibt. Fehlt er, startet die App nicht | `qwen2.5vl:7b` |
 | `EXTRACTION_API_KEY` | nein | Schlüssel des Dienstes, falls er einen verlangt; geht als `Authorization: Bearer …` mit | `…` |
 | `EXTRACTION_PROVIDER` | nein | Anbieter ausdrücklich wählen: `anthropic` oder `openai-compatible`. Ohne Angabe gilt der eigene Dienst, sobald `EXTRACTION_BASE_URL` gesetzt ist | `openai-compatible` |
 | `EXTRACTION_TIMEOUT_SECONDS` | nein | Wartezeit auf den eigenen Dienst je Beleg, 5 bis 3600. Standard `300` | `600` |
@@ -590,9 +590,9 @@ Was an Anthropic geht und wann:
 
 Ohne Schlüssel bleibt alles lokal, und du füllst die Felder von Hand aus. Mehr dazu in [Belege](belege.md).
 
-## KI-Auslesung mit eigenem Modell
+## KI-Auslesung über OpenAI-kompatible Schnittstelle
 
-Optional und statt Anthropic. Haben spricht jeden Dienst an, der die OpenAI-Schnittstelle `POST /v1/chat/completions` anbietet, etwa [Ollama](https://docs.ollama.com/api/openai-compatibility), LM Studio, vLLM oder Docker Model Runner (`docker model run`). Ein schon laufender Dienst genügt; einen Modell-Container bringt Haben nicht mit. Das Modell muss Bilder lesen können (Vision-Modell, z. B. aus der Qwen-VL-Familie wie `qwen2.5vl`). Ein reines Textmodell oder reine Texterkennung (OCR) genügt nicht: Haben braucht die Belegfelder, nicht nur den Text.
+Optional und statt Anthropic. Haben spricht jeden Dienst an, der die OpenAI-Schnittstelle `POST /v1/chat/completions` anbietet. Das kann ein selbst betriebenes Modell sein, etwa mit [Ollama](https://docs.ollama.com/api/openai-compatibility), LM Studio, vLLM oder Docker Model Runner (`docker model run`), oder ein Dienst in der Cloud wie [OpenRouter](https://openrouter.ai/docs/quickstart), OpenAI oder ein anderer Anbieter mit OpenAI-kompatibler API. Ein schon laufender Dienst genügt; einen Modell-Container bringt Haben nicht mit. Das Modell muss Bilder lesen können (Vision-Modell, z. B. aus der Qwen-VL-Familie wie `qwen2.5vl`). Ein reines Textmodell oder reine Texterkennung (OCR) genügt nicht: Haben braucht die Belegfelder, nicht nur den Text.
 
 ```sh
 # .env (Compose) bzw. haben.env (Quadlets)
@@ -600,18 +600,27 @@ EXTRACTION_BASE_URL=http://host.docker.internal:11434/v1
 EXTRACTION_MODEL=qwen2.5vl:7b
 ```
 
+Für einen Dienst in der Cloud kommen Adresse, Modellname und Schlüssel vom Anbieter, etwa für OpenRouter:
+
+```sh
+EXTRACTION_BASE_URL=https://openrouter.ai/api/v1
+EXTRACTION_MODEL=qwen/qwen2.5-vl-72b-instruct   # Modellname wie in der Modellliste des Anbieters, mit Bildeingabe
+EXTRACTION_API_KEY=sk-or-…                      # Quadlets: als Secret haben-extraction-key
+```
+
 Was dabei passiert:
 
 - **Nur dieser Dienst.** Ist `EXTRACTION_BASE_URL` gesetzt, gehen Belege ausschließlich an diese Adresse, auch wenn zusätzlich `ANTHROPIC_API_KEY` gesetzt ist. Ist der Dienst nicht erreichbar, zu langsam oder antwortet er falsch, steht der Fehler am Beleg; Haben weicht nie auf Anthropic oder einen anderen Anbieter aus. Leitet der Dienst auf eine andere Adresse um (HTTP 3xx), folgt Haben dem nicht und meldet es am Beleg.
 - **Fotos** (JPEG, PNG, WebP) gehen als Bild an den Dienst. **PDFs** wandelt Haben vorher lokal mit `pdftoppm` (poppler-utils, im Image enthalten) in Seitenbilder um, höchstens `EXTRACTION_MAX_PAGES` Seiten (Standard 4, längere Seite 1600 Pixel); hat das PDF mehr Seiten, steht ein Hinweis am Beleg. HEIC-Fotos und XML-Dateien gehen nicht an den Dienst.
-- **Antwortformat.** Haben verlangt strukturierte Ausgabe nach einem JSON-Schema (`response_format` mit `json_schema`); Ollama, LM Studio und vLLM können das. Lehnt der Dienst das ab, fragt Haben denselben Dienst noch einmal ohne und prüft die Antwort selbst gegen dasselbe Schema. Ein JSON-Schema garantiert keine richtigen Werte: Haben prüft Beträge, Daten und Summen wie bei Claude.
-- **Authentifizierung.** Ohne `EXTRACTION_API_KEY` schickt Haben keinen Schlüssel. Verlangt der Dienst einen (vLLM mit `--api-key`, ein Proxy davor), setze ihn; bei den Quadlets als Secret `haben-extraction-key` (Zeile in `haben-app.container` einkommentieren). Er steht nirgends in der Oberfläche oder im Log.
-- **Wartezeit.** Auf einer CPU braucht ein 7B-Vision-Modell für einen Beleg leicht ein bis mehrere Minuten. Haben wartet `EXTRACTION_TIMEOUT_SECONDS` (Standard 300) und meldet dann eine Zeitüberschreitung am Beleg.
+- **Daten.** Ein Beleg geht genau an die eingetragene Adresse. Bei einem selbst betriebenen Modell verlässt er deinen Server nicht; bei einem Dienst in der Cloud liest ihn dieser Anbieter und, bei Vermittlern wie OpenRouter, der Anbieter des gewählten Modells. Was sie speichern oder zum Training nutzen, regeln deren Bedingungen und Einstellungen, nicht Haben.
+- **Antwortformat.** Haben verlangt strukturierte Ausgabe nach einem JSON-Schema (`response_format` mit `json_schema`); Ollama, LM Studio und vLLM können das, bei Cloud-Diensten hängt es vom Modell ab. Lehnt der Dienst das ab, fragt Haben denselben Dienst noch einmal ohne und prüft die Antwort selbst gegen dasselbe Schema. Ein JSON-Schema garantiert keine richtigen Werte: Haben prüft Beträge, Daten und Summen wie bei Claude.
+- **Authentifizierung.** Ohne `EXTRACTION_API_KEY` schickt Haben keinen Schlüssel. Verlangt der Dienst einen (jeder Cloud-Dienst wie OpenRouter, vLLM mit `--api-key`, ein Proxy davor), setze ihn; bei den Quadlets als Secret `haben-extraction-key` (Zeile in `haben-app.container` einkommentieren). Er steht nirgends in der Oberfläche oder im Log.
+- **Wartezeit.** Auf einer CPU braucht ein 7B-Vision-Modell für einen Beleg leicht ein bis mehrere Minuten; ein Cloud-Dienst antwortet meist in Sekunden. Haben wartet `EXTRACTION_TIMEOUT_SECONDS` (Standard 300) und meldet dann eine Zeitüberschreitung am Beleg.
 - **Log.** Bei einem Fehler schreibt Haben nur Anbieter, Modell und die Art des Fehlers ins Log, etwa `KI-Auslesung fehlgeschlagen (openai-compatible, qwen2.5vl:7b): zeitueberschreitung`. Beleginhalte, Antworten des Modells und Schlüssel stehen nicht im Log. Welcher Anbieter gerade gilt, zeigt **Einstellungen › KI-Assistenten und API › Belegauslesung**.
 
 ### Den Dienst aus dem Container erreichen
 
-Im Container ist `localhost` der Container selbst, nicht der Server. Läuft Ollama direkt auf dem Server:
+Das betrifft nur selbst betriebene Dienste; ein Cloud-Dienst ist über seine öffentliche Adresse erreichbar. Im Container ist `localhost` der Container selbst, nicht der Server. Läuft Ollama direkt auf dem Server:
 
 | Betrieb | Adresse | Was noch nötig ist |
 | --- | --- | --- |
@@ -656,7 +665,7 @@ volumes:
 
 Das Modell lädst du einmal: `docker compose exec ollama ollama pull qwen2.5vl:7b` (rund 6 GB). Im selben Compose-Projekt erreicht Haben den Dienst unter seinem Namen `ollama`, ohne dass der Port nach außen offen ist.
 
-**Grenzen.** Ein lokales 7B-Modell liest saubere PDFs und gut ausgeleuchtete Fotos meist richtig, verliest sich aber eher als Claude bei Kassenzetteln, schrägen Fotos und kleinen Beträgen. Deshalb bleibt jeder Beleg „Zu prüfen“, bis du ihn bestätigst. Mehrseitige PDFs kosten je Seite Rechenzeit; bei Rechnungen stehen die Summen meist auf den ersten Seiten.
+**Grenzen.** Wie gut ein Beleg gelesen wird, hängt vom Modell ab. Ein lokales 7B-Modell liest saubere PDFs und gut ausgeleuchtete Fotos meist richtig, verliest sich aber eher als Claude bei Kassenzetteln, schrägen Fotos und kleinen Beträgen. Deshalb bleibt jeder Beleg „Zu prüfen“, bis du ihn bestätigst. Mehrseitige PDFs kosten je Seite Rechenzeit; bei Rechnungen stehen die Summen meist auf den ersten Seiten.
 
 ## Kontoabruf (Enable Banking)
 
@@ -732,7 +741,7 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **„Der KI-Dienst unter … ist nicht erreichbar.“** Der Container erreicht den eigenen Dienst nicht. Meist steht `localhost` in `EXTRACTION_BASE_URL` (im Container ist das der Container selbst) oder der Dienst lauscht nur auf `127.0.0.1`. Siehe [Den Dienst aus dem Container erreichen](#den-dienst-aus-dem-container-erreichen).
 
-**„Der KI-Dienst kennt das Modell … nicht.“** Das Modell ist beim Dienst nicht geladen (`ollama pull …`) oder die Basis-URL endet nicht auf `/v1`.
+**„Der KI-Dienst kennt das Modell … nicht.“** Das Modell ist beim Dienst nicht geladen (`ollama pull …`), der Name ist anders geschrieben als beim Anbieter (bei OpenRouter etwa mit Präfix wie `qwen/…`) oder die Basis-URL endet nicht auf `/v1` (bei OpenRouter `/api/v1`).
 
 **„Die Antwort des KI-Dienstes passt nicht zum Belegschema.“** Das Modell hat kein gültiges JSON mit den Belegfeldern geliefert. Erneut auslesen hilft manchmal; sonst ein größeres oder ein anderes Vision-Modell wählen. Der Beleg wird nicht gebucht, die Felder füllst du von Hand aus.
 
