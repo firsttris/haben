@@ -442,6 +442,47 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     },
   );
 
+  it("§ 13b in Fremdwährung neu ausgelesen: die Steuer kommt aus dem umgerechneten Netto, nicht aus der Auslesung (#335)", async () => {
+    const extraction = await import("./extraction.ts");
+    await sql`insert into exchange_rates (currency, month, rate, source) values ('USD', '2026-09', 1.0812, 'bmf')`;
+    const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 9, 13]), filename: "aws-usd.jpg" });
+    await documents.updateDocument(actor, id, {
+      supplierName: "Amazon Web Services, Inc.",
+      supplierUstId: "",
+      invoiceNumber: "US-1",
+      documentDate: "2026-09-30",
+      dueDate: null,
+      category: "software",
+      payment: "bank",
+      note: "",
+      reverseCharge: "drittland",
+      currency: "USD",
+      exchangeRate: null,
+      amounts: [{ taxRate: 1900, net: 0, tax: 0, originalNet: 10_000, originalTax: 0 }],
+    });
+    // Die Rechnung weist keine Steuer aus; neu ausgelesen bleibt der Beleg § 13b
+    vi.mocked(extraction.extractDocument).mockResolvedValueOnce({
+      extraction: { quelle: "test" } as unknown as import("./extraction.ts").Extraction,
+      fields: {
+        supplierName: "Amazon Web Services, Inc.",
+        supplierUstId: "",
+        invoiceNumber: "US-1",
+        documentDate: "2026-09-30",
+        dueDate: null,
+        currency: "USD",
+        category: "software",
+        amounts: [{ taxRate: 1900, net: 10_000, tax: 0 }],
+        warnings: [],
+      },
+    });
+    await documents.runExtraction(actor, id);
+    const doc = (await documents.getDocument(id))!;
+    expect(doc.document.reverseCharge).toBe("drittland");
+    // 100,00 USD / 1,0812 = 92,49 €; § 13b: 19 % davon = 17,57 € in Kz 85, gezahlt wird netto
+    expect(doc.amounts.map((a) => [a.net, a.tax])).toEqual([[9249, 1757]]);
+    expect(doc.document).toMatchObject({ net: 9249, tax: 1757, gross: 9249 });
+  });
+
   it("Fremdwährung mit § 13b: Steuer aus dem umgerechneten Netto; zurück auf Euro löscht Kurs und Originalbeträge", async () => {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 8]), filename: "aws.jpg" });
     const base = {
