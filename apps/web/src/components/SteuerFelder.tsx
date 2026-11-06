@@ -28,7 +28,9 @@ function wirkung(wahl: SteuerWahl): string {
   if (wahl.art === "kapest" || wahl.art === "kapestSoli") {
     return "Von der Bank einbehalten: als negativer Teil einer Aufteilung neben den Zinserträgen; im Einzelunternehmen Entnahme, auf die Einkommensteuer anrechenbar.";
   }
-  if (wahl.art === "gewst") return "Keine Betriebsausgabe, auch nicht Zinsen und Zuschläge darauf (§ 4 Abs. 5b EStG); in der EÜR nur nachrichtlich.";
+  if (wahl.art === "gewst") {
+    return "Keine Betriebsausgabe, auch nicht Zinsen und Zuschläge darauf (§ 4 Abs. 5b EStG); in der EÜR nur nachrichtlich. Erstattungszinsen sind Betriebseinnahmen.";
+  }
   if (wahl.art === "est" || wahl.art === "kist" || wahl.art === "soli") {
     return "Steuer des Inhabers: privat (§ 12 Nr. 3 EStG), gebucht als Entnahme bzw. Einlage, mit Zinsen und Zuschlägen.";
   }

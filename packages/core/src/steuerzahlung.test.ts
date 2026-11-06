@@ -76,9 +76,23 @@ describe("steuerKontierung: Gewerbesteuer (§ 4 Abs. 5b EStG)", () => {
     expect([n("zinsen233a", "SKR04"), n("zinsen", "SKR04"), n("saeumnis", "SKR04"), n("verspaetung", "SKR04")]).toEqual(["7308", "7306", "7302", "6437"]);
   });
 
-  it("Erstattungszinsen zur Gewerbesteuer bucht Haben nicht", () => {
-    const k = steuerKontierung({ art: "gewst", jahr: 2024, posten: "zinsen233a" }, 12_00, "2026-10-15", "SKR03", "einzelunternehmen");
-    expect(k).toMatchObject({ ok: false, fehler: expect.stringMatching(/Erstattungszinsen zur Gewerbesteuer/) });
+  it("Erstattungszinsen zur Gewerbesteuer sind steuerpflichtige Zinserträge (BFH, Urteil vom 26.09.2025, IV R 16/23)", () => {
+    expect(konto({ art: "gewst", jahr: 2024, posten: "zinsen233a" }, 12_00, "SKR03").konto).toBe("2657");
+    expect(konto({ art: "gewst", jahr: 2024, posten: "zinsen233a" }, 12_00, "SKR04").konto).toBe("7105");
+    expect(konto({ art: "gewst", jahr: 2024, posten: "zinsen233a" }, 12_00, "SKR03", "gmbh").konto).toBe("2657");
+    expect(konto({ art: "gewst", jahr: 2024, posten: "zinsen233a" }, 12_00, "SKR04", "gmbh").konto).toBe("7105");
+    // Betriebseinnahme in der EÜR; § 4 Abs. 5b EStG gilt nur für Nachzahlungszinsen
+    expect(steuerEuerWirkung("gewst", "zinsen233a", 1)).toBe("einnahme");
+    expect(steuerEuerWirkung("gewst", "zinsen233a", -1)).toBe("nichtAbziehbar");
+    const euer = computeEuer(2026, [{ kind: "steuer", date: "2026-10-15", amount: 12_00, art: "gewst", posten: "zinsen233a" }]);
+    expect(euer.einnahmen.find((l) => l.key === "einnahmenSteuerfrei")?.amount).toBe(12_00);
+    expect(euer.gewinn).toBe(12_00);
+    expect(euer.gewerbesteuerNichtAbziehbar).toBe(0);
+  });
+
+  it("Erstattungszinsen zur Körperschaftsteuer sind steuerfrei (§ 10 Nr. 2 KStG) und bleiben abgelehnt", () => {
+    const k = steuerKontierung({ art: "kst", jahr: 2024, posten: "zinsen233a" }, 12_00, "2026-10-15", "SKR03", "gmbh");
+    expect(k).toMatchObject({ ok: false, fehler: expect.stringMatching(/Körperschaftsteuer .*§ 10 Nr\. 2 KStG/) });
   });
 
   it("GmbH: Nachzahlung für ein Vorjahr verbraucht zuerst die Gewerbesteuerrückstellung (0956 bzw. 3035)", () => {
