@@ -4,7 +4,7 @@ Unter **Jahreserklärung** berechnet Haben für ein abgeschlossenes Jahr die **U
 
 Die Seite zeigt je Erklärung die Zeilen mit Feldkennung, Hinweise und einen eigenen Bereich zum Übermitteln. Ohne Jahr in der Adresse öffnet sie das Vorjahr.
 
-Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](buchhaltung.md#e-bilanz-gmbh-und-ug).
+Bei einer GmbH oder UG zeigt die Seite die Umsatzsteuererklärung, die [Körperschaftsteuererklärung und die Gewerbesteuererklärung](#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug); Anlage EÜR und Einkommensteuer gibt es für eine Kapitalgesellschaft nicht, und der Server lehnt ihre Übermittlung ab. Bilanz, GuV und E-Bilanz stehen unter [Jahresabschluss](buchhaltung.md#e-bilanz-gmbh-und-ug).
 
 ## Ablauf
 
@@ -35,7 +35,7 @@ Hast du Voranmeldungen eines Jahres in einem anderen Programm gesendet (etwa vor
 
 Haben übermittelt die Umsatzsteuererklärung nicht, wenn
 
-- das Jahr Leistungen im EU-Ausland (Reverse Charge, Kz 21), nicht steuerbare Umsätze im Drittland (Kz 45) oder steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält, Steuer, die du als Leistungsempfänger nach § 13b schuldest (Kz 46/47, 84/85), steuerfreie innergemeinschaftliche Lieferungen (Kz 41), Ausfuhrlieferungen (Kz 43) oder innergemeinschaftliche Erwerbe (Kz 89, 93 und die Vorsteuer daraus, Kz 61). Für diese Zeilen fehlen Haben noch die geprüften Feldkennungen; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
+- das Jahr Leistungen im EU-Ausland (Reverse Charge, Kz 21), nicht steuerbare Umsätze im Drittland (Kz 45) oder steuerfreie Umsätze ohne Vorsteuerabzug (Kz 48) enthält, Steuer, die du als Leistungsempfänger nach § 13b schuldest (Kz 46/47, 84/85), steuerfreie innergemeinschaftliche Lieferungen (Kz 41), Ausfuhrlieferungen (Kz 43), innergemeinschaftliche Erwerbe (Kz 89, 93 und die Vorsteuer daraus, Kz 61) oder Einfuhrumsatzsteuer (Kz 62). Für diese Zeilen fehlen Haben noch die geprüften Feldkennungen; die Werte stehen auf der Seite, abgeben kannst du im ELSTER-Portal.
 - du Kleinunternehmer bist: Ab dem Jahr 2024 gibst du keine Umsatzsteuererklärung mehr ab, außer das Finanzamt fordert dazu auf. Für 2023 brauchst du sie noch; die Angaben für Kleinunternehmer übermittelst du dann im ELSTER-Portal.
 - es weder Umsätze noch Vorsteuer gibt (Nullerklärung über das ELSTER-Portal).
 
@@ -109,7 +109,7 @@ Vorsorgeaufwand, Sonderausgaben, haushaltsnahe Aufwendungen, Kinder und Kapitale
 | Außergewöhnliche Belastungen | Selbst getragene Krankheitskosten |
 | Haushaltsnahe Aufwendungen (§ 35a EStG) | Minijobs im Haushalt, haushaltsnahe Dienstleistungen, Handwerkerleistungen (nur Arbeits-, Maschinen- und Fahrtkosten) |
 | Kind | Je Kind Vorname, Geburtsdatum, Steuer-ID, Familienkasse und Kinderbetreuungskosten; leibliches Kind beider Ehegatten bzw. der steuerpflichtigen Person, Wohnsitz im Inland im ganzen Jahr bzw. ab Geburt |
-| KAP | Erträge mit und ohne inländischen Steuerabzug, genutzter Sparer-Pauschbetrag, einbehaltene Kapitalertragsteuer, Solidaritätszuschlag und Kirchensteuer, Antrag auf Günstigerprüfung |
+| KAP | Erträge mit und ohne inländischen Steuerabzug, ausländische Erträge, genutzter Sparer-Pauschbetrag, einbehaltene Kapitalertragsteuer, Solidaritätszuschlag und Kirchensteuer, Antrag auf Günstigerprüfung |
 
 Unter den Angaben zeigt Haben das geschätzte zu versteuernde Einkommen und die voraussichtliche Steuer, berechnet wie die [Steuerprognose](finanzamt.md#steuerprognose) mit dem tatsächlichen Gewinn des Jahres. Mit Arbeitslohn kommen die bereits einbehaltene Lohnsteuer samt Soli und Kirchensteuer und die voraussichtliche Nachzahlung bzw. Erstattung dazu.
 
@@ -145,7 +145,7 @@ Nicht abgebildet sind unter anderem Renten, Vermietung, Unterhalt, Riester, Kind
 
 ## Körperschaft- und Gewerbesteuererklärung (GmbH und UG)
 
-Die Werte kommen aus der [Steuerberechnung beim Jahresabschluss](buchhaltung.md#körperschaft-und-gewerbesteuer-gmbh-und-ug); dort stehen auch Hebesatz, Verlustvorträge und ein Verlustrücktrag. Auf dieser Seite trägst du ein, was nur die Erklärung braucht, unter **Angaben zu den Erklärungen**:
+Die Werte kommen aus der [Steuerberechnung beim Jahresabschluss](buchhaltung.md#körperschaft--und-gewerbesteuer-gmbh-und-ug); dort stehen auch Hebesatz, Verlustvorträge und ein Verlustrücktrag. Auf dieser Seite trägst du ein, was nur die Erklärung braucht, unter **Angaben zu den Erklärungen**:
 
 - **Anteilseigner** mit Anschrift, Identifikationsnummer (oder Steuernummer im ELSTER-Format), Beteiligung in Euro und Anteil; die Anteile ergeben zusammen 100 %. „Geändert“ markiert eine Änderung gegenüber dem Vorjahr.
 - Für Ausschüttungen je Anteilseigner das **Kirchensteuerabzugsmerkmal**: Kirchensteuersatz (8 oder 9 %) und Religionsschlüssel aus der Antwort des Bundeszentralamts für Steuern, dazu der Name der kirchensteuererhebenden Religionsgemeinschaft (etwa „römisch-katholisch“): Den Schlüssel braucht die Kapitalertragsteuer-Anmeldung, den Namen die [Steuerbescheinigung](buchhaltung.md#gewinnausschüttung-gmbh-und-ug) nach Muster II. Ohne Kirchensteuerpflicht bleibt das Feld auf „keine“.

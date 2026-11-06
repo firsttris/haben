@@ -65,10 +65,10 @@ Caddy signiert Zertifikate für lokale Namen wie `haben.lan` mit seiner eigenen 
 | `fristen` | offene Steuerfristen, auf Wunsch auch Erledigtes der letzten 60 Tage |
 | `offene_posten` | offene Forderungen und Verbindlichkeiten mit Summen und Tagen über Fälligkeit |
 | `ueberfaellige_rechnungen` | überfällige Rechnungen mit letzter Mahnstufe |
-| `rechnungen` | Ausgangsrechnungen, filterbar nach Status, Jahr und Kunde |
+| `rechnungen` | Ausgangsrechnungen, filterbar nach Status, Jahr und Kunde oder Rechnungsnummer |
 | `belege` | Belege zu prüfen, gebucht oder alle |
 | `bankumsaetze_ohne_zuordnung` | Bankumsätze ohne Zuordnung je Konto |
-| `umsatzsteuer_voranmeldung` | Kennzahlen eines Monats aus den Buchungen, gespeicherter Stand, Vorprüfung und Abgleich mit dem Journal |
+| `umsatzsteuer_voranmeldung` | Kennzahlen eines Monats oder Quartals aus den Buchungen, gespeicherter Stand, Vorprüfung und Abgleich mit dem Journal |
 | `ustva_ausfuellliste` | Werte der Voranmeldung zum Eintragen in Mein ELSTER, in der Reihenfolge des Formulars, siehe [Mein ELSTER mit KI-Assistent](elster-mit-assistent.md) |
 | `euer` | Einnahmen-Überschuss-Rechnung eines Jahres mit Monatswerten |
 | `jahreserklaerung` | Stand von Umsatzsteuererklärung, Anlage EÜR und Einkommensteuer mit Hinweisen und Steuerprognose |

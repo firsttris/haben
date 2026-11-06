@@ -27,11 +27,11 @@ Tastenkürzel einzelner Seiten:
 | [Bankabgleich](bank.md#zuordnen) | `Enter` ordnet zu, `J` nächster, `K` voriger Umsatz |
 | [Beleg prüfen](belege.md#belege-nacheinander-prüfen) | `J`/`→` nächster, `K`/`←` voriger Beleg, `Strg+Enter` bucht, `Esc` zurück zur Liste |
 
-Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht.
+Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Strg+Enter` (Mac: `Cmd+Enter`) bucht einen Beleg auch aus einem Eingabefeld.
 
 ## Darstellung
 
-- **Kontraste:** Text, Links und Knöpfe erreichen in allen sieben Themes mindestens 4,5:1, Fokusrahmen und Bedienelemente mindestens 3:1. In den dunklen Themes (Nacht, Tiefsee) sind Links dafür heller als die Akzentfarbe der Knöpfe.
+- **Kontraste:** Text, Links und Knöpfe erreichen in allen sechs Themes mindestens 4,5:1, Fokusrahmen und Bedienelemente mindestens 3:1. In den dunklen Themes (Nacht, Tiefsee) sind Links dafür heller als die Akzentfarbe der Knöpfe.
 - **Vergrößern:** Die Seiten passen sich der Breite an. Auch bei 390 px Breite (Handy oder stark vergrößert) gibt es keine waagrechte Bildlaufleiste. Breite Tabellen scrollen dann in ihrer Karte; ist eine Tabelle breiter als der Platz, erreichst du sie mit `Tab` und scrollst mit den Pfeiltasten.
 - **Tippflächen** sind mindestens 24 × 24 px groß, Knöpfe und Eingabefelder auf Touch-Geräten 44 px hoch.
 - **Weniger Bewegung:** Ist im System „Bewegung reduzieren“ eingestellt, verzichtet Haben auf Übergänge.
@@ -44,9 +44,10 @@ Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht.
 1. **axe-core** prüft jede Seite gegen WCAG 2.0, 2.1 und 2.2 (A und AA) und die Best Practices von axe, am Desktop und am Handy (320 px, die Breite aus WCAG 1.4.10), dazu die Anmeldeseite und das offene Handy-Menü.
 2. Die **Farbkontraste** prüft axe zusätzlich in allen übrigen Themes.
 3. **Anmelden nur mit der Tastatur:** Tab, Enter und Tippen, ohne Mausklick.
-4. **Sprunglink und Seitenwechsel:** Der erste Tab trifft den Sprunglink, Enter setzt den Fokus auf den Inhalt; ein Seitenwechsel über die Navigation ebenso.
+4. **Sprunglink und Seitenwechsel:** Der erste Tab trifft den Sprunglink, Enter setzt den Fokus auf den Inhalt; ein Seitenwechsel über die Navigation oder über einen Link im Inhalt ebenso.
 5. **Sichtbarer Fokus:** Der Test tabbt durch die wichtigsten Seiten. Jedes Element, das den Fokus bekommt, muss einen mindestens 2 px breiten Rahmen haben.
 6. **Handy-Menü:** öffnet mit Enter, Tab führt hinein, Esc schließt es und gibt den Fokus an den Menüknopf zurück.
+7. **Aktueller Bereich:** Im Archiv tragen nur der gewählte Bereich und die gewählten Filter `aria-current`.
 
 Findet axe einen Verstoß, nennt der Testbericht Regel, Element und Grund. Wie du die Tests lokal startest, steht unter [Entwicklung](entwicklung.md#ende-zu-ende-tests-mit-playwright).
 

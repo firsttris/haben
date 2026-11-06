@@ -109,11 +109,12 @@ Ich bin im Browser schon angemeldet.
 
 ### Was die Ausfüllliste liefert
 
-`ustva_ausfuellliste` nimmt die Werte, die Haben auch senden würde: einen von Hand überschriebenen Entwurf, sonst die aktuell aus den Buchungen berechneten Kennzahlen.
+`ustva_ausfuellliste` nimmt die Werte, die Haben auch senden würde: einen von Hand überschriebenen Entwurf, sonst die aktuell aus den Buchungen berechneten Kennzahlen. Ist die Voranmeldung in Haben schon gesendet oder vermerkt, liefert es die festgeschriebenen Werte mit einem Hinweis, dass eine Korrektur eine berichtigte Anmeldung braucht.
 
 | Feld | Inhalt |
 | --- | --- |
 | `formular`, `anmeldungszeitraum` | Name des Formulars und Monat, wie sie in Mein ELSTER heißen |
+| `faellig`, `grundlage`, `hinweis` | Fälligkeit; ob die Werte aus den Buchungen berechnet, von Hand überschrieben oder schon gesendet sind; ein Hinweis bei schon gesendeter Anmeldung oder für Kleinunternehmer |
 | `felder` | nur Kennzahlen mit Wert, in der Reihenfolge des Formulars: Kennzahl, Abschnitt, Bezeichnung und `eingabe`, der Wert zum Eintippen (Dezimalkomma, kein Tausenderpunkt, Bemessungsgrundlagen in vollen Euro). Bei einer [berichtigten Anmeldung](umsatzsteuer.md#berichtigte-anmeldung) steht Kz 10 = 1 vorn. |
 | `zumVergleich` | was Mein ELSTER selbst rechnet: Steuer zu Kz 81 und 86 sowie Kz 83 |
 | `vorpruefung` | die offenen Hinweise der [Vorprüfung](umsatzsteuer.md#vorprüfung) |
@@ -125,5 +126,5 @@ Maßgeblich ist immer die Kennzahl. Abschnitte und Bezeichnungen folgen dem amtl
 
 - **Die Abgabe vermerkst du selbst in Haben**, unter **Außerhalb von Haben abgegeben** auf der Seite der Voranmeldung, mit Tag, Transferticket, Kz 83 und Protokoll ([Abgabe vermerken](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken)). Der Assistent kann das nicht: Der MCP-Zugang liest nur.
 - **Kein Ersatz für ERiC:** kein Senden aus Haben heraus, kein Postfachabruf, keine Übernahme von Bescheiden. Wer eine Hersteller-ID hat, sendet weiter direkt aus Haben.
-- **Nur die Voranmeldung.** Für die Jahreserklärungen (Umsatzsteuererklärung, Anlage EÜR) gibt es noch keine Ausfüllliste; die Werte liefert das Werkzeug `jahreserklaerung`.
+- **Nur die Voranmeldung.** Für die Jahreserklärungen (Umsatzsteuererklärung, Anlage EÜR, Einkommensteuer) gibt es noch keine Ausfüllliste; das Werkzeug `jahreserklaerung` liefert nur Summen, Hinweise und die Steuerprognose, nicht die einzelnen Zeilen.
 - **Abgesendet wird nur von dir.**

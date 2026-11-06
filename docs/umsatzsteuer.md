@@ -10,7 +10,7 @@ Haben berechnet die Umsatzsteuer-Voranmeldung für den Monat oder das Quartal au
 - **Versteuerungsart** (Ist oder Soll) in den Firmendaten.
 - Zum Übermitteln ein **ELSTER-Zertifikat** (.pfx aus einem ELSTER-Konto mit Anmeldeart Zertifikatsdatei; ELSTER Secure geht nicht), hochgeladen unter Einstellungen, und dessen PIN. Siehe [Zertifikatsdatei statt ELSTER Secure](einrichtung.md#zertifikatsdatei-statt-elster-secure).
 - Mit ERiC einmal die bestätigten **Datenschutzhinweise der Finanzverwaltung** (Einstellungen › ELSTER › ERiC).
-- Für echte Übermittlungen ein eingerichtetes **ERiC** (`ERIC_HOME`) und eine eigene **Hersteller-ID** (`ELSTER_HERSTELLER_ID`). Siehe [installation.md](installation.md).
+- Für echte Übermittlungen ein eingerichtetes **ERiC** (von Haben unter Einstellungen › ELSTER › ERiC heruntergeladen oder von Hand über `ERIC_HOME` eingebunden) und eine eigene **Hersteller-ID** (`ELSTER_HERSTELLER_ID`). Siehe [installation.md](installation.md).
 
 Ob du monatlich, vierteljährlich oder gar keine Voranmeldung abgibst, stellst du unter [Voranmeldungszeitraum](#voranmeldungszeitraum) ein. Ohne Einstellung bleibt es monatlich. Die [Dauerfristverlängerung](#dauerfristverlängerung) mit Sondervorauszahlung beantragst du auf derselben Seite.
 
@@ -246,12 +246,14 @@ ELSTER erwartet die Bemessungsgrundlagen in vollen Euro. Haben schneidet die Cen
 | --- | --- | --- |
 | 81 | Steuerpflichtige Umsätze 19 % | volle Euro, Cent abgeschnitten; Steuer = 19 % davon, auf Cent gerundet |
 | 86 | Steuerpflichtige Umsätze 7 % | volle Euro, Cent abgeschnitten; Steuer = 7 % davon, auf Cent gerundet |
-| 21, 45, 48 | Umsätze ohne Steuer | volle Euro, Cent abgeschnitten |
+| 21, 41, 43, 45, 48 | Umsätze ohne Steuer | volle Euro, Cent abgeschnitten |
+| 89, 93 | Innergemeinschaftliche Erwerbe 19 % und 7 % | volle Euro, Cent abgeschnitten; Steuer = 19 % bzw. 7 % davon, auf Cent gerundet |
 | 66 | Vorsteuer aus Rechnungen anderer Unternehmer | centgenau |
 | 46, 84 | Leistungen nach § 13b | volle Euro, Cent abgeschnitten |
 | 47, 85, 67 | Steuer und Vorsteuer nach § 13b | centgenau |
+| 61, 62 | Vorsteuer aus innergemeinschaftlichem Erwerb, Einfuhrumsatzsteuer | centgenau |
 | 39 | Abzug der Sondervorauszahlung (nur letzte Voranmeldung des Jahres, siehe [Dauerfristverlängerung](#dauerfristverlängerung)) | centgenau |
-| 83 | Verbleibende Umsatzsteuer-Vorauszahlung | Steuer 81 + Steuer 86 + Kz 47 + Kz 85 − Kz 66 − Kz 67 − Kz 39 |
+| 83 | Verbleibende Umsatzsteuer-Vorauszahlung | Steuer 81 + Steuer 86 + Steuer 89 + Steuer 93 + Kz 47 + Kz 85 − Kz 66 − Kz 67 − Kz 61 − Kz 62 − Kz 39 |
 
 Ist Kz 83 negativ, heißt die Zeile „Verbleibender Überschuss (Erstattung)“.
 
@@ -263,7 +265,7 @@ Unter jeder Kennzahl steht, wie viele Zahlungseingänge, Rechnungen oder Belege 
 
 ## Manuell überschreiben
 
-Mit **Manuell überschreiben** gibst du Kz 81, 86, 21, 45, 48 und 66 selbst ein. Dann ist eine **Begründung der Abweichung** Pflicht (mindestens 10 Zeichen). Darunter stehen die berechneten Werte zum Vergleich. Gespeichert werden die eingegebenen Werte, die Begründung und die berechneten Werte zum Zeitpunkt des Speicherns. Nach dem Senden zeigt die Seite „Manuell überschrieben: …“ mit der Begründung.
+Mit **Manuell überschreiben** gibst du Kz 81, 86, 21, 41, 43, 45, 48, 89, 93, 66, 61, 46/47, 84/85 und 67 selbst ein, Kz 62 und 39, wenn sie einen Wert haben. Dann ist eine **Begründung der Abweichung** Pflicht (mindestens 10 Zeichen). Darunter stehen die berechneten Werte zum Vergleich. Gespeichert werden die eingegebenen Werte, die Begründung und die berechneten Werte zum Zeitpunkt des Speicherns. Nach dem Senden zeigt die Seite „Manuell überschrieben: …“ mit der Begründung.
 
 Manuelle Werte dürfen auch negativ sein, etwa wenn im Monat Gutschriften überwiegen. Mit **Aus Buchungen berechnet** kehrst du zu den berechneten Werten zurück.
 
@@ -306,7 +308,7 @@ Ohne eigene Hersteller-ID ist der Haken **Nur Testübermittlung** fest gesetzt. 
 
 Mein ELSTER kann eine Voranmeldung aus einer XML-Datei übernehmen. Haben schreibt diese Datei, eine eigene Hersteller-ID braucht es dafür nicht:
 
-1. Entwurf speichern und **XML für Mein ELSTER** klicken. Die Datei heißt `UStVA_<Jahr>-<Monat>.xml`, für ein Quartal `UStVA_<Jahr>-Q<Quartal>.xml`.
+1. Entwurf speichern und **XML für Mein ELSTER** klicken. Die Datei heißt `UStVA_<Jahr>-<Monat>.xml`, für ein Quartal `UStVA_<Jahr>-Q<Quartal>.xml`, bei einer berichtigten Anmeldung mit `_berichtigt` am Ende.
 2. In Mein ELSTER **Formulare und Leistungen › Umsatzsteuer-Voranmeldung** öffnen, das Jahr wählen, **Weiter**.
 3. Auf der Seite **Datenübernahme** den Reiter **XML-Import** wählen, die Datei auswählen und **XML-Daten hochladen**.
 4. Mein ELSTER füllt das Formular. Zeitraum, Steuernummer und Kennzahlen gegen Haben prüfen, in Mein ELSTER **Prüfen** und selbst **Absenden**.
@@ -389,7 +391,7 @@ Das Zertifikat lädst du unter Einstellungen hoch. Es wird mit `HABEN_ENCRYPTION
 
 ## Simulierter Modus
 
-Ist `ERIC_HOME` nicht gesetzt, zeigt die Seite „ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.“ Ein Ersatz-Client prüft dann nur, ob das XML wohlgeformt ist und Kz 83 enthält. Übermittlungen bekommen ein erfundenes Ticket (`fake-…`) und ein Protokoll-PDF mit dem Text „Testprotokoll – keine echte Übermittlung“.
+Ist weder `ERIC_HOME` gesetzt noch ERiC unter Einstellungen › ELSTER › ERiC heruntergeladen, zeigt die Seite „ERiC ist nicht eingerichtet. Prüfen und Senden laufen simuliert, nichts geht an das Finanzamt.“ Ein Ersatz-Client prüft dann nur, ob das XML wohlgeformt ist und Kz 83 enthält. Übermittlungen bekommen ein erfundenes Ticket (`fake-…`) und ein Protokoll-PDF mit dem Text „Testprotokoll – keine echte Übermittlung“.
 
 Eine Echtübermittlung ist im simulierten Modus nicht möglich: Der Haken **Nur Testübermittlung** bleibt gesetzt, und Haben lehnt eine Echtübermittlung ab, solange kein ERiC eingerichtet ist. So wird keine Anmeldung als gesendet festgeschrieben, die nie beim Finanzamt war.
 
@@ -401,5 +403,5 @@ Belege und Rechnungen in Fremdwährung zählen mit ihren Euro-Beträgen, umgerec
 
 - Ist-Versteuerung bei Fremdwährung: Mit deutscher Umsatzsteuer wäre das Entgelt mit dem Kurs des Monats umzurechnen, in dem es eingeht (Abschn. 16.4 UStAE). Das kann Haben nicht, deshalb lassen sich solche Rechnungen bei Ist-Versteuerung nicht festschreiben. Rechnungen in Fremdwährung ohne deutsche Steuer an Unternehmen im Ausland gehen (siehe [rechnungen.md](rechnungen.md#rechnungen-in-fremdwährung)).
 - Nur die Kennzahlen 81, 86, 21, 39, 41, 43, 45, 46, 47, 48, 61, 62, 66, 67, 83, 84, 85, 89, 93 und 10. Nicht unterstützt: innergemeinschaftliche Lieferungen an Abnehmer ohne USt-IdNr. und neue Fahrzeuge (Kz 44, 49), steuerfreie Erwerbe (Kz 91), Erwerbe zu anderen Sätzen (Kz 95/98) und Dreiecksgeschäfte (Kz 42, § 25b UStG). Die Einfuhrumsatzsteuer (Kz 62) kommt aus Belegen der Kategorie „Einfuhrumsatzsteuer“ ([Belege](belege.md#einfuhrumsatzsteuer)).
-- Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr § 13b-Steuer, innergemeinschaftliche Lieferungen, Ausfuhren, Erwerbe oder Einfuhrumsatzsteuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
+- Die Umsatzsteuer-Jahreserklärung übermittelt Haben noch nicht, wenn das Jahr Umsätze nach Kz 21, 45 oder 48, § 13b-Steuer, innergemeinschaftliche Lieferungen, Ausfuhren, Erwerbe oder Einfuhrumsatzsteuer enthält; die Seite nennt dann die Werte für das ELSTER-Portal.
 - Festgeschrieben wird die Anmeldung, nicht der Monat. Buchungen im Monat sind danach weiter möglich, etwa wenn du eine Zuordnung aufhebst. Ergeben sich daraus andere Kennzahlen als gesendet, zeigt die Seite des Monats einen Hinweis mit den neuen Werten; prüfe dann, ob du eine berichtigte Anmeldung brauchst.

@@ -104,6 +104,7 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Zweck | SKR03 | SKR04 |
 | --- | --- | --- |
 | Bank (alle Bankkonten auf einem Finanzkonto) | 1200 | 1800 |
+| Kasse ([Kassenbuch](kasse.md)) | 1000 | 1600 |
 | Forderungen aus Lieferungen und Leistungen | 1400 | 1200 |
 | Verbindlichkeiten aus Lieferungen und Leistungen | 1600 | 3300 |
 | Erlöse 19 % USt | 8400 | 4400 |
@@ -111,6 +112,8 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Erlöse (ohne USt) | 8200 | 4200 |
 | Erlöse aus im anderen EU-Land steuerpflichtigen sonstigen Leistungen (Reverse Charge) | 8336 | 4336 |
 | Erlöse aus im Drittland steuerbaren Leistungen | 8338 | 4338 |
+| Steuerfreie innergemeinschaftliche Lieferungen § 4 Nr. 1b UStG | 8125 | 4125 |
+| Steuerfreie Umsätze § 4 Nr. 1a UStG (Ausfuhr) | 8120 | 4120 |
 | Steuerfreie Umsätze § 4 Nr. 8 ff. UStG | 8100 | 4100 |
 | Erlöse als Kleinunternehmer § 19 UStG | 8195 | 4185 |
 | Umsatzsteuer 19 % | 1776 | 3806 |
@@ -119,18 +122,24 @@ Haben bucht nach SKR03 oder SKR04. Die Zuordnung steht in `packages/core/src/pos
 | Umsatzsteuer nicht fällig 7 % | 1761 | 3811 |
 | Vorsteuer 19 % | 1576 | 1406 |
 | Vorsteuer 7 % | 1571 | 1401 |
+| Umsatzsteuer nach § 13b UStG bzw. Vorsteuer daraus (Leistungsempfänger) | 1787 bzw. 1577 | 3837 bzw. 1407 |
+| Umsatzsteuer aus innergemeinschaftlichem Erwerb 19 % / 7 % | 1774 / 1772 | 3804 / 3802 |
+| Abziehbare Vorsteuer aus innergemeinschaftlichem Erwerb 19 % / 7 % | 1574 / 1572 | 1404 / 1402 |
 | Umsatzsteuer-Vorauszahlungen | 1780 | 3820 |
+| Sondervorauszahlung bei [Dauerfristverlängerung](umsatzsteuer.md#dauerfristverlängerung) (Umsatzsteuer-Vorauszahlung 1/11) | 1781 | 3830 |
 | Umsatzsteuerverbindlichkeiten Vorjahr bzw. frühere Jahre ([Steuerzahlungen](bank.md#steuerzahlungen)) | 1790 bzw. 1791 | 3841 bzw. 3845 |
 | Privatentnahmen | 1800 | 2100 |
 | Privatsteuern (Einkommen-, Kirchensteuer, Soli des Inhabers vom Geschäftskonto) | 1810 | 2150 |
 | Privateinlagen | 1890 | 2180 |
 | Gesellschafter-Verrechnungskonto (nur GmbH, UG): Verbindlichkeiten gegenüber Gesellschaftern | 0730 | 3510 |
+| Einbehaltene Kapitalertragsteuer, Soli und Kirchensteuer auf [Ausschüttungen](#gewinnausschüttung-gmbh-und-ug) (nur GmbH, UG) | 1746 | 3760 |
 | Geldtransit | 1360 | 1460 |
 | Verrechnungskonten der Zahlungsdienstleister (PayPal, Stripe, eBay …) | 1361–1369 | 1461–1469 |
 | Nebenkosten des Geldverkehrs | 4970 | 6855 |
 | Gewährte Skonti | 8730 | 4730 |
 | Erhaltene Skonti | 3730 | 5730 |
 | Forderungsverluste | 2400 | 6930 |
+| Erträge bzw. Aufwendungen aus Kursdifferenzen (Fremdwährung) | 2660 bzw. 2150 | 4840 bzw. 6880 |
 | Saldenvorträge Sachkonten | 9000 | 9000 |
 
 Achtung bei der Nummer 1200: In SKR03 ist das die Bank, in SKR04 die Forderungen; in SKR03 ist 1800 die Privatentnahme, in SKR04 die Bank.
@@ -162,12 +171,18 @@ Jeder Beleg bekommt eine Kategorie. Sie bestimmt das Aufwandskonto und die Zeile
 | Wareneinkauf (Handelsware) | 3200 | 5200 |
 | Fremdleistungen | 3100 | 5900 |
 | Kontoführung und Gebühren | 4970 | 6855 |
+| Kfz: Laden, Tanken, Wartung | 4530 | 6530 |
+| Kfz: Versicherung | 4520 | 6520 |
+| Kfz: Steuer | 4510 | 7685 |
+| Kfz: Reparaturen | 4540 | 6540 |
+| Kfz: Leasing | 4570 | 6560 |
 | Versicherungen | 4360 | 6400 |
 | Beiträge | 4380 | 6420 |
 | Sonstiger Aufwand | 4900 | 6300 |
+| Anlagegut (wird abgeschrieben), kein Aufwand: Anlagekonto der [Anlage](anlagen.md#art-und-abschreibung) | 0490 (je nach Art) | 0690 (je nach Art) |
 | Einfuhrumsatzsteuer (Bescheid des Zolls), kein Aufwand: Vorsteuer Kz 62 | 1588 Entstandene Einfuhrumsatzsteuer | 1433 |
 
-Hardware wird als geringwertiges Wirtschaftsgut voll im Jahr der Zahlung abgezogen. Anlagevermögen mit Abschreibung kennt Haben nicht.
+Hardware wird als geringwertiges Wirtschaftsgut voll im Jahr der Zahlung abgezogen. Anlagevermögen mit Abschreibung bucht Haben über die Kategorie „Anlagegut“ und das [Anlagenverzeichnis](anlagen.md).
 
 ## Buchungssätze
 
@@ -235,8 +250,9 @@ Beim Buchen eines Eingangsbelegs, gebucht auf das Belegdatum. Beschreibung: `Bel
 | 1576 / 1571 Vorsteuer | 1406 / 1401 Vorsteuer | Steuer je Satz | |
 | Zahlung „Bank“: 1600 Verbindlichkeiten | Zahlung „Bank“: 3300 Verbindlichkeiten | | brutto |
 | Zahlung „privat“: 1890 Privateinlagen | Zahlung „privat“: 2180 Privateinlagen | | brutto |
+| Zahlung „Kasse“: 1000 Kasse | Zahlung „Kasse“: 1600 Kasse | | brutto |
 
-Ein privat bezahlter Beleg ist damit erledigt. Ein über die Bank zu zahlender bleibt als Verbindlichkeit offen, bis die Zahlung im Bankabgleich zugeordnet ist. Gutschriften (negative Beträge) drehen die Seiten.
+Ein privat oder bar aus der [Kasse](kasse.md) bezahlter Beleg ist damit erledigt. Ein über die Bank zu zahlender bleibt als Verbindlichkeit offen, bis die Zahlung im Bankabgleich zugeordnet ist. Gutschriften (negative Beträge) drehen die Seiten.
 
 Bist du als Kleinunternehmer eingetragen, entfällt die Vorsteuerzeile: Der Bruttobetrag je Satz geht mit dem Steuerschlüssel `keineVSt` auf das Aufwandskonto. Ob mit oder ohne Vorsteuerabzug gebucht wurde, speichert Haben am Beleg (`documents.vorsteuer_abzug`), damit Voranmeldung und EÜR auch nach einem späteren Wechsel stimmen.
 
@@ -258,6 +274,8 @@ Im Bankabgleich lassen sich Umsätze ohne Rechnung oder Beleg einer dieser Arten
 | Privat | 1800 Privatentnahmen bzw. 1890 Privateinlagen | 2100 Privatentnahmen bzw. 2180 Privateinlagen | Entnahme an Bank | Bank an Einlage |
 | Geldtransit (eigenes Konto) | 1360 | 1460 | Geldtransit an Bank | Bank an Geldtransit |
 | Umsatzsteuer an das Finanzamt | 1780 | 3820 | Vorauszahlung an Bank | Bank an Vorauszahlung (Erstattung) |
+| Sondervorauszahlung (Dauerfristverlängerung) | 1781 | 3830 | Sondervorauszahlung an Bank | Bank an Sondervorauszahlung (Erstattung) |
+| Kapitalertragsteuer an das Finanzamt (Ausschüttung, nur GmbH und UG) | 1746 | 3760 | Verbindlichkeit an Bank | Bank an Verbindlichkeit |
 | Kontoführung und Bankgebühren | 4970 | 6855 | Gebühren an Bank | Bank an Gebühren |
 | Mahngebühren und Verzugszinsen | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
 | Zinserträge (Guthabenzinsen auf ein betriebliches Konto) | 2650 Sonstige Zinsen und ähnliche Erträge | 7100 | – | Bank an Zinserträge, ohne Umsatzsteuer |
@@ -369,21 +387,31 @@ Erlös-, Aufwands- und Steuerzeilen tragen einen Steuerschlüssel. Forderungen, 
 | `VSt19` | 19 % | 66 | Vorsteuer 19 % |
 | `VSt7` | 7 % | 66 | Vorsteuer 7 % |
 | `keineVSt` | 0 % | – | Ohne Vorsteuer, auch für Belege von Kleinunternehmern |
+| `IGL` | 0 % | 41 | Steuerfreie innergemeinschaftliche Lieferung |
+| `Ausfuhr` | 0 % | 43 | Steuerfreie Ausfuhrlieferung |
+| `RC13bEU` | 19 % / 7 % | 46 / 47 | Steuerschuld als Leistungsempfänger, Leistung eines Unternehmers aus dem EU-Ausland (§ 13b Abs. 1 UStG) |
+| `RC13bDrittland` | 19 % / 7 % | 84 / 85 | Steuerschuld als Leistungsempfänger, Leistung eines Unternehmers aus dem Drittland (§ 13b Abs. 2 Nr. 1 UStG) |
+| `VSt13b` | 19 % / 7 % | 67 | Vorsteuer aus § 13b |
+| `IGE19` / `IGE7` | 19 % / 7 % | 89 / 93 | Innergemeinschaftlicher Erwerb |
+| `VStIGE` | 19 % / 7 % | 61 | Vorsteuer aus innergemeinschaftlichem Erwerb |
+| `EUSt` | – | 62 | Entstandene Einfuhrumsatzsteuer (Bescheid des Zolls) |
 
 Die Kennzahlen der [Voranmeldung](umsatzsteuer.md) rechnet Haben aus denselben Quellen wie die Buchungen (`apps/web/src/server/modules/umsatzsteuer/vat-figures.ts`):
 
 - **Kz 81 und 86:** Bemessungsgrundlagen der regulär besteuerten Rechnungen zu 19 % bzw. 7 %, bei Soll aus den festgeschriebenen Rechnungen des Monats, bei Ist aus den zugeordneten Zahlungseingängen des Monats, anteilig je Zahlung. ELSTER bekommt sie in vollen Euro, die Steuer wird daraus neu berechnet.
 - **Kz 21, 41, 43, 45 und 48:** Bemessungsgrundlagen der Rechnungen mit Reverse Charge, innergemeinschaftlicher Lieferung, Ausfuhrlieferung, ins Drittland bzw. steuerfrei nach § 4 UStG, in vollen Euro und ohne Steuer. Kz 43, 45 und 48 zählen wie Kz 81, Kz 21 und 41 immer nach Rechnungsdatum.
 - **Kz 89, 93 und 61:** Bemessungsgrundlagen der Belege mit innergemeinschaftlichem Erwerb zu 19 % bzw. 7 % und die Vorsteuer daraus, nach Belegdatum, auch bei Ist-Versteuerung.
+- **Kz 46, 47, 84, 85 und 67:** Bemessungsgrundlagen und Steuer der Belege, bei denen du die Steuer als Leistungsempfänger schuldest (§ 13b UStG, aus dem EU-Ausland bzw. Drittland), und die abziehbare Vorsteuer daraus, nach Belegdatum.
+- **Kz 62:** entstandene Einfuhrumsatzsteuer aus Belegen der Kategorie „Einfuhrumsatzsteuer“, nach Belegdatum.
 - **Kz 66:** Vorsteuer aus den gebuchten Belegen des Monats nach Belegdatum, ohne Belege, die ohne Vorsteuerabzug gebucht sind.
-- **Kz 83:** Umsatzsteuer aus Kz 81 und 86 minus Kz 66.
+- **Kz 83:** Umsatzsteuer aus Kz 81, 86, 89 und 93 plus Kz 47 und 85, minus Kz 66, 67, 61 und 62 und minus einer angerechneten Sondervorauszahlung (Kz 39).
 
 Regulär besteuerte Umsätze zu 0 % (Schlüssel `frei`) meldet Haben nicht; die Vorprüfung weist darauf hin, damit sie an der Rechnung als Reverse Charge, Drittland oder steuerfrei eingestellt werden können, falls das zutrifft.
 
 ## Die Seite „Buchungen“
 
 Unter **Buchungen** steht das Journal je Monat, neueste zuerst, mit Pfeilen zum Vor- und Folgemonat. Jede Buchung ist eine Zeile:
-- Datum und Herkunft („Rechnung“, „Beleg“, „Bank“, „Anlage“, „Lohn“ oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
+- Datum und Herkunft („Rechnung“, „Beleg“, „Bank“, „Anlage“, „Pauschale“, „Kasse“, „Ausbuchung“, „Lohn“, in GmbH und UG „Manuell“, „Eröffnung“ und „Ausschüttung“, oder „Gegenbuchung“). Ein Klick auf die Herkunft öffnet den Vorgang.
 - Buchungstext.
 - Soll- und Habenkonto, jeweils das größte. Weitere Konten stehen als „+n“ daneben.
 - Betrag und Steuerschlüssel.
@@ -392,7 +420,7 @@ Der Pfeil links klappt alle Buchungszeilen mit Soll, Haben und Steuerschlüssel 
 
 Darüber lässt sich nach Herkunft, Kontonummer und Text filtern. Unten stehen die Zahl der Buchungen und ihre Summe.
 
-Gebucht wird über Rechnungen, Belege, Bank, Kasse, Anlagen und Lohnabrechnungen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-buchungen-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
+Gebucht wird über Rechnungen, Belege, Bank, Kasse, Anlagen, Pauschalen, Ausbuchungen und Lohnabrechnungen; in einer GmbH oder UG zusätzlich mit [manuellen Buchungen](#manuelle-buchungen-gmbh-und-ug), der [Eröffnung](#saldenvortrag-und-eröffnung-gmbh-und-ug) und [Ausschüttungen](#gewinnausschüttung-gmbh-und-ug). Ein Klick auf eine Kontonummer öffnet das Kontenblatt des Monats.
 
 ## Manuelle Buchungen (GmbH und UG)
 
@@ -413,7 +441,7 @@ Nicht bebuchbar sind die Konten, die ein Nebenbuch führt, weil eine Buchung dar
 | Bank, Zahlungsdienstleister, Geldtransit | Bankabgleich |
 | Kasse | Kassenbuch |
 | Forderungen, Verbindlichkeiten aus Lieferungen und Leistungen | Rechnungen und Belege (offene Posten) |
-| Umsatzsteuer, Vorsteuer, entstandene Einfuhrumsatzsteuer (SKR03 1588, SKR04 1433), Umsatzsteuer-Vorauszahlungen | Voranmeldung |
+| Umsatzsteuer, Vorsteuer (auch § 13b und innergemeinschaftlicher Erwerb), entstandene Einfuhrumsatzsteuer (SKR03 1588, SKR04 1433), Umsatzsteuer-Vorauszahlungen und Sondervorauszahlung | Voranmeldung |
 | Erlöskonten der Rechnungen | Rechnungen |
 | Anlagen, AfA, Restbuchwert | Anlagenverzeichnis |
 | Lohnaufwand und Lohnverbindlichkeiten (SKR03 4120, 4124, 4130, 4144, 4194, 4195, 1740–1742; SKR04 6020, 6024, 6035, 6036, 6110, 6171, 3720–3740) | Lohnabrechnung; die Verbindlichkeiten sind in der Eröffnung erlaubt |
@@ -479,9 +507,9 @@ Unter den Posten stehen Vermerke, die das Gesetz auch der Kleinstkapitalgesellsc
 Hat die Bilanz eine Vorjahresspalte, steht der Vorjahresstichtag darunter; was du für das Vorjahr bestätigt hast, gilt dort schon. **Restlaufzeiten bestätigen** speichert beides für das Jahr (Tabelle `residual_terms`, mit Änderungsprotokoll). Bestätige nach den Abschlussbuchungen; ändert sich danach ein Betrag, etwa durch eine Buchung ins Jahr, sagt die Seite, dass neu zu bestätigen ist. Ohne bestätigte Restlaufzeiten fehlen sie unter der Bilanz und in der E-Bilanz, und die Bilanz zur Hinterlegung lässt sich nicht herunterladen.
 
 > [!WARNING]
-> Bilanz und GuV sind ein **Entwurf für die Steuerberatung**. Die Rückstellungen für Körperschaft- und Gewerbesteuer rechnet und bucht Haben ([unten](#körperschaft-und-gewerbesteuer-gmbh-und-ug)); andere Abschlussbuchungen wie Abschlusskosten, Rechnungsabgrenzung und Wertberichtigungen erfasst ihr vorher als [manuelle Buchung](#manuelle-buchungen-gmbh-und-ug). Die Bilanz zur Hinterlegung beim Unternehmensregister erstellt Haben aus denselben Zahlen ([unten](#hinterlegung-beim-unternehmensregister-gmbh-und-ug)).
+> Bilanz und GuV sind ein **Entwurf für die Steuerberatung**. Die Rückstellungen für Körperschaft- und Gewerbesteuer rechnet und bucht Haben ([unten](#körperschaft--und-gewerbesteuer-gmbh-und-ug)); andere Abschlussbuchungen wie Abschlusskosten, Rechnungsabgrenzung und Wertberichtigungen erfasst ihr vorher als [manuelle Buchung](#manuelle-buchungen-gmbh-und-ug). Die Bilanz zur Hinterlegung beim Unternehmensregister erstellt Haben aus denselben Zahlen ([unten](#hinterlegung-beim-unternehmensregister-gmbh-und-ug)).
 
-**Jahr abschließen:** Wenn die Steuerberatung den Abschluss freigegeben hat, schließt **Jahr abschließen** das Jahr ab, nach einer Rückfrage. Vorher muss das Jahr vorbei sein, die AfA aller Anlagen gebucht und jeder Beleg mit Datum im Jahr gebucht. Danach:
+**Jahr abschließen:** Wenn die Steuerberatung den Abschluss freigegeben hat, schließt der Knopf **‹Jahr› abschließen** (etwa „2025 abschließen“) im Abschnitt **Jahr abschließen** das Jahr ab, nach einer Rückfrage. Vorher muss das Jahr vorbei sein, die AfA aller Anlagen gebucht und jeder Beleg mit Datum im Jahr gebucht. Danach:
 
 - nimmt das Jahr keine Buchung mehr an, auch keine Gegenbuchung. Das prüft das Hauptbuch und, auch für Schreiber an Haben vorbei, ein Trigger der Datenbank (`0098_jahresabschluss_trigger.sql`). Rückgängig machen lässt sich der Abschluss nicht; `year_closings` ist nur anhängbar.
 - hält Haben Zahl und Prüfwert der Buchungen des Jahres fest: SHA-256 über ID und Inhalt jeder Buchung samt Zeilen, gerechnet wie ihr Siegel. Die Seite rechnet ihn bei jedem Aufruf aus den aktuellen Daten nach und zeigt, ob die Buchungen seitdem unverändert sind. Der Abschluss selbst steht mit Prüfwert im Änderungsprotokoll und damit in der Hash-Kette.
@@ -546,17 +574,17 @@ Auf der Seite **Jahresabschluss** rechnet Haben Körperschaftsteuer, Solidaritä
 | − Gewerbeverlust | bis 1 Mio. € voll, darüber 60 % (§ 10a GewStG) |
 | Gewerbesteuer | Gewerbeertrag auf volle 100 € abgerundet, ohne Freibetrag (Kapitalgesellschaft), Messzahl 3,5 %, mal Hebesatz |
 
-Weil die gebuchten Steuern wieder hinzugerechnet werden, ändert eine gebuchte Rückstellung das Ergebnis nicht. **Rückstellungen buchen** bucht als Umbuchung zum 31.12., was zur Steuer noch fehlt: Körperschaftsteuer und Soli an Körperschaftsteuerrückstellung (SKR03 0963, SKR04 3040), Gewerbesteuer an Gewerbesteuerrückstellung (0956 bzw. 3035). Vorauszahlungen, auf die Steueraufwandskonten gebucht (SKR03 2200, 2208, 4320; SKR04 7600, 7608, 7610), sind abgezogen; im Bankabgleich ordnest du sie als [Steuerzahlung](bank.md#steuerzahlungen) des laufenden Jahres zu. Übersteigen sie die Steuer, bucht Haben keine Erstattung; die Forderung gegen das Finanzamt bucht ihr mit der Steuerberatung. Eine Nachzahlung für ein Vorjahr verbraucht im Bankabgleich zuerst die Rückstellung dieses Jahres, der Rest geht auf die Konten für Vorjahre. Zinsen und Zuschläge zu Körperschaft- und Gewerbesteuer (SKR03 2102, 2104, 2105, 2108, 4397; SKR04 7302, 7304, 7308, 7306, 6437) rechnet die Steuerberechnung als nicht abziehbar hinzu (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG), in der Anlage GK unter den übrigen nicht abziehbaren Aufwendungen.
+Weil die gebuchten Steuern wieder hinzugerechnet werden, ändert eine gebuchte Rückstellung das Ergebnis nicht. **Rückstellungen zum 31.12.‹Jahr› buchen** bucht als Umbuchung zum 31.12., was zur Steuer noch fehlt: Körperschaftsteuer und Soli an Körperschaftsteuerrückstellung (SKR03 0963, SKR04 3040), Gewerbesteuer an Gewerbesteuerrückstellung (0956 bzw. 3035). Vorauszahlungen, auf die Steueraufwandskonten gebucht (SKR03 2200, 2208, 4320; SKR04 7600, 7608, 7610), sind abgezogen; im Bankabgleich ordnest du sie als [Steuerzahlung](bank.md#steuerzahlungen) des laufenden Jahres zu. Übersteigen sie die Steuer, bucht Haben keine Erstattung; die Forderung gegen das Finanzamt bucht ihr mit der Steuerberatung. Eine Nachzahlung für ein Vorjahr verbraucht im Bankabgleich zuerst die Rückstellung dieses Jahres, der Rest geht auf die Konten für Vorjahre. Zinsen und Zuschläge zu Körperschaft- und Gewerbesteuer (SKR03 2102, 2104, 2105, 2108, 4397; SKR04 7302, 7304, 7308, 7306, 6437) rechnet die Steuerberechnung als nicht abziehbar hinzu (§ 10 Nr. 2 KStG, § 4 Abs. 5b EStG), in der Anlage GK unter den übrigen nicht abziehbaren Aufwendungen.
 
 Im Verlustjahr lässt sich ein **Verlustrücktrag** in die zwei Vorjahre eintragen (höchstens 1 Mio. €, § 10d Abs. 1 EStG); leer bedeutet Verzicht, der ganze Verlust geht in den Vortrag. Die Gewerbesteuer kennt keinen Rücktrag.
 
-Nicht gerechnet werden steuerfreie Erträge (§ 8b KStG), der Spendenabzug (§ 9 KStG), verdeckte Gewinnausschüttungen und Einlagen, Kürzungen nach § 9 GewStG und die Zerlegung auf mehrere Gemeinden. Hat die GmbH davon etwas, rechnet die Steuerberatung. Aus der Rechnung macht Haben auch die [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug).
+Nicht gerechnet werden steuerfreie Erträge (§ 8b KStG), der Spendenabzug (§ 9 KStG), verdeckte Gewinnausschüttungen und Einlagen, Kürzungen nach § 9 GewStG und die Zerlegung auf mehrere Gemeinden. Hat die GmbH davon etwas, rechnet die Steuerberatung. Aus der Rechnung macht Haben auch die [Körperschaft- und Gewerbesteuererklärung](jahreserklaerung.md#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug).
 
 ## Gewinnausschüttung (GmbH und UG)
 
 Unter **Steuern › Ausschüttungen** bucht Haben den Gewinnverwendungsbeschluss einer GmbH oder UG und meldet die Kapitalertragsteuer an. Du gibst Datum des Beschlusses, das Geschäftsjahr, dessen Gewinn ausgeschüttet wird (vorbelegt mit dem Vorjahr; es steht in der Steuerbescheinigung), den Betrag und, wenn der Beschluss einen bestimmt, den Tag der Auszahlung ein. Ohne Auszahlungstag fließt die Ausschüttung am Tag nach dem Beschluss zu (§ 44 Abs. 2 Satz 2 EStG).
 
-**Steuerabzug je Gesellschafter** (`packages/core/src/ausschuettung.ts`). Gesellschafter, Anteile und Kirchensteuerabzugsmerkmal kommen aus den [Angaben zur Körperschaftsteuererklärung](jahreserklaerung.md#körperschaft-und-gewerbesteuererklärung-gmbh-und-ug) des Jahres.
+**Steuerabzug je Gesellschafter** (`packages/core/src/ausschuettung.ts`). Gesellschafter, Anteile und Kirchensteuerabzugsmerkmal kommen aus den [Angaben zur Körperschaftsteuererklärung](jahreserklaerung.md#körperschaft--und-gewerbesteuererklärung-gmbh-und-ug) des Jahres.
 - **Ohne Kirchensteuer:** 25 % Kapitalertragsteuer.
 - **Mit Kirchensteuer:** Die Kapitalertragsteuer ist ermäßigt auf Ertrag / (4 + Kirchensteuersatz), bei 9 % also 24,45 % (§ 43a Abs. 1 Satz 2, § 32d Abs. 1 Satz 4 EStG). Die Kirchensteuer selbst beträgt 8 oder 9 % der Kapitalertragsteuer.
 - **Solidaritätszuschlag:** 5,5 % der Kapitalertragsteuer.
@@ -613,13 +641,13 @@ Den Kontennachweis verlangt die Taxonomie 6.10 zu jeder Position von Bilanz und 
 **Ablauf:**
 
 1. **Nur prüfen** lässt ERiC die E-Bilanz gegen Taxonomie und Plausibilitätsregeln prüfen, ohne zu senden. Das geht schon vor dem Abschluss.
-2. **Testübermittlung** sendet mit Testmerker; das Finanzamt verarbeitet sie nicht.
-3. **Echt senden** geht erst, wenn das Jahr [abgeschlossen](#jahresabschluss-gmbh-und-ug) ist, und nur einmal. Eine berichtigte E-Bilanz geht über die Steuerberatung oder das ELSTER-Portal.
+2. **Prüfen und testweise senden** (mit Haken bei **Nur Testübermittlung**, vorgewählt) sendet mit Testmerker; das Finanzamt verarbeitet sie nicht.
+3. **Prüfen und senden** (ohne den Haken) sendet echt; das geht erst, wenn das Jahr [abgeschlossen](#jahresabschluss-gmbh-und-ug) ist, und nur einmal. Eine berichtigte E-Bilanz geht über die Steuerberatung oder das ELSTER-Portal.
 
 Jeder Versuch steht mit Werten und XML im Verlauf (Tabelle `annual_submissions`, Formular `ebilanz`), das Übertragungsprotokoll als PDF daneben.
 
 > [!WARNING]
-> Gesendet wird, was gebucht ist. Eine Überleitung von der Handels- zur Steuerbilanz rechnet Haben nicht. Bucht vorher die Rückstellungen für [Körperschaft- und Gewerbesteuer](#körperschaft-und-gewerbesteuer-gmbh-und-ug) und eure übrigen Abschlussbuchungen. Lasst die E-Bilanz von der Steuerberatung ansehen, bevor ihr echt sendet.
+> Gesendet wird, was gebucht ist. Eine Überleitung von der Handels- zur Steuerbilanz rechnet Haben nicht. Bucht vorher die Rückstellungen für [Körperschaft- und Gewerbesteuer](#körperschaft--und-gewerbesteuer-gmbh-und-ug) und eure übrigen Abschlussbuchungen. Lasst die E-Bilanz von der Steuerberatung ansehen, bevor ihr echt sendet.
 
 ## Die Seite „Konten“
 

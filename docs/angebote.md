@@ -10,7 +10,8 @@ Unter **Angebote** schreibst du Angebote mit demselben Editor wie Rechnungen. Ni
 - Angebotsdatum
 - **Gültig bis**, vorbelegt mit 30 Tagen
 - optional der geplante Leistungszeitraum
-- Umsatzsteuer: regulär, Kleinunternehmer, Reverse Charge, steuerfrei
+- Umsatzsteuer: dieselbe Auswahl wie bei der [Rechnung](rechnungen.md#umsatzsteuer-auf-der-rechnung), etwa regulär, Kleinunternehmer, Reverse Charge, steuerfrei
+- Sprache, vorbelegt vom Kunden (siehe [Rechnungen auf Englisch](rechnungen.md#rechnungen-auf-englisch))
 - Preise netto oder brutto inklusive Umsatzsteuer, wie bei der [Rechnung](rechnungen.md#nettopreise-oder-bruttopreise)
 - Einleitung über den Positionen, Positionen und ein Hinweis, beide auch aus [Textbausteinen](rechnungen.md#textbausteine); die Einleitung ist mit der Standard-Einleitung für Angebote aus den [Firmendaten](einrichtung.md) vorbelegt
 - zu jeder Position optional ein mehrzeiliger **Text zur Position** wie bei der [Rechnung](rechnungen.md#positionen); er steht im PDF unter der Bezeichnung und geht in die Rechnung aus dem Angebot über
@@ -59,7 +60,7 @@ Bei größeren Aufträgen legst du im Abschnitt **Zahlungsplan** fest, in welche
 
 Gebucht wird nichts: Ein Angebot ist kein Geschäftsvorfall.
 
-Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Für eine geänderte Fassung legt **Kopieren** einen neuen Entwurf an, mit Kunde, Einleitung, Positionen und Hinweis. Datum und Gültigkeit sind dabei neu, die Dauer der Gültigkeit bleibt gleich.
+Ein festgeschriebenes Angebot ändert sich nicht mehr, so wie eine Rechnung. Für eine geänderte Fassung legt **Kopieren** einen neuen Entwurf an, mit Kunde, Einleitung, Positionen (samt Art und Rabatt), Hinweis, Umsatzsteuer, Preismodus, Sprache, Gesamtrabatt und Zahlungsplan. Datum und Gültigkeit sind dabei neu, die Dauer der Gültigkeit bleibt gleich; der Leistungszeitraum bleibt leer.
 
 ## Per E-Mail senden
 
@@ -88,7 +89,7 @@ Auf der Seite des Angebots hältst du die Antwort des Kunden fest:
 
 - Kunde, Einleitung, Positionen mit ihrem Text, Leistungszeitraum und Umsatzsteuer aus dem Angebot,
 - Datum heute,
-- Zahlungsziel aus den Firmendaten,
+- Zahlungsziel aus den Firmendaten, Skonto wie bei einer neuen Rechnung (vom Kunden, sonst aus den Firmendaten),
 - E-Rechnungsformat des Kunden bzw. das Standardformat,
 - den Hinweis „Gemäß unserem Angebot AN-2026-001 vom …“.
 
@@ -112,7 +113,7 @@ Bei einem angenommenen Angebot stehen unter **Antwort des Kunden** zwei weitere 
 - **Auftragsbestätigung:** dieselben Positionen, Preise und Rabatte wie im Angebot, nach der Auswahl des Kunden bei optionalen und alternativen Positionen, datiert auf den Tag der Annahme, mit Bezug auf das Angebot und der Auftragssumme; auf Wunsch mit dem Zahlungsplan, gerechnet auf die Auftragssumme.
 - **Lieferschein:** die gewählten Positionen mit Menge und Text zur Position, ohne Preise, mit einem Feld für die Empfangsbestätigung des Kunden. Als Lieferdatum gilt das Ende des Leistungszeitraums, sonst der Tag der Annahme.
 
-Beide entstehen beim Abruf aus dem festgeschriebenen Angebot, buchen nichts und sehen jedes Mal gleich aus, solange die Antwort „angenommen“ bleibt. Sprache und Logo folgen dem Angebot bzw. den Einstellungen. Einen Lieferschein gibt es auch zu jeder festgeschriebenen Rechnung (Schaltfläche **Lieferschein** auf der Rechnung).
+Beide entstehen beim Abruf aus dem festgeschriebenen Angebot, buchen nichts und sehen jedes Mal gleich aus, solange die Antwort „angenommen“ bleibt. Sprache und Logo folgen dem Angebot bzw. den Einstellungen. Einen Lieferschein gibt es auch zu jeder festgeschriebenen Rechnung, nicht zu Storno und Korrektur (Schaltfläche **Lieferschein** auf der Rechnung).
 
 ## Aufbewahrung
 

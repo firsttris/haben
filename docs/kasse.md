@@ -10,10 +10,10 @@ Unter **Kasse** führst du das Kassenbuch für Bargeld: jede Bewegung mit fortla
 | Rechnung bar bezahlt | 1000 Kasse an 1400 Forderungen (1600 an 1200) | ein Kunde bezahlt eine Ausgangsrechnung bar, siehe [unten](#rechnung-bar-bezahlt) |
 | Einlage | 1000 Kasse an 1890 Privateinlagen (1600 an 2180) | privates Geld in die Kasse, z. B. Wechselgeld |
 | Entnahme | 1800 Privatentnahmen an 1000 Kasse (2100 an 1600) | Geld aus der Kasse für private Zwecke |
-
-In einer GmbH oder UG heißen die beiden „Vom Gesellschafter“ und „An den Gesellschafter“ und buchen gegen das Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510), siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug).
 | Abhebung von der Bank | 1000 Kasse an 1360 Geldtransit (1600 an 1460) | Geld vom Geschäftskonto in die Kasse |
 | Einzahlung auf die Bank | 1360 Geldtransit an 1000 Kasse (1460 an 1600) | Geld aus der Kasse auf das Geschäftskonto |
+
+In einer GmbH oder UG heißen Einlage und Entnahme „Vom Gesellschafter“ und „An den Gesellschafter“ und buchen gegen das Gesellschafter-Verrechnungskonto (SKR03 0730, SKR04 3510), siehe [Rechtsform](einrichtung.md#rechtsform-einzelunternehmen-gmbh-oder-ug).
 
 Bei Abhebung und Einzahlung ordnest du den Umsatz auf dem Bankkonto im [Bankabgleich](bank.md) als **Geldtransit** zu; dann ist das Geldtransitkonto wieder ausgeglichen.
 

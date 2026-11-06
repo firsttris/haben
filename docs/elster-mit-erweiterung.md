@@ -25,7 +25,7 @@ Mit eigener Hersteller-ID sendet Haben alle vier direkt über ERiC; den [KI-Assi
 | Anlage EÜR 2025 | `data-eru-name="/EUER/BEin/USt_StPflicht/Sum/E6000401"` | E6000401 |
 | Einkommensteuer 2025 | `data-eru-name="/S/Gewinn/Freiber_T/E0803202"` | E0803202 |
 
-Die Werte liegen nur im Sitzungsspeicher der Erweiterung und sind weg, sobald du den Browser schließt. Die Erweiterung schickt nichts an Haben, an Anthropic oder sonst wohin; sie liest und schreibt nur auf `www.elster.de/eportal/interpreter/eingabe/…`.
+Die Werte liegen nur im Sitzungsspeicher der Erweiterung und sind weg, sobald du den Browser schließt oder im Fenster der Erweiterung **Werte löschen** klickst. Die Erweiterung schickt nichts an Haben, an Anthropic oder sonst wohin; sie liest und schreibt nur auf `www.elster.de/eportal/interpreter/eingabe/…`.
 
 ## Einrichten
 
@@ -40,7 +40,7 @@ Nach einem Update von Haben lädst du das neue ZIP, entpackst es in denselben Or
 
 ## Abgeben
 
-1. In Haben bei der Voranmeldung bzw. Jahreserklärung auf **Werte für Mein ELSTER kopieren** klicken. Der Knopf erscheint, solange keine eigene Hersteller-ID eingerichtet ist; er ist gesperrt, solange Prüfungen Fehler zeigen oder ein Entwurf der Voranmeldung nicht gespeichert ist.
+1. In Haben bei der Voranmeldung bzw. Jahreserklärung auf **Werte für Mein ELSTER kopieren** klicken. Der Knopf erscheint, solange keine eigene Hersteller-ID eingerichtet ist und die Erklärung noch nicht übermittelt bzw. die Voranmeldung nicht festgeschrieben ist, bei der Voranmeldung erst mit gespeichertem Entwurf. Er ist gesperrt, solange Prüfungen Fehler zeigen, die Firmendaten unvollständig sind oder der Entwurf der Voranmeldung ungespeicherte Änderungen hat.
 2. Auf das Symbol der Erweiterung (das grüne „H“) klicken, die Werte einfügen und **Werte übernehmen**.
 3. In Mein ELSTER das Formular für denselben Zeitraum öffnen (Formulare und Leistungen › Formular › Jahr), „Ohne Datenübernahme fortfahren“, bei Jahreserklärungen die Anlagen wählen.
 4. Seite für Seite durchgehen. Auf jeder Seite trägt die Erweiterung ein, was dorthin gehört, und rahmt die Felder grün. Unten rechts steht eine Leiste mit:

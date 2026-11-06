@@ -49,11 +49,11 @@ Haben füllt den Antrag mit den Zahlen aus deiner Buchhaltung und schätzt die S
 
 ### Steuerprognose
 
-Haben rechnet mit dem Tarif nach § 32a EStG (2023 bis 2026, für spätere Jahre mit dem jüngsten Tarif). Die Tarifwerte sind gegen den Programmablaufplan des BMF abgeglichen. Vom hochgerechneten Gewinn zieht Haben ab:
+Haben rechnet mit dem Tarif nach § 32a EStG (2023 bis 2026, für spätere Jahre mit dem jüngsten Tarif). Die Tarifwerte für 2024 bis 2026 sind gegen den Programmablaufplan des BMF abgeglichen, die für 2023 folgen dem Gesetzestext. Vom hochgerechneten Gewinn zieht Haben ab:
 
 - Arbeitslohn: Einkünfte nach Werbungskosten bzw. Arbeitnehmer-Pauschbetrag kommen zum Gewinn hinzu,
 - Vorsorgeaufwand: Rentenversicherung voll (bei Arbeitnehmern abzüglich des Arbeitgeberanteils), Basis-Kranken- und Pflegeversicherung voll, weitere Vorsorge bis zum Höchstbetrag von 2.800 € je Person, 1.900 € bei Arbeitnehmern,
-- Sonderausgaben: Kirchensteuer und Spenden (bis 20 % des Gewinns), mindestens den Pauschbetrag von 36 € bzw. 72 €,
+- Sonderausgaben: Kirchensteuer und Spenden (bis 20 % des Gesamtbetrags der Einkünfte, also Gewinn und Arbeitslohn), mindestens den Pauschbetrag von 36 € bzw. 72 €,
 - Kinderbetreuungskosten (bis 2024 zwei Drittel, höchstens 4.000 €; ab 2025 80 %, höchstens 4.800 € je Kind),
 - Krankheitskosten über der zumutbaren Belastung.
 

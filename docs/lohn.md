@@ -15,7 +15,7 @@ Haben rechnet nur Fälle, die es sicher kann; alles andere meldet es als „nich
 | B | Minijob im gewerblichen Bereich mit Pauschsteuer | Pauschalen zur Kranken- und Rentenversicherung, Pauschsteuer 2 %, Umlagen und Insolvenzgeldumlage (trägt alles der Arbeitgeber); vom Lohn ab geht nur der Anteil zur Rentenversicherung, ohne Befreiung 3,6 % |
 | C | Sozialversicherungspflichtig Beschäftigte mit festem Monatsgehalt, gesetzlich versichert | Lohnsteuer, Soli, Kirchensteuer und alle Beiträge, auch im Übergangsbereich (Midijob). **Entwurf, gegenprüfen:** Festschreiben geht erst, wenn du bestätigst, dass die Abrechnung gegen ein Lohnprogramm oder die Steuerberatung gegengeprüft ist |
 
-Nicht unterstützt sind Sonstige Bezüge (Einmalzahlungen, Abfindungen), Sachbezüge und Dienstwagen, Betriebsrente, Kurzarbeit, Pfändungen, Teilmonate (Eintritt oder Austritt im Monat), Mehrfachbeschäftigung, Steuerklasse VI, das Faktorverfahren, Freibeträge aus den ELStAM, privat versicherte Beschäftigte, ein Zuschuss zur privaten Krankenversicherung des Geschäftsführers, Minijobs mit Lohnsteuer nach den ELStAM und Minijobs im Privathaushalt. Kirchensteuer rechnet Haben für die Merkmale ev, rk, lt, rf und ak, mit 8 % in Baden-Württemberg und Bayern, sonst 9 %; maßgeblich ist das Bundesland in den [Firmendaten](einrichtung.md#firmendaten).
+Nicht unterstützt sind Sonstige Bezüge (Einmalzahlungen, Abfindungen), Sachbezüge und Dienstwagen, Betriebsrente, Kurzarbeit, Pfändungen, Teilmonate (Eintritt oder Austritt im Monat), Mehrfachbeschäftigung, Steuerklasse VI, das Faktorverfahren, Freibeträge aus den ELStAM, privat versicherte Beschäftigte, ein Zuschuss zur privaten Krankenversicherung des Geschäftsführers, Minijobs mit Lohnsteuer nach den ELStAM, Minijobs im Privathaushalt und die Pflegeversicherung in Sachsen im Übergangsbereich. Kirchensteuer rechnet Haben für die Merkmale ev, rk, lt, rf und ak, mit 8 % in Baden-Württemberg und Bayern, sonst 9 %; maßgeblich ist das Bundesland in den [Firmendaten](einrichtung.md#firmendaten).
 
 Gerechnet wird mit den Werten eines Jahres: dem Programmablaufplan des BMF für die Lohnsteuer und den Rechengrößen und Beitragssätzen der Sozialversicherung. Fehlen sie für ein Jahr, rechnet Haben nicht, auch nicht mit denen des Vorjahres („nicht hinterlegt“, siehe [Entwicklung](entwicklung.md#lohnsteuer-pap-jährlich-aktualisieren)).
 
@@ -33,7 +33,7 @@ Personalnummern vergibt Haben fortlaufend. Stammdaten lassen sich jederzeit änd
 
 ## Monat abrechnen
 
-Wähle Monat und Jahr, trage den **Zahltag** ein und klicke **Monat abrechnen**. Für jeden Mitarbeiter, der im ganzen Monat beschäftigt ist und noch keine Abrechnung hat, entsteht ein Entwurf. Wer sich nicht rechnen lässt, bekommt keinen Entwurf; der Grund steht an seinem Namen:
+Wähle Monat und Jahr, trage den **Zahltag** ein und klicke **Monat abrechnen**. Für jeden Mitarbeiter, der im ganzen Monat beschäftigt ist und noch keine Abrechnung hat, entsteht ein Entwurf; ein geänderter Zahltag gilt auch für die Entwürfe, die der Monat schon hat, festgeschriebene Abrechnungen behalten ihren. Schon vor dem Abrechnen steht an jedem Namen, was voraussichtlich brutto und netto herauskommt. Wer sich nicht rechnen lässt, bekommt keinen Entwurf; der Grund steht an seinem Namen:
 
 | Grund | Bedeutung |
 | --- | --- |
@@ -47,7 +47,7 @@ Wähle Monat und Jahr, trage den **Zahltag** ein und klicke **Monat abrechnen**.
 
 Der Entwurf zeigt Brutto, Steuern, den Anteil zur Sozialversicherung, Netto, Auszahlung und was der Arbeitgeber zusätzlich trägt. **Entwurf ansehen (PDF)** zeigt die Entgeltabrechnung mit dem Vermerk „Entwurf“. Ändern sich danach die Stammdaten, rechnest du den Entwurf neu; ein Entwurf lässt sich auch löschen.
 
-**Festschreiben** setzt das PDF, speichert es mit der Abrechnung und sperrt beides. Haben lehnt das Festschreiben ab, solange für die Entgeltbescheinigung etwas fehlt (Anschrift, Steuer-ID, bei Sozialversicherung Versicherungsnummer, Personengruppe, Beitragsgruppen und Einzugsstelle) oder die Stammdaten seit dem Entwurf geändert sind. Ebenso, wenn die Rechnung jetzt ein anderes Ergebnis ergäbe, etwa weil sich das Bundesland in den Firmendaten geändert hat (Kirchensteuersatz, Pflegeversicherung in Sachsen); dann rechnest du den Entwurf neu. In Stufe C setzt du vorher den Haken „gegengeprüft“.
+**Festschreiben** (zur Sicherheit ein zweiter Klick auf **Jetzt festschreiben**) setzt das PDF, speichert es mit der Abrechnung und sperrt beides. Haben lehnt das Festschreiben ab, solange für die Entgeltbescheinigung etwas fehlt (Anschrift, Steuer-ID, bei Sozialversicherung Versicherungsnummer, Personengruppe und Beitragsgruppen, bei Beschäftigten in Stufe C dazu die Krankenkasse mit Betriebsnummer als Einzugsstelle) oder die Stammdaten seit dem Entwurf geändert sind. Ebenso, wenn die Rechnung jetzt ein anderes Ergebnis ergäbe, etwa weil sich das Bundesland in den Firmendaten geändert hat (Kirchensteuersatz, Pflegeversicherung in Sachsen); dann rechnest du den Entwurf neu. In Stufe C setzt du vorher den Haken „gegengeprüft“.
 
 Mit dem Festschreiben bucht Haben die Abrechnung ins Journal (siehe [Buchung](#buchung)). Lässt sie sich nicht buchen, etwa weil das Jahr abgeschlossen ist, bleibt sie ein Entwurf.
 
@@ -197,9 +197,11 @@ Für jeden Beschäftigten und jeden Minijob die DEÜV-Meldungen, im Monat ihres 
 
 Jede Meldung zeigt Einzugsstelle, Versicherungsnummer, Name, Anschrift, Zeitraum, Personengruppe, Beitragsgruppe und Tätigkeitsschlüssel aus den Stammdaten. Ab- und Jahresmeldung zeigen das in der Rentenversicherung beitragspflichtige Entgelt des Kalenderjahres in vollen Euro (§ 5 Abs. 4 DEÜV), im Übergangsbereich die reduzierte Einnahme mit Kennzeichen und das tatsächliche Entgelt für die Rentenberechnung; im Minijob die Steuer-ID, die Steuernummer der Firma und die Art der Besteuerung. Fehlt eine Abrechnung im Zeitraum, bleibt das Entgelt leer. Was Haben nicht kennt, etwa die Staatsangehörigkeit oder das Statuskennzeichen, steht als leeres Feld mit Hinweis da; Haben rät nichts. Den Gesellschafter-Geschäftsführer ohne Sozialversicherungspflicht meldet Haben nicht.
 
+Meldungen früherer Monate mit Frist, die noch nicht als abgegeben vermerkt sind, stehen oben unter „Offene Meldungen aus anderen Monaten“, mit Frist und Link zu ihrem Monat.
+
 ### Abgabe vermerken
 
-Hast du einen Nachweis oder eine Meldung im Portal abgegeben, trägst du das mit **Im Portal abgegeben** ein: Tag der Abgabe, auf Wunsch das Protokoll aus dem Portal (PDF, PNG oder JPEG) und eine Notiz. Der Vermerk hält die Werte der Liste fest; ändern sie sich danach, etwa durch ein Storno, zeigt Haben „geändert seit Abgabe“, und du korrigierst im Portal. Vermerke lassen sich nicht ändern oder löschen, nur mit Grund **zurücknehmen**; der alte bleibt sichtbar und steht wie jeder Vermerk im Änderungsprotokoll. Mit dem Vermerk ist die Frist unter [Fristen](fristen.md) erledigt. Fristen nennt Haben ab dem ersten Lohnlauf in Haben; was davor liegt, hat die bisherige Lohnabrechnung gemeldet.
+Hast du einen Nachweis oder eine Meldung im Portal abgegeben, trägst du das mit **Im Portal abgegeben** ein: Tag der Abgabe, auf Wunsch das Protokoll aus dem Portal (PDF, PNG oder JPEG) und eine Notiz. Der Vermerk hält die Werte der Liste fest; ändern sie sich danach, etwa durch ein Storno, zeigt Haben „geändert seit Abgabe“, du korrigierst im Portal und vermerkst die neue Abgabe mit **Erneut abgegeben**. Vermerke lassen sich nicht ändern oder löschen, nur mit Grund **zurücknehmen**; der alte bleibt sichtbar und steht wie jeder Vermerk im Änderungsprotokoll. Mit dem Vermerk ist die Frist unter [Fristen](fristen.md) erledigt. Fristen nennt Haben ab dem ersten Lohnlauf in Haben; was davor liegt, hat die bisherige Lohnabrechnung gemeldet.
 
 ## Lohnsteuerbescheinigung
 

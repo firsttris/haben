@@ -62,7 +62,7 @@ Die Erweiterung läuft in Chrome, Edge, Brave und anderen Chromium-Browsern. Du 
 
 ### KI-Assistent
 
-Ein Assistent wie Claude Code holt die Werte über das [Haben-MCP](ki-assistenten.md) und trägt sie in deinem Browser in Mein ELSTER ein, etwa mit Claude in Chrome oder Playwright MCP. Für die **Voranmeldung** liefert das Werkzeug `ustva_ausfuellliste` die Werte in der Reihenfolge des Formulars. Für die Jahreserklärungen gibt es noch keine Ausfüllliste; dort liefert `jahreserklaerung` die Zeilen.
+Ein Assistent wie Claude Code holt die Werte über das [Haben-MCP](ki-assistenten.md) und trägt sie in deinem Browser in Mein ELSTER ein, etwa mit Claude in Chrome oder Playwright MCP. Für die **Voranmeldung** liefert das Werkzeug `ustva_ausfuellliste` die Werte in der Reihenfolge des Formulars. Für die Jahreserklärungen gibt es noch keine Ausfüllliste; `jahreserklaerung` liefert nur Summen, Hinweise und die Steuerprognose, die einzelnen Zeilen mit Feldkennung stehen auf der Seite der Jahreserklärung in Haben.
 
 Was der Assistent liest, auch in Mein ELSTER, geht an den Anbieter des Modells. Lass ihn nie selbst absenden. Einrichten, Erlaubnisse und ein Beispiel-Prompt: [Mein ELSTER mit KI-Assistent](elster-mit-assistent.md).
 

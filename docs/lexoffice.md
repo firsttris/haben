@@ -109,7 +109,7 @@ Das Skript findet sie über die Bankumsätze: Hat ein Umsatz mehr Zuordnungen, a
 - Im Abgleich je Jahr zählt die Prüfung „Jeder Beleg hat eine Datei“ sie nicht mit, die erste Prüfung nennt ihre Zahl.
 - **Privat und Geldtransit:** Buchungen, deren Kategorien alle „privat“, „Geldtransit“, „Einkommensteuer“, „Kirchensteuer“ oder „Solidaritätszuschlag“ im Namen tragen, sind archiviert, zählen aber weder in den Einnahmen und Ausgaben noch in der Umsatzsteuer je Monat. Der Abgleich je Jahr weist sie getrennt aus. Lexware Office kennzeichnet private Kategorien nicht, Haben erkennt sie nur am Namen. Bei GmbH und UG ordnet Haben anders ein, siehe [Einordnung bei GmbH und UG](#einordnung-bei-gmbh-und-ug).
 
-Hast du per API umgezogen, fehlen diese Buchungen. Lass dann zusätzlich das Skript laufen und lade die Sicherung hoch: Haben überspringt die Belege, die schon da sind, und übernimmt nur die Buchungen ohne Beleg.
+Hast du per API umgezogen, fehlen diese Buchungen. Lass dann zusätzlich das Skript laufen und lade die Sicherung hoch; den Kasten dafür zeigt Haben erst, wenn kein API-Schlüssel mehr gespeichert ist, entferne ihn also vorher mit „Schlüssel entfernen“: Haben überspringt die Belege, die schon da sind, und übernimmt nur die Buchungen ohne Beleg.
 
 Buchungen ohne Beleg im Kassenbuch sucht das Skript nicht; es geht nur die Bankumsätze durch.
 
@@ -262,7 +262,7 @@ Haben erkennt einen Buchungsstapel am Inhalt, auch wenn du eine andere Art gewä
 
 Ein [KI-Assistent](ki-assistenten.md#voranmeldungen-aus-lexware-office-vergleichen) liest die Salden je Konto und Monat und die einzelnen Buchungen über die Werkzeuge `lexoffice_konten` und `lexoffice_buchungen`.
 
-Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, und darunter die Umsätze je Konto. Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
+Unter **DATEV-Buchungen** siehst du die Zeilen je Jahr, durchsuchbar nach Text, Belegfeld und Konto, mit dem Filter „Nur ohne passenden Beleg“, und darunter die Umsätze je Konto. Dort, wo eine Steuerautomatik greift, sind die Beträge brutto; die Steuer ist nicht auf ein Steuerkonto aufgeteilt.
 
 ### Abschluss aus dem DATEV-Stapel (GmbH und UG)
 
@@ -306,7 +306,7 @@ Bringt der letzte Stapel keine Eröffnungsbuchungen mit und gibt es keinen Stape
 | --- | --- |
 | Offene Posten | Schon übernommene Rechnungen und Belege (Forderung bzw. Verbindlichkeit gegen 9000) rechnet der Vorschlag heraus: Er bucht nur den Rest bis zum Saldo der Schlussbilanz und auf 9000 das Gegenteil der Übernahmen. Wer einen Posten nach der Eröffnung übernimmt, dessen Belegdatum davor liegt, bekommt Rechnung bzw. Beleg für den Bankabgleich, aber keine zweite Buchung gegen 9000; der Posten steckt schon im Saldo. Das gilt auch für einen Posten, der erst im Januar bezahlt wurde: Am Stichtag, dem 31.12. des Stapeljahres, war er offen und steht in der Schlussbilanz. |
 | Anlagen | Ebenso: Die Eröffnung einer übernommenen Anlage, die schon gebucht ist, rechnet der Vorschlag heraus; wird die AfA erst danach gebucht, verweist die Anlage auf die Eröffnung aus dem Stapel statt noch einmal gegen 9000 zu buchen. |
-| Umsatzsteuer | Umsatzsteuer, Vorsteuer, nicht fällige Umsatzsteuer und Vorauszahlungen werden mit ihrem Saldo vorgetragen, wie beim Saldenvortrag in Haben. Die Voranmeldung rechnet aus Rechnungen und Belegen, nicht aus diesen Konten; der vorgetragene Saldo gehört zu Voranmeldungen des Vorjahres und zählt nicht noch einmal: Die Vorauszahlung gilt je Voranmeldungszeitraum ([§ 18 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18.html)), Besteuerungszeitraum ist das Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__16.html)). Der Abgleich zwischen Journal und Voranmeldung lässt Eröffnungen deshalb außen vor. Zahlst du im Januar die Zahllast für Dezember, ordnest du die Abbuchung im Bankabgleich als **USt-Vorauszahlung** zu; sie läuft auf SKR03 1780 bzw. SKR04 3820 gegen den vorgetragenen Saldo, die Steuerkonten gleichen sich danach zusammen aus. |
+| Umsatzsteuer | Umsatzsteuer, Vorsteuer, nicht fällige Umsatzsteuer und Vorauszahlungen werden mit ihrem Saldo vorgetragen, wie beim Saldenvortrag in Haben. Die Voranmeldung rechnet aus Rechnungen und Belegen, nicht aus diesen Konten; der vorgetragene Saldo gehört zu Voranmeldungen des Vorjahres und zählt nicht noch einmal: Die Vorauszahlung gilt je Voranmeldungszeitraum ([§ 18 Abs. 1 UStG](https://www.gesetze-im-internet.de/ustg_1980/__18.html)), Besteuerungszeitraum ist das Kalenderjahr ([§ 16 Abs. 1 Satz 2 UStG](https://www.gesetze-im-internet.de/ustg_1980/__16.html)). Der Abgleich zwischen Journal und Voranmeldung lässt Eröffnungen deshalb außen vor. Zahlst du im Januar die Zahllast für Dezember, ordnest du die Abbuchung im Bankabgleich als **Umsatzsteuer an das Finanzamt** zu; sie läuft auf SKR03 1780 bzw. SKR04 3820 gegen den vorgetragenen Saldo, die Steuerkonten gleichen sich danach zusammen aus. |
 | Kasse | Das Kassenbuch zählt den Kassenbestand der Eröffnung zum Anfangsbestand des Jahres, ohne eigene Zeile und ohne zweite Buchung (siehe [Kassenbuch](kasse.md)). |
 
 **Storno.** Die Eröffnung aus dem Stapel stornierst du wie jede manuelle Buchung in den aufgeklappten Buchungszeilen. Haben lehnt den Storno ab, solange etwas ohne eigene Buchung auf ihr aufbaut: offene Posten, die nach der Eröffnung übernommen wurden und nur in ihrem Saldo stehen, und Anlagen, die auf sie verweisen. Ein Storno nähme deren Bestände mit, und eine Eröffnung von Hand brächte sie nicht zurück. Ebenso, wenn das Kassenbuch am Eröffnungsbestand hängt und ohne ihn negativ würde. Passt an der Eröffnung etwas nicht, korrigierst du es dann mit einer Umbuchung. Ohne solche Abhängigkeiten lässt sich die Eröffnung nach dem Storno neu vorschlagen und buchen.
@@ -320,7 +320,7 @@ Für jedes Geschäftsjahr, aus dem Belege, Buchungen oder Dateien vorliegen, zei
 | Belege und Rechnungen per API abgerufen | mindestens ein Beleg mit Datum in diesem Jahr vorliegt; Buchungen ohne Beleg werden extra gezählt |
 | Jeder Beleg hat eine Datei | kein Beleg des Jahres ohne Datei ist, Buchungen ohne Beleg ausgenommen; „Belege ohne Datei ansehen“ zeigt die Liste |
 | DATEV-Buchungsstapel übernommen | Buchungen mit Datum in diesem Jahr eingelesen sind |
-| Jede Buchung mit Belegnummer findet ihren Beleg | für jede Buchung mit Belegfeld 1 ein Lexoffice-Beleg mit derselben Nummer existiert (Leerzeichen und Groß-/Kleinschreibung egal); Buchungen ohne Belegnummer, etwa Umbuchungen, werden nur gezählt |
+| Jede Buchung mit Belegnummer findet ihren Beleg | für jede Buchung mit Belegfeld 1 ein Lexoffice-Beleg mit derselben Nummer existiert (Leerzeichen und Groß-/Kleinschreibung egal); Buchungen ohne Belegnummer, etwa Umbuchungen, werden nur gezählt; „Buchungen ohne passenden Beleg ansehen“ zeigt die übrigen |
 | IDEA-Export archiviert | eine Datei der Art IDEA mit diesem Jahr vorliegt |
 | ELSTER-Protokolle archiviert | mindestens ein ELSTER-Protokoll mit diesem Jahr vorliegt |
 | Kontoauszüge archiviert | mindestens ein Kontoauszug mit diesem Jahr vorliegt |
@@ -336,7 +336,7 @@ Eine GmbH oder UG hat keine Privatsphäre: Was im Einzelunternehmen Privatentnah
 | Art | Kategorien mit … im Namen |
 | --- | --- |
 | Gesellschafter (Verrechnungskonto, Einlagen, Entnahmen, Ausschüttungen) | „Gesellschafter“, „Verrechnungskonto“, „privat“, „Einlage“, „Entnahme“, „Ausschüttung“, „Kapitalertragsteuer“, „Einkommensteuer“, „Kirchensteuer“ |
-| Stammkapital und Darlehen | „Stammkapital“, „Gezeichnetes Kapital“, „Kapitalerhöhung“, „Kapitalrücklage“, „Kapitaleinlage“, „Darlehen“, „Tilgung“ |
+| Stammkapital und Darlehen | „Stammkapital“, „Grundkapital“, „Gezeichnetes Kapital“, „Kapitalerhöhung“, „Kapitalrücklage“, „Kapitaleinlage“, „Darlehen“, „Tilgung“ |
 | Körperschaft- und Gewerbesteuer | „Körperschaftsteuer“, „Gewerbesteuer“, „Solidaritätszuschlag“ |
 | Geldtransit | „Geldtransit“ |
 

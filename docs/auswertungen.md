@@ -27,14 +27,19 @@ Haben rechnet die EÜR nach § 4 Abs. 3 EStG: Es zählt, wann Geld fließt, nich
 | --- | --- | --- |
 | Zahlungseingang, im Bankabgleich einer Rechnung zugeordnet | Buchungstag des Umsatzes | Einnahmen netto (steuerpflichtig oder steuerfrei) und vereinnahmte Umsatzsteuer |
 | Zahlung, im Bankabgleich einem Beleg zugeordnet | Buchungstag des Umsatzes | Ausgabe in der Kategorie des Belegs und gezahlte Vorsteuer; ohne Vorsteuerabzug (Kleinunternehmer) der Bruttobetrag als Ausgabe. Ein [aufgeteilter Beleg](belege.md#auf-mehrere-kategorien-aufteilen) zählt anteilig je Zeile in deren Kategorie |
-| Gebuchter Beleg, privat bezahlt | Belegdatum | wie oben |
+| Gebuchter Beleg, privat oder bar aus der [Kasse](kasse.md) bezahlt | Belegdatum; ein Storno fließt am Tag des Stornos zurück | wie oben |
+| Bareinnahme auf eine Rechnung im [Kassenbuch](kasse.md) | Datum der Bareinnahme | wie ein Zahlungseingang |
 | Bankumsatz „Umsatzsteuer an das Finanzamt“, Ausgang | Buchungstag | An das Finanzamt gezahlte Umsatzsteuer |
 | Bankumsatz „Umsatzsteuer an das Finanzamt“, Eingang | Buchungstag | Vom Finanzamt erstattete Umsatzsteuer |
+| Bankumsatz „Sondervorauszahlung (Dauerfristverlängerung)“ | Buchungstag | wie „Umsatzsteuer an das Finanzamt“ |
 | Bankumsatz „Kontoführung und Bankgebühren“ | Buchungstag | Ausgabe „Kontoführung und Gebühren“ |
-| Bankumsatz „Mahngebühren und Verzugszinsen“ | Buchungstag | Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen |
+| Bankumsatz „Mahngebühren und Verzugszinsen“ oder „Zinserträge“ | Buchungstag | Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen |
+| Bankumsatz „Steuerzahlung oder Erstattung“ | Buchungstag | je nach Steuerart und Teil: Umsatzsteuer früherer Jahre als gezahlte bzw. erstattete Umsatzsteuer, Zinsen und Zuschläge als „Zinsen und Zuschläge zu betrieblichen Steuern“, Erstattungszinsen als Einnahme; Gewerbesteuer nur nachrichtlich, private Steuern gar nicht ([Steuerzahlungen](bank.md#steuerzahlungen)) |
+| Bankumsatz „Darlehen“ | Buchungstag | Zinsen und Gebühren als „Schuldzinsen zur Finanzierung von Anlagevermögen“ bzw. „Übrige Schuldzinsen“; Auszahlung und Tilgung zählen nicht ([Darlehen](bank.md#darlehen)) |
 | Bankumsatz „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“ | Buchungstag | Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung; eine Rückzahlung mindert sie ([Lohn](lohn.md#buchung)) |
 | Kursdifferenz beim Ausgleich einer Rechnung oder eines Belegs in Fremdwährung | Buchungstag | Erträge bzw. Aufwendungen aus Kursdifferenzen; die Rechnung bzw. der Beleg zählt dafür in voller Höhe ([Bankabgleich](bank.md#kursdifferenz-bei-fremdwährung)). In der Anlage EÜR: nicht steuerbare Einnahmen bzw. übrige Ausgaben |
 | Beleg mit Kategorie „Anlagegut“, bezahlt | Buchungstag bzw. Belegdatum | nur die Vorsteuer; der Kaufpreis wirkt über die AfA |
+| [Pauschale](pauschalen.md) | Datum der Pauschale | Ausgabe je Pauschale (Homeoffice, Fahrten, Verpflegung) |
 | Anlagenverzeichnis | Jahr laut Abschreibungsplan | AfA, Sofortabschreibung GWG, Auflösung Sammelposten, Restbuchwert bei Abgang ([Anlagen und AfA](anlagen.md)) |
 
 Bei Teilzahlungen teilt Haben die Zahlung im Verhältnis der Rechnung bzw. des Belegs auf Netto und Steuer je Steuersatz auf. Hebst du eine Zuordnung im Bankabgleich auf, hebt die Gegenzeile die ursprüngliche Zahlung in der EÜR genau auf.
@@ -52,9 +57,9 @@ Wie in der Anlage EÜR ist die vereinnahmte Umsatzsteuer eine Betriebseinnahme. 
 
 Die Tabelle „Einnahmen-Überschuss-Rechnung“ zeigt:
 
-- **Betriebseinnahmen:** Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer (nur, wenn es solche gibt), Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Private Kfz-Nutzung, Vereinnahmte Umsatzsteuer, Umsatzsteuer auf unentgeltliche Wertabgaben (beide nur bei privat genutzten Firmenwagen), Vom Finanzamt erstattete Umsatzsteuer. Belege mit Privatanteil zählen nur mit dem betrieblichen Teil
-- **Betriebsausgaben:** eine Zeile je Belegkategorie mit Betrag (Software, Hosting, Telefon …), die Abschreibungen aus dem Anlagenverzeichnis (nur, wenn es welche gibt), Gezahlte Vorsteuerbeträge, An das Finanzamt gezahlte Umsatzsteuer
-- **Gewinn bzw. Verlust**
+- **Betriebseinnahmen:** Betriebseinnahmen als umsatzsteuerlicher Kleinunternehmer (nur, wenn es solche gibt), Umsatzsteuerpflichtige Betriebseinnahmen (netto), Umsatzsteuerfreie und nicht steuerbare Betriebseinnahmen, Private Kfz-Nutzung, Erträge aus Kursdifferenzen (nur, wenn es welche gibt), Vereinnahmte Umsatzsteuer, Umsatzsteuer auf unentgeltliche Wertabgaben (beide nur bei privat genutzten Firmenwagen), Vom Finanzamt erstattete Umsatzsteuer. Belege mit Privatanteil zählen nur mit dem betrieblichen Teil
+- **Betriebsausgaben:** Löhne und Gehälter einschließlich Lohnsteuer und Sozialversicherung, eine Zeile je Belegkategorie mit Betrag (Software, Hosting, Telefon …; bei der Bewirtung nur der abziehbare Teil von 70 %), je Pauschale, die Abschreibungen aus dem Anlagenverzeichnis, Aufwendungen aus Kursdifferenzen, Zinsen und Zuschläge zu betrieblichen Steuern, Schuldzinsen zur Finanzierung von Anlagevermögen, Übrige Schuldzinsen (diese jeweils nur, wenn es welche gibt), Gezahlte Vorsteuerbeträge, An das Finanzamt gezahlte Umsatzsteuer
+- **Gewinn bzw. Verlust**, darunter nachrichtlich die nicht abziehbare Gewerbesteuer samt Nebenleistungen und Hinterziehungszinsen, wenn es welche gibt
 
 Zahlungen auf Kleinunternehmer-Rechnungen (§ 19 UStG) stehen in der eigenen Zeile für Kleinunternehmer. Rechnungen mit Reverse Charge, ins Drittland oder steuerfrei nach § 4 UStG zählen wie Umsätze zu 0 % als umsatzsteuerfrei und nicht steuerbar. Die Steuer auf Belegen, die ohne Vorsteuerabzug gebucht sind, ist Teil der Ausgabe und erscheint nicht unter den Vorsteuerbeträgen.
 
@@ -62,7 +67,7 @@ Belege ohne gültige Kategorie landen unter „Sonstiger Aufwand“. Welche Kate
 
 ## Einnahmen und Ausgaben je Monat
 
-Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlungsdatum, also ohne Umsatzsteuer, Vorsteuer und Zahlungen an oder vom Finanzamt. Bankgebühren zählen zu den Ausgaben. Fährst du mit der Maus über einen Monat oder springst per Tab-Taste hinein, siehst du die Werte. Unter „Als Tabelle anzeigen“ stehen dieselben Zahlen mit Überschuss je Monat und Jahressumme.
+Das Säulendiagramm zeigt je Monat die Einnahmen und Ausgaben netto nach Zahlungsdatum, also ohne Umsatzsteuer, Vorsteuer, Umsatzsteuerzahlungen an oder vom Finanzamt und nicht abziehbare Steuern. Bankgebühren zählen zu den Ausgaben. Fährst du mit der Maus über einen Monat oder springst per Tab-Taste hinein, siehst du die Werte. Unter „Als Tabelle anzeigen“ stehen dieselben Zahlen mit Überschuss je Monat und Jahressumme.
 
 ## Offene Posten
 
@@ -122,13 +127,15 @@ Zugeordnet wird nach Datum: Rechnungen nach Rechnungsdatum, Belege nach Belegdat
 | `rechnungen/` | Festgeschriebene Rechnungen, Stornos und Korrekturen als PDF und E-Rechnungs-XML (bei ZUGFeRD steckt das XML zusätzlich im PDF); `rechnungen.csv` mit Beträgen (in Euro; bei Fremdwährung mit Währung und Kurs), Format, Zeitpunkt der Festschreibung und SHA-256. Entwürfe fehlen. Nur wenn vorhanden: [zusätzliche Anhänge](rechnungen.md#zusätzliche-anhänge) unter `rechnungen/anhaenge/` (Name: Nummer_Dateiname) mit `anhaenge.csv` (Rechnung, ursprünglicher Dateiname, Größe, SHA-256). |
 | `belege/` | Alle Belege des Jahres als Originaldatei, Name `Datum_Lieferant_Kurz-ID`; `belege.csv` mit Beträgen je Steuersatz (in Euro; bei Fremdwährung mit Kurs und Bruttobetrag laut Beleg), Kategorie, Zahlung, Status, Storno (Datum und Grund), Quelle der Auslesung, SHA-256 und ursprünglichem Dateinamen |
 | `anlagen/anlagenverzeichnis.csv` | Anlagenverzeichnis des Jahres je Anlage: Anschaffung, Abschreibung mit Nutzungsdauer, degressivem Satz, Jahr des Wechsels zur linearen AfA und Erinnerungswert (Verzeichnis nach § 7a Abs. 8 EStG), Buchwert am Jahresanfang, Zugang, AfA, Abgang, Buchwert am Jahresende, ob die AfA gebucht ist |
+| `pauschalen/pauschalen.csv` | Nur wenn vorhanden: Pauschalen ohne Beleg mit ihren Angaben als Eigenbeleg; Stornos als Gegenzeile |
+| `kasse/kassenbuch.csv` | Nur wenn vorhanden: Kassenbuch mit fortlaufender Nummer, Anfangsbestand und Bestand nach jeder Zeile, bei Bareinnahmen die Rechnungsnummer |
 | `buchungen/journal.csv` | Journal, eine Zeile je Buchungszeile mit Konto, Kontoname, Soll, Haben und Steuerschlüssel; Gegenbuchungen verweisen auf die Ursprungsbuchung |
 | `bank/<IBAN>/umsaetze.csv` | Importierte Umsätze je Konto mit zugeordnetem und offenem Betrag |
 | `bank/zuordnungen.csv` | Zuordnungen zu Rechnungen, Belegen und Buchungen ohne Beleg; aufgehobene als Gegenzeile |
 | `bank/ausbuchungen.csv` | Nur wenn vorhanden: ausgebuchte Reste (Skonto gewährt und erhalten, Forderungsausfall); aufgehobene als Gegenzeile; bei Skonto zu einer Bareinnahme die Nummer im Kassenbuch |
 | `bank/importe.csv` | Importierte Auszugsdateien mit SHA-256, Zeitraum und Salden (die Dateien selbst speichert der Bankimport nicht) |
-| `umsatzsteuer/<JJJJ-MM>/` | Je Monat die Voranmeldung als `anmeldung.json` (bei mehreren, etwa berichtigten, `anmeldung-1.json`, `anmeldung-2.json` …), `übermittlungen.csv` und je Prüfung oder Übermittlung das ERiC-Protokoll (PDF) sowie das gesendete und empfangene XML |
-| `lexoffice/` | Nur bei übernommenem Altbestand, siehe unten |
+| `umsatzsteuer/<JJJJ-MM>/` | Je Monat die Voranmeldung als `anmeldung.json` (bei mehreren, etwa berichtigten, `anmeldung-1.json`, `anmeldung-2.json` …), `übermittlungen.csv` und je Prüfung oder Übermittlung das ERiC-Protokoll (PDF) sowie das gesendete und empfangene XML; bei einer [Abgabe außerhalb von Haben](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken) das Übermittlungsprotokoll des Vermerks (PDF) |
+| `lexoffice/` | Nur bei übernommenem Altbestand aus Lexware Office oder sevDesk, siehe unten |
 | `stammdaten/` | `kontakte.csv` (aktueller Stand), `kontakt-versionen.csv` (alle Versionen), `bankkonten.csv`, `firma.json` |
 | `protokoll/audit.csv` | Änderungsprotokoll des Jahres mit altem und neuem Wert als JSON, in der Reihenfolge der Hash-Kette mit Ketten-Nr., Vorgänger-Hash und Hash |
 | `protokoll/pruefwert.txt` | Prüfwert (Kopf der Hash-Kette) beim Erstellen des Archivs und am Ende des Jahres, zum Aufbewahren außerhalb des Servers |

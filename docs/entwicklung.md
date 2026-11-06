@@ -7,7 +7,7 @@ Diese Seite richtet sich an alle, die an Haben mitarbeiten wollen: lokale Umgebu
 - [Bun](https://bun.com) in der Version aus `packageManager` in `package.json` (Laufzeit und Paketmanager zugleich; Node, npm und pnpm braucht Haben nicht)
 - PostgreSQL 18, lokal oder als Container
 - Alternativ zu beiden: Docker oder Podman mit Compose, siehe [Mit Docker Compose](#mit-docker-compose)
-- Optional: ein C-Compiler (`cc`) für die ERiC-Tests mit nachgebauter Bibliothek, Java 21 für den KoSIT-Validator
+- Optional: ein C-Compiler (`cc`) für die ERiC-Tests mit nachgebauter Bibliothek, Java 25 (wie in der CI) für den KoSIT-Validator
 
 ## Lokale Umgebung
 
@@ -75,6 +75,7 @@ docker compose exec db createdb -U haben haben_e2e
 | `bun run test` | Alle Tests mit Vitest (nicht `bun test`: das wäre der Test-Runner von Bun) |
 | `bun run db:generate` | Migration aus Schemaänderungen erzeugen (drizzle-kit) |
 | `bun run db:migrate` | Ausstehende Migrationen anwenden |
+| `bun run e2e` | Ende-zu-Ende-Tests mit Playwright (braucht `E2E_DATABASE_URL`, siehe [Ende-zu-Ende-Tests mit Playwright](#ende-zu-ende-tests-mit-playwright)) |
 | `bun run --cwd apps/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
 | `pip install -r requirements-docs.txt && mkdocs serve` | Diese Dokumentation als Website lokal auf Port 8000 (MkDocs Material); `mkdocs build --strict` wie in der CI |
@@ -84,7 +85,7 @@ docker compose exec db createdb -U haben haben_e2e
 
 ## Tests
 
-Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src` und `packages/*/src` ein und führt die Dateien parallel aus, eine Datei je Worker.
+Die Tests laufen mit Vitest. `vitest.config.ts` sammelt alle `*.test.ts` unter `apps/*/src`, `packages/*/src` und `scripts/` ein und führt die Dateien parallel aus, eine Datei je Worker.
 
 ```sh
 bun run test
@@ -142,7 +143,7 @@ Kommt eine neue Version der Anlage 3, gehören neues Schema, URL und Prüfsumme 
 
 ### KoSIT-Validator
 
-Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` Beispielrechnungen in allen Formaten (19 %, gemischte Sätze, Storno, Korrektur, Leitweg-ID, nur Steuernummer, Nullsatz, Reverse Charge, Drittland, steuerfrei, Kleinunternehmer, Bruttopreise, Positions- und Gesamtrabatt) und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal brauchst du Java 21 sowie den Validator und die Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`; welche Versionen CI nutzt, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG`):
+Der CI-Job `kosit` erzeugt mit `packages/einvoice/scripts/kosit-check.ts` Beispielrechnungen in allen Formaten (19 %, gemischte Sätze, Storno, Korrektur, Leitweg-ID, nur Steuernummer, Nullsatz, Reverse Charge, Drittland, steuerfrei, Kleinunternehmer, Bruttopreise, Positions- und Gesamtrabatt) und prüft sie mit dem KoSIT-Validator und der XRechnung-Konfiguration. Lokal brauchst du Java 25 (wie in der CI) sowie den Validator und die Konfiguration von GitHub (`itplr-kosit/validator`, `itplr-kosit/validator-configuration-xrechnung`; welche Versionen CI nutzt, steht in `.github/workflows/ci.yml` unter `KOSIT_VALIDATOR` und `KOSIT_XRECHNUNG`):
 
 ```sh
 KOSIT_JAR=/pfad/validator-<version>-standalone.jar \
@@ -172,7 +173,7 @@ Neue Releases von Validator und XRechnung-Konfiguration bringt Renovate (`.githu
 5. Einen Kontoauszug importieren und die Umsätze zuordnen.
 6. Prüfen, dass Kennzahlen und Salden unter **Konten** dazu passen, und den Filter im Journal testen.
 
-Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen mit diesen Daten und dieser Sitzung die Dateien im Projekt `mit-daten` (`playwright.config.ts`), verteilt auf vier Worker; sie lesen nur. `elster-helfer.spec.ts`, `elster-helfer-erweiterung.spec.ts`, `langsame-anfrage.spec.ts` und `beenden.spec.ts` brauchen keine Daten und laufen im Projekt `ohne-daten` von Anfang an daneben. `beenden.spec.ts` startet den gebauten Server ein zweites Mal und prüft, dass er sich auf SIGTERM innerhalb von acht Sekunden beendet, bevor `podman stop` oder `docker stop` nach zehn Sekunden SIGKILL schickt. `elster-helfer.spec.ts` prüft die Logik der Erweiterung „Haben für Mein ELSTER“ (`src/fill.ts`, mit Vite gebaut) auf nachgebauten Formularseiten; `elster-helfer-erweiterung.spec.ts` baut die ganze Erweiterung, lädt sie in Chromium und prüft Popup und Inhaltsskript auf einer Seite unter der Adresse von Mein ELSTER.
+Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen mit diesen Daten und dieser Sitzung die Dateien im Projekt `mit-daten` (`playwright.config.ts`), verteilt auf vier Worker; sie lesen nur, bis auf `steuerberatung.spec.ts`, das einen Zugang für die Steuerberatung anlegt und wieder sperrt. `elster-helfer.spec.ts`, `elster-helfer-erweiterung.spec.ts`, `langsame-anfrage.spec.ts` und `beenden.spec.ts` brauchen keine Daten und laufen im Projekt `ohne-daten` von Anfang an daneben. `beenden.spec.ts` startet den gebauten Server ein zweites Mal und prüft, dass er sich auf SIGTERM innerhalb von acht Sekunden beendet, bevor `podman stop` oder `docker stop` nach zehn Sekunden SIGKILL schickt. `elster-helfer.spec.ts` prüft die Logik der Erweiterung „Haben für Mein ELSTER“ (`src/fill.ts`, mit Vite gebaut) auf nachgebauten Formularseiten; `elster-helfer-erweiterung.spec.ts` baut die ganze Erweiterung, lädt sie in Chromium und prüft Popup und Inhaltsskript auf einer Seite unter der Adresse von Mein ELSTER.
 
 `apps/web/e2e/gmbh.spec.ts` spielt dasselbe für eine GmbH durch (Projekt `gmbh`): Einrichtung mit Rechtsform und SKR04, manuelle Buchung mit Storno, Lohnabrechnung des Gesellschafter-Geschäftsführers mit PDF, Lohnkonto, Lohnsteuer-Anmeldung und Storno, ein Minijob mit Ausfüllliste für das SV-Meldeportal und Vermerk der Abgabe. Weil die Rechtsform ab der ersten Buchung fest ist, läuft es gegen einen zweiten Server auf `E2E_PORT` + 1 mit eigener Datenbank, deren Name aus `E2E_DATABASE_URL` folgt (`haben_e2e` → `haben_gmbh_e2e`). `e2e/reset-db.ts` legt sie beim ersten Lauf an; dafür braucht der Datenbanknutzer das Recht `CREATEDB`.
 
@@ -235,7 +236,7 @@ bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2025-04-01 packages/elster/
 bun scripts/ebilanz/taxonomie.ts <Ordner>/de-gaap-ci-2026-04-01 packages/elster/src/ebilanz/taxonomie-6-10.json
 ```
 
-Welche Taxonomie für ein Wirtschaftsjahr gilt, steht in `ebilanzTaxonomie` (`packages/elster/src/ebilanz/taxonomie.ts`), nach dem BMF-Schreiben zur jeweiligen Taxonomie. Für eine neue Taxonomie (jährlich zum 1. April, bekannt gegeben im Juni) den Auszug neu erzeugen, ihn in `taxonomie.ts` eintragen, `ebilanzTaxonomie` und `EBILANZ_TAXONOMIEN` in `packages/elster/src/xml.ts` ergänzen und die Tests mit ERiC laufen lassen; `zuordnung.test.ts` meldet Positionen der Kontenzuordnung, die es nicht mehr gibt oder die keine Blätter mehr sind. Die Prüfregeln stehen im Technischen Leitfaden und im Änderungsnachweis auf esteuer.de, ihre Umsetzung in den ERiC-Releasenotes (Kapitel „Datenart Bilanz“), Beispiele in der ERiC-Dokumentation unter `Datenarten/ElsterBilanz/Bilanz/Beispiele/Taxonomie_<Version>`.
+Welche Taxonomie für ein Wirtschaftsjahr gilt, steht in `ebilanzTaxonomie` (`packages/elster/src/ebilanz/taxonomie.ts`), nach dem BMF-Schreiben zur jeweiligen Taxonomie. Für eine neue Taxonomie (jährlich zum 1. April, bekannt gegeben im Juni) den Auszug neu erzeugen, ihn in `taxonomie.ts` eintragen, dort `ebilanzTaxonomie` und in `packages/elster/src/xml.ts` `EBILANZ_TAXONOMIEN` ergänzen und die Tests mit ERiC laufen lassen; `zuordnung.test.ts` meldet Positionen der Kontenzuordnung, die es nicht mehr gibt oder die keine Blätter mehr sind. Die Prüfregeln stehen im Technischen Leitfaden und im Änderungsnachweis auf esteuer.de, ihre Umsetzung in den ERiC-Releasenotes (Kapitel „Datenart Bilanz“), Beispiele in der ERiC-Dokumentation unter `Datenarten/ElsterBilanz/Bilanz/Beispiele/Taxonomie_<Version>`.
 
 esteuer.de liefert ein falsches Zwischenzertifikat aus. Zum Herunterladen das richtige über die AIA-Adresse des Serverzertifikats holen (`openssl x509 -noout -text` zeigt sie unter „CA Issuers“, zurzeit `http://secure.globalsign.com/cacert/gsgccr46dvtlsca2025.crt`), nach PEM wandeln und zusammen mit den übrigen vertrauenswürdigen Zertifikaten an `curl --cacert` geben; die TLS-Prüfung bleibt an:
 
@@ -332,8 +333,9 @@ Nicht geprüft werden die Taxonomie der E-Bilanz (esteuer.de liefert eine unvoll
 | `apps/web/drizzle` | SQL-Migrationen |
 | `packages/core` | Beträge, Zeiträume, Steuernummer, UStVA, Buchungssätze, EÜR, Zuordnungsvorschläge |
 | `packages/elster` | ERiC-Anbindung, XML für Voranmeldung und Jahreserklärungen, Worker |
-| `packages/import` | Kontoauszugs-Parser, Deduplizierung, DATEV, Lexoffice-Client, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
+| `packages/import` | Kontoauszugs-Parser, Exporte von Zahlungsdienstleistern, Deduplizierung, DATEV, Lexoffice- und sevDesk-Client, Kontoabruf über Enable Banking, CSV-Import von Kontakten, Artikeln und Anlagen (`csv-import/`) |
 | `packages/einvoice` | Rechnungs-PDF mit Typst, E-Rechnung erzeugen und lesen |
+| `apps/elster-helfer` | Browser-Erweiterung „Haben für Mein ELSTER“ (TypeScript, Vite) |
 | `deploy` | Compose, Quadlets, Caddyfile, Startskript; `deploy/backup`: Backup-Image (backup.sh, restore.sh) |
 | `docs`, `mkdocs.yml` | Diese Dokumentation; auf `main` baut `.github/workflows/docs.yml` sie nach https://firsttris.github.io/haben/ |
 

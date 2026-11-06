@@ -57,7 +57,7 @@ podman build -t haben -f Containerfile .   # oder docker build
 
 Das `Containerfile` baut die App in zwei Stufen auf Basis von `oven/bun` (Debian, slim); Laufzeit ist Bun, Node ist nicht im Image.
 
-Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_WORKER_PATH` und `HABEN_EINVOICE_DIR`.
+Das Image läuft als Nutzer `bun` (ID 1000) und setzt diese Werte schon selbst: `NODE_ENV=production`, `PORT=3000`, `DOCUMENTS_DIR=/var/lib/haben/belege`, `ERIC_LOG_DIR=/var/lib/haben/eric-log`, `ERIC_DIR=/var/lib/haben/eric`, `ERIC_WORKER_PATH` und `HABEN_EINVOICE_DIR`.
 
 ## Docker Compose
 
@@ -77,7 +77,8 @@ In `.env` trägst du ein:
 | `ENCRYPTION_KEY` | `openssl rand -base64 32`, zusätzlich an einem zweiten Ort sichern |
 | `RESTIC_PASSWORD` | Verschlüsselt das Backup: `openssl rand -base64 32`, ebenfalls an einem zweiten Ort sichern |
 | `RESTIC_REPOSITORY` | optional: Backup auf einem zweiten System statt im Volume `backups`, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
-| `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
+| `BACKUP_TIME`, `RESTORE_CHECK_DAYS`, `BACKUP_HOST`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | optional, siehe [Backup und Wiederherstellen](#backup-und-wiederherstellen) |
+| `ERIC_AUTO_INSTALL`, `ERIC_SHA256`, `ERIC_HOME`, `ELSTER_HERSTELLER_ID`, `ANTHROPIC_API_KEY`, `EXTRACTION_PROVIDER`, `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL`, `EXTRACTION_API_KEY`, `EXTRACTION_TIMEOUT_SECONDS`, `EXTRACTION_MAX_PAGES`, `ENABLE_BANKING_APP_ID` | optional, siehe [Umgebungsvariablen](#umgebungsvariablen) |
 
 ```sh
 docker compose up -d
@@ -131,12 +132,12 @@ openssl rand -base64 32 | tr -d '\n' | podman secret create haben-restic-passwor
 | `haben-db-password` | `POSTGRES_PASSWORD` (in `haben-db`) | Passwort des Datenbanknutzers `haben` |
 | `haben-database-url` | `DATABASE_URL` | Verbindung zur Datenbank, Passwort wie oben |
 | `haben-auth-secret` | `BETTER_AUTH_SECRET` | Signiert die Sitzungen |
-| `haben-encryption-key` | `HABEN_ENCRYPTION_KEY` | Schlüssel für ELSTER-Zertifikat und Lexoffice-API-Schlüssel |
+| `haben-encryption-key` | `HABEN_ENCRYPTION_KEY` | Schlüssel für ELSTER-Zertifikat und die API-Schlüssel für Lexoffice und sevDesk |
 | `haben-restic-password` | `RESTIC_PASSWORD` (in `haben-backup`) | Verschlüsselt das Backup |
 | `haben-anthropic-key` (optional) | `ANTHROPIC_API_KEY` | Für die KI-Auslesung, siehe unten |
 
 > [!IMPORTANT]
-> Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat samt gespeicherter PIN, die Passwörter für SMTP und IMAP, die Sitzung des Bankabrufs und den Lexoffice-API-Schlüssel (AES-256-GCM). Ohne den Schlüssel sind sie nach einer Wiederherstellung nicht mehr lesbar. Das Backup sichert ihn nicht mit. Dasselbe gilt für das Passwort des Backups. Die Werte liest du aus mit `podman exec haben-app printenv HABEN_ENCRYPTION_KEY` (solange der Container läuft) und `podman secret inspect --showsecret haben-restic-password`.
+> Sichere `HABEN_ENCRYPTION_KEY` getrennt vom Backup, zum Beispiel im Passwortmanager. Haben verschlüsselt damit das ELSTER-Zertifikat samt gespeicherter PIN, die Passwörter für SMTP und IMAP, den Schlüssel und die Sitzung des Bankabrufs und die API-Schlüssel für Lexoffice und sevDesk (AES-256-GCM). Ohne den Schlüssel sind sie nach einer Wiederherstellung nicht mehr lesbar. Das Backup sichert ihn nicht mit. Dasselbe gilt für das Passwort des Backups. Die Werte liest du aus mit `podman exec haben-app printenv HABEN_ENCRYPTION_KEY` (solange der Container läuft) und `podman secret inspect --showsecret haben-restic-password`.
 
 ### Konfiguration
 
@@ -308,11 +309,12 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `DATABASE_URL` | ja | PostgreSQL-Verbindung. Wird auch vom Migrationsschritt beim Start gelesen | `postgres://haben:…@haben-db:5432/haben` |
 | `BETTER_AUTH_SECRET` | ja | Geheimnis für Sitzungen, mindestens 32 Zeichen | Ausgabe von `openssl rand -base64 32` |
 | `BETTER_AUTH_URL` | ja | Öffentliche Adresse, unter der Haben im Browser läuft. Bestimmt die Domain der Passkeys | `https://haben.example.de` |
-| `HABEN_ENCRYPTION_KEY` | ja | Genau 32 Byte, base64-kodiert. Verschlüsselt ELSTER-Zertifikat und Lexoffice-Schlüssel | Ausgabe von `openssl rand -base64 32` |
+| `HABEN_ENCRYPTION_KEY` | ja | Genau 32 Byte, base64-kodiert. Verschlüsselt ELSTER-Zertifikat, Zugangsdaten und die API-Schlüssel für Lexoffice und sevDesk | Ausgabe von `openssl rand -base64 32` |
 | `HABEN_SETUP_CODE` | nein | Fester Einrichtungscode für das Anlegen des Kontos (mindestens 8 Zeichen). Ohne ihn erzeugt Haben bei jedem Start einen neuen und schreibt ihn ins Log, solange es kein Konto gibt | `mein-einrichtungscode` |
 | `ERIC_HOME` | nein | Verzeichnis eines von Hand entpackten ERiC-Pakets; hat Vorrang vor dem heruntergeladenen. Ohne beides werden Prüfen und Senden simuliert | `/opt/eric` |
 | `ERIC_DIR` | nein | Ziel für das von Haben heruntergeladene ERiC. Standard `data/eric`; im Image `/var/lib/haben/eric` (Volume) | `/var/lib/haben/eric` |
 | `ERIC_AUTO_INSTALL` | nein | `ja`: fehlt ERiC, lädt der Container es beim Start (Zustimmung zu den Nutzungsbedingungen) | `ja` |
+| `ERIC_VERSION` | nein | Version, die `ERIC_AUTO_INSTALL` bzw. `install-cli.ts` ohne Versionsangabe lädt. Standard ist die von Haben vorgeschlagene | `44.3.6.0` |
 | `ERIC_DOWNLOAD_URL` | nein | Andere Download-Adresse für ERiC, nur zum Testen. Standard `https://download.elster.de/download/eric` | `http://localhost:4556/eric` |
 | `ERIC_SHA256` | nein | Erwartete SHA-256 des ERiC-Pakets (64 Hex-Zeichen). Stimmt sie nicht, bricht die Installation ab. Die Prüfsumme eines Downloads steht danach im Log und in `HABEN_ERIC_SHA256` im ERiC-Verzeichnis | `3f5a…` |
 | `ERIC_LOG_DIR` | nein | Logverzeichnis für ERiC. Ohne Angabe das temporäre Verzeichnis; im Image `/var/lib/haben/eric-log` | `/var/lib/haben/eric-log` |
@@ -326,22 +328,25 @@ Die App prüft ihre Variablen in `apps/web/src/server/env.ts` beim ersten Zugrif
 | `EXTRACTION_PROVIDER` | nein | Anbieter ausdrücklich wählen: `anthropic` oder `openai-compatible`. Ohne Angabe gilt der eigene Dienst, sobald `EXTRACTION_BASE_URL` gesetzt ist | `openai-compatible` |
 | `EXTRACTION_TIMEOUT_SECONDS` | nein | Wartezeit auf den eigenen Dienst je Beleg, 5 bis 3600. Standard `300` | `600` |
 | `EXTRACTION_MAX_PAGES` | nein | So viele PDF-Seiten gehen höchstens als Bild an den eigenen Dienst, 1 bis 20. Standard `4` | `2` |
-| `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (wiederkehrende Rechnungen, Kontoabruf), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
+| `HABEN_SCHEDULER` | nein | `off` schaltet die stündlichen Hintergrundjobs ab (u. a. wiederkehrende Rechnungen, Dauerbelege, Kontoabruf, ELSTER-Postfach, Umrechnungskurse, Belege per E-Mail, Fristen-Erinnerungen), etwa für eine zweite Instanz auf derselben Datenbank | `off` |
 | `ENABLE_BANKING_APP_ID` | nein | Application ID der Enable-Banking-Anwendung. Schaltet zusammen mit dem Schlüssel den automatischen Kontoabruf ein. Einfacher: unter Einstellungen › Bank hochladen; das geht dann vor | `0b7c3f1e-…` |
 | `ENABLE_BANKING_KEY_FILE` | nein | Pfad zum privaten Schlüssel (PEM) der Anwendung. Bei Compose und Quadlets fest `/run/secrets/enablebanking.pem` | `/run/secrets/enablebanking.pem` |
 | `ENABLE_BANKING_KEY` | nein | Alternativ der Schlüssel selbst; Zeilenumbrüche als `\n` erlaubt | `-----BEGIN PRIVATE KEY-----\n…` |
 | `ENABLE_BANKING_API_URL` | nein | Andere Basis-URL der API, nur zum Testen. Standard `https://api.enablebanking.com` | `http://localhost:4555` |
 | `LEXOFFICE_API_URL` | nein | Andere Basis-URL der Lexware-Office-API. Standard `https://api.lexware.io/v1` | `https://api.lexoffice.io/v1` |
+| `SEVDESK_API_URL` | nein | Andere Basis-URL der sevDesk-API, nur zum Testen oder falls sevDesk die Adresse ändert. Standard `https://my.sevdesk.de/api/v1`; Ablauf in [Umzug aus sevDesk](sevdesk.md) | `https://my.sevdesk.de/api/v1` |
 | `PORT` | nein | Port des App-Servers, im Image `3000` | `3000` |
 | `HABEN_EINVOICE_DIR` | nein | Verzeichnis von `packages/einvoice` (Typst-Vorlage und Schriften für das Rechnungs-PDF). Im Image gesetzt | `/app/packages/einvoice` |
 
 Bei Compose setzt `compose.yml` diese Variablen aus `.env` (`DATABASE_URL` aus `DB_PASSWORD`, `BETTER_AUTH_URL` aus `DOMAIN`, `BETTER_AUTH_SECRET` aus `AUTH_SECRET`, `HABEN_ENCRYPTION_KEY` aus `ENCRYPTION_KEY`). Bei den Quadlets kommen die geheimen Werte aus Podman Secrets, der Rest aus `haben.env`; für den Datenbank-Container setzt das Quadlet `POSTGRES_USER=haben` und `POSTGRES_DB=haben`, das Passwort kommt aus dem Secret `haben-db-password`.
 
+In den App-Container reicht `compose.yml` nur die Variablen durch, die dort unter `app` › `environment` stehen. Andere, etwa `HABEN_SETUP_CODE`, `HABEN_SCHEDULER`, `LEXOFFICE_API_URL` oder `SEVDESK_API_URL`, wirken in `.env` allein nicht; trag sie in der `compose.override.yml` beim Dienst `app` unter `environment` ein. Bei den Quadlets gelten alle Zeilen aus `haben.env`.
+
 ## Datenablage
 
 | Was | Wo |
 | --- | --- |
-| Buchungen, Rechnungen (PDF und XML), Voranmeldungen mit ERiC-Protokoll, Audit-Log, verschlüsseltes ELSTER-Zertifikat, verschlüsselter Lexoffice-Schlüssel | PostgreSQL, Volume `haben-db` |
+| Buchungen, Rechnungen (PDF und XML), Voranmeldungen mit ERiC-Protokoll, Audit-Log, verschlüsseltes ELSTER-Zertifikat, verschlüsselte API-Schlüssel für Lexoffice und sevDesk | PostgreSQL, Volume `haben-db` |
 | Belegdateien und aus Lexoffice übernommene Dateien | Volume `haben-belege` (`DOCUMENTS_DIR`), abgelegt unter dem SHA-256 der Datei (`ab/abcdef…`) |
 | ERiC, von Haben heruntergeladen | Volume `haben-eric` (Compose: `eric`), im Container `/var/lib/haben/eric` (`ERIC_DIR`). Lässt sich jederzeit neu laden, nicht im Backup |
 | ERiC-Logs | Volume `haben-eric-log` (Compose: `eric-log`), im Container `/var/lib/haben/eric-log` (`ERIC_LOG_DIR`). Nur zur Fehlersuche, nicht im Backup |
@@ -375,7 +380,7 @@ Ein Lauf
 Die Volumes `caddy`, `eric` und `eric-log` und die Schlüssel sind nicht dabei. Mit Compose zeigt `docker compose ps` den Dienst `backup` als `unhealthy`, wenn der letzte Lauf fehlschlug oder seit zwei Tagen keiner durchlief.
 
 > [!IMPORTANT]
-> Sichere `HABEN_ENCRYPTION_KEY` (Compose: `ENCRYPTION_KEY`) und das Passwort des Backups (`RESTIC_PASSWORD` bzw. das Secret `haben-restic-password`) getrennt vom Server, zum Beispiel im Passwortmanager. Ohne das Passwort lässt sich das Backup nicht öffnen, ohne den Schlüssel sind ELSTER-Zertifikat, PIN, Mail-Zugänge, Bankabruf und Lexoffice-Schlüssel darin nicht lesbar. Fehlt eins von beiden, ist das Backup wertlos.
+> Sichere `HABEN_ENCRYPTION_KEY` (Compose: `ENCRYPTION_KEY`) und das Passwort des Backups (`RESTIC_PASSWORD` bzw. das Secret `haben-restic-password`) getrennt vom Server, zum Beispiel im Passwortmanager. Ohne das Passwort lässt sich das Backup nicht öffnen, ohne den Schlüssel sind ELSTER-Zertifikat, PIN, Mail-Zugänge, Bankabruf und die Schlüssel für Lexoffice und sevDesk darin nicht lesbar. Fehlt eins von beiden, ist das Backup wertlos.
 
 ### Repository auf einem zweiten System
 
@@ -745,8 +750,8 @@ Passkeys sind an den Hostnamen aus `BETTER_AUTH_URL` gebunden. Ziehst du Haben a
 
 **„Die Antwort des KI-Dienstes passt nicht zum Belegschema.“** Das Modell hat kein gültiges JSON mit den Belegfeldern geliefert. Erneut auslesen hilft manchmal; sonst ein größeres oder ein anderes Vision-Modell wählen. Der Beleg wird nicht gebucht, die Felder füllst du von Hand aus.
 
-**restic meldet beim Sichern der Belege „permission denied“.** Bei rootless Podman gehören die Dateien im Volume einer Unter-UID des Hosts, nicht deinem Nutzer. Das aktuelle `backup.sh` ruft restic deshalb über `podman unshare` auf. Tritt der Fehler auf, hast du vermutlich noch ein älteres Skript; lade `backup.sh` neu herunter. Prüfe danach mit `restic ls latest`, ob die Belege im Snapshot sind.
+**restic meldet beim Sichern der Belege „permission denied“.** Das passiert mit dem früheren Host-Skript `~/.config/haben/backup.sh`: Bei rootless Podman gehören die Dateien im Volume einer Unter-UID des Hosts, nicht deinem Nutzer. Das Backup läuft inzwischen im Container `haben-backup`, der das Volume selbst einhängt; stell um wie unter [Umzug vom Host-Skript der Quadlets](#umzug-vom-host-skript-der-quadlets). Prüfe danach mit `journalctl --user -u haben-backup`, ob der Lauf durchging.
 
-**`systemctl --user enable haben-backup.timer` findet die Unit nicht.** Timer und Service gehören nach `~/.config/systemd/user/`, nicht ins Quadlet-Verzeichnis. Danach `systemctl --user daemon-reload`.
+**`systemctl --user enable haben-backup.timer` findet die Unit nicht.** Der Timer gehört nach `~/.config/systemd/user/`, nicht ins Quadlet-Verzeichnis; `haben-backup.container` dagegen ins Quadlet-Verzeichnis, daraus erzeugt Podman `haben-backup.service`. Danach `systemctl --user daemon-reload`.
 
 Weiter: [Erste Schritte](einrichtung.md) · [Entwicklung](entwicklung.md) · [Zurück zur Übersicht](README.md)
