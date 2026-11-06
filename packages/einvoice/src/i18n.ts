@@ -188,7 +188,11 @@ export const TEXTS = {
     page: (n: string, total: string) => `Page ${n} of ${total}`,
     date: (iso: string) => {
       const [y, m, d] = isoParts(iso);
-      return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, d)));
+      // ICU liefert je nach Plattform „Sep“ oder „Sept“; Belege und E-Mails verwenden einheitlich „Sept“.
+      return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+        .formatToParts(new Date(Date.UTC(y, m - 1, d)))
+        .map((part) => (part.type === "month" && part.value === "Sep" ? "Sept" : part.value))
+        .join("");
     },
     money: (cents: Cents) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(cents / 100),
     rate: (rate: number) => `${rate / 100} %`,

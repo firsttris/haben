@@ -322,6 +322,8 @@ Auf Englisch erscheinen:
 - Betreff und Text der E-Mail, aus der englischen Vorlage (siehe [Vorlagen](#per-e-mail-versenden)),
 - der Hinweis „As per our quote …“, wenn aus einem englischen Angebot eine Rechnung wird.
 
+Das englische Monatskürzel für September ist auf allen Plattformen einheitlich „Sept“, sowohl im PDF als auch in E-Mails.
+
 Stornorechnung und Rechnungskorrektur übernehmen die Sprache der ursprünglichen Rechnung, wiederkehrende Rechnungen die Sprache des Kontakts. Das XML der E-Rechnung ist sprachunabhängig und bleibt gleich. Mahnungen bleiben deutsch. Ein selbst eingetragener Hinweis zur Steuerbefreiung erscheint so, wie du ihn schreibst.
 
 ## Wiederkehrende Rechnungen
