@@ -61,6 +61,8 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
   const end = `${year + 1}-01-01`;
   const allocations = await q
     .select({
+      id: schema.allocations.id,
+      reversesId: schema.allocations.reversesId,
       kind: schema.allocations.kind,
       amount: schema.allocations.amount,
       taxShares: schema.allocations.taxShares,
@@ -237,7 +239,9 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       payments.push({ kind: a.kind, date: a.date, amount: a.amount, group });
     } else if (a.kind === "steuer" && a.taxType && a.taxItem) {
       // Im Jahr der Zahlung (§ 11 EStG), unabhängig vom Bezugsjahr; Teil und Steuerart bestimmen die Zeile
-      payments.push({ kind: "steuer", date: a.date, amount: a.amount, art: a.taxType, posten: a.taxItem, group });
+      // Je Zuordnung, nicht je Umsatz: Die Wirkung hängt am Vorzeichen jedes Teils (Erstattungszinsen sind Einnahme,
+      // Nachzahlungszinsen zur Gewerbesteuer nicht); nur Zuordnung und Gegenzeile heben sich auf
+      payments.push({ kind: "steuer", date: a.date, amount: a.amount, art: a.taxType, posten: a.taxItem, group: a.reversesId ?? a.id });
     } else if (a.kind === "darlehen" && a.loanPart && a.loanPurpose) {
       // Zinsen und Gebühren als Schuldzinsen, wenn sie abfließen; Auszahlung und Tilgung sind erfolgsneutral
       payments.push({ kind: "darlehen", date: a.date, amount: a.amount, zweck: a.loanPurpose, teil: a.loanPart, group });
