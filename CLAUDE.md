@@ -67,6 +67,11 @@ PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl â
   with a merge commit, with our changes as further commits on top, so GitHub shows it as merged.
   Never rewrite a contributor's commits.
 - Force-push: allowed with `--force-with-lease` on the own branch after a merge.
+- Every pull request gets an independent **TDD review** before it is merged: skill `tdd-review` in
+  `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md` (Review). Whoever wrote
+  the code does not review it (in a session that wrote it, a separate subagent does); a finding counts
+  only with a test that fails on the pull request; fixes go on top as their own commits. Only a
+  maintainer merges.
 
 ## Working rules
 
