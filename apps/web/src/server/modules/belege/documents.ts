@@ -254,13 +254,7 @@ async function applyFields(
     null,
     company.tageskurs,
   );
-  const amounts = euroAmounts({
-    currency: fields.currency,
-    exchangeRate: rate.exchangeRate,
-    reverseCharge: null,
-    amounts: amountsByRate(fields.amounts).map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax })),
-  });
-  const totals = totalsOf(amounts);
+  const extracted = amountsByRate(fields.amounts).map((a) => ({ ...a, originalNet: a.net, originalTax: a.tax }));
   // Mit dem Kurs des Monats ist der Hinweis auf den fehlenden Kurs erledigt
   const warnings = rate.exchangeRate ? fields.warnings.filter((w) => !w.startsWith(`Währung ${fields.currency}`)) : fields.warnings;
   // Privatanteil aus den Vorgaben der Firmendaten, z. B. Telefon 20 %
@@ -269,6 +263,8 @@ async function applyFields(
   await withActor(actor, async (tx) => {
     const [doc] = await tx.select().from(schema.documents).where(eq(schema.documents.id, id)).for("update");
     if (!doc || doc.lockedAt) return;
+    // Neu ausgelesen bleibt die Steuerbehandlung des Belegs; § 13b und Erwerbsteuer rechnet der Server aus dem Netto
+    const amounts = euroAmounts({ currency: fields.currency, exchangeRate: rate.exchangeRate, reverseCharge: doc.reverseCharge, amounts: extracted });
     await tx.delete(schema.documentAmounts).where(eq(schema.documentAmounts.documentId, id));
     if (amounts.length > 0) {
       await tx.insert(schema.documentAmounts).values(amounts.map((a) => ({ documentId: id, ...a })));
@@ -289,7 +285,7 @@ async function applyFields(
         ...rate,
         category,
         privateShare,
-        ...totals,
+        ...totalsOf(amounts, doc.reverseCharge),
         extractedBy,
         extractionStatus: "fertig",
         extractionError: warnings.length > 0 ? warnings.join(" · ") : null,
