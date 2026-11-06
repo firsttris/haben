@@ -14,7 +14,7 @@ In dieser Reihenfolge kommst du am schnellsten zu einer vollständigen Buchhaltu
 6. Wenn beides da ist: ERiC laden, Hersteller-ID eintragen, Datenschutzhinweise bestätigen, Zertifikat hochladen, eine Voranmeldung mit „Nur prüfen“ und dann als Testübermittlung schicken
 7. Für die Anlage EÜR Einkunftsart und Art des Betriebs eintragen, siehe [Jahreserklärungen](jahreserklaerung.md)
 8. Bank verbinden (automatischer Abruf) oder ersten Kontoauszug importieren, siehe [Bank](bank.md)
-9. Optional: KI-Auslesung für Belege einschalten, mit Claude oder einem selbst betriebenen Modell
+9. Optional: KI-Auslesung für Belege einschalten, mit Claude oder einem Modell über eine OpenAI-kompatible Schnittstelle (selbst betrieben oder ein Cloud-Dienst wie OpenRouter)
 10. Optional: deine Steuerberatung mit einem [eigenen Zugang](#zugang-für-die-steuerberatung) einladen
 
 > [!IMPORTANT]
@@ -382,17 +382,18 @@ Das Passwort speichert Haben AES-256-GCM-verschlüsselt wie das ELSTER-Zertifika
 
 ## KI-Auslesung von Belegen
 
-Optional. E-Rechnungen (ZUGFeRD, Factur-X, XRechnung) liest Haben immer selbst aus. Für andere PDFs und Fotos (JPEG, PNG, WebP) kann ein Modell die Felder vorbefüllen: Lieferant, USt-IdNr., Rechnungsnummer, Datum, Fälligkeit, Beträge je Steuersatz und eine vorgeschlagene Kategorie. Dafür gibt es zwei Wege, eingestellt über Umgebungsvariablen auf dem Server:
+Optional. E-Rechnungen (ZUGFeRD, Factur-X, XRechnung) liest Haben immer selbst aus. Für andere PDFs und Fotos (JPEG, PNG, WebP) kann ein Modell die Felder vorbefüllen: Lieferant, USt-IdNr., Rechnungsnummer, Datum, Fälligkeit, Beträge je Steuersatz und eine vorgeschlagene Kategorie. Dafür gibt es zwei Schnittstellen, eingestellt über Umgebungsvariablen auf dem Server. Die OpenAI-kompatible Schnittstelle ist nicht auf lokale Modelle beschränkt: Sie spricht ebenso Cloud-Dienste wie OpenRouter oder OpenAI an.
 
-| | Claude (Anthropic-API) | Eigenes Modell |
-| --- | --- | --- |
-| Einschalten | `ANTHROPIC_API_KEY` ([Installation](installation.md#ki-auslesung-anthropic)) | `EXTRACTION_BASE_URL` und `EXTRACTION_MODEL` ([Installation](installation.md#ki-auslesung-mit-eigenem-modell)) |
-| Wohin der Beleg geht | an Anthropic | nur an deinen Dienst (Ollama, LM Studio, vLLM, `docker model run`), kein Ausweichen in die Cloud |
-| PDFs | direkt | lokal in Seitenbilder umgewandelt, höchstens 4 Seiten |
-| Kosten | ein paar Cent je Beleg | Rechenzeit auf deinem Server, mit CPU leicht ein bis mehrere Minuten je Beleg |
-| Genauigkeit | sehr gut, auch bei Fotos und Kassenzetteln | gut bei sauberen PDFs, schwächer bei Fotos und Kassenzetteln |
+| | Claude (Anthropic-API) | OpenAI-kompatibel, selbst betrieben | OpenAI-kompatibel, in der Cloud |
+| --- | --- | --- | --- |
+| Beispiele | Claude-Modelle von Anthropic | Ollama, LM Studio, vLLM, `docker model run` | OpenRouter, OpenAI, andere Anbieter mit OpenAI-kompatibler API |
+| Einschalten | `ANTHROPIC_API_KEY` ([Installation](installation.md#ki-auslesung-anthropic)) | `EXTRACTION_BASE_URL` und `EXTRACTION_MODEL` ([Installation](installation.md#ki-auslesung-über-openai-kompatible-schnittstelle)) | `EXTRACTION_BASE_URL`, `EXTRACTION_MODEL` und `EXTRACTION_API_KEY` ([Installation](installation.md#ki-auslesung-über-openai-kompatible-schnittstelle)) |
+| Wohin der Beleg geht | an Anthropic | nur an deinen Dienst, er verlässt deinen Server nicht | nur an diesen Anbieter (bei OpenRouter auch an den Anbieter des Modells) |
+| PDFs | direkt | lokal in Seitenbilder umgewandelt, höchstens 4 Seiten | lokal in Seitenbilder umgewandelt, höchstens 4 Seiten |
+| Kosten | ein paar Cent je Beleg | Rechenzeit auf deinem Server, mit CPU leicht ein bis mehrere Minuten je Beleg | nach Preisliste des Anbieters und Modells |
+| Genauigkeit | sehr gut, auch bei Fotos und Kassenzetteln | gut bei sauberen PDFs, schwächer bei Fotos und Kassenzetteln | je nach gewähltem Vision-Modell |
 
-Sind beide eingerichtet, gilt das eigene Modell. Welcher Weg gerade gilt, zeigt **Einstellungen › KI-Assistenten und API › Belegauslesung**. Ohne beides bleibt alles lokal, und du füllst die Felder von Hand aus. In jedem Fall bucht Haben einen Beleg erst, wenn du die Felder bestätigt hast. Weicht die Summe vom Gesamtbetrag ab oder ist die Währung nicht Euro, zeigt Haben einen Hinweis. Mehr in [Belege](belege.md).
+Es gilt immer genau ein Dienst: Ist `EXTRACTION_BASE_URL` gesetzt, gehen Belege nur an diese Adresse, auch wenn zusätzlich `ANTHROPIC_API_KEY` gesetzt ist, und bei einem Fehler weicht Haben auf keinen anderen Anbieter aus. Welcher Weg gerade gilt, zeigt **Einstellungen › KI-Assistenten und API › Belegauslesung**. Ohne beides bleibt alles lokal, und du füllst die Felder von Hand aus. In jedem Fall bucht Haben einen Beleg erst, wenn du die Felder bestätigt hast. Weicht die Summe vom Gesamtbetrag ab oder ist die Währung nicht Euro, zeigt Haben einen Hinweis. Mehr in [Belege](belege.md).
 
 ### Beispiel: Ollama mit Qwen-VL
 
@@ -410,7 +411,24 @@ Läuft Haben mit Docker Compose und Ollama auf demselben Server:
 4. `docker compose up -d`, dann unter **Einstellungen › KI-Assistenten und API** prüfen, dass „Eigener Dienst (OpenAI-kompatibel)“ mit dem Modell angezeigt wird.
 5. Einen Beleg als Foto hochladen. Er zeigt „Wird ausgelesen“ und danach die Felder; ein Fehler (nicht erreichbar, Zeitüberschreitung, falsches Antwortformat) steht am Beleg.
 
-Mit Podman heißt die Adresse `http://host.containers.internal:11434/v1`. Ollama als eigenen Container neben Haben, Schlüssel und Wartezeit beschreibt [Installation](installation.md#ki-auslesung-mit-eigenem-modell).
+Mit Podman heißt die Adresse `http://host.containers.internal:11434/v1`. Ollama als eigenen Container neben Haben, Schlüssel und Wartezeit beschreibt [Installation](installation.md#ki-auslesung-über-openai-kompatible-schnittstelle).
+
+### Beispiel: OpenRouter
+
+OpenRouter vermittelt viele Modelle verschiedener Anbieter über eine OpenAI-kompatible Schnittstelle. Du brauchst dort einen Schlüssel und ein Modell, das Bilder lesen kann.
+
+1. Bei OpenRouter einen API-Schlüssel anlegen und in der Modellliste ein Vision-Modell wählen (Eingabe „image“), etwa `qwen/qwen2.5-vl-72b-instruct`.
+2. In `.env` eintragen:
+
+    ```sh
+    EXTRACTION_BASE_URL=https://openrouter.ai/api/v1
+    EXTRACTION_MODEL=qwen/qwen2.5-vl-72b-instruct
+    EXTRACTION_API_KEY=sk-or-…
+    ```
+
+3. `docker compose up -d`, dann unter **Einstellungen › KI-Assistenten und API** prüfen, dass „Eigener Dienst (OpenAI-kompatibel)“ mit dem Modell und beim Schlüssel „gesetzt“ angezeigt wird.
+
+Der Beleg geht dann an OpenRouter und an den Anbieter des Modells. Wie lange sie Daten aufbewahren und ob sie damit trainieren, stellst du in deinem OpenRouter-Konto ein. Genauso funktionieren andere Dienste mit OpenAI-kompatibler API, etwa OpenAI selbst mit `https://api.openai.com/v1`.
 
 ## Bankkonten
 

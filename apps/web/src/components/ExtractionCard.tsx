@@ -20,9 +20,9 @@ export function ExtractionCard({ settings }: { settings: Settings }) {
     <section className="card" aria-labelledby="extraction-heading">
       <h2 id="extraction-heading">Belegauslesung</h2>
       <p className="small muted" style={{ margin: 0, maxWidth: 760 }}>
-        E-Rechnungen liest Haben immer selbst. Andere PDFs und Fotos füllt auf Wunsch ein Modell vor: Claude über die Anthropic-API oder ein selbst betriebenes
-        Vision-Modell, etwa mit Ollama, LM Studio oder vLLM. Die Felder bleiben „Zu prüfen“, bis du sie bestätigst. Eingestellt wird die Auslesung über
-        Umgebungsvariablen auf dem Server.
+        E-Rechnungen liest Haben immer selbst. Andere PDFs und Fotos füllt auf Wunsch ein Modell vor: Claude über die Anthropic-API oder ein Vision-Modell über
+        eine OpenAI-kompatible Schnittstelle, selbst betrieben mit Ollama, LM Studio oder vLLM oder als Dienst wie OpenRouter. Die Felder bleiben „Zu prüfen“,
+        bis du sie bestätigst. Eingestellt wird die Auslesung über Umgebungsvariablen auf dem Server.
       </p>
       {settings.provider === null ? (
         <div className="banner banner-info">Die KI-Auslesung ist aus. Belege, die keine E-Rechnung sind, füllst du von Hand aus. {docs}</div>

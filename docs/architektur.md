@@ -21,11 +21,11 @@ flowchart LR
   Services --> Files[("DOCUMENTS_DIR<br/>Dateien unter SHA-256")]
   Packages --> Worker["ERiC-Worker<br/>Kindprozess je Aufruf"] --> Elster["ELSTER"]
   Services -.->|optional| Anthropic["Anthropic API<br/>Belegauslesung"]
-  Services -.->|oder| Local["Eigenes Modell<br/>OpenAI-kompatibel, z. B. Ollama"]
+  Services -.->|oder| Local["OpenAI-kompatibler Dienst<br/>z. B. Ollama, OpenRouter"]
   Packages -.->|Umzug| Lexware["Lexware Office<br/>Public API"]
 ```
 
-Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über Server Functions; Dateien (Rechnungs-PDFs, Belege, Protokolle, CSV, ZIP) kommen über eigene API-Routen. Nach außen verbindet sich der Server nur mit ELSTER (über ERiC), optional mit der Anthropic-API oder einem selbst betriebenen KI-Dienst und während des Umzugs mit Lexware Office.
+Der Browser spricht nur mit der eigenen Anwendung. Seiten laden ihre Daten über Server Functions; Dateien (Rechnungs-PDFs, Belege, Protokolle, CSV, ZIP) kommen über eigene API-Routen. Nach außen verbindet sich der Server nur mit ELSTER (über ERiC), optional mit der Anthropic-API oder einem OpenAI-kompatiblen KI-Dienst (selbst betrieben oder in der Cloud) und während des Umzugs mit Lexware Office.
 
 ## Module
 
@@ -374,6 +374,6 @@ Laufende Auslesungen merkt sich der Prozess. Steht ein Beleg auf „läuft“, o
 | TanStack Redact statt React | Gleiche API, der Code importiert weiter aus `react`; das Plugin leitet die Imports beim Bauen um. Das Start-Bundle im Browser schrumpft von rund 94 auf 49 KB (gzip). Redact rendert synchron ohne Time-Slicing, das braucht Haben nicht. Die Version ist fest gepinnt, weil Redact noch 0.x ist; zurück zu React geht es, indem man `redact()` aus `vite.config.ts` nimmt |
 | Jahresexport als Stream | Ein Jahr mit vielen Belegen braucht kaum Arbeitsspeicher; die Prüfsummen entstehen beim Packen |
 | Keine Job-Queue | Ein Prozess, eine Datenbank, einfacher Betrieb. Die einzigen langen Aufgaben sind wiederholbar bzw. fortsetzbar |
-| KI-Auslesung optional, auch selbst betrieben | Ohne Anbieter oder mit eigenem Modell bleiben alle Daten auf dem eigenen Server; E-Rechnungen werden ohnehin direkt gelesen. Genau ein Anbieter, kein Ausweichen in die Cloud. Eingestellt über Umgebungsvariablen wie die übrigen Dienste; ein Schlüssel für den eigenen Dienst liegt damit nicht in der Datenbank |
+| KI-Auslesung optional, auch selbst betrieben | Ohne Anbieter oder mit eigenem Modell bleiben alle Daten auf dem eigenen Server; E-Rechnungen werden ohnehin direkt gelesen. Über dieselbe OpenAI-kompatible Schnittstelle gehen auch Cloud-Dienste wie OpenRouter, ohne eigenen Anbieter im Code. Genau ein Anbieter, kein Ausweichen auf einen anderen. Eingestellt über Umgebungsvariablen wie die übrigen Dienste; ein Schlüssel für den eigenen Dienst liegt damit nicht in der Datenbank |
 | PDF-Seiten mit `pdftoppm` | Ein kleines Systempaket statt einer Rendering-Bibliothek im Serverprozess; läuft als Kindprozess mit Zeitlimit, ein kaputtes PDF trifft die App nicht. Typst kann PDFs nur als Vektor-SVG ausgeben, nicht als Bild |
 | Altbestand aus Lexoffice getrennt | Archivierte Daten bleiben unverändert und beeinflussen weder Voranmeldung noch Auswertungen; nur ausdrücklich übernommene offene Posten werden Teil der Buchhaltung |
