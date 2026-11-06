@@ -399,6 +399,49 @@ describe.skipIf(!testDatabaseUrl)("Belege (Postgres)", () => {
     expect(documents.bookingIssues(doc.document, doc.amounts)).toContain("§ 13b gilt nicht für Wareneinkäufe");
   });
 
+  it.each([
+    ["eu", "software", "Steuer § 13b"],
+    ["ig_erwerb", "buero", "Erwerbsteuer"],
+  ] as const)(
+    "%s in Euro: die selbst geschuldete Steuer rechnet der Server aus Netto und Satz, nicht aus der Eingabe (#331)",
+    async (reverseCharge, category, name) => {
+      const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, reverseCharge.length, 42]), filename: `${reverseCharge}.jpg` });
+      const input = {
+        supplierName: "Lieferant B.V.",
+        supplierUstId: "NL123456789B01",
+        invoiceNumber: `NL-${reverseCharge}`,
+        documentDate: "2026-09-30",
+        dueDate: null,
+        category,
+        payment: "bank" as const,
+        note: "",
+        reverseCharge,
+        currency: "EUR",
+        exchangeRate: null,
+      };
+      // Über die API oder ein altes Formular kommt eine abweichende Steuer; maßgeblich sind 19 % bzw. 7 % vom Netto
+      await documents.updateDocument(actor, id, {
+        ...input,
+        amounts: [
+          { taxRate: 1900, net: 20_000, tax: 0 },
+          { taxRate: 700, net: 10_000, tax: 999 },
+        ],
+      });
+      const doc = (await documents.getDocument(id))!;
+      expect(doc.amounts.map((a) => [a.taxRate, a.net, a.tax]).sort()).toEqual(
+        [
+          [1900, 20_000, 3_800],
+          [700, 10_000, 700],
+        ].sort(),
+      );
+      expect(doc.document).toMatchObject({ net: 30_000, tax: 4_500, gross: 30_000 });
+      // Ein schon gespeicherter Entwurf mit abweichender Steuer lässt sich nicht buchen, bis er neu gespeichert ist
+      await sql`update document_amounts set tax = 0 where document_id = ${id} and tax_rate = 1900`;
+      const legacy = (await documents.getDocument(id))!;
+      expect(documents.bookingIssues(legacy.document, legacy.amounts)).toContain(`${name} passt nicht zu Netto und Satz; öffne den Beleg und speichere ihn`);
+    },
+  );
+
   it("Fremdwährung mit § 13b: Steuer aus dem umgerechneten Netto; zurück auf Euro löscht Kurs und Originalbeträge", async () => {
     const { id } = await documents.uploadDocument(actor, { bytes: new Uint8Array([...JPEG, 8]), filename: "aws.jpg" });
     const base = {

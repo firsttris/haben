@@ -20,6 +20,7 @@ import {
   type VatPeriod,
   isKapitalgesellschaft,
   SELF_ASSESSED_TAX_KEYS,
+  taxOf,
   normalizeUstId,
   ustIdProblem,
   maxDegressiveRate,
@@ -119,6 +120,8 @@ const MAX_EURO_CENTS = 2_147_483_647;
 /**
  * Euro-Beträge je Zeile: in Euro wie eingegeben, bei Fremdwährung mit dem Kurs umgerechnet.
  * Ohne Kurs bleiben die Euro-Beträge 0; der Beleg ist dann noch nicht buchbar.
+ * Die Steuer nach § 13b und beim innergemeinschaftlichen Erwerb steht nicht auf der Rechnung, der Empfänger berechnet
+ * sie aus dem Netto (§ 13b Abs. 5, § 13 Abs. 1 Nr. 6 UStG); deshalb rechnet sie der Server wie bei Fremdwährung selbst.
  */
 export function euroAmounts(input: {
   currency: string;
@@ -126,7 +129,15 @@ export function euroAmounts(input: {
   reverseCharge: string | null;
   amounts: { taxRate: number; net: number; tax: number; originalNet: number | null; originalTax: number | null }[];
 }): { taxRate: number; net: number; tax: number; originalNet: number | null; originalTax: number | null }[] {
-  if (input.currency === "EUR") return input.amounts.map((a) => ({ taxRate: a.taxRate, net: a.net, tax: a.tax, originalNet: null, originalTax: null }));
+  if (input.currency === "EUR") {
+    return input.amounts.map((a) => ({
+      taxRate: a.taxRate,
+      net: a.net,
+      tax: input.reverseCharge ? taxOf(a.net, a.taxRate) : a.tax,
+      originalNet: null,
+      originalTax: null,
+    }));
+  }
   const originals = input.amounts.map((a) => ({ taxRate: a.taxRate, originalNet: a.originalNet ?? 0, originalTax: a.originalTax ?? 0 }));
   if (!input.exchangeRate) return originals.map((o) => ({ ...o, net: 0, tax: 0 }));
   const euro = convertForeignAmounts(originals, input.exchangeRate, Boolean(input.reverseCharge));
@@ -595,6 +606,10 @@ export function bookingIssues(doc: Document, amounts: DocumentAmount[], todayDat
   if (values.length === 0 || values.every((a) => a.net === 0 && a.tax === 0)) issues.push("Beträge fehlen");
   // Mit Kurs, aber umgerechnet 0,00 € (winzige Beträge oder ein falscher Kurs): eine Buchung ohne Zeilen ginge nicht
   else if (foreign && doc.exchangeRate && amounts.every((a) => a.net === 0 && a.tax === 0)) issues.push("Umgerechnet 0,00 €, bitte den Kurs prüfen");
+  // Vor #331 ließ sich die selbst geschuldete Steuer von Hand ändern; solche Entwürfe erst neu speichern
+  if (doc.reverseCharge && !foreign && amounts.some((a) => a.tax !== taxOf(a.net, a.taxRate))) {
+    issues.push(`${doc.reverseCharge === "ig_erwerb" ? "Erwerbsteuer" : "Steuer § 13b"} passt nicht zu Netto und Satz; öffne den Beleg und speichere ihn`);
+  }
   if (doc.reverseCharge === "ig_erwerb") issues.push(...igErwerbIssues(doc, amounts));
   else if (doc.reverseCharge) {
     if (amounts.some((a) => a.taxRate === 0)) issues.push("Bei § 13b steht jede Zeile auf 19 % oder 7 %");
