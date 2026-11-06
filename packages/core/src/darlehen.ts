@@ -144,6 +144,17 @@ export function darlehenTeilFehler(teil: DarlehenTeil, amount: Cents, bestand: C
   return null;
 }
 
+/**
+ * Die Restschuld eines übernommenen Darlehens gilt zum Stichtag nach Tagesabschluss: Auszahlungen und Tilgungen bis
+ * einschließlich dieses Tages stecken schon darin und würden den Bestand ein zweites Mal ändern (#325). Zinsen und
+ * Gebühren ändern den Bestand nicht und bleiben zuordenbar.
+ */
+export function darlehenStichtagFehler(teil: DarlehenTeil, zahlungstag: string, stichtag: string | null): string | null {
+  if (!stichtag || (teil !== "auszahlung" && teil !== "tilgung") || zahlungstag > stichtag) return null;
+  const tag = (iso: string) => iso.split("-").reverse().join(".");
+  return `Die Restschuld des Darlehens zum ${tag(stichtag)} enthält schon alle Auszahlungen und Tilgungen bis zu diesem Tag; ein Umsatz vom ${tag(zahlungstag)} lässt sich nicht als ${teil === "tilgung" ? "Tilgung" : "Auszahlung"} zuordnen.`;
+}
+
 /** Buchung eines Teils, amount wie auf dem Konto (Ausgang negativ) */
 export function darlehenPosting(darlehen: Darlehen, teil: DarlehenTeil, amount: Cents, kontenrahmen: Kontenrahmen): PostingLine[] {
   const gegen =

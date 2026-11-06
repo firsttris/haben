@@ -182,6 +182,54 @@ describe.skipIf(!testDatabaseUrl)("Darlehen im Bankabgleich (Postgres)", () => {
   });
 
   it.each([
+    ["SKR03", "ist", { darlehen: "0630", zins: "2120", bank: "1200" }],
+    ["SKR04", "soll", { darlehen: "3150", zins: "7320", bank: "1800" }],
+  ] as const)("%s, %s: übernommenes Darlehen – Zahlungen bis zum Stichtag stecken schon in der Restschuld (#325)", async (kr, versteuerung, konten) => {
+    await firma("einzelunternehmen", kr, versteuerung);
+    const loanId = await darlehen.createLoan(actor, {
+      name: "Hausbank",
+      lender: "bank",
+      term: "ohne",
+      purpose: "betrieb",
+      openingBalance: 20_000_00,
+      openingDate: "2026-11-30",
+    });
+    await bank.importStatement(
+      actor,
+      dkbCsv([
+        ["29.11.26", "Hausbank", "Auszahlung Aufstockung", "5.000,00"],
+        ["30.11.26", "Hausbank", "Rate November", "-1.000,00"],
+        ["31.12.26", "Hausbank", "Rate Dezember", "-1.001,00"],
+      ]),
+      null,
+    );
+    // Die Rate vom Stichtag selbst ist in den 20.000 € enthalten (Stichtag nach Tagesabschluss), ebenso eine frühere Auszahlung
+    await expect(
+      bank.allocateSplit(actor, {
+        transactionId: await umsatz(-1000_00),
+        parts: [
+          { kind: "darlehen", amount: -800_00, darlehen: { loanId, part: "tilgung" } },
+          { kind: "darlehen", amount: -200_00, darlehen: { loanId, part: "zins" } },
+        ],
+      }),
+    ).rejects.toThrow(/Restschuld .* zum 30\.11\.2026/);
+    await expect(
+      bank.allocate(actor, { kind: "darlehen", transactionId: await umsatz(5_000_00), amount: 5_000_00, darlehen: { loanId, part: "auszahlung" } }),
+    ).rejects.toThrow(/Restschuld .* zum 30\.11\.2026/);
+    expect(await salden()).toEqual({});
+    // Die Rate danach mindert den Bestand: 20.000 € − 800 € = 19.200 €
+    await bank.allocateSplit(actor, {
+      transactionId: await umsatz(-1001_00),
+      parts: [
+        { kind: "darlehen", amount: -800_00, darlehen: { loanId, part: "tilgung" } },
+        { kind: "darlehen", amount: -201_00, darlehen: { loanId, part: "zins" } },
+      ],
+    });
+    expect((await darlehen.listLoans())[0]?.balance).toBe(19_200_00);
+    expect(await salden()).toEqual({ [konten.bank]: -1001_00, [konten.darlehen]: 800_00, [konten.zins]: 201_00 });
+  });
+
+  it.each([
     ["SKR03", "ist"],
     ["SKR04", "soll"],
   ] as const)("%s, %s: Aufheben einer Auszahlung, deren Bestand schon getilgt ist, ergäbe einen negativen Bestand", async (kr, versteuerung) => {

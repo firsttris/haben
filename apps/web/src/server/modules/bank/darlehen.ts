@@ -5,6 +5,7 @@ import {
   DARLEHENSGEBER_KEYS,
   darlehenKonto,
   darlehenPosting,
+  darlehenStichtagFehler,
   darlehenTeilFehler,
   darlehenText,
   type Cents,
@@ -76,13 +77,15 @@ export async function listLoans(q: Db | Tx = db) {
 export async function darlehenBuchung(
   tx: Tx,
   kontenrahmen: Kontenrahmen,
-  bank: { counterpartyName: string },
+  bank: { counterpartyName: string; bookingDate: string },
   loanId: string,
   teil: DarlehenTeil,
   amount: Cents,
 ): Promise<{ lines: PostingLine[]; description: string; target: { loanId: string; loanPart: DarlehenTeil } }> {
   const [loan] = await tx.select().from(schema.loans).where(eq(schema.loans.id, loanId)).for("update");
   if (!loan) throw new DarlehenError("Darlehen nicht gefunden.");
+  const stichtag = darlehenStichtagFehler(teil, bank.bookingDate, loan.openingDate);
+  if (stichtag) throw new DarlehenError(stichtag);
   const bestand = loan.openingBalance + ((await bestaende([loan.id], tx)).get(loan.id) ?? 0);
   const fehler = darlehenTeilFehler(teil, amount, bestand);
   if (fehler) throw new DarlehenError(fehler);
