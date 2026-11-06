@@ -26,6 +26,7 @@ import type { LegacyCategoryRow } from "../../db/schema.ts";
 import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
+import { paymentHistoryIssue } from "./payment-history.ts";
 
 export class TakeoverError extends UserError {}
 
@@ -49,6 +50,8 @@ export interface OpenLegacyItem {
   gross: number;
   /** Offen am Stichtag; bei Belegen nach dem Stichtag offen heute */
   open: number;
+  /** Bei unklarer Historie ist der ausgewiesene Quellsaldo kein verlässlicher Stichtagsbetrag. */
+  openKnown: boolean;
   /** Davon nach dem Stichtag bezahlt: Die Zahlung ordnest du in Haben im Bankabgleich zu */
   paidAfter: number;
   /** Übernommen als Rechnung bzw. Beleg in Haben */
@@ -194,10 +197,13 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   };
   const candidates = vouchers
     .map((v) => {
-      const state = legacyOpenAt(v, v.date <= cutoff ? cutoff : TODAY_STATE);
+      const issue = paymentHistoryIssue(v);
+      const state = issue
+        ? { open: Math.abs(v.payment?.openAmount ?? v.gross), paidAfter: 0, issue }
+        : legacyOpenAt(v, v.date <= cutoff ? cutoff : TODAY_STATE);
       return { voucher: v, state, takenOver: takenOverOf(v.id) };
     })
-    .filter((c) => c.state.open > 0 || c.takenOver);
+    .filter((c) => c.state.open > 0 || c.state.issue || c.takenOver);
   if (candidates.length === 0) return [];
   const files = await db
     .selectDistinct({ voucherId: schema.lexofficeVoucherFiles.voucherId })
@@ -223,6 +229,7 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
     contactName: v.contactName,
     gross: v.gross,
     open: state.open,
+    openKnown: state.issue === null,
     paidAfter: v.date <= cutoff ? state.paidAfter : 0,
     takenOver,
     blocker: blockerFor(v, state, cutoff, withFile.has(v.id)),

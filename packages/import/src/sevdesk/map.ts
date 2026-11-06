@@ -134,27 +134,17 @@ function positionAmounts(p: SevDocumentPos | SevVoucherPos): { net: number; tax:
 
 const PAID = 1000;
 
-/**
- * Zahlungsstand aus paidAmount und payDate. sevDesk liefert keine einzelnen Zahlungen über diese
- * Endpunkte; die bezahlte Summe zählt deshalb als eine Zahlung am letzten Zahldatum.
- */
-function payments(
-  statusCode: number,
-  gross: number,
-  paidAmount: string | number | null | undefined,
-  payDate: string | null | undefined,
-  date: string,
-): ImportedPayments {
+/** Zahlungsstand ohne erfundene Einzelzahlungen: paidAmount/payDate belegen keine zeitliche Aufteilung. */
+function payments(statusCode: number, gross: number, paidAmount: string | number | null | undefined): ImportedPayments {
   const absGross = Math.abs(gross);
   let paid = Math.min(Math.abs(cents(paidAmount)), absGross);
   if (statusCode === PAID) paid = absGross;
   const open = absGross - paid;
-  const paidDate = lexDate(payDate) ?? (paid > 0 ? date : null);
   return {
     status: open === 0 ? "balanced" : paid > 0 ? "partlyPaid" : "open",
     openAmount: Math.sign(gross) * open + 0,
-    paidDate: open === 0 ? paidDate : null,
-    items: paid > 0 && paidDate ? [{ type: "manualPayment", date: paidDate, amount: Math.sign(gross) * paid + 0 }] : [],
+    paidDate: null,
+    items: [],
   };
 }
 
@@ -225,7 +215,7 @@ export function mapSevInvoice(i: SevInvoice, positions: SevDocumentPos[]): SevMa
       fileIds: [],
       remark: i.customerInternalNote?.trim() ?? "",
     },
-    payment: payments(status, gross, i.paidAmount, i.payDate, date),
+    payment: payments(status, gross, i.paidAmount),
   };
 }
 
@@ -271,7 +261,7 @@ export function mapSevCreditNote(c: SevCreditNote, positions: SevDocumentPos[]):
       fileIds: [],
       remark: c.customerInternalNote?.trim() ?? "",
     },
-    payment: payments(status, gross, c.paidAmount, c.payDate, date),
+    payment: payments(status, gross, c.paidAmount),
   };
 }
 
@@ -338,6 +328,6 @@ export function mapSevVoucher(v: SevVoucher, positions: SevVoucherPos[]): SevMap
       fileIds: documentId ? [documentId] : [],
       remark: "",
     },
-    payment: payments(status, gross, v.paidAmount, v.payDate, date),
+    payment: payments(status, gross, v.paidAmount),
   };
 }

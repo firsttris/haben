@@ -87,7 +87,7 @@ export function OpenItems({ items, cutoff, cutoffError, imported }: { items: Ite
                     </div>
                   </td>
                   <td className="num mono">
-                    {formatEuro(item.open)}
+                    {item.openKnown ? formatEuro(item.open) : "Unklar"}
                     {item.paidAfter > 0 && <div className="small muted">danach bezahlt {formatEuro(item.paidAfter)}</div>}
                   </td>
                   <td>

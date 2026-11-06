@@ -58,7 +58,13 @@ Reverse Charge lässt sich ohne weitere Angaben nicht eindeutig Kz 21 oder Kz 60
 
 ### Zahlungen
 
-sevDesk liefert über diese Schnittstelle keine einzelnen Zahlungen, nur den bezahlten Betrag (`paidAmount`) und das letzte Zahldatum (`payDate`). Haben führt den bezahlten Betrag als eine Zahlung an diesem Datum. Bei Ist-Versteuerung rechnet die Umsatzsteuer je Monat im Abgleich damit; wurde eine Rechnung in mehreren Raten bezahlt, landet alles im Monat der letzten Zahlung. Vergleiche diese Monate mit den übermittelten Voranmeldungen. Dasselbe gilt für den [Stichtag](lexoffice.md#stichtag) der offenen Posten: Liegt die letzte Zahlung nach dem Stichtag, zählt der ganze bezahlte Betrag als danach gezahlt, auch wenn eine Rate davor lag. Prüfe solche Posten gegen die Offene-Posten-Liste in sevDesk zum Stichtag.
+Der aktuelle Abruf übernimmt den Zahlungsstand (`paidAmount`) als Quellsaldo. Einzelne Zahlungen mit verlässlicher Belegzuordnung werden noch nicht abgerufen. Haben erzeugt deshalb daraus keine Zahlung am letzten Zahldatum oder ersatzweise am Belegdatum.
+
+Sobald ein sevDesk-Vorgang bereits Zahlungen enthält, ist sein historischer Stand am Wechselstichtag **unklar** und die aktive Übernahme gesperrt. Das gilt auch bei heute vollständig bezahlten Rechnungen: Sie könnten am Stichtag noch offen oder teilweise bezahlt gewesen sein. Solche Vorgänge bleiben im Archiv sichtbar; in der Stichtagsliste steht statt eines vermeintlich genauen offenen Betrags „Unklar“.
+
+Bei **Ist-Versteuerung** sperrt Haben den gesamten monatlichen Altbestandsabgleich, sobald betriebliche sevDesk-Einnahmen mit unvollständiger Zahlungshistorie vorhanden sind. Auch die zahlungsbezogene Zeitraumabfrage für KI-Assistenten wird dann abgelehnt. Die Prüfung des Jahres bleibt offen. Bei **Soll-Versteuerung** bleibt der Abgleich nach Belegdatum verfügbar; der Stichtagsschutz gilt unabhängig davon. Quellbeträge und Originaldateien werden weiter archiviert.
+
+Der Schutz greift auch für bereits importierte, zu einer Zahlung verdichtete Daten. Ihre gespeicherten Originaldaten bleiben unverändert; die Verdichtung erscheint nicht mehr als belegte Einzelzahlung. Eine verlässliche Zahlungsrekonstruktion und die Reparatur bereits aktiv übernommener Posten sind noch nicht umgesetzt. Bereits übernommene Posten mit dem sevDesk-Bestand abgleichen; Haben korrigiert ihre versiegelten Buchungen nicht rückwirkend.
 
 ### Was die API nicht liefert
 

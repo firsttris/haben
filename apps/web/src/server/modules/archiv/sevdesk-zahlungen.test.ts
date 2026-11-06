@@ -25,13 +25,27 @@ describe.skipIf(!testDatabaseUrl)("Unvollständige sevDesk-Zahlungshistorie (Pos
     voucherId = v!.id as string;
   }, 30_000);
 
-  afterAll(async () => { await sql?.end(); });
+  afterAll(async () => {
+    await sql?.end();
+  });
 
   it("sperrt den Ist-Monatsabgleich statt die ganze Steuer dem letzten Zahlungsmonat zuzuordnen", async () => {
     const year = (await archive.reconciliation()).years.find((y) => y.year === 2026)!;
     expect(year.vat).toEqual([]);
     expect(year).toHaveProperty("vatIssue", expect.stringMatching(/Zahlungshistorie/));
     expect(year.ready).toBe(false);
+  });
+
+  it.each(["SKR03", "SKR04"])("behält die Soll-Auswertung nach Belegdatum bei %s bei", async (kontenrahmen) => {
+    await sql`update company set versteuerung = 'soll', kontenrahmen = ${kontenrahmen} where id = 1`;
+    try {
+      const year = (await archive.reconciliation()).years.find((y) => y.year === 2026)!;
+      expect(year.vatIssue).toBeNull();
+      expect(year.vat.find((m) => m.month === "2026-10")).toMatchObject({ kz81: 100000, tax81: 19000 });
+      expect((await legacy.openLegacyItems("2026-10-31")).find((v) => v.id === voucherId)!.blocker).toMatch(/Zahlungshistorie/);
+    } finally {
+      await sql`update company set versteuerung = 'ist', kontenrahmen = 'SKR03' where id = 1`;
+    }
   });
 
   it("zeigt einen unklaren Stichtag und lehnt auch die direkte Übernahme ab", async () => {
@@ -47,7 +61,8 @@ describe.skipIf(!testDatabaseUrl)("Unvollständige sevDesk-Zahlungshistorie (Pos
   });
 
   it("sperrt die zahlungsbezogene Belegsuche für Assistenten statt unvollständige Monatsdaten zu liefern", async () => {
-    await expect(archive.legacyVouchersForPeriod({ period: "2026-10", direction: "alle", search: "", withPayments: true, limit: 100 }))
-      .rejects.toThrow(/Zahlungshistorie/);
+    await expect(archive.legacyVouchersForPeriod({ period: "2026-10", direction: "alle", search: "", withPayments: true, limit: 100 })).rejects.toThrow(
+      /Zahlungshistorie/,
+    );
   });
 });
