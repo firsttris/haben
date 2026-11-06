@@ -23,7 +23,7 @@ Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit di
 
 „Alles abrufen“ startet den Abruf im Hintergrund, mit Fortschritt, Abbrechen und Fortsetzen wie bei Lexoffice. Es läuft immer nur ein Abruf, gleich aus welcher Quelle.
 
-1. **Kontakte:** Organisationen und Personen mit Name, Kundennummer, erster Adresse samt Land, Haupt-E-Mail, USt-IdNr. und Steuernummer. Ansprechpartner einer Organisation werden keine eigenen Kontakte. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne sevDesk-Herkunft, verknüpft Haben ihn.
+1. **Kontakte:** Organisationen und Personen mit Name, Kundennummer, erster Adresse samt Land, Haupt-E-Mail und USt-IdNr. Ansprechpartner einer Organisation werden keine eigenen Kontakte. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne sevDesk-Herkunft, verknüpft Haben ihn.
 2. **Belegliste:** alle Rechnungen, Gutschriften und Belege. Draußen bleiben Entwürfe, Vorlagen für wiederkehrende Rechnungen und Belege sowie Mahnungen.
 3. **Positionen und Dateien:** je Beleg die Positionen (für die Aufteilung nach Steuersatz), das PDF der Rechnung bzw. Gutschrift, bei E-Rechnungen das XML und bei Belegen die hochgeladene Datei.
 
