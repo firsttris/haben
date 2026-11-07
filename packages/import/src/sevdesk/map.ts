@@ -1,5 +1,15 @@
 import { lexDate, lexToBasisPoints, lexToCents, type ImportedPayments, type LegacyVoucher, type LegacyVoucherType } from "../lexoffice/map.ts";
-import type { SevCommunicationWay, SevContact, SevContactAddress, SevCreditNote, SevDocumentPos, SevInvoice, SevVoucher, SevVoucherPos } from "./types.ts";
+import type {
+  SevCheckAccountTransactionLog,
+  SevCommunicationWay,
+  SevContact,
+  SevContactAddress,
+  SevCreditNote,
+  SevDocumentPos,
+  SevInvoice,
+  SevVoucher,
+  SevVoucherPos,
+} from "./types.ts";
 
 /*
  * Reine Abbildungen der sevDesk-Antworten auf dieselben Strukturen wie beim Lexoffice-Import,
@@ -159,6 +169,46 @@ function payments(statusCode: number, gross: number, paidAmount: string | number
     paidDate: open === 0 ? lexDate(payDate) : null,
     items: [],
   };
+}
+
+/** Einzelzahlung aus sevDesk: zugeordneter Betrag in Cent mit Vorzeichen der Zahlungsrichtung */
+export interface SevPaymentItem {
+  sourceId: string;
+  transactionId: string | null;
+  accountId: string | null;
+  date: string;
+  amount: number;
+}
+
+const LOG_OBJECTS: Record<string, string> = { Invoice: "invoice", CreditNote: "creditnote", Voucher: "voucher" };
+
+/**
+ * Einzelzahlungen je Beleg ("invoice/123") aus CheckAccountTransactionLog. Betrag ist amountPaid, also der dem Beleg
+ * zugeordnete Teil; bei einem geteilten Umsatz nicht der Umsatzbetrag. Gelöschte Umsätze und Zahlungen ohne Datum
+ * entfallen: Ob die übrigen den Zahlungsstand ergeben, prüft erst die Auswertung.
+ */
+export function mapSevPaymentLogs(logs: SevCheckAccountTransactionLog[]): Map<string, SevPaymentItem[]> {
+  const out = new Map<string, SevPaymentItem[]>();
+  for (const log of logs) {
+    const kind = LOG_OBJECTS[log.object?.objectName ?? ""];
+    const objectId = refId(log.object);
+    if (!kind || !objectId) continue;
+    const tx = log.checkAccountTransaction;
+    if (tx?.deletedAt) continue;
+    const date = lexDate(log.bookingDate) ?? lexDate(tx?.valueDate);
+    if (!date) continue;
+    const item: SevPaymentItem = {
+      sourceId: String(log.id),
+      transactionId: refId(log.checkAccountTransaction),
+      accountId: refId(tx?.checkAccount),
+      date,
+      amount: cents(log.amountPaid),
+    };
+    const key = `${kind}/${objectId}`;
+    out.set(key, [...(out.get(key) ?? []), item]);
+  }
+  for (const items of out.values()) items.sort((a, b) => a.date.localeCompare(b.date) || a.sourceId.localeCompare(b.sourceId));
+  return out;
 }
 
 function statusName(code: number, fallback: string): string {

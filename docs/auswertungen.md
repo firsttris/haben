@@ -150,6 +150,7 @@ Der Ordner `lexoffice/` enthält, falls du aus Lexoffice umgezogen bist (siehe [
 | --- | --- |
 | `lexoffice/belege/` | Original-PDFs, E-Rechnungs-XML und Anhänge der Lexoffice-Belege des Jahres |
 | `lexoffice/belege.csv` | Je Beleg Art, Richtung, Nummer, Kontakt, Beträge, Status, Zahlungsdatum, Steuersätze und Kategorien als JSON, Dateien mit SHA-256 und Lexoffice-ID |
+| `lexoffice/zahlungen.csv` | Einzelzahlungen zu sevDesk-Vorgängen nach Zahlungsdatum: Belegnummer, Betrag, Konto, Umsatz- und Zuordnungs-ID der Quelle |
 | `lexoffice/datev-buchungen.csv` | Die Zeilen des DATEV-Buchungsstapels mit Datei und Zeilennummer im Original |
 | `lexoffice/originale/<Art>/` | Die unveränderten Originalexporte des Jahres: `datev`, `idea`, `elster`, `kontoauszug`, `sonstiges` |
 
