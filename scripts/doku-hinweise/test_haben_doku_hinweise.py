@@ -13,7 +13,7 @@ def render(text: str, *, ours_first: bool = False) -> etree.Element:
     quotes = ("pymdownx.quotes", {"callouts": True})
     ours = ("haben_doku_hinweise", {})
     order = [ours, quotes] if ours_first else [quotes, ours]
-    extensions = ["admonition", *(name for name, _ in order)]
+    extensions = ["admonition", "pymdownx.details", *(name for name, _ in order)]
     configs = {name: config for name, config in order}
     html = markdown.markdown(text, extensions=extensions, extension_configs=configs)
     return etree.fromstring(f"<root>{html}</root>")
@@ -65,6 +65,24 @@ class AdmonitionOhneTitel(unittest.TestCase):
     def test_typ_ohne_uebersetzung_bleibt(self):
         _, text = admonition(render("!!! example\n    Text"))
         self.assertEqual(text, "Example")
+
+
+class Einklappbar(unittest.TestCase):
+    # Einklappbare Kästen sind <details> mit dem Titel in <summary> (pymdownx.details, Marker mit „-“ oder „+“)
+    def summary(self, text: str) -> str:
+        summary = render(text).find("details/summary")
+        self.assertIsNotNone(summary)
+        return summary.text or ""
+
+    def test_github_hinweis_einklappbar_deutsch(self):
+        self.assertEqual(self.summary("> [!NOTE]-\n> Text"), "Hinweis")
+        self.assertEqual(self.summary("> [!WARNING]+\n> Text"), "Warnung")
+
+    def test_details_syntax_deutsch(self):
+        self.assertEqual(self.summary("??? warning\n    Text"), "Warnung")
+
+    def test_eigener_titel_bleibt(self):
+        self.assertEqual(self.summary('??? tip "Gut zu wissen"\n    Text'), "Gut zu wissen")
 
 
 class Titel(unittest.TestCase):

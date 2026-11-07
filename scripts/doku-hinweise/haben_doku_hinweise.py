@@ -24,15 +24,24 @@ TITLES = {
 }
 
 
+def title_of(box: etree.Element) -> etree.Element | None:
+    """Titel eines Kastens: <p class="admonition-title"> im <div>, <summary> im einklappbaren <details>."""
+    first = box.find("*")
+    if first is None:
+        return None
+    if box.tag == "div" and "admonition" in box.get("class", "").split():
+        return first if first.tag == "p" and "admonition-title" in first.get("class", "").split() else None
+    if box.tag == "details":
+        return first if first.tag == "summary" else None
+    return None
+
+
 def german_title(box: etree.Element) -> None:
     """Ersetzt im Kasten den englischen Standardtitel seines Typs („Note“) durch den deutschen."""
-    classes = box.get("class", "").split()
-    if "admonition" not in classes:
+    title = title_of(box)
+    if title is None or len(title):
         return
-    title = box.find("p")
-    if title is None or "admonition-title" not in title.get("class", "").split() or len(title):
-        return
-    for kind in classes:
+    for kind in box.get("class", "").split():
         if kind in TITLES and title.text == kind.title():
             title.text = TITLES[kind]
             return
@@ -40,7 +49,7 @@ def german_title(box: etree.Element) -> None:
 
 class _TitleTreeprocessor(Treeprocessor):
     def run(self, root: etree.Element) -> None:
-        for box in root.iter("div"):
+        for box in root.iter():
             german_title(box)
 
 
