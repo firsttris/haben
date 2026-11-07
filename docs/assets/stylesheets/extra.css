@@ -22,18 +22,38 @@
 .md-typeset table:not([class]) {
   font-size: .75rem;
 }
-/* Hinweis „Wichtig“ (> [!IMPORTANT]): Zensical kennt den Typ nicht und zeigt ihn sonst wie „Hinweis“.
-   Lila und Sprechblase mit Ausrufezeichen wie auf GitHub, Icon lucide message-square-warning wie die übrigen */
+/* Hinweise „Wichtig“ (> [!IMPORTANT]) und „Vorsicht“ (> [!CAUTION]): Zensical kennt beide Typen nicht und zeigt
+   sie sonst wie „Hinweis“. Farben und Bedeutung wie auf GitHub: Wichtig lila mit Sprechblase und Ausrufezeichen
+   (lucide message-square-warning wie die übrigen Icons), Vorsicht rot mit Achteck wie Zensicals „failure“.
+   details.* und summary: dieselben Kästen eingeklappt (> [!NOTE]-) */
 :root {
   --md-admonition-icon--important: url("data:image/svg+xml;charset=utf-8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' viewBox='0 0 24 24'><path d='M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2zM12 15h.01M12 7v4'/></svg>");
 }
-.md-typeset .admonition.important {
+.md-typeset .admonition.important,
+.md-typeset details.important {
   background-color: #7c4dff1a;
 }
-.md-typeset .important > .admonition-title::before {
+.md-typeset .important > .admonition-title::before,
+.md-typeset .important > summary::before {
   background-color: #7c4dff;
   -webkit-mask-image: var(--md-admonition-icon--important);
   mask-image: var(--md-admonition-icon--important);
+}
+.md-typeset .important > summary::after {
+  color: #7c4dff;
+}
+.md-typeset .admonition.caution,
+.md-typeset details.caution {
+  background-color: #ff52521a;
+}
+.md-typeset .caution > .admonition-title::before,
+.md-typeset .caution > summary::before {
+  background-color: #ff5252;
+  -webkit-mask-image: var(--md-admonition-icon--failure);
+  mask-image: var(--md-admonition-icon--failure);
+}
+.md-typeset .caution > summary::after {
+  color: #ff5252;
 }
 /* Änderungsdatum unter jeder Seite (scripts/doku-aenderungsdatum), dezent wie früher bei MkDocs Material */
 .md-typeset .aenderungsdatum {
