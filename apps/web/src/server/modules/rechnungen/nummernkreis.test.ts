@@ -133,4 +133,13 @@ describe.skipIf(!testDatabaseUrl)("Monat im Nummernformat und durchlaufender Zä
     const storno = await invoices.cancelInvoice(actor, original.id, "2027-01-04");
     expect([original.number, storno.number]).toEqual(["RE-2026-0001", "RE-2027-0002"]);
   });
+  it("zählt beim erneuten Einschalten des durchlaufenden Zählers hinter der letzten Nummer des Jahres weiter", async () => {
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: QUOTE, invoiceRunning: true });
+    expect(await finalizeNew("2026-03-02")).toBe("RE-2026-0001");
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: QUOTE, invoiceRunning: false });
+    expect(await finalizeNew("2027-01-04")).toBe("RE-2027-0001");
+    expect(await finalizeNew("2027-01-05")).toBe("RE-2027-0002");
+    await formats.saveNumberFormats(actor, { invoice: "RE-{JJJJ}-{NNNN}", quote: QUOTE, invoiceRunning: true });
+    expect(await finalizeNew("2027-02-01")).toBe("RE-2027-0003");
+  });
 });
