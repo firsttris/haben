@@ -106,9 +106,11 @@ extra_css:
   - assets/stylesheets/startseite.css
 
 plugins:
-  # Zensical kennt keine MkDocs-Plugins wie git-revision-date-localized; die Suche ist eingebaut
-  - search:
-      lang: de
+  # Zensical setzt viele MkDocs-Plugins selbst um, git-revision-date-localized (Änderungsdatum
+  # unter der Seite) noch nicht: dort „Planned“, nicht gelistete Plugins ignoriert es stillschweigend
+  # (https://zensical.org/docs/compatibility/mkdocs/plugins/). Die Suche ist eingebaut; ihre
+  # Sprache kommt aus theme.language, `lang` hier würde ignoriert.
+  - search
 
 markdown_extensions:
   - admonition
