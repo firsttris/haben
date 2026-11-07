@@ -16,6 +16,7 @@ import {
   type QuoteLineKind,
   formatDecimal,
   formatEuro,
+  counterCircle,
   formatDocumentNumber,
   formatQuantity,
   invoiceDueDate,
@@ -198,6 +199,7 @@ export function InvoiceEditor({
   issues,
   numberCounters,
   numberFormat,
+  numberRunning = false,
   corrects,
   bundesland,
   kleinunternehmer,
@@ -222,10 +224,12 @@ export function InvoiceEditor({
   /** GmbH und UG: fehlende Pflichtangaben für Geschäftsbriefe (§ 35a GmbHG); nur ein Hinweis, keine Sperre */
   letterIssues?: string[];
   issues: string[];
-  /** Letzte vergebene Nummer je Jahr */
+  /** Letzte vergebene Nummer je Kreis: Jahr, 0 = durchlaufender Zähler */
   numberCounters: Record<number, number>;
-  /** Nummernformat aus den Einstellungen, z. B. "RE-{JJJJ}-{NNN}" */
+  /** Nummernformat aus den Einstellungen, z. B. "RE-{JJJJ}-{MM}-{NNN}" */
   numberFormat: string;
+  /** Zähler läuft über den Jahreswechsel weiter (#328) */
+  numberRunning?: boolean;
   corrects: { number: string | null; issueDate: string } | null;
   /** Für die Fälligkeit: Feiertage im Bundesland */
   bundesland: Bundesland | null;
@@ -335,8 +339,10 @@ export function InvoiceEditor({
   const term = Number(paymentTermDays);
   const termValid = Number.isInteger(term) && term >= 0 && term <= 120;
   const dueDate = invoiceDueDate(issueDate || initial.issueDate, termValid ? term : 0, bundesland);
-  const numberYear = Number((issueDate || initial.issueDate).slice(0, 4));
-  const nextNumber = formatDocumentNumber(numberFormat, numberYear, (numberCounters[numberYear] ?? 0) + 1);
+  // Wie beim Festschreiben: Jahr und Monat aus dem Rechnungsdatum, nicht aus dem heutigen Tag
+  const numberDate = issueDate || initial.issueDate;
+  const circle = counterCircle(numberRunning, numberDate);
+  const nextNumber = formatDocumentNumber(numberFormat, numberDate, (numberCounters[circle] ?? 0) + 1);
   const validUntilOk = Boolean(validUntil) && validUntil >= (issueDate || initial.issueDate);
   // Skonto nur auf Rechnungen in Euro, die der Kunde bezahlt; nicht auf Storno, Korrektur und Angebot
   const skontoAllowed = kind === "rechnung" && !foreign;

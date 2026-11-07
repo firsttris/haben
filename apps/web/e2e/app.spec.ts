@@ -134,14 +134,20 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(logo.getByRole("img", { name: "Aktuelles Logo" })).toBeVisible();
 
   const format = page.getByRole("form", { name: "Nummernformat" });
-  await format.getByLabel("Rechnungen").fill("RE-{NNN}");
+  const rechnungen = format.getByRole("group", { name: "Rechnungen" });
+  await rechnungen.getByLabel("Format").fill("RE-{NNN}");
   await expect(format.getByText(/braucht das Jahr/)).toBeVisible();
   await expect(format.getByRole("button", { name: "Format speichern" })).toBeDisabled();
-  await format.getByLabel("Rechnungen").fill("RE-{JJJJ}-{NNNN}");
-  await expect(format).toContainText(/Beispiel: RE-\d{4}-0001, RE-\d{4}-0002/);
+  // Läuft der Zähler weiter, ist das Jahr frei; das Beispiel zeigt den Jahreswechsel (#328)
+  await rechnungen.getByLabel("Zähler").selectOption({ label: "läuft weiter" });
+  await expect(format).toContainText("Beispiel: RE-412, RE-413");
+  await rechnungen.getByLabel("Zähler").selectOption({ label: "beginnt jedes Jahr neu" });
+  await rechnungen.getByLabel("Format").fill("RE-{JJJJ}-{MM}-{NNNN}");
+  await expect(format).toContainText(/Beispiel: RE-\d{4}-\d{2}-0001, RE-\d{4}-\d{2}-0002/);
   await format.getByRole("button", { name: "Format speichern" }).click();
   await expect(format.getByRole("status")).toContainText("Nummernformat gespeichert.");
-  await expect(page.getByRole("form", { name: /^Rechnungsnummern/ })).toContainText(/Nächste Nummer: RE-\d{4}-0001/);
+  await expect(page.getByRole("form", { name: /^Rechnungsnummern/ })).toContainText(/Nächste Nummer: RE-\d{4}-\d{2}-0001/);
+  await expect(page.getByRole("form", { name: /^Angebotsnummern/ })).toContainText(/Nächste Nummer: AN-\d{4}-001/);
   // Die folgenden Tests rechnen mit den Nummern ab Werk
   await format.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
   await expect(format.getByLabel("Rechnungen")).toHaveValue("{JJJJ}-{NNN}");

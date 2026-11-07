@@ -1093,6 +1093,13 @@
       "when": 1794038665699,
       "tag": "0155_kontakt_telefon",
       "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1794038978694,
+      "tag": "0156_nummernkreis_durchlaufend",
+      "breakpoints": true
     }
   ]
 }

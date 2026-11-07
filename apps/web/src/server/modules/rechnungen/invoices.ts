@@ -9,6 +9,7 @@ import {
   totalsFromTaxes,
   firstEmail,
   DEFAULT_INVOICE_NUMBER_FORMAT,
+  DEFAULT_QUOTE_NUMBER_FORMAT,
   formatDocumentNumber,
   invoiceDueDate,
   invoicePosting,
@@ -52,7 +53,17 @@ import { defaultSkonto, draftSkontoSchema } from "./skonto.ts";
 import { euroTaxes, invoiceDocumentTotals, invoiceTotalsById, storeInvoiceTaxes } from "./invoice-taxes.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
 import { today } from "../../today.ts";
-import { documentNumber, lockNumbering, peekNumber, setNextNumber as setNextCounter, takeNumber } from "./number-counter.ts";
+import {
+  circleFor,
+  countsRunning,
+  documentNumber,
+  lastNumber,
+  lockNumbering,
+  peekNumber,
+  setNextNumber as setNextCounter,
+  takeNumber,
+  type NumberKind,
+} from "./number-counter.ts";
 
 export type Invoice = typeof schema.invoices.$inferSelect;
 export type InvoiceLine = typeof schema.invoiceLines.$inferSelect;
@@ -1021,9 +1032,9 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
 
   // Nummer nur lesen (Sperre des Nummernkreises), PDF und XML erzeugen, erst dann schreiben: Bis zum ersten Schreiben
   // mit Audit-Eintrag ist die Hash-Kette frei, andere Schreibvorgänge warten nicht auf das Rendern (number-counter.ts)
-  const year = Number(invoice.issueDate.slice(0, 4));
-  const counter = await peekNumber(tx, "rechnung", year);
-  const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, year, counter);
+  const circle = await circleFor(tx, "rechnung", invoice.issueDate);
+  const counter = await peekNumber(tx, "rechnung", circle);
+  const number = await documentNumber(tx, "rechnung", company.invoiceNumberFormat, invoice.issueDate, counter);
 
   // Storno und Korrektur gehen an die Anschrift der ursprünglichen Rechnung.
   const seller = sellerFrom(company);
@@ -1043,13 +1054,13 @@ async function finalizeDraft(tx: Tx, id: string): Promise<Invoice> {
   const rendered = await buildEInvoice({ ...doc, ...(await loadLetterhead()) });
   const now = new Date();
 
-  await takeNumber(tx, "rechnung", year, counter);
+  await takeNumber(tx, "rechnung", circle, counter);
   const [finalized] = await tx
     .update(schema.invoices)
     .set({
       status: "final",
       number,
-      numberYear: year,
+      numberYear: circle,
       numberCounter: counter,
       contactVersion: contact!.version,
       seller,
@@ -1153,7 +1164,7 @@ export async function cancelInvoice(actor: string, id: string, today: string): P
     await tx.select({ id: schema.invoices.id }).from(schema.invoices).where(eq(schema.invoices.id, id)).for("update");
     // Kreis vor dem Entwurf, der schon einen Audit-Eintrag schreibt (number-counter.ts). Das PDF entsteht hier nach dem
     // Entwurf, also mit gesperrter Kette; ein Storno ist selten, der eine Entwurf in derselben Transaktion ist wichtiger.
-    await lockNumbering(tx, "rechnung", Number(today.slice(0, 4)));
+    await lockNumbering(tx, "rechnung", await circleFor(tx, "rechnung", today));
     const { invoice, lines } = await finalOriginal(id, tx);
     // Festgeschriebene Korrekturen haben die Rechnung schon gemindert: jede bekommt ihr eigenes Storno. Je Beleg genau
     // negiert hebt sich auch die Steuer auf den Cent auf, die jeder Beleg für sich rundet. Neue Korrekturen warten auf die
@@ -1229,25 +1240,32 @@ export async function createCorrection(actor: string, id: string, today: string)
   );
 }
 
-/** Nächste Rechnungsnummer des Jahres, z. B. um nach Lexoffice nahtlos weiterzuzählen. */
-export async function numbering(year: number) {
-  const [[counter], company] = await Promise.all([
-    db.select().from(schema.invoiceNumberCounters).where(eq(schema.invoiceNumberCounters.year, year)),
-    loadCompany(),
-  ]);
-  const last = counter?.last ?? 0;
-  return { year, last, next: formatDocumentNumber(company.invoiceNumberFormat, year, last + 1) };
+const NUMBER_FORMAT = { rechnung: "invoiceNumberFormat", angebot: "quoteNumberFormat" } as const;
+
+/**
+ * Nächste Nummer eines Kreises für ein Datum (heute), z. B. um nach Lexoffice oder sevDesk nahtlos weiterzuzählen.
+ * Mit durchlaufendem Zähler ist es der eine Kreis 0, sonst das Jahr (#328).
+ */
+export async function numbering(date: string, kind: NumberKind = "rechnung") {
+  const company = await loadCompany();
+  const { running, circle, last } = await db.transaction(async (tx) => {
+    const running = await countsRunning(tx, kind);
+    const circle = running ? 0 : Number(date.slice(0, 4));
+    return { running, circle, last: await lastNumber(tx, kind, circle) };
+  });
+  return { kind, date, year: Number(date.slice(0, 4)), running, circle, last, next: formatDocumentNumber(company[NUMBER_FORMAT[kind]], date, last + 1) };
 }
 
-export async function setNextNumber(actor: string, year: number, next: number) {
+export async function setNextNumber(actor: string, date: string, next: number, kind: NumberKind = "rechnung") {
   const result = await withActor(actor, async (tx) => {
-    const set = await setNextCounter(tx, "rechnung", year, next);
+    const set = await setNextCounter(tx, kind, await circleFor(tx, kind, date), next);
     if (set.ok) return set;
     // Nur lesen: loadCompany legte die Firmenzeile an, wenn sie fehlt, und das gehört nicht in eine Fehlermeldung
-    const [company] = await tx.select({ format: schema.company.invoiceNumberFormat }).from(schema.company);
-    return { ...set, format: company?.format ?? DEFAULT_INVOICE_NUMBER_FORMAT };
+    const [company] = await tx.select({ invoice: schema.company.invoiceNumberFormat, quote: schema.company.quoteNumberFormat }).from(schema.company);
+    const fallback = kind === "rechnung" ? DEFAULT_INVOICE_NUMBER_FORMAT : DEFAULT_QUOTE_NUMBER_FORMAT;
+    return { ...set, format: (kind === "rechnung" ? company?.invoice : company?.quote) ?? fallback };
   });
-  if (!result.ok) throw new InvoiceError(`Die nächste Nummer muss größer als ${formatDocumentNumber(result.format, year, result.last)} sein.`);
+  if (!result.ok) throw new InvoiceError(`Die nächste Nummer muss größer als ${formatDocumentNumber(result.format, date, result.last)} sein.`);
 }
 
 /** Kennzahlen für die Übersicht */

@@ -78,7 +78,7 @@ describe.skipIf(!testDatabaseUrl)("Nummernformat (Postgres)", () => {
     await formats.saveNumberFormats(actor, { invoice: " RE-{JJJJ}-{NNNN} ", quote: "ANG{JJ}{NN}" });
     expect(await finalizeNew()).toBe("RE-2026-0001");
     expect((await quotes.finalizeQuote(actor, (await quoteDraft()).id)).number).toBe("ANG2601");
-    expect(await invoices.numbering(2026)).toMatchObject({ last: 1, next: "RE-2026-0002" });
+    expect(await invoices.numbering("2026-03-02")).toMatchObject({ last: 1, next: "RE-2026-0002" });
     const [company] = await sql`select invoice_number_format from company`;
     expect(company!.invoice_number_format).toBe("RE-{JJJJ}-{NNNN}");
   });

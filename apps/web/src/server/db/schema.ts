@@ -140,9 +140,12 @@ export const company = pgTable(
     taetigkeit: text("taetigkeit").notNull().default(""),
     /** Akzentfarbe von Rechnungen, Angeboten und Mahnungen (Überschriften, Linien), #RRGGBB */
     accentColor: text("accent_color").notNull().default("#1F6F5C"),
-    /** Nummernformate mit Platzhaltern {JJJJ}, {JJ}, {N…} (packages/core/src/number-format.ts) */
+    /** Nummernformate mit Platzhaltern {JJJJ}, {JJ}, {MM}, {N…} (packages/core/src/number-format.ts) */
     invoiceNumberFormat: text("invoice_number_format").notNull().default("{JJJJ}-{NNN}"),
     quoteNumberFormat: text("quote_number_format").notNull().default("AN-{JJJJ}-{NNN}"),
+    /** Zähler je Kreis: false = beginnt jedes Jahr bei 1, true = läuft über den Jahreswechsel weiter (#328) */
+    invoiceCounterRunning: boolean("invoice_counter_running").notNull().default(false),
+    quoteCounterRunning: boolean("quote_counter_running").notNull().default(false),
     /** Kundennummern automatisch, z. B. "K-{NNNN}"; leer = von Hand. Der Zähler läuft durch, ohne Jahr */
     customerNumberFormat: text("customer_number_format").notNull().default(""),
     customerNumberNext: integer("customer_number_next").notNull().default(1),
@@ -952,6 +955,7 @@ export const invoices = pgTable(
     status: invoiceStatusEnum("status").notNull().default("draft"),
     /** Erst beim Festschreiben vergeben */
     number: text("number").unique(),
+    /** Kreis des Zählers: Jahr des Belegdatums, 0 = durchlaufender Zähler (counterCircle) */
     numberYear: smallint("number_year"),
     numberCounter: integer("number_counter"),
     contactId: uuid("contact_id").references(() => contacts.id),
@@ -1130,7 +1134,7 @@ export const invoiceAttachments = pgTable(
   ],
 );
 
-/** Letzte vergebene laufende Nummer je Jahr; lückenlos, weil nur beim Festschreiben gezogen */
+/** Letzte vergebene laufende Nummer je Jahr (0 = durchlaufender Zähler); lückenlos, weil nur beim Festschreiben gezogen */
 export const invoiceNumberCounters = pgTable("invoice_number_counters", {
   year: smallint("year").primaryKey(),
   last: integer("last").notNull(),
@@ -1146,6 +1150,7 @@ export const quotes = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     status: invoiceStatusEnum("status").notNull().default("draft"),
     number: text("number").unique(),
+    /** Kreis des Zählers: Jahr des Belegdatums, 0 = durchlaufender Zähler (counterCircle) */
     numberYear: smallint("number_year"),
     numberCounter: integer("number_counter"),
     contactId: uuid("contact_id").references(() => contacts.id),
@@ -1305,7 +1310,7 @@ export const textBlocks = pgTable(
   (t) => [index("text_blocks_contact").on(t.contactId), check("text_blocks_kind", sql`${t.kind} in ('kopf', 'fuss')`)],
 );
 
-/** Letzte Angebotsnummer je Jahr */
+/** Letzte Angebotsnummer je Jahr (0 = durchlaufender Zähler) */
 export const quoteNumberCounters = pgTable("quote_number_counters", {
   year: smallint("year").primaryKey(),
   last: integer("last").notNull(),

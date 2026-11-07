@@ -24,6 +24,7 @@ import { AccentColorCard } from "../../components/AccentColorCard.tsx";
 import { LogoCard } from "../../components/LogoCard.tsx";
 import { CustomerNumberCard } from "../../components/CustomerNumberCard.tsx";
 import { NumberFormatCard } from "../../components/NumberFormatCard.tsx";
+import { NumberingCard } from "../../components/NumberingCard.tsx";
 import { PlanTemplatesCard } from "../../components/PlanTemplatesCard.tsx";
 import { MailCard } from "../../components/MailCard.tsx";
 import { EigeneSeitenCard } from "../../components/EigeneSeitenCard.tsx";
@@ -48,7 +49,7 @@ import { getDatevNumbers } from "../../server/functions/datev-export.ts";
 import { checkElsterFormats, confirmElsterPrivacy, getEricStatus, installEricLibrary } from "../../server/functions/eric.ts";
 import { getCustomPages } from "../../server/functions/eigene-seiten.ts";
 import { getExportYears } from "../../server/functions/export.ts";
-import { getNumbering, saveNextNumber } from "../../server/functions/invoices.ts";
+import { getNumbering } from "../../server/functions/invoices.ts";
 import { getInbox } from "../../server/functions/inbox.ts";
 import { getChainHead } from "../../server/functions/integrity.ts";
 import { getLogo } from "../../server/functions/logo.ts";
@@ -155,10 +156,17 @@ function SettingsPage() {
           {bereich === "persoenlich" && <TaxpayerForm />}
           {bereich === "rechnungen" && (
             <>
-              <NumberingForm />
-              <NumberFormatCard invoice={company.invoiceNumberFormat} quote={company.quoteNumberFormat} year={numbering.year} />
+              <NumberingCard numbering={numbering.invoice} />
+              <NumberingCard numbering={numbering.quote} />
+              <NumberFormatCard
+                invoice={company.invoiceNumberFormat}
+                quote={company.quoteNumberFormat}
+                invoiceRunning={company.invoiceCounterRunning}
+                quoteRunning={company.quoteCounterRunning}
+                date={numbering.invoice.date}
+              />
               <PlanTemplatesCard templates={company.paymentPlanTemplates} />
-              <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} year={numbering.year} />
+              <CustomerNumberCard format={company.customerNumberFormat} next={company.customerNumberNext} date={numbering.invoice.date} />
               <LogoCard info={logo} />
               <AccentColorCard color={company.accentColor} />
             </>
@@ -1096,41 +1104,5 @@ function FormatCheck({ simuliert }: { simuliert: boolean }) {
         </>
       )}
     </div>
-  );
-}
-
-function NumberingForm() {
-  const { numbering } = Route.useLoaderData();
-  const router = useRouter();
-  const save = useServerFn(saveNextNumber);
-  const { busy, notice, run } = useAction();
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const next = Number(new FormData(event.currentTarget).get("next"));
-    void run(async () => {
-      await save({ data: { next } });
-      await router.invalidate();
-    }, "Nummernkreis gespeichert.");
-  }
-
-  return (
-    <form className="card" onSubmit={onSubmit} aria-labelledby="numbering-heading">
-      <h2 id="numbering-heading">Rechnungsnummern {numbering.year}</h2>
-      <p className="small muted" style={{ margin: 0 }}>
-        Nächste Nummer: <span className="mono">{numbering.next}</span>. Nummern werden erst beim Festschreiben vergeben und laufen lückenlos. Um nach Lexoffice
-        weiterzuzählen, die nächste laufende Nummer eintragen; zurücksetzen geht nicht.
-      </p>
-      <label className="field">
-        Nächste laufende Nummer
-        <input name="next" type="number" min={numbering.last + 1} defaultValue={numbering.last + 1} required />
-      </label>
-      <div className="actions">
-        <button type="submit" className="btn" disabled={busy}>
-          Übernehmen
-        </button>
-      </div>
-      <NoticeBanner notice={notice} />
-    </form>
   );
 }

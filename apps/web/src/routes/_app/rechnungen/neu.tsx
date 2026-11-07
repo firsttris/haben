@@ -45,6 +45,7 @@ function NewInvoicePage() {
       letterIssues={data.letterIssues}
       issues={[]}
       numberCounters={data.numberCounters}
+      numberRunning={data.numberRunning}
       numberFormat={data.numberFormat}
       corrects={null}
       bundesland={data.bundesland}

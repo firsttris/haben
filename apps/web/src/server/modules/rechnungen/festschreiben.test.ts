@@ -147,7 +147,7 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     let change: Promise<string> | undefined;
     rendering.hook = async () => {
       // Während gerendert wird, hält das Festschreiben den Nummernkreis; setNextNumber wartet bis zum Commit
-      change = invoices.setNextNumber(actor, year, 1).then(
+      change = invoices.setNextNumber(actor, `${year}-01-15`, 1).then(
         () => "gesetzt",
         (error: Error) => error.message,
       );
@@ -155,7 +155,7 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     };
     await invoices.finalizeInvoice(actor, created.id);
     expect(await change).toMatch(new RegExp(`größer als ${year}-001`));
-    await invoices.setNextNumber(actor, year, 40);
+    await invoices.setNextNumber(actor, `${year}-01-15`, 40);
     const next = await invoices.finalizeInvoice(actor, (await invoices.createDraft(actor, draft())).id);
     expect(next.number).toBe(`${year}-040`);
   }, 30_000);

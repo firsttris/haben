@@ -41,7 +41,7 @@ import { loadCompany, sellerIssues } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
 import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { loadLetterhead } from "../stammdaten/index.ts";
-import { documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
+import { circleFor, documentNumber, peekNumber, takeNumber } from "./number-counter.ts";
 import { quoteDraftLineSchema } from "./draft-line.ts";
 import { buyerFrom, effectivePriceMode, insertDraft, invoiceDiscountOf, lineDiscountOf, openAbschlaege, sellerFrom, type Invoice } from "./invoices.ts";
 import { quoteChoices, storeQuoteChoices } from "./quote-choices.ts";
@@ -419,21 +419,21 @@ export async function finalizeQuote(actor: string, id: string): Promise<Quote> {
     const lines = await tx.select().from(schema.quoteLines).where(eq(schema.quoteLines.quoteId, id)).orderBy(asc(schema.quoteLines.position));
     const [contact] = await tx.select().from(schema.contacts).where(eq(schema.contacts.id, quote.contactId!));
     // Wie bei Rechnungen: Nummer lesen, PDF erzeugen, erst dann schreiben (number-counter.ts)
-    const year = Number(quote.issueDate.slice(0, 4));
-    const counter = await peekNumber(tx, "angebot", year);
-    const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, year, counter);
+    const circle = await circleFor(tx, "angebot", quote.issueDate);
+    const counter = await peekNumber(tx, "angebot", circle);
+    const number = await documentNumber(tx, "angebot", company.quoteNumberFormat, quote.issueDate, counter);
     const seller = sellerFrom(company);
     const buyer = buyerFrom(contact!);
     const doc = quoteDocumentFor(quote, lines, seller, buyer, number);
     const pdf = buildQuotePdf({ ...doc, ...(await loadLetterhead()) });
     const now = new Date();
-    await takeNumber(tx, "angebot", year, counter);
+    await takeNumber(tx, "angebot", circle, counter);
     const [finalized] = await tx
       .update(schema.quotes)
       .set({
         status: "final",
         number,
-        numberYear: year,
+        numberYear: circle,
         numberCounter: counter,
         contactVersion: contact!.version,
         seller,

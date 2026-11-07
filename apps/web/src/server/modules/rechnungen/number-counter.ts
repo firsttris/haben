@@ -1,10 +1,11 @@
-import { formatDocumentNumber } from "@haben/core";
+import { counterCircle, formatDocumentNumber } from "@haben/core";
 import { eq, sql } from "drizzle-orm";
 import { schema, type Tx } from "../../db/index.ts";
 import { UserError } from "../../errors.ts";
 
 /*
- * Nummernkreise für Rechnungen und Angebote, lückenlos je Jahr.
+ * Nummernkreise für Rechnungen und Angebote, lückenlos je Kreis. Ein Kreis ist das Jahr des Belegdatums oder, wenn der
+ * Zähler in den Einstellungen durchläuft, der eine Kreis 0 (counterCircle, #328). Die Funktionen unten nehmen den Kreis.
  *
  * Das Festschreiben erzeugt PDF und XML mit der neuen Nummer. Jede Änderung mit Audit-Eintrag nimmt die Sperre der
  * Hash-Kette bis zum Commit (drizzle/0063), und solange warten alle anderen Schreibvorgänge. Deshalb wird die Nummer
@@ -30,13 +31,25 @@ const NUMBERED = {
 
 export class NumberTakenError extends UserError {}
 
+/** Ob der Zähler des Kreises durchläuft; nur gelesen, ohne die Firmenzeile anzulegen (loadCompany schriebe Audit) */
+export async function countsRunning(tx: Tx, kind: NumberKind): Promise<boolean> {
+  const column = kind === "rechnung" ? schema.company.invoiceCounterRunning : schema.company.quoteCounterRunning;
+  const [row] = await tx.select({ running: column }).from(schema.company).where(eq(schema.company.id, 1));
+  return row?.running ?? false;
+}
+
+/** Kreis für ein Belegdatum, nach der Einstellung des Kreises */
+export async function circleFor(tx: Tx, kind: NumberKind, date: string): Promise<number> {
+  return counterCircle(await countsRunning(tx, kind), date);
+}
+
 /**
  * Nummer im Format aus den Einstellungen. Ein Format ergibt nie zweimal dieselbe Nummer (number-format.ts), nach einem
  * Wechsel des Formats kann sie aber mit einer früher vergebenen übereinstimmen; dann lieber eine klare Meldung als die
  * Verletzung des Unique-Index.
  */
-export async function documentNumber(tx: Tx, kind: NumberKind, format: string, year: number, counter: number): Promise<string> {
-  const number = formatDocumentNumber(format, year, counter);
+export async function documentNumber(tx: Tx, kind: NumberKind, format: string, date: string, counter: number): Promise<string> {
+  const number = formatDocumentNumber(format, date, counter);
   const table = NUMBERED[kind];
   const [taken] = await tx.select({ id: table.id }).from(table).where(eq(table.number, number)).limit(1);
   if (taken) {
@@ -45,13 +58,13 @@ export async function documentNumber(tx: Tx, kind: NumberKind, format: string, y
   return number;
 }
 
-/** Sperrt den Nummernkreis eines Jahres bis zum Ende der Transaktion; mehrfach aufrufbar */
+/** Sperrt einen Nummernkreis bis zum Ende der Transaktion; mehrfach aufrufbar */
 export async function lockNumbering(tx: Tx, kind: NumberKind, year: number): Promise<void> {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`haben.nummernkreis.${kind}.${year}`}))`);
 }
 
-/** Letzte vergebene Nummer des Jahres (0 = noch keine), unter der Sperre des Kreises gelesen */
-async function lastNumber(tx: Tx, kind: NumberKind, year: number): Promise<number> {
+/** Letzte vergebene Nummer des Kreises (0 = noch keine), unter der Sperre des Kreises gelesen */
+export async function lastNumber(tx: Tx, kind: NumberKind, year: number): Promise<number> {
   const counter = COUNTERS[kind];
   const [row] = await tx.select({ last: counter.last }).from(counter).where(eq(counter.year, year));
   return row?.last ?? 0;
@@ -85,4 +98,18 @@ export async function setNextNumber(tx: Tx, kind: NumberKind, year: number, next
     .values({ year, last: next - 1 })
     .onConflictDoUpdate({ target: counter.year, set: { last: next - 1 } });
   return { ok: true };
+}
+
+/**
+ * Beim Umschalten auf den durchlaufenden Zähler: Er beginnt hinter der letzten Nummer des jüngsten Jahres, damit
+ * „RE-2026-12-0412“ im Januar mit 0413 weitergeht. Steht der Kreis 0 schon (früher einmal durchlaufend), bleibt er.
+ */
+export async function startRunning(tx: Tx, kind: NumberKind): Promise<void> {
+  const counter = COUNTERS[kind];
+  await lockNumbering(tx, kind, 0);
+  const [latest] = await tx.select({ last: counter.last }).from(counter).where(sql`${counter.year} > 0`).orderBy(sql`${counter.year} desc`).limit(1);
+  await tx
+    .insert(counter)
+    .values({ year: 0, last: latest?.last ?? 0 })
+    .onConflictDoNothing({ target: counter.year });
 }

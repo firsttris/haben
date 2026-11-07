@@ -6,56 +6,97 @@ import { useAction } from "../lib/use-action.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
 import { saveNumberFormatSettings } from "../server/functions/company.ts";
 
-/** Eingabe eines Formats mit Beispiel oder Fehler darunter */
-function FormatField({ label, name, value, onChange, year }: { label: string; name: string; value: string; onChange: (value: string) => void; year: number }) {
-  const problem = numberFormatError(value.trim());
+interface Circle {
+  format: string;
+  running: boolean;
+}
+
+/** Zwei Beispiele, beim durchlaufenden Zähler über den Jahreswechsel, sonst aus diesem Monat */
+function examples(format: string, running: boolean, date: string): [string, string] {
+  if (!running) return [formatDocumentNumber(format, date, 1), formatDocumentNumber(format, date, 2)];
+  const year = Number(date.slice(0, 4));
+  return [formatDocumentNumber(format, `${year}-12-31`, 412), formatDocumentNumber(format, `${year + 1}-01-02`, 413)];
+}
+
+/** Format und Zähler eines Nummernkreises, mit Beispiel oder Fehler darunter */
+function CircleFields({ label, name, value, onChange, date }: { label: string; name: string; value: Circle; onChange: (value: Circle) => void; date: string }) {
+  const format = value.format.trim();
+  const problem = numberFormatError(format, { requireYear: !value.running });
   const hintId = `${name}-hint`;
+  const [first, second] = problem ? ["", ""] : examples(format, value.running, date);
   return (
-    <label className="field">
-      {label}
-      <input
-        name={name}
-        className="mono"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        maxLength={MAX_NUMBER_FORMAT_LENGTH}
-        required
-        aria-invalid={problem ? true : undefined}
-        aria-describedby={hintId}
-      />
-      <span id={hintId} className={problem ? "field-error" : "small muted"}>
-        {problem ?? (
-          <>
-            Beispiel: <span className="mono">{formatDocumentNumber(value.trim(), year, 1)}</span>,{" "}
-            <span className="mono">{formatDocumentNumber(value.trim(), year, 2)}</span>
-          </>
-        )}
-      </span>
-    </label>
+    <fieldset className="field-group" style={{ border: 0, padding: 0, margin: 0 }}>
+      <legend className="small">{label}</legend>
+      <label className="field">
+        Format
+        <input
+          name={`${name}-format`}
+          className="mono"
+          value={value.format}
+          onChange={(e) => onChange({ ...value, format: e.target.value })}
+          maxLength={MAX_NUMBER_FORMAT_LENGTH}
+          required
+          aria-invalid={problem ? true : undefined}
+          aria-describedby={hintId}
+        />
+        <span id={hintId} className={problem ? "field-error" : "small muted"}>
+          {problem ?? (
+            <>
+              Beispiel: <span className="mono">{first}</span>, <span className="mono">{second}</span>
+            </>
+          )}
+        </span>
+      </label>
+      <label className="field">
+        Zähler
+        <select
+          name={`${name}-running`}
+          value={value.running ? "weiter" : "jaehrlich"}
+          onChange={(e) => onChange({ ...value, running: e.target.value === "weiter" })}
+        >
+          <option value="jaehrlich">beginnt jedes Jahr neu</option>
+          <option value="weiter">läuft weiter</option>
+        </select>
+      </label>
+    </fieldset>
   );
 }
 
-/** Aufbau der Rechnungs- und Angebotsnummern, etwa mit eigenem Präfix */
-export function NumberFormatCard({ invoice, quote, year }: { invoice: string; quote: string; year: number }) {
+/** Aufbau der Rechnungs- und Angebotsnummern, etwa mit eigenem Präfix, und ob der Zähler jährlich neu beginnt */
+export function NumberFormatCard({
+  invoice,
+  quote,
+  invoiceRunning,
+  quoteRunning,
+  date,
+}: {
+  invoice: string;
+  quote: string;
+  invoiceRunning: boolean;
+  quoteRunning: boolean;
+  date: string;
+}) {
   const router = useRouter();
   const save = useServerFn(saveNumberFormatSettings);
   const { busy, notice, run } = useAction();
-  const [invoiceFormat, setInvoiceFormat] = useState(invoice);
-  const [quoteFormat, setQuoteFormat] = useState(quote);
-  const valid = !numberFormatError(invoiceFormat.trim()) && !numberFormatError(quoteFormat.trim());
-  const isDefault = invoice === DEFAULT_INVOICE_NUMBER_FORMAT && quote === DEFAULT_QUOTE_NUMBER_FORMAT;
+  const [invoiceCircle, setInvoiceCircle] = useState<Circle>({ format: invoice, running: invoiceRunning });
+  const [quoteCircle, setQuoteCircle] = useState<Circle>({ format: quote, running: quoteRunning });
+  const valid = [invoiceCircle, quoteCircle].every((c) => !numberFormatError(c.format.trim(), { requireYear: !c.running }));
+  const isDefault = invoice === DEFAULT_INVOICE_NUMBER_FORMAT && quote === DEFAULT_QUOTE_NUMBER_FORMAT && !invoiceRunning && !quoteRunning;
 
-  const store = (formats: { invoice: string; quote: string }) =>
+  const store = (next: { invoice: Circle; quote: Circle }) =>
     run(async () => {
-      await save({ data: formats });
-      setInvoiceFormat(formats.invoice.trim());
-      setQuoteFormat(formats.quote.trim());
+      await save({
+        data: { invoice: next.invoice.format, quote: next.quote.format, invoiceRunning: next.invoice.running, quoteRunning: next.quote.running },
+      });
+      setInvoiceCircle({ ...next.invoice, format: next.invoice.format.trim() });
+      setQuoteCircle({ ...next.quote, format: next.quote.format.trim() });
       await router.invalidate();
     }, "Nummernformat gespeichert. Es gilt für alles, was ab jetzt festgeschrieben wird.");
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void store({ invoice: invoiceFormat, quote: quoteFormat });
+    void store({ invoice: invoiceCircle, quote: quoteCircle });
   }
 
   return (
@@ -63,16 +104,17 @@ export function NumberFormatCard({ invoice, quote, year }: { invoice: string; qu
       <h2 id="number-format-heading">Nummernformat</h2>
       <p className="small muted" style={{ margin: 0 }}>
         Platzhalter: <span className="mono">{"{JJJJ}"}</span> Jahr, <span className="mono">{"{JJ}"}</span> Jahr zweistellig,{" "}
-        <span className="mono">{"{NNN}"}</span> laufende Nummer mit so vielen Stellen (ein bis sechs N). Das Jahr gehört dazu, weil die laufende Nummer jedes
-        Jahr bei 1 beginnt. Außerdem Buchstaben, Ziffern, Bindestrich, Unterstrich und Punkt, z. B.{" "}
+        <span className="mono">{"{MM}"}</span> Monat, beides aus dem Rechnungs- bzw. Angebotsdatum, <span className="mono">{"{NNN}"}</span> laufende Nummer mit
+        so vielen Stellen (ein bis sechs N). Beginnt der Zähler jedes Jahr neu, gehört das Jahr dazu; läuft er weiter, ist es frei. Außerdem Buchstaben,
+        Ziffern, Bindestrich, Unterstrich und Punkt, z. B.{" "}
         <span className="mono">
-          RE-{"{JJJJ}"}-{"{NNNN}"}
+          RE-{"{JJJJ}"}-{"{MM}"}-{"{NNNN}"}
         </span>
         . Schon vergebene Nummern bleiben, wie sie sind.
       </p>
       <div className="form-grid">
-        <FormatField label="Rechnungen" name="invoice-format" value={invoiceFormat} onChange={setInvoiceFormat} year={year} />
-        <FormatField label="Angebote" name="quote-format" value={quoteFormat} onChange={setQuoteFormat} year={year} />
+        <CircleFields label="Rechnungen" name="invoice" value={invoiceCircle} onChange={setInvoiceCircle} date={date} />
+        <CircleFields label="Angebote" name="quote" value={quoteCircle} onChange={setQuoteCircle} date={date} />
       </div>
       <div className="actions" style={{ flexWrap: "wrap" }}>
         <button type="submit" className="btn" disabled={busy || !valid}>
@@ -83,7 +125,9 @@ export function NumberFormatCard({ invoice, quote, year }: { invoice: string; qu
             type="button"
             className="btn"
             disabled={busy}
-            onClick={() => void store({ invoice: DEFAULT_INVOICE_NUMBER_FORMAT, quote: DEFAULT_QUOTE_NUMBER_FORMAT })}
+            onClick={() =>
+              void store({ invoice: { format: DEFAULT_INVOICE_NUMBER_FORMAT, running: false }, quote: { format: DEFAULT_QUOTE_NUMBER_FORMAT, running: false } })
+            }
           >
             Auf Standard zurücksetzen
           </button>
