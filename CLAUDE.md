@@ -65,9 +65,13 @@ PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl â
 - One feature per pull request; it carries only its own commits.
 - Before every push check whether the branch's pull request is still open. If it is merged, start
   again from the current `origin/main` and open a **new** pull request.
-- Merge method: squash for own pull requests. A contributor's pull request is taken over unchanged
-  with a merge commit, with our changes as further commits on top, so GitHub shows it as merged.
-  Never rewrite a contributor's commits.
+- Merge method: always **squash**, and merge the pull request itself, also a contributor's, so GitHub
+  shows it as merged and the squash commit carries its author; `main` keeps a linear history (merge
+  commits are switched off). Our fixes go as commits onto the pull request's branch (in the repo, or
+  in a fork with "Allow edits by maintainers"). If that is not possible, ask the contributor to allow
+  edits; only as a last resort open an own pull request from their state, squash it with
+  `Co-authored-by: <contributor>` and close theirs with a link. A branch that is only behind `main`
+  needs no update before the merge. Never rewrite a contributor's commits.
 - Force-push: allowed with `--force-with-lease` on the own branch after a merge.
 - Every pull request gets an independent **TDD review** before it is merged: skill `tdd-review` in
   `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md` (Review). Whoever wrote
