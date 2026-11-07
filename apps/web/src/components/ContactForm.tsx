@@ -8,6 +8,9 @@ import { parseSkontoRows, SkontoFields, toSkontoRows } from "./SkontoFields.tsx"
 import { FORMAT_LABEL, FORMATS } from "../lib/invoice.ts";
 import { useAction } from "../lib/use-action.ts";
 
+/** USt-IdNr. zum Vergleichen: ohne Leerzeichen, groß */
+const compactUstId = (value: string) => value.replace(/\s/g, "").toUpperCase();
+
 const EMPTY: ContactInput = {
   kundennummer: "",
   name: "",
@@ -27,12 +30,45 @@ const EMPTY: ContactInput = {
   lieferantennummer: "",
 };
 
-/** nextNumber: Kundennummer, die Haben beim Anlegen ohne eigene Nummer vergibt; null = keine automatische Vergabe */
-export function ContactForm({ contact, nextNumber = null }: { contact: Contact | null; nextNumber?: string | null }) {
+/** Ein neu angelegter Kontakt, wie ihn ein Formular für seine Auswahl braucht */
+export type SavedContact = ContactInput & { id: string };
+
+/** Kontakt, den Haben statt einer Dublette anbietet (gleiche USt-IdNr.) */
+export interface ExistingContact {
+  id: string;
+  name: string;
+  ustId: string;
+}
+
+/**
+ * nextNumber: Kundennummer, die Haben beim Anlegen ohne eigene Nummer vergibt; null = keine automatische Vergabe.
+ * Im Dialog eines anderen Formulars (Beleg, Rechnungsentwurf, #330): prefill füllt vor, onSaved bekommt den neuen
+ * Kontakt statt der Weiterleitung, onCancel ersetzt den Link zurück; existing bietet bei gleicher USt-IdNr. den
+ * vorhandenen Kontakt an (onPickExisting), ohne ihn still zusammenzuführen.
+ */
+export function ContactForm({
+  contact,
+  nextNumber = null,
+  prefill,
+  onSaved,
+  onCancel,
+  existing = [],
+  onPickExisting,
+}: {
+  contact: Contact | null;
+  nextNumber?: string | null;
+  prefill?: Partial<ContactInput>;
+  onSaved?: (saved: SavedContact) => void;
+  onCancel?: () => void;
+  existing?: ExistingContact[];
+  onPickExisting?: (id: string) => void;
+}) {
   const router = useRouter();
   const navigate = useNavigate();
   const save = useServerFn(saveContact);
   const { busy, notice, setNotice, run } = useAction();
+  const [ustId, setUstId] = useState(contact?.ustId ?? prefill?.ustId ?? "");
+  const sameUstId = compactUstId(ustId) ? existing.find((c) => c.id !== contact?.id && compactUstId(c.ustId) === compactUstId(ustId)) : undefined;
   // Skonto: null = Vorgabe aus den Einstellungen; eigene Stufen, leer = ohne Skonto
   const [ownSkonto, setOwnSkonto] = useState(contact?.skonto != null);
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(contact?.skonto ?? []));
@@ -44,7 +80,7 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
         lieferantennummer: contact.lieferantennummer ?? "",
         defaultFormat: contact.defaultFormat,
       }
-    : EMPTY;
+    : { ...EMPTY, ...prefill };
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,31 +93,29 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
     void run(async () => {
       if (!isCustomer && !isSupplier) throw new Error("Ein Kontakt ist Kunde oder Lieferant oder beides.");
       if (ownSkonto && !skonto.valid) throw new Error("Skonto: je Stufe einen Satz (z. B. 2) und eine Frist in Tagen angeben.");
-      const result = await save({
-        data: {
-          id: contact?.id ?? null,
-          contact: {
-            kundennummer: text("kundennummer"),
-            name: text("name"),
-            strasse: text("strasse"),
-            plz: text("plz"),
-            ort: text("ort"),
-            land: text("land").toUpperCase() || "DE",
-            email: text("email"),
-            telefon: text("telefon"),
-            ustId: text("ustId").replace(/\s/g, "").toUpperCase(),
-            iban: text("iban").replace(/\s/g, "").toUpperCase(),
-            leitwegId: text("leitwegId"),
-            defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
-            language: text("language") === "en" ? "en" : "de",
-            skonto: ownSkonto ? skonto.stufen : null,
-            isCustomer,
-            isSupplier,
-            lieferantennummer: text("lieferantennummer"),
-          },
-        },
-      });
-      if (contact) {
+      const input = {
+        kundennummer: text("kundennummer"),
+        name: text("name"),
+        strasse: text("strasse"),
+        plz: text("plz"),
+        ort: text("ort"),
+        land: text("land").toUpperCase() || "DE",
+        email: text("email"),
+        telefon: text("telefon"),
+        ustId: text("ustId").replace(/\s/g, "").toUpperCase(),
+        iban: text("iban").replace(/\s/g, "").toUpperCase(),
+        leitwegId: text("leitwegId"),
+        defaultFormat: format ? (format as ContactInput["defaultFormat"]) : null,
+        language: text("language") === "en" ? "en" : "de",
+        skonto: ownSkonto ? skonto.stufen : null,
+        isCustomer,
+        isSupplier,
+        lieferantennummer: text("lieferantennummer"),
+      } satisfies ContactInput;
+      const result = await save({ data: { id: contact?.id ?? null, contact: input } });
+      if (onSaved) {
+        onSaved({ ...input, id: result.id });
+      } else if (contact) {
         await router.invalidate();
         setNotice({ tone: "ok", text: "Gespeichert. Die vorige Fassung bleibt als Version erhalten." });
       } else {
@@ -172,7 +206,7 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
         <div className="form-row cols-2">
           <label className="field">
             USt-IdNr.
-            <input name="ustId" defaultValue={initial.ustId} placeholder="DE123456789" className="mono" />
+            <input name="ustId" value={ustId} onChange={(e) => setUstId(e.target.value)} placeholder="DE123456789" className="mono" />
           </label>
           <label className="field">
             IBAN
@@ -229,14 +263,33 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
         )}
       </section>
 
+      {sameUstId && (
+        <div className="banner" role="status" style={{ flexWrap: "wrap", alignItems: "center" }}>
+          <span>
+            Mit der USt-IdNr. {sameUstId.ustId} gibt es schon „{sameUstId.name}“.
+            {onPickExisting ? " Nimm ihn, statt einen zweiten Kontakt anzulegen." : ""}
+          </span>
+          {onPickExisting && (
+            <button type="button" className="btn" onClick={() => onPickExisting(sameUstId.id)}>
+              „{sameUstId.name}“ wählen
+            </button>
+          )}
+        </div>
+      )}
       <NoticeBanner notice={notice} />
       <div className="actions form-footer">
         <button type="submit" className="btn btn-primary" disabled={busy}>
           {contact ? "Speichern" : "Kontakt anlegen"}
         </button>
-        <Link to="/kontakte" className="btn">
-          Abbrechen
-        </Link>
+        {onCancel ? (
+          <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+            Abbrechen
+          </button>
+        ) : (
+          <Link to="/kontakte" className="btn">
+            Abbrechen
+          </Link>
+        )}
       </div>
     </form>
   );

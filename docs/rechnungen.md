@@ -15,7 +15,7 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 ## So gehst du vor
 
 1. Unter **Rechnungen** auf **Neue Rechnung** klicken.
-2. **Kunde** wählen. Hat der Kontakt ein Standardformat, wird es übernommen; hat er eine Leitweg-ID und kein Standardformat, stellt Haben auf XRechnung 3.0 (CII) um.
+2. **Kunde** wählen. Hat der Kontakt ein Standardformat, wird es übernommen; hat er eine Leitweg-ID und kein Standardformat, stellt Haben auf XRechnung 3.0 (CII) um. Fehlt der Kunde noch, legst du ihn mit **Neuen Kontakt anlegen** an, ohne den Entwurf zu verlassen: Im Dialog ist die Rolle **Kunde** angehakt, nach dem Speichern ist er gewählt, und die Eingaben im Entwurf bleiben stehen, auch wenn du abbrichst. Gibt es schon einen Kontakt mit derselben USt-IdNr., bietet der Dialog ihn an, statt eine Dublette anzulegen. Das gilt ebenso im Angebot.
 3. **Rechnungsdatum** und **Zahlungsziel in Tagen** (0 bis 120) eintragen. Darunter steht das errechnete Fälligkeitsdatum (siehe [Fälligkeit](#fälligkeit)). Vorgabe für das Zahlungsziel ist der Wert aus den Firmendaten.
    Optional **Skonto**: je Stufe Satz und Frist in Tagen, vorbelegt vom Kunden oder aus den Firmendaten (siehe [Skonto](#skonto)).
 4. Optional **Leistung von** und **Leistung bis**. Ohne Angabe gilt das Rechnungsdatum als Leistungsdatum; ist nur ein Tag angegeben oder sind beide gleich, erscheint auf der Rechnung „Leistungsdatum“, sonst „Leistungszeitraum“.

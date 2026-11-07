@@ -236,6 +236,34 @@ test("Kunde mit Rechnungen auf Englisch", async () => {
   await expect(page.getByText("Das PDF erscheint auf Englisch")).toBeVisible();
 });
 
+test("Kunden im Rechnungsentwurf anlegen, ohne die Eingaben zu verlieren (#330)", async () => {
+  await go("/rechnungen/neu");
+  await page.getByLabel("Beschreibung Position 1").fill("Workshop Barrierefreiheit");
+  const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+  await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Kunde", { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel("Lieferant", { exact: true })).not.toBeChecked();
+  await dialog.getByRole("button", { name: "Abbrechen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Barrierefreiheit");
+
+  await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+  await dialog.getByLabel("Name oder Firma").fill("Dialogkunde GmbH");
+  await dialog.getByLabel("Ort").fill("Bremen");
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByLabel("Kunde")).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(page.getByLabel("Kunde").locator("option:checked")).toHaveText("Dialogkunde GmbH · Bremen");
+  await expect(page.getByLabel("Beschreibung Position 1")).toHaveValue("Workshop Barrierefreiheit");
+
+  // Nicht speichern; den Kunden archivieren, damit die folgenden Tests mit den bisherigen Kunden rechnen
+  await go("/kontakte");
+  await page.getByRole("link", { name: /Dialogkunde GmbH/ }).click();
+  await page.getByRole("button", { name: "Archivieren" }).click();
+  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+});
+
 test("Rechnungen schreiben und festschreiben", async () => {
   for (const invoice of INVOICES) {
     await go("/rechnungen/neu");
@@ -1291,14 +1319,39 @@ test("Lieferant im Kontaktverzeichnis und im Beleg auswählen", async ({ browser
   await page.getByRole("combobox", { name: "Aus den Kontakten" }).selectOption({ label: "Hetzner Online GmbH · DE812871812" });
   await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Hetzner Online GmbH");
   await expect(page.getByLabel(/^USt-IdNr\. des Lieferanten/)).toHaveValue("DE812871812");
-  // Nicht buchen: Beleg löschen und den Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
+
+  // Lieferant direkt im Beleg anlegen (#330): Name und USt-IdNr. vom Beleg, Rolle Lieferant, Eingaben bleiben
+  await page.getByLabel("Rechnungsnummer").fill("H-2026-77");
+  const dialog = page.getByRole("dialog", { name: "Neuen Lieferanten anlegen" });
+  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await expect(dialog.getByLabel("Name oder Firma")).toHaveValue("Hetzner Online GmbH");
+  await expect(dialog.getByLabel("Lieferant", { exact: true })).toBeChecked();
+  await expect(dialog.getByLabel("Kunde", { exact: true })).not.toBeChecked();
+  // Gleiche USt-IdNr.: Haben bietet den vorhandenen Kontakt an, statt eine Dublette anzulegen
+  await expect(dialog.getByRole("status")).toContainText("gibt es schon „Hetzner Online GmbH“");
+  await dialog.getByRole("button", { name: "„Hetzner Online GmbH“ wählen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" })).toHaveValue(/[0-9a-f-]{36}/);
+
+  await page.getByRole("button", { name: "Neuen Lieferanten anlegen" }).click();
+  await dialog.getByLabel("Name oder Firma").fill("Druckerei Süd GmbH");
+  await dialog.getByLabel("USt-IdNr.").fill("");
+  await expect(dialog.getByRole("status")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Kontakt anlegen" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByLabel("Lieferant", { exact: true })).toHaveValue("Druckerei Süd GmbH");
+  await expect(page.getByRole("combobox", { name: "Aus den Kontakten" }).locator("option:checked")).toHaveText("Druckerei Süd GmbH");
+  await expect(page.getByLabel("Rechnungsnummer")).toHaveValue("H-2026-77");
+  // Nicht buchen: Beleg löschen und die Lieferanten archivieren, damit die folgenden Tests unverändert rechnen
   await page.getByRole("button", { name: "Löschen", exact: true }).click();
   await page.getByRole("button", { name: "Endgültig löschen" }).click();
   await page.waitForURL(/\/belege$/);
-  await go("/kontakte?rolle=lieferant");
-  await page.getByRole("link", { name: /Hetzner Online GmbH/ }).click();
-  await page.getByRole("button", { name: "Archivieren" }).click();
-  await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  for (const name of ["Hetzner Online GmbH", "Druckerei Süd GmbH"]) {
+    await go("/kontakte?rolle=lieferant");
+    await page.getByRole("link", { name: new RegExp(name) }).click();
+    await page.getByRole("button", { name: "Archivieren" }).click();
+    await expect(page.getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+  }
 });
 
 test("Kassenbuch: Einlage, Entnahme über Bestand abgelehnt, Storno", async () => {
