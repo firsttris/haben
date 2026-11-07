@@ -29,11 +29,12 @@ const reference = (value: unknown) =>
   value && typeof value === "object" && "id" in value && "objectName" in value ? { id: String(value.id), objectName: value.objectName } : value;
 const changes = (a: SevOrder, b: SevOrder) => [
   ...STATE_FIELDS.filter((key) => String(a[key] ?? "") !== String(b[key] ?? "")),
-  ...Object.keys(a).filter(
-    (key) => key in b && !STATE_FIELDS.includes(key as (typeof STATE_FIELDS)[number]) && !isDeepStrictEqual(reference(a[key]), reference(b[key])),
+  ...[...new Set([...Object.keys(a), ...Object.keys(b)])].filter(
+    (key) => !STATE_FIELDS.includes(key as (typeof STATE_FIELDS)[number]) && !isDeepStrictEqual(reference(a[key]), reference(b[key])),
   ),
 ];
 const message = (error: unknown) => (error instanceof Error ? error.message : "Unbekannter Fehler beim PDF-Abruf.");
+const authenticationFailure = (error: unknown) => error instanceof SevdeskApiError && (error.status === 401 || error.status === 403);
 
 /** Vor jedem fehlenden PDF frisch prüfen. API-Pfad /api/v1 sagt nichts über die Buchhaltungsversion aus. */
 export function createOrderPdfImporter(actor: string, client: SevdeskClient, signal: AbortSignal) {
@@ -57,7 +58,7 @@ export function createOrderPdfImporter(actor: string, client: SevdeskClient, sig
       return await retrievePdf(actor, client, document);
     } catch (error) {
       stopped = true;
-      if (signal.aborted || (error instanceof SevdeskApiError && (error.status === 401 || error.status === 403))) throw error;
+      if (signal.aborted || authenticationFailure(error)) throw error;
       throw new OrderArchiveError(`${message(error)} Weitere automatische Auftrags-PDFs sind für diesen Abruf ausgesetzt.`);
     }
   };
@@ -79,10 +80,10 @@ async function retrievePdf(actor: string, client: SevdeskClient, document: typeo
   try {
     after = await client.order(document.externalId);
   } catch (error) {
-    failure ??= error;
+    if (!failure || authenticationFailure(error)) failure = error;
   }
   const changed = after ? [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((key) => !isDeepStrictEqual(before[key], after[key])) : [];
-  if (changed.length && !(failure instanceof SevdeskApiError && (failure.status === 401 || failure.status === 403)))
+  if (changed.length && !authenticationFailure(failure))
     failure = new OrderArchiveError(`Quelländerung beim PDF-Abruf: ${changed.join(", ")}. PDF wurde nicht zugeordnet.`);
   if (!after) failure ??= new OrderArchiveError("Nachkontrolle des PDF-Abrufs nicht möglich.");
   if (!failure && (!pdf || pdf.bytes.byteLength > 20 * 1024 * 1024 || !Buffer.from(pdf.bytes.subarray(0, 5)).equals(Buffer.from("%PDF-"))))
