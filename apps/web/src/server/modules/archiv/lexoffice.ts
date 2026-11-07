@@ -1,5 +1,5 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
+import { effectivePayment, paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import {
   datevYearSums,
   LexofficeApiError,
@@ -439,7 +439,7 @@ export async function legacyVoucherDetail(id: string) {
       gross: schema.lexofficeVouchers.gross,
       taxes: schema.lexofficeVouchers.taxes,
       categories: schema.lexofficeVouchers.categories,
-      payment: schema.lexofficeVouchers.payment,
+      payment: effectivePayment("lexoffice_vouchers"),
       payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
       remark: schema.lexofficeVouchers.remark,
       createdAt: schema.lexofficeVouchers.createdAt,
@@ -521,7 +521,7 @@ export async function reconciliation() {
       gross: schema.lexofficeVouchers.gross,
       taxes: schema.lexofficeVouchers.taxes,
       categories: schema.lexofficeVouchers.categories,
-      payment: schema.lexofficeVouchers.payment,
+      payment: effectivePayment("lexoffice_vouchers"),
       payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
       taxType: TAX_TYPE,
       taxSubType: TAX_SUB_TYPE,
@@ -737,7 +737,7 @@ export async function legacyVouchersForPeriod(filter: {
         source: schema.lexofficeVouchers.source,
         gross: schema.lexofficeVouchers.gross,
         status: schema.lexofficeVouchers.status,
-        payment: schema.lexofficeVouchers.payment,
+        payment: effectivePayment("lexoffice_vouchers"),
         payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
       })
       .from(schema.lexofficeVouchers)
@@ -772,7 +772,7 @@ export async function legacyVouchersForPeriod(filter: {
     files: number;
   }>(sql`
     select v.id, v.source, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.currency, v.net, v.tax, v.gross,
-      v.taxes, v.payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
+      v.taxes, ${effectivePayment("v")} as payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
       (select count(*)::int from lexoffice_voucher_files f where f.voucher_id = v.id) as files
@@ -781,7 +781,7 @@ export async function legacyVouchersForPeriod(filter: {
       ${
         filter.withPayments
           ? sql`or (v.direction = 'einnahme' and exists (
-              select 1 from jsonb_array_elements(coalesce(v.payment->'items', '[]'::jsonb)) i
+              select 1 from jsonb_array_elements(coalesce((${effectivePayment("v")})->'items', '[]'::jsonb)) i
               where i->>'date' like ${like} and i->>'type' in (${sql.join(
                 [...LEGACY_PAYMENT_TYPES].map((t) => sql`${t}`),
                 sql`, `,

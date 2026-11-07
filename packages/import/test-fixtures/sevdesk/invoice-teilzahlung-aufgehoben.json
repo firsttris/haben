@@ -1,0 +1,29 @@
+{
+  "objects": [
+    {
+      "id": "9003",
+      "objectName": "Invoice",
+      "invoiceNumber": "RE-0003",
+      "invoiceDate": "2026-09-30T00:00:00+02:00",
+      "status": "750",
+      "currency": "EUR",
+      "sumNet": "4000",
+      "sumTax": "760",
+      "sumGross": "4760",
+      "paidAmount": 1760,
+      "payDate": "2026-11-05T00:00:00+01:00",
+      "taxType": "default",
+      "taxRate": "0",
+      "invoiceType": "RE",
+      "sumNetForeignCurrency": "0",
+      "sumTaxForeignCurrency": "0",
+      "sumGrossForeignCurrency": "0",
+      "contact": {
+        "id": "1",
+        "objectName": "Contact"
+      },
+      "create": "2026-09-30T23:33:06+02:00",
+      "update": "2026-11-07T13:05:30+01:00"
+    }
+  ]
+}

@@ -2012,7 +2012,14 @@ export const lexofficeImports = pgTable(
 
 export type LegacyTaxRow = { rate: number; net: number; tax: number };
 export type LegacyCategoryRow = { categoryId: string; name: string; rate: number; net: number; tax: number };
-export type LegacyPayment = { status: string; openAmount: number; paidDate: string | null; items: { type: string; date: string; amount: number }[] };
+export type LegacyPayment = {
+  status: string;
+  openAmount: number;
+  paidDate: string | null;
+  items: { type: string; date: string; amount: number; account?: string | null }[];
+  /** Nur gelesen, nie gespeichert: items stammen aus legacy_voucher_payments (sevDesk-Einzelzahlungen) */
+  history?: "sevdesk";
+};
 
 /** Kaufmännische Dokumente ohne Buchungswirkung. Der Quellstand bleibt unverändert; Dateien sind getrennte Nachträge. */
 export const legacyOrderDocuments = pgTable(
@@ -2110,6 +2117,35 @@ export const lexofficeVouchers = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("lexoffice_vouchers_date").on(t.date), index("lexoffice_vouchers_number").on(t.number)],
+);
+
+/**
+ * Einzelzahlungen eines archivierten Belegs, so wie die Quelle sie zugeordnet hat (sevDesk: CheckAccountTransactionLog).
+ * Nur anhängen. Die Archivkopie in lexoffice_vouchers bleibt unverändert; ein späterer Abruf ergänzt fehlende Zahlungen.
+ * Betrag in Cent mit dem Vorzeichen der Zahlungsrichtung; bei einem geteilten Umsatz nur der diesem Beleg zugeordnete Teil.
+ */
+export const legacyVoucherPayments = pgTable(
+  "legacy_voucher_payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    voucherId: uuid("voucher_id")
+      .notNull()
+      .references(() => lexofficeVouchers.id),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => lexofficeImports.id),
+    source: text("source", { enum: LEGACY_SOURCES }).notNull(),
+    /** Kennung der Zuordnung in der Quelle; verhindert doppelte Zahlungen bei erneutem Abruf */
+    externalId: text("external_id").notNull(),
+    transactionId: text("transaction_id"),
+    accountId: text("account_id"),
+    accountName: text("account_name"),
+    date: date("date").notNull(),
+    amount: integer("amount").notNull(),
+    raw: jsonb("raw").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("legacy_voucher_payments_source_external").on(t.source, t.externalId), index("legacy_voucher_payments_voucher").on(t.voucherId)],
 );
 
 /** Dateien zu einem Lexoffice-Beleg (Original-PDF, E-Rechnungs-XML, Anhänge). Nur anhängen. */
