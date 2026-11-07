@@ -1,7 +1,7 @@
 import { isOwnUstId, mentionsOwnName, ownSteuernummerDigits } from "./company-match.ts";
 import { compactId, occurrences, ustIdsIn } from "./identifiers.ts";
 import { signal } from "./signal.ts";
-import { DEBIT_TERMS, mentions, normalizeText, roleBefore } from "./terms.ts";
+import { DEBIT_TERMS, DIRECT_DEBIT_TERMS, mentions, normalizeText, roleBefore } from "./terms.ts";
 import type { OwnCompany, OwnInvoiceRule, OwnInvoiceSignal, TextLine } from "./types.ts";
 
 /*
@@ -106,6 +106,11 @@ export const ibanInTextRule: OwnInvoiceRule = ({ lines }, company) => {
     if (mentions(context, DEBIT_TERMS)) {
       return signal("iban-im-text", "foreign", 0.75, "Deine IBAN steht im Zusammenhang mit einer Lastschrift oder Erstattung.");
     }
+    // Außerhalb der Fußzeile ist die eigene IBAN auf einer Seite mit Lastschrifteinzug das belastete Konto, auch wenn
+    // Kontoinhaber oder Bank dazwischen stehen
+    if (regionOf(line) !== "footer" && directDebitOnPage(lines, line.page)) {
+      return signal("iban-im-text", "foreign", 0.75, "Auf der Seite steht ein Lastschrifteinzug; deine IBAN ist das belastete Konto.");
+    }
     const role = roleOf(lines, index, at);
     if (role === "buyer") return signal("iban-im-text", "foreign", 0.6, "Deine IBAN ist im Text als Angabe des Empfängers beschriftet.");
     if (role === "seller" || regionOf(line) === "footer") {
@@ -114,6 +119,10 @@ export const ibanInTextRule: OwnInvoiceRule = ({ lines }, company) => {
     return signal("iban-im-text", "own", 0.6, "Deine IBAN steht auf dem Beleg.");
   });
 };
+
+function directDebitOnPage(lines: TextLine[], page: number): boolean {
+  return lines.some((line) => line.page === page && mentions(normalizeText(line.text), DIRECT_DEBIT_TERMS));
+}
 
 /**
  * Andere USt-IdNrn. in der Fußzeile oder als Angabe des Rechnungsstellers: Dann hat ein anderer die Rechnung

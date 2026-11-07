@@ -121,6 +121,28 @@ export const DEBIT_TERMS = [
   "your account",
 ] as const;
 
+/**
+ * Eindeutige Hinweise auf einen Lastschrifteinzug; sie gelten für die ganze Seite, denn der Einzugstext steht oft einige
+ * Zeilen über der IBAN (dazwischen Kontoinhaber oder Bank). Ohne die mehrdeutigen Wörter aus `DEBIT_TERMS` wie
+ * „Erstattung“, die auch als Rechnungsposition vorkommen.
+ */
+export const DIRECT_DEBIT_TERMS = [
+  "lastschrift",
+  "sepa lastschrift",
+  "lastschriftmandat",
+  "mandatsreferenz",
+  "glaubiger id",
+  "glaubiger identifikationsnummer",
+  "abgebucht",
+  "abbuchung",
+  "buchen wir",
+  "ziehen wir",
+  "eingezogen",
+  "direct debit",
+  "debited",
+  "creditor id",
+] as const;
+
 /** Klein, ohne Umlaute und Satzzeichen, einfache Leerzeichen; „Kunden-USt-IdNr.:“ → „kunden ust idnr“ */
 export function normalizeText(text: string): string {
   return text
