@@ -75,6 +75,14 @@ PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl â
   only with a test that fails on the pull request; fixes go on top as their own commits. Only a
   maintainer merges.
 
+## Issues
+
+Write issues in German with the headings Anlass, Stand in Haben, Vorschlag, Akzeptanzkriterien, Bezug.
+Check "Stand in Haben" against the current `main` and link commit, docs or code; name sources with
+links; invented amounts, no real receipts, tax numbers, IBANs or credentials. Steps and detail level:
+skill `issue-schreiben` in `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md`
+(Issues schreiben). Roadmap order and labels are the maintainer's call.
+
 ## Working rules
 
 - Commands as root (`sudo`, `pkexec`) are run by the user; don't work around that.
