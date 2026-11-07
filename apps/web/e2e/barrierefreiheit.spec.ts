@@ -193,33 +193,52 @@ for (const theme of THEMES.filter((t) => t !== "wald")) {
 /** Seiten mit mehrzeiligen Feldern, Auswahlen und Eingaben; in dunklen Themes malt der Browser Felder ohne eigene Farbe grau */
 const FIELD_PAGES = ["/rechnungen/neu", "/dauerbelege/neu", "/anlagen/neu", "/finanzamt", "/einstellungen", "/einstellungen?bereich=email"];
 
+/** Sichtbare Felder, deren Hintergrund nicht die Theme-Fläche ist; berechnete Kennzahlen sind absichtlich transparent */
+function fieldsOffSurface(p: Page) {
+  return p.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.backgroundColor = "var(--surface)";
+    document.body.append(probe);
+    const surface = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return [...document.querySelectorAll<HTMLElement>("main input, main select, main textarea")]
+      .filter((el) => !["checkbox", "radio", "hidden", "file", "range", "color"].includes((el as HTMLInputElement).type))
+      .filter((el) => el.getClientRects().length > 0 && !el.closest(".search-box") && !el.matches(".kz-row input:read-only"))
+      .filter((el) => getComputedStyle(el).backgroundColor !== surface)
+      .map(
+        (el) =>
+          `${el.tagName.toLowerCase()} ${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.closest("label")?.textContent?.trim().slice(0, 40) ?? el.id}: ${getComputedStyle(el).backgroundColor}`,
+      );
+  });
+}
+
 for (const theme of THEMES.filter((t) => t === "nacht" || t === "tiefsee")) {
   test(`Eingabefelder auf der Theme-Fläche im Theme ${theme}`, async ({ page }) => {
     await withTheme(page, theme);
     for (const path of FIELD_PAGES) {
       await open(page, path);
-      await page.evaluate(() =>
-        document.querySelectorAll("details").forEach((d) => {
-          d.open = true;
-        }),
-      );
-      const grey = await page.evaluate(() => {
-        const probe = document.createElement("div");
-        probe.style.backgroundColor = "var(--surface)";
-        document.body.append(probe);
-        const surface = getComputedStyle(probe).backgroundColor;
-        probe.remove();
-        return [...document.querySelectorAll<HTMLElement>("main input, main select, main textarea")]
-          .filter((el) => !["checkbox", "radio", "hidden", "file", "range", "color"].includes((el as HTMLInputElement).type))
-          .filter((el) => el.getClientRects().length > 0 && !el.closest(".search-box"))
-          .filter((el) => getComputedStyle(el).backgroundColor !== surface)
-          .map(
-            (el) =>
-              `${el.tagName.toLowerCase()} ${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.closest("label")?.textContent?.trim().slice(0, 40) ?? ""}: ${getComputedStyle(el).backgroundColor}`,
-          );
+      await page.evaluate(() => {
+        for (const d of document.querySelectorAll("details")) d.open = true;
       });
-      expect.soft(grey, `${path}: Felder ohne Theme-Fläche`).toEqual([]);
+      expect.soft(await fieldsOffSurface(page), `${path}: Felder ohne Theme-Fläche`).toEqual([]);
     }
+  });
+
+  // Die Kennzahlen der Voranmeldung sind erst nach „Manuell überschreiben“ Eingabefelder (Review #364)
+  test(`Kennzahlen der Voranmeldung auf der Theme-Fläche im Theme ${theme}`, async ({ page }) => {
+    await withTheme(page, theme);
+    let path = "";
+    for (const candidate of [`/umsatzsteuer/${YEAR}-Q1`, `/umsatzsteuer/${YEAR}-03`, `/umsatzsteuer/${YEAR - 1}-03`, `/umsatzsteuer/${YEAR + 1}-03`]) {
+      await open(page, candidate);
+      if (await page.getByRole("button", { name: "Manuell überschreiben" }).count()) {
+        path = candidate;
+        break;
+      }
+    }
+    expect(path, "Voranmeldung zum manuellen Überschreiben").not.toBe("");
+    await page.getByRole("button", { name: "Manuell überschreiben" }).click();
+    await expect(page.locator(".kz-row input").first()).toBeVisible();
+    expect(await fieldsOffSurface(page), `${path}: Felder ohne Theme-Fläche`).toEqual([]);
   });
 }
 
