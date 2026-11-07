@@ -49,7 +49,10 @@ export function baseRateRefreshDue(dunning: { autoBaseRate?: boolean; baseRateSi
   return dunning.autoBaseRate === true && (dunning.baseRateSince ?? "") < lastBaseRateChange(today);
 }
 
-/** Gilt der Wert dieses Monats schon für das laufende Halbjahr? Im Januar und Juli steht der neue Satz noch nicht in der Reihe. */
+/**
+ * Gilt der Wert dieses Monats für das laufende Halbjahr? Im Januar und Juli steht der neue Satz noch nicht in der Reihe;
+ * ein Monat aus dem nächsten Halbjahr gilt erst ab dessen Stichtag (§ 247 Abs. 1 Satz 2 BGB). Also: derselbe Halbjahresbeginn.
+ */
 export function baseRateIsCurrent(month: string, today: string): boolean {
-  return month >= lastBaseRateChange(today);
+  return lastBaseRateChange(`${month}-01`) === lastBaseRateChange(today);
 }
