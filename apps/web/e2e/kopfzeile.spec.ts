@@ -105,3 +105,26 @@ test("Festschreiben im stehenden Kopf: die Rückfrage erscheint dort, wo geklick
   await expect(page.getByRole("button", { name: "Jetzt festschreiben" })).toBeVisible();
   await sichtbar(page.getByRole("alert").filter({ hasText: "Noch einmal klicken zum Festschreiben" }));
 });
+
+test("Einstellungen am Handy, rückwärts tabben: kein Feld mit Fokus liegt unter der Zeile der Bereiche", async ({ page }) => {
+  await page.setViewportSize(HANDY);
+  await page.goto("/einstellungen?bereich=firma");
+  const felder = page.locator(".settings-content").locator("input:not([type=hidden]), select, textarea");
+  await felder.last().focus();
+  const bereiche = page.getByRole("navigation", { name: "Bereiche der Einstellungen" });
+  let geprueft = 0;
+  for (let i = 0; i < 80; i++) {
+    await page.keyboard.press("Shift+Tab");
+    const focus = await page.evaluate(() => {
+      const el = document.activeElement;
+      if (!el?.closest(".settings-content")) return "ende";
+      const box = el.getBoundingClientRect();
+      return { name: el.getAttribute("aria-label") ?? el.closest("label")?.textContent?.trim().slice(0, 40) ?? el.tagName, top: box.top };
+    });
+    if (focus === "ende") break;
+    const unterkante = await bereiche.evaluate((nav) => nav.getBoundingClientRect().bottom);
+    expect(focus.top, `„${focus.name}“ liegt unter der Zeile der Bereiche`).toBeGreaterThanOrEqual(unterkante - 1);
+    geprueft++;
+  }
+  expect(geprueft).toBeGreaterThan(5);
+});
