@@ -16,7 +16,8 @@ coverage/
 test-results/
 playwright-report/
 
-# Dokumentation (zensical build)
+# Dokumentation (zensical build); .cache/ hat zwar eine eigene .gitignore, Biome liest aber nur diese hier
 site/
+.cache/
 # Tests der Erweiterung für das Änderungsdatum (scripts/doku-aenderungsdatum)
 __pycache__/
