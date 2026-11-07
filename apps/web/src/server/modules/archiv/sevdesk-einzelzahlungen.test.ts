@@ -108,6 +108,24 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
       expect((await archive.legacyVoucherDetail(mixed))!.voucher.paymentHistoryIssue).toMatch(/Rückbuchung/);
     });
 
+    // Review #361: Die Archivkopie vom 01.09. zeigt 595 € bezahlt (bar, ohne Umsatz). Die zweite Rate kam am 15.09. per
+    // Bank und wurde danach zugeordnet. Diese spätere Zahlung kann den Stand der Kopie nicht erklären, auch wenn der
+    // Betrag zufällig gleich ist; sonst stünde die Zahlung im September statt im August und am 31.08. alles offen.
+    it("rechnet keine Zuordnung, die nach dem Abruf der Archivkopie angelegt wurde, in deren Zahlungsstand", async () => {
+      const partly = { status: "partlyPaid", openAmount: 59500, paidDate: null, items: [] };
+      const [row] = await sql`insert into lexoffice_vouchers
+        (lexoffice_id, source, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw, created_at)
+        values ('invoice/203', 'sevdesk', ${run}, 'invoice', 'einnahme', 'RE-203', '2026-08-01', 'open', 'Kunde', 100000, 19000, 119000,
+        '[{"rate":1900,"net":100000,"tax":19000}]', '[]', ${JSON.stringify(partly)}::jsonb,
+        ${JSON.stringify({ ...raw, status: "750", paidAmount: 595, payDate: null })}::jsonb, '2026-09-01T12:00:00+02:00') returning id`;
+      const later = row!.id as string;
+      await sql`insert into legacy_voucher_payments (voucher_id, import_id, source, external_id, transaction_id, account_id, account_name, date, amount, raw)
+        values (${later}, ${run}, 'sevdesk', 'log-6', 'tx-log-6', '501', 'Konto 501', '2026-09-15', 59500,
+        ${JSON.stringify({ id: "log-6", create: "2026-09-16T10:00:00+02:00", amountPaid: 595, bookingDate: "2026-09-15T00:00:00+02:00" })}::jsonb)`;
+      expect((await archive.legacyVoucherDetail(later))!.voucher.paymentHistoryIssue ?? "keine Sperre").toMatch(/Zahlungshistorie/);
+      expect((await legacy.openLegacyItems("2026-08-31")).find((v) => v.id === later)!.blocker ?? "keine Sperre").toMatch(/Zahlungshistorie/);
+    });
+
     it("legt die Einzelzahlungen mit Konto und Quellkennung ins Jahresarchiv", async () => {
       const { exportYear } = await import("./export.ts");
       const chunks: Uint8Array[] = [];
