@@ -1,5 +1,6 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { firstLink, SESSION, YEAR } from "./daten.ts";
+import { HANDY, kopfUnterkante, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 
 /**
  * Fester Seitenkopf (#356): Titel, Status und Hauptaktionen bleiben beim Scrollen stehen, in den Einstellungen auch
@@ -8,32 +9,6 @@ import { firstLink, SESSION, YEAR } from "./daten.ts";
  */
 
 test.use({ storageState: SESSION });
-
-/** Laptop mit 14 Zoll (#355) und Handy */
-const LAPTOP = { width: 1470, height: 800 };
-const HANDY = { width: 375, height: 812 };
-
-async function zumEnde(p: Page): Promise<void> {
-  await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  // Sonst prüft der Test nichts: die Seite muss lang genug sein, dass der Kopf ohne Fixierung verschwände
-  expect(await p.evaluate(() => window.scrollY)).toBeGreaterThan(200);
-}
-
-/** Unterkante des stehenden Seitenkopfs im Fenster */
-function kopfUnterkante(p: Page): Promise<number> {
-  return p.locator(".main > .page-head").evaluate((head) => head.getBoundingClientRect().bottom);
-}
-
-/** Ganz im Fenster und von nichts verdeckt: In der Mitte des Elements liegt das Element selbst */
-async function sichtbar(element: Locator): Promise<void> {
-  await expect(element).toBeInViewport({ ratio: 1 });
-  const obenauf = await element.evaluate((el) => {
-    const box = el.getBoundingClientRect();
-    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-    return hit !== null && (hit === el || el.contains(hit));
-  });
-  expect(obenauf, "verdeckt").toBe(true);
-}
 
 for (const [geraet, viewport] of [
   ["Laptop", LAPTOP],
@@ -68,19 +43,11 @@ for (const [geraet, viewport] of [
   });
 }
 
-test("Rechnung und Angebot am Handy: Status bleibt neben dem Titel sichtbar", async ({ page }) => {
+// Das Angebot prüft rechnungen.spec.ts: seit #381 legt app.spec.ts keine Angebote mehr an
+test("Rechnung am Handy: Status bleibt neben dem Titel sichtbar", async ({ page }) => {
   const rechnung = await firstLink(page, "/rechnungen", /^\/rechnungen\/[0-9a-f-]{36}$/);
-  const angebot = await firstLink(page, "/angebote", /^\/angebote\/[0-9a-f-]{36}$/);
-  await page.setViewportSize(HANDY);
-  for (const path of [rechnung, angebot]) {
-    expect(path).not.toBeNull();
-    await page.goto(path as string);
-    const head = page.locator(".main > .page-head");
-    await expect(head.getByRole("heading", { level: 1 })).toBeVisible();
-    await zumEnde(page);
-    await sichtbar(head.getByRole("heading", { level: 1 }));
-    await sichtbar(head.locator(".pill").first());
-  }
+  expect(rechnung).not.toBeNull();
+  await statusBleibtSichtbar(page, rechnung as string);
 });
 
 test("Tab durch den langen Rechnungsentwurf: kein Feld mit Fokus liegt unter dem Kopf", async ({ page }) => {

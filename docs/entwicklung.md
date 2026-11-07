@@ -192,7 +192,7 @@ Am Ende speichert `app.spec.ts` die Sitzung (`test-results/.sitzung.json`). Dana
 
 Screenshots macht der Test nicht; die Bilder für README und Doku entstehen getrennt (siehe unten). Eine neue Seite gehört in die Liste in `seiten.spec.ts` und in `barrierefreiheit.spec.ts`.
 
-`apps/web/e2e/kopfzeile.spec.ts` prüft am Laptop (1470 px) und am Handy, dass Titel, Status und Aktionen im Rechnungsentwurf, in Rechnung und Angebot und die Bereiche der Einstellungen beim Scrollen sichtbar bleiben, und dass weder Tabellenköpfe noch Felder mit Fokus beim Tabben hinter dem Kopf verschwinden.
+`apps/web/e2e/kopfzeile.spec.ts` prüft am Laptop (1470 px) und am Handy, dass Titel, Status und Aktionen im Rechnungsentwurf, in der Rechnung und die Bereiche der Einstellungen beim Scrollen sichtbar bleiben, und dass weder Tabellenköpfe noch Felder mit Fokus beim Tabben hinter dem Kopf verschwinden. Das Angebot prüft `rechnungen.spec.ts`, weil nur dieser Durchlauf Angebote anlegt; die Prüfungen dazu stehen in `e2e/kopfzeile.ts`.
 
 `apps/web/e2e/barrierefreiheit.spec.ts` prüft mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Eine einzelne Datei startest du mit `bun run e2e barrierefreiheit`; Playwright lässt `app.spec.ts` dann davor laufen, weil das Projekt `mit-daten` davon abhängt.
 

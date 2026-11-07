@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import { day, firstLink, YEAR } from "./daten.ts";
+import { statusBleibtSichtbar } from "./kopfzeile.ts";
 import { CUSTOMERS, durchlaufSeite, einrichten, gehe, INVOICES, kontaktAnlegen, ohneAxeVerstoesse, receiptJpeg, rechnungFestschreiben } from "./einrichtung.ts";
 
 /**
@@ -316,6 +317,12 @@ test("Angebot festschreiben, annehmen und abrechnen", async () => {
     expect(response.status()).toBe(200);
     expect(response.headers()["content-type"]).toBe("application/pdf");
   }
+});
+
+test("Angebot am Handy: Status bleibt beim Scrollen neben dem Titel sichtbar (#356)", async () => {
+  const angebot = await firstLink(page, "/angebote", /^\/angebote\/[0-9a-f-]{36}$/);
+  expect(angebot).not.toBeNull();
+  await statusBleibtSichtbar(page, angebot as string);
 });
 
 test("Angebot mit Rabatt, Wahlpositionen und Zahlungsplan: Abschlag per Klick aus dem Plan", async () => {
