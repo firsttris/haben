@@ -221,6 +221,20 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
       expect(row.date).toBe("2025-11-20");
     });
 
+    // Review #371: Bei einer GmbH meldet die E-Bilanz (mit KSt und GewSt) das Jahr, nicht die Anlage EÜR. Ohne gesendete
+    // Voranmeldung (befreit, Kleinunternehmer) minderte ein zurückdatierter Storno sonst ein Jahr, dessen Bilanz schon beim
+    // Finanzamt liegt.
+    it(`${kontenrahmen}: GmbH, E-Bilanz gesendet: Storno am Tag des Stornos, auch ohne gesendete Voranmeldung`, async () => {
+      await reset(kontenrahmen, "soll");
+      await sql`update company set rechtsform = 'gmbh'`;
+      const { id } = await bookedDocument({ date: "2025-11-20", net: 10_000, tax: 1_900 });
+      await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
+        values ('ebilanz', 2025, 'send', true, 0, 'ok', '{}', '', '', '')`;
+      expect(await cancellation.plannedCancellationDate(id, "2026-08-01")).toBe("2026-08-01");
+      const row = await cancellation.cancelDocument(actor, id, {}, "2026-08-01");
+      expect(row.date).toBe("2026-08-01");
+    });
+
     it(`${kontenrahmen}: privat bezahlt, Q4 gemeldet, Storno im Folgejahr: EÜR 2026 mit Ausgabe, 2027 mit derselben Ausgabe zurück`, async () => {
       await reset(kontenrahmen, "ist");
       const { id } = await bookedDocument({ date: "2026-12-20", payment: "privat", net: 10_000, tax: 1_900 });
