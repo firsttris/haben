@@ -37,6 +37,12 @@ describe("Halbjahr des Basiszinssatzes", () => {
     expect(baseRateIsCurrent("2026-12", "2027-01-15")).toBe(false);
     expect(baseRateIsCurrent("2026-06", "2026-07-20")).toBe(false);
   });
+
+  it("ein Wert aus dem nächsten Halbjahr gilt noch nicht (§ 247 Abs. 1 Satz 2 BGB: Änderung erst zum 1. Juli)", () => {
+    // Steht Ende Juni schon der Juli-Wert in der Reihe, gilt bis 30. Juni weiter der alte Satz
+    expect(baseRateIsCurrent("2026-07", "2026-06-28")).toBe(false);
+    expect(baseRateIsCurrent("2027-01", "2026-12-30")).toBe(false);
+  });
 });
 
 describe("baseRateRefreshDue", () => {
