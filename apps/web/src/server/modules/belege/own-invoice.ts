@@ -1,7 +1,7 @@
 import { detectOwnInvoice, ownInvoiceHint, type Cents, type OwnInvoiceInput, type OwnInvoiceVerdict, type StatedParties, type TextLine } from "@haben/core";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "../../db/index.ts";
-import { invoiceTotalsById } from "../rechnungen/index.ts";
+import { invoiceDocumentTotals } from "../rechnungen/index.ts";
 import { loadCompany } from "../stammdaten/index.ts";
 import { ownCompanyOf } from "./own-invoice-facts.ts";
 
@@ -11,24 +11,29 @@ import { ownCompanyOf } from "./own-invoice-facts.ts";
  * @haben/core. Erkannt wird nur ein Hinweis; gebucht oder verworfen wird nichts.
  */
 
-/** Festgeschriebene Ausgangsrechnung mit dieser Nummer und diesem Bruttobetrag (Euro), sonst null */
-export async function knownInvoiceNumber(invoiceNumber: string, gross: Cents): Promise<string | null> {
+/**
+ * Festgeschriebene Ausgangsrechnung mit dieser Nummer, Währung und diesem Bruttobetrag, sonst null. Verglichen wird in
+ * der Währung der Rechnung, wie sie auf PDF und XML steht; der Beleg nennt die Beträge ebenso.
+ */
+export async function knownInvoiceNumber(invoiceNumber: string, gross: Cents, currency: string): Promise<string | null> {
   const number = invoiceNumber.trim();
   if (!number) return null;
   const [invoice] = await db
-    .select({ id: schema.invoices.id, number: schema.invoices.number })
+    .select({ id: schema.invoices.id, number: schema.invoices.number, currency: schema.invoices.currency })
     .from(schema.invoices)
     .where(and(eq(schema.invoices.number, number), eq(schema.invoices.status, "final")));
-  if (!invoice) return null;
-  const totals = (await invoiceTotalsById([invoice.id])).get(invoice.id);
-  return totals?.gross === gross ? invoice.number : null;
+  if (!invoice || invoice.currency !== currency.trim().toUpperCase()) return null;
+  const totals = await invoiceDocumentTotals(invoice.id);
+  return totals.gross === gross ? invoice.number : null;
 }
 
 export interface OwnInvoiceFacts {
   parties?: StatedParties;
   lines?: TextLine[] | null;
   invoiceNumber?: string;
+  /** Bruttobetrag in der Währung des Belegs */
   gross?: Cents;
+  currency?: string;
 }
 
 export async function detectOwnInvoiceFor(facts: OwnInvoiceFacts): Promise<OwnInvoiceVerdict> {
@@ -36,7 +41,9 @@ export async function detectOwnInvoiceFor(facts: OwnInvoiceFacts): Promise<OwnIn
   const input: OwnInvoiceInput = {
     parties: facts.parties,
     lines: facts.lines ?? undefined,
-    knownInvoiceNumber: facts.invoiceNumber && facts.gross !== undefined ? await knownInvoiceNumber(facts.invoiceNumber, facts.gross) : null,
+    knownInvoiceNumber: facts.invoiceNumber && facts.gross !== undefined && facts.currency
+        ? await knownInvoiceNumber(facts.invoiceNumber, facts.gross, facts.currency)
+        : null,
   };
   return detectOwnInvoice(input, company);
 }
