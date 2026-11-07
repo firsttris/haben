@@ -39,7 +39,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Kontaktrollen (Postgres)", () => {
     expect(await sevdesk.latestSevdeskImport()).toMatchObject({ status: "fertig" });
   }
 
-  it("legt Lieferanten und Kunden getrennt an; unklare Kategorien erhalten nur die Kunden-Ausgangsrolle", async () => {
+  it("legt Lieferanten und Kunden getrennt an; unklare Kategorien erhalten nur die Kunden-Ausgangsrolle samt Nummer", async () => {
     contacts = [
       contact("1", "Neuer Lieferant", "2"),
       contact("2", "Neuer Kunde", "3"),
@@ -53,10 +53,10 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Kontaktrollen (Postgres)", () => {
     expect(rows.map((row) => [row.sevdesk_id, row.is_customer, row.is_supplier, row.kundennummer, row.lieferantennummer])).toEqual([
       ["1", false, true, null, null],
       ["2", true, false, "SD-2", null],
-      ["3", true, false, null, null],
-      ["4", true, false, null, null],
-      ["5", true, false, null, null],
-      ["6", true, false, null, null],
+      ["3", true, false, "SD-3", null],
+      ["4", true, false, "SD-4", null],
+      ["5", true, false, "SD-5", null],
+      ["6", true, false, "SD-6", null],
     ]);
   });
 

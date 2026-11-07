@@ -23,7 +23,7 @@ Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit di
 
 „Alles abrufen“ startet den Abruf im Hintergrund, mit Fortschritt, Abbrechen und Fortsetzen wie bei Lexoffice. Es läuft immer nur ein Abruf, gleich aus welcher Quelle.
 
-1. **Kontakte:** Organisationen und Personen mit Name, Rolle, erster Adresse samt Land, Haupt-E-Mail und USt-IdNr. Eindeutige Kunden erhalten auch ihre Kundennummer. Ansprechpartner einer Organisation werden keine eigenen Kontakte. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne sevDesk-Herkunft, verknüpft Haben ihn.
+1. **Kontakte:** Organisationen und Personen mit Name, Rolle, erster Adresse samt Land, Haupt-E-Mail und USt-IdNr. Wer als Kunde angelegt wird, erhält auch seine Kundennummer. Ansprechpartner einer Organisation werden keine eigenen Kontakte. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne sevDesk-Herkunft, verknüpft Haben ihn.
 2. **Belegliste:** alle Rechnungen, Gutschriften und Belege. Draußen bleiben Entwürfe, Vorlagen für wiederkehrende Rechnungen und Belege sowie Mahnungen.
 3. **Positionen und Dateien:** je Beleg die Positionen (für die Aufteilung nach Steuersatz), das PDF der Rechnung bzw. Gutschrift, bei E-Rechnungen das XML und bei Belegen die hochgeladene Datei.
 
@@ -37,7 +37,7 @@ Bei gleichnamigen verknüpften Kontakten und bei **Erneut abrufen** ergänzt Hab
 
 **Ältere Importe werden damit nur teilweise berichtigt:** Ein Lieferant, der früher fälschlich als Kunde angelegt wurde, erhält beim nächsten Abruf die Lieferantenrolle und hat danach beide Rollen. Ob die Kundenrolle irrtümlich importiert oder später bewusst vergeben wurde, ist nicht verlässlich erkennbar. Entferne sie gegebenenfalls selbst unter **Kontakte**. Prüfe dort auch alte Nummernzuordnungen; der erneute Abruf löscht oder ersetzt sie nicht.
 
-`Contact.customerNumber` wird nur bei neu angelegten eindeutigen Kunden zur **Kundennummer**. Es ist kein DATEV-Personenkonto. Die eigene Nummer eines Lieferanten in sevDesk wird weder als Kundennummer noch als **Lieferantennummer** übernommen: Letztere kann in Haben deine Nummer beim Lieferanten bezeichnen. Bei Partnern und anderen unklaren Kategorien wird keine neue Nummer zugeordnet. Der Import legt keine DATEV-Personenkonten an.
+`Contact.customerNumber` wird bei neu angelegten Kontakten mit Kundenrolle zur **Kundennummer**, also auch bei Partnern, Interessenten und unklaren Kategorien. Es ist kein DATEV-Personenkonto. Die eigene Nummer eines Lieferanten in sevDesk wird weder als Kundennummer noch als **Lieferantennummer** übernommen: Letztere kann in Haben deine Nummer beim Lieferanten bezeichnen. Der Import legt keine DATEV-Personenkonten an.
 
 ### Wie sevDesk-Belege abgebildet werden
 

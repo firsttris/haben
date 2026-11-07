@@ -81,11 +81,11 @@ describe("mapSevContact", () => {
     [2, "supplier", null],
     ["3", "customer", "1001"],
     [3, "customer", "1001"],
-    ["4", null, null],
-    ["28", null, null],
-    ["999", null, null],
-    [null, null, null],
-  ])("ordnet Kategorie %s eindeutig zu und übernimmt nur die Nummer eines Kunden", (categoryId, role, kundennummer) => {
+    ["4", null, "1001"],
+    ["28", null, "1001"],
+    ["999", null, "1001"],
+    [null, null, "1001"],
+  ])("ordnet Kategorie %s eindeutig zu und übernimmt die Nummer außer bei Lieferanten", (categoryId, role, kundennummer) => {
     const raw = sevContactSchema.parse({ id: "7", customerNumber: " 1001 ", category: categoryId === null ? null : { id: categoryId } });
     expect(mapSevContact(raw)).toMatchObject({ role, kundennummer });
   });

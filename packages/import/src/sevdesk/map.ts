@@ -76,8 +76,9 @@ export function mapSevContact(c: SevContact, address?: SevContactAddress, email?
     sevdeskId: String(c.id),
     name: c.name?.trim() || person || `Kontakt ${c.id}`,
     role,
-    // Die eigene Nummer des Lieferanten ist weder unsere Kundennummer noch unsere Nummer bei ihm.
-    kundennummer: role === "customer" ? c.customerNumber?.trim() || null : null,
+    // Wer in Haben Kunde wird (auch Partner und unklare Kategorien), behält die sevDesk-Nummer; die eigene Nummer
+    // des Lieferanten ist weder unsere Kundennummer noch unsere Nummer bei ihm.
+    kundennummer: role === "supplier" ? null : c.customerNumber?.trim() || null,
     strasse: address?.street?.trim() ?? "",
     plz: address?.zip?.trim() ?? "",
     ort: address?.city?.trim() ?? "",
