@@ -183,7 +183,7 @@ Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen m
 - Am Handy ist die Seite nicht breiter als der Bildschirm.
 - Das Handy-Menü lässt sich öffnen und bedienen.
 
-Mit `SEITEN_SCREENSHOTS=1` legt der Test von jeder Seite einen Screenshot unter `apps/web/test-results/screenshots/{desktop,mobil}/` ab; ohne die Variable prüft er nur und wartet nicht auf Ruhe im Netz. Eine neue Seite gehört in die Liste in `seiten.spec.ts` und in `barrierefreiheit.spec.ts`.
+Screenshots macht der Test nicht; die Bilder für README und Doku entstehen getrennt (siehe unten). Eine neue Seite gehört in die Liste in `seiten.spec.ts` und in `barrierefreiheit.spec.ts`.
 
 `apps/web/e2e/barrierefreiheit.spec.ts` prüft mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Eine einzelne Datei startest du mit `bun run e2e barrierefreiheit`; Playwright lässt `app.spec.ts` dann davor laufen, weil das Projekt `mit-daten` davon abhängt.
 
@@ -196,7 +196,7 @@ Playwright startet selbst einen Server auf Port 3100 (`E2E_PORT`). Vorher leert 
 
 In der CI laufen die Tests bei jedem Pull Request in drei Teilen parallel (Jobs `e2e-teil`, `bun run e2e --shard=<n>/3`). Jeder Teil mit Tests aus `mit-daten` spielt `app.spec.ts` vorher selbst durch, der dritte hat nur `ohne-daten`. Der Job `e2e` fasst die Teile zu einem Ergebnis zusammen; ihn verlangen die Regeln für `main`. Lokal läuft ein Teil genauso, etwa `bun run e2e --shard=2/3`.
 
-Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-screenshots-teil-<n>` am Lauf. Die Screenshots aller Seiten entstehen nur bei den Läufen auf `main` (`SEITEN_SCREENSHOTS=1`); dort sieht man nach jedem Merge, wie alle Seiten aussehen.
+Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-bericht-teil-<n>` am Lauf.
 
 ### Bilder für README und Doku
 
