@@ -97,6 +97,8 @@ for (const [device, viewport] of [
         if (!path || index < middle !== (half === 0)) continue;
         const response = await page.goto(path);
         expect(response?.status(), `${path} lädt`).toBeLessThan(400);
+        // Erst wenn das Netz ruht, ist die Seite hydriert; sonst entgingen späte Fehler im Browser (pageerror)
+        await page.waitForLoadState("networkidle");
         await expect(page.getByRole("heading", { level: 1 }).first(), `${path} hat eine Überschrift`).toBeVisible();
         // Kein waagrechtes Scrollen der ganzen Seite auf dem Handy
         if (device === "mobil") {
