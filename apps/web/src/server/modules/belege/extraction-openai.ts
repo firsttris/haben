@@ -252,9 +252,18 @@ export function parseExtraction(text: string) {
   } catch {
     throw invalidAnswer();
   }
-  const parsed = extractionSchema.safeParse(numbersAsText(json));
+  const parsed = extractionSchema.safeParse(withRecipientFields(numbersAsText(json)));
   if (!parsed.success) throw invalidAnswer();
   return parsed.data;
+}
+
+/**
+ * Die Felder zum Rechnungsempfänger braucht nur der Hinweis auf eigene Rechnungen; lässt ein Modell ohne strukturierte
+ * Ausgabe sie weg, gelten sie als unbekannt, statt die ganze Auslesung zu verwerfen
+ */
+function withRecipientFields(json: unknown): unknown {
+  if (!json || typeof json !== "object" || Array.isArray(json)) return json;
+  return { empfaenger: null, empfaengerUstId: null, ...json };
 }
 
 /** 19 statt "19", 32.4 statt "32.40": JSON-Zahlen mit höchstens zwei Nachkommastellen bleiben als Text exakt */
