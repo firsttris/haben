@@ -84,10 +84,12 @@ PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl â
 Write issues in German with the headings Anlass, Stand in Haben, Vorschlag, Akzeptanzkriterien, Bezug.
 Search issues and pull requests first (done work often lives only in a pull request). Check
 "Stand in Haben" against the current `main` and link commit, docs or code; name sources with links;
-invented amounts, no real receipts, tax numbers, IBANs or credentials. End an agent-written issue with
-a rule and `_Generated with [Claude Code](https://claude.com/claude-code)_` (or the agent's own name). Steps and detail level:
+invented amounts, no real receipts, tax numbers, IBANs or credentials. End an agent-written issue (not a mere
+correction) with a rule and `_Generated with [Claude Code](https://claude.com/claude-code)_` (or the
+agent's own name). Create or comment on issues only when the user says so. Steps and detail level:
 skill `issue-schreiben` in `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md`
-(Issues schreiben). Roadmap order and labels are the maintainer's call.
+(Issues schreiben). The type label (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`) is set when creating
+the issue; other labels and the roadmap order are the maintainer's call.
 
 ## Working rules
 

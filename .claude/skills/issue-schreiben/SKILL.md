@@ -25,7 +25,7 @@ Ein Issue für Haben ist so gebaut, dass ein Maintainer oder Agent daraus ohne R
    - Beträge und Namen erfunden oder anonymisiert.
    - Quellcode nur als Link, nicht als Auszug.
    - Das Issue ist höchstens ein bis zwei Bildschirme lang.
-   - Die Zeile „Generated with …“ steht am Ende.
+   - Bei einem vom Agenten geschriebenen Text (nicht bei einer bloßen Korrektur) steht die Zeile „Generated with …“ am Ende.
    - Unsicheres steht ausdrücklich als Frage oder als „mit der Steuerberatung zu klären“.
    - Der Titel nennt das Ergebnis, nicht den Anlass („Eigene Sachkonten bei Eingangsbelegen auswählen“).
 7. **Anlegen** nur auf Anweisung des Nutzers, mit `gh issue create --repo firsttris/haben`. Der Typ kommt wie bei den Formularen als Label mit `--label` dazu (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`; `gh label list --repo firsttris/haben` zeigt, was es gibt). Weitere Labels und den Platz in der Roadmap setzt der Maintainer; nichts davon erfinden.
