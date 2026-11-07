@@ -93,6 +93,18 @@ export function lockedChange(current: Company, next: CompanyInput, locks: Settin
  * Zugang (Oberfläche, später eine API oder der Scheduler) dieselbe Sperre bekommt. Den Kern der Jahressperre prüft
  * zusätzlich die Datenbank (drizzle/0065), auch für Änderungen an Haben vorbei.
  */
+/**
+ * Automatischer Abruf des Basiszinssatzes: ohne Angabe bleibt der Haken, wie er war. Wer den Satz von Hand ändert, hebt
+ * die Bestätigung durch die Bundesbank auf; der nächste Abruf prüft neu.
+ */
+function keptBaseRateState(current: Company, input: CompanyInput): Company["dunning"] {
+  return {
+    ...input.dunning,
+    autoBaseRate: input.dunning.autoBaseRate ?? current.dunning.autoBaseRate ?? false,
+    baseRateSince: input.dunning.baseRate === current.dunning.baseRate ? (current.dunning.baseRateSince ?? null) : null,
+  };
+}
+
 export async function saveCompany(actor: string, input: CompanyInput, today: string): Promise<void> {
   await withActor(actor, async (tx) => {
     await loadCompany(tx);
@@ -101,7 +113,7 @@ export async function saveCompany(actor: string, input: CompanyInput, today: str
     if (locked) throw new UserError(locked);
     await tx
       .update(schema.company)
-      .set({ ...input, updatedAt: new Date() })
+      .set({ ...input, dunning: keptBaseRateState(current!, input), updatedAt: new Date() })
       .where(eq(schema.company.id, 1));
   });
 }
