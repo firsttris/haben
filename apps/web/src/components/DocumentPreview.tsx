@@ -31,7 +31,7 @@ export function useDocumentPreview(): DocumentPreview {
   const [overlayOpen, setOverlayOpen] = useState(false);
 
   // Erst im Browser: localStorage und die Breite gibt es auf dem Server nicht
-  useEffect(() => setStored(readPreviewMode(window.localStorage)), []);
+  useEffect(() => setStored(readPreviewMode(browserStorage())), []);
   useEffect(() => {
     const layout = layoutRef.current;
     if (!layout) return;
@@ -44,7 +44,7 @@ export function useDocumentPreview(): DocumentPreview {
 
   const choose = useCallback((mode: PreviewMode) => {
     setStored(mode);
-    writePreviewMode(window.localStorage, mode);
+    writePreviewMode(browserStorage(), mode);
   }, []);
 
   return {
@@ -274,6 +274,15 @@ function SheetScroll({ className, children }: { className: string; children: Rea
       {children}
     </div>
   );
+}
+
+/** Chrome mit gesperrten Websitedaten wirft schon beim Zugriff auf window.localStorage; dann gilt die Wahl bis zum Neuladen */
+function browserStorage(): Storage | undefined {
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
 }
 
 function menuItems(menu: HTMLElement | null): HTMLElement[] {
