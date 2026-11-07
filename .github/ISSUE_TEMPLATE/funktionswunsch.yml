@@ -19,7 +19,7 @@ body:
     id: stand
     attributes:
       label: Wie machst du es heute?
-      description: Behelf, anderes Programm, Stelle in der Doku. Und was fehlt dir dort in Haben?
+      description: Behelf, anderes Programm, Stelle in der Doku. Und was fehlt dir in Haben?
   - type: textarea
     id: vorschlag
     attributes:

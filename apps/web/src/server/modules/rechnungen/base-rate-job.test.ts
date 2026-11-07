@@ -76,6 +76,13 @@ describe.skipIf(!testDatabaseUrl)("Basiszinssatz automatisch (Postgres)", () => 
     expect(company.companySchema.safeParse({ ...current, skonto: current.skonto ?? undefined }).success).toBe(true);
   });
 
+  it("speichert vor dem Stichtag keinen Wert, der schon das nächste Halbjahr meldet", async () => {
+    await sql`insert into company (id, dunning) values (1, ${dunning({ autoBaseRate: true })}::jsonb)`;
+    expect(await job.runDueBaseRate("2026-12-31", Date.now(), fakeFetch(csv("2027-01", "1.80")))).toEqual({ updated: false, month: "2027-01" });
+    expect(await stored()).toMatchObject({ baseRate: 127 });
+    expect((await stored()).baseRateSince ?? null).toBeNull();
+  });
+
   it("von Hand geänderter Satz hebt die Bestätigung auf, unveränderter behält sie", async () => {
     await sql`insert into company (id, dunning) values (1, ${dunning({ autoBaseRate: true, baseRateSince: "2026-07" })}::jsonb)`;
     const current = await company.loadCompany();

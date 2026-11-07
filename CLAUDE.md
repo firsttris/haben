@@ -39,7 +39,8 @@ Update what the change affects, in the same pull request, and only that:
 - the README only when a feature area is added or removed or its one-line summary no longer fits; details go into `docs/`, the table row stays short;
 - a new page: add it to `e2e/barrierefreiheit.spec.ts` and the route list in `e2e/seiten.spec.ts`;
 - a change to the look (UI/UX): screenshots before and after in the pull request description, in a light and
-  a dark theme, desktop and phone where it matters;
+  a dark theme, desktop and phone where it matters. Take the "before" pictures first, before touching the UI,
+  so the old state need not be rebuilt later; skill `pr-screenshots` has the steps and how to upload them;
 - the screenshots after a change to the look: **Actions → Update screenshots → Run workflow**, then
   look at the new pictures.
 
@@ -53,16 +54,38 @@ bun run typecheck
 TEST_DATABASE_URL=postgres://…/haben_test bun run test     # without it the Postgres tests are skipped
 bun run build
 E2E_DATABASE_URL=postgres://…/haben_e2e bun run e2e         # name must end in "e2e"; it is emptied
-mkdocs build --strict                                   # when docs/ or mkdocs.yml changed
+zensical build --strict                                 # when docs/ or mkdocs.yml changed
 ```
 
 Both databases are wiped by the tests, and `bun run test` also creates and drops `<name>_vorlage` and
 `<name>_<n>` next to the test database; never point them at a server with real data. In a container without
 PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl … -o '-p 5433'`).
 
+Skill `checks` has the details:
+
+- No Bun on the machine: run the checks in the dev container from `compose.yml`
+  (`docker compose run --rm -u bun app …`, see `docs/entwicklung.md`, "Prüfungen ohne Bun auf dem Rechner"),
+  not in ad-hoc containers of your own.
+- In a git worktree or next to a running environment: an own compose project and free ports
+  (`HABEN_DEV_PORT=3001 HABEN_DEV_DB_PORT=5433 docker compose -p haben-<branch> …`); never touch the
+  user's `haben-dev` project. Clean it up with `down -v` when done.
+- Some tests skip without a tool (`TEST_DATABASE_URL`, `pdftotext`, `cc`, ERiC, network; table in
+  `docs/entwicklung.md`, Tests). Report what was skipped; a skipped test proves nothing.
+
 ## Pull requests
 
-- One feature per pull request; it carries only its own commits.
+- One feature per pull request; it carries only its own commits. Skill `beitrag` has the steps from branch
+  to draft.
+- Branch in `firsttris/haben` with write access, otherwise in a fork; never push to `main`. Pull requests
+  start as drafts when the user wants to look first; CI skips drafts until "Ready for review", and never
+  runs for a pull request that only touches Markdown, `docs/` or `LICENSE` (`paths-ignore`): build the docs
+  locally then.
+- Title: `Bereich: was sich ändert (#Issue)`, in German; a squash merge makes it the commit on `main`.
+  Commits inside a pull request: Conventional Commits types with a German description
+  (`fix(belege): …`, `test: …`). A recommendation, no lint.
+- Agents mark their work, for transparency only: a `Co-Authored-By:` trailer naming the tool or model in
+  each commit, and a "🤖 Generated with <tool>" line in the pull request description. Using agents is
+  welcome; the person who opens the pull request stays responsible for it.
 - Before every push check whether the branch's pull request is still open. If it is merged, start
   again from the current `origin/main` and open a **new** pull request.
 - Merge method: always **squash**, and merge the pull request itself, also a contributor's, so GitHub
@@ -82,10 +105,14 @@ PostgreSQL 18, the installed PostgreSQL works for the tests (`initdb`, `pg_ctl �
 ## Issues
 
 Write issues in German with the headings Anlass, Stand in Haben, Vorschlag, Akzeptanzkriterien, Bezug.
-Check "Stand in Haben" against the current `main` and link commit, docs or code; name sources with
-links; invented amounts, no real receipts, tax numbers, IBANs or credentials. Steps and detail level:
+Search issues and pull requests first (done work often lives only in a pull request). Check
+"Stand in Haben" against the current `main` and link commit, docs or code; name sources with links;
+invented amounts, no real receipts, tax numbers, IBANs or credentials. End an agent-written issue (not a mere
+correction) with a rule and `_Generated with [Claude Code](https://claude.com/claude-code)_` (or the
+agent's own name). Create or comment on issues only when the user says so. Steps and detail level:
 skill `issue-schreiben` in `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md`
-(Issues schreiben). Roadmap order and labels are the maintainer's call.
+(Issues schreiben). The type label (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`) is set when creating
+the issue; other labels and the roadmap order are the maintainer's call.
 
 ## Working rules
 

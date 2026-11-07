@@ -45,7 +45,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: "Steht unten in der Navigation. Bei einem selbst gebauten Stand: Commit."
+      description: "Steht unten in der Navigation. Selbst gebaut: Ausgabe von `git rev-parse --short HEAD`."
       placeholder: z. B. 0.1.0
   - type: dropdown
     id: installation
@@ -66,10 +66,11 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: Server-Meldungen oder Screenshot
+      label: Server-Meldungen
       description: Zum Beispiel `docker compose logs app`. Vorher alles Persönliche entfernen.
+      render: text
   - type: textarea
-    id: bezug
+    id: screenshot
     attributes:
-      label: Verwandte Issues und Roadmap
-      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://firsttris.github.io/haben/roadmap.html), falls du ihn kennst.
+      label: Screenshot
+      description: Du kannst ein Bild hineinziehen. Vorher alles Persönliche schwärzen.

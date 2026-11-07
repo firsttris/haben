@@ -1,12 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
-import { fullPageScreenshot, USER } from "./daten.ts";
+import { day, fullPageScreenshot, USER, YEAR } from "./daten.ts";
+import { dkb, type Rechnung, rechnungFestschreiben } from "./einrichtung.ts";
 
 /**
  * Die Bilder in README und Doku (docs/screenshot-*.png), aufgenommen mit den Daten, die app.spec.ts
  * davor angelegt hat: Kunden, festgeschriebene Rechnungen, ein gebuchter Beleg, der Kontoauszug mit
  * dem noch offenen Zahlungseingang von Rheinpixel. Läuft nur mit DOKU_SCREENSHOTS=1
  * (bun run docs:screenshots, Workflow „Update screenshots“), im Projekt „mit-daten“ nach app.spec.ts
- * (playwright.config.ts).
+ * (playwright.config.ts). Weil app.spec.ts nur anlegt, was die Tests brauchen, ergänzt der erste Test
+ * Rechnungen über mehrere Monate mit Zahlungseingängen und Pauschalen, damit Übersicht, Umsatzsteuer und Auswertungen nach
+ * Betrieb aussehen; die CI braucht diese Daten nicht und überspringt die Datei.
  */
 
 test.describe.configure({ mode: "serial" });
@@ -45,6 +48,84 @@ async function shot(name: string, fullPage = false) {
   const options = { path: `${DOCS}/screenshot-${name}.png`, animations: "disabled", caret: "hide" } as const;
   await (fullPage ? fullPageScreenshot(page, options) : page.screenshot(options));
 }
+
+/** Rechnungen in den Monaten davor, nur im Jahr der übrigen Daten; alle bis auf die letzte nach zwölf Tagen bezahlt */
+const FRUEHERE_RECHNUNGEN = (
+  [
+    ["Nordwerk Software GmbH", "Hamburg", -150, "Softwareentwicklung", "64", "95,00", "7.235,20"],
+    ["Alpenblick Media AG", "München", -120, "Beratung Architektur", "4", "960,00", "4.569,60"],
+    ["Nordwerk Software GmbH", "Hamburg", -95, "Softwareentwicklung", "80", "95,00", "9.044,00"],
+    ["Rheinpixel GmbH", "Köln", -70, "Wartung und Support", "2", "1.450,00", "3.451,00"],
+    ["Alpenblick Media AG", "München", -10, "Workshop Barrierefreiheit", "2", "1.200,00", "2.856,00"],
+  ] as const
+)
+  .filter(([, , offset]) => day(offset).startsWith(String(YEAR)))
+  .map(([name, city, offset, description, quantity, price, gross], index, all) => ({
+    name,
+    paidOn: index < all.length - 1 ? day(offset + 12) : undefined,
+    rechnung: { customer: `${name} · ${city}`, date: day(offset), lines: [[description, quantity, price]], gross } satisfies Rechnung,
+  }));
+
+/** Kontostand aus app.spec.ts (Kontoauszug importieren) */
+const KONTOSTAND_CENTS = 1_625_710;
+const cents = (euro: string) => Number(euro.replace(/\./g, "").replace(",", ""));
+const euro = (value: number) => (value / 100).toLocaleString("de-DE", { minimumFractionDigits: 2 });
+
+/** Zahlungseingänge auf dem Girokonto aus app.spec.ts, im Format der DKB, mit dem Kontostand danach */
+function kontoauszug(zahlungen: { name: string; date: string; gross: string }[]): string {
+  const stand = zahlungen.reduce((sum, z) => sum + cents(z.gross), KONTOSTAND_CENTS);
+  const zeile = (z: (typeof zahlungen)[number]) =>
+    [dkb(z.date), dkb(z.date), "Gebucht", z.name, "Max Mustermann", "Rechnung", "Eingang", "", z.gross, "", "", ""].map((v) => `"${v}"`).join(";");
+  return (
+    "\uFEFF" +
+    `"Girokonto";"DE45 1203 0000 1234 5678 90"\n""\n"Kontostand vom ${dkb(day(0))}:";"${euro(stand)} €"\n""\n` +
+    `"Buchungsdatum";"Wertstellung";"Status";"Zahlungspflichtige*r";"Zahlungsempfänger*in";"Verwendungszweck";"Umsatztyp";"IBAN";"Betrag (€)";"Gläubiger-ID";"Mandatsreferenz";"Kundenreferenz"\n` +
+    `${zahlungen.map(zeile).join("\n")}\n`
+  );
+}
+
+test("Daten für die Bilder ergänzen", async () => {
+  for (const { rechnung } of FRUEHERE_RECHNUNGEN) await rechnungFestschreiben(page, rechnung);
+
+  // Die älteren Rechnungen sind bezahlt; der offene Eingang von Rheinpixel aus app.spec.ts bleibt für das Bild des Abgleichs
+  const zahlungen = FRUEHERE_RECHNUNGEN.flatMap(({ name, paidOn, rechnung }) => (paidOn ? [{ name, date: paidOn, gross: rechnung.gross }] : []));
+  await go("/bank");
+  await page
+    .locator('input[type=file][aria-label="Kontoauszugsdateien"]')
+    .setInputFiles([{ name: "zahlungen.csv", mimeType: "text/csv", buffer: Buffer.from(kontoauszug(zahlungen)) }]);
+  await expect(page.getByText(`${zahlungen.length} neue Umsätze`)).toBeVisible({ timeout: 30_000 });
+  for (const { name, gross } of zahlungen) {
+    await go("/bank");
+    await page
+      .getByRole("link", { name: new RegExp(`${name}.*${gross.replace(".", "\\.")}`) })
+      .first()
+      .click();
+    await page.waitForLoadState("networkidle");
+    // Erst zuordnen, wenn rechts der angeklickte Umsatz steht, nicht mehr der zuerst ausgewählte offene
+    const panel = page.getByRole("complementary", { name: "Zuordnung" });
+    await expect(panel.getByRole("heading", { name })).toBeVisible();
+    await expect(panel).toContainText(`+${gross}`);
+    await expect(panel.getByText("Bester Treffer")).toBeVisible();
+    // Weiter erst, wenn die Zuordnung gespeichert ist; ein vorzeitiger Seitenwechsel bricht die Anfrage ab
+    const gespeichert = page.waitForResponse((response) => response.request().method() === "POST" && response.ok());
+    await panel.getByRole("button", { name: "Zuordnen", exact: true }).click();
+    await gespeichert;
+    await page.waitForLoadState("networkidle");
+  }
+
+  await go("/pauschalen");
+  const neu = page.getByRole("region", { name: "Pauschale eintragen" });
+  const homeoffice = neu.getByRole("form", { name: "Homeoffice-Pauschale" });
+  await homeoffice.getByLabel("Tage im Homeoffice", { exact: true }).fill("16");
+  await homeoffice.getByRole("button", { name: /buchen$/ }).click();
+  await expect(neu.getByRole("status")).toContainText("gebucht");
+  await neu.getByRole("button", { name: "Fahrt", exact: true }).click();
+  const fahrt = neu.getByRole("form", { name: "Fahrt mit dem Privatfahrzeug" });
+  await fahrt.getByLabel("Anlass und Ziel", { exact: true }).fill("Workshop Alpenblick, München");
+  await fahrt.getByLabel("Kilometer einfach", { exact: true }).fill("120");
+  await fahrt.getByRole("button", { name: /buchen$/ }).click();
+  await expect(neu.getByRole("status")).toContainText("Fahrt über");
+});
 
 test("Übersicht", async () => {
   await go("/");

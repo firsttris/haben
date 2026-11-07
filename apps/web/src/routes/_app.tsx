@@ -223,6 +223,10 @@ function AppLayout() {
                 Einstellungen
               </Link>
             )}
+            <a href="https://firsttris.github.io/haben/" target="_blank" rel="noreferrer" className="nav-link nav-foot-link">
+              <Icon name="docs" />
+              Dokumentation
+            </a>
             {/* AGPL § 13: Nutzer im Netz bekommen den Quellcode */}
             <a href="https://github.com/firsttris/haben" className="nav-link nav-foot-link">
               <Icon name="code" />
