@@ -86,4 +86,14 @@ describe.skipIf(!testDatabaseUrl)("TDD-Review: Quellstand beim Nachladen von Auf
     ).toBe(0);
     expect((await sevdesk.latestSevdeskImport())!.progress.failed).toMatchObject([{ message: expect.stringContaining("seit Archivierung verändert") }]);
   });
+
+  it.each([401, 403])("beendet den Import bei Nachkontrolle mit %s auch nach vorherigem PDF-Fehler", async (status) => {
+    version = "1.0";
+    pdfFailure = 503;
+    afterFailure = status;
+    await sevdesk.startSevdeskImport("test-user", { wait: true });
+
+    expect(calls.filter((path) => path === `/Order/${externalId}`)).toHaveLength(2);
+    expect((await sevdesk.latestSevdeskImport())!.status).toBe("fehler");
+  });
 });
