@@ -23,11 +23,21 @@ Füge den Token ein und klicke „Prüfen und speichern“. Haben fragt damit di
 
 „Alles abrufen“ startet den Abruf im Hintergrund, mit Fortschritt, Abbrechen und Fortsetzen wie bei Lexoffice. Es läuft immer nur ein Abruf, gleich aus welcher Quelle.
 
-1. **Kontakte:** Organisationen und Personen mit Name, Kundennummer, erster Adresse samt Land, Haupt-E-Mail und USt-IdNr. Ansprechpartner einer Organisation werden keine eigenen Kontakte. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne sevDesk-Herkunft, verknüpft Haben ihn.
+1. **Kontakte:** Organisationen und Personen mit Name, Rolle, erster Adresse samt Land, Haupt-E-Mail und USt-IdNr. Wer als Kunde angelegt wird, erhält auch seine Kundennummer. Ansprechpartner einer Organisation werden keine eigenen Kontakte. Gibt es in Haben schon einen Kontakt mit demselben Namen und ohne sevDesk-Herkunft, verknüpft Haben ihn.
 2. **Belegliste:** alle Rechnungen, Gutschriften und Belege. Draußen bleiben Entwürfe, Vorlagen für wiederkehrende Rechnungen und Belege sowie Mahnungen.
 3. **Positionen und Dateien:** je Beleg die Positionen (für die Aufteilung nach Steuersatz), das PDF der Rechnung bzw. Gutschrift, bei E-Rechnungen das XML und bei Belegen die hochgeladene Datei.
 
 Haben ruft die PDFs mit `preventSendBy=true` ab; der Abruf markiert also keine Rechnung als versendet. Die Antwort der API wird je Beleg samt Positionen gespeichert, zum Nachweis.
+
+### Kontaktrollen und Nummern prüfen
+
+Die [sevDesk-OpenAPI](https://api.sevdesk.de/openapi.yaml) nennt die Kontaktkategorien **Lieferant (2)**, **Kunde (3)**, **Partner (4)** und **Interessent (28)**. Haben legt neue Lieferanten ausschließlich als Lieferanten und neue Kunden ausschließlich als Kunden an. Haben kennt keine eigene Partner- oder Interessentenrolle: Diese sowie Kontakte mit fehlender oder unbekannter Kategorie erhalten bei der Neuanlage zunächst nur die Kundenrolle. Der Import zeigt dazu einen Hinweis. Prüfe diese Kontakte unter **Kontakte**; eine unklare Kategorie führt niemals automatisch zu beiden Rollen. Rollen aus einzelnen Rechnungen oder Belegen werden nicht zusätzlich abgeleitet.
+
+Bei gleichnamigen verknüpften Kontakten und bei **Erneut abrufen** ergänzt Haben eine eindeutige Kunden- oder Lieferantenrolle auch für schon importierte Kontakte. Bestehende Rollen und Nummern bleiben erhalten; bei unklarer Kategorie bleiben bestehende Rollen unverändert. Ein weiterer Abruf ohne neue Rolle erzeugt keine neue Kontaktversion.
+
+**Ältere Importe werden damit nur teilweise berichtigt:** Ein Lieferant, der früher fälschlich als Kunde angelegt wurde, erhält beim nächsten Abruf die Lieferantenrolle und hat danach beide Rollen. Ob die Kundenrolle irrtümlich importiert oder später bewusst vergeben wurde, ist nicht verlässlich erkennbar. Entferne sie gegebenenfalls selbst unter **Kontakte**. Prüfe dort auch alte Nummernzuordnungen; der erneute Abruf löscht oder ersetzt sie nicht.
+
+`Contact.customerNumber` wird bei neu angelegten Kontakten mit Kundenrolle zur **Kundennummer**, also auch bei Partnern, Interessenten und unklaren Kategorien. Es ist kein DATEV-Personenkonto. Die eigene Nummer eines Lieferanten in sevDesk wird weder als Kundennummer noch als **Lieferantennummer** übernommen: Letztere kann in Haben deine Nummer beim Lieferanten bezeichnen. Der Import legt keine DATEV-Personenkonten an.
 
 ### Wie sevDesk-Belege abgebildet werden
 

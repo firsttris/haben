@@ -41,6 +41,7 @@ export const sevContactSchema = z.looseObject({
   customerNumber: str,
   /** Ansprechpartner einer Organisation haben einen parent */
   parent: ref,
+  /** Contact-Tags laut OpenAPI: 2 Lieferant, 3 Kunde, 4 Partner, 28 Interessent. */
   category: ref,
   status: numeric,
   vatNumber: str,
