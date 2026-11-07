@@ -424,7 +424,7 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
   .line-row > .line-actions { justify-self: end; }
   .line-row.head { display: none; }
 }
-textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); resize: vertical; min-height: 72px; }
+textarea { font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); background-color: var(--surface); resize: vertical; min-height: 72px; }
 
 /* Papiervorschau */
 /* Rechnungsvorschau als A4-Blatt; Maße in mm wie templates/rechnung.typ, 1pt = 0,3528 mm */

@@ -190,6 +190,39 @@ for (const theme of THEMES.filter((t) => t !== "wald")) {
 }
 
 // Die Adresse der eigenen Seite aus app.spec.ts steht erst zur Laufzeit fest; axe prüft auch den Inhalt im Rahmen
+/** Seiten mit mehrzeiligen Feldern, Auswahlen und Eingaben; in dunklen Themes malt der Browser Felder ohne eigene Farbe grau */
+const FIELD_PAGES = ["/rechnungen/neu", "/dauerbelege/neu", "/anlagen/neu", "/finanzamt", "/einstellungen", "/einstellungen?bereich=email"];
+
+for (const theme of THEMES.filter((t) => t === "nacht" || t === "tiefsee")) {
+  test(`Eingabefelder auf der Theme-Fläche im Theme ${theme}`, async ({ page }) => {
+    await withTheme(page, theme);
+    for (const path of FIELD_PAGES) {
+      await open(page, path);
+      await page.evaluate(() =>
+        document.querySelectorAll("details").forEach((d) => {
+          d.open = true;
+        }),
+      );
+      const grey = await page.evaluate(() => {
+        const probe = document.createElement("div");
+        probe.style.backgroundColor = "var(--surface)";
+        document.body.append(probe);
+        const surface = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return [...document.querySelectorAll<HTMLElement>("main input, main select, main textarea")]
+          .filter((el) => !["checkbox", "radio", "hidden", "file", "range", "color"].includes((el as HTMLInputElement).type))
+          .filter((el) => el.getClientRects().length > 0 && !el.closest(".search-box"))
+          .filter((el) => getComputedStyle(el).backgroundColor !== surface)
+          .map(
+            (el) =>
+              `${el.tagName.toLowerCase()} ${el.getAttribute("aria-label") ?? el.getAttribute("name") ?? el.closest("label")?.textContent?.trim().slice(0, 40) ?? ""}: ${getComputedStyle(el).backgroundColor}`,
+          );
+      });
+      expect.soft(grey, `${path}: Felder ohne Theme-Fläche`).toEqual([]);
+    }
+  });
+}
+
 for (const [device, viewport] of [
   ["Desktop", { width: 1440, height: 900 }],
   ["Handy", { width: 320, height: 720 }],
