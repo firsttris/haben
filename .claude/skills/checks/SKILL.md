@@ -10,7 +10,7 @@ Welche Prüfungen gelten, steht in `CLAUDE.md` (Checks); dieser Skill sagt, **wi
 ## 1. Umgebung wählen
 
 - `bun --version` gibt die Version aus `packageManager` in `package.json`: Prüfungen direkt mit Bun, Datenbank siehe Schritt 3.
-- Kein Bun oder eine andere Version: **Dev-Container aus `compose.yml`**. Keine eigenen Ad-hoc-Container mit `oven/bun` o. Ä. bauen; der Dev-Container hat dieselben Werkzeuge wie die Doku beschreibt (`poppler-utils`, `zip`).
+- Kein Bun oder eine andere Version: **Dev-Container aus `compose.yml`**. Keine eigenen Ad-hoc-Container mit `oven/bun` o. Ä. bauen; der Dev-Container hat dieselben Werkzeuge wie die Doku beschreibt (`poppler-utils`, `zip`, `unzip`).
 - Weder Bun noch Docker/Podman: der Person sagen, was fehlt, und nicht weiter raten.
 
 ## 2. Eigene Compose-Instanz
@@ -42,12 +42,12 @@ docker compose run --rm -u bun -e TEST_DATABASE_URL=postgres://haben:haben@db:54
 - Im Container heißt der Datenbankserver `db`, nicht `localhost`.
 - Einzelne Tests: `… app bun --bun vitest run <pfad>`.
 - E2E (`bun run e2e`) braucht die Browser von Playwright, die der Container nicht hat: läuft in der CI; lokal nur mit Bun auf dem Rechner und `E2E_DATABASE_URL` auf eine Datenbank, deren Name auf `e2e` endet. Port 3100 ist der E2E-Server.
-- Doku, wenn `docs/` oder `mkdocs.yml` geändert sind: der Einzeiler aus `docs/entwicklung.md` („Prüfungen ohne Bun auf dem Rechner“). Er muss im **Hauptordner** des Klons laufen, nicht im Worktree (das Git-Plugin findet dort das Repository nicht). Im Worktree also die geänderten Dateien prüfen lassen, indem der Befehl im Hauptordner auf dem Branch läuft, oder auf den Docs-Job der CI verweisen.
+- Doku, wenn `docs/` oder `mkdocs.yml` geändert sind: ohne `mkdocs` auf dem Rechner der Zweizeiler aus `docs/entwicklung.md` („Prüfungen ohne Bun auf dem Rechner“). Er hängt das Git-Verzeichnis mit ein und läuft deshalb auch im Worktree.
 
 Nie gegen eine Datenbank mit echten Daten testen; die Tests leeren `<name>`, `<name>_vorlage` und `<name>_<n>`.
 
 ## 4. Übersprungenes melden
 
-Ein grüner Lauf beweist nur, was gelaufen ist. Die Ausgabe von Vitest nennt `skipped`; die Gründe stehen in der Tabelle in `docs/entwicklung.md` (Tests): ohne `TEST_DATABASE_URL` alle Postgres-Tests, ohne `pdftotext`/`pdftoppm` die PDF-Tests, ohne `cc` die Mock-ERiC-Tests, ohne ERiC die echten ERiC-Tests, ohne Netz das SEPA-Schema der DK. Ohne `zip` schlägt der Paket-Test von `scripts/elster-helfer` fehl, das ist dann kein Fehler der Änderung.
+Ein grüner Lauf beweist nur, was gelaufen ist. Die Ausgabe von Vitest nennt `skipped`; die Gründe stehen in der Tabelle in `docs/entwicklung.md` (Tests): ohne `TEST_DATABASE_URL` alle Postgres-Tests, ohne `pdftotext`/`pdftoppm` die PDF-Tests, ohne `cc` die Mock-ERiC-Tests, ohne ERiC die echten ERiC-Tests, ohne Netz das SEPA-Schema der DK. Ohne `zip` oder `unzip` schlägt der Paket-Test von `scripts/elster-helfer` fehl, das ist dann kein Fehler der Änderung.
 
 Im Bericht und in der Beschreibung des Pull Requests: was lief, was übersprungen wurde und warum, und welche Prüfung nur die CI macht.

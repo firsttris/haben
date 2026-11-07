@@ -78,10 +78,11 @@ docker compose run --rm -u bun -e TEST_DATABASE_URL=postgres://haben:haben@db:54
 
 Im Container ist `db` der Name des Datenbankservers, nicht `localhost`. Die Ende-zu-Ende-Tests brauchen die Browser von Playwright, die der Container nicht hat; sie laufen in der CI oder mit Bun auf dem Rechner.
 
-Die Doku baut ein Container mit Python, aus dem Hauptordner des Klons gestartet. Aus einem Git-Worktree heraus scheitert er, weil das Plugin für das Änderungsdatum dort das Repository nicht findet:
+Die Doku baut ein Container mit Python. Das Git-Verzeichnis wird zusätzlich unter seinem eigenen Pfad eingehängt, damit das Plugin für das Änderungsdatum es auch aus einem Git-Worktree heraus findet:
 
 ```sh
-docker run --rm -v "$PWD":/docs -w /docs python:3.13-slim sh -c 'apt-get update -qq && apt-get install -qq -y git >/dev/null && git config --global --add safe.directory /docs && pip install -q -r requirements-docs.txt && mkdocs build --strict'
+g=$(git rev-parse --path-format=absolute --git-common-dir)
+docker run --rm -v "$PWD":/docs -v "$g":"$g" -w /docs python:3.13-slim sh -c 'apt-get update -qq && apt-get install -qq -y git >/dev/null && git config --global --add safe.directory "*" && pip install -q -r requirements-docs.txt && mkdocs build --strict -d /tmp/site'
 ```
 
 ### Mehrere Umgebungen nebeneinander
@@ -137,7 +138,7 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 | --- | --- | --- | --- |
 | `TEST_DATABASE_URL` | alle Postgres-Tests übersprungen | mit `-e`, siehe oben | ja |
 | `pdftotext`, `pdftoppm` (poppler-utils) | Textebene und Seitenbilder von PDFs übersprungen | ja | ja |
-| `zip` | Test des Pakets „Haben für Mein ELSTER“ schlägt fehl | ja | ja |
+| `zip`, `unzip` | Test des Pakets „Haben für Mein ELSTER“ schlägt fehl | ja | ja |
 | `cc` | ERiC-Tests mit nachgebauter Bibliothek übersprungen | nein | ja |
 | ERiC (`ERIC_HOME` oder `ERIC_DIR`) | Tests mit echtem ERiC übersprungen | nein | nein |
 | Netz | Schema der Deutschen Kreditwirtschaft für SEPA übersprungen | ja | ja, sonst Fehler |
