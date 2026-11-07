@@ -44,7 +44,9 @@ describe("sevDesk-Einzelzahlungen aus CheckAccountTransactionLog", () => {
         const url = new URL(String(input));
         calls.push(url);
         expect(init?.method ?? "GET").toBe("GET");
-        return new Response(JSON.stringify(url.searchParams.get("offset") === "0" ? logs : { objects: [] }), { headers: { "content-type": "application/json" } });
+        return new Response(JSON.stringify(url.searchParams.get("offset") === "0" ? logs : { objects: [] }), {
+          headers: { "content-type": "application/json" },
+        });
       }) as typeof fetch,
     });
     const all = [];

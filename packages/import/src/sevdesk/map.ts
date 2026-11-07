@@ -1,5 +1,15 @@
 import { lexDate, lexToBasisPoints, lexToCents, type ImportedPayments, type LegacyVoucher, type LegacyVoucherType } from "../lexoffice/map.ts";
-import type { SevCheckAccountTransactionLog, SevCommunicationWay, SevContact, SevContactAddress, SevCreditNote, SevDocumentPos, SevInvoice, SevVoucher, SevVoucherPos } from "./types.ts";
+import type {
+  SevCheckAccountTransactionLog,
+  SevCommunicationWay,
+  SevContact,
+  SevContactAddress,
+  SevCreditNote,
+  SevDocumentPos,
+  SevInvoice,
+  SevVoucher,
+  SevVoucherPos,
+} from "./types.ts";
 
 /*
  * Reine Abbildungen der sevDesk-Antworten auf dieselben Strukturen wie beim Lexoffice-Import,
@@ -183,7 +193,7 @@ export function mapSevPaymentLogs(logs: SevCheckAccountTransactionLog[]): Map<st
     const kind = LOG_OBJECTS[log.object?.objectName ?? ""];
     const objectId = refId(log.object);
     if (!kind || !objectId) continue;
-    const tx = log.checkAccountTransaction && "valueDate" in log.checkAccountTransaction ? log.checkAccountTransaction : null;
+    const tx = log.checkAccountTransaction;
     if (tx?.deletedAt) continue;
     const date = lexDate(log.bookingDate) ?? lexDate(tx?.valueDate);
     if (!date) continue;

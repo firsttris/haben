@@ -145,7 +145,7 @@ function LegacyVoucherPage() {
               {voucher.payment.items.map((item, i) => (
                 <div key={i} className="history-row small">
                   <span>{formatDate(item.date)}</span>
-                  <span className="muted">{item.type}</span>
+                  <span className="muted">{item.account ?? item.type}</span>
                   <span className="mono">{formatEuro(item.amount)}</span>
                 </div>
               ))}

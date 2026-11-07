@@ -1,5 +1,6 @@
 export { SevdeskClient, SevdeskApiError, SEVDESK_DEFAULT_BASE_URL, type SevdeskClientOptions } from "./client.ts";
 export type {
+  SevCheckAccount,
   SevCheckAccountTransactionLog,
   SevCommunicationWay,
   SevContact,

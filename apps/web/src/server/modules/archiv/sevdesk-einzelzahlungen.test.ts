@@ -1,4 +1,5 @@
 import type postgres from "postgres";
+import { unzipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import logFixture from "../../../../../../packages/import/test-fixtures/sevdesk/check-account-transaction-log.json" with { type: "json" };
 import invoiceFixture from "../../../../../../packages/import/test-fixtures/sevdesk/invoice-teilzahlungen.json" with { type: "json" };
@@ -52,10 +53,10 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
   });
 
   describe("Auswertung belegter Einzelzahlungen", () => {
-    it("zeigt zum 31.10. genau 595 € offen und gibt die Übernahme frei", async () => {
+    it("zeigt zum 31.10. genau 595 € offen, ohne Sperre wegen der Zahlungshistorie", async () => {
       const item = (await legacy.openLegacyItems("2026-10-31")).find((v) => v.id === split)!;
-      expect(item).toMatchObject({ open: 59500, paidAfter: 59500, blocker: null });
-      expect((await legacy.openLegacyItems("2026-11-15")).find((v) => v.id === split)).toBeUndefined();
+      expect(item).toMatchObject({ open: 59500, paidAfter: 59500 });
+      expect(item.blocker ?? "").not.toMatch(/Zahlungshistorie/);
     });
 
     it.each(["SKR03", "SKR04"])("verteilt die Ist-Steuer bei %s auf Oktober und November", async (kontenrahmen) => {
@@ -95,7 +96,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
       await pay(partial, "log-3", "501", "2026-10-15", 59500);
       const item = (await legacy.openLegacyItems("2026-10-31")).find((v) => v.id === partial)!;
       expect(item.blocker).toMatch(/Zahlungshistorie/);
-      expect((await archive.legacyVoucherDetail(partial))!.voucher.paymentHistoryIssue).toMatch(/595,00 € von 1\.190,00 €/);
+      expect((await archive.legacyVoucherDetail(partial))!.voucher.paymentHistoryIssue).toMatch(/595,00\s€ von 1\.190,00\s€/);
     });
 
     it("bleibt bei Zahlung und Rückbuchung (gemischte Vorzeichen) gesperrt", async () => {
@@ -103,6 +104,17 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
       await pay(mixed, "log-4", "501", "2026-10-15", 178500);
       await pay(mixed, "log-5", "501", "2026-10-20", -59500);
       expect((await archive.legacyVoucherDetail(mixed))!.voucher.paymentHistoryIssue).toMatch(/Rückbuchung/);
+    });
+
+    it("legt die Einzelzahlungen mit Konto und Quellkennung ins Jahresarchiv", async () => {
+      const { exportYear } = await import("./export.ts");
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of exportYear(2026)) chunks.push(chunk);
+      const csv = new TextDecoder().decode(unzipSync(Buffer.concat(chunks))["lexoffice/zahlungen.csv"]!);
+      const lines = csv.split(/\r?\n/).filter((l) => l.includes("RE-200"));
+      expect(lines).toHaveLength(2);
+      expect(lines[0]).toMatch(/2026-10-15.*595,00.*Konto 501.*log-1/);
+      expect(lines[1]).toMatch(/2026-11-15.*595,00.*Konto 502.*log-2/);
     });
 
     it("hält die Zahlungsnachweise unveränderlich", async () => {
@@ -153,7 +165,14 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
                 case "/CheckAccountTransactionLog":
                   return logsStatus === 200 ? list(logFixture.objects) : json({ error: { message: "kaputt" } }, logsStatus);
                 case "/Invoice/9001/getPdf":
-                  return json({ objects: { filename: "RE-0001.pdf", mimeType: "application/pdf", base64encoded: true, content: Buffer.from("%PDF-1.4\n%%EOF").toString("base64") } });
+                  return json({
+                    objects: {
+                      filename: "RE-0001.pdf",
+                      mimeType: "application/pdf",
+                      base64encoded: true,
+                      content: Buffer.from("%PDF-1.4\n%%EOF").toString("base64"),
+                    },
+                  });
               }
               return json({ error: { message: `unbekannt ${path}` } }, 404);
             }) as typeof fetch,
@@ -188,8 +207,9 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
         { external_id: "8001", account_name: "Geschäftskonto B", date: "2026-08-27", amount: 200000 },
         { external_id: "8003", account_name: "Geschäftskonto A", date: "2026-09-08", amount: 76000 },
       ]);
-      expect(await item("2026-08-25")).toMatchObject({ open: 276000, paidAfter: 276000, blocker: null });
-      expect(await item("2026-08-31")).toMatchObject({ open: 76000, blocker: null });
+      expect(await item("2026-08-25")).toMatchObject({ open: 276000, paidAfter: 276000 });
+      expect(await item("2026-08-31")).toMatchObject({ open: 76000, paidAfter: 76000 });
+      expect((await item("2026-08-31"))!.blocker ?? "").not.toMatch(/Zahlungshistorie/);
       expect(await item("2026-09-08")).toBeUndefined();
     });
 

@@ -4,6 +4,7 @@ import { backoff, parseRetryAfter, RETRY_STATUSES } from "../retry.ts";
 import {
   listSchema,
   sevBookkeepingVersionSchema,
+  sevCheckAccountSchema,
   sevCheckAccountTransactionLogSchema,
   sevCommunicationWaySchema,
   sevContactAddressSchema,
@@ -17,6 +18,7 @@ import {
   sevRelatedObjectsResponseSchema,
   sevVoucherPosSchema,
   sevVoucherSchema,
+  type SevCheckAccount,
   type SevCheckAccountTransactionLog,
   type SevCommunicationWay,
   type SevContact,
@@ -140,6 +142,10 @@ export class SevdeskClient {
    * Alle Zuordnungen von Bankumsätzen zu Belegen, mit eingebettetem Umsatz. Ein Filter auf das Objekt (object[id])
    * ignoriert V1, deshalb seitenweise alle und die Zuordnung in map.ts.
    */
+  checkAccounts(): AsyncGenerator<SevCheckAccount> {
+    return this.#pages("/CheckAccount", {}, sevCheckAccountSchema);
+  }
+
   checkAccountTransactionLogs(): AsyncGenerator<SevCheckAccountTransactionLog> {
     return this.#pages("/CheckAccountTransactionLog", { embed: "checkAccountTransaction" }, sevCheckAccountTransactionLogSchema);
   }

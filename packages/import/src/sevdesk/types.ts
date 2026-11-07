@@ -205,6 +205,10 @@ export const sevOrderSchema = z.looseObject({
 export type SevOrder = z.infer<typeof sevOrderSchema>;
 // ---------------------------------------------------------------- Zahlungen
 
+/** Zahlungskonto (Bank, Kasse, Zahlungsdienst) */
+export const sevCheckAccountSchema = z.looseObject({ id, objectName: str, name: str, type: str, currency: str });
+export type SevCheckAccount = z.infer<typeof sevCheckAccountSchema>;
+
 /** Bankumsatz, eingebettet in CheckAccountTransactionLog (embed=checkAccountTransaction) */
 export const sevCheckAccountTransactionSchema = z.looseObject({
   id,
@@ -225,7 +229,8 @@ export const sevCheckAccountTransactionLogSchema = z.looseObject({
   id,
   objectName: str,
   create: str,
-  checkAccountTransaction: z.union([sevCheckAccountTransactionSchema, ref]),
+  /** Mit embed=checkAccountTransaction der ganze Umsatz, sonst nur { id, objectName } */
+  checkAccountTransaction: sevCheckAccountTransactionSchema.nullish(),
   fromStatus: numeric,
   toStatus: numeric,
   amountPaid: numeric,
