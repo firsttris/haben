@@ -29,6 +29,13 @@ class WithDate(unittest.TestCase):
         self.assertEqual(lines[:3], ["# Titel", "Text", ""])
         self.assertIn('<time datetime="2026-11-07">7. November 2026</time>', lines[3])
 
+    def test_datum_nicht_im_suchindex(self):
+        # Sonst landet „Letztes Update“ im letzten Abschnitt jeder Seite in search.json, und die Suche nach
+        # „Update“ findet jede Seite. Zensical lässt Elemente mit data-search-exclude aus dem Index weg
+        # (wie MkDocs Material, https://squidfunk.github.io/mkdocs-material/plugins/search/).
+        lines = with_date(["Text"], "2026-11-07")
+        self.assertIn("data-search-exclude", lines[-1])
+
     def test_ohne_datum_unveraendert(self):
         self.assertEqual(with_date(["Text"], None), ["Text"])
         self.assertEqual(with_date(["Text"], "kaputt"), ["Text"])

@@ -46,6 +46,8 @@ jobs:
       - run: zensical build --strict
       # Ohne git-Historie fehlt das Datum, ohne dass der Build scheitert; hier fällt es auf
       - run: grep -q 'class="aenderungsdatum"' site/index.html
+      # Das Datum gehört nicht in den Suchindex, sonst findet die Suche nach „Update“ jede Seite
+      - run: "! grep -q 'Letztes Update' site/search.json"
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
