@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 import { firstLink, SESSION, YEAR } from "./daten.ts";
 import { HANDY, kopfUnterkante, LAPTOP, sichtbar, statusBleibtSichtbar, zumEnde } from "./kopfzeile.ts";
 
@@ -128,3 +128,39 @@ test("Einstellungen am Handy, rückwärts tabben: kein Feld mit Fokus liegt unte
   }
   expect(geprueft).toBeGreaterThan(5);
 });
+
+for (const [geraet, viewport] of [
+  ["Laptop", LAPTOP],
+  ["Handy", HANDY],
+] as const) {
+  test(`Kontaktdialog am ${geraet}: Titel und Knöpfe bleiben stehen, nur das Formular scrollt`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/rechnungen/neu");
+    // Öffnen und Abbrechen: geschrieben wird nichts
+    await page.getByRole("button", { name: "Neuen Kontakt anlegen" }).click();
+    const dialog = page.getByRole("dialog", { name: "Neuen Kunden anlegen" });
+    const titel = dialog.getByRole("heading", { name: "Neuen Kunden anlegen" });
+    const anlegen = dialog.getByRole("button", { name: "Kontakt anlegen" });
+    await sichtbar(titel);
+    await sichtbar(anlegen);
+    // Wie der Seitenkopf: Der Titel hat die Größe der Seitentitel, nicht die einer Abschnittsüberschrift
+    const groesse = (el: Locator) => el.evaluate((e) => Number.parseFloat(getComputedStyle(e).fontSize));
+    expect(await groesse(titel)).toBeGreaterThan(await groesse(dialog.getByRole("heading", { name: "Allgemein" })));
+    expect(await groesse(titel)).toBeGreaterThanOrEqual(20);
+
+    const unten = dialog.locator(".form-section select").last();
+    await unten.focus();
+    await sichtbar(titel);
+    await sichtbar(anlegen);
+    await sichtbar(dialog.getByRole("button", { name: "Abbrechen" }));
+    await sichtbar(unten);
+    // Rückwärts tabben: kein Feld mit Fokus liegt unter dem Titel oder den Knöpfen
+    for (let i = 0; i < 8; i++) {
+      await page.keyboard.press("Shift+Tab");
+      const fokus = page.locator(":focus");
+      await sichtbar(fokus);
+    }
+    await dialog.getByRole("button", { name: "Abbrechen" }).click();
+    await expect(dialog).toBeHidden();
+  });
+}
