@@ -27,9 +27,20 @@ Bevor du die erste Rechnung festschreibst, brauchst du:
 10. Optional einen **Hinweis auf der Rechnung** eintragen (Fußtext unter den Summen, bis 2000 Zeichen), auch aus einem Textbaustein.
 11. **Entwurf speichern** oder direkt **Festschreiben**. Das Festschreiben fragt einmal nach: erst der zweite Klick auf **Jetzt festschreiben** führt es aus.
 
-Rechts zeigt die Vorschau die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
+Die [Vorschau](#vorschau) zeigt die Rechnung, während du tippst. Die Überschrift im Editor nennt die Nummer, die die Rechnung voraussichtlich bekommt; vergeben wird sie erst beim Festschreiben.
 
 Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**. Das geht nur, solange er nicht festgeschrieben ist.
+
+### Vorschau
+
+**Vorschau** im Kopf des Editors zeigt die Rechnung so, wie sie gerade im Formular steht, groß über dem Formular. **Schließen**, Esc oder ein Klick daneben bringt dich an dieselbe Stelle im Formular zurück; Eingaben und Scrollposition bleiben.
+
+Ist das Fenster breit genug für Formular und Vorschau nebeneinander, öffnet der Pfeil neben **Vorschau** ein Menü:
+
+- **Neben Formular anheften** stellt die Vorschau rechts neben das Formular. Sie bleibt beim Scrollen stehen und scrollt selbst, wenn die Rechnung länger ist als das Fenster. **Vergrößern** öffnet sie groß über dem Formular, **Ausblenden** gibt dem Formular wieder die volle Breite.
+- **Vorschau abheften** macht dasselbe wie **Ausblenden**.
+
+Haben merkt sich die Wahl in diesem Browser, für Rechnungen und Angebote gemeinsam; auf einem anderen Gerät gilt sie nicht. Ohne Wahl ist die Vorschau auf einem großen Bildschirm angeheftet, auf dem Laptop öffnet sie über dem Formular. Am Handy und in schmalen Fenstern gibt es nur die große Ansicht über dem Formular; eine angeheftete Vorschau kommt zurück, sobald das Fenster wieder breit genug ist.
 
 ### Entwurf als PDF
 
