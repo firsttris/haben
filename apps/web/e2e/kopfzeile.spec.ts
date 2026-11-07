@@ -91,3 +91,17 @@ test("Saldenliste: der Tabellenkopf steht unter dem Seitenkopf, nicht dahinter",
   expect(oben).toBeGreaterThanOrEqual((await kopfUnterkante(page)) - 1);
   await sichtbar(th);
 });
+
+test("Festschreiben im stehenden Kopf: die Rückfrage erscheint dort, wo geklickt wurde", async ({ page }) => {
+  await page.setViewportSize(LAPTOP);
+  await page.goto("/rechnungen/neu");
+  await page.getByLabel("Kunde").selectOption({ index: 1 });
+  await page.getByLabel("Beschreibung Position 1").fill("Beratung");
+  await page.getByLabel("Menge Position 1").fill("1");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("100");
+  await zumEnde(page);
+  // Nur der erste Klick: er fragt nach, geschrieben wird nichts
+  await page.locator(".main > .page-head").getByRole("button", { name: "Festschreiben" }).click();
+  await expect(page.getByRole("button", { name: "Jetzt festschreiben" })).toBeVisible();
+  await sichtbar(page.getByRole("alert").filter({ hasText: "Noch einmal klicken zum Festschreiben" }));
+});
