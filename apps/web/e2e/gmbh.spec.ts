@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
+import { vorschauAnheften } from "./daten.ts";
 
 /**
  * Eine GmbH in eigener, leerer Datenbank (Projekt „gmbh“ in playwright.config.ts, eigener Server): einrichten mit
@@ -19,7 +20,9 @@ const pageErrors: string[] = [];
 
 test.beforeAll(async ({ browser }) => {
   // axe braucht einen eigenen Kontext, nicht browser.newPage()
-  page = await (await browser.newContext()).newPage();
+  const context = await browser.newContext();
+  await vorschauAnheften(context);
+  page = await context.newPage();
   page.on("pageerror", (error) => pageErrors.push(error.message));
 });
 

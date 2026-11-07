@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { type Browser, expect, type Page } from "@playwright/test";
-import { day, USER } from "./daten.ts";
+import { day, USER, vorschauAnheften } from "./daten.ts";
 
 /**
  * Was die Durchläufe app.spec.ts, rechnungen.spec.ts und belege-steuern.spec.ts gemeinsam brauchen (e2e/durchlaeufe.ts):
@@ -44,7 +44,9 @@ const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-prac
  * Kontext statt browser.newPage(), sonst lehnt axe die Seite ab.
  */
 export async function durchlaufSeite(browser: Browser): Promise<{ page: Page; pageErrors: string[] }> {
-  const page = await (await browser.newContext()).newPage();
+  const context = await browser.newContext();
+  await vorschauAnheften(context);
+  const page = await context.newPage();
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   // Ungültige SVG-Werte (etwa NaN in einem Diagramm) meldet der Browser nur in der Konsole, nicht als Seitenfehler
