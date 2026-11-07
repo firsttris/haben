@@ -114,6 +114,7 @@ for (const [device, viewport] of [
         await page.waitForLoadState("networkidle");
         await page.getByRole("button", { name: "Menü" }).click();
         await expect(page.getByRole("link", { name: "Konten" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Dokumentation" })).toHaveAttribute("href", "https://firsttris.github.io/haben/");
         await page.screenshot({ path: `${SHOTS}/mobil/00-menue.png` });
         await page.getByRole("link", { name: "Konten" }).click();
         await page.waitForURL(/\/konten/);
