@@ -186,7 +186,7 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
     ]);
     expect(vouchers.every((v) => v.contact_id)).toBe(true);
     expect(vouchers[1]!.taxes).toEqual([{ rate: 700, net: 20000, tax: 1400 }]);
-    expect(vouchers[0]!.payment).toMatchObject({ openAmount: 0, paidDate: null, items: [] });
+    expect(vouchers[0]!.payment).toMatchObject({ openAmount: 0, paidDate: "2024-03-20", items: [] });
     const [file] =
       await sql`select filename, mime_type, role from lexoffice_voucher_files f join lexoffice_vouchers v on v.id = f.voucher_id where v.number = 'RE-1001'`;
     expect(file).toMatchObject({ filename: "101.pdf", mime_type: "application/pdf", role: "pdf" });
@@ -218,7 +218,6 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Übernahme (Postgres)", () => {
     const items = await legacy.openLegacyItems();
     expect(items.map((i) => [i.number, i.open, i.blocker])).toEqual([
       ["B-2024-17", 11900, null],
-      ["RE-1001", 0, expect.stringMatching(/Zahlungshistorie/)],
       ["RE-1002", 21400, null],
     ]);
   });

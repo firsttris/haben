@@ -58,13 +58,16 @@ Reverse Charge lässt sich ohne weitere Angaben nicht eindeutig Kz 21 oder Kz 60
 
 ### Zahlungen
 
-Der aktuelle Abruf übernimmt den Zahlungsstand (`paidAmount`) als Quellsaldo. Einzelne Zahlungen mit verlässlicher Belegzuordnung werden noch nicht abgerufen. Haben erzeugt deshalb daraus keine Zahlung am letzten Zahldatum oder ersatzweise am Belegdatum.
+Der aktuelle Abruf übernimmt den Zahlungsstand (`paidAmount`) als Quellsaldo. Einzelne Zahlungen mit verlässlicher Belegzuordnung werden noch nicht abgerufen. Haben erzeugt deshalb daraus keine Zahlung am letzten Zahldatum oder ersatzweise am Belegdatum. Bei vollständig bezahlten Vorgängen übernimmt Haben das Zahldatum (`payDate`) als „bezahlt am“; laut [sevDesk-OpenAPI](https://api.sevdesk.de/openapi.yaml) ist das der Tag, an dem der Vorgang bezahlt wurde. Danach liegt keine Zahlung mehr.
 
-Sobald ein sevDesk-Vorgang bereits Zahlungen enthält, ist sein historischer Stand am Wechselstichtag **unklar** und die aktive Übernahme gesperrt. Das gilt auch bei heute vollständig bezahlten Rechnungen: Sie könnten am Stichtag noch offen oder teilweise bezahlt gewesen sein. Solche Vorgänge bleiben im Archiv sichtbar; in der Stichtagsliste steht statt eines vermeintlich genauen offenen Betrags „Unklar“.
+Sobald ein sevDesk-Vorgang bereits Zahlungen enthält, ist offen, wann sie bis zu diesem Tag eingingen. Für den [Stichtag](lexoffice.md#stichtag) heißt das:
 
-Bei **Ist-Versteuerung** sperrt Haben den gesamten monatlichen Altbestandsabgleich, sobald betriebliche sevDesk-Einnahmen mit unvollständiger Zahlungshistorie vorhanden sind. Auch die zahlungsbezogene Zeitraumabfrage für KI-Assistenten wird dann abgelehnt. Die Prüfung des Jahres bleibt offen. Bei **Soll-Versteuerung** bleibt der Abgleich nach Belegdatum verfügbar; der Stichtagsschutz gilt unabhängig davon. Quellbeträge und Originaldateien werden weiter archiviert.
+- **Vor dem Stichtag vollständig bezahlt:** Der Vorgang war am Stichtag sicher bezahlt und erscheint nicht unter den offenen Posten.
+- **Erst nach dem Stichtag vollständig bezahlt, teilweise bezahlt oder ohne Zahldatum:** Der Stand am Stichtag ist **unklar**, die aktive Übernahme gesperrt. In der Stichtagsliste steht statt eines vermeintlich genauen offenen Betrags „Unklar“.
 
-Der Schutz greift auch für bereits importierte, zu einer Zahlung verdichtete Daten. Ihre gespeicherten Originaldaten bleiben unverändert; die Verdichtung erscheint nicht mehr als belegte Einzelzahlung. Eine verlässliche Zahlungsrekonstruktion und die Reparatur bereits aktiv übernommener Posten sind noch nicht umgesetzt. Bereits übernommene Posten mit dem sevDesk-Bestand abgleichen; Haben korrigiert ihre versiegelten Buchungen nicht rückwirkend.
+Bei **Ist-Versteuerung** sperrt Haben den monatlichen Altbestandsabgleich für jedes Jahr, in das eine solche Zahlung fallen kann: bei vollständig bezahlten Vorgängen alle Jahre bis zum Zahldatum, bei Teilzahlungen und ohne Zahldatum alle Jahre. Spätere Jahre, etwa nach einem Wechsel von sevDesk zu Lexoffice, bleiben im Abgleich. Ebenso lehnt die zahlungsbezogene Zeitraumabfrage für KI-Assistenten nur Zeiträume ab, in die eine solche Zahlung fallen kann. Die Prüfung eines gesperrten Jahres bleibt offen. Bei **Soll-Versteuerung** bleibt der Abgleich nach Belegdatum verfügbar; der Stichtagsschutz gilt unabhängig davon. Quellbeträge und Originaldateien werden weiter archiviert.
+
+Der Schutz greift auch für bereits importierte, zu einer Zahlung verdichtete Daten; das Zahldatum liest Haben dort aus den gespeicherten sevDesk-Originaldaten. Diese bleiben unverändert; die Verdichtung erscheint nicht mehr als belegte Einzelzahlung. Eine verlässliche Zahlungsrekonstruktion und die Reparatur bereits aktiv übernommener Posten sind noch nicht umgesetzt. Bereits übernommene Posten mit dem sevDesk-Bestand abgleichen; Haben korrigiert ihre versiegelten Buchungen nicht rückwirkend.
 
 ### Was die API nicht liefert
 

@@ -26,7 +26,7 @@ import type { LegacyCategoryRow } from "../../db/schema.ts";
 import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
-import { paymentHistoryIssue } from "./payment-history.ts";
+import { paymentHistoryIssue, settledOn } from "./payment-history.ts";
 
 export class TakeoverError extends UserError {}
 
@@ -172,6 +172,10 @@ export async function openItemsOverview(
   return { cutoff, cutoffError, items: await itemsAt(cutoff.date) };
 }
 
+function sevPayDate(raw: Record<string, unknown>): string | null {
+  return typeof raw.payDate === "string" ? raw.payDate : null;
+}
+
 async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   const vouchers = await db
     .select()
@@ -198,9 +202,14 @@ async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   const candidates = vouchers
     .map((v) => {
       const issue = paymentHistoryIssue(v);
-      const state = issue
-        ? { open: Math.abs(v.payment?.openAmount ?? v.gross), paidAfter: 0, issue }
-        : legacyOpenAt(v, v.date <= cutoff ? cutoff : TODAY_STATE);
+      const settled = issue ? settledOn({ ...v, payDate: sevPayDate(v.raw) }) : null;
+      // Vor dem Stichtag ausgeglichen (oder heute ausgeglichen bei Belegen danach): sicher bezahlt, nichts offen
+      const state =
+        settled && (settled <= cutoff || v.date > cutoff)
+          ? { open: 0, paidAfter: 0, issue: null }
+          : issue
+            ? { open: Math.abs(v.payment?.openAmount ?? v.gross), paidAfter: 0, issue }
+            : legacyOpenAt(v, v.date <= cutoff ? cutoff : TODAY_STATE);
       return { voucher: v, state, takenOver: takenOverOf(v.id) };
     })
     .filter((c) => c.state.open > 0 || c.state.issue || c.takenOver);

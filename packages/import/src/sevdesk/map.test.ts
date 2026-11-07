@@ -114,7 +114,7 @@ describe("mapSevInvoice", () => {
     expect(payment).toEqual({
       status: "balanced",
       openAmount: 0,
-      paidDate: null,
+      paidDate: "2024-03-12",
       items: [],
     });
   });

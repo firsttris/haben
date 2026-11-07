@@ -37,10 +37,14 @@ describe.skipIf(!testDatabaseUrl)("Review #348: Reichweite der Sperre (Postgres)
     await sql?.end();
   });
 
-  it("rechnet den Ist-Abgleich für ein Jahr nach dem letzten sevDesk-Zahldatum weiter", async () => {
-    const year = (await archive.reconciliation()).years.find((y) => y.year === 2025)!;
+  it.each(["SKR03", "SKR04"])("rechnet den Ist-Abgleich für ein Jahr nach dem letzten sevDesk-Zahldatum weiter (%s)", async (kontenrahmen) => {
+    await sql`update company set kontenrahmen = ${kontenrahmen} where id = 1`;
+    const years = (await archive.reconciliation()).years;
+    const year = years.find((y) => y.year === 2025)!;
     expect(year.vatIssue).toBeNull();
     expect(year.vat.find((m) => m.month === "2025-05")).toMatchObject({ kz81: 20000, tax81: 3800 });
+    // Das Jahr der sevDesk-Zahlung selbst bleibt gesperrt
+    expect(years.find((y) => y.year === 2024)!.vatIssue).toMatch(/Zahlungshistorie/);
   });
 
   it("liefert dem Assistenten Zahlungen eines Zeitraums nach dem letzten sevDesk-Zahldatum", async () => {
@@ -51,5 +55,16 @@ describe.skipIf(!testDatabaseUrl)("Review #348: Reichweite der Sperre (Postgres)
   it("zeigt eine vor dem Stichtag vollständig bezahlte sevDesk-Rechnung nicht als offenen Posten", async () => {
     const items = await legacy.openLegacyItems("2024-12-31");
     expect(items.map((i) => i.number)).not.toContain("SD-1");
+  });
+
+  it("lässt eine erst nach dem Stichtag ausgeglichene sevDesk-Rechnung unklar und gesperrt", async () => {
+    const item = (await legacy.openLegacyItems("2024-03-10")).find((i) => i.number === "SD-1")!;
+    expect(item).toMatchObject({ openKnown: false, blocker: expect.stringMatching(/Zahlungshistorie/) });
+  });
+
+  it("sperrt die MCP-Zeitraumabfrage weiter für den Monat der sevDesk-Zahlung", async () => {
+    await expect(archive.legacyVouchersForPeriod({ period: "2024-03", direction: "alle", search: "", withPayments: true, limit: 100 })).rejects.toThrow(
+      /Zahlungshistorie/,
+    );
   });
 });

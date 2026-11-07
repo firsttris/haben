@@ -1,5 +1,5 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
-import { paymentHistoryIssue, visiblePayment } from "./payment-history.ts";
+import { paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import {
   datevYearSums,
   LexofficeApiError,
@@ -440,6 +440,7 @@ export async function legacyVoucherDetail(id: string) {
       taxes: schema.lexofficeVouchers.taxes,
       categories: schema.lexofficeVouchers.categories,
       payment: schema.lexofficeVouchers.payment,
+      payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
       remark: schema.lexofficeVouchers.remark,
       createdAt: schema.lexofficeVouchers.createdAt,
     })
@@ -521,6 +522,7 @@ export async function reconciliation() {
       taxes: schema.lexofficeVouchers.taxes,
       categories: schema.lexofficeVouchers.categories,
       payment: schema.lexofficeVouchers.payment,
+      payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
       taxType: TAX_TYPE,
       taxSubType: TAX_SUB_TYPE,
       ohneBeleg: WITHOUT_RECEIPT,
@@ -534,9 +536,9 @@ export async function reconciliation() {
   const classified = voucherRows.map((v) => ({ ...v, neutral: neutralKindOf(v, company.rechtsform) }));
   const businessRows = classified.filter((v) => !v.neutral);
   // Ohne Einzelzahlungen können selbst bereits vollständig bezahlte sevDesk-Rechnungen mehrere Monate betreffen.
-  // Bis zur Klärung bleibt der gesamte Ist-Monatsabgleich gesperrt, auch über Jahresgrenzen hinweg.
-  const vatIssue =
-    versteuerung === "ist" && businessRows.some((v) => v.direction === "einnahme" && paymentHistoryIssue(v))
+  // Gesperrt ist jedes Jahr, in das eine solche Zahlung fallen kann: bis zum Ausgleich, ohne Ausgleichsdatum alle.
+  const vatIssueOf = (year: number) =>
+    versteuerung === "ist" && businessRows.some((v) => v.direction === "einnahme" && unclearFrom(v, String(year)))
       ? "sevDesk-Zahlungshistorie unvollständig: Der Ist-Monatsabgleich ist bis zur Klärung der Einzelzahlungen gesperrt."
       : null;
 
@@ -595,6 +597,7 @@ export async function reconciliation() {
       const bookings = bookingRows.find((b) => Number(b.year) === year);
       const kinds = (kind: string) => files.filter((f) => f.year === year && f.kind === kind).length;
       // Ist-Versteuerung: Zahlungen aus dem Zahlungsstatus; sonst Belegdatum
+      const vatIssue = vatIssueOf(year);
       const vat = vatIssue
         ? []
         : legacyVatByMonth(
@@ -729,8 +732,17 @@ export async function legacyVouchersForPeriod(filter: {
   limit: number;
 }): Promise<{ total: number; vouchers: LegacyVoucherForVat[]; neutral: LegacyNeutralSum[] }> {
   if (filter.withPayments) {
-    const sevdeskRows = await db.select().from(schema.lexofficeVouchers).where(eq(schema.lexofficeVouchers.source, "sevdesk"));
-    if (sevdeskRows.some((v) => paymentHistoryIssue(v))) {
+    const sevdeskRows = await db
+      .select({
+        source: schema.lexofficeVouchers.source,
+        gross: schema.lexofficeVouchers.gross,
+        status: schema.lexofficeVouchers.status,
+        payment: schema.lexofficeVouchers.payment,
+        payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
+      })
+      .from(schema.lexofficeVouchers)
+      .where(eq(schema.lexofficeVouchers.source, "sevdesk"));
+    if (sevdeskRows.some((v) => unclearFrom(v, filter.period))) {
       throw new LexofficeError(
         "sevDesk-Zahlungshistorie unvollständig: Eine zahlungsbezogene Zeitraumabfrage ist bis zur Klärung der Einzelzahlungen gesperrt.",
       );

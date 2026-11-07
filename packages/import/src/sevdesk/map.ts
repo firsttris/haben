@@ -134,8 +134,12 @@ function positionAmounts(p: SevDocumentPos | SevVoucherPos): { net: number; tax:
 
 const PAID = 1000;
 
-/** Zahlungsstand ohne erfundene Einzelzahlungen: paidAmount/payDate belegen keine zeitliche Aufteilung. */
-function payments(statusCode: number, gross: number, paidAmount: string | number | null | undefined): ImportedPayments {
+/**
+ * Zahlungsstand ohne erfundene Einzelzahlungen: paidAmount/payDate belegen keine zeitliche Aufteilung. Ausgeglichen
+ * ist payDate laut sevDesk-OpenAPI der Tag der Zahlung (https://api.sevdesk.de/openapi.yaml) und wird paidDate;
+ * fehlt es, bleibt paidDate leer statt des Belegdatums.
+ */
+function payments(statusCode: number, gross: number, paidAmount: string | number | null | undefined, payDate: string | null | undefined): ImportedPayments {
   const absGross = Math.abs(gross);
   let paid = Math.min(Math.abs(cents(paidAmount)), absGross);
   if (statusCode === PAID) paid = absGross;
@@ -143,7 +147,7 @@ function payments(statusCode: number, gross: number, paidAmount: string | number
   return {
     status: open === 0 ? "balanced" : paid > 0 ? "partlyPaid" : "open",
     openAmount: Math.sign(gross) * open + 0,
-    paidDate: null,
+    paidDate: open === 0 ? lexDate(payDate) : null,
     items: [],
   };
 }
@@ -215,7 +219,7 @@ export function mapSevInvoice(i: SevInvoice, positions: SevDocumentPos[]): SevMa
       fileIds: [],
       remark: i.customerInternalNote?.trim() ?? "",
     },
-    payment: payments(status, gross, i.paidAmount),
+    payment: payments(status, gross, i.paidAmount, i.payDate),
   };
 }
 
@@ -261,7 +265,7 @@ export function mapSevCreditNote(c: SevCreditNote, positions: SevDocumentPos[]):
       fileIds: [],
       remark: c.customerInternalNote?.trim() ?? "",
     },
-    payment: payments(status, gross, c.paidAmount),
+    payment: payments(status, gross, c.paidAmount, c.payDate),
   };
 }
 
@@ -328,6 +332,6 @@ export function mapSevVoucher(v: SevVoucher, positions: SevVoucherPos[]): SevMap
       fileIds: documentId ? [documentId] : [],
       remark: "",
     },
-    payment: payments(status, gross, v.paidAmount),
+    payment: payments(status, gross, v.paidAmount, v.payDate),
   };
 }
