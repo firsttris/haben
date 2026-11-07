@@ -146,6 +146,9 @@ describe.skipIf(!testDatabaseUrl)("Festschreiben: PDF und XML vor der Sperre der
     const created = await invoices.createDraft(actor, draft());
     let change: Promise<string> | undefined;
     rendering.hook = async () => {
+      // Nur beim ersten Festschreiben: Sonst startete das zweite unten ein weiteres setNextNumber, auf das niemand
+      // wartet und das noch läuft, wenn der nächste Test die Tabellen leert (Deadlock mit TRUNCATE)
+      rendering.hook = null;
       // Während gerendert wird, hält das Festschreiben den Nummernkreis; setNextNumber wartet bis zum Commit
       change = invoices.setNextNumber(actor, `${year}-01-15`, 1).then(
         () => "gesetzt",
