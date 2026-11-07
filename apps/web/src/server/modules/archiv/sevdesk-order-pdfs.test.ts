@@ -120,6 +120,15 @@ describe.skipIf(!testDatabaseUrl)("sevdesk-Auftrags-PDFs nur für geprüfte Buch
     expect((await sevdesk.latestSevdeskImport())!.progress.failed).toHaveLength(1);
   });
 
+  it("meldet ein übernommenes Dokument ohne PDF als „Dokument importiert, PDF fehlt“", async () => {
+    pdfError = 503;
+    await sevdesk.startSevdeskImport("test-user", { wait: true });
+    const { progress } = (await sevdesk.latestSevdeskImport())!;
+    expect((await sql`select count(*)::int as n from legacy_order_documents where external_id = ${ids[0]!}`)[0]!.n).toBe(1);
+    expect(progress.imported).toBeGreaterThanOrEqual(1);
+    expect(progress.failed).toMatchObject([{ lexofficeId: `order/${ids[0]}`, message: expect.stringMatching(/^Dokument importiert, PDF fehlt: /) }]);
+  });
+
   it("ordnet einen seit Archivierung veränderten Quellstand keinem alten Dokument zu", async () => {
     version = "2.0";
     await sevdesk.startSevdeskImport("test-user", { wait: true });
