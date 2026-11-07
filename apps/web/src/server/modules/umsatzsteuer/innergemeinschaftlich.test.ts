@@ -279,6 +279,8 @@ describe.skipIf(!testDatabaseUrl)("Innergemeinschaftlicher Erwerb, Lieferung und
     const sep = await figures.computeVatFigures({ year: 2026, month: 9 });
     expect(sep).toMatchObject({ kz89: 200_000, tax89: 38_000, kz93: 10_000, tax93: 700, kz61: 38_700 });
 
+    // September schon gemeldet: der Storno steht im Oktober
+    await sql`insert into vat_returns (year, month, status, source, sent_at, locked_at) values (2026, 9, 'sent', 'manuell', now(), now())`;
     await cancellation.cancelDocument(actor, buch, { reason: "Falsch erfasst" }, "2026-10-05");
     const oct = await figures.computeVatFigures({ year: 2026, month: 10 });
     expect(oct).toMatchObject({ kz93: -10_000, tax93: -700, kz61: -700 });

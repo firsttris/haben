@@ -475,10 +475,10 @@ test("Beleg stornieren und neu erfassen: Gegenbuchung, Hinweis am Beleg, Entwurf
   await expect(page.getByText(/Gebucht .*festgeschrieben/)).toBeVisible();
 
   await page.getByRole("button", { name: "Beleg stornieren" }).click();
-  await expect(page.getByRole("alert")).toContainText("bucht den Beleg mit heutigem Datum zurück");
+  await expect(page.getByRole("alert")).toContainText(/bucht den Beleg zum \d{2}\.\d{2}\.\d{4} zurück/);
   await page.getByLabel("Grund (optional)").fill("Brutto als Netto erfasst");
   await page.getByRole("button", { name: "Jetzt stornieren" }).click();
-  await expect(page.getByText(/Storniert am .* Grund: Brutto als Netto erfasst/)).toBeVisible();
+  await expect(page.getByText(/Storniert mit einer Gegenbuchung zum .* Grund: Brutto als Netto erfasst/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Gegenbuchung" })).toBeVisible();
   await expect(page.locator(".page-head").getByText("Storniert", { exact: true })).toBeVisible();
   expect(await axe(), "/belege/… storniert").toEqual([]);

@@ -54,7 +54,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg aufteilen (Postgres)", () => {
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll", kleinunternehmer = false) {
-    await sql`truncate document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
+    await sql`truncate document_cancellations, vat_returns, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
       asset_depreciations, assets, journal_lines, journal_entries, document_splits, document_amounts, documents, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, versteuerung, kontenrahmen, kleinunternehmer)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${versteuerung}, ${kontenrahmen}, ${kleinunternehmer})`;
@@ -190,6 +190,8 @@ describe.skipIf(!testDatabaseUrl)("Beleg aufteilen (Postgres)", () => {
         await reset(kontenrahmen, versteuerung);
         const id = await draft({ payment: "privat" });
         await documents.bookDocument(actor, id);
+        // September schon gemeldet: der Storno steht im Oktober
+        await sql`insert into vat_returns (year, month, status, source, sent_at, locked_at) values (2026, 9, 'sent', 'manuell', now(), now())`;
         await cancellation.cancelDocument(actor, id, { reason: "Falsch aufgeteilt" }, "2026-10-05");
 
         const balances = await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l join journal_entries e on e.id = l.entry_id
