@@ -5,6 +5,8 @@ import { ExtractionError } from "./extraction-schema.ts";
 const base: Extraction = {
   lieferant: " Hetzner Online GmbH ",
   lieferantUstId: "de 812871812",
+  empfaenger: null,
+  empfaengerUstId: null,
   rechnungsnummer: "R0018834512",
   belegdatum: "2026-09-30",
   faelligAm: null,

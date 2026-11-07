@@ -37,6 +37,7 @@ Erlaubt sind PDF, JPEG, PNG, WebP, HEIC und E-Rechnungs-XML bis 20 MB je Datei. 
 3. **Keine Dubletten.** Gibt es schon einen Beleg mit demselben Hash, entsteht kein zweiter; du landest beim vorhandenen.
 4. **E-Rechnung lesen.** Bei PDF und XML versucht Haben zuerst, eine E-Rechnung zu lesen (siehe unten).
 5. **KI-Auslesung.** Ist es keine E-Rechnung und ist die KI-Auslesung eingerichtet (Claude oder ein eigenes Modell), startet für PDF, JPEG, PNG und WebP die Auslesung im Hintergrund. Der Beleg zeigt solange „Wird ausgelesen“, Liste und Detailseite aktualisieren sich selbst.
+6. **Eigene Rechnung erkennen.** Bei jedem Weg prüft Haben, ob du gerade eine eigene Ausgangsrechnung hochgeladen hast, und schlägt dann keine Ausgabe vor (siehe [Eigene Ausgangsrechnung erkennen](#eigene-ausgangsrechnung-erkennen)).
 
 Ohne E-Rechnung und ohne KI füllst du die Felder von Hand aus.
 
@@ -145,7 +146,7 @@ Die KI-Auslesung ist optional. Sie liest entweder Claude über die Anthropic-API
 
 **Was gesendet wird:** die Belegdatei selbst zusammen mit einer festen Anweisung und der Liste der Ausgabenkategorien. Sonst nichts aus deiner Buchhaltung. An Claude geht ein PDF als Dokument, JPEG, PNG oder WebP als Bild. An einen OpenAI-kompatiblen Dienst gehen Fotos als Bild und PDFs als Seitenbilder, die Haben vorher auf dem Server erzeugt (höchstens `EXTRACTION_MAX_PAGES` Seiten, Standard 4). HEIC-Fotos und XML-Dateien gehen nicht an die KI.
 
-**Was zurückkommt:** bei beiden Anbietern dasselbe feste Schema mit Lieferant, USt-IdNr., Rechnungsnummer, Belegdatum, Fälligkeit, Währung, Netto und Steuer je Steuersatz, Bruttobetrag, Kategorie, ob es eine Gutschrift ist, und einem Hinweis bei Unklarheiten. Die Anweisung verlangt, nur zu übernehmen, was auf dem Beleg steht, und nichts zu raten. Beim eigenen Modell verlangt Haben das Schema als strukturierte Ausgabe (JSON-Schema); kann der Dienst das nicht, prüft Haben die Antwort selbst. Passt sie nicht zum Schema, steht „Die Antwort des KI-Dienstes passt nicht zum Belegschema“ am Beleg, und es werden keine Felder übernommen.
+**Was zurückkommt:** bei beiden Anbietern dasselbe feste Schema mit Lieferant, USt-IdNr., Rechnungsempfänger und dessen USt-IdNr., Rechnungsnummer, Belegdatum, Fälligkeit, Währung, Netto und Steuer je Steuersatz, Bruttobetrag, Kategorie, ob es eine Gutschrift ist, und einem Hinweis bei Unklarheiten. Die Anweisung verlangt, nur zu übernehmen, was auf dem Beleg steht, und nichts zu raten. Beim eigenen Modell verlangt Haben das Schema als strukturierte Ausgabe (JSON-Schema); kann der Dienst das nicht, prüft Haben die Antwort selbst. Fehlen in der Antwort nur Rechnungsempfänger und dessen USt-IdNr., gelten sie als unbekannt. Passt sie sonst nicht zum Schema, steht „Die Antwort des KI-Dienstes passt nicht zum Belegschema“ am Beleg, und es werden keine Felder übernommen.
 
 Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
 
@@ -158,6 +159,25 @@ Haben prüft die Antwort und zeigt Auffälligkeiten als Hinweis am Beleg:
 Die KI bucht nie selbst. Jeder ausgelesene Beleg bleibt im Status „Zu prüfen“, bis du ihn mit **Bestätigen und buchen** bestätigst. Mit **Mit KI neu auslesen** kannst du die Auslesung wiederholen, solange der Beleg nicht gebucht ist; dabei werden die Felder überschrieben und eine Aufteilung auf mehrere Kategorien verworfen. Fehler (ungültiger Schlüssel, Auslastung, keine Verbindung, Zeitüberschreitung, unbekanntes Modell, Antwort im falschen Format, abgelehnte Auslesung) stehen am Beleg, der dann den Status „Prüfen“ trägt.
 
 Bei der Kategorie haben die gebuchten Belege desselben Lieferanten Vorrang vor dem Vorschlag der KI: Haben nimmt die Kategorie, unter der sie am häufigsten gebucht sind, bei Gleichstand die zuletzt gebuchte. So wechselt der Vorschlag nicht, nur weil ein Lieferant wie Amazon einmal etwas anderes geliefert hat. Erkannt wird der Lieferant an der USt-IdNr. oder am Namen (ohne Groß- und Kleinschreibung). Unter dem Feld **Kategorie** steht, wie oft, etwa „Bisher 7 von 9 Belegen als Software und Lizenzen gebucht“; hast du eine andere gewählt, übernimmst du die bisherige mit **übernehmen**.
+
+## Eigene Ausgangsrechnung erkennen
+
+Lädst du eine Rechnung hoch, die du selbst ausgestellt hast, etwa das PDF aus einem Shop oder einem anderen Rechnungsprogramm, ist das keine Ausgabe. Haben erkennt solche Belege und schreibt dann an den Beleg „Das ist eine eigene Ausgangsrechnung, keine Ausgabe“ mit den Gründen dafür. Eine Kategorie wird nicht vorgeschlagen, auch nicht die der bisherigen Belege desselben „Lieferanten“. Gebucht oder gelöscht wird nichts: Der Beleg bleibt „Zu prüfen“. Ist es doch ein Eingangsbeleg, trägst du Kategorie und Beträge von Hand ein. Ausgangsrechnungen aus anderen Systemen als offene Posten zu übernehmen ist ein eigenes Vorhaben (Roadmap S5).
+
+Verglichen wird mit den [Firmendaten](einrichtung.md): USt-IdNr., Steuernummer (wie eingetragen und im ELSTER-Format), IBAN, Firmenname und PLZ. Fehlt dort eine Angabe, trägt sie nichts bei.
+
+Haben sammelt dafür Hinweise und gewichtet sie. Je nach Stärke steht am Beleg „eine eigene Ausgangsrechnung“ (sicher) oder „vermutlich eine eigene Ausgangsrechnung“; schwache oder widersprüchliche Hinweise ergeben keinen Hinweis am Beleg.
+
+| Quelle | Spricht für eine eigene Rechnung | Spricht dagegen |
+| --- | --- | --- |
+| E-Rechnung (XML) | Deine USt-IdNr. (BT-31), Steuernummer (BT-32) oder IBAN beim Verkäufer; dein Name als Verkäufer | Deine USt-IdNr. oder dein Name beim Käufer (BT-44, BT-48); eine andere USt-IdNr. beim Verkäufer |
+| KI-Auslesung | Deine Firma oder USt-IdNr. als Rechnungssteller | Deine Firma oder USt-IdNr. als Rechnungsempfänger |
+| Text im PDF | Deine Steuernummer; deine USt-IdNr. oder IBAN in der Fußzeile, im Briefkopf, im Informationsblock neben dem Anschriftfeld oder mit „Unsere USt-IdNr.“, „Bankverbindung“, „Amtsgericht“, „HRB“ davor; dein Name in Fußzeile oder Absenderzeile | Deine USt-IdNr. mit „Ihre USt-IdNr.“, „Kunden-USt-IdNr.“, „Leistungsempfänger“, „Customer VAT“ davor oder im Rumpf; deine IBAN bei „Lastschrift“, „Mandat“ oder „abgebucht“, außerhalb der Fußzeile auch, wenn der Einzugstext einige Zeilen darüber steht; dein Name im Anschriftfeld; eine andere USt-IdNr. oder Steuernummer in der Fußzeile, etwa bei einer Rechnung der Steuerberatung mit deiner Steuernummer im Betreff |
+| Rechnungen in Haben | Eine festgeschriebene Rechnung mit derselben Nummer und demselben Bruttobetrag | – |
+
+Den Text eines PDFs liest Haben mit `pdftotext` aus poppler-utils (im Image enthalten) samt der Lage jeder Zeile auf der Seite. Deutsche Geschäftsbriefe tragen die Angaben des Absenders in der Fußzeile und in der Absenderzeile über dem Anschriftfeld (DIN 5008); deine eigene USt-IdNr. kann aber auch auf Rechnungen an dich stehen, etwa mit Reverse Charge. Darum zählt nicht, *dass* sie auf dem Beleg steht, sondern *wo* und mit welcher Beschriftung. Als Beschriftung gilt der Text davor auf derselben Zeile oder eine Zeile darüber ohne Ziffern; „Kundennummer: 10042“ über deiner USt-IdNr. ist eine eigene Angabe, keine Beschriftung. Gescannte PDFs ohne Textebene und Fotos prüft Haben nur über die KI-Auslesung. Der Text geht nicht an die KI; er bleibt auf dem Server.
+
+Die Erkennung läuft auch ohne KI-Auslesung: Ein PDF mit Textebene wird dann allein am Text geprüft. Welche Hinweise gezählt haben, steht mit ihrer Gewichtung in den ausgelesenen Daten des Belegs (`eigeneRechnung`).
 
 ## Kategorien
 

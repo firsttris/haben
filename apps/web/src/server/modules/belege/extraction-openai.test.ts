@@ -12,6 +12,8 @@ const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 const ANSWER: Extraction = {
   lieferant: "Hetzner Online GmbH",
   lieferantUstId: "DE812871812",
+  empfaenger: null,
+  empfaengerUstId: null,
   rechnungsnummer: "R0018834512",
   belegdatum: "2026-09-30",
   faelligAm: null,
@@ -241,5 +243,12 @@ describe("Antwort ohne strukturierte Ausgabe lesen", () => {
 
   it("lehnt einen unbekannten Steuersatz ab", () => {
     expect(() => parseExtraction(JSON.stringify({ ...ANSWER, betraege: [{ steuersatz: 16, netto: "1", steuer: "0.16" }] }))).toThrow(/Belegschema/);
+  });
+
+  // Zweites TDD-Review PR #363: Eine Antwort, die vor der Erkennung eigener Rechnungen gültig war, bleibt gültig
+  it("nimmt eine Antwort ohne die Felder zum Rechnungsempfänger an", () => {
+    const { empfaenger: _name, empfaengerUstId: _ustId, ...withoutRecipient } = ANSWER;
+    const parsed = parseExtraction(JSON.stringify(withoutRecipient));
+    expect(parsed).toEqual({ ...ANSWER, empfaenger: null, empfaengerUstId: null });
   });
 });

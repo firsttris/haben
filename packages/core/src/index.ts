@@ -52,6 +52,7 @@ export * from "./fristen.ts";
 export * from "./pauschalen.ts";
 export * from "./arbeitnehmer.ts";
 export * from "./girocode.ts";
+export * from "./own-invoice/index.ts";
 export * from "./sepa-text.ts";
 export * from "./sepa.ts";
 export * from "./skonto.ts";

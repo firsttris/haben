@@ -13,6 +13,9 @@ import type { DocumentKind } from "../../storage.ts";
 export const extractionSchema = z.object({
   lieferant: z.string().nullable().describe("Name des Rechnungsstellers"),
   lieferantUstId: z.string().nullable().describe("USt-IdNr. des Rechnungsstellers, z. B. DE123456789"),
+  // Für die Erkennung eigener Ausgangsrechnungen (own-invoice.ts): Wer die Rechnung bekommt
+  empfaenger: z.string().nullable().describe("Name des Rechnungsempfängers (Anschriftfeld)"),
+  empfaengerUstId: z.string().nullable().describe("USt-IdNr. des Rechnungsempfängers, falls angegeben"),
   rechnungsnummer: z.string().nullable(),
   belegdatum: z.string().nullable().describe("Rechnungs- bzw. Belegdatum als YYYY-MM-DD"),
   faelligAm: z.string().nullable().describe("Fälligkeitsdatum als YYYY-MM-DD, falls angegeben"),
