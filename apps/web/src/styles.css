@@ -227,10 +227,14 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
   .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   /* Bereiche als eine Zeile direkt unter dem Kopf, die seitlich scrollt und mit ihm stehen bleibt; die Trennlinie
      wandert vom Kopf unter diese Zeile, Kopf und Bereiche wirken als ein Block */
-  .settings-nav { top: var(--below-head); z-index: 9; max-height: none; overflow: auto hidden; flex-direction: row; flex-wrap: nowrap; gap: 6px; margin: -12px calc(-1 * var(--main-pad-x)) 0; padding: 8px var(--main-pad-x); background: var(--ground); scrollbar-width: none; }
+  /* Die Zeile hat eine feste Höhe, damit scroll-padding-top sie mit einrechnen kann: sonst bliebe ein Feld mit Fokus
+     beim Rückwärts-Tabben unter ihr verdeckt (WCAG 2.4.11) */
+  :root { --settings-nav-row: 52px; }
+  html:has(.settings-nav) { scroll-padding-top: calc(var(--below-head) + var(--settings-nav-row) + 16px); }
+  .settings-nav { top: var(--below-head); z-index: 9; height: var(--settings-nav-row); max-height: none; overflow: auto hidden; flex-direction: row; flex-wrap: nowrap; gap: 6px; margin: -12px calc(-1 * var(--main-pad-x)) 0; padding: 8px var(--main-pad-x); background: var(--ground); scrollbar-width: none; }
   .shell[data-scrolled] .page-head:has(+ .settings-layout) { box-shadow: none; }
   .shell[data-scrolled] .settings-nav { box-shadow: 0 1px 0 var(--line), 0 6px 12px -10px rgb(0 0 0 / 0.3); }
-  .settings-nav-link { flex: 0 0 auto; padding: 8px 14px; border-left: 0; border: 1px solid var(--line); border-radius: 18px; font-size: 13px; background: var(--surface); }
+  .settings-nav-link { flex: 0 0 auto; padding: 8px 14px; border-left: 0; border: 1px solid var(--line); border-radius: 18px; font-size: 13px; line-height: 18px; background: var(--surface); }
   .settings-nav-link[aria-current="page"] { background: var(--ink); color: var(--surface); box-shadow: none; }
   .settings-nav-hint { display: none; }
 }
