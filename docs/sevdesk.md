@@ -11,12 +11,19 @@ Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffic
 
 ## Voraussetzungen
 
-- Einen **API-Token** von sevDesk. Du findest ihn unter **Einstellungen → Benutzer**, beim jeweiligen Benutzer.
+- Einen **API-Token** von sevDesk. Du findest ihn unter **Einstellungen → Benutzer**, beim jeweiligen Benutzer. Die REST-API gehört laut [Preisseite von sevDesk](https://sevdesk.de/preise/) nur zum Tarif **Buchhaltung Pro** (Stand November 2026); zu den anderen Tarifen siehe [Ohne REST-API](#ohne-rest-api).
 - Firmendaten, Kontenrahmen und Versteuerungsart (Ist oder Soll) sind in Haben eingerichtet, wie in sevDesk ([Einrichtung](einrichtung.md)).
 - Der Server braucht Zugriff auf `https://my.sevdesk.de`.
 
 > [!IMPORTANT]
 > Der API-Token gibt Zugriff auf alles, was dieser Benutzer in sevDesk sieht. Entferne ihn nach dem Umzug (siehe [Vor der Kündigung](#vor-der-kündigung)).
+
+### Ohne REST-API
+
+Ist die REST-API nicht Teil deines Tarifs, gibt es zwei Wege:
+
+- **Vorübergehend auf Buchhaltung Pro wechseln**, für die Dauer des Abrufs, und danach kündigen oder zurückwechseln. Laufzeit und Kündigungsfrist des höheren Tarifs prüfst du vorher bei sevDesk.
+- **Nur über die Exporte:** DATEV-Export und GoBD-Export aus sevDesk in Haben ablegen ([Schritt 4](lexoffice.md#schritt-4-exporte-ablegen)), wie beim [Weg ohne API bei Lexoffice](lexoffice.md#nur-über-die-exporte). Dann fehlen Belege als Datensätze, Kontakte und offene Posten: Die Belegdateien sicherst du selbst aus sevDesk und legst sie als **Sonstiges** ab, Kontakte kommen per [CSV-Import](csv-import.md#kontakte), offene Posten trägst du von Hand ein. Kein Jahr zeigt im Abgleich „vollständig“.
 
 ## Schritt 1: Verbindung zu sevDesk
 
