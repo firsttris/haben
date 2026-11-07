@@ -28,6 +28,15 @@ describe("parseBaseRateCsv", () => {
   });
 });
 
+describe("Grenzen des Basiszinssatzes", () => {
+  it("nimmt −10 % und 20 % genau noch an, knapp darüber oder darunter nicht", () => {
+    expect(parseBaseRateCsv(`${HEADER}\n${row("2027-01", "20.00")}`)).toEqual({ month: "2027-01", basisPoints: 2000 });
+    expect(parseBaseRateCsv(`${HEADER}\n${row("2027-01", "-10.00")}`)).toEqual({ month: "2027-01", basisPoints: -1000 });
+    expect(parseBaseRateCsv(`${HEADER}\n${row("2027-01", "20.01")}`)).toBeNull();
+    expect(parseBaseRateCsv(`${HEADER}\n${row("2027-01", "-10.01")}`)).toBeNull();
+  });
+});
+
 describe("Halbjahr des Basiszinssatzes", () => {
   it("ändert sich zum 1. Januar und 1. Juli", () => {
     expect(lastBaseRateChange("2026-06-30")).toBe("2026-01");

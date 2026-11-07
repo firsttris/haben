@@ -63,6 +63,37 @@ docker compose exec db createdb -U haben haben_e2e
 
 `docker compose down` hält die Umgebung an, die Daten bleiben erhalten. `docker compose down -v` löscht Datenbank, Belege und Schlüssel.
 
+### Prüfungen ohne Bun auf dem Rechner
+
+Ist Bun nicht installiert, laufen die Prüfungen im selben Container. `run` startet dafür einen eigenen Container neben dem Dev-Server und die Datenbank mit; `-u bun` sorgt dafür, dass neue Dateien dir gehören:
+
+```sh
+docker compose run --rm -u bun app bun install --frozen-lockfile   # einmal, wenn `docker compose up` noch nie lief
+docker compose run --rm -u bun app bun run lint
+docker compose run --rm -u bun app bun run typecheck
+docker compose run --rm -u bun app bun run build
+docker compose exec db createdb -U haben haben_test                 # einmal, die Datenbank muss laufen
+docker compose run --rm -u bun -e TEST_DATABASE_URL=postgres://haben:haben@db:5432/haben_test app bun run test
+```
+
+Im Container ist `db` der Name des Datenbankservers, nicht `localhost`. Die Ende-zu-Ende-Tests brauchen die Browser von Playwright, die der Container nicht hat; sie laufen in der CI oder mit Bun auf dem Rechner.
+
+Die Doku baut ein Container mit Python, wie in der CI mit Zensical. Er läuft unter der eigenen Nutzerkennung, damit `site/` und `.cache/` danach nicht `root` gehören. Git braucht er nicht, der Befehl geht also auch in einem Git-Worktree:
+
+```sh
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/docs -w /docs python:3.15-slim sh -c 'pip install -q --user -r requirements-docs.txt && python -m zensical build --strict'
+```
+
+### Mehrere Umgebungen nebeneinander
+
+`compose.yml` heißt fest `haben-dev`; ein zweiter Klon oder ein Git-Worktree mit demselben Namen würde Container und Datenbank des ersten übernehmen. Für jede weitere Umgebung deshalb einen eigenen Projektnamen und freie Ports wählen:
+
+```sh
+HABEN_DEV_PORT=3001 HABEN_DEV_DB_PORT=5433 docker compose -p haben-mein-branch up
+```
+
+Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `run`, `exec` und `down`. Das gilt auch für `run`: Es startet die Datenbank mit und gibt ihren Port frei, auf dem Standardport stößt es sonst mit einer laufenden Umgebung zusammen. `docker compose -p haben-mein-branch down -v` räumt die Umgebung samt Daten wieder ab.
+
 ## Befehle
 
 | Befehl | Was er tut |
@@ -78,7 +109,7 @@ docker compose exec db createdb -U haben haben_e2e
 | `bun run e2e` | Ende-zu-Ende-Tests mit Playwright (braucht `E2E_DATABASE_URL`, siehe [Ende-zu-Ende-Tests mit Playwright](#ende-zu-ende-tests-mit-playwright)) |
 | `bun run --cwd apps/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
-| `pip install -r requirements-docs.txt && mkdocs serve` | Diese Dokumentation als Website lokal auf Port 8000 (MkDocs Material); `mkdocs build --strict` wie in der CI |
+| `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |
@@ -99,6 +130,20 @@ Die Integrationstests in `apps/web/src/server` brauchen `TEST_DATABASE_URL`. Ohn
 > `TEST_DATABASE_URL` niemals auf einen Server mit echten Daten zeigen lassen. Die Tests löschen und überschreiben die Datenbanken `<name>_vorlage` und `<name>_<Nummer>` daneben.
 
 Die ERiC-Tests mit nachgebauter Bibliothek (`packages/elster/test-fixtures`) kompilieren eine kleine C-Bibliothek mit `cc`. Gibt es keinen Compiler, werden sie übersprungen.
+
+Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen sie, werden die Tests übersprungen oder schlagen fehl; ein grüner Lauf heißt dann nur, dass der Rest grün ist. Was übersprungen wurde, gehört deshalb in die Beschreibung des Pull Requests:
+
+| Fehlt | Folge | Im Dev-Container | In der CI |
+| --- | --- | --- | --- |
+| `TEST_DATABASE_URL` | alle Postgres-Tests übersprungen | mit `-e`, siehe oben | ja |
+| `pdftotext`, `pdftoppm` (poppler-utils) | Textebene und Seitenbilder von PDFs übersprungen | ja | ja |
+| `zip`, `unzip` | Test des Pakets „Haben für Mein ELSTER“ schlägt fehl | ja | ja |
+| `cc` | ERiC-Tests mit nachgebauter Bibliothek übersprungen | nein | ja |
+| ERiC (`ERIC_HOME` oder `ERIC_DIR`) | Tests mit echtem ERiC übersprungen | nein | nein |
+| Netz | Schema der Deutschen Kreditwirtschaft für SEPA übersprungen | ja | ja, sonst Fehler |
+| `ERIC_DOKU` (Dokumentation von ERiC mit den Schemas der Lohnsteuerbescheinigung) | Schema-Test in `packages/elster/src/lstb.test.ts` übersprungen | nein | nein |
+| Java, wenn `ERIC_DOKU` gesetzt ist | derselbe Schema-Test schlägt fehl; sonst braucht nur `kosit` Java (eigener Befehl, kein Test) | nein | `kosit` als eigener Job |
+| Beispielantworten aus erica unter `/var/tmp/erica/tests/worker/samples/` | je ein Test in `vast.test.ts` und `berechtigung.test.ts` übersprungen | nein | nein |
 
 ### Tests mit echtem ERiC
 
@@ -210,9 +255,10 @@ Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-beri
 ### Bilder für README und Doku
 
 Die Bilder in README und Doku (`docs/screenshot-*.png`) entstehen aus denselben Daten: nach `app.spec.ts`
-läuft im Projekt `mit-daten` `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und fotografiert Übersicht, Rechnungseditor,
-Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy. Ohne
-`DOKU_SCREENSHOTS=1` überspringt es sich selbst, die normalen Tests bleiben unverändert.
+läuft im Projekt `mit-daten` `e2e/zz-doku-screenshots.spec.ts`, meldet sich an und ergänzt zuerst, was nur die Bilder
+brauchen: Rechnungen über mehrere Monate mit Zahlungseingängen und Pauschalen. Dann fotografiert es Übersicht,
+Rechnungseditor, Bankabgleich, Beleg, Voranmeldung, Auswertungen, Archiv und die Übersicht am Handy. Ohne
+`DOKU_SCREENSHOTS=1` überspringt es sich selbst; die CI legt diese Daten also nie an und wird dadurch nicht langsamer.
 
 ```sh
 E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run docs:screenshots
@@ -400,7 +446,7 @@ Der Workflow braucht das Repository-Secret `DOCKER_PAT`, ein Docker-Hub-Zugriffs
 
 ## Mitwirken
 
-Vor einem Pull Request bitte dieselben Prüfungen wie in CI laufen lassen:
+Vor einem Pull Request bitte dieselben Prüfungen wie in CI laufen lassen (ohne Bun auf dem Rechner siehe [Prüfungen ohne Bun auf dem Rechner](#prüfungen-ohne-bun-auf-dem-rechner)):
 
 ```sh
 bun run lint
@@ -413,11 +459,27 @@ bun run build
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Änderungen an der E-Rechnung prüft der KoSIT-Job in CI.
 - Texte in der Oberfläche auf Deutsch.
-- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy.
+- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy. Die Bilder für „vorher“ entstehen vor der ersten Änderung, sonst muss der alte Stand später eigens wieder aufgebaut werden. Hochgeladen werden sie als Anhang, also per Ziehen ins Textfeld auf GitHub. Ein Branch nur für Bilder ist eine Notlösung: nur im eigenen Fork, nie im Haupt-Repository (jeder Klon lädt ihn sonst mit), nur neue Commits, und mit dem Branch oder Fork verschwinden auch die Bilder.
+
+### Branches, Titel und Commits
+
+- **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht.
+- **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“. Ändert ein Pull Request nur Markdown, `docs/` oder `LICENSE`, läuft sie gar nicht (`paths-ignore` in `ci.yml`), und die Doku baut erst auf `main`: dann den Doku-Build von oben lokal laufen lassen.
+- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`.
+- **Commits im Pull Request:** gern im Stil von [Conventional Commits](https://www.conventionalcommits.org/de/) mit Beschreibung auf Deutsch, etwa `fix(belege): Fremdwährung in der Rechnungswährung vergleichen` oder `test: …`. Das ist eine Empfehlung, keine Prüfung.
+
+### Mit KI-Werkzeugen
+
+Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Haben ist so entstanden. Der Transparenz halber wird es gekennzeichnet, mehr nicht:
+
+- im Commit mit einer Zeile `Co-Authored-By: <Werkzeug oder Modell> <Adresse>`, wie sie die Werkzeuge meist selbst setzen;
+- in der Beschreibung des Pull Requests mit einer Zeile wie „🤖 Generated with <Werkzeug>“.
+
+Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
 
 ### Issues schreiben
 
-Für neue Issues gibt es Formulare unter **Issues → New issue**: Fehler melden, Funktionswunsch, Steuerfall oder Format, Umzug aus einem anderen Programm, Frage oder Hinweis zur Doku (`.github/ISSUE_TEMPLATE/`). Ein leeres Issue bleibt möglich. Die Formulare sind kurz gehalten: Meist ist nur ein Feld Pflicht, damit sich auch Gelegenheitsnutzer melden. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
+Für neue Issues gibt es Formulare unter **Issues → New issue**: Fehler melden, Funktionswunsch, Steuerfall oder Format, Umzug aus einem anderen Programm, Frage oder Hinweis zur Doku (`.github/ISSUE_TEMPLATE/`). Ein leeres Issue bleibt möglich. Die Formulare sind kurz gehalten: Jedes Formular hat nur ein Pflichtfeld, damit sich auch Gelegenheitsnutzer melden. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
 
 Wer ein Issue mit einem KI-Agenten schreibt oder ein größeres Vorhaben genau beschreiben will, folgt derselben Gliederung ausführlicher (Claude Code: Skill `issue-schreiben` in `.claude/skills/`):
 
@@ -427,9 +489,9 @@ Wer ein Issue mit einem KI-Agenten schreibt oder ein größeres Vorhaben genau b
 | Stand in Haben | Was Haben heute tut, **auf dem aktuellen `main` geprüft**, mit Commit und Links auf Doku oder Code. Nicht aus dem Gedächtnis. |
 | Vorschlag | Was sich ändern soll, bei Bedarf in Stufen. Grenzen nennen: was ausdrücklich nicht dazugehört. |
 | Akzeptanzkriterien | Drei bis sechs prüfbare Punkte als `- [ ]`, zu denen ein Test oder ein Blick in die Oberfläche Ja oder Nein sagt. Bei Buchungen und Steuer: SKR03 und SKR04, Ist und Soll. |
-| Bezug und Quellen | Verwandte Issues und Pull Requests, Platz in der [Roadmap](roadmap.md), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. |
+| Bezug | Verwandte Issues und Pull Requests, Platz in der [Roadmap](roadmap.md), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. Quellen aus früheren Pull Requests dürfen mit Link auf den Pull Request übernommen werden. |
 
-Ein Issue behandelt ein Thema. Es ist so lang wie nötig und kurz genug für ein bis zwei Bildschirme; Quellcode steht als Link, nicht als Auszug. Fachliche Aussagen belegt eine Quelle, nicht ein Ratgeber. Wo etwas unsicher ist oder die Steuerberatung entscheiden muss, steht das ausdrücklich im Issue. Die Reihenfolge in der Roadmap legt der Maintainer fest.
+Ein Issue behandelt ein Thema. Es ist so lang wie nötig und kurz genug für ein bis zwei Bildschirme; Quellcode steht als Link, nicht als Auszug. Fachliche Aussagen belegt eine Quelle, nicht ein Ratgeber. Wo etwas unsicher ist oder die Steuerberatung entscheiden muss, steht das ausdrücklich im Issue. Der Titel nennt das Ergebnis, nicht den Anlass. Vor dem Schreiben suchen Agenten auch in den Pull Requests (`gh pr list --state all --search …`), weil Erledigtes oft nur dort steht. Der Ist-Stand wird nach `git fetch origin` auf `origin/main` gelesen, der geprüfte Commit genannt und mit Permalinks (`https://github.com/firsttris/haben/blob/<commit>/<pfad>#L<n>`) belegt. Gibt es das Thema schon, bekommt der Nutzer den Fund gemeldet; ein Issue entsteht nur zum fehlenden Teil. Ein Issue, das ein Agent geschrieben hat (außer einer bloßen Korrektur), endet nach einer Trennlinie mit dem Hinweis auf das Werkzeug, z. B. `_Generated with [Claude Code](https://claude.com/claude-code)_`. Anlegen und Kommentieren tut ein Agent nur auf Anweisung des Nutzers; beim Anlegen kommt der Typ als Label dazu (`fehler`, `wunsch`, `steuer`, `umzug`, `frage`), weitere Labels und den Platz in der Roadmap setzt der Maintainer.
 
 ### Review
 
