@@ -150,7 +150,8 @@ test("Einrichtung: Konto, Firmendaten und Rechnungsnummer", async () => {
   await expect(page.getByRole("form", { name: /^Angebotsnummern/ })).toContainText(/Nächste Nummer: AN-\d{4}-001/);
   // Die folgenden Tests rechnen mit den Nummern ab Werk
   await format.getByRole("button", { name: "Auf Standard zurücksetzen" }).click();
-  await expect(format.getByLabel("Rechnungen")).toHaveValue("{JJJJ}-{NNN}");
+  await expect(rechnungen.getByLabel("Format")).toHaveValue("{JJJJ}-{NNN}");
+  await expect(rechnungen.getByLabel("Zähler")).toHaveValue("jaehrlich");
 
   const akzent = page.getByRole("form", { name: "Akzentfarbe" });
   await akzent.getByLabel("Hex-Wert").fill("#F5D90A");
