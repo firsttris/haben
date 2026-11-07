@@ -178,3 +178,28 @@ test("Angebot: dieselbe Vorschau", async ({ browser }) => {
   await expect(seitenansicht(page).getByLabel("Vorschau des Angebots")).toBeVisible();
   await page.context().close();
 });
+
+test("Gesperrter Speicher: Der Editor öffnet, Anheften gilt bis zum Neuladen", async ({ browser }) => {
+  // Chrome mit gesperrten Websitedaten wirft schon beim Zugriff auf window.localStorage, nicht erst bei getItem
+  const state = JSON.parse(readFileSync(SESSION, "utf8")) as { cookies: [] };
+  const context = await browser.newContext({ viewport: LAPTOP, storageState: { cookies: state.cookies, origins: [] } });
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new DOMException("Access is denied for this document.", "SecurityError");
+      },
+    });
+  });
+  const page = await context.newPage();
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.goto("/rechnungen/neu");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByLabel("Beschreibung Position 1")).toBeVisible();
+  await pfeil(page).click();
+  await page.getByRole("menuitem", { name: "Neben Formular anheften" }).click();
+  await expect(seitenansicht(page)).toBeVisible();
+  expect(pageErrors).toEqual([]);
+  await context.close();
+});
