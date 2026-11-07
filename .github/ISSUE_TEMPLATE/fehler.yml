@@ -1,6 +1,6 @@
 name: Fehler melden
 description: Etwas funktioniert nicht oder rechnet falsch.
-labels: ["bug"]
+labels: ["fehler"]
 body:
   - type: markdown
     attributes:

@@ -1,6 +1,6 @@
 name: Frage oder Hinweis zur Doku
 description: Du kommst bei Einrichtung oder Betrieb nicht weiter, oder die Doku ist unklar oder veraltet.
-labels: ["question"]
+labels: ["frage"]
 body:
   - type: markdown
     attributes:

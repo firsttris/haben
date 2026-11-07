@@ -1,4 +1,5 @@
 name: Umzug aus einem anderen Programm
+labels: ["umzug"]
 description: Beim Übernehmen von Daten aus Lexware Office, sevDesk, DATEV oder anderen Programmen klappt etwas nicht.
 body:
   - type: markdown

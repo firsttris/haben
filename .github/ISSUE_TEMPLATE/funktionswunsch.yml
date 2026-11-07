@@ -1,6 +1,6 @@
 name: Funktionswunsch
 description: Etwas soll neu hinzukommen oder anders funktionieren.
-labels: ["enhancement"]
+labels: ["wunsch"]
 body:
   - type: markdown
     attributes:

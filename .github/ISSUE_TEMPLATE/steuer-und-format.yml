@@ -1,6 +1,6 @@
 name: Steuerfall oder Format
 description: Haben bucht, meldet oder exportiert einen Sachverhalt fachlich anders als erwartet. Mit Quelle.
-labels: ["enhancement"]
+labels: ["steuer"]
 body:
   - type: markdown
     attributes:
