@@ -410,6 +410,37 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 .editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: calc(var(--below-head) + 16px); }
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
+/* Vorschau der Belegeditoren (#357): angeheftet als zweite Spalte, sonst hat das Formular die volle Breite. Die
+   Mindestbreiten sind FORM_MIN_WIDTH und PREVIEW_MIN_WIDTH aus lib/vorschau.ts; darunter bietet der Editor kein Anheften an */
+.preview-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.preview-layout[data-pinned] { grid-template-columns: minmax(640px, 3fr) minmax(420px, 2fr); }
+/* Steht unter dem festen Seitenkopf und scrollt in sich, wenn das Blatt höher ist als das Fenster */
+.preview-pane { position: sticky; top: calc(var(--below-head) + 16px); max-height: var(--viewer-height); min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.preview-pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.preview-pane-actions { display: flex; gap: 8px; }
+/* Innenabstand für den Schatten des Blatts, der sonst am Rand des Scrollbereichs abgeschnitten wäre */
+.preview-pane-body { min-height: 0; overflow-y: auto; padding: 2px 4px 16px; margin: 0 -4px; }
+.preview-dialog { width: min(920px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--ground); color: var(--ink); }
+.preview-dialog[open] { display: flex; flex-direction: column; }
+.preview-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
+.preview-pane-body:focus-visible, .preview-dialog-body:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.preview-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px 12px; border-bottom: 1px solid var(--line); }
+.preview-dialog-head h2 { margin: 0 0 2px; font-size: 18px; }
+.preview-dialog-body { min-height: 0; overflow-y: auto; padding: 16px 20px 24px; }
+@media (max-width: 720px) {
+  .preview-dialog { width: calc(100vw - 16px); max-width: none; max-height: calc(100dvh - 16px); }
+  .preview-dialog-head { padding: 12px; }
+  .preview-dialog-body { padding: 12px; }
+}
+/* Split-Button: Hauptaktion und Pfeil teilen sich einen Rahmen, das Menü hängt rechtsbündig darunter */
+.split-btn { position: relative; display: inline-flex; }
+.split-btn > .btn:first-child { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.split-btn > .split-btn-arrow { margin-left: -1px; padding: 0 10px; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.split-btn > .btn:hover, .split-btn > .btn:focus-visible { position: relative; z-index: 1; }
+.split-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 220px; padding: 4px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
+.split-menu [role="menuitem"] { display: flex; align-items: center; width: 100%; min-height: var(--control-h); padding: 0 12px; border: 0; border-radius: 6px; background: none; color: var(--ink); font: inherit; font-size: 14px; text-align: left; white-space: nowrap; cursor: pointer; }
+.split-menu [role="menuitem"]:hover, .split-menu [role="menuitem"]:focus-visible { background: var(--accent-soft); }
+.split-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 /* Beleg prüfen: nebeneinander höchstens so hoch wie die Vorschau, das Formular scrollt, die Knöpfe bleiben sichtbar */
 @media (min-width: 1201px) {
   /* Zeile auf die Gridhöhe begrenzen, sonst wächst sie mit dem Formular und es scrollt die Seite statt der Spalte */
@@ -607,8 +638,8 @@ fieldset.card > legend + * { clear: both; }
   .page-head .actions > .field { flex: 1 0 140px; }
   /* Ein Feld direkt im Kopf (Zeitraum, Jahr) nimmt wie die Aktionszeile die ganze Breite, statt halb breit am Rand zu stehen */
   .page-head > .field { align-self: stretch; }
-  /* Belegeditor: Entwurf als PDF, Entwurf speichern und Festschreiben passen nicht in eine Zeile (seit #382); seitlich
-     gescrollt verschwände Festschreiben. Dort umbrechen, je zwei Knöpfe in einer Zeile */
+  /* Belegeditor: Vorschau, Entwurf als PDF, Entwurf speichern und Festschreiben passen nicht in eine Zeile (#357);
+     seitlich gescrollt verschwänden Speichern und Festschreiben. Dort zwei Zeilen zu je zwei Knöpfen */
   .page-head .editor-actions { flex-wrap: wrap; overflow: visible; }
   .page-head .editor-actions > .btn { flex: 1 1 calc(50% - 4px); min-width: 0; padding: 4px 8px; white-space: normal; text-align: center; line-height: 1.2; }
   /* Kacheln: zwei Spalten, kleinere Zahlen, letzte allein über die volle Breite */
