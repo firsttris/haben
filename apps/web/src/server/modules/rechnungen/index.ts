@@ -14,6 +14,8 @@ export {
   type InvoiceAttachment,
 } from "./attachments.ts";
 export { MAX_INVOICE_ATTACHMENTS } from "./attachment-limit.ts";
+export { fetchBaseRate } from "./base-rate.ts";
+export { runDueBaseRate } from "./base-rate-job.ts";
 export { createDunning, dunningDraft, dunningInputSchema, dunningsFor, loadDunningPdf, overdueInvoices } from "./dunning.ts";
 export {
   dunningMailDraft,

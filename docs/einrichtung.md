@@ -204,7 +204,8 @@ Nutzt du die Kleinunternehmerregelung nach § 19 UStG, setzt du unter **Einstell
 
 | Feld | Bedeutung |
 |---|---|
-| Basiszinssatz in % | Grundlage der Verzugszinsen. Er ändert sich zum 1. Januar und 1. Juli und wird von der Deutschen Bundesbank veröffentlicht; trage ihn dann neu ein. Leer heißt: keine Verzugszinsen. |
+| Basiszinssatz in % | Grundlage der Verzugszinsen. Er ändert sich zum 1. Januar und 1. Juli und wird von der Deutschen Bundesbank veröffentlicht. **Bei der Bundesbank abrufen** fragt den aktuellen Satz im [SDMX-Webservice der Bundesbank](https://statistiken.bundesbank.de/statistiken-de/hilfe-970224?article=bundesbank-sdmx-web-service-api-991208) ab (Zeitreihe BBIN1.M.DE.BBK.BBKBAS2.EUR.ME) und trägt ihn ins Feld ein; er gilt erst nach dem Speichern. Steht der neue Satz Anfang Januar oder Juli noch nicht in der Zeitreihe, sagt Haben das; dann später erneut abrufen oder von Hand eintragen. Leer heißt: keine Verzugszinsen. |
+| Basiszinssatz automatisch abrufen | Aus, bis du den Haken setzt. Dann fragt Haben die Bundesbank nach dem 1. Januar und 1. Juli einmal am Tag, bis der Satz des neuen Halbjahrs in der Zeitreihe steht, und trägt ihn ein; dazwischen fragt Haben nicht, weil sich der Satz nur zu diesen Terminen ändert (§ 247 Abs. 1 BGB). Änderst du den Satz von Hand, prüft der nächste Lauf ihn einmal gegen die Bundesbank und ersetzt ihn durch den veröffentlichten Wert. |
 | Zahlungsfrist in Mahnungen | Tage ab dem Mahndatum, Vorgabe 10 |
 | Gebühr je Stufe | Vorschlag für Zahlungserinnerung, 1. Mahnung und letzte Mahnung, z. B. 0 €, 5 €, 10 € |
 
