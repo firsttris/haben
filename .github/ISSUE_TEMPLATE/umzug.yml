@@ -1,6 +1,6 @@
 name: Umzug aus einem anderen Programm
-labels: ["umzug"]
 description: Beim Übernehmen von Daten aus Lexware Office, sevDesk, DATEV oder anderen Programmen klappt etwas nicht.
+labels: ["umzug"]
 body:
   - type: markdown
     attributes:
@@ -43,7 +43,7 @@ body:
     id: erwartet
     attributes:
       label: Was hast du erwartet?
-      description: Etwa die Summe, Anzahl oder der Zahlungsstand aus dem Quellprogramm.
+      description: Etwa Anzahl, Zahlungsstand oder eine Summe aus dem Quellprogramm. Beträge gern gerundet oder erfunden.
   - type: textarea
     id: beispiel
     attributes:
