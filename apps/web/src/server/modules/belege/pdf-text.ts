@@ -22,9 +22,11 @@ const MAX_OUTPUT = 20 * 1024 * 1024;
 export type PdfToText = (pdf: Uint8Array) => Promise<TextLine[] | null>;
 
 export const pdfTextLines: PdfToText = async (pdf) => {
-  // Eigenes Verzeichnis (0700), danach wieder gelöscht: der Text ist Beleginhalt
-  const dir = await mkdtemp(join(tmpdir(), "haben-text-"));
+  let dir: string | null = null;
   try {
+    // Eigenes Verzeichnis (0700), danach wieder gelöscht: der Text ist Beleginhalt. Im try, denn auch ein volles oder
+    // fehlendes Temp-Verzeichnis darf den Upload nicht aufhalten
+    dir = await mkdtemp(join(tmpdir(), "haben-text-"));
     const input = join(dir, "beleg.pdf");
     await writeFile(input, pdf);
     const { stdout } = await run("pdftotext", ["-bbox-layout", "-enc", "UTF-8", "-f", "1", "-l", String(MAX_PAGES), input, "-"], {
@@ -38,7 +40,7 @@ export const pdfTextLines: PdfToText = async (pdf) => {
     // Ohne pdftotext, bei beschädigten oder geschützten PDFs: keine Textebene; die Ausgabe bleibt draußen, sie enthält Beleginhalt
     return null;
   } finally {
-    await rm(dir, { recursive: true, force: true });
+    if (dir) await rm(dir, { recursive: true, force: true });
   }
 };
 
