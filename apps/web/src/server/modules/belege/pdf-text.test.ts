@@ -34,6 +34,18 @@ describe("Textebene aus pdftotext -bbox-layout", () => {
     expect(parseBboxLayout("<doc></doc>")).toEqual([]);
     expect(await pdfTextLines(new TextEncoder().encode("%PDF-1.7 kaputt"))).toBeNull();
   });
+
+  // Zweites TDD-Review PR #363: Die Erkennung ist eine Zugabe und darf den Upload nie aufhalten
+  it("ohne beschreibbares Temp-Verzeichnis keine Zeilen statt eines Fehlers", async () => {
+    const previous = process.env.TMPDIR;
+    process.env.TMPDIR = "/gibt-es-nicht/haben-review";
+    try {
+      expect(await pdfTextLines(new TextEncoder().encode("%PDF-1.7 kaputt"))).toBeNull();
+    } finally {
+      if (previous === undefined) delete process.env.TMPDIR;
+      else process.env.TMPDIR = previous;
+    }
+  });
 });
 
 describe.skipIf(!hasPdftotext)("eigene Rechnung an der Textebene erkennen (mit pdftotext)", () => {

@@ -34,3 +34,50 @@ describe("Review: Informationsblock einer eigenen Rechnung", () => {
     expect(verdict.signals.filter((s) => s.direction === "foreign")).toEqual([]);
   });
 });
+
+// Zweites TDD-Review PR #363: Fehlalarme bei echten Eingangsrechnungen an uns
+
+/** Einzelunternehmen: Firmenname mit Zusatz, angeschrieben wird die Inhaberin mit ihrem Namen */
+const einzelunternehmen: OwnCompany = {
+  name: "Musterdesign Weber",
+  ustId: "DE123456789",
+  steuernummern: ["21/815/08150", "2181508150"],
+  iban: "DE89 3704 0044 0532 0130 00",
+  plz: "70173",
+};
+
+describe("Review: Eingangsrechnungen, die eigene Angaben nennen", () => {
+  it("Beitragsrechnung mit Lastschrift: die eigene IBAN unter dem Einzugstext ist kein Zahlungsziel", () => {
+    // Versicherungen sind umsatzsteuerfrei (§ 4 Nr. 10 UStG) und drucken keine USt-IdNr.; der Einzugstext steht zwei
+    // Zeilen über der IBAN, dazwischen der Kontoinhaber
+    const lines: TextLine[] = [
+      line("Hanse Versicherung AG · Postfach 1234 · 20095 Hamburg", 0.16),
+      line("Frau Anna Weber", 0.19),
+      line("Königstraße 1", 0.21),
+      line("70173 Stuttgart", 0.23),
+      line("Beitragsrechnung 2027", 0.35),
+      line("Jahresbeitrag Betriebshaftpflicht 476,00 €", 0.45),
+      line("Den Beitrag ziehen wir am 01.01.2027 per SEPA-Lastschrift ein von:", 0.5),
+      line("Kontoinhaber: Anna Weber", 0.52),
+      line("IBAN: DE89 3704 0044 0532 0130 00", 0.54),
+      line("Hanse Versicherung AG · Sitz Hamburg · Amtsgericht Hamburg HRB 999", 0.92),
+    ];
+    expect(detectOwnInvoice({ lines }, einzelunternehmen).level).toBe("keine");
+  });
+
+  it("Rechnung der Steuerberatung mit der eigenen Steuernummer im Betreff ist keine eigene Rechnung", () => {
+    // Die Kanzlei nennt in der Fußzeile ihre eigene Steuernummer (Pflichtangabe nach § 14 Abs. 4 Nr. 2 UStG, statt der
+    // USt-IdNr.); im Betreff steht die Steuernummer der Mandantin
+    const lines: TextLine[] = [
+      line("Steuerkanzlei Berg · Marktplatz 2 · 70173 Stuttgart", 0.16),
+      line("Frau Anna Weber", 0.19),
+      line("Königstraße 1", 0.21),
+      line("70173 Stuttgart", 0.23),
+      line("Rechnung Nr. 2026-311", 0.35),
+      line("Einkommensteuererklärung 2025, St.-Nr. 21/815/08150", 0.4),
+      line("Gebühr nach § 24 StBVV 840,00 €", 0.45),
+      line("Steuerkanzlei Berg · Steuernummer 99/123/45678 · Bankverbindung IBAN DE02 6005 0101 0002 0343 04", 0.92),
+    ];
+    expect(detectOwnInvoice({ lines }, einzelunternehmen).level).toBe("keine");
+  });
+});

@@ -244,4 +244,11 @@ describe("Antwort ohne strukturierte Ausgabe lesen", () => {
   it("lehnt einen unbekannten Steuersatz ab", () => {
     expect(() => parseExtraction(JSON.stringify({ ...ANSWER, betraege: [{ steuersatz: 16, netto: "1", steuer: "0.16" }] }))).toThrow(/Belegschema/);
   });
+
+  // Zweites TDD-Review PR #363: Eine Antwort, die vor der Erkennung eigener Rechnungen gültig war, bleibt gültig
+  it("nimmt eine Antwort ohne die Felder zum Rechnungsempfänger an", () => {
+    const { empfaenger: _name, empfaengerUstId: _ustId, ...withoutRecipient } = ANSWER;
+    const parsed = parseExtraction(JSON.stringify(withoutRecipient));
+    expect(parsed).toEqual({ ...ANSWER, empfaenger: null, empfaengerUstId: null });
+  });
 });
