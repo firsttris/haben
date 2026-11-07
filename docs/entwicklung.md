@@ -78,11 +78,10 @@ docker compose run --rm -u bun -e TEST_DATABASE_URL=postgres://haben:haben@db:54
 
 Im Container ist `db` der Name des Datenbankservers, nicht `localhost`. Die Ende-zu-Ende-Tests brauchen die Browser von Playwright, die der Container nicht hat; sie laufen in der CI oder mit Bun auf dem Rechner.
 
-Die Doku baut ein Container mit Python. Das Git-Verzeichnis wird zusätzlich unter seinem eigenen Pfad eingehängt, damit das Plugin für das Änderungsdatum es auch aus einem Git-Worktree heraus findet:
+Die Doku baut ein Container mit Python, wie in der CI mit Zensical. Er läuft unter der eigenen Nutzerkennung, damit `site/` und `.cache/` danach nicht `root` gehören. Git braucht er nicht, der Befehl geht also auch in einem Git-Worktree:
 
 ```sh
-g=$(git rev-parse --path-format=absolute --git-common-dir)
-docker run --rm -v "$PWD":/docs -v "$g":"$g" -w /docs python:3.13-slim sh -c 'apt-get update -qq && apt-get install -qq -y git >/dev/null && git config --global --add safe.directory "*" && pip install -q -r requirements-docs.txt && mkdocs build --strict -d /tmp/site'
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/docs -w /docs python:3.15-slim sh -c 'pip install -q --user -r requirements-docs.txt && python -m zensical build --strict'
 ```
 
 ### Mehrere Umgebungen nebeneinander
