@@ -1,6 +1,7 @@
 # Dokumentation als Website: https://firsttris.github.io/haben/
-# Quelle ist docs/, gebaut mit MkDocs Material (.github/workflows/docs.yml).
-# Lokal: pip install -r requirements-docs.txt && mkdocs serve
+# Quelle ist docs/, gebaut mit Zensical (.github/workflows/docs.yml), dem Nachfolger von
+# MkDocs Material; es liest diese Datei unverändert (https://zensical.org/docs/setup/basics/).
+# Lokal: pip install -r requirements-docs.txt && zensical serve
 site_name: Haben
 site_description: >-
   Haben, die Open-Source-Buchhaltung für Freiberufler, Selbstständige und Kleinunternehmer,
@@ -105,12 +106,9 @@ extra_css:
   - assets/stylesheets/startseite.css
 
 plugins:
+  # Zensical kennt keine MkDocs-Plugins wie git-revision-date-localized; die Suche ist eingebaut
   - search:
       lang: de
-  - git-revision-date-localized:
-      type: date
-      locale: de
-      fallback_to_build_date: true
 
 markdown_extensions:
   - admonition

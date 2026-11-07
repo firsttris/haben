@@ -1,4 +1,4 @@
-# Baut docs/ mit MkDocs Material und veröffentlicht sie auf GitHub Pages:
+# Baut docs/ mit Zensical und veröffentlicht sie auf GitHub Pages:
 # https://firsttris.github.io/haben/
 # Voraussetzung einmalig: Settings → Pages → Source "GitHub Actions"
 # (configure-pages mit enablement schaltet das beim ersten Lauf selbst ein).
@@ -29,8 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # git-revision-date braucht die Historie
       - uses: actions/setup-python@v7
         with:
           python-version: '3.15'
@@ -40,7 +38,7 @@ jobs:
       - uses: actions/configure-pages@v6
         with:
           enablement: true
-      - run: mkdocs build --strict
+      - run: zensical build --strict
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
