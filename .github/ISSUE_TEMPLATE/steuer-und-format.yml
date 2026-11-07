@@ -1,0 +1,68 @@
+name: Steuerfall oder Format
+description: Haben bucht, meldet oder exportiert einen Sachverhalt fachlich anders als erwartet. Mit Quelle.
+labels: ["steuer"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Für Sachverhalte aus Umsatzsteuer, Einkommensteuer, Bilanz, Lohn oder aus Formaten wie DATEV, XRechnung, ZUGFeRD und ELSTER. Erfundene Beträge genügen. Bitte schreibe **keine echten Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate** in das Issue. Ersetze sie durch erfundene Werte oder Platzhalter.
+  - type: textarea
+    id: fall
+    attributes:
+      label: Der Fall
+      description: Wer liefert was an wen, mit welchen Beträgen und Steuersätzen? Wie sähe die richtige Buchung aus?
+      placeholder: |
+        Beispiel: Hardware für 500 € netto von einem niederländischen Händler, ohne Umsatzsteuer berechnet. Erwerbsteuer 95 €, Vorsteuer 95 €, Zahlung 500 €.
+    validations:
+      required: true
+  - type: textarea
+    id: quelle
+    attributes:
+      label: Quelle
+      description: Gesetz, BMF-Schreiben, Formularanleitung, Hilfe-Seite eines anderen Programms, DATEV-Kontenrahmen. Mit Link, soweit möglich.
+      placeholder: |
+        - § 13b UStG: https://www.gesetze-im-internet.de/ustg_1980/__13b.html
+  - type: dropdown
+    id: kontenrahmen
+    attributes:
+      label: Kontenrahmen
+      options:
+        - SKR03
+        - SKR04
+        - Egal
+  - type: dropdown
+    id: versteuerung
+    attributes:
+      label: Versteuerung
+      options:
+        - Soll-Versteuerung
+        - Ist-Versteuerung
+        - Kleinunternehmer
+        - Egal
+  - type: textarea
+    id: stand
+    attributes:
+      label: Was macht Haben heute?
+      description: "Meldung im Wortlaut, falsche Zeile im Journal, Stelle in der Doku. Wenn du den Code kennst: Datei und Commit."
+  - type: textarea
+    id: erwartet
+    attributes:
+      label: Was sollte stattdessen passieren?
+      description: Welche Konten, welche Kennzahl in der Voranmeldung oder EÜR, welche Spalte im Export.
+  - type: textarea
+    id: unsicher
+    attributes:
+      label: Wo bist du unsicher?
+      description: Haben ist keine Steuerberatung. Schreib ruhig dazu, was du nicht sicher weißt oder mit der Steuerberatung klären willst.
+  - type: textarea
+    id: kriterien
+    attributes:
+      label: Wann ist es gut genug?
+      description: Optional. Dinge, die danach möglich sein sollen, als Liste.
+      placeholder: |
+        - [ ] …
+  - type: textarea
+    id: bezug
+    attributes:
+      label: Verwandte Issues und Roadmap
+      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://firsttris.github.io/haben/roadmap.html), falls du ihn kennst.

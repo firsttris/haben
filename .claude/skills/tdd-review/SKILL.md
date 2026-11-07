@@ -41,7 +41,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 
 - Je Finding: Test committen, minimalen Fix, Test grün. Kleine Commits (`test: …`, `fix: …`, Beschreibung auf Deutsch).
 - Bestehende Tests nie abschwächen oder löschen, Sperren und Siegel nie lockern, um grün zu werden.
-- **Commits von Beitragenden nie ändern, umschreiben oder rebasen**; Fixes kommen als neue Commits obendrauf, kein Force-Push auf fremde Branches. Fixes direkt auf den Branch des Pull Requests pushen: bei Collaborators liegt er im Repo, bei einem Fork geht es, wenn „Allow edits by maintainers“ an ist. Nur wenn das nicht geht, auf einem eigenen Branch von dessen Stand weiterarbeiten und dafür einen eigenen PR öffnen. Liegt der Branch nur hinter `main`, ohne dass etwas zu ändern ist: „Update branch“ am PR (Merge von `main`), kein eigener Branch.
+- **Commits von Beitragenden nie ändern, umschreiben oder rebasen**; Fixes kommen als neue Commits obendrauf, kein Force-Push auf fremde Branches. Fixes direkt auf den Branch des Pull Requests pushen: bei Collaborators liegt er im Repo, bei einem Fork geht es, wenn „Allow edits by maintainers“ an ist. Geht das nicht, den Beitragenden bitten, „Allow edits by maintainers“ einzuschalten; nur als letzter Ausweg auf einem eigenen Branch von dessen Stand weiterarbeiten und dafür einen eigenen PR öffnen. Liegt der Branch nur hinter `main`, ohne Konflikt: nichts tun, kein Update und kein eigener Branch.
 - Dann alle Prüfungen aus CLAUDE.md:
 
   ```sh
@@ -66,7 +66,7 @@ Unabhängig ist, wer den Code nicht selbst geschrieben hat.
 
 - Mergen darf nur, wer Maintainer von Haben ist und das ausdrücklich will. Wer beiträgt, hört nach Schritt 5 auf.
 - Vor dem Merge prüfen: alle Findings behoben, alle Checks grün auf dem aktuellen Stand, kein Konflikt mit `main`.
-- Merge-Methode wie in CLAUDE.md: eigener PR per **Squash**; PR eines Beitragenden mit **Merge-Commit**, damit GitHub ihn als gemergt zeigt.
+- Merge-Methode wie in CLAUDE.md: immer **Squash**, und zwar den Pull Request selbst, auch den eines Beitragenden (GitHub zeigt ihn dann als gemergt, der Commit trägt seinen Namen). Nur beim eigenen Ersatz-PR (letzter Ausweg) `Co-authored-by: <Beitragender>` in die Commit-Nachricht und seinen PR mit Link schließen.
 - **Nicht mergen**, wenn ein Finding offen ist, Checks rot bleiben oder der Fix eine fachliche Entscheidung braucht – dann zurückmelden und fragen.
 
 ## Abschlussbericht

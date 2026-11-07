@@ -1,0 +1,53 @@
+name: Funktionswunsch
+description: Etwas soll neu hinzukommen oder anders funktionieren.
+labels: ["wunsch"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ein Blick in die [Roadmap](https://firsttris.github.io/haben/roadmap.html) lohnt sich: Vieles steht dort schon mit Platz und Begründung. Bitte schreibe **keine echten Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate** in das Issue. Ersetze sie durch erfundene Werte oder Platzhalter.
+  - type: textarea
+    id: anlass
+    attributes:
+      label: Worum geht es?
+      description: Was möchtest du tun, und wo hakt es heute? Ein Alltagsbeispiel hilft mehr als eine Lösung.
+      placeholder: |
+        Beispiel: Ich verkaufe über Etsy und muss jede Auszahlung von Hand verbuchen, weil …
+    validations:
+      required: true
+  - type: textarea
+    id: stand
+    attributes:
+      label: Wie machst du es heute?
+      description: Behelf, anderes Programm, Stelle in der Doku. Und was fehlt dir dort in Haben?
+  - type: textarea
+    id: vorschlag
+    attributes:
+      label: Wie stellst du dir das vor?
+      description: Gern grob. Auch „irgendwie so wie in Programm X“ ist hilfreich, dann bitte mit Link oder Screenshot.
+  - type: textarea
+    id: kriterien
+    attributes:
+      label: Wann ist es gut genug?
+      description: Optional. Zum Beispiel als Liste von Dingen, die danach möglich sein sollen.
+      placeholder: |
+        - [ ] …
+  - type: dropdown
+    id: rechtsform
+    attributes:
+      label: Für wen gilt das?
+      options:
+        - Einzelunternehmen oder Freiberufler
+        - GmbH oder UG
+        - Beide
+        - Weiß ich nicht
+  - type: textarea
+    id: skizze
+    attributes:
+      label: Screenshot, Skizze oder Beispieldatei
+      description: Bei Wünschen zur Oberfläche hilft ein Bild oder eine Skizze. Beispieldateien (CSV, PDF, Export) nur anonymisiert.
+  - type: textarea
+    id: bezug
+    attributes:
+      label: Verwandte Issues und Roadmap
+      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://firsttris.github.io/haben/roadmap.html), falls du ihn kennst.

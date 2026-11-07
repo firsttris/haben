@@ -451,7 +451,7 @@ bun run build
 
 - **Branch:** Wer Schreibrecht hat, legt den Branch direkt in `firsttris/haben` an, alle anderen in ihrem Fork. Direkt auf `main` wird nicht gepusht.
 - **Entwurf:** Ein Pull Request darf als Entwurf beginnen. Für Entwürfe läuft die CI nicht; sie startet mit „Ready for review“.
-- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“. Eigene Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`.
+- **Titel:** `Bereich: was sich ändert (#Issue)`, etwa „Belege: eigene Ausgangsrechnung beim Upload erkennen (#104)“. Pull Requests werden per Squash gemergt; der Titel wird dann der Commit auf `main`.
 - **Commits im Pull Request:** gern im Stil von [Conventional Commits](https://www.conventionalcommits.org/de/) mit Beschreibung auf Deutsch, etwa `fix(belege): Fremdwährung in der Rechnungswährung vergleichen` oder `test: …`. Das ist eine Empfehlung, keine Prüfung.
 
 ### Mit KI-Werkzeugen
@@ -463,6 +463,22 @@ Mit KI-Agenten zu arbeiten ist ausdrücklich in Ordnung; ein großer Teil von Ha
 
 Das ändert nichts am Review. Verantwortlich für den Inhalt bleibt, wer den Pull Request einreicht. Weitere Angaben, etwa ein Link zur Session, sind erlaubt, aber nicht nötig.
 
+### Issues schreiben
+
+Für neue Issues gibt es Formulare unter **Issues → New issue**: Fehler melden, Funktionswunsch, Steuerfall oder Format, Umzug aus einem anderen Programm, Frage oder Hinweis zur Doku (`.github/ISSUE_TEMPLATE/`). Ein leeres Issue bleibt möglich. Die Formulare sind kurz gehalten: Meist ist nur ein Feld Pflicht, damit sich auch Gelegenheitsnutzer melden. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
+
+Wer ein Issue mit einem KI-Agenten schreibt oder ein größeres Vorhaben genau beschreiben will, folgt derselben Gliederung ausführlicher (Claude Code: Skill `issue-schreiben` in `.claude/skills/`):
+
+| Abschnitt | Inhalt |
+| --- | --- |
+| Anlass | Was soll möglich sein, und warum? Ein Alltagsbeispiel mit erfundenen Beträgen. Bei Fehlern: Schritte, erwartet und tatsächlich, Meldung im Wortlaut, Haben-Version. |
+| Stand in Haben | Was Haben heute tut, **auf dem aktuellen `main` geprüft**, mit Commit und Links auf Doku oder Code. Nicht aus dem Gedächtnis. |
+| Vorschlag | Was sich ändern soll, bei Bedarf in Stufen. Grenzen nennen: was ausdrücklich nicht dazugehört. |
+| Akzeptanzkriterien | Drei bis sechs prüfbare Punkte als `- [ ]`, zu denen ein Test oder ein Blick in die Oberfläche Ja oder Nein sagt. Bei Buchungen und Steuer: SKR03 und SKR04, Ist und Soll. |
+| Bezug und Quellen | Verwandte Issues und Pull Requests, Platz in der [Roadmap](roadmap.md), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. |
+
+Ein Issue behandelt ein Thema. Es ist so lang wie nötig und kurz genug für ein bis zwei Bildschirme; Quellcode steht als Link, nicht als Auszug. Fachliche Aussagen belegt eine Quelle, nicht ein Ratgeber. Wo etwas unsicher ist oder die Steuerberatung entscheiden muss, steht das ausdrücklich im Issue. Die Reihenfolge in der Roadmap legt der Maintainer fest.
+
 ### Review
 
 Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit Claude Code gibt es dafür den Skill `tdd-review` (`.claude/skills/tdd-review/SKILL.md`); mit anderen Werkzeugen gelten dieselben Schritte:
@@ -470,9 +486,9 @@ Jeder Pull Request bekommt vor dem Merge ein unabhängiges **TDD-Review**. Mit C
 1. **Unabhängig:** Wer den Code geschrieben hat, reviewt ihn nicht selbst. Ein KI-Agent, der am Code mitgeschrieben hat, startet für das Review einen neuen Agenten ohne diesen Verlauf.
 2. **Nur mit rotem Test:** Jeder Verdacht wird ein Test im bestehenden Framework (Vitest, Postgres-Test neben dem Modul, Playwright für die Oberfläche). Nur ein Test, der auf dem Stand des Pull Requests fehlschlägt, ist ein Befund; der Rest wird verworfen. Stil und Namen sind kein Befund.
 3. **Im Pull Request:** Befunde mit Testname und Ausgabe des roten Tests als Kommentar, auch wenn es keine gibt.
-4. **Red → Green:** Test und Fix als eigene Commits obendrauf. Bestehende Tests werden nicht abgeschwächt, Sperren und Siegel nicht gelockert, Commits von Beitragenden nicht umgeschrieben. Fixes gehen direkt auf den Branch des Pull Requests (im Repo oder im Fork mit „Allow edits by maintainers“); nur wenn das nicht geht, auf einen eigenen Branch mit eigenem Pull Request. Liegt der Branch nur hinter `main`, genügt „Update branch“ am Pull Request.
+4. **Red → Green:** Test und Fix als eigene Commits obendrauf. Bestehende Tests werden nicht abgeschwächt, Sperren und Siegel nicht gelockert, Commits von Beitragenden nicht umgeschrieben. Fixes gehen direkt auf den Branch des Pull Requests (im Repo oder im Fork mit „Allow edits by maintainers“); geht das nicht, bitten wir darum, „Allow edits by maintainers“ einzuschalten, und nur als letzter Ausweg gibt es einen eigenen Pull Request. Ein Branch, der nur hinter `main` liegt, braucht vor dem Merge kein Update.
 5. **Grün:** alle Prüfungen von oben lokal und in der CI, dann ein Abschlusskommentar mit den behobenen Befunden.
-6. **Merge:** nur durch einen Maintainer; eigene Pull Requests per Squash, Beiträge mit Merge-Commit und den Fixes als weitere Commits, damit GitHub sie als gemergt zeigt.
+6. **Merge:** nur durch einen Maintainer, immer per **Squash** und immer der Pull Request selbst, auch bei Beiträgen. GitHub zeigt ihn dann als gemergt, der Commit trägt den Namen des Beitragenden, und `main` bleibt linear. Nur beim eigenen Ersatz-Pull-Request steht `Co-authored-by:` mit dem Beitragenden in der Commit-Nachricht.
 
 Haben steht unter der AGPL-3.0.
 

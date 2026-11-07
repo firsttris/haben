@@ -86,15 +86,27 @@ Skill `checks` has the details:
   welcome; the person who opens the pull request stays responsible for it.
 - Before every push check whether the branch's pull request is still open. If it is merged, start
   again from the current `origin/main` and open a **new** pull request.
-- Merge method: squash for own pull requests. A contributor's pull request is taken over unchanged
-  with a merge commit, with our changes as further commits on top, so GitHub shows it as merged.
-  Never rewrite a contributor's commits.
+- Merge method: always **squash**, and merge the pull request itself, also a contributor's, so GitHub
+  shows it as merged and the squash commit carries its author; `main` keeps a linear history (merge
+  commits are switched off). Our fixes go as commits onto the pull request's branch (in the repo, or
+  in a fork with "Allow edits by maintainers"). If that is not possible, ask the contributor to allow
+  edits; only as a last resort open an own pull request from their state, squash it with
+  `Co-authored-by: <contributor>` and close theirs with a link. A branch that is only behind `main`
+  needs no update before the merge. Never rewrite a contributor's commits.
 - Force-push: allowed with `--force-with-lease` on the own branch after a merge.
 - Every pull request gets an independent **TDD review** before it is merged: skill `tdd-review` in
   `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md` (Review). Whoever wrote
   the code does not review it (in a session that wrote it, a separate subagent does); a finding counts
   only with a test that fails on the pull request; fixes go on top as their own commits. Only a
   maintainer merges.
+
+## Issues
+
+Write issues in German with the headings Anlass, Stand in Haben, Vorschlag, Akzeptanzkriterien, Bezug.
+Check "Stand in Haben" against the current `main` and link commit, docs or code; name sources with
+links; invented amounts, no real receipts, tax numbers, IBANs or credentials. Steps and detail level:
+skill `issue-schreiben` in `.claude/skills/`, the same steps without Claude in `docs/entwicklung.md`
+(Issues schreiben). Roadmap order and labels are the maintainer's call.
 
 ## Working rules
 

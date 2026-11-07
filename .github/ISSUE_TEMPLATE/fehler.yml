@@ -1,0 +1,75 @@
+name: Fehler melden
+description: Etwas funktioniert nicht oder rechnet falsch.
+labels: ["fehler"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für die Meldung. Bitte schreibe **keine echten Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate** in das Issue. Ersetze sie durch Platzhalter und schwärze Screenshots.
+  - type: textarea
+    id: was
+    attributes:
+      label: Was ist passiert?
+      description: Beschreibe kurz, was nicht stimmt.
+    validations:
+      required: true
+  - type: textarea
+    id: schritte
+    attributes:
+      label: Schritte zum Nachstellen
+      description: Wo hast du geklickt, was hast du eingegeben? Ein Beispiel mit erfundenen Beträgen reicht.
+      placeholder: |
+        Beispiel: Belege › Hochladen › PDF auswählen › Bestätigen und buchen
+  - type: textarea
+    id: erwartet
+    attributes:
+      label: Was hast du erwartet, was ist stattdessen passiert?
+      description: Bei Beträgen gern beides mit Zahlen. Meldungen bitte im genauen Wortlaut.
+  - type: dropdown
+    id: bereich
+    attributes:
+      label: Bereich
+      options:
+        - Rechnungen und Angebote
+        - Belege
+        - Bank und Abgleich
+        - Umsatzsteuer, Voranmeldung, ELSTER
+        - Jahreserklärung, EÜR, Bilanz
+        - GmbH oder UG
+        - Lohn
+        - Umzug aus anderem Programm
+        - Einstellungen oder Anmeldung
+        - Darstellung, Handy, Barrierefreiheit
+        - Weiß ich nicht
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "Steht unten in der Navigation. Bei einem selbst gebauten Stand: Commit."
+      placeholder: z. B. 0.1.0
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation
+      options:
+        - Docker Compose
+        - Podman Quadlets
+        - Eigener Aufbau (Container, Bun)
+        - Entwicklung (docker compose up)
+        - Weiß ich nicht
+  - type: input
+    id: browser
+    attributes:
+      label: Browser und Gerät
+      description: Nur bei Darstellungsfehlern wichtig.
+      placeholder: z. B. Safari auf iPadOS
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server-Meldungen oder Screenshot
+      description: Zum Beispiel `docker compose logs app`. Vorher alles Persönliche entfernen.
+  - type: textarea
+    id: bezug
+    attributes:
+      label: Verwandte Issues und Roadmap
+      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://firsttris.github.io/haben/roadmap.html), falls du ihn kennst.
