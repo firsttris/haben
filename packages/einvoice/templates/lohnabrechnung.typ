@@ -2,6 +2,7 @@
 // die Steuerbescheinigung (DIN 5008 Form B). Alle Texte und Beträge kommen fertig formatiert als JSON über sys.inputs.data.
 
 #let d = json(bytes(sys.inputs.data))
+#import "entwurf.typ": entwurf-vermerk
 #let legal = d.at("legal", default: none)
 
 #let ink = rgb(d.palette.ink)
@@ -27,10 +28,8 @@
   paper: "a4",
   margin: (top: 20mm, bottom: 30mm, left: 25mm, right: 20mm),
   footer-descent: 8mm,
-  // Entwurf: quer über die Seite, damit ein ausgedrucktes Blatt nicht als Abrechnung durchgeht
-  background: if d.entwurf != none {
-    place(center + horizon, rotate(-35deg, text(size: 60pt, fill: rgb(0, 0, 0, 20), semibold("ENTWURF"))))
-  },
+  // Entwurf: Vermerk über jeder Seite (entwurf.typ), damit ein ausgedrucktes Blatt nicht als Abrechnung durchgeht
+  foreground: entwurf-vermerk(if d.entwurf != none { "ENTWURF" }),
   footer: context {
     set block(spacing: 0pt)
     line(length: 100%, stroke: 0.4pt + rule)

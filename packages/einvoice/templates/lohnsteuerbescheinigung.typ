@@ -3,6 +3,7 @@
 // Texte und Beträge kommen fertig formatiert als JSON über sys.inputs.data, hier wird nichts berechnet.
 
 #let d = json(bytes(sys.inputs.data))
+#import "entwurf.typ": entwurf-vermerk
 
 #let ink = rgb(d.palette.ink)
 #let muted = rgb(d.palette.muted)
@@ -16,10 +17,8 @@
 #set page(
   paper: "a4",
   margin: (top: 12mm, bottom: 14mm, left: 15mm, right: 15mm),
-  // Entwurf: quer über die Seite, damit ein ausgedrucktes Blatt nicht als Ausdruck durchgeht
-  background: if d.entwurf != none {
-    place(center + horizon, rotate(-35deg, text(size: 60pt, fill: rgb(0, 0, 0, 20), semibold("ENTWURF"))))
-  },
+  // Entwurf: Vermerk über jeder Seite (entwurf.typ), damit ein ausgedrucktes Blatt nicht als Ausdruck durchgeht
+  foreground: entwurf-vermerk(if d.entwurf != none { "ENTWURF" }),
   footer: context {
     set text(size: 6.5pt, fill: muted)
     grid(columns: (1fr, auto), d.erstellt, [Seite #counter(page).display() von #counter(page).final().first()])

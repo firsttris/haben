@@ -1,12 +1,12 @@
 import { UserError } from "../../errors.ts";
 import { addDays, DEFAULT_INTEREST_MARKUP, DUNNING_LEVELS, DUNNING_TEXTS, dunningAmounts, type DunningLevel } from "@haben/core";
-import { buildDunningPdf } from "@haben/einvoice";
+import { buildDunningDraftPdf, buildDunningPdf, type DraftPdf, type DunningDocument } from "@haben/einvoice";
 import { desc, eq, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { loadCompany } from "../stammdaten/index.ts";
 import { withActor } from "../../db/actor.ts";
-import { db, schema } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { listInvoices, withCurrentLegalInfo } from "./invoices.ts";
 import { loadLetterhead } from "../stammdaten/index.ts";
 
@@ -134,8 +134,8 @@ export const dunningInputSchema = z.object({
 
 export type DunningInput = z.infer<typeof dunningInputSchema>;
 
-/** Erstellt die Mahnung mit PDF; Beträge werden zum heutigen Stand berechnet */
-export async function createDunning(actor: string, input: DunningInput, today: string): Promise<Dunning> {
+/** Prüfungen vor jeder Mahnung, auch vor dem Entwurf: offen, fällig, Frist in der Zukunft, Basiszins für Zinsen */
+async function checkedInput(input: DunningInput, today: string) {
   const listed = await openInvoice(input.invoiceId, today);
   if (listed.dueDate >= today) throw new DunningError("Die Rechnung ist noch nicht fällig.");
   if (input.dueDate <= today) throw new DunningError("Die neue Zahlungsfrist muss in der Zukunft liegen.");
@@ -143,55 +143,82 @@ export async function createDunning(actor: string, input: DunningInput, today: s
   if (input.interest && company.dunning.baseRate === null) {
     throw new DunningError("Für Verzugszinsen bitte zuerst den Basiszinssatz in den Einstellungen eintragen.");
   }
-  const letterhead = await loadLetterhead();
-  return withActor(actor, async (tx) => {
-    // Rechnung sperren und letzte Mahnung erst danach lesen: Zwei gleichzeitige Mahnungen derselben Stufe sind so ausgeschlossen.
-    const [invoice] = await tx.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId)).for("update");
-    if (!invoice?.seller || !invoice.buyer || !invoice.number) throw new DunningError("Rechnung nicht gefunden.");
-    // Offen ist der Euro-Betrag aus dem Kurs der Rechnung; der Kunde schuldet aber die Fremdwährung
-    if (invoice.currency !== "EUR") throw new DunningError(`Mahnungen für Rechnungen in ${invoice.currency} erstellt Haben nicht; bitte selbst mahnen.`);
-    const [last] = await tx
-      .select({ level: schema.dunnings.level })
-      .from(schema.dunnings)
-      .where(eq(schema.dunnings.invoiceId, invoice.id))
-      .orderBy(desc(schema.dunnings.date), desc(schema.dunnings.createdAt))
-      .limit(1);
-    const allowed = nextLevel(last);
-    if (input.level < allowed) {
-      throw new DunningError(
-        `Die Rechnung ist schon mit „${DUNNING_LEVELS[last!.level as DunningLevel].label}“ gemahnt. Als Nächstes folgt „${DUNNING_LEVELS[allowed].label}“.`,
-      );
-    }
+  return { open: listed.open, company, letterhead: await loadLetterhead() };
+}
 
-    const amounts = dunningAmounts({
-      open: listed.open,
+/**
+ * Inhalt der Mahnung zum heutigen Stand. Mit `lock` sperrt sie die Rechnung und liest die letzte Mahnung erst danach:
+ * Zwei gleichzeitige Mahnungen derselben Stufe sind so ausgeschlossen. Der Entwurf liest nur.
+ */
+async function dunningDocument(
+  q: Db | Tx,
+  input: DunningInput,
+  today: string,
+  { open, company, letterhead }: Awaited<ReturnType<typeof checkedInput>>,
+  lock: boolean,
+): Promise<DunningDocument> {
+  const query = q.select().from(schema.invoices).where(eq(schema.invoices.id, input.invoiceId));
+  const [invoice] = await (lock ? query.for("update") : query);
+  if (!invoice?.seller || !invoice.buyer || !invoice.number) throw new DunningError("Rechnung nicht gefunden.");
+  // Offen ist der Euro-Betrag aus dem Kurs der Rechnung; der Kunde schuldet aber die Fremdwährung
+  if (invoice.currency !== "EUR") throw new DunningError(`Mahnungen für Rechnungen in ${invoice.currency} erstellt Haben nicht; bitte selbst mahnen.`);
+  const [last] = await q
+    .select({ level: schema.dunnings.level })
+    .from(schema.dunnings)
+    .where(eq(schema.dunnings.invoiceId, invoice.id))
+    .orderBy(desc(schema.dunnings.date), desc(schema.dunnings.createdAt))
+    .limit(1);
+  const allowed = nextLevel(last);
+  if (input.level < allowed) {
+    throw new DunningError(
+      `Die Rechnung ist schon mit „${DUNNING_LEVELS[last!.level as DunningLevel].label}“ gemahnt. Als Nächstes folgt „${DUNNING_LEVELS[allowed].label}“.`,
+    );
+  }
+  return {
+    ...letterhead,
+    level: input.level,
+    date: today,
+    dueDate: input.dueDate,
+    seller: withCurrentLegalInfo(invoice.seller, company),
+    buyer: invoice.buyer,
+    // Gemahnt wird erst nach der Fälligkeit, also nach jeder Skontofrist: dann gilt der volle Betrag
+    invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate, skontoExpired: invoice.skonto.length > 0 },
+    amounts: dunningAmounts({
+      open,
       dueDate: invoice.dueDate,
       date: today,
       fee: input.fee,
       flatFee: input.flatFee,
       interestRate: input.interest ? company.dunning.baseRate! + DEFAULT_INTEREST_MARKUP[input.interest] : null,
-    });
-    const pdf = buildDunningPdf({
-      ...letterhead,
-      level: input.level,
-      date: today,
-      dueDate: input.dueDate,
-      seller: withCurrentLegalInfo(invoice.seller, company),
-      buyer: invoice.buyer,
-      // Gemahnt wird erst nach der Fälligkeit, also nach jeder Skontofrist: dann gilt der volle Betrag
-      invoice: { number: invoice.number, issueDate: invoice.issueDate, dueDate: invoice.dueDate, skontoExpired: invoice.skonto.length > 0 },
-      amounts,
-      intro: input.intro,
-      closing: input.closing,
-    });
+    }),
+    intro: input.intro,
+    closing: input.closing,
+  };
+}
+
+/**
+ * Mahnung als Entwurfs-PDF (Issue #342) mit denselben Prüfungen und Beträgen wie beim Erstellen, aber ohne sie zu
+ * speichern: Die Mahnstufe bleibt frei, nichts wird versendet
+ */
+export async function dunningDraftPdf(input: DunningInput, today: string): Promise<DraftPdf> {
+  const checked = await checkedInput(input, today);
+  return buildDunningDraftPdf(await dunningDocument(db, input, today, checked, false));
+}
+
+/** Erstellt die Mahnung mit PDF; Beträge werden zum heutigen Stand berechnet */
+export async function createDunning(actor: string, input: DunningInput, today: string): Promise<Dunning> {
+  const checked = await checkedInput(input, today);
+  return withActor(actor, async (tx) => {
+    const doc = await dunningDocument(tx, input, today, checked, true);
+    const pdf = buildDunningPdf(doc);
     const [created] = await tx
       .insert(schema.dunnings)
       .values({
-        invoiceId: invoice.id,
+        invoiceId: input.invoiceId,
         level: input.level,
         date: today,
         dueDate: input.dueDate,
-        ...amounts,
+        ...doc.amounts,
         intro: input.intro,
         closing: input.closing,
         pdf: Buffer.from(pdf),
