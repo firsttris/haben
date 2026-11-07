@@ -1,3 +1,4 @@
+import { formatDecimal } from "@haben/core";
 import { runDueBankSyncs } from "./modules/bank/index.ts";
 import { elsterClient, elsterMode } from "./modules/elster/index.ts";
 import { env } from "./env.ts";
@@ -5,7 +6,7 @@ import { applyPublishedRates, runDueDauerbelege, runDueInboxFetch } from "./modu
 import { runDueExchangeRates } from "./modules/stammdaten/index.ts";
 import { runDueFristenMails, runDuePruefwertMail } from "./modules/mail/index.ts";
 import { runDuePostfachFetch } from "./modules/finanzamt/index.ts";
-import { applyPublishedRatesToDrafts, runDueRecurring } from "./modules/rechnungen/index.ts";
+import { applyPublishedRatesToDrafts, runDueBaseRate, runDueRecurring } from "./modules/rechnungen/index.ts";
 import { today } from "./today.ts";
 
 const HOUR = 60 * 60 * 1000;
@@ -59,6 +60,16 @@ export async function runScheduledJobs(): Promise<void> {
     }
   } catch (error) {
     console.error("Umrechnungskurse", error);
+  }
+  try {
+    const result = await runDueBaseRate(today());
+    if (result?.updated)
+      console.log(
+        `Basiszinssatz: ${formatDecimal(result.basisPoints)} % (Bundesbank, Stand ${result.month})${result.changed ? ", geändert" : ", unverändert"}`,
+      );
+    else if (result) console.log(`Basiszinssatz: Bundesbank meldet noch Stand ${result.month}, neuer Versuch morgen`);
+  } catch (error) {
+    console.error("Basiszinssatz", error);
   }
   try {
     const result = await runDueInboxFetch();
