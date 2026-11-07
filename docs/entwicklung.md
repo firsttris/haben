@@ -183,7 +183,7 @@ Am Ende speichert er die Sitzung (`test-results/.sitzung.json`). Danach laufen m
 - Am Handy ist die Seite nicht breiter als der Bildschirm.
 - Das Handy-Menü lässt sich öffnen und bedienen.
 
-Von jeder Seite legt der Test einen Screenshot unter `apps/web/test-results/screenshots/{desktop,mobil}/` ab. Eine neue Seite gehört in die Liste in `seiten.spec.ts` und in `barrierefreiheit.spec.ts`.
+Mit `SEITEN_SCREENSHOTS=1` legt der Test von jeder Seite einen Screenshot unter `apps/web/test-results/screenshots/{desktop,mobil}/` ab; ohne die Variable prüft er nur und wartet nicht auf Ruhe im Netz. Eine neue Seite gehört in die Liste in `seiten.spec.ts` und in `barrierefreiheit.spec.ts`.
 
 `apps/web/e2e/barrierefreiheit.spec.ts` prüft mit denselben Daten Barrierefreiheit und Tastaturbedienung: axe-core (`@axe-core/playwright`) gegen WCAG 2.2 AA auf jeder Seite am Desktop und am Handy, Farbkontraste in allen Themes, Anmelden nur mit der Tastatur, Sprunglink, sichtbarer Fokus beim Tabben und das Handy-Menü mit Esc. Was genau, und worauf neue Oberflächen achten, steht unter [Barrierefreiheit und Tastatur](barrierefreiheit.md#wie-das-geprüft-wird). Eine einzelne Datei startest du mit `bun run e2e barrierefreiheit`; Playwright lässt `app.spec.ts` dann davor laufen, weil das Projekt `mit-daten` davon abhängt.
 
@@ -194,7 +194,9 @@ E2E_DATABASE_URL=postgres://haben@localhost:5432/haben_e2e bun run e2e
 
 Playwright startet selbst einen Server auf Port 3100 (`E2E_PORT`). Vorher leert es die Datenbank und spielt die Migrationen ein. Lokal ist das der Entwicklungsserver, in der CI der gebaute Server (`E2E_SERVER_COMMAND="bun .output/server/index.mjs"` nach `bun run build`). Chromium kommt einmalig mit `bun --bun playwright install chromium` in `apps/web`. Wer schon ein passendes Chromium hat, setzt stattdessen `PLAYWRIGHT_CHROMIUM_EXECUTABLE`.
 
-In der CI läuft der Job `e2e` bei jedem Pull Request. Screenshots, Playwright-Bericht und bei Fehlern Traces hängen als Artefakt `e2e-screenshots` am Lauf. So sieht man zu jeder Änderung, wie alle Seiten aussehen.
+In der CI laufen die Tests bei jedem Pull Request in drei Teilen parallel (Jobs `e2e-teil`, `bun run e2e --shard=<n>/3`). Jeder Teil mit Tests aus `mit-daten` spielt `app.spec.ts` vorher selbst durch, der dritte hat nur `ohne-daten`. Der Job `e2e` fasst die Teile zu einem Ergebnis zusammen; ihn verlangen die Regeln für `main`. Lokal läuft ein Teil genauso, etwa `bun run e2e --shard=2/3`.
+
+Playwright-Bericht und bei Fehlern Traces hängen je Teil als Artefakt `e2e-screenshots-teil-<n>` am Lauf. Die Screenshots aller Seiten entstehen nur bei den Läufen auf `main` (`SEITEN_SCREENSHOTS=1`); dort sieht man nach jedem Merge, wie alle Seiten aussehen.
 
 ### Bilder für README und Doku
 
