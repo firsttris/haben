@@ -4,6 +4,7 @@ import {
   RECHTSFORMEN,
   currentFilingPeriod,
   formatDecimal,
+  formatRateMonth,
   isKapitalgesellschaft,
   parseEuro,
   type Bundesland,
@@ -13,6 +14,7 @@ import { Link, createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState, type FormEvent } from "react";
 import { BackupCard } from "../../components/BackupCard.tsx";
+import { BaseRateLookup } from "../../components/BaseRateLookup.tsx";
 import { DatevCard } from "../../components/DatevCard.tsx";
 import { EnableBankingCard } from "../../components/EnableBankingCard.tsx";
 import { ExchangeRatesCard } from "../../components/ExchangeRatesCard.tsx";
@@ -221,6 +223,7 @@ function CompanyForm() {
   const [rechtsform, setRechtsform] = useState<Rechtsform>(company.rechtsform);
   const gesellschaft = isKapitalgesellschaft(rechtsform);
   const [skontoRows, setSkontoRows] = useState(() => toSkontoRows(company.skonto));
+  const [baseRate, setBaseRate] = useState(company.dunning.baseRate === null ? "" : formatDecimal(company.dunning.baseRate));
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -272,6 +275,7 @@ function CompanyForm() {
               "3": parseEuro(text("dunning-fee-3") || "0") ?? 0,
             },
             deadlineDays: Number(text("dunning-deadlineDays") || 10),
+            autoBaseRate: form.get("dunning-autoBaseRate") === "on",
           },
           privateShares: Object.fromEntries(
             (["telefon", "internet"] as const)
@@ -634,7 +638,8 @@ function CompanyForm() {
             <input
               name="dunning-baseRate"
               inputMode="decimal"
-              defaultValue={company.dunning.baseRate === null ? "" : formatDecimal(company.dunning.baseRate)}
+              value={baseRate}
+              onChange={(event) => setBaseRate(event.target.value)}
               placeholder="z. B. 1,27"
               aria-describedby="base-rate-hint"
             />
@@ -645,8 +650,21 @@ function CompanyForm() {
           </label>
         </div>
         <p id="base-rate-hint" className="field-hint">
-          Der Basiszinssatz ändert sich zum 1. Januar und 1. Juli, veröffentlicht von der Deutschen Bundesbank. Leer = keine Verzugszinsen.
+          Der Basiszinssatz ändert sich zum 1. Januar und 1. Juli, veröffentlicht von der Deutschen Bundesbank. Der Knopf fragt den aktuellen Satz dort ab und
+          trägt ihn ein. Leer = keine Verzugszinsen.
         </p>
+        <BaseRateLookup onFound={setBaseRate} />
+        <label className="checkbox" style={{ alignItems: "flex-start" }}>
+          <input type="checkbox" name="dunning-autoBaseRate" defaultChecked={company.dunning.autoBaseRate === true} aria-describedby="auto-base-rate-hint" />
+          <span>
+            Basiszinssatz automatisch abrufen
+            <span id="auto-base-rate-hint" className="field-hint" style={{ display: "block" }}>
+              Haben fragt die Bundesbank nur nach dem 1. Januar und 1. Juli, einmal am Tag, bis der neue Satz veröffentlicht ist, und trägt ihn dann ein.
+              Dazwischen ändert sich der Satz nicht und Haben fragt nicht.
+              {company.dunning.baseRateSince ? ` Zuletzt bestätigt für das Halbjahr ab ${formatRateMonth(company.dunning.baseRateSince)}.` : ""}
+            </span>
+          </span>
+        </label>
         <div className="form-row cols-3">
           <label className="field">
             Gebühr Zahlungserinnerung (€)

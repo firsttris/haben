@@ -158,10 +158,18 @@ export const company = pgTable(
     privateShares: jsonb("private_shares").$type<Record<string, number>>().notNull().default({}),
     /**
      * Mahnwesen: Basiszinssatz in Basispunkten (null = keine Verzugszinsen), Mahngebühr je Stufe in Cent,
-     * Zahlungsfrist in Tagen
+     * Zahlungsfrist in Tagen. autoBaseRate: Basiszinssatz von der Bundesbank automatisch abrufen (ausdrücklich
+     * einzuschalten); baseRateSince: Halbjahr (JJJJ-01 oder JJJJ-07), für das der Abruf den Satz bestätigt hat.
+     * Beide fehlen in älteren Zeilen.
      */
     dunning: jsonb("dunning")
-      .$type<{ baseRate: number | null; fees: Record<"1" | "2" | "3", number>; deadlineDays: number }>()
+      .$type<{
+        baseRate: number | null;
+        fees: Record<"1" | "2" | "3", number>;
+        deadlineDays: number;
+        autoBaseRate?: boolean;
+        baseRateSince?: string | null;
+      }>()
       .notNull()
       .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
     /** SHA-256 des geheimen Tokens im Kalender-Abo der Fristen; null = kein Abo */
@@ -1523,7 +1531,8 @@ export const documents = pgTable(
 );
 
 /**
- * Storno eines gebuchten Belegs (#237): Gegenbuchung am Tag des Stornos, der Beleg selbst bleibt gesperrt und versiegelt.
+ * Storno eines gebuchten Belegs (#237): Gegenbuchung im noch nicht gemeldeten Zeitraum der Belegbuchung, sonst am Tag des
+ * Stornos; der Beleg selbst bleibt gesperrt und versiegelt.
  * Nur anhängen, mit Siegel; je Beleg höchstens ein Storno.
  */
 export const documentCancellations = pgTable("document_cancellations", {
@@ -1532,7 +1541,10 @@ export const documentCancellations = pgTable("document_cancellations", {
     .notNull()
     .unique()
     .references(() => documents.id),
-  /** Buchungsdatum der Gegenbuchung: der Tag des Stornos, damit abgegebene Voranmeldungen unberührt bleiben (§ 17 UStG) */
+  /**
+   * Buchungsdatum der Gegenbuchung: das Datum der Belegbuchung, solange ihr Zeitraum nicht gemeldet ist, sonst der Tag
+   * des Stornos, damit abgegebene Voranmeldungen unberührt bleiben (§ 17 UStG). Der Zeitpunkt des Stornos ist created_at.
+   */
   date: date("date", { mode: "string" }).notNull(),
   reason: text("reason").notNull().default(""),
   journalEntryId: uuid("journal_entry_id")

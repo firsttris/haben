@@ -126,7 +126,7 @@ export async function euerPayments(year: number, q: Db | Tx = db): Promise<EuerP
       ),
     );
 
-  // Storno eines privat oder bar bezahlten Belegs (#237): fließt am Tag des Stornos zurück. Über die Bank bezahlte Belege
+  // Storno eines privat oder bar bezahlten Belegs (#237): fließt am Datum der Gegenbuchung zurück. Über die Bank bezahlte Belege
   // lassen sich nur ohne Zahlung stornieren, sie haben in der EÜR nichts zurückzunehmen.
   const cancelledDocs = await q
     .select({

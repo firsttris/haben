@@ -447,15 +447,18 @@ Die Vorsteuer eines gebuchten Belegs zählt in der Umsatzsteuer-Voranmeldung fü
 Ein gebuchter Beleg lässt sich nicht mehr ändern oder löschen (GoBD). Hast du dich vertippt, etwa den Bruttobetrag ins Feld **Netto** geschrieben, hebst du ihn mit **Beleg stornieren** auf und erfasst ihn richtig neu, wie bei einer Stornorechnung.
 
 1. Den gebuchten Beleg öffnen und **Beleg stornieren** klicken. Darüber erscheint ein Hinweis und das Feld **Grund** (optional, z. B. „Brutto als Netto erfasst“).
-2. **Jetzt stornieren** klicken. Der Beleg zeigt danach „Storniert am …“ mit einem Link auf die Gegenbuchung im Journal, in der Liste steht er als **Storniert**.
+2. **Jetzt stornieren** klicken. Der Beleg zeigt danach „Storniert mit einer Gegenbuchung zum …“ mit einem Link auf die Gegenbuchung im Journal, in der Liste steht er als **Storniert**.
 3. **Neu erfassen** legt einen neuen Entwurf mit derselben Datei und den Feldern des stornierten Belegs an, mit Beträgen und Aufteilung. Du korrigierst ihn und buchst ihn wie jeden anderen. Gibt es den Entwurf schon, führt **Zur Neuerfassung** dorthin.
 
 Was dabei passiert:
 
-- **Gegenbuchung am Tag des Stornos.** Haben bucht die Belegbuchung mit vertauschten Seiten zurück („Storno: Beleg …“), mit heutigem Datum, frühestens am Belegdatum. Eine schon abgegebene Voranmeldung bleibt so unberührt: Die Vorsteuer des Belegs steht weiter im Monat des Belegdatums, der Storno mindert sie im Monat des Stornos (§ 17 Abs. 1 UStG). Ebenso Kz 46/47 bzw. 84/85 und 67 bei § 13b. Bei Ist- und Soll-Versteuerung gleich.
+- **Gegenbuchung im richtigen Zeitraum.** Haben bucht die Belegbuchung mit vertauschten Seiten zurück („Storno: Beleg …“). Welches Datum sie bekommt, nennt der Hinweis vor dem Stornieren:
+    - **Zeitraum der Belegbuchung noch nicht gemeldet:** am Datum der Belegbuchung. Ein Erfassungsfehler, etwa der 11.03. statt des 03.11., verschiebt so keine Vorsteuer in einen Zeitraum, in den sie nicht gehört; die Voranmeldung dieses Zeitraums kommt ohne den Beleg heraus.
+    - **Schon gemeldet**, also für den Monat oder das Quartal eine Voranmeldung gesendet oder ihre Abgabe vermerkt, eine Jahreserklärung des Jahres gesendet (Umsatzsteuer, Anlage EÜR, Einkommensteuer, bei einer GmbH auch E-Bilanz, Körperschaft- oder Gewerbesteuer) oder das Jahr abgeschlossen: mit heutigem Datum, frühestens am Belegdatum. Die abgegebene Voranmeldung bleibt unberührt: Die Vorsteuer des Belegs steht weiter in ihrem Zeitraum, der Storno mindert sie im laufenden (§ 17 Abs. 1 UStG).
+    - Ebenso Kz 46/47 bzw. 84/85 und 67 bei § 13b. Bei Ist- und Soll-Versteuerung gleich. Eine Voranmeldung, die du außerhalb von Haben abgegeben hast (etwa noch in Lexoffice), kennt Haben nur mit [Abgabevermerk](umsatzsteuer.md#abgabe-außerhalb-von-haben-vermerken); prüfe dann das Datum im Hinweis.
 - **Der Beleg bleibt, wie er ist.** Er bleibt gebucht, gesperrt und versiegelt. Den Storno hält eine eigene Zeile fest (Beleg, Gegenbuchung, Datum, Grund), die nur angehängt wird, im Änderungsprotokoll steht und ein eigenes Siegel trägt.
-- **EÜR:** Ein privat oder bar bezahlter Beleg zählt am Belegdatum als Ausgabe und am Tag des Stornos mit umgekehrtem Vorzeichen. Liegt der Storno im Folgejahr, mindert er die Ausgaben dort.
-- **Bar aus der Kasse:** Im [Kassenbuch](kasse.md) entsteht eine Gegenzeile mit neuer Nummer und dem Betrag zurück in die Kasse; die ursprüngliche Zeile ist als storniert markiert.
+- **EÜR:** Ein privat oder bar bezahlter Beleg zählt am Belegdatum als Ausgabe und am Datum der Gegenbuchung mit umgekehrtem Vorzeichen. Liegt sie im Folgejahr, mindert sie die Ausgaben dort.
+- **Bar aus der Kasse:** Im [Kassenbuch](kasse.md) entsteht eine Gegenzeile mit neuer Nummer und dem Betrag zurück in die Kasse; die ursprüngliche Zeile ist als storniert markiert. Gegenzeile und Gegenbuchung stehen hier immer am Tag des Stornos, weil das Kassenbuch zeitnah und in der Reihenfolge der Tage geführt wird.
 - **Über das Geschäftskonto:** Der Beleg verschwindet aus den offenen Posten und lässt sich keiner Zahlung mehr zuordnen.
 - **Dieselbe Datei:** Beim Hochladen nimmt Haben dieselbe Datei sonst nicht ein zweites Mal an. Die Neuerfassung nutzt sie trotzdem; lädst du die Datei danach noch einmal hoch, landest du bei der Neuerfassung. Je storniertem Beleg gibt es eine Neuerfassung; löschst du den Entwurf, lässt er sich wieder neu erfassen.
 

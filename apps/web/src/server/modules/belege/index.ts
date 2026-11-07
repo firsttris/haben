@@ -27,6 +27,7 @@ export {
   cancellationInputSchema,
   cancellationIssues,
   documentCancellation,
+  plannedCancellationDate,
   reenterDocument,
   type DocumentCancellation,
 } from "./cancellation.ts";
