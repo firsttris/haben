@@ -2,6 +2,7 @@
 // formatiert als JSON über sys.inputs.data; hier wird nichts berechnet.
 
 #let d = json(bytes(sys.inputs.data))
+#import "entwurf.typ": entwurf-vermerk, girocode-feld
 // Pflichtangaben einer GmbH oder UG (§ 35a GmbHG) unter den Spalten des Fußes; ohne sie bleibt der Fuß wie bisher
 #let legal = d.at("legal", default: none)
 
@@ -32,6 +33,8 @@
 #set page(
   paper: "a4",
   margin: (top: 20mm, bottom: 34mm, left: 25mm, right: 20mm),
+  // Entwurf: Vermerk über jeder Seite (entwurf.typ)
+  foreground: entwurf-vermerk(d.at("draft", default: none)),
   // Fest statt 30 % des Rands: Wächst der Rand um die Pflichtangaben, bekommt der Fuß den ganzen Zuwachs
   footer-descent: 10.2mm,
   background: {
@@ -225,14 +228,8 @@
   block(breakable: false, semibold(d.taxNote))
   v(2mm)
 }
-#let girocode = if d.at("qr", default: none) != none {
-  // GiroCode: Banking-App scannen statt abtippen
-  box(width: 24mm, {
-    image(bytes(d.qr), format: "svg", width: 24mm)
-    v(1mm)
-    align(center, text(size: 6.5pt, fill: muted)[GiroCode])
-  })
-}
+// GiroCode: Banking-App scannen statt abtippen
+#let girocode = girocode-feld(d, muted)
 #if girocode != none {
   block(breakable: false, grid(columns: (1fr, 24mm), column-gutter: 8mm, align: (left + top, right + top), d.payment, girocode))
 } else if d.payment != none {

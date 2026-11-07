@@ -31,6 +31,18 @@ Rechts zeigt die Vorschau die Rechnung, während du tippst. Die Überschrift im 
 
 Einen Entwurf, den du nicht mehr brauchst, entfernst du mit **Entwurf löschen**. Das geht nur, solange er nicht festgeschrieben ist.
 
+### Entwurf als PDF
+
+**Entwurf als PDF** lädt den Entwurf als echtes PDF herunter, etwa zur Prüfung durch die Steuerberatung. Es entsteht aus derselben Vorlage wie das PDF beim Festschreiben, mit Umbruch, Fußzeile und Logo, und zeigt so auch, wie eine mehrseitige Rechnung aussieht. Das geht für Rechnungen, Abschlags-, Schluss- und Korrekturrechnungen, sobald ein Kunde gewählt ist; was für das Festschreiben noch fehlt, darf fehlen.
+
+- Auf jeder Seite steht groß und schräg **ENTWURF** (auf englischen Rechnungen **DRAFT**). Der Vermerk liegt als eigene Ebene über Inhalt und Hintergrund, keine Gestaltung kann ihn verdecken; der Inhalt bleibt lesbar.
+- Statt der Rechnungsnummer steht „ENTWURF“ im Kopf. Statt des [GiroCodes](#girocode) steht ein gestrichelter Platzhalter gleicher Größe: Der Umbruch ist wie im endgültigen PDF, aber niemand kann einen Entwurf per Scan bezahlen.
+- Der Dateiname nennt Belegart, „Entwurf“ und Rechnungsdatum, etwa `Rechnung-Entwurf-2026-10-02.pdf` oder `Invoice-Draft-2026-10-02.pdf`.
+- Hast du seit dem letzten Speichern etwas geändert, heißt der Knopf **Speichern und als PDF**: Er speichert zuerst, damit das PDF zeigt, was im Formular steht. Jeder weitere Download zeigt den neuen Stand.
+- Der Download vergibt keine Nummer, bucht nichts, versendet nichts und bettet kein XML ein. Das endgültige PDF beim Festschreiben hat keinen Vermerk.
+
+Das Entwurfs-PDF lädt nur der Inhaber; die [Steuerberatung](steuerberatung.md) sieht Entwürfe nicht und bekommt das PDF von dir. Auftragsbestätigung und Lieferschein haben keinen Entwurf: Sie entstehen aus festgeschriebenen Angeboten und Rechnungen.
+
 ### Positionen
 
 | Feld | Werte |
@@ -280,7 +292,7 @@ Neben der Zahlungsaufforderung druckt Haben einen GiroCode, also einen EPC-QR-Co
 
 Läuft dein Konto nicht auf den Firmennamen, z. B. auf dich als Person, trag unter **Einstellungen › Firma** den **Kontoinhaber** ein. Die Bank deines Kunden vergleicht den Empfängernamen bei der Überweisung mit dem Inhaber des Kontos (Empfängerüberprüfung, seit Oktober 2025) und warnt sonst. Der Kontoinhaber steht auch in der Bankspalte der Fußzeile und in der E-Rechnung als Name des Zahlungskontos (BT-85).
 
-Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen.
+Der Code steht nur auf Rechnungen in Euro mit Zahlbetrag und nur, wenn in den Firmendaten eine IBAN steht. Stornorechnungen und Korrekturen bekommen keinen. Mahnungen tragen den Code über den offenen Gesamtbetrag samt Gebühren und Zinsen. Im [Entwurfs-PDF](#entwurf-als-pdf) steht an seiner Stelle ein Platzhalter.
 
 ## Rechnungen in Fremdwährung
 
@@ -385,7 +397,7 @@ Im Formular legst du fest:
 | Verzugspauschale | 40 € nach § 288 Abs. 5 BGB, nur gegenüber Geschäftskunden |
 | Einleitung und Schluss | Vorlage je Stufe, frei änderbar |
 
-Rechts siehst du die Forderung mit Gesamtbetrag. **… erstellen** speichert die Mahnung mit PDF und öffnet es. Das PDF hat denselben Briefbogen wie die Rechnung: Rechnungsnummer und -datum, Fälligkeit, offener Betrag, Gebühren und Zinsen, Gesamtbetrag und Zahlungsaufforderung mit IBAN. Mahnungen sind wie verschickte Schreiben unveränderlich (Trigger); eine falsche Mahnung ersetzt du durch eine neue.
+Rechts siehst du die Forderung mit Gesamtbetrag. **Entwurf als PDF** zeigt die Mahnung vorher mit dem Vermerk „ENTWURF“ und einem Platzhalter statt des GiroCodes, mit denselben Prüfungen und Beträgen wie beim Erstellen ([Entwurf als PDF](#entwurf-als-pdf)); gespeichert wird dabei nichts. **… erstellen** speichert die Mahnung mit PDF und öffnet es. Das PDF hat denselben Briefbogen wie die Rechnung: Rechnungsnummer und -datum, Fälligkeit, offener Betrag, Gebühren und Zinsen, Gesamtbetrag und Zahlungsaufforderung mit IBAN. Mahnungen sind wie verschickte Schreiben unveränderlich (Trigger); eine falsche Mahnung ersetzt du durch eine neue.
 
 Auf der Seite der Rechnung stehen alle Mahnungen mit Link zum PDF, bei überfälligen Rechnungen auch der Knopf für die nächste Stufe.
 

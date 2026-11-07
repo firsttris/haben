@@ -90,6 +90,8 @@ export const TEXTS = {
     percent: (percent: number) => formatPercent(percent),
     quoteValid: (date: string) => `Dieses Angebot gilt bis zum ${date}. Wir freuen uns auf Ihren Auftrag.`,
     girocodeText: (number: string) => `Rechnung ${number}`,
+    /** Entwurfs-PDF: Vermerk über jeder Seite und statt der Nummer, Platzhalter des GiroCodes, Teil des Dateinamens */
+    draft: { mark: "ENTWURF", girocode: "erscheint im endgültigen PDF", file: "Entwurf" },
     phone: "Tel.",
     accountHolder: "Kontoinhaber",
     taxNumber: "Steuernummer",
@@ -174,6 +176,7 @@ export const TEXTS = {
     percent: (percent: number) => `${new Intl.NumberFormat("en-GB", { maximumFractionDigits: 2 }).format(percent / 100)}%`,
     quoteValid: (date: string) => `This quote is valid until ${date}. We look forward to your order.`,
     girocodeText: (number: string) => `Invoice ${number}`,
+    draft: { mark: "DRAFT", girocode: "appears in the final PDF", file: "Draft" },
     phone: "Phone",
     accountHolder: "Account holder",
     taxNumber: "Tax number",

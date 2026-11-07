@@ -1,6 +1,6 @@
 import { planShareLabel, type Discount, type InvoiceTotals, type PriceMode, type QuoteLineKind, type ScheduledRow, type TaxTreatment } from "@haben/core";
 import { texts, type Language, type Texts } from "./i18n.ts";
-import { documentPdfData, renderQuotePdfData, showsGrossPrices } from "./pdf.ts";
+import { asDraft, documentPdfData, draftFilename, renderQuotePdfData, showsGrossPrices, type DraftPdf } from "./pdf.ts";
 import type { Buyer, InvoiceDocumentLine, Letterhead, Seller } from "./types.ts";
 
 /** Position im Angebot; optionale und alternative zählen nicht zur Summe (help.lexware.de, Artikel 547989) */
@@ -102,4 +102,11 @@ export function quotePdfData(doc: QuoteDocument) {
 /** Angebot als PDF/A-3b mit derselben Vorlage wie die Rechnung */
 export function buildQuotePdf(doc: QuoteDocument): Uint8Array {
   return renderQuotePdfData(quotePdfData(doc), doc.issueDate, doc);
+}
+
+/** Angebotsentwurf als PDF mit dem Vermerk „ENTWURF“ über jeder Seite und statt der Nummer */
+export function buildQuoteDraftPdf(doc: Omit<QuoteDocument, "number">): DraftPdf {
+  const t = texts(doc.language);
+  const data = quotePdfData({ ...doc, number: t.draft.mark });
+  return { pdf: renderQuotePdfData(asDraft(data, t), doc.issueDate, doc), filename: draftFilename(data.title, doc.issueDate, t) };
 }

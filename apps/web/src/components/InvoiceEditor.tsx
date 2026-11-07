@@ -41,6 +41,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { formatDate } from "../lib/format.ts";
 import { NoticeBanner } from "./NoticeBanner.tsx";
+import { downloadFrom } from "../lib/download.ts";
 import { useAction } from "../lib/use-action.ts";
 import { FORMAT_LABEL, FORMATS, invoiceTitle, type KIND_TITLE } from "../lib/invoice.ts";
 import { finalizeInvoiceDraft, removeInvoiceDraft, saveInvoiceDraft } from "../server/functions/invoices.ts";
@@ -570,6 +571,22 @@ export function InvoiceEditor({
     });
   };
 
+  // Entwurf als PDF aus dem gespeicherten Stand: Ungespeichertes erst speichern, damit das PDF zeigt, was im Formular steht
+  const onDraftPdf = () => {
+    setAttempted(true);
+    void run(async () => {
+      const saving = dirty || id === null;
+      const savedId = saving ? await persist() : id;
+      await downloadFrom(`/api/entwurf/${quote ? "angebot" : "rechnung"}/${savedId}?download`, quote ? "Angebot-Entwurf.pdf" : "Rechnung-Entwurf.pdf");
+      if (id === null) {
+        await openSaved(savedId);
+      } else if (saving) {
+        await router.invalidate();
+        setNotice({ tone: "ok", text: "Entwurf gespeichert, das PDF ist heruntergeladen." });
+      }
+    });
+  };
+
   // Wie beim Festschreiben: erst nachfragen, der zweite Klick löscht
   const onDelete = () => {
     if (!confirmingDelete) {
@@ -607,6 +624,15 @@ export function InvoiceEditor({
           </h1>
         </div>
         <div className="actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={busy || !allValid || !contactId}
+            onClick={onDraftPdf}
+            title={contactId ? "PDF mit dem Vermerk ENTWURF, ohne Nummer; es wird nichts gebucht oder versendet" : "Erst einen Kunden wählen"}
+          >
+            {dirty ? "Speichern und als PDF" : "Entwurf als PDF"}
+          </button>
           <button type="submit" form="invoice-form" className="btn" disabled={busy || !allValid || !dirty}>
             Entwurf speichern
           </button>

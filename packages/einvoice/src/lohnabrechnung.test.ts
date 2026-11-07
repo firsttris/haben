@@ -2,6 +2,7 @@ import { lohnabrechnung, lohnkonto, type LohnStammdaten } from "@haben/core";
 import { describe, expect, it } from "vitest";
 import { buildLohnabrechnungPdf, type LohnabrechnungDocument, lohnabrechnungPdfData } from "./lohnabrechnung.ts";
 import { buildLohnkontoPdf, lohnkontoPdfData } from "./lohnkonto.ts";
+import { draftLayers } from "./test-pdf.ts";
 
 const GGF: LohnStammdaten = {
   art: "ggf",
@@ -119,6 +120,11 @@ describe("Entgeltabrechnung als PDF (§ 108 GewO, EntgBV)", () => {
       expect(text.slice(0, 5)).toBe("%PDF-");
       expect(text).toContain("<pdfaid:part>3</pdfaid:part>");
     }
+  });
+
+  it("der Entwurf trägt den Vermerk wie Rechnungsentwürfe über dem Inhalt, die festgeschriebene Abrechnung keinen", async () => {
+    expect((await draftLayers(buildLohnabrechnungPdf(dokument(GGF, { entwurf: true })))).every((l) => l.marked && l.overContent)).toBe(true);
+    expect((await draftLayers(buildLohnabrechnungPdf(dokument(GGF, { entwurf: false })))).some((l) => l.marked)).toBe(false);
   });
 });
 

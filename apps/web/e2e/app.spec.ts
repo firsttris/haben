@@ -127,6 +127,66 @@ test("Rechnungen schreiben und festschreiben", async () => {
   for (const invoice of INVOICES) await rechnungFestschreiben(page, invoice);
 });
 
+test("Entwurf als PDF: speichert vorher, lädt herunter und vergibt keine Nummer (#342)", async () => {
+  await go("/rechnungen/neu");
+  const heading = await page.getByRole("heading", { level: 1 }).textContent();
+  // Ohne Kunden gibt es noch kein Dokument
+  await expect(page.getByRole("button", { name: "Speichern und als PDF" })).toBeDisabled();
+  await page.getByLabel("Kunde").selectOption({ label: "Rheinpixel GmbH · Köln" });
+  await page.getByLabel("Beschreibung Position 1").fill("Konzept zur Prüfung");
+  await page.getByLabel("Menge Position 1").fill("2");
+  await page.getByLabel(/Einzelpreis Position 1/).fill("300");
+
+  let download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Speichern und als PDF" }).click();
+  let file = await download;
+  expect(file.suggestedFilename()).toMatch(/^Rechnung-Entwurf-\d{4}-\d{2}-\d{2}\.pdf$/);
+  expect(
+    readFileSync(await file.path())
+      .subarray(0, 5)
+      .toString(),
+  ).toBe("%PDF-");
+  await page.waitForURL(/rechnungen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+
+  // Gespeichert: der Knopf lädt direkt; nach einer Änderung speichert er wieder zuerst
+  await expect(page.getByRole("button", { name: "Entwurf als PDF" })).toBeEnabled();
+  await page.getByLabel("Menge Position 1").fill("3");
+  download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Speichern und als PDF" }).click();
+  file = await download;
+  expect(file.suggestedFilename()).toMatch(/^Rechnung-Entwurf-/);
+  await expect(page.getByText("Entwurf gespeichert, das PDF ist heruntergeladen.")).toBeVisible();
+  // Weiter ein Entwurf mit derselben vorläufigen Nummer: der Download hat keine verbraucht
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(heading!);
+  await expect(page.getByRole("button", { name: "Festschreiben" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Entwurf löschen" }).click();
+  await page.getByRole("button", { name: "Entwurf endgültig löschen" }).click();
+  await page.waitForURL(/\/rechnungen$/);
+});
+
+test("Mahnung als Entwurf prüfen, bevor sie erstellt wird (#342)", async () => {
+  await go("/rechnungen/mahnwesen");
+  const offen = await page.getByText("noch nicht gemahnt").count();
+  expect(offen).toBeGreaterThan(0);
+  await page.getByRole("link", { name: "Zahlungserinnerung", exact: true }).first().click();
+  await page.waitForURL(/mahnwesen\/[0-9a-f-]{36}$/);
+  await page.waitForLoadState("networkidle");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Entwurf als PDF" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^Zahlungserinnerung-Entwurf-\d{4}-\d{2}-\d{2}\.pdf$/);
+  expect(
+    readFileSync(await file.path())
+      .subarray(0, 5)
+      .toString(),
+  ).toBe("%PDF-");
+  // Nichts gespeichert: jede Rechnung ist weiter „noch nicht gemahnt“
+  await go("/rechnungen/mahnwesen");
+  await expect(page.getByText("noch nicht gemahnt")).toHaveCount(offen);
+});
+
 /** IBAN des Lieferanten Funknetz Mobil GmbH, im Kontakt und im Kontoauszug */
 const SUPPLIER_IBAN = "DE02100100100006820101";
 /** EndToEndId der SEPA-Überweisung für den Mobilfunkbeleg; der Kontoauszug nennt sie als Kundenreferenz */
