@@ -102,7 +102,8 @@ export async function setNextNumber(tx: Tx, kind: NumberKind, year: number, next
 
 /**
  * Beim Umschalten auf den durchlaufenden Zähler: Er beginnt hinter der letzten Nummer des jüngsten Jahres, damit
- * „RE-2026-12-0412“ im Januar mit 0413 weitergeht. Steht der Kreis 0 schon (früher einmal durchlaufend), bleibt er.
+ * „RE-2026-12-0412“ im Januar mit 0413 weitergeht. Steht der Kreis 0 schon (früher einmal durchlaufend), rückt er nur
+ * vor, wenn das jüngste Jahr inzwischen weiter ist; sonst ergäbe ein Format mit Jahr eine schon vergebene Nummer.
  */
 export async function startRunning(tx: Tx, kind: NumberKind): Promise<void> {
   const counter = COUNTERS[kind];
@@ -111,5 +112,5 @@ export async function startRunning(tx: Tx, kind: NumberKind): Promise<void> {
   await tx
     .insert(counter)
     .values({ year: 0, last: latest?.last ?? 0 })
-    .onConflictDoNothing({ target: counter.year });
+    .onConflictDoUpdate({ target: counter.year, set: { last: sql`excluded.last` }, setWhere: sql`${counter.last} < excluded.last` });
 }
