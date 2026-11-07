@@ -1,0 +1,61 @@
+name: Umzug aus einem anderen Programm
+description: Beim Übernehmen von Daten aus Lexware Office, sevDesk, DATEV oder anderen Programmen klappt etwas nicht.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke fürs Testen mit echten Beständen. Bitte **nur anonymisierte** Auszüge posten: Namen, IBANs, Steuernummern, Adressen und Beträge ersetzen. Mehr zum Ablauf: [Umzug aus Lexware Office](https://firsttris.github.io/haben/lexoffice.html), [Umzug aus sevDesk](https://firsttris.github.io/haben/sevdesk.html).
+  - type: dropdown
+    id: quelle
+    attributes:
+      label: Von wo ziehst du um?
+      options:
+        - Lexware Office
+        - sevDesk
+        - DATEV-Buchungsstapel
+        - CSV-Import (Kontakte, Artikel, Anlagen)
+        - Anderes Programm
+  - type: input
+    id: tarif
+    attributes:
+      label: Version, Tarif oder Schnittstelle des Quellprogramms
+      placeholder: z. B. Lexware Office Tarif L (ohne Public API), sevDesk Buchhaltung 1.0
+  - type: dropdown
+    id: weg
+    attributes:
+      label: Weg der Übernahme
+      options:
+        - Über die Schnittstelle (API-Zugang)
+        - Über Sicherung oder Export aus der Web-Oberfläche
+        - Über den KI-Assistenten
+        - Weiß ich nicht
+  - type: textarea
+    id: was
+    attributes:
+      label: Was passiert?
+      description: Fehlermeldung im genauen Wortlaut oder was in Haben anders aussieht als im Quellprogramm.
+      placeholder: |
+        Beispiel: EXTF_Buchungsstapel_….csv: Zeile 2: Spalte „Umsatz (ohne Soll/Haben-Kz)“ fehlt.
+    validations:
+      required: true
+  - type: textarea
+    id: erwartet
+    attributes:
+      label: Was hast du erwartet?
+      description: Etwa die Summe, Anzahl oder der Zahlungsstand aus dem Quellprogramm.
+  - type: textarea
+    id: beispiel
+    attributes:
+      label: Anonymisiertes Beispiel
+      description: Eine Zeile aus dem Export, ein Ausschnitt der Antwort der Schnittstelle oder die Kopfzeile der Datei. Persönliches vorher entfernen.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Haben-Version
+      description: Steht unten in der Navigation.
+  - type: textarea
+    id: bezug
+    attributes:
+      label: Verwandte Issues und Roadmap
+      description: Nummern verwandter Issues oder der Platz in der [Roadmap](https://firsttris.github.io/haben/roadmap.html), falls du ihn kennst.

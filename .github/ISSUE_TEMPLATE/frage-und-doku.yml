@@ -1,0 +1,45 @@
+name: Frage oder Hinweis zur Doku
+description: Du kommst bei Einrichtung oder Betrieb nicht weiter, oder die Doku ist unklar oder veraltet.
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Schau bitte zuerst in die [Dokumentation](https://firsttris.github.io/haben/) (Installation, Erste Schritte, ELSTER, Bank). Bitte schreibe **keine echten Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate** in das Issue. Ersetze sie durch erfundene Werte oder Platzhalter.
+  - type: dropdown
+    id: art
+    attributes:
+      label: Worum geht es?
+      options:
+        - Ich komme bei der Einrichtung nicht weiter
+        - Die Doku ist unklar, falsch oder unvollständig
+        - Eine allgemeine Frage
+  - type: textarea
+    id: frage
+    attributes:
+      label: Deine Frage oder dein Hinweis
+      description: "Was willst du erreichen, und was hast du schon probiert? Bei Doku-Hinweisen: welche Seite und welcher Satz."
+    validations:
+      required: true
+  - type: dropdown
+    id: bereich
+    attributes:
+      label: Bereich
+      options:
+        - Installation und Updates
+        - Bank (Enable Banking, CSV)
+        - ELSTER, ERiC, Zertifikat
+        - E-Mail (SMTP, IMAP)
+        - KI-Auslesung
+        - REST-API, MCP, eigene Seiten
+        - Backup und Wiederherstellung
+        - Anderes
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation
+      options:
+        - Docker Compose
+        - Podman Quadlets
+        - Eigener Aufbau
+        - Weiß ich nicht
