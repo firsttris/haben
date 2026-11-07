@@ -181,7 +181,7 @@ Rechnungen, die deine Kunden noch nicht bezahlt haben, und Eingangsrechnungen, d
 - Die offene **Zahllast einer Voranmeldung** (in Lexware Office ein Ausgabebeleg des Finanzamts, etwa „UStVA-2026-10“) wird kein Beleg. Sie ist keine Betriebsausgabe, sondern Umsatzsteuer an das Finanzamt. Ihre Lastschrift ordnest du im Bankabgleich als **Umsatzsteuer an das Finanzamt** zu: Sie bucht auf das Konto der Umsatzsteuer-Vorauszahlungen (SKR03 1780, SKR04 3820) und steht in der EÜR in der Zeile „An das Finanzamt gezahlte Umsatzsteuer“, wie die Zahllast für Dezember nach einem Jahreswechsel.
 
 > [!CAUTION]
-> „Übernehmen“ lässt sich nicht rückgängig machen: Die Rechnung ist danach festgeschrieben, der Beleg gebucht, und der [Stichtag](#stichtag) steht für alle weiteren Posten fest. Korrigieren geht nur noch mit einer [Stornorechnung](rechnungen.md#storno-und-rechnungskorrektur) bzw. einem [Storno des Belegs](belege.md#stornieren-und-neu-erfassen). Prüfe vorher Stichtag, Kontakt und Beträge.
+> „Übernehmen“ lässt sich nicht rückgängig machen: Die Rechnung ist danach festgeschrieben, der Beleg gebucht, und der [Stichtag](#stichtag) steht für alle weiteren Posten fest. Eine übernommene Rechnung korrigierst du nur noch mit einer [Stornorechnung](rechnungen.md#storno-und-rechnungskorrektur); einen übernommenen Beleg kannst du in Haben gar nicht stornieren, weil seine Vorsteuer im alten Programm angemeldet ist ([Stornieren](belege.md#stornieren-und-neu-erfassen)). Prüfe vorher Stichtag, Kontakt und Beträge.
 
 Danach ordnest du den Zahlungseingang bzw. die Zahlung wie gewohnt im [Bankabgleich](bank.md) zu.
 
