@@ -33,6 +33,32 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
 }
 
 describe("SevdeskClient", () => {
+  it("liest einen Quellstand und dekodiert das geprüfte V1-Auftrags-PDF mit preventSendBy", async () => {
+    const { client, calls } = setup((url) =>
+      json({
+        objects: url.pathname.endsWith("/getPdf")
+          ? { filename: "angebot.pdf", mimetype: "application/pdf", base64Encoded: true, content: Buffer.from("%PDF-1.4 Test").toString("base64") }
+          : [{ id: "1", orderType: "AN", status: "100", version: "0" }],
+      }),
+    );
+    expect(await client.order("1")).toMatchObject({ id: "1", status: "100" });
+    expect(new TextDecoder().decode((await client.orderPdf("1"))!.bytes)).toBe("%PDF-1.4 Test");
+    expect(calls[1]!.url.searchParams.get("preventSendBy")).toBe("true");
+  });
+
+  it.each(["netzwerk", "503"])("wiederholt Auftrags-PDF-Anfragen nach %s nicht", async (kind) => {
+    const { client, calls, sleeps } = setup(
+      () => {
+        if (kind === "netzwerk") throw new TypeError("Verbindung unterbrochen");
+        return json({}, 503);
+      },
+      { maxRetries: 3 },
+    );
+    await expect(client.orderPdf("1")).rejects.toBeInstanceOf(SevdeskApiError);
+    expect(calls).toHaveLength(1);
+    expect(sleeps).toHaveLength(0);
+  });
+
   it("erhält lückenhafte Objekt-Schlüssel der Beziehungen teilberechneter Aufträge", async () => {
     const related = {
       "0": { id: "81", objectName: "Invoice", invoiceNumber: "RE-2026-1", status: "1000" },

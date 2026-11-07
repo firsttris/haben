@@ -38,7 +38,7 @@ describe.skipIf(!testDatabaseUrl)("sevdesk-Auftragsarchiv ohne Buchungswirkung (
       }
       const objects =
         path === "/Tools/bookkeepingSystemVersion"
-          ? { version: "1.0" }
+          ? { version: "2.0" }
           : path === "/Order"
             ? url.searchParams.get("offset") === "0"
               ? [...orders, { ...orders[0], id: "4", orderNumber: "AN-ENTWURF", status: "100" }]
