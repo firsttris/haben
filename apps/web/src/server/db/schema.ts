@@ -903,6 +903,8 @@ export const contacts = pgTable("contacts", {
   ort: text("ort").notNull().default(""),
   land: text("land").notNull().default("DE"),
   email: text("email").notNull().default(""),
+  /** Telefonnummer, wie eingegeben (#322) */
+  telefon: text("telefon").notNull().default(""),
   ustId: text("ust_id").notNull().default(""),
   iban: text("iban").notNull().default(""),
   leitwegId: text("leitweg_id").notNull().default(""),

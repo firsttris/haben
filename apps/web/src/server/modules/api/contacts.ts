@@ -17,6 +17,7 @@ export function contactOut(contact: Contact, baseUrl: string): ContactOut {
     ort: contact.ort,
     land: contact.land,
     email: contact.email,
+    telefon: contact.telefon,
     ustId: contact.ustId,
     iban: contact.iban,
     leitwegId: contact.leitwegId,
@@ -35,7 +36,7 @@ export function contactOut(contact: Contact, baseUrl: string): ContactOut {
  * Schemas: Was hier fehlt, setzte contactSchema auf seine Vorgabe zurück (etwa einen Lieferanten wieder auf Kunde).
  */
 function inputOf(contact: Contact) {
-  const { kundennummer, name, strasse, plz, ort, land, email, ustId, iban, leitwegId, defaultFormat, language, isCustomer, isSupplier } = contact;
+  const { kundennummer, name, strasse, plz, ort, land, email, telefon, ustId, iban, leitwegId, defaultFormat, language, isCustomer, isSupplier } = contact;
   return {
     kundennummer: kundennummer ?? "",
     name,
@@ -44,6 +45,7 @@ function inputOf(contact: Contact) {
     ort,
     land,
     email,
+    telefon,
     ustId,
     iban,
     leitwegId,

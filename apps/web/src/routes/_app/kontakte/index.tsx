@@ -23,7 +23,9 @@ function ContactsPage() {
   const { archiv, rolle } = Route.useSearch();
   const [query, setQuery] = useState("");
   const needle = query.trim().toLowerCase();
-  const shown = needle ? contacts.filter((c) => [c.name, c.kundennummer, c.email, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle))) : contacts;
+  const shown = needle
+    ? contacts.filter((c) => [c.name, c.kundennummer, c.email, c.telefon, c.ort, c.plz].some((v) => v?.toLowerCase().includes(needle)))
+    : contacts;
   return (
     <>
       <div className="page-head">
@@ -43,7 +45,7 @@ function ContactsPage() {
       <div className="filter-row" style={{ marginBottom: 0, alignItems: "center" }}>
         <label className="field" style={{ flex: "1 1 260px", maxWidth: 420 }}>
           <span className="visually-hidden">Kontakte durchsuchen</span>
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen: Name, Kundennummer, E-Mail, Ort" />
+          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Suchen: Name, Kundennummer, E-Mail, Telefon, Ort" />
         </label>
         <nav aria-label="Rolle" className="chip-row">
           {ROLE_FILTERS.map((f) => (
@@ -91,7 +93,10 @@ function ContactsPage() {
                     </span>
                   )}
                 </div>
-                <div className="small muted ellipsis">{contact.email || "–"}</div>
+                <div className="small muted ellipsis">
+                  {contact.email || "–"}
+                  {contact.telefon && <span style={{ display: "block" }}>{contact.telefon}</span>}
+                </div>
                 <div className="muted">{[contact.plz, contact.ort].filter(Boolean).join(" ") || "–"}</div>
                 <div className="small muted">
                   {contact.leitwegId ? "XRechnung (Leitweg-ID)" : contact.defaultFormat ? FORMAT_LABEL[contact.defaultFormat] : "wie in den Einstellungen"}

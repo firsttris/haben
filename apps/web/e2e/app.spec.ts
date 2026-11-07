@@ -20,7 +20,7 @@ const SETUP_CODE = "e2e-einrichtungscode";
 const dkb = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(2, 4)}`;
 
 const CUSTOMERS = [
-  { name: "Nordwerk Software GmbH", street: "Hafenstraße 5", zip: "20457", city: "Hamburg" },
+  { name: "Nordwerk Software GmbH", street: "Hafenstraße 5", zip: "20457", city: "Hamburg", phone: "+49 40 123456-0" },
   { name: "Alpenblick Media AG", street: "Sonnenstraße 12", zip: "80331", city: "München" },
   { name: "Rheinpixel GmbH", street: "Mediapark 8", zip: "50670", city: "Köln" },
 ];
@@ -169,8 +169,10 @@ test("Kunden anlegen", async () => {
     await page.getByLabel("Straße und Hausnummer").fill(c.street);
     await page.getByLabel("PLZ").fill(c.zip);
     await page.getByLabel("Ort").fill(c.city);
+    if ("phone" in c) await page.getByLabel("Telefon").fill(c.phone);
     await page.getByRole("button", { name: "Kontakt anlegen" }).click();
     await expect(page.getByRole("heading", { name: "Versionen" })).toBeVisible();
+    if ("phone" in c) await expect(page.getByLabel("Telefon")).toHaveValue(c.phone);
   }
   await go("/kontakte");
   for (const c of CUSTOMERS) await expect(page.getByText(c.name).first()).toBeVisible();
@@ -179,6 +181,10 @@ test("Kunden anlegen", async () => {
   await page.getByPlaceholder(/^Suchen:/).fill("hamburg");
   await expect(liste.getByRole("link")).toHaveCount(1);
   await expect(liste).toContainText("Nordwerk Software GmbH");
+  // Auch nach der Telefonnummer (#322), die unter der E-Mail steht
+  await page.getByPlaceholder(/^Suchen:/).fill("123456-0");
+  await expect(liste.getByRole("link")).toHaveCount(1);
+  await expect(liste).toContainText("+49 40 123456-0");
   await page.getByPlaceholder(/^Suchen:/).fill("gibt es nicht");
   await expect(liste).toContainText("Kein Kontakt passt");
 });

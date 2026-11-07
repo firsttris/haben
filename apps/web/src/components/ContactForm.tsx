@@ -16,6 +16,7 @@ const EMPTY: ContactInput = {
   ort: "",
   land: "DE",
   email: "",
+  telefon: "",
   ustId: "",
   iban: "",
   leitwegId: "",
@@ -67,6 +68,7 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
             ort: text("ort"),
             land: text("land").toUpperCase() || "DE",
             email: text("email"),
+            telefon: text("telefon"),
             ustId: text("ustId").replace(/\s/g, "").toUpperCase(),
             iban: text("iban").replace(/\s/g, "").toUpperCase(),
             leitwegId: text("leitwegId"),
@@ -117,6 +119,12 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
             <span className="small muted">Mehrere Adressen mit Komma trennen, bis zu fünf. Der Versand schreibt an alle.</span>
           </label>
           <label className="field">
+            Telefon
+            <input name="telefon" type="tel" defaultValue={initial.telefon} autoComplete="tel" placeholder="optional, z. B. +49 941 123456" />
+          </label>
+        </div>
+        <div className="form-row cols-2">
+          <label className="field">
             Kundennummer
             <input
               name="kundennummer"
@@ -130,11 +138,11 @@ export function ContactForm({ contact, nextNumber = null }: { contact: Contact |
               </span>
             )}
           </label>
+          <label className="field">
+            Lieferantennummer
+            <input name="lieferantennummer" defaultValue={initial.lieferantennummer} placeholder="optional, z. B. deine Kundennummer beim Lieferanten" />
+          </label>
         </div>
-        <label className="field">
-          Lieferantennummer
-          <input name="lieferantennummer" defaultValue={initial.lieferantennummer} placeholder="optional, z. B. deine Kundennummer beim Lieferanten" />
-        </label>
       </section>
 
       <section className="form-section" aria-labelledby="contact-address">

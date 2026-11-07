@@ -60,6 +60,7 @@ Bei Kontakten zählt auch der Name, wie beim [Abruf aus Lexware Office](lexoffic
 | Vorname, Nachname | Vorname, Nachname | |
 | Straße, PLZ, Ort, Land | Straße, PLZ, Ort, Land, auch „Straße (Rechnungsadresse)“ … und „Straße 1“ … wie bei Lexware Office | Land siehe [Werte](#werte). Die Lieferadresse („… (Lieferadresse)“, „Straße 2“ …) übernimmt Haben nicht |
 | E-Mail | E-Mail, Email, E-Mail-Adresse, Geschäftlich (E-Mail), E-Mail 1 | Mehrere Adressen mit Komma oder Semikolon, höchstens fünf, wie im Formular |
+| Telefon | Telefon, Telefonnummer, Rufnummer, Geschäftlich (Rufnummer), Telefon 1 | Ziffern, Leerzeichen und `+ ( ) / - .`, wie im Formular |
 | USt-IdNr. | USt-IdNr., USt-ID, Umsatzsteuer-ID, Umsatzsteuer ID, Umsatzsteuernummer | Form wie `DE123456789`; die deutsche auch mit Prüfziffer (ISO 7064). Ob sie erteilt ist, weiß nur das BZSt |
 | IBAN | IBAN | Prüfziffer nach ISO 13616; Leerzeichen fallen weg |
 | Leitweg-ID | Leitweg-ID | |
