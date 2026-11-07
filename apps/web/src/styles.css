@@ -43,8 +43,18 @@
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   /* Einheitliche Höhe für Eingabefelder, Auswahllisten und Buttons; auf Touch-Geräten 44px als Tippfläche */
   --control-h: 40px;
+  /* Fester Seitenkopf (#356): Höhe der Navigation darüber (nur auf dem Handy oben) und des Kopfs selbst.
+     --page-head-height misst usePageHeadHeight; der Wert hier gilt nur, bis die Seite im Browser läuft */
+  --nav-height: 0px;
+  --page-head-height: 80px;
+  /* Unterkante des stehenden Kopfs: darunter beginnen Unternavigation, Belegansicht, Tabellenköpfe und Sprungziele */
+  --below-head: calc(var(--nav-height) + var(--page-head-height));
+  --main-pad-x: 40px;
 }
 @media (pointer: coarse) { :root { --control-h: 44px; } }
+@media (max-width: 860px) { :root { --nav-height: 60px; --main-pad-x: 16px; } }
+/* Sprünge zu Ankern und der Fokus beim Tabben landen unter dem Kopf, nicht dahinter (WCAG 2.4.11) */
+html { scroll-padding-top: calc(var(--below-head) + 16px); }
 
 /* Themes: Auswahl unten in der Navigation (lib/theme.ts), gespeichert im Browser. Ohne data-theme gilt Wald. */
 :root { color-scheme: light; }
@@ -133,7 +143,7 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
 .nav-theme select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .nav-version { margin: 8px 12px 0; color: inherit; font-size: 12px; opacity: 0.7; text-decoration: none; font-variant-numeric: tabular-nums; }
 .nav-version:hover { opacity: 1; color: #fff; }
-.main { flex-grow: 1; min-width: 0; padding: 32px 40px; display: flex; flex-direction: column; gap: 24px; }
+.main { flex-grow: 1; min-width: 0; padding: 32px var(--main-pad-x); display: flex; flex-direction: column; gap: 24px; }
 
 .nav-body { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
 .nav-toggle { display: none; }
@@ -149,12 +159,17 @@ button.nav-foot-link { width: 100%; background: none; border: 0; font: inherit; 
   .nav-link[aria-disabled="true"] { display: none; }
   .nav-spacer { display: none; }
   .nav-group .nav-link, .nav-foot-link { min-height: 44px; }
-  .main { padding: 20px 16px; }
+  .main { padding: 20px var(--main-pad-x); }
 }
 
 /* Bausteine */
 /* Titel immer oben an derselben Stelle, Aktionen (auch beschriftete Auswahlfelder) unten bündig */
 .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+/* Der Kopf jeder Seite bleibt beim Scrollen stehen (#356): Titel, Status und Hauptaktionen. Die Fläche reicht über den
+   Innenabstand von .main bis an die Ränder, damit der Inhalt darunter verschwindet; die negativen Ränder lassen ihn
+   ungescrollt an derselben Stelle wie ohne Fläche. Die Trennlinie erst, wenn die Seite gescrollt ist (useScrolled). */
+.page-head { position: sticky; top: var(--nav-height); z-index: 10; margin: -12px calc(-1 * var(--main-pad-x)); padding: 12px var(--main-pad-x); background: var(--ground); }
+.shell[data-scrolled] .page-head { box-shadow: 0 1px 0 var(--line), 0 6px 12px -10px rgb(0 0 0 / 0.3); }
 .page-head > .actions, .page-head > .field { align-self: flex-end; }
 .page-head .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
 .actions { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -200,7 +215,9 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .field-error { color: var(--danger-ink); font-size: 13px; }
 /* Einstellungen: Bereiche links, Inhalt rechts in einer Spalte */
 .settings-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 24px; align-items: start; }
-.settings-nav { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 2px; }
+/* Bereiche bleiben mit dem Kopf stehen, nur der Inhalt rechts scrollt; reicht das Fenster nicht, scrollt die Liste selbst;
+   4px Innenabstand halten dort den Fokusrahmen der Links sichtbar */
+.settings-nav { position: sticky; top: calc(var(--below-head) + 16px); max-height: calc(100dvh - var(--below-head) - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding: 4px; margin: -4px; }
 .settings-nav-link { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; font-weight: 500; border-left: 3px solid transparent; }
 .settings-nav-link:hover { background: var(--accent-tint); color: var(--ink); }
 .settings-nav-link[aria-current="page"] { background: var(--surface); border-left-color: var(--accent); box-shadow: 0 0 0 1px var(--line); }
@@ -208,7 +225,11 @@ textarea.autogrow { field-sizing: content; min-height: 8lh; max-height: 70vh; }
 .settings-content { max-width: 820px; min-width: 0; }
 @media (max-width: 900px) {
   .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .settings-nav { position: static; flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  /* Bereiche als eine Zeile direkt unter dem Kopf, die seitlich scrollt und mit ihm stehen bleibt; die Trennlinie
+     wandert vom Kopf unter diese Zeile, Kopf und Bereiche wirken als ein Block */
+  .settings-nav { top: var(--below-head); z-index: 9; max-height: none; overflow: auto hidden; flex-direction: row; flex-wrap: nowrap; gap: 6px; margin: -12px calc(-1 * var(--main-pad-x)) 0; padding: 8px var(--main-pad-x); background: var(--ground); scrollbar-width: none; }
+  .shell[data-scrolled] .page-head:has(+ .settings-layout) { box-shadow: none; }
+  .shell[data-scrolled] .settings-nav { box-shadow: 0 1px 0 var(--line), 0 6px 12px -10px rgb(0 0 0 / 0.3); }
   .settings-nav-link { flex: 0 0 auto; padding: 8px 14px; border-left: 0; border: 1px solid var(--line); border-radius: 18px; font-size: 13px; background: var(--surface); }
   .settings-nav-link[aria-current="page"] { background: var(--ink); color: var(--surface); box-shadow: none; }
   .settings-nav-hint { display: none; }
@@ -380,9 +401,9 @@ a.table-row:hover { background: var(--ground); color: var(--ink); }
 }
 
 /* Rechnungseditor */
-/* Belegansicht so hoch wie das Fenster, abzüglich Seitenkopf; bleibt beim Scrollen des Formulars stehen */
-:root { --viewer-height: calc(100dvh - 140px); }
-.editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: 24px; }
+/* Belegansicht so hoch wie das Fenster unter dem stehenden Seitenkopf; bleibt beim Scrollen des Formulars darunter stehen */
+:root { --viewer-height: calc(100dvh - var(--below-head) - 32px); }
+.editor-grid > .doc-preview, .editor-grid > .doc-image { position: sticky; top: calc(var(--below-head) + 16px); }
 .editor-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 @media (max-width: 1200px) { .editor-grid { grid-template-columns: minmax(0, 1fr); } }
 /* Beleg prüfen: nebeneinander höchstens so hoch wie die Vorschau, das Formular scrollt, die Knöpfe bleiben sichtbar */
@@ -569,11 +590,17 @@ fieldset.card > legend + * { clear: both; }
 .kpi-value { white-space: nowrap; }
 
 @media (max-width: 720px) {
-  /* Kopf: Titel oben, Aktionen darunter in voller Breite */
-  .page-head { flex-direction: column; align-items: stretch; }
-  .page-head .actions { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
-  .page-head .actions > .btn { flex: 1 1 auto; justify-content: center; }
-  .page-head .actions > .field { flex: 1 1 140px; }
+  /* Kopf kompakt, weil er stehen bleibt: Titel oben, Aktionen darunter in einer Zeile, die seitlich scrollt, statt
+     mehrerer Zeilen voller Knöpfe. Wenige Knöpfe füllen die Breite wie bisher. 4px Innenabstand halten den Fokusrahmen
+     in der scrollenden Zeile sichtbar */
+  /* nowrap: eine Spalte ist eine Zeile so breit wie der Kopf; mit wrap richtete sie sich nach der ungebrochenen Aktionszeile */
+  .page-head { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; margin-block: -8px; padding-block: 8px; }
+  .page-head h1 { font-size: 24px; }
+  .page-head .eyebrow { margin-bottom: 2px; }
+  .page-head .actions { display: flex; flex-wrap: nowrap; gap: 8px; align-self: stretch; overflow: auto hidden; scrollbar-width: none; margin: -4px; padding: 4px; }
+  .page-head .actions > * { flex: 0 0 auto; }
+  .page-head .actions > .btn { flex: 1 0 auto; justify-content: center; }
+  .page-head .actions > .field { flex: 1 0 140px; }
   /* Kacheln: zwei Spalten, kleinere Zahlen, letzte allein über die volle Breite */
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .kpi-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
@@ -606,7 +633,7 @@ fieldset.card > legend + * { clear: both; }
 }
 
 /* Senden-Karte neben langen Formularen bleibt beim Scrollen sichtbar */
-@media (min-width: 1101px) { .sticky-panel { position: sticky; top: 16px; align-self: start; } }
+@media (min-width: 1101px) { .sticky-panel { position: sticky; top: calc(var(--below-head) + 16px); align-self: start; } }
 
 /* Knopf, der wie ein Link aussieht (z. B. „per E-Mail“ in Listen) */
 .link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--accent-ink); text-decoration: underline; cursor: pointer; }

@@ -77,6 +77,7 @@ export default defineConfig({
       testMatch: [
         "anmelden.spec.ts",
         "barrierefreiheit.spec.ts",
+        "kopfzeile.spec.ts",
         "rechtsform.spec.ts",
         "seiten.spec.ts",
         "steuerberatung.spec.ts",

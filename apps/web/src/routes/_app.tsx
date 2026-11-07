@@ -5,6 +5,7 @@ import { Icon } from "../components/Icon.tsx";
 import { getAuthState } from "../server/functions/setup.ts";
 import { isKapitalgesellschaft } from "@haben/core";
 import { navLinkSichtbar, type NavBedingung } from "../lib/navigation.ts";
+import { usePageHeadHeight, useScrolled } from "../lib/use-page-head.ts";
 import { ROLLEN_LABEL, STEUERBERATUNG_START, steuerberatungSieht } from "../lib/rollen.ts";
 
 export const Route = createFileRoute("/_app")({
@@ -119,6 +120,8 @@ function AppLayout() {
   const main = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const firstPath = useRef(pathname);
+  usePageHeadHeight(main);
+  const scrolled = useScrolled();
 
   // Nach dem Seitenwechsel steht der Fokus am Anfang des Inhalts, nicht mehr auf dem geklickten Link;
   // Filter und Suche (nur Suchparameter) lassen ihn, wo er ist
@@ -150,7 +153,7 @@ function AppLayout() {
   }
 
   return (
-    <div className="shell">
+    <div className="shell" data-scrolled={scrolled || undefined}>
       <a href="#inhalt" className="skip-link">
         Zum Inhalt springen
       </a>

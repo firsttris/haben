@@ -56,7 +56,7 @@
 .open-table td.ellipsis { max-width: 260px; }
 
 /* Konten und Journal: feste Kopfzeile, Klassenzeilen, Zwischensummen */
-.sticky-head thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; box-shadow: inset 0 -1px 0 var(--line); }
+.sticky-head thead th { position: sticky; top: var(--below-head); background: var(--surface); z-index: 1; box-shadow: inset 0 -1px 0 var(--line); }
 .report-table .group-row th, .report-table .group-row td { background: var(--ground); font-size: 13px; padding-top: 8px; padding-bottom: 8px; }
 .report-table .subtotal-row th, .report-table .subtotal-row td { color: var(--muted); font-size: 13px; }
 .group-toggle { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; color: var(--ink); }
@@ -147,10 +147,11 @@
 .report-table th.saldo-head { padding-right: calc(8px + 6px + 78px); }
 
 /* Jahreserklärung: Sprungleiste, zuklappbare Blöcke, Speichern am unteren Rand */
-.jump-nav { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; flex-wrap: wrap; padding: 8px 0; background: var(--ground); border-bottom: 1px solid var(--line); }
+.jump-nav { position: sticky; top: var(--below-head); z-index: 5; display: flex; gap: 4px; flex-wrap: wrap; padding: 8px 0; background: var(--ground); border-bottom: 1px solid var(--line); }
 .jump-nav a { padding: 6px 12px; border-radius: 16px; color: var(--ink-2); text-decoration: none; font-size: 13px; font-weight: 500; }
 .jump-nav a:hover { background: var(--accent-tint); color: var(--ink); }
-.jump-target { scroll-margin-top: 64px; }
+/* Zusätzlich zu scroll-padding-top (styles.css): Platz für die Sprungleiste unter dem Kopf */
+.jump-target { scroll-margin-top: 56px; }
 .est-block { border: 1px solid var(--line); border-radius: 10px; padding: 0 16px; }
 .est-block[open] { padding-bottom: 16px; }
 .est-block > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; list-style: none; }
@@ -160,6 +161,3 @@
 .est-block-title { flex: 1; font-weight: 600; }
 .est-sub { margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--muted); }
 .form-sticky-footer { position: sticky; bottom: 0; z-index: 4; display: flex; flex-direction: column; gap: 8px; margin: 0 -20px -20px; padding: 12px 20px; background: var(--surface); border-top: 1px solid var(--line); border-radius: 0 0 12px 12px; }
-@media (max-width: 860px) {
-  .jump-nav { top: 60px; }
-}
