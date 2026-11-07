@@ -26,6 +26,12 @@ vi.mock("@haben/einvoice", async (importOriginal) => {
 
 const last = <T>(list: unknown[]) => list.at(-1) as T;
 
+/** Angemeldetes Konto für die API-Routen; ohne echte Sitzung (Better Auth) */
+const session = vi.hoisted(() => ({ role: "inhaber" as "inhaber" | "steuerberatung" }));
+vi.mock("../../auth.ts", () => ({
+  auth: () => ({ api: { getSession: async () => ({ user: { id: "konto", name: "Konto", email: "konto@example.com", role: session.role } }) } }),
+}));
+
 describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", () => {
   let drafts: typeof import("./draft-pdf.ts");
   let invoices: typeof import("./invoices.ts");
@@ -161,6 +167,28 @@ describe.skipIf(!testDatabaseUrl)("Entwürfe als PDF (Postgres, Issue #342)", ()
       expect(await drafts.invoiceDraftPdf("00000000-0000-4000-8000-000000000000")).toBeNull();
       const empty = await invoices.createDraft(actor, invoiceDraft({ contactId: null }));
       await expect(drafts.invoiceDraftPdf(empty.id)).rejects.toThrow("Für das Entwurfs-PDF fehlt noch der Kunde.");
+    });
+  });
+
+  describe("Zugriff", () => {
+    // Entwürfe sind Arbeitsstand des Inhabers: Die Steuerberatung sieht sie weder in der Liste noch im Detail
+    // (getInvoices, getInvoiceDetail in server/functions/invoices.ts), also auch nicht als Entwurfs-PDF (Issue #342:
+    // „Berechtigungen für Entwurfszugriff bleiben gewahrt“)
+    const get = async (id: string) => {
+      const { Route } = await import("../../../routes/api/entwurf/rechnung.$id.ts");
+      const handlers = (Route.options.server as { handlers: { GET: (ctx: { request: Request; params: { id: string } }) => Promise<Response> } }).handlers;
+      return handlers.GET({ request: new Request(`http://localhost/api/entwurf/rechnung/${id}`), params: { id } });
+    };
+
+    it("Rechnungsentwurf als PDF nur für den Inhaber, nicht für die Steuerberatung", async () => {
+      const draft = await invoices.createDraft(actor, invoiceDraft());
+      session.role = "inhaber";
+      expect((await get(draft.id)).status).toBe(200);
+      session.role = "steuerberatung";
+      const response = await get(draft.id);
+      expect(response.headers.get("Content-Type")).not.toBe("application/pdf");
+      expect(response.status).toBe(403);
+      session.role = "inhaber";
     });
   });
 
