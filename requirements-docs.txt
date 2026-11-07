@@ -1,2 +1,4 @@
 # Dokumentation (mkdocs.yml, .github/workflows/docs.yml), gebaut mit Zensical
 zensical==0.1.0
+# Änderungsdatum unter jeder Seite, bis Zensical es selbst kann (mkdocs.yml, markdown_extensions)
+./scripts/doku-aenderungsdatum
