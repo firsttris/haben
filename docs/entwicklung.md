@@ -78,7 +78,7 @@ docker compose run --rm -u bun -e TEST_DATABASE_URL=postgres://haben:haben@db:54
 
 Im Container ist `db` der Name des Datenbankservers, nicht `localhost`. Die Ende-zu-Ende-Tests brauchen die Browser von Playwright, die der Container nicht hat; sie laufen in der CI oder mit Bun auf dem Rechner.
 
-Die Doku baut ein Container mit Python, wie in der CI mit Zensical. Er läuft unter der eigenen Nutzerkennung, damit `site/` und `.cache/` danach nicht `root` gehören. Git braucht er nicht, der Befehl geht also auch in einem Git-Worktree:
+Die Doku baut ein Container mit Python, wie in der CI mit Zensical. Er läuft unter der eigenen Nutzerkennung, damit `site/` und `.cache/` danach nicht `root` gehören. Git braucht er nicht, der Befehl geht also auch in einem Git-Worktree; ohne git im Container fehlt nur das Änderungsdatum unter den Seiten:
 
 ```sh
 docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD":/docs -w /docs python:3.15-slim sh -c 'pip install -q --user -r requirements-docs.txt && python -m zensical build --strict'
@@ -109,7 +109,7 @@ Projektname und Ports gelten für jeden Befehl dieser Umgebung, also auch für `
 | `bun run e2e` | Ende-zu-Ende-Tests mit Playwright (braucht `E2E_DATABASE_URL`, siehe [Ende-zu-Ende-Tests mit Playwright](#ende-zu-ende-tests-mit-playwright)) |
 | `bun run --cwd apps/web start` | Gebaute App starten (`.output/server/index.mjs`) |
 | `bun run --cwd packages/einvoice kosit [ausgabeverzeichnis]` | Beispielrechnungen erzeugen und mit dem KoSIT-Validator prüfen |
-| `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI |
+| `pip install -r requirements-docs.txt && zensical serve` | Diese Dokumentation als Website lokal auf Port 8000 (Zensical); `zensical build --strict` wie in der CI. Das Änderungsdatum unter jeder Seite schreibt `scripts/doku-aenderungsdatum` aus dem letzten Commit der Datei, bis Zensical es selbst kann; Tests: `python -m unittest discover -s scripts/doku-aenderungsdatum` |
 | `bun run docs:screenshots` | Nimmt die Bilder in README und Doku neu auf (`docs/screenshot-*.png`, siehe [Bilder für README und Doku](#bilder-für-readme-und-doku)) und danach das Vorschaubild |
 | `bun run --cwd apps/elster-helfer build` | Baut die Erweiterung „Haben für Mein ELSTER“ nach `apps/elster-helfer/dist`; diesen Ordner lädt Chrome als entpackte Erweiterung |
 | `bun run docs:social-preview` | Rendert `scripts/social-preview/social-preview.html` nach `docs/social-preview.png` (1280 × 640, Bild für Settings → Social preview) |

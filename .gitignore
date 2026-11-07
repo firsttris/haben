@@ -18,3 +18,5 @@ playwright-report/
 
 # Dokumentation (zensical build)
 site/
+# Tests der Erweiterung für das Änderungsdatum (scripts/doku-aenderungsdatum)
+__pycache__/

@@ -108,11 +108,14 @@ extra_css:
 plugins:
   # Zensical setzt viele MkDocs-Plugins selbst um, git-revision-date-localized (Änderungsdatum
   # unter der Seite) noch nicht: dort „Planned“, nicht gelistete Plugins ignoriert es stillschweigend
-  # (https://zensical.org/docs/compatibility/mkdocs/plugins/). Die Suche ist eingebaut; ihre
-  # Sprache kommt aus theme.language, `lang` hier würde ignoriert.
+  # (https://zensical.org/docs/compatibility/mkdocs/plugins/). Das Datum schreibt bis dahin die
+  # eigene Erweiterung unter markdown_extensions. Die Suche ist eingebaut; ihre Sprache kommt aus
+  # theme.language, `lang` hier würde ignoriert.
   - search
 
 markdown_extensions:
+  # Änderungsdatum aus git unter jeder Seite (scripts/doku-aenderungsdatum, über requirements-docs.txt)
+  - haben_doku_aenderungsdatum
   - admonition
   - attr_list
   - md_in_html
