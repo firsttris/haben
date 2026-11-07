@@ -2,6 +2,8 @@ import type postgres from "postgres";
 import { unzipSync } from "fflate";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import logFixture from "../../../../../../packages/import/test-fixtures/sevdesk/check-account-transaction-log.json" with { type: "json" };
+import unlinkedLogFixture from "../../../../../../packages/import/test-fixtures/sevdesk/check-account-transaction-log-aufgehoben.json" with { type: "json" };
+import unlinkedInvoiceFixture from "../../../../../../packages/import/test-fixtures/sevdesk/invoice-teilzahlung-aufgehoben.json" with { type: "json" };
 import invoiceFixture from "../../../../../../packages/import/test-fixtures/sevdesk/invoice-teilzahlungen.json" with { type: "json" };
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
@@ -148,13 +150,14 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
                 case "/Contact":
                   return list([{ id: "1", name: "Kunde GmbH", customerNumber: "1001" }]);
                 case "/Invoice":
-                  return list(invoiceFixture.objects);
+                  return list([...invoiceFixture.objects, ...unlinkedInvoiceFixture.objects]);
                 case "/ContactAddress":
                 case "/CommunicationWay":
                 case "/CreditNote":
                 case "/Voucher":
                 case "/Order":
                   return list([]);
+                case "/Invoice/9003/getPositions":
                 case "/Invoice/9001/getPositions":
                   return list([{ id: 1, taxRate: "19", sumNet: "4000", sumTax: "760" }]);
                 case "/CheckAccount":
@@ -163,7 +166,8 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
                     { id: "502", name: "Geschäftskonto B", currency: "EUR" },
                   ]);
                 case "/CheckAccountTransactionLog":
-                  return logsStatus === 200 ? list(logFixture.objects) : json({ error: { message: "kaputt" } }, logsStatus);
+                  return logsStatus === 200 ? list([...logFixture.objects, ...unlinkedLogFixture.objects]) : json({ error: { message: "kaputt" } }, logsStatus);
+                case "/Invoice/9003/getPdf":
                 case "/Invoice/9001/getPdf":
                   return json({
                     objects: {
@@ -211,6 +215,19 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
       expect(await item("2026-08-31")).toMatchObject({ open: 76000, paidAfter: 76000 });
       expect((await item("2026-08-31"))!.blocker ?? "").not.toMatch(/Zahlungshistorie/);
       expect(await item("2026-09-08")).toBeUndefined();
+    });
+
+    // Echte V1-Antwort nach dem Aufheben einer Zuordnung in sevDesk: Der Log-Eintrag ist gelöscht, es gibt keine
+    // Gegenbuchung. Status 750, paidAmount 1.760, payDate bleibt auf dem Tag der aufgehobenen Zahlung stehen.
+    it("übernimmt nach einer aufgehobenen Zuordnung nur die verbliebene Teilzahlung und ignoriert das alte payDate", async () => {
+      const [v] = await sql`select id, status, payment from lexoffice_vouchers where lexoffice_id = 'invoice/9003'`;
+      expect(v).toMatchObject({ status: "open", payment: { status: "partlyPaid", openAmount: 300000, paidDate: null } });
+      const payments = await sql`select date::text as date, amount from legacy_voucher_payments where voucher_id = ${v!.id}`;
+      expect(payments).toEqual([{ date: "2026-10-22", amount: 176000 }]);
+      const item = (await legacy.openLegacyItems("2026-10-31")).find((i) => i.id === v!.id)!;
+      expect(item).toMatchObject({ open: 300000, paidAfter: 0 });
+      expect(item.blocker ?? "").not.toMatch(/Zahlungshistorie/);
+      expect((await archive.legacyVoucherDetail(v!.id as string))!.voucher.paymentHistoryIssue).toBeNull();
     });
 
     it("legt bei erneutem Abruf keine Zahlung doppelt an und übernimmt den fremden Anteil des geteilten Umsatzes nicht", async () => {

@@ -79,6 +79,8 @@ Fehlen Einzelzahlungen, ergeben sie nicht den Zahlungsstand (etwa bei Skonto, Ve
 
 Bei **Ist-Versteuerung** sperrt Haben dann den monatlichen Altbestandsabgleich für jedes Jahr, in das eine solche Zahlung fallen kann: bei vollständig bezahlten Vorgängen alle Jahre bis zum Zahldatum, bei Teilzahlungen und ohne Zahldatum alle Jahre. Spätere Jahre, etwa nach einem Wechsel von sevDesk zu Lexoffice, bleiben im Abgleich. Ebenso lehnt die zahlungsbezogene Zeitraumabfrage für KI-Assistenten nur Zeiträume ab, in die eine solche Zahlung fallen kann. Bei **Soll-Versteuerung** bleibt der Abgleich nach Belegdatum verfügbar; der Stichtagsschutz gilt unabhängig davon.
 
+**Aufgehobene Zuordnungen:** Hebt man in sevDesk die Zuordnung eines Umsatzes auf, löscht sevDesk den Eintrag im `CheckAccountTransactionLog`; eine Gegenbuchung gibt es nicht. Der Zahlungsstand sinkt entsprechend, `payDate` bleibt dabei auf dem Tag der aufgehobenen Zahlung stehen (in Version 1.0 beobachtet). Haben wertet `payDate` deshalb nur bei vollständig bezahlten Vorgängen aus. Eine schon archivierte Kopie bleibt auf dem Stand ihres Abrufs, mit den damals belegten Zahlungen.
+
 **Reparatur früherer Abrufe:** Ein neuer Abruf ergänzt die Einzelzahlungen auch für schon archivierte Vorgänge, deren Zahlungen bisher zu einer verdichtet oder gar nicht belegt waren. Die Archivkopie bleibt unverändert; die Zahlungen sind eigene, unveränderliche Nachträge, und jede sevDesk-Zuordnung kommt nur einmal an. Schlägt der Abruf der Zahlungen fehl, bleibt die Sperre bestehen und der Fortschritt nennt den Fehler. Bereits aktiv übernommene Posten korrigiert Haben nicht rückwirkend; ihre Buchungen sind versiegelt.
 
 ### Angebote, Auftragsbestätigungen und Lieferscheine
