@@ -42,7 +42,7 @@ docker compose run --rm -u bun -e TEST_DATABASE_URL=postgres://haben:haben@db:54
 - Im Container heißt der Datenbankserver `db`, nicht `localhost`.
 - Einzelne Tests: `… app bun --bun vitest run <pfad>`.
 - E2E (`bun run e2e`) braucht die Browser von Playwright, die der Container nicht hat: läuft in der CI; lokal nur mit Bun auf dem Rechner und `E2E_DATABASE_URL` auf eine Datenbank, deren Name auf `e2e` endet. Port 3100 ist der E2E-Server.
-- Doku, wenn `docs/` oder `mkdocs.yml` geändert sind: ohne `mkdocs` auf dem Rechner der Zweizeiler aus `docs/entwicklung.md` („Prüfungen ohne Bun auf dem Rechner“). Er hängt das Git-Verzeichnis mit ein und läuft deshalb auch im Worktree.
+- Doku, wenn `docs/` oder `mkdocs.yml` geändert sind: `zensical build --strict`; ohne Zensical auf dem Rechner der Einzeiler aus `docs/entwicklung.md` („Prüfungen ohne Bun auf dem Rechner“). Er braucht kein Git und läuft deshalb auch im Worktree.
 
 Nie gegen eine Datenbank mit echten Daten testen; die Tests leeren `<name>`, `<name>_vorlage` und `<name>_<n>`.
 
