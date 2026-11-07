@@ -11,12 +11,12 @@ Abgerufene Belege landen im selben unveränderlichen Archiv wie die aus Lexoffic
 
 ## Voraussetzungen
 
-- Einen **API-Token** von sevDesk. Du findest ihn unter **Einstellungen → Benutzer**, beim jeweiligen Benutzer. Die REST-API gehört laut [Preisseite von sevDesk](https://sevdesk.de/preise/) nur zum Tarif **Buchhaltung Pro** (Stand November 2026); zu den anderen Tarifen siehe [Ohne REST-API](#ohne-rest-api).
+- Einen **API-Token** von sevDesk. Du findest ihn unter **Erweiterungen › Integrationen** im Bereich „API-Token für Integrationen“ (je nach Tarif auch unter **Erweiterungen › API**): **Einblenden** und mit deinem Passwort bestätigen ([sevDesk-Hilfe](https://hilfe.sevdesk.de/de/articles/9374740-wo-finde-ich-meinen-api-token-in-sevdesk)). Die REST-API gehört laut sevDesk erst ab dem Tarif **Buchhaltung Pro** dazu ([Preisseite](https://sevdesk.de/preise/), [sevDesk-Hilfe zur API](https://hilfe.sevdesk.de/de/articles/9374668-sevdesk-api), Stand November 2026); in kleineren Tarifen ist sie womöglich nicht nutzbar, siehe [Ohne REST-API](#ohne-rest-api).
 - Firmendaten, Kontenrahmen und Versteuerungsart (Ist oder Soll) sind in Haben eingerichtet, wie in sevDesk ([Einrichtung](einrichtung.md)).
 - Der Server braucht Zugriff auf `https://my.sevdesk.de`.
 
 > [!IMPORTANT]
-> Der API-Token gibt Zugriff auf alles, was dieser Benutzer in sevDesk sieht. Entferne ihn nach dem Umzug (siehe [Vor der Kündigung](#vor-der-kündigung)).
+> Mit dem API-Token lassen sich die Daten deines sevDesk-Kontos lesen und ändern. Entferne ihn nach dem Umzug in Haben (siehe [Vor der Kündigung](#vor-der-kündigung)); das löscht ihn nur in Haben, nicht in sevDesk.
 
 ### Ohne REST-API
 
@@ -141,4 +141,4 @@ Haben spricht standardmäßig mit `https://my.sevdesk.de/api/v1`. Mit der Umgebu
 - [ ] Offene Posten übernommen oder die Gründe geklärt
 - [ ] Nächste Rechnungsnummer in Haben gesetzt
 - [ ] Jahresexport für jedes übernommene Jahr heruntergeladen
-- [ ] API-Token in Haben entfernt
+- [ ] API-Token in Haben entfernt (das löscht ihn nur in Haben, nicht in sevDesk)
