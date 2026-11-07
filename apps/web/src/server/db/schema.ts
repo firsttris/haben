@@ -158,10 +158,18 @@ export const company = pgTable(
     privateShares: jsonb("private_shares").$type<Record<string, number>>().notNull().default({}),
     /**
      * Mahnwesen: Basiszinssatz in Basispunkten (null = keine Verzugszinsen), Mahngebühr je Stufe in Cent,
-     * Zahlungsfrist in Tagen
+     * Zahlungsfrist in Tagen. autoBaseRate: Basiszinssatz von der Bundesbank automatisch abrufen (ausdrücklich
+     * einzuschalten); baseRateSince: Halbjahr (JJJJ-01 oder JJJJ-07), für das der Abruf den Satz bestätigt hat.
+     * Beide fehlen in älteren Zeilen.
      */
     dunning: jsonb("dunning")
-      .$type<{ baseRate: number | null; fees: Record<"1" | "2" | "3", number>; deadlineDays: number }>()
+      .$type<{
+        baseRate: number | null;
+        fees: Record<"1" | "2" | "3", number>;
+        deadlineDays: number;
+        autoBaseRate?: boolean;
+        baseRateSince?: string | null;
+      }>()
       .notNull()
       .default({ baseRate: null, fees: { "1": 0, "2": 0, "3": 0 }, deadlineDays: 10 }),
     /** SHA-256 des geheimen Tokens im Kalender-Abo der Fristen; null = kein Abo */
