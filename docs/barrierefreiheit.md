@@ -39,7 +39,7 @@ Die Kürzel wirken nicht, solange der Fokus in einem Eingabefeld steht; nur `Str
 
 ## Wie das geprüft wird
 
-`apps/web/e2e/barrierefreiheit.spec.ts` läuft in der CI nach dem Durchlauf in `app.spec.ts`, also mit Kunden, Rechnungen, Belegen und Bankumsätzen in der Datenbank. Die Seiten sind auf mehrere Tests verteilt, die parallel laufen:
+`apps/web/e2e/barrierefreiheit.spec.ts` läuft in der CI nach dem Durchlauf in `app.spec.ts`, also mit Kunden, Rechnungen, Belegen und Bankumsätzen in der Datenbank. Seiten, deren Daten `rechnungen.spec.ts` und `belege-steuern.spec.ts` anlegen (Angebote, Kasse, Anlagen, Darlehen, Zusammenfassende Meldung …), prüfen diese Dateien am Ende selbst mit axe. Die Seiten sind auf mehrere Tests verteilt, die parallel laufen:
 
 1. **axe-core** prüft jede Seite gegen WCAG 2.0, 2.1 und 2.2 (A und AA) und die Best Practices von axe, am Desktop und am Handy (320 px, die Breite aus WCAG 1.4.10), dazu die Anmeldeseite und das offene Handy-Menü.
 2. Die **Farbkontraste** prüft axe zusätzlich in allen übrigen Themes.
