@@ -102,8 +102,7 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      # Chromium aus dem Cache, je Playwright-Version; die Systembibliotheken kommen bei jedem Lauf.
-      # Die Screenshots werden nur als Artefakt angehängt, nicht verglichen: die Umgebung bleibt die des Runners
+      # Chromium aus dem Cache, je Playwright-Version; die Systembibliotheken kommen bei jedem Lauf
       - id: playwright
         working-directory: apps/web
         run: echo "version=$(bun --bun playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
@@ -128,12 +127,10 @@ jobs:
           E2E_DATABASE_URL: postgres://haben:haben@localhost:5432/haben_e2e
           # Der gebaute Server statt des Entwicklungsservers
           E2E_SERVER_COMMAND: bun .output/server/index.mjs
-          # Screenshots aller Seiten (seiten.spec.ts) nur auf main, im Pull Request kosten sie nur Zeit
-          SEITEN_SCREENSHOTS: ${{ github.event_name == 'push' && '1' || '' }}
       - if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-screenshots-teil-${{ matrix.teil }}
+          name: e2e-bericht-teil-${{ matrix.teil }}
           path: |
             apps/web/test-results
             apps/web/playwright-report
