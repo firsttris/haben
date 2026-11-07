@@ -198,6 +198,9 @@ export const sevOrderSchema = z.looseObject({
   sumNet: numeric,
   sumTax: numeric,
   sumGross: numeric,
+  sumNetForeignCurrency: numeric,
+  sumTaxForeignCurrency: numeric,
+  sumGrossForeignCurrency: numeric,
 });
 export type SevOrder = z.infer<typeof sevOrderSchema>;
 // V1 liefert bei Beziehungen teils ein Objekt mit lückenhaften Zahlenschlüsseln, sonst eine Liste.

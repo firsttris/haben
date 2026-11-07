@@ -31,6 +31,10 @@ export async function importOrder(actor: string, importId: string, client: Sevde
   if (existing) return false;
   const date = lexDate(order.orderDate);
   if (!date) throw new OrderArchiveError(`Auftragsdokument ${externalId}: Belegdatum fehlt oder ist ungültig.`);
+  const currency = order.currency?.trim().toUpperCase() || "EUR";
+  // sevDesk Model_OrderResponse: sum*ForeignCurrency sind die Summen in Fremdwährung;
+  // fehlende Fremdwährungswerte niemals als EUR-Basisbeträge mit anderem Währungscode anzeigen.
+  const foreign = currency !== "EUR";
   const positions = await client.orderPositions(externalId);
   const relatedObjects = await client.orderRelatedObjects(externalId);
   return withActor(actor, async (tx) => {
@@ -57,10 +61,10 @@ export async function importOrder(actor: string, importId: string, client: Sevde
         status: String(order.status),
         contactId: contact?.id ?? null,
         contactName: order.address?.split(/\r?\n/)[0]?.trim() || contact?.name || "",
-        currency: order.currency || "EUR",
-        net: amount(order.sumNet),
-        tax: amount(order.sumTax),
-        gross: amount(order.sumGross),
+        currency,
+        net: amount(foreign ? order.sumNetForeignCurrency : order.sumNet),
+        tax: amount(foreign ? order.sumTaxForeignCurrency : order.sumTax),
+        gross: amount(foreign ? order.sumGrossForeignCurrency : order.sumGross),
         raw: { order, positions, relatedObjects },
       })
       .onConflictDoNothing({ target: schema.legacyOrderDocuments.externalId })
