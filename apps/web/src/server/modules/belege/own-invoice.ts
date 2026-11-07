@@ -41,9 +41,8 @@ export async function detectOwnInvoiceFor(facts: OwnInvoiceFacts): Promise<OwnIn
   const input: OwnInvoiceInput = {
     parties: facts.parties,
     lines: facts.lines ?? undefined,
-    knownInvoiceNumber: facts.invoiceNumber && facts.gross !== undefined && facts.currency
-        ? await knownInvoiceNumber(facts.invoiceNumber, facts.gross, facts.currency)
-        : null,
+    knownInvoiceNumber:
+      facts.invoiceNumber && facts.gross !== undefined && facts.currency ? await knownInvoiceNumber(facts.invoiceNumber, facts.gross, facts.currency) : null,
   };
   return detectOwnInvoice(input, company);
 }

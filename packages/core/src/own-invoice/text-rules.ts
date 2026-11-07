@@ -18,26 +18,33 @@ export const FOOTER_FROM = 0.8;
 export const HEADER_TO = 0.12;
 /** Anschriftfeld nach DIN 5008: Form A ab 27 mm, Form B bis 90 mm von oben, auf A4 (297 mm) also etwa 9 % bis 32 % */
 const ADDRESS_FIELD = { from: 0.09, to: 0.32, leftTo: 0.5 };
+/**
+ * Informationsblock nach DIN 5008 rechts neben dem Anschriftfeld: Angaben des Absenders zum Vorgang (Rechnungsnummer,
+ * Kundennummer, eigene USt-IdNr.); reicht etwas tiefer als das Anschriftfeld
+ */
+const INFO_BLOCK = { from: 0.09, to: 0.36, leftFrom: 0.5 };
 
-type Region = "footer" | "header" | "address" | "body";
+type Region = "footer" | "header" | "address" | "info" | "body";
 
 export function regionOf(line: TextLine): Region {
   if (line.top >= FOOTER_FROM) return "footer";
   if (line.top < HEADER_TO) return "header";
   if (line.top >= ADDRESS_FIELD.from && line.top < ADDRESS_FIELD.to && line.left < ADDRESS_FIELD.leftTo) return "address";
+  if (line.top >= INFO_BLOCK.from && line.top < INFO_BLOCK.to && line.left >= INFO_BLOCK.leftFrom) return "info";
   return "body";
 }
 
 /**
  * Text vor der Kennung: auf derselben Zeile, und steht dort keine Zuordnung, die Zeile darüber (Tabellenkopf,
- * Beschriftung über dem Wert).
+ * Beschriftung über dem Wert). Die Zeile darüber zählt nur als reine Beschriftung ohne Ziffern: „Kundennummer: 10042“
+ * ist eine eigene Angabe, keine Beschriftung der USt-IdNr. darunter.
  */
 function roleOf(lines: TextLine[], index: number, at: number): "buyer" | "seller" | null {
   const line = lines[index]!;
   const sameLine = roleBefore(line.text.slice(0, at));
   if (sameLine) return sameLine;
   const previous = lines[index - 1];
-  return previous && previous.page === line.page ? roleBefore(previous.text) : null;
+  return previous && previous.page === line.page && !/\d/.test(previous.text) ? roleBefore(previous.text) : null;
 }
 
 /** Jede Fundstelle einer kompakten Kennung mit Zeilennummer und Stelle in der Zeile */
@@ -62,6 +69,7 @@ function judgeOwnIdentifier(
     const region = regionOf(lines[index]!);
     if (region === "footer") return signal(rule, "own", weights.footer, `${label} steht in der Fußzeile, wo der Rechnungssteller seine Angaben macht.`);
     if (region === "header") return signal(rule, "own", weights.header, `${label} steht im Briefkopf.`);
+    if (region === "info") return signal(rule, "own", weights.header, `${label} steht im Informationsblock neben dem Anschriftfeld.`);
     return elsewhere(rule);
   });
 }

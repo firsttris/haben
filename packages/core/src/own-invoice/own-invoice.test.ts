@@ -75,6 +75,15 @@ describe("eigene Rechnung erkennen", () => {
     );
   });
 
+  it("eine reine Beschriftung in der Zeile darüber zählt, auch im Informationsblock", () => {
+    const lines = [line("Ihre USt-IdNr.", 0.2, 0.6), line("DE 123 456 789", 0.22, 0.6)];
+    expect(detectOwnInvoice({ lines }, company).signals).toEqual([
+      expect.objectContaining({ rule: "ust-id-im-text", direction: "foreign", confidence: 0.85 }),
+      expect.objectContaining({ rule: "andere-ust-id", direction: "own" }),
+    ]);
+    expect(detectOwnInvoice({ lines }, company).level).toBe("keine");
+  });
+
   it("die eigene Steuernummer allein reicht für „sicher“", () => {
     expect(detectOwnInvoice({ lines: [line("Steuernummer 21/815/08150", 0.5)] }, company).level).toBe("sicher");
   });

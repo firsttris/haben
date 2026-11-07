@@ -364,7 +364,13 @@ async function extract(actor: string, doc: Document): Promise<void> {
     if (!sniffed) throw new DocumentError("Dateityp unbekannt");
     const [{ extraction, fields }, lines] = await Promise.all([extractDocument(bytes, sniffed.kind), textLinesOf(bytes, sniffed.kind)]);
     const gross = totalsOf(fields.amounts).gross;
-    const ownInvoice = await detectOwnInvoiceFor({ parties: partiesOfExtraction(extraction), lines, invoiceNumber: fields.invoiceNumber, gross, currency: fields.currency });
+    const ownInvoice = await detectOwnInvoiceFor({
+      parties: partiesOfExtraction(extraction),
+      lines,
+      invoiceNumber: fields.invoiceNumber,
+      gross,
+      currency: fields.currency,
+    });
     await applyFields(actor, id, fields, "ki", extraction, true, ownInvoice);
   } catch (error) {
     await setExtractionState(actor, id, "fehler", describeExtractionError(error));
@@ -467,7 +473,13 @@ export async function uploadDocument(
       if (einvoice) {
         const { invoice } = einvoice;
         const lines = await textLinesOf(file.bytes, type.kind);
-        const ownInvoice = await detectOwnInvoiceFor({ parties: partiesOfEInvoice(invoice), lines, invoiceNumber: invoice.number, gross: invoice.gross, currency: invoice.currency });
+        const ownInvoice = await detectOwnInvoiceFor({
+          parties: partiesOfEInvoice(invoice),
+          lines,
+          invoiceNumber: invoice.number,
+          gross: invoice.gross,
+          currency: invoice.currency,
+        });
         await applyFields(actor, id, fieldsFromEInvoice(invoice), einvoice.source, { ...invoice }, false, ownInvoice);
         return { id, duplicate: false };
       }
