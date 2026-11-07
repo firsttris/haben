@@ -11,15 +11,16 @@ import { NoticeBanner } from "./NoticeBanner.tsx";
 type Detail = Awaited<ReturnType<typeof getDocumentDetail>>;
 
 /**
- * Storno eines gebuchten Belegs (#237): Gegenbuchung am Tag des Stornos, danach „Storniert am …“ mit Verweis auf die
- * Gegenbuchung und „Neu erfassen“ für einen neuen Entwurf mit derselben Datei. Wie beim Buchen fragt der erste Klick nach.
+ * Storno eines gebuchten Belegs (#237): Gegenbuchung im noch offenen Zeitraum der Belegbuchung, sonst am Tag des Stornos;
+ * danach „Storniert mit einer Gegenbuchung zum …“ und „Neu erfassen“ für einen neuen Entwurf mit derselben Datei. Wie
+ * beim Buchen fragt der erste Klick nach und nennt dabei das Datum der Gegenbuchung.
  */
 export function DocumentCancellation({ data }: { data: Detail }) {
   const { document: doc, cancellation, reentryId } = data;
   if (doc.replacesDocumentId && !doc.lockedAt) return <ReentryNotice replacesId={doc.replacesDocumentId} />;
   if (!doc.lockedAt) return null;
   if (cancellation) return <Cancelled documentId={doc.id} cancellation={cancellation} reentryId={reentryId} />;
-  return <CancelForm documentId={doc.id} issues={data.cancellationIssues} />;
+  return <CancelForm documentId={doc.id} issues={data.cancellationIssues} date={data.cancellationDate} today={data.today} />;
 }
 
 function ReentryNotice({ replacesId }: { replacesId: string }) {
@@ -60,11 +61,11 @@ function Cancelled({
       <div className="banner banner-danger" role="status">
         <Icon name="alert" />
         <span>
-          Storniert am {formatDate(cancellation.date)} mit einer{" "}
+          Storniert mit einer{" "}
           <Link to="/buchungen" search={{ jahr: year, monat: month }}>
             Gegenbuchung
-          </Link>
-          .{cancellation.reason ? ` Grund: ${cancellation.reason}` : ""}
+          </Link>{" "}
+          zum {formatDate(cancellation.date)}.{cancellation.reason ? ` Grund: ${cancellation.reason}` : ""}
         </span>
       </div>
       <NoticeBanner notice={notice} />
@@ -83,7 +84,15 @@ function Cancelled({
   );
 }
 
-function CancelForm({ documentId, issues }: { documentId: string; issues: string[] }) {
+/** Der Hinweis vor dem Stornieren: in welchen Zeitraum die Gegenbuchung fällt und warum */
+function cancellationNotice(date: string | null, today: string): string {
+  if (date && date < today) {
+    return `Haben bucht den Beleg zum ${formatDate(date)} zurück, im Zeitraum der Belegbuchung: Für ihn ist noch keine Voranmeldung abgegeben. Der Beleg bleibt festgeschrieben.`;
+  }
+  return `Haben bucht den Beleg zum ${formatDate(date ?? today)} zurück; der Beleg bleibt festgeschrieben. Eine abgegebene Voranmeldung bleibt unberührt, die Korrektur steht im laufenden Zeitraum.`;
+}
+
+function CancelForm({ documentId, issues, date, today }: { documentId: string; issues: string[]; date: string | null; today: string }) {
   const router = useRouter();
   const cancel = useServerFn(cancelDocumentFn);
   const { busy, notice, run } = useAction();
@@ -109,10 +118,7 @@ function CancelForm({ documentId, issues }: { documentId: string; issues: string
         <div className="stack">
           <div className="banner" role="alert">
             <Icon name="alert" />
-            <span>
-              Haben bucht den Beleg mit heutigem Datum zurück; der Beleg bleibt festgeschrieben. Eine abgegebene Voranmeldung bleibt unberührt, die Korrektur
-              steht im laufenden Zeitraum. Noch einmal klicken zum Stornieren.
-            </span>
+            <span>{cancellationNotice(date, today)} Noch einmal klicken zum Stornieren.</span>
           </div>
           <label className="field">
             Grund (optional)
