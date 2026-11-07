@@ -2465,7 +2465,7 @@ test("Darlehen: anlegen, Auszahlung zuordnen, Rate in Tilgung und Zinsen aufteil
   await page.waitForLoadState("networkidle");
   // Erst weiter, wenn rechts der gewählte Umsatz steht; sonst gehört das Formular noch zum vorigen
   await expect(panel.getByText("Auszahlung Darlehen 4711")).toBeVisible();
-  if (await panel.getByRole("button", { name: "Ohne Rechnung buchen" }).isVisible()) await panel.getByRole("button", { name: "Ohne Rechnung buchen" }).click();
+  if (await panel.getByRole("button", { name: "Direkt buchen" }).isVisible()) await panel.getByRole("button", { name: "Direkt buchen" }).click();
   await panel.getByLabel("Buchen als").selectOption("darlehen");
   await expect(panel.getByLabel("Teil der Rate")).toHaveValue("auszahlung");
   await panel.getByRole("button", { name: "Buchen", exact: true }).click();

@@ -71,7 +71,7 @@ Die Pauschsteuer im Minijob zieht die Minijob-Zentrale mit den Beiträgen ein (�
 
 Ein **Storno** bucht dieselben Zeilen mit getauschten Seiten, am selben Tag wie die stornierte Buchung, damit Storno und neue Abrechnung im selben Monat stehen; der Tag des Stornos steht im Buchungstext.
 
-**Bezahlen** ordnest du im [Bankabgleich](bank.md#ohne-rechnung-buchen) mit **Ohne Rechnung buchen** zu: „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“. Die Zuordnung bucht die Verbindlichkeit an Bank. Das geht erst, wenn es eine festgeschriebene Abrechnung gibt, und höchstens über den Betrag, der auf dem Konto noch offen ist.
+**Bezahlen** ordnest du im [Bankabgleich](bank.md#direkt-buchen) mit **Direkt buchen** zu: „Lohn/Gehalt an Mitarbeiter“, „Lohnsteuer an das Finanzamt“ oder „SV-Beiträge an Krankenkasse oder Minijob-Zentrale“. Die Zuordnung bucht die Verbindlichkeit an Bank. Das geht erst, wenn es eine festgeschriebene Abrechnung gibt, und höchstens über den Betrag, der auf dem Konto noch offen ist.
 
 **Nebenbuch:** Die Lohnkonten (Aufwand und Verbindlichkeiten) bebucht nur die Lohnabrechnung; eine [manuelle Buchung](buchhaltung.md#manuelle-buchungen-gmbh-und-ug) darauf lehnt Haben ab. Ausnahme ist die Eröffnung: Offene Lohnverbindlichkeiten aus der bisherigen Buchhaltung, etwa die Lohnsteuer für Dezember, übernimmst du dort und bezahlst sie im neuen Jahr über die Bank.
 
@@ -139,7 +139,7 @@ Ohne eigene Hersteller-ID zeigt die Seite eine **Ausfüllliste**: jedes Feld mit
 
 ### Zahlen
 
-Die Lohnsteuer zahlst du mit Soli und Kirchensteuer in einer Summe, den Gesamtbetrag Kz 83. Im [Bankabgleich](bank.md#ohne-rechnung-buchen) ordnest du die Zahlung als „Lohnsteuer an das Finanzamt“ zu; eine Lastschrift des Finanzamts über genau den Gesamtbetrag einer übermittelten Anmeldung schlägt Haben so vor.
+Die Lohnsteuer zahlst du mit Soli und Kirchensteuer in einer Summe, den Gesamtbetrag Kz 83. Im [Bankabgleich](bank.md#direkt-buchen) ordnest du die Zahlung als „Lohnsteuer an das Finanzamt“ zu; eine Lastschrift des Finanzamts über genau den Gesamtbetrag einer übermittelten Anmeldung schlägt Haben so vor.
 
 ## Entgeltabrechnung
 
