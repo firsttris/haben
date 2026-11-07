@@ -809,7 +809,7 @@ export const MCP_TOOLS: McpTool[] = [
             status: voucher.payment.status,
             offen: euro(voucher.payment.openAmount),
             bezahltAm: voucher.payment.paidDate,
-            zahlungen: voucher.payment.items.map((i) => ({ art: i.type, datum: i.date, betrag: euro(i.amount) })),
+            zahlungen: voucher.payment.items.map((i) => ({ art: i.type, datum: i.date, betrag: euro(i.amount), konto: i.account ?? null })),
           },
           dateien: files.map((f) => ({ art: f.role, name: f.filename, typ: f.mimeType, groesse: f.size })),
           apiAntwort: withoutKennungen(raw),

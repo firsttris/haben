@@ -1308,6 +1308,35 @@ async function* legacyFiles(year: number, problems: string[]): AsyncGenerator<Ar
     };
   }
 
+  // Einzelzahlungen nach Zahlungsdatum, also im Jahr des Geldflusses; der Beleg kann in einem anderen Jahr liegen
+  const payments = await db
+    .select({ payment: schema.legacyVoucherPayments, number: schema.lexofficeVouchers.number, voucher: schema.lexofficeVouchers.lexofficeId })
+    .from(schema.legacyVoucherPayments)
+    .innerJoin(schema.lexofficeVouchers, eq(schema.lexofficeVouchers.id, schema.legacyVoucherPayments.voucherId))
+    .where(between(schema.legacyVoucherPayments.date, yearStart(year), yearEnd(year)))
+    .orderBy(asc(schema.legacyVoucherPayments.date), asc(schema.lexofficeVouchers.number), asc(schema.legacyVoucherPayments.externalId));
+  if (payments.length > 0) {
+    yield {
+      path: "lexoffice/zahlungen.csv",
+      content: csv(
+        ["Datum", "Belegnummer", "Betrag", "Konto", "Konto-ID", "Umsatz-ID", "Zuordnungs-ID", "Beleg-ID der Quelle", "Quelle", "Abgerufen am"],
+        payments.map(({ payment: p, number, voucher }) => [
+          p.date,
+          number,
+          money(p.amount),
+          p.accountName ?? "",
+          p.accountId ?? "",
+          p.transactionId ?? "",
+          p.externalId,
+          voucher,
+          LEGACY_SOURCE_LABELS[p.source],
+          p.createdAt.toISOString(),
+        ]),
+      ),
+      compress: true,
+    };
+  }
+
   const bookings = await db
     .select({ booking: schema.datevBookings, filename: schema.archiveFiles.filename })
     .from(schema.datevBookings)
@@ -1563,7 +1592,8 @@ stammdaten/              Kontakte (aktueller Stand und alle Versionen), Bankkont
 lexoffice/               Nur bei übernommenem Altbestand: Rechnungen und Belege aus
                          Lexware Office oder sevDesk (Spalte Quelle; bei sevDesk steht in
                          Lexoffice-ID die sevDesk-Art und -ID, z. B. invoice/123) mit
-                         Originaldateien (belege.csv), die Zeilen des
+                         Originaldateien (belege.csv), Einzelzahlungen aus sevDesk
+                         (zahlungen.csv), die Zeilen des
                          DATEV-Buchungsstapels (datev-buchungen.csv) und die unveränderten
                          Originalexporte des Jahres (originale/: DATEV, IDEA,
                          ELSTER-Protokolle, Kontoauszüge).

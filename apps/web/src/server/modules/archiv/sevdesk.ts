@@ -31,6 +31,7 @@ import { sha256Of, storeFile } from "../../storage.ts";
 import { fallbackName, finish, latestImport, progressMessage, STALE_MS } from "./lexoffice.ts";
 import { importOrder, isImportableOrder } from "./orders.ts";
 import { createOrderPdfImporter } from "./order-pdfs.ts";
+import { importSevdeskPayments } from "./sevdesk-payments.ts";
 
 /*
  * Umzug aus sevDesk. Gleicher Ablauf und dieselben Archivtabellen wie beim Lexoffice-Import (Spalte source = "sevdesk"),
@@ -287,6 +288,8 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
     }
     await save();
   }
+  // 4. Einzelzahlungen, auch für schon früher übernommene Belege (#343)
+  await importSevdeskPayments(actor, importId, client, progress, signal);
   await save(true);
 }
 

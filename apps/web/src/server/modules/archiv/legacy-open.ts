@@ -14,7 +14,7 @@ import {
   type PriceMode,
   type TakeoverCutoff,
 } from "@haben/core";
-import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { withActor } from "../../db/actor.ts";
 import { activeOpenings, openBooks, post, stapelOpeningCovering } from "../buchhaltung/index.ts";
@@ -26,7 +26,7 @@ import type { LegacyCategoryRow } from "../../db/schema.ts";
 import { buyerFrom, sellerFrom } from "../rechnungen/index.ts";
 import { loadFile } from "../../storage.ts";
 import { today } from "../../today.ts";
-import { paymentHistoryIssue, settledOn } from "./payment-history.ts";
+import { effectivePayment, paymentHistoryIssue, settledOn } from "./payment-history.ts";
 
 export class TakeoverError extends UserError {}
 
@@ -178,7 +178,7 @@ function sevPayDate(raw: Record<string, unknown>): string | null {
 
 async function itemsAt(cutoff: string): Promise<OpenLegacyItem[]> {
   const vouchers = await db
-    .select()
+    .select({ ...getTableColumns(schema.lexofficeVouchers), payment: effectivePayment("lexoffice_vouchers") })
     .from(schema.lexofficeVouchers)
     .where(inArray(schema.lexofficeVouchers.type, [...SALES, ...PURCHASES]))
     .orderBy(schema.lexofficeVouchers.date, schema.lexofficeVouchers.number);
