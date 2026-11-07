@@ -268,7 +268,16 @@ async function runImport(actor: string, importId: string, client: SevdeskClient,
       // false: ein gleichzeitiger Lauf hat den Beleg schon übernommen
       if (await importVoucher(actor, importId, client, item, progress)) progress.imported += 1;
       else progress.skipped += 1;
-      if (item.kind === "order" && (await importOrderPdf(item.id))) progress.files += 1;
+      if (item.kind === "order") {
+        try {
+          if (await importOrderPdf(item.id)) progress.files += 1;
+        } catch (error) {
+          // Archivkopie steht schon; nur das PDF fehlt. Abbruchgründe gehen an die äußere Behandlung.
+          if (error instanceof SevdeskApiError && (error.status === 401 || error.status === 403)) throw error;
+          if (signal.aborted || (error instanceof Error && error.name === "AbortError")) throw error;
+          progress.failed.push({ lexofficeId: externalId, number: item.number, message: `Dokument importiert, PDF fehlt: ${progressMessage(error)}` });
+        }
+      }
     } catch (error) {
       // Token ungültig oder abgebrochen: weitermachen ist sinnlos
       if (error instanceof SevdeskApiError && (error.status === 401 || error.status === 403)) throw error;
