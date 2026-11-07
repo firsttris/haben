@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
+import { DURCHLAEUFE, databaseUrlFuer, type Durchlauf, portFuer } from "./e2e/durchlaeufe.ts";
 
 /**
  * Ende-zu-Ende-Tests gegen einen echten Server mit eigener, leerer Datenbank.
@@ -7,17 +8,15 @@ import { fileURLToPath } from "node:url";
  * Lokal startet Playwright den Entwicklungsserver, in der CI den gebauten Server (E2E_SERVER_COMMAND).
  * Lokal ohne heruntergeladene Browser: PLAYWRIGHT_CHROMIUM_EXECUTABLE auf ein vorhandenes Chromium setzen.
  */
-const port = Number(process.env.E2E_PORT ?? 3100);
-const baseURL = `http://localhost:${port}`;
-const databaseUrl = process.env.E2E_DATABASE_URL ?? "";
-const gmbhPort = port + 1;
-/** Neben der E2E-Datenbank, Name endet wie verlangt auf „e2e“: haben_e2e → haben_gmbh_e2e */
-const gmbhDatabaseUrl = databaseUrl.replace(/e2e(\?.*)?$/i, "gmbh_e2e$1");
+const baseURL = `http://localhost:${portFuer()}`;
+const durchlaeufe = Object.keys(DURCHLAEUFE) as Durchlauf[];
 
 const chromium = { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } };
 
-/** Datenbank leeren, migrieren, Server starten */
-function webServer(serverPort: number, serverDatabaseUrl: string, suffix = "") {
+/** Datenbank leeren, migrieren, Server starten; je Durchlauf (e2e/durchlaeufe.ts) ein eigener */
+function webServer(durchlauf?: Durchlauf) {
+  const serverPort = portFuer(durchlauf);
+  const suffix = durchlauf ? `-${durchlauf}` : "";
   const serverURL = `http://localhost:${serverPort}`;
   return {
     command: `bun e2e/reset-db.ts && bun run db:migrate && ${process.env.E2E_SERVER_COMMAND ?? `bun --bun vite dev --port ${serverPort}`}`,
@@ -27,7 +26,7 @@ function webServer(serverPort: number, serverDatabaseUrl: string, suffix = "") {
     stdout: "pipe" as const,
     env: {
       ...(process.env as Record<string, string>),
-      DATABASE_URL: serverDatabaseUrl,
+      DATABASE_URL: databaseUrlFuer(durchlauf),
       PORT: String(serverPort),
       BETTER_AUTH_URL: serverURL,
       BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "e2e-geheimnis-mindestens-zweiunddreissig-zeichen",
@@ -51,8 +50,8 @@ function webServer(serverPort: number, serverDatabaseUrl: string, suffix = "") {
 export default defineConfig({
   testDir: "e2e",
   testMatch: "**/*.spec.ts",
-  // Mehrere Browser gegen denselben Server: „ablauf“ läuft für sich nacheinander, „mit-daten“ danach
-  // verteilt auf die Worker, „ohne-daten“ von Anfang an daneben
+  // „ablauf“ läuft für sich nacheinander, „mit-daten“ danach verteilt auf die Worker; die übrigen Durchläufe
+  // mit eigenem Server und „ohne-daten“ von Anfang an daneben
   fullyParallel: true,
   workers: 4,
   retries: 0,
@@ -68,7 +67,8 @@ export default defineConfig({
     launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } : {},
   },
   projects: [
-    // Der Betrieb in der leeren Datenbank, Schritt für Schritt (test.describe.configure serial in der Datei)
+    // Der Betrieb in der leeren Datenbank, Schritt für Schritt (test.describe.configure serial in der Datei); legt
+    // an, was „mit-daten“ liest
     { name: "ablauf", testMatch: "app.spec.ts", use: chromium },
     // Liest nur, was „ablauf“ angelegt hat, mit dessen Sitzung (e2e/daten.ts). Playwright startet „ablauf“ auch
     // mit, wenn nur eine dieser Dateien laufen soll
@@ -85,16 +85,19 @@ export default defineConfig({
       dependencies: ["ablauf"],
       use: chromium,
     },
+    // Durchläufe mit eigenem Server und eigener Datenbank, von Anfang an daneben: die GmbH, weil die Rechtsform ab der
+    // ersten Buchung fest ist, die übrigen, damit app.spec.ts kurz bleibt
+    ...durchlaeufe.map((durchlauf) => ({
+      name: durchlauf,
+      testMatch: `${durchlauf}.spec.ts`,
+      use: { ...chromium, baseURL: `http://localhost:${portFuer(durchlauf)}` },
+    })),
     // Braucht keine Daten aus der App
-    // GmbH mit eigenem Server und eigener Datenbank, von Anfang an daneben
-    { name: "gmbh", testMatch: "gmbh.spec.ts", use: { ...chromium, baseURL: `http://localhost:${gmbhPort}` } },
     {
       name: "ohne-daten",
       testMatch: ["elster-helfer.spec.ts", "elster-helfer-erweiterung.spec.ts", "langsame-anfrage.spec.ts", "beenden.spec.ts"],
       use: chromium,
     },
   ],
-  // Zweiter Server mit eigener Datenbank für das Szenario einer GmbH (gmbh.spec.ts): Die Rechtsform ist ab der ersten
-  // Buchung fest, der Durchlauf in app.spec.ts ist ein Einzelunternehmen
-  webServer: [webServer(port, databaseUrl), webServer(gmbhPort, gmbhDatabaseUrl, "-gmbh")],
+  webServer: [webServer(), ...durchlaeufe.map(webServer)],
 });
