@@ -41,5 +41,11 @@ body:
       options:
         - Docker Compose
         - Podman Quadlets
-        - Eigener Aufbau
+        - Eigener Aufbau (Container, Bun)
+        - Entwicklung (docker compose up)
         - Weiß ich nicht
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Steht unten in der Navigation.

@@ -405,7 +405,7 @@ bun run build
 
 ### Issues schreiben
 
-Für neue Issues gibt es Formulare unter **Issues → New issue**: Fehler melden, Funktionswunsch, Steuerfall oder Format, Umzug aus einem anderen Programm, Frage oder Hinweis zur Doku (`.github/ISSUE_TEMPLATE/`). Ein leeres Issue bleibt möglich. Die Formulare sind kurz gehalten: Meist ist nur ein Feld Pflicht, damit sich auch Gelegenheitsnutzer melden. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
+Für neue Issues gibt es Formulare unter **Issues → New issue**: Fehler melden, Funktionswunsch, Steuerfall oder Format, Umzug aus einem anderen Programm, Frage oder Hinweis zur Doku (`.github/ISSUE_TEMPLATE/`). Ein leeres Issue bleibt möglich. Die Formulare sind kurz gehalten: Jedes Formular hat nur ein Pflichtfeld, damit sich auch Gelegenheitsnutzer melden. In keinem Issue stehen echte Belegdaten, Steuernummern, IBANs, Zugangsdaten oder Zertifikate; Beispiele nutzen erfundene Beträge, Dateien nur anonymisiert.
 
 Wer ein Issue mit einem KI-Agenten schreibt oder ein größeres Vorhaben genau beschreiben will, folgt derselben Gliederung ausführlicher (Claude Code: Skill `issue-schreiben` in `.claude/skills/`):
 
@@ -415,9 +415,9 @@ Wer ein Issue mit einem KI-Agenten schreibt oder ein größeres Vorhaben genau b
 | Stand in Haben | Was Haben heute tut, **auf dem aktuellen `main` geprüft**, mit Commit und Links auf Doku oder Code. Nicht aus dem Gedächtnis. |
 | Vorschlag | Was sich ändern soll, bei Bedarf in Stufen. Grenzen nennen: was ausdrücklich nicht dazugehört. |
 | Akzeptanzkriterien | Drei bis sechs prüfbare Punkte als `- [ ]`, zu denen ein Test oder ein Blick in die Oberfläche Ja oder Nein sagt. Bei Buchungen und Steuer: SKR03 und SKR04, Ist und Soll. |
-| Bezug und Quellen | Verwandte Issues und Pull Requests, Platz in der [Roadmap](roadmap.md), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. |
+| Bezug | Verwandte Issues und Pull Requests, Platz in der [Roadmap](roadmap.md), Primärquellen mit Link (Gesetz, BMF-Schreiben, Formularanleitung, Formatbeschreibung), bei Fremdprogrammen die Hilfe-Seite. Quellen aus früheren Pull Requests dürfen mit Link auf den Pull Request übernommen werden. |
 
-Ein Issue behandelt ein Thema. Es ist so lang wie nötig und kurz genug für ein bis zwei Bildschirme; Quellcode steht als Link, nicht als Auszug. Fachliche Aussagen belegt eine Quelle, nicht ein Ratgeber. Wo etwas unsicher ist oder die Steuerberatung entscheiden muss, steht das ausdrücklich im Issue. Die Reihenfolge in der Roadmap legt der Maintainer fest.
+Ein Issue behandelt ein Thema. Es ist so lang wie nötig und kurz genug für ein bis zwei Bildschirme; Quellcode steht als Link, nicht als Auszug. Fachliche Aussagen belegt eine Quelle, nicht ein Ratgeber. Wo etwas unsicher ist oder die Steuerberatung entscheiden muss, steht das ausdrücklich im Issue. Der Titel nennt das Ergebnis, nicht den Anlass. Vor dem Schreiben suchen Agenten auch in den Pull Requests (`gh pr list --state all --search …`), weil Erledigtes oft nur dort steht. Ein Issue, das ein Agent geschrieben hat, endet nach einer Trennlinie mit dem Hinweis auf das Werkzeug, z. B. `_Generated with [Claude Code](https://claude.com/claude-code)_`. Die Reihenfolge in der Roadmap legt der Maintainer fest.
 
 ### Review
 
