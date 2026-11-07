@@ -716,6 +716,15 @@ summary { cursor: pointer; min-height: 24px; }
 }
 
 /* Kontakt im Beleg oder Rechnungsentwurf anlegen (ContactDialog) */
-.contact-dialog { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--ground); color: var(--ink); }
+/* Wie der feste Seitenkopf (#356): Titel oben und Knöpfe unten stehen, nur das Formular dazwischen scrollt.
+   Der Dialog ist selbst die Karte; das Formular verliert ihren Rahmen, sonst stünde Karte in Karte. */
+.contact-dialog { --dialog-footer: 73px; width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); overflow: hidden; }
+.contact-dialog[open] { display: flex; flex-direction: column; }
 .contact-dialog::backdrop { background: rgb(0 0 0 / 0.4); }
-.contact-dialog > h2 { margin-top: 0; }
+.contact-dialog > h2 { flex: none; padding: 20px 24px 16px; font-size: 22px; border-bottom: 1px solid var(--line); }
+.contact-dialog > .contact-form { flex: 1 1 auto; min-height: 0; max-width: none; overflow: auto; border: 0; border-radius: 0; background: none; scroll-padding-bottom: calc(var(--dialog-footer) + 16px); }
+.contact-dialog .form-footer { position: sticky; bottom: 0; min-height: var(--dialog-footer); margin-top: auto; background: var(--surface); }
+@media (max-width: 640px) {
+  .contact-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
+  .contact-dialog > h2 { padding: 16px; font-size: 20px; }
+}
