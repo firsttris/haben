@@ -23,6 +23,8 @@ describe("parseBaseRateCsv", () => {
     expect(parseBaseRateCsv("")).toBeNull();
     expect(parseBaseRateCsv('{"status":404}')).toBeNull();
     expect(parseBaseRateCsv(`${HEADER}\n${row("2026-09", "")}`)).toBeNull();
+    // Außerhalb von −10 % bis 20 %: unerwartetes Format, nicht übernehmen
+    expect(parseBaseRateCsv(`${HEADER}\n${row("2027-01", "25.00")}`)).toBeNull();
   });
 });
 

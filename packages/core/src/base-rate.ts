@@ -15,6 +15,12 @@ export interface PublishedBaseRate {
   basisPoints: number;
 }
 
+/**
+ * Spanne, die Haben für den Basiszinssatz annimmt, in Basispunkten (−10 % bis 20 %): Grenze des Formulars und des Abrufs.
+ * Ein Wert außerhalb gilt als unerwartetes Format (etwa eine geänderte Einheit der Zeitreihe) und wird nicht übernommen.
+ */
+export const BASE_RATE_LIMITS = { min: -1_000, max: 2_000 } as const;
+
 /** Jüngster Wert aus der CSV-Antwort (Semikolon, Kopfzeile mit TIME_PERIOD und OBS_VALUE), oder null */
 export function parseBaseRateCsv(csv: string): PublishedBaseRate | null {
   const [header, ...rows] = csv
@@ -31,7 +37,9 @@ export function parseBaseRateCsv(csv: string): PublishedBaseRate | null {
     const month = cells[periodAt] ?? "";
     const value = (cells[valueAt] ?? "").trim();
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || !/^-?\d+(\.\d{1,2})?$/.test(value)) return [];
-    return [{ month, basisPoints: Math.round(Number(value) * 100) }];
+    const basisPoints = Math.round(Number(value) * 100);
+    if (basisPoints < BASE_RATE_LIMITS.min || basisPoints > BASE_RATE_LIMITS.max) return [];
+    return [{ month, basisPoints }];
   });
   return rates.sort((a, b) => a.month.localeCompare(b.month)).at(-1) ?? null;
 }
