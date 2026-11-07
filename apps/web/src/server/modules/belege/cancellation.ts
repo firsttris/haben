@@ -62,8 +62,9 @@ export function vatPeriodsOf(date: string): { year: number; months: number[] } {
 
 /**
  * Ist der Zeitraum eines Buchungsdatums schon gemeldet? Eine gesendete oder vermerkte Voranmeldung für den Monat oder das
- * Quartal (je nach Einstellung gibt es nur eins von beiden), eine gesendete Umsatzsteuererklärung oder Anlage EÜR des
- * Jahres oder ein abgeschlossenes Jahr.
+ * Quartal (je nach Einstellung gibt es nur eins von beiden), eine gesendete Jahreserklärung des Jahres oder ein
+ * abgeschlossenes Jahr. Jede Jahreserklärung zählt: Bei einer GmbH meldet die E-Bilanz (mit KSt und GewSt) die Zahlen
+ * des Jahres, auch ohne Voranmeldung oder Umsatzsteuererklärung (Kleinunternehmer, befreit); ebenso die ESt-Erklärung.
  */
 async function periodReported(q: Db | Tx, date: string): Promise<boolean> {
   const { year, months } = vatPeriodsOf(date);
@@ -78,7 +79,7 @@ async function periodReported(q: Db | Tx, date: string): Promise<boolean> {
   const [annual] = await q
     .select({ id: a.id })
     .from(a)
-    .where(and(eq(a.year, year), inArray(a.form, ["ust", "euer"]), eq(a.kind, "send"), eq(a.ok, true)))
+    .where(and(eq(a.year, year), eq(a.kind, "send"), eq(a.ok, true)))
     .limit(1);
   if (annual) return true;
   const [closed] = await q.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
