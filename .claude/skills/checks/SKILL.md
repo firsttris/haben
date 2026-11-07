@@ -48,6 +48,6 @@ Nie gegen eine Datenbank mit echten Daten testen; die Tests leeren `<name>`, `<n
 
 ## 4. Übersprungenes melden
 
-Ein grüner Lauf beweist nur, was gelaufen ist. Die Ausgabe von Vitest nennt `skipped`; die Gründe stehen in der Tabelle in `docs/entwicklung.md` (Tests): ohne `TEST_DATABASE_URL` alle Postgres-Tests, ohne `pdftotext`/`pdftoppm` die PDF-Tests, ohne `cc` die Mock-ERiC-Tests, ohne ERiC die echten ERiC-Tests, ohne Netz das SEPA-Schema der DK. Ohne `zip` oder `unzip` schlägt der Paket-Test von `scripts/elster-helfer` fehl, das ist dann kein Fehler der Änderung.
+Ein grüner Lauf beweist nur, was gelaufen ist. Die Ausgabe von Vitest nennt `skipped`; die Gründe stehen in der Tabelle in `docs/entwicklung.md` (Tests): ohne `TEST_DATABASE_URL` alle Postgres-Tests, ohne `pdftotext`/`pdftoppm` die PDF-Tests, ohne `cc` die Mock-ERiC-Tests, ohne ERiC die echten ERiC-Tests, ohne Netz das SEPA-Schema der DK, ohne `ERIC_DOKU` der Schema-Test der Lohnsteuerbescheinigung, ohne die erica-Beispiele in `/var/tmp/erica` je ein Test in `vast` und `berechtigung`. Fehlschlagen statt Überspringen: ohne `zip` oder `unzip` der Paket-Test von `scripts/elster-helfer`, mit `ERIC_DOKU`, aber ohne Java der Schema-Test in `lstb.test.ts`. Das ist dann kein Fehler der Änderung.
 
 Im Bericht und in der Beschreibung des Pull Requests: was lief, was übersprungen wurde und warum, und welche Prüfung nur die CI macht.

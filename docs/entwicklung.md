@@ -142,7 +142,9 @@ Einige Tests brauchen Werkzeuge oder Daten, die nicht überall da sind. Fehlen s
 | `cc` | ERiC-Tests mit nachgebauter Bibliothek übersprungen | nein | ja |
 | ERiC (`ERIC_HOME` oder `ERIC_DIR`) | Tests mit echtem ERiC übersprungen | nein | nein |
 | Netz | Schema der Deutschen Kreditwirtschaft für SEPA übersprungen | ja | ja, sonst Fehler |
-| Java | nur `kosit` (eigener Befehl, kein Test) | nein | eigener Job |
+| `ERIC_DOKU` (Dokumentation von ERiC mit den Schemas der Lohnsteuerbescheinigung) | Schema-Test in `packages/elster/src/lstb.test.ts` übersprungen | nein | nein |
+| Java, wenn `ERIC_DOKU` gesetzt ist | derselbe Schema-Test schlägt fehl; sonst braucht nur `kosit` Java (eigener Befehl, kein Test) | nein | `kosit` als eigener Job |
+| Beispielantworten aus erica unter `/var/tmp/erica/tests/worker/samples/` | je ein Test in `vast.test.ts` und `berechtigung.test.ts` übersprungen | nein | nein |
 
 ### Tests mit echtem ERiC
 
