@@ -401,6 +401,7 @@ bun run build
 - Schemaänderungen mit erzeugter Migration; Trigger in einer eigenen SQL-Migration.
 - Änderungen an der E-Rechnung prüft der KoSIT-Job in CI.
 - Texte in der Oberfläche auf Deutsch.
+- Änderungen am Aussehen (UI/UX) mit Screenshots vorher und nachher in der Beschreibung des Pull Requests, in einem hellen und einem dunklen Theme, wo es darauf ankommt auch am Handy.
 
 ### Review
 

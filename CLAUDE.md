@@ -38,6 +38,8 @@ Update what the change affects, in the same pull request, and only that:
 - the docs in `docs/` that describe it, in German;
 - the README only when a feature area is added or removed or its one-line summary no longer fits; details go into `docs/`, the table row stays short;
 - a new page: add it to `e2e/barrierefreiheit.spec.ts` and the screenshot list in `e2e/seiten.spec.ts`;
+- a change to the look (UI/UX): screenshots before and after in the pull request description, in a light and
+  a dark theme, desktop and phone where it matters;
 - the screenshots after a change to the look: **Actions → Update screenshots → Run workflow**, then
   look at the new pictures.
 
