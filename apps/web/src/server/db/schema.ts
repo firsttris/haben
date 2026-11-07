@@ -1523,7 +1523,8 @@ export const documents = pgTable(
 );
 
 /**
- * Storno eines gebuchten Belegs (#237): Gegenbuchung am Tag des Stornos, der Beleg selbst bleibt gesperrt und versiegelt.
+ * Storno eines gebuchten Belegs (#237): Gegenbuchung im noch nicht gemeldeten Zeitraum der Belegbuchung, sonst am Tag des
+ * Stornos; der Beleg selbst bleibt gesperrt und versiegelt.
  * Nur anhängen, mit Siegel; je Beleg höchstens ein Storno.
  */
 export const documentCancellations = pgTable("document_cancellations", {
@@ -1532,7 +1533,10 @@ export const documentCancellations = pgTable("document_cancellations", {
     .notNull()
     .unique()
     .references(() => documents.id),
-  /** Buchungsdatum der Gegenbuchung: der Tag des Stornos, damit abgegebene Voranmeldungen unberührt bleiben (§ 17 UStG) */
+  /**
+   * Buchungsdatum der Gegenbuchung: das Datum der Belegbuchung, solange ihr Zeitraum nicht gemeldet ist, sonst der Tag
+   * des Stornos, damit abgegebene Voranmeldungen unberührt bleiben (§ 17 UStG). Der Zeitpunkt des Stornos ist created_at.
+   */
   date: date("date", { mode: "string" }).notNull(),
   reason: text("reason").notNull().default(""),
   journalEntryId: uuid("journal_entry_id")

@@ -1,8 +1,8 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { TaxCode } from "@haben/core";
 import { z } from "zod";
 import { withActor } from "../../db/actor.ts";
-import { db, schema, type Tx } from "../../db/index.ts";
+import { db, schema, type Db, type Tx } from "../../db/index.ts";
 import { isUniqueViolation } from "../../errors.ts";
 import { lockCash, reverseDocumentCashEntry } from "../bank/index.ts";
 import { openBooks, post } from "../buchhaltung/index.ts";
@@ -11,10 +11,12 @@ import { loadSplits } from "./splits.ts";
 
 /*
  * Storno gebuchter Belege (#237), nach dem Muster der Stornorechnung: Die Belegbuchung wird mit vertauschten Seiten
- * zurückgebucht, am Tag des Stornos. So bleibt eine schon abgegebene Voranmeldung unberührt, und die Korrektur steht im
- * laufenden Zeitraum (§ 17 Abs. 1 UStG). Der Beleg selbst ändert sich nicht, er bleibt gesperrt und versiegelt; den Storno
- * hält eine eigene, nur anhängbare Zeile in `document_cancellations` fest. Neu erfasst wird als neuer Entwurf mit
- * derselben Datei.
+ * zurückgebucht. Ist der Zeitraum der Belegbuchung schon gemeldet (Voranmeldung gesendet oder vermerkt, Jahreserklärung
+ * gesendet, Jahr abgeschlossen), am Tag des Stornos: Die abgegebene Voranmeldung bleibt unberührt, die Korrektur steht im
+ * laufenden Zeitraum (§ 17 Abs. 1 UStG). Ist er noch offen, im Zeitraum der Belegbuchung: Ein Erfassungsfehler, etwa ein
+ * vertauschtes Belegdatum, verschiebt dann keine Vorsteuer in einen Zeitraum, in den sie nicht gehört. Der Beleg selbst
+ * ändert sich nicht, er bleibt gesperrt und versiegelt; den Storno hält eine eigene, nur anhängbare Zeile in
+ * `document_cancellations` fest. Neu erfasst wird als neuer Entwurf mit derselben Datei.
  */
 
 export const cancellationInputSchema = z.object({
@@ -42,7 +44,7 @@ async function settled(tx: Tx, documentId: string): Promise<number> {
 }
 
 /** Die Buchung des Belegs; ein Storno hat reverses_id und zählt nicht */
-async function documentEntry(tx: Tx, documentId: string) {
+async function documentEntry(tx: Db | Tx, documentId: string) {
   const [entry] = await tx
     .select()
     .from(schema.journalEntries)
@@ -51,9 +53,70 @@ async function documentEntry(tx: Tx, documentId: string) {
   return entry;
 }
 
+/** Monat und Quartal (41–44 wie in vat_returns), in deren Voranmeldung eine Buchung mit diesem Datum zählt */
+export function vatPeriodsOf(date: string): { year: number; months: number[] } {
+  const year = Number(date.slice(0, 4));
+  const month = Number(date.slice(5, 7));
+  return { year, months: [month, 40 + Math.ceil(month / 3)] };
+}
+
 /**
- * Storniert einen gebuchten Beleg: Gegenbuchung am Tag des Stornos (frühestens am Belegdatum), bei Barzahlung eine
- * Gegenzeile im Kassenbuch, dazu die Zeile in `document_cancellations`. Ein abgeschlossenes Jahr lehnt das Hauptbuch ab.
+ * Ist der Zeitraum eines Buchungsdatums schon gemeldet? Eine gesendete oder vermerkte Voranmeldung für den Monat oder das
+ * Quartal (je nach Einstellung gibt es nur eins von beiden), eine gesendete Umsatzsteuererklärung oder Anlage EÜR des
+ * Jahres oder ein abgeschlossenes Jahr.
+ */
+async function periodReported(q: Db | Tx, date: string): Promise<boolean> {
+  const { year, months } = vatPeriodsOf(date);
+  const r = schema.vatReturns;
+  const [sent] = await q
+    .select({ id: r.id })
+    .from(r)
+    .where(and(eq(r.year, year), inArray(r.month, months), eq(r.status, "sent")))
+    .limit(1);
+  if (sent) return true;
+  const a = schema.annualSubmissions;
+  const [annual] = await q
+    .select({ id: a.id })
+    .from(a)
+    .where(and(eq(a.year, year), inArray(a.form, ["ust", "euer"]), eq(a.kind, "send"), eq(a.ok, true)))
+    .limit(1);
+  if (annual) return true;
+  const [closed] = await q.select({ year: schema.yearClosings.year }).from(schema.yearClosings).where(eq(schema.yearClosings.year, year));
+  return Boolean(closed);
+}
+
+/**
+ * Buchungsdatum der Gegenbuchung. Ist der Zeitraum der Belegbuchung noch nicht gemeldet, ihr Datum; sonst der Tag des
+ * Stornos, nie vor dem Belegdatum (sonst minderte der Storno einen Zeitraum, in dem der Beleg noch gar nicht zählt).
+ * Bar aus der Kasse immer am Tag des Stornos: Das Kassenbuch wird zeitnah und in der Reihenfolge der Tage geführt, eine
+ * zurückdatierte Gegenzeile bekäme eine Nummer hinter späteren Zeilen.
+ */
+export async function cancellationDate(
+  q: Db | Tx,
+  input: { entryDate: string; documentDate: string | null; payment: string },
+  todayDate: string,
+): Promise<string> {
+  const current = input.documentDate && input.documentDate > todayDate ? input.documentDate : todayDate;
+  if (input.payment === "kasse" || input.entryDate >= current) return current;
+  return (await periodReported(q, input.entryDate)) ? current : input.entryDate;
+}
+
+/** Das Datum, das ein Storno heute bekäme; für den Hinweis vor dem Stornieren. Null ohne Belegbuchung. */
+export async function plannedCancellationDate(id: string, todayDate: string): Promise<string | null> {
+  const [doc] = await db
+    .select({ documentDate: schema.documents.documentDate, payment: schema.documents.payment })
+    .from(schema.documents)
+    .where(eq(schema.documents.id, id));
+  if (!doc) return null;
+  const entry = await documentEntry(db, id).catch(() => null);
+  if (!entry) return null;
+  return cancellationDate(db, { entryDate: entry.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
+}
+
+/**
+ * Storniert einen gebuchten Beleg: Gegenbuchung im noch offenen Zeitraum der Belegbuchung, sonst am Tag des Stornos
+ * (siehe cancellationDate), bei Barzahlung eine Gegenzeile im Kassenbuch, dazu die Zeile in `document_cancellations`.
+ * Ein abgeschlossenes Jahr lehnt das Hauptbuch ab.
  */
 export async function cancelDocument(actor: string, id: string, input: CancellationInput, todayDate: string): Promise<DocumentCancellation> {
   const { reason } = cancellationInputSchema.parse(input);
@@ -93,8 +156,7 @@ export async function cancelDocument(actor: string, id: string, input: Cancellat
       .from(schema.journalLines)
       .where(eq(schema.journalLines.entryId, original.id))
       .orderBy(asc(schema.journalLines.id));
-    // Nie vor dem Belegdatum: sonst minderte der Storno einen Zeitraum, in dem der Beleg noch gar nicht zählt
-    const date = doc.documentDate && doc.documentDate > todayDate ? doc.documentDate : todayDate;
+    const date = await cancellationDate(tx, { entryDate: original.date, documentDate: doc.documentDate, payment: doc.payment }, todayDate);
     const journalEntryId = await post(tx, books, {
       date,
       description: `Storno: ${original.description}`,

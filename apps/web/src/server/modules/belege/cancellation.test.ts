@@ -3,8 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupTestDb, testDatabaseUrl } from "../../test-db.ts";
 
 /*
- * Storno gebuchter Belege (#237): Gegenbuchung am Tag des Stornos, Voranmeldung und EÜR zählen sie im Zeitraum des
- * Stornos, der Beleg bleibt gesperrt; Neu erfassen legt einen Entwurf mit derselben Datei an.
+ * Storno gebuchter Belege (#237): Gegenbuchung im noch nicht gemeldeten Zeitraum der Belegbuchung, sonst am Tag des
+ * Stornos; Voranmeldung und EÜR zählen sie an ihrem Datum, der Beleg bleibt gesperrt; Neu erfassen legt einen Entwurf
+ * mit derselben Datei an.
  */
 
 function dkbCsv(rows: string[][]) {
@@ -46,7 +47,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
   });
 
   async function reset(kontenrahmen: "SKR03" | "SKR04", versteuerung: "ist" | "soll") {
-    await sql`truncate document_cancellations, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
+    await sql`truncate document_cancellations, vat_returns, annual_submissions, write_offs, allocations, bank_transactions, bank_imports, bank_accounts, cash_entries,
       asset_depreciations, assets, journal_lines, journal_entries, document_amounts, documents, year_closings, company cascade`;
     await sql`insert into company (id, name, strasse, plz, ort, email, steuernummer, bundesland, versteuerung, kontenrahmen)
       values (1, 'Testfirma', 'Musterstraße 1', '93047', 'Regensburg', 'rechnung@example.com', '198/113/10010', 'BY', ${versteuerung}, ${kontenrahmen})`;
@@ -83,6 +84,17 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
     return { id, bytes };
   }
 
+  it("vatPeriodsOf nennt Monat und Quartal (41–44) des Buchungsdatums", () => {
+    expect(cancellation.vatPeriodsOf("2026-03-11")).toEqual({ year: 2026, months: [3, 41] });
+    expect(cancellation.vatPeriodsOf("2026-04-01")).toEqual({ year: 2026, months: [4, 42] });
+    expect(cancellation.vatPeriodsOf("2026-11-03")).toEqual({ year: 2026, months: [11, 44] });
+  });
+
+  /** Eine gesendete Voranmeldung für Monat (1–12) oder Quartal (41–44): Der Zeitraum ist gemeldet */
+  async function sentReturn(year: number, month: number) {
+    await sql`insert into vat_returns (year, month, status, source, sent_at, locked_at) values (${year}, ${month}, 'sent', 'manuell', now(), now())`;
+  }
+
   /** Saldo je Konto über alle Buchungen eines Belegs: nach dem Storno überall null */
   async function balances(documentId: string) {
     const rows = await sql`select l.account, sum(l.debit - l.credit)::int as saldo from journal_lines l join journal_entries e on e.id = l.entry_id
@@ -92,12 +104,14 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
 
   for (const kontenrahmen of ["SKR03", "SKR04"] as const) {
     for (const versteuerung of ["ist", "soll"] as const) {
-      it(`${kontenrahmen}, ${versteuerung}: bucht zurück am Tag des Stornos, Voranmeldung im laufenden Monat, Beleg bleibt gesperrt`, async () => {
+      it(`${kontenrahmen}, ${versteuerung}: September schon gemeldet: bucht zurück am Tag des Stornos, Voranmeldung im laufenden Monat, Beleg bleibt gesperrt`, async () => {
         await reset(kontenrahmen, versteuerung);
         const konten = KONTEN[kontenrahmen];
         const { id } = await bookedDocument({});
         const before = await vat.computeVatFigures({ year: 2026, month: 9 });
         expect(before.kz66).toBe(2_261);
+        await sentReturn(2026, 9);
+        expect(await cancellation.plannedCancellationDate(id, "2026-10-05")).toBe("2026-10-05");
 
         const row = await cancellation.cancelDocument(actor, id, { reason: "Brutto als Netto erfasst" }, "2026-10-05");
         expect(row).toMatchObject({ documentId: id, date: "2026-10-05", reason: "Brutto als Netto erfasst" });
@@ -143,11 +157,74 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
         await expect(cancellation.cancelDocument(actor, id, {}, "2026-10-06")).rejects.toThrow(/bereits storniert/);
         expect((await documents.listDocuments()).find((d) => d.id === id)?.cancelledOn).toBe("2026-10-05");
       });
+
+      it(`${kontenrahmen}, ${versteuerung}: Zeitraum noch nicht gemeldet: Storno im Zeitraum der Belegbuchung (Belegdatum vertauscht)`, async () => {
+        await reset(kontenrahmen, versteuerung);
+        // Wie im Anlass: 11.03. statt 03.11. erfasst, vierteljährliche Voranmeldung, Q1 noch nicht abgegeben
+        const { id } = await bookedDocument({ date: "2026-03-11", net: 5_990, tax: 1_138 });
+        expect((await vat.computeVatFigures({ year: 2026, month: 41 })).kz66).toBe(1_138);
+        expect(await cancellation.plannedCancellationDate(id, "2026-11-06")).toBe("2026-03-11");
+
+        const row = await cancellation.cancelDocument(actor, id, { reason: "Belegdatum vertauscht" }, "2026-11-06");
+        expect(row.date).toBe("2026-03-11");
+        const entries = await sql`select date, reverses_id from journal_entries where source_id = ${id} order by created_at`;
+        expect(entries.map((e) => e.date)).toEqual(["2026-03-11", "2026-03-11"]);
+        expect(Object.values(await balances(id)).every((s) => s === 0)).toBe(true);
+
+        // Q1 ist ohne den Beleg, wie er abzugeben ist; der laufende Zeitraum bleibt unberührt
+        for (const month of [3, 41, 11, 44]) {
+          expect((await vat.computeVatFigures({ year: 2026, month })).kz66).toBe(0);
+        }
+        for (const month of [3, 41]) {
+          const { zeilen } = await abgleich.vatAbgleich({ year: 2026, month });
+          expect(zeilen.filter((z) => z.journal !== z.quelle)).toEqual([]);
+        }
+        expect((await documents.listDocuments()).find((d) => d.id === id)?.cancelledOn).toBe("2026-03-11");
+      });
     }
 
-    it(`${kontenrahmen}: privat bezahlt, Storno im Folgejahr: EÜR 2026 mit Ausgabe, 2027 mit derselben Ausgabe zurück`, async () => {
+    it(`${kontenrahmen}: Quartal schon gemeldet: Storno am Tag des Stornos, auch bei monatlichem Belegmonat`, async () => {
+      await reset(kontenrahmen, "ist");
+      const { id } = await bookedDocument({ date: "2026-02-10", net: 10_000, tax: 1_900 });
+      await sentReturn(2026, 41);
+      const row = await cancellation.cancelDocument(actor, id, {}, "2026-11-06");
+      expect(row.date).toBe("2026-11-06");
+      expect((await vat.computeVatFigures({ year: 2026, month: 41 })).kz66).toBe(1_900);
+      expect((await vat.computeVatFigures({ year: 2026, month: 44 })).kz66).toBe(-1_900);
+    });
+
+    it(`${kontenrahmen}: nur ein anderer Zeitraum gemeldet: Storno trotzdem im Zeitraum der Belegbuchung`, async () => {
+      await reset(kontenrahmen, "soll");
+      const { id } = await bookedDocument({ date: "2026-05-20", net: 10_000, tax: 1_900 });
+      await sentReturn(2026, 41);
+      await sentReturn(2026, 6);
+      const row = await cancellation.cancelDocument(actor, id, {}, "2026-11-06");
+      expect(row.date).toBe("2026-05-20");
+      expect((await vat.computeVatFigures({ year: 2026, month: 42 })).kz66).toBe(0);
+    });
+
+    it(`${kontenrahmen}: Jahreserklärung gesendet: Storno am Tag des Stornos, auch ohne gesendete Voranmeldung`, async () => {
+      await reset(kontenrahmen, "ist");
+      const { id } = await bookedDocument({ date: "2025-11-20", payment: "privat", net: 10_000, tax: 1_900 });
+      await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
+        values ('ust', 2025, 'send', true, 0, 'ok', '{}', '', '', '')`;
+      const row = await cancellation.cancelDocument(actor, id, {}, "2026-02-01");
+      expect(row.date).toBe("2026-02-01");
+    });
+
+    it(`${kontenrahmen}: nur geprüft, nicht gesendet: Jahreserklärung zählt nicht als gemeldet`, async () => {
+      await reset(kontenrahmen, "ist");
+      const { id } = await bookedDocument({ date: "2025-11-20", payment: "privat", net: 10_000, tax: 1_900 });
+      await sql`insert into annual_submissions (form, year, kind, ok, code, message, figures, request_xml, response_xml, server_response_xml)
+        values ('ust', 2025, 'validate', true, 0, 'ok', '{}', '', '', '')`;
+      const row = await cancellation.cancelDocument(actor, id, {}, "2026-02-01");
+      expect(row.date).toBe("2025-11-20");
+    });
+
+    it(`${kontenrahmen}: privat bezahlt, Q4 gemeldet, Storno im Folgejahr: EÜR 2026 mit Ausgabe, 2027 mit derselben Ausgabe zurück`, async () => {
       await reset(kontenrahmen, "ist");
       const { id } = await bookedDocument({ date: "2026-12-20", payment: "privat", net: 10_000, tax: 1_900 });
+      await sentReturn(2026, 44);
       await cancellation.cancelDocument(actor, id, {}, "2027-01-10");
       const ausgabe = async (year: number) => (await reports.euerForYear(year)).ausgaben.find((l) => l.key === "ausgabe:software")?.amount ?? 0;
       const vorsteuer = async (year: number) => (await reports.euerForYear(year)).ausgaben.find((l) => l.key === "vorsteuer")?.amount ?? 0;
@@ -164,7 +241,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
       expect(entries).toEqual([{ account: KONTEN[kontenrahmen].privat, debit: 11_900, credit: 0 }]);
     });
 
-    it(`${kontenrahmen}: bar aus der Kasse: Gegenzeile im Kassenbuch, Bestand wieder wie vorher`, async () => {
+    it(`${kontenrahmen}: bar aus der Kasse: Gegenzeile im Kassenbuch am Tag des Stornos, auch im noch offenen Zeitraum`, async () => {
       await reset(kontenrahmen, "soll");
       await cash.createCashEntry(actor, { kind: "einlage", date: "2026-09-01", amount: 50_000 }, "2026-09-01");
       const { id } = await bookedDocument({ payment: "kasse", net: 2_000, tax: 380 });
@@ -188,9 +265,10 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
     expect((await cash.cashBook(2026)).current).toBe(0);
   });
 
-  it("§ 13b: Storno mindert Kz 46/47 und Kz 67 im Monat des Stornos", async () => {
+  it("§ 13b, September gemeldet: Storno mindert Kz 46/47 und Kz 67 im Monat des Stornos", async () => {
     await reset("SKR03", "soll");
     const { id } = await bookedDocument({ reverseCharge: "eu", net: 10_000, tax: 1_900 });
+    await sentReturn(2026, 9);
     await cancellation.cancelDocument(actor, id, {}, "2026-10-05");
     expect(await vat.computeVatFigures({ year: 2026, month: 9 })).toMatchObject({ kz46: 10_000, kz47: 1_900, kz67: 1_900 });
     expect(await vat.computeVatFigures({ year: 2026, month: 10 })).toMatchObject({ kz46: -10_000, kz47: -1_900, kz67: -1_900, kz66: 0 });
@@ -202,6 +280,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
     await reset("SKR04", "ist");
     const { id } = await bookedDocument({ net: 3_333, tax: 633, privateShare: 30 });
     const sep = await vat.computeVatFigures({ year: 2026, month: 9 });
+    await sentReturn(2026, 9);
     await cancellation.cancelDocument(actor, id, {}, "2026-10-05");
     expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(-sep.kz66);
     expect(Object.values(await balances(id)).every((s) => s === 0)).toBe(true);
@@ -272,7 +351,7 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
     expect(await cancellation.documentCancellation(id)).toMatchObject({ reentryId: reentry });
     expect(await documents.uploadDocument(actor, { bytes, filename: "nochmal.jpg" })).toEqual({ id: reentry, duplicate: true });
 
-    // Richtig erfasst und gebucht: der Oktober hat Storno und neue Vorsteuer, der September bleibt
+    // Richtig erfasst und gebucht: September noch nicht gemeldet, also stehen Beleg, Storno und Neuerfassung dort
     await documents.updateDocument(actor, reentry, {
       supplierName: copy.document.supplierName,
       supplierUstId: "",
@@ -285,8 +364,8 @@ describe.skipIf(!testDatabaseUrl)("Beleg stornieren (Postgres)", () => {
       amounts: [{ taxRate: 1900, net: 10_000, tax: 1_900 }],
     });
     await documents.bookDocument(actor, reentry);
-    expect((await vat.computeVatFigures({ year: 2026, month: 9 })).kz66).toBe(2_261 + 1_900);
-    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(-2_261);
+    expect((await vat.computeVatFigures({ year: 2026, month: 9 })).kz66).toBe(1_900);
+    expect((await vat.computeVatFigures({ year: 2026, month: 10 })).kz66).toBe(0);
     expect((await reports.openPositions("2026-10-05")).payables.map((p) => [p.id, p.open])).toEqual([[reentry, 11_900]]);
 
     // Ein gelöschter Entwurf gibt die Neuerfassung wieder frei, die Datei bleibt beim stornierten Beleg

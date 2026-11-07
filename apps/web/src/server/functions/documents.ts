@@ -10,6 +10,7 @@ import {
   cancellationInputSchema,
   cancellationIssues,
   documentCancellation,
+  plannedCancellationDate,
   reenterDocument,
   deleteDocument,
   DocumentError,
@@ -70,6 +71,9 @@ export const getDocumentDetail = createServerFn({ method: "GET" })
       sepaTransfers: await documentSepaTransfers(data),
       // Was gegen einen Storno spricht; die Zahlung im Bankabgleich prüft erst der Storno selbst
       cancellationIssues: result.document.lockedAt && !cancellation ? cancellationIssues(result.document) : [],
+      // Datum, das ein Storno heute bekäme: im noch offenen Zeitraum der Belegbuchung oder heute
+      cancellationDate: result.document.lockedAt && !cancellation ? await plannedCancellationDate(data, today()) : null,
+      today: today(),
       // Vor und zurück in der Reihenfolge der Belegliste
       navigation: documentNavigation(await listDocuments(), data),
       assetId: asset?.id ?? null,
