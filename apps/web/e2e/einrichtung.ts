@@ -116,21 +116,54 @@ export async function rechnungFestschreiben(page: Page, rechnung: Rechnung): Pro
   await expect(page.getByText(`${rechnung.gross} €`).first()).toBeVisible();
 }
 
+/** Die Breiten aus barrierefreiheit.spec.ts (Desktop, Handy mit 320 px nach WCAG 1.4.10) und seiten.spec.ts (390 px) */
+const DESKTOP = { width: 1440, height: 900 };
+const HANDY_AXE = { width: 320, height: 720 };
+const HANDY_BREITE = { width: 390, height: 844 };
+const THEMES = ["ozean", "pflaume", "graphit", "nacht", "tiefsee"];
+
+async function axeVerstoesse(page: Page, rules?: string[]): Promise<string[]> {
+  const builder = new AxeBuilder({ page }).withTags(WCAG);
+  if (rules) builder.withRules(rules);
+  const { violations } = await builder.analyze();
+  return violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${v.help} → ${n.target.join(" ")}`));
+}
+
 /**
- * Prüft Seiten mit den Daten eines Durchlaufs gegen WCAG 2.2 AA wie barrierefreiheit.spec.ts. Das sieht dort nur die
- * Daten von app.spec.ts, also leere Listen für alles, was die übrigen Durchläufe anlegen.
+ * Prüft Seiten mit den Daten eines Durchlaufs wie barrierefreiheit.spec.ts und seiten.spec.ts: WCAG 2.2 AA am Desktop
+ * und am Handy, auf dem Handy kein waagrechtes Scrollen. Die beiden sehen nur die Daten von app.spec.ts, also leere
+ * Listen für alles, was die übrigen Durchläufe anlegen.
  */
 export async function ohneAxeVerstoesse(page: Page, paths: string[]): Promise<void> {
+  for (const [geraet, viewport] of [
+    ["Desktop", DESKTOP],
+    ["Handy", HANDY_AXE],
+  ] as const) {
+    await page.setViewportSize(viewport);
+    for (const path of paths) {
+      await gehe(page, path);
+      expect.soft(await axeVerstoesse(page), `${geraet} ${path}`).toEqual([]);
+    }
+  }
+  await page.setViewportSize(HANDY_BREITE);
   for (const path of paths) {
     await gehe(page, path);
-    const { violations } = await new AxeBuilder({ page }).withTags(WCAG).analyze();
-    expect
-      .soft(
-        violations.flatMap((v) => v.nodes.map((n) => `${v.id}: ${v.help} → ${n.target.join(" ")}`)),
-        path,
-      )
-      .toEqual([]);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect.soft(overflow, `${path} ist nicht breiter als das Handy`).toBeLessThanOrEqual(1);
   }
+  await page.setViewportSize(DESKTOP);
+}
+
+/** Farbkontraste in den übrigen Themes wie die THEME_PAGES in barrierefreiheit.spec.ts, für Seiten, deren Daten hier entstehen */
+export async function kontrasteInThemes(page: Page, paths: string[]): Promise<void> {
+  for (const theme of THEMES) {
+    await page.evaluate((t) => localStorage.setItem("haben-theme", t), theme);
+    for (const path of paths) {
+      await gehe(page, path);
+      expect.soft(await axeVerstoesse(page, ["color-contrast", "link-in-text-block"]), `${theme} ${path}`).toEqual([]);
+    }
+  }
+  await page.evaluate(() => localStorage.removeItem("haben-theme"));
 }
 
 /** Erfundene Mobilfunkrechnung als JPEG, gerendert im Browser */

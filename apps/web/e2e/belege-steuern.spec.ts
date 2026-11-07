@@ -3,7 +3,7 @@ import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { day, YEAR } from "./daten.ts";
 import { databaseUrlFuer } from "./durchlaeufe.ts";
-import { dkb, durchlaufSeite, einrichten, gehe, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
+import { dkb, durchlaufSeite, einrichten, gehe, kontrasteInThemes, ohneAxeVerstoesse, receiptJpeg } from "./einrichtung.ts";
 
 /**
  * Belege, Bank und Steuern in eigener, leerer Datenbank (Projekt „belege-steuern“, e2e/durchlaeufe.ts), parallel zu
@@ -1134,6 +1134,8 @@ test("Seiten mit den Daten dieses Durchlaufs ohne axe-Verstöße", async () => {
     "/fristen",
     "/einstellungen?bereich=elster",
   ]);
+  // Mit hinterlegtem Zertifikat; barrierefreiheit.spec.ts sieht die Seite ohne
+  await kontrasteInThemes(page, ["/einstellungen?bereich=elster"]);
 });
 
 test("Keine Fehler im Browser", async () => {
