@@ -446,6 +446,11 @@ function YearCheck({ year, versteuerung, product }: { year: MigrationData["years
         )}
       </div>
       {year.neutral.length > 0 && <NeutralSums year={year.year} rows={year.neutral} />}
+      {year.vatIssue && (
+        <p className="banner banner-info" role="status">
+          {year.vatIssue}
+        </p>
+      )}
       {year.vat.length > 0 && (
         <details>
           <summary>Umsatzsteuer je Monat zum Vergleich mit den übermittelten Voranmeldungen</summary>

@@ -33,6 +33,10 @@ const invoice = (fields: Record<string, unknown>) =>
   });
 
 describe("Grundbausteine", () => {
+  it("erfindet ohne Einzelzahlungsdaten weder Zahlung noch Ersatzdatum", () => {
+    const { payment } = mapSevInvoice(invoice({ payDate: null }), []);
+    expect(payment).toMatchObject({ openAmount: 0, paidDate: null, items: [] });
+  });
   it("liest Beträge als Text oder Zahl", () => {
     expect(sevNumber("119.00")).toBe(119);
     expect(sevNumber("19,5")).toBe(19.5);
@@ -126,7 +130,7 @@ describe("mapSevInvoice", () => {
       status: "balanced",
       openAmount: 0,
       paidDate: "2024-03-12",
-      items: [{ type: "manualPayment", date: "2024-03-12", amount: 22600 }],
+      items: [],
     });
   });
 
@@ -140,13 +144,13 @@ describe("mapSevInvoice", () => {
     expect(open.voucher.status).toBe("open");
     expect(open.payment).toEqual({ status: "open", openAmount: 22600, paidDate: null, items: [] });
     const part = mapSevInvoice(invoice({ status: "750", paidAmount: "100.00", payDate: "2024-04-01" }), []);
-    expect(part.payment).toMatchObject({ status: "partlyPaid", openAmount: 12600, items: [{ date: "2024-04-01", amount: 10000 }] });
+    expect(part.payment).toMatchObject({ status: "partlyPaid", openAmount: 12600, items: [] });
   });
 
   it("macht aus Storno eine negative Gutschrift und aus AR eine Abschlagsrechnung", () => {
     const storno = mapSevInvoice(invoice({ invoiceType: "SR", sumNet: "200", sumTax: "26", sumGross: "226" }), []);
     expect(storno.voucher).toMatchObject({ type: "creditnote", net: -20000, tax: -2600, gross: -22600, dueDate: null });
-    expect(storno.payment.items).toEqual([{ type: "manualPayment", date: "2024-03-12", amount: -22600 }]);
+    expect(storno.payment.items).toEqual([]);
     expect(mapSevInvoice(invoice({ invoiceType: "AR" }), []).voucher.type).toBe("downpaymentinvoice");
   });
 
@@ -173,7 +177,7 @@ describe("mapSevCreditNote", () => {
     const { voucher, payment } = mapSevCreditNote(note, [{ id: 1, taxRate: "19", sumNet: "10", sumTax: "1.9" }]);
     expect(voucher).toMatchObject({ lexofficeId: "creditnote/5", type: "creditnote", net: -1000, tax: -190, gross: -1190, contactName: "Kunde AG" });
     expect(voucher.taxes).toEqual([{ rate: 1900, net: -1000, tax: -190 }]);
-    expect(payment).toMatchObject({ openAmount: 0, items: [{ date: "2024-05-02", amount: -1190 }] });
+    expect(payment).toMatchObject({ openAmount: 0, paidDate: null, items: [] });
   });
 });
 

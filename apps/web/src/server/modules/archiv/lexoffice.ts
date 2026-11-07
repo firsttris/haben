@@ -1,4 +1,5 @@
 import { INTERNAL_ERROR, isUniqueViolation, UserError, userMessage } from "../../errors.ts";
+import { paymentHistoryIssue, unclearFrom, visiblePayment } from "./payment-history.ts";
 import {
   datevYearSums,
   LexofficeApiError,
@@ -439,6 +440,7 @@ export async function legacyVoucherDetail(id: string) {
       taxes: schema.lexofficeVouchers.taxes,
       categories: schema.lexofficeVouchers.categories,
       payment: schema.lexofficeVouchers.payment,
+      payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
       remark: schema.lexofficeVouchers.remark,
       createdAt: schema.lexofficeVouchers.createdAt,
     })
@@ -456,7 +458,7 @@ export async function legacyVoucherDetail(id: string) {
     })
     .from(schema.lexofficeVoucherFiles)
     .where(eq(schema.lexofficeVoucherFiles.voucherId, id));
-  return { voucher, files };
+  return { voucher: { ...voucher, payment: visiblePayment(voucher), paymentHistoryIssue: paymentHistoryIssue(voucher) }, files };
 }
 
 export async function legacyVoucherFile(fileId: string) {
@@ -465,7 +467,8 @@ export async function legacyVoucherFile(fileId: string) {
 }
 
 /** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen, mit dem Vorzeichen des Belegs (Gutschriften mindern die Umsätze) */
-function legacyPayments(v: { gross: number; payment: LegacyPayment | null }) {
+function legacyPayments(v: { source: "lexoffice" | "sevdesk"; gross: number; status: string; payment: LegacyPayment | null }) {
+  if (paymentHistoryIssue(v)) return [];
   return (v.payment?.items ?? [])
     .filter((p) => LEGACY_PAYMENT_TYPES.has(p.type) && p.date)
     .map((p) => ({ date: p.date, amount: Math.sign(v.gross) * Math.abs(p.amount) }));
@@ -507,6 +510,7 @@ export async function reconciliation() {
 
   const voucherRows = await db
     .select({
+      source: schema.lexofficeVouchers.source,
       direction: schema.lexofficeVouchers.direction,
       type: schema.lexofficeVouchers.type,
       number: schema.lexofficeVouchers.number,
@@ -518,6 +522,7 @@ export async function reconciliation() {
       taxes: schema.lexofficeVouchers.taxes,
       categories: schema.lexofficeVouchers.categories,
       payment: schema.lexofficeVouchers.payment,
+      payDate: sql<string | null>`lexoffice_vouchers.raw->>'payDate'`,
       taxType: TAX_TYPE,
       taxSubType: TAX_SUB_TYPE,
       ohneBeleg: WITHOUT_RECEIPT,
@@ -530,6 +535,12 @@ export async function reconciliation() {
   // Gesellschafter, Kapital, Darlehen und Steuern vom Einkommen; sie stehen je Jahr getrennt (neutral)
   const classified = voucherRows.map((v) => ({ ...v, neutral: neutralKindOf(v, company.rechtsform) }));
   const businessRows = classified.filter((v) => !v.neutral);
+  // Ohne Einzelzahlungen können selbst bereits vollständig bezahlte sevDesk-Rechnungen mehrere Monate betreffen.
+  // Gesperrt ist jedes Jahr, in das eine solche Zahlung fallen kann: bis zum Ausgleich, ohne Ausgleichsdatum alle.
+  const vatIssueOf = (year: number) =>
+    versteuerung === "ist" && businessRows.some((v) => v.direction === "einnahme" && unclearFrom(v, String(year)))
+      ? "sevDesk-Zahlungshistorie unvollständig: Der Ist-Monatsabgleich ist bis zur Klärung der Einzelzahlungen gesperrt."
+      : null;
 
   const bookingRows = await db.execute<{ year: number; total: number; unmatched: number; without_number: number }>(sql`
     select extract(year from b.date)::int as year, count(*)::int as total,
@@ -586,22 +597,25 @@ export async function reconciliation() {
       const bookings = bookingRows.find((b) => Number(b.year) === year);
       const kinds = (kind: string) => files.filter((f) => f.year === year && f.kind === kind).length;
       // Ist-Versteuerung: Zahlungen aus dem Zahlungsstatus; sonst Belegdatum
-      const vat = legacyVatByMonth(
-        businessRows
-          .filter((v) => (versteuerung === "ist" ? true : v.date.startsWith(`${year}-`)))
-          .map((v) => ({
-            direction: v.direction,
-            date: v.date,
-            net: v.net,
-            tax: v.tax,
-            gross: v.gross,
-            taxes: v.taxes,
-            payments: legacyPayments(v),
-            taxType: v.taxType,
-            taxSubType: v.taxSubType,
-          })),
-        versteuerung,
-      ).filter((m) => m.month.startsWith(`${year}-`));
+      const vatIssue = vatIssueOf(year);
+      const vat = vatIssue
+        ? []
+        : legacyVatByMonth(
+            businessRows
+              .filter((v) => (versteuerung === "ist" ? true : v.date.startsWith(`${year}-`)))
+              .map((v) => ({
+                direction: v.direction,
+                date: v.date,
+                net: v.net,
+                tax: v.tax,
+                gross: v.gross,
+                taxes: v.taxes,
+                payments: legacyPayments(v),
+                taxType: v.taxType,
+                taxSubType: v.taxSubType,
+              })),
+            versteuerung,
+          ).filter((m) => m.month.startsWith(`${year}-`));
       // Einnahmen je Steuerart, damit Sonderfälle (EU, Drittland, § 13b) beim Vergleich auffallen
       const taxTypes = new Map<string, number>();
       for (const v of vouchers) {
@@ -614,6 +628,7 @@ export async function reconciliation() {
         .sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number, "de", { numeric: true }));
 
       const checks: ReconciliationCheck[] = [
+        ...(vatIssue ? [{ ok: false, label: "Zahlungshistorie vollständig", detail: vatIssue }] : []),
         {
           ok: vouchers.length > 0,
           label: "Belege und Rechnungen per API abgerufen",
@@ -671,6 +686,7 @@ export async function reconciliation() {
         unchecked,
         bookings: bookings ? { total: bookings.total, unmatched: bookings.unmatched, withoutNumber: bookings.without_number } : null,
         vat,
+        vatIssue,
         taxTypes: [...taxTypes].map(([taxType, count]) => ({ taxType, count })).sort((a, b) => b.count - a.count),
         lastInvoiceNumber: invoices.at(-1)?.number ?? null,
         checks,
@@ -700,6 +716,7 @@ export interface LegacyVoucherForVat {
   taxSubType: string | null;
   /** Zahlungen, die bei Ist-Versteuerung als Entgelt zählen */
   payments: { date: string; amount: number }[];
+  paymentHistoryIssue: string | null;
   files: number;
 }
 
@@ -714,10 +731,28 @@ export async function legacyVouchersForPeriod(filter: {
   withPayments: boolean;
   limit: number;
 }): Promise<{ total: number; vouchers: LegacyVoucherForVat[]; neutral: LegacyNeutralSum[] }> {
+  if (filter.withPayments) {
+    const sevdeskRows = await db
+      .select({
+        source: schema.lexofficeVouchers.source,
+        gross: schema.lexofficeVouchers.gross,
+        status: schema.lexofficeVouchers.status,
+        payment: schema.lexofficeVouchers.payment,
+        payDate: sql<string | null>`${schema.lexofficeVouchers.raw}->>'payDate'`,
+      })
+      .from(schema.lexofficeVouchers)
+      .where(eq(schema.lexofficeVouchers.source, "sevdesk"));
+    if (sevdeskRows.some((v) => unclearFrom(v, filter.period))) {
+      throw new LexofficeError(
+        "sevDesk-Zahlungshistorie unvollständig: Eine zahlungsbezogene Zeitraumabfrage ist bis zur Klärung der Einzelzahlungen gesperrt.",
+      );
+    }
+  }
   const like = `${filter.period}%`;
   const term = filter.search.trim() ? `%${filter.search.trim()}%` : null;
   const rows = await db.execute<{
     id: string;
+    source: "lexoffice" | "sevdesk";
     type: string;
     direction: "einnahme" | "ausgabe";
     number: string;
@@ -736,7 +771,7 @@ export async function legacyVouchersForPeriod(filter: {
     tax_sub_type: string | null;
     files: number;
   }>(sql`
-    select v.id, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.currency, v.net, v.tax, v.gross,
+    select v.id, v.source, v.type, v.direction, v.number, v.date::text as date, v.status, v.contact_name, v.currency, v.net, v.tax, v.gross,
       v.taxes, v.payment, v.categories, coalesce((v.raw->>'privat')::boolean, false) as privat,
       ${taxTypeOf("v")} as tax_type,
       v.raw->'taxConditions'->>'taxSubType' as tax_sub_type,
@@ -777,7 +812,8 @@ export async function legacyVouchersForPeriod(filter: {
       taxes: r.taxes,
       taxType: r.tax_type,
       taxSubType: r.tax_sub_type,
-      payments: legacyPayments({ gross: Number(r.gross), payment: r.payment }),
+      payments: legacyPayments({ source: r.source, status: r.status, gross: Number(r.gross), payment: r.payment }),
+      paymentHistoryIssue: paymentHistoryIssue({ source: r.source, status: r.status, gross: Number(r.gross), payment: r.payment }),
       files: Number(r.files),
     }));
   return { total: all.length, vouchers: all.slice(0, filter.limit), neutral };

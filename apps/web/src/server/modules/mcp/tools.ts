@@ -161,6 +161,7 @@ function legacyVoucher(v: LegacyVoucherForVat) {
     steuerart: [v.taxType ?? "net", v.taxSubType].filter(Boolean).join("/"),
     steuersaetze: v.taxes.map((t) => ({ satz: t.rate / 100, netto: euro(t.net), steuer: euro(t.tax) })),
     zahlungen: v.payments.map((p) => ({ datum: p.date, betrag: euro(p.amount) })),
+    zahlungshistorieHinweis: v.paymentHistoryIssue,
     dateien: v.files,
     link: link(`/archiv/beleg/${v.id}`),
   };
@@ -695,6 +696,7 @@ export const MCP_TOOLS: McpTool[] = [
             datevBuchungen: y.bookings && { anzahl: y.bookings.total, ohnePassendenBeleg: y.bookings.unmatched, ohneBelegnummer: y.bookings.withoutNumber },
             abgelegteDateien: files.filter((f) => f.year === y.year).map((f) => ({ art: f.kind, name: f.filename, notiz: f.note })),
             umsatzsteuerJeMonat: y.vat.map(legacyVatMonth),
+            umsatzsteuerJeMonatGesperrt: y.vatIssue,
           })),
         link: link("/archiv"),
       };
@@ -771,6 +773,7 @@ export const MCP_TOOLS: McpTool[] = [
           steuersaetze: voucher.taxes.map((t) => ({ satz: t.rate / 100, netto: euro(t.net), steuer: euro(t.tax) })),
           kategorien: voucher.categories.map((c) => ({ kategorie: c.name, satz: c.rate / 100, netto: euro(c.net), steuer: euro(c.tax) })),
           zahlungsstatus: voucher.payment && {
+            hinweis: voucher.paymentHistoryIssue,
             status: voucher.payment.status,
             offen: euro(voucher.payment.openAmount),
             bezahltAm: voucher.payment.paidDate,

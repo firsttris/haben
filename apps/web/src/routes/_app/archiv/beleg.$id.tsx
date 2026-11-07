@@ -133,6 +133,11 @@ function LegacyVoucherPage() {
               <h2 id="payment-heading" style={{ margin: 0 }}>
                 Zahlungen
               </h2>
+              {voucher.paymentHistoryIssue && (
+                <p className="banner banner-info" role="status">
+                  {voucher.paymentHistoryIssue}
+                </p>
+              )}
               <div className="small">
                 {PAYMENT_STATUS[voucher.payment.status] ?? voucher.payment.status}
                 {voucher.payment.openAmount ? `, offen ${formatEuro(voucher.payment.openAmount)}` : ""}
