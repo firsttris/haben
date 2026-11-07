@@ -126,6 +126,28 @@ describe.skipIf(!testDatabaseUrl)("sevDesk-Einzelzahlungen (Postgres)", () => {
       expect((await legacy.openLegacyItems("2026-08-31")).find((v) => v.id === later)!.blocker ?? "keine Sperre").toMatch(/Zahlungshistorie/);
     });
 
+    // Review #361: Gegenstück. Die Kopie vom 01.09. zeigt die Augustrate; die Septemberrate wurde erst danach
+    // zugeordnet. Die Reparatur muss mit den Zuordnungen bis zum Abruf aufgehen, statt wegen der späteren gesperrt zu bleiben.
+    it("repariert eine teilbezahlte Archivkopie mit den Zuordnungen bis zu ihrem Abruf", async () => {
+      const partly = { status: "partlyPaid", openAmount: 59500, paidDate: null, items: [] };
+      const [row] = await sql`insert into lexoffice_vouchers
+        (lexoffice_id, source, import_id, type, direction, number, date, status, contact_name, net, tax, gross, taxes, categories, payment, raw, created_at)
+        values ('invoice/204', 'sevdesk', ${run}, 'invoice', 'einnahme', 'RE-204', '2026-08-01', 'open', 'Kunde', 100000, 19000, 119000,
+        '[{"rate":1900,"net":100000,"tax":19000}]', '[]', ${JSON.stringify(partly)}::jsonb,
+        ${JSON.stringify({ ...raw, status: "750", paidAmount: 595, payDate: null })}::jsonb, '2026-09-01T12:00:00+02:00') returning id`;
+      const copy = row!.id as string;
+      for (const [id, create, date] of [
+        ["log-7", "2026-08-16T10:00:00+02:00", "2026-08-15"],
+        ["log-8", "2026-09-16T10:00:00+02:00", "2026-09-15"],
+      ] as const)
+        await sql`insert into legacy_voucher_payments (voucher_id, import_id, source, external_id, transaction_id, account_id, account_name, date, amount, raw)
+          values (${copy}, ${run}, 'sevdesk', ${id}, ${`tx-${id}`}, '501', 'Konto 501', ${date}, 59500, ${JSON.stringify({ id, create, amountPaid: 595 })}::jsonb)`;
+      const { voucher: v } = (await archive.legacyVoucherDetail(copy))!;
+      expect(v.paymentHistoryIssue).toBeNull();
+      expect(v.payment!.items).toMatchObject([{ date: "2026-08-15", amount: 59500 }]);
+      expect((await legacy.openLegacyItems("2026-08-31")).find((i) => i.id === copy)).toMatchObject({ open: 59500, openKnown: true });
+    });
+
     it("legt die Einzelzahlungen mit Konto und Quellkennung ins Jahresarchiv", async () => {
       const { exportYear } = await import("./export.ts");
       const chunks: Uint8Array[] = [];
