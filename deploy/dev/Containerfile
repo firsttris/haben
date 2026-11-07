@@ -6,9 +6,11 @@ FROM docker.io/oven/bun:1.4.4-slim
 # die der Dev-Server im Projektordner anlegt (.tanstack, .nitro)
 ARG UID=1000
 ARG GID=1000
-# pdftoppm: PDFs als Seitenbilder für einen selbst betriebenen KI-Dienst (Belegauslesung)
+# poppler-utils: pdftoppm (PDFs als Seitenbilder für einen selbst betriebenen KI-Dienst) und pdftotext
+# (Textebene, eigene Rechnung erkennen). zip und unzip: nur für den Test des Pakets „Haben für Mein ELSTER“
+# (scripts/elster-helfer), deshalb nur hier und nicht im Image für den Betrieb.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends poppler-utils \
+ && apt-get install -y --no-install-recommends poppler-utils zip unzip \
  && rm -rf /var/lib/apt/lists/*
 # Die Ziele der Volumes vorher anlegen: Ein neues Volume übernimmt Besitzer und Rechte des Ordners im Image
 RUN groupmod -o -g "$GID" bun && usermod -o -u "$UID" -g "$GID" bun \
